@@ -2,295 +2,190 @@ Return-Path: <SRS0=l6tt=TQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D448CC04AAF
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 15:29:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C2EDC04AB4
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 16:06:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8742320657
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 15:29:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8742320657
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C611920833
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 16:06:52 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="H6xNrQHk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C611920833
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 20ADC6B0007; Thu, 16 May 2019 11:29:42 -0400 (EDT)
+	id 572DC6B0005; Thu, 16 May 2019 12:06:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 195306B0008; Thu, 16 May 2019 11:29:42 -0400 (EDT)
+	id 5229E6B0006; Thu, 16 May 2019 12:06:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0351E6B000A; Thu, 16 May 2019 11:29:41 -0400 (EDT)
+	id 3EA796B0007; Thu, 16 May 2019 12:06:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D20266B0007
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 11:29:41 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id q1so3083032qkq.4
-        for <linux-mm@kvack.org>; Thu, 16 May 2019 08:29:41 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 124686B0005
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 12:06:52 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id d198so1625744oih.6
+        for <linux-mm@kvack.org>; Thu, 16 May 2019 09:06:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:message-id:in-reply-to:references:subject:mime-version
-         :content-transfer-encoding:thread-topic:thread-index;
-        bh=z1lQlAi0FB8l3bCtRiLVqdn7QK/wt8ebjcs4vqlpYr0=;
-        b=Nh89dF0aZWaLve76l2iWF1AWSNlwCkcRrTgel+QqxTPHlGAZpymkVirPsyDfD+MvO3
-         PS1Iyr8ZnNo0BtDSqKWlgFZLA41gFqBaHQwAL0Nr2mNJyz8G7Qx5MYCWyjGi2c6wQpjw
-         qTACWaLBXwM8S1ORrR9d8uDo+0Tqjg6Q7y5q5MGxEY63j1fhiAP7NMag7UeObh5MsOWE
-         B+QiP3zWR0w97GQota+G1Ro1nehgOETAQnIhsYs5Fo/wxeM3hfcG6tWNyXuOdBgFZvsL
-         lHxTIKDLsMRE4QlPXYAo9nUeVOfCbPINilHEiiGw6KMOFexXgTN5R2Hn74JjoCjoqWO0
-         Yh/A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAU3M7/0pAAxfIh3EDRwdNEtvbh/N+VA8CNewFlSO9tQI/W0a2XC
-	br7jUYKeO430ZYvkFO+6XixBbV+uar0XSLVVK2nKCIjNBTNXEN1TKLk3fSumc96HUKSeLu1+4Uu
-	hV44lSqNDEpddnKzXM5ptttFTN2qaEAR/vMqtHb2BVGKX4VFft4Sg0rd5FEYcGVWgmw==
-X-Received: by 2002:a37:8885:: with SMTP id k127mr39413120qkd.59.1558020581373;
-        Thu, 16 May 2019 08:29:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyZtbzIN/ZyT4aZtHfiLNeOoTuzLVdUeWwGdqS6+iphwRDHYpROVBS5r3I0Om5m5Ybe8VI2
-X-Received: by 2002:a37:8885:: with SMTP id k127mr39413058qkd.59.1558020580601;
-        Thu, 16 May 2019 08:29:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558020580; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=I4VKFuY3dBhk8M0E31KTPJJ8MMHDVcscAUiCzod5h4g=;
+        b=cNR9r42vzTdeDynXYQ4mjt7VBLwlJ8OKCJhSnMro3MBhSmw6DnwJjyzH7RYPIdRCB2
+         McEFSoZGY9M8B9edK7zbEuDuPu6icYSBfuL0xizM8URbs5SC2XOa12LrFhqfmdLD3L7R
+         PDWES/x/bIND1Y4oqD8fJGHZaWTJ5pq+CS/AAmS8VQLtkw4Ph/GiOILpGCtqvkiuCwYb
+         0r7VoxsvczjyagshJE4yTZzRSs+jnKyaWGNLApUZH2KksODORXlRK7pQhSGnu/hUXkTK
+         LhzW6za81JlonQvMd7ANKsHOH9ryUVlrPvRhVMUThjhQlJUICUbOLNh2UzMGaI/tApaM
+         6vNA==
+X-Gm-Message-State: APjAAAW0yWXUzYm0sm2TrtJqJQzLuS8J7gPAD+gokNXH2XZpVBUyUmDR
+	VaCdjof2YhYU6y8av5B9qzrymjv3Um2rwDrBQCScQeAvJbXAFoKez1Y+OFQxEk1ER2ZxI/2Lq88
+	FJSP5BtIGHSRU1EWve3EjKkgWaaYrUiRaSAB2TmHAwFiJzpSV9h1mADOqFaBlyOPoTw==
+X-Received: by 2002:a9d:57c8:: with SMTP id q8mr120200oti.144.1558022811718;
+        Thu, 16 May 2019 09:06:51 -0700 (PDT)
+X-Received: by 2002:a9d:57c8:: with SMTP id q8mr120138oti.144.1558022810847;
+        Thu, 16 May 2019 09:06:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558022810; cv=none;
         d=google.com; s=arc-20160816;
-        b=iFrc+lAKulHHPxk/blgsNvxsMfSmSd9WzlK+2klK7loF/cdwVigJQOU0Ms374nu/jI
-         NNnHNoONHChgDCsFl87EUzGC/q7JMB3jHWzhkSkcyOVA0kxFnu3TH+uI0zDDov9DkHNQ
-         R4tJM66kTa+cqYGrEAZ+R2BQ2OK1tzyBtJrK1xVQpvZGwlbTOigTYtryFKoMU6Wn6wx4
-         /GRtD8tU9HGNpdles9h1KKlSI6hW2TJSuc4HQvK3nC5USKeSt2IbWZYl6uZXdpGkf9oL
-         eZ4dEHYszcMOjnpornOQuA+a1gFnYuVRIf8aVM+TO3edKD9vAAd1wyxjzqVQGHt3gqNe
-         sPsQ==
+        b=drqJ6YQtUtnHE6uOiZdlqq2f9OfvD1CCQNufp5rMG9gUzaO+IIRWYaqBCF+JieUojt
+         mq+wNI3/97eiDogHW+tsI1Qtwi/IIz1ftR7OI2wCCO4fcL3ssvwk3a386bbdf0Qz2rlR
+         C+yZNAjPQBgqcn97TMIorzZsM61hRGXjB5OsRIExJ3MSQnAE7duA1viZty8JM6svA5IW
+         KgbhxgU/b10VoZInu2nzFa07occUI1eF6h+TKXh+6gEKamBxwqKrDz0qRRiyKKYxwbm8
+         ACFsJVDoYhOH9ihYfgzRg0q2R9k/yZi0Cq7HlxwQ1cOBkn7/Elbh3g5jtos8zVkAb50X
+         itdQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=thread-index:thread-topic:content-transfer-encoding:mime-version
-         :subject:references:in-reply-to:message-id:cc:to:from:date;
-        bh=z1lQlAi0FB8l3bCtRiLVqdn7QK/wt8ebjcs4vqlpYr0=;
-        b=n2x3++Ki1Qc1SG21JzlHzxUxtZvD7Sj7iuBIi1podmnu4aHE4iStlji9ClRSNTna+f
-         0bXO4roRSpHJE9/Y2UZu/OWGRYLm9KhzJMN62V0e/BR4eSnU9acLvoaeqbPMibMJiim0
-         eGIf0ABPS95CNAxGLRQO6VWdSPuQ+YuNJpS0Gz8gFiOHqkud8uq894121P0IQYczUxMn
-         HydNgNRi6ZEUFf4CYeXsLMNBxdhfom30VYPNlc7t0osPeCPahD90zM9PPkyeQ8RuCrGT
-         L1EiKrzspz3POX6pLhFNcVLHGqi9qDCiP4hYEUJ0bDoZyeT1qFXg2TYHPi6DFqZOAwV5
-         zapQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=I4VKFuY3dBhk8M0E31KTPJJ8MMHDVcscAUiCzod5h4g=;
+        b=ZXLLIcj/bHhOLJ+4Th2zBYIHG+jlWUDY/4EAmCaSgQIGHs4Z30vPM3wXAQPU9GXs4l
+         Jk4NFTrFWqbD+Qfs8CfukKIvWIvqoa6mjApLnhdlMCQWoLvfgeMAM2XNFoXP1Ewve2K1
+         5CAc4/iQb/Z6XF99QgEY9VJYxpSIJMvg7ytpOKBmR2vq0vLGaSubwLjNkx6AG4tZ4neU
+         37dip7JCUnB8YyWhE3hZ3SvOJV4cKGth3bTgssoYw2ZQpkrL6cGZCY4Uy+KC6HgvXNsR
+         IOcX4Q325V7zhnQ7gvCsgFAxG//WNlEXhCXaaFNqriQeDm9PStyiunghU+CClW+7ROa8
+         2lmg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m2si109263qtp.280.2019.05.16.08.29.40
+       dkim=pass header.i=@google.com header.s=20161025 header.b=H6xNrQHk;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f64sor1892949otb.183.2019.05.16.09.06.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 May 2019 08:29:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 16 May 2019 09:06:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 51C93307C940;
-	Thu, 16 May 2019 15:29:39 +0000 (UTC)
-Received: from colo-mx.corp.redhat.com (colo-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.20])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 371B45D6A9;
-	Thu, 16 May 2019 15:29:39 +0000 (UTC)
-Received: from zmail17.collab.prod.int.phx2.redhat.com (zmail17.collab.prod.int.phx2.redhat.com [10.5.83.19])
-	by colo-mx.corp.redhat.com (Postfix) with ESMTP id 902B31806B11;
-	Thu, 16 May 2019 15:29:38 +0000 (UTC)
-Date: Thu, 16 May 2019 11:29:35 -0400 (EDT)
-From: Jan Stancek <jstancek@redhat.com>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, peterz@infradead.org, 
-	namit@vmware.com, minchan@kernel.org, mgorman@suse.de, 
-	stable@vger.kernel.org, linux-mm@kvack.org, 
-	linux-kernel@vger.kernel.org, Jan Stancek <jstancek@redhat.com>
-Message-ID: <1158926942.23199905.1558020575293.JavaMail.zimbra@redhat.com>
-In-Reply-To: <20190514145445.GB2825@fuggles.cambridge.arm.com>
-References: <1557444414-12090-1-git-send-email-yang.shi@linux.alibaba.com> <20190513163804.GB10754@fuggles.cambridge.arm.com> <360170d7-b16f-f130-f930-bfe54be9747a@linux.alibaba.com> <20190514145445.GB2825@fuggles.cambridge.arm.com>
-Subject: Re: [v2 PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
- flush
+       dkim=pass header.i=@google.com header.s=20161025 header.b=H6xNrQHk;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=I4VKFuY3dBhk8M0E31KTPJJ8MMHDVcscAUiCzod5h4g=;
+        b=H6xNrQHksO0mY+GD8TjSIB/dl7gXte6ptfd1KwGU7WS9fv6i/tgp5PRwV1QwuOcLn8
+         EQgegFWR1awHjfSGP4+gjgXMyl3Gl62XXSb7Mm7Nf1RXzKuaEetJoPJs6GSuS0KBL9vl
+         Wub95qd5nDDIuDpLobcQrJAeLZp5nVs+LMne3mcxV43wLSgIfXzXurgIQYOiBUs8VKq4
+         KUB/9oEuCvZV97lXvc2ABvfckVlCEpI9+rGFlz3y2hfmc98QPPAyHhjTuVHOdOUM3Bkm
+         UOJay+FnLHdEk6rocRtjzEXrvs47hR0q26+/2U1SS5+d0iEBJ8VXwWGOZJ51SarUWMvq
+         4fdw==
+X-Google-Smtp-Source: APXvYqzler3soQWaPkgJTqHADqwjhXm5FObYmA+iecGHRrkmAWqb4Fk8pHSH7Qj3lDCx4Ml5SA54wKgEPHxudDIXDq4=
+X-Received: by 2002:a9d:7347:: with SMTP id l7mr6353382otk.183.1558022810319;
+ Thu, 16 May 2019 09:06:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-X-Originating-IP: [10.43.17.163, 10.4.195.10]
-Thread-Topic: mmu_gather: remove __tlb_reset_range() for force flush
-Thread-Index: uzKTPt4zsaol+2IqXYgAH+t+3N7Fug==
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Thu, 16 May 2019 15:29:39 +0000 (UTC)
+References: <20190516094234.9116-1-oleksandr@redhat.com> <20190516094234.9116-5-oleksandr@redhat.com>
+ <CAG48ez2yXw_PJXO-mS=Qw5rkLpG6zDPd0saMhhGk09-du2bpaA@mail.gmail.com> <20190516142013.sf2vitmksvbkb33f@butterfly.localdomain>
+In-Reply-To: <20190516142013.sf2vitmksvbkb33f@butterfly.localdomain>
+From: Jann Horn <jannh@google.com>
+Date: Thu, 16 May 2019 18:06:24 +0200
+Message-ID: <CAG48ez0teQk+rVnRmr=xcM8PJ_8UZC3hSi7PABx-qunz+5=DGg@mail.gmail.com>
+Subject: Re: [PATCH RFC 4/5] mm/ksm, proc: introduce remote merge
+To: Oleksandr Natalenko <oleksandr@redhat.com>
+Cc: kernel list <linux-kernel@vger.kernel.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, 
+	Hugh Dickins <hughd@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, 
+	Michal Hocko <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>, 
+	Pavel Tatashin <pasha.tatashin@soleen.com>, Greg KH <greg@kroah.com>, 
+	Suren Baghdasaryan <surenb@google.com>, Minchan Kim <minchan@kernel.org>, 
+	Timofey Titovets <nefelim4ag@gmail.com>, Aaron Tomlin <atomlin@redhat.com>, 
+	Grzegorz Halat <ghalat@redhat.com>, Linux-MM <linux-mm@kvack.org>, 
+	Linux API <linux-api@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, May 16, 2019 at 4:20 PM Oleksandr Natalenko
+<oleksandr@redhat.com> wrote:
+> On Thu, May 16, 2019 at 12:00:24PM +0200, Jann Horn wrote:
+> > On Thu, May 16, 2019 at 11:43 AM Oleksandr Natalenko
+> > <oleksandr@redhat.com> wrote:
+> > > Use previously introduced remote madvise knob to mark task's
+> > > anonymous memory as mergeable.
+> > >
+> > > To force merging task's VMAs, "merge" hint is used:
+> > >
+> > >    # echo merge > /proc/<pid>/madvise
+> > >
+> > > Force unmerging is done similarly:
+> > >
+> > >    # echo unmerge > /proc/<pid>/madvise
+> > >
+> > > To achieve this, previously introduced ksm_madvise_*() helpers
+> > > are used.
+> >
+> > Why does this not require PTRACE_MODE_ATTACH_FSCREDS to the target
+> > process? Enabling KSM on another process is hazardous because it
+> > significantly increases the attack surface for side channels.
+> >
+> > (Note that if you change this to require PTRACE_MODE_ATTACH_FSCREDS,
+> > you'll want to use mm_access() in the ->open handler and drop the mm
+> > in ->release. mm_access() from a ->write handler is not permitted.)
+>
+> Sounds reasonable. So, something similar to what mem_open() & friends do
+> now:
+>
+> static int madvise_open(...)
+> ...
+>         struct task_struct *task = get_proc_task(inode);
+> ...
+>         if (task) {
+>                 mm = mm_access(task, PTRACE_MODE_ATTACH_FSCREDS);
+>                 put_task_struct(task);
+>                 if (!IS_ERR_OR_NULL(mm)) {
+>                         mmgrab(mm);
+>                         mmput(mm);
+> ...
+>
+> Then:
+>
+> static ssize_t madvise_write(...)
+> ...
+>         if (!mmget_not_zero(mm))
+>                 goto out;
+>
+>         down_write(&mm->mmap_sem);
+>         if (!mmget_still_valid(mm))
+>                 goto skip_mm;
+> ...
+> skip_mm:
+>         up_write(&mm->mmap_sem);
+>
+>         mmput(mm);
+> out:
+>         return ...;
+>
+> And, finally:
+>
+> static int madvise_release(...)
+> ...
+>                 mmdrop(mm);
+> ...
+>
+> Right?
 
-
------ Original Message -----
-> On Mon, May 13, 2019 at 04:01:09PM -0700, Yang Shi wrote:
-> >=20
-> >=20
-> > On 5/13/19 9:38 AM, Will Deacon wrote:
-> > > On Fri, May 10, 2019 at 07:26:54AM +0800, Yang Shi wrote:
-> > > > diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
-> > > > index 99740e1..469492d 100644
-> > > > --- a/mm/mmu_gather.c
-> > > > +++ b/mm/mmu_gather.c
-> > > > @@ -245,14 +245,39 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
-> > > >   {
-> > > >   =09/*
-> > > >   =09 * If there are parallel threads are doing PTE changes on same=
- range
-> > > > -=09 * under non-exclusive lock(e.g., mmap_sem read-side) but defer=
- TLB
-> > > > -=09 * flush by batching, a thread has stable TLB entry can fail to=
- flush
-> > > > -=09 * the TLB by observing pte_none|!pte_dirty, for example so flu=
-sh TLB
-> > > > -=09 * forcefully if we detect parallel PTE batching threads.
-> > > > +=09 * under non-exclusive lock (e.g., mmap_sem read-side) but defe=
-r TLB
-> > > > +=09 * flush by batching, one thread may end up seeing inconsistent=
- PTEs
-> > > > +=09 * and result in having stale TLB entries.  So flush TLB forcef=
-ully
-> > > > +=09 * if we detect parallel PTE batching threads.
-> > > > +=09 *
-> > > > +=09 * However, some syscalls, e.g. munmap(), may free page tables,=
- this
-> > > > +=09 * needs force flush everything in the given range. Otherwise t=
-his
-> > > > +=09 * may result in having stale TLB entries for some architecture=
-s,
-> > > > +=09 * e.g. aarch64, that could specify flush what level TLB.
-> > > >   =09 */
-> > > > -=09if (mm_tlb_flush_nested(tlb->mm)) {
-> > > > -=09=09__tlb_reset_range(tlb);
-> > > > -=09=09__tlb_adjust_range(tlb, start, end - start);
-> > > > +=09if (mm_tlb_flush_nested(tlb->mm) && !tlb->fullmm) {
-> > > > +=09=09/*
-> > > > +=09=09 * Since we can't tell what we actually should have
-> > > > +=09=09 * flushed, flush everything in the given range.
-> > > > +=09=09 */
-> > > > +=09=09tlb->freed_tables =3D 1;
-> > > > +=09=09tlb->cleared_ptes =3D 1;
-> > > > +=09=09tlb->cleared_pmds =3D 1;
-> > > > +=09=09tlb->cleared_puds =3D 1;
-> > > > +=09=09tlb->cleared_p4ds =3D 1;
-> > > > +
-> > > > +=09=09/*
-> > > > +=09=09 * Some architectures, e.g. ARM, that have range invalidatio=
-n
-> > > > +=09=09 * and care about VM_EXEC for I-Cache invalidation, need for=
-ce
-> > > > +=09=09 * vma_exec set.
-> > > > +=09=09 */
-> > > > +=09=09tlb->vma_exec =3D 1;
-> > > > +
-> > > > +=09=09/* Force vma_huge clear to guarantee safer flush */
-> > > > +=09=09tlb->vma_huge =3D 0;
-> > > > +
-> > > > +=09=09tlb->start =3D start;
-> > > > +=09=09tlb->end =3D end;
-> > > >   =09}
-> > > Whilst I think this is correct, it would be interesting to see whethe=
-r
-> > > or not it's actually faster than just nuking the whole mm, as I menti=
-oned
-> > > before.
-> > >=20
-> > > At least in terms of getting a short-term fix, I'd prefer the diff be=
-low
-> > > if it's not measurably worse.
-> >=20
-> > I did a quick test with ebizzy (96 threads with 5 iterations) on my x86=
- VM,
-> > it shows slightly slowdown on records/s but much more sys time spent wi=
-th
-> > fullmm flush, the below is the data.
-> >=20
-> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 nofullmm=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 fullmm
-> > ops (records/s) =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0 225606=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 225119
-> > sys (s)=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 0.69=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0 1.14
-> >=20
-> > It looks the slight reduction of records/s is caused by the increase of=
- sys
-> > time.
->=20
-> That's not what I expected, and I'm unable to explain why moving to fullm=
-m
-> would /increase/ the system time. I would've thought the time spent doing
-> the invalidation would decrease, with the downside that the TLB is cold
-> when returning back to userspace.
->=20
-
-I tried ebizzy with various parameters (malloc vs mmap, ran it for hour),
-but performance was very similar for both patches.
-
-So, I was looking for workload that would demonstrate the largest differenc=
-e.
-Inspired by python xml-rpc, which can handle each request in new thread,
-I tried following [1]:
-
-16 threads, each looping 100k times over:
-  mmap(16M)
-  touch 1 page
-  madvise(DONTNEED)
-  munmap(16M)
-
-This yields quite significant difference for 2 patches when running on
-my 46 CPU arm host. I checked it twice - applied patch, recompiled, reboote=
-d,
-but numbers stayed +- couple seconds the same.
-
-Does it somewhat match your expectation?
-
-v2 patch
----------
-real    2m33.460s
-user    0m3.359s
-sys     15m32.307s
-
-real    2m33.895s
-user    0m2.749s
-sys     16m34.500s
-
-real    2m35.666s
-user    0m3.528s
-sys     15m23.377s
-
-real    2m32.898s
-user    0m2.789s
-sys     16m18.801s
-
-real    2m33.087s
-user    0m3.565s
-sys     16m23.815s
-
-
-fullmm version
----------------
-real    0m46.811s
-user    0m1.596s
-sys     1m47.500s
-
-real    0m47.322s
-user    0m1.803s
-sys     1m48.449s
-
-real    0m46.668s
-user    0m1.508s
-sys     1m47.352s
-
-real    0m46.742s
-user    0m2.007s
-sys     1m47.217s
-
-real    0m46.948s
-user    0m1.785s
-sys     1m47.906s
-
-[1] https://github.com/jstancek/reproducers/blob/master/kernel/page_fault_s=
-tall/mmap8.c
+Yeah, that looks reasonable.
 
