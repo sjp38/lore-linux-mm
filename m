@@ -2,188 +2,117 @@ Return-Path: <SRS0=l6tt=TQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EE34C04AAF
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 16:53:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E368FC04AAF
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 17:00:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1728320815
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 16:53:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="ibB5Z1OY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1728320815
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	by mail.kernel.org (Postfix) with ESMTP id AC3EE20815
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 17:00:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC3EE20815
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B92616B0005; Thu, 16 May 2019 12:53:05 -0400 (EDT)
+	id 54C986B0005; Thu, 16 May 2019 13:00:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B43466B0006; Thu, 16 May 2019 12:53:05 -0400 (EDT)
+	id 52A616B0006; Thu, 16 May 2019 13:00:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9E3FA6B0007; Thu, 16 May 2019 12:53:05 -0400 (EDT)
+	id 3EAD66B0007; Thu, 16 May 2019 13:00:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6569F6B0005
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 12:53:05 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 5so2553944pff.11
-        for <linux-mm@kvack.org>; Thu, 16 May 2019 09:53:05 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 06A306B0005
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 13:00:40 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r20so6216638edp.17
+        for <linux-mm@kvack.org>; Thu, 16 May 2019 10:00:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=6LcSRBYGYblE8KnG9YkzHNeJWSKv1kS+36NXuNsO3Vk=;
-        b=TLbel8CWTp+ESzTPZh136vjNLe4BmEcTX/U2h9KLT9gg7kuraS7F0Wstkee/4OcpMp
-         5Fuv3UgxJCMA3XL+sNFxJ1Jh0pgymWOQ4mbaBeJ5CsynDGb7cvCyEcgDV2ky3TmfvdWo
-         4Ex36cfBYQ56zBTyMXa2+dLOQxRpOj8LlUTYn919GHyd139I+8iPwO9TH7KIqf/FqOWN
-         Nj+LlfQdLqP2NSlAf7j4HJYsoGIVwk7u1/lTtmPrUVL0f2vcq9xu5ZoQnNZ7BG+08GXw
-         BOXgySOh1Zn6t7gQT64T5q5ZeX31ZOsT0IQQ9RzCBmbbeYWN32SppsRYwSuY6X2N1gHf
-         B9uQ==
-X-Gm-Message-State: APjAAAVPy/GkwDq7YYrQLjU06keMLZQ570NErR8ubdj8/w8R9wCtVddA
-	oYpE4AK6Xgca6hUeKTV9bIotPbQ0aZq2FgbB4f72uUJETPTAyNZCa5xeipdYNVI0+s18E9Cw52c
-	ku2srqDc0d2/ajbjlqfSZ1XrUZPnZrpOyi6jJa6jenEMxuDXn+01xkuz3WiWGZWwWfg==
-X-Received: by 2002:aa7:92da:: with SMTP id k26mr10218053pfa.70.1558025584922;
-        Thu, 16 May 2019 09:53:04 -0700 (PDT)
-X-Received: by 2002:aa7:92da:: with SMTP id k26mr10217986pfa.70.1558025584100;
-        Thu, 16 May 2019 09:53:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558025584; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=qnP8DXdnAI8r0utqzxoUpU/7eSgQlDA+ZQxN0RGd3jc=;
+        b=b+n2s9fOKbFl7+hrJGldkVjtqcdRuOdWym6kzFL+WcS1ozPRLePwb8rFX7AqcMIeEf
+         qYzRW+s2SJSucZdazOH/ZZL+PtJ30/uzEMcNsSsmIMkJnype1QqS3h1s18IqXlDg518b
+         kiXrWHeaicV9YYMI2LsDfHJJagIcrQI03aD0x/cW6C+QXN8f+0xAXIMc/X45pxPpDV+N
+         qXiVb5iKClNvQDf38Hq4oPbeycQf/Y0zuMTwDMhCVOS+/sIiFDt0Nr0YPWQwTOt9HtNa
+         0pAq7dLzPdrztp6xH/1Jkack7iGgDbeF5SZV/v5LcLE9j1g/rXrRqXvm52coyn/oFj4g
+         U/5Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+X-Gm-Message-State: APjAAAXjdVa0yav6AV/QvJsJDIhvTibfv6VI+oiUfVjR9X0cGq6HVcgI
+	AugrBOOcxMBh0abeRy8a6urE85hg3w+G5XG0orsE14rOaVEhArrsYxa0Kiq4L26qJpylf4AmiJq
+	Hz8R1mCYvIhDxEUN6DW2GDqyRPZ4mrBNHemTVMVoBAbyrP3r2ss/3A0/GBetMY/+oYA==
+X-Received: by 2002:a50:8684:: with SMTP id r4mr51664682eda.98.1558026039388;
+        Thu, 16 May 2019 10:00:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz9mz/NSQhjYcu1ILhTHY2Eje54WMdSuc4eQZrSq46GWo365ba4QPkZ5MTiTwrRbutPSLHK
+X-Received: by 2002:a50:8684:: with SMTP id r4mr51664427eda.98.1558026037692;
+        Thu, 16 May 2019 10:00:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558026037; cv=none;
         d=google.com; s=arc-20160816;
-        b=aL2uhN8gv04gxShp3xrcCfjfnTNRTNjoGrbspDy5yKMs2yVAPcSDJbsD1yMFHZTruL
-         8xKeKC00lurPy0F1KNwEQyBckjTDsDSEjC9soxVfkmDb7Rl+JxPBh0WTrkP5dH7q9FnU
-         Uwi6aMvvg3dMleA+6HcDJlI0qpgoVWHftdscPkDVbutz0OcYw6OzTIxFnmBN0SwTX3be
-         M23LHLgO4FKb/FyPTNJlMUa/ZYje8LPy9o8nQ4SuetjARhllTgORklxjZ3djDIvdT1wa
-         NiggjbSiT6wNEWPc1JusZieSnuIRExElt3cOB8M77u6ez0Gb83Uvmu7bYbYhh0E6JlvG
-         GERA==
+        b=iBRnT9N+iQ21KCrnuTGSJU4HHdxZ84P531wEt0pXL2QmE6Y4rTSPD8+yWFAt1rCSjt
+         GJOZhINKQqtIPmUcH2PGrcekhvKEXn6/tew6vCI158kgjidlh5daJl8tMxM78h2Sk2dh
+         QUdeFTPZZES4JVoEHHwp5VDGICV87rBrp1e+p2ciJJLbwVST/WjVa9wzvwy9uV2+UYcd
+         MY4+Z8TOBsjQwhmJs2inK0h3ouQrWtwHYaVy6z08nOtrjWlSaU8GFKoKxZpDIL795V3f
+         T6JGOqp55tJNrGfSPHgy9QZ406gL7sK2QbWnU9R7V0epmWKpGC78BitmqWQVd72OXciZ
+         +k5g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=6LcSRBYGYblE8KnG9YkzHNeJWSKv1kS+36NXuNsO3Vk=;
-        b=KgC5SYEhH1D8DXli2IChKfTo18Hh3nRReqDlhQcVSYbxWebYR/TSQ0h1ZhEdT/8gAw
-         WOvGKSczjKkd9aPqhBtdTrmYIWOB2E6rAMmqWQwnTus16Y0Qt1NiOK77Oz3rl+4kn0xm
-         GMsakKjXepH/TvMFmNVBDFH/2JAK5AtyE3OoIK3wxT4QPwwPdnalJKoBbAZha4WHcY3I
-         rtE7k7t86PuSUGdnlmRfJDPNPOhvEJva3B0XfCvIWHVs/Iw09F9cmWYTJtx0roOSpnlQ
-         aeHp1k+4eMiZIZ42KNabbVf+qjsLiAVbSJItoRzmpS+1qYEPREwP1l2GKAW/lLvqtERE
-         kpdA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=qnP8DXdnAI8r0utqzxoUpU/7eSgQlDA+ZQxN0RGd3jc=;
+        b=yZlDtuOjlz9kov/zk7JxGg3Ee5zocuKdY4H31jQQnoSwr+xBuicnO6ACFNyWTVwOPW
+         M7pk6vJmYWE78UjHTPqnxYyrTVDe3mUJM9dggBQSiP9zJPc01vzsijcmZyQCi6+2E5Cl
+         LMXFzbVoeiyxPeEdSt68g9SD5d0jm0KDsYIYkSURfvczG/CMdTjoLwEhvsZvVBmcMzcq
+         icOw/C1ofqNDuC0GePHjiaj6mPggy2l3+TMH6DmKmxwxMFqPmTleVNW3lt5lzKMbRzEB
+         T1KnNbZN9x1Oh0FYcd1CVVDucFWh/liJ3ClzIJUg9uSd1PZ0Pr8ys7eqYtILPHnon2Xf
+         /sLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=ibB5Z1OY;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b91sor6645734plb.0.2019.05.16.09.53.03
+       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t20si1046818edb.127.2019.05.16.10.00.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 16 May 2019 09:53:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 May 2019 10:00:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=ibB5Z1OY;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=6LcSRBYGYblE8KnG9YkzHNeJWSKv1kS+36NXuNsO3Vk=;
-        b=ibB5Z1OYQwc98aDEYCmgshR4HnNV1ewVWdMdm/6CKYXPVekT2bhzH4PkYIc0CBN6g0
-         3RVcq3LMmZ5Q5lyRNGhCySSZnXDeQlR3o+rYJ7XjtWaWqiP4S8z4OyyjXHTScR2eI/lD
-         BGuI6KsW5NIL4fQ067WG0tUG+O+QUq3y5B3pg=
-X-Google-Smtp-Source: APXvYqzxktrdR74/jozDFmScyT7V6rFj+OxDZS8IbmNkChFWgpOSZeP4blgwp9KkSVtUQXVkKb0mfw==
-X-Received: by 2002:a17:902:7797:: with SMTP id o23mr50309891pll.147.1558025583725;
-        Thu, 16 May 2019 09:53:03 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id f29sm16984632pfq.11.2019.05.16.09.53.02
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 16 May 2019 09:53:02 -0700 (PDT)
-Date: Thu, 16 May 2019 09:53:01 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: akpm@linux-foundation.org, cl@linux.com,
-	kernel-hardening@lists.openwall.com,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	James Morris <jmorris@namei.org>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Sandeep Patil <sspatil@android.com>,
-	Laura Abbott <labbott@redhat.com>,
-	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, linux-mm@kvack.org,
-	linux-security-module@vger.kernel.org
-Subject: Re: [PATCH v2 4/4] net: apply __GFP_NO_AUTOINIT to AF_UNIX sk_buff
- allocations
-Message-ID: <201905160923.BD3E530EFC@keescook>
-References: <20190514143537.10435-1-glider@google.com>
- <20190514143537.10435-5-glider@google.com>
+       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B3E93AD0A;
+	Thu, 16 May 2019 17:00:36 +0000 (UTC)
+Date: Thu, 16 May 2019 19:00:35 +0200
+From: Michal =?iso-8859-1?Q?Koutn=FD?= <mkoutny@suse.com>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: mkoutny@suse.cz, linux-mm@kvack.org, akpm@linux-foundation.org,
+	oleg@redhat.com, linux-kernel@vger.kernel.org
+Subject: Re: mm: use down_read_killable for locking mmap_sem in
+ access_remote_vm
+Message-ID: <20190516170034.GO13687@blackbody.suse.cz>
+References: <20190515083825.GJ13687@blackbody.suse.cz>
+ <11ee83c8-5f0f-0950-a588-037bdcf9084e@yandex-team.ru>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20190514143537.10435-5-glider@google.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <11ee83c8-5f0f-0950-a588-037bdcf9084e@yandex-team.ru>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 14, 2019 at 04:35:37PM +0200, Alexander Potapenko wrote:
-> Add sock_alloc_send_pskb_noinit(), which is similar to
-> sock_alloc_send_pskb(), but allocates with __GFP_NO_AUTOINIT.
-> This helps reduce the slowdown on hackbench in the init_on_alloc mode
-> from 6.84% to 3.45%.
 
-Out of curiosity, why the creation of the new function over adding a
-gfp flag argument to sock_alloc_send_pskb() and updating callers? (There
-are only 6 callers, and this change already updates 2 of those.)
+On Wed, May 15, 2019 at 11:48:32AM +0300, Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
+> This function ignores any error like reading from unmapped area and
+> returns only size of successful transfer. It never returned any error codes.
+This is a point I missed. Hence no need to adjust consumers of
+__access_remote_vm() (they won't actually handle -EINTR correctly w/out
+further changes). This beats my original idea with simplicity.
 
-> Slowdown for the initialization features compared to init_on_free=0,
-> init_on_alloc=0:
-> 
-> hackbench, init_on_free=1:  +7.71% sys time (st.err 0.45%)
-> hackbench, init_on_alloc=1: +3.45% sys time (st.err 0.86%)
 
-In the commit log it might be worth mentioning that this is only
-changing the init_on_alloc case (in case it's not already obvious to
-folks). Perhaps there needs to be a split of __GFP_NO_AUTOINIT into
-__GFP_NO_AUTO_ALLOC_INIT and __GFP_NO_AUTO_FREE_INIT? Right now __GFP_NO_AUTOINIT is only checked for init_on_alloc:
+Reviewed-by: Michal Koutný <mkoutny@suse.com>
 
-static inline bool want_init_on_alloc(gfp_t flags)
-{
-        if (static_branch_unlikely(&init_on_alloc))
-                return !(flags & __GFP_NO_AUTOINIT);
-        return flags & __GFP_ZERO;
-}
-...
-static inline bool want_init_on_free(void)
-{
-        return static_branch_unlikely(&init_on_free);
-}
-
-On a related note, it might be nice to add an exclusion list to
-the kmem_cache_create() cases, since it seems likely that further
-tuning will be needed there. For example, with the init_on_free-similar
-PAX_MEMORY_SANITIZE changes in the last public release of PaX/grsecurity,
-the following were excluded from wipe-on-free:
-
-	buffer_head
-	names_cache
-	mm_struct
-	vm_area_struct
-	anon_vma
-	anon_vma_chain
-	skbuff_head_cache
-	skbuff_fclone_cache
-
-Adding these and others (with details on why they were selected),
-might improve init_on_free performance further without trading too
-much coverage.
-
-Having a kernel param with a comma-separated list of cache names and
-the logic to add __GFP_NO_AUTOINIT at creation time would be a nice
-(and cheap!) debug feature to let folks tune things for their specific
-workloads, if they choose to. (And it could maybe also know what "none"
-meant, to actually remove the built-in exclusions, similar to what
-PaX's "pax_sanitize_slab=full" does.)
-
--- 
-Kees Cook
+Michal
 
