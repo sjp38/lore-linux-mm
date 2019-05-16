@@ -2,88 +2,90 @@ Return-Path: <SRS0=l6tt=TQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 88421C04AB4
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 13:42:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B5E4C04E84
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 13:53:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 451FD20833
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 13:42:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 451FD20833
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=angband.pl
+	by mail.kernel.org (Postfix) with ESMTP id 128E820657
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 13:53:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 128E820657
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D56806B0007; Thu, 16 May 2019 09:42:53 -0400 (EDT)
+	id 8207A6B0007; Thu, 16 May 2019 09:53:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D06F46B0008; Thu, 16 May 2019 09:42:53 -0400 (EDT)
+	id 7F6706B0008; Thu, 16 May 2019 09:53:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BF73B6B000A; Thu, 16 May 2019 09:42:53 -0400 (EDT)
+	id 6BF4D6B000A; Thu, 16 May 2019 09:53:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 74B706B0007
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 09:42:53 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id m3so1330343wro.18
-        for <linux-mm@kvack.org>; Thu, 16 May 2019 06:42:53 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DE106B0007
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 09:53:08 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b22so5564921edw.0
+        for <linux-mm@kvack.org>; Thu, 16 May 2019 06:53:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=rvxBTpS/3RnZR8WyRjpmLce+hbjZH8mmLJbE7UJc17I=;
-        b=o8fxbsBZcoqL5Y8yWLLqJx2kWga1qx7uIPhiFG6FU3ecgF5eCNhu0pW7HWnAOGfkI/
-         JmB5ypPuaBBqQ750V+gF6x12HwDsIbe7SccPVaUZdkiTNETJS3Z4Lk+HEEz65eYklUbN
-         NntmWDbWG8Cs+b5PrmiDDSatSmyfWqzGNovvCHJUYX6s92/ADn7pcan33waWXKTYcIkX
-         x7CFAegnAHaI1E9tCSpYlIs4Eh9M8V2ByNjr4xtVOUzWYcl4uf00jo0aUUYFUp+vwcQp
-         neqXNnyiCI5hHlsU2Q/xgdaFrBKrcKVFFWUXpRVwAdl5Z0vsfuF/PaFO3g8giAiwgWTC
-         Zjsw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) smtp.mailfrom=kilobyte@angband.pl
-X-Gm-Message-State: APjAAAW6YuQLAMnaqnwqcDIfEb9CcdY3uEvOVGkPvZz5XXhe8QvFZprq
-	zLOtd1PmC/p8N1yC/w2vIsHEYt53DqQ9ELT1f6q9ayGDvDBxF6AEcx0BEavLiEO4ry3WjemDy8B
-	bctJHmVs0GEYlEnAhOK5/GglgoofrxjuhaQTSb/NUiv/ZzVarEizrYWBbPxgtomE17w==
-X-Received: by 2002:adf:cd09:: with SMTP id w9mr14856009wrm.242.1558014173010;
-        Thu, 16 May 2019 06:42:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwa4lAXBhMFebumzBjwapEpnrZ+GEex1fAu/XUDEQSrTx6kUjARfFhyZqPUtEGFBTTsH/EG
-X-Received: by 2002:adf:cd09:: with SMTP id w9mr14855961wrm.242.1558014172251;
-        Thu, 16 May 2019 06:42:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558014172; cv=none;
+         :in-reply-to:user-agent;
+        bh=snYW1g8gu8OplU4wIoMhWxb6FV3JCp+3b3cHwZuPClc=;
+        b=QGrIO5VYZZ/r/bqSRxiRxa0Of+4C8/adkihei/+fkGgG5McTcgVLwXbwvOPj1GHvxw
+         O6NWRMAXTNKxYtBpG/15jDlCUeVNJeRpuPDUb0Aestj2DAcnWOyMscLIpIZC4dQ3Rm7Z
+         tT1CXta+E08VXZPhT+sjL6I1FDLhjTxDghWe1gpSBCHQBjUnPIJdh5+qQHl3KFNwH/fa
+         JkNRnp1ETdk/nCy8oJJWy7VHqYCISYwnVr7u32vVgxbUOCSVXnkDBuQPUAnVVm6Gm2PV
+         A3dvrz3aPjzucaI9izozNWN+USNt38vFyj8XJvtgYQPoPUzzKBVi1GsI+aYNXx42Eu5o
+         OYXw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUxmptNJLWuT8KsRNjOzcMtxGofJmTTYKobjdey8aRDsz5in8XM
+	+M4pwjMlk4BZlultJ2byjakxBbOJm9BxdKZvJvfKCuG2YAOkFMd7uw6px+LPEVrw6IIx2CfAbOo
+	Ulg+Pw5MjIfb+aiWQGYq6Z4gp8S2SZVNDSxUj+1odambM2bZssfZB/Vu8Ctx9L4s=
+X-Received: by 2002:aa7:d04e:: with SMTP id n14mr21166213edo.205.1558014787714;
+        Thu, 16 May 2019 06:53:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxKLZPbNsXWMaIscXqBuyJRoNdow9v3DUwfFdlqE4ZGu0oR2oMt21Y8grT0w11Y6gJTj87u
+X-Received: by 2002:aa7:d04e:: with SMTP id n14mr21166150edo.205.1558014787050;
+        Thu, 16 May 2019 06:53:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558014787; cv=none;
         d=google.com; s=arc-20160816;
-        b=TlDnpiMmNBgjkYNbhKyRRNuIVwS1tGexIw3zAENIbApTL+EhhbpbPJd9hFFGmHe+Xu
-         ijLdILl18dINWS1whr3VKuSzYG7fJuija+AbvrhMMWwupezVIHAtaIOyVOadwCwSLo/p
-         L+pyFOHmgBNDPNg1bKgKKyZw+eXp7jRG4VzDdJpq3tkZywKZ64HvbUOjQBP6mBDFQ5PR
-         V4iwlltCXtRxCGmEmqxbzgbyhot+8PrvI4TeJV1141+gda8CPonN1j46O5Rr8WIyHhOE
-         lpUTaHZjqdVklFalY9cCr/9achHG76hJsWi+liY38kyR/udiPQU83uEBBtB7iVbzAk7r
-         wk/g==
+        b=So+1B97iLROkQD6NOSSYv4EyDIeW1kfP6dn6usss1od4RK1b2VdN0hmNKW4txzhenc
+         HVJdGClLrIjQYkvadxee2jxw2Xz09+C5AVliSDb74FtlD610Su8SJzRIpTt/4y4y+To2
+         GqaO8KLTGyuy8uhiA2zDp0yK69cyOHEoKSJOjW0FfHQ7zLgE0BdZSvDSXxYjllAJsGvE
+         9HfZGmx7URGnrTOsuAyf8P33YsPrgo+bgZqGhes15uRr7MrWEghwz9HFNFgfGJVh5NCj
+         O0lWj/rKgLRBI1UqNNmrvxyA/V7lVFYKjq7KgLnCg7h3XHtnHTXJILIOtcSoLe5mcULT
+         02Jw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=rvxBTpS/3RnZR8WyRjpmLce+hbjZH8mmLJbE7UJc17I=;
-        b=nX9E5tM2sZauJ8Cc0ORnygqpnUFkTZ0bnOhHlCIgH6OPnMtfn/50e8EElBsgyK5XIc
-         nH/N5YL7QwTKoRNay7+onEBkN+kJauShGOak8y5Tc4CF52jGNW3efkCCtPiGvR6gQofT
-         RzEKISVAKXFZyyPpAZFfQJaLtATC7FWlfc5hnnTvub21cRVA11z1l3R4UTSqSoRqGSr/
-         1jbekgvpuoDx+/zDcvntULnWV9l9UpacMyfUjy1mrv7gZebN9ZaRfkbftEVRh8rHS6YP
-         sIFnfStZVf5FKRlCuJuBf+TaB54KAXDsB+EaSMnw21Qbt4jGlfn9MHJnAgSdEJ7sDujF
-         78/w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=snYW1g8gu8OplU4wIoMhWxb6FV3JCp+3b3cHwZuPClc=;
+        b=gpcmy2RvFI0MmnoGXFzpo+wkRCzTkDtr4BwnHGutqyxFo5B+ZfqJ59LKEQZnQJmulf
+         qeD8E1U7JQtJPSVFYmrWo8HVSOuh8IQlArbvO9kFNIB8OlxwAMjoaBXJ5NnVAMaggozg
+         Bl1XTylDP+5FRhvknwZd/XMpEYks8yKL+IkyewvlxGNspqKePy9J8Tz54RVZNQu5y0pi
+         Ce7QmQgvJ9+HvzK1Q//L//Gt3XUBrncSD7tGRYPRYGyBCmBA0W0RlzUiRCPB2ub70h2s
+         c986zQHEQjqA6a7+HovvBFzYTYwT1hgovLcFbm96DoimlU8vrHSDGIE5pr0T/UOSa3/w
+         DxLw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) smtp.mailfrom=kilobyte@angband.pl
-Received: from tartarus.angband.pl (tartarus.angband.pl. [2001:41d0:602:dbe::8])
-        by mx.google.com with ESMTPS id p26si3704046wmh.48.2019.05.16.06.42.52
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i21si274038edg.233.2019.05.16.06.53.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 16 May 2019 06:42:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) client-ip=2001:41d0:602:dbe::8;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 May 2019 06:53:07 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of kilobyte@angband.pl designates 2001:41d0:602:dbe::8 as permitted sender) smtp.mailfrom=kilobyte@angband.pl
-Received: from kilobyte by tartarus.angband.pl with local (Exim 4.92)
-	(envelope-from <kilobyte@angband.pl>)
-	id 1hRGeK-0007a8-24; Thu, 16 May 2019 15:42:20 +0200
-Date: Thu, 16 May 2019 15:42:20 +0200
-From: Adam Borowski <kilobyte@angband.pl>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 06CCAAED7;
+	Thu, 16 May 2019 13:53:05 +0000 (UTC)
+Date: Thu, 16 May 2019 15:52:59 +0200
+From: Michal Hocko <mhocko@kernel.org>
 To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com,
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com,
 	keith.busch@intel.com, kirill.shutemov@linux.intel.com,
 	pasha.tatashin@oracle.com, alexander.h.duyck@linux.intel.com,
 	ira.weiny@intel.com, andreyknvl@google.com, arunks@codeaurora.org,
@@ -92,78 +94,51 @@ Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com,
 	mathieu.desnoyers@efficios.com, shakeelb@google.com, guro@fb.com,
 	aarcange@redhat.com, hughd@google.com, jglisse@redhat.com,
 	mgorman@techsingularity.net, daniel.m.jordan@oracle.com,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-api@vger.kernel.org
 Subject: Re: [PATCH RFC 0/5] mm: process_vm_mmap() -- syscall for duplication
  a process mapping
-Message-ID: <20190516134220.GB24860@angband.pl>
+Message-ID: <20190516135259.GU16651@dhcp22.suse.cz>
 References: <155793276388.13922.18064660723547377633.stgit@localhost.localdomain>
- <20190515193841.GA29728@angband.pl>
- <7136aa47-3ce5-243d-6c92-5893b7b1379d@virtuozzo.com>
+ <20190516133034.GT16651@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <7136aa47-3ce5-243d-6c92-5893b7b1379d@virtuozzo.com>
-X-Junkbait: aaron@angband.pl, zzyx@angband.pl
+In-Reply-To: <20190516133034.GT16651@dhcp22.suse.cz>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-SA-Exim-Connect-IP: <locally generated>
-X-SA-Exim-Mail-From: kilobyte@angband.pl
-X-SA-Exim-Scanned: No (on tartarus.angband.pl); SAEximRunCond expanded to false
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 16, 2019 at 04:10:07PM +0300, Kirill Tkhai wrote:
-> On 15.05.2019 22:38, Adam Borowski wrote:
-> > On Wed, May 15, 2019 at 06:11:15PM +0300, Kirill Tkhai wrote:
-> >> This patchset adds a new syscall, which makes possible
-> >> to clone a mapping from a process to another process.
-> >> The syscall supplements the functionality provided
-> >> by process_vm_writev() and process_vm_readv() syscalls,
-> >> and it may be useful in many situation.
-> >>
-> >> For example, it allows to make a zero copy of data,
-> >> when process_vm_writev() was previously used:
-> > 
-> > I wonder, why not optimize the existing interfaces to do zero copy if
-> > properly aligned?  No need for a new syscall, and old code would immediately
-> > benefit.
+On Thu 16-05-19 15:30:34, Michal Hocko wrote:
+> [You are defining a new user visible API, please always add linux-api
+>  mailing list - now done]
 > 
-> Because, this is just not possible. You can't zero copy anonymous pages
-> of a process to pages of a remote process, when they are different pages.
-
-fork() manages that, and so does KSM.  Like KSM, you want to make a page
-shared -- you just skip the comparison step as you want to overwrite the old
-contents.
-
-And there's no need to touch the page, as fork() manages that fine no matter
-if the page is resident, anonymous in swap, or file-backed, all without
-reading from swap.
-
-> >> There are several problems with process_vm_writev() in this example:
-> >>
-> >> 1)it causes pagefault on remote process memory, and it forces
-> >>   allocation of a new page (if was not preallocated);
-> >>
-> >> 2)amount of memory for this example is doubled in a moment --
-> >>   n pages in current and n pages in remote tasks are occupied
-> >>   at the same time;
-> >>
-> >> 3)received data has no a chance to be properly swapped for
-> >>   a long time.
+> On Wed 15-05-19 18:11:15, Kirill Tkhai wrote:
+[...]
+> > The proposed syscall aims to introduce an interface, which
+> > supplements currently existing process_vm_writev() and
+> > process_vm_readv(), and allows to solve the problem with
+> > anonymous memory transfer. The above example may be rewritten as:
 > > 
-> > That'll handle all of your above problems, except for making pages
-> > subject to CoW if written to.  But if making pages writeably shared is
-> > desired, the old functions have a "flags" argument that doesn't yet have a
-> > single bit defined.
+> > 	void *buf;
+> > 
+> > 	buf = mmap(NULL, n * PAGE_SIZE, PROT_READ|PROT_WRITE,
+> > 		   MAP_PRIVATE|MAP_ANONYMOUS, ...);
+> > 	recv(sock, buf, n * PAGE_SIZE, 0);
+> > 
+> > 	/* Sign of @pid is direction: "from @pid task to current" or vice versa. */
+> > 	process_vm_mmap(-pid, buf, n * PAGE_SIZE, remote_addr, PVMMAP_FIXED);
+> > 	munmap(buf, n * PAGE_SIZE);
 
-
-Meow!
+AFAIU this means that you actually want to do an mmap of an anonymous
+memory with a COW semantic to the remote process right? How does the
+remote process find out where and what has been mmaped? What if the
+range collides? This sounds quite scary to me TBH. Why cannot you simply
+use shared memory for that?
 -- 
-⢀⣴⠾⠻⢶⣦⠀ Latin:   meow 4 characters, 4 columns,  4 bytes
-⣾⠁⢠⠒⠀⣿⡁ Greek:   μεου 4 characters, 4 columns,  8 bytes
-⢿⡄⠘⠷⠚⠋  Runes:   ᛗᛖᛟᚹ 4 characters, 4 columns, 12 bytes
-⠈⠳⣄⠀⠀⠀⠀ Chinese: 喵   1 character,  2 columns,  3 bytes <-- best!
+Michal Hocko
+SUSE Labs
 
