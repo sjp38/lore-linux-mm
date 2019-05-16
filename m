@@ -2,157 +2,217 @@ Return-Path: <SRS0=l6tt=TQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F759C46470
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 09:42:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 455C7C04E87
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 10:00:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1B99E21726
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 09:42:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B99E21726
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 081852087E
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 10:00:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="rusCImqc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 081852087E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3FDE76B000C; Thu, 16 May 2019 05:42:47 -0400 (EDT)
+	id 8A85E6B0005; Thu, 16 May 2019 06:00:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B1FF6B000D; Thu, 16 May 2019 05:42:47 -0400 (EDT)
+	id 85A146B0006; Thu, 16 May 2019 06:00:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0D11C6B000E; Thu, 16 May 2019 05:42:47 -0400 (EDT)
+	id 748FD6B0007; Thu, 16 May 2019 06:00:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B4F9E6B000C
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 05:42:46 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id h8so819944wmf.1
-        for <linux-mm@kvack.org>; Thu, 16 May 2019 02:42:46 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 47D486B0005
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 06:00:53 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id s64so1172453oia.15
+        for <linux-mm@kvack.org>; Thu, 16 May 2019 03:00:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=I6Qf9WePQnjM1qP5GnvXQ6iGQgDn7ErWaVxKlruplAs=;
-        b=pvBoNHr6WvUqgJZwi29PNhnVcWn02DDkH0NfGbieeinKz2/dXF/lcPZta1hM9lTWfP
-         dI6KCzoaLegqTrBYpOKAwkZcd7grgaB5UUyiCxBE4UllN4de0PSIMuPy0twlz9f8K7m2
-         vabUbzZqvo3RDRMl8pnesDVl3RZUEGaEI3VJjbW31JMyqVo/vlP4WBTWB3x8PJKMw/Ee
-         UdRwDEon5Ybl00Zl1/xUwMotr0wAvFPw11VLEwO82QZOWR1s4Uw1tTL7FwS84v5DV3To
-         nGs0R3O6zFI8ewmBLtQpEJPNZve820qheSLtASWbY0aarMRsvnxBmGcoHjYKDorUfBvn
-         073w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVrCDCBjGw3BrF0JSa4ON89UDMhqJqkM+0KEk2i0Wn6eB0ju9hl
-	zNT7QfODtYfhCt6ypfHjWhqDDqE7W1cek/7fsK7xz6MAr3rWXlegQkQsLl0j13lz3qahvrAjTC2
-	sLD+A5yvb7FAkcaMsIF/6MCY5/C5Ycpxx+fRTonZUkY/EsIh7+Kj5b+PlRPDCcx/Glg==
-X-Received: by 2002:a1c:e144:: with SMTP id y65mr26100826wmg.147.1557999766268;
-        Thu, 16 May 2019 02:42:46 -0700 (PDT)
-X-Received: by 2002:a1c:e144:: with SMTP id y65mr26100775wmg.147.1557999765221;
-        Thu, 16 May 2019 02:42:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557999765; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=dC3aSgv+o3HSYvM8J8FMKymuhEQ4FThUEnqG0ntB4g0=;
+        b=NJuFQrFzA3YC4zzCHO2Zwxl6Sh9+7CaGsyaQdBjov/yH3YcCRdmGYUqtHkrslQd2ws
+         c5Zztl4qGe2jc4h/w5aTKWzqSaRNb7OOxjQxckuWsV2dWyq1GWHsK1BytXRGI35AQ6CH
+         fvdGZIqatIJS48s9pN0dv7qzj344BOd0UWi7WEEnsu3QO7sf8YvmuX1rojGX90tb8gF1
+         l6ptg/gkOlXBT+YbGUwq+vW6Jt24GtzvWdBC1kyvcKwT6dc9/R4LGaJ7Bs4iqWA8VnsY
+         d1uXbaGbdSdTqPhZRcnLE3cSJttIOfeGf8LDS6EpROPsjb4ROfvOlk42ubLl+JvKYuL5
+         Qo2Q==
+X-Gm-Message-State: APjAAAU3NK1ej1Av/9hmbAnyTl3NmWHsMbzJZZ/mdKdyn4f5WlCGGyYq
+	k47QbAeSLizIS8QVdQXtbe6KXbfyrJiBAnm38kwjQqGs3tzVqlhGGGShjbRPe7/JlNQD9cvLekp
+	qlkhBzrSEqpUZBiIblyedhJHN9RedcMR2B95uU4KzSdrleaA0dqlLk1OftOnCQliEkg==
+X-Received: by 2002:a9d:7a53:: with SMTP id z19mr30589317otm.260.1558000852835;
+        Thu, 16 May 2019 03:00:52 -0700 (PDT)
+X-Received: by 2002:a9d:7a53:: with SMTP id z19mr30589250otm.260.1558000851806;
+        Thu, 16 May 2019 03:00:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558000851; cv=none;
         d=google.com; s=arc-20160816;
-        b=tACdX6GLPmwDzOHGMennKf9w9g8QXEfvmV3xJ7by8MlmAV8IrnMsEXeJ8fd78or27K
-         ZUgXoY4woSg8k7wOBOd0CREO0YpCU4DvBNo5DWTEi6yGxUgZZWMzrTImTdwCmQhg2FZV
-         IiCGitbi6RpEP9LK80NFp/JVVrySMdms6T10V2lTSrusxtpdNk+e0tVY7pxPWedHYBnM
-         ekXwVvkK5ki/EZ/0wElox9vYKOj0dqiF/L3CCO2gRcRZTPotdeh8lwwMekUpn3tRNRuE
-         aDio1twqJ/BXT0oy4oFOz+9JL+w7uUkWXnqSj4cDmXTvVRhqr9sg5ELeVjOxbWKjs7ax
-         yQMA==
+        b=yZIT4/WwHhtmdRBuG+89P3rLYa3+n6w1vaVfM/5sMm34Njyf93fGgpt8YF71PSk/ix
+         4iYiPBZpGV8NtcH5pPZEJtpHT8iKVA+Zmz3N+05+b0dxNy12AKAL3A08GVPpSwHphSTD
+         Z4260LUL5xCqQF5ojTGG++CzF38/+PrBoC09m8vxjlcya6zjeONDphRFQFUF0BpwQsv/
+         WwfH04vLUq5h5VznJvvarI2BanwnwO7k8SuflJ7pOcTBax1ogFVR+OYi5MPmfdSz6KMG
+         wUIPfqSreQ+bvLqIKETkNfIE8uPf/Qo6+mfPmtPoPXG2uFaE2i/10c2aolSS5QHpkD2X
+         tU7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=I6Qf9WePQnjM1qP5GnvXQ6iGQgDn7ErWaVxKlruplAs=;
-        b=VKQEFpXuUD/6QNr3ywWhKROJ/XlOT1jqVfDSPXRyluldLzOqwMB6Q5D1lf7KRfAISQ
-         bL0HerS88FDnc0g0t1Jk/ucKEAmlpTCVhpSWh/NF5SV+TO+r4GAM3vVgIlFBzM0y6TM1
-         mu9Pm5nXfkcqPGs8enfKAabZ8fBsCG0QAXq71PhLzT05qRS7erq/1GQfjh7xfZykaIwu
-         WIwm6ySIO7j9Pv+xsyHFgewZBnnAO6iXxHqgyKEj+mUrNvsdymM21puVsMmt015tGXsX
-         lUPXCsECgXtnByF9Di5Fuea4hnZcxYSePM+A9iI1ClJg1ipPYaFhF6AsiUXEmlr19u2c
-         1Jqg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=dC3aSgv+o3HSYvM8J8FMKymuhEQ4FThUEnqG0ntB4g0=;
+        b=XFx6sPD05yTbehYUOPoOXrO9tnFZhWUHYu4i1hQlKPs+oiQXilwlYXNDyaCPQ7MmTm
+         4f4JR18ufIEf9+DQhBK1n/IA69z9MnZ2llxJRihkMoXiEx+sI/SXq+iXp7Uq2mRNJmgR
+         bgShiH+bvOW2gehMoDGMFV31WCT91buSZreGMDwnDq6vgoK6c53mc+P78R2IHuW2Q+AI
+         qmW50zDuHXAHmeuv1U3UORQxDuOSBXd+EWoPjwjgqa1P+Wijliz1q7mcLhnAU320k1Je
+         QDQzMEnSGROddYkEImGXKsb3VzS3pwyP91LQaHav7niM53+7U+3jyWfJEvhoU3XCwil1
+         sBZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=rusCImqc;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o3sor2007346wmo.17.2019.05.16.02.42.45
+        by mx.google.com with SMTPS id e17sor2023079oib.70.2019.05.16.03.00.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 16 May 2019 02:42:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 16 May 2019 03:00:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqwocKMkkFgpDNBPx7AOMP66gc9e2eLJvBHtDID7H77ayfvD2k23YyAA2hs51SHVNKxVSScv4w==
-X-Received: by 2002:a1c:a695:: with SMTP id p143mr27260709wme.128.1557999764844;
-        Thu, 16 May 2019 02:42:44 -0700 (PDT)
-Received: from localhost (nat-pool-brq-t.redhat.com. [213.175.37.10])
-        by smtp.gmail.com with ESMTPSA id t15sm4635388wmt.2.2019.05.16.02.42.43
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 16 May 2019 02:42:44 -0700 (PDT)
-From: Oleksandr Natalenko <oleksandr@redhat.com>
-To: linux-kernel@vger.kernel.org
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>,
-	Hugh Dickins <hughd@google.com>,
-	Alexey Dobriyan <adobriyan@gmail.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Greg KH <greg@kroah.com>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Timofey Titovets <nefelim4ag@gmail.com>,
-	Aaron Tomlin <atomlin@redhat.com>,
-	Grzegorz Halat <ghalat@redhat.com>,
-	linux-mm@kvack.org,
-	linux-api@vger.kernel.org
-Subject: [PATCH RFC 5/5] mm/ksm, proc: add remote madvise documentation
-Date: Thu, 16 May 2019 11:42:34 +0200
-Message-Id: <20190516094234.9116-6-oleksandr@redhat.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190516094234.9116-1-oleksandr@redhat.com>
-References: <20190516094234.9116-1-oleksandr@redhat.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=rusCImqc;
+       spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=dC3aSgv+o3HSYvM8J8FMKymuhEQ4FThUEnqG0ntB4g0=;
+        b=rusCImqcsRelViq7BjTj8x6kkzQ7cL9BId6Q2hif54CzbiF2xexI8tw8D5bQ3Q6HLt
+         l4Fc8osLWvc/mFIQ0lcIGpQelUQltkxqLGCz+/Oe6Un0I0xiembCGtk90t1JUC8cFExL
+         hiM8oJYcfzEbVRzLR+jVGIv2X+WSy8ArgEm6sDYpKjifpSCcPcFIaQ42Qg4wirz6BBHO
+         RKDlH9nba+5XQn6n19kOSVR/TU/lT++yDt/HW6vWFf86nDvW72knrug0SBpJeZIKzOOD
+         W5xi2wekab69fIhm12WD6de9sXy3LG6XrRTh7bl6poYUh4ZyEl4VUbR4nVo667mnp3wj
+         UpsA==
+X-Google-Smtp-Source: APXvYqw8UaGLIZvpXm/eLsQS3GmsqOIGz12mauFeRh7e/B8z5XURykeEcCxzQqp0PTqaQVSeftW47QM4HusRyiTUL58=
+X-Received: by 2002:aca:180d:: with SMTP id h13mr9485857oih.39.1558000850840;
+ Thu, 16 May 2019 03:00:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <20190516094234.9116-1-oleksandr@redhat.com> <20190516094234.9116-5-oleksandr@redhat.com>
+In-Reply-To: <20190516094234.9116-5-oleksandr@redhat.com>
+From: Jann Horn <jannh@google.com>
+Date: Thu, 16 May 2019 12:00:24 +0200
+Message-ID: <CAG48ez2yXw_PJXO-mS=Qw5rkLpG6zDPd0saMhhGk09-du2bpaA@mail.gmail.com>
+Subject: Re: [PATCH RFC 4/5] mm/ksm, proc: introduce remote merge
+To: Oleksandr Natalenko <oleksandr@redhat.com>
+Cc: kernel list <linux-kernel@vger.kernel.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, 
+	Hugh Dickins <hughd@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, 
+	Michal Hocko <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>, 
+	Pavel Tatashin <pasha.tatashin@soleen.com>, Greg KH <greg@kroah.com>, 
+	Suren Baghdasaryan <surenb@google.com>, Minchan Kim <minchan@kernel.org>, 
+	Timofey Titovets <nefelim4ag@gmail.com>, Aaron Tomlin <atomlin@redhat.com>, 
+	Grzegorz Halat <ghalat@redhat.com>, Linux-MM <linux-mm@kvack.org>, 
+	Linux API <linux-api@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Document respective /proc/<pid>/madvise knob.
+On Thu, May 16, 2019 at 11:43 AM Oleksandr Natalenko
+<oleksandr@redhat.com> wrote:
+> Use previously introduced remote madvise knob to mark task's
+> anonymous memory as mergeable.
+>
+> To force merging task's VMAs, "merge" hint is used:
+>
+>    # echo merge > /proc/<pid>/madvise
+>
+> Force unmerging is done similarly:
+>
+>    # echo unmerge > /proc/<pid>/madvise
+>
+> To achieve this, previously introduced ksm_madvise_*() helpers
+> are used.
 
-Signed-off-by: Oleksandr Natalenko <oleksandr@redhat.com>
----
- Documentation/filesystems/proc.txt | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+Why does this not require PTRACE_MODE_ATTACH_FSCREDS to the target
+process? Enabling KSM on another process is hazardous because it
+significantly increases the attack surface for side channels.
 
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 66cad5c86171..17106e435bba 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -45,6 +45,7 @@ Table of Contents
-   3.9   /proc/<pid>/map_files - Information about memory mapped files
-   3.10  /proc/<pid>/timerslack_ns - Task timerslack value
-   3.11	/proc/<pid>/patch_state - Livepatch patch operation state
-+  3.12  /proc/<pid>/madvise - Remote madvise
- 
-   4	Configuring procfs
-   4.1	Mount options
-@@ -1948,6 +1949,18 @@ patched.  If the patch is being enabled, then the task has already been
- patched.  If the patch is being disabled, then the task hasn't been
- unpatched yet.
- 
-+3.12    /proc/<pid>/madvise - Remote madvise
-+--------------------------------------------
-+This write-only file allows executing madvise operation for another task.
-+
-+If CONFIG_KSM is enabled, the following actions are available:
-+
-+  * marking task's memory as mergeable:
-+    # echo merge > /proc/<pid>/madvise
-+
-+  * unmerging all the task's memory:
-+    # echo unmerge > /proc/<pid>/madvise
-+
- 
- ------------------------------------------------------------------------------
- Configuring procfs
--- 
-2.21.0
+(Note that if you change this to require PTRACE_MODE_ATTACH_FSCREDS,
+you'll want to use mm_access() in the ->open handler and drop the mm
+in ->release. mm_access() from a ->write handler is not permitted.)
+
+[...]
+> @@ -2960,15 +2962,63 @@ static int proc_stack_depth(struct seq_file *m, struct pid_namespace *ns,
+>  static ssize_t madvise_write(struct file *file, const char __user *buf,
+>                 size_t count, loff_t *ppos)
+>  {
+> +       /* For now, only KSM hints are implemented */
+> +#ifdef CONFIG_KSM
+> +       char buffer[PROC_NUMBUF];
+> +       int behaviour;
+>         struct task_struct *task;
+> +       struct mm_struct *mm;
+> +       int err = 0;
+> +       struct vm_area_struct *vma;
+> +
+> +       memset(buffer, 0, sizeof(buffer));
+> +       if (count > sizeof(buffer) - 1)
+> +               count = sizeof(buffer) - 1;
+> +       if (copy_from_user(buffer, buf, count))
+> +               return -EFAULT;
+> +
+> +       if (!memcmp("merge", buffer, min(sizeof("merge")-1, count)))
+
+This means that you also match on something like "mergeblah". Just use strcmp().
+
+> +               behaviour = MADV_MERGEABLE;
+> +       else if (!memcmp("unmerge", buffer, min(sizeof("unmerge")-1, count)))
+> +               behaviour = MADV_UNMERGEABLE;
+> +       else
+> +               return -EINVAL;
+>
+>         task = get_proc_task(file_inode(file));
+>         if (!task)
+>                 return -ESRCH;
+>
+> +       mm = get_task_mm(task);
+> +       if (!mm) {
+> +               err = -EINVAL;
+> +               goto out_put_task_struct;
+> +       }
+> +
+> +       down_write(&mm->mmap_sem);
+
+Should a check for mmget_still_valid(mm) be inserted here? See commit
+04f5866e41fb70690e28397487d8bd8eea7d712a.
+
+> +       switch (behaviour) {
+> +       case MADV_MERGEABLE:
+> +       case MADV_UNMERGEABLE:
+
+This switch isn't actually necessary at this point, right?
+
+> +               vma = mm->mmap;
+> +               while (vma) {
+> +                       if (behaviour == MADV_MERGEABLE)
+> +                               ksm_madvise_merge(vma->vm_mm, vma, &vma->vm_flags);
+> +                       else
+> +                               ksm_madvise_unmerge(vma, vma->vm_start, vma->vm_end, &vma->vm_flags);
+> +                       vma = vma->vm_next;
+> +               }
+> +               break;
+> +       }
+> +       up_write(&mm->mmap_sem);
+> +
+> +       mmput(mm);
+> +
+> +out_put_task_struct:
+>         put_task_struct(task);
+>
+> -       return count;
+> +       return err ? err : count;
+> +#else
+> +       return -EINVAL;
+> +#endif /* CONFIG_KSM */
+>  }
 
