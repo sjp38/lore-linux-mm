@@ -2,178 +2,176 @@ Return-Path: <SRS0=l6tt=TQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D52B6C04E84
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 03:24:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C253C04AB4
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 05:19:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8ED6F2087E
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 03:24:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8ED6F2087E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 136F620818
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 05:19:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 136F620818
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2586C6B0005; Wed, 15 May 2019 23:24:13 -0400 (EDT)
+	id 6207F6B0005; Thu, 16 May 2019 01:19:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 207FA6B0006; Wed, 15 May 2019 23:24:13 -0400 (EDT)
+	id 5A80D6B0006; Thu, 16 May 2019 01:19:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0D09F6B0007; Wed, 15 May 2019 23:24:13 -0400 (EDT)
+	id 3F9E66B0007; Thu, 16 May 2019 01:19:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D7CAA6B0005
-	for <linux-mm@kvack.org>; Wed, 15 May 2019 23:24:12 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id n21so1033523otq.16
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 20:24:12 -0700 (PDT)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 17E7E6B0005
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 01:19:33 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id l192so2157251ywc.10
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 22:19:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:cc:from:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding;
-        bh=sLhvt/hb+Hrcs5GGy6Qae9Dh1SE/JgKvAIHN/Ae6ZCc=;
-        b=fw3dwRHP910S0zTpcxLDF8JwGElgvVW0Qkhra7KIyv1Zj4iF0tDqEEzmwYVqXkJKk4
-         b9neW+AsVpxfPlA2a5pew349nWgknacS/0E1knc0BgHhRAxoczKxi36YQJHaNeoORu4w
-         NCRb+sfN9/4sbRca859NQ7CyiAWlUS5kM+a9Tif6xauqHRBgvVXJyY7P4tMjEmJ01WzH
-         PfZu8ifVNr8pvOyn4Q9Za/cTzpfurSIweJmWr4r4yJ5OVzNzNmwfJ6jJ04zrGjrEpkp2
-         LjqXcAT8/lxuByCezlgB6C15/j08jGMiHWFRiSNZtqgbaEzzlZX3ZPnd7D3ZoVP+PChe
-         fPbQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-X-Gm-Message-State: APjAAAWHF86pfugL/sUHNvLdgmlIVd5E+KO5mhbzgFUALKMpVK4VjIu+
-	2Xf9+qtFeCTSq5RWf2Y9ZApuW6s6+0JfcB3iSc94y4qSHnL0ULZfwTjEElcOBMXLP46qCh66r8Q
-	xBb0G5jOQvzqAwR7E6G59amW60v0boRqprtzHmuc2bLjPnTTxjQLGvQ6onEGOjHGjdA==
-X-Received: by 2002:a9d:6852:: with SMTP id c18mr12518782oto.174.1557977052551;
-        Wed, 15 May 2019 20:24:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqynADx5joVoHxL458Uxcfth+sxb8Vg5McLys6Yc3MEEgMPUI2bUs6sOHmRp/Ec4Qd1E/wIL
-X-Received: by 2002:a9d:6852:: with SMTP id c18mr12518761oto.174.1557977051961;
-        Wed, 15 May 2019 20:24:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557977051; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=r2bjRKZtRbAzPoU524xjEIV548Xlfu3vFQQ2+2rZSnc=;
+        b=eZHuyL1cLYaxD1OvsnxSU74D010DfFjNs3SWOG8h1WThTb/gOXRZdi93pneFNAT87D
+         fPzRuwqWw+R9jEDFV+pRm23k7NH9eMNj34yb5wVyGr1nac5d7j8RXb172akPy7HFhxGT
+         nnwZ5ZooDgswkUdTfIyA6Imyh88uv4vEys2s/jezMMx8Z6Lr0cCfwJEAsavquJVkiJng
+         s/kkrlZL1NzZ2ihkAjt5ss7cVHpExZmxMCKy8tmcZohSncUEvmYaexgWKo688QrsbtmF
+         TkUAY442HoxDmEei1Bu770AGl92ADy3I15nk1q5FjyX7G8LgBA+upZClcyyYGPKj6UdD
+         eOAg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWswG8DjExRaa72dXdrB6meKwGv8QFN+XJGrUuxx634kFHdj5HN
+	JVPgaF2rizwXqkaHt3xfabi1W5VWDcB7r5QjnrtnxctE4bQQg3VjO936uNJzJ7UGU2ZDhe3Lxch
+	W/23dA/ieGFcAWlcAteWbUKYnkFm5XVNyktSG32NDi6oamxuHDYNubhb4zfr0ozEm7A==
+X-Received: by 2002:a81:2d42:: with SMTP id t63mr13416175ywt.232.1557983972789;
+        Wed, 15 May 2019 22:19:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqywcaf7Qv2fU147Wk+en9I0eA27sZ0mDhYttBFon7SEsKCkwFTXOb3ickuGW50G4P+V+7+V
+X-Received: by 2002:a81:2d42:: with SMTP id t63mr13416157ywt.232.1557983971902;
+        Wed, 15 May 2019 22:19:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557983971; cv=none;
         d=google.com; s=arc-20160816;
-        b=aTrZJ8b0JNYT6qXlMgRAi4Ka2QQAqHYW9lmw5lijzkusYlxfLqnYFXaDtg0ADJhrkI
-         VE54eDNK2ZYucFQIyE574Y1lMtzxFlFSIzZKiC9KndYA+/AnCsNVyDgy9haRxrZJ19g7
-         3RLlORtPQa2fwk8DT/6eTE4qrpMQxgMVLQWrE9gUEY2GmydCNMZ/LdvrQ0cVtYtJ47FY
-         2SDi9AQZuZ95oOlpuaJrpzVefjsd24o3DSAOz9VbP9zNRRgv8KKFAFvbY2DfEHOC4oGP
-         1HB54aEbD47C3PbE3Hjlw10I4Ybdwrodt/eVLxsss2JQPXtBA2p9ZKkx1+4WPAkfHsv+
-         +wuw==
+        b=Sn9nMJMNbKUZYv1H0hxj2oy1JzWMcuDLGeZppiu5OK3gDQi0FfPt0WwEAER/m3bRn8
+         9mN7fymAtJP1H5+nLsTffRktYMRFtk+cU2/fNAgo9gU40rOLTQNwn0HfZx5Qd4tSgLku
+         JPnF2CdppiTfAQ8Ssb2mg5BVBzDv5ekuQzb1dmODQEftQ7uxO0CUyU/VOe0VEecwlWqb
+         HVffBEMWIf+8ZFVkOUdNb9l/k+0qeMMcaUcAyIbD45teSkRYMCRGJl6fooyrZMC94OBX
+         xG7bdPkTrZEt527dO1Fy3Ujk5Qni7H6LwF3pL4EywbulvUS52W+WhTX4uHQjOlhK81ZN
+         8DZw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
-         :message-id:from:cc:references:to:subject;
-        bh=sLhvt/hb+Hrcs5GGy6Qae9Dh1SE/JgKvAIHN/Ae6ZCc=;
-        b=QfUqEIrLYfIxYtEUwXKgFXRicJEGhy2KoZPxx3D/sxdJX3zBR/VD7m7G95U1g/1ubv
-         Ty4CupYtrYD66KrkSkjDyRD8XyaZ50uJJCHr0UHswVebHJMImvYbjrCeN0lQZ4oLEdgH
-         zn9LCFV/8A09O/FOPkizPdzoUIvFeiCacVHRrN4Rov3D2m1pHe6svUFB0rbEu9tWlqld
-         6s6yxRi0fvJuxNQ5dEiWzhTvSS0UUeQ32zbC/4t5Unb4FGZ8zUXTVT74kk1pzb+ITcqi
-         jiMALZKXznpWB9WewLd6iwNCNY40W/4a1tXDWo6WQ0S/w2gkV1opl/d34usx/6RWhkul
-         VQWQ==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=r2bjRKZtRbAzPoU524xjEIV548Xlfu3vFQQ2+2rZSnc=;
+        b=ROUTNMk5IVksOhas4B26YbOlkVoCXNsCRRhgpdkPgr6bDkMBPGkv/AR7EvU0k0HBmv
+         arzTVTD46NrY+kPYvACWpifBwi/W1wlxT0WQem6q03ynjCOMygk/akx2sEV6Zzc2gUru
+         uvf3ca6YLf/Cyo8YRY4dlSZvhXi18FilY8FReHgvoTqipyFuCi/dJ63Z4U/xvcdHJBZk
+         RArnn6Xat6j9mihGraJi/VfIn+u/P3403o/j0pEXvfcPhNirzOVaSOB3z+AmMrX+Z1om
+         347lum7yzoeQ/JVuxFfnb9yJoLkL/oI+1gZ+vSUSOuAsQWfWg9t0Noy+ea9fBNJwlIN5
+         klUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id h26si2106592otq.303.2019.05.15.20.24.11
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id j203si1152309ybg.323.2019.05.15.22.19.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 May 2019 20:24:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
+        Wed, 15 May 2019 22:19:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
-Received: from DGGEMS414-HUB.china.huawei.com (unknown [172.30.72.59])
-	by Forcepoint Email with ESMTP id D09F6FAB343E446E4313;
-	Thu, 16 May 2019 11:24:07 +0800 (CST)
-Received: from [127.0.0.1] (10.177.131.64) by DGGEMS414-HUB.china.huawei.com
- (10.3.19.214) with Microsoft SMTP Server id 14.3.439.0; Thu, 16 May 2019
- 11:24:00 +0800
-Subject: Re: [PATCH 4/4] kdump: update Documentation about crashkernel on
- arm64
-To: Bhupesh Sharma <bhsharma@redhat.com>, <catalin.marinas@arm.com>,
-	<will.deacon@arm.com>, <akpm@linux-foundation.org>,
-	<ard.biesheuvel@linaro.org>, <rppt@linux.ibm.com>, <tglx@linutronix.de>,
-	<mingo@redhat.com>, <bp@alien8.de>, <ebiederm@xmission.com>
-References: <20190507035058.63992-1-chenzhou10@huawei.com>
- <20190507035058.63992-5-chenzhou10@huawei.com>
- <de5b827f-5db2-2280-b848-c5c887b9bb58@redhat.com>
-CC: <wangkefeng.wang@huawei.com>, <linux-mm@kvack.org>,
-	<kexec@lists.infradead.org>, <linux-kernel@vger.kernel.org>,
-	<takahiro.akashi@linaro.org>, <horms@verge.net.au>,
-	<linux-arm-kernel@lists.infradead.org>, Bhupesh SHARMA
-	<bhupesh.linux@gmail.com>
-From: Chen Zhou <chenzhou10@huawei.com>
-Message-ID: <168b5c80-9a8b-ee94-9cfb-56e4955958c1@huawei.com>
-Date: Thu, 16 May 2019 11:23:58 +0800
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:45.0) Gecko/20100101
- Thunderbird/45.7.1
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4G5HKSD040229
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 01:19:31 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2sh0byjhwf-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 01:19:31 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Thu, 16 May 2019 06:19:29 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 16 May 2019 06:19:25 +0100
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4G5JOew57802782
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 16 May 2019 05:19:24 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 7A8A911C06E;
+	Thu, 16 May 2019 05:19:24 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 81D8911C05B;
+	Thu, 16 May 2019 05:19:23 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.112])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Thu, 16 May 2019 05:19:23 +0000 (GMT)
+Date: Thu, 16 May 2019 08:19:21 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Arnd Bergmann <arnd@arndb.de>, Christoph Hellwig <hch@infradead.org>,
+        "David S. Miller" <davem@davemloft.net>,
+        Heiko Carstens <heiko.carstens@de.ibm.com>,
+        Martin Schwidefsky <schwidefsky@de.ibm.com>,
+        Russell King <linux@armlinux.org.uk>,
+        linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org,
+        sparclinux@vger.kernel.org, linux-arch@vger.kernel.org,
+        linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 0/3] remove ARCH_SELECT_MEMORY_MODEL where it has no
+ effect
+References: <1556740577-4140-1-git-send-email-rppt@linux.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <de5b827f-5db2-2280-b848-c5c887b9bb58@redhat.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.177.131.64]
-X-CFilter-Loop: Reflected
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1556740577-4140-1-git-send-email-rppt@linux.ibm.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19051605-4275-0000-0000-000003354B30
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19051605-4276-0000-0000-00003844D161
+Message-Id: <20190516051921.GC21366@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-16_04:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=687 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905160037
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/5/15 13:16, Bhupesh Sharma wrote:
-> On 05/07/2019 09:20 AM, Chen Zhou wrote:
->> Now we support crashkernel=X,[high,low] on arm64, update the
->> Documentation.
->>
->> Signed-off-by: Chen Zhou <chenzhou10@huawei.com>
->> ---
->>   Documentation/admin-guide/kernel-parameters.txt | 6 +++---
->>   1 file changed, 3 insertions(+), 3 deletions(-)
->>
->> diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
->> index 268b10a..03a08aa 100644
->> --- a/Documentation/admin-guide/kernel-parameters.txt
->> +++ b/Documentation/admin-guide/kernel-parameters.txt
->> @@ -705,7 +705,7 @@
->>               memory region [offset, offset + size] for that kernel
->>               image. If '@offset' is omitted, then a suitable offset
->>               is selected automatically.
->> -            [KNL, x86_64] select a region under 4G first, and
->> +            [KNL, x86_64, arm64] select a region under 4G first, and
->>               fall back to reserve region above 4G when '@offset'
->>               hasn't been specified.
->>               See Documentation/kdump/kdump.txt for further details.
->> @@ -718,14 +718,14 @@
->>               Documentation/kdump/kdump.txt for an example.
->>         crashkernel=size[KMG],high
->> -            [KNL, x86_64] range could be above 4G. Allow kernel
->> +            [KNL, x86_64, arm64] range could be above 4G. Allow kernel
->>               to allocate physical memory region from top, so could
->>               be above 4G if system have more than 4G ram installed.
->>               Otherwise memory region will be allocated below 4G, if
->>               available.
->>               It will be ignored if crashkernel=X is specified.
->>       crashkernel=size[KMG],low
->> -            [KNL, x86_64] range under 4G. When crashkernel=X,high
->> +            [KNL, x86_64, arm64] range under 4G. When crashkernel=X,high
->>               is passed, kernel could allocate physical memory region
->>               above 4G, that cause second kernel crash on system
->>               that require some amount of low memory, e.g. swiotlb
->>
-> 
-> IMO, it is a good time to update 'Documentation/kdump/kdump.txt' with this patchset itself for both x86_64 and arm64, where we still specify only the old format for 'crashkernel' boot-argument:
-> 
-> Section: Boot into System Kernel
->          =======================
-> 
-> On arm64, use "crashkernel=Y[@X]".  Note that the start address of
-> the kernel, X if explicitly specified, must be aligned to 2MiB (0x200000).
-> ...
-> 
-> We can update this to add the new crashkernel=size[KMG],low or crashkernel=size[KMG],high format as well.
-> 
-> Thanks,
-> Bhupesh
-> 
-> .
+Andrew,
 
-Sure, we can also update here.
+Can this go via the -mm tree?
 
-Thanks,
-Chen Zhou
+On Wed, May 01, 2019 at 10:56:14PM +0300, Mike Rapoport wrote:
+> Hi,
+> 
+> For several architectures the ARCH_SELECT_MEMORY_MODEL has no real effect
+> because the dependencies for the memory model are always evaluated to a
+> single value.
+> 
+> Remove the ARCH_SELECT_MEMORY_MODEL from the Kconfigs for these
+> architectures.
+> 
+> Mike Rapoport (3):
+>   arm: remove ARCH_SELECT_MEMORY_MODEL
+>   s390: remove ARCH_SELECT_MEMORY_MODEL
+>   sparc: remove ARCH_SELECT_MEMORY_MODEL
+> 
+>  arch/arm/Kconfig   | 3 ---
+>  arch/s390/Kconfig  | 3 ---
+>  arch/sparc/Kconfig | 3 ---
+>  3 files changed, 9 deletions(-)
+> 
+> -- 
+> 2.7.4
+> 
 
-
+-- 
+Sincerely yours,
+Mike.
 
