@@ -2,176 +2,224 @@ Return-Path: <SRS0=l6tt=TQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=FROM_EXCESS_BASE64,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_PASS,
+	UNPARSEABLE_RELAY autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C253C04AB4
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 05:19:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65D2EC04AB4
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 05:54:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 136F620818
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 05:19:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 136F620818
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 219C020818
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 05:54:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 219C020818
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6207F6B0005; Thu, 16 May 2019 01:19:33 -0400 (EDT)
+	id 9D50B6B0005; Thu, 16 May 2019 01:54:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5A80D6B0006; Thu, 16 May 2019 01:19:33 -0400 (EDT)
+	id 95F006B0006; Thu, 16 May 2019 01:54:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3F9E66B0007; Thu, 16 May 2019 01:19:33 -0400 (EDT)
+	id 7D88C6B0007; Thu, 16 May 2019 01:54:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 17E7E6B0005
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 01:19:33 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id l192so2157251ywc.10
-        for <linux-mm@kvack.org>; Wed, 15 May 2019 22:19:33 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A67F6B0005
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 01:54:32 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id j1so1491185pff.1
+        for <linux-mm@kvack.org>; Wed, 15 May 2019 22:54:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=r2bjRKZtRbAzPoU524xjEIV548Xlfu3vFQQ2+2rZSnc=;
-        b=eZHuyL1cLYaxD1OvsnxSU74D010DfFjNs3SWOG8h1WThTb/gOXRZdi93pneFNAT87D
-         fPzRuwqWw+R9jEDFV+pRm23k7NH9eMNj34yb5wVyGr1nac5d7j8RXb172akPy7HFhxGT
-         nnwZ5ZooDgswkUdTfIyA6Imyh88uv4vEys2s/jezMMx8Z6Lr0cCfwJEAsavquJVkiJng
-         s/kkrlZL1NzZ2ihkAjt5ss7cVHpExZmxMCKy8tmcZohSncUEvmYaexgWKo688QrsbtmF
-         TkUAY442HoxDmEei1Bu770AGl92ADy3I15nk1q5FjyX7G8LgBA+upZClcyyYGPKj6UdD
-         eOAg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWswG8DjExRaa72dXdrB6meKwGv8QFN+XJGrUuxx634kFHdj5HN
-	JVPgaF2rizwXqkaHt3xfabi1W5VWDcB7r5QjnrtnxctE4bQQg3VjO936uNJzJ7UGU2ZDhe3Lxch
-	W/23dA/ieGFcAWlcAteWbUKYnkFm5XVNyktSG32NDi6oamxuHDYNubhb4zfr0ozEm7A==
-X-Received: by 2002:a81:2d42:: with SMTP id t63mr13416175ywt.232.1557983972789;
-        Wed, 15 May 2019 22:19:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqywcaf7Qv2fU147Wk+en9I0eA27sZ0mDhYttBFon7SEsKCkwFTXOb3ickuGW50G4P+V+7+V
-X-Received: by 2002:a81:2d42:: with SMTP id t63mr13416157ywt.232.1557983971902;
-        Wed, 15 May 2019 22:19:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557983971; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding;
+        bh=c10NYquO1ht2u06DTAd38ZAXwFqiIhzEP7wfD1Lo0XE=;
+        b=cq40CwXP2zSobjFIb3mKLfbhApX3gfnU/OGWDvPW84q60/pmoe29buhGcVYTYX5WeB
+         Dd87ehdNOPV3qlEjcUAnIdOp4CBRYTDMoGIdPPPD1cuF2w+LXqOpU/RGwe/LLAhV5S4A
+         pUkeb4DfFaAFuvlP+X8cfvCg90j2aX8dPVf/y424mMY5DSWBptZh3CW5Qb4ihTftdNBM
+         qJl8O7fCAGhBS7ViGO7ZVEwuwxNY0HCABtcXrvhQSq1JYTb2iAhH9yareCKSQSHZi2t/
+         GnkSVee5WZzw7NGegd8Y90GPvPDO1q6k8QCfTMNkWdhro7YurkuqaQyxL159wwRClR54
+         93sg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhangliguang@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=zhangliguang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAVA8xftlreMo36FVBXz7Gf0JNfINiG/wUCQCTC65PfyYE7h+2zE
+	PkREltHenBZWHs8oXX46aBrd6BbJzWVCkRFUFWDsCaW6trl03zGzwRAKHzKGmQcK5GyoZHwXifA
+	w/x4TbRu53OKs9NjNwBU+I9ih404R8aKNVaWfdYrsm6Gh4Sl7Zif/9i7DmUt2oXdNcw==
+X-Received: by 2002:a63:1e0c:: with SMTP id e12mr46211326pge.218.1557986071598;
+        Wed, 15 May 2019 22:54:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzZeU1yKxZxh3Dy+GlrNNCt/whzYSsXT7ONOc7JpTZNbJH1grAVJ/63bJYfLmjAxUCRm7zI
+X-Received: by 2002:a63:1e0c:: with SMTP id e12mr46211260pge.218.1557986070736;
+        Wed, 15 May 2019 22:54:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557986070; cv=none;
         d=google.com; s=arc-20160816;
-        b=Sn9nMJMNbKUZYv1H0hxj2oy1JzWMcuDLGeZppiu5OK3gDQi0FfPt0WwEAER/m3bRn8
-         9mN7fymAtJP1H5+nLsTffRktYMRFtk+cU2/fNAgo9gU40rOLTQNwn0HfZx5Qd4tSgLku
-         JPnF2CdppiTfAQ8Ssb2mg5BVBzDv5ekuQzb1dmODQEftQ7uxO0CUyU/VOe0VEecwlWqb
-         HVffBEMWIf+8ZFVkOUdNb9l/k+0qeMMcaUcAyIbD45teSkRYMCRGJl6fooyrZMC94OBX
-         xG7bdPkTrZEt527dO1Fy3Ujk5Qni7H6LwF3pL4EywbulvUS52W+WhTX4uHQjOlhK81ZN
-         8DZw==
+        b=Kd0nw1EqU+vp2B0M2fdHZvACuaOn+TddguRuPKm9ae8Z7OmElT9mXZNtXzYuu/WFEK
+         /N7Pvw9vfFFdVwpFcQUgo8FyCr2JsJ6mho0d24aXL2LvmObwok2ZNxxKC1OOebRAc83w
+         49DCC1LXvLghbAKIcqnk9Wi2JpA+37U9gnRhYXdn2BdmWVNqBjhIfQ2RlkyfVS2bew0L
+         BFXquH4kxV8acsexY2ZSopW1UTp4ftA8wO5idujVku0Q7ZEe6ECXqbztrKDh0Cuj1+T6
+         1ZSxEXZZharZC5dY6g76y1kMkE0LcGDnkvbf4bVCoFiefylxu6/Njuo59A0T91fmKMKp
+         sFWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=r2bjRKZtRbAzPoU524xjEIV548Xlfu3vFQQ2+2rZSnc=;
-        b=ROUTNMk5IVksOhas4B26YbOlkVoCXNsCRRhgpdkPgr6bDkMBPGkv/AR7EvU0k0HBmv
-         arzTVTD46NrY+kPYvACWpifBwi/W1wlxT0WQem6q03ynjCOMygk/akx2sEV6Zzc2gUru
-         uvf3ca6YLf/Cyo8YRY4dlSZvhXi18FilY8FReHgvoTqipyFuCi/dJ63Z4U/xvcdHJBZk
-         RArnn6Xat6j9mihGraJi/VfIn+u/P3403o/j0pEXvfcPhNirzOVaSOB3z+AmMrX+Z1om
-         347lum7yzoeQ/JVuxFfnb9yJoLkL/oI+1gZ+vSUSOuAsQWfWg9t0Noy+ea9fBNJwlIN5
-         klUg==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:from:references:cc:to:subject;
+        bh=c10NYquO1ht2u06DTAd38ZAXwFqiIhzEP7wfD1Lo0XE=;
+        b=B7j4dRZEM1fFaas2NChFulkWGTR9ZViKpGxvxSXwGrvmKUKQ6XeAGn/Lz919LyTqGh
+         bFdS/Cc8cZ1Ke/CxI5U/kZEs0JsHzmtEFd1Pb1f3zti3IqDATPnNiNYO8N0tuhjrhkyj
+         h9ngbU7iMZtVrrWJ8KXQKVaicoPGyoA5y+z9ZJnVGvQDBaGjR3ryKqx+T6EALEe6Xl+q
+         yroaNOTIG9qTCL05MO1raQC0+AyBfiRPTuIxdOdsOHeC3WUNftyUTpo8fVIFogZh/Jgn
+         YByFLBXFIiUfGLZt2wYc+7TKJLmgJTqGcg10jWX1WzBPGk46VJjGi4pvHKEXkc+uX8ud
+         6z6Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id j203si1152309ybg.323.2019.05.15.22.19.31
+       spf=pass (google.com: domain of zhangliguang@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=zhangliguang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-42.freemail.mail.aliyun.com (out30-42.freemail.mail.aliyun.com. [115.124.30.42])
+        by mx.google.com with ESMTPS id b17si134201pfi.32.2019.05.15.22.54.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 May 2019 22:19:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Wed, 15 May 2019 22:54:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of zhangliguang@linux.alibaba.com designates 115.124.30.42 as permitted sender) client-ip=115.124.30.42;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4G5HKSD040229
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 01:19:31 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2sh0byjhwf-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 01:19:31 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 16 May 2019 06:19:29 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 16 May 2019 06:19:25 +0100
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4G5JOew57802782
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 16 May 2019 05:19:24 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7A8A911C06E;
-	Thu, 16 May 2019 05:19:24 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 81D8911C05B;
-	Thu, 16 May 2019 05:19:23 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.112])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Thu, 16 May 2019 05:19:23 +0000 (GMT)
-Date: Thu, 16 May 2019 08:19:21 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arnd Bergmann <arnd@arndb.de>, Christoph Hellwig <hch@infradead.org>,
-        "David S. Miller" <davem@davemloft.net>,
-        Heiko Carstens <heiko.carstens@de.ibm.com>,
-        Martin Schwidefsky <schwidefsky@de.ibm.com>,
-        Russell King <linux@armlinux.org.uk>,
-        linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org,
-        sparclinux@vger.kernel.org, linux-arch@vger.kernel.org,
-        linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 0/3] remove ARCH_SELECT_MEMORY_MODEL where it has no
- effect
-References: <1556740577-4140-1-git-send-email-rppt@linux.ibm.com>
+       spf=pass (google.com: domain of zhangliguang@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=zhangliguang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R171e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04391;MF=zhangliguang@linux.alibaba.com;NM=1;PH=DS;RN=5;SR=0;TI=SMTPD_---0TRt6yLM_1557986065;
+Received: from 30.5.117.67(mailfrom:zhangliguang@linux.alibaba.com fp:SMTPD_---0TRt6yLM_1557986065)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Thu, 16 May 2019 13:54:25 +0800
+Subject: Re: [PATCH] fs/writeback: Attach inode's wb to root if needed
+To: Dennis Zhou <dennis@kernel.org>
+Cc: Tejun Heo <tj@kernel.org>, akpm@linux-foundation.org,
+ cgroups@vger.kernel.org, linux-mm@kvack.org
+References: <1557389033-39649-1-git-send-email-zhangliguang@linux.alibaba.com>
+ <20190509164802.GV374014@devbig004.ftw2.facebook.com>
+ <a5bb3773-fef5-ce2b-33b9-18e0d49c33c4@linux.alibaba.com>
+ <20190513183053.GA73423@dennisz-mbp>
+From: =?UTF-8?B?5Lmx55+z?= <zhangliguang@linux.alibaba.com>
+Message-ID: <4ebf1f8e-0f77-37df-da32-037384643527@linux.alibaba.com>
+Date: Thu, 16 May 2019 13:54:24 +0800
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1556740577-4140-1-git-send-email-rppt@linux.ibm.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19051605-4275-0000-0000-000003354B30
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19051605-4276-0000-0000-00003844D161
-Message-Id: <20190516051921.GC21366@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-16_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=687 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905160037
+In-Reply-To: <20190513183053.GA73423@dennisz-mbp>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
+Hi Dennis,
 
-Can this go via the -mm tree?
+Sorry for the later reply. Becase I cann't reproduce this problem by 
+local test,
 
-On Wed, May 01, 2019 at 10:56:14PM +0300, Mike Rapoport wrote:
-> Hi,
-> 
-> For several architectures the ARCH_SELECT_MEMORY_MODEL has no real effect
-> because the dependencies for the memory model are always evaluated to a
-> single value.
-> 
-> Remove the ARCH_SELECT_MEMORY_MODEL from the Kconfigs for these
-> architectures.
-> 
-> Mike Rapoport (3):
->   arm: remove ARCH_SELECT_MEMORY_MODEL
->   s390: remove ARCH_SELECT_MEMORY_MODEL
->   sparc: remove ARCH_SELECT_MEMORY_MODEL
-> 
->  arch/arm/Kconfig   | 3 ---
->  arch/s390/Kconfig  | 3 ---
->  arch/sparc/Kconfig | 3 ---
->  3 files changed, 9 deletions(-)
-> 
-> -- 
-> 2.7.4
-> 
+and online environment is not allowed to operate, I am constructing 
+scenario
 
--- 
-Sincerely yours,
-Mike.
+to reproduce it in recent days.
+
+
+在 2019/5/14 2:30, Dennis Zhou 写道:
+> Hi Liguang,
+>
+> On Fri, May 10, 2019 at 09:54:27AM +0800, 乱石 wrote:
+>> Hi Tejun,
+>>
+>> 在 2019/5/10 0:48, Tejun Heo 写道:
+>>> Hi Tejun,
+>>>
+>>> On Thu, May 09, 2019 at 04:03:53PM +0800, zhangliguang wrote:
+>>>> There might have tons of files queued in the writeback, awaiting for
+>>>> writing back. Unfortunately, the writeback's cgroup has been dead. In
+>>>> this case, we reassociate the inode with another writeback cgroup, but
+>>>> we possibly can't because the writeback associated with the dead cgroup
+>>>> is the only valid one. In this case, the new writeback is allocated,
+>>>> initialized and associated with the inode. It causes unnecessary high
+>>>> system load and latency.
+>>>>
+>>>> This fixes the issue by enforce moving the inode to root cgroup when the
+>>>> previous binding cgroup becomes dead. With it, no more unnecessary
+>>>> writebacks are created, populated and the system load decreased by about
+>>>> 6x in the online service we encounted:
+>>>>       Without the patch: about 30% system load
+>>>>       With the patch:    about  5% system load
+>>> Can you please describe the scenario with more details?  I'm having a
+>>> bit of hard time understanding the amount of cpu cycles being
+>>> consumed.
+>>>
+>>> Thanks.
+>> Our search line reported a problem, when containerA was removed,
+>> containerB and containerC's system load were up to 30%.
+>>
+>> We record the trace with 'perf record cycles:k -g -a', found that wb_init
+>> was the hotspot function.
+>>
+>> Function call:
+>>
+>> generic_file_direct_write
+>>     filemap_write_and_wait_range
+>>        __filemap_fdatawrite_range
+>>           wbc_attach_fdatawrite_inode
+>>              inode_attach_wb
+>>                 __inode_attach_wb
+>>                    wb_get_create
+>>              wbc_attach_and_unlock_inode
+>>                 if (unlikely(wb_dying(wbc->wb)))
+>>                    inode_switch_wbs
+>>                       wb_get_create
+>>                          ; Search bdi->cgwb_tree from memcg_css->id
+>>                          ; OR cgwb_create
+>>                             kmalloc
+>>                             wb_init       // hot spot
+>>                             ; Insert to bdi->cgwb_tree, mmecg_css->id as key
+>>
+>> We discussed it through, base on the analysis:  When we running into the
+>> issue, there is cgroups are being deleted. The inodes (files) that were
+>> associated with these cgroups have to switch into another newly created
+>> writeback. We think there are huge amount of inodes in the writeback list
+>> that time. So we don't think there is anything abnormal. However, one
+>> thing we possibly can do: enforce these inodes to BDI embedded wirteback
+>> and we needn't create huge amount of writebacks in that case, to avoid
+>> the high system load phenomenon. We expect correct wb (best candidate) is
+>> picked up in next round.
+>>
+>> Thanks,
+>> Liguang
+>>
+> If I understand correctly, this is mostlikely caused by a file shared by
+> cgroup A and cgroup B. This means cgroup B is doing direct io against
+> the file owned by the dying cgroup A. In this case, the code tries to do
+> a wb switch. However, it fails to reallocate the wb as it's deleted and
+> for the original cgrouip A's memcg id.
+>
+> I think the below may be a better solution. Could you please test it? If
+> it works, I'll spin a patch with a more involved description.
+>
+> Thanks,
+> Dennis
+>
+> ---
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 36855c1f8daf..fb331ea2a626 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -577,7 +577,7 @@ void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
+>   	 * A dying wb indicates that the memcg-blkcg mapping has changed
+>   	 * and a new wb is already serving the memcg.  Switch immediately.
+>   	 */
+> -	if (unlikely(wb_dying(wbc->wb)))
+> +	if (unlikely(wb_dying(wbc->wb)) && !css_is_dying(wbc->wb->memcg_css))
+>   		inode_switch_wbs(inode, wbc->wb_id);
+>   }
+>   
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index 72e6d0c55cfa..685563ed9788 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -659,7 +659,7 @@ struct bdi_writeback *wb_get_create(struct backing_dev_info *bdi,
+>   
+>   	might_sleep_if(gfpflags_allow_blocking(gfp));
+>   
+> -	if (!memcg_css->parent)
+> +	if (!memcg_css->parent || css_is_dying(memcg_css))
+>   		return &bdi->wb;
+>   
+>   	do {
 
