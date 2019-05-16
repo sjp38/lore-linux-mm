@@ -4,103 +4,104 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C2EDC04AB4
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 16:06:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 71E8EC04AAF
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 16:10:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C611920833
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 16:06:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 259EE206BF
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 16:10:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="H6xNrQHk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C611920833
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="oQIJnd3c"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 259EE206BF
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 572DC6B0005; Thu, 16 May 2019 12:06:52 -0400 (EDT)
+	id B63D56B0005; Thu, 16 May 2019 12:10:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5229E6B0006; Thu, 16 May 2019 12:06:52 -0400 (EDT)
+	id B13C46B0006; Thu, 16 May 2019 12:10:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3EA796B0007; Thu, 16 May 2019 12:06:52 -0400 (EDT)
+	id 9DB816B0007; Thu, 16 May 2019 12:10:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 124686B0005
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 12:06:52 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id d198so1625744oih.6
-        for <linux-mm@kvack.org>; Thu, 16 May 2019 09:06:52 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 751B86B0005
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 12:10:12 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id a196so1611210oii.21
+        for <linux-mm@kvack.org>; Thu, 16 May 2019 09:10:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=I4VKFuY3dBhk8M0E31KTPJJ8MMHDVcscAUiCzod5h4g=;
-        b=cNR9r42vzTdeDynXYQ4mjt7VBLwlJ8OKCJhSnMro3MBhSmw6DnwJjyzH7RYPIdRCB2
-         McEFSoZGY9M8B9edK7zbEuDuPu6icYSBfuL0xizM8URbs5SC2XOa12LrFhqfmdLD3L7R
-         PDWES/x/bIND1Y4oqD8fJGHZaWTJ5pq+CS/AAmS8VQLtkw4Ph/GiOILpGCtqvkiuCwYb
-         0r7VoxsvczjyagshJE4yTZzRSs+jnKyaWGNLApUZH2KksODORXlRK7pQhSGnu/hUXkTK
-         LhzW6za81JlonQvMd7ANKsHOH9ryUVlrPvRhVMUThjhQlJUICUbOLNh2UzMGaI/tApaM
-         6vNA==
-X-Gm-Message-State: APjAAAW0yWXUzYm0sm2TrtJqJQzLuS8J7gPAD+gokNXH2XZpVBUyUmDR
-	VaCdjof2YhYU6y8av5B9qzrymjv3Um2rwDrBQCScQeAvJbXAFoKez1Y+OFQxEk1ER2ZxI/2Lq88
-	FJSP5BtIGHSRU1EWve3EjKkgWaaYrUiRaSAB2TmHAwFiJzpSV9h1mADOqFaBlyOPoTw==
-X-Received: by 2002:a9d:57c8:: with SMTP id q8mr120200oti.144.1558022811718;
-        Thu, 16 May 2019 09:06:51 -0700 (PDT)
-X-Received: by 2002:a9d:57c8:: with SMTP id q8mr120138oti.144.1558022810847;
-        Thu, 16 May 2019 09:06:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558022810; cv=none;
+        bh=bMHMBrMd0YNkJT0fsHTTWNRBFmrV68S4uDG6Stq2kXM=;
+        b=hbBJoh9kXMRu6I21d8xUR72xBI6UeGLo0GnYWUu538JQHEu4i3dH8R49ofaryqdoN0
+         6/EbFKNTnVZuvcWlnq8dBGKkZte9JXZN4NwjGlOEGrfbnK32YpBjZFf3DNJfwFX+VwHy
+         ywdgserlgKAOCV/8NCcAboxdyMdms30KCXs0HtbihLGTea95e89BY8OKTIh5xJlZtwHy
+         b4uW/fakuLURSKpWdIYPacVLvhwpJCNs6i2NBlD9mpAfY70W9Rj6DkShgoPHJ22GrXbk
+         +9IUxY6ztDBkiu+VmC/ZtyaRpoqkt9baDPcrJP+PuVWMlNLrAYvYVJX0jCo1+uVz6chW
+         qisQ==
+X-Gm-Message-State: APjAAAVQNzSVUtt/QX2RiYTcvE8NhyhbeYzR+q1eOq9D7UKLsiP/SWkv
+	I/lV2jZVBmUw4b3le8NUz5XoO2W788R0gzXzVYYMYsg5ulDpfkqDHXfKw+9+nUNzBhYKyepkLmK
+	u4ITZKBh3JXr0akVdRozEPy4oGE0dRL0pzRXbEBBc06efarjGH0+ZHTdel9ED8ZKYnQ==
+X-Received: by 2002:a9d:826:: with SMTP id 35mr30682895oty.114.1558023012182;
+        Thu, 16 May 2019 09:10:12 -0700 (PDT)
+X-Received: by 2002:a9d:826:: with SMTP id 35mr30682847oty.114.1558023011455;
+        Thu, 16 May 2019 09:10:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558023011; cv=none;
         d=google.com; s=arc-20160816;
-        b=drqJ6YQtUtnHE6uOiZdlqq2f9OfvD1CCQNufp5rMG9gUzaO+IIRWYaqBCF+JieUojt
-         mq+wNI3/97eiDogHW+tsI1Qtwi/IIz1ftR7OI2wCCO4fcL3ssvwk3a386bbdf0Qz2rlR
-         C+yZNAjPQBgqcn97TMIorzZsM61hRGXjB5OsRIExJ3MSQnAE7duA1viZty8JM6svA5IW
-         KgbhxgU/b10VoZInu2nzFa07occUI1eF6h+TKXh+6gEKamBxwqKrDz0qRRiyKKYxwbm8
-         ACFsJVDoYhOH9ihYfgzRg0q2R9k/yZi0Cq7HlxwQ1cOBkn7/Elbh3g5jtos8zVkAb50X
-         itdQ==
+        b=fG4BgTjWUm0V94RGO+yhaR5nYrmj5W9/k3cgc28nutRvRrh4SsXNmTi2M0BJtKoKAc
+         NqxIO2WgU2M40HFw3K41wbNerYw+M2GZAMJYUzydRsV4WhoXPeCDz1jSZhPIMnX8OgVC
+         DuIBP28qd6hZl/AyFH8umu01k2WfjJR+FBioUkTZkRauflIn8+7BLBQzfr3ICExtjod1
+         XMFaiUAIc3k/FxXawqLU1jrlZKSbUgD6rTCH5GsZXPx/j3z2b8snWbW8G+7e105SK/CO
+         cYHwRti+hvzBnT0nPkvF3B4/dAubz+i218WfzZepHiuBNIa5cKcGRHrJYHtWU9ieaM9E
+         7mvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=I4VKFuY3dBhk8M0E31KTPJJ8MMHDVcscAUiCzod5h4g=;
-        b=ZXLLIcj/bHhOLJ+4Th2zBYIHG+jlWUDY/4EAmCaSgQIGHs4Z30vPM3wXAQPU9GXs4l
-         Jk4NFTrFWqbD+Qfs8CfukKIvWIvqoa6mjApLnhdlMCQWoLvfgeMAM2XNFoXP1Ewve2K1
-         5CAc4/iQb/Z6XF99QgEY9VJYxpSIJMvg7ytpOKBmR2vq0vLGaSubwLjNkx6AG4tZ4neU
-         37dip7JCUnB8YyWhE3hZ3SvOJV4cKGth3bTgssoYw2ZQpkrL6cGZCY4Uy+KC6HgvXNsR
-         IOcX4Q325V7zhnQ7gvCsgFAxG//WNlEXhCXaaFNqriQeDm9PStyiunghU+CClW+7ROa8
-         2lmg==
+        bh=bMHMBrMd0YNkJT0fsHTTWNRBFmrV68S4uDG6Stq2kXM=;
+        b=Ml7PA3CHENMRvm4mxA5W/a8MdYkIzQgDPMX2nQUyH91H1Ger/Rv0/SMoQU/7ON9G2h
+         EKf59Xzj6pSrH3SQsTxwGXaqWeTah+IgJxdtc4GzFLtGofn2GaA1aibH2vHWk5bvifND
+         lbazDxp10A2h0xUDiWi7tTg90ijEQkM7vIbUu0CnqfC7aTUB4ekYE6M0ZUMKhY9Gg6wd
+         W1chQf0nPtRcPhu4CbfbEQt36EIeO6Rp2YcF9n4uapLPJ+jXtBI/ZmyeMDBpgO6Z6+IC
+         aNGHzsz1JIyfYtrdDh8/R4WBMRaChVuOksjQ+ygruObOrgEDH0G6JQ3rtn0n+zxYW/EQ
+         FcBA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=H6xNrQHk;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=oQIJnd3c;
        spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f64sor1892949otb.183.2019.05.16.09.06.50
+        by mx.google.com with SMTPS id b17sor2964006otk.53.2019.05.16.09.10.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 16 May 2019 09:06:50 -0700 (PDT)
+        Thu, 16 May 2019 09:10:11 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=H6xNrQHk;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=oQIJnd3c;
        spf=pass (google.com: domain of jannh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jannh@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=I4VKFuY3dBhk8M0E31KTPJJ8MMHDVcscAUiCzod5h4g=;
-        b=H6xNrQHksO0mY+GD8TjSIB/dl7gXte6ptfd1KwGU7WS9fv6i/tgp5PRwV1QwuOcLn8
-         EQgegFWR1awHjfSGP4+gjgXMyl3Gl62XXSb7Mm7Nf1RXzKuaEetJoPJs6GSuS0KBL9vl
-         Wub95qd5nDDIuDpLobcQrJAeLZp5nVs+LMne3mcxV43wLSgIfXzXurgIQYOiBUs8VKq4
-         KUB/9oEuCvZV97lXvc2ABvfckVlCEpI9+rGFlz3y2hfmc98QPPAyHhjTuVHOdOUM3Bkm
-         UOJay+FnLHdEk6rocRtjzEXrvs47hR0q26+/2U1SS5+d0iEBJ8VXwWGOZJ51SarUWMvq
-         4fdw==
-X-Google-Smtp-Source: APXvYqzler3soQWaPkgJTqHADqwjhXm5FObYmA+iecGHRrkmAWqb4Fk8pHSH7Qj3lDCx4Ml5SA54wKgEPHxudDIXDq4=
-X-Received: by 2002:a9d:7347:: with SMTP id l7mr6353382otk.183.1558022810319;
- Thu, 16 May 2019 09:06:50 -0700 (PDT)
+        bh=bMHMBrMd0YNkJT0fsHTTWNRBFmrV68S4uDG6Stq2kXM=;
+        b=oQIJnd3cJFOTGWU+mhqQw5xZ/48tAUVBLW2xsdnHW75CFgSaesak+3DGKJkRVnnlf5
+         f7vp8/QSuZL0RRyYca0jxJkcPCNSvi7RRnbKm5rO4uvFQinoZkfWxKegO3545xUKi6Tm
+         yDlWfRiGkBs9X7KKIzePsKsJBYU4Mhp9dgLaLpepquR4TXbJgz+SyjP4Cb13IfAyCjJc
+         yGAprbbVJ9x317dpUPRsbFj1RHmcJ2iqPoNfYLSKY45Sx4cye8fqfTTAzGmIRMznduug
+         6Zyh7c9l0qYmroDn3xiUT/EZlGqq0eanNec/JAobiVm74MfwZM1Br1PUonCZzlOV+vwq
+         1QHw==
+X-Google-Smtp-Source: APXvYqxWTgXDP+q+BEeyCjiZ3kodMX94OZctQK+ZcHZRSQLNXJRMtNIbRJ4iu9fxZKt8FJF85O7xJzJohWCE0aKFlNM=
+X-Received: by 2002:a9d:7347:: with SMTP id l7mr6367258otk.183.1558023010974;
+ Thu, 16 May 2019 09:10:10 -0700 (PDT)
 MIME-Version: 1.0
 References: <20190516094234.9116-1-oleksandr@redhat.com> <20190516094234.9116-5-oleksandr@redhat.com>
- <CAG48ez2yXw_PJXO-mS=Qw5rkLpG6zDPd0saMhhGk09-du2bpaA@mail.gmail.com> <20190516142013.sf2vitmksvbkb33f@butterfly.localdomain>
-In-Reply-To: <20190516142013.sf2vitmksvbkb33f@butterfly.localdomain>
+ <CAG48ez2yXw_PJXO-mS=Qw5rkLpG6zDPd0saMhhGk09-du2bpaA@mail.gmail.com>
+ <20190516142013.sf2vitmksvbkb33f@butterfly.localdomain> <20190516144323.pzkvs6hapf3czorz@butterfly.localdomain>
+In-Reply-To: <20190516144323.pzkvs6hapf3czorz@butterfly.localdomain>
 From: Jann Horn <jannh@google.com>
-Date: Thu, 16 May 2019 18:06:24 +0200
-Message-ID: <CAG48ez0teQk+rVnRmr=xcM8PJ_8UZC3hSi7PABx-qunz+5=DGg@mail.gmail.com>
+Date: Thu, 16 May 2019 18:09:44 +0200
+Message-ID: <CAG48ez0-ytaDNVa7TiMaa4nR-nMEh_ZgND-sXjiw+RzZFmMqhw@mail.gmail.com>
 Subject: Re: [PATCH RFC 4/5] mm/ksm, proc: introduce remote merge
 To: Oleksandr Natalenko <oleksandr@redhat.com>
 Cc: kernel list <linux-kernel@vger.kernel.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, 
@@ -118,74 +119,49 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 16, 2019 at 4:20 PM Oleksandr Natalenko
+On Thu, May 16, 2019 at 4:43 PM Oleksandr Natalenko
 <oleksandr@redhat.com> wrote:
-> On Thu, May 16, 2019 at 12:00:24PM +0200, Jann Horn wrote:
-> > On Thu, May 16, 2019 at 11:43 AM Oleksandr Natalenko
-> > <oleksandr@redhat.com> wrote:
-> > > Use previously introduced remote madvise knob to mark task's
-> > > anonymous memory as mergeable.
+> On Thu, May 16, 2019 at 04:20:13PM +0200, Oleksandr Natalenko wrote:
+> > > [...]
+> > > > @@ -2960,15 +2962,63 @@ static int proc_stack_depth(struct seq_file *m, struct pid_namespace *ns,
+> > > >  static ssize_t madvise_write(struct file *file, const char __user *buf,
+> > > >                 size_t count, loff_t *ppos)
+> > > >  {
+> > > > +       /* For now, only KSM hints are implemented */
+> > > > +#ifdef CONFIG_KSM
+> > > > +       char buffer[PROC_NUMBUF];
+> > > > +       int behaviour;
+> > > >         struct task_struct *task;
+> > > > +       struct mm_struct *mm;
+> > > > +       int err = 0;
+> > > > +       struct vm_area_struct *vma;
+> > > > +
+> > > > +       memset(buffer, 0, sizeof(buffer));
+> > > > +       if (count > sizeof(buffer) - 1)
+> > > > +               count = sizeof(buffer) - 1;
+> > > > +       if (copy_from_user(buffer, buf, count))
+> > > > +               return -EFAULT;
+> > > > +
+> > > > +       if (!memcmp("merge", buffer, min(sizeof("merge")-1, count)))
 > > >
-> > > To force merging task's VMAs, "merge" hint is used:
-> > >
-> > >    # echo merge > /proc/<pid>/madvise
-> > >
-> > > Force unmerging is done similarly:
-> > >
-> > >    # echo unmerge > /proc/<pid>/madvise
-> > >
-> > > To achieve this, previously introduced ksm_madvise_*() helpers
-> > > are used.
+> > > This means that you also match on something like "mergeblah". Just use strcmp().
 > >
-> > Why does this not require PTRACE_MODE_ATTACH_FSCREDS to the target
-> > process? Enabling KSM on another process is hazardous because it
-> > significantly increases the attack surface for side channels.
+> > I agree. Just to make it more interesting I must say that
 > >
-> > (Note that if you change this to require PTRACE_MODE_ATTACH_FSCREDS,
-> > you'll want to use mm_access() in the ->open handler and drop the mm
-> > in ->release. mm_access() from a ->write handler is not permitted.)
+> >    /sys/kernel/mm/transparent_hugepage/enabled
+> >
+> > uses memcmp in the very same way, and thus echoing "alwaysssss" or
+> > "madviseeee" works perfectly there, and it was like that from the very
+> > beginning, it seems. Should we fix it, or it became (zomg) a public API?
 >
-> Sounds reasonable. So, something similar to what mem_open() & friends do
-> now:
+> Actually, maybe, the reason for using memcmp is to handle "echo"
+> properly: by default it puts a newline character at the end, so if we use
+> just strcmp, echo should be called with -n, otherwise strcmp won't match
+> the string.
 >
-> static int madvise_open(...)
-> ...
->         struct task_struct *task = get_proc_task(inode);
-> ...
->         if (task) {
->                 mm = mm_access(task, PTRACE_MODE_ATTACH_FSCREDS);
->                 put_task_struct(task);
->                 if (!IS_ERR_OR_NULL(mm)) {
->                         mmgrab(mm);
->                         mmput(mm);
-> ...
->
-> Then:
->
-> static ssize_t madvise_write(...)
-> ...
->         if (!mmget_not_zero(mm))
->                 goto out;
->
->         down_write(&mm->mmap_sem);
->         if (!mmget_still_valid(mm))
->                 goto skip_mm;
-> ...
-> skip_mm:
->         up_write(&mm->mmap_sem);
->
->         mmput(mm);
-> out:
->         return ...;
->
-> And, finally:
->
-> static int madvise_release(...)
-> ...
->                 mmdrop(mm);
-> ...
->
-> Right?
+> Huh?
 
-Yeah, that looks reasonable.
+Ah, yes, other code like e.g. proc_setgroups_write() uses strncmp()
+and then has an extra check to make sure everything trailing is
+whitespace.
 
