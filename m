@@ -2,151 +2,171 @@ Return-Path: <SRS0=l6tt=TQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D4C6EC04AAF
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 14:21:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DDAEC04AAF
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 14:22:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9FA3821473
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 14:21:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FA3821473
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id BDA6D205ED
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 14:22:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BDA6D205ED
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 34E646B0005; Thu, 16 May 2019 10:21:46 -0400 (EDT)
+	id 437A86B0006; Thu, 16 May 2019 10:22:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2FEA26B0006; Thu, 16 May 2019 10:21:46 -0400 (EDT)
+	id 3E8C06B0007; Thu, 16 May 2019 10:22:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1EEC66B0007; Thu, 16 May 2019 10:21:46 -0400 (EDT)
+	id 2D7FB6B0008; Thu, 16 May 2019 10:22:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C454B6B0005
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 10:21:45 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id a20so1080647wme.9
-        for <linux-mm@kvack.org>; Thu, 16 May 2019 07:21:45 -0700 (PDT)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE63B6B0006
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 10:22:32 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id g8so536000lja.12
+        for <linux-mm@kvack.org>; Thu, 16 May 2019 07:22:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=3pBYZyFUkM5nWJomyVpE/m2x1DxoC1ycwj8/edxQgVk=;
-        b=A76izdSILhsK/QdmqdKFBFIzWBINNslElFyTVjYwCK6u394ew5uP0DIeF559OhaEMu
-         DSy9ZT8VebUKFxuFjXaWkSZF7o1CUJuSqO0kmEX54/qZxnlv8Znx+xvPHC0YJYnmAoRt
-         6HcK5IviFmRLixAlMk4QpI5QeWoL8iKU4sfNP9bGdgPl5Lo6fiT3QeuLOEbN5H/a/52q
-         JPAb9RJQQ78fDhelmIsEKzfFrp7D48jufqNFZbByiU/cOEkLDXtLttauZN2LEXweEoCh
-         A1MfmW2Z0MlxajyUbb/msgSeeFUKAe4gZxymfV3HoJAVcR0OInjLuUQ0CIOOXK4oyl71
-         ypNA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXR5DGLkbgCppl/ZTBPfMP0SX+owOrgfqFZA9ANtSgpSupPAVyw
-	ghLk6Y6Po2L7ZOrvhFKvRdT1+o+hlWFruJJiBFdRtWnTb+/LyG4XHeHjczC68J8yBBNmEdyttFx
-	9mW5nxNr5D87XL6BfzCkQn61ki2LZGaUaytk5om6STLzzsn3Fsm+wP3s4BA0tGdaChg==
-X-Received: by 2002:a5d:4988:: with SMTP id r8mr19675112wrq.57.1558016505262;
-        Thu, 16 May 2019 07:21:45 -0700 (PDT)
-X-Received: by 2002:a5d:4988:: with SMTP id r8mr19675053wrq.57.1558016504599;
-        Thu, 16 May 2019 07:21:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558016504; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=luxCrZEStgJBs7CpALfKRLP6982TIh6OfHD/4DCx+GU=;
+        b=EOO4I7WI62KlccU1BfaIaIxSgvXAK34EzsspOsZFfxemGD0tbOSXCMIoDApHZtFeeI
+         fE0ffDFZ1KAJ00f0eyh1IEeMrolpkGAO1Ax6Dzh6M7R9lG2I1qm7IWhD45Lo8CRmSm2M
+         G4NWeO3tiAGW2xMfTT8ymTlzbGez1EGKA7jiZkP0IU5v4yFRf/eaQTcQEU1dWf+6D3lG
+         5EUmiK3CKk/W8YA97QfV1zttdzJ5YvkxHCwLWj+PZJGojv9VIXYk6NFyBkkDebfx1z7Y
+         0sT7IYh2JwYHwwfxg49aCw/3TM/45As0v/5GyjsZfuALhDVTgA25tiRlHPanQRQd6kWF
+         Z+UQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAWH3lrvJb631SiKzXBrp9fkzMlVHFGcpiz55PY61TYa+B5r9d4+
+	uXWilPpbWC6QqJPJt2MoWBWJvmZmdW1buFSWPYsOZR9A/FEmcrEXJKzHyqtvWDcAFj//Cti3F84
+	JwcfMJMy1MPg08EV+zYoEKQnbmt53Rjsna5hr+g2uT2oZCxFgG1+B2Dt5PHfhB855XA==
+X-Received: by 2002:a2e:5301:: with SMTP id h1mr17247299ljb.196.1558016552125;
+        Thu, 16 May 2019 07:22:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyvLEp+YVS/aWLxZzcj87NUl5WRwlNxuzrRY/SWDdLV/FLt7E3m/ySKowRlVAemcyfoL6FB
+X-Received: by 2002:a2e:5301:: with SMTP id h1mr17247239ljb.196.1558016551207;
+        Thu, 16 May 2019 07:22:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558016551; cv=none;
         d=google.com; s=arc-20160816;
-        b=DS12W32bnh2tADzkgTjUshlKvOpRdjZIuLcPkuT58lHvAqHvhikUE+t1jYLJLDJIFq
-         xZBTgMCqf2UEMGBlW1xZFilKHuv/ySdlL7O4t5J0veMTiPqx2VAoj0G4MmiaoJmwJs0V
-         BCXyOJJqKZTR72oxLSHjVkl8/754QLXm99TM43GIh2NJKnBm44HOheQwWRJYM6ZQpaVI
-         XpMGJZG2XxZMOqIvtWr8J3m3OiimqQUlEBLQ25dsBq3UYqeXGcjS3U4lrokHena48R89
-         t9Z5kh/hmDmSm+rPXq5qG5qwyXRWZJvPkh5K4g+8LGSgrsSw1+3aTRwbbG5OQelM7Rk9
-         gZDA==
+        b=KoFh0etcksT13p6izgsOSZYWJjiEw7tLlEMAaOIDDioDY2smN6u1Q/EXZi8bdRLxiG
+         2rB28Hl9GECzJGAg1BNw7iqanC6sJxsDL0u3JGuAR5ZSwvyFDejDbwVDXbMKznMXVrGS
+         ZNSlb5nFVnqFxtoKEPQoB9oIJGWiXS5A1/3SCzDOHT2XKyY35RUbY1hfUv24a4QtHhIN
+         aUNbG6Bjm1mnVk6nmAJ3hCrogMFaJ7smyY6DLf972vvi1y+XLMeTr3YfluM7ZI5JsWi5
+         SgU1GbA/mN2QfGeCNMa62bvo7XX0t1QRp3e5mBns9vSt9zIjSnTC3+wOPt5kXLPEa9O7
+         rSyQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=3pBYZyFUkM5nWJomyVpE/m2x1DxoC1ycwj8/edxQgVk=;
-        b=JXPFNrShWIFnmKjvM1cIj+/UyFS0w+HbFQKL7GfTYv/5TFB0MG+RZ+IBSgXPVEmabQ
-         1uqw+7E1iDREvJx2qw1XQvSim/75xUWLC3qJgwUig1Mle0aykqOl9BU2tUby+9jRGtWK
-         d13EKkbjf/+rliFZ1GreHQ/8fv0MZ8s9iiyJYvkqz1s/4rrK7Wg+ZflqCZGQRgM7gHyc
-         87/ZlJoevjqFxQA2ETMLiEnUJdA8B5gQqC0GH4tPSbHPdxNyU2jiQrri+0CxdRTWfxII
-         XfP1OIfedai4D9L05fPmHmlM9p4yg9k/owTU1fjrcHI5SVfuIlHrcvczuEjtECt07k2M
-         hGGw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=luxCrZEStgJBs7CpALfKRLP6982TIh6OfHD/4DCx+GU=;
+        b=GsUCVw2ETHZEqaxeW8ZdAmtuvX8iZbtgh3WVuuPtG6tDCbsSi0BitNe6expZPWSbT5
+         XyYklht9fxv5IJZVL/2TS7hwF68upfaTxLQnnVX/V4SP6RrCmkXLUplR7dKqRwovN4UF
+         XT8A3NIRG2AUneZC9aaAHbmapFwU7vDzZenospXm6XtRkFYRy3zrWhyt1xWbHqKVGLM7
+         uoc4J15zQe7da5mo3YZitDVRTlRIT2P+ZigMvOfvWauCjRPiN8zFj/bPVICAfMBAV6we
+         cU/yJKUUGv3gITW1yYBKJUlEt/nM+zJnTm9OfoLeC9l8XeBDtgLRBXsVItNgbFaSNRJp
+         Je5g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f76sor3413931wme.13.2019.05.16.07.21.44
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id a22si4477181lji.206.2019.05.16.07.22.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 16 May 2019 07:21:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 May 2019 07:22:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqxXwoK109kD/ez3T5lP/j8A8AQ1AFMnns5SxEo7Ap1IuaYOUMPIMyPdhIllQencoKBO77rrOw==
-X-Received: by 2002:a1c:2245:: with SMTP id i66mr12110548wmi.19.1558016504222;
-        Thu, 16 May 2019 07:21:44 -0700 (PDT)
-Received: from localhost (nat-pool-brq-t.redhat.com. [213.175.37.10])
-        by smtp.gmail.com with ESMTPSA id j82sm7364200wmj.40.2019.05.16.07.21.43
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 16 May 2019 07:21:43 -0700 (PDT)
-Date: Thu, 16 May 2019 16:21:42 +0200
-From: Oleksandr Natalenko <oleksandr@redhat.com>
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hRHH5-0007GL-T0; Thu, 16 May 2019 17:22:24 +0300
+Subject: Re: [PATCH RFC 0/5] mm: process_vm_mmap() -- syscall for duplication
+ a process mapping
 To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, Kirill Tkhai <ktkhai@virtuozzo.com>,
-	Hugh Dickins <hughd@google.com>,
-	Alexey Dobriyan <adobriyan@gmail.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Matthew Wilcox <willy@infradead.org>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Greg KH <greg@kroah.com>, Suren Baghdasaryan <surenb@google.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Timofey Titovets <nefelim4ag@gmail.com>,
-	Aaron Tomlin <atomlin@redhat.com>,
-	Grzegorz Halat <ghalat@redhat.com>, linux-mm@kvack.org,
-	linux-api@vger.kernel.org
-Subject: Re: [PATCH RFC 0/5] mm/ksm, proc: introduce remote madvise
-Message-ID: <20190516142142.qti3zfevuf67dedn@butterfly.localdomain>
-References: <20190516094234.9116-1-oleksandr@redhat.com>
- <20190516104412.GN16651@dhcp22.suse.cz>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com,
+ keith.busch@intel.com, kirill.shutemov@linux.intel.com,
+ pasha.tatashin@oracle.com, alexander.h.duyck@linux.intel.com,
+ ira.weiny@intel.com, andreyknvl@google.com, arunks@codeaurora.org,
+ vbabka@suse.cz, cl@linux.com, riel@surriel.com, keescook@chromium.org,
+ hannes@cmpxchg.org, npiggin@gmail.com, mathieu.desnoyers@efficios.com,
+ shakeelb@google.com, guro@fb.com, aarcange@redhat.com, hughd@google.com,
+ jglisse@redhat.com, mgorman@techsingularity.net, daniel.m.jordan@oracle.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+References: <155793276388.13922.18064660723547377633.stgit@localhost.localdomain>
+ <20190516133034.GT16651@dhcp22.suse.cz>
+ <20190516135259.GU16651@dhcp22.suse.cz>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <85562807-2a13-9aa2-e67d-15513c766eae@virtuozzo.com>
+Date: Thu, 16 May 2019 17:22:23 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190516104412.GN16651@dhcp22.suse.cz>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190516135259.GU16651@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi.
-
-On Thu, May 16, 2019 at 12:44:12PM +0200, Michal Hocko wrote:
-> On Thu 16-05-19 11:42:29, Oleksandr Natalenko wrote:
+On 16.05.2019 16:52, Michal Hocko wrote:
+> On Thu 16-05-19 15:30:34, Michal Hocko wrote:
+>> [You are defining a new user visible API, please always add linux-api
+>>  mailing list - now done]
+>>
+>> On Wed 15-05-19 18:11:15, Kirill Tkhai wrote:
 > [...]
-> > * to mark all the eligible VMAs as mergeable, use:
-> > 
-> >    # echo merge > /proc/<pid>/madvise
-> > 
-> > * to unmerge all the VMAs, use:
-> > 
-> >    # echo unmerge > /proc/<pid>/madvise
+>>> The proposed syscall aims to introduce an interface, which
+>>> supplements currently existing process_vm_writev() and
+>>> process_vm_readv(), and allows to solve the problem with
+>>> anonymous memory transfer. The above example may be rewritten as:
+>>>
+>>> 	void *buf;
+>>>
+>>> 	buf = mmap(NULL, n * PAGE_SIZE, PROT_READ|PROT_WRITE,
+>>> 		   MAP_PRIVATE|MAP_ANONYMOUS, ...);
+>>> 	recv(sock, buf, n * PAGE_SIZE, 0);
+>>>
+>>> 	/* Sign of @pid is direction: "from @pid task to current" or vice versa. */
+>>> 	process_vm_mmap(-pid, buf, n * PAGE_SIZE, remote_addr, PVMMAP_FIXED);
+>>> 	munmap(buf, n * PAGE_SIZE);
 > 
-> Please do not open a new thread until a previous one reaches some
-> conclusion. I have outlined some ways to go forward in
-> http://lkml.kernel.org/r/20190515145151.GG16651@dhcp22.suse.cz.
-> I haven't heard any feedback on that, yet you open a 3rd way in a
-> different thread. This will not help to move on with the discussion.
-> 
-> Please follow up on that thread.
+> AFAIU this means that you actually want to do an mmap of an anonymous
+> memory with a COW semantic to the remote process right?
 
-Sure, I will follow the thread once and if there are responses. Consider
-this one to be an intermediate summary of current suggestions and also
-an indication that it is better to have the code early for public eyes.
+Yes.
 
-Thank you.
+> How does the remote process find out where and what has been mmaped?
 
-> -- 
-> Michal Hocko
-> SUSE Labs
+Any way. Isn't this a trivial task? :) You may use socket or any
+of appropriate linux features to communicate between them.
 
--- 
-  Best regards,
-    Oleksandr Natalenko (post-factum)
-    Senior Software Maintenance Engineer
+>What if the range collides? This sounds quite scary to me TBH.
+
+In case of range collides, the part of old VMA becomes unmapped.
+The same way we behave on ordinary mmap. You may intersect a range,
+which another thread mapped, so you need a synchronization between
+them. There is no a principle difference.
+
+Also I'm going to add a flag to prevent unmapping like Kees suggested.
+Please, see his message.
+
+> Why cannot you simply use shared memory for that?
+
+Because of remote task may want specific type of VMA. It may want not to
+share a VMA with its children.
+
+Speaking about online migration, a task wants its anonymous private VMAs
+remain the same after the migration. Otherwise, imagine the situation,
+when task's stack becomes a shared VMA after the migration.
+Also, task wants anonymous mapping remains anonymous.
+
+In general, in case of shared memory is enough for everything, we would
+have never had process_vm_writev() and process_vm_readv() syscalls.
+
+Kirill
 
