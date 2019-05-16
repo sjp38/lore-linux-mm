@@ -2,225 +2,283 @@ Return-Path: <SRS0=l6tt=TQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C25FC04AAF
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 13:59:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90B00C04AAF
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 14:20:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3AE7F20848
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 13:59:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3AE7F20848
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 504D42082E
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 14:20:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 504D42082E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C602E6B0008; Thu, 16 May 2019 09:59:26 -0400 (EDT)
+	id C29866B0005; Thu, 16 May 2019 10:20:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C0F766B000A; Thu, 16 May 2019 09:59:26 -0400 (EDT)
+	id BB24F6B0006; Thu, 16 May 2019 10:20:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AD8576B000C; Thu, 16 May 2019 09:59:26 -0400 (EDT)
+	id A54526B0007; Thu, 16 May 2019 10:20:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FC896B0008
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 09:59:26 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id r5so5482748edd.21
-        for <linux-mm@kvack.org>; Thu, 16 May 2019 06:59:26 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 55EEF6B0005
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 10:20:17 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id z13so1391070wrn.14
+        for <linux-mm@kvack.org>; Thu, 16 May 2019 07:20:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=0cibE++XujKfriozpjImYCIOus5tgrqkiGYFn4PuMwQ=;
-        b=hletkMg8zZmaXANHwclIVSs7Y1XpNxEDCqawfJmri4sQ7iqtowuLnAYCBSDLFrhx+F
-         aj83jReXJErbMH8F8qZSD5XTGPV7NqdM69gJz57ztdiYu1dksQ+qtCDBOWC7R423U8I3
-         7rlmGudmCA44GQSqFvCFee7KRxFv0y88Z9AAiN6m7XOQcO8oIboIGlQUxRYfkeqi8g6n
-         eGEaf5gAbErDobhivopkeTgpPOv89jR63q4rKjpwykTLd1pFAWJTMhssuXT1rQfTTRYH
-         Y/J7vN/bpxszZaRRCM4DIAIpPPdGwPg/b2lJIXPCgPtvNYwtBkuxWs3K0Cxvy4j3mbFG
-         fvhA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUjubsbUuh9VfqHapR6luiYRREIMhV2ZbTA7p5Qtb5toxG6AQF+
-	kUfg6JxqMRnnHgWVqR0SAxHezENkkWsUC8sPLF7uhwTiTTUCxTxBsK3a9rauVt5e04uSfchBnDR
-	IQTm8lgiOH4VFFdYFtCN9OK04Q0K3d9qxDVx/HPVShkYWLtGzaJxZI0YEF54F8vw=
-X-Received: by 2002:a50:fb19:: with SMTP id d25mr50661201edq.61.1558015165958;
-        Thu, 16 May 2019 06:59:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxZAw+oALvYD5PAQzWCzATL5V3P89oMx2Lsp1NTnZW930afurrkST0cD29Al/cCe0wDl1K/
-X-Received: by 2002:a50:fb19:: with SMTP id d25mr50661110edq.61.1558015165107;
-        Thu, 16 May 2019 06:59:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558015165; cv=none;
+        bh=ctvVQmdp/+3DlTEoEjBJpR8lgxdRXW/8ilCZfl4pfR8=;
+        b=rN14gHJdsK4CPoGRWa2Jg0S1/jPRSzY1sCRGAwhnZKh98MHS4fHDsxoPJJVWd7okjT
+         YDU5sVCuA1fcHrnzpfXReXDlCAHdzO2c9hsPFjsGE9m0MSMi96SP1UDQB0peVVxNbN2V
+         1RivrJneVvuVcGVWLqiuteU2p5D4hQgXxygYuyHsYE0y7+di/4086iy5Un/zH34WPlES
+         P4Akc+PO4A0n2ceu+AxwcmefDBAx2NxRjz7VF3Orokf4Vd+g5aKVH4LSD+bLv0bmP8of
+         iCcXFfeotYimdvxRJJFijpjCNxi876q1r/OjFUmmAma+x0XG0Bij+P7opgbkz/Af4e1b
+         G8Yw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUUaUt3XiD7S82/YcCnVxo8vzhT3v4RMCtmSOvFRmPdPqGhIJVk
+	QH5J8KZl8ry1FK0KCTutalHcDG/UtEhebQWGTaMPeQ6hf+PUUeWkfFlrjHKVACNrDsuUQ/PqLlk
+	I/sr8cPaElCZ5D9wJvMmGHfwB1m8c8Saym/cffJOpEp3Qt7UiG4nfkjGufU6MBLNTrQ==
+X-Received: by 2002:adf:cc8d:: with SMTP id p13mr18244625wrj.114.1558016416907;
+        Thu, 16 May 2019 07:20:16 -0700 (PDT)
+X-Received: by 2002:adf:cc8d:: with SMTP id p13mr18244537wrj.114.1558016415716;
+        Thu, 16 May 2019 07:20:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558016415; cv=none;
         d=google.com; s=arc-20160816;
-        b=aT2U8aqdxI6/Ki+KRn97hyNV4Dm02jOLIs5KpndxJS85RK7K8c4RNsxKRIsjF2aZAl
-         qAEN197NI+7hxETevrPihq/mleI0j3FGKI983Ccj4FfDnhx967e/Co4Sgmt8NPLLiifK
-         vta38p7tA4wx63+9v98IhZW8aCoALE9zSHLhi5Sv0UIC6cmiyDdEhgQaglxaQq4MbkWk
-         q6f8TAB9RO933uT+VLE6gYKrYsWBLVIqTpIuTQbMzVkB9G0eus92cy0wA0i7vvRL4j7W
-         CfJHbIZGcLNpj/Fbi3uNGFRRJt0+kl7kgEF80sHfI78LhVh8x/GqCA23X+F5VXrhcxcF
-         s1Tw==
+        b=vwcRok5RRPiz4s3MKHClJ4JO0Izx2ezLUU/ikeiPDsbusB+qP3nieORxmsqfhfP2lo
+         P0t8z7AgLJIRcdW8mOGkOTvpqep4e0Mgi6+g/uD24tRU04/wvrBWpEavgo0nUkvSjt6S
+         JFylYx3e30KTOkiiBmIPScJLp54d8imrWBO5kSPNyUbpTBME0NdcgjUlt6DcVDNarexm
+         NOOnx0B24zHPuugvIvZj0IEslT0AQUDjHappaN32Z9b1pzlsfzBgomzIZ3bm4HiDXS2s
+         Sd2Vd3SHUEdA0kQOmhF4zK/f/9NDfAYwnPcxN2WVBJ1i9sH2PbUAlX/2BzmjRqJdS/mC
+         sFJg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=0cibE++XujKfriozpjImYCIOus5tgrqkiGYFn4PuMwQ=;
-        b=KZ0CQJEqcxkAac27cWHqgAnsLKmYVLkMT04ZP28oKdt0xEgLMkBYOAbSeCXZqqZOZ0
-         1DPgRU0LeHV15fmPn//8nzvslG0u21fBtsuyMlSaBy8QfERS8cnCOOSqOjtGWZXGTOAi
-         70UVxFquaXCfbJWzeoHIju2nWIDCguPD1xOIFec4YKL54FLmIERi8XUu3uieGiCzoP6l
-         0p0CiRRV8OMXi4zr3vP9vYjvhjSNDofhviy/B3igplh82CE7UeDEZgun+tTaIHhlsAdR
-         FI8f7HVw02n8KL+56HWrm8o4lzDV/SehBc8kS0FCTppvkX8f0/eG/XqsscGfqKRLK27h
-         jptQ==
+        bh=ctvVQmdp/+3DlTEoEjBJpR8lgxdRXW/8ilCZfl4pfR8=;
+        b=g2pTJTo+vk6Y06O6ZNOzssQJFybHMK6avVwg7+WBTtmN1wJGJmHA5Hls8QHyxECYl8
+         ToFz3nfUqBLhYTb5Wy8GwwfkdDtgiNSlyVrT48MOkIaaWYgTZNL4d08bhVCM5Y9fP5PR
+         mUIajdVjI5GDu53zEtio/HzgAMVGoN/PO8dj679kTgzQd9sGSDZi7Mav8nSGXfN5CfN3
+         zLAMueBhoo+rXuqA7rbgqzi2vK2HIpgXB/L0Tx9+rouN8GuHtydSthuRzlyUFEqxRc9R
+         KPdgvimMrBQC3sVhLxtoyOZ8F51d0of0hRspBo1/yqMvfGHlccoC+oSiJ3R0LHg1uVRv
+         k41g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 14si2667074ejy.279.2019.05.16.06.59.24
+       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l9sor4512374wrq.27.2019.05.16.07.20.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 May 2019 06:59:25 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Thu, 16 May 2019 07:20:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 52070AC8D;
-	Thu, 16 May 2019 13:59:24 +0000 (UTC)
-Date: Thu, 16 May 2019 15:59:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Jiri Slaby <jslaby@suse.cz>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
-	cgroups@vger.kernel.org,
-	Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] memcg: make it work on sparse non-0-node systems
-Message-ID: <20190516135923.GV16651@dhcp22.suse.cz>
-References: <359d98e6-044a-7686-8522-bdd2489e9456@suse.cz>
- <20190429105939.11962-1-jslaby@suse.cz>
- <20190509122526.ck25wscwanooxa3t@esperanza>
+       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqy0dFWLfD16rJATaEZWOpkMhoKfQ9XY0KhSeaf4XlwLXJ5jVr6Y8jqArL2niVKWl9/+M+mu1Q==
+X-Received: by 2002:a5d:434c:: with SMTP id u12mr5534937wrr.92.1558016415071;
+        Thu, 16 May 2019 07:20:15 -0700 (PDT)
+Received: from localhost (nat-pool-brq-t.redhat.com. [213.175.37.10])
+        by smtp.gmail.com with ESMTPSA id w13sm9370113wmk.0.2019.05.16.07.20.13
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 16 May 2019 07:20:13 -0700 (PDT)
+Date: Thu, 16 May 2019 16:20:13 +0200
+From: Oleksandr Natalenko <oleksandr@redhat.com>
+To: Jann Horn <jannh@google.com>
+Cc: kernel list <linux-kernel@vger.kernel.org>,
+	Kirill Tkhai <ktkhai@virtuozzo.com>,
+	Hugh Dickins <hughd@google.com>,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Greg KH <greg@kroah.com>, Suren Baghdasaryan <surenb@google.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Timofey Titovets <nefelim4ag@gmail.com>,
+	Aaron Tomlin <atomlin@redhat.com>,
+	Grzegorz Halat <ghalat@redhat.com>, Linux-MM <linux-mm@kvack.org>,
+	Linux API <linux-api@vger.kernel.org>
+Subject: Re: [PATCH RFC 4/5] mm/ksm, proc: introduce remote merge
+Message-ID: <20190516142013.sf2vitmksvbkb33f@butterfly.localdomain>
+References: <20190516094234.9116-1-oleksandr@redhat.com>
+ <20190516094234.9116-5-oleksandr@redhat.com>
+ <CAG48ez2yXw_PJXO-mS=Qw5rkLpG6zDPd0saMhhGk09-du2bpaA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190509122526.ck25wscwanooxa3t@esperanza>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CAG48ez2yXw_PJXO-mS=Qw5rkLpG6zDPd0saMhhGk09-du2bpaA@mail.gmail.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 09-05-19 15:25:26, Vladimir Davydov wrote:
-> On Mon, Apr 29, 2019 at 12:59:39PM +0200, Jiri Slaby wrote:
-> > We have a single node system with node 0 disabled:
-> >   Scanning NUMA topology in Northbridge 24
-> >   Number of physical nodes 2
-> >   Skipping disabled node 0
-> >   Node 1 MemBase 0000000000000000 Limit 00000000fbff0000
-> >   NODE_DATA(1) allocated [mem 0xfbfda000-0xfbfeffff]
-> > 
-> > This causes crashes in memcg when system boots:
-> >   BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
-> >   #PF error: [normal kernel read fault]
-> > ...
-> >   RIP: 0010:list_lru_add+0x94/0x170
-> > ...
-> >   Call Trace:
-> >    d_lru_add+0x44/0x50
-> >    dput.part.34+0xfc/0x110
-> >    __fput+0x108/0x230
-> >    task_work_run+0x9f/0xc0
-> >    exit_to_usermode_loop+0xf5/0x100
-> > 
-> > It is reproducible as far as 4.12. I did not try older kernels. You have
-> > to have a new enough systemd, e.g. 241 (the reason is unknown -- was not
-> > investigated). Cannot be reproduced with systemd 234.
-> > 
-> > The system crashes because the size of lru array is never updated in
-> > memcg_update_all_list_lrus and the reads are past the zero-sized array,
-> > causing dereferences of random memory.
-> > 
-> > The root cause are list_lru_memcg_aware checks in the list_lru code.
-> > The test in list_lru_memcg_aware is broken: it assumes node 0 is always
-> > present, but it is not true on some systems as can be seen above.
-> > 
-> > So fix this by checking the first online node instead of node 0.
-> > 
-> > Signed-off-by: Jiri Slaby <jslaby@suse.cz>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> > Cc: <cgroups@vger.kernel.org>
-> > Cc: <linux-mm@kvack.org>
-> > Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-> > ---
-> >  mm/list_lru.c | 6 +-----
-> >  1 file changed, 1 insertion(+), 5 deletions(-)
-> > 
-> > diff --git a/mm/list_lru.c b/mm/list_lru.c
-> > index 0730bf8ff39f..7689910f1a91 100644
-> > --- a/mm/list_lru.c
-> > +++ b/mm/list_lru.c
-> > @@ -37,11 +37,7 @@ static int lru_shrinker_id(struct list_lru *lru)
-> >  
-> >  static inline bool list_lru_memcg_aware(struct list_lru *lru)
+Hi.
+
+On Thu, May 16, 2019 at 12:00:24PM +0200, Jann Horn wrote:
+> On Thu, May 16, 2019 at 11:43 AM Oleksandr Natalenko
+> <oleksandr@redhat.com> wrote:
+> > Use previously introduced remote madvise knob to mark task's
+> > anonymous memory as mergeable.
+> >
+> > To force merging task's VMAs, "merge" hint is used:
+> >
+> >    # echo merge > /proc/<pid>/madvise
+> >
+> > Force unmerging is done similarly:
+> >
+> >    # echo unmerge > /proc/<pid>/madvise
+> >
+> > To achieve this, previously introduced ksm_madvise_*() helpers
+> > are used.
+> 
+> Why does this not require PTRACE_MODE_ATTACH_FSCREDS to the target
+> process? Enabling KSM on another process is hazardous because it
+> significantly increases the attack surface for side channels.
+> 
+> (Note that if you change this to require PTRACE_MODE_ATTACH_FSCREDS,
+> you'll want to use mm_access() in the ->open handler and drop the mm
+> in ->release. mm_access() from a ->write handler is not permitted.)
+
+Sounds reasonable. So, something similar to what mem_open() & friends do
+now:
+
+static int madvise_open(...)
+...
+	struct task_struct *task = get_proc_task(inode);
+...
+	if (task) {
+		mm = mm_access(task, PTRACE_MODE_ATTACH_FSCREDS);
+		put_task_struct(task);
+		if (!IS_ERR_OR_NULL(mm)) {
+			mmgrab(mm);
+			mmput(mm);
+...
+
+Then:
+
+static ssize_t madvise_write(...)
+...
+	if (!mmget_not_zero(mm))
+		goto out;
+
+	down_write(&mm->mmap_sem);
+	if (!mmget_still_valid(mm))
+		goto skip_mm;
+...
+skip_mm:
+	up_write(&mm->mmap_sem);
+
+	mmput(mm);
+out:
+	return ...;
+
+And, finally:
+
+static int madvise_release(...)
+...
+		mmdrop(mm);
+...
+
+Right?
+
+> [...]
+> > @@ -2960,15 +2962,63 @@ static int proc_stack_depth(struct seq_file *m, struct pid_namespace *ns,
+> >  static ssize_t madvise_write(struct file *file, const char __user *buf,
+> >                 size_t count, loff_t *ppos)
 > >  {
-> > -	/*
-> > -	 * This needs node 0 to be always present, even
-> > -	 * in the systems supporting sparse numa ids.
-> > -	 */
-> > -	return !!lru->node[0].memcg_lrus;
-> > +	return !!lru->node[first_online_node].memcg_lrus;
+> > +       /* For now, only KSM hints are implemented */
+> > +#ifdef CONFIG_KSM
+> > +       char buffer[PROC_NUMBUF];
+> > +       int behaviour;
+> >         struct task_struct *task;
+> > +       struct mm_struct *mm;
+> > +       int err = 0;
+> > +       struct vm_area_struct *vma;
+> > +
+> > +       memset(buffer, 0, sizeof(buffer));
+> > +       if (count > sizeof(buffer) - 1)
+> > +               count = sizeof(buffer) - 1;
+> > +       if (copy_from_user(buffer, buf, count))
+> > +               return -EFAULT;
+> > +
+> > +       if (!memcmp("merge", buffer, min(sizeof("merge")-1, count)))
+> 
+> This means that you also match on something like "mergeblah". Just use strcmp().
+
+I agree. Just to make it more interesting I must say that
+
+   /sys/kernel/mm/transparent_hugepage/enabled
+
+uses memcmp in the very same way, and thus echoing "alwaysssss" or
+"madviseeee" works perfectly there, and it was like that from the very
+beginning, it seems. Should we fix it, or it became (zomg) a public API?
+
+> > +               behaviour = MADV_MERGEABLE;
+> > +       else if (!memcmp("unmerge", buffer, min(sizeof("unmerge")-1, count)))
+> > +               behaviour = MADV_UNMERGEABLE;
+> > +       else
+> > +               return -EINVAL;
+> >
+> >         task = get_proc_task(file_inode(file));
+> >         if (!task)
+> >                 return -ESRCH;
+> >
+> > +       mm = get_task_mm(task);
+> > +       if (!mm) {
+> > +               err = -EINVAL;
+> > +               goto out_put_task_struct;
+> > +       }
+> > +
+> > +       down_write(&mm->mmap_sem);
+> 
+> Should a check for mmget_still_valid(mm) be inserted here? See commit
+> 04f5866e41fb70690e28397487d8bd8eea7d712a.
+
+Yeah, it seems so :/. Thanks for the pointer. I've put it into the
+madvise_write snippet above.
+
+> > +       switch (behaviour) {
+> > +       case MADV_MERGEABLE:
+> > +       case MADV_UNMERGEABLE:
+> 
+> This switch isn't actually necessary at this point, right?
+
+Yup, but it is there to highlight a possibility of adding other, non-KSM
+options. So, let it be, and I'll just re-arrange CONFIG_KSM ifdef
+instead.
+
+Thank you.
+
+> > +               vma = mm->mmap;
+> > +               while (vma) {
+> > +                       if (behaviour == MADV_MERGEABLE)
+> > +                               ksm_madvise_merge(vma->vm_mm, vma, &vma->vm_flags);
+> > +                       else
+> > +                               ksm_madvise_unmerge(vma, vma->vm_start, vma->vm_end, &vma->vm_flags);
+> > +                       vma = vma->vm_next;
+> > +               }
+> > +               break;
+> > +       }
+> > +       up_write(&mm->mmap_sem);
+> > +
+> > +       mmput(mm);
+> > +
+> > +out_put_task_struct:
+> >         put_task_struct(task);
+> >
+> > -       return count;
+> > +       return err ? err : count;
+> > +#else
+> > +       return -EINVAL;
+> > +#endif /* CONFIG_KSM */
 > >  }
-> >  
-> >  static inline struct list_lru_one *
-> 
-> Yep, I didn't expect node 0 could ever be unavailable, my bad.
-> The patch looks fine to me:
-> 
-> Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
-> 
-> However, I tend to agree with Michal that (ab)using node[0].memcg_lrus
-> to check if a list_lru is memcg aware looks confusing. I guess we could
-> simply add a bool flag to list_lru instead. Something like this, may be:
-
-Yes, this makes much more sense to me!
-
-> 
-> diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-> index aa5efd9351eb..d5ceb2839a2d 100644
-> --- a/include/linux/list_lru.h
-> +++ b/include/linux/list_lru.h
-> @@ -54,6 +54,7 @@ struct list_lru {
->  #ifdef CONFIG_MEMCG_KMEM
->  	struct list_head	list;
->  	int			shrinker_id;
-> +	bool			memcg_aware;
->  #endif
->  };
->  
-> diff --git a/mm/list_lru.c b/mm/list_lru.c
-> index 0730bf8ff39f..8e605e40a4c6 100644
-> --- a/mm/list_lru.c
-> +++ b/mm/list_lru.c
-> @@ -37,11 +37,7 @@ static int lru_shrinker_id(struct list_lru *lru)
->  
->  static inline bool list_lru_memcg_aware(struct list_lru *lru)
->  {
-> -	/*
-> -	 * This needs node 0 to be always present, even
-> -	 * in the systems supporting sparse numa ids.
-> -	 */
-> -	return !!lru->node[0].memcg_lrus;
-> +	return lru->memcg_aware;
->  }
->  
->  static inline struct list_lru_one *
-> @@ -451,6 +447,7 @@ static int memcg_init_list_lru(struct list_lru *lru, bool memcg_aware)
->  {
->  	int i;
->  
-> +	lru->memcg_aware = memcg_aware;
->  	if (!memcg_aware)
->  		return 0;
->  
 
 -- 
-Michal Hocko
-SUSE Labs
+  Best regards,
+    Oleksandr Natalenko (post-factum)
+    Senior Software Maintenance Engineer
 
