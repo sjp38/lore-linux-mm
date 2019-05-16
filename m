@@ -2,231 +2,182 @@ Return-Path: <SRS0=l6tt=TQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1DA9CC46460
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 07:10:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DBF00C04E84
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 07:31:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C110A2087E
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 07:10:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C110A2087E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9DD5C2087B
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 07:31:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="eJk9HEnZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DD5C2087B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 61B136B0006; Thu, 16 May 2019 03:10:25 -0400 (EDT)
+	id 288416B0007; Thu, 16 May 2019 03:31:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5CB476B0007; Thu, 16 May 2019 03:10:25 -0400 (EDT)
+	id 2126A6B0008; Thu, 16 May 2019 03:31:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 46B7A6B0008; Thu, 16 May 2019 03:10:25 -0400 (EDT)
+	id 0D9A96B000A; Thu, 16 May 2019 03:31:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 28D8C6B0006
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 03:10:25 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id q1so2017262qkq.4
-        for <linux-mm@kvack.org>; Thu, 16 May 2019 00:10:25 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DC1A66B0007
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 03:31:02 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id d193so1985671ybh.13
+        for <linux-mm@kvack.org>; Thu, 16 May 2019 00:31:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=+BRdjioJwPM7GbywtxrW8oQSrsahloyexaEITllf0eY=;
-        b=NlutxXXPwi/YNC/sdEuBGlm7JNOP2Fnlzb2thwgyVfXvusVMYHc26vVsCLEN/lvtKR
-         m19vmHZpmJH7QaMN9YLCe+nqYFdHlJ3IiQH1/5vISdIkEDgAM5rTP+aAyybvRydwcXw9
-         +Y+EKmy1QAbxwpyInz8/oXADdbqBK4qXgr/BuaCVPbXuUYciMR3l6FNd0PKDSUD84ACG
-         H5EKRAgUkO7S4ty42+ob0I/ewQAvczzy/dCGJwcpd4e9AP34flnlsCuVaJVpFVTx7WWq
-         0K7vFoupj66BkStpRmztxEb4AkB+FyvkhSltqX29mS3rf+v1v++DBrADqqyD41GDxWAS
-         QXZw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWEV0v7CfTuY3eEflI+MI5oww0RtW7QjwR1TGPMZkCwJnzLvbwK
-	JwoxdyvZT/VnmzoTERwspB2iBMCoE7177/nzOz8GuEgJzM44sT76ixeSnvc/0c5fwg9iIjEi2jD
-	6ygiShyV0E4PHcYoDjOWLq3uOE1vIupYDeWUZosJLYZ1op7VcoFK52i9ytLenlig9LQ==
-X-Received: by 2002:ac8:27aa:: with SMTP id w39mr7380472qtw.359.1557990624943;
-        Thu, 16 May 2019 00:10:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqymzeMp6LPptm709caQ57JXTBOJoMGVtQNBVTsGbQdTAEnm2pNBVBgIfCqByD1S3UR07THu
-X-Received: by 2002:ac8:27aa:: with SMTP id w39mr7380431qtw.359.1557990624170;
-        Thu, 16 May 2019 00:10:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1557990624; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=GVt+8/S9xZlwwkWG1PlPMVhqKME8gM7ABoyAssUfp34=;
+        b=TDlC5k3tmJl9h/tVnL9pcJsMxR/OpKPlpIdc6asSjSBfTmyEduX0iK5Lt1fB2oLugj
+         t3iGjszqrJ4wqmZ0viu7+wo6/K6VLPDFQ3q/QfTKctnk9SvDMOtehdLqCW+miTxrK0+E
+         Sm7bcb0BNLTCjJ4Enike0LoegDiT2z6W+EgwJ6X0k0PvTOckT6gwprI2ibcWOJKKhQ0o
+         pNT1yeF1zNazBA7wxlvmQb7rRII2cbvzbKQ1IntzVDmccev6SD62vSsTGgyvqtnLGtMy
+         3g8ciJqUs+f2mZB4wH2eT0RToAjROUJDLB3HrQvqYd/jyrqQjlWZN3T80wi09jLHOd+d
+         x/nw==
+X-Gm-Message-State: APjAAAWsK/SqZlPOuEGKAWW629v/AJ4lf9yiZ+iI4mSPncbhbWECdzt+
+	qYk+oUlExTVxc2llOi8JW164zun2kAyDRwM+dcfb/GlWlJwcg8woDz6XgoGlLDWsbxN63DsN8T1
+	cP5XbpIGDiLDLbuc5v18q1Hpa6jHmbssj17UoMw2WcAAqiTbZQjCT+Ct6mQrMOWmvvg==
+X-Received: by 2002:a0d:d0c6:: with SMTP id s189mr22297177ywd.399.1557991862491;
+        Thu, 16 May 2019 00:31:02 -0700 (PDT)
+X-Received: by 2002:a0d:d0c6:: with SMTP id s189mr22297144ywd.399.1557991861524;
+        Thu, 16 May 2019 00:31:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1557991861; cv=none;
         d=google.com; s=arc-20160816;
-        b=AP8swm1bsuHLT830sbSKDs56Qa/ad66OanqjpTaQAz8Di0+AhvaacIoQ5evgDWD17N
-         huuFcUWgD3cP7EbHSW7qNYIUHXcSpK/ootuJ6nRsu8UEZpXES3bBV2TAkpWWjcJxu09q
-         sneIn4n4fW3yH9nGrhSyMFr9efYp5L7vXWPEJz0wfDwnlC6cegu7/v9nhFfTp6MiBjys
-         MvW1KTofUL8E0BVmsYIZI19PRVg1a0PxJRf8OylCXZCBP+oCS5ywM6YtK+lCXDKuPknO
-         hd3hNBPkEkiJRbqXtOzQbz5IJm0nZyawNKjZ2rKifQtk2GsJaK8aUQQVxjUqLBuuppeD
-         e0rA==
+        b=Pr3SQixSXIY5KaD9JaWKLDapjAqjO6ejRPAlq9Kf2be8kEshQkr8KW+UmPTIpWADoT
+         WSaFl0UVD9KqnSn1sJQbdlLT9HeLYCth9IhPJDOwNEw/Rpw62BK45+cfydK6HaxhHGK8
+         7SsYqtMEMG2p5p/O08bgtCJ8I92a4zbmUIffoQ6odDLlYih8IKmYWj4JjZRK/hB35kEO
+         Oc8fv++hN3DgwzufUESe2GdLGroQaWAgi5eUuQ2qTJ5/kLF+LGxJHKP+wIbKYYrmdWtw
+         hcqeMQoqVrL2BBOpeDmVaLx5LaRYZxUBmywRQFW1eYG5/ahQR0go4pYYzBwBvvD+8Qru
+         qS7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=+BRdjioJwPM7GbywtxrW8oQSrsahloyexaEITllf0eY=;
-        b=wNicWV2vW+iO+Ld1M6y2o1ReMAmc7p+4z8nLOWbLVUL9HhyC1txY8+SJ90UPKbckhE
-         GRTJlYOMvyv19IwPwIrdVig81vwAu/3LD2+Z9xoOGqmX6Z9qExbfOoUCIAErd4wMqVd2
-         bmEYyo3FSK61aM+I4oLM5nr4yBNkQERePiP3vh5mCd5Ulik0uJ1b8VsgWVxFEA6SMJer
-         4GZJHfb1IEFv7qIuNZboZnOLKrqkxn3ttvdk1s0fasAN6YL8jOehVi031PddGxaZJ03d
-         K5XHB9TnVLMiJvsYyBe650hiHVmSv7h9RRsX46LQp3s6Q0EyrFSqNJ+sZ8ventkw+reK
-         pLLQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=GVt+8/S9xZlwwkWG1PlPMVhqKME8gM7ABoyAssUfp34=;
+        b=GfNqAwQk9Kw3+cO86MXkH6J6S5xuJP9DMZb7LwwParQDCWnOj7AhyBmT4yRI1n7nqd
+         zCgRjFqTurcb4+T7Aiz0/xJp9fE3Q/FTWOJBABpQ172k+3tLYgcmJUUw0LX/kwPszZA5
+         kIpK1s03PvVlNq/hfug84H6krcKibVqBZCbIwJiEKn/em4YORoOsX09trhzyFaDGymV0
+         8pZwVTMLlbaH5HaM40npANdrWZCw4x66jtlWt8o2XI5mW0/n3n/OTqGCHIjmdWFxuKIk
+         ApSvF5E/6u56Tt9r80yrAh4X7+SgnaU9K0+kYhvF9txIhcQREdKCk3A/74tnNFN8gdzX
+         YNSQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x190si3028788qkc.137.2019.05.16.00.10.23
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=eJk9HEnZ;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j2sor2326534ybp.149.2019.05.16.00.31.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 May 2019 00:10:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 16 May 2019 00:31:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 740DDC004F44;
-	Thu, 16 May 2019 07:10:22 +0000 (UTC)
-Received: from [10.36.117.24] (ovpn-117-24.ams2.redhat.com [10.36.117.24])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 41EE59894;
-	Thu, 16 May 2019 07:10:13 +0000 (UTC)
-Subject: Re: [v5 0/3] "Hotremove" persistent memory
-To: Dan Williams <dan.j.williams@intel.com>,
- Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: "Verma, Vishal L" <vishal.l.verma@intel.com>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "jmorris@namei.org" <jmorris@namei.org>, "tiwai@suse.de" <tiwai@suse.de>,
- "sashal@kernel.org" <sashal@kernel.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>,
- "bp@suse.de" <bp@suse.de>,
- "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
- "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
- "jglisse@redhat.com" <jglisse@redhat.com>,
- "zwisler@kernel.org" <zwisler@kernel.org>, "mhocko@suse.com"
- <mhocko@suse.com>, "Jiang, Dave" <dave.jiang@intel.com>,
- "bhelgaas@google.com" <bhelgaas@google.com>,
- "Busch, Keith" <keith.busch@intel.com>,
- "thomas.lendacky@amd.com" <thomas.lendacky@amd.com>,
- "Huang, Ying" <ying.huang@intel.com>, "Wu, Fengguang"
- <fengguang.wu@intel.com>,
- "baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>
-References: <20190502184337.20538-1-pasha.tatashin@soleen.com>
- <76dfe7943f2a0ceaca73f5fd23e944dfdc0309d1.camel@intel.com>
- <CA+CK2bCKcJjXo7BGAVxvbQNYQFSDVLH5aB=S9yTmZWEfexOvtg@mail.gmail.com>
- <CAPcyv4jj557QNNwyQ7ez+=PnURsnXk9cGZ11Mmihmtem2bJ-3A@mail.gmail.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <9add7fd4-6d6e-fa80-08db-7cffc9ae0b75@redhat.com>
-Date: Thu, 16 May 2019 09:10:12 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=eJk9HEnZ;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=GVt+8/S9xZlwwkWG1PlPMVhqKME8gM7ABoyAssUfp34=;
+        b=eJk9HEnZpy5U2y9EOA7OmV1mUJO7aXYGKOLcDadFsBWNQc3uC60k3YTQ1Uh006P22q
+         bifZARk7Fh+rzkH9ZrqlL8cB9coRlD+p9X4cAFVCoJW4TSMWFXCU9HlUiUtWyLgXA5g0
+         sMfgmVrGwO1UY8tRU1fQDwUo9b+G8PGgMT7tcVeCyc/qNb/3KfqBagoV5sSvAsK5+6zf
+         B94OBTVPtZ/UmOHM/+iWfYdeQlt2UasXOkcV5dSG0v4v6xzSDXkM3mSl/vn2wiaQu6rZ
+         J9ZTi5excR5pK2J2z2bvodQHWhrvt5yHXhRW3He2ahkcwP4/WUCNnfW7YmqPVS+NVM1K
+         8BeA==
+X-Google-Smtp-Source: APXvYqxmH29D0NGJed5QeuA1TJKhB++qYRpIKOeRtLdwclUShZBcDQER2VpLN7ON/03jITGEU8SZMviooA4+7ZRu5QU=
+X-Received: by 2002:a25:9089:: with SMTP id t9mr23802417ybl.369.1557991860971;
+ Thu, 16 May 2019 00:31:00 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4jj557QNNwyQ7ez+=PnURsnXk9cGZ11Mmihmtem2bJ-3A@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Thu, 16 May 2019 07:10:23 +0000 (UTC)
+References: <20190406183508.25273-1-urezki@gmail.com> <20190406183508.25273-2-urezki@gmail.com>
+ <20190514141942.23271725e5d1b8477a44f102@linux-foundation.org> <20190515152415.lcbnqvcjppype7i5@pc636>
+In-Reply-To: <20190515152415.lcbnqvcjppype7i5@pc636>
+From: Uladzislau Rezki <urezki@gmail.com>
+Date: Thu, 16 May 2019 09:30:49 +0200
+Message-ID: <CA+KHdyURm1xb1u4=aV97KQYFi0R_3=SJPBCezWqEB8hT=J8pCw@mail.gmail.com>
+Subject: Re: [PATCH v4 1/3] mm/vmap: keep track of free blocks for vmap allocation
+To: Andrew Morton <akpm@linux-foundation.org>, "Tobin C. Harding" <tobin@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Thomas Garnier <thgarnie@google.com>, 
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>, 
+	Joel Fernandes <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, 
+	Tejun Heo <tj@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 16.05.19 02:42, Dan Williams wrote:
-> On Wed, May 15, 2019 at 11:12 AM Pavel Tatashin
-> <pasha.tatashin@soleen.com> wrote:
->>
->>> Hi Pavel,
->>>
->>> I am working on adding this sort of a workflow into a new daxctl command
->>> (daxctl-reconfigure-device)- this will allow changing the 'mode' of a
->>> dax device to kmem, online the resulting memory, and with your patches,
->>> also attempt to offline the memory, and change back to device-dax.
->>>
->>> In running with these patches, and testing the offlining part, I ran
->>> into the following lockdep below.
->>>
->>> This is with just these three patches on top of -rc7.
->>>
->>>
->>> [  +0.004886] ======================================================
->>> [  +0.001576] WARNING: possible circular locking dependency detected
->>> [  +0.001506] 5.1.0-rc7+ #13 Tainted: G           O
->>> [  +0.000929] ------------------------------------------------------
->>> [  +0.000708] daxctl/22950 is trying to acquire lock:
->>> [  +0.000548] 00000000f4d397f7 (kn->count#424){++++}, at: kernfs_remove_by_name_ns+0x40/0x80
->>> [  +0.000922]
->>>               but task is already holding lock:
->>> [  +0.000657] 000000002aa52a9f (mem_sysfs_mutex){+.+.}, at: unregister_memory_section+0x22/0xa0
->>
->> I have studied this issue, and now have a clear understanding why it
->> happens, I am not yet sure how to fix it, so suggestions are welcomed
->> :)
-> 
-> I would think that ACPI hotplug would have a similar problem, but it does this:
-> 
->                 acpi_unbind_memory_blocks(info);
->                 __remove_memory(nid, info->start_addr, info->length);
-> 
-> I wonder if that ordering prevents going too deep into the
-> device_unregister() call stack that you highlighted below.
-> 
++Tobin C. Harding <tobin@kernel.org>
 
-If that doesn't help, after we have
+On Wed, May 15, 2019 at 5:24 PM Uladzislau Rezki <urezki@gmail.com> wrote:
+>
+> Hello, Andrew.
+>
+> > An earlier version of this patch was accused of crashing the kernel:
+> >
+> > https://lists.01.org/pipermail/lkp/2019-April/010004.html
+> >
+> > does the v4 series address this?
+> I tried before to narrow down that crash but i did not succeed, so
+> i have never seen that before on my test environment as well as
+> during running lkp-tests including trinity test case:
+>
+> test-url: http://codemonkey.org.uk/projects/trinity/
+>
+> But after analysis of the Call-trace and slob_alloc():
+>
+> <snip>
+> [    0.395722] Call Trace:
+> [    0.395722]  slob_alloc+0x1c9/0x240
+> [    0.395722]  kmem_cache_alloc+0x70/0x80
+> [    0.395722]  acpi_ps_alloc_op+0xc0/0xca
+> [    0.395722]  acpi_ps_get_next_arg+0x3fa/0x6ed
+> <snip>
+>
+> <snip>
+>     /* Attempt to alloc */
+>     prev = sp->lru.prev;
+>     b = slob_page_alloc(sp, size, align);
+>     if (!b)
+>         continue;
+>
+>     /* Improve fragment distribution and reduce our average
+>      * search time by starting our next search here. (see
+>      * Knuth vol 1, sec 2.5, pg 449) */
+>     if (prev != slob_list->prev &&
+>             slob_list->next != prev->next)
+>         list_move_tail(slob_list, prev->next); <- Crash is here in __list_add_valid()
+>     break;
+> }
+> <snip>
+>
+> i see that it tries to manipulate with "prev" node that may be removed
+> from the list by slob_page_alloc() earlier if whole page is used. I think
+> that crash has to be fixed by the below commit:
+>
+> https://www.spinics.net/lists/mm-commits/msg137923.html
+>
+> it was introduced into 5.1-rc3 kernel.
+>
+> Why ("mm/vmalloc.c: keep track of free blocks for vmap allocation")
+> was accused is probably because it uses "kmem cache allocations with struct alignment"
+> instead of kmalloc()/kzalloc(). Maybe because of bigger size requests
+> it became easier to trigger the BUG. But that is theory.
+>
+> --
+> Vlad Rezki
 
-[PATCH v2 0/8] mm/memory_hotplug: Factor out memory block device handling
 
-we could probably pull the memory device removal phase out from the
-mem_hotplug_lock protection and let it be protected by the
-device_hotplug_lock only. Might require some more work, though.
 
 -- 
-
-Thanks,
-
-David / dhildenb
+Uladzislau Rezki
 
