@@ -2,189 +2,295 @@ Return-Path: <SRS0=l6tt=TQ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C8CEC04AAF
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 15:18:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D448CC04AAF
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 15:29:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C321620657
-	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 15:18:27 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=camlinlimited.onmicrosoft.com header.i=@camlinlimited.onmicrosoft.com header.b="FrUcXCu/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C321620657
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=camlintechnologies.com
+	by mail.kernel.org (Postfix) with ESMTP id 8742320657
+	for <linux-mm@archiver.kernel.org>; Thu, 16 May 2019 15:29:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8742320657
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5E4E86B0007; Thu, 16 May 2019 11:18:27 -0400 (EDT)
+	id 20ADC6B0007; Thu, 16 May 2019 11:29:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5BB226B0008; Thu, 16 May 2019 11:18:27 -0400 (EDT)
+	id 195306B0008; Thu, 16 May 2019 11:29:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 484A16B000A; Thu, 16 May 2019 11:18:27 -0400 (EDT)
+	id 0351E6B000A; Thu, 16 May 2019 11:29:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F1DD76B0007
-	for <linux-mm@kvack.org>; Thu, 16 May 2019 11:18:26 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id u124so808976wmg.1
-        for <linux-mm@kvack.org>; Thu, 16 May 2019 08:18:26 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D20266B0007
+	for <linux-mm@kvack.org>; Thu, 16 May 2019 11:29:41 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id q1so3083032qkq.4
+        for <linux-mm@kvack.org>; Thu, 16 May 2019 08:29:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=WaCHPVPqnFpyRaZj9TTksoERgO2SLJPtwbe+s/sjQMc=;
-        b=uHipC/X03XodJUqOHyb8ljgO1D5P9rjLBact91iLO5rFALwAiN3MqQaXi8S/k6pJ0C
-         48nKfKwKkFi+1CH8T81DJNW+bsCEB5C21B5CvSRNR8H6Ns6J0mOdmBciScvfjzPzXmoK
-         MdOzboXru+9R87/KBS4ezBv9qcrZh/l2SMY5hHZhHJMb6ZlnFMsZptEh+xiizukLXQiX
-         XSWR2c8NcJKncOJzxc7yUNcDf0ZLSQOdAwS6RUhzpGmsGCaa45Xl45H1fWvPekjOcMV0
-         dgyKIlEjYjIY8hMYyJe3eix6Ub4hTDy2ILi0GPpG54zCoXC2RJs7j8pu4lU1UDki9PRy
-         xfrQ==
-X-Gm-Message-State: APjAAAV50QT+crZQUqN3HASxkSVJdkS3Tp1Q9PjeCSmhCpddl4nyv7oy
-	JaYubI67Ks8v+VJKVKbBmpgv76cxp3Ey+wCVjENsXQH/0bnQb3J2qRHYMlt9q3WYjIAAxfWyts3
-	jWoGIeKL+kKrxzDgeHuoESLTVQSAypK7edx4SAQasTni58u4CAFFWzISqH1/E4UvobQ==
-X-Received: by 2002:a1c:c108:: with SMTP id r8mr7705053wmf.78.1558019906479;
-        Thu, 16 May 2019 08:18:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxu7H5yQ6BESI58OZhjKMoOby7sCaB6Y4mUdbNuRykwk2dEetdaqxP7y/JxG+oxZJqKOya/
-X-Received: by 2002:a1c:c108:: with SMTP id r8mr7705001wmf.78.1558019905572;
-        Thu, 16 May 2019 08:18:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558019905; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:message-id:in-reply-to:references:subject:mime-version
+         :content-transfer-encoding:thread-topic:thread-index;
+        bh=z1lQlAi0FB8l3bCtRiLVqdn7QK/wt8ebjcs4vqlpYr0=;
+        b=Nh89dF0aZWaLve76l2iWF1AWSNlwCkcRrTgel+QqxTPHlGAZpymkVirPsyDfD+MvO3
+         PS1Iyr8ZnNo0BtDSqKWlgFZLA41gFqBaHQwAL0Nr2mNJyz8G7Qx5MYCWyjGi2c6wQpjw
+         qTACWaLBXwM8S1ORrR9d8uDo+0Tqjg6Q7y5q5MGxEY63j1fhiAP7NMag7UeObh5MsOWE
+         B+QiP3zWR0w97GQota+G1Ro1nehgOETAQnIhsYs5Fo/wxeM3hfcG6tWNyXuOdBgFZvsL
+         lHxTIKDLsMRE4QlPXYAo9nUeVOfCbPINilHEiiGw6KMOFexXgTN5R2Hn74JjoCjoqWO0
+         Yh/A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAU3M7/0pAAxfIh3EDRwdNEtvbh/N+VA8CNewFlSO9tQI/W0a2XC
+	br7jUYKeO430ZYvkFO+6XixBbV+uar0XSLVVK2nKCIjNBTNXEN1TKLk3fSumc96HUKSeLu1+4Uu
+	hV44lSqNDEpddnKzXM5ptttFTN2qaEAR/vMqtHb2BVGKX4VFft4Sg0rd5FEYcGVWgmw==
+X-Received: by 2002:a37:8885:: with SMTP id k127mr39413120qkd.59.1558020581373;
+        Thu, 16 May 2019 08:29:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyZtbzIN/ZyT4aZtHfiLNeOoTuzLVdUeWwGdqS6+iphwRDHYpROVBS5r3I0Om5m5Ybe8VI2
+X-Received: by 2002:a37:8885:: with SMTP id k127mr39413058qkd.59.1558020580601;
+        Thu, 16 May 2019 08:29:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558020580; cv=none;
         d=google.com; s=arc-20160816;
-        b=Cg+uL4jJHWvpSjRBm638jnZOZwGSo/AcfkTo3e6mWAfdSfgLaBRw6No6LKaEg+qNYJ
-         danWQ9vEilG3WUgFCF/cY03j9pSe92MZn1FeRnrfrEsvqu43y5pe7gpRNP3Cygo4jwPg
-         nNV7aMg5wdbC4w1eJW2omuSWb8oQivtfTdUEG+XfNibHqbNRO2XMQ+5ByEoIJ4zQnlrS
-         TZbHz4dWGGL+HbYIrPTMBBQDI6IlSsdaKvzqKplxOEnvycPMUnb37vJkuCI8EtDW+iTk
-         cpFlMoSkLD239B4L8R6qi2vAsN1b+YXl5oMLflUc3rnWiUSVjp2F+rGhWnIJpql0xQz1
-         ewmg==
+        b=iFrc+lAKulHHPxk/blgsNvxsMfSmSd9WzlK+2klK7loF/cdwVigJQOU0Ms374nu/jI
+         NNnHNoONHChgDCsFl87EUzGC/q7JMB3jHWzhkSkcyOVA0kxFnu3TH+uI0zDDov9DkHNQ
+         R4tJM66kTa+cqYGrEAZ+R2BQ2OK1tzyBtJrK1xVQpvZGwlbTOigTYtryFKoMU6Wn6wx4
+         /GRtD8tU9HGNpdles9h1KKlSI6hW2TJSuc4HQvK3nC5USKeSt2IbWZYl6uZXdpGkf9oL
+         eZ4dEHYszcMOjnpornOQuA+a1gFnYuVRIf8aVM+TO3edKD9vAAd1wyxjzqVQGHt3gqNe
+         sPsQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=WaCHPVPqnFpyRaZj9TTksoERgO2SLJPtwbe+s/sjQMc=;
-        b=RD3nSQh/rrVStmwpcXX05JS3GKRS5KMONVi7b8vjiPaAPi90fwRLmxgZkMAYK1WCk/
-         YXt5Zp5TszLIVPgLbzwWRr1UIwp4GmP2pzFjec8hAFE9My+q+JwFBSGuPlpkH0Cy4I80
-         ioj95h7FsFUmQAwDXzvMfBdRKeCWKSTboTCVbjKx1tkmj0x9RrLdZp1+WZTESzCEgfiD
-         rvKEhHzimEa0laKqsRfGjh7o7ObK5iBRem9FjBSlSaGQbUJPkV3YzKFL9cDAwH23CUKx
-         CJMqZazeVSphyz4osNQOhMxopbB2uMC3A0fmgG67KoW/AxdjE4utagUwwIwhTijOa680
-         qvlg==
+        h=thread-index:thread-topic:content-transfer-encoding:mime-version
+         :subject:references:in-reply-to:message-id:cc:to:from:date;
+        bh=z1lQlAi0FB8l3bCtRiLVqdn7QK/wt8ebjcs4vqlpYr0=;
+        b=n2x3++Ki1Qc1SG21JzlHzxUxtZvD7Sj7iuBIi1podmnu4aHE4iStlji9ClRSNTna+f
+         0bXO4roRSpHJE9/Y2UZu/OWGRYLm9KhzJMN62V0e/BR4eSnU9acLvoaeqbPMibMJiim0
+         eGIf0ABPS95CNAxGLRQO6VWdSPuQ+YuNJpS0Gz8gFiOHqkud8uq894121P0IQYczUxMn
+         HydNgNRi6ZEUFf4CYeXsLMNBxdhfom30VYPNlc7t0osPeCPahD90zM9PPkyeQ8RuCrGT
+         L1EiKrzspz3POX6pLhFNcVLHGqi9qDCiP4hYEUJ0bDoZyeT1qFXg2TYHPi6DFqZOAwV5
+         zapQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@camlinlimited.onmicrosoft.com header.s=selector1-camlinlimited-onmicrosoft-com header.b="FrUcXCu/";
-       spf=pass (google.com: domain of l.perczak@camlintechnologies.com designates 40.107.10.86 as permitted sender) smtp.mailfrom=l.perczak@camlintechnologies.com
-Received: from GBR01-LO2-obe.outbound.protection.outlook.com (mail-eopbgr100086.outbound.protection.outlook.com. [40.107.10.86])
-        by mx.google.com with ESMTPS id a206si3811816wmh.146.2019.05.16.08.18.25
+       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m2si109263qtp.280.2019.05.16.08.29.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 16 May 2019 08:18:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of l.perczak@camlintechnologies.com designates 40.107.10.86 as permitted sender) client-ip=40.107.10.86;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 May 2019 08:29:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@camlinlimited.onmicrosoft.com header.s=selector1-camlinlimited-onmicrosoft-com header.b="FrUcXCu/";
-       spf=pass (google.com: domain of l.perczak@camlintechnologies.com designates 40.107.10.86 as permitted sender) smtp.mailfrom=l.perczak@camlintechnologies.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=camlinlimited.onmicrosoft.com; s=selector1-camlinlimited-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=WaCHPVPqnFpyRaZj9TTksoERgO2SLJPtwbe+s/sjQMc=;
- b=FrUcXCu/zzpOyJ2fmMQ5yoZ7fGy1foz48EcfU2723pXOlPE8dE9gg5NXBU7YVEd72ONnkcUBnve2uu1Gqos/r3bwdWtTTxMVZ35OAegzegKjoVsIwHFg3siOCLih0nZqwTIDB1jdYYYomdkR1KDnmG6W0YSkoi6VQUikQI7WXqA=
-Received: from CWXP123MB1767.GBRP123.PROD.OUTLOOK.COM (20.176.63.151) by
- CWXP123MB1848.GBRP123.PROD.OUTLOOK.COM (20.179.108.16) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1900.16; Thu, 16 May 2019 15:18:24 +0000
-Received: from CWXP123MB1767.GBRP123.PROD.OUTLOOK.COM
- ([fe80::a94b:e878:949e:25e0]) by CWXP123MB1767.GBRP123.PROD.OUTLOOK.COM
- ([fe80::a94b:e878:949e:25e0%6]) with mapi id 15.20.1878.024; Thu, 16 May 2019
- 15:18:24 +0000
-From: Lech Perczak <l.perczak@camlintechnologies.com>
-To: Matthew Wilcox <willy@infradead.org>, Eric Dumazet <edumazet@google.com>
-CC: Al Viro <viro@zeniv.linux.org.uk>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, Piotr Figiel
-	<p.figiel@camlintechnologies.com>, =?utf-8?B?S3J6eXN6dG9mIERyb2JpxYRza2k=?=
-	<k.drobinski@camlintechnologies.com>, Pawel Lenkow
-	<p.lenkow@camlintechnologies.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: Recurring warning in page_copy_sane (inside copy_page_to_iter)
- when running stress tests involving drop_caches
-Thread-Topic: Recurring warning in page_copy_sane (inside copy_page_to_iter)
- when running stress tests involving drop_caches
-Thread-Index:
- AQHU+0je8+eBBHiobkyiBc3+zJz+BKZOQv6AgB4pdgD///Y0AIAABSWAgAAEdQCAAZJcAA==
-Date: Thu, 16 May 2019 15:18:23 +0000
-Message-ID: <79c406af-3cc4-1e63-80d5-267900520ef8@camlintechnologies.com>
-References: <d68c83ba-bf5a-f6e8-44dd-be98f45fc97a@camlintechnologies.com>
- <14c9e6f4-3fb8-ca22-91cc-6970f1d52265@camlintechnologies.com>
- <011a16e4-6aff-104c-a19b-d2bd11caba99@camlintechnologies.com>
- <20190515144352.GC31704@bombadil.infradead.org>
- <CANn89iJ0r116a8q_+jUgP_8wPX4iS6WVppQ6HvgZFt9v9CviKA@mail.gmail.com>
- <20190515151814.GD31704@bombadil.infradead.org>
-In-Reply-To: <20190515151814.GD31704@bombadil.infradead.org>
-Accept-Language: pl-PL, en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: HE1PR0701CA0083.eurprd07.prod.outlook.com
- (2603:10a6:3:64::27) To CWXP123MB1767.GBRP123.PROD.OUTLOOK.COM
- (2603:10a6:401:75::23)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=l.perczak@camlintechnologies.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [95.143.242.242]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 91d43b09-b5a6-4658-2239-08d6da11bce0
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:CWXP123MB1848;
-x-ms-traffictypediagnostic: CWXP123MB1848:
-x-microsoft-antispam-prvs:
- <CWXP123MB1848D56FB17A4E53070F89A9870A0@CWXP123MB1848.GBRP123.PROD.OUTLOOK.COM>
-x-ms-oob-tlc-oobclassifiers: OLM:2657;
-x-forefront-prvs: 0039C6E5C5
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(366004)(396003)(376002)(136003)(39850400004)(346002)(189003)(199004)(55674003)(14444005)(316002)(71190400001)(71200400001)(26005)(6246003)(256004)(81166006)(99286004)(81156014)(14454004)(6116002)(3846002)(86362001)(25786009)(68736007)(31696002)(36756003)(4326008)(8676002)(2906002)(8936002)(53936002)(66446008)(76176011)(31686004)(66946007)(6512007)(53546011)(73956011)(386003)(6506007)(11346002)(446003)(102836004)(478600001)(2616005)(66556008)(66476007)(64756008)(186003)(54906003)(110136005)(229853002)(66066001)(5660300002)(305945005)(476003)(52116002)(486006)(6436002)(6486002)(7736002);DIR:OUT;SFP:1101;SCL:1;SRVR:CWXP123MB1848;H:CWXP123MB1767.GBRP123.PROD.OUTLOOK.COM;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: camlintechnologies.com does not
- designate permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- rv0ghT8rdQT7+nayjC9C2IzRbrKx0X9QV53RIOhP4S93SSNYevCoTXJAgKZxyQE3kQU7Fnna6uozBAVtl6fhZ196q2tqUbSrA/uNXZMz+FrYtK+bI3N81U2uZqEGt4v7XBaDSISGAfKKG3K57fVfO8bgMGK/xFg8PN/xvm6+Lls/qcsjZ9l9gF/Y7E5ieU5VqGabAi+1VnDw5rvPPgSNqewxQ4+YHDRV2bJj+6Bay0yxT01JohRDNI7ISXD2FTRysKTCaXCfBorSsA8nB0VHfv0RUfrQcW6xORNAWyMLsH8KB/6jalgZBbQM9OOjx8jiOhgySbhl4hmWIBArNlFH7qDfkWwpQlv0loElheAeEgjiUEagyVnKBk0f1VxV97PMMKxXDCKs28DGEyCHPbIr5xemxL9OOz49YELUJYPbvjs=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <56B38E369B89C84693A52CD5C99E478F@GBRP123.PROD.OUTLOOK.COM>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of jstancek@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jstancek@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 51C93307C940;
+	Thu, 16 May 2019 15:29:39 +0000 (UTC)
+Received: from colo-mx.corp.redhat.com (colo-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.20])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 371B45D6A9;
+	Thu, 16 May 2019 15:29:39 +0000 (UTC)
+Received: from zmail17.collab.prod.int.phx2.redhat.com (zmail17.collab.prod.int.phx2.redhat.com [10.5.83.19])
+	by colo-mx.corp.redhat.com (Postfix) with ESMTP id 902B31806B11;
+	Thu, 16 May 2019 15:29:38 +0000 (UTC)
+Date: Thu, 16 May 2019 11:29:35 -0400 (EDT)
+From: Jan Stancek <jstancek@redhat.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>, peterz@infradead.org, 
+	namit@vmware.com, minchan@kernel.org, mgorman@suse.de, 
+	stable@vger.kernel.org, linux-mm@kvack.org, 
+	linux-kernel@vger.kernel.org, Jan Stancek <jstancek@redhat.com>
+Message-ID: <1158926942.23199905.1558020575293.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20190514145445.GB2825@fuggles.cambridge.arm.com>
+References: <1557444414-12090-1-git-send-email-yang.shi@linux.alibaba.com> <20190513163804.GB10754@fuggles.cambridge.arm.com> <360170d7-b16f-f130-f930-bfe54be9747a@linux.alibaba.com> <20190514145445.GB2825@fuggles.cambridge.arm.com>
+Subject: Re: [v2 PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
 MIME-Version: 1.0
-X-OriginatorOrg: camlintechnologies.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 91d43b09-b5a6-4658-2239-08d6da11bce0
-X-MS-Exchange-CrossTenant-originalarrivaltime: 16 May 2019 15:18:23.9877
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: fd4b1729-b18d-46d2-9ba0-2717b852b252
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: CWXP123MB1848
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+X-Originating-IP: [10.43.17.163, 10.4.195.10]
+Thread-Topic: mmu_gather: remove __tlb_reset_range() for force flush
+Thread-Index: uzKTPt4zsaol+2IqXYgAH+t+3N7Fug==
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Thu, 16 May 2019 15:29:39 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-DQpXIGRuaXUgMTUuMDUuMjAxOSBvwqAxNzoxOCwgTWF0dGhldyBXaWxjb3ggcGlzemU6DQo+IE9u
-IFdlZCwgTWF5IDE1LCAyMDE5IGF0IDA4OjAyOjE3QU0gLTA3MDAsIEVyaWMgRHVtYXpldCB3cm90
-ZToNCj4+IE9uIFdlZCwgTWF5IDE1LCAyMDE5IGF0IDc6NDMgQU0gTWF0dGhldyBXaWxjb3ggPHdp
-bGx5QGluZnJhZGVhZC5vcmc+IHdyb3RlOg0KPj4+IFlvdSdyZSBzZWVpbmcgYSByYWNlIGJldHdl
-ZW4gcGFnZV9hZGRyZXNzKHBhZ2UpIGJlaW5nIGNhbGxlZCB0d2ljZS4NCj4+PiBCZXR3ZWVuIHRo
-b3NlIHR3byBjYWxscywgc29tZXRoaW5nIGhhcyBjYXVzZWQgdGhlIHBhZ2UgdG8gYmUgcmVtb3Zl
-ZCBmcm9tDQo+Pj4gdGhlIHBhZ2VfYWRkcmVzc19tYXAoKSBsaXN0LiAgRXJpYydzIHBhdGNoIGF2
-b2lkcyBjYWxsaW5nIHBhZ2VfYWRkcmVzcygpLA0KPj4+IHNvIGFwcGx5IGl0IGFuZCBiZSBoYXBw
-eS4NCj4+IEhtbS4uLiB3b250IHRoZSBrbWFwX2F0b21pYygpIGRvbmUgbGF0ZXIsIGFmdGVyIHBh
-Z2VfY29weV9zYW5lKCkgd291bGQNCj4+IHN1ZmZlciBmcm9tIHRoZSByYWNlID8NCj4+DQo+PiBJ
-dCBzZWVtcyB0aGVyZSBpcyBhIHJlYWwgYnVnIHNvbWV3aGVyZSB0byBmaXguDQo+IE5vLiAgcGFn
-ZV9hZGRyZXNzKCkgY2FsbGVkIGJlZm9yZSB0aGUga21hcF9hdG9taWMoKSB3aWxsIGxvb2sgdGhy
-b3VnaA0KPiB0aGUgbGlzdCBvZiBtYXBwaW5ncyBhbmQgc2VlIGlmIHRoYXQgcGFnZSBpcyBtYXBw
-ZWQgc29tZXdoZXJlLiAgV2UgdW5tYXANCj4gbGF6aWx5LCBzbyBhbGwgaXQgdGFrZXMgdG8gdHJp
-Z2dlciB0aGlzIHJhY2UgaXMgdGhhdCB0aGUgcGFnZSBfaGFzXw0KPiBiZWVuIG1hcHBlZCBiZWZv
-cmUsIGFuZCBpdHMgbWFwcGluZyBnZXRzIHRvcm4gZG93biBkdXJpbmcgdGhpcyBjYWxsLg0KPg0K
-PiBXaGlsZSB0aGUgcGFnZSBpcyBrbWFwcGVkLCBpdHMgbWFwcGluZyBjYW5ub3QgYmUgdG9ybiBk
-b3duLg0KDQpBbmQgdGhhdCdzIHRoZSBhbnN3ZXIgSSdtIHJlYWxseSBnbGFkIHRvIGhlYXIuIA0K
-SW4gdGhlIG1lYW50aW1lIEkndmUgc2V0IHVwIGEgdGVzdCBydW4gd2l0aCBDT05GSUdfSElHSE1F
-TSBkaXNhYmxlZA0KdG8gYmUgZXh0cmEgc3VyZSwgaG93ZXZlciBxdWl0ZSBleHBlY3RlZGx5IGl0
-IHJvYnMgdGhlIHN5c3RlbSBvZiAyNTZNaUINCm9mIGFjY2Vzc2libGUgbWVtb3J5Lg0KDQpVbmZv
-cnR1bmF0bHksIGxvb2tpbmcgdGhyb3VnaCBkZWZjb25maWdzIGZvciAzMi1iaXQgQVJNLCBDT05G
-SUdfSElHSE1FTQ0KaXMgZW5hYmxlZCBpbiBxdWl0ZSBhIGZldyBvZiB0aGVtLCBpLk1YIGluY2x1
-ZGVkLg0KDQpJJ2xsIHBpY2sgdXAgdGhlIHBhdGNoIHRoZW4gYW5kIGRyb3AgaXQgd2hlbiBpdCBn
-ZXRzIGluY2x1ZGVkIGluIDQuMTkueS4NClRoYW5rcyENCg0KLS0NCldpdGgga2luZCByZWdhcmRz
-LA0KTGVjaA0KDQo=
+
+
+----- Original Message -----
+> On Mon, May 13, 2019 at 04:01:09PM -0700, Yang Shi wrote:
+> >=20
+> >=20
+> > On 5/13/19 9:38 AM, Will Deacon wrote:
+> > > On Fri, May 10, 2019 at 07:26:54AM +0800, Yang Shi wrote:
+> > > > diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+> > > > index 99740e1..469492d 100644
+> > > > --- a/mm/mmu_gather.c
+> > > > +++ b/mm/mmu_gather.c
+> > > > @@ -245,14 +245,39 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+> > > >   {
+> > > >   =09/*
+> > > >   =09 * If there are parallel threads are doing PTE changes on same=
+ range
+> > > > -=09 * under non-exclusive lock(e.g., mmap_sem read-side) but defer=
+ TLB
+> > > > -=09 * flush by batching, a thread has stable TLB entry can fail to=
+ flush
+> > > > -=09 * the TLB by observing pte_none|!pte_dirty, for example so flu=
+sh TLB
+> > > > -=09 * forcefully if we detect parallel PTE batching threads.
+> > > > +=09 * under non-exclusive lock (e.g., mmap_sem read-side) but defe=
+r TLB
+> > > > +=09 * flush by batching, one thread may end up seeing inconsistent=
+ PTEs
+> > > > +=09 * and result in having stale TLB entries.  So flush TLB forcef=
+ully
+> > > > +=09 * if we detect parallel PTE batching threads.
+> > > > +=09 *
+> > > > +=09 * However, some syscalls, e.g. munmap(), may free page tables,=
+ this
+> > > > +=09 * needs force flush everything in the given range. Otherwise t=
+his
+> > > > +=09 * may result in having stale TLB entries for some architecture=
+s,
+> > > > +=09 * e.g. aarch64, that could specify flush what level TLB.
+> > > >   =09 */
+> > > > -=09if (mm_tlb_flush_nested(tlb->mm)) {
+> > > > -=09=09__tlb_reset_range(tlb);
+> > > > -=09=09__tlb_adjust_range(tlb, start, end - start);
+> > > > +=09if (mm_tlb_flush_nested(tlb->mm) && !tlb->fullmm) {
+> > > > +=09=09/*
+> > > > +=09=09 * Since we can't tell what we actually should have
+> > > > +=09=09 * flushed, flush everything in the given range.
+> > > > +=09=09 */
+> > > > +=09=09tlb->freed_tables =3D 1;
+> > > > +=09=09tlb->cleared_ptes =3D 1;
+> > > > +=09=09tlb->cleared_pmds =3D 1;
+> > > > +=09=09tlb->cleared_puds =3D 1;
+> > > > +=09=09tlb->cleared_p4ds =3D 1;
+> > > > +
+> > > > +=09=09/*
+> > > > +=09=09 * Some architectures, e.g. ARM, that have range invalidatio=
+n
+> > > > +=09=09 * and care about VM_EXEC for I-Cache invalidation, need for=
+ce
+> > > > +=09=09 * vma_exec set.
+> > > > +=09=09 */
+> > > > +=09=09tlb->vma_exec =3D 1;
+> > > > +
+> > > > +=09=09/* Force vma_huge clear to guarantee safer flush */
+> > > > +=09=09tlb->vma_huge =3D 0;
+> > > > +
+> > > > +=09=09tlb->start =3D start;
+> > > > +=09=09tlb->end =3D end;
+> > > >   =09}
+> > > Whilst I think this is correct, it would be interesting to see whethe=
+r
+> > > or not it's actually faster than just nuking the whole mm, as I menti=
+oned
+> > > before.
+> > >=20
+> > > At least in terms of getting a short-term fix, I'd prefer the diff be=
+low
+> > > if it's not measurably worse.
+> >=20
+> > I did a quick test with ebizzy (96 threads with 5 iterations) on my x86=
+ VM,
+> > it shows slightly slowdown on records/s but much more sys time spent wi=
+th
+> > fullmm flush, the below is the data.
+> >=20
+> > =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 nofullmm=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0 fullmm
+> > ops (records/s) =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0 225606=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 225119
+> > sys (s)=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0=C2=A0 0.69=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
+=C2=A0=C2=A0=C2=A0 1.14
+> >=20
+> > It looks the slight reduction of records/s is caused by the increase of=
+ sys
+> > time.
+>=20
+> That's not what I expected, and I'm unable to explain why moving to fullm=
+m
+> would /increase/ the system time. I would've thought the time spent doing
+> the invalidation would decrease, with the downside that the TLB is cold
+> when returning back to userspace.
+>=20
+
+I tried ebizzy with various parameters (malloc vs mmap, ran it for hour),
+but performance was very similar for both patches.
+
+So, I was looking for workload that would demonstrate the largest differenc=
+e.
+Inspired by python xml-rpc, which can handle each request in new thread,
+I tried following [1]:
+
+16 threads, each looping 100k times over:
+  mmap(16M)
+  touch 1 page
+  madvise(DONTNEED)
+  munmap(16M)
+
+This yields quite significant difference for 2 patches when running on
+my 46 CPU arm host. I checked it twice - applied patch, recompiled, reboote=
+d,
+but numbers stayed +- couple seconds the same.
+
+Does it somewhat match your expectation?
+
+v2 patch
+---------
+real    2m33.460s
+user    0m3.359s
+sys     15m32.307s
+
+real    2m33.895s
+user    0m2.749s
+sys     16m34.500s
+
+real    2m35.666s
+user    0m3.528s
+sys     15m23.377s
+
+real    2m32.898s
+user    0m2.789s
+sys     16m18.801s
+
+real    2m33.087s
+user    0m3.565s
+sys     16m23.815s
+
+
+fullmm version
+---------------
+real    0m46.811s
+user    0m1.596s
+sys     1m47.500s
+
+real    0m47.322s
+user    0m1.803s
+sys     1m48.449s
+
+real    0m46.668s
+user    0m1.508s
+sys     1m47.352s
+
+real    0m46.742s
+user    0m2.007s
+sys     1m47.217s
+
+real    0m46.948s
+user    0m1.785s
+sys     1m47.906s
+
+[1] https://github.com/jstancek/reproducers/blob/master/kernel/page_fault_s=
+tall/mmap8.c
 
