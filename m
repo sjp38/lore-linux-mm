@@ -2,106 +2,107 @@ Return-Path: <SRS0=Igro=TR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B99DC04AB4
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 08:34:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 66D85C04E87
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 08:49:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C35E120818
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 08:34:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 278E62082E
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 08:49:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="UTu4YULs"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C35E120818
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="L17n4MiM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 278E62082E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 54E046B0005; Fri, 17 May 2019 04:34:39 -0400 (EDT)
+	id B0E986B0005; Fri, 17 May 2019 04:49:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4FE5E6B0006; Fri, 17 May 2019 04:34:39 -0400 (EDT)
+	id A99396B0006; Fri, 17 May 2019 04:49:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3ECFE6B000A; Fri, 17 May 2019 04:34:39 -0400 (EDT)
+	id 938596B0007; Fri, 17 May 2019 04:49:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 157156B0005
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 04:34:39 -0400 (EDT)
-Received: by mail-vs1-f69.google.com with SMTP id e204so1154525vsc.17
-        for <linux-mm@kvack.org>; Fri, 17 May 2019 01:34:39 -0700 (PDT)
+Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C5386B0005
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 04:49:16 -0400 (EDT)
+Received: by mail-vk1-f197.google.com with SMTP id q191so2395025vkh.5
+        for <linux-mm@kvack.org>; Fri, 17 May 2019 01:49:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc
          :content-transfer-encoding;
-        bh=IXFYp9dXdqOGmv2GZlMSV+ZWmX1vIYgX7tAhUZgFrwY=;
-        b=U1RF/nncUHT1EjhcrP8FaQ/2cIVLgCf8DCMIR/kz/3du/b3NG7CUybCc8chPMUL+vF
-         wFnbKRnUEJmQNQe/m72t56kMkFnyfmLk0F94Fuf96OUUKNxmfCrG+K768ZmQCexHk/Vk
-         N7OSUIUTP541a5EHxVkPNOAAssUZdvPpx4uqirIMsU1sxMwW0Qz6WkEYczuxvZfX4f1T
-         jQ6ZSiH0T+QcKD9C1PiOd+xQmv6N0+AsHBU48tPw/v4KXjbdJWy65tz6ZqeMbLJOSubu
-         3k6TUdrOQYBdZwpmfz7Ehh4GNUEItbMBXZFtVr/nS38BgBO8xtcr3P+Bxjdm21vVtze2
-         E+jw==
-X-Gm-Message-State: APjAAAU/bOFqE4WWhZS56iKAhGmxuPYzLqybqIY6M0jt4Adh91gsxA63
-	dBq7hw+O8dq4Cx/MnPsbdjzIuPmVrNjbwTFNQ46puOqEMSzujOQwEFtem36Asawkmz+jjoF2FKM
-	YB0JDa+R2VHybsPmUC0g9RFep6HnLX8B4zduWIhIQexSyYZlw8vE2/CdGY0mZzfUZxA==
-X-Received: by 2002:a9f:22e8:: with SMTP id 95mr18633412uan.6.1558082078743;
-        Fri, 17 May 2019 01:34:38 -0700 (PDT)
-X-Received: by 2002:a9f:22e8:: with SMTP id 95mr18633391uan.6.1558082078024;
-        Fri, 17 May 2019 01:34:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558082078; cv=none;
+        bh=dcKNTtASXX61Q+VQr8INe49VkZfJpp38n/5rM4hpO6M=;
+        b=O5Fedq8t5Tr5zp6XHm2oZYHHp3df4Mgs2hto3PbZXmUIj4dElzrfBuseMZ8Z0JwWNY
+         RMlAGgEgdGRJLMOwsPFRel2AwPrFF0IvMKvtBqg5UNVxDKICU1LEpDm/EGIOK8qTQzdt
+         hC5ndbdWAQVHVg17biiHVi0l1wPXhTqbDoghMOSI5YhJpuz4h/uuZCNToVCZvuD6AcAL
+         rVpiB/wwtQaGWY/BKV2jaVkW/U9pn61ifONc1hPlLnSiY/a9ubduK26HUC8iY1nfmGps
+         rOB1n//jfFGjkhiXcNJVj6AOpBYo5nAh4JzqjkPRM9920UX9DXzlEvKnRRLXRH5lzRiN
+         Q/tg==
+X-Gm-Message-State: APjAAAWt0nE/MagXaVt4Ze9xzYp891u+umRtVHEA0DeiXD1Ms6RXfWja
+	G4ZjgIlVF/nlxNhBZXqNCiljI6+LEQTg02CWujMm0ZJeKFaHsIvOk+I2mFO5u/+6VZmdCgFQHpK
+	HewXqARyp87AxRZMWbacMx8gE3JgIT4/UwjdT0uCkoyWNtpr+aQ8DeI/ym9JEJo84Sw==
+X-Received: by 2002:a67:fc4:: with SMTP id 187mr5407565vsp.215.1558082956064;
+        Fri, 17 May 2019 01:49:16 -0700 (PDT)
+X-Received: by 2002:a67:fc4:: with SMTP id 187mr5407548vsp.215.1558082955268;
+        Fri, 17 May 2019 01:49:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558082955; cv=none;
         d=google.com; s=arc-20160816;
-        b=QAkPxZzu2TheqENFlbJtgvxu3h4tYeXZ5zvASuB5/lt/OmmPVQ6v2zEbs2g0P+D62h
-         DFdBJ8jUVGNyUN3w+YJsP063Y38x9jEvA56yumF9hvFJtqtTpRYNKe/9q5kkKbH7Maey
-         GaYEp1pDgdl/ZzffKO080zO6u4TUSWgC+Ofcq4gagTalZWlfBk3VJEm5REDT3nxtgVb/
-         M0R4127kE+ZskNTvCWRWD0oLgdM5M2iJ87j5QcCbVRVak0dCU+UfvyKIG/XiFqRlBGPD
-         vkxEo89QqsWvzNcAwoSjFP/PtXwMR2sJXso3AhvRXbgPsFrb4zTGSZqnaS8OTPlt8ju0
-         ElBw==
+        b=Ic6FHdYM1psvGlTmewtfrYMkjmUb1yEXOvL5WmC+/dZ/img4GeIA/PratORjpQCwZ8
+         l0ih51r9Xcqxd/lQleKELRsZJ7DyHOdqw35lHvEouzSGofI5L297x2n6TlblPFaUYVJb
+         b7Vp9+j75Rk7bufHJtzUPTi5E++Ud0UfdV7wMHalmqZaZCMxE/79PDM7fYc1s9bKUxbb
+         MdkmDxNNdvo5CHlbmNu8mn1XGRVu/MnxJWDNmnJQZ8R3A/i2fmk1ToCa+4+UPTW0x9ou
+         HlHxR7zfpmONTivDxyw60E0g968kE9WgacNE9okfXOG9AbR/ZiAzGSlzU6d+aaqMDDDX
+         qC7w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:cc:to:subject:message-id:date:from
          :in-reply-to:references:mime-version:dkim-signature;
-        bh=IXFYp9dXdqOGmv2GZlMSV+ZWmX1vIYgX7tAhUZgFrwY=;
-        b=sK7wWhEos3KR2hqCVtv59iWAFt3BhOyMBlIBnxAltz+O+T6GvKY/7hCvgcsRX81Qxw
-         MMOvovQUil2ovv9fp8IW8Xnwx074qOv/A3K/eHaM/3uHxxctNz/qeAhxjWgKweh0dblf
-         OvO0gHwF4TBxq30jkW/U3iOr0k0WKMYd8j8+fWzqo/pzkkJ/xu4YHuxg4OSmRQIKA6+L
-         HDNRjEHVIptEHVeNwf+0cnW00D5RGIsJwtwxOJSlHWsr3I0EuTDAb7Y0jqIhjiKXbwDA
-         l3u3d/X333YV/vl/0LNU+M+a4eKUvgTVtFnl9M3tOMij7OAlX93gUafd5zrQZ6AfZOT4
-         ktfA==
+        bh=dcKNTtASXX61Q+VQr8INe49VkZfJpp38n/5rM4hpO6M=;
+        b=aaPO9FKqEEXdeLZMk+2BYf0soRtrTrULfI2WbAfFMGD7XBiDAyZTABIEw88pU9Dod8
+         mRCmUm+rTxPmz3tbyDgJEEJZN5ywFbYp5UsQRDXTtyrAF/aJo5d/ROUrjsdYjg1Riax9
+         gFhvg9GiP8Kr4YChI+eGAeLF25koBsodoMcziMyVB7B9VeLbWbmWuHd55KJ6pfIu5WwH
+         K8UgrUDBSebMP4z1bP7YRXLq9t9oDSAJ+e95lz/Gpta8EQzy8amtdTWQfAPeZMrbvGAT
+         fSdsN5EzoW3lByo3AHmbCjCY1ojSUQEo/ljB7xArkfuRKw45s0TFJwCXh+i6KcqaWNh9
+         /2dQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=UTu4YULs;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=L17n4MiM;
        spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l139sor2773834vkd.72.2019.05.17.01.34.37
+        by mx.google.com with SMTPS id n10sor3801703vsp.28.2019.05.17.01.49.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 17 May 2019 01:34:38 -0700 (PDT)
+        Fri, 17 May 2019 01:49:15 -0700 (PDT)
 Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=UTu4YULs;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=L17n4MiM;
        spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc:content-transfer-encoding;
-        bh=IXFYp9dXdqOGmv2GZlMSV+ZWmX1vIYgX7tAhUZgFrwY=;
-        b=UTu4YULsBx6VcP9vrIzXhWm8Y+uCliaAjCh+8sltKt7pcgDt89X+byBprR+w0oWZbk
-         deRXHG5rJJPcFWTG21XQAz9q+pVUWgpPBtQH3FDC29d+IUGf1Bz6IdJJ2CaJJq8NGRdG
-         pd7sytdMIQhbiFykg3BicDQ6d7Lxtj3N9wmelAiCFsp3EIrogWuATiiRsXVdQtFLc2id
-         ZrZK8yhfe1Hw2A50tFa1/63RdDrt1r63SaCIKO2T2fsltnD3sStlFhhsX68SaZdKa8/A
-         3M31PwIcH4mpKtYmeowBMWKe5emm5Bj8pgYyXIMwXrP/0w2/vTYCgdz6HLeX5VY1FmuJ
-         j1+Q==
-X-Google-Smtp-Source: APXvYqyyuNywbu+7GesPli45mX02H2z5juDdbDIF7jowpZusr4p7m2UEfICnYf6Udf4bUxb0LNMiwSRXEQnzj4itKH8=
-X-Received: by 2002:a1f:6011:: with SMTP id u17mr1711683vkb.64.1558082077400;
- Fri, 17 May 2019 01:34:37 -0700 (PDT)
+        bh=dcKNTtASXX61Q+VQr8INe49VkZfJpp38n/5rM4hpO6M=;
+        b=L17n4MiMW7VFyQE9PCxCtQ37t2a1Wc5Jn9V0cOf+nXVc7WbgrEA+XNwEHw1OgXi3V7
+         QR5kHf/KQyqtT9tgUeeWuaf7EW91762vRWCIxrrkLG0EeghJYGV9+A/HrETuO5I2jVuL
+         0alBtY+sHd2baPoT3zytaA3Jh8D+kQmT4m7FxWr21/zZoLv6VBFF/ObluRCJrPTYt/fx
+         fCmNr/z0F+W7jB2p3hdd2dcW5Db93F9IseCYmKAwmVMmAZ+qe5+a6ITXxZv9i5MOjlYK
+         0LC2uyo6WYi/VcMZiWRCrLFeS/41MURPF4f42J7VREGI9brrmoCceTUeyI/xDEmUIZfI
+         lyLw==
+X-Google-Smtp-Source: APXvYqzjUD0ahzXEakEX3krc2+ox/87AMfIOaCIz/6rEh7xXajD9IsIsVNzi0hRDQJd9iq5DpU4tQU0ApbW3Gj4ZDrA=
+X-Received: by 2002:a67:7241:: with SMTP id n62mr3594300vsc.217.1558082954585;
+ Fri, 17 May 2019 01:49:14 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190514143537.10435-5-glider@google.com> <201905161746.16E885F@keescook>
-In-Reply-To: <201905161746.16E885F@keescook>
+References: <20190514143537.10435-1-glider@google.com> <20190514143537.10435-5-glider@google.com>
+ <201905160923.BD3E530EFC@keescook> <201905161714.A53D472D9@keescook>
+In-Reply-To: <201905161714.A53D472D9@keescook>
 From: Alexander Potapenko <glider@google.com>
-Date: Fri, 17 May 2019 10:34:26 +0200
-Message-ID: <CAG_fn=W41zDac9DN9qVB_EwJG89f2cNBQYNyove4oO3dwe6d5Q@mail.gmail.com>
-Subject: Re: [PATCH 5/4] mm: Introduce SLAB_NO_FREE_INIT and mark excluded caches
+Date: Fri, 17 May 2019 10:49:03 +0200
+Message-ID: <CAG_fn=Vj6Jk_DY_-0+x6EpbsVh+abpEVcjycBhJxeMH3wuy9rw@mail.gmail.com>
+Subject: Re: [PATCH v2 4/4] net: apply __GFP_NO_AUTOINIT to AF_UNIX sk_buff allocations
 To: Kees Cook <keescook@chromium.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
 	Kernel Hardening <kernel-hardening@lists.openwall.com>, 
@@ -119,175 +120,66 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 17, 2019 at 2:50 AM Kees Cook <keescook@chromium.org> wrote:
+On Fri, May 17, 2019 at 2:26 AM Kees Cook <keescook@chromium.org> wrote:
 >
-> In order to improve the init_on_free performance, some frequently
-> freed caches with less sensitive contents can be excluded from the
-> init_on_free behavior.
-Did you see any notable performance improvement with this patch?
-A similar one gave me only 1-2% on the parallel Linux build.
-> This patch is modified from Brad Spengler/PaX Team's code in the
-> last public patch of grsecurity/PaX based on my understanding of the
-> code. Changes or omissions from the original code are mine and don't
-> reflect the original grsecurity/PaX code.
+> On Thu, May 16, 2019 at 09:53:01AM -0700, Kees Cook wrote:
+> > On Tue, May 14, 2019 at 04:35:37PM +0200, Alexander Potapenko wrote:
+> > > Add sock_alloc_send_pskb_noinit(), which is similar to
+> > > sock_alloc_send_pskb(), but allocates with __GFP_NO_AUTOINIT.
+> > > This helps reduce the slowdown on hackbench in the init_on_alloc mode
+> > > from 6.84% to 3.45%.
+> >
+> > Out of curiosity, why the creation of the new function over adding a
+> > gfp flag argument to sock_alloc_send_pskb() and updating callers? (Ther=
+e
+> > are only 6 callers, and this change already updates 2 of those.)
+> >
+> > > Slowdown for the initialization features compared to init_on_free=3D0=
+,
+> > > init_on_alloc=3D0:
+> > >
+> > > hackbench, init_on_free=3D1:  +7.71% sys time (st.err 0.45%)
+> > > hackbench, init_on_alloc=3D1: +3.45% sys time (st.err 0.86%)
 >
-> Signed-off-by: Kees Cook <keescook@chromium.org>
-> ---
->  fs/buffer.c          | 2 +-
->  fs/dcache.c          | 3 ++-
->  include/linux/slab.h | 3 +++
->  kernel/fork.c        | 6 ++++--
->  mm/rmap.c            | 5 +++--
->  mm/slab.h            | 5 +++--
->  net/core/skbuff.c    | 6 ++++--
->  7 files changed, 20 insertions(+), 10 deletions(-)
+> So I've run some of my own wall-clock timings of kernel builds (which
+> should be an pretty big "worst case" situation, and I see much smaller
+> performance changes:
+How many cores were you using? I suspect the numbers may vary a bit
+depending on that.
+> everything off
+>         Run times: 289.18 288.61 289.66 287.71 287.67
+>         Min: 287.67 Max: 289.66 Mean: 288.57 Std Dev: 0.79
+>                 baseline
 >
-> diff --git a/fs/buffer.c b/fs/buffer.c
-> index 0faa41fb4c88..04a85bd4cf2e 100644
-> --- a/fs/buffer.c
-> +++ b/fs/buffer.c
-> @@ -3457,7 +3457,7 @@ void __init buffer_init(void)
->         bh_cachep =3D kmem_cache_create("buffer_head",
->                         sizeof(struct buffer_head), 0,
->                                 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
-> -                               SLAB_MEM_SPREAD),
-> +                               SLAB_MEM_SPREAD|SLAB_NO_FREE_INIT),
->                                 NULL);
+> init_on_alloc=3D1
+>         Run times: 289.72 286.95 287.87 287.34 287.35
+>         Min: 286.95 Max: 289.72 Mean: 287.85 Std Dev: 0.98
+>                 0.25% faster (within the std dev noise)
 >
->         /*
-> diff --git a/fs/dcache.c b/fs/dcache.c
-> index 8136bda27a1f..323b039accba 100644
-> --- a/fs/dcache.c
-> +++ b/fs/dcache.c
-> @@ -3139,7 +3139,8 @@ void __init vfs_caches_init_early(void)
->  void __init vfs_caches_init(void)
->  {
->         names_cachep =3D kmem_cache_create_usercopy("names_cache", PATH_M=
-AX, 0,
-> -                       SLAB_HWCACHE_ALIGN|SLAB_PANIC, 0, PATH_MAX, NULL)=
-;
-> +                       SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NO_FREE_INIT, =
-0,
-> +                       PATH_MAX, NULL);
+> init_on_free=3D1
+>         Run times: 303.26 301.44 301.19 301.55 301.39
+>         Min: 301.19 Max: 303.26 Mean: 301.77 Std Dev: 0.75
+>                 4.57% slower
 >
->         dcache_init();
->         inode_init();
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 9449b19c5f10..7eba9ad8830d 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -92,6 +92,9 @@
->  /* Avoid kmemleak tracing */
->  #define SLAB_NOLEAKTRACE       ((slab_flags_t __force)0x00800000U)
+> init_on_free=3D1 with the PAX_MEMORY_SANITIZE slabs excluded:
+>         Run times: 299.19 299.85 298.95 298.23 298.64
+>         Min: 298.23 Max: 299.85 Mean: 298.97 Std Dev: 0.55
+>                 3.60% slower
 >
-> +/* Exclude slab from zero-on-free when init_on_free is enabled */
-> +#define SLAB_NO_FREE_INIT      ((slab_flags_t __force)0x01000000U)
-> +
->  /* Fault injection mark */
->  #ifdef CONFIG_FAILSLAB
->  # define SLAB_FAILSLAB         ((slab_flags_t __force)0x02000000U)
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index b4cba953040a..9868585f5520 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -2550,11 +2550,13 @@ void __init proc_caches_init(void)
+> So the tuning certainly improved things by 1%. My perf numbers don't
+> show the 24% hit you were seeing at all, though.
+Note that 24% is the _sys_ time slowdown. The wall time slowdown seen
+in this case was 8.34%
+
+> > In the commit log it might be worth mentioning that this is only
+> > changing the init_on_alloc case (in case it's not already obvious to
+> > folks). Perhaps there needs to be a split of __GFP_NO_AUTOINIT into
+> > __GFP_NO_AUTO_ALLOC_INIT and __GFP_NO_AUTO_FREE_INIT? Right now
+> > __GFP_NO_AUTOINIT is only checked for init_on_alloc:
 >
->         mm_cachep =3D kmem_cache_create_usercopy("mm_struct",
->                         mm_size, ARCH_MIN_MMSTRUCT_ALIGN,
-> -                       SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
-> +                       SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT|
-> +                       SLAB_NO_FREE_INIT,
->                         offsetof(struct mm_struct, saved_auxv),
->                         sizeof_field(struct mm_struct, saved_auxv),
->                         NULL);
-> -       vm_area_cachep =3D KMEM_CACHE(vm_area_struct, SLAB_PANIC|SLAB_ACC=
-OUNT);
-> +       vm_area_cachep =3D KMEM_CACHE(vm_area_struct, SLAB_PANIC|SLAB_ACC=
-OUNT|
-> +                                                   SLAB_NO_FREE_INIT);
->         mmap_init();
->         nsproxy_cache_init();
->  }
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index e5dfe2ae6b0d..b7b8013eeb0a 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -432,10 +432,11 @@ static void anon_vma_ctor(void *data)
->  void __init anon_vma_init(void)
->  {
->         anon_vma_cachep =3D kmem_cache_create("anon_vma", sizeof(struct a=
-non_vma),
-> -                       0, SLAB_TYPESAFE_BY_RCU|SLAB_PANIC|SLAB_ACCOUNT,
-> +                       0, SLAB_TYPESAFE_BY_RCU|SLAB_PANIC|SLAB_ACCOUNT|
-> +                       SLAB_NO_FREE_INIT,
->                         anon_vma_ctor);
->         anon_vma_chain_cachep =3D KMEM_CACHE(anon_vma_chain,
-> -                       SLAB_PANIC|SLAB_ACCOUNT);
-> +                       SLAB_PANIC|SLAB_ACCOUNT|SLAB_NO_FREE_INIT);
->  }
->
->  /*
-> diff --git a/mm/slab.h b/mm/slab.h
-> index 24ae887359b8..f95b4f03c57b 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -129,7 +129,8 @@ static inline slab_flags_t kmem_cache_flags(unsigned =
-int object_size,
->  /* Legal flag mask for kmem_cache_create(), for various configurations *=
-/
->  #define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | \
->                          SLAB_CACHE_DMA32 | SLAB_PANIC | \
-> -                        SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS )
-> +                        SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS | \
-> +                        SLAB_NO_FREE_INIT)
->
->  #if defined(CONFIG_DEBUG_SLAB)
->  #define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
-> @@ -535,7 +536,7 @@ static inline bool slab_want_init_on_alloc(gfp_t flag=
-s, struct kmem_cache *c)
->  static inline bool slab_want_init_on_free(struct kmem_cache *c)
->  {
->         if (static_branch_unlikely(&init_on_free))
-> -               return !(c->ctor);
-> +               return !(c->ctor) && ((c->flags & SLAB_NO_FREE_INIT) =3D=
-=3D 0);
->         else
->                 return false;
->  }
-> diff --git a/net/core/skbuff.c b/net/core/skbuff.c
-> index e89be6282693..b65902d2c042 100644
-> --- a/net/core/skbuff.c
-> +++ b/net/core/skbuff.c
-> @@ -3981,14 +3981,16 @@ void __init skb_init(void)
->         skbuff_head_cache =3D kmem_cache_create_usercopy("skbuff_head_cac=
-he",
->                                               sizeof(struct sk_buff),
->                                               0,
-> -                                             SLAB_HWCACHE_ALIGN|SLAB_PAN=
-IC,
-> +                                             SLAB_HWCACHE_ALIGN|SLAB_PAN=
-IC|
-> +                                             SLAB_NO_FREE_INIT,
->                                               offsetof(struct sk_buff, cb=
-),
->                                               sizeof_field(struct sk_buff=
-, cb),
->                                               NULL);
->         skbuff_fclone_cache =3D kmem_cache_create("skbuff_fclone_cache",
->                                                 sizeof(struct sk_buff_fcl=
-ones),
->                                                 0,
-> -                                               SLAB_HWCACHE_ALIGN|SLAB_P=
-ANIC,
-> +                                               SLAB_HWCACHE_ALIGN|SLAB_P=
-ANIC|
-> +                                               SLAB_NO_FREE_INIT,
->                                                 NULL);
->         skb_extensions_init();
->  }
-> --
-> 2.17.1
->
+> I was obviously crazy here. :) GFP isn't present for free(), but a SLAB
+> flag works (as was done in PAX_MEMORY_SANITIZE). I'll send the patch I
+> used for the above timing test.
 >
 > --
 > Kees Cook
