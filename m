@@ -2,168 +2,288 @@ Return-Path: <SRS0=Igro=TR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76201C04AB4
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 04:48:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BCB22C04AB4
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 06:02:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3380E20868
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 04:48:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3380E20868
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 4A2422083E
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 06:02:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A2422083E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D98D76B0006; Fri, 17 May 2019 00:48:44 -0400 (EDT)
+	id 91B446B0005; Fri, 17 May 2019 02:02:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D48986B0007; Fri, 17 May 2019 00:48:44 -0400 (EDT)
+	id 8A50B6B0006; Fri, 17 May 2019 02:02:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C11286B0008; Fri, 17 May 2019 00:48:44 -0400 (EDT)
+	id 744DC6B0007; Fri, 17 May 2019 02:02:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 733266B0006
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 00:48:44 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id l13so2268492wrw.10
-        for <linux-mm@kvack.org>; Thu, 16 May 2019 21:48:44 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4297D6B0005
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 02:02:38 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id o98so1634484ota.11
+        for <linux-mm@kvack.org>; Thu, 16 May 2019 23:02:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=XZUN1rSQFoJQRTlk7qizj3g35k1ro3ZlvPQUs7PXq7Y=;
-        b=frQ5UMFVxQWeMotnhcIfutPYzDmrI6DGVhjuLMssoupcrrkMRUNhzySjLlC1K91k0U
-         nSwSTCqjk82eaK94yVZUG+ScXLSVGfEklLlHtLjsPCxTGJ5c5rG4gjS+uj/k+3e1sNDk
-         9lqwc1bt5y71xURm1mGLac9c/1y1IhSr3bGVRt82iwNUMHBo9xprFHyGiaiuDlo/tzEO
-         sFas0CtFZN5YGlKiIvnLAhCNEEBoqU4tCazify1nIHHLkJLXb82ggTNjrpOA5LwmPtXO
-         soETnAFc5tLvbkhZnS5xk+g8yWeESrfNblHlj9/jeyralUkLU6Ecmp0j7oQWNXEuhyLK
-         ZmdA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jirislaby@gmail.com
-X-Gm-Message-State: APjAAAWSnh0qlJjqP1+aDNVWjdaAuvfjty41+oltWMB5NVFYWHA4dRbh
-	5OPr1flyDb0oTpawxRC6Z8poLaU82F3P1Qj7+t/LKEFp5rEyjkvDGKjxC4d2aGPqfW9IGuikXGi
-	+DLNa5j9DQBHCQiVzYhbdGxXWKGvI7i7ZB21epVTIBUaTHsOEd81hZBXJswvp6vs=
-X-Received: by 2002:a1c:e443:: with SMTP id b64mr3435372wmh.71.1558068524057;
-        Thu, 16 May 2019 21:48:44 -0700 (PDT)
-X-Received: by 2002:a1c:e443:: with SMTP id b64mr3435334wmh.71.1558068523253;
-        Thu, 16 May 2019 21:48:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558068523; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=DO6WLkoUqXxxlGmLPR+WFpvuFJaMgzTrrjSYWEqE6Ok=;
+        b=PoqOQgo+23VwURAfYf+FH7FsfH1C7QJZy0JogwwZpw+JuXGGBrNqwLmQL4unSFYMUj
+         PkL7wFELQqZ2f9okS61UxtWEDIOKnDDPHgrw49UaFc8/Kg51Y4DXg0Qile1IJ287v++C
+         5bOsX3sO8uE5VZphNDygSiD96xlejIHeIhZrB3cR52jyrfLBuXRW0Nqt+JCS8B2/Tfne
+         f8oxkmht1bqE2ad7kYzNK44sCZXipiiLbQrhQeoY4qHjRpVe0lzRNtYCx69j717f8nyx
+         m5h2Bj1+ULPlSkQtD4XJRCfuPSFiVIL/bifIXMzDc4wQRCDBWT5g5yNVtn3asNBkQ0N/
+         6I5w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenjianhong2@huawei.com
+X-Gm-Message-State: APjAAAW+PmlrRcrhZobFq2cqnT2OKes/4VcTgho3svD+997Z64+VMgpF
+	eTm00R7kBAtVZruKQN8G6k1nbP5leJ60Ad0ZDHM8dp7Oxd6TuLavKx7jznuP4fqV1xj3D51SATZ
+	U1g6vo8vJsihCathoMmaRZ46Q6DJc5qwrvLuRLNVklbnvh94dpKRbR4Tv7uIQRt9hEw==
+X-Received: by 2002:aca:dfc5:: with SMTP id w188mr455944oig.0.1558072957729;
+        Thu, 16 May 2019 23:02:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwic9rhGzWWDnTaOR33aVttpvNKi5irchSip1HQw2lj+QvZKnDdoPSDR/XMdMlrP0fEbdGo
+X-Received: by 2002:aca:dfc5:: with SMTP id w188mr455928oig.0.1558072956059;
+        Thu, 16 May 2019 23:02:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558072956; cv=none;
         d=google.com; s=arc-20160816;
-        b=BsbKWE18c93dYLE5/hMGxmHpsY1ER27dUygtyX8RwxO5vfU/0JhcWg+Yne80kBFovc
-         dtbNyo4JGAHu6dqvDwshjWekK2TYW6oeFaOq5Ne8jZbvXrw7rgU6QAktjWJKYexEmDwx
-         0K3b2m9VCM9AhHyroTXed3/G3waPg9n9wyJqMR/lywJVEfUqi66LGBniCJoPElFTreLL
-         HzEb5Dy0akSYybiMCySjmXNbePnHj6SNYaiPM5QOvkb6eeNWkOEe+PrGlyjc7MFHmU9P
-         J6XbgNxun89dNeUE2MoVqQBoyYpAI7HLhJXdNRg3jhBXPD8Tq4hMbD4862H9so5yG1rb
-         CU8g==
+        b=jWP4M2Xwk+zBmpGpsrBXba3Oi6blnkRBj9+p8nfnd2yTW2XZhdWX0VY6sl0+bM6zot
+         9/60hqtc2GuvLV5ZftApbStsS0D4agb0qinC3o/jmqTLLvDla0SfWYCwfF1WcxICBvR5
+         0lKsUvYMemyZe3o7HHGZ95htiowM9DxLb3L2k8OtePe0zIuLNJonBwa/cyDuCZSNCHAS
+         QHG6V8BupEGX5FLO6/QS0rJN7mB/Goq8AGLVi1/xK0TzZEN8d8sXvfMIXxRPYvPjwvwF
+         y+87ovPjCVQITBvLkEbFu9KDSYUKZZPa3vqKAmmSi3n6DoZ/4Rv1XgwmMU0G6WEhON0g
+         /Gpw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=XZUN1rSQFoJQRTlk7qizj3g35k1ro3ZlvPQUs7PXq7Y=;
-        b=IlRnebfCML8cnK2Vi2bNxo0sdrC6Z6M2TZazk+18FSt1qY64iFr9aGHZKrVNPwyC9j
-         I8CeAToIJ0DFkDGCC/NJ5YYr4+eZdTqFMmwrtPLsT8V6k4Sw6PM8XugfvPsMCpzXIY43
-         udrnxS/KetVierzLkO8BSc0DoKGVmggnbc8+02nPV1ikq7Eyd/4WCNdmsNYAprud+eFk
-         4Bg1XX86Xwq1OYDT2WzUC/AfAOXywyBNobbkJA6sE/AXePJWWWUNmDwuVfV9RY8loL2h
-         eo2iyxTcYiOkVosoNUXuKKC+SZpuj1Z13E27lheYzz0TT1tnhOlAYhxtcRzgAKtHwDbO
-         0bYw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=DO6WLkoUqXxxlGmLPR+WFpvuFJaMgzTrrjSYWEqE6Ok=;
+        b=HpKECbvfr8z22RftXIqvnXAi91e4w0oN+DWK3P5OAX9hUD3m+sLi4yGGhFWnTXAYWe
+         SZ3KzmjTZlJztrmcUoPYUOyJFCVejpqCBPAJfsv+R9yLai0ZT9KazuUavPHu0VAwnNyP
+         66IxjPLJQILJtvtu++bMv3s79n0m+3jbHzPB40MzzLFBJyShA238Sd+LDWWCxT4khN2o
+         4jysUSspqPlApDz4NKO5VG9pfvpFbdNgtctbSbKsp/hZ6YsG+76VCWYqwrhxi40LwlpK
+         XThsfYqquUOyTnO+XmVMxa/m9hAmQNwFNWRuXyuCqddjv1+w1gRbBqzkPnXPs5oxUSky
+         AamQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jirislaby@gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y69sor4448620wmd.20.2019.05.16.21.48.43
+       spf=pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenjianhong2@huawei.com
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id l15si3968853oib.157.2019.05.16.23.02.35
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 16 May 2019 21:48:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jirislaby@gmail.com
-X-Google-Smtp-Source: APXvYqwR25sv4dtpyUB74mgoWSvpPid3DFq7m389WuIN93GuDMxdyIXdJcbswvGymVd/5ur/g85h4Q==
-X-Received: by 2002:a1c:b756:: with SMTP id h83mr564817wmf.64.1558068522865;
-        Thu, 16 May 2019 21:48:42 -0700 (PDT)
-Received: from ?IPv6:2a0b:e7c0:0:107::49? ([2a0b:e7c0:0:107::49])
-        by smtp.gmail.com with ESMTPSA id o6sm12612149wrh.55.2019.05.16.21.48.41
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 May 2019 21:48:41 -0700 (PDT)
-Subject: Re: [PATCH] memcg: make it work on sparse non-0-node systems
-To: Michal Hocko <mhocko@kernel.org>,
- Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Johannes Weiner <hannes@cmpxchg.org>, cgroups@vger.kernel.org,
- Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-References: <359d98e6-044a-7686-8522-bdd2489e9456@suse.cz>
- <20190429105939.11962-1-jslaby@suse.cz>
- <20190509122526.ck25wscwanooxa3t@esperanza>
- <20190516135923.GV16651@dhcp22.suse.cz>
-From: Jiri Slaby <jslaby@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=jslaby@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <68075828-8fd7-adbb-c1d9-5eb39fbf18cb@suse.cz>
-Date: Fri, 17 May 2019 06:48:37 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+        Thu, 16 May 2019 23:02:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenjianhong2@huawei.com
+Received: from DGGEMS407-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id 5203840D642EC3827BCA;
+	Fri, 17 May 2019 14:02:31 +0800 (CST)
+Received: from use12-sp2.huawei.com (10.67.188.162) by
+ DGGEMS407-HUB.china.huawei.com (10.3.19.207) with Microsoft SMTP Server id
+ 14.3.439.0; Fri, 17 May 2019 14:02:21 +0800
+From: jianhong chen <chenjianhong2@huawei.com>
+To: <gregkh@linuxfoundation.org>, <akpm@linux-foundation.org>,
+	<mhocko@suse.com>, <vbabka@suse.cz>, <kirill.shutemov@linux.intel.com>,
+	<yang.shi@linux.alibaba.com>, <jannh@google.com>, <steve.capper@arm.com>,
+	<tiny.windzz@gmail.com>, <walken@google.com>
+CC: <chenjianhong2@huawei.com>, <linux-kernel@vger.kernel.org>,
+	<linux-mm@kvack.org>, <stable@vger.kernel.org>
+Subject: [PATCH] mm/mmap: fix the adjusted length error
+Date: Fri, 17 May 2019 14:06:49 +0800
+Message-ID: <1558073209-79549-1-git-send-email-chenjianhong2@huawei.com>
+X-Mailer: git-send-email 1.8.5.6
 MIME-Version: 1.0
-In-Reply-To: <20190516135923.GV16651@dhcp22.suse.cz>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+X-Originating-IP: [10.67.188.162]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 16. 05. 19, 15:59, Michal Hocko wrote:
->> However, I tend to agree with Michal that (ab)using node[0].memcg_lrus
->> to check if a list_lru is memcg aware looks confusing. I guess we could
->> simply add a bool flag to list_lru instead. Something like this, may be:
-> 
-> Yes, this makes much more sense to me!
+In linux version 4.4, a 32-bit process may fail to allocate 64M hugepage
+memory by function shmat even though there is a 64M memory gap in
+the process.
 
-I am not sure if I should send a patch with this solution or Vladimir
-will (given he is an author and has a diff already)?
+It is the adjusted length that causes the problem, introduced from
+commit db4fbfb9523c935 ("mm: vm_unmapped_area() lookup function").
+Accounting for the worst case alignment overhead, function unmapped_area
+and unmapped_area_topdown adjust the search length before searching
+for available vma gap. This is an estimated length, sum of the desired
+length and the longest alignment offset, which can cause misjudgement
+if the system has very few virtual memory left. For example, if the
+longest memory gap available is 64M, we can’t get it from the system
+by allocating 64M hugepage memory via shmat function. The reason is
+that it requires a longger length, the sum of the desired length(64M)
+and the longest alignment offset.
 
-thanks,
+To fix this error ,we can calculate the alignment offset of
+gap_start or gap_end to get a desired gap_start or gap_end value,
+before searching for the available gap. In this way, we don't
+need to adjust the search length.
+
+Problem reproduces procedure:
+1. allocate a lot of virtual memory segments via shmat and malloc
+2. release one of the biggest memory segment via shmdt
+3. attach the biggest memory segment via shmat
+
+e.g.
+process maps:
+00008000-00009000 r-xp 00000000 00:12 3385    /tmp/memory_mmap
+00011000-00012000 rw-p 00001000 00:12 3385    /tmp/memory_mmap
+27536000-f756a000 rw-p 00000000 00:00 0
+f756a000-f7691000 r-xp 00000000 01:00 560     /lib/libc-2.11.1.so
+f7691000-f7699000 ---p 00127000 01:00 560     /lib/libc-2.11.1.so
+f7699000-f769b000 r--p 00127000 01:00 560     /lib/libc-2.11.1.so
+f769b000-f769c000 rw-p 00129000 01:00 560     /lib/libc-2.11.1.so
+f769c000-f769f000 rw-p 00000000 00:00 0
+f769f000-f76c0000 r-xp 00000000 01:00 583     /lib/libgcc_s.so.1
+f76c0000-f76c7000 ---p 00021000 01:00 583     /lib/libgcc_s.so.1
+f76c7000-f76c8000 rw-p 00020000 01:00 583     /lib/libgcc_s.so.1
+f76c8000-f76e5000 r-xp 00000000 01:00 543     /lib/ld-2.11.1.so
+f76e9000-f76ea000 rw-p 00000000 00:00 0
+f76ea000-f76ec000 rw-p 00000000 00:00 0
+f76ec000-f76ed000 r--p 0001c000 01:00 543     /lib/ld-2.11.1.so
+f76ed000-f76ee000 rw-p 0001d000 01:00 543     /lib/ld-2.11.1.so
+f7800000-f7a00000 rw-s 00000000 00:0e 0       /SYSV000000ea (deleted)
+fba00000-fca00000 rw-s 00000000 00:0e 65538   /SYSV000000ec (deleted)
+fca00000-fce00000 rw-s 00000000 00:0e 98307   /SYSV000000ed (deleted)
+fce00000-fd800000 rw-s 00000000 00:0e 131076  /SYSV000000ee (deleted)
+ff913000-ff934000 rw-p 00000000 00:00 0       [stack]
+ffff0000-ffff1000 r-xp 00000000 00:00 0       [vectors]
+
+from 0xf7a00000 to fba00000, it has 64M memory gap, but we can't get
+it from kernel.
+
+Signed-off-by: jianhong chen <chenjianhong2@huawei.com>
+Cc: stable@vger.kernel.org
+---
+ mm/mmap.c | 43 +++++++++++++++++++++++++++++--------------
+ 1 file changed, 29 insertions(+), 14 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index bd7b9f2..c5a5782 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1865,6 +1865,22 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+ 	return error;
+ }
+ 
++static inline unsigned long gap_start_offset(struct vm_unmapped_area_info *info,
++					unsigned long addr)
++{
++	/* get gap_start offset to adjust gap address to the
++	 * desired alignment
++	 */
++	return (info->align_offset - addr) & info->align_mask;
++}
++
++static inline unsigned long gap_end_offset(struct vm_unmapped_area_info *info,
++					unsigned long addr)
++{
++	/* get gap_end offset to adjust gap address to the desired alignment */
++	return (addr - info->align_offset) & info->align_mask;
++}
++
+ unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+ {
+ 	/*
+@@ -1879,10 +1895,7 @@ unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+ 	struct vm_area_struct *vma;
+ 	unsigned long length, low_limit, high_limit, gap_start, gap_end;
+ 
+-	/* Adjust search length to account for worst case alignment overhead */
+-	length = info->length + info->align_mask;
+-	if (length < info->length)
+-		return -ENOMEM;
++	length = info->length;
+ 
+ 	/* Adjust search limits by the desired length */
+ 	if (info->high_limit < length)
+@@ -1914,6 +1927,7 @@ unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+ 		}
+ 
+ 		gap_start = vma->vm_prev ? vm_end_gap(vma->vm_prev) : 0;
++		gap_start += gap_start_offset(info, gap_start);
+ check_current:
+ 		/* Check if current node has a suitable gap */
+ 		if (gap_start > high_limit)
+@@ -1942,6 +1956,7 @@ unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+ 				       struct vm_area_struct, vm_rb);
+ 			if (prev == vma->vm_rb.rb_left) {
+ 				gap_start = vm_end_gap(vma->vm_prev);
++				gap_start += gap_start_offset(info, gap_start);
+ 				gap_end = vm_start_gap(vma);
+ 				goto check_current;
+ 			}
+@@ -1951,17 +1966,17 @@ unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+ check_highest:
+ 	/* Check highest gap, which does not precede any rbtree node */
+ 	gap_start = mm->highest_vm_end;
++	gap_start += gap_start_offset(info, gap_start);
+ 	gap_end = ULONG_MAX;  /* Only for VM_BUG_ON below */
+ 	if (gap_start > high_limit)
+ 		return -ENOMEM;
+ 
+ found:
+ 	/* We found a suitable gap. Clip it with the original low_limit. */
+-	if (gap_start < info->low_limit)
++	if (gap_start < info->low_limit) {
+ 		gap_start = info->low_limit;
+-
+-	/* Adjust gap address to the desired alignment */
+-	gap_start += (info->align_offset - gap_start) & info->align_mask;
++		gap_start += gap_start_offset(info, gap_start);
++	}
+ 
+ 	VM_BUG_ON(gap_start + info->length > info->high_limit);
+ 	VM_BUG_ON(gap_start + info->length > gap_end);
+@@ -1974,16 +1989,14 @@ unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
+ 	struct vm_area_struct *vma;
+ 	unsigned long length, low_limit, high_limit, gap_start, gap_end;
+ 
+-	/* Adjust search length to account for worst case alignment overhead */
+-	length = info->length + info->align_mask;
+-	if (length < info->length)
+-		return -ENOMEM;
++	length = info->length;
+ 
+ 	/*
+ 	 * Adjust search limits by the desired length.
+ 	 * See implementation comment at top of unmapped_area().
+ 	 */
+ 	gap_end = info->high_limit;
++	gap_end -= gap_end_offset(info, gap_end);
+ 	if (gap_end < length)
+ 		return -ENOMEM;
+ 	high_limit = gap_end - length;
+@@ -2020,6 +2033,7 @@ unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
+ check_current:
+ 		/* Check if current node has a suitable gap */
+ 		gap_end = vm_start_gap(vma);
++		gap_end -= gap_end_offset(info, gap_end);
+ 		if (gap_end < low_limit)
+ 			return -ENOMEM;
+ 		if (gap_start <= high_limit &&
+@@ -2054,13 +2068,14 @@ unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
+ 
+ found:
+ 	/* We found a suitable gap. Clip it with the original high_limit. */
+-	if (gap_end > info->high_limit)
++	if (gap_end > info->high_limit) {
+ 		gap_end = info->high_limit;
++		gap_end -= gap_end_offset(info, gap_end);
++	}
+ 
+ found_highest:
+ 	/* Compute highest gap address at the desired alignment */
+ 	gap_end -= info->length;
+-	gap_end -= (gap_end - info->align_offset) & info->align_mask;
+ 
+ 	VM_BUG_ON(gap_end < info->low_limit);
+ 	VM_BUG_ON(gap_end < gap_start);
 -- 
-js
-suse labs
+1.8.5.6
 
