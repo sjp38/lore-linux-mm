@@ -7,125 +7,191 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8210C04AB4
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 10:38:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B97D2C04E84
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 11:42:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6979A2087B
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 10:38:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6979A2087B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 68BED2089E
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 11:42:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 68BED2089E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BCDCD6B0005; Fri, 17 May 2019 06:38:41 -0400 (EDT)
+	id BC7506B0005; Fri, 17 May 2019 07:42:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B81DD6B0006; Fri, 17 May 2019 06:38:41 -0400 (EDT)
+	id B77016B0006; Fri, 17 May 2019 07:42:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A952A6B0007; Fri, 17 May 2019 06:38:41 -0400 (EDT)
+	id A8E4C6B0007; Fri, 17 May 2019 07:42:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 722436B0005
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 06:38:41 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id t58so9987607edb.22
-        for <linux-mm@kvack.org>; Fri, 17 May 2019 03:38:41 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 5CDBD6B0005
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 07:42:08 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id r5so10232469edd.21
+        for <linux-mm@kvack.org>; Fri, 17 May 2019 04:42:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=v3xv6kYfm8zEAQdQs8EnggYFUDZyw0OU6rXLckOyZzY=;
-        b=Ov+qcC7SXIH2m0V8HWZNkOf5ohuCtogNTlHcq/AXPQ3kbimwXCSJR94URxDOEMCHeq
-         PwK9+45Q1xaFW0BFcnP9g7GhiIvkOL0wCu6UD2fd7d3Z/b1hO6jCYZJdMfSgXOXQc6m0
-         HmLfcCol7kfE1i03MPIdWq1sZBqJvYoQP+loEHri/xA3njT09lC2vhQZvM81Au/d8jNo
-         DiXxaAdyeHuRDWZIOs0wyuGkhx3h5jo8OxkMvRih5OdiATZnJaHg1j954DtJ9w3BdB+l
-         mSwKgJoBHUBW7fvPsCR7HgenkY9xWrUQ0zuWV1cb2AVdFamGk7VjG9dZwDqPUxURYZD0
-         l5LQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAV/3AYgiPypsuXu5HpGyEwBG+GRuVVRdOBfTlWkszGQQl7h6W6r
-	s7x9/DSdZEiu9S3XiXKH1rw3D6mwo9vfnGuK4fqDHoFUiGXUx6CEdI94i2Zd8JgKKazXlIH7aI4
-	Yxxd/qobj3M3UuGhZ7610Y+Grq/qDoOHbBt/s4hNX9TdEH4PXtfP0j20jLJPvKx/evQ==
-X-Received: by 2002:a50:bae4:: with SMTP id x91mr56935310ede.76.1558089520872;
-        Fri, 17 May 2019 03:38:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzWyCD6BxX7NqnA8BN7Bs0Vfdc+6p9rs9DuZghpTbcIYsm0IXklK80IVOlcBgTvx+EIL/sv
-X-Received: by 2002:a50:bae4:: with SMTP id x91mr56935232ede.76.1558089519858;
-        Fri, 17 May 2019 03:38:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558089519; cv=none;
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=1MSGMYa7Pgl5jEklXI4z+mlq/ex7QoqUEhMVw2Uee6o=;
+        b=QI5MWlT+Na0/lnqHUnoTAgMgStkO0ZBsIeB4m26KazhSMNAIKUGX922BNF/LS1cKC/
+         90wxqBt1a7W9XiSrR89oKhjAer9uFK8Hbwd8ob3rDsnWJ39L2WFtkePA7HAtd6Y/JrkA
+         wXUf31X/xV4LReLBpvTI5t31pvsskPZEezwjKsBnHOUVN4s+epnOJMQUPk5zAz8HZ7Rn
+         0rifLd07NnY+A+UKw/R7zeIKIemuVkaQH/liSqDCzxi8gDGLm+T5DVj7jVqomtYhxxR9
+         bymzIB5napUahO3BYcs+OlKtR19PQ5hDiq287rO47MHDcnDjxkNLmve6GdAgTyuPybYw
+         uOSg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jslaby@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jslaby@suse.cz
+X-Gm-Message-State: APjAAAV7935SXX8Sy+t4qhVPhOYqPrst3025g3uMFaXXn3V9kJgBpZtD
+	5+FMkDGfUbIDw9xDL10xV1k7OTiO1OBwg8nNS1BgKvfdpclwZn2FRdTliUic1tiTbVj5Q1zrnvl
+	IUVtu82MqyxS8he/03u2EWR2Ox/6wdxR1K3MtXrqRcDL8gTs1sR1G+jV4kGiOgCODew==
+X-Received: by 2002:a50:9858:: with SMTP id h24mr9199419edb.147.1558093327826;
+        Fri, 17 May 2019 04:42:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy1d9JCzesRxG9f5bQ/Z2yUpOdmwVTPmeJ/zdI16Oy0u/2vPHX+20HPCxiXq3wGDM/oYRF/
+X-Received: by 2002:a50:9858:: with SMTP id h24mr9199338edb.147.1558093326857;
+        Fri, 17 May 2019 04:42:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558093326; cv=none;
         d=google.com; s=arc-20160816;
-        b=wyqaD5+zYyYqHq/XzuVbUT/JAT96crAwHkVkwTwac91UDUBTzlhg+kiGVu31uM7n5Z
-         5tv9+OxOAHLroVTjuFBEXDbPS6ZoqZX4bz7L4FP5w5ep/0wpNVUSmhmNUlJfuXaTlx2u
-         JOdVdsBxVUE4DAicZ+NLeCM3gqia89NEMop+cboY48gpt8oxYe3tStaf/s4DYjNMDrDD
-         6gMvxgpQFWvQVa3fJ/2Zvo+eRADt+jBdsyHZ9QgnUOXqSoWwcvLFrf+UhFjWqeVQS6W/
-         1dztyXp7KvYw0xQgmcEfc789pbFI4iFxzMT/Aly5eL7LNSFnIfbn0lnsQRDSPZls/v7s
-         XGWQ==
+        b=M0pwdoNKWC2nnWpSd2uPeo7TeIbLlrT7yOfTfYsCGcr7OQLx21zn5aSi0FAPSCvRX3
+         s5NzZdKgfNrXeOOZEUFh09vCYuzOCGy+/REloFfbHV8IoZCskSbQJc51Ls6nmbhy4INY
+         a4q7R1iatdCF4ECjV+pq7uCKVGqMfh/UFP5JOE6anbafieNFLp+V+fIT1ehfPiNzhgou
+         dFDlFH2875et6E3fDtvi5LnaCJa1TbGdSdCjPcNEp2LoUoJ/AI3cn6oYfOCbsMNB4esB
+         7QmiXGAjs7jPIaVj7FC6LD28rfli2qNJXze3q10T1fMF9387OAHJXAUHpo7wkSqJ/N5o
+         CUoA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=v3xv6kYfm8zEAQdQs8EnggYFUDZyw0OU6rXLckOyZzY=;
-        b=PlTzjhLqSoRC+I4heMj21PiAWsPJ3jo0F5NSe2F0tf9uk2CqOaF0ILWjYfLxDtxtpN
-         GUczBXDGZnMwFxPmKZ6zH+2WBcdq89+pRcBAbs9Twytge7gOkZWqHegNIrFFc6fktGtG
-         cB9Ny5EV8P5OPCN1fJems4w3PT6YSUaQe8FsFLa99fYsRV7G36+RYT5OHRSbRoBhp9r3
-         GIfUbX4utxY9/d6OoNfr8kj/p9bluNr4Qkm/sjTEBpOapbg0/Vm6b1n1o9S8L/NBgrdi
-         luIdlGo0YByJBxKJ+CNLbIyynJ2MJKBUOD6fG6eJgzZBuObQnyJ00Wc3p5enML1nPI9+
-         Yyfg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=1MSGMYa7Pgl5jEklXI4z+mlq/ex7QoqUEhMVw2Uee6o=;
+        b=fZTepfoSym6v4owAnZYge5RGjBm+/FKT5B20qdRnhO96LVZBqTAFp+vnV88gyx/Mic
+         J47RnVkaDJMowXj8mePuPelfsS9T4tgQ+YGyF/POno5WEIARGZc5js0vl958/D7Lidfd
+         wpacMvOsTqKtqVRRoNNkpg066e8lm+Swj9ItKRWLyXwNQZZ0KHIlww+HOvtcx9HvSOMR
+         LK3HDn7VbirPVCMQEYJdS3WjFkvR0zHFUDmGbI97kvCAORkMxit/hi9yrOHyDEskovB3
+         hBAgeOFpM1WAgSjNGBQPBv4eQ9NmwY44gjA9GuEYZ8l03caXoViRlPKp0ROHkiqh1gI9
+         2QeQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g38si593932edg.96.2019.05.17.03.38.39
-        for <linux-mm@kvack.org>;
-        Fri, 17 May 2019 03:38:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of jslaby@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jslaby@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x3si2693867ejb.94.2019.05.17.04.42.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 May 2019 04:42:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jslaby@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6CE1880D;
-	Fri, 17 May 2019 03:38:38 -0700 (PDT)
-Received: from p8cg001049571a15.arm.com (unknown [10.163.1.137])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 0E5573F575;
-	Fri, 17 May 2019 03:38:33 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-To: linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Cc: akpm@linux-foundation.org,
-	dan.j.williams@intel.com,
-	jglisse@redhat.com,
-	ldufour@linux.vnet.ibm.com
-Subject: [PATCH] mm/dev_pfn: Exclude MEMORY_DEVICE_PRIVATE while computing virtual address
-Date: Fri, 17 May 2019 16:08:34 +0530
-Message-Id: <1558089514-25067-1-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: git-send-email 2.7.4
+       spf=pass (google.com: domain of jslaby@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jslaby@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id A5610AECD;
+	Fri, 17 May 2019 11:42:05 +0000 (UTC)
+From: Jiri Slaby <jslaby@suse.cz>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	Jiri Slaby <jslaby@suse.cz>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	cgroups@vger.kernel.org,
+	Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Subject: [PATCH v2] memcg: make it work on sparse non-0-node systems
+Date: Fri, 17 May 2019 13:42:04 +0200
+Message-Id: <20190517114204.6330-1-jslaby@suse.cz>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190517080044.tnwhbeyxcccsymgf@esperanza>
+References: <20190517080044.tnwhbeyxcccsymgf@esperanza>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The presence of struct page does not guarantee linear mapping for the pfn
-physical range. Device private memory which is non-coherent is excluded
-from linear mapping during devm_memremap_pages() though they will still
-have struct page coverage. Just check for device private memory before
-giving out virtual address for a given pfn.
+We have a single node system with node 0 disabled:
+  Scanning NUMA topology in Northbridge 24
+  Number of physical nodes 2
+  Skipping disabled node 0
+  Node 1 MemBase 0000000000000000 Limit 00000000fbff0000
+  NODE_DATA(1) allocated [mem 0xfbfda000-0xfbfeffff]
 
-Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+This causes crashes in memcg when system boots:
+  BUG: unable to handle kernel NULL pointer dereference at 0000000000000008
+  #PF error: [normal kernel read fault]
+...
+  RIP: 0010:list_lru_add+0x94/0x170
+...
+  Call Trace:
+   d_lru_add+0x44/0x50
+   dput.part.34+0xfc/0x110
+   __fput+0x108/0x230
+   task_work_run+0x9f/0xc0
+   exit_to_usermode_loop+0xf5/0x100
+
+It is reproducible as far as 4.12. I did not try older kernels. You have
+to have a new enough systemd, e.g. 241 (the reason is unknown -- was not
+investigated). Cannot be reproduced with systemd 234.
+
+The system crashes because the size of lru array is never updated in
+memcg_update_all_list_lrus and the reads are past the zero-sized array,
+causing dereferences of random memory.
+
+The root cause are list_lru_memcg_aware checks in the list_lru code.
+The test in list_lru_memcg_aware is broken: it assumes node 0 is always
+present, but it is not true on some systems as can be seen above.
+
+So fix this by avoiding checks on node 0. Remember the memcg-awareness
+by a bool flag in struct list_lru.
+
+[v2] use the idea proposed by Vladimir -- the bool flag.
+
+Signed-off-by: Jiri Slaby <jslaby@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Suggested-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: <cgroups@vger.kernel.org>
+Cc: <linux-mm@kvack.org>
+Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
 ---
-All these helper functions are all pfn_t related but could not figure out
-another way of determining a private pfn without looking into it's struct
-page. pfn_t_to_virt() is not getting used any where in mainline kernel.Is
-it used by out of tree drivers ? Should we then drop it completely ?
+ include/linux/list_lru.h | 1 +
+ mm/list_lru.c            | 8 +++-----
+ 2 files changed, 4 insertions(+), 5 deletions(-)
 
- include/linux/pfn_t.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/include/linux/pfn_t.h b/include/linux/pfn_t.h
-index 7bb7785..3c202a1 100644
---- a/include/linux/pfn_t.h
-+++ b/include/linux/pfn_t.h
-@@ -68,7 +68,7 @@ static inline phys_addr_t pfn_t_to_phys(pfn_t pfn)
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index aa5efd9351eb..d5ceb2839a2d 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -54,6 +54,7 @@ struct list_lru {
+ #ifdef CONFIG_MEMCG_KMEM
+ 	struct list_head	list;
+ 	int			shrinker_id;
++	bool			memcg_aware;
+ #endif
+ };
  
- static inline void *pfn_t_to_virt(pfn_t pfn)
+diff --git a/mm/list_lru.c b/mm/list_lru.c
+index 0730bf8ff39f..d3b538146efd 100644
+--- a/mm/list_lru.c
++++ b/mm/list_lru.c
+@@ -37,11 +37,7 @@ static int lru_shrinker_id(struct list_lru *lru)
+ 
+ static inline bool list_lru_memcg_aware(struct list_lru *lru)
  {
--	if (pfn_t_has_page(pfn))
-+	if (pfn_t_has_page(pfn) && !is_device_private_page(pfn_t_to_page(pfn)))
- 		return __va(pfn_t_to_phys(pfn));
- 	return NULL;
+-	/*
+-	 * This needs node 0 to be always present, even
+-	 * in the systems supporting sparse numa ids.
+-	 */
+-	return !!lru->node[0].memcg_lrus;
++	return lru->memcg_aware;
  }
+ 
+ static inline struct list_lru_one *
+@@ -451,6 +447,8 @@ static int memcg_init_list_lru(struct list_lru *lru, bool memcg_aware)
+ {
+ 	int i;
+ 
++	lru->memcg_aware = memcg_aware;
++
+ 	if (!memcg_aware)
+ 		return 0;
+ 
 -- 
-2.7.4
+2.21.0
 
