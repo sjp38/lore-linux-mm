@@ -2,177 +2,307 @@ Return-Path: <SRS0=Igro=TR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 97033C04AB4
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 08:16:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B99DC04AB4
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 08:34:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5143C20848
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 08:16:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5143C20848
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id C35E120818
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 08:34:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="UTu4YULs"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C35E120818
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E10506B0007; Fri, 17 May 2019 04:16:29 -0400 (EDT)
+	id 54E046B0005; Fri, 17 May 2019 04:34:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DBEC06B0008; Fri, 17 May 2019 04:16:29 -0400 (EDT)
+	id 4FE5E6B0006; Fri, 17 May 2019 04:34:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C86546B000A; Fri, 17 May 2019 04:16:29 -0400 (EDT)
+	id 3ECFE6B000A; Fri, 17 May 2019 04:34:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B7DB6B0007
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 04:16:29 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id o82so1102822wmb.8
-        for <linux-mm@kvack.org>; Fri, 17 May 2019 01:16:29 -0700 (PDT)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 157156B0005
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 04:34:39 -0400 (EDT)
+Received: by mail-vs1-f69.google.com with SMTP id e204so1154525vsc.17
+        for <linux-mm@kvack.org>; Fri, 17 May 2019 01:34:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=VVddGdwNwzt754dECiwX4P5eL0snKFoHnCCiVdymDOE=;
-        b=Sr8k4+GUhk6s6aXu/0w81M+AH+Lq+W+/+zzKUp3ydZWwa41mLNlGmuOiyWsNebeVW/
-         iMd/sfV6oxKH3g+4VkgNw2ARvw4o3y3IUOVCWhksmwDH3W0gmIxfzpucuy0fcEb/GleZ
-         3u+H50vKl6xhAFf2A/sqRG3OaW10rEV0TWDPXfbKLMwE8WF1fr1keqbvPs0JNsKbqYXX
-         MK+AR70k5MZtXfTNqchySbD03t8JgB4o7DwbKQt88s89tdp0De1MAEbfXTIsnk2lE9iU
-         mLfwMHLgRhaJ+sJGyhvbl8S+N9tJLrbdVeMa9tj+1dwEKWOWHG7BThKcPyGfoAtsn+iF
-         Jh+w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jirislaby@gmail.com
-X-Gm-Message-State: APjAAAUDsj6ldryeXR2QuAyhH/pLAz68GWrNm4xNd4NctEm92fUMny4w
-	ldWuTsiCk/RnQiPVSr0yvQXiQSV3E/uQvHRT0SBAdNSvf6Gla8zMzCh32kwE9h5FRIJ0nntMdhA
-	eKKXr34zuijc5gT77YJMqWdGJes9nB1VESq+m7q3lrSZlsDcdCp5FZxaPR5peGQQ=
-X-Received: by 2002:adf:c807:: with SMTP id d7mr4643045wrh.112.1558080989069;
-        Fri, 17 May 2019 01:16:29 -0700 (PDT)
-X-Received: by 2002:adf:c807:: with SMTP id d7mr4642986wrh.112.1558080988127;
-        Fri, 17 May 2019 01:16:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558080988; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=IXFYp9dXdqOGmv2GZlMSV+ZWmX1vIYgX7tAhUZgFrwY=;
+        b=U1RF/nncUHT1EjhcrP8FaQ/2cIVLgCf8DCMIR/kz/3du/b3NG7CUybCc8chPMUL+vF
+         wFnbKRnUEJmQNQe/m72t56kMkFnyfmLk0F94Fuf96OUUKNxmfCrG+K768ZmQCexHk/Vk
+         N7OSUIUTP541a5EHxVkPNOAAssUZdvPpx4uqirIMsU1sxMwW0Qz6WkEYczuxvZfX4f1T
+         jQ6ZSiH0T+QcKD9C1PiOd+xQmv6N0+AsHBU48tPw/v4KXjbdJWy65tz6ZqeMbLJOSubu
+         3k6TUdrOQYBdZwpmfz7Ehh4GNUEItbMBXZFtVr/nS38BgBO8xtcr3P+Bxjdm21vVtze2
+         E+jw==
+X-Gm-Message-State: APjAAAU/bOFqE4WWhZS56iKAhGmxuPYzLqybqIY6M0jt4Adh91gsxA63
+	dBq7hw+O8dq4Cx/MnPsbdjzIuPmVrNjbwTFNQ46puOqEMSzujOQwEFtem36Asawkmz+jjoF2FKM
+	YB0JDa+R2VHybsPmUC0g9RFep6HnLX8B4zduWIhIQexSyYZlw8vE2/CdGY0mZzfUZxA==
+X-Received: by 2002:a9f:22e8:: with SMTP id 95mr18633412uan.6.1558082078743;
+        Fri, 17 May 2019 01:34:38 -0700 (PDT)
+X-Received: by 2002:a9f:22e8:: with SMTP id 95mr18633391uan.6.1558082078024;
+        Fri, 17 May 2019 01:34:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558082078; cv=none;
         d=google.com; s=arc-20160816;
-        b=bhccj27WEJeVsth0/INYZw4DnuhM/1xeFpOyLF9IyUvyKZu0TXCovQskBguOF7xzvD
-         ztu7fCFZjq1guUXbGoM4IRWnnso535RWnEa5L9t+Ro66b4lrePx/+AnRjV40Q0CxwufJ
-         Gm+3nDH5922D9TKl+mxap7MLDg5qLg0aVEx4tS2TLehz61Fo99fD4GFPhZmDuLC8RqUq
-         NbnjRq6f4c1xLfSs1bWsqKP1f4sD3t7dkrzTplm7YyeB0xGeHhn/elyPlvAaf+8HgNQc
-         WVWQd+ranNkHvPZtfZzOreUVr8WAjj7sV4wbJB8CV/D+UVeWo7yc1VvLFTxvsSKZeHN6
-         zszg==
+        b=QAkPxZzu2TheqENFlbJtgvxu3h4tYeXZ5zvASuB5/lt/OmmPVQ6v2zEbs2g0P+D62h
+         DFdBJ8jUVGNyUN3w+YJsP063Y38x9jEvA56yumF9hvFJtqtTpRYNKe/9q5kkKbH7Maey
+         GaYEp1pDgdl/ZzffKO080zO6u4TUSWgC+Ofcq4gagTalZWlfBk3VJEm5REDT3nxtgVb/
+         M0R4127kE+ZskNTvCWRWD0oLgdM5M2iJ87j5QcCbVRVak0dCU+UfvyKIG/XiFqRlBGPD
+         vkxEo89QqsWvzNcAwoSjFP/PtXwMR2sJXso3AhvRXbgPsFrb4zTGSZqnaS8OTPlt8ju0
+         ElBw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=VVddGdwNwzt754dECiwX4P5eL0snKFoHnCCiVdymDOE=;
-        b=g5GbDckjsnyDLySk9XPu17/bt9WJ0zMNhim8R4qsrxBmnQUdHT6SCEXdalJCBVK0cc
-         JdcLBkZpE2PfVkxccJlMdMwNHwpl7SLpkrU8duAepVH3B5WuStkJdaYDU6onbpJPGRdl
-         xLF2ppYEFKvflepKBWNPrBxeO5kn+jyMcOfXraPRDMjRONl5lSDhzprj1Tk9uSNU0I76
-         j5Jj6JOg+cpCcsgaoKa4+fW6OqvlScjEA9MoukiWqdsovb9xFE2KXxrx/ay1V/N3z2ZH
-         vfAl5Ht31Vlq7dhQN17u00ZZm9p2wRRlOE0MfVyAIdYtGq9CeFjjZp4mGvwMVm4J8Ylp
-         q4bg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=IXFYp9dXdqOGmv2GZlMSV+ZWmX1vIYgX7tAhUZgFrwY=;
+        b=sK7wWhEos3KR2hqCVtv59iWAFt3BhOyMBlIBnxAltz+O+T6GvKY/7hCvgcsRX81Qxw
+         MMOvovQUil2ovv9fp8IW8Xnwx074qOv/A3K/eHaM/3uHxxctNz/qeAhxjWgKweh0dblf
+         OvO0gHwF4TBxq30jkW/U3iOr0k0WKMYd8j8+fWzqo/pzkkJ/xu4YHuxg4OSmRQIKA6+L
+         HDNRjEHVIptEHVeNwf+0cnW00D5RGIsJwtwxOJSlHWsr3I0EuTDAb7Y0jqIhjiKXbwDA
+         l3u3d/X333YV/vl/0LNU+M+a4eKUvgTVtFnl9M3tOMij7OAlX93gUafd5zrQZ6AfZOT4
+         ktfA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jirislaby@gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=UTu4YULs;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s16sor1459937wmc.0.2019.05.17.01.16.27
+        by mx.google.com with SMTPS id l139sor2773834vkd.72.2019.05.17.01.34.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 17 May 2019 01:16:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 17 May 2019 01:34:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jirislaby@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jirislaby@gmail.com
-X-Google-Smtp-Source: APXvYqx2TpPJUw9AqnVLULGUdNzWC44410i4wRTRx0SBLF55tOJDc12m8wI6vToM3Jtht4jov2W4pg==
-X-Received: by 2002:a7b:c0d5:: with SMTP id s21mr15354880wmh.152.1558080987723;
-        Fri, 17 May 2019 01:16:27 -0700 (PDT)
-Received: from ?IPv6:2a0b:e7c0:0:107::49? ([2a0b:e7c0:0:107::49])
-        by smtp.gmail.com with ESMTPSA id k63sm236268wmf.35.2019.05.17.01.16.24
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 May 2019 01:16:26 -0700 (PDT)
-Subject: Re: [PATCH] memcg: make it work on sparse non-0-node systems
-To: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
- cgroups@vger.kernel.org, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-References: <359d98e6-044a-7686-8522-bdd2489e9456@suse.cz>
- <20190429105939.11962-1-jslaby@suse.cz>
- <20190509122526.ck25wscwanooxa3t@esperanza>
- <20190516135923.GV16651@dhcp22.suse.cz>
- <68075828-8fd7-adbb-c1d9-5eb39fbf18cb@suse.cz>
- <20190517080044.tnwhbeyxcccsymgf@esperanza>
-From: Jiri Slaby <jslaby@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=jslaby@suse.cz; prefer-encrypt=mutual; keydata=
- mQINBE6S54YBEACzzjLwDUbU5elY4GTg/NdotjA0jyyJtYI86wdKraekbNE0bC4zV+ryvH4j
- rrcDwGs6tFVrAHvdHeIdI07s1iIx5R/ndcHwt4fvI8CL5PzPmn5J+h0WERR5rFprRh6axhOk
- rSD5CwQl19fm4AJCS6A9GJtOoiLpWn2/IbogPc71jQVrupZYYx51rAaHZ0D2KYK/uhfc6neJ
- i0WqPlbtIlIrpvWxckucNu6ZwXjFY0f3qIRg3Vqh5QxPkojGsq9tXVFVLEkSVz6FoqCHrUTx
- wr+aw6qqQVgvT/McQtsI0S66uIkQjzPUrgAEtWUv76rM4ekqL9stHyvTGw0Fjsualwb0Gwdx
- ReTZzMgheAyoy/umIOKrSEpWouVoBt5FFSZUyjuDdlPPYyPav+hpI6ggmCTld3u2hyiHji2H
- cDpcLM2LMhlHBipu80s9anNeZhCANDhbC5E+NZmuwgzHBcan8WC7xsPXPaiZSIm7TKaVoOcL
- 9tE5aN3jQmIlrT7ZUX52Ff/hSdx/JKDP3YMNtt4B0cH6ejIjtqTd+Ge8sSttsnNM0CQUkXps
- w98jwz+Lxw/bKMr3NSnnFpUZaxwji3BC9vYyxKMAwNelBCHEgS/OAa3EJoTfuYOK6wT6nadm
- YqYjwYbZE5V/SwzMbpWu7Jwlvuwyfo5mh7w5iMfnZE+vHFwp/wARAQABtBtKaXJpIFNsYWJ5
- IDxqc2xhYnlAc3VzZS5jej6JAjgEEwECACIFAk6S6NgCGwMGCwkIBwMCBhUIAgkKCwQWAgMB
- Ah4BAheAAAoJEL0lsQQGtHBJgDsP/j9wh0vzWXsOPO3rDpHjeC3BT5DKwjVN/KtP7uZttlkB
- duReCYMTZGzSrmK27QhCflZ7Tw0Naq4FtmQSH8dkqVFugirhlCOGSnDYiZAAubjTrNLTqf7e
- 5poQxE8mmniH/Asg4KufD9bpxSIi7gYIzaY3hqvYbVF1vYwaMTujojlixvesf0AFlE4x8WKs
- wpk43fmo0ZLcwObTnC3Hl1JBsPujCVY8t4E7zmLm7kOB+8EHaHiRZ4fFDWweuTzRDIJtVmrH
- LWvRDAYg+IH3SoxtdJe28xD9KoJw4jOX1URuzIU6dklQAnsKVqxz/rpp1+UVV6Ky6OBEFuoR
- 613qxHCFuPbkRdpKmHyE0UzmniJgMif3v0zm/+1A/VIxpyN74cgwxjhxhj/XZWN/LnFuER1W
- zTHcwaQNjq/I62AiPec5KgxtDeV+VllpKmFOtJ194nm9QM9oDSRBMzrG/2AY/6GgOdZ0+qe+
- 4BpXyt8TmqkWHIsVpE7I5zVDgKE/YTyhDuqYUaWMoI19bUlBBUQfdgdgSKRMJX4vE72dl8BZ
- +/ONKWECTQ0hYntShkmdczcUEsWjtIwZvFOqgGDbev46skyakWyod6vSbOJtEHmEq04NegUD
- al3W7Y/FKSO8NqcfrsRNFWHZ3bZ2Q5X0tR6fc6gnZkNEtOm5fcWLY+NVz4HLaKrJuQINBE6S
- 54YBEADPnA1iy/lr3PXC4QNjl2f4DJruzW2Co37YdVMjrgXeXpiDvneEXxTNNlxUyLeDMcIQ
- K8obCkEHAOIkDZXZG8nr4mKzyloy040V0+XA9paVs6/ice5l+yJ1eSTs9UKvj/pyVmCAY1Co
- SNN7sfPaefAmIpduGacp9heXF+1Pop2PJSSAcCzwZ3PWdAJ/w1Z1Dg/tMCHGFZ2QCg4iFzg5
- Bqk4N34WcG24vigIbRzxTNnxsNlU1H+tiB81fngUp2pszzgXNV7CWCkaNxRzXi7kvH+MFHu2
- 1m/TuujzxSv0ZHqjV+mpJBQX/VX62da0xCgMidrqn9RCNaJWJxDZOPtNCAWvgWrxkPFFvXRl
- t52z637jleVFL257EkMI+u6UnawUKopa+Tf+R/c+1Qg0NHYbiTbbw0pU39olBQaoJN7JpZ99
- T1GIlT6zD9FeI2tIvarTv0wdNa0308l00bas+d6juXRrGIpYiTuWlJofLMFaaLYCuP+e4d8x
- rGlzvTxoJ5wHanilSE2hUy2NSEoPj7W+CqJYojo6wTJkFEiVbZFFzKwjAnrjwxh6O9/V3O+Z
- XB5RrjN8hAf/4bSo8qa2y3i39cuMT8k3nhec4P9M7UWTSmYnIBJsclDQRx5wSh0Mc9Y/psx9
- B42WbV4xrtiiydfBtO6tH6c9mT5Ng+d1sN/VTSPyfQARAQABiQIfBBgBAgAJBQJOkueGAhsM
- AAoJEL0lsQQGtHBJN7UQAIDvgxaW8iGuEZZ36XFtewH56WYvVUefs6+Pep9ox/9ZXcETv0vk
- DUgPKnQAajG/ViOATWqADYHINAEuNvTKtLWmlipAI5JBgE+5g9UOT4i69OmP/is3a/dHlFZ3
- qjNk1EEGyvioeycJhla0RjakKw5PoETbypxsBTXk5EyrSdD/I2Hez9YGW/RcI/WC8Y4Z/7FS
- ITZhASwaCOzy/vX2yC6iTx4AMFt+a6Z6uH/xGE8pG5NbGtd02r+m7SfuEDoG3Hs1iMGecPyV
- XxCVvSV6dwRQFc0UOZ1a6ywwCWfGOYqFnJvfSbUiCMV8bfRSWhnNQYLIuSv/nckyi8CzCYIg
- c21cfBvnwiSfWLZTTj1oWyj5a0PPgGOdgGoIvVjYXul3yXYeYOqbYjiC5t99JpEeIFupxIGV
- ciMk6t3pDrq7n7Vi/faqT+c4vnjazJi0UMfYnnAzYBa9+NkfW0w5W9Uy7kW/v7SffH/2yFiK
- 9HKkJqkN9xYEYaxtfl5pelF8idoxMZpTvCZY7jhnl2IemZCBMs6s338wS12Qro5WEAxV6cjD
- VSdmcD5l9plhKGLmgVNCTe8DPv81oDn9s0cIRLg9wNnDtj8aIiH8lBHwfUkpn32iv0uMV6Ae
- sLxhDWfOR4N+wu1gzXWgLel4drkCJcuYK5IL1qaZDcuGR8RPo3jbFO7Y
-Message-ID: <2c3fab03-99fb-9313-140b-04a245065dd7@suse.cz>
-Date: Fri, 17 May 2019 10:16:23 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=UTu4YULs;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=IXFYp9dXdqOGmv2GZlMSV+ZWmX1vIYgX7tAhUZgFrwY=;
+        b=UTu4YULsBx6VcP9vrIzXhWm8Y+uCliaAjCh+8sltKt7pcgDt89X+byBprR+w0oWZbk
+         deRXHG5rJJPcFWTG21XQAz9q+pVUWgpPBtQH3FDC29d+IUGf1Bz6IdJJ2CaJJq8NGRdG
+         pd7sytdMIQhbiFykg3BicDQ6d7Lxtj3N9wmelAiCFsp3EIrogWuATiiRsXVdQtFLc2id
+         ZrZK8yhfe1Hw2A50tFa1/63RdDrt1r63SaCIKO2T2fsltnD3sStlFhhsX68SaZdKa8/A
+         3M31PwIcH4mpKtYmeowBMWKe5emm5Bj8pgYyXIMwXrP/0w2/vTYCgdz6HLeX5VY1FmuJ
+         j1+Q==
+X-Google-Smtp-Source: APXvYqyyuNywbu+7GesPli45mX02H2z5juDdbDIF7jowpZusr4p7m2UEfICnYf6Udf4bUxb0LNMiwSRXEQnzj4itKH8=
+X-Received: by 2002:a1f:6011:: with SMTP id u17mr1711683vkb.64.1558082077400;
+ Fri, 17 May 2019 01:34:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190517080044.tnwhbeyxcccsymgf@esperanza>
-Content-Type: text/plain; charset=iso-8859-2
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+References: <20190514143537.10435-5-glider@google.com> <201905161746.16E885F@keescook>
+In-Reply-To: <201905161746.16E885F@keescook>
+From: Alexander Potapenko <glider@google.com>
+Date: Fri, 17 May 2019 10:34:26 +0200
+Message-ID: <CAG_fn=W41zDac9DN9qVB_EwJG89f2cNBQYNyove4oO3dwe6d5Q@mail.gmail.com>
+Subject: Re: [PATCH 5/4] mm: Introduce SLAB_NO_FREE_INIT and mark excluded caches
+To: Kees Cook <keescook@chromium.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>, 
+	Masahiro Yamada <yamada.masahiro@socionext.com>, James Morris <jmorris@namei.org>, 
+	"Serge E. Hallyn" <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Linux Memory Management List <linux-mm@kvack.org>, 
+	linux-security-module <linux-security-module@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 17. 05. 19, 10:00, Vladimir Davydov wrote:
-> On Fri, May 17, 2019 at 06:48:37AM +0200, Jiri Slaby wrote:
->> On 16. 05. 19, 15:59, Michal Hocko wrote:
->>>> However, I tend to agree with Michal that (ab)using node[0].memcg_lrus
->>>> to check if a list_lru is memcg aware looks confusing. I guess we could
->>>> simply add a bool flag to list_lru instead. Something like this, may be:
->>>
->>> Yes, this makes much more sense to me!
->>
->> I am not sure if I should send a patch with this solution or Vladimir
->> will (given he is an author and has a diff already)?
-> 
-> I didn't even try to compile it, let alone test it. I'd appreciate if
-> you could wrap it up and send it out using your authorship. Feel free
-> to add my acked-by.
+On Fri, May 17, 2019 at 2:50 AM Kees Cook <keescook@chromium.org> wrote:
+>
+> In order to improve the init_on_free performance, some frequently
+> freed caches with less sensitive contents can be excluded from the
+> init_on_free behavior.
+Did you see any notable performance improvement with this patch?
+A similar one gave me only 1-2% on the parallel Linux build.
+> This patch is modified from Brad Spengler/PaX Team's code in the
+> last public patch of grsecurity/PaX based on my understanding of the
+> code. Changes or omissions from the original code are mine and don't
+> reflect the original grsecurity/PaX code.
+>
+> Signed-off-by: Kees Cook <keescook@chromium.org>
+> ---
+>  fs/buffer.c          | 2 +-
+>  fs/dcache.c          | 3 ++-
+>  include/linux/slab.h | 3 +++
+>  kernel/fork.c        | 6 ++++--
+>  mm/rmap.c            | 5 +++--
+>  mm/slab.h            | 5 +++--
+>  net/core/skbuff.c    | 6 ++++--
+>  7 files changed, 20 insertions(+), 10 deletions(-)
+>
+> diff --git a/fs/buffer.c b/fs/buffer.c
+> index 0faa41fb4c88..04a85bd4cf2e 100644
+> --- a/fs/buffer.c
+> +++ b/fs/buffer.c
+> @@ -3457,7 +3457,7 @@ void __init buffer_init(void)
+>         bh_cachep =3D kmem_cache_create("buffer_head",
+>                         sizeof(struct buffer_head), 0,
+>                                 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
+> -                               SLAB_MEM_SPREAD),
+> +                               SLAB_MEM_SPREAD|SLAB_NO_FREE_INIT),
+>                                 NULL);
+>
+>         /*
+> diff --git a/fs/dcache.c b/fs/dcache.c
+> index 8136bda27a1f..323b039accba 100644
+> --- a/fs/dcache.c
+> +++ b/fs/dcache.c
+> @@ -3139,7 +3139,8 @@ void __init vfs_caches_init_early(void)
+>  void __init vfs_caches_init(void)
+>  {
+>         names_cachep =3D kmem_cache_create_usercopy("names_cache", PATH_M=
+AX, 0,
+> -                       SLAB_HWCACHE_ALIGN|SLAB_PANIC, 0, PATH_MAX, NULL)=
+;
+> +                       SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NO_FREE_INIT, =
+0,
+> +                       PATH_MAX, NULL);
+>
+>         dcache_init();
+>         inode_init();
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 9449b19c5f10..7eba9ad8830d 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -92,6 +92,9 @@
+>  /* Avoid kmemleak tracing */
+>  #define SLAB_NOLEAKTRACE       ((slab_flags_t __force)0x00800000U)
+>
+> +/* Exclude slab from zero-on-free when init_on_free is enabled */
+> +#define SLAB_NO_FREE_INIT      ((slab_flags_t __force)0x01000000U)
+> +
+>  /* Fault injection mark */
+>  #ifdef CONFIG_FAILSLAB
+>  # define SLAB_FAILSLAB         ((slab_flags_t __force)0x02000000U)
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index b4cba953040a..9868585f5520 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -2550,11 +2550,13 @@ void __init proc_caches_init(void)
+>
+>         mm_cachep =3D kmem_cache_create_usercopy("mm_struct",
+>                         mm_size, ARCH_MIN_MMSTRUCT_ALIGN,
+> -                       SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
+> +                       SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT|
+> +                       SLAB_NO_FREE_INIT,
+>                         offsetof(struct mm_struct, saved_auxv),
+>                         sizeof_field(struct mm_struct, saved_auxv),
+>                         NULL);
+> -       vm_area_cachep =3D KMEM_CACHE(vm_area_struct, SLAB_PANIC|SLAB_ACC=
+OUNT);
+> +       vm_area_cachep =3D KMEM_CACHE(vm_area_struct, SLAB_PANIC|SLAB_ACC=
+OUNT|
+> +                                                   SLAB_NO_FREE_INIT);
+>         mmap_init();
+>         nsproxy_cache_init();
+>  }
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index e5dfe2ae6b0d..b7b8013eeb0a 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -432,10 +432,11 @@ static void anon_vma_ctor(void *data)
+>  void __init anon_vma_init(void)
+>  {
+>         anon_vma_cachep =3D kmem_cache_create("anon_vma", sizeof(struct a=
+non_vma),
+> -                       0, SLAB_TYPESAFE_BY_RCU|SLAB_PANIC|SLAB_ACCOUNT,
+> +                       0, SLAB_TYPESAFE_BY_RCU|SLAB_PANIC|SLAB_ACCOUNT|
+> +                       SLAB_NO_FREE_INIT,
+>                         anon_vma_ctor);
+>         anon_vma_chain_cachep =3D KMEM_CACHE(anon_vma_chain,
+> -                       SLAB_PANIC|SLAB_ACCOUNT);
+> +                       SLAB_PANIC|SLAB_ACCOUNT|SLAB_NO_FREE_INIT);
+>  }
+>
+>  /*
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 24ae887359b8..f95b4f03c57b 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -129,7 +129,8 @@ static inline slab_flags_t kmem_cache_flags(unsigned =
+int object_size,
+>  /* Legal flag mask for kmem_cache_create(), for various configurations *=
+/
+>  #define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | \
+>                          SLAB_CACHE_DMA32 | SLAB_PANIC | \
+> -                        SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS )
+> +                        SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS | \
+> +                        SLAB_NO_FREE_INIT)
+>
+>  #if defined(CONFIG_DEBUG_SLAB)
+>  #define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
+> @@ -535,7 +536,7 @@ static inline bool slab_want_init_on_alloc(gfp_t flag=
+s, struct kmem_cache *c)
+>  static inline bool slab_want_init_on_free(struct kmem_cache *c)
+>  {
+>         if (static_branch_unlikely(&init_on_free))
+> -               return !(c->ctor);
+> +               return !(c->ctor) && ((c->flags & SLAB_NO_FREE_INIT) =3D=
+=3D 0);
+>         else
+>                 return false;
+>  }
+> diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+> index e89be6282693..b65902d2c042 100644
+> --- a/net/core/skbuff.c
+> +++ b/net/core/skbuff.c
+> @@ -3981,14 +3981,16 @@ void __init skb_init(void)
+>         skbuff_head_cache =3D kmem_cache_create_usercopy("skbuff_head_cac=
+he",
+>                                               sizeof(struct sk_buff),
+>                                               0,
+> -                                             SLAB_HWCACHE_ALIGN|SLAB_PAN=
+IC,
+> +                                             SLAB_HWCACHE_ALIGN|SLAB_PAN=
+IC|
+> +                                             SLAB_NO_FREE_INIT,
+>                                               offsetof(struct sk_buff, cb=
+),
+>                                               sizeof_field(struct sk_buff=
+, cb),
+>                                               NULL);
+>         skbuff_fclone_cache =3D kmem_cache_create("skbuff_fclone_cache",
+>                                                 sizeof(struct sk_buff_fcl=
+ones),
+>                                                 0,
+> -                                               SLAB_HWCACHE_ALIGN|SLAB_P=
+ANIC,
+> +                                               SLAB_HWCACHE_ALIGN|SLAB_P=
+ANIC|
+> +                                               SLAB_NO_FREE_INIT,
+>                                                 NULL);
+>         skb_extensions_init();
+>  }
+> --
+> 2.17.1
+>
+>
+> --
+> Kees Cook
 
-OK, NP.
 
-thanks,
--- 
-js
-suse labs
+
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
