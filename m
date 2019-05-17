@@ -6,83 +6,83 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 29301C04E87
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 17:11:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BCDC0C04E87
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 17:11:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DC104216C4
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 17:11:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC104216C4
+	by mail.kernel.org (Postfix) with ESMTP id 83D5F20848
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 17:11:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83D5F20848
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7E6A26B0005; Fri, 17 May 2019 13:11:10 -0400 (EDT)
+	id 2415F6B0006; Fri, 17 May 2019 13:11:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 797F16B0006; Fri, 17 May 2019 13:11:10 -0400 (EDT)
+	id 1F1F96B0008; Fri, 17 May 2019 13:11:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 686756B0008; Fri, 17 May 2019 13:11:10 -0400 (EDT)
+	id 0BB576B000A; Fri, 17 May 2019 13:11:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A2976B0005
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 13:11:10 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c24so11581517edb.6
-        for <linux-mm@kvack.org>; Fri, 17 May 2019 10:11:10 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B66766B0006
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 13:11:18 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id n23so11578343edv.9
+        for <linux-mm@kvack.org>; Fri, 17 May 2019 10:11:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=MAX8I4AKxVGijBEgwEEtPpFlG/giqHjECqXRaTtivlc=;
-        b=ZGSQFFu/ksm1U0W0EqbSVzj0aZGuA+cKUK5jgSD8eGS33KEcbs1zmIqfh2/mjJruWp
-         iCf22iPc7rNB79xEhA81pBq0yg7dmot03FHSNJ4xfV2NzYCnJM5G4w+cE5NILg6K85sU
-         BpsvKOlVdS+zCFBxQSiS/WXqlhby2EkhlQhoW/FjDlKW5X+LJLolz5lq7vk9DSZdRfV0
-         Lg1LT/uBTi6mkJB4s/IkLvVj/l2ePz4yt4t/yBOak4VUFpAFAT4ElPaOXdvvD6rNZnkl
-         RWCgcxTtnZ/s90/nR6ixjqOC9Vzi1DNVMASSs8lyHhsS2zY7vpWO/4lX/N+YTgegIoQQ
-         e5hw==
+        bh=+4ze6Vjw9iqrs5snaXgX/vh42SSBU+Q84gO01wZY6oI=;
+        b=SVNlK4r8qLFp9Bo265rHLXlIPJnEPjJi60LRIhZpkTltjvZNW8mil5SvBnPYjOdwys
+         bPDTgelfXyXCQN/8F1QhKuMsv0HW8ZW4OwaRAwPwrLJVax6xgP5pOeJcGurBwVsMKERk
+         wgavEhHZjfjfcB1t13ekTugEV9weTXaOiILhFnj0QSL0MCeRqLPvhMYDQbYyl/J/gYRi
+         VE6F58+ZXoGGTx06/NHN4zMYH/Na3VckaMmVx3Kv8GetvNpQw6j6nNHgfyQ8Z6HQhuPR
+         vEMcKSjX+tFsJpSn2E1VEJz7Ti66yQ6umkEe+ZqNxS8PL7eiHvFjZ+Abs9cG13ntMygP
+         xe5Q==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXFNtaD72zF4m6nODxcV9iLfJyAmf4QTvOdvH95oxit6Jn6c7nn
-	UGhT+ztlhkTE0djsS7Ftl4p93Uj/I5y3yODniKJAaRqtzIWlCzTMHCxe62DoDUSft8wJlrr8Y8P
-	4zCFX9ZDh7IjoYPq7bXR6tX/U2Rih5ftjn2sCLcjMYwiDxYGja0fPk6cZ9UjG3+M=
-X-Received: by 2002:a17:906:1e0f:: with SMTP id g15mr45656559ejj.241.1558113069588;
-        Fri, 17 May 2019 10:11:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxqb5Qjl6t+7l1QzUclvKXqotVRbk5T7b1oFdM16i3F5mpNCit4z5VyB+516bZnKmMEwUTQ
-X-Received: by 2002:a17:906:1e0f:: with SMTP id g15mr45656466ejj.241.1558113068432;
-        Fri, 17 May 2019 10:11:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558113068; cv=none;
+X-Gm-Message-State: APjAAAXzxkU29nv+CpzWaReNjIxlB0aFX6lrRNafjo8ju7rr24CpnYET
+	jXam0prWuLb9hu1bCI/ym0G0oJvGQ/mrKhVOzzoNZf3wfpDZEOcxFcfvmjAJkavG1dW/SzroHin
+	CAFf7y6BrFQBDsf6/my/NH831TeQTuWWb5P1heaeMsZG+BRTMVPZ0VZ/kFTdhQnA=
+X-Received: by 2002:a17:906:4ed1:: with SMTP id i17mr45497403ejv.118.1558113078296;
+        Fri, 17 May 2019 10:11:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw/NS53+GR7UGWnlOjckIXjvoZ4Ifi89ECmtw9luXtooBj7r2jpiEDrR8KKngUJaxagEy2r
+X-Received: by 2002:a17:906:4ed1:: with SMTP id i17mr45497274ejv.118.1558113076633;
+        Fri, 17 May 2019 10:11:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558113076; cv=none;
         d=google.com; s=arc-20160816;
-        b=002pGPXOz0a3S82BZN2V0UZPukqm+6GGf7llwEoLuQ8Gb8fmowGVCRdcv9Wzgx5JVY
-         5IkBRm3383UDos1EWnyQmtiOVGO49nG1PK1Q79WfFavyJxMSgZb3qymmLkbTKUX5JOEs
-         6pTjoZIqwa8fBe4iO1lZljgfboy3cgNmmVtkXEnqFNdjM1wMoXgm+SfaNSrEJhit7MpT
-         1zCBO+jZIoklqowa3Ct0qacs+zkrGPELocEYWec6RvCNQW180K8CfKA0LQcPjlbg6UoS
-         1Jx881q8r/g3S6YZX001BnRlqFiGtjIHAN14hZYxSmbbXGOvRzdawDLNk7Vd2Pb8tmSk
-         DmNg==
+        b=ss2Y6GVRldldBkGK+MSFkonZ88iKd+gXFzRKySPw45l2wQ5jgiMHammKZO7X8O28Va
+         1FDgaDpdDp9OIIi2PPMwYBsHS1NSEmSnd05iQ8yvLJWLfw5c8L3P0U0XAyKfgEDAIHi/
+         ywpozR3MEyCrBVOawT8fCcxqNostbiNJpBQ6jsnB2X0elMOeBFhZEVENWUANlTeRZO7F
+         M5kE9XB1C5E4hQnVa8GJMEselvZncLWsqVPjIV4hzkNaafOye3j6EoLXxyK+/5J3GlwD
+         zvVDdAGk4p3i9BXPz0mbNxXghbQWEAXHLdQ1Iah1VKlpc7JbPDHaU5zYuKQpH75hXseJ
+         Zhjw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=MAX8I4AKxVGijBEgwEEtPpFlG/giqHjECqXRaTtivlc=;
-        b=s3ZLdpA6TxqlHTZ6VLVMn5nnwDR1fHNzFMe98uXTNseZ4RYfJDY+mJ4TVJTnPAFzhQ
-         a62Vhegp6zu70hKj3w71oLaNf+gGEStiWPAsnKcaBrzXXJEp6rGB7ZXZUC41N4HKCAcN
-         TqjfV1Hlv4NXkpz6kYsV9+I9rOvpYgz5b5E6WJaflLpckPK3Smp4yr05pNwKb7iHKP5m
-         UcBmME40EF6UHXjDicR4FOVVkX7BxlG0WWGekJZfWVizW2Uxxo6OdeLU8FNUKTcV98qX
-         pzNXlJiD0slUyR4lKTniVxSnEFQDLOy5hZq+IDGnzassAM4Yk9jfqNkyVvGp/uWRPMHV
-         1CUA==
+        bh=+4ze6Vjw9iqrs5snaXgX/vh42SSBU+Q84gO01wZY6oI=;
+        b=idZDt2jkgWVOX31bD0r6DJaHcfpgbibDW801ebSCmQreONtmtZMkJjh/04I87Aiwel
+         ASMx8e5rOM47D+If/sgNigVkoUBEyNGMWVxgJq7BgH5ymcttjmK3oZeMAvG2GQ9a/zEO
+         kf0LJM2TvWZWb1/+Puv3LYrtpekVANBNAxW5Vj4fdk9EMLAyGd1f+/eeXZRhYLX8xFxR
+         PDKwidRyVPizEfhIaoLUMS738Qlm5Aste8/UY54UVpRaP0wGRacnQsBSOdy3LBlxIsEa
+         pxRJ14FwqZvp11h/Z7lWWbKYAOHRBfPqYvezy7wArX/YKa76uNb4JIVx/AqQjcJ2vck2
+         zL4g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w14si3368798edw.79.2019.05.17.10.11.08
+        by mx.google.com with ESMTPS id p56si4942345eda.176.2019.05.17.10.11.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 May 2019 10:11:08 -0700 (PDT)
+        Fri, 17 May 2019 10:11:16 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9A57EADEA;
-	Fri, 17 May 2019 17:11:07 +0000 (UTC)
-Date: Fri, 17 May 2019 19:11:05 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 29A57AEB0;
+	Fri, 17 May 2019 17:11:16 +0000 (UTC)
+Date: Fri, 17 May 2019 19:11:15 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: Kees Cook <keescook@chromium.org>
 Cc: Alexander Potapenko <glider@google.com>,
@@ -99,24 +99,21 @@ Cc: Alexander Potapenko <glider@google.com>,
 	Laura Abbott <labbott@redhat.com>,
 	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
 	Mark Rutland <mark.rutland@arm.com>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	Matthew Wilcox <willy@infradead.org>,
 	Linux Memory Management List <linux-mm@kvack.org>,
 	linux-security-module <linux-security-module@vger.kernel.org>
-Subject: Re: [PATCH v2 3/4] gfp: mm: introduce __GFP_NO_AUTOINIT
-Message-ID: <20190517171105.GT6836@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 1/4] mm: security: introduce init_on_alloc=1 and
+ init_on_free=1 boot options
+Message-ID: <20190517170805.GS6836@dhcp22.suse.cz>
 References: <20190514143537.10435-1-glider@google.com>
- <20190514143537.10435-4-glider@google.com>
- <20190517125916.GF1825@dhcp22.suse.cz>
- <CAG_fn=VG6vrCdpEv0g73M-Au4wW07w8g0uydEiHA96QOfcCVhA@mail.gmail.com>
- <20190517132542.GJ6836@dhcp22.suse.cz>
- <CAG_fn=Ve88z2ezFjV6CthufMUhJ-ePNMT2=3m6J3nHWh9iSgsg@mail.gmail.com>
- <20190517140108.GK6836@dhcp22.suse.cz>
- <201905170925.6FD47DDFFF@keescook>
+ <20190514143537.10435-2-glider@google.com>
+ <20190517140446.GA8846@dhcp22.suse.cz>
+ <CAG_fn=W4k=mijnUpF98Hu6P8bFMHU81FHs4Swm+xv1k0wOGFFQ@mail.gmail.com>
+ <20190517142048.GM6836@dhcp22.suse.cz>
+ <201905170928.A8F3BEC1B1@keescook>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201905170925.6FD47DDFFF@keescook>
+In-Reply-To: <201905170928.A8F3BEC1B1@keescook>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -124,78 +121,53 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 17-05-19 09:27:54, Kees Cook wrote:
-> On Fri, May 17, 2019 at 04:01:08PM +0200, Michal Hocko wrote:
-> > On Fri 17-05-19 15:37:14, Alexander Potapenko wrote:
-> > > > > > Freeing a memory is an opt-in feature and the slab allocator can already
-> > > > > > tell many (with constructor or GFP_ZERO) do not need it.
-> > > > > Sorry, I didn't understand this piece. Could you please elaborate?
+On Fri 17-05-19 09:36:36, Kees Cook wrote:
+> On Fri, May 17, 2019 at 04:20:48PM +0200, Michal Hocko wrote:
+> > On Fri 17-05-19 16:11:32, Alexander Potapenko wrote:
+> > > On Fri, May 17, 2019 at 4:04 PM Michal Hocko <mhocko@kernel.org> wrote:
 > > > >
-> > > > The allocator can assume that caches with a constructor will initialize
-> > > > the object so additional zeroying is not needed. GFP_ZERO should be self
-> > > > explanatory.
-> > > Ah, I see. We already do that, see the want_init_on_alloc()
-> > > implementation here: https://patchwork.kernel.org/patch/10943087/
-> > > > > > So can we go without this gfp thing and see whether somebody actually
-> > > > > > finds a performance problem with the feature enabled and think about
-> > > > > > what can we do about it rather than add this maint. nightmare from the
-> > > > > > very beginning?
+> > > > On Tue 14-05-19 16:35:34, Alexander Potapenko wrote:
+> > > > > The new options are needed to prevent possible information leaks and
+> > > > > make control-flow bugs that depend on uninitialized values more
+> > > > > deterministic.
 > > > > >
-> > > > > There were two reasons to introduce this flag initially.
-> > > > > The first was double initialization of pages allocated for SLUB.
+> > > > > init_on_alloc=1 makes the kernel initialize newly allocated pages and heap
+> > > > > objects with zeroes. Initialization is done at allocation time at the
+> > > > > places where checks for __GFP_ZERO are performed.
+> > > > >
+> > > > > init_on_free=1 makes the kernel initialize freed pages and heap objects
+> > > > > with zeroes upon their deletion. This helps to ensure sensitive data
+> > > > > doesn't leak via use-after-free accesses.
 > > > >
-> > > > Could you elaborate please?
-> > > When the kernel allocates an object from SLUB, and SLUB happens to be
-> > > short on free pages, it requests some from the page allocator.
-> > > Those pages are initialized by the page allocator
+> > > > Why do we need both? The later is more robust because even free memory
+> > > > cannot be sniffed and the overhead might be shifted from the allocation
+> > > > context (e.g. to RCU) but why cannot we stick to a single model?
+> > > init_on_free appears to be slower because of cache effects. It's
+> > > several % in the best case vs. <1% for init_on_alloc.
 > > 
-> > ... when the feature is enabled ...
-> > 
-> > > and split into objects. Finally SLUB initializes one of the available
-> > > objects and returns it back to the kernel.
-> > > Therefore the object is initialized twice for the first time (when it
-> > > comes directly from the page allocator).
-> > > This cost is however amortized by SLUB reusing the object after it's been freed.
-> > 
-> > OK, I see what you mean now. Is there any way to special case the page
-> > allocation for this feature? E.g. your implementation tries to make this
-> > zeroying special but why cannot you simply do this
-> > 
-> > 
-> > struct page *
-> > ____alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
-> > 							nodemask_t *nodemask)
-> > {
-> > 	//current implementation
-> > }
-> > 
-> > struct page *
-> > __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
-> > 							nodemask_t *nodemask)
-> > {
-> > 	if (your_feature_enabled)
-> > 		gfp_mask |= __GFP_ZERO;
-> > 	return ____alloc_pages_nodemask(gfp_mask, order, preferred_nid,
-> > 					nodemask);
-> > }
-> > 
-> > and use ____alloc_pages_nodemask from the slab or other internal
-> > allocators?
+> > This doesn't really explain why we need both.
 > 
-> If an additional allocator function is preferred over a new GFP flag, then
-> I don't see any reason not to do this. (Though adding more "__"s seems
-> a bit unfriendly to code-documentation.) What might be better naming?
+> There are a couple reasons. The first is that once we have hardware with
+> memory tagging (e.g. arm64's MTE) we'll need both on_alloc and on_free
+> hooks to do change the tags. With MTE, zeroing comes for "free" with
+> tagging (though tagging is as slow as zeroing, so it's really the tagging
+> that is free...), so we'll need to re-use the init_on_free infrastructure.
 
-The naminig is the last thing I would be worried about. Let's focus on
-the most simplistic implementation first. And means, can we really make
-it as simple as above? At least on the page allocator level.
+I am not sure I follow, but ...
+> 
+> The second reason is for very paranoid use-cases where in-memory
+> data lifetime is desired to be minimized. There are various arguments
+> for/against the realism of the associated threat models, but given that
+> we'll need the infrastructre for MTE anyway, and there are people who
+> want wipe-on-free behavior no matter what the performance cost, it seems
+> reasonable to include it in this series.
+> 
+> All that said, init_on_alloc looks desirable enough that distros will
+> likely build with it enabled by default (I hope), and the very paranoid
+> users will switch to (or additionally enable) init_on_free for their
+> systems.
 
-> This would mean that the skb changes later in the series would use the
-> "no auto init" version of the allocator too, then.
-
-No, this would be an internal function to MM. I would really like to
-optimize once there are numbers from _real_ workloads to base those
-optimizations.
+... this should all be part of the changelog.
 -- 
 Michal Hocko
 SUSE Labs
