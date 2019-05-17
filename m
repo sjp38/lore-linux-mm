@@ -2,170 +2,144 @@ Return-Path: <SRS0=Igro=TR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C5CBC04AB4
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 17:24:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 017F2C04AB4
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 17:25:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4E7E32168B
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 17:24:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B7AB9216C4
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 17:25:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="xjySCgF4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E7E32168B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="h+8kfPwU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7AB9216C4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C98A36B0003; Fri, 17 May 2019 13:24:34 -0400 (EDT)
+	id 51DD66B0005; Fri, 17 May 2019 13:25:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C48CA6B0005; Fri, 17 May 2019 13:24:34 -0400 (EDT)
+	id 4CD9F6B0006; Fri, 17 May 2019 13:25:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B36BA6B0006; Fri, 17 May 2019 13:24:34 -0400 (EDT)
+	id 395A56B0008; Fri, 17 May 2019 13:25:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 75E116B0003
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 13:24:34 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id g11so4550038plt.23
-        for <linux-mm@kvack.org>; Fri, 17 May 2019 10:24:34 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DAC4D6B0005
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 13:25:02 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r48so11650818eda.11
+        for <linux-mm@kvack.org>; Fri, 17 May 2019 10:25:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=x7P/brsu8l/+qdzew+JfyAJLRrQXXCFKiXS6vjW6Wvc=;
-        b=mLn563DGvfxGZj4b8RXyYeUSMrBLhXYS2WaOuxjAnj1NxxClxCurhV7LOikprY9w3C
-         fsZ7CazGf1ySiHm1t4dnQ/mMi8n+8rtWYeKDK5IwAWZzRaD9LxyVeY9Zfzhufq3lKNPv
-         oKb1wsILzKveSiqdvguVM0utMoDzGGlyW2jCiHL8j/oxYyoiUzpiieIODRU0s0dUbHyb
-         jgUBDusGG6Vg/7l5F1ZqMRMdBntsmwQKCihhOqw5HGRYjcTjkD+kgs3ZbOvdgIubnJCi
-         W2M4KfUUd1O51nt/a8uhGaAYu0JMpmxUxJI+RcysXa1yW4bQG4kjR8xfld94ca6ByMq1
-         /oMg==
-X-Gm-Message-State: APjAAAW8XMyjHmKR7/flPBfqLDyr/oX2WJxMN6xhAf2LGvR9qrvTTuP/
-	WYvwJtL2gLReAInOO5pnxsybPr6IzP4fxxaF5d5CKRUwPlQi8uymQ7T8lPEvDJD2/jdNiBiozqC
-	vJ0V95c7BVAyWRMPPeEsCI7f+58Q64uxinztljjvdH/lLQe9MbkZGSI5ZVw0dwoZ9NQ==
-X-Received: by 2002:a63:d652:: with SMTP id d18mr41733033pgj.112.1558113873992;
-        Fri, 17 May 2019 10:24:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxQjQVXERCDbAsqmtQrQ1T+VOTavzPhdOInsYOsMzwt0yDHbogdDu9C0QvMH9hd5JJMf6QG
-X-Received: by 2002:a63:d652:: with SMTP id d18mr41732875pgj.112.1558113871800;
-        Fri, 17 May 2019 10:24:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558113871; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=KwxwPmgRkigdfsb2Wkb3RXFjzIqZbXV/qcyPm1HcIzw=;
+        b=auqBr/vFk59zpBZZoczOahMKSzysB+RiHdP1ySdPTtNZUEY+qPZPrfqdB6ndsyaALC
+         mtpU38Ak8oT0gy9xtXOKZtGfd6akDfc/uoNrK4pX7SnJJP3BgkB2YBIM0J8mmtBDkzww
+         0U753zSxjVR7kUBM3XZa3LyT4w4puGkiPof4Zu93II47XKdEZ5hWGSsUuveq3OMrs5v9
+         Wc9tCms3ultJ6Tk4CX5jqqwPuTB90TVkbok60j7901RA0P8VpxX3cFQv5QT+fyG/6G6H
+         tZd9d+/MO7paA+NXmq/0uR7ruWnI6tOTkqRb+C7QWkJ/hMuwKxR5CPUIBd0lcsh4ANW2
+         XQGg==
+X-Gm-Message-State: APjAAAXqasvJF9ICWnERpVm1i+BAk5Syc6UTPh/uonBaLISQ54uofhb/
+	xrd5H7wJldR6aaEI+kDfY05w/DCsAFUKytO4IpKO8W/8rUJP1GL3rWEtIPxx/sOFhBpoPBml+5t
+	E6jJ9v/ASzNQ6LyhPrfuYUCBZNLtNncy7wMxbe9CNaxXlv4SVtrv0I1pMWD/SPdQYSw==
+X-Received: by 2002:a50:a535:: with SMTP id y50mr59270030edb.249.1558113902399;
+        Fri, 17 May 2019 10:25:02 -0700 (PDT)
+X-Received: by 2002:a50:a535:: with SMTP id y50mr59269975edb.249.1558113901833;
+        Fri, 17 May 2019 10:25:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558113901; cv=none;
         d=google.com; s=arc-20160816;
-        b=LGOGMJtPg2SW6wTLIYGReWhZnQ5BcBAdsiMdrq4nUAOjs1l/dpXTWrIcuCCHPCktxV
-         Dz69ybkd0WLbDIOFSCYMcZrV3jzrhhVN8T2hiv5hKr9BUD2ymbr3WTQl2xxDOFfRluIE
-         23i7XkFcwNBQ4+ThLaO/dBFKuoQhOmVqhumDsHM5SqQyy1fKocOb1/haDnwUX5HJkK/4
-         0ZEhkCPLlG3mdfvaN+bVviZNq2NiHZJWggWodPYKa1FbA0W9l98mZr4DZind2+N7gzcx
-         cRCS/XKxhg7Hxa8jmP3afDIFLc+oStAsKTp4MCztRpaEDG2nVeKMgx/bcx/7aVuvf5Ad
-         ctrQ==
+        b=d31KAYhHvTmtCwH96VtFrclXQ2F3FYUUjTEoERtrnnmfTbxmF903Hdit4EL95zStdo
+         tEEDSoFyd1EAjEBiRUaDAW1hiYXXzsYwgU9uiDGLNwGQWqxHKbIH5cO/BgjPXaEPCyxg
+         zOGQnPkFQQE9rVkElXoa4DUR9DJYLtYbeyCoOVcRjT5R/+0G2k7CQroU9EZRnF9AztXN
+         WnES/PXh32j2VWgGwIwQW9gW5u0L0aQ9Dtsn1r73ZoDsK/1LkOBz2vBoDIZo1/EIbJT2
+         ORdxeuJwdeVo8ybb6KBtE8/dzTImxVitJ28iHeWixzaUMkyvKpM/enCeqgxWrtD49QiH
+         KXHA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=x7P/brsu8l/+qdzew+JfyAJLRrQXXCFKiXS6vjW6Wvc=;
-        b=TbgvIIYi+zv4C2Vhdc3bskgtiJQzbBmBhlpqx3HvC/kWSo0mefo/ZKuJZyOJ33LuU5
-         7EcsJG8YjPrclWSbt+mctZTu8LFEH47IGmX9aqVsML3vcCEEwJWi9ZZa8TsFlAoqcpAz
-         k1X0HCBEcXpH3nRiLBGMoH44ynx5kJVpIFZNJq0uZMHPqPq8N5e9Zzl1kzFGBAiyTl63
-         2R9nSmV4BnyuAIPfU4qC1Lfj6DL+wEKTbbfp+n361Vz981HM/SxiYrPF/gHND22pUvrw
-         RecECsHwxCS7e15gJZjMKYcJCt9RcXh1PFoI4D1R7zSC4yQRTZLKbIcGwZ3UWsxol78F
-         8wtA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=KwxwPmgRkigdfsb2Wkb3RXFjzIqZbXV/qcyPm1HcIzw=;
+        b=CDeuW8gULiKIF92I2QhRddpW+1wvOcUQ7v2KgKxhMNUGf9L1tooFJuETPSd0hVNfen
+         R3TBrUHrAyzSGvzSiz5gDQQ+hjbvkUYJ+VF28rpPspzLd2FnHft6kNZmb1UsBCJZ1iXx
+         JobV9gRaYcmy891eIXUWVkgJkHcaFEcgiu/GOxaYXVq9R1qjKU9GQ1Y4WoCSpZ9c4aE7
+         R77e4BgpIBjyoilo/ejVyTRSSyly6UuqN154DEG+nh9AmdOLQbLCUgd0v4qQ62FWJx08
+         dvWk4Sfwst1v5SMIUS7Jz4UYzKK7sEKo4WdFnkrA2W24HB7AOUf67ITUH4wvm2PXFjEY
+         6BPA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=xjySCgF4;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c7si10046400pfp.40.2019.05.17.10.24.31
+       dkim=pass header.i=@soleen.com header.s=google header.b=h+8kfPwU;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b2sor8314660edd.17.2019.05.17.10.25.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 May 2019 10:24:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Fri, 17 May 2019 10:25:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=xjySCgF4;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id E9E9820848;
-	Fri, 17 May 2019 17:24:30 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1558113871;
-	bh=WxXSWaL3QpOrEgpKs084IjnKXSpNSZZ904f35QLLVA4=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=xjySCgF4FaNrp2+ct/3zpw36OkzervYSiIGfEc3YR7ztGWqF5SEeoFfXndGtiUVJg
-	 E2/3NiTghwHTC6PlkuWja+NwFSOvLjeFjsHyPgGMw9ppidBJbhmRsuk41xoJysH+06
-	 3jbCOCNfN2SaQdhlSzsRZ4nRXki+IrOTjXTxY5Ts=
-Date: Fri, 17 May 2019 19:24:29 +0200
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-To: Nadav Amit <namit@vmware.com>
-Cc: Arnd Bergmann <arnd@arndb.de>, Julien Freche <jfreche@vmware.com>,
-	Pv-drivers <Pv-drivers@vmware.com>,
-	Jason Wang <jasowang@redhat.com>,
-	lkml <linux-kernel@vger.kernel.org>,
-	"virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>,
-	Linux-MM <linux-mm@kvack.org>,
-	"Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v4 0/4] vmw_balloon: Compaction and shrinker support
-Message-ID: <20190517172429.GA21509@kroah.com>
-References: <20190425115445.20815-1-namit@vmware.com>
- <8A2D1D43-759A-4B09-B781-31E9002AE3DA@vmware.com>
- <9AD9FE33-1825-4D1A-914F-9C29DF93DC8D@vmware.com>
+       dkim=pass header.i=@soleen.com header.s=google header.b=h+8kfPwU;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=soleen.com; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=KwxwPmgRkigdfsb2Wkb3RXFjzIqZbXV/qcyPm1HcIzw=;
+        b=h+8kfPwUUJsUPbqk+gDlpRaeblBYE2fVW4Jl93m9L3oQKmknNCCYpao0UAd7gBMUks
+         hPvzLnV7CdDh1/rNOvJ7v46flOg1P7P7cz6XzbCBCYHErwbjvAFHO8kAhowextIXP4K4
+         wzyiG8+QdxKuZNzJAzTPlvWNsDUXruxytbe9VLr0sdzVqplAx0E4U5nvXrgAe4wbMxl6
+         QCdQFy8r/2NXOgZ7Bbo8ZNYPwRVsY0c/6q0Ka037S0t7VHH6Oc7AMl/o6AVCy4Fohq/H
+         1yjg5kwJzWMAQJFZgNugwf1zgUhfH+A3fbYIKv1b5n1rqomPr0aaze9q+ODnrQSUr8zZ
+         LBbg==
+X-Google-Smtp-Source: APXvYqwuyoSofrRAesux3TtniZbFtgeLGQpt/aaMsVyOQkqGRmuP2nmCLcnqBJYgiPbnM95G5HbA4GXqURtKw0f2SUc=
+X-Received: by 2002:a50:ec87:: with SMTP id e7mr58594743edr.126.1558113901537;
+ Fri, 17 May 2019 10:25:01 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <9AD9FE33-1825-4D1A-914F-9C29DF93DC8D@vmware.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+References: <CA+CK2bBeOJPnnyWBgj0CJ7E1z9GVWVg_EJAmDs07BSJDp3PYfQ@mail.gmail.com>
+ <20190517143816.GO6836@dhcp22.suse.cz> <CA+CK2bA+2+HaV4GWNUNP04fjjTPKbEGQHSPrSrmY7HLD57au1Q@mail.gmail.com>
+In-Reply-To: <CA+CK2bA+2+HaV4GWNUNP04fjjTPKbEGQHSPrSrmY7HLD57au1Q@mail.gmail.com>
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Date: Fri, 17 May 2019 13:24:50 -0400
+Message-ID: <CA+CK2bDq+2qu28afO__4kzO4=cnLH1P4DcHjc62rt0UtYwLm0A@mail.gmail.com>
+Subject: Re: NULL pointer dereference during memory hotremove
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Verma, Vishal L" <vishal.l.verma@intel.com>, 
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jmorris@namei.org" <jmorris@namei.org>, 
+	"tiwai@suse.de" <tiwai@suse.de>, "sashal@kernel.org" <sashal@kernel.org>, 
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, 
+	"dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "david@redhat.com" <david@redhat.com>, 
+	"bp@suse.de" <bp@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, 
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "jglisse@redhat.com" <jglisse@redhat.com>, 
+	"zwisler@kernel.org" <zwisler@kernel.org>, "Jiang, Dave" <dave.jiang@intel.com>, 
+	"bhelgaas@google.com" <bhelgaas@google.com>, "Busch, Keith" <keith.busch@intel.com>, 
+	"thomas.lendacky@amd.com" <thomas.lendacky@amd.com>, "Huang, Ying" <ying.huang@intel.com>, 
+	"Wu, Fengguang" <fengguang.wu@intel.com>, 
+	"baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 17, 2019 at 05:10:23PM +0000, Nadav Amit wrote:
-> > On May 3, 2019, at 6:25 PM, Nadav Amit <namit@vmware.com> wrote:
-> > 
-> >> On Apr 25, 2019, at 4:54 AM, Nadav Amit <namit@vmware.com> wrote:
-> >> 
-> >> VMware balloon enhancements: adding support for memory compaction,
-> >> memory shrinker (to prevent OOM) and splitting of refused pages to
-> >> prevent recurring inflations.
-> >> 
-> >> Patches 1-2: Support for compaction
-> >> Patch 3: Support for memory shrinker - disabled by default
-> >> Patch 4: Split refused pages to improve performance
-> >> 
-> >> v3->v4:
-> >> * "get around to" comment [Michael]
-> >> * Put list_add under page lock [Michael]
-> >> 
-> >> v2->v3:
-> >> * Fixing wrong argument type (int->size_t) [Michael]
-> >> * Fixing a comment (it) [Michael]
-> >> * Reinstating the BUG_ON() when page is locked [Michael] 
-> >> 
-> >> v1->v2:
-> >> * Return number of pages in list enqueue/dequeue interfaces [Michael]
-> >> * Removed first two patches which were already merged
-> >> 
-> >> Nadav Amit (4):
-> >> mm/balloon_compaction: List interfaces
-> >> vmw_balloon: Compaction support
-> >> vmw_balloon: Add memory shrinker
-> >> vmw_balloon: Split refused pages
-> >> 
-> >> drivers/misc/Kconfig               |   1 +
-> >> drivers/misc/vmw_balloon.c         | 489 ++++++++++++++++++++++++++---
-> >> include/linux/balloon_compaction.h |   4 +
-> >> mm/balloon_compaction.c            | 144 ++++++---
-> >> 4 files changed, 553 insertions(+), 85 deletions(-)
-> >> 
-> >> -- 
-> >> 2.19.1
-> > 
-> > Ping.
-> 
-> Ping.
-> 
-> Greg, did it got lost again?
+On Fri, May 17, 2019 at 1:22 PM Pavel Tatashin
+<pasha.tatashin@soleen.com> wrote:
+>
+> On Fri, May 17, 2019 at 10:38 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Fri 17-05-19 10:20:38, Pavel Tatashin wrote:
+> > > This panic is unrelated to circular lock issue that I reported in a
+> > > separate thread, that also happens during memory hotremove.
+> > >
+> > > xakep ~/x/linux$ git describe
+> > > v5.1-12317-ga6a4b66bd8f4
+> >
+> > Does this happen on 5.0 as well?
+>
+> Yes, just reproduced it on 5.0 as well. Unfortunately, I do not have a
+> script, and have to do it manually, also it does not happen every
+> time, it happened on 3rd time for me.
 
+Actually, sorry, I have not tested 5.0, I compiled 5.0, but my script
+still tested v5.1-12317-ga6a4b66bd8f4 build. I will report later if I
+am able to reproduce it on 5.0.
 
-I thought you needed the mm developers to ack the first patch, did that
-ever happen?
+Pasha
 
