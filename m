@@ -6,96 +6,98 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30B8CC04AB4
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 12:41:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9DD4C04E87
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 12:45:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EBFC820848
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 12:41:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBFC820848
+	by mail.kernel.org (Postfix) with ESMTP id 5C0292173C
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 12:45:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C0292173C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 88C8A6B0269; Fri, 17 May 2019 08:41:22 -0400 (EDT)
+	id BE3E26B026B; Fri, 17 May 2019 08:45:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 83B506B026A; Fri, 17 May 2019 08:41:22 -0400 (EDT)
+	id B94766B026C; Fri, 17 May 2019 08:45:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7040B6B026B; Fri, 17 May 2019 08:41:22 -0400 (EDT)
+	id A836A6B026D; Fri, 17 May 2019 08:45:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 236536B0269
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 08:41:22 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id z5so10565186edz.3
-        for <linux-mm@kvack.org>; Fri, 17 May 2019 05:41:22 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 590096B026B
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 08:45:58 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id r5so10478332edd.21
+        for <linux-mm@kvack.org>; Fri, 17 May 2019 05:45:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=mM6yT3BS+8apYwtHv/mI5JR5AECNvli1Huh00Iahml4=;
-        b=RBgoaMC8f9LZRrxmEwyGAGQCQpAx+PEY7f4WuXU2hhm4tK5QyAAFXmVxce1Q94etMK
-         pd1nU7QiB1LNtG8I1ziyCDXquFB+Dt9/s1rGgu2OmVUz4OOQS83ZZYjAGT0TwHNRJ5Ae
-         CD6eG9s9+ZFNT4gkX2SBiwEcFH0MqPP157+ccanBWmk8l39Cgbr4pjCG5CM2JfmVLRqb
-         cpoCNn4gIm0H0OdzaOpMh0ui1nNg053gutnbaegGYUzQMD/8qpjw6/A38SLWx6iUN7WQ
-         qyAkXrtLFJD3y7BIJE2jHbd0xvrqjWZSR+xA3tYe+mvzFI6dzmOSLfDcbK89pEsBgWvi
-         3W+A==
+        bh=w3orLxAiVlLhkI1QU8ebwF1UsyzvRSt1yqaaxnHspJY=;
+        b=qkW4pwXYE3K6A94SSNmlEei8NWzbDREW4/M68vi6JVZdV0/UgHibYcb0S+nG9h/bhC
+         /BtEoHabLgeJBc/nmDGG87KqNqDTqJElN1sgE8s2NkzWZhD6BuJkU2xBTwB85ymMW34m
+         TR1+Jeti6Zbkm32UkOnwQtECPZVz6I3W/rO26FSvLhZ7eNiygCtgS8XA5x0baoXmKlxw
+         P9Mg1tpgYwr42RWiwPijDuJ3IdgmjnlZDQ1Xe9Fdys4zXqal7UfezHRAI2aFZzkb6GdY
+         JavfMmWGD0F0DCvjw7uen20rzgwNVGpP4/NS4qOO+0fMJHuhGtyyNFHk3cLpPhBuiAt9
+         GFZQ==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUPNzIWnpIimmkETUoCv7erRoZXt7M/xnKd+7tFBw/brCVIgiJA
-	hEnnhJMAHcmwJN8dOji2BVI0AV+A42c53z+lBi1wtlbeqV8nqGF4uHAJco32rBLwtm4nw9BBwu8
-	WmYhewvPGVyRgqRLWdEENo/OVvwp9by+J0+DL/yh5Oc+ZPR+1WqRmAgbDUk41DRE=
-X-Received: by 2002:a50:fd0a:: with SMTP id i10mr56409113eds.117.1558096881731;
-        Fri, 17 May 2019 05:41:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPdqiZzgFZ9EQeBHRuQ9nE3jGFl6Gd0PRL8g4e3Py6FkOGsbE6GF1I989+MQfTa9IGFC/p
-X-Received: by 2002:a50:fd0a:: with SMTP id i10mr56409036eds.117.1558096881060;
-        Fri, 17 May 2019 05:41:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558096881; cv=none;
+X-Gm-Message-State: APjAAAV6id+DI1XYnKObnQ33SmeKUDB5LGAXplBB0Azi+PSgTSkV1Z+A
+	QBCc0C1FHwCkR5vwsEkDR5Ah4w6Mm/X9su8NNdmUa0kIvKggYOobLuqjQU2vuYyxZWuV8qgLVzm
+	s/8RKnF3wq7dwtoqicVHdp/mKimIOS6sO0LaqYNPstdvB0To9fSNTcArSIAEnkGQ=
+X-Received: by 2002:a17:906:6a1a:: with SMTP id o26mr3034585ejr.265.1558097157940;
+        Fri, 17 May 2019 05:45:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyn7KvLeVon4reFcDlqAYYWQGzyqplbxcbLhfaVwi82QklbQTx9/0QXsIx8TBReVB96rWvB
+X-Received: by 2002:a17:906:6a1a:: with SMTP id o26mr3034529ejr.265.1558097157135;
+        Fri, 17 May 2019 05:45:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558097157; cv=none;
         d=google.com; s=arc-20160816;
-        b=RHaiFFQce6TO2edG00vihQ/efdd7yleh1vdqmBp5A6OOdrFvCrNq3x8U8sJypKytEq
-         ar/sP33IbilDJq89xwH4bGPys1u1/TC102BM4B3U6Sti0xAPZsVG3zxEgYjKlNfXjcT+
-         U/+EmfQF34eAbAKC/ySs2rCl5K0zlYavkKEMYP7ennTnJWHSCUBzIPBeLea3NHIDn2Mx
-         aNk6XQRGOsf9lHPZfncazFeflmlotMAFU18j0S5gj5dWm7dq9znX9e3InYgBA0G651DZ
-         qhE+gZWrZgYaFZvzwt3pMlMgAHeb2Yy7GmftnGM7etqEMEGBbtf2loOeZKvsZvHCMpgS
-         A8aA==
+        b=HgfL5pJXtdw3oYu9zrcnOxO4s29ea69RD2bXH4XPYanW5x9k38NxJ7Fovly2wK4CEw
+         3MEwaNxs58uUltlP5GfaM/HQg4ncu1dJzWEK1/8ZLzuON4pvLAQS2r0HfcYCFCy+8Q6Y
+         zAQpQlMvUXDFizv/f6BP8/Y3/t0M0IxzP/0LKy9ILEsKhOydjHRVI0OU2pDcCZsh7vYd
+         dV8o7K6rQpkdzXW5ABpS5sYhPXOG3Y2egSZPwIDdRToZym2JCAoqE1iZ0S6CETPBxpjT
+         K2OOoJwQDR75ejglxb4MlnAq2Gdc1rWmIeiQNhrET5Sfb7K+Uiq0+VUlBA8MtHRJlpEI
+         Tuew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=mM6yT3BS+8apYwtHv/mI5JR5AECNvli1Huh00Iahml4=;
-        b=IlndRkrFcHb0YBAAOIByVWtDkp5keRotvhpNls7qr78IAWtLaX0sFBksaim3AxKwpY
-         nJiqecxBNUgoOVHo9QWql1w/vlKxutUmAyYN/+yc6oqYDQEuNoSaNxFA0vxiq3bSKp30
-         e+USyaQbrmoZJW/XgRlqeLZTwqpRLJjTJDGCGMzbqCu/l62PSvfaURXDQssbwqmW56iO
-         FYYIasK4sAif78cNrS01UbBOYNqmFJAzruvH5srJX/nOycPQH4UyWPie6wadG9yzAYNm
-         qQfXW2itBv51mg2aCic4sF5prm1tSOzecWFpDidF68bIuJwmsUXHgCBMRxRVEepV88gS
-         Ws4Q==
+        bh=w3orLxAiVlLhkI1QU8ebwF1UsyzvRSt1yqaaxnHspJY=;
+        b=xhTEnijQEzitc9VXy4c74mxKe/U6DD9G0ZZRJUd6No9Y8qZC4BdTqegOgaoNUQMLda
+         Cr1/mBlHrF73XtlR859pUsWraI0CcUqA3/gCp+wRZBPgMOy+IAbDmrG8aXo5RbMRRbTG
+         6DcHBAW/0lUtfxANzDFs3Yk+Pv0+xUwimFRdmmIe3iOSkcIZNFpcu1k3fXSONvczqBsj
+         jVBpFlk+NiKGMBGuCOUXl0x1+Ke3+U2J9UXK/H0/HTMwCNvryxJdTKPxJDv23+VQ8u41
+         PtVLF+miRrMu5msV9ZdUb6mlGSMKxAhLiiuMQxgDZYlEugxgj1vyet9pP8YwgNnOlUGz
+         sJOw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g23si2416188ejm.69.2019.05.17.05.41.20
+        by mx.google.com with ESMTPS id dt2si5251479ejb.3.2019.05.17.05.45.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 May 2019 05:41:21 -0700 (PDT)
+        Fri, 17 May 2019 05:45:57 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 410FBAF3A;
-	Fri, 17 May 2019 12:41:20 +0000 (UTC)
-Date: Fri, 17 May 2019 14:41:19 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 48ECDAF59;
+	Fri, 17 May 2019 12:45:56 +0000 (UTC)
+Date: Fri, 17 May 2019 14:45:55 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
 	linux-kernel@vger.kernel.org, Cyrill Gorcunov <gorcunov@gmail.com>,
 	Kirill Tkhai <ktkhai@virtuozzo.com>,
 	Al Viro <viro@zeniv.linux.org.uk>
-Subject: Re: [PATCH 1/5] proc: use down_read_killable for /proc/pid/maps
-Message-ID: <20190517124119.GA1825@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/5] proc: use down_read_killable for
+ /proc/pid/smaps_rollup
+Message-ID: <20190517124555.GB1825@dhcp22.suse.cz>
 References: <155790967258.1319.11531787078240675602.stgit@buzz>
+ <155790967469.1319.14744588086607025680.stgit@buzz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <155790967258.1319.11531787078240675602.stgit@buzz>
+In-Reply-To: <155790967469.1319.14744588086607025680.stgit@buzz>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -103,58 +105,49 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 15-05-19 11:41:12, Konstantin Khlebnikov wrote:
-> Do not stuck forever if something wrong.
-> This function also used for /proc/pid/smaps.
+On Wed 15-05-19 11:41:14, Konstantin Khlebnikov wrote:
+> Ditto.
 
-I do agree that the killable variant is better but I do not understand
-the changelog. What would keep the lock blocked for ever? I do not think
-we have writer lock held for unbound amount of time anywhere, do we?
+Proper changelog or simply squash those patches into a single patch if
+you do not feel like copy&paste is fun
 
+> 
 > Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-
-Other than that
-Acked-by: Michal Hocko <mhocko@suse.com>
-
 > ---
->  fs/proc/task_mmu.c   |    6 +++++-
->  fs/proc/task_nommu.c |    6 +++++-
->  2 files changed, 10 insertions(+), 2 deletions(-)
+>  fs/proc/task_mmu.c |    8 ++++++--
+>  1 file changed, 6 insertions(+), 2 deletions(-)
 > 
 > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-> index 01d4eb0e6bd1..2bf210229daf 100644
+> index 2bf210229daf..781879a91e3b 100644
 > --- a/fs/proc/task_mmu.c
 > +++ b/fs/proc/task_mmu.c
-> @@ -166,7 +166,11 @@ static void *m_start(struct seq_file *m, loff_t *ppos)
->  	if (!mm || !mmget_not_zero(mm))
->  		return NULL;
+> @@ -832,7 +832,10 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
+>  
+>  	memset(&mss, 0, sizeof(mss));
 >  
 > -	down_read(&mm->mmap_sem);
-> +	if (down_read_killable(&mm->mmap_sem)) {
-> +		mmput(mm);
-> +		return ERR_PTR(-EINTR);
-> +	}
+> +	ret = down_read_killable(&mm->mmap_sem);
+> +	if (ret)
+> +		goto out_put_mm;
+
+Why not ret = -EINTR. The seq_file code seems to be handling all errors
+AFAICS.
+
 > +
 >  	hold_task_mempolicy(priv);
->  	priv->tail_vma = get_gate_vma(mm);
 >  
-> diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
-> index 36bf0f2e102e..7907e6419e57 100644
-> --- a/fs/proc/task_nommu.c
-> +++ b/fs/proc/task_nommu.c
-> @@ -211,7 +211,11 @@ static void *m_start(struct seq_file *m, loff_t *pos)
->  	if (!mm || !mmget_not_zero(mm))
->  		return NULL;
+>  	for (vma = priv->mm->mmap; vma; vma = vma->vm_next) {
+> @@ -849,8 +852,9 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
 >  
-> -	down_read(&mm->mmap_sem);
-> +	if (down_read_killable(&mm->mmap_sem)) {
-> +		mmput(mm);
-> +		return ERR_PTR(-EINTR);
-> +	}
-> +
->  	/* start from the Nth VMA */
->  	for (p = rb_first(&mm->mm_rb); p; p = rb_next(p))
->  		if (n-- == 0)
+>  	release_task_mempolicy(priv);
+>  	up_read(&mm->mmap_sem);
+> -	mmput(mm);
+>  
+> +out_put_mm:
+> +	mmput(mm);
+>  out_put_task:
+>  	put_task_struct(priv->task);
+>  	priv->task = NULL;
 
 -- 
 Michal Hocko
