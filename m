@@ -2,198 +2,417 @@ Return-Path: <SRS0=Igro=TR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 67F41C04AB4
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 14:58:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E331C04AB4
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 15:18:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0FD25216FD
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 14:58:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FD25216FD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 1074921734
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 15:18:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1074921734
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 712996B0003; Fri, 17 May 2019 10:58:56 -0400 (EDT)
+	id 889F26B0003; Fri, 17 May 2019 11:18:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6EA7C6B0008; Fri, 17 May 2019 10:58:56 -0400 (EDT)
+	id 83B786B0008; Fri, 17 May 2019 11:18:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5B2DB6B000A; Fri, 17 May 2019 10:58:56 -0400 (EDT)
+	id 6DB5F6B000A; Fri, 17 May 2019 11:18:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3977F6B0003
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 10:58:56 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id i5so6638497qtd.17
-        for <linux-mm@kvack.org>; Fri, 17 May 2019 07:58:56 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CE956B0003
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 11:18:01 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id s145so6550031ywg.17
+        for <linux-mm@kvack.org>; Fri, 17 May 2019 08:18:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=UiU20EKhHV/zWxGYH8EP6TF2WnOvoJG6eQ3pKoQyz9A=;
-        b=J+15ET6YJ8JqrutFHknPsIbzfDERmkcanJWXhqC00uplly5PV6zPPYyid67WW3R8LI
-         GOIwoiGbE89EhcAhR5DcAzMTQXjl6pH8SvydcQF17w9Xcc3oEcTalxu0bNVjrQ0dDYRI
-         5/CLaAagoU++LSU+QmejtYKNcLUzJfg6zh+N14EhHulLO340IvPVIuVaRo9iRO11VT/u
-         CtMVSUUePm0eGo12O/hceEWdhFglPEpdQrOgmRnVHTDy5KMhuZBri8JhK04yxgdhs/Tp
-         zZtBB1fvF2t3DwFUWbgYoUOzvpjBTkdLJ8X0GqGPerfHQPCoQdx/Dh5mUfgFi15L2cYc
-         1XAQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUQwFQUmrzyj0mjZDMQr+ADg7VNtWD1hQjFKFU+5idhCkmjufIC
-	PUgCSb87IjYmow/+3gvkbONcZNZMbzTtGkUibF8r4Sw56sngtYO74KRUNdgQKYyc8KwUvBLNFHY
-	EuuiNFgf86R60xRABuOnyrT6BZWhWD0/YnVtP/DqXEsL+xDJKUyxWU7GH+niumAqIqg==
-X-Received: by 2002:ac8:538f:: with SMTP id x15mr14274527qtp.263.1558105134652;
-        Fri, 17 May 2019 07:58:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy0pG9uuj/q/ZX3DwVNMvhhPvoRY5mGobcAmaLXCsGQnMOkyi9UQHaNPXFd6i9vT7ZGraMf
-X-Received: by 2002:ac8:538f:: with SMTP id x15mr14274353qtp.263.1558105132545;
-        Fri, 17 May 2019 07:58:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558105132; cv=none;
+         :references:from:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:message-id;
+        bh=c7v8o1ExcUq48/KuMmzfr/Zhg5wbwAXLkSvkumDp7V8=;
+        b=P1MWytpvFsM15wAy5VHljzgDdAG90I9hZoL7WyxCgZnF1d/V2+U+3Wu+xeTEd/VhVR
+         /QiJMJx8UeD2454yxVcwL9/4VO3eiJ/g/NfXASqc+Nf5uqgd353508Isj6PNi3SZHA9X
+         I2Jv0y+tNmr+lCoDjk92hhKetJRKVixT/kUbnHR7vcVBolRjNmR14/J4KcyQi7eeN61B
+         TeuzmXAuU2uRMz8RWyPOuxCxeb7Vf1PosrPn75jBcd+8Rc1aPWSrU6TiQJlNzK1PSFBj
+         4pPRAxHQ8k7M3qBpUUxtUysWyaO1bK/ePFgLjj6+fVPVSFGlwlSO1A80rsiLjCVEpUEZ
+         EQwA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUH1B7i1HAaDKQPKShJJ2QSyahUke/MDOviwLXgSDZlYfPIGNS0
+	CEtpls5kuwO9OUQSNHxceAcsmzLDcapOfzTBO2v9+H+2QRaU8fxUljnlMzW0J8Ndysm9YakppIe
+	OpKjyRb9Gmxe8SbIbAuzcp1TCMQWYp9ywIf0ieegMUdcVqwSWPBq1GVF3k6okNuAz+A==
+X-Received: by 2002:a25:9cc4:: with SMTP id z4mr26418789ybo.92.1558106280956;
+        Fri, 17 May 2019 08:18:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqypm+wqNLMEJ1RiiEqTWdpIRZKxDKQncMR2kbcKUbs8IKD3N/tk3eLlAjzoBpd14bP0CxRS
+X-Received: by 2002:a25:9cc4:: with SMTP id z4mr26418709ybo.92.1558106279581;
+        Fri, 17 May 2019 08:17:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558106279; cv=none;
         d=google.com; s=arc-20160816;
-        b=idqUj0VGpmSqBLqfEHFi/I+2l+88g7lIvqkuDUx00kV/rt3TL2tFi7tJL/iR8qgcOc
-         8HaV0oMmV2u9W1w3o9JhWBABuyZ7BBqcR6gXU70PTqWwMT0xtKoy7zNnXv7ARDHWwWoY
-         p/LPLXFWELBWGJO8VbMGrsDkBZEPlOtH3ZVEamFAPnUSSrvhHCd2NpfYyqDYGVVYKFKg
-         8vzJ4uXiBFK4txoeHm8BISWfzssYGSvowHCj2oTjpx/T5juX+9DQyJ6I6DbXkDoC+NOv
-         Y0266NRXZC1yDup0pmKR+3vhu/Px4ynj1U1441wJPuszPi42omT0OAdZ55YaimKPHRK4
-         ifkw==
+        b=bTy0rt7whj16aIprq8aky9P2WbS+xRHgFgxWb9VGp53eAEoshzd6BuEoa/MwiTgXZ1
+         hogbU18Lqy9P4SscU+1/pFGqtMXQanqdcEP3zxJ7tsa5ypx8ZofpybjJTgd/9AE0xyoB
+         LrLykD4vuyCQSItvAbCldpkMEY5Oq4orAelGWjWdnMPX9ezbI8bPgWyRs9q/SuDpM30h
+         o+WDEw96bzerPRr0YMtDYdAu2Hn4WL4zJ7xkkFn13VGFT7U4S5mQ41KW/0O4GN9pOi0p
+         e6mCWlQO08umcuUUyfCY5CvHfqtqh8Fa05k/pg4o2wNVxJ1rIZWb5n/jDnX+o5GpsvmN
+         uJLA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=UiU20EKhHV/zWxGYH8EP6TF2WnOvoJG6eQ3pKoQyz9A=;
-        b=zntUOH/bkPYXpivJVwHCip9JXSJWO+XE1Vq/84aaxQWhAFSJp8V8slMlwrIhl0X8Ko
-         SAhkC604C1q+yxg2hnQI4tZCcuQpm9zyV+3bCwbpfP+DT4ro+cpplsOo663Ho42VewD4
-         KaZcV/9B9f6qn8A0Hh2SeElyI3nZ5xu+t3sjmHDeFZ4iSY9KVlN6j6FOIOTaOPrQukrV
-         0WrPiwQMeyR6UHvmT0acFFn5Vec8y/6hDJl6oOdvwU3SuS0GaHrpZ0m44R+Xajd5lCCQ
-         A0k2Jk2hHMYyWOWgaDEz3ffbp0ETf6lrFNTw34H8eBoUtlTOzMX0JgXw1Vx1Uf+XlS+a
-         6ouw==
+        h=message-id:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:from:references:cc:to:subject;
+        bh=c7v8o1ExcUq48/KuMmzfr/Zhg5wbwAXLkSvkumDp7V8=;
+        b=T7tfCPbDRxJ2JLgpINRHw+EkGwccLKjUOImfASm3l6BJSraIpQYG2YED2VeL8rPgu0
+         34TU5sT4fWzqHNIRLsSoiargpGp/Bn9Cy949VBdFAW2ysiN0FfttILw9RUjvkxqn36hw
+         Q3ah4sSB0F6ctAtgkWhzhqDE6f1uQnQqwhJ21MScbjFgPZRj3xvS6qgsG5demJMAq36p
+         DUbg1ydH6vYIqlkrwvvXLZsNdb8HadvZ3Qo0G9WXY9e8BnwMgEtjM2lGRMX7z3Xr9sGC
+         5rfLjm5+5oguf/w3rCMgB6Xvtzntts5uOy0ceDfeUKIFW1RmBYPgp9lWu1nqLSMXZEE6
+         y0sQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 1si2778958qvx.176.2019.05.17.07.58.52
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id f192si735376ybb.241.2019.05.17.08.17.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 May 2019 07:58:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 17 May 2019 08:17:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0D90A309264C;
-	Fri, 17 May 2019 14:58:44 +0000 (UTC)
-Received: from [10.36.118.100] (unknown [10.36.118.100])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 123265DA63;
-	Fri, 17 May 2019 14:58:33 +0000 (UTC)
-Subject: Re: NULL pointer dereference during memory hotremove
-To: Michal Hocko <mhocko@kernel.org>,
- Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: "Verma, Vishal L" <vishal.l.verma@intel.com>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "jmorris@namei.org" <jmorris@namei.org>, "tiwai@suse.de" <tiwai@suse.de>,
- "sashal@kernel.org" <sashal@kernel.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>,
- "bp@suse.de" <bp@suse.de>,
- "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
- "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
- "jglisse@redhat.com" <jglisse@redhat.com>,
- "zwisler@kernel.org" <zwisler@kernel.org>, "Jiang, Dave"
- <dave.jiang@intel.com>, "bhelgaas@google.com" <bhelgaas@google.com>,
- "Busch, Keith" <keith.busch@intel.com>,
- "thomas.lendacky@amd.com" <thomas.lendacky@amd.com>,
- "Huang, Ying" <ying.huang@intel.com>, "Wu, Fengguang"
- <fengguang.wu@intel.com>,
- "baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>
-References: <CA+CK2bBeOJPnnyWBgj0CJ7E1z9GVWVg_EJAmDs07BSJDp3PYfQ@mail.gmail.com>
- <20190517143816.GO6836@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <75ae93ee-7897-2ab9-1f15-687ab5b87e72@redhat.com>
-Date: Fri, 17 May 2019 16:58:33 +0200
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4HF8TcS118143
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 11:17:59 -0400
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2shw2e743e-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 11:17:58 -0400
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Fri, 17 May 2019 16:17:54 +0100
+Received: from b03cxnp08025.gho.boulder.ibm.com (9.17.130.17)
+	by e35.co.us.ibm.com (192.168.1.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Fri, 17 May 2019 16:17:51 +0100
+Received: from b03ledav001.gho.boulder.ibm.com (b03ledav001.gho.boulder.ibm.com [9.17.130.232])
+	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4HFHoPi18350418
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 17 May 2019 15:17:50 GMT
+Received: from b03ledav001.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 601856E04C;
+	Fri, 17 May 2019 15:17:50 +0000 (GMT)
+Received: from b03ledav001.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 952746E050;
+	Fri, 17 May 2019 15:17:48 +0000 (GMT)
+Received: from [9.199.59.156] (unknown [9.199.59.156])
+	by b03ledav001.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Fri, 17 May 2019 15:17:48 +0000 (GMT)
+Subject: Re: [PATCH] mm/nvdimm: Pick the right alignment default when creating
+ dax devices
+To: Vaibhav Jain <vaibhav@linux.vnet.ibm.com>, dan.j.williams@intel.com
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org,
+        linux-nvdimm@lists.01.org
+References: <20190514025449.9416-1-aneesh.kumar@linux.ibm.com>
+ <875zq9m8zx.fsf@vajain21.in.ibm.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Fri, 17 May 2019 20:47:47 +0530
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190517143816.GO6836@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <875zq9m8zx.fsf@vajain21.in.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Fri, 17 May 2019 14:58:51 +0000 (UTC)
+X-TM-AS-GCONF: 00
+x-cbid: 19051715-0012-0000-0000-000017382F49
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011112; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000286; SDB=6.01204664; UDB=6.00632425; IPR=6.00985599;
+ MB=3.00026933; MTD=3.00000008; XFM=3.00000015; UTC=2019-05-17 15:17:52
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19051715-0013-0000-0000-0000574DF97B
+Message-Id: <de5cbe7d-bd47-6793-1f1a-2274c5c59eb5@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-17_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905170093
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 17.05.19 16:38, Michal Hocko wrote:
-> On Fri 17-05-19 10:20:38, Pavel Tatashin wrote:
->> This panic is unrelated to circular lock issue that I reported in a
->> separate thread, that also happens during memory hotremove.
+On 5/17/19 8:19 PM, Vaibhav Jain wrote:
+> Hi Aneesh,
+> 
+> Apart from a minor review comment for changes to nd_pfn_validate() the
+> patch looks good to me.
+> 
+> Also, I Tested this patch on a PPC64 qemu guest with virtual nvdimm and
+> verified that default alignment of newly created devdax namespace was
+> 64KiB instead of 16MiB. Below are the test results:
+> 
+> * Without the patch creating a devdax namespace results in namespace
+>    with 16MiB default alignment. Using daxio to zero out the dax device
+>    results in a SIGBUS and a hashing failure.
+> 
+>    $ sudo ndctl create-namespace --mode=devdax  | grep align
+>      "align":16777216,
+>    "align":16777216
+> 
+>    $ sudo cat /sys/devices/ndbus0/region0/dax0.0/supported_alignments
+>    65536 16777216
+> 
+>    $ sudo daxio.static-debug  -z -o /dev/dax0.0
+>    Bus error (core dumped)
+> 
+>    $ dmesg | tail
+>    [  438.738958] lpar: Failed hash pte insert with error -4
+>    [  438.739412] hash-mmu: mm: Hashing failure ! EA=0x7fff17000000 access=0x8000000000000006 current=daxio
+>    [  438.739760] hash-mmu:     trap=0x300 vsid=0x22cb7a3 ssize=1 base psize=2 psize 10 pte=0xc000000501002b86
+>    [  438.740143] daxio[3860]: bus error (7) at 7fff17000000 nip 7fff973c007c lr 7fff973bff34 code 2 in libpmem.so.1.0.0[7fff973b0000+20000]
+>    [  438.740634] daxio[3860]: code: 792945e4 7d494b78 e95f0098 7d494b78 f93f00a0 4800012c e93f0088 f93f0120
+>    [  438.741015] daxio[3860]: code: e93f00a0 f93f0128 e93f0120 e95f0128 <f9490000> e93f0088 39290008 f93f0110
+> 
+> * With the patch creating a devdax namespace results in namespace
+>    with 64KiB default alignment. Using daxio to zero out the dax device
+>    succeeds:
+>    
+>    $ sudo ndctl create-namespace --mode=devdax  | grep align
+>      "align":65536,
+>    "align":65536
+> 
+>    $ sudo cat /sys/devices/ndbus0/region0/dax0.0/supported_alignments
+>    65536
+> 
+>    $ daxio -z -o /dev/dax0.0
+>    daxio: copied 2130706432 bytes to device "/dev/dax0.0"
+> 
+> Hence,
+> 
+> Tested-by: Vaibhav Jain <vaibhav@linux.ibm.com>
+> 
+> "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
+> 
+>> Allow arch to provide the supported alignments and use hugepage alignment only
+>> if we support hugepage. Right now we depend on compile time configs whereas this
+>> patch switch this to runtime discovery.
 >>
->> xakep ~/x/linux$ git describe
->> v5.1-12317-ga6a4b66bd8f4
+>> Architectures like ppc64 can have THP enabled in code, but then can have
+>> hugepage size disabled by the hypervisor. This allows us to create dax devices
+>> with PAGE_SIZE alignment in this case.
+>>
+>> Existing dax namespace with alignment larger than PAGE_SIZE will fail to
+>> initialize in this specific case. We still allow fsdax namespace initialization.
+>>
+>> With respect to identifying whether to enable hugepage fault for a dax device,
+>> if THP is enabled during compile, we default to taking hugepage fault and in dax
+>> fault handler if we find the fault size > alignment we retry with PAGE_SIZE
+>> fault size.
+>>
+>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+>> ---
+>>   arch/powerpc/include/asm/libnvdimm.h |  9 ++++++++
+>>   arch/powerpc/mm/Makefile             |  1 +
+>>   arch/powerpc/mm/nvdimm.c             | 34 ++++++++++++++++++++++++++++
+>>   arch/x86/include/asm/libnvdimm.h     | 19 ++++++++++++++++
+>>   drivers/nvdimm/nd.h                  |  6 -----
+>>   drivers/nvdimm/pfn_devs.c            | 32 +++++++++++++++++++++++++-
+>>   include/linux/huge_mm.h              |  7 +++++-
+>>   7 files changed, 100 insertions(+), 8 deletions(-)
+>>   create mode 100644 arch/powerpc/include/asm/libnvdimm.h
+>>   create mode 100644 arch/powerpc/mm/nvdimm.c
+>>   create mode 100644 arch/x86/include/asm/libnvdimm.h
+>>
+>> diff --git a/arch/powerpc/include/asm/libnvdimm.h b/arch/powerpc/include/asm/libnvdimm.h
+>> new file mode 100644
+>> index 000000000000..d35fd7f48603
+>> --- /dev/null
+>> +++ b/arch/powerpc/include/asm/libnvdimm.h
+>> @@ -0,0 +1,9 @@
+>> +/* SPDX-License-Identifier: GPL-2.0 */
+>> +#ifndef _ASM_POWERPC_LIBNVDIMM_H
+>> +#define _ASM_POWERPC_LIBNVDIMM_H
+>> +
+>> +#define nd_pfn_supported_alignments nd_pfn_supported_alignments
+>> +extern unsigned long *nd_pfn_supported_alignments(void);
+>> +extern unsigned long nd_pfn_default_alignment(void);
+>> +
+>> +#endif
+>> diff --git a/arch/powerpc/mm/Makefile b/arch/powerpc/mm/Makefile
+>> index 0f499db315d6..42e4a399ba5d 100644
+>> --- a/arch/powerpc/mm/Makefile
+>> +++ b/arch/powerpc/mm/Makefile
+>> @@ -20,3 +20,4 @@ obj-$(CONFIG_HIGHMEM)		+= highmem.o
+>>   obj-$(CONFIG_PPC_COPRO_BASE)	+= copro_fault.o
+>>   obj-$(CONFIG_PPC_PTDUMP)	+= ptdump/
+>>   obj-$(CONFIG_KASAN)		+= kasan/
+>> +obj-$(CONFIG_NVDIMM_PFN)		+= nvdimm.o
+>> diff --git a/arch/powerpc/mm/nvdimm.c b/arch/powerpc/mm/nvdimm.c
+>> new file mode 100644
+>> index 000000000000..a29a4510715e
+>> --- /dev/null
+>> +++ b/arch/powerpc/mm/nvdimm.c
+>> @@ -0,0 +1,34 @@
+>> +// SPDX-License-Identifier: GPL-2.0
+>> +
+>> +#include <asm/pgtable.h>
+>> +#include <asm/page.h>
+>> +
+>> +#include <linux/mm.h>
+>> +/*
+>> + * We support only pte and pmd mappings for now.
+>> + */
+>> +const unsigned long *nd_pfn_supported_alignments(void)
+>> +{
+>> +	static unsigned long supported_alignments[3];
+>> +
+>> +	supported_alignments[0] = PAGE_SIZE;
+>> +
+>> +	if (has_transparent_hugepage())
+>> +		supported_alignments[1] = HPAGE_PMD_SIZE;
+>> +	else
+>> +		supported_alignments[1] = 0;
+>> +
+>> +	supported_alignments[2] = 0;
+>> +	return supported_alignments;
+>> +}
+>> +
+>> +/*
+>> + * Use pmd mapping if supported as default alignment
+>> + */
+>> +unsigned long nd_pfn_default_alignment(void)
+>> +{
+>> +
+>> +	if (has_transparent_hugepage())
+>> +		return HPAGE_PMD_SIZE;
+>> +	return PAGE_SIZE;
+>> +}
+>> diff --git a/arch/x86/include/asm/libnvdimm.h b/arch/x86/include/asm/libnvdimm.h
+>> new file mode 100644
+>> index 000000000000..3d5361db9164
+>> --- /dev/null
+>> +++ b/arch/x86/include/asm/libnvdimm.h
+>> @@ -0,0 +1,19 @@
+>> +/* SPDX-License-Identifier: GPL-2.0 */
+>> +#ifndef _ASM_X86_LIBNVDIMM_H
+>> +#define _ASM_X86_LIBNVDIMM_H
+>> +
+>> +static inline unsigned long nd_pfn_default_alignment(void)
+>> +{
+>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> +	return HPAGE_PMD_SIZE;
+>> +#else
+>> +	return PAGE_SIZE;
+>> +#endif
+>> +}
+>> +
+>> +static inline unsigned long nd_altmap_align_size(unsigned long nd_align)
+>> +{
+>> +	return PMD_SIZE;
+>> +}
+>> +
+>> +#endif
+>> diff --git a/drivers/nvdimm/nd.h b/drivers/nvdimm/nd.h
+>> index a5ac3b240293..44fe923b2ee3 100644
+>> --- a/drivers/nvdimm/nd.h
+>> +++ b/drivers/nvdimm/nd.h
+>> @@ -292,12 +292,6 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
+>>   struct nd_pfn *to_nd_pfn(struct device *dev);
+>>   #if IS_ENABLED(CONFIG_NVDIMM_PFN)
+>>
+>> -#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> -#define PFN_DEFAULT_ALIGNMENT HPAGE_PMD_SIZE
+>> -#else
+>> -#define PFN_DEFAULT_ALIGNMENT PAGE_SIZE
+>> -#endif
+>> -
+>>   int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns);
+>>   bool is_nd_pfn(struct device *dev);
+>>   struct device *nd_pfn_create(struct nd_region *nd_region);
+>> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
+>> index 01f40672507f..347cab166376 100644
+>> --- a/drivers/nvdimm/pfn_devs.c
+>> +++ b/drivers/nvdimm/pfn_devs.c
+>> @@ -18,6 +18,7 @@
+>>   #include <linux/slab.h>
+>>   #include <linux/fs.h>
+>>   #include <linux/mm.h>
+>> +#include <asm/libnvdimm.h>
+>>   #include "nd-core.h"
+>>   #include "pfn.h"
+>>   #include "nd.h"
+>> @@ -111,6 +112,8 @@ static ssize_t align_show(struct device *dev,
+>>   	return sprintf(buf, "%ld\n", nd_pfn->align);
+>>   }
+>>
+>> +#ifndef nd_pfn_supported_alignments
+>> +#define nd_pfn_supported_alignments nd_pfn_supported_alignments
+>>   static const unsigned long *nd_pfn_supported_alignments(void)
+>>   {
+>>   	/*
+>> @@ -133,6 +136,7 @@ static const unsigned long *nd_pfn_supported_alignments(void)
+>>
+>>   	return data;
+>>   }
+>> +#endif
+>>
+>>   static ssize_t align_store(struct device *dev,
+>>   		struct device_attribute *attr, const char *buf, size_t len)
+>> @@ -310,7 +314,7 @@ struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
+>>   		return NULL;
+>>
+>>   	nd_pfn->mode = PFN_MODE_NONE;
+>> -	nd_pfn->align = PFN_DEFAULT_ALIGNMENT;
+>> +	nd_pfn->align = nd_pfn_default_alignment();
+>>   	dev = &nd_pfn->dev;
+>>   	device_initialize(&nd_pfn->dev);
+>>   	if (ndns && !__nd_attach_ndns(&nd_pfn->dev, ndns, &nd_pfn->ndns)) {
+>> @@ -420,6 +424,20 @@ static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
+>>   	return 0;
+>>   }
+>>
+>> +static bool nd_supported_alignment(unsigned long align)
+>> +{
+>> +	int i;
+>> +	const unsigned long *supported = nd_pfn_supported_alignments();
+>> +
+>> +	if (align == 0)
+>> +		return false;
+>> +
+>> +	for (i = 0; supported[i]; i++)
+>> +		if (align == supported[i])
+>> +			return true;
+>> +	return false;
+>> +}
+>> +
+>>   int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
+>>   {
+>>   	u64 checksum, offset;
+>> @@ -474,6 +492,18 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
+>>   		align = 1UL << ilog2(offset);
+>>   	mode = le32_to_cpu(pfn_sb->mode);
+>>
+>> +	/*
+>> +	 * Check whether the we support the alignment. For Dax if the
+>> +	 * superblock alignment is not matching, we won't initialize
+>> +	 * the device.
+>> +	 */
+>> +	if (!nd_supported_alignment(align) &&
+>> +	    memcmp(pfn_sb->signature, DAX_SIG, PFN_SIG_LEN)) {
+> Suggestion to change this check to:
 > 
-> Does this happen on 5.0 as well?
+> if (memcmp(pfn_sb->signature, DAX_SIG, PFN_SIG_LEN) &&
+>     !nd_supported_alignment(align))
+> 
+> It would look  a bit more natural i.e. "If the device has dax signature and alignment is
+> not supported".
 > 
 
-We have on the list
+I guess that should be !memcmp()? . I will send an updated patch with 
+the hash failure details in the commit message.
 
-[PATCH V3 1/4] mm/hotplug: Reorder arch_remove_memory() call in
-__remove_memory()
-
-Can that help?
-
--- 
-
-Thanks,
-
-David / dhildenb
+-aneesh
 
