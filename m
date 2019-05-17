@@ -2,99 +2,112 @@ Return-Path: <SRS0=Igro=TR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 42736C46460
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 12:51:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 53A3CC04E87
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 12:59:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 10A7220881
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 12:51:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 10A7220881
+	by mail.kernel.org (Postfix) with ESMTP id 1AE302087E
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 12:59:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1AE302087E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A0ABA6B0271; Fri, 17 May 2019 08:51:37 -0400 (EDT)
+	id 91B5B6B0271; Fri, 17 May 2019 08:59:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 994396B0272; Fri, 17 May 2019 08:51:37 -0400 (EDT)
+	id 8CADD6B0272; Fri, 17 May 2019 08:59:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8AA7D6B0273; Fri, 17 May 2019 08:51:37 -0400 (EDT)
+	id 793A46B0273; Fri, 17 May 2019 08:59:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 414DF6B0271
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 08:51:37 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id r5so10496796edd.21
-        for <linux-mm@kvack.org>; Fri, 17 May 2019 05:51:37 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2D4046B0271
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 08:59:20 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id h12so10518801edl.23
+        for <linux-mm@kvack.org>; Fri, 17 May 2019 05:59:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=M2HTy9xOQmyliFETPI0RaP5AuTsQ1dyO524mMwUa/L4=;
-        b=ZUw1D84eYI7HQTMVx8gbOfU0JqNrKQBPPxaFLg97PnLYiWQhSZGxCM3wA852Z46NQi
-         Zx7h1KFAixUm7FU8Yip+3CzIHXiSWxN2b22Jj/wnsFnR3McN3In6ZO/1d4CLfAaIFO0z
-         4CRy240CEmbZtvyV1UG6nZGQpQkvdjy4oZ4vqGGpnY9yrM5+YYbqklB9HOd3ACLKMJAB
-         LtZP7eyvs/1aVzGUHPUSkh7sWtuoOLN/HVVeTRgRfUqxmXAhl2uOmTyqtYnZLmV8JULX
-         JFm8EUchoe5QenhgEHTHJyzN+JbFNfUKx518OlUlXuiXHOIj5cIDN79GlS7QNHV2bkzA
-         cIuA==
+        bh=NxiIX4pkvmTErLEIlvSENAMKbb+My/ngwjfRnrWH1ds=;
+        b=kE+bOGYtrjkJhos1xOxkbyAXjgS6zf9dsycaEmeTOghfDDSbF/bXujUc+9C9cvB89D
+         lHslH+H8yocZ97cUdI0jqdUk3zXK4gQVUaSJk4KKWSh2PaTicVC4oaiHljxguiHMz6uS
+         r2Seqij79QXYmO6KdVapAn5BmD53aXrPKxxAYS+BGyVwrR37ysUu3mcaFNK2Fd48/YMp
+         z9SJLEQzfV2a+fX7oLyI2SfTgtR0V9pMHjZ3YA1Bb7iVtfPCh3oXoDkY4nQ9UrfK3cWP
+         vIO3EHRy5LlLURPn0Jra7jZcYx/nuU7XBVvJISVELzYIdTzfhdy9oJXxa3wrKCz8bob0
+         7ueA==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUfUlgA4/0roh4+x5+h9ivAHjLfvWldWwx+FdQOy3zYi4/3l0p3
-	rLCYHTFoPg9rWEW+iBu8lGTKTALGocTcUexMkXbHm+pbmu6viZ9oiqcQnQFdG/eiY/ZvQ6Qpdrs
-	oj0lVFLxKPSuLUrez5D0g7whmAUDdwaaGgFa2ESUoX89A6/Hfg0/dtiiPq0BSsK0=
-X-Received: by 2002:a17:906:d1d9:: with SMTP id bs25mr43681818ejb.213.1558097496846;
-        Fri, 17 May 2019 05:51:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzrygAE9bMceiUxlNTiTuORzdtIWoAlOvhUJRtnXjUzT5kBEXjBGavCeYxaia/fA4y03fwM
-X-Received: by 2002:a17:906:d1d9:: with SMTP id bs25mr43681757ejb.213.1558097495909;
-        Fri, 17 May 2019 05:51:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558097495; cv=none;
+X-Gm-Message-State: APjAAAX++7lvjyROvX/nRtytxCB4nMt5BzY3cdp9CLgp/uduuVHOBBq5
+	guXt1mNkK3D8hjwXNJsAYRrNSZSprZm2y5NT3QCdv5RxVu8BjxbLX1eEHuv/TgDH+SwF4jLSj97
+	EFaYOJTlgMJCNuFjuOzwzI9GOj6cqfu4o+7VeC0f28ZfRRcG/dZ5faTkpjw/aKVg=
+X-Received: by 2002:a17:906:7c3:: with SMTP id m3mr43483597ejc.145.1558097959765;
+        Fri, 17 May 2019 05:59:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx+vVLNnn2SYt/QOYibnniq0ZynaHBwp5LB1GKfOf6AkWi8OBWO1D2OTO/ENLaTNUx2jkDY
+X-Received: by 2002:a17:906:7c3:: with SMTP id m3mr43483557ejc.145.1558097959063;
+        Fri, 17 May 2019 05:59:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558097959; cv=none;
         d=google.com; s=arc-20160816;
-        b=mGVz4GUlXlX5LcQEFlcTxorksQ5JagvE5QHxxKhb56KYXNE6Jw5XNNXpCZHpkqr+fK
-         Tw/ecqg+dUV9r5ku9iXlikfjMF0MmwyGVenp++fC/5LsjTCJTFm1kzF3sizI6AA89Coo
-         IdOEEEsE6EyX42puscxmS7K+EGQxliRW1DiP3Pe5fob3nt12a3bkOkjAAqeSl7cyIORO
-         LlILdx2yMH22Wrq9UVly0Zc4/oUaihxq9+pgZMgM7jZ3gKAuf8uhb5Rn5VzuT4jJLQax
-         GLA0d26Pf4xdKx5HaaTAO9wUt7t/XC9wfYhHgWeBJlVyhxDYZF3IiHOzGRPasuxmOQDG
-         iaLg==
+        b=NouNAsRg4VY+3aYn26htl61AarDwMKmISVqlAdIDskevzzsQH3I5lfqtFM+nNb1XOz
+         GGCRVKlvrhTCHuzl7VTTs/wIKXqEAWKrzjJsVN9paJnfb+l9J3d5DL6O3wC9XIYpUZLq
+         18e/JLXftX4jD5dKOAfA5y7i0X4jPEwTyoofQEKpgdfkKLvvI6Gn0l1wGil9RoC8bgic
+         TLrsrUdtf6IVhqOLXtZCozdbPWoLw5OOkU2pCuxCFR2Cq2v7v3LUo62efXHBsbhVg8N7
+         GGB/WmTd0Izju/V0Ik29hKfCI2gpemUcK+EbglpANvKCPhtWikauwrjhaaQ9BSsmr/1J
+         rt+w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=M2HTy9xOQmyliFETPI0RaP5AuTsQ1dyO524mMwUa/L4=;
-        b=Mgf2ciw6Y0yq4f7PbaAmdYPu2+6SFmxkf9Z6hXzuho5FtQIgn8ruqX/ezx9YDLqnrL
-         Ji/kgwBe1tRXi2KCCaqa/0KUekOMbU9cZozLUHcc8tIKQGlWKlmGe1WjTA/4af7MFpzW
-         pT+Mtz6+UkAGRBERV+rDGWqyW5PHoynFRgui7KpozjvxTDKF//SBhwqantkXwPr/fawl
-         TSeAGPOaXLPFJjK862raifkkdNt4L8X4AVqlyH1MeRPc8DSImT5QDJNCpaHuyZNVnDwA
-         jHBFci6slJ4gJOtg+mQDbTDf64yIHRTK2RecnkrLW1fcT3lYreWv+rz5lFdJKEZbVgG3
-         J0Pw==
+        bh=NxiIX4pkvmTErLEIlvSENAMKbb+My/ngwjfRnrWH1ds=;
+        b=KIagcQ8zlqbRPhPBg7rDvULRUYXpuNLoEDo25DKlsonoyItYpO9xUjZqc17pNn99wf
+         c4GT164A2uyHAsA5inSIqq9joAxrNfS1zkqf7k+eIOqG5qQw3QbstGF99Ldf97rjaUGy
+         /9x+HKBoOKZ2OExYmBlKVy7ITEsg8nttkjiHPMRnij0Tvnat1XDP/K5D75lkZtx1AO3v
+         6hTbxyVp6LbEUagl2OiBDe1XjgDWM2suAKptabO20wffUQfJWKU2K37eucRvwCLXN46Y
+         CsTmBLOLe3hiAplb9FkUxkW8MykPz1ku0nGZqAuVHAO8OAzAyn8qjrrpibX122pYnxWj
+         vwyg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h46si3447527edb.49.2019.05.17.05.51.35
+        by mx.google.com with ESMTPS id ka15si5588408ejb.266.2019.05.17.05.59.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 May 2019 05:51:35 -0700 (PDT)
+        Fri, 17 May 2019 05:59:19 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 5E16BAF59;
-	Fri, 17 May 2019 12:51:35 +0000 (UTC)
-Date: Fri, 17 May 2019 14:51:34 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 5168EAB92;
+	Fri, 17 May 2019 12:59:18 +0000 (UTC)
+Date: Fri, 17 May 2019 14:59:16 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] mm: use down_read_killable for locking mmap_sem in
- access_remote_vm
-Message-ID: <20190517125134.GE1825@dhcp22.suse.cz>
-References: <155790847881.2798.7160461383704600177.stgit@buzz>
+To: Alexander Potapenko <glider@google.com>
+Cc: akpm@linux-foundation.org, cl@linux.com, keescook@chromium.org,
+	kernel-hardening@lists.openwall.com,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	James Morris <jmorris@namei.org>,
+	"Serge E. Hallyn" <serge@hallyn.com>,
+	Nick Desaulniers <ndesaulniers@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Sandeep Patil <sspatil@android.com>,
+	Laura Abbott <labbott@redhat.com>,
+	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
+	linux-security-module@vger.kernel.org
+Subject: Re: [PATCH v2 3/4] gfp: mm: introduce __GFP_NO_AUTOINIT
+Message-ID: <20190517125916.GF1825@dhcp22.suse.cz>
+References: <20190514143537.10435-1-glider@google.com>
+ <20190514143537.10435-4-glider@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <155790847881.2798.7160461383704600177.stgit@buzz>
+In-Reply-To: <20190514143537.10435-4-glider@google.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -102,54 +115,37 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 15-05-19 11:21:18, Konstantin Khlebnikov wrote:
-> This function is used by ptrace and proc files like /proc/pid/cmdline and
-> /proc/pid/environ. Return 0 (bytes read) if current task is killed.
+[It would be great to keep people involved in the previous version in the
+CC list]
 
-Please add an explanation about why this is OK (as explained in the
-follow up email).
-
-> Mmap_sem could be locked for a long time or forever if something wrong.
+On Tue 14-05-19 16:35:36, Alexander Potapenko wrote:
+> When passed to an allocator (either pagealloc or SL[AOU]B),
+> __GFP_NO_AUTOINIT tells it to not initialize the requested memory if the
+> init_on_alloc boot option is enabled. This can be useful in the cases
+> newly allocated memory is going to be initialized by the caller right
+> away.
 > 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/memory.c |    4 +++-
->  mm/nommu.c  |    3 ++-
->  2 files changed, 5 insertions(+), 2 deletions(-)
+> __GFP_NO_AUTOINIT doesn't affect init_on_free behavior, except for SLOB,
+> where init_on_free implies init_on_alloc.
 > 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 96f1d473c89a..2e6846d09023 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -4348,7 +4348,9 @@ int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
->  	void *old_buf = buf;
->  	int write = gup_flags & FOLL_WRITE;
->  
-> -	down_read(&mm->mmap_sem);
-> +	if (down_read_killable(&mm->mmap_sem))
-> +		return 0;
-> +
->  	/* ignore errors, just check how much was successfully transferred */
->  	while (len) {
->  		int bytes, ret, offset;
-> diff --git a/mm/nommu.c b/mm/nommu.c
-> index b492fd1fcf9f..cad8fb34088f 100644
-> --- a/mm/nommu.c
-> +++ b/mm/nommu.c
-> @@ -1791,7 +1791,8 @@ int __access_remote_vm(struct task_struct *tsk, struct mm_struct *mm,
->  	struct vm_area_struct *vma;
->  	int write = gup_flags & FOLL_WRITE;
->  
-> -	down_read(&mm->mmap_sem);
-> +	if (down_read_killable(&mm->mmap_sem))
-> +		return 0;
->  
->  	/* the access must start within one of the target process's mappings */
->  	vma = find_vma(mm, addr);
+> __GFP_NO_AUTOINIT basically defeats the hardening against information
+> leaks provided by init_on_alloc, so one should use it with caution.
+> 
+> This patch also adds __GFP_NO_AUTOINIT to alloc_pages() calls in SL[AOU]B.
+> Doing so is safe, because the heap allocators initialize the pages they
+> receive before passing memory to the callers.
 
+I still do not like the idea of a new gfp flag as explained in the
+previous email. People will simply use it incorectly or arbitrarily.
+We have that juicy experience from the past.
+
+Freeing a memory is an opt-in feature and the slab allocator can already
+tell many (with constructor or GFP_ZERO) do not need it.
+
+So can we go without this gfp thing and see whether somebody actually
+finds a performance problem with the feature enabled and think about
+what can we do about it rather than add this maint. nightmare from the
+very beginning?
 -- 
 Michal Hocko
 SUSE Labs
