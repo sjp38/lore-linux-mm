@@ -2,157 +2,170 @@ Return-Path: <SRS0=Igro=TR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E64E1C04AB4
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 18:20:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B01EC04AB4
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 19:04:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B11C62087B
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 18:20:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B11C62087B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 3CF912087B
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 19:04:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="J7bcW3dk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CF912087B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D31F6B0003; Fri, 17 May 2019 14:20:39 -0400 (EDT)
+	id C9CED6B0003; Fri, 17 May 2019 15:04:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 283F36B0005; Fri, 17 May 2019 14:20:39 -0400 (EDT)
+	id C4D326B0005; Fri, 17 May 2019 15:04:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 14E826B0006; Fri, 17 May 2019 14:20:39 -0400 (EDT)
+	id B63C66B0006; Fri, 17 May 2019 15:04:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D1DCD6B0003
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 14:20:38 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id h7so5013073pfq.22
-        for <linux-mm@kvack.org>; Fri, 17 May 2019 11:20:38 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8136D6B0003
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 15:04:29 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id 94so4712788plc.19
+        for <linux-mm@kvack.org>; Fri, 17 May 2019 12:04:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:user-agent:content-id
-         :content-transfer-encoding:mime-version;
-        bh=xcZnTcW8gFOzxH4OMKvQfFL+hX2JVROoxe4NttBHMho=;
-        b=BmlVmHAa/Xi1sTxxfbp9f6En5S6Zu9TucX8vqVOWQtx8kVboiawD/82jDt7AWVtzIM
-         oVRq4cSurT4Ma3Dj2bPo0K+dFfoqf5uukAqSECtjSRJ0wROt7COxPyq4ayxXicUNLKF/
-         EV9cJcKX+t8W+dXCJdUpWZ8chx6Ut1pGoYcBZBoSG48UXjWQYM8GMo09Bs5cE8g0HNXv
-         e+ZP17e1XIbpnbBumDdPKCJEyYTLKcWQsNteur7eEbahmbVCfIADCkkPqaffCQBUHTZJ
-         pEexTJgIcpiReYcicbWn9XXUpoaOBA2F80Mc1bn2nDfwtSb+zV2z7O1RQUvWguND6hnL
-         TZVQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vishal.l.verma@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=vishal.l.verma@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUKJxfRcmbfS+XsSbQ7E1thxKRgZX+MLgAtaaPsWnbyvv7o329A
-	8uJLceuwT3XZvrTCmSg2eWYh5EyuwBdXlB0PdBJo2ddQfD7iIHDvtoK808t1D211FJL9XBG9Fi5
-	XV2FWn1kP8IpdXjeJQlI4IdjzVPZEG4gZwvvxwXXI3ibXZhOcKjNG1Gq/k+BN8UiGTA==
-X-Received: by 2002:a17:902:b106:: with SMTP id q6mr4210626plr.215.1558117238517;
-        Fri, 17 May 2019 11:20:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx5sLEpZUC/YJIIdeNyk7Kd6TXZkRE2Cu6aS9yccRJf0jNds2ah5IdfPPhCdieiX0WoyKPp
-X-Received: by 2002:a17:902:b106:: with SMTP id q6mr4210582plr.215.1558117237789;
-        Fri, 17 May 2019 11:20:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558117237; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=xuh8AvfRHyKt8wFOgAYzPXD6mpnRhkLu6Cz7c9n98Ts=;
+        b=U5QQtvt94lkpCyMbwZsX3Re+ylpt4N+8fmwQ+eYZSnjD++m7xdNmXPkRrIRsU5lfMn
+         tyR8fWEod2Tgjd/n0xcnzmthsoyuIIUwSU3s39LVMs49ibk1n8Hg9VMWeEEpsqcwJauR
+         kh9hLaLRCnPW59WAMclOFTfyuLTQIrMH6Yu9zPWf1X9ace3QhOqYdDh3xN9bqf/ixIDa
+         jFmkinjeqnNa1dxYDxCWTkequUIGARH8WE6K9Lzqy/7w5pZPrnGsItKSMef37BHPc6LV
+         xgEUVuC056mDQn+GFIzH6XknxPOTWbfIn0TUx8Z5bYMhiEAxbJqp+gYGuEuVCjGFDsPl
+         Hm+Q==
+X-Gm-Message-State: APjAAAXnkXyCj4+/8EZucueXwXqSXZA74/4GMl/+oFwX0+TlDFU/qo18
+	vRR95dNWkgj+y3MsNm6t1PBncebiDrWYlqx2gwP+J+wQ+9NhAQcj7hNNjAKoMhHfIRQhX4/UfJ3
+	/57ci84vgSWNxvM/MilHX/r5dARDG5RiqJcAG7+I2UVQJKKdKnybqCB20SJaEJCa1dg==
+X-Received: by 2002:a63:f754:: with SMTP id f20mr58473293pgk.162.1558119869003;
+        Fri, 17 May 2019 12:04:29 -0700 (PDT)
+X-Received: by 2002:a63:f754:: with SMTP id f20mr58473131pgk.162.1558119867057;
+        Fri, 17 May 2019 12:04:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558119867; cv=none;
         d=google.com; s=arc-20160816;
-        b=Dr9oyUwEgI1rMDCiaCLlk8VZnaQ69ReGDC9UVnUd4kT2FogrKVLRMqNskal2I79qM0
-         BBbCnCUROphsNW4mtrDgJyiowSw0RNmcBaFPx/Ma7eC6nPeK/fd8515b+C4RgbvbRZjZ
-         Kd4pz0UxK1ZQ7EZqHUfy41Lz/w4/YybnE55vcxY3MXm47q5VxmYD/M5daDneK0GqX5vM
-         VrEoGKnonT8X0HCTaGuKjMH0m88z2Hklz8vhqDVw8LgKMfEZvugGlnwlabamxuuqGT2i
-         xVvWuAVypRtQQYMpG02QNNpjreZfyMyQiqUlItBoqg9q4dc0j4P9IWF6iwoOuILaY+Bo
-         8GaA==
+        b=dGvUDGNp8BOro79iSlxbTWBFmDHUbnLIV72LzvHRuAi0tVTLQUCRjHzUqXDA4iPsWS
+         Uz914EPTuvT7WUBZLIzE2+MdEI1gpwoD+juTBnirHI1xJiBhJHy43OKS+goFr9UVZL8c
+         4D17b8cOiBP4VKmOJXS9T34emUa15yZ3LXJpYkRfDZewHLNGmyGYxQrhFnzLM4E3s4p3
+         w2QSRi6a0mzluPetXAQ5fHfpUnHIv122K5OIBv7tbVT1KmQ8DCAOhQ5KUJY6FUy2XT6G
+         qikQi8I9GhgOmAUbcRLnLrWuH85GyyqJJYMcdysIL5GwlPltebTl8ub7f3CL3i+pkWBY
+         n3TQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from;
-        bh=xcZnTcW8gFOzxH4OMKvQfFL+hX2JVROoxe4NttBHMho=;
-        b=RdNUwSRJ1JKVNH8LWki87T/GXVWmvjYUC2kWoGFwo+ceLEOUq1giy046Ysp4bHVJiq
-         MCL2LobJOdafEZ/Oix6yyA+J+FbsLf8BCePMedpL0HhjXTMju3dmp9rXcTBP952poK/K
-         b8JqEXdexzgTXJ2GZpZr1XV/iPUUEziP44FhUgGWPKWT46zANoPxPS4leX+/Y8tRS70I
-         p0AVzjXLY8TIS2iyA06BHqV0AI8GLnDCwlgXf2ml6QAAobCkiATj53w2VroX7sf2GESI
-         guEQEH6LknG3C45GAtmkvYUwqeBthpZq+w4syv2LrnKEDSlpPulI7+6QVPiBaxBqe1Zr
-         2GtQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=xuh8AvfRHyKt8wFOgAYzPXD6mpnRhkLu6Cz7c9n98Ts=;
+        b=RnjQ4f0bxVCvy+KWa7aBIlQhdNuzIIIk7t6LhraaJEiYmoGsSX9rQ6b7i+91IioRtb
+         owfoWfTyTOJVayjle4+mGpcj5bFcc4KpHWe0ovSZb0AAOHx8dw7Bqb3EaWQWKkVeCfBe
+         kMemS+QN2jGVy6FaAOL/cxITVgEFQ6R85NRqdE42H55NufE1qh0a+8I4w9ue+ENgFbQ2
+         y0QIvYi+9g10nETLybJSgPPXQOfXHVOFTWR8rcaHDSKHjAslmJWBncw5NRp1y14BjHi5
+         N+HtQfCDmjY6YIaatwtwwlk7CN23rUsVsHKG+cis3EmRdMKl2vxAnTp5VT5+cmItSbh8
+         bULg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vishal.l.verma@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=vishal.l.verma@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id i1si8498837pgd.404.2019.05.17.11.20.37
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=J7bcW3dk;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s24sor3653910pfh.12.2019.05.17.12.04.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 May 2019 11:20:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vishal.l.verma@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        (Google Transport Security);
+        Fri, 17 May 2019 12:04:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vishal.l.verma@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=vishal.l.verma@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 17 May 2019 11:20:37 -0700
-X-ExtLoop1: 1
-Received: from fmsmsx103.amr.corp.intel.com ([10.18.124.201])
-  by fmsmga005.fm.intel.com with ESMTP; 17 May 2019 11:20:37 -0700
-Received: from fmsmsx101.amr.corp.intel.com (10.18.124.199) by
- FMSMSX103.amr.corp.intel.com (10.18.124.201) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Fri, 17 May 2019 11:20:37 -0700
-Received: from fmsmsx113.amr.corp.intel.com ([169.254.13.118]) by
- fmsmsx101.amr.corp.intel.com ([169.254.1.175]) with mapi id 14.03.0415.000;
- Fri, 17 May 2019 11:20:36 -0700
-From: "Verma, Vishal L" <vishal.l.verma@intel.com>
-To: "jane.chu@oracle.com" <jane.chu@oracle.com>, "n-horiguchi@ah.jp.nec.com"
-	<n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-CC: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
-Subject: Re: [PATCH] mm, memory-failure: clarify error message
-Thread-Topic: [PATCH] mm, memory-failure: clarify error message
-Thread-Index: AQHVDGYyA0CPmuStD0eYJ9uY1/4/yKZwFv2A
-Date: Fri, 17 May 2019 18:20:35 +0000
-Message-ID: <530f16a9207bd90b7752c8ea6bf38302a8cd7b4b.camel@intel.com>
-References: <1558066095-9495-1-git-send-email-jane.chu@oracle.com>
-In-Reply-To: <1558066095-9495-1-git-send-email-jane.chu@oracle.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-user-agent: Evolution 3.30.5 (3.30.5-1.fc29) 
-x-originating-ip: [10.254.87.144]
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <B9903A53504C41478420F4FC21BBEA5A@intel.com>
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=J7bcW3dk;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=xuh8AvfRHyKt8wFOgAYzPXD6mpnRhkLu6Cz7c9n98Ts=;
+        b=J7bcW3dketKiYlf25WPCh4PI8Mbjyiwq4wcw6yR4Vct1Rp3cZlrXethBayJBmPBzEv
+         y0DIHHKj6vr07ubFFc+9FzOR1tXcxlcKik+PuLdkDQVhF4MDRYvVRb55+kJLilYmv2kd
+         UwGXU71/StM7zN4RjrOUfjVx4luRcvWQblbtxVfXXuKcUM1BEzBtNY9TBchPaKEWMd20
+         Vwh0s339HQRIxV+w4CuW+DUijAWDJc3B/XGx6EZgkNsvngKE1Ut3DwZXVTlhWeDWQ89h
+         B/XEFLsE33iMXb5ZBxu99aMy7EA8u7TrG9estArZM7d6z77iMavGMq66F1weGtk9TfLj
+         W5YQ==
+X-Google-Smtp-Source: APXvYqyuIk+UkPjjkd1V+6w1s2mmy7Z9ea6q8FLScbdq74OswTvSQoEo52OQ8Nb0o4d/RevpxkuEMQ==
+X-Received: by 2002:a62:ea0a:: with SMTP id t10mr62261738pfh.236.1558119864166;
+        Fri, 17 May 2019 12:04:24 -0700 (PDT)
+Received: from localhost ([2620:10d:c090:180::b0f6])
+        by smtp.gmail.com with ESMTPSA id s134sm15617911pfc.110.2019.05.17.12.04.22
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 17 May 2019 12:04:23 -0700 (PDT)
+Date: Fri, 17 May 2019 15:04:21 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	mm-commits@vger.kernel.org, Tejun Heo <tj@kernel.org>,
+	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
+	Chris Down <chris@chrisdown.name>,
+	cgroups mailinglist <cgroups@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>
+Subject: Re: + mm-consider-subtrees-in-memoryevents.patch added to -mm tree
+Message-ID: <20190517190421.GA6166@cmpxchg.org>
+References: <20190212224542.ZW63a%akpm@linux-foundation.org>
+ <20190213124729.GI4525@dhcp22.suse.cz>
+ <CALvZod6c9OCy9p79hTgByjn+_BmnQ6p216kD9dgEhCSNFzpeKw@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod6c9OCy9p79hTgByjn+_BmnQ6p216kD9dgEhCSNFzpeKw@mail.gmail.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gVGh1LCAyMDE5LTA1LTE2IGF0IDIyOjA4IC0wNjAwLCBKYW5lIENodSB3cm90ZToNCj4gU29t
-ZSB1c2VyIHdobyBpbnN0YWxsIFNJR0JVUyBoYW5kbGVyIHRoYXQgZG9lcyBsb25nam1wIG91dA0K
-PiB0aGVyZWZvcmUga2VlcGluZyB0aGUgcHJvY2VzcyBhbGl2ZSBpcyBjb25mdXNlZCBieSB0aGUg
-ZXJyb3INCj4gbWVzc2FnZQ0KPiAgICJbMTg4OTg4Ljc2NTg2Ml0gTWVtb3J5IGZhaWx1cmU6IDB4
-MTg0MDIwMDogS2lsbGluZw0KPiAgICBjZWxsc3J2OjMzMzk1IGR1ZSB0byBoYXJkd2FyZSBtZW1v
-cnkgY29ycnVwdGlvbiINCj4gU2xpZ2h0bHkgbW9kaWZ5IHRoZSBlcnJvciBtZXNzYWdlIHRvIGlt
-cHJvdmUgY2xhcml0eS4NCj4gDQo+IFNpZ25lZC1vZmYtYnk6IEphbmUgQ2h1IDxqYW5lLmNodUBv
-cmFjbGUuY29tPg0KPiAtLS0NCj4gIG1tL21lbW9yeS1mYWlsdXJlLmMgfCA3ICsrKystLS0NCj4g
-IDEgZmlsZSBjaGFuZ2VkLCA0IGluc2VydGlvbnMoKyksIDMgZGVsZXRpb25zKC0pDQo+IA0KPiBk
-aWZmIC0tZ2l0IGEvbW0vbWVtb3J5LWZhaWx1cmUuYyBiL21tL21lbW9yeS1mYWlsdXJlLmMNCj4g
-aW5kZXggZmM4YjUxNy4uMTRkZTVlMiAxMDA2NDQNCj4gLS0tIGEvbW0vbWVtb3J5LWZhaWx1cmUu
-Yw0KPiArKysgYi9tbS9tZW1vcnktZmFpbHVyZS5jDQo+IEBAIC0yMTYsMTAgKzIxNiw5IEBAIHN0
-YXRpYyBpbnQga2lsbF9wcm9jKHN0cnVjdCB0b19raWxsICp0aywgdW5zaWduZWQgbG9uZyBwZm4s
-IGludCBmbGFncykNCj4gIAlzaG9ydCBhZGRyX2xzYiA9IHRrLT5zaXplX3NoaWZ0Ow0KPiAgCWlu
-dCByZXQ7DQo+ICANCj4gLQlwcl9lcnIoIk1lbW9yeSBmYWlsdXJlOiAlI2x4OiBLaWxsaW5nICVz
-OiVkIGR1ZSB0byBoYXJkd2FyZSBtZW1vcnkgY29ycnVwdGlvblxuIiwNCj4gLQkJcGZuLCB0LT5j
-b21tLCB0LT5waWQpOw0KPiAtDQo+ICAJaWYgKChmbGFncyAmIE1GX0FDVElPTl9SRVFVSVJFRCkg
-JiYgdC0+bW0gPT0gY3VycmVudC0+bW0pIHsNCj4gKwkJcHJfZXJyKCJNZW1vcnkgZmFpbHVyZTog
-JSNseDogS2lsbGluZyAlczolZCBkdWUgdG8gaGFyZHdhcmUgbWVtb3J5ICINCj4gKwkJCSJjb3Jy
-dXB0aW9uXG4iLCBwZm4sIHQtPmNvbW0sIHQtPnBpZCk7DQoNCk1pbm9yIG5pdCwgYnV0IHRoZSBz
-dHJpbmcgc2hvdWxkbid0IGJlIHNwbGl0IG92ZXIgbXVsdGlwbGUgbGluZXMgdG8NCnByZXNlcnZl
-IGdyZXAtYWJpbGl0eS4gSW4gc3VjaCBhIGNhc2UgaXQgaXMgdXN1YWxseSBjb25zaWRlcmVkIE9L
-IHRvDQpleGNlZWQgODAgY2hhcmFjdGVycyBmb3IgdGhlIGxpbmUgaWYgbmVlZGVkLg0KDQo+ICAJ
-CXJldCA9IGZvcmNlX3NpZ19tY2VlcnIoQlVTX01DRUVSUl9BUiwgKHZvaWQgX191c2VyICopdGst
-PmFkZHIsDQo+ICAJCQkJICAgICAgIGFkZHJfbHNiLCBjdXJyZW50KTsNCj4gIAl9IGVsc2Ugew0K
-PiBAQCAtMjI5LDYgKzIyOCw4IEBAIHN0YXRpYyBpbnQga2lsbF9wcm9jKHN0cnVjdCB0b19raWxs
-ICp0aywgdW5zaWduZWQgbG9uZyBwZm4sIGludCBmbGFncykNCj4gIAkJICogVGhpcyBjb3VsZCBj
-YXVzZSBhIGxvb3Agd2hlbiB0aGUgdXNlciBzZXRzIFNJR0JVUw0KPiAgCQkgKiB0byBTSUdfSUdO
-LCBidXQgaG9wZWZ1bGx5IG5vIG9uZSB3aWxsIGRvIHRoYXQ/DQo+ICAJCSAqLw0KPiArCQlwcl9l
-cnIoIk1lbW9yeSBmYWlsdXJlOiAlI2x4OiBTZW5kaW5nIFNJR0JVUyB0byAlczolZCBkdWUgdG8g
-aGFyZHdhcmUgIg0KPiArCQkJIm1lbW9yeSBjb3JydXB0aW9uXG4iLCBwZm4sIHQtPmNvbW0sIHQt
-PnBpZCk7DQo+ICAJCXJldCA9IHNlbmRfc2lnX21jZWVycihCVVNfTUNFRVJSX0FPLCAodm9pZCBf
-X3VzZXIgKil0ay0+YWRkciwNCj4gIAkJCQkgICAgICBhZGRyX2xzYiwgdCk7ICAvKiBzeW5jaHJv
-bm91cz8gKi8NCj4gIAl9DQo=
+On Fri, May 17, 2019 at 06:00:11AM -0700, Shakeel Butt wrote:
+> On Wed, Feb 13, 2019 at 4:47 AM Michal Hocko <mhocko@kernel.org> wrote:
+> > > notifications.
+> > >
+> > > After this patch, events are propagated up the hierarchy:
+> > >
+> > >     [root@ktst ~]# cat /sys/fs/cgroup/system.slice/memory.events
+> > >     low 0
+> > >     high 0
+> > >     max 0
+> > >     oom 0
+> > >     oom_kill 0
+> > >     [root@ktst ~]# systemd-run -p MemoryMax=1 true
+> > >     Running as unit: run-r251162a189fb4562b9dabfdc9b0422f5.service
+> > >     [root@ktst ~]# cat /sys/fs/cgroup/system.slice/memory.events
+> > >     low 0
+> > >     high 0
+> > >     max 7
+> > >     oom 1
+> > >     oom_kill 1
+> > >
+> > > As this is a change in behaviour, this can be reverted to the old
+> > > behaviour by mounting with the `memory_localevents' flag set.  However, we
+> > > use the new behaviour by default as there's a lack of evidence that there
+> > > are any current users of memory.events that would find this change
+> > > undesirable.
+> > >
+> > > Link: http://lkml.kernel.org/r/20190208224419.GA24772@chrisdown.name
+> > > Signed-off-by: Chris Down <chris@chrisdown.name>
+> > > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> 
+> Reviewed-by: Shakeel Butt <shakeelb@google.com>
+
+Thanks, Shakeel.
+
+> However can we please have memory.events.local merged along with this one?
+
+Could I ask you to send a patch for this? It's not really about the
+code - that should be trivial. Rather it's about laying out the exact
+usecase for that, which is harder for me/Chris/FB since we don't have
+one. I imagine simliar arguments could be made for memory.stat.local,
+memory.pressure.local etc. since they're also reporting events and
+behavior manifesting in different levels of the cgroup subtree?
 
