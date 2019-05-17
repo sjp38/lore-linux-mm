@@ -2,135 +2,214 @@ Return-Path: <SRS0=Igro=TR=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CD572C04E84
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 21:50:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 00B1BC04AB4
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 21:54:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8CB7B2168B
-	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 21:50:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A665D2133D
+	for <linux-mm@archiver.kernel.org>; Fri, 17 May 2019 21:54:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="tztgk972"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CB7B2168B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="K88wU7ZU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A665D2133D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1BE466B0003; Fri, 17 May 2019 17:50:53 -0400 (EDT)
+	id 3DE426B0003; Fri, 17 May 2019 17:54:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 171846B0005; Fri, 17 May 2019 17:50:53 -0400 (EDT)
+	id 366B06B0005; Fri, 17 May 2019 17:54:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 05E416B0006; Fri, 17 May 2019 17:50:53 -0400 (EDT)
+	id 207DC6B0006; Fri, 17 May 2019 17:54:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C36A06B0003
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 17:50:52 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e20so5356389pfn.8
-        for <linux-mm@kvack.org>; Fri, 17 May 2019 14:50:52 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F26376B0003
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 17:54:41 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id w34so7775717qtc.16
+        for <linux-mm@kvack.org>; Fri, 17 May 2019 14:54:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=W9V/3UBp+GSgeFDmhmRCiL7YCna/nftCLnGT9igKQu4=;
-        b=Du28DoFV3Nrfpt+lmo7AqqF/zYi4jzXNwlsCf3hUUzTBSLglnzeUFTk1C6DHgkhLL4
-         wwPz/Dukr9gwpO9x/8bguOFvhdj2cxq8+M4kIzLSXn1LuM4a5YIi13cEiLUo2jw+cw6n
-         T1HBT0wvq+wDhAo7vTADxckKqexRwxZX0mDC3Qd7bQligrJxm9e5FTG2+z2ZN5Pr2fSv
-         XhCiyGY8gpcrXwCgvUTlUbCkAFiWhnoyOwPWO5XctNXwojESUQ/qw2haYDlqmdSpj+hP
-         Op2teEalKWhSOPXvcwneaF1NzsEhu4/w82nIt6gIM6xvRyf2lLxlsqeoLsZdS+BDI37Q
-         4wCA==
-X-Gm-Message-State: APjAAAUjeISBsfsRS127rj2TniTOxaPxTMlEgjdLWdAJxJYelZN3k7Gz
-	pgv57vrDtE4JBqc7W3de2xLXoYEgTPOuKppRf78j6T2FTJ06RXM8fnLM9ykK5LD8r9l/0bTP7q4
-	UHSKdDakGH7UC5hyIHowGlqGW3y2Ak4EZJLdXYUfEPr0Sc2z/X/IYiXPzn1peBM0SxA==
-X-Received: by 2002:aa7:998d:: with SMTP id k13mr50770572pfh.217.1558129852378;
-        Fri, 17 May 2019 14:50:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwbzJNVZq7PxkYyAcMVZg1XXWPwWzXx5pLarWZDqb6m67bVbEmnVB/upQOiqVxfn7wijQM9
-X-Received: by 2002:aa7:998d:: with SMTP id k13mr50770505pfh.217.1558129851702;
-        Fri, 17 May 2019 14:50:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558129851; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:subject:date:message-id
+         :mime-version:content-transfer-encoding;
+        bh=cdLOc+SMSQhawrzrqz+8WbUA4suNHX51mq88wClVqBo=;
+        b=q0DDIBrAVk7yE0K2v71b3w0V7g2hdR2G2RliQkoqt1dkZQdw1k8IjctKK0eoUSHZ4U
+         uIfEI9VfqdEB3haGIx7n+8pnM0UKpx5ZsOoAZNsbnp1rsDM4czBr+ROQiMzhIn/sLNeE
+         5FXDobLP6FYwFUJoYOMvJ5MMehvTOrYORCrphxUM7w0qn4LYyyKPf3UqPt05DmExVFgX
+         L6+vTIKzgkakrXoE9mYW4Ogmjx8zkmTKZHzkncam/QsI4iqM7jiM168bZMBT0582ZZWg
+         b8rx/Dy+NsqRymiQNjLdM7OJ0TjPiAWXMJfkj1aMIH3ttHYQtVJQvIkO+oqjGSEXhR0e
+         TAYA==
+X-Gm-Message-State: APjAAAWYW6S47BAy3UD4wCgIbhT+00KYJ6SD6PHMTGyUUeREnU+7ao1q
+	CogTJ34udx7EdweBbqvnFdPUg1ih1Ym25IFcVIiqUZ8CoTPq8mhQKjT2Cul+W0dVQ4fcUAu+Swf
+	BTDiRmQpFgLQZZMYnlq5PjOSNFE1ZSCRcfAqr85pDIjk0lgDXMnTz8+yokHEdz7O6vA==
+X-Received: by 2002:a37:a24b:: with SMTP id l72mr46155477qke.166.1558130081722;
+        Fri, 17 May 2019 14:54:41 -0700 (PDT)
+X-Received: by 2002:a37:a24b:: with SMTP id l72mr46155442qke.166.1558130081008;
+        Fri, 17 May 2019 14:54:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558130081; cv=none;
         d=google.com; s=arc-20160816;
-        b=z9jfifi0T9iU1lkVedM9Es6rW9GhyX+fbuhxjm7B2uvanvEbjEi6qVW30y0A3/QnfT
-         EsdI7e3MLprqus5pRNRiW61ZBcLst1yM5TpoyADBS1g8BU0IZB9hpzwN9zdmZZpDCqUp
-         RlT3yy14HShbddrw/fXyFpOcHEqaSCqLBWC0W853pY7XiUyU7Wjfeo2H41JcG+2uulZJ
-         iFqtIJQeKm7a7jyMpjVm+U2qVOlLDVg+Esoxk7awe59Mo6oVh5fklu8dBY+2g56fWN8H
-         27R6IhfnkPxvNJA9Wly/W1DrX96I86eP7We5IemNsnagpasZahTLHHf7okfy28LplIwV
-         nKnw==
+        b=CXrlVjwAEWfOt6HdU/uMzMrIeksTYJ+DK2sMWHiJDkxzM7bCJQVOQ+R5sITaekf9pW
+         HyUx/3oJy4sgfit7MUZ5cQJ7+Fr4/Z+KvT6Py2fs5chu1wC681gO2EnoNsFAQHvllAeq
+         e1PK7oMaWeOCCVl59vsdY4TWjQp0x0XUVfCWa+CkEdkPe9CnQuMygvtfjhFQ/DS4ei5D
+         ioA6Rp0hGZoVqpqzWgP4+QRyKnoTaAGjEssBd+5btL7maBzbTAzz2MfgJrgQzhtNURZd
+         /GgaHvYUaBgLh6nSJFxOyf4s6ddXElI+gAdkL3OzrRL7IXMHkSDkPsXLUI+wb/lj3RRJ
+         7lyw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=W9V/3UBp+GSgeFDmhmRCiL7YCna/nftCLnGT9igKQu4=;
-        b=G4T5Pfg3uX96xbsQbkA4sCpoNDKHWfWDVpYOSu/hhG+xpA3NboEimIRD/cb4gSnH1i
-         zftFnnTBL8iw7SzgYLkXXTyAWHZB6b1eOOO/TUxf69GeuJR1zlcdmLkursMQomfJfpAN
-         RH+z33q5VQlFOffeMOjo+PaKrtRcRLsBgryszxGYSinXRmR2VcBmR6oGP62ufdeEcaPz
-         btKy7ErGKLvcs0G+vanZivYBBx+UdTrJU7PXoCBVaByQPIWxnpAEtzId9PQ6ZxPkkige
-         QbnifSPNZeZRbW8OPrPuKl2QLfn6Ignj8rscLM4BIiM90Ct7YDjp1Ji5g7VhOmo77SW1
-         15mg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:to
+         :from:dkim-signature;
+        bh=cdLOc+SMSQhawrzrqz+8WbUA4suNHX51mq88wClVqBo=;
+        b=hoTEWooKbjk94se18ZhFOJmt5G3otHe41DVZs0Gsu/gELRSthzJZhPAYCbIm94vbfE
+         47ZJ+nT6y7FM9llEMxCOzB/Xj3iNsZWDCgHyGk1IzYCv4bseu0td/kwnLwpN6wBqQHWb
+         U6eRuhlSimZoJQIEuceskSHGi3enOZ7PqxrUe7JrOt5zJYXSYrO4WlNt5bGpaH67o3Op
+         g+B4SVhNxr39V4dun+E2NOF7g8gGSu+6e5KuemX2mDD8gluCMgROdZCcmLhA4DWDhoqP
+         Tfepcswke2826VYkX5EDOpp8EibOFTIC83zuIeT41sTPNv6WzmIyKl22QC0FJsdNkojm
+         d3PA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=tztgk972;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 24si9041603pgt.474.2019.05.17.14.50.51
+       dkim=pass header.i=@soleen.com header.s=google header.b=K88wU7ZU;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j41sor13221249qtj.55.2019.05.17.14.54.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 May 2019 14:50:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Fri, 17 May 2019 14:54:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=tztgk972;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 1AACD2166E;
-	Fri, 17 May 2019 21:50:51 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1558129851;
-	bh=XAnihnyM8tPVIS0duJIIenhFswdE2ITYujhIk4/YYXE=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=tztgk972S74ZcA0fIcYynWU2LA6EGW/8HyY1lB7Z8Q+uZTYmr5mdXyxHJCz53nGPN
-	 0LRMAq2ZvAahbXimeMA4ojr8ed3jGYLdSUCeY8iDqMbVa2nQtEjkF+MxliNjSgYj93
-	 QqElp0UTIeYT/VIePfTOf4ZQv7nK+VAlzZryhb1c=
-Date: Fri, 17 May 2019 14:50:50 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- dan.j.williams@intel.com, jglisse@redhat.com, ldufour@linux.vnet.ibm.com
-Subject: Re: [PATCH] mm/dev_pfn: Exclude MEMORY_DEVICE_PRIVATE while
- computing virtual address
-Message-Id: <20190517145050.2b6b0afdaab5c3c69a4b153e@linux-foundation.org>
-In-Reply-To: <1558089514-25067-1-git-send-email-anshuman.khandual@arm.com>
-References: <1558089514-25067-1-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@soleen.com header.s=google header.b=K88wU7ZU;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=soleen.com; s=google;
+        h=from:to:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=cdLOc+SMSQhawrzrqz+8WbUA4suNHX51mq88wClVqBo=;
+        b=K88wU7ZUdBNygUX/4hEfsdd3b5xw9qN0XpxIE3OHk+2F1YuEDlAXKpNWqMhqXami4k
+         Rq+M0mPPlolFRa1Iqmv4IcS37oJ6ecEX1N9eDvHI1FXqYVx7PRBWSHcO938AyPfAy6n2
+         XgwYJuNGHk+mmQXu6QNfgphRBW3Qw+ggZG4Zn/k3agq3jrmMX47lHDL3hgntkK3tlrFe
+         MzTPFgiV5z2kkoxd2Czl5jcUGWo/Rp0FKQZ5nPu4hugHjmx6/T5MlDD54tQFv+ms1ZFi
+         6hnAso8+98I16B6QtlV21IU3kzIM2/pM8GLq4UAnkoEW0JAODRiqXdfFAoS2nAe3TANG
+         3GFQ==
+X-Google-Smtp-Source: APXvYqzDq7uOxY4NjgPSre5B/TFHOi6ZL1hpPZUFQQ6FbqLBzaj9XaKLtw0yJDUtXZwxmvAQtpAwaQ==
+X-Received: by 2002:ac8:1b0a:: with SMTP id y10mr47723392qtj.91.1558130080605;
+        Fri, 17 May 2019 14:54:40 -0700 (PDT)
+Received: from localhost.localdomain (c-73-69-118-222.hsd1.nh.comcast.net. [73.69.118.222])
+        by smtp.gmail.com with ESMTPSA id n36sm6599813qtk.9.2019.05.17.14.54.38
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 May 2019 14:54:39 -0700 (PDT)
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+To: pasha.tatashin@soleen.com,
+	jmorris@namei.org,
+	sashal@kernel.org,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-nvdimm@lists.01.org,
+	akpm@linux-foundation.org,
+	mhocko@suse.com,
+	dave.hansen@linux.intel.com,
+	dan.j.williams@intel.com,
+	keith.busch@intel.com,
+	vishal.l.verma@intel.com,
+	dave.jiang@intel.com,
+	zwisler@kernel.org,
+	thomas.lendacky@amd.com,
+	ying.huang@intel.com,
+	fengguang.wu@intel.com,
+	bp@suse.de,
+	bhelgaas@google.com,
+	baiyaowei@cmss.chinamobile.com,
+	tiwai@suse.de,
+	jglisse@redhat.com,
+	david@redhat.com
+Subject: [v6 0/3] "Hotremove" persistent memory
+Date: Fri, 17 May 2019 17:54:35 -0400
+Message-Id: <20190517215438.6487-1-pasha.tatashin@soleen.com>
+X-Mailer: git-send-email 2.21.0
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 May 2019 16:08:34 +0530 Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+Changelog:
 
-> The presence of struct page does not guarantee linear mapping for the pfn
-> physical range. Device private memory which is non-coherent is excluded
-> from linear mapping during devm_memremap_pages() though they will still
-> have struct page coverage. Just check for device private memory before
-> giving out virtual address for a given pfn.
+v6
+- A few minor changes and added reviewed-by's.
+- Spent time studying lock ordering issue that was reported by Vishal
+  Verma, but that issue already exists in Linux, and can be reproduced
+  with exactly the same steps with ACPI memory hotplugging.
 
-I was going to give my standard "what are the user-visible runtime
-effects of this change?", but...
+v5
+- Addressed comments from Dan Williams: made remove_memory() to return
+  an error code, and use this function from dax.
 
-> All these helper functions are all pfn_t related but could not figure out
-> another way of determining a private pfn without looking into it's struct
-> page. pfn_t_to_virt() is not getting used any where in mainline kernel.Is
-> it used by out of tree drivers ? Should we then drop it completely ?
+v4
+- Addressed comments from Dave Hansen
 
-Yeah, let's kill it.
+v3
+- Addressed comments from David Hildenbrand. Don't release
+  lock_device_hotplug after checking memory status, and rename
+  memblock_offlined_cb() to check_memblock_offlined_cb()
 
-But first, let's fix it so that if someone brings it back, they bring
-back a non-buggy version.
+v2
+- Dan Williams mentioned that drv->remove() return is ignored
+  by unbind. Unbind always succeeds. Because we cannot guarantee
+  that memory can be offlined from the driver, don't even
+  attempt to do so. Simply check that every section is offlined
+  beforehand and only then proceed with removing dax memory.
 
-So...  what (would be) the user-visible runtime effects of this change?
+---
+
+Recently, adding a persistent memory to be used like a regular RAM was
+added to Linux. This work extends this functionality to also allow hot
+removing persistent memory.
+
+We (Microsoft) have an important use case for this functionality.
+
+The requirement is for physical machines with small amount of RAM (~8G)
+to be able to reboot in a very short period of time (<1s). Yet, there is
+a userland state that is expensive to recreate (~2G).
+
+The solution is to boot machines with 2G preserved for persistent
+memory.
+
+Copy the state, and hotadd the persistent memory so machine still has
+all 8G available for runtime. Before reboot, offline and hotremove
+device-dax 2G, copy the memory that is needed to be preserved to pmem0
+device, and reboot.
+
+The series of operations look like this:
+
+1. After boot restore /dev/pmem0 to ramdisk to be consumed by apps.
+   and free ramdisk.
+2. Convert raw pmem0 to devdax
+   ndctl create-namespace --mode devdax --map mem -e namespace0.0 -f
+3. Hotadd to System RAM
+   echo dax0.0 > /sys/bus/dax/drivers/device_dax/unbind
+   echo dax0.0 > /sys/bus/dax/drivers/kmem/new_id
+   echo online_movable > /sys/devices/system/memoryXXX/state
+4. Before reboot hotremove device-dax memory from System RAM
+   echo offline > /sys/devices/system/memoryXXX/state
+   echo dax0.0 > /sys/bus/dax/drivers/kmem/unbind
+5. Create raw pmem0 device
+   ndctl create-namespace --mode raw  -e namespace0.0 -f
+6. Copy the state that was stored by apps to ramdisk to pmem device
+7. Do kexec reboot or reboot through firmware if firmware does not
+   zero memory in pmem0 region (These machines have only regular
+   volatile memory). So to have pmem0 device either memmap kernel
+   parameter is used, or devices nodes in dtb are specified.
+
+Pavel Tatashin (3):
+  device-dax: fix memory and resource leak if hotplug fails
+  mm/hotplug: make remove_memory() interface useable
+  device-dax: "Hotremove" persistent memory that is used like normal RAM
+
+ drivers/dax/dax-private.h      |  2 ++
+ drivers/dax/kmem.c             | 46 +++++++++++++++++++++---
+ include/linux/memory_hotplug.h |  8 +++--
+ mm/memory_hotplug.c            | 64 +++++++++++++++++++++++-----------
+ 4 files changed, 92 insertions(+), 28 deletions(-)
+
+-- 
+2.21.0
 
