@@ -2,309 +2,193 @@ Return-Path: <SRS0=dvGr=TS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 487B8C04AB4
-	for <linux-mm@archiver.kernel.org>; Sat, 18 May 2019 00:02:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 636ADC04AB4
+	for <linux-mm@archiver.kernel.org>; Sat, 18 May 2019 00:06:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DA30D216C4
-	for <linux-mm@archiver.kernel.org>; Sat, 18 May 2019 00:02:24 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 174AE21883
+	for <linux-mm@archiver.kernel.org>; Sat, 18 May 2019 00:06:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="SWsTNEXN";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="FBCEySaf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA30D216C4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="XpHCXZ0v"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 174AE21883
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 617226B0006; Fri, 17 May 2019 20:02:24 -0400 (EDT)
+	id A81126B0006; Fri, 17 May 2019 20:06:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5C64A6B0008; Fri, 17 May 2019 20:02:24 -0400 (EDT)
+	id A31B86B0008; Fri, 17 May 2019 20:06:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 441506B000A; Fri, 17 May 2019 20:02:24 -0400 (EDT)
+	id 8D3796B000A; Fri, 17 May 2019 20:06:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 235E26B0006
-	for <linux-mm@kvack.org>; Fri, 17 May 2019 20:02:24 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id n190so7914281ywf.4
-        for <linux-mm@kvack.org>; Fri, 17 May 2019 17:02:24 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AC676B0006
+	for <linux-mm@kvack.org>; Fri, 17 May 2019 20:06:10 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id y13so8067858qtc.7
+        for <linux-mm@kvack.org>; Fri, 17 May 2019 17:06:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=0yJFAjjXi07wEJ4fA+FNNXJlqovIbNk2gdEErTE86u4=;
-        b=FxuZO/qAwjDcMOu++NjQFTNV2fRB47EgKl6He06N6mCiD2RtHgv8pMme8/buQZ1Mm4
-         H1gH8cZNLlAMOdDZ66TetiyXhZH/q8qlmY0hFCgIuj09eREhYdR2dPMjwtugBxkPVA8T
-         DM7hsB0pKru4KH0ADhACg9MJ8YYWFqvGx6XBg4YY4DGQpnkN8t0nRhKqViZIlP4WBw4e
-         yY+jC5mcDhyGvfwHBeO7NPe1XteSthPTiq9l0cU3ZKzM/jGD50RVpI88q+3P7OfqeGZi
-         3ud8HcYHDLcIjiDNRBFfgKIes0j2drdUlzEAC0PSVdiXAwkC7kJe7ljiYIRxqhca0Xxc
-         jXvg==
-X-Gm-Message-State: APjAAAVNfCvFV8nPdIQCpp3IeuNV6+Pg1RBKe94OCwBTXSZAjhwn6/4+
-	w3J6l6md/XX8A+z98UZn3/WR0o+WIVdXhCvsDjSQVjMqgdaPiSAN6NW4Nu9GMLcA9XsrK9UJq6Z
-	LVkJcraLeeZM9KGjGkMNw8Aq+2LFfAwpcm0SHpJQ38LKfnj6BZG3wC7rg58rNK6faYQ==
-X-Received: by 2002:a81:66c6:: with SMTP id a189mr11065021ywc.189.1558137743793;
-        Fri, 17 May 2019 17:02:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyeQ/nNPEabSjX97+q+JDm5ETZViI3FhLcfN7bPudF71IsTMtgSoDY32QPl91ia3ibc98Bq
-X-Received: by 2002:a81:66c6:: with SMTP id a189mr11064971ywc.189.1558137742953;
-        Fri, 17 May 2019 17:02:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558137742; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=qUU/PCHJ10Cnm4pEYGt2NYLBE8MczWcaqgp3zO0rTb0=;
+        b=eLu381XG6VyR3WiSEyyFhNKVJO9NBdJwHFMts0AgRmc258qrvRJQGT8waGWDFzErpt
+         cblSOnWRILT3A5d9Xj5DgyiTRvN6tIFZHJoUkcBVeJAP4JfjGwC4Zk/nF5TfvAXUjFi0
+         EBhjQLRbNm9zX4E2/9BTBpEjMl+h8agsso4HP3RTvgNLxCg/dFqaNuq/1NubU+oeBo/P
+         Qc/saCbDg4ww7lSxhPnUsHi8s9HDiXPwxsxPTU42VHGsRIYS4SAD0CRdz0uzeMsS2BXn
+         cqBlcB6RqMDRmoDLUeJYO/bk47Lb7ifQl0nOXNhcdQbB5slrdnY05tf25LTjlR1hZsNy
+         P7+g==
+X-Gm-Message-State: APjAAAW6CKu/4DQ3hfbLRVdQ4oO8Rr0MgT4fb2KyU1cR0SSrgGpFkwdm
+	SMBsbT4eRmWwJFbFJnzpvMkwIo+93BRBiWvE7v9YM0jHJvFyvZK95Po2WtIMhmEfrPn7PYOq5zc
+	UZHQ6AAbohIbnjyJIL3F4nUQ7BHNc1wd2Oew37f3sjd9A5ViHd4HgKNmZPwE+3xp0ew==
+X-Received: by 2002:a0c:d92e:: with SMTP id p43mr9201355qvj.29.1558137970148;
+        Fri, 17 May 2019 17:06:10 -0700 (PDT)
+X-Received: by 2002:a0c:d92e:: with SMTP id p43mr9201304qvj.29.1558137969547;
+        Fri, 17 May 2019 17:06:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558137969; cv=none;
         d=google.com; s=arc-20160816;
-        b=J5t8W0WwVKMR9PWQKxp3VtODUefAYleDuLcV6pXfHlHe+ky93Ohcq1l0DGMr3020Kj
-         Unq6ZPP0kgirRyRkEk1pmEHEpnrD5H1TV/4i19H0HOkHF+g6SZuXCXRyxbBRRDIPbiRL
-         oxJnHyQvikTS5X4wkB6ntwUjQS7/pfoUu0SnEHW60aCAl5GiK9CyK5ukBZALA3izUB0q
-         Wp+M0tx/1BslUHPWBYAeL/XuJRtMP3M8VVUP+bHHqn98H2X0I+rIXkxTKMUTuS3q/jPH
-         jOFsIjn30mwytyTTsQDwWHZg7TShlkGRJHVzioSErgHRGLpTnJVZ3TnEGZ0gbPNWDltT
-         ulew==
+        b=AJOPabeSRZPi+5sGeJt6ICEzDoIHDOoOaBB2o/1pv438fYFPbNMZB93FeNYveu0N7l
+         Rpd0ILNh2grrZ/p349v0Bb+7Amt4/Q73esuKg2UW9nnv0umevpSkrYRnK+XQAk73qmX3
+         BxjZPMh1f3rJ9e1Ah/7vX2umDpYF3y2/BLdkqjLOkMWgKdQnvsb6Bfb3UffqaGn2FX4D
+         Iyl014oJbzfSuY95a3oQrxkzIM/aysiTJnrlriiSirP3qICsJ5nhqFhTpTlaL1pAC9UC
+         vsdUDS+vHdxpzvjLlRPcr1MNSkUI5nf8wjHV/yI6fnyEksXd+DQ/zHAvpYEI4iGDUbkP
+         dkkw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=0yJFAjjXi07wEJ4fA+FNNXJlqovIbNk2gdEErTE86u4=;
-        b=J8oKZHsN/gw3IKUcv0NJQn02kXyu9wVIPRAVX9PTWa/F5ur3KFznos1DG0ICbsF3yV
-         Sz9tnY83rB37L+/X9x6G0h7YIgJAR1fl27S6adEpMOTiuspr9WxSpue1rTE1jaJtwNbw
-         i77GYV78IQ3QTZfaeASMf79lpwgPXm3czji6zZBQRJQ7PwRuxP+VQmuHZ+T42tdQ9YPq
-         6103+l0A22oQRJ1YM6z6+rqqxL75ZY01aS1Hyg2cZiHVUaxy2uzWN1TM2zkXv62LEHu6
-         42GauQFFBjhVQ2JYZuprJJ2RTFdDHNdBKq1k/qDt2eapG35NiZhO2XnywV5dkIbnOf08
-         wIXQ==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=qUU/PCHJ10Cnm4pEYGt2NYLBE8MczWcaqgp3zO0rTb0=;
+        b=hBpdqsw/m8oCuw59V9KJHpGF4dFkO+MjIxqd8/Frh7c3+mxEtwUHq6yISDU8r26rfn
+         RQjtvHeSrQJx5X3zwEszQD+CvM54IKzeeRtdGvw825ak98VdSOQ4mGVgMNr+oXaIMeVT
+         dmEURRw+7rqu1TGLvnabcXF91Tytiir26bUj8N21hTwQx1eKXjWiqoclbd7S+fW7lxI/
+         PV2VI9sAjTp7ISvPKL5TKVPLKWxX97akIP4LHAJQM8OctARvN59NfZq5dX6KrlMz4/6n
+         IVtfyPL6X8AHGujYRAAoXNBwwe4XhX9OHKm5B9K/2Ft5XsurazyqEnqdiWvQyUbUGBSx
+         EncA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=SWsTNEXN;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=FBCEySaf;
-       spf=pass (google.com: domain of prvs=0041bc8e50=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=0041bc8e50=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id p206si2711277yba.201.2019.05.17.17.02.22
+       dkim=pass header.i=@google.com header.s=20161025 header.b=XpHCXZ0v;
+       spf=pass (google.com: domain of jwadams@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jwadams@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p26sor5792236qkk.79.2019.05.17.17.06.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 May 2019 17:02:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=0041bc8e50=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (Google Transport Security);
+        Fri, 17 May 2019 17:06:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jwadams@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=SWsTNEXN;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-com header.b=FBCEySaf;
-       spf=pass (google.com: domain of prvs=0041bc8e50=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=0041bc8e50=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109334.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4HNr8Tw029763;
-	Fri, 17 May 2019 17:02:14 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=0yJFAjjXi07wEJ4fA+FNNXJlqovIbNk2gdEErTE86u4=;
- b=SWsTNEXN5oyVqNvQm3KKYQfVGfUKXSMXT00I68bCuf7OCvF+vasbBtRLP0DRJkeJUeSQ
- XjZz9A1q0wFTPk024WaoWfrgHkR4TnR3CvlPz0tJsgmbyVExmMONqV6JaBtaD7f87prw
- KCj/zcf4sItlTCTFRpwv5bbOL+sanw4uj8U= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2sj0k71byq-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Fri, 17 May 2019 17:02:14 -0700
-Received: from ash-exhub104.TheFacebook.com (2620:10d:c0a8:82::d) by
- ash-exhub102.TheFacebook.com (2620:10d:c0a8:82::f) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Fri, 17 May 2019 17:02:12 -0700
-Received: from NAM04-CO1-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.35.175) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
- via Frontend Transport; Fri, 17 May 2019 17:02:12 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=0yJFAjjXi07wEJ4fA+FNNXJlqovIbNk2gdEErTE86u4=;
- b=FBCEySafzGBYQ6hINRqfbreX61Sxe/OUyMC8oKUXJZ1Jvk0Fmw25zaqWcWGKjZvVdZGWOiGQaPoybgpgU7M3ZzT0mTPqa6gcPle5x7YlmhD2YFDMrAgiCU4+YmVnwzt+aadp0u/Niv2Z90yFDgrvbbNPLoCCQLtGD2oxc1xRnPM=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB2440.namprd15.prod.outlook.com (52.135.198.156) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1878.25; Sat, 18 May 2019 00:02:10 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d4f6:b485:69ee:fd9a]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d4f6:b485:69ee:fd9a%7]) with mapi id 15.20.1900.010; Sat, 18 May 2019
- 00:02:10 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Shakeel Butt <shakeelb@google.com>
-CC: Johannes Weiner <hannes@cmpxchg.org>,
-        Vladimir Davydov
-	<vdavydov.dev@gmail.com>,
-        Michal Hocko <mhocko@kernel.org>,
-        Andrew Morton
-	<akpm@linux-foundation.org>,
-        Chris Down <chris@chrisdown.name>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "cgroups@vger.kernel.org"
-	<cgroups@vger.kernel.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] mm, memcg: introduce memory.events.local
-Thread-Topic: [PATCH] mm, memcg: introduce memory.events.local
-Thread-Index: AQHVDQs6vMYC7L0Mr0mdinpaIfY8mqZv/8SA
-Date: Sat, 18 May 2019 00:02:10 +0000
-Message-ID: <20190518000203.GA13413@tower.DHCP.thefacebook.com>
-References: <20190517234909.175734-1-shakeelb@google.com>
-In-Reply-To: <20190517234909.175734-1-shakeelb@google.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR21CA0034.namprd21.prod.outlook.com
- (2603:10b6:300:129::20) To BYAPR15MB2631.namprd15.prod.outlook.com
- (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::b22a]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 6925400e-b708-4265-226d-08d6db2412e1
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB2440;
-x-ms-traffictypediagnostic: BYAPR15MB2440:
-x-microsoft-antispam-prvs: <BYAPR15MB244099E10F0E1ADCED94F5E5BE040@BYAPR15MB2440.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7691;
-x-forefront-prvs: 0041D46242
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39850400004)(396003)(376002)(136003)(346002)(366004)(189003)(199004)(8676002)(229853002)(478600001)(33656002)(102836004)(53936002)(81156014)(76176011)(68736007)(52116002)(6506007)(99286004)(386003)(81166006)(66446008)(8936002)(86362001)(46003)(64756008)(66476007)(66556008)(1076003)(71190400001)(316002)(4326008)(446003)(476003)(66946007)(25786009)(5660300002)(73956011)(186003)(2906002)(6246003)(256004)(6116002)(6916009)(6512007)(14454004)(11346002)(486006)(71200400001)(9686003)(14444005)(6486002)(54906003)(6436002)(305945005)(7736002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2440;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: pC79anZDT7JnqgjfyR0A8BP7iQqBaTQ9/Yt3OQHSozW3OLYESKpCDMTj1+QyrJel0Tt+gvNlDLgyaGZ/6HxxNwXr/iHwqDN6nVluXVHiMZ7OnCVnWSN0ijv91oJBSboI1pzAAcLnU6FL9r8EAEHB+aYyNEjXn2etNUHiRLqUTQQS/J69muz1M9U0ibPiGEp6kGlorhj5xGzDunBLSMrkdgOgz5+ixLy7kNQj93yWZseXorkyW6dJY99z9zfB67ktB34XAUol3OZ0imfHmhPCi7rp2afqLxZMgvjLAIPCUIvDcElsaRi0Xlt+qGaZYAPysPiqZMHX2xlle/DWHldHwSTciBgs7d9hIrb9gXjzKlVutUGjR0MvUB/ISfPENCZI/htievQxPeonEM8z3T/9JrfuulnLL9iKQlTXyxS1Nfg=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <A243B38FB7E72E45A0F5595CB9DE1504@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@google.com header.s=20161025 header.b=XpHCXZ0v;
+       spf=pass (google.com: domain of jwadams@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jwadams@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=qUU/PCHJ10Cnm4pEYGt2NYLBE8MczWcaqgp3zO0rTb0=;
+        b=XpHCXZ0vlW6ZB0LjNM3gSWk+gqE+tUaKl7t5x0Uy0r30UxhLbJy+WPkVwwq+x9/KQw
+         +CRNhMn/4++Gq8rK/DF2O3PN4lwDVocPTCjf90D6TQL/JFiByl1VKPohza0LgoggQUBz
+         PBQbfib83VzeF6lJ7d6/ERQaZw7rah61nnorKe+b9YXK0B+pXNDa5VZsNEEl7foC4tjD
+         1/Bh+WHotDx8JFM0DJ3sa09ujJ/a8zWFMl0O2QphX/caCiFP54RYDbSlvUZFlGbJK594
+         7fySsbMJ780nVzcYMRutROAriGZ/5rGlAuaXRPOzLRCsbglNSZkVH0rCdmrEB4TiipDl
+         cTYg==
+X-Google-Smtp-Source: APXvYqx9dlDkMrn2MOaCbua3SEWTUfkJSCGmXC5rRUtuNpy08kKWyNNzYC2LUnAUQvuDM1Xcl2tLkYeLd/8PvwCfoRM=
+X-Received: by 2002:a37:4948:: with SMTP id w69mr49213504qka.122.1558137968878;
+ Fri, 17 May 2019 17:06:08 -0700 (PDT)
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 6925400e-b708-4265-226d-08d6db2412e1
-X-MS-Exchange-CrossTenant-originalarrivaltime: 18 May 2019 00:02:10.5551
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2440
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-17_15:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905170144
-X-FB-Internal: deliver
+References: <b8487de1-83a8-2761-f4a6-26c583eba083@oracle.com>
+ <B447B6E8-8CEF-46FF-9967-DFB2E00E55DB@amacapital.net> <4e7d52d7-d4d2-3008-b967-c40676ed15d2@oracle.com>
+ <CALCETrXtwksWniEjiWKgZWZAyYLDipuq+sQ449OvDKehJ3D-fg@mail.gmail.com>
+ <e5fedad9-4607-0aa4-297e-398c0e34ae2b@oracle.com> <20190514170522.GW2623@hirez.programming.kicks-ass.net>
+ <20190514180936.GA1977@linux.intel.com> <CALCETrVzbBLokip5n0KEyG6irH6aoEWqyNODTy8embpXhB1GQg@mail.gmail.com>
+ <20190514210603.GD1977@linux.intel.com> <A1EB80C0-2D88-4DC0-A898-3BED50A4F5A8@amacapital.net>
+ <20190514223823.GE1977@linux.intel.com>
+In-Reply-To: <20190514223823.GE1977@linux.intel.com>
+From: Jonathan Adams <jwadams@google.com>
+Date: Fri, 17 May 2019 17:05:32 -0700
+Message-ID: <CA+VK+GOL_sY5aWYijg1_X6VgvDtFbRX2ymuSXhsZeZH2_tO2qg@mail.gmail.com>
+Subject: Re: [RFC KVM 18/27] kvm/isolation: function to copy page table
+ entries for percpu buffer
+To: Sean Christopherson <sean.j.christopherson@intel.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, Andy Lutomirski <luto@kernel.org>, 
+	Peter Zijlstra <peterz@infradead.org>, Alexandre Chartre <alexandre.chartre@oracle.com>, 
+	Paolo Bonzini <pbonzini@redhat.com>, Radim Krcmar <rkrcmar@redhat.com>, 
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, 
+	"H. Peter Anvin" <hpa@zytor.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
+	kvm list <kvm@vger.kernel.org>, X86 ML <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, 
+	LKML <linux-kernel@vger.kernel.org>, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Jan Setje-Eilers <jan.setjeeilers@oracle.com>, 
+	Liran Alon <liran.alon@oracle.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 17, 2019 at 04:49:09PM -0700, Shakeel Butt wrote:
-> The memory controller in cgroup v2 exposes memory.events file for each
-> memcg which shows the number of times events like low, high, max, oom
-> and oom_kill have happened for the whole tree rooted at that memcg.
-> Users can also poll or register notification to monitor the changes in
-> that file. Any event at any level of the tree rooted at memcg will
-> notify all the listeners along the path till root_mem_cgroup. There are
-> existing users which depend on this behavior.
->=20
-> However there are users which are only interested in the events
-> happening at a specific level of the memcg tree and not in the events in
-> the underlying tree rooted at that memcg. One such use-case is a
-> centralized resource monitor which can dynamically adjust the limits of
-> the jobs running on a system. The jobs can create their sub-hierarchy
-> for their own sub-tasks. The centralized monitor is only interested in
-> the events at the top level memcgs of the jobs as it can then act and
-> adjust the limits of the jobs. Using the current memory.events for such
-> centralized monitor is very inconvenient. The monitor will keep
-> receiving events which it is not interested and to find if the received
-> event is interesting, it has to read memory.event files of the next
-> level and compare it with the top level one. So, let's introduce
-> memory.events.local to the memcg which shows and notify for the events
-> at the memcg level.
->=20
-> Now, does memory.stat and memory.pressure need their local versions.
-> IMHO no due to the no internal process contraint of the cgroup v2. The
-> memory.stat file of the top level memcg of a job shows the stats and
-> vmevents of the whole tree. The local stats or vmevents of the top level
-> memcg will only change if there is a process running in that memcg but
-> v2 does not allow that. Similarly for memory.pressure there will not be
-> any process in the internal nodes and thus no chance of local pressure.
+On Tue, May 14, 2019 at 3:38 PM Sean Christopherson
+<sean.j.christopherson@intel.com> wrote:
+> On Tue, May 14, 2019 at 02:55:18PM -0700, Andy Lutomirski wrote:
+> > > On May 14, 2019, at 2:06 PM, Sean Christopherson <sean.j.christophers=
+on@intel.com> wrote:
+> > >> On Tue, May 14, 2019 at 01:33:21PM -0700, Andy Lutomirski wrote:
+> > >> I suspect that the context switch is a bit of a red herring.  A
+> > >> PCID-don't-flush CR3 write is IIRC under 300 cycles.  Sure, it's slo=
+w,
+> > >> but it's probably minor compared to the full cost of the vm exit.  T=
+he
+> > >> pain point is kicking the sibling thread.
+> > >
+> > > Speaking of PCIDs, a separate mm for KVM would mean consuming another
+> > > ASID, which isn't good.
+> >
+> > I=E2=80=99m not sure we care. We have many logical address spaces (two =
+per mm plus a
+> > few more).  We have 4096 PCIDs, but we only use ten or so.  And we have=
+ some
+> > undocumented number of *physical* ASIDs with some undocumented mechanis=
+m by
+> > which PCID maps to a physical ASID.
+>
+> Yeah, I was referring to physical ASIDs.
+>
+> > I don=E2=80=99t suppose you know how many physical ASIDs we have?
+>
+> Limited number of physical ASIDs.  I'll leave it at that so as not to
+> disclose something I shouldn't.
+>
+> > And how it interacts with the VPID stuff?
+>
+> VPID and PCID get factored into the final ASID, i.e. changing either one
+> results in a new ASID.  The SDM's oblique way of saying that:
+>
+>   VPIDs and PCIDs (see Section 4.10.1) can be used concurrently. When thi=
+s
+>   is done, the processor associates cached information with both a VPID a=
+nd
+>   a PCID. Such information is used only if the current VPID and PCID both
+>   match those associated with the cached information.
+>
+> E.g. enabling PTI in both the host and guest consumes four ASIDs just to
+> run a single task in the guest:
+>
+>   - VPID=3D0, PCID=3Dkernel
+>   - VPID=3D0, PCID=3Duser
+>   - VPID=3D1, PCID=3Dkernel
+>   - VPID=3D1, PCID=3Duser
+>
+> The impact of consuming another ASID for KVM would likely depend on both
+> the guest and host configurations/worloads, e.g. if the guest is using a
+> lot of PCIDs then it's probably a moot point.  It's something to keep in
+> mind though if we go down this path.
 
-Hi Shakeel!
+One answer to that would be to have the KVM page tables use the same
+PCID as the normal user-mode PTI page tables.  It's not ideal (since
+the qemu/whatever process can see some kernel data via meltdown it
+wouldn't be able to normally see), but might be an option to
+investigate.
 
-Local counters make total sense to me. And I think they will very useful
-in certain cases. Thank you for working on it!
-
->=20
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> ---
->  include/linux/memcontrol.h |  7 ++++++-
->  mm/memcontrol.c            | 25 +++++++++++++++++++++++++
->  2 files changed, 31 insertions(+), 1 deletion(-)
->=20
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 36bdfe8e5965..de77405eec46 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -239,8 +239,9 @@ struct mem_cgroup {
->  	/* OOM-Killer disable */
->  	int		oom_kill_disable;
-> =20
-> -	/* memory.events */
-> +	/* memory.events and memory.events.local */
->  	struct cgroup_file events_file;
-> +	struct cgroup_file events_local_file;
-> =20
->  	/* handle for "memory.swap.events" */
->  	struct cgroup_file swap_events_file;
-> @@ -286,6 +287,7 @@ struct mem_cgroup {
->  	atomic_long_t		vmevents_local[NR_VM_EVENT_ITEMS];
-> =20
->  	atomic_long_t		memory_events[MEMCG_NR_MEMORY_EVENTS];
-> +	atomic_long_t		memory_events_local[MEMCG_NR_MEMORY_EVENTS];
-> =20
->  	unsigned long		socket_pressure;
-> =20
-> @@ -761,6 +763,9 @@ static inline void count_memcg_event_mm(struct mm_str=
-uct *mm,
->  static inline void memcg_memory_event(struct mem_cgroup *memcg,
->  				      enum memcg_memory_event event)
->  {
-> +	atomic_long_inc(&memcg->memory_events_local[event]);
-> +	cgroup_file_notify(&memcg->events_local_file);
-> +
->  	do {
->  		atomic_long_inc(&memcg->memory_events[event]);
->  		cgroup_file_notify(&memcg->events_file);
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 2713b45ec3f0..a746127012fa 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -5648,6 +5648,25 @@ static int memory_events_show(struct seq_file *m, =
-void *v)
->  	return 0;
->  }
-> =20
-> +static int memory_events_local_show(struct seq_file *m, void *v)
-> +{
-> +	struct mem_cgroup *memcg =3D mem_cgroup_from_seq(m);
-> +
-> +	seq_printf(m, "low %lu\n",
-> +		   atomic_long_read(&memcg->memory_events_local[MEMCG_LOW]));
-> +	seq_printf(m, "high %lu\n",
-> +		   atomic_long_read(&memcg->memory_events_local[MEMCG_HIGH]));
-> +	seq_printf(m, "max %lu\n",
-> +		   atomic_long_read(&memcg->memory_events_local[MEMCG_MAX]));
-> +	seq_printf(m, "oom %lu\n",
-> +		   atomic_long_read(&memcg->memory_events_local[MEMCG_OOM]));
-> +	seq_printf(m, "oom_kill %lu\n",
-> +		   atomic_long_read(&memcg->memory_events_local[MEMCG_OOM_KILL])
-> +		   );
-
-Can you, please, merge this part with the non-local version? Then we'll hav=
-e
-a guarantee that the format is the same.
-
-A helper like this can be used, for example:
-    static void __memory_events_show(struct seq_file *m, atomic_long_t *eve=
-nts)
-    {
-    	seq_printf(...);
-    }
-
-Other than that looks good to me.
-
-Thanks!
+Cheers,
+- jonathan
 
