@@ -2,202 +2,292 @@ Return-Path: <SRS0=dvGr=TS=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 97182C04AAF
-	for <linux-mm@archiver.kernel.org>; Sat, 18 May 2019 07:11:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5128FC04AAF
+	for <linux-mm@archiver.kernel.org>; Sat, 18 May 2019 08:46:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 43BE220848
-	for <linux-mm@archiver.kernel.org>; Sat, 18 May 2019 07:11:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="rabKNPw+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43BE220848
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id E4F0D2166E
+	for <linux-mm@archiver.kernel.org>; Sat, 18 May 2019 08:46:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4F0D2166E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D62D46B0007; Sat, 18 May 2019 03:11:12 -0400 (EDT)
+	id 52CAE6B0005; Sat, 18 May 2019 04:46:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D11B86B0008; Sat, 18 May 2019 03:11:12 -0400 (EDT)
+	id 4DDA06B0006; Sat, 18 May 2019 04:46:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BD96C6B000A; Sat, 18 May 2019 03:11:12 -0400 (EDT)
+	id 3F3A76B0007; Sat, 18 May 2019 04:46:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A07CC6B0007
-	for <linux-mm@kvack.org>; Sat, 18 May 2019 03:11:12 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id d24so7192687iob.7
-        for <linux-mm@kvack.org>; Sat, 18 May 2019 00:11:12 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 167466B0005
+	for <linux-mm@kvack.org>; Sat, 18 May 2019 04:46:23 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id x23so4546594otp.5
+        for <linux-mm@kvack.org>; Sat, 18 May 2019 01:46:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=RiOVb0r2XtDlST73GK6EKcP9xzfFFxYpIe1ze82bR2Q=;
-        b=gjfLZMA/mS1wbb3m0kqz5n/IL3TjCfNVCBUbeREDkqBiOrXqUeJMCGcNXKTT11eO/Z
-         U9P9/go38a2H8KiSOd+8c2tPwtzrca/xOt1c1vTk1qCxodnPX1TPM93m2fuBd81R/B1D
-         QaUUCi7b3J+gjQfGb7w/GWEPmw2kM0Zl1FpidJaDd8tfW9gawMd2e/Lsnx+AyW7EBj7/
-         6eBY/G8vwXI3xxunXb94xEDyHSCTmgzU1y1C7di7K4uSYr3hq3yAg/71rjmFrbi1/jKo
-         ZQ/QCyw7U1AWC2nSyCAlzk0RrMBQJBm4fozi/Fhi+Rysy2Op7l0BtUEzKD58b3QJVuGP
-         unqA==
-X-Gm-Message-State: APjAAAXF56bCUNjj6Vyfcen3jIwSQSqSz6orD8JHm4g0q5+WMcMQehdr
-	+1+hUVAA8b/I8ch+pYzhobYzZWX2f8pCwdYAVcig1qWnJ2JouAlGWyixjeky6j3EYQZqj8WPMhw
-	2OhziCKRXXnutfjCjoabzqCPg/iadqFP3A38hojZ0QtmX+3D6ZtK/u87n6QC2KR9tYw==
-X-Received: by 2002:a24:684b:: with SMTP id v72mr5471949itb.174.1558163472315;
-        Sat, 18 May 2019 00:11:12 -0700 (PDT)
-X-Received: by 2002:a24:684b:: with SMTP id v72mr5471917itb.174.1558163471533;
-        Sat, 18 May 2019 00:11:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558163471; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=DO6WLkoUqXxxlGmLPR+WFpvuFJaMgzTrrjSYWEqE6Ok=;
+        b=i7uRI5K8dCgBVvvRWS9at8H8mSNHWcTB4ENvdkcF6nOZOrapZKOeSZ472K88io9G2+
+         GvdFvufXkz8rll7wuLmNcE4x03pw83V1kuQ4B9ufkSWw3WiMssksDFWSvp3KvrDZgZZb
+         Dh+Yco3RQ2uR+QIJcmeUVlzGKUzC/MzpU/udo0/JUjuRlcg9QRyIBXH4+6Bi/4CRxtxJ
+         goQ9l/RhuZ09zip0obKoj68ay1Vc+OC9pZz/M8nUXHyv0dvIfUHrY4vCbMirXKZllgKy
+         XMv5CzlEVw/ZpSvL07oqcZ79NTXVJj5N6bDEkreB2J/w2WPWMaVPxlSNKtaDiE9ex8q6
+         y0VQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenjianhong2@huawei.com
+X-Gm-Message-State: APjAAAWNzPeeP70HulRVl7n7VxpuiIzuhQxSOcRErftT+GlWMtw9WGB2
+	70TZRp2hGvWMfchZ/vY39miPa9ZuJZQfTdUnlRXJZOHfkh/EtMMR0XbmlMABO8he9mhpzclMCv5
+	YGfburCjB5qpvssw9iPviMP0mgbTxcKpw5tAXwRtfIp6Pb9jWrGDSHhk0z4ctLiYCzw==
+X-Received: by 2002:a05:6830:210e:: with SMTP id i14mr68833otc.326.1558169182728;
+        Sat, 18 May 2019 01:46:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzrRWHLdLRv4A1IXbllk6ZT+i3XcKvVc0z+/uLb+pgUakeFLSusYIBGraqiM5geu13Xue5d
+X-Received: by 2002:a05:6830:210e:: with SMTP id i14mr68807otc.326.1558169181561;
+        Sat, 18 May 2019 01:46:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558169181; cv=none;
         d=google.com; s=arc-20160816;
-        b=Jz3Vrw4H2k0dtG5TJ6o+v95R7Wtr7edZvtUmNJC/Az3g8ctFsv5oPsSXot1ZYzoO8b
-         KUqTfSWQ/PvQHT6A3eiLa6tKzZgfcKP2mLBm7Qt5hTYTRqob4m6X0K2v4MFiOUvS0wjm
-         Is8r7mckJtwIjLbn+EuCaeMCZQoBWTot+YIGEsjaVOKLfU+Gi/j71skaRKaAghAn9YjM
-         SzhXghdoQWmdEpKlrRziQiA3SEMqgXFCR0WEymt2cJnERQ0cUzTtaP3F69LIrW8KhaHS
-         MgzRJDYTDdSiCBYq+IBZ7RtqS2Pd4nrKmdn0RvvlNPruEsegONYfGQ1oVkUccg9WdUEx
-         IDSg==
+        b=IUbj6rpIe6VfHRjOsnTA22OjQA0xr4oBtAI3nLw4viZA+mQRmnLqfHwf6IzfrbSI1c
+         TueHxgSdxgDTVC8S+s20Wq8B7UB3Mt7Ge0qbeBWINxvG2yAf5ve7uoxqdsc3ScdN84hY
+         177WDLtVknFfSElFZ4R9k++grdfdoSm1WNz/ISVTYfdetzWy5Q3sQZmS0Dr4YjNFlrdD
+         SWrYnzmqvZHT+JjhyRfS9Y6Q/10IzLwJpseRfdjoRPTrRInfBTB0JvH7ewMkSxIQrGsm
+         i0WMLEronO9Gfv+8IA36ZGB4spBhstRGv04YSsliG86RTndVPQA2JYsxh5amjM5tAuyK
+         k37Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=RiOVb0r2XtDlST73GK6EKcP9xzfFFxYpIe1ze82bR2Q=;
-        b=AZNkxUTJiyeJ44xlfCA+4/44unlZF/Ci2xFWow1Fl2S5fU6XXpKhunlTBPywdef4FE
-         REUVjAGbK2oI/CTd/lhudvG43vM+dqpppa1jbLUz4OPLNna40QpJ7cgq+RinYrXrADPq
-         k/HArsXJK2DQ/GGczHz+NzhYVWMYcbOfIBSbOmhc9HmKPwNZ0HpR8yhK2RWhEePGAvV9
-         XcmMzhcxK25q/K7bwhY3R0iuZE/k7erdpI5oderfxhydN3hNSquhACjPy7Etf0pe+Wl3
-         AoTnoZCvoc/rx2sEaNhHj2belntorQS8WITVJWgDhfeLSiyvXzzF07IgBMZwm/v2Zi2f
-         +5rw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=DO6WLkoUqXxxlGmLPR+WFpvuFJaMgzTrrjSYWEqE6Ok=;
+        b=0zDJ2SNH2ig9LVMr+jkns79SMfQLmTbQESi1649A9vfeV3Iix1EXV5EqBI41CnoftC
+         QajaHRycCjEUIsgteiNjS21ktcDkNxc8yuEoG56BydVJvHtAcDKI2aoNEqJaGyyUml07
+         elmKuZqKsLnbsFU9Pvgf8zK98bMnaFevw3BdGezsJjeC9k8mLo+MgYwgqQelX5u1vbDJ
+         x7wuIwMeKbwXFKYbQ8co6TzTIjk13W+yfmwdj8SLCLJP+Y1EIzkagqLbFQZh5sweSE3b
+         1otbfQ85aFTOmcEd9xVql5DZ8UGlIgwxAs2epZH8cHD5vc/btCBwWlKFKA3GXZmdGoqM
+         2rqw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=rabKNPw+;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r67sor9438819ita.21.2019.05.18.00.11.11
+       spf=pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenjianhong2@huawei.com
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id o12si5569295otl.289.2019.05.18.01.46.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 18 May 2019 00:11:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 18 May 2019 01:46:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=rabKNPw+;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=RiOVb0r2XtDlST73GK6EKcP9xzfFFxYpIe1ze82bR2Q=;
-        b=rabKNPw+eYC9kmx+8CDGM7I/PCMu8buwuC3OVQ22mOV/QwgFrLf1MgLbENPaK9Se90
-         a7fmyYILc74wzHEGZz9aGU0ZNQ08T8Gt/NNztt+jsaSnETR6dan690a5cQhg6xpHBavG
-         gaic3JMrP51pMKiDkt0yA+Wi8eWInyDrMXMk9uZo0b4WwDG3mfZpNOMsy5Twog2sWXrf
-         bNpVK6qheOHkwXR7u+wLf6Q5UnrML5rAqsK5ywzb3R3Y8/62rCQracLGlKyDGXsqfWWK
-         jGgnDEaCmw3u7OpyUUOTn+03g7GpgERf90DXAA9s88EhcU2dEqt5XuwtxQ5ZpnjIzjV8
-         NxJg==
-X-Google-Smtp-Source: APXvYqzQ5tmIhQCBoyFPy/MoyrkRC8/116cN+KJoXVBjPead1xsLW52BD5mkme39a12aeV4+k6Q9m4IDEKJWxCmNQrM=
-X-Received: by 2002:a24:4c08:: with SMTP id a8mr5931148itb.76.1558163470937;
- Sat, 18 May 2019 00:11:10 -0700 (PDT)
+       spf=pass (google.com: domain of chenjianhong2@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=chenjianhong2@huawei.com
+Received: from DGGEMS405-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id 636DA98F3BD9CDE92B79;
+	Sat, 18 May 2019 16:46:14 +0800 (CST)
+Received: from use12-sp2.huawei.com (10.67.188.162) by
+ DGGEMS405-HUB.china.huawei.com (10.3.19.205) with Microsoft SMTP Server id
+ 14.3.439.0; Sat, 18 May 2019 16:46:04 +0800
+From: jianhong chen <chenjianhong2@huawei.com>
+To: <gregkh@linuxfoundation.org>, <akpm@linux-foundation.org>,
+	<mhocko@suse.com>, <vbabka@suse.cz>, <kirill.shutemov@linux.intel.com>,
+	<yang.shi@linux.alibaba.com>, <jannh@google.com>, <steve.capper@arm.com>,
+	<tiny.windzz@gmail.com>, <walken@google.com>, <willy@infradead.org>
+CC: <chenjianhong2@huawei.com>, <linux-kernel@vger.kernel.org>,
+	<linux-mm@kvack.org>, <stable@vger.kernel.org>, <hughd@google.com>,
+	<linux@arm.linux.org.uk>, <ralf@linux-mips.org>, <lethal@linux-sh.org>,
+	<davem@davemloft.net>, <cmetcalf@tilera.com>, <mingo@elte.hu>,
+	<tglx@linutronix.de>, <hpa@zytor.com>
+Subject: [PATCH] mm/mmap: fix the adjusted length error
+Date: Sat, 18 May 2019 16:50:33 +0800
+Message-ID: <1558169433-121358-1-git-send-email-chenjianhong2@huawei.com>
+X-Mailer: git-send-email 1.8.5.6
 MIME-Version: 1.0
-References: <20190517171507.96046-1-dvyukov@gmail.com> <20190517143746.2157a759f65b4cbc73321124@linux-foundation.org>
-In-Reply-To: <20190517143746.2157a759f65b4cbc73321124@linux-foundation.org>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Sat, 18 May 2019 09:10:59 +0200
-Message-ID: <CACT4Y+aee_Kvezo8zeD77RwBi2-Csd9cE8vtGCmaTGYxr=iK5A@mail.gmail.com>
-Subject: Re: [PATCH] kmemleak: fix check for softirq context
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dmitry Vyukov <dvyukov@gmail.com>, Catalin Marinas <catalin.marinas@arm.com>, 
-	Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+X-Originating-IP: [10.67.188.162]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 17, 2019 at 11:37 PM Andrew Morton
-<akpm@linux-foundation.org> wrote:
->
-> On Fri, 17 May 2019 19:15:07 +0200 Dmitry Vyukov <dvyukov@gmail.com> wrote:
->
-> > From: Dmitry Vyukov <dvyukov@google.com>
-> >
-> > in_softirq() is a wrong predicate to check if we are in a softirq context.
-> > It also returns true if we have BH disabled, so objects are falsely
-> > stamped with "softirq" comm. The correct predicate is in_serving_softirq().
-> >
-> > ...
-> >
-> > --- a/mm/kmemleak.c
-> > +++ b/mm/kmemleak.c
-> > @@ -588,7 +588,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
-> >       if (in_irq()) {
-> >               object->pid = 0;
-> >               strncpy(object->comm, "hardirq", sizeof(object->comm));
-> > -     } else if (in_softirq()) {
-> > +     } else if (in_serving_softirq()) {
-> >               object->pid = 0;
-> >               strncpy(object->comm, "softirq", sizeof(object->comm));
-> >       } else {
->
-> What are the user-visible runtime effects of this change?
+In linux version 4.4, a 32-bit process may fail to allocate 64M hugepage
+memory by function shmat even though there is a 64M memory gap in
+the process.
 
+It is the adjusted length that causes the problem, introduced from
+commit db4fbfb9523c935 ("mm: vm_unmapped_area() lookup function").
+Accounting for the worst case alignment overhead, function unmapped_area
+and unmapped_area_topdown adjust the search length before searching
+for available vma gap. This is an estimated length, sum of the desired
+length and the longest alignment offset, which can cause misjudgement
+if the system has very few virtual memory left. For example, if the
+longest memory gap available is 64M, we can’t get it from the system
+by allocating 64M hugepage memory via shmat function. The reason is
+that it requires a longger length, the sum of the desired length(64M)
+and the longest alignment offset.
 
-If user does cat from /sys/kernel/debug/kmemleak previously they would
-see this, which is clearly wrong, this is system call context (see the
-comm):
+To fix this error ,we can calculate the alignment offset of
+gap_start or gap_end to get a desired gap_start or gap_end value,
+before searching for the available gap. In this way, we don't
+need to adjust the search length.
 
-unreferenced object 0xffff88805bd661c0 (size 64):
-  comm "softirq", pid 0, jiffies 4294942959 (age 12.400s)
-  hex dump (first 32 bytes):
-    00 00 00 00 00 00 00 00 ff ff ff ff 00 00 00 00  ................
-    00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<0000000007dcb30c>] kmemleak_alloc_recursive
-include/linux/kmemleak.h:55 [inline]
-    [<0000000007dcb30c>] slab_post_alloc_hook mm/slab.h:439 [inline]
-    [<0000000007dcb30c>] slab_alloc mm/slab.c:3326 [inline]
-    [<0000000007dcb30c>] kmem_cache_alloc_trace+0x13d/0x280 mm/slab.c:3553
-    [<00000000969722b7>] kmalloc include/linux/slab.h:547 [inline]
-    [<00000000969722b7>] kzalloc include/linux/slab.h:742 [inline]
-    [<00000000969722b7>] ip_mc_add1_src net/ipv4/igmp.c:1961 [inline]
-    [<00000000969722b7>] ip_mc_add_src+0x36b/0x400 net/ipv4/igmp.c:2085
-    [<00000000a4134b5f>] ip_mc_msfilter+0x22d/0x310 net/ipv4/igmp.c:2475
-    [<00000000d20248ad>] do_ip_setsockopt.isra.0+0x19fe/0x1c00
-net/ipv4/ip_sockglue.c:957
-    [<000000003d367be7>] ip_setsockopt+0x3b/0xb0 net/ipv4/ip_sockglue.c:1246
-    [<000000003c7c76af>] udp_setsockopt+0x4e/0x90 net/ipv4/udp.c:2616
-    [<000000000c1aeb23>] sock_common_setsockopt+0x3e/0x50 net/core/sock.c:3130
-    [<000000000157b92b>] __sys_setsockopt+0x9e/0x120 net/socket.c:2078
-    [<00000000a9f3d058>] __do_sys_setsockopt net/socket.c:2089 [inline]
-    [<00000000a9f3d058>] __se_sys_setsockopt net/socket.c:2086 [inline]
-    [<00000000a9f3d058>] __x64_sys_setsockopt+0x26/0x30 net/socket.c:2086
-    [<000000001b8da885>] do_syscall_64+0x7c/0x1a0 arch/x86/entry/common.c:301
-    [<00000000ba770c62>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+Problem reproduces procedure:
+1. allocate a lot of virtual memory segments via shmat and malloc
+2. release one of the biggest memory segment via shmdt
+3. attach the biggest memory segment via shmat
 
-now they will see this:
+e.g.
+process maps:
+00008000-00009000 r-xp 00000000 00:12 3385    /tmp/memory_mmap
+00011000-00012000 rw-p 00001000 00:12 3385    /tmp/memory_mmap
+27536000-f756a000 rw-p 00000000 00:00 0
+f756a000-f7691000 r-xp 00000000 01:00 560     /lib/libc-2.11.1.so
+f7691000-f7699000 ---p 00127000 01:00 560     /lib/libc-2.11.1.so
+f7699000-f769b000 r--p 00127000 01:00 560     /lib/libc-2.11.1.so
+f769b000-f769c000 rw-p 00129000 01:00 560     /lib/libc-2.11.1.so
+f769c000-f769f000 rw-p 00000000 00:00 0
+f769f000-f76c0000 r-xp 00000000 01:00 583     /lib/libgcc_s.so.1
+f76c0000-f76c7000 ---p 00021000 01:00 583     /lib/libgcc_s.so.1
+f76c7000-f76c8000 rw-p 00020000 01:00 583     /lib/libgcc_s.so.1
+f76c8000-f76e5000 r-xp 00000000 01:00 543     /lib/ld-2.11.1.so
+f76e9000-f76ea000 rw-p 00000000 00:00 0
+f76ea000-f76ec000 rw-p 00000000 00:00 0
+f76ec000-f76ed000 r--p 0001c000 01:00 543     /lib/ld-2.11.1.so
+f76ed000-f76ee000 rw-p 0001d000 01:00 543     /lib/ld-2.11.1.so
+f7800000-f7a00000 rw-s 00000000 00:0e 0       /SYSV000000ea (deleted)
+fba00000-fca00000 rw-s 00000000 00:0e 65538   /SYSV000000ec (deleted)
+fca00000-fce00000 rw-s 00000000 00:0e 98307   /SYSV000000ed (deleted)
+fce00000-fd800000 rw-s 00000000 00:0e 131076  /SYSV000000ee (deleted)
+ff913000-ff934000 rw-p 00000000 00:00 0       [stack]
+ffff0000-ffff1000 r-xp 00000000 00:00 0       [vectors]
 
-unreferenced object 0xffff88805413c800 (size 64):
-  comm "syz-executor.4", pid 8960, jiffies 4294994003 (age 14.350s)
-  hex dump (first 32 bytes):
-    00 7a 8a 57 80 88 ff ff e0 00 00 01 00 00 00 00  .z.W............
-    00 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  ................
-  backtrace:
-    [<00000000c5d3be64>] kmemleak_alloc_recursive
-include/linux/kmemleak.h:55 [inline]
-    [<00000000c5d3be64>] slab_post_alloc_hook mm/slab.h:439 [inline]
-    [<00000000c5d3be64>] slab_alloc mm/slab.c:3326 [inline]
-    [<00000000c5d3be64>] kmem_cache_alloc_trace+0x13d/0x280 mm/slab.c:3553
-    [<0000000023865be2>] kmalloc include/linux/slab.h:547 [inline]
-    [<0000000023865be2>] kzalloc include/linux/slab.h:742 [inline]
-    [<0000000023865be2>] ip_mc_add1_src net/ipv4/igmp.c:1961 [inline]
-    [<0000000023865be2>] ip_mc_add_src+0x36b/0x400 net/ipv4/igmp.c:2085
-    [<000000003029a9d4>] ip_mc_msfilter+0x22d/0x310 net/ipv4/igmp.c:2475
-    [<00000000ccd0a87c>] do_ip_setsockopt.isra.0+0x19fe/0x1c00
-net/ipv4/ip_sockglue.c:957
-    [<00000000a85a3785>] ip_setsockopt+0x3b/0xb0 net/ipv4/ip_sockglue.c:1246
-    [<00000000ec13c18d>] udp_setsockopt+0x4e/0x90 net/ipv4/udp.c:2616
-    [<0000000052d748e3>] sock_common_setsockopt+0x3e/0x50 net/core/sock.c:3130
-    [<00000000512f1014>] __sys_setsockopt+0x9e/0x120 net/socket.c:2078
-    [<00000000181758bc>] __do_sys_setsockopt net/socket.c:2089 [inline]
-    [<00000000181758bc>] __se_sys_setsockopt net/socket.c:2086 [inline]
-    [<00000000181758bc>] __x64_sys_setsockopt+0x26/0x30 net/socket.c:2086
-    [<00000000d4b73623>] do_syscall_64+0x7c/0x1a0 arch/x86/entry/common.c:301
-    [<00000000c1098bec>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+from 0xf7a00000 to fba00000, it has 64M memory gap, but we can't get
+it from kernel.
+
+Signed-off-by: jianhong chen <chenjianhong2@huawei.com>
+Cc: stable@vger.kernel.org
+---
+ mm/mmap.c | 43 +++++++++++++++++++++++++++++--------------
+ 1 file changed, 29 insertions(+), 14 deletions(-)
+
+diff --git a/mm/mmap.c b/mm/mmap.c
+index bd7b9f2..c5a5782 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1865,6 +1865,22 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+ 	return error;
+ }
+ 
++static inline unsigned long gap_start_offset(struct vm_unmapped_area_info *info,
++					unsigned long addr)
++{
++	/* get gap_start offset to adjust gap address to the
++	 * desired alignment
++	 */
++	return (info->align_offset - addr) & info->align_mask;
++}
++
++static inline unsigned long gap_end_offset(struct vm_unmapped_area_info *info,
++					unsigned long addr)
++{
++	/* get gap_end offset to adjust gap address to the desired alignment */
++	return (addr - info->align_offset) & info->align_mask;
++}
++
+ unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+ {
+ 	/*
+@@ -1879,10 +1895,7 @@ unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+ 	struct vm_area_struct *vma;
+ 	unsigned long length, low_limit, high_limit, gap_start, gap_end;
+ 
+-	/* Adjust search length to account for worst case alignment overhead */
+-	length = info->length + info->align_mask;
+-	if (length < info->length)
+-		return -ENOMEM;
++	length = info->length;
+ 
+ 	/* Adjust search limits by the desired length */
+ 	if (info->high_limit < length)
+@@ -1914,6 +1927,7 @@ unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+ 		}
+ 
+ 		gap_start = vma->vm_prev ? vm_end_gap(vma->vm_prev) : 0;
++		gap_start += gap_start_offset(info, gap_start);
+ check_current:
+ 		/* Check if current node has a suitable gap */
+ 		if (gap_start > high_limit)
+@@ -1942,6 +1956,7 @@ unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+ 				       struct vm_area_struct, vm_rb);
+ 			if (prev == vma->vm_rb.rb_left) {
+ 				gap_start = vm_end_gap(vma->vm_prev);
++				gap_start += gap_start_offset(info, gap_start);
+ 				gap_end = vm_start_gap(vma);
+ 				goto check_current;
+ 			}
+@@ -1951,17 +1966,17 @@ unsigned long unmapped_area(struct vm_unmapped_area_info *info)
+ check_highest:
+ 	/* Check highest gap, which does not precede any rbtree node */
+ 	gap_start = mm->highest_vm_end;
++	gap_start += gap_start_offset(info, gap_start);
+ 	gap_end = ULONG_MAX;  /* Only for VM_BUG_ON below */
+ 	if (gap_start > high_limit)
+ 		return -ENOMEM;
+ 
+ found:
+ 	/* We found a suitable gap. Clip it with the original low_limit. */
+-	if (gap_start < info->low_limit)
++	if (gap_start < info->low_limit) {
+ 		gap_start = info->low_limit;
+-
+-	/* Adjust gap address to the desired alignment */
+-	gap_start += (info->align_offset - gap_start) & info->align_mask;
++		gap_start += gap_start_offset(info, gap_start);
++	}
+ 
+ 	VM_BUG_ON(gap_start + info->length > info->high_limit);
+ 	VM_BUG_ON(gap_start + info->length > gap_end);
+@@ -1974,16 +1989,14 @@ unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
+ 	struct vm_area_struct *vma;
+ 	unsigned long length, low_limit, high_limit, gap_start, gap_end;
+ 
+-	/* Adjust search length to account for worst case alignment overhead */
+-	length = info->length + info->align_mask;
+-	if (length < info->length)
+-		return -ENOMEM;
++	length = info->length;
+ 
+ 	/*
+ 	 * Adjust search limits by the desired length.
+ 	 * See implementation comment at top of unmapped_area().
+ 	 */
+ 	gap_end = info->high_limit;
++	gap_end -= gap_end_offset(info, gap_end);
+ 	if (gap_end < length)
+ 		return -ENOMEM;
+ 	high_limit = gap_end - length;
+@@ -2020,6 +2033,7 @@ unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
+ check_current:
+ 		/* Check if current node has a suitable gap */
+ 		gap_end = vm_start_gap(vma);
++		gap_end -= gap_end_offset(info, gap_end);
+ 		if (gap_end < low_limit)
+ 			return -ENOMEM;
+ 		if (gap_start <= high_limit &&
+@@ -2054,13 +2068,14 @@ unsigned long unmapped_area_topdown(struct vm_unmapped_area_info *info)
+ 
+ found:
+ 	/* We found a suitable gap. Clip it with the original high_limit. */
+-	if (gap_end > info->high_limit)
++	if (gap_end > info->high_limit) {
+ 		gap_end = info->high_limit;
++		gap_end -= gap_end_offset(info, gap_end);
++	}
+ 
+ found_highest:
+ 	/* Compute highest gap address at the desired alignment */
+ 	gap_end -= info->length;
+-	gap_end -= (gap_end - info->align_offset) & info->align_mask;
+ 
+ 	VM_BUG_ON(gap_end < info->low_limit);
+ 	VM_BUG_ON(gap_end < gap_start);
+-- 
+1.8.5.6
 
