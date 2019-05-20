@@ -2,156 +2,491 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 42ABEC04E87
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 07:03:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3BFDCC04E87
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 07:58:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E444220815
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 07:03:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E444220815
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id E4485206B6
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 07:58:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4485206B6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3C0636B0005; Mon, 20 May 2019 03:03:22 -0400 (EDT)
+	id 766AB6B0005; Mon, 20 May 2019 03:58:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 348956B0006; Mon, 20 May 2019 03:03:22 -0400 (EDT)
+	id 7183D6B0006; Mon, 20 May 2019 03:58:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E9DE6B0007; Mon, 20 May 2019 03:03:22 -0400 (EDT)
+	id 5DF196B0007; Mon, 20 May 2019 03:58:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C37E96B0005
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 03:03:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id h12so23617238edl.23
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 00:03:21 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3574E6B0005
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 03:58:48 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id v16so13425695qtk.22
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 00:58:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=mx/fQvFr8GDZBdTCUR8uRj1/+9gf8OnUPoCyNEkC9D8=;
-        b=Wy+k8QklwhLzkvDf8Itr/9MFo3LX50lKmDnTcQuR1eL6Xqqoxcsk67EbvbWVPb3G99
-         sp3ycwRo89e8rSXz3Ip5qFRavTeW+gF65ztVEJHwBHa2hgHODc5rgIbXnySKUHu2W5Nw
-         TpH6eHSCRICUf3seq2Yp8a9nzcln8oJVzjVR0YLR3E/aFPwCyMnxataDK6SEVIdr5K6O
-         7JPKIkG95a7NgdjOW0NifqupyH20CkaQMwA1LH7xpLLKL06E3L2VeaMaOYfw49n0Tnb+
-         lezzE+EGewPoOMVSVQ+3VFUSsx25iOjo3vXglyOB0hfgi6VAbaAFmoDne2ocJpL5IOmY
-         YleQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUg9MvnPCos35TymNPWEJ1rQE7nbmp1QnAbDMkYEZABp6n8sRPj
-	NH/l2hWF8LsNb3FZPlnHKMfW8HC2cnaTCuvQmQpqS6vEZtlhXc6w5+aPRJgIuIkirvGD+cGyv1z
-	AahVqWvZIh55pM1DEhakuuwL0kr2RLQ2vZlgX4Aq21DpNiILZ2pY3eOWGzvawdgs=
-X-Received: by 2002:aa7:c402:: with SMTP id j2mr73932831edq.165.1558335801382;
-        Mon, 20 May 2019 00:03:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1B2x/QOD9Eq51wCnwfHdlhNETgYz9rSw0woJQUGPrsJOuTXDHsIqeMMR2nQFL8G1C3czQ
-X-Received: by 2002:aa7:c402:: with SMTP id j2mr73932763edq.165.1558335800541;
-        Mon, 20 May 2019 00:03:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558335800; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=reKi6kgontoj3aMw6vDH+XZ2Ar4PGgrfTC6SssAoYok=;
+        b=G70VaE2Xo9ZN3ij7ToSayb72vNbEhUOpLnsWYshRm0CWkabfjNx+HT5MdBHpuRW9Vl
+         dpinPozv61Av8hWh5SAwkcAJceGF2ZyOxOGJ7j+Ahxr7qv2snK5guRJmARGIu/MU5eiX
+         8gxVW8owDar5k/XCbAOERzS4yQMpvmWUx0/CD9/GRPRYbj/uxIfe452CK+X8AfAnIB58
+         R2gScUf6OMt2uAfxdB14YB94eIj7Hcf4tdByBL5sb6KCPVAQYts/cR2EpztnYCqNMZ/E
+         4lpEXQrC+3WqyXXFOhTgLkOY/ondYrfxbip1cDnEHfQ1MNGx35a2UZz/HFmTUw2TXCFw
+         xRug==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWgEU2Ua7JVCLnIOJtEJtvSozxgIFkfdi5pEY1SihHtV3uoDJqS
+	uc/uRexrZYbn+MUbKcSgFUI5MO59zwP5Jd0qTxJ9arPHjXh/CIveVTVSwUbshBu4aBgyqsImbWV
+	2ilQUK8DfzAnrkgY3E4aRmCalqyQ2nFOnqFtb9N4ebKDPnwaC7sVHb/pn2puRfF58pw==
+X-Received: by 2002:ac8:27aa:: with SMTP id w39mr29618962qtw.359.1558339127949;
+        Mon, 20 May 2019 00:58:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwnKL6gh/8AHqjDFc812SIr2la+7UACCxltNdTDaC4w7GkAj+n1LLj5Ghy0YJCy6gx9tySu
+X-Received: by 2002:ac8:27aa:: with SMTP id w39mr29618917qtw.359.1558339126895;
+        Mon, 20 May 2019 00:58:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558339126; cv=none;
         d=google.com; s=arc-20160816;
-        b=bqdjrtiZ/QDdAxaBTkLk8fdFEvmFFlU9dGctunIXlIRmRjZcEO1XZoKKImVUhCvw/U
-         kmdkcUzNQ2FI3ghGIk4oZ62w/zxEyJ48nTsn0T4Yl+ax0RIsFm/1pM0NnK1FoFkXUc6K
-         0r2ZXhWZJPk5NjA9JvrqZYQbUyy22/2DT8ZwjX0GpAeyhkA4tirRoEPMMBTUgnF4wvpZ
-         x9YqPJlaqH1zbNQfPtvCRqC3tiNx9dFY1Yuf0/BEogP5VAbtkFhy5XeA8Z+Si2ewS4ch
-         ZioeVIXq+cOb/wY4FCIHv0Zj+RnJXL5GadlviV5KeFNXKYGxWn/dO4Mh1JG05Kj8EaMO
-         wSLA==
+        b=Wnb3N3tgkqGRgZgV4dsa+do5yBlEtpovkPIl4zjKO4G7L8Ets5MMYUITdpIDk8XjGx
+         Bqk8vND2548qmokZ3KC8utwOWTSSNlKHgTgadUj2eTCEbOyrFjRhcAV9P1dMtz45X15L
+         VUGVQLYl/IzF1WuF4VT9ghN+lB3QPF6eWpL/lnXQtGxgPswp8YzKV+cxokShu5b+EvOQ
+         niNg5jRdE9SKwyEs5KGU+9PXGt/hIcSfX33MKO+DFh4J5GJ6BiM2lqxUSCfSs/6vhGmZ
+         cBE5x2hW7mLSj79cC21j4LxaNbTWX7dNODjqMj0boDIQjOqMNmsDd0DSYfEpW2FXWiNm
+         Y66A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=mx/fQvFr8GDZBdTCUR8uRj1/+9gf8OnUPoCyNEkC9D8=;
-        b=UL8DQis4EhkonspPRWhxE4M4arL9uqSnW+uIDzCYtRHVEvrkH+pfsE7VhWJrMZZ6Ub
-         ieYhJYeZIGb+Ab7jL2ir0mr86Ne2NYrp3WcLF1qoC2RuHWnHTHhEm52AYnXcbwl7+hjo
-         iCBKDHdB7FbBh9pLkI4m1d5sEEzJVYObthu617Pp/Y4AVFxTEUCCHLSx21RbKo7MtG7E
-         EJaK7TBsedpXJ3YLQjhvJSEHEqABfJ5z9SCP86232l8Ls5JpTvN47a3xIrrGmPBJNA18
-         cMWkN9FAJ5BuS3oaVstB/NkoTcieu2ILyCcGx+U+SrrCw/CjtxJ3MOGC8Q07ByY7vmMQ
-         Rdsg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=reKi6kgontoj3aMw6vDH+XZ2Ar4PGgrfTC6SssAoYok=;
+        b=fvvQ4B5YHXG3Ii4UL4s8/H8vV/TWADl8GjhZL0uebmJCQYFf7snYi6CITgm6PX9MvO
+         AG9VGHGiNysRvXkqxce5L9u78LHC8KPrPRlY1EmUDHKrISyS5epbt1TxA3r7zGKQ5Rqr
+         ZrrTUqz7NTlnhZZZ6z24BxJX6cw1cpwyb7vAFO1Yh4UZW/klqEyGb53LDOatpL9Ke8q4
+         tlJ3WocCGb0429kzZwDqEpLeNtQpyII++iALTpavZSWiqgpT6TowLWHEdswM7r+xvqj0
+         FfDWVvybWv4B+FiRcOMMTbJDv+kX/p7oLGE4Bu26bX/p7YiwSwCyX7q40/rNTKzQSjp7
+         XUyQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e52si11883462edb.265.2019.05.20.00.03.20
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b19si2748051qtk.58.2019.05.20.00.58.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 00:03:20 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 20 May 2019 00:58:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 6293CAE48;
-	Mon, 20 May 2019 07:03:19 +0000 (UTC)
-Date: Mon, 20 May 2019 09:03:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Pavel Tatashin <pasha.tatashin@soleen.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 58678308FC4D;
+	Mon, 20 May 2019 07:58:45 +0000 (UTC)
+Received: from [10.36.117.43] (ovpn-117-43.ams2.redhat.com [10.36.117.43])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 149B21001DC7;
+	Mon, 20 May 2019 07:57:40 +0000 (UTC)
+Subject: Re: [v5 0/3] "Hotremove" persistent memory
+To: Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Dan Williams <dan.j.williams@intel.com>
 Cc: "Verma, Vishal L" <vishal.l.verma@intel.com>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"jmorris@namei.org" <jmorris@namei.org>,
-	"tiwai@suse.de" <tiwai@suse.de>,
-	"sashal@kernel.org" <sashal@kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>,
-	"david@redhat.com" <david@redhat.com>, "bp@suse.de" <bp@suse.de>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
-	"jglisse@redhat.com" <jglisse@redhat.com>,
-	"zwisler@kernel.org" <zwisler@kernel.org>,
-	"Jiang, Dave" <dave.jiang@intel.com>,
-	"bhelgaas@google.com" <bhelgaas@google.com>,
-	"Busch, Keith" <keith.busch@intel.com>,
-	"thomas.lendacky@amd.com" <thomas.lendacky@amd.com>,
-	"Huang, Ying" <ying.huang@intel.com>,
-	"Wu, Fengguang" <fengguang.wu@intel.com>,
-	"baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>
-Subject: Re: NULL pointer dereference during memory hotremove
-Message-ID: <20190520070317.GU6836@dhcp22.suse.cz>
-References: <CA+CK2bBeOJPnnyWBgj0CJ7E1z9GVWVg_EJAmDs07BSJDp3PYfQ@mail.gmail.com>
- <20190517143816.GO6836@dhcp22.suse.cz>
- <CA+CK2bA+2+HaV4GWNUNP04fjjTPKbEGQHSPrSrmY7HLD57au1Q@mail.gmail.com>
- <CA+CK2bDq+2qu28afO__4kzO4=cnLH1P4DcHjc62rt0UtYwLm0A@mail.gmail.com>
- <CA+CK2bCgF7z5UHqrGCYu4JgG=5o6uXbjutTo9VSYAkqu3dqn5w@mail.gmail.com>
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "jmorris@namei.org" <jmorris@namei.org>, "tiwai@suse.de" <tiwai@suse.de>,
+ "sashal@kernel.org" <sashal@kernel.org>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>,
+ "bp@suse.de" <bp@suse.de>,
+ "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+ "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+ "jglisse@redhat.com" <jglisse@redhat.com>,
+ "zwisler@kernel.org" <zwisler@kernel.org>, "mhocko@suse.com"
+ <mhocko@suse.com>, "Jiang, Dave" <dave.jiang@intel.com>,
+ "bhelgaas@google.com" <bhelgaas@google.com>,
+ "Busch, Keith" <keith.busch@intel.com>,
+ "thomas.lendacky@amd.com" <thomas.lendacky@amd.com>,
+ "Huang, Ying" <ying.huang@intel.com>, "Wu, Fengguang"
+ <fengguang.wu@intel.com>,
+ "baiyaowei@cmss.chinamobile.com" <baiyaowei@cmss.chinamobile.com>
+References: <20190502184337.20538-1-pasha.tatashin@soleen.com>
+ <76dfe7943f2a0ceaca73f5fd23e944dfdc0309d1.camel@intel.com>
+ <CA+CK2bCKcJjXo7BGAVxvbQNYQFSDVLH5aB=S9yTmZWEfexOvtg@mail.gmail.com>
+ <CAPcyv4jj557QNNwyQ7ez+=PnURsnXk9cGZ11Mmihmtem2bJ-3A@mail.gmail.com>
+ <CA+CK2bBLAD58Q545r6W9eSwKJ3-BgzUF5oLAn6wHUcDi=jBpdw@mail.gmail.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <918bb4d5-1830-a283-1d38-70fc2f3bafb1@redhat.com>
+Date: Mon, 20 May 2019 09:57:40 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+CK2bCgF7z5UHqrGCYu4JgG=5o6uXbjutTo9VSYAkqu3dqn5w@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CA+CK2bBLAD58Q545r6W9eSwKJ3-BgzUF5oLAn6wHUcDi=jBpdw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Mon, 20 May 2019 07:58:46 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 17-05-19 13:33:25, Pavel Tatashin wrote:
-> On Fri, May 17, 2019 at 1:24 PM Pavel Tatashin
-> <pasha.tatashin@soleen.com> wrote:
-> >
-> > On Fri, May 17, 2019 at 1:22 PM Pavel Tatashin
-> > <pasha.tatashin@soleen.com> wrote:
-> > >
-> > > On Fri, May 17, 2019 at 10:38 AM Michal Hocko <mhocko@kernel.org> wrote:
-> > > >
-> > > > On Fri 17-05-19 10:20:38, Pavel Tatashin wrote:
-> > > > > This panic is unrelated to circular lock issue that I reported in a
-> > > > > separate thread, that also happens during memory hotremove.
-> > > > >
-> > > > > xakep ~/x/linux$ git describe
-> > > > > v5.1-12317-ga6a4b66bd8f4
-> > > >
-> > > > Does this happen on 5.0 as well?
-> > >
-> > > Yes, just reproduced it on 5.0 as well. Unfortunately, I do not have a
-> > > script, and have to do it manually, also it does not happen every
-> > > time, it happened on 3rd time for me.
-> >
-> > Actually, sorry, I have not tested 5.0, I compiled 5.0, but my script
-> > still tested v5.1-12317-ga6a4b66bd8f4 build. I will report later if I
-> > am able to reproduce it on 5.0.
+On 17.05.19 16:09, Pavel Tatashin wrote:
+>>
+>> I would think that ACPI hotplug would have a similar problem, but it does this:
+>>
+>>                 acpi_unbind_memory_blocks(info);
+>>                 __remove_memory(nid, info->start_addr, info->length);
 > 
-> OK, confirmed on 5.0 as well, took 4 tries to reproduce:
+> ACPI does have exactly the same problem, so this is not a bug for this
+> series, I will submit a new version of my series with comments
+> addressed, but without fix for this issue.
+> 
+> I was able to reproduce this issue on the current mainline kernel.
+> Also, I been thinking more about how to fix it, and there is no easy
+> fix without a major hotplug redesign. Basically, we have to remove
+> sysfs memory entries before or after memory is hotplugged/hotremoved.
+> But, we also have to guarantee that hotplug/hotremove will succeed or
+> reinstate sysfs entries.
+> 
+> Qemu script:
+> 
+> qemu-system-x86_64                                                      \
+>         -enable-kvm                                                     \
+>         -cpu host                                                       \
+>         -parallel none                                                  \
+>         -echr 1                                                         \
+>         -serial none                                                    \
+>         -chardev stdio,id=console,signal=off,mux=on                     \
+>         -serial chardev:console                                         \
+>         -mon chardev=console                                            \
+>         -vga none                                                       \
+>         -display none                                                   \
+>         -kernel pmem/native/arch/x86/boot/bzImage                       \
+>         -m 8G,slots=1,maxmem=16G                                        \
+>         -smp 8                                                          \
+>         -fsdev local,id=virtfs1,path=/,security_model=none              \
+>         -device virtio-9p-pci,fsdev=virtfs1,mount_tag=hostfs            \
+>         -append 'earlyprintk=serial,ttyS0,115200 console=ttyS0
+> TERM=xterm ip=dhcp loglevel=7'
+> 
+> Config is attached.
+> 
+> Steps to reproduce:
+> #
+> # QEMU 4.0.0 monitor - type 'help' for more information
+> (qemu) object_add memory-backend-ram,id=mem1,size=1G
+> (qemu) device_add pc-dimm,id=dimm1,memdev=mem1
+> (qemu)
+> 
+> # echo online_movable > /sys/devices/system/memory/memory79/state
+> [   23.029552] Built 1 zonelists, mobility grouping on.  Total pages: 2045370
+> [   23.032591] Policy zone: Normal
+> # (qemu) device_del dimm1
+> (qemu) [   32.013950] Offlined Pages 32768
+> [   32.014307] Built 1 zonelists, mobility grouping on.  Total pages: 2031022
+> [   32.014843] Policy zone: Normal
+> [   32.015733]
+> [   32.015881] ======================================================
+> [   32.016390] WARNING: possible circular locking dependency detected
+> [   32.016881] 5.1.0_pt_pmem #38 Not tainted
+> [   32.017202] ------------------------------------------------------
+> [   32.017680] kworker/u16:4/380 is trying to acquire lock:
+> [   32.018096] 00000000675cc7e1 (kn->count#18){++++}, at:
+> kernfs_remove_by_name_ns+0x3b/0x80
+> [   32.018745]
+> [   32.018745] but task is already holding lock:
+> [   32.019201] 0000000053e50a99 (mem_sysfs_mutex){+.+.}, at:
+> unregister_memory_section+0x1d/0xa0
+> [   32.019859]
+> [   32.019859] which lock already depends on the new lock.
+> [   32.019859]
+> [   32.020499]
+> [   32.020499] the existing dependency chain (in reverse order) is:
+> [   32.021080]
+> [   32.021080] -> #4 (mem_sysfs_mutex){+.+.}:
+> [   32.021522]        __mutex_lock+0x8b/0x900
+> [   32.021843]        hotplug_memory_register+0x26/0xa0
+> [   32.022231]        __add_pages+0xe7/0x160
+> [   32.022545]        add_pages+0xd/0x60
+> [   32.022835]        add_memory_resource+0xc3/0x1d0
+> [   32.023207]        __add_memory+0x57/0x80
+> [   32.023530]        acpi_memory_device_add+0x13a/0x2d0
+> [   32.023928]        acpi_bus_attach+0xf1/0x200
+> [   32.024272]        acpi_bus_scan+0x3e/0x90
+> [   32.024597]        acpi_device_hotplug+0x284/0x3e0
+> [   32.024972]        acpi_hotplug_work_fn+0x15/0x20
+> [   32.025342]        process_one_work+0x2a0/0x650
+> [   32.025755]        worker_thread+0x34/0x3d0
+> [   32.026077]        kthread+0x118/0x130
+> [   32.026442]        ret_from_fork+0x3a/0x50
+> [   32.026766]
+> [   32.026766] -> #3 (mem_hotplug_lock.rw_sem){++++}:
+> [   32.027261]        get_online_mems+0x39/0x80
+> [   32.027600]        kmem_cache_create_usercopy+0x29/0x2c0
+> [   32.028019]        kmem_cache_create+0xd/0x10
+> [   32.028367]        ptlock_cache_init+0x1b/0x23
+> [   32.028724]        start_kernel+0x1d2/0x4b8
+> [   32.029060]        secondary_startup_64+0xa4/0xb0
+> [   32.029447]
+> [   32.029447] -> #2 (cpu_hotplug_lock.rw_sem){++++}:
+> [   32.030007]        cpus_read_lock+0x39/0x80
+> [   32.030360]        __offline_pages+0x32/0x790
+> [   32.030709]        memory_subsys_offline+0x3a/0x60
+> [   32.031089]        device_offline+0x7e/0xb0
+> [   32.031425]        acpi_bus_offline+0xd8/0x140
+> [   32.031821]        acpi_device_hotplug+0x1b2/0x3e0
+> [   32.032202]        acpi_hotplug_work_fn+0x15/0x20
+> [   32.032576]        process_one_work+0x2a0/0x650
+> [   32.032942]        worker_thread+0x34/0x3d0
+> [   32.033283]        kthread+0x118/0x130
+> [   32.033588]        ret_from_fork+0x3a/0x50
+> [   32.033919]
+> [   32.033919] -> #1 (&device->physical_node_lock){+.+.}:
+> [   32.034450]        __mutex_lock+0x8b/0x900
+> [   32.034784]        acpi_get_first_physical_node+0x16/0x60
+> [   32.035217]        acpi_companion_match+0x3b/0x60
+> [   32.035594]        acpi_device_uevent_modalias+0x9/0x20
+> [   32.036012]        platform_uevent+0xd/0x40
+> [   32.036352]        dev_uevent+0x85/0x1c0
+> [   32.036674]        kobject_uevent_env+0x1e2/0x640
+> [   32.037044]        kobject_synth_uevent+0x2b7/0x324
+> [   32.037428]        uevent_store+0x17/0x30
+> [   32.037752]        kernfs_fop_write+0xeb/0x1a0
+> [   32.038112]        vfs_write+0xb2/0x1b0
+> [   32.038417]        ksys_write+0x57/0xd0
+> [   32.038721]        do_syscall_64+0x4b/0x1a0
+> [   32.039053]        entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> [   32.039491]
+> [   32.039491] -> #0 (kn->count#18){++++}:
+> [   32.039913]        lock_acquire+0xaa/0x180
+> [   32.040242]        __kernfs_remove+0x244/0x2d0
+> [   32.040593]        kernfs_remove_by_name_ns+0x3b/0x80
+> [   32.040991]        device_del+0x14a/0x370
+> [   32.041309]        device_unregister+0x9/0x20
+> [   32.041653]        unregister_memory_section+0x69/0xa0
+> [   32.042059]        __remove_pages+0x112/0x460
+> [   32.042402]        arch_remove_memory+0x6f/0xa0
+> [   32.042758]        __remove_memory+0xab/0x130
+> [   32.043103]        acpi_memory_device_remove+0x67/0xe0
+> [   32.043537]        acpi_bus_trim+0x50/0x90
+> [   32.043889]        acpi_device_hotplug+0x2fa/0x3e0
+> [   32.044300]        acpi_hotplug_work_fn+0x15/0x20
+> [   32.044686]        process_one_work+0x2a0/0x650
+> [   32.045044]        worker_thread+0x34/0x3d0
+> [   32.045381]        kthread+0x118/0x130
+> [   32.045679]        ret_from_fork+0x3a/0x50
+> [   32.046005]
+> [   32.046005] other info that might help us debug this:
+> [   32.046005]
+> [   32.046636] Chain exists of:
+> [   32.046636]   kn->count#18 --> mem_hotplug_lock.rw_sem --> mem_sysfs_mutex
+> [   32.046636]
+> [   32.047514]  Possible unsafe locking scenario:
+> [   32.047514]
+> [   32.047976]        CPU0                    CPU1
+> [   32.048337]        ----                    ----
+> [   32.048697]   lock(mem_sysfs_mutex);
+> [   32.048983]                                lock(mem_hotplug_lock.rw_sem);
+> [   32.049519]                                lock(mem_sysfs_mutex);
+> [   32.050004]   lock(kn->count#18);
+> [   32.050270]
+> [   32.050270]  *** DEADLOCK ***
+> [   32.050270]
+> [   32.050736] 7 locks held by kworker/u16:4/380:
+> [   32.051087]  #0: 00000000a22fe78e
+> ((wq_completion)kacpi_hotplug){+.+.}, at: process_one_work+0x21e/0x650
+> [   32.051830]  #1: 00000000944f2dca
+> ((work_completion)(&hpw->work)){+.+.}, at:
+> process_one_work+0x21e/0x650
+> [   32.052577]  #2: 0000000024bbe147 (device_hotplug_lock){+.+.}, at:
+> acpi_device_hotplug+0x2e/0x3e0
+> [   32.053271]  #3: 000000005cb50027 (acpi_scan_lock){+.+.}, at:
+> acpi_device_hotplug+0x3c/0x3e0
+> [   32.053916]  #4: 00000000b8d06992 (cpu_hotplug_lock.rw_sem){++++},
+> at: __remove_memory+0x3b/0x130
+> [   32.054602]  #5: 00000000897f0ef4 (mem_hotplug_lock.rw_sem){++++},
+> at: percpu_down_write+0x1d/0x110
+> [   32.055315]  #6: 0000000053e50a99 (mem_sysfs_mutex){+.+.}, at:
+> unregister_memory_section+0x1d/0xa0
+> [   32.056016]
+> [   32.056016] stack backtrace:
+> [   32.056355] CPU: 4 PID: 380 Comm: kworker/u16:4 Not tainted 5.1.0_pt_pmem #38
+> [   32.056923] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996),
+> BIOS 1.12.0-20181126_142135-anatol 04/01/2014
+> [   32.057720] Workqueue: kacpi_hotplug acpi_hotplug_work_fn
+> [   32.058144] Call Trace:
+> [   32.058344]  dump_stack+0x67/0x90
+> [   32.058604]  print_circular_bug.cold.60+0x15c/0x195
+> [   32.058989]  __lock_acquire+0x17de/0x1d30
+> [   32.059308]  ? find_held_lock+0x2d/0x90
+> [   32.059611]  ? __kernfs_remove+0x199/0x2d0
+> [   32.059937]  lock_acquire+0xaa/0x180
+> [   32.060223]  ? kernfs_remove_by_name_ns+0x3b/0x80
+> [   32.060596]  __kernfs_remove+0x244/0x2d0
+> [   32.060908]  ? kernfs_remove_by_name_ns+0x3b/0x80
+> [   32.061283]  ? kernfs_name_hash+0xd/0x80
+> [   32.061596]  ? kernfs_find_ns+0x68/0xf0
+> [   32.061907]  kernfs_remove_by_name_ns+0x3b/0x80
+> [   32.062266]  device_del+0x14a/0x370
+> [   32.062548]  ? unregister_mem_sect_under_nodes+0x4f/0xc0
+> [   32.062973]  device_unregister+0x9/0x20
+> [   32.063285]  unregister_memory_section+0x69/0xa0
+> [   32.063651]  __remove_pages+0x112/0x460
+> [   32.063949]  arch_remove_memory+0x6f/0xa0
+> [   32.064271]  __remove_memory+0xab/0x130
+> [   32.064579]  ? walk_memory_range+0xa1/0xe0
+> [   32.064907]  acpi_memory_device_remove+0x67/0xe0
+> [   32.065274]  acpi_bus_trim+0x50/0x90
+> [   32.065560]  acpi_device_hotplug+0x2fa/0x3e0
+> [   32.065900]  acpi_hotplug_work_fn+0x15/0x20
+> [   32.066249]  process_one_work+0x2a0/0x650
+> [   32.066591]  worker_thread+0x34/0x3d0
+> [   32.066925]  ? process_one_work+0x650/0x650
+> [   32.067275]  kthread+0x118/0x130
+> [   32.067542]  ? kthread_create_on_node+0x60/0x60
+> [   32.067909]  ret_from_fork+0x3a/0x50
+> 
+>>
+>> I wonder if that ordering prevents going too deep into the
+>> device_unregister() call stack that you highlighted below.
+>>
+>>
+>>>
+>>> Here is the problem:
+>>>
+>>> When we offline pages we have the following call stack:
+>>>
+>>> # echo offline > /sys/devices/system/memory/memory8/state
+>>> ksys_write
+>>>  vfs_write
+>>>   __vfs_write
+>>>    kernfs_fop_write
+>>>     kernfs_get_active
+>>>      lock_acquire                       kn->count#122 (lock for
+>>> "memory8/state" kn)
+>>>     sysfs_kf_write
+>>>      dev_attr_store
+>>>       state_store
+>>>        device_offline
+>>>         memory_subsys_offline
+>>>          memory_block_action
+>>>           offline_pages
+>>>            __offline_pages
+>>>             percpu_down_write
+>>>              down_write
+>>>               lock_acquire              mem_hotplug_lock.rw_sem
+>>>
+>>> When we unbind dax0.0 we have the following  stack:
+>>> # echo dax0.0 > /sys/bus/dax/drivers/kmem/unbind
+>>> drv_attr_store
+>>>  unbind_store
+>>>   device_driver_detach
+>>>    device_release_driver_internal
+>>>     dev_dax_kmem_remove
+>>>      remove_memory                      device_hotplug_lock
+>>>       try_remove_memory                 mem_hotplug_lock.rw_sem
+>>>        arch_remove_memory
+>>>         __remove_pages
+>>>          __remove_section
+>>>           unregister_memory_section
+>>>            remove_memory_section        mem_sysfs_mutex
+>>>             unregister_memory
+>>>              device_unregister
+>>>               device_del
+>>>                device_remove_attrs
+>>>                 sysfs_remove_groups
+>>>                  sysfs_remove_group
+>>>                   remove_files
+>>>                    kernfs_remove_by_name
+>>>                     kernfs_remove_by_name_ns
+>>>                      __kernfs_remove    kn->count#122
+>>>
+>>> So, lockdep found the ordering issue with the above two stacks:
+>>>
+>>> 1. kn->count#122 -> mem_hotplug_lock.rw_sem
+>>> 2. mem_hotplug_lock.rw_sem -> kn->count#122
 
-What is the last version that survives? Can you bisect?
+I once documented locking behavior in
+
+Documentation/core-api/memory-hotplug.rst
+
+Both, device_online() and __remove_memory() always have to be called
+holding the device_hotplug_lock(), to avoid such races.
+
+# echo offline > /sys/devices/system/memory/memory8/state
+and
+# echo 0 > /sys/devices/system/memory/memory8/online
+
+either end up in:
+
+-> online_store()
+-- lock_device_hotplug_sysfs();
+-- device_offline(dev)
+
+-> state_store()
+-- lock_device_hotplug_sysfs();
+--  device_online(&mem->dev);
+
+So the device_hotplug_lock prohibits the race you describe.
+
+BUT
+
+There is a possible race between the device_hotplug_lock and the
+kn->count#122. However, that race can never trigger, as userspace
+properly backs off in case it cannot get grip of the device_hotplug_lock.
+
+(lock_device_hotplug_sysfs does a mutex_trylock(&device_hotplug_lock))
+
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
 
