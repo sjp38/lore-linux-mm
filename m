@@ -2,273 +2,311 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A5C93C04AB4
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 03:17:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ED914C072A4
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 03:53:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 66FED2081C
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 03:17:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66FED2081C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 9540720449
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 03:53:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="OT53xaXo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9540720449
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EA1846B0005; Sun, 19 May 2019 23:17:46 -0400 (EDT)
+	id 204106B0005; Sun, 19 May 2019 23:53:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E51436B0006; Sun, 19 May 2019 23:17:46 -0400 (EDT)
+	id 18F966B0006; Sun, 19 May 2019 23:53:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D67296B0007; Sun, 19 May 2019 23:17:46 -0400 (EDT)
+	id 0546E6B0007; Sun, 19 May 2019 23:53:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CEB76B0005
-	for <linux-mm@kvack.org>; Sun, 19 May 2019 23:17:46 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id g11so8234178plt.23
-        for <linux-mm@kvack.org>; Sun, 19 May 2019 20:17:46 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BC3AB6B0005
+	for <linux-mm@kvack.org>; Sun, 19 May 2019 23:53:06 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id o8so8870667pgq.5
+        for <linux-mm@kvack.org>; Sun, 19 May 2019 20:53:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=1OCKhsVDt6kX4UZoiYXTwaT9WYzoqrhZTxEZsyzJ+sY=;
-        b=lDS5abQwXT6TmjLuJIuqZizlRCUfqb6tK9Nl8lir/BE/CuDrLDhjcRXOnC8YKuGs3J
-         vI9JtKev7APBq0kRHysExnRsMyg0M8JSpOERX1r32gMV2+S5hdgGAX4M3rfcGwFeqrpW
-         VjBHGAtIEO03vaCSh/CiE8q2PqYnfe5capZNIDcA0R1ynvdSV08wP5MjqzD8aCoqFyrx
-         exWr50mrVk9yx2uqAe7cFBKc09ux9k6TENgl1YJle7CHoywk7oL7KUs3fZdPBPpGMTgT
-         yd2hmFJuA674R0B600R8f/o3hC3CY4Q3IZUKF24GiPbtT6mY88HnogjhiK1RlG7Yr0OC
-         vWxg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAVxpNmTYC1xFOcQytSiPKbDPRN9V7abUO5CjHo7g4rw3vjDfMi6
-	aMLYJ4+IsYSlRiLgxgWQkxXDJUL35f8yUl4cOsK9HW1+i43q44z3amfF2f3jj/EHOR+KxK0g9Ok
-	3jLpgg2ah3BvF5abUJz9Rpf/eX471tzmrhC2yF/GDp7T+1vOgGo5X+2eIRv4p1kVyVQ==
-X-Received: by 2002:a17:902:f212:: with SMTP id gn18mr11280562plb.106.1558322266282;
-        Sun, 19 May 2019 20:17:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwstm6BKlvGkOvnLxmYiQ2jUZFsHniN7LVoJMfM/xBiqipSwZ2kgVoGeBF0T9jhAkPaU7KH
-X-Received: by 2002:a17:902:f212:: with SMTP id gn18mr11280509plb.106.1558322265187;
-        Sun, 19 May 2019 20:17:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558322265; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=AOnrcLqkjHP19PScPNjQgwAfOGbBMDgtiALDPlzvFYQ=;
+        b=TcKMefUL2GWO6kLFQXZ1G1rxpEhbdV32UqgJLwc+WW1dJE6h6xwMUTKEeEOOP9lv/e
+         BEbQOvNtbBh8t9Do7nFmRWMuvrrxlji+OZ4J8F+dNXJQDxklx8adqkGDw/79qbJsDD7Z
+         MrcQXDRqxrSo6VWfiu0Df8d8bW3mEUTNrqIihXD4nTeXDy0bN4oR0ElpnJi4UrUEB9/P
+         ZCO5COMKl02LnHMbXfEfYjDDfvJwJmnzG3s8t4v15ePrWTVRcDWNeKpt8nleDKzVVzip
+         qS+1L5I+IjT6+xtUVCBQokxql/gasSSJ2bLqBpsaWGgGPt/uEq+CgzmtCLTIbf66c4h6
+         VOFA==
+X-Gm-Message-State: APjAAAUvZvamjlVfj+5vS4/33ViGrZe2SCGQTTw+03d/jKIGpxmNfV7H
+	oItP7tN4D9TIZaAUAn0aWxYtIA6qsXTnpOgKcusZ183u6VDWPgWvuIyuaof01E2oFPJazWMhZR3
+	BXcn2IeGVDR/BD+sASAyxAU0UDQye/PFkN97zxEcB4N2d1GMeh/QSzAULS8M2yBo=
+X-Received: by 2002:a63:6f0b:: with SMTP id k11mr72333494pgc.342.1558324386242;
+        Sun, 19 May 2019 20:53:06 -0700 (PDT)
+X-Received: by 2002:a63:6f0b:: with SMTP id k11mr72333419pgc.342.1558324385152;
+        Sun, 19 May 2019 20:53:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558324385; cv=none;
         d=google.com; s=arc-20160816;
-        b=dUfrYWt5OvUZ6g9+ooMVEe/WJgX3oX/8qnk1ZsACFPxNMCYnjzhONXG0gLheQ/LmU2
-         DBvrVIfu5boCaixOIOl0GL7LoHdS9hs2kV2qn65gkU/6oZsggifC2QMj2n4jicrNc/b4
-         J8JEtmjNqxXGgzudeN3ZpEJy0l0I3OhSSmZ56+tMxIH61/zMEpR+ALPnTT72vGNDhSzD
-         1pYZHoFtsp9t8sHuUu7SR2c4mfcmoGNYw9MOOQ5LhDV6b3KxSI4k6QlcUW0YHdxIvvX1
-         NAz9NDfUC1FB8miGgTHbpnxCIuRZwFMsk5wAT+Ys8saOjJRftQJkCsYYPR1CKbpt2WtX
-         9Mcw==
+        b=QLiRI4Mk97OUkSKDyceL5muxmAdyXz4Hu16SyLeo1uJ2cv8TEQ/hv1VQcrYsDjQx0p
+         18vTFragzZ6GbIih5C5N6isaBrTAJQWJXqLwhnGdbfqoegyVYwitg1okOxTcWsu4zWNe
+         pnfrLTshgjOqxrFDJcjcrDT3ZRi1lvQZuu3W3u3vxSHZvG4Li5YMd3zUZLGn5u2IGn7E
+         h/vCVt0McSQW2mHg9auCe9eDCgH2ci4+BYlV7jNWbDT2ALBr1OL/zbtPfoXfRsz/EK6Y
+         l7rgISEyBJnnwFZmzpGS/4i3Mq3E1Ewoi4tVpn9T1EeAiJNMqqJsx7adyrbMnozCF2RE
+         gVPA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=1OCKhsVDt6kX4UZoiYXTwaT9WYzoqrhZTxEZsyzJ+sY=;
-        b=pqIOWl4RiYle131hzoyHPL0xVP014Vq1hY6PKdG6FOLKQw72bS4UD4uaSAJ2ImvqgB
-         chfR/MrUTS2q8iS+lozCK5y+asjPZ/tr+9KMtnHVSq2O5CNA4DA7Ucw0g3AgjZNqCV4R
-         WOnuRkctpnvVkYEkbsyOY0ZuGcqf8FCL9Cc2/ZsFJXl+fYrjVDvovLlAFVY4Hb5rcD6z
-         xUXyG1u2zYaVHG00Wdd/A6peV+fFKz0GJBp0COewoz8tKMyO6lQhxAEA/rYY/4D5xO+l
-         aAyhQeVFVqB71SX9dor1smJ8w578RVMIETIJUy7J8Wm3WPYA9bZ6OwFJ9cU73/A+8P+y
-         WW+Q==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:sender:dkim-signature;
+        bh=AOnrcLqkjHP19PScPNjQgwAfOGbBMDgtiALDPlzvFYQ=;
+        b=yCfDnMy+DhB3W2aKC/0YQ8I0qEsTUH/NwdLCNYqDJuExSNWnDyq3np5+gInDZAx3/+
+         VzoXsxm7bWkN6J+9hASx7dKTm+BG2wg+dnw7HLVu+4Gn40Qx+1zAQOZd1+8bEAnoCAI8
+         KjDvOegwVIL9mOrmvl0suJDmY9Mzp0299T50vLrbF74bxvFwGTwRp3sU0lW4otMIr5EJ
+         31T1Khgxg6GOtFfFC7ugyKm8gRCQWm0uQJ8rpqcAbRnoquBecvm34XmGZ6QS+zApP+X+
+         6+T4YMtb9aqp2kPQh2mUI9vqjL5iYT03Xeo0GPpJKR3vJokmkyJKet2+nRLmTCB9jzGe
+         qpOA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id 23si16231086pgq.100.2019.05.19.20.17.43
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OT53xaXo;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b11sor18141572plz.51.2019.05.19.20.53.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 May 2019 20:17:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
+        (Google Transport Security);
+        Sun, 19 May 2019 20:53:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R121e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07417;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TSAtqql_1558322252;
-Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TSAtqql_1558322252)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Mon, 20 May 2019 11:17:39 +0800
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: jstancek@redhat.com,
-	peterz@infradead.org,
-	will.deacon@arm.com,
-	npiggin@gmail.com,
-	aneesh.kumar@linux.ibm.com,
-	namit@vmware.com,
-	minchan@kernel.org,
-	mgorman@suse.de,
-	akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com,
-	stable@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [v3 PATCH] mm: mmu_gather: remove __tlb_reset_range() for force flush
-Date: Mon, 20 May 2019 11:17:32 +0800
-Message-Id: <1558322252-113575-1-git-send-email-yang.shi@linux.alibaba.com>
-X-Mailer: git-send-email 1.8.3.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OT53xaXo;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=AOnrcLqkjHP19PScPNjQgwAfOGbBMDgtiALDPlzvFYQ=;
+        b=OT53xaXom6Yfanw1bzJpi6sfGVTcl6JNG5vMptFQD1ESPwMhG7mJgmSLU3e9/eQOsS
+         APAsZVbnbdWSbUEqmOdYqVC1F1eAzZJilo04vKFYQ4AWFo6n0UlW/sMylxJ/R3m1wRSa
+         /zq6g3Q5rPRiL2j2F8qthGTCPZ77hjMv7VS0VcI1YWSwm9LRenYW+E6ranNNsw4TNxXZ
+         kVHipVWbMC3QIY8oOgBZQMYUxEGicgu85g3DSfmpGvuqXdkeGiTwCqsoMke3onEFyJ43
+         WrQGIaItg2cufJjHfmRi9f3Lburb7ypAqWQppRirrVyzTKr8Qg86++w+SwvvLteMxZeI
+         wpqA==
+X-Google-Smtp-Source: APXvYqxKbsGHGzREndrVBtZi8nQnp1OBpv+F4c+HfxZ4pcZ1gIGEK5nPt9CuMgkOqHy0k9dA1NJE2w==
+X-Received: by 2002:a17:902:b695:: with SMTP id c21mr73965937pls.160.1558324384465;
+        Sun, 19 May 2019 20:53:04 -0700 (PDT)
+Received: from bbox-2.seo.corp.google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id x66sm3312779pfx.139.2019.05.19.20.52.59
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 19 May 2019 20:53:02 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>,
+	Minchan Kim <minchan@kernel.org>
+Subject: [RFC 0/7] introduce memory hinting API for external process
+Date: Mon, 20 May 2019 12:52:47 +0900
+Message-Id: <20190520035254.57579-1-minchan@kernel.org>
+X-Mailer: git-send-email 2.21.0.1020.gf2820cf01a-goog
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-A few new fields were added to mmu_gather to make TLB flush smarter for
-huge page by telling what level of page table is changed.
+- Background
 
-__tlb_reset_range() is used to reset all these page table state to
-unchanged, which is called by TLB flush for parallel mapping changes for
-the same range under non-exclusive lock (i.e. read mmap_sem).  Before
-commit dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in
-munmap"), the syscalls (e.g. MADV_DONTNEED, MADV_FREE) which may update
-PTEs in parallel don't remove page tables.  But, the forementioned
-commit may do munmap() under read mmap_sem and free page tables.  This
-may result in program hang on aarch64 reported by Jan Stancek.  The
-problem could be reproduced by his test program with slightly modified
-below.
+The Android terminology used for forking a new process and starting an app
+from scratch is a cold start, while resuming an existing app is a hot start.
+While we continually try to improve the performance of cold starts, hot
+starts will always be significantly less power hungry as well as faster so
+we are trying to make hot start more likely than cold start.
 
----8<---
+To increase hot start, Android userspace manages the order that apps should
+be killed in a process called ActivityManagerService. ActivityManagerService
+tracks every Android app or service that the user could be interacting with
+at any time and translates that into a ranked list for lmkd(low memory
+killer daemon). They are likely to be killed by lmkd if the system has to
+reclaim memory. In that sense they are similar to entries in any other cache.
+Those apps are kept alive for opportunistic performance improvements but
+those performance improvements will vary based on the memory requirements of
+individual workloads.
 
-static int map_size = 4096;
-static int num_iter = 500;
-static long threads_total;
+- Problem
 
-static void *distant_area;
+Naturally, cached apps were dominant consumers of memory on the system.
+However, they were not significant consumers of swap even though they are
+good candidate for swap. Under investigation, swapping out only begins
+once the low zone watermark is hit and kswapd wakes up, but the overall
+allocation rate in the system might trip lmkd thresholds and cause a cached
+process to be killed(we measured performance swapping out vs. zapping the
+memory by killing a process. Unsurprisingly, zapping is 10x times faster
+even though we use zram which is much faster than real storage) so kill
+from lmkd will often satisfy the high zone watermark, resulting in very
+few pages actually being moved to swap.
 
-void *map_write_unmap(void *ptr)
-{
-	int *fd = ptr;
-	unsigned char *map_address;
-	int i, j = 0;
+- Approach
 
-	for (i = 0; i < num_iter; i++) {
-		map_address = mmap(distant_area, (size_t) map_size, PROT_WRITE | PROT_READ,
-			MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-		if (map_address == MAP_FAILED) {
-			perror("mmap");
-			exit(1);
-		}
+The approach we chose was to use a new interface to allow userspace to
+proactively reclaim entire processes by leveraging platform information.
+This allowed us to bypass the inaccuracy of the kernel’s LRUs for pages
+that are known to be cold from userspace and to avoid races with lmkd
+by reclaiming apps as soon as they entered the cached state. Additionally,
+it could provide many chances for platform to use much information to
+optimize memory efficiency.
 
-		for (j = 0; j < map_size; j++)
-			map_address[j] = 'b';
+IMHO we should spell it out that this patchset complements MADV_WONTNEED
+and MADV_FREE by adding non-destructive ways to gain some free memory
+space. MADV_COLD is similar to MADV_WONTNEED in a way that it hints the
+kernel that memory region is not currently needed and should be reclaimed
+immediately; MADV_COOL is similar to MADV_FREE in a way that it hints the
+kernel that memory region is not currently needed and should be reclaimed
+when memory pressure rises.
 
-		if (munmap(map_address, map_size) == -1) {
-			perror("munmap");
-			exit(1);
-		}
+To achieve the goal, the patchset introduce two new options for madvise.
+One is MADV_COOL which will deactive activated pages and the other is
+MADV_COLD which will reclaim private pages instantly. These new options
+complement MADV_DONTNEED and MADV_FREE by adding non-destructive ways to
+gain some free memory space. MADV_COLD is similar to MADV_DONTNEED in a way
+that it hints the kernel that memory region is not currently needed and
+should be reclaimed immediately; MADV_COOL is similar to MADV_FREE in a way
+that it hints the kernel that memory region is not currently needed and
+should be reclaimed when memory pressure rises.
+
+This approach is similar in spirit to madvise(MADV_WONTNEED), but the
+information required to make the reclaim decision is not known to the app.
+Instead, it is known to a centralized userspace daemon, and that daemon
+must be able to initiate reclaim on its own without any app involvement.
+To solve the concern, this patch introduces new syscall -
+
+	struct pr_madvise_param {
+		int size;
+		const struct iovec *vec;
 	}
 
-	return NULL;
-}
+	int process_madvise(int pidfd, ssize_t nr_elem, int *behavior,
+				struct pr_madvise_param *restuls,
+				struct pr_madvise_param *ranges,
+				unsigned long flags);
 
-void *dummy(void *ptr)
-{
-	return NULL;
-}
+The syscall get pidfd to give hints to external process and provides
+pair of result/ranges vector arguments so that it could give several
+hints to each address range all at once.
 
-int main(void)
-{
-	pthread_t thid[2];
+I guess others have different ideas about the naming of syscall and options
+so feel free to suggest better naming.
 
-	/* hint for mmap in map_write_unmap() */
-	distant_area = mmap(0, DISTANT_MMAP_SIZE, PROT_WRITE | PROT_READ,
-			MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-	munmap(distant_area, (size_t)DISTANT_MMAP_SIZE);
-	distant_area += DISTANT_MMAP_SIZE / 2;
+- Experiment
 
-	while (1) {
-		pthread_create(&thid[0], NULL, map_write_unmap, NULL);
-		pthread_create(&thid[1], NULL, dummy, NULL);
+We did bunch of testing with several hundreds of real users, not artificial
+benchmark on android. We saw about 17% cold start decreasement without any
+significant battery/app startup latency issues. And with artificial benchmark
+which launches and switching apps, we saw average 7% app launching improvement,
+18% less lmkd kill and good stat from vmstat.
 
-		pthread_join(thid[0], NULL);
-		pthread_join(thid[1], NULL);
-	}
-}
----8<---
+A is vanilla and B is process_madvise.
 
-The program may bring in parallel execution like below:
 
-        t1                                        t2
-munmap(map_address)
-  downgrade_write(&mm->mmap_sem);
-  unmap_region()
-  tlb_gather_mmu()
-    inc_tlb_flush_pending(tlb->mm);
-  free_pgtables()
-    tlb->freed_tables = 1
-    tlb->cleared_pmds = 1
+                                       A          B      delta   ratio(%)
+               allocstall_dma          0          0          0       0.00
+           allocstall_movable       1464        457      -1007     -69.00
+            allocstall_normal     263210     190763     -72447     -28.00
+             allocstall_total     264674     191220     -73454     -28.00
+          compact_daemon_wake      26912      25294      -1618      -7.00
+                 compact_fail      17885      14151      -3734     -21.00
+         compact_free_scanned 4204766409 3835994922 -368771487      -9.00
+             compact_isolated    3446484    2967618    -478866     -14.00
+      compact_migrate_scanned 1621336411 1324695710 -296640701     -19.00
+                compact_stall      19387      15343      -4044     -21.00
+              compact_success       1502       1192       -310     -21.00
+kswapd_high_wmark_hit_quickly        234        184        -50     -22.00
+            kswapd_inodesteal     221635     233093      11458       5.00
+ kswapd_low_wmark_hit_quickly      66065      54009     -12056     -19.00
+                   nr_dirtied     259934     296476      36542      14.00
+  nr_vmscan_immediate_reclaim       2587       2356       -231      -9.00
+              nr_vmscan_write    1274232    2661733    1387501     108.00
+                   nr_written    1514060    2937560    1423500      94.00
+                   pageoutrun      67561      55133     -12428     -19.00
+                   pgactivate    2335060    1984882    -350178     -15.00
+                  pgalloc_dma   13743011   14096463     353452       2.00
+              pgalloc_movable          0          0          0       0.00
+               pgalloc_normal   18742440   16802065   -1940375     -11.00
+                pgalloc_total   32485451   30898528   -1586923      -5.00
+                 pgdeactivate    4262210    2930670   -1331540     -32.00
+                      pgfault   30812334   31085065     272731       0.00
+                       pgfree   33553970   31765164   -1788806      -6.00
+                 pginodesteal      33411      15084     -18327     -55.00
+                  pglazyfreed          0          0          0       0.00
+                   pgmajfault     551312    1508299     956987     173.00
+               pgmigrate_fail      43927      29330     -14597     -34.00
+            pgmigrate_success    1399851    1203922    -195929     -14.00
+                       pgpgin   24141776   19032156   -5109620     -22.00
+                      pgpgout     959344    1103316     143972      15.00
+                 pgpgoutclean    4639732    3765868    -873864     -19.00
+                     pgrefill    4884560    3006938   -1877622     -39.00
+                    pgrotated      37828      25897     -11931     -32.00
+                pgscan_direct    1456037     957567    -498470     -35.00
+       pgscan_direct_throttle          0          0          0       0.00
+                pgscan_kswapd    6667767    5047360   -1620407     -25.00
+                 pgscan_total    8123804    6004927   -2118877     -27.00
+                   pgskip_dma          0          0          0       0.00
+               pgskip_movable          0          0          0       0.00
+                pgskip_normal      14907      25382      10475      70.00
+                 pgskip_total      14907      25382      10475      70.00
+               pgsteal_direct    1118986     690215    -428771     -39.00
+               pgsteal_kswapd    4750223    3657107   -1093116     -24.00
+                pgsteal_total    5869209    4347322   -1521887     -26.00
+                       pswpin     417613    1392647     975034     233.00
+                      pswpout    1274224    2661731    1387507     108.00
+                slabs_scanned   13686905   10807200   -2879705     -22.00
+          workingset_activate     668966     569444     -99522     -15.00
+       workingset_nodereclaim      38957      32621      -6336     -17.00
+           workingset_refault    2816795    2179782    -637013     -23.00
+           workingset_restore     294320     168601    -125719     -43.00
 
-                                        pthread_exit()
-                                        madvise(thread_stack, 8M, MADV_DONTNEED)
-                                          zap_page_range()
-                                            tlb_gather_mmu()
-                                              inc_tlb_flush_pending(tlb->mm);
+pgmajfault is increased by 173% because swapin is increased by 200% by
+process_madvise hint. However, swap read based on zram is much cheaper
+than file IO in performance point of view and app hot start by swapin is
+also cheaper than cold start from the beginning of app which needs many IO
+from storage and initialization steps.
 
-  tlb_finish_mmu()
-    if (mm_tlb_flush_nested(tlb->mm))
-      __tlb_reset_range()
+This patchset is against on next-20190517.
 
-__tlb_reset_range() would reset freed_tables and cleared_* bits, but
-this may cause inconsistency for munmap() which do free page tables.
-Then it may result in some architectures, e.g. aarch64, may not flush
-TLB completely as expected to have stale TLB entries remained.
+Minchan Kim (7):
+  mm: introduce MADV_COOL
+  mm: change PAGEREF_RECLAIM_CLEAN with PAGE_REFRECLAIM
+  mm: introduce MADV_COLD
+  mm: factor out madvise's core functionality
+  mm: introduce external memory hinting API
+  mm: extend process_madvise syscall to support vector arrary
+  mm: madvise support MADV_ANONYMOUS_FILTER and MADV_FILE_FILTER
 
-Use fullmm flush since it yields much better performance on aarch64 and
-non-fullmm doesn't yields significant difference on x86.
+ arch/x86/entry/syscalls/syscall_32.tbl |   1 +
+ arch/x86/entry/syscalls/syscall_64.tbl |   1 +
+ include/linux/page-flags.h             |   1 +
+ include/linux/page_idle.h              |  15 +
+ include/linux/proc_fs.h                |   1 +
+ include/linux/swap.h                   |   2 +
+ include/linux/syscalls.h               |   2 +
+ include/uapi/asm-generic/mman-common.h |  12 +
+ include/uapi/asm-generic/unistd.h      |   2 +
+ kernel/signal.c                        |   2 +-
+ kernel/sys_ni.c                        |   1 +
+ mm/madvise.c                           | 600 +++++++++++++++++++++----
+ mm/swap.c                              |  43 ++
+ mm/vmscan.c                            |  80 +++-
+ 14 files changed, 680 insertions(+), 83 deletions(-)
 
-The original proposed fix came from Jan Stancek who mainly debugged this
-issue, I just wrapped up everything together.
-
-Reported-by: Jan Stancek <jstancek@redhat.com>
-Tested-by: Jan Stancek <jstancek@redhat.com>
-Suggested-by: Will Deacon <will.deacon@arm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Nick Piggin <npiggin@gmail.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Nadav Amit <namit@vmware.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: stable@vger.kernel.org  4.20+
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-Signed-off-by: Jan Stancek <jstancek@redhat.com>
----
-v3: Adopted fullmm flush suggestion from Will
-v2: Reworked the commit log per Peter and Will
-    Adopted the suggestion from Peter
-
- mm/mmu_gather.c | 24 +++++++++++++++++++-----
- 1 file changed, 19 insertions(+), 5 deletions(-)
-
-diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
-index 99740e1..289f8cf 100644
---- a/mm/mmu_gather.c
-+++ b/mm/mmu_gather.c
-@@ -245,14 +245,28 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
- {
- 	/*
- 	 * If there are parallel threads are doing PTE changes on same range
--	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
--	 * flush by batching, a thread has stable TLB entry can fail to flush
--	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
--	 * forcefully if we detect parallel PTE batching threads.
-+	 * under non-exclusive lock (e.g., mmap_sem read-side) but defer TLB
-+	 * flush by batching, one thread may end up seeing inconsistent PTEs
-+	 * and result in having stale TLB entries.  So flush TLB forcefully
-+	 * if we detect parallel PTE batching threads.
-+	 *
-+	 * However, some syscalls, e.g. munmap(), may free page tables, this
-+	 * needs force flush everything in the given range. Otherwise this
-+	 * may result in having stale TLB entries for some architectures,
-+	 * e.g. aarch64, that could specify flush what level TLB.
- 	 */
- 	if (mm_tlb_flush_nested(tlb->mm)) {
-+		/*
-+		 * The aarch64 yields better performance with fullmm by
-+		 * avoiding multiple CPUs spamming TLBI messages at the
-+		 * same time.
-+		 *
-+		 * On x86 non-fullmm doesn't yield significant difference
-+		 * against fullmm.
-+		 */ 
-+		tlb->fullmm = 1;
- 		__tlb_reset_range(tlb);
--		__tlb_adjust_range(tlb, start, end - start);
-+		tlb->freed_tables = 1;
- 	}
- 
- 	tlb_flush_mmu(tlb);
 -- 
-1.8.3.1
+2.21.0.1020.gf2820cf01a-goog
 
