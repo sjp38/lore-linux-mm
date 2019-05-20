@@ -2,169 +2,168 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 086CCC46460
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 16:29:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 786A9C04AAF
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 16:46:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3B292177B
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 16:29:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2CF8B214DA
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 16:46:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="fHGovjx4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3B292177B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="UsDmFQ7y"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CF8B214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4AC766B0003; Mon, 20 May 2019 12:29:16 -0400 (EDT)
+	id B57276B0006; Mon, 20 May 2019 12:46:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 45D846B0005; Mon, 20 May 2019 12:29:16 -0400 (EDT)
+	id B08256B0008; Mon, 20 May 2019 12:46:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 34D626B0006; Mon, 20 May 2019 12:29:16 -0400 (EDT)
+	id 9F6BB6B000A; Mon, 20 May 2019 12:46:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F347B6B0003
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 12:29:15 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id g11so9457529plb.3
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 09:29:15 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A4A66B0006
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 12:46:12 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 123so10084140pgh.17
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 09:46:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=byKYPTND9YCeJJHnLBgAwQB4XeP+2knzrQ48PDwWxpg=;
-        b=jP+F7LzLN65B1WGyn87w/XQXScJ49YHq7xsn+d3LUBaPxEBYpMKw+4MJeBCnyGeYvv
-         dY8bTFsYeMioRPjrk5Kf/HnID3PXjY/0DH7duz7WFfLrp6MwI4KUhjo7VrH/Oh+Zlk+x
-         TTVSeFZhoZr+NUaMHUxiZPlDFwBl/7MbEKZ3F2EueX5gzrs4g/Nh8zJxfYAPxjpbYYPU
-         e2G2E7k/u7t5UdQu4mTlScKOX1q0cxILokDvqyjlarCRhNfu3FgdquhW8kMx7ga+XSYG
-         cK5/t0hvdB2phHC8i5RXf9MlQQ4b6jfT2utRdlX5BfAKJB/GJvJ71H7jHrZ6XIU6Gq2h
-         T00A==
-X-Gm-Message-State: APjAAAUbQCjCiIP6nC/IoSf4ZmJxbrMaJIB31IwYjVCIGmCCthMuCqGR
-	dFx4n2jbOqDA02JFKlLk1Xlpmu794V0VUbZtdUFU7Qe6Iwbs/j39ompqIuPPKQKI1GixmbW6Szs
-	w59RWPmU2QdfE4XjajfOg3ynzTPbNiEmUc6k/ZouJNNnT5TinAo9blymaclWkGJM28A==
-X-Received: by 2002:a17:902:850a:: with SMTP id bj10mr8898843plb.196.1558369755681;
-        Mon, 20 May 2019 09:29:15 -0700 (PDT)
-X-Received: by 2002:a17:902:850a:: with SMTP id bj10mr8898748plb.196.1558369754681;
-        Mon, 20 May 2019 09:29:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558369754; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=AhvyYHsik8s1aZ1UVXcXGfBu8d3R9Dfu1UdhHMa3ucQ=;
+        b=Jz4DZ5Q+54ZxNP37T6RxXO6I5xQjz+C0ukL1Sd1QINhm+8YgV5vF+OaQkg0IYroeaF
+         gT9mBcHSK1cUlE1lan89k75iDZPXAe+7d1Ce/Mu7nqapSwnyZS2b8tghp140dYpOtzdZ
+         CEzFT813Sn0MEIErDYnViedqmZRiNWNNvOWUyEmUMKxXEngSIHqjEpwng3P+aTPc/qsm
+         Wou3TcR/X5tS7asD1eZuLz5xQPdtymRIlS7R+rDNEsC1uAr5S4z4P7wcldhtetJuzkcW
+         Pp4eefw4uJzjO13fq1FuBrCPMDXm97eNfuP7ho/H79tlEsYafadUkmILBR3vkMvscpDo
+         w9eg==
+X-Gm-Message-State: APjAAAX+0LmX2NmC3zP1n+JaIU5Ft7SsexUruOhYc7439BuS8q0gufzU
+	KU2sj82exlLac3Y+zSnYPo59/Tl6mOltgDmiDGRjSzdm22XxBd3nDxQpCgD5B3s8sSrVDMTygEG
+	jypvANbY3Bcm5lNBGA5bhrgvPF47dR+2t6yUQRln9Z04MqM0ddIZPDj3DvqxQZPaQlQ==
+X-Received: by 2002:a17:902:848c:: with SMTP id c12mr27594365plo.17.1558370772003;
+        Mon, 20 May 2019 09:46:12 -0700 (PDT)
+X-Received: by 2002:a17:902:848c:: with SMTP id c12mr27594305plo.17.1558370771020;
+        Mon, 20 May 2019 09:46:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558370771; cv=none;
         d=google.com; s=arc-20160816;
-        b=j5TW6rmBBin1hBEUBaSMdxAos0qmHM1SLrnk0j3O2GorSfLpBTqXx/OmfxghmRUCrG
-         jMgIQhM0dVytfBvewGUdOES0XrUepuxJ0Cddfp87i1175dH97RjhLrOsKrdjTdxwsZnG
-         MvR1lUD/atlFCpw+8Ey8kg0J4Ch+xehbLTsiTfmPi6Skoq1qddY7QzVebyeUhKU4LreD
-         o/Kd/fAEM7eZRa5FmopIxkc6GNWUuDeukJ7MOrejM6T5cFPGm96sFW1PzTVT54qNMj8O
-         5WAqWy4uVRyycXIh95o2QDQCdVUqLV6AvoloNMjKhoi2X8GCxkUXA3oSKayUNbAnaDxM
-         +H5A==
+        b=e6YLKXZbGyNM6RzqQibgyWIvZC/bjl1V4elmRTbZKJCe6FC/JXbTQZrsQVHL5HMORC
+         c5Kbb5s0tctdtmcucX9OABu2A7TUV13Q/qAehh+X/UmRyWow4T3lUQO3uM/TbcDhe/ow
+         dzv79d88QNQ72/CPGZK5UDs9UPPdZjqB8/b6UNAPvTJAfxxUcmQmG8LVZzOEupiJ3+ik
+         MUYVGv1MY1eU51a9YEcFUtR1TlG2p8OuFT/qFfnIvMCa9DgVPj6/SITrXomqJBNjOoFE
+         x8+xPkRBOF28wDAs3uPnUnZvl/1yFLnt9xKYF4WGaD2XpQe08Fs/JjNG+k78Xo2Ei0A+
+         668w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=byKYPTND9YCeJJHnLBgAwQB4XeP+2knzrQ48PDwWxpg=;
-        b=nUtFEXBBRLGdlfsi7hBIMqHR+FQ5bfvw7L1Z3r22byIZPg0BB4+MRFqCLeGIbP8nPg
-         4+05qFpH+Ke5prnVDNN33yVn4th1hGX+18Zjnn6Vip4Qvf8aLabBtrQZtLGN+ONzolEW
-         F2DlnTeXYym5uhtPP4ZMFJbzQdUYWo63BjF8CTPdhJpDz5U3Q1RsJQUT1Xf1dON8pxpi
-         Haf74IVzdQ/Ya7HVrETiFFEZND80x5HLIi/MJ1DC4PP8sXoSTZz8SBHG5e9J7XI4WBqt
-         7F8CcuTaG2x63nkAd2h6+GtjzlIUq18ReVmFtTVntUdzFMJhvcTwwHxXZjH2L3gnWMeI
-         IqYQ==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=AhvyYHsik8s1aZ1UVXcXGfBu8d3R9Dfu1UdhHMa3ucQ=;
+        b=Fq98KoXDyfmoojgUhBiz5wsvh8lLyF7IyccvOJ+o3wxiYMNWbG1pyf3Nj9ctrBsnae
+         Yj5LH9bMMorSJOV0FG3GSLgcfshvJWMGyNr89MzAZmMcONfFTkP5HMWs5C5Ymj0GFpy3
+         zB4mBFqeatIqf3DzC9oBkp+OkZK40CKuGTq1AzN+5+7l1U+oAjott9zw2+TcpEqoD1RA
+         1f7KGL5sdsJg5BypmsJHWD9PQhkfyWIbbSirY5vSp8wF3imkV/notM5r87BjTdAWuNl3
+         1UaQszwX/o4x1ThymTHqtlBL29+QqPm+WbLNTDfv9cUbuwamfshCKCd+vkAAq44yRtYR
+         kffg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fHGovjx4;
-       spf=pass (google.com: domain of akinobu.mita@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=akinobu.mita@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=UsDmFQ7y;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 9sor17274456plc.24.2019.05.20.09.29.14
+        by mx.google.com with SMTPS id h1sor18065211pgc.77.2019.05.20.09.46.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 20 May 2019 09:29:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akinobu.mita@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 20 May 2019 09:46:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=fHGovjx4;
-       spf=pass (google.com: domain of akinobu.mita@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=akinobu.mita@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=UsDmFQ7y;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=byKYPTND9YCeJJHnLBgAwQB4XeP+2knzrQ48PDwWxpg=;
-        b=fHGovjx4PpiC1jOvqzA/Ecf1EzMl3NrIClO5m2ir+OpwlV6DW+ZDfHON7wTNel3tfm
-         Ue5BC+Zij3L1zQ6a3ZH9N4C/YCBBSs//PV5Fyu+JbV/RnsCh5PIKWT9C6ugPIsLluGSt
-         j02IcyMU6A+xKgrSrfN8TjytKlMLK1g+W+8+pYSgoK0/1RCW38cP/257Ikp1JNvsVpvM
-         Z9IOZuDzlOEc64sFHlFVqojo0yJhwmBRhJko+CCsW93nz3GklGebuvSJiKsXJHJmJkHT
-         jlJKvkINej8mN8Gu/86wRJDVuQ1qkMRMRTrra0E18so6glYg9gvvwEEfrgKj+DKLRuU1
-         Gsxg==
-X-Google-Smtp-Source: APXvYqyyaw5zpahyX3bKiYjur5LZoFYK15o3299Pf26i/dwF+cCH7jBL37QqVKzb7ETz0LCWzP3ry3IGEelO7Dy7wJI=
-X-Received: by 2002:a17:902:24c7:: with SMTP id l7mr27106129plg.192.1558369754339;
- Mon, 20 May 2019 09:29:14 -0700 (PDT)
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=AhvyYHsik8s1aZ1UVXcXGfBu8d3R9Dfu1UdhHMa3ucQ=;
+        b=UsDmFQ7yRbOepyPR7AjsW03NVtO+g8LFYwT6yxz7nEb0fYQOAlBdknmQRffXAKJDn+
+         qV0ymJDcpra7H0FQSx0LU3Oa5wQEQ13MOb15Uo06QKp1xgsj59VeiUeVv31nzJt6QHcy
+         VctpAADvyCkdJG6b767kqERvNpCn2FFbJfIDtNbGvfm6CcdbUj+p8s10vaRAgUdNlcJ2
+         EKC7JALHTUVt8/gOfKpLrmr+kn0XS1uI5z94u40MOK/cb3vHvpjS6MtPWkD96noFPlR9
+         6uRMThqfDY/3g9WBdejaM87bPQdgmSG66QVHIUiV1dj/HUV+mlXXWXMe/whZAxWbmsJb
+         +otQ==
+X-Google-Smtp-Source: APXvYqxlq0UlxgIX7doeBMTtmPdq658NEoNcyut9RersVG40Z/X4qMzdBoFTKWS1679tGeWZaJICIA==
+X-Received: by 2002:a65:638a:: with SMTP id h10mr7938216pgv.64.1558370767966;
+        Mon, 20 May 2019 09:46:07 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::3:df5f])
+        by smtp.gmail.com with ESMTPSA id u20sm21814466pfm.145.2019.05.20.09.46.06
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 20 May 2019 09:46:06 -0700 (PDT)
+Date: Mon, 20 May 2019 12:46:05 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Michal Hocko <mhocko@suse.com>, Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>
+Subject: Re: [RFC 0/7] introduce memory hinting API for external process
+Message-ID: <20190520164605.GA11665@cmpxchg.org>
+References: <20190520035254.57579-1-minchan@kernel.org>
 MIME-Version: 1.0
-References: <20190520044951.248096-1-drinkcat@chromium.org>
-In-Reply-To: <20190520044951.248096-1-drinkcat@chromium.org>
-From: Akinobu Mita <akinobu.mita@gmail.com>
-Date: Tue, 21 May 2019 01:29:03 +0900
-Message-ID: <CAC5umygGsW3Nju-mA-qE8kNBd9SSXeO=YXMkgFsFaceCytoAww@mail.gmail.com>
-Subject: Re: [PATCH] mm/failslab: By default, do not fail allocations with
- direct reclaim only
-To: Nicolas Boichat <drinkcat@chromium.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, 
-	Michal Hocko <mhocko@suse.com>, Joe Perches <joe@perches.com>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, 
-	Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, 
-	LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190520035254.57579-1-minchan@kernel.org>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-2019=E5=B9=B45=E6=9C=8820=E6=97=A5(=E6=9C=88) 13:49 Nicolas Boichat <drinkc=
-at@chromium.org>:
->
-> When failslab was originally written, the intention of the
-> "ignore-gfp-wait" flag default value ("N") was to fail
-> GFP_ATOMIC allocations. Those were defined as (__GFP_HIGH),
-> and the code would test for __GFP_WAIT (0x10u).
->
-> However, since then, __GFP_WAIT was replaced by __GFP_RECLAIM
-> (___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM), and GFP_ATOMIC is
-> now defined as (__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM).
->
-> This means that when the flag is false, almost no allocation
-> ever fails (as even GFP_ATOMIC allocations contain
-> __GFP_KSWAPD_RECLAIM).
->
-> Restore the original intent of the code, by ignoring calls
-> that directly reclaim only (___GFP_DIRECT_RECLAIM), and thus,
-> failing GFP_ATOMIC calls again by default.
->
-> Fixes: 71baba4b92dc1fa1 ("mm, page_alloc: rename __GFP_WAIT to __GFP_RECL=
-AIM")
-> Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
+On Mon, May 20, 2019 at 12:52:47PM +0900, Minchan Kim wrote:
+> - Approach
+> 
+> The approach we chose was to use a new interface to allow userspace to
+> proactively reclaim entire processes by leveraging platform information.
+> This allowed us to bypass the inaccuracy of the kernel’s LRUs for pages
+> that are known to be cold from userspace and to avoid races with lmkd
+> by reclaiming apps as soon as they entered the cached state. Additionally,
+> it could provide many chances for platform to use much information to
+> optimize memory efficiency.
+> 
+> IMHO we should spell it out that this patchset complements MADV_WONTNEED
+> and MADV_FREE by adding non-destructive ways to gain some free memory
+> space. MADV_COLD is similar to MADV_WONTNEED in a way that it hints the
+> kernel that memory region is not currently needed and should be reclaimed
+> immediately; MADV_COOL is similar to MADV_FREE in a way that it hints the
+> kernel that memory region is not currently needed and should be reclaimed
+> when memory pressure rises.
 
-Good catch.
+I agree with this approach and the semantics. But these names are very
+vague and extremely easy to confuse since they're so similar.
 
-Reviewed-by: Akinobu Mita <akinobu.mita@gmail.com>
+MADV_COLD could be a good name, but for deactivating pages, not
+reclaiming them - marking memory "cold" on the LRU for later reclaim.
 
-> ---
->  mm/failslab.c | 3 ++-
->  1 file changed, 2 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/failslab.c b/mm/failslab.c
-> index ec5aad211c5be97..33efcb60e633c0a 100644
-> --- a/mm/failslab.c
-> +++ b/mm/failslab.c
-> @@ -23,7 +23,8 @@ bool __should_failslab(struct kmem_cache *s, gfp_t gfpf=
-lags)
->         if (gfpflags & __GFP_NOFAIL)
->                 return false;
->
-> -       if (failslab.ignore_gfp_reclaim && (gfpflags & __GFP_RECLAIM))
-> +       if (failslab.ignore_gfp_reclaim &&
-> +                       (gfpflags & ___GFP_DIRECT_RECLAIM))
->                 return false;
+For the immediate reclaim one, I think there is a better option too:
+In virtual memory speak, putting a page into secondary storage (or
+ensuring it's already there), and then freeing its in-memory copy, is
+called "paging out". And that's what this flag is supposed to do. So
+how about MADV_PAGEOUT?
 
-Should we use __GFP_DIRECT_RECLAIM instead of ___GFP_DIRECT_RECLAIM?
-Because I found the following comment in gfp.h
+With that, we'd have:
 
-/* Plain integer GFP bitmasks. Do not use this directly. */
+MADV_FREE: Mark data invalid, free memory when needed
+MADV_DONTNEED: Mark data invalid, free memory immediately
+
+MADV_COLD: Data is not used for a while, free memory when needed
+MADV_PAGEOUT: Data is not used for a while, free memory immediately
+
+What do you think?
 
