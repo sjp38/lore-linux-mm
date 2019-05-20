@@ -2,274 +2,170 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 34B80C04AAC
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:57:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3FEAAC04AAF
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 19:00:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C7F04206B6
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:57:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D10F920645
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 19:00:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="rA4LGsS5";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="GuMF0nCw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7F04206B6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Q2ZvmjGT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D10F920645
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4BB646B0006; Mon, 20 May 2019 13:57:01 -0400 (EDT)
+	id 32BB66B0003; Mon, 20 May 2019 15:00:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 41E236B0008; Mon, 20 May 2019 13:57:01 -0400 (EDT)
+	id 2DB8E6B0005; Mon, 20 May 2019 15:00:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 297116B000A; Mon, 20 May 2019 13:57:01 -0400 (EDT)
+	id 1A6236B0006; Mon, 20 May 2019 15:00:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 06CC06B0006
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 13:57:01 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id n24so11978291ioo.23
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 10:57:01 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E29A66B0003
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 15:00:29 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id 72so8408867otv.23
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 12:00:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=ZiG/s3OPwoUxswb+C2dKoiuIlrtNc7Ss7KDaPAFqyZg=;
-        b=hZ58sUjjusCeaqQmtEL+P+1Q1eE0FkatskFnWmXCh3VKPMPcIIjygow6S4MvAfAlaQ
-         Jg9mK+URg6PuQ0CWLcWKWVXCUxTNCUNiw/LJEtDRncV/7YV5E9ksUx89p2AK3uREFeU+
-         ryoLWdnlVmEgV5AiMYNRhW2eU9CbPAQdzUbmfcfzwdiJT0Di+5fmBVK0WThA8C101slc
-         ggV79BAcuTD2srHogXHZjPKrL08GXQTPB4W6M5FIAzXa+S06etf/HUJ5/+SklAvIPBvw
-         ow2VGYy7dzLfwwcrbiIyqVqaxxRt89aIJo693k48rGWu0m6rSZFpadyaC7YEczCcH203
-         cz/g==
-X-Gm-Message-State: APjAAAWZQbjhwYNZ5m8Jo/krpq22BzPh0K+0kDoIWbDAn+1fryYXj2MR
-	rNKDkr7VylUOiHcrPd2M3+UuMm7siE6i1MFpmYJSkABlKQkbiuGBrCdT/mQtG6nlcHdz2AqgvNT
-	4HSrNYNcU7m2/NYfiMESZ0mQgyfQP9dPzgkoeftMYXgeYyUgaMRYO0zmVSLf/75aPwA==
-X-Received: by 2002:a24:fcc7:: with SMTP id b190mr281970ith.122.1558375020683;
-        Mon, 20 May 2019 10:57:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPdFa3OwayPO+5QO2ZJZ1ci+tH5bmOYePu3VO17IuKwg8CEy41NRRA0NhQRxihyvV/u1/T
-X-Received: by 2002:a24:fcc7:: with SMTP id b190mr281934ith.122.1558375019919;
-        Mon, 20 May 2019 10:56:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558375019; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=wT81sA73prwjBsqvneE0nbb4zGsqTgjv/ErvD6Lkzzw=;
+        b=fNUBFhjPxTeNFYCgSCAqu6R9OId40B2BY/9SRG+pzWgyPaWJtI1MjUZ8zC5gO4sFVr
+         LDlyYzijJSpY2wuGbFgam4XeJ4I6brf258uV5qxQkfgJA7w9uGoJ4HPicSKgUR4DyxVy
+         W6VKXbNRid2+k2B0jC+SDGqgmPDzabdFqr/ZP/Boo7FE56PZKg/V8wxo77fbEABn4Thi
+         yq1i0596Xkv7gGJCpknbpd3mQimHivshbGb+i7ItfhxhZwT3yips2GeZYlD2HCn6HHJ0
+         KFs8g6NIECw6LlxSpdmpWvC7PFVuJOjOWSx30pLPcNLCXBW+BhRXo7spYgFu4C4eeuEr
+         3D6Q==
+X-Gm-Message-State: APjAAAVoUGW2uQOud3MLJ/mA+HpTp1+wTmTTzfSIftNpKWeLlFiOafMt
+	46uckSparDq/cYhHeao1kocI2Mi2Bm6RrlV3ZVWP5vgLi/Qxiw7QIzbzjmab60Y+FlV3lEvHeYR
+	+Vk7TGLQM2MVtixSkbWzs6+loxnJYesgcR4SxHhjM+2vxWK1ma5Ai1YYJv9VueHoDug==
+X-Received: by 2002:a9d:6a10:: with SMTP id g16mr46620793otn.203.1558378829398;
+        Mon, 20 May 2019 12:00:29 -0700 (PDT)
+X-Received: by 2002:a9d:6a10:: with SMTP id g16mr46620725otn.203.1558378828444;
+        Mon, 20 May 2019 12:00:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558378828; cv=none;
         d=google.com; s=arc-20160816;
-        b=OW+H8JMevQB2sEdsnk9VpthdlsYKdBl5fZmscidBZcdTi3h1viI4dxtxWCd4Q7w068
-         UlQsIRIPZrZ3FOjTxQt5z7H0//oEmOak6YoezENw/qCbv9dRgwnDmp51jXeOS2lueHNc
-         B4s1tngYHJKtk/OVGiAbJLxui00w7MU7rmyoOZ0eTDI7GfZpVzT7NdvYYwuQfTLfH3w5
-         DVFLaglFNCgXaV8qc4gwZfl/v5+19cYzuamFgGHCdI+4vNg1es6EdXCxwXD5cqhoGAjf
-         UyQxN9mBciliX3Ssi+x/KcNpNVdpmZKo7T/YsF/D5GsX171rAtT9W7xZfFi6041AYLNn
-         9nQg==
+        b=Qxjjoy99EJho6oTSHRUOKbhQBm3WIPBq/4WTgwURPqPmKvrbSU0zoLGW0OGMwM3nlC
+         42fW9P6Xzl6VMyu5DGY8/M6/C2SNqXzOg+UV9amyGRim8hZ3ejxF3eXCsHy8erv4nrgQ
+         vodqeQRY4wkSW8BgJIEyRDdHdhUCNWh1WDxY2FWaCDvYXKjsQeuJdptGB8cT+FgyCNpv
+         4AeRIiaqRDcEgkLgwVX/j/Rtl26O5UrD5Pg5H3dWez6yEd+RUWKquU5aL5K/OtdGWmB4
+         5GLsjwcUbfOXhX0Pq2dUi4A0XCKycnoan+JuL2Hs5IgaW6+FY79ku6zSqa9jLr12634R
+         2GFA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=ZiG/s3OPwoUxswb+C2dKoiuIlrtNc7Ss7KDaPAFqyZg=;
-        b=Di8A3A85jx756zyA7a0Ja4AEHSccvzCRcsEqZp+Z9hjjoszWNgQ7PtqIuvCgSu3naP
-         6HnBSZNYUt3Vy744ZN4WAyjG8OkELzSNZnMk6XgxzsfT/w/PCTCH1JLGiQ4q77CTCQCS
-         dErCXiOQ3/nAoT+wvLNDKWy+zJ8qYD7tc7z+U8lP/i76KEb0DW+9RV+BLyH4duERw7AA
-         qDnPFV/UURW8GyWBsBlFDjY9/cl7HhjN3QDMKgXN0GGIQSAuUuC0RGDK1jNBjP6HZlMG
-         qpD3dnuqdju8Ed03Pn7hAfn7AnOrFeTZ1MmSySflWnLoVX+743EPweO7SjAWaCVwU9EK
-         beMg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=wT81sA73prwjBsqvneE0nbb4zGsqTgjv/ErvD6Lkzzw=;
+        b=FOrp7yU88yRIp+5avXVr67Nbk0/sYKbEhdnmtU+cWTm6GIaiwn6NhPuCMSVNiP5UoG
+         kaxhPfdZBE1szq9n2Jyi6XAXkrW522pYooXgRQg4Kv5y6sHEVP/o+NnVItpuOcCmwHlr
+         f3yWJTB6jtvoCeleDbaGANgQsZj4GYEAluUPy9uhONDQGB3AfNJBSkYoXOrz98GsxdIw
+         dqLfu6SnbhqsiHSygN2//7qjBebvVAIAg4BU9e9Rw+Rg9vfLOEQ0mdxC8q96gUCtVRzp
+         6AJ3elJIYe7C6IeADxqrLtjpz1gs+X6gxjQIf2AGxQ1fc8ioCU7Cua8PJeA9dFxCOq6T
+         rO1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=rA4LGsS5;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=GuMF0nCw;
-       spf=pass (google.com: domain of prvs=0043a66d03=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=0043a66d03=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id 21si164728itv.19.2019.05.20.10.56.59
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Q2ZvmjGT;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e23sor1054398otf.98.2019.05.20.12.00.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 10:56:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=0043a66d03=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (Google Transport Security);
+        Mon, 20 May 2019 12:00:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=rA4LGsS5;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=GuMF0nCw;
-       spf=pass (google.com: domain of prvs=0043a66d03=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=0043a66d03=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044010.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4KHjAho026026;
-	Mon, 20 May 2019 10:56:52 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=ZiG/s3OPwoUxswb+C2dKoiuIlrtNc7Ss7KDaPAFqyZg=;
- b=rA4LGsS5aYKGac27pVplwvVYqfQ+bM3ff142NEYp7ETU4F1d5MbqOpMFGD7YfI7Qfuwp
- qDY5mC4qpbX8HQSSoyC9UIDEZxik8cCeD2AtglXP2wKX9V0PKbmfGMWeP0N/0Fw0v6+u
- m4IhoUFUsD+R03vxZ8ww0k5xQyIq3PbJtis= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2skvds1448-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Mon, 20 May 2019 10:56:52 -0700
-Received: from ash-exopmbx101.TheFacebook.com (2620:10d:c0a8:82::b) by
- ash-exhub202.TheFacebook.com (2620:10d:c0a8:83::6) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Mon, 20 May 2019 10:56:50 -0700
-Received: from ash-exhub201.TheFacebook.com (2620:10d:c0a8:83::7) by
- ash-exopmbx101.TheFacebook.com (2620:10d:c0a8:82::b) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Mon, 20 May 2019 10:56:50 -0700
-Received: from NAM05-DM3-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.36.101) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
- via Frontend Transport; Mon, 20 May 2019 10:56:50 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=ZiG/s3OPwoUxswb+C2dKoiuIlrtNc7Ss7KDaPAFqyZg=;
- b=GuMF0nCwIKAVEvMlixihJm3hjQALm+Qv4YVIo4UF5s19OLw6pegSyvK2OiNZacKCtId5btboBCDy2dRa49lCLEXDhogGqddghRN5Oc5NssHCC9QA02isUYbARR1yLf0ADxIKkTa35AEM8f9D0ggICxXAX3TFRNsnES0ScXbMejI=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB3029.namprd15.prod.outlook.com (20.178.238.90) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1900.16; Mon, 20 May 2019 17:56:47 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d4f6:b485:69ee:fd9a]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d4f6:b485:69ee:fd9a%7]) with mapi id 15.20.1900.020; Mon, 20 May 2019
- 17:56:47 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Waiman Long <longman9394@gmail.com>
-CC: Shakeel Butt <shakeelb@google.com>,
-        Andrew Morton
-	<akpm@linux-foundation.org>,
-        Linux MM <linux-mm@kvack.org>, LKML
-	<linux-kernel@vger.kernel.org>,
-        Kernel Team <Kernel-team@fb.com>,
-        "Johannes
- Weiner" <hannes@cmpxchg.org>,
-        Michal Hocko <mhocko@kernel.org>, Rik van Riel
-	<riel@surriel.com>,
-        Christoph Lameter <cl@linux.com>,
-        Vladimir Davydov
-	<vdavydov.dev@gmail.com>,
-        Cgroups <cgroups@vger.kernel.org>
-Subject: Re: [PATCH v4 5/7] mm: rework non-root kmem_cache lifecycle
- management
-Thread-Topic: [PATCH v4 5/7] mm: rework non-root kmem_cache lifecycle
- management
-Thread-Index: AQHVCrIlH017tiyY2Em3G+ZR7kFOEaZ0Im8AgAAy7wA=
-Date: Mon, 20 May 2019 17:56:46 +0000
-Message-ID: <20190520175640.GA24204@tower.DHCP.thefacebook.com>
-References: <20190514213940.2405198-1-guro@fb.com>
- <20190514213940.2405198-6-guro@fb.com>
- <CALvZod6Zb_kYHyG02jXBY9gvvUn_gOug7kq_hVa8vuCbXdPdjQ@mail.gmail.com>
- <5e3c4646-3e4f-414a-0eca-5249956d68a5@gmail.com>
-In-Reply-To: <5e3c4646-3e4f-414a-0eca-5249956d68a5@gmail.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR2001CA0023.namprd20.prod.outlook.com
- (2603:10b6:301:15::33) To BYAPR15MB2631.namprd15.prod.outlook.com
- (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::2:21ea]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 86eeca8c-8b5c-4fd0-8d57-08d6dd4c86a6
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB3029;
-x-ms-traffictypediagnostic: BYAPR15MB3029:
-x-microsoft-antispam-prvs: <BYAPR15MB30298A52EEC1FBCE7A5E67CBBE060@BYAPR15MB3029.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:792;
-x-forefront-prvs: 004395A01C
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(396003)(366004)(39860400002)(136003)(346002)(189003)(199004)(5660300002)(1076003)(7416002)(4326008)(102836004)(53936002)(476003)(6436002)(11346002)(186003)(6486002)(6116002)(68736007)(486006)(54906003)(305945005)(6246003)(446003)(46003)(7736002)(99286004)(66946007)(73956011)(66476007)(66556008)(64756008)(66446008)(14454004)(86362001)(33656002)(81166006)(81156014)(8936002)(256004)(14444005)(76176011)(6916009)(52116002)(1411001)(2906002)(386003)(71190400001)(6506007)(316002)(229853002)(53546011)(9686003)(6512007)(25786009)(71200400001)(478600001)(8676002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3029;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: 1139iuDNBkPi/ux1Wb2FAePfwVD47vAdfYwsGARMx5idUGlbr2Q7WhXPwVVQaoJiCjbwi84qOKN90gQ6nfsaQMIbI5tQ7vR2UwLQq0sBBnM4cAdegyR+fmccLDTMMmtovQ6cGA3+mby2IBdmGMujxCwth9QSEcqBVE2wrMhtGT4Q1QOpwFgZfreWbjyD+wMJ0eSWjBS9bzMLO+alF+TTO+YVMmPF31Ruu2wLZxP8Eb8tw2ow4Ra8MnorB1Cax9Do4c+V7TX2THQ37boWEEtleo65n2nH3nDDvaNEmPhAcaGs3/eretlozQ6MYt79lhv2A5jNTbNK3FCOEIcQOV5/ClFxtAw1UUITfrvGtsV4wNNcwL3onsgjIeFndf5Yp0CLBEsCIE4MPPJiWmprx8bE5+xp2S/zunr+xh0W7TjslfY=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <8521F75896B0D548B2274FB23420AC8E@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Q2ZvmjGT;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=wT81sA73prwjBsqvneE0nbb4zGsqTgjv/ErvD6Lkzzw=;
+        b=Q2ZvmjGTacUUOs5fbuhnrA6Wr2XUFQFnYsPj9j7PrBl7WzFcR9qhhhOoKQh++mdR0f
+         0YNT8dqvY9XRrep6/Gl5xt8G/DrBDRRbA0YTIz7mGP8WG2+qWdjmPdWZsTGyB7RUKOPx
+         h/gjeBGv9LnFBL98Caa3RLNhkAwG8yksaRRdTioQnoUhhLLf7/tqKprIoHFiVMFZcWJH
+         x81dNJsAF33+dyWCE9HotSRfO+nnkWl5h/rp4iyupAobkJoMCbKyOI5J46AcPdwaXIt8
+         +SDgrX9kJf8yDczFvjxsCjhkU2OlicK02qE7WywQBzvK/RLwIOhzUlCMPY/VwNDpoSbB
+         4XLw==
+X-Google-Smtp-Source: APXvYqxY1aZ42ZhklyO4YSGancB5WqzPtQVKG8B6/X5MmZ+sCMgjK7BOHJprDezZUAhy6RWai7+JrGPqPs3PTdKdkp8=
+X-Received: by 2002:a05:6830:1182:: with SMTP id u2mr34775429otq.71.1558378827193;
+ Mon, 20 May 2019 12:00:27 -0700 (PDT)
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 86eeca8c-8b5c-4fd0-8d57-08d6dd4c86a6
-X-MS-Exchange-CrossTenant-originalarrivaltime: 20 May 2019 17:56:46.9656
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3029
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-20_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905200112
-X-FB-Internal: deliver
+References: <1558089514-25067-1-git-send-email-anshuman.khandual@arm.com>
+ <20190517145050.2b6b0afdaab5c3c69a4b153e@linux-foundation.org> <cb8cbd57-9220-aba9-7579-dbcf35f02672@arm.com>
+In-Reply-To: <cb8cbd57-9220-aba9-7579-dbcf35f02672@arm.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 20 May 2019 12:00:16 -0700
+Message-ID: <CAPcyv4iSTxmnORJY_UwXqeP2kiWc55j5h1Z+HgC8orRSaxTgfA@mail.gmail.com>
+Subject: Re: [PATCH] mm/dev_pfn: Exclude MEMORY_DEVICE_PRIVATE while computing
+ virtual address
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 20, 2019 at 10:54:24AM -0400, Waiman Long wrote:
-> On 5/14/19 8:06 PM, Shakeel Butt wrote:
-> > diff --git a/mm/slab_common.c b/mm/slab_common.c
-> > index 4e5b4292a763..1ee967b4805e 100644
-> > --- a/mm/slab_common.c
-> > +++ b/mm/slab_common.c
-> > @@ -45,6 +45,8 @@ static void slab_caches_to_rcu_destroy_workfn(struct =
-work_struct *work);
-> >  static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
-> >                     slab_caches_to_rcu_destroy_workfn);
+On Sun, May 19, 2019 at 10:37 PM Anshuman Khandual
+<anshuman.khandual@arm.com> wrote:
+>
+> On 05/18/2019 03:20 AM, Andrew Morton wrote:
+> > On Fri, 17 May 2019 16:08:34 +0530 Anshuman Khandual <anshuman.khandual@arm.com> wrote:
 > >
-> > +static void kmemcg_queue_cache_shutdown(struct percpu_ref *percpu_ref)=
-;
-> > +
->=20
-> kmemcg_queue_cache_shutdown is only defined if CONFIG_MEMCG_KMEM is
-> defined. If it is not defined, a compilation warning can be produced.
-> Maybe putting the declaration inside a CONFIG_MEMCG_KMEM block:
+> >> The presence of struct page does not guarantee linear mapping for the pfn
+> >> physical range. Device private memory which is non-coherent is excluded
+> >> from linear mapping during devm_memremap_pages() though they will still
+> >> have struct page coverage. Just check for device private memory before
+> >> giving out virtual address for a given pfn.
+> >
+> > I was going to give my standard "what are the user-visible runtime
+> > effects of this change?", but...
+> >
+> >> All these helper functions are all pfn_t related but could not figure out
+> >> another way of determining a private pfn without looking into it's struct
+> >> page. pfn_t_to_virt() is not getting used any where in mainline kernel.Is
+> >> it used by out of tree drivers ? Should we then drop it completely ?
+> >
+> > Yeah, let's kill it.
 
-Hi Waiman!
++1 to killing it, since there has been a paucity of 'unsigned long
+pfn' code path conversions to 'pfn_t', and it continues to go unused.
 
-Yes, that makes total sense to me. Thank you for letting me know!
-How about this one?
+> > But first, let's fix it so that if someone brings it back, they bring
+> > back a non-buggy version.
 
---
+Not sure this can be solved without a rethink of who owns the virtual
+address space corresponding to MEMORY_DEVICE_PRIVATE, and clawing back
+some of the special-ness of HMM.
 
-From 0fa19369adc240cc93281911a59713822a4f3e07 Mon Sep 17 00:00:00 2001
-From: Roman Gushchin <guro@fb.com>
-Date: Mon, 20 May 2019 10:52:07 -0700
-Subject: [PATCH] mm: guard kmemcg_queue_cache_shutdown() with
- CONFIG_MEMCG_KMEM
+>
+> Makes sense.
+>
+> >
+> > So...  what (would be) the user-visible runtime effects of this change?
+>
+> I am not very well aware about the user interaction with the drivers which
+> hotplug and manage ZONE_DEVICE memory in general. Hence will not be able to
+> comment on it's user visible runtime impact. I just figured this out from
+> code audit while testing ZONE_DEVICE on arm64 platform. But the fix makes
+> the function bit more expensive as it now involve some additional memory
+> references.
 
-Currently kmemcg_queue_cache_shutdown() is defined only
-if CONFIG_MEMCG_KMEM is set, however the declaration is not guarded
-with corresponding ifdefs. So a compilation warning might be produced.
-
-Let's move the declaration to the section of slab_common.c, where all
-kmemcg-specific stuff is defined.
-
-Reported-by: Waiman Long <longman9394@gmail.com>
-Signed-off-by: Roman Gushchin <guro@fb.com>
----
- mm/slab_common.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 9d2a3d6245dc..e818609c8209 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -45,8 +45,6 @@ static void slab_caches_to_rcu_destroy_workfn(struct work=
-_struct *work);
- static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
- 		    slab_caches_to_rcu_destroy_workfn);
-=20
--static void kmemcg_queue_cache_shutdown(struct percpu_ref *percpu_ref);
--
- /*
-  * Set of flags that will prevent slab merging
-  */
-@@ -134,6 +132,8 @@ int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t=
- flags, size_t nr,
- LIST_HEAD(slab_root_caches);
- static DEFINE_SPINLOCK(memcg_kmem_wq_lock);
-=20
-+static void kmemcg_queue_cache_shutdown(struct percpu_ref *percpu_ref);
-+
- void slab_init_memcg_params(struct kmem_cache *s)
- {
- 	s->memcg_params.root_cache =3D NULL;
---=20
-2.20.1
+MEMORY_DEVICE_PRIVATE semantics were part of the package of the
+initial HMM submission that landed in the kernel without an upstream
+user. While pfn_t_to_virt() also does not have an upstream user it was
+at least modeled after the existing pfn_to_virt() api to allow for
+future 'unsigned long pfn' to 'pfn_t' conversions. As for what a fix
+might look like, it seems to me that we should try to unify 'pfn_t'
+and 'hmm_pfn's. I don't see why 'hmm_pfn's need to exist as their own
+concept vs trying consume more flag space out of pfn_t. That would at
+least allow the pfn_t_has_page() helper to detect the HMM case.
 
