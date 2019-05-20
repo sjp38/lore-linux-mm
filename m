@@ -5,115 +5,110 @@ X-Spam-Level:
 X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 51E83C04AAC
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:08:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AB67EC04E87
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:17:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0A27320815
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:08:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5624720815
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:17:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="t1SUvr49"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A27320815
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="rWn+EsvA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5624720815
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9731B6B0003; Mon, 20 May 2019 13:08:05 -0400 (EDT)
+	id B40BE6B0003; Mon, 20 May 2019 13:17:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 923476B0005; Mon, 20 May 2019 13:08:05 -0400 (EDT)
+	id AF0FB6B0005; Mon, 20 May 2019 13:17:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 812176B0006; Mon, 20 May 2019 13:08:05 -0400 (EDT)
+	id 9DF936B0006; Mon, 20 May 2019 13:17:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 47AAF6B0003
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 13:08:05 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id u11so4310644plz.22
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 10:08:05 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 65E9F6B0003
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 13:17:11 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id x13so10167248pgl.10
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 10:17:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=ol97WAmP2eVJA2nRz/+2miX8OAofXhZkUB5qRp3k8dg=;
-        b=Bb40Zpu0sUI36JX5qUvE3Y6oGoopDDumq1BE+jkXAJ2sp7tlZHyZSp4W53kKnS6oW/
-         ba0rrhE/eyUQCma5PDI6sgy6EXO7lh3Wd0cBYTdR+bQPdCQs5Hh/UZC+VqFuY+Kel3hf
-         xq/jxpdZ0bvtFHJ7L4nksyuLsig40mhqQ6vARIYvoXm4nYSfhQcvKIZE2AiXlbdWTfs3
-         n4cglCU0COTLhwtntKpBKozCnm2Psa80thFRkmvhnyXkwxFDVboyZGWqGqrJNESq/Elw
-         kuG6rqipsN5qQYsKKHXlWr0bx3VZ8bj0tZ6NBZ9dZBvWANkY9Tllkb9gtpz9T/hPAlP+
-         bIZQ==
-X-Gm-Message-State: APjAAAW2b1aoDRpthxulLUfpNRkUGq714mIgrB8bLQeOfm+FdGg/+33I
-	A+y1KSgxRwi3oBtynhrlr3W5C3np8F2fiexdigW2dHvudTTU7p5jn3MTUcQTILVk8A/g/Y7VvMY
-	BwINDXeP3bigBvY9Wh5GBfYSfxsQWHDo9+UWRPT5WXoQcV8xaXRO7lPxNbNPtRz4/xw==
-X-Received: by 2002:a17:902:6bc8:: with SMTP id m8mr75509579plt.227.1558372084957;
-        Mon, 20 May 2019 10:08:04 -0700 (PDT)
-X-Received: by 2002:a17:902:6bc8:: with SMTP id m8mr75509336plt.227.1558372082366;
-        Mon, 20 May 2019 10:08:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558372082; cv=none;
+         :message-id:user-agent:mime-version;
+        bh=5elJHjWFjcHkVboxjAYPJGmbdCVMyqMVQma7x79oi5w=;
+        b=oCoUjp3eB9LRalZXD4rIoAzoeouCH68dMzt17z7enzka5vlCxWOeU5UMmvmQumQd2g
+         i94lfmkkxcW9JDCq1mpRa19uUgoKId+tMsJl1l/C83Fx9RX9SMlGtnequ7f4uTtn0FQE
+         19ulFTVXgUgf4hDjnj/mn5YULWR3rfecp7q2YrOQfXtmJbHVi01NSBKBvjlI3iypw7q5
+         /SrmkUQdKHRTV00pY+GFHmIVM2Hp9iEqBwuoObmbPxFGQbqPGDD+atjwXtZjRCNLAnWt
+         W//O2+GQ9oatjhFwUitQF4NYIUAuoO+Lyn8UNvd/8DdhTRNQk7aZIP324WuL3qTsP0Q1
+         09+w==
+X-Gm-Message-State: APjAAAVOeVTAUQ1Sz1pqaVKhjLuuu3K/dnX/J6EdyoE0gbvMCKXaTL2B
+	Ztq2dMYM4FJFqnO6uzaqqtXDVZ8I0Cv3ar8dMwSDWzIT0Kjjd0vOfnE8LKvM9wZX2Le7EoPQpVC
+	QGLRIe+CQK434TkEl/+7RYW6ei4rjvC1a8CbTBRESH7TJjpjjUxgf4mqqT0xaBd3aUg==
+X-Received: by 2002:a63:3:: with SMTP id 3mr75571373pga.360.1558372630965;
+        Mon, 20 May 2019 10:17:10 -0700 (PDT)
+X-Received: by 2002:a63:3:: with SMTP id 3mr75571310pga.360.1558372630295;
+        Mon, 20 May 2019 10:17:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558372630; cv=none;
         d=google.com; s=arc-20160816;
-        b=rvnZDz5jcGhZdtRbbu+7ErHZngoxmne5B7vFCkJfKG5cvq2lCSWdyW2kgJZ9HI2jbG
-         anEjTQ628onEelpX1ndj0Pcq8UYOAWK74xgoE/F1ErI2+Cs12peLHkKEMxQ4FCt0IRc9
-         X1cVpVdrUb1e9gltt2+gon4O77cfXzMioi0mldJQrtL7izry7Ld3cqohyV+48KOqFDnd
-         1nQXZ7tk65gb3mnLihnDMc+52FlmLBeaWoCz7k2nXCXa9NzUFubo6cVSpfNtjjrXBpqV
-         Y6qvERhyiMZDXQvHBQrsolEztN/ltaqRw/Q9Q9G2X0wYaGJhYgkPLo1/KxHxMHYix7dg
-         rqyg==
+        b=Z847EDcTx1K8R6XRBMPpnEvgXdzjX7pW9ij4m85NufV9P8Xpdkh/V7sPF7pW2lKRiV
+         wD478xvCrNXh/QfpYIs8uT1mAJY+jp9N/mUm0M5h53LFCT8nDu3q7XxuW9/00eDUB6ku
+         lsB1jwVM98BlNCzaTd/UJTYJA/knUAZhHE/cPQJyCVPgFcm4ZMLvLbqN/l4o+ujRXNei
+         oQBSJ7iD6DiVrIV84e7joEnGfpQw0mNfcmyNildh623SG58OR2akomnaX1fiac2JRofD
+         y8MREnwunApj9q0AEThMQz9LlqLSyMU/pAUYNBppd6wyngtnUXLFxKAiuMiVr6+U7RBt
+         oL9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=ol97WAmP2eVJA2nRz/+2miX8OAofXhZkUB5qRp3k8dg=;
-        b=Ar1RiDZuOISJze113qt95ctTt4oUNAuO4E+A+JwQR02Zh90Yxxd+9oa5rq+fWgXWGI
-         SGA8K5Pn9Zz91mT2h45yG/ooCBgMUzPntDCz2FCf9klsxmgk36Zc7NsLqbnQWBhmMOHM
-         IPcnAsAmr+r+1acVbvbeCPuWfUa18hGcCm78Vpw195+m+spmKwcrImr812/ryCikINy9
-         pPdvNTdhcQ34S3oaU3wL5H3pWy+KbHI8qf58R/3b6YjIV5B7zwSjiPnRixcMptbQ4Ki6
-         er3b80edsNEt/tP0LhQbplKkQ65aOSvAKv0WxTuteVeVKVUcTC46/76kvCjYrZJW9kzD
-         fsyw==
+        h=mime-version:user-agent:message-id:subject:cc:to:from:date
+         :dkim-signature;
+        bh=5elJHjWFjcHkVboxjAYPJGmbdCVMyqMVQma7x79oi5w=;
+        b=wuQY8F9HWkdYh/sz2wcJbOCnlDfZcXVHOcpUd+0jGkxkTCK7ni7bX87zE2DUcQi47q
+         Zn6BB7PQaYKIhJ+tzqhtaKTLMrR+APQqqsuM0/V7Z0A4EXYbchm/STbQug7N01wP+aZX
+         ACCZMBu8AHvJb3o+xEPUIH3MYoiiqTBFWAzKo3OxGZTikI1JKNXj42TMZMioD/ApRs3a
+         5DeB0M6SmfooydFZBXcuREl9rymokLP4+vrpT4gYTyRRNVuBm3IU2XNwIDG84Vy54WXX
+         bRjHWFR+jAuiLl06Xs4aK47NxoiE7rfEVFfTi2ChwyABcec3njCZNzTvKv8++Ri/VX+W
+         IG3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=t1SUvr49;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=rWn+EsvA;
        spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h3sor16075833pld.22.2019.05.20.10.08.02
+        by mx.google.com with SMTPS id j38sor20014591plb.12.2019.05.20.10.17.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 20 May 2019 10:08:02 -0700 (PDT)
+        Mon, 20 May 2019 10:17:10 -0700 (PDT)
 Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=t1SUvr49;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=rWn+EsvA;
        spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=ol97WAmP2eVJA2nRz/+2miX8OAofXhZkUB5qRp3k8dg=;
-        b=t1SUvr49nCz5spS7UjhK4JQ6Apy9p/w/1qE61fOdmFfmMryUBZ+WjIsoDVYyX0YN+x
-         j5og+gJgIsflpdRHMeu4i6xsY2+UzVuGO1IiAwFKq8YNFVdJFLj22bPvRVxM+yAVqLff
-         PAW3c3y2TigXGYgpCjxGUxipPCGGvoOz/MvCTNCPZ+zoHoiu1D+HVg1ssM9mD+mVjUiJ
-         qFpPpLRxtAxloaRyKdKCYeCSth/6Bh8xtBLIJjeKCHHG8MsLiaqMtwh6HoObu3XCANYy
-         hm+mE/IgGQR/lmsIIIq+EWSCEFhG9esI757NdeTwa4gSr1cwKurrdnZp96vRKZn5Hnrh
-         XHaQ==
-X-Google-Smtp-Source: APXvYqw9vVqYpqbwDVINtSfVyNRGl8P4j/ZT8VpIKlzNUAKaBErtJAKSArZb4J9wWyNkS2M6O6Yhxw==
-X-Received: by 2002:a17:902:aa85:: with SMTP id d5mr75933523plr.245.1558372081719;
-        Mon, 20 May 2019 10:08:01 -0700 (PDT)
+        h=date:from:to:cc:subject:message-id:user-agent:mime-version;
+        bh=5elJHjWFjcHkVboxjAYPJGmbdCVMyqMVQma7x79oi5w=;
+        b=rWn+EsvAorjVENwh7JlIbDVc57R3JWoqjR73qwRihQZiBnK+YwG0K6l1wYwLD8rFPp
+         Z6D+3/fdsOX87p9owDzg6F4IbYUuxR0DU7jiJYpYmKP/x0g/aC6C+y9D6XguDr2CVtNu
+         ldjLIQnx2Dk+vzONRFJskS4t+DH5N6uuoNSYPNK/gz5hAWYPPr0jWMbDOlLqaaVZdaq6
+         LqV4vIkHgbK/6SIu9wGtKbtABkTv7/GZOOdmGDYirNW6X56x6KdapnSlqk2lXnTLHJIg
+         BTRqKv7qCurs/xhLh81Ohe6/ZwjUeWiPDlSfqlihmxhnyJGkpsH199xLbUhAiaZEDETm
+         mvJA==
+X-Google-Smtp-Source: APXvYqyFCPpqDFtqCO69hkM+WWU7MeJZkOtx1/BENRwuW7Ovz9W3qeVavkcieYfqDUbQl7zah2+kYg==
+X-Received: by 2002:a17:902:82ca:: with SMTP id u10mr63981326plz.231.1558372629432;
+        Mon, 20 May 2019 10:17:09 -0700 (PDT)
 Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id 125sm26076542pge.45.2019.05.20.10.08.00
+        by smtp.gmail.com with ESMTPSA id e10sm37445962pfm.137.2019.05.20.10.17.07
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 20 May 2019 10:08:00 -0700 (PDT)
-Date: Mon, 20 May 2019 10:07:59 -0700 (PDT)
+        Mon, 20 May 2019 10:17:08 -0700 (PDT)
+Date: Mon, 20 May 2019 10:17:07 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
 X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Akinobu Mita <akinobu.mita@gmail.com>
-cc: Nicolas Boichat <drinkcat@chromium.org>, 
-    Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-    Joe Perches <joe@perches.com>, 
-    Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, 
-    Pekka Enberg <penberg@kernel.org>, 
-    Mel Gorman <mgorman@techsingularity.net>, 
-    LKML <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] mm/failslab: By default, do not fail allocations with
- direct reclaim only
-In-Reply-To: <CAC5umygGsW3Nju-mA-qE8kNBd9SSXeO=YXMkgFsFaceCytoAww@mail.gmail.com>
-Message-ID: <alpine.DEB.2.21.1905201007170.96074@chino.kir.corp.google.com>
-References: <20190520044951.248096-1-drinkcat@chromium.org> <CAC5umygGsW3Nju-mA-qE8kNBd9SSXeO=YXMkgFsFaceCytoAww@mail.gmail.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>, 
+    tcharding <me@tobin.cc>, Christoph Lameter <cl@linux.com>, 
+    Vlastimil Babka <vbabka@suse.cz>, penberg@kernel.org, 
+    iamjoonsoo.kim@lge.com, Al Viro <viro@zeniv.linux.org.uk>, 
+    Linux-MM <linux-mm@kvack.org>, 
+    Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+Subject: [patch] mm, slab: remove obsoleted CONFIG_DEBUG_SLAB_LEAK
+Message-ID: <alpine.DEB.2.21.1905201015460.96074@chino.kir.corp.google.com>
 User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -123,59 +118,23 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 May 2019, Akinobu Mita wrote:
+CONFIG_DEBUG_SLAB_LEAK has been removed, so remove it from defconfig.
 
-> > When failslab was originally written, the intention of the
-> > "ignore-gfp-wait" flag default value ("N") was to fail
-> > GFP_ATOMIC allocations. Those were defined as (__GFP_HIGH),
-> > and the code would test for __GFP_WAIT (0x10u).
-> >
-> > However, since then, __GFP_WAIT was replaced by __GFP_RECLAIM
-> > (___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM), and GFP_ATOMIC is
-> > now defined as (__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM).
-> >
-> > This means that when the flag is false, almost no allocation
-> > ever fails (as even GFP_ATOMIC allocations contain
-> > __GFP_KSWAPD_RECLAIM).
-> >
-> > Restore the original intent of the code, by ignoring calls
-> > that directly reclaim only (___GFP_DIRECT_RECLAIM), and thus,
-> > failing GFP_ATOMIC calls again by default.
-> >
-> > Fixes: 71baba4b92dc1fa1 ("mm, page_alloc: rename __GFP_WAIT to __GFP_RECLAIM")
-> > Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
-> 
-> Good catch.
-> 
-> Reviewed-by: Akinobu Mita <akinobu.mita@gmail.com>
-> 
-> > ---
-> >  mm/failslab.c | 3 ++-
-> >  1 file changed, 2 insertions(+), 1 deletion(-)
-> >
-> > diff --git a/mm/failslab.c b/mm/failslab.c
-> > index ec5aad211c5be97..33efcb60e633c0a 100644
-> > --- a/mm/failslab.c
-> > +++ b/mm/failslab.c
-> > @@ -23,7 +23,8 @@ bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
-> >         if (gfpflags & __GFP_NOFAIL)
-> >                 return false;
-> >
-> > -       if (failslab.ignore_gfp_reclaim && (gfpflags & __GFP_RECLAIM))
-> > +       if (failslab.ignore_gfp_reclaim &&
-> > +                       (gfpflags & ___GFP_DIRECT_RECLAIM))
-> >                 return false;
-> 
-> Should we use __GFP_DIRECT_RECLAIM instead of ___GFP_DIRECT_RECLAIM?
-> Because I found the following comment in gfp.h
-> 
-> /* Plain integer GFP bitmasks. Do not use this directly. */
-> 
+Fixes: 7878c231dae0 ("slab: remove /proc/slab_allocators")
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ arch/parisc/configs/c8000_defconfig | 1 -
+ 1 file changed, 1 deletion(-)
 
-Yes, we should use the two underscore version instead of the three.
-
-Nicolas, after that's fixed up, feel free to add Acked-by: David Rientjes 
-<rientjes@google.com>.
-
-Thanks!
+diff --git a/arch/parisc/configs/c8000_defconfig b/arch/parisc/configs/c8000_defconfig
+--- a/arch/parisc/configs/c8000_defconfig
++++ b/arch/parisc/configs/c8000_defconfig
+@@ -225,7 +225,6 @@ CONFIG_UNUSED_SYMBOLS=y
+ CONFIG_DEBUG_FS=y
+ CONFIG_MAGIC_SYSRQ=y
+ CONFIG_DEBUG_SLAB=y
+-CONFIG_DEBUG_SLAB_LEAK=y
+ CONFIG_DEBUG_MEMORY_INIT=y
+ CONFIG_DEBUG_STACKOVERFLOW=y
+ CONFIG_PANIC_ON_OOPS=y
 
