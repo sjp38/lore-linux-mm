@@ -1,122 +1,185 @@
 Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Level: *
+X-Spam-Status: No, score=1.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CF97AC04AAC
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 22:49:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F08FCC04E87
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 22:54:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 77A3A20862
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 22:49:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77A3A20862
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=davemloft.net
+	by mail.kernel.org (Postfix) with ESMTP id AF2632173E
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 22:54:28 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="aDa3BR5h"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF2632173E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DF1756B0003; Mon, 20 May 2019 18:49:04 -0400 (EDT)
+	id 477636B0006; Mon, 20 May 2019 18:54:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DA1286B0005; Mon, 20 May 2019 18:49:04 -0400 (EDT)
+	id 400416B0007; Mon, 20 May 2019 18:54:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C6ACB6B0006; Mon, 20 May 2019 18:49:04 -0400 (EDT)
+	id 27C466B0008; Mon, 20 May 2019 18:54:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 796166B0003
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 18:49:04 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id h2so27451587edi.13
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 15:49:04 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E16586B0006
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 18:54:27 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id f7so10001617plm.15
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 15:54:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date
-         :message-id:to:cc:subject:from:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=JdsKHMYCwyG79Y0zBeXDibY4PN9XKitXH09TAsiFZ+o=;
-        b=hA8R27Nas7A6p0ApgPmFFbh/IZ/tOhMM6EpJf+K/qF7AmgFXWMKsc4wannHRW6ioRC
-         a+qlZXGDbwmcokbf8tPzh1cu2OU+UTwxnICSl3gcxmwDQtrC49I2+kuGcChSheDGAedC
-         vT0okW70J59obVXOwYlwlHmSJYfCkSpEWB5MApO6D+Pl+gIGsaBPsWcXfKg0JOVPb3cN
-         o8nFKvCUquzZ3I+FpNlxyM0WHq1qW3Jp+av4axs2OO+GtLlBe5WUtur8pPfUK1MWnccN
-         GslBHLiwjivJmGMMPuAOGH/iqh8wvprOj4kS5PqWzYNj8q7WBXET569Eo5LAAmN8uAyL
-         /LYA==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-X-Gm-Message-State: APjAAAVOC1ho6CHBhjPfgOUfov0rLEnYpttTLYPA1jyva54WWVV9f30y
-	4yz3oL83wNg18eC1nuMGgvvOlGUpXHiwal7gW57coDWfL6MbJRPSoR4Bi9F4I+YsxDWQf7Q8NWv
-	hhkVsYhc6P8KzLtQxTAGfvAmOgMbVK1OthJ+veTc04Ta+MS+g34Zjzq9fngnU4o0=
-X-Received: by 2002:a17:906:6603:: with SMTP id b3mr61026163ejp.128.1558392544061;
-        Mon, 20 May 2019 15:49:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy9cMUK/p+8BUwTvdM1P7qWch7i+g+tb9W9gd519nvGf1z0oEyDoaSerXuMb4N4ec5YwQ3g
-X-Received: by 2002:a17:906:6603:: with SMTP id b3mr61026123ejp.128.1558392543329;
-        Mon, 20 May 2019 15:49:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558392543; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=j5ZEwZoUPrePvOB8P3uaFYHEBF9h6x1bF10qxviP/xE=;
+        b=K+g/9yme6AHYWSfKIuv4zdiRBmxg5/rKmPtJGvhRECCAtfmXRG2rBGq1+Al7B4M2qe
+         V5LP7HgCw9bUX7I3Za0TBSQr+MQixKXecJgeukEyO0aMCxeKfB2HTcnOrI5fbvBzKBTm
+         ovw7eSTgsX2jLGthWVfa/wqBf6F4jlyhAgCIs8VuPI06fTmZNwnhbxVfrKclPrK1e3v6
+         JU1nDcH8m8KTfEsw/pYcCx7GclFIoeqdbQ22jFYMcPjUDwnMzqN+O2Wqwzv189kiDsOI
+         OdyRU+70SyIhzmhEsxP4dE1hDXA6ARNtGRJYZ3d1mdWMvcFDj0QxnkNHZQtXvhMxHa3S
+         XLjQ==
+X-Gm-Message-State: APjAAAU16yZp5BSQVK0vsJsoVxwv0wZOEXlU2in0UyaLPc0vjGW562IU
+	h2c0opz2Q7fFFucrlPte2aFBecZb0QJhCr8/eAjWfweznKncEnX1/OYJTZXO/4CzqBe0clESfYR
+	Oaqc+RBd+Ks+rTz4v2oMjAmFdNa8qScmj+3DXjf21NseikJyPco4SR4UdTXZpHj0=
+X-Received: by 2002:a62:1ec5:: with SMTP id e188mr83569448pfe.242.1558392867524;
+        Mon, 20 May 2019 15:54:27 -0700 (PDT)
+X-Received: by 2002:a62:1ec5:: with SMTP id e188mr83569392pfe.242.1558392866820;
+        Mon, 20 May 2019 15:54:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558392866; cv=none;
         d=google.com; s=arc-20160816;
-        b=IxcR8xJTHP9qYx20faPxXaLmjelbqu+wXVdQ6GxB+LMd4NXnb4Pv/qnb5y7EuQMGse
-         7u7ziZld8FRAMDI5V0VH+K9OL0NB46M7dBPalLRmrw7+iHD/FiAOg3tBY+reiHQtUf8x
-         sj8RxbKYA22KrrQ1xBecJT4mMt1O9CKvkqEZEYq27GYz7FiywXV8qCy0CWalcXcwn0mU
-         SEzR/uuIHrHbZ/hOFJweL9cymVlKUwuD/dZfXeP2ttjOsiyL9Xh1Bvb7xUwGDUvCKA5I
-         xmoDlktvQ6UloWaVpRbJ/5AiZSTBqyAClRcpYIYIFf1DWohCUGczShgdl3IIByFU50rR
-         R0BA==
+        b=yT0+58S4kxzlAAgtNg/Pwrv39KiNKeeAj6xIicVshU9H0I9G6eisUZVX6HG7RxDr8Q
+         mhwtJbl5yz6xQMs5iouO9mTnTQixi9GlBViOxXDxarRukg35pApiIB4CHY6JCNO+S3SB
+         SkIHqR3RM4M2izSv5wOsdpBQ+/Vl5+VZClGY064UOWFbA6RO4JlfbRpso+M3dAw38A6B
+         F0jEQ534L2uu1YnZWRu+TYa3tYYGvf052YeMHgOErahCJgWPXJX7TCEeDs7soTyB/eGM
+         w6KcEzQv53WXgSB7ehXpTzednbqe2YgcsmLFtHerbEG5QUM5poBF0IYk1gubuA7rr7Zu
+         LLOA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:from
-         :subject:cc:to:message-id:date;
-        bh=JdsKHMYCwyG79Y0zBeXDibY4PN9XKitXH09TAsiFZ+o=;
-        b=rletxobbH4fMAl0DhRtklFtZcN0oWn8+1130Ko7iRC4cTKVk334Wy/k+4ZfQghO8Zh
-         w0Ndd7Q+awsCMOuaC2GfLwsaw6JJqLHlql5EgrO0VN/u/bIgAU/t8fXfDXHcVP2ORXFC
-         aifbIf/wB/AfWvrQNrui73v+An1kY188ps+4rhXNXgGBeaW7IZRMvrEHL0Z60I4zAnWa
-         Rk421c5s9GChsRxKp+jAK5sK2xtwL65L0xxtL3KWLZ+D3HdNQawokJIRP9ZuBJ2UzrBk
-         dj2U0OTQYQ3k1UNQZEvciZLrg8EmhjS04jrdcJ80gE/nxxrbcuCzM13Nzqrff51nNohJ
-         7TbA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=j5ZEwZoUPrePvOB8P3uaFYHEBF9h6x1bF10qxviP/xE=;
+        b=Yq8xcw2wk9ERS8vNrRVC6+IMx9H+0Z5po45Gr+v7SGyQFgBGIQL0KvOsNyF1Vatq+4
+         36OPWWFGokLrIsj+rP8l8yBKqKtCZt/Dqid3rQ31f9CaeRylYbbBbGB5TbrMttfC/YVz
+         NS/+PuW02qyNX+9KHWlYWr4RV6/hW7+nFV4bzK3tr8v3foYQPRwUY4NFFFJdY0cOz5kS
+         +jIJvU8ERaJfUbrwIltQ+8NF/H92m3Q5Zn4CxS1lQDr1rj4lI4Em5b5K9NJ3Bw/pnkQv
+         k5YIjlhOmc15S5r6L9kyD0/NsqQsYaoT8fErQU66DXOVudxHCb99pw9gbezRLnZ7blko
+         MAOQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2620:137:e000::1:9])
-        by mx.google.com with ESMTPS id w17si7212616edl.369.2019.05.20.15.49.02
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=aDa3BR5h;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c12sor18961024pfr.69.2019.05.20.15.54.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 15:49:03 -0700 (PDT)
-Received-SPF: neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) client-ip=2620:137:e000::1:9;
+        (Google Transport Security);
+        Mon, 20 May 2019 15:54:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-Received: from localhost (unknown [IPv6:2601:601:9f80:35cd::3d8])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(Client did not present a certificate)
-	(Authenticated sender: davem-davemloft)
-	by shards.monkeyblade.net (Postfix) with ESMTPSA id 2E3EF12DAD571;
-	Mon, 20 May 2019 15:48:58 -0700 (PDT)
-Date: Mon, 20 May 2019 15:48:55 -0700 (PDT)
-Message-Id: <20190520.154855.2207738976381931092.davem@davemloft.net>
-To: rick.p.edgecombe@intel.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, peterz@infradead.org,
- mroos@linux.ee, netdev@vger.kernel.org, sparclinux@vger.kernel.org,
- bp@alien8.de, luto@kernel.org, mingo@redhat.com, namit@vmware.com,
- dave.hansen@intel.com
-Subject: Re: [PATCH v2] vmalloc: Fix issues with flush flag
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <c6020a01e81d08342e1a2b3ae7e03d55858480ba.camel@intel.com>
-References: <20190520200703.15997-1-rick.p.edgecombe@intel.com>
-	<90f8a4e1-aa71-0c10-1a91-495ba0cb329b@linux.ee>
-	<c6020a01e81d08342e1a2b3ae7e03d55858480ba.camel@intel.com>
-X-Mailer: Mew version 6.8 on Emacs 26.1
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-X-Greylist: Sender succeeded SMTP AUTH, not delayed by milter-greylist-4.5.12 (shards.monkeyblade.net [149.20.54.216]); Mon, 20 May 2019 15:48:58 -0700 (PDT)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=aDa3BR5h;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=j5ZEwZoUPrePvOB8P3uaFYHEBF9h6x1bF10qxviP/xE=;
+        b=aDa3BR5hrVujffR2CccTn2i03Z06u8RLaJv5oWvHxj5xbVNGiYsJk/vt7209S8uAol
+         cSUwKywUIzkbz99ygGpCwDVlyAhlP6Qqv16/LS7gCBDlBqt07w13Lm6/MhAubCUgw7do
+         9mS7NAcuScAF4itUbYLknC0Rx5EIrxuTy8Un0xtEN35JX6X4Ul9oGrEZvRiI6PizjfsO
+         8TUxwDnLaJ0suX9Y3ukM8LQoqob/YnSrmTYafRjigxMs8VqXRDeuhNsTaiq/zSWYqRe+
+         O3paGwlyrZnmuqoURl77Gg2gHg6KjGkOKu3t7IebRgpgTp9yfW65T+GgqdpR0uC3WLXF
+         UYfQ==
+X-Google-Smtp-Source: APXvYqzzK62nVCC5F6/m31S+JkD0c1anhEeHQjGso6nctGro5sKQZujkk4vsGaYEeFlhkah4BFhh2Q==
+X-Received: by 2002:a65:52c8:: with SMTP id z8mr9234274pgp.10.1558392866292;
+        Mon, 20 May 2019 15:54:26 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id f29sm47171591pfq.11.2019.05.20.15.54.21
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 20 May 2019 15:54:24 -0700 (PDT)
+Date: Tue, 21 May 2019 07:54:19 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, linux-api@vger.kernel.org
+Subject: Re: [RFC 1/7] mm: introduce MADV_COOL
+Message-ID: <20190520225419.GA10039@google.com>
+References: <20190520035254.57579-1-minchan@kernel.org>
+ <20190520035254.57579-2-minchan@kernel.org>
+ <20190520081621.GV6836@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190520081621.GV6836@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-Date: Mon, 20 May 2019 22:17:49 +0000
+On Mon, May 20, 2019 at 10:16:21AM +0200, Michal Hocko wrote:
+> [CC linux-api]
 
-> Thanks for testing. So I guess that suggests it's the TLB flush causing
-> the problem on sparc and not any lazy purge deadlock. I had sent Meelis
-> another test patch that just flushed the entire 0 to ULONG_MAX range to
-> try to always the get the "flush all" logic and apprently it didn't
-> boot mostly either. It also showed that it's not getting stuck anywhere
-> in the vm_remove_alias() function. Something just hangs later.
+Thanks, Michal. I forgot to add it.
 
-I wonder if an address is making it to the TLB flush routines which is
-not page aligned.  Or a TLB flush is being done before the callsites
-are patched properly for the given cpu type.
+> 
+> On Mon 20-05-19 12:52:48, Minchan Kim wrote:
+> > When a process expects no accesses to a certain memory range
+> > it could hint kernel that the pages can be reclaimed
+> > when memory pressure happens but data should be preserved
+> > for future use.  This could reduce workingset eviction so it
+> > ends up increasing performance.
+> > 
+> > This patch introduces the new MADV_COOL hint to madvise(2)
+> > syscall. MADV_COOL can be used by a process to mark a memory range
+> > as not expected to be used in the near future. The hint can help
+> > kernel in deciding which pages to evict early during memory
+> > pressure.
+> 
+> I do not want to start naming fight but MADV_COOL sounds a bit
+> misleading. Everybody thinks his pages are cool ;). Probably MADV_COLD
+> or MADV_DONTNEED_PRESERVE.
+
+Thanks for the suggestion. Since I got several suggestions, Let's discuss
+them all at once in cover-letter.
+
+> 
+> > Internally, it works via deactivating memory from active list to
+> > inactive's head so when the memory pressure happens, they will be
+> > reclaimed earlier than other active pages unless there is no
+> > access until the time.
+> 
+> Could you elaborate about the decision to move to the head rather than
+> tail? What should happen to inactive pages? Should we move them to the
+> tail? Your implementation seems to ignore those completely. Why?
+
+Normally, inactive LRU could have used-once pages without any mapping
+to user's address space. Such pages would be better candicate to
+reclaim when the memory pressure happens. With deactivating only
+active LRU pages of the process to the head of inactive LRU, we will
+keep them in RAM longer than used-once pages and could have more chance
+to be activated once the process is resumed.
+
+> 
+> What should happen for shared pages? In other words do we want to allow
+> less privileged process to control evicting of shared pages with a more
+> privileged one? E.g. think of all sorts of side channel attacks. Maybe
+> we want to do the same thing as for mincore where write access is
+> required.
+
+It doesn't work with shared pages(ie, page_mapcount > 1). I will add it
+in the description.
+
+> -- 
+> Michal Hocko
+> SUSE Labs
 
