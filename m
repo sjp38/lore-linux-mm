@@ -2,162 +2,226 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85042C04E87
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 19:33:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62157C04AAF
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 20:07:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 53398216B7
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 19:33:31 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="1MsSopdT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 53398216B7
+	by mail.kernel.org (Postfix) with ESMTP id 0611820815
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 20:07:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0611820815
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E0F7A6B0003; Mon, 20 May 2019 15:33:30 -0400 (EDT)
+	id 542F26B0005; Mon, 20 May 2019 16:07:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D98D86B0005; Mon, 20 May 2019 15:33:30 -0400 (EDT)
+	id 4F2D56B0006; Mon, 20 May 2019 16:07:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C60AC6B000A; Mon, 20 May 2019 15:33:30 -0400 (EDT)
+	id 36D7A6B0007; Mon, 20 May 2019 16:07:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 998836B0003
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 15:33:30 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id x27so8492611ote.6
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 12:33:30 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F20846B0005
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 16:07:51 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id p124so10397819pga.6
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 13:07:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=qGBGhJB57YNAdImoizW32uytynq+gOiiGUhFhCXS0Eg=;
-        b=CwLdA9Fey9nz1P2ql3cut54mtLSxkbtMV2sAGXNOzlwhKNPK1IycvTq9i1Wng6XsPY
-         UPtX9j3esbMjQQRkCkUHyprw75jwHJ/BDJL8qPebf7yPG4Ggy/kt/GWK/m4NtdKwv1YN
-         YLRynaX2SZ48EV4C7pMNcOFVDCDLwt7FG748f/JcNskP4Gqxtg9NEcBDzI/QClsUQq78
-         NxEh6RsDp370+VAhZ/oYb9gPm/J+7uz404CD0QtZoKgIPVL7Z4kIiwmuYHeLP9W8de2d
-         fEkTcKGDfy9UxnYhlOnYiZjkyhWQduKK+W0rCifWliK6dV9cY26F4e2ht1QX27pfxxVP
-         vm5A==
-X-Gm-Message-State: APjAAAUV95Q2Z4oElEZA4zKco64MiIrV+C90zOxkf4QJpu5w42k2pL/7
-	6tMMLr8scGqZ5xYLHARU9g6EZxQyDkweMQC8NjYIE1mP+sZ6GyT8GEBAcAMpMhLOzZDGmUzyqRu
-	Y2rDCX5ZoKnaXd8pqdLmgJxJ1VEglCKoM1a44VK7kZdTpfqyPpEtzisWpvFzqEzcQpQ==
-X-Received: by 2002:a05:6808:18e:: with SMTP id w14mr662962oic.72.1558380810281;
-        Mon, 20 May 2019 12:33:30 -0700 (PDT)
-X-Received: by 2002:a05:6808:18e:: with SMTP id w14mr662914oic.72.1558380809654;
-        Mon, 20 May 2019 12:33:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558380809; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=qowZ2i4k4nLKiOpM66jf6dGGC4HkFcJRHZmVLzfMaho=;
+        b=kG45poS1F3Z5w1bgLaMzXi6OdcZLNSW6YwSE9/iFlUsxjNz435nKAVtB8i4zampkUw
+         MFpWR8WUXDqdRYA1dShIgvQqFhQdJK6NFinRX3B5/HB7cSBpBAg8NoCcT3Bz0Cnaob5C
+         DTWOfp3G5ec0aYoKLwfpZKXG8mBn980Ipnxe6+DdpD7I8R991kvT99tmHFQsTV2VWH/3
+         hAIsC6/ozO2iM8lbAUjHoZZY2e0dvy5FczznFE3MUMg4qZhj3YJ/sG97T24levcfvZAz
+         MHohagwtFsQdhppGwyCrZP9aMWAd1Fm7qYhwpoqvBCJJEEIL46/X9P+eBDOgrROevokx
+         0XcA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXveLKZ3LP9yj560z8HY1Q+s6ivhk4hl7gWGoZLSnU9s8h68LEG
+	SpWrcBkWm7ycFiPB9gLUOASbF4H3sfl2gyNkHBtg36MuJlfswGU+oXbG5AmjS4msMrW6axD8kj1
+	yUFx5yq5MYysH7QYexGG9W3dGCgCMECUXTFD7YAC0zHmJTcsyzvtc1drCmH2onbESnw==
+X-Received: by 2002:a63:db4e:: with SMTP id x14mr62249450pgi.119.1558382871349;
+        Mon, 20 May 2019 13:07:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxAMzKQ3twhEpPw/RjqssR6a0e/VPNo2hDVqqlLM2hlZbm3eAy/jtD2grmb8wrvQ8mn4Zo9
+X-Received: by 2002:a63:db4e:: with SMTP id x14mr62249375pgi.119.1558382870478;
+        Mon, 20 May 2019 13:07:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558382870; cv=none;
         d=google.com; s=arc-20160816;
-        b=bj2reD7Q197aLvJeGBVeMNOYa8zTpzTJLwxWp2O6HEvopa1FhhtdNeuhp/M8vnxPhP
-         aOn98VWwEBLtqEwfMGmI3DC223t3Ipry1sUIzn8Dt8H7h4P3epRQghOBPe0NppjXlaeo
-         yj0KSyOgVF5mrabo9upsnFLOMcMkeCPyCI3yizn5QZicbOGUIJsW1Kn3CZ4zaGbAPow8
-         NVwVkFlZQE7LqQ63OZJfLsNk78RZ0Q6TReqzB/VDN6iZfAHFCe9HKhiX75yD0OD0Ffbq
-         Ll+3pxvIL0LdGojFmL23S9LxaMPJtL7kwnwXlggGaadUWYGuBjGWc0VUf1eTlVDoKH1a
-         4NKw==
+        b=QJTf3G2WdkeWpPOFh5dKOgg8G6G6u4+S0PQOxIEuggC3AplgquuG+uVh4GuOpV4yLX
+         u5aXwCeamd42PWpTj9snnq82u6aFxqc82soOsiwwkOm+xSQvWuC3CtXFsdB1Gi8gjcht
+         t5w5GxBK1yg9Fj1pddVZhTWvPEn86pM+409K4WQpPOOh56ardr89iKFGKMNLP0KH2/Q7
+         PefIF8rmZ/tjZ22BoOSJxjBdwpye1fCDvY0+UsMwKZsdq1o8qJRoTmy4uY776IGpm3Ov
+         D5HR+LC1W2xzeRrhfsJRjadpSWPh6Z7m03qjLMOS5KUOhWmQ8uumDxZs6tBnHsMGbWFW
+         lOWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=qGBGhJB57YNAdImoizW32uytynq+gOiiGUhFhCXS0Eg=;
-        b=eVyzUbMAHuN551iwoIqYsM3ltya04WM8XK7bs+vzr6eycPVo8+KS2TnDtMyTVHU58k
-         uvTr7R7SaUsrkptBBOQk8fQ8wS4zKw+bzFgWj8eXc2FLtuBya1N/9Efzo/1Bu7Ho4ZKI
-         lSOziqN5XH0loa0PUoaMX/Yv27SV5gPtp0UQV5RDQKyZJEESMUzUX/wWBaqCB6YtOQCK
-         +gx0+KPnyR7Roly4ZKytia6/3ATDbqvnXlYJvqa9eUX3ejs5WtPaBGN/BztTwBBh3PXA
-         X9WltUhJ2AalQ01V6Qrqjg4Zvily/NrIhvKvwk73tf2DF4toByZUP3LZQRE3N7g3ZpZ6
-         Bpug==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=qowZ2i4k4nLKiOpM66jf6dGGC4HkFcJRHZmVLzfMaho=;
+        b=SaDTOCXtbtOQniFzYqtHIrOSbcvoF7KQ/2s3Y1al9jtSk5qmRx0JyuGMVHkF0hNdR7
+         2oPcyunvU5pFcfrHQEHk0E7eqKmnG4CWUMOSJMqu5rQ2/KU097B0VFn4B4jt3LPkgvAC
+         5pbXr34xG6X7MWTWZmXUsR9ZquJq2e0+djcJlu9e9lcIbQaTM5awDm+dsclI3MMsyHXQ
+         LMJSneTcebMA1xjL9PPpGCRMPwz5viYNNsRSWp0EAplp2qP+TdWTR+HwFEDW81iqp6tT
+         m/J3SdsBWodIvdEsVe3tSaH1MY3NGpyCcI9a2CTfH3nXXKcuXv2YP3QS2WyM95tGfmop
+         uyhA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=1MsSopdT;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r10sor8583970otp.124.2019.05.20.12.33.29
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id i16si1001194pgh.549.2019.05.20.13.07.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 20 May 2019 12:33:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 May 2019 13:07:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=1MsSopdT;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=qGBGhJB57YNAdImoizW32uytynq+gOiiGUhFhCXS0Eg=;
-        b=1MsSopdTCsKraANCSKqF8PkxUMuTUoIUX0XO+JfoxkweztyYhtzTmIQcE8sdcRWVP1
-         Fg0I2uWxd6AfxohwPY4dVXOa5GSrBd8YuEgTpyjwQpaQMvUX5RMIyltCY8N1R74raqPP
-         HjA8UzJ7Ok893kpAWJGplsaQ4/xqw/FC5u845MKOBoIRlf9j8440PEUtUsmBKg35J779
-         oHgEefa+u6KkVzFDKrK9tMjfHTnogbSN9rtWs3uV3aH9slC9uklwamdRB6ILUVg5w8IA
-         VFVQPjlq3w7YXuc88iwUhcMwzR5Fum0dqGybPoNp6dlZXnkXWg9APZOq/w6S85LcVRwe
-         sc/Q==
-X-Google-Smtp-Source: APXvYqxLMFozNV6q34tnpQxP/V7RDYkIWBzc4fvMUALsYjtMGCEcUw5ebnzdkghF4wJZ7BssXKYTwlfrdTh73iXn4bA=
-X-Received: by 2002:a05:6830:1182:: with SMTP id u2mr34896558otq.71.1558380809245;
- Mon, 20 May 2019 12:33:29 -0700 (PDT)
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 May 2019 13:07:49 -0700
+X-ExtLoop1: 1
+Received: from cavannie-mobl1.amr.corp.intel.com (HELO localhost.intel.com) ([10.254.114.95])
+  by fmsmga007.fm.intel.com with ESMTP; 20 May 2019 13:07:48 -0700
+From: Rick Edgecombe <rick.p.edgecombe@intel.com>
+To: linux-kernel@vger.kernel.org,
+	peterz@infradead.org,
+	sparclinux@vger.kernel.org,
+	linux-mm@kvack.org,
+	netdev@vger.kernel.org
+Cc: dave.hansen@intel.com,
+	namit@vmware.com,
+	Rick Edgecombe <rick.p.edgecombe@intel.com>,
+	Meelis Roos <mroos@linux.ee>,
+	"David S. Miller" <davem@davemloft.net>,
+	Borislav Petkov <bp@alien8.de>,
+	Andy Lutomirski <luto@kernel.org>,
+	Ingo Molnar <mingo@redhat.com>
+Subject: [PATCH v2] vmalloc: Fix issues with flush flag
+Date: Mon, 20 May 2019 13:07:03 -0700
+Message-Id: <20190520200703.15997-1-rick.p.edgecombe@intel.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-References: <1558089514-25067-1-git-send-email-anshuman.khandual@arm.com>
- <20190517145050.2b6b0afdaab5c3c69a4b153e@linux-foundation.org>
- <cb8cbd57-9220-aba9-7579-dbcf35f02672@arm.com> <20190520192721.GA4049@redhat.com>
-In-Reply-To: <20190520192721.GA4049@redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 20 May 2019 12:33:17 -0700
-Message-ID: <CAPcyv4gN0Pz66a_dEMxkS5xvCyPoboGEkyxZFHQU3L2DDj8fAg@mail.gmail.com>
-Subject: Re: [PATCH] mm/dev_pfn: Exclude MEMORY_DEVICE_PRIVATE while computing
- virtual address
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-	Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 20, 2019 at 12:27 PM Jerome Glisse <jglisse@redhat.com> wrote:
->
-> On Mon, May 20, 2019 at 11:07:38AM +0530, Anshuman Khandual wrote:
-> > On 05/18/2019 03:20 AM, Andrew Morton wrote:
-> > > On Fri, 17 May 2019 16:08:34 +0530 Anshuman Khandual <anshuman.khandual@arm.com> wrote:
-> > >
-> > >> The presence of struct page does not guarantee linear mapping for the pfn
-> > >> physical range. Device private memory which is non-coherent is excluded
-> > >> from linear mapping during devm_memremap_pages() though they will still
-> > >> have struct page coverage. Just check for device private memory before
-> > >> giving out virtual address for a given pfn.
-> > >
-> > > I was going to give my standard "what are the user-visible runtime
-> > > effects of this change?", but...
-> > >
-> > >> All these helper functions are all pfn_t related but could not figure out
-> > >> another way of determining a private pfn without looking into it's struct
-> > >> page. pfn_t_to_virt() is not getting used any where in mainline kernel.Is
-> > >> it used by out of tree drivers ? Should we then drop it completely ?
-> > >
-> > > Yeah, let's kill it.
-> > >
-> > > But first, let's fix it so that if someone brings it back, they bring
-> > > back a non-buggy version.
-> >
-> > Makes sense.
-> >
-> > >
-> > > So...  what (would be) the user-visible runtime effects of this change?
-> >
-> > I am not very well aware about the user interaction with the drivers which
-> > hotplug and manage ZONE_DEVICE memory in general. Hence will not be able to
-> > comment on it's user visible runtime impact. I just figured this out from
-> > code audit while testing ZONE_DEVICE on arm64 platform. But the fix makes
-> > the function bit more expensive as it now involve some additional memory
-> > references.
->
-> A device private pfn can never leak outside code that does not understand it
-> So this change is useless for any existing users and i would like to keep the
-> existing behavior ie never leak device private pfn.
+Switch VM_FLUSH_RESET_PERMS to use a regular TLB flush intead of
+vm_unmap_aliases() and fix calculation of the direct map for the
+CONFIG_ARCH_HAS_SET_DIRECT_MAP case.
 
-The issue is that only an HMM expert might know that such a pfn can
-never leak, in other words the pfn concept from a code perspective is
-already leaked / widespread. Ideally any developer familiar with a pfn
-and the core-mm pfn helpers need only worry about pfn semantics
-without being required to go audit HMM users.
+Meelis Roos reported issues with the new VM_FLUSH_RESET_PERMS flag on a
+sparc machine. On investigation some issues were noticed:
+
+1. The calculation of the direct map address range to flush was wrong.
+This could cause problems on x86 if a RO direct map alias ever got loaded
+into the TLB. This shouldn't normally happen, but it could cause the
+permissions to remain RO on the direct map alias, and then the page
+would return from the page allocator to some other component as RO and
+cause a crash.
+
+2. Calling vm_unmap_alias() on vfree could potentially be a lot of work to
+do on a free operation. Simply flushing the TLB instead of the whole
+vm_unmap_alias() operation makes the frees faster and pushes the heavy
+work to happen on allocation where it would be more expected.
+In addition to the extra work, vm_unmap_alias() takes some locks including
+a long hold of vmap_purge_lock, which will make all other
+VM_FLUSH_RESET_PERMS vfrees wait while the purge operation happens.
+
+3. page_address() can have locking on some configurations, so skip calling
+this when possible to further speed this up.
+
+Fixes: 868b104d7379 ("mm/vmalloc: Add flag for freeing of special permsissions")
+Reported-by: Meelis Roos <mroos@linux.ee>
+Cc: Meelis Roos <mroos@linux.ee>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: "David S. Miller" <davem@davemloft.net>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Nadav Amit <namit@vmware.com>
+Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+---
+
+Changes since v1:
+ - Update commit message with more detail
+ - Fix flush end range on !CONFIG_ARCH_HAS_SET_DIRECT_MAP case
+
+ mm/vmalloc.c | 23 +++++++++++++----------
+ 1 file changed, 13 insertions(+), 10 deletions(-)
+
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index c42872ed82ac..8d03427626dc 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -2122,9 +2122,10 @@ static inline void set_area_direct_map(const struct vm_struct *area,
+ /* Handle removing and resetting vm mappings related to the vm_struct. */
+ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
+ {
++	const bool has_set_direct = IS_ENABLED(CONFIG_ARCH_HAS_SET_DIRECT_MAP);
++	const bool flush_reset = area->flags & VM_FLUSH_RESET_PERMS;
+ 	unsigned long addr = (unsigned long)area->addr;
+-	unsigned long start = ULONG_MAX, end = 0;
+-	int flush_reset = area->flags & VM_FLUSH_RESET_PERMS;
++	unsigned long start = addr, end = addr + area->size;
+ 	int i;
+ 
+ 	/*
+@@ -2133,7 +2134,7 @@ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
+ 	 * This is concerned with resetting the direct map any an vm alias with
+ 	 * execute permissions, without leaving a RW+X window.
+ 	 */
+-	if (flush_reset && !IS_ENABLED(CONFIG_ARCH_HAS_SET_DIRECT_MAP)) {
++	if (flush_reset && !has_set_direct) {
+ 		set_memory_nx(addr, area->nr_pages);
+ 		set_memory_rw(addr, area->nr_pages);
+ 	}
+@@ -2146,22 +2147,24 @@ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
+ 
+ 	/*
+ 	 * If not deallocating pages, just do the flush of the VM area and
+-	 * return.
++	 * return. If the arch doesn't have set_direct_map_(), also skip the
++	 * below work.
+ 	 */
+-	if (!deallocate_pages) {
+-		vm_unmap_aliases();
++	if (!deallocate_pages || !has_set_direct) {
++		flush_tlb_kernel_range(start, end);
+ 		return;
+ 	}
+ 
+ 	/*
+ 	 * If execution gets here, flush the vm mapping and reset the direct
+ 	 * map. Find the start and end range of the direct mappings to make sure
+-	 * the vm_unmap_aliases() flush includes the direct map.
++	 * the flush_tlb_kernel_range() includes the direct map.
+ 	 */
+ 	for (i = 0; i < area->nr_pages; i++) {
+-		if (page_address(area->pages[i])) {
++		addr = (unsigned long)page_address(area->pages[i]);
++		if (addr) {
+ 			start = min(addr, start);
+-			end = max(addr, end);
++			end = max(addr + PAGE_SIZE, end);
+ 		}
+ 	}
+ 
+@@ -2171,7 +2174,7 @@ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
+ 	 * reset the direct map permissions to the default.
+ 	 */
+ 	set_area_direct_map(area, set_direct_map_invalid_noflush);
+-	_vm_unmap_aliases(start, end, 1);
++	flush_tlb_kernel_range(start, end);
+ 	set_area_direct_map(area, set_direct_map_default_noflush);
+ }
+ 
+-- 
+2.20.1
 
