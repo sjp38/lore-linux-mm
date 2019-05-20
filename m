@@ -2,285 +2,808 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLACK autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA66AC072A4
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 06:10:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BD56FC04E87
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 06:19:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 646BB20851
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 06:10:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5861D20851
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 06:19:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=googlemail.com header.i=@googlemail.com header.b="Y0j6sgfc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 646BB20851
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=googlemail.com
+	dkim=pass (2048-bit key) header.d=ozlabs-ru.20150623.gappssmtp.com header.i=@ozlabs-ru.20150623.gappssmtp.com header.b="DbX6sQRS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5861D20851
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ozlabs.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F31276B026B; Mon, 20 May 2019 02:10:31 -0400 (EDT)
+	id D305F6B026B; Mon, 20 May 2019 02:19:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EBB0F6B026C; Mon, 20 May 2019 02:10:31 -0400 (EDT)
+	id CB85A6B026C; Mon, 20 May 2019 02:19:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D81FC6B026D; Mon, 20 May 2019 02:10:31 -0400 (EDT)
+	id B0AFE6B026D; Mon, 20 May 2019 02:19:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B1A936B026B
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 02:10:31 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id q17so11748599qkc.23
-        for <linux-mm@kvack.org>; Sun, 19 May 2019 23:10:31 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 621386B026B
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 02:19:46 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id b24so9072847pgh.11
+        for <linux-mm@kvack.org>; Sun, 19 May 2019 23:19:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=NFukLdZ7lb89NEuXmBM0ev5FCwA/kWpf23+eFLzEIzc=;
-        b=WahwSSpyfH87pLCoINO13svrog2/8Xwqs5lL/sWChCwAJLP2dmnWwE240GOQUVpp6E
-         1SORHndhydRLK2ErnepQy+0cI/Ah6fUGGy3bYaogqXyKweiWPqshIbBRU2w9UyeyTg3V
-         AV6QKL7WtS4ckNdLuDLW+rn2qds0GPp9xu6OUe700tyVEnAZDnhZdC8brHyLanzctple
-         ppuynt5hydRBzunlC/6yyNa1t6PeyUscC3ZRVUU/DaR5tJrjX+TRjb7uU2j6q4AGCoHO
-         57FqnmPhEjfcHklVImf6QRWbmvWlDBqYJNe0KbK1tgGy9KLgnPiMU7+TtaAUanFLRfZN
-         jkgQ==
-X-Gm-Message-State: APjAAAUSd2nMgwdmFO1IBubrNUovuEJVhd7QGq6FailgS0YpwwPbUmbR
-	bP4IAgsKIxamhCLyvC4sZ8o/OGE6hKNhK6Y62ahJbpmrDgC385zcwcr9qppfP/NhsWD+SiD+OXQ
-	OzJaQBDQko4Xl/OKAAVrLhHjliSOg04Pg1qZHAPQAJOLFQpCxY9avwabqdumDL03Oyw==
-X-Received: by 2002:a0c:87cd:: with SMTP id 13mr32231043qvk.218.1558332631474;
-        Sun, 19 May 2019 23:10:31 -0700 (PDT)
-X-Received: by 2002:a0c:87cd:: with SMTP id 13mr32230995qvk.218.1558332630559;
-        Sun, 19 May 2019 23:10:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558332630; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :openpgp:autocrypt:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=PBy3eMs07XY9FrrAK/MAiuK4msEJQjNPDgdCYOHnWL4=;
+        b=WjVEN5TFuwgYxXLGCo28DMji1t9ImJFNXdKrgR4qbYYXfjCvEo/MXo3jPGVHXQk8wJ
+         6wCzoYO5hEruCBS1Ox8+1Df6SE+8wMan9msoRUBGWao3yWK5b7Z1EJ/9VXpbK7OZS135
+         Bl3HcFeBpz/zo2kxIMJLAwwSpbhw6uNqSqX0o681dL/nZgU+5qPrwGOJ6N71FacDbSH9
+         ggHFyd6UcEiuwAIl4oB/zOagLPuTIrgan6WLKnEt4g0pLC07cXPbsMLsYZLI8t3VLqmr
+         k/E1Xt0B5g74N5TtYyDJd9FSFrFW6C3kX3ypniMBxIpjyVW/UAjLSWz3DD3PNMuNuwCM
+         1eJA==
+X-Gm-Message-State: APjAAAW55Aa/aSf2Hi0naesLaP091UwRH74FzbwFH/Hn67FY2y1ynpBA
+	0YY5I6sTX7NARXvtHMBagqjqcsr9mZdjEojb6tWW4+2rDLkAMBT/xiE+wunn8U1wXbQwwjDea/s
+	505ICHrduo5A8xNbFWAP0Imx2Pmg7QWud91IndNKYhWl8ac9bP26F3niCdphrV7trfg==
+X-Received: by 2002:a62:4859:: with SMTP id v86mr49114812pfa.237.1558333185921;
+        Sun, 19 May 2019 23:19:45 -0700 (PDT)
+X-Received: by 2002:a62:4859:: with SMTP id v86mr49114733pfa.237.1558333184800;
+        Sun, 19 May 2019 23:19:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558333184; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZCmlTDWwTySE/ez8ALyKIgOZsEeZmF+0IFXe/lHxQkwUegstlnXW795QJVUyCov3Ff
-         BLqFDB+2Pod5nrBYRL7CuIeLKsfScu2wk7oHWlx1qKSVpc4clQ54Hi3IlBIcLz/sxgEB
-         184rhdMDLpaWv9r8Ie43SsvKw2Sc4mV7arbsT3VbY8jeNrEoTFFYI80p7cXzIrRSyPTi
-         o8hVIju625hzk9dgbn4mRBFLlcuZKYfyIhCvav4OdzD9S28SztgnKOE5tfZRRl37/JuT
-         hosQClN9IMGv6NsERwgiQ0cZ1JeHoOU42Hwns2HKf3DyCj+Ai2mXHXJdhgIs8O4yWLQ0
-         QXFA==
+        b=Ex78tTGZZlsscMvvr+pfm7JC9NG3ZR6ENZGp5Tugs7vCBHSGUKVTwdkv5QixjjDuH8
+         K1MLaiDDg9GzT5eTXs/h/TsLukmPytlpAFuGO6DOGPXPAGLJjwzF25AXkTr2NzBCwqoO
+         bjxU39GvuOFMWl5IjouPACf226Kn0J+QVWGUDccTBVzjkCTW4cAm42GnvCWehQ4RTmUh
+         7DSM+WWb8BgcOeNlSjzd2nN1l4A0m8+LnxficXljwvxD038JZ4Q+4pSbVILRVi6JJU8G
+         U276hACp7XbFBMmvxBqvH9CIMB4INOWFkjrY8iOS9JQPfipH639EDHKvrGZmrtsncJGl
+         NRQg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=NFukLdZ7lb89NEuXmBM0ev5FCwA/kWpf23+eFLzEIzc=;
-        b=zTCk7nNMPT5ANdXyUBHN/UzWCGqY1pVSJqW/6vq9Rr79LQ4+nr0iG+ma7MwM9IPsJz
-         U1spy8JDfDSmr7X+sg1ukXz9/0YTuKhKgluzG4CCk62t/aELsVJ+4xuXcEdrXjpZwQ4D
-         7V2IEsKaeZdLkomaIcQtSo7jEqv+gxN7RfwNLZf/Ny0PvUXNI05E2air9VRiC9fG7WYN
-         7Qt06KNgu9GOE7z4Lm0K2/gl7PhXqrmnDZXyT0ZS3fQDLZmjSQtvL2vIyB/0IK0Orp9j
-         R30bDN2ZxZRGK9L+D406UPoAT32nbatcfFT/JJYfGq1WUOiNaIQsbzlub1BqDNdpAJjJ
-         cj3w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject:dkim-signature;
+        bh=PBy3eMs07XY9FrrAK/MAiuK4msEJQjNPDgdCYOHnWL4=;
+        b=ImKbDGY60S2RRukqbY5FEHuooKZjsLkzcMxqve6Q9KYGWhYIucLcrCpdeKyG3KJHFm
+         wfvBG02KS+cadtvGYK0F8oUQBD7Jv/oVA7uTJ6Jgfycl3U1rltVZKi4w+hYvhf5c2t0c
+         ju0bV4ckYLZR+Ma6fYernE4A1u6lS755m+QwU9A92PfgtRL/uEkOhH++2pOKkV2gIkDH
+         q+Cu7+H7Uttm9pTskEGOQND/8G1M30G6OwHBPKofz4DANSwUoBzBE2749zHY2p39tS9j
+         d/eR7r4hXG8+Q4lmYhPuW+GMN9TSEwYun4qDLTQo00YG5HCu0DulIUwt3ciydSZNbZkz
+         PZvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@googlemail.com header.s=20161025 header.b=Y0j6sgfc;
-       spf=pass (google.com: domain of minipli@googlemail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minipli@googlemail.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=googlemail.com
+       dkim=pass header.i=@ozlabs-ru.20150623.gappssmtp.com header.s=20150623 header.b=DbX6sQRS;
+       spf=pass (google.com: domain of aik@ozlabs.ru designates 209.85.220.65 as permitted sender) smtp.mailfrom=aik@ozlabs.ru
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t130sor8892370qke.67.2019.05.19.23.10.30
+        by mx.google.com with SMTPS id y1sor18276633pli.66.2019.05.19.23.19.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 19 May 2019 23:10:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minipli@googlemail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Sun, 19 May 2019 23:19:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aik@ozlabs.ru designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@googlemail.com header.s=20161025 header.b=Y0j6sgfc;
-       spf=pass (google.com: domain of minipli@googlemail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minipli@googlemail.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=googlemail.com
+       dkim=pass header.i=@ozlabs-ru.20150623.gappssmtp.com header.s=20150623 header.b=DbX6sQRS;
+       spf=pass (google.com: domain of aik@ozlabs.ru designates 209.85.220.65 as permitted sender) smtp.mailfrom=aik@ozlabs.ru
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=googlemail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=NFukLdZ7lb89NEuXmBM0ev5FCwA/kWpf23+eFLzEIzc=;
-        b=Y0j6sgfc8k9053lZUMt5CBFGP0kn69SC0iJEQW0SB6iNThpcQOmoG99zvBBpusukVZ
-         qA4kSf3AQnhuJgAcUxy6UuCw21GAZA6aj4EBvN4bY3FVkGlSAfQE2ruxt+Kkl658PCqX
-         MwZcFB/DwMSAmeq1+Nkcj/G40xH7lWYAslj7bLerr/3XAbdteF6FwjNgA3VWzkPGQ2IX
-         s32DEctR+QFtSws0fK7dWAUspu83t0DVKiNxQcBcLTOc88uPJPzxwbY2HpO2URmzy/Bm
-         /vrXXLx5jZ0hICGuwDA6cVtAeDAd7R3/V0KJ1YLrLnHNqidbInrrROqP1gBuCXqfziVK
-         wzCg==
-X-Google-Smtp-Source: APXvYqxhDBaw1gzS0+uR0z6oe2PI6vSPUSrFMeRAnod4ezCaN0wue1Ets49Z3HT+wJ4G1Ljd7FkZBW40qgfo4D/nd9s=
-X-Received: by 2002:a05:620a:5ed:: with SMTP id z13mr20140322qkg.84.1558332630219;
- Sun, 19 May 2019 23:10:30 -0700 (PDT)
+        d=ozlabs-ru.20150623.gappssmtp.com; s=20150623;
+        h=subject:to:cc:references:from:openpgp:autocrypt:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=PBy3eMs07XY9FrrAK/MAiuK4msEJQjNPDgdCYOHnWL4=;
+        b=DbX6sQRSaGyW1FUZRUGq7IxR73E3rt0PugnXojyMfveAM3ar6hbiF205rEKhYxN/QW
+         wcjfpWfY02vpsrmASGvwp2gxu5ff3jOZSQFh5yG7G8c9Ca5iLhnZrMC51temjFhqRBGT
+         ZZMXN6vg/qamqFRvFPd/x9yw3XKPjqhWWRK1apIRay2WdKy5g23SwlQXsZ/C5WptZo15
+         9cJaxazQFk0QtISFtr+nDDaamHHKtB6y9A49SQbhqIWd4mSdRQYp0TK+mnkVvDveUBhl
+         NHNWN3+M905+CPritF7y8tQXpzyYCbada64dhcWen0jbER+/0fuwjtzjCzzV731rUyh4
+         vSjA==
+X-Google-Smtp-Source: APXvYqy0yeqvgHQuF+pEormkD37ZErFzQ4VskiZOhmUbr7yEeBmQhMxAaQRzpFSYrZXNHj1p27/BRg==
+X-Received: by 2002:a17:902:5a47:: with SMTP id f7mr48867341plm.321.1558333183823;
+        Sun, 19 May 2019 23:19:43 -0700 (PDT)
+Received: from [10.61.2.175] ([122.99.82.10])
+        by smtp.gmail.com with ESMTPSA id c129sm21482209pfg.178.2019.05.19.23.19.36
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 19 May 2019 23:19:42 -0700 (PDT)
+Subject: Re: [PATCH] mm: add account_locked_vm utility function
+To: Daniel Jordan <daniel.m.jordan@oracle.com>, akpm@linux-foundation.org
+Cc: Alan Tull <atull@kernel.org>, Alex Williamson
+ <alex.williamson@redhat.com>,
+ Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+ Christoph Lameter <cl@linux.com>, Christophe Leroy
+ <christophe.leroy@c-s.fr>, Davidlohr Bueso <dave@stgolabs.net>,
+ Jason Gunthorpe <jgg@mellanox.com>, Mark Rutland <mark.rutland@arm.com>,
+ Michael Ellerman <mpe@ellerman.id.au>, Moritz Fischer <mdf@kernel.org>,
+ Paul Mackerras <paulus@ozlabs.org>, Steve Sistare
+ <steven.sistare@oracle.com>, Wu Hao <hao.wu@intel.com>, linux-mm@kvack.org,
+ kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-fpga@vger.kernel.org, linux-kernel@vger.kernel.org
+References: <20190503201629.20512-1-daniel.m.jordan@oracle.com>
+From: Alexey Kardashevskiy <aik@ozlabs.ru>
+Openpgp: preference=signencrypt
+Autocrypt: addr=aik@ozlabs.ru; keydata=
+ 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
+Message-ID: <4b42057f-b998-f87c-4e0f-a91abcb366f9@ozlabs.ru>
+Date: Mon, 20 May 2019 16:19:34 +1000
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-References: <20190514143537.10435-5-glider@google.com> <201905161746.16E885F@keescook>
-In-Reply-To: <201905161746.16E885F@keescook>
-From: Mathias Krause <minipli@googlemail.com>
-Date: Mon, 20 May 2019 08:10:19 +0200
-Message-ID: <CA+rthh9bLiohU78PBMonji_LPjj756rhTy22v9nL8LpL0cTb5g@mail.gmail.com>
-Subject: Re: [PATCH 5/4] mm: Introduce SLAB_NO_FREE_INIT and mark excluded caches
-To: Kees Cook <keescook@chromium.org>
-Cc: Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Christoph Lameter <cl@linux.com>, kernel-hardening@lists.openwall.com, 
-	Masahiro Yamada <yamada.masahiro@socionext.com>, James Morris <jmorris@namei.org>, 
-	"Serge E. Hallyn" <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
-	Laura Abbott <labbott@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
-	Mark Rutland <mark.rutland@arm.com>, linux-mm@kvack.org, 
-	linux-security-module@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190503201629.20512-1-daniel.m.jordan@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Kees,
 
-On Fri, 17 May 2019 at 02:50, Kees Cook <keescook@chromium.org> wrote:
-> In order to improve the init_on_free performance, some frequently
-> freed caches with less sensitive contents can be excluded from the
-> init_on_free behavior.
->
-> This patch is modified from Brad Spengler/PaX Team's code in the
-> last public patch of grsecurity/PaX based on my understanding of the
-> code. Changes or omissions from the original code are mine and don't
-> reflect the original grsecurity/PaX code.
 
-you might want to give secunet credit for this one, as can be seen here:
+On 04/05/2019 06:16, Daniel Jordan wrote:
+> locked_vm accounting is done roughly the same way in five places, so
+> unify them in a helper.  Standardize the debug prints, which vary
+> slightly.
 
-  https://github.com/minipli/linux-grsec/commit/309d494e7a3f6533ca68fc8b3bd89fa76fd2c2df
+And I rather liked that prints were different and tell precisely which
+one of three each printk is.
 
-However, please keep the "Changes or omissions from the original
-code..." part as your version slightly differs.
+I commented below but in general this seems working.
 
-Thanks,
-Mathias
+Tested-by: Alexey Kardashevskiy <aik@ozlabs.ru>
 
->
-> Signed-off-by: Kees Cook <keescook@chromium.org>
+
+
+
+>  Error codes stay the same, so user-visible behavior does too.
+> 
+> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> Cc: Alan Tull <atull@kernel.org>
+> Cc: Alexey Kardashevskiy <aik@ozlabs.ru>
+> Cc: Alex Williamson <alex.williamson@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Christophe Leroy <christophe.leroy@c-s.fr>
+> Cc: Davidlohr Bueso <dave@stgolabs.net>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Cc: Mark Rutland <mark.rutland@arm.com>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> Cc: Moritz Fischer <mdf@kernel.org>
+> Cc: Paul Mackerras <paulus@ozlabs.org>
+> Cc: Steve Sistare <steven.sistare@oracle.com>
+> Cc: Wu Hao <hao.wu@intel.com>
+> Cc: linux-mm@kvack.org
+> Cc: kvm@vger.kernel.org
+> Cc: kvm-ppc@vger.kernel.org
+> Cc: linuxppc-dev@lists.ozlabs.org
+> Cc: linux-fpga@vger.kernel.org
+> Cc: linux-kernel@vger.kernel.org
 > ---
->  fs/buffer.c          | 2 +-
->  fs/dcache.c          | 3 ++-
->  include/linux/slab.h | 3 +++
->  kernel/fork.c        | 6 ++++--
->  mm/rmap.c            | 5 +++--
->  mm/slab.h            | 5 +++--
->  net/core/skbuff.c    | 6 ++++--
->  7 files changed, 20 insertions(+), 10 deletions(-)
->
-> diff --git a/fs/buffer.c b/fs/buffer.c
-> index 0faa41fb4c88..04a85bd4cf2e 100644
-> --- a/fs/buffer.c
-> +++ b/fs/buffer.c
-> @@ -3457,7 +3457,7 @@ void __init buffer_init(void)
->         bh_cachep = kmem_cache_create("buffer_head",
->                         sizeof(struct buffer_head), 0,
->                                 (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
-> -                               SLAB_MEM_SPREAD),
-> +                               SLAB_MEM_SPREAD|SLAB_NO_FREE_INIT),
->                                 NULL);
->
->         /*
-> diff --git a/fs/dcache.c b/fs/dcache.c
-> index 8136bda27a1f..323b039accba 100644
-> --- a/fs/dcache.c
-> +++ b/fs/dcache.c
-> @@ -3139,7 +3139,8 @@ void __init vfs_caches_init_early(void)
->  void __init vfs_caches_init(void)
->  {
->         names_cachep = kmem_cache_create_usercopy("names_cache", PATH_MAX, 0,
-> -                       SLAB_HWCACHE_ALIGN|SLAB_PANIC, 0, PATH_MAX, NULL);
-> +                       SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_NO_FREE_INIT, 0,
-> +                       PATH_MAX, NULL);
->
->         dcache_init();
->         inode_init();
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 9449b19c5f10..7eba9ad8830d 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -92,6 +92,9 @@
->  /* Avoid kmemleak tracing */
->  #define SLAB_NOLEAKTRACE       ((slab_flags_t __force)0x00800000U)
->
-> +/* Exclude slab from zero-on-free when init_on_free is enabled */
-> +#define SLAB_NO_FREE_INIT      ((slab_flags_t __force)0x01000000U)
-> +
->  /* Fault injection mark */
->  #ifdef CONFIG_FAILSLAB
->  # define SLAB_FAILSLAB         ((slab_flags_t __force)0x02000000U)
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index b4cba953040a..9868585f5520 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -2550,11 +2550,13 @@ void __init proc_caches_init(void)
->
->         mm_cachep = kmem_cache_create_usercopy("mm_struct",
->                         mm_size, ARCH_MIN_MMSTRUCT_ALIGN,
-> -                       SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT,
-> +                       SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT|
-> +                       SLAB_NO_FREE_INIT,
->                         offsetof(struct mm_struct, saved_auxv),
->                         sizeof_field(struct mm_struct, saved_auxv),
->                         NULL);
-> -       vm_area_cachep = KMEM_CACHE(vm_area_struct, SLAB_PANIC|SLAB_ACCOUNT);
-> +       vm_area_cachep = KMEM_CACHE(vm_area_struct, SLAB_PANIC|SLAB_ACCOUNT|
-> +                                                   SLAB_NO_FREE_INIT);
->         mmap_init();
->         nsproxy_cache_init();
+> 
+> Based on v5.1-rc7.  Tested with the vfio type1 driver.  Any feedback
+> welcome.
+> 
+> Andrew, this one patch replaces these six from [1]:
+> 
+>     mm-change-locked_vms-type-from-unsigned-long-to-atomic64_t.patch
+>     vfio-type1-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
+>     vfio-spapr_tce-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
+>     fpga-dlf-afu-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
+>     kvm-book3s-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
+>     powerpc-mmu-drop-mmap_sem-now-that-locked_vm-is-atomic.patch
+> 
+> That series converts locked_vm to an atomic, but on closer inspection causes at
+> least one accounting race in mremap, and fixing it just for this type
+> conversion came with too much ugly in the core mm to justify, especially when
+> the right long-term fix is making these drivers use pinned_vm instead.
+> 
+> Christophe's suggestion of cmpxchg[2] does prevent the races he
+> mentioned for pinned_vm, but others would still remain.  In perf_mmap
+> and the hfi1 driver, pinned_vm is checked against the rlimit racily and
+> then later increased when the pinned_vm originally read may have gone
+> stale.  Any fixes for that, that I could think of, seem about as good as
+> what's there now, so I left it.  I have a patch that uses cmpxchg with
+> pinned_vm if others feel strongly that the aforementioned races should
+> be fixed.
+> 
+> Daniel
+> 
+> [1] https://lore.kernel.org/linux-mm/20190402204158.27582-1-daniel.m.jordan@oracle.com/
+> [2] https://lore.kernel.org/linux-mm/964bd5b0-f1e5-7bf0-5c58-18e75c550841@c-s.fr/
+> 
+>  arch/powerpc/kvm/book3s_64_vio.c    | 44 +++---------------------
+>  arch/powerpc/mm/mmu_context_iommu.c | 41 +++-------------------
+>  drivers/fpga/dfl-afu-dma-region.c   | 53 +++--------------------------
+>  drivers/vfio/vfio_iommu_spapr_tce.c | 52 +++++-----------------------
+>  drivers/vfio/vfio_iommu_type1.c     | 23 ++++---------
+>  include/linux/mm.h                  | 19 +++++++++++
+>  mm/util.c                           | 48 ++++++++++++++++++++++++++
+>  7 files changed, 94 insertions(+), 186 deletions(-)
+> 
+> diff --git a/arch/powerpc/kvm/book3s_64_vio.c b/arch/powerpc/kvm/book3s_64_vio.c
+> index f02b04973710..f7d37fa6003a 100644
+> --- a/arch/powerpc/kvm/book3s_64_vio.c
+> +++ b/arch/powerpc/kvm/book3s_64_vio.c
+> @@ -30,6 +30,7 @@
+>  #include <linux/anon_inodes.h>
+>  #include <linux/iommu.h>
+>  #include <linux/file.h>
+> +#include <linux/mm.h>
+>  
+>  #include <asm/kvm_ppc.h>
+>  #include <asm/kvm_book3s.h>
+> @@ -56,43 +57,6 @@ static unsigned long kvmppc_stt_pages(unsigned long tce_pages)
+>  	return tce_pages + ALIGN(stt_bytes, PAGE_SIZE) / PAGE_SIZE;
 >  }
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index e5dfe2ae6b0d..b7b8013eeb0a 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -432,10 +432,11 @@ static void anon_vma_ctor(void *data)
->  void __init anon_vma_init(void)
+>  
+> -static long kvmppc_account_memlimit(unsigned long stt_pages, bool inc)
+> -{
+> -	long ret = 0;
+> -
+> -	if (!current || !current->mm)
+> -		return ret; /* process exited */
+> -
+> -	down_write(&current->mm->mmap_sem);
+> -
+> -	if (inc) {
+> -		unsigned long locked, lock_limit;
+> -
+> -		locked = current->mm->locked_vm + stt_pages;
+> -		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> -		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+> -			ret = -ENOMEM;
+> -		else
+> -			current->mm->locked_vm += stt_pages;
+> -	} else {
+> -		if (WARN_ON_ONCE(stt_pages > current->mm->locked_vm))
+> -			stt_pages = current->mm->locked_vm;
+> -
+> -		current->mm->locked_vm -= stt_pages;
+> -	}
+> -
+> -	pr_debug("[%d] RLIMIT_MEMLOCK KVM %c%ld %ld/%ld%s\n", current->pid,
+> -			inc ? '+' : '-',
+> -			stt_pages << PAGE_SHIFT,
+> -			current->mm->locked_vm << PAGE_SHIFT,
+> -			rlimit(RLIMIT_MEMLOCK),
+> -			ret ? " - exceeded" : "");
+> -
+> -	up_write(&current->mm->mmap_sem);
+> -
+> -	return ret;
+> -}
+> -
+>  static void kvm_spapr_tce_iommu_table_free(struct rcu_head *head)
 >  {
->         anon_vma_cachep = kmem_cache_create("anon_vma", sizeof(struct anon_vma),
-> -                       0, SLAB_TYPESAFE_BY_RCU|SLAB_PANIC|SLAB_ACCOUNT,
-> +                       0, SLAB_TYPESAFE_BY_RCU|SLAB_PANIC|SLAB_ACCOUNT|
-> +                       SLAB_NO_FREE_INIT,
->                         anon_vma_ctor);
->         anon_vma_chain_cachep = KMEM_CACHE(anon_vma_chain,
-> -                       SLAB_PANIC|SLAB_ACCOUNT);
-> +                       SLAB_PANIC|SLAB_ACCOUNT|SLAB_NO_FREE_INIT);
+>  	struct kvmppc_spapr_tce_iommu_table *stit = container_of(head,
+> @@ -277,7 +241,7 @@ static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
+>  
+>  	kvm_put_kvm(stt->kvm);
+>  
+> -	kvmppc_account_memlimit(
+> +	account_locked_vm(current->mm,
+>  		kvmppc_stt_pages(kvmppc_tce_pages(stt->size)), false);
+>  	call_rcu(&stt->rcu, release_spapr_tce_table);
+>  
+> @@ -303,7 +267,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
+>  		return -EINVAL;
+>  
+>  	npages = kvmppc_tce_pages(size);
+> -	ret = kvmppc_account_memlimit(kvmppc_stt_pages(npages), true);
+> +	ret = account_locked_vm(current->mm, kvmppc_stt_pages(npages), true);
+>  	if (ret)
+>  		return ret;
+>  
+> @@ -359,7 +323,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
+>  
+>  	kfree(stt);
+>   fail_acct:
+> -	kvmppc_account_memlimit(kvmppc_stt_pages(npages), false);
+> +	account_locked_vm(current->mm, kvmppc_stt_pages(npages), false);
+>  	return ret;
 >  }
->
+>  
+> diff --git a/arch/powerpc/mm/mmu_context_iommu.c b/arch/powerpc/mm/mmu_context_iommu.c
+> index 8330f135294f..9e7001a70570 100644
+> --- a/arch/powerpc/mm/mmu_context_iommu.c
+> +++ b/arch/powerpc/mm/mmu_context_iommu.c
+> @@ -19,6 +19,7 @@
+>  #include <linux/hugetlb.h>
+>  #include <linux/swap.h>
+>  #include <linux/sizes.h>
+> +#include <linux/mm.h>
+>  #include <asm/mmu_context.h>
+>  #include <asm/pte-walk.h>
+>  #include <linux/mm_inline.h>
+> @@ -51,40 +52,6 @@ struct mm_iommu_table_group_mem_t {
+>  	u64 dev_hpa;		/* Device memory base address */
+>  };
+>  
+> -static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
+> -		unsigned long npages, bool incr)
+> -{
+> -	long ret = 0, locked, lock_limit;
+> -
+> -	if (!npages)
+> -		return 0;
+> -
+> -	down_write(&mm->mmap_sem);
+> -
+> -	if (incr) {
+> -		locked = mm->locked_vm + npages;
+> -		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> -		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+> -			ret = -ENOMEM;
+> -		else
+> -			mm->locked_vm += npages;
+> -	} else {
+> -		if (WARN_ON_ONCE(npages > mm->locked_vm))
+> -			npages = mm->locked_vm;
+> -		mm->locked_vm -= npages;
+> -	}
+> -
+> -	pr_debug("[%d] RLIMIT_MEMLOCK HASH64 %c%ld %ld/%ld\n",
+> -			current ? current->pid : 0,
+> -			incr ? '+' : '-',
+> -			npages << PAGE_SHIFT,
+> -			mm->locked_vm << PAGE_SHIFT,
+> -			rlimit(RLIMIT_MEMLOCK));
+> -	up_write(&mm->mmap_sem);
+> -
+> -	return ret;
+> -}
+> -
+>  bool mm_iommu_preregistered(struct mm_struct *mm)
+>  {
+>  	return !list_empty(&mm->context.iommu_group_mem_list);
+> @@ -101,7 +68,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+>  	unsigned long entry, chunk;
+>  
+>  	if (dev_hpa == MM_IOMMU_TABLE_INVALID_HPA) {
+> -		ret = mm_iommu_adjust_locked_vm(mm, entries, true);
+> +		ret = account_locked_vm(mm, entries, true);
+>  		if (ret)
+>  			return ret;
+>  
+> @@ -215,7 +182,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+>  	kfree(mem);
+>  
+>  unlock_exit:
+> -	mm_iommu_adjust_locked_vm(mm, locked_entries, false);
+> +	account_locked_vm(mm, locked_entries, false);
+>  
+>  	return ret;
+>  }
+> @@ -315,7 +282,7 @@ long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
+>  unlock_exit:
+>  	mutex_unlock(&mem_list_mutex);
+>  
+> -	mm_iommu_adjust_locked_vm(mm, unlock_entries, false);
+> +	account_locked_vm(mm, unlock_entries, false);
+>  
+>  	return ret;
+>  }
+> diff --git a/drivers/fpga/dfl-afu-dma-region.c b/drivers/fpga/dfl-afu-dma-region.c
+> index e18a786fc943..059438e17193 100644
+> --- a/drivers/fpga/dfl-afu-dma-region.c
+> +++ b/drivers/fpga/dfl-afu-dma-region.c
+> @@ -12,6 +12,7 @@
+>  #include <linux/dma-mapping.h>
+>  #include <linux/sched/signal.h>
+>  #include <linux/uaccess.h>
+> +#include <linux/mm.h>
+>  
+>  #include "dfl-afu.h"
+>  
+> @@ -31,52 +32,6 @@ void afu_dma_region_init(struct dfl_feature_platform_data *pdata)
+>  	afu->dma_regions = RB_ROOT;
+>  }
+>  
+> -/**
+> - * afu_dma_adjust_locked_vm - adjust locked memory
+> - * @dev: port device
+> - * @npages: number of pages
+> - * @incr: increase or decrease locked memory
+> - *
+> - * Increase or decrease the locked memory size with npages input.
+> - *
+> - * Return 0 on success.
+> - * Return -ENOMEM if locked memory size is over the limit and no CAP_IPC_LOCK.
+> - */
+> -static int afu_dma_adjust_locked_vm(struct device *dev, long npages, bool incr)
+> -{
+> -	unsigned long locked, lock_limit;
+> -	int ret = 0;
+> -
+> -	/* the task is exiting. */
+> -	if (!current->mm)
+> -		return 0;
+> -
+> -	down_write(&current->mm->mmap_sem);
+> -
+> -	if (incr) {
+> -		locked = current->mm->locked_vm + npages;
+> -		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> -
+> -		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+> -			ret = -ENOMEM;
+> -		else
+> -			current->mm->locked_vm += npages;
+> -	} else {
+> -		if (WARN_ON_ONCE(npages > current->mm->locked_vm))
+> -			npages = current->mm->locked_vm;
+> -		current->mm->locked_vm -= npages;
+> -	}
+> -
+> -	dev_dbg(dev, "[%d] RLIMIT_MEMLOCK %c%ld %ld/%ld%s\n", current->pid,
+> -		incr ? '+' : '-', npages << PAGE_SHIFT,
+> -		current->mm->locked_vm << PAGE_SHIFT, rlimit(RLIMIT_MEMLOCK),
+> -		ret ? "- exceeded" : "");
+> -
+> -	up_write(&current->mm->mmap_sem);
+> -
+> -	return ret;
+> -}
+> -
+>  /**
+>   * afu_dma_pin_pages - pin pages of given dma memory region
+>   * @pdata: feature device platform data
+> @@ -92,7 +47,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
+>  	struct device *dev = &pdata->dev->dev;
+>  	int ret, pinned;
+>  
+> -	ret = afu_dma_adjust_locked_vm(dev, npages, true);
+> +	ret = account_locked_vm(current->mm, npages, true);
+>  	if (ret)
+>  		return ret;
+>  
+> @@ -121,7 +76,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
+>  free_pages:
+>  	kfree(region->pages);
+>  unlock_vm:
+> -	afu_dma_adjust_locked_vm(dev, npages, false);
+> +	account_locked_vm(current->mm, npages, false);
+>  	return ret;
+>  }
+>  
+> @@ -141,7 +96,7 @@ static void afu_dma_unpin_pages(struct dfl_feature_platform_data *pdata,
+>  
+>  	put_all_pages(region->pages, npages);
+>  	kfree(region->pages);
+> -	afu_dma_adjust_locked_vm(dev, npages, false);
+> +	account_locked_vm(current->mm, npages, false);
+>  
+>  	dev_dbg(dev, "%ld pages unpinned\n", npages);
+>  }
+> diff --git a/drivers/vfio/vfio_iommu_spapr_tce.c b/drivers/vfio/vfio_iommu_spapr_tce.c
+> index 6b64e45a5269..d39a1b830d82 100644
+> --- a/drivers/vfio/vfio_iommu_spapr_tce.c
+> +++ b/drivers/vfio/vfio_iommu_spapr_tce.c
+> @@ -22,6 +22,7 @@
+>  #include <linux/vmalloc.h>
+>  #include <linux/sched/mm.h>
+>  #include <linux/sched/signal.h>
+> +#include <linux/mm.h>
+>  
+>  #include <asm/iommu.h>
+>  #include <asm/tce.h>
+> @@ -34,49 +35,13 @@
+>  static void tce_iommu_detach_group(void *iommu_data,
+>  		struct iommu_group *iommu_group);
+>  
+> -static long try_increment_locked_vm(struct mm_struct *mm, long npages)
+> +static int tce_account_locked_vm(struct mm_struct *mm, unsigned long npages,
+> +				 bool inc)
+>  {
+> -	long ret = 0, locked, lock_limit;
+> -
+>  	if (WARN_ON_ONCE(!mm))
+>  		return -EPERM;
+
+
+If this WARN_ON is the only reason for having tce_account_locked_vm()
+instead of calling account_locked_vm() directly, you can then ditch the
+check as I have never ever seen this triggered.
+
+
+>  
+> -	if (!npages)
+> -		return 0;
+> -
+> -	down_write(&mm->mmap_sem);
+> -	locked = mm->locked_vm + npages;
+> -	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> -	if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+> -		ret = -ENOMEM;
+> -	else
+> -		mm->locked_vm += npages;
+> -
+> -	pr_debug("[%d] RLIMIT_MEMLOCK +%ld %ld/%ld%s\n", current->pid,
+> -			npages << PAGE_SHIFT,
+> -			mm->locked_vm << PAGE_SHIFT,
+> -			rlimit(RLIMIT_MEMLOCK),
+> -			ret ? " - exceeded" : "");
+> -
+> -	up_write(&mm->mmap_sem);
+> -
+> -	return ret;
+> -}
+> -
+> -static void decrement_locked_vm(struct mm_struct *mm, long npages)
+> -{
+> -	if (!mm || !npages)
+> -		return;
+> -
+> -	down_write(&mm->mmap_sem);
+> -	if (WARN_ON_ONCE(npages > mm->locked_vm))
+> -		npages = mm->locked_vm;
+> -	mm->locked_vm -= npages;
+> -	pr_debug("[%d] RLIMIT_MEMLOCK -%ld %ld/%ld\n", current->pid,
+> -			npages << PAGE_SHIFT,
+> -			mm->locked_vm << PAGE_SHIFT,
+> -			rlimit(RLIMIT_MEMLOCK));
+> -	up_write(&mm->mmap_sem);
+> +	return account_locked_vm(mm, npages, inc);
+>  }
+>  
 >  /*
-> diff --git a/mm/slab.h b/mm/slab.h
-> index 24ae887359b8..f95b4f03c57b 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -129,7 +129,8 @@ static inline slab_flags_t kmem_cache_flags(unsigned int object_size,
->  /* Legal flag mask for kmem_cache_create(), for various configurations */
->  #define SLAB_CORE_FLAGS (SLAB_HWCACHE_ALIGN | SLAB_CACHE_DMA | \
->                          SLAB_CACHE_DMA32 | SLAB_PANIC | \
-> -                        SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS )
-> +                        SLAB_TYPESAFE_BY_RCU | SLAB_DEBUG_OBJECTS | \
-> +                        SLAB_NO_FREE_INIT)
->
->  #if defined(CONFIG_DEBUG_SLAB)
->  #define SLAB_DEBUG_FLAGS (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER)
-> @@ -535,7 +536,7 @@ static inline bool slab_want_init_on_alloc(gfp_t flags, struct kmem_cache *c)
->  static inline bool slab_want_init_on_free(struct kmem_cache *c)
->  {
->         if (static_branch_unlikely(&init_on_free))
-> -               return !(c->ctor);
-> +               return !(c->ctor) && ((c->flags & SLAB_NO_FREE_INIT) == 0);
->         else
->                 return false;
+> @@ -336,7 +301,7 @@ static int tce_iommu_enable(struct tce_container *container)
+>  		return ret;
+>  
+>  	locked = table_group->tce32_size >> PAGE_SHIFT;
+> -	ret = try_increment_locked_vm(container->mm, locked);
+> +	ret = tce_account_locked_vm(container->mm, locked, true);
+>  	if (ret)
+>  		return ret;
+>  
+> @@ -355,7 +320,7 @@ static void tce_iommu_disable(struct tce_container *container)
+>  	container->enabled = false;
+>  
+>  	BUG_ON(!container->mm);
+> -	decrement_locked_vm(container->mm, container->locked_pages);
+> +	tce_account_locked_vm(container->mm, container->locked_pages, false);
 >  }
-> diff --git a/net/core/skbuff.c b/net/core/skbuff.c
-> index e89be6282693..b65902d2c042 100644
-> --- a/net/core/skbuff.c
-> +++ b/net/core/skbuff.c
-> @@ -3981,14 +3981,16 @@ void __init skb_init(void)
->         skbuff_head_cache = kmem_cache_create_usercopy("skbuff_head_cache",
->                                               sizeof(struct sk_buff),
->                                               0,
-> -                                             SLAB_HWCACHE_ALIGN|SLAB_PANIC,
-> +                                             SLAB_HWCACHE_ALIGN|SLAB_PANIC|
-> +                                             SLAB_NO_FREE_INIT,
->                                               offsetof(struct sk_buff, cb),
->                                               sizeof_field(struct sk_buff, cb),
->                                               NULL);
->         skbuff_fclone_cache = kmem_cache_create("skbuff_fclone_cache",
->                                                 sizeof(struct sk_buff_fclones),
->                                                 0,
-> -                                               SLAB_HWCACHE_ALIGN|SLAB_PANIC,
-> +                                               SLAB_HWCACHE_ALIGN|SLAB_PANIC|
-> +                                               SLAB_NO_FREE_INIT,
->                                                 NULL);
->         skb_extensions_init();
+>  
+>  static void *tce_iommu_open(unsigned long arg)
+> @@ -658,7 +623,8 @@ static long tce_iommu_create_table(struct tce_container *container,
+>  	if (!table_size)
+>  		return -EINVAL;
+>  
+> -	ret = try_increment_locked_vm(container->mm, table_size >> PAGE_SHIFT);
+> +	ret = tce_account_locked_vm(container->mm, table_size >> PAGE_SHIFT,
+> +				    true);
+>  	if (ret)
+>  		return ret;
+>  
+> @@ -677,7 +643,7 @@ static void tce_iommu_free_table(struct tce_container *container,
+>  	unsigned long pages = tbl->it_allocated_size >> PAGE_SHIFT;
+>  
+>  	iommu_tce_table_put(tbl);
+> -	decrement_locked_vm(container->mm, pages);
+> +	tce_account_locked_vm(container->mm, pages, false);
 >  }
-> --
-> 2.17.1
->
->
-> --
-> Kees Cook
+>  
+>  static long tce_iommu_create_window(struct tce_container *container,
+> diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
+> index d0f731c9920a..15ac76171ccd 100644
+> --- a/drivers/vfio/vfio_iommu_type1.c
+> +++ b/drivers/vfio/vfio_iommu_type1.c
+> @@ -273,25 +273,14 @@ static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
+>  		return -ESRCH; /* process exited */
+>  
+>  	ret = down_write_killable(&mm->mmap_sem);
+> -	if (!ret) {
+> -		if (npage > 0) {
+> -			if (!dma->lock_cap) {
+> -				unsigned long limit;
+> -
+> -				limit = task_rlimit(dma->task,
+> -						RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> -
+> -				if (mm->locked_vm + npage > limit)
+> -					ret = -ENOMEM;
+> -			}
+> -		}
+> +	if (ret)
+> +		goto out;
+
+
+A single "goto" to jump just 3 lines below seems unnecessary.
+
+
+>  
+> -		if (!ret)
+> -			mm->locked_vm += npage;
+> -
+> -		up_write(&mm->mmap_sem);
+> -	}
+> +	ret = __account_locked_vm(mm, abs(npage), npage > 0, dma->task,
+> +				  dma->lock_cap);
+> +	up_write(&mm->mmap_sem);
+>  
+> +out:
+>  	if (async)
+>  		mmput(mm);
+>  
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 6b10c21630f5..7134e55ca23f 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1521,6 +1521,25 @@ static inline long get_user_pages_longterm(unsigned long start,
+>  int get_user_pages_fast(unsigned long start, int nr_pages, int write,
+>  			struct page **pages);
+>  
+> +int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
+> +			struct task_struct *task, bool bypass_rlim);
+> +
+> +static inline int account_locked_vm(struct mm_struct *mm, unsigned long pages,
+> +				    bool inc)
+> +{
+> +	int ret;
+> +
+> +	if (pages == 0 || !mm)
+> +		return 0;
+> +
+> +	down_write(&mm->mmap_sem);
+> +	ret = __account_locked_vm(mm, pages, inc, current,
+> +				  capable(CAP_IPC_LOCK));
+> +	up_write(&mm->mmap_sem);
+> +
+> +	return ret;
+> +}
+> +
+>  /* Container for pinned pfns / pages */
+>  struct frame_vector {
+>  	unsigned int nr_allocated;	/* Number of frames we have space for */
+> diff --git a/mm/util.c b/mm/util.c
+> index 43a2984bccaa..552302665bc2 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -6,6 +6,7 @@
+>  #include <linux/err.h>
+>  #include <linux/sched.h>
+>  #include <linux/sched/mm.h>
+> +#include <linux/sched/signal.h>
+>  #include <linux/sched/task_stack.h>
+>  #include <linux/security.h>
+>  #include <linux/swap.h>
+> @@ -346,6 +347,53 @@ int __weak get_user_pages_fast(unsigned long start,
+>  }
+>  EXPORT_SYMBOL_GPL(get_user_pages_fast);
+>  
+> +/**
+> + * __account_locked_vm - account locked pages to an mm's locked_vm
+> + * @mm:          mm to account against, may be NULL
+> + * @pages:       number of pages to account
+> + * @inc:         %true if @pages should be considered positive, %false if not
+> + * @task:        task used to check RLIMIT_MEMLOCK
+> + * @bypass_rlim: %true if checking RLIMIT_MEMLOCK should be skipped
+> + *
+> + * Assumes @task and @mm are valid (i.e. at least one reference on each), and
+> + * that mmap_sem is held as writer.
+> + *
+> + * Return:
+> + * * 0       on success
+> + * * 0       if @mm is NULL (can happen for example if the task is exiting)
+> + * * -ENOMEM if RLIMIT_MEMLOCK would be exceeded.
+> + */
+> +int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
+> +			struct task_struct *task, bool bypass_rlim)
+> +{
+> +	unsigned long locked_vm, limit;
+> +	int ret = 0;
+> +
+> +	locked_vm = mm->locked_vm;
+> +	if (inc) {
+> +		if (!bypass_rlim) {
+> +			limit = task_rlimit(task, RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+> +			if (locked_vm + pages > limit) {
+> +				ret = -ENOMEM;
+> +				goto out;
+> +			}
+> +		}
+
+Nit:
+
+if (!ret)
+
+and then you don't need "goto out".
+
+
+> +		mm->locked_vm = locked_vm + pages;
+> +	} else {
+> +		WARN_ON_ONCE(pages > locked_vm);
+> +		mm->locked_vm = locked_vm - pages;
+
+
+Can go negative here. Not a huge deal but inaccurate imo.
+
+
+> +	}
+> +
+> +out:
+> +	pr_debug("%s: [%d] %c%lu %lu/%lu%s\n", __func__, task->pid,
+> +		 (inc) ? '+' : '-', pages << PAGE_SHIFT,
+> +		 locked_vm << PAGE_SHIFT, task_rlimit(task, RLIMIT_MEMLOCK),
+> +		 ret ? " - exceeded" : "");
+> +
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL_GPL(__account_locked_vm);
+> +
+>  unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
+>  	unsigned long len, unsigned long prot,
+>  	unsigned long flag, unsigned long pgoff)
+> 
+> base-commit: 37624b58542fb9f2d9a70e6ea006ef8a5f66c30b
+> 
+
+-- 
+Alexey
 
