@@ -2,162 +2,162 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 19ED6C04E87
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 16:50:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E3A40C04E87
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:00:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D37CB214DA
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 16:50:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 99455216B7
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:00:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="Askw2Dy/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D37CB214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="splOX657"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99455216B7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6E7D46B0006; Mon, 20 May 2019 12:50:18 -0400 (EDT)
+	id 337126B0003; Mon, 20 May 2019 13:00:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 698596B0008; Mon, 20 May 2019 12:50:18 -0400 (EDT)
+	id 2E76B6B0005; Mon, 20 May 2019 13:00:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 586FC6B000A; Mon, 20 May 2019 12:50:18 -0400 (EDT)
+	id 1D6606B0006; Mon, 20 May 2019 13:00:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E9156B0006
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 12:50:18 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id y1so9473385plr.13
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 09:50:18 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F2EE06B0003
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 13:00:05 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id m188so78555ita.0
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 10:00:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=K2nbzJiUbqitAe/vmw6KZ2Et+OZPFA/JK7MysTmH6vQ=;
-        b=qy7pdFlDaUeTOJfCShODWZDcu36PaO69+qi9S4B27aWGHL+G298o7eV9+lm6aVbUqK
-         8lYejHr0ycaS1BSSX7k1JGWvd7wi9EH5VQ3OcUJWBXjBpq0KheDKHdjM4a1GD+IbuFLb
-         JpFZ7ZY4wKGkuRewXKCK9tkHQsShMtCk9cKsEIk82P8dZnyeHZVe4W91rtkZ3V9QqZMe
-         +jBUAmXjhle4mei8c2qVLY7lvRUwzET6g4++PHyJRyJ2lkr8ZzUP077T24M4o4MGcsJ8
-         AFRLWF3PTPlc6QvA9nIpeO20MFLWpi2KWYuATdVpANafsSoOqTprmKOIzI4iFv7ush75
-         DzWQ==
-X-Gm-Message-State: APjAAAXvC6jYUjuPkj8l4pkj9AuRKeAV7EbRoxSJnROnNLtSAEoL+I4O
-	mgosLvBzYyYbT3anDYw/lJeVRAdAruSfNNPZEJo524EVgVdOnQYBlGznO/VE/ccyJQdgPQAEjPE
-	KhbkGv8pQwIAVQPAZ5ujPXOSPqy7AssLSCUufUuvBeAC17Eqh/gYoFqn4y6QufRcsJA==
-X-Received: by 2002:a63:f54c:: with SMTP id e12mr76756211pgk.62.1558371017544;
-        Mon, 20 May 2019 09:50:17 -0700 (PDT)
-X-Received: by 2002:a63:f54c:: with SMTP id e12mr76756160pgk.62.1558371016852;
-        Mon, 20 May 2019 09:50:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558371016; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=a9HxCz0foDNs5O3pbgandNCjjTka/BKF7J0X9z8Vxf4=;
+        b=kIk1JDtItydPyerqVN8BYwKHul1UNfsbAxZDHSuvcxd0ryxM5YxIKZpatCKBFgAVLy
+         i0dY0BfTb5SxnJHTt5R5Al+ggqc/VEgJ97uyKeDqKdRyrVhUV4RiTdbnz8zITA0dVEOm
+         7GdYBidVvdjuQJUsEN59sX+57ybSLSvW8S6aP5gt8qkxw3av3BHvfGFFVnN+fcRaB95C
+         fkmPTS9ZFAePaEi8SVr5u2anR6+nUlb3gOoDH5ekaIjjw2XdTxmDhsc9LjTWeCwgSzyh
+         fNqyOGkZw9Ev8rKReh7UifIjHuyIx3urjOHLH1SJ+DuUlQ6voN65rE3Tfw2QSJ4HBEaz
+         vBUg==
+X-Gm-Message-State: APjAAAWEl5gvvLcns83wna3FW5xnXyjP9HhO84SIfyhSzlhuraDpF8GM
+	u5ZZAAsgzmcSyy1GEoDWwJqcar0SKwbaoaIz8oh3EB8fTrgeFdQ4m2xJZfR6D/uUxaT6Jbq5leQ
+	5W+JUq41mPBYsMrSJvg0ufQx+HNV0qDeZT+2FuFm4WdcAyxSfYR/LNixm5fDNSrkKXg==
+X-Received: by 2002:a24:b048:: with SMTP id b8mr11308itj.115.1558371605675;
+        Mon, 20 May 2019 10:00:05 -0700 (PDT)
+X-Received: by 2002:a24:b048:: with SMTP id b8mr11260itj.115.1558371604868;
+        Mon, 20 May 2019 10:00:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558371604; cv=none;
         d=google.com; s=arc-20160816;
-        b=QAO9nML1tn3TxXQb0Gdbhm9swfHXII5E/lbq1xLIUbtVPCWVm5Mk6izH/pxq9X/Kix
-         aV67SOyPrh6Ur+20u7lLe93m+pBGfkNkwpcl01nIJCfuFIKpo5bnphkg5DCmQhZ4xW3E
-         WMrxy2raaI9yllXm6Fr1uTQCP4RM/o4f+JRMJtM6QkPP8CUp4Rxaw1nkltM54nuDjXSx
-         14Qyv8AIIMkMC6ugNEMRcLckcMjIyoYukSLiaOat531mzgUxiJOoNK/0dqHf7egD7tyq
-         cG8ObfRn3gCkyfAqq2mqeyjgTFVfTGFnH34rcE5X5/tNqaZOM79NLiGTg6yzRTFYaQIC
-         Umrg==
+        b=XtuLRuNPUUtNbJhKt0QN/htp1nSZkWQT/dRlhYW1uhg0aFYFQSuDZElA5cnQoNeHuf
+         fV4Ibkd652ryFWkFIZh9yeBq0p7kw3FpJGWSE31R8BfVcxbXuoWizPRNMqbiQqua8QAJ
+         UgwbTdHAc4J+xSI/EZ8/ckVKf4+boxG1Yyh/dAchhZDvb+1bil7Yeb4gpjLQKN4M8d5q
+         +zbLXnOf2kt8eKnerDZF9bQrwlY+FQeWCGH3LWfC40KPQMN8gAts5EcKIXek3qpCPeoS
+         +laVw3G+d1c9f2ixpunzUA8MTEHJiw4829lZ8CoVs2p2PKaNnhtfgt1sM9ydOoR3/tEd
+         nwcg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=K2nbzJiUbqitAe/vmw6KZ2Et+OZPFA/JK7MysTmH6vQ=;
-        b=x6MUOah9tK1idFmWbXhoWu+ACR/A1QGQZmgLQthodWQPrlWB0c9EkaJgGJlsXrJjVn
-         Eo9ZFjUndCkKk66ZIlcfIYWT5Vph4iGeJrhj8vt7z0fekYj1Uiz16/q13yCTM4pSBSNH
-         jVRP8PIVF8bcixoe3/Y/i2gSAsqyzLv3WKdNMb7DDN18FusPVR/hWYE3H1hTqo+FmyPa
-         cMHYHldBXMmO2jSu/UQz/yG/kAkX6kVJpNJ1G33A2v1S4QXORChpZGCHrmpNIcKv74Ws
-         GMPoZJM2COgW0Zw+anoddvqllDvRsZH2ugfV/Qq7KsBew2kSEgMqwD3GRK4UjWkgTHFd
-         0LzQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=a9HxCz0foDNs5O3pbgandNCjjTka/BKF7J0X9z8Vxf4=;
+        b=hJB2gstaDuGvoZTjFNyHVNmnUKKX4CwNJKx6Mchaz4dAZjKGrmBL74KXbow8BpZAtg
+         57JtE6WjKmoFnyPNBCnN45Ylt1V9xaxsFsa3ERbQsRMT+6c43Lf/kMw/1p66A+UCisRc
+         hgDAtwv+ea5LYnd+lKU+f2w3PzngIU1ni1qW8j6u3FTMe7zEPFt42HC8OBk0FQ/pLYVg
+         QgDJ2Fur2GCJjOBYc1SAUrfDuiiCjhur/Yg37Tpz0NT+JlD3L5bNVEeUuZehHtCiF0iN
+         P+7Ul/sKX7uADpNKWWYRUfNVeYPQa7Uz7NHRcfB27QPrth4KgNXlcScneQ2h8xo/UsQ2
+         kqQw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="Askw2Dy/";
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c12sor19867837plo.34.2019.05.20.09.50.16
+       dkim=pass header.i=@google.com header.s=20161025 header.b=splOX657;
+       spf=pass (google.com: domain of timmurray@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=timmurray@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 186sor64348ita.36.2019.05.20.10.00.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 20 May 2019 09:50:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 20 May 2019 10:00:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of timmurray@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="Askw2Dy/";
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=splOX657;
+       spf=pass (google.com: domain of timmurray@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=timmurray@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=K2nbzJiUbqitAe/vmw6KZ2Et+OZPFA/JK7MysTmH6vQ=;
-        b=Askw2Dy/VRvGu3WZOwFDDolHJLJQt0vmzbsQp+Cjadu48CZiIfEEWpPzeAsy+nTPKB
-         dxNDUb0wvk/qMauQPlQYiE42IIUFK/X03vC1FsrQq+WsvryUhA6Ck09WMQ4YcNObgZLa
-         AboM37uBqIjpZkwpxIiSLmjQvtILHebnGIiVjR/T4vvoLW/fpf+DMRHo3PyAls280rCk
-         diEfGB4rl1Wux2CUZgkLXXhjDcTUA77lH2bA7yJWzP/gcd5z1uBjzRvqxd1E6oNgkDQJ
-         V6ZZfwHikUzlUzCd7k8rNRRas8HAsxHgcf30hCZn3tuGUTWvKoIYNfP3MJ9NtSHZ7cx+
-         QnYA==
-X-Google-Smtp-Source: APXvYqyAP5erzaLtIGoxn8EHRf6PIwFDu2SBNbb4v+K+AAUyEPJ5bcPtDafLb6k1FMVQiJbhcbpi6A==
-X-Received: by 2002:a17:902:ba8d:: with SMTP id k13mr63146469pls.52.1558371016198;
-        Mon, 20 May 2019 09:50:16 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::3:df5f])
-        by smtp.gmail.com with ESMTPSA id 19sm21507630pfz.84.2019.05.20.09.50.14
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 20 May 2019 09:50:15 -0700 (PDT)
-Date: Mon, 20 May 2019 12:50:13 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Michal Hocko <mhocko@suse.com>, Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>
-Subject: Re: [RFC 2/7] mm: change PAGEREF_RECLAIM_CLEAN with PAGE_REFRECLAIM
-Message-ID: <20190520165013.GB11665@cmpxchg.org>
-References: <20190520035254.57579-1-minchan@kernel.org>
- <20190520035254.57579-3-minchan@kernel.org>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=a9HxCz0foDNs5O3pbgandNCjjTka/BKF7J0X9z8Vxf4=;
+        b=splOX6579zCxu8w2x60dHrYaM+Xypz557w+QNlIAc5+jHrsya6YGpJe0FdAFDMLXLp
+         s+PuQebm04NIf42o+d8/JT/s3fnZodHBtyot2dQR/eVP7Hs5DzLXOxtnMZM+mdx5aZt0
+         U3/7AiokG+Pwo1P2b9icTB+0Xm0xOwSlPOdow59cuJUueC/13byLOut2FSxdKv1bSEAf
+         mQi/TNTuOlUe2OGWsmzYyoUUeYcd8CzRIClsW2nEje4eZnxNG6qGl6OPxvfI3R4s19sV
+         0eu9DUzq6niepxI7SSdVhMNyQeq2S1Ri2DtHk7VDpYokgeMQdPAiY2vb1TYVjQyzf4CX
+         ng/g==
+X-Google-Smtp-Source: APXvYqxcTQzgFbWL33MuIA08BQG6r4172rHpmkGhiZLa8jGMztN1c0YHSZispXFJVvLlv+unuZuWPF77PfLiwhvwKs8=
+X-Received: by 2002:a24:c904:: with SMTP id h4mr53623itg.46.1558371604283;
+ Mon, 20 May 2019 10:00:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190520035254.57579-3-minchan@kernel.org>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+References: <20190520035254.57579-1-minchan@kernel.org> <dbe801f0-4bbe-5f6e-9053-4b7deb38e235@arm.com>
+In-Reply-To: <dbe801f0-4bbe-5f6e-9053-4b7deb38e235@arm.com>
+From: Tim Murray <timmurray@google.com>
+Date: Mon, 20 May 2019 09:59:52 -0700
+Message-ID: <CAEe=Sxka3Q3vX+7aWUJGKicM+a9Px0rrusyL+5bB1w4ywF6N4Q@mail.gmail.com>
+Subject: Re: [RFC 0/7] introduce memory hinting API for external process
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
+	Daniel Colascione <dancol@google.com>, Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>, 
+	Brian Geffon <bgeffon@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 20, 2019 at 12:52:49PM +0900, Minchan Kim wrote:
-> The local variable references in shrink_page_list is PAGEREF_RECLAIM_CLEAN
-> as default. It is for preventing to reclaim dirty pages when CMA try to
-> migrate pages. Strictly speaking, we don't need it because CMA didn't allow
-> to write out by .may_writepage = 0 in reclaim_clean_pages_from_list.
+On Sun, May 19, 2019 at 11:37 PM Anshuman Khandual
+<anshuman.khandual@arm.com> wrote:
 >
-> Moreover, it has a problem to prevent anonymous pages's swap out even
-> though force_reclaim = true in shrink_page_list on upcoming patch.
-> So this patch makes references's default value to PAGEREF_RECLAIM and
-> rename force_reclaim with skip_reference_check to make it more clear.
-> 
-> This is a preparatory work for next patch.
-> 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> Or Is the objective here is reduce the number of processes which get killed by
+> lmkd by triggering swapping for the unused memory (user hinted) sooner so that
+> they dont get picked by lmkd. Under utilization for zram hardware is a concern
+> here as well ?
 
-Looks good to me, just one nit below.
+The objective is to avoid some instances of memory pressure by
+proactively swapping pages that userspace knows to be cold before
+those pages reach the end of the LRUs, which in turn can prevent some
+apps from being killed by lmk/lmkd. As soon as Android userspace knows
+that an application is not being used and is only resident to improve
+performance if the user returns to that app, we can kick off
+process_madvise on that process's pages (or some portion of those
+pages) in a power-efficient way to reduce memory pressure long before
+the system hits the free page watermark. This allows the system more
+time to put pages into zram versus waiting for the watermark to
+trigger kswapd, which decreases the likelihood that later memory
+allocations will cause enough pressure to trigger a kill of one of
+these apps.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Swapping out memory into zram wont increase the latency for a hot start ? Or
+> is it because as it will prevent a fresh cold start which anyway will be slower
+> than a slow hot start. Just being curious.
 
-> ---
->  mm/vmscan.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index d9c3e873eca6..a28e5d17b495 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1102,7 +1102,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  				      struct scan_control *sc,
->  				      enum ttu_flags ttu_flags,
->  				      struct reclaim_stat *stat,
-> -				      bool force_reclaim)
-> +				      bool skip_reference_check)
-
-"ignore_references" would be better IMO
+First, not all swapped pages will be reloaded immediately once an app
+is resumed. We've found that an app's working set post-process_madvise
+is significantly smaller than what an app allocates when it first
+launches (see the delta between pswpin and pswpout in Minchan's
+results). Presumably because of this, faulting to fetch from zram does
+not seem to introduce a noticeable hot start penalty, not does it
+cause an increase in performance problems later in the app's
+lifecycle. I've measured with and without process_madvise, and the
+differences are within our noise bounds. Second, because we're not
+preemptively evicting file pages and only making them more likely to
+be evicted when there's already memory pressure, we avoid the case
+where we process_madvise an app then immediately return to the app and
+reload all file pages in the working set even though there was no
+intervening memory pressure. Our initial version of this work evicted
+file pages preemptively and did cause a noticeable slowdown (~15%) for
+that case; this patch set avoids that slowdown. Finally, the benefit
+from avoiding cold starts is huge. The performance improvement from
+having a hot start instead of a cold start ranges from 3x for very
+small apps to 50x+ for larger apps like high-fidelity games.
 
