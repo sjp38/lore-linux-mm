@@ -6,112 +6,112 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ADB7DC072AF
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 05:41:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29941C04AAF
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 05:41:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 66A1620863
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 05:41:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D4CDA2081C
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 05:41:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="rV/ImNkG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66A1620863
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="GbbDnSgm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4CDA2081C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1644F6B000C; Mon, 20 May 2019 01:41:48 -0400 (EDT)
+	id 730BB6B000D; Mon, 20 May 2019 01:41:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 116116B000D; Mon, 20 May 2019 01:41:48 -0400 (EDT)
+	id 6E08E6B000E; Mon, 20 May 2019 01:41:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 003416B000E; Mon, 20 May 2019 01:41:47 -0400 (EDT)
+	id 5D04A6B0010; Mon, 20 May 2019 01:41:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D47E86B000C
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 01:41:47 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id q72so2464479qke.19
-        for <linux-mm@kvack.org>; Sun, 19 May 2019 22:41:47 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DFDC6B000D
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 01:41:55 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id c48so13233296qta.19
+        for <linux-mm@kvack.org>; Sun, 19 May 2019 22:41:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=rfKadsTflryLW7911DaQh925XQ0k2Bp3gi/G7eAxyJQ=;
-        b=SYKDcIUq9lsWtxb4kl133qqF3/tTOqLHlnWEhsDaptArWg43FyFUiwVLbPQyIXA7pq
-         VILi5IyAwBmepjsEp/on8Du+RQxUxiZAe7eyJaOk4C2lJjW7zQIq9faqnRoD3Epy5a+3
-         DMiez7g2iNDEmTlkArPy5vdvdz6QZ7qNfSyKi0uCPE9V0ErQreL3ZnONSuyKdyG6Tc7J
-         AKpi9OfOlB/wJfvnrMBjEU4gjTaetpgOT42WVYfihVwbglqkAVtv9B6A4y1ZevNYv/0x
-         8+lZuHgvSIO1KQ21efOJ8tNd/OIfyFAeAmLOK9vCPqzJPQsGxPIp8Pu5ieJCLUpco/rc
-         /LGA==
-X-Gm-Message-State: APjAAAVjFc3U7Nwp/OzptRUY1HdRYcXaLS4QcJaDK11VLvbg4SNK9TsZ
-	dTqSX/MFgU2L8MzfwlfXUf2pdeMHsymrBLAkWndVgpXQ9GCm08z6yAf2p714KbmyCvWodzZdawT
-	+5vq/vpA1MbUNYBpqka+y9w90D6bCXWsKJHFaa3f5XefDFP3GqT0SCHT8ppmP3QE=
-X-Received: by 2002:a0c:d0d4:: with SMTP id b20mr27138609qvh.38.1558330907649;
-        Sun, 19 May 2019 22:41:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwiJ4uruPJ8GnVlhHIL7BRPidr8NKnDUhVy6jlKgOEE5Ls8pO+5Nr9/Bki2oUGnaQGX1Iab
-X-Received: by 2002:a0c:d0d4:: with SMTP id b20mr27138573qvh.38.1558330906799;
-        Sun, 19 May 2019 22:41:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558330906; cv=none;
+        bh=eB8W4ZifzOOx7n477C9lsHSgteznueDWRYbTVC4RGG4=;
+        b=eXHm4W/drsal867H3zIYC52YFAlL4avr+ytjs+XJiivHmUOPnfA1x09vWSqO87gbXl
+         folk0bsK7GrppNu+GqD4bd55QVBDpFFaJ7XRa15M7RIBnJmYcwrz+ZQlc7Qe3VeUngu/
+         uqOFyhSzjf8cF+UO5/oCdA8Mb7+RFdUZtaMw3mmdeMY3TDwVHkmxFXrgAVRFO/qtKVy2
+         d8fvV0gNInnbtL4OuMd+koYrH9/MI1R1BXX/ChGcp0vawSnwQDGihXu6P860HO2uF8v6
+         CATFt4wFCC1ye8nj6CrIxvicvkXxWOO8kGEOOmlVCzhtRtTKmmr3sNhZQ1kqmivVlLFQ
+         92Pg==
+X-Gm-Message-State: APjAAAVzmfvgBvmGYINammrje7YHlpZKGrsVvsZuKLY8NMoci5i7rrtl
+	sKtih71Pqe1YyvCgHL27tnS2WnwxWF8OvCpc17bMhSZ8HUkniwHytipo5gB4ZlCsRSgs1b3LrNY
+	nZWZwuAzypICizSSfTbVhe4F4Kgec+ilaJDLJCK1W7zP71bQaYAeXWH6/ifMEtmQ=
+X-Received: by 2002:ac8:198f:: with SMTP id u15mr62500907qtj.153.1558330914955;
+        Sun, 19 May 2019 22:41:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyAdzbmNppiuSE250qfH5caUJN41q9Pjg72Aa+UjT7uRokzzYPebEFgH32xInOzaeK9vjJH
+X-Received: by 2002:ac8:198f:: with SMTP id u15mr62500866qtj.153.1558330914112;
+        Sun, 19 May 2019 22:41:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558330914; cv=none;
         d=google.com; s=arc-20160816;
-        b=X/V4l5gr/9KwnbDYKU8GibelOGBQcUSDieAH5El9h/okFaIF5AfWB34W2BFX6o2QPX
-         gl5qJRLyKP14my0l5KDd8pAWPXzeYhUcBJhCVF0Vft9ztx30QtHgGaKFbxmjDlAel3VR
-         uA+sqJ5zPG0Y9SSVsUqiQF557LaOWqy4jovFvrxFOBZfg1wC3JuQ0H3DG2BGWgX0+2Qc
-         vGN4Bmv4l1+oQLRbu2mpHAeH/KM9AfjxwkdGOctYVdrXj4a9aoxoAa2keQCuz9BZROKD
-         jDjUZoLDB8X8Hgl3zSEMM1EyJTGv6833VCAftzGhCfn3qYgkN6ziVopPd7UVy49t3rqu
-         kSDg==
+        b=mrR0CYUCZ63GlSvg8NxP24gFvlSKU5fATYsG7R31G0uuBl3rTCBYxi7oHlENfP8uGw
+         Ii8ingkaMFGfIV/QEIjpNJrT2sKwcQbdc+CwTJhAANnB1r5ZlxYK0eHT6NSn9t8AWfBT
+         099vBQQnhBg/3jl6xAooRfUbpMtTGdCSFoYw4NMZ2HPvAWvO1h31ZTSC4DGzexFqaMVz
+         pQB7wb/WNMg/gB0/AMp4UC4WDz+IxQiNEJ1db328/jtPQRdLmaxa1v+lZE4HkGpNLG9e
+         qxLrPy1YU2h01tQq6xbGVA2/s0d3Mdy89rVZlTZ0kdCsb96MT6mf70f6e/G4cio26bNv
+         7uNA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=rfKadsTflryLW7911DaQh925XQ0k2Bp3gi/G7eAxyJQ=;
-        b=sFRIzjzACrQ1m6FVMpngVbGAsPZp2XmmIA2B7QHBx4MGqJdVg8J9004fdA5TM9LavZ
-         DXpoedqEIB+09Nxs/Cf41+gaD5pqEiOYyKH5nOS7Vf97sioN7Dy7yCJoKzp7Svle1PdT
-         C/FuHXrM0xvuq4p/y+H2V+7XKz8n3YbtbMXEZrAgHM4MZn9UJ6Mey8GG+fMbzKew6V9r
-         8gjAAkist1jZi+QStJygMcqqN9+MW4opJDKhd0KECnOyDWOn/v04sNVpHTeYhljfIFJq
-         Ak4RZjolIW0kVyC67IkJ9V7XkFJj8/91NfmBSZIlRUcBm2cV9TKpAA2GZ0JiqC6laFPK
-         9kng==
+        bh=eB8W4ZifzOOx7n477C9lsHSgteznueDWRYbTVC4RGG4=;
+        b=fFytD07fj8O2jrTJlG2tnlu3G8XFttJPbIQ/bPJE+wxhz6Hp/plX5xx+GUt6x3Wzp/
+         ZKmWUoIU4zLNz0mDSAJRpmgqdVFv8bcx+Hft5oLehzE+SabZ6Oum1qUErVUqmTplPJj+
+         B2Jtj6tjm7Be1BzR3pHQcxBquWGYlvAhc1WWCSGjPoKSh7CFljb7IkUGJ7FEM1Besk+A
+         ZlqXY16817u40pjzvdx8oqu5gLqjSZlM/U1SzSw2oGDc4LoG7GDbmbaWKo9hRsmjXTUx
+         klTguE5BqWHeq1x6o3CWj56KDzFSKbLp5A7TlP4ufajJGHNrzaV4I9EK41VM0GOufmMh
+         k1jw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="rV/ImNkG";
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=GbbDnSgm;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from new4-smtp.messagingengine.com (new4-smtp.messagingengine.com. [66.111.4.230])
-        by mx.google.com with ESMTPS id s51si1451965qtk.243.2019.05.19.22.41.46
+        by mx.google.com with ESMTPS id e12si592470qve.129.2019.05.19.22.41.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 May 2019 22:41:46 -0700 (PDT)
+        Sun, 19 May 2019 22:41:54 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) client-ip=66.111.4.230;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="rV/ImNkG";
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=GbbDnSgm;
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailnew.nyi.internal (Postfix) with ESMTP id 84B5C4220;
-	Mon, 20 May 2019 01:41:46 -0400 (EDT)
+	by mailnew.nyi.internal (Postfix) with ESMTP id CCF6846EF;
+	Mon, 20 May 2019 01:41:53 -0400 (EDT)
 Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Mon, 20 May 2019 01:41:46 -0400
+  by compute3.internal (MEProxy); Mon, 20 May 2019 01:41:53 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=rfKadsTflryLW7911DaQh925XQ0k2Bp3gi/G7eAxyJQ=; b=rV/ImNkG
-	ycR32d1zRF48xl4Dc39cUienWu0iKlmdVUToUwm52yebhEK1C11Ucvr7tt0z8qJm
-	iAtm3aaFFTJywcEtPiGVKcMGQTjMGvJt/vJ2Ne4ejracT8MrL3WjCjadCF0r6EJN
-	OVbo6k05gTSJkCgDCXtHKFKBRXrc8TZUX1ey8kVL4oeZx8GAHUC4hBe5kt6Ry44T
-	wu3V/xWcFF2jMiS2AJ/MOwHmI81KsxXnHOyh12Ce+QJ6SCDx9R+7NM1MTD6e88WT
-	uI7d2gzOXVe535PQKo5vvdm4fu/7prpiTDuCaEEKWodgyNsRUnQKHsbggHfxA0do
-	zI51yaCTbT1iPg==
-X-ME-Sender: <xms:Gj7iXP7qBcPaJDO_tVlzfAtrGuXzKQiPkdIijGevuR6Xy6CCEdvmrQ>
+	fm2; bh=eB8W4ZifzOOx7n477C9lsHSgteznueDWRYbTVC4RGG4=; b=GbbDnSgm
+	0kVZe8RNuEifClhviafSdIf6NVtk0GruV6Fn/MjenuqiXRGGoet1W8RyBsiTx2eJ
+	KR2P/iazreJakJr9AVkSEzJA0WPSgdvAmKi0o6iNQjaVP0OlKwwfmIovSTbN0Yro
+	HzUflNj+0yAYXx+hM1zie5xJ4bIc/Sn2+b7Hdl3qbH21xyoLdoPTB5JnAUyINPjw
+	l7Iw5+ueEUGVCwHQ5nIJarApG0QFmrgTDpzjo+8+cypGNr6l8XmroCDGtVYwVDGQ
+	gQLh5ZclTVb8T/VRLhmSSPQRWUKHrambSidQjQoY5/7RG7+bOd3EQSUQdSuzeOXc
+	lJN1JwWphP9kJw==
+X-ME-Sender: <xms:IT7iXHvkZzZJ73Oh9-8Z9lr9XbloaLxSyeWNikULZTiEvr9cADKr3g>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddruddtjedguddtudcutefuodetggdotefrod
     ftvfcurfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfgh
     necuuegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmd
     enucfjughrpefhvffufffkofgjfhgggfestdekredtredttdenucfhrhhomhepfdfvohgs
     ihhnucevrdcujfgrrhguihhnghdfuceothhosghinheskhgvrhhnvghlrdhorhhgqeenuc
     fkphepuddvgedrudeiledrudehiedrvddtfeenucfrrghrrghmpehmrghilhhfrhhomhep
-    thhosghinheskhgvrhhnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgepge
-X-ME-Proxy: <xmx:Gj7iXNtPh7_ndKFdgL6upR2PGIWMotaoLYzqjyrv8tTelHt-yJm32A>
-    <xmx:Gj7iXHxzEUSuHYmodLkxUZhidrLlzYpo5yBF8F1n7A-HwWuAGQgHHA>
-    <xmx:Gj7iXFaYrkIschBz-zYkxsO682yyzYZmSpwwONPgmuiDvjzwTaSBfg>
-    <xmx:Gj7iXN5O0KeG_8AZ-7o0G0Fexm94-QmCiQY8o__wm5A8smUdzSkoww>
+    thhosghinheskhgvrhhnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgephe
+X-ME-Proxy: <xmx:IT7iXIt_iJeH1nYZeRk0ixxheLrYAYbiuUgTEWgEtjttKETfUtXBZQ>
+    <xmx:IT7iXDrjB8CwR9rQNT6_bjXJr3AHTq2oCm7HlQn31mPtntzTfxO9Bg>
+    <xmx:IT7iXKHAZ9GnJXF5JWy4NEVuQPRXhv2OgNBHuAWwZXHLPcBpw9vfbw>
+    <xmx:IT7iXGuT5BhNNhBLBCeK__Yc45ySr4EC0Zh8WoWJ8IAZyeW4HnxV6Q>
 Received: from eros.localdomain (124-169-156-203.dyn.iinet.net.au [124.169.156.203])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 6F46A8005B;
-	Mon, 20 May 2019 01:41:39 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id AEB008005B;
+	Mon, 20 May 2019 01:41:46 -0400 (EDT)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Matthew Wilcox <willy@infradead.org>
@@ -137,9 +137,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC PATCH v5 05/16] tools/vm/slabinfo: Add remote node defrag ratio output
-Date: Mon, 20 May 2019 15:40:06 +1000
-Message-Id: <20190520054017.32299-6-tobin@kernel.org>
+Subject: [RFC PATCH v5 06/16] tools/vm/slabinfo: Add defrag_used_ratio output
+Date: Mon, 20 May 2019 15:40:07 +1000
+Message-Id: <20190520054017.32299-7-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190520054017.32299-1-tobin@kernel.org>
 References: <20190520054017.32299-1-tobin@kernel.org>
@@ -151,42 +151,39 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add output line for NUMA remote node defrag ratio.
+Add output for the newly added defrag_used_ratio sysfs knob.
 
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
- tools/vm/slabinfo.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ tools/vm/slabinfo.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
 diff --git a/tools/vm/slabinfo.c b/tools/vm/slabinfo.c
-index cbfc56c44c2f..d2c22f9ee2d8 100644
+index d2c22f9ee2d8..ef4ff93df4cc 100644
 --- a/tools/vm/slabinfo.c
 +++ b/tools/vm/slabinfo.c
 @@ -34,6 +34,7 @@ struct slabinfo {
  	unsigned int sanity_checks, slab_size, store_user, trace;
  	int order, poison, reclaim_account, red_zone;
  	int movable, ctor;
-+	int remote_node_defrag_ratio;
++	int defrag_used_ratio;
+ 	int remote_node_defrag_ratio;
  	unsigned long partial, objects, slabs, objects_partial, objects_total;
  	unsigned long alloc_fastpath, alloc_slowpath;
- 	unsigned long free_fastpath, free_slowpath;
-@@ -377,6 +378,10 @@ static void slab_numa(struct slabinfo *s, int mode)
- 	if (skip_zero && !s->slabs)
- 		return;
+@@ -549,6 +550,8 @@ static void report(struct slabinfo *s)
+ 		printf("** Slabs are destroyed via RCU\n");
+ 	if (s->reclaim_account)
+ 		printf("** Reclaim accounting active\n");
++	if (s->movable)
++		printf("** Defragmentation at %d%%\n", s->defrag_used_ratio);
  
-+	if (mode) {
-+		printf("\nNUMA remote node defrag ratio: %3d\n",
-+		       s->remote_node_defrag_ratio);
-+	}
- 	if (!line) {
- 		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
- 		for(node = 0; node <= highest_node; node++)
-@@ -1272,6 +1277,8 @@ static void read_slab_dir(void)
- 			slab->cpu_partial_free = get_obj("cpu_partial_free");
- 			slab->alloc_node_mismatch = get_obj("alloc_node_mismatch");
+ 	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
+ 	printf("------------------------------------------------------------------------\n");
+@@ -1279,6 +1282,7 @@ static void read_slab_dir(void)
  			slab->deactivate_bypass = get_obj("deactivate_bypass");
-+			slab->remote_node_defrag_ratio =
-+					get_obj("remote_node_defrag_ratio");
+ 			slab->remote_node_defrag_ratio =
+ 					get_obj("remote_node_defrag_ratio");
++			slab->defrag_used_ratio = get_obj("defrag_used_ratio");
  			chdir("..");
  			if (read_slab_obj(slab, "ops")) {
  				if (strstr(buffer, "ctor :"))
