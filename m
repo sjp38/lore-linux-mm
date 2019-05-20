@@ -1,216 +1,265 @@
-Return-Path: <SRS0=ZpWy=TT=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A9FEC04AB4
-	for <linux-mm@archiver.kernel.org>; Sun, 19 May 2019 16:31:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A1757C04AB4
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 03:00:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C634521850
-	for <linux-mm@archiver.kernel.org>; Sun, 19 May 2019 16:31:01 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Luuod+ac"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C634521850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 4782720644
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 03:00:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4782720644
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 22EE16B0003; Sun, 19 May 2019 12:31:01 -0400 (EDT)
+	id 8465C6B0005; Sun, 19 May 2019 23:00:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B6FC6B0006; Sun, 19 May 2019 12:31:01 -0400 (EDT)
+	id 7F6536B0006; Sun, 19 May 2019 23:00:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0806D6B0007; Sun, 19 May 2019 12:31:01 -0400 (EDT)
+	id 6E4E16B0007; Sun, 19 May 2019 23:00:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CF12B6B0003
-	for <linux-mm@kvack.org>; Sun, 19 May 2019 12:31:00 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id h4so6619811otl.7
-        for <linux-mm@kvack.org>; Sun, 19 May 2019 09:31:00 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 425BE6B0005
+	for <linux-mm@kvack.org>; Sun, 19 May 2019 23:00:07 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id v3so4275155oia.14
+        for <linux-mm@kvack.org>; Sun, 19 May 2019 20:00:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=3ZWjYi0LKYa7s2y9DAZ3jQd7Kh/YEvIwC4LalouLic8=;
-        b=cnEL6Y4xTfTZLlq8mHMQZipeNnxLc5k2kgCC9ychpmXaLKgnDx6ULZtQlkIYYxNyGW
-         LFTPsYrLZ/Eb+n2l6lcFC/CsLf6FDMetJ5vYXFTQgiDYJDdIV3u575Ay7/S3kIMwnvCJ
-         NAI6jdgMe08OJXKGMJUDvFAw/ms5Q4US66Ur7n9OihR2alGRYYNFNZJUL3S+pUm6oSff
-         +gDzo22hdFZ3q3UZSl3OVTilkLYukKIZTYCRfDvzIQBz0NEngvwWEDQ24LSbBYuyeoFk
-         ohHsoS0M0LFp9Hpt2cSw5eJNKQ2tM3JhqpY4j2niX/Dc55fkpVX1D/RCuGFamBvj903+
-         f7pA==
-X-Gm-Message-State: APjAAAU7cyB5g3N+XZpNAU+Y2dzwluisY6sm5vAKlIjrGtBm5vMO4Jk4
-	GzqQmadmTPnTxYUH3bc7DIBXxzpvNN9GGACXiTU6g8KlaSAAASPylSh/R/CoqdXei+nI1LQ/Nhv
-	aAoobab/bMYtef0wFIDi3XDlKSsdwh6I3g1uHKv31WA4CBlKMUfzQKXxuH1hbOMY2PQ==
-X-Received: by 2002:a9d:6a14:: with SMTP id g20mr21703937otn.310.1558283460455;
-        Sun, 19 May 2019 09:31:00 -0700 (PDT)
-X-Received: by 2002:a9d:6a14:: with SMTP id g20mr21703899otn.310.1558283459704;
-        Sun, 19 May 2019 09:30:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558283459; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=JWvs5+SZt/bFewaGcWX+wHkUwjOAhQ8hGzdpkMcVXn0=;
+        b=PpD555lOK0799kLo8z65nrQuwVh1m93+kC6l0P5yBMnLcKFxJZ8954MieaL8DYsz5A
+         jDTOTPTHz3Q2szHtQAve4caCJ8VCT8oY2N7fAr8p8RwGgWYft3AmjjOSmOWEFIJg4P0r
+         y4DJIRGUYdP/TmEwtwjfezcn+bYBm48xGLhTaMcoT/8qVjOJAtZRrHb6vlIYU3xhcYcK
+         1vpvh4cZblhdXjfmIuhrvcTRK57TUTSFnX1ypn9wZYazS5lB42qQqjwSEpgMPg7RFBqo
+         s/8tDJR4YzpXP0BYL9j6rNo0ArmYjFclNBgzCsC+urEvFHVhEJeXJWuQUUp/RLmVtCFh
+         HGwA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAVZZMqCWz3LfEnbmsuxggagvHKXrZCtnNpvpA7IZ+Yo1uGVsJSd
+	II1pul+DfcWMi6+qAwqqBiz+kiL1nbVGKHAIhy2itUrIThMmuLhojT52qRW19niUYqsXV/Wy1d2
+	xFa6d5pgf2HuZt6jV5+9ZQ/W7uv4ha0cs9di9i5U4+mJ/c0gLHsZ+X68boKLUvrF74w==
+X-Received: by 2002:a9d:6c0a:: with SMTP id f10mr6647731otq.36.1558321206886;
+        Sun, 19 May 2019 20:00:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyO9MSbjiArJNCa6TGV2bjsKysGmW7VPmzOl7QHSOXqyuConJG7fo9QJAikBpe6rSnZr6x/
+X-Received: by 2002:a9d:6c0a:: with SMTP id f10mr6647678otq.36.1558321205946;
+        Sun, 19 May 2019 20:00:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558321205; cv=none;
         d=google.com; s=arc-20160816;
-        b=ARbu22LKFbIkT+jm9L2zoLOuqypadDSCx0nv2TU+gQv3FbVnTG/TwUcKjDopVfGUF8
-         DYS+HrjEYwniOlPA4IDX2J5f22cJAVM+meKPnHRLXjPWhA/QQ6A4xbosgnqtomJroY8o
-         zwKHKPm+ftX1RCMvlVsGa1c63ewjGq6DMM1DnzcOLrWUyyT2ukn9Lx5RrORfMRgaMSTZ
-         w6oLqQFJLuuvvLMMX025PCX8a8DE2OvI2KsEunicrDFv6AVxzH45P1dy5rjzkE7k485f
-         1i25fNXFfu2dXK9AqxWpSEd9uG5SvLIjEzVcVuvWTJ7OdoGKdOtVkVaJQOj+hEYOlNfX
-         hdPw==
+        b=VlmHkrC7Dc9RXBTi9nVSYzSJmEkqo5fIYboGE47sJNttYoYVqKQPSvxyyMtjt3s2w/
+         L37WL1+SQOrTnMjzvqtgqMashn+rEyTQiJukXDzzOpjSsg1xwUTjZqBoGaNC0DXFtU9N
+         fbwM4R+TZl4EMqQ0KIKyzX5AvYWQTvYAoQjMW+YXjcBdR8H3scAG1liRjg7ac8wFQJZe
+         rUL34/0iu5HYaNbq2obkhow5lzbdxmd64PX/8eHCE66dm00/lmjgt1T2S1j+abdu9K/F
+         eG3iKKoN74jS0TT+MpJ+L7utbkQQlNIDO92MnAvq70vGLqx7iakOn9vgJEjXm++TEveS
+         ZJQw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=3ZWjYi0LKYa7s2y9DAZ3jQd7Kh/YEvIwC4LalouLic8=;
-        b=WVVYrt0GpEAyj1fdEU5vevTjI5RbkcNehkGibw25ZvLS0BCmTU5ihZ3C16EXwKqVZe
-         Qarz60Wpp8o2gnq1m8gnjolcrh7AN1TVuyMNbF9hQdazUdZMzWNRvGiFvtZb8Jk/Mf5+
-         PqHWnJQG1eNOqQZpCmqlgl1AbHpHkZaG8O1Dnhm+2qYyAwq1uA88LdNSjhsn1UmmT0A9
-         QYZZL557NWoK6TExu6Mk+tZZX7BwqVewf5L6QIPo6kXfd0hDVvpTkeu+hrlBE+bE1DuI
-         81i1kSRkSn3fZ0DsYTfRxJV/j6wYxIVcjU2KowjQCtI2p11mviIt5NTO3+5eANvpGsO4
-         JXgg==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=JWvs5+SZt/bFewaGcWX+wHkUwjOAhQ8hGzdpkMcVXn0=;
+        b=A4YS0a1z/YE9BMrtrKkfJLu2u33TTNU7K27Zys4vLPtEdVku5T08srCsk8pMcgfXEZ
+         WY1mcK3BU92Tcqom99EcqmryEWpar28H0jP92L13fsHFs9zDKG9ZM64UR9ci3YESMN+f
+         06XdpKjyvQB7lY/PPhs/x2Q3dZWwJmYMwOKO/E7v1R2EDoRSqXk2HLgKqHfNn1iUief6
+         CjAwXcJ8DAxsS80Y1oSj4us7SfykgMypA/MOOHMI8I6bN7RqyOJoJFLVnp1jwksHced+
+         Ks9DQe0pkpivADvLrCZawkZFqYZqfSTpIsLfoiNd3blmPj+EtIiSapLl/t0Yocuv0XA5
+         gbsw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Luuod+ac;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q64sor1157367oig.68.2019.05.19.09.30.58
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-43.freemail.mail.aliyun.com (out30-43.freemail.mail.aliyun.com. [115.124.30.43])
+        by mx.google.com with ESMTPS id f45si10045127otf.253.2019.05.19.20.00.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 19 May 2019 09:30:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 19 May 2019 20:00:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) client-ip=115.124.30.43;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Luuod+ac;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=3ZWjYi0LKYa7s2y9DAZ3jQd7Kh/YEvIwC4LalouLic8=;
-        b=Luuod+ac+cqT9612W1nKRVgtB2LCgQKBs4NJlcDhy7HrGiNNQGf06d5rORVlwN3CGB
-         TaIc5OzVLB1sEgK0QSO+hZ+ZbfxQnarzygNSBmOeuvHYKmPQKz55rOkdjeeLhAduS0Cl
-         Whv/M5f1dYJdSHAL78VZajSJTtn8JmnyMbIkOBTip/JQMIf7Eo+idAAA0WrwM00f2gAs
-         EZC/QNGgD+1dWOdVNkCsvgOrImn7T9hBKRkg6QD+Bg1Mn6a2yRnuwls9seQDdaKtCJwr
-         Wyehk1PTvrLaRBvI4oZSU81sqAOHaiA8/Kzt/nRBBJ9hthyaBW7x78DGfxHBlEP0Ddg7
-         0eRQ==
-X-Google-Smtp-Source: APXvYqze7m+x1bk2ET/L1T1uLmwbLuZSspl+N/0zleTMGx5P4BoJcD1BBPDyS5Y4fzLP6m16+hvJ3Kgei0XNRfLkQjU=
-X-Received: by 2002:aca:b641:: with SMTP id g62mr18495979oif.149.1558283457874;
- Sun, 19 May 2019 09:30:57 -0700 (PDT)
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R181e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07486;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TSAtmJS_1558321155;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TSAtmJS_1558321155)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Mon, 20 May 2019 10:59:45 +0800
+Subject: Re: [v2 PATCH] mm: mmu_gather: remove __tlb_reset_range() for force
+ flush
+To: Jan Stancek <jstancek@redhat.com>, Will Deacon <will.deacon@arm.com>
+Cc: peterz@infradead.org, namit@vmware.com, minchan@kernel.org,
+ mgorman@suse.de, stable@vger.kernel.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <1557444414-12090-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190513163804.GB10754@fuggles.cambridge.arm.com>
+ <360170d7-b16f-f130-f930-bfe54be9747a@linux.alibaba.com>
+ <20190514145445.GB2825@fuggles.cambridge.arm.com>
+ <1158926942.23199905.1558020575293.JavaMail.zimbra@redhat.com>
+From: Yang Shi <yang.shi@linux.alibaba.com>
+Message-ID: <ca6ab067-1d0c-941d-9c8b-7806af3521be@linux.alibaba.com>
+Date: Mon, 20 May 2019 10:59:07 +0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-References: <20190514025449.9416-1-aneesh.kumar@linux.ibm.com>
- <875zq9m8zx.fsf@vajain21.in.ibm.com> <de5cbe7d-bd47-6793-1f1a-2274c5c59eb5@linux.ibm.com>
- <87sgtaddru.fsf@linux.ibm.com>
-In-Reply-To: <87sgtaddru.fsf@linux.ibm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Sun, 19 May 2019 09:30:47 -0700
-Message-ID: <CAPcyv4gi3NR4NFCQYYg2_Mpb7+qWGMsRodpf8sK1Pnz3+dCe3A@mail.gmail.com>
-Subject: Re: [PATCH] mm/nvdimm: Pick the right alignment default when creating
- dax devices
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Linux MM <linux-mm@kvack.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, 
-	linux-nvdimm <linux-nvdimm@lists.01.org>, Vaibhav Jain <vaibhav@linux.ibm.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <1158926942.23199905.1558020575293.JavaMail.zimbra@redhat.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 19, 2019 at 1:55 AM Aneesh Kumar K.V
-<aneesh.kumar@linux.ibm.com> wrote:
->
->
-> Hi Dan,
->
-> "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
->
-> > On 5/17/19 8:19 PM, Vaibhav Jain wrote:
-> >> Hi Aneesh,
-> >>
->
-> ....
->
-> >>
-> >>> +   /*
-> >>> +    * Check whether the we support the alignment. For Dax if the
-> >>> +    * superblock alignment is not matching, we won't initialize
-> >>> +    * the device.
-> >>> +    */
-> >>> +   if (!nd_supported_alignment(align) &&
-> >>> +       memcmp(pfn_sb->signature, DAX_SIG, PFN_SIG_LEN)) {
-> >> Suggestion to change this check to:
-> >>
-> >> if (memcmp(pfn_sb->signature, DAX_SIG, PFN_SIG_LEN) &&
-> >>     !nd_supported_alignment(align))
-> >>
-> >> It would look  a bit more natural i.e. "If the device has dax signature and alignment is
-> >> not supported".
-> >>
-> >
-> > I guess that should be !memcmp()? . I will send an updated patch with
-> > the hash failure details in the commit message.
-> >
->
-> We need clarification on what the expected failure behaviour should be.
-> The nd_pmem_probe doesn't really have a failure behaviour in this
-> regard. For example.
->
-> I created a dax device with 16M alignment
->
-> {
->   "dev":"namespace0.0",
->   "mode":"devdax",
->   "map":"dev",
->   "size":"9.98 GiB (10.72 GB)",
->   "uuid":"ba62ef22-ebdf-4779-96f5-e6135383ed22",
->   "raw_uuid":"7b2492f9-7160-4ee9-9c3d-2f547d9ef3ee",
->   "daxregion":{
->     "id":0,
->     "size":"9.98 GiB (10.72 GB)",
->     "align":16777216,
->     "devices":[
->       {
->         "chardev":"dax0.0",
->         "size":"9.98 GiB (10.72 GB)"
->       }
->     ]
->   },
->   "align":16777216,
->   "numa_node":0,
->   "supported_alignments":[
->     65536,
->     16777216
->   ]
-> }
->
-> Now what we want is to fail the initialization of the device when we
-> boot a kernel that doesn't support 16M page size. But with the
-> nd_pmem_probe failure behaviour we now end up with
->
-> [
->   {
->     "dev":"namespace0.0",
->     "mode":"fsdax",
->     "map":"mem",
->     "size":10737418240,
->     "uuid":"7b2492f9-7160-4ee9-9c3d-2f547d9ef3ee",
->     "blockdev":"pmem0"
->   }
-> ]
->
-> So it did fallthrough the
->
->         /* if we find a valid info-block we'll come back as that personality */
->         if (nd_btt_probe(dev, ndns) == 0 || nd_pfn_probe(dev, ndns) == 0
->                         || nd_dax_probe(dev, ndns) == 0)
->                 return -ENXIO;
->
->         /* ...otherwise we're just a raw pmem device */
->         return pmem_attach_disk(dev, ndns);
->
->
-> Is it ok if i update the code such that we don't do that default
-> pmem_atach_disk if we have a label area?
 
-Yes. This seems a new case where the driver finds a valid info-block,
-but the capability to load that configuration is missing. So perhaps
-special case a EOPNOTSUPP return code from those info-block probe
-routines as "fail, and don't fallback to a raw device".
+
+On 5/16/19 11:29 PM, Jan Stancek wrote:
+>
+> ----- Original Message -----
+>> On Mon, May 13, 2019 at 04:01:09PM -0700, Yang Shi wrote:
+>>>
+>>> On 5/13/19 9:38 AM, Will Deacon wrote:
+>>>> On Fri, May 10, 2019 at 07:26:54AM +0800, Yang Shi wrote:
+>>>>> diff --git a/mm/mmu_gather.c b/mm/mmu_gather.c
+>>>>> index 99740e1..469492d 100644
+>>>>> --- a/mm/mmu_gather.c
+>>>>> +++ b/mm/mmu_gather.c
+>>>>> @@ -245,14 +245,39 @@ void tlb_finish_mmu(struct mmu_gather *tlb,
+>>>>>    {
+>>>>>    	/*
+>>>>>    	 * If there are parallel threads are doing PTE changes on same range
+>>>>> -	 * under non-exclusive lock(e.g., mmap_sem read-side) but defer TLB
+>>>>> -	 * flush by batching, a thread has stable TLB entry can fail to flush
+>>>>> -	 * the TLB by observing pte_none|!pte_dirty, for example so flush TLB
+>>>>> -	 * forcefully if we detect parallel PTE batching threads.
+>>>>> +	 * under non-exclusive lock (e.g., mmap_sem read-side) but defer TLB
+>>>>> +	 * flush by batching, one thread may end up seeing inconsistent PTEs
+>>>>> +	 * and result in having stale TLB entries.  So flush TLB forcefully
+>>>>> +	 * if we detect parallel PTE batching threads.
+>>>>> +	 *
+>>>>> +	 * However, some syscalls, e.g. munmap(), may free page tables, this
+>>>>> +	 * needs force flush everything in the given range. Otherwise this
+>>>>> +	 * may result in having stale TLB entries for some architectures,
+>>>>> +	 * e.g. aarch64, that could specify flush what level TLB.
+>>>>>    	 */
+>>>>> -	if (mm_tlb_flush_nested(tlb->mm)) {
+>>>>> -		__tlb_reset_range(tlb);
+>>>>> -		__tlb_adjust_range(tlb, start, end - start);
+>>>>> +	if (mm_tlb_flush_nested(tlb->mm) && !tlb->fullmm) {
+>>>>> +		/*
+>>>>> +		 * Since we can't tell what we actually should have
+>>>>> +		 * flushed, flush everything in the given range.
+>>>>> +		 */
+>>>>> +		tlb->freed_tables = 1;
+>>>>> +		tlb->cleared_ptes = 1;
+>>>>> +		tlb->cleared_pmds = 1;
+>>>>> +		tlb->cleared_puds = 1;
+>>>>> +		tlb->cleared_p4ds = 1;
+>>>>> +
+>>>>> +		/*
+>>>>> +		 * Some architectures, e.g. ARM, that have range invalidation
+>>>>> +		 * and care about VM_EXEC for I-Cache invalidation, need force
+>>>>> +		 * vma_exec set.
+>>>>> +		 */
+>>>>> +		tlb->vma_exec = 1;
+>>>>> +
+>>>>> +		/* Force vma_huge clear to guarantee safer flush */
+>>>>> +		tlb->vma_huge = 0;
+>>>>> +
+>>>>> +		tlb->start = start;
+>>>>> +		tlb->end = end;
+>>>>>    	}
+>>>> Whilst I think this is correct, it would be interesting to see whether
+>>>> or not it's actually faster than just nuking the whole mm, as I mentioned
+>>>> before.
+>>>>
+>>>> At least in terms of getting a short-term fix, I'd prefer the diff below
+>>>> if it's not measurably worse.
+>>> I did a quick test with ebizzy (96 threads with 5 iterations) on my x86 VM,
+>>> it shows slightly slowdown on records/s but much more sys time spent with
+>>> fullmm flush, the below is the data.
+>>>
+>>>                                      nofullmm                 fullmm
+>>> ops (records/s)              225606                  225119
+>>> sys (s)                            0.69                        1.14
+>>>
+>>> It looks the slight reduction of records/s is caused by the increase of sys
+>>> time.
+>> That's not what I expected, and I'm unable to explain why moving to fullmm
+>> would /increase/ the system time. I would've thought the time spent doing
+>> the invalidation would decrease, with the downside that the TLB is cold
+>> when returning back to userspace.
+>>
+> I tried ebizzy with various parameters (malloc vs mmap, ran it for hour),
+> but performance was very similar for both patches.
+>
+> So, I was looking for workload that would demonstrate the largest difference.
+> Inspired by python xml-rpc, which can handle each request in new thread,
+> I tried following [1]:
+>
+> 16 threads, each looping 100k times over:
+>    mmap(16M)
+>    touch 1 page
+>    madvise(DONTNEED)
+>    munmap(16M)
+>
+> This yields quite significant difference for 2 patches when running on
+> my 46 CPU arm host. I checked it twice - applied patch, recompiled, rebooted,
+> but numbers stayed +- couple seconds the same.
+
+Thanks for the testing. I'm a little bit surprised by the significant 
+difference.
+
+I did the same test on my x86 VM (24 cores), they yield almost same number.
+
+Given the significant improvement on arm64 with fullmm version, I'm 
+going to respin the patch.
+
+>
+> Does it somewhat match your expectation?
+>
+> v2 patch
+> ---------
+> real    2m33.460s
+> user    0m3.359s
+> sys     15m32.307s
+>
+> real    2m33.895s
+> user    0m2.749s
+> sys     16m34.500s
+>
+> real    2m35.666s
+> user    0m3.528s
+> sys     15m23.377s
+>
+> real    2m32.898s
+> user    0m2.789s
+> sys     16m18.801s
+>
+> real    2m33.087s
+> user    0m3.565s
+> sys     16m23.815s
+>
+>
+> fullmm version
+> ---------------
+> real    0m46.811s
+> user    0m1.596s
+> sys     1m47.500s
+>
+> real    0m47.322s
+> user    0m1.803s
+> sys     1m48.449s
+>
+> real    0m46.668s
+> user    0m1.508s
+> sys     1m47.352s
+>
+> real    0m46.742s
+> user    0m2.007s
+> sys     1m47.217s
+>
+> real    0m46.948s
+> user    0m1.785s
+> sys     1m47.906s
+>
+> [1] https://github.com/jstancek/reproducers/blob/master/kernel/page_fault_stall/mmap8.c
 
