@@ -2,256 +2,175 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0ABC4C04E87
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 21:25:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4360C04AAC
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 21:36:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B894821479
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 21:25:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="hxUvmxG7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B894821479
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
+	by mail.kernel.org (Postfix) with ESMTP id 40A3E21479
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 21:36:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40A3E21479
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.ee
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6B76F6B0007; Mon, 20 May 2019 17:25:25 -0400 (EDT)
+	id AA54E6B000A; Mon, 20 May 2019 17:36:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 68F8B6B0008; Mon, 20 May 2019 17:25:25 -0400 (EDT)
+	id A2F386B000C; Mon, 20 May 2019 17:36:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 57D8B6B000A; Mon, 20 May 2019 17:25:25 -0400 (EDT)
+	id 8F67B6B000D; Mon, 20 May 2019 17:36:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2045F6B0007
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 17:25:25 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x5so10752735pfi.5
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 14:25:25 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 27ED06B000A
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 17:36:55 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id l10so2707013ljj.18
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 14:36:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=4baXS4Zs8d273Gy9o882X9zO8lduTnF92DlMmytV05M=;
-        b=BOI1a6b/n17pTl8hZXClpqSdRVAGoNesgRKPI7CDyqZgN5LQP4nSYGb12zcGnEyrdr
-         mxqDqCWP/Ftd7m2QgTv6Dv7NQUVpbuJbD3rOs6Tva8lRa3KCaIis6I39Prw9jPtCVUI3
-         qZIShJt0WiDMiCaeGrJ28OOLiAGWIYlTtrZ9Rudk/ZDnEDvQpGHWsfPUomMK8/71CIdf
-         QHQGA42ZE1YSZ6R+kpg5Q6A9i7JchEcngG2HpD7m8N0DL4EYxsuIInvyE4YcC5Yb9tGb
-         DkOKTrVflvIHv1IJvqM26X2E4lUDFrhCUx302gPYIz8xuYgsXoxTcg12kA4Hvr3EMoDU
-         PyjA==
-X-Gm-Message-State: APjAAAUUNZPBUYivw7J/HH5/P75hzGIeFo6CRvSETY6NYw2AR4ilaYr+
-	rYYmIHUoSuUHmzhY7X5739Nqfsk7kzyixeS0KE2hSs19aecwRs5BJHMBEoBVaF5wkNTm+/5Wk3c
-	Rsxhm3X9GJ8cTVqAu5jJe3gany3fmkhporTnhyHZX4Z+EYwlVFAIQRSOWHsP/wpqkLg==
-X-Received: by 2002:a63:d04b:: with SMTP id s11mr78217270pgi.187.1558387524772;
-        Mon, 20 May 2019 14:25:24 -0700 (PDT)
-X-Received: by 2002:a63:d04b:: with SMTP id s11mr78217219pgi.187.1558387523964;
-        Mon, 20 May 2019 14:25:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558387523; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=AtXPUGcu1n6mp0mjfjwW8K0Kq+x/jYMgKBeLWoG8OFU=;
+        b=rFJNZYa/aLwDA4XlJQsnnPREbhwf5qrXbT7pAt3iknezmVOOi+8eMiewueJJS8vvf0
+         1XwAWCaZbxeScrkFOKJKbV23XLKM5mQX0V7uQIuDCStmvKKDv2jdaoldik5vGpXuVBR5
+         Xglf9us/Zz1WEpPN8WBmwa9RPA/O9YQciZfPcDuoG54/OMY+es02mhJk4vqWBbj3+W7A
+         uH52k7k/ZhF0pkbx+rJnfojr4vSN86cZRDkj4NoAyfoissXU75KXMpodgQR3Qdf67B0n
+         2DHrCphTwA5jpRreggWKQhnqM4BP/WUtsETfxrM9o57VmqcD7trsyT5vWzFRYJQX5cNw
+         W7HQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 193.40.6.72 is neither permitted nor denied by best guess record for domain of mroos@linux.ee) smtp.mailfrom=mroos@linux.ee
+X-Gm-Message-State: APjAAAU7F9r4y0LSrr/giQoUEKposhEaapu2TIbh+og2gixjcGUvnPW9
+	WlKW0WbDjwKTdTOpNoe5gBfEDxo3La+vW7wtdJn9VudABb4Ps2TVPFp8yt8l7GsVp2XRGvjoDu4
+	I9O2Hv5SBFnYYlnXaI6EUwmM0xn6oGgUHbrNY119c2SoJ2Ez63LnlwLKtQSDg0rE=
+X-Received: by 2002:ac2:482a:: with SMTP id 10mr23892191lft.51.1558388214566;
+        Mon, 20 May 2019 14:36:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztNi+MgltGHJIByYCqYEWeLDH1is+DqbVd1p0bN/QKJ0GZDeY+i9e1Re1Tce3JNgXlrnh5
+X-Received: by 2002:ac2:482a:: with SMTP id 10mr23892148lft.51.1558388213507;
+        Mon, 20 May 2019 14:36:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558388213; cv=none;
         d=google.com; s=arc-20160816;
-        b=ELp3upYqmxUGn7b8Ggns6wih+jJ1GBguMFoH16miVAROdwcwK56abCOW04tJwduNOq
-         OPjaP8a5Be4/uctbOm75KghiQ0r5R15lNzp2l38uQpPRBEXqVkwIVMoWLh//i7ALtjk3
-         /qVEKJOZMgnB32iEiqHmPiYo5KzfGCJkNUjRyWAWvRy69Yuem2Ml07sUJZoaXNHoraYl
-         IKB/ZUWJFO+20Uu7F/MDbiGccCgRmWKgj5gEl6zn+SfvuDTxb/oYFOX7kZt4HuvaD8pA
-         SVRi+3cd4d9edl7UYgp/Uh4IaxOZWI42gW07s1RKQFa7lmXaTcHLv1AdtAIK6DskFgp7
-         4IIw==
+        b=Jkh9gLA7oMsb00aFpNfrqTku7SPAx+Dxf+d0X7O4xQtn7IqRutO/IMqX+0V+GIOEPK
+         QBxJfiLZTYjw0VSwMsRf4GhltqfEBZvvhX8GSWo2EEvFQBsFnw+ANZlEake434MT9cva
+         3g3A4Psqiy26adN4TSN/qaPr58rvG0o9vNZP3SnyCMMoGiqKBHjgvhm2rmM6VmzSoW8p
+         59AhJ/qaZWkwCZB8icNBUURdfVTCgzEKi35nhV2F9ZFR31DqEhfoaItLemLUwjmoF4tk
+         /R54Vs4JTBypla0/GiUmTtjKIcBpm8CLSQjB8hxvqfOU+KQQmZMH92zObkzYSFoddKs8
+         WERg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=4baXS4Zs8d273Gy9o882X9zO8lduTnF92DlMmytV05M=;
-        b=wppNqz86gqO0urgd+deSFme38J+p9HYw+fxgc7ifvXouLzRmVupjMa7GXLGRNxNRkx
-         VrUgA4S73rEg6BwYwYc8/jbZXQJL7wcvfvWUqRKQKGaByLD4Bc+7p674EZU+GipIQ4PV
-         g6g1nCKdJEp7Ovk8/PWGsz9yz4jV8GwUaWozz/0elGEyNwv/dhIPQS9mvuHuducUmG0N
-         Xupz2CEzMXF7Mii8Re91Ez5wGqQ8Bw1GtJADDnmWBpjqO5xhwzsY3eP0Ir96rIvK7jnu
-         iRA5L50UKfnKfCj9yhyHdGBwGZGNfoCO328DW3JN6cabgUX4mWdGreTL7LKwSM00YXYF
-         V3Mw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=AtXPUGcu1n6mp0mjfjwW8K0Kq+x/jYMgKBeLWoG8OFU=;
+        b=fTQskIQks2zZMhv+dLFPYMSV3TIOmWpnF7DQ6jj7OlJ3n++uehTvLugBzfT5Xn2W7/
+         /s34NsViwKNl6iq9LKfr+h+DgKyKLOmM8cCLq3rbgh6qvz29GmSQX7pBLqPyD20hm+qm
+         P2YuvE5UKbSOF1BWFunKvYcEEi43QOh4KT6DDWI/KOzId4NFmo4UaJOJqPBqF+rqTGcD
+         XrAZEVJNhEDhmOFmVU+nfhvNp6U6Qe+GIXkT2n3NgvmiDk1rCygw7UPs4JHzGONjP7Nk
+         xHWb6pBO8tlV7nDbXHRS0tWklUIUQe1IwOvbAYSKyOZghIS/KvLpN3yTdGW4c2XJo3hz
+         l6iQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=hxUvmxG7;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p4sor852032plk.55.2019.05.20.14.25.23
+       spf=neutral (google.com: 193.40.6.72 is neither permitted nor denied by best guess record for domain of mroos@linux.ee) smtp.mailfrom=mroos@linux.ee
+Received: from mx2.cyber.ee (mx2.cyber.ee. [193.40.6.72])
+        by mx.google.com with ESMTPS id x18si14574334lfc.83.2019.05.20.14.36.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 20 May 2019 14:25:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=hxUvmxG7;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=4baXS4Zs8d273Gy9o882X9zO8lduTnF92DlMmytV05M=;
-        b=hxUvmxG7ptkvVdHSpo2ElaBiNspTHcKC2JYgBrAVrG5y2EurML2f6nPrNKhA3NCeET
-         3Scsw7YYNXr9eL9Ca8ZCXuXSmefL1R3JtQEXbmOebdWIpphXM6nB+6J6N5ERaFt+V4pz
-         XO1xDbC7HMcby+Vu7irR6zLKUHyBSWjTp30sFNmSfremzHtJFg8/ZC0q9CgsDQ1uXeG6
-         N+/hkHT9IIo99Z2PBwFnT6uOC+9lP8zJ4Q+z7WWXapY3F6DMOpY9ZTENw8KWiRuRZtRu
-         qE/JhUJO2LMKhhRceIMpKfqFzg2P6lMF3lnqFRAMUrUJ9CPp4LFxeCPslwMPAqnnQjpq
-         kGlA==
-X-Google-Smtp-Source: APXvYqxhwzdx1btAt2ypfSCKSGOQNAlxvRe0pPkeGIzVee9WPpZpOSnWSJfWpUdUKNbJbdxU1kdX7A==
-X-Received: by 2002:a17:902:9007:: with SMTP id a7mr77181691plp.221.1558387523416;
-        Mon, 20 May 2019 14:25:23 -0700 (PDT)
-Received: from ?IPv6:2601:646:c200:1ef2:1155:4a00:3a05:ac06? ([2601:646:c200:1ef2:1155:4a00:3a05:ac06])
-        by smtp.gmail.com with ESMTPSA id o6sm14811379pfo.164.2019.05.20.14.25.21
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 14:25:21 -0700 (PDT)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (1.0)
+        Mon, 20 May 2019 14:36:53 -0700 (PDT)
+Received-SPF: neutral (google.com: 193.40.6.72 is neither permitted nor denied by best guess record for domain of mroos@linux.ee) client-ip=193.40.6.72;
+Authentication-Results: mx.google.com;
+       spf=neutral (google.com: 193.40.6.72 is neither permitted nor denied by best guess record for domain of mroos@linux.ee) smtp.mailfrom=mroos@linux.ee
 Subject: Re: [PATCH v2] vmalloc: Fix issues with flush flag
-From: Andy Lutomirski <luto@amacapital.net>
-X-Mailer: iPhone Mail (16E227)
-In-Reply-To: <20190520200703.15997-1-rick.p.edgecombe@intel.com>
-Date: Mon, 20 May 2019 14:25:21 -0700
-Cc: linux-kernel@vger.kernel.org, peterz@infradead.org,
- sparclinux@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org,
- dave.hansen@intel.com, namit@vmware.com, Meelis Roos <mroos@linux.ee>,
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>,
+ linux-kernel@vger.kernel.org, peterz@infradead.org,
+ sparclinux@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
+Cc: dave.hansen@intel.com, namit@vmware.com, Meelis Roos <mroos@linux.ee>,
  "David S. Miller" <davem@davemloft.net>, Borislav Petkov <bp@alien8.de>,
  Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <28F28A46-C57B-483A-A5CB-8BEA06AF15F8@amacapital.net>
 References: <20190520200703.15997-1-rick.p.edgecombe@intel.com>
-To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+From: Meelis Roos <mroos@linux.ee>
+Message-ID: <90f8a4e1-aa71-0c10-1a91-495ba0cb329b@linux.ee>
+Date: Tue, 21 May 2019 00:36:22 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
+MIME-Version: 1.0
+In-Reply-To: <20190520200703.15997-1-rick.p.edgecombe@intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: et-EE
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-
-> On May 20, 2019, at 1:07 PM, Rick Edgecombe <rick.p.edgecombe@intel.com> w=
-rote:
->=20
 > Switch VM_FLUSH_RESET_PERMS to use a regular TLB flush intead of
 > vm_unmap_aliases() and fix calculation of the direct map for the
 > CONFIG_ARCH_HAS_SET_DIRECT_MAP case.
->=20
+> 
 > Meelis Roos reported issues with the new VM_FLUSH_RESET_PERMS flag on a
 > sparc machine. On investigation some issues were noticed:
->=20
-
-Can you split this into a few (3?) patches, each fixing one issue?
-
+> 
 > 1. The calculation of the direct map address range to flush was wrong.
 > This could cause problems on x86 if a RO direct map alias ever got loaded
 > into the TLB. This shouldn't normally happen, but it could cause the
 > permissions to remain RO on the direct map alias, and then the page
 > would return from the page allocator to some other component as RO and
 > cause a crash.
->=20
-> 2. Calling vm_unmap_alias() on vfree could potentially be a lot of work to=
-
+> 
+> 2. Calling vm_unmap_alias() on vfree could potentially be a lot of work to
 > do on a free operation. Simply flushing the TLB instead of the whole
 > vm_unmap_alias() operation makes the frees faster and pushes the heavy
 > work to happen on allocation where it would be more expected.
-> In addition to the extra work, vm_unmap_alias() takes some locks including=
-
+> In addition to the extra work, vm_unmap_alias() takes some locks including
 > a long hold of vmap_purge_lock, which will make all other
 > VM_FLUSH_RESET_PERMS vfrees wait while the purge operation happens.
->=20
-> 3. page_address() can have locking on some configurations, so skip calling=
-
+> 
+> 3. page_address() can have locking on some configurations, so skip calling
 > this when possible to further speed this up.
->=20
-> Fixes: 868b104d7379 ("mm/vmalloc: Add flag for freeing of special permsiss=
-ions")
-> Reported-by: Meelis Roos <mroos@linux.ee>
-> Cc: Meelis Roos <mroos@linux.ee>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Borislav Petkov <bp@alien8.de>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Nadav Amit <namit@vmware.com>
-> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+> 
+> Fixes: 868b104d7379 ("mm/vmalloc: Add flag for freeing of special permsissions")
+> Reported-by: Meelis Roos<mroos@linux.ee>
+> Cc: Meelis Roos<mroos@linux.ee>
+> Cc: Peter Zijlstra<peterz@infradead.org>
+> Cc: "David S. Miller"<davem@davemloft.net>
+> Cc: Dave Hansen<dave.hansen@intel.com>
+> Cc: Borislav Petkov<bp@alien8.de>
+> Cc: Andy Lutomirski<luto@kernel.org>
+> Cc: Ingo Molnar<mingo@redhat.com>
+> Cc: Nadav Amit<namit@vmware.com>
+> Signed-off-by: Rick Edgecombe<rick.p.edgecombe@intel.com>
 > ---
->=20
+> 
 > Changes since v1:
-> - Update commit message with more detail
-> - Fix flush end range on !CONFIG_ARCH_HAS_SET_DIRECT_MAP case
->=20
-> mm/vmalloc.c | 23 +++++++++++++----------
-> 1 file changed, 13 insertions(+), 10 deletions(-)
->=20
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index c42872ed82ac..8d03427626dc 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2122,9 +2122,10 @@ static inline void set_area_direct_map(const struct=
- vm_struct *area,
-> /* Handle removing and resetting vm mappings related to the vm_struct. */
-> static void vm_remove_mappings(struct vm_struct *area, int deallocate_page=
-s)
-> {
-> +    const bool has_set_direct =3D IS_ENABLED(CONFIG_ARCH_HAS_SET_DIRECT_M=
-AP);
-> +    const bool flush_reset =3D area->flags & VM_FLUSH_RESET_PERMS;
->    unsigned long addr =3D (unsigned long)area->addr;
-> -    unsigned long start =3D ULONG_MAX, end =3D 0;
-> -    int flush_reset =3D area->flags & VM_FLUSH_RESET_PERMS;
-> +    unsigned long start =3D addr, end =3D addr + area->size;
->    int i;
->=20
->    /*
-> @@ -2133,7 +2134,7 @@ static void vm_remove_mappings(struct vm_struct *are=
-a, int deallocate_pages)
->     * This is concerned with resetting the direct map any an vm alias with=
+>   - Update commit message with more detail
+>   - Fix flush end range on !CONFIG_ARCH_HAS_SET_DIRECT_MAP case
 
->     * execute permissions, without leaving a RW+X window.
->     */
-> -    if (flush_reset && !IS_ENABLED(CONFIG_ARCH_HAS_SET_DIRECT_MAP)) {
-> +    if (flush_reset && !has_set_direct) {
->        set_memory_nx(addr, area->nr_pages);
->        set_memory_rw(addr, area->nr_pages);
->    }
-> @@ -2146,22 +2147,24 @@ static void vm_remove_mappings(struct vm_struct *a=
-rea, int deallocate_pages)
->=20
->    /*
->     * If not deallocating pages, just do the flush of the VM area and
-> -     * return.
-> +     * return. If the arch doesn't have set_direct_map_(), also skip the
-> +     * below work.
->     */
-> -    if (!deallocate_pages) {
-> -        vm_unmap_aliases();
-> +    if (!deallocate_pages || !has_set_direct) {
-> +        flush_tlb_kernel_range(start, end);
->        return;
->    }
->=20
->    /*
->     * If execution gets here, flush the vm mapping and reset the direct
->     * map. Find the start and end range of the direct mappings to make sur=
-e
-> -     * the vm_unmap_aliases() flush includes the direct map.
-> +     * the flush_tlb_kernel_range() includes the direct map.
->     */
->    for (i =3D 0; i < area->nr_pages; i++) {
-> -        if (page_address(area->pages[i])) {
-> +        addr =3D (unsigned long)page_address(area->pages[i]);
-> +        if (addr) {
->            start =3D min(addr, start);
-> -            end =3D max(addr, end);
-> +            end =3D max(addr + PAGE_SIZE, end);
->        }
->    }
->=20
-> @@ -2171,7 +2174,7 @@ static void vm_remove_mappings(struct vm_struct *are=
-a, int deallocate_pages)
->     * reset the direct map permissions to the default.
->     */
->    set_area_direct_map(area, set_direct_map_invalid_noflush);
-> -    _vm_unmap_aliases(start, end, 1);
-> +    flush_tlb_kernel_range(start, end);
->    set_area_direct_map(area, set_direct_map_default_noflush);
-> }
->=20
-> --=20
-> 2.20.1
->=20
+It does not work on my V445 where the initial problem happened.
+
+[   46.582633] systemd[1]: Detected architecture sparc64.
+
+Welcome to Debian GNU/Linux 10 (buster)!
+
+[   46.759048] systemd[1]: Set hostname to <v445>.
+[   46.831383] systemd[1]: Failed to bump fs.file-max, ignoring: Invalid argument
+[   67.989695] rcu: INFO: rcu_sched detected stalls on CPUs/tasks:
+[   68.074706] rcu:     0-...!: (0 ticks this GP) idle=5c6/1/0x4000000000000000 softirq=33/33 fqs=0
+[   68.198443] rcu:     2-...!: (0 ticks this GP) idle=e7e/1/0x4000000000000000 softirq=67/67 fqs=0
+[   68.322198]  (detected by 1, t=5252 jiffies, g=-939, q=108)
+[   68.402204]   CPU[  0]: TSTATE[0000000080001603] TPC[000000000043f298] TNPC[000000000043f29c] TASK[systemd-debug-g:89]
+[   68.556001]              TPC[smp_synchronize_tick_client+0x18/0x1a0] O7[0xfff000010000691c] I7[xcall_sync_tick+0x1c/0x2c] RPC[alloc_set_pte+0xf4/0x300]
+[   68.750973]   CPU[  2]: TSTATE[0000000080001600] TPC[000000000043f298] TNPC[000000000043f29c] TASK[systemd-cryptse:88]
+[   68.904741]              TPC[smp_synchronize_tick_client+0x18/0x1a0] O7[filemap_map_pages+0x3cc/0x3e0] I7[xcall_sync_tick+0x1c/0x2c] RPC[handle_mm_fault+0xa0/0x180]
+[   69.115991] rcu: rcu_sched kthread starved for 5252 jiffies! g-939 f0x0 RCU_GP_WAIT_FQS(5) ->state=0x402 ->cpu=3
+[   69.262239] rcu: RCU grace-period kthread stack dump:
+[   69.334741] rcu_sched       I    0    10      2 0x06000000
+[   69.413495] Call Trace:
+[   69.448501]  [000000000093325c] schedule+0x1c/0xc0
+[   69.517253]  [0000000000936c74] schedule_timeout+0x154/0x260
+[   69.598514]  [00000000004b65a4] rcu_gp_kthread+0x4e4/0xac0
+[   69.677261]  [000000000047ecfc] kthread+0xfc/0x120
+[   69.746018]  [00000000004060a4] ret_from_fork+0x1c/0x2c
+[   69.821014]  [0000000000000000] 0x0
+
+and hangs here, software watchdog kicks in soon.
+
+-- 
+Meelis Roos
 
