@@ -2,177 +2,121 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD92AC04AAC
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 22:17:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CF97AC04AAC
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 22:49:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9EC8521479
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 22:17:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9EC8521479
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 77A3A20862
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 22:49:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77A3A20862
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=davemloft.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4B9C16B0003; Mon, 20 May 2019 18:17:53 -0400 (EDT)
+	id DF1756B0003; Mon, 20 May 2019 18:49:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 46B036B0005; Mon, 20 May 2019 18:17:53 -0400 (EDT)
+	id DA1286B0005; Mon, 20 May 2019 18:49:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 380DD6B0006; Mon, 20 May 2019 18:17:53 -0400 (EDT)
+	id C6ACB6B0006; Mon, 20 May 2019 18:49:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 00B356B0003
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 18:17:52 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id o12so9941342pll.17
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 15:17:52 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 796166B0003
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 18:49:04 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id h2so27451587edi.13
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 15:49:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:user-agent:content-id
-         :content-transfer-encoding:mime-version;
-        bh=u9QDUc6HihL3wG62Y5BkY6u4n7G4tg7Ilo681OXyOYM=;
-        b=Jd/6hsAX18TjP5M0xzJ6tKpO/QZxgTQtJ9D9ykH2ZhFyLtxFisvU1a4QA/nBwhp5uS
-         2Xbh7m+AIJyNLAlKUQESpNBviEOrDD7ZR3s/shjy5QIPXplYU4dub1j+xAAPohxpufyC
-         ZYPZfs9j6gDMzl+daguYvzHq8Ru0O5L/QmiOVsNZg3hvXTq3zY+J+8chQXiUovmZ0POP
-         nF6Xoridw2tfIN7mDzqCx62MXVPCrU+oikQKq1IybRP2U/mNzTDTRYdPL702KrT0Folo
-         nyGUdz/AX6zR8KEmxWICzy81RHV4eBYpjKPOxhoYSURbNVey5r9W9OGMzcXk9E2OeEXq
-         ZLyA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVwAcxv7+U22miMIahYEpqNgw2zcML6kIO5Z4Uz4Lx55FIaJ9Ls
-	IaySZ65h4HBRroEY/vmCWvu3+qdUZ2fgWzYRJDyqztSpsznDbpYyDNlv4l+leb7i7VueyMTpYrK
-	ilg7AwT1onugQgwikswpjpVnmbQPTmhekOdEuFUEsuyOS7BKjbzRmGfn4AMfoui4yQQ==
-X-Received: by 2002:a17:902:7044:: with SMTP id h4mr17602548plt.219.1558390672540;
-        Mon, 20 May 2019 15:17:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyOYhOmG1Bm5Gb/BNpqljUbIdwLZI3LrtqoAUfXS+KuV8uuWTaL9+XFCVBdYqIMTzutO/U0
-X-Received: by 2002:a17:902:7044:: with SMTP id h4mr17602489plt.219.1558390671790;
-        Mon, 20 May 2019 15:17:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558390671; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date
+         :message-id:to:cc:subject:from:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=JdsKHMYCwyG79Y0zBeXDibY4PN9XKitXH09TAsiFZ+o=;
+        b=hA8R27Nas7A6p0ApgPmFFbh/IZ/tOhMM6EpJf+K/qF7AmgFXWMKsc4wannHRW6ioRC
+         a+qlZXGDbwmcokbf8tPzh1cu2OU+UTwxnICSl3gcxmwDQtrC49I2+kuGcChSheDGAedC
+         vT0okW70J59obVXOwYlwlHmSJYfCkSpEWB5MApO6D+Pl+gIGsaBPsWcXfKg0JOVPb3cN
+         o8nFKvCUquzZ3I+FpNlxyM0WHq1qW3Jp+av4axs2OO+GtLlBe5WUtur8pPfUK1MWnccN
+         GslBHLiwjivJmGMMPuAOGH/iqh8wvprOj4kS5PqWzYNj8q7WBXET569Eo5LAAmN8uAyL
+         /LYA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
+X-Gm-Message-State: APjAAAVOC1ho6CHBhjPfgOUfov0rLEnYpttTLYPA1jyva54WWVV9f30y
+	4yz3oL83wNg18eC1nuMGgvvOlGUpXHiwal7gW57coDWfL6MbJRPSoR4Bi9F4I+YsxDWQf7Q8NWv
+	hhkVsYhc6P8KzLtQxTAGfvAmOgMbVK1OthJ+veTc04Ta+MS+g34Zjzq9fngnU4o0=
+X-Received: by 2002:a17:906:6603:: with SMTP id b3mr61026163ejp.128.1558392544061;
+        Mon, 20 May 2019 15:49:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy9cMUK/p+8BUwTvdM1P7qWch7i+g+tb9W9gd519nvGf1z0oEyDoaSerXuMb4N4ec5YwQ3g
+X-Received: by 2002:a17:906:6603:: with SMTP id b3mr61026123ejp.128.1558392543329;
+        Mon, 20 May 2019 15:49:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558392543; cv=none;
         d=google.com; s=arc-20160816;
-        b=PmqOip0awFCIVXbuW8Xl6gsJkZu5VEunqlMzjU3nQLqcKwzNboyIl7qHxouOJLGmnZ
-         KaOexebWDb4HLEgrnI4x2Qam2xIVYSCx+GNYwZmjpQ+iqu9dhT4ioupmBqIsBao68Zeb
-         bzZuX+/rljrJTB3pECPyttUqLO3JcIULbf7937YqvrPEOiBsQsLUJz7OJBTPBbBBG4nt
-         cKy3j9Hbmg6E1EV/kz1dmYuFQ1GEdj9u+AUGSnFUib9S8xtbJz4xu88Wa8Cgkml7bYwO
-         j8qY1WOKyt5X+nFKUi+cnTCrdtYtueRj9APSe19AqqiYGhqcleq4yQ4Mv65nvzy3YoxX
-         Mh8Q==
+        b=IxcR8xJTHP9qYx20faPxXaLmjelbqu+wXVdQ6GxB+LMd4NXnb4Pv/qnb5y7EuQMGse
+         7u7ziZld8FRAMDI5V0VH+K9OL0NB46M7dBPalLRmrw7+iHD/FiAOg3tBY+reiHQtUf8x
+         sj8RxbKYA22KrrQ1xBecJT4mMt1O9CKvkqEZEYq27GYz7FiywXV8qCy0CWalcXcwn0mU
+         SEzR/uuIHrHbZ/hOFJweL9cymVlKUwuD/dZfXeP2ttjOsiyL9Xh1Bvb7xUwGDUvCKA5I
+         xmoDlktvQ6UloWaVpRbJ/5AiZSTBqyAClRcpYIYIFf1DWohCUGczShgdl3IIByFU50rR
+         R0BA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from;
-        bh=u9QDUc6HihL3wG62Y5BkY6u4n7G4tg7Ilo681OXyOYM=;
-        b=DAttXv/RIbTg8yd9BEI8kMKx/1kSDd6d8uHRAYwlIv1xfH0qEtUXlauS5tjfGlB+eh
-         YRnFme9IVIE6v40oG+AS4xu4L1J75y2N84jy8WUDSd5EXGKzLRaMJME51qEHLhEr+0Rk
-         fox3Cr8g5wka9ejEkgNMXeHTZ9k1ziOk9GgRD2hcrnbleqHB9HHP7j/SDDdhj5ov1zV9
-         6/CODMMC/450CCVxJ+pT3zOjvZ7qO2xWydzWdU+O7wHozaJMA439HARPm4g3c+MUe6mW
-         FDpgrkKYQguqnMI25K8YJPNnovlWlEfuP8Jmczuto37dKmslZWzL6Sgqf22wHVM/eHDJ
-         l5tA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:from
+         :subject:cc:to:message-id:date;
+        bh=JdsKHMYCwyG79Y0zBeXDibY4PN9XKitXH09TAsiFZ+o=;
+        b=rletxobbH4fMAl0DhRtklFtZcN0oWn8+1130Ko7iRC4cTKVk334Wy/k+4ZfQghO8Zh
+         w0Ndd7Q+awsCMOuaC2GfLwsaw6JJqLHlql5EgrO0VN/u/bIgAU/t8fXfDXHcVP2ORXFC
+         aifbIf/wB/AfWvrQNrui73v+An1kY188ps+4rhXNXgGBeaW7IZRMvrEHL0Z60I4zAnWa
+         Rk421c5s9GChsRxKp+jAK5sK2xtwL65L0xxtL3KWLZ+D3HdNQawokJIRP9ZuBJ2UzrBk
+         dj2U0OTQYQ3k1UNQZEvciZLrg8EmhjS04jrdcJ80gE/nxxrbcuCzM13Nzqrff51nNohJ
+         7TbA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id i23si1117238pgh.26.2019.05.20.15.17.51
+       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
+Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2620:137:e000::1:9])
+        by mx.google.com with ESMTPS id w17si7212616edl.369.2019.05.20.15.49.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 15:17:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        Mon, 20 May 2019 15:49:03 -0700 (PDT)
+Received-SPF: neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) client-ip=2620:137:e000::1:9;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 20 May 2019 15:17:49 -0700
-X-ExtLoop1: 1
-Received: from orsmsx102.amr.corp.intel.com ([10.22.225.129])
-  by fmsmga006.fm.intel.com with ESMTP; 20 May 2019 15:17:50 -0700
-Received: from orsmsx154.amr.corp.intel.com (10.22.226.12) by
- ORSMSX102.amr.corp.intel.com (10.22.225.129) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Mon, 20 May 2019 15:17:49 -0700
-Received: from orsmsx112.amr.corp.intel.com ([169.254.3.79]) by
- ORSMSX154.amr.corp.intel.com ([169.254.11.101]) with mapi id 14.03.0415.000;
- Mon, 20 May 2019 15:17:49 -0700
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, "peterz@infradead.org"
-	<peterz@infradead.org>, "mroos@linux.ee" <mroos@linux.ee>,
-	"netdev@vger.kernel.org" <netdev@vger.kernel.org>,
-	"sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>
-CC: "bp@alien8.de" <bp@alien8.de>, "davem@davemloft.net"
-	<davem@davemloft.net>, "luto@kernel.org" <luto@kernel.org>,
-	"mingo@redhat.com" <mingo@redhat.com>, "namit@vmware.com" <namit@vmware.com>,
-	"Hansen, Dave" <dave.hansen@intel.com>
+       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
+Received: from localhost (unknown [IPv6:2601:601:9f80:35cd::3d8])
+	(using TLSv1 with cipher AES256-SHA (256/256 bits))
+	(Client did not present a certificate)
+	(Authenticated sender: davem-davemloft)
+	by shards.monkeyblade.net (Postfix) with ESMTPSA id 2E3EF12DAD571;
+	Mon, 20 May 2019 15:48:58 -0700 (PDT)
+Date: Mon, 20 May 2019 15:48:55 -0700 (PDT)
+Message-Id: <20190520.154855.2207738976381931092.davem@davemloft.net>
+To: rick.p.edgecombe@intel.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, peterz@infradead.org,
+ mroos@linux.ee, netdev@vger.kernel.org, sparclinux@vger.kernel.org,
+ bp@alien8.de, luto@kernel.org, mingo@redhat.com, namit@vmware.com,
+ dave.hansen@intel.com
 Subject: Re: [PATCH v2] vmalloc: Fix issues with flush flag
-Thread-Topic: [PATCH v2] vmalloc: Fix issues with flush flag
-Thread-Index: AQHVD0ezpbXySuUS5EinefGl750kkaZ0/uwAgAALkwA=
-Date: Mon, 20 May 2019 22:17:49 +0000
-Message-ID: <c6020a01e81d08342e1a2b3ae7e03d55858480ba.camel@intel.com>
+From: David Miller <davem@davemloft.net>
+In-Reply-To: <c6020a01e81d08342e1a2b3ae7e03d55858480ba.camel@intel.com>
 References: <20190520200703.15997-1-rick.p.edgecombe@intel.com>
-	 <90f8a4e1-aa71-0c10-1a91-495ba0cb329b@linux.ee>
-In-Reply-To: <90f8a4e1-aa71-0c10-1a91-495ba0cb329b@linux.ee>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-user-agent: Evolution 3.30.1 (3.30.1-1.fc29) 
-x-originating-ip: [10.254.114.95]
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <2752FAF46305AF449FC03AABF0EBFDE7@intel.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+	<90f8a4e1-aa71-0c10-1a91-495ba0cb329b@linux.ee>
+	<c6020a01e81d08342e1a2b3ae7e03d55858480ba.camel@intel.com>
+X-Mailer: Mew version 6.8 on Emacs 26.1
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+X-Greylist: Sender succeeded SMTP AUTH, not delayed by milter-greylist-4.5.12 (shards.monkeyblade.net [149.20.54.216]); Mon, 20 May 2019 15:48:58 -0700 (PDT)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gVHVlLCAyMDE5LTA1LTIxIGF0IDAwOjM2ICswMzAwLCBNZWVsaXMgUm9vcyB3cm90ZToNCj4g
-PiBTd2l0Y2ggVk1fRkxVU0hfUkVTRVRfUEVSTVMgdG8gdXNlIGEgcmVndWxhciBUTEIgZmx1c2gg
-aW50ZWFkIG9mDQo+ID4gdm1fdW5tYXBfYWxpYXNlcygpIGFuZCBmaXggY2FsY3VsYXRpb24gb2Yg
-dGhlIGRpcmVjdCBtYXAgZm9yIHRoZQ0KPiA+IENPTkZJR19BUkNIX0hBU19TRVRfRElSRUNUX01B
-UCBjYXNlLg0KPiA+IA0KPiA+IE1lZWxpcyBSb29zIHJlcG9ydGVkIGlzc3VlcyB3aXRoIHRoZSBu
-ZXcgVk1fRkxVU0hfUkVTRVRfUEVSTVMgZmxhZw0KPiA+IG9uIGENCj4gPiBzcGFyYyBtYWNoaW5l
-LiBPbiBpbnZlc3RpZ2F0aW9uIHNvbWUgaXNzdWVzIHdlcmUgbm90aWNlZDoNCj4gPiANCj4gPiAx
-LiBUaGUgY2FsY3VsYXRpb24gb2YgdGhlIGRpcmVjdCBtYXAgYWRkcmVzcyByYW5nZSB0byBmbHVz
-aCB3YXMNCj4gPiB3cm9uZy4NCj4gPiBUaGlzIGNvdWxkIGNhdXNlIHByb2JsZW1zIG9uIHg4NiBp
-ZiBhIFJPIGRpcmVjdCBtYXAgYWxpYXMgZXZlciBnb3QNCj4gPiBsb2FkZWQNCj4gPiBpbnRvIHRo
-ZSBUTEIuIFRoaXMgc2hvdWxkbid0IG5vcm1hbGx5IGhhcHBlbiwgYnV0IGl0IGNvdWxkIGNhdXNl
-DQo+ID4gdGhlDQo+ID4gcGVybWlzc2lvbnMgdG8gcmVtYWluIFJPIG9uIHRoZSBkaXJlY3QgbWFw
-IGFsaWFzLCBhbmQgdGhlbiB0aGUgcGFnZQ0KPiA+IHdvdWxkIHJldHVybiBmcm9tIHRoZSBwYWdl
-IGFsbG9jYXRvciB0byBzb21lIG90aGVyIGNvbXBvbmVudCBhcyBSTw0KPiA+IGFuZA0KPiA+IGNh
-dXNlIGEgY3Jhc2guDQo+ID4gDQo+ID4gMi4gQ2FsbGluZyB2bV91bm1hcF9hbGlhcygpIG9uIHZm
-cmVlIGNvdWxkIHBvdGVudGlhbGx5IGJlIGEgbG90IG9mDQo+ID4gd29yayB0bw0KPiA+IGRvIG9u
-IGEgZnJlZSBvcGVyYXRpb24uIFNpbXBseSBmbHVzaGluZyB0aGUgVExCIGluc3RlYWQgb2YgdGhl
-DQo+ID4gd2hvbGUNCj4gPiB2bV91bm1hcF9hbGlhcygpIG9wZXJhdGlvbiBtYWtlcyB0aGUgZnJl
-ZXMgZmFzdGVyIGFuZCBwdXNoZXMgdGhlDQo+ID4gaGVhdnkNCj4gPiB3b3JrIHRvIGhhcHBlbiBv
-biBhbGxvY2F0aW9uIHdoZXJlIGl0IHdvdWxkIGJlIG1vcmUgZXhwZWN0ZWQuDQo+ID4gSW4gYWRk
-aXRpb24gdG8gdGhlIGV4dHJhIHdvcmssIHZtX3VubWFwX2FsaWFzKCkgdGFrZXMgc29tZSBsb2Nr
-cw0KPiA+IGluY2x1ZGluZw0KPiA+IGEgbG9uZyBob2xkIG9mIHZtYXBfcHVyZ2VfbG9jaywgd2hp
-Y2ggd2lsbCBtYWtlIGFsbCBvdGhlcg0KPiA+IFZNX0ZMVVNIX1JFU0VUX1BFUk1TIHZmcmVlcyB3
-YWl0IHdoaWxlIHRoZSBwdXJnZSBvcGVyYXRpb24gaGFwcGVucy4NCj4gPiANCj4gPiAzLiBwYWdl
-X2FkZHJlc3MoKSBjYW4gaGF2ZSBsb2NraW5nIG9uIHNvbWUgY29uZmlndXJhdGlvbnMsIHNvIHNr
-aXANCj4gPiBjYWxsaW5nDQo+ID4gdGhpcyB3aGVuIHBvc3NpYmxlIHRvIGZ1cnRoZXIgc3BlZWQg
-dGhpcyB1cC4NCj4gPiANCj4gPiBGaXhlczogODY4YjEwNGQ3Mzc5ICgibW0vdm1hbGxvYzogQWRk
-IGZsYWcgZm9yIGZyZWVpbmcgb2Ygc3BlY2lhbA0KPiA+IHBlcm1zaXNzaW9ucyIpDQo+ID4gUmVw
-b3J0ZWQtYnk6IE1lZWxpcyBSb29zPG1yb29zQGxpbnV4LmVlPg0KPiA+IENjOiBNZWVsaXMgUm9v
-czxtcm9vc0BsaW51eC5lZT4NCj4gPiBDYzogUGV0ZXIgWmlqbHN0cmE8cGV0ZXJ6QGluZnJhZGVh
-ZC5vcmc+DQo+ID4gQ2M6ICJEYXZpZCBTLiBNaWxsZXIiPGRhdmVtQGRhdmVtbG9mdC5uZXQ+DQo+
-ID4gQ2M6IERhdmUgSGFuc2VuPGRhdmUuaGFuc2VuQGludGVsLmNvbT4NCj4gPiBDYzogQm9yaXNs
-YXYgUGV0a292PGJwQGFsaWVuOC5kZT4NCj4gPiBDYzogQW5keSBMdXRvbWlyc2tpPGx1dG9Aa2Vy
-bmVsLm9yZz4NCj4gPiBDYzogSW5nbyBNb2xuYXI8bWluZ29AcmVkaGF0LmNvbT4NCj4gPiBDYzog
-TmFkYXYgQW1pdDxuYW1pdEB2bXdhcmUuY29tPg0KPiA+IFNpZ25lZC1vZmYtYnk6IFJpY2sgRWRn
-ZWNvbWJlPHJpY2sucC5lZGdlY29tYmVAaW50ZWwuY29tPg0KPiA+IC0tLQ0KPiA+IA0KPiA+IENo
-YW5nZXMgc2luY2UgdjE6DQo+ID4gICAtIFVwZGF0ZSBjb21taXQgbWVzc2FnZSB3aXRoIG1vcmUg
-ZGV0YWlsDQo+ID4gICAtIEZpeCBmbHVzaCBlbmQgcmFuZ2Ugb24gIUNPTkZJR19BUkNIX0hBU19T
-RVRfRElSRUNUX01BUCBjYXNlDQo+IA0KPiBJdCBkb2VzIG5vdCB3b3JrIG9uIG15IFY0NDUgd2hl
-cmUgdGhlIGluaXRpYWwgcHJvYmxlbSBoYXBwZW5lZC4NCj4gDQpUaGFua3MgZm9yIHRlc3Rpbmcu
-IFNvIEkgZ3Vlc3MgdGhhdCBzdWdnZXN0cyBpdCdzIHRoZSBUTEIgZmx1c2ggY2F1c2luZw0KdGhl
-IHByb2JsZW0gb24gc3BhcmMgYW5kIG5vdCBhbnkgbGF6eSBwdXJnZSBkZWFkbG9jay4gSSBoYWQg
-c2VudCBNZWVsaXMNCmFub3RoZXIgdGVzdCBwYXRjaCB0aGF0IGp1c3QgZmx1c2hlZCB0aGUgZW50
-aXJlIDAgdG8gVUxPTkdfTUFYIHJhbmdlIHRvDQp0cnkgdG8gYWx3YXlzIHRoZSBnZXQgdGhlICJm
-bHVzaCBhbGwiIGxvZ2ljIGFuZCBhcHByZW50bHkgaXQgZGlkbid0DQpib290IG1vc3RseSBlaXRo
-ZXIuIEl0IGFsc28gc2hvd2VkIHRoYXQgaXQncyBub3QgZ2V0dGluZyBzdHVjayBhbnl3aGVyZQ0K
-aW4gdGhlIHZtX3JlbW92ZV9hbGlhcygpIGZ1bmN0aW9uLiBTb21ldGhpbmcganVzdCBoYW5ncyBs
-YXRlci4NCg0KDQo=
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+Date: Mon, 20 May 2019 22:17:49 +0000
+
+> Thanks for testing. So I guess that suggests it's the TLB flush causing
+> the problem on sparc and not any lazy purge deadlock. I had sent Meelis
+> another test patch that just flushed the entire 0 to ULONG_MAX range to
+> try to always the get the "flush all" logic and apprently it didn't
+> boot mostly either. It also showed that it's not getting stuck anywhere
+> in the vm_remove_alias() function. Something just hangs later.
+
+I wonder if an address is making it to the TLB flush routines which is
+not page aligned.  Or a TLB flush is being done before the callsites
+are patched properly for the given cpu type.
 
