@@ -2,216 +2,176 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE228C04AAC
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 21:40:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D3BCBC04AAC
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 21:40:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6DE2A2173C
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 21:40:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8AE282173C
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 21:40:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=ffwll.ch header.i=@ffwll.ch header.b="lD66uZtM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DE2A2173C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ffwll.ch
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="hK2eyv+R"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8AE282173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D15DC6B0010; Mon, 20 May 2019 17:39:58 -0400 (EDT)
+	id 3C62C6B000A; Mon, 20 May 2019 17:40:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CC6886B0266; Mon, 20 May 2019 17:39:58 -0400 (EDT)
+	id 376226B0266; Mon, 20 May 2019 17:40:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B8F3C6B0269; Mon, 20 May 2019 17:39:58 -0400 (EDT)
+	id 28D316B0269; Mon, 20 May 2019 17:40:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 654F46B0010
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 17:39:58 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id r48so27230290eda.11
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 14:39:58 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0660C6B000A
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 17:40:49 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id b46so15448800qte.6
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 14:40:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
          :content-transfer-encoding;
-        bh=pWxZTOU32QqeCUWxSxBPbL225yVTtI+hlaFCbsgM9zc=;
-        b=Ont+e2JtMPphcxXSXDTm3akk6OB03WWVbhkkS6MD0B0IIrUTa++jppEv0DNuwbWUjD
-         i3ej6mSwmW/mBUzdI/TorYUXIzU/fqOqoV0f3SXM99fMDBG7mC/vGQcFRLHY5/emzNfF
-         lgodj86frV/hF293BBneNjjMeedJdyUwb0gYh58w3QCzeAWRiIOWilBBLVFTgNdBxuGU
-         uVGTzRJFMozKcqAIYgqOGa6SB1wOB+c4No9+EGxI64AG1rwyAxVNhPQlRZmWY+/7NNM+
-         kCe9694skwLfL1tLrlKMMrOqNzJCKbx9WA538oQm8ZB612ZLazChcXrbMpjNJr7ICVhH
-         mEhQ==
-X-Gm-Message-State: APjAAAWq35klSY6aFDbC4VEgkuRQ5nEPCYaRCSbBgcmSRKrSiXmWcjjn
-	bRMnJUlLl6zNNauM7vVXsYBOUaVHG+YZk1ioEEH1qfzDbg0DoQi+rKrx1eK61Ro0rOpm5FMigeR
-	tlHM7beyMfaW3Y8YOrsVpNMo+4MvXm45wXeocHF1csVazEYF2mDVy2IADO0tgmDTRMg==
-X-Received: by 2002:a17:907:20ed:: with SMTP id rh13mr42597593ejb.5.1558388397903;
-        Mon, 20 May 2019 14:39:57 -0700 (PDT)
-X-Received: by 2002:a17:907:20ed:: with SMTP id rh13mr42597544ejb.5.1558388397027;
-        Mon, 20 May 2019 14:39:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558388397; cv=none;
+        bh=IThQGlwZN4WtsbLkk3oukuwrzsnq23H8GMI8BgIL1f8=;
+        b=M+zkTtCXxhHFGUooV108d1qPEiTTiM0DpFpGzr9hGu79NhCQU+626+4LHAWFbxh14o
+         mLk4t2DwBGSWQU8DgmCFcwoXy5KSOvhKKsaMSqxeQ0EWY/hIgf62QDSjAG9RtYDxJStU
+         T0w11qh2ghj/A7PvVagVuOnh0KLB+GXw+6+kQHux6RnCihJC1TWu1obd60LXvGdgbDJv
+         2Bjh4Qs3sUoOPnyOZxhWjV10U1Lj7q2i3EhJeZdsylJxHfe3Zc0BkUZcJzBQNvHtTfrW
+         ozKzSqZHe1g1g3EBQW/eEfsyTA+64eHV0E0/3TdNcbpasBHUPjLpRH2M+Uivc7gwn27f
+         OTvg==
+X-Gm-Message-State: APjAAAWKcBYjg3OdQ0lmsvZGjK9QSgNjDKvqIzffdTmEtMMOBjh2wayZ
+	Fuv3IWY2JH1DBWlVz1sY1wshSR+XtzB1H9S/xhvq4L7We2jykmVCCCTByCKBmSrehFikVYtctUW
+	wEpaDYDgKXKchRJ7A00pqk93zSJPXCIUe0hnrIY1S8Kr8D0Eddweu/EjarHbgvEYt2w==
+X-Received: by 2002:a0c:d17d:: with SMTP id c58mr52671668qvh.172.1558388448793;
+        Mon, 20 May 2019 14:40:48 -0700 (PDT)
+X-Received: by 2002:a0c:d17d:: with SMTP id c58mr52671642qvh.172.1558388448215;
+        Mon, 20 May 2019 14:40:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558388448; cv=none;
         d=google.com; s=arc-20160816;
-        b=lSns80R/YLfFSzwuSC/mdjoVFsUruvf2tezMZeY4lmb5T4tEwMpv/wshKULp/a5EB5
-         h89rs49TGF+MYJuswjPf6SsIKJn4Vz5P0YUOWpwDP25AZ5eamp7cy2MrzaaIZMia33Mz
-         H5JulKeMOnvOV18NUhdBwwT8P3Jst7QfraWwNEl1ZQ46lruYVY/HqOCZa+Qws2cUjUQ7
-         kMehT1ExoYyow75s79tjhXNxWe7S9XsSL7aoPT/iSSdQ6Apu0yxCNd41vzp+I955jaoA
-         mo+gUsWpn5QK4jLfptuAogspjw5jO1QVHc8wKr/9GgaoLGNac8p8EgdStAnMg9Jc3sQd
-         XBRg==
+        b=PLjjODCVB0goQpMZpQ8r1S2ZifRyfNwl+m3tDMq0yvHGlbKJDV+FyMN8Tb1lWaTQC5
+         SW09KQBsEvBQuFbojh7evpf5oYYd+zo8PPH6aV4iubrk+zSO+UxrgvPUPOBuanFCOe8O
+         g3oQA7xDLsrV07SWXPtYQuRfOZeSBK3TZHgSkyGP+lEvZcI9kD1rLrjf0JhKAjPTxann
+         CD8dzGoL3H1iwxuFRvxkhaCd8aQgW04aWdfLUhWELlY22RtiPMLh+Fvvdf8SEdRswgZk
+         osFduHzDUnbVQ+EeGpBzuFtPqhQZ8Vqil4lllloqQvoMnPoNO81g1rOyNJfEcMwYyqfF
+         TA6A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=pWxZTOU32QqeCUWxSxBPbL225yVTtI+hlaFCbsgM9zc=;
-        b=wgu5/tFGO8aOMHEpmysnj1n8Xohm3Tp8E4G0tlAlSkx1M8IpL62ThL7/Msgvr6dwrm
-         VydSG1F0x896yu6hMU3ybMNAJWfoz7/xnyZ5R6SmxsdwKjHJ+Qrmysw+vdPeWPUDrK8M
-         h+ZgdeNYc6I8jLN+8qdIOS76sDsVgLSzlgMUy2ijPUdjU17uLi7zB3a3TOsPruHJws/i
-         qB6U4M4N+umpqtikR2j6GfYA08jD+QkkzkCP4YfxrpeIh3O+Fze2TvcbrM7L4O7jmEio
-         +82ASVdH+wHW4ejU+QO0xqIRjS6IyECjFGP2YC4RsUkZvgYtapZpZ5b3o5CIca6CAaie
-         nYJA==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=IThQGlwZN4WtsbLkk3oukuwrzsnq23H8GMI8BgIL1f8=;
+        b=cwZs+8uoXoYEhsvKf4po2VQCBDYLyGCle/5Fg1bO7TNy/Q75NksBkGs7zICoCO9Viw
+         khyvsjFDBwTwT9BxchpqG0GRpR8FBbKkAOQ1Bew0veh5Nm0bxaWVNXJM+ivYitWyma46
+         Ad4dIlDfAQZugdacSdZ5MZfoZU16XpNW+OKvrszk4Z6t2MFNaxCo8B8CDYmqn2pr+a0S
+         wJtosBQUvf51eCeI6eUqTvjiNbioiPhXbktQhV473ruTsZF0w34WcLG86DLXFIgDdxfU
+         uHmacHJ260KelIrvBRGxExJsrPdg7NeNRO9XeasHHMGozYpeTkjoMj7FB4vAZ61tgTRf
+         Pg4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ffwll.ch header.s=google header.b=lD66uZtM;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel.vetter@ffwll.ch) smtp.mailfrom=daniel.vetter@ffwll.ch
+       dkim=pass header.i=@chromium.org header.s=google header.b=hK2eyv+R;
+       spf=pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=drinkcat@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t11sor3084400ejq.55.2019.05.20.14.39.56
+        by mx.google.com with SMTPS id u6sor10260674qkk.56.2019.05.20.14.40.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 20 May 2019 14:39:57 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel.vetter@ffwll.ch) client-ip=209.85.220.65;
+        Mon, 20 May 2019 14:40:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ffwll.ch header.s=google header.b=lD66uZtM;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of daniel.vetter@ffwll.ch) smtp.mailfrom=daniel.vetter@ffwll.ch
+       dkim=pass header.i=@chromium.org header.s=google header.b=hK2eyv+R;
+       spf=pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=drinkcat@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ffwll.ch; s=google;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=pWxZTOU32QqeCUWxSxBPbL225yVTtI+hlaFCbsgM9zc=;
-        b=lD66uZtMoIMvvSsmt5W9Ap+FV3+sBqSE3BFc0cEJ684d/bm9E2HP1JXq7mSRH9YW4v
-         nkbstF3kFQkxqWWqyv6BlV3/MFaD+qTRyQzGtP0efOBVs1Kb0ZlKW4eRerQFHNS9iDrt
-         TmWczlsEj0ymWwKCv4nAMDK83tVqOnaVQm3Tg=
-X-Google-Smtp-Source: APXvYqx80jEeRT18HZXVIF2BoTYuZwcSTE9+LxH0PFGQif7m2Gu96O3Mba57kRuyzhiZzeoU6L992A==
-X-Received: by 2002:a17:906:5390:: with SMTP id g16mr53949638ejo.12.1558388396676;
-        Mon, 20 May 2019 14:39:56 -0700 (PDT)
-Received: from phenom.ffwll.local ([2a02:168:569e:0:3106:d637:d723:e855])
-        by smtp.gmail.com with ESMTPSA id v27sm3285772eja.68.2019.05.20.14.39.55
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 14:39:56 -0700 (PDT)
-From: Daniel Vetter <daniel.vetter@ffwll.ch>
-To: DRI Development <dri-devel@lists.freedesktop.org>
-Cc: Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Daniel Vetter <daniel.vetter@ffwll.ch>,
-	Chris Wilson <chris@chris-wilson.co.uk>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	David Rientjes <rientjes@google.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Michal Hocko <mhocko@suse.com>,
-	=?UTF-8?q?Christian=20K=C3=B6nig?= <christian.koenig@amd.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: [PATCH 4/4] mm, notifier: Add a lockdep map for invalidate_range_start
-Date: Mon, 20 May 2019 23:39:45 +0200
-Message-Id: <20190520213945.17046-4-daniel.vetter@ffwll.ch>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190520213945.17046-1-daniel.vetter@ffwll.ch>
-References: <20190520213945.17046-1-daniel.vetter@ffwll.ch>
+        d=chromium.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=IThQGlwZN4WtsbLkk3oukuwrzsnq23H8GMI8BgIL1f8=;
+        b=hK2eyv+RmjhJBhO9xW7nmAOoLOTUPMU93WRuMaB8KV1/Ipcsc6fF4RwDKaRanXgiiQ
+         1moFfP9ko3eAH7gEqqzVhMRmuadceiV7qXi2MurSlIpZ9Llv91z5GHWZ/1aX3y7jM18+
+         IGN5yM1LK6mMLNa40n1/AIP0iJDcB2m08JUvM=
+X-Google-Smtp-Source: APXvYqzfgYWlx9/QVid5RlxkAKFGC41IFGLXDgG2zUutdncRoErF8VDmxEvq4gwP/Ta+vr3S5rGzrv8w5nxXmGEg1dQ=
+X-Received: by 2002:a37:4c04:: with SMTP id z4mr43466352qka.195.1558388447854;
+ Mon, 20 May 2019 14:40:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+References: <20190520044951.248096-1-drinkcat@chromium.org> <CAC5umygGsW3Nju-mA-qE8kNBd9SSXeO=YXMkgFsFaceCytoAww@mail.gmail.com>
+In-Reply-To: <CAC5umygGsW3Nju-mA-qE8kNBd9SSXeO=YXMkgFsFaceCytoAww@mail.gmail.com>
+From: Nicolas Boichat <drinkcat@chromium.org>
+Date: Tue, 21 May 2019 05:40:36 +0800
+Message-ID: <CANMq1KBUKfOdZWAf95nb2UQqLdLCMsLnVTZAZSgN0QfgK3Dbxw@mail.gmail.com>
+Subject: Re: [PATCH] mm/failslab: By default, do not fail allocations with
+ direct reclaim only
+To: Akinobu Mita <akinobu.mita@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, 
+	Michal Hocko <mhocko@suse.com>, Joe Perches <joe@perches.com>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, 
+	Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@techsingularity.net>, 
+	LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a similar idea to the fs_reclaim fake lockdep lock. It's
-fairly easy to provoke a specific notifier to be run on a specific
-range: Just prep it, and then munmap() it.
+On Tue, May 21, 2019 at 12:29 AM Akinobu Mita <akinobu.mita@gmail.com> wrot=
+e:
+>
+> 2019=E5=B9=B45=E6=9C=8820=E6=97=A5(=E6=9C=88) 13:49 Nicolas Boichat <drin=
+kcat@chromium.org>:
+> >
+> > When failslab was originally written, the intention of the
+> > "ignore-gfp-wait" flag default value ("N") was to fail
+> > GFP_ATOMIC allocations. Those were defined as (__GFP_HIGH),
+> > and the code would test for __GFP_WAIT (0x10u).
+> >
+> > However, since then, __GFP_WAIT was replaced by __GFP_RECLAIM
+> > (___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM), and GFP_ATOMIC is
+> > now defined as (__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM).
+> >
+> > This means that when the flag is false, almost no allocation
+> > ever fails (as even GFP_ATOMIC allocations contain
+> > __GFP_KSWAPD_RECLAIM).
+> >
+> > Restore the original intent of the code, by ignoring calls
+> > that directly reclaim only (___GFP_DIRECT_RECLAIM), and thus,
+> > failing GFP_ATOMIC calls again by default.
+> >
+> > Fixes: 71baba4b92dc1fa1 ("mm, page_alloc: rename __GFP_WAIT to __GFP_RE=
+CLAIM")
+> > Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
+>
+> Good catch.
+>
+> Reviewed-by: Akinobu Mita <akinobu.mita@gmail.com>
+>
+> > ---
+> >  mm/failslab.c | 3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/mm/failslab.c b/mm/failslab.c
+> > index ec5aad211c5be97..33efcb60e633c0a 100644
+> > --- a/mm/failslab.c
+> > +++ b/mm/failslab.c
+> > @@ -23,7 +23,8 @@ bool __should_failslab(struct kmem_cache *s, gfp_t gf=
+pflags)
+> >         if (gfpflags & __GFP_NOFAIL)
+> >                 return false;
+> >
+> > -       if (failslab.ignore_gfp_reclaim && (gfpflags & __GFP_RECLAIM))
+> > +       if (failslab.ignore_gfp_reclaim &&
+> > +                       (gfpflags & ___GFP_DIRECT_RECLAIM))
+> >                 return false;
+>
+> Should we use __GFP_DIRECT_RECLAIM instead of ___GFP_DIRECT_RECLAIM?
+> Because I found the following comment in gfp.h
+>
+> /* Plain integer GFP bitmasks. Do not use this directly. */
 
-A bit harder, but still doable, is to provoke the mmu notifiers for
-all the various callchains that might lead to them. But both at the
-same time is really hard to reliable hit, especially when you want to
-exercise paths like direct reclaim or compaction, where it's not
-easy to control what exactly will be unmapped.
+Oh, nice catch. I must say I had no idea I was using the 3-underscore
+version, hard to tell them apart depending on the font.
 
-By introducing a lockdep map to tie them all together we allow lockdep
-to see a lot more dependencies, without having to actually hit them
-in a single challchain while testing.
+I'll send a v2 with both your tags right away.
 
-Aside: Since I typed this to test i915 mmu notifiers I've only rolled
-this out for the invaliate_range_start callback. If there's
-interest, we should probably roll this out to all of them. But my
-undestanding of core mm is seriously lacking, and I'm not clear on
-whether we need a lockdep map for each callback, or whether some can
-be shared.
-
-v2: Use lock_map_acquire/release() like fs_reclaim, to avoid confusion
-with this being a real mutex (Chris Wilson).
-
-v3: Rebase on top of Glisse's arg rework.
-
-Cc: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: "Jérôme Glisse" <jglisse@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: "Christian König" <christian.koenig@amd.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org
-Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
----
- include/linux/mmu_notifier.h | 6 ++++++
- mm/mmu_notifier.c            | 7 +++++++
- 2 files changed, 13 insertions(+)
-
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-index b6c004bd9f6a..9dd38c32fc53 100644
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -42,6 +42,10 @@ enum mmu_notifier_event {
- 
- #ifdef CONFIG_MMU_NOTIFIER
- 
-+#ifdef CONFIG_LOCKDEP
-+extern struct lockdep_map __mmu_notifier_invalidate_range_start_map;
-+#endif
-+
- /*
-  * The mmu notifier_mm structure is allocated and installed in
-  * mm->mmu_notifier_mm inside the mm_take_all_locks() protected
-@@ -310,10 +314,12 @@ static inline void mmu_notifier_change_pte(struct mm_struct *mm,
- static inline void
- mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
- {
-+	lock_map_acquire(&__mmu_notifier_invalidate_range_start_map);
- 	if (mm_has_notifiers(range->mm)) {
- 		range->flags |= MMU_NOTIFIER_RANGE_BLOCKABLE;
- 		__mmu_notifier_invalidate_range_start(range);
- 	}
-+	lock_map_release(&__mmu_notifier_invalidate_range_start_map);
- }
- 
- static inline int
-diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-index a09e737711d5..33bdaddfb9b1 100644
---- a/mm/mmu_notifier.c
-+++ b/mm/mmu_notifier.c
-@@ -23,6 +23,13 @@
- /* global SRCU for all MMs */
- DEFINE_STATIC_SRCU(srcu);
- 
-+#ifdef CONFIG_LOCKDEP
-+struct lockdep_map __mmu_notifier_invalidate_range_start_map = {
-+	.name = "mmu_notifier_invalidate_range_start"
-+};
-+EXPORT_SYMBOL_GPL(__mmu_notifier_invalidate_range_start_map);
-+#endif
-+
- /*
-  * This function allows mmu_notifier::release callback to delay a call to
-  * a function that will free appropriate resources. The function must be
--- 
-2.20.1
+Thanks,
 
