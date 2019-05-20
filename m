@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 50F04C04AAC
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 14:00:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BCCB1C04AAC
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 14:00:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1F6DA216B7
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 14:00:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F6DA216B7
+	by mail.kernel.org (Postfix) with ESMTP id 823B8216B7
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 14:00:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 823B8216B7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A9C7C6B0266; Mon, 20 May 2019 10:00:34 -0400 (EDT)
+	id B87956B026B; Mon, 20 May 2019 10:00:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A74C66B0269; Mon, 20 May 2019 10:00:34 -0400 (EDT)
+	id B5D806B026C; Mon, 20 May 2019 10:00:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8EEFC6B026A; Mon, 20 May 2019 10:00:34 -0400 (EDT)
+	id A4C926B026D; Mon, 20 May 2019 10:00:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 28A986B0266
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 10:00:34 -0400 (EDT)
-Received: by mail-lf1-f72.google.com with SMTP id k27so2626708lfj.21
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 07:00:34 -0700 (PDT)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E4C96B026B
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 10:00:39 -0400 (EDT)
+Received: by mail-lf1-f71.google.com with SMTP id e11so2632732lfn.19
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 07:00:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:date:message-id:in-reply-to:references:user-agent:mime-version
          :content-transfer-encoding;
-        bh=Lzk/TJG16V8mXaPrVAS/SPcGg77NW4YCV5EqRztW4Nw=;
-        b=Ws9xIL9pHUbJ+K9/eFSwTAKGrr4Vvc6XVV9gJQuI+/XUHaHSoy6jMvP7I9EJYMvBCc
-         caW8rAZEtSX7WJA74yFP7v1QhuAh/MB7kisg24pu5yZ+iLfCiPA0Ya2Ijdrux37gDBcc
-         64uP2mUaDg2GtDP9sr2M+qq9iDrH2Fvb0S4J1OQJkhFessE0ZDc94Wn7MInvHAABlCZS
-         R1wjJTp7M8Mj9aQIZmZLzkrrsNobBe0tw6CGY01IwPtbm2o7ORX7C+lOlLX3eY1kmS1T
-         W5WeQwpZzuQGPr2CMIQMlR9QpjnOkMMkTxuqwP/XjHxj11jxdF2MzJNlC8UeaM+mK5zA
-         qBvw==
+        bh=qzFh73EFiUphac3v9UKerHFDloFYF/p8i538X3csTX4=;
+        b=BgPYxkYsdIAqzgbImGuFaiYjH93M0NqogfJquOmGPpz/bopj0lfJd8prrLPmaef1Ym
+         0x1UM+kZwtrHwuswpUFGx95eREYmHRbHHOdqYdpe6HhHoEOj2ys0tZoy2TcNou8FDqhM
+         xbqRGayJL24hgmIOy7X7YvF7rzZ/dkE+BOIkYOn421y8hqFJUKxhYKNbsgMl6/eyEOTr
+         IonGClv/m6VZLv8MqHmOuc1M0p6aCIgPoczZi98Ar0PGP5yUcLuUXPVf6fnqQ64rBSA8
+         rZGtKNzMpxx1nLss4jMZYCFaggIcocL2y1iTkM8m+7scWH//3efV0HWga0Nd5VcmC1+t
+         8goA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAURlYOqJlUup6vUNKlxL0xbGs8QPDeDA3BVvAuBCl8S4LjOMtMp
-	xUM+M8XICc2OTDbCxgHYdDYrp3Pz3CAy/A/wy+Dah+fKGtQT26bjli1AclPT29hOetLHgpp3PId
-	ogocH6XIzXjKHU7gxyEqaMYd0eaQ3OcPnqSu9Ny+c607W+PTih4QQfM5N56HlfGY3ww==
-X-Received: by 2002:ac2:494f:: with SMTP id o15mr22584342lfi.22.1558360833555;
-        Mon, 20 May 2019 07:00:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzEUJWkFQoQZUHjCkKN2Fn025WPJpGHGGfCjunBwh2t+3OFN2S17anJMnRXBL2GPB7e4bNF
-X-Received: by 2002:ac2:494f:: with SMTP id o15mr22584266lfi.22.1558360832042;
-        Mon, 20 May 2019 07:00:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558360832; cv=none;
+X-Gm-Message-State: APjAAAVUT/41zj7+Ye3Ka48WCxzRvvMyjOfcJbBY3zlHHt9r1tmHTOgz
+	6I8ZO8z6zPxLwc1MbOL7A4UkwrRkrwrSCA4S+JUDZAPurbqGWpN+S16WcgT1SpnyGfd0XAI531z
+	PqUtUB3exS0aFwhncU73qN3gHv3MH0X/jUIyN3qyVsQupjCppiX1Hw+nDkjw7SbzYPA==
+X-Received: by 2002:a2e:9092:: with SMTP id l18mr3209641ljg.8.1558360838693;
+        Mon, 20 May 2019 07:00:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyP0tNK9INNt8xyEdYq/CWEjP/DyUN2dr7taZocM+mvxWIj4M5GpsC8wLHakXHoYuCTwL6S
+X-Received: by 2002:a2e:9092:: with SMTP id l18mr3209582ljg.8.1558360837656;
+        Mon, 20 May 2019 07:00:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558360837; cv=none;
         d=google.com; s=arc-20160816;
-        b=e+/ZtapWkkDVgTk7UDWxJ5FFTfhvaXI7TE2dOrahW12XCYMGrnT385zCryKlwg4lRf
-         tLia1w293OKCpcIQQWFYk1XRt0Vl1UyC8TEIgb5OGbNWQELOQzK+9VVvcr/fDe37YBI0
-         eekpM66LqSphm0n/8q4aj5scEkFI4iikFdJJUtw0SP9JHJD2AUCaaZv2+A5ooHf988ri
-         nrn08z71HrpjNAzGDYzE6rhchvyKjS5XLMpJ5zf5M8BYPlFFW23qT9kGziyIa66o7F9W
-         r9+wGbpGrhybsYPKvBQI+nXdy5doDcwrexg2NifWAkUjz9ZFhJ6Jtd7xJGto+lGAFJ9a
-         wNDQ==
+        b=d83w/zTvAmkTgKC+RhBtXFcsD2KzD11s2F2aRT9aDDhsVcQ58ny36HB/qcTViW/NfC
+         EEcfQhj43Re15l5jmR5X9oYTp1Bu6vQA/7ABsrFFYd+ys+MyEfdoFF3HS6MTZiJ08FR4
+         E+MwufZXDz1G4dmvWK8G3HVkCYu/+t+pg4vi9J+bfEoMFQJKfw8RcEHfCsPteL/wp12m
+         EqCrNiSmGDMAFCW/J+SXS1HGU5C9XiDC70hqR9YZR7nPA+VOx9W9fs/eUdXSDwLlQNjV
+         oVgHI/UizSx5IGZeblwp+u3LnFIFJy0xLI6lx2qjtNVqBQE1ni+eYtUxaYSBn6hkppqb
+         8vrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:to:from:subject;
-        bh=Lzk/TJG16V8mXaPrVAS/SPcGg77NW4YCV5EqRztW4Nw=;
-        b=bdz7l9YTiafDSlUB0o3wANZK8N6JuFrRZNOgX29qn+/eMk75w0ZoiUN6jokb3jGOIn
-         4PKHITnrpJxmGRdP4UoUrtQIFaH2wj3orSSBjmKimT8FG205/ACFCD0J4xCMhrFmliA0
-         HSVngTWUlqvQ0+9ZZjW0tuRZFRXdQUMjAqS2u1stOQ0tbuyKF4MM425wzXx/4zqEIxcD
-         F2ogLM7pTOpTm5dHw1kJOue3KlW9sAN+VJ/u346VUDIWcr/furIjb5yeCD/ZvVAeLNjA
-         X9m5Q1pk7RDy66KuVyy+ExQ4qdTQ2DpQ7EEG15kdurlEoEmdGVNHv67dhToU/drF6tRh
-         turQ==
+        bh=qzFh73EFiUphac3v9UKerHFDloFYF/p8i538X3csTX4=;
+        b=YxgYONYwBXbRUgViJiYofvg1nRhI8IIP3oszBxoQEJC7IaQH/fq9EAka5K1aJxLKgO
+         JbA5qH2Dt0LB7Bjn3EUBEDfRFcb/bJaTMWfOMBCfHGlaKw39DQZ1me0E3hZXWDE5E6Cy
+         uUat6+wYV+XFxpXq1Ej4l6eo8ZhMIHc9XpFLvWCkmGbaRidl+jKhm4QOdgWRfuRkYRnN
+         izHgNSTH0H9M7ah9bXz9vPi/flQEyqMeahY/CnMq/tdmVfyoh0sNLhxyiIz0DJ2kKCwi
+         ha3uroF117cai11S2z9IH5JqpqSJnSsEOidDZouuWHKV1TtGN+0AqlGoNuXer5OHa4FO
+         fkfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
 Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id m13si5851967ljh.20.2019.05.20.07.00.31
+        by mx.google.com with ESMTPS id v2si14275154ljg.12.2019.05.20.07.00.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 07:00:32 -0700 (PDT)
+        Mon, 20 May 2019 07:00:37 -0700 (PDT)
 Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
@@ -81,8 +81,8 @@ Authentication-Results: mx.google.com;
 Received: from [172.16.25.169] (helo=localhost.localdomain)
 	by relay.sw.ru with esmtp (Exim 4.91)
 	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1hSiq4-00083Y-T0; Mon, 20 May 2019 17:00:29 +0300
-Subject: [PATCH v2 5/7] mm: Introduce may_mmap_overlapped_region() helper
+	id 1hSiqA-00083v-6q; Mon, 20 May 2019 17:00:34 +0300
+Subject: [PATCH v2 6/7] mm: Introduce find_vma_filter_flags() helper
 From: Kirill Tkhai <ktkhai@virtuozzo.com>
 To: akpm@linux-foundation.org, dan.j.williams@intel.com, ktkhai@virtuozzo.com,
  mhocko@suse.com, keith.busch@intel.com, kirill.shutemov@linux.intel.com,
@@ -94,8 +94,8 @@ To: akpm@linux-foundation.org, dan.j.williams@intel.com, ktkhai@virtuozzo.com,
  mgorman@techsingularity.net, daniel.m.jordan@oracle.com, jannh@google.com,
  kilobyte@angband.pl, linux-api@vger.kernel.org, linux-kernel@vger.kernel.org,
  linux-mm@kvack.org
-Date: Mon, 20 May 2019 17:00:28 +0300
-Message-ID: <155836082877.2441.3415778176783960096.stgit@localhost.localdomain>
+Date: Mon, 20 May 2019 17:00:34 +0300
+Message-ID: <155836083406.2441.7999607190635457587.stgit@localhost.localdomain>
 In-Reply-To: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
 References: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
 User-Agent: StGit/0.18
@@ -108,65 +108,99 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Extract address space limit check for overlapped regions
-in a separate helper.
+This patch introduce a new helper, which returns
+vma of enough length at given address, but only
+if it does not contain passed flags.
 
 v2: New
 
 Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 ---
- mm/mmap.c |   33 ++++++++++++++++++++-------------
- 1 file changed, 20 insertions(+), 13 deletions(-)
+ include/linux/mm.h |    3 +++
+ mm/mremap.c        |   39 ++++++++++++++++++++++++++-------------
+ 2 files changed, 29 insertions(+), 13 deletions(-)
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index e4ced5366643..260e47e917e6 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -583,6 +583,24 @@ static unsigned long count_vma_pages_range(struct mm_struct *mm,
- 	return nr_pages;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 54328d08dbdd..65ceb56acd44 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1515,6 +1515,9 @@ void unmap_mapping_pages(struct address_space *mapping,
+ 		pgoff_t start, pgoff_t nr, bool even_cows);
+ void unmap_mapping_range(struct address_space *mapping,
+ 		loff_t const holebegin, loff_t const holelen, int even_cows);
++struct vm_area_struct *find_vma_without_flags(struct mm_struct *mm,
++		unsigned long addr, unsigned long len,
++		unsigned long prohibited_flags);
+ #else
+ static inline vm_fault_t handle_mm_fault(struct vm_area_struct *vma,
+ 		unsigned long address, unsigned int flags)
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 9a96cfc28675..dabae6a70287 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -430,14 +430,37 @@ static unsigned long move_vma(struct vm_area_struct *vma,
+ 	return new_addr;
  }
  
-+/*
-+ * Check against address space limit, whether we may expand mm
-+ * with a new mapping. Currently mapped in the given range pages
-+ * are not accounted in the limit.
-+ */
-+static bool may_mmap_overlapped_region(struct mm_struct *mm,
-+		unsigned long vm_flags, unsigned long addr, unsigned long len)
++struct vm_area_struct *find_vma_without_flags(struct mm_struct *mm,
++		unsigned long addr, unsigned long len,
++		unsigned long prohibited_flags)
 +{
-+	unsigned long nr_pages = len >> PAGE_SHIFT;
++	struct vm_area_struct *vma = find_vma(mm, addr);
 +
-+	if (!may_expand_vm(mm, vm_flags, nr_pages)) {
-+		nr_pages -= count_vma_pages_range(mm, addr, addr + len);
-+		if (!may_expand_vm(mm, vm_flags, nr_pages))
-+			return false;
-+	}
-+	return true;
++	if (!vma || vma->vm_start > addr)
++		return ERR_PTR(-EFAULT);
++
++	/* vm area boundaries crossing */
++	if (len > vma->vm_end - addr)
++		return ERR_PTR(-EFAULT);
++
++	if (vma->vm_flags & prohibited_flags)
++		return ERR_PTR(-EFAULT);
++
++	return vma;
 +}
 +
- void __vma_link_rb(struct mm_struct *mm, struct vm_area_struct *vma,
- 		struct rb_node **rb_link, struct rb_node *rb_parent)
+ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+ 	unsigned long old_len, unsigned long new_len, unsigned long *p)
  {
-@@ -1697,19 +1715,8 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
- 	unsigned long charged = 0;
+ 	struct mm_struct *mm = current->mm;
+-	struct vm_area_struct *vma = find_vma(mm, addr);
+-	unsigned long pgoff;
++	struct vm_area_struct *vma;
++	unsigned long pgoff, prohibited_flags = VM_HUGETLB;
  
- 	/* Check against address space limit. */
--	if (!may_expand_vm(mm, vm_flags, len >> PAGE_SHIFT)) {
--		unsigned long nr_pages;
--
--		/*
--		 * MAP_FIXED may remove pages of mappings that intersects with
--		 * requested mapping. Account for the pages it would unmap.
--		 */
--		nr_pages = count_vma_pages_range(mm, addr, addr + len);
--
--		if (!may_expand_vm(mm, vm_flags,
--					(len >> PAGE_SHIFT) - nr_pages))
--			return -ENOMEM;
--	}
-+	if (!may_mmap_overlapped_region(mm, vm_flags, addr, len))
-+		return -ENOMEM;
+-	if (!vma || vma->vm_start > addr)
++	if (old_len != new_len)
++		prohibited_flags |= VM_DONTEXPAND | VM_PFNMAP;
++
++	vma = find_vma_without_flags(mm, addr, old_len, prohibited_flags);
++	if (IS_ERR(vma))
+ 		return ERR_PTR(-EFAULT);
  
- 	/* Clear old maps */
- 	while (find_vma_links(mm, addr, addr + len, &prev, &rb_link,
+ 	/*
+@@ -453,13 +476,6 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+ 		return ERR_PTR(-EINVAL);
+ 	}
+ 
+-	if (is_vm_hugetlb_page(vma))
+-		return ERR_PTR(-EINVAL);
+-
+-	/* We can't remap across vm area boundaries */
+-	if (old_len > vma->vm_end - addr)
+-		return ERR_PTR(-EFAULT);
+-
+ 	if (new_len == old_len)
+ 		return vma;
+ 
+@@ -469,9 +485,6 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
+ 	if (pgoff + (new_len >> PAGE_SHIFT) < pgoff)
+ 		return ERR_PTR(-EINVAL);
+ 
+-	if (vma->vm_flags & (VM_DONTEXPAND | VM_PFNMAP))
+-		return ERR_PTR(-EFAULT);
+-
+ 	if (vma->vm_flags & VM_LOCKED) {
+ 		unsigned long locked, lock_limit;
+ 		locked = atomic64_read(&mm->locked_vm) << PAGE_SHIFT;
 
