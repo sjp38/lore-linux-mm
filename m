@@ -4,85 +4,85 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D196DC04AAF
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 08:27:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B439C072A4
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 09:18:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 92D692081C
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 08:27:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92D692081C
+	by mail.kernel.org (Postfix) with ESMTP id 03EF120862
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 09:18:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03EF120862
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 09BC16B0007; Mon, 20 May 2019 04:27:07 -0400 (EDT)
+	id 79FF36B0005; Mon, 20 May 2019 05:18:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 04AE16B0008; Mon, 20 May 2019 04:27:07 -0400 (EDT)
+	id 750DC6B0006; Mon, 20 May 2019 05:18:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E7DEF6B000A; Mon, 20 May 2019 04:27:06 -0400 (EDT)
+	id 5F0C36B0007; Mon, 20 May 2019 05:18:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 971AE6B0007
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 04:27:06 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f41so24052417ede.1
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 01:27:06 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E9166B0005
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 05:18:33 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id d15so24237080edm.7
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 02:18:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=Gdl3iSKef0zAH0BWL6Rc87IJta3CtrGHlm0bq0drjFc=;
-        b=jmALgBmDNaOMPzAnPMZihNi3pzqkFiabc7Bi+FP66I6uLXdSCue7WrI7l8mkVO1Bmm
-         JZEqJeIAeEqrFpzzC4DLv7AQZCQ1+arkJd15GfxQ5C4u3kK4jC++h6t6CuLJTSd+QOTf
-         0riIGzRyIUtebfotkEnwKI2Ui4b5G2vkl+hgNM/YjBcLtTaKrLHRvZ7uEY7nLscmMArM
-         q5tX60RAv96DDF8SJLkRF8cH3iL/pIbDuAulfLxklbm7BQeHwgw7fuAuwMgzV9SdZm4s
-         rf8/5q9yfoRIFa/4SJkG30CsXC0JgVh4E4FMn4PjiCPaKwZaswqEjFcG547gnx+lOvgk
-         Yilg==
+        bh=+blINTze9+RYdMOQcPpOBYvgU9ci/l+RzsZOcZjhJUM=;
+        b=QzYEi/rsxMKn6Eb4MYft3LJAmv757KeNmGeDkjs2ULM72gFzvZZd1BShCiUXxNVoNG
+         nHqXNz2XHgM/DdKT7L97jjCxdLDd9x2yTDgYOjRAnNKN7i7wfmRljtYarwB5HzTufVt+
+         VFI3/RTLsUiACJjBuxUF8f7tbdqaQkpyUjdTndlObRUFdXESaBa5wSxNB+iz+2Q0X7CZ
+         UscYEkzAQy96yQdkqyRDaTiN6Na/J0Mpxpk1n4VNcN5SDfvjuHOg7uKghDRzJ0y+PKH3
+         Gje/7uW4CvvI/UlBTm5gIrCAA2ie6oe809zcq/ZK/kQLMiHyUUpAJTFyN0FSvBgc83RJ
+         7YYw==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWhyyLXhjBduJBMVExzUCj6j4CET0aZ1bdDYgmlTq0PdfmBjmy7
-	L8OPfKKBUCSHKBEcNidMCkc+pn5d1mK66FWLJLoIu+dlXpNtPc67CtOtQB0Y1pIsd01flGP9cVF
-	lcknB1M6GZY/8w9DIsSpADVcwRIY4Y87Lge80iYwpyej+LB7iajuKBeSbccAJiFI=
-X-Received: by 2002:a17:906:ecee:: with SMTP id qt14mr53423160ejb.96.1558340826044;
-        Mon, 20 May 2019 01:27:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw6xe9n5fTobDmscgstq72nItG2gtL2WteHjtGSr/spZFDsEJ/QplWMqESrQSDvekC/t7YW
-X-Received: by 2002:a17:906:ecee:: with SMTP id qt14mr53423103ejb.96.1558340825059;
-        Mon, 20 May 2019 01:27:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558340825; cv=none;
+X-Gm-Message-State: APjAAAU//03RgtseyV8vPIr9zAYSQ+/iUG5u2YepQC78ZshaGW6IiyIU
+	K9MEGA/qcdGarUdCzLuVHW6bjAcEGOLByO+f5emDi3WprK62YMkcHnb0x1ZbiwX68ut4L598jcV
+	WcwrYEV8NfLwIrW6I9V7IqT/TpcirZHawdL3OcXOxtmwIHkaFa2XRx/ACR0dKz40=
+X-Received: by 2002:a17:906:944a:: with SMTP id z10mr39304977ejx.159.1558343912470;
+        Mon, 20 May 2019 02:18:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx5JKbzDQo2O4JiRxFBucAmg+pdIn6FFJ+WSn9kSVUogtIotgmyiTL4NHTSJ4q9XJcMnMsG
+X-Received: by 2002:a17:906:944a:: with SMTP id z10mr39304894ejx.159.1558343911261;
+        Mon, 20 May 2019 02:18:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558343911; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZijkAaEubOfi21qyhOy7dsPFx42eOPOXpUKfOF16/sCmsOdIL+9mLJpIT6inI9YBpu
-         nMgZFY2CWK+wc13aVq7a/0gA96/awSH9lVC5FxqvcsI3gmhpWIqpSio+zyK01aY4dhzu
-         3lq9dtdF9zPkwyLcGruEiMOi8UdBhsui0hb1rDE67klS968lk4i3Hu1D+BlV6TWZe+le
-         2GrXOQ8CgdyjQ/8I4LWBPwxZjz0DYjDKSyM60WybVq/fI1wMbCGddcL3hi3llFZIGsjM
-         uI6MWHMlXmST+OIoXf8chSwCMs6amX9i9Z1VrfsPQSNtn83r9+j8zsdoylJ2B142Zbwq
-         1ejg==
+        b=b+KAKcWhtf0MxAuonZ8niXq6fFPWqrNYsMNYY7mW4qj6kews6VKj/gbxlwqYXjz8N2
+         WXVIM8ilySerMPUbjY8ELTfW29d7uBk9Omgsly5gs32wMidemVsNUNekPa0vypCyRb7W
+         A8YZaxNhRnbD0/rWpxcifl8d1j53f0zYFYB6qF5/kqQ995jnnCTmwLByqnecfN7Co1Jn
+         IOIb/d70nWPe29uWggWL0V/R6bxDe65grLC6NWc7F4d3Hjp05aVPLP4AvaYybD35/iS1
+         llpLY/d7tgt07iCRpOkxRKIiizTmoLX1yCojaUqIf8o76oKRmWMZ5iTJrCQCRQs6FMpx
+         MKzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=Gdl3iSKef0zAH0BWL6Rc87IJta3CtrGHlm0bq0drjFc=;
-        b=N9xz6lkmix2pWxaQYqX64BMAXW2opTZywEJkHoMcijmgei67rrXH79wcQykLHuRHQC
-         t5r2tIaLmieZ1qushlXzrdXZINvDcsdmrrujLHTwCROG1uvzgpcDb8ZAgCFMEFYHNKy/
-         sPPWdTE8X6gVeIpuVB+uilrzrfuCJ2oCHq6uYTFuI8B5v/0Sl9SmyhOAZXbWrZsKbwT7
-         3H2b6ufHpCB6arzH7KTLUWkNGvExWk3OfanyopWAd3UTjOpn3jCzm6gaiJntf5IxTHav
-         Vxp7Otfckpz75aFHxF4PZC0KZo+3LFYrb5KH9ZRmRFUy24SUvFHZMzdBQt1812fcC3SG
-         70Sw==
+        bh=+blINTze9+RYdMOQcPpOBYvgU9ci/l+RzsZOcZjhJUM=;
+        b=F00zJHafsv7tp8mCyZ95gn4Qmf5R130Hg7xk9zdFqd+tBFtrfpLP/d5q6VSakNyVv3
+         fzPiKYe+v4RQGyjAn2xfmHT//a7aBR0YWo1ABpElzKjZTuais4GvP7xx6sKi7myBqT1Y
+         dhxJvU0jADNrNvRl4mGU4RrqkCFW39B2So0PkZolGOFChyEx8qKk2v2hXEdIZe108RHB
+         gugVembtry+wVFWxIFgNa8/WIsUqu8E+uptbVJugtCWLNtXa4uuMtztgAmvVPRBZCRkM
+         K2f8xXo5hdP+P0FTiEcogs+vMBZTC3BES4oPa25TlGJuwXW8sG6yrnLHVxalWEIFy79m
+         EDYw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a18si8522393eda.350.2019.05.20.01.27.04
+        by mx.google.com with ESMTPS id w22si131863eju.323.2019.05.20.02.18.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 01:27:05 -0700 (PDT)
+        Mon, 20 May 2019 02:18:31 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 82BF1AC0C;
-	Mon, 20 May 2019 08:27:04 +0000 (UTC)
-Date: Mon, 20 May 2019 10:27:03 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 7089AAE4B;
+	Mon, 20 May 2019 09:18:30 +0000 (UTC)
+Date: Mon, 20 May 2019 11:18:29 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
@@ -94,14 +94,14 @@ Cc: Andrew Morton <akpm@linux-foundation.org>,
 	Daniel Colascione <dancol@google.com>,
 	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
 	Brian Geffon <bgeffon@google.com>, linux-api@vger.kernel.org
-Subject: Re: [RFC 3/7] mm: introduce MADV_COLD
-Message-ID: <20190520082703.GX6836@dhcp22.suse.cz>
+Subject: Re: [RFC 5/7] mm: introduce external memory hinting API
+Message-ID: <20190520091829.GY6836@dhcp22.suse.cz>
 References: <20190520035254.57579-1-minchan@kernel.org>
- <20190520035254.57579-4-minchan@kernel.org>
+ <20190520035254.57579-6-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190520035254.57579-4-minchan@kernel.org>
+In-Reply-To: <20190520035254.57579-6-minchan@kernel.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -111,305 +111,216 @@ List-ID: <linux-mm.kvack.org>
 
 [Cc linux-api]
 
-On Mon 20-05-19 12:52:50, Minchan Kim wrote:
-> When a process expects no accesses to a certain memory range
-> for a long time, it could hint kernel that the pages can be
-> reclaimed instantly but data should be preserved for future use.
-> This could reduce workingset eviction so it ends up increasing
-> performance.
+On Mon 20-05-19 12:52:52, Minchan Kim wrote:
+> There is some usecase that centralized userspace daemon want to give
+> a memory hint like MADV_[COOL|COLD] to other process. Android's
+> ActivityManagerService is one of them.
 > 
-> This patch introduces the new MADV_COLD hint to madvise(2)
-> syscall. MADV_COLD can be used by a process to mark a memory range
-> as not expected to be used for a long time. The hint can help
-> kernel in deciding which pages to evict proactively.
+> It's similar in spirit to madvise(MADV_WONTNEED), but the information
+> required to make the reclaim decision is not known to the app. Instead,
+> it is known to the centralized userspace daemon(ActivityManagerService),
+> and that daemon must be able to initiate reclaim on its own without
+> any app involvement.
 
-As mentioned in other email this looks like a non-destructive
-MADV_DONTNEED alternative.
+Could you expand some more about how this all works? How does the
+centralized daemon track respective ranges? How does it synchronize
+against parallel modification of the address space etc.
 
-> Internally, it works via reclaiming memory in process context
-> the syscall is called. If the page is dirty but backing storage
-> is not synchronous device, the written page will be rotate back
-> into LRU's tail once the write is done so they will reclaim easily
-> when memory pressure happens. If backing storage is
-> synchrnous device(e.g., zram), hte page will be reclaimed instantly.
+> To solve the issue, this patch introduces new syscall process_madvise(2)
+> which works based on pidfd so it could give a hint to the exeternal
+> process.
+> 
+> int process_madvise(int pidfd, void *addr, size_t length, int advise);
 
-Why do we special case async backing storage? Please always try to
-explain _why_ the decision is made.
+OK, this makes some sense from the API point of view. When we have
+discussed that at LSFMM I was contemplating about something like that
+except the fd would be a VMA fd rather than the process. We could extend
+and reuse /proc/<pid>/map_files interface which doesn't support the
+anonymous memory right now. 
 
-I haven't checked the implementation yet so I cannot comment on that.
+I am not saying this would be a better interface but I wanted to mention
+it here for a further discussion. One slight advantage would be that
+you know the exact object that you are operating on because you have a
+fd for the VMA and we would have a more straightforward way to reject
+operation if the underlying object has changed (e.g. unmapped and reused
+for a different mapping).
 
+> All advises madvise provides can be supported in process_madvise, too.
+> Since it could affect other process's address range, only privileged
+> process(CAP_SYS_PTRACE) or something else(e.g., being the same UID)
+> gives it the right to ptrrace the process could use it successfully.
+
+proc_mem_open model we use for accessing address space via proc sounds
+like a good mode. You are doing something similar.
+
+> Please suggest better idea if you have other idea about the permission.
+> 
+> * from v1r1
+>   * use ptrace capability - surenb, dancol
+> 
 > Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
->  include/linux/swap.h                   |   1 +
->  include/uapi/asm-generic/mman-common.h |   1 +
->  mm/madvise.c                           | 123 +++++++++++++++++++++++++
->  mm/vmscan.c                            |  74 +++++++++++++++
->  4 files changed, 199 insertions(+)
+>  arch/x86/entry/syscalls/syscall_32.tbl |  1 +
+>  arch/x86/entry/syscalls/syscall_64.tbl |  1 +
+>  include/linux/proc_fs.h                |  1 +
+>  include/linux/syscalls.h               |  2 ++
+>  include/uapi/asm-generic/unistd.h      |  2 ++
+>  kernel/signal.c                        |  2 +-
+>  kernel/sys_ni.c                        |  1 +
+>  mm/madvise.c                           | 45 ++++++++++++++++++++++++++
+>  8 files changed, 54 insertions(+), 1 deletion(-)
 > 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 64795abea003..7f32a948fc6a 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -365,6 +365,7 @@ extern int vm_swappiness;
->  extern int remove_mapping(struct address_space *mapping, struct page *page);
->  extern unsigned long vm_total_pages;
+> diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
+> index 4cd5f982b1e5..5b9dd55d6b57 100644
+> --- a/arch/x86/entry/syscalls/syscall_32.tbl
+> +++ b/arch/x86/entry/syscalls/syscall_32.tbl
+> @@ -438,3 +438,4 @@
+>  425	i386	io_uring_setup		sys_io_uring_setup		__ia32_sys_io_uring_setup
+>  426	i386	io_uring_enter		sys_io_uring_enter		__ia32_sys_io_uring_enter
+>  427	i386	io_uring_register	sys_io_uring_register		__ia32_sys_io_uring_register
+> +428	i386	process_madvise		sys_process_madvise		__ia32_sys_process_madvise
+> diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+> index 64ca0d06259a..0e5ee78161c9 100644
+> --- a/arch/x86/entry/syscalls/syscall_64.tbl
+> +++ b/arch/x86/entry/syscalls/syscall_64.tbl
+> @@ -355,6 +355,7 @@
+>  425	common	io_uring_setup		__x64_sys_io_uring_setup
+>  426	common	io_uring_enter		__x64_sys_io_uring_enter
+>  427	common	io_uring_register	__x64_sys_io_uring_register
+> +428	common	process_madvise		__x64_sys_process_madvise
 >  
-> +extern unsigned long reclaim_pages(struct list_head *page_list);
->  #ifdef CONFIG_NUMA
->  extern int node_reclaim_mode;
->  extern int sysctl_min_unmapped_ratio;
-> diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-> index f7a4a5d4b642..b9b51eeb8e1a 100644
-> --- a/include/uapi/asm-generic/mman-common.h
-> +++ b/include/uapi/asm-generic/mman-common.h
-> @@ -43,6 +43,7 @@
->  #define MADV_WILLNEED	3		/* will need these pages */
->  #define MADV_DONTNEED	4		/* don't need these pages */
->  #define MADV_COOL	5		/* deactivatie these pages */
-> +#define MADV_COLD	6		/* reclaim these pages */
+>  #
+>  # x32-specific system call numbers start at 512 to avoid cache impact
+> diff --git a/include/linux/proc_fs.h b/include/linux/proc_fs.h
+> index 52a283ba0465..f8545d7c5218 100644
+> --- a/include/linux/proc_fs.h
+> +++ b/include/linux/proc_fs.h
+> @@ -122,6 +122,7 @@ static inline struct pid *tgid_pidfd_to_pid(const struct file *file)
 >  
->  /* common parameters: try to keep these consistent across architectures */
->  #define MADV_FREE	8		/* free pages only if memory pressure */
+>  #endif /* CONFIG_PROC_FS */
+>  
+> +extern struct pid *pidfd_to_pid(const struct file *file);
+>  struct net;
+>  
+>  static inline struct proc_dir_entry *proc_net_mkdir(
+> diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+> index e2870fe1be5b..21c6c9a62006 100644
+> --- a/include/linux/syscalls.h
+> +++ b/include/linux/syscalls.h
+> @@ -872,6 +872,8 @@ asmlinkage long sys_munlockall(void);
+>  asmlinkage long sys_mincore(unsigned long start, size_t len,
+>  				unsigned char __user * vec);
+>  asmlinkage long sys_madvise(unsigned long start, size_t len, int behavior);
+> +asmlinkage long sys_process_madvise(int pid_fd, unsigned long start,
+> +				size_t len, int behavior);
+>  asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
+>  			unsigned long prot, unsigned long pgoff,
+>  			unsigned long flags);
+> diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
+> index dee7292e1df6..7ee82ce04620 100644
+> --- a/include/uapi/asm-generic/unistd.h
+> +++ b/include/uapi/asm-generic/unistd.h
+> @@ -832,6 +832,8 @@ __SYSCALL(__NR_io_uring_setup, sys_io_uring_setup)
+>  __SYSCALL(__NR_io_uring_enter, sys_io_uring_enter)
+>  #define __NR_io_uring_register 427
+>  __SYSCALL(__NR_io_uring_register, sys_io_uring_register)
+> +#define __NR_process_madvise 428
+> +__SYSCALL(__NR_process_madvise, sys_process_madvise)
+>  
+>  #undef __NR_syscalls
+>  #define __NR_syscalls 428
+> diff --git a/kernel/signal.c b/kernel/signal.c
+> index 1c86b78a7597..04e75daab1f8 100644
+> --- a/kernel/signal.c
+> +++ b/kernel/signal.c
+> @@ -3620,7 +3620,7 @@ static int copy_siginfo_from_user_any(kernel_siginfo_t *kinfo, siginfo_t *info)
+>  	return copy_siginfo_from_user(kinfo, info);
+>  }
+>  
+> -static struct pid *pidfd_to_pid(const struct file *file)
+> +struct pid *pidfd_to_pid(const struct file *file)
+>  {
+>  	if (file->f_op == &pidfd_fops)
+>  		return file->private_data;
+> diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
+> index 4d9ae5ea6caf..5277421795ab 100644
+> --- a/kernel/sys_ni.c
+> +++ b/kernel/sys_ni.c
+> @@ -278,6 +278,7 @@ COND_SYSCALL(mlockall);
+>  COND_SYSCALL(munlockall);
+>  COND_SYSCALL(mincore);
+>  COND_SYSCALL(madvise);
+> +COND_SYSCALL(process_madvise);
+>  COND_SYSCALL(remap_file_pages);
+>  COND_SYSCALL(mbind);
+>  COND_SYSCALL_COMPAT(mbind);
 > diff --git a/mm/madvise.c b/mm/madvise.c
-> index c05817fb570d..9a6698b56845 100644
+> index 119e82e1f065..af02aa17e5c1 100644
 > --- a/mm/madvise.c
 > +++ b/mm/madvise.c
-> @@ -42,6 +42,7 @@ static int madvise_need_mmap_write(int behavior)
->  	case MADV_WILLNEED:
->  	case MADV_DONTNEED:
->  	case MADV_COOL:
-> +	case MADV_COLD:
->  	case MADV_FREE:
->  		return 0;
->  	default:
-> @@ -416,6 +417,125 @@ static long madvise_cool(struct vm_area_struct *vma,
->  	return 0;
+> @@ -9,6 +9,7 @@
+>  #include <linux/mman.h>
+>  #include <linux/pagemap.h>
+>  #include <linux/page_idle.h>
+> +#include <linux/proc_fs.h>
+>  #include <linux/syscalls.h>
+>  #include <linux/mempolicy.h>
+>  #include <linux/page-isolation.h>
+> @@ -16,6 +17,7 @@
+>  #include <linux/hugetlb.h>
+>  #include <linux/falloc.h>
+>  #include <linux/sched.h>
+> +#include <linux/sched/mm.h>
+>  #include <linux/ksm.h>
+>  #include <linux/fs.h>
+>  #include <linux/file.h>
+> @@ -1140,3 +1142,46 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+>  {
+>  	return madvise_core(current, start, len_in, behavior);
 >  }
->  
-> +static int madvise_cold_pte_range(pmd_t *pmd, unsigned long addr,
-> +				unsigned long end, struct mm_walk *walk)
+> +
+> +SYSCALL_DEFINE4(process_madvise, int, pidfd, unsigned long, start,
+> +		size_t, len_in, int, behavior)
 > +{
-> +	pte_t *orig_pte, *pte, ptent;
-> +	spinlock_t *ptl;
-> +	LIST_HEAD(page_list);
-> +	struct page *page;
-> +	int isolated = 0;
-> +	struct vm_area_struct *vma = walk->vma;
-> +	unsigned long next;
+> +	int ret;
+> +	struct fd f;
+> +	struct pid *pid;
+> +	struct task_struct *tsk;
+> +	struct mm_struct *mm;
 > +
-> +	next = pmd_addr_end(addr, end);
-> +	if (pmd_trans_huge(*pmd)) {
-> +		spinlock_t *ptl;
+> +	f = fdget(pidfd);
+> +	if (!f.file)
+> +		return -EBADF;
 > +
-> +		ptl = pmd_trans_huge_lock(pmd, vma);
-> +		if (!ptl)
-> +			return 0;
-> +
-> +		if (is_huge_zero_pmd(*pmd))
-> +			goto huge_unlock;
-> +
-> +		page = pmd_page(*pmd);
-> +		if (page_mapcount(page) > 1)
-> +			goto huge_unlock;
-> +
-> +		if (next - addr != HPAGE_PMD_SIZE) {
-> +			int err;
-> +
-> +			get_page(page);
-> +			spin_unlock(ptl);
-> +			lock_page(page);
-> +			err = split_huge_page(page);
-> +			unlock_page(page);
-> +			put_page(page);
-> +			if (!err)
-> +				goto regular_page;
-> +			return 0;
-> +		}
-> +
-> +		if (isolate_lru_page(page))
-> +			goto huge_unlock;
-> +
-> +		list_add(&page->lru, &page_list);
-> +huge_unlock:
-> +		spin_unlock(ptl);
-> +		reclaim_pages(&page_list);
-> +		return 0;
+> +	pid = pidfd_to_pid(f.file);
+> +	if (IS_ERR(pid)) {
+> +		ret = PTR_ERR(pid);
+> +		goto err;
 > +	}
 > +
-> +	if (pmd_trans_unstable(pmd))
-> +		return 0;
-> +regular_page:
-> +	orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> +	for (pte = orig_pte; addr < end; pte++, addr += PAGE_SIZE) {
-> +		ptent = *pte;
-> +		if (!pte_present(ptent))
-> +			continue;
-> +
-> +		page = vm_normal_page(vma, addr, ptent);
-> +		if (!page)
-> +			continue;
-> +
-> +		if (page_mapcount(page) > 1)
-> +			continue;
-> +
-> +		if (isolate_lru_page(page))
-> +			continue;
-> +
-> +		isolated++;
-> +		list_add(&page->lru, &page_list);
-> +		if (isolated >= SWAP_CLUSTER_MAX) {
-> +			pte_unmap_unlock(orig_pte, ptl);
-> +			reclaim_pages(&page_list);
-> +			isolated = 0;
-> +			pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> +			orig_pte = pte;
-> +		}
+> +	ret = -EINVAL;
+> +	rcu_read_lock();
+> +	tsk = pid_task(pid, PIDTYPE_PID);
+> +	if (!tsk) {
+> +		rcu_read_unlock();
+> +		goto err;
 > +	}
-> +
-> +	pte_unmap_unlock(orig_pte, ptl);
-> +	reclaim_pages(&page_list);
-> +	cond_resched();
-> +
-> +	return 0;
-> +}
-> +
-> +static void madvise_cold_page_range(struct mmu_gather *tlb,
-> +			     struct vm_area_struct *vma,
-> +			     unsigned long addr, unsigned long end)
-> +{
-> +	struct mm_walk warm_walk = {
-> +		.pmd_entry = madvise_cold_pte_range,
-> +		.mm = vma->vm_mm,
-> +	};
-> +
-> +	tlb_start_vma(tlb, vma);
-> +	walk_page_range(addr, end, &warm_walk);
-> +	tlb_end_vma(tlb, vma);
-> +}
-> +
-> +
-> +static long madvise_cold(struct vm_area_struct *vma,
-> +			unsigned long start_addr, unsigned long end_addr)
-> +{
-> +	struct mm_struct *mm = vma->vm_mm;
-> +	struct mmu_gather tlb;
-> +
-> +	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
-> +		return -EINVAL;
-> +
-> +	lru_add_drain();
-> +	tlb_gather_mmu(&tlb, mm, start_addr, end_addr);
-> +	madvise_cold_page_range(&tlb, vma, start_addr, end_addr);
-> +	tlb_finish_mmu(&tlb, start_addr, end_addr);
-> +
-> +	return 0;
-> +}
-> +
->  static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
->  				unsigned long end, struct mm_walk *walk)
->  
-> @@ -806,6 +926,8 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
->  		return madvise_willneed(vma, prev, start, end);
->  	case MADV_COOL:
->  		return madvise_cool(vma, start, end);
-> +	case MADV_COLD:
-> +		return madvise_cold(vma, start, end);
->  	case MADV_FREE:
->  	case MADV_DONTNEED:
->  		return madvise_dontneed_free(vma, prev, start, end, behavior);
-> @@ -828,6 +950,7 @@ madvise_behavior_valid(int behavior)
->  	case MADV_DONTNEED:
->  	case MADV_FREE:
->  	case MADV_COOL:
-> +	case MADV_COLD:
->  #ifdef CONFIG_KSM
->  	case MADV_MERGEABLE:
->  	case MADV_UNMERGEABLE:
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index a28e5d17b495..1701b31f70a8 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2096,6 +2096,80 @@ static void shrink_active_list(unsigned long nr_to_scan,
->  			nr_deactivate, nr_rotated, sc->priority, file);
->  }
->  
-> +unsigned long reclaim_pages(struct list_head *page_list)
-> +{
-> +	int nid = -1;
-> +	unsigned long nr_isolated[2] = {0, };
-> +	unsigned long nr_reclaimed = 0;
-> +	LIST_HEAD(node_page_list);
-> +	struct reclaim_stat dummy_stat;
-> +	struct scan_control sc = {
-> +		.gfp_mask = GFP_KERNEL,
-> +		.priority = DEF_PRIORITY,
-> +		.may_writepage = 1,
-> +		.may_unmap = 1,
-> +		.may_swap = 1,
-> +	};
-> +
-> +	while (!list_empty(page_list)) {
-> +		struct page *page;
-> +
-> +		page = lru_to_page(page_list);
-> +		list_del(&page->lru);
-> +
-> +		if (nid == -1) {
-> +			nid = page_to_nid(page);
-> +			INIT_LIST_HEAD(&node_page_list);
-> +			nr_isolated[0] = nr_isolated[1] = 0;
-> +		}
-> +
-> +		if (nid == page_to_nid(page)) {
-> +			list_add(&page->lru, &node_page_list);
-> +			nr_isolated[!!page_is_file_cache(page)] +=
-> +						hpage_nr_pages(page);
-> +			continue;
-> +		}
-> +
-> +		nid = page_to_nid(page);
-> +
-> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_ANON,
-> +					nr_isolated[0]);
-> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_FILE,
-> +					nr_isolated[1]);
-> +		nr_reclaimed += shrink_page_list(&node_page_list,
-> +				NODE_DATA(nid), &sc, TTU_IGNORE_ACCESS,
-> +				&dummy_stat, true);
-> +		while (!list_empty(&node_page_list)) {
-> +			struct page *page = lru_to_page(page_list);
-> +
-> +			list_del(&page->lru);
-> +			putback_lru_page(page);
-> +		}
-> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_ANON,
-> +					-nr_isolated[0]);
-> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_FILE,
-> +					-nr_isolated[1]);
-> +		nr_isolated[0] = nr_isolated[1] = 0;
-> +		INIT_LIST_HEAD(&node_page_list);
+> +	get_task_struct(tsk);
+> +	rcu_read_unlock();
+> +	mm = mm_access(tsk, PTRACE_MODE_ATTACH_REALCREDS);
+> +	if (!mm || IS_ERR(mm)) {
+> +		ret = IS_ERR(mm) ? PTR_ERR(mm) : -ESRCH;
+> +		if (ret == -EACCES)
+> +			ret = -EPERM;
+> +		goto err;
 > +	}
-> +
-> +	if (!list_empty(&node_page_list)) {
-> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_ANON,
-> +					nr_isolated[0]);
-> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_FILE,
-> +					nr_isolated[1]);
-> +		nr_reclaimed += shrink_page_list(&node_page_list,
-> +				NODE_DATA(nid), &sc, TTU_IGNORE_ACCESS,
-> +				&dummy_stat, true);
-> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_ANON,
-> +					-nr_isolated[0]);
-> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_FILE,
-> +					-nr_isolated[1]);
-> +	}
-> +
-> +	return nr_reclaimed;
+> +	ret = madvise_core(tsk, start, len_in, behavior);
+> +	mmput(mm);
+> +	put_task_struct(tsk);
+> +err:
+> +	fdput(f);
+> +	return ret;
 > +}
-> +
->  /*
->   * The inactive anon list should be small enough that the VM never has
->   * to do too much work.
 > -- 
 > 2.21.0.1020.gf2820cf01a-goog
 > 
