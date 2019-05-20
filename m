@@ -2,205 +2,141 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 57B85C04AAC
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 10:21:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A13EBC04E87
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 11:05:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E0152206B6
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 10:21:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E0152206B6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
+	by mail.kernel.org (Postfix) with ESMTP id 662EE20856
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 11:05:13 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="fF9P8PNh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 662EE20856
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4B24F6B0005; Mon, 20 May 2019 06:21:51 -0400 (EDT)
+	id E069C6B0005; Mon, 20 May 2019 07:05:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 462056B0006; Mon, 20 May 2019 06:21:51 -0400 (EDT)
+	id DB7516B0006; Mon, 20 May 2019 07:05:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3502E6B0007; Mon, 20 May 2019 06:21:51 -0400 (EDT)
+	id CA61A6B0007; Mon, 20 May 2019 07:05:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F32D76B0005
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 06:21:50 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id s8so9545398pgk.0
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 03:21:50 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 94DB56B0005
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 07:05:12 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id t16so9592136pgv.13
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 04:05:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=nU39mFUwgC58YfNuujcUIkv+iQuhqwICROQ1KRWDSa0=;
-        b=H0WJ4Z/cWUoVsJvrjmfaPzKnCYTuTOXAR+0tP0dMZ+OE0a3wSl6BuHWPDM1Blm26Xp
-         q5+BfcQyMEgRHPuUa4xYqVKYqGFxgYCd8obI5Jhg5RNgswSeN+r1lJgoAhSwxO4ALuSC
-         SC+E0aew4H+F6o8reud0wD1LzENNFPLVp8XyVLsLNfLq6Wl5EOiOlTGQ+T+7fxTG1O4d
-         GCKEWxKJmICYZqav5UpTnC2LTJSTiS1Z5gh3GMEJx7LX1ns42Kij4OhbdFPTtN/t+Sgq
-         TWAUyxn+A1PhEaccgnJkqFcFaG/7mMX7rgbL3466EEGtItvyMR1lwgGxuodzyWr2dSIv
-         v3MQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-X-Gm-Message-State: APjAAAVRrMlQtFaZsj2s82788TLa3wcdL4ORwMuWYbr4GPGAgJsmDpeP
-	KeOmpJDXfJsGDwJ93D11szKThe+dH8CkDxZE55bLrbKXKooBCc9ZXV+tH3+b40Jg6OdpW6maW/K
-	0unsSc/go4XPg8WIX9q5ISHP+1LpOvc/8JeaEMEMgCG7kFbuEFaLROmZpNY4b7lcmeQ==
-X-Received: by 2002:a63:7c54:: with SMTP id l20mr72009784pgn.167.1558347710592;
-        Mon, 20 May 2019 03:21:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwFhzFyVJ1U7usBnLvJrZbHsltv4AXvm/F/WgiHVyNnb0q4EaH2kN41BR7314cGrN3o9YAX
-X-Received: by 2002:a63:7c54:: with SMTP id l20mr72009732pgn.167.1558347709874;
-        Mon, 20 May 2019 03:21:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558347709; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=0IHyllcFTLquqmW3lU8GUzF69Xv7K89ReeV8NDDRKj4=;
+        b=FKdMzfF6KCNlfqGiyWEr5uUsBzLdhb3JHMMBYiUbibhHazlh/vCF/rHxuYFJTxWfH+
+         OwzydTlN0B98maBvKu+nZGLL0FcCOH1eukDL5+t6bFSUKRhu513mwjpndW1AntzsBtYk
+         mI3bApWaPGLhGRyJ+Av60TeAlD1SPQoDB1D/1TGNNp1jt6VlbCcXUa7NhebmUeYZqtCU
+         p8fPPug3aqM1//4AjDVEuT+Gq6+dBAviN1Sho7JSqdjhaT/DIJGrPZ/D9S9ZR8OtiE5k
+         w6XdJpEOD5AQIh+S7PhwBnss33MnUrJ0QKfd1vm1g3LCHK5QROatVreRztvatBjUUtz/
+         qvPw==
+X-Gm-Message-State: APjAAAWcX+oVQM5nEHWjZeTOTeCesFyxuJhYz2CRBB1ufB+Xtr+k+8GD
+	NnOxezGQpOzFDDV+M4A6hjxmMvkPY3DPbZdKcmF0NBIIjDwAOd7c7nHVVbGo59pzTr8AuWGTP5L
+	XF9yqkTy5h7fMz3yfWOdIywXpqIhq94xN2XpAYTnCAIBWdzIDyxN8I00o1+pjfWB4Lg==
+X-Received: by 2002:a65:41c7:: with SMTP id b7mr50530386pgq.165.1558350312283;
+        Mon, 20 May 2019 04:05:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzde+5OwHlscWnO2Zqb5CvkWTvsoxEt2AcC7cTFkghwNA0W3BFsfgEvxGi54XDMaalqm2Qm
+X-Received: by 2002:a65:41c7:: with SMTP id b7mr50530283pgq.165.1558350311151;
+        Mon, 20 May 2019 04:05:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558350311; cv=none;
         d=google.com; s=arc-20160816;
-        b=ViuzZmdY31S3ddeEgfmCt3Ciwxv7UpsBEm7YQOmPZz/iKvt0VHYeELtWW6OkmiWuhB
-         4QRbmumPHn9R2GK+07BrqBBOAweHHn4mrXWr1F61jmMES9y/mIr0Z8gBCt2ujLL6iqmA
-         OC1SY42OAoj1/WAsn/P69+2U15kZ/7kCs1tpOamjEEeYgnMsM3I6NbtxR9jutlO7cIMb
-         VcD5q0aiTQ9pzapaxCiG4CTf5pg04E7GHMUGfG7ra06ZvJ5TQcpADWFRviXHJbkNciiL
-         BWhhn2yeVysJUwXmHjMbfvvL/mgSkkxt0GXRgY3unBkjaCOrlhYoynoDUDo/zQ0hjVHC
-         2b0g==
+        b=A2v5nAWnIvPakKUlY5vOYiFKixurEIrCQDPiqSQyG3vHqub7aGMPkvE7OM54l53MPK
+         7iFEDSWd/mc0gW4aleTDj4YcsJIefmgZNzzkDXnfyFlMdriSyOM/ZWXU7rpHQVkyEJa5
+         jjmC+rjBeYzYUHtYZzqxmvdo1Wuj7fqzRxr8j7fYRKiOBkPoKORe8JSqYO7IsrNHvyzo
+         JfUcqtj1JoQoWqsZo/J6WVK5wfW2xwCVf3sXLupEc31yvbF7EARdgx1pSxPhVVPfizzL
+         wvwgQqoOvYYn3c1Pj2otXHlNyl29ckfRQq73R2PlicWhH+S926i+tgEQqutIEPssuT0q
+         l4Uw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from;
-        bh=nU39mFUwgC58YfNuujcUIkv+iQuhqwICROQ1KRWDSa0=;
-        b=cKAUUoxmeXyaR5LiKIwvy3YyJF+F+p35fXDqxQW31TMiEb+zaUFqxSFU4YkWCe1N/4
-         nBTV9gECXwr/ZRTfM+fGhoHIy3IUjTkiyV0J4Ve6wYlhvjes+oFgqDI0Gq6ef/eXh+bM
-         Vrkn1UkaHDCO7NnP8MdVmLyvQNwzZXbvr50C5WxcHexXjF2FdE/CEgdjaCk4E8vi9jZn
-         JX2FgM+JDYS23V0waIaV15mOP6mvELjQe6E12Bafok2bRUWYp/tNl1+zSKt/AJC38miq
-         DNy7fxDWDJ0XMMyDgtMreBMGOd1rAtn4mk0gIPHsHM0JZ8OX0WBmq1xglosvh+XkeMTA
-         LkPQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=0IHyllcFTLquqmW3lU8GUzF69Xv7K89ReeV8NDDRKj4=;
+        b=rgqtvsfC+wM3+Td45bXaFgGlmSlLx2KlVv3uFSXOyE1BdGJkgnE1Mtzpc44IcF8dzY
+         xKppIvAhTyieoM15eO+qduupSXKjy5NCBsGwIpOCSJ8IAXPxZua3IkBJfJDALerl7yFl
+         ZiIfK/FvKYtO9H/B/86Tl8db6byT3Jt7mNF5Qm++ByzLkwaCMxAIEA5ishmpW1kVV12q
+         55ymud1u2GyOcg1xC/yLCB5l7Os9r8k6Y2xKJIbGlXA4npn4iHFkQw15QBNaUo1bA0Er
+         q0nCN++FalNsA4A3DaVsTE1cbIh+mi7k8U98zFk2rNbEJSntqIirBKEGXMc0tM9vF+hK
+         3fPA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id f2si18229462pgb.543.2019.05.20.03.21.49
+       dkim=pass header.i=@kernel.org header.s=default header.b=fF9P8PNh;
+       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id j23si17360594pgj.85.2019.05.20.04.05.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 03:21:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) client-ip=114.179.232.161;
+        Mon, 20 May 2019 04:05:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-Received: from mailgate02.nec.co.jp ([114.179.233.122])
-	by tyo161.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x4KALhFs013250
-	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Mon, 20 May 2019 19:21:43 +0900
-Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
-	by mailgate02.nec.co.jp (8.15.1/8.15.1) with ESMTP id x4KALhLU009626;
-	Mon, 20 May 2019 19:21:43 +0900
-Received: from mail02.kamome.nec.co.jp (mail02.kamome.nec.co.jp [10.25.43.5])
-	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x4KAJuFw020474;
-	Mon, 20 May 2019 19:21:43 +0900
-Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.148] [10.38.151.148]) by mail02.kamome.nec.co.jp with ESMTP id BT-MMP-5209311; Mon, 20 May 2019 19:21:06 +0900
-Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
- BPXC20GP.gisp.nec.co.jp ([10.38.151.148]) with mapi id 14.03.0319.002; Mon,
- 20 May 2019 19:21:06 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-CC: Jane Chu <jane.chu@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
-Subject: Re: [PATCH] mm, memory-failure: clarify error message
-Thread-Topic: [PATCH] mm, memory-failure: clarify error message
-Thread-Index: AQHVDGYtMbmPk2oO9EWAkFfiZXN9haZuJ74AgAUUDQA=
-Date: Mon, 20 May 2019 10:21:05 +0000
-Message-ID: <20190520102106.GA12721@hori.linux.bs1.fc.nec.co.jp>
-References: <1558066095-9495-1-git-send-email-jane.chu@oracle.com>
- <512532de-4c09-626d-380f-58cef519166b@arm.com>
-In-Reply-To: <512532de-4c09-626d-380f-58cef519166b@arm.com>
-Accept-Language: en-US, ja-JP
-Content-Language: ja-JP
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.34.125.150]
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <CEE34CE09A73174D91E6FF4DEC23B445@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@kernel.org header.s=default header.b=fF9P8PNh;
+       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
+Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 41B2A206B6;
+	Mon, 20 May 2019 11:05:10 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1558350310;
+	bh=VwQSMr5Rvx+iTC5OoVTUamKLhLW6uSee5o3V25yr4TY=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=fF9P8PNhrc6oWUssYT1FD3oqgs7I5ECIp9YF3zNo77k9bLGVbFI+SbCOjbHjn9Syf
+	 zeb2/LeLpac4nqYDKzrZFfOByIPFnWqxIFvvn7A/RBJ1m8X1IJ67qBnOT2m3wJuWOn
+	 LA7yOl3IQbLmLAAdWusF0cdD9LkXYGrJmYLpogGo=
+Date: Mon, 20 May 2019 13:05:08 +0200
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Lech Perczak <l.perczak@camlintechnologies.com>,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Eric Dumazet <edumazet@google.com>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Piotr Figiel <p.figiel@camlintechnologies.com>,
+	Krzysztof =?utf-8?Q?Drobi=C5=84ski?= <k.drobinski@camlintechnologies.com>,
+	Pawel Lenkow <p.lenkow@camlintechnologies.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: Recurring warning in page_copy_sane (inside copy_page_to_iter)
+ when running stress tests involving drop_caches
+Message-ID: <20190520110508.GA20211@kroah.com>
+References: <d68c83ba-bf5a-f6e8-44dd-be98f45fc97a@camlintechnologies.com>
+ <14c9e6f4-3fb8-ca22-91cc-6970f1d52265@camlintechnologies.com>
+ <011a16e4-6aff-104c-a19b-d2bd11caba99@camlintechnologies.com>
+ <20190515144352.GC31704@bombadil.infradead.org>
+ <20190515150406.GA22540@kroah.com>
+ <20190515152035.GE31704@bombadil.infradead.org>
 MIME-Version: 1.0
-X-TM-AS-MML: disable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190515152035.GE31704@bombadil.infradead.org>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 17, 2019 at 10:18:02AM +0530, Anshuman Khandual wrote:
->=20
->=20
-> On 05/17/2019 09:38 AM, Jane Chu wrote:
-> > Some user who install SIGBUS handler that does longjmp out
->=20
-> What the longjmp about ? Are you referring to the mechanism of catching t=
-he
-> signal which was registered ?
+On Wed, May 15, 2019 at 08:20:35AM -0700, Matthew Wilcox wrote:
+> On Wed, May 15, 2019 at 05:04:06PM +0200, Greg Kroah-Hartman wrote:
+> > > Greg, can you consider 6daef95b8c914866a46247232a048447fff97279 for
+> > > backporting to stable?  Nobody realised it was a bugfix at the time it
+> > > went in.  I suspect there aren't too many of us running HIGHMEM kernels
+> > > any more.
+> > > 
+> > 
+> > Sure, what kernel version(s) should this go to?  4.19 and newer?
+> 
+> Looks like the problem was introduced with commit
+> a90bcb86ae700c12432446c4aa1819e7b8e172ec so 4.14 and newer, I think.
 
-AFAIK, longjmp() might be useful for signal-based retrying, so highly
-optimized applications like Oracle DB might want to utilize it to handle
-memory errors in application level, I guess.
+Thanks, now queued up.
 
->=20
-> > therefore keeping the process alive is confused by the error
-> > message
-> >   "[188988.765862] Memory failure: 0x1840200: Killing
-> >    cellsrv:33395 due to hardware memory corruption"
->=20
-> Its a valid point because those are two distinct actions.
->=20
-> > Slightly modify the error message to improve clarity.
-> >=20
-> > Signed-off-by: Jane Chu <jane.chu@oracle.com>
-> > ---
-> >  mm/memory-failure.c | 7 ++++---
-> >  1 file changed, 4 insertions(+), 3 deletions(-)
-> >=20
-> > diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> > index fc8b517..14de5e2 100644
-> > --- a/mm/memory-failure.c
-> > +++ b/mm/memory-failure.c
-> > @@ -216,10 +216,9 @@ static int kill_proc(struct to_kill *tk, unsigned =
-long pfn, int flags)
-> >  	short addr_lsb =3D tk->size_shift;
-> >  	int ret;
-> > =20
-> > -	pr_err("Memory failure: %#lx: Killing %s:%d due to hardware memory co=
-rruption\n",
-> > -		pfn, t->comm, t->pid);
-> > -
-> >  	if ((flags & MF_ACTION_REQUIRED) && t->mm =3D=3D current->mm) {
-> > +		pr_err("Memory failure: %#lx: Killing %s:%d due to hardware memory "
-> > +			"corruption\n", pfn, t->comm, t->pid);
-> >  		ret =3D force_sig_mceerr(BUS_MCEERR_AR, (void __user *)tk->addr,
-> >  				       addr_lsb, current);
-> >  	} else {
-> > @@ -229,6 +228,8 @@ static int kill_proc(struct to_kill *tk, unsigned l=
-ong pfn, int flags)
-> >  		 * This could cause a loop when the user sets SIGBUS
-> >  		 * to SIG_IGN, but hopefully no one will do that?
-> >  		 */
-> > +		pr_err("Memory failure: %#lx: Sending SIGBUS to %s:%d due to hardwar=
-e "
-> > +			"memory corruption\n", pfn, t->comm, t->pid);
-> >  		ret =3D send_sig_mceerr(BUS_MCEERR_AO, (void __user *)tk->addr,
-> >  				      addr_lsb, t);  /* synchronous? */
->=20
-> As both the pr_err() messages are very similar, could not we just switch =
-between "Killing"
-> and "Sending SIGBUS to" based on a variable e.g action_[kill|sigbus] eval=
-uated previously
-> with ((flags & MF_ACTION_REQUIRED) && t->mm =3D=3D current->mm).
-
-That might need additional if sentence, which I'm not sure worth doing.
-I think that the simplest fix for the reported problem (a confusing message=
-)
-is like below:
-
-	-	pr_err("Memory failure: %#lx: Killing %s:%d due to hardware memory corru=
-ption\n",
-	+	pr_err("Memory failure: %#lx: Sending SIGBUS to %s:%d due to hardware me=
-mory corruption\n",
-			pfn, t->comm, t->pid);
-
-Or, if we have a good reason to separate the message for MF_ACTION_REQUIRED=
- and
-MF_ACTION_OPTIONAL, that might be OK.
-
-Thanks,
-Naoya Horiguchi=
+greg k-h
 
