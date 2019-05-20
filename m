@@ -2,247 +2,133 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 67696C04AAF
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 09:43:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C332BC04AAC
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 10:12:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1AB7720675
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 09:43:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1AB7720675
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 827F9206BA
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 10:12:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ZU0ytO4Y"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 827F9206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A9B246B0007; Mon, 20 May 2019 05:43:26 -0400 (EDT)
+	id 04AD96B0005; Mon, 20 May 2019 06:12:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A4C596B0008; Mon, 20 May 2019 05:43:26 -0400 (EDT)
+	id F3E4B6B0006; Mon, 20 May 2019 06:12:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9399D6B000A; Mon, 20 May 2019 05:43:26 -0400 (EDT)
+	id E2D0B6B0007; Mon, 20 May 2019 06:12:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 56DEB6B0007
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 05:43:26 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id o12so8822984pll.17
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 02:43:26 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AC31F6B0005
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 06:12:10 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id f1so9670975pfb.0
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 03:12:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=xZDVpBiCbKhW0ztl9c/KzoRWoPLi/5gF4Wahy6wk6d0=;
-        b=uYoh3RAgIZXuJ+x14UzPLV1l9if3XACJxRk26ZqYMq6xEzqwT9a+fh98fO2GA6fGtN
-         sS50gDC/8+F4JvegkRh0jRvcVXmTslbrhXy9zQNKOK66Uk5zeVZPbF7n7mLR5uhEJ5FQ
-         OjH2Ji310nC2d628nIiBXEIV3ihPShcPnZiiBjjcPAeP5qqvABS63rsIvo/b6wA2sd6e
-         Pp3ptXWlUudCQT6YRkQG46O/H4YvB2A9Z7H7U4y6kqta7vZG2vOwHsMO86rAJA7m1Puh
-         CsC7vhCPRleirR1XP1hK/+YmksG1rlpcjYQbgIaoOu0znH/GuKfbKY9y1jYyEESQ0Qbn
-         hVbQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAW7B7LMmApCs50N2aX4wYPJB8JCco3ITMDF6Ayw19Jg5+j5HLRc
-	BPirkJ52bF4+Q2C6PrxXEMXYUgbg9mxTnwRWhtj4MLiU7jx4JmIfTIwgDhbMx5pFfy18PN3vvMC
-	mmjTtjcBZD29YAW2JM9AcSMF3G4eeI6X0WayV1Uq874de0Y5LHCdPRCagBDKE8T/I3Q==
-X-Received: by 2002:a62:d286:: with SMTP id c128mr80080494pfg.159.1558345405991;
-        Mon, 20 May 2019 02:43:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyXxxSHnn0sn/m5va2GuZt0eZb8y5eK2ffVNuVuXPf0yMbbOPN0hAiMJXfKPyvn+b29kEKd
-X-Received: by 2002:a62:d286:: with SMTP id c128mr80080428pfg.159.1558345404985;
-        Mon, 20 May 2019 02:43:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558345404; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=MqrvqRAJlxcONvOERepJ1ia9im/zVqpqGszIN9wgOpo=;
+        b=hk6+GdiE795eialaL5f2FTSv5a+pldwCvKUbVZiCKmXpvvDmbBmmkiuJV9/mwFvMBD
+         oYeNxd4jX0b1G2jjcokcDS6PKTLKwMkxyDW7mt3qdTUQK7hWcRFHrBRblWAzPcb2RCXG
+         nXxbbilr6ax4PWK265Wz3Q/CJ+bbs58lAyi07AZTCnOfKz+St5HUSi3CYHXvqqvLpa2B
+         ubXgqzLAZhy/yrcE2rXEgc+Wm+TCv3oFPlPXUvr9d5sASozEHP4h779ZCpsUivDX2eLx
+         QNSlJLSk42YD3pXjeJScjKrCw942JTwxzKijSGxGP6pfJ1dz9x1TKCzYjjExeFgt/HR1
+         wtMQ==
+X-Gm-Message-State: APjAAAW7CTIQdxUEixaZcb+oVsYggxBZM+LBzdSKm5suQW0nAYPXEnTe
+	7cGz8Y/apGD8xCdukeDkaktaZZP/frK2X9O4lFag2VGauPRQKi7OKzbi3ULB+zNIarv+wkQTcAw
+	+i0nHKXR46YnOWwmNStWwKpcBBHQ7UUkK+EyKY6rDxVFfyhPTyu4X5S7+hmE/Z7uA2A==
+X-Received: by 2002:a63:e43:: with SMTP id 3mr31912857pgo.253.1558347130216;
+        Mon, 20 May 2019 03:12:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwLMtEaKaAzq83XbOKjsTXxwhBmRXQVd8+HLVXJhQSAAxzDVRUqTjeVH4GhfyWvBtBc7vTW
+X-Received: by 2002:a63:e43:: with SMTP id 3mr31912769pgo.253.1558347129171;
+        Mon, 20 May 2019 03:12:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558347129; cv=none;
         d=google.com; s=arc-20160816;
-        b=WVKTJsNdghYX6Pm6Kf2yI8x/+ba0CGh79WlIQbvPtoVtE0ZJ+cnCGK2PQ/BkJQcR4p
-         s2leMo6r4NpVE/Fvv2fGC3/iuvSIQT8dK/eCxw4bZxcUL6E5XKBSsiBqWz/th6Z68teq
-         tlwbE+LlEHN119hDiZFpvagY+g8nEe+T+btrEbUUuA+njAgES9V9IcZcB2YhZEPmsL26
-         SpGJOx5dOUAVTAidlkfTb+OoWb6QFXeXrrWKS1tPRfojP9YsLACI9+amFpLmUOkQnCby
-         VaHKcWy8wGSeDL8TQxx9ZcZqWtZs5dB6ctdx+3cakrm2FIZLqWRB+mv7N0wSuecaPOey
-         53jQ==
+        b=Ab9v20OHIAF45Bzw3SCKnHSt4QHVEj2IiVta1s7ev9M/5KTLVlLEj6VK9v44+BQU7l
+         /nxDZrOEURoLXhf1w05c5MqB+lkIRvaSVRwAi28CMeYQoYHocmhO+wXr3hivY6jxF+Cs
+         xLrN/ms0UfHaYweguw1y3dfDxCj/naIkCwSiM8SUgwGlSqhFnNOVK32ceYVFQyrr1e8B
+         4UimTT9L7AljGTp5gYXZlUytmOZm63OJP/IJ8BUQVPg3h4mrteUMxJVPrtx0uZyg5YIp
+         SGFCOeVyGzvHUmKojWlP+7S8DavMOrSnt000llkIWmnfgdz0NedYtUFm+FFnTkX+EqK8
+         JyGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=xZDVpBiCbKhW0ztl9c/KzoRWoPLi/5gF4Wahy6wk6d0=;
-        b=hj6KHXADDxlI+hvSSiKVZePVfYPMxZIEYJDYUL+IUH53zBtI3ISEQoGkmSWAScj+31
-         1uDyXgBoBAkd/gZszgRwENd0m/uPCSFY9KwD7hqmNwe5AZi27IDYS+9a5aUcmomwDY+U
-         DzZxxJLXGDiXkNdeEP6ZcY/4noQKq35StMsimhLVHtb1nq4XUBPHE6iLS21yDaxbNdU5
-         2+muBD86bcD53eCGeGaFd6tg+Q30gFKSQbBrHbR2C8Ldom5oqPHTXUeGOX/HSkgtT3yF
-         oN8W1lT/FHGszDDCmXpH0rL3xAblyESh9k5qJbMP33oIu7rq008XpqAHd37HdNI8pvAp
-         f2wQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=MqrvqRAJlxcONvOERepJ1ia9im/zVqpqGszIN9wgOpo=;
+        b=ak8tKdIrRymIjFsr6JXHwZ25fc6PYmb/vONtTkUnB60AM4oBWTxtREJazh33QR7SWk
+         FymDMA37GdezCQnP2mpS/YF4YuoqlAk3XPKdNa7ZbOYJBPQ+7kQraQXAH0VaLw43omr5
+         MV5dJffJgEq8RWsrPjrhLF6WJRWyKMQtayxAVAxpeZHdJMItfXyFxhyEf29TBfna/i79
+         UysRm2kdMARIh3Mj8bXD47/omNpeQaSbq6m6J6DTSFkFeqWrsH6qdT1/uHS3l1ErWKOg
+         sBlGHA52w/EZJV3R99fkCdejXWPZr2SNUSc0oa4GJCfpQqk4Gu+yU6sHUtXI4hVj+xPh
+         bhsQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id f62si18039579plb.339.2019.05.20.02.43.24
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ZU0ytO4Y;
+       spf=pass (google.com: best guess record for domain of batv+dfc7240828d5493a4f00+5748+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+dfc7240828d5493a4f00+5748+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id s17si17920800pgj.186.2019.05.20.03.12.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 02:43:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) client-ip=115.124.30.133;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 20 May 2019 03:12:09 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+dfc7240828d5493a4f00+5748+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R151e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=12;SR=0;TI=SMTPD_---0TSCntOc_1558345401;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TSCntOc_1558345401)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Mon, 20 May 2019 17:43:22 +0800
-Subject: Re: [v2 PATCH] mm: vmscan: correct nr_reclaimed for THP
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Yang Shi <shy828301@gmail.com>,
- Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>,
- kirill.shutemov@linux.intel.com, Hugh Dickins <hughd@google.com>,
- Shakeel Butt <shakeelb@google.com>, william.kucharski@oracle.com,
- Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-References: <1557505420-21809-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190513080929.GC24036@dhcp22.suse.cz>
- <c3c26c7a-748c-6090-67f4-3014bedea2e6@linux.alibaba.com>
- <20190513214503.GB25356@dhcp22.suse.cz>
- <CAHbLzkpUE2wBp8UjH72ugXjWSfFY5YjV1Ps9t5EM2VSRTUKxRw@mail.gmail.com>
- <20190514062039.GB20868@dhcp22.suse.cz>
- <509de066-17bb-e3cf-d492-1daf1cb11494@linux.alibaba.com>
- <20190516151012.GA20038@cmpxchg.org>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <cea2cdbf-640b-7e8e-7906-34ee3a7bb595@linux.alibaba.com>
-Date: Mon, 20 May 2019 17:43:20 +0800
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ZU0ytO4Y;
+       spf=pass (google.com: best guess record for domain of batv+dfc7240828d5493a4f00+5748+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+dfc7240828d5493a4f00+5748+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=MqrvqRAJlxcONvOERepJ1ia9im/zVqpqGszIN9wgOpo=; b=ZU0ytO4YuOP96ibdGXamVHekr
+	uBSM7cCD4CWqHQfee0lTS97z/EH61ONs+mc6CZYtOT3GX7GdQmDV3ZCOxswvcWlCdcD5tUMAKf3lO
+	8cpp0xOP8zB04CG4MxT6SoS91K/bYf1pOv70rCpVbLb80GTGRylJADjqzF3cgmEgHUCkxQGxvFu3x
+	aOyZDtSq0VnBtTuwVqlvi3AyMOPs0BZtj5FOG+3gvaPGFhfapQUsk0j9OXJifHtQQuG53bi2iid/Q
+	FTK3ijbqOwmRyAmwSPJpu/fnRPXmJu6s/sGdB6ZSVuyzXo7qkti7ONQZV6wv8/86V2mFIRECvY9P/
+	aujbpJYRQ==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hSfH4-0003eI-EN; Mon, 20 May 2019 10:12:06 +0000
+Date: Mon, 20 May 2019 03:12:06 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Oliver Neukum <oneukum@suse.com>
+Cc: Christoph Hellwig <hch@infradead.org>,
+	Jaewon Kim <jaewon31.kim@gmail.com>, linux-mm@kvack.org,
+	gregkh@linuxfoundation.org, Jaewon Kim <jaewon31.kim@samsung.com>,
+	m.szyprowski@samsung.com, ytk.lee@samsung.com,
+	linux-kernel@vger.kernel.org, linux-usb@vger.kernel.org
+Subject: Re: [RFC PATCH] usb: host: xhci: allow __GFP_FS in dma allocation
+Message-ID: <20190520101206.GA9291@infradead.org>
+References: <CAJrd-UuMRdWHky4gkmiR0QYozfXW0O35Ohv6mJPFx2TLa8hRKg@mail.gmail.com>
+ <20190520055657.GA31866@infradead.org>
+ <1558343365.12672.2.camel@suse.com>
 MIME-Version: 1.0
-In-Reply-To: <20190516151012.GA20038@cmpxchg.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1558343365.12672.2.camel@suse.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, May 20, 2019 at 11:09:25AM +0200, Oliver Neukum wrote:
+> we actually do. It is just higher up in the calling path:
 
+Perfect!
 
-On 5/16/19 11:10 PM, Johannes Weiner wrote:
-> On Tue, May 14, 2019 at 01:44:35PM -0700, Yang Shi wrote:
->> On 5/13/19 11:20 PM, Michal Hocko wrote:
->>> On Mon 13-05-19 21:36:59, Yang Shi wrote:
->>>> On Mon, May 13, 2019 at 2:45 PM Michal Hocko <mhocko@kernel.org> wrote:
->>>>> On Mon 13-05-19 14:09:59, Yang Shi wrote:
->>>>> [...]
->>>>>> I think we can just account 512 base pages for nr_scanned for
->>>>>> isolate_lru_pages() to make the counters sane since PGSCAN_KSWAPD/DIRECT
->>>>>> just use it.
->>>>>>
->>>>>> And, sc->nr_scanned should be accounted as 512 base pages too otherwise we
->>>>>> may have nr_scanned < nr_to_reclaim all the time to result in false-negative
->>>>>> for priority raise and something else wrong (e.g. wrong vmpressure).
->>>>> Be careful. nr_scanned is used as a pressure indicator to slab shrinking
->>>>> AFAIR. Maybe this is ok but it really begs for much more explaining
->>>> I don't know why my company mailbox didn't receive this email, so I
->>>> replied with my personal email.
->>>>
->>>> It is not used to double slab pressure any more since commit
->>>> 9092c71bb724 ("mm: use sc->priority for slab shrink targets"). It uses
->>>> sc->priority to determine the pressure for slab shrinking now.
->>>>
->>>> So, I think we can just remove that "double slab pressure" code. It is
->>>> not used actually and looks confusing now. Actually, the "double slab
->>>> pressure" does something opposite. The extra inc to sc->nr_scanned
->>>> just prevents from raising sc->priority.
->>> I have to get in sync with the recent changes. I am aware there were
->>> some patches floating around but I didn't get to review them. I was
->>> trying to point out that nr_scanned used to have a side effect to be
->>> careful about. If it doesn't have anymore then this is getting much more
->>> easier of course. Please document everything in the changelog.
->> Thanks for reminding. Yes, I remembered nr_scanned would double slab
->> pressure. But, when I inspected into the code yesterday, it turns out it is
->> not true anymore. I will run some test to make sure it doesn't introduce
->> regression.
-> Yeah, sc->nr_scanned is used for three things right now:
->
-> 1. vmpressure - this looks at the scanned/reclaimed ratio so it won't
-> change semantics as long as scanned & reclaimed are fixed in parallel
->
-> 2. compaction/reclaim - this is broken. Compaction wants a certain
-> number of physical pages freed up before going back to compacting.
-> Without Yang Shi's fix, we can overreclaim by a factor of 512.
->
-> 3. kswapd priority raising - this is broken. kswapd raises priority if
-> we scan fewer pages than the reclaim target (which itself is obviously
-> expressed in order-0 pages). As a result, kswapd can falsely raise its
-> aggressiveness even when it's making great progress.
->
-> Both sc->nr_scanned & sc->nr_reclaimed should be fixed.
+> So, do we need to audit the mem_flags again?
+> What are we supposed to use? GFP_KERNEL?
 
-Yes, v3 patch (sit in my local repo now) did fix both.
-
->
->> BTW, I noticed the counter of memory reclaim is not correct with THP swap on
->> vanilla kernel, please see the below:
->>
->> pgsteal_kswapd 21435
->> pgsteal_direct 26573329
->> pgscan_kswapd 3514
->> pgscan_direct 14417775
->>
->> pgsteal is always greater than pgscan, my patch could fix the problem.
-> Ouch, how is that possible with the current code?
->
-> I think it happens when isolate_lru_pages() counts 1 nr_scanned for a
-> THP, then shrink_page_list() splits the THP and we reclaim tail pages
-> one by one. This goes all the way back to the initial THP patch!
-
-I think so. It does make sense. But, the weird thing is I just see this 
-with synchronous swap device (some THPs got swapped out in a whole, some 
-got split), but I've never seen this with rotate swap device (all THPs 
-got split).
-
-I haven't figured out why.
-
->
-> isolate_lru_pages() needs to be fixed. Its return value, nr_taken, is
-> correct, but its *nr_scanned parameter is wrong, which causes issues:
->
-> 1. The trace point, as Yang Shi pointed out, will underreport the
-> number of pages scanned, as it reports it along with nr_to_scan (base
-> pages) and nr_taken (base pages)
->
-> 2. vmstat and memory.stat count 'struct page' operations rather than
-> base pages, which makes zero sense to neither user nor kernel
-> developers (I routinely multiply these counters by 4096 to get a sense
-> of work performed).
->
-> All of isolate_lru_pages()'s accounting should be in base pages, which
-> includes nr_scanned and PGSCAN_SKIPPED.
->
-> That should also simplify the code; e.g.:
->
-> 	for (total_scan = 0;
-> 	     scan < nr_to_scan && nr_taken < nr_to_scan && !list_empty(src);
-> 	     total_scan++) {
->
-> scan < nr_to_scan && nr_taken >= nr_to_scan is a weird condition that
-> does not make sense in page reclaim imo. Reclaim cares about physical
-> memory - freeing one THP is as much progress for reclaim as freeing
-> 512 order-0 pages.
-
-Yes, I do agree. The v3 patch did this.
-
->
-> IMO *all* '++' in vmscan.c are suspicious and should be reviewed:
-> nr_scanned, nr_reclaimed, nr_dirty, nr_unqueued_dirty, nr_congested,
-> nr_immediate, nr_writeback, nr_ref_keep, nr_unmap_fail, pgactivate,
-> total_scan & scan, nr_skipped.
-
-Some of them should be fine but I'm not sure the side effect. IMHO, 
-let's fix the most obvious problem first.
-
->
-> Yang Shi, it would be nice if you could convert all of these to base
-> page accounting in one patch, as it's a single logical fix for the
-> initial introduction of THP that had huge pages show up on the LRUs.\
-
-Yes, sure.
-
->
-> [ check_move_unevictable_pages() seems weird. It gets a pagevec from
->    find_get_entries(), which, if I understand the THP page cache code
->    correctly, might contain the same compound page over and over. It'll
->    be !unevictable after the first iteration, so will only run once. So
->    it produces incorrect numbers now, but it is probably best to ignore
->    it until we figure out THP cache. Maybe add an XXX comment. ]
+GFP_KERNEL if you can block, GFP_ATOMIC if you can't for a good reason,
+that is the allocation is from irq context or under a spinlock.  If you
+think you have a case where you think you don't want to block, but it
+is not because of the above reasons we need to have a chat about the
+details.
 
