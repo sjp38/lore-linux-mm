@@ -2,160 +2,139 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A89CC072A4
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 04:50:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C6BFC072A4
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 05:37:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B870820851
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 04:50:00 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="mI5vScJ4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B870820851
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	by mail.kernel.org (Postfix) with ESMTP id 09D7C2081C
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 05:37:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 09D7C2081C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 24DCD6B0005; Mon, 20 May 2019 00:50:00 -0400 (EDT)
+	id 86BF76B0005; Mon, 20 May 2019 01:37:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1FE4B6B0006; Mon, 20 May 2019 00:50:00 -0400 (EDT)
+	id 81C656B0006; Mon, 20 May 2019 01:37:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0ED976B0007; Mon, 20 May 2019 00:50:00 -0400 (EDT)
+	id 70B8E6B0007; Mon, 20 May 2019 01:37:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CD2D16B0005
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 00:49:59 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id d9so9134628pfo.13
-        for <linux-mm@kvack.org>; Sun, 19 May 2019 21:49:59 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 21DFD6B0005
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 01:37:29 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id g36so23408647edg.8
+        for <linux-mm@kvack.org>; Sun, 19 May 2019 22:37:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=xkToWfPhUbXUlBSKuzZG3pFF8m3+cgJ3j1xebIaK/EI=;
-        b=Lkh9hd7RB7c9xQbOeMvCxVhOxIKUNwWOEEvrrrF3mYa7Fca7sIgJW/MZr2XlDfOHHz
-         E9y90/xmXPYuW8nZoA7ioJZli+m/eJYA/q+0ua1yFdsskzKXKyae31OWAEW37SdmYF2g
-         YoVvrIxvI43t5C8oA4OFQqbTVq3Lb2bJ6GfjNWNbbkxPM/lUWiz45J39DRHfLzRn59Mo
-         GfVKZMns5GNPLP1WtGGkWsFRIA92Yr948oLkf9FNY2IcUanf07KA0cypQkjJmGuUlA2s
-         AkIJQbyD4N1Sg+baHNnsufUG+2PfCiPiXQ8vFu6u8lZcUbg4HIQqqHRjYjUZhfSeVk00
-         A3Vw==
-X-Gm-Message-State: APjAAAUbphoJMDRBZTrbiR5ttLtx4G0yIm4YblpOC9kH0dDIK3KwC+rM
-	qHkMFM+j2HqeZnDGgM3AcQZpH/mt13rsor4TspNqnBO/yPFvchHshWEJnEUJq9OawIXd5iN/ETy
-	9CBZjSAYfRp8tjEETWM8PYFJsE0q+UCFUq+Mq5WttQ3iRMCWUCFpuaO70x8TFqR0emQ==
-X-Received: by 2002:a65:4b88:: with SMTP id t8mr73234556pgq.374.1558327799432;
-        Sun, 19 May 2019 21:49:59 -0700 (PDT)
-X-Received: by 2002:a65:4b88:: with SMTP id t8mr73234518pgq.374.1558327798737;
-        Sun, 19 May 2019 21:49:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558327798; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:subject
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=LPCWNZfHJ1TBRaQtT7r2vBNATMbXaJLaTNvqzCOtn3E=;
+        b=I0456xvKOYWHVLgXZSvNFiff13uodoGtroA6YAztA0ftNg7OYhnneY/LfAarR8ex7K
+         U5TRXozUX77NmMfNpdUCh/GT8pPCsOjFoIQI0TpswgQf68kwelEfGDYQDPGyUxQU3P8p
+         YntWQoYJMCBfyV8JO/6nbqCz7Ek/3OFVV5nygfudA4WxZNQuzjVRWGkz4K8XDW2mCMCV
+         XYpTSmg0yds/qmGoF1VfV9aHlB2rMv93iNu5OXm0uik6Fj9ZLfnQ3afAPNvmL6GG2B9z
+         wVXFjZzsWo954LPRX3QW1an5+ugnFKVW7VzMtJNYLhJwPo1vbo3MqUmssjD6ncC9w4FA
+         WvzA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAXuULNoTmYgydJ9oaqVHi9QTnVKkm0QcYwUONrhzzyu041SOs3h
+	wKRKOX/6RCJ9frxnt0v3Kyst/79KSYJyu6SxEj8p0jWEtrAQNQU7Gnrf33iseFDuCXBtT1VwfIk
+	15a+2xJDxk3viMht9q5LibA0uofW/q9vx3ZtnYoVrHlr6RikEzore8S3XMVnmgtINaQ==
+X-Received: by 2002:a17:906:e282:: with SMTP id gg2mr1960321ejb.38.1558330648587;
+        Sun, 19 May 2019 22:37:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzE7Ivq2uqC9M39vMy2kq/bL3Y604Mnpy43BSz22bR8uNbzS7vsm8/mHVMtZxs2LptMnT/i
+X-Received: by 2002:a17:906:e282:: with SMTP id gg2mr1960288ejb.38.1558330647848;
+        Sun, 19 May 2019 22:37:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558330647; cv=none;
         d=google.com; s=arc-20160816;
-        b=G1gzgZX4ESQaRQHlwoy6VA8LvQkX4/QXgyG7ub0SSsY7ML2gPVAxQu7kAXGVNFUzoJ
-         AbomyV2FkPlUrDqiNoljyq12ZOImFyWSdrSlvNUyeVLtvRSLedJUfVgJZyjPkSSZ6Arg
-         Ga4q1FdO5jxsBoSZUpibCkIvTUgWie/1l9/KxtzE8K/uoae68PPKulMOczmsmHEcjAlb
-         3Gt5HiFCxrhaNuKQOOrmxt7iYOL+krj88Y95hYgibggehWFizxqUbaiVppBNkaNKQLeg
-         4cWBUhxC5W8Jm9jY/UYrAg2gTSfr1b5SPyTyxkMIKOjNezq04e7N7EUAKA1SAXJ67Woh
-         zMJw==
+        b=kWHDUPpFk+/1xwQM9GJreENVpibM+OAy4LlWrp0vbY5EbHF4lev8KrQFOnstQQFZlS
+         tTaIZkwpzt5W98mtPox+61T/QwC9Qyv0tZZMRna10ZzaBQR+91CQQA/WwFDELp1V/y3a
+         F4QE3eBR61k4kTLBEXX4mVrfdr8/3WI3Lb/wl84SCtsiwQLDQaCfnwdLx8rMO9AaFMXB
+         FOL8c/rxovOhaChBn6lsjXCt8n3xq3jEPV1fWcuHmcxpAX3rGaFZV/EcuHnQvDh5j8uk
+         c+cvTgYND+y3Nd6xXA5S5HmDTJB8oNOgNRQKVgIOrBf6L0KqRNTLFXerNOwQ+K99gsww
+         viPw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=xkToWfPhUbXUlBSKuzZG3pFF8m3+cgJ3j1xebIaK/EI=;
-        b=nhrtOH8Eohk0ogsIDeZtRSYX0yWPCxaFHg+j2gMes5QSnwAkfBTzHBUTgWrmjWHCKZ
-         FVVGxxtNiIT76CnP2Ztg6jNjuWQw3usvLshphbhN/YOw6xZdo/aw/b6qYw/nzVEHMlHG
-         vNWMRk7tr9OAHO3KOPmgCy051bOs1mILY/edmTqSaLiiUW2udo1dZyWRRkFlhPjSSg7u
-         DtvKerEUUiAgOjnxOT9m9tXSmzaKLNN7+qPwStNy6rAecxiK60BfcatSrhNPkmRf4jVS
-         f+Y9W3crd3T3/5Rl7O8zj4tgPQIhhgPYEP9gCmW6L16Zrs1qGQC0OBZt4xSCniNt9fbF
-         vUxw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:subject:from;
+        bh=LPCWNZfHJ1TBRaQtT7r2vBNATMbXaJLaTNvqzCOtn3E=;
+        b=FENoKbU25qnlzGLZBjEKfkpAMm3ymuDwTa4LBw0Wp4cbBHb3+QYzwcpN4FFAAJ/f6L
+         JaFD2F7lw0RD0spzbAgboyo53GXghT/1PM+HM/joNyysIo6A/i1UwbjKNVJhdAQ4sHvl
+         2mJPjBRCx2DcDUFgtsXjMsWRk1IZ3Vp1LVrW29TdDWJF/VJxQ24raweg95ltEgNGyCIZ
+         moSJ8CW26X/qdjwBRfhlAcz5BZE28ZTLVQfBiPOd1KhBhrdat1FBtvFBjBlD/b7xBq8Z
+         G36aChMbmoruY2ohYpKREJz1rL4ZN4RxZ5Erzubx/kctyjQNUM4jG9l+EyDJZ8tW1olu
+         fotQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=mI5vScJ4;
-       spf=pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=drinkcat@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c12sor16133855pfr.69.2019.05.19.21.49.58
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 19 May 2019 21:49:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d41si5093329ede.19.2019.05.19.22.37.27
+        for <linux-mm@kvack.org>;
+        Sun, 19 May 2019 22:37:27 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=mI5vScJ4;
-       spf=pass (google.com: domain of drinkcat@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=drinkcat@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=xkToWfPhUbXUlBSKuzZG3pFF8m3+cgJ3j1xebIaK/EI=;
-        b=mI5vScJ46CfONQKk0BXuJqgqaOpncnnzaBz3sQRykYdFNJRSapviixTBiuyNXhv3Lj
-         IKXhEYu8bwmxqqhsj4jf31vawxOk5hgaSWCzkrl3jSNirETmZA+np4paeXOlSZGefx++
-         v/lIzQqsOCjlows+Onq9agp+5xzN+dFq06s1M=
-X-Google-Smtp-Source: APXvYqwN55gQbIsuZenQKAzA8VBSQYQ1vm8yCPL9giuGjnZvDoaeAZMfk2h4f+nYBl2QObZZzuXkCQ==
-X-Received: by 2002:a62:ee05:: with SMTP id e5mr76083541pfi.117.1558327798179;
-        Sun, 19 May 2019 21:49:58 -0700 (PDT)
-Received: from drinkcat2.tpe.corp.google.com ([2401:fa00:1:b:d8b7:33af:adcb:b648])
-        by smtp.gmail.com with ESMTPSA id 140sm26022608pfw.123.2019.05.19.21.49.55
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 May 2019 21:49:57 -0700 (PDT)
-From: Nicolas Boichat <drinkcat@chromium.org>
+       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9293180D;
+	Sun, 19 May 2019 22:37:26 -0700 (PDT)
+Received: from [10.162.41.132] (p8cg001049571a15.blr.arm.com [10.162.41.132])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BA61F3F5AF;
+	Sun, 19 May 2019 22:37:24 -0700 (PDT)
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH] mm/dev_pfn: Exclude MEMORY_DEVICE_PRIVATE while computing
+ virtual address
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>,
-	Nicolas Boichat <drinkcat@chromium.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Joe Perches <joe@perches.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	linux-mm@kvack.org,
-	Akinobu Mita <akinobu.mita@gmail.com>,
-	Pekka Enberg <penberg@kernel.org>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] mm/failslab: By default, do not fail allocations with direct reclaim only
-Date: Mon, 20 May 2019 12:49:51 +0800
-Message-Id: <20190520044951.248096-1-drinkcat@chromium.org>
-X-Mailer: git-send-email 2.21.0.1020.gf2820cf01a-goog
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ dan.j.williams@intel.com, jglisse@redhat.com, ldufour@linux.vnet.ibm.com
+References: <1558089514-25067-1-git-send-email-anshuman.khandual@arm.com>
+ <20190517145050.2b6b0afdaab5c3c69a4b153e@linux-foundation.org>
+Message-ID: <cb8cbd57-9220-aba9-7579-dbcf35f02672@arm.com>
+Date: Mon, 20 May 2019 11:07:38 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190517145050.2b6b0afdaab5c3c69a4b153e@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When failslab was originally written, the intention of the
-"ignore-gfp-wait" flag default value ("N") was to fail
-GFP_ATOMIC allocations. Those were defined as (__GFP_HIGH),
-and the code would test for __GFP_WAIT (0x10u).
+On 05/18/2019 03:20 AM, Andrew Morton wrote:
+> On Fri, 17 May 2019 16:08:34 +0530 Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+> 
+>> The presence of struct page does not guarantee linear mapping for the pfn
+>> physical range. Device private memory which is non-coherent is excluded
+>> from linear mapping during devm_memremap_pages() though they will still
+>> have struct page coverage. Just check for device private memory before
+>> giving out virtual address for a given pfn.
+> 
+> I was going to give my standard "what are the user-visible runtime
+> effects of this change?", but...
+> 
+>> All these helper functions are all pfn_t related but could not figure out
+>> another way of determining a private pfn without looking into it's struct
+>> page. pfn_t_to_virt() is not getting used any where in mainline kernel.Is
+>> it used by out of tree drivers ? Should we then drop it completely ?
+> 
+> Yeah, let's kill it.
+> 
+> But first, let's fix it so that if someone brings it back, they bring
+> back a non-buggy version.
 
-However, since then, __GFP_WAIT was replaced by __GFP_RECLAIM
-(___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM), and GFP_ATOMIC is
-now defined as (__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM).
+Makes sense.
 
-This means that when the flag is false, almost no allocation
-ever fails (as even GFP_ATOMIC allocations contain
-__GFP_KSWAPD_RECLAIM).
+> 
+> So...  what (would be) the user-visible runtime effects of this change?
 
-Restore the original intent of the code, by ignoring calls
-that directly reclaim only (___GFP_DIRECT_RECLAIM), and thus,
-failing GFP_ATOMIC calls again by default.
-
-Fixes: 71baba4b92dc1fa1 ("mm, page_alloc: rename __GFP_WAIT to __GFP_RECLAIM")
-Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
----
- mm/failslab.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/failslab.c b/mm/failslab.c
-index ec5aad211c5be97..33efcb60e633c0a 100644
---- a/mm/failslab.c
-+++ b/mm/failslab.c
-@@ -23,7 +23,8 @@ bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
- 	if (gfpflags & __GFP_NOFAIL)
- 		return false;
- 
--	if (failslab.ignore_gfp_reclaim && (gfpflags & __GFP_RECLAIM))
-+	if (failslab.ignore_gfp_reclaim &&
-+			(gfpflags & ___GFP_DIRECT_RECLAIM))
- 		return false;
- 
- 	if (failslab.cache_filter && !(s->flags & SLAB_FAILSLAB))
--- 
-2.21.0.1020.gf2820cf01a-goog
+I am not very well aware about the user interaction with the drivers which
+hotplug and manage ZONE_DEVICE memory in general. Hence will not be able to
+comment on it's user visible runtime impact. I just figured this out from
+code audit while testing ZONE_DEVICE on arm64 platform. But the fix makes
+the function bit more expensive as it now involve some additional memory
+references.
 
