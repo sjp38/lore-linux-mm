@@ -2,162 +2,180 @@ Return-Path: <SRS0=ymty=TU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 330E6C04AAF
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:05:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51E83C04AAC
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:08:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DFA1F216B7
-	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:05:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0A27320815
+	for <linux-mm@archiver.kernel.org>; Mon, 20 May 2019 17:08:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="Rg3JGm7c"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFA1F216B7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="t1SUvr49"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A27320815
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 79F9F6B0003; Mon, 20 May 2019 13:05:33 -0400 (EDT)
+	id 9731B6B0003; Mon, 20 May 2019 13:08:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 729826B0005; Mon, 20 May 2019 13:05:33 -0400 (EDT)
+	id 923476B0005; Mon, 20 May 2019 13:08:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A2326B0006; Mon, 20 May 2019 13:05:33 -0400 (EDT)
+	id 812176B0006; Mon, 20 May 2019 13:08:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F73D6B0003
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 13:05:33 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id bg6so9465690plb.8
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 10:05:33 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 47AAF6B0003
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 13:08:05 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id u11so4310644plz.22
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 10:08:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=4ZOI+jnwXBptD9UIpostnVMZFPCwcvxnpKvL3qurL40=;
-        b=g98+DeDWftaCEnbmPgf3/utNfcT8Oyk8rm3ChfqYhH6rPS3zvVibsdIMWxddzDFM0N
-         M+vVHcyCKYVCsRjaW0msKGcENVsEgNknGRrI0TdfAi1vg0soU9yBPwEGqaiRHaS5+uqO
-         fp9nd5seJGR5OAbM9XZg+aWV2a3n0oQTSqpSkRurwevVcFrumD9fGmNUD4fw4APvN70E
-         4E5LMOuTA8tfW1hgdvPNItupFmChNjRO0nUKc4EP6xibV4cK/TgyqQIH+bO22xIHJapy
-         iKDwmeinjCGaBAX42Efi0kLtb8abDmOnWppl75xiAKc/tiavROtoOT3Ha4/CQcsByQmm
-         YhSg==
-X-Gm-Message-State: APjAAAUA0AiNWbTlNCHByB8qqV3hbKDo3r82I8RfRnRzQ68NnxfIt1/s
-	eqlANv8i75m7hjlREIQJKK2DLcuekOBtYL19BYSNTPA9ADTOgVwa1zSrLPyAUZQoex7ynGZN9OF
-	73St9f1cmcQqpwvGf++JxZvnHK+TpoyjlcA51D9lJwG+F0wRPeWrqPEQ6RUU/MD+GCg==
-X-Received: by 2002:a63:da14:: with SMTP id c20mr15041496pgh.191.1558371932783;
-        Mon, 20 May 2019 10:05:32 -0700 (PDT)
-X-Received: by 2002:a63:da14:: with SMTP id c20mr15041426pgh.191.1558371931854;
-        Mon, 20 May 2019 10:05:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558371931; cv=none;
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=ol97WAmP2eVJA2nRz/+2miX8OAofXhZkUB5qRp3k8dg=;
+        b=Bb40Zpu0sUI36JX5qUvE3Y6oGoopDDumq1BE+jkXAJ2sp7tlZHyZSp4W53kKnS6oW/
+         ba0rrhE/eyUQCma5PDI6sgy6EXO7lh3Wd0cBYTdR+bQPdCQs5Hh/UZC+VqFuY+Kel3hf
+         xq/jxpdZ0bvtFHJ7L4nksyuLsig40mhqQ6vARIYvoXm4nYSfhQcvKIZE2AiXlbdWTfs3
+         n4cglCU0COTLhwtntKpBKozCnm2Psa80thFRkmvhnyXkwxFDVboyZGWqGqrJNESq/Elw
+         kuG6rqipsN5qQYsKKHXlWr0bx3VZ8bj0tZ6NBZ9dZBvWANkY9Tllkb9gtpz9T/hPAlP+
+         bIZQ==
+X-Gm-Message-State: APjAAAW2b1aoDRpthxulLUfpNRkUGq714mIgrB8bLQeOfm+FdGg/+33I
+	A+y1KSgxRwi3oBtynhrlr3W5C3np8F2fiexdigW2dHvudTTU7p5jn3MTUcQTILVk8A/g/Y7VvMY
+	BwINDXeP3bigBvY9Wh5GBfYSfxsQWHDo9+UWRPT5WXoQcV8xaXRO7lPxNbNPtRz4/xw==
+X-Received: by 2002:a17:902:6bc8:: with SMTP id m8mr75509579plt.227.1558372084957;
+        Mon, 20 May 2019 10:08:04 -0700 (PDT)
+X-Received: by 2002:a17:902:6bc8:: with SMTP id m8mr75509336plt.227.1558372082366;
+        Mon, 20 May 2019 10:08:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558372082; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ojv6Q9SOY88Sdyw1MGp+8SSdDNQtrumQUiW+bGopO9yPtZGwcRSegTHxueDO6TwKnr
-         nc2bP/X9Jo6dk/R4R17Ky3KmZBnemq1VFqm6CA5fjA1TGdF0zWX6WjmRdipabY1rsBhD
-         6WdHk0teKJRgcJHd7X4pZ0QY8+vCQFW9GXXGW1SmnGb2p+RBnbTWu7LngcORDpY7E5PL
-         PzXN/2K6dYAFjtJSD44Er8SsO4qVTylcnKRTBCEcqwwcYldZsXjVeyy/c3hYw2Hj4vOy
-         c2ppHdRrJ6CLs63Q6TlGFfI/yT+FURPK39K72Xj4zYz1WB4vwVrMy6xoAzYvLmPqD8hF
-         HWew==
+        b=rvnZDz5jcGhZdtRbbu+7ErHZngoxmne5B7vFCkJfKG5cvq2lCSWdyW2kgJZ9HI2jbG
+         anEjTQ628onEelpX1ndj0Pcq8UYOAWK74xgoE/F1ErI2+Cs12peLHkKEMxQ4FCt0IRc9
+         X1cVpVdrUb1e9gltt2+gon4O77cfXzMioi0mldJQrtL7izry7Ld3cqohyV+48KOqFDnd
+         1nQXZ7tk65gb3mnLihnDMc+52FlmLBeaWoCz7k2nXCXa9NzUFubo6cVSpfNtjjrXBpqV
+         Y6qvERhyiMZDXQvHBQrsolEztN/ltaqRw/Q9Q9G2X0wYaGJhYgkPLo1/KxHxMHYix7dg
+         rqyg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=4ZOI+jnwXBptD9UIpostnVMZFPCwcvxnpKvL3qurL40=;
-        b=BAcQUNotWvNs8Ax/OPrwbMCVYR0VojkXuPOcdUDAbXa5HzK2Kb7cyH8stVou4Fv7Ng
-         tD6ibp5fFlaMF7enleNtCM3Ga9Y8CDTmIhZ6J/M2jKmetX0uC96FK1EGUHYVd2r3UFa5
-         MNJiVqBRI3lWXI+hPGeQgRRf4AbEMOFCkAiicQf27JrF7050vgmNfQaztIUK3KgEXAOP
-         YcnChABCdw8vvTKvM00sbnBHUmOikRo/LI0yPtOtXww75QlaWr+cVx4+v8ADGQT8vqHJ
-         8NzAa0qa4voi+dcDwH5RQc0o+LIahBQs/qoNsYGNvaauu36fU10isI2Fdmd2yDOwjruM
-         eYyQ==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=ol97WAmP2eVJA2nRz/+2miX8OAofXhZkUB5qRp3k8dg=;
+        b=Ar1RiDZuOISJze113qt95ctTt4oUNAuO4E+A+JwQR02Zh90Yxxd+9oa5rq+fWgXWGI
+         SGA8K5Pn9Zz91mT2h45yG/ooCBgMUzPntDCz2FCf9klsxmgk36Zc7NsLqbnQWBhmMOHM
+         IPcnAsAmr+r+1acVbvbeCPuWfUa18hGcCm78Vpw195+m+spmKwcrImr812/ryCikINy9
+         pPdvNTdhcQ34S3oaU3wL5H3pWy+KbHI8qf58R/3b6YjIV5B7zwSjiPnRixcMptbQ4Ki6
+         er3b80edsNEt/tP0LhQbplKkQ65aOSvAKv0WxTuteVeVKVUcTC46/76kvCjYrZJW9kzD
+         fsyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=Rg3JGm7c;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=t1SUvr49;
+       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 1sor18267965pgt.21.2019.05.20.10.05.31
+        by mx.google.com with SMTPS id h3sor16075833pld.22.2019.05.20.10.08.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 20 May 2019 10:05:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 20 May 2019 10:08:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=Rg3JGm7c;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=t1SUvr49;
+       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=4ZOI+jnwXBptD9UIpostnVMZFPCwcvxnpKvL3qurL40=;
-        b=Rg3JGm7cAcDM+AZNutQuRwGkJ3ubXbt1UCwOCgZnkJntyOzhCrWnunCiEjWY7ROSIZ
-         kVmBbyBsGGB57A5oVMp546xpWJgwU/oSoyDYqohN31no/hHulLW0cV3TFXQxHRGm3Arh
-         oZI0B0sNElaQefwHOOurYmhojHza1z+7f0MdJSYwJgf0UX78I0BFmHNhkkyTJP+ysJgA
-         1oq4KvyqLM9FGoFmGF0bhA3gzuw3Xcn/MOZUKRVRWJpoiE+3D/NOeDKnUVfhlEhq8tFr
-         ACelj15Q04D4dmGoY8dB6fOkc4qS2Hmb9f4IVHnDWYoNGwTJItV3oZNqdJ6Lf+b5E2oC
-         /1IA==
-X-Google-Smtp-Source: APXvYqwYUPMF0FEJQ8SH6f6V9L+pAAf6oW7lozkMuesu1RZqnBX5kL/J9WlcSj5ZD7fx0NEgV+if8A==
-X-Received: by 2002:a63:1045:: with SMTP id 5mr32327108pgq.55.1558371931150;
-        Mon, 20 May 2019 10:05:31 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::3:df5f])
-        by smtp.gmail.com with ESMTPSA id u76sm21219972pgc.84.2019.05.20.10.05.29
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=ol97WAmP2eVJA2nRz/+2miX8OAofXhZkUB5qRp3k8dg=;
+        b=t1SUvr49nCz5spS7UjhK4JQ6Apy9p/w/1qE61fOdmFfmMryUBZ+WjIsoDVYyX0YN+x
+         j5og+gJgIsflpdRHMeu4i6xsY2+UzVuGO1IiAwFKq8YNFVdJFLj22bPvRVxM+yAVqLff
+         PAW3c3y2TigXGYgpCjxGUxipPCGGvoOz/MvCTNCPZ+zoHoiu1D+HVg1ssM9mD+mVjUiJ
+         qFpPpLRxtAxloaRyKdKCYeCSth/6Bh8xtBLIJjeKCHHG8MsLiaqMtwh6HoObu3XCANYy
+         hm+mE/IgGQR/lmsIIIq+EWSCEFhG9esI757NdeTwa4gSr1cwKurrdnZp96vRKZn5Hnrh
+         XHaQ==
+X-Google-Smtp-Source: APXvYqw9vVqYpqbwDVINtSfVyNRGl8P4j/ZT8VpIKlzNUAKaBErtJAKSArZb4J9wWyNkS2M6O6Yhxw==
+X-Received: by 2002:a17:902:aa85:: with SMTP id d5mr75933523plr.245.1558372081719;
+        Mon, 20 May 2019 10:08:01 -0700 (PDT)
+Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
+        by smtp.gmail.com with ESMTPSA id 125sm26076542pge.45.2019.05.20.10.08.00
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 20 May 2019 10:05:30 -0700 (PDT)
-Date: Mon, 20 May 2019 13:05:28 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Roman Gushchin <guro@fb.com>, Chris Down <chris@chrisdown.name>,
-	linux-mm@kvack.org, cgroups@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v2] mm, memcg: introduce memory.events.local
-Message-ID: <20190520170528.GC11665@cmpxchg.org>
-References: <20190518001818.193336-1-shakeelb@google.com>
+        Mon, 20 May 2019 10:08:00 -0700 (PDT)
+Date: Mon, 20 May 2019 10:07:59 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+X-X-Sender: rientjes@chino.kir.corp.google.com
+To: Akinobu Mita <akinobu.mita@gmail.com>
+cc: Nicolas Boichat <drinkcat@chromium.org>, 
+    Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+    Joe Perches <joe@perches.com>, 
+    Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, 
+    Pekka Enberg <penberg@kernel.org>, 
+    Mel Gorman <mgorman@techsingularity.net>, 
+    LKML <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH] mm/failslab: By default, do not fail allocations with
+ direct reclaim only
+In-Reply-To: <CAC5umygGsW3Nju-mA-qE8kNBd9SSXeO=YXMkgFsFaceCytoAww@mail.gmail.com>
+Message-ID: <alpine.DEB.2.21.1905201007170.96074@chino.kir.corp.google.com>
+References: <20190520044951.248096-1-drinkcat@chromium.org> <CAC5umygGsW3Nju-mA-qE8kNBd9SSXeO=YXMkgFsFaceCytoAww@mail.gmail.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190518001818.193336-1-shakeelb@google.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 17, 2019 at 05:18:18PM -0700, Shakeel Butt wrote:
-> The memory controller in cgroup v2 exposes memory.events file for each
-> memcg which shows the number of times events like low, high, max, oom
-> and oom_kill have happened for the whole tree rooted at that memcg.
-> Users can also poll or register notification to monitor the changes in
-> that file. Any event at any level of the tree rooted at memcg will
-> notify all the listeners along the path till root_mem_cgroup. There are
-> existing users which depend on this behavior.
-> 
-> However there are users which are only interested in the events
-> happening at a specific level of the memcg tree and not in the events in
-> the underlying tree rooted at that memcg. One such use-case is a
-> centralized resource monitor which can dynamically adjust the limits of
-> the jobs running on a system. The jobs can create their sub-hierarchy
-> for their own sub-tasks. The centralized monitor is only interested in
-> the events at the top level memcgs of the jobs as it can then act and
-> adjust the limits of the jobs. Using the current memory.events for such
-> centralized monitor is very inconvenient. The monitor will keep
-> receiving events which it is not interested and to find if the received
-> event is interesting, it has to read memory.event files of the next
-> level and compare it with the top level one. So, let's introduce
-> memory.events.local to the memcg which shows and notify for the events
-> at the memcg level.
-> 
-> Now, does memory.stat and memory.pressure need their local versions.
-> IMHO no due to the no internal process contraint of the cgroup v2. The
-> memory.stat file of the top level memcg of a job shows the stats and
-> vmevents of the whole tree. The local stats or vmevents of the top level
-> memcg will only change if there is a process running in that memcg but
-> v2 does not allow that. Similarly for memory.pressure there will not be
-> any process in the internal nodes and thus no chance of local pressure.
-> 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+On Tue, 21 May 2019, Akinobu Mita wrote:
 
-This looks reasonable to me. Thanks for working out a clear use case
-and also addressing how it compares to the stats and pressure files.
+> > When failslab was originally written, the intention of the
+> > "ignore-gfp-wait" flag default value ("N") was to fail
+> > GFP_ATOMIC allocations. Those were defined as (__GFP_HIGH),
+> > and the code would test for __GFP_WAIT (0x10u).
+> >
+> > However, since then, __GFP_WAIT was replaced by __GFP_RECLAIM
+> > (___GFP_DIRECT_RECLAIM|___GFP_KSWAPD_RECLAIM), and GFP_ATOMIC is
+> > now defined as (__GFP_HIGH|__GFP_ATOMIC|__GFP_KSWAPD_RECLAIM).
+> >
+> > This means that when the flag is false, almost no allocation
+> > ever fails (as even GFP_ATOMIC allocations contain
+> > __GFP_KSWAPD_RECLAIM).
+> >
+> > Restore the original intent of the code, by ignoring calls
+> > that directly reclaim only (___GFP_DIRECT_RECLAIM), and thus,
+> > failing GFP_ATOMIC calls again by default.
+> >
+> > Fixes: 71baba4b92dc1fa1 ("mm, page_alloc: rename __GFP_WAIT to __GFP_RECLAIM")
+> > Signed-off-by: Nicolas Boichat <drinkcat@chromium.org>
+> 
+> Good catch.
+> 
+> Reviewed-by: Akinobu Mita <akinobu.mita@gmail.com>
+> 
+> > ---
+> >  mm/failslab.c | 3 ++-
+> >  1 file changed, 2 insertions(+), 1 deletion(-)
+> >
+> > diff --git a/mm/failslab.c b/mm/failslab.c
+> > index ec5aad211c5be97..33efcb60e633c0a 100644
+> > --- a/mm/failslab.c
+> > +++ b/mm/failslab.c
+> > @@ -23,7 +23,8 @@ bool __should_failslab(struct kmem_cache *s, gfp_t gfpflags)
+> >         if (gfpflags & __GFP_NOFAIL)
+> >                 return false;
+> >
+> > -       if (failslab.ignore_gfp_reclaim && (gfpflags & __GFP_RECLAIM))
+> > +       if (failslab.ignore_gfp_reclaim &&
+> > +                       (gfpflags & ___GFP_DIRECT_RECLAIM))
+> >                 return false;
+> 
+> Should we use __GFP_DIRECT_RECLAIM instead of ___GFP_DIRECT_RECLAIM?
+> Because I found the following comment in gfp.h
+> 
+> /* Plain integer GFP bitmasks. Do not use this directly. */
+> 
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Yes, we should use the two underscore version instead of the three.
+
+Nicolas, after that's fixed up, feel free to add Acked-by: David Rientjes 
+<rientjes@google.com>.
+
+Thanks!
 
