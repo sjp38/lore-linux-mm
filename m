@@ -2,210 +2,203 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.2 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B21B7C04E87
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 01:26:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A95F2C04AAC
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 01:32:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5FD392173E
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 01:26:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5D20821479
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 01:32:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="DLIH2eCP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5FD392173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="lB8rpyD1";
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="Berg9P+n"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D20821479
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 00ED06B0005; Mon, 20 May 2019 21:26:58 -0400 (EDT)
+	id F27876B0003; Mon, 20 May 2019 21:32:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F01776B0006; Mon, 20 May 2019 21:26:57 -0400 (EDT)
+	id EB0996B0005; Mon, 20 May 2019 21:32:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DF0EF6B0007; Mon, 20 May 2019 21:26:57 -0400 (EDT)
+	id D77C76B0006; Mon, 20 May 2019 21:32:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A7DCE6B0005
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 21:26:57 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id e6so6892531pgl.1
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 18:26:57 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B3C026B0003
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 21:32:04 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id z7so9534745qtj.2
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 18:32:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=q5tudNQ9cSMh3fCrTxG8NdksCakwJg8DbWSQrWyIrTI=;
-        b=qHGh/t/vcWVGOxmF+6mc4GdCwNfOoOwHP9C4vjRr1xfT2AgZPcG/Zlvez0JBzNw9SU
-         LziIh3jLJr2OqaGlCdMAI0uZVQVFb8FG0RUpPMC4r1w9JWNr4gUAQDSyAV9cjSnCUxBb
-         TNreTZGLFGObFILCsCaszRyem473kXgwaUlVy5LuOKL1GNuJOmX8EPnuqF3n/Tp18um1
-         lQwQ2P0yYCSLp4pEh3Dtui4Ft35gW2pIG1V4t5tC+Hr8+AGV7376mwAhV7gjKXZ+sqJH
-         nQnsaTuZ/j7qTtM2wXtvQApSAYVyhQFfiwYZcCVZ+RsZ+hEz/RnWkaAqdmjUbSoAgy+4
-         /ang==
-X-Gm-Message-State: APjAAAUn/KkB6OXQ/M/Z/lhhUTkExZEWwmreLAL3Qi4DBuzGQU7iwfAx
-	+zPmXZAKuHbcWh9A9HL7CkrN1WukZFO8vIdw0KBykxkc2b3vD8AQz/CDtucoPV9L2JaHa7KKZoB
-	aNKLZT2lM83t+NItaoBfX/OdvlHwqaIO5fJlcwb5Fkvl/c7Qi+nuhwMlbjTrKKyo=
-X-Received: by 2002:a17:902:9689:: with SMTP id n9mr79879103plp.133.1558402017228;
-        Mon, 20 May 2019 18:26:57 -0700 (PDT)
-X-Received: by 2002:a17:902:9689:: with SMTP id n9mr79879055plp.133.1558402016510;
-        Mon, 20 May 2019 18:26:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558402016; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
+         :subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=XT/UdYnmx7GrDaJa60CFoxeSSHk/OGQKeLYVIbFsryY=;
+        b=DQU4WQeXIoJI7SVDl3d9UY3Ti4qe44PeUdN1px4muN7Ay8J3S7rYexrVRCFONzmjk6
+         eDKPqd829PrY6k2+kbKqoFII9RsbgY+PMwiiyjJsuD3togYfRL269Lmj0NzIh9zmC85i
+         i2ckPy2wclpOjaqw+2zjbBe+Q+9FHWCQpmdsUABOj4PRBZYwajfN9QgkHGAsorF0eYix
+         ZD3b7sBDoqkxpmNaNwGdo+2VV4tFXEqYrwErtFyPkuOJgOMnOTSuLb8IlnG5vYM9eFMA
+         wWlLnUUMaUQLxqmwfPRVJIGOmdbKmTLpXRqGwXdDVxx3yQw57lwAf8xqmAIZDfsT613j
+         Pkcw==
+X-Gm-Message-State: APjAAAVZW81EiuNjFEA4xwjXLpVFMPsUJ2Zi38e3zYVi6fGSAL+73X+t
+	khaTbZrkCgzEFdIXnWXf8DI5EwtWB9u2cfK1NZS6iHMWmsUOv5ZZOcg+sfLSJALoVAxO8M2D0t9
+	zuE0+z8fcj8w3Ri95Ef7w5WdmIIbbaqkGb7NYmzoIlsqzNxKeyFDERQVsSu0Akj+GaA==
+X-Received: by 2002:a0c:980b:: with SMTP id c11mr63775963qvd.115.1558402324467;
+        Mon, 20 May 2019 18:32:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxQNR57AO/XLyvj7n0zaRzqGuQX+nECLcXS88a8SHRE5DxZ956Ybdsp/2EZnIOzDiua/TOG
+X-Received: by 2002:a0c:980b:: with SMTP id c11mr63775910qvd.115.1558402323831;
+        Mon, 20 May 2019 18:32:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558402323; cv=none;
         d=google.com; s=arc-20160816;
-        b=nO5UcCzy4D2hGxqY5DFZZzXI0UxZvdr9qNQRQmxO7h5ob+7j9MGpO2OSv582vHcDmR
-         AEgHMcPno6AtSqi57U+rbouyITxWsW8S0hy6BAHbh6a4zBOsAjbcxhdSabLW57eghVi6
-         bBZW2aVtPEp14Kxd1aEpboHVzTmput5EjFba+PcFX8Xohb2Wtkg1A8hXLky3Uk5IJVKQ
-         OpjY4bf+2SkIWZ0Nn2czXilDtehBY/Z9Em5eFHuO/GwShnT9bKO/qBWeBC4/IbJ4UZ92
-         nLHCyknszX0Rqk2vH70T+1YDB7n+bpp54p+9SNwVQcVrIcKz9r5UD19xvqqSrAaHZHDz
-         tBsA==
+        b=JA+pBUlAO3FTdci8R2xlJoWpkCwyJpXlaFdwGglfV2u4OAx8N5/dLdBt8LRHNNd43p
+         HwPQVdtglA22xWSLfRymt+gPP/VWTom3JRGjxVLbwBzSuN4zy1vS5i8zLhFW6eY0dtnS
+         S05XzvYZO17vXxRcwpAIkz3IFx6UYUjAsJiYpBOOYrnB6fcP30IGVPedSuVfdKqfhFPM
+         4NiTP0V8mZueHXBw9xdcfZKfvjIO/B3VZnE2DyInmJguKHD8H/loXRfEnwHgkLgpN7U1
+         4j75VxRfeiQLmvjyxaA8rQsjl7u1cnFFmomsCSs2mDshTxzNutcLZSCVefy/O/PYiO+I
+         mS5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=q5tudNQ9cSMh3fCrTxG8NdksCakwJg8DbWSQrWyIrTI=;
-        b=zJD424M6RDNCaUvzQcp17/klINWZI9ldlEzVFdZmCAKXFucaRBBYGRYLPkgyUCi1Cz
-         ZLYHBFdFlYHM985PS+TIBFd7L9beV8tboiup2U8w3JeBR764EFSiyePa+LeFrVtt6/dD
-         QS96qJpl5RdR0xdnDR4ei+OXy5AOoD+OvBk+M4IddXp3/bHRh/sCmWEHb8BhClDHosd5
-         ev3aAqb5uPtY07AMjRuge4lewJY7fljv81RHdpy/kM/PvtlYV724fHn7rokOwfgIzvD3
-         fEMUkM/RF42RABfp2U1YFY0P1zF9xupuoXnlTkjp38HGVksAXnOCZ6JNzXT1d4Y2dbPR
-         0kWg==
+         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
+        bh=XT/UdYnmx7GrDaJa60CFoxeSSHk/OGQKeLYVIbFsryY=;
+        b=J/ao+Mc78QtrdESnqmqC+PMRzclbs8aAyn7r5SUCcOF3ftff0yiCtcuLCYCSBdZXtc
+         RsAKhLsPvtQMCSfGXClqmcZPdM2b7y2dlCr4MhpM44mPvvGLoOaY2zgHRhqXdlI1dG+2
+         ZbNUXk7TGOU60PjSyXTwcp5mSL1lpffGOSi1hsYpujAG8DBeN3jotF5bAjlwReHjqZiH
+         sOiZ822OKN9ghsr3yeycehleRRYFXt02iRCrLruArWqAdpdboJW8U9R/gdNPR+kL8sYi
+         OSCvYP5YSSAZ73JmP/Xrsl57VJHAbfJQwHTvhTWxUNTPm2nu4VFhjTaCGz1D9s5kUg7m
+         m5iA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DLIH2eCP;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h3sor17264000pld.22.2019.05.20.18.26.56
+       dkim=pass header.i=@tobin.cc header.s=fm3 header.b=lB8rpyD1;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Berg9P+n;
+       spf=neutral (google.com: 66.111.4.221 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from new1-smtp.messagingengine.com (new1-smtp.messagingengine.com. [66.111.4.221])
+        by mx.google.com with ESMTPS id o18si1628119qkk.157.2019.05.20.18.32.03
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 20 May 2019 18:26:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 May 2019 18:32:03 -0700 (PDT)
+Received-SPF: neutral (google.com: 66.111.4.221 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.221;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DLIH2eCP;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=q5tudNQ9cSMh3fCrTxG8NdksCakwJg8DbWSQrWyIrTI=;
-        b=DLIH2eCPL/TbrcrBJeS072RZfACT/OHayR/cqOaUp7jstN6cQtTJ2IEb2WSwA905Yu
-         CbztJl76ysh8fRQywqbHQMTK4Rtqu2TV+LgMStlkUkwDn4fgj109EcDjDtosETfHillX
-         pAjdbYgfJtj0PofpNUmu9de9BVwPaZ6FWCF4NrS6UB4R2FgmYMg6DFxcPpyMVltTUWf6
-         1QvvaVsF5RCkX2nLqQFkXPI/4Ia/PTK4vdvU6FjwFgyo5LvCfhUcqE6RfsJ//mYo5vgp
-         zn0yh4FxQMYMqrVG7Uz48HqxvkW8oi1wqdHSvAJdr88NARk0dpExcyT1I9jxgVTaC5O/
-         m0Cw==
-X-Google-Smtp-Source: APXvYqwrSyAyALFyw9JHfY/nrm7OEjpxF4Wqstkj8FkkR4Th/leZJbMdZSinz1oSvJWv54bKmZF/tA==
-X-Received: by 2002:a17:902:ba8d:: with SMTP id k13mr65556652pls.52.1558402016072;
-        Mon, 20 May 2019 18:26:56 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id a8sm9209871pfk.14.2019.05.20.18.26.51
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 20 May 2019 18:26:54 -0700 (PDT)
-Date: Tue, 21 May 2019 10:26:49 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Oleksandr Natalenko <oleksandr@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>
-Subject: Re: [RFC 4/7] mm: factor out madvise's core functionality
-Message-ID: <20190521012649.GE10039@google.com>
-References: <20190520035254.57579-1-minchan@kernel.org>
- <20190520035254.57579-5-minchan@kernel.org>
- <20190520142633.x5d27gk454qruc4o@butterfly.localdomain>
+       dkim=pass header.i=@tobin.cc header.s=fm3 header.b=lB8rpyD1;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=Berg9P+n;
+       spf=neutral (google.com: 66.111.4.221 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
+Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
+	by mailnew.nyi.internal (Postfix) with ESMTP id 3E68295B1;
+	Mon, 20 May 2019 21:32:03 -0400 (EDT)
+Received: from mailfrontend2 ([10.202.2.163])
+  by compute5.internal (MEProxy); Mon, 20 May 2019 21:32:03 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
+	:from:to:cc:subject:message-id:references:mime-version
+	:content-type:in-reply-to; s=fm3; bh=XT/UdYnmx7GrDaJa60CFoxeSSHk
+	/OGQKeLYVIbFsryY=; b=lB8rpyD1L4izyfnU4fBk6mH7b53SchEIWKjue1YVeRl
+	NaxeXlXU3AaPgw36mvOLaTbLtOUPaDqMeT+GaLwkFcvhHpd8QV5CTYxWtlLjz7YE
+	zCMCS+eSHHf3MGGbaplZ9ZHBqMEbvDTmovpvTZNIl3eC79ObvEjTPK4so04BUjH4
+	xTz/EIuOAoBWxpMI1bk03H3M2qey9Wmhj0nxuo24oYJolUm31DvtrPDTfLwxua0U
+	AJyYFkychOiXckDOeIr78aAlFUCDhP4WE2x7fE6WlwlzijeFQ5ve14lm4INg0KpF
+	OjFJFr0Uy8Vp9Yzk4ITBJG7Qkrj8hpH1+jnXnIDGkbQ==
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-type:date:from:in-reply-to
+	:message-id:mime-version:references:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=XT/UdY
+	nmx7GrDaJa60CFoxeSSHk/OGQKeLYVIbFsryY=; b=Berg9P+nH9RaKmggVwHyFY
+	ApnFW6s0HIqbC+uMEYd8rjX2+6kWRsRoQp+raQ2T9qfB7WC+tagKTopn3HoXZ27s
+	39IJChaiXtznrwkVkZTcAJSBT0LGYCBfs7/B8Ht/4L7CPKM6pME6GRqigMejfStF
+	T3CfnV8eyI/SSLfHCcngFmO5+CE/puyR5j7NHmCWaEVDWYDPNSMreOeK8bB+sNkZ
+	SLCOgynt+12z9I141bI2lzYDPCZimSWYxkjaUqUcNPrr9FyjJrDg2RnX1X3zh5sO
+	W7Wg09xwB2quTckKG1cV1Fbj0QeZMUrx4GOQKLPk/zRmgjUjYBMGW7mnY5NClFTw
+	==
+X-ME-Sender: <xms:D1XjXAfATuU3Uag8wco2cm4s08ym59tHCiZtH1Cc9iosm-DbvUQ9jA>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddruddtledggeeiucetufdoteggodetrfdotf
+    fvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfqfgfvpdfurfetoffkrfgpnffqhgen
+    uceurghilhhouhhtmecufedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmne
+    gfrhhlucfvnfffucdlfedtmdenucfjughrpeffhffvuffkfhggtggujgfofgesthdtredt
+    ofervdenucfhrhhomhepfdfvohgsihhnucevrdcujfgrrhguihhnghdfuceomhgvsehtoh
+    gsihhnrdgttgeqnecukfhppeduvdegrdduieelrdduheeirddvtdefnecurfgrrhgrmhep
+    mhgrihhlfhhrohhmpehmvgesthhosghinhdrtggtnecuvehluhhsthgvrhfuihiivgeptd
+X-ME-Proxy: <xmx:D1XjXOIir_QTYGS-KY606mTBNFzQq-3A2lmPVbGkjZzrv9G36JbWGw>
+    <xmx:D1XjXEkD0kkSzgiUKY5Y1K_HxDHL4yq4zvtG4DB2Yo4nWmGOySzttA>
+    <xmx:D1XjXBWseqKrRdaZT63yAe7xvv8CMZwaOc-enQ-nA1EZod8iZkHtRQ>
+    <xmx:E1XjXIGw8idhiXFZEFQXC6iOs0Uu7FRcPRe_sWu08XKXEIq31RyoTw>
+Received: from localhost (124-169-156-203.dyn.iinet.net.au [124.169.156.203])
+	by mail.messagingengine.com (Postfix) with ESMTPA id D925610379;
+	Mon, 20 May 2019 21:31:57 -0400 (EDT)
+Date: Tue, 21 May 2019 11:31:18 +1000
+From: "Tobin C. Harding" <me@tobin.cc>
+To: Roman Gushchin <guro@fb.com>
+Cc: "Tobin C. Harding" <tobin@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Matthew Wilcox <willy@infradead.org>,
+	Alexander Viro <viro@ftp.linux.org.uk>,
+	Christoph Hellwig <hch@infradead.org>,
+	Pekka Enberg <penberg@cs.helsinki.fi>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Christopher Lameter <cl@linux.com>,
+	Miklos Szeredi <mszeredi@redhat.com>,
+	Andreas Dilger <adilger@dilger.ca>,
+	Waiman Long <longman@redhat.com>, Tycho Andersen <tycho@tycho.ws>,
+	Theodore Ts'o <tytso@mit.edu>, Andi Kleen <ak@linux.intel.com>,
+	David Chinner <david@fromorbit.com>,
+	Nick Piggin <npiggin@gmail.com>, Rik van Riel <riel@redhat.com>,
+	Hugh Dickins <hughd@google.com>, Jonathan Corbet <corbet@lwn.net>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [RFC PATCH v5 16/16] dcache: Add CONFIG_DCACHE_SMO
+Message-ID: <20190521013118.GB25898@eros.localdomain>
+References: <20190520054017.32299-1-tobin@kernel.org>
+ <20190520054017.32299-17-tobin@kernel.org>
+ <20190521005740.GA9552@tower.DHCP.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190520142633.x5d27gk454qruc4o@butterfly.localdomain>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190521005740.GA9552@tower.DHCP.thefacebook.com>
+X-Mailer: Mutt 1.11.4 (2019-03-13)
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Oleksandr,
-
-On Mon, May 20, 2019 at 04:26:33PM +0200, Oleksandr Natalenko wrote:
-> Hi.
+On Tue, May 21, 2019 at 12:57:47AM +0000, Roman Gushchin wrote:
+> On Mon, May 20, 2019 at 03:40:17PM +1000, Tobin C. Harding wrote:
+> > In an attempt to make the SMO patchset as non-invasive as possible add a
+> > config option CONFIG_DCACHE_SMO (under "Memory Management options") for
+> > enabling SMO for the DCACHE.  Whithout this option dcache constructor is
+> > used but no other code is built in, with this option enabled slab
+> > mobility is enabled and the isolate/migrate functions are built in.
+> > 
+> > Add CONFIG_DCACHE_SMO to guard the partial shrinking of the dcache via
+> > Slab Movable Objects infrastructure.
 > 
-> On Mon, May 20, 2019 at 12:52:51PM +0900, Minchan Kim wrote:
-> > This patch factor out madvise's core functionality so that upcoming
-> > patch can reuse it without duplication.
-> > 
-> > It shouldn't change any behavior.
-> > 
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  mm/madvise.c | 168 +++++++++++++++++++++++++++------------------------
-> >  1 file changed, 89 insertions(+), 79 deletions(-)
-> > 
-> > diff --git a/mm/madvise.c b/mm/madvise.c
-> > index 9a6698b56845..119e82e1f065 100644
-> > --- a/mm/madvise.c
-> > +++ b/mm/madvise.c
-> > @@ -742,7 +742,8 @@ static long madvise_dontneed_single_vma(struct vm_area_struct *vma,
-> >  	return 0;
-> >  }
-> >  
-> > -static long madvise_dontneed_free(struct vm_area_struct *vma,
-> > +static long madvise_dontneed_free(struct task_struct *tsk,
-> > +				  struct vm_area_struct *vma,
-> >  				  struct vm_area_struct **prev,
-> >  				  unsigned long start, unsigned long end,
-> >  				  int behavior)
-> > @@ -754,8 +755,8 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
-> >  	if (!userfaultfd_remove(vma, start, end)) {
-> >  		*prev = NULL; /* mmap_sem has been dropped, prev is stale */
-> >  
-> > -		down_read(&current->mm->mmap_sem);
-> > -		vma = find_vma(current->mm, start);
-> > +		down_read(&tsk->mm->mmap_sem);
-> > +		vma = find_vma(tsk->mm, start);
-> >  		if (!vma)
-> >  			return -ENOMEM;
-> >  		if (start < vma->vm_start) {
-> > @@ -802,7 +803,8 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
-> >   * Application wants to free up the pages and associated backing store.
-> >   * This is effectively punching a hole into the middle of a file.
-> >   */
-> > -static long madvise_remove(struct vm_area_struct *vma,
-> > +static long madvise_remove(struct task_struct *tsk,
-> > +				struct vm_area_struct *vma,
-> >  				struct vm_area_struct **prev,
-> >  				unsigned long start, unsigned long end)
-> >  {
-> > @@ -836,13 +838,13 @@ static long madvise_remove(struct vm_area_struct *vma,
-> >  	get_file(f);
-> >  	if (userfaultfd_remove(vma, start, end)) {
-> >  		/* mmap_sem was not released by userfaultfd_remove() */
-> > -		up_read(&current->mm->mmap_sem);
-> > +		up_read(&tsk->mm->mmap_sem);
-> >  	}
-> >  	error = vfs_fallocate(f,
-> >  				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-> >  				offset, end - start);
-> >  	fput(f);
-> > -	down_read(&current->mm->mmap_sem);
-> > +	down_read(&tsk->mm->mmap_sem);
-> >  	return error;
-> >  }
-> >  
-> > @@ -916,12 +918,13 @@ static int madvise_inject_error(int behavior,
-> >  #endif
-> 
-> What about madvise_inject_error() and get_user_pages_fast() in it
-> please?
+> Hm, isn't it better to make it a static branch? Or basically anything
+> that allows switching on the fly?
 
-Good point. Maybe, there more places where assume context is "current" so
-I'm thinking to limit hints we could allow from external process.
-It would be better for maintainance point of view in that we could know
-the workload/usecases when someone ask new advises from external process
-without making every hints works both contexts.
+If that is wanted, turning SMO on and off per cache, we can probably do
+this in the SMO code in SLUB.
 
-Thanks.
+> It seems that the cost of just building it in shouldn't be that high.
+> And the question if the defragmentation worth the trouble is so much
+> easier to answer if it's possible to turn it on and off without rebooting.
+
+If the question is 'is defragmentation worth the trouble for the
+dcache', I'm not sure having SMO turned off helps answer that question.
+If one doesn't shrink the dentry cache there should be very little
+overhead in having SMO enabled.  So if one wants to explore this
+question then they can turn on the config option.  Please correct me if
+I'm wrong.
+
+The ifdef guard is there so memory management is not having any negative
+effects on the dcache/VFS (no matter how small).  It also means that the
+VFS guys don't have to keep an eye on what SMO is doing, they can
+just configure SMO out.  The dcache is already fairly complex, I'm not
+sure adding complexity to it without good reason is sound practice.  At
+best SMO is only going to by mildly useful to the dcache so I feel we
+should err on the side of caution.
+
+Open to ideas.
+
+Thanks,
+Tobin.
 
