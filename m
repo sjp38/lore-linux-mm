@@ -2,281 +2,292 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 73C3BC04E87
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 10:41:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EAB10C04AAF
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 10:46:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 282A7217D9
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 10:41:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 282A7217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 98FEF20856
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 10:46:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 98FEF20856
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B8F5C6B0003; Tue, 21 May 2019 06:41:54 -0400 (EDT)
+	id 3266B6B0003; Tue, 21 May 2019 06:46:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B17986B0005; Tue, 21 May 2019 06:41:54 -0400 (EDT)
+	id 2D63A6B0005; Tue, 21 May 2019 06:46:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 991646B0006; Tue, 21 May 2019 06:41:54 -0400 (EDT)
+	id 1C6816B0006; Tue, 21 May 2019 06:46:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 734CE6B0003
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 06:41:54 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id p4so15180605qkj.17
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 03:41:54 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C04A66B0003
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 06:46:41 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id n52so30176838edd.2
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 03:46:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=rtX0g6MtI1kxk+ZF5SLj/4dIIl2N6Lgh1lmt5VQCWHE=;
-        b=l5UALQyILrmhRMCI/968WH9Db9DJhN2Y7cGbegb3WgUww3ynbZ+R4NVPURD0KTd5+U
-         aejO4Um2HLpBWgxFyVxazoNjo7S1CahsgMBd035X0LcGzvtgX1RCrMrL6dhc+uDmgh9C
-         2kpe9Fb2R7LGlvrTPeBV93CNrpR34xiW+IJqUjx+TA3xynqb3XkgF60/3th4Fjll91v2
-         yFtfkO131Sy6tkUaNdCjj0sY6UTszlI//fouHljYnvOMJzQ4iv9C1JqzKo+neJgSMayS
-         G9crzrNOjPWXrzib2cKaEoa6qToMrTyVdGXkat0z+XqVcOeSmcAsvS0NiInafiTGqqlO
-         T0sQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXvMKCufRtXAvcd/nmKgJm2waP/I5RDm8OMEosBXGrzeKqPOi9n
-	QdCVk9vS32GjXSKUd1PobVr5izASHQNpwYeRlmoPA8WEBdvIMlpTAvPoOmm8w4oy8O7xUJSML4O
-	slj/cToGmwP29eAXd1EImk+cHtgyRBVB7eicd99q/iVnHOpYpLk674AUCtqVTBZewLg==
-X-Received: by 2002:a05:620a:144c:: with SMTP id i12mr34893337qkl.243.1558435314233;
-        Tue, 21 May 2019 03:41:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxVVrCwGcHO5q7GgZUOCJOj2ILTwDEUsLWb0V6EKwmBuk8eMkcl1uoD/vgyqLSz3b87fcvj
-X-Received: by 2002:a05:620a:144c:: with SMTP id i12mr34893305qkl.243.1558435313579;
-        Tue, 21 May 2019 03:41:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558435313; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=E5CMEcj5vfS13AkMYT1wlLpY3YNow37t7mt2E+e89j0=;
+        b=OsaSiqStFBIOTp6GdZnYlU9pbSBG19Uy5by5vddGNahIBdXrCeMfZp2kUfLz3oe/nA
+         RuC/P50u7obzMkrrZQHXpCywICzP2W9Pcec5sHnFQyZPEtf+yP3bl2c8aFIOmNYXoQ6/
+         Uqb2ALRaituERK3kKWglVsoA+hYlEGhfc4HRtUnE5b/TUyjghZrn7ARoS5qzh0QdS+ha
+         TgUS/UxJkDnGc0tDywdx6gv1VcSzStjGNGuXgUx5OHhjuiRagrZTER81PDN+z/dd1QTQ
+         2CiU5DdZ1siH2/VRgzwF++LU5YXHCcyfan102HzlgDsVcV/dZ8CO4j5/kQUAsMhkvdpq
+         iPPQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVMbM0o8nokkpV329eMX9FYal88f1MRJlk/r2Wi/liCq4blBzJD
+	sR7FOncR0AFmq1q0ijW+wkcfOg/6a+QTp/iCveUzFvato31hQ7yXNXZxw/FMvR5rMfpx5lO31h/
+	ucP+e/nhdUF0yfd/RIP2m7eGs2HCq2E3/Zsc65azSfSuDs9vfHoKbdF6OLcuz7CU=
+X-Received: by 2002:a50:9738:: with SMTP id c53mr80380724edb.156.1558435601306;
+        Tue, 21 May 2019 03:46:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxJ4zQqqXhGLzYF2wcvp4BjYP2ORJErcyK4TGEhSM9A/J6bUjZu5iqRSUrw8wuVDpyvMnOa
+X-Received: by 2002:a50:9738:: with SMTP id c53mr80380642edb.156.1558435600246;
+        Tue, 21 May 2019 03:46:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558435600; cv=none;
         d=google.com; s=arc-20160816;
-        b=wmfDg4eqk7fy8XsWIOPfLZwQK6Q9/l21gf31oXFLMl692dT5srCCGguy5Y8wvAjETq
-         t/kTAgFt32eXDJ7ZCf+8EKZTQdXbuHBIxMdtecwVDylM3XyyIpuJDmumfZtkBh5mLkse
-         wwIhjbiizelI9+orRb//pbKPeOr0a+PBnl7QOLMxJtptisMGff/uwsSsQfX4DKCDSOv8
-         Q6JjZX4hp3LRnA9u6f29u4SFFdXvtssA9Ufi9a+XsBjr5PcoqoEzlHkjNULWtzKMWa0u
-         8kkURv13Kg83xOw3PKLWx8WbRSDv/VzFTEZWKK7a5WKP43/KPYiTLeJ46//e+717oWyv
-         xC9g==
+        b=xKuMVWzi23eradk3AGMY5N0urzRFCu9vbATcDcvVH6Cfjlcy9nw8jmPiY0Sf5+TDW8
+         dM+sqlUfDsdW20XYls8yRfIylbtprNqWj6aYcxoG8sFwd/Sl+knkeCM4KnNgvSTKO6uF
+         XDBJOOWSuQbQXYOvfhhA1/js2AHcikw9OoTLeSLoBZXDAquPKqNCjOc9ERRFv2A6fYUs
+         ijmADI7w/WFx14zZ9RRhTB4WGPORab5678X9uyljb33eOEMsn4tH+4RVFdl7/oZrbpd6
+         nj7fnbfewNs3gVxKh50CZZW8PuJYbEgRldRJ4Va45ojFRop5p6TWaxuj/Efxuf3U2RZ2
+         U5Tw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=rtX0g6MtI1kxk+ZF5SLj/4dIIl2N6Lgh1lmt5VQCWHE=;
-        b=LC8Yzlc5cIHsQ06OjAHMT6ms10WoWHCdr+ox+nIT5picJohClYr1JvAID1oLScFD+W
-         aPJXi//QRRxz1rHXohL/GKkiPtvFyv/5tAI+9TNSFWYUiqEjuWxoJu+hM325PV9WkRoQ
-         JdA+o0Z8mSunStbRREGDMJFiQwwpMB7726NqWAwv+CF/LI8JmKJMsuOZ/6kkBgLPI0pU
-         pZqoOuxUW0Fysf2tf/DD6TNipRyL/zNF4NWpdsWlV4piaVND8VlvMxqj8zjNiRrHaDwc
-         yKvX3dBHWCq4GJ+QcUNj08dkGovbXABH6KP2RWmxWjaKyAsx3StyF4JZz3weiwVr67PL
-         Gcqw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=E5CMEcj5vfS13AkMYT1wlLpY3YNow37t7mt2E+e89j0=;
+        b=JtKv+fddBdrJaz0d00nst4Jh7oy9LXpZyCDavivmsGfn9Fmy/ebgksxds2uUOdWUIL
+         6eXHL6Eodmt1dOdGktBKGL9GWvqfTLiP8ET7M5mkz18rWCLWv2R0Hmd7ltowbtU4uXG/
+         Pro8hXtBSnDiuur3TAGXplpa6JGsO5PsBInoR9GIbwR/ByZNZoYjgtJeHxo2sCIIiqtI
+         QhMlqaMvT3FW/PtbJjhlazTt8Ae8wEGnUBQpGkoVnNRgkx16VeSmroB2j1M8o1z9IfyG
+         m01SIb08vZUusP29AUwnzdGzhB4U26dh09J35SPXTpxnOdgAcDKOh7jxXt5BAofAkq0w
+         bfNA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z58si8165590qtj.225.2019.05.21.03.41.53
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d21si4025849edb.358.2019.05.21.03.46.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 May 2019 03:41:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 21 May 2019 03:46:40 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id C8A3F308620F;
-	Tue, 21 May 2019 10:41:52 +0000 (UTC)
-Received: from [10.36.118.15] (unknown [10.36.118.15])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 8F0577841C;
-	Tue, 21 May 2019 10:41:51 +0000 (UTC)
-Subject: Re: [PATCH] docs: reorder memory-hotplug documentation
-To: Mike Rapoport <rppt@linux.ibm.com>, Jonathan Corbet <corbet@lwn.net>
-Cc: linux-doc@vger.kernel.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <1557822213-19058-1-git-send-email-rppt@linux.ibm.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <43092504-a95f-374d-f3db-b961dd8ac428@redhat.com>
-Date: Tue, 21 May 2019 12:41:50 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4AB4BAF1C;
+	Tue, 21 May 2019 10:46:39 +0000 (UTC)
+Date: Tue, 21 May 2019 12:46:38 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Daniel Vetter <daniel.vetter@ffwll.ch>
+Cc: DRI Development <dri-devel@lists.freedesktop.org>,
+	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
+	LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	David Rientjes <rientjes@google.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Wei Wang <wvw@google.com>,
+	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
+	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Daniel Vetter <daniel.vetter@intel.com>
+Subject: Re: [PATCH] kernel.h: Add non_block_start/end()
+Message-ID: <20190521104638.GO32329@dhcp22.suse.cz>
+References: <20190521100611.10089-1-daniel.vetter@ffwll.ch>
 MIME-Version: 1.0
-In-Reply-To: <1557822213-19058-1-git-send-email-rppt@linux.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Tue, 21 May 2019 10:41:52 +0000 (UTC)
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190521100611.10089-1-daniel.vetter@ffwll.ch>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 14.05.19 10:23, Mike Rapoport wrote:
-> The "Locking Internals" section of the memory-hotplug documentation is
-> duplicated in admin-guide and core-api. Drop the admin-guide copy as
-> locking internals does not belong there.
+On Tue 21-05-19 12:06:11, Daniel Vetter wrote:
+> In some special cases we must not block, but there's not a
+> spinlock, preempt-off, irqs-off or similar critical section already
+> that arms the might_sleep() debug checks. Add a non_block_start/end()
+> pair to annotate these.
 > 
-> While on it, move the "Future Work" section to the core-api part.
-
-Looks sane, but the future work part is really outdated, can we remove
-this completely?
-
+> This will be used in the oom paths of mmu-notifiers, where blocking is
+> not allowed to make sure there's forward progress. Quoting Michal:
 > 
-> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> "The notifier is called from quite a restricted context - oom_reaper -
+> which shouldn't depend on any locks or sleepable conditionals. The code
+> should be swift as well but we mostly do care about it to make a forward
+> progress. Checking for sleepable context is the best thing we could come
+> up with that would describe these demands at least partially."
+> 
+> Peter also asked whether we want to catch spinlocks on top, but Michal
+> said those are less of a problem because spinlocks can't have an
+> indirect dependency upon the page allocator and hence close the loop
+> with the oom reaper.
+> 
+> Suggested by Michal Hocko.
+> 
+> v2:
+> - Improve commit message (Michal)
+> - Also check in schedule, not just might_sleep (Peter)
+> 
+> v3: It works better when I actually squash in the fixup I had lying
+> around :-/
+> 
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: "Christian König" <christian.koenig@amd.com>
+> Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
+> Cc: "Jérôme Glisse" <jglisse@redhat.com>
+> Cc: linux-mm@kvack.org
+> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+> Cc: Wei Wang <wvw@google.com>
+> Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Jann Horn <jannh@google.com>
+> Cc: Feng Tang <feng.tang@intel.com>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Randy Dunlap <rdunlap@infradead.org>
+> Cc: linux-kernel@vger.kernel.org
+> Acked-by: Christian König <christian.koenig@amd.com> (v1)
+> Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
+
+I like this in general. The implementation looks reasonable to me but I
+didn't check deeply enough to give my R-by or A-by.
+
 > ---
->  Documentation/admin-guide/mm/memory-hotplug.rst | 51 -------------------------
->  Documentation/core-api/memory-hotplug.rst       | 11 ++++++
->  2 files changed, 11 insertions(+), 51 deletions(-)
+>  include/linux/kernel.h | 10 +++++++++-
+>  include/linux/sched.h  |  4 ++++
+>  kernel/sched/core.c    | 19 ++++++++++++++-----
+>  3 files changed, 27 insertions(+), 6 deletions(-)
 > 
-> diff --git a/Documentation/admin-guide/mm/memory-hotplug.rst b/Documentation/admin-guide/mm/memory-hotplug.rst
-> index 5c4432c..72090ba 100644
-> --- a/Documentation/admin-guide/mm/memory-hotplug.rst
-> +++ b/Documentation/admin-guide/mm/memory-hotplug.rst
-> @@ -391,54 +391,3 @@ Physical memory remove
->  Need more implementation yet....
->   - Notification completion of remove works by OS to firmware.
->   - Guard from remove if not yet.
-> -
-> -
-> -Locking Internals
-> -=================
-> -
-> -When adding/removing memory that uses memory block devices (i.e. ordinary RAM),
-> -the device_hotplug_lock should be held to:
-> -
-> -- synchronize against online/offline requests (e.g. via sysfs). This way, memory
-> -  block devices can only be accessed (.online/.state attributes) by user
-> -  space once memory has been fully added. And when removing memory, we
-> -  know nobody is in critical sections.
-> -- synchronize against CPU hotplug and similar (e.g. relevant for ACPI and PPC)
-> -
-> -Especially, there is a possible lock inversion that is avoided using
-> -device_hotplug_lock when adding memory and user space tries to online that
-> -memory faster than expected:
-> -
-> -- device_online() will first take the device_lock(), followed by
-> -  mem_hotplug_lock
-> -- add_memory_resource() will first take the mem_hotplug_lock, followed by
-> -  the device_lock() (while creating the devices, during bus_add_device()).
-> -
-> -As the device is visible to user space before taking the device_lock(), this
-> -can result in a lock inversion.
-> -
-> -onlining/offlining of memory should be done via device_online()/
-> -device_offline() - to make sure it is properly synchronized to actions
-> -via sysfs. Holding device_hotplug_lock is advised (to e.g. protect online_type)
-> -
-> -When adding/removing/onlining/offlining memory or adding/removing
-> -heterogeneous/device memory, we should always hold the mem_hotplug_lock in
-> -write mode to serialise memory hotplug (e.g. access to global/zone
-> -variables).
-> -
-> -In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
-> -mode allows for a quite efficient get_online_mems/put_online_mems
-> -implementation, so code accessing memory can protect from that memory
-> -vanishing.
-> -
-> -
-> -Future Work
-> -===========
-> -
-> -  - allowing memory hot-add to ZONE_MOVABLE. maybe we need some switch like
-> -    sysctl or new control file.
-> -  - showing memory block and physical device relationship.
-> -  - test and make it better memory offlining.
-> -  - support HugeTLB page migration and offlining.
-> -  - memmap removing at memory offline.
-> -  - physical remove memory.
-> diff --git a/Documentation/core-api/memory-hotplug.rst b/Documentation/core-api/memory-hotplug.rst
-> index de7467e..e08be1c 100644
-> --- a/Documentation/core-api/memory-hotplug.rst
-> +++ b/Documentation/core-api/memory-hotplug.rst
-> @@ -123,3 +123,14 @@ In addition, mem_hotplug_lock (in contrast to device_hotplug_lock) in read
->  mode allows for a quite efficient get_online_mems/put_online_mems
->  implementation, so code accessing memory can protect from that memory
->  vanishing.
+> diff --git a/include/linux/kernel.h b/include/linux/kernel.h
+> index 74b1ee9027f5..b5f2c2ff0eab 100644
+> --- a/include/linux/kernel.h
+> +++ b/include/linux/kernel.h
+> @@ -214,7 +214,9 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
+>   * might_sleep - annotation for functions that can sleep
+>   *
+>   * this macro will print a stack trace if it is executed in an atomic
+> - * context (spinlock, irq-handler, ...).
+> + * context (spinlock, irq-handler, ...). Additional sections where blocking is
+> + * not allowed can be annotated with non_block_start() and non_block_end()
+> + * pairs.
+>   *
+>   * This is a useful debugging help to be able to catch problems early and not
+>   * be bitten later when the calling function happens to sleep when it is not
+> @@ -230,6 +232,10 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
+>  # define cant_sleep() \
+>  	do { __cant_sleep(__FILE__, __LINE__, 0); } while (0)
+>  # define sched_annotate_sleep()	(current->task_state_change = 0)
+> +# define non_block_start() \
+> +	do { current->non_block_count++; } while (0)
+> +# define non_block_end() \
+> +	do { WARN_ON(current->non_block_count-- == 0); } while (0)
+>  #else
+>    static inline void ___might_sleep(const char *file, int line,
+>  				   int preempt_offset) { }
+> @@ -238,6 +244,8 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
+>  # define might_sleep() do { might_resched(); } while (0)
+>  # define cant_sleep() do { } while (0)
+>  # define sched_annotate_sleep() do { } while (0)
+> +# define non_block_start() do { } while (0)
+> +# define non_block_end() do { } while (0)
+>  #endif
+>  
+>  #define might_sleep_if(cond) do { if (cond) might_sleep(); } while (0)
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index 11837410690f..7f5b293e72df 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -908,6 +908,10 @@ struct task_struct {
+>  	struct mutex_waiter		*blocked_on;
+>  #endif
+>  
+> +#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
+> +	int				non_block_count;
+> +#endif
 > +
-> +Future Work
-> +===========
+>  #ifdef CONFIG_TRACE_IRQFLAGS
+>  	unsigned int			irq_events;
+>  	unsigned long			hardirq_enable_ip;
+> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> index 102dfcf0a29a..ed7755a28465 100644
+> --- a/kernel/sched/core.c
+> +++ b/kernel/sched/core.c
+> @@ -3264,13 +3264,22 @@ static noinline void __schedule_bug(struct task_struct *prev)
+>  /*
+>   * Various schedule()-time debugging checks and statistics:
+>   */
+> -static inline void schedule_debug(struct task_struct *prev)
+> +static inline void schedule_debug(struct task_struct *prev, bool preempt)
+>  {
+>  #ifdef CONFIG_SCHED_STACK_END_CHECK
+>  	if (task_stack_end_corrupted(prev))
+>  		panic("corrupted stack end detected inside scheduler\n");
+>  #endif
+>  
+> +#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
+> +	if (!preempt && prev->state && prev->non_block_count) {
+> +		printk(KERN_ERR "BUG: scheduling in a non-blocking section: %s/%d/%i\n",
+> +			prev->comm, prev->pid, prev->non_block_count);
+> +		dump_stack();
+> +		add_taint(TAINT_WARN, LOCKDEP_STILL_OK);
+> +	}
+> +#endif
 > +
-> +  - allowing memory hot-add to ZONE_MOVABLE. maybe we need some switch like
-> +    sysctl or new control file.
-
-... that already works if I am not completely missing the point here
-
-> +  - showing memory block and physical device relationship.
-
-... that is available for s390x only AFAIK
-
-> +  - test and make it better memory offlining.
-
-... no big news ;)
-
-> +  - support HugeTLB page migration and offlining.
-
-... I remember that Oscar was doing something in that area, Oscar?
-
-> +  - memmap removing at memory offline.
-
-... no, we don't want this. However, we should properly clean up zone
-information when offlining
-
-> +  - physical remove memory.
-
-... I don't even understand what that means.
-
-
-I'd vote for removing the future work part, this is pretty outdated.
-
+>  	if (unlikely(in_atomic_preempt_off())) {
+>  		__schedule_bug(prev);
+>  		preempt_count_set(PREEMPT_DISABLED);
+> @@ -3377,7 +3386,7 @@ static void __sched notrace __schedule(bool preempt)
+>  	rq = cpu_rq(cpu);
+>  	prev = rq->curr;
+>  
+> -	schedule_debug(prev);
+> +	schedule_debug(prev, preempt);
+>  
+>  	if (sched_feat(HRTICK))
+>  		hrtick_clear(rq);
+> @@ -6102,7 +6111,7 @@ void ___might_sleep(const char *file, int line, int preempt_offset)
+>  	rcu_sleep_check();
+>  
+>  	if ((preempt_count_equals(preempt_offset) && !irqs_disabled() &&
+> -	     !is_idle_task(current)) ||
+> +	     !is_idle_task(current) && !current->non_block_count) ||
+>  	    system_state == SYSTEM_BOOTING || system_state > SYSTEM_RUNNING ||
+>  	    oops_in_progress)
+>  		return;
+> @@ -6118,8 +6127,8 @@ void ___might_sleep(const char *file, int line, int preempt_offset)
+>  		"BUG: sleeping function called from invalid context at %s:%d\n",
+>  			file, line);
+>  	printk(KERN_ERR
+> -		"in_atomic(): %d, irqs_disabled(): %d, pid: %d, name: %s\n",
+> -			in_atomic(), irqs_disabled(),
+> +		"in_atomic(): %d, irqs_disabled(): %d, non_block: %d, pid: %d, name: %s\n",
+> +			in_atomic(), irqs_disabled(), current->non_block_count,
+>  			current->pid, current->comm);
+>  
+>  	if (task_stack_end_corrupted(current))
+> -- 
+> 2.20.1
+> 
 
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
 
