@@ -2,148 +2,329 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A87DCC04E87
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:45:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84705C04AAF
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:52:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6E2D7208C3
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:45:53 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="rfl6geAC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6E2D7208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id 40CF621019
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:52:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40CF621019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E5DE46B0003; Tue, 21 May 2019 11:45:52 -0400 (EDT)
+	id BB7276B0003; Tue, 21 May 2019 11:52:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D9C816B0006; Tue, 21 May 2019 11:45:52 -0400 (EDT)
+	id B44016B0006; Tue, 21 May 2019 11:52:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C17696B0007; Tue, 21 May 2019 11:45:52 -0400 (EDT)
+	id A08766B0007; Tue, 21 May 2019 11:52:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FAA76B0003
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 11:45:52 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id a90so11603212plc.7
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 08:45:52 -0700 (PDT)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 373FC6B0003
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 11:52:49 -0400 (EDT)
+Received: by mail-lf1-f71.google.com with SMTP id a21so3271678lff.9
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 08:52:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=DCgLiR019LUQfhnXl76ud5P8ct/eu8hvw0HpmgFMVXQ=;
-        b=BYrQzjBq8wxm+pvnQH0qq/9cEu2LzDvVAkWvJjZ5vUa+XfBZ2zuc180qAUsZt7N1bq
-         EBL1QwTsLN8efKe/Uw/6lenK+r3YuToX8wwuOWiw7TQKbrZospvc4TeEdU3iXVUAU+Qe
-         CMJeZPC4pE0k/gVahC0YgIH/wbk3eyMyOvdJeXRj8HMK6REnaJlvNN68VG5AtzAp1XnD
-         tkHkdATmFdRqZA2/yOh+478KVoSjzWtvlIQ1bDaoEAKcCSUCfF4CtP7iZGnK583rdQuX
-         8nnxfkBT9s7I//JjnCTiaq+VNPqCUw3LQEy+GH0ah+S6JSUe4hW35SNia9RVUFh7nZAa
-         FJhw==
-X-Gm-Message-State: APjAAAXFAkiULfUxa0gClCSTrOgY+B0zHZTctO224jaQl3n/CuIOnqJW
-	Xc2v9YUddpn6wIh8v8lLqTaIXkdEJ/YXO/wLqY/VxJG2Bp2efXquJthhcOz1iLxHRkffWKeW0H6
-	YCI1HKqw1f9WAlZpcScMBH4/zYWcrM3Xxb9MF5cUjY7LWntSKqfT20SSnGWbzQTifpg==
-X-Received: by 2002:aa7:8f22:: with SMTP id y2mr76356204pfr.22.1558453552158;
-        Tue, 21 May 2019 08:45:52 -0700 (PDT)
-X-Received: by 2002:aa7:8f22:: with SMTP id y2mr76356142pfr.22.1558453551510;
-        Tue, 21 May 2019 08:45:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558453551; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=pQIpbtLM74wJUW6vrTUSylyfUARhjCn0wC71Webw7UA=;
+        b=WSh/RXlxsMrL8Bq2Rs9F62/yzPdx1RI5znvYKWtL6MdoafI5IoiuDpEqcyJr6LeOpP
+         fdP6ysbw44TaN1gtSjEDVt2gyrMcsphz6X1hiiMZ6V/007ebeeEcKCPPK+6vUjoYTydk
+         gsz6TD+WQLiF075mORc9DbIFYInNperVGD6dJEa6u2BsZhHknuKmRFMTwpgwjd0zcYN+
+         Kt8vg0RULCZDZjb7ZcsHQy1Jtp1e/8cKDM3f/ot86mfTBuQZhQHAmPgZ15u/+tWceJm/
+         P5aL90z75qBTw48AsPmSS+gyeauq3CaBTa79kh2x2YpYTJVr1U2IaNKi12gHhOGcEER3
+         sB8A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAUFKEzT5AY9rW3GaVn03sKrxzutt4UGHOCyrbgmauc4/kHBkBuh
+	9Xx284gmDt27yakq5z3InLYZIUjOooC+7Ty5kEUMotbAm1pQm6dmAk0NJA1k/Sue6tHsmL+6T48
+	Y2hfOj6E2ZgZwpc2oCKvizhPeFsz/wEyKtOLviuyHlozsKajdbAu4X1//KZLpO2JmIw==
+X-Received: by 2002:a2e:97cf:: with SMTP id m15mr3477968ljj.135.1558453968587;
+        Tue, 21 May 2019 08:52:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxrwBfKGSQM56ZhrtE8LemaR+tzFIbil7/VzW7jnsIPWA+HiRV33J6QOcr0yZYXTgy7xOkp
+X-Received: by 2002:a2e:97cf:: with SMTP id m15mr3477910ljj.135.1558453967485;
+        Tue, 21 May 2019 08:52:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558453967; cv=none;
         d=google.com; s=arc-20160816;
-        b=FRyv15B7jiQbXrI4C+0AsrdOzGz/CSYyd5Gn9ILQKto2MWWzpVwYbZvbPJ/beKx0s/
-         bIGQ1bWJKxbBy/tA8bZjywhpcqsF6S+OfzYKskXVHuz0ejMe3UAuBcIjumknABSvBqwm
-         zD3e8IXmZYXAJhkzYT6jeraKM1BLBs5hkh5xp2VsQmW0fV3Xg3bhu+THRL7J32M5rZC2
-         Ia/zH6kkE4xUKL5BrQMrb+R28c44S5tkn6d82468Ggd5LM6c5zeP6iULi0e6wIQbZKZO
-         jaq6upE+yeY4jyl6io5archc5WC5+OSWFrb9zfAH5+WYr9VYhsFzUKDD/61800VHEn6s
-         0ZcQ==
+        b=e49P7HAvNoZCo4mxjNV7Ybf2pcx5kGVh15b5m+uZNBRa5zCFh97apIzacfuZniJtzb
+         LUgN9JZJjOpOOzKOhU2UsklBaLxOlq/SPYmxukpLferLdL8NWqVC8dr/iPqPsQ2dLWSk
+         kmyEG7m5j4Go0WdCfWVBG1gOBIcBkt9Y99ryQZY0fIqdQZydZHhFZw6AQreMJ4l1+Xxm
+         c9xhJMCTLa45J8IwAyBcgo/BW+/s4rFoxWMJ4zPi/2J3WGSOsBZrJvT6pmgvXX+r3qzP
+         ZqDfbZG9KXzuu2rLSWXzvqY+hpb1YWhfoeX+Qo3bc46zWaRv2Eg6uxFcnpXnCRc1pXlL
+         4tYQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=DCgLiR019LUQfhnXl76ud5P8ct/eu8hvw0HpmgFMVXQ=;
-        b=iPp3QHi7I4x+KbK/WDqb4Z5csSafE6QbG4XPWJPa2jT21ITAOKkspPODNdKcJbKXrv
-         smZa0qJcTDavLat+yKNagWKaF80RDuh3iaDhvkANRh2qK7ljfbxx85W7J3El8W4wVduC
-         x5oSdjjn2+iGrZjsK0ceBPZLnPhts3nzeXe0blTZVBLR0vzv4mdW7xVwqyQ/25t3hXZu
-         oL0sYuoIoQQNooayAe4edf9aAqwFBjKKIFQ2O7KPqKjpd98zYgbRcnqy52JRccRVk+vy
-         h17W+qwjvJDs3PXCKz47Cl+YlU1fY3czzRGrhZrd5xuHIOe24ImmtrPh7UmDeViCWDS9
-         hJWg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=pQIpbtLM74wJUW6vrTUSylyfUARhjCn0wC71Webw7UA=;
+        b=xDvUjp2IdPyn/ojwUKem1TTQJ/liJybAjmfzAVy0gi1KBd1fjDaT7LCO89U0a+ehDx
+         XJII4MTLgyxamDxlkriUqTJywytt5YOI2vZf1uvCGRNGG41UBDFe3FO6CDZqVjwu2H/K
+         i2+W2Mu5eUcrgYVmVVESV+ogQkVUd45ky7hIBnemi5FLoxzWivJyjjwPgPWLwMU6QFHb
+         gbnyEpDCIeoG9FeCYA5Aqio8vhNuAgsTfV2ipJyhAPc8bXtQ4tpFrhPzwqBrQmnJYqbD
+         dRA2o/1b1a4DBMk3/A+IP2lHNYirI75KCh4UhJaXFwDOrNf3YzOkmIAm42VNLs4NaT3e
+         RJLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=rfl6geAC;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d92sor17959199pld.33.2019.05.21.08.45.50
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id r1si18653403lji.171.2019.05.21.08.52.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 21 May 2019 08:45:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 May 2019 08:52:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=rfl6geAC;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=DCgLiR019LUQfhnXl76ud5P8ct/eu8hvw0HpmgFMVXQ=;
-        b=rfl6geACXaznE893Xv6EgsaoZwgicisSZNkTyws+FFmrjw0cygFwzOxsanbZMxvOf7
-         6nSazz6qkCSgtzpNrz//Z0sti/qux5BfsEeQpe+9GbUFQ4F7Dmk2r0FnoE/WPfRXN90k
-         8RRBaIX56/CJcvv0P1a5qYQ1bFdsoK2JKwlFNG+uJDsWnxUChFVNBCQvAXr0vq4KGSph
-         JuAiFZCdMhxHo3BqWgWC3bsYnHIJhGI7oCzQKzV+gVv1tTbiJ9kaSZR453A4nFGOR1+e
-         q8xc6+uuS8Hm84nvH19ohB3e+sXPemZlk/aeTiv3iKYhyfTJWvEpqn/jfzhFmFW28wgf
-         xcvQ==
-X-Google-Smtp-Source: APXvYqy660k6G3n/CoK0UJH2aQhhfLekgKFUK4qr3XL++igjtjitHM44q7FxegqNyS4YiSWiviy6/A==
-X-Received: by 2002:a17:902:848c:: with SMTP id c12mr34232829plo.17.1558453550759;
-        Tue, 21 May 2019 08:45:50 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::2:6169])
-        by smtp.gmail.com with ESMTPSA id 127sm26255492pfc.159.2019.05.21.08.45.49
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 21 May 2019 08:45:49 -0700 (PDT)
-Date: Tue, 21 May 2019 11:45:48 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: ying.huang@intel.com, mhocko@suse.com, mgorman@techsingularity.net,
-	kirill.shutemov@linux.intel.com, josef@toxicpanda.com,
-	hughd@google.com, shakeelb@google.com, akpm@linux-foundation.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [v3 PATCH 1/2] mm: vmscan: remove double slab pressure by
- inc'ing sc->nr_scanned
-Message-ID: <20190521154548.GA3687@cmpxchg.org>
-References: <1558431642-52120-1-git-send-email-yang.shi@linux.alibaba.com>
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hT746-000792-M6; Tue, 21 May 2019 18:52:34 +0300
+Subject: Re: [PATCH v2 0/7] mm: process_vm_mmap() -- syscall for duplication a
+ process mapping
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>,
+ Keith Busch <keith.busch@intel.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ alexander.h.duyck@linux.intel.com, Weiny Ira <ira.weiny@intel.com>,
+ Andrey Konovalov <andreyknvl@google.com>, arunks@codeaurora.org,
+ Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>,
+ Rik van Riel <riel@surriel.com>, Kees Cook <keescook@chromium.org>,
+ Johannes Weiner <hannes@cmpxchg.org>, Nicholas Piggin <npiggin@gmail.com>,
+ Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
+ Shakeel Butt <shakeelb@google.com>, Roman Gushchin <guro@fb.com>,
+ Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>,
+ Jerome Glisse <jglisse@redhat.com>, Mel Gorman
+ <mgorman@techsingularity.net>, daniel.m.jordan@oracle.com,
+ Jann Horn <jannh@google.com>, Adam Borowski <kilobyte@angband.pl>,
+ Linux API <linux-api@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ Linux-MM <linux-mm@kvack.org>
+References: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
+ <CALCETrU221N6uPmdaj4bRDDsf+Oc5tEfPERuyV24wsYKHn+spA@mail.gmail.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <9638a51c-4295-924f-1852-1783c7f3e82d@virtuozzo.com>
+Date: Tue, 21 May 2019 18:52:33 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1558431642-52120-1-git-send-email-yang.shi@linux.alibaba.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <CALCETrU221N6uPmdaj4bRDDsf+Oc5tEfPERuyV24wsYKHn+spA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 21, 2019 at 05:40:41PM +0800, Yang Shi wrote:
-> The commit 9092c71bb724 ("mm: use sc->priority for slab shrink targets")
-> has broken up the relationship between sc->nr_scanned and slab pressure.
-> The sc->nr_scanned can't double slab pressure anymore.  So, it sounds no
-> sense to still keep sc->nr_scanned inc'ed.  Actually, it would prevent
-> from adding pressure on slab shrink since excessive sc->nr_scanned would
-> prevent from scan->priority raise.
+On 21.05.2019 17:43, Andy Lutomirski wrote:
+> On Mon, May 20, 2019 at 7:01 AM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>>
 > 
-> The bonnie test doesn't show this would change the behavior of
-> slab shrinkers.
+>> [Summary]
+>>
+>> New syscall, which allows to clone a remote process VMA
+>> into local process VM. The remote process's page table
+>> entries related to the VMA are cloned into local process's
+>> page table (in any desired address, which makes this different
+>> from that happens during fork()). Huge pages are handled
+>> appropriately.
+>>
+>> This allows to improve performance in significant way like
+>> it's shows in the example below.
+>>
+>> [Description]
+>>
+>> This patchset adds a new syscall, which makes possible
+>> to clone a VMA from a process to current process.
+>> The syscall supplements the functionality provided
+>> by process_vm_writev() and process_vm_readv() syscalls,
+>> and it may be useful in many situation.
+>>
+>> For example, it allows to make a zero copy of data,
+>> when process_vm_writev() was previously used:
+>>
+>>         struct iovec local_iov, remote_iov;
+>>         void *buf;
+>>
+>>         buf = mmap(NULL, n * PAGE_SIZE, PROT_READ|PROT_WRITE,
+>>                    MAP_PRIVATE|MAP_ANONYMOUS, ...);
+>>         recv(sock, buf, n * PAGE_SIZE, 0);
+>>
+>>         local_iov->iov_base = buf;
+>>         local_iov->iov_len = n * PAGE_SIZE;
+>>         remove_iov = ...;
+>>
+>>         process_vm_writev(pid, &local_iov, 1, &remote_iov, 1 0);
+>>         munmap(buf, n * PAGE_SIZE);
+>>
+>>         (Note, that above completely ignores error handling)
+>>
+>> There are several problems with process_vm_writev() in this example:
+>>
+>> 1)it causes pagefault on remote process memory, and it forces
+>>   allocation of a new page (if was not preallocated);
 > 
-> 				w/		w/o
-> 			  /sec    %CP      /sec      %CP
-> Sequential delete: 	3960.6    94.6    3997.6     96.2
-> Random delete: 	2518      63.8    2561.6     64.6
-> 
-> The slight increase of "/sec" without the patch would be caused by the
-> slight increase of CPU usage.
-> 
-> Cc: Josef Bacik <josef@toxicpanda.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+> I don't see how your new syscall helps.  You're writing to remote
+> memory.  If that memory wasn't allocated, it's going to get allocated
+> regardless of whether you use a write-like interface or an mmap-like
+> interface.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+No, the talk is not about just another interface for copying memory.
+The talk is about borrowing of remote task's VMA and corresponding
+page table's content. Syscall allows to copy part of page table
+with preallocated pages from remote to local process. See here:
+
+[task1]                                                        [task2]
+
+buf = mmap(NULL, n * PAGE_SIZE, PROT_READ|PROT_WRITE,
+           MAP_PRIVATE|MAP_ANONYMOUS, ...);
+
+<task1 populates buf>
+
+                                                               buf = process_vm_mmap(pid_of_task1, addr, n * PAGE_SIZE, ...);
+munmap(buf);
+
+
+process_vm_mmap() copies PTEs related to memory of buf in task1 to task2
+just like in the way we do during fork syscall.
+
+There is no copying of buf memory content, unless COW happens. This is
+the principal difference to process_vm_writev(), which just allocates
+pages in remote VM.
+
+> Keep in mind that, on x86, just the hardware part of a
+> page fault is very slow -- populating the memory with a syscall
+> instead of a fault may well be faster.
+
+It is not as slow, as disk IO has. Just compare, what happens in case of anonymous
+pages related to buf of task1 are swapped:
+
+1)process_vm_writev() reads them back into memory;
+
+2)process_vm_mmap() just copies swap PTEs from task1 page table
+  to task2 page table.
+
+Also, for faster page faults one may use huge pages for the mappings.
+But really, it's funny to think about page faults, when there are
+disk IO problems I shown.
+
+>>
+>> 2)amount of memory for this example is doubled in a moment --
+>>   n pages in current and n pages in remote tasks are occupied
+>>   at the same time;
+> 
+> This seems disingenuous.  If you're writing p pages total in chunks of
+> n pages, you will use a total of p pages if you use mmap and p+n if
+> you use write.
+
+I didn't understand this sentence because of many ifs, sorry. Could you
+please explain your thought once again?
+
+> That only doubles the amount of memory if you let n
+> scale linearly with p, which seems unlikely.
+>
+>>
+>> 3)received data has no a chance to be properly swapped for
+>>   a long time.
+> 
+> ...
+> 
+>> a)kernel moves @buf pages into swap right after recv();
+>> b)process_vm_writev() reads the data back from swap to pages;
+> 
+> If you're under that much memory pressure and thrashing that badly,
+> your performance is going to be awful no matter what you're doing.  If
+> you indeed observe this behavior under normal loads, then this seems
+> like a VM issue that should be addressed in its own right.
+
+I don't think so. Imagine: a container migrates from one node to another.
+The nodes are the same, say, every of them has 4GB of RAM.
+
+Before the migration, the container's tasks used 4GB of RAM and 8GB of swap.
+After the page server on the second node received the pages, we want these
+pages become swapped as soon as possible, and we don't want to read them from
+swap to pass a read consumer.
+
+The page server is task1 in the example. The real consumer is task2.
+
+This is a rather normal load, I think.
+
+>>         buf = mmap(NULL, n * PAGE_SIZE, PROT_READ|PROT_WRITE,
+>>                    MAP_PRIVATE|MAP_ANONYMOUS, ...);
+>>         recv(sock, buf, n * PAGE_SIZE, 0);
+>>
+>> [Task 2]
+>>         buf2 = process_vm_mmap(pid_of_task1, buf, n * PAGE_SIZE, NULL, 0);
+>>
+>> This creates a copy of VMA related to buf from task1 in task2's VM.
+>> Task1's page table entries are copied into corresponding page table
+>> entries of VM of task2.
+> 
+> You need to fully explain a whole bunch of details that you're
+> ignored.
+
+Yeah, it's not a problem :) I'm ready to explain and describe everything,
+what may cause a question. Just ask ;) 
+
+> For example, if the remote VMA is MAP_ANONYMOUS, do you get
+> a CoW copy of it? I assume you don't since the whole point is to
+> write to remote memory
+
+But, no, there *is* COW semantic. We do not copy memory. We copy
+page table content. This is just the same we have on fork(), when
+children duplicates parent's VMA and related page table subset,
+and parent's PTEs lose _PAGE_RW flag.
+
+There is all copy_page_range() code reused for that. Please, see [3/7]
+for the details.
+
+I'm going to get special performance using THP, when number of entries
+to copy is smaller than in case of PTE.
+
+Copy several of PMD from one task page table to another's is much much much faster,
+than process_vm_write() copies pages (even not mention about its reading from swap).
+
+>,but it's at the very least quite unusual in
+> Linux to have two different anonymous VMAs such that writing one of
+> them changes the other one.
+Writing to a new VMA does not affect old VMA. Old VMA is just used to
+get vma->anon_vma and vma->vm_file from there. Two VMAs remain independent
+each other.
+
+> But there are plenty of other questions.
+> What happens if the remote VMA is a gate area or other special mapping
+> (vDSO, vvar area, etc)?  What if the remote memory comes from a driver
+> that wasn't expecting the mapping to get magically copied to a
+> different process?
+
+In case of someone wants to duplicate such the mappings, we may consider
+that, and extend the interface in the future for VMA types, which are
+safe for that.
+
+But now the logic is very overprotective, and all the unusual mappings
+like you mentioned (also AIO, etc) is prohibited. Please, see [7/7]
+for the details.
+
+> This new API seems quite dangerous and complex to me, and I don't
+> think the value has been adequately demonstrated.
+
+I don't think it's dangerous and complex, because of I haven't introduced
+any principal VMA conceptions different to what we have now. We just
+borrow vma->anon_vma and vma->vm_file from remote process to local
+like we did on fork() (borrowing of vma->anon_vma means not blindly
+copying, but ordinary anon_vma_fork()).
+
+Maybe I had to focus the description more on copying of PTE/PMD
+instead of vma duplication. So, it's unexpected for me, that people
+think about simple memory copying after reading the example I gave.
+But I gave more explanation here, so I hope the situation became
+clearer for a reader. Anyway, if you have any questions, please
+ask me.
+
+Thanks,
+Kirill
 
