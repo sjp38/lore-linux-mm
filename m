@@ -2,126 +2,130 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C0B7C04AAC
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 00:39:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B13AC04AAC
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 00:52:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4878421743
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 00:39:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9AC5220815
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 00:52:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="VYSChcHG";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="Lpxvp1lM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4878421743
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="blqSxzGE";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="h4CdR+4t"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9AC5220815
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC7136B0003; Mon, 20 May 2019 20:39:07 -0400 (EDT)
+	id 223C86B0003; Mon, 20 May 2019 20:52:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D513F6B0005; Mon, 20 May 2019 20:39:07 -0400 (EDT)
+	id 1D53D6B0005; Mon, 20 May 2019 20:52:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B81036B0006; Mon, 20 May 2019 20:39:07 -0400 (EDT)
+	id 04F206B0006; Mon, 20 May 2019 20:52:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1305A6B0003
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 20:39:07 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id p13so16205872ywm.20
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 17:39:07 -0700 (PDT)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D226E6B0003
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 20:52:27 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id r23so16326980ywg.2
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 17:52:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
          :thread-topic:thread-index:date:message-id:references:in-reply-to
          :accept-language:content-language:content-id
          :content-transfer-encoding:mime-version;
-        bh=E3+cLSVQNP4p25wZAs7M154LsdZMQ5nxvcwFvwkF7vA=;
-        b=MN4eEpIX2k3WSwxfZGDOaywIR/osUKWugfkypAMzqAyf4R8pXmyehKM7IZpGimlokQ
-         2AS/JiKsauDq3iIlHHnIt6EYE5s7XhBcwENBbS4MkvRUc1y2iY/uAdMHWGtLkwv4xl16
-         yOxXYd3jFWYoi/vlZElQ3Dkt8slVZKsFsudaubkLxSXFOXRaMeL/PL6pNj0PdwG6lhrD
-         a6wWM+3NOiEAiIxtL8eLSCH6ElD4DkNbVSarcAHjdFeHKh9cYHLksqfnPPs9T9DUTonf
-         0bRmf0mRDhdi0BQBptlCsfWGqfPt7HBogZheJzVN//ScTAn4g9ZesfVNu3//kfn+LcJW
-         Eg5g==
-X-Gm-Message-State: APjAAAUgOP0nfvAzQGhF7K+o2r4vK2LFfUyszuqpeXksKIasENP/M7bA
-	jRXY+5xRClFpUpqxT3nT5/Alh7qwv/P67dIOL6ThoGE8r+rLNsS8lYbPFa01Jg3VBePfxSUZBn9
-	vnryUa46AVleYAwFeQP5fYRlawwnA4InJddn9jYMzo8NLBJgMwNch1Plrons5FII2CQ==
-X-Received: by 2002:a81:9913:: with SMTP id q19mr36740909ywg.215.1558399146774;
-        Mon, 20 May 2019 17:39:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyT9xL9fol/1SMYj5VPD0/7wcztS6iDK3unzqgyOkAQVa9eUoxHhcq7V0O/ID0G1632pF+V
-X-Received: by 2002:a81:9913:: with SMTP id q19mr36740894ywg.215.1558399146256;
-        Mon, 20 May 2019 17:39:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558399146; cv=none;
+        bh=W09KEPBHKIqShgEcGVtd/p4ddz/ahhj9P5BMXq3ppRU=;
+        b=UixZ7rZHLlHRpyP3BrB0OhtaqOfosmTWbpJ9sgafeYhp4CfZHymrf284yTDTTvyXPY
+         IsIc0MIbX9hyZxc7qZdlHmdSpWhnyHXU0qUY7axrmBBFKvRpNbZ4p3pf03G6jAtlaFL9
+         ZglAVvTjI04sfeeOqax/UYkk2Iy3SQjD8LXsrwvLMLOzOTDvUMWKPM04GBL85UMKYelo
+         NahqJXF+UDKRhNgZt/IvBwrYQV5Pd2G7tj7yjvRWGkmlXEEV9oCsndHwRRixxWQH1UoA
+         0YdvSIH7ZQF+G+Znsn3ZsP5ZkDlXBZXLjd+egP4MWeCPl4zyCbbYpNqhis/F5pkodYzl
+         vEHg==
+X-Gm-Message-State: APjAAAXjEnvh8KQcH65Fqd+ITTFs6cGiGejPfH9cWwnkpVKyG9Xr1j0s
+	SU/R8FbaP1ec1sTiQ2kNRBQ2aIIE7guOY7pVL6hZH5PQiev7Ws8MHgxH98ZnPzVb/Ef/Gtggy9E
+	tFGubcOI9F0SnKMgiHJ2UetrWIJN+1mD+f22qjXq5Ci+6E6+GwbM+H1XBwCo/dDE6fg==
+X-Received: by 2002:a0d:eb8c:: with SMTP id u134mr35164518ywe.390.1558399947537;
+        Mon, 20 May 2019 17:52:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxxZV4NGv5ywJ57pdrcjI81N//pFOb52eFFMDYJIamEgIx4amQTstjPe/q2q4kCCm2WXic4
+X-Received: by 2002:a0d:eb8c:: with SMTP id u134mr35164489ywe.390.1558399946205;
+        Mon, 20 May 2019 17:52:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558399946; cv=none;
         d=google.com; s=arc-20160816;
-        b=HTJa/nThO9cX94CTtP+gZrXygnjGyBFfkeb32ciu8FSOfIvTe8tqOFyWz5tvnVuaku
-         Ev0GX8wcQY5cdm0YcpInNilpFRqXseKi1rX+MJoTU+vvCS9srIkHgzz6ODuSSju9s2v0
-         DGVfh8gsKnF5Cxv/Bsbvy6eYBnkYPEcwx/RyG8DlHnOxg6k7b59yqA7XXWD5zW+dsO+z
-         f3iO5fBBwTvetbgTnzCkikFNDb6r7DxcuU7LGsD9wDvrRJ4peVT0g06vmWFSTJDsUTN4
-         DATmovhdpzxhUr3mZ0soJkHG6VIS/HDwmbtELKFctnx4X5TBlY17OmFXtLaKDsif57Rr
-         Y4kw==
+        b=fpJK+wXX11tfuIBHmo0CTo8zFIXx+agaroeG7tABcFNxq0mq/EdQ7djy2TM2I770Oz
+         KBeFGpaJ+J/l7yjS9UGlcN4MeJq650ci51WRmhaKgcZM/z35JYpgazMB8spO00Cl2Aug
+         /lXNQVhP45vUh8HSHDkxSEMBluWOHeZ61uTilNF2K2uJCcIUlCAbEuAIgvLTr2OcVwmo
+         Ldancbt0xRYUd1rP/WE6StrWvJzW3QEyegZBbzl79+2sC65FZNde/4FOCGuks4nTfGKY
+         3hIbeyIRCeikt/35SNUa3Gb9jJSJVHpsSsEALf8cqbBzid65JRcsVkc1B0bdjGL/5oyC
+         6ZSw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:content-id:content-language
          :accept-language:in-reply-to:references:message-id:date:thread-index
          :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=E3+cLSVQNP4p25wZAs7M154LsdZMQ5nxvcwFvwkF7vA=;
-        b=ZT6/PpZ6swdGQdS+Uf9If2TpYiOSC0DwSurGDXNqQlG5KyzzFcrcgZXKdu85Vqnugp
-         PF7q/mNe3yZPDmJonwdqpZ4lhYgnZ9xgbRSRXrzWUGUGOD3B+LxE1/t3fv8lF73sG+Mn
-         J/8EFcZIfi83pblBCMku76gzwFfep9AY4vPPFjXAfxGdzFEXlJcKPi0GFi6SK7+h0Ve7
-         YesdT4L59glSXMx2PUCzDRKNKlYmklv4Bg7cX4qlF/yhqZ61uN9sWmol7qKwFSAgIw8t
-         RyofAqNrD17g3MOwF4x01jKq1l5UZIFJjXGGValPaGpecSjkw3o1hn+c/zVtXI9QVJP3
-         7MuQ==
+        bh=W09KEPBHKIqShgEcGVtd/p4ddz/ahhj9P5BMXq3ppRU=;
+        b=JPHB6Twdzrsfjvr5O1MPAl/Qojz97EG4FKENuBULQcev2nCRQweWvnsEex7waFSxY3
+         bqb3vARdLaqbEntD3IMwnQYzvgWc4RKGcTAcSrJnFBRsbx8K3wvhyMlcNyOYKZH8x7Ao
+         wIXPUPXKt9ZdijERUMoezcYwOduk4sEhJfdA72t7g7hJ2f3inx2Dpr5ZOnxk17TwG4nq
+         aTfNrI9VC3hBx5VbA0+y6zwV81IBKQnb93Q8BQcTN3FYGC7+SZ5zZdSUHwLB0T1Uq5md
+         Ij+bb+/w4E6I1GhNpgbXP64WmOcY/VquGt3UDOAjucnE/MBRoC8c/pfKvDEyZaTw/JbZ
+         gN8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=VYSChcHG;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=Lpxvp1lM;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=blqSxzGE;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=h4CdR+4t;
        spf=pass (google.com: domain of prvs=0044fe9fa5=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=0044fe9fa5=guro@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id u200si6037308ywe.319.2019.05.20.17.39.06
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id q134si5302792ywg.354.2019.05.20.17.52.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 17:39:06 -0700 (PDT)
+        Mon, 20 May 2019 17:52:26 -0700 (PDT)
 Received-SPF: pass (google.com: domain of prvs=0044fe9fa5=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=VYSChcHG;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=Lpxvp1lM;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=blqSxzGE;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=h4CdR+4t;
        spf=pass (google.com: domain of prvs=0044fe9fa5=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=0044fe9fa5=guro@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4L0S56l028300;
-	Mon, 20 May 2019 17:38:45 -0700
+Received: from pps.filterd (m0001255.ppops.net [127.0.0.1])
+	by mx0b-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4L0lU5V020593;
+	Mon, 20 May 2019 17:52:04 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
  : date : message-id : references : in-reply-to : content-type : content-id
  : content-transfer-encoding : mime-version; s=facebook;
- bh=E3+cLSVQNP4p25wZAs7M154LsdZMQ5nxvcwFvwkF7vA=;
- b=VYSChcHGvoes0aoHcuoyIWkJa98s0Lw6pyTkZms7n4RKfOV8ThxKfoTSR1NLZnjwHuA7
- 4FH3nhtzfrCG4/NDm1MIakVc68YqpIROcUIXOmsdtabEFXzdLitGSMUtODonzFAuvtkK
- M3DQTdxuZyil9qiekFKPBfewi9OhnqAI5MI= 
+ bh=W09KEPBHKIqShgEcGVtd/p4ddz/ahhj9P5BMXq3ppRU=;
+ b=blqSxzGEKBAqGVhUhwObKsrgY/vg9qwtgznoEHDZ2tsU+mPRlQq6RofGMpNq94neaQxU
+ o6Iuuq6dc/m3BjUG6PN7N2ECf/06Z2Uc/88IyPuvVcdnV1Flkx4ARHThQWiog5KeR0uM
+ mosKmuLORmRKvERVGvYjuJPrK+I26IIG6BQ= 
 Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2skusdtf1h-1
+	by mx0b-00082601.pphosted.com with ESMTP id 2skuuhjfy5-2
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Mon, 20 May 2019 17:38:45 -0700
-Received: from prn-hub05.TheFacebook.com (2620:10d:c081:35::129) by
- prn-hub06.TheFacebook.com (2620:10d:c081:35::130) with Microsoft SMTP Server
+	Mon, 20 May 2019 17:52:04 -0700
+Received: from prn-mbx03.TheFacebook.com (2620:10d:c081:6::17) by
+ prn-hub03.TheFacebook.com (2620:10d:c081:35::127) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Mon, 20 May 2019 17:38:44 -0700
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.29) with Microsoft SMTP Server
+ 15.1.1713.5; Mon, 20 May 2019 17:52:02 -0700
+Received: from prn-hub02.TheFacebook.com (2620:10d:c081:35::126) by
+ prn-mbx03.TheFacebook.com (2620:10d:c081:6::17) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Mon, 20 May 2019 17:52:02 -0700
+Received: from NAM04-BN3-obe.outbound.protection.outlook.com (192.168.54.28)
+ by o365-in.thefacebook.com (192.168.16.26) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Mon, 20 May 2019 17:38:44 -0700
+ via Frontend Transport; Mon, 20 May 2019 17:52:02 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
  s=selector1-fb-onmicrosoft-com;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=E3+cLSVQNP4p25wZAs7M154LsdZMQ5nxvcwFvwkF7vA=;
- b=Lpxvp1lM86qlDs6r95jZcMFZ0d8iGkyYmH7giaFCbaBKGAWOyaOX7NhJh2hyXLvNGr11y5TPa8cFfg2eXB7HfOjc+7qQqaVhd8/a+wIKRHkGZutgy7QjG3o8QMVdOa2DDbjtTG44I47V4m6AcfYAhRAsX3o1gq8ZWcxJfj853EA=
+ bh=W09KEPBHKIqShgEcGVtd/p4ddz/ahhj9P5BMXq3ppRU=;
+ b=h4CdR+4tN2DwgKIR5sUEvddWcWyguofZMlBEXBpfZiok1XmAvaf/9h9I7LCjDAu0KLVc6grPGQDOblVbd5kptuCJb60XY0JWN6Elk7pabmNNXc6K4h6UFIDQPZMbl6mEGQcxZOjMUSWSAnOKuzZ8Du0BmaS1vIfBpd8w+1MqhQU=
 Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB3030.namprd15.prod.outlook.com (20.178.238.91) with Microsoft SMTP
+ BYAPR15MB2216.namprd15.prod.outlook.com (52.135.196.155) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1900.17; Tue, 21 May 2019 00:38:40 +0000
+ 15.20.1900.17; Tue, 21 May 2019 00:51:57 +0000
 Received: from BYAPR15MB2631.namprd15.prod.outlook.com
  ([fe80::d4f6:b485:69ee:fd9a]) by BYAPR15MB2631.namprd15.prod.outlook.com
  ([fe80::d4f6:b485:69ee:fd9a%7]) with mapi id 15.20.1900.020; Tue, 21 May 2019
- 00:38:40 +0000
+ 00:51:57 +0000
 From: Roman Gushchin <guro@fb.com>
 To: "Tobin C. Harding" <tobin@kernel.org>
 CC: Andrew Morton <akpm@linux-foundation.org>,
@@ -151,46 +155,46 @@ CC: Andrew Morton <akpm@linux-foundation.org>,
 	<linux-fsdevel@vger.kernel.org>,
         "linux-kernel@vger.kernel.org"
 	<linux-kernel@vger.kernel.org>
-Subject: Re: [RFC PATCH v5 03/16] slub: Sort slab cache list
-Thread-Topic: [RFC PATCH v5 03/16] slub: Sort slab cache list
-Thread-Index: AQHVDs62IV4Zydo66E+iHqIO5Pdo5qZ0vW8A
-Date: Tue, 21 May 2019 00:38:40 +0000
-Message-ID: <20190521003835.GB21811@tower.DHCP.thefacebook.com>
+Subject: Re: [RFC PATCH v5 04/16] slub: Slab defrag core
+Thread-Topic: [RFC PATCH v5 04/16] slub: Slab defrag core
+Thread-Index: AQHVDs69QJvEmg+Y3UK7wQ/kts2ho6Z0wSQA
+Date: Tue, 21 May 2019 00:51:57 +0000
+Message-ID: <20190521005152.GC21811@tower.DHCP.thefacebook.com>
 References: <20190520054017.32299-1-tobin@kernel.org>
- <20190520054017.32299-4-tobin@kernel.org>
-In-Reply-To: <20190520054017.32299-4-tobin@kernel.org>
+ <20190520054017.32299-5-tobin@kernel.org>
+In-Reply-To: <20190520054017.32299-5-tobin@kernel.org>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach: 
 X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR14CA0005.namprd14.prod.outlook.com
- (2603:10b6:300:ae::15) To BYAPR15MB2631.namprd15.prod.outlook.com
+x-clientproxiedby: MWHPR12CA0070.namprd12.prod.outlook.com
+ (2603:10b6:300:103::32) To BYAPR15MB2631.namprd15.prod.outlook.com
  (2603:10b6:a03:152::24)
 x-ms-exchange-messagesentrepresentingtype: 1
 x-originating-ip: [2620:10d:c090:200::3:a985]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 70c0967b-98c8-44cd-25cf-08d6dd84ab7c
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB3030;
-x-ms-traffictypediagnostic: BYAPR15MB3030:
-x-microsoft-antispam-prvs: <BYAPR15MB30307E13ABD855F4D387D23CBE070@BYAPR15MB3030.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:2887;
+x-ms-office365-filtering-correlation-id: 6b996932-6882-46d6-ceaf-08d6dd86864d
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB2216;
+x-ms-traffictypediagnostic: BYAPR15MB2216:
+x-microsoft-antispam-prvs: <BYAPR15MB2216B525C0314F375BFF8E1BBE070@BYAPR15MB2216.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:820;
 x-forefront-prvs: 0044C17179
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(136003)(39860400002)(376002)(346002)(396003)(199004)(189003)(6116002)(7736002)(8676002)(81166006)(81156014)(4326008)(66946007)(73956011)(64756008)(186003)(66476007)(66556008)(68736007)(66446008)(6436002)(53936002)(9686003)(6486002)(6246003)(99286004)(6512007)(7416002)(305945005)(446003)(316002)(6916009)(8936002)(46003)(102836004)(229853002)(76176011)(54906003)(52116002)(486006)(25786009)(476003)(2906002)(11346002)(33656002)(386003)(6506007)(14454004)(256004)(71200400001)(86362001)(71190400001)(478600001)(1076003)(5660300002)(4744005);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3030;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(39860400002)(396003)(136003)(346002)(376002)(199004)(189003)(66946007)(71190400001)(71200400001)(76176011)(52116002)(99286004)(73956011)(102836004)(1076003)(7736002)(229853002)(30864003)(14444005)(66556008)(68736007)(478600001)(6486002)(7416002)(256004)(6506007)(386003)(66476007)(66446008)(64756008)(305945005)(81166006)(81156014)(8676002)(5660300002)(53936002)(86362001)(6246003)(11346002)(6916009)(476003)(8936002)(33656002)(4326008)(446003)(54906003)(14454004)(6116002)(486006)(53946003)(6436002)(2906002)(6512007)(9686003)(316002)(46003)(186003)(25786009);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2216;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
 received-spf: None (protection.outlook.com: fb.com does not designate
  permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: 4s+SYJPSmiJ7nXYS5W4A3hnVp7aVbFPYyJbjP1TFSqIoKDGJQgHciWYFBrFvNzAUgySmic9Mv2MTMg0OLmiX8cNilaXRRmzYCnc09FqqhZH+ONyDzTSHnsjRoDkYirOUepqEdIGj2LmxYw6ngRqMU8nH6nV+luREC7o55arAdrMnqG5QLm7/9OGXX/EMqcV6HV+QJons4uiGp9Vgm+7BIH7jvfV9svnHD3bmg1dwTTuQhnxstF+YXvzEnJ8lFuNzLnzh4+M8elynSCGoHe7t43wRrnahpsL+ctMjIr4uTDaHWLA/lrvLJmG2cjkLq+8V1CSAgpl/bhj4ldGgsDe5eEItXoM+fWIlIPxws27p7q6ryj9Eq5G5nviPUQ8+eEJvYOShEMPyTiSQVkpVmVbskqxw6qp1KdK1dxW3nJ41JIQ=
+x-microsoft-antispam-message-info: tW3aJ9dXGKkaLgdvtuChmTJ4kpsFucK10DxtqT1lLiSFwuVcUJ+A2AR1LGV4EZ2H4NJmUVpuhOkCcLCq2CDjAZQ/NYKjtJvBxVwlzbaiaZ8NWpLiO4zP+anhbiDtWfEEW/urWXjwr+vVUhp6NmM3TpYnVmcBzD1WFrbEkmfuH8gfe7Srh3DD8HHLWLCresWs/snR8pYM3FKs6oNykGGQdrX2qdAR4ao/XCk0ZAueKT6V+qAoxle3Gc9ULZJDiNdcA1ZhRz+P3SnXfgXsHTUB4JCKSP0CHBle2FTf6A2aaUv1ZmwXimoJbm9mYBM3yaco5yHPG1xYGoJvJq5F3U8f8dTc6brhh5WLxEzzNQwTOwcrZEHWNyLfEbVRYyrcA/deS10H5iYHF2GOZBibovvd5jUoDeMxUXZObfUrdunP4Bw=
 Content-Type: text/plain; charset="us-ascii"
-Content-ID: <7DA0F6E4E77DF64B87BF2DF516986776@namprd15.prod.outlook.com>
+Content-ID: <3F78B61F6A4EED4C83BB42869FACD089@namprd15.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 70c0967b-98c8-44cd-25cf-08d6dd84ab7c
-X-MS-Exchange-CrossTenant-originalarrivaltime: 21 May 2019 00:38:40.5953
+X-MS-Exchange-CrossTenant-Network-Message-Id: 6b996932-6882-46d6-ceaf-08d6dd86864d
+X-MS-Exchange-CrossTenant-originalarrivaltime: 21 May 2019 00:51:57.3553
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
 X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
 X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3030
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2216
 X-OriginatorOrg: fb.com
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-20_09:,,
  signatures=0
@@ -202,14 +206,600 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 20, 2019 at 03:40:04PM +1000, Tobin C. Harding wrote:
-> It is advantageous to have all defragmentable slabs together at the
-> beginning of the list of slabs so that there is no need to scan the
-> complete list. Put defragmentable caches first when adding a slab cache
-> and others last.
+On Mon, May 20, 2019 at 03:40:05PM +1000, Tobin C. Harding wrote:
+> Internal fragmentation can occur within pages used by the slub
+> allocator.  Under some workloads large numbers of pages can be used by
+> partial slab pages.  This under-utilisation is bad simply because it
+> wastes memory but also because if the system is under memory pressure
+> higher order allocations may become difficult to satisfy.  If we can
+> defrag slab caches we can alleviate these problems.
+>=20
+> Implement Slab Movable Objects in order to defragment slab caches.
+>=20
+> Slab defragmentation may occur:
+>=20
+> 1. Unconditionally when __kmem_cache_shrink() is called on a slab cache
+>    by the kernel calling kmem_cache_shrink().
+>=20
+> 2. Unconditionally through the use of the slabinfo command.
+>=20
+> 	slabinfo <cache> -s
+>=20
+> 3. Conditionally via the use of kmem_cache_defrag()
+>=20
+> - Use Slab Movable Objects when shrinking cache.
+>=20
+> Currently when the kernel calls kmem_cache_shrink() we curate the
+> partial slabs list.  If object migration is not enabled for the cache we
+> still do this, if however, SMO is enabled we attempt to move objects in
+> partially full slabs in order to defragment the cache.  Shrink attempts
+> to move all objects in order to reduce the cache to a single partial
+> slab for each node.
+>=20
+> - Add conditional per node defrag via new function:
+>=20
+> 	kmem_defrag_slabs(int node).
+>=20
+> kmem_defrag_slabs() attempts to defragment all slab caches for
+> node. Defragmentation is done conditionally dependent on MAX_PARTIAL
+> _and_ defrag_used_ratio.
+>=20
+>    Caches are only considered for defragmentation if the number of
+>    partial slabs exceeds MAX_PARTIAL (per node).
+>=20
+>    Also, defragmentation only occurs if the usage ratio of the slab is
+>    lower than the configured percentage (sysfs field added in this
+>    patch).  Fragmentation ratios are measured by calculating the
+>    percentage of objects in use compared to the total number of objects
+>    that the slab page can accommodate.
+>=20
+>    The scanning of slab caches is optimized because the defragmentable
+>    slabs come first on the list. Thus we can terminate scans on the
+>    first slab encountered that does not support defragmentation.
+>=20
+>    kmem_defrag_slabs() takes a node parameter. This can either be -1 if
+>    defragmentation should be performed on all nodes, or a node number.
+>=20
+>    Defragmentation may be disabled by setting defrag ratio to 0
+>=20
+> 	echo 0 > /sys/kernel/slab/<cache>/defrag_used_ratio
+>=20
+> - Add a defrag ratio sysfs field and set it to 30% by default. A limit
+> of 30% specifies that more than 3 out of 10 available slots for objects
+> need to be in use otherwise slab defragmentation will be attempted on
+> the remaining objects.
+>=20
+> In order for a cache to be defragmentable the cache must support object
+> migration (SMO).  Enabling SMO for a cache is done via a call to the
+> recently added function:
+>=20
+> 	void kmem_cache_setup_mobility(struct kmem_cache *,
+> 				       kmem_cache_isolate_func,
+> 			               kmem_cache_migrate_func);
 >=20
 > Co-developed-by: Christoph Lameter <cl@linux.com>
 > Signed-off-by: Tobin C. Harding <tobin@kernel.org>
+> ---
+>  Documentation/ABI/testing/sysfs-kernel-slab |  14 +
+>  include/linux/slab.h                        |   1 +
+>  include/linux/slub_def.h                    |   7 +
+>  mm/slub.c                                   | 385 ++++++++++++++++----
+>  4 files changed, 334 insertions(+), 73 deletions(-)
 
-Reviewed-by: Roman Gushchin <guro@fb.com>
+Hi Tobin!
+
+Overall looks very good to me! I'll take another look when you'll post
+a non-RFC version, but so far I can't find any issues.
+
+A generic question: as I understand, you do support only root kmemcaches no=
+w.
+Is kmemcg support in plans?
+
+Without it the patchset isn't as attractive to anyone using cgroups,
+as it could be. Also, I hope it can solve (or mitigate) the memcg-specific
+problem of scattering vfs cache workingset over multiple generations of the
+same cgroup (their kmem_caches).
+
+Thanks!
+
+>=20
+> diff --git a/Documentation/ABI/testing/sysfs-kernel-slab b/Documentation/=
+ABI/testing/sysfs-kernel-slab
+> index 29601d93a1c2..c6f129af035a 100644
+> --- a/Documentation/ABI/testing/sysfs-kernel-slab
+> +++ b/Documentation/ABI/testing/sysfs-kernel-slab
+> @@ -180,6 +180,20 @@ Description:
+>  		list.  It can be written to clear the current count.
+>  		Available when CONFIG_SLUB_STATS is enabled.
+> =20
+> +What:		/sys/kernel/slab/cache/defrag_used_ratio
+> +Date:		May 2019
+> +KernelVersion:	5.2
+> +Contact:	Christoph Lameter <cl@linux-foundation.org>
+> +		Pekka Enberg <penberg@cs.helsinki.fi>,
+> +Description:
+> +		The defrag_used_ratio file allows the control of how aggressive
+> +		slab fragmentation reduction works at reclaiming objects from
+> +		sparsely populated slabs. This is a percentage. If a slab has
+> +		less than this percentage of objects allocated then reclaim will
+> +		attempt to reclaim objects so that the whole slab page can be
+> +		freed. 0% specifies no reclaim attempt (defrag disabled), 100%
+> +		specifies attempt to reclaim all pages.  The default is 30%.
+> +
+>  What:		/sys/kernel/slab/cache/deactivate_to_tail
+>  Date:		February 2008
+>  KernelVersion:	2.6.25
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 886fc130334d..4bf381b34829 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -149,6 +149,7 @@ struct kmem_cache *kmem_cache_create_usercopy(const c=
+har *name,
+>  			void (*ctor)(void *));
+>  void kmem_cache_destroy(struct kmem_cache *);
+>  int kmem_cache_shrink(struct kmem_cache *);
+> +unsigned long kmem_defrag_slabs(int node);
+> =20
+>  void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
+>  void memcg_deactivate_kmem_caches(struct mem_cgroup *);
+> diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
+> index 2879a2f5f8eb..34c6f1250652 100644
+> --- a/include/linux/slub_def.h
+> +++ b/include/linux/slub_def.h
+> @@ -107,6 +107,13 @@ struct kmem_cache {
+>  	unsigned int red_left_pad;	/* Left redzone padding size */
+>  	const char *name;	/* Name (only for display!) */
+>  	struct list_head list;	/* List of slab caches */
+> +	int defrag_used_ratio;	/*
+> +				 * Ratio used to check against the
+> +				 * percentage of objects allocated in a
+> +				 * slab page.  If less than this ratio
+> +				 * is allocated then reclaim attempts
+> +				 * are made.
+> +				 */
+>  #ifdef CONFIG_SYSFS
+>  	struct kobject kobj;	/* For sysfs */
+>  	struct work_struct kobj_remove_work;
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 66d474397c0f..2157205df7ba 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -355,6 +355,12 @@ static __always_inline void slab_lock(struct page *p=
+age)
+>  	bit_spin_lock(PG_locked, &page->flags);
+>  }
+> =20
+> +static __always_inline int slab_trylock(struct page *page)
+> +{
+> +	VM_BUG_ON_PAGE(PageTail(page), page);
+> +	return bit_spin_trylock(PG_locked, &page->flags);
+> +}
+> +
+>  static __always_inline void slab_unlock(struct page *page)
+>  {
+>  	VM_BUG_ON_PAGE(PageTail(page), page);
+> @@ -3634,6 +3640,7 @@ static int kmem_cache_open(struct kmem_cache *s, sl=
+ab_flags_t flags)
+> =20
+>  	set_cpu_partial(s);
+> =20
+> +	s->defrag_used_ratio =3D 30;
+>  #ifdef CONFIG_NUMA
+>  	s->remote_node_defrag_ratio =3D 1000;
+>  #endif
+> @@ -3950,79 +3957,6 @@ void kfree(const void *x)
+>  }
+>  EXPORT_SYMBOL(kfree);
+> =20
+> -#define SHRINK_PROMOTE_MAX 32
+> -
+> -/*
+> - * kmem_cache_shrink discards empty slabs and promotes the slabs filled
+> - * up most to the head of the partial lists. New allocations will then
+> - * fill those up and thus they can be removed from the partial lists.
+> - *
+> - * The slabs with the least items are placed last. This results in them
+> - * being allocated from last increasing the chance that the last objects
+> - * are freed in them.
+> - */
+> -int __kmem_cache_shrink(struct kmem_cache *s)
+> -{
+> -	int node;
+> -	int i;
+> -	struct kmem_cache_node *n;
+> -	struct page *page;
+> -	struct page *t;
+> -	struct list_head discard;
+> -	struct list_head promote[SHRINK_PROMOTE_MAX];
+> -	unsigned long flags;
+> -	int ret =3D 0;
+> -
+> -	flush_all(s);
+> -	for_each_kmem_cache_node(s, node, n) {
+> -		INIT_LIST_HEAD(&discard);
+> -		for (i =3D 0; i < SHRINK_PROMOTE_MAX; i++)
+> -			INIT_LIST_HEAD(promote + i);
+> -
+> -		spin_lock_irqsave(&n->list_lock, flags);
+> -
+> -		/*
+> -		 * Build lists of slabs to discard or promote.
+> -		 *
+> -		 * Note that concurrent frees may occur while we hold the
+> -		 * list_lock. page->inuse here is the upper limit.
+> -		 */
+> -		list_for_each_entry_safe(page, t, &n->partial, slab_list) {
+> -			int free =3D page->objects - page->inuse;
+> -
+> -			/* Do not reread page->inuse */
+> -			barrier();
+> -
+> -			/* We do not keep full slabs on the list */
+> -			BUG_ON(free <=3D 0);
+> -
+> -			if (free =3D=3D page->objects) {
+> -				list_move(&page->slab_list, &discard);
+> -				n->nr_partial--;
+> -			} else if (free <=3D SHRINK_PROMOTE_MAX)
+> -				list_move(&page->slab_list, promote + free - 1);
+> -		}
+> -
+> -		/*
+> -		 * Promote the slabs filled up most to the head of the
+> -		 * partial list.
+> -		 */
+> -		for (i =3D SHRINK_PROMOTE_MAX - 1; i >=3D 0; i--)
+> -			list_splice(promote + i, &n->partial);
+> -
+> -		spin_unlock_irqrestore(&n->list_lock, flags);
+> -
+> -		/* Release empty slabs */
+> -		list_for_each_entry_safe(page, t, &discard, slab_list)
+> -			discard_slab(s, page);
+> -
+> -		if (slabs_node(s, node))
+> -			ret =3D 1;
+> -	}
+> -
+> -	return ret;
+> -}
+> -
+>  #ifdef CONFIG_MEMCG
+>  static void kmemcg_cache_deact_after_rcu(struct kmem_cache *s)
+>  {
+> @@ -4317,6 +4251,287 @@ int __kmem_cache_create(struct kmem_cache *s, sla=
+b_flags_t flags)
+>  	return err;
+>  }
+> =20
+> +/*
+> + * Allocate a slab scratch space that is sufficient to keep pointers to
+> + * individual objects for all objects in cache and also a bitmap for the
+> + * objects (used to mark which objects are active).
+> + */
+> +static inline void *alloc_scratch(struct kmem_cache *s)
+> +{
+> +	unsigned int size =3D oo_objects(s->max);
+> +
+> +	return kmalloc(size * sizeof(void *) +
+> +		       BITS_TO_LONGS(size) * sizeof(unsigned long),
+> +		       GFP_KERNEL);
+> +}
+
+I'd pass a single number (s->max) instead of s here.
+
+> +
+> +/*
+> + * move_slab_page() - Move all objects in the given slab.
+> + * @page: The slab we are working on.
+> + * @scratch: Pointer to scratch space.
+> + * @node: The target node to move objects to.
+> + *
+> + * If the target node is not the current node then the object is moved
+> + * to the target node.  If the target node is the current node then this
+> + * is an effective way of defragmentation since the current slab page
+> + * with its object is exempt from allocation.
+> + */
+> +static void move_slab_page(struct page *page, void *scratch, int node)
+> +{
+> +	unsigned long objects;
+> +	struct kmem_cache *s;
+> +	unsigned long flags;
+> +	unsigned long *map;
+> +	void *private;
+> +	int count;
+> +	void *p;
+> +	void **vector =3D scratch;
+> +	void *addr =3D page_address(page);
+> +
+> +	local_irq_save(flags);
+> +	slab_lock(page);
+> +
+> +	BUG_ON(!PageSlab(page)); /* Must be a slab page */
+> +	BUG_ON(!page->frozen);	 /* Slab must have been frozen earlier */
+> +
+> +	s =3D page->slab_cache;
+> +	objects =3D page->objects;
+> +	map =3D scratch + objects * sizeof(void **);
+> +
+> +	/* Determine used objects */
+> +	bitmap_fill(map, objects);
+> +	for (p =3D page->freelist; p; p =3D get_freepointer(s, p))
+> +		__clear_bit(slab_index(p, s, addr), map);
+> +
+> +	/* Build vector of pointers to objects */
+> +	count =3D 0;
+> +	memset(vector, 0, objects * sizeof(void **));
+> +	for_each_object(p, s, addr, objects)
+> +		if (test_bit(slab_index(p, s, addr), map))
+> +			vector[count++] =3D p;
+> +
+> +	if (s->isolate)
+> +		private =3D s->isolate(s, vector, count);
+> +	else
+> +		/* Objects do not need to be isolated */
+> +		private =3D NULL;
+> +
+> +	/*
+> +	 * Pinned the objects. Now we can drop the slab lock. The slab
+> +	 * is frozen so it cannot vanish from under us nor will
+> +	 * allocations be performed on the slab. However, unlocking the
+> +	 * slab will allow concurrent slab_frees to proceed. So the
+> +	 * subsystem must have a way to tell from the content of the
+> +	 * object that it was freed.
+> +	 *
+> +	 * If neither RCU nor ctor is being used then the object may be
+> +	 * modified by the allocator after being freed which may disrupt
+> +	 * the ability of the migrate function to tell if the object is
+> +	 * free or not.
+> +	 */
+> +	slab_unlock(page);
+> +	local_irq_restore(flags);
+> +
+> +	/* Perform callback to move the objects */
+> +	s->migrate(s, vector, count, node, private);
+> +}
+> +
+> +/*
+> + * kmem_cache_defrag() - Defragment node.
+> + * @s: cache we are working on.
+> + * @node: The node to move objects from.
+> + * @target_node: The node to move objects to.
+> + * @ratio: The defrag ratio (percentage, between 0 and 100).
+> + *
+> + * Release slabs with zero objects and try to call the migration functio=
+n
+> + * for slabs with less than the 'ratio' percentage of objects allocated.
+> + *
+> + * Moved objects are allocated on @target_node.
+> + *
+> + * Return: The number of partial slabs left on @node after the
+> + *         operation.
+> + */
+> +static unsigned long kmem_cache_defrag(struct kmem_cache *s,
+> +				       int node, int target_node, int ratio)
+> +{
+> +	struct kmem_cache_node *n =3D get_node(s, node);
+> +	struct page *page, *page2;
+> +	LIST_HEAD(move_list);
+> +	unsigned long flags;
+> +
+> +	if (node =3D=3D target_node && n->nr_partial <=3D 1) {
+> +		/*
+> +		 * Trying to reduce fragmentation on a node but there is
+> +		 * only a single or no partial slab page. This is already
+> +		 * the optimal object density that we can reach.
+> +		 */
+> +		return n->nr_partial;
+> +	}
+> +
+> +	spin_lock_irqsave(&n->list_lock, flags);
+> +	list_for_each_entry_safe(page, page2, &n->partial, lru) {
+> +		if (!slab_trylock(page))
+> +			/* Busy slab. Get out of the way */
+> +			continue;
+> +
+> +		if (page->inuse) {
+> +			if (page->inuse > ratio * page->objects / 100) {
+> +				slab_unlock(page);
+> +				/*
+> +				 * Skip slab because the object density
+> +				 * in the slab page is high enough.
+> +				 */
+> +				continue;
+> +			}
+> +
+> +			list_move(&page->lru, &move_list);
+> +			if (s->migrate) {
+> +				/* Stop page being considered for allocations */
+> +				n->nr_partial--;
+> +				page->frozen =3D 1;
+> +			}
+> +			slab_unlock(page);
+> +		} else {	/* Empty slab page */
+> +			list_del(&page->lru);
+> +			n->nr_partial--;
+> +			slab_unlock(page);
+> +			discard_slab(s, page);
+> +		}
+> +	}
+> +
+> +	if (!s->migrate) {
+> +		/*
+> +		 * No defrag method. By simply putting the zaplist at
+> +		 * the end of the partial list we can let them simmer
+> +		 * longer and thus increase the chance of all objects
+> +		 * being reclaimed.
+> +		 */
+> +		list_splice(&move_list, n->partial.prev);
+> +	}
+> +
+> +	spin_unlock_irqrestore(&n->list_lock, flags);
+> +
+> +	if (s->migrate && !list_empty(&move_list)) {
+> +		void **scratch =3D alloc_scratch(s);
+> +		if (scratch) {
+> +			/* Try to remove / move the objects left */
+> +			list_for_each_entry(page, &move_list, lru) {
+> +				if (page->inuse)
+> +					move_slab_page(page, scratch, target_node);
+> +			}
+> +			kfree(scratch);
+> +		}
+> +
+> +		/* Inspect results and dispose of pages */
+> +		spin_lock_irqsave(&n->list_lock, flags);
+> +		list_for_each_entry_safe(page, page2, &move_list, lru) {
+> +			list_del(&page->lru);
+> +			slab_lock(page);
+> +			page->frozen =3D 0;
+> +
+> +			if (page->inuse) {
+> +				/*
+> +				 * Objects left in slab page, move it to the
+> +				 * tail of the partial list to increase the
+> +				 * chance that the freeing of the remaining
+> +				 * objects will free the slab page.
+> +				 */
+> +				n->nr_partial++;
+> +				list_add_tail(&page->lru, &n->partial);
+> +				slab_unlock(page);
+> +			} else {
+> +				slab_unlock(page);
+> +				discard_slab(s, page);
+> +			}
+> +		}
+> +		spin_unlock_irqrestore(&n->list_lock, flags);
+> +	}
+> +
+> +	return n->nr_partial;
+> +}
+> +
+> +/**
+> + * kmem_defrag_slabs() - Defrag slab caches.
+> + * @node: The node to defrag or -1 for all nodes.
+> + *
+> + * Defrag slabs conditional on the amount of fragmentation in a page.
+> + *
+> + * Return: The total number of partial slabs in migratable caches left
+> + *         on @node after the operation.
+> + */
+> +unsigned long kmem_defrag_slabs(int node)
+> +{
+> +	struct kmem_cache *s;
+> +	unsigned long left =3D 0;
+> +	int nid;
+> +
+> +	if (node >=3D MAX_NUMNODES)
+> +		return -EINVAL;
+> +
+> +	/*
+> +	 * kmem_defrag_slabs() may be called from the reclaim path which
+> +	 * may be called for any page allocator alloc. So there is the
+> +	 * danger that we get called in a situation where slub already
+> +	 * acquired the slub_lock for other purposes.
+> +	 */
+> +	if (!mutex_trylock(&slab_mutex))
+> +		return 0;
+> +
+> +	list_for_each_entry(s, &slab_caches, list) {
+> +		/*
+> +		 * Defragmentable caches come first. If the slab cache is
+> +		 * not defragmentable then we can stop traversing the list.
+> +		 */
+> +		if (!s->migrate)
+> +			break;
+> +
+> +		if (node >=3D 0) {
+> +			if (s->node[node]->nr_partial > MAX_PARTIAL) {
+> +				left +=3D kmem_cache_defrag(s, node, node,
+> +							  s->defrag_used_ratio);
+> +			}
+> +			continue;
+> +		}
+> +
+> +		for_each_node_state(nid, N_NORMAL_MEMORY) {
+> +			if (s->node[nid]->nr_partial > MAX_PARTIAL) {
+> +				left +=3D kmem_cache_defrag(s, nid, nid,
+> +							  s->defrag_used_ratio);
+> +			}
+> +		}
+> +	}
+> +	mutex_unlock(&slab_mutex);
+> +	return left;
+> +}
+> +EXPORT_SYMBOL(kmem_defrag_slabs);
+> +
+> +/**
+> + * __kmem_cache_shrink() - Shrink a cache.
+> + * @s: The cache to shrink.
+> + *
+> + * Reduces the memory footprint of a slab cache by as much as possible.
+> + *
+> + * This works by:
+> + *  1. Removing empty slabs from the partial list.
+> + *  2. Migrating slab objects to denser slab pages if the slab cache
+> + *  supports migration.  If not, reorganizing the partial list so that
+> + *  more densely allocated slab pages come first.
+> + *
+> + * Not called directly, called by kmem_cache_shrink().
+> + */
+> +int __kmem_cache_shrink(struct kmem_cache *s)
+> +{
+> +	int node;
+> +	int left =3D 0;
+> +
+> +	flush_all(s);
+> +	for_each_node_state(node, N_NORMAL_MEMORY)
+> +		left +=3D kmem_cache_defrag(s, node, node, 100);
+> +
+> +	return left;
+> +}
+> +EXPORT_SYMBOL(__kmem_cache_shrink);
+> +
+>  void kmem_cache_setup_mobility(struct kmem_cache *s,
+>  			       kmem_cache_isolate_func isolate,
+>  			       kmem_cache_migrate_func migrate)
+> @@ -5168,6 +5383,29 @@ static ssize_t destroy_by_rcu_show(struct kmem_cac=
+he *s, char *buf)
+>  }
+>  SLAB_ATTR_RO(destroy_by_rcu);
+> =20
+> +static ssize_t defrag_used_ratio_show(struct kmem_cache *s, char *buf)
+> +{
+> +	return sprintf(buf, "%d\n", s->defrag_used_ratio);
+> +}
+> +
+> +static ssize_t defrag_used_ratio_store(struct kmem_cache *s,
+> +				       const char *buf, size_t length)
+> +{
+> +	unsigned long ratio;
+> +	int err;
+> +
+> +	err =3D kstrtoul(buf, 10, &ratio);
+> +	if (err)
+> +		return err;
+> +
+> +	if (ratio > 100)
+> +		return -EINVAL;
+> +
+> +	s->defrag_used_ratio =3D ratio;
+> +	return length;
+> +}
+> +SLAB_ATTR(defrag_used_ratio);
+> +
+>  #ifdef CONFIG_SLUB_DEBUG
+>  static ssize_t slabs_show(struct kmem_cache *s, char *buf)
+>  {
+> @@ -5492,6 +5730,7 @@ static struct attribute *slab_attrs[] =3D {
+>  	&validate_attr.attr,
+>  	&alloc_calls_attr.attr,
+>  	&free_calls_attr.attr,
+> +	&defrag_used_ratio_attr.attr,
+>  #endif
+>  #ifdef CONFIG_ZONE_DMA
+>  	&cache_dma_attr.attr,
+> --=20
+> 2.21.0
+>=20
 
