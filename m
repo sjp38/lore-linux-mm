@@ -4,81 +4,80 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EC3AFC04AB4
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 04:54:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 94756C04AAF
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 04:54:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BB39921019
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 04:54:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB39921019
+	by mail.kernel.org (Postfix) with ESMTP id 6322C21019
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 04:54:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6322C21019
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=stgolabs.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9FA516B0270; Tue, 21 May 2019 00:53:48 -0400 (EDT)
+	id F2B3F6B0271; Tue, 21 May 2019 00:53:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9D18E6B0271; Tue, 21 May 2019 00:53:48 -0400 (EDT)
+	id EDA446B0273; Tue, 21 May 2019 00:53:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 826606B0272; Tue, 21 May 2019 00:53:48 -0400 (EDT)
+	id DC88E6B0274; Tue, 21 May 2019 00:53:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A7F76B0270
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 00:53:48 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id c1so28730755edi.20
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 21:53:48 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 89A706B0271
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 00:53:49 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id f41so28736700ede.1
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 21:53:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=gq3ARRXvCrviE7zgDZslDMgDa+RfCscNJ5KD1KW354Q=;
-        b=GgWh6zxhoMqObHh5pgTzp98YowJ3Cq3OLH8Hck34FEeWLI5KbMYFTvA6uF6F48JQTh
-         E6/xq8SYm79Q5xcN+GVNFjrE+gnYS2PZtEzDvTB2sw7luQ6gfBWP2CWyRh0H8qEL0bL0
-         nLg9OLOCDkVVTBfKNsgj7nrTXdQdZBx+mKJO4LA37/5jVEJJQ+ckL/HkNVcKyhP7kC7k
-         KMiqu/ewH/RpW41yBld0tlkv+GnmsYgNJYrzT+MlPnw5dkYcNCaO/Ghz407MUZdehx/+
-         WAAtsn4YO24qjR/ll3CFbbmNvgHMeYmE0bCz/ekhok0UTu/zmV03PhFnmhYvBToPb27/
-         Vtzg==
+        bh=AKmR5B5S0qq8tGuHHmSOEPObaYYJM0kSBVRLE/9QL+Q=;
+        b=RSZh7jjIfh5PAOqt39Rd/TB9yJCMKvQjaHqx4d4ikCnEOc3aHGrLn1rtQaF+ieHTPE
+         uRAK0755g46b8oqppLsZ7hJfRqg+KqbbfYG+IymMHUFFtN/WaniIb5UP0r6n71TwrFKM
+         jOxiCKv92Xa4djmrY3K6zPiG452kcdtPYR1EhewRAYwh/p1CNYr0o4MFP4ThpLP8RgTe
+         vZs00OlD7M9trUJyK52482VpkANGJAdJFhq3jl4+hwiaRnHJGySbMxRsj4L1wP+lmvzA
+         sg2or2svnIPYDDlKCf50kztmTYHK/3dghAIotVBwX7LbB6EDFUhklEQ2t+YDsschdG9B
+         T1dQ==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.221.5 as permitted sender) smtp.mailfrom=dave@stgolabs.net
-X-Gm-Message-State: APjAAAVahjx+j7gmnluiIRejVm41CbPlutKe/J7f5m3DpKYob3s8+c7j
-	xkp2azGFFPXT7MGu2TYGwAkyN1gzI8yGpTKF823DVg/c4QKSmXcdic/pRIaInBROkDQHR3DFZ/6
-	fW/r4/FLjWXaVTQ8D/FVQzc64Jn/GsXq7nqA70Y65ilNalfSl+ei59u9VHPCBoPc=
-X-Received: by 2002:a50:8dc5:: with SMTP id s5mr52447482edh.138.1558414427693;
+X-Gm-Message-State: APjAAAV4qyx4eOjxCD8h3VsmbQFBxdmm5d69K/uf1YBl18J9YJTvbicf
+	9vBYuNfBRWuKrwMSnVq/RxmkNkb4bRfoxLRc+MRL2pqb9/LZySZf3/IctgyegztFKHRNtQCzKFu
+	vvE1TEldhS/ibaWF0gYP5qN2jXTdh2JmljMcE54NUdK10V9ynLtWS7t88Db9nL3Y=
+X-Received: by 2002:aa7:d8d1:: with SMTP id k17mr80706727eds.250.1558414429089;
+        Mon, 20 May 2019 21:53:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwQAD2mdFBeOT6B6PZZ93sfMnY50myQBKNe/UBDBMWHNUFflc9WGLeLpbl14CaFfQ5yumFm
+X-Received: by 2002:aa7:d8d1:: with SMTP id k17mr80706671eds.250.1558414427935;
         Mon, 20 May 2019 21:53:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzHLNvYRoUWxfX5liysODhwl0Wf0BR5aL7EakA+qlbV+BUYa8BMxbJP4LhovVsADUukkDGZ
-X-Received: by 2002:a50:8dc5:: with SMTP id s5mr52447410edh.138.1558414426501;
-        Mon, 20 May 2019 21:53:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558414426; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1558414427; cv=none;
         d=google.com; s=arc-20160816;
-        b=TwxDk3CPtuouT4jQ1QP4DkF10gwH9Sa4CG4j99AMvrqN8JrDcNmx7hWFyli64j3+//
-         3adk8tqI//Pq4X8P5AGpUh8/9WbZUVqBEaPnqKqN9C2HMVibiMB7XxyiXjwZslWdCoBz
-         9CGfnYgO6vlPIICxfZ7t/RA+s22SJUomnKhGm7THUYWlLNNL22/uOmEWiHyVVQAuEr0J
-         LAIa06PQiK2cQwY3Q54pnkelvzQo9o90W2DhLC8jGkP6bNJlAIGyFkHSJS19KtxAkXMD
-         QAMrMo2d2zoal5D7I7xpvFPJD5KSeAVlZZDDGlP8l70Liq04/EyLwHEmdWgWAn+OaNL3
-         K9Yg==
+        b=xYrqICNzn5PIS+PmgtYEPo042LSkqKbNHilGBMN8wq3TqPHp0gjHrDGewt9iWeygnT
+         Y3Wxl9FScD8vLQ7NhSrEnkLWkfHmUjV+g/ppp+2umgXe91q4cYFx/I0Sd8GRmVeJQOWo
+         7Z5Ff5UYo6MzyzwZy6GxhJt+myD1cUwQNIPLBGO6X9XKPf60+ZybM7gjqk3TwvGJ1Gxv
+         v2OIer34fGXo208GhUd5C4wqtSb26VKynix1j9DRD1aJP/Bzn0Cv7o7tWhhRokfEofsm
+         wNHU7MM+CEUwhoamp80SyOm6mvvmL8XmXU/w/VTQYvaQRF+RdFhJviJbvP6sdUGZBkWk
+         q00w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=gq3ARRXvCrviE7zgDZslDMgDa+RfCscNJ5KD1KW354Q=;
-        b=FjspRDSYpc3RD4dICwOoKsjHGw9OT4N7oDYyjRUFwQXRNbn0RA1JbSqr9bZSRnEu7f
-         Y7qZ8IPZSighv18KUITk6Lg5HJ0Fw4hfWu4+zqfyUg1T+Hu4umaa6nPmnf4VhZR8l0el
-         7nRg4k7H4P6xVEjHV3sT5oclXAxhY3r5Da+H3h6arjia4wYbKniMI0D+W2NiP23iAdwv
-         IcbKiJT9o/+EJwy/uSi7GJqmBMUcdM7gvN3buW50c11VPwCuJ2g21QAlOmylOiW/+iOM
-         J9CgXA86dYvmf0Zoa/Cm3QARyScbrjR+PLI7St7ohl71eOyHbnGHJd8ZOJNTDXHVaft7
-         wcig==
+        bh=AKmR5B5S0qq8tGuHHmSOEPObaYYJM0kSBVRLE/9QL+Q=;
+        b=pb22JqE0tX+OOv0vR3Mc7yIUPmStRUtw9Ri5MDbgstuaOHZTBS/uOy4g3ca5T3f7Ot
+         u1SEgTv3IDU0sUzVYy5pITX5fhOxeeKV9t1HqPIQ21aAODcHQPqjPLHjuMc65q535yYv
+         0lqmBBvRpWLdjvIHlm2KVkjaVMLH7oRKKib+axRyvD6OXfHIkHNdzua9chaQBp0BA2KS
+         pnr0Z2J6i9P6/F64hNVgQG8Ic12b1igQPJYmPZlUm0Kz8+6r1U18aeLJevm2mpfikzw/
+         keq7PXhq8V9Erjn/8IKBQit7jaM+0dvcQ/52/yABe9xWA76rquwRkZEfKLmwiKpPYoZh
+         0b1w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.221.5 as permitted sender) smtp.mailfrom=dave@stgolabs.net
 Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
-        by mx.google.com with ESMTPS id 60si8526733edg.284.2019.05.20.21.53.46
+        by mx.google.com with ESMTPS id d13si7274559ejj.242.2019.05.20.21.53.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 21:53:46 -0700 (PDT)
+        Mon, 20 May 2019 21:53:47 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.221.5 as permitted sender) client-ip=195.135.221.5;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning dave@stgolabs.net does not designate 195.135.221.5 as permitted sender) smtp.mailfrom=dave@stgolabs.net
 Received: from emea4-mta.ukb.novell.com ([10.120.13.87])
-	by smtp.nue.novell.com with ESMTP (TLS encrypted); Tue, 21 May 2019 06:53:45 +0200
+	by smtp.nue.novell.com with ESMTP (TLS encrypted); Tue, 21 May 2019 06:53:47 +0200
 Received: from linux-r8p5.suse.de (nwb-a10-snat.microfocus.com [10.120.13.201])
-	by emea4-mta.ukb.novell.com with ESMTP (TLS encrypted); Tue, 21 May 2019 05:53:17 +0100
+	by emea4-mta.ukb.novell.com with ESMTP (TLS encrypted); Tue, 21 May 2019 05:53:19 +0100
 From: Davidlohr Bueso <dave@stgolabs.net>
 To: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
@@ -90,9 +89,9 @@ Cc: akpm@linux-foundation.org,
 	ldufour@linux.vnet.ibm.com,
 	dave@stgolabs.net,
 	Davidlohr Bueso <dbueso@suse.de>
-Subject: [PATCH 10/14] net: teach the mm about range locking
-Date: Mon, 20 May 2019 21:52:38 -0700
-Message-Id: <20190521045242.24378-11-dave@stgolabs.net>
+Subject: [PATCH 11/14] ipc: teach the mm about range locking
+Date: Mon, 20 May 2019 21:52:39 -0700
+Message-Id: <20190521045242.24378-12-dave@stgolabs.net>
 X-Mailer: git-send-email 2.16.4
 In-Reply-To: <20190521045242.24378-1-dave@stgolabs.net>
 References: <20190521045242.24378-1-dave@stgolabs.net>
@@ -108,64 +107,65 @@ semantics.
 
 Signed-off-by: Davidlohr Bueso <dbueso@suse.de>
 ---
- net/ipv4/tcp.c     | 5 +++--
- net/xdp/xdp_umem.c | 5 +++--
- 2 files changed, 6 insertions(+), 4 deletions(-)
+ ipc/shm.c | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
-diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
-index 53d61ca3ac4b..2be929dcafa8 100644
---- a/net/ipv4/tcp.c
-+++ b/net/ipv4/tcp.c
-@@ -1731,6 +1731,7 @@ static int tcp_zerocopy_receive(struct sock *sk,
- 	struct tcp_sock *tp;
- 	int inq;
- 	int ret;
+diff --git a/ipc/shm.c b/ipc/shm.c
+index ce1ca9f7c6e9..3666fa71bfc2 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -1418,6 +1418,7 @@ COMPAT_SYSCALL_DEFINE3(old_shmctl, int, shmid, int, cmd, void __user *, uptr)
+ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
+ 	      ulong *raddr, unsigned long shmlba)
+ {
 +	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 	struct shmid_kernel *shp;
+ 	unsigned long addr = (unsigned long)shmaddr;
+ 	unsigned long size;
+@@ -1544,7 +1545,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
+ 	if (err)
+ 		goto out_fput;
  
- 	if (address & (PAGE_SIZE - 1) || address != zc->address)
- 		return -EINVAL;
-@@ -1740,7 +1741,7 @@ static int tcp_zerocopy_receive(struct sock *sk,
- 
- 	sock_rps_record_flow(sk);
- 
--	down_read(&current->mm->mmap_sem);
-+	mm_read_lock(current->mm, &mmrange);
- 
- 	ret = -EINVAL;
- 	vma = find_vma(current->mm, address);
-@@ -1802,7 +1803,7 @@ static int tcp_zerocopy_receive(struct sock *sk,
- 		frags++;
+-	if (down_write_killable(&current->mm->mmap_sem)) {
++	if (mm_write_lock_killable(current->mm, &mmrange)) {
+ 		err = -EINTR;
+ 		goto out_fput;
  	}
- out:
--	up_read(&current->mm->mmap_sem);
-+	mm_read_unlock(current->mm, &mmrange);
- 	if (length) {
- 		tp->copied_seq = seq;
- 		tcp_rcv_space_adjust(sk);
-diff --git a/net/xdp/xdp_umem.c b/net/xdp/xdp_umem.c
-index 2b18223e7eb8..2bf444fb998d 100644
---- a/net/xdp/xdp_umem.c
-+++ b/net/xdp/xdp_umem.c
-@@ -246,16 +246,17 @@ static int xdp_umem_pin_pages(struct xdp_umem *umem)
- 	unsigned int gup_flags = FOLL_WRITE;
- 	long npgs;
- 	int err;
+@@ -1564,7 +1565,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
+ 	if (IS_ERR_VALUE(addr))
+ 		err = (long)addr;
+ invalid:
+-	up_write(&current->mm->mmap_sem);
++	mm_write_unlock(current->mm, &mmrange);
+ 	if (populate)
+ 		mm_populate(addr, populate);
+ 
+@@ -1625,6 +1626,7 @@ COMPAT_SYSCALL_DEFINE3(shmat, int, shmid, compat_uptr_t, shmaddr, int, shmflg)
+  */
+ long ksys_shmdt(char __user *shmaddr)
+ {
 +	DEFINE_RANGE_LOCK_FULL(mmrange);
+ 	struct mm_struct *mm = current->mm;
+ 	struct vm_area_struct *vma;
+ 	unsigned long addr = (unsigned long)shmaddr;
+@@ -1638,7 +1640,7 @@ long ksys_shmdt(char __user *shmaddr)
+ 	if (addr & ~PAGE_MASK)
+ 		return retval;
  
- 	umem->pgs = kcalloc(umem->npgs, sizeof(*umem->pgs),
- 			    GFP_KERNEL | __GFP_NOWARN);
- 	if (!umem->pgs)
- 		return -ENOMEM;
+-	if (down_write_killable(&mm->mmap_sem))
++	if (mm_write_lock_killable(mm, &mmrange))
+ 		return -EINTR;
  
--	down_read(&current->mm->mmap_sem);
-+	mm_read_lock(current->mm, &mmrange);
- 	npgs = get_user_pages(umem->address, umem->npgs,
- 			      gup_flags | FOLL_LONGTERM, &umem->pgs[0], NULL);
--	up_read(&current->mm->mmap_sem);
-+	mm_read_unlock(current->mm, &mmrange);
+ 	/*
+@@ -1726,7 +1728,7 @@ long ksys_shmdt(char __user *shmaddr)
  
- 	if (npgs != umem->npgs) {
- 		if (npgs >= 0) {
+ #endif
+ 
+-	up_write(&mm->mmap_sem);
++	mm_write_unlock(mm, &mmrange);
+ 	return retval;
+ }
+ 
 -- 
 2.16.4
 
