@@ -2,111 +2,111 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B26CC04AAF
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 16:07:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E4D9BC04AAF
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 16:07:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B5F3B2173C
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 16:07:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9AA7E217D7
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 16:07:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="fR9U+EFo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B5F3B2173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="SslTEkbd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9AA7E217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 606126B0003; Tue, 21 May 2019 12:07:15 -0400 (EDT)
+	id 4A6056B0006; Tue, 21 May 2019 12:07:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5B68C6B0006; Tue, 21 May 2019 12:07:15 -0400 (EDT)
+	id 457496B0007; Tue, 21 May 2019 12:07:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4578C6B0007; Tue, 21 May 2019 12:07:15 -0400 (EDT)
+	id 320046B0008; Tue, 21 May 2019 12:07:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 19CDB6B0003
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 12:07:15 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id 73so9871811oty.2
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 09:07:15 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 06ACF6B0006
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 12:07:51 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id x27so9872813ote.6
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 09:07:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=qHnInBfAX+GoWjJM5B+1a+Vw2rTdSHZyw1ZFE7z7NrY=;
-        b=VHhMdm54pzjQPWe65BVt6yaauz2FFvozSrNuv/35y008J5gDeAJvyOnkaci0urcBJ9
-         st2+FJ0hdSf2umCiLpxjQACjFAJ0QxqBrNgF94QG/iWdZY6am/Dszg034QBgGCvsBZ6o
-         qVR4dF8Tv/qo/NDL/0RZ9UBi/Pt4ak6BHBHw1+QlKjwL2/QlCBMSJ+5miufjP0IVq7Eo
-         J87TJZwRxKsUEqBiNUr1poQIz+BWWaC63vaSViDkzG83+GLyINdQd+fBAs0LE5ijKSof
-         BRTEueT7Jc2Wt9VeRbygAa126AKp2b0d/Us9PomfhWihB9+O6cYq089nbZu+KhiJpZyb
-         kIOA==
-X-Gm-Message-State: APjAAAVxwG+f5jKoc/30fdepNhdX+SQ+JG1wxc5xhERTV/e1Fuhmv9a+
-	UZ+u5KbRxXA1xa6sxb0466JBAgSpPp61UskLZKrAqyv90CSIz4j/3KcYZ54v8Fkle/b3c5SAZ3M
-	q3JMM0TWfM8gX4fv0+fhNYOdOm5WpZepIIznXIfO5WQNCJmfXl0WI3+chP9MozswxtQ==
-X-Received: by 2002:a9d:7d9a:: with SMTP id j26mr5629038otn.102.1558454834725;
-        Tue, 21 May 2019 09:07:14 -0700 (PDT)
-X-Received: by 2002:a9d:7d9a:: with SMTP id j26mr5628955otn.102.1558454833635;
-        Tue, 21 May 2019 09:07:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558454833; cv=none;
+        bh=Z6DwY5PU6T6VLE2Cxc9SEtMv6vL/0lIxHi6A4Ph2gaM=;
+        b=alKcuy6qQsTmYFsQZaitSmVVg0YE5VRMsypO8/wGTKWiighuTqv/ZEvKtBffHc9RwO
+         ACg5iQJ/OInpiWOdDFJZUYNyamMEPsgz8jGU/OkEUDk3owHM2dUvdnUGuWyfm0D1JxSV
+         yx433FR2rYSE3sdiw5V2DP19wiV7rL4Pr4MM46f5Dr12RiVRfOLVnARlU2VGBWUvwGmw
+         Mv+SV/U3M6b1zF23O34wtPcTdlQLyQLeyRFzMBQXinWXB5GEENnc4JvVWC8XI7PB/C63
+         ldoD8tcQ8uk62Wj+8N3j3tXP+q2TwzNFcmlaZABMcwOa8zi1KO4Hoa0V/+KBimtmeMtV
+         sQCw==
+X-Gm-Message-State: APjAAAVvF4ZvQkUNjK1ExIjKN6SoIi7nLHMZeTxo4r5tykM883IwSdsT
+	QIhPDmG46JDRhuZ2cnTL297IX6UfEzKklOTdKfhWicK5o9UalaJg+yZrSlzislneHFeBwqBiLO8
+	YvwirvEpea1WQA8mlpY84nTKEAOL8KAwDY9BUDaqNu0O76tbPXBcSs+5HaT2gbRjhfg==
+X-Received: by 2002:a9d:70d2:: with SMTP id w18mr165706otj.289.1558454870767;
+        Tue, 21 May 2019 09:07:50 -0700 (PDT)
+X-Received: by 2002:a9d:70d2:: with SMTP id w18mr165669otj.289.1558454870230;
+        Tue, 21 May 2019 09:07:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558454870; cv=none;
         d=google.com; s=arc-20160816;
-        b=EclFemG4mLbpwVeuWVghoo5WgpGNJrVmo2Xr/Vjo3qDuifY5b6k3M1se/09lbIDFrk
-         ymzeSOGLK0jbmykTLRYnAsKyuuqI503bY/5bBH3C9zrEx8t5X7wkA2gW8uU7227GJ9ok
-         mcjeyxI/2Or6qJX0QdJw1PwqSxa/vdXrIhKrPuYuttDvPAEAlnA80WCSbWkG8Se1pKwe
-         /lmsGU8uYBJx/R8tJlEhHwFFnRpASdGP2bZTB8r/AKU/A+QJOnMNTPFCIM34ZzEB4LDs
-         2Ozpe9og9H7/GeP0AfCecjVw00/sPrqOr+f4ne2PAzdRr7C9ucxfaNUJ0Bq9cCUYEude
-         YYxw==
+        b=okLb0gC11DtlNmUDp/Xqk37rXtu2XPnqe3SW1JnMdeymiDObdptKpR57dqTQCFc0Gq
+         kUx8qGfzpR3ZBQOCFwHl0TreAxDoNbnze/uRN+lY3OdtSdlZWitpx3y7A0UnyVxlkLBr
+         NAufVQ5kIurGp1urleqkYig5n7xKgLghusFa6cIoZ1oZsuHKAnCYzhWMeht9QTfrwK6b
+         LI5yGI27G6RlG10pRracHYudRCY9y6HwMnqYlCnE4USgWwMHDPZHYy4hMBJCBMuFO4K+
+         F9BFU6mLkgEoR9LoYRagbs0c20VEiAZxfHDaztPfa7D6rQOSTTmrZPQAP12WcxSG7iem
+         nQMg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=qHnInBfAX+GoWjJM5B+1a+Vw2rTdSHZyw1ZFE7z7NrY=;
-        b=brJmBte6THuy5NQI3IknzPM9E6s08ZlLAllRvdJWud7krmbslju3zsEniQHp/o4mxj
-         MmgOyPlmLTEIbSuivA30Hvg50/0a7ijY5X8UBOIlRTUErcmGLqH6uH8U5++NL0geYq8c
-         Uo6/pDOV3uUsehpHR1ussxju9RPyfRDKolhNCCTpsBGUyQMgXZ5/fOKOfx9rqQwzkcbS
-         iuMMMDC0kpfG01Dxs49Zy+SW8BwPIWoEV8k2o3lAK9MgKK/NwHl9W2xu+g2kz9S0+0tb
-         ZXsX7JHYxf9nBoRP5QOQod0/MtIYFg3kL2HnIvbEq4OfxaG1yWV0L56GKM5wUn5Ux10c
-         RCHQ==
+        bh=Z6DwY5PU6T6VLE2Cxc9SEtMv6vL/0lIxHi6A4Ph2gaM=;
+        b=QhTxFASDBbHBVPzXocCotaOXMJzjYqpwp7pj196ES0xv/k3YqNNkqxSF6taRlknK9x
+         3Ks9JSzsCFmBqw2+qHrWiKcEDWlT2KYLXA52n61WYf20DM7c0zXwQMdylPcLyKx5ypqP
+         fcaDGzyJy8tM5EnpTmyeH6wL2/qSSWKAKDL8WvvVXhbNmBvKnocyzl7Fhwt1jTuDGgF4
+         10KV5c6cVeycz1YEaLw/D6EvJrJxypTYXoLRDhsMKGPjAIbHLfPzA8i4eIW8VvYgtOZ0
+         YebP80OYZSheVBmZZxf0uHWlg0mkRpUAJZ1Ie8ew1sCPS9X4u3Qkv4OVLmj8CQtMgC0u
+         /3Hg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=fR9U+EFo;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=SslTEkbd;
+       spf=pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=elver@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e75sor8848111oib.55.2019.05.21.09.07.13
+        by mx.google.com with SMTPS id l12sor9877336otn.177.2019.05.21.09.07.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 21 May 2019 09:07:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 21 May 2019 09:07:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=fR9U+EFo;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=SslTEkbd;
+       spf=pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=elver@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=qHnInBfAX+GoWjJM5B+1a+Vw2rTdSHZyw1ZFE7z7NrY=;
-        b=fR9U+EFoXp6HhXYT9l+xkijMGif7K3fz6bincJ22ZbB0d6OaUaMGrTRXdelLknFbfs
-         W+ZLsKJExrH5KaDHoKhSWCC0/MjPf0uktzpjdZekcC4BUpuM8dhQqEakhcSRzwfEdR3W
-         jdIEyi0RF68bIxCaFkl2lXnmRjr9DXLFTvqkBJCMLZxu0mjAr03gDUfxrgObVP4QkZIe
-         XwmJkmntN9CT1/uHTWvoG53gNa+73/obZEpIGYFxHczx8aaM2A6Zmax3vR9Zc+q3Ft8s
-         Qob6I/4L4bOjfPB2cVs9qYt4TPBKLg2RM962LdsC2KdYawUOqjKbIHg4YRO45qE0w3Wz
-         MrMw==
-X-Google-Smtp-Source: APXvYqyu5x5mrKlEIasKp1NxpDGYmQJsGvrx6mxQiUGAiiyjZAOGd76nwvRmcYQhvDtlfylqQ/dEPb7N7a77yrnQFHQ=
-X-Received: by 2002:aca:ab07:: with SMTP id u7mr3889695oie.73.1558454833247;
- Tue, 21 May 2019 09:07:13 -0700 (PDT)
+        bh=Z6DwY5PU6T6VLE2Cxc9SEtMv6vL/0lIxHi6A4Ph2gaM=;
+        b=SslTEkbdrlh+dYn1Z2W0PtxBFm87izCTK1dQ7tOb865Ax7UFvqpS5sEEsMfHN/jPt4
+         ArS1sJ3XSNP/EeAIKaLyVqYC8EiXiubErXlPjLcp+TyxJAnybFh16zALk/7gtxozJ41P
+         KzASIrypc+6NtC9XdsGoAw1uMIjWfxQX6Z1RlBG3zDpvdLdxwWGRXiaAU9lXevplUU4q
+         zUYpyyWHjMnF+TUT+mvvj0aHcn3/ZAaR/T7k6F8wm+ezWT12bHRSp0ZcoZBjjCUJtmlu
+         hE6THKH/921P6gA0xBGqAXuBDU6uh+7eqvIz6hNvFTs+RsExIrG1H79MaOo4k4dkL4kY
+         l5+g==
+X-Google-Smtp-Source: APXvYqyf0tOjVEyL+KKurLWTQXmmLJuTqu1V19ngBUj4PHyEdLuQ8Dtp7m/dOY8siMci3gIMl1odSi90OcaYYfOkpLw=
+X-Received: by 2002:a9d:362:: with SMTP id 89mr6331724otv.17.1558454869448;
+ Tue, 21 May 2019 09:07:49 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190514025604.9997-1-aneesh.kumar@linux.ibm.com>
- <CAPcyv4iNgFbSq0Hqb+CStRhGWMHfXx7tL3vrDaQ95DcBBY8QCQ@mail.gmail.com>
- <f99c4f11-a43d-c2d3-ab4f-b7072d090351@linux.ibm.com> <CAPcyv4gOr8SFbdtBbWhMOU-wdYuMCQ4Jn2SznGRsv6Vku97Xnw@mail.gmail.com>
- <02d1d14d-650b-da38-0828-1af330f594d5@linux.ibm.com> <CAPcyv4jcSgg0wxY9FAM4ke9JzVc9Pu3qe6dviS3seNgHfG2oNw@mail.gmail.com>
- <87mujgcf0h.fsf@linux.ibm.com>
-In-Reply-To: <87mujgcf0h.fsf@linux.ibm.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 21 May 2019 09:07:02 -0700
-Message-ID: <CAPcyv4j5Y+AFkbvYjDnfqTdmN_Sq=O0qfGUorgpjAE8Ww7vH=A@mail.gmail.com>
-Subject: Re: [PATCH] mm/nvdimm: Use correct #defines instead of opencoding
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, 
-	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+References: <20190520154751.84763-1-elver@google.com> <ebec4325-f91b-b392-55ed-95dbd36bbb8e@virtuozzo.com>
+ <CAG_fn=W+_Ft=g06wtOBgKnpD4UswE_XMXd61jw5ekOH_zeUVOQ@mail.gmail.com>
+In-Reply-To: <CAG_fn=W+_Ft=g06wtOBgKnpD4UswE_XMXd61jw5ekOH_zeUVOQ@mail.gmail.com>
+From: Marco Elver <elver@google.com>
+Date: Tue, 21 May 2019 18:07:37 +0200
+Message-ID: <CANpmjNN177XBadNfoSmizQF7uZV61PNPQSftT7hPdc3HmdzSjA@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/kasan: Print frame description for stack bugs
+To: Alexander Potapenko <glider@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitriy Vyukov <dvyukov@google.com>, 
+	Andrey Konovalov <andreyknvl@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	LKML <linux-kernel@vger.kernel.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -114,115 +114,97 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 21, 2019 at 2:51 AM Aneesh Kumar K.V
-<aneesh.kumar@linux.ibm.com> wrote:
+On Tue, 21 May 2019 at 17:53, Alexander Potapenko <glider@google.com> wrote:
 >
-> Dan Williams <dan.j.williams@intel.com> writes:
->
-> > On Mon, May 13, 2019 at 9:46 PM Aneesh Kumar K.V
-> > <aneesh.kumar@linux.ibm.com> wrote:
-> >>
-> >> On 5/14/19 9:42 AM, Dan Williams wrote:
-> >> > On Mon, May 13, 2019 at 9:05 PM Aneesh Kumar K.V
-> >> > <aneesh.kumar@linux.ibm.com> wrote:
-> >> >>
-> >> >> On 5/14/19 9:28 AM, Dan Williams wrote:
-> >> >>> On Mon, May 13, 2019 at 7:56 PM Aneesh Kumar K.V
-> >> >>> <aneesh.kumar@linux.ibm.com> wrote:
-> >> >>>>
-> >> >>>> The nfpn related change is needed to fix the kernel message
-> >> >>>>
-> >> >>>> "number of pfns truncated from 2617344 to 163584"
-> >> >>>>
-> >> >>>> The change makes sure the nfpns stored in the superblock is right value.
-> >> >>>>
-> >> >>>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
-> >> >>>> ---
-> >> >>>>    drivers/nvdimm/pfn_devs.c    | 6 +++---
-> >> >>>>    drivers/nvdimm/region_devs.c | 8 ++++----
-> >> >>>>    2 files changed, 7 insertions(+), 7 deletions(-)
-> >> >>>>
-> >> >>>> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-> >> >>>> index 347cab166376..6751ff0296ef 100644
-> >> >>>> --- a/drivers/nvdimm/pfn_devs.c
-> >> >>>> +++ b/drivers/nvdimm/pfn_devs.c
-> >> >>>> @@ -777,8 +777,8 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
-> >> >>>>                    * when populating the vmemmap. This *should* be equal to
-> >> >>>>                    * PMD_SIZE for most architectures.
-> >> >>>>                    */
-> >> >>>> -               offset = ALIGN(start + reserve + 64 * npfns,
-> >> >>>> -                               max(nd_pfn->align, PMD_SIZE)) - start;
-> >> >>>> +               offset = ALIGN(start + reserve + sizeof(struct page) * npfns,
-> >> >>>> +                              max(nd_pfn->align, PMD_SIZE)) - start;
-> >> >>>
-> >> >>> No, I think we need to record the page-size into the superblock format
-> >> >>> otherwise this breaks in debug builds where the struct-page size is
-> >> >>> extended.
-> >> >>>
-> >> >>>>           } else if (nd_pfn->mode == PFN_MODE_RAM)
-> >> >>>>                   offset = ALIGN(start + reserve, nd_pfn->align) - start;
-> >> >>>>           else
-> >> >>>> @@ -790,7 +790,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
-> >> >>>>                   return -ENXIO;
-> >> >>>>           }
-> >> >>>>
-> >> >>>> -       npfns = (size - offset - start_pad - end_trunc) / SZ_4K;
-> >> >>>> +       npfns = (size - offset - start_pad - end_trunc) / PAGE_SIZE;
-> >> >>>
-> >> >>> Similar comment, if the page size is variable then the superblock
-> >> >>> needs to explicitly account for it.
-> >> >>>
-> >> >>
-> >> >> PAGE_SIZE is not really variable. What we can run into is the issue you
-> >> >> mentioned above. The size of struct page can change which means the
-> >> >> reserved space for keeping vmemmap in device may not be sufficient for
-> >> >> certain kernel builds.
-> >> >>
-> >> >> I was planning to add another patch that fails namespace init if we
-> >> >> don't have enough space to keep the struct page.
-> >> >>
-> >> >> Why do you suggest we need to have PAGE_SIZE as part of pfn superblock?
-> >> >
-> >> > So that the kernel has a chance to identify cases where the superblock
-> >> > it is handling was created on a system with different PAGE_SIZE
-> >> > assumptions.
-> >> >
-> >>
-> >> The reason to do that is we don't have enough space to keep struct page
-> >> backing the total number of pfns? If so, what i suggested above should
-> >> handle that.
-> >>
-> >> or are you finding any other reason why we should fail a namespace init
-> >> with a different PAGE_SIZE value?
+> On Tue, May 21, 2019 at 5:43 PM Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
 > >
-> > I want the kernel to be able to start understand cross-architecture
-> > and cross-configuration geometries. Which to me means incrementing the
-> > info-block version and recording PAGE_SIZE and sizeof(struct page) in
-> > the info-block directly.
+> > On 5/20/19 6:47 PM, Marco Elver wrote:
 > >
-> >> My another patch handle the details w.r.t devdax alignment for which
-> >> devdax got created with PAGE_SIZE 4K but we are now trying to load that
-> >> in a kernel with PAGE_SIZE 64k.
+> > > +static void print_decoded_frame_descr(const char *frame_descr)
+> > > +{
+> > > +     /*
+> > > +      * We need to parse the following string:
+> > > +      *    "n alloc_1 alloc_2 ... alloc_n"
+> > > +      * where alloc_i looks like
+> > > +      *    "offset size len name"
+> > > +      * or "offset size len name:line".
+> > > +      */
+> > > +
+> > > +     char token[64];
+> > > +     unsigned long num_objects;
+> > > +
+> > > +     if (!tokenize_frame_descr(&frame_descr, token, sizeof(token),
+> > > +                               &num_objects))
+> > > +             return;
+> > > +
+> > > +     pr_err("\n");
+> > > +     pr_err("this frame has %lu %s:\n", num_objects,
+> > > +            num_objects == 1 ? "object" : "objects");
+> > > +
+> > > +     while (num_objects--) {
+> > > +             unsigned long offset;
+> > > +             unsigned long size;
+> > > +
+> > > +             /* access offset */
+> > > +             if (!tokenize_frame_descr(&frame_descr, token, sizeof(token),
+> > > +                                       &offset))
+> > > +                     return;
+> > > +             /* access size */
+> > > +             if (!tokenize_frame_descr(&frame_descr, token, sizeof(token),
+> > > +                                       &size))
+> > > +                     return;
+> > > +             /* name length (unused) */
+> > > +             if (!tokenize_frame_descr(&frame_descr, NULL, 0, NULL))
+> > > +                     return;
+> > > +             /* object name */
+> > > +             if (!tokenize_frame_descr(&frame_descr, token, sizeof(token),
+> > > +                                       NULL))
+> > > +                     return;
+> > > +
+> > > +             /* Strip line number, if it exists. */
 > >
-> > Sure, but what about the reverse? These info-block format assumptions
-> > are as fundamental as the byte-order of the info-block, it needs to be
-> > cross-arch compatible and the x86 assumptions need to be fully lifted.
->
-> Something like the below (Not tested). I am not sure what we will init the page_size
-> for minor version < 3. This will mark the namespace disabled if the
-> PAGE_SIZE and sizeof(struct page) doesn't match with the values used
-> during namespace create.
+> >    Why?
 
-Yes, this is on the right track.
+The filename is not included, and I don't think it adds much in terms
+of ability to debug; nor is the line number included with all
+descriptions. I think, the added complexity of separating the line
+number and parsing is not worthwhile here. Alternatively, I could not
+pay attention to the line number at all, and leave it as is -- in that
+case, some variable names will display as "foo:123".
 
-I would special-case page_size == 0 as 4096 and page_struct_size == 0
-as 64. If either of those is non-zero then the info-block version
-needs to be revved and it needs to be crafted to make older kernels
-fail to parse it.
+> >
+> > > +             strreplace(token, ':', '\0');
+> > > +
+> >
+> > ...
+> >
+> > > +
+> > > +     aligned_addr = round_down((unsigned long)addr, sizeof(long));
+> > > +     mem_ptr = round_down(aligned_addr, KASAN_SHADOW_SCALE_SIZE);
+> > > +     shadow_ptr = kasan_mem_to_shadow((void *)aligned_addr);
+> > > +     shadow_bottom = kasan_mem_to_shadow(end_of_stack(current));
+> > > +
+> > > +     while (shadow_ptr >= shadow_bottom && *shadow_ptr != KASAN_STACK_LEFT) {
+> > > +             shadow_ptr--;
+> > > +             mem_ptr -= KASAN_SHADOW_SCALE_SIZE;
+> > > +     }
+> > > +
+> > > +     while (shadow_ptr >= shadow_bottom && *shadow_ptr == KASAN_STACK_LEFT) {
+> > > +             shadow_ptr--;
+> > > +             mem_ptr -= KASAN_SHADOW_SCALE_SIZE;
+> > > +     }
+> > > +
+> >
+> > I suppose this won't work if stack grows up, which is fine because it grows up only on parisc arch.
+> > But "BUILD_BUG_ON(IS_ENABLED(CONFIG_STACK_GROUWSUP))" somewhere wouldn't hurt.
+> Note that KASAN was broken on parisc from day 1 because of other
+> assumptions on the stack growth direction hardcoded into KASAN
+> (e.g. __kasan_unpoison_stack() and __asan_allocas_unpoison()).
+> So maybe this BUILD_BUG_ON can be added in a separate patch as it's
+> not specific to what Marco is doing here?
 
-There was an earlier attempt to implement minimum info-block versions here:
+Happy to send a follow-up patch, or add here. Let me know what you prefer.
 
-https://lore.kernel.org/lkml/155000670159.348031.17631616775326330606.stgit@dwillia2-desk3.amr.corp.intel.com/
-
-...but that was dropped in favor of the the "sub-section" patches.
+Thanks,
+-- Marco
 
