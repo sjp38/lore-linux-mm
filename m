@@ -2,228 +2,330 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30E9BC04AAF
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 08:48:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 403B8C04E87
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 09:01:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E1D0A2173E
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 08:48:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1D0A2173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id DEA6B2173E
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 09:01:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=brauner.io header.i=@brauner.io header.b="ap4moqJQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DEA6B2173E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=brauner.io
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5C7E06B0003; Tue, 21 May 2019 04:48:36 -0400 (EDT)
+	id 793CC6B0003; Tue, 21 May 2019 05:01:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5512D6B0005; Tue, 21 May 2019 04:48:36 -0400 (EDT)
+	id 744736B0005; Tue, 21 May 2019 05:01:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3CC646B0006; Tue, 21 May 2019 04:48:36 -0400 (EDT)
+	id 65A556B0006; Tue, 21 May 2019 05:01:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C7A976B0003
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 04:48:35 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id 134so2999013lfk.23
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 01:48:35 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EBF46B0003
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 05:01:14 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id w14so1914445plp.4
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 02:01:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=KnTJ924Dn9Lr3YGh22gq9VtJDDN4nBsJGSeWXVP+mV0=;
-        b=Y93QckMXLy+YAtcHtUH586IMLmrsBcqZdnnnSRc53okTLJJUTcVShaQKnCnV2fqSbw
-         yR3z3aYVijwg3ZQsrD3Ya9HrACYq8tHpBzhorVxBoZEVHBEscFN0X/jTPmyHuK4rfZgJ
-         CNDGSi/9OrcnrkD2c/ZIsFbO5Mu3v9FqX8NCyKiBSh9TJl+2obFDPgygc9heE1PhVc8j
-         SLWC1BCE7R9EFUNNfpgRTfMD0P6Zv/fRpd8ECPTSF3QVK0VfyQt0FlLXEctjKhrYdTcf
-         vFXOotDSAyV8NF5ol1AY4V99scndcKztq+FQqf4Q5M2ACBu1LUeSFp3LVxHaYCmJqt9g
-         wuPQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAWp4vp2GeQeZasN4qbTcvoyntIN38WBwWpYr9ePr998eoi0eSPs
-	NujC1PhQjrd94a1D4AK+PFh0nv6Yvul2+wme3bt3XznLECTLYRB1bJx+PigPaWfTyCKAUfkmoXo
-	VOgOshxwuZMfmymdhbbl/VHwVIAUzlXvD7duTLdaooidOk2u0nCEKL+t1JTU3fOoIDw==
-X-Received: by 2002:ac2:482a:: with SMTP id 10mr25457030lft.51.1558428515250;
-        Tue, 21 May 2019 01:48:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzxGmApsTfcB2J9jS7GSHIX1kJ/GnQ2ne96J3LyXQ4esecQVU9SHydtasvc3HgUFhOzIhd9
-X-Received: by 2002:ac2:482a:: with SMTP id 10mr25456988lft.51.1558428514323;
-        Tue, 21 May 2019 01:48:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558428514; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=VXa8qKXM8vx5w5jhb1hWXGT+1/HaN8aUWabF6nAwG1s=;
+        b=anhBZgSi/w6K5k3Llomiq9YjF651EHJRfTpaSjpTFuB/3BKBRtI0ygT7Uc6VhFppU6
+         X0PKScD6vs8/qFWndyVJ4iw/pPikZvoLofl9u2SjulYLVZzSAB9Moyct8hAbgU6FHiqj
+         iRG8xReAS1d5mWBZj5mdxeMRWY5f6sTOQT43ruw3TanXsLJHgFVrXabICgdbPcd6FGbS
+         /Yz3TrqUF0/JJEjrsa0BTM07PyV7W2Ip5dZ/yZJys+hDjN3l27RZ+ot/fYLNy34AD33d
+         xxsNOvxi+WuyLw++MRtux5o8p054faYr4jB4JcoSoAp8rBrOou8xzzcwHLddjD2zYrsx
+         BMNQ==
+X-Gm-Message-State: APjAAAWEq6iUPUMX8wzQdKzQTT3Gayfl0UQfX8u1fqdvZXHhkzL1uQlZ
+	YntQeePTWgrBhqufQrsNSyFlGq7saoIoBBMm6WI8foeuOc0l0WvNwKWl3yfREZAJgh03ir3Ffp/
+	mhodv2lqXAfYknPebUzyqGwraS/TKjxGqyTDbjFFHoS9dbv+6QNVksVg5gAFPcTPW3A==
+X-Received: by 2002:a65:5588:: with SMTP id j8mr80858736pgs.306.1558429273371;
+        Tue, 21 May 2019 02:01:13 -0700 (PDT)
+X-Received: by 2002:a65:5588:: with SMTP id j8mr80858660pgs.306.1558429272473;
+        Tue, 21 May 2019 02:01:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558429272; cv=none;
         d=google.com; s=arc-20160816;
-        b=tqYACepF1JPMSe4AeMiyoEfV819mZVPOuQbzM7y/MWTGifRbEm8qVJhbtxNH52JTfJ
-         p7brpEKGu3BZU2Byegtn1LgFIAI14ppU6u1YD2kCGfST9fQpRTBo5MDs9sdU/T5GTYy5
-         joxMZIQnX+ElUGY5uw3UUYSKrRbPOE+PhqujlUSmEOqOCSK2siZV73o0UZfKiynnpWON
-         Dld5Xx5/eh3lkR5MWgXxHx5XvLcEr6TmPL7qCRChzOeXidSbJwZ4RVd+C0tioUs60H3v
-         4mTAYfyNNqg0pOt5Jmbk0qlMb3kjPKC3CBaPw9xk+pPvXbCYvMmxDwPA416e4mMWjweb
-         bkJw==
+        b=Uu6JwjdUGOIDYeA0r2HLF3HFp78xHKTH0OQHbNHxHeKuPS3YVu3Ef8XK5Ru5kO7SCn
+         mkmCBVzcvOpdnYm4+N6G7E9N7c4vWJm+YgkmxdN3EBE7u1lWkUAx1AiYA1RESUIPA+4k
+         y1c0nh+y+HqosdHXAXxGY/ZHNLE4PhzIk+pntslM1eMw6O4KT7CSS4QfurdIQ3HPe5+f
+         GVsBy6EbC3nbFVFuttNjZz4KvpzREJxYP8dSVRfMWMLzsDtmUFSSNB9WHinrNSrGsFF2
+         7qFHdwkPUvFTq9BPLxrYd2ye2yzyjA5QKz55hJfF0M89LHQRQWSVRMypRJ0EcdqGSbaL
+         xIHg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=KnTJ924Dn9Lr3YGh22gq9VtJDDN4nBsJGSeWXVP+mV0=;
-        b=gdNbzgQGf3p0dyBTRA+7Szq81TXVomn6Cob3XMkYhmzll2YhGc5ZQeifPPsUBsz/s+
-         q9n2PAS1d8urQ4ZJGtauqaskWfMtG9MERqv/yQf7nze9g822NRAewuQj+MNAyip92vZO
-         jVgSSEDvl9L1gDBfs/GCTjp+wpY/ncThGnLNkeDPOWGFxlrBblLp6XSALHMm6jyQx5af
-         wSBt/KxmLPVPznkHbkkvIoPlelwB7AlNKE8jq3YPEuXPFeulgPeaNIquQ7mOjy8gZftW
-         s5oVN3yaKZ4iWQE7UGmjwB1Z3OVlXHGIFGKGY6PTB1eFMv6L3xAirBhlrGAuVG34bl7i
-         UUFw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=VXa8qKXM8vx5w5jhb1hWXGT+1/HaN8aUWabF6nAwG1s=;
+        b=aTUAUrWko3gH82XYNJFgN3B+IPq1mXoP0giT6EQ1kijuRLPFSCKYan9miLT8O2O6mU
+         Otb1MPH5WO0bl+Aro0cR7azxkkMMd/8DPL8QgYBw32e4lGP5ZnQ0MjDhnnJ2q8mGy4nr
+         YijambT9r1jGY5KlZ3tOmMlghs9YA0aLE7C6wKfEJQ5RcGSIPZpx+Nofe/snk/laDPU5
+         ZJHr9YtDMgJKMhauTNUddadfy5FCF5GGT/qZzNuYnGrE4gqzGgWoBtHXCQWlcRqiAqxw
+         fIB5/wPsvG0rjAgVYsGL8QRF7gdrjuRk5b8Hv6F+cvKMHQUKVwOyWmGH4z8A78MEmmX2
+         J0QA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id x4si12912020ljh.117.2019.05.21.01.48.34
+       dkim=pass header.i=@brauner.io header.s=google header.b=ap4moqJQ;
+       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e21sor14120704pfl.11.2019.05.21.02.01.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 May 2019 01:48:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        (Google Transport Security);
+        Tue, 21 May 2019 02:01:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.169]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1hT0Re-0003xT-KR; Tue, 21 May 2019 11:48:26 +0300
-Subject: Re: [PATCH v2 2/7] mm: Extend copy_vma()
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com,
- keith.busch@intel.com, kirill.shutemov@linux.intel.com,
- alexander.h.duyck@linux.intel.com, ira.weiny@intel.com,
- andreyknvl@google.com, arunks@codeaurora.org, vbabka@suse.cz, cl@linux.com,
- riel@surriel.com, keescook@chromium.org, hannes@cmpxchg.org,
- npiggin@gmail.com, mathieu.desnoyers@efficios.com, shakeelb@google.com,
- guro@fb.com, aarcange@redhat.com, hughd@google.com, jglisse@redhat.com,
- mgorman@techsingularity.net, daniel.m.jordan@oracle.com, jannh@google.com,
- kilobyte@angband.pl, linux-api@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org
-References: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
- <155836081252.2441.9024100415314519956.stgit@localhost.localdomain>
- <20190521081821.fbngbxk7lzwrb7md@box>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <d4664163-35e2-10e0-9c7b-44fa090b7198@virtuozzo.com>
-Date: Tue, 21 May 2019 11:48:26 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@brauner.io header.s=google header.b=ap4moqJQ;
+       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=brauner.io; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=VXa8qKXM8vx5w5jhb1hWXGT+1/HaN8aUWabF6nAwG1s=;
+        b=ap4moqJQoZSVJnMxAJFA2Gd3/lgQpTrOdJPzRObXTro1kOAgVtt4jWtT8AIudv19/H
+         lxz3hqeX/rhdO+/P8gIqTFBmbdvDqc9UPfxW3qM91M2NJPKmmdWNMJs0faLyWBIfteGN
+         +/2JfEl57rlNZgyLn+VowUFpUEOnFsaPanJVATse+mTSHOVCOxNJdiLdeJ5ZpVqEpEnn
+         tXLh/cGNaLhGR0mNlBaRiVEP3qySDLYSMY6GXnVMnPVUKDKM/5xN+wCF35NVFryIv0eL
+         Rb4YO1KPcNruH1PoHC13d7F/4xmF1JTKNdjfTMAtW9J+OffwY4gLCo9f7Eiq3hW6OysP
+         KcMw==
+X-Google-Smtp-Source: APXvYqwiPEuTQW24lNgrLxshbki5jYwjBJyGemSdADvmx+PDINAmtZ98NXEPyAhz0SpDdxyA9y4qmQ==
+X-Received: by 2002:a62:e10f:: with SMTP id q15mr85381949pfh.56.1558429271893;
+        Tue, 21 May 2019 02:01:11 -0700 (PDT)
+Received: from brauner.io ([208.54.39.182])
+        by smtp.gmail.com with ESMTPSA id f36sm21146595pgb.76.2019.05.21.02.01.04
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 21 May 2019 02:01:10 -0700 (PDT)
+Date: Tue, 21 May 2019 11:01:01 +0200
+From: Christian Brauner <christian@brauner.io>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, jannh@google.com,
+	oleg@redhat.com
+Subject: Re: [RFC 5/7] mm: introduce external memory hinting API
+Message-ID: <20190521090058.mdx4qecmdbum45t2@brauner.io>
+References: <20190520035254.57579-1-minchan@kernel.org>
+ <20190520035254.57579-6-minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20190521081821.fbngbxk7lzwrb7md@box>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20190520035254.57579-6-minchan@kernel.org>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Kirill,
+Cc: Jann and Oleg too
 
-On 21.05.2019 11:18, Kirill A. Shutemov wrote:
-> On Mon, May 20, 2019 at 05:00:12PM +0300, Kirill Tkhai wrote:
->> This prepares the function to copy a vma between
->> two processes. Two new arguments are introduced.
+On Mon, May 20, 2019 at 12:52:52PM +0900, Minchan Kim wrote:
+> There is some usecase that centralized userspace daemon want to give
+> a memory hint like MADV_[COOL|COLD] to other process. Android's
+> ActivityManagerService is one of them.
 > 
-> This kind of changes requires a lot more explanation in commit message,
-> describing all possible corner cases> For instance, I would really like to see a story on why logic around
-> need_rmap_locks is safe after the change.
-
-Let me fast answer on the below question firstly, and later I'll write
-wide explanations, since this requires much more time.
- 
->>
->> Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
->> ---
->>  include/linux/mm.h |    4 ++--
->>  mm/mmap.c          |   33 ++++++++++++++++++++++++---------
->>  mm/mremap.c        |    4 ++--
->>  3 files changed, 28 insertions(+), 13 deletions(-)
->>
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index 0e8834ac32b7..afe07e4a76f8 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -2329,8 +2329,8 @@ extern void __vma_link_rb(struct mm_struct *, struct vm_area_struct *,
->>  	struct rb_node **, struct rb_node *);
->>  extern void unlink_file_vma(struct vm_area_struct *);
->>  extern struct vm_area_struct *copy_vma(struct vm_area_struct **,
->> -	unsigned long addr, unsigned long len, pgoff_t pgoff,
->> -	bool *need_rmap_locks);
->> +	struct mm_struct *, unsigned long addr, unsigned long len,
->> +	pgoff_t pgoff, bool *need_rmap_locks, bool clear_flags_ctx);
->>  extern void exit_mmap(struct mm_struct *);
->>  
->>  static inline int check_data_rlimit(unsigned long rlim,
->> diff --git a/mm/mmap.c b/mm/mmap.c
->> index 57803a0a3a5c..99778e724ad1 100644
->> --- a/mm/mmap.c
->> +++ b/mm/mmap.c
->> @@ -3195,19 +3195,21 @@ int insert_vm_struct(struct mm_struct *mm, struct vm_area_struct *vma)
->>  }
->>  
->>  /*
->> - * Copy the vma structure to a new location in the same mm,
->> - * prior to moving page table entries, to effect an mremap move.
->> + * Copy the vma structure to new location in the same vma
->> + * prior to moving page table entries, to effect an mremap move;
->>   */
->>  struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
->> -	unsigned long addr, unsigned long len, pgoff_t pgoff,
->> -	bool *need_rmap_locks)
->> +				struct mm_struct *mm, unsigned long addr,
->> +				unsigned long len, pgoff_t pgoff,
->> +				bool *need_rmap_locks, bool clear_flags_ctx)
->>  {
->>  	struct vm_area_struct *vma = *vmap;
->>  	unsigned long vma_start = vma->vm_start;
->> -	struct mm_struct *mm = vma->vm_mm;
->> +	struct vm_userfaultfd_ctx uctx;
->>  	struct vm_area_struct *new_vma, *prev;
->>  	struct rb_node **rb_link, *rb_parent;
->>  	bool faulted_in_anon_vma = true;
->> +	unsigned long flags;
->>  
->>  	/*
->>  	 * If anonymous vma has not yet been faulted, update new pgoff
->> @@ -3220,15 +3222,25 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
->>  
->>  	if (find_vma_links(mm, addr, addr + len, &prev, &rb_link, &rb_parent))
->>  		return NULL;	/* should never get here */
->> -	new_vma = vma_merge(mm, prev, addr, addr + len, vma->vm_flags,
->> -			    vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
->> -			    vma->vm_userfaultfd_ctx);
->> +
->> +	uctx = vma->vm_userfaultfd_ctx;
->> +	flags = vma->vm_flags;
->> +	if (clear_flags_ctx) {
->> +		uctx = NULL_VM_UFFD_CTX;
->> +		flags &= ~(VM_UFFD_MISSING | VM_UFFD_WP | VM_MERGEABLE |
->> +			   VM_LOCKED | VM_LOCKONFAULT | VM_WIPEONFORK |
->> +			   VM_DONTCOPY);
->> +	}
+> It's similar in spirit to madvise(MADV_WONTNEED), but the information
+> required to make the reclaim decision is not known to the app. Instead,
+> it is known to the centralized userspace daemon(ActivityManagerService),
+> and that daemon must be able to initiate reclaim on its own without
+> any app involvement.
 > 
-> Why is the new logic required? No justification given.
-
-Ditto.
-
->> +
->> +	new_vma = vma_merge(mm, prev, addr, addr + len, flags, vma->anon_vma,
->> +			    vma->vm_file, pgoff, vma_policy(vma), uctx);
->>  	if (new_vma) {
->>  		/*
->>  		 * Source vma may have been merged into new_vma
->>  		 */
->>  		if (unlikely(vma_start >= new_vma->vm_start &&
->> -			     vma_start < new_vma->vm_end)) {
->> +			     vma_start < new_vma->vm_end) &&
->> +			     vma->vm_mm == mm) {
+> To solve the issue, this patch introduces new syscall process_madvise(2)
+> which works based on pidfd so it could give a hint to the exeternal
+> process.
 > 
-> How can vma_merge() succeed if vma->vm_mm != mm?
+> int process_madvise(int pidfd, void *addr, size_t length, int advise);
+> 
+> All advises madvise provides can be supported in process_madvise, too.
+> Since it could affect other process's address range, only privileged
+> process(CAP_SYS_PTRACE) or something else(e.g., being the same UID)
+> gives it the right to ptrrace the process could use it successfully.
+> 
+> Please suggest better idea if you have other idea about the permission.
+> 
+> * from v1r1
+>   * use ptrace capability - surenb, dancol
+> 
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  arch/x86/entry/syscalls/syscall_32.tbl |  1 +
+>  arch/x86/entry/syscalls/syscall_64.tbl |  1 +
+>  include/linux/proc_fs.h                |  1 +
+>  include/linux/syscalls.h               |  2 ++
+>  include/uapi/asm-generic/unistd.h      |  2 ++
+>  kernel/signal.c                        |  2 +-
+>  kernel/sys_ni.c                        |  1 +
+>  mm/madvise.c                           | 45 ++++++++++++++++++++++++++
+>  8 files changed, 54 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
+> index 4cd5f982b1e5..5b9dd55d6b57 100644
+> --- a/arch/x86/entry/syscalls/syscall_32.tbl
+> +++ b/arch/x86/entry/syscalls/syscall_32.tbl
+> @@ -438,3 +438,4 @@
+>  425	i386	io_uring_setup		sys_io_uring_setup		__ia32_sys_io_uring_setup
+>  426	i386	io_uring_enter		sys_io_uring_enter		__ia32_sys_io_uring_enter
+>  427	i386	io_uring_register	sys_io_uring_register		__ia32_sys_io_uring_register
+> +428	i386	process_madvise		sys_process_madvise		__ia32_sys_process_madvise
+> diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+> index 64ca0d06259a..0e5ee78161c9 100644
+> --- a/arch/x86/entry/syscalls/syscall_64.tbl
+> +++ b/arch/x86/entry/syscalls/syscall_64.tbl
+> @@ -355,6 +355,7 @@
+>  425	common	io_uring_setup		__x64_sys_io_uring_setup
+>  426	common	io_uring_enter		__x64_sys_io_uring_enter
+>  427	common	io_uring_register	__x64_sys_io_uring_register
+> +428	common	process_madvise		__x64_sys_process_madvise
+>  
+>  #
+>  # x32-specific system call numbers start at 512 to avoid cache impact
+> diff --git a/include/linux/proc_fs.h b/include/linux/proc_fs.h
+> index 52a283ba0465..f8545d7c5218 100644
+> --- a/include/linux/proc_fs.h
+> +++ b/include/linux/proc_fs.h
+> @@ -122,6 +122,7 @@ static inline struct pid *tgid_pidfd_to_pid(const struct file *file)
+>  
+>  #endif /* CONFIG_PROC_FS */
+>  
+> +extern struct pid *pidfd_to_pid(const struct file *file);
+>  struct net;
+>  
+>  static inline struct proc_dir_entry *proc_net_mkdir(
+> diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+> index e2870fe1be5b..21c6c9a62006 100644
+> --- a/include/linux/syscalls.h
+> +++ b/include/linux/syscalls.h
+> @@ -872,6 +872,8 @@ asmlinkage long sys_munlockall(void);
+>  asmlinkage long sys_mincore(unsigned long start, size_t len,
+>  				unsigned char __user * vec);
+>  asmlinkage long sys_madvise(unsigned long start, size_t len, int behavior);
+> +asmlinkage long sys_process_madvise(int pid_fd, unsigned long start,
+> +				size_t len, int behavior);
+>  asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
+>  			unsigned long prot, unsigned long pgoff,
+>  			unsigned long flags);
+> diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
+> index dee7292e1df6..7ee82ce04620 100644
+> --- a/include/uapi/asm-generic/unistd.h
+> +++ b/include/uapi/asm-generic/unistd.h
+> @@ -832,6 +832,8 @@ __SYSCALL(__NR_io_uring_setup, sys_io_uring_setup)
+>  __SYSCALL(__NR_io_uring_enter, sys_io_uring_enter)
+>  #define __NR_io_uring_register 427
+>  __SYSCALL(__NR_io_uring_register, sys_io_uring_register)
+> +#define __NR_process_madvise 428
+> +__SYSCALL(__NR_process_madvise, sys_process_madvise)
+>  
+>  #undef __NR_syscalls
+>  #define __NR_syscalls 428
+> diff --git a/kernel/signal.c b/kernel/signal.c
+> index 1c86b78a7597..04e75daab1f8 100644
+> --- a/kernel/signal.c
+> +++ b/kernel/signal.c
+> @@ -3620,7 +3620,7 @@ static int copy_siginfo_from_user_any(kernel_siginfo_t *kinfo, siginfo_t *info)
+>  	return copy_siginfo_from_user(kinfo, info);
+>  }
+>  
+> -static struct pid *pidfd_to_pid(const struct file *file)
+> +struct pid *pidfd_to_pid(const struct file *file)
+>  {
+>  	if (file->f_op == &pidfd_fops)
+>  		return file->private_data;
+> diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
+> index 4d9ae5ea6caf..5277421795ab 100644
+> --- a/kernel/sys_ni.c
+> +++ b/kernel/sys_ni.c
+> @@ -278,6 +278,7 @@ COND_SYSCALL(mlockall);
+>  COND_SYSCALL(munlockall);
+>  COND_SYSCALL(mincore);
+>  COND_SYSCALL(madvise);
+> +COND_SYSCALL(process_madvise);
+>  COND_SYSCALL(remap_file_pages);
+>  COND_SYSCALL(mbind);
+>  COND_SYSCALL_COMPAT(mbind);
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 119e82e1f065..af02aa17e5c1 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -9,6 +9,7 @@
+>  #include <linux/mman.h>
+>  #include <linux/pagemap.h>
+>  #include <linux/page_idle.h>
+> +#include <linux/proc_fs.h>
+>  #include <linux/syscalls.h>
+>  #include <linux/mempolicy.h>
+>  #include <linux/page-isolation.h>
+> @@ -16,6 +17,7 @@
+>  #include <linux/hugetlb.h>
+>  #include <linux/falloc.h>
+>  #include <linux/sched.h>
+> +#include <linux/sched/mm.h>
+>  #include <linux/ksm.h>
+>  #include <linux/fs.h>
+>  #include <linux/file.h>
+> @@ -1140,3 +1142,46 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+>  {
+>  	return madvise_core(current, start, len_in, behavior);
+>  }
+> +
+> +SYSCALL_DEFINE4(process_madvise, int, pidfd, unsigned long, start,
+> +		size_t, len_in, int, behavior)
+> +{
+> +	int ret;
+> +	struct fd f;
+> +	struct pid *pid;
+> +	struct task_struct *tsk;
+> +	struct mm_struct *mm;
+> +
+> +	f = fdget(pidfd);
+> +	if (!f.file)
+> +		return -EBADF;
+> +
+> +	pid = pidfd_to_pid(f.file);
 
-We don't use vma as an argument of vma_merge(). We use vma as a source of
-vma->anon_vma, vma->vm_file and vma_policy().
+pidfd_to_pid() should not be directly exported since this allows
+/proc/<pid> fds to be used too. That's something we won't be going
+forward with. All new syscalls should only allow to operate on pidfds
+created through CLONE_PIDFD or pidfd_open() (cf. [1]).
 
-We search some new_vma in mm with the same characteristics as vma has in vma->vm_mm.
-In case of success vma_merge() returns it for us. For example, it may success, when
-vma->vm_mm is mm_struct of forked process, while mm is mm_struct of its parent.
+So e.g. please export a simple helper like
 
-[...]
+struct pid *pidfd_to_pid(const struct file *file)
+{
+        if (file->f_op == &pidfd_fops)
+                return file->private_data;
 
-Kirill
+        return NULL;
+}
+
+turning the old pidfd_to_pid() into something like:
+
+static struct pid *__fd_to_pid(const struct file *file)
+{
+        struct pid *pid;
+
+        pid = pidfd_to_pid(file);
+        if (pid)
+                return pid;
+
+        return tgid_pidfd_to_pid(file);
+}
+
+All new syscalls should only be using anon inode pidfds since they can
+actually have a clean security model built around them in the future.
+Note, pidfd_open() will be sent out together with making pidfds pollable
+for the 5.3 merge window.
+
+[1]: https://lore.kernel.org/lkml/20190520155630.21684-1-christian@brauner.io/
+
+Thanks!
+Christian
 
