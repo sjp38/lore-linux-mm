@@ -2,229 +2,221 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C698FC04AAF
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:53:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 517CEC04E87
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:54:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A3C221019
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:53:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="SCWW9XLd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A3C221019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 163CB21743
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:54:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 163CB21743
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 28E096B0006; Tue, 21 May 2019 11:53:09 -0400 (EDT)
+	id B8E8C6B0003; Tue, 21 May 2019 11:54:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 240C16B0007; Tue, 21 May 2019 11:53:09 -0400 (EDT)
+	id B3F2D6B0007; Tue, 21 May 2019 11:54:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 131176B0008; Tue, 21 May 2019 11:53:09 -0400 (EDT)
+	id 9E0436B0008; Tue, 21 May 2019 11:54:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E5B196B0006
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 11:53:08 -0400 (EDT)
-Received: by mail-vk1-f199.google.com with SMTP id z6so901463vkd.12
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 08:53:08 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6804B6B0003
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 11:54:03 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id 5so12596426pff.11
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 08:54:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=M+Fy+Dv7IAvIp9wM9LD81KQdUDxns6+Ve3Y3gCcA6+w=;
-        b=FEIOOlN/qqKydW3yuyn6MfntAJuGyU8mkCMVkk0pUTwpm/ep6nJ/lAqmuxyXfRfeQz
-         rbvZekHfkNPxDOLpGnAUlUhNdK8VRb4oyACy0q2vaBgD0ssZ+tawJV9uKSQoyh6sZkGz
-         7DUBWQBXXZstqKGDBPdKTbEmIQsQTiMLz3t8/30wYKI9eQceGetTkqklDx+qcN87K2cO
-         xevpmjD4eWpAZs1WiP/3yUqnJCmTdYnUXjhq+zXnZgF6w7sNxNNOChQTEhExgLK3i8O3
-         fdVWyD+dc4028vWLqN7D9DEexS9okPolYGsmmYRXlFN1U17cldd8T0qQnSI/46pOQpgR
-         PTdg==
-X-Gm-Message-State: APjAAAX3Wdoa2fcH7wJZX2sALDmdDbeWErL4mR5BBQDYSc8bS0dSVbmr
-	jzU++Lb1zE+91awENaLAzHnCeg3sdpPOqv0YDa4rbWLMpm23IEF5+uHeoYelwBn/zS2MZ6Ngu82
-	rI2A5d+rBQEjtJd4M5o++aHvPqnVsz6oNhaqkIfmmAPhbaednb8BzyseXEt+gZlgnEQ==
-X-Received: by 2002:a67:f88f:: with SMTP id h15mr23085285vso.67.1558453988439;
-        Tue, 21 May 2019 08:53:08 -0700 (PDT)
-X-Received: by 2002:a67:f88f:: with SMTP id h15mr23085263vso.67.1558453987876;
-        Tue, 21 May 2019 08:53:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558453987; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=BFGuCB8WBH/xC8Q9cnfwfv1qZ9DYFBwGfjhsemsdsSY=;
+        b=qVXZdRyOi3OXetPx+zoRvAcwxlbbH/EYUbLlw+zHVfN9XLxf3NwV8NgImo2IzrAzHU
+         TryImTAfE99dof1UBIUFXZRD7hGo2Nm+LBqVThVX1uOuZN0DZgYZkPsyUdgi/miV7Lz/
+         pERBd/xq52ubYfzXVfeaX3wXZ6CdkIOsU0x2UK6mH8fnOMnMDD1u7zbl4ByygCik76y7
+         UDga6juxe5jF8Z+Tv+q10a7HlLpBNoor1GXGTh+1cNvOclBUGDop+Q/hIo26oYC6mZhH
+         L0+wYYMWnsKMHmrDhUUFvjWTiI3fQeuvZliK0/mySAubQZD1CWSLBVxaUXlLrxkMJTZj
+         cOZQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWswUrEIgvZbD66+/yDmKwacrzerQxJ+RMhzKm/CS6gtBuQHFsy
+	7I4DNRZMHDXE8EcdeYgJR6JOx4RmZ0ezGwFMtCCbFpWOLJWeMPEX8H0BUvw4715NQGunpsFWkXi
+	wRZSfBWI6pxonthpQet4uwyFB6NcJIc/JY/Qe+TewP0jWtOFc3555Xqhqm6ETihn0/g==
+X-Received: by 2002:a65:6402:: with SMTP id a2mr38373398pgv.438.1558454043075;
+        Tue, 21 May 2019 08:54:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxbV5A3ZeCyTDDSrvTu4XG0nkdjPSWvon7cmQe4ElYOx8Xu3JGbAJMCguZu+8tLvcpIhViW
+X-Received: by 2002:a65:6402:: with SMTP id a2mr38373324pgv.438.1558454042265;
+        Tue, 21 May 2019 08:54:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558454042; cv=none;
         d=google.com; s=arc-20160816;
-        b=uhS07/V+3SeA+s7hSSB3ObnwMTVRlUWBDXK1TRC/LbtdVO7MPhJWBJcLkq69/Y5A+r
-         4bpDW6VXjsiCb1OO04ee9OQWqMUCQVfjf+nr0A+Mg0tRM5ly/US5H3lTGw7aCoKhhWgO
-         LqlOM7ueKJGV1wDNpnmkOW8yuSnwMMTGfVumJnInQbAb/LG6rAn/80AB49CrXH+fsdbL
-         iJy+Y5qHPs6v1JeH44a6lR3iYJ7tVNmma4avaFltWcmb4yAo0vZyirdGsT70dkwb/JHT
-         ulM1Sh5Ilc2kleNF/yyhxGH1YtUwBVem9XxskbQTBO9jyHKGzmqZS5KSZbIar63+Na4U
-         /Uyg==
+        b=LmIvVm3NyrmByvHcga7P8dKcMAXmS+/wVwZeKpFJahX/OUNf8Dk3V503LfCi5RAxQy
+         yMxVD6UUCAUDw69Nrrs6Vcnrtcy7Wq+2V2bKvyC7C+NT+uKmu6ZMoBu5Z+grTdMQt24i
+         SPe+1Hjd6ZsN2DcPbH1pVWC8PvNwXIOR63PA257MYPO+ii1JFoEMCqq7iJNSoO3wrByr
+         nakqKictVDVpoSP1+fDtOUNvNw5WqoIBNR603Lh6uIGIEoxJiWqGywPXXl/tIvYTUVaa
+         x7iEJV64Vu88Tr8YDZda1eRp9rO/n0+FoYjcvuMer5vgzkGXDEsErOzhzKf1/62VfEGZ
+         VfWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=M+Fy+Dv7IAvIp9wM9LD81KQdUDxns6+Ve3Y3gCcA6+w=;
-        b=RUhUsLCgXzkJgQksPiPWLrnmKLp9E9qFTkeC7DYqc39oufbJB10DYFWNubq5w4X8pm
-         wAdvAo1I8S44SqffI/L4wH93LRAY1SuNyWobnNf4JSPlNXZCCIx/SLm/omefxeWG/FEz
-         VEExGvwHPJELUD7tpTv37IkwU38t5DwPgTNrbi/et8WeQMPLY8MJM0/8OAebzlPiCYMm
-         q51NOmPV07cf/zkwuaJnkCoENG5s/bSQ1M21DeTxnflW7AUJJe0wEC0H5Ju50LDReq8T
-         9iedQW6PEupnZzsUEpMW8uIg/IHpFbxhGjI95diWXoHEtj2JacrUI+rrar00FXMMzSq0
-         dugQ==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=BFGuCB8WBH/xC8Q9cnfwfv1qZ9DYFBwGfjhsemsdsSY=;
+        b=ONAi65bVJROt78Fz4s0eNcGrFPhQuJQUmFAYBNVH/Mrc45WmyxJwO7iMKN2Gdj91mz
+         bD0DM2jK/LgNs9g7G0acAs8lSE0xmdhbNQ/hVwwKOM7OyyG4kq+iiC7YGH3qK9g7B/Xk
+         Mmt7SXrAyT5lafjxMHG8rz2pE8RWi37ZsMdtLIOmUK2L91wX5Qi8Ve++OfBcVhwMIhaX
+         AXBh7ALyhWW2oDJ5h+OUz0SQW7SmYFh9gJyW4D5YmmVF5JMB18Lrclj+amuVYYGbVbjk
+         in4CH/ZzquCc7UZ1QQPPZCXhXiV0TjA+21cv/Qg9qTnXREVdRXVDJx1wp+mUyVaCl3xD
+         xTMg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=SCWW9XLd;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y12sor1072949vsl.81.2019.05.21.08.53.07
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id q20si24925211pfn.139.2019.05.21.08.54.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 21 May 2019 08:53:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 May 2019 08:54:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=SCWW9XLd;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=M+Fy+Dv7IAvIp9wM9LD81KQdUDxns6+Ve3Y3gCcA6+w=;
-        b=SCWW9XLdsPw9Dbsh5KL6xVyDY0rX4O5d9enGOPhpycV9Y6K9rosydI/Wlk6NyU8Kte
-         BDjViIeiW8pDzy0+pXpuKIfOK6q7lCzsR5o+tsDOcS4oVA/Plo1Z/Gl7Xaw4/S3dfjlP
-         +TYxG53nLwL/Hdxn/s7e8xypiQ2nTrPoW61MZCVDiWXaRdvGPcbHk5weJMjYioOICzdR
-         HDJC8Ks4/5DvyQMaqKCbH20Idmf9eRPgf4NxzUvXhYL1aiewFYDHnFJO8yWGFdC4Sto5
-         DpzS2u0AHAD5Fl5qXsTv9dmc55eSJa/zwDTnnViImT0urRRTpNpJ3KPIQsiYspU1cWtG
-         Qnjw==
-X-Google-Smtp-Source: APXvYqy6IGMQPbJZO+kIouZqRoFw9qUZHLRLgIs6Dh6Xv5coJSMBcpEofSB2jHGaaeH09CNzCZFcAI0DOxFM1m/T2nA=
-X-Received: by 2002:a67:d615:: with SMTP id n21mr26515680vsj.39.1558453987203;
- Tue, 21 May 2019 08:53:07 -0700 (PDT)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4LFrBVt120243
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 11:54:01 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2smjqjcxra-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 11:54:01 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 21 May 2019 16:53:59 +0100
+Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 21 May 2019 16:53:57 +0100
+Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
+	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4LFruYp53215248
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 21 May 2019 15:53:56 GMT
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 35A4B4C052;
+	Tue, 21 May 2019 15:53:56 +0000 (GMT)
+Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id AB98C4C046;
+	Tue, 21 May 2019 15:53:55 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.204.239])
+	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Tue, 21 May 2019 15:53:55 +0000 (GMT)
+Date: Tue, 21 May 2019 18:53:53 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/gup: continue VM_FAULT_RETRY processing event for
+ pre-faults
+References: <1557844195-18882-1-git-send-email-rppt@linux.ibm.com>
 MIME-Version: 1.0
-References: <20190520154751.84763-1-elver@google.com> <ebec4325-f91b-b392-55ed-95dbd36bbb8e@virtuozzo.com>
-In-Reply-To: <ebec4325-f91b-b392-55ed-95dbd36bbb8e@virtuozzo.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Tue, 21 May 2019 17:52:55 +0200
-Message-ID: <CAG_fn=W+_Ft=g06wtOBgKnpD4UswE_XMXd61jw5ekOH_zeUVOQ@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/kasan: Print frame description for stack bugs
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Marco Elver <elver@google.com>, Dmitriy Vyukov <dvyukov@google.com>, 
-	Andrey Konovalov <andreyknvl@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	LKML <linux-kernel@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1557844195-18882-1-git-send-email-rppt@linux.ibm.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19052115-0028-0000-0000-0000037007DF
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19052115-0029-0000-0000-0000242FB2C1
+Message-Id: <20190521155353.GC24470@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-21_03:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905210099
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 21, 2019 at 5:43 PM Andrey Ryabinin <aryabinin@virtuozzo.com> w=
-rote:
->
->
->
-> On 5/20/19 6:47 PM, Marco Elver wrote:
->
-> > +static void print_decoded_frame_descr(const char *frame_descr)
-> > +{
-> > +     /*
-> > +      * We need to parse the following string:
-> > +      *    "n alloc_1 alloc_2 ... alloc_n"
-> > +      * where alloc_i looks like
-> > +      *    "offset size len name"
-> > +      * or "offset size len name:line".
-> > +      */
-> > +
-> > +     char token[64];
-> > +     unsigned long num_objects;
-> > +
-> > +     if (!tokenize_frame_descr(&frame_descr, token, sizeof(token),
-> > +                               &num_objects))
-> > +             return;
-> > +
-> > +     pr_err("\n");
-> > +     pr_err("this frame has %lu %s:\n", num_objects,
-> > +            num_objects =3D=3D 1 ? "object" : "objects");
-> > +
-> > +     while (num_objects--) {
-> > +             unsigned long offset;
-> > +             unsigned long size;
-> > +
-> > +             /* access offset */
-> > +             if (!tokenize_frame_descr(&frame_descr, token, sizeof(tok=
-en),
-> > +                                       &offset))
-> > +                     return;
-> > +             /* access size */
-> > +             if (!tokenize_frame_descr(&frame_descr, token, sizeof(tok=
-en),
-> > +                                       &size))
-> > +                     return;
-> > +             /* name length (unused) */
-> > +             if (!tokenize_frame_descr(&frame_descr, NULL, 0, NULL))
-> > +                     return;
-> > +             /* object name */
-> > +             if (!tokenize_frame_descr(&frame_descr, token, sizeof(tok=
-en),
-> > +                                       NULL))
-> > +                     return;
-> > +
-> > +             /* Strip line number, if it exists. */
->
->    Why?
->
-> > +             strreplace(token, ':', '\0');
-> > +
->
-> ...
->
-> > +
-> > +     aligned_addr =3D round_down((unsigned long)addr, sizeof(long));
-> > +     mem_ptr =3D round_down(aligned_addr, KASAN_SHADOW_SCALE_SIZE);
-> > +     shadow_ptr =3D kasan_mem_to_shadow((void *)aligned_addr);
-> > +     shadow_bottom =3D kasan_mem_to_shadow(end_of_stack(current));
-> > +
-> > +     while (shadow_ptr >=3D shadow_bottom && *shadow_ptr !=3D KASAN_ST=
-ACK_LEFT) {
-> > +             shadow_ptr--;
-> > +             mem_ptr -=3D KASAN_SHADOW_SCALE_SIZE;
-> > +     }
-> > +
-> > +     while (shadow_ptr >=3D shadow_bottom && *shadow_ptr =3D=3D KASAN_=
-STACK_LEFT) {
-> > +             shadow_ptr--;
-> > +             mem_ptr -=3D KASAN_SHADOW_SCALE_SIZE;
-> > +     }
-> > +
->
-> I suppose this won't work if stack grows up, which is fine because it gro=
-ws up only on parisc arch.
-> But "BUILD_BUG_ON(IS_ENABLED(CONFIG_STACK_GROUWSUP))" somewhere wouldn't =
-hurt.
-Note that KASAN was broken on parisc from day 1 because of other
-assumptions on the stack growth direction hardcoded into KASAN
-(e.g. __kasan_unpoison_stack() and __asan_allocas_unpoison()).
-So maybe this BUILD_BUG_ON can be added in a separate patch as it's
-not specific to what Marco is doing here?
->
-> --
-> You received this message because you are subscribed to the Google Groups=
- "kasan-dev" group.
-> To unsubscribe from this group and stop receiving emails from it, send an=
- email to kasan-dev+unsubscribe@googlegroups.com.
-> To post to this group, send email to kasan-dev@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgi=
-d/kasan-dev/ebec4325-f91b-b392-55ed-95dbd36bbb8e%40virtuozzo.com.
-> For more options, visit https://groups.google.com/d/optout.
+Hi,
 
+Any comments on this?
 
+On Tue, May 14, 2019 at 05:29:55PM +0300, Mike Rapoport wrote:
+> When get_user_pages*() is called with pages = NULL, the processing of
+> VM_FAULT_RETRY terminates early without actually retrying to fault-in all
+> the pages.
+> 
+> If the pages in the requested range belong to a VMA that has userfaultfd
+> registered, handle_userfault() returns VM_FAULT_RETRY *after* user space
+> has populated the page, but for the gup pre-fault case there's no actual
+> retry and the caller will get no pages although they are present.
+> 
+> This issue was uncovered when running post-copy memory restore in CRIU
+> after commit d9c9ce34ed5c ("x86/fpu: Fault-in user stack if
+> copy_fpstate_to_sigframe() fails").
+> 
+> After this change, the copying of FPU state to the sigframe switched from
+> copy_to_user() variants which caused a real page fault to get_user_pages()
+> with pages parameter set to NULL.
+> 
+> In post-copy mode of CRIU, the destination memory is managed with
+> userfaultfd and lack of the retry for pre-fault case in get_user_pages()
+> causes a crash of the restored process.
+> 
+> Making the pre-fault behavior of get_user_pages() the same as the "normal"
+> one fixes the issue.
+> 
+> Fixes: d9c9ce34ed5c ("x86/fpu: Fault-in user stack if copy_fpstate_to_sigframe() fails")
+> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> ---
+>  mm/gup.c | 15 ++++++++-------
+>  1 file changed, 8 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/gup.c b/mm/gup.c
+> index 91819b8..c32ae5a 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -936,10 +936,6 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
+>  			BUG_ON(ret >= nr_pages);
+>  		}
+>  
+> -		if (!pages)
+> -			/* If it's a prefault don't insist harder */
+> -			return ret;
+> -
+>  		if (ret > 0) {
+>  			nr_pages -= ret;
+>  			pages_done += ret;
+> @@ -955,8 +951,12 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
+>  				pages_done = ret;
+>  			break;
+>  		}
+> -		/* VM_FAULT_RETRY triggered, so seek to the faulting offset */
+> -		pages += ret;
+> +		/*
+> +		 * VM_FAULT_RETRY triggered, so seek to the faulting offset.
+> +		 * For the prefault case (!pages) we only update counts.
+> +		 */
+> +		if (likely(pages))
+> +			pages += ret;
+>  		start += ret << PAGE_SHIFT;
+>  
+>  		/*
+> @@ -979,7 +979,8 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
+>  		pages_done++;
+>  		if (!nr_pages)
+>  			break;
+> -		pages++;
+> +		if (likely(pages))
+> +			pages++;
+>  		start += PAGE_SIZE;
+>  	}
+>  	if (lock_dropped && *locked) {
+> -- 
+> 2.7.4
+> 
 
---=20
-Alexander Potapenko
-Software Engineer
-
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
-
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+-- 
+Sincerely yours,
+Mike.
 
