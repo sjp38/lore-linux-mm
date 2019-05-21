@@ -7,77 +7,77 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C4D0C04AAF
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 09:41:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 64F29C04AAF
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 09:41:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D894921479
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 09:41:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D894921479
+	by mail.kernel.org (Postfix) with ESMTP id 20B6B21479
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 09:41:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 20B6B21479
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 505A86B0006; Tue, 21 May 2019 05:41:11 -0400 (EDT)
+	id A8E876B0007; Tue, 21 May 2019 05:41:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 440256B0007; Tue, 21 May 2019 05:41:11 -0400 (EDT)
+	id A33066B0008; Tue, 21 May 2019 05:41:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2E04D6B0008; Tue, 21 May 2019 05:41:11 -0400 (EDT)
+	id 886116B000C; Tue, 21 May 2019 05:41:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E5A936B0006
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 05:41:10 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 21so2689339pgl.5
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 02:41:10 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4969C6B0008
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 05:41:11 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id 5so11979326pff.11
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 02:41:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=F9jLr7E6ybNI1fkIgVeHaMd4FGlTJ4UQFZV93ZenQVg=;
-        b=LeVMlu1Favc3F6fIp0Qh7CzfUUhcKmVGBbkG5Lqd/UGeCR9AWhtT2+lYeDfN9GDr2A
-         fxhjYtq2z2P86UIXTS0Ywr7VE/47orHjbVABSbUQfkQZIVa654+gCOhr5L2PDhUkBVO4
-         2CDLfSlz+E5niVAJPJr190oAkTzz58XPZQe9dRxQgUV9I5KRmf+24FMw8SkIB9JGLtMK
-         xwQi0HTsw+I+0SXR+mMQmF9JzdSc6bQzwUsMXuhE0QSNGtYZyCmmolrX3IlAxR+iO5uu
-         hvDQrul2RnxAI1yGjvP6yhTXbjL0ilgUuLsugldR40tWrBUbgdM9WBpejfPeLeJB3jpx
-         PqLg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWaMmrIB9JZyVIA72dEVAYSoHXPlppNsOpr0QS7201g3xYVD1gR
-	tnMn4DgoY2zSqBH6uI266UGk3427nF+sHQhAJlHsxW6rQmNeODIrEEudkRD2R2/TwmXEVbkYcml
-	CIlj5zcE1+gq3pxrw/sLgv66W8UY8NILHrFdukfQsBEXIvU3aXBGpiTg+fSssJLLZ6w==
-X-Received: by 2002:a62:ed1a:: with SMTP id u26mr79825318pfh.229.1558431670510;
+         :subject:date:message-id:in-reply-to:references;
+        bh=+E9tZ5jftajU2k/zpNBz2bssx03Et5KHZum3c3z5GqI=;
+        b=ruIsThlcNkvSBC5Y4LOLZmPdYh7f1jzi8aEi9SyLPQ0umtt9idFArNzr45lJAWGiUD
+         5K839T8UDsGQJWf5nlEX2o4pNNdWHbDq1WHAsd07IZe6q3PpkY0Kyzu3PpSqGyhvI6YT
+         AX/XUgWxf5xLBeU/J39fcrEK0DaK0353/pRDMjjkMGYkU27B1PrdazfNDRiznVyM1KFv
+         nOxozpk7ijpJXNLr///xXeEkuOgpQ92+ovyAVXhP1BDGOdQxb+948buURdD0sJKhk2Vg
+         hLBwDZYt4JiPRbicSrvs1RfTILra/zSxSEWnwRoBejbkODqR4jNbZ5yzAfVqpC9i2Fzq
+         Xvww==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAU4NZz2lyEgqAr8r8XQKpp4EUeiRX8ITWF1NiKswljcDE8A6Xvh
+	vddPALQOJ+gc2Hj+7pD87sA2n5GFP172Mn9PBZx4bHobmZMJk9/eiZON1b/xX2MgVraofJcm10E
+	bPyEwrEDA0+af+bF6zw5K0TJEKqibsCNfHP+vMoNWH03+qheHtFWa8JPebteB87W/xg==
+X-Received: by 2002:a63:9d8d:: with SMTP id i135mr81102577pgd.245.1558431670860;
         Tue, 21 May 2019 02:41:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyfkJ7GMqpjATYbSKP6Y1dXDhDrCBL7Rq0gtlFaLSHDulsEIV3l4w9Ef4ZhNJ5ye7ThQ+iq
-X-Received: by 2002:a62:ed1a:: with SMTP id u26mr79825240pfh.229.1558431669390;
+X-Google-Smtp-Source: APXvYqwL8798t+T0xLJEBK+Knq6UXG50wS9IRcIC5WficqHuL7RjfsQPzPNHkYg2d6jnC8EpfYQi
+X-Received: by 2002:a63:9d8d:: with SMTP id i135mr81102487pgd.245.1558431669433;
         Tue, 21 May 2019 02:41:09 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1558431669; cv=none;
         d=google.com; s=arc-20160816;
-        b=dpZ0Cn57/25ZY9tpV2RelQQ0N1uq4LLpJoCLeEeRYMS2dLinjyckqmGd9W9k7NY0fT
-         mn/BJmUVlahPGFLiD1+nU1bBs4XAf09TZ8NIonhaH4t7p6X/7mRB0cefUbIWjM18Ymru
-         0DHaRguo6GWN4JGyzxVA0r5LlnyJFuVn+tPwjiXxgljLCpW79lkiAjBXKxFTIEVFihd2
-         b3CwGxBU4rQDzzOvvlTtLoava0Y7cZCyn21INQg+zEnTDq6gnomgcNLZHAteC/DjTIo0
-         9rNOQcaWrqKE8E4DpyvcrIy0PNovDbgtnfooXzL8ii6XgzlAYCM/RImV31JJYOvwbDOi
-         61zA==
+        b=UxGqR6fnCUbvvD7wHK3Iyr0TE5AhVAu5XH7aL4LL1XOKmpD++1/ZhqUOuOTlxshXvo
+         O+noSqZ0YHq4zXEJroNn0PBZ17wu39hS7GWskB0krNf8PXjh7OYlMLPcKfGpx9lEhA3z
+         u0wr2/evr6/4w4/OJcb48Uq6XarbPZ9JH8SxdN3gRxaEFlZS3C5M461Zjy2Obxmbprt+
+         hnFluwkFiGv+eTeW2Z9+Wa8FEATsG7wCx0eZP6wy2dbqZ7F3FuovYD1/ZGI5sEmhoK1X
+         XS9q5jIXDJf7EDVcSWHLuSmpicizNQ2jBYucf4YGSIvfeHjufNGHjWhFUS6xR08ePAKb
+         Dmpw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=F9jLr7E6ybNI1fkIgVeHaMd4FGlTJ4UQFZV93ZenQVg=;
-        b=UW0wLCJRc0DPUTD9bnmdcwEDJGU/pFT+EwjCdkbOXkwwngHZr9QpnGDZWR+Ut+TzND
-         gX39QOLdk3VVaCwjKlcli94IwujQmcpRPV1azQceoi/r9fRCBcKECgAt1c1z/o1vpWll
-         jK9803EvXsgq1wmFJXdCpiyj98psFtCZBAnASgfwyoG24fGOd4K8QR9TdFsDOANrsFgN
-         n5Ez2M7vhANRGVlB65/BruN75TpKX6svbHtr8EwwipIF2kect7u9taMGStY3Pm9/jBWf
-         iUmgMwB+M2F3x4NAnBoSUEthQkRsM+bQcrAq9X62Bn13SxaiH9vl+xOX79lwaargqWJH
-         Dcdg==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=+E9tZ5jftajU2k/zpNBz2bssx03Et5KHZum3c3z5GqI=;
+        b=NR0p22mcVbvbnbqdi4svFOT6v6wYhUi3iu232s67AxV2fEJkUqp/bg3pRO4psp9gBG
+         q8CvCYsyHQNVzt3BWNDaPf2vYK21N3D2zpV4fLNZlALhz+I2YJaU27W22z/xeGTak2yz
+         QX+WxWIusvCtZuNNKKAUN9pcGP3X3h4iDfO+7uBX80nX3f8TNBhXV/D/X6vVeumtwgo8
+         C9wZjonC3oOqF8oGKvMO8bowdkrSBP37beD8rchrrchtXnJFlqVROGGjsZOalhjDgKmH
+         nAtlT2/JF5rxDgDkxlL3a9WeAi3MMPycMz0hpim6bGu36vO6fb2TjkkU6W+x1URXubPK
+         ng9A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id q12si21211204pgh.594.2019.05.21.02.41.07
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id k23si17355037pls.88.2019.05.21.02.41.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 21 May 2019 02:41:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R131e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07486;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=12;SR=0;TI=SMTPD_---0TSIe59t_1558431642;
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R241e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04400;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=12;SR=0;TI=SMTPD_---0TSIe59t_1558431642;
 Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TSIe59t_1558431642)
           by smtp.aliyun-inc.com(127.0.0.1);
           Tue, 21 May 2019 17:40:55 +0800
@@ -94,58 +94,207 @@ To: ying.huang@intel.com,
 Cc: yang.shi@linux.alibaba.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [v3 PATCH 1/2] mm: vmscan: remove double slab pressure by inc'ing sc->nr_scanned
-Date: Tue, 21 May 2019 17:40:41 +0800
-Message-Id: <1558431642-52120-1-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [v3 PATCH 2/2] mm: vmscan: correct some vmscan counters for THP swapout
+Date: Tue, 21 May 2019 17:40:42 +0800
+Message-Id: <1558431642-52120-2-git-send-email-yang.shi@linux.alibaba.com>
 X-Mailer: git-send-email 1.8.3.1
+In-Reply-To: <1558431642-52120-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1558431642-52120-1-git-send-email-yang.shi@linux.alibaba.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The commit 9092c71bb724 ("mm: use sc->priority for slab shrink targets")
-has broken up the relationship between sc->nr_scanned and slab pressure.
-The sc->nr_scanned can't double slab pressure anymore.  So, it sounds no
-sense to still keep sc->nr_scanned inc'ed.  Actually, it would prevent
-from adding pressure on slab shrink since excessive sc->nr_scanned would
-prevent from scan->priority raise.
+Since commit bd4c82c22c36 ("mm, THP, swap: delay splitting THP after
+swapped out"), THP can be swapped out in a whole.  But, nr_reclaimed
+and some other vm counters still get inc'ed by one even though a whole
+THP (512 pages) gets swapped out.
 
-The bonnie test doesn't show this would change the behavior of
-slab shrinkers.
+This doesn't make too much sense to memory reclaim.  For example, direct
+reclaim may just need reclaim SWAP_CLUSTER_MAX pages, reclaiming one THP
+could fulfill it.  But, if nr_reclaimed is not increased correctly,
+direct reclaim may just waste time to reclaim more pages,
+SWAP_CLUSTER_MAX * 512 pages in worst case.
 
-				w/		w/o
-			  /sec    %CP      /sec      %CP
-Sequential delete: 	3960.6    94.6    3997.6     96.2
-Random delete: 		2518      63.8    2561.6     64.6
+And, it may cause pgsteal_{kswapd|direct} is greater than
+pgscan_{kswapd|direct}, like the below:
 
-The slight increase of "/sec" without the patch would be caused by the
-slight increase of CPU usage.
+pgsteal_kswapd 122933
+pgsteal_direct 26600225
+pgscan_kswapd 174153
+pgscan_direct 14678312
 
-Cc: Josef Bacik <josef@toxicpanda.com>
-Cc: Michal Hocko <mhocko@kernel.org>
+nr_reclaimed and nr_scanned must be fixed in parallel otherwise it would
+break some page reclaim logic, e.g.
+
+vmpressure: this looks at the scanned/reclaimed ratio so it won't
+change semantics as long as scanned & reclaimed are fixed in parallel.
+
+compaction/reclaim: compaction wants a certain number of physical pages
+freed up before going back to compacting.
+
+kswapd priority raising: kswapd raises priority if we scan fewer pages
+than the reclaim target (which itself is obviously expressed in order-0
+pages). As a result, kswapd can falsely raise its aggressiveness even
+when it's making great progress.
+
+Other than nr_scanned and nr_reclaimed, some other counters, e.g.
+pgactivate, nr_skipped, nr_ref_keep and nr_unmap_fail need to be fixed
+too since they are user visible via cgroup, /proc/vmstat or trace
+points, otherwise they would be underreported.
+
+When isolating pages from LRUs, nr_taken has been accounted in base
+page, but nr_scanned and nr_skipped are still accounted in THP.  It
+doesn't make too much sense too since this may cause trace point
+underreport the numbers as well.
+
+So accounting those counters in base page instead of accounting THP as
+one page.
+
+This change may result in lower steal/scan ratio in some cases since
+THP may get split during page reclaim, then a part of tail pages get
+reclaimed instead of the whole 512 pages, but nr_scanned is accounted
+by 512, particularly for direct reclaim.  But, this should be not a
+significant issue.
+
+Cc: "Huang, Ying" <ying.huang@intel.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Shakeel Butt <shakeelb@google.com>
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- mm/vmscan.c | 5 -----
- 1 file changed, 5 deletions(-)
+v3: Removed Shakeel's Reviewed-by since the patch has been changed significantly
+    Switched back to use compound_order per Matthew
+    Fixed more counters per Johannes
+v2: Added Shakeel's Reviewed-by
+    Use hpage_nr_pages instead of compound_order per Huang Ying and William Kucharski
+
+ mm/vmscan.c | 40 ++++++++++++++++++++++++++++------------
+ 1 file changed, 28 insertions(+), 12 deletions(-)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7acd0af..b65bc50 100644
+index b65bc50..1044834 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1137,11 +1137,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		if (!sc->may_unmap && page_mapped(page))
+@@ -1250,7 +1250,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		case PAGEREF_ACTIVATE:
+ 			goto activate_locked;
+ 		case PAGEREF_KEEP:
+-			stat->nr_ref_keep++;
++			stat->nr_ref_keep += (1 << compound_order(page));
  			goto keep_locked;
+ 		case PAGEREF_RECLAIM:
+ 		case PAGEREF_RECLAIM_CLEAN:
+@@ -1294,6 +1294,17 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 						goto activate_locked;
+ 				}
  
--		/* Double the slab pressure for mapped and swapcache pages */
--		if ((page_mapped(page) || PageSwapCache(page)) &&
--		    !(PageAnon(page) && !PageSwapBacked(page)))
--			sc->nr_scanned++;
--
- 		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
- 			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
++				/*
++				 * Account all tail pages when THP is added
++				 * into swap cache successfully.
++				 * The head page has been accounted at the
++				 * first place.
++				 */
++				if (PageTransHuge(page))
++					sc->nr_scanned +=
++						((1 << compound_order(page)) -
++							1);
++
+ 				may_enter_fs = 1;
  
+ 				/* Adding to swap updated mapping */
+@@ -1315,7 +1326,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			if (unlikely(PageTransHuge(page)))
+ 				flags |= TTU_SPLIT_HUGE_PMD;
+ 			if (!try_to_unmap(page, flags)) {
+-				stat->nr_unmap_fail++;
++				stat->nr_unmap_fail +=
++					(1 << compound_order(page));
+ 				goto activate_locked;
+ 			}
+ 		}
+@@ -1442,7 +1454,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 
+ 		unlock_page(page);
+ free_it:
+-		nr_reclaimed++;
++		/*
++		 * THP may get swapped out in a whole, need account
++		 * all base pages.
++		 */
++		nr_reclaimed += (1 << compound_order(page));
+ 
+ 		/*
+ 		 * Is there need to periodically free_page_list? It would
+@@ -1464,7 +1480,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		if (!PageMlocked(page)) {
+ 			int type = page_is_file_cache(page);
+ 			SetPageActive(page);
+-			pgactivate++;
+ 			stat->nr_activate[type] += hpage_nr_pages(page);
+ 			count_memcg_page_event(page, PGACTIVATE);
+ 		}
+@@ -1475,6 +1490,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page), page);
+ 	}
+ 
++	pgactivate = stat->nr_activate[0] + stat->nr_activate[1];
++
+ 	mem_cgroup_uncharge_list(&free_pages);
+ 	try_to_unmap_flush();
+ 	free_unref_page_list(&free_pages);
+@@ -1642,14 +1659,12 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 	unsigned long nr_zone_taken[MAX_NR_ZONES] = { 0 };
+ 	unsigned long nr_skipped[MAX_NR_ZONES] = { 0, };
+ 	unsigned long skipped = 0;
+-	unsigned long scan, total_scan, nr_pages;
++	unsigned long scan, nr_pages;
+ 	LIST_HEAD(pages_skipped);
+ 	isolate_mode_t mode = (sc->may_unmap ? 0 : ISOLATE_UNMAPPED);
+ 
+ 	scan = 0;
+-	for (total_scan = 0;
+-	     scan < nr_to_scan && nr_taken < nr_to_scan && !list_empty(src);
+-	     total_scan++) {
++	while (scan < nr_to_scan && nr_taken < nr_to_scan && !list_empty(src)) {
+ 		struct page *page;
+ 
+ 		page = lru_to_page(src);
+@@ -1659,7 +1674,8 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 
+ 		if (page_zonenum(page) > sc->reclaim_idx) {
+ 			list_move(&page->lru, &pages_skipped);
+-			nr_skipped[page_zonenum(page)]++;
++			nr_skipped[page_zonenum(page)] +=
++				(1 << compound_order(page));
+ 			continue;
+ 		}
+ 
+@@ -1669,7 +1685,7 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 		 * ineligible pages.  This causes the VM to not reclaim any
+ 		 * pages, triggering a premature OOM.
+ 		 */
+-		scan++;
++		scan += (1 << compound_order(page));
+ 		switch (__isolate_lru_page(page, mode)) {
+ 		case 0:
+ 			nr_pages = hpage_nr_pages(page);
+@@ -1707,9 +1723,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
+ 			skipped += nr_skipped[zid];
+ 		}
+ 	}
+-	*nr_scanned = total_scan;
++	*nr_scanned = scan;
+ 	trace_mm_vmscan_lru_isolate(sc->reclaim_idx, sc->order, nr_to_scan,
+-				    total_scan, skipped, nr_taken, mode, lru);
++				    scan, skipped, nr_taken, mode, lru);
+ 	update_lru_sizes(lruvec, lru, nr_zone_taken);
+ 	return nr_taken;
+ }
 -- 
 1.8.3.1
 
