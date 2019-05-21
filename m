@@ -4,348 +4,199 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E9837C04E87
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 12:53:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 554D7C04AAF
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 12:57:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7126C217D7
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 12:53:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0CFC921773
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 12:57:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="GYhZkItY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7126C217D7
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="akTuLbwy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CFC921773
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CFEB96B0003; Tue, 21 May 2019 08:53:57 -0400 (EDT)
+	id 9F0376B0007; Tue, 21 May 2019 08:57:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CAF636B0006; Tue, 21 May 2019 08:53:57 -0400 (EDT)
+	id 99F896B0008; Tue, 21 May 2019 08:57:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B9F536B0007; Tue, 21 May 2019 08:53:57 -0400 (EDT)
+	id 88E666B000A; Tue, 21 May 2019 08:57:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 94CAF6B0003
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 08:53:57 -0400 (EDT)
-Received: by mail-yb1-f199.google.com with SMTP id v22so1466447ybb.9
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 05:53:57 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 682816B0007
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 08:57:12 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id y144so17640722ywg.16
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 05:57:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=/vIrVVMYyo+jYXixWUtZ3AoRLQ9OCJjaH3G/NeeKeEQ=;
-        b=JepLXp3jN8OjkOj0QYJ+upws5DHBzgQz4UU2xjaELqNvK5HUmBC66u/Ri+oTFqV9nq
-         gKeiYRWlJkO4xJ/PHFO7D8xfe5AE0y6Zo5n8aMBrx1YNATE+8o2zgUCpKTloWvYh7YT/
-         uFEqOpx4rnFjfH5+WUqoMEpIZx5Vwzy+e6HKJ2lTXlV+Ap4TKDv/apsdG9Jddzz4BNTg
-         89WSW8wZjBtOmmvO+tz2iTL+eYaYJv7CxXu4uFg7UDeiYAjPg4hS94K4jqaBJd1JkWaG
-         Th6SvCBoIBQMMSSkfMcOLIqVdWxmpcNyWejWEJ9FSk3G2LThOxhnNWbw0JbevB0Jic9d
-         5Kwg==
-X-Gm-Message-State: APjAAAXATcbJxEboT4FV2wz9SNakHTXbKDNnbF1him1O2TR2jTnnJqiO
-	79T9yRI5uq/l/kIJMr2IZ1qOqziSDmnhpsNl0mpUfrJZtXfPxYnMRlBSAOrYkMDvgHbEG+Vjn/i
-	WVBe31LpcXpeVXqNm1lcwDeE6Z8h28GUV/M1t1albxEFYe+KT2pxfHc/mXOOsC2bK+Q==
-X-Received: by 2002:a25:b120:: with SMTP id g32mr16783287ybj.388.1558443237264;
-        Tue, 21 May 2019 05:53:57 -0700 (PDT)
-X-Received: by 2002:a25:b120:: with SMTP id g32mr16783244ybj.388.1558443235775;
-        Tue, 21 May 2019 05:53:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558443235; cv=none;
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=T/AHbGrbWFUhevOXCGpUGCgyop6Di8UfE0ud1RTG1ps=;
+        b=DgGL26anIdg4l4lCRcEnxvIN7b7IiR9v13W0l0tvfTD/QrlT+8saNtKTOmb2b2cIhG
+         Z6PcbIMAlWxVkPu9ERiZjcgMTHJGYPXhhxDp6K9Bs4j05C2f/v2dNcxaVmM93L7arAG+
+         0fB7xq3Lo54Akd1QMDfQBCLmRRsDaS0IWo/dF9k1D0ULkyuBNTxWSaO2bPWj/FB/+ue5
+         1HQKE612IdZiWuJ/NuXqvGtK+7G8x5NoVBuwlxMmmJIPRNr5cfdtzQ1DvHUnb6llJQnE
+         WB40X/AtxgWnpUbu77O9Fx5TR/rFWYFsgjADrMhXtaWVjNyPIsWH9YsU/Uw8kC20Wery
+         4ksw==
+X-Gm-Message-State: APjAAAVT2nbAv9HPrG7hTRBujwxrSnDWACeJDar+oum+NFMAG9eQCO7A
+	IFJwZFpYIdxvj395DPNCk0W0TLKNP+kLU73wfE8DSYlaNjSdb/vRAxRii7XbnPpY+fj8+U6G3Tf
+	IoGQyEGSQCFkAOZqA2przlywSdVWxZOmlREekPsVwb4EVvMJRxBxeOb3WpB4NJJiVxg==
+X-Received: by 2002:a81:9250:: with SMTP id j77mr8912192ywg.142.1558443432069;
+        Tue, 21 May 2019 05:57:12 -0700 (PDT)
+X-Received: by 2002:a81:9250:: with SMTP id j77mr8912173ywg.142.1558443431256;
+        Tue, 21 May 2019 05:57:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558443431; cv=none;
         d=google.com; s=arc-20160816;
-        b=yHV4WRCyp/kn8ncGN3SQdoqCC5nFabCBPvo0gStHPVlI9efFtnfwSdDwmp3oiu/LFE
-         6ZbnSHj05w8d/BLq05We/sObL217LyeX9rq5kvSar6I2DOoYv11wSeEyFELWdLJ3HUpt
-         s9WU3a1sQMSLAv3jDXQwiG1NKT+7wX970PrZkwV3lerCjVPmcsVFP+SwW+JLXyXyRoSO
-         qGVLjtx16RtIh5DX9Seai+JWEsctFO0EIwyHkjpQd7XeK1XV9vRgqhQpSy/aS2WvfelK
-         qidlW4oqho9ZloAcv266NtFeIPX1RKut4T/GnKhBooGpyU37dedGbC/dcPC7XyqPW/37
-         eDuw==
+        b=V037yf7DNJHiinPYhgNV6NvVQQKyCpyU0uTTKwKSxyolYlXItGZgO+UnFrCwmGIt8K
+         dXw0F94wGbrAbrTclfgmoK7whYaTa5OSbYeZwe9rg0V+GXSyPFRWlPuyMI6bv3qnVEbi
+         p0goXYxvHXW2CVL2DdOKLb+Bu/ks+m6nqDJP/RrmGTS8fnFZLfSCyJYykmCP7rSihArw
+         Hxx30Ig7AkoNaHcbLRSGsei5UPICJRzU8QMFfZIUVsV0nYaVROEf46T2lzDAq4DmGRAu
+         WBRnO55srOPOLjlr3RgLBezM377Lpf4pywyeCz4Px3nWlZKsxnFRIuWhia/huD78VzsH
+         avoQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=/vIrVVMYyo+jYXixWUtZ3AoRLQ9OCJjaH3G/NeeKeEQ=;
-        b=kF1zmnatD1GV4G16QkJOd54CMRqq8wF/ULwv/93YOCywxJcnGFg+46CuJVloVIXVpT
-         v9NeHRYTGRgYBrRq44CwdhSWCpAwL5NGF6Erck69lTwr4OnNuXLWAx07h9mkwTYwPeoZ
-         VJ/DcGx5o5/7zzxbVqVNr1muArOB/ws1J5yYpri17sI9un2nGj6db5iJYiS+LQVoe2iJ
-         Xcxy9TeddMz9Oykec/hI0pXgFd8cFIee2mLMAJMllqqyCCv4hreuJeGbkkMfOVZYm+E/
-         x/rPXX8GwMYugw0JjpNrU1xfRAWsCN7W2b3XqUiY2G9eFn2L5YRLn5i1DXE3yb9JfCGM
-         R6bQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=T/AHbGrbWFUhevOXCGpUGCgyop6Di8UfE0ud1RTG1ps=;
+        b=CDsSrifYABeLOtzECenNaIYrHUlIl1PpOrbAvThaRil26Um5dAGy5HOlmWIUALPUwH
+         +bcGc4ZBKdHZnVsoz20icsRwM8SF0N+5O8QTLXCinG9scrz5hhd+z0/+nqWAWEblnly/
+         f5dPn3Ch5+VWyQ3nMviPqx0m97y7a9ZSO/k3AcvRlaRv5PIqNuh6jtaF6y8IxVUZAE3b
+         yEttI0uYYN4XqOkVpHWxEfB+qi+WKTA9K8xIFOCPlPN+8wuBLxlKRtkSINnkuFJ+wEzy
+         knPdzuorf9a1JL5Gb7Pq/UflqVEbxzPwBsbCTN2TuLqXvPKNd0520GumKe4dfFeFKISi
+         5M1w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=GYhZkItY;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=akTuLbwy;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z11sor5191185ybb.128.2019.05.21.05.53.55
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f10sor10518667ywk.109.2019.05.21.05.57.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 21 May 2019 05:53:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Tue, 21 May 2019 05:57:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=GYhZkItY;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=shakeelb@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=akTuLbwy;
+       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=/vIrVVMYyo+jYXixWUtZ3AoRLQ9OCJjaH3G/NeeKeEQ=;
-        b=GYhZkItY9qd7XI2G5azWEzYKs1AwNJ0M2FxBPUE9/6VUG6dwd8jOo4wXzVFjrdoRfz
-         DLJJXhRJRpmkEY6c9HYd0F82dXV/0DL2819VMJ6HR+oHwuuNrFdazis914KIkQxzR3lo
-         31636YT3DRKdNV3WzLoJPbXUDJ/mR9rm9KmepQCHlxt6J6StX/R9BgXX9z8Pc7hoqLd7
-         wQ/6KUdjL8nYMp/iVt7qmKRZjfsqndEFMTmnQA2MGvp4bSzE+gZyDg8uZBgx+4KWn2kq
-         zWF+h0PLFoeYOT1y9O+3YdL/43leLkofApNtIVdA8x/JhaLGLY1Nq63B/fyiEp4169VK
-         qkKA==
-X-Google-Smtp-Source: APXvYqyAacZ5Ykoor19SwG9zZJu1yyuP+Thn6nbmVYD0BEcK6G1W/as7Jh8famy8623yDYtF16KOGEBjKZcGbwYY1vc=
-X-Received: by 2002:a25:1d7:: with SMTP id 206mr3178580ybb.165.1558443234924;
- Tue, 21 May 2019 05:53:54 -0700 (PDT)
+         :cc;
+        bh=T/AHbGrbWFUhevOXCGpUGCgyop6Di8UfE0ud1RTG1ps=;
+        b=akTuLbwyJU5RN+ZX+1XrhOSjd4MciXH7phKiqrpcWAfdgPdU7zImpJSRTClYg+LnD8
+         f72NWpwZAcJEJWW1W6buISDdzYyEyDIrp3SR3YVvwuoBzzqiLJ9PEwNNgqHybiKQNlMJ
+         2iG330vUDmL9jD5pERSkZpkiDcA8RywSlF0+wux3E+aw+YbeSJtlt4GB0itIQzksJcGg
+         Ox4p2HDQsBtjjFQFbP2hmcPMJ6riI3suMWoQIGSBSXyT4sy107pII8ukRM5RFzlrR0H7
+         IR44iZACqmT/AbXbIN0ZY4HXhfvGYsyfHLNXmBvTIPjUwP/LNaI4afQeK3TCCWZpsHCl
+         1cnQ==
+X-Google-Smtp-Source: APXvYqw2hO53tPry9V/J/vvYsaoh0I6dNYkejzO13Jx59B3H/C01BT/91Z/hSGJB2ngnVnWoIhnH/4HGgY7h5wywf4c=
+X-Received: by 2002:a81:5ec3:: with SMTP id s186mr39737429ywb.308.1558443430631;
+ Tue, 21 May 2019 05:57:10 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190520035254.57579-1-minchan@kernel.org>
-In-Reply-To: <20190520035254.57579-1-minchan@kernel.org>
+References: <20190520035254.57579-1-minchan@kernel.org> <dbe801f0-4bbe-5f6e-9053-4b7deb38e235@arm.com>
+ <CAEe=Sxka3Q3vX+7aWUJGKicM+a9Px0rrusyL+5bB1w4ywF6N4Q@mail.gmail.com> <1754d0ef-6756-d88b-f728-17b1fe5d5b07@arm.com>
+In-Reply-To: <1754d0ef-6756-d88b-f728-17b1fe5d5b07@arm.com>
 From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 21 May 2019 05:53:43 -0700
-Message-ID: <CALvZod7LgCnSdnsx_-P-rCXhzMuS_C=N0QVZggtQpc4OFzJpkQ@mail.gmail.com>
+Date: Tue, 21 May 2019 05:56:59 -0700
+Message-ID: <CALvZod6ioRxSi7tHB-uSTxN1-hsxD+8O3mfFAjaqdsimjUVmcw@mail.gmail.com>
 Subject: Re: [RFC 0/7] introduce memory hinting API for external process
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Tim Murray <timmurray@google.com>, Minchan Kim <minchan@kernel.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 
 	linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Tim Murray <timmurray@google.com>, 
-	Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
-	Daniel Colascione <dancol@google.com>, Sonny Rao <sonnyrao@google.com>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Joel Fernandes <joel@joelfernandes.org>, 
+	Suren Baghdasaryan <surenb@google.com>, Daniel Colascione <dancol@google.com>, Sonny Rao <sonnyrao@google.com>, 
 	Brian Geffon <bgeffon@google.com>, linux-api@vger.kernel.org
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 19, 2019 at 8:53 PM Minchan Kim <minchan@kernel.org> wrote:
+On Mon, May 20, 2019 at 7:55 PM Anshuman Khandual
+<anshuman.khandual@arm.com> wrote:
 >
-> - Background
 >
-> The Android terminology used for forking a new process and starting an ap=
-p
-> from scratch is a cold start, while resuming an existing app is a hot sta=
-rt.
-> While we continually try to improve the performance of cold starts, hot
-> starts will always be significantly less power hungry as well as faster s=
-o
-> we are trying to make hot start more likely than cold start.
 >
-> To increase hot start, Android userspace manages the order that apps shou=
-ld
-> be killed in a process called ActivityManagerService. ActivityManagerServ=
-ice
-> tracks every Android app or service that the user could be interacting wi=
-th
-> at any time and translates that into a ranked list for lmkd(low memory
-> killer daemon). They are likely to be killed by lmkd if the system has to
-> reclaim memory. In that sense they are similar to entries in any other ca=
-che.
-> Those apps are kept alive for opportunistic performance improvements but
-> those performance improvements will vary based on the memory requirements=
- of
-> individual workloads.
+> On 05/20/2019 10:29 PM, Tim Murray wrote:
+> > On Sun, May 19, 2019 at 11:37 PM Anshuman Khandual
+> > <anshuman.khandual@arm.com> wrote:
+> >>
+> >> Or Is the objective here is reduce the number of processes which get killed by
+> >> lmkd by triggering swapping for the unused memory (user hinted) sooner so that
+> >> they dont get picked by lmkd. Under utilization for zram hardware is a concern
+> >> here as well ?
+> >
+> > The objective is to avoid some instances of memory pressure by
+> > proactively swapping pages that userspace knows to be cold before
+> > those pages reach the end of the LRUs, which in turn can prevent some
+> > apps from being killed by lmk/lmkd. As soon as Android userspace knows
+> > that an application is not being used and is only resident to improve
+> > performance if the user returns to that app, we can kick off
+> > process_madvise on that process's pages (or some portion of those
+> > pages) in a power-efficient way to reduce memory pressure long before
+> > the system hits the free page watermark. This allows the system more
+> > time to put pages into zram versus waiting for the watermark to
+> > trigger kswapd, which decreases the likelihood that later memory
+> > allocations will cause enough pressure to trigger a kill of one of
+> > these apps.
 >
-> - Problem
+> So this opens up bit of LRU management to user space hints. Also because the app
+> in itself wont know about the memory situation of the entire system, new system
+> call needs to be called from an external process.
 >
-> Naturally, cached apps were dominant consumers of memory on the system.
-> However, they were not significant consumers of swap even though they are
-> good candidate for swap. Under investigation, swapping out only begins
-> once the low zone watermark is hit and kswapd wakes up, but the overall
-> allocation rate in the system might trip lmkd thresholds and cause a cach=
-ed
-> process to be killed(we measured performance swapping out vs. zapping the
-> memory by killing a process. Unsurprisingly, zapping is 10x times faster
-> even though we use zram which is much faster than real storage) so kill
-> from lmkd will often satisfy the high zone watermark, resulting in very
-> few pages actually being moved to swap.
+> >
+> >> Swapping out memory into zram wont increase the latency for a hot start ? Or
+> >> is it because as it will prevent a fresh cold start which anyway will be slower
+> >> than a slow hot start. Just being curious.
+> >
+> > First, not all swapped pages will be reloaded immediately once an app
+> > is resumed. We've found that an app's working set post-process_madvise
+> > is significantly smaller than what an app allocates when it first
+> > launches (see the delta between pswpin and pswpout in Minchan's
+> > results). Presumably because of this, faulting to fetch from zram does
+>
+> pswpin      417613    1392647     975034     233.00
+> pswpout    1274224    2661731    1387507     108.00
+>
+> IIUC the swap-in ratio is way higher in comparison to that of swap out. Is that
+> always the case ? Or it tend to swap out from an active area of the working set
+> which faulted back again.
+>
+> > not seem to introduce a noticeable hot start penalty, not does it
+> > cause an increase in performance problems later in the app's
+> > lifecycle. I've measured with and without process_madvise, and the
+> > differences are within our noise bounds. Second, because we're not
+>
+> That is assuming that post process_madvise() working set for the application is
+> always smaller. There is another challenge. The external process should ideally
+> have the knowledge of active areas of the working set for an application in
+> question for it to invoke process_madvise() correctly to prevent such scenarios.
+>
+> > preemptively evicting file pages and only making them more likely to
+> > be evicted when there's already memory pressure, we avoid the case
+> > where we process_madvise an app then immediately return to the app and
+> > reload all file pages in the working set even though there was no
+> > intervening memory pressure. Our initial version of this work evicted
+>
+> That would be the worst case scenario which should be avoided. Memory pressure
+> must be a parameter before actually doing the swap out. But pages if know to be
+> inactive/cold can be marked high priority to be swapped out.
+>
+> > file pages preemptively and did cause a noticeable slowdown (~15%) for
+> > that case; this patch set avoids that slowdown. Finally, the benefit
+> > from avoiding cold starts is huge. The performance improvement from
+> > having a hot start instead of a cold start ranges from 3x for very
+> > small apps to 50x+ for larger apps like high-fidelity games.
+>
+> Is there any other real world scenario apart from this app based ecosystem where
+> user hinted LRU management might be helpful ? Just being curious. Thanks for the
+> detailed explanation. I will continue looking into this series.
 
-It is not clear what exactly is the problem from the above para. IMO
-low usage of swap is not the problem but rather global memory pressure
-and the reactive response to it is the problem. Killing apps over swap
-is preferred as you have noted zapping frees memory faster but it
-indirectly increases cold start. Also swapping on allocation causes
-latency issues for the app. So, a proactive mechanism is needed to
-keep global pressure away and indirectly reduces cold starts and alloc
-stalls.
-
->
-> - Approach
->
-> The approach we chose was to use a new interface to allow userspace to
-> proactively reclaim entire processes by leveraging platform information.
-> This allowed us to bypass the inaccuracy of the kernel=E2=80=99s LRUs for=
- pages
-> that are known to be cold from userspace and to avoid races with lmkd
-> by reclaiming apps as soon as they entered the cached state. Additionally=
-,
-> it could provide many chances for platform to use much information to
-> optimize memory efficiency.
-
-I think it would be good to have clear reasoning on why "reclaim from
-userspace" approach is taken. Android runtime clearly has more
-accurate stale/cold information at the app/process level and can
-positively influence kernel's reclaim decisions. So, "reclaim from
-userspace" approach makes total sense for Android. I envision that
-Chrome OS would be another very obvious user of this approach. There
-can be tens of tabs which the user have not touched for sometime.
-Chrome OS can proactively reclaim memory from such tabs.
-
->
-> IMHO we should spell it out that this patchset complements MADV_WONTNEED
-
-MADV_DONTNEED? same at couple of places below.
-
-> and MADV_FREE by adding non-destructive ways to gain some free memory
-> space. MADV_COLD is similar to MADV_WONTNEED in a way that it hints the
-> kernel that memory region is not currently needed and should be reclaimed
-> immediately; MADV_COOL is similar to MADV_FREE in a way that it hints the
-> kernel that memory region is not currently needed and should be reclaimed
-> when memory pressure rises.
->
-> To achieve the goal, the patchset introduce two new options for madvise.
-> One is MADV_COOL which will deactive activated pages and the other is
-> MADV_COLD which will reclaim private pages instantly. These new options
-> complement MADV_DONTNEED and MADV_FREE by adding non-destructive ways to
-> gain some free memory space. MADV_COLD is similar to MADV_DONTNEED in a w=
-ay
-> that it hints the kernel that memory region is not currently needed and
-> should be reclaimed immediately; MADV_COOL is similar to MADV_FREE in a w=
-ay
-> that it hints the kernel that memory region is not currently needed and
-> should be reclaimed when memory pressure rises.
->
-> This approach is similar in spirit to madvise(MADV_WONTNEED), but the
-> information required to make the reclaim decision is not known to the app=
-.
-> Instead, it is known to a centralized userspace daemon, and that daemon
-> must be able to initiate reclaim on its own without any app involvement.
-> To solve the concern, this patch introduces new syscall -
->
->         struct pr_madvise_param {
->                 int size;
->                 const struct iovec *vec;
->         }
->
->         int process_madvise(int pidfd, ssize_t nr_elem, int *behavior,
->                                 struct pr_madvise_param *restuls,
->                                 struct pr_madvise_param *ranges,
->                                 unsigned long flags);
->
-> The syscall get pidfd to give hints to external process and provides
-> pair of result/ranges vector arguments so that it could give several
-> hints to each address range all at once.
->
-> I guess others have different ideas about the naming of syscall and optio=
-ns
-> so feel free to suggest better naming.
->
-> - Experiment
->
-> We did bunch of testing with several hundreds of real users, not artifici=
-al
-> benchmark on android. We saw about 17% cold start decreasement without an=
-y
-> significant battery/app startup latency issues. And with artificial bench=
-mark
-> which launches and switching apps, we saw average 7% app launching improv=
-ement,
-> 18% less lmkd kill and good stat from vmstat.
->
-> A is vanilla and B is process_madvise.
->
->
->                                        A          B      delta   ratio(%)
->                allocstall_dma          0          0          0       0.00
->            allocstall_movable       1464        457      -1007     -69.00
->             allocstall_normal     263210     190763     -72447     -28.00
->              allocstall_total     264674     191220     -73454     -28.00
->           compact_daemon_wake      26912      25294      -1618      -7.00
->                  compact_fail      17885      14151      -3734     -21.00
->          compact_free_scanned 4204766409 3835994922 -368771487      -9.00
->              compact_isolated    3446484    2967618    -478866     -14.00
->       compact_migrate_scanned 1621336411 1324695710 -296640701     -19.00
->                 compact_stall      19387      15343      -4044     -21.00
->               compact_success       1502       1192       -310     -21.00
-> kswapd_high_wmark_hit_quickly        234        184        -50     -22.00
->             kswapd_inodesteal     221635     233093      11458       5.00
->  kswapd_low_wmark_hit_quickly      66065      54009     -12056     -19.00
->                    nr_dirtied     259934     296476      36542      14.00
->   nr_vmscan_immediate_reclaim       2587       2356       -231      -9.00
->               nr_vmscan_write    1274232    2661733    1387501     108.00
->                    nr_written    1514060    2937560    1423500      94.00
->                    pageoutrun      67561      55133     -12428     -19.00
->                    pgactivate    2335060    1984882    -350178     -15.00
->                   pgalloc_dma   13743011   14096463     353452       2.00
->               pgalloc_movable          0          0          0       0.00
->                pgalloc_normal   18742440   16802065   -1940375     -11.00
->                 pgalloc_total   32485451   30898528   -1586923      -5.00
->                  pgdeactivate    4262210    2930670   -1331540     -32.00
->                       pgfault   30812334   31085065     272731       0.00
->                        pgfree   33553970   31765164   -1788806      -6.00
->                  pginodesteal      33411      15084     -18327     -55.00
->                   pglazyfreed          0          0          0       0.00
->                    pgmajfault     551312    1508299     956987     173.00
->                pgmigrate_fail      43927      29330     -14597     -34.00
->             pgmigrate_success    1399851    1203922    -195929     -14.00
->                        pgpgin   24141776   19032156   -5109620     -22.00
->                       pgpgout     959344    1103316     143972      15.00
->                  pgpgoutclean    4639732    3765868    -873864     -19.00
->                      pgrefill    4884560    3006938   -1877622     -39.00
->                     pgrotated      37828      25897     -11931     -32.00
->                 pgscan_direct    1456037     957567    -498470     -35.00
->        pgscan_direct_throttle          0          0          0       0.00
->                 pgscan_kswapd    6667767    5047360   -1620407     -25.00
->                  pgscan_total    8123804    6004927   -2118877     -27.00
->                    pgskip_dma          0          0          0       0.00
->                pgskip_movable          0          0          0       0.00
->                 pgskip_normal      14907      25382      10475      70.00
->                  pgskip_total      14907      25382      10475      70.00
->                pgsteal_direct    1118986     690215    -428771     -39.00
->                pgsteal_kswapd    4750223    3657107   -1093116     -24.00
->                 pgsteal_total    5869209    4347322   -1521887     -26.00
->                        pswpin     417613    1392647     975034     233.00
->                       pswpout    1274224    2661731    1387507     108.00
->                 slabs_scanned   13686905   10807200   -2879705     -22.00
->           workingset_activate     668966     569444     -99522     -15.00
->        workingset_nodereclaim      38957      32621      -6336     -17.00
->            workingset_refault    2816795    2179782    -637013     -23.00
->            workingset_restore     294320     168601    -125719     -43.00
->
-> pgmajfault is increased by 173% because swapin is increased by 200% by
-> process_madvise hint. However, swap read based on zram is much cheaper
-> than file IO in performance point of view and app hot start by swapin is
-> also cheaper than cold start from the beginning of app which needs many I=
-O
-> from storage and initialization steps.
->
-> This patchset is against on next-20190517.
->
-> Minchan Kim (7):
->   mm: introduce MADV_COOL
->   mm: change PAGEREF_RECLAIM_CLEAN with PAGE_REFRECLAIM
->   mm: introduce MADV_COLD
->   mm: factor out madvise's core functionality
->   mm: introduce external memory hinting API
->   mm: extend process_madvise syscall to support vector arrary
->   mm: madvise support MADV_ANONYMOUS_FILTER and MADV_FILE_FILTER
->
->  arch/x86/entry/syscalls/syscall_32.tbl |   1 +
->  arch/x86/entry/syscalls/syscall_64.tbl |   1 +
->  include/linux/page-flags.h             |   1 +
->  include/linux/page_idle.h              |  15 +
->  include/linux/proc_fs.h                |   1 +
->  include/linux/swap.h                   |   2 +
->  include/linux/syscalls.h               |   2 +
->  include/uapi/asm-generic/mman-common.h |  12 +
->  include/uapi/asm-generic/unistd.h      |   2 +
->  kernel/signal.c                        |   2 +-
->  kernel/sys_ni.c                        |   1 +
->  mm/madvise.c                           | 600 +++++++++++++++++++++----
->  mm/swap.c                              |  43 ++
->  mm/vmscan.c                            |  80 +++-
->  14 files changed, 680 insertions(+), 83 deletions(-)
->
-> --
-> 2.21.0.1020.gf2820cf01a-goog
->
+Chrome OS is another real world use-case for this user hinted LRU
+management approach by proactively reclaiming reclaim from tabs not
+accessed by the user for some time.
 
