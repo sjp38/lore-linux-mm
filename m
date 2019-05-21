@@ -2,221 +2,335 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 517CEC04E87
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:54:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72487C04AAF
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:59:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 163CB21743
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:54:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 163CB21743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 1B0CF21019
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 15:59:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B0CF21019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B8E8C6B0003; Tue, 21 May 2019 11:54:03 -0400 (EDT)
+	id B89C26B0003; Tue, 21 May 2019 11:59:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B3F2D6B0007; Tue, 21 May 2019 11:54:03 -0400 (EDT)
+	id B3B786B0006; Tue, 21 May 2019 11:59:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9E0436B0008; Tue, 21 May 2019 11:54:03 -0400 (EDT)
+	id A2CF36B0007; Tue, 21 May 2019 11:59:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6804B6B0003
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 11:54:03 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 5so12596426pff.11
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 08:54:03 -0700 (PDT)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 364096B0003
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 11:59:34 -0400 (EDT)
+Received: by mail-lf1-f71.google.com with SMTP id f15so3278024lfc.10
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 08:59:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=BFGuCB8WBH/xC8Q9cnfwfv1qZ9DYFBwGfjhsemsdsSY=;
-        b=qVXZdRyOi3OXetPx+zoRvAcwxlbbH/EYUbLlw+zHVfN9XLxf3NwV8NgImo2IzrAzHU
-         TryImTAfE99dof1UBIUFXZRD7hGo2Nm+LBqVThVX1uOuZN0DZgYZkPsyUdgi/miV7Lz/
-         pERBd/xq52ubYfzXVfeaX3wXZ6CdkIOsU0x2UK6mH8fnOMnMDD1u7zbl4ByygCik76y7
-         UDga6juxe5jF8Z+Tv+q10a7HlLpBNoor1GXGTh+1cNvOclBUGDop+Q/hIo26oYC6mZhH
-         L0+wYYMWnsKMHmrDhUUFvjWTiI3fQeuvZliK0/mySAubQZD1CWSLBVxaUXlLrxkMJTZj
-         cOZQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWswUrEIgvZbD66+/yDmKwacrzerQxJ+RMhzKm/CS6gtBuQHFsy
-	7I4DNRZMHDXE8EcdeYgJR6JOx4RmZ0ezGwFMtCCbFpWOLJWeMPEX8H0BUvw4715NQGunpsFWkXi
-	wRZSfBWI6pxonthpQet4uwyFB6NcJIc/JY/Qe+TewP0jWtOFc3555Xqhqm6ETihn0/g==
-X-Received: by 2002:a65:6402:: with SMTP id a2mr38373398pgv.438.1558454043075;
-        Tue, 21 May 2019 08:54:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxbV5A3ZeCyTDDSrvTu4XG0nkdjPSWvon7cmQe4ElYOx8Xu3JGbAJMCguZu+8tLvcpIhViW
-X-Received: by 2002:a65:6402:: with SMTP id a2mr38373324pgv.438.1558454042265;
-        Tue, 21 May 2019 08:54:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558454042; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=piXC7JvpJ5KHbYb9BFhwXM4V++BRZuuNYsJ4IDRj4co=;
+        b=iep+X6no0DlkjSD7yrFQApp7fz6rYHkBrv7kNCAOdOrGzBiq98YHU0HnE9Boe2xL/b
+         vmA7/+XRdyyb+Qq1r/UQ1U+LLOs4jT82KNFj7ksnmjnXR8jL/ftNMT9e9MoZNmHxfwF3
+         aOGYoHyfbxKl8VS4oaAEjvL9yW+XaJ5/g6wpwHw39OdcSv4miGIxOOIKlLAQyOwyaFzU
+         9j6avVjmv86S25LhwmrkvIWAIZ2sj3dXEqWqb0Ea0v0Ktv8sn58ICv2aXhtsw4sbItmi
+         P/NgUw0cmt+ixGDv1v4EvsrMrWEWwm2OcWgMj1aCymd+CgRBifz9Og62njd0zijDkF2u
+         UN3Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAXuhwJPeZgOz6jZ1vMEdRcJyc2OpjRm/hUwvA+pKl99YfdbMdXK
+	lpJTc3lDpd5KO14GBTw14KLzPwRzNwj3quVWS0KShiV6gEGctZXLhtFgpUqqlPQrQZVJF66zENI
+	9BnoZXRFq8oNbBdnMSpfvfvCRl+QBO7co5oqHrnomXCdGb09tktq4Sj/ZAhP7zlOh+g==
+X-Received: by 2002:a2e:81d0:: with SMTP id s16mr19788472ljg.42.1558454373545;
+        Tue, 21 May 2019 08:59:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyC0/bEthKafr9PeV7YVEvcmIkvsZGjBxw7kTSUlxNkFgKiKdavfQOD14m+lgdoRbOKqjNq
+X-Received: by 2002:a2e:81d0:: with SMTP id s16mr19788430ljg.42.1558454372562;
+        Tue, 21 May 2019 08:59:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558454372; cv=none;
         d=google.com; s=arc-20160816;
-        b=LmIvVm3NyrmByvHcga7P8dKcMAXmS+/wVwZeKpFJahX/OUNf8Dk3V503LfCi5RAxQy
-         yMxVD6UUCAUDw69Nrrs6Vcnrtcy7Wq+2V2bKvyC7C+NT+uKmu6ZMoBu5Z+grTdMQt24i
-         SPe+1Hjd6ZsN2DcPbH1pVWC8PvNwXIOR63PA257MYPO+ii1JFoEMCqq7iJNSoO3wrByr
-         nakqKictVDVpoSP1+fDtOUNvNw5WqoIBNR603Lh6uIGIEoxJiWqGywPXXl/tIvYTUVaa
-         x7iEJV64Vu88Tr8YDZda1eRp9rO/n0+FoYjcvuMer5vgzkGXDEsErOzhzKf1/62VfEGZ
-         VfWw==
+        b=MBjz7I5lKw/7NIbiygeQZI/1d8zp/8wRVbMLTcaUDWp2i6m6ODgI6a83DFnnMxuSAY
+         BsyBminHkpyQNs0t1vPL9YyXFbLkKkzqAh+obbVkKXHV0P+sHZilLkHQoBQc/2ooxJIx
+         8sdb5ABATwP+kg7NrA66Y7JQ5j3og+tBHCrTFp9BRf/X+U0c4sbR2iY9zOgQlHnZCohh
+         sZ7q7ZGWLKyi6kGN3byWjRQci+nbRIHJkaYi4qVuQ74Mw9TWdXWh2v2YfQH3UaYop8RY
+         Z+imLOoO8lkes63PbAlYazoD9ntm/cKKWZbVpOYlvJkpr/MocfAgvDNjl28wEv+gO6fx
+         ydxw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=BFGuCB8WBH/xC8Q9cnfwfv1qZ9DYFBwGfjhsemsdsSY=;
-        b=ONAi65bVJROt78Fz4s0eNcGrFPhQuJQUmFAYBNVH/Mrc45WmyxJwO7iMKN2Gdj91mz
-         bD0DM2jK/LgNs9g7G0acAs8lSE0xmdhbNQ/hVwwKOM7OyyG4kq+iiC7YGH3qK9g7B/Xk
-         Mmt7SXrAyT5lafjxMHG8rz2pE8RWi37ZsMdtLIOmUK2L91wX5Qi8Ve++OfBcVhwMIhaX
-         AXBh7ALyhWW2oDJ5h+OUz0SQW7SmYFh9gJyW4D5YmmVF5JMB18Lrclj+amuVYYGbVbjk
-         in4CH/ZzquCc7UZ1QQPPZCXhXiV0TjA+21cv/Qg9qTnXREVdRXVDJx1wp+mUyVaCl3xD
-         xTMg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject;
+        bh=piXC7JvpJ5KHbYb9BFhwXM4V++BRZuuNYsJ4IDRj4co=;
+        b=gK3POBgMA2XagP1aTzXkDYACYjfEWp6WGcsg98kOzSmBDKbmCSqq3mAxW2a5W4Du0q
+         tiNubWdq8r0U4eyQQaIs9SoECsYhN78gpDeLFmL2PUGN9uRTY3RE0/r0czDc/Rwt0jbn
+         cyFko0ru6L7v2FB0FMvVtw2LouXy8iLMaBSK6vSZJM2J66CSB3AL5jM/idvN7ULEPN4b
+         HG9Ut1CWB4bGxBYUiov5F0o9bmLBRYEyOl7Blvns8yu+ebtD9AUxjXJFg5eKXWYCKYTw
+         FBuaHmEGbBvHvI9K/ewIkWJ2zC/05knIuGTeywxOIp4ZKQDWgxiMpaSpFMYHW60fEzpd
+         qsDg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id q20si24925211pfn.139.2019.05.21.08.54.02
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id r192si17616182lfr.13.2019.05.21.08.59.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 May 2019 08:54:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Tue, 21 May 2019 08:59:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4LFrBVt120243
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 11:54:01 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2smjqjcxra-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 11:54:01 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 21 May 2019 16:53:59 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 21 May 2019 16:53:57 +0100
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4LFruYp53215248
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 21 May 2019 15:53:56 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 35A4B4C052;
-	Tue, 21 May 2019 15:53:56 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id AB98C4C046;
-	Tue, 21 May 2019 15:53:55 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.204.239])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Tue, 21 May 2019 15:53:55 +0000 (GMT)
-Date: Tue, 21 May 2019 18:53:53 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/gup: continue VM_FAULT_RETRY processing event for
- pre-faults
-References: <1557844195-18882-1-git-send-email-rppt@linux.ibm.com>
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hT7Ao-0007Cl-2V; Tue, 21 May 2019 18:59:30 +0300
+Subject: Re: [PATCH v2 0/7] mm: process_vm_mmap() -- syscall for duplication a
+ process mapping
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>,
+ Keith Busch <keith.busch@intel.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ alexander.h.duyck@linux.intel.com, Weiny Ira <ira.weiny@intel.com>,
+ Andrey Konovalov <andreyknvl@google.com>, arunks@codeaurora.org,
+ Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>,
+ Rik van Riel <riel@surriel.com>, Kees Cook <keescook@chromium.org>,
+ Johannes Weiner <hannes@cmpxchg.org>, Nicholas Piggin <npiggin@gmail.com>,
+ Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
+ Shakeel Butt <shakeelb@google.com>, Roman Gushchin <guro@fb.com>,
+ Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>,
+ Jerome Glisse <jglisse@redhat.com>, Mel Gorman
+ <mgorman@techsingularity.net>, daniel.m.jordan@oracle.com,
+ Jann Horn <jannh@google.com>, Adam Borowski <kilobyte@angband.pl>,
+ Linux API <linux-api@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ Linux-MM <linux-mm@kvack.org>
+References: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
+ <CALCETrU221N6uPmdaj4bRDDsf+Oc5tEfPERuyV24wsYKHn+spA@mail.gmail.com>
+ <9638a51c-4295-924f-1852-1783c7f3e82d@virtuozzo.com>
+Message-ID: <6483b75c-9725-126e-6fb3-ce05fb703a87@virtuozzo.com>
+Date: Tue, 21 May 2019 18:59:29 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1557844195-18882-1-git-send-email-rppt@linux.ibm.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19052115-0028-0000-0000-0000037007DF
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19052115-0029-0000-0000-0000242FB2C1
-Message-Id: <20190521155353.GC24470@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-21_03:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905210099
+In-Reply-To: <9638a51c-4295-924f-1852-1783c7f3e82d@virtuozzo.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 21.05.2019 18:52, Kirill Tkhai wrote:
+> On 21.05.2019 17:43, Andy Lutomirski wrote:
+>> On Mon, May 20, 2019 at 7:01 AM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>>>
+>>
+>>> [Summary]
+>>>
+>>> New syscall, which allows to clone a remote process VMA
+>>> into local process VM. The remote process's page table
+>>> entries related to the VMA are cloned into local process's
+>>> page table (in any desired address, which makes this different
+>>> from that happens during fork()). Huge pages are handled
+>>> appropriately.
+>>>
+>>> This allows to improve performance in significant way like
+>>> it's shows in the example below.
+>>>
+>>> [Description]
+>>>
+>>> This patchset adds a new syscall, which makes possible
+>>> to clone a VMA from a process to current process.
+>>> The syscall supplements the functionality provided
+>>> by process_vm_writev() and process_vm_readv() syscalls,
+>>> and it may be useful in many situation.
+>>>
+>>> For example, it allows to make a zero copy of data,
+>>> when process_vm_writev() was previously used:
+>>>
+>>>         struct iovec local_iov, remote_iov;
+>>>         void *buf;
+>>>
+>>>         buf = mmap(NULL, n * PAGE_SIZE, PROT_READ|PROT_WRITE,
+>>>                    MAP_PRIVATE|MAP_ANONYMOUS, ...);
+>>>         recv(sock, buf, n * PAGE_SIZE, 0);
+>>>
+>>>         local_iov->iov_base = buf;
+>>>         local_iov->iov_len = n * PAGE_SIZE;
+>>>         remove_iov = ...;
+>>>
+>>>         process_vm_writev(pid, &local_iov, 1, &remote_iov, 1 0);
+>>>         munmap(buf, n * PAGE_SIZE);
+>>>
+>>>         (Note, that above completely ignores error handling)
+>>>
+>>> There are several problems with process_vm_writev() in this example:
+>>>
+>>> 1)it causes pagefault on remote process memory, and it forces
+>>>   allocation of a new page (if was not preallocated);
+>>
+>> I don't see how your new syscall helps.  You're writing to remote
+>> memory.  If that memory wasn't allocated, it's going to get allocated
+>> regardless of whether you use a write-like interface or an mmap-like
+>> interface.
+> 
+> No, the talk is not about just another interface for copying memory.
+> The talk is about borrowing of remote task's VMA and corresponding
+> page table's content. Syscall allows to copy part of page table
+> with preallocated pages from remote to local process. See here:
+> 
+> [task1]                                                        [task2]
+> 
+> buf = mmap(NULL, n * PAGE_SIZE, PROT_READ|PROT_WRITE,
+>            MAP_PRIVATE|MAP_ANONYMOUS, ...);
+> 
+> <task1 populates buf>
+> 
+>                                                                buf = process_vm_mmap(pid_of_task1, addr, n * PAGE_SIZE, ...);
+> munmap(buf);
+> 
+> 
+> process_vm_mmap() copies PTEs related to memory of buf in task1 to task2
+> just like in the way we do during fork syscall.
+> 
+> There is no copying of buf memory content, unless COW happens. This is
+> the principal difference to process_vm_writev(), which just allocates
+> pages in remote VM.
+> 
+>> Keep in mind that, on x86, just the hardware part of a
+>> page fault is very slow -- populating the memory with a syscall
+>> instead of a fault may well be faster.
+> 
+> It is not as slow, as disk IO has. Just compare, what happens in case of anonymous
+> pages related to buf of task1 are swapped:
+> 
+> 1)process_vm_writev() reads them back into memory;
+> 
+> 2)process_vm_mmap() just copies swap PTEs from task1 page table
+>   to task2 page table.
+> 
+> Also, for faster page faults one may use huge pages for the mappings.
+> But really, it's funny to think about page faults, when there are
+> disk IO problems I shown.
+> 
+>>>
+>>> 2)amount of memory for this example is doubled in a moment --
+>>>   n pages in current and n pages in remote tasks are occupied
+>>>   at the same time;
+>>
+>> This seems disingenuous.  If you're writing p pages total in chunks of
+>> n pages, you will use a total of p pages if you use mmap and p+n if
+>> you use write.
+> 
+> I didn't understand this sentence because of many ifs, sorry. Could you
+> please explain your thought once again?
+> 
+>> That only doubles the amount of memory if you let n
+>> scale linearly with p, which seems unlikely.
+>>
+>>>
+>>> 3)received data has no a chance to be properly swapped for
+>>>   a long time.
+>>
+>> ...
+>>
+>>> a)kernel moves @buf pages into swap right after recv();
+>>> b)process_vm_writev() reads the data back from swap to pages;
+>>
+>> If you're under that much memory pressure and thrashing that badly,
+>> your performance is going to be awful no matter what you're doing.  If
+>> you indeed observe this behavior under normal loads, then this seems
+>> like a VM issue that should be addressed in its own right.
+> 
+> I don't think so. Imagine: a container migrates from one node to another.
+> The nodes are the same, say, every of them has 4GB of RAM.
+> 
+> Before the migration, the container's tasks used 4GB of RAM and 8GB of swap.
+> After the page server on the second node received the pages, we want these
+> pages become swapped as soon as possible, and we don't want to read them from
+> swap to pass a read consumer.
 
-Any comments on this?
+Should be "to pass a *real* consumer".
 
-On Tue, May 14, 2019 at 05:29:55PM +0300, Mike Rapoport wrote:
-> When get_user_pages*() is called with pages = NULL, the processing of
-> VM_FAULT_RETRY terminates early without actually retrying to fault-in all
-> the pages.
 > 
-> If the pages in the requested range belong to a VMA that has userfaultfd
-> registered, handle_userfault() returns VM_FAULT_RETRY *after* user space
-> has populated the page, but for the gup pre-fault case there's no actual
-> retry and the caller will get no pages although they are present.
+> The page server is task1 in the example. The real consumer is task2.
 > 
-> This issue was uncovered when running post-copy memory restore in CRIU
-> after commit d9c9ce34ed5c ("x86/fpu: Fault-in user stack if
-> copy_fpstate_to_sigframe() fails").
+> This is a rather normal load, I think.
 > 
-> After this change, the copying of FPU state to the sigframe switched from
-> copy_to_user() variants which caused a real page fault to get_user_pages()
-> with pages parameter set to NULL.
+>>>         buf = mmap(NULL, n * PAGE_SIZE, PROT_READ|PROT_WRITE,
+>>>                    MAP_PRIVATE|MAP_ANONYMOUS, ...);
+>>>         recv(sock, buf, n * PAGE_SIZE, 0);
+>>>
+>>> [Task 2]
+>>>         buf2 = process_vm_mmap(pid_of_task1, buf, n * PAGE_SIZE, NULL, 0);
+>>>
+>>> This creates a copy of VMA related to buf from task1 in task2's VM.
+>>> Task1's page table entries are copied into corresponding page table
+>>> entries of VM of task2.
+>>
+>> You need to fully explain a whole bunch of details that you're
+>> ignored.
 > 
-> In post-copy mode of CRIU, the destination memory is managed with
-> userfaultfd and lack of the retry for pre-fault case in get_user_pages()
-> causes a crash of the restored process.
+> Yeah, it's not a problem :) I'm ready to explain and describe everything,
+> what may cause a question. Just ask ;) 
 > 
-> Making the pre-fault behavior of get_user_pages() the same as the "normal"
-> one fixes the issue.
+>> For example, if the remote VMA is MAP_ANONYMOUS, do you get
+>> a CoW copy of it? I assume you don't since the whole point is to
+>> write to remote memory
 > 
-> Fixes: d9c9ce34ed5c ("x86/fpu: Fault-in user stack if copy_fpstate_to_sigframe() fails")
-> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-> ---
->  mm/gup.c | 15 ++++++++-------
->  1 file changed, 8 insertions(+), 7 deletions(-)
+> But, no, there *is* COW semantic. We do not copy memory. We copy
+> page table content. This is just the same we have on fork(), when
+> children duplicates parent's VMA and related page table subset,
+> and parent's PTEs lose _PAGE_RW flag.
 > 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 91819b8..c32ae5a 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -936,10 +936,6 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
->  			BUG_ON(ret >= nr_pages);
->  		}
->  
-> -		if (!pages)
-> -			/* If it's a prefault don't insist harder */
-> -			return ret;
-> -
->  		if (ret > 0) {
->  			nr_pages -= ret;
->  			pages_done += ret;
-> @@ -955,8 +951,12 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
->  				pages_done = ret;
->  			break;
->  		}
-> -		/* VM_FAULT_RETRY triggered, so seek to the faulting offset */
-> -		pages += ret;
-> +		/*
-> +		 * VM_FAULT_RETRY triggered, so seek to the faulting offset.
-> +		 * For the prefault case (!pages) we only update counts.
-> +		 */
-> +		if (likely(pages))
-> +			pages += ret;
->  		start += ret << PAGE_SHIFT;
->  
->  		/*
-> @@ -979,7 +979,8 @@ static __always_inline long __get_user_pages_locked(struct task_struct *tsk,
->  		pages_done++;
->  		if (!nr_pages)
->  			break;
-> -		pages++;
-> +		if (likely(pages))
-> +			pages++;
->  		start += PAGE_SIZE;
->  	}
->  	if (lock_dropped && *locked) {
-> -- 
-> 2.7.4
+> There is all copy_page_range() code reused for that. Please, see [3/7]
+> for the details.
 > 
-
--- 
-Sincerely yours,
-Mike.
+> I'm going to get special performance using THP, when number of entries
+> to copy is smaller than in case of PTE.
+> 
+> Copy several of PMD from one task page table to another's is much much much faster,
+> than process_vm_write() copies pages (even not mention about its reading from swap).
+> 
+>> ,but it's at the very least quite unusual in
+>> Linux to have two different anonymous VMAs such that writing one of
+>> them changes the other one.
+> Writing to a new VMA does not affect old VMA. Old VMA is just used to
+> get vma->anon_vma and vma->vm_file from there. Two VMAs remain independent
+> each other.
+> 
+>> But there are plenty of other questions.
+>> What happens if the remote VMA is a gate area or other special mapping
+>> (vDSO, vvar area, etc)?  What if the remote memory comes from a driver
+>> that wasn't expecting the mapping to get magically copied to a
+>> different process?
+> 
+> In case of someone wants to duplicate such the mappings, we may consider
+> that, and extend the interface in the future for VMA types, which are
+> safe for that.
+> 
+> But now the logic is very overprotective, and all the unusual mappings
+> like you mentioned (also AIO, etc) is prohibited. Please, see [7/7]
+> for the details.
+> 
+>> This new API seems quite dangerous and complex to me, and I don't
+>> think the value has been adequately demonstrated.
+> 
+> I don't think it's dangerous and complex, because of I haven't introduced
+> any principal VMA conceptions different to what we have now. We just
+> borrow vma->anon_vma and vma->vm_file from remote process to local
+> like we did on fork() (borrowing of vma->anon_vma means not blindly
+> copying, but ordinary anon_vma_fork()).
+> 
+> Maybe I had to focus the description more on copying of PTE/PMD
+> instead of vma duplication. So, it's unexpected for me, that people
+> think about simple memory copying after reading the example I gave.
+> But I gave more explanation here, so I hope the situation became
+> clearer for a reader. Anyway, if you have any questions, please
+> ask me.
+> 
+> Thanks,
+> Kirill
+> 
 
