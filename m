@@ -2,114 +2,127 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.2 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EAB10C04AAF
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 10:46:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4AD91C04E87
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 10:49:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 98FEF20856
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 10:46:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 98FEF20856
+	by mail.kernel.org (Postfix) with ESMTP id 003C921743
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 10:49:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iIN5PRr2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 003C921743
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3266B6B0003; Tue, 21 May 2019 06:46:42 -0400 (EDT)
+	id 93F706B0003; Tue, 21 May 2019 06:49:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2D63A6B0005; Tue, 21 May 2019 06:46:42 -0400 (EDT)
+	id 8C82F6B0005; Tue, 21 May 2019 06:49:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1C6816B0006; Tue, 21 May 2019 06:46:42 -0400 (EDT)
+	id 767CE6B0006; Tue, 21 May 2019 06:49:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C04A66B0003
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 06:46:41 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id n52so30176838edd.2
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 03:46:41 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AAC16B0003
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 06:49:58 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id s5so11900527pgv.21
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 03:49:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=E5CMEcj5vfS13AkMYT1wlLpY3YNow37t7mt2E+e89j0=;
-        b=OsaSiqStFBIOTp6GdZnYlU9pbSBG19Uy5by5vddGNahIBdXrCeMfZp2kUfLz3oe/nA
-         RuC/P50u7obzMkrrZQHXpCywICzP2W9Pcec5sHnFQyZPEtf+yP3bl2c8aFIOmNYXoQ6/
-         Uqb2ALRaituERK3kKWglVsoA+hYlEGhfc4HRtUnE5b/TUyjghZrn7ARoS5qzh0QdS+ha
-         TgUS/UxJkDnGc0tDywdx6gv1VcSzStjGNGuXgUx5OHhjuiRagrZTER81PDN+z/dd1QTQ
-         2CiU5DdZ1siH2/VRgzwF++LU5YXHCcyfan102HzlgDsVcV/dZ8CO4j5/kQUAsMhkvdpq
-         iPPQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVMbM0o8nokkpV329eMX9FYal88f1MRJlk/r2Wi/liCq4blBzJD
-	sR7FOncR0AFmq1q0ijW+wkcfOg/6a+QTp/iCveUzFvato31hQ7yXNXZxw/FMvR5rMfpx5lO31h/
-	ucP+e/nhdUF0yfd/RIP2m7eGs2HCq2E3/Zsc65azSfSuDs9vfHoKbdF6OLcuz7CU=
-X-Received: by 2002:a50:9738:: with SMTP id c53mr80380724edb.156.1558435601306;
-        Tue, 21 May 2019 03:46:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxJ4zQqqXhGLzYF2wcvp4BjYP2ORJErcyK4TGEhSM9A/J6bUjZu5iqRSUrw8wuVDpyvMnOa
-X-Received: by 2002:a50:9738:: with SMTP id c53mr80380642edb.156.1558435600246;
-        Tue, 21 May 2019 03:46:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558435600; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Stm0C6YcpMXYSmn/MRE96nYtm0sE3cLGz18Bicx3vkY=;
+        b=EkgzZO62YzPSo6MB/cCiPP5BbMZj61SmanqMUc7CXc1/ccBKl45F2TvxJbuYC9gs1O
+         8MzENDRxbX+Wb0sJSSIBnqhhTEUOByl91+YinVkXBadsSAYG2TyRv0g8KwNTj8Use234
+         5YVrjhlPck+qqdT56qnBUxHWdY4o7ko/TFnPpPY+28yuzRVojzJFRjqnwcb10fIv7+IT
+         PFkpdue/87TfKvfyhn9Rv/GoHma6iF+Q+2Kvb/MO3/lLVZ9twjgePhCimMEIXNyRhRyI
+         z3zbgXyHcKSG15eDgBebnK7Xb1dTF4ivmPL8BHDwvWTq+To1+/btQ2PwfixdVszRuyId
+         /5vA==
+X-Gm-Message-State: APjAAAVJhreadmKX24DCf62CwV6dzWLXJSVweUF22ocDprwaAzsPhXp+
+	8LZDzulWEr6VzHPYGGn+es3g4+zDZn7mm/nGM+lxrMt3t4Y52+PN74zxUU41OEI2QHIFPV4t7pd
+	/ZSbcSyvsSWRQuBE9S5S4wJtggruRIjq3fftMoo4PQGBiDvzG7tIh9rKBIWlzEmQ=
+X-Received: by 2002:a63:c50c:: with SMTP id f12mr80363816pgd.71.1558435797869;
+        Tue, 21 May 2019 03:49:57 -0700 (PDT)
+X-Received: by 2002:a63:c50c:: with SMTP id f12mr80363747pgd.71.1558435796935;
+        Tue, 21 May 2019 03:49:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558435796; cv=none;
         d=google.com; s=arc-20160816;
-        b=xKuMVWzi23eradk3AGMY5N0urzRFCu9vbATcDcvVH6Cfjlcy9nw8jmPiY0Sf5+TDW8
-         dM+sqlUfDsdW20XYls8yRfIylbtprNqWj6aYcxoG8sFwd/Sl+knkeCM4KnNgvSTKO6uF
-         XDBJOOWSuQbQXYOvfhhA1/js2AHcikw9OoTLeSLoBZXDAquPKqNCjOc9ERRFv2A6fYUs
-         ijmADI7w/WFx14zZ9RRhTB4WGPORab5678X9uyljb33eOEMsn4tH+4RVFdl7/oZrbpd6
-         nj7fnbfewNs3gVxKh50CZZW8PuJYbEgRldRJ4Va45ojFRop5p6TWaxuj/Efxuf3U2RZ2
-         U5Tw==
+        b=Su+7tHORT078K/a5S5awIknL68SHhab5J3x+UBg1vWsQQe21SHuZAv8Qdebyttb+f4
+         p8ScLjbcQ818rSTkfb94axQb3G5IU02gj7CYiMlIU8ijS83hGnbWkpgOhLhMLPp5HIoX
+         D9FX1GiFaAoAQWqB/9P3bMmjfvhRnrdsrz9CzjRwBkAjTVtXIakdHrBxrYgd/fo4mV/9
+         Jc4Vpn8AE6tEyr7wCHidWn8AfMxrX03e6NBXzval+mq8T4xttgiqm8lHO4fO/g1UTtbr
+         3dnP1ZY6qFuel/TsLn6LATx+HV6LbT9zkDCW5gKpLf3iBvQlYMO0V+a43ntIT/kYiM27
+         ZmJA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=E5CMEcj5vfS13AkMYT1wlLpY3YNow37t7mt2E+e89j0=;
-        b=JtKv+fddBdrJaz0d00nst4Jh7oy9LXpZyCDavivmsGfn9Fmy/ebgksxds2uUOdWUIL
-         6eXHL6Eodmt1dOdGktBKGL9GWvqfTLiP8ET7M5mkz18rWCLWv2R0Hmd7ltowbtU4uXG/
-         Pro8hXtBSnDiuur3TAGXplpa6JGsO5PsBInoR9GIbwR/ByZNZoYjgtJeHxo2sCIIiqtI
-         QhMlqaMvT3FW/PtbJjhlazTt8Ae8wEGnUBQpGkoVnNRgkx16VeSmroB2j1M8o1z9IfyG
-         m01SIb08vZUusP29AUwnzdGzhB4U26dh09J35SPXTpxnOdgAcDKOh7jxXt5BAofAkq0w
-         bfNA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=Stm0C6YcpMXYSmn/MRE96nYtm0sE3cLGz18Bicx3vkY=;
+        b=Gr+wX7zHGgnZWaHcRfBTAqBx1871/MokZHPi5X8itJGmEJ+GzIlhywf2EQoVmQMB5O
+         HChQikaiLDua5BSTToxnEw6FpY1K4AGm00dPopeFWlEGliaBfLj2xyqJFAqHiJ63fI5p
+         3ALGIbKtqPNoWpgd3VBC8QWaXQf2b4d7FSTImwK4DOLnJP9/7mq82QC/75GHQJrdRz+r
+         J1YwY5/FvTG/ZhH/gf4FD8D8+bUHJpor+4l1kN08ipaQqfHOC95IBvtl8N2TomX9wJY5
+         HnOa5OLwXsEb4JN9TYj1NUpjcHy75QxQ+xAqXHbd05NkAZIpWB27R+r0S7iko52Jnfwe
+         yang==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iIN5PRr2;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d21si4025849edb.358.2019.05.21.03.46.40
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h7sor22066286pfe.27.2019.05.21.03.49.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 May 2019 03:46:40 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 21 May 2019 03:49:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iIN5PRr2;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 4AB4BAF1C;
-	Tue, 21 May 2019 10:46:39 +0000 (UTC)
-Date: Tue, 21 May 2019 12:46:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: DRI Development <dri-devel@lists.freedesktop.org>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	David Rientjes <rientjes@google.com>,
-	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Wei Wang <wvw@google.com>,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
-	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH] kernel.h: Add non_block_start/end()
-Message-ID: <20190521104638.GO32329@dhcp22.suse.cz>
-References: <20190521100611.10089-1-daniel.vetter@ffwll.ch>
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=Stm0C6YcpMXYSmn/MRE96nYtm0sE3cLGz18Bicx3vkY=;
+        b=iIN5PRr2hhNy5miQal2uGj/iuK5FmlUMC9h2UEPsfJeTZju++lqBt+VYJDK9rKDdjC
+         d+/cjsV2pGDIU4DDOVYwu0ysyBmR0aU5skWSm8VCVT0YCVByWj7Ej0BUb1MoaVN4FwhD
+         ve/wwArQeyg3pYsNH3YRSPnltb8ptahfbBNSqSx7ui/rgUPwX3w7xo38gGlRC8hohIHK
+         Q20WLiy8bPg42TX01v2UIP8MbTprSMe6tI927OHDRqRk8KfeKgmjJF8wqYhmXp6TYdhT
+         YM7sJeyPGmdz12RWrnG7b2EUBYFAGYy9JWq/npboH53iH0aQBko+NJf6ryHJlb0fgsfB
+         ZXig==
+X-Google-Smtp-Source: APXvYqxGi76NyYcWDtIEDaY2syL993S0wFdNZNV0ypOc260KhQBGfoSIl0aV4GKSCP+mvB5L7Z0TGw==
+X-Received: by 2002:a62:81c1:: with SMTP id t184mr85481313pfd.221.1558435796458;
+        Tue, 21 May 2019 03:49:56 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id l21sm29029996pff.40.2019.05.21.03.49.52
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 21 May 2019 03:49:55 -0700 (PDT)
+Date: Tue, 21 May 2019 19:49:49 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Oleksandr Natalenko <oleksandr@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>
+Subject: Re: [RFC 4/7] mm: factor out madvise's core functionality
+Message-ID: <20190521104949.GE219653@google.com>
+References: <20190520035254.57579-1-minchan@kernel.org>
+ <20190520035254.57579-5-minchan@kernel.org>
+ <20190520142633.x5d27gk454qruc4o@butterfly.localdomain>
+ <20190521012649.GE10039@google.com>
+ <20190521063628.x2npirvs75jxjilx@butterfly.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190521100611.10089-1-daniel.vetter@ffwll.ch>
+In-Reply-To: <20190521063628.x2npirvs75jxjilx@butterfly.localdomain>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -117,177 +130,122 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 21-05-19 12:06:11, Daniel Vetter wrote:
-> In some special cases we must not block, but there's not a
-> spinlock, preempt-off, irqs-off or similar critical section already
-> that arms the might_sleep() debug checks. Add a non_block_start/end()
-> pair to annotate these.
+On Tue, May 21, 2019 at 08:36:28AM +0200, Oleksandr Natalenko wrote:
+> Hi.
 > 
-> This will be used in the oom paths of mmu-notifiers, where blocking is
-> not allowed to make sure there's forward progress. Quoting Michal:
+> On Tue, May 21, 2019 at 10:26:49AM +0900, Minchan Kim wrote:
+> > On Mon, May 20, 2019 at 04:26:33PM +0200, Oleksandr Natalenko wrote:
+> > > Hi.
+> > > 
+> > > On Mon, May 20, 2019 at 12:52:51PM +0900, Minchan Kim wrote:
+> > > > This patch factor out madvise's core functionality so that upcoming
+> > > > patch can reuse it without duplication.
+> > > > 
+> > > > It shouldn't change any behavior.
+> > > > 
+> > > > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > > > ---
+> > > >  mm/madvise.c | 168 +++++++++++++++++++++++++++------------------------
+> > > >  1 file changed, 89 insertions(+), 79 deletions(-)
+> > > > 
+> > > > diff --git a/mm/madvise.c b/mm/madvise.c
+> > > > index 9a6698b56845..119e82e1f065 100644
+> > > > --- a/mm/madvise.c
+> > > > +++ b/mm/madvise.c
+> > > > @@ -742,7 +742,8 @@ static long madvise_dontneed_single_vma(struct vm_area_struct *vma,
+> > > >  	return 0;
+> > > >  }
+> > > >  
+> > > > -static long madvise_dontneed_free(struct vm_area_struct *vma,
+> > > > +static long madvise_dontneed_free(struct task_struct *tsk,
+> > > > +				  struct vm_area_struct *vma,
+> > > >  				  struct vm_area_struct **prev,
+> > > >  				  unsigned long start, unsigned long end,
+> > > >  				  int behavior)
+> > > > @@ -754,8 +755,8 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
+> > > >  	if (!userfaultfd_remove(vma, start, end)) {
+> > > >  		*prev = NULL; /* mmap_sem has been dropped, prev is stale */
+> > > >  
+> > > > -		down_read(&current->mm->mmap_sem);
+> > > > -		vma = find_vma(current->mm, start);
+> > > > +		down_read(&tsk->mm->mmap_sem);
+> > > > +		vma = find_vma(tsk->mm, start);
+> > > >  		if (!vma)
+> > > >  			return -ENOMEM;
+> > > >  		if (start < vma->vm_start) {
+> > > > @@ -802,7 +803,8 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
+> > > >   * Application wants to free up the pages and associated backing store.
+> > > >   * This is effectively punching a hole into the middle of a file.
+> > > >   */
+> > > > -static long madvise_remove(struct vm_area_struct *vma,
+> > > > +static long madvise_remove(struct task_struct *tsk,
+> > > > +				struct vm_area_struct *vma,
+> > > >  				struct vm_area_struct **prev,
+> > > >  				unsigned long start, unsigned long end)
+> > > >  {
+> > > > @@ -836,13 +838,13 @@ static long madvise_remove(struct vm_area_struct *vma,
+> > > >  	get_file(f);
+> > > >  	if (userfaultfd_remove(vma, start, end)) {
+> > > >  		/* mmap_sem was not released by userfaultfd_remove() */
+> > > > -		up_read(&current->mm->mmap_sem);
+> > > > +		up_read(&tsk->mm->mmap_sem);
+> > > >  	}
+> > > >  	error = vfs_fallocate(f,
+> > > >  				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
+> > > >  				offset, end - start);
+> > > >  	fput(f);
+> > > > -	down_read(&current->mm->mmap_sem);
+> > > > +	down_read(&tsk->mm->mmap_sem);
+> > > >  	return error;
+> > > >  }
+> > > >  
+> > > > @@ -916,12 +918,13 @@ static int madvise_inject_error(int behavior,
+> > > >  #endif
+> > > 
+> > > What about madvise_inject_error() and get_user_pages_fast() in it
+> > > please?
+> > 
+> > Good point. Maybe, there more places where assume context is "current" so
+> > I'm thinking to limit hints we could allow from external process.
+> > It would be better for maintainance point of view in that we could know
+> > the workload/usecases when someone ask new advises from external process
+> > without making every hints works both contexts.
 > 
-> "The notifier is called from quite a restricted context - oom_reaper -
-> which shouldn't depend on any locks or sleepable conditionals. The code
-> should be swift as well but we mostly do care about it to make a forward
-> progress. Checking for sleepable context is the best thing we could come
-> up with that would describe these demands at least partially."
-> 
-> Peter also asked whether we want to catch spinlocks on top, but Michal
-> said those are less of a problem because spinlocks can't have an
-> indirect dependency upon the page allocator and hence close the loop
-> with the oom reaper.
-> 
-> Suggested by Michal Hocko.
-> 
-> v2:
-> - Improve commit message (Michal)
-> - Also check in schedule, not just might_sleep (Peter)
-> 
-> v3: It works better when I actually squash in the fixup I had lying
-> around :-/
-> 
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: "Christian König" <christian.koenig@amd.com>
-> Cc: Daniel Vetter <daniel.vetter@ffwll.ch>
-> Cc: "Jérôme Glisse" <jglisse@redhat.com>
-> Cc: linux-mm@kvack.org
-> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-> Cc: Wei Wang <wvw@google.com>
-> Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Jann Horn <jannh@google.com>
-> Cc: Feng Tang <feng.tang@intel.com>
-> Cc: Kees Cook <keescook@chromium.org>
-> Cc: Randy Dunlap <rdunlap@infradead.org>
-> Cc: linux-kernel@vger.kernel.org
-> Acked-by: Christian König <christian.koenig@amd.com> (v1)
-> Signed-off-by: Daniel Vetter <daniel.vetter@intel.com>
+> Well, for madvise_inject_error() we still have a remote variant of
+> get_user_pages(), and that should work, no?
 
-I like this in general. The implementation looks reasonable to me but I
-didn't check deeply enough to give my R-by or A-by.
+Regardless of madvise_inject_error, it seems to be risky to expose all
+of hints for external process, I think. For example, MADV_DONTNEED with
+race, it's critical for stability. So, until we could get the way to
+prevent the race, I want to restrict hints.
 
-> ---
->  include/linux/kernel.h | 10 +++++++++-
->  include/linux/sched.h  |  4 ++++
->  kernel/sched/core.c    | 19 ++++++++++++++-----
->  3 files changed, 27 insertions(+), 6 deletions(-)
 > 
-> diff --git a/include/linux/kernel.h b/include/linux/kernel.h
-> index 74b1ee9027f5..b5f2c2ff0eab 100644
-> --- a/include/linux/kernel.h
-> +++ b/include/linux/kernel.h
-> @@ -214,7 +214,9 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
->   * might_sleep - annotation for functions that can sleep
->   *
->   * this macro will print a stack trace if it is executed in an atomic
-> - * context (spinlock, irq-handler, ...).
-> + * context (spinlock, irq-handler, ...). Additional sections where blocking is
-> + * not allowed can be annotated with non_block_start() and non_block_end()
-> + * pairs.
->   *
->   * This is a useful debugging help to be able to catch problems early and not
->   * be bitten later when the calling function happens to sleep when it is not
-> @@ -230,6 +232,10 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
->  # define cant_sleep() \
->  	do { __cant_sleep(__FILE__, __LINE__, 0); } while (0)
->  # define sched_annotate_sleep()	(current->task_state_change = 0)
-> +# define non_block_start() \
-> +	do { current->non_block_count++; } while (0)
-> +# define non_block_end() \
-> +	do { WARN_ON(current->non_block_count-- == 0); } while (0)
->  #else
->    static inline void ___might_sleep(const char *file, int line,
->  				   int preempt_offset) { }
-> @@ -238,6 +244,8 @@ extern void __cant_sleep(const char *file, int line, int preempt_offset);
->  # define might_sleep() do { might_resched(); } while (0)
->  # define cant_sleep() do { } while (0)
->  # define sched_annotate_sleep() do { } while (0)
-> +# define non_block_start() do { } while (0)
-> +# define non_block_end() do { } while (0)
->  #endif
->  
->  #define might_sleep_if(cond) do { if (cond) might_sleep(); } while (0)
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 11837410690f..7f5b293e72df 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -908,6 +908,10 @@ struct task_struct {
->  	struct mutex_waiter		*blocked_on;
->  #endif
->  
-> +#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
-> +	int				non_block_count;
-> +#endif
-> +
->  #ifdef CONFIG_TRACE_IRQFLAGS
->  	unsigned int			irq_events;
->  	unsigned long			hardirq_enable_ip;
-> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> index 102dfcf0a29a..ed7755a28465 100644
-> --- a/kernel/sched/core.c
-> +++ b/kernel/sched/core.c
-> @@ -3264,13 +3264,22 @@ static noinline void __schedule_bug(struct task_struct *prev)
->  /*
->   * Various schedule()-time debugging checks and statistics:
->   */
-> -static inline void schedule_debug(struct task_struct *prev)
-> +static inline void schedule_debug(struct task_struct *prev, bool preempt)
->  {
->  #ifdef CONFIG_SCHED_STACK_END_CHECK
->  	if (task_stack_end_corrupted(prev))
->  		panic("corrupted stack end detected inside scheduler\n");
->  #endif
->  
-> +#ifdef CONFIG_DEBUG_ATOMIC_SLEEP
-> +	if (!preempt && prev->state && prev->non_block_count) {
-> +		printk(KERN_ERR "BUG: scheduling in a non-blocking section: %s/%d/%i\n",
-> +			prev->comm, prev->pid, prev->non_block_count);
-> +		dump_stack();
-> +		add_taint(TAINT_WARN, LOCKDEP_STILL_OK);
-> +	}
-> +#endif
-> +
->  	if (unlikely(in_atomic_preempt_off())) {
->  		__schedule_bug(prev);
->  		preempt_count_set(PREEMPT_DISABLED);
-> @@ -3377,7 +3386,7 @@ static void __sched notrace __schedule(bool preempt)
->  	rq = cpu_rq(cpu);
->  	prev = rq->curr;
->  
-> -	schedule_debug(prev);
-> +	schedule_debug(prev, preempt);
->  
->  	if (sched_feat(HRTICK))
->  		hrtick_clear(rq);
-> @@ -6102,7 +6111,7 @@ void ___might_sleep(const char *file, int line, int preempt_offset)
->  	rcu_sleep_check();
->  
->  	if ((preempt_count_equals(preempt_offset) && !irqs_disabled() &&
-> -	     !is_idle_task(current)) ||
-> +	     !is_idle_task(current) && !current->non_block_count) ||
->  	    system_state == SYSTEM_BOOTING || system_state > SYSTEM_RUNNING ||
->  	    oops_in_progress)
->  		return;
-> @@ -6118,8 +6127,8 @@ void ___might_sleep(const char *file, int line, int preempt_offset)
->  		"BUG: sleeping function called from invalid context at %s:%d\n",
->  			file, line);
->  	printk(KERN_ERR
-> -		"in_atomic(): %d, irqs_disabled(): %d, pid: %d, name: %s\n",
-> -			in_atomic(), irqs_disabled(),
-> +		"in_atomic(): %d, irqs_disabled(): %d, non_block: %d, pid: %d, name: %s\n",
-> +			in_atomic(), irqs_disabled(), current->non_block_count,
->  			current->pid, current->comm);
->  
->  	if (task_stack_end_corrupted(current))
+> Regarding restricting the hints, I'm definitely interested in having
+> remote MADV_MERGEABLE/MADV_UNMERGEABLE. But, OTOH, doing it via remote
+> madvise() introduces another issue with traversing remote VMAs reliably.
+
+How is it signifiact when the race happens? It could waste CPU cycle
+and make unncessary break of that merged pages but expect it should be
+rare so such non-desruptive hint could be exposed via process_madvise, I think.
+
+If the hint is critical for the race, yes, as Michal suggested, we need a way
+to close it and I guess non-cooperative userfaultfd with synchronous support
+would help private anonymous vma.
+
+> IIUC, one can do this via userspace by parsing [s]maps file only, which
+> is not very consistent, and once some range is parsed, and then it is
+> immediately gone, a wrong hint will be sent.
+> 
+> Isn't this a problem we should worry about?
+
+I think it depends on the hint and usecase.
+
+> 
+> > 
+> > Thanks.
+> 
 > -- 
-> 2.20.1
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+>   Best regards,
+>     Oleksandr Natalenko (post-factum)
+>     Senior Software Maintenance Engineer
 
