@@ -2,203 +2,227 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6636FC072AD
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 16:00:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B26CC04AAF
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 16:07:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1AC8D21743
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 16:00:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1AC8D21743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id B5F3B2173C
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 16:07:15 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="fR9U+EFo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B5F3B2173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 374696B0007; Tue, 21 May 2019 12:00:51 -0400 (EDT)
+	id 606126B0003; Tue, 21 May 2019 12:07:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2FFB36B0008; Tue, 21 May 2019 12:00:51 -0400 (EDT)
+	id 5B68C6B0006; Tue, 21 May 2019 12:07:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 151246B000A; Tue, 21 May 2019 12:00:51 -0400 (EDT)
+	id 4578C6B0007; Tue, 21 May 2019 12:07:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D0E586B0007
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 12:00:50 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id m12so11633661pls.10
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 09:00:50 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 19CDB6B0003
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 12:07:15 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id 73so9871811oty.2
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 09:07:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=Agwbv2xYoj93ShP9YQ91ZTFTUjkpUahc5IP7vbLxDVQ=;
-        b=OCihRXeBVLCq7TVFV1oUyaWI7t2UmbsukOCODd27zkOjPb7O96+jD3nagpkJazkul6
-         A1MenhYDa+tcrrYVqCxYAMIDK/cDvvQNG30JbsozkiM6pDvzMdpvcO55B2wnI8e2FqOm
-         4lhCrt0llJ1gygTvJxxGCCEA+EetrCrv9wYRcHKfJvWecpkKKxoe6ByySDT52Q3ZDYcH
-         2kJfXU2+IiP8DCt8D45X1BOkRhnfsT4nk+V9lxsi4+EcyRsQo4nSL2lpKEIomKbmY+cT
-         2qOlSh+Vy+vaLywcMlx1T6Zs/8/gmbyu47/DthLCXEK7G20J0zsfIralAJUXZmGc7FEB
-         C3pw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXj/DPfWzklwbKIDOJpfcpTVXpDrfD2ZKtPbxPaltbGwyd/1HzA
-	JbRI4c0P7HP3KEthaygXtoSxtjVI2kJE9Qw24eQ2BSWspk9YM3kZ4tNVqdv6xUDB0TTudjl3phg
-	3N2OWhykiXnUYG5hEIReLwgQyWMT7TioKbYJoLgWU2wTUrbepADGpIGdE3m9QmXPMiQ==
-X-Received: by 2002:a63:1061:: with SMTP id 33mr56824928pgq.328.1558454450482;
-        Tue, 21 May 2019 09:00:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzw+HLkytFub/PTPbrw04iGKJR+23iHUN5NbgXLayFqd0Rwe3/vLJa6+QGlRprHWR6LBzkm
-X-Received: by 2002:a63:1061:: with SMTP id 33mr56824824pgq.328.1558454449765;
-        Tue, 21 May 2019 09:00:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558454449; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=qHnInBfAX+GoWjJM5B+1a+Vw2rTdSHZyw1ZFE7z7NrY=;
+        b=VHhMdm54pzjQPWe65BVt6yaauz2FFvozSrNuv/35y008J5gDeAJvyOnkaci0urcBJ9
+         st2+FJ0hdSf2umCiLpxjQACjFAJ0QxqBrNgF94QG/iWdZY6am/Dszg034QBgGCvsBZ6o
+         qVR4dF8Tv/qo/NDL/0RZ9UBi/Pt4ak6BHBHw1+QlKjwL2/QlCBMSJ+5miufjP0IVq7Eo
+         J87TJZwRxKsUEqBiNUr1poQIz+BWWaC63vaSViDkzG83+GLyINdQd+fBAs0LE5ijKSof
+         BRTEueT7Jc2Wt9VeRbygAa126AKp2b0d/Us9PomfhWihB9+O6cYq089nbZu+KhiJpZyb
+         kIOA==
+X-Gm-Message-State: APjAAAVxwG+f5jKoc/30fdepNhdX+SQ+JG1wxc5xhERTV/e1Fuhmv9a+
+	UZ+u5KbRxXA1xa6sxb0466JBAgSpPp61UskLZKrAqyv90CSIz4j/3KcYZ54v8Fkle/b3c5SAZ3M
+	q3JMM0TWfM8gX4fv0+fhNYOdOm5WpZepIIznXIfO5WQNCJmfXl0WI3+chP9MozswxtQ==
+X-Received: by 2002:a9d:7d9a:: with SMTP id j26mr5629038otn.102.1558454834725;
+        Tue, 21 May 2019 09:07:14 -0700 (PDT)
+X-Received: by 2002:a9d:7d9a:: with SMTP id j26mr5628955otn.102.1558454833635;
+        Tue, 21 May 2019 09:07:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558454833; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZlYwTeNp/Zbwr+ei2GkOJ6etTnk5G5C4vLYRVTrtNQ9iNqu3S8LrGvxvnSDeYxKPld
-         LlALnWnt0ToNJyou+Ae3l9erJiZClY44rwMMam9nuup++AncLhtYc2OkTr1/e4ZEMTFN
-         +ZSU1GE47Zi3Pa2d/IiFTFRaSTAxeVrfFNLdxs4lJZsJx3kCwBk6pGR0occS8uw+5Q7W
-         A8fghtMRxDar17x53qlhiMK1TfN2sOuVTcW+EoQ6+eJlDNoDyrc3hYy3yayoEPztaQHb
-         B1spSxeMM57Pn+Ocs+ed8R1KexT4L2kdC2jwr1Q8HKsVaxRB53ertmV1wqkm404VhAIS
-         Z98w==
+        b=EclFemG4mLbpwVeuWVghoo5WgpGNJrVmo2Xr/Vjo3qDuifY5b6k3M1se/09lbIDFrk
+         ymzeSOGLK0jbmykTLRYnAsKyuuqI503bY/5bBH3C9zrEx8t5X7wkA2gW8uU7227GJ9ok
+         mcjeyxI/2Or6qJX0QdJw1PwqSxa/vdXrIhKrPuYuttDvPAEAlnA80WCSbWkG8Se1pKwe
+         /lmsGU8uYBJx/R8tJlEhHwFFnRpASdGP2bZTB8r/AKU/A+QJOnMNTPFCIM34ZzEB4LDs
+         2Ozpe9og9H7/GeP0AfCecjVw00/sPrqOr+f4ne2PAzdRr7C9ucxfaNUJ0Bq9cCUYEude
+         YYxw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=Agwbv2xYoj93ShP9YQ91ZTFTUjkpUahc5IP7vbLxDVQ=;
-        b=vKlMXPg/dMoWk+f8v+bIDmgYN63lBJUL6Wr4Zb/+74E6JjUtMD82b/svnQa7sSz1L7
-         xT0hd/P49hZzmZV3vlJnaqCwmHWAlcLBWH09j69k0kJgyeeM29bU9xK5CY9F+bi14kZV
-         PS1IfgkjrI59hNCxow7R4Qx3Yxm0kgpNlFWqJFypYQkXFR/UXYCufTxRlpmNKFqD3K78
-         +UhDew3QMQicJki8VqBMWw1a2QJUvcd4gTP9BbOKx3mpP/4dAI0eUmYElQDBPPCivtRM
-         yb+AP5kWWusARvTzFp35x+sU7lkA/+k1oU2g8nTCf83fvBR0vZQVHOMLDQlzrL3zMwYC
-         E4JA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=qHnInBfAX+GoWjJM5B+1a+Vw2rTdSHZyw1ZFE7z7NrY=;
+        b=brJmBte6THuy5NQI3IknzPM9E6s08ZlLAllRvdJWud7krmbslju3zsEniQHp/o4mxj
+         MmgOyPlmLTEIbSuivA30Hvg50/0a7ijY5X8UBOIlRTUErcmGLqH6uH8U5++NL0geYq8c
+         Uo6/pDOV3uUsehpHR1ussxju9RPyfRDKolhNCCTpsBGUyQMgXZ5/fOKOfx9rqQwzkcbS
+         iuMMMDC0kpfG01Dxs49Zy+SW8BwPIWoEV8k2o3lAK9MgKK/NwHl9W2xu+g2kz9S0+0tb
+         ZXsX7JHYxf9nBoRP5QOQod0/MtIYFg3kL2HnIvbEq4OfxaG1yWV0L56GKM5wUn5Ux10c
+         RCHQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id m14si16706569pls.393.2019.05.21.09.00.49
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=fR9U+EFo;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e75sor8848111oib.55.2019.05.21.09.07.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 May 2019 09:00:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (Google Transport Security);
+        Tue, 21 May 2019 09:07:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4LFraPg121867
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 12:00:49 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2smkf3b109-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 12:00:48 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 21 May 2019 17:00:46 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 21 May 2019 17:00:44 +0100
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4LG0hix18546822
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 21 May 2019 16:00:43 GMT
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 44A96A4068;
-	Tue, 21 May 2019 16:00:43 +0000 (GMT)
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A727BA4066;
-	Tue, 21 May 2019 16:00:42 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.204.239])
-	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Tue, 21 May 2019 16:00:42 +0000 (GMT)
-Date: Tue, 21 May 2019 19:00:40 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: Jonathan Corbet <corbet@lwn.net>, linux-doc@vger.kernel.org,
-        linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] docs: reorder memory-hotplug documentation
-References: <1557822213-19058-1-git-send-email-rppt@linux.ibm.com>
- <43092504-a95f-374d-f3db-b961dd8ac428@redhat.com>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=fR9U+EFo;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=qHnInBfAX+GoWjJM5B+1a+Vw2rTdSHZyw1ZFE7z7NrY=;
+        b=fR9U+EFoXp6HhXYT9l+xkijMGif7K3fz6bincJ22ZbB0d6OaUaMGrTRXdelLknFbfs
+         W+ZLsKJExrH5KaDHoKhSWCC0/MjPf0uktzpjdZekcC4BUpuM8dhQqEakhcSRzwfEdR3W
+         jdIEyi0RF68bIxCaFkl2lXnmRjr9DXLFTvqkBJCMLZxu0mjAr03gDUfxrgObVP4QkZIe
+         XwmJkmntN9CT1/uHTWvoG53gNa+73/obZEpIGYFxHczx8aaM2A6Zmax3vR9Zc+q3Ft8s
+         Qob6I/4L4bOjfPB2cVs9qYt4TPBKLg2RM962LdsC2KdYawUOqjKbIHg4YRO45qE0w3Wz
+         MrMw==
+X-Google-Smtp-Source: APXvYqyu5x5mrKlEIasKp1NxpDGYmQJsGvrx6mxQiUGAiiyjZAOGd76nwvRmcYQhvDtlfylqQ/dEPb7N7a77yrnQFHQ=
+X-Received: by 2002:aca:ab07:: with SMTP id u7mr3889695oie.73.1558454833247;
+ Tue, 21 May 2019 09:07:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <43092504-a95f-374d-f3db-b961dd8ac428@redhat.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19052116-0028-0000-0000-000003700856
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19052116-0029-0000-0000-0000242FB33F
-Message-Id: <20190521160040.GE24470@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-21_03:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=815 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905210099
+References: <20190514025604.9997-1-aneesh.kumar@linux.ibm.com>
+ <CAPcyv4iNgFbSq0Hqb+CStRhGWMHfXx7tL3vrDaQ95DcBBY8QCQ@mail.gmail.com>
+ <f99c4f11-a43d-c2d3-ab4f-b7072d090351@linux.ibm.com> <CAPcyv4gOr8SFbdtBbWhMOU-wdYuMCQ4Jn2SznGRsv6Vku97Xnw@mail.gmail.com>
+ <02d1d14d-650b-da38-0828-1af330f594d5@linux.ibm.com> <CAPcyv4jcSgg0wxY9FAM4ke9JzVc9Pu3qe6dviS3seNgHfG2oNw@mail.gmail.com>
+ <87mujgcf0h.fsf@linux.ibm.com>
+In-Reply-To: <87mujgcf0h.fsf@linux.ibm.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 21 May 2019 09:07:02 -0700
+Message-ID: <CAPcyv4j5Y+AFkbvYjDnfqTdmN_Sq=O0qfGUorgpjAE8Ww7vH=A@mail.gmail.com>
+Subject: Re: [PATCH] mm/nvdimm: Use correct #defines instead of opencoding
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>, 
+	linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 21, 2019 at 12:41:50PM +0200, David Hildenbrand wrote:
-> On 14.05.19 10:23, Mike Rapoport wrote:
-> > The "Locking Internals" section of the memory-hotplug documentation is
-> > duplicated in admin-guide and core-api. Drop the admin-guide copy as
-> > locking internals does not belong there.
-> > 
-> > While on it, move the "Future Work" section to the core-api part.
-> 
-> Looks sane, but the future work part is really outdated, can we remove
-> this completely?
-> 
-> > 
-> > Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-> > ---
-> > +
-> > +Future Work
-> > +===========
-> > +
-> > +  - allowing memory hot-add to ZONE_MOVABLE. maybe we need some switch like
-> > +    sysctl or new control file.
-> 
-> ... that already works if I am not completely missing the point here
-> 
-> > +  - showing memory block and physical device relationship.
-> 
-> ... that is available for s390x only AFAIK
-> 
-> > +  - test and make it better memory offlining.
-> 
-> ... no big news ;)
-> 
-> > +  - support HugeTLB page migration and offlining.
-> 
-> ... I remember that Oscar was doing something in that area, Oscar?
-> 
-> > +  - memmap removing at memory offline.
-> 
-> ... no, we don't want this. However, we should properly clean up zone
-> information when offlining
-> 
-> > +  - physical remove memory.
-> 
-> ... I don't even understand what that means.
-> 
-> 
-> I'd vote for removing the future work part, this is pretty outdated.
- 
-Frankly, I haven't looked at the details, just simply moved the text over.
-I don't mind sending another mechanical patch that removes the future work
-part.
+On Tue, May 21, 2019 at 2:51 AM Aneesh Kumar K.V
+<aneesh.kumar@linux.ibm.com> wrote:
+>
+> Dan Williams <dan.j.williams@intel.com> writes:
+>
+> > On Mon, May 13, 2019 at 9:46 PM Aneesh Kumar K.V
+> > <aneesh.kumar@linux.ibm.com> wrote:
+> >>
+> >> On 5/14/19 9:42 AM, Dan Williams wrote:
+> >> > On Mon, May 13, 2019 at 9:05 PM Aneesh Kumar K.V
+> >> > <aneesh.kumar@linux.ibm.com> wrote:
+> >> >>
+> >> >> On 5/14/19 9:28 AM, Dan Williams wrote:
+> >> >>> On Mon, May 13, 2019 at 7:56 PM Aneesh Kumar K.V
+> >> >>> <aneesh.kumar@linux.ibm.com> wrote:
+> >> >>>>
+> >> >>>> The nfpn related change is needed to fix the kernel message
+> >> >>>>
+> >> >>>> "number of pfns truncated from 2617344 to 163584"
+> >> >>>>
+> >> >>>> The change makes sure the nfpns stored in the superblock is right value.
+> >> >>>>
+> >> >>>> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> >> >>>> ---
+> >> >>>>    drivers/nvdimm/pfn_devs.c    | 6 +++---
+> >> >>>>    drivers/nvdimm/region_devs.c | 8 ++++----
+> >> >>>>    2 files changed, 7 insertions(+), 7 deletions(-)
+> >> >>>>
+> >> >>>> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
+> >> >>>> index 347cab166376..6751ff0296ef 100644
+> >> >>>> --- a/drivers/nvdimm/pfn_devs.c
+> >> >>>> +++ b/drivers/nvdimm/pfn_devs.c
+> >> >>>> @@ -777,8 +777,8 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+> >> >>>>                    * when populating the vmemmap. This *should* be equal to
+> >> >>>>                    * PMD_SIZE for most architectures.
+> >> >>>>                    */
+> >> >>>> -               offset = ALIGN(start + reserve + 64 * npfns,
+> >> >>>> -                               max(nd_pfn->align, PMD_SIZE)) - start;
+> >> >>>> +               offset = ALIGN(start + reserve + sizeof(struct page) * npfns,
+> >> >>>> +                              max(nd_pfn->align, PMD_SIZE)) - start;
+> >> >>>
+> >> >>> No, I think we need to record the page-size into the superblock format
+> >> >>> otherwise this breaks in debug builds where the struct-page size is
+> >> >>> extended.
+> >> >>>
+> >> >>>>           } else if (nd_pfn->mode == PFN_MODE_RAM)
+> >> >>>>                   offset = ALIGN(start + reserve, nd_pfn->align) - start;
+> >> >>>>           else
+> >> >>>> @@ -790,7 +790,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+> >> >>>>                   return -ENXIO;
+> >> >>>>           }
+> >> >>>>
+> >> >>>> -       npfns = (size - offset - start_pad - end_trunc) / SZ_4K;
+> >> >>>> +       npfns = (size - offset - start_pad - end_trunc) / PAGE_SIZE;
+> >> >>>
+> >> >>> Similar comment, if the page size is variable then the superblock
+> >> >>> needs to explicitly account for it.
+> >> >>>
+> >> >>
+> >> >> PAGE_SIZE is not really variable. What we can run into is the issue you
+> >> >> mentioned above. The size of struct page can change which means the
+> >> >> reserved space for keeping vmemmap in device may not be sufficient for
+> >> >> certain kernel builds.
+> >> >>
+> >> >> I was planning to add another patch that fails namespace init if we
+> >> >> don't have enough space to keep the struct page.
+> >> >>
+> >> >> Why do you suggest we need to have PAGE_SIZE as part of pfn superblock?
+> >> >
+> >> > So that the kernel has a chance to identify cases where the superblock
+> >> > it is handling was created on a system with different PAGE_SIZE
+> >> > assumptions.
+> >> >
+> >>
+> >> The reason to do that is we don't have enough space to keep struct page
+> >> backing the total number of pfns? If so, what i suggested above should
+> >> handle that.
+> >>
+> >> or are you finding any other reason why we should fail a namespace init
+> >> with a different PAGE_SIZE value?
+> >
+> > I want the kernel to be able to start understand cross-architecture
+> > and cross-configuration geometries. Which to me means incrementing the
+> > info-block version and recording PAGE_SIZE and sizeof(struct page) in
+> > the info-block directly.
+> >
+> >> My another patch handle the details w.r.t devdax alignment for which
+> >> devdax got created with PAGE_SIZE 4K but we are now trying to load that
+> >> in a kernel with PAGE_SIZE 64k.
+> >
+> > Sure, but what about the reverse? These info-block format assumptions
+> > are as fundamental as the byte-order of the info-block, it needs to be
+> > cross-arch compatible and the x86 assumptions need to be fully lifted.
+>
+> Something like the below (Not tested). I am not sure what we will init the page_size
+> for minor version < 3. This will mark the namespace disabled if the
+> PAGE_SIZE and sizeof(struct page) doesn't match with the values used
+> during namespace create.
 
-But it would be far better if somebody who's actively working on memory
-hotplug would replace it with a description how this actually works ;-)
- 
-> -- 
-> 
-> Thanks,
-> 
-> David / dhildenb
-> 
+Yes, this is on the right track.
 
--- 
-Sincerely yours,
-Mike.
+I would special-case page_size == 0 as 4096 and page_struct_size == 0
+as 64. If either of those is non-zero then the info-block version
+needs to be revved and it needs to be crafted to make older kernels
+fail to parse it.
+
+There was an earlier attempt to implement minimum info-block versions here:
+
+https://lore.kernel.org/lkml/155000670159.348031.17631616775326330606.stgit@dwillia2-desk3.amr.corp.intel.com/
+
+...but that was dropped in favor of the the "sub-section" patches.
 
