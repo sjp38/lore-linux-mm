@@ -2,128 +2,147 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C940EC04AAF
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 13:27:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A0B6C04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 14:00:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 81FF021743
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 13:27:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="WVQbSLh/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81FF021743
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 0356F21479
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 14:00:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0356F21479
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=rowland.harvard.edu
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2855C6B000A; Tue, 21 May 2019 09:27:25 -0400 (EDT)
+	id 6649D6B0003; Tue, 21 May 2019 10:00:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 20FB16B000C; Tue, 21 May 2019 09:27:25 -0400 (EDT)
+	id 6150A6B0006; Tue, 21 May 2019 10:00:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0616A6B000D; Tue, 21 May 2019 09:27:25 -0400 (EDT)
+	id 529DB6B0008; Tue, 21 May 2019 10:00:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C0EAC6B000A
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 09:27:24 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id h7so12323557pfq.22
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 06:27:24 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 312BC6B0003
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 10:00:12 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id l185so10738841qkd.14
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 07:00:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=yt1TSE+hvjdYVZh8L0V5R+F6bnTH4NU+zMd4kOaAMvQ=;
-        b=oCyYmXbyPNGvqUEKx6tgCBkq4UE6vWVDUxmU1ECUrDaxzMil3M8O3MgPp4Tyedy9xg
-         RmjKyJ4DB664f5VaQG42QX9vNUv9AoGSjYkbl+sHeqTDfFG0/3Jn3+KggJOCAQrqewFo
-         DGik5mvSy/wgONpKzKDf6jQaOExYa574aCaMk7kN5gx/anBRotx0eTouAR4DQQ6RcI7p
-         KelbTxVkJ3/bjT/oeRYVUC+OnX3QKgW6iu8Gk8PlKLR4wz7WoBuo91yXWoCR13nCkrOZ
-         tEbRK+ysRcwk8GOLX2NfyR4iu/ZZ8rqLUCfzMqQ13y+KFI8uc26j6RceUG6mlizK8sbS
-         69rA==
-X-Gm-Message-State: APjAAAUVeZPqJ3t+lhHgfSX3LRN9LnehIyw6cdj5h7eYKt3bb4n9UmNM
-	QwCrNHiMIjNpvCwFCx+sBBTeFtSvhM/v43Kqr/PLivUSSAeFaWOFvMj3uUoQg7DNgiSET6fqMps
-	liDxAh1hcHJ4GRHxp55wh/Wv2zhHaZVel9Og+MlKKIXRQABoEeSaXS+mEFt58PBn8Fg==
-X-Received: by 2002:a63:e042:: with SMTP id n2mr80507502pgj.201.1558445244387;
-        Tue, 21 May 2019 06:27:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz+hjYdPNacB/+gwYXpIWFiVU44HcuReG+ANqVdhm16/mzbsbBxu/usgN7UWIjmum3X5fRO
-X-Received: by 2002:a63:e042:: with SMTP id n2mr80507426pgj.201.1558445243737;
-        Tue, 21 May 2019 06:27:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558445243; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:mime-version;
+        bh=fnDAJf2ya1MMBX7glzPZ25P8Fu5IoQyt4BQ1lJ1VaMw=;
+        b=J2Zq1rPTHTpkKybFhAvq06l31qJZ0VVIBmomzD32UCAK/bCb04urENcqjZXlyVWWvW
+         dbm5phm3TlBD65txd9XwgRbFVLiUlRWVv+zOA8bZEATGiAPB4GlDmouAivs8B4HqJYdo
+         R8LjkBnFzx+yUJEHIRxSxXuZ5bZHZadAMHJdLvzfuyV8q9kVCmAmmU4vrwxYpkiFr19j
+         BQZ/PjfvR1EZXo6dgKTKUAToJlYwyiXRcfm4/z3NEmv+Jh1zqPW4mzWEcTzqm8wfFESl
+         MnPFgqCewPx/Y3SJ2iToRRjVLhD3JmkSfzOKrJsSlqCNduSPK491QjRlEMSocyp4fu02
+         wdeg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of stern+5cece118@rowland.harvard.edu designates 192.131.102.54 as permitted sender) smtp.mailfrom=stern+5cece118@rowland.harvard.edu
+X-Gm-Message-State: APjAAAU46SXMpfGq1lyEGz0ZDBlqwFt8naPPazdwR8FzJ4+Fqg03eVoZ
+	4B0wrDOjS2CTIFDGAYCN5mtdY/QwiHzhEe2cmzdLqWrOInHaY4nk919psRuYs0/RMXQ5bk6M7He
+	3cY9iaCjZTcpl77L2iePp7FkWUlqfu4IQxgEd1fej/EhRcKZOd1Os6tA5pYsZ1Z86cg==
+X-Received: by 2002:a37:af03:: with SMTP id y3mr4513590qke.296.1558447211898;
+        Tue, 21 May 2019 07:00:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxxQJIUJ8tGGCKNiaayJejdLH4e/EuYZaFnZr5IygkkRRFPfWG8so2vQ4nlf7bV7We7MUbe
+X-Received: by 2002:a37:af03:: with SMTP id y3mr4513508qke.296.1558447211178;
+        Tue, 21 May 2019 07:00:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558447211; cv=none;
         d=google.com; s=arc-20160816;
-        b=sXLnwcE/WmUMK84clBqQPkw62C1fVGt0FUkpA8crz8I+KFyjoUEn3tqiFRbolk+q2Q
-         82/ziC61ApM3nurGw7T1BsNTWCHKTGzjopcIfGllgyoN80eTL8l4H2wPemVK6fmYAn59
-         E6dHT59jQpPBDCCKNr3ewmWxtjAhzi/4DFVLCdqoSAmRE2224h+NY0TnGsWxLqYJhJsx
-         rOlaWVoJEQGdGu7J78mFnx7JXDKbfF7T9txZxmilqaPzrZ/HY4ubXCFVCDAoKZH0bxUy
-         9L9LU0tBAw1dam32xmRsi7+2bj6ZjRV5M9EhacSXDZBmE7utSMRqhimK6H7zKDAMKWSP
-         hUfg==
+        b=wDNU7a+EkbgCCva9KmC3HE2e3RzK8bLr57T3nXLdbZd1e2P4ECq+EUCEcw2hJgvbxL
+         TUnHJbYOIcLXtAMgZjrZSOiQQk/jjH0FBFlKYWrrm8iL1dJQWTkj0rLioVr1P8PWwbHq
+         s+QrlOSYPvP7O4XdyLvCF3pPT8m1A2y0+94O7ZhfbODG/K56rv1rXCNWjiUNuuR2hQ9D
+         jI+EtK7ER4GCn2vSMt5VmJAo7mgcPlPYrxie9bBPInWyZH37W+PQcileCC1Pop2M2l2Y
+         XaHtXz0jWEJhejODIyJFWZ0sX6oavuiTN0k69rTPeFmPYZmnks+YulX9C32lxDWqDQi4
+         cM1w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=yt1TSE+hvjdYVZh8L0V5R+F6bnTH4NU+zMd4kOaAMvQ=;
-        b=Xkwfs9Xjfk5FMQeBNHZkZLu5IKjRwFvlzejkhxMSVDCyEMJUIMUdI/vVaGFjP06bYj
-         hxMcQ5MkvLDq6gwcK9SUn0N8igppbJ7h+sJMCsna0IQP/8C6uDJCIv9p86pH78dq4iBx
-         N/QvsM7Ie/38nQERhpLa3/IEcvhnAtIeeljSlx+BU8J500GTrShUpRl1Q2Y3H0bPcjiD
-         mUPQ3l7Q7UOW1G1FFRgtZD8b2nb9CVrEdISEEn/miWlioq/3QBlHoDfJUNlyKJHd4R/I
-         oFg4ejBolH+oYkipVJIydg1J7CMgygDdM1RmKaT7Tu1EgsGMGlUojyVcqxPA2j18iKNE
-         psHA==
+        h=mime-version:message-id:in-reply-to:subject:cc:to:from:date;
+        bh=fnDAJf2ya1MMBX7glzPZ25P8Fu5IoQyt4BQ1lJ1VaMw=;
+        b=m4V5TepJ7Vc5oaRUGhjvFFWqLMGV4ZJHIBh/L79Lkc5aZeXyPHBvDYa41Xbdgi++vH
+         /YFXK6T+KrzuHUWlSz0jOyCLtrttP8JFArCKAE4iezsOwBHt+ZVI7r9q8dNBtJmuvccZ
+         cmeUVAOzSwAAtgswDLdWLzeLIUklK5OIQmGvtMZb/dx4MscDX3kEZMbHU8aiH7sH7AbA
+         4De8oi1dr+jtuyOc0E4nAdjU2iWnCQIpdGEICKkq5rZcq4HmllmQRUjs99xUl7JV2BuZ
+         W2EE+SsP5RjGePZxnNYX/P+zebE6RUPRWaEJYYYJCruYOdPwyrHsiAoOX6LJkzGqR9O4
+         TZwg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="WVQbSLh/";
-       spf=pass (google.com: best guess record for domain of batv+dd3a5481af7880b59d64+5749+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+dd3a5481af7880b59d64+5749+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g5si20462573plq.109.2019.05.21.06.27.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 21 May 2019 06:27:23 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+dd3a5481af7880b59d64+5749+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+       spf=pass (google.com: domain of stern+5cece118@rowland.harvard.edu designates 192.131.102.54 as permitted sender) smtp.mailfrom=stern+5cece118@rowland.harvard.edu
+Received: from iolanthe.rowland.org (iolanthe.rowland.org. [192.131.102.54])
+        by mx.google.com with SMTP id r2si2574140qtn.276.2019.05.21.07.00.10
+        for <linux-mm@kvack.org>;
+        Tue, 21 May 2019 07:00:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of stern+5cece118@rowland.harvard.edu designates 192.131.102.54 as permitted sender) client-ip=192.131.102.54;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="WVQbSLh/";
-       spf=pass (google.com: best guess record for domain of batv+dd3a5481af7880b59d64+5749+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+dd3a5481af7880b59d64+5749+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=yt1TSE+hvjdYVZh8L0V5R+F6bnTH4NU+zMd4kOaAMvQ=; b=WVQbSLh/MDT4P+lDDna9iiMLr
-	RRbMOAsBBmx4mCsZkNt49bylRYvcHzTVyua8N+OHNPIuw3GOInsrr2tiwogTLqP5AK7jQXqd5vN5O
-	FjMt7ysOrVATKhJxwsW8wu+IQw/7kazzkaztdjb/VdxkhrNb2+NFaafvKE6FHHNvmGdLiztCuWzq7
-	Rn6o/w88n0EJknBygF+sAKOyOMzco10Xo9MPtUSM57FxRbDwkIeLozXg2s6fnIwfuhrOPFLM13NnE
-	BMFnkXKcR7RVT9hjYGA8A55oRboTjDWL+0GercEMTRGgwU8IlWl4Oph/kXhf1JAplB3yExABbnpFX
-	AIZzOg+Ig==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hT4nY-0006Jh-Ty; Tue, 21 May 2019 13:27:20 +0000
-Date: Tue, 21 May 2019 06:27:20 -0700
-From: Christoph Hellwig <hch@infradead.org>
+       spf=pass (google.com: domain of stern+5cece118@rowland.harvard.edu designates 192.131.102.54 as permitted sender) smtp.mailfrom=stern+5cece118@rowland.harvard.edu
+Received: (qmail 1871 invoked by uid 2102); 21 May 2019 10:00:10 -0400
+Received: from localhost (sendmail-bs@127.0.0.1)
+  by localhost with SMTP; 21 May 2019 10:00:10 -0400
+Date: Tue, 21 May 2019 10:00:10 -0400 (EDT)
+From: Alan Stern <stern@rowland.harvard.edu>
+X-X-Sender: stern@iolanthe.rowland.org
 To: Oliver Neukum <oneukum@suse.com>
-Cc: Christoph Hellwig <hch@infradead.org>,
-	Alan Stern <stern@rowland.harvard.edu>,
-	Jaewon Kim <jaewon31.kim@gmail.com>, linux-mm@kvack.org,
-	gregkh@linuxfoundation.org, Jaewon Kim <jaewon31.kim@samsung.com>,
-	m.szyprowski@samsung.com, ytk.lee@samsung.com,
-	linux-kernel@vger.kernel.org, linux-usb@vger.kernel.org
+cc: Christoph Hellwig <hch@infradead.org>, Jaewon Kim <jaewon31.kim@gmail.com>, 
+     <linux-mm@kvack.org>,  <gregkh@linuxfoundation.org>, 
+    Jaewon Kim <jaewon31.kim@samsung.com>,  <m.szyprowski@samsung.com>, 
+     <ytk.lee@samsung.com>,  <linux-kernel@vger.kernel.org>, 
+     <linux-usb@vger.kernel.org>
 Subject: Re: [RFC PATCH] usb: host: xhci: allow __GFP_FS in dma allocation
-Message-ID: <20190521132720.GA23361@infradead.org>
-References: <20190520101206.GA9291@infradead.org>
- <Pine.LNX.4.44L0.1905201011490.1498-100000@iolanthe.rowland.org>
- <20190520142331.GA12108@infradead.org>
- <1558428877.12672.8.camel@suse.com>
+In-Reply-To: <1558444291.12672.23.camel@suse.com>
+Message-ID: <Pine.LNX.4.44L0.1905210950170.1634-100000@iolanthe.rowland.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1558428877.12672.8.camel@suse.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 21, 2019 at 10:54:37AM +0200, Oliver Neukum wrote:
-> OK, but this leaves a question open. Will the GFP_NOIO actually
-> hurt, if it is used after memalloc_noio_save()?
+On Tue, 21 May 2019, Oliver Neukum wrote:
 
-Unless we have a bug somewhere it should not make any difference,
-neither positively nor negatively.
+> On Mo, 2019-05-20 at 10:16 -0400, Alan Stern wrote:
+> > On Mon, 20 May 2019, Christoph Hellwig wrote:
+> > 
+> > > GFP_KERNEL if you can block, GFP_ATOMIC if you can't for a good reason,
+> > > that is the allocation is from irq context or under a spinlock.  If you
+> > > think you have a case where you think you don't want to block, but it
+> > > is not because of the above reasons we need to have a chat about the
+> > > details.
+> > 
+> > What if the allocation requires the kernel to swap some old pages out 
+> > to the backing store, but the backing store is on the device that the 
+> > driver is managing?  The swap can't take place until the current I/O 
+> > operation is complete (assuming the driver can handle only one I/O 
+> > operation at a time), and the current operation can't complete until 
+> > the old pages are swapped out.  Result: deadlock.
+> > 
+> > Isn't that the whole reason for using GFP_NOIO in the first place?
+> 
+> Hi,
+> 
+> lookig at this it seems to me that we are in danger of a deadlock
+> 
+> - during reset - devices cannot do IO while being reset
+> 	covered by the USB layer in usb_reset_device
+> - resume & restore - devices cannot do IO while suspended
+> 	covered by driver core in rpm_callback
+> - disconnect - a disconnected device cannot do IO
+> 	is this a theoretical case or should I do something to
+> 	the driver core?
+> 
+> How about changing configurations on USB?
+
+Changing configurations amounts to much the same as disconnecting,
+because both operations destroy all the existing interfaces.
+
+Disconnect can arise in two different ways.
+
+	Physical hot-unplug: All I/O operations will fail.
+
+	Rmmod or unbind: I/O operations will succeed.
+
+The second case is probably okay.  The first we can do nothing about.  
+However, in either case we do need to make sure that memory allocations
+do not require any writebacks.  This suggests that we need to call
+memalloc_noio_save() from within usb_unbind_interface().
+
+Alan Stern
 
