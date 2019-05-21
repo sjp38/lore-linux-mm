@@ -2,193 +2,220 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C1C36C04AAC
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 01:45:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C0760C04AAC
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 01:50:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 705E72171F
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 01:45:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 676652171F
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 01:50:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=tobin.cc header.i=@tobin.cc header.b="aVzZIMke";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="wogBIOI9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 705E72171F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=tobin.cc
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="DdAorvBu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 676652171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1AFCA6B0006; Mon, 20 May 2019 21:45:42 -0400 (EDT)
+	id 024576B0003; Mon, 20 May 2019 21:50:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1616B6B0007; Mon, 20 May 2019 21:45:42 -0400 (EDT)
+	id F193E6B0005; Mon, 20 May 2019 21:50:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0511C6B0008; Mon, 20 May 2019 21:45:42 -0400 (EDT)
+	id DDF866B0006; Mon, 20 May 2019 21:50:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DA70B6B0006
-	for <linux-mm@kvack.org>; Mon, 20 May 2019 21:45:41 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id l37so15899732qtc.8
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 18:45:41 -0700 (PDT)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE9426B0003
+	for <linux-mm@kvack.org>; Mon, 20 May 2019 21:50:12 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id o83so1234637itc.9
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 18:50:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
-         :subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=zSyPy+Mn5LVlJ+FlCj33Ng1Vj0N3aj5sXaJqqEQXdJg=;
-        b=ANmRxvnkzBf2yRptVKaZ1fxFmL54/f8pv9HRWVhyibPrYjzzjbEH3Cs8MxEbm+1Asj
-         BxcaZB8InXDmL1nt7tbGQy2NxpIvEY/v4BlAx6Ee2eAN8/b3LO9TJJpYLEoy6c+o73PC
-         kB2D+eCDFGvD6o2wqjxyIiF7TFV/moWLK+7iePIxBV1kF7QARBrx94FeFdv+Q+pTac/3
-         FZY0v37jduHMBAlQ+v2e5UepRk1ZnNxcdsSDJPD+yxWiG3MmV3kQjuj3b+3xFe+UQ37w
-         UI6UtR2hywm0V3ZWpr6jmXv2TZ7JNhPgc9uNt6rcEBy3Mrwk9ci0C/9K1MQDEC6qFIdw
-         jGcQ==
-X-Gm-Message-State: APjAAAVY/xxWVMHA1Psf7ny5uj/dd9cFnSbAmJA29jlK6T8zN+E7xvH7
-	pHb8WiFJ5WkU0buZd+ye0CYtd2yPfF0bi1CcWIz5100A5Gi1G6+Yk0qVZUlAjmIWFoCKgbk+8vu
-	UJvSsdsf4l6785YVTsfMBvuRhSTb47LvBEm+5Oz22UvOYf2rsgtiz01PiqSbtoupIxQ==
-X-Received: by 2002:ac8:2bcf:: with SMTP id n15mr54569318qtn.215.1558403141691;
-        Mon, 20 May 2019 18:45:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxT6QG8SVRelGy9gCM5XZj5dBPN+9KazCtV4qbiXQ+EdE+HgLfdzLrODHkfS8Gh/QodXWOA
-X-Received: by 2002:ac8:2bcf:: with SMTP id n15mr54569291qtn.215.1558403141217;
-        Mon, 20 May 2019 18:45:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558403141; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=dn+YYBqV56XU7F7c8CWuso5/+bxKEcmadpFPiXvJSds=;
+        b=pDicNOOl+jFEsnd9+ISqDQcQsmIZczstFOQCXaexrwOIwbBFyrn05H1h4pRm7aYqE1
+         842ei96cQY1Z2DfpyxJss3yFdcRMazCYcylk5qs7eoquWrxRwLq+qoTgzIM20VQAjIT+
+         g94sZzUBFKnSdvlPpzwilzo7GdXVOOUsb5MhEw/u+QcCh0Gudei70RDW3UomkD7v0bno
+         Yaga6r/kte6XrMI67UgfJ1IC0pQFzdaYlVQ0YYgZThrSFLD1r5D94o8y1XK+Nlzg6UV2
+         YYO5EvePEs/O1G4FzIIsvIT/5lRcTTjDudkXhrWA+cRCiNsoP+kmoZK4uyP3MOwzzov4
+         P1KA==
+X-Gm-Message-State: APjAAAVtnaCRLAteIpbctrw60tKNteWxAdD/pYo+jmme0o9JVVsVweKv
+	T99kRCUav+SJkso7HbjMpX+6gd52XaDIUgjKSpuBtvzLlcr9sfay4FKLMFUIb74dTS3wRuRl/yT
+	4r1U2cTS/ymu9y+7lsqhOVnIHYczimobz4NgTc9koteoBd+XEjJlZFsG+0iYFzj2qmA==
+X-Received: by 2002:a24:cec3:: with SMTP id v186mr1822615itg.173.1558403412469;
+        Mon, 20 May 2019 18:50:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw8VJ5OrXm8+Y13gtocYyf7+SbnbTuD8Uy1HxfuUiIvV2D22X3GzyONBtctnOKdlXOz1clC
+X-Received: by 2002:a24:cec3:: with SMTP id v186mr1822582itg.173.1558403411700;
+        Mon, 20 May 2019 18:50:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558403411; cv=none;
         d=google.com; s=arc-20160816;
-        b=dFpFIzS19+OySqQsXP0dKQxJY/IXgwxoARSdSysHoBLrL9Ca+CB0oK9QPCDd8euqSr
-         8ZkuZlIxxaSiPYqizGWF8KeSAY5XvDne9ikSkND12l/TxjmKSHaw6JlpYwneb38UjxlQ
-         CpPKZZyHWu8bdgd9h1Is4+kdcI+TnO922LV4Y2hX3LmBelRGTa2PD4sRve+gerwq74Se
-         YBjIpX1sR8OcfDhcSZsSe9O8m9dYMoWAaTR9KCkeh3pDsTbqUVp6GGf1fN/r1z4j+YCf
-         99bkxkJJ1FTSsy5c3PSweKByrX+NaY/47nqvsrbJ0SRTAqqqY+2RSCSuAZ6A+GPfgrUt
-         d9eg==
+        b=M61kzsHRzEj+Kd2Lr6NvRGgsIJbSVMu9WiZQdmLI85Xfn0iPmTkVJccCPrOTgdU3eh
+         zjYXzyDCUWsIH2RU0f1P9l1jcM5GngRILjUQT7iouZNpfqrM3tpqgaU3f2ieNjwVDfVN
+         FAuLEpQUfk0yoDMzmwQwEHZ1V9t4ZK1HxqA0JQZt3i0YZojx3F71ezgAxkgiGxUCibxn
+         2CJe0PhAD8ZUePa0J7uZ5mEVGLVM91BBZUjgwZa0nKapCasHZnl6SVUfvYJi1qB0lGHi
+         cYM33B4mJC17NLow2nx4l+pQgLhWwSjbZhjO8vCocpnG07A576wYpel8SY5uqL6PAEn2
+         mpXw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
-        bh=zSyPy+Mn5LVlJ+FlCj33Ng1Vj0N3aj5sXaJqqEQXdJg=;
-        b=oscdMwiSMXWlqfHhE+fNcJXfAoRuQMxRxFWN2qTnla6oFyMjofOATjcq1EArm7qtm9
-         PCM6rOYuToVxX6SJejLGNMGPqQd0TpXx8vPFSKZDBrfmP+hTT59ScQQoU+OccELBFhy4
-         G28Stu2ruQY3MS24F0itT01M3PFgwY6Y7WuEaYoEPem+dpHpQHJVoNzRFwwgOKRHuSsL
-         yp6bKMZP3S2KjWmsrpCJrEgv3UpT5JQpvoVdY9YLna6qEB+3WolODVnMDFtT9q4sUCYt
-         wHxnDOfbPt56bwtiUBeCIleFExfRHRodwg/D32ahrIv5FeaV7jCDlrNOuIMERssLp6JX
-         u8Bg==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=dn+YYBqV56XU7F7c8CWuso5/+bxKEcmadpFPiXvJSds=;
+        b=NVv1MRU6ndxIOG/95ENVZnTop44TcZAv0fA+W5trQNEMwvF+W7MdaX+t/09k8kPHfi
+         s/8IYHyXf2SzbbP/DoFAw6OTK/mRA1QVHqbWordfleM24XRmR3RnjloBcPCLGPf2X5+p
+         pJEkeJBagkFDt7OEU873qDG20ixQ9lbEkBXnGZqEAAi5PnNb3sRSkdMytGI33Y/kzHww
+         PnL6yGEtmo1o0hzeBslhPXUIQ750W68+xPDruJqTXsOT3Of5PYtJFiT5EtkYbJ8z6Zag
+         ODr8L+saYzf4exzmusWlCjwmAZowa28mdHw8DH//7rPI2QkjwyXk0iHC1biGhI1E9S0D
+         kCZg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm3 header.b=aVzZIMke;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=wogBIOI9;
-       spf=neutral (google.com: 66.111.4.221 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from new1-smtp.messagingengine.com (new1-smtp.messagingengine.com. [66.111.4.221])
-        by mx.google.com with ESMTPS id x37si5272597qtc.286.2019.05.20.18.45.41
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=DdAorvBu;
+       spf=pass (google.com: domain of jane.chu@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=jane.chu@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id 138si995370itl.43.2019.05.20.18.50.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 18:45:41 -0700 (PDT)
-Received-SPF: neutral (google.com: 66.111.4.221 is neither permitted nor denied by best guess record for domain of me@tobin.cc) client-ip=66.111.4.221;
+        Mon, 20 May 2019 18:50:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jane.chu@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@tobin.cc header.s=fm3 header.b=aVzZIMke;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=wogBIOI9;
-       spf=neutral (google.com: 66.111.4.221 is neither permitted nor denied by best guess record for domain of me@tobin.cc) smtp.mailfrom=me@tobin.cc
-Received: from compute5.internal (compute5.nyi.internal [10.202.2.45])
-	by mailnew.nyi.internal (Postfix) with ESMTP id ADF3BBFD1;
-	Mon, 20 May 2019 21:45:40 -0400 (EDT)
-Received: from mailfrontend2 ([10.202.2.163])
-  by compute5.internal (MEProxy); Mon, 20 May 2019 21:45:40 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=tobin.cc; h=date
-	:from:to:cc:subject:message-id:references:mime-version
-	:content-type:in-reply-to; s=fm3; bh=zSyPy+Mn5LVlJ+FlCj33Ng1Vj0N
-	3aj5sXaJqqEQXdJg=; b=aVzZIMke8RgIn6fgRezyJIRNTdJNmy5BsAfcf1rzNh9
-	kfmmri+unp7PyZsnxtkTgHSaodOlSW0TTlKw/4fzSUEUmmtotFcMflrouEawmetl
-	yMmjYklNKZ2LGYBcwcppzbcYXLRiwTA4QcWSB/ZX7H9FsqXPJxD/cRXvqR7HSnbl
-	zmsZE4Ph1MtGXYkMjSGtQYC7AFO14uXoLyZbbHwa5QkUlBhb3yBrrCFILt19iBEf
-	kwl8tl11sbo2aN+IhYgJFA3CPgZgs+3qDPLfVBdw4eJznoV2b2tluB4D4CqOi8Cz
-	8hEcWr+0tr06AIlzR9mIdoTTxdmg5oLtQIMgMM4lQRA==
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-type:date:from:in-reply-to
-	:message-id:mime-version:references:subject:to:x-me-proxy
-	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm2; bh=zSyPy+
-	Mn5LVlJ+FlCj33Ng1Vj0N3aj5sXaJqqEQXdJg=; b=wogBIOI9ILp8CO+jyYf2m/
-	4O6hf7ZDRufCxFGdAvGp6xsRPd+RZznXygF6h6C8FzaK2UCm+jexQBRPR5a036PZ
-	ragLxfROMNdB/0r9JMwaS38EjvpdLnYb6fIAMRTYkPNQkcbQryDr2NjG42OxjcBW
-	byUfI68V1yvb882goJR9nc6oZZ2w4KokjWRhkD9kaYfk1ROH6zxZnlbBDN2gDvJO
-	7blXnkWpM6kS89cTpb9wYgh63AMAU4w6AKN4L9TLTCXZXNm6HDKxrTN6+h/1QAZv
-	nk5lOnZ1kaxo4AMVAoe6nuYv6JnFpbD1aDar6wzuzMu+RpE4pza1gfrJUfw8GXDw
-	==
-X-ME-Sender: <xms:QFjjXGtb0C56eqETPYVgual6pqtTl3Xv4VQd2dU88ZWfBDZlqDgMDw>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddruddtledggeelucetufdoteggodetrfdotf
-    fvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfqfgfvpdfurfetoffkrfgpnffqhgen
-    uceurghilhhouhhtmecufedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmne
-    gfrhhlucfvnfffucdlfedtmdenucfjughrpeffhffvuffkfhggtggujgfofgesthdtredt
-    ofervdenucfhrhhomhepfdfvohgsihhnucevrdcujfgrrhguihhnghdfuceomhgvsehtoh
-    gsihhnrdgttgeqnecukfhppeduvdegrdduieelrdduheeirddvtdefnecurfgrrhgrmhep
-    mhgrihhlfhhrohhmpehmvgesthhosghinhdrtggtnecuvehluhhsthgvrhfuihiivgeptd
-X-ME-Proxy: <xmx:QFjjXGIUKhDO5k2QKvBTG4W_hsJowdoztPZE9oKq0Iey0Y_y7DE0TQ>
-    <xmx:QFjjXKeDFCQTJi5XPVg3TWkSTJwYsjmcT--3DtyGNqhPO6u28SGLQA>
-    <xmx:QFjjXIW67bTni76x_zcwROybxmtiemrH031fommHrIE4s3RokU4WTA>
-    <xmx:RFjjXCYvXZUddiAM0f0wNqhYLLKvySulEgfuHrNdsxa024x5Zp9wow>
-Received: from localhost (124-169-156-203.dyn.iinet.net.au [124.169.156.203])
-	by mail.messagingengine.com (Postfix) with ESMTPA id B78C810378;
-	Mon, 20 May 2019 21:45:35 -0400 (EDT)
-Date: Tue, 21 May 2019 11:44:57 +1000
-From: "Tobin C. Harding" <me@tobin.cc>
-To: Roman Gushchin <guro@fb.com>
-Cc: "Tobin C. Harding" <tobin@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Matthew Wilcox <willy@infradead.org>,
-	Alexander Viro <viro@ftp.linux.org.uk>,
-	Christoph Hellwig <hch@infradead.org>,
-	Pekka Enberg <penberg@cs.helsinki.fi>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Christopher Lameter <cl@linux.com>,
-	Miklos Szeredi <mszeredi@redhat.com>,
-	Andreas Dilger <adilger@dilger.ca>,
-	Waiman Long <longman@redhat.com>, Tycho Andersen <tycho@tycho.ws>,
-	Theodore Ts'o <tytso@mit.edu>, Andi Kleen <ak@linux.intel.com>,
-	David Chinner <david@fromorbit.com>,
-	Nick Piggin <npiggin@gmail.com>, Rik van Riel <riel@redhat.com>,
-	Hugh Dickins <hughd@google.com>, Jonathan Corbet <corbet@lwn.net>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [RFC PATCH v5 13/16] slub: Enable balancing slabs across nodes
-Message-ID: <20190521014457.GA27676@eros.localdomain>
-References: <20190520054017.32299-1-tobin@kernel.org>
- <20190520054017.32299-14-tobin@kernel.org>
- <20190521010404.GB9552@tower.DHCP.thefacebook.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=DdAorvBu;
+       spf=pass (google.com: domain of jane.chu@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=jane.chu@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4L1nFqj053277;
+	Tue, 21 May 2019 01:50:06 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=dn+YYBqV56XU7F7c8CWuso5/+bxKEcmadpFPiXvJSds=;
+ b=DdAorvBuJ54owqKG0kLG39NVx7aA0pnGQwqww2td+q3Q1tnyKKa/wLEQXTY+tsG2Te1d
+ v3vE+2FjpNDnS77mfNnXh6YQrMpVPdIL7n6fpi4uJiroTlDpFR7MxG8tC55LHMiaw+5Y
+ ReeZzbIVqmHfkYSiyZp86cOiDHWGhSRMMBqUqkqed1VfAde28N0s4YUo0tvaSys4mvBM
+ 0XigivNYS6TCuK6bakIVbsIkeTpREeiZfg103SbG9xE2gS1LMT2pHQlI+nUBSxbywcpN
+ 8n2ukoqn5/SEAUsMPplFXfogsWXKud+1bO0wbsQUQ6haFsLfiPuSsLGADUM71mZ7jROQ Kw== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by userp2120.oracle.com with ESMTP id 2sjapqa6sr-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 21 May 2019 01:50:05 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4L1nYqf031921;
+	Tue, 21 May 2019 01:50:05 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3030.oracle.com with ESMTP id 2sks1xww56-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 21 May 2019 01:50:04 +0000
+Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4L1o4tS000757;
+	Tue, 21 May 2019 01:50:04 GMT
+Received: from [10.159.155.76] (/10.159.155.76)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 21 May 2019 01:50:04 +0000
+Subject: Re: [PATCH] mm, memory-failure: clarify error message
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+        Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+References: <1558066095-9495-1-git-send-email-jane.chu@oracle.com>
+ <512532de-4c09-626d-380f-58cef519166b@arm.com>
+ <20190520102106.GA12721@hori.linux.bs1.fc.nec.co.jp>
+From: Jane Chu <jane.chu@oracle.com>
+Organization: Oracle Corporation
+Message-ID: <49fd8918-5762-9b92-d383-8fdd96cf1c38@oracle.com>
+Date: Mon, 20 May 2019 18:50:02 -0700
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190521010404.GB9552@tower.DHCP.thefacebook.com>
-X-Mailer: Mutt 1.11.4 (2019-03-13)
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190520102106.GA12721@hori.linux.bs1.fc.nec.co.jp>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9263 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905210009
+X-Proofpoint-Virus-Version: vendor=nai engine=5900 definitions=9263 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905210009
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 21, 2019 at 01:04:10AM +0000, Roman Gushchin wrote:
-> On Mon, May 20, 2019 at 03:40:14PM +1000, Tobin C. Harding wrote:
-> > We have just implemented Slab Movable Objects (SMO).  On NUMA systems
-> > slabs can become unbalanced i.e. many slabs on one node while other
-> > nodes have few slabs.  Using SMO we can balance the slabs across all
-> > the nodes.
-> > 
-> > The algorithm used is as follows:
-> > 
-> >  1. Move all objects to node 0 (this has the effect of defragmenting the
-> >     cache).
-> 
-> This already sounds dangerous (or costly). Can't it be done without
-> cross-node data moves?
+Thanks Vishal and Naoya!
+
+-jane
+
+On 5/20/2019 3:21 AM, Naoya Horiguchi wrote:
+> On Fri, May 17, 2019 at 10:18:02AM +0530, Anshuman Khandual wrote:
+>>
+>> On 05/17/2019 09:38 AM, Jane Chu wrote:
+>>> Some user who install SIGBUS handler that does longjmp out
+>> What the longjmp about ? Are you referring to the mechanism of catching the
+>> signal which was registered ?
+> AFAIK, longjmp() might be useful for signal-based retrying, so highly
+> optimized applications like Oracle DB might want to utilize it to handle
+> memory errors in application level, I guess.
 >
-> > 
-> >  2. Calculate the desired number of slabs for each node (this is done
-> >     using the approximation nr_slabs / nr_nodes).
-> 
-> So that on this step only (actual data size - desired data size) has
-> to be moved?
-
-This is just the most braindead algorithm I could come up with.  Surely
-there are a bunch of things that could be improved.  Since I don't know
-the exact use case it seemed best not to optimize for any one use case.
-
-I'll review, comment on, and test any algorithm you come up with!
-
-thanks,
-Tobin.
+>>> therefore keeping the process alive is confused by the error
+>>> message
+>>>    "[188988.765862] Memory failure: 0x1840200: Killing
+>>>     cellsrv:33395 due to hardware memory corruption"
+>> Its a valid point because those are two distinct actions.
+>>
+>>> Slightly modify the error message to improve clarity.
+>>>
+>>> Signed-off-by: Jane Chu <jane.chu@oracle.com>
+>>> ---
+>>>   mm/memory-failure.c | 7 ++++---
+>>>   1 file changed, 4 insertions(+), 3 deletions(-)
+>>>
+>>> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+>>> index fc8b517..14de5e2 100644
+>>> --- a/mm/memory-failure.c
+>>> +++ b/mm/memory-failure.c
+>>> @@ -216,10 +216,9 @@ static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
+>>>   	short addr_lsb = tk->size_shift;
+>>>   	int ret;
+>>>   
+>>> -	pr_err("Memory failure: %#lx: Killing %s:%d due to hardware memory corruption\n",
+>>> -		pfn, t->comm, t->pid);
+>>> -
+>>>   	if ((flags & MF_ACTION_REQUIRED) && t->mm == current->mm) {
+>>> +		pr_err("Memory failure: %#lx: Killing %s:%d due to hardware memory "
+>>> +			"corruption\n", pfn, t->comm, t->pid);
+>>>   		ret = force_sig_mceerr(BUS_MCEERR_AR, (void __user *)tk->addr,
+>>>   				       addr_lsb, current);
+>>>   	} else {
+>>> @@ -229,6 +228,8 @@ static int kill_proc(struct to_kill *tk, unsigned long pfn, int flags)
+>>>   		 * This could cause a loop when the user sets SIGBUS
+>>>   		 * to SIG_IGN, but hopefully no one will do that?
+>>>   		 */
+>>> +		pr_err("Memory failure: %#lx: Sending SIGBUS to %s:%d due to hardware "
+>>> +			"memory corruption\n", pfn, t->comm, t->pid);
+>>>   		ret = send_sig_mceerr(BUS_MCEERR_AO, (void __user *)tk->addr,
+>>>   				      addr_lsb, t);  /* synchronous? */
+>> As both the pr_err() messages are very similar, could not we just switch between "Killing"
+>> and "Sending SIGBUS to" based on a variable e.g action_[kill|sigbus] evaluated previously
+>> with ((flags & MF_ACTION_REQUIRED) && t->mm == current->mm).
+> That might need additional if sentence, which I'm not sure worth doing.
+> I think that the simplest fix for the reported problem (a confusing message)
+> is like below:
+>
+> 	-	pr_err("Memory failure: %#lx: Killing %s:%d due to hardware memory corruption\n",
+> 	+	pr_err("Memory failure: %#lx: Sending SIGBUS to %s:%d due to hardware memory corruption\n",
+> 			pfn, t->comm, t->pid);
+>
+> Or, if we have a good reason to separate the message for MF_ACTION_REQUIRED and
+> MF_ACTION_OPTIONAL, that might be OK.
+>
+> Thanks,
+> Naoya Horiguchi
 
