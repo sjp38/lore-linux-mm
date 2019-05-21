@@ -2,224 +2,240 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AF1EEC46470
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 18:07:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8EA99C04AB4
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 18:29:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 246C92173C
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 18:07:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 246C92173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 1FC53217F4
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 18:29:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FC53217F4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9C8516B0003; Tue, 21 May 2019 14:07:31 -0400 (EDT)
+	id 8A81D6B0003; Tue, 21 May 2019 14:29:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9793D6B0006; Tue, 21 May 2019 14:07:31 -0400 (EDT)
+	id 87E776B0006; Tue, 21 May 2019 14:29:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 843226B0007; Tue, 21 May 2019 14:07:31 -0400 (EDT)
+	id 799386B0007; Tue, 21 May 2019 14:29:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D0406B0003
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 14:07:31 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id g8so3293706lja.12
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 11:07:31 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A0976B0003
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 14:29:46 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c26so31885039eda.15
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 11:29:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=VW5Gqms6RUuTMruuwhVT0/XMTieYuN/y7XeRBAJOnCU=;
-        b=CSF1HrmfULT+3veGzB+Bc+GavO61tOi5Jggis6dNyY8mChh9Avd16f+G1ylAEUg65R
-         aOl0gyyUU5w8hT40LRWl3gM6m+G5FVLy/7DlsY4Li0YDfFy6fxpblueJtrokc+ae4apQ
-         tMWLebl81Enl7wv6qFI0SOlOumBm/xzEYtwzP3R7Y8Fmj6PlH/PpSSUJJsKxSDeqBc6e
-         yAEAMmHk5Jw9r+vie9jnCDEMy5Ij8F6JGsUmdZnSQ9L9IGwymytQGXbhkCEpChQOi8a1
-         HA9vZc1KzB2MV3k/y8T7VXrOQvgJjRah/UtzxgTroKyxnDOXMPGznF5gzL0V1zHp9apa
-         vO4A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAWli9RzsF7LCVSLd9jb1be4jUEvM5HKS+MMducs/XfRnXmcPiQc
-	AnIYFOUh+GZqmYzpfBkNUwI8OKeBw7rrJqzrnSID481uh/EEVIKiTJ6lGZwaP0/UgBdcEnfKKFD
-	aYkcwKV+Pjidod2K2Kx8mFdbG8qkK/NVFg61gW7R+dmjeNDep0o9BDjHNsCtBF13IaA==
-X-Received: by 2002:ac2:53ad:: with SMTP id j13mr3423227lfh.14.1558462050376;
-        Tue, 21 May 2019 11:07:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxyLfz9QQTD7xIRctTyF5FBVdhayFkT4H4j/5+kCx9Fvkgs27e2obehQZy7Q1V6ItZ5UiM2
-X-Received: by 2002:ac2:53ad:: with SMTP id j13mr3423174lfh.14.1558462049245;
-        Tue, 21 May 2019 11:07:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558462049; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=gPiOZEbMV0dM3+fsO1DDmJ4OvmzkDSdhvLxb1+ES8Ow=;
+        b=IT3Z4vDpaqL1DQuNtYI6/IaUsWgzzLq5yllcil6kylpJEBdc8ZlR1AYIJPjHQGEKqA
+         wqTcwWUtoW1DGWz9zay8pYZDL0qMoVQ8c/s+Jf0SoJsKmUwLaEUUSDPyjca5nuSan08r
+         OWOJdyyuOTGtUI/D51ihRb7hcgbnHgc0xH2i2FAYtNMaHFGGtFudLhyxg4nWykov1/Hu
+         07M3Lu4NPDuUHTNOovNoFkw97+7V5uUnwh8mgM592g6AO0i83IZq2O5VrBOfRNfRY8xe
+         th5WxCeSL2mtTCD+fQYXcWVOfP4px30G7lir1NPH4OS95gpAilGRKU4yRsou0ZNrWf7l
+         613g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAV5sl/UZGHKFgAmXMCr/cnd7YvvOZ46WE7/4p/XbA41zGNmu1Hj
+	DEn+Ta5Gt143K2++d++gtA2FW/WYThPp9LA9jVREuYS3kc7g3lu3CCsdOCsoz/UBIuPCBpyhSV5
+	sWrHNkt5JuB7wlaRJGtLvrg3DJvF04EkNk9ZTFYMxMJ2kFfd5d5olsyRuXdHJkWHXmw==
+X-Received: by 2002:a50:9490:: with SMTP id s16mr84392028eda.260.1558463384609;
+        Tue, 21 May 2019 11:29:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxXgx6aRtkXuqf2nVYPOOVSWUcMNDGqJUgAuvZ2LwYz17544VXMOmuDrCYxyh1sS+XXJPt0
+X-Received: by 2002:a50:9490:: with SMTP id s16mr84391949eda.260.1558463383661;
+        Tue, 21 May 2019 11:29:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558463383; cv=none;
         d=google.com; s=arc-20160816;
-        b=LShegZVnb3mp7D8+LWEKzwYVj/oLuYriyZJZ0Icv3V8xO3WjzHN+PW9i3PwK2jr9NA
-         NXnA9SsTb0joftWmRbJERsfj+YfoOrHA+xfdgOTmb+UO1KNoGOsJvJpIZg9LIIRwYtgU
-         KchceXhEKZQXILI6wmMtEves/jWqeIhFB3bABnOyjuD5Zrhe4FzWN/1r6Y+rnRMYbEsO
-         EWd2PvNSPYj3VcgAX1WZP9xHrGGxteuhWgqPUWQYVkpk4EKnYmPYtXBRAhLpSz/ihbAx
-         F4X3WXRJDqx/uisOYOF0yoSTpzxTncU6zlzpreFY0SRBtJrJdO+WiSUvWsMZG0YaUHYY
-         0Big==
+        b=GoCjba4yrHgsaclZcG0X6z1ggz1r44p1KuN1ajBLpDMneHibpomP0e50u832DfgAo0
+         iqkOZ3e8LEIjXIA+4Fu/+5aCaTlByMaNfR0CP5Roi7fwPhL4PQZf/7IMbhayi4vklGZQ
+         SYURfbEXe0cOfv2DoNJvakTGZJ61eP4+6UdR1rssDRmfIzBy3RitM8/qKO2iynMApyK2
+         t9ljazP2UFHmO0PgCXbLNVTchynJYj2eay5e+MQzI5b28hKPdksHybMYtqDQhdbxwr4a
+         MGXRMepnh1wSVOmy8PQusZsqsHOXBqglL64yviOWDVUn9gmiLsR3fMnmf3rXrGNY5CBj
+         1XBg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=VW5Gqms6RUuTMruuwhVT0/XMTieYuN/y7XeRBAJOnCU=;
-        b=sDoGmdl56qaRplID1uEZTkngCa/w+topyYVE6LszKLj8NbUKuAMCn2so1x/Qz9zmxH
-         QNk3kxeOHslhrIbEA4wp2bWBPGBuHSH22+XkYnHhZLbNselksT1m+FSXNuCwkCCHdo5w
-         gk7wJTZCpf4kQPDljMfFXZV7K2XfGr/aj88a4REfrLJ53CIqfTyPr4iz9O+lKwevkC10
-         YU6uDbLUyVZIllVCi5Onj+4E1pmQaHQko/qSILQTB5m7qpDIfm282OzzuAGXmjuYT0Ju
-         P5NBNKiEprA70xLuDOdZfH/kNmHaqMcqd6tybGKbj7YDVx8ZAtG3/CnZlTOK/gyzgHnj
-         5nwA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=gPiOZEbMV0dM3+fsO1DDmJ4OvmzkDSdhvLxb1+ES8Ow=;
+        b=l4lqE7BiOiNk6GnMJnpSmwqaN4zXB3+OW26tdh+r/K3Q2fA2AspXIT+KneDrSX6mc1
+         B/hYSXgNKP8OuLubf2VhhtbyOYljE+LyWvSFpeC4RApjrukxNP6GLhVQ2/R+Pp4GMBC+
+         nGSva2rTA/RcF9YgLA3Z3rJq6GLBktE1VTypI1JboTqXg3WdYZl6VPtyK6tVKj0X1rQT
+         p0GKHS9GffxuPU4YAMcwMvfjgzPo7mz2r8pfSyuqxSTqHHWwTXvd1j7K5UBiEFsQ43l0
+         /LJycX1QzTKNMXDqo6GGETCkZUIWpgQg1d1545N9Z/1ZZ1P3jPzBxOYRFF+vju3guQSx
+         qChA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id m4si17349524ljg.68.2019.05.21.11.07.28
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 May 2019 11:07:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id k57si568348edb.36.2019.05.21.11.29.43
+        for <linux-mm@kvack.org>;
+        Tue, 21 May 2019 11:29:43 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1hT9Ad-00083b-Gp; Tue, 21 May 2019 21:07:27 +0300
-Subject: Re: [PATCH v2] mm/kasan: Print frame description for stack bugs
-To: Marco Elver <elver@google.com>, Alexander Potapenko <glider@google.com>
-Cc: Dmitriy Vyukov <dvyukov@google.com>,
- Andrey Konovalov <andreyknvl@google.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- LKML <linux-kernel@vger.kernel.org>,
- Linux Memory Management List <linux-mm@kvack.org>,
- kasan-dev <kasan-dev@googlegroups.com>
-References: <20190520154751.84763-1-elver@google.com>
- <ebec4325-f91b-b392-55ed-95dbd36bbb8e@virtuozzo.com>
- <CAG_fn=W+_Ft=g06wtOBgKnpD4UswE_XMXd61jw5ekOH_zeUVOQ@mail.gmail.com>
- <CANpmjNN177XBadNfoSmizQF7uZV61PNPQSftT7hPdc3HmdzSjA@mail.gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <292035fd-64b7-1767-3e8a-3a6cb50298b5@virtuozzo.com>
-Date: Tue, 21 May 2019 21:07:45 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4EE4F80D;
+	Tue, 21 May 2019 11:29:42 -0700 (PDT)
+Received: from mbp (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 294B83F5AF;
+	Tue, 21 May 2019 11:29:36 -0700 (PDT)
+Date: Tue, 21 May 2019 19:29:33 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Evgenii Stepanov <eugenis@google.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Kees Cook <keescook@chromium.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
+	Elliott Hughes <enh@google.com>
+Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
+Message-ID: <20190521182932.sm4vxweuwo5ermyd@mbp>
+References: <cover.1557160186.git.andreyknvl@google.com>
+ <20190517144931.GA56186@arrakis.emea.arm.com>
+ <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CANpmjNN177XBadNfoSmizQF7uZV61PNPQSftT7hPdc3HmdzSjA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, May 20, 2019 at 04:53:07PM -0700, Evgenii Stepanov wrote:
+> On Fri, May 17, 2019 at 7:49 AM Catalin Marinas <catalin.marinas@arm.com> wrote:
+> > IMO (RFC for now), I see two ways forward:
+> >
+> > 1. Make this a user space problem and do not allow tagged pointers into
+> >    the syscall ABI. A libc wrapper would have to convert structures,
+> >    parameters before passing them into the kernel. Note that we can
+> >    still support the hardware MTE in the kernel by enabling tagged
+> >    memory ranges, saving/restoring tags etc. but not allowing tagged
+> >    addresses at the syscall boundary.
+> >
+> > 2. Similar shim to the above libc wrapper but inside the kernel
+> >    (arch/arm64 only; most pointer arguments could be covered with an
+> >    __SC_CAST similar to the s390 one). There are two differences from
+> >    what we've discussed in the past:
+> >
+> >    a) this is an opt-in by the user which would have to explicitly call
+> >       prctl(). If it returns -ENOTSUPP etc., the user won't be allowed
+> >       to pass tagged pointers to the kernel. This would probably be the
+> >       responsibility of the C lib to make sure it doesn't tag heap
+> >       allocations. If the user did not opt-in, the syscalls are routed
+> >       through the normal path (no untagging address shim).
+> >
+> >    b) ioctl() and other blacklisted syscalls (prctl) will not accept
+> >       tagged pointers (to be documented in Vicenzo's ABI patches).
+[...]
+> Any userspace shim approach is problematic for Android because of the
+> apps that use raw system calls. AFAIK, all apps written in Go are in
+> that camp - I'm not sure how common they are, but getting them all
+> recompiled is probably not realistic.
+
+That's a fair point (I wasn't expecting it would get much traction
+anyway ;)). OTOH, it allows upstreaming of the MTE patches while we
+continue the discussions around TBI.
+
+> The way I see it, a patch that breaks handling of tagged pointers is
+> not that different from, say, a patch that adds a wild pointer
+> dereference. Both are bugs; the difference is that (a) the former
+> breaks a relatively uncommon target and (b) it's arguably an easier
+> mistake to make. If MTE adoption goes well, (a) will not be the case
+> for long.
+
+It's also the fact such patch would go unnoticed for a long time until
+someone exercises that code path. And when they do, the user would be
+pretty much in the dark trying to figure what what went wrong, why a
+SIGSEGV or -EFAULT happened. What's worse, we can't even say we fixed
+all the places where it matters in the current kernel codebase (ignoring
+future patches).
+
+I think we should revisit the static checking discussions we had last
+year. Run-time checking (even with compiler instrumentation and
+syzkaller fuzzing) would only cover the code paths specific to a Linux
+or Android installation.
+
+> This is a bit of a chicken-and-egg problem. In a world where memory
+> allocators on one or several popular platforms generate pointers with
+> non-zero tags, any such breakage will be caught in testing.
+> Unfortunately to reach that state we need the kernel to start
+> accepting tagged pointers first, and then hold on for a couple of
+> years until userspace catches up.
+
+Would the kernel also catch up with providing a stable ABI? Because we
+have two moving targets.
+
+On one hand, you have Android or some Linux distro that stick to a
+stable kernel version for some time, so they have better chance of
+clearing most of the problems. On the other hand, we have mainline
+kernel that gets over 500K lines every release. As maintainer, I can't
+rely on my testing alone as this is on a limited number of platforms. So
+my concern is that every kernel release has a significant chance of
+breaking the ABI, unless we have a better way of identifying potential
+issues.
+
+> Perhaps we can start by whitelisting ioctls by driver?
+
+This was also raised by Ruben in private but without a (static) tool to
+to check, manually going through all the drivers doesn't scale. It's
+very likely that most drivers don't care, just a get_user/put_user is
+already handled by these patches. Searching for find_vma() was
+identifying one such use-case but is this sufficient? Are there other
+cases we need to explicitly untag a pointer?
 
 
-On 5/21/19 7:07 PM, Marco Elver wrote:
-> On Tue, 21 May 2019 at 17:53, Alexander Potapenko <glider@google.com> wrote:
->>
->> On Tue, May 21, 2019 at 5:43 PM Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
->>>
->>> On 5/20/19 6:47 PM, Marco Elver wrote:
->>>
->>>> +static void print_decoded_frame_descr(const char *frame_descr)
->>>> +{
->>>> +     /*
->>>> +      * We need to parse the following string:
->>>> +      *    "n alloc_1 alloc_2 ... alloc_n"
->>>> +      * where alloc_i looks like
->>>> +      *    "offset size len name"
->>>> +      * or "offset size len name:line".
->>>> +      */
->>>> +
->>>> +     char token[64];
->>>> +     unsigned long num_objects;
->>>> +
->>>> +     if (!tokenize_frame_descr(&frame_descr, token, sizeof(token),
->>>> +                               &num_objects))
->>>> +             return;
->>>> +
->>>> +     pr_err("\n");
->>>> +     pr_err("this frame has %lu %s:\n", num_objects,
->>>> +            num_objects == 1 ? "object" : "objects");
->>>> +
->>>> +     while (num_objects--) {
->>>> +             unsigned long offset;
->>>> +             unsigned long size;
->>>> +
->>>> +             /* access offset */
->>>> +             if (!tokenize_frame_descr(&frame_descr, token, sizeof(token),
->>>> +                                       &offset))
->>>> +                     return;
->>>> +             /* access size */
->>>> +             if (!tokenize_frame_descr(&frame_descr, token, sizeof(token),
->>>> +                                       &size))
->>>> +                     return;
->>>> +             /* name length (unused) */
->>>> +             if (!tokenize_frame_descr(&frame_descr, NULL, 0, NULL))
->>>> +                     return;
->>>> +             /* object name */
->>>> +             if (!tokenize_frame_descr(&frame_descr, token, sizeof(token),
->>>> +                                       NULL))
->>>> +                     return;
->>>> +
->>>> +             /* Strip line number, if it exists. */
->>>
->>>    Why?
-> 
-> The filename is not included, and I don't think it adds much in terms
-> of ability to debug; nor is the line number included with all
-> descriptions. I think, the added complexity of separating the line
-> number and parsing is not worthwhile here. Alternatively, I could not
-> pay attention to the line number at all, and leave it as is -- in that
-> case, some variable names will display as "foo:123".
-> 
+The other point I'd like feedback on is 2.a above. I see _some_ value
+into having the user opt-in to this relaxed ABI rather than blinding
+exposing it to all applications. Dave suggested (in private) a new
+personality (e.g. PER_LINUX_TBI) inherited by children. It would be the
+responsibility of the C library to check the current personality bits
+and only tag pointers on allocation *if* the kernel allowed it. The
+kernel could provide the AT_FLAGS bit as in Vincenzo's patches if the
+personality was set but can't set it retrospectively if the user called
+sys_personality. By default, /sbin/init would not have this personality
+and libc would not tag pointers, so we can guarantee that your distro
+boots normally with a new kernel version. We could have an envp that
+gets caught by /sbin/init so you can pass it on the kernel command line
+(or a dynamic loader at run-time). But the default should be the current
+ABI behaviour.
 
-Either way is fine by me. But explain why in comment if you decide
-to keep current code.  Something like
-	 /* Strip line number cause it's not very helpful. */
+We can enforce the current behaviour by having access_ok() check the
+personality or a TIF flag but we may relax this enforcement at some
+point in the future as we learn more about the implications of TBI.
 
+Thanks.
 
->>>
->>>> +             strreplace(token, ':', '\0');
->>>> +
->>>
->>> ...
->>>
->>>> +
->>>> +     aligned_addr = round_down((unsigned long)addr, sizeof(long));
->>>> +     mem_ptr = round_down(aligned_addr, KASAN_SHADOW_SCALE_SIZE);
->>>> +     shadow_ptr = kasan_mem_to_shadow((void *)aligned_addr);
->>>> +     shadow_bottom = kasan_mem_to_shadow(end_of_stack(current));
->>>> +
->>>> +     while (shadow_ptr >= shadow_bottom && *shadow_ptr != KASAN_STACK_LEFT) {
->>>> +             shadow_ptr--;
->>>> +             mem_ptr -= KASAN_SHADOW_SCALE_SIZE;
->>>> +     }
->>>> +
->>>> +     while (shadow_ptr >= shadow_bottom && *shadow_ptr == KASAN_STACK_LEFT) {
->>>> +             shadow_ptr--;
->>>> +             mem_ptr -= KASAN_SHADOW_SCALE_SIZE;
->>>> +     }
->>>> +
->>>
->>> I suppose this won't work if stack grows up, which is fine because it grows up only on parisc arch.
->>> But "BUILD_BUG_ON(IS_ENABLED(CONFIG_STACK_GROUWSUP))" somewhere wouldn't hurt.
->> Note that KASAN was broken on parisc from day 1 because of other
->> assumptions on the stack growth direction hardcoded into KASAN
->> (e.g. __kasan_unpoison_stack() and __asan_allocas_unpoison()).
-
-It's not broken, it doesn't exist.
-
->> So maybe this BUILD_BUG_ON can be added in a separate patch as it's
->> not specific to what Marco is doing here?
-> 
-
-I think it's fine to add it in this patch because BUILD_BUG_ON() is just a hint for developers
-that this particular function depends on growing down stack. So it's more a property of the function
-rather than KASAN in general.
-
-Other functions you mentioned can be marked with BUILD_BUG_ON()s as well, but not in this patch indeed.
-
-> Happy to send a follow-up patch, or add here. Let me know what you prefer.
-> 
-
-Send v3 please.
+-- 
+Catalin
 
