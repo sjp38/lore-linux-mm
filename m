@@ -1,131 +1,189 @@
 Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Level: *
+X-Spam-Status: No, score=1.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 20834C04E87
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 09:07:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AA09C04E87
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 09:11:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E3C76216B7
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 09:07:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E3C76216B7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 3E1CB216B7
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 09:11:44 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="P5we8Zz6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3E1CB216B7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7DD5B6B0003; Tue, 21 May 2019 05:07:37 -0400 (EDT)
+	id BD1F26B0003; Tue, 21 May 2019 05:11:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 78DC16B0005; Tue, 21 May 2019 05:07:37 -0400 (EDT)
+	id B815F6B0005; Tue, 21 May 2019 05:11:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 67CCF6B0006; Tue, 21 May 2019 05:07:37 -0400 (EDT)
+	id A70506B0006; Tue, 21 May 2019 05:11:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 161CA6B0003
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 05:07:37 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id z5so29746602edz.3
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 02:07:37 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 701846B0003
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 05:11:43 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id i8so11934883pfo.21
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 02:11:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=iFTUHFmgtiGzvN19St5ee/oHBMyKgoEoF5VVcqVSvpE=;
-        b=YN5a8P+u6+unSXd5cvy6koGKer1H+JYRYKlgOkUAUf4F2Src0wa1LTlqsdkOfvp1yL
-         bxvsbVS/HpKYELoFeDNQr/BgiobgdLk6JIOv55VTFYWpdKBlKCZWbWKaktTKqdEGaSsB
-         xZjc1ijVRnDtzf3y47WrsGRw9aQUm/79JPJe4sqJ+6kVSiggx+uiLmmC8h5nX4xa8Can
-         WR7ynstgEQ4EjBp+w6qygxK2ys5lXELQMfHsLSumpAlc/rWxpdsD15cwwfWkmWTKjZtP
-         35sn0ujaC02v1N/Y5gICK5qQuxt1b8vxBvDeFcNVhecene5Jilhi9e+99Ao1uygMSlse
-         W6Vw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oneukum@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=oneukum@suse.com
-X-Gm-Message-State: APjAAAVPgm2yCkn2MshN7mXjsiIcQ78duBKfGka9DuNGqi2/CaBHQMmi
-	0RJ2Pxj/FUp6TxeTxv0t6+3KUq8IgviU1FBJy/UYeOmw5F26lbeaGhEgJJB/yyv9rLM4tkPkSyL
-	ky8iXBfMTOAmzdMe3VVUkBNkbPzQWRc5KBksYaHg29ZPK20JQQGlo5YDCeCQPyTo68w==
-X-Received: by 2002:a17:906:eb97:: with SMTP id mh23mr63947779ejb.69.1558429656649;
-        Tue, 21 May 2019 02:07:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxYkHl24oBoCKXMH1htPGV22OOM3FtCcdzolicNFvmVQXI3U+Rj6nLy9qRnDKTbXCv4jNny
-X-Received: by 2002:a17:906:eb97:: with SMTP id mh23mr63947732ejb.69.1558429655904;
-        Tue, 21 May 2019 02:07:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558429655; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=aOt4vo5keUTXDvxZZjRtcBm1aK7jMfHXMFBxDuIODzA=;
+        b=jZq/PJMo8t/2SzS1i7CgXl7R/Y1ITnn4xv9V9wRP63jWE8JQD7Hx+3iBOY6Oj37FlD
+         PsfztUprsiH2k8q07GGqXBU1pyshMujhqIeWEdDEQG/+T8zT1aCUhtprwx49Ktg/TJSC
+         t8sZOCyrQcnyhjY0iwFg5fJmIR8LGgyZxJIwJG76x+cNlBGwzF62ZLejPTfLObvaNr2n
+         Ldp7G1X1rRU/ePoNqpKboA5E+EO7PLBPIlT/+vxYTvHQeUhorPd0XdErb34JzvCD+mKY
+         7r7DnGG+aKGDmX/xmEMn5UziXLpsSCfmV251gJhTiPxcLX1tqWcpSOcI4AETJnBW9eU/
+         4/jA==
+X-Gm-Message-State: APjAAAWatwUtCCCB0wyLl2BKX/hIf4yrX15kihv6sERuQ04ZE99CRyjA
+	LZTLptlxIznR6yrF7U9TjG7WjY493Q8zrOKDrk87a3jXkNeAR/3QYCoR9xrkeU7QJxkoM+x2Afg
+	wKyeKRnFojsIokrjBGQtuw4Ms/GQUkB3uYiHx5Lmj2TjoF85eDvajDy+i8LwriOA=
+X-Received: by 2002:aa7:93ba:: with SMTP id x26mr25469271pff.238.1558429903086;
+        Tue, 21 May 2019 02:11:43 -0700 (PDT)
+X-Received: by 2002:aa7:93ba:: with SMTP id x26mr25469200pff.238.1558429902318;
+        Tue, 21 May 2019 02:11:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558429902; cv=none;
         d=google.com; s=arc-20160816;
-        b=qPfigYg9n01uAneaxqxjAcqtM+S/Sa+dtkIJuyeM8WweUdNMAtggoHxZc841jU3R6q
-         C3v21Tct51aSiQU+NK3aRR+nYEn58ELJhA8q2l/qaA99KKjTl6r25kahdzvPAKRbePAi
-         VoQQCXSM7wTlQ4EORCEP7l/bj3FeqjTckBatAoXWkHbkxJ8sMfgbLg/xdoG2Un/PZi8g
-         W1zbEJj1TxTNqiA/bAHxJ8QVMjuApYTfTf5hzgYf4e6zEkjOa3VC5cZshCwUf1kI//2/
-         pfIzWurwp/CwYZusUs2p4925GJOpVvAC/Qv99fmrHGW+6gf34xwLsXBpf/kT5OS/sLhH
-         AZjQ==
+        b=ATwEAtkAEUOhFUjg+ep28vBlEVrfErGUgEMm4/r0jPC5jcMs6Alp5siICtgx6ptZ9R
+         P7hklfcik1qI6qZNZWDNBQd71hVHdtdbCFcd3XI929BKHe1219VKV83GlYxOYSFM1CM/
+         k6S2CWqm4gqwdClCITYTc7HpVtn8hwTDWowrOmJL4DGebdXlg391CCo1rqPdQ+/yg002
+         KGodJpW1IZSSYmXrc86/XabL/Fbu2QWrWpdV9id6rhBZY9kmTZPowdkonPJw6o1eXv3m
+         l8t2b+iKEX1Ng1r99lloFpG1cPTqn9zA3CefYLtyOb1MQpjocuh0K4SMrr1E79dfNnlG
+         eRFQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=iFTUHFmgtiGzvN19St5ee/oHBMyKgoEoF5VVcqVSvpE=;
-        b=lrCFEkqLC5je/7aTyOKMsRH8UxRTmk4KXTUu8yAt16NX4z388/ZdfZQnrU0FbYCqLa
-         34h7zvQUqCMEsj57H5U5K9Rrjp3H2avvOVdBz3FiaYH5LgcS+P6mcfJ3rmMW/aeavA4l
-         Em6TTkwHqqwSs+tibcCorU/aA0aMx6pyQskwolsYhy96ecagGzqgNbo/iQy/FtYXzCl3
-         9WIioaKqQ0wj4IqYyySFzbUUt3oaVsp2PDDWHIHhQyT7ySrm+sDaZ1HzyuLex2jXMLWD
-         M94Y+svsMX3EfuJ3OiqwbVtiifMldQ3grlVjT1p24WmzzUiSXG91yTQouLksz2ZwnGMC
-         /SBQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=aOt4vo5keUTXDvxZZjRtcBm1aK7jMfHXMFBxDuIODzA=;
+        b=A6ktgiVkocApPHWM31Mqfonh93L9+rilOBazwwGFZZUSaYbrU2zrxF1WIN4FjKyduM
+         dvhtJzPYAQHijP0Y5xQlUdiME64lHp1o+ymBpWhDcF8WRwISkTzHjBJl/p9L5BM5GRdI
+         dOkNLX40kxZfLUUqXmd8pEB6oKNPmJGZGFFhuXFreprKS4WZ0xDs4cF+uGHaR1HxxMmf
+         vmPL7oqlzC1/gOSJuuPeKJFChNOF6C2Y7ovES4m2LNqUt/qSnRs2M6AmaeDdLGhmyAs+
+         xFgFF48NS/MhfsdVsi6/Fb9fzQs/50M0Vp6eBf0Hvog7qjy9fUOVE7eIJ5CQN9L1mH0J
+         VdKQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oneukum@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=oneukum@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s21si9263011edd.100.2019.05.21.02.07.35
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=P5we8Zz6;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t16sor21175062pfe.8.2019.05.21.02.11.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 May 2019 02:07:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oneukum@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 21 May 2019 02:11:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oneukum@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=oneukum@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 42ADAAD43;
-	Tue, 21 May 2019 09:07:35 +0000 (UTC)
-Message-ID: <1558428877.12672.8.camel@suse.com>
-Subject: Re: [RFC PATCH] usb: host: xhci: allow __GFP_FS in dma allocation
-From: Oliver Neukum <oneukum@suse.com>
-To: Christoph Hellwig <hch@infradead.org>, Alan Stern
-	 <stern@rowland.harvard.edu>
-Cc: Jaewon Kim <jaewon31.kim@gmail.com>, linux-mm@kvack.org, 
- gregkh@linuxfoundation.org, Jaewon Kim <jaewon31.kim@samsung.com>, 
- m.szyprowski@samsung.com, ytk.lee@samsung.com,
- linux-kernel@vger.kernel.org,  linux-usb@vger.kernel.org
-Date: Tue, 21 May 2019 10:54:37 +0200
-In-Reply-To: <20190520142331.GA12108@infradead.org>
-References: <20190520101206.GA9291@infradead.org>
-	 <Pine.LNX.4.44L0.1905201011490.1498-100000@iolanthe.rowland.org>
-	 <20190520142331.GA12108@infradead.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.26.6 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=P5we8Zz6;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=aOt4vo5keUTXDvxZZjRtcBm1aK7jMfHXMFBxDuIODzA=;
+        b=P5we8Zz6H+6S4VTlk2sRyHDyYEYpXZzybP9tIIBSzd43r9y5MSZBdRXPlBJ3lryTA+
+         FWOEAmz8w+mqOLE+LcNWuJ/ve9kPQPP8/phO01R+hpObYwiJzOU+mo9bnHu8oNM243hL
+         clYHRejJlOIAMzdHvAOiJEhHVDOa2d3OqbZ7SHHr7QP9bdRstiaxodxpUI3z/JqLn0l4
+         CuVATlGmo/EyAaq4qPMaqhxYBgbZoh/4BquhmIPGWKdQjcfQP+ng4zk+hWfL7XFYdTlr
+         x1rygty1O865cqXgXvCFhBnp7eKJuEOmFIKJmbeFTSlJ6axhVPY/QRu6T1S+43OepZ+a
+         qeZw==
+X-Google-Smtp-Source: APXvYqzQ29qPyHCPNtNMZdW9Eoc/R5M5CuB8zMitb7IkSgZN/cNPBHHU2P0y4NCtkKDQjLnHnvvwbA==
+X-Received: by 2002:aa7:980e:: with SMTP id e14mr86228912pfl.142.1558429901695;
+        Tue, 21 May 2019 02:11:41 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id s19sm20707713pfh.176.2019.05.21.02.11.36
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 21 May 2019 02:11:40 -0700 (PDT)
+Date: Tue, 21 May 2019 18:11:34 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, linux-api@vger.kernel.org
+Subject: Re: [RFC 1/7] mm: introduce MADV_COOL
+Message-ID: <20190521091134.GA219653@google.com>
+References: <20190520035254.57579-1-minchan@kernel.org>
+ <20190520035254.57579-2-minchan@kernel.org>
+ <20190520081621.GV6836@dhcp22.suse.cz>
+ <20190520225419.GA10039@google.com>
+ <20190521060443.GA32329@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190521060443.GA32329@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mo, 2019-05-20 at 07:23 -0700, Christoph Hellwig wrote:
-> On Mon, May 20, 2019 at 10:16:57AM -0400, Alan Stern wrote:
-> > What if the allocation requires the kernel to swap some old pages out 
-> > to the backing store, but the backing store is on the device that the 
-> > driver is managing?  The swap can't take place until the current I/O 
-> > operation is complete (assuming the driver can handle only one I/O 
-> > operation at a time), and the current operation can't complete until 
-> > the old pages are swapped out.  Result: deadlock.
+On Tue, May 21, 2019 at 08:04:43AM +0200, Michal Hocko wrote:
+> On Tue 21-05-19 07:54:19, Minchan Kim wrote:
+> > On Mon, May 20, 2019 at 10:16:21AM +0200, Michal Hocko wrote:
+> [...]
+> > > > Internally, it works via deactivating memory from active list to
+> > > > inactive's head so when the memory pressure happens, they will be
+> > > > reclaimed earlier than other active pages unless there is no
+> > > > access until the time.
+> > > 
+> > > Could you elaborate about the decision to move to the head rather than
+> > > tail? What should happen to inactive pages? Should we move them to the
+> > > tail? Your implementation seems to ignore those completely. Why?
 > > 
-> > Isn't that the whole reason for using GFP_NOIO in the first place?
+> > Normally, inactive LRU could have used-once pages without any mapping
+> > to user's address space. Such pages would be better candicate to
+> > reclaim when the memory pressure happens. With deactivating only
+> > active LRU pages of the process to the head of inactive LRU, we will
+> > keep them in RAM longer than used-once pages and could have more chance
+> > to be activated once the process is resumed.
 > 
-> It is, or rather was.  As it has been incredibly painful to wire
-> up the gfp_t argument through some callstacks, most notably the
-> vmalloc allocator which is used by a lot of the DMA allocators on
-> non-coherent platforms, we now have the memalloc_noio_save and
-> memalloc_nofs_save functions that mark a thread as not beeing to
-> go into I/O / FS reclaim.  So even if you use GFP_KERNEL you will
-> not dip into reclaim with those flags set on the thread.
+> You are making some assumptions here. You have an explicit call what is
+> cold now you are assuming something is even colder. Is this assumption a
+> general enough to make people depend on it? Not that we wouldn't be able
+> to change to logic later but that will always be risky - especially in
+> the area when somebody want to make a user space driven memory
+> management.
 
-OK, but this leaves a question open. Will the GFP_NOIO actually
-hurt, if it is used after memalloc_noio_save()?
+Think about MADV_FREE. It moves those pages into inactive file LRU's head.
+See the get_scan_count which makes forceful scanning of inactive file LRU
+if it has enough size based on the memory pressure.
+The reason is it's likely to have used-once pages in inactive file LRU,
+generally. Those pages has been top-priority candidate to be reclaimed
+for a long time.
 
-	Regards
-		Oliver
+Only parts I am aware of moving pages into tail of inactive LRU are places
+writeback is done for pages VM already decide to reclaim by LRU aging or
+destructive operation like invalidating but couldn't completed. It's
+really strong hints with no doubt.
+
+>  
+> > > What should happen for shared pages? In other words do we want to allow
+> > > less privileged process to control evicting of shared pages with a more
+> > > privileged one? E.g. think of all sorts of side channel attacks. Maybe
+> > > we want to do the same thing as for mincore where write access is
+> > > required.
+> > 
+> > It doesn't work with shared pages(ie, page_mapcount > 1). I will add it
+> > in the description.
+> 
+> OK, this is good for the starter. It makes the implementation simpler
+> and we can add shared mappings coverage later.
+> 
+> Although I would argue that touching only writeable mappings should be
+> reasonably safe.
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
