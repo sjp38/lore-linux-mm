@@ -2,135 +2,230 @@ Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BCA27C46470
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 14:43:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C76CC46470
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 14:44:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F16B217D9
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 14:43:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4398C217F5
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 14:44:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazonses.com header.i=@amazonses.com header.b="BQ+JycJd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F16B217D9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ggdw0BLY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4398C217F5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C5C36B000A; Tue, 21 May 2019 10:43:40 -0400 (EDT)
+	id EA9646B000C; Tue, 21 May 2019 10:44:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0760C6B000C; Tue, 21 May 2019 10:43:40 -0400 (EDT)
+	id E80736B000D; Tue, 21 May 2019 10:44:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ECDA16B000D; Tue, 21 May 2019 10:43:39 -0400 (EDT)
+	id D95C06B000E; Tue, 21 May 2019 10:44:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CB7FC6B000A
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 10:43:39 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id p4so15746330qkj.17
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 07:43:39 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A3CB06B000C
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 10:44:11 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id u7so12457582pfh.17
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 07:44:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version
-         :feedback-id;
-        bh=ugj1TnF91z5+PBr8jQIJ7x5EpDifHr/zSRpWbpp1ovs=;
-        b=VUnJZ+JoGNFwKljjqcOytKNsFtJBT3qtOG1JSmT1sm0smfu+LBI/s3gqImpOdPKXwX
-         vdJwg4zMwzovav8aiVHDCODLZGljSrvy7jeflc+0HNEFcpB5i5he2icAp22JFkXqRjEN
-         cYi8s9sR8+7i5RGAm+NSL+lNU/7IgBhxyBzXZO85TJsh3GyTXGkaQUvW0AsUucZy7GMg
-         ioabZ6czHwL81FwlvYm+54rh5RVggUd/TK/rpXukj8+MD4PEgU/Sk/56rHg0OrPlCA1Q
-         u5wF6PNPgpMobmxrRlWwy0Qq9GPtSFifm7BE6zVnALWEL4XeQLDNAkuedZfG42FRUOZT
-         fbaQ==
-X-Gm-Message-State: APjAAAVk0ajvVcjRD5M/Kl7k+y95+d9Zs/vKDutFfcZwz6ZO5vDmQAfY
-	jVqW8/z5TwDIbaKyhyVJ6FbAvhNAiLkMuCsz1dI8xc/bDoa9gpYX+G3US4Q3U1VQ/++FjvrQmiN
-	G2dZF0f0SwaDIsdp5f8kkzGCIqipm96ISdjqYAFxjYRTzykcKYV9D+EfGpklfu3A=
-X-Received: by 2002:a05:620a:136f:: with SMTP id d15mr60718405qkl.192.1558449819617;
-        Tue, 21 May 2019 07:43:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx6IHp7QDG+Pc13P84ILxHnQACPvZIUs02sO9JUyOvxV02YdbzGNJSoPdLapBejzeqs72js
-X-Received: by 2002:a05:620a:136f:: with SMTP id d15mr60718356qkl.192.1558449818979;
-        Tue, 21 May 2019 07:43:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558449818; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=G2qXE7Lk1dbyVx3bPCaDhNyJu8a54hfgTzvlxsm1O4o=;
+        b=kjjw87ftPa2EBkhz4LR2hxzoxvAqJpACwTn0WapnRIUWxwTx/RRqapakqMo21nsbdt
+         TirZi5TOScgxytW0QQr2ivN1qNbrlZxvFa3DU5R8U+YH57PQqVUS60bB4bK0n63wrBi6
+         XrAHlIjuQ/CKUtl83/dyHAE8rbxK+cflPyqPqw3uz7jFfitHm4a7YZItYlMaqPPzXX8M
+         yWYetnXvaKfTXmaWNbpyHz7zIbCoQpfNCKX1hrP+pYIik7xcH+H/QlmyPv3m0fKqRRmf
+         QUuBkSjTeL5Co0uJzMTJwNEgse7jqj/343pG7HCBqGQMmmXjXVIrcyQpflMhgkl5u885
+         9WkA==
+X-Gm-Message-State: APjAAAVNJSqsBvjH7iXChAMbBEaJQAKLLENUwGZj94h0tlnIGf7BK/X4
+	+W51M7JpBOzj6I5iPY3q/4xxrfsgzbdkNxVcVxKjqM6JCDLHsZQ5jJkhAihABYEoubgUtgInzfY
+	1mWH5EHUiv9q7Ju+esiu+JtoFqj4+Zk+4wcgTmgRRy/AS483vgLplUTBtyhqoviHMKw==
+X-Received: by 2002:a62:e90b:: with SMTP id j11mr36072317pfh.88.1558449851112;
+        Tue, 21 May 2019 07:44:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw6bftMeNb856Ns/DSn9SJU1xWdTZL1zHPqvjkPDELTYJfY4bB6a8Ya5BjyjQERNmbYGRBa
+X-Received: by 2002:a62:e90b:: with SMTP id j11mr36072202pfh.88.1558449850092;
+        Tue, 21 May 2019 07:44:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558449850; cv=none;
         d=google.com; s=arc-20160816;
-        b=IavT39tLyiz+LmsFQB22csYIkuevfKge/Wth2Il7qnrjvezjZxFrKiaX7GwF2clvFf
-         a0kYPEb3JgVSgXa3rJWwKxYWfCNeb6vJmzzbBGUhzIUl1ExwtDBxB6Eim/UI8Nxts26/
-         55rkAeiTUUlWo7PHvEaszwo+3EaVH6jfE6hWUkSbKroI6iI8lLImndkAuzohxNrG3p6B
-         vmxM1Az+feYHh/r2xDJ6cO5wh1PX3luegWnnzlafSsmKQ09Ri61S2cvAtCVBrshwOteu
-         xUodjFi81Y997xyAJHx/fqIDsOXJujA19Crz2ONCmEAy0wDJEwikQbHM88wagjA08PLJ
-         Dc4Q==
+        b=ymPI8OqqaCzQa3h+b184W2W2lmu1uuBirX/jGsvxWw9+F3qHcmkC40lW+9pOlMYXsu
+         eZ6ohM1oAApBDdLMGL9T/uHmpU4Rwk5s0zAJ9a0aXpnAHaPpdOhKS1WP8LbLNFCpVDW4
+         oOSI5LbjqLRBdR0zF+T1YGaMLYgVZNzBY3UPthd6hEjlio26UpM7/T5xSlxAlpYLrJHP
+         U5xd9nXphXZYFnb/EZO3LV8k0QHJG8gHE9PpkiTiUFZqIkb9RUHhDhbQQnqKbmsei3F0
+         L9nViR/S29dBHDar/LVvvh9WjJQthFf4gZ0yMjf53B8F93UCjX+nv/gA4I3DMWc1chqa
+         V17Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=feedback-id:mime-version:user-agent:references:message-id
-         :in-reply-to:subject:cc:to:from:date:dkim-signature;
-        bh=ugj1TnF91z5+PBr8jQIJ7x5EpDifHr/zSRpWbpp1ovs=;
-        b=VJ4kA33H/u5zBIYlPNZ3DgNkNGLM21mAbWnYT9pBBsJTWiOCt6OhLWY3siEXNCyJqU
-         Z082t3w8Zb5zXp994jLGKoP83jelQaITrt143+ereppBY6lHh0uP1W+z9WPIQEVKk3PY
-         hVtHcRRbGvxu/dMlF6HSVaFPbC6+mT7FehQi8vncGGFbUE7SLqzex3JW/S69aGXOWqmx
-         CHueaqe2BFtLmnSEK7+lm/hO9DRruEn2omPR0lLANycWszYWn5e4eBjDVbkLc23JoY46
-         qmcyRGA6IzCr3O+r6CDaZ6tPPlgvaGNkswwYcf2fSg8/yfsGqM4LZneDtGyyXerupYat
-         hARw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=G2qXE7Lk1dbyVx3bPCaDhNyJu8a54hfgTzvlxsm1O4o=;
+        b=btW6HUX4suZHTDmOVpHCXiJSePtnx3gPL6QzpfUWyJKG4Yb8JCIXHWK6ZykrJN1xd+
+         Yzm3rMNL36M+wBp4yVAeDC7Z1AGaDKiqXeQh6KyuUTv7TwEqt2nXq+Gv2uWmxdXJz7TP
+         yzGWC6O8dqW7JzoIWH4jPNjVR5uuxussKdBO8LtQGEb2az38jVaXR7+9p2w0XtEDiXYB
+         1TK0TPUq3skqyYTMrScfWLwb55a75gtwYtwn0lSBI+fhJ8ejmN8l/iuieZT72hCnXwzX
+         NUdWh0nkrcOAMrfvIEKfHyWuxy5SAORvVaDDj8TPtaNf59WFNKfGCFEjhiWItJoXZLQ8
+         HPWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=BQ+JycJd;
-       spf=pass (google.com: domain of 0100016adad909d8-e6c9c310-36e0-4bdd-80fd-5df1a1660041-000000@amazonses.com designates 54.240.9.34 as permitted sender) smtp.mailfrom=0100016adad909d8-e6c9c310-36e0-4bdd-80fd-5df1a1660041-000000@amazonses.com
-Received: from a9-34.smtp-out.amazonses.com (a9-34.smtp-out.amazonses.com. [54.240.9.34])
-        by mx.google.com with ESMTPS id 130si1898061qkg.38.2019.05.21.07.43.38
+       dkim=pass header.i=@kernel.org header.s=default header.b=ggdw0BLY;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id g17si3596299pgk.500.2019.05.21.07.44.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 21 May 2019 07:43:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 0100016adad909d8-e6c9c310-36e0-4bdd-80fd-5df1a1660041-000000@amazonses.com designates 54.240.9.34 as permitted sender) client-ip=54.240.9.34;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 May 2019 07:44:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazonses.com header.s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw header.b=BQ+JycJd;
-       spf=pass (google.com: domain of 0100016adad909d8-e6c9c310-36e0-4bdd-80fd-5df1a1660041-000000@amazonses.com designates 54.240.9.34 as permitted sender) smtp.mailfrom=0100016adad909d8-e6c9c310-36e0-4bdd-80fd-5df1a1660041-000000@amazonses.com
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/simple;
-	s=6gbrjpgwjskckoa6a5zn6fwqkn67xbtw; d=amazonses.com; t=1558449818;
-	h=Date:From:To:cc:Subject:In-Reply-To:Message-ID:References:MIME-Version:Content-Type:Feedback-ID;
-	bh=ugj1TnF91z5+PBr8jQIJ7x5EpDifHr/zSRpWbpp1ovs=;
-	b=BQ+JycJdcpCjIkVBFXG/uI/HVL5jFnPpTJt1wuepkBL/uNGFdX/hN68BkswpWFGW
-	mg/FuCt9SExcgAO0Eslvkkk3XzdUBUdiRTWU+zp5YFpHW7RGAhGngcQtn5shOZF0VN/
-	nOqFCUJNNa5hHtr4UGwVSyLKP9qAjIfWUg7eWWug=
-Date: Tue, 21 May 2019 14:43:38 +0000
-From: Christopher Lameter <cl@linux.com>
-X-X-Sender: cl@nuc-kabylake
-To: Daniel Vetter <daniel.vetter@ffwll.ch>
-cc: DRI Development <dri-devel@lists.freedesktop.org>, 
-    Intel Graphics Development <intel-gfx@lists.freedesktop.org>, 
-    LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, 
-    Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, 
-    Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-    David Rientjes <rientjes@google.com>, 
-    =?ISO-8859-15?Q?Christian_K=F6nig?= <christian.koenig@amd.com>, 
-    =?ISO-8859-15?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, 
-    Masahiro Yamada <yamada.masahiro@socionext.com>, Wei Wang <wvw@google.com>, 
-    Andy Shevchenko <andriy.shevchenko@linux.intel.com>, 
-    Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>, 
-    Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>, 
-    Randy Dunlap <rdunlap@infradead.org>, 
-    Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH] kernel.h: Add non_block_start/end()
-In-Reply-To: <20190521100611.10089-1-daniel.vetter@ffwll.ch>
-Message-ID: <0100016adad909d8-e6c9c310-36e0-4bdd-80fd-5df1a1660041-000000@email.amazonses.com>
-References: <20190521100611.10089-1-daniel.vetter@ffwll.ch>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       dkim=pass header.i=@kernel.org header.s=default header.b=ggdw0BLY;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wm1-f54.google.com (mail-wm1-f54.google.com [209.85.128.54])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 7F4A92186A
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 14:44:09 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1558449849;
+	bh=UXFXrEA/XzWJSiUo9Qp4UMS3ywgS7m/ucbmbFiKpKdg=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=ggdw0BLYs+MUWCzaemnKs7kSn7TwV/Z1WyTZ21WH/Jz1MnoGDQXLI9sEuswTUvuTS
+	 8pQ9c8rrHOkToDiNw4MOcaMc2FDInI4T5EHyUjCtb3CIFqXtP49Sw4Q953xH/Y7U+O
+	 DkHtReRVA2CdJGsCfXC19OMfPrqWV+XYmG7ky4Kc=
+Received: by mail-wm1-f54.google.com with SMTP id 15so3175897wmg.5
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 07:44:09 -0700 (PDT)
+X-Received: by 2002:a1c:e906:: with SMTP id q6mr3923719wmc.47.1558449846202;
+ Tue, 21 May 2019 07:44:06 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-X-SES-Outgoing: 2019.05.21-54.240.9.34
-Feedback-ID: 1.us-east-1.fQZZZ0Xtj2+TD7V5apTT/NrT6QKuPgzCT/IC7XYgDKI=:AmazonSES
+References: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
+In-Reply-To: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Tue, 21 May 2019 07:43:54 -0700
+X-Gmail-Original-Message-ID: <CALCETrU221N6uPmdaj4bRDDsf+Oc5tEfPERuyV24wsYKHn+spA@mail.gmail.com>
+Message-ID: <CALCETrU221N6uPmdaj4bRDDsf+Oc5tEfPERuyV24wsYKHn+spA@mail.gmail.com>
+Subject: Re: [PATCH v2 0/7] mm: process_vm_mmap() -- syscall for duplication a
+ process mapping
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, 
+	Michal Hocko <mhocko@suse.com>, Keith Busch <keith.busch@intel.com>, 
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, alexander.h.duyck@linux.intel.com, 
+	Weiny Ira <ira.weiny@intel.com>, Andrey Konovalov <andreyknvl@google.com>, arunks@codeaurora.org, 
+	Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@surriel.com>, 
+	Kees Cook <keescook@chromium.org>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Nicholas Piggin <npiggin@gmail.com>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, 
+	Shakeel Butt <shakeelb@google.com>, Roman Gushchin <guro@fb.com>, 
+	Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, 
+	Jerome Glisse <jglisse@redhat.com>, Mel Gorman <mgorman@techsingularity.net>, 
+	daniel.m.jordan@oracle.com, Jann Horn <jannh@google.com>, 
+	Adam Borowski <kilobyte@angband.pl>, Linux API <linux-api@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 21 May 2019, Daniel Vetter wrote:
+On Mon, May 20, 2019 at 7:01 AM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>
 
-> In some special cases we must not block, but there's not a
-> spinlock, preempt-off, irqs-off or similar critical section already
-> that arms the might_sleep() debug checks. Add a non_block_start/end()
-> pair to annotate these.
+> [Summary]
+>
+> New syscall, which allows to clone a remote process VMA
+> into local process VM. The remote process's page table
+> entries related to the VMA are cloned into local process's
+> page table (in any desired address, which makes this different
+> from that happens during fork()). Huge pages are handled
+> appropriately.
+>
+> This allows to improve performance in significant way like
+> it's shows in the example below.
+>
+> [Description]
+>
+> This patchset adds a new syscall, which makes possible
+> to clone a VMA from a process to current process.
+> The syscall supplements the functionality provided
+> by process_vm_writev() and process_vm_readv() syscalls,
+> and it may be useful in many situation.
+>
+> For example, it allows to make a zero copy of data,
+> when process_vm_writev() was previously used:
+>
+>         struct iovec local_iov, remote_iov;
+>         void *buf;
+>
+>         buf = mmap(NULL, n * PAGE_SIZE, PROT_READ|PROT_WRITE,
+>                    MAP_PRIVATE|MAP_ANONYMOUS, ...);
+>         recv(sock, buf, n * PAGE_SIZE, 0);
+>
+>         local_iov->iov_base = buf;
+>         local_iov->iov_len = n * PAGE_SIZE;
+>         remove_iov = ...;
+>
+>         process_vm_writev(pid, &local_iov, 1, &remote_iov, 1 0);
+>         munmap(buf, n * PAGE_SIZE);
+>
+>         (Note, that above completely ignores error handling)
+>
+> There are several problems with process_vm_writev() in this example:
+>
+> 1)it causes pagefault on remote process memory, and it forces
+>   allocation of a new page (if was not preallocated);
 
-Just putting preempt on/off around these is not sufficient?
+I don't see how your new syscall helps.  You're writing to remote
+memory.  If that memory wasn't allocated, it's going to get allocated
+regardless of whether you use a write-like interface or an mmap-like
+interface.  Keep in mind that, on x86, just the hardware part of a
+page fault is very slow -- populating the memory with a syscall
+instead of a fault may well be faster.
 
-If not and you need to add another type of critical section then would
-this not need to be added to the preempt counters? See
-include/linux/preempt.h? Looks like there are sufficient bits left to put
-the counter in there.
+>
+> 2)amount of memory for this example is doubled in a moment --
+>   n pages in current and n pages in remote tasks are occupied
+>   at the same time;
 
+This seems disingenuous.  If you're writing p pages total in chunks of
+n pages, you will use a total of p pages if you use mmap and p+n if
+you use write.  That only doubles the amount of memory if you let n
+scale linearly with p, which seems unlikely.
+
+>
+> 3)received data has no a chance to be properly swapped for
+>   a long time.
+
+...
+
+> a)kernel moves @buf pages into swap right after recv();
+> b)process_vm_writev() reads the data back from swap to pages;
+
+If you're under that much memory pressure and thrashing that badly,
+your performance is going to be awful no matter what you're doing.  If
+you indeed observe this behavior under normal loads, then this seems
+like a VM issue that should be addressed in its own right.
+
+>         buf = mmap(NULL, n * PAGE_SIZE, PROT_READ|PROT_WRITE,
+>                    MAP_PRIVATE|MAP_ANONYMOUS, ...);
+>         recv(sock, buf, n * PAGE_SIZE, 0);
+>
+> [Task 2]
+>         buf2 = process_vm_mmap(pid_of_task1, buf, n * PAGE_SIZE, NULL, 0);
+>
+> This creates a copy of VMA related to buf from task1 in task2's VM.
+> Task1's page table entries are copied into corresponding page table
+> entries of VM of task2.
+
+You need to fully explain a whole bunch of details that you're
+ignored.  For example, if the remote VMA is MAP_ANONYMOUS, do you get
+a CoW copy of it?  I assume you don't since the whole point is to
+write to remote memory, but it's at the very least quite unusual in
+Linux to have two different anonymous VMAs such that writing one of
+them changes the other one.  But there are plenty of other questions.
+What happens if the remote VMA is a gate area or other special mapping
+(vDSO, vvar area, etc)?  What if the remote memory comes from a driver
+that wasn't expecting the mapping to get magically copied to a
+different process?
+
+This new API seems quite dangerous and complex to me, and I don't
+think the value has been adequately demonstrated.
 
