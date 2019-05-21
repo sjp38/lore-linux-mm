@@ -1,157 +1,202 @@
 Return-Path: <SRS0=IGNm=TV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Level: *
+X-Spam-Status: No, score=1.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7F837C04E87
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 04:14:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A14F9C04E87
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 04:39:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4D94821743
-	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 04:14:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D94821743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4366021743
+	for <linux-mm@archiver.kernel.org>; Tue, 21 May 2019 04:39:59 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QO5rQwSX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4366021743
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D26226B0003; Tue, 21 May 2019 00:14:30 -0400 (EDT)
+	id AEE3F6B0003; Tue, 21 May 2019 00:39:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD6386B0005; Tue, 21 May 2019 00:14:30 -0400 (EDT)
+	id A9EA16B0005; Tue, 21 May 2019 00:39:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BEBB06B0006; Tue, 21 May 2019 00:14:30 -0400 (EDT)
+	id 98DD16B0006; Tue, 21 May 2019 00:39:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DAB46B0003
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 00:14:30 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id p4so14492052qkj.17
-        for <linux-mm@kvack.org>; Mon, 20 May 2019 21:14:30 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 625D46B0003
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 00:39:58 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id e20so11473658pfn.8
+        for <linux-mm@kvack.org>; Mon, 20 May 2019 21:39:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:message-id:in-reply-to:references:subject:mime-version
-         :content-transfer-encoding:thread-topic:thread-index;
-        bh=fQ7aQmhE8+dRZtKkpkNL7qpCKQOKXf/QHauGKs6H4lU=;
-        b=HiIRN0XWJEFdXDukgprJgrfxbskVqliZq+yWZrBoBzJvobHM/QIzfCTWnDCOgZMa6V
-         c0fJ4y4Fr1Qx+RjiaGIz0RE5RY7XqEBO02lSwyO39bDOCsRoanMNgXcNZ2l8JGILC68A
-         zS1am2c4hm0+nfsE0QOdarOBVkF9y8v6LqPO6JmtcnHnJeYNfYOunc7efGhJce7S2Urm
-         h3pkHHc62Vg0xWXf/pCEm4qct4Q+zHo/u5Rv332iNh4wopFxbFhg7JF9UZTOciZOnenn
-         m5PbDe3bPVWVRYk0ymJNi4T5ETAQl3KaabnZNuAoLuT2LAIbABVzHzoHbC9+V0PjOyFz
-         lm1Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of pagupta@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pagupta@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUCPsnoGukSzQHWs3FgYw7+cCI78ZDjn70qS8KJH9tEzpMvdm3K
-	W7jlV/ehjcV8qDmh+TrORkjv7gp27Uz60wjaSlgtvjf9XAxxQpJ1txeZwoIhT2jm/lq9kZf2r3Q
-	vWo0DpNjWJmtq5wxzl6b+hexStgWe816XFMpfQ7QEXdKBL/ooQAtp454T3cu7u2QyVw==
-X-Received: by 2002:ac8:31a4:: with SMTP id h33mr67280072qte.5.1558412070388;
-        Mon, 20 May 2019 21:14:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx94iKZ6sDKWB36M+lhNLVx0KptegtafYpsWiLK2dYyqECtBUmC7kj2XQxn6RrEl2qgB/M0
-X-Received: by 2002:ac8:31a4:: with SMTP id h33mr67280033qte.5.1558412069700;
-        Mon, 20 May 2019 21:14:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558412069; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=QQkwhZ+FrBt0iCq5K6YROwDY4dt6/xx+/myXpnuTWx4=;
+        b=sUiitE2y2Idp9JARAx9tJHxWjFC4vvGtajLuIrfAoyNAvjNetSAH6JjVSE3wzrG/IO
+         tF1XX1AUZmjRDXlWD3ViPcz5KKfd7QXX/ZMfyuVoIhbueretJARzox6Pt1xXoC9nPj5b
+         2WsuIxD61ioKyioVNozqgNFKvoaLpvdvgqBZeW+uZaYd70/kSw3rNwWwvjgd3v3oTwXB
+         dUK0yo84m09zDvEUZAS2HLwtVp+aXpDwYBRnr/creoWD0j8ajClcUs9nHvyVsD9EvKxF
+         2Bbtij+ZzCb2uK+WYcZRPQSD9NFJ8X6KscKzYlD8DAiI05knWKSExB9B0a3nCmlo/M03
+         ZtZQ==
+X-Gm-Message-State: APjAAAXV/bDafa7qLpEGRCYSombyTOiV2KzosXg68opZUtEiV71r+Vc5
+	U9zjrF2m6P+AHdL+xs6OIoH/thOBnxZC1ipr+EsGLMBiOxQsXpla02iKAYaRgKUXavYob6EvNPg
+	VfJW6HucvVGR3RsEWEQzhqVzVelAjrVD0U8jI5j8hlBBQ80vMLLPVUzS8I4YkY2w=
+X-Received: by 2002:aa7:8083:: with SMTP id v3mr20629568pff.135.1558413597973;
+        Mon, 20 May 2019 21:39:57 -0700 (PDT)
+X-Received: by 2002:aa7:8083:: with SMTP id v3mr20629509pff.135.1558413597139;
+        Mon, 20 May 2019 21:39:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558413597; cv=none;
         d=google.com; s=arc-20160816;
-        b=YnXQhbj/LzQ2iH+3jvOu5liTT+eIbkyreW78dlJMkAgf6TFlVncvz0Bu9EEMRefG2e
-         i0uA45Z8saG3HjtWxsU6jqCl9d0koi/G5B90+tmOZcFARI39hiCN6KF38Hz0pZQyrOPk
-         RQgKWvLKLRSrwHTBA7/H13ofb+9f0/uTL5rNLhluLB5KDu+g3x/D763QVYCElWhSEHxa
-         DGt7vFzv2Qw5nIelHAoK3NrqUBrQ5uzSERSbVk/l2rdWvahVk1Xrr9UOZbxy+C6DDnFd
-         B8EoKtVtLvejQq/ra/F0u3QMs/jtkVXc9nIFuTcBdd2QohmKU1iT1lw8rPME0QE0fkzd
-         GFiA==
+        b=nobi8yA4NMXDPeIwghCZjvbV8w3K/gRAV81WowJ+f3EwG4Mln2dWKGPklSuoMI2R0K
+         acLhJwsbatGoEKYaoHHLCnPjAooY0ZmrYmo6rtDQoAgQ0xaFj0daUPHW+nJHTSdYrnIv
+         zMjG7eM0OiiE1/M7iI4KvMObPNdmer7UK4YCRDE6BLHKzsQyMioYqRRZ49I9HaQF1NFE
+         xDyQNFOVDCFwVDEtKAj/TQNJjmqtpkR7yRz7bS799SNwKL+ALhinQ/LjX1dbClrRa+0G
+         xfsCgxrdV9U//1wI9qzMRW9GhMO67z4r3GbkGfdTYtxfuNWc2H1uW94stNiDbVHDnlP7
+         YDHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=thread-index:thread-topic:content-transfer-encoding:mime-version
-         :subject:references:in-reply-to:message-id:cc:to:from:date;
-        bh=fQ7aQmhE8+dRZtKkpkNL7qpCKQOKXf/QHauGKs6H4lU=;
-        b=yasYuj2XF5Fv31g4m2/hfgk5F46xxMwg8mP1q31LJGKC5bkOpui54OTGsdLGqSpez1
-         zxrklu2IYLBmzBw8WD/wuH+jOLws3K1hoI7P4Mxh0qA5hr+AfedpCFKcMzRhHJPPNf4m
-         m0kIIEETBRNPcrrxuUNOBluHfJEsRfTVVT/A8lvaZcnxpea0KLBK8b19FiqXDV61kvSq
-         altCGn2uLUptvHLT4qQYCFBEBkMK8RFjy7cGE9kmQB7iTVJKkCgaFKL5qaUEXDr388Y1
-         BqMuSOFKf3ffciC2PvZ3QLb79RNVk64KaK9WyGTwqyjOgFGTzAifq8BYIKDbbTbLvNrR
-         Ngug==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:sender:dkim-signature;
+        bh=QQkwhZ+FrBt0iCq5K6YROwDY4dt6/xx+/myXpnuTWx4=;
+        b=AOFxo2jGVRAWF0ieeS5b/h8lQGAaNlLI9m1IiUBMTEV4gIULOzlySXFAhSwK+XIGFO
+         rtYhFQcsX+scaMgWU+gQcUX/aq849h1Q6zhbJ00nIpOowHEaz6sltV1/zDC4cG3o6Egn
+         tBXavGV0VhaZb6+Ca15ALpGip5+Vdu06IIgOOXt1Gs+C/GJ6ve8xeLN6sRzxfQTt89SF
+         ARz/yrIWSKvR5SbemsIe3NDk3gMIsFZLurIbs3NbRSWsjrKq3Z5CWkA34uPXkZ18B12D
+         1zNqGruFeSgaVxCG7L6MzIiChesmvqkVDRcMd79ikbEfwgwnDDJuAWPKkzLx9+VOoMl6
+         57/g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of pagupta@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pagupta@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g15si638539qkl.100.2019.05.20.21.14.29
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QO5rQwSX;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r144sor11736683pgr.57.2019.05.20.21.39.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 May 2019 21:14:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pagupta@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Mon, 20 May 2019 21:39:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of pagupta@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=pagupta@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id CCFDDC057E65;
-	Tue, 21 May 2019 04:14:28 +0000 (UTC)
-Received: from colo-mx.corp.redhat.com (colo-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.21])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id C0245600C6;
-	Tue, 21 May 2019 04:14:28 +0000 (UTC)
-Received: from zmail21.collab.prod.int.phx2.redhat.com (zmail21.collab.prod.int.phx2.redhat.com [10.5.83.24])
-	by colo-mx.corp.redhat.com (Postfix) with ESMTP id B2B924A460;
-	Tue, 21 May 2019 04:14:28 +0000 (UTC)
-Date: Tue, 21 May 2019 00:14:28 -0400 (EDT)
-From: Pankaj Gupta <pagupta@redhat.com>
-To: Jane Chu <jane.chu@oracle.com>
-Cc: n-horiguchi@ah.jp.nec.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	linux-nvdimm@lists.01.org
-Message-ID: <255137178.29997735.1558412068338.JavaMail.zimbra@redhat.com>
-In-Reply-To: <1558403523-22079-1-git-send-email-jane.chu@oracle.com>
-References: <1558403523-22079-1-git-send-email-jane.chu@oracle.com>
-Subject: Re: [PATCH v2] mm, memory-failure: clarify error message
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QO5rQwSX;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=QQkwhZ+FrBt0iCq5K6YROwDY4dt6/xx+/myXpnuTWx4=;
+        b=QO5rQwSX4v25HATvAZksTfI6EjXr31E65ISg3wa7Rgi+45wh+Nc67s/QBio/bGiCxj
+         XpXtutx7gPssH+Xd9sCjEzvAXWl+YYTuoMcSfqUB6YdCsqDiXmbCW/gEzauJ473iqGp+
+         +kVbmM7thyPsWxY6WFV9RGiW3WLCVx/uv3vQHpy3NPuH/7R1CrZmIljMx9pvsxRuXkbc
+         7SoMfs2fQkMEeDeNLJ3eNAzSQy4VDAMh4OrN9FQMY+8f8ARo/KGLQ7dX4UID1aDS3epb
+         DbYbiaD39kGowIZ66+bRqNKIIsPg3h3p+/6PQAr9RDHCrsN+XINT4BdkIBXTqVSEWNnl
+         OcGg==
+X-Google-Smtp-Source: APXvYqyhPph8JUAv8OXabcKgL76/7+E4blBN6RjxyY6+rf84o1rFnhmanK/CfaV5snMHaIbjmb0bnA==
+X-Received: by 2002:a63:c64c:: with SMTP id x12mr78971864pgg.379.1558413596600;
+        Mon, 20 May 2019 21:39:56 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id w12sm29519966pfj.41.2019.05.20.21.39.52
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 20 May 2019 21:39:55 -0700 (PDT)
+Date: Tue, 21 May 2019 13:39:50 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Michal Hocko <mhocko@suse.com>, Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>
+Subject: Re: [RFC 0/7] introduce memory hinting API for external process
+Message-ID: <20190521043950.GJ10039@google.com>
+References: <20190520035254.57579-1-minchan@kernel.org>
+ <20190520164605.GA11665@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.67.116.97, 10.4.195.29]
-Thread-Topic: mm, memory-failure: clarify error message
-Thread-Index: 1DbEf0kdw7K8egROywjW6H/tEghkdQ==
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Tue, 21 May 2019 04:14:28 +0000 (UTC)
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190520164605.GA11665@cmpxchg.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-> Some user who install SIGBUS handler that does longjmp out
-> therefore keeping the process alive is confused by the error
-> message
->   "[188988.765862] Memory failure: 0x1840200: Killing
->    cellsrv:33395 due to hardware memory corruption"
-> Slightly modify the error message to improve clarity.
+On Mon, May 20, 2019 at 12:46:05PM -0400, Johannes Weiner wrote:
+> On Mon, May 20, 2019 at 12:52:47PM +0900, Minchan Kim wrote:
+> > - Approach
+> > 
+> > The approach we chose was to use a new interface to allow userspace to
+> > proactively reclaim entire processes by leveraging platform information.
+> > This allowed us to bypass the inaccuracy of the kernel’s LRUs for pages
+> > that are known to be cold from userspace and to avoid races with lmkd
+> > by reclaiming apps as soon as they entered the cached state. Additionally,
+> > it could provide many chances for platform to use much information to
+> > optimize memory efficiency.
+> > 
+> > IMHO we should spell it out that this patchset complements MADV_WONTNEED
+> > and MADV_FREE by adding non-destructive ways to gain some free memory
+> > space. MADV_COLD is similar to MADV_WONTNEED in a way that it hints the
+> > kernel that memory region is not currently needed and should be reclaimed
+> > immediately; MADV_COOL is similar to MADV_FREE in a way that it hints the
+> > kernel that memory region is not currently needed and should be reclaimed
+> > when memory pressure rises.
 > 
-> Signed-off-by: Jane Chu <jane.chu@oracle.com>
-> ---
->  mm/memory-failure.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> I agree with this approach and the semantics. But these names are very
+> vague and extremely easy to confuse since they're so similar.
 > 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index fc8b517..c4f4bcd 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -216,7 +216,7 @@ static int kill_proc(struct to_kill *tk, unsigned long
-> pfn, int flags)
->          short addr_lsb = tk->size_shift;
->          int ret;
->  
-> -        pr_err("Memory failure: %#lx: Killing %s:%d due to hardware memory
-> corruption\n",
-> +        pr_err("Memory failure: %#lx: Sending SIGBUS to %s:%d due to hardware
-> memory corruption\n",
->                  pfn, t->comm, t->pid);
->  
->          if ((flags & MF_ACTION_REQUIRED) && t->mm == current->mm) {
-> --
-> 1.8.3.1
-
-This error message is helpful.
-
-Acked-by: Pankaj Gupta <pagupta@redhat.com>
-
+> MADV_COLD could be a good name, but for deactivating pages, not
+> reclaiming them - marking memory "cold" on the LRU for later reclaim.
 > 
-> _______________________________________________
-> Linux-nvdimm mailing list
-> Linux-nvdimm@lists.01.org
-> https://lists.01.org/mailman/listinfo/linux-nvdimm
+> For the immediate reclaim one, I think there is a better option too:
+> In virtual memory speak, putting a page into secondary storage (or
+> ensuring it's already there), and then freeing its in-memory copy, is
+> called "paging out". And that's what this flag is supposed to do. So
+> how about MADV_PAGEOUT?
 > 
+> With that, we'd have:
+> 
+> MADV_FREE: Mark data invalid, free memory when needed
+> MADV_DONTNEED: Mark data invalid, free memory immediately
+> 
+> MADV_COLD: Data is not used for a while, free memory when needed
+> MADV_PAGEOUT: Data is not used for a while, free memory immediately
+> 
+> What do you think?
+
+There are several suggestions until now. Thanks, Folks!
+
+For deactivating:
+
+- MADV_COOL
+- MADV_RECLAIM_LAZY
+- MADV_DEACTIVATE
+- MADV_COLD
+- MADV_FREE_PRESERVE
+
+
+For reclaiming:
+
+- MADV_COLD
+- MADV_RECLAIM_NOW
+- MADV_RECLAIMING
+- MADV_PAGEOUT
+- MADV_DONTNEED_PRESERVE
+
+It seems everybody doesn't like MADV_COLD so want to go with other.
+For consisteny of view with other existing hints of madvise, -preserve
+postfix suits well. However, originally, I don't like the naming FREE
+vs DONTNEED from the beginning. They were easily confused.
+I prefer PAGEOUT to RECLAIM since it's more likely to be nuance to
+represent reclaim with memory pressure and is supposed to paged-in
+if someone need it later. So, it imply PRESERVE.
+If there is not strong against it, I want to go with MADV_COLD and
+MADV_PAGEOUT.
+
+Other opinion?
 
