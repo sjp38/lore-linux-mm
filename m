@@ -2,232 +2,125 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D6624C072A4
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 06:21:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FADDC072A4
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 06:31:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 961982173E
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 06:21:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 961982173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 620EB21850
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 06:31:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 620EB21850
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9C6876B0007; Wed, 22 May 2019 02:21:15 -0400 (EDT)
+	id EF0076B0003; Wed, 22 May 2019 02:31:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 77E7A6B000C; Wed, 22 May 2019 02:21:15 -0400 (EDT)
+	id EA1486B0006; Wed, 22 May 2019 02:31:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5CDF96B0008; Wed, 22 May 2019 02:21:15 -0400 (EDT)
+	id DB6076B0007; Wed, 22 May 2019 02:31:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 20F096B0006
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 02:21:15 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id i8so1069141pfo.21
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 23:21:15 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A44086B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 02:31:46 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id y22so2075196eds.14
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 23:31:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:in-reply-to:references:mime-version
-         :content-transfer-encoding:message-id;
-        bh=HSwKjPQa0wVQik6ghd9QBdom7pAyWBegzXSiOddxLsE=;
-        b=rBkG4lvh8bHKE3hhLQ2eo1iYTJpmCnTcuu8jUlTrPkrQRYzvl6Ibx/UAHDKgG6mHnw
-         /0Kx/6l+SCA5EdXiFi5WXOIbraY/5LjdU7mU+REkZyHm2pacUWI5k7cIroeBtGRHDV2e
-         +PKq9/QmczdSdNBp53kDEWJZr7lxd37lv0GZvODgyj7zZ0iNwdx7k0cP9EFu1GL4O0Bc
-         aa0lPkNh7YEByBJ2ZBlol0IZ3hoydqvxye4gtYraaulXCcRFfs8LahOSxCZKBYTF4nHh
-         DDqz694XG/blPSi0T9yZK/dg6Vwcl/98asd68pOednFSkTzrJaUqooVvFTc1nIMzvCWU
-         7mUA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXhN0UPq2QrnuSvjMtv3gzPEwVj6scxFv3qoQM8rtP7Q2ogQndh
-	A0gXnWc5HG4Q9GYM6Gj/l+7a+UhI2EC1tPLLaVmi+YK2JVAq7lJWobu/7BeExkapMdRs/giZJgA
-	/xb3NEt8IKvguO19H7y9HtGlcOzDfqc9RjIR10WpNxDzsbsCpH9x0tIgCr6yiOrMfxg==
-X-Received: by 2002:a62:1ec1:: with SMTP id e184mr26570378pfe.185.1558506074666;
-        Tue, 21 May 2019 23:21:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxpI3FyZbeugSUKS0aBGkEjKaphSyC4zg3uiyT4VdsYtKEEELgEHW7+b6Yx2oI7xqzt9Gc1
-X-Received: by 2002:a62:1ec1:: with SMTP id e184mr26570305pfe.185.1558506073690;
-        Tue, 21 May 2019 23:21:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558506073; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=HsOrSSPU5BV9Q3gQc0wMFK8uVEORXt1Yr0TT9XOkgG4=;
+        b=Q6zE0w6JOkcUGNhowNxISQX8Q3npt8To3UbYvxAxLAivp17r9q1leq7PjxHydHMbMR
+         EXsbD9YnmLB6fsGXKqDAWn91qQqqzqsW+Pd49PQQNKlOnnQgpIRiulgJWOHbYwC1VOag
+         tX+ZwfYEdyJShbisrRnP9T3FP2ATmL5qhKQ/drfNjz6oSbMCDQA+kSBm392WsbRjapHX
+         bkph3RcRvPPDVLgwW6XWCH18/80AKGmZlCs9WpphBt35o3wjSkSicISPftG3BM2OTViV
+         T2YNg3X6cPQo0E4ESsLjMYhq4fNaZ1AO38hKf/GqAGPkPy716l1BKB1oMVdtb361BfPB
+         QunQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oneukum@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=oneukum@suse.com
+X-Gm-Message-State: APjAAAWSom82t15I6mpddhndySnI0/AAn0XPwZyiAUNFFBMdgUKzEG3K
+	ZnK2c2xYTXpPWGmUfCqQVUAaA1z21jx+tPNPdklvN53b0XaOU+VuXBoDzp/Q9MZDmzrrgVD+wQl
+	h1i6oo31h1Fy2trCArSmyA7o5NXzidg6zApd4FOlLRLKd4IeXtvscxmAGGhqfpk2Zfg==
+X-Received: by 2002:a17:906:4e56:: with SMTP id g22mr61393021ejw.51.1558506706162;
+        Tue, 21 May 2019 23:31:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyHulg8hW3Z83ZoK0GuzzSbIQ7TWIFBn96Z7O70oVFGoJ1CggGRMfqDnqBsLbQLvGDZKt9z
+X-Received: by 2002:a17:906:4e56:: with SMTP id g22mr61392958ejw.51.1558506705221;
+        Tue, 21 May 2019 23:31:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558506705; cv=none;
         d=google.com; s=arc-20160816;
-        b=C6utG0nKkBiX2F8lN19he6MZnvDzs/2pqWMGK8pw8S6QM7NbEIPMUAjqyEidH0on2+
-         5IZnAnXbvJ3IyaOX4oHEKyPFbEYO3ALdbBNGZSqTJOlVsmvOOSMzAckNuNnnhP8fSsUa
-         vZ7wg7DE9AkgHYbGPCHypf1LJyNyf3oViRGnBy97oYGeOVhJVGiL8eoiKILDMwrEoF/n
-         M02oj07fDrW7Uz0RIG4L3L9Wst7MjWdeoO2MchC0MR5ThezE4GDSo6VuA95yUDwfytUD
-         UApvHAFMuHY9YHYxZ5KKKpbjtPUU/geKWHWvyPn1k3UKjP4Hq/G59Ixv0WD7dOnX3KrH
-         XJPQ==
+        b=Wl7bGbFfBjPDfO9ZDQi+IU9ZrXqNTVP/ZQN3ifMpjg9duyNaiBadjjwVHd5L7P2i2y
+         daNdUckvmPEDdawmbOVwutfC9m4KtaTZPNPRTbAWZYiyJaYRDz/pNMXuzB7w3NLbmniG
+         MCxlFLgvnspB3tJ2qMXQYJQdSS5WMcHQ8/TAvhSjNbPRtFJ5aBk1a8q/Xr1p05YGFYHx
+         uUT71QVP4lxnNZVj7W5dxZTX8euxM/7YD1xjU0NHNRNeq/ooVXXEomH8jLXHh7Fa5Auf
+         GCe+78NRMUJH++xN+389CBfDlrtIxepPV2rAbMx8j8lnLfr+IzdBNgeukH7oQzn8iaCF
+         bDIg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:mime-version:references
-         :in-reply-to:date:subject:cc:to:from;
-        bh=HSwKjPQa0wVQik6ghd9QBdom7pAyWBegzXSiOddxLsE=;
-        b=DbN3nraQMDvoo9cRJFb0Oa49LsZC2JrJYlCKJALsFnfdP+0FWS/zqgiKd51mlDO6fP
-         jzDflntONmGPLy9veGn2w1SMtAaJzFNHKwjNbVyN9dUfP/DkQAuTuSPhzQnKfeoTp0cG
-         nuOlpbW7M+1kL0Cbih/Ttt2yNwrsKfD6bUHssqFyfkMfC0qddrbF1xaUzlT8QLb48wT/
-         5BeBNb/7k8DHYWU1qN8VQS2bVLNbv5R5PfYWgjOZ/SgYl5ZFc0QDT75+WzE6Sa7PID2h
-         HZjUZCXAcHZkowyz+jwEbmjM3WqsaNKg0R/eKRJg7gEYmxl/P9KkjxT4TyYmkzjjmiY2
-         KYNw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=HsOrSSPU5BV9Q3gQc0wMFK8uVEORXt1Yr0TT9XOkgG4=;
+        b=xt9As5hrAVIh3sRyicciQOSfxAzjrBn9CLhQtlUfN33SWQsEwcoRD4m4PAKAdQNQPI
+         Hz3rhSvarvQTpv1W3DG+fNU8NlXd9eZ/fv1Y3EwFyqQN1aVjq81NMnSded2PhDLTI1LY
+         yx3vzUcb38Q4oqlhq8KNi7PLIsVnBYSKbYIy3fugIsv2t5d4Gw5Il/ZKubBIoTPYTdCu
+         hYl/YzKU03CJeaGV8Nh+rBeA4HId5Pks6cIn4N0SeDdfENDY//6bX3B+40X+0hQpVUMj
+         w33MctCc10UaMaEEZP3CHtkioLts6DD9dOo1Y9xIYNqX6kqieOcYCq1Y01xxSnPQXdqL
+         Rnlw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id y4si18403203pfn.47.2019.05.21.23.21.13
+       spf=pass (google.com: domain of oneukum@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=oneukum@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c8si9742641eds.136.2019.05.21.23.31.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 May 2019 23:21:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Tue, 21 May 2019 23:31:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of oneukum@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4M6JdpL055673
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 02:21:13 -0400
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2smwp466wu-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 02:21:12 -0400
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 22 May 2019 07:21:11 +0100
-Received: from b01cxnp22033.gho.pok.ibm.com (9.57.198.23)
-	by e17.ny.us.ibm.com (146.89.104.204) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 22 May 2019 07:21:09 +0100
-Received: from b01ledav004.gho.pok.ibm.com (b01ledav004.gho.pok.ibm.com [9.57.199.109])
-	by b01cxnp22033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4M6L80422085798
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 22 May 2019 06:21:08 GMT
-Received: from b01ledav004.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 044AC11206D;
-	Wed, 22 May 2019 06:21:08 +0000 (GMT)
-Received: from b01ledav004.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 88C6B112062;
-	Wed, 22 May 2019 06:21:06 +0000 (GMT)
-Received: from skywalker.in.ibm.com (unknown [9.124.31.87])
-	by b01ledav004.gho.pok.ibm.com (Postfix) with ESMTP;
-	Wed, 22 May 2019 06:21:06 +0000 (GMT)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: dan.j.williams@intel.com
-Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
-        linuxppc-dev@lists.ozlabs.org,
-        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [RFC PATCH 2/3] mm/nvdimm: Add page size and struct page size to pfn superblock
-Date: Wed, 22 May 2019 11:50:56 +0530
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190522062057.26581-1-aneesh.kumar@linux.ibm.com>
-References: <20190522062057.26581-1-aneesh.kumar@linux.ibm.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-TM-AS-GCONF: 00
-x-cbid: 19052206-0040-0000-0000-000004F2D316
-X-IBM-SpamModules-Scores: 
-X-IBM-SpamModules-Versions: BY=3.00011141; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000286; SDB=6.01206843; UDB=6.00633755; IPR=6.00987819;
- MB=3.00026997; MTD=3.00000008; XFM=3.00000015; UTC=2019-05-22 06:21:10
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19052206-0041-0000-0000-000008FEE6E7
-Message-Id: <20190522062057.26581-2-aneesh.kumar@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-22_03:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905220046
+       spf=pass (google.com: domain of oneukum@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=oneukum@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B08E1B01F;
+	Wed, 22 May 2019 06:31:44 +0000 (UTC)
+Message-ID: <1558506702.12672.28.camel@suse.com>
+Subject: Re: [RFC PATCH] usb: host: xhci: allow __GFP_FS in dma allocation
+From: Oliver Neukum <oneukum@suse.com>
+To: Alan Stern <stern@rowland.harvard.edu>
+Cc: Jaewon Kim <jaewon31.kim@gmail.com>, Christoph Hellwig
+ <hch@infradead.org>,  linux-mm@kvack.org, gregkh@linuxfoundation.org,
+ Jaewon Kim <jaewon31.kim@samsung.com>, m.szyprowski@samsung.com,
+ ytk.lee@samsung.com,  linux-kernel@vger.kernel.org,
+ linux-usb@vger.kernel.org
+Date: Wed, 22 May 2019 08:31:42 +0200
+In-Reply-To: <Pine.LNX.4.44L0.1905210950170.1634-100000@iolanthe.rowland.org>
+References: <Pine.LNX.4.44L0.1905210950170.1634-100000@iolanthe.rowland.org>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.26.6 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is needed so that we don't wrongly initialize a namespace
-which doesn't have enough space reserved for holding struct pages
-with the current kernel.
+On Di, 2019-05-21 at 10:00 -0400, Alan Stern wrote:
+> 
+> Changing configurations amounts to much the same as disconnecting,
+> because both operations destroy all the existing interfaces.
+> 
+> Disconnect can arise in two different ways.
+> 
+>         Physical hot-unplug: All I/O operations will fail.
+> 
+>         Rmmod or unbind: I/O operations will succeed.
+> 
+> The second case is probably okay.  The first we can do nothing about.  
+> However, in either case we do need to make sure that memory allocations
+> do not require any writebacks.  This suggests that we need to call
+> memalloc_noio_save() from within usb_unbind_interface().
 
-We also increment PFN_MIN_VERSION to make sure that older kernel
-won't initialize namespace created with newer kernel.
+I agree with the problem, but I fail to see why this issue would be
+specific to USB. Shouldn't this be done in the device core layer?
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
- drivers/nvdimm/pfn.h      |  9 ++++++---
- drivers/nvdimm/pfn_devs.c | 19 ++++++++++++++++++-
- 2 files changed, 24 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/nvdimm/pfn.h b/drivers/nvdimm/pfn.h
-index 1b10ae5773b6..ba11738ca8a2 100644
---- a/drivers/nvdimm/pfn.h
-+++ b/drivers/nvdimm/pfn.h
-@@ -25,7 +25,7 @@
-  * kernel should fail to initialize that namespace.
-  */
- 
--#define PFN_MIN_VERSION 0
-+#define PFN_MIN_VERSION 1
- 
- struct nd_pfn_sb {
- 	u8 signature[PFN_SIG_LEN];
-@@ -42,8 +42,11 @@ struct nd_pfn_sb {
- 	__le32 end_trunc;
- 	/* minor-version-2 record the base alignment of the mapping */
- 	__le32 align;
--	__le16 min_verison;
--	u8 padding[3998];
-+	__le16 min_version;
-+	/* minor-version-3 record the page size and struct page size */
-+	__le16 page_struct_size;
-+	__le32 page_size;
-+	u8 padding[3992];
- 	__le64 checksum;
- };
- 
-diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index 3250de70a7b3..94918a4e6e73 100644
---- a/drivers/nvdimm/pfn_devs.c
-+++ b/drivers/nvdimm/pfn_devs.c
-@@ -462,6 +462,15 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
- 	if (__le16_to_cpu(pfn_sb->version_minor) < 2)
- 		pfn_sb->align = 0;
- 
-+	if (__le16_to_cpu(pfn_sb->version_minor) < 3) {
-+		/*
-+		 * For a large part we use PAGE_SIZE. But we
-+		 * do have some accounting code using SZ_4K.
-+		 */
-+		pfn_sb->page_struct_size = cpu_to_le16(64);
-+		pfn_sb->page_size = cpu_to_le32(SZ_4K);
-+	}
-+
- 	switch (le32_to_cpu(pfn_sb->mode)) {
- 	case PFN_MODE_RAM:
- 	case PFN_MODE_PMEM:
-@@ -477,6 +486,12 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
- 		align = 1UL << ilog2(offset);
- 	mode = le32_to_cpu(pfn_sb->mode);
- 
-+	if (le32_to_cpu(pfn_sb->page_size) != PAGE_SIZE)
-+		return -EOPNOTSUPP;
-+
-+	if (le16_to_cpu(pfn_sb->page_struct_size) != sizeof(struct page))
-+		return -EOPNOTSUPP;
-+
- 	if (!nd_pfn->uuid) {
- 		/*
- 		 * When probing a namepace via nd_pfn_probe() the uuid
-@@ -771,11 +786,13 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 	memcpy(pfn_sb->uuid, nd_pfn->uuid, 16);
- 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
- 	pfn_sb->version_major = cpu_to_le16(1);
--	pfn_sb->version_minor = cpu_to_le16(2);
-+	pfn_sb->version_minor = cpu_to_le16(3);
- 	pfn_sb->min_version = cpu_to_le16(PFN_MIN_VERSION);
- 	pfn_sb->start_pad = cpu_to_le32(start_pad);
- 	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
- 	pfn_sb->align = cpu_to_le32(nd_pfn->align);
-+	pfn_sb->page_struct_size = cpu_to_le16(sizeof(struct page));
-+	pfn_sb->page_size = cpu_to_le32(PAGE_SIZE);
- 	checksum = nd_sb_checksum((struct nd_gen_sb *) pfn_sb);
- 	pfn_sb->checksum = cpu_to_le64(checksum);
- 
--- 
-2.21.0
+	Regards
+		Oliver
 
