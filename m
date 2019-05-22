@@ -2,218 +2,155 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4AF96C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:01:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C3F5EC282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:09:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D80B20879
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:01:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D80B20879
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 82C44216F4
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:09:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uchLVR9y"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 82C44216F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 88CFF6B0007; Wed, 22 May 2019 11:01:46 -0400 (EDT)
+	id 1CF3E6B0005; Wed, 22 May 2019 11:09:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 83E896B0008; Wed, 22 May 2019 11:01:46 -0400 (EDT)
+	id 180F06B0006; Wed, 22 May 2019 11:09:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7528B6B000A; Wed, 22 May 2019 11:01:46 -0400 (EDT)
+	id 06FBD6B0007; Wed, 22 May 2019 11:09:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 289FD6B0007
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 11:01:46 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id x16so4020482edm.16
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 08:01:46 -0700 (PDT)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 900756B0005
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 11:09:52 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id w18so457373ljw.8
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 08:09:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=GYUir5X3Ad+J3Y3mrzCyGzPHlCpU8b/JiwQngJTyHRA=;
-        b=uGEOjW0M3vebyQdbrhEfzsedoMGERuJiHW6Zmt1m/V7g/U+SpJbjncRg43evuR1OKX
-         7Lv22CFBjxb8Mtt09Iba+LuJxRDU4z/QaoWcRAuLGorIN1tURdOVFy4EGsfSK47iBrP6
-         PdVI0M7s9Ak6SOZXCqkZiJ/NBNmQDpeSosPd66XsuW7E+ZLdNpnZNuQxGR8M9yNnSX/Y
-         LXk0xpLefCwrbyCJNeHH/b79vLfKSpgL4RFF/m5ISxfRx0mMm7B3bYX9oIlTr77yO7Ka
-         xXIf+U9jy3VmYvmVa7ewPYWIPR0STxkXkGVfrQsB7bvTgF4F08hMCkg1RykuyCCfs7jD
-         0ZTQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAUGbpexXvBC3wG7+p7TJkgZrmQDQDYETD4bjsos1oEIqy7mfkA2
-	//dnjk9Jko7YndyeAntM6kqh/F2UYJGRTAc2MUHswACHSt1JsP8xQJGWfIljOVBV8Q85N59iLyK
-	qUtROtzRAHHMoJeOtvycNe1k1YyxJGbJj78DWb7A7CVRl7k2Hhg3RiU1blBWGEAZPCg==
-X-Received: by 2002:a50:fb19:: with SMTP id d25mr89818215edq.61.1558537305581;
-        Wed, 22 May 2019 08:01:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzA1LtGaO35HylBrlxBv/WUtu6H0pDuC3a+j0wQe+z39aIdjRys2H735hi9ciNHU1n6B/nX
-X-Received: by 2002:a50:fb19:: with SMTP id d25mr89818102edq.61.1558537304621;
-        Wed, 22 May 2019 08:01:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558537304; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=fnFIhfm6w+x6vlcZglDCubHYA2sqJDEBTXH+zDoT54E=;
+        b=cGTV7bQqwG5x9oiYauaYTWncIqmQlZcM9EHf5YH/t2wXnPTLXIq0I0xSoI2XRGoAS/
+         z2XB61jNfHKBrTs2fUthH7eDi0PFS26webRU+qei+zbW9XHRhnRb3tc1ca/gL/ryb3Ku
+         NpLCoN6DTc2GfEbtsY5zeSLnnlMxBjKBhrQpqVyXvp90HOvwxZhy4soEcyjbz1Uv06ul
+         SSVlcztZvbhdAs3PT0btcqvCC1zUVZ+X84CWzX/nHCL+7wh3GVE2Bk7inX0QkdV9GZ0B
+         7sQozclzc2hIBuRkY1RDr8iiQhurWy0eWv7XnjInC/MptsfzA+nEB7f/aderJYx8Nxrj
+         C35w==
+X-Gm-Message-State: APjAAAUdaEqeB1z9w9JgxoZfkeM8ASmdzr4ndiSfVQSkkPcWc75uFAA7
+	hU2wGd1kvhcyGT6oNbEt4iyNELOgzgSL8kBGuWT343erM1/kznp7Zbq5RLi3ROwIrTUnGxN7ntI
+	bcI0iijBEKVRVzMxyUrpdnRMVYVaDA8HvEOOcIxeIgi714ooMgSDtvR/cYWOjY0YDSQ==
+X-Received: by 2002:a2e:9b0c:: with SMTP id u12mr15208028lji.189.1558537792015;
+        Wed, 22 May 2019 08:09:52 -0700 (PDT)
+X-Received: by 2002:a2e:9b0c:: with SMTP id u12mr15207973lji.189.1558537790831;
+        Wed, 22 May 2019 08:09:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558537790; cv=none;
         d=google.com; s=arc-20160816;
-        b=hN5HvL4UvqLntUs/4Trc/cKGwhOK9thsiDnDuwaTt3BdPHEdhsJplDgzg64p+ggyBG
-         a/ZisKEIrDPSzP+faIc+Jl6dxwdc61prYhVnVbBfzZIx0LngWOX7QaCxBowI5kNJA2bU
-         D5VQVv5LEfgRGL81bEcdzexfJw/XbcrCcM4tbOoEWkwV7BmUbnigjBT0QNJBnN6erfyz
-         UxKVAAd8ZoDoZNlIGRT3fdX5lf2qpWXauo1Az1zaczwJA/awk9Cu759e8tTp0Z7FsBkU
-         lKVxByQJOeaDmT47rpj2PvC2RSazydSI9snTnhVj525itUuwCN6bZgbZELpjvVzC4xU4
-         iEpg==
+        b=D0j3G9N+SuWyixydrl6kfMQxQjR1hWP8kwgfb6BKmU++h8aI+4AJ05Uiv68eoteKmq
+         Ic56XR25264W+7BsaSy88vHU3V/czz/PgjOKEn5cEwUE0fEEKRjTLng4HLttdZ6ojl+/
+         5uh4oyfFBFn0uuZYDUFAALw2bECdQigfb53eNqK8BUYdikliiU/gdf2zZzx69MS7Ch1e
+         CU8Bsba26jFADcNXN/locE7wTVcHCKfvjpKeQAxp2kKw/R/CtJfEVA5QFHBcsDcKzXt/
+         tEE0U4yyp3vRG36SS/ZlNDFZAhs27idvYsqsV2O50nrkzj1qCHTuJCq2Fo1SDlmFpjJc
+         hrCQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=GYUir5X3Ad+J3Y3mrzCyGzPHlCpU8b/JiwQngJTyHRA=;
-        b=rO11twmP3QmNqFANAt9lyUT3E8bFCVuBwnf6jUWGWW/vKX/2hfJY0+wNjyvu3nc3EJ
-         PueFjxU5opbogRqZxasgcIY6hmywVLE5gVNKYihbcb5ctns1OC6+NYRWhtmyzSw40wSt
-         FCT+/6n90Tuue1r+JjUHergCP2tSyrNnMiWi7rAs7XuPbPRFnPa9fcvQJsy1NEp4PONO
-         l+oGWbRCkE/kX0hDZ27TSgTqG7ks/f3FLkBVg6ENehqrFaZaa+hKGcr13PzDVDDSa7P/
-         +++KZBKZrj1FSfzy+h3p5asiyF/uDfar+CE7zEEYnS5B91IYTOFpN9g+1pTrExOh1tC/
-         ZP6w==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=fnFIhfm6w+x6vlcZglDCubHYA2sqJDEBTXH+zDoT54E=;
+        b=RJl2BqcHugpY0FwAMdnEFFwUe1BTn5uOzp4LdnX52aM0VqaQZrOue1AIsl24zlkFxx
+         i7HSQ2b0GFwwFoBqoRhQa20V6ZTB+ZcjG5H4cz80YUKQIWKe7HtEy9+FIKNQTDfVhGWR
+         z4hOf3R5s3MU5M4hMOLI78KLMnPKBDtJ6/3E0cvdv5CHwv3l1/sLo2IeDCLwtQ01Sg8H
+         ZHxT3D/4GGATUY1TLgxFhNOBfuMP+sYCOeiECHY1axUoNEyuUfAje1GbrNPz7viBoQqP
+         NGO5r3ZdYcBIkqa6g4vHqZ2mLSffoTsdVKCoIS8LLwg+dPqyN40/bV8uJg0g8eqE24Oi
+         o8LQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k14si3529539edb.27.2019.05.22.08.01.44
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uchLVR9y;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h4sor7152925lfp.2.2019.05.22.08.09.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 08:01:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 22 May 2019 08:09:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 260D8B009;
-	Wed, 22 May 2019 15:01:44 +0000 (UTC)
-Subject: Re: [PATCH] proc/meminfo: add MemKernel counter
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-mm@kvack.org,
- Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org,
- Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
-References: <155853600919.381.8172097084053782598.stgit@buzz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <529aa7fd-2dc2-6979-4ea0-d40dfc7e3fde@suse.cz>
-Date: Wed, 22 May 2019 17:01:43 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
-MIME-Version: 1.0
-In-Reply-To: <155853600919.381.8172097084053782598.stgit@buzz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uchLVR9y;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=fnFIhfm6w+x6vlcZglDCubHYA2sqJDEBTXH+zDoT54E=;
+        b=uchLVR9yDZbCoZFcLTDWBlnr+qGgHM4l53knuFUtS4cszF3qq07ggcXLTPp4f1w3EH
+         j1IHk6vbdley5IzodGb/tQoWS8N0fMqt6Ua8kNPLmWewxcufW+1xVNb0e7fViD9CgcIp
+         pJhh60QlEvljx7FQwox0+5OIj33+h7stGNT/5aqWO1weU6FRfCFZdHnUWEfTxAC5OMij
+         t74E5/Or9Z4xug+txof7zAQd6NGIvQn4vfDdCBnBtueDJS3roYMhnTqSiVT58a1ZFUXz
+         1chdk61oyigEWPE2i+mrhDPq+UCbJ9K7zrek8mWwqK7o2ecTG/tzzZbzagqaoi1i97aJ
+         BgJw==
+X-Google-Smtp-Source: APXvYqx5GGN3+wrZiJyukNG7wlTWckT2VbaD042N799w2UxWzlHPswK9PIYTsPn1Y77SbReZyTnRUQ==
+X-Received: by 2002:ac2:5bc1:: with SMTP id u1mr41492644lfn.111.1558537790380;
+        Wed, 22 May 2019 08:09:50 -0700 (PDT)
+Received: from pc636.semobile.internal ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id t22sm5303615lje.58.2019.05.22.08.09.47
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 May 2019 08:09:48 -0700 (PDT)
+From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Roman Gushchin <guro@fb.com>,
+	Uladzislau Rezki <urezki@gmail.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	linux-mm@kvack.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	Thomas Garnier <thgarnie@google.com>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Joel Fernandes <joelaf@google.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@elte.hu>,
+	Tejun Heo <tj@kernel.org>
+Subject: [PATCH 1/4] mm/vmap: remove "node" argument
+Date: Wed, 22 May 2019 17:09:36 +0200
+Message-Id: <20190522150939.24605-1-urezki@gmail.com>
+X-Mailer: git-send-email 2.11.0
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/22/19 4:40 PM, Konstantin Khlebnikov wrote:
-> Some kinds of kernel allocations are not accounted or not show in meminfo.
-> For example vmalloc allocations are tracked but overall size is not shown
+Remove unused argument from the __alloc_vmap_area() function.
 
-I think Roman's vmalloc patch [1] is on its way?
+Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+---
+ mm/vmalloc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-> for performance reasons. There is no information about network buffers.
-
-xfs buffers can also occupy a lot, from my experience
-
-> In most cases detailed statistics is not required. At first place we need
-> information about overall kernel memory usage regardless of its structure.
-> 
-> This patch estimates kernel memory usage by subtracting known sizes of
-> free, anonymous, hugetlb and caches from total memory size: MemKernel =
-> MemTotal - MemFree - Buffers - Cached - SwapCached - AnonPages - Hugetlb.
-> 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-
-I've tried this once in [2]. The name was Unaccounted and one of the objections
-was that people would get worried. Yours is a bit better, perhaps MemKernMisc
-would be even more descriptive? Michal Hocko worried about maintainability, that
-we forget something, but I don't think that's a big issue.
-
-Vlastimil
-
-[1] https://lore.kernel.org/linux-mm/20190514235111.2817276-2-guro@fb.com/T/#u
-[2] https://lore.kernel.org/linux-mm/20161020121149.9935-1-vbabka@suse.cz/T/#u
-
-> ---
->  Documentation/filesystems/proc.txt |    5 +++++
->  fs/proc/meminfo.c                  |   20 +++++++++++++++-----
->  2 files changed, 20 insertions(+), 5 deletions(-)
-> 
-> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-> index 66cad5c86171..a0ab7f273ea0 100644
-> --- a/Documentation/filesystems/proc.txt
-> +++ b/Documentation/filesystems/proc.txt
-> @@ -860,6 +860,7 @@ varies by architecture and compile options.  The following is from a
->  
->  MemTotal:     16344972 kB
->  MemFree:      13634064 kB
-> +MemKernel:      862600 kB
->  MemAvailable: 14836172 kB
->  Buffers:          3656 kB
->  Cached:        1195708 kB
-> @@ -908,6 +909,10 @@ MemAvailable: An estimate of how much memory is available for starting new
->                page cache to function well, and that not all reclaimable
->                slab will be reclaimable, due to items being in use. The
->                impact of those factors will vary from system to system.
-> +   MemKernel: The sum of all kinds of kernel memory allocations: Slab,
-> +              Vmalloc, Percpu, KernelStack, PageTables, socket buffers,
-> +              and some other untracked allocations. Does not include
-> +              MemFree, Buffers, Cached, SwapCached, AnonPages, Hugetlb.
->       Buffers: Relatively temporary storage for raw disk blocks
->                shouldn't get tremendously large (20MB or so)
->        Cached: in-memory cache for files read from the disk (the
-> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-> index 568d90e17c17..b27d56dd619a 100644
-> --- a/fs/proc/meminfo.c
-> +++ b/fs/proc/meminfo.c
-> @@ -39,17 +39,27 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->  	long available;
->  	unsigned long pages[NR_LRU_LISTS];
->  	unsigned long sreclaimable, sunreclaim;
-> +	unsigned long anon_pages, file_pages, swap_cached;
-> +	long kernel_pages;
->  	int lru;
->  
->  	si_meminfo(&i);
->  	si_swapinfo(&i);
->  	committed = percpu_counter_read_positive(&vm_committed_as);
->  
-> -	cached = global_node_page_state(NR_FILE_PAGES) -
-> -			total_swapcache_pages() - i.bufferram;
-> +	anon_pages = global_node_page_state(NR_ANON_MAPPED);
-> +	file_pages = global_node_page_state(NR_FILE_PAGES);
-> +	swap_cached = total_swapcache_pages();
-> +
-> +	cached = file_pages - swap_cached - i.bufferram;
->  	if (cached < 0)
->  		cached = 0;
->  
-> +	kernel_pages = i.totalram - i.freeram - anon_pages - file_pages -
-> +		       hugetlb_total_pages();
-> +	if (kernel_pages < 0)
-> +		kernel_pages = 0;
-> +
->  	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
->  		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
->  
-> @@ -60,9 +70,10 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->  	show_val_kb(m, "MemTotal:       ", i.totalram);
->  	show_val_kb(m, "MemFree:        ", i.freeram);
->  	show_val_kb(m, "MemAvailable:   ", available);
-> +	show_val_kb(m, "MemKernel:      ", kernel_pages);
->  	show_val_kb(m, "Buffers:        ", i.bufferram);
->  	show_val_kb(m, "Cached:         ", cached);
-> -	show_val_kb(m, "SwapCached:     ", total_swapcache_pages());
-> +	show_val_kb(m, "SwapCached:     ", swap_cached);
->  	show_val_kb(m, "Active:         ", pages[LRU_ACTIVE_ANON] +
->  					   pages[LRU_ACTIVE_FILE]);
->  	show_val_kb(m, "Inactive:       ", pages[LRU_INACTIVE_ANON] +
-> @@ -92,8 +103,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->  		    global_node_page_state(NR_FILE_DIRTY));
->  	show_val_kb(m, "Writeback:      ",
->  		    global_node_page_state(NR_WRITEBACK));
-> -	show_val_kb(m, "AnonPages:      ",
-> -		    global_node_page_state(NR_ANON_MAPPED));
-> +	show_val_kb(m, "AnonPages:      ", anon_pages);
->  	show_val_kb(m, "Mapped:         ",
->  		    global_node_page_state(NR_FILE_MAPPED));
->  	show_val_kb(m, "Shmem:          ", i.sharedram);
-> 
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index c42872ed82ac..ea1b65fac599 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -985,7 +985,7 @@ adjust_va_to_fit_type(struct vmap_area *va,
+  */
+ static __always_inline unsigned long
+ __alloc_vmap_area(unsigned long size, unsigned long align,
+-	unsigned long vstart, unsigned long vend, int node)
++	unsigned long vstart, unsigned long vend)
+ {
+ 	unsigned long nva_start_addr;
+ 	struct vmap_area *va;
+@@ -1062,7 +1062,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 	 * If an allocation fails, the "vend" address is
+ 	 * returned. Therefore trigger the overflow path.
+ 	 */
+-	addr = __alloc_vmap_area(size, align, vstart, vend, node);
++	addr = __alloc_vmap_area(size, align, vstart, vend);
+ 	if (unlikely(addr == vend))
+ 		goto overflow;
+ 
+-- 
+2.11.0
 
