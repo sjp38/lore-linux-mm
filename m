@@ -7,106 +7,106 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C1D89C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:03:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 07946C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:09:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 50E4E206BA
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:03:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 86625206BA
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:09:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="R1whbY0D"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50E4E206BA
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="igi2ZowC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 86625206BA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 10B6C6B0003; Wed, 22 May 2019 19:03:52 -0400 (EDT)
+	id 487ED6B0003; Wed, 22 May 2019 19:09:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0BA7D6B0006; Wed, 22 May 2019 19:03:52 -0400 (EDT)
+	id 411486B0006; Wed, 22 May 2019 19:09:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E9DF66B0007; Wed, 22 May 2019 19:03:51 -0400 (EDT)
+	id 2D98E6B0007; Wed, 22 May 2019 19:09:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C49B36B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 19:03:51 -0400 (EDT)
-Received: by mail-ua1-f70.google.com with SMTP id j43so1059266uae.16
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 16:03:51 -0700 (PDT)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BC6B46B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 19:09:45 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id d11so748019lji.21
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 16:09:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=083fICcLHdIZzVNufU25syYhE84WJwTKtiHOZtf8SA0=;
-        b=JlJqpIl9d3OeHEaOjeuzbk9lXg/9TUNGXKjnrWklXt6b2qjgEs+Vrn5fizm4U1cOzq
-         /pSkQhPsqW6c7M9uJu8OZqkjsvH8JRWAuA8AAvMv5J52Bm+rnr0TN9EPp24DnqtwEMVR
-         5bDzM5YYFIn9GCOZd2Ns3WURWRXJifBvDLB34l/CGHPrgFlpItGgjoShj1Flq3/uXMKI
-         F2VXtm+WvShbLhwtZgmITlYmqPy9oWnHr9yLy3Nhw0Z5J9DXk4fUQeNwIYiAdUUoQC/f
-         7Sq4tOprlS5FB6GmWtIiexr6ypo0/DcpSMEv1kTPZI6Bw7cBdbq/tdMiz/q5Fyi4nyeg
-         pNLg==
-X-Gm-Message-State: APjAAAXrv9BZwFApaqoqsb2G/KuEEDQ59OI8kRYhZNnkk42JVSqZvfW9
-	+ZdgsnKNuIa2aVeUh8cXKS4REj6FfxtIFKMrEAI4vaWEsM+sydA1GpYddgyvE9htHm70txaBG2D
-	ZSYSS99rl2QLqriCM7X6JT7wNOR+LSaX/TfQAgT7FjLvOw23b0uUEIKMKW3VONiivWQ==
-X-Received: by 2002:a1f:a854:: with SMTP id r81mr118215vke.55.1558566231449;
-        Wed, 22 May 2019 16:03:51 -0700 (PDT)
-X-Received: by 2002:a1f:a854:: with SMTP id r81mr118171vke.55.1558566230555;
-        Wed, 22 May 2019 16:03:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558566230; cv=none;
+        bh=Zo0ta7cFHgMRhNj415CGcWxBRhsPIdMQaFfQkNGZDyg=;
+        b=Cth112LVa38MeBZBLiSMdnewizHpV49EZBf/0Ys15jOAd6Spv5lJZPgEZcS+I2KgjN
+         jFwxH4tt45SWrxhgIH6/QV0Y6f6sk8qYMraYtJmaBs1arFG1WKA53d76isUZQMn/we6E
+         4tN6N7nkV7GIgEZ9MP3qya88HOc0FE+CWZEMdDjv1qQmpXSdNYCa6Q4ouuzxYkw/qFTI
+         ZrNsPf40iHG3ruy3cB0bjtPb9S53VutyebU4xBRlpIqHx+Xwy9S2NaETn2nx5C8L51DM
+         87RO8AXtKIbsLcciMdjwT0dYPuh8vNlFQP6Y6xBBMJwkuJ+qhPuGEd9HsQImco+OJgfS
+         AqlQ==
+X-Gm-Message-State: APjAAAVQOxacYFNpXQnJzEmzdujQxh2meo2+m42Nk7f/J84AughzJ7uG
+	h3Kk+ZFkN/Xgpep7Inx+etKlgcEalLV9DVM/OA1+YSW+CqCN06svcV3bacKkclxKD5Itjsos7ns
+	3NkyjNtNAQozp7XZibfP/D85NmIgzx/zwPvYKSuXmA0BBV7yW0aM4/Y/eICBnfBZb9w==
+X-Received: by 2002:a2e:89cb:: with SMTP id c11mr14027721ljk.16.1558566585056;
+        Wed, 22 May 2019 16:09:45 -0700 (PDT)
+X-Received: by 2002:a2e:89cb:: with SMTP id c11mr14027680ljk.16.1558566584061;
+        Wed, 22 May 2019 16:09:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558566584; cv=none;
         d=google.com; s=arc-20160816;
-        b=K6l/VIn8zrA0zvQQvDw/Ll95Axl73w1V2u6rT6Bjq1xbvGjbGErIcl6acekL/nQXF7
-         WQYlnW+CM+n5z1+IjML2hKz3Xwi5yaPbiCh41ZGvrMT5QcPbCY+rIhgSr9nzoETzXlse
-         cHUHry+3/sDUKWL9lf34FHILR/DFlssIMTqtv2TLyoJEqPfafes4mz63XwWDaeXEoysh
-         o/dt+fAqPvMcXOyD4vL5NGeCKHv9EK6mo7+g+w92+Zudnh4PDa1XKlHHUzLXF9pJq+Yk
-         2QPKqZeeyY6FwaoMqNhJ3kS0D19a5PHCLP0jE/aOev9St/m7ijBs1AGQUtU6SD5MTsKb
-         eklQ==
+        b=kQxZioKXNJuedXykaJ6sOlFSM0tYtYpR99pLyT5q8HeRZCoWSCt/269O80sjs8KC0l
+         4vE2oixjY2k6XpOdQFEpbDZ0bzKgUtYaK6dEsfc7mOPrrAHzMgUIN8SowhEz/OXvEBxW
+         HruISqYuoEEAEcdkNCrU8DldIDS/1kTbRgYGmhkWg95usEId36ut5netCuVjDc1s6rIb
+         b6Q2f3X4+8g2/CtEaPf6b+QLGJ4SkbwkLOkYGlxQCLGdlxCfcPIidCZ4eaIluVqpgmur
+         rCeFdlgMLM9JFFAio3MFjECQbRQIDJLaAiLDUWSqzVFLz35sK0FdKFkZ53/rmOhvBgMe
+         dPHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=083fICcLHdIZzVNufU25syYhE84WJwTKtiHOZtf8SA0=;
-        b=FPZMzUIegRjVLPxgXoPMm/SwZ/mnsIe5KWXLeWsMRpW/w5BznpwQ+TCZdQLp0CfMEO
-         eN01nix+tjiMd4d0kRuO+Hz/6Ed8prlrymCu3/4bf9u5qCTrOV1RKzqDAPh0U1XwvZAH
-         +DAHVVa1PcoHaRTrFtTxQQzN7wFIYhwK+cQkcxKUSV49vOkDo4q/f5n9fsnCl76vlMgy
-         nmw79q7fLEnt/cpMdxEAzpxT7znjgigRO/seSXSgdzjoOKLRn0hhq8296+3M4yiqxJHf
-         g1t+kBkk6josVnK62KNCUdFLdiGSuW1OweR4JPfi6n0tPi511bq3i5vSQ2m8oDIDvyAu
-         3JaA==
+        bh=Zo0ta7cFHgMRhNj415CGcWxBRhsPIdMQaFfQkNGZDyg=;
+        b=nJWpfglVsPaJl/K5JHPu7aY/WrUphu06kgU4OlZzudmUyS+iwDDmnDYthdHwhcd1c9
+         ZwF7GdPPHHcIdRn9Q86FfFcgXDQfXNXmwuOFHc+FBgec7wR5O2rSCDD8vEAy5GCPbThT
+         z2xa8+N25TLyo9HWavsnYJMSISvxBLc5EHBenUbl4YfHl+mV5fVehTQxhh8IVoKgNdqY
+         JQ9cquNTT+1dmGZn69J4oT6k2nrZZG/E3HSt9122l0Rmk0+DmWTY/Lg+v8KTUFZQ1p7d
+         foisZGA5RTY5JOoPYWD35OcSQVmQ665aSG009qhRtyZWyj5e8QsGULxGyHXkNM60IrNO
+         UbBQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=R1whbY0D;
-       spf=pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eugenis@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=igi2ZowC;
+       spf=pass (google.com: domain of enh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=enh@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y206sor3346479vky.70.2019.05.22.16.03.50
+        by mx.google.com with SMTPS id f17sor1433184ljg.16.2019.05.22.16.09.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 22 May 2019 16:03:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 22 May 2019 16:09:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of enh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=R1whbY0D;
-       spf=pass (google.com: domain of eugenis@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=eugenis@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=igi2ZowC;
+       spf=pass (google.com: domain of enh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=enh@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=083fICcLHdIZzVNufU25syYhE84WJwTKtiHOZtf8SA0=;
-        b=R1whbY0DRJvYeo6WDezCnq6bV0i36te0/v1SFgHuDKDfWdFfZ1uqlfu6C2/257hQWf
-         13OBZbWoVT2d4n1OkMyYTaJdzzdNJVODvxD7ax/78bOTFn0UZG6rkpjhsDxguOSNWQSW
-         /pem354o3ayyWSPYKkkwbewRgzXJsoaUxgC/ouAEGxy6liid3L/+YVw/SLmKu4nN5deA
-         sI1HZSYq1Jfkv/d/KsZmiH7dePki/Ktib/+2n6rc/FESU7nQ1RBKbd2tskxVzb2WzGm/
-         +2fOWm+jMAJ/JCuclmW37/f6kDPw2o5cg4ErXP4x4jo4xyXhp8lPR9gvbLshZk81RzVf
-         ErKA==
-X-Google-Smtp-Source: APXvYqxPKtiNPawqkCkuPCNw0GStvO0zt/hmYPvT2nokhB6CEYZVKos9gwheEkiU5Yy2rN1PLFcfrDl2WDUSCoUDbnM=
-X-Received: by 2002:a1f:4ec6:: with SMTP id c189mr128107vkb.17.1558566229772;
- Wed, 22 May 2019 16:03:49 -0700 (PDT)
+        bh=Zo0ta7cFHgMRhNj415CGcWxBRhsPIdMQaFfQkNGZDyg=;
+        b=igi2ZowCRR3eZ9/0nTV8cXZJb9K3GEJ6nM7xrdpCgyuIedU5DlpD8BYtYq2g7fhIK6
+         FMPk+pIR3l66HCoBcqnR8RLDUlNVKBoDdSOOKbybJMa8cIyuAzuBD0XVwoayLR91TP1S
+         Or9Vm+AM1MqvKUg9+c3gOd7GP47AnzQE07FfPqL0gIQFQsaz6/Wtl6TltaTcvzbkWmzx
+         nUHyczH55lHnf4QLfD7YMKsWm2P4/KbXTCsRnYy/LgXeL0UQ2MOisKGH9I79sJSp7fTc
+         mCIju+QQoBZwdM0ZHmLkXpay4k0e/6JiSlhqZI0PrF8znz18Mpt9AP9bfE2L3yEv2l8R
+         69MQ==
+X-Google-Smtp-Source: APXvYqyzdpKdhtViUHlA5ZulCPuE1mR7dT316mPXUNWFyB1kZFy9VtMEAzPhqeN7WBqyKU4f463JOkqzDuNZUlPEoK8=
+X-Received: by 2002:a2e:885a:: with SMTP id z26mr2119940ljj.35.1558566583161;
+ Wed, 22 May 2019 16:09:43 -0700 (PDT)
 MIME-Version: 1.0
 References: <cover.1557160186.git.andreyknvl@google.com> <20190517144931.GA56186@arrakis.emea.arm.com>
  <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
  <20190521182932.sm4vxweuwo5ermyd@mbp> <201905211633.6C0BF0C2@keescook>
  <20190522101110.m2stmpaj7seezveq@mbp> <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
- <20190522163527.rnnc6t4tll7tk5zw@mbp> <201905221316.865581CF@keescook>
-In-Reply-To: <201905221316.865581CF@keescook>
-From: Evgenii Stepanov <eugenis@google.com>
-Date: Wed, 22 May 2019 16:03:36 -0700
-Message-ID: <CAFKCwrjOjdJAbcABp3qxwyYy+hgfyQirvmqGkDSJVJe5pSz0Uw@mail.gmail.com>
+ <20190522163527.rnnc6t4tll7tk5zw@mbp> <201905221316.865581CF@keescook> <CAFKCwrjOjdJAbcABp3qxwyYy+hgfyQirvmqGkDSJVJe5pSz0Uw@mail.gmail.com>
+In-Reply-To: <CAFKCwrjOjdJAbcABp3qxwyYy+hgfyQirvmqGkDSJVJe5pSz0Uw@mail.gmail.com>
+From: enh <enh@google.com>
+Date: Wed, 22 May 2019 16:09:31 -0700
+Message-ID: <CAJgzZorUPzrXu0ysDdKwnqdvgWZJ9tqRjF-9_5CU_UV+c0bRCA@mail.gmail.com>
 Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
-To: Kees Cook <keescook@chromium.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, enh <enh@google.com>, 
+To: Evgenii Stepanov <eugenis@google.com>
+Cc: Kees Cook <keescook@chromium.org>, Catalin Marinas <catalin.marinas@arm.com>, 
 	Andrey Konovalov <andreyknvl@google.com>, Khalid Aziz <khalid.aziz@oracle.com>, 
 	Linux ARM <linux-arm-kernel@lists.infradead.org>, 
 	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
@@ -132,76 +132,82 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 22, 2019 at 1:47 PM Kees Cook <keescook@chromium.org> wrote:
+On Wed, May 22, 2019 at 4:03 PM Evgenii Stepanov <eugenis@google.com> wrote:
 >
-> On Wed, May 22, 2019 at 05:35:27PM +0100, Catalin Marinas wrote:
-> > The two hard requirements I have for supporting any new hardware feature
-> > in Linux are (1) a single kernel image binary continues to run on old
-> > hardware while making use of the new feature if available and (2) old
-> > user space continues to run on new hardware while new user space can
-> > take advantage of the new feature.
+> On Wed, May 22, 2019 at 1:47 PM Kees Cook <keescook@chromium.org> wrote:
+> >
+> > On Wed, May 22, 2019 at 05:35:27PM +0100, Catalin Marinas wrote:
+> > > The two hard requirements I have for supporting any new hardware feature
+> > > in Linux are (1) a single kernel image binary continues to run on old
+> > > hardware while making use of the new feature if available and (2) old
+> > > user space continues to run on new hardware while new user space can
+> > > take advantage of the new feature.
+> >
+> > Agreed! And I think the series meets these requirements, yes?
+> >
+> > > For MTE, we just can't enable it by default since there are applications
+> > > who use the top byte of a pointer and expect it to be ignored rather
+> > > than failing with a mismatched tag. Just think of a hwasan compiled
+> > > binary where TBI is expected to work and you try to run it with MTE
+> > > turned on.
+> >
+> > Ah! Okay, here's the use-case I wasn't thinking of: the concern is TBI
+> > conflicting with MTE. And anything that starts using TBI suddenly can't
+> > run in the future because it's being interpreted as MTE bits? (Is that
+> > the ABI concern? I feel like we got into the weeds about ioctl()s and
+> > one-off bugs...)
+> >
+> > So there needs to be some way to let the kernel know which of three
+> > things it should be doing:
+> > 1- leaving userspace addresses as-is (present)
+> > 2- wiping the top bits before using (this series)
+> > 3- wiping the top bits for most things, but retaining them for MTE as
+> >    needed (the future)
+> >
+> > I expect MTE to be the "default" in the future. Once a system's libc has
+> > grown support for it, everything will be trying to use MTE. TBI will be
+> > the special case (but TBI is effectively a prerequisite).
+> >
+> > AFAICT, the only difference I see between 2 and 3 will be the tag handling
+> > in usercopy (all other places will continue to ignore the top bits). Is
+> > that accurate?
+> >
+> > Is "1" a per-process state we want to keep? (I assume not, but rather it
+> > is available via no TBI/MTE CONFIG or a boot-time option, if at all?)
+> >
+> > To choose between "2" and "3", it seems we need a per-process flag to
+> > opt into TBI (and out of MTE). For userspace, how would a future binary
+> > choose TBI over MTE? If it's a library issue, we can't use an ELF bit,
+> > since the choice may be "late" after ELF load (this implies the need
+> > for a prctl().) If it's binary-only ("built with HWKASan") then an ELF
+> > bit seems sufficient. And without the marking, I'd expect the kernel to
+> > enforce MTE when there are high bits.
+> >
+> > > I would also expect the C library or dynamic loader to check for the
+> > > presence of a HWCAP_MTE bit before starting to tag memory allocations,
+> > > otherwise it would get SIGILL on the first MTE instruction it tries to
+> > > execute.
+> >
+> > I've got the same question as Elliot: aren't MTE instructions just NOP
+> > to older CPUs? I.e. if the CPU (or kernel) don't support it, it just
+> > gets entirely ignored: checking is only needed to satisfy curiosity
+> > or behavioral expectations.
 >
-> Agreed! And I think the series meets these requirements, yes?
->
-> > For MTE, we just can't enable it by default since there are applications
-> > who use the top byte of a pointer and expect it to be ignored rather
-> > than failing with a mismatched tag. Just think of a hwasan compiled
-> > binary where TBI is expected to work and you try to run it with MTE
-> > turned on.
->
-> Ah! Okay, here's the use-case I wasn't thinking of: the concern is TBI
-> conflicting with MTE. And anything that starts using TBI suddenly can't
-> run in the future because it's being interpreted as MTE bits? (Is that
-> the ABI concern? I feel like we got into the weeds about ioctl()s and
-> one-off bugs...)
->
-> So there needs to be some way to let the kernel know which of three
-> things it should be doing:
-> 1- leaving userspace addresses as-is (present)
-> 2- wiping the top bits before using (this series)
-> 3- wiping the top bits for most things, but retaining them for MTE as
->    needed (the future)
->
-> I expect MTE to be the "default" in the future. Once a system's libc has
-> grown support for it, everything will be trying to use MTE. TBI will be
-> the special case (but TBI is effectively a prerequisite).
->
-> AFAICT, the only difference I see between 2 and 3 will be the tag handling
-> in usercopy (all other places will continue to ignore the top bits). Is
-> that accurate?
->
-> Is "1" a per-process state we want to keep? (I assume not, but rather it
-> is available via no TBI/MTE CONFIG or a boot-time option, if at all?)
->
-> To choose between "2" and "3", it seems we need a per-process flag to
-> opt into TBI (and out of MTE). For userspace, how would a future binary
-> choose TBI over MTE? If it's a library issue, we can't use an ELF bit,
-> since the choice may be "late" after ELF load (this implies the need
-> for a prctl().) If it's binary-only ("built with HWKASan") then an ELF
-> bit seems sufficient. And without the marking, I'd expect the kernel to
-> enforce MTE when there are high bits.
->
-> > I would also expect the C library or dynamic loader to check for the
-> > presence of a HWCAP_MTE bit before starting to tag memory allocations,
-> > otherwise it would get SIGILL on the first MTE instruction it tries to
-> > execute.
->
-> I've got the same question as Elliot: aren't MTE instructions just NOP
-> to older CPUs? I.e. if the CPU (or kernel) don't support it, it just
-> gets entirely ignored: checking is only needed to satisfy curiosity
-> or behavioral expectations.
+> MTE instructions are not NOP. Most of them have side effects (changing
+> register values, zeroing memory).
 
-MTE instructions are not NOP. Most of them have side effects (changing
-register values, zeroing memory).
-This only matters for stack tagging, though. Heap tagging is a runtime
-decision in the allocator.
+no, i meant "they're encoded in a space that was previously no-ops, so
+running on MTE code on old hardware doesn't cause SIGILL".
 
-If an image needs to run on old hardware, it will have to do heap tagging only.
-
-> To me, the conflict seems to be using TBI in the face of expecting MTE to
-> be the default state of the future. (But the internal changes needed
-> for TBI -- this series -- is a prereq for MTE.)
+> This only matters for stack tagging, though. Heap tagging is a runtime
+> decision in the allocator.
 >
-> --
-> Kees Cook
+> If an image needs to run on old hardware, it will have to do heap tagging only.
+>
+> > To me, the conflict seems to be using TBI in the face of expecting MTE to
+> > be the default state of the future. (But the internal changes needed
+> > for TBI -- this series -- is a prereq for MTE.)
+> >
+> > --
+> > Kees Cook
 
