@@ -2,133 +2,154 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 24059C282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:52:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A543C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:52:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A704E217D9
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:52:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A74642070D
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:52:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="N3TAcSM7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A704E217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="lrFiJUhj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A74642070D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4BECF6B0006; Wed, 22 May 2019 18:52:19 -0400 (EDT)
+	id 66C266B0007; Wed, 22 May 2019 18:52:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 46CFB6B0007; Wed, 22 May 2019 18:52:19 -0400 (EDT)
+	id 5CF826B0008; Wed, 22 May 2019 18:52:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3348F6B0008; Wed, 22 May 2019 18:52:19 -0400 (EDT)
+	id 4BEF76B000A; Wed, 22 May 2019 18:52:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B40F6B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 18:52:19 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id h189so3033326ioa.13
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 15:52:19 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 23BAA6B0007
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 18:52:22 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id n5so3742211qkf.7
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 15:52:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=HWRXO+edmhSom/gacoPKkE1g/E36lS3QYMoiSV/+smA=;
-        b=K39kI1Jll/hqcO52L2cJpbe+lsXFHUuJM+Pz9xrbcGhwKtaD/+PeVWpkjAQdg2GIoS
-         nskPDzI514HlY1PKqlwuUQuvyKND99kqsS2naEEsbOOe5CqQnhGQlFd0Ro4jkJTFfMLz
-         5EVa0ctJaWFr8NjQQBYFe5M1lu//2XnS+pO0Zviq877N9bVpXcurKzRqLYISC+9GnJ+F
-         agZTJqbUu5ALiACA3lllyJHnHppaIrt6P+Xsyawgjzc6cu/SQnSKSajxj7RpB3vkS1Tt
-         aa+tMhTrsBZJD5dLkkcbdgj5Xh7X0DgsRS7pVbfSJ7DpqkX7dMv2g9gO0g8taEArbWbp
-         ryJA==
-X-Gm-Message-State: APjAAAU3uAOMB4ppjiwHYDb/lT5qnfgOWOUHHdYAumxxiC77NNk8/5QJ
-	OPlb8LgKGUeOORCviE3VwIqR5B9ewr0ZCWZ9gWVvFUI5VwJ53HVMk89vbfjdbFyebdI8h6Jq7no
-	z0ecTLULKEG3ol1FlYQOFT1JhjE2P3whiVGQC/DGyLwdrVNf2JL8EfCYYD4OE6MGU4Q==
-X-Received: by 2002:a6b:7d0d:: with SMTP id c13mr9410346ioq.249.1558565538792;
-        Wed, 22 May 2019 15:52:18 -0700 (PDT)
-X-Received: by 2002:a6b:7d0d:: with SMTP id c13mr9410324ioq.249.1558565538245;
-        Wed, 22 May 2019 15:52:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558565538; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Z/xm6Cl4ibMhuRCBQCtLQFmhKVon9z8MHhMjLCERca0=;
+        b=Cye0YQuLkOwK5GSaQbijGPrHA49x30BC+1UU6vbhxJxQYY+u5EVrZjuuUZZnL4NhNq
+         RSRdqRCxW+C7KntxG2p23GUKfxGlaeNr1JRtJU9lUf/aCTz5V4V3z9Sm3+jEiI3yRMti
+         oAYurpofL497Cnn3dYS9tN8H7MQbs8RbnnFYuUdZEZ97VryHvTc4pcJKQ407YPFrt/+K
+         NnmqLmgu5Gv/U6g22KWxQWLdZ5qB/hdVCWni1/hRUitk8CVkGmea0gIpDV+CfRern3nu
+         Dknin0NqVGi5cufxJl5v6SF0HKoW169WON8DrtRAMxV/8S+QsbtlTqFkBPnGqWAuXNDA
+         3hhQ==
+X-Gm-Message-State: APjAAAXbJBtdCbnIeN6krlO26sN41BynwU5BFjxkkRDYP7Ynv7z/YKMm
+	FWkl8aUqHhegpPPEaWcKQzb38zamehYnEY6Ag2C5+QQ4F8HhmeES0w0K355gJpOQbTo7JhnyOFk
+	Nz92bN8ueNvPRIDpxJp1R7dOOWVbr1+NfNzSwJfkfssH8Bw0pVzOS1I1Idj71s1zl8g==
+X-Received: by 2002:ac8:1608:: with SMTP id p8mr31306208qtj.81.1558565541952;
+        Wed, 22 May 2019 15:52:21 -0700 (PDT)
+X-Received: by 2002:ac8:1608:: with SMTP id p8mr31306178qtj.81.1558565541574;
+        Wed, 22 May 2019 15:52:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558565541; cv=none;
         d=google.com; s=arc-20160816;
-        b=c9GavxkALNPEf59Ta/mnhMCuvqzA2h+AjksnPXDFwywvf5mS7XI+4Vh8+bqoysiTTu
-         jd6f6s6ygiUq/Lhx/ogeb8yE57VE0yVsPQvCnZDg0u4h1oyLjxicATRalsK9N2aZERCP
-         fDDSiiQm9GlxtwsrnwwMEtqZnpzRqUKu0Go1uDJzgAUIBcV/lh01cT46b4EMXjk5JeBh
-         q6Qu3YH94dp5ldcsjm3d3OJ4Bpb+kCIEaZl6h+CEuO5CslBiXJWH8TxqECEWFnFISTzC
-         8x7Po8PEyTqpA0O4/oaRdzXIYBNRtJJZrdTkpG7/T0UJOhxh0Tj2TBULn8m/mdpRxlr9
-         9gfQ==
+        b=qyOQCyuWGDj4pdAcMzRLk0A0Xk63Bo66IPOSOKIUHB0uedmRBKtcNTaJAXZqO7Rt67
+         bZ4Ghl1L4j+UvH9njIUZyelNNoY6zmopnW4PWFiOGOpP3hhomWACO7aw02rk+MBDBZO+
+         cO9N/i5Pe2u/IS7jt7PR6Kf/puJK5nlxQhYz7Pium0Rdbh6v/w/xoUhSJBDvoUP8Dp8w
+         YlVAGCRCqN9omnFF+GibVAZw7Omnm1KMtgSEMK89KE2iMVjjcAC0evAwQ64iG6HWMXQ0
+         KsOssflBBl2YN4K3mreTRRkLkiUS8jLVSTDsdPJZ8BVlEJQxfKkrvyJV17+ubfVD4BEp
+         QQHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=HWRXO+edmhSom/gacoPKkE1g/E36lS3QYMoiSV/+smA=;
-        b=ZmiiD3RkJpd0/K0jeQb6MjSHVSn91xvPszBSKiuw1ODHVe8Eue4/2SNUrU3Rc5ioKo
-         EwJjnZVMwnvGzrMzotJNosvmYAaQXthtW1ANguYdUwuJpA0sAED9ryVkfEE487KWMAMG
-         bm3KK8ATRLWTZakAuh7fDgLdD7K11eIjr9GgV7FdYN5ujmJprTQyUnpjsdUF3xkeztrx
-         WxMOPtuCKbdgVSrGGTkgqRqvfNWH6lQOEO8WCiKA4yZODIgaLNbGt2XQ/U7qnMp4SBBc
-         4CjazRxYCeGqbynJIJ2zIiHLXZdyn5moV3ZtRb7j9drNr4aqb4kP3AlV1OpUSkPaWakD
-         1zhA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Z/xm6Cl4ibMhuRCBQCtLQFmhKVon9z8MHhMjLCERca0=;
+        b=p7eq4ZOZRIGJELjIf4AT/BfiOLVV7yDMa/zyZuH207aH1ZGCd/ezo3OAsU8kzYnUJW
+         PwWthNyNdxFNFLWBgXokcCfau7BDBI/3ebEmp1CfLD7+E7mpKki5GXYnfsLIr26iNMfH
+         sBPJMymLGLCE3RphRTPnEHKu9X71pao8dZETV2g43aMMNEIQRfBX7cPzhH0vWXWiaGpr
+         x+FEgxbUOH0ZTlDPVfEXN+4jcKZoFiw3PN8aQERSU1zgnV+sGLnjb6+Wa+NgnyajtmjH
+         T2rrvL6tbqTFVZGIoYvMPSvnz0pK54qktKgMA6xrrQJmQIfr4hllIA8ThwMz8IpuCdQc
+         2gYQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=N3TAcSM7;
-       spf=pass (google.com: domain of deepa.kernel@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=deepa.kernel@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=lrFiJUhj;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n11sor10580485itb.27.2019.05.22.15.52.18
+        by mx.google.com with SMTPS id u24sor14401153qke.69.2019.05.22.15.52.21
+        for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 22 May 2019 15:52:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of deepa.kernel@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 22 May 2019 15:52:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=N3TAcSM7;
-       spf=pass (google.com: domain of deepa.kernel@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=deepa.kernel@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=lrFiJUhj;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=HWRXO+edmhSom/gacoPKkE1g/E36lS3QYMoiSV/+smA=;
-        b=N3TAcSM7SiptL6E2SpY6CNVVfh0UKXMcbqLjx9uyZbqsLzAXlXzIw4pG7+IRVUlyu/
-         rnf1eqzZuDVLHAjTNDrN/n9Mwe4jvqUXZvuc32062sb6vlqUfryK6Y6lUTuHl4kjwiIx
-         7xPmzAoKwCv9929NQCCLoDfkfXlx4FVB1SdOHxSvEWRyYRVJomHwUB89NSpG/Xkli4bV
-         n/SHezDeA2bj806k3LyjwH85p2tNOk3q0yXDISrFmkNjm+si0G+J06iz8tA9Gj0jlTxm
-         B7hbMFRZsI5wegx8aNy51mnQ/7oP0cVlk5r2gyIczutHFeENqTgmpCBJ74wO8BCPtn/b
-         Y7qg==
-X-Google-Smtp-Source: APXvYqyjZ+tS45v8lDkdTg2/u2uz1fwRnLzCmsw1ZYvEykv/LDAKd+suzQDe/uZURzEU5Cb78LN9rF9D+ofHWhSGNCw=
-X-Received: by 2002:a24:e084:: with SMTP id c126mr10298082ith.124.1558565537779;
- Wed, 22 May 2019 15:52:17 -0700 (PDT)
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=Z/xm6Cl4ibMhuRCBQCtLQFmhKVon9z8MHhMjLCERca0=;
+        b=lrFiJUhjohnbp2rSC6LiceOG6jQ/wn0zbsCFI0zCEfyAIF55kVAyx0gaWo4RD2o01r
+         eanhb7r/FQorOEI0fwbD1PfoRWVxWwx3Jeg1Nfew6g7qyAd964BRkXg8POP8u3swr+Vo
+         jrVlYCOId7NNoVVhRTUjOXDkrvB2fm6wETueDBa50XwHpDYAXObJsbkd06JCnpyH3maw
+         BBz5/NyifHbCbc+8wvyXzDI3+N7g/YlgDanbWNXadrnFKADZokNiOgL1VFUTZQbmDk0L
+         1hTNzc3zIQatQHqcAh/+KMsGH9yY8qfVBw6e1qVJXJ5+YjpCaZlgkmbyEH+yxKbFDclq
+         BqvA==
+X-Google-Smtp-Source: APXvYqwewerjjcgUFras31nkDpRcgCScCGS6yclsA3zOzL0x3MdSxP2F0tK1PbZ1f6abn3fW4b6qJg==
+X-Received: by 2002:a37:ef1a:: with SMTP id j26mr63212619qkk.207.1558565541350;
+        Wed, 22 May 2019 15:52:21 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-49-251.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.49.251])
+        by smtp.gmail.com with ESMTPSA id t17sm16094116qte.66.2019.05.22.15.52.20
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 22 May 2019 15:52:20 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hTa5s-0004Hv-A7; Wed, 22 May 2019 19:52:20 -0300
+Date: Wed, 22 May 2019 19:52:20 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	linux-rdma@vger.kernel.org, Leon Romanovsky <leonro@mellanox.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Artemy Kovalyov <artemyko@mellanox.com>,
+	Moni Shoua <monis@mellanox.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Kaike Wan <kaike.wan@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>
+Subject: Re: [PATCH v4 0/1] Use HMM for ODP v4
+Message-ID: <20190522225220.GC15389@ziepe.ca>
+References: <20190411181314.19465-1-jglisse@redhat.com>
+ <20190506195657.GA30261@ziepe.ca>
+ <20190521205321.GC3331@redhat.com>
+ <20190522005225.GA30819@ziepe.ca>
+ <20190522174852.GA23038@redhat.com>
+ <20190522201247.GH6054@ziepe.ca>
+ <20190522220419.GB20179@redhat.com>
+ <20190522223906.GA15389@ziepe.ca>
+ <20190522224211.GF20179@redhat.com>
 MIME-Version: 1.0
-References: <20190522032144.10995-1-deepa.kernel@gmail.com> <20190522221805.GA30062@chrisdown.name>
-In-Reply-To: <20190522221805.GA30062@chrisdown.name>
-From: Deepa Dinamani <deepa.kernel@gmail.com>
-Date: Wed, 22 May 2019 15:52:03 -0700
-Message-ID: <CABeXuvo25MXCxhfMZNgnMaWRXMktQJ7ZKqm-7M70GaGM_54+0g@mail.gmail.com>
-Subject: Re: [PATCH v2] signal: Adjust error codes according to restore_user_sigmask()
-To: Chris Down <chris@chrisdown.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Arnd Bergmann <arnd@arndb.de>, axboe@kernel.dk, 
-	Davidlohr Bueso <dave@stgolabs.net>, dbueso@suse.de, Eric Wong <e@80x24.org>, 
-	Jason Baron <jbaron@akamai.com>, linux-aio <linux-aio@kvack.org>, 
-	Linux FS-devel Mailing List <linux-fsdevel@vger.kernel.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, 
-	Omar Kilani <omar.kilani@gmail.com>, stable@vger.kernel.org, 
-	Thomas Gleixner <tglx@linutronix.de>, Alexander Viro <viro@zeniv.linux.org.uk>, 
-	linux-mm <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190522224211.GF20179@redhat.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000009, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 22, 2019 at 3:18 PM Chris Down <chris@chrisdown.name> wrote:
->
-> +Cc: linux-mm, since this broke mmots tree and has been applied there
->
-> This patch is missing a definition for signal_detected in io_cqring_wait, which
-> breaks the build.
+On Wed, May 22, 2019 at 06:42:11PM -0400, Jerome Glisse wrote:
 
-This patch does not break the build.
-The patch the breaks the build was the v2 of this patch since there
-was an accidental deletion.
-That's what the v3 fixed. I think v3 got picked up today morning into
-the mm tree
+> > > The way race is avoided is because mm->hmm will either be NULL or
+> > > point to another hmm struct before an existing hmm is free. 
+> > 
+> > There is no locking on mm->hmm so it is useless to prevent races.
+> 
+> There is locking on mm->hmm
 
+Not in mm_get_hmm()
 
--Deepa
+> > So we agree this patch is necessary? Can you test it an ack it please?
+> 
+> A slightly different patch than this one is necessary i will work on
+> it tomorrow.
+
+I think if you want something different you should give feedback on
+this patch. You haven't rasied any defects with it.
+
+Jason
 
