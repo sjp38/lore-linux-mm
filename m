@@ -1,178 +1,637 @@
 Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C7C77C18E7C
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 01:50:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61F76C16A69
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 01:54:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 66E722173C
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 01:50:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UjHLINqa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66E722173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 15DE2217D9
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 01:54:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15DE2217D9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D50226B0003; Tue, 21 May 2019 21:50:34 -0400 (EDT)
+	id D4D736B0006; Tue, 21 May 2019 21:54:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D00A16B0006; Tue, 21 May 2019 21:50:34 -0400 (EDT)
+	id CFE286B0007; Tue, 21 May 2019 21:54:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BF29D6B0007; Tue, 21 May 2019 21:50:34 -0400 (EDT)
+	id BC5896B0008; Tue, 21 May 2019 21:54:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 845306B0003
-	for <linux-mm@kvack.org>; Tue, 21 May 2019 21:50:34 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id e20so604129pgm.16
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 18:50:34 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 809506B0006
+	for <linux-mm@kvack.org>; Tue, 21 May 2019 21:54:40 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id f1so686751pfb.0
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 18:54:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=KEsTTRLdcPvr4DyB6nsvDnVWKWacN5V2AbAsyIXP34I=;
-        b=K7QSklbnoOvQ1YrIXy9nJCOzLr9yZ+/8fv+cydsFjP14PzyjvPHLqr8s9jffQ4KZIy
-         xSpT/N7vKp7ygGeckJFUiNwBf07D9Thquqz+lEauNNe4Rugp0CUryXmH9nJWi92o8eft
-         bZOro4Tv7D7bsGBMGBZWcvb1b7ovqDS6Tqp0NgX/SlTSg3LoOagRg189z8MWqRKFfull
-         1mQjQ2DCzH/MQNirAjyLbG259sAT07N+J1DhR7U8oYFZ8lUIh4gqAXm4RYUw6Wq2Cxlu
-         WRWoKoeGSdxB6JGsBDTqcYSUB4nqwQEq5GHVLZp+WJvN4LLYgis5R+OUeUP79EOeR1/a
-         pxBA==
-X-Gm-Message-State: APjAAAUKRlI5uWuhyjBYeGZbbIphI9YCvQzHhNzg+wWruKHOJ6pxm5yk
-	760IUkBmJydF5mKDLjFl9k1rUohH+quXQVx1r5V6mEsA8JPXLiCPddhibAhAi7h2GREy6XNgDbm
-	MgH1T2UO4zR8KZvSsy6L2etkvhYWi0s1TI77ibia58La3imO4/zxMJooEWE33P6E=
-X-Received: by 2002:aa7:87d7:: with SMTP id i23mr91629280pfo.211.1558489834069;
-        Tue, 21 May 2019 18:50:34 -0700 (PDT)
-X-Received: by 2002:aa7:87d7:: with SMTP id i23mr91629184pfo.211.1558489833262;
-        Tue, 21 May 2019 18:50:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558489833; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=fCsiGJUNJt1SLfnFF7wWt4oYb92ZmYgY6FouJfg7klA=;
+        b=DqCIxihaGrlJYcxYhhI7a101dKtcIEDnuVD1+ngjKOIA5l2ENrUkjMy9EL+Isl5wMQ
+         534ByXaiHx5NvGFc+WTsVEKT04bWVvAWFpFnDSJIdI6/yPDWkChuibUmSTYSGkCbsYNM
+         MdpVyPqnMKVPe0Tu2wgk3f4W2Cds98MfM9WXbFvtDVDyAYMeMtaI0NnLvbFAMC1HsGO/
+         /sDjUpTAShv5slm8rNPMGvuTkRuUCSoLDghILHiMxWbN0Ko8HDjhmPM9fn9SSXM3LW3P
+         DxwPNRUXPoEsqjymYBUVC8tVJhUBhhnKTwmUUqQqzuD0BkzrjGMeHWT0p+8WeT0QgSZZ
+         3qdg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVOKgNdbMVxWjQibRY46h76IUSB+nA5rzmpcK7FRJRLdvQvPLcg
+	RYew+/zFNfsRTfrouUrnxFrS7K35Nk55b282X5Zs2Iok4y0PbFugNJ4cJA8/D5W+rKuM3l3A0ts
+	3fsG+kMZTMKbDj/uoSxNGm1NIb0r6qVgk2I7xVAeV1FOL3JhVk6S9aPzGh1ibMEwybQ==
+X-Received: by 2002:a63:5d3:: with SMTP id 202mr85331544pgf.363.1558490080108;
+        Tue, 21 May 2019 18:54:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwcELl36dYPDyf9eUW1tkCa/akt+SGv/SuH8iMlDrpLk5dQFr9Xz0fKRVEm3mkAFzXoBFtz
+X-Received: by 2002:a63:5d3:: with SMTP id 202mr85331431pgf.363.1558490078986;
+        Tue, 21 May 2019 18:54:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558490078; cv=none;
         d=google.com; s=arc-20160816;
-        b=Aw12F/kAW8Im0+J/t49s/cV1sTK5jUmudCSyGv4bOyUDey7oMGDtyxYH1xP4DellLd
-         2vvQbo96VDl142hd+rA9zIq513UEYuqAvEmThfxtIZ/oqDTs1XBFZltvgtRzTrszVwFq
-         3O1R0NTAEIqgQKdKIddZxNzuCSeTHMo5uPs9UQ1vtaC7TeXhBdsD59Gq+zdsu9xaf8/H
-         jiYliqeNFcKnqpuH6nZOgb4utpQ3J0fMIeGVKB7jmi5lD82Fl2GajBl+QSjgbLtLr5tH
-         fvH3xtCdmYQmCyyjaC0EPTPwq8YGx00Y1MK/ylrioXSk5boXwOG+iBOpUSOlLEMDQ2YQ
-         mz0Q==
+        b=X0RYEp/QTiOnCAmpr6TNWBC/QP8ZXccbtKlxbzZ9F3Lo8KxEnGMQAGoIXlCEF8Q9+Y
+         rTGiurSCL+LvxWh2F4FeBHrKiZrqwKgYTP1i9H74ppAgd/PNGc8F5k2hRl/R33wqfAEf
+         VHajqLGkjqJFfsOKHYMNhfcL7LX0ksoAtxo95og9tEGYyN4Ue7dcCIoD1ZsLp0xsbzjM
+         sl8DbcOgsE4sMGKlePP9f0K8HQBOpahC4MvJqerAbni6o1Pntvz9S/GKP7TMg0Q7U9Xl
+         F3O90jgho09y2SvmkLB8uqSvmIdVq/Q+F4/nMBl09FXAMTbEC5maPevb4FVpmfu1V4zN
+         zvVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=KEsTTRLdcPvr4DyB6nsvDnVWKWacN5V2AbAsyIXP34I=;
-        b=qCgofANqoqVX172U5orUaqosxgjv2FE1fu+jHcdQq4GvQkNJGWcOxXvhEtvS/xJ2R2
-         qwmUhTLBQrrLk9Xt85gfQVbIW0MI42LE67LKSRaKOCCyLmSmmmBXLn3D6k4zBsD0GcuS
-         ThHJMNkdVfpru8kSODj4eabG9l6mLZLq+l1YEa895Xq2UhE/4sZSTy1Ti/0af9etH0lV
-         +h0vDS7PJE5Vr4T59mMTi1Nwnt9yuQik/U5wkEdGtR2M4Je1VZrKEbsP8lMoAHS17gu0
-         cc8miVB6jBobt2eEOi27awJj2eCJkxnh63zJ5zgn/WIZYsYrRx2y9U6S6CipxqHYQhqd
-         09vA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=fCsiGJUNJt1SLfnFF7wWt4oYb92ZmYgY6FouJfg7klA=;
+        b=coYRxBHG5vSdyo4RzIbBOYWgAEDeOnm1AD5sixGmNAXqpGwUlgAav340KkyZlh6Kn9
+         JV4zjPHBAzi37Z11FJ9kXTbIYmwRzuw4mTWeQlYFcPdFUvE9i1QKwzugCkBm/AXxpkO7
+         pJSYpAgGLMpzadQBzEBGTdIdAqIKXlp7+BYmyhvD1xKCPqxJHmcTMUsHwsBTyxiQACBQ
+         CvX2pK4LBa76dTIL0gzDV/lm64MPLZ4+CUovPdkqFGy0pbUSNZ4KU6gohp+gXbIfzRah
+         vbIpaJdy/nFeM/9eK1eFxyJn3xYQykYHsJRCQkV7NGBmy5rG1l49GPs/OS5hgSCEsYKg
+         bQFw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UjHLINqa;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w5sor5458593plp.31.2019.05.21.18.50.33
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id o6si22856930plk.296.2019.05.21.18.54.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 21 May 2019 18:50:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 May 2019 18:54:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UjHLINqa;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=KEsTTRLdcPvr4DyB6nsvDnVWKWacN5V2AbAsyIXP34I=;
-        b=UjHLINqajyRyc03bkbJEwVX7nyyMpQmWAyv5W7+imFIOFa51iCIXk7CK/61xyyRIai
-         FGYl+HB0sIXMbUhOTJDJlmDRS2bCzV0qCGUqghC+DnZPDQp1xWuscp4ICweSbOG1v4p5
-         FMbXHwFzUmECuKMiVhzbb1ysJXHPR4w7qbNPVaEJxDG1Xc/OU5cYB1WHPyDB71x9sBqD
-         K+H+qxwPPSAbqOlZmB9z2Os4xKbVMMtHfZ06glc1KrU6zwbHYph/usPPsgWR5EvW2NFB
-         eSZRhhUszhkhdhGDKNcykyGEq6fUojSTYBiRH5bYQgPXAdTX6rN8GRTnhS29HUp8ht7t
-         9vyg==
-X-Google-Smtp-Source: APXvYqzxNfYUeQPKEfHm11BNLPHtdaRoG0oDRvWdcFYfHEy5dbahZDUKE2b+2g5lZcbEDfmXMxPRIQ==
-X-Received: by 2002:a17:902:b108:: with SMTP id q8mr81677417plr.110.1558489832732;
-        Tue, 21 May 2019 18:50:32 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id u134sm32855756pfc.61.2019.05.21.18.50.28
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 21 May 2019 18:50:31 -0700 (PDT)
-Date: Wed, 22 May 2019 10:50:25 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>, linux-api@vger.kernel.org
-Subject: Re: [RFC 7/7] mm: madvise support MADV_ANONYMOUS_FILTER and
- MADV_FILE_FILTER
-Message-ID: <20190522015025.GA29449@google.com>
-References: <20190520035254.57579-1-minchan@kernel.org>
- <20190520035254.57579-8-minchan@kernel.org>
- <20190520092801.GA6836@dhcp22.suse.cz>
- <20190521025533.GH10039@google.com>
- <20190521153310.GA3218@cmpxchg.org>
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 21 May 2019 18:54:38 -0700
+X-ExtLoop1: 1
+Received: from yhuang-dev.sh.intel.com ([10.239.159.29])
+  by fmsmga004.fm.intel.com with ESMTP; 21 May 2019 18:54:35 -0700
+From: "Huang, Ying" <ying.huang@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Huang Ying <ying.huang@intel.com>,
+	Andrea Parri <andrea.parri@amarulasolutions.com>,
+	Hugh Dickins <hughd@google.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
+	Daniel Jordan <daniel.m.jordan@oracle.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Chen <tim.c.chen@linux.intel.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Yang Shi <yang.shi@linux.alibaba.com>,
+	David Rientjes <rientjes@google.com>,
+	Rik van Riel <riel@redhat.com>,
+	Jan Kara <jack@suse.cz>,
+	Dave Jiang <dave.jiang@intel.com>
+Subject: [PATCH -mm -V9] mm, swap: fix race between swapoff and some swap operations
+Date: Wed, 22 May 2019 09:54:23 +0800
+Message-Id: <20190522015423.14418-1-ying.huang@intel.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190521153310.GA3218@cmpxchg.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 21, 2019 at 11:33:10AM -0400, Johannes Weiner wrote:
-> On Tue, May 21, 2019 at 11:55:33AM +0900, Minchan Kim wrote:
-> > On Mon, May 20, 2019 at 11:28:01AM +0200, Michal Hocko wrote:
-> > > [cc linux-api]
-> > > 
-> > > On Mon 20-05-19 12:52:54, Minchan Kim wrote:
-> > > > System could have much faster swap device like zRAM. In that case, swapping
-> > > > is extremely cheaper than file-IO on the low-end storage.
-> > > > In this configuration, userspace could handle different strategy for each
-> > > > kinds of vma. IOW, they want to reclaim anonymous pages by MADV_COLD
-> > > > while it keeps file-backed pages in inactive LRU by MADV_COOL because
-> > > > file IO is more expensive in this case so want to keep them in memory
-> > > > until memory pressure happens.
-> > > > 
-> > > > To support such strategy easier, this patch introduces
-> > > > MADV_ANONYMOUS_FILTER and MADV_FILE_FILTER options in madvise(2) like
-> > > > that /proc/<pid>/clear_refs already has supported same filters.
-> > > > They are filters could be Ored with other existing hints using top two bits
-> > > > of (int behavior).
-> > > 
-> > > madvise operates on top of ranges and it is quite trivial to do the
-> > > filtering from the userspace so why do we need any additional filtering?
-> > > 
-> > > > Once either of them is set, the hint could affect only the interested vma
-> > > > either anonymous or file-backed.
-> > > > 
-> > > > With that, user could call a process_madvise syscall simply with a entire
-> > > > range(0x0 - 0xFFFFFFFFFFFFFFFF) but either of MADV_ANONYMOUS_FILTER and
-> > > > MADV_FILE_FILTER so there is no need to call the syscall range by range.
-> > > 
-> > > OK, so here is the reason you want that. The immediate question is why
-> > > cannot the monitor do the filtering from the userspace. Slightly more
-> > > work, all right, but less of an API to expose and that itself is a
-> > > strong argument against.
-> > 
-> > What I should do if we don't have such filter option is to enumerate all of
-> > vma via /proc/<pid>/maps and then parse every ranges and inode from string,
-> > which would be painful for 2000+ vmas.
-> 
-> Just out of curiosity, how do you get to 2000+ distinct memory regions
-> in the address space of a mobile app? I'm assuming these aren't files,
-> but rather anon objects with poor grouping. Is that from guard pages
-> between individual heap allocations or something?
+From: Huang Ying <ying.huang@intel.com>
 
-Android uses preload library model to speed up app launch so it loads
-all of library in advance on zygote and forks new app based on it.
+When swapin is performed, after getting the swap entry information from
+the page table, system will swap in the swap entry, without any lock held
+to prevent the swap device from being swapoff.  This may cause the race
+like below,
+
+CPU 1				CPU 2
+-----				-----
+				do_swap_page
+				  swapin_readahead
+				    __read_swap_cache_async
+swapoff				      swapcache_prepare
+  p->swap_map = NULL		        __swap_duplicate
+					  p->swap_map[?] /* !!! NULL pointer access */
+
+Because swapoff is usually done when system shutdown only, the race may
+not hit many people in practice.  But it is still a race need to be fixed.
+
+To fix the race, get_swap_device() is added to check whether the specified
+swap entry is valid in its swap device.  If so, it will keep the swap
+entry valid via preventing the swap device from being swapoff, until
+put_swap_device() is called.
+
+Because swapoff() is very rare code path, to make the normal path runs
+as fast as possible, rcu_read_lock/unlock() and synchronize_rcu()
+instead of reference count is used to implement get/put_swap_device().
+From get_swap_device() to put_swap_device(), RCU reader side is
+locked, so synchronize_rcu() in swapoff() will wait until
+put_swap_device() is called.
+
+In addition to swap_map, cluster_info, etc. data structure in the struct
+swap_info_struct, the swap cache radix tree will be freed after swapoff,
+so this patch fixes the race between swap cache looking up and swapoff
+too.
+
+Races between some other swap cache usages and swapoff are fixed too
+via calling synchronize_rcu() between clearing PageSwapCache() and
+freeing swap cache data structure.
+
+Another possible method to fix this is to use preempt_off() +
+stop_machine() to prevent the swap device from being swapoff when its
+data structure is being accessed.  The overhead in hot-path of both
+methods is similar.  The advantages of RCU based method are,
+
+1. stop_machine() may disturb the normal execution code path on other
+   CPUs.
+
+2. File cache uses RCU to protect its radix tree.  If the similar
+   mechanism is used for swap cache too, it is easier to share code
+   between them.
+
+3. RCU is used to protect swap cache in total_swapcache_pages() and
+   exit_swap_address_space() already.  The two mechanisms can be
+   merged to simplify the logic.
+
+Fixes: 235b62176712 ("mm/swap: add cluster lock")
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Reviewed-by: Andrea Parri <andrea.parri@amarulasolutions.com>
+Not-Nacked-by: Hugh Dickins <hughd@google.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Jérôme Glisse <jglisse@redhat.com>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Dave Jiang <dave.jiang@intel.com>
+
+Changelog:
+
+v9:
+
+- Rebased on latest mmotm
+
+- Revise the comments and patch description
+
+v8:
+
+- Use swp_swap_info() to cleanup the code per Daniel's comments
+
+- Use rcu_read_lock/unlock and synchronize_rcu() per Andrea
+  Arcangeli's comments
+
+- Added Fixes tag per Michal Hocko's comments
+
+v7:
+
+- Rebased on patch: "mm, swap: bounds check swap_info accesses to avoid NULL derefs"
+
+v6:
+
+- Add more comments to get_swap_device() to make it more clear about
+  possible swapoff or swapoff+swapon.
+
+v5:
+
+- Replace RCU with stop_machine()
+
+v4:
+
+- Use synchronize_rcu() in enable_swap_info() to reduce overhead of
+  normal paths further.
+
+v3:
+
+- Re-implemented with RCU to reduce the overhead of normal paths
+
+v2:
+
+- Re-implemented with SRCU to reduce the overhead of normal paths.
+
+- Avoid to check whether the swap device has been swapoff in
+  get_swap_device().  Because we can check the origin of the swap
+  entry to make sure the swap device hasn't bee swapoff.
+---
+ include/linux/swap.h |  13 +++-
+ mm/memory.c          |   2 +-
+ mm/swap_state.c      |  16 ++++-
+ mm/swapfile.c        | 154 ++++++++++++++++++++++++++++++++++---------
+ 4 files changed, 146 insertions(+), 39 deletions(-)
+
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 4bfb5c4ac108..6358a6185634 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -175,8 +175,9 @@ enum {
+ 	SWP_PAGE_DISCARD = (1 << 10),	/* freed swap page-cluster discards */
+ 	SWP_STABLE_WRITES = (1 << 11),	/* no overwrite PG_writeback pages */
+ 	SWP_SYNCHRONOUS_IO = (1 << 12),	/* synchronous IO is efficient */
++	SWP_VALID	= (1 << 13),	/* swap is valid to be operated on? */
+ 					/* add others here before... */
+-	SWP_SCANNING	= (1 << 13),	/* refcount in scan_swap_map */
++	SWP_SCANNING	= (1 << 14),	/* refcount in scan_swap_map */
+ };
+ 
+ #define SWAP_CLUSTER_MAX 32UL
+@@ -460,7 +461,7 @@ extern unsigned int count_swap_pages(int, int);
+ extern sector_t map_swap_page(struct page *, struct block_device **);
+ extern sector_t swapdev_block(int, pgoff_t);
+ extern int page_swapcount(struct page *);
+-extern int __swap_count(struct swap_info_struct *si, swp_entry_t entry);
++extern int __swap_count(swp_entry_t entry);
+ extern int __swp_swapcount(swp_entry_t entry);
+ extern int swp_swapcount(swp_entry_t entry);
+ extern struct swap_info_struct *page_swap_info(struct page *);
+@@ -470,6 +471,12 @@ extern int try_to_free_swap(struct page *);
+ struct backing_dev_info;
+ extern int init_swap_address_space(unsigned int type, unsigned long nr_pages);
+ extern void exit_swap_address_space(unsigned int type);
++extern struct swap_info_struct *get_swap_device(swp_entry_t entry);
++
++static inline void put_swap_device(struct swap_info_struct *si)
++{
++	rcu_read_unlock();
++}
+ 
+ #else /* CONFIG_SWAP */
+ 
+@@ -576,7 +583,7 @@ static inline int page_swapcount(struct page *page)
+ 	return 0;
+ }
+ 
+-static inline int __swap_count(struct swap_info_struct *si, swp_entry_t entry)
++static inline int __swap_count(swp_entry_t entry)
+ {
+ 	return 0;
+ }
+diff --git a/mm/memory.c b/mm/memory.c
+index 0d0711a912de..43d8abb6477e 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2806,7 +2806,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
+ 		struct swap_info_struct *si = swp_swap_info(entry);
+ 
+ 		if (si->flags & SWP_SYNCHRONOUS_IO &&
+-				__swap_count(si, entry) == 1) {
++				__swap_count(entry) == 1) {
+ 			/* skip swapcache */
+ 			page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, vma,
+ 							vmf->address);
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index eb714165afd2..f509cdaa81b1 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -310,8 +310,13 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
+ 			       unsigned long addr)
+ {
+ 	struct page *page;
++	struct swap_info_struct *si;
+ 
++	si = get_swap_device(entry);
++	if (!si)
++		return NULL;
+ 	page = find_get_page(swap_address_space(entry), swp_offset(entry));
++	put_swap_device(si);
+ 
+ 	INC_CACHE_INFO(find_total);
+ 	if (page) {
+@@ -354,8 +359,8 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 			struct vm_area_struct *vma, unsigned long addr,
+ 			bool *new_page_allocated)
+ {
+-	struct page *found_page, *new_page = NULL;
+-	struct address_space *swapper_space = swap_address_space(entry);
++	struct page *found_page = NULL, *new_page = NULL;
++	struct swap_info_struct *si;
+ 	int err;
+ 	*new_page_allocated = false;
+ 
+@@ -365,7 +370,12 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 		 * called after lookup_swap_cache() failed, re-calling
+ 		 * that would confuse statistics.
+ 		 */
+-		found_page = find_get_page(swapper_space, swp_offset(entry));
++		si = get_swap_device(entry);
++		if (!si)
++			break;
++		found_page = find_get_page(swap_address_space(entry),
++					   swp_offset(entry));
++		put_swap_device(si);
+ 		if (found_page)
+ 			break;
+ 
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index be36f6fe2f8c..101637a1fbef 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -1078,12 +1078,11 @@ swp_entry_t get_swap_page_of_type(int type)
+ static struct swap_info_struct *__swap_info_get(swp_entry_t entry)
+ {
+ 	struct swap_info_struct *p;
+-	unsigned long offset, type;
++	unsigned long offset;
+ 
+ 	if (!entry.val)
+ 		goto out;
+-	type = swp_type(entry);
+-	p = swap_type_to_swap_info(type);
++	p = swp_swap_info(entry);
+ 	if (!p)
+ 		goto bad_nofile;
+ 	if (!(p->flags & SWP_USED))
+@@ -1186,6 +1185,69 @@ static unsigned char __swap_entry_free_locked(struct swap_info_struct *p,
+ 	return usage;
+ }
+ 
++/*
++ * Check whether swap entry is valid in the swap device.  If so,
++ * return pointer to swap_info_struct, and keep the swap entry valid
++ * via preventing the swap device from being swapoff, until
++ * put_swap_device() is called.  Otherwise return NULL.
++ *
++ * The entirety of the RCU read critical section must come before the
++ * return from or after the call to synchronize_rcu() in
++ * enable_swap_info() or swapoff().  So if "si->flags & SWP_VALID" is
++ * true, the si->map, si->cluster_info, etc. must be valid in the
++ * critical section.
++ *
++ * Notice that swapoff or swapoff+swapon can still happen before the
++ * rcu_read_lock() in get_swap_device() or after the rcu_read_unlock()
++ * in put_swap_device() if there isn't any other way to prevent
++ * swapoff, such as page lock, page table lock, etc.  The caller must
++ * be prepared for that.  For example, the following situation is
++ * possible.
++ *
++ *   CPU1				CPU2
++ *   do_swap_page()
++ *     ...				swapoff+swapon
++ *     __read_swap_cache_async()
++ *       swapcache_prepare()
++ *         __swap_duplicate()
++ *           // check swap_map
++ *     // verify PTE not changed
++ *
++ * In __swap_duplicate(), the swap_map need to be checked before
++ * changing partly because the specified swap entry may be for another
++ * swap device which has been swapoff.  And in do_swap_page(), after
++ * the page is read from the swap device, the PTE is verified not
++ * changed with the page table locked to check whether the swap device
++ * has been swapoff or swapoff+swapon.
++ */
++struct swap_info_struct *get_swap_device(swp_entry_t entry)
++{
++	struct swap_info_struct *si;
++	unsigned long offset;
++
++	if (!entry.val)
++		goto out;
++	si = swp_swap_info(entry);
++	if (!si)
++		goto bad_nofile;
++
++	rcu_read_lock();
++	if (!(si->flags & SWP_VALID))
++		goto unlock_out;
++	offset = swp_offset(entry);
++	if (offset >= si->max)
++		goto unlock_out;
++
++	return si;
++bad_nofile:
++	pr_err("%s: %s%08lx\n", __func__, Bad_file, entry.val);
++out:
++	return NULL;
++unlock_out:
++	rcu_read_unlock();
++	return NULL;
++}
++
+ static unsigned char __swap_entry_free(struct swap_info_struct *p,
+ 				       swp_entry_t entry, unsigned char usage)
+ {
+@@ -1357,11 +1419,18 @@ int page_swapcount(struct page *page)
+ 	return count;
+ }
+ 
+-int __swap_count(struct swap_info_struct *si, swp_entry_t entry)
++int __swap_count(swp_entry_t entry)
+ {
++	struct swap_info_struct *si;
+ 	pgoff_t offset = swp_offset(entry);
++	int count = 0;
+ 
+-	return swap_count(si->swap_map[offset]);
++	si = get_swap_device(entry);
++	if (si) {
++		count = swap_count(si->swap_map[offset]);
++		put_swap_device(si);
++	}
++	return count;
+ }
+ 
+ static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
+@@ -1386,9 +1455,11 @@ int __swp_swapcount(swp_entry_t entry)
+ 	int count = 0;
+ 	struct swap_info_struct *si;
+ 
+-	si = __swap_info_get(entry);
+-	if (si)
++	si = get_swap_device(entry);
++	if (si) {
+ 		count = swap_swapcount(si, entry);
++		put_swap_device(si);
++	}
+ 	return count;
+ }
+ 
+@@ -2334,9 +2405,9 @@ static int swap_node(struct swap_info_struct *p)
+ 	return bdev ? bdev->bd_disk->node_id : NUMA_NO_NODE;
+ }
+ 
+-static void _enable_swap_info(struct swap_info_struct *p, int prio,
+-				unsigned char *swap_map,
+-				struct swap_cluster_info *cluster_info)
++static void setup_swap_info(struct swap_info_struct *p, int prio,
++			    unsigned char *swap_map,
++			    struct swap_cluster_info *cluster_info)
+ {
+ 	int i;
+ 
+@@ -2361,7 +2432,11 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
+ 	}
+ 	p->swap_map = swap_map;
+ 	p->cluster_info = cluster_info;
+-	p->flags |= SWP_WRITEOK;
++}
++
++static void _enable_swap_info(struct swap_info_struct *p)
++{
++	p->flags |= SWP_WRITEOK | SWP_VALID;
+ 	atomic_long_add(p->pages, &nr_swap_pages);
+ 	total_swap_pages += p->pages;
+ 
+@@ -2388,7 +2463,17 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
+ 	frontswap_init(p->type, frontswap_map);
+ 	spin_lock(&swap_lock);
+ 	spin_lock(&p->lock);
+-	 _enable_swap_info(p, prio, swap_map, cluster_info);
++	setup_swap_info(p, prio, swap_map, cluster_info);
++	spin_unlock(&p->lock);
++	spin_unlock(&swap_lock);
++	/*
++	 * Guarantee swap_map, cluster_info, etc. fields are valid
++	 * between get/put_swap_device() if SWP_VALID bit is set
++	 */
++	synchronize_rcu();
++	spin_lock(&swap_lock);
++	spin_lock(&p->lock);
++	_enable_swap_info(p);
+ 	spin_unlock(&p->lock);
+ 	spin_unlock(&swap_lock);
+ }
+@@ -2397,7 +2482,8 @@ static void reinsert_swap_info(struct swap_info_struct *p)
+ {
+ 	spin_lock(&swap_lock);
+ 	spin_lock(&p->lock);
+-	_enable_swap_info(p, p->prio, p->swap_map, p->cluster_info);
++	setup_swap_info(p, p->prio, p->swap_map, p->cluster_info);
++	_enable_swap_info(p);
+ 	spin_unlock(&p->lock);
+ 	spin_unlock(&swap_lock);
+ }
+@@ -2500,6 +2586,17 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+ 
+ 	reenable_swap_slots_cache_unlock();
+ 
++	spin_lock(&swap_lock);
++	spin_lock(&p->lock);
++	p->flags &= ~SWP_VALID;		/* mark swap device as invalid */
++	spin_unlock(&p->lock);
++	spin_unlock(&swap_lock);
++	/*
++	 * wait for swap operations protected by get/put_swap_device()
++	 * to complete
++	 */
++	synchronize_rcu();
++
+ 	flush_work(&p->discard_work);
+ 
+ 	destroy_swap_extents(p);
+@@ -3264,17 +3361,11 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
+ 	unsigned char has_cache;
+ 	int err = -EINVAL;
+ 
+-	if (non_swap_entry(entry))
+-		goto out;
+-
+-	p = swp_swap_info(entry);
++	p = get_swap_device(entry);
+ 	if (!p)
+-		goto bad_file;
+-
+-	offset = swp_offset(entry);
+-	if (unlikely(offset >= p->max))
+ 		goto out;
+ 
++	offset = swp_offset(entry);
+ 	ci = lock_cluster_or_swap_info(p, offset);
+ 
+ 	count = p->swap_map[offset];
+@@ -3320,11 +3411,9 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
+ unlock_out:
+ 	unlock_cluster_or_swap_info(p, ci);
+ out:
++	if (p)
++		put_swap_device(p);
+ 	return err;
+-
+-bad_file:
+-	pr_err("swap_dup: %s%08lx\n", Bad_file, entry.val);
+-	goto out;
+ }
+ 
+ /*
+@@ -3416,6 +3505,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
+ 	struct page *list_page;
+ 	pgoff_t offset;
+ 	unsigned char count;
++	int ret = 0;
+ 
+ 	/*
+ 	 * When debugging, it's easier to use __GFP_ZERO here; but it's better
+@@ -3423,15 +3513,15 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
+ 	 */
+ 	page = alloc_page(gfp_mask | __GFP_HIGHMEM);
+ 
+-	si = swap_info_get(entry);
++	si = get_swap_device(entry);
+ 	if (!si) {
+ 		/*
+ 		 * An acceptable race has occurred since the failing
+-		 * __swap_duplicate(): the swap entry has been freed,
+-		 * perhaps even the whole swap_map cleared for swapoff.
++		 * __swap_duplicate(): the swap device may be swapoff
+ 		 */
+ 		goto outer;
+ 	}
++	spin_lock(&si->lock);
+ 
+ 	offset = swp_offset(entry);
+ 
+@@ -3449,9 +3539,8 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
+ 	}
+ 
+ 	if (!page) {
+-		unlock_cluster(ci);
+-		spin_unlock(&si->lock);
+-		return -ENOMEM;
++		ret = -ENOMEM;
++		goto out;
+ 	}
+ 
+ 	/*
+@@ -3503,10 +3592,11 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
+ out:
+ 	unlock_cluster(ci);
+ 	spin_unlock(&si->lock);
++	put_swap_device(si);
+ outer:
+ 	if (page)
+ 		__free_page(page);
+-	return 0;
++	return ret;
+ }
+ 
+ /*
+-- 
+2.20.1
 
