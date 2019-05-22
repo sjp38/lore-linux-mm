@@ -2,203 +2,301 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DB86EC282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 11:23:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F2E50C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 11:49:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 786E2217D4
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 11:23:43 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=elektrobit.onmicrosoft.com header.i=@elektrobit.onmicrosoft.com header.b="Xy41ts+x"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 786E2217D4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=elektrobit.com
+	by mail.kernel.org (Postfix) with ESMTP id 8D5CC2173C
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 11:49:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D5CC2173C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0319A6B0003; Wed, 22 May 2019 07:23:43 -0400 (EDT)
+	id E76016B0003; Wed, 22 May 2019 07:49:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F24CD6B0006; Wed, 22 May 2019 07:23:42 -0400 (EDT)
+	id E27A16B0006; Wed, 22 May 2019 07:49:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DED246B0007; Wed, 22 May 2019 07:23:42 -0400 (EDT)
+	id D15D26B0007; Wed, 22 May 2019 07:49:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 910656B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 07:23:42 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id a20so438537wme.9
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 04:23:42 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 83B166B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 07:49:22 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id f41so3330394ede.1
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 04:49:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:accept-language:content-language
-         :content-id:content-transfer-encoding:mime-version;
-        bh=x3qUcyHfwJMHZo98lJ+qRQwV7diyCI8RPus5xuBV6H4=;
-        b=gqklm1wi1DwLVcQZRl+eMJG5IfPZP7XqDAYtcaFjrYaK/tmwFDQh9+CHcz11EW1Bg7
-         QsGQHavRIyer3Eyva79BFgYrkCIn3SVq4RePrMaHsOK9mesiE7S2iCbEaQpvF3hk7BH0
-         soQ0jbWoLqmcjbV2lSrXUzbLEW30f/JuGMedLew2ZEjpfuQwymfLXR1RdwvHZQO+Pmnt
-         UiMlsXwZPZxENOkFeGxoG1IxZ4IeZLlSe1nGc46KSanxgFU7OtnQSx69sR8Cs3LzviZY
-         ry5X7qZTvOZP4yaEwmE/b3f/l8IqIPFMvVX1P5+L1gv8wkbc4BjijLuKBaKXkis1K73M
-         Q9ig==
-X-Gm-Message-State: APjAAAUu1m4H3oRzxQre20qMqYoQftKa2wJ8y0+w4bWCIIbcBOxGdg/w
-	y3q9zc8W+OQ3CNVVRPgq+3Eiqnjh+N6CXT3UU6Wcwtl1od2rAiYvWUXRLvpnqLQtGdhz6VDc7Yw
-	uiPJRtjdpu0UF0+upvfcjmCDnWwuJvzk1ZU84ixD0WJrloqnv0KjFK3OXKik09YCU6Q==
-X-Received: by 2002:a1c:cb81:: with SMTP id b123mr7465921wmg.107.1558524221931;
-        Wed, 22 May 2019 04:23:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzzJAAT0/wRvNDASO4vRgmTa1CN0/rjA0zOuuRVmhGlrl+gZ+CKY5zRPZWmrPK56CCZ5HWO
-X-Received: by 2002:a1c:cb81:: with SMTP id b123mr7465852wmg.107.1558524221035;
-        Wed, 22 May 2019 04:23:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558524221; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=07zo5bUGbCrcFqWvLhX7HHQq+iwmUl+VvWQFGqImRa4=;
+        b=W6UXh6P2IJm5SDGtzDL7YsA1t71JHP32oltr5wLo6DqtePa6ui9msGgD+gvi3ypMam
+         cwx59XOtDRw+yqiKnQJ8tRvhRVo3dpfwvsMBzkSFzMH+YWDqJg0TFbn/1uuv/Tih+BQi
+         s5Cnv3s54juB+V1rluyYND1NYP+dFqcs40iDzV207m9s0arv4GXClfpdfn+WZcllG1vy
+         UBQcei/noUd++Y9tKQINutomduzKc8yqzBHi7RkieyxQAfNSIqwo8I7Qv9sBsUeqhexG
+         3hhKX4aR22dhM85AT84CfM3fJTD4VQ0kNjqq7Aw6vNv05+kNexfbU9xjfQphZTaCEo4r
+         JQPA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAVefluS+rZMiYRiKlWnOxVbvH3cS30j5IwNzCxERSAGU0YqLCOs
+	0WKA19qrCRzRHFL8As2vsoSv4xTyLwzHyjcJaEcP4LAzRF4IOGWR0bzXzl2Y/xgc9gqy5C1BKAS
+	ktiawapCLOGumg1C1H+80E13DBTOfUhaO5DmyptZGDDwUvJC6wepm55PtE/7C3nvVHQ==
+X-Received: by 2002:a50:f9cc:: with SMTP id a12mr89528449edq.272.1558525762101;
+        Wed, 22 May 2019 04:49:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzHs43vT8tGPG3ezoScrjxTBaWi8s1IlnWgyvwzgqXIqdyNUR3w4az3TyZVcv/GkJnLHJIk
+X-Received: by 2002:a50:f9cc:: with SMTP id a12mr89528358edq.272.1558525760838;
+        Wed, 22 May 2019 04:49:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558525760; cv=none;
         d=google.com; s=arc-20160816;
-        b=xDM9nGlO6pVS6VkPkQrv90obbg4FfibojBNK7Vuu8RqCOuBKQfdiGFiTqV37MD5FJs
-         oezIFNLZmsund/vX9AQXQTmhM8GD37GrPG57RxndYYwkG+cg5Zp6/DITMMk1faxfefuY
-         ijSU3KV2gkZsXoiDZD27mbB2IzrMmc31N2d8/3yaGFXo9ewXxbrr6qvFkldQS9Jv8iqO
-         XR4MP1J10jqaJgbmJrDgYXUjSXt4KWuTNm6N7xgaDk6qIhRRvsv6kwEyjy85O0LFyfpl
-         JtbBT3i4IOPjCADBHoYEkvXaVYQnttu9M/ts0vH3xTfwDNr8x9msUm/3RLbBv6mtyRNo
-         RutA==
+        b=xYp5Tdwf+DqTB5eZVIaCCnd3G5Qo5bkAkYuYInTTRAUpKr+hglCky6wVFB2kzTQzE8
+         LesSTq2kwoNjo5tIhU6QUALb+MGLKeds2uzCMvuAXHbmFx4O9dn2fsrWtI4Hz12lMXMW
+         DIodDM9RvHxdBaMeHmxIeqtXUWLQ7uQpCmTjIwFFZhOsB5/8XmNt+3Uw0K7gEwiJ+uKv
+         pjo9VUAffC2aeU/qC5vA0T2xJpJKbr4reFKHc8qwb+9eVk60jgbvHBnbBfHdC6QVTTZI
+         CNet1RpojKmMriq2MeY4JK33PC7cmumlicqOon7ACgmvYfRi3YgbWwMYltVi/tO4I7Un
+         6BhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:message-id:date:thread-index:thread-topic:subject
-         :cc:to:from:dkim-signature;
-        bh=x3qUcyHfwJMHZo98lJ+qRQwV7diyCI8RPus5xuBV6H4=;
-        b=xRmBIJT28u3AsZfyFlSOl8cjllLy7T76TUwPm8yYTBtjxZ/IdGUy0qzKoZJuZUT4mA
-         +Z9GukyQ1GXgbpJNOKteUP0+3R9r7Cl/wYhNk6ATa/Yu7dIEsr6fRqVwgbQUJV47PDLa
-         nzrbPkJnToz5XA/Lv5z8M8TpP7Kx81RDVOXuk6+0HhfyS0TqH5BmfD05OyBLhE1DLmZa
-         mXyOuJRmITIGFfnK2RR98WgOm5gSuP/NILAeoG6R+5t9T6N1i0Ja7AHuuh2Czc51Gv4R
-         vbChDqLr/Kc0mgHdWE3FqbkjLuNMQ6QRAqikTa9EbccamymaHDQgozCTdOSLRGtw5Usf
-         Z7OA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=07zo5bUGbCrcFqWvLhX7HHQq+iwmUl+VvWQFGqImRa4=;
+        b=VvQgTHsQVxOlcgYepyUeS10tssYjdaUbK8UMMdGIi43rZzo2X9TJGgw/1j4gzZ2CU9
+         rCtoYPc1wCDtIdZwIeOL6T9oCoG/i8rkkiLCBeBH2+2uuV50VlQwdXLatcM2K45235u1
+         bWzikCmRzK0esW/r2ZYdB4Zz96DpOywIpueMDs2gCBR9hGaGy3MZPqPTYN6SAKECF0sU
+         X01OAv/73G8MRJOEuLV3yyqBtFso0ijYBe6OIk9CaG4gcn6yy04P6WT+uB7AwYNsEOkA
+         e9KMhvulVMyn9aJoQRwGFF57cZvJAnUxY+O26Sd5aQ5J/YIG/sJxchWSbh695oVJwSSe
+         tYdg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@elektrobit.onmicrosoft.com header.s=selector1-elektrobit-onmicrosoft-com header.b=Xy41ts+x;
-       spf=pass (google.com: best guess record for domain of prvs=1045fa9c7f=stefan.potyra@elektrobit.com designates 213.95.163.141 as permitted sender) smtp.mailfrom="prvs=1045fa9c7f=stefan.potyra@elektrobit.com"
-Received: from smtpgwcipde.elektrobit.com (smtpgwcipde.automotive.elektrobit.com. [213.95.163.141])
-        by mx.google.com with ESMTPS id o24si3571981wmf.76.2019.05.22.04.23.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 22 May 2019 04:23:41 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of prvs=1045fa9c7f=stefan.potyra@elektrobit.com designates 213.95.163.141 as permitted sender) client-ip=213.95.163.141;
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f5si7190316edb.93.2019.05.22.04.49.20
+        for <linux-mm@kvack.org>;
+        Wed, 22 May 2019 04:49:20 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@elektrobit.onmicrosoft.com header.s=selector1-elektrobit-onmicrosoft-com header.b=Xy41ts+x;
-       spf=pass (google.com: best guess record for domain of prvs=1045fa9c7f=stefan.potyra@elektrobit.com designates 213.95.163.141 as permitted sender) smtp.mailfrom="prvs=1045fa9c7f=stefan.potyra@elektrobit.com"
-Received: from denue6es002.localdomain (denue6es002.automotive.elektrobit.com [213.95.163.135])
-	by smtpgwcipde.elektrobit.com  with ESMTP id x4MBNeGF007207-x4MBNeGH007207
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA bits=256 verify=OK);
-	Wed, 22 May 2019 13:23:40 +0200
-Received: from denue6es002.securemail.local (localhost [127.0.0.1])
-	by denue6es002.localdomain (Postfix) with SMTP id 5C1C419290;
-	Wed, 22 May 2019 13:23:40 +0200 (CEST)
-Received: from denue6es011.ebgroup.elektrobit.com (denue6es011.ebgroup.elektrobit.com [10.243.160.101])
-	by denue6es002.localdomain (Postfix) with ESMTPS;
-	Wed, 22 May 2019 13:23:40 +0200 (CEST)
-Received: from denue6es011.ebgroup.elektrobit.com (10.243.160.101) by
- denue6es011.ebgroup.elektrobit.com (10.243.160.101) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Wed, 22 May 2019 13:23:39 +0200
-Received: from NAM03-BY2-obe.outbound.protection.outlook.com (104.47.42.55) by
- denue6es011.ebgroup.elektrobit.com (10.243.160.101) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id
- 15.1.1713.5 via Frontend Transport; Wed, 22 May 2019 13:23:39 +0200
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=elektrobit.onmicrosoft.com; s=selector1-elektrobit-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=x3qUcyHfwJMHZo98lJ+qRQwV7diyCI8RPus5xuBV6H4=;
- b=Xy41ts+xGuDJZ1OznwsSgc49wEnkvDnplPfmdB1nJLTD+jVvw36g2wAHXC61qGFUNOxnN2m3ZU7YZS/3SjK781zP4da62WDTc17WCPamyghHLXBraxKDs7kUOYfSlMHr2Wtydgv7PYdbV5ER1DkTjm2zJV2bdNPIfOjI6yyLeMc=
-Received: from DM6PR08MB5195.namprd08.prod.outlook.com (20.176.118.25) by
- DM6PR08MB4810.namprd08.prod.outlook.com (20.176.115.139) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1900.18; Wed, 22 May 2019 11:23:37 +0000
-Received: from DM6PR08MB5195.namprd08.prod.outlook.com
- ([fe80::7533:416f:4217:461a]) by DM6PR08MB5195.namprd08.prod.outlook.com
- ([fe80::7533:416f:4217:461a%6]) with mapi id 15.20.1900.020; Wed, 22 May 2019
- 11:23:37 +0000
-From: "Potyra, Stefan" <Stefan.Potyra@elektrobit.com>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-CC: "Potyra, Stefan" <Stefan.Potyra@elektrobit.com>,
-        "Jordan, Tobias"
-	<Tobias.Jordan@elektrobit.com>
-Subject: [PATCH] mm: mlockall error for flag MCL_ONFAULT
-Thread-Topic: [PATCH] mm: mlockall error for flag MCL_ONFAULT
-Thread-Index: AQHVEJDM40/Q2Jusd0KD0xzATvP7RQ==
-Date: Wed, 22 May 2019 11:23:37 +0000
-Message-ID: <20190522112329.GA25483@er01809n.ebgroup.elektrobit.com>
-Accept-Language: de-DE, en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: AM6P193CA0051.EURP193.PROD.OUTLOOK.COM
- (2603:10a6:209:8e::28) To DM6PR08MB5195.namprd08.prod.outlook.com
- (2603:10b6:5:42::25)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=Stefan.Potyra@elektrobit.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [213.95.148.172]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 9d7cce5c-e1b1-4cf2-f92b-08d6dea7eee1
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:DM6PR08MB4810;
-x-ms-traffictypediagnostic: DM6PR08MB4810:
-x-microsoft-antispam-prvs: <DM6PR08MB4810B0E1126B800CE48C2E2280000@DM6PR08MB4810.namprd08.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 0045236D47
-x-forefront-antispam-report: SFV:NSPM;SFS:(10009020)(396003)(136003)(346002)(366004)(39850400004)(376002)(189003)(199004)(68736007)(102836004)(14444005)(256004)(53936002)(71190400001)(71200400001)(6486002)(316002)(25786009)(26005)(186003)(73956011)(6512007)(107886003)(6436002)(305945005)(4326008)(66476007)(110136005)(7736002)(54906003)(5660300002)(386003)(6506007)(64756008)(86362001)(66556008)(14454004)(66946007)(99286004)(486006)(2906002)(8676002)(33656002)(81166006)(81156014)(72206003)(6116002)(3846002)(478600001)(476003)(66066001)(66446008)(52116002)(2501003)(8936002)(1076003);DIR:OUT;SFP:1101;SCL:1;SRVR:DM6PR08MB4810;H:DM6PR08MB5195.namprd08.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: elektrobit.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: bjds9HZxPzsJToVrpCeSufyeGWPVwKvU+l3rMrKASBzZCLTtazVpr6486+849D9wxuC7D0fxhEsIJMWk7Mbln+mWcqA7QnazfBicKysNWv9DxiVW/kMJDy/msHgWQdTyvhqP3ZU2oziBlL63ThwR+yVRisrHMU3yKG7uWZ8Jj42vosCevQ35ok3MQsYu6kNAg8Nn+xNpXXGhLdKM2YaUjF0tv0lDMhqYgrtdG3Ya8hYttdZvkIiQyc6GGhU9omn7k5CPPrA2NFHjf5At2QRG9DS7FPtk/Ad20J7F86R/FxxH7nhzHwqIn6+6QsF0Ge7jasnplkW5a5Oz3sMBc9va0n+Z3pZaaYpE9JWbfcvVmUMZSlWOnrFzAb6p8s1FIiTwOW3ra/hzuFTwLlEfLsWREgR/eWX+Ju0ZxELZGQb8ZVQ=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <81DE7C41012F734098C84CCBC364F602@namprd08.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 7DC8180D;
+	Wed, 22 May 2019 04:49:19 -0700 (PDT)
+Received: from mbp (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id AE7643F575;
+	Wed, 22 May 2019 04:49:13 -0700 (PDT)
+Date: Wed, 22 May 2019 12:49:10 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	linux-kselftest@vger.kernel.org,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Kees Cook <keescook@chromium.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v15 05/17] arms64: untag user pointers passed to memory
+ syscalls
+Message-ID: <20190522114910.emlckebwzv2qz42i@mbp>
+References: <cover.1557160186.git.andreyknvl@google.com>
+ <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 9d7cce5c-e1b1-4cf2-f92b-08d6dea7eee1
-X-MS-Exchange-CrossTenant-originalarrivaltime: 22 May 2019 11:23:37.4112
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: e764c36b-012e-4216-910d-8fd16283182d
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR08MB4810
-X-OriginatorOrg: elektrobit.com
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If mlockall() is called with only MCL_ONFAULT as flag,
-it removes any previously applied lockings and does
-nothing else.
+On Mon, May 06, 2019 at 06:30:51PM +0200, Andrey Konovalov wrote:
+> This patch is a part of a series that extends arm64 kernel ABI to allow to
+> pass tagged user pointers (with the top byte set to something else other
+> than 0x00) as syscall arguments.
+> 
+> This patch allows tagged pointers to be passed to the following memory
+> syscalls: brk, get_mempolicy, madvise, mbind, mincore, mlock, mlock2,
+> mmap, mmap_pgoff, mprotect, mremap, msync, munlock, munmap,
+> remap_file_pages, shmat and shmdt.
+> 
+> This is done by untagging pointers passed to these syscalls in the
+> prologues of their handlers.
 
-This behavior is counter-intuitive and doesn't match the
-Linux man page.
+I'll go through them one by one to see if we can tighten the expected
+ABI while having the MTE in mind.
 
-Consequently, return the error EINVAL, if only MCL_ONFAULT
-is passed. That way, applications will at least detect that
-they are calling mlockall() incorrectly.
+> diff --git a/arch/arm64/kernel/sys.c b/arch/arm64/kernel/sys.c
+> index b44065fb1616..933bb9f3d6ec 100644
+> --- a/arch/arm64/kernel/sys.c
+> +++ b/arch/arm64/kernel/sys.c
+> @@ -35,10 +35,33 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
+>  {
+>  	if (offset_in_page(off) != 0)
+>  		return -EINVAL;
+> -
+> +	addr = untagged_addr(addr);
+>  	return ksys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
+>  }
 
-Fixes: b0f205c2a308 ("mm: mlock: add mlock flags to enable VM_LOCKONFAULT u=
-sage")
-Signed-off-by: Stefan Potyra <Stefan.Potyra@elektrobit.com>
----
-Sparse shows a warning for mlock.c, but it is not related to
-this patch.
+If user passes a tagged pointer to mmap() and the address is honoured
+(or MAP_FIXED is given), what is the expected return pointer? Does it
+need to be tagged with the value from the hint?
 
- mm/mlock.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+With MTE, we may want to use this as a request for the default colour of
+the mapped pages (still under discussion).
 
-diff --git a/mm/mlock.c b/mm/mlock.c
-index e492a155c51a..03f39cbdd4c4 100644
---- a/mm/mlock.c
-+++ b/mm/mlock.c
-@@ -797,7 +797,8 @@ SYSCALL_DEFINE1(mlockall, int, flags)
- 	unsigned long lock_limit;
- 	int ret;
-=20
--	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT)))
-+	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT)) ||
-+	    flags =3D=3D MCL_ONFAULT)
- 		return -EINVAL;
-=20
- 	if (!can_do_mlock())
---=20
-2.20.1
+> +SYSCALL_DEFINE6(arm64_mmap_pgoff, unsigned long, addr, unsigned long, len,
+> +		unsigned long, prot, unsigned long, flags,
+> +		unsigned long, fd, unsigned long, pgoff)
+> +{
+> +	addr = untagged_addr(addr);
+> +	return ksys_mmap_pgoff(addr, len, prot, flags, fd, pgoff);
+> +}
+
+We don't have __NR_mmap_pgoff on arm64.
+
+> +SYSCALL_DEFINE5(arm64_mremap, unsigned long, addr, unsigned long, old_len,
+> +		unsigned long, new_len, unsigned long, flags,
+> +		unsigned long, new_addr)
+> +{
+> +	addr = untagged_addr(addr);
+> +	new_addr = untagged_addr(new_addr);
+> +	return ksys_mremap(addr, old_len, new_len, flags, new_addr);
+> +}
+
+Similar comment as for mmap(), do we want the tag from new_addr to be
+preserved? In addition, should we check that the two tags are identical
+or mremap() should become a way to repaint a memory region?
+
+> +SYSCALL_DEFINE2(arm64_munmap, unsigned long, addr, size_t, len)
+> +{
+> +	addr = untagged_addr(addr);
+> +	return ksys_munmap(addr, len);
+> +}
+
+This looks fine.
+
+> +SYSCALL_DEFINE1(arm64_brk, unsigned long, brk)
+> +{
+> +	brk = untagged_addr(brk);
+> +	return ksys_brk(brk);
+> +}
+
+I wonder whether brk() should simply not accept tags, and should not
+return them (similar to the prctl(PR_SET_MM) discussion). We could
+document this in the ABI requirements.
+
+> +SYSCALL_DEFINE5(arm64_get_mempolicy, int __user *, policy,
+> +		unsigned long __user *, nmask, unsigned long, maxnode,
+> +		unsigned long, addr, unsigned long, flags)
+> +{
+> +	addr = untagged_addr(addr);
+> +	return ksys_get_mempolicy(policy, nmask, maxnode, addr, flags);
+> +}
+> +
+> +SYSCALL_DEFINE3(arm64_madvise, unsigned long, start,
+> +		size_t, len_in, int, behavior)
+> +{
+> +	start = untagged_addr(start);
+> +	return ksys_madvise(start, len_in, behavior);
+> +}
+> +
+> +SYSCALL_DEFINE6(arm64_mbind, unsigned long, start, unsigned long, len,
+> +		unsigned long, mode, const unsigned long __user *, nmask,
+> +		unsigned long, maxnode, unsigned int, flags)
+> +{
+> +	start = untagged_addr(start);
+> +	return ksys_mbind(start, len, mode, nmask, maxnode, flags);
+> +}
+> +
+> +SYSCALL_DEFINE2(arm64_mlock, unsigned long, start, size_t, len)
+> +{
+> +	start = untagged_addr(start);
+> +	return ksys_mlock(start, len, VM_LOCKED);
+> +}
+> +
+> +SYSCALL_DEFINE2(arm64_mlock2, unsigned long, start, size_t, len)
+> +{
+> +	start = untagged_addr(start);
+> +	return ksys_mlock(start, len, VM_LOCKED);
+> +}
+> +
+> +SYSCALL_DEFINE2(arm64_munlock, unsigned long, start, size_t, len)
+> +{
+> +	start = untagged_addr(start);
+> +	return ksys_munlock(start, len);
+> +}
+> +
+> +SYSCALL_DEFINE3(arm64_mprotect, unsigned long, start, size_t, len,
+> +		unsigned long, prot)
+> +{
+> +	start = untagged_addr(start);
+> +	return ksys_mprotect_pkey(start, len, prot, -1);
+> +}
+> +
+> +SYSCALL_DEFINE3(arm64_msync, unsigned long, start, size_t, len, int, flags)
+> +{
+> +	start = untagged_addr(start);
+> +	return ksys_msync(start, len, flags);
+> +}
+> +
+> +SYSCALL_DEFINE3(arm64_mincore, unsigned long, start, size_t, len,
+> +		unsigned char __user *, vec)
+> +{
+> +	start = untagged_addr(start);
+> +	return ksys_mincore(start, len, vec);
+> +}
+
+These look fine.
+
+> +SYSCALL_DEFINE5(arm64_remap_file_pages, unsigned long, start,
+> +		unsigned long, size, unsigned long, prot,
+> +		unsigned long, pgoff, unsigned long, flags)
+> +{
+> +	start = untagged_addr(start);
+> +	return ksys_remap_file_pages(start, size, prot, pgoff, flags);
+> +}
+
+While this has been deprecated for some time, I presume user space still
+invokes it?
+
+> +SYSCALL_DEFINE3(arm64_shmat, int, shmid, char __user *, shmaddr, int, shmflg)
+> +{
+> +	shmaddr = untagged_addr(shmaddr);
+> +	return ksys_shmat(shmid, shmaddr, shmflg);
+> +}
+> +
+> +SYSCALL_DEFINE1(arm64_shmdt, char __user *, shmaddr)
+> +{
+> +	shmaddr = untagged_addr(shmaddr);
+> +	return ksys_shmdt(shmaddr);
+> +}
+
+Do we actually want to allow shared tagged memory? Who's going to tag
+it? If not, we can document it as not supported.
+
+-- 
+Catalin
 
