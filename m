@@ -2,135 +2,154 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7604BC282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:17:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 33211C282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:22:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1F57B20645
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:17:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E8DF22173C
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:22:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="iBWci38m"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F57B20645
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="GcX1w0fw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8DF22173C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6D2DB6B0006; Wed, 22 May 2019 11:17:37 -0400 (EDT)
+	id 6595D6B0006; Wed, 22 May 2019 11:22:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6830F6B0008; Wed, 22 May 2019 11:17:37 -0400 (EDT)
+	id 60A086B0008; Wed, 22 May 2019 11:22:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 572F56B000A; Wed, 22 May 2019 11:17:37 -0400 (EDT)
+	id 4D2A16B000A; Wed, 22 May 2019 11:22:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 32C9C6B0006
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 11:17:37 -0400 (EDT)
-Received: by mail-ua1-f71.google.com with SMTP id 76so540222uat.12
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 08:17:37 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F0D3D6B0006
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 11:22:55 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id r5so4090288edd.21
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 08:22:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=85/xp1LLQ/Gq2RJYWYYuF9b0tPNRLe+Qag7yBp7mWAc=;
-        b=Yz8jwsKMu4bu6UBewF4twTapElBr//MPUR1EAQkK//wJObFBMjR01BKrMC5Tt3lok9
-         N1EZo2bxi2Q+THIEKPuMKsIsx4cGkXPzwldYzlKNykCjPOlMnboV/PGbvKd83xSy9PE+
-         YdQ9rbJBdTu+FFR4OHZOeCGd5818J2R5aSAjXCFKN2n8O01w8tZuUcjkALVw518nVp4c
-         3MnXWZIOA69eGjFgUHH8Qi1wGsgT6mEfrseo5sXhCp5NaRkUGnYpmHD8rinwtPSeA4x8
-         YoIVdKar08VaGpAqtEhsiP011Inx/iXHuUnRAhsejGHswtzes/4uit2umEzmXnnjKxhm
-         4Usg==
-X-Gm-Message-State: APjAAAXF0sL8bSJyaC/jC6Vv17+vpfOEoyl39C1bz2QT9vkQWgc9RXGE
-	paDL5MXoyb+4EbD3wQzq2fUfkRKmiepalTRC0RVtgQ0xnKayZJsj/hH2osKc0sUsBDBhCqdhcVk
-	AHPKdJDvzOLwT5SPoQodYgVST0Yd0QiF+TLtL6sH7aogjBlHzpuEXILgylaqKj+r+yw==
-X-Received: by 2002:a1f:2fd2:: with SMTP id v201mr15649277vkv.83.1558538256881;
-        Wed, 22 May 2019 08:17:36 -0700 (PDT)
-X-Received: by 2002:a1f:2fd2:: with SMTP id v201mr15649239vkv.83.1558538256334;
-        Wed, 22 May 2019 08:17:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558538256; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=KgX/KrN1VzCWggUBQFeZMr9AktFTs8VZSbXFmnxyzvo=;
+        b=EROAq86iOWbWMEgHfAbxQ7XzYTYl8CxQQgFionqJF2mh9iRjFZPbCYhGnza2Fwpi+7
+         KcO0jQu24UzDJ5qsuze2Vw6HSN/rkdR4ntjbPxnavvdvHORQepYjOSg/KvYjAO7dJvof
+         mB2Q34XVG3y2e9KiqD8JaVQnCJRujHNUand99Mz5sBu8j2vqa2gSbP+lOFOqup2/MJd2
+         1Tsh9CFZeGWGouq32o5yQBNEpZz2MJAbUSze9ukVVXb5l186fYR3qg1J0ZA0myFdmzsV
+         siak1xJLZuDalQ9zDx4IJwhXb+9OH0Rw3IpFsQY/5QtGrvH+w5zfOkZL0PuS4BHoZSma
+         Hzng==
+X-Gm-Message-State: APjAAAU+esNYhnm1ygh+1Pt+wqwJdIJRhxi6bZYBOWdBhCzcoeQYI08h
+	x6waVUOScI3o6r9Tj1ql1N8NnoTsPiR9EuqLCCe8njEZ4q9ZRVhYWNtU6Tuc7beZ18qPerrIdOw
+	0lYI+4gryVx1ROkcFz5tcP3KgwB4tqhjTameKN1dX2UH30yTAYLWiX1PCb3eWxyG+pg==
+X-Received: by 2002:a17:906:61c3:: with SMTP id t3mr52632664ejl.273.1558538575559;
+        Wed, 22 May 2019 08:22:55 -0700 (PDT)
+X-Received: by 2002:a17:906:61c3:: with SMTP id t3mr52632575ejl.273.1558538574764;
+        Wed, 22 May 2019 08:22:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558538574; cv=none;
         d=google.com; s=arc-20160816;
-        b=gTUwZvABupCnsnJ6vbzb2t7efHXjOEuNBUn2IDc9yD0oq7F6ozpKZeoZnD05Dq6YtI
-         jhBT6mTL/+b4AVVfCf1RGZtKkvr/UjxiMUWSzuIzu8wK0uPr1YxpBDra82kZm6oP32jg
-         ejlM77PLKm/n/fqKs5rjTSOkr2vpgkDLm3wtbTq2FNWIEEDysBeaildTjgZTcqiBQkT+
-         2jzKhWPl8ZCp8IzoCZCFwPH01BahY0d91w7aEJHH+R/Lpk0xiPdHtopFSTk3IHEj9AMf
-         GVAi4Ixl7ltXBfWtefluWqBFiZhf5SnVbAr0cjFXapXzzMyiHWPt8xbSIdmvoW5X5y07
-         bFNw==
+        b=DYrtt3EefOw2qO2BTVtFMTcuzKVPWTTv2z+FS/c22hjNvQPgw0lkyTnXt8Dc+wGFYI
+         thq/qkDyHF2mW8bHU5ChLAq8S3j7ZQRRNjQd5TXkWYbcliJBsYo91wsM3pUCgtlC1Cq5
+         1rZXw1l9uH1+7gRbLJot+tNUlWT1SmnpSujF08dtn2SCIHMGH8u1q4IR4cORiUO6GoIn
+         AESb769eSmiMXwlsnlsBd5HuyP0qLFRB3VXr5k7sBQiHeITUHOcB2FDtio+Bb9BqOejk
+         14Pq8Dd2ByIb7dRcSR8YgWU8Fuui8uCaS9/KHYNkLvC6nbN/a+qiTPvVAeqEP4C14THO
+         vp7g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=85/xp1LLQ/Gq2RJYWYYuF9b0tPNRLe+Qag7yBp7mWAc=;
-        b=0k1NRcH9nszL0x1qVK2EXwtFTV+2tnGlBIKu/7Zm7pMIhdMhGU4BQIk1ozLOSaCyn6
-         K4Zp6057+hLHXdBzH8MCXu/B570J4C4RBeU41sgEy0sBfAAQMGsirjKNdGBBzw4SCLpv
-         n/hiyAHG6uRFYuq5uBWhV1UI1c9f90/OFtFdUl4YdCxBhAb5L4zNhIFuM5nqgOuh/mWl
-         r8U841hGJVBENpGwUauB88sA4sszvU+3/Pn751jSzY630sUjoEBRJGR2GY6EWxurcflc
-         xC3SStfWDMe4sYMWHYpC/iBQTAOeDbc2JguXABIwpmoDZvEadScoOzCG3GZz0cU5Gi/q
-         nhDg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=KgX/KrN1VzCWggUBQFeZMr9AktFTs8VZSbXFmnxyzvo=;
+        b=Xr08JQosLU5lvYaigGaBceOQid1Y4Z1dQFjZdf95m9FV/Q5/O0UZ9Ksf0nuRKD9VRU
+         YNLA7+nCtmWJaDHZ3pw3EDCG/HdLVnmitH5TrYELC/WgLmeUA+VSt6EYZvAGtZGkf61U
+         LWukr7jT9dDGBhB3AT6H2ch5Uebo4Bb9liZMwWpPBUuCnpiklf06R9OLO6bbkhA50+Ry
+         M5KIuUWhAW4YA1cXSy3ZFHJpbRWhIRcvxtDHSL+SD5RUhlimnl+CNfXV1+I59yueTFhI
+         uxAlGHCzsQmYts3UJkydz1tw0E1ob+6K5l8rXroEQtc3qqNkGdpGCh0VIjYUswMEWUma
+         gpyg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=iBWci38m;
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dancol@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 186sor10883727vsy.62.2019.05.22.08.17.36
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=GcX1w0fw;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e50sor12659529ede.27.2019.05.22.08.22.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 22 May 2019 08:17:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Wed, 22 May 2019 08:22:54 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=iBWci38m;
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dancol@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=GcX1w0fw;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=85/xp1LLQ/Gq2RJYWYYuF9b0tPNRLe+Qag7yBp7mWAc=;
-        b=iBWci38mGhcli5wl56IPjiVCAofYwzUm4VCJt87rQIGMSzAXm/QAy94eFgEFu8rUce
-         2NBGu1/wkdaHaRcgpPfNmplL8dhDXjTVblDzenDcR0W+w6pUL9obwUeRHAVKQLcZoXYF
-         GuCdoBXre8W4MP86eIDrkksZYa1fEFrxAcO9jXA7sAl9bJllqYSc5wJa1iAdguUqvdlf
-         OuBrz86GYBbuxVW87BTcDE3HQS59eTVvXENFhOHWENHDbM0HUJ39W2JzfNV16r7l/wgO
-         oj0farWsUo773EVjgFU5QmbjsDTQlf1c11zA1tw7d8iG5F7UYd4mxj4QI+EKJufJaBpc
-         YTuQ==
-X-Google-Smtp-Source: APXvYqwY3fllxdUsIb9pMNHzQvevbLB7gTfbyxHIV/lLfYAFC6DFS71u+U2Zbq2qGndivpbq5Z7rOI0NonYCw87UG3I=
-X-Received: by 2002:a67:e1d3:: with SMTP id p19mr31572261vsl.183.1558538255715;
- Wed, 22 May 2019 08:17:35 -0700 (PDT)
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=KgX/KrN1VzCWggUBQFeZMr9AktFTs8VZSbXFmnxyzvo=;
+        b=GcX1w0fwJX3vDt7d78Vssz4hVA60VJ9U4c3rX8AHTSYZwQLeaXQVkinzSCIBDoZzTB
+         rwjteMFRYCWTKo/ab71WxSj9adzyPMMkHiWBUYrwq1wlH5l9u1kkM9wUy2A5pDlg1ipU
+         0NWe6dzLDpANP2IfKV2nDoRXiS/TfgK80rLRXC6Gg0WnwSp1HUw2TSiQmdBonr6HeVLi
+         os009EzfGhQ0bhl4JAKB1Xh8I3kM+RJ6Zf4ycKBTBPmV2Vzzswaubzy6/tbn6IJqsM1U
+         euI9QfMDbGy1rtN7YsZ+hzN9VvjWux2wM/nms0RxP+3k3fmvTRIuX/Bzv++iBVdECCOG
+         7PsA==
+X-Google-Smtp-Source: APXvYqzHZikuU8IDFA19PCIsr47Prlil2YLLyeJWuJV/knew+rRRWt8W5HBqMojWnsIXz6OdXkkrWw==
+X-Received: by 2002:a05:6402:1256:: with SMTP id l22mr61992618edw.22.1558538574434;
+        Wed, 22 May 2019 08:22:54 -0700 (PDT)
+Received: from box.localdomain (mm-192-235-121-178.mgts.dynamic.pppoe.byfly.by. [178.121.235.192])
+        by smtp.gmail.com with ESMTPSA id n8sm3245262ejk.45.2019.05.22.08.22.53
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 May 2019 08:22:53 -0700 (PDT)
+Received: by box.localdomain (Postfix, from userid 1000)
+	id 2576A103900; Wed, 22 May 2019 18:22:54 +0300 (+03)
+Date: Wed, 22 May 2019 18:22:54 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com,
+	keith.busch@intel.com, kirill.shutemov@linux.intel.com,
+	alexander.h.duyck@linux.intel.com, ira.weiny@intel.com,
+	andreyknvl@google.com, arunks@codeaurora.org, vbabka@suse.cz,
+	cl@linux.com, riel@surriel.com, keescook@chromium.org,
+	hannes@cmpxchg.org, npiggin@gmail.com,
+	mathieu.desnoyers@efficios.com, shakeelb@google.com, guro@fb.com,
+	aarcange@redhat.com, hughd@google.com, jglisse@redhat.com,
+	mgorman@techsingularity.net, daniel.m.jordan@oracle.com,
+	jannh@google.com, kilobyte@angband.pl, linux-api@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH v2 0/7] mm: process_vm_mmap() -- syscall for duplication
+ a process mapping
+Message-ID: <20190522152254.5cyxhjizuwuojlix@box>
+References: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
 MIME-Version: 1.0
-References: <20190520035254.57579-1-minchan@kernel.org> <20190521084158.s5wwjgewexjzrsm6@brauner.io>
- <20190521110552.GG219653@google.com> <20190521113029.76iopljdicymghvq@brauner.io>
- <20190521113911.2rypoh7uniuri2bj@brauner.io> <CAKOZuesjDcD3EM4PS7aO7yTa3KZ=FEzMP63MR0aEph4iW1NCYQ@mail.gmail.com>
- <CAHrFyr6iuoZ-r6e57zp1rz7b=Ee0Vko+syuUKW2an+TkAEz_iA@mail.gmail.com>
- <CAKOZueupb10vmm-bmL0j_b__qsC9ZrzhzHgpGhwPVUrfX0X-Og@mail.gmail.com> <20190522145216.jkimuudoxi6pder2@brauner.io>
-In-Reply-To: <20190522145216.jkimuudoxi6pder2@brauner.io>
-From: Daniel Colascione <dancol@google.com>
-Date: Wed, 22 May 2019 08:17:23 -0700
-Message-ID: <CAKOZueu837QGDAGat-tdA9J1qtKaeuQ5rg0tDyEjyvd_hjVc6g@mail.gmail.com>
-Subject: Re: [RFC 0/7] introduce memory hinting API for external process
-To: Christian Brauner <christian@brauner.io>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Murray <timmurray@google.com>, 
-	Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>, 
-	Brian Geffon <bgeffon@google.com>, Jann Horn <jannh@google.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 22, 2019 at 7:52 AM Christian Brauner <christian@brauner.io> wrote:
-> I'm not going to go into yet another long argument. I prefer pidfd_*.
+On Mon, May 20, 2019 at 05:00:01PM +0300, Kirill Tkhai wrote:
+> This patchset adds a new syscall, which makes possible
+> to clone a VMA from a process to current process.
+> The syscall supplements the functionality provided
+> by process_vm_writev() and process_vm_readv() syscalls,
+> and it may be useful in many situation.
 
-Ok. We're each allowed our opinion.
+Kirill, could you explain how the change affects rmap and how it is safe.
 
-> It's tied to the api, transparent for userspace, and disambiguates it
-> from process_vm_{read,write}v that both take a pid_t.
+My concern is that the patchset allows to map the same page multiple times
+within one process or even map page allocated by child to the parrent.
 
-Speaking of process_vm_readv and process_vm_writev: both have a
-currently-unused flags argument. Both should grow a flag that tells
-them to interpret the pid argument as a pidfd. Or do you support
-adding pidfd_vm_readv and pidfd_vm_writev system calls? If not, why
-should process_madvise be called pidfd_madvise while process_vm_readv
-isn't called pidfd_vm_readv?
+It was not allowed before.
+
+In the best case it makes reasoning about rmap substantially more difficult.
+
+But I'm worry it will introduce hard-to-debug bugs, like described in
+https://lwn.net/Articles/383162/.
+
+Note, that is some cases we care about rmap walk order (see for instance
+mremap() case). I'm not convinced that the feature will not break
+something in the area.
+
+-- 
+ Kirill A. Shutemov
 
