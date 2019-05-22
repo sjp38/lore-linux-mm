@@ -5,98 +5,99 @@ X-Spam-Level:
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C3F5EC282DD
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:09:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F028C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:09:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 82C44216F4
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:09:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4572F21473
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:09:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uchLVR9y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 82C44216F4
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="pTaXTTu2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4572F21473
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1CF3E6B0005; Wed, 22 May 2019 11:09:53 -0400 (EDT)
+	id BE3CB6B0006; Wed, 22 May 2019 11:09:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 180F06B0006; Wed, 22 May 2019 11:09:53 -0400 (EDT)
+	id B45A66B0007; Wed, 22 May 2019 11:09:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 06FBD6B0007; Wed, 22 May 2019 11:09:53 -0400 (EDT)
+	id A0C306B0008; Wed, 22 May 2019 11:09:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 900756B0005
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 11:09:52 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id w18so457373ljw.8
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 08:09:52 -0700 (PDT)
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3552A6B0006
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 11:09:54 -0400 (EDT)
+Received: by mail-lf1-f72.google.com with SMTP id l17so354280lfp.0
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 08:09:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=fnFIhfm6w+x6vlcZglDCubHYA2sqJDEBTXH+zDoT54E=;
-        b=cGTV7bQqwG5x9oiYauaYTWncIqmQlZcM9EHf5YH/t2wXnPTLXIq0I0xSoI2XRGoAS/
-         z2XB61jNfHKBrTs2fUthH7eDi0PFS26webRU+qei+zbW9XHRhnRb3tc1ca/gL/ryb3Ku
-         NpLCoN6DTc2GfEbtsY5zeSLnnlMxBjKBhrQpqVyXvp90HOvwxZhy4soEcyjbz1Uv06ul
-         SSVlcztZvbhdAs3PT0btcqvCC1zUVZ+X84CWzX/nHCL+7wh3GVE2Bk7inX0QkdV9GZ0B
-         7sQozclzc2hIBuRkY1RDr8iiQhurWy0eWv7XnjInC/MptsfzA+nEB7f/aderJYx8Nxrj
-         C35w==
-X-Gm-Message-State: APjAAAUdaEqeB1z9w9JgxoZfkeM8ASmdzr4ndiSfVQSkkPcWc75uFAA7
-	hU2wGd1kvhcyGT6oNbEt4iyNELOgzgSL8kBGuWT343erM1/kznp7Zbq5RLi3ROwIrTUnGxN7ntI
-	bcI0iijBEKVRVzMxyUrpdnRMVYVaDA8HvEOOcIxeIgi714ooMgSDtvR/cYWOjY0YDSQ==
-X-Received: by 2002:a2e:9b0c:: with SMTP id u12mr15208028lji.189.1558537792015;
+         :message-id:in-reply-to:references;
+        bh=XS/exrL2qtsb1wQlcnKifMlE835u1lj3Ys1udy3P5H4=;
+        b=fWV84bh1jSDT569ShOH4+fBo2gLEdpRBBlpePov88NTSIWeFmTbPqlRlm9WT2Eb4g7
+         /+ZXOKXq50YyUPp9g7RdhgJgwDLjxbh+grQpxphYXVa6tU4gfLvEGv+Z+xR8p354OeVd
+         +6x0O2UfMQsEKoQ53U9dNSf4g5Q2gkqq/dig354vZ2gdCplHpwD7XSMYXHfKOVL8dInC
+         Tw2cdmyY8k+g1e9VMmi3uRRy5yPkjNZqnpTF4Ub0fNr8uOlBLnRpEQ2R/vs1PPA3wgQ/
+         X9LoMzmQCpujbL3+yipqyUOFZovcm8dKA7PaLhgBOIz56JAyEAnPON/RbU0u5CJGVkek
+         WQcA==
+X-Gm-Message-State: APjAAAV2EzTceVWEEPX93YE4TB7T5qDid6xXFeXZS/JXJogML/MzcgRd
+	U1orHpO6vSAudHACtgYIwfuTA65iVd990gm+aoqSYjv2/qtoPLda/aW9H8VClyUkPoeCUjiAWAv
+	PnBOiH5zgS0LzHVecVyibn3lwiH8J2YWBUsZsPIiPIBxLyOeZHQgPyRtPsmEmBa4oWw==
+X-Received: by 2002:a19:3f4b:: with SMTP id m72mr43674975lfa.32.1558537793606;
+        Wed, 22 May 2019 08:09:53 -0700 (PDT)
+X-Received: by 2002:a19:3f4b:: with SMTP id m72mr43674898lfa.32.1558537792100;
         Wed, 22 May 2019 08:09:52 -0700 (PDT)
-X-Received: by 2002:a2e:9b0c:: with SMTP id u12mr15207973lji.189.1558537790831;
-        Wed, 22 May 2019 08:09:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558537790; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1558537792; cv=none;
         d=google.com; s=arc-20160816;
-        b=D0j3G9N+SuWyixydrl6kfMQxQjR1hWP8kwgfb6BKmU++h8aI+4AJ05Uiv68eoteKmq
-         Ic56XR25264W+7BsaSy88vHU3V/czz/PgjOKEn5cEwUE0fEEKRjTLng4HLttdZ6ojl+/
-         5uh4oyfFBFn0uuZYDUFAALw2bECdQigfb53eNqK8BUYdikliiU/gdf2zZzx69MS7Ch1e
-         CU8Bsba26jFADcNXN/locE7wTVcHCKfvjpKeQAxp2kKw/R/CtJfEVA5QFHBcsDcKzXt/
-         tEE0U4yyp3vRG36SS/ZlNDFZAhs27idvYsqsV2O50nrkzj1qCHTuJCq2Fo1SDlmFpjJc
-         hrCQ==
+        b=0kW9tcZbFgu4DB0ISO4ERzEimmk5pzK1GzyGFzjjlVvAYLTrHwsw9UmD55Qf8RDyb8
+         2EIZnSb+cnbPj9a/O/zmR3FfyrfHQ1Z3617yhZGl2bniDWM03L4FNZPUffgn5UJjVNH1
+         VgqJnCvkpr+cGKdyW6sPG1RCovF4MDD8EQGEAU8SvX0VGN43Jf1LHVn3TODgYlxScn/6
+         cXMgzyiEmV0RD95w/QeclyDcUzQG0jiQSmfc3Egy0WiS3fp5aEhzoee00vR9xxHui7Qn
+         FC0ZLtqC42WE3WaVgX0LwYd4rRT7DUYrjv/XqZ+LQeRjMGxmcjqi8wx1jl+HpxryDv1O
+         5OLg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=fnFIhfm6w+x6vlcZglDCubHYA2sqJDEBTXH+zDoT54E=;
-        b=RJl2BqcHugpY0FwAMdnEFFwUe1BTn5uOzp4LdnX52aM0VqaQZrOue1AIsl24zlkFxx
-         i7HSQ2b0GFwwFoBqoRhQa20V6ZTB+ZcjG5H4cz80YUKQIWKe7HtEy9+FIKNQTDfVhGWR
-         z4hOf3R5s3MU5M4hMOLI78KLMnPKBDtJ6/3E0cvdv5CHwv3l1/sLo2IeDCLwtQ01Sg8H
-         ZHxT3D/4GGATUY1TLgxFhNOBfuMP+sYCOeiECHY1axUoNEyuUfAje1GbrNPz7viBoQqP
-         NGO5r3ZdYcBIkqa6g4vHqZ2mLSffoTsdVKCoIS8LLwg+dPqyN40/bV8uJg0g8eqE24Oi
-         o8LQ==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from
+         :dkim-signature;
+        bh=XS/exrL2qtsb1wQlcnKifMlE835u1lj3Ys1udy3P5H4=;
+        b=IrYpCbh+oGAfakBAPBaFCSj8ysBRiqeC8JGRKLETVOgzxIBx90Dtz/730d/W1bwxQo
+         VAdFQFl5x0eT6vW7exQBbsiOgLlo7ddqPK1tNfu1O4JKNHMafT525sRiW/avrxZhlY38
+         hXG8nFYmGYF6OdPSvVrZ5X5XtyD1W8/iYqwUOlafeS0/QSPr/j5eNsdBv9zMWSgQLSyr
+         ZlKA/75bgA2Vnrv4CuIMzbetqeBRJNShWAciw8K3O/xk4RgwlHLuYHogRDAwz6tPMzA1
+         jXwl52qu3AM9P2NycnKN2m0OjU8e5tbtihC1SBv6KyK1uXK8EYRvIEyfCTwfZmBhxU6W
+         CfDg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uchLVR9y;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pTaXTTu2;
        spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h4sor7152925lfp.2.2019.05.22.08.09.50
+        by mx.google.com with SMTPS id w10sor6913729lfn.19.2019.05.22.08.09.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 22 May 2019 08:09:50 -0700 (PDT)
+        Wed, 22 May 2019 08:09:52 -0700 (PDT)
 Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uchLVR9y;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pTaXTTu2;
        spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=fnFIhfm6w+x6vlcZglDCubHYA2sqJDEBTXH+zDoT54E=;
-        b=uchLVR9yDZbCoZFcLTDWBlnr+qGgHM4l53knuFUtS4cszF3qq07ggcXLTPp4f1w3EH
-         j1IHk6vbdley5IzodGb/tQoWS8N0fMqt6Ua8kNPLmWewxcufW+1xVNb0e7fViD9CgcIp
-         pJhh60QlEvljx7FQwox0+5OIj33+h7stGNT/5aqWO1weU6FRfCFZdHnUWEfTxAC5OMij
-         t74E5/Or9Z4xug+txof7zAQd6NGIvQn4vfDdCBnBtueDJS3roYMhnTqSiVT58a1ZFUXz
-         1chdk61oyigEWPE2i+mrhDPq+UCbJ9K7zrek8mWwqK7o2ecTG/tzzZbzagqaoi1i97aJ
-         BgJw==
-X-Google-Smtp-Source: APXvYqx5GGN3+wrZiJyukNG7wlTWckT2VbaD042N799w2UxWzlHPswK9PIYTsPn1Y77SbReZyTnRUQ==
-X-Received: by 2002:ac2:5bc1:: with SMTP id u1mr41492644lfn.111.1558537790380;
-        Wed, 22 May 2019 08:09:50 -0700 (PDT)
+        h=from:to:cc:subject:date:message-id:in-reply-to:references;
+        bh=XS/exrL2qtsb1wQlcnKifMlE835u1lj3Ys1udy3P5H4=;
+        b=pTaXTTu2glGWzCtLk76Cl7B6tZw4mic9YljjZTNWqawSe1IdcLFtJdXry3pTReF+XP
+         jS2hGtc7XmDPY/jxLfqgB2oopz2zMYo1t5ATW0D/YM6xBHS3X1ptj9Atx/I5rdJ6rLAa
+         1LGecflzmrOTWL7czlq9qcASE9EbnmfDcTVqqQh2vv5J+rcWAkTmlX2bdylKxCRVPqk4
+         QzOm6Eg6M/ZYU8xeGmcD/JHLadKWQeIu6aySuhyGBXUXFwuGj/nH7Peu3UnfPgs80Xax
+         rSDrs1IFJINGs0egfYiEhho7OP6+0AxPZdIY/2d/E69jBS0ptLrfxDtUWaDRPHfkW1Q2
+         OmYg==
+X-Google-Smtp-Source: APXvYqw+RiBtacL9aZIC5RAbtHUdu2UF9erfKWA6sEHVLiTrV/brXIweM3I0dA9/b8+ynfOjSkNLVg==
+X-Received: by 2002:ac2:4a6e:: with SMTP id q14mr7392786lfp.46.1558537791665;
+        Wed, 22 May 2019 08:09:51 -0700 (PDT)
 Received: from pc636.semobile.internal ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id t22sm5303615lje.58.2019.05.22.08.09.47
+        by smtp.gmail.com with ESMTPSA id t22sm5303615lje.58.2019.05.22.08.09.50
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 08:09:48 -0700 (PDT)
+        Wed, 22 May 2019 08:09:51 -0700 (PDT)
 From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Roman Gushchin <guro@fb.com>,
@@ -112,42 +113,155 @@ Cc: Roman Gushchin <guro@fb.com>,
 	Thomas Gleixner <tglx@linutronix.de>,
 	Ingo Molnar <mingo@elte.hu>,
 	Tejun Heo <tj@kernel.org>
-Subject: [PATCH 1/4] mm/vmap: remove "node" argument
-Date: Wed, 22 May 2019 17:09:36 +0200
-Message-Id: <20190522150939.24605-1-urezki@gmail.com>
+Subject: [PATCH 2/4] mm/vmap: preload a CPU with one object for split purpose
+Date: Wed, 22 May 2019 17:09:37 +0200
+Message-Id: <20190522150939.24605-2-urezki@gmail.com>
 X-Mailer: git-send-email 2.11.0
+In-Reply-To: <20190522150939.24605-1-urezki@gmail.com>
+References: <20190522150939.24605-1-urezki@gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Remove unused argument from the __alloc_vmap_area() function.
+Introduce ne_fit_preload()/ne_fit_preload_end() functions
+for preloading one extra vmap_area object to ensure that
+we have it available when fit type is NE_FIT_TYPE.
+
+The preload is done per CPU and with GFP_KERNEL permissive
+allocation masks, which allow to be more stable under low
+memory condition and high memory pressure.
 
 Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
 ---
- mm/vmalloc.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/vmalloc.c | 81 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 78 insertions(+), 3 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index c42872ed82ac..ea1b65fac599 100644
+index ea1b65fac599..5302e1b79c7b 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -985,7 +985,7 @@ adjust_va_to_fit_type(struct vmap_area *va,
+@@ -364,6 +364,13 @@ static LIST_HEAD(free_vmap_area_list);
   */
+ static struct rb_root free_vmap_area_root = RB_ROOT;
+ 
++/*
++ * Preload a CPU with one object for "no edge" split case. The
++ * aim is to get rid of allocations from the atomic context, thus
++ * to use more permissive allocation masks.
++ */
++static DEFINE_PER_CPU(struct vmap_area *, ne_fit_preload_node);
++
  static __always_inline unsigned long
- __alloc_vmap_area(unsigned long size, unsigned long align,
--	unsigned long vstart, unsigned long vend, int node)
-+	unsigned long vstart, unsigned long vend)
+ va_size(struct vmap_area *va)
  {
- 	unsigned long nva_start_addr;
+@@ -950,9 +957,24 @@ adjust_va_to_fit_type(struct vmap_area *va,
+ 		 *   L V  NVA  V R
+ 		 * |---|-------|---|
+ 		 */
+-		lva = kmem_cache_alloc(vmap_area_cachep, GFP_NOWAIT);
+-		if (unlikely(!lva))
+-			return -1;
++		lva = __this_cpu_xchg(ne_fit_preload_node, NULL);
++		if (unlikely(!lva)) {
++			/*
++			 * For percpu allocator we do not do any pre-allocation
++			 * and leave it as it is. The reason is it most likely
++			 * never ends up with NE_FIT_TYPE splitting. In case of
++			 * percpu allocations offsets and sizes are aligned to
++			 * fixed align request, i.e. RE_FIT_TYPE and FL_FIT_TYPE
++			 * are its main fitting cases.
++			 *
++			 * There are few exceptions though, as en example it is
++			 * a first allocation(early boot up) when we have "one"
++			 * big free space that has to be split.
++			 */
++			lva = kmem_cache_alloc(vmap_area_cachep, GFP_NOWAIT);
++			if (!lva)
++				return -1;
++		}
+ 
+ 		/*
+ 		 * Build the remainder.
+@@ -1023,6 +1045,50 @@ __alloc_vmap_area(unsigned long size, unsigned long align,
+ }
+ 
+ /*
++ * Preload this CPU with one extra vmap_area object to ensure
++ * that we have it available when fit type of free area is
++ * NE_FIT_TYPE.
++ *
++ * The preload is done in non-atomic context thus, it allows us
++ * to use more permissive allocation masks, therefore to be more
++ * stable under low memory condition and high memory pressure.
++ *
++ * If success, it returns zero with preemption disabled. In case
++ * of error, (-ENOMEM) is returned with preemption not disabled.
++ * Note it has to be paired with alloc_vmap_area_preload_end().
++ */
++static void
++ne_fit_preload(int *preloaded)
++{
++	preempt_disable();
++
++	if (!__this_cpu_read(ne_fit_preload_node)) {
++		struct vmap_area *node;
++
++		preempt_enable();
++		node = kmem_cache_alloc(vmap_area_cachep, GFP_KERNEL);
++		if (node == NULL) {
++			*preloaded = 0;
++			return;
++		}
++
++		preempt_disable();
++
++		if (__this_cpu_cmpxchg(ne_fit_preload_node, NULL, node))
++			kmem_cache_free(vmap_area_cachep, node);
++	}
++
++	*preloaded = 1;
++}
++
++static void
++ne_fit_preload_end(int preloaded)
++{
++	if (preloaded)
++		preempt_enable();
++}
++
++/*
+  * Allocate a region of KVA of the specified size and alignment, within the
+  * vstart and vend.
+  */
+@@ -1034,6 +1100,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
  	struct vmap_area *va;
-@@ -1062,7 +1062,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
- 	 * If an allocation fails, the "vend" address is
+ 	unsigned long addr;
+ 	int purged = 0;
++	int preloaded;
+ 
+ 	BUG_ON(!size);
+ 	BUG_ON(offset_in_page(size));
+@@ -1056,6 +1123,12 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+ 	kmemleak_scan_area(&va->rb_node, SIZE_MAX, gfp_mask & GFP_RECLAIM_MASK);
+ 
+ retry:
++	/*
++	 * Even if it fails we do not really care about that.
++	 * Just proceed as it is. "overflow" path will refill
++	 * the cache we allocate from.
++	 */
++	ne_fit_preload(&preloaded);
+ 	spin_lock(&vmap_area_lock);
+ 
+ 	/*
+@@ -1063,6 +1136,8 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
  	 * returned. Therefore trigger the overflow path.
  	 */
--	addr = __alloc_vmap_area(size, align, vstart, vend, node);
-+	addr = __alloc_vmap_area(size, align, vstart, vend);
+ 	addr = __alloc_vmap_area(size, align, vstart, vend);
++	ne_fit_preload_end(preloaded);
++
  	if (unlikely(addr == vend))
  		goto overflow;
  
