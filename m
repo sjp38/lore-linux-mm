@@ -2,179 +2,321 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CC1DC18E7D
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 10:03:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3F932C18E7D
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 10:04:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D8089217F9
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 10:02:59 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Hxk6PkJx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8089217F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id BEA1C2075E
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 10:04:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEA1C2075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 74B776B0007; Wed, 22 May 2019 06:02:59 -0400 (EDT)
+	id 5761C6B000A; Wed, 22 May 2019 06:04:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6FCCA6B0008; Wed, 22 May 2019 06:02:59 -0400 (EDT)
+	id 5276F6B000C; Wed, 22 May 2019 06:04:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 613FA6B000A; Wed, 22 May 2019 06:02:59 -0400 (EDT)
+	id 43D406B000D; Wed, 22 May 2019 06:04:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3656B6B0007
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 06:02:59 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id 5so689985oix.4
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 03:02:59 -0700 (PDT)
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CCB5E6B000A
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 06:04:10 -0400 (EDT)
+Received: by mail-lf1-f72.google.com with SMTP id f15so394173lfc.10
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 03:04:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=47TiyBCz41Yx1Bv/NNksDp+zVbcuSGdQexnBZ0Z9rP4=;
-        b=UXzl0u+R46Su0DowvDWVfwhNQt+pIJtgFb7y+wHPsEA+wmWc3MIfvc1mkZaZkpQOeM
-         acKk+tmp3drOI4CZybCk7vOuaMnDDwi3fJjgaVAu6O3tF7b3VEBIYaUG3L/Hz2zPGKA/
-         Mo2hTVlIWUhpofDykc0Vfcy08eY6afkS+L9mTR2x5+2sN95+Vdnh1TD3U3Be1IjTthHQ
-         reP7FqBZ7nNyJDICGSDSsx//83bdJe4yva2Pe9l82xJVeNRtOvyS6qOVCnYjl+u66dXl
-         6wpV5oZRNwuz5PWRky1QNVFCSlbaZ9e/KthCsuLwbujbxti1EzLYq4OFAJ8l8bSntADa
-         2wcA==
-X-Gm-Message-State: APjAAAXe1OEmk1xqWJtrP70Qav0OAvY5sfLlmYRUpP7B2vmJhKu5Ei1F
-	mmAdXOa29YLzMdDYC3rWUoAElEM05FJweD+ysm/b99AuBDFIM0Pf3sgJq+xKcczRUkAEAt0r3f8
-	d1rJV5s6ONdsppD8ZErwQrwdky3IUB8syuW6uPqjGxI0PvS+upEU9+0HriSwr3mSD3A==
-X-Received: by 2002:a05:6830:1389:: with SMTP id d9mr171685otq.329.1558519378852;
-        Wed, 22 May 2019 03:02:58 -0700 (PDT)
-X-Received: by 2002:a05:6830:1389:: with SMTP id d9mr171649otq.329.1558519378267;
-        Wed, 22 May 2019 03:02:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558519378; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=H65ImDYj/6KAbz1rZtbTme5/omdfzPb+ky28179erFo=;
+        b=A8LqtA/kqOCXYMv+yCU5R438nXElcIn38IGmguLB4M3BEzhbOiIVGycpQVBe6zgzhm
+         m7SZ0nkeoiBRb2bTr6zhbeM0qLA8um+b5wUQkD/xuj8RuYNMRh7HQyHtfrlKj4UNXo6w
+         s9RnPLfEYQgDP8BD5ChtV7sWTBcYCOPx0UNTFv04szMbHPOMMshqPWHAACaajbJ8+a8g
+         aa2OSj8tyP8Tdtj2XmrZsQJ+YusKAJ8sg88Ez97NBxq6Ze1jpYDiUfQdWK9KH9Oe/4wu
+         YYxbqr+dVoFoMK2O5ER1umumD20Ex+gh+ljMWhyMf2mOkGhLjnI3kd6a64qfz+3xW7V+
+         +fpg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAU4kkF6tnT+NuTGae35HU/sAhBbXnVrPaer4flzEDAJmGQZXifi
+	8S6IF1X0DYBJxDEHmNVRFRZ0UTSE69EIXpNuDy/NCYUw7RthlW64iuzVZgMH1ehPUkkyYmIZscu
+	3grSZ6RgmDth89DlzmtGzqmusGqN/nitRip1zVznZEYLyTHaV/GiK3oIBbBQue//wRw==
+X-Received: by 2002:a19:480a:: with SMTP id v10mr30892684lfa.112.1558519450042;
+        Wed, 22 May 2019 03:04:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxqsD0fI60c6As1PiTjdgn8VHQvoUohYMLPix0fCEzh+igbPmShNi6R/ht1kl3Ci41egfdX
+X-Received: by 2002:a19:480a:: with SMTP id v10mr30892622lfa.112.1558519448694;
+        Wed, 22 May 2019 03:04:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558519448; cv=none;
         d=google.com; s=arc-20160816;
-        b=E3fuiNlqqFhKBhMjX1A9dMM+NG5/+e4/k6tkDz0g6F/CwmBZhseUvdK2f6n9D2TmLB
-         4iUy8h+E/DpLyeTAfN+XBE/32UyxXBW3dtN6BjhOgpU02fOCdlOyjzp9Wu1YBPrpqnvM
-         jjqIp5230CC7WF0PuEPzXEuRSQvm+mSN7HD1IurpmTPB94bwUKHhgsapPGL78U2Yykyq
-         yV6Cm+FayNKIqlJgI6l/e0DaS54YRuIykmdEIwEbC05MfU+v/b/sUqgj+f2+JvXSTfIb
-         qpXlR0Rgs1GLZR44gjCFlYXQQf/YaBaglnZZ/yDY2ecYn2v8aTEI1zJV+9lQAKIxCuqK
-         brlg==
+        b=eBs3J+ronrRmrRGgapIq8qkA8+AtgCNlNnf0vjz0tXhEsESUKYh5M4ojnZS5nBEy+N
+         fSzLor6N1ZjMrOXLPerIGROWxXU1RZqHsy5KO2Uxnx9pfFv79jUm95i5Me3QzfFFDVWS
+         9b5yC1LsVOP6AT4Cz7fFH5dLrzhfj84w2HZ5gPF349tJUKTcntItDJcN5LnQPmsMIJxW
+         thfhCpKTGhaTGtGkPDqfXLFy3PyQnrw/t244Z9gHNwp4qbQyGK6b/BYcI7f45bL3bOOG
+         Cr5eEc9Y3KB0K2shp/CDfwWWTuWFLyrFE2UtpoBPu1qsCKiT9IUw9BYYiOKLvcXxJDsR
+         cDvQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=47TiyBCz41Yx1Bv/NNksDp+zVbcuSGdQexnBZ0Z9rP4=;
-        b=KWDcxiuvFe9vG97RfUTyhRyv8K8hpY0msoW8n/c9iEP4lccuT6dOJbSRiA+juJd6mt
-         IVPKFK2n+6TPiL/qjX9FjcS8b8u18sEqBJnMT0+Sl7XHmyNuvUrQLOoqK+lPuh8nppSI
-         UDDHGgAcQxo625ExtrcMkkHvrAWcG67icRpu5hHE2Woy9W/88uodNw+PeQJX3rWuli5x
-         4dCdQdvjI0eG3HYBOcqdqAr++wndoXljUvyDYpExPEfX/f/2pPgG/n54NUo2Q5O3VH/Q
-         joEvF6tsfqJhhi+i+/8aporrw647cUVZaC6O9DjYRqs1i4ubUupIC9DqUNqywWBDFC4b
-         wPTw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=H65ImDYj/6KAbz1rZtbTme5/omdfzPb+ky28179erFo=;
+        b=DovQFjCj0cPnBhfnm98LUvuGgY5hLRtezoeKgH2fs68Tpn6y/1cF9QqHqRQQdVodUs
+         O+Uq/uRyu57EiIMfEjiZqCmzzDdIq9IrpUOm7LYLSUvw1DrDmmz0fgGbXVGH9jHtbGSs
+         75+mo+y4n+NFGMVPw6ZFzrj7SQkB9yZEA7wcNfTwP0P0wK4ezD3w7miX2A/Oc27Ir4F0
+         XmvvTWVLSTB/vWQkQXFZc5j96iVoEWxPqve2JSK0YJ6EaKj+TOh3CKXjYf5cRtQeyAHf
+         Q0m9B+R2s/cls23j+VxWfSzNqUGheqX8SHnnzOStqn2T0vWdtWy3kfx3euPaEBMjCpU9
+         64jQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Hxk6PkJx;
-       spf=pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=elver@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h74sor9835942oib.69.2019.05.22.03.02.58
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id s26si4271810ljs.90.2019.05.22.03.04.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 May 2019 03:02:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 May 2019 03:04:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Hxk6PkJx;
-       spf=pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=elver@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=47TiyBCz41Yx1Bv/NNksDp+zVbcuSGdQexnBZ0Z9rP4=;
-        b=Hxk6PkJx0M1SEl/EATamZoo1PbzAmcXNEwVjqmBc+SnUwmrdzF2iuUVjWEjQ6cI+fR
-         67M5NTPxRJOcMbUUkAWrsfwRUyL6YyPpbzv89mnmsCa+sRIJGeOnSwS9nyn5CM+vzhGE
-         hxE0bbOlNDDP5d+gog20x4heHjwnStDaj7Xy2R2YlPenUJz6iZoqb5Em/Ynp6TUvs/zv
-         YVJ21wXJTwNi5pm9CBizLH4TY4HK1XmXxvq2U4kdq8YXhcteZnMwKitwhW4bHxVozsbf
-         MM7ZMDCGprZ82beyTbXJh00k98J4Hqp4EDcTqF5Xw91mVShWdm/gvFO3/lYki/81Kgjs
-         2jCw==
-X-Google-Smtp-Source: APXvYqxn2zuZFxT6AuzcL2G2owEvKVqlQddmjBsLX4hBZYveZsSf0+nswnaPVACN+eD/e/rS8IjO6U0C2AmMC7ytPx0=
-X-Received: by 2002:aca:e044:: with SMTP id x65mr4232447oig.70.1558519377524;
- Wed, 22 May 2019 03:02:57 -0700 (PDT)
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hTO6G-0002Ts-Q7; Wed, 22 May 2019 13:03:56 +0300
+Subject: Re: [PATCH v2 0/7] mm: process_vm_mmap() -- syscall for duplication a
+ process mapping
+To: Jann Horn <jannh@google.com>
+Cc: Andy Lutomirski <luto@kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>,
+ Keith Busch <keith.busch@intel.com>,
+ "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ Weiny Ira <ira.weiny@intel.com>, Andrey Konovalov <andreyknvl@google.com>,
+ arunks@codeaurora.org, Vlastimil Babka <vbabka@suse.cz>,
+ Christoph Lameter <cl@linux.com>, Rik van Riel <riel@surriel.com>,
+ Kees Cook <keescook@chromium.org>, Johannes Weiner <hannes@cmpxchg.org>,
+ Nicholas Piggin <npiggin@gmail.com>,
+ Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,
+ Shakeel Butt <shakeelb@google.com>, Roman Gushchin <guro@fb.com>,
+ Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>,
+ Jerome Glisse <jglisse@redhat.com>, Mel Gorman
+ <mgorman@techsingularity.net>, daniel.m.jordan@oracle.com,
+ Adam Borowski <kilobyte@angband.pl>, Linux API <linux-api@vger.kernel.org>,
+ LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+References: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
+ <CALCETrU221N6uPmdaj4bRDDsf+Oc5tEfPERuyV24wsYKHn+spA@mail.gmail.com>
+ <9638a51c-4295-924f-1852-1783c7f3e82d@virtuozzo.com>
+ <CAG48ez2BcVCwYGmAo4MwZ2crZ9f7=qKrORcN=fYz=K5xP2xfgQ@mail.gmail.com>
+ <069c90d6-924b-fa97-90d7-7d74f8785d9b@virtuozzo.com>
+ <CAG48ez31Kxukg7y4PU-+3RjsYZxEHfjvs2q0EFqxDM2KDcLUoA@mail.gmail.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <3e8177a1-29c9-8502-c78d-8a0743474331@virtuozzo.com>
+Date: Wed, 22 May 2019 13:03:56 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-References: <20190517131046.164100-1-elver@google.com> <201905190408.ieVAcUi7%lkp@intel.com>
- <20190521191050.b8ddb9bb660d13330896529e@linux-foundation.org>
-In-Reply-To: <20190521191050.b8ddb9bb660d13330896529e@linux-foundation.org>
-From: Marco Elver <elver@google.com>
-Date: Wed, 22 May 2019 12:02:46 +0200
-Message-ID: <CANpmjNPYoaE6GFC1WC2m1GsGjqWRLfuxdi86dB+NCFeZ93mtOw@mail.gmail.com>
-Subject: Re: [PATCH] mm/kasan: Print frame description for stack bugs
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, 
-	Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, 
-	Alexander Potapenko <glider@google.com>, Andrey Konovalov <andreyknvl@google.com>, 
-	LKML <linux-kernel@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CAG48ez31Kxukg7y4PU-+3RjsYZxEHfjvs2q0EFqxDM2KDcLUoA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I've sent v3. If possible, please replace current version with v3,
-which also includes the fix.
+On 21.05.2019 20:28, Jann Horn wrote:
+> On Tue, May 21, 2019 at 7:04 PM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>> On 21.05.2019 19:20, Jann Horn wrote:
+>>> On Tue, May 21, 2019 at 5:52 PM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>>>> On 21.05.2019 17:43, Andy Lutomirski wrote:
+>>>>> On Mon, May 20, 2019 at 7:01 AM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>>>>>> New syscall, which allows to clone a remote process VMA
+>>>>>> into local process VM. The remote process's page table
+>>>>>> entries related to the VMA are cloned into local process's
+>>>>>> page table (in any desired address, which makes this different
+>>>>>> from that happens during fork()). Huge pages are handled
+>>>>>> appropriately.
+>>> [...]
+>>>>>> There are several problems with process_vm_writev() in this example:
+>>>>>>
+>>>>>> 1)it causes pagefault on remote process memory, and it forces
+>>>>>>   allocation of a new page (if was not preallocated);
+>>>>>
+>>>>> I don't see how your new syscall helps.  You're writing to remote
+>>>>> memory.  If that memory wasn't allocated, it's going to get allocated
+>>>>> regardless of whether you use a write-like interface or an mmap-like
+>>>>> interface.
+>>>>
+>>>> No, the talk is not about just another interface for copying memory.
+>>>> The talk is about borrowing of remote task's VMA and corresponding
+>>>> page table's content. Syscall allows to copy part of page table
+>>>> with preallocated pages from remote to local process. See here:
+>>>>
+>>>> [task1]                                                        [task2]
+>>>>
+>>>> buf = mmap(NULL, n * PAGE_SIZE, PROT_READ|PROT_WRITE,
+>>>>            MAP_PRIVATE|MAP_ANONYMOUS, ...);
+>>>>
+>>>> <task1 populates buf>
+>>>>
+>>>>                                                                buf = process_vm_mmap(pid_of_task1, addr, n * PAGE_SIZE, ...);
+>>>> munmap(buf);
+>>>>
+>>>>
+>>>> process_vm_mmap() copies PTEs related to memory of buf in task1 to task2
+>>>> just like in the way we do during fork syscall.
+>>>>
+>>>> There is no copying of buf memory content, unless COW happens. This is
+>>>> the principal difference to process_vm_writev(), which just allocates
+>>>> pages in remote VM.
+>>>>
+>>>>> Keep in mind that, on x86, just the hardware part of a
+>>>>> page fault is very slow -- populating the memory with a syscall
+>>>>> instead of a fault may well be faster.
+>>>>
+>>>> It is not as slow, as disk IO has. Just compare, what happens in case of anonymous
+>>>> pages related to buf of task1 are swapped:
+>>>>
+>>>> 1)process_vm_writev() reads them back into memory;
+>>>>
+>>>> 2)process_vm_mmap() just copies swap PTEs from task1 page table
+>>>>   to task2 page table.
+>>>>
+>>>> Also, for faster page faults one may use huge pages for the mappings.
+>>>> But really, it's funny to think about page faults, when there are
+>>>> disk IO problems I shown.
+>>> [...]
+>>>>> That only doubles the amount of memory if you let n
+>>>>> scale linearly with p, which seems unlikely.
+>>>>>
+>>>>>>
+>>>>>> 3)received data has no a chance to be properly swapped for
+>>>>>>   a long time.
+>>>>>
+>>>>> ...
+>>>>>
+>>>>>> a)kernel moves @buf pages into swap right after recv();
+>>>>>> b)process_vm_writev() reads the data back from swap to pages;
+>>>>>
+>>>>> If you're under that much memory pressure and thrashing that badly,
+>>>>> your performance is going to be awful no matter what you're doing.  If
+>>>>> you indeed observe this behavior under normal loads, then this seems
+>>>>> like a VM issue that should be addressed in its own right.
+>>>>
+>>>> I don't think so. Imagine: a container migrates from one node to another.
+>>>> The nodes are the same, say, every of them has 4GB of RAM.
+>>>>
+>>>> Before the migration, the container's tasks used 4GB of RAM and 8GB of swap.
+>>>> After the page server on the second node received the pages, we want these
+>>>> pages become swapped as soon as possible, and we don't want to read them from
+>>>> swap to pass a read consumer.
+>>>
+>>> But you don't have to copy that memory into the container's tasks all
+>>> at once, right? Can't you, every time you've received a few dozen
+>>> kilobytes of data or whatever, shove them into the target task? That
+>>> way you don't have problems with swap because the time before the data
+>>> has arrived in its final VMA is tiny.
+>>
+>> We try to maintain online migration with as small downtime as possible,
+>> and the container on source node is completely stopped at the very end.
+>> Memory of container tasks is copied in background without container
+>> completely stop, and _PAGE_SOFT_DIRTY is used to track dirty pages.
+>>
+>> Container may create any new processes during the migration, and these
+>> processes may contain any memory mappings.
+>>
+>> Imagine the situation. We migrate a big web server with a lot of processes,
+>> and some of children processes have the same COW mapping as parent has.
+>> In case of all memory dump is available at the moment of the grand parent
+>> web server process creation, we populate the mapping in parent, and all
+>> the children may inherit the mapping in case of they want after fork.
+>> COW works here. But in case of some processes are created before all memory
+>> is available on destination node, we can't do such the COW inheritance.
+>> This will be the reason, the memory consumed by container grows many
+>> times after the migration. So, the only solution is to create process
+>> tree after memory is available and all mappings are known.
+> 
+> But if one of the processes modifies the memory after you've started
+> migrating it to the new machine, that memory can't be CoW anymore
+> anyway, right? So it should work if you first do a first pass of
+> copying the memory and creating the process hierarchy, and then copy
+> more recent changes into the individual processes, breaking the CoW
+> for those pages, right?
 
-Many thanks,
--- Marco
+Not so. We have to have all processes killed on source node, before
+creation the same process tree on destination machine. The process
+tree should be completely analyzed before a try of its recreation
+from ground. The analysis allows to choose the strategy and the sequence
+of each process creation and inheritance of entities like namespaces,
+mm, fdtables, etc. It's impossible to restore a process tree in case
+of you already have started to create it, but haven't stopped processes
+on source node. Also, we can restore only subset of process trees,
+but you never know what will happen with a live process tree in further.
+So, source process tree must be freezed before restore.
 
+A restore of arbitrary process tree in laws of all linux limitations
+on sequence of action to recreate an entity of a process makes this
+nontrivial mathematical problem, which has no a solution at the moment,
+and it's unknown whether it has a solution.
 
-On Wed, 22 May 2019 at 04:10, Andrew Morton <akpm@linux-foundation.org> wrote:
->
-> On Sun, 19 May 2019 04:48:21 +0800 kbuild test robot <lkp@intel.com> wrote:
->
-> > Hi Marco,
-> >
-> > Thank you for the patch! Perhaps something to improve:
-> >
-> > [auto build test WARNING on linus/master]
-> > [also build test WARNING on v5.1 next-20190517]
-> > [if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
-> >
-> > url:    https://github.com/0day-ci/linux/commits/Marco-Elver/mm-kasan-Print-frame-description-for-stack-bugs/20190519-040214
-> > config: xtensa-allyesconfig (attached as .config)
-> > compiler: xtensa-linux-gcc (GCC) 8.1.0
-> > reproduce:
-> >         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
-> >         chmod +x ~/bin/make.cross
-> >         # save the attached .config to linux build tree
-> >         GCC_VERSION=8.1.0 make.cross ARCH=xtensa
-> >
-> > If you fix the issue, kindly add following tag
-> > Reported-by: kbuild test robot <lkp@intel.com>
-> >
->
-> This, I assume?
->
-> --- a/mm/kasan/report.c~mm-kasan-print-frame-description-for-stack-bugs-fix
-> +++ a/mm/kasan/report.c
-> @@ -230,7 +230,7 @@ static void print_decoded_frame_descr(co
->                 return;
->
->         pr_err("\n");
-> -       pr_err("this frame has %zu %s:\n", num_objects,
-> +       pr_err("this frame has %lu %s:\n", num_objects,
->                num_objects == 1 ? "object" : "objects");
->
->         while (num_objects--) {
-> @@ -257,7 +257,7 @@ static void print_decoded_frame_descr(co
->                 strreplace(token, ':', '\0');
->
->                 /* Finally, print object information. */
-> -               pr_err(" [%zu, %zu) '%s'", offset, offset + size, token);
-> +               pr_err(" [%lu, %lu) '%s'", offset, offset + size, token);
->         }
->  }
->
-> _
->
-> --
-> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
-> To post to this group, send email to kasan-dev@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/20190521191050.b8ddb9bb660d13330896529e%40linux-foundation.org.
-> For more options, visit https://groups.google.com/d/optout.
+So, at the moment of restore starts, we know all about all tasks and
+their relation ships. Yes, we start to copy memory from source to destination,
+when container on source is alive. But we track this memory with _PAGE_SOFT_DIRTY
+flag, and dirtied pages are repopulated with new content. Please, see the comment
+about hellish below.
+ 
+>> It's on of the examples. But believe me, there are a lot of another reasons,
+>> why process tree should be created only after all process tree is freezed,
+>> and no new tasks on source are possible. PGID and SSID inheritance, for
+>> example. All of this requires special order of tasks creation. In case of
+>> you try to restore process tree with correct namespaces and especial in
+>> case of many user namespaces in a container, you will just see like a hell
+>> will open before your eyes, and we never can think about this.
+> 
+> Could you elaborate on why that is so hellish?
+
+Because you never know the way, the system came into the state you're seeing
+at the moment. Even in a simple process chain like:
+
+          task1
+            |
+          task2
+            |
+          task3
+          /   \
+      task4  task5
+
+any of these processes may change its namespace, pgid, ssid, unshare mm,
+files, become a child subreaper, die and make its children reparented,
+do all of these before or after parent did one of its actions. All of
+these actions are not independent between each other, and some actions
+prohibit another actions. And you can restore the process tree only
+in case you repeat all of the sequence in the same order it was made
+by the container.
+
+It's impossible to say "task2, set your session to 5!", because the only
+way to set ssid is call setsid() syscall, which may be made only once in
+a process life. But setsid itself implies limitations on further setpgid()
+syscall (see the code, if interesting). And this limitation does not mean
+we always should call setpgid() before it, no, these are no such the simple
+rules. The same and moreover with inheritance of namespaces, when some of
+task's children may inherit old task's namespaces, some may inherit current,
+some will inherit further. A child will be able to assign a namespace, say,
+net ns, only in case of its userns allows to do this. This implies another
+limitation on process creation order, while this does not mean this gives
+a stable rule of choosing an order you create process tree. No, the only
+rule is "in the moment of time, one of tasks should made one of the above
+actions".
+
+This is a mathematical problem of ordering finite number of actors with
+finite number of rules and relationship between them, and the rules do not
+imply unambiguous replay from the ground by the end state.
+
+We behave well in limited and likely cases of process tree configurations,
+and this is enough for most cases. But common problem is very difficult,
+and currently it's not proven it even has a solution as a finite set of
+rules you may apply to restore any process tree.
+
+Kirill
 
