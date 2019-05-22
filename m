@@ -2,249 +2,163 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 781B3C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:16:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 41FFFC282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:23:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 198FC21473
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:16:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D318021473
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:23:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="efNzGroY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 198FC21473
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ZDeN3RZm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D318021473
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD74F6B0003; Wed, 22 May 2019 16:16:12 -0400 (EDT)
+	id 26D886B0003; Wed, 22 May 2019 16:23:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AB0826B0006; Wed, 22 May 2019 16:16:12 -0400 (EDT)
+	id 21DF96B0006; Wed, 22 May 2019 16:23:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C5B26B0007; Wed, 22 May 2019 16:16:12 -0400 (EDT)
+	id 10D4E6B0007; Wed, 22 May 2019 16:23:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 370CB6B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 16:16:12 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id m4so648995lji.5
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 13:16:12 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CBE146B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 16:23:24 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 14so2311696pgo.14
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 13:23:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=0QfgGpfBPenuVTK4QBHqIOfbfu3mYm6801nPB6AtTbg=;
-        b=Ica31X9KyvD3196vFcvVeS0gtUnXgWSXQslrRDXS1Xa5GLR4rpAe4sd8sXVM8SJYnY
-         XgxkjDfON4hkzQ1ssKQJalC7U61Pizz5jus8CIxV3FyYH8G5W/QpB9vcEsbuw86wrVKP
-         nVgwBGqR4vRIb9WSyEq5zjWrColvbF4vo6w1zRn26qNZCqAqHf0o2tC1Kp96YnKqaz6+
-         pVB+eXpuxlgeYGOfmDBGvlhxhP6hMXpuHVxXPalAn3YdyCcKo5VDq1WnUYmyGu93KS4w
-         T+MzQPN5DXmxN4QcOXTA7F6WFRe2qoBvjx7e25c7d8N9QHul3c1h6GCntPJFZ2v/j2gI
-         pKDw==
-X-Gm-Message-State: APjAAAUtlr+ivMlPh4uxM523PzGqaV4UriBDCJls4xNroMqV2U3+MoCG
-	Hj5Zl6fIWih1aaWBm5b7UIqW2/XFdQXbezndnud64eKTjKn93vRsRsJih38YrZS11x9EslkBgtz
-	UPf3kp+g3Mh84t/GYGuYHlsHnEAePW9NE+EXotdDfzcsmnkxB0LNRNPe5Cfnedx47GQ==
-X-Received: by 2002:ac2:5310:: with SMTP id c16mr34426688lfh.76.1558556171381;
-        Wed, 22 May 2019 13:16:11 -0700 (PDT)
-X-Received: by 2002:ac2:5310:: with SMTP id c16mr34426633lfh.76.1558556170245;
-        Wed, 22 May 2019 13:16:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558556170; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=OR/F32T2HsRarig/yfUZBtfPy41fvhI2UBxZTDwWsVo=;
+        b=Ae7hsm7ydqzsjjo5RxEjZA1rMe2Df7M6FaWe0CKtn/+uuLTALdEe3o6mCbERAlwNlh
+         he8/XrWktfiKqckZ2NU67TnoAu5/HX0xxjwvc42FlGFrTwicY0hzffpZ6Eh5rMJX7B6z
+         zADjTvC3uwjwl8wD3R5dBPT+L4LxVzpap0N/h9bA1k0WWUNBOy3YkuGbTtMF/n1RS641
+         Q9aP6/optiqeH2JCdo9PkMYtU9EqeLgTJ7tLMqK14Xw39JDr10b0kmavBfHlK0lbnoPV
+         4yRbKlEoVkiDW3wtobVJ0jA+pTIk4LSvu/uaiMAz4WJpZN1rVZsqQ+iclw3tbZjOkur0
+         QsTQ==
+X-Gm-Message-State: APjAAAUpildijxe+0yB3NhvVeWUel+JYoCNZn7AC6QUkpi4i3eYymSCH
+	yjAXS21nYA3+8ym4wuXRC5ipOjaI+ET6NJ4H6NanOVKT/MRbR47SqxNPXo/jO8PYhjc9N487MmR
+	YWRQHGW65nIdsDk8Gks4dGr9bsSft6J5tuviAKa/cSrTBc838WwtefTODyteMvciRiA==
+X-Received: by 2002:a62:d205:: with SMTP id c5mr97058926pfg.219.1558556604406;
+        Wed, 22 May 2019 13:23:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzykEfkizh4bN41+A8BDIQdyvN10I3goBDUtDUunjVZsVVjv357OVxabME7MC1zNoiQHHaQ
+X-Received: by 2002:a62:d205:: with SMTP id c5mr97058875pfg.219.1558556603764;
+        Wed, 22 May 2019 13:23:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558556603; cv=none;
         d=google.com; s=arc-20160816;
-        b=miF76KHomh/xhuC4fHCWy0IW3XiyZH9YRSnVgDK0KlyT4FOlQIKc3Q5afIVOFb8Owa
-         zHH7ILJ2ib+8Zmwm/+Q62On3pVsB9ZKkEWOpQo7fsTD3pLGGun8vF/NTlg75NeJRq0ih
-         RDlKkTwFxoejGHAAgjA+klFjiTSuwpxiR2wcAgwYe31O/f36zUlHk9ufP4AFCvafQ6/V
-         hYWp2FMJH/ts5aWVjdysWIKCw4In1DNGTetgU32FHKJwBYKyuDQGVRTkBAez2laXllGR
-         4z4sE87nVP0wiSqbhBeEdPGCumgvSQEZ9SLXp6gR6sXxzZxhKfgoAzlJOMT49iSSGfnV
-         o3pg==
+        b=IIiQbaH/isEdTyejZFhRr0Px+65o8TjlC52GdHC/7ynDBfmITkFJsGpihLw4FabdIJ
+         DFDm0km5uhzuCrbOCYVBMj0ZL1w8fB+y5P2seXr68zHLun3tIqvW7PutqMVHDZU+17kB
+         xD0WaFvtEj7BCM6A1rp6xob/SiacWJYHGCKaSgVIf2P+g93+26dntCsLO43uR2hSDYkW
+         pi7yEqWi2hUofFF3SAvafPVqS1s3FWVN2zbriFgQExBJ6CrEa1znLRTj+dnGdr7m7fbT
+         0S/eQ2jypGIDaD1hs5heUOrW+0fMHVNCMjSKLRB9w8HGW6Tkm4D7RRjtvA05WV0wKp7A
+         Nv2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=0QfgGpfBPenuVTK4QBHqIOfbfu3mYm6801nPB6AtTbg=;
-        b=ol0SKKvfAKhdIaBvjrX5eJPV8TXZP4BxQsqsWAsnJwGRTquXQEGL4FyDuXHNAZwqv0
-         SDg7ZxwAPJ2/GKIU8nx7bgIp38ov755JM/SyI+CK0hvqWEdhagimBwYmVO1f0JqlymX8
-         DAr374tKvRjEYyukqfVAPJ5W0MusPRYci01X/ikNTeQHuzbnUI2XaE80RtIG3mREDt8w
-         U3fRjQxvgOTD9BTimC+N1iiAJA/lKVyU0M2Te5CpDfKKp+Ej4TTBwxnJ+PZFIzREBwXW
-         gbiiTj4k6XNQBEger2ut86/j9CaxNjHcV8LoXxddb+kYNbMtMet97a82APgaH1rHHFMO
-         Bt/A==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=OR/F32T2HsRarig/yfUZBtfPy41fvhI2UBxZTDwWsVo=;
+        b=VHS90ZRbX+e4ew1Lr/NEbzw8s0Zkf3Kiv1FRKAspcp8/Iu8DqxiTuoXKKXCIn22hNk
+         PIjk/ZngG1SHOPUMc+8YU5V3U4E4OMUSgP63pnJXXbWvyb/tpdplE0QB3ZZNKr9tQWpT
+         o8OWYKRtUu58csPATIXrZqh8tnydITqpPnEm8E5SzC5VGDdso9PBI9ziOTTYAckyvGfO
+         mbvPDgN4gpCuHOZYt5hLrUhhf5cjp9E70MvLrTQvAnJbRtkQNrzYfnKwMK6artyIxXQJ
+         lkY4+XIrEPWDB0gg6u3rHVeI/C2pgevnKcWcBWcO73xrQM3FBxtWLR25f00bmQOQjjn7
+         lgZQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=efNzGroY;
-       spf=pass (google.com: domain of enh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=enh@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w16sor1196347ljg.41.2019.05.22.13.16.10
+       dkim=pass header.i=@kernel.org header.s=default header.b=ZDeN3RZm;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id i2si28023622pfb.7.2019.05.22.13.23.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 May 2019 13:16:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of enh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 May 2019 13:23:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=efNzGroY;
-       spf=pass (google.com: domain of enh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=enh@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=0QfgGpfBPenuVTK4QBHqIOfbfu3mYm6801nPB6AtTbg=;
-        b=efNzGroYusRAaEDsxj++TPJsvxks1eNated5nn5y7tlpjx/+YV4iarteHjAsgVRWyv
-         qV1iM2jFkqeqVZ60hyGrgA+iKj9XLYoinAIbx9aKQGymsFhsi8sDNA4x7lKxk9I/yxf9
-         zx43H2ftRI4hpAeLvUaCSFwSlmKo8BKAgAeCJSD9hxfs7RtSGY9pmt5vsnNtNJ56rv67
-         jIGc/hrimcITUdfG9J7ly3HBYArn3SKohhDYcSqAbppqL0mNbFyjlLDnYeaHM9uonO4O
-         ufZRlzizHiSyf/pfX51aVvjz0xzqbcySuny4AVjp7wVtb4QBwDkwZrZ0z/Q3p7onR8yt
-         etJQ==
-X-Google-Smtp-Source: APXvYqygGa8rtRNIFjzwi6ULooCIPc9lOrOSeVX/ax8A+QrN8e39fSC+EkrWuLWAGu39QnHtsT9z6aUFsbTAkajmkCU=
-X-Received: by 2002:a2e:9d4e:: with SMTP id y14mr20404646ljj.199.1558556169212;
- Wed, 22 May 2019 13:16:09 -0700 (PDT)
-MIME-Version: 1.0
-References: <cover.1557160186.git.andreyknvl@google.com> <20190517144931.GA56186@arrakis.emea.arm.com>
- <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
- <20190521182932.sm4vxweuwo5ermyd@mbp> <201905211633.6C0BF0C2@keescook>
- <20190522101110.m2stmpaj7seezveq@mbp> <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
- <201905221157.A9BAB1F296@keescook>
-In-Reply-To: <201905221157.A9BAB1F296@keescook>
-From: enh <enh@google.com>
-Date: Wed, 22 May 2019 13:15:57 -0700
-Message-ID: <CAJgzZooRCx5MFL8dWuG8VaV=esYBADji7-L49fMeQa6niieWnw@mail.gmail.com>
-Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
-To: Kees Cook <keescook@chromium.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Evgenii Stepanov <eugenis@google.com>, 
-	Andrey Konovalov <andreyknvl@google.com>, Khalid Aziz <khalid.aziz@oracle.com>, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yishai Hadas <yishaih@mellanox.com>, 
-	Felix Kuehling <Felix.Kuehling@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, 
-	Christian Koenig <Christian.Koenig@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
-	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
-	Leon Romanovsky <leon@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
-	Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, 
-	Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, 
-	Robin Murphy <robin.murphy@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, 
-	Dave Martin <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>, 
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@kernel.org header.s=default header.b=ZDeN3RZm;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 3F0C020868;
+	Wed, 22 May 2019 20:23:23 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1558556603;
+	bh=U+M6rf3AMmh/gfDRmie33m03JcslFeEpWHuYCbgXRdA=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=ZDeN3RZmrMOyzEPRBdj6EkpJxeuolU55ceZ8admENVimY9uWgB1XQ9yIbch4ihSWu
+	 kHK9uVs+w3oSYlhP+MmVcu0WL++4CxRRaRq8UD16ho9NEZYiZoQXusbpMOpzpIfuRl
+	 Kdkli/pLetz+4OJrGDoKGRN1fVyLkNhmNBBJky1s=
+Date: Wed, 22 May 2019 13:23:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, "linux-mm@kvack.org"
+ <linux-mm@kvack.org>
+Subject: Re: [PATCH] hmm: Suppress compilation warnings when
+ CONFIG_HUGETLB_PAGE is not set
+Message-Id: <20190522132322.15605c8b344f46b31ea8233b@linux-foundation.org>
+In-Reply-To: <20190522195151.GA23955@ziepe.ca>
+References: <20190522195151.GA23955@ziepe.ca>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 22, 2019 at 12:21 PM Kees Cook <keescook@chromium.org> wrote:
->
-> On Wed, May 22, 2019 at 08:30:21AM -0700, enh wrote:
-> > On Wed, May 22, 2019 at 3:11 AM Catalin Marinas <catalin.marinas@arm.com> wrote:
-> > > On Tue, May 21, 2019 at 05:04:39PM -0700, Kees Cook wrote:
-> > > > I just want to make sure I fully understand your concern about this
-> > > > being an ABI break, and I work best with examples. The closest situation
-> > > > I can see would be:
-> > > >
-> > > > - some program has no idea about MTE
-> > >
-> > > Apart from some libraries like libc (and maybe those that handle
-> > > specific device ioctls), I think most programs should have no idea about
-> > > MTE. I wouldn't expect programmers to have to change their app just
-> > > because we have a new feature that colours heap allocations.
->
-> Right -- things should Just Work from the application perspective.
->
-> > obviously i'm biased as a libc maintainer, but...
-> >
-> > i don't think it helps to move this to libc --- now you just have an
-> > extra dependency where to have a guaranteed working system you need to
-> > update your kernel and libc together. (or at least update your libc to
-> > understand new ioctls etc _before_ you can update your kernel.)
->
-> I think (hope?) we've all agreed that we shouldn't pass this off to
-> userspace. At the very least, it reduces the utility of MTE, and at worst
-> it complicates userspace when this is clearly a kernel/architecture issue.
->
-> >
-> > > > - malloc() starts returning MTE-tagged addresses
-> > > > - program doesn't break from that change
-> > > > - program uses some syscall that is missing untagged_addr() and fails
-> > > > - kernel has now broken userspace that used to work
-> > >
-> > > That's one aspect though probably more of a case of plugging in a new
-> > > device (graphics card, network etc.) and the ioctl to the new device
-> > > doesn't work.
->
-> I think MTE will likely be rather like NX/PXN and SMAP/PAN: there will
-> be glitches, and we can disable stuff either via CONFIG or (as is more
-> common now) via a kernel commandline with untagged_addr() containing a
-> static branch, etc. But I actually don't think we need to go this route
-> (see below...)
->
-> > > The other is that, assuming we reach a point where the kernel entirely
-> > > supports this relaxed ABI, can we guarantee that it won't break in the
-> > > future. Let's say some subsequent kernel change (some refactoring)
-> > > misses out an untagged_addr(). This renders a previously TBI/MTE-capable
-> > > syscall unusable. Can we rely only on testing?
-> > >
-> > > > The trouble I see with this is that it is largely theoretical and
-> > > > requires part of userspace to collude to start using a new CPU feature
-> > > > that tickles a bug in the kernel. As I understand the golden rule,
-> > > > this is a bug in the kernel (a missed ioctl() or such) to be fixed,
-> > > > not a global breaking of some userspace behavior.
-> > >
-> > > Yes, we should follow the rule that it's a kernel bug but it doesn't
-> > > help the user that a newly installed kernel causes user space to no
-> > > longer reach a prompt. Hence the proposal of an opt-in via personality
-> > > (for MTE we would need an explicit opt-in by the user anyway since the
-> > > top byte is no longer ignored but checked against the allocation tag).
-> >
-> > but realistically would this actually get used in this way? or would
-> > any given system either be MTE or non-MTE. in which case a kernel
-> > configuration option would seem to make more sense. (because either
-> > way, the hypothetical user basically needs to recompile the kernel to
-> > get back on their feet. or all of userspace.)
->
-> Right: the point is to design things so that we do our best to not break
-> userspace that is using the new feature (which I think this series has
-> done well). But supporting MTE/TBI is just like supporting PAN: if someone
-> refactors a driver and swaps a copy_from_user() to a memcpy(), it's going
-> to break under PAN. There will be the same long tail of these bugs like
-> any other, but my sense is that they are small and rare. But I agree:
-> they're going to be pretty weird bugs to track down. The final result,
-> however, will be excellent annotation in the kernel for where userspace
-> addresses get used and people make assumptions about them.
->
-> The sooner we get the series landed and gain QEMU support (or real
-> hardware), the faster we can hammer out these missed corner-cases.
-> What's the timeline for either of those things, BTW?
->
-> > > > I feel like I'm missing something about this being seen as an ABI
-> > > > break. The kernel already fails on userspace addresses that have high
-> > > > bits set -- are there things that _depend_ on this failure to operate?
-> > >
-> > > It's about providing a relaxed ABI which allows non-zero top byte and
-> > > breaking it later inadvertently without having something better in place
-> > > to analyse the kernel changes.
->
-> It sounds like the question is how to switch a process in or out of this
-> ABI (but I don't think that's the real issue: I think it's just a matter
-> of whether or not a process uses tags at all). Doing it at the prctl()
-> level doesn't make sense to me, except maybe to detect MTE support or
-> something. ("Should I tag allocations?") And that state is controlled
-> by the kernel: the kernel does it or it doesn't.
->
-> If a process wants to not tag, that's also up to the allocator where
-> it can decide not to ask the kernel, and just not tag. Nothing breaks in
-> userspace if a process is NOT tagging and untagged_addr() exists or is
-> missing. This, I think, is the core way this doesn't trip over the
-> golden rule: an old system image will run fine (because it's not
-> tagging). A *new* system may encounter bugs with tagging because it's a
-> new feature: this is The Way Of Things. But we don't break old userspace
-> because old userspace isn't using tags.
->
-> So the agreement appears to be between the kernel and the allocator.
-> Kernel says "I support this" or not. Telling the allocator to not tag if
-> something breaks sounds like an entirely userspace decision, yes?
+On Wed, 22 May 2019 19:51:55 +0000 Jason Gunthorpe <jgg@mellanox.com> wrote:
 
-sgtm, and the AT_FLAGS suggestion sounds fine for our needs in that regard.
+> gcc reports that several variables are defined but not used.
+> 
+> For the first hunk CONFIG_HUGETLB_PAGE the entire if block is already
+> protected by pud_huge() which is forced to 0. None of the stuff under
+> the ifdef causes compilation problems as it is already stubbed out in
+> the header files.
+> 
+> For the second hunk the dummy huge_page_shift macro doesn't touch the
+> argument, so just inline the argument.
+> 
+> ...
+>
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -797,7 +797,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
+>  			return hmm_vma_walk_hole_(addr, end, fault,
+>  						write_fault, walk);
+>  
+> -#ifdef CONFIG_HUGETLB_PAGE
+>  		pfn = pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+>  		for (i = 0; i < npages; ++i, ++pfn) {
+>  			hmm_vma_walk->pgmap = get_dev_pagemap(pfn,
+> @@ -813,9 +812,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
+>  		}
+>  		hmm_vma_walk->last = end;
+>  		return 0;
+> -#else
+> -		return -EINVAL;
+> -#endif
+>  	}
 
-> --
-> Kees Cook
+Fair enough.
+
+>  	split_huge_pud(walk->vma, pudp, addr);
+> @@ -1024,9 +1020,8 @@ long hmm_range_snapshot(struct hmm_range *range)
+>  			return -EFAULT;
+>  
+>  		if (is_vm_hugetlb_page(vma)) {
+> -			struct hstate *h = hstate_vma(vma);
+> -
+> -			if (huge_page_shift(h) != range->page_shift &&
+> +			if (huge_page_shift(hstate_vma(vma)) !=
+> +				    range->page_shift &&
+>  			    range->page_shift != PAGE_SHIFT)
+>  				return -EINVAL;
+
+Also fair enough.  But why the heck is huge_page_shift() a macro?  We
+keep doing that and it bites so often :(
 
