@@ -2,221 +2,203 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E2E41C46470
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 11:16:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB86EC282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 11:23:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A1368217D9
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 11:16:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1368217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 786E2217D4
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 11:23:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=elektrobit.onmicrosoft.com header.i=@elektrobit.onmicrosoft.com header.b="Xy41ts+x"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 786E2217D4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=elektrobit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 25A516B0003; Wed, 22 May 2019 07:16:59 -0400 (EDT)
+	id 0319A6B0003; Wed, 22 May 2019 07:23:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E29B6B0006; Wed, 22 May 2019 07:16:59 -0400 (EDT)
+	id F24CD6B0006; Wed, 22 May 2019 07:23:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0832A6B0007; Wed, 22 May 2019 07:16:59 -0400 (EDT)
+	id DED246B0007; Wed, 22 May 2019 07:23:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AB60B6B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 07:16:58 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id e21so3158734edr.18
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 04:16:58 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 910656B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 07:23:42 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id a20so438537wme.9
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 04:23:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=t6VqIb8za8X7I9EzKDdR1F9obA4ldifxTjOxQtf5wCo=;
-        b=i2t5//gYhZN/euuVJ43cLVyLfMm4LeJ+rBMEy7cOtT4juKaoZYCp49JbIA1KmPgPIE
-         XTi23nod22U/WtaSuawf8e3v23Zyxud31oflY4W21TH1LB4rv95DHfig3Ha+V2gsIaRn
-         fayuBHxVS+oZiiY538rO9DHgeC3kwfagPJI7I0GaJ3kqQpYfUSIqvnC+1G4vNNTj0Trs
-         CHsbjFcJUrHkxdmE1rnlkjQ646KN+9yuTUhcgE5xsuDL8vNlVGVUUoOJf9kD7Z6rg0li
-         yjEeA+t2lz1r0hUeNgXVhWpC+hPERYD9FB/EwpI8rPhQToKXQkXJSQF5GPG1q7JbCHg7
-         ov6w==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWsSvTquGa7mcgqS0MmZsDlC1U1FM/EWdI6RuSoWf2iRq5CGlfd
-	c0Kigg1b9SSmZI7BeDccSCUTwIziHjVF2prmvbThdetseHCC78mLcjO7ci87zQ4376zD4109kB7
-	twmFXwvnXKsh1dF5Wzvr7TvdcgL/G/Zbf5le+Ia4GSi3wTWT3QJHBd5qEP4EzRmk=
-X-Received: by 2002:a50:8808:: with SMTP id b8mr59889182edb.202.1558523818152;
-        Wed, 22 May 2019 04:16:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1sMlaADsilLQvaj9JaLNFXHvIwIxCGj3542RiwKqqt7BlAhjCdIbVTslCryuilU4jrzti
-X-Received: by 2002:a50:8808:: with SMTP id b8mr59889093edb.202.1558523817029;
-        Wed, 22 May 2019 04:16:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558523817; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:accept-language:content-language
+         :content-id:content-transfer-encoding:mime-version;
+        bh=x3qUcyHfwJMHZo98lJ+qRQwV7diyCI8RPus5xuBV6H4=;
+        b=gqklm1wi1DwLVcQZRl+eMJG5IfPZP7XqDAYtcaFjrYaK/tmwFDQh9+CHcz11EW1Bg7
+         QsGQHavRIyer3Eyva79BFgYrkCIn3SVq4RePrMaHsOK9mesiE7S2iCbEaQpvF3hk7BH0
+         soQ0jbWoLqmcjbV2lSrXUzbLEW30f/JuGMedLew2ZEjpfuQwymfLXR1RdwvHZQO+Pmnt
+         UiMlsXwZPZxENOkFeGxoG1IxZ4IeZLlSe1nGc46KSanxgFU7OtnQSx69sR8Cs3LzviZY
+         ry5X7qZTvOZP4yaEwmE/b3f/l8IqIPFMvVX1P5+L1gv8wkbc4BjijLuKBaKXkis1K73M
+         Q9ig==
+X-Gm-Message-State: APjAAAUu1m4H3oRzxQre20qMqYoQftKa2wJ8y0+w4bWCIIbcBOxGdg/w
+	y3q9zc8W+OQ3CNVVRPgq+3Eiqnjh+N6CXT3UU6Wcwtl1od2rAiYvWUXRLvpnqLQtGdhz6VDc7Yw
+	uiPJRtjdpu0UF0+upvfcjmCDnWwuJvzk1ZU84ixD0WJrloqnv0KjFK3OXKik09YCU6Q==
+X-Received: by 2002:a1c:cb81:: with SMTP id b123mr7465921wmg.107.1558524221931;
+        Wed, 22 May 2019 04:23:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzzJAAT0/wRvNDASO4vRgmTa1CN0/rjA0zOuuRVmhGlrl+gZ+CKY5zRPZWmrPK56CCZ5HWO
+X-Received: by 2002:a1c:cb81:: with SMTP id b123mr7465852wmg.107.1558524221035;
+        Wed, 22 May 2019 04:23:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558524221; cv=none;
         d=google.com; s=arc-20160816;
-        b=GIudGzYuJR6bvOhOs3/T+BMh7SqwiaGZOdyRZt+MoDdFu10Pgi/ldb+0+cdZOb4ns8
-         SPQsq28eXkVgh6KVIQoSvjS2IGB3MSwzWfGK2e+QTUhRfsvd33QxOZFg8TUttmRyfItH
-         JZPfL4bdYMi5RXGbr4G9CSbspdLgOHwsPXHiSnH7S9ok48OxU0I3DC4/NA+zEXxgLEg7
-         4Nmoo2dxGTNMvZzKB5X82aq7/zv+MrDKJnZEbWEviBezsGqtRClEP7GhZ2OK3dptFrTf
-         DQYobo28gw8W6MWaKFjLZANOhmz885R4WcSwqSmF8Qj8GMlwEqdcxpmN88r6Mz+X9A4K
-         3LFQ==
+        b=xDM9nGlO6pVS6VkPkQrv90obbg4FfibojBNK7Vuu8RqCOuBKQfdiGFiTqV37MD5FJs
+         oezIFNLZmsund/vX9AQXQTmhM8GD37GrPG57RxndYYwkG+cg5Zp6/DITMMk1faxfefuY
+         ijSU3KV2gkZsXoiDZD27mbB2IzrMmc31N2d8/3yaGFXo9ewXxbrr6qvFkldQS9Jv8iqO
+         XR4MP1J10jqaJgbmJrDgYXUjSXt4KWuTNm6N7xgaDk6qIhRRvsv6kwEyjy85O0LFyfpl
+         JtbBT3i4IOPjCADBHoYEkvXaVYQnttu9M/ts0vH3xTfwDNr8x9msUm/3RLbBv6mtyRNo
+         RutA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=t6VqIb8za8X7I9EzKDdR1F9obA4ldifxTjOxQtf5wCo=;
-        b=azppERQoxqOe6OO7rn5VeA+6KJQpAprrRmghOPVpGtmdwMYg0B1X5qK0dNKbrF2+dv
-         oV2PUlfhzJvg9KyonG+BjLINWQ4xOOEZbCCXVLWjduEYNggPHWhMSBmaK4c7JYBEJnyA
-         4SymyTITJ+Ki951wMlYKkglOSYGpSM2TDoLMrFwCb9rlrEdpigyaYslkxJmopgJ21wX+
-         bL34w61bgBfWn80fomXP72W4/FqCmNsPMdA8DvH6FmQfKyG+SstIsxhClViVA44dC1eD
-         GNqo6xWbrIy/6/qN474IiDvqPQstT7r913ngW7/6alRa2G2wf0YfsXKRNNkBfkjHLH/u
-         Vkxw==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:message-id:date:thread-index:thread-topic:subject
+         :cc:to:from:dkim-signature;
+        bh=x3qUcyHfwJMHZo98lJ+qRQwV7diyCI8RPus5xuBV6H4=;
+        b=xRmBIJT28u3AsZfyFlSOl8cjllLy7T76TUwPm8yYTBtjxZ/IdGUy0qzKoZJuZUT4mA
+         +Z9GukyQ1GXgbpJNOKteUP0+3R9r7Cl/wYhNk6ATa/Yu7dIEsr6fRqVwgbQUJV47PDLa
+         nzrbPkJnToz5XA/Lv5z8M8TpP7Kx81RDVOXuk6+0HhfyS0TqH5BmfD05OyBLhE1DLmZa
+         mXyOuJRmITIGFfnK2RR98WgOm5gSuP/NILAeoG6R+5t9T6N1i0Ja7AHuuh2Czc51Gv4R
+         vbChDqLr/Kc0mgHdWE3FqbkjLuNMQ6QRAqikTa9EbccamymaHDQgozCTdOSLRGtw5Usf
+         Z7OA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w14si7978167eda.226.2019.05.22.04.16.56
+       dkim=pass header.i=@elektrobit.onmicrosoft.com header.s=selector1-elektrobit-onmicrosoft-com header.b=Xy41ts+x;
+       spf=pass (google.com: best guess record for domain of prvs=1045fa9c7f=stefan.potyra@elektrobit.com designates 213.95.163.141 as permitted sender) smtp.mailfrom="prvs=1045fa9c7f=stefan.potyra@elektrobit.com"
+Received: from smtpgwcipde.elektrobit.com (smtpgwcipde.automotive.elektrobit.com. [213.95.163.141])
+        by mx.google.com with ESMTPS id o24si3571981wmf.76.2019.05.22.04.23.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 04:16:57 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 22 May 2019 04:23:41 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of prvs=1045fa9c7f=stefan.potyra@elektrobit.com designates 213.95.163.141 as permitted sender) client-ip=213.95.163.141;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 4097FADE3;
-	Wed, 22 May 2019 11:16:56 +0000 (UTC)
-Date: Wed, 22 May 2019 13:16:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>,
-	brho@google.com, Dave Hansen <dave.hansen@intel.com>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@elte.hu>,
-	Oscar Salvador <osalvador@suse.de>,
-	Andy Lutomirski <luto@kernel.org>,
-	Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org,
-	LKML <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH -next v2] mm/hotplug: fix a null-ptr-deref during NUMA
- boot
-Message-ID: <20190522111655.GA4374@dhcp22.suse.cz>
-References: <20190512054829.11899-1-cai@lca.pw>
- <20190513124112.GH24036@dhcp22.suse.cz>
- <1557755039.6132.23.camel@lca.pw>
- <20190513140448.GJ24036@dhcp22.suse.cz>
- <1557760846.6132.25.camel@lca.pw>
- <20190513153143.GK24036@dhcp22.suse.cz>
- <CAFgQCTt9XA9_Y6q8wVHkE9_i+b0ZXCAj__zYU0DU9XUkM3F4Ew@mail.gmail.com>
+       dkim=pass header.i=@elektrobit.onmicrosoft.com header.s=selector1-elektrobit-onmicrosoft-com header.b=Xy41ts+x;
+       spf=pass (google.com: best guess record for domain of prvs=1045fa9c7f=stefan.potyra@elektrobit.com designates 213.95.163.141 as permitted sender) smtp.mailfrom="prvs=1045fa9c7f=stefan.potyra@elektrobit.com"
+Received: from denue6es002.localdomain (denue6es002.automotive.elektrobit.com [213.95.163.135])
+	by smtpgwcipde.elektrobit.com  with ESMTP id x4MBNeGF007207-x4MBNeGH007207
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA bits=256 verify=OK);
+	Wed, 22 May 2019 13:23:40 +0200
+Received: from denue6es002.securemail.local (localhost [127.0.0.1])
+	by denue6es002.localdomain (Postfix) with SMTP id 5C1C419290;
+	Wed, 22 May 2019 13:23:40 +0200 (CEST)
+Received: from denue6es011.ebgroup.elektrobit.com (denue6es011.ebgroup.elektrobit.com [10.243.160.101])
+	by denue6es002.localdomain (Postfix) with ESMTPS;
+	Wed, 22 May 2019 13:23:40 +0200 (CEST)
+Received: from denue6es011.ebgroup.elektrobit.com (10.243.160.101) by
+ denue6es011.ebgroup.elektrobit.com (10.243.160.101) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Wed, 22 May 2019 13:23:39 +0200
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (104.47.42.55) by
+ denue6es011.ebgroup.elektrobit.com (10.243.160.101) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id
+ 15.1.1713.5 via Frontend Transport; Wed, 22 May 2019 13:23:39 +0200
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=elektrobit.onmicrosoft.com; s=selector1-elektrobit-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=x3qUcyHfwJMHZo98lJ+qRQwV7diyCI8RPus5xuBV6H4=;
+ b=Xy41ts+xGuDJZ1OznwsSgc49wEnkvDnplPfmdB1nJLTD+jVvw36g2wAHXC61qGFUNOxnN2m3ZU7YZS/3SjK781zP4da62WDTc17WCPamyghHLXBraxKDs7kUOYfSlMHr2Wtydgv7PYdbV5ER1DkTjm2zJV2bdNPIfOjI6yyLeMc=
+Received: from DM6PR08MB5195.namprd08.prod.outlook.com (20.176.118.25) by
+ DM6PR08MB4810.namprd08.prod.outlook.com (20.176.115.139) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1900.18; Wed, 22 May 2019 11:23:37 +0000
+Received: from DM6PR08MB5195.namprd08.prod.outlook.com
+ ([fe80::7533:416f:4217:461a]) by DM6PR08MB5195.namprd08.prod.outlook.com
+ ([fe80::7533:416f:4217:461a%6]) with mapi id 15.20.1900.020; Wed, 22 May 2019
+ 11:23:37 +0000
+From: "Potyra, Stefan" <Stefan.Potyra@elektrobit.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>
+CC: "Potyra, Stefan" <Stefan.Potyra@elektrobit.com>,
+        "Jordan, Tobias"
+	<Tobias.Jordan@elektrobit.com>
+Subject: [PATCH] mm: mlockall error for flag MCL_ONFAULT
+Thread-Topic: [PATCH] mm: mlockall error for flag MCL_ONFAULT
+Thread-Index: AQHVEJDM40/Q2Jusd0KD0xzATvP7RQ==
+Date: Wed, 22 May 2019 11:23:37 +0000
+Message-ID: <20190522112329.GA25483@er01809n.ebgroup.elektrobit.com>
+Accept-Language: de-DE, en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: AM6P193CA0051.EURP193.PROD.OUTLOOK.COM
+ (2603:10a6:209:8e::28) To DM6PR08MB5195.namprd08.prod.outlook.com
+ (2603:10b6:5:42::25)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=Stefan.Potyra@elektrobit.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [213.95.148.172]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 9d7cce5c-e1b1-4cf2-f92b-08d6dea7eee1
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:DM6PR08MB4810;
+x-ms-traffictypediagnostic: DM6PR08MB4810:
+x-microsoft-antispam-prvs: <DM6PR08MB4810B0E1126B800CE48C2E2280000@DM6PR08MB4810.namprd08.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:9508;
+x-forefront-prvs: 0045236D47
+x-forefront-antispam-report: SFV:NSPM;SFS:(10009020)(396003)(136003)(346002)(366004)(39850400004)(376002)(189003)(199004)(68736007)(102836004)(14444005)(256004)(53936002)(71190400001)(71200400001)(6486002)(316002)(25786009)(26005)(186003)(73956011)(6512007)(107886003)(6436002)(305945005)(4326008)(66476007)(110136005)(7736002)(54906003)(5660300002)(386003)(6506007)(64756008)(86362001)(66556008)(14454004)(66946007)(99286004)(486006)(2906002)(8676002)(33656002)(81166006)(81156014)(72206003)(6116002)(3846002)(478600001)(476003)(66066001)(66446008)(52116002)(2501003)(8936002)(1076003);DIR:OUT;SFP:1101;SCL:1;SRVR:DM6PR08MB4810;H:DM6PR08MB5195.namprd08.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: elektrobit.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: bjds9HZxPzsJToVrpCeSufyeGWPVwKvU+l3rMrKASBzZCLTtazVpr6486+849D9wxuC7D0fxhEsIJMWk7Mbln+mWcqA7QnazfBicKysNWv9DxiVW/kMJDy/msHgWQdTyvhqP3ZU2oziBlL63ThwR+yVRisrHMU3yKG7uWZ8Jj42vosCevQ35ok3MQsYu6kNAg8Nn+xNpXXGhLdKM2YaUjF0tv0lDMhqYgrtdG3Ya8hYttdZvkIiQyc6GGhU9omn7k5CPPrA2NFHjf5At2QRG9DS7FPtk/Ad20J7F86R/FxxH7nhzHwqIn6+6QsF0Ge7jasnplkW5a5Oz3sMBc9va0n+Z3pZaaYpE9JWbfcvVmUMZSlWOnrFzAb6p8s1FIiTwOW3ra/hzuFTwLlEfLsWREgR/eWX+Ju0ZxELZGQb8ZVQ=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <81DE7C41012F734098C84CCBC364F602@namprd08.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAFgQCTt9XA9_Y6q8wVHkE9_i+b0ZXCAj__zYU0DU9XUkM3F4Ew@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-MS-Exchange-CrossTenant-Network-Message-Id: 9d7cce5c-e1b1-4cf2-f92b-08d6dea7eee1
+X-MS-Exchange-CrossTenant-originalarrivaltime: 22 May 2019 11:23:37.4112
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: e764c36b-012e-4216-910d-8fd16283182d
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR08MB4810
+X-OriginatorOrg: elektrobit.com
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 22-05-19 15:12:16, Pingfan Liu wrote:
-> On Mon, May 13, 2019 at 11:31 PM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Mon 13-05-19 11:20:46, Qian Cai wrote:
-> > > On Mon, 2019-05-13 at 16:04 +0200, Michal Hocko wrote:
-> > > > On Mon 13-05-19 09:43:59, Qian Cai wrote:
-> > > > > On Mon, 2019-05-13 at 14:41 +0200, Michal Hocko wrote:
-> > > > > > On Sun 12-05-19 01:48:29, Qian Cai wrote:
-> > > > > > > The linux-next commit ("x86, numa: always initialize all possible
-> > > > > > > nodes") introduced a crash below during boot for systems with a
-> > > > > > > memory-less node. This is due to CPUs that get onlined during SMP boot,
-> > > > > > > but that onlining triggers a page fault in bus_add_device() during
-> > > > > > > device registration:
-> > > > > > >
-> > > > > > >       error = sysfs_create_link(&bus->p->devices_kset->kobj,
-> > > > > > >
-> > > > > > > bus->p is NULL. That "p" is the subsys_private struct, and it should
-> > > > > > > have been set in,
-> > > > > > >
-> > > > > > >       postcore_initcall(register_node_type);
-> > > > > > >
-> > > > > > > but that happens in do_basic_setup() after smp_init().
-> > > > > > >
-> > > > > > > The old code had set this node online via alloc_node_data(), so when it
-> > > > > > > came time to do_cpu_up() -> try_online_node(), the node was already up
-> > > > > > > and nothing happened.
-> > > > > > >
-> > > > > > > Now, it attempts to online the node, which registers the node with
-> > > > > > > sysfs, but that can't happen before the 'node' subsystem is registered.
-> > > > > > >
-> > > > > > > Since kernel_init() is running by a kernel thread that is in
-> > > > > > > SYSTEM_SCHEDULING state, fixed this by skipping registering with sysfs
-> > > > > > > during the early boot in __try_online_node().
-> > > > > >
-> > > > > > Relying on SYSTEM_SCHEDULING looks really hackish. Why cannot we simply
-> > > > > > drop try_online_node from do_cpu_up? Your v2 remark below suggests that
-> > > > > > we need to call node_set_online because something later on depends on
-> > > > > > that. Btw. why do we even allocate a pgdat from this path? This looks
-> > > > > > really messy.
-> > > > >
-> > > > > See the commit cf23422b9d76 ("cpu/mem hotplug: enable CPUs online before
-> > > > > local
-> > > > > memory online")
-> > > > >
-> > > > > It looks like try_online_node() in do_cpu_up() is needed for memory hotplug
-> > > > > which is to put its node online if offlined and then hotadd_new_pgdat()
-> > > > > calls
-> > > > > build_all_zonelists() to initialize the zone list.
-> > > >
-> > > > Well, do we still have to followthe logic that the above (unreviewed)
-> > > > commit has established? The hotplug code in general made a lot of ad-hoc
-> > > > design decisions which had to be revisited over time. If we are not
-> > > > allocating pgdats for newly added memory then we should really make sure
-> > > > to do so at a proper time and hook. I am not sure about CPU vs. memory
-> > > > init ordering but even then I would really prefer if we could make the
-> > > > init less obscure and _documented_.
-> > >
-> > > I don't know, but I think it is a good idea to keep the existing logic rather
-> > > than do a big surgery
-> >
-> > Adding more hacks just doesn't make the situation any better.
-> >
-> > > unless someone is able to confirm it is not breaking NUMA
-> > > node physical hotplug.
-> >
-> > I have a machine to test whole node offline. I am just busy to prepare a
-> > patch myself. I can have it tested though.
-> >
-> I think the definition of "node online" is worth of rethinking. Before
-> patch "x86, numa: always initialize all possible nodes", online means
-> either cpu or memory present. After this patch, only node owing memory
-> as present.
-> 
-> In the commit log, I think the change's motivation should be "Not to
-> mention that it doesn't really make much sense to consider an empty
-> node as online because we just consider this node whenever we want to
-> iterate nodes to use and empty node is obviously not the best
-> candidate."
-> 
-> But in fact, we already have for_each_node_state(nid, N_MEMORY) to
-> cover this purpose.
+If mlockall() is called with only MCL_ONFAULT as flag,
+it removes any previously applied lockings and does
+nothing else.
 
-I do not really think we want to spread N_MEMORY outside of the core MM.
-It is quite confusing IMHO.
-. 
-> Furthermore, changing the definition of online may
-> break something in the scheduler, e.g. in task_numa_migrate(), where
-> it calls for_each_online_node.
+This behavior is counter-intuitive and doesn't match the
+Linux man page.
 
-Could you be more specific please? Why should numa balancing consider
-nodes without any memory?
+Consequently, return the error EINVAL, if only MCL_ONFAULT
+is passed. That way, applications will at least detect that
+they are calling mlockall() incorrectly.
 
-> By keeping the node owning cpu as online, Michal's patch can avoid
-> such corner case and keep things easy. Furthermore, if needed, the
-> other patch can use for_each_node_state(nid, N_MEMORY) to replace
-> for_each_online_node is some space.
+Fixes: b0f205c2a308 ("mm: mlock: add mlock flags to enable VM_LOCKONFAULT u=
+sage")
+Signed-off-by: Stefan Potyra <Stefan.Potyra@elektrobit.com>
+---
+Sparse shows a warning for mlock.c, but it is not related to
+this patch.
 
-Ideally no code outside of the core MM should care about what kind of
-memory does the node really own. The external code should only care
-whether the node is online and thus usable or offline and of no
-interest.
--- 
-Michal Hocko
-SUSE Labs
+ mm/mlock.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/mlock.c b/mm/mlock.c
+index e492a155c51a..03f39cbdd4c4 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -797,7 +797,8 @@ SYSCALL_DEFINE1(mlockall, int, flags)
+ 	unsigned long lock_limit;
+ 	int ret;
+=20
+-	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT)))
++	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE | MCL_ONFAULT)) ||
++	    flags =3D=3D MCL_ONFAULT)
+ 		return -EINVAL;
+=20
+ 	if (!can_do_mlock())
+--=20
+2.20.1
 
