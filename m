@@ -2,110 +2,106 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DBFB8C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 18:19:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B80FFC282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 19:21:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A6D2B216F4
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 18:19:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5873F217D4
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 19:21:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="BWHq6373"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6D2B216F4
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="wlA5IMAk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5873F217D4
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 589836B000D; Wed, 22 May 2019 14:19:19 -0400 (EDT)
+	id BC3F56B0003; Wed, 22 May 2019 15:21:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5395F6B000E; Wed, 22 May 2019 14:19:19 -0400 (EDT)
+	id B73E56B0006; Wed, 22 May 2019 15:21:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 44FEA6B0010; Wed, 22 May 2019 14:19:19 -0400 (EDT)
+	id A62CB6B0007; Wed, 22 May 2019 15:21:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CE066B000D
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 14:19:19 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id 93so1824407plf.14
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 11:19:19 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CD886B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 15:21:18 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id 93so1911963plf.14
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 12:21:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=FwWp5RRKikkIIRHUmRqkwRpc7CY4CyqIf4M/5GG0/tk=;
-        b=mrnJkbWd+Ph0BuiC/IGOCwC/ESTXxnczbb7nFiNWErCf6AGhrzsMknk5qlxluO1s2q
-         1jhY0Wqefn4VuXN5bS08u2Sj3AzXDSC4FAyY6eBM3cw3ZVCe867KiFVBTvwvQHzKUk+z
-         NpTlvvbQZ4wDxRqVF08h/od7kYej84l0e+cKYSk61PE6NqQxvlsdFixAq3vQGNjBJEzO
-         OfwolyMsob6C04MShzzIkR7Y1qOw2W1Y6j1m50Orw2LeM3l+QfWLGpiHEGxhmLnY4zWV
-         OxPsRZAf0P3pfaaJxMfydb+zMF3PyukzkeWwAd2qTa/2sww1S4/7VFtSCQch+rf/sse5
-         uWQA==
-X-Gm-Message-State: APjAAAVkYm18byMnOnFNtKq8YCGi4K6m5m9hYaSs4/oyFQjPWT361G9T
-	qbCqBsswW2bJpIjKZ1wZmH/kaLMf05yN2MAxOx73/kB1IcV1T3sTyCAH4yRBZfUBFK1hKhN4KHB
-	Bnfqsbel32kuSlJOhYjxB47tQFCSC5XLkx/W8sv9CAGhiLYoF2FWBZqA2YVtxA+eHrg==
-X-Received: by 2002:a63:7d09:: with SMTP id y9mr71136558pgc.350.1558549158777;
-        Wed, 22 May 2019 11:19:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxe8sSb6oaBeaEjVLX7HH0MJZEFDTrQMOtlokPcHMB+ppGQ3cvKGS8GE2ztdiEOKB+NvYEA
-X-Received: by 2002:a63:7d09:: with SMTP id y9mr71136490pgc.350.1558549158028;
-        Wed, 22 May 2019 11:19:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558549158; cv=none;
+        bh=s0s9hOakU6c7ONxSQh7jsvM+l1f4GSzFc7DHVYRkcE8=;
+        b=KuFeb9oY4In1A4FZevnEujwhuakO5V/g7QAemd7DjCnRWTOW/rHtHy19Q8Nxr0lrOq
+         JaRvmWimKZgv5UWqesrvnqZH0Q3eJhxYu122wPFxEW0vrZqT65CvZByQYKEwtImm8LpT
+         ZPXdVos824BHjmldQdlKR7tfknz/hPXb/zvUj01CXK3QWAUYTSX6EASCayKX13+Mi5QT
+         6TBy387/i2G18sEIu+hjtrzaQ/98XClxEv8JlD5pDfunQVeQb8A2OCxPxBXbZ0BgVNUu
+         soQvs/BMYC3HY5wX5SjJPLkQ/WTEV1UNrDsgB9ANU7IAYcHgU+eFtRh/WyXdPxzAnSAW
+         0gLw==
+X-Gm-Message-State: APjAAAWySf5FRBYruEqp/a40V7zaWd2wjIDujAk1f4ZUPXaRqXKVdMXC
+	EI0h80rp1FBR73JH0lJV2APbFQw1HEZ2SmJaP5b7Hm2+6NFCDzCcgNLlWhVwm1xdU91MQkGhNEy
+	QTm9i2cK5JA95RRlS21rZEKAHyv494jSfU0eWG5PasOBz8EYhMZ5SCA3z4zDsU7T/FA==
+X-Received: by 2002:a63:4d0b:: with SMTP id a11mr4505173pgb.74.1558552877968;
+        Wed, 22 May 2019 12:21:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwFBcDcAziUe5SFGK5+7kmzV9nmAfRqZV6kCi+slqhBdae2LDOcfltgg1I2Jx6McH/K6COY
+X-Received: by 2002:a63:4d0b:: with SMTP id a11mr4505015pgb.74.1558552876024;
+        Wed, 22 May 2019 12:21:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558552876; cv=none;
         d=google.com; s=arc-20160816;
-        b=U01FnUDCglQGPKZEnGtkyLDbKK2d6w9uwa3fDbhuQ7RlGxGCv3a41D1nUzWxfXSEsN
-         /BE5Sg7OniNroVLDqwV8uSt8g6fcG2HlC9Sfe09rCfCrJUCRTEY+fen8YU1dekZysK9h
-         YVc3JwhGP7CgzQfWsBMw7LJ3qiQz2kfOQ8SiZ2zachj0echaQlkylO3rCjvL0PJWw6c9
-         EY1Y7G0g7O7UsHoVClFHt8QhDWMF4SgnZMb7MgSkwQvilF3J0fWdjkqQbkEtR2KE8xog
-         dc08aye+E+Z748W3wCfYfJ5FEmIpgg1N80jUcPx2fBRXfgZNY0EAugf/6EGfMv2xmYTg
-         P/oQ==
+        b=k2bPnC9KquEzYbbn4Qr/A3nhMCRGIg9IWsEPd80GCtOtMpSI/tb+CY81juSfVCdAQD
+         m40Hxyesaf+ZrvySM6BiMh+JV1Dmd/OUxIooWpxjYVTrLSjk2XU5MW9CqMO3uJQhbZHE
+         tVI8BfMwaB3PsSXsve6PicvY/dWWChPULoDrqBknaH7eG72Vsqu+FWeR0FhUCt0h+x5H
+         2G0BXPPx/Q9JEgBnwtqPBfOGz9DADqOuFXISifOSZ4agUrm+BgBSmzxslFy3NsCkfLuD
+         /ommBRjYb8FkLinhrz/YLpszWn1FxlbcqsDXbaDUbvXcXdz+L/cTQVnWfXM7D8th7Ay1
+         TvRA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=FwWp5RRKikkIIRHUmRqkwRpc7CY4CyqIf4M/5GG0/tk=;
-        b=IaR52UM7yqIgaQXTB0xM0URK/z4fInZ0HQthnfA/dfuCG4gnoASRh0q8rP2Wf+b1nC
-         pPWW2H04F771ZCCXpX1ZWfj9VgYUMoOAfAV6vSlDxSNpTrCOWUA0/jwtZLaHBVqZ2pWU
-         9u4KfdrVut5eE7zz4VAFHE+bFFx+KkLICopL/y06MY9DlFlTkJ28wiekDdcG8XcoDYq7
-         Eqx70tdAtqGKriKBC3PmGOYsAac3HhT2kwWumgzIvjNleIVwCH+3YI03nAJx1z3NaG/1
-         DngEGxkS2VsVNgCRs/gdYCPw37RN97w1uuhMZnCQzro88E+8Quy/IhSgzjO/YWBth7g7
-         JMPQ==
+        bh=s0s9hOakU6c7ONxSQh7jsvM+l1f4GSzFc7DHVYRkcE8=;
+        b=Hi/l35ZKu3cRhiIzxIo/2MkuITEbMOpsoFt13S8oye5vBWxl6EuknValDmRp3TBpZe
+         QdK801jJGTbmNI2hIx6PucKakX5ovdFnqedwZRj+GFray5hRGZ0gKcXUSsx3iJPrXFqs
+         SBfTv7EAwiNsTNC8QscnKIEnoCxXfQZX4sQsWtYUOwJOrXKMr2VRv0cUjgq75RcpaYD9
+         tfzEB0YrycLAVajQ8kzlo6kxMgSYSJM8vsE388gQD/7SO2YBlo4a/JvGBQ3SifmvloxK
+         35X9AuSFrwkRpFqqpf2C+hsLvnlpwMz3Gz3FNHtzwdJbTGteAic5xCAxiCH37ARQMyMG
+         8dDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=BWHq6373;
+       dkim=pass header.i=@kernel.org header.s=default header.b=wlA5IMAk;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id f14si19530170pgv.265.2019.05.22.11.19.17
+        by mx.google.com with ESMTPS id f67si27458568plb.439.2019.05.22.12.21.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 11:19:18 -0700 (PDT)
+        Wed, 22 May 2019 12:21:16 -0700 (PDT)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=BWHq6373;
+       dkim=pass header.i=@kernel.org header.s=default header.b=wlA5IMAk;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 30FF92173C;
-	Wed, 22 May 2019 18:19:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 523F120879;
+	Wed, 22 May 2019 19:21:15 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1558549157;
-	bh=FwWp5RRKikkIIRHUmRqkwRpc7CY4CyqIf4M/5GG0/tk=;
+	s=default; t=1558552875;
+	bh=YbWw5jCdlVSPKASk0Am85SMF0LzLvtSiYq/4581+xHE=;
 	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=BWHq6373GnTo8u02TOCLcpwAujfx/Jtic6RHRvtS/cCp1RooT9vzGcrvy7c7N0y8k
-	 mmNdKiFe5SB8Da56xeTTokV/wocZWrAIczQslB4vlWePuM9uu8uTnWXaPMpF2JQzaL
-	 9OdaA7e1AGMKU7YcbfPO5GIbpgk/ZpmoCqXWEYpU=
-Date: Wed, 22 May 2019 11:19:16 -0700
+	b=wlA5IMAkbdJJK84FwgfTk9vb9mKRpiUrE0gdmAYhRNeZdEZWLa1O+1TqMzYFFDkfR
+	 m8FRQRwg28nthhrzfBj+wuGjErUBKAjaQqkxYOpUwt4Yv2Q5F1PzzdjoWN+gmExmTD
+	 OETzWa9p/CSYA14EHx9WnsYDpghD4UP96mMh+maQ=
+Date: Wed, 22 May 2019 12:21:13 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-Cc: Roman Gushchin <guro@fb.com>, Michal Hocko <mhocko@suse.com>, Matthew
- Wilcox <willy@infradead.org>, linux-mm@kvack.org, LKML
- <linux-kernel@vger.kernel.org>, Thomas Garnier <thgarnie@google.com>,
- Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt
- <rostedt@goodmis.org>, Joel Fernandes <joelaf@google.com>, Thomas Gleixner
- <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, Tejun Heo
- <tj@kernel.org>
-Subject: Re: [PATCH 4/4] mm/vmap: move BUG_ON() check to the unlink_va()
-Message-Id: <20190522111916.b99a18d67bc76f7cf207d9e6@linux-foundation.org>
-In-Reply-To: <20190522150939.24605-4-urezki@gmail.com>
-References: <20190522150939.24605-1-urezki@gmail.com>
-	<20190522150939.24605-4-urezki@gmail.com>
+To: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, Sebastian Andrzej Siewior
+ <bigeasy@linutronix.de>, Borislav Petkov <bp@suse.de>
+Subject: Re: [PATCH] mm/gup: continue VM_FAULT_RETRY processing event for
+ pre-faults
+Message-Id: <20190522122113.a2edc8aba32f0fad189bae21@linux-foundation.org>
+In-Reply-To: <1557844195-18882-1-git-send-email-rppt@linux.ibm.com>
+References: <1557844195-18882-1-git-send-email-rppt@linux.ibm.com>
 X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -116,11 +112,49 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 May 2019 17:09:39 +0200 "Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
+On Tue, 14 May 2019 17:29:55 +0300 Mike Rapoport <rppt@linux.ibm.com> wrote:
 
-> Move the BUG_ON()/RB_EMPTY_NODE() check under unlink_va()
-> function, it means if an empty node gets freed it is a BUG
-> thus is considered as faulty behaviour.
+> When get_user_pages*() is called with pages = NULL, the processing of
+> VM_FAULT_RETRY terminates early without actually retrying to fault-in all
+> the pages.
+> 
+> If the pages in the requested range belong to a VMA that has userfaultfd
+> registered, handle_userfault() returns VM_FAULT_RETRY *after* user space
+> has populated the page, but for the gup pre-fault case there's no actual
+> retry and the caller will get no pages although they are present.
+> 
+> This issue was uncovered when running post-copy memory restore in CRIU
+> after commit d9c9ce34ed5c ("x86/fpu: Fault-in user stack if
+> copy_fpstate_to_sigframe() fails").
+> 
+> After this change, the copying of FPU state to the sigframe switched from
+> copy_to_user() variants which caused a real page fault to get_user_pages()
+> with pages parameter set to NULL.
 
-So... this is an expansion of the assertion's coverage?
+You're saying that argument buf_fx in copy_fpstate_to_sigframe() is NULL?
+
+If so was that expected by the (now cc'ed) developers of
+d9c9ce34ed5c8923 ("x86/fpu: Fault-in user stack if
+copy_fpstate_to_sigframe() fails")?
+
+It seems rather odd.  copy_fpregs_to_sigframe() doesn't look like it's
+expecting a NULL argument.
+
+Also, I wonder if copy_fpstate_to_sigframe() would be better using
+fault_in_pages_writeable() rather than get_user_pages_unlocked().  That
+seems like it operates at a more suitable level and I guess it will fix
+this issue also.
+
+> In post-copy mode of CRIU, the destination memory is managed with
+> userfaultfd and lack of the retry for pre-fault case in get_user_pages()
+> causes a crash of the restored process.
+> 
+> Making the pre-fault behavior of get_user_pages() the same as the "normal"
+> one fixes the issue.
+
+Should this be backported into -stable trees?
+
+> Fixes: d9c9ce34ed5c ("x86/fpu: Fault-in user stack if copy_fpstate_to_sigframe() fails")
+> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+
 
