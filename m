@@ -2,164 +2,135 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FE2CC282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 19:26:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 07EECC282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 19:33:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3D6FA217D7
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 19:26:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3D6FA217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id BD3282089E
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 19:33:17 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="VBk26ou6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD3282089E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C5C046B000A; Wed, 22 May 2019 15:26:50 -0400 (EDT)
+	id 419756B000A; Wed, 22 May 2019 15:33:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C0BEF6B000C; Wed, 22 May 2019 15:26:50 -0400 (EDT)
+	id 3A3896B000C; Wed, 22 May 2019 15:33:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B21F86B000D; Wed, 22 May 2019 15:26:50 -0400 (EDT)
+	id 2918A6B000D; Wed, 22 May 2019 15:33:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 785C06B000A
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 15:26:50 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id e16so2246412pga.4
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 12:26:50 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F24836B000A
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 15:33:16 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id e69so2251371pgc.7
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 12:33:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:user-agent:content-id
-         :content-transfer-encoding:mime-version;
-        bh=LMcD+MiyR5Go5Myn8jzAh8kN4gytsSqu0GsEtk+5NVc=;
-        b=PXyFjzAPu19VaQSkViVi644tfz9tIYDNZ35fqhHzfy2YI1qPcSakfYsKps8nS9Rsw3
-         RPelP44b23Ek7DfXAJCfhVT0d0hh4qz40TIwunyOUsogBwfJ2cmNN+b/VZ7eCoUy9qT7
-         HX9v3czU8ZjnXieHMJqua1TX063C8H4MbW49nMRfU4E9fnrNlq6i7b0VPaHvoyNXDQPl
-         EucDJvJcsXCe39IGlbAxPdPEhqlfOvqXJD8eV/tGkuMsuRijFLyrKQPDFBt+BFqp0kK1
-         oeSJI4cTRZ5GwmUGMVnAIRs9oEdlI/4VLcUZLYXifqDoir+WMwLDX/tzLC5brp14yqid
-         hcNQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVjeaPqoKHnzzvOHh20tnZJV91MoPiZ/nSzISqHolvs/IMBa3S+
-	TDSybx1T0r3ZVy5lMYsBnTY7AbeqtFPh2dVE9ebbBILKwQiyTjd8bkHkTgH3H170TjHF21OHBfC
-	MIhS8r1LrvvzSk50I3YNRJELKjOCO3ZxGP1R2GTQzE0FCTJT+Co/jJVsY4TN8RuJoHw==
-X-Received: by 2002:a62:bd14:: with SMTP id a20mr96734430pff.107.1558553210128;
-        Wed, 22 May 2019 12:26:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyc6kORHtc6xI1ApZzG4qHCv8rpLOt8fLdURJvM7QnQP8Pp9klLvBLuUhfJ2uhAeO1CK1kb
-X-Received: by 2002:a62:bd14:: with SMTP id a20mr96734349pff.107.1558553209210;
-        Wed, 22 May 2019 12:26:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558553209; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=NVmFnhEc6T7q/G2QkECz53StEYBc2Etm5D1NuDVEJYM=;
+        b=ge88nEcA216E+O5EBMwujCozh4Gw9KTJo22gdAGGddhGT321JYXGK9YLwE1ZNgTWM5
+         CEQGPd+CHWdQcWVdYIediED09q6hOYpncBtoxejoh4r/IeRAMUFX6E3Va33vUxduE7aS
+         vEAPF3DSx9N0Rb+DCjwcGOXihn6bisxafSvfdIOZEYv5MVofqSX6ldTI12dIeLlS+8YO
+         kf8btjNpNMBYUxeShWQuPGoEjWPvFt0IE/0WXtvblMbKZyndQXi30FnoI0gM/CXWG9tU
+         U2bRq3/ypYh6tAmUFdzihD/xz2F4LitDLdYEdknXGQ21EXkvOvkXhZTSImKB32Fco75k
+         fYUA==
+X-Gm-Message-State: APjAAAUmARFaqZW3rETt7RakUfgqWaiQ1sAow9Wnvmb8GnMvBYPx/uPs
+	szog6QtMZ8yU0cHF6daMyjVn4QC38Yv+jMjrz1AVnT7hb/ObkDqiHx32gTwoY3nV3fyZlYFj9sE
+	xTlAdJWbK+7GXwXRRoG89t0Os44yxSQn9jwCzOp86iEOu6aLAQgA9S0ye88BkXes92A==
+X-Received: by 2002:a62:2c17:: with SMTP id s23mr67358946pfs.51.1558553596637;
+        Wed, 22 May 2019 12:33:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw+/ZugSGnf28cfY76R5VpTw0spuCHN62wuEDl/qIZ6NwQITTqMbVPn3fbW0vXlPtOzPNIa
+X-Received: by 2002:a62:2c17:: with SMTP id s23mr67358874pfs.51.1558553595923;
+        Wed, 22 May 2019 12:33:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558553595; cv=none;
         d=google.com; s=arc-20160816;
-        b=vdLbowI6JePlOMEQW41zXG+XgWrFtr6S+XNdwRaYBnzsml1Gm6wvTiVYzMbtvzZTey
-         UgnD6C9j+P/Fshclb9t4089dV1RbYsAtyU0Jqa3FlauiUaC3bnnk7nEgsEvbNyndr1Tg
-         /Yf90Jae3GsxuFarjE7TVwGIn7eNeXVtkTPDXEN2sx+chz7bsPhTmDwn6+PdV8kxTiXX
-         rvo1Y1hpYfwVCVte32SODGR7iAHc0tNY5HmGThVvDW08+oWeWupUmlZEdfqIT9DWxKI8
-         l+OKIZG0ERn4RGkE6kOPAo7zoLLM4b8eaX8BBbqAAJaJ/d2HOIaDn/W16+rq8nCV/eLj
-         Su3Q==
+        b=WU8zS/pLmm3vqp+i1bbI/jFpI2prRoKeyImR69igelty/uFR676LkJHYx6iPd9ZZgy
+         1yUOUrflCRJceU+chmNLN3FtDHUkZm4u6AkeNOCFej8la1vl3Rt7Y4QOa/CdZtz43DKr
+         fAnrdwoZYaJmMwKynqfD4M1vSu2NWDU7v8OYHq5+t892UMhBmzkXu7p1FHtQNHwbVSeF
+         SqOT9lJFd7tVRkgHH+pWv6vDvE4om/vF3sOtWxsbPj5xA8HiMM08t+DYzZwlSNyO2fmT
+         FWwYt2BpnzPleaKvJs0BryLKD9MVrdPrnvRKscyeD0WArJYpC8iJNmWStHgeVUZky0YK
+         19rg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from;
-        bh=LMcD+MiyR5Go5Myn8jzAh8kN4gytsSqu0GsEtk+5NVc=;
-        b=KDJ2+ZqsV1S927Vj4gNOqR6xcGv5Aa8iMdV8jCNLx80K4UBOKbSOb/NG16NT8Tg0De
-         awdc6WNG3i9GKfMoXsDRg+uQYOC5pnjB5xLtp9/RZq2Xe+9Z3Zx89onIw9zCv0Yur30r
-         rlQeKhuyFin8uBWotp2+lJ3J6I6W8Is3l9vfVR2kONZNkFirit9w11kZ72zkizSGacYi
-         4NjkkTpcZexZ4qzmXbzUYs6iRB6Pvr4YonrBsWadMbgp+4Gl1bgEFAZXCxpjLtomwKiL
-         rLBt4P01oZ8BBwI5yD2tlQFr1T0pqHQpw90CL7jamN904yN3IPzeze4iSmNCbY1fZJj8
-         3apA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=NVmFnhEc6T7q/G2QkECz53StEYBc2Etm5D1NuDVEJYM=;
+        b=PjYJIzI2kyHEThU8Sm5bT83i9eCm/fdwB3ujqINK1reZ+G/C8hX9iY9fJK4WVKFJ3E
+         0PovNDlihbNxQsuGhj1UQtaeSgMd9RBTwNER5unHvJm6pnsQGxayFx9qCehFbpMwpRn7
+         2Sxbh+tg8uc9NQkalTkgNt6uD5FssQEI39R70N8A7ZJslCIpHb7jSuyhMinJYjzkc0TP
+         XMOjZ+8Vxl/eWF0czQLCsSc430aV8qceyLcDwRhPP3zpcv26HrH4om0m1OMWvtvJCcob
+         JmeovHkgXl93lDiZhjzbfZPXIw9MfVvONnSpFesUZAxfruZNXWKe35rWhot5nxuK/dzC
+         ckUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id d191si24854100pgc.460.2019.05.22.12.26.48
+       dkim=pass header.i=@kernel.org header.s=default header.b=VBk26ou6;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id m4si30718396pfb.134.2019.05.22.12.33.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 12:26:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        Wed, 22 May 2019 12:33:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 May 2019 12:26:48 -0700
-X-ExtLoop1: 1
-Received: from orsmsx102.amr.corp.intel.com ([10.22.225.129])
-  by orsmga002.jf.intel.com with ESMTP; 22 May 2019 12:26:48 -0700
-Received: from orsmsx112.amr.corp.intel.com ([169.254.3.79]) by
- ORSMSX102.amr.corp.intel.com ([169.254.3.72]) with mapi id 14.03.0415.000;
- Wed, 22 May 2019 12:26:47 -0700
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-To: "davem@davemloft.net" <davem@davemloft.net>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"peterz@infradead.org" <peterz@infradead.org>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, "mroos@linux.ee" <mroos@linux.ee>, "mingo@redhat.com"
-	<mingo@redhat.com>, "namit@vmware.com" <namit@vmware.com>, "luto@kernel.org"
-	<luto@kernel.org>, "bp@alien8.de" <bp@alien8.de>, "netdev@vger.kernel.org"
-	<netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>,
-	"sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>
-Subject: Re: [PATCH v2] vmalloc: Fix issues with flush flag
-Thread-Topic: [PATCH v2] vmalloc: Fix issues with flush flag
-Thread-Index: AQHVD0ezpbXySuUS5EinefGl750kkaZ0/uwAgAALkwCAAAiygIAAGYEAgAADqwCAAA0vgIAABnMAgAAEjYCAApkWgIAAHb0A
-Date: Wed, 22 May 2019 19:26:47 +0000
-Message-ID: <01a23900329e605fcd41ad8962cfd8f2d9b1fa44.camel@intel.com>
-References: <a43f9224e6b245ade4b587a018c8a21815091f0f.camel@intel.com>
-	 <20190520.184336.743103388474716249.davem@davemloft.net>
-	 <339ef85d984f329aa66f29fa80781624e6e4aecc.camel@intel.com>
-	 <20190522.104019.40493905027242516.davem@davemloft.net>
-In-Reply-To: <20190522.104019.40493905027242516.davem@davemloft.net>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-user-agent: Evolution 3.30.1 (3.30.1-1.fc29) 
-x-originating-ip: [10.254.91.116]
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <8DA560705D778D4A9D23CAF3ED2AB2FC@intel.com>
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+       dkim=pass header.i=@kernel.org header.s=default header.b=VBk26ou6;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 580E22081C;
+	Wed, 22 May 2019 19:33:15 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1558553595;
+	bh=6qKU+B/1sLWcpfUDU4BTAWbTNsNaXNjYvd5KmtBg83g=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=VBk26ou6dZVk+4grpdhByS7aR1CjwbLWb4irfv9IlBIyD9Jhwsri03YCDRfCP1B6k
+	 Cpsw+1GSshZluumcBnSbDzcBwMLtQgvuul3Shs1xU0YX9290UpJ6s1H6qbzj5wnrJ2
+	 76gsPU1MsWwvAtWMibxKbokqGx4V8/C9PCvxy4s8=
+Date: Wed, 22 May 2019 12:33:14 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: 9erthalion6@gmail.com, mhocko@suse.com, shaoyafang@didiglobal.com,
+ linux-mm@kvack.org
+Subject: Re: [PATCH v2] mm/vmscan: expose cgroup_ino for memcg reclaim
+ tracepoints
+Message-Id: <20190522123314.e17fc708ff6548b9b621d6ad@linux-foundation.org>
+In-Reply-To: <1557649528-11676-1-git-send-email-laoar.shao@gmail.com>
+References: <1557649528-11676-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gV2VkLCAyMDE5LTA1LTIyIGF0IDEwOjQwIC0wNzAwLCBEYXZpZCBNaWxsZXIgd3JvdGU6DQo+
-IEZyb206ICJFZGdlY29tYmUsIFJpY2sgUCIgPHJpY2sucC5lZGdlY29tYmVAaW50ZWwuY29tPg0K
-PiBEYXRlOiBUdWUsIDIxIE1heSAyMDE5IDAxOjU5OjU0ICswMDAwDQo+IA0KPiA+IE9uIE1vbiwg
-MjAxOS0wNS0yMCBhdCAxODo0MyAtMDcwMCwgRGF2aWQgTWlsbGVyIHdyb3RlOg0KPiA+ID4gRnJv
-bTogIkVkZ2Vjb21iZSwgUmljayBQIiA8cmljay5wLmVkZ2Vjb21iZUBpbnRlbC5jb20+DQo+ID4g
-PiBEYXRlOiBUdWUsIDIxIE1heSAyMDE5IDAxOjIwOjMzICswMDAwDQo+ID4gPiANCj4gPiA+ID4g
-U2hvdWxkIGl0IGhhbmRsZSBleGVjdXRpbmcgYW4gdW5tYXBwZWQgcGFnZSBncmFjZWZ1bGx5PyBC
-ZWNhdXNlDQo+ID4gPiA+IHRoaXMNCj4gPiA+ID4gY2hhbmdlIGlzIGNhdXNpbmcgdGhhdCB0byBo
-YXBwZW4gbXVjaCBlYXJsaWVyLiBJZiBzb21ldGhpbmcgd2FzDQo+ID4gPiA+IHJlbHlpbmcNCj4g
-PiA+ID4gb24gYSBjYWNoZWQgdHJhbnNsYXRpb24gdG8gZXhlY3V0ZSBzb21ldGhpbmcgaXQgY291
-bGQgZmluZCB0aGUNCj4gPiA+ID4gbWFwcGluZw0KPiA+ID4gPiBkaXNhcHBlYXIuDQo+ID4gPiAN
-Cj4gPiA+IERvZXMgdGhpcyB3b3JrIGJ5IG5vdCBtYXBwaW5nIGFueSBrZXJuZWwgbWFwcGluZ3Mg
-YXQgdGhlDQo+ID4gPiBiZWdpbm5pbmcsDQo+ID4gPiBhbmQgdGhlbiBmaWxsaW5nIGluIHRoZSBC
-UEYgbWFwcGluZ3MgaW4gcmVzcG9uc2UgdG8gZmF1bHRzPw0KPiA+IE5vLCBub3RoaW5nIHRvbyBm
-YW5jeS4gSXQganVzdCBmbHVzaGVzIHRoZSB2bSBtYXBwaW5nIGltbWVkaWF0bHkgaW4NCj4gPiB2
-ZnJlZSBmb3IgZXhlY3V0ZSAoYW5kIFJPKSBtYXBwaW5ncy4gVGhlIG9ubHkgdGhpbmcgdGhhdCBo
-YXBwZW5zDQo+ID4gYXJvdW5kDQo+ID4gYWxsb2NhdGlvbiB0aW1lIGlzIHNldHRpbmcgb2YgYSBu
-ZXcgZmxhZyB0byB0ZWxsIHZtYWxsb2MgdG8gZG8gdGhlDQo+ID4gZmx1c2guDQo+ID4gDQo+ID4g
-VGhlIHByb2JsZW0gYmVmb3JlIHdhcyB0aGF0IHRoZSBwYWdlcyB3b3VsZCBiZSBmcmVlZCBiZWZv
-cmUgdGhlDQo+ID4gZXhlY3V0ZQ0KPiA+IG1hcHBpbmcgd2FzIGZsdXNoZWQuIFNvIHRoZW4gd2hl
-biB0aGUgcGFnZXMgZ290IHJlY3ljbGVkLCByYW5kb20sDQo+ID4gc29tZXRpbWVzIGNvbWluZyBm
-cm9tIHVzZXJzcGFjZSwgZGF0YSB3b3VsZCBiZSBtYXBwZWQgYXMgZXhlY3V0YWJsZQ0KPiA+IGlu
-DQo+ID4gdGhlIGtlcm5lbCBieSB0aGUgdW4tZmx1c2hlZCB0bGIgZW50cmllcy4NCj4gDQo+IElm
-IEkgYW0gdG8gdW5kZXJzdGFuZCB0aGluZ3MgY29ycmVjdGx5LCB0aGVyZSB3YXMgYSBjYXNlIHdo
-ZXJlICdlbmQnDQo+IGNvdWxkIGJlIHNtYWxsZXIgdGhhbiAnc3RhcnQnIHdoZW4gZG9pbmcgYSBy
-YW5nZSBmbHVzaC4gIFRoYXQgd291bGQNCj4gZGVmaW5pdGVseSBraWxsIHNvbWUgb2YgdGhlIHNw
-YXJjNjQgVExCIGZsdXNoIHJvdXRpbmVzLg0KDQpPaywgdGhhbmtzLg0KDQpUaGUgcGF0Y2ggYXQg
-dGhlIGJlZ2lubmluZyBvZiB0aGlzIHRocmVhZCBkb2Vzbid0IGhhdmUgdGhhdCBiZWhhdmlvcg0K
-dGhvdWdoIGFuZCBpdCBhcHBhcmVudGx5IHN0aWxsIGh1bmcuIEkgYXNrZWQgaWYgTWVlbGlzIGNv
-dWxkIHRlc3Qgd2l0aA0KdGhpcyBmZWF0dXJlIGRpc2FibGVkIGFuZCBERUJVR19QQUdFQUxMT0Mg
-b24sIHNpbmNlIGl0IGZsdXNoZXMgb24gZXZlcnkNCnZmcmVlIGFuZCBpcyBub3QgbmV3IGxvZ2lj
-LCBhbmQgYWxzbyB3aXRoIGEgcGF0Y2ggdGhhdCBsb2dzIGV4YWN0IFRMQg0KZmx1c2ggcmFuZ2Vz
-IGFuZCBmYXVsdCBhZGRyZXNzZXMgb24gdG9wIG9mIHRoZSBrZXJuZWwgaGF2aW5nIHRoaXMNCmlz
-c3VlLiBIb3BlZnVsbHkgdGhhdCB3aWxsIHNoZWQgc29tZSBsaWdodC4NCg0KU29ycnkgZm9yIGFs
-bCB0aGUgbm9pc2UgYW5kIHNwZWN1bGF0aW9uIG9uIHRoaXMuIEl0IGhhcyBiZWVuIGRpZmZpY3Vs
-dA0KdG8gZGVidWcgcmVtb3RlbHkgd2l0aCBhIHRlc3RlciBhbmQgZGV2ZWxvcGVyIGluIGRpZmZl
-cmVudCB0aW1lIHpvbmVzLg0KDQoNCg==
+On Sun, 12 May 2019 16:25:28 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
+
+> We can use the exposed cgroup_ino to trace specified cgroup.
+> 
+> For example,
+> step 1, get the inode of the specified cgroup
+> 	$ ls -di /tmp/cgroupv2/foo
+> step 2, set this inode into tracepoint filter to trace this cgroup only
+> 	(assume the inode is 11)
+> 	$ cd /sys/kernel/debug/tracing/events/vmscan/
+> 	$ echo 'cgroup_ino == 11' > mm_vmscan_memcg_reclaim_begin/filter
+> 	$ echo 'cgroup_ino == 11' > mm_vmscan_memcg_reclaim_end/filter
+
+Seems straightforward enough.
+
+But please explain the value of such a change.  What is wrong with the
+current situation and how does this change improve things?  A simple
+use-case scenario would be good.
+
+I can guess why it is beneficial, but I'd rather not guess!
+
+Thanks.
 
