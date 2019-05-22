@@ -2,387 +2,347 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D6C0AC282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:36:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D86E7C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:51:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4A53D2089E
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:36:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 328FF21019
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:51:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="htdxCbNT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A53D2089E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="r6fY0Qsa"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 328FF21019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC3F76B0003; Wed, 22 May 2019 19:36:31 -0400 (EDT)
+	id 888566B0003; Wed, 22 May 2019 19:51:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D73EF6B0006; Wed, 22 May 2019 19:36:31 -0400 (EDT)
+	id 8383B6B0006; Wed, 22 May 2019 19:51:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C634A6B0007; Wed, 22 May 2019 19:36:31 -0400 (EDT)
+	id 6D8DC6B0007; Wed, 22 May 2019 19:51:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A6B386B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 19:36:31 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id 66so3822214qke.20
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 16:36:31 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ED826B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 19:51:11 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c26so6018306eda.15
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 16:51:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=+NJHH7AAxaCESoWm3N87HnhYAXOqnHf8DIqecYdr+LY=;
-        b=plIu4ath6quZXA83jXOdh2VgbFWAUI0/Vfm9ASRetCcMecN6rORTW/Yg9rn0jDDdEo
-         KlwAfqWCgXRFAyEx2eoSFeM8gnywGHOPwtxYUZT2MLWBOpaaN6yv6GxSrDRu2/A1NVBr
-         93nESxH8ml0yw/kst4yzpC66Pb7WcTBiRvmi9BPi+d8D/cQA14iJMrTWLvuXJggf9SqE
-         QnQCMG81ErjAgS/rl2AqIOecAWEyBzZZj0LsxNIhi4lOZgp1qGO+9ueTztyTpVB4oeMo
-         3b3dUFUm4X8EzXF33vIXeKxtE9Hwj9eUMVeHoBJKVGWXTqDwDaFfmfe19K0U0bhxrFIp
-         GVdQ==
-X-Gm-Message-State: APjAAAXtTyF+Vx85Ab9/2OcgHxXGuHBopZ8c5hB0KGrVTuAHgNmNYqE8
-	moXznVbG3GFY5HH0GQ3lFkLGmQBERQicYSGGEuLWUo38UfYf3jhtKuyYyrzThaboNRiRxLRlZiY
-	FLPftGaIf1FqoDRjEVQzgrjsV9baVWlS0LwkyfWncvu+cQPWg7Va0MX35+eyl0YMlew==
-X-Received: by 2002:ac8:2454:: with SMTP id d20mr64148957qtd.266.1558568191414;
-        Wed, 22 May 2019 16:36:31 -0700 (PDT)
-X-Received: by 2002:ac8:2454:: with SMTP id d20mr64148842qtd.266.1558568190340;
-        Wed, 22 May 2019 16:36:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558568190; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=sSvVhwtctmrWpOQ3fK6+ljrWTR6VX73lnQdRCcTtO3s=;
+        b=RQnhT8K+lxzaRIuaPt11RqMV2hGj13EtlYkfqR3dDPKerb2/W8lS/EyhmZpLQ6N2Yr
+         2jDuPbE/r9OSZB9qd84BfmPGqGnfHKFaLdpmH+f3WvLZtB11cAnn6VjDpHXTJLQ39pdd
+         Lmicx3WP026BkmiZOm2nLgwu5/rla1FTJkCHXSdCvQmbEGMlLugr7PKt3BgmgaZgQwG8
+         A7RNXrRqUNJxywERoBuTs0Xy7n6n+FTeHlSVrsHliz9c3nA68YXlxXfqB5pfm+tkty2l
+         pNr2optZSiTNcAPmZkv+FPv4L56H9Fu7EmnUZuEe/IvwjTCiC4G85k4APZqXS1AQEzL/
+         5kPQ==
+X-Gm-Message-State: APjAAAVEnQLolv/ZQsa/PD8dJ66l9RxTLCV0p593iqm8LBDAZu1OHLF2
+	JnL/WdVqfazyEXjhQ6BKv0Q98KKYEgDMqxYW6L3faZAp7NFqoZbzp47q0YZniVBiudoTZd8ly4u
+	xM7/Rq7TivJ4CAQnmjoEkiVpOzFLjFWMapiMLJ3CKIi93aQzvhh7HXk+rbrct2CxP2A==
+X-Received: by 2002:a17:906:8496:: with SMTP id m22mr25307595ejx.281.1558569070559;
+        Wed, 22 May 2019 16:51:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwk8k+3ltW2Zj8oO+7HSM4Dn9HVbURUePKeo1JpMuxa+Fz3D2/a94+FK+1XBdOGP3i+6kDU
+X-Received: by 2002:a17:906:8496:: with SMTP id m22mr25307550ejx.281.1558569069715;
+        Wed, 22 May 2019 16:51:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558569069; cv=none;
         d=google.com; s=arc-20160816;
-        b=PWkqkheslk4My54GyyiTcyhF/MHkeRb5F4rzB6IztdOAelfexbDZ3Y6S/egMZlJk22
-         KQhjjGT1uaUcjQvg7uujSDMeGBg6jRmOezmxOmb+i12IWoaH0a0Yu9vPZzB7L8Sv44wK
-         C972yaFLkMdsPr8UrwAWSYqATODdUUn7LN/PFUr6G2pCdsThCRfif8kLnVxzjK0ukYP3
-         CGdoPvnJ3sZq8QGwLzV/QukzSHscqUNijesFFOM6Z2SICiSY3+6rKfOPqrG3gUDWpvhr
-         1jRkqE0cT+LN5F3WZogI6/HhkEpj0Jit1tJdmASzmFHN5VO5O7NrMoOFdtoSqRRa/B0C
-         +blQ==
+        b=aW0BR5P38FyH8W7XcrO+vzH/w5bFFdPMWlejN9r+x1dQmuwwr2x/8lnMnQZpEB7GNP
+         v7Ke/jNc97oj0XlkXd3zhlKuysSKBS/R5S6zSNn/f0k3EhCF5eqEaEd9H6PsjVPjzBbA
+         ERCPOzVXii+57GANoHjXwHLMoP/TjzyjuEDZhpJRumM2tKtxdydwqe0hmwi9PBhyIxWq
+         Dkd/p9X03g5NuTH7zYuw0c09T5/rhK9hr/NXoukT6yNJQotF5JXficd+dUeXbtwvDGSq
+         27VAQhacoSVNo3VaQvfSDwk8VsvO+a41zqT1wVd5igsDtd8Mu8cIPPCCi5SDZykZMesK
+         Yn+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=+NJHH7AAxaCESoWm3N87HnhYAXOqnHf8DIqecYdr+LY=;
-        b=wKAa4ogtjalrUiTq5mO2DsBVlAH1LCVb/ACvVdyhwf2EiJ2EcE9vQcYy6ExHjjr/JU
-         pb/XG5oUc+O/dmRzT5SKvv5tyXiIJ0TKsdBfkKa0BQgSGJg4qgMXqZPKJBc2dFYWwX3T
-         8a2PtOrtgRdGL/5VI3K1EVbFh3NgjByhLmjIme0iFjIIwFHyQrUnlKzs7HkhAr+9w/c0
-         dRnqpdAFc8nf48+iBc0Px5Q/XkTjQHmWTa0tYmQvX9unD9JhmB7qD/zRvAXXvj0Vk8EP
-         vR7JpPqh0y6yzxxB5Qw9XSzFPCQ+ZQRsnfcnnIunMqR54YCyLgnNB2OjSp/FUjI6reAC
-         YESw==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=sSvVhwtctmrWpOQ3fK6+ljrWTR6VX73lnQdRCcTtO3s=;
+        b=ixVViS9q3cUdoBll93qpdnI//TWXGcJNc8fcUe/nun2PwNUAXx+qpgWcrBHlyMN3SM
+         GErDBaifbGvchZJTsfxjN6GPV7TP2v73lNmvy7shD/4QTbIM4G93yA5MyqzTpbOSCgAF
+         SieXiMqy6chjYshODmfBKjjl5AqBG9BwHgAQsFYqwp6HIQQRsQLlK/FGjCf+lDPBf8Bt
+         bOJHwp+oIxYhnof3lU/cXOMSeNEm2nn/a5TBPEV1YMXTO3Ki7troVcmxBjThNllHXDFv
+         MNMn0qLjRdoH+UTes/tQn7aRkMvC+LAPWESUuYtHLAWY9+EFHMNt/wl73HBsKEhCSCYA
+         2yXg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=htdxCbNT;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f12sor14295236qkm.1.2019.05.22.16.36.30
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=r6fY0Qsa;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.15.77 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-eopbgr150077.outbound.protection.outlook.com. [40.107.15.77])
+        by mx.google.com with ESMTPS id c3si1790006ede.203.2019.05.22.16.51.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 May 2019 16:36:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 22 May 2019 16:51:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.15.77 as permitted sender) client-ip=40.107.15.77;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=htdxCbNT;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=+NJHH7AAxaCESoWm3N87HnhYAXOqnHf8DIqecYdr+LY=;
-        b=htdxCbNT/oy07kfkDDIccfqzQKf6k1q73DmXAvVV3/iOa/EkF1+dmQ6HwByayAvpvO
-         otIdU1WZMVGuw8KeNaoEigiWCb4J0mFJ8xVKqBsc0IzAPufc+qKz6cYURDeIkX2/K2JY
-         95+wpElGkMy/PnkfSIT3XipCb+SDJCilWAIAULVsR4BgZwtmEnhzSFx95joC1fZ1BBA6
-         6lG1G++UBNcvkia56YJfjXQyOpij8aerPtqQAVmmswLJbBH6BD0O8s2qof3/UCMhZTqF
-         2j9TpnQPimj8uOHyS23EWQmvLY6wwtriN2o4UxP1hI0R4l4Pdli0XIrjpctAzp/t1Oj8
-         D4Xg==
-X-Google-Smtp-Source: APXvYqyD20aSctQ1Ky7L3IexyMg2V3K58g60hVrurjFoUlG0qnm8teaLuvTADcFGeHUoNv8kRCEiHg==
-X-Received: by 2002:a37:404b:: with SMTP id n72mr69771301qka.98.1558568189805;
-        Wed, 22 May 2019 16:36:29 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-49-251.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.49.251])
-        by smtp.gmail.com with ESMTPSA id f35sm14354378qte.71.2019.05.22.16.36.28
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 22 May 2019 16:36:29 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hTama-0006Dd-Fc; Wed, 22 May 2019 20:36:28 -0300
-Date: Wed, 22 May 2019 20:36:28 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: rcampbell@nvidia.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>,
-	Dan Carpenter <dan.carpenter@oracle.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 5/5] mm/hmm: Fix mm stale reference use in hmm_free()
-Message-ID: <20190522233628.GA16137@ziepe.ca>
-References: <20190506233514.12795-1-rcampbell@nvidia.com>
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=r6fY0Qsa;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.15.77 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=sSvVhwtctmrWpOQ3fK6+ljrWTR6VX73lnQdRCcTtO3s=;
+ b=r6fY0QsagD4T3lYr324llbBm1Ij3GgmO8vRKmYlTfYgryj7tYJsI96slftBYVL6fPNOk627WGySSPKSO/fjh5VA3B7bKI2HEKiMGnH4Yl6cal2dQcb78BRRAEY5Y8eGrtVihUOD1eA1gUqIoM2/oNo17NKmDZGyityyyKC+DjsU=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB4702.eurprd05.prod.outlook.com (20.176.4.11) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1922.15; Wed, 22 May 2019 23:51:07 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::c16d:129:4a40:9ba1]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::c16d:129:4a40:9ba1%6]) with mapi id 15.20.1922.013; Wed, 22 May 2019
+ 23:51:07 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: Jerome Glisse <jglisse@redhat.com>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>
+Subject: Re: [PATCH] hmm: Suppress compilation warnings when
+ CONFIG_HUGETLB_PAGE is not set
+Thread-Topic: [PATCH] hmm: Suppress compilation warnings when
+ CONFIG_HUGETLB_PAGE is not set
+Thread-Index: AQHVENfOFtz/QULIxkuTKkQu4SkyeqZ3lrcAgAA6BQA=
+Date: Wed, 22 May 2019 23:51:06 +0000
+Message-ID: <20190522235102.GA15370@mellanox.com>
+References: <20190522195151.GA23955@ziepe.ca>
+ <20190522132322.15605c8b344f46b31ea8233b@linux-foundation.org>
+In-Reply-To: <20190522132322.15605c8b344f46b31ea8233b@linux-foundation.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: MN2PR01CA0030.prod.exchangelabs.com (2603:10b6:208:10c::43)
+ To VI1PR05MB4141.eurprd05.prod.outlook.com (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [156.34.49.251]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: e765983f-5c08-4521-565b-08d6df105b46
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4702;
+x-ms-traffictypediagnostic: VI1PR05MB4702:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB47027C621F158EAE00A95965CF000@VI1PR05MB4702.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:1468;
+x-forefront-prvs: 0045236D47
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(39860400002)(376002)(136003)(396003)(366004)(346002)(199004)(189003)(5660300002)(7736002)(8676002)(81166006)(81156014)(2616005)(8936002)(305945005)(486006)(99286004)(316002)(11346002)(2906002)(446003)(6246003)(54906003)(25786009)(66066001)(478600001)(86362001)(53936002)(6512007)(1076003)(3846002)(6116002)(102836004)(68736007)(186003)(6506007)(53546011)(6486002)(386003)(476003)(6436002)(66556008)(66446008)(229853002)(33656002)(73956011)(66946007)(66476007)(71190400001)(71200400001)(64756008)(14454004)(14444005)(256004)(36756003)(6916009)(76176011)(26005)(4326008)(52116002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4702;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ l8HhGanMRhGyjN0BS5oQYIISAVQE1uQkv8nJ/CelipO/szhgzvEWpA5Bsql5PWDQFWDRcJUKJcBG1Q/3mAcYTepEnJVADhJGq4i8/2ei0it73ar+27a5zC0SjTcUQchKvECmoqzdE/5fy7OFYrhzSl1AvzB9cb8ZN2gvc/tnyUam08B7dlBnO9deWu5TlJhQx+lLFMn/pFhx+SJNg5VBv9xtXWZTaClphHnSs0N5SDrTlER6WAkOlXcuihQnuoAOV8rxmsr7tZnCCUB8C6jEQgcCSDW8bJnOonApIYx2CZFMURoOOc7R8kmtuhExZGFdSMJOmmhdkQGfYcZKHrgqcGOPYtd5dUgd6lfHF7cRyQeNc24oA97SFCepRHw8btez5JA+vEEONPn7YuP8AmfAxWJRYXzrq6UK+UH3dpIOBu8=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <FFABB95CECC23D49A4F00272338576E9@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190506233514.12795-1-rcampbell@nvidia.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: e765983f-5c08-4521-565b-08d6df105b46
+X-MS-Exchange-CrossTenant-originalarrivaltime: 22 May 2019 23:51:07.5394
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4702
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 06, 2019 at 04:35:14PM -0700, rcampbell@nvidia.com wrote:
-> From: Ralph Campbell <rcampbell@nvidia.com>
-> 
-> The last reference to struct hmm may be released long after the mm_struct
-> is destroyed because the struct hmm_mirror memory may be part of a
-> device driver open file private data pointer. The file descriptor close
-> is usually after the mm_struct is destroyed in do_exit(). This is a good
-> reason for making struct hmm a kref_t object [1] since its lifetime spans
-> the life time of mm_struct and struct hmm_mirror.
+On Wed, May 22, 2019 at 01:23:22PM -0700, Andrew Morton wrote:
+> On Wed, 22 May 2019 19:51:55 +0000 Jason Gunthorpe <jgg@mellanox.com> wro=
+te:
+>=20
+> > gcc reports that several variables are defined but not used.
+> >=20
+> > For the first hunk CONFIG_HUGETLB_PAGE the entire if block is already
+> > protected by pud_huge() which is forced to 0. None of the stuff under
+> > the ifdef causes compilation problems as it is already stubbed out in
+> > the header files.
+> >=20
+> > For the second hunk the dummy huge_page_shift macro doesn't touch the
+> > argument, so just inline the argument.
+> >=20
+> > ...
+> >
+> > +++ b/mm/hmm.c
+> > @@ -797,7 +797,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
+> >  			return hmm_vma_walk_hole_(addr, end, fault,
+> >  						write_fault, walk);
+> > =20
+> > -#ifdef CONFIG_HUGETLB_PAGE
+> >  		pfn =3D pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+> >  		for (i =3D 0; i < npages; ++i, ++pfn) {
+> >  			hmm_vma_walk->pgmap =3D get_dev_pagemap(pfn,
+> > @@ -813,9 +812,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
+> >  		}
+> >  		hmm_vma_walk->last =3D end;
+> >  		return 0;
+> > -#else
+> > -		return -EINVAL;
+> > -#endif
+> >  	}
+>=20
+> Fair enough.
+>=20
+> >  	split_huge_pud(walk->vma, pudp, addr);
+> > @@ -1024,9 +1020,8 @@ long hmm_range_snapshot(struct hmm_range *range)
+> >  			return -EFAULT;
+> > =20
+> >  		if (is_vm_hugetlb_page(vma)) {
+> > -			struct hstate *h =3D hstate_vma(vma);
+> > -
+> > -			if (huge_page_shift(h) !=3D range->page_shift &&
+> > +			if (huge_page_shift(hstate_vma(vma)) !=3D
+> > +				    range->page_shift &&
+> >  			    range->page_shift !=3D PAGE_SHIFT)
+> >  				return -EINVAL;
+>=20
+> Also fair enough.  But why the heck is huge_page_shift() a macro?  We
+> keep doing that and it bites so often :(
 
-> The fix is to not use hmm->mm in hmm_free() and to clear mm->hmm and
-> hmm->mm pointers in hmm_destroy() when the mm_struct is
-> destroyed.
+Let's fix it, with the below? (compile tested)
 
-I think the right way to fix this is to have the struct hmm hold a
-mmgrab() on the mm so its memory cannot go away until all of the hmm
-users release the struct hmm, hmm_ranges/etc
+Note __alloc_bootmem_huge_page was returning null but the signature
+was unsigned int.
 
-Then we can properly use mmget_not_zero() instead of the racy/abnormal
-'if (hmm->xmm == NULL || hmm->dead)' pattern (see the other
-thread). Actually looking at this, all these tests look very
-questionable. If we hold the mmget() for the duration of the range
-object, as Jerome suggested, then they all get deleted.
+From b5e2ff3c88e6962d0e8297c87af855e6fe1a584e Mon Sep 17 00:00:00 2001
+From: Jason Gunthorpe <jgg@mellanox.com>
+Date: Wed, 22 May 2019 20:45:59 -0300
+Subject: [PATCH] mm: Make !CONFIG_HUGE_PAGE wrappers into static inlines
 
-That just leaves mmu_notifier_unregister_no_relase() as the remaining
-user of hmm->mm (everyone else is trying to do range->mm) - and it
-looks like it currently tries to call
-mmu_notifier_unregister_no_release on a NULL hmm->mm and crashes :(
+Instead of using defines, which looses type safety and provokes unused
+variable warnings from gcc, put the constants into static inlines.
 
-Holding the mmgrab fixes this as we can safely call
-mmu_notifier_unregister_no_relase() post exit_mmap on a grab'd mm.
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+---
+ include/linux/hugetlb.h | 102 +++++++++++++++++++++++++++++++++-------
+ 1 file changed, 86 insertions(+), 16 deletions(-)
 
-Also we can delete the hmm_mm_destroy() intrustion into fork.c as it
-can't be called when the mmgrab is active.
-
-This is the basic pattern we used in ODP when working with mmu
-notifiers, I don't know why hmm would need to be different.
-
-> index 2aa75dbed04a..4e42c282d334 100644
-> +++ b/mm/hmm.c
-> @@ -43,8 +43,10 @@ static inline struct hmm *mm_get_hmm(struct mm_struct *mm)
->  {
->  	struct hmm *hmm = READ_ONCE(mm->hmm);
->  
-> -	if (hmm && kref_get_unless_zero(&hmm->kref))
-> +	if (hmm && !hmm->dead) {
-> +		kref_get(&hmm->kref);
->  		return hmm;
-> +	}
-
-hmm->dead and mm->hmm are not being read under lock, so this went from
-something almost thread safe to something racy :(
-
-> @@ -53,25 +55,28 @@ static inline struct hmm *mm_get_hmm(struct mm_struct *mm)
->   * hmm_get_or_create - register HMM against an mm (HMM internal)
->   *
->   * @mm: mm struct to attach to
-> - * Returns: returns an HMM object, either by referencing the existing
-> - *          (per-process) object, or by creating a new one.
-> + * Return: an HMM object reference, either by referencing the existing
-> + *         (per-process) object, or by creating a new one.
->   *
-> - * This is not intended to be used directly by device drivers. If mm already
-> - * has an HMM struct then it get a reference on it and returns it. Otherwise
-> - * it allocates an HMM struct, initializes it, associate it with the mm and
-> - * returns it.
-> + * If the mm already has an HMM struct then return a new reference to it.
-> + * Otherwise, allocate an HMM struct, initialize it, associate it with the mm,
-> + * and return a new reference to it. If the return value is not NULL,
-> + * the caller is responsible for calling hmm_put().
->   */
->  static struct hmm *hmm_get_or_create(struct mm_struct *mm)
->  {
-> -	struct hmm *hmm = mm_get_hmm(mm);
-> -	bool cleanup = false;
-> +	struct hmm *hmm = mm->hmm;
->  
-> -	if (hmm)
-> -		return hmm;
-> +	if (hmm) {
-> +		if (hmm->dead)
-> +			goto error;
-
-Create shouldn't fail just because it is racing with something doing
-destroy
-
-The flow should be something like:
-
-spin_lock(&mm->page_table_lock); // or write side mmap_sem if you prefer
-if (mm->hmm)
-   if (kref_get_unless_zero(mm->hmm))
-        return mm->hmm;
-   mm->hmm = NULL
-
-
-> +		goto out;
-> +	}
->  
->  	hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
->  	if (!hmm)
-> -		return NULL;
-> +		goto error;
-> +
->  	init_waitqueue_head(&hmm->wq);
->  	INIT_LIST_HEAD(&hmm->mirrors);
->  	init_rwsem(&hmm->mirrors_sem);
-> @@ -83,47 +88,32 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
->  	hmm->dead = false;
->  	hmm->mm = mm;
->  
-> -	spin_lock(&mm->page_table_lock);
-> -	if (!mm->hmm)
-> -		mm->hmm = hmm;
-> -	else
-> -		cleanup = true;
-> -	spin_unlock(&mm->page_table_lock);
-
-BTW, Jerome this needs fixing too, it shouldn't fail the function just
-because it lost the race.
-
-More like
-
-spin_lock(&mm->page_table_lock);
-if (mm->hmm)
-   if (kref_get_unless_zero(mm->hmm)) {
-        kfree(hmm);
-        return mm->hmm;
-   }
-mm->hmm = hmm
-
-> -	if (cleanup)
-> -		goto error;
-> -
->  	/*
-> -	 * We should only get here if hold the mmap_sem in write mode ie on
-> -	 * registration of first mirror through hmm_mirror_register()
-> +	 * The mmap_sem should be held for write so no additional locking
-
-Please let us have proper lockdep assertions for this kind of stuff.
-
-> +	 * is needed. Note that struct_mm holds a reference to hmm.
-> +	 * It is cleared in hmm_release().
->  	 */
-> +	mm->hmm = hmm;
-
-Actually using the write side the mmap_sem seems sort of same if it is
-assured the write side is always held for this call..
-
-
-Hmm, there is a race with hmm_destroy touching mm->hmm that does
-hold the write lock.
-
-> +
->  	hmm->mmu_notifier.ops = &hmm_mmu_notifier_ops;
->  	if (__mmu_notifier_register(&hmm->mmu_notifier, mm))
->  		goto error_mm;
-
-And the error unwind here is problematic as it should do
-kref_put. Actually after my patch to use container_of this
-mmu_notifier_register should go before the mm->hmm = hmm to avoid
-having to do the sketchy error unwind at all.
-
-> +out:
-> +	/* Return a separate hmm reference for the caller. */
-> +	kref_get(&hmm->kref);
->  	return hmm;
->  
->  error_mm:
-> -	spin_lock(&mm->page_table_lock);
-> -	if (mm->hmm == hmm)
-> -		mm->hmm = NULL;
-> -	spin_unlock(&mm->page_table_lock);
-> -error:
-> +	mm->hmm = NULL;
->  	kfree(hmm);
-> +error:
->  	return NULL;
->  }
->  
->  static void hmm_free(struct kref *kref)
->  {
->  	struct hmm *hmm = container_of(kref, struct hmm, kref);
-> -	struct mm_struct *mm = hmm->mm;
-> -
-> -	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, mm);
-
-Where did the unregister go?
-
-> -
-> -	spin_lock(&mm->page_table_lock);
-> -	if (mm->hmm == hmm)
-> -		mm->hmm = NULL;
-> -	spin_unlock(&mm->page_table_lock);
-
-Well, we still need to NULL mm->hmm if the hmm was put before the mm
-is destroyed.
-
->  	kfree(hmm);
->  }
-> @@ -135,25 +125,18 @@ static inline void hmm_put(struct hmm *hmm)
->  
->  void hmm_mm_destroy(struct mm_struct *mm)
->  {
-> -	struct hmm *hmm;
-> +	struct hmm *hmm = mm->hmm;
->  
-> -	spin_lock(&mm->page_table_lock);
-> -	hmm = mm_get_hmm(mm);
-> -	mm->hmm = NULL;
->  	if (hmm) {
-> +		mm->hmm = NULL;
-
-At this point The kref on mm is 0, so any other thread reading mm->hmm
-has a use-after-free bug. Not much point in doing this assignment , it
-is just confusing.
-
->  		hmm->mm = NULL;
-> -		hmm->dead = true;
-> -		spin_unlock(&mm->page_table_lock);
->  		hmm_put(hmm);
-> -		return;
->  	}
-> -
-> -	spin_unlock(&mm->page_table_lock);
->  }
->  
->  static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
->  {
-> -	struct hmm *hmm = mm_get_hmm(mm);
-> +	struct hmm *hmm = mm->hmm;
-
-container_of is much safer/better
-
-> @@ -931,20 +909,14 @@ int hmm_range_register(struct hmm_range *range,
->  		return -EINVAL;
->  	if (start >= end)
->  		return -EINVAL;
-> +	hmm = mm_get_hmm(mm);
-> +	if (!hmm)
-> +		return -EFAULT;
->  
->  	range->page_shift = page_shift;
->  	range->start = start;
->  	range->end = end;
-> -
-> -	range->hmm = mm_get_hmm(mm);
-> -	if (!range->hmm)
-> -		return -EFAULT;
-> -
-> -	/* Check if hmm_mm_destroy() was call. */
-> -	if (range->hmm->mm == NULL || range->hmm->dead) {
-
-This comment looks bogus too, we can't race with hmm_mm_destroy as the
-caller MUST have a mmgrab or mmget on the mm already to call this API
-- ie can't be destroyed. 
-
-As discussed in the other thread this should probably be
-mmget_not_zero.
-
-Jason
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index edf476c8cfb9c0..f895a79c6f5cb4 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -608,22 +608,92 @@ static inline void huge_ptep_modify_prot_commit(struc=
+t vm_area_struct *vma,
+=20
+ #else	/* CONFIG_HUGETLB_PAGE */
+ struct hstate {};
+-#define alloc_huge_page(v, a, r) NULL
+-#define alloc_huge_page_node(h, nid) NULL
+-#define alloc_huge_page_nodemask(h, preferred_nid, nmask) NULL
+-#define alloc_huge_page_vma(h, vma, address) NULL
+-#define alloc_bootmem_huge_page(h) NULL
+-#define hstate_file(f) NULL
+-#define hstate_sizelog(s) NULL
+-#define hstate_vma(v) NULL
+-#define hstate_inode(i) NULL
+-#define page_hstate(page) NULL
+-#define huge_page_size(h) PAGE_SIZE
+-#define huge_page_mask(h) PAGE_MASK
+-#define vma_kernel_pagesize(v) PAGE_SIZE
+-#define vma_mmu_pagesize(v) PAGE_SIZE
+-#define huge_page_order(h) 0
+-#define huge_page_shift(h) PAGE_SHIFT
++
++static inline struct page *alloc_huge_page(struct vm_area_struct *vma,
++					   unsigned long addr,
++					   int avoid_reserve)
++{
++	return NULL;
++}
++
++static inline struct page *alloc_huge_page_node(struct hstate *h, int nid)
++{
++	return NULL;
++}
++
++static inline struct page *
++alloc_huge_page_nodemask(struct hstate *h, int preferred_nid, nodemask_t *=
+nmask)
++{
++	return NULL;
++}
++
++static inline struct page *alloc_huge_page_vma(struct hstate *h,
++					       struct vm_area_struct *vma,
++					       unsigned long address)
++{
++	return NULL;
++}
++
++static inline int __alloc_bootmem_huge_page(struct hstate *h)
++{
++	return 0;
++}
++
++static inline struct hstate *hstate_file(struct file *f)
++{
++	return NULL;
++}
++
++static inline struct hstate *hstate_sizelog(int page_size_log)
++{
++	return NULL;
++}
++
++static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
++{
++	return NULL;
++}
++
++static inline struct hstate *hstate_inode(struct inode *i)
++{
++	return NULL;
++}
++
++static inline struct hstate *page_hstate(struct page *page)
++{
++	return NULL;
++}
++
++static inline unsigned long huge_page_size(struct hstate *h)
++{
++	return PAGE_SIZE;
++}
++
++static inline unsigned long huge_page_mask(struct hstate *h)
++{
++	return PAGE_MASK;
++}
++
++static inline unsigned long vma_kernel_pagesize(struct vm_area_struct *vma=
+)
++{
++	return PAGE_SIZE;
++}
++
++static inline unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
++{
++	return PAGE_SIZE;
++}
++
++static inline unsigned int huge_page_order(struct hstate *h)
++{
++	return 0;
++}
++
++static inline unsigned int huge_page_shift(struct hstate *h)
++{
++	return PAGE_SHIFT;
++}
++
+ static inline bool hstate_is_gigantic(struct hstate *h)
+ {
+ 	return false;
+--=20
+2.21.0
 
