@@ -2,208 +2,189 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CE950C072A4
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 05:30:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12DF7C072A4
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 05:41:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 77D3220862
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 05:30:33 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ZZ7LukV0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77D3220862
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id C590A20815
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 05:41:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C590A20815
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CFAF26B0003; Wed, 22 May 2019 01:30:32 -0400 (EDT)
+	id 9235E6B0007; Wed, 22 May 2019 01:41:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CAAA06B0006; Wed, 22 May 2019 01:30:32 -0400 (EDT)
+	id 8D1936B0008; Wed, 22 May 2019 01:41:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B72406B0007; Wed, 22 May 2019 01:30:32 -0400 (EDT)
+	id 7C0C76B000A; Wed, 22 May 2019 01:41:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 687CB6B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 01:30:32 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id r7so603033wrn.8
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 22:30:32 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 449766B0007
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 01:41:30 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id t1so1030702pfa.10
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 22:41:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=khAfVgyvdFpD+3BrbDMKT8RJLVGP4g3H+a67pFViOXc=;
-        b=NPw65c8apYhVH6ifTitY9rKs9nAbf7k0naYl4DytA6o4SwadaTGpTfzwwzTjQz0JHe
-         dydwZdfsalz3o7Hvvye+DNF+GFAnguKPpmyfM+KEOWSKGPbYnaQsA9XL7medz5nEFGHK
-         4h4o8oVhFvrb7g63YHkzAnjI7yCSebQDwnxLsVa+NykGAVcsEhswCJFx8H50/xa47y5e
-         O8uEkIWhvWlrsZjPsrNSBxNiKuMufbTPIaZPeYBnpQfZ3u0LEqwM3MhCuHGpztDMMBTz
-         Zm4AGVa21L+Xp2wjaTLZv+sHkqpeY39o6+m2eLjGhv1qVdFFIJCHe2ki1OS+n7h3GIiJ
-         R/vw==
-X-Gm-Message-State: APjAAAWpNmWbvTJkVjapUpi/RKvH6jbdnbCKkIjJibOXnV59O8tOac1f
-	Aqx3+gYp2FrLxXUtxP0NrlFrzdayGxL8BM7uUK4GbF8RZGLVdbJU9davVfmR+WmiM/+djoe7pDf
-	pw1doQFTCk1qYLsZImFB6iysaq20XpPe+kxi0NIA/V4U/gTI6Ghdbc5lNrVeGjMjfBQ==
-X-Received: by 2002:adf:e9ca:: with SMTP id l10mr5762575wrn.47.1558503031798;
-        Tue, 21 May 2019 22:30:31 -0700 (PDT)
-X-Received: by 2002:adf:e9ca:: with SMTP id l10mr5762516wrn.47.1558503030876;
-        Tue, 21 May 2019 22:30:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558503030; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:message-id;
+        bh=oAfmG1jgQhZAEI5ey+XiueHNcmDNfzT4VCX/DKbyk0I=;
+        b=CqsqrLhRA54Yg+cCAkWl3Q9gcBnaTIzQ7sHrDv33e3usVZwc5paHjQiCBDTGWsOLXR
+         SK6t+xCglHhugPUkDdxeEAKEvvBlsjTK/uZLvWfv5ZW/McSLZWg7Drto20EXKAXg3kCW
+         MwkdIFEAEwKACcRqXPJFyunN7zo37jo4CaUU6RbrGLc/DqljCJo1TrDx4clylT/bR34T
+         QSLurrk81DuZiTlfPfPraly2CtaINkdSB6F6y5wA6GR44jWY82lRSFmRRjZAwk+KmUPs
+         oPmDpI7uNnmXC8tDf9gg7RERTGuzu0Nv8dHwFS0pXnPnppdj5XhEkWOia0mo2/TU8AyE
+         tqyg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAW66WKMhvQhzBylSojuQ2akEbY0m3L++SDvOQwBXrflD2aOKpzB
+	cPA7MMSYSBlDmfO5jX5SyDqSFzncLe1UckZS5EKlDFHpjdhu0tHob257iNEm+TiZzExcRuZr7P3
+	B5xIa8iPgTHp4cSyVQP5+NAyibToSLA5echzv0J22aWvYL310jD1MQiXLhUjGKhWEuQ==
+X-Received: by 2002:a65:624f:: with SMTP id q15mr88020122pgv.436.1558503689876;
+        Tue, 21 May 2019 22:41:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzIeeXbqsr/dfDGg8LpQZs6nkwak+v2Xf+eH9KR/LA6e/ihw3aOhnSWXJY81CEGtPg0aI2A
+X-Received: by 2002:a65:624f:: with SMTP id q15mr88020046pgv.436.1558503688620;
+        Tue, 21 May 2019 22:41:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558503688; cv=none;
         d=google.com; s=arc-20160816;
-        b=UapoiEYfLQZBWU+oocOu396awyosoEVfI2k78uvf2OsFz4J3u8BBPMsgMX6P4S0Fj9
-         yJlSa8KVedBl8ncZhX1ZC8e2heiR1kIJqCWbBvgePOjJqJxmUCje8IUW//yz/h5f5HC0
-         F/FRZjKn0ZsFMGm5GzbJ4YgEufKQaC8PiAoA3zYE+vrdxkzJTXodfQwCz6JUdCGnm/id
-         e2rcSKKpn6uiXbuIzyM/11SzW8tG1WgEOzbwbXIFUh5sOtIhx7HcKKpzIQd797AQgn6x
-         K2JKeqfAjRWtiPMWJNdj0XmSWhQBgd3vc4hBNagBwnk2rKZXUgpvwXsghFiq2Jp3262x
-         REAg==
+        b=YjM5CtAPGZLuZpva9qsNGw2wIYiH9ngN/01w9TZucyMLnRHDa425eVyVSrbSKpH8KE
+         5azB/xdh529HKDhkcP36sn/gxvGl8ZOKqg8ry/aaKusRTpsxD0vLBi14Pkk/VgkgDJmk
+         7gEmWUd+z+67fU1o36GzCoF7ClrTPfjk6I2ZHfJizCa8IyNIcbRiwWJSSU2YyQjX5GhJ
+         XnxtGEA59gXAxMN40bSq2J/RXqVqRpDQJNt/N74XhUV7L09KREiqB1idPGwJIiG4H+fD
+         8+z2WWUde058TTmM7LO6PgdlXi+1LGO+GlWhQI1GZiUDzYfA5KDkayVVaVmiq3mb2I38
+         lqEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=khAfVgyvdFpD+3BrbDMKT8RJLVGP4g3H+a67pFViOXc=;
-        b=0EjBfuc7xLy+qy/pD7VRuESo7kMkY96iCMn5dQ12NyxsNdAzc1soD7rHy9ZM1euuJT
-         Bu8JfTzu32S1SN2xZV5SU5/JdrvxBHWZ4PZWIOR1TxYL6/aJXuHvATAY9EX6R6z5jw0d
-         GcXn3V6Lr8JzJge1lU93bmDi8gfh3GtGr4XIbsMoHv8I2uMelQ6TnUiIqboa/ukhtGzs
-         hTBNhuHbV4y4N1GZGM1PpxT7mo1+ZxN2K9LUjuD/jPpJqccHxNGDhVD8czfTcYePO0qa
-         GqOYzGpPQ3zzNDfhOp5SUz0N8YQctC44A3eaTaC4cFXSieRpetpusjnoxtnyRLRpQCIw
-         VPpw==
+        h=message-id:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:from:references:cc:to:subject;
+        bh=oAfmG1jgQhZAEI5ey+XiueHNcmDNfzT4VCX/DKbyk0I=;
+        b=sCfavSHWVkryvFs3N0vQZHdIPGudqMJspoz0zQCU7aIZnhmSaaE/hYal8j3gMBH+HH
+         3u/imL9dgRf/laRBZXdo21govCv40EtHumqwqBgTPplMSXU8TDprwdJBhcSWKizQAAif
+         JYoOe6vp1CEqRjK5ZtfBb3QUvWzEImRMAOXiAr7OTiqMY6BJQoqlZ72nnZu+ItcC0pDr
+         dF1u9VYWXXbq5Y4qZ2qciFXYZYlmoMmmmHlIUcVBxl1bf4E5K3c7HE9zRgt3YhONGOQM
+         CBjtA49CWX/8rgBy2fNmsmqMNy7aAs7+UMcE1XthEFeP30HlgHZANLCrgjc96hFnPfDO
+         v3nQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ZZ7LukV0;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q18sor7873577wre.28.2019.05.21.22.30.30
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id w69si16969829pgd.165.2019.05.21.22.41.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 21 May 2019 22:30:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 May 2019 22:41:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ZZ7LukV0;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=khAfVgyvdFpD+3BrbDMKT8RJLVGP4g3H+a67pFViOXc=;
-        b=ZZ7LukV0216gLYaha22MBJ0hKw12PTjtcsOtESvqoFx2r8YXGyqNWCUCL45b1wedZD
-         ZFNWVfSTZF3ZUou6Ksk4uYSJh+d2PC9HQrQiSG61+UoTKm1c9yaPNHD4fJTQWFZMRDO1
-         pr1LvFbHpOEBHuWFtKevEqMDfMCiVnTOiK32GFFeU4bRc0EOQ9F0EUlN+nXzNlwHA2xB
-         hQ+rsJCfg5ODxzSI7HUVjPStRo09JWJ9UWqRkFyoIqvsnPMHk9INdC3ytAPm5PWhOsph
-         E3085FTjpiN+d9BzuykZ7awBQxQAum0qGAUnNW0nyIyMIH8p6w0wV2frQdhQNhhaStrI
-         q/LQ==
-X-Google-Smtp-Source: APXvYqyHeIQKj0Z4wRld3Nv42dTU/iH3BbSC9pIZ0KcQpdW6gcf7eqXRf/Bm3IQyDDtmyAz5PGReJvK72TbhosnXntk=
-X-Received: by 2002:adf:ab45:: with SMTP id r5mr26865834wrc.100.1558503029912;
- Tue, 21 May 2019 22:30:29 -0700 (PDT)
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4M5b2Fm032928
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 01:41:27 -0400
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com [32.97.110.149])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2smyayt5cj-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 01:41:27 -0400
+Received: from localhost
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Wed, 22 May 2019 06:41:27 +0100
+Received: from b03cxnp07029.gho.boulder.ibm.com (9.17.130.16)
+	by e31.co.us.ibm.com (192.168.1.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 22 May 2019 06:41:23 +0100
+Received: from b03ledav004.gho.boulder.ibm.com (b03ledav004.gho.boulder.ibm.com [9.17.130.235])
+	by b03cxnp07029.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4M5fMtp10748274
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 22 May 2019 05:41:22 GMT
+Received: from b03ledav004.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id AB98D7805F;
+	Wed, 22 May 2019 05:41:22 +0000 (GMT)
+Received: from b03ledav004.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 20D9C7805C;
+	Wed, 22 May 2019 05:41:21 +0000 (GMT)
+Received: from [9.124.31.87] (unknown [9.124.31.87])
+	by b03ledav004.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Wed, 22 May 2019 05:41:20 +0000 (GMT)
+Subject: Re: [PATCH] mm/nvdimm: Use correct #defines instead of opencoding
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>, Linux MM <linux-mm@kvack.org>,
+        linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
+        "Oliver O'Halloran" <oohall@gmail.com>
+References: <20190514025604.9997-1-aneesh.kumar@linux.ibm.com>
+ <CAPcyv4iNgFbSq0Hqb+CStRhGWMHfXx7tL3vrDaQ95DcBBY8QCQ@mail.gmail.com>
+ <f99c4f11-a43d-c2d3-ab4f-b7072d090351@linux.ibm.com>
+ <CAPcyv4gOr8SFbdtBbWhMOU-wdYuMCQ4Jn2SznGRsv6Vku97Xnw@mail.gmail.com>
+ <02d1d14d-650b-da38-0828-1af330f594d5@linux.ibm.com>
+ <CAPcyv4jcSgg0wxY9FAM4ke9JzVc9Pu3qe6dviS3seNgHfG2oNw@mail.gmail.com>
+ <87mujgcf0h.fsf@linux.ibm.com>
+ <CAPcyv4j5Y+AFkbvYjDnfqTdmN_Sq=O0qfGUorgpjAE8Ww7vH=A@mail.gmail.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Wed, 22 May 2019 11:11:19 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-References: <20190212224542.ZW63a%akpm@linux-foundation.org>
- <20190213124729.GI4525@dhcp22.suse.cz> <20190516175655.GA25818@cmpxchg.org>
- <20190516180932.GA13208@dhcp22.suse.cz> <20190516193943.GA26439@cmpxchg.org>
- <20190517123310.GI6836@dhcp22.suse.cz> <CALvZod6xErQ3AA+9oHSqB2bqtK9gKk4T0iPoGPkufBiJALko1Q@mail.gmail.com>
-In-Reply-To: <CALvZod6xErQ3AA+9oHSqB2bqtK9gKk4T0iPoGPkufBiJALko1Q@mail.gmail.com>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Tue, 21 May 2019 22:30:18 -0700
-Message-ID: <CAJuCfpHW8ZM7OcHKjxAQWsXfrUDordtsKP2MT0oDTW5XxKb7Nw@mail.gmail.com>
-Subject: Re: + mm-consider-subtrees-in-memoryevents.patch added to -mm tree
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, mm-commits@vger.kernel.org, 
-	Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, 
-	Chris Down <chris@chrisdown.name>, cgroups mailinglist <cgroups@vger.kernel.org>, 
-	Linux MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CAPcyv4j5Y+AFkbvYjDnfqTdmN_Sq=O0qfGUorgpjAE8Ww7vH=A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19052205-8235-0000-0000-00000E9C8470
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011141; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000286; SDB=6.01206830; UDB=6.00633747; IPR=6.00987805;
+ MB=3.00026996; MTD=3.00000008; XFM=3.00000015; UTC=2019-05-22 05:41:25
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19052205-8236-0000-0000-000045ABA866
+Message-Id: <d328ce41-4a65-c35e-72d7-74e722795428@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-22_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905220040
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 17, 2019 at 6:00 AM Shakeel Butt <shakeelb@google.com> wrote:
->
-> On Fri, May 17, 2019 at 5:33 AM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Thu 16-05-19 15:39:43, Johannes Weiner wrote:
-> > > On Thu, May 16, 2019 at 08:10:42PM +0200, Michal Hocko wrote:
-> > > > On Thu 16-05-19 13:56:55, Johannes Weiner wrote:
-> > > > > On Wed, Feb 13, 2019 at 01:47:29PM +0100, Michal Hocko wrote:
-> > [...]
-> > > > > > FTR: As I've already said here [1] I can live with this change as long
-> > > > > > as there is a larger consensus among cgroup v2 users. So let's give this
-> > > > > > some more time before merging to see whether there is such a consensus.
-> > > > > >
-> > > > > > [1] http://lkml.kernel.org/r/20190201102515.GK11599@dhcp22.suse.cz
-> > > > >
-> > > > > It's been three months without any objections.
-> > > >
-> > > > It's been three months without any _feedback_ from anybody. It might
-> > > > very well be true that people just do not read these emails or do not
-> > > > care one way or another.
-> > >
-> > > This is exactly the type of stuff that Mel was talking about at LSFMM
-> > > not even two weeks ago. How one objection, however absurd, can cause
-> > > "controversy" and block an effort to address a mistake we have made in
-> > > the past that is now actively causing problems for real users.
-> > >
-> > > And now after stalling this fix for three months to wait for unlikely
-> > > objections, you're moving the goal post. This is frustrating.
-> >
-> > I see your frustration but I find the above wording really unfair. Let me
-> > remind you that this is a considerable user visible change in the
-> > semantic and that always has to be evaluated carefuly. A change that would
-> > clearly regress anybody who rely on the current semantic. This is not an
-> > internal implementation detail kinda thing.
-> >
-> > I have suggested an option for the new behavior to be opt-in which
-> > would be a regression safe option. You keep insisting that we absolutely
-> > have to have hierarchical reporting by default for consistency reasons.
-> > I do understand that argument but when I weigh consistency vs. potential
-> > regression risk I rather go a conservative way. This is a traditional
-> > way how we deal with semantic changes like this. There are always
-> > exceptions possible and that is why I wanted to hear from other users of
-> > cgroup v2, even from those who are not directly affected now.
-> >
-> > If you feel so stronly about this topic and the suggested opt-in is an
-> > absolute no-go then you are free to override my opinion here. I haven't
-> > Nacked this patch.
-> >
-> > > Nobody else is speaking up because the current user base is very small
-> > > and because the idea that anybody has developed against and is relying
-> > > on the current problematic behavior is completely contrived. In
-> > > reality, the behavior surprises people and causes production issues.
-> >
-> > I strongly suspect users usually do not follow discussions on our
-> > mailing lists. They only come up later when something breaks and that
-> > is too late. I do realize that this makes the above call for a wider
-> > consensus harder but a lack of upstream bug reports also suggests that
-> > people do not care or simply haven't noticed any issues due to way how
-> > they use the said interface (maybe deeper hierarchies are not that
-> > common).
-> >
->
-> I suspect that FB is the only one using cgroup v2 in production and
-> others (data center) users are still evaluating/exploring. Also IMHO
-> the cgroup v2 users are on the bleeding edge. As new cgroup v2
-> features and controllers are added, the users either switch to latest
-> kernel or backport. That might be the reason no one objected. Also
-> none of the distribution has defaulted to v2 yet, so, not many
-> transparent v2 users yet.
+On 5/21/19 9:37 PM, Dan Williams wrote:
+> On Tue, May 21, 2019 at 2:51 AM Aneesh Kumar K.V
+> <aneesh.kumar@linux.ibm.com> wrote:
 
-In Android we are not using cgroups v2 yet (and that's why I was
-refraining from commenting earlier), however when I was evaluating
-them for future use I was disappointed that events do not propagate up
-the hierarchy. One usecase that I was considering is to get a
-notification when OOM kill happens. With cgroups v2 we would be forced
-to use per-app hierarchy to avoid process migrations between memcgs
-when an app changes its state (background/foreground). With such a
-setup we would end up with many leaf cgroups. Polling each individual
-leaf cgroup's memory.events file to detect OOM occurrence would
-require lots of extra FDs registered with an epoll(). Having an
-ability to poll a common parent cgroup to detect that one of the leafs
-generated an OOM event would be way more frugal.
-I realize this does not constitute a real-life usecase but hopefully
-possible usecases can provide some value too.
-Thanks,
-Suren.
 
-> Shakeel
->
+....
+
+>>
+>> Something like the below (Not tested). I am not sure what we will init the page_size
+>> for minor version < 3. This will mark the namespace disabled if the
+>> PAGE_SIZE and sizeof(struct page) doesn't match with the values used
+>> during namespace create.
+> 
+> Yes, this is on the right track.
+> 
+> I would special-case page_size == 0 as 4096 and page_struct_size == 0
+> as 64. If either of those is non-zero then the info-block version
+> needs to be revved and it needs to be crafted to make older kernels
+> fail to parse it.
+> 
+
+page_size = SZ_4K implies we fail to enable namesepaces created on ppc64 
+till now. We do work fine with page_size = PAGE_SIZE. It is a few error 
+check and pfn_sb->npfns that got wrong values. We do reserve the correct 
+space for the required pfns even when we recorded wrong pfn_sb->npfs.
+
+
+> There was an earlier attempt to implement minimum info-block versions here:
+> 
+> https://lore.kernel.org/lkml/155000670159.348031.17631616775326330606.stgit@dwillia2-desk3.amr.corp.intel.com/
+> 
+> ...but that was dropped in favor of the the "sub-section" patches.
+> 
+
+Ok i will pick that too.
+
+-aneesh
 
