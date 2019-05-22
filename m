@@ -2,263 +2,285 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 076E4C282DE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 19:21:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D033C282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 19:22:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A4F30217F9
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 19:21:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4F6C020644
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 19:22:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="GFshwxVj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4F30217F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="DjBOxER0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F6C020644
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 338EC6B0007; Wed, 22 May 2019 15:21:32 -0400 (EDT)
+	id D978D6B000A; Wed, 22 May 2019 15:22:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2E9496B0008; Wed, 22 May 2019 15:21:32 -0400 (EDT)
+	id D497B6B000C; Wed, 22 May 2019 15:22:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1B17C6B000A; Wed, 22 May 2019 15:21:32 -0400 (EDT)
+	id C37996B000D; Wed, 22 May 2019 15:22:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D620E6B0007
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 15:21:31 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id e69so2234285pgc.7
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 12:21:31 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A36896B000A
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 15:22:22 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id n5so3223851qkf.7
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 12:22:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=NP4JWkHqbCIs5rs8MQbZ/rJv31PHu50+VP85AcMzbbU=;
-        b=ieA7l0nSTbtDJR+W1LTinNovtSiRpv7ge2/i6U8n03IQx42sRIsVnACNBFF99C1NlN
-         9cDXxpo5ueBkCDh1JvfZJ+RVsGye78f3DOM2DswuCT6+HqDN+4x1i1OXujsgmFqRwhip
-         J2x2bmL/9Rvy/hvyayTVm0AAl0nnafatRuHjP754j0wLLTTSXowDtXqWcqvCyVhWZVp6
-         5IfuoihweCVkS4MXdZtMmBQSgZEPcHaW+/b7D5yLyu0KAhGEd64HVykhkt4EGqI5mOG+
-         iVOitLtekhWi8Rv0tcZ7NFc/NYavLkWErhtnnhiCtVvWFuGHubZ6zQguR4FL1+pgzqbm
-         Gppg==
-X-Gm-Message-State: APjAAAVvUv8OQq4LJq7W3tHgCXWojbMIOw9kRhwEc/HdD5L26V+Tsvzh
-	0hK37qqgdRVQPRXacRudtrljGu0nJzkg/05A11xx8Iz5wNbxRLfxz2BPN7G9hwiUyC9RHNYRlds
-	bXKjH1zdwYMgZUxd//47c2kbjqjzpOPUqqCmXBUCWHcpOmcx9ZiCuCPS6lql1o7agFw==
-X-Received: by 2002:a17:902:7896:: with SMTP id q22mr1766561pll.129.1558552891344;
-        Wed, 22 May 2019 12:21:31 -0700 (PDT)
-X-Received: by 2002:a17:902:7896:: with SMTP id q22mr1766496pll.129.1558552890265;
-        Wed, 22 May 2019 12:21:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558552890; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Wp5Bk2EWMnEeaZmBlDupB+bkUiiMoEJBLermtXKU6bE=;
+        b=V6r9Vbtta0tN/AviUhNAwkDsdwBgNqun9qbklTSku4jZntEKNz4Lv856dyj0O7TwdE
+         zxHNnGBb0T3C606zIhqPD4bJ+En78ZNDhbk7TweTUAOt4nwbCbMlrvuo7fOc63o23GPM
+         h9SvYDi/cVmMILMBpTr8CX8Clh5etWd69JUvA4nlJt+j6MYZMcP/yBXqS/ByEANcWuRJ
+         QyhN8Amc2Nu3cGzcvLoXQHAveYWWfZE19aa1GzvMLvnCmYB2G++WVngc66vgE87xehZU
+         huzGeO/NoUwnQLgSfFnaPCQnsFir1ePQz7JkYxRzIMRi2Pmfd6eRYKp4jZS/qIn1yMyh
+         /8fA==
+X-Gm-Message-State: APjAAAWFcSMrhw+xDxkQoMqkU8XmbvX0nzc6pG0WBIxB+3x9oIc5ND/U
+	9M8weaORPC+buyG1U271lArgr9HNDj5ZsipwYcZCYxBpXb0P2mlfVWSCiWDtU1IinDSsCn2cPu4
+	xxUySYt1Cqy60PkAHmhf5tkVZxZtbQUn3kgNoSBveBgvD4VSQy0xO6684NdEUbUWYkg==
+X-Received: by 2002:ac8:188c:: with SMTP id s12mr77662784qtj.9.1558552942329;
+        Wed, 22 May 2019 12:22:22 -0700 (PDT)
+X-Received: by 2002:ac8:188c:: with SMTP id s12mr77662716qtj.9.1558552941441;
+        Wed, 22 May 2019 12:22:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558552941; cv=none;
         d=google.com; s=arc-20160816;
-        b=soy8e6xb+zZ1H/566vIOcE9Zg/rkR+PghiKfnSc2QpmzCdVDhotduCUZXq2TaKkIeO
-         2SWd/fVsC+EflKlelIzzQEuTdw07jSHT1GzlWszesvChe4wNmHLJJkoEn33r7ClIZ8+h
-         ZIGjQ7TuVy6f7kmz423tpJRt5Qn/LRokdpb54BvwJ3/hNdRGELe6+kG4ik/5uP4Iu5CK
-         Pe965PiebCwR4peMslnmVmlyoOrqMnqXcfHv7EYnIM0Ha0vuFr7Vql9qFJLbZLHziMgL
-         FoQbbfNhIRMuAeAo6hlf4BcfWXwatn01BT7j749MOEE3LR8GaP98x8DYexZ85RTjzsO6
-         OT1A==
+        b=0BKRWr9k63AbP7dz3hjGZ1cBtfq/wR2URZivNhrdfQ3uLH6WbZ2wGgaCMZxuIHIuNW
+         oVvXZSFl+fNaOMrwWoD3sAiFeJTza+9Kij0k+5krweUWxWRQBerRh90+uZXUoxuMWMuF
+         HlnvIpIcl3rLXBNj+nc/Hq5sl1mS75wtsNlWHAYhmdnZkO3XfZMfl3w5yh7TmZlwax4L
+         wjQ4YoDp/HBsOmkZ1PHSi08jtyNKaaDIzGBpUdDB5pm4Wj0Rh0HVkuv2CtH7pjKe2dKv
+         MrTdPJ+xt6dK3KYq1r9mAMfw3F9ZYFRYs4dQmx7ft+rH///EtlaSwOPjYtEJDRk1q43I
+         27GQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=NP4JWkHqbCIs5rs8MQbZ/rJv31PHu50+VP85AcMzbbU=;
-        b=f0mPAGqGXRPJBoPZY7vVfxsb7n/uZUbVO6IKgH+uPZYVsHiAPay46t6KZ5u9LfKA0b
-         GXxRxd0NjjfXnLEVzqPSqbDiGznrqHHZ0yMC689JW6iHuhiJMTqyTt1oQ+FNazea+v+j
-         JExuSHLGfvBAKTdGU91gpqdonMmlup3P3iWOara2kRdKNroGbcJUyuhjNWU5zfY+W7NN
-         85b+52axAgYBi3M0XMd+CVCRwcjvtKaYjxzDVjcokm63zhqDhXEtcfy+vBsf6jQB/SRZ
-         3ge85JkdtF7X7PE7Gp3WPco0Ctqy+hsaoGWU15ulwtRH6c39zoJsNdVtK622LDhgc9Kk
-         EnGw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Wp5Bk2EWMnEeaZmBlDupB+bkUiiMoEJBLermtXKU6bE=;
+        b=NQeMuM2LiEvYwAh99ka1Ofkdv6c2PWmDeTAMlfflXAKSp9ARAPps8RdRHtUBPrILAC
+         5Yw1Yb6xoBJCQrysimyzZ3J8VL5GDTtM1m4P9b49CqmFIO37DQkltcnlQZJ7s5aQfKCJ
+         mB/nwsULaa9H3SyGvYFTcm0HP3+Qku1ZAP1hFtE4cpGY6K9kqEQmxb7uzvQskiUxz2tm
+         lglLuFH3ZbkCBMEv8aq+9O6PlggRpi+o+B4xcu3htSjEJCCycbp8HVhQyJZjEkBLzyLw
+         63WJo+vhD0UBmxsm2wF93vKfGim1BJmpAycuYcqfySnzt+uOR2hn/61RJCrM4SqqDUNE
+         beKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=GFshwxVj;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=DjBOxER0;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d12sor27148475pfh.21.2019.05.22.12.21.30
+        by mx.google.com with SMTPS id s30sor7361069qvs.35.2019.05.22.12.22.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 22 May 2019 12:21:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 22 May 2019 12:22:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=GFshwxVj;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=DjBOxER0;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
+        d=ziepe.ca; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=NP4JWkHqbCIs5rs8MQbZ/rJv31PHu50+VP85AcMzbbU=;
-        b=GFshwxVjgFyTBuVsTzhm7IUt1UjnhWPD0MinKNguPB3el83BFNud8bHr5plz3emii+
-         cTc7Cjy2KfiVySMa4vl3S45MUDV6ughBv+eP5o9C9KIg6ntk97RzOYluREumaUsuEfOH
-         SjJgP3hh0ohPvQPPbSdKkfRYeqkQoVWPqO5e4=
-X-Google-Smtp-Source: APXvYqzNjksdiGtBA2K0Yn7lD7hXz0a3WOc+KaCHe5Lfb///NUHl50P+zldmTZ4Tu8MFGQvOw+1qnw==
-X-Received: by 2002:a62:6456:: with SMTP id y83mr32990581pfb.71.1558552889913;
-        Wed, 22 May 2019 12:21:29 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id x10sm37135797pfj.136.2019.05.22.12.21.28
+         :content-disposition:in-reply-to:user-agent;
+        bh=Wp5Bk2EWMnEeaZmBlDupB+bkUiiMoEJBLermtXKU6bE=;
+        b=DjBOxER0Fvao/ulypH3vVJ/oVucLXSjayJw9Nr2jjTeFsa5xgys7H5j6rxAc6a2H6O
+         GINB3tTfFRVU5DHqiEk9ToIuXNIIsysLchZy8dtq0d61lp38rNggWokEJjZiMOO0IWcQ
+         ZtpxojpucG21nS0M6/CyF6elRwRpwbV8x/D5HwHg0aURFUn2YZJBnT20WFHicjrUEIEi
+         8SJ6/NI2P7fpMiNad/xQ2gRoGMa2heaz17S4UpGg3yWlSfxeVpn8ItEJ2Uq1INWKFB9X
+         6EVWxVdLQlMNZ/iSWWVFL7cdp+xN8WFIAUNn/X+d6XeMokIIeD19FoDBQNj5MFOxLDKM
+         pGUg==
+X-Google-Smtp-Source: APXvYqzmD5P4HTxWxqgxqvxyUOxZzdUj2GNpERtvq7g9PrGtnyoDI6LEXT/0uPV4kfzJKGrM8nd/fQ==
+X-Received: by 2002:a0c:98a3:: with SMTP id f32mr73188614qvd.207.1558552941002;
+        Wed, 22 May 2019 12:22:21 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-49-251.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.49.251])
+        by smtp.gmail.com with ESMTPSA id p10sm742262qke.65.2019.05.22.12.22.19
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 22 May 2019 12:21:28 -0700 (PDT)
-Date: Wed, 22 May 2019 12:21:27 -0700
-From: Kees Cook <keescook@chromium.org>
-To: enh <enh@google.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
-	Evgenii Stepanov <eugenis@google.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
-Message-ID: <201905221157.A9BAB1F296@keescook>
-References: <cover.1557160186.git.andreyknvl@google.com>
- <20190517144931.GA56186@arrakis.emea.arm.com>
- <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
- <20190521182932.sm4vxweuwo5ermyd@mbp>
- <201905211633.6C0BF0C2@keescook>
- <20190522101110.m2stmpaj7seezveq@mbp>
- <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
+        Wed, 22 May 2019 12:22:20 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hTWod-0005iN-Ir; Wed, 22 May 2019 16:22:19 -0300
+Date: Wed, 22 May 2019 16:22:19 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-rdma@vger.kernel.org,
+	Leon Romanovsky <leonro@mellanox.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Artemy Kovalyov <artemyko@mellanox.com>,
+	Moni Shoua <monis@mellanox.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Kaike Wan <kaike.wan@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	linux-mm@kvack.org
+Subject: Re: [PATCH v4 0/1] Use HMM for ODP v4
+Message-ID: <20190522192219.GF6054@ziepe.ca>
+References: <20190411181314.19465-1-jglisse@redhat.com>
+ <20190506195657.GA30261@ziepe.ca>
+ <20190521205321.GC3331@redhat.com>
+ <20190522005225.GA30819@ziepe.ca>
+ <20190522174852.GA23038@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
+In-Reply-To: <20190522174852.GA23038@redhat.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 22, 2019 at 08:30:21AM -0700, enh wrote:
-> On Wed, May 22, 2019 at 3:11 AM Catalin Marinas <catalin.marinas@arm.com> wrote:
-> > On Tue, May 21, 2019 at 05:04:39PM -0700, Kees Cook wrote:
-> > > I just want to make sure I fully understand your concern about this
-> > > being an ABI break, and I work best with examples. The closest situation
-> > > I can see would be:
-> > >
-> > > - some program has no idea about MTE
-> >
-> > Apart from some libraries like libc (and maybe those that handle
-> > specific device ioctls), I think most programs should have no idea about
-> > MTE. I wouldn't expect programmers to have to change their app just
-> > because we have a new feature that colours heap allocations.
+On Wed, May 22, 2019 at 01:48:52PM -0400, Jerome Glisse wrote:
 
-Right -- things should Just Work from the application perspective.
-
-> obviously i'm biased as a libc maintainer, but...
+> > > +long ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp,
+> > > +			       struct hmm_range *range)
+> > >  {
+> > > +	struct device *device = umem_odp->umem.context->device->dma_device;
+> > > +	struct ib_ucontext_per_mm *per_mm = umem_odp->per_mm;
+> > >  	struct ib_umem *umem = &umem_odp->umem;
+> > > -	struct task_struct *owning_process  = NULL;
+> > > -	struct mm_struct *owning_mm = umem_odp->umem.owning_mm;
+> > > -	struct page       **local_page_list = NULL;
+> > > -	u64 page_mask, off;
+> > > -	int j, k, ret = 0, start_idx, npages = 0, page_shift;
+> > > -	unsigned int flags = 0;
+> > > -	phys_addr_t p = 0;
+> > > -
+> > > -	if (access_mask == 0)
+> > > +	struct mm_struct *mm = per_mm->mm;
+> > > +	unsigned long idx, npages;
+> > > +	long ret;
+> > > +
+> > > +	if (mm == NULL)
+> > > +		return -ENOENT;
+> > > +
+> > > +	/* Only drivers with invalidate support can use this function. */
+> > > +	if (!umem->context->invalidate_range)
+> > >  		return -EINVAL;
+> > >  
+> > > -	if (user_virt < ib_umem_start(umem) ||
+> > > -	    user_virt + bcnt > ib_umem_end(umem))
+> > > -		return -EFAULT;
+> > > +	/* Sanity checks. */
+> > > +	if (range->default_flags == 0)
+> > > +		return -EINVAL;
+> > >  
+> > > -	local_page_list = (struct page **)__get_free_page(GFP_KERNEL);
+> > > -	if (!local_page_list)
+> > > -		return -ENOMEM;
+> > > +	if (range->start < ib_umem_start(umem) ||
+> > > +	    range->end > ib_umem_end(umem))
+> > > +		return -EINVAL;
+> > >  
+> > > -	page_shift = umem->page_shift;
+> > > -	page_mask = ~(BIT(page_shift) - 1);
+> > > -	off = user_virt & (~page_mask);
+> > > -	user_virt = user_virt & page_mask;
+> > > -	bcnt += off; /* Charge for the first page offset as well. */
+> > > +	idx = (range->start - ib_umem_start(umem)) >> umem->page_shift;
+> > 
+> > Is this math OK? What is supposed to happen if the range->start is not
+> > page aligned to the internal page size?
 > 
-> i don't think it helps to move this to libc --- now you just have an
-> extra dependency where to have a guaranteed working system you need to
-> update your kernel and libc together. (or at least update your libc to
-> understand new ioctls etc _before_ you can update your kernel.)
+> range->start is align on 1 << page_shift boundary within pagefault_mr
+> thus the above math is ok. We can add a BUG_ON() and comments if you
+> want.
 
-I think (hope?) we've all agreed that we shouldn't pass this off to
-userspace. At the very least, it reduces the utility of MTE, and at worst
-it complicates userspace when this is clearly a kernel/architecture issue.
+OK
 
+> > > +	range->pfns = &umem_odp->pfns[idx];
+> > > +	range->pfn_shift = ODP_FLAGS_BITS;
+> > > +	range->values = odp_hmm_values;
+> > > +	range->flags = odp_hmm_flags;
+> > >  
+> > >  	/*
+> > > -	 * owning_process is allowed to be NULL, this means somehow the mm is
+> > > -	 * existing beyond the lifetime of the originating process.. Presumably
+> > > -	 * mmget_not_zero will fail in this case.
+> > > +	 * If mm is dying just bail out early without trying to take mmap_sem.
+> > > +	 * Note that this might race with mm destruction but that is fine the
+> > > +	 * is properly refcounted so are all HMM structure.
+> > >  	 */
+> > > -	owning_process = get_pid_task(umem_odp->per_mm->tgid, PIDTYPE_PID);
+> > > -	if (!owning_process || !mmget_not_zero(owning_mm)) {
+> > 
+> > But we are not in a HMM context here, and per_mm is not a HMM
+> > structure. 
+> > 
+> > So why is mm suddenly guarenteed valid? It was a bug report that
+> > triggered the race the mmget_not_zero is fixing, so I need a better
+> > explanation why it is now safe. From what I see the hmm_range_fault
+> > is doing stuff like find_vma without an active mmget??
 > 
-> > > - malloc() starts returning MTE-tagged addresses
-> > > - program doesn't break from that change
-> > > - program uses some syscall that is missing untagged_addr() and fails
-> > > - kernel has now broken userspace that used to work
-> >
-> > That's one aspect though probably more of a case of plugging in a new
-> > device (graphics card, network etc.) and the ioctl to the new device
-> > doesn't work.
+> So the mm struct can not go away as long as we hold a reference on
+> the hmm struct and we hold a reference on it through both hmm_mirror
+> and hmm_range struct. So struct mm can not go away and thus it is
+> safe to try to take its mmap_sem.
 
-I think MTE will likely be rather like NX/PXN and SMAP/PAN: there will
-be glitches, and we can disable stuff either via CONFIG or (as is more
-common now) via a kernel commandline with untagged_addr() containing a
-static branch, etc. But I actually don't think we need to go this route
-(see below...)
+This was always true here, though, so long as the umem_odp exists the
+the mm has a grab on it. But a grab is not a get..
 
-> > The other is that, assuming we reach a point where the kernel entirely
-> > supports this relaxed ABI, can we guarantee that it won't break in the
-> > future. Let's say some subsequent kernel change (some refactoring)
-> > misses out an untagged_addr(). This renders a previously TBI/MTE-capable
-> > syscall unusable. Can we rely only on testing?
-> >
-> > > The trouble I see with this is that it is largely theoretical and
-> > > requires part of userspace to collude to start using a new CPU feature
-> > > that tickles a bug in the kernel. As I understand the golden rule,
-> > > this is a bug in the kernel (a missed ioctl() or such) to be fixed,
-> > > not a global breaking of some userspace behavior.
-> >
-> > Yes, we should follow the rule that it's a kernel bug but it doesn't
-> > help the user that a newly installed kernel causes user space to no
-> > longer reach a prompt. Hence the proposal of an opt-in via personality
-> > (for MTE we would need an explicit opt-in by the user anyway since the
-> > top byte is no longer ignored but checked against the allocation tag).
+The point here was the old code needed an mmget() in order to do
+get_user_pages_remote()
+
+If hmm does not need an external mmget() then fine, we delete this
+stuff and rely on hmm.
+
+But I don't think that is true as we have:
+
+          CPU 0                                           CPU1
+                                                       mmput()
+                       				        __mmput()
+							 exit_mmap()
+down_read(&mm->mmap_sem);
+hmm_range_dma_map(range, device,..
+  ret = hmm_range_fault(range, block);
+     if (hmm->mm == NULL || hmm->dead)
+							   mmu_notifier_release()
+							     hmm->dead = true
+     vma = find_vma(hmm->mm, start);
+        .. rb traversal ..                                 while (vma) remove_vma()
+
+*goes boom*
+
+I think this is violating the basic constraint of the mm by acting on
+a mm's VMA's without holding a mmget() to prevent concurrent
+destruction.
+
+In other words, mmput() destruction does not respect the mmap_sem - so
+holding the mmap sem alone is not enough locking.
+
+The unlucked hmm->dead simply can't save this. Frankly every time I
+look a struct with 'dead' in it, I find races like this.
+
+Thus we should put the mmget_notzero back in.
+
+I saw some other funky looking stuff in hmm as well..
+
+> Hence it is safe to take mmap_sem and it is safe to call in hmm, if
+> mm have been kill it will return EFAULT and this will propagate to
+> RDMA.
+ 
+> As per_mm i removed the per_mm->mm = NULL from release so that it is
+> always safe to use that field even in face of racing mm "killing".
+
+Yes, that certainly wasn't good.
+
+> > > -	 * An array of the pages included in the on-demand paging umem.
+> > > -	 * Indices of pages that are currently not mapped into the device will
+> > > -	 * contain NULL.
+> > > +	 * An array of the pages included in the on-demand paging umem. Indices
+> > > +	 * of pages that are currently not mapped into the device will contain
+> > > +	 * 0.
+> > >  	 */
+> > > -	struct page		**page_list;
+> > > +	uint64_t *pfns;
+> > 
+> > Are these actually pfns, or are they mangled with some shift? (what is range->pfn_shift?)
 > 
-> but realistically would this actually get used in this way? or would
-> any given system either be MTE or non-MTE. in which case a kernel
-> configuration option would seem to make more sense. (because either
-> way, the hypothetical user basically needs to recompile the kernel to
-> get back on their feet. or all of userspace.)
+> They are not pfns they have flags (hence range->pfn_shift) at the
+> bottoms i just do not have a better name for this.
 
-Right: the point is to design things so that we do our best to not break
-userspace that is using the new feature (which I think this series has
-done well). But supporting MTE/TBI is just like supporting PAN: if someone
-refactors a driver and swaps a copy_from_user() to a memcpy(), it's going
-to break under PAN. There will be the same long tail of these bugs like
-any other, but my sense is that they are small and rare. But I agree:
-they're going to be pretty weird bugs to track down. The final result,
-however, will be excellent annotation in the kernel for where userspace
-addresses get used and people make assumptions about them.
+I think you need to have a better name then
 
-The sooner we get the series landed and gain QEMU support (or real
-hardware), the faster we can hammer out these missed corner-cases.
-What's the timeline for either of those things, BTW?
-
-> > > I feel like I'm missing something about this being seen as an ABI
-> > > break. The kernel already fails on userspace addresses that have high
-> > > bits set -- are there things that _depend_ on this failure to operate?
-> >
-> > It's about providing a relaxed ABI which allows non-zero top byte and
-> > breaking it later inadvertently without having something better in place
-> > to analyse the kernel changes.
-
-It sounds like the question is how to switch a process in or out of this
-ABI (but I don't think that's the real issue: I think it's just a matter
-of whether or not a process uses tags at all). Doing it at the prctl()
-level doesn't make sense to me, except maybe to detect MTE support or
-something. ("Should I tag allocations?") And that state is controlled
-by the kernel: the kernel does it or it doesn't.
-
-If a process wants to not tag, that's also up to the allocator where
-it can decide not to ask the kernel, and just not tag. Nothing breaks in
-userspace if a process is NOT tagging and untagged_addr() exists or is
-missing. This, I think, is the core way this doesn't trip over the
-golden rule: an old system image will run fine (because it's not
-tagging). A *new* system may encounter bugs with tagging because it's a
-new feature: this is The Way Of Things. But we don't break old userspace
-because old userspace isn't using tags.
-
-So the agreement appears to be between the kernel and the allocator.
-Kernel says "I support this" or not. Telling the allocator to not tag if
-something breaks sounds like an entirely userspace decision, yes?
-
--- 
-Kees Cook
+Jason
 
