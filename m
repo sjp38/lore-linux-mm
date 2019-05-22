@@ -2,222 +2,314 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F19BC282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 13:13:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E6076C282DC
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 13:16:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 49FD82089E
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 13:13:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49FD82089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 8EDD12089E
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 13:16:50 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="j1wHqu8A"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EDD12089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9CA2B6B0005; Wed, 22 May 2019 09:13:25 -0400 (EDT)
+	id 24CB06B0005; Wed, 22 May 2019 09:16:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 97A6F6B0006; Wed, 22 May 2019 09:13:25 -0400 (EDT)
+	id 1FDF96B0006; Wed, 22 May 2019 09:16:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8696F6B0007; Wed, 22 May 2019 09:13:25 -0400 (EDT)
+	id 0ED3C6B0007; Wed, 22 May 2019 09:16:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 509196B0005
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 09:13:25 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id l16so1696299pfb.23
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 06:13:25 -0700 (PDT)
+Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E02686B0005
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 09:16:49 -0400 (EDT)
+Received: by mail-vk1-f198.google.com with SMTP id z6so897670vkd.12
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 06:16:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=kGK0iQlMWO4IbFk+7rjm6MV4NCzkZ7FumGYF9xcfo30=;
-        b=TLUqUlLnIGMDMufIOLX5og7leCFjKvPRKotlVs42Gbq8vCQcAgLC/2+6rVUNT+Gq/Y
-         +WHWsZN43Ngz/8yoD2xaJqGNyu7cWGc1afySLKjT1sZzn/VtB2bgCoViqagMyRL9kCrX
-         cOxpm8ZrqbReLaIFIjOVmziDpyhbsZYzS80ugUx4XIdHD3Sil5F1JgHKM/UUoJhppfeB
-         +/snAy0jBdg/gZjMQmmonK4tgT8qmhP1oFE0atvWvLSUiJvnqi4BQWMUFJcLDQe5USTK
-         7uDQb1v4MOcum3Tuuw02AfvtijfgAqzo7iRg7Svc4imrwZjtj1PWGDmMfSaXCPiBfK4r
-         5ghQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAW+ruIgGGSdiTbNo+L5xu6l0gQ0bf0QCQJ10jhqVZC2+XlsIPQj
-	sDDqacdkycvXBPULkwxsRTEccEm9P/8zmRw89aCQn8B1/L2x1O+7GVfdbCf0eAvyiqGprKInjPl
-	sJm3wZh4igL3huawi/P7aQ7oPdBzpV18q2AzHLp8+WnfsNMFBF+X83XF1mMfhuxFASg==
-X-Received: by 2002:a63:eb56:: with SMTP id b22mr5621776pgk.81.1558530804881;
-        Wed, 22 May 2019 06:13:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz1S9lJ9x3pSa2ueUoCwBXplBdik76k34yoyLHudRST2lBt+5EsDy4Sq7OM+j3qXCP8vnSJ
-X-Received: by 2002:a63:eb56:: with SMTP id b22mr5621685pgk.81.1558530803805;
-        Wed, 22 May 2019 06:13:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558530803; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=Q9WDMTISxSbXUvo3thAxC/8/26mhSvfk+H8gY5FC7Rw=;
+        b=P2l+5lwZYGmOpVHtqxgX4gDIapoPPB9vFHz5+mSTUIvL3WfA+BESH7D5AB6axtt4mA
+         cUyf6EiVodnlllikOVFFOa1mFK6m6MacF2+gpiTXGFLln7yqwPPNY4DLRizCYrc8iErJ
+         L9Cu43NrJGbiTZ136C8R7/UljDCMrGct2pQRp83Cp2L0DYMRcQ4L0s9Llz9JFczR+XHN
+         JFFjE/6hFMQ0r8nqSCQRSUjTvgjirPKha2PExCB+zQUrncFNjpGra2UAYml7jDTtQ84l
+         q6I46oBj61mSh2vGRYM+3atJjtWgFC2Rex9pSww85jpk7WYf2Txo1X7TsJ7KjE4kPnjP
+         SUkg==
+X-Gm-Message-State: APjAAAUam4L9jvlwbCjYh9oxMXlDYtdkpG5ZaXUgRUeYH04PYYsfr5pa
+	QRccILFppxafVovOOEfsQx8RnURQ53zWZcJFb4YHKNf+I3Kqdpi2LNV1nltuR0Q/Yah6icO7Aph
+	Vz79Qyc7NrBZyI0Pi0JKtDdTS9+v0r7IDjE4vXo7WPrZ86Ye2DnS1It3NpCCBmY+d7g==
+X-Received: by 2002:ab0:806:: with SMTP id a6mr9676736uaf.10.1558531009462;
+        Wed, 22 May 2019 06:16:49 -0700 (PDT)
+X-Received: by 2002:ab0:806:: with SMTP id a6mr9676675uaf.10.1558531008440;
+        Wed, 22 May 2019 06:16:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558531008; cv=none;
         d=google.com; s=arc-20160816;
-        b=n7bCVhrahcHjaEnkAmOvQsUX+dmHJrw3NXjxP8fTmrpFIqKjtP5CTG8pP3QiY2runY
-         vZj1c+9rmTYO9Yqsho1cWMpvxKOM2hO/gu4jRJbv10w/OjxkctB3Orfo1JxU44GMmaoC
-         ixpv+A7WGOys7AbyN4/MS8PI915YPfkhqtiXfKfUDV3gdeZEqMGxL/I9cUuJ51YneYYV
-         jsME81UaWJIP6DqNzE08U8Zs0XaGbuavXtTe7PsQ2uil2i2reyMQ9scaxZNNxDogsHVt
-         TDuMmnApx5zYNUaCk4+He/DD66pyPCOeei6O1cSxzV77u6Wqw/FATsKJN8tAj4ifuyDI
-         dDfQ==
+        b=B5zMAfGOQQw7iMbDeg44f3q1Vz31sbcslYmBcy4tK5OLWCOk7b9Wg9faa1IxnvgqtL
+         qYHDNQ7kYddTgaQqNELaFzZVfeEtpp+A2MdWLztAhuOpo2bTtycfhzXgE+qkEdEcoX6r
+         jtCiD7Vln62QTDEoEpviFhOxKUGQPawJwwUnQmXvdDcCYBtwrbqm5nS7ArsBywtA9RGE
+         ZNANewR6dffg4vXgYJ6DLpm3yu0NXpeooF6BbMYjLO3gluNS/AmBkvBKQ9sSIcVbrakw
+         EBJniqBqxhHSMXM6gjbKruruqOpm4SBfX0nvt4xtISHcsScQjyFtCKshlTIjLzgn85Pz
+         mBEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=kGK0iQlMWO4IbFk+7rjm6MV4NCzkZ7FumGYF9xcfo30=;
-        b=xkD4ychijjjlRXWs11evxvqp3YwlObb+7wm3zYrw29T5Ie/opzvL793y6rG9QuDph4
-         4KSptPvH39n4dhxlbGxYvFNs2lmbWfzHrhM4TOYSdDPaBEXXzjtUM4hIPPGkI3CPNBP6
-         5Z5OHVw33vhN+fzacItpSZ8UXAndqT02tsPJHFo+jMtC4G0i0INM0CDedYg1AY6rV0UM
-         8m3csN2ScyekFxy24+xYtLr30M9kqOB5S7YG4hMOsRmmYE8CveB9B0HigyKSApRZvaBn
-         +yj9zMmVNcJqru7egOkrOf/yH6CpWYw63ri9Rv7b6nUBpyzKgCjSfo6luBaw32UpS4RO
-         mAdg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=Q9WDMTISxSbXUvo3thAxC/8/26mhSvfk+H8gY5FC7Rw=;
+        b=PY2HUBV93opiaGQ15c+FUZjq2YUJ8RV5ATzYe3WyaQCiUNSzdvxj8lZY/5HX3FhaZ1
+         hsQl2AojTIeE23iklEUAj9RJZr/AhXmJrJKULiSD/ZiyrA8rW8KBWocXi2ZH1maC9Goi
+         Amq5U/vjNevlAOVNL9qkKiajFJ7rJA2l3hCZNAdEvnyba74fYE1lt+aCYyDjsvINOybJ
+         wKeWHipaXxy/skuwChvs5LzaM9uhZ96bRXX14Ojuwrtr715wsey7MmZqiHHMjU9R3jPz
+         vmWtpDCy8DgH/XEi0s0p17GNOQq3K6xAcztOR9m7nqd6yWtsRcAg0hU6JYDSsvFK4xdG
+         JBdA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id p16si8324142plo.310.2019.05.22.06.13.23
+       dkim=pass header.i=@google.com header.s=20161025 header.b=j1wHqu8A;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y128sor11072508vsc.54.2019.05.22.06.16.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 06:13:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (Google Transport Security);
+        Wed, 22 May 2019 06:16:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4MDDKjO074000
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 09:13:21 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2sn5qfuuba-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 09:12:28 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Wed, 22 May 2019 14:12:26 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 22 May 2019 14:12:23 +0100
-Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4MDCMti56098848
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 22 May 2019 13:12:22 GMT
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 21C1A42041;
-	Wed, 22 May 2019 13:12:22 +0000 (GMT)
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id C9F3D42045;
-	Wed, 22 May 2019 13:12:20 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.199.57.94])
-	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Wed, 22 May 2019 13:12:20 +0000 (GMT)
-X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: Dan Williams <dan.j.williams@intel.com>,
-        Keith Busch <keith.busch@intel.com>
-Cc: Linux MM <linux-mm@kvack.org>,
-        linuxppc-dev <linuxppc-dev@lists.ozlabs.org>,
-        linux-nvdimm <linux-nvdimm@lists.01.org>
-Subject: Re: [RFC PATCH] mm/nvdimm: Fix kernel crash on devm_mremap_pages_release
-In-Reply-To: <b775d65b-30e3-aceb-f2f8-f2413b129f52@linux.ibm.com>
-References: <20190514025354.9108-1-aneesh.kumar@linux.ibm.com> <CAPcyv4hsTvyRnLGr3y4JB6zPzdxb7WGQgaWs=5vRqf=L1DYynQ@mail.gmail.com> <b775d65b-30e3-aceb-f2f8-f2413b129f52@linux.ibm.com>
-Date: Wed, 22 May 2019 18:42:19 +0530
+       dkim=pass header.i=@google.com header.s=20161025 header.b=j1wHqu8A;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=Q9WDMTISxSbXUvo3thAxC/8/26mhSvfk+H8gY5FC7Rw=;
+        b=j1wHqu8AOIn/TdK3Y0IuY6mHEhzfNgXhLIR1I14fCixzhZjP6kl68f73pag/2NfvhJ
+         QaIDM+gBSbg8soVYGbOTRuSkxKYjpmsZ8o4QlENBPNpnIRB9eTtvwphEmF/eMo8DZ56b
+         Fci3tFn/bm7JUAnW7d6CfEA/MinkOSOxXlfquk8mzB4/r6mJTLM0Oda2Kil51koQZo7v
+         5sEsat+7aleE+x9ALHMt/mZ/HY7/Ogph5D+X6AqjjyN8X8Up9gA+IEkNCeLZe/fTgfIp
+         eoaLwqWqwzHgGiC5chmeGfemsRNG0G6u1o2A+TxPXm1FJpGSJN4LuLq9pd0m0VZlhc6Q
+         ouwQ==
+X-Google-Smtp-Source: APXvYqxFBOllyAKPLvt3Dkg6wZYZywBpcF5mzFj9Itr4aFvtSRh3etdyk2e7hSUxEx+v1RN+KkqaTfbiVtly9yN1HqA=
+X-Received: by 2002:a67:1485:: with SMTP id 127mr14620677vsu.77.1558531007677;
+ Wed, 22 May 2019 06:16:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19052213-4275-0000-0000-000003376C43
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19052213-4276-0000-0000-00003847052A
-Message-Id: <875zq2k4zw.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-22_06:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905220095
+References: <20190520035254.57579-1-minchan@kernel.org> <20190521084158.s5wwjgewexjzrsm6@brauner.io>
+ <20190521110552.GG219653@google.com> <20190521113029.76iopljdicymghvq@brauner.io>
+ <20190521113911.2rypoh7uniuri2bj@brauner.io> <CAKOZuesjDcD3EM4PS7aO7yTa3KZ=FEzMP63MR0aEph4iW1NCYQ@mail.gmail.com>
+ <CAHrFyr6iuoZ-r6e57zp1rz7b=Ee0Vko+syuUKW2an+TkAEz_iA@mail.gmail.com>
+In-Reply-To: <CAHrFyr6iuoZ-r6e57zp1rz7b=Ee0Vko+syuUKW2an+TkAEz_iA@mail.gmail.com>
+From: Daniel Colascione <dancol@google.com>
+Date: Wed, 22 May 2019 06:16:35 -0700
+Message-ID: <CAKOZueupb10vmm-bmL0j_b__qsC9ZrzhzHgpGhwPVUrfX0X-Og@mail.gmail.com>
+Subject: Re: [RFC 0/7] introduce memory hinting API for external process
+To: Christian Brauner <christian@brauner.io>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Murray <timmurray@google.com>, 
+	Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>, 
+	Brian Geffon <bgeffon@google.com>, Jann Horn <jannh@google.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
+On Wed, May 22, 2019 at 1:22 AM Christian Brauner <christian@brauner.io> wr=
+ote:
+>
+> On Wed, May 22, 2019 at 7:12 AM Daniel Colascione <dancol@google.com> wro=
+te:
+> >
+> > On Tue, May 21, 2019 at 4:39 AM Christian Brauner <christian@brauner.io=
+> wrote:
+> > >
+> > > On Tue, May 21, 2019 at 01:30:29PM +0200, Christian Brauner wrote:
+> > > > On Tue, May 21, 2019 at 08:05:52PM +0900, Minchan Kim wrote:
+> > > > > On Tue, May 21, 2019 at 10:42:00AM +0200, Christian Brauner wrote=
+:
+> > > > > > On Mon, May 20, 2019 at 12:52:47PM +0900, Minchan Kim wrote:
+> > > > > > > - Background
+> > > > > > >
+> > > > > > > The Android terminology used for forking a new process and st=
+arting an app
+> > > > > > > from scratch is a cold start, while resuming an existing app =
+is a hot start.
+> > > > > > > While we continually try to improve the performance of cold s=
+tarts, hot
+> > > > > > > starts will always be significantly less power hungry as well=
+ as faster so
+> > > > > > > we are trying to make hot start more likely than cold start.
+> > > > > > >
+> > > > > > > To increase hot start, Android userspace manages the order th=
+at apps should
+> > > > > > > be killed in a process called ActivityManagerService. Activit=
+yManagerService
+> > > > > > > tracks every Android app or service that the user could be in=
+teracting with
+> > > > > > > at any time and translates that into a ranked list for lmkd(l=
+ow memory
+> > > > > > > killer daemon). They are likely to be killed by lmkd if the s=
+ystem has to
+> > > > > > > reclaim memory. In that sense they are similar to entries in =
+any other cache.
+> > > > > > > Those apps are kept alive for opportunistic performance impro=
+vements but
+> > > > > > > those performance improvements will vary based on the memory =
+requirements of
+> > > > > > > individual workloads.
+> > > > > > >
+> > > > > > > - Problem
+> > > > > > >
+> > > > > > > Naturally, cached apps were dominant consumers of memory on t=
+he system.
+> > > > > > > However, they were not significant consumers of swap even tho=
+ugh they are
+> > > > > > > good candidate for swap. Under investigation, swapping out on=
+ly begins
+> > > > > > > once the low zone watermark is hit and kswapd wakes up, but t=
+he overall
+> > > > > > > allocation rate in the system might trip lmkd thresholds and =
+cause a cached
+> > > > > > > process to be killed(we measured performance swapping out vs.=
+ zapping the
+> > > > > > > memory by killing a process. Unsurprisingly, zapping is 10x t=
+imes faster
+> > > > > > > even though we use zram which is much faster than real storag=
+e) so kill
+> > > > > > > from lmkd will often satisfy the high zone watermark, resulti=
+ng in very
+> > > > > > > few pages actually being moved to swap.
+> > > > > > >
+> > > > > > > - Approach
+> > > > > > >
+> > > > > > > The approach we chose was to use a new interface to allow use=
+rspace to
+> > > > > > > proactively reclaim entire processes by leveraging platform i=
+nformation.
+> > > > > > > This allowed us to bypass the inaccuracy of the kernel=E2=80=
+=99s LRUs for pages
+> > > > > > > that are known to be cold from userspace and to avoid races w=
+ith lmkd
+> > > > > > > by reclaiming apps as soon as they entered the cached state. =
+Additionally,
+> > > > > > > it could provide many chances for platform to use much inform=
+ation to
+> > > > > > > optimize memory efficiency.
+> > > > > > >
+> > > > > > > IMHO we should spell it out that this patchset complements MA=
+DV_WONTNEED
+> > > > > > > and MADV_FREE by adding non-destructive ways to gain some fre=
+e memory
+> > > > > > > space. MADV_COLD is similar to MADV_WONTNEED in a way that it=
+ hints the
+> > > > > > > kernel that memory region is not currently needed and should =
+be reclaimed
+> > > > > > > immediately; MADV_COOL is similar to MADV_FREE in a way that =
+it hints the
+> > > > > > > kernel that memory region is not currently needed and should =
+be reclaimed
+> > > > > > > when memory pressure rises.
+> > > > > > >
+> > > > > > > To achieve the goal, the patchset introduce two new options f=
+or madvise.
+> > > > > > > One is MADV_COOL which will deactive activated pages and the =
+other is
+> > > > > > > MADV_COLD which will reclaim private pages instantly. These n=
+ew options
+> > > > > > > complement MADV_DONTNEED and MADV_FREE by adding non-destruct=
+ive ways to
+> > > > > > > gain some free memory space. MADV_COLD is similar to MADV_DON=
+TNEED in a way
+> > > > > > > that it hints the kernel that memory region is not currently =
+needed and
+> > > > > > > should be reclaimed immediately; MADV_COOL is similar to MADV=
+_FREE in a way
+> > > > > > > that it hints the kernel that memory region is not currently =
+needed and
+> > > > > > > should be reclaimed when memory pressure rises.
+> > > > > > >
+> > > > > > > This approach is similar in spirit to madvise(MADV_WONTNEED),=
+ but the
+> > > > > > > information required to make the reclaim decision is not know=
+n to the app.
+> > > > > > > Instead, it is known to a centralized userspace daemon, and t=
+hat daemon
+> > > > > > > must be able to initiate reclaim on its own without any app i=
+nvolvement.
+> > > > > > > To solve the concern, this patch introduces new syscall -
+> > > > > > >
+> > > > > > >         struct pr_madvise_param {
+> > > > > > >                 int size;
+> > > > > > >                 const struct iovec *vec;
+> > > > > > >         }
+> > > > > > >
+> > > > > > >         int process_madvise(int pidfd, ssize_t nr_elem, int *=
+behavior,
+> > > > > > >                                 struct pr_madvise_param *rest=
+uls,
+> > > > > > >                                 struct pr_madvise_param *rang=
+es,
+> > > > > > >                                 unsigned long flags);
+> > > > > > >
+> > > > > > > The syscall get pidfd to give hints to external process and p=
+rovides
+> > > > > > > pair of result/ranges vector arguments so that it could give =
+several
+> > > > > > > hints to each address range all at once.
+> > > > > > >
+> > > > > > > I guess others have different ideas about the naming of sysca=
+ll and options
+> > > > > > > so feel free to suggest better naming.
+> > > > > >
+> > > > > > Yes, all new syscalls making use of pidfds should be named
+> > > > > > pidfd_<action>. So please make this pidfd_madvise.
+> > > > >
+> > > > > I don't have any particular preference but just wondering why pid=
+fd is
+> > > > > so special to have it as prefix of system call name.
+> > > >
+> > > > It's a whole new API to address processes. We already have
+> > > > clone(CLONE_PIDFD) and pidfd_send_signal() as you have seen since y=
+ou
+> > > > exported pidfd_to_pid(). And we're going to have pidfd_open(). Your
+> > > > syscall works only with pidfds so it's tied to this api as well so =
+it
+> > > > should follow the naming scheme. This also makes life easier for
+> > > > userspace and is consistent.
+> > >
+> > > This is at least my reasoning. I'm not going to make this a whole big
+> > > pedantic argument. If people have really strong feelings about not us=
+ing
+> > > this prefix then fine. But if syscalls can be grouped together and ha=
+ve
+> > > consistent naming this is always a big plus.
+> >
+> > My hope has been that pidfd use becomes normalized enough that
+> > prefixing "pidfd_" to pidfd-accepting system calls becomes redundant.
+> > We write write(), not fd_write(), right? :-) pidfd_open() makes sense
+> > because the primary purpose of this system call is to operate on a
+> > pidfd, but I think process_madvise() is fine.
+>
+> This madvise syscall just operates on pidfds. It would make sense to
+> name it process_madvise() if were to operate both on pid_t and int pidfd.
 
-> On 5/14/19 9:45 AM, Dan Williams wrote:
->> [ add Keith who was looking at something similar ]
->> 
+The name of the function ought to encode its purpose, not its
+signature. The system call under discussion operates on processes and
+so should be called "process_madvise". That this system call happens
+to accept a pidfd to identify the process on which it operates is not
+its most interesting aspect of the system call. The argument type
+isn't important enough to spotlight in the permanent name of an API.
+Pidfds are novel now, but they won't be novel in the future.
 
-...
+> Giving specific names to system calls won't stop it from becoming
+> normalized.
 
->>
->> If it's reserved then we should not be accessing, even if the above
->> works in practice. Isn't the fix something more like this to fix up
->> the assumptions at release time?
->> 
->> diff --git a/kernel/memremap.c b/kernel/memremap.c
->> index a856cb5ff192..9074ba14572c 100644
->> --- a/kernel/memremap.c
->> +++ b/kernel/memremap.c
->> @@ -90,6 +90,7 @@ static void devm_memremap_pages_release(void *data)
->>    struct device *dev = pgmap->dev;
->>    struct resource *res = &pgmap->res;
->>    resource_size_t align_start, align_size;
->> + struct vmem_altmap *altmap = pgmap->altmap_valid ? &pgmap->altmap : NULL;
->>    unsigned long pfn;
->>    int nid;
->> 
->> @@ -102,7 +103,10 @@ static void devm_memremap_pages_release(void *data)
->>    align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
->>    - align_start;
->> 
->> - nid = page_to_nid(pfn_to_page(align_start >> PAGE_SHIFT));
->> + pfn = align_start >> PAGE_SHIFT;
->> + if (altmap)
->> + pfn += vmem_altmap_offset(altmap);
->> + nid = page_to_nid(pfn_to_page(pfn));
->> 
->>    mem_hotplug_begin();
->>    if (pgmap->type == MEMORY_DEVICE_PRIVATE) {
->> @@ -110,8 +114,7 @@ static void devm_memremap_pages_release(void *data)
->>    __remove_pages(page_zone(pfn_to_page(pfn)), pfn,
->>    align_size >> PAGE_SHIFT, NULL);
->>    } else {
->> - arch_remove_memory(nid, align_start, align_size,
->> - pgmap->altmap_valid ? &pgmap->altmap : NULL);
->> + arch_remove_memory(nid, align_start, align_size, altmap);
->>    kasan_remove_zero_shadow(__va(align_start), align_size);
->>    }
->>    mem_hotplug_done();
->> 
-> I did try that first. I was not sure about that. From the memory add vs 
-> remove perspective.
->
-> devm_memremap_pages:
->
-> align_start = res->start & ~(SECTION_SIZE - 1);
-> align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
-> 		- align_start;
-> align_end = align_start + align_size - 1;
->
-> error = arch_add_memory(nid, align_start, align_size, altmap,
-> 				false);
->
->
-> devm_memremap_pages_release:
->
-> /* pages are dead and unused, undo the arch mapping */
-> align_start = res->start & ~(SECTION_SIZE - 1);
-> align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
-> 		- align_start;
->
-> arch_remove_memory(nid, align_start, align_size,
-> 		pgmap->altmap_valid ? &pgmap->altmap : NULL);
->
->
-> Now if we are fixing the memremap_pages_release, shouldn't we adjust 
-> alig_start w.r.t memremap_pages too? and I was not sure what that means 
-> w.r.t add/remove alignment requirements.
->
-> What is the intended usage of reserve area? I guess we want that part to 
-> be added? if so shouldn't we remove them?
-
-We need to intialize the struct page backing the reserve area too right?
-Where should we do that?
-
--aneesh
+We could name system calls with `cat /dev/urandom | xxd` and they'd
+still get used. It doesn't follow that all names are equally good.
 
