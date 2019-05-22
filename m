@@ -2,390 +2,292 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A9ED2C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 21:44:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 87B18C282DC
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 21:49:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 21A7020868
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 21:44:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="b1KQ6zvJ";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="lPRSEyRg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 21A7020868
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id 0D8F420868
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 21:49:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D8F420868
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D2DEF6B0003; Wed, 22 May 2019 17:44:06 -0400 (EDT)
+	id B546C6B0003; Wed, 22 May 2019 17:49:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CE2056B0006; Wed, 22 May 2019 17:44:06 -0400 (EDT)
+	id B056F6B0006; Wed, 22 May 2019 17:49:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B56976B0007; Wed, 22 May 2019 17:44:06 -0400 (EDT)
+	id 9F4326B0007; Wed, 22 May 2019 17:49:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 85B5B6B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 17:44:06 -0400 (EDT)
-Received: by mail-vk1-f200.google.com with SMTP id d11so1492856vkn.8
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 14:44:06 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EB4F6B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 17:49:38 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id n5so3599804qkf.7
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 14:49:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=CVBt7BPNswQzm1QWI5odkco7icjFSz99iGBFJfOMJQA=;
-        b=N9VzzsObnhvEYW8gyVRvxhevo84Zw2T3xhyE8ZYECwNPlaQrakckUBcinpQZ6g58tf
-         9sooyMAtmbQUD4nEJGfZG62c38G2KbYNPCq5/utf9kgbJNUr0VrlaEvuWs1kdBYl/3k8
-         ZV4riSUovsctHBCeDyY0w1QZudRxsI+88OCF8W37meBspDJSgkSgcWVkQe1gB+KPquLI
-         +ubokDa9EJA45A8Sl5IrMjcce292GKJEFzPT2x9yBeU8z9eXQMNVkPQLdaFBqSbQWe6K
-         RgACtiiZJLhDj2doO+aKZur991pe4ZAJmvTrFXnJ1GzSEKA7Eqpqbwg4rht6T4IjXtTg
-         z4Pg==
-X-Gm-Message-State: APjAAAWN+jKmS0qepHOH8tDUFNLJnbOG4xNH5g0Eg3px86Cj0BY+YWBs
-	0LoHwVhlHtkgkP3OLOS6WBE1v/ppEhNFDbRZpG8S3hQPkdNLeOYWydTGNoMbif9S2u51yN0paHJ
-	wOBMYAkaOdC5vLNhqhTkkwB9gjW9XuwpalVy0PcMWTeTmyJr2hj5pdc3d7JJYx9JPpg==
-X-Received: by 2002:a67:774f:: with SMTP id s76mr41609187vsc.131.1558561446124;
-        Wed, 22 May 2019 14:44:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwgnimyyhauVwDDqhVJd2MI2qfJRKzTQ9SYhx92Yg5B3pqefppgqRqojUM1CgjJtIsDpYGh
-X-Received: by 2002:a67:774f:: with SMTP id s76mr41609145vsc.131.1558561445196;
-        Wed, 22 May 2019 14:44:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558561445; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=LRo4VGRsl7kicGk6iiUo7Xqj2A9IYpSwo4i215RcJnc=;
+        b=MykRmtggohHZaK0ZJe0zsNSphvzDHB/JPOLUz9JzjnEO/z4c9Eh8dxgVTWhF7cjg88
+         dXr93FggIN51puYlfNYMpNGgUyCfMLXViW3Af/cyKUtSgHVTskD1/EQauJ3Mi2fp8XM1
+         SJq7kwdTdX0p9LQjiTcryC09EfBcpRmaIoCbl+ObGk+l+2ngm+y2poeVVuTWimdH1L4z
+         vXdLDUCIpO6pocX/Sx3Nx3BYUUjvJCN1NAu4fV0XUmxPmkf5XghEmPk/NAPXI4zcfCgY
+         TMS9yH36B7nX2FvCPe5AmGWRmknN5Kjz5ICUwdqUnu3HJv2YYD56go+afVRcDZAuMipV
+         jh0A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUuZZmfieFgQazyAvAA6Mjux828wIwGTxIsT7wNINt9L16QwISS
+	x+oXW7iN36Q1hBlD1pkdqyuD4WJau7f6syZTaTIqjOiOxnK9ex4+AsXVA4PwksI95dcrZw01vVX
+	xu0y7p6bcTS/bmxuBRpLlpIEflUyw26rSzBinDLRvL1R7V6hH9ySo4jfwY1zGPyxkzQ==
+X-Received: by 2002:ac8:35fb:: with SMTP id l56mr76320572qtb.130.1558561778251;
+        Wed, 22 May 2019 14:49:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyDdnq0Ezx3+NyGwnWw+vl1QsEj8JQd6n1ce98sNIhPAC/FrQlkYNN/OMKhYPLsUDokwitq
+X-Received: by 2002:ac8:35fb:: with SMTP id l56mr76320529qtb.130.1558561777511;
+        Wed, 22 May 2019 14:49:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558561777; cv=none;
         d=google.com; s=arc-20160816;
-        b=t675zmyElQH59aXtQko2x0c1E64dWYASkNgnsxnKHu95KER/ZpMyY6ajdPECDzHznZ
-         6zyNgakYL5i2vxhxXmyDo1b99aGBzpsSkcLPRjVo1kcGsOEJgTM/mEo67gvE5qkXhU5R
-         EYfcnMHLsddjytJyDqPeigGjlE3FIktSLOQiVLQ3/JoGk1sqPBg1AayjON0iY6bk89Jy
-         xqAV3oorFizTG59oPBp7BkrO7/wbTftBQn25F6lPUs+6vlb6i4cCifEKWmMHpTopKAGw
-         6CLzEvAgcmYTZO92bkWFgTNjZmI4+iTqFuGQvPLjxdAZG2MY77nn+EfucninydNOd2Bi
-         rFzQ==
+        b=ftaRnDxIVKRpJyuVmHleOl67NX8rS7e8uYQokLF0b73z0MTO3QLpm3TblF0oUTfPQJ
+         VB5J2eJdEhoU1WbzZOs1xc0f5Ldrx30f/o7tyZ5KijALIPxNGiZJottUb1dt/QhHSVaj
+         fyFy8rSzTLA/YJKB+mQR40cOqHnejPK3PlD9tf4gVb5cUBOgLvDENN1lSrUpWg8QSIc9
+         fpSqMKw7QXzWk8EaogNmvzSdZVmTQwwxO6so6fNJmWSK4iV99CXGRgaOLd1lps/9eCwE
+         SNkIEqecO04xvYQwW+hk4bEot1oMCRJUBHfU83V3XaPdCBFEqD+7JkK/fxOzbb0opfrU
+         h9kw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=CVBt7BPNswQzm1QWI5odkco7icjFSz99iGBFJfOMJQA=;
-        b=VKV9e6deWfZEvGC2EndvxwgYkNttVdylbwDYeaBNXSIqKpn1iT1F3MJT0l5tQpHuEX
-         EM1FE4tHmAqYNaouIAQ3+nV+uTbZbr3hu6JbgG8K+OW+KT3ZiidM8OSVpfYfx3lt5zJZ
-         LatJc94Tx4S7k5HHK21codW4erljBs7Bg+EyJ5MecFctbQNrO/MBdlfub/JqfK92RcNI
-         CJ9VK+ymL4qX9oBzFnb4Ni1Cgbd0UJZAffkPrnDXPLODesb8z6QhovQO9L6p442LEt9c
-         /cirPUZiEc3/PP6kCot35w00Hysfc5cWpudz+MTh4DYrJHv95A/E59dBIwwDqObzKS+6
-         sVXg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=LRo4VGRsl7kicGk6iiUo7Xqj2A9IYpSwo4i215RcJnc=;
+        b=S8G6q67pQVlReg7DPh+g0PNNnJDbwlkITuoYIC5wz2PXvUhp7IdO7iH7y5zZX90Ruq
+         rtW/Bgw2ymNn7w61aBaqpCvRc8roWMFUZnd3uiWuGMd4dbEkqd26DXHe/B1DQMdIocQ2
+         TbMHMpJLyXv7d4ntTfJImAl0W6M0wb5YLh0cqlIivUJ7hWYoE02SxFQuZyuAbhvC4I4S
+         S1TOziktEHITFKnfyz2YhPf592771FUjrP/42utcLYTLhQJ/dk9X+VisQeHz1H5EJoRz
+         kLNjsMkGeMkGSP6uU+C6q5PFtUIHFECo/BTxrmsKHBDgTGbsv9qm68q/uIY051e1FSqL
+         ru1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=b1KQ6zvJ;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=lPRSEyRg;
-       spf=pass (google.com: domain of prvs=00452a55eb=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=00452a55eb=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id w12si1890163vsk.350.2019.05.22.14.44.05
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j39si9024065qtb.388.2019.05.22.14.49.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 14:44:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=00452a55eb=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        Wed, 22 May 2019 14:49:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=b1KQ6zvJ;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=lPRSEyRg;
-       spf=pass (google.com: domain of prvs=00452a55eb=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=00452a55eb=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4MLgrlB001266;
-	Wed, 22 May 2019 14:44:01 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=CVBt7BPNswQzm1QWI5odkco7icjFSz99iGBFJfOMJQA=;
- b=b1KQ6zvJd/xPhumJ6qChso9eTSMzXaX0pe1ZeVasAtdQygLY/E+cYhAnD+dsC2oGQJE3
- Wsp8r9P/tu0/DQT9tW+NJw/0hCePmRwLpdyEVOyeGf53Mvz1DWn9/u+EWr6R1t/CE7kd
- fG5Ouwu8z4zgh+pHYLgy1IYoWu5PjABBXzA= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2snead81re-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Wed, 22 May 2019 14:44:01 -0700
-Received: from prn-hub01.TheFacebook.com (2620:10d:c081:35::125) by
- prn-hub01.TheFacebook.com (2620:10d:c081:35::125) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 22 May 2019 14:43:59 -0700
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.25) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Wed, 22 May 2019 14:43:59 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=CVBt7BPNswQzm1QWI5odkco7icjFSz99iGBFJfOMJQA=;
- b=lPRSEyRg4tPgG8O0DHIfFcEAQUHyDjDmcf6ezrL4pX7pH6C0zXEAwSSBJ2aOXg1eSmPqKceyVueee9HMN+VyEb1qgF8uEkToesbLVt4gE8dLmMEFt+FYgMDJ0INtrUUWAqTM4zceSITf2VuKlReeLhfUhwzyGAGhgY8Xz2R7RFM=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB2246.namprd15.prod.outlook.com (52.135.196.161) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1900.18; Wed, 22 May 2019 21:43:54 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d4f6:b485:69ee:fd9a]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d4f6:b485:69ee:fd9a%7]) with mapi id 15.20.1900.020; Wed, 22 May 2019
- 21:43:54 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>,
-        Kernel Team <Kernel-team@fb.com>,
-        "Johannes
- Weiner" <hannes@cmpxchg.org>,
-        Michal Hocko <mhocko@kernel.org>, Rik van Riel
-	<riel@surriel.com>,
-        Shakeel Butt <shakeelb@google.com>, Christoph Lameter
-	<cl@linux.com>,
-        Vladimir Davydov <vdavydov.dev@gmail.com>,
-        "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>,
-        Waiman Long
-	<longman@redhat.com>
-Subject: Re: [PATCH v5 0/7] mm: reparent slab memory on cgroup removal
-Thread-Topic: [PATCH v5 0/7] mm: reparent slab memory on cgroup removal
-Thread-Index: AQHVEBPXzJHWaXaBI0+0EQ7he1b+7KZ3rroA
-Date: Wed, 22 May 2019 21:43:54 +0000
-Message-ID: <20190522214347.GA10082@tower.DHCP.thefacebook.com>
-References: <20190521200735.2603003-1-guro@fb.com>
-In-Reply-To: <20190521200735.2603003-1-guro@fb.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR08CA0012.namprd08.prod.outlook.com
- (2603:10b6:301:5f::25) To BYAPR15MB2631.namprd15.prod.outlook.com
- (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::3:6a5d]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 4c70c414-c87a-40b5-7207-08d6defe961c
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB2246;
-x-ms-traffictypediagnostic: BYAPR15MB2246:
-x-ms-exchange-purlcount: 3
-x-microsoft-antispam-prvs: <BYAPR15MB22469BF3670070EDD8B0EB8ABE000@BYAPR15MB2246.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:4502;
-x-forefront-prvs: 0045236D47
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(136003)(376002)(396003)(346002)(366004)(189003)(199004)(476003)(53936002)(66446008)(66946007)(5660300002)(99286004)(73956011)(66476007)(52116002)(186003)(81166006)(386003)(6506007)(8936002)(316002)(76176011)(54906003)(86362001)(66556008)(64756008)(81156014)(71190400001)(71200400001)(1076003)(6246003)(4326008)(25786009)(7736002)(966005)(46003)(486006)(478600001)(7416002)(14454004)(11346002)(14444005)(256004)(446003)(305945005)(6916009)(33656002)(8676002)(2906002)(6512007)(9686003)(229853002)(102836004)(6436002)(68736007)(6486002)(6116002)(6306002)(6606295002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2246;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: UbQLYPXssKLGb4nd+G6Y1hTBUeHOlc9Y9abKfjoKOcmBulJ68ZKoT2ORBF3VC50sDe2IuY9SSUvNhg/y8rELKZlpl3cUysCo63sWZctVWwzOC5vKQfZ3ait3WMVmMx3CHusQGk+HKiTz30yja0WBbeuCSpPNJUrgrAU4ElXejmJazfjOosG2t9Dk/z9fo01osUNOj/FrUc6/vnP3hCIbr6HjSFkGCs6Y7bMclHIzB1dg3su9EgQoXieA7VxCxyHF5+DBH2z3Tq+qcIqWXQtLn4nrEdfyObJfKGMD2o/fRV/Ml+VovGUzrj0wnpoPLlgJUGN5+G0170F3RTXuwxdy3vItNYu0pBlbwlgqzDHcg3wF74ME7hi0XkZ1b6NkB7iucG4ij8/YANkGjyBaPteHsiN5Mk2Yal0N34mlq3M2G/w=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <F6381D1F9E5B2945A5A46313F2B8DFE9@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id E276837EEB;
+	Wed, 22 May 2019 21:49:22 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.178])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id CADDF52E7;
+	Wed, 22 May 2019 21:49:19 +0000 (UTC)
+Date: Wed, 22 May 2019 17:49:18 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: linux-kernel@vger.kernel.org, linux-rdma@vger.kernel.org,
+	Leon Romanovsky <leonro@mellanox.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Artemy Kovalyov <artemyko@mellanox.com>,
+	Moni Shoua <monis@mellanox.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Kaike Wan <kaike.wan@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	linux-mm@kvack.org
+Subject: Re: [PATCH v4 0/1] Use HMM for ODP v4
+Message-ID: <20190522214917.GA20179@redhat.com>
+References: <20190411181314.19465-1-jglisse@redhat.com>
+ <20190506195657.GA30261@ziepe.ca>
+ <20190521205321.GC3331@redhat.com>
+ <20190522005225.GA30819@ziepe.ca>
+ <20190522174852.GA23038@redhat.com>
+ <20190522192219.GF6054@ziepe.ca>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 4c70c414-c87a-40b5-7207-08d6defe961c
-X-MS-Exchange-CrossTenant-originalarrivaltime: 22 May 2019 21:43:54.3838
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2246
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-22_13:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905220150
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190522192219.GF6054@ziepe.ca>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Wed, 22 May 2019 21:49:36 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Andrew!
+On Wed, May 22, 2019 at 04:22:19PM -0300, Jason Gunthorpe wrote:
+> On Wed, May 22, 2019 at 01:48:52PM -0400, Jerome Glisse wrote:
+> 
+> > > > +long ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp,
+> > > > +			       struct hmm_range *range)
+> > > >  {
+> > > > +	struct device *device = umem_odp->umem.context->device->dma_device;
+> > > > +	struct ib_ucontext_per_mm *per_mm = umem_odp->per_mm;
+> > > >  	struct ib_umem *umem = &umem_odp->umem;
+> > > > -	struct task_struct *owning_process  = NULL;
+> > > > -	struct mm_struct *owning_mm = umem_odp->umem.owning_mm;
+> > > > -	struct page       **local_page_list = NULL;
+> > > > -	u64 page_mask, off;
+> > > > -	int j, k, ret = 0, start_idx, npages = 0, page_shift;
+> > > > -	unsigned int flags = 0;
+> > > > -	phys_addr_t p = 0;
+> > > > -
+> > > > -	if (access_mask == 0)
+> > > > +	struct mm_struct *mm = per_mm->mm;
+> > > > +	unsigned long idx, npages;
+> > > > +	long ret;
+> > > > +
+> > > > +	if (mm == NULL)
+> > > > +		return -ENOENT;
+> > > > +
+> > > > +	/* Only drivers with invalidate support can use this function. */
+> > > > +	if (!umem->context->invalidate_range)
+> > > >  		return -EINVAL;
+> > > >  
+> > > > -	if (user_virt < ib_umem_start(umem) ||
+> > > > -	    user_virt + bcnt > ib_umem_end(umem))
+> > > > -		return -EFAULT;
+> > > > +	/* Sanity checks. */
+> > > > +	if (range->default_flags == 0)
+> > > > +		return -EINVAL;
+> > > >  
+> > > > -	local_page_list = (struct page **)__get_free_page(GFP_KERNEL);
+> > > > -	if (!local_page_list)
+> > > > -		return -ENOMEM;
+> > > > +	if (range->start < ib_umem_start(umem) ||
+> > > > +	    range->end > ib_umem_end(umem))
+> > > > +		return -EINVAL;
+> > > >  
+> > > > -	page_shift = umem->page_shift;
+> > > > -	page_mask = ~(BIT(page_shift) - 1);
+> > > > -	off = user_virt & (~page_mask);
+> > > > -	user_virt = user_virt & page_mask;
+> > > > -	bcnt += off; /* Charge for the first page offset as well. */
+> > > > +	idx = (range->start - ib_umem_start(umem)) >> umem->page_shift;
+> > > 
+> > > Is this math OK? What is supposed to happen if the range->start is not
+> > > page aligned to the internal page size?
+> > 
+> > range->start is align on 1 << page_shift boundary within pagefault_mr
+> > thus the above math is ok. We can add a BUG_ON() and comments if you
+> > want.
+> 
+> OK
+> 
+> > > > +	range->pfns = &umem_odp->pfns[idx];
+> > > > +	range->pfn_shift = ODP_FLAGS_BITS;
+> > > > +	range->values = odp_hmm_values;
+> > > > +	range->flags = odp_hmm_flags;
+> > > >  
+> > > >  	/*
+> > > > -	 * owning_process is allowed to be NULL, this means somehow the mm is
+> > > > -	 * existing beyond the lifetime of the originating process.. Presumably
+> > > > -	 * mmget_not_zero will fail in this case.
+> > > > +	 * If mm is dying just bail out early without trying to take mmap_sem.
+> > > > +	 * Note that this might race with mm destruction but that is fine the
+> > > > +	 * is properly refcounted so are all HMM structure.
+> > > >  	 */
+> > > > -	owning_process = get_pid_task(umem_odp->per_mm->tgid, PIDTYPE_PID);
+> > > > -	if (!owning_process || !mmget_not_zero(owning_mm)) {
+> > > 
+> > > But we are not in a HMM context here, and per_mm is not a HMM
+> > > structure. 
+> > > 
+> > > So why is mm suddenly guarenteed valid? It was a bug report that
+> > > triggered the race the mmget_not_zero is fixing, so I need a better
+> > > explanation why it is now safe. From what I see the hmm_range_fault
+> > > is doing stuff like find_vma without an active mmget??
+> > 
+> > So the mm struct can not go away as long as we hold a reference on
+> > the hmm struct and we hold a reference on it through both hmm_mirror
+> > and hmm_range struct. So struct mm can not go away and thus it is
+> > safe to try to take its mmap_sem.
+> 
+> This was always true here, though, so long as the umem_odp exists the
+> the mm has a grab on it. But a grab is not a get..
+> 
+> The point here was the old code needed an mmget() in order to do
+> get_user_pages_remote()
+> 
+> If hmm does not need an external mmget() then fine, we delete this
+> stuff and rely on hmm.
+> 
+> But I don't think that is true as we have:
+> 
+>           CPU 0                                           CPU1
+>                                                        mmput()
+>                        				        __mmput()
+> 							 exit_mmap()
+> down_read(&mm->mmap_sem);
+> hmm_range_dma_map(range, device,..
+>   ret = hmm_range_fault(range, block);
+>      if (hmm->mm == NULL || hmm->dead)
+> 							   mmu_notifier_release()
+> 							     hmm->dead = true
+>      vma = find_vma(hmm->mm, start);
+>         .. rb traversal ..                                 while (vma) remove_vma()
+> 
+> *goes boom*
+> 
+> I think this is violating the basic constraint of the mm by acting on
+> a mm's VMA's without holding a mmget() to prevent concurrent
+> destruction.
+> 
+> In other words, mmput() destruction does not respect the mmap_sem - so
+> holding the mmap sem alone is not enough locking.
+> 
+> The unlucked hmm->dead simply can't save this. Frankly every time I
+> look a struct with 'dead' in it, I find races like this.
+> 
+> Thus we should put the mmget_notzero back in.
 
-Is this patchset good to go? Or do you have any remaining concerns?
+So for some reason i thought exit_mmap() was setting the mm_rb
+to empty node and flushing vmacache so that find_vma() would
+fail. Might have been in some patch that never went upstream.
 
-It has been carefully reviewed by Shakeel; and also Christoph and Waiman
-gave some attention to it.
+Note that right before find_vma() there is also range->valid
+check which will also intercept mm release.
 
-Since commit 172b06c32b94 ("mm: slowly shrink slabs with a relatively")
-has been reverted, the memcg "leak" problem is open again, and I've heard
-from several independent people and companies that it's a real problem
-for them. So it will be nice to close it asap.
+Anyway the easy fix is to get ref on mm user in range_register.
 
-I suspect that the fix is too heavy for stable, unfortunately.
+> 
+> I saw some other funky looking stuff in hmm as well..
+> 
+> > Hence it is safe to take mmap_sem and it is safe to call in hmm, if
+> > mm have been kill it will return EFAULT and this will propagate to
+> > RDMA.
+>  
+> > As per_mm i removed the per_mm->mm = NULL from release so that it is
+> > always safe to use that field even in face of racing mm "killing".
+> 
+> Yes, that certainly wasn't good.
+> 
+> > > > -	 * An array of the pages included in the on-demand paging umem.
+> > > > -	 * Indices of pages that are currently not mapped into the device will
+> > > > -	 * contain NULL.
+> > > > +	 * An array of the pages included in the on-demand paging umem. Indices
+> > > > +	 * of pages that are currently not mapped into the device will contain
+> > > > +	 * 0.
+> > > >  	 */
+> > > > -	struct page		**page_list;
+> > > > +	uint64_t *pfns;
+> > > 
+> > > Are these actually pfns, or are they mangled with some shift? (what is range->pfn_shift?)
+> > 
+> > They are not pfns they have flags (hence range->pfn_shift) at the
+> > bottoms i just do not have a better name for this.
+> 
+> I think you need to have a better name then
 
-Please, let me know if you have any issues that preventing you
-from pulling it into the tree.
+Suggestion ? i have no idea for a better name, it has pfn value
+in it.
 
-Thank you!
-
-On Tue, May 21, 2019 at 01:07:28PM -0700, Roman Gushchin wrote:
-> # Why do we need this?
->=20
-> We've noticed that the number of dying cgroups is steadily growing on mos=
-t
-> of our hosts in production. The following investigation revealed an issue
-> in userspace memory reclaim code [1], accounting of kernel stacks [2],
-> and also the mainreason: slab objects.
->=20
-> The underlying problem is quite simple: any page charged
-> to a cgroup holds a reference to it, so the cgroup can't be reclaimed unl=
-ess
-> all charged pages are gone. If a slab object is actively used by other cg=
-roups,
-> it won't be reclaimed, and will prevent the origin cgroup from being recl=
-aimed.
->=20
-> Slab objects, and first of all vfs cache, is shared between cgroups, whic=
-h are
-> using the same underlying fs, and what's even more important, it's shared
-> between multiple generations of the same workload. So if something is run=
-ning
-> periodically every time in a new cgroup (like how systemd works), we do
-> accumulate multiple dying cgroups.
->=20
-> Strictly speaking pagecache isn't different here, but there is a key diff=
-erence:
-> we disable protection and apply some extra pressure on LRUs of dying cgro=
-ups,
-> and these LRUs contain all charged pages.
-> My experiments show that with the disabled kernel memory accounting the n=
-umber
-> of dying cgroups stabilizes at a relatively small number (~100, depends o=
-n
-> memory pressure and cgroup creation rate), and with kernel memory account=
-ing
-> it grows pretty steadily up to several thousands.
->=20
-> Memory cgroups are quite complex and big objects (mostly due to percpu st=
-ats),
-> so it leads to noticeable memory losses. Memory occupied by dying cgroups
-> is measured in hundreds of megabytes. I've even seen a host with more tha=
-n 100Gb
-> of memory wasted for dying cgroups. It leads to a degradation of performa=
-nce
-> with the uptime, and generally limits the usage of cgroups.
->=20
-> My previous attempt [3] to fix the problem by applying extra pressure on =
-slab
-> shrinker lists caused a regressions with xfs and ext4, and has been rever=
-ted [4].
-> The following attempts to find the right balance [5, 6] were not successf=
-ul.
->=20
-> So instead of trying to find a maybe non-existing balance, let's do repar=
-ent
-> the accounted slabs to the parent cgroup on cgroup removal.
->=20
->=20
-> # Implementation approach
->=20
-> There is however a significant problem with reparenting of slab memory:
-> there is no list of charged pages. Some of them are in shrinker lists,
-> but not all. Introducing of a new list is really not an option.
->=20
-> But fortunately there is a way forward: every slab page has a stable poin=
-ter
-> to the corresponding kmem_cache. So the idea is to reparent kmem_caches
-> instead of slab pages.
->=20
-> It's actually simpler and cheaper, but requires some underlying changes:
-> 1) Make kmem_caches to hold a single reference to the memory cgroup,
->    instead of a separate reference per every slab page.
-> 2) Stop setting page->mem_cgroup pointer for memcg slab pages and use
->    page->kmem_cache->memcg indirection instead. It's used only on
->    slab page release, so it shouldn't be a big issue.
-> 3) Introduce a refcounter for non-root slab caches. It's required to
->    be able to destroy kmem_caches when they become empty and release
->    the associated memory cgroup.
->=20
-> There is a bonus: currently we do release empty kmem_caches on cgroup
-> removal, however all other are waiting for the releasing of the memory cg=
-roup.
-> These refactorings allow kmem_caches to be released as soon as they
-> become inactive and free.
->=20
-> Some additional implementation details are provided in corresponding
-> commit messages.
->=20
->=20
-> # Results
->=20
-> Below is the average number of dying cgroups on two groups of our product=
-ion
-> hosts. They do run some sort of web frontend workload, the memory pressur=
-e
-> is moderate. As we can see, with the kernel memory reparenting the number
-> stabilizes in 60s range; however with the original version it grows almos=
-t
-> linearly and doesn't show any signs of plateauing. The difference in slab
-> and percpu usage between patched and unpatched versions also grows linear=
-ly.
-> In 7 days it exceeded 200Mb.
->=20
-> day           0    1    2    3    4    5    6    7
-> original     56  362  628  752 1070 1250 1490 1560
-> patched      23   46   51   55   60   57   67   69
-> mem diff(Mb) 22   74  123  152  164  182  214  241
->=20
->=20
-> # History
->=20
-> v5:
->   1) fixed a compilation warning around missing kmemcg_queue_cache_shutdo=
-wn()
->   2) s/rcu_read_lock()/rcu_read_unlock() in memcg_kmem_get_cache()
->=20
-> v4:
->   1) removed excessive memcg !=3D parent check in memcg_deactivate_kmem_c=
-aches()
->   2) fixed rcu_read_lock() usage in memcg_charge_slab()
->   3) fixed synchronization around dying flag in kmemcg_queue_cache_shutdo=
-wn()
->   4) refreshed test results data
->   5) reworked PageTail() checks in memcg_from_slab_page()
->   6) added some comments in multiple places
->=20
-> v3:
->   1) reworked memcg kmem_cache search on allocation path
->   2) fixed /proc/kpagecgroup interface
->=20
-> v2:
->   1) switched to percpu kmem_cache refcounter
->   2) a reference to kmem_cache is held during the allocation
->   3) slabs stats are fixed for !MEMCG case (and the refactoring
->      is separated into a standalone patch)
->   4) kmem_cache reparenting is performed from deactivatation context
->=20
-> v1:
->   https://lkml.org/lkml/2019/4/17/1095
->=20
->=20
-> # Links
->=20
-> [1]: commit 68600f623d69 ("mm: don't miss the last page because of
-> round-off error")
-> [2]: commit 9b6f7e163cd0 ("mm: rework memcg kernel stack accounting")
-> [3]: commit 172b06c32b94 ("mm: slowly shrink slabs with a relatively
-> small number of objects")
-> [4]: commit a9a238e83fbb ("Revert "mm: slowly shrink slabs
-> with a relatively small number of objects")
-> [5]: https://lkml.org/lkml/2019/1/28/1865
-> [6]: https://marc.info/?l=3Dlinux-mm&m=3D155064763626437&w=3D2
->=20
->=20
-> Roman Gushchin (7):
->   mm: postpone kmem_cache memcg pointer initialization to
->     memcg_link_cache()
->   mm: generalize postponed non-root kmem_cache deactivation
->   mm: introduce __memcg_kmem_uncharge_memcg()
->   mm: unify SLAB and SLUB page accounting
->   mm: rework non-root kmem_cache lifecycle management
->   mm: reparent slab memory on cgroup removal
->   mm: fix /proc/kpagecgroup interface for slab pages
->=20
->  include/linux/memcontrol.h |  10 +++
->  include/linux/slab.h       |  13 +--
->  mm/memcontrol.c            | 101 ++++++++++++++++-------
->  mm/slab.c                  |  25 ++----
->  mm/slab.h                  | 137 ++++++++++++++++++++++++-------
->  mm/slab_common.c           | 162 +++++++++++++++++++++----------------
->  mm/slub.c                  |  36 ++-------
->  7 files changed, 299 insertions(+), 185 deletions(-)
->=20
-> --=20
-> 2.20.1
->=20
+Cheers,
+Jérôme
 
