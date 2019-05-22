@@ -2,347 +2,248 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D86E7C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:51:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DE0AC282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:54:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 328FF21019
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:51:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AE55520665
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 23:54:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="r6fY0Qsa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 328FF21019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="jNaH/TUq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE55520665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 888566B0003; Wed, 22 May 2019 19:51:11 -0400 (EDT)
+	id 6B00F6B0003; Wed, 22 May 2019 19:54:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8383B6B0006; Wed, 22 May 2019 19:51:11 -0400 (EDT)
+	id 660466B0006; Wed, 22 May 2019 19:54:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D8DC6B0007; Wed, 22 May 2019 19:51:11 -0400 (EDT)
+	id 54FEF6B0007; Wed, 22 May 2019 19:54:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ED826B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 19:51:11 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c26so6018306eda.15
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 16:51:11 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EDF36B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 19:54:18 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id h12so2262335pll.20
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 16:54:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=sSvVhwtctmrWpOQ3fK6+ljrWTR6VX73lnQdRCcTtO3s=;
-        b=RQnhT8K+lxzaRIuaPt11RqMV2hGj13EtlYkfqR3dDPKerb2/W8lS/EyhmZpLQ6N2Yr
-         2jDuPbE/r9OSZB9qd84BfmPGqGnfHKFaLdpmH+f3WvLZtB11cAnn6VjDpHXTJLQ39pdd
-         Lmicx3WP026BkmiZOm2nLgwu5/rla1FTJkCHXSdCvQmbEGMlLugr7PKt3BgmgaZgQwG8
-         A7RNXrRqUNJxywERoBuTs0Xy7n6n+FTeHlSVrsHliz9c3nA68YXlxXfqB5pfm+tkty2l
-         pNr2optZSiTNcAPmZkv+FPv4L56H9Fu7EmnUZuEe/IvwjTCiC4G85k4APZqXS1AQEzL/
-         5kPQ==
-X-Gm-Message-State: APjAAAVEnQLolv/ZQsa/PD8dJ66l9RxTLCV0p593iqm8LBDAZu1OHLF2
-	JnL/WdVqfazyEXjhQ6BKv0Q98KKYEgDMqxYW6L3faZAp7NFqoZbzp47q0YZniVBiudoTZd8ly4u
-	xM7/Rq7TivJ4CAQnmjoEkiVpOzFLjFWMapiMLJ3CKIi93aQzvhh7HXk+rbrct2CxP2A==
-X-Received: by 2002:a17:906:8496:: with SMTP id m22mr25307595ejx.281.1558569070559;
-        Wed, 22 May 2019 16:51:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwk8k+3ltW2Zj8oO+7HSM4Dn9HVbURUePKeo1JpMuxa+Fz3D2/a94+FK+1XBdOGP3i+6kDU
-X-Received: by 2002:a17:906:8496:: with SMTP id m22mr25307550ejx.281.1558569069715;
-        Wed, 22 May 2019 16:51:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558569069; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=pCFCyy+pn8NS0YDu+xqpV15sb+NHXjz/amNbL2oRXkE=;
+        b=Lo/lQmJeAtqOr3aVJFO6eXaJxwtUzMmFH327XtCwvJ9X65a+gKcx4WbFeRoPSQ/4Tb
+         beXMXgM5yiW4xbQnOOOwQQAMhkz60YesNrLazGJLTmQEdTJlokyJuzOK1E36a95I29Y8
+         0bup0q/LhLs4pXs7PxMuROMnhBL75IcspvSvaIu16grvNsxJk32LO03vpjJYECZIGEur
+         RxDprw8fDmeXZl7H2d7mb+Aa8HIOmcp8unLlz6K15IGreboci2JZyoJhAwxrvJ20lbqe
+         MHJwOa51Z71dJZJSeGYp8NEoteCkuS3ruOlbT8WlcPgle7iiMuaeGG8pDoCC+0WFNV40
+         mLrw==
+X-Gm-Message-State: APjAAAX1VkFVbx8ADSX9FCNrwZJz/QUDSLm8qZZohPUIIPU4FKR/mLCA
+	pvSakzydH9/8OPJhYWDdKdiQ2u8lAtIMBm5ICtI68txU98oQ5X3CMVi28bv9vkdky8szFgwdfpW
+	nvtMU0M3GNLoALxqKxDbtYaJ4X2an3FqgoHcK+0nfh0ZJWUSF3nycs75Ol64ZltT2Ag==
+X-Received: by 2002:a63:d652:: with SMTP id d18mr77174757pgj.112.1558569257485;
+        Wed, 22 May 2019 16:54:17 -0700 (PDT)
+X-Received: by 2002:a63:d652:: with SMTP id d18mr77174707pgj.112.1558569256630;
+        Wed, 22 May 2019 16:54:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558569256; cv=none;
         d=google.com; s=arc-20160816;
-        b=aW0BR5P38FyH8W7XcrO+vzH/w5bFFdPMWlejN9r+x1dQmuwwr2x/8lnMnQZpEB7GNP
-         v7Ke/jNc97oj0XlkXd3zhlKuysSKBS/R5S6zSNn/f0k3EhCF5eqEaEd9H6PsjVPjzBbA
-         ERCPOzVXii+57GANoHjXwHLMoP/TjzyjuEDZhpJRumM2tKtxdydwqe0hmwi9PBhyIxWq
-         Dkd/p9X03g5NuTH7zYuw0c09T5/rhK9hr/NXoukT6yNJQotF5JXficd+dUeXbtwvDGSq
-         27VAQhacoSVNo3VaQvfSDwk8VsvO+a41zqT1wVd5igsDtd8Mu8cIPPCCi5SDZykZMesK
-         Yn+Q==
+        b=j2itTpovC7Zt9eR0d2gwildSd+w+XiWQWSlqGZN+e9+KULZCGwCx8zfk/n0FNc0/6A
+         lEXsDpQUwUOVRlcN71OgJLkdOE6z+awO6RCYvsuQxahECQxrpzJYXsIty5OtYiFO+xO/
+         jzdLupTKrcQ7kzlsFJHGYaEDj0ffBKlnzvaEkmNq9c8ivQdS1l8cL+L6uTap97oXNby/
+         z+M8H+HeoYjnrqu8/JcWDa//YAtH6sbFHxlXzRJTxyMShMHPAQbJAXy8WCVd89qkyvwf
+         bysP0qqq0wKbBmORvlmP1iNPLDvmohQsnBf5jYHJMU1vFc4UAUUYpQ8EHVKHnh8mvv3P
+         ze7w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=sSvVhwtctmrWpOQ3fK6+ljrWTR6VX73lnQdRCcTtO3s=;
-        b=ixVViS9q3cUdoBll93qpdnI//TWXGcJNc8fcUe/nun2PwNUAXx+qpgWcrBHlyMN3SM
-         GErDBaifbGvchZJTsfxjN6GPV7TP2v73lNmvy7shD/4QTbIM4G93yA5MyqzTpbOSCgAF
-         SieXiMqy6chjYshODmfBKjjl5AqBG9BwHgAQsFYqwp6HIQQRsQLlK/FGjCf+lDPBf8Bt
-         bOJHwp+oIxYhnof3lU/cXOMSeNEm2nn/a5TBPEV1YMXTO3Ki7troVcmxBjThNllHXDFv
-         MNMn0qLjRdoH+UTes/tQn7aRkMvC+LAPWESUuYtHLAWY9+EFHMNt/wl73HBsKEhCSCYA
-         2yXg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=pCFCyy+pn8NS0YDu+xqpV15sb+NHXjz/amNbL2oRXkE=;
+        b=L4R4Y+t3J2ht5SuoIrodliLg6YymxRFXJxmxtkR4PafbA381DJpZP8meIU9wG1OVuq
+         /4B1RnlYbnTPF2bE8H5+H2NmgW28Gx8fHUHCbfy2L6iSLinqryQKsBL+dQpKKXcX36UL
+         88EA3e4TWvBswcsN304sparUESBVwCKUSw1Mwqy+3LNtF38WbqFw3SKzhcs7gdUq6uei
+         ElvV/KIBHZ2aYQFYpbFbZoxkYHpLvIDIkmIMATTWgQ5hiLJLqURquWCjlhH5CoOLeG2B
+         0snw356Z/zoLrF7kboHCPzdTEELaqkZONOe/P9yl2BQTr3FBx4Hur2RZ6utWv6Nv3G4K
+         uRIQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=r6fY0Qsa;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.15.77 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-eopbgr150077.outbound.protection.outlook.com. [40.107.15.77])
-        by mx.google.com with ESMTPS id c3si1790006ede.203.2019.05.22.16.51.09
+       dkim=pass header.i=@chromium.org header.s=google header.b="jNaH/TUq";
+       spf=pass (google.com: domain of semenzato@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p4sor8472237plk.55.2019.05.22.16.54.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 22 May 2019 16:51:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.15.77 as permitted sender) client-ip=40.107.15.77;
+        (Google Transport Security);
+        Wed, 22 May 2019 16:54:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of semenzato@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=r6fY0Qsa;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.15.77 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=sSvVhwtctmrWpOQ3fK6+ljrWTR6VX73lnQdRCcTtO3s=;
- b=r6fY0QsagD4T3lYr324llbBm1Ij3GgmO8vRKmYlTfYgryj7tYJsI96slftBYVL6fPNOk627WGySSPKSO/fjh5VA3B7bKI2HEKiMGnH4Yl6cal2dQcb78BRRAEY5Y8eGrtVihUOD1eA1gUqIoM2/oNo17NKmDZGyityyyKC+DjsU=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB4702.eurprd05.prod.outlook.com (20.176.4.11) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1922.15; Wed, 22 May 2019 23:51:07 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::c16d:129:4a40:9ba1]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::c16d:129:4a40:9ba1%6]) with mapi id 15.20.1922.013; Wed, 22 May 2019
- 23:51:07 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-CC: Jerome Glisse <jglisse@redhat.com>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>
-Subject: Re: [PATCH] hmm: Suppress compilation warnings when
- CONFIG_HUGETLB_PAGE is not set
-Thread-Topic: [PATCH] hmm: Suppress compilation warnings when
- CONFIG_HUGETLB_PAGE is not set
-Thread-Index: AQHVENfOFtz/QULIxkuTKkQu4SkyeqZ3lrcAgAA6BQA=
-Date: Wed, 22 May 2019 23:51:06 +0000
-Message-ID: <20190522235102.GA15370@mellanox.com>
-References: <20190522195151.GA23955@ziepe.ca>
- <20190522132322.15605c8b344f46b31ea8233b@linux-foundation.org>
-In-Reply-To: <20190522132322.15605c8b344f46b31ea8233b@linux-foundation.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: MN2PR01CA0030.prod.exchangelabs.com (2603:10b6:208:10c::43)
- To VI1PR05MB4141.eurprd05.prod.outlook.com (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.49.251]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: e765983f-5c08-4521-565b-08d6df105b46
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4702;
-x-ms-traffictypediagnostic: VI1PR05MB4702:
-x-microsoft-antispam-prvs:
- <VI1PR05MB47027C621F158EAE00A95965CF000@VI1PR05MB4702.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:1468;
-x-forefront-prvs: 0045236D47
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(39860400002)(376002)(136003)(396003)(366004)(346002)(199004)(189003)(5660300002)(7736002)(8676002)(81166006)(81156014)(2616005)(8936002)(305945005)(486006)(99286004)(316002)(11346002)(2906002)(446003)(6246003)(54906003)(25786009)(66066001)(478600001)(86362001)(53936002)(6512007)(1076003)(3846002)(6116002)(102836004)(68736007)(186003)(6506007)(53546011)(6486002)(386003)(476003)(6436002)(66556008)(66446008)(229853002)(33656002)(73956011)(66946007)(66476007)(71190400001)(71200400001)(64756008)(14454004)(14444005)(256004)(36756003)(6916009)(76176011)(26005)(4326008)(52116002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4702;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- l8HhGanMRhGyjN0BS5oQYIISAVQE1uQkv8nJ/CelipO/szhgzvEWpA5Bsql5PWDQFWDRcJUKJcBG1Q/3mAcYTepEnJVADhJGq4i8/2ei0it73ar+27a5zC0SjTcUQchKvECmoqzdE/5fy7OFYrhzSl1AvzB9cb8ZN2gvc/tnyUam08B7dlBnO9deWu5TlJhQx+lLFMn/pFhx+SJNg5VBv9xtXWZTaClphHnSs0N5SDrTlER6WAkOlXcuihQnuoAOV8rxmsr7tZnCCUB8C6jEQgcCSDW8bJnOonApIYx2CZFMURoOOc7R8kmtuhExZGFdSMJOmmhdkQGfYcZKHrgqcGOPYtd5dUgd6lfHF7cRyQeNc24oA97SFCepRHw8btez5JA+vEEONPn7YuP8AmfAxWJRYXzrq6UK+UH3dpIOBu8=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <FFABB95CECC23D49A4F00272338576E9@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@chromium.org header.s=google header.b="jNaH/TUq";
+       spf=pass (google.com: domain of semenzato@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=pCFCyy+pn8NS0YDu+xqpV15sb+NHXjz/amNbL2oRXkE=;
+        b=jNaH/TUqg08glj2u7iarGmoWFHEMoLChm4sIRDsKSjt8w3keAAVridKO2rRIziSzg6
+         6K0qIf8KKspOc3iQk53JrV/C/rb8ct8BLzQNbfOdhXBLbAancqAlttvn8yAAxeU15O+o
+         JLxislj6ZWnxZsDnMgfVFa8MdyZlUmEnIKV2U=
+X-Google-Smtp-Source: APXvYqybpLhAy1BLM4IW8EFclBBoHY2HzZhtAEx8aUJLlDnYEi00GabDEmYdaEbRgAXp8IWuaw1tvQ==
+X-Received: by 2002:a17:902:4481:: with SMTP id l1mr80425911pld.121.1558569255997;
+        Wed, 22 May 2019 16:54:15 -0700 (PDT)
+Received: from luigi2.mtv.corp.google.com ([2620:15c:202:1:2c30:5512:25f8:631d])
+        by smtp.gmail.com with ESMTPSA id e14sm29745947pff.60.2019.05.22.16.54.15
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 May 2019 16:54:15 -0700 (PDT)
+From: semenzato@chromium.org
+To: linux-mm@kvack.org
+Cc: minchan@kernel.org,
+	sonnyrao@chromium.org,
+	dtor@chromium.org,
+	Luigi Semenzato <semenzato@chromium.org>
+Subject: [PATCH 1/1] mm: smaps: split PSS into components
+Date: Wed, 22 May 2019 16:53:56 -0700
+Message-Id: <20190522235356.153671-1-semenzato@chromium.org>
+X-Mailer: git-send-email 2.21.0.1020.gf2820cf01a-goog
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: e765983f-5c08-4521-565b-08d6df105b46
-X-MS-Exchange-CrossTenant-originalarrivaltime: 22 May 2019 23:51:07.5394
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4702
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 22, 2019 at 01:23:22PM -0700, Andrew Morton wrote:
-> On Wed, 22 May 2019 19:51:55 +0000 Jason Gunthorpe <jgg@mellanox.com> wro=
-te:
->=20
-> > gcc reports that several variables are defined but not used.
-> >=20
-> > For the first hunk CONFIG_HUGETLB_PAGE the entire if block is already
-> > protected by pud_huge() which is forced to 0. None of the stuff under
-> > the ifdef causes compilation problems as it is already stubbed out in
-> > the header files.
-> >=20
-> > For the second hunk the dummy huge_page_shift macro doesn't touch the
-> > argument, so just inline the argument.
-> >=20
-> > ...
-> >
-> > +++ b/mm/hmm.c
-> > @@ -797,7 +797,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
-> >  			return hmm_vma_walk_hole_(addr, end, fault,
-> >  						write_fault, walk);
-> > =20
-> > -#ifdef CONFIG_HUGETLB_PAGE
-> >  		pfn =3D pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-> >  		for (i =3D 0; i < npages; ++i, ++pfn) {
-> >  			hmm_vma_walk->pgmap =3D get_dev_pagemap(pfn,
-> > @@ -813,9 +812,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
-> >  		}
-> >  		hmm_vma_walk->last =3D end;
-> >  		return 0;
-> > -#else
-> > -		return -EINVAL;
-> > -#endif
-> >  	}
->=20
-> Fair enough.
->=20
-> >  	split_huge_pud(walk->vma, pudp, addr);
-> > @@ -1024,9 +1020,8 @@ long hmm_range_snapshot(struct hmm_range *range)
-> >  			return -EFAULT;
-> > =20
-> >  		if (is_vm_hugetlb_page(vma)) {
-> > -			struct hstate *h =3D hstate_vma(vma);
-> > -
-> > -			if (huge_page_shift(h) !=3D range->page_shift &&
-> > +			if (huge_page_shift(hstate_vma(vma)) !=3D
-> > +				    range->page_shift &&
-> >  			    range->page_shift !=3D PAGE_SHIFT)
-> >  				return -EINVAL;
->=20
-> Also fair enough.  But why the heck is huge_page_shift() a macro?  We
-> keep doing that and it bites so often :(
+From: Luigi Semenzato <semenzato@chromium.org>
 
-Let's fix it, with the below? (compile tested)
+Report separate components (anon, file, and shmem)
+for PSS in smaps and smaps_rollup.
 
-Note __alloc_bootmem_huge_page was returning null but the signature
-was unsigned int.
+This helps understand and tune the memory manager behavior
+in consumer devices, particularly mobile devices.  Many of
+them (e.g. chromebooks and Android-based devices) use zram
+for anon memory, and perform disk reads for discarded file
+pages.  The difference in latency is large (e.g. reading
+a single page from SSD is 30 times slower than decompressing
+a zram page on one popular device), thus it is useful to know
+how much of the PSS is anon vs. file.
 
-From b5e2ff3c88e6962d0e8297c87af855e6fe1a584e Mon Sep 17 00:00:00 2001
-From: Jason Gunthorpe <jgg@mellanox.com>
-Date: Wed, 22 May 2019 20:45:59 -0300
-Subject: [PATCH] mm: Make !CONFIG_HUGE_PAGE wrappers into static inlines
+This patch also removes a small code duplication in smaps_account,
+which would have gotten worse otherwise.
 
-Instead of using defines, which looses type safety and provokes unused
-variable warnings from gcc, put the constants into static inlines.
-
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+Signed-off-by: Luigi Semenzato <semenzato@chromium.org>
 ---
- include/linux/hugetlb.h | 102 +++++++++++++++++++++++++++++++++-------
- 1 file changed, 86 insertions(+), 16 deletions(-)
+ fs/proc/task_mmu.c | 61 ++++++++++++++++++++++++++++------------------
+ 1 file changed, 37 insertions(+), 24 deletions(-)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index edf476c8cfb9c0..f895a79c6f5cb4 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -608,22 +608,92 @@ static inline void huge_ptep_modify_prot_commit(struc=
-t vm_area_struct *vma,
-=20
- #else	/* CONFIG_HUGETLB_PAGE */
- struct hstate {};
--#define alloc_huge_page(v, a, r) NULL
--#define alloc_huge_page_node(h, nid) NULL
--#define alloc_huge_page_nodemask(h, preferred_nid, nmask) NULL
--#define alloc_huge_page_vma(h, vma, address) NULL
--#define alloc_bootmem_huge_page(h) NULL
--#define hstate_file(f) NULL
--#define hstate_sizelog(s) NULL
--#define hstate_vma(v) NULL
--#define hstate_inode(i) NULL
--#define page_hstate(page) NULL
--#define huge_page_size(h) PAGE_SIZE
--#define huge_page_mask(h) PAGE_MASK
--#define vma_kernel_pagesize(v) PAGE_SIZE
--#define vma_mmu_pagesize(v) PAGE_SIZE
--#define huge_page_order(h) 0
--#define huge_page_shift(h) PAGE_SHIFT
-+
-+static inline struct page *alloc_huge_page(struct vm_area_struct *vma,
-+					   unsigned long addr,
-+					   int avoid_reserve)
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 01d4eb0e6bd1..4b586c4d27b0 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -417,17 +417,45 @@ struct mem_size_stats {
+ 	unsigned long shared_hugetlb;
+ 	unsigned long private_hugetlb;
+ 	u64 pss;
++	u64 pss_anon;
++	u64 pss_file;
++	u64 pss_shmem;
+ 	u64 pss_locked;
+ 	u64 swap_pss;
+ 	bool check_shmem_swap;
+ };
+ 
++static void smaps_page_accumulate(struct mem_size_stats *mss,
++		struct page *page, unsigned long size, unsigned long pss,
++		bool dirty, bool locked)
 +{
-+	return NULL;
++	mss->pss += pss;
++
++	if (PageAnon(page))
++		mss->pss_anon += pss;
++	else if (PageSwapBacked(page))
++		mss->pss_shmem += pss;
++	else
++		mss->pss_file += pss;
++
++	if (locked)
++		mss->pss_locked += pss;
++	if (dirty || PageDirty(page))
++		mss->shared_dirty += size;
++	else
++		mss->shared_clean += size;
 +}
 +
-+static inline struct page *alloc_huge_page_node(struct hstate *h, int nid)
-+{
-+	return NULL;
-+}
-+
-+static inline struct page *
-+alloc_huge_page_nodemask(struct hstate *h, int preferred_nid, nodemask_t *=
-nmask)
-+{
-+	return NULL;
-+}
-+
-+static inline struct page *alloc_huge_page_vma(struct hstate *h,
-+					       struct vm_area_struct *vma,
-+					       unsigned long address)
-+{
-+	return NULL;
-+}
-+
-+static inline int __alloc_bootmem_huge_page(struct hstate *h)
-+{
-+	return 0;
-+}
-+
-+static inline struct hstate *hstate_file(struct file *f)
-+{
-+	return NULL;
-+}
-+
-+static inline struct hstate *hstate_sizelog(int page_size_log)
-+{
-+	return NULL;
-+}
-+
-+static inline struct hstate *hstate_vma(struct vm_area_struct *vma)
-+{
-+	return NULL;
-+}
-+
-+static inline struct hstate *hstate_inode(struct inode *i)
-+{
-+	return NULL;
-+}
-+
-+static inline struct hstate *page_hstate(struct page *page)
-+{
-+	return NULL;
-+}
-+
-+static inline unsigned long huge_page_size(struct hstate *h)
-+{
-+	return PAGE_SIZE;
-+}
-+
-+static inline unsigned long huge_page_mask(struct hstate *h)
-+{
-+	return PAGE_MASK;
-+}
-+
-+static inline unsigned long vma_kernel_pagesize(struct vm_area_struct *vma=
-)
-+{
-+	return PAGE_SIZE;
-+}
-+
-+static inline unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
-+{
-+	return PAGE_SIZE;
-+}
-+
-+static inline unsigned int huge_page_order(struct hstate *h)
-+{
-+	return 0;
-+}
-+
-+static inline unsigned int huge_page_shift(struct hstate *h)
-+{
-+	return PAGE_SHIFT;
-+}
-+
- static inline bool hstate_is_gigantic(struct hstate *h)
+ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+ 		bool compound, bool young, bool dirty, bool locked)
  {
- 	return false;
---=20
-2.21.0
+ 	int i, nr = compound ? 1 << compound_order(page) : 1;
+ 	unsigned long size = nr * PAGE_SIZE;
+ 
++	/*
++	 * First accumulate quantities that depend only on |size| and the type
++	 * of the compound page.
++	 */
+ 	if (PageAnon(page)) {
+ 		mss->anonymous += size;
+ 		if (!PageSwapBacked(page) && !dirty && !PageDirty(page))
+@@ -440,42 +468,24 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+ 		mss->referenced += size;
+ 
+ 	/*
++	 * Then accumulate quantities that may depend on sharing, or that may
++	 * differ page-by-page.
++	 *
+ 	 * page_count(page) == 1 guarantees the page is mapped exactly once.
+ 	 * If any subpage of the compound page mapped with PTE it would elevate
+ 	 * page_count().
+ 	 */
+ 	if (page_count(page) == 1) {
+-		if (dirty || PageDirty(page))
+-			mss->private_dirty += size;
+-		else
+-			mss->private_clean += size;
+-		mss->pss += (u64)size << PSS_SHIFT;
+-		if (locked)
+-			mss->pss_locked += (u64)size << PSS_SHIFT;
++		smaps_page_accumulate(mss, page, size, size, dirty, locked);
+ 		return;
+ 	}
+-
+ 	for (i = 0; i < nr; i++, page++) {
+ 		int mapcount = page_mapcount(page);
+ 		unsigned long pss = (PAGE_SIZE << PSS_SHIFT);
+-
+ 		if (mapcount >= 2) {
+-			if (dirty || PageDirty(page))
+-				mss->shared_dirty += PAGE_SIZE;
+-			else
+-				mss->shared_clean += PAGE_SIZE;
+-			mss->pss += pss / mapcount;
+-			if (locked)
+-				mss->pss_locked += pss / mapcount;
+-		} else {
+-			if (dirty || PageDirty(page))
+-				mss->private_dirty += PAGE_SIZE;
+-			else
+-				mss->private_clean += PAGE_SIZE;
+-			mss->pss += pss;
+-			if (locked)
+-				mss->pss_locked += pss;
++			pss /= mapcount;
+ 		}
++		smaps_page_accumulate(mss, page, PAGE_SIZE, pss, dirty, locked);
+ 	}
+ }
+ 
+@@ -758,6 +768,9 @@ static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss)
+ {
+ 	SEQ_PUT_DEC("Rss:            ", mss->resident);
+ 	SEQ_PUT_DEC(" kB\nPss:            ", mss->pss >> PSS_SHIFT);
++	SEQ_PUT_DEC(" kB\nPss_Anon:       ", mss->pss_anon >> PSS_SHIFT);
++	SEQ_PUT_DEC(" kB\nPss_File:       ", mss->pss_file >> PSS_SHIFT);
++	SEQ_PUT_DEC(" kB\nPss_Shmem:      ", mss->pss_shmem >> PSS_SHIFT);
+ 	SEQ_PUT_DEC(" kB\nShared_Clean:   ", mss->shared_clean);
+ 	SEQ_PUT_DEC(" kB\nShared_Dirty:   ", mss->shared_dirty);
+ 	SEQ_PUT_DEC(" kB\nPrivate_Clean:  ", mss->private_clean);
+-- 
+2.21.0.1020.gf2820cf01a-goog
 
