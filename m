@@ -2,228 +2,236 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 58210C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:23:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B46F6C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:39:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C172720868
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:23:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2CFB920881
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:39:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="IAEjEkbK";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="r4T7y0il"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C172720868
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="HPp1yf7U"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CFB920881
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 807396B000A; Wed, 22 May 2019 18:23:09 -0400 (EDT)
+	id DEDC56B0003; Wed, 22 May 2019 18:39:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7B8076B000C; Wed, 22 May 2019 18:23:09 -0400 (EDT)
+	id D9F0E6B0006; Wed, 22 May 2019 18:39:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6575C6B000D; Wed, 22 May 2019 18:23:09 -0400 (EDT)
+	id C670C6B0007; Wed, 22 May 2019 18:39:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3973C6B000A
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 18:23:09 -0400 (EDT)
-Received: by mail-ua1-f70.google.com with SMTP id y2so1029976ual.15
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 15:23:09 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A53416B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 18:39:08 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id 49so3514629qtn.23
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 15:39:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=dGmKexW93ziU4gaxGu2r8jazHHWX79RJa8vFWpgs9PA=;
-        b=JWq8FIkl1FYTfn1FQdDgZ4jxj1GATtfBzP4cKOMyG9zF4wfwX/4IGIBbLM/gRZaZ8R
-         KCNYscK487DYgP6BKseHJX8pBe+cloprevWyOxKJ7Y9xYpsd5dHVZm7SwVC2NEW0jic5
-         3RCoLbS1rAt0iCgCwwTb+PIlykE70uodOP2Rb1vSuTUhioiozMLayq9vWHQNEmj2jQDg
-         h7h0Qdcz5D8ebWiBOjBSxV2LmBAqYyai4zVO68gA/X/8rKmD2xm7zcCuzD+4oGvf5cbH
-         u1g/Nyg6s4ZqHAynd8YnO+/PR7zBMu8FlecNSMikvdWxWk+EQUOI7DKz4WxivB3X6nl0
-         YyQw==
-X-Gm-Message-State: APjAAAXwlqjzyJdlArSagOohqg7IZju187iymvK2IJ5bLvwT943PD0Or
-	dWF5XXjUb6F19Oyu/omNzv/MS/WQwinPcStA4tOuO71iW5g6aGtR9IVDrEX5NkR8nRK0zzJ7yix
-	9LYCdxlxNaTuKTcYqRdIKpA0vkJBLkeiWP+NuBKB8hg8A7rr6bIUap+o53r8HcJ2Gkg==
-X-Received: by 2002:ab0:7842:: with SMTP id y2mr45212439uaq.80.1558563788855;
-        Wed, 22 May 2019 15:23:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy1vNkba0hLz7xuBc0foFtNdqUxpy5AFxblFctrlqYhDPKPMupLH4ZxE9ymnIbRaZO54ocw
-X-Received: by 2002:ab0:7842:: with SMTP id y2mr45212413uaq.80.1558563788183;
-        Wed, 22 May 2019 15:23:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558563788; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=UMLE3HAwx27IoVBbcznO88OARo8jwYRssCcya47nG+w=;
+        b=XXzaMerGY8MuZ9rh+zUJhHpcf8jeO74CpdGwr1D2eY0AwoGNbmOQnl/dI6gUNuRYug
+         oGRHYtvVNUDeiNYJpFqjhC5vlY4Ln0SupNz4g49Vsjms29d5dGx7acIuqQHsSMt5heYd
+         wCBL/kWPaX9qnXL+dDQA8KO8lhDXuii5LmkMdPvJcvH62PoFKfCOIibdEPq2rRuulaLP
+         6fu8aUR3AdqVWm1N3P78Hm7ZfgPTmVyv60JlYHmCjW6DetjTPQn7LyIlWEUjOyX5TN8Z
+         mcFVFfMTpQn8x3yubez2uUW1Wv9HWuDZAdaVYBXuNyWgmGes0/NUV37xQSJDDOGdmglk
+         DBDQ==
+X-Gm-Message-State: APjAAAXrvs3gU9hcibc37mXqJGvLOz/dcGN/e6ntR12Ls9f0wFdyyUCx
+	fp6gkrQnQCo2iJFIp05OSSm5lqT80YPZkTyhont/Zad3Gpal1eOtvsqbq8OJtaibaVXp1dsDXjD
+	rK8+tuzYUli7mnL2qXVJGrMtKTqNw2JZo+asfGxtGHUrl6xNTMdQTZvH7fSgYQkRu9A==
+X-Received: by 2002:ac8:2bbd:: with SMTP id m58mr77697824qtm.225.1558564748372;
+        Wed, 22 May 2019 15:39:08 -0700 (PDT)
+X-Received: by 2002:ac8:2bbd:: with SMTP id m58mr77697785qtm.225.1558564747762;
+        Wed, 22 May 2019 15:39:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558564747; cv=none;
         d=google.com; s=arc-20160816;
-        b=uY7ggajTrRJopbq2Wf88uFed71Jy6THp6BFCf3wiri9LVDZ9Xb4sJypDZFjyZ20PWs
-         R0hOrErLvq5WmMg3WlpN3oEtiEscDYfnWB3cYn06RVibrIfIQgD5mkNWkW5g/ZlVye5H
-         fukqqxZ73CPkzGy0FZrzz46U8c+R0Y4ZyOvneVef3Fdilus1jRKQrAeFoxOIFLY8DflB
-         dn9pqPWeQr4m6xnDL7Kaq12T8TVPan9o7q836xDcTtTF7hesGZLVv+kYEes2jiOGgrPe
-         op2tdrpiIILjmcUVQGWq/H9xXLzwi96S5EGqDoYiXDwdorY7hQPP+JPUgDQGp2APHz5e
-         LjlQ==
+        b=RInbqiNSkQg2U2Gtj8IgrUcupIvBt3+C8ZzSug2X/7YK9FYgk8B9zkRi7Q3Ogc/kam
+         7PYuK3cstTk8KUV9m56QPi8H3jR0+Xi1tc2SZ2hLlEgoUng6xGwd/cLDPz5RAnV4jXW4
+         Js3wrTwXsrCtFzKv1V1lF7L8p7+zzcldJxvwxUJi4ouNMjFv1mqtmg7SY43n8XvUUut4
+         jRv7pV3WZxD9UzB2TicjgSdklYFQOEu6MBfrxpKSrn4qThacO9pnx4mEJtwI9FWyyuq2
+         0pASTwZf7AOtlZiELNwRygwQytnx+6c1Upy3oAdfnWb/Q6lqRAm24axhRU1RKfArK9Ln
+         Dz0w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=dGmKexW93ziU4gaxGu2r8jazHHWX79RJa8vFWpgs9PA=;
-        b=v0nRIgbSAnfjmXdP77znvnaW6SbOxuvUGzTO6kxG/ZhAhhuWXhaRKUYzJYGPhIHTR3
-         HI7xzbE0KPU3gjvyVmvxmFO91YY2NGflclrlQOiu/ywiw2U2HBcRVfOh+tb0zG8okPR5
-         LAwCm9VOcP42N+C628eNQsXtcJEnZ9ZNLJXHgDLil4cB7otXcTBspS8W46YLlbzNU40t
-         XnJmf462GGDtDHBb9J2CyzCSONdMiAZqMnV9RAO5IXxI6a11AyrY4hLJ6uxWcjCyBHDl
-         DvsI9ogStONRXY1OekOgeXdzYgd4nLKvSuwFsp3lJOZRbTNkU//SsN4dSgWtabuy8uJE
-         WgcA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=UMLE3HAwx27IoVBbcznO88OARo8jwYRssCcya47nG+w=;
+        b=tjmo9vCz72e4H0lTz4td8PbenSVQDsDxkQfvV39A74JVIr8BO9Pj3hVvaZe4K9pS0o
+         VqC59zSCEKTfErtQPmu5M4RRTv+yAzhHTvTMhe7XNMmR38rYwh9o2kWaVo1BYT6x0Wcs
+         Xmqmu/tJpgIbjkmweinmU3J52/1TRHzAFriH/eW/t8tIWWkT80BRN/utzKADEMt12830
+         FsiZzgVlZG1OHTS4zPmt3K98h0m7dTx5+UDREx71EOh0AaGE+ZUYV/xir6XsLmlDH7YQ
+         buPlzVqiYXHPSOlaN08M2ZRjscWLiagM2p1TkU+lagXoZGasZybOocqZrr5mcyHDezuw
+         Ea7A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=IAEjEkbK;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=r4T7y0il;
-       spf=pass (google.com: domain of prvs=00452a55eb=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=00452a55eb=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id d18si2707608vsk.400.2019.05.22.15.23.08
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=HPp1yf7U;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u46sor16334617qvf.52.2019.05.22.15.39.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 15:23:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=00452a55eb=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        (Google Transport Security);
+        Wed, 22 May 2019 15:39:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=IAEjEkbK;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=r4T7y0il;
-       spf=pass (google.com: domain of prvs=00452a55eb=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=00452a55eb=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
-	by m0001303.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x4MMBl7C022026;
-	Wed, 22 May 2019 15:23:04 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=dGmKexW93ziU4gaxGu2r8jazHHWX79RJa8vFWpgs9PA=;
- b=IAEjEkbK1fNS9QuZ5RtI4RWq2cpu9zKkLk4Rti/yV01QYV8kG1U3eIz5Rah4wzJUsQ91
- lSWbqIWGduow+/cXrlgLSYo97fZs4fRK21NSP3TJC+xqcBs4VdBs0o9nvHnGqZiba22o
- IqaKjwpzRVCF60QB4mRiNEpjyT+fqY3uqOc= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by m0001303.ppops.net with ESMTP id 2sn5ta28p3-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Wed, 22 May 2019 15:23:04 -0700
-Received: from prn-hub05.TheFacebook.com (2620:10d:c081:35::129) by
- prn-hub02.TheFacebook.com (2620:10d:c081:35::126) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 22 May 2019 15:23:03 -0700
-Received: from NAM04-CO1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.29) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Wed, 22 May 2019 15:23:03 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=dGmKexW93ziU4gaxGu2r8jazHHWX79RJa8vFWpgs9PA=;
- b=r4T7y0il9x6ORmFiY+ATgUu27a5Q8elRA6V5CL9dgARrsp6Vv6YqHqQA57GRa5IZAjHFAYbw76PmE0c4fh8ahy2zDrKyWxs3f7au137fhrs5yg4vJZzTFKtioDF86B4DDVh/7n9ELX1UqbDAznWxbH8D44z06Ktz0XQ8rn5V1y8=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB2246.namprd15.prod.outlook.com (52.135.196.161) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1900.18; Wed, 22 May 2019 22:23:01 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d4f6:b485:69ee:fd9a]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d4f6:b485:69ee:fd9a%7]) with mapi id 15.20.1900.020; Wed, 22 May 2019
- 22:23:01 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>,
-        Kernel Team <Kernel-team@fb.com>,
-        "Johannes
- Weiner" <hannes@cmpxchg.org>,
-        Michal Hocko <mhocko@kernel.org>, Rik van Riel
-	<riel@surriel.com>,
-        Shakeel Butt <shakeelb@google.com>, Christoph Lameter
-	<cl@linux.com>,
-        Vladimir Davydov <vdavydov.dev@gmail.com>,
-        "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>,
-        Waiman Long
-	<longman@redhat.com>
-Subject: Re: [PATCH v5 0/7] mm: reparent slab memory on cgroup removal
-Thread-Topic: [PATCH v5 0/7] mm: reparent slab memory on cgroup removal
-Thread-Index: AQHVEBPXzJHWaXaBI0+0EQ7he1b+7KZ3OWCAgAB5ngCAAAaqgA==
-Date: Wed, 22 May 2019 22:23:01 +0000
-Message-ID: <20190522222254.GA5700@castle>
-References: <20190521200735.2603003-1-guro@fb.com>
- <20190522214347.GA10082@tower.DHCP.thefacebook.com>
- <20190522145906.60c9e70ac0ed7ee3918a124c@linux-foundation.org>
-In-Reply-To: <20190522145906.60c9e70ac0ed7ee3918a124c@linux-foundation.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: CO2PR07CA0056.namprd07.prod.outlook.com (2603:10b6:100::24)
- To BYAPR15MB2631.namprd15.prod.outlook.com (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::2:39a1]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: de318b47-c092-401b-4178-08d6df040cf7
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB2246;
-x-ms-traffictypediagnostic: BYAPR15MB2246:
-x-microsoft-antispam-prvs: <BYAPR15MB2246367CCCFC35A3F2B478F7BE000@BYAPR15MB2246.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:4714;
-x-forefront-prvs: 0045236D47
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(979002)(7916004)(376002)(39860400002)(136003)(366004)(396003)(346002)(189003)(199004)(476003)(53936002)(66446008)(66946007)(5660300002)(99286004)(73956011)(66476007)(52116002)(186003)(81166006)(386003)(6506007)(81156014)(8936002)(76176011)(54906003)(316002)(86362001)(66556008)(64756008)(71190400001)(71200400001)(1076003)(6246003)(4326008)(25786009)(33716001)(7736002)(46003)(486006)(478600001)(7416002)(14454004)(14444005)(11346002)(256004)(446003)(305945005)(6916009)(33656002)(8676002)(2906002)(9686003)(6512007)(229853002)(102836004)(6436002)(68736007)(6486002)(6116002)(969003)(989001)(999001)(1009001)(1019001);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2246;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: fhZs5LKwhhGswexFbHlJlKTaGR8pmNZeyhMtDQgoclfVQT2GW26UxNzwMpTFiMeq5IRllRA4XGPFbAGfXxXodt9ROCKZpALcfrQ3jFC8fC8v/Glx4hxTp5G1+sYaNfJ0UnE35lGsy+0qmgGdpvbKZ3vUZJjWa1d5W3fLQx3m70rmG1wfSLx56VRQ3tuRqA57GNri0HLpG3P/gN1SXW+fdJoXcuRTJqGMPkQ9ks574d7QDhkDa2kbuOl+N3WAZJfJC8sdkRAUAPwWaKVN8Z9M85z9oNMeKPEJD3nrCOyiVU833QMjUYKclVgB7SfwEic+M7WYBY0iHDKH+z+BsnAHElJZCu5+JzttR5+Eg0/7v+rdDSCBhH/fQ3f1uFqHTN1HNyhHafnPeWOJXzJgDUOC8rPSvtBacLU7J0XMdqek7U0=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <65249C67D481204287EF3B3478D04766@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=HPp1yf7U;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=UMLE3HAwx27IoVBbcznO88OARo8jwYRssCcya47nG+w=;
+        b=HPp1yf7UaNRX/NHm7Qrb6+fAjoR2gcBQuHExLlVFljSVAj6YPgk7u5skIrg1t+Q676
+         L+k/DF0Ep78EEOSTSdjakOaul6IT4peNpU0CBpdsaewjQM5qFjASu8RuDwae8Lkm2wgp
+         jm8zl83EuwQTP1qNxJMUNJPygZbR1PsHjnGhvWR3dYIyYw2wWZpKRqnHD/TpRw6n0FHS
+         3qvSUrjQ6yP/Pp8MSoZIhlXnd+WCyuzsdHTnwA++L7r5QQbNMt2cV3ivlSRvH1X6TNTH
+         2E9gAxB/pokrMV8S24PNfis99/Hc+RHOiv9NicXOZ4QkaAU4eZrpIg4BFNPp5GSW+Z44
+         b6Iw==
+X-Google-Smtp-Source: APXvYqxj4GChHyUq+eruEvlXXg5Xkh+OFkyniU+6VTOrc4UcOOoOthn42FnxYVAYbRcTGFHyw0omgw==
+X-Received: by 2002:a0c:9ac8:: with SMTP id k8mr73884142qvf.132.1558564747382;
+        Wed, 22 May 2019 15:39:07 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-49-251.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.49.251])
+        by smtp.gmail.com with ESMTPSA id x3sm14024223qtk.75.2019.05.22.15.39.06
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 22 May 2019 15:39:06 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hTZt4-00046O-2c; Wed, 22 May 2019 19:39:06 -0300
+Date: Wed, 22 May 2019 19:39:06 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	linux-rdma@vger.kernel.org, Leon Romanovsky <leonro@mellanox.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Artemy Kovalyov <artemyko@mellanox.com>,
+	Moni Shoua <monis@mellanox.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Kaike Wan <kaike.wan@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>
+Subject: Re: [PATCH v4 0/1] Use HMM for ODP v4
+Message-ID: <20190522223906.GA15389@ziepe.ca>
+References: <20190411181314.19465-1-jglisse@redhat.com>
+ <20190506195657.GA30261@ziepe.ca>
+ <20190521205321.GC3331@redhat.com>
+ <20190522005225.GA30819@ziepe.ca>
+ <20190522174852.GA23038@redhat.com>
+ <20190522201247.GH6054@ziepe.ca>
+ <20190522220419.GB20179@redhat.com>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: de318b47-c092-401b-4178-08d6df040cf7
-X-MS-Exchange-CrossTenant-originalarrivaltime: 22 May 2019 22:23:01.2975
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2246
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-22_13:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=735 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905220154
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190522220419.GB20179@redhat.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 22, 2019 at 02:59:06PM -0700, Andrew Morton wrote:
-> On Wed, 22 May 2019 21:43:54 +0000 Roman Gushchin <guro@fb.com> wrote:
->=20
-> > Is this patchset good to go? Or do you have any remaining concerns?
-> >=20
-> > It has been carefully reviewed by Shakeel; and also Christoph and Waima=
-n
-> > gave some attention to it.
-> >=20
-> > Since commit 172b06c32b94 ("mm: slowly shrink slabs with a relatively")
-> > has been reverted, the memcg "leak" problem is open again, and I've hea=
-rd
-> > from several independent people and companies that it's a real problem
-> > for them. So it will be nice to close it asap.
-> >=20
-> > I suspect that the fix is too heavy for stable, unfortunately.
-> >=20
-> > Please, let me know if you have any issues that preventing you
-> > from pulling it into the tree.
->=20
-> I looked, and put it on ice for a while, hoping to hear from
-> mhocko/hannes.  Did they look at the earlier versions?
+On Wed, May 22, 2019 at 06:04:20PM -0400, Jerome Glisse wrote:
+> On Wed, May 22, 2019 at 05:12:47PM -0300, Jason Gunthorpe wrote:
+> > On Wed, May 22, 2019 at 01:48:52PM -0400, Jerome Glisse wrote:
+> > 
+> > >  static void put_per_mm(struct ib_umem_odp *umem_odp)
+> > >  {
+> > >  	struct ib_ucontext_per_mm *per_mm = umem_odp->per_mm;
+> > > @@ -325,9 +283,10 @@ static void put_per_mm(struct ib_umem_odp *umem_odp)
+> > >  	up_write(&per_mm->umem_rwsem);
+> > >  
+> > >  	WARN_ON(!RB_EMPTY_ROOT(&per_mm->umem_tree.rb_root));
+> > > -	mmu_notifier_unregister_no_release(&per_mm->mn, per_mm->mm);
+> > > +	hmm_mirror_unregister(&per_mm->mirror);
+> > >  	put_pid(per_mm->tgid);
+> > > -	mmu_notifier_call_srcu(&per_mm->rcu, free_per_mm);
+> > > +
+> > > +	kfree(per_mm);
+> > 
+> > Notice that mmu_notifier only uses SRCU to fence in-progress ops
+> > callbacks, so I think hmm internally has the bug that this ODP
+> > approach prevents.
+> > 
+> > hmm should follow the same pattern ODP has and 'kfree_srcu' the hmm
+> > struct, use container_of in the mmu_notifier callbacks, and use the
+> > otherwise vestigal kref_get_unless_zero() to bail:
+> > 
+> > From 0cb536dc0150ba964a1d655151d7b7a84d0f915a Mon Sep 17 00:00:00 2001
+> > From: Jason Gunthorpe <jgg@mellanox.com>
+> > Date: Wed, 22 May 2019 16:52:52 -0300
+> > Subject: [PATCH] hmm: Fix use after free with struct hmm in the mmu notifiers
+> > 
+> > mmu_notifier_unregister_no_release() is not a fence and the mmu_notifier
+> > system will continue to reference hmm->mn until the srcu grace period
+> > expires.
+> > 
+> >          CPU0                                     CPU1
+> >                                                __mmu_notifier_invalidate_range_start()
+> >                                                  srcu_read_lock
+> >                                                  hlist_for_each ()
+> >                                                    // mn == hmm->mn
+> > hmm_mirror_unregister()
+> >   hmm_put()
+> >     hmm_free()
+> >       mmu_notifier_unregister_no_release()
+> >          hlist_del_init_rcu(hmm-mn->list)
+> > 			                           mn->ops->invalidate_range_start(mn, range);
+> > 					             mm_get_hmm()
+> >       mm->hmm = NULL;
+> >       kfree(hmm)
+> >                                                      mutex_lock(&hmm->lock);
+> > 
+> > Use SRCU to kfree the hmm memory so that the notifiers can rely on hmm
+> > existing. Get the now-safe hmm struct through container_of and directly
+> > check kref_get_unless_zero to lock it against free.
+> 
+> It is already badly handled with BUG_ON()
 
-Johannes has definitely looked at one of early versions of the patchset,
-and one of the outcomes was his own patchset about pushing memcg stats
-up by the tree, which eliminated the need to deal with memcg stats
-on kmem_cache reparenting.
+You can't crash the kernel because userspace forced a race, and no it
+isn't handled today because there is no RCU locking in mm_get_hmm nor
+is there a kfree_rcu for the struct hmm to make the
+kref_get_unless_zero work without use-after-free.
 
-The problem and the proposed solution have been discussed on latest LSFMM,
-and I didn't hear any opposition. So I assume that Michal is at least
-not against the idea in general. A careful code review is always welcome,
-of course.
+> i just need to convert those to return and to use
+> mmu_notifier_call_srcu() to free hmm struct.
 
-Thanks!
+Isn't that what this patch does?
+
+> The way race is avoided is because mm->hmm will either be NULL or
+> point to another hmm struct before an existing hmm is free. 
+
+There is no locking on mm->hmm so it is useless to prevent races.
+
+> Also if range_start/range_end use kref_get_unless_zero() but right
+> now this is BUG_ON if it turn out to be NULL, it should just return
+> on NULL.
+
+Still needs rcu.
+
+Also the container_of is necessary to avoid some race where you could
+be doing:
+
+                  CPU0                                     CPU1                         CPU2
+                                                       hlist_for_each ()
+       mmu_notifier_unregister_no_release(hmm1)             
+       spin_lock(&mm->page_table_lock);                                
+       mm->hmm = NULL
+       spin_unlock(&mm->page_table_lock);                                                                                      
+                                                      				 hmm2 = hmm_get_or_create()
+                                                        mn == hmm1->mn
+                                                        mn->ops->invalidate_range_start(mn, range)
+							  mm_get_mm() == hmm2
+                                                      hist_for_each con't
+                                                        mn == hmm2->mn
+                                                        mn->ops->invalidate_range_start(mn, range)
+							  mm_get_mm() == hmm2
+
+Now we called the same notifier twice on hmm2. Ooops.
+
+There is no reason to risk this confusion just to avoid container_of.
+
+So we agree this patch is necessary? Can you test it an ack it please?
+
+Jason
 
