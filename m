@@ -2,163 +2,223 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41FFFC282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:23:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E62A5C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:38:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D318021473
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:23:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ZDeN3RZm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D318021473
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 4AA4020821
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:38:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4AA4020821
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 26D886B0003; Wed, 22 May 2019 16:23:25 -0400 (EDT)
+	id 08E636B0003; Wed, 22 May 2019 16:38:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 21DF96B0006; Wed, 22 May 2019 16:23:25 -0400 (EDT)
+	id 03DC06B0006; Wed, 22 May 2019 16:38:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 10D4E6B0007; Wed, 22 May 2019 16:23:25 -0400 (EDT)
+	id E47066B0007; Wed, 22 May 2019 16:38:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CBE146B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 16:23:24 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id 14so2311696pgo.14
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 13:23:24 -0700 (PDT)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BF2F56B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 16:38:39 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id v77so3252709ywe.1
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 13:38:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=OR/F32T2HsRarig/yfUZBtfPy41fvhI2UBxZTDwWsVo=;
-        b=Ae7hsm7ydqzsjjo5RxEjZA1rMe2Df7M6FaWe0CKtn/+uuLTALdEe3o6mCbERAlwNlh
-         he8/XrWktfiKqckZ2NU67TnoAu5/HX0xxjwvc42FlGFrTwicY0hzffpZ6Eh5rMJX7B6z
-         zADjTvC3uwjwl8wD3R5dBPT+L4LxVzpap0N/h9bA1k0WWUNBOy3YkuGbTtMF/n1RS641
-         Q9aP6/optiqeH2JCdo9PkMYtU9EqeLgTJ7tLMqK14Xw39JDr10b0kmavBfHlK0lbnoPV
-         4yRbKlEoVkiDW3wtobVJ0jA+pTIk4LSvu/uaiMAz4WJpZN1rVZsqQ+iclw3tbZjOkur0
-         QsTQ==
-X-Gm-Message-State: APjAAAUpildijxe+0yB3NhvVeWUel+JYoCNZn7AC6QUkpi4i3eYymSCH
-	yjAXS21nYA3+8ym4wuXRC5ipOjaI+ET6NJ4H6NanOVKT/MRbR47SqxNPXo/jO8PYhjc9N487MmR
-	YWRQHGW65nIdsDk8Gks4dGr9bsSft6J5tuviAKa/cSrTBc838WwtefTODyteMvciRiA==
-X-Received: by 2002:a62:d205:: with SMTP id c5mr97058926pfg.219.1558556604406;
-        Wed, 22 May 2019 13:23:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzykEfkizh4bN41+A8BDIQdyvN10I3goBDUtDUunjVZsVVjv357OVxabME7MC1zNoiQHHaQ
-X-Received: by 2002:a62:d205:: with SMTP id c5mr97058875pfg.219.1558556603764;
-        Wed, 22 May 2019 13:23:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558556603; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=d+ndlJSLq+rU6RgWbIIbnH1PzqZ7zjvEvgMkuhh1tPQ=;
+        b=j29YK1ghBE7Zt3G/XO/ptPar2BJ1j+wdnDLzLimvJPemPqaPXPeQ3dstwtRshGfZtz
+         Hurmf6H923o6WRqJBZfH2qerXXZxCLqR06LCrR2KkyTsEfB2IZbEDHSK5yAO4OQrECSc
+         40YvPtr8L4j+IbDCnO6nHtyfwzN7ZO0SZP4lwvCaH5tZ9o+0IAQojwHidVAHQEjRk18V
+         OQiA5HIhe0kc8z4MYJhpgWlNSQs/wXVCEC55276mJl7JzgMQelzi1NiBOmTiZl0tfbJ8
+         RAKCsn2NpqN5RSJTZDEqdulvqo7tkBpB9DrV36zgxfcalyuqyzheB0e34ub9k43gRz4M
+         q/jQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWtCtrh0CV6EZ1k6XIXt7yY6pDcfBk7yD3B6bFHsXYpD1A23V8o
+	03buWVwOE+U+iLq3VR69YvD2beBUXKvsLYxad70IsVLdnk4aurLHYqU1/BWs9LwecAt6teDFGkZ
+	pgsv9Jhl2oJZpVkGgDG9fPopfXDaQoer7fr2JkDiEa57PoqL2mDGlENnQDWXxTyd88A==
+X-Received: by 2002:a25:d957:: with SMTP id q84mr13128683ybg.52.1558557519458;
+        Wed, 22 May 2019 13:38:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwaIYxKxE/zI/fvKz3TcIs8xCDwVI6sn5bzbKfPdiZCY7WRdC9VrsS2M4bfHF/V3CzRAX9E
+X-Received: by 2002:a25:d957:: with SMTP id q84mr13128651ybg.52.1558557518619;
+        Wed, 22 May 2019 13:38:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558557518; cv=none;
         d=google.com; s=arc-20160816;
-        b=IIiQbaH/isEdTyejZFhRr0Px+65o8TjlC52GdHC/7ynDBfmITkFJsGpihLw4FabdIJ
-         DFDm0km5uhzuCrbOCYVBMj0ZL1w8fB+y5P2seXr68zHLun3tIqvW7PutqMVHDZU+17kB
-         xD0WaFvtEj7BCM6A1rp6xob/SiacWJYHGCKaSgVIf2P+g93+26dntCsLO43uR2hSDYkW
-         pi7yEqWi2hUofFF3SAvafPVqS1s3FWVN2zbriFgQExBJ6CrEa1znLRTj+dnGdr7m7fbT
-         0S/eQ2jypGIDaD1hs5heUOrW+0fMHVNCMjSKLRB9w8HGW6Tkm4D7RRjtvA05WV0wKp7A
-         Nv2A==
+        b=YnKSKx80NEUiZGdJymmGwYddxPU4rOXM8m/O/OSjC6bgA9bnZZCq01QgJBDP6XFhOW
+         nflkjWcJeo00oZ0KGeGgHeXu9nuOMfyy9tpUHe5Rr/zVUMBv0QSHSLB2FgkSGcyqt1kv
+         1zl7StVVIA3Rf15jGgyMv+N+pxmWpxWsObwWt7ZNKg7SuU1SQ5YASxbcaZwe/sfT1sFr
+         DeQeyJNCpKD1NN8a4ZWrJjxg5o1WvI/P9G1rMC25BWCeStdfPmE1xRARQsf1Q151J/Cq
+         vEG2SGidL+RvV/CE4PBg9gFfNWRshHDovi+yTRk50AW8wrIPdkc/KBUtlxcll+DdZbrk
+         Lx5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=OR/F32T2HsRarig/yfUZBtfPy41fvhI2UBxZTDwWsVo=;
-        b=VHS90ZRbX+e4ew1Lr/NEbzw8s0Zkf3Kiv1FRKAspcp8/Iu8DqxiTuoXKKXCIn22hNk
-         PIjk/ZngG1SHOPUMc+8YU5V3U4E4OMUSgP63pnJXXbWvyb/tpdplE0QB3ZZNKr9tQWpT
-         o8OWYKRtUu58csPATIXrZqh8tnydITqpPnEm8E5SzC5VGDdso9PBI9ziOTTYAckyvGfO
-         mbvPDgN4gpCuHOZYt5hLrUhhf5cjp9E70MvLrTQvAnJbRtkQNrzYfnKwMK6artyIxXQJ
-         lkY4+XIrEPWDB0gg6u3rHVeI/C2pgevnKcWcBWcO73xrQM3FBxtWLR25f00bmQOQjjn7
-         lgZQ==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=d+ndlJSLq+rU6RgWbIIbnH1PzqZ7zjvEvgMkuhh1tPQ=;
+        b=GRaXpnsaRKBg2GVmJzeadx7BySyUJeZ5L5IKY28wuC9rJ6N4Kz8N+TNqbeFQEQrso2
+         5Z9Sr7iNb/68gk4C5KSw3GTcTJ1/xRQ80/RmdH1pJW8/XRWsX9MxmP7YBASIlMw7IVvt
+         eyBvWAthOs8HpePgKE79xMx3aTo1U9nj3oTEdPvIgCKHTMObrw6pfVqe1srteWOnjdXw
+         itBq4opzvuOHqfDXOvV1F9frtm8zR7uUh2vprA82mbK6OiboN+dmnUR6xl8UsiUlh263
+         fLDORcb2/JVl58LKNEAs5Y5fhKav27AxfFeZaNb6YE/QMITbGD3cAi004b3jSN5NUFWw
+         4Jgw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=ZDeN3RZm;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id i2si28023622pfb.7.2019.05.22.13.23.23
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id i82si7338370ywa.345.2019.05.22.13.38.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 13:23:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Wed, 22 May 2019 13:38:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=ZDeN3RZm;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 3F0C020868;
-	Wed, 22 May 2019 20:23:23 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1558556603;
-	bh=U+M6rf3AMmh/gfDRmie33m03JcslFeEpWHuYCbgXRdA=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=ZDeN3RZmrMOyzEPRBdj6EkpJxeuolU55ceZ8admENVimY9uWgB1XQ9yIbch4ihSWu
-	 kHK9uVs+w3oSYlhP+MmVcu0WL++4CxRRaRq8UD16ho9NEZYiZoQXusbpMOpzpIfuRl
-	 Kdkli/pLetz+4OJrGDoKGRN1fVyLkNhmNBBJky1s=
-Date: Wed, 22 May 2019 13:23:22 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, "linux-mm@kvack.org"
- <linux-mm@kvack.org>
-Subject: Re: [PATCH] hmm: Suppress compilation warnings when
- CONFIG_HUGETLB_PAGE is not set
-Message-Id: <20190522132322.15605c8b344f46b31ea8233b@linux-foundation.org>
-In-Reply-To: <20190522195151.GA23955@ziepe.ca>
-References: <20190522195151.GA23955@ziepe.ca>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4MKbNnk106065
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 16:38:38 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2snbb8dhm8-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 16:38:37 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 22 May 2019 21:38:36 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 22 May 2019 21:38:33 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4MKcW4Y50397334
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 22 May 2019 20:38:32 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 5E2C5AE045;
+	Wed, 22 May 2019 20:38:32 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 87F48AE04D;
+	Wed, 22 May 2019 20:38:31 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.205.81])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed, 22 May 2019 20:38:31 +0000 (GMT)
+Date: Wed, 22 May 2019 23:38:29 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org,
+        Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
+        Borislav Petkov <bp@suse.de>,
+        "Dr. David Alan Gilbert" <dgilbert@redhat.com>, kvm@vger.kernel.org
+Subject: Re: [PATCH] mm/gup: continue VM_FAULT_RETRY processing event for
+ pre-faults
+References: <1557844195-18882-1-git-send-email-rppt@linux.ibm.com>
+ <20190522122113.a2edc8aba32f0fad189bae21@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190522122113.a2edc8aba32f0fad189bae21@linux-foundation.org>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19052220-0020-0000-0000-0000033F6D06
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19052220-0021-0000-0000-0000219253D1
+Message-Id: <20190522203828.GC18865@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-22_12:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905220144
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 May 2019 19:51:55 +0000 Jason Gunthorpe <jgg@mellanox.com> wrote:
+(added kvm)
 
-> gcc reports that several variables are defined but not used.
+On Wed, May 22, 2019 at 12:21:13PM -0700, Andrew Morton wrote:
+> On Tue, 14 May 2019 17:29:55 +0300 Mike Rapoport <rppt@linux.ibm.com> wrote:
 > 
-> For the first hunk CONFIG_HUGETLB_PAGE the entire if block is already
-> protected by pud_huge() which is forced to 0. None of the stuff under
-> the ifdef causes compilation problems as it is already stubbed out in
-> the header files.
+> > When get_user_pages*() is called with pages = NULL, the processing of
+> > VM_FAULT_RETRY terminates early without actually retrying to fault-in all
+> > the pages.
+> > 
+> > If the pages in the requested range belong to a VMA that has userfaultfd
+> > registered, handle_userfault() returns VM_FAULT_RETRY *after* user space
+> > has populated the page, but for the gup pre-fault case there's no actual
+> > retry and the caller will get no pages although they are present.
+> > 
+> > This issue was uncovered when running post-copy memory restore in CRIU
+> > after commit d9c9ce34ed5c ("x86/fpu: Fault-in user stack if
+> > copy_fpstate_to_sigframe() fails").
+> > 
+> > After this change, the copying of FPU state to the sigframe switched from
+> > copy_to_user() variants which caused a real page fault to get_user_pages()
+> > with pages parameter set to NULL.
 > 
-> For the second hunk the dummy huge_page_shift macro doesn't touch the
-> argument, so just inline the argument.
+> You're saying that argument buf_fx in copy_fpstate_to_sigframe() is NULL?
+
+Apparently I haven't explained well. The 'pages' parameter in the call to
+get_user_pages_unlocked() is NULL.
+ 
+> If so was that expected by the (now cc'ed) developers of
+> d9c9ce34ed5c8923 ("x86/fpu: Fault-in user stack if
+> copy_fpstate_to_sigframe() fails")?
 > 
-> ...
->
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -797,7 +797,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
->  			return hmm_vma_walk_hole_(addr, end, fault,
->  						write_fault, walk);
->  
-> -#ifdef CONFIG_HUGETLB_PAGE
->  		pfn = pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
->  		for (i = 0; i < npages; ++i, ++pfn) {
->  			hmm_vma_walk->pgmap = get_dev_pagemap(pfn,
-> @@ -813,9 +812,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
->  		}
->  		hmm_vma_walk->last = end;
->  		return 0;
-> -#else
-> -		return -EINVAL;
-> -#endif
->  	}
+> It seems rather odd.  copy_fpregs_to_sigframe() doesn't look like it's
+> expecting a NULL argument.
+> 
+> Also, I wonder if copy_fpstate_to_sigframe() would be better using
+> fault_in_pages_writeable() rather than get_user_pages_unlocked().  That
+> seems like it operates at a more suitable level and I guess it will fix
+> this issue also.
 
-Fair enough.
+If I understand correctly, one of the points of d9c9ce34ed5c8923 ("x86/fpu:
+Fault-in user stack if copy_fpstate_to_sigframe() fails") was to to avoid
+page faults, hence the use of get_user_pages().
 
->  	split_huge_pud(walk->vma, pudp, addr);
-> @@ -1024,9 +1020,8 @@ long hmm_range_snapshot(struct hmm_range *range)
->  			return -EFAULT;
->  
->  		if (is_vm_hugetlb_page(vma)) {
-> -			struct hstate *h = hstate_vma(vma);
-> -
-> -			if (huge_page_shift(h) != range->page_shift &&
-> +			if (huge_page_shift(hstate_vma(vma)) !=
-> +				    range->page_shift &&
->  			    range->page_shift != PAGE_SHIFT)
->  				return -EINVAL;
+With fault_in_pages_writeable() there might be a page fault, unless I've
+completely mistaken.
 
-Also fair enough.  But why the heck is huge_page_shift() a macro?  We
-keep doing that and it bites so often :(
+Unrelated to copy_fpstate_to_sigframe(), the issue could happen if any call
+to get_user_pages() with pages parameter set to NULL tries to access
+userfaultfd-managed memory. Currently, there are 4 in tree users:
+
+arch/x86/kernel/fpu/signal.c:198:8-31:  -> gup with !pages
+arch/x86/mm/mpx.c:423:11-25:  -> gup with !pages
+virt/kvm/async_pf.c:90:1-22:  -> gup with !pages
+virt/kvm/kvm_main.c:1437:6-20:  -> gup with !pages
+
+I don't know if anybody is using mpx with uffd and anyway mpx seems to go
+away.
+
+As for KVM, I think that post-copy live migration of L2 guest might trigger
+that as well. Not sure though, I'm not really familiar with KVM code.
+ 
+> > In post-copy mode of CRIU, the destination memory is managed with
+> > userfaultfd and lack of the retry for pre-fault case in get_user_pages()
+> > causes a crash of the restored process.
+> > 
+> > Making the pre-fault behavior of get_user_pages() the same as the "normal"
+> > one fixes the issue.
+> 
+> Should this be backported into -stable trees?
+
+I think that it depends on whether KVM affected by this or not.
+
+> > Fixes: d9c9ce34ed5c ("x86/fpu: Fault-in user stack if copy_fpstate_to_sigframe() fails")
+> > Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
+> 
+> 
+
+-- 
+Sincerely yours,
+Mike.
 
