@@ -2,138 +2,228 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FAKE_REPLY_C,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 426E9C46460
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:18:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 58210C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:23:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF9942081C
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:18:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C172720868
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:23:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="GXLavN/7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF9942081C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="IAEjEkbK";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="r4T7y0il"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C172720868
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 859336B000A; Wed, 22 May 2019 18:18:09 -0400 (EDT)
+	id 807396B000A; Wed, 22 May 2019 18:23:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E2816B000C; Wed, 22 May 2019 18:18:09 -0400 (EDT)
+	id 7B8076B000C; Wed, 22 May 2019 18:23:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6F7976B000D; Wed, 22 May 2019 18:18:09 -0400 (EDT)
+	id 6575C6B000D; Wed, 22 May 2019 18:23:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 39DD36B000A
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 18:18:09 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id w2so2176547plq.0
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 15:18:09 -0700 (PDT)
+Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3973C6B000A
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 18:23:09 -0400 (EDT)
+Received: by mail-ua1-f70.google.com with SMTP id y2so1029976ual.15
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 15:23:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:in-reply-to:user-agent;
-        bh=Jd0RSCXoP1EdL1cjt/xgeuNaQX2V7Ph/JBkgB7uNH0g=;
-        b=ieMK6R2qyJGhwkT4h08AN0Dcnbbedn9n3aKj+kVVVLBScTbr8ErgUoW7vyaBC9anRE
-         nVgkgyUmiCJuYioDyQNfy81gw0oHpsnK+QBYf9gt1YMVD12pHD3ODqTLpszv0hD2QnHB
-         QKTWzkwDBUPRH+tKW6EK46yWB4waZsT/6BHK99gZpWq+jl4NTfb/mZFp51ZJ3UhN10G0
-         Yx0fqx+A/Y0ZAGfyi3BF0UBqKm2gkwgfxqtgrHyy2xbixw94w/JzUogn1KcvMAjqB/44
-         v8XekK8Ds8CO5/MFHA0oprNGRdmFH4WOwMTWURHlSKYuJddmjTgFXHHgVq3a3lH1egri
-         rRFg==
-X-Gm-Message-State: APjAAAVOCDi1RYgK1H1KQ9wwZw8RsFe4IUzZ3fajB7BaK9++oIcpFHOY
-	ZC4HlbMWzrYrP+HaV2w8TpSuNTZ38wELz1ZdJA/V8kmv438eSM6c0008sCXMwufSMwfwp+D4ocl
-	FHjsSToGgAPuLKPjUiZQ4uswLj6zqgKg5LEHRnkawA+Znl/YedPOxfq40K9m3+6bBtw==
-X-Received: by 2002:a63:246:: with SMTP id 67mr93972351pgc.145.1558563488755;
-        Wed, 22 May 2019 15:18:08 -0700 (PDT)
-X-Received: by 2002:a63:246:: with SMTP id 67mr93972294pgc.145.1558563488154;
-        Wed, 22 May 2019 15:18:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558563488; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=dGmKexW93ziU4gaxGu2r8jazHHWX79RJa8vFWpgs9PA=;
+        b=JWq8FIkl1FYTfn1FQdDgZ4jxj1GATtfBzP4cKOMyG9zF4wfwX/4IGIBbLM/gRZaZ8R
+         KCNYscK487DYgP6BKseHJX8pBe+cloprevWyOxKJ7Y9xYpsd5dHVZm7SwVC2NEW0jic5
+         3RCoLbS1rAt0iCgCwwTb+PIlykE70uodOP2Rb1vSuTUhioiozMLayq9vWHQNEmj2jQDg
+         h7h0Qdcz5D8ebWiBOjBSxV2LmBAqYyai4zVO68gA/X/8rKmD2xm7zcCuzD+4oGvf5cbH
+         u1g/Nyg6s4ZqHAynd8YnO+/PR7zBMu8FlecNSMikvdWxWk+EQUOI7DKz4WxivB3X6nl0
+         YyQw==
+X-Gm-Message-State: APjAAAXwlqjzyJdlArSagOohqg7IZju187iymvK2IJ5bLvwT943PD0Or
+	dWF5XXjUb6F19Oyu/omNzv/MS/WQwinPcStA4tOuO71iW5g6aGtR9IVDrEX5NkR8nRK0zzJ7yix
+	9LYCdxlxNaTuKTcYqRdIKpA0vkJBLkeiWP+NuBKB8hg8A7rr6bIUap+o53r8HcJ2Gkg==
+X-Received: by 2002:ab0:7842:: with SMTP id y2mr45212439uaq.80.1558563788855;
+        Wed, 22 May 2019 15:23:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy1vNkba0hLz7xuBc0foFtNdqUxpy5AFxblFctrlqYhDPKPMupLH4ZxE9ymnIbRaZO54ocw
+X-Received: by 2002:ab0:7842:: with SMTP id y2mr45212413uaq.80.1558563788183;
+        Wed, 22 May 2019 15:23:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558563788; cv=none;
         d=google.com; s=arc-20160816;
-        b=fyZYVCoic8ovFpFDvPoY8v+HcQL1WakvYAeVPaJfpFsp0F5YKkQiP9xXch7WYeezUg
-         bnJjVQ1/8s98+akzSvtDhCsjHnvS/LV4tToITLLuo9o9Ph0oGXs7bjg5w0Q3FcCcvM5Y
-         8MAIUyq+qpK4qjE2YjV8y6qQRkfUCzMGDbVdLDL9TI0Egcz9ZN1ZmEHRfb6QdHBu4Bx/
-         LQe5l6Qi58t8d5Obz0fjWz6ShC9el/wLEcUaOOR3BGWDUsLgdXTRHqYei0ynLEEzIEtS
-         ejWL+tXImWko78Y6gbtqOKImFxWxqnMI9Yu+EQBaEMsvHEqDjoCXq2x1js6b2liJdHmy
-         HvNw==
+        b=uY7ggajTrRJopbq2Wf88uFed71Jy6THp6BFCf3wiri9LVDZ9Xb4sJypDZFjyZ20PWs
+         R0hOrErLvq5WmMg3WlpN3oEtiEscDYfnWB3cYn06RVibrIfIQgD5mkNWkW5g/ZlVye5H
+         fukqqxZ73CPkzGy0FZrzz46U8c+R0Y4ZyOvneVef3Fdilus1jRKQrAeFoxOIFLY8DflB
+         dn9pqPWeQr4m6xnDL7Kaq12T8TVPan9o7q836xDcTtTF7hesGZLVv+kYEes2jiOGgrPe
+         op2tdrpiIILjmcUVQGWq/H9xXLzwi96S5EGqDoYiXDwdorY7hQPP+JPUgDQGp2APHz5e
+         LjlQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=Jd0RSCXoP1EdL1cjt/xgeuNaQX2V7Ph/JBkgB7uNH0g=;
-        b=F23Rt6wHSpxa1KBTNQg6ZT8IxMB01FLlv8gCrbzFz5tbwfKJqPF6k8+YR9CSWjOG69
-         hsj5ir+OnXSPsNh+CzeoHfPYxljI3/ZE+dd/1X2lMCbAlAe6uFZbBeElq246Z6CF0WMq
-         o5UiMXgC5SqfBiRHk1SjbnU5tm5kwzWapHLGzCJwPy3Ooh3yHV/fhJdFk0Wlr5YzOh68
-         QSe8y9Zx8OUheKNqZk/Npdxp8BtGsrfmN1kWKVeWnFCdc5Y7FG7OHWQaPUPhnyNSFhXd
-         xnLuy41EdETJknTQLhUZgf2bRxWjE3jz164KOOUz+s5o61b8GvXH6AHFV9HZ/PLl9uuz
-         v/iw==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=dGmKexW93ziU4gaxGu2r8jazHHWX79RJa8vFWpgs9PA=;
+        b=v0nRIgbSAnfjmXdP77znvnaW6SbOxuvUGzTO6kxG/ZhAhhuWXhaRKUYzJYGPhIHTR3
+         HI7xzbE0KPU3gjvyVmvxmFO91YY2NGflclrlQOiu/ywiw2U2HBcRVfOh+tb0zG8okPR5
+         LAwCm9VOcP42N+C628eNQsXtcJEnZ9ZNLJXHgDLil4cB7otXcTBspS8W46YLlbzNU40t
+         XnJmf462GGDtDHBb9J2CyzCSONdMiAZqMnV9RAO5IXxI6a11AyrY4hLJ6uxWcjCyBHDl
+         DvsI9ogStONRXY1OekOgeXdzYgd4nLKvSuwFsp3lJOZRbTNkU//SsN4dSgWtabuy8uJE
+         WgcA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b="GXLavN/7";
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u2sor28065084pfm.28.2019.05.22.15.18.08
+       dkim=pass header.i=@fb.com header.s=facebook header.b=IAEjEkbK;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=r4T7y0il;
+       spf=pass (google.com: domain of prvs=00452a55eb=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=00452a55eb=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id d18si2707608vsk.400.2019.05.22.15.23.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 May 2019 15:18:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 May 2019 15:23:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=00452a55eb=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b="GXLavN/7";
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Jd0RSCXoP1EdL1cjt/xgeuNaQX2V7Ph/JBkgB7uNH0g=;
-        b=GXLavN/7grE6LNJqyGhvPPesKBk185WFjgJna7ETOIJBaq1hY/O3DZYH9mqYTRPG6J
-         GdFKCMBa8+OJJ7SXTg/NgAmRQpnKKVfSSiZLmo2keKmw0ot67menzPS8qFUMaPrsgUDO
-         GNub7HFs2rNTz94sRTH62HK1i3T4MLXdmoCYI=
-X-Google-Smtp-Source: APXvYqwYkSpq4sI0OwVnuYJtsng97b6lnFAf2peUNKoiZTQR4ze4ezgmfpK+1cl50ZPOllSPkVklsg==
-X-Received: by 2002:a63:6f0b:: with SMTP id k11mr92068194pgc.342.1558563487623;
-        Wed, 22 May 2019 15:18:07 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::e733])
-        by smtp.gmail.com with ESMTPSA id l7sm28232045pfl.9.2019.05.22.15.18.06
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 22 May 2019 15:18:06 -0700 (PDT)
-Date: Wed, 22 May 2019 18:18:05 -0400
-From: Chris Down <chris@chrisdown.name>
-To: deepa.kernel@gmail.com
-Cc: akpm@linux-foundation.org, arnd@arndb.de, axboe@kernel.dk,
-	dave@stgolabs.net, dbueso@suse.de, e@80x24.org, jbaron@akamai.com,
-	linux-aio@kvack.org, linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org, oleg@redhat.com,
-	omar.kilani@gmail.com, stable@vger.kernel.org, tglx@linutronix.de,
-	viro@zeniv.linux.org.uk, linux-mm@kvack.org
-Subject: Re: [PATCH v2] signal: Adjust error codes according to
- restore_user_sigmask()
-Message-ID: <20190522221805.GA30062@chrisdown.name>
+       dkim=pass header.i=@fb.com header.s=facebook header.b=IAEjEkbK;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=r4T7y0il;
+       spf=pass (google.com: domain of prvs=00452a55eb=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=00452a55eb=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
+	by m0001303.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x4MMBl7C022026;
+	Wed, 22 May 2019 15:23:04 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=dGmKexW93ziU4gaxGu2r8jazHHWX79RJa8vFWpgs9PA=;
+ b=IAEjEkbK1fNS9QuZ5RtI4RWq2cpu9zKkLk4Rti/yV01QYV8kG1U3eIz5Rah4wzJUsQ91
+ lSWbqIWGduow+/cXrlgLSYo97fZs4fRK21NSP3TJC+xqcBs4VdBs0o9nvHnGqZiba22o
+ IqaKjwpzRVCF60QB4mRiNEpjyT+fqY3uqOc= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by m0001303.ppops.net with ESMTP id 2sn5ta28p3-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Wed, 22 May 2019 15:23:04 -0700
+Received: from prn-hub05.TheFacebook.com (2620:10d:c081:35::129) by
+ prn-hub02.TheFacebook.com (2620:10d:c081:35::126) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Wed, 22 May 2019 15:23:03 -0700
+Received: from NAM04-CO1-obe.outbound.protection.outlook.com (192.168.54.28)
+ by o365-in.thefacebook.com (192.168.16.29) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
+ via Frontend Transport; Wed, 22 May 2019 15:23:03 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=dGmKexW93ziU4gaxGu2r8jazHHWX79RJa8vFWpgs9PA=;
+ b=r4T7y0il9x6ORmFiY+ATgUu27a5Q8elRA6V5CL9dgARrsp6Vv6YqHqQA57GRa5IZAjHFAYbw76PmE0c4fh8ahy2zDrKyWxs3f7au137fhrs5yg4vJZzTFKtioDF86B4DDVh/7n9ELX1UqbDAznWxbH8D44z06Ktz0XQ8rn5V1y8=
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
+ BYAPR15MB2246.namprd15.prod.outlook.com (52.135.196.161) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1900.18; Wed, 22 May 2019 22:23:01 +0000
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::d4f6:b485:69ee:fd9a]) by BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::d4f6:b485:69ee:fd9a%7]) with mapi id 15.20.1900.020; Wed, 22 May 2019
+ 22:23:01 +0000
+From: Roman Gushchin <guro@fb.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>,
+        Kernel Team <Kernel-team@fb.com>,
+        "Johannes
+ Weiner" <hannes@cmpxchg.org>,
+        Michal Hocko <mhocko@kernel.org>, Rik van Riel
+	<riel@surriel.com>,
+        Shakeel Butt <shakeelb@google.com>, Christoph Lameter
+	<cl@linux.com>,
+        Vladimir Davydov <vdavydov.dev@gmail.com>,
+        "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>,
+        Waiman Long
+	<longman@redhat.com>
+Subject: Re: [PATCH v5 0/7] mm: reparent slab memory on cgroup removal
+Thread-Topic: [PATCH v5 0/7] mm: reparent slab memory on cgroup removal
+Thread-Index: AQHVEBPXzJHWaXaBI0+0EQ7he1b+7KZ3OWCAgAB5ngCAAAaqgA==
+Date: Wed, 22 May 2019 22:23:01 +0000
+Message-ID: <20190522222254.GA5700@castle>
+References: <20190521200735.2603003-1-guro@fb.com>
+ <20190522214347.GA10082@tower.DHCP.thefacebook.com>
+ <20190522145906.60c9e70ac0ed7ee3918a124c@linux-foundation.org>
+In-Reply-To: <20190522145906.60c9e70ac0ed7ee3918a124c@linux-foundation.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: CO2PR07CA0056.namprd07.prod.outlook.com (2603:10b6:100::24)
+ To BYAPR15MB2631.namprd15.prod.outlook.com (2603:10b6:a03:152::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:200::2:39a1]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: de318b47-c092-401b-4178-08d6df040cf7
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB2246;
+x-ms-traffictypediagnostic: BYAPR15MB2246:
+x-microsoft-antispam-prvs: <BYAPR15MB2246367CCCFC35A3F2B478F7BE000@BYAPR15MB2246.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:4714;
+x-forefront-prvs: 0045236D47
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(979002)(7916004)(376002)(39860400002)(136003)(366004)(396003)(346002)(189003)(199004)(476003)(53936002)(66446008)(66946007)(5660300002)(99286004)(73956011)(66476007)(52116002)(186003)(81166006)(386003)(6506007)(81156014)(8936002)(76176011)(54906003)(316002)(86362001)(66556008)(64756008)(71190400001)(71200400001)(1076003)(6246003)(4326008)(25786009)(33716001)(7736002)(46003)(486006)(478600001)(7416002)(14454004)(14444005)(11346002)(256004)(446003)(305945005)(6916009)(33656002)(8676002)(2906002)(9686003)(6512007)(229853002)(102836004)(6436002)(68736007)(6486002)(6116002)(969003)(989001)(999001)(1009001)(1019001);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2246;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: fhZs5LKwhhGswexFbHlJlKTaGR8pmNZeyhMtDQgoclfVQT2GW26UxNzwMpTFiMeq5IRllRA4XGPFbAGfXxXodt9ROCKZpALcfrQ3jFC8fC8v/Glx4hxTp5G1+sYaNfJ0UnE35lGsy+0qmgGdpvbKZ3vUZJjWa1d5W3fLQx3m70rmG1wfSLx56VRQ3tuRqA57GNri0HLpG3P/gN1SXW+fdJoXcuRTJqGMPkQ9ks574d7QDhkDa2kbuOl+N3WAZJfJC8sdkRAUAPwWaKVN8Z9M85z9oNMeKPEJD3nrCOyiVU833QMjUYKclVgB7SfwEic+M7WYBY0iHDKH+z+BsnAHElJZCu5+JzttR5+Eg0/7v+rdDSCBhH/fQ3f1uFqHTN1HNyhHafnPeWOJXzJgDUOC8rPSvtBacLU7J0XMdqek7U0=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <65249C67D481204287EF3B3478D04766@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20190522032144.10995-1-deepa.kernel@gmail.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+X-MS-Exchange-CrossTenant-Network-Message-Id: de318b47-c092-401b-4178-08d6df040cf7
+X-MS-Exchange-CrossTenant-originalarrivaltime: 22 May 2019 22:23:01.2975
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2246
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-22_13:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=735 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905220154
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-+Cc: linux-mm, since this broke mmots tree and has been applied there
+On Wed, May 22, 2019 at 02:59:06PM -0700, Andrew Morton wrote:
+> On Wed, 22 May 2019 21:43:54 +0000 Roman Gushchin <guro@fb.com> wrote:
+>=20
+> > Is this patchset good to go? Or do you have any remaining concerns?
+> >=20
+> > It has been carefully reviewed by Shakeel; and also Christoph and Waima=
+n
+> > gave some attention to it.
+> >=20
+> > Since commit 172b06c32b94 ("mm: slowly shrink slabs with a relatively")
+> > has been reverted, the memcg "leak" problem is open again, and I've hea=
+rd
+> > from several independent people and companies that it's a real problem
+> > for them. So it will be nice to close it asap.
+> >=20
+> > I suspect that the fix is too heavy for stable, unfortunately.
+> >=20
+> > Please, let me know if you have any issues that preventing you
+> > from pulling it into the tree.
+>=20
+> I looked, and put it on ice for a while, hoping to hear from
+> mhocko/hannes.  Did they look at the earlier versions?
 
-This patch is missing a definition for signal_detected in io_cqring_wait, which 
-breaks the build.
+Johannes has definitely looked at one of early versions of the patchset,
+and one of the outcomes was his own patchset about pushing memcg stats
+up by the tree, which eliminated the need to deal with memcg stats
+on kmem_cache reparenting.
 
-diff --git fs/io_uring.c fs/io_uring.c
-index b785c8d7efc4..b34311675d2d 100644
---- fs/io_uring.c
-+++ fs/io_uring.c
-@@ -2182,7 +2182,7 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
- {
-        struct io_cq_ring *ring = ctx->cq_ring;
-        sigset_t ksigmask, sigsaved;
--       int ret;
-+       int ret, signal_detected;
- 
-        if (io_cqring_events(ring) >= min_events)
-                return 0;
+The problem and the proposed solution have been discussed on latest LSFMM,
+and I didn't hear any opposition. So I assume that Michal is at least
+not against the idea in general. A careful code review is always welcome,
+of course.
+
+Thanks!
 
