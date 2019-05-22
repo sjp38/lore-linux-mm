@@ -2,184 +2,238 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A1F1BC282DD
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:40:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D2E6C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:42:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 37F6420881
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:40:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37F6420881
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 0759F2173C
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 22:42:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0759F2173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 11BCF6B0006; Wed, 22 May 2019 18:40:06 -0400 (EDT)
+	id 9CDF76B0003; Wed, 22 May 2019 18:42:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0CD036B0007; Wed, 22 May 2019 18:40:06 -0400 (EDT)
+	id 9A5736B0006; Wed, 22 May 2019 18:42:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F251E6B0008; Wed, 22 May 2019 18:40:05 -0400 (EDT)
+	id 8947A6B0007; Wed, 22 May 2019 18:42:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BABC56B0006
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 18:40:05 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id s5so2489843pgv.21
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 15:40:05 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 68E7F6B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 18:42:15 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id n65so3705592qke.12
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 15:42:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:user-agent:content-id
-         :content-transfer-encoding:mime-version;
-        bh=KXJLFOTepUuro+Nn6RH2h7c9Z0DgbzpITHufBWTg7a8=;
-        b=sWrcgEzoGh76HMPcVWx3k95jfRK8Y1DZOexo+vd+3v1tVIw0NHKQM7MbShHbaFnNiG
-         sZH5HwtPu3DueAejIXlv8ut/2NqqsLSqOrOSkj2oaTxPbn3fIMdFZa+8uuwXR0PTRQbF
-         aDU22UxOH2pFr7UQjUENu26njsWy+FXzrtyD5yUTE4jrQHTMwFeSpyFeUdPFDBI8+WsX
-         9Ny/csXUzS/FDzT4tXF+3FISGlCWg3ktV+RKfcJ+E0lOX2HLu3p8BH0oWB22S0ZUABvm
-         2MgO1GkMBLtjO0PkNV2JncwH0ioqStUgPfJn5R1iyGDSREPr3XjPgfUJVOGBIcS9TUon
-         4Gtg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWf4Rr+VJlC/1GfdumWvYpQKqUX4HgbAA9j8UeZ7c5Gto98N4XS
-	zlWtmss0IQTYtcIVPIVwA2IOtQx0XIOwBI/55Mi+Yt2mIRkEHt0g/nlHDi6QZe8AQFX05XHXoJz
-	R1/6tii0B58RD8Aj3s9BuETPL15Ban+knDb2ay5MU/ML85ZVpbEsoLqLIsmVcIGaR4Q==
-X-Received: by 2002:a17:902:704c:: with SMTP id h12mr37776517plt.65.1558564805344;
-        Wed, 22 May 2019 15:40:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz4WOE56O/RZI/AdVPspiJHpSPHiZnsGINGSBnzMaonfTVEcuELrAWOIwXSdp5t3fbc3h1N
-X-Received: by 2002:a17:902:704c:: with SMTP id h12mr37776442plt.65.1558564804223;
-        Wed, 22 May 2019 15:40:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558564804; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=4cmSsqPHZQLY+pWOSsOunO9s3Gp7MwmSxn+NLqvYXEI=;
+        b=gE5GtGmqUTQk153kaEd7u34vjcwo3c+R7jMev22RWduIe6s/XoTrHq6gcMSXVh8qsY
+         8z6/kIHIwTYETyksNE/XuNf+4tv/m5MOeV3qe53D9LocFDIl8SIDzzE0V/MxPCQPf4d8
+         McAk2aG9UloEOFoUEe4yZ4o0feAVtJMqVv3esw7z92Fj0DNokF47tjJbTreV3ju44vmt
+         C22+bd75zy8jF0uslxZfzheesg5dC6sSc0kWERpLI9dht8Xj4jB36u2ILgmXjDYAYAJq
+         6DKtbMAmvXOL0JqRfjE3qFSEDstcHmnDU28sEesGnIySiEnJ+sxdI4A3Ybvnk0ybujoG
+         H55A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWMRdOmFuhp3hhv2+aoG25M+u90ZHFD32eEW7/90eqrDGx2aLhw
+	MB4MwhxV5wU9WogZYLl/WQjaSHP8PdtEiQEwzpPK18n/GAooAVNBfPwSGNRTwe5bZT8NoJEkSaG
+	yeYkyvKzeKaI4KL7vxrL0ycedxE5iZ/BBPtOhDlMtZ8ObwwMTk3hoxZRGya9vQHtNHQ==
+X-Received: by 2002:a37:8843:: with SMTP id k64mr70490068qkd.8.1558564935213;
+        Wed, 22 May 2019 15:42:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxh1NwKmZcb9+uw2VqHcnwenYU3jc/ktzeU0P7UlT0Dvh5kBqkbsd2zSh2J+OIKqn7RiKtL
+X-Received: by 2002:a37:8843:: with SMTP id k64mr70490050qkd.8.1558564934754;
+        Wed, 22 May 2019 15:42:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558564934; cv=none;
         d=google.com; s=arc-20160816;
-        b=FWlISIWV3VTsj9xQ76cJ+e0JmtckO3YzTF9scxWEN5WIl+J2/fqCrSUDpANnivCqgu
-         CYb7ljhnGBOS9YhRrOaPOiuTadp8MrM28GJxu9ArkbWfr325WeZEe/agZnKlZW6vD5TI
-         HmQ5W+7CpQaJiWxqKdDnnHdMX05XewXsFNYVhyAESpYSKANdNPIaRzLHLwM/9Xn0wHD4
-         +PKuO/GixBQV70WXTCLAbV5AscYc4uIr4AqYrcjNGxZqd9XVMTd80T7HolGrG1oS1H51
-         lPyNBH33vArwCV28wVQQ6mTYeCWBs4cOudeZGGtAbUnIDKHepTPQp7BzbqNE4GeuXJrk
-         ZJVw==
+        b=sDVO/48NiJikFUXVwRJsd4QSEueqeJduPHC4QNbttChK25bohxus7APf9tjEASOvc3
+         0V7xiDhfXw9+TxS/oHtktMKwNwDOk+GtdV1y/LMSlBDgvIfqwnvpqyUL5RL6mj+9ZIpd
+         ARwMdfyhFxM0Pow/p7V7L2iAsYdVQOzUsAx+c8pWYzsWcRjR8mzVbiRoYWDUu78Ov21G
+         I4aM8Aq/QX5Hhqn1gbJ00UmdH091zbdjPHpzqt2af9TF/RaYPJFsw82XeieoeM1GXzxx
+         9jwtAATzGcb8q4M+dHKYYD8AZGoJ6BszRrOIauoJfV2nSKBnt5OcOn7VwYAmpQy3SjLR
+         juog==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from;
-        bh=KXJLFOTepUuro+Nn6RH2h7c9Z0DgbzpITHufBWTg7a8=;
-        b=C8yo3+Lj48GBaxYkAOS9y8zCSeVDcePB1bLlIfVIzU5BDRCCUh/OCq2ho3ssCOJOEf
-         jQr1dGkKSwLS31h7NRAHAfInZEg6tTcfQ3LFZkxW1nO4uHX1ZXi14TgIBuQQ+flokeXH
-         OPsQE91aarpBp7hTx9ZoP5lQt0momD9FyTtgNDHO4aEAFiPp9NNOhQH4HAIGVHVrJWik
-         nIpY0fxvy0nvlwis8ncXsNe1p3ZNXEjbDMjjSQCrC+lWedGp/BOPYGq+Snt5AP3R6ctS
-         JPgYTrfghHLUi9mVRscnC/dXgjEZNkEWLbpECbJ2T8DZv0NJYO+CIWlyICNMfU+MSPCj
-         LdEg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=4cmSsqPHZQLY+pWOSsOunO9s3Gp7MwmSxn+NLqvYXEI=;
+        b=XZSxpTuRO2LilmPP7pGou8AZ7/Gpi0qw/GoxnBwzejOmzgJt7lzYcftdAki3vPcDLw
+         a0WmIuWJPmBN8NqlrV4mLHBF5v8ZnW9OAeYOSkuMxaOFg59rGCHvu2WNZvkcxIymrFnR
+         Nem3VU//pWhlwd8nZqhw8BK8j+Frrs9+zmx/MKTW5yPt6dceMa3xTPXiGOKxLhkm7CnO
+         bdeamqYj1zY0qlO5ZXoV9TN0O2uAb9ming2IzKN6X1ReEdlJDCk9O8py1L7/BbEXkrE4
+         IfkQyrdp6GWk1pkbZFy047epCrQ3YLQuBeCZiQblft90Pzr1fSxBJKdKz+fUBpcGrxzh
+         a19w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id d14si1325108pls.230.2019.05.22.15.40.04
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n23si8094056qtn.188.2019.05.22.15.42.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 15:40:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Wed, 22 May 2019 15:42:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 May 2019 15:40:03 -0700
-X-ExtLoop1: 1
-Received: from orsmsx110.amr.corp.intel.com ([10.22.240.8])
-  by fmsmga006.fm.intel.com with ESMTP; 22 May 2019 15:40:03 -0700
-Received: from orsmsx112.amr.corp.intel.com ([169.254.3.79]) by
- ORSMSX110.amr.corp.intel.com ([169.254.10.7]) with mapi id 14.03.0415.000;
- Wed, 22 May 2019 15:40:02 -0700
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-To: "davem@davemloft.net" <davem@davemloft.net>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"peterz@infradead.org" <peterz@infradead.org>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, "mroos@linux.ee" <mroos@linux.ee>, "mingo@redhat.com"
-	<mingo@redhat.com>, "namit@vmware.com" <namit@vmware.com>, "luto@kernel.org"
-	<luto@kernel.org>, "bp@alien8.de" <bp@alien8.de>, "netdev@vger.kernel.org"
-	<netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>,
-	"sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>
-Subject: Re: [PATCH v2] vmalloc: Fix issues with flush flag
-Thread-Topic: [PATCH v2] vmalloc: Fix issues with flush flag
-Thread-Index: AQHVD0ezpbXySuUS5EinefGl750kkaZ0/uwAgAALkwCAAAiygIAAGYEAgAADqwCAAA0vgIAABnMAgAAEjYCAApkWgIAAHb0AgAA1/4A=
-Date: Wed, 22 May 2019 22:40:02 +0000
-Message-ID: <2d8c59be7e591a0d0ff17627ea34ea1eaa110a09.camel@intel.com>
-References: <a43f9224e6b245ade4b587a018c8a21815091f0f.camel@intel.com>
-	 <20190520.184336.743103388474716249.davem@davemloft.net>
-	 <339ef85d984f329aa66f29fa80781624e6e4aecc.camel@intel.com>
-	 <20190522.104019.40493905027242516.davem@davemloft.net>
-	 <01a23900329e605fcd41ad8962cfd8f2d9b1fa44.camel@intel.com>
-In-Reply-To: <01a23900329e605fcd41ad8962cfd8f2d9b1fa44.camel@intel.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-user-agent: Evolution 3.30.1 (3.30.1-1.fc29) 
-x-originating-ip: [10.254.91.116]
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <92CE99CE339FFD40BC573E4C2B685475@intel.com>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id E075A30001EB;
+	Wed, 22 May 2019 22:42:13 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.178])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id D720C62660;
+	Wed, 22 May 2019 22:42:12 +0000 (UTC)
+Date: Wed, 22 May 2019 18:42:11 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	linux-rdma@vger.kernel.org, Leon Romanovsky <leonro@mellanox.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Artemy Kovalyov <artemyko@mellanox.com>,
+	Moni Shoua <monis@mellanox.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Kaike Wan <kaike.wan@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>
+Subject: Re: [PATCH v4 0/1] Use HMM for ODP v4
+Message-ID: <20190522224211.GF20179@redhat.com>
+References: <20190411181314.19465-1-jglisse@redhat.com>
+ <20190506195657.GA30261@ziepe.ca>
+ <20190521205321.GC3331@redhat.com>
+ <20190522005225.GA30819@ziepe.ca>
+ <20190522174852.GA23038@redhat.com>
+ <20190522201247.GH6054@ziepe.ca>
+ <20190522220419.GB20179@redhat.com>
+ <20190522223906.GA15389@ziepe.ca>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190522223906.GA15389@ziepe.ca>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Wed, 22 May 2019 22:42:14 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gV2VkLCAyMDE5LTA1LTIyIGF0IDEyOjI2IC0wNzAwLCBSaWNrIEVkZ2Vjb21iZSB3cm90ZToN
-Cj4gT24gV2VkLCAyMDE5LTA1LTIyIGF0IDEwOjQwIC0wNzAwLCBEYXZpZCBNaWxsZXIgd3JvdGU6
-DQo+ID4gRnJvbTogIkVkZ2Vjb21iZSwgUmljayBQIiA8cmljay5wLmVkZ2Vjb21iZUBpbnRlbC5j
-b20+DQo+ID4gRGF0ZTogVHVlLCAyMSBNYXkgMjAxOSAwMTo1OTo1NCArMDAwMA0KPiA+IA0KPiA+
-ID4gT24gTW9uLCAyMDE5LTA1LTIwIGF0IDE4OjQzIC0wNzAwLCBEYXZpZCBNaWxsZXIgd3JvdGU6
-DQo+ID4gPiA+IEZyb206ICJFZGdlY29tYmUsIFJpY2sgUCIgPHJpY2sucC5lZGdlY29tYmVAaW50
-ZWwuY29tPg0KPiA+ID4gPiBEYXRlOiBUdWUsIDIxIE1heSAyMDE5IDAxOjIwOjMzICswMDAwDQo+
-ID4gPiA+IA0KPiA+ID4gPiA+IFNob3VsZCBpdCBoYW5kbGUgZXhlY3V0aW5nIGFuIHVubWFwcGVk
-IHBhZ2UgZ3JhY2VmdWxseT8NCj4gPiA+ID4gPiBCZWNhdXNlDQo+ID4gPiA+ID4gdGhpcw0KPiA+
-ID4gPiA+IGNoYW5nZSBpcyBjYXVzaW5nIHRoYXQgdG8gaGFwcGVuIG11Y2ggZWFybGllci4gSWYg
-c29tZXRoaW5nDQo+ID4gPiA+ID4gd2FzDQo+ID4gPiA+ID4gcmVseWluZw0KPiA+ID4gPiA+IG9u
-IGEgY2FjaGVkIHRyYW5zbGF0aW9uIHRvIGV4ZWN1dGUgc29tZXRoaW5nIGl0IGNvdWxkIGZpbmQN
-Cj4gPiA+ID4gPiB0aGUNCj4gPiA+ID4gPiBtYXBwaW5nDQo+ID4gPiA+ID4gZGlzYXBwZWFyLg0K
-PiA+ID4gPiANCj4gPiA+ID4gRG9lcyB0aGlzIHdvcmsgYnkgbm90IG1hcHBpbmcgYW55IGtlcm5l
-bCBtYXBwaW5ncyBhdCB0aGUNCj4gPiA+ID4gYmVnaW5uaW5nLA0KPiA+ID4gPiBhbmQgdGhlbiBm
-aWxsaW5nIGluIHRoZSBCUEYgbWFwcGluZ3MgaW4gcmVzcG9uc2UgdG8gZmF1bHRzPw0KPiA+ID4g
-Tm8sIG5vdGhpbmcgdG9vIGZhbmN5LiBJdCBqdXN0IGZsdXNoZXMgdGhlIHZtIG1hcHBpbmcgaW1t
-ZWRpYXRseQ0KPiA+ID4gaW4NCj4gPiA+IHZmcmVlIGZvciBleGVjdXRlIChhbmQgUk8pIG1hcHBp
-bmdzLiBUaGUgb25seSB0aGluZyB0aGF0IGhhcHBlbnMNCj4gPiA+IGFyb3VuZA0KPiA+ID4gYWxs
-b2NhdGlvbiB0aW1lIGlzIHNldHRpbmcgb2YgYSBuZXcgZmxhZyB0byB0ZWxsIHZtYWxsb2MgdG8g
-ZG8NCj4gPiA+IHRoZQ0KPiA+ID4gZmx1c2guDQo+ID4gPiANCj4gPiA+IFRoZSBwcm9ibGVtIGJl
-Zm9yZSB3YXMgdGhhdCB0aGUgcGFnZXMgd291bGQgYmUgZnJlZWQgYmVmb3JlIHRoZQ0KPiA+ID4g
-ZXhlY3V0ZQ0KPiA+ID4gbWFwcGluZyB3YXMgZmx1c2hlZC4gU28gdGhlbiB3aGVuIHRoZSBwYWdl
-cyBnb3QgcmVjeWNsZWQsIHJhbmRvbSwNCj4gPiA+IHNvbWV0aW1lcyBjb21pbmcgZnJvbSB1c2Vy
-c3BhY2UsIGRhdGEgd291bGQgYmUgbWFwcGVkIGFzDQo+ID4gPiBleGVjdXRhYmxlDQo+ID4gPiBp
-bg0KPiA+ID4gdGhlIGtlcm5lbCBieSB0aGUgdW4tZmx1c2hlZCB0bGIgZW50cmllcy4NCj4gPiAN
-Cj4gPiBJZiBJIGFtIHRvIHVuZGVyc3RhbmQgdGhpbmdzIGNvcnJlY3RseSwgdGhlcmUgd2FzIGEg
-Y2FzZSB3aGVyZQ0KPiA+ICdlbmQnDQo+ID4gY291bGQgYmUgc21hbGxlciB0aGFuICdzdGFydCcg
-d2hlbiBkb2luZyBhIHJhbmdlIGZsdXNoLiAgVGhhdCB3b3VsZA0KPiA+IGRlZmluaXRlbHkga2ls
-bCBzb21lIG9mIHRoZSBzcGFyYzY0IFRMQiBmbHVzaCByb3V0aW5lcy4NCj4gDQo+IE9rLCB0aGFu
-a3MuDQo+IA0KPiBUaGUgcGF0Y2ggYXQgdGhlIGJlZ2lubmluZyBvZiB0aGlzIHRocmVhZCBkb2Vz
-bid0IGhhdmUgdGhhdCBiZWhhdmlvcg0KPiB0aG91Z2ggYW5kIGl0IGFwcGFyZW50bHkgc3RpbGwg
-aHVuZy4gSSBhc2tlZCBpZiBNZWVsaXMgY291bGQgdGVzdA0KPiB3aXRoDQo+IHRoaXMgZmVhdHVy
-ZSBkaXNhYmxlZCBhbmQgREVCVUdfUEFHRUFMTE9DIG9uLCBzaW5jZSBpdCBmbHVzaGVzIG9uDQo+
-IGV2ZXJ5DQo+IHZmcmVlIGFuZCBpcyBub3QgbmV3IGxvZ2ljLCBhbmQgYWxzbyB3aXRoIGEgcGF0
-Y2ggdGhhdCBsb2dzIGV4YWN0IFRMQg0KPiBmbHVzaCByYW5nZXMgYW5kIGZhdWx0IGFkZHJlc3Nl
-cyBvbiB0b3Agb2YgdGhlIGtlcm5lbCBoYXZpbmcgdGhpcw0KPiBpc3N1ZS4gSG9wZWZ1bGx5IHRo
-YXQgd2lsbCBzaGVkIHNvbWUgbGlnaHQuDQo+IA0KPiBTb3JyeSBmb3IgYWxsIHRoZSBub2lzZSBh
-bmQgc3BlY3VsYXRpb24gb24gdGhpcy4gSXQgaGFzIGJlZW4NCj4gZGlmZmljdWx0DQo+IHRvIGRl
-YnVnIHJlbW90ZWx5IHdpdGggYSB0ZXN0ZXIgYW5kIGRldmVsb3BlciBpbiBkaWZmZXJlbnQgdGlt
-ZQ0KPiB6b25lcy4NCj4gDQo+IA0KT2ssIHNvIHdpdGggYSBwYXRjaCB0byBkaXNhYmxlIHNldHRp
-bmcgdGhlIG5ldyB2bWFsbG9jIGZsdXNoIGZsYWcgb24NCmFyY2hpdGVjdHVyZXMgdGhhdCBoYXZl
-IG5vcm1hbCBtZW1vcnkgYXMgZXhlY3V0YWJsZSAoaW5jbHVkZXMgc3BhcmMpLA0KYm9vdCBzdWNj
-ZWVkcy4NCg0KV2l0aCB0aGlzIGRpc2FibGUgcGF0Y2ggYW5kIERFQlVHX1BBR0VBTExPQyBvbiwg
-aXQgaGFuZ3MgZWFybGllciB0aGFuDQpiZWZvcmUuIEdvaW5nIGZyb20gY2x1ZXMgaW4gb3RoZXIg
-bG9ncywgaXQgbG9va3MgbGlrZSBpdCBoYW5ncyByaWdodCBhdA0KdGhlIGZpcnN0IG5vcm1hbCB2
-ZnJlZS4NCg0KVGhhbmtzIGZvciBhbGwgdGhlIHRlc3RpbmcgTWVlbGlzIQ0KDQpTbyBpdCBzZWVt
-cyBsaWtlIG90aGVyLCBub3QgbmV3LCBUTEIgZmx1c2hlcyBhbHNvIHRyaWdnZXIgdGhlIGhhbmcu
-DQoNCkZyb20gZWFybGllciBsb2dzIHByb3ZpZGVkLCB0aGlzIHZmcmVlIHdvdWxkIGJlIHRoZSBm
-aXJzdCBjYWxsIHRvDQpmbHVzaF90bGJfa2VybmVsX3JhbmdlKCksIGFuZCBiZWZvcmUgYW55IEJQ
-RiBhbGxvY2F0aW9ucyBhcHBlYXIgaW4gdGhlDQpsb2dzLiBTbyBJIGFtIHN1c3BlY3Rpbmcgc29t
-ZSBvdGhlciBjYXVzZSB0aGFuIHRoZSBiaXNlY3RlZCBwYXRjaCBhdA0KdGhpcyBwb2ludCwgYnV0
-IEkgZ3Vlc3MgaXQncyBub3QgZnVsbHkgY29uY2x1c2l2ZS4NCg0KSXQgY291bGQgYmUgaW5mb3Jt
-YXRpdmUgdG8gYmlzZWN0IHVwc3RyZWFtIGFnYWluIHdpdGggdGhlDQpERUJVR19QQUdFQUxMT0Mg
-Y29uZmlncyBvbiwgdG8gc2VlIGlmIGl0IGluZGVlZCBwb2ludHMgdG8gYW4gZWFybGllcg0KY29t
-bWl0Lg0K
+On Wed, May 22, 2019 at 07:39:06PM -0300, Jason Gunthorpe wrote:
+> On Wed, May 22, 2019 at 06:04:20PM -0400, Jerome Glisse wrote:
+> > On Wed, May 22, 2019 at 05:12:47PM -0300, Jason Gunthorpe wrote:
+> > > On Wed, May 22, 2019 at 01:48:52PM -0400, Jerome Glisse wrote:
+> > > 
+> > > >  static void put_per_mm(struct ib_umem_odp *umem_odp)
+> > > >  {
+> > > >  	struct ib_ucontext_per_mm *per_mm = umem_odp->per_mm;
+> > > > @@ -325,9 +283,10 @@ static void put_per_mm(struct ib_umem_odp *umem_odp)
+> > > >  	up_write(&per_mm->umem_rwsem);
+> > > >  
+> > > >  	WARN_ON(!RB_EMPTY_ROOT(&per_mm->umem_tree.rb_root));
+> > > > -	mmu_notifier_unregister_no_release(&per_mm->mn, per_mm->mm);
+> > > > +	hmm_mirror_unregister(&per_mm->mirror);
+> > > >  	put_pid(per_mm->tgid);
+> > > > -	mmu_notifier_call_srcu(&per_mm->rcu, free_per_mm);
+> > > > +
+> > > > +	kfree(per_mm);
+> > > 
+> > > Notice that mmu_notifier only uses SRCU to fence in-progress ops
+> > > callbacks, so I think hmm internally has the bug that this ODP
+> > > approach prevents.
+> > > 
+> > > hmm should follow the same pattern ODP has and 'kfree_srcu' the hmm
+> > > struct, use container_of in the mmu_notifier callbacks, and use the
+> > > otherwise vestigal kref_get_unless_zero() to bail:
+> > > 
+> > > From 0cb536dc0150ba964a1d655151d7b7a84d0f915a Mon Sep 17 00:00:00 2001
+> > > From: Jason Gunthorpe <jgg@mellanox.com>
+> > > Date: Wed, 22 May 2019 16:52:52 -0300
+> > > Subject: [PATCH] hmm: Fix use after free with struct hmm in the mmu notifiers
+> > > 
+> > > mmu_notifier_unregister_no_release() is not a fence and the mmu_notifier
+> > > system will continue to reference hmm->mn until the srcu grace period
+> > > expires.
+> > > 
+> > >          CPU0                                     CPU1
+> > >                                                __mmu_notifier_invalidate_range_start()
+> > >                                                  srcu_read_lock
+> > >                                                  hlist_for_each ()
+> > >                                                    // mn == hmm->mn
+> > > hmm_mirror_unregister()
+> > >   hmm_put()
+> > >     hmm_free()
+> > >       mmu_notifier_unregister_no_release()
+> > >          hlist_del_init_rcu(hmm-mn->list)
+> > > 			                           mn->ops->invalidate_range_start(mn, range);
+> > > 					             mm_get_hmm()
+> > >       mm->hmm = NULL;
+> > >       kfree(hmm)
+> > >                                                      mutex_lock(&hmm->lock);
+> > > 
+> > > Use SRCU to kfree the hmm memory so that the notifiers can rely on hmm
+> > > existing. Get the now-safe hmm struct through container_of and directly
+> > > check kref_get_unless_zero to lock it against free.
+> > 
+> > It is already badly handled with BUG_ON()
+> 
+> You can't crash the kernel because userspace forced a race, and no it
+> isn't handled today because there is no RCU locking in mm_get_hmm nor
+> is there a kfree_rcu for the struct hmm to make the
+> kref_get_unless_zero work without use-after-free.
+> 
+> > i just need to convert those to return and to use
+> > mmu_notifier_call_srcu() to free hmm struct.
+> 
+> Isn't that what this patch does?
+
+Yes but other chunk just need to replace BUG_ON with return
+
+> 
+> > The way race is avoided is because mm->hmm will either be NULL or
+> > point to another hmm struct before an existing hmm is free. 
+> 
+> There is no locking on mm->hmm so it is useless to prevent races.
+
+There is locking on mm->hmm
+
+> 
+> > Also if range_start/range_end use kref_get_unless_zero() but right
+> > now this is BUG_ON if it turn out to be NULL, it should just return
+> > on NULL.
+> 
+> Still needs rcu.
+> 
+> Also the container_of is necessary to avoid some race where you could
+> be doing:
+> 
+>                   CPU0                                     CPU1                         CPU2
+>                                                        hlist_for_each ()
+>        mmu_notifier_unregister_no_release(hmm1)             
+>        spin_lock(&mm->page_table_lock);                                
+>        mm->hmm = NULL
+>        spin_unlock(&mm->page_table_lock);                                                                                      
+>                                                       				 hmm2 = hmm_get_or_create()
+>                                                         mn == hmm1->mn
+>                                                         mn->ops->invalidate_range_start(mn, range)
+> 							  mm_get_mm() == hmm2
+>                                                       hist_for_each con't
+>                                                         mn == hmm2->mn
+>                                                         mn->ops->invalidate_range_start(mn, range)
+> 							  mm_get_mm() == hmm2
+> 
+> Now we called the same notifier twice on hmm2. Ooops.
+> 
+> There is no reason to risk this confusion just to avoid container_of.
+> 
+> So we agree this patch is necessary? Can you test it an ack it please?
+
+A slightly different patch than this one is necessary i will work on
+it tomorrow.
+
+Cheers,
+Jérôme
 
