@@ -2,248 +2,334 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DA94C282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:30:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C4347C282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:30:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 902A720868
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:30:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6CE86208C3
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 15:30:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="XRudIStP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 902A720868
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="YY6JA+Lo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6CE86208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 394826B0006; Wed, 22 May 2019 11:30:28 -0400 (EDT)
+	id D5A5C6B0008; Wed, 22 May 2019 11:30:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 344CE6B0008; Wed, 22 May 2019 11:30:28 -0400 (EDT)
+	id D08D96B000A; Wed, 22 May 2019 11:30:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E8D06B000A; Wed, 22 May 2019 11:30:28 -0400 (EDT)
+	id B85536B000C; Wed, 22 May 2019 11:30:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F2D66B0006
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 11:30:27 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id 17so516089lfr.14
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 08:30:27 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 48F456B0008
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 11:30:37 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id h1so470536ljj.14
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 08:30:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=AARDsc+qKR1tiSZQnznuyXjsYF8+lb0Jab821k1urZ0=;
-        b=c4Lh0z+4He0/2zqfSkiDwt+8ETrHUfErOI0ySP6jY3N5607oWBD0ThdobMhrEr1H/e
-         ljETl1TIfP1f8wNCWwj4EhHwYqLN9LEQunmr4Fl3aCR8HqOzWKl8ydm+cA24gRUxywze
-         T7BkjFhonDVM8h4B/I8ZehEYkr3hQtq61c6RxDfccT5UeXThA/OvRWieBR1wtojQGKv9
-         4bCN2T3Aqx3YoZxh8FSDwYvj3ed3tRbG7ePn3fiC1vN9PSc2Rwv4ORukpUYPdVMtYa+k
-         +gw/K8lUudN6IeplBKfh7ULnzrNalQYnR4ymVxayqC6ICH8fGv08QbYxgUEePNghyMj1
-         JXtQ==
-X-Gm-Message-State: APjAAAVmyyKIyDAQ/BF+ZJZhbSHOJ6w7ALDPDLY0KQw+E8HYhBLPkZY8
-	AUkOvrJYVVtU8BOCgWCbWM19qgbmqEq+x4bDTzdlz7T/CEw8TwWJ7wmVSuT9t+V2WnF3zNxC3Re
-	yEXUrGzA+sVRU0BBVKIDVF14YjkbanHiuvD963VDmrTK7WANOOq62+dIBzUVwwfVWNg==
-X-Received: by 2002:a2e:860a:: with SMTP id a10mr2536644lji.158.1558539026817;
-        Wed, 22 May 2019 08:30:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxFanNBZbww2o1iMz/s2M/ucSPJK9WYDG79tRq/OsS5jQ0RGMlwM9QTVX2LblEk+BoVq8gy
-X-Received: by 2002:a2e:860a:: with SMTP id a10mr2536581lji.158.1558539025770;
-        Wed, 22 May 2019 08:30:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558539025; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=RM2Vs3BpRvxchuOeBY/wop/PzNSZzl64F2EeK+wEZZM=;
+        b=m824yM5OxMvHQI5nBHTUN/KCrWqEigfq9dpiTocW3k63PUNGJBvT1/jE8o8E559fDy
+         MmjfVPWYAPF9bCLoHI9tBXZII45JN8wUJyGR9TTWM/kkFIwK0PapLa/V8G0SGl0yNjZ4
+         Q6aDPUvXqKFAazbU4z1g2+UaviafOJUopNgl4G9HldjY27sAfv0F2As+/kVFX+EnVcf3
+         RUClF3XiFrcUO/AGoFpGyH+EbMTQrTji493ZXEJ4i8IHQafz9GdAmA3guMlpgqhn+1u2
+         dk5kt9KBXCrKSVDdSWIDr1W08WH642y7bxNGey4IEM79UbtSyhQhUOjSkUfoyjLRGNf6
+         zfmw==
+X-Gm-Message-State: APjAAAUDIGoGwUHv87n/Yu4+BIaotPjnTYFZl93YnJsA6DW0Spbwm/jt
+	K1fmHvlZx4han/w+7ESt/FNqhUQ9VkhkAQXX8DwlnxkpzMA8CyOIZ5ekoCTpxoFQXdRWC24mlVM
+	fhkJjDJKQH8hDyToTKAl+Us6yES6eelxYiMuhlLUnq4N8wrFR8zJcRIoCXKUYYZ6m6A==
+X-Received: by 2002:a2e:8154:: with SMTP id t20mr4302697ljg.180.1558539036712;
+        Wed, 22 May 2019 08:30:36 -0700 (PDT)
+X-Received: by 2002:a2e:8154:: with SMTP id t20mr4302558ljg.180.1558539034510;
+        Wed, 22 May 2019 08:30:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558539034; cv=none;
         d=google.com; s=arc-20160816;
-        b=PBFkGjo5qP8OZ6D48rxlJ+8w3wpYpptZle6Y3oKjeWQHYV3FGfiRM34ximsagKVCt+
-         zZrLx+C7oizZHpDK7DbXFV8DQAi2DHVotii5wlGyjJqs31YSUHBpb1mcmpKLlGIiwBRf
-         ut+whDRraDa9wSJWOnj55DW/rxTe5ysYzp8u4uwSgycwCYd5KEDXKiqi8cJDipnh069I
-         EJq4byo1C5/BXM8S08n5zI8a6kD9o1/HT7RMdam6omNOp7CVHOaCtR6ZD1vrMhAcDt+K
-         xvhYsxCvdiDBO3QnZwgLMyHSn6NiA0McrH6zjnOJ59aapyRAj67Rxv7k601PhAMXJ/Kv
-         zQXA==
+        b=Rsf8IDsrHEoNGrSriRyxfYt1GkF20E+Zk9oI9ImKPOJsD+JHc/oOG1kMeb/mR9zgV2
+         YW7Ppa08UZIZy/Z+HwByEpZIrXJJf72woXl9sDtt1tRwz7MoAcq8t3423h1BvTqeZbyU
+         90xXTRzrCblM6+cF/yhwITZILXjhpR2g1/4sKIh2sNkLbuB5RbvqL5haUwn5VBuPasgu
+         H9q6+A6sJTnLjv3xEJUCBgTeRFQ0Ej/Gq1ZcdP87H0DC/Z9RWrxms3eLVBLXwnoMpHZf
+         IkMqjBnI6IwcIuxr9/qaZCoKe3T5pVMNbZqIQ8YhZSVx/bQW1SkBKKJOCZc07sK32JKg
+         p2Yg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=AARDsc+qKR1tiSZQnznuyXjsYF8+lb0Jab821k1urZ0=;
-        b=if4WMM9FAK6mkK+7OdrkWJQwKvEIgz8wJ6Hov2H8ohn1SVgCq0F3XEnLbsAHabTxga
-         FYqbHryUzNB9gJCiqks6J6rhVbPrqvaN62shLfWpn1nPKdGYKZt3tW4r5tSE8u9y0SH1
-         jG3YyWtV3cGrBJ8Q0NTXA8z/MAz8Yns5yKETCbXAXu2qAv4U+LPpUgZUH7a+jKQSiae1
-         3vKk9y9GiftVNrnhd5LwtaCniUs9d63waYfTm9yOFLgrgYL2UVJmapdartzY1l82O/Lk
-         ortrgvytyuYuU8LSyaVhIA2GYw5pTEPw9jTHAjXE00Djhas6Jvehp5H6rkZchZ3F5euY
-         d3+A==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=RM2Vs3BpRvxchuOeBY/wop/PzNSZzl64F2EeK+wEZZM=;
+        b=WxGc5yid8HZlPVPIEGYyMDBMh4veSJ4LJSjK0PMlnQWm8BMGUdGiy3w5Kp4HOhvizC
+         a+ABmeNBFMxFEK8J2HhDIwzsa+fEnGQBFef8ZX3PjRJQEDEg+kRl5xfKkt2zh4z0bXVf
+         WbNYh2dTg3Om8sR0uj/cxY8+y5eCZaFrx97MMsH+v4SqHETcs1KGBIOqsfAVFKZzJY1o
+         iZoZ6f7Hw2gyVH/Nh5Q827lTquOPVLQ+7yBuYizAXzXBl3xNPl5ldINZ64ScN9wgAKvk
+         GJ7PcmY13l5VSbmLz+f96ZjSyhsUeIRCdYtBLJckxlHzViKtTK7ESGUV+4mPQ/Oc2MYS
+         4HDQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=XRudIStP;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1j.mail.yandex.net (forwardcorp1j.mail.yandex.net. [2a02:6b8:0:1619::183])
-        by mx.google.com with ESMTPS id u11si12558017ljg.86.2019.05.22.08.30.25
+       dkim=pass header.i=@google.com header.s=20161025 header.b=YY6JA+Lo;
+       spf=pass (google.com: domain of enh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=enh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k3sor674595ljj.12.2019.05.22.08.30.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 08:30:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) client-ip=2a02:6b8:0:1619::183;
+        (Google Transport Security);
+        Wed, 22 May 2019 08:30:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of enh@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=XRudIStP;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp1g.mail.yandex.net (mxbackcorp1g.mail.yandex.net [IPv6:2a02:6b8:0:1402::301])
-	by forwardcorp1j.mail.yandex.net (Yandex) with ESMTP id D12932E0993;
-	Wed, 22 May 2019 18:30:24 +0300 (MSK)
-Received: from smtpcorp1j.mail.yandex.net (smtpcorp1j.mail.yandex.net [2a02:6b8:0:1619::137])
-	by mxbackcorp1g.mail.yandex.net (nwsmtp/Yandex) with ESMTP id u0oNPspX6E-UOkeHk5m;
-	Wed, 22 May 2019 18:30:24 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1558539024; bh=AARDsc+qKR1tiSZQnznuyXjsYF8+lb0Jab821k1urZ0=;
-	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
-	b=XRudIStPFGmb/HtlqM4I2M1uA0By0RU3+o4Z6zLDd6mZ3kynjOpzCw4PhkN5tBFHu
-	 jRn3K7+MPQAUfIyZvhVE2zVdX/fMJ8FRdyqlf+FmVVFg7sw7x0zLRjzBHV0n7Qscj2
-	 iHMO5ULOWUNm43Syo5hztv4Cf2LIf66AUZXJNDe0=
-Authentication-Results: mxbackcorp1g.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:e47f:4b1d:b053:2762])
-	by smtpcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id PG7C45att4-UN849cun;
-	Wed, 22 May 2019 18:30:24 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-Subject: Re: [PATCH] proc/meminfo: add MemKernel counter
-To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org,
- Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org,
- Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>
-References: <155853600919.381.8172097084053782598.stgit@buzz>
- <529aa7fd-2dc2-6979-4ea0-d40dfc7e3fde@suse.cz>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <1ce9b1af-27bd-f1ea-14cb-57ce40475f38@yandex-team.ru>
-Date: Wed, 22 May 2019 18:30:23 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@google.com header.s=20161025 header.b=YY6JA+Lo;
+       spf=pass (google.com: domain of enh@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=enh@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=RM2Vs3BpRvxchuOeBY/wop/PzNSZzl64F2EeK+wEZZM=;
+        b=YY6JA+LoUtjEOO757K58wra7rdXirZ4AlTHpmSQ+decwKFXSNcixrW+Od3xAIfHhzc
+         E31pVzZHa1k0N1eBsu/pwx/4gJOY/Z23T1KlGxD+A3kg2G2nUjg2KBJXZgrs4NREuNVs
+         TYlUYYtdAekOg5uSt0naDgODEcL0YeodFYzgZ2kMgQbeYv13wJLMpmBWE0SyYa3YKKBJ
+         Ky8EOr/z31g0owz/7VlcdxKTQPp3/9K5jFnQ5GWfggZi2OZBL5soMXgy15fr5y5CKPxC
+         m0te1S3imaMe8QwTNQlrTPoiVAA5L9886WXf4f0IGaQNg3NN+dFLYS9ofr5e9wU3GA29
+         mQlA==
+X-Google-Smtp-Source: APXvYqyXSCxhB+3RVGWUi2lXqAnCXVjRJMmGDtSQwaSdaunD3RrP1dCFavWCgkEVu7tMxmxxgJ5X4QeZFUMwuOfrpVg=
+X-Received: by 2002:a2e:9601:: with SMTP id v1mr22163816ljh.60.1558539033496;
+ Wed, 22 May 2019 08:30:33 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <529aa7fd-2dc2-6979-4ea0-d40dfc7e3fde@suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+References: <cover.1557160186.git.andreyknvl@google.com> <20190517144931.GA56186@arrakis.emea.arm.com>
+ <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
+ <20190521182932.sm4vxweuwo5ermyd@mbp> <201905211633.6C0BF0C2@keescook> <20190522101110.m2stmpaj7seezveq@mbp>
+In-Reply-To: <20190522101110.m2stmpaj7seezveq@mbp>
+From: enh <enh@google.com>
+Date: Wed, 22 May 2019 08:30:21 -0700
+Message-ID: <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
+Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Kees Cook <keescook@chromium.org>, Evgenii Stepanov <eugenis@google.com>, 
+	Andrey Konovalov <andreyknvl@google.com>, Khalid Aziz <khalid.aziz@oracle.com>, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
+	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yishai Hadas <yishaih@mellanox.com>, 
+	Felix Kuehling <Felix.Kuehling@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, 
+	Christian Koenig <Christian.Koenig@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
+	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
+	Leon Romanovsky <leon@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, 
+	Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, 
+	Robin Murphy <robin.murphy@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, 
+	Dave Martin <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>, 
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 22.05.2019 18:01, Vlastimil Babka wrote:
-> On 5/22/19 4:40 PM, Konstantin Khlebnikov wrote:
->> Some kinds of kernel allocations are not accounted or not show in meminfo.
->> For example vmalloc allocations are tracked but overall size is not shown
-> 
-> I think Roman's vmalloc patch [1] is on its way?
-> 
->> for performance reasons. There is no information about network buffers.
-> 
-> xfs buffers can also occupy a lot, from my experience
-> 
->> In most cases detailed statistics is not required. At first place we need
->> information about overall kernel memory usage regardless of its structure.
->>
->> This patch estimates kernel memory usage by subtracting known sizes of
->> free, anonymous, hugetlb and caches from total memory size: MemKernel =
->> MemTotal - MemFree - Buffers - Cached - SwapCached - AnonPages - Hugetlb.
->>
->> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> 
-> I've tried this once in [2]. The name was Unaccounted and one of the objections
-> was that people would get worried. Yours is a bit better, perhaps MemKernMisc
-> would be even more descriptive? Michal Hocko worried about maintainability, that
-> we forget something, but I don't think that's a big issue.
+On Wed, May 22, 2019 at 3:11 AM Catalin Marinas <catalin.marinas@arm.com> wrote:
+>
+> Hi Kees,
+>
+> Thanks for joining the thread ;).
+>
+> On Tue, May 21, 2019 at 05:04:39PM -0700, Kees Cook wrote:
+> > On Tue, May 21, 2019 at 07:29:33PM +0100, Catalin Marinas wrote:
+> > > On Mon, May 20, 2019 at 04:53:07PM -0700, Evgenii Stepanov wrote:
+> > > > On Fri, May 17, 2019 at 7:49 AM Catalin Marinas <catalin.marinas@arm.com> wrote:
+> > > > > IMO (RFC for now), I see two ways forward:
+> > > > > [...]
+> > > > > 2. Similar shim to the above libc wrapper but inside the kernel
+> > > > >    (arch/arm64 only; most pointer arguments could be covered with an
+> > > > >    __SC_CAST similar to the s390 one). There are two differences from
+> > > > >    what we've discussed in the past:
+> > > > >
+> > > > >    a) this is an opt-in by the user which would have to explicitly call
+> > > > >       prctl(). If it returns -ENOTSUPP etc., the user won't be allowed
+> > > > >       to pass tagged pointers to the kernel. This would probably be the
+> > > > >       responsibility of the C lib to make sure it doesn't tag heap
+> > > > >       allocations. If the user did not opt-in, the syscalls are routed
+> > > > >       through the normal path (no untagging address shim).
+> > > > >
+> > > > >    b) ioctl() and other blacklisted syscalls (prctl) will not accept
+> > > > >       tagged pointers (to be documented in Vicenzo's ABI patches).
+> > > >
+> > > > The way I see it, a patch that breaks handling of tagged pointers is
+> > > > not that different from, say, a patch that adds a wild pointer
+> > > > dereference. Both are bugs; the difference is that (a) the former
+> > > > breaks a relatively uncommon target and (b) it's arguably an easier
+> > > > mistake to make. If MTE adoption goes well, (a) will not be the case
+> > > > for long.
+> > >
+> > > It's also the fact such patch would go unnoticed for a long time until
+> > > someone exercises that code path. And when they do, the user would be
+> > > pretty much in the dark trying to figure what what went wrong, why a
+> > > SIGSEGV or -EFAULT happened. What's worse, we can't even say we fixed
+> > > all the places where it matters in the current kernel codebase (ignoring
+> > > future patches).
+> >
+> > So, looking forward a bit, this isn't going to be an ARM-specific issue
+> > for long.
+>
+> I do hope so.
+>
+> > In fact, I think we shouldn't have arm-specific syscall wrappers
+> > in this series: I think untagged_addr() should likely be added at the
+> > top-level and have it be a no-op for other architectures.
+>
+> That's what the current patchset does, so we have this as a starting
+> point. Kostya raised another potential issue with the syscall wrappers:
+> with MTE the kernel will be forced to enable the match-all (wildcard)
+> pointers for user space accesses since copy_from_user() would only get a
+> 0 tag. So it has wider implications than just uaccess routines not
+> checking the colour.
+>
+> > So given this becoming a kernel-wide multi-architecture issue (under
+> > the assumption that x86, RISC-V, and others will gain similar TBI or
+> > MTE things), we should solve it in a way that we can re-use.
+>
+> Can we do any better to aid the untagged_addr() placement (e.g. better
+> type annotations, better static analysis)? We have to distinguish
+> between user pointers that may be dereferenced by the kernel (I think
+> almost fully covered with this patchset) and user addresses represented
+> as ulong that may:
+>
+> a) be converted to a user pointer and dereferenced; I think that's the
+>    case for many overloaded ulong/u64 arguments
+>
+> b) used for address space management, rbtree look-ups etc. where the tag
+>    is no longer relevant and it even gets in the way
+>
+> We tried last year to identify void __user * casts to unsigned long
+> using sparse on the assumption that pointers can be tagged while ulong
+> is about address space management and needs to lose such tag. I think we
+> could have pushed this further. For example, get_user_pages() takes an
+> unsigned long but it is perfectly capable of untagging the address
+> itself. Shall we change its first argument to void __user * (together
+> with all its callers)?
+>
+> find_vma(), OTOH, could untag the address but it doesn't help since
+> vm_start/end don't have such information (that's more about the content
+> or type that the user decided) and the callers check against it.
+>
+> Are there any other places where this matters? These patches tracked
+> down find_vma() as some heuristics but we may need better static
+> analysis to identify other cases.
+>
+> > We need something that is going to work everywhere. And it needs to be
+> > supported by the kernel for the simple reason that the kernel needs to
+> > do MTE checks during copy_from_user(): having that information stripped
+> > means we lose any userspace-assigned MTE protections if they get handled
+> > by the kernel, which is a total non-starter, IMO.
+>
+> Such feedback is welcomed ;).
+>
+> > As an aside: I think Sparc ADI support in Linux actually side-stepped
+> > this[1] (i.e. chose "solution 1"): "All addresses passed to kernel must
+> > be non-ADI tagged addresses." (And sadly, "Kernel does not enable ADI
+> > for kernel code.") I think this was a mistake we should not repeat for
+> > arm64 (we do seem to be at least in agreement about this, I think).
+> >
+> > [1] https://lore.kernel.org/patchwork/patch/654481/
+>
+> I tried to drag the SPARC guys into this discussion but without much
+> success.
+>
+> > > > This is a bit of a chicken-and-egg problem. In a world where memory
+> > > > allocators on one or several popular platforms generate pointers with
+> > > > non-zero tags, any such breakage will be caught in testing.
+> > > > Unfortunately to reach that state we need the kernel to start
+> > > > accepting tagged pointers first, and then hold on for a couple of
+> > > > years until userspace catches up.
+> > >
+> > > Would the kernel also catch up with providing a stable ABI? Because we
+> > > have two moving targets.
+> > >
+> > > On one hand, you have Android or some Linux distro that stick to a
+> > > stable kernel version for some time, so they have better chance of
+> > > clearing most of the problems. On the other hand, we have mainline
+> > > kernel that gets over 500K lines every release. As maintainer, I can't
+> > > rely on my testing alone as this is on a limited number of platforms. So
+> > > my concern is that every kernel release has a significant chance of
+> > > breaking the ABI, unless we have a better way of identifying potential
+> > > issues.
+> >
+> > I just want to make sure I fully understand your concern about this
+> > being an ABI break, and I work best with examples. The closest situation
+> > I can see would be:
+> >
+> > - some program has no idea about MTE
+>
+> Apart from some libraries like libc (and maybe those that handle
+> specific device ioctls), I think most programs should have no idea about
+> MTE. I wouldn't expect programmers to have to change their app just
+> because we have a new feature that colours heap allocations.
 
-I've started with Misc/Unaccounted too
-https://lore.kernel.org/lkml/155792098821.1536.17069603544573830315.stgit@buzz/
+obviously i'm biased as a libc maintainer, but...
 
-But this version simply shows all kernel memory.
+i don't think it helps to move this to libc --- now you just have an
+extra dependency where to have a guaranteed working system you need to
+update your kernel and libc together. (or at least update your libc to
+understand new ioctls etc _before_ you can update your kernel.)
 
-> 
-> Vlastimil
-> 
-> [1] https://lore.kernel.org/linux-mm/20190514235111.2817276-2-guro@fb.com/T/#u
-> [2] https://lore.kernel.org/linux-mm/20161020121149.9935-1-vbabka@suse.cz/T/#u
-> 
->> ---
->>   Documentation/filesystems/proc.txt |    5 +++++
->>   fs/proc/meminfo.c                  |   20 +++++++++++++++-----
->>   2 files changed, 20 insertions(+), 5 deletions(-)
->>
->> diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
->> index 66cad5c86171..a0ab7f273ea0 100644
->> --- a/Documentation/filesystems/proc.txt
->> +++ b/Documentation/filesystems/proc.txt
->> @@ -860,6 +860,7 @@ varies by architecture and compile options.  The following is from a
->>   
->>   MemTotal:     16344972 kB
->>   MemFree:      13634064 kB
->> +MemKernel:      862600 kB
->>   MemAvailable: 14836172 kB
->>   Buffers:          3656 kB
->>   Cached:        1195708 kB
->> @@ -908,6 +909,10 @@ MemAvailable: An estimate of how much memory is available for starting new
->>                 page cache to function well, and that not all reclaimable
->>                 slab will be reclaimable, due to items being in use. The
->>                 impact of those factors will vary from system to system.
->> +   MemKernel: The sum of all kinds of kernel memory allocations: Slab,
->> +              Vmalloc, Percpu, KernelStack, PageTables, socket buffers,
->> +              and some other untracked allocations. Does not include
->> +              MemFree, Buffers, Cached, SwapCached, AnonPages, Hugetlb.
->>        Buffers: Relatively temporary storage for raw disk blocks
->>                 shouldn't get tremendously large (20MB or so)
->>         Cached: in-memory cache for files read from the disk (the
->> diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
->> index 568d90e17c17..b27d56dd619a 100644
->> --- a/fs/proc/meminfo.c
->> +++ b/fs/proc/meminfo.c
->> @@ -39,17 +39,27 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->>   	long available;
->>   	unsigned long pages[NR_LRU_LISTS];
->>   	unsigned long sreclaimable, sunreclaim;
->> +	unsigned long anon_pages, file_pages, swap_cached;
->> +	long kernel_pages;
->>   	int lru;
->>   
->>   	si_meminfo(&i);
->>   	si_swapinfo(&i);
->>   	committed = percpu_counter_read_positive(&vm_committed_as);
->>   
->> -	cached = global_node_page_state(NR_FILE_PAGES) -
->> -			total_swapcache_pages() - i.bufferram;
->> +	anon_pages = global_node_page_state(NR_ANON_MAPPED);
->> +	file_pages = global_node_page_state(NR_FILE_PAGES);
->> +	swap_cached = total_swapcache_pages();
->> +
->> +	cached = file_pages - swap_cached - i.bufferram;
->>   	if (cached < 0)
->>   		cached = 0;
->>   
->> +	kernel_pages = i.totalram - i.freeram - anon_pages - file_pages -
->> +		       hugetlb_total_pages();
->> +	if (kernel_pages < 0)
->> +		kernel_pages = 0;
->> +
->>   	for (lru = LRU_BASE; lru < NR_LRU_LISTS; lru++)
->>   		pages[lru] = global_node_page_state(NR_LRU_BASE + lru);
->>   
->> @@ -60,9 +70,10 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->>   	show_val_kb(m, "MemTotal:       ", i.totalram);
->>   	show_val_kb(m, "MemFree:        ", i.freeram);
->>   	show_val_kb(m, "MemAvailable:   ", available);
->> +	show_val_kb(m, "MemKernel:      ", kernel_pages);
->>   	show_val_kb(m, "Buffers:        ", i.bufferram);
->>   	show_val_kb(m, "Cached:         ", cached);
->> -	show_val_kb(m, "SwapCached:     ", total_swapcache_pages());
->> +	show_val_kb(m, "SwapCached:     ", swap_cached);
->>   	show_val_kb(m, "Active:         ", pages[LRU_ACTIVE_ANON] +
->>   					   pages[LRU_ACTIVE_FILE]);
->>   	show_val_kb(m, "Inactive:       ", pages[LRU_INACTIVE_ANON] +
->> @@ -92,8 +103,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
->>   		    global_node_page_state(NR_FILE_DIRTY));
->>   	show_val_kb(m, "Writeback:      ",
->>   		    global_node_page_state(NR_WRITEBACK));
->> -	show_val_kb(m, "AnonPages:      ",
->> -		    global_node_page_state(NR_ANON_MAPPED));
->> +	show_val_kb(m, "AnonPages:      ", anon_pages);
->>   	show_val_kb(m, "Mapped:         ",
->>   		    global_node_page_state(NR_FILE_MAPPED));
->>   	show_val_kb(m, "Shmem:          ", i.sharedram);
->>
-> 
+> > - malloc() starts returning MTE-tagged addresses
+> > - program doesn't break from that change
+> > - program uses some syscall that is missing untagged_addr() and fails
+> > - kernel has now broken userspace that used to work
+>
+> That's one aspect though probably more of a case of plugging in a new
+> device (graphics card, network etc.) and the ioctl to the new device
+> doesn't work.
+>
+> The other is that, assuming we reach a point where the kernel entirely
+> supports this relaxed ABI, can we guarantee that it won't break in the
+> future. Let's say some subsequent kernel change (some refactoring)
+> misses out an untagged_addr(). This renders a previously TBI/MTE-capable
+> syscall unusable. Can we rely only on testing?
+>
+> > The trouble I see with this is that it is largely theoretical and
+> > requires part of userspace to collude to start using a new CPU feature
+> > that tickles a bug in the kernel. As I understand the golden rule,
+> > this is a bug in the kernel (a missed ioctl() or such) to be fixed,
+> > not a global breaking of some userspace behavior.
+>
+> Yes, we should follow the rule that it's a kernel bug but it doesn't
+> help the user that a newly installed kernel causes user space to no
+> longer reach a prompt. Hence the proposal of an opt-in via personality
+> (for MTE we would need an explicit opt-in by the user anyway since the
+> top byte is no longer ignored but checked against the allocation tag).
+
+but realistically would this actually get used in this way? or would
+any given system either be MTE or non-MTE. in which case a kernel
+configuration option would seem to make more sense. (because either
+way, the hypothetical user basically needs to recompile the kernel to
+get back on their feet. or all of userspace.)
+
+i'm not sure i see this new way for a kernel update to break my system
+and need to be fixed forward/rolled back as any different from any of
+the existing ways in which this can happen :-) as an end-user i have
+to rely on whoever's sending me software updates to test adequately
+enough that they find the problems. as an end user, there isn't any
+difference between "my phone rebooted when i tried to take a photo
+because of a kernel/driver leak", say, and "my phone rebooted when i
+tried to take a photo because of missing untagging of a pointer passed
+via ioctl".
+
+i suspect you and i have very different people in mind when we say "user" :-)
+
+> > I feel like I'm missing something about this being seen as an ABI
+> > break. The kernel already fails on userspace addresses that have high
+> > bits set -- are there things that _depend_ on this failure to operate?
+>
+> It's about providing a relaxed ABI which allows non-zero top byte and
+> breaking it later inadvertently without having something better in place
+> to analyse the kernel changes.
+>
+> Thanks.
+>
+> --
+> Catalin
 
