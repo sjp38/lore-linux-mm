@@ -2,262 +2,221 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8993C072A4
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 08:28:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9AD2BC18E7D
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 09:17:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 79648217F9
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 08:28:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79648217F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 2CE5820856
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 09:17:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CE5820856
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.vnet.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 12B7B6B000A; Wed, 22 May 2019 04:28:25 -0400 (EDT)
+	id 85A1D6B0003; Wed, 22 May 2019 05:17:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0DB736B000C; Wed, 22 May 2019 04:28:25 -0400 (EDT)
+	id 7E3546B0006; Wed, 22 May 2019 05:17:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F0D346B000D; Wed, 22 May 2019 04:28:24 -0400 (EDT)
+	id 683656B0007; Wed, 22 May 2019 05:17:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BB4F76B000A
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 04:28:24 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id a90so947712plc.7
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 01:28:24 -0700 (PDT)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 429D56B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 05:17:06 -0400 (EDT)
+Received: by mail-yb1-f197.google.com with SMTP id n76so1501591ybf.20
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 02:17:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=SwfZ5gHinL+ZGl3v5/D4Rf/RJsHj9sBvxpFwbDB8eOk=;
-        b=Jkpt9Pc9gfQ6kzmJxqb2ReDN4ldPjyUaFIdgdeZPR5/Apg6KBMsbhmb85nuINu4KF7
-         gK6Fox7Ya4Ov4E7xMTKIoeCQZSuxEgjX72zsz9WoJOP2nkudaTpBoCXGDU90I6472VrD
-         nclUjwxjwYkilOud8gut0fAlLDJmk/V0wbesRfD7jUuqb2DUmn+bcPwsE+Bwv0luv9+Y
-         UkItSw6++0WLTj9BjXuQhXT+/B5zu8bh+4MUuBlm324j75EEh5yTkYik6IA74bAa36MC
-         StEeUCODWFhQxdWuEo1y3ELskp6Z13GB2iQShK+WpCSoORJx6Mke6UbVgdukmGaRVvN1
-         JArg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAV7sbPyxPrwxpWRBNQZ5KjQ8KbeQbK/ntM8mMiWu6Ns96NTCzQD
-	uh3oY6ZTAiXqjrwBvoukMiMk/uohyFJkQMLbu4QvSnx0KI+YukRVc+ICHd7b4cPy6IUAvJ4Xh3S
-	wYypp7uO9wqPDaTAulv7YtCDfAeih+vvzpWNbGL6zEBzZAIUDtMm6fjeUpkctVKU2lQ==
-X-Received: by 2002:a63:8dc9:: with SMTP id z192mr43222211pgd.6.1558513704404;
-        Wed, 22 May 2019 01:28:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxlM/nmfQou0zxFPdN3i0hapEmK8qBNS2v9FI+kSagYIXhI81cVO8C58ZkbAIcb33ZpMLPu
-X-Received: by 2002:a63:8dc9:: with SMTP id z192mr43222139pgd.6.1558513703652;
-        Wed, 22 May 2019 01:28:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558513703; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:reply-to:references:mime-version:content-disposition
+         :in-reply-to:user-agent:message-id;
+        bh=0jKpll0qhEVYUzda9RRCVCxIAJ/4J5kSnqZtsX5xeos=;
+        b=KfUfEnILyoBnftCBOQJYSlkdXl7aZZbEkhCDXQmeaxnXOQDlzV90q3aoRShlvLDenk
+         sR5azApAT8mNVkqoZjNVZszM69MiXh6Cp689tUUExbt53+9dm59DVh+RMXyUnlCoiZjW
+         2njU0lKCUZkl1EaawQE172zcc5LXLe4ZomMcRQgKVW8vkpfOCGbJ3Ly67RSdMpLNyHhH
+         qE96yCRkSZfSiWLLkx00W26+T38J5lBa9myg8JXQEiEafL1vhxpb3e0G4PDxaFNaNOTp
+         M7crBl6J8H74dnlfaSsZxeR0YKO8iXpRsieyobmPMtsenWxoPJwhMz9iwcKyakKQhgpv
+         2RQQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of sathnaga@linux.vnet.ibm.com) smtp.mailfrom=sathnaga@linux.vnet.ibm.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWHfbgmAptgWt3btUEgIKDCNlzMrY/PdLJKEGF9tou180QyIIi/
+	JCXePuCb3E8TgcokqE5y4csV1j/Ryhe70ZCqQsfPzr20t1JUdnOMiftOOBi1znyJfKfbBRAywYP
+	t19Js2LjSzCDwXq7UCrRkaENeuYzrkILf4In56HdQBgJs87OoC7qP7OfOL04Wb+A=
+X-Received: by 2002:a25:b7ce:: with SMTP id u14mr42434698ybj.404.1558516625972;
+        Wed, 22 May 2019 02:17:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwAQ+lgDR4XVEu4pmj1GUxC1GOVN4lHlR/+t4EN5ggx266K3PBvMAnLgHVFbE2DNuQaHMqf
+X-Received: by 2002:a25:b7ce:: with SMTP id u14mr42434655ybj.404.1558516624574;
+        Wed, 22 May 2019 02:17:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558516624; cv=none;
         d=google.com; s=arc-20160816;
-        b=QhDrd/A+uxcPeCMHu8zDBCjokNMbLPS9Sh3YlDuk2yDPEU8ekaWb/UjgDi0ffGl1i8
-         WWkS+Cn/cNUVW9xyQiAnR4ovBko6mIrxbNw6LlCD3LK1hcG1ZPA6qS+72tUemfR3Eitu
-         fIBdhIAcN/P3ZCJAAyOEKMr1Kyg0scmAZ+y1vuGfSqYkXMDUK0Wgx26sURn4l7YnLTk5
-         kDDAgF4Q9Mdsane9spttDyOZgB73D+ZwLxXhQlJlrj6Gmu6tSAD/oGAqKXVk5Yj69pYZ
-         v2ltrhfEtVK3Y22v2XMS4YepVIem9vEXk+t9syQYtyTAYYT3i0l9bv/T+WnsQLDb/Q21
-         OMlg==
+        b=FnLFhM/sUgnPHhFhgYUfv307lDETpviizHAse+3D4Klpf+smB4frd5neXN3360gpUz
+         3GRvauAaWnFsm0C+gGXno1cxiHYaw3Kzlnlhd71lMAye621J3DUoyNJ4gzlPmwBdWWc2
+         EkLL/j3Y7LQ8KulxM/Sj5zBR1RAtISAWa0y/uGfQwAzEMszT47MK+kifuqhGs2lObLaS
+         QKaOaJThIJ/7PJj0luOgrZGOmqNUiQBdUtUpmf42sz4E2FKIm2TftvYq33Wr6KJVvldu
+         w5MaG96mqUT531yUhE7fdX1ARO0kPuKdVsDmtlhI2G9InbXLKSI+Qyf5C89bsY3akkIJ
+         /SbA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=SwfZ5gHinL+ZGl3v5/D4Rf/RJsHj9sBvxpFwbDB8eOk=;
-        b=CV57piPAenZbfNrnlKyFzxVJY43pK4GBbvqfL1H/Z136wifstfU34Zi/mamarwiol8
-         EFcNPwZbkefBZ4475+f+fZdYbk8yJQ8d6r9xSl8ORLnAkjAc7Zj1iHlgl5EsR7ElUNF4
-         wVgRIa1rr9UZyZQoHxv7xENUoj49b5VQcQlwMUDJdiY976wSJ6AZHLyyUjJawGOkKoZ/
-         rNf2kxoAXHNGutzGXOVXjSYHPBBoOoex+8S7t6DomnSlBj7xpQgePX2TErMV5TNTfsFM
-         v8u469/HJxtcjMgsHfdc43SdV6rfFxKVTB1ipaqA4AjqCl3ln63XPpZ0RGUsHZp9qaQn
-         Lgdg==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:reply-to:subject:cc:to:from:date;
+        bh=0jKpll0qhEVYUzda9RRCVCxIAJ/4J5kSnqZtsX5xeos=;
+        b=0OcfRA78MDE9uPU1ZZlibZ6wQWYic6TyI2JOhdS8ulOKlgK7UpKttRLZK+B1w78Xyn
+         J9ZsiMthb6/Y8HTheBcr06hcYrZk35mAPMkyBxp572oj99X7F6p1B4aXfBzshQOnY+Ot
+         OgCNzQmq5h5gERcIiuKOhRL/X9gKruI8pXQ/thEVRe2WsfMsrq/AXWwGyXox+SuyFBks
+         FKqVSVJdh4YsJAKA2Ybud+iRPWDtlIUIu/mn4SH2lOKwVbg0518OQg84XDoMqMNx9Zzd
+         yLbYPxCNP2HS+RD+EwJ+WORBggduACChKGqHn2zDNbFseR7LAsUsHk+m+26uhdYSer0S
+         xuhQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id r185si24476581pgr.10.2019.05.22.01.28.23
+       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of sathnaga@linux.vnet.ibm.com) smtp.mailfrom=sathnaga@linux.vnet.ibm.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id n66si6770544yba.19.2019.05.22.02.17.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 01:28:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Wed, 22 May 2019 02:17:04 -0700 (PDT)
+Received-SPF: neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of sathnaga@linux.vnet.ibm.com) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4M8SF6E136849;
-	Wed, 22 May 2019 04:28:22 -0400
-Received: from ppma01dal.us.ibm.com (83.d6.3fa9.ip4.static.sl-reverse.com [169.63.214.131])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2smyuj7gaf-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Wed, 22 May 2019 04:28:21 -0400
-Received: from pps.filterd (ppma01dal.us.ibm.com [127.0.0.1])
-	by ppma01dal.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x4M4G3D1005567;
-	Wed, 22 May 2019 04:19:20 GMT
-Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
-	by ppma01dal.us.ibm.com with ESMTP id 2smks6s7um-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Wed, 22 May 2019 04:19:20 +0000
-Received: from b03ledav006.gho.boulder.ibm.com (b03ledav006.gho.boulder.ibm.com [9.17.130.237])
-	by b03cxnp08025.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4M8R7ZL18874872
+       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of sathnaga@linux.vnet.ibm.com) smtp.mailfrom=sathnaga@linux.vnet.ibm.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4M92L5t108151
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 05:17:04 -0400
+Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2sn3ctgqrv-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 05:17:03 -0400
+Received: from localhost
+	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sathnaga@linux.vnet.ibm.com>;
+	Wed, 22 May 2019 10:17:02 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 22 May 2019 10:17:01 +0100
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4M9H0WN59375656
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 22 May 2019 08:27:07 GMT
-Received: from b03ledav006.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 44734C6057;
-	Wed, 22 May 2019 08:27:07 +0000 (GMT)
-Received: from b03ledav006.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 9844DC6059;
-	Wed, 22 May 2019 08:27:05 +0000 (GMT)
-Received: from skywalker.in.ibm.com (unknown [9.124.31.87])
-	by b03ledav006.gho.boulder.ibm.com (Postfix) with ESMTP;
-	Wed, 22 May 2019 08:27:05 +0000 (GMT)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: dan.j.williams@intel.com
-Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
-        linuxppc-dev@lists.ozlabs.org,
-        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [RFC PATCH V2 1/3] mm/nvdimm: Add PFN_MIN_VERSION support
-Date: Wed, 22 May 2019 13:56:59 +0530
-Message-Id: <20190522082701.6817-1-aneesh.kumar@linux.ibm.com>
-X-Mailer: git-send-email 2.21.0
+	Wed, 22 May 2019 09:17:00 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 25DFCA4060;
+	Wed, 22 May 2019 09:17:00 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 024B1A405B;
+	Wed, 22 May 2019 09:16:59 +0000 (GMT)
+Received: from sathnaga86.d4t-in.ibmmobiledemo.com (unknown [9.122.211.101])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed, 22 May 2019 09:16:58 +0000 (GMT)
+Date: Wed, 22 May 2019 14:46:56 +0530
+From: Satheesh Rajendran <sathnaga@linux.vnet.ibm.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: dan.j.williams@intel.com, linux-mm@kvack.org,
+        linuxppc-dev@lists.ozlabs.org, linux-nvdimm@lists.01.org
+Subject: Re: [RFC PATCH V2 3/3] mm/nvdimm: Use correct #defines instead of
+ opencoding
+Reply-To: Satheesh Rajendran <sathnaga@linux.vnet.ibm.com>
+References: <20190522082701.6817-1-aneesh.kumar@linux.ibm.com>
+ <20190522082701.6817-3-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190522082701.6817-3-aneesh.kumar@linux.ibm.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-TM-AS-GCONF: 00
+x-cbid: 19052209-0008-0000-0000-000002E93770
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19052209-0009-0000-0000-00002255F114
+Message-Id: <20190522091656.GA19800@sathnaga86.d4t-in.ibmmobiledemo.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-22_03:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
  mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905220062
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905220067
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This allows us to make changes in a backward incompatible way. I have
-kept the PFN_MIN_VERSION in this patch '0' because we are not introducing
-any incompatible changes in this patch. We also may want to backport this
-to older kernels.
+On Wed, May 22, 2019 at 01:57:01PM +0530, Aneesh Kumar K.V wrote:
+> The nfpn related change is needed to fix the kernel message
+> 
+> "number of pfns truncated from 2617344 to 163584"
+> 
+> The change makes sure the nfpns stored in the superblock is right value.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+> ---
+>  drivers/nvdimm/label.c       | 2 +-
+>  drivers/nvdimm/pfn_devs.c    | 6 +++---
+>  drivers/nvdimm/region_devs.c | 8 ++++----
+>  3 files changed, 8 insertions(+), 8 deletions(-)
+> 
+> diff --git a/drivers/nvdimm/label.c b/drivers/nvdimm/label.c
+> index f3d753d3169c..bc6de8fb0153 100644
+> --- a/drivers/nvdimm/label.c
+> +++ b/drivers/nvdimm/label.c
+> @@ -361,7 +361,7 @@ static bool slot_valid(struct nvdimm_drvdata *ndd,
+> 
+>  	/* check that DPA allocations are page aligned */
+>  	if ((__le64_to_cpu(nd_label->dpa)
+> -				| __le64_to_cpu(nd_label->rawsize)) % SZ_4K)
+> +				| __le64_to_cpu(nd_label->rawsize)) % PAGE_SIZE)
+>  		return false;
+> 
+>  	/* check checksum */
+> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
+> index 39fa8cf8ef58..9fc2e514e28a 100644
+> --- a/drivers/nvdimm/pfn_devs.c
+> +++ b/drivers/nvdimm/pfn_devs.c
+> @@ -769,8 +769,8 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+>  		 * when populating the vmemmap. This *should* be equal to
+>  		 * PMD_SIZE for most architectures.
+>  		 */
+> -		offset = ALIGN(start + reserve + 64 * npfns,
+> -				max(nd_pfn->align, PMD_SIZE)) - start;
+> +		offset = ALIGN(start + reserve + sizeof(struct page) * npfns,
+> +			       max(nd_pfn->align, PMD_SIZE)) - start;
+>  	} else if (nd_pfn->mode == PFN_MODE_RAM)
+>  		offset = ALIGN(start + reserve, nd_pfn->align) - start;
+>  	else
+> @@ -782,7 +782,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+>  		return -ENXIO;
+>  	}
+> 
+> -	npfns = (size - offset - start_pad - end_trunc) / SZ_4K;
+> +	npfns = (size - offset - start_pad - end_trunc) / PAGE_SIZE;
+>  	pfn_sb->mode = cpu_to_le32(nd_pfn->mode);
+>  	pfn_sb->dataoff = cpu_to_le64(offset);
+>  	pfn_sb->npfns = cpu_to_le64(npfns);
+> diff --git a/drivers/nvdimm/region_devs.c b/drivers/nvdimm/region_devs.c
+> index b4ef7d9ff22e..2d8facea5a03 100644
+> --- a/drivers/nvdimm/region_devs.c
+> +++ b/drivers/nvdimm/region_devs.c
+> @@ -994,10 +994,10 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
+>  		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
+>  		struct nvdimm *nvdimm = mapping->nvdimm;
+> 
+> -		if ((mapping->start | mapping->size) % SZ_4K) {
+> -			dev_err(&nvdimm_bus->dev, "%s: %s mapping%d is not 4K aligned\n",
+> -					caller, dev_name(&nvdimm->dev), i);
+> -
+> +		if ((mapping->start | mapping->size) % PAGE_SIZE) {
+> +			dev_err(&nvdimm_bus->dev,
+> +				"%s: %s mapping%d is not 4K aligned\n",
 
-The error looks like
+s/not 4K aligned/not PAGE_SIZE aligned ?
 
-  dax0.1: init failed, superblock min version 1, kernel support version 0
+hope the error msg need to be changed as well..
 
-and the namespace is marked disabled
-
-$ndctl list -Ni
-[
-  {
-    "dev":"namespace0.0",
-    "mode":"fsdax",
-    "map":"mem",
-    "size":10737418240,
-    "uuid":"9605de6d-cefa-4a87-99cd-dec28b02cffe",
-    "state":"disabled"
-  }
-]
-
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
- drivers/nvdimm/pfn.h      |  9 ++++++++-
- drivers/nvdimm/pfn_devs.c |  8 ++++++++
- drivers/nvdimm/pmem.c     | 26 ++++++++++++++++++++++----
- 3 files changed, 38 insertions(+), 5 deletions(-)
-
-diff --git a/drivers/nvdimm/pfn.h b/drivers/nvdimm/pfn.h
-index dde9853453d3..5fd29242745a 100644
---- a/drivers/nvdimm/pfn.h
-+++ b/drivers/nvdimm/pfn.h
-@@ -20,6 +20,12 @@
- #define PFN_SIG_LEN 16
- #define PFN_SIG "NVDIMM_PFN_INFO\0"
- #define DAX_SIG "NVDIMM_DAX_INFO\0"
-+/*
-+ * increment this when we are making changes such that older
-+ * kernel should fail to initialize that namespace.
-+ */
-+
-+#define PFN_MIN_VERSION 0
- 
- struct nd_pfn_sb {
- 	u8 signature[PFN_SIG_LEN];
-@@ -36,7 +42,8 @@ struct nd_pfn_sb {
- 	__le32 end_trunc;
- 	/* minor-version-2 record the base alignment of the mapping */
- 	__le32 align;
--	u8 padding[4000];
-+	__le16 min_version;
-+	u8 padding[3998];
- 	__le64 checksum;
- };
- 
-diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index 01f40672507f..a2268cf262f5 100644
---- a/drivers/nvdimm/pfn_devs.c
-+++ b/drivers/nvdimm/pfn_devs.c
-@@ -439,6 +439,13 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
- 	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb), 0))
- 		return -ENXIO;
- 
-+	if (le16_to_cpu(pfn_sb->min_version) > PFN_MIN_VERSION) {
-+		dev_err(&nd_pfn->dev,
-+			"init failed, superblock min version %ld kernel support version %ld\n",
-+			le16_to_cpu(pfn_sb->min_version), PFN_MIN_VERSION);
-+		return -EOPNOTSUPP;
-+	}
-+
- 	if (memcmp(pfn_sb->signature, sig, PFN_SIG_LEN) != 0)
- 		return -ENODEV;
- 
-@@ -769,6 +776,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
- 	pfn_sb->version_major = cpu_to_le16(1);
- 	pfn_sb->version_minor = cpu_to_le16(2);
-+	pfn_sb->min_version = cpu_to_le16(PFN_MIN_VERSION);
- 	pfn_sb->start_pad = cpu_to_le32(start_pad);
- 	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
- 	pfn_sb->align = cpu_to_le32(nd_pfn->align);
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index 845c5b430cdd..406427c064d9 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -490,6 +490,7 @@ static int pmem_attach_disk(struct device *dev,
- 
- static int nd_pmem_probe(struct device *dev)
- {
-+	int ret;
- 	struct nd_namespace_common *ndns;
- 
- 	ndns = nvdimm_namespace_common_probe(dev);
-@@ -505,12 +506,29 @@ static int nd_pmem_probe(struct device *dev)
- 	if (is_nd_pfn(dev))
- 		return pmem_attach_disk(dev, ndns);
- 
--	/* if we find a valid info-block we'll come back as that personality */
--	if (nd_btt_probe(dev, ndns) == 0 || nd_pfn_probe(dev, ndns) == 0
--			|| nd_dax_probe(dev, ndns) == 0)
-+	ret = nd_btt_probe(dev, ndns);
-+	if (ret == 0)
- 		return -ENXIO;
-+	else if (ret == -EOPNOTSUPP)
-+		return ret;
- 
--	/* ...otherwise we're just a raw pmem device */
-+	ret = nd_pfn_probe(dev, ndns);
-+	if (ret == 0)
-+		return -ENXIO;
-+	else if (ret == -EOPNOTSUPP)
-+		return ret;
-+
-+	ret = nd_dax_probe(dev, ndns);
-+	if (ret == 0)
-+		return -ENXIO;
-+	else if (ret == -EOPNOTSUPP)
-+		return ret;
-+	/*
-+	 * We have two failure conditions here, there is no
-+	 * info reserver block or we found a valid info reserve block
-+	 * but failed to initialize the pfn superblock.
-+	 * Don't create a raw pmem disk for the second case.
-+	 */
- 	return pmem_attach_disk(dev, ndns);
- }
- 
--- 
-2.21.0
+Regards,
+-Satheesh.
+> +				caller, dev_name(&nvdimm->dev), i);
+>  			return NULL;
+>  		}
+> 
+> -- 
+> 2.21.0
+> 
 
