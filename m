@@ -2,148 +2,242 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA52DC282CE
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 16:09:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AD236C282DD
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 16:35:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3FF3620868
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 16:09:27 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="l/Ej5NzV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FF3620868
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	by mail.kernel.org (Postfix) with ESMTP id 6F5942081C
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 16:35:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F5942081C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CC7226B0007; Wed, 22 May 2019 12:09:26 -0400 (EDT)
+	id F24AF6B0005; Wed, 22 May 2019 12:35:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C772D6B0008; Wed, 22 May 2019 12:09:26 -0400 (EDT)
+	id ED5116B0006; Wed, 22 May 2019 12:35:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B663A6B000A; Wed, 22 May 2019 12:09:26 -0400 (EDT)
+	id D76436B0007; Wed, 22 May 2019 12:35:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 539416B0007
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 12:09:26 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id t77so497555lje.17
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 09:09:26 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 896396B0005
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 12:35:39 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id r48so4431535eda.11
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 09:35:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=xHyX4E1Hji0iAx9uaJym9J5zgLcAXlnGb5qLA9y3lOY=;
-        b=qVZHwyQBC7aJlWpHKTXPhpFeNF1shVolBrEHUiyD5Vb5zohoooRZ1nU3WYND6cz7jQ
-         6Fl21TLHymfBaJwxyXp4XBGwe+ka7xIpJF/B7268GjnFEMoTKryzTCMxpq2sLfCjdEzI
-         ezeQqJkPZKLRGfT7qg9MPnNpgd5NRe3Ra6V2fNcVszPjWDhu54LPJdKGnQZVXecFksAh
-         L1cwMxUfo+TyxpklsdtRVupNbmzQBxM0Vn2oSnuBuEoIsJIPgeHDcuLnvkCFxVizOufe
-         8+l2JXDu+enI0KayaoSBdBBX5ScxnC8dpT3L0Ssfpyl/qAXXzkHiLysIlZYLvH58tmYg
-         8mXA==
-X-Gm-Message-State: APjAAAVF3rDyEiVgmQnX+Ih+gd1WbWsjUpG+7PKOlhxRpc5c3tsz3KFy
-	9TlqK12/VIfYzdc8ReEfgXb0xGMvWt+787Zy6gfjHEDotg3J7ctyIvib82CvxRtx+atuXkiICO0
-	0K2mxgcp9AstPSh8bMxVCr2lIf7g8XJzlYPqbaAZvPiwrxt+LoZF0MAPOiVmP+MtONQ==
-X-Received: by 2002:a19:4c55:: with SMTP id z82mr36318207lfa.68.1558541365456;
-        Wed, 22 May 2019 09:09:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxh9KTbpVxKFSls7Sge3TEuilFWE5zVb6aAZXc4Dkg27byEan80DAwCkK9Ft1bWNLyP6Q3w
-X-Received: by 2002:a19:4c55:: with SMTP id z82mr36318162lfa.68.1558541364624;
-        Wed, 22 May 2019 09:09:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558541364; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=zj+UJDFqb5lMoiSFTFapDkV0CuL9IYOnWsyuJ96DKE0=;
+        b=TjPYm2FJBI/GhWHTz4/wy6p2kIEzectT/reJo7fon9TqCxXC4UdBE0MicxzPpLOzZG
+         SEAdJNHx63rxbUknad1jRKUSOBLkTGFpKjL7wcbMoaB4PXYIJ9MzV5LwuOzGof8YqasA
+         Scpk8vzGL9v2dmskwAt305rzHsD6O9K7JeNWStyXWqYxHXZ0MOE5jwQb9TvshGehMdx9
+         NCEMwjUGOeL1fkK0OEY34ccYqSCjibVLsgrDUxeE7sxXKpmUwCEOTJpioHosT9pRSZ2a
+         AoM5ucxY9Jd6B0E+y2mce7fu2dV5g8qBMiyGP4tyRdpLHVik2Mb++4RF+bdC6ASeE+hg
+         1sTA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAVSWgn0FVlAzhr64m99HJa+yVXOZHjq+KBAgEs/fhOk9+NwEBnn
+	nHDXEMbyIHoONRm3NYhnOAT6rBWWzUANiezupwxThGWGpgtilUI8u7Weel9qdbEx5HZ5bqAq56/
+	LK1NXzjms93S04LddX9ZIi9caQXQlyo7QxAV8JypOp+9Is34nOpmfdevKkUBJk9TQ4w==
+X-Received: by 2002:a50:9765:: with SMTP id d34mr91820363edb.195.1558542939106;
+        Wed, 22 May 2019 09:35:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqybPiLstCoop9zL1yjBTUwTmsn5fiqJX+9Uhha9dQ72EFEg47O7Kc8ZKZdBIpoyRsBx02Go
+X-Received: by 2002:a50:9765:: with SMTP id d34mr91820186edb.195.1558542937636;
+        Wed, 22 May 2019 09:35:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558542937; cv=none;
         d=google.com; s=arc-20160816;
-        b=PDJGoLFtZ2ovmtcRRNT8rfwyj7Ba0n5c5evPMybhvsQhpr9YpWa672uwBo2gdhF4GB
-         Nh3FfVFvWPx7kD3DVWVH2+DwGB+Lf5f0QJuOfNXLT05C4pSZ+evjhXq3HYdMZdN5dQos
-         3RkP1r6Zd450IwMtTUmy5lJbvy1N/kzTb9CdwzfG4piDPYVIAj1BZVLl0jC6Eejf4mNi
-         DlmihUrtDY9plOU/NXf3sjnYlFxR0UWRh+2bWetqc17qYMHvKL0461diSNZc9Ub7wciF
-         fPEgS08E3hlbmaIIGcWHNrN5TQ0jkVm4I1bopUII/BoUaxe5AKKg30sdrbbqFBjk3khi
-         MU0w==
+        b=yyFlD+Rw06KOBqfsUbuAvolVKxm/5Zo15Ndbep2pelwCEc0s5MFO2Ul0F7bYaI0L1/
+         YOMhWa3iuCjTmimt5/M7HRtkVvWVRqJ7vHXi9BCbw25cUpwk7asXwslnGi68sZZhtAuw
+         w7h4u1EauZVuUX2rPGkm2UTLMXVTfhL05KA14GEh64GEvVMPnMHdCQkdppXl2K4zL/1e
+         mEsg33ldEsxLZaZy09JuT79aKFTsm3n/KT5zPC3bZztdPDsmpCMJUpHEQgEmMk+Tjd21
+         KoX9ACadvPs551WD9y8MvnacPo2Qtx0tuenxR0D091RCTpqngzYUv4BkmflSfL5Ew/ui
+         wZyg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=xHyX4E1Hji0iAx9uaJym9J5zgLcAXlnGb5qLA9y3lOY=;
-        b=xlpDnGKjZRrqPHqxImQIawk0fwJZJbQdf+k4B5RSsxC27+p6rzZ3rs9SP9KTaDN/Bf
-         rqCTCynzecRLVMQrBY56r1Z5M8ycdadgI4iM9Lw844y9WEPebpO3+d29jYKtnXr5KoMe
-         9jL+kj869Ekmr6vH5zo27laVTa2IY6+hSdJ0LhVdCJP1SP82FoaQ1SeOqMSzRgxYkDc7
-         jYcSREWPhs+e2spQ3GVtxcVdL95a8JrWWbNmWu9/2IS30GTzf4YMGV6NCQMW8m6Sn2pk
-         4uPY6zBAx+O0nEAsmyL53IV5we5y7e0oeTyMiEI6OHOM7TKFvKg4khbA8jVmQbEgf1dv
-         vCFw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=zj+UJDFqb5lMoiSFTFapDkV0CuL9IYOnWsyuJ96DKE0=;
+        b=a6igr94Yt3fplGcRjG7fGN77fzF4UDeaf+rsaxJFFEuIbx0Ve2tKIpv34NbEB1ySuP
+         FJ49v8rX7CUvVl72jmA20G32Fc+vifWGEdkhJfyN6oYpBCMdi7Sikljg0WwFy40U46dX
+         kvKJ2owU4NAfHPPmeTcX/TMQ3xq2ikINvoXEd+GIrdO1QSUqKhWWJuNV16+G4MGwaUYr
+         bk7A057kox5EZr7btHPV1tYBXMmqPmlDPeLIAW0J/R50YcgB2RzZqIxm4Ps2kw145lkC
+         IN5JRLkiJOM8IoXyx8WRACa+YNUlDxa08iL3n9kd0rcQCVSBqdLWGQqAe4rb5ITCEgXs
+         mZdw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b="l/Ej5NzV";
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1o.mail.yandex.net (forwardcorp1o.mail.yandex.net. [2a02:6b8:0:1a2d::193])
-        by mx.google.com with ESMTPS id s22si22294443ljh.180.2019.05.22.09.09.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 09:09:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) client-ip=2a02:6b8:0:1a2d::193;
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id t46si1705963edd.224.2019.05.22.09.35.37
+        for <linux-mm@kvack.org>;
+        Wed, 22 May 2019 09:35:37 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b="l/Ej5NzV";
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp1j.mail.yandex.net (mxbackcorp1j.mail.yandex.net [IPv6:2a02:6b8:0:1619::162])
-	by forwardcorp1o.mail.yandex.net (Yandex) with ESMTP id DB0422E14B1;
-	Wed, 22 May 2019 19:09:23 +0300 (MSK)
-Received: from smtpcorp1p.mail.yandex.net (smtpcorp1p.mail.yandex.net [2a02:6b8:0:1472:2741:0:8b6:10])
-	by mxbackcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id c8metHw3vh-9Np8KpjV;
-	Wed, 22 May 2019 19:09:23 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1558541363; bh=xHyX4E1Hji0iAx9uaJym9J5zgLcAXlnGb5qLA9y3lOY=;
-	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
-	b=l/Ej5NzVQcufOB3jmlM+euSF3y40LxiUq3TRKaX8JoZx4OfqfO44542FgflQDfSwc
-	 IMOjz9cFfrQ9s8hvjkfGWJOETXbTRWmJXsb45BibDM62/X3VNsxQAkyZ3sQhLaTdW+
-	 6GBNP2BcT6L5Jz8gLr38rpDz8CbWPJBJSULfWWlA=
-Authentication-Results: mxbackcorp1j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:e47f:4b1d:b053:2762])
-	by smtpcorp1p.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id 6jbXv3Q5sw-9MdqBFAT;
-	Wed, 22 May 2019 19:09:23 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-Subject: Re: [PATCH] proc/meminfo: add MemKernel counter
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
- linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>,
- Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>
-References: <155853600919.381.8172097084053782598.stgit@buzz>
- <20190522155220.GB4374@dhcp22.suse.cz>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <177f56cd-6e10-4d2e-7a3e-23276222ba19@yandex-team.ru>
-Date: Wed, 22 May 2019 19:09:22 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 39D60341;
+	Wed, 22 May 2019 09:35:36 -0700 (PDT)
+Received: from mbp (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 1CE693F5AF;
+	Wed, 22 May 2019 09:35:29 -0700 (PDT)
+Date: Wed, 22 May 2019 17:35:27 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: enh <enh@google.com>
+Cc: Kees Cook <keescook@chromium.org>,
+	Evgenii Stepanov <eugenis@google.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
+Message-ID: <20190522163527.rnnc6t4tll7tk5zw@mbp>
+References: <cover.1557160186.git.andreyknvl@google.com>
+ <20190517144931.GA56186@arrakis.emea.arm.com>
+ <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
+ <20190521182932.sm4vxweuwo5ermyd@mbp>
+ <201905211633.6C0BF0C2@keescook>
+ <20190522101110.m2stmpaj7seezveq@mbp>
+ <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190522155220.GB4374@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 22.05.2019 18:52, Michal Hocko wrote:
-> On Wed 22-05-19 17:40:09, Konstantin Khlebnikov wrote:
->> Some kinds of kernel allocations are not accounted or not show in meminfo.
->> For example vmalloc allocations are tracked but overall size is not shown
->> for performance reasons. There is no information about network buffers.
->>
->> In most cases detailed statistics is not required. At first place we need
->> information about overall kernel memory usage regardless of its structure.
->>
->> This patch estimates kernel memory usage by subtracting known sizes of
->> free, anonymous, hugetlb and caches from total memory size: MemKernel =
->> MemTotal - MemFree - Buffers - Cached - SwapCached - AnonPages - Hugetlb.
+On Wed, May 22, 2019 at 08:30:21AM -0700, enh wrote:
+> On Wed, May 22, 2019 at 3:11 AM Catalin Marinas <catalin.marinas@arm.com> wrote:
+> > On Tue, May 21, 2019 at 05:04:39PM -0700, Kees Cook wrote:
+> > > I just want to make sure I fully understand your concern about this
+> > > being an ABI break, and I work best with examples. The closest situation
+> > > I can see would be:
+> > >
+> > > - some program has no idea about MTE
+> >
+> > Apart from some libraries like libc (and maybe those that handle
+> > specific device ioctls), I think most programs should have no idea about
+> > MTE. I wouldn't expect programmers to have to change their app just
+> > because we have a new feature that colours heap allocations.
 > 
-> Why do we need to export something that can be calculated in the
-> userspace trivially? Also is this really something the number really
-> meaningful? Say you have a driver that exports memory to the userspace
-> via mmap but that memory is not accounted. Is this really a kernel
-> memory?
+> obviously i'm biased as a libc maintainer, but...
 > 
+> i don't think it helps to move this to libc --- now you just have an
+> extra dependency where to have a guaranteed working system you need to
+> update your kernel and libc together. (or at least update your libc to
+> understand new ioctls etc _before_ you can update your kernel.)
 
-It may be trivial right now but not fixed.
-Adding new kinds of memory may change this definition.
-For example hypothetical 'GPU buffers' may be handled as 'userspace' memory.
+That's not what I meant (or I misunderstood you). If we have a relaxed
+ABI in the kernel and a libc that returns tagged pointers on malloc() I
+wouldn't expect the programmer to do anything different in the
+application code like explicit untagging. Basically the program would
+continue to run unmodified irrespective of whether you use an old libc
+without tagged pointers or a new one which tags heap allocations.
+
+What I do expect is that the libc checks for the presence of the relaxed
+ABI, currently proposed as an AT_FLAGS bit (for MTE we'd have a
+HWCAP_MTE), and only tag the malloc() pointers if the kernel supports
+the relaxed ABI. As you said, you shouldn't expect that the C library
+and kernel are upgraded together, so they should be able to work in any
+new/old version combination.
+
+> > > The trouble I see with this is that it is largely theoretical and
+> > > requires part of userspace to collude to start using a new CPU feature
+> > > that tickles a bug in the kernel. As I understand the golden rule,
+> > > this is a bug in the kernel (a missed ioctl() or such) to be fixed,
+> > > not a global breaking of some userspace behavior.
+> >
+> > Yes, we should follow the rule that it's a kernel bug but it doesn't
+> > help the user that a newly installed kernel causes user space to no
+> > longer reach a prompt. Hence the proposal of an opt-in via personality
+> > (for MTE we would need an explicit opt-in by the user anyway since the
+> > top byte is no longer ignored but checked against the allocation tag).
+> 
+> but realistically would this actually get used in this way? or would
+> any given system either be MTE or non-MTE. in which case a kernel
+> configuration option would seem to make more sense. (because either
+> way, the hypothetical user basically needs to recompile the kernel to
+> get back on their feet. or all of userspace.)
+
+The two hard requirements I have for supporting any new hardware feature
+in Linux are (1) a single kernel image binary continues to run on old
+hardware while making use of the new feature if available and (2) old
+user space continues to run on new hardware while new user space can
+take advantage of the new feature.
+
+The distro user space usually has a hard requirement that it continues
+to run on (certain) old hardware. We can't enforce this in the kernel
+but we offer the option to user space developers of checking feature
+availability through HWCAP bits.
+
+The Android story may be different as you have more control about which
+kernel configurations are deployed on specific SoCs. I'm looking more
+from a Linux distro angle where you just get an off-the-shelf OS image
+and install it on your hardware, either taking advantage of new features
+or just not using them if the software was not updated. Or, if updated
+software is installed on old hardware, it would just run.
+
+For MTE, we just can't enable it by default since there are applications
+who use the top byte of a pointer and expect it to be ignored rather
+than failing with a mismatched tag. Just think of a hwasan compiled
+binary where TBI is expected to work and you try to run it with MTE
+turned on.
+
+I would also expect the C library or dynamic loader to check for the
+presence of a HWCAP_MTE bit before starting to tag memory allocations,
+otherwise it would get SIGILL on the first MTE instruction it tries to
+execute.
+
+> i'm not sure i see this new way for a kernel update to break my system
+> and need to be fixed forward/rolled back as any different from any of
+> the existing ways in which this can happen :-) as an end-user i have
+> to rely on whoever's sending me software updates to test adequately
+> enough that they find the problems. as an end user, there isn't any
+> difference between "my phone rebooted when i tried to take a photo
+> because of a kernel/driver leak", say, and "my phone rebooted when i
+> tried to take a photo because of missing untagging of a pointer passed
+> via ioctl".
+> 
+> i suspect you and i have very different people in mind when we say "user" :-)
+
+Indeed, I think we have different users in mind. I didn't mean the end
+user who doesn't really care which C library version it's running on
+their phone but rather advanced users (not necessarily kernel
+developers) that prefer to build their own kernels with every release.
+We could extend this to kernel developers who don't have time to track
+down why a new kernel triggers lots of SIGSEGVs during boot.
+
+-- 
+Catalin
 
