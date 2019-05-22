@@ -7,278 +7,203 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 978DEC072A4
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 05:12:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CE950C072A4
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 05:30:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3E0672070D
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 05:12:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 77D3220862
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 05:30:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="NOi/c1/B"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3E0672070D
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ZZ7LukV0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77D3220862
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C6BD76B0003; Wed, 22 May 2019 01:12:07 -0400 (EDT)
+	id CFAF26B0003; Wed, 22 May 2019 01:30:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C1C9D6B0006; Wed, 22 May 2019 01:12:07 -0400 (EDT)
+	id CAAA06B0006; Wed, 22 May 2019 01:30:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B09ED6B0007; Wed, 22 May 2019 01:12:07 -0400 (EDT)
+	id B72406B0007; Wed, 22 May 2019 01:30:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 883326B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 01:12:07 -0400 (EDT)
-Received: by mail-vk1-f200.google.com with SMTP id k71so444211vka.18
-        for <linux-mm@kvack.org>; Tue, 21 May 2019 22:12:07 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 687CB6B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 01:30:32 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id r7so603033wrn.8
+        for <linux-mm@kvack.org>; Tue, 21 May 2019 22:30:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=9cSHLpfk2ut/G7daeeu1vHKOr/f5bhaXmSC+S8dDp1M=;
-        b=lrkidpHfO9ZJuR0hkZv8PKyzovJPMst9MCftJXoopbfYBgbHZS8m0q3IJCyGaYs7Y5
-         gvD0SR+vOA6QL2Z239pO2PZc8zZLjm/S2xqHus6wdqKJw+1sjkEfL+tQNyY+kNuQCrdN
-         h4HycMpKNyMF9sWF8aJuUDjuD0K5QWuC8SS+svP09Otgq3iyEO5m+3VV213DQQm4mqI/
-         kVpHZQL7rF021F+hVxCIoHoZLBYMLzNNPuexn0oWWhChMIwcVIW3Hm8MF+Gk8bmnAW8o
-         iacAaT264u9QSryAK2iTZ7BpyRuLpj+sWQ8580kHpjtu5A19OX+NkfR1aPChck1PDOlN
-         XvRg==
-X-Gm-Message-State: APjAAAUmRx5tR+jHr8eiZ0aYAia5OmwMLW63M7xH3ZkGUdAeNBCFnAWD
-	Fuv4mbiXs+faxFAJKM2eqdsgQNezV6hSrpI2cYcWWCo6k5V8ShmpAD1PJtVfZWH13yS0uVJbass
-	W817ObyIweyN7pCp2XqgRFQgxHs4O0OH7BF56J4v5Uzm8egJKcXxXUxzIxhC9TOLwsw==
-X-Received: by 2002:a1f:1e48:: with SMTP id e69mr14097129vke.16.1558501927151;
-        Tue, 21 May 2019 22:12:07 -0700 (PDT)
-X-Received: by 2002:a1f:1e48:: with SMTP id e69mr14097107vke.16.1558501926165;
-        Tue, 21 May 2019 22:12:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558501926; cv=none;
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=khAfVgyvdFpD+3BrbDMKT8RJLVGP4g3H+a67pFViOXc=;
+        b=NPw65c8apYhVH6ifTitY9rKs9nAbf7k0naYl4DytA6o4SwadaTGpTfzwwzTjQz0JHe
+         dydwZdfsalz3o7Hvvye+DNF+GFAnguKPpmyfM+KEOWSKGPbYnaQsA9XL7medz5nEFGHK
+         4h4o8oVhFvrb7g63YHkzAnjI7yCSebQDwnxLsVa+NykGAVcsEhswCJFx8H50/xa47y5e
+         O8uEkIWhvWlrsZjPsrNSBxNiKuMufbTPIaZPeYBnpQfZ3u0LEqwM3MhCuHGpztDMMBTz
+         Zm4AGVa21L+Xp2wjaTLZv+sHkqpeY39o6+m2eLjGhv1qVdFFIJCHe2ki1OS+n7h3GIiJ
+         R/vw==
+X-Gm-Message-State: APjAAAWpNmWbvTJkVjapUpi/RKvH6jbdnbCKkIjJibOXnV59O8tOac1f
+	Aqx3+gYp2FrLxXUtxP0NrlFrzdayGxL8BM7uUK4GbF8RZGLVdbJU9davVfmR+WmiM/+djoe7pDf
+	pw1doQFTCk1qYLsZImFB6iysaq20XpPe+kxi0NIA/V4U/gTI6Ghdbc5lNrVeGjMjfBQ==
+X-Received: by 2002:adf:e9ca:: with SMTP id l10mr5762575wrn.47.1558503031798;
+        Tue, 21 May 2019 22:30:31 -0700 (PDT)
+X-Received: by 2002:adf:e9ca:: with SMTP id l10mr5762516wrn.47.1558503030876;
+        Tue, 21 May 2019 22:30:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558503030; cv=none;
         d=google.com; s=arc-20160816;
-        b=j/kKLh2y38eLwbqq3/+6RDEUUJaCgB28hAUw8e8yipYZ30cygc30lo6ZHCvWXSlqlE
-         atmnkZ3yOi7ifx6Z1+GXNMGZWqgDu0yGFXSZwOg9fnrWEYi8YvvrUZq0P5geqshE+Gq5
-         j5rSEngPs71hqkIRaSJDV+0EEGCUQrQxeRY3Qpy2Z6ir9o8yGBSZ4kndfZlV1bGm2InG
-         N5sZEeLwd2oyYRq6MIUz0hltIsN6vLCE/4Ws+5B4OX0omzhI9+jMNcKw44zZ2oj54eT/
-         8Lr98PRjJzu1Mb0woFnenDRh3Mf87tK7KnAp7GbzPC6rI6yFMFhXdpJ6D9Bdy37qIGmO
-         +20w==
+        b=UapoiEYfLQZBWU+oocOu396awyosoEVfI2k78uvf2OsFz4J3u8BBPMsgMX6P4S0Fj9
+         yJlSa8KVedBl8ncZhX1ZC8e2heiR1kIJqCWbBvgePOjJqJxmUCje8IUW//yz/h5f5HC0
+         F/FRZjKn0ZsFMGm5GzbJ4YgEufKQaC8PiAoA3zYE+vrdxkzJTXodfQwCz6JUdCGnm/id
+         e2rcSKKpn6uiXbuIzyM/11SzW8tG1WgEOzbwbXIFUh5sOtIhx7HcKKpzIQd797AQgn6x
+         K2JKeqfAjRWtiPMWJNdj0XmSWhQBgd3vc4hBNagBwnk2rKZXUgpvwXsghFiq2Jp3262x
+         REAg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=9cSHLpfk2ut/G7daeeu1vHKOr/f5bhaXmSC+S8dDp1M=;
-        b=T5jx7zT44X1OUT1lGocA2KyVMT81q1EKDxFXF4e0XRu9NtW8CNSgn2KjUGt7bA46jf
-         p48VIJ4jve+ajXHircnxjnW451vQR38M/Kn6H3NcFb44HKfZtOFTBGen6n8QdKBIh3vh
-         9nvQd8RYGtmH3L47w1A3opG7sVyT2tqSw0Pj3bnf3UKeX6Okxg1VLKSkgoMgZCXB+7hz
-         Teb/iQGkgGcvCTWt3L52hxxVoXlqeWjUHO/gCXQOtXUZcUmGT+4pw6391GXgyXi2/j/m
-         6ay8queyG8hIabbDT/mjwC/3IIMUlNvIDpsNLxJHcYx02apYWS7+V36hPzNoxTeUsgqd
-         LV6g==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=khAfVgyvdFpD+3BrbDMKT8RJLVGP4g3H+a67pFViOXc=;
+        b=0EjBfuc7xLy+qy/pD7VRuESo7kMkY96iCMn5dQ12NyxsNdAzc1soD7rHy9ZM1euuJT
+         Bu8JfTzu32S1SN2xZV5SU5/JdrvxBHWZ4PZWIOR1TxYL6/aJXuHvATAY9EX6R6z5jw0d
+         GcXn3V6Lr8JzJge1lU93bmDi8gfh3GtGr4XIbsMoHv8I2uMelQ6TnUiIqboa/ukhtGzs
+         hTBNhuHbV4y4N1GZGM1PpxT7mo1+ZxN2K9LUjuD/jPpJqccHxNGDhVD8czfTcYePO0qa
+         GqOYzGpPQ3zzNDfhOp5SUz0N8YQctC44A3eaTaC4cFXSieRpetpusjnoxtnyRLRpQCIw
+         VPpw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="NOi/c1/B";
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ZZ7LukV0;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id v4sor3084812uam.13.2019.05.21.22.12.05
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q18sor7873577wre.28.2019.05.21.22.30.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 21 May 2019 22:12:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Tue, 21 May 2019 22:30:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="NOi/c1/B";
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ZZ7LukV0;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=9cSHLpfk2ut/G7daeeu1vHKOr/f5bhaXmSC+S8dDp1M=;
-        b=NOi/c1/BZL0A1MVfXBT4OMbxgq+TQemvctfYgkP3g9iiscfCUdMH6vSQ7H52vQJzHO
-         DRZUIY1ZmZ0g2qEGRNSSekNSlq7LKKncp4KHqYeLAKreov879Fuw28YUYpf7hiSmjDm3
-         fbVeq9wzHEIwB1Mk8tx5gNrXjWsiCKGqCeffC2cqOozfiRTfOlp2TkeOKm0j3M4VPaJY
-         m9IVvtmC6e1oxxn/Y6cO5Cm2EfWQAFdVXJdsIBzJeiKEwI4qXQkshYjX5a5eHJaYIbON
-         2DDqK/SLsWzJDrG/puzEK7ZI3rKEkMzCPvwyHD0XnouepO/vuKEigV4541uUAlTp1g6B
-         1OEg==
-X-Google-Smtp-Source: APXvYqy8+dYZRe6z0Nwha0PQyg+QYkW6/ymoocZj4J2VwOSqdTfwW7boSafeq0W2BM0JYFNKSl7I/6pdfZ4d/zaIRd8=
-X-Received: by 2002:ab0:1529:: with SMTP id o38mr21734487uae.30.1558501925277;
- Tue, 21 May 2019 22:12:05 -0700 (PDT)
+         :cc;
+        bh=khAfVgyvdFpD+3BrbDMKT8RJLVGP4g3H+a67pFViOXc=;
+        b=ZZ7LukV0216gLYaha22MBJ0hKw12PTjtcsOtESvqoFx2r8YXGyqNWCUCL45b1wedZD
+         ZFNWVfSTZF3ZUou6Ksk4uYSJh+d2PC9HQrQiSG61+UoTKm1c9yaPNHD4fJTQWFZMRDO1
+         pr1LvFbHpOEBHuWFtKevEqMDfMCiVnTOiK32GFFeU4bRc0EOQ9F0EUlN+nXzNlwHA2xB
+         hQ+rsJCfg5ODxzSI7HUVjPStRo09JWJ9UWqRkFyoIqvsnPMHk9INdC3ytAPm5PWhOsph
+         E3085FTjpiN+d9BzuykZ7awBQxQAum0qGAUnNW0nyIyMIH8p6w0wV2frQdhQNhhaStrI
+         q/LQ==
+X-Google-Smtp-Source: APXvYqyHeIQKj0Z4wRld3Nv42dTU/iH3BbSC9pIZ0KcQpdW6gcf7eqXRf/Bm3IQyDDtmyAz5PGReJvK72TbhosnXntk=
+X-Received: by 2002:adf:ab45:: with SMTP id r5mr26865834wrc.100.1558503029912;
+ Tue, 21 May 2019 22:30:29 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190520035254.57579-1-minchan@kernel.org> <20190521084158.s5wwjgewexjzrsm6@brauner.io>
- <20190521110552.GG219653@google.com> <20190521113029.76iopljdicymghvq@brauner.io>
- <20190521113911.2rypoh7uniuri2bj@brauner.io>
-In-Reply-To: <20190521113911.2rypoh7uniuri2bj@brauner.io>
-From: Daniel Colascione <dancol@google.com>
-Date: Tue, 21 May 2019 22:11:53 -0700
-Message-ID: <CAKOZuesjDcD3EM4PS7aO7yTa3KZ=FEzMP63MR0aEph4iW1NCYQ@mail.gmail.com>
-Subject: Re: [RFC 0/7] introduce memory hinting API for external process
-To: Christian Brauner <christian@brauner.io>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Murray <timmurray@google.com>, 
-	Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>, 
-	Brian Geffon <bgeffon@google.com>, Jann Horn <jannh@google.com>
+References: <20190212224542.ZW63a%akpm@linux-foundation.org>
+ <20190213124729.GI4525@dhcp22.suse.cz> <20190516175655.GA25818@cmpxchg.org>
+ <20190516180932.GA13208@dhcp22.suse.cz> <20190516193943.GA26439@cmpxchg.org>
+ <20190517123310.GI6836@dhcp22.suse.cz> <CALvZod6xErQ3AA+9oHSqB2bqtK9gKk4T0iPoGPkufBiJALko1Q@mail.gmail.com>
+In-Reply-To: <CALvZod6xErQ3AA+9oHSqB2bqtK9gKk4T0iPoGPkufBiJALko1Q@mail.gmail.com>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Tue, 21 May 2019 22:30:18 -0700
+Message-ID: <CAJuCfpHW8ZM7OcHKjxAQWsXfrUDordtsKP2MT0oDTW5XxKb7Nw@mail.gmail.com>
+Subject: Re: + mm-consider-subtrees-in-memoryevents.patch added to -mm tree
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, mm-commits@vger.kernel.org, 
+	Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>, 
+	Chris Down <chris@chrisdown.name>, cgroups mailinglist <cgroups@vger.kernel.org>, 
+	Linux MM <linux-mm@kvack.org>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 21, 2019 at 4:39 AM Christian Brauner <christian@brauner.io> wr=
-ote:
+On Fri, May 17, 2019 at 6:00 AM Shakeel Butt <shakeelb@google.com> wrote:
 >
-> On Tue, May 21, 2019 at 01:30:29PM +0200, Christian Brauner wrote:
-> > On Tue, May 21, 2019 at 08:05:52PM +0900, Minchan Kim wrote:
-> > > On Tue, May 21, 2019 at 10:42:00AM +0200, Christian Brauner wrote:
-> > > > On Mon, May 20, 2019 at 12:52:47PM +0900, Minchan Kim wrote:
-> > > > > - Background
-> > > > >
-> > > > > The Android terminology used for forking a new process and starti=
-ng an app
-> > > > > from scratch is a cold start, while resuming an existing app is a=
- hot start.
-> > > > > While we continually try to improve the performance of cold start=
-s, hot
-> > > > > starts will always be significantly less power hungry as well as =
-faster so
-> > > > > we are trying to make hot start more likely than cold start.
-> > > > >
-> > > > > To increase hot start, Android userspace manages the order that a=
-pps should
-> > > > > be killed in a process called ActivityManagerService. ActivityMan=
-agerService
-> > > > > tracks every Android app or service that the user could be intera=
-cting with
-> > > > > at any time and translates that into a ranked list for lmkd(low m=
-emory
-> > > > > killer daemon). They are likely to be killed by lmkd if the syste=
-m has to
-> > > > > reclaim memory. In that sense they are similar to entries in any =
-other cache.
-> > > > > Those apps are kept alive for opportunistic performance improveme=
-nts but
-> > > > > those performance improvements will vary based on the memory requ=
-irements of
-> > > > > individual workloads.
-> > > > >
-> > > > > - Problem
-> > > > >
-> > > > > Naturally, cached apps were dominant consumers of memory on the s=
-ystem.
-> > > > > However, they were not significant consumers of swap even though =
-they are
-> > > > > good candidate for swap. Under investigation, swapping out only b=
-egins
-> > > > > once the low zone watermark is hit and kswapd wakes up, but the o=
-verall
-> > > > > allocation rate in the system might trip lmkd thresholds and caus=
-e a cached
-> > > > > process to be killed(we measured performance swapping out vs. zap=
-ping the
-> > > > > memory by killing a process. Unsurprisingly, zapping is 10x times=
- faster
-> > > > > even though we use zram which is much faster than real storage) s=
-o kill
-> > > > > from lmkd will often satisfy the high zone watermark, resulting i=
-n very
-> > > > > few pages actually being moved to swap.
-> > > > >
-> > > > > - Approach
-> > > > >
-> > > > > The approach we chose was to use a new interface to allow userspa=
-ce to
-> > > > > proactively reclaim entire processes by leveraging platform infor=
-mation.
-> > > > > This allowed us to bypass the inaccuracy of the kernel=E2=80=99s =
-LRUs for pages
-> > > > > that are known to be cold from userspace and to avoid races with =
-lmkd
-> > > > > by reclaiming apps as soon as they entered the cached state. Addi=
-tionally,
-> > > > > it could provide many chances for platform to use much informatio=
-n to
-> > > > > optimize memory efficiency.
-> > > > >
-> > > > > IMHO we should spell it out that this patchset complements MADV_W=
-ONTNEED
-> > > > > and MADV_FREE by adding non-destructive ways to gain some free me=
-mory
-> > > > > space. MADV_COLD is similar to MADV_WONTNEED in a way that it hin=
-ts the
-> > > > > kernel that memory region is not currently needed and should be r=
-eclaimed
-> > > > > immediately; MADV_COOL is similar to MADV_FREE in a way that it h=
-ints the
-> > > > > kernel that memory region is not currently needed and should be r=
-eclaimed
-> > > > > when memory pressure rises.
-> > > > >
-> > > > > To achieve the goal, the patchset introduce two new options for m=
-advise.
-> > > > > One is MADV_COOL which will deactive activated pages and the othe=
-r is
-> > > > > MADV_COLD which will reclaim private pages instantly. These new o=
-ptions
-> > > > > complement MADV_DONTNEED and MADV_FREE by adding non-destructive =
-ways to
-> > > > > gain some free memory space. MADV_COLD is similar to MADV_DONTNEE=
-D in a way
-> > > > > that it hints the kernel that memory region is not currently need=
-ed and
-> > > > > should be reclaimed immediately; MADV_COOL is similar to MADV_FRE=
-E in a way
-> > > > > that it hints the kernel that memory region is not currently need=
-ed and
-> > > > > should be reclaimed when memory pressure rises.
-> > > > >
-> > > > > This approach is similar in spirit to madvise(MADV_WONTNEED), but=
- the
-> > > > > information required to make the reclaim decision is not known to=
- the app.
-> > > > > Instead, it is known to a centralized userspace daemon, and that =
-daemon
-> > > > > must be able to initiate reclaim on its own without any app invol=
-vement.
-> > > > > To solve the concern, this patch introduces new syscall -
-> > > > >
-> > > > >         struct pr_madvise_param {
-> > > > >                 int size;
-> > > > >                 const struct iovec *vec;
-> > > > >         }
-> > > > >
-> > > > >         int process_madvise(int pidfd, ssize_t nr_elem, int *beha=
-vior,
-> > > > >                                 struct pr_madvise_param *restuls,
-> > > > >                                 struct pr_madvise_param *ranges,
-> > > > >                                 unsigned long flags);
-> > > > >
-> > > > > The syscall get pidfd to give hints to external process and provi=
-des
-> > > > > pair of result/ranges vector arguments so that it could give seve=
-ral
-> > > > > hints to each address range all at once.
-> > > > >
-> > > > > I guess others have different ideas about the naming of syscall a=
-nd options
-> > > > > so feel free to suggest better naming.
-> > > >
-> > > > Yes, all new syscalls making use of pidfds should be named
-> > > > pidfd_<action>. So please make this pidfd_madvise.
-> > >
-> > > I don't have any particular preference but just wondering why pidfd i=
-s
-> > > so special to have it as prefix of system call name.
+> On Fri, May 17, 2019 at 5:33 AM Michal Hocko <mhocko@kernel.org> wrote:
 > >
-> > It's a whole new API to address processes. We already have
-> > clone(CLONE_PIDFD) and pidfd_send_signal() as you have seen since you
-> > exported pidfd_to_pid(). And we're going to have pidfd_open(). Your
-> > syscall works only with pidfds so it's tied to this api as well so it
-> > should follow the naming scheme. This also makes life easier for
-> > userspace and is consistent.
+> > On Thu 16-05-19 15:39:43, Johannes Weiner wrote:
+> > > On Thu, May 16, 2019 at 08:10:42PM +0200, Michal Hocko wrote:
+> > > > On Thu 16-05-19 13:56:55, Johannes Weiner wrote:
+> > > > > On Wed, Feb 13, 2019 at 01:47:29PM +0100, Michal Hocko wrote:
+> > [...]
+> > > > > > FTR: As I've already said here [1] I can live with this change as long
+> > > > > > as there is a larger consensus among cgroup v2 users. So let's give this
+> > > > > > some more time before merging to see whether there is such a consensus.
+> > > > > >
+> > > > > > [1] http://lkml.kernel.org/r/20190201102515.GK11599@dhcp22.suse.cz
+> > > > >
+> > > > > It's been three months without any objections.
+> > > >
+> > > > It's been three months without any _feedback_ from anybody. It might
+> > > > very well be true that people just do not read these emails or do not
+> > > > care one way or another.
+> > >
+> > > This is exactly the type of stuff that Mel was talking about at LSFMM
+> > > not even two weeks ago. How one objection, however absurd, can cause
+> > > "controversy" and block an effort to address a mistake we have made in
+> > > the past that is now actively causing problems for real users.
+> > >
+> > > And now after stalling this fix for three months to wait for unlikely
+> > > objections, you're moving the goal post. This is frustrating.
+> >
+> > I see your frustration but I find the above wording really unfair. Let me
+> > remind you that this is a considerable user visible change in the
+> > semantic and that always has to be evaluated carefuly. A change that would
+> > clearly regress anybody who rely on the current semantic. This is not an
+> > internal implementation detail kinda thing.
+> >
+> > I have suggested an option for the new behavior to be opt-in which
+> > would be a regression safe option. You keep insisting that we absolutely
+> > have to have hierarchical reporting by default for consistency reasons.
+> > I do understand that argument but when I weigh consistency vs. potential
+> > regression risk I rather go a conservative way. This is a traditional
+> > way how we deal with semantic changes like this. There are always
+> > exceptions possible and that is why I wanted to hear from other users of
+> > cgroup v2, even from those who are not directly affected now.
+> >
+> > If you feel so stronly about this topic and the suggested opt-in is an
+> > absolute no-go then you are free to override my opinion here. I haven't
+> > Nacked this patch.
+> >
+> > > Nobody else is speaking up because the current user base is very small
+> > > and because the idea that anybody has developed against and is relying
+> > > on the current problematic behavior is completely contrived. In
+> > > reality, the behavior surprises people and causes production issues.
+> >
+> > I strongly suspect users usually do not follow discussions on our
+> > mailing lists. They only come up later when something breaks and that
+> > is too late. I do realize that this makes the above call for a wider
+> > consensus harder but a lack of upstream bug reports also suggests that
+> > people do not care or simply haven't noticed any issues due to way how
+> > they use the said interface (maybe deeper hierarchies are not that
+> > common).
+> >
 >
-> This is at least my reasoning. I'm not going to make this a whole big
-> pedantic argument. If people have really strong feelings about not using
-> this prefix then fine. But if syscalls can be grouped together and have
-> consistent naming this is always a big plus.
+> I suspect that FB is the only one using cgroup v2 in production and
+> others (data center) users are still evaluating/exploring. Also IMHO
+> the cgroup v2 users are on the bleeding edge. As new cgroup v2
+> features and controllers are added, the users either switch to latest
+> kernel or backport. That might be the reason no one objected. Also
+> none of the distribution has defaulted to v2 yet, so, not many
+> transparent v2 users yet.
 
-My hope has been that pidfd use becomes normalized enough that
-prefixing "pidfd_" to pidfd-accepting system calls becomes redundant.
-We write write(), not fd_write(), right? :-) pidfd_open() makes sense
-because the primary purpose of this system call is to operate on a
-pidfd, but I think process_madvise() is fine.
+In Android we are not using cgroups v2 yet (and that's why I was
+refraining from commenting earlier), however when I was evaluating
+them for future use I was disappointed that events do not propagate up
+the hierarchy. One usecase that I was considering is to get a
+notification when OOM kill happens. With cgroups v2 we would be forced
+to use per-app hierarchy to avoid process migrations between memcgs
+when an app changes its state (background/foreground). With such a
+setup we would end up with many leaf cgroups. Polling each individual
+leaf cgroup's memory.events file to detect OOM occurrence would
+require lots of extra FDs registered with an epoll(). Having an
+ability to poll a common parent cgroup to detect that one of the leafs
+generated an OOM event would be way more frugal.
+I realize this does not constitute a real-life usecase but hopefully
+possible usecases can provide some value too.
+Thanks,
+Suren.
+
+> Shakeel
+>
 
