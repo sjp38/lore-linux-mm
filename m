@@ -2,135 +2,277 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6352AC282DC
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:03:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A1957C282CE
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:12:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 23B9120821
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:03:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 45A2221019
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 20:12:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="UgB1AQS4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23B9120821
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="YE0IpP8H"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45A2221019
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9F7646B0003; Wed, 22 May 2019 16:03:22 -0400 (EDT)
+	id B761C6B0003; Wed, 22 May 2019 16:12:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9A7AD6B0006; Wed, 22 May 2019 16:03:22 -0400 (EDT)
+	id B271B6B0006; Wed, 22 May 2019 16:12:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8BCAF6B0007; Wed, 22 May 2019 16:03:22 -0400 (EDT)
+	id A3D5E6B0007; Wed, 22 May 2019 16:12:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 652D86B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 16:03:22 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 5so2430400pff.11
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 13:03:22 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 84D0B6B0003
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 16:12:49 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id v2so2782022qkd.11
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 13:12:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=ViBWmnJ1WWRjeadhKTVeKeDH/rKW/qS58ZTaSpuylpA=;
-        b=dbSN0k1gEhnATwkBGFJ2A4Gs4qvECS4ss1iWgBJcVIFMNiASRO3/n+M9wWSWCojFAE
-         EAccvDOt+/tQS6Yf62mUUdO7nQGkEoKkwxUp55FkA70eE5o+fL8TotQrTdqwe1oS49yi
-         w2m2bRuEWR71qUT9bDY7F3nQXLBhUFoH9Ii55K63WcQUabYbZ/xipbrj4udJYpYHRJ3X
-         8E+QgktIcS8FrcSreT3SxNMhKEQrYXib6X//YbPadzfm2OfxyIW3xGXljtEriBdZgse0
-         9eNnuCsmZbMZ+DL0OB0hEjpHXSjgVyYp0sbjOMxzL+4sMhhHqnBrHPz6T1o8S953t2zV
-         nczA==
-X-Gm-Message-State: APjAAAXFP99BE8t1Jy7wqXEHPYHYFLJR0b45FJuI9zp345dY7xO86BNc
-	bbp9ww9DtbKsjzYVHa1JjRyq7L+SYm2ZW1iGOs/HoR7R4KStIUPGtcAOxugZMQ0Fw85FRgaB++c
-	NeTmSCxSL+U5ZbB7j1M5cECgLqLEJm4ZiloOFNm8ISFrnL9y3DIEFZkj3+9q/r2H11Q==
-X-Received: by 2002:aa7:98c6:: with SMTP id e6mr96507658pfm.191.1558555401924;
-        Wed, 22 May 2019 13:03:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyBc7utzbO/1cnuB6aWwOJrR0LZRReLNwa3eL8REH4CAsej487nELXuaXiRhjPbqzZvV8zk
-X-Received: by 2002:aa7:98c6:: with SMTP id e6mr96507556pfm.191.1558555400869;
-        Wed, 22 May 2019 13:03:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558555400; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=7Cnh1zv+MpTD//W/ZciU7p3rLJeN3HTGu169lbfCN2g=;
+        b=aYowSoAVE8u+M3/7f4nfC6r0XpbDaf8etqZMWq7pQi9BZCZkg9GPrRXcnv7XCS6hd5
+         gfQMKZgYt2JE4hC621oMIM39HFSbn85KB4LKuLG+R6h1+2AX+pWzOYabzOKccHKbduB6
+         4WgSEKwl37ShdEWSqRcamDfPOpH0rnoxpDTdfZPnCVtiDOn/JJ2qfXBvspONuq24cnzX
+         KJIskq6/+TISAcYmLvSDrolatdxExXqIIXD+omVI2YkW5AB4KExa0LTY8m/T86Suk7V+
+         5CJ7S1Kx9lbbIEAnYYuK3O/lYqgfFW2QwpHu8ihUySd3N4yTpo2l3hTSas/pmHW4IU3K
+         DfNQ==
+X-Gm-Message-State: APjAAAW6Ac0o5P0Rv6x+nuh8fDUe/YXQZ/V+/jB4dDbSMRmWeYxs0ZC+
+	fxLOUrTZDCycYE6vXWMyOJhzaCTQZ1wRSQojxy8yBWhWd5c3W38eYcrnorbXfd6WUSh2mH9godt
+	9nWoNxNf1reAVPa2bcUKAgaZEHam9vAoTioqHWDwIQO+r2rJhcAGmSci73cUD+zmI6Q==
+X-Received: by 2002:aed:2209:: with SMTP id n9mr74373111qtc.377.1558555969287;
+        Wed, 22 May 2019 13:12:49 -0700 (PDT)
+X-Received: by 2002:aed:2209:: with SMTP id n9mr74373065qtc.377.1558555968757;
+        Wed, 22 May 2019 13:12:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558555968; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZweDTWngJbeDcDh56qtvHUOIzr9tdhM//YJIJPJXFQasx1Xe5CaGTekmonkVijFJP0
-         2nvb+LSmC1x+NGMbDHHR+pGpDHMo8eLYUpn5k3vR2WUJaX5aNoMjo6jFoi6ir6DPkky/
-         vlIJUCztyrs04BilFp1+eYMQdBHvY8W8odYEZHDB/5b+an6wbTZQWRN3F2MhV4P/8bwa
-         PWN9R9sx15J94EeS5EoVR2Z9l6CFQKp5nIahxKYfseM7km6VN0ph+hAblEIGya/8BqQV
-         usG2NiWNIEDVcFpCLVQ6UnCTOdposP5IVtPKT3VSVKNhxBfsX/UpECUL6WqWIdROPwzZ
-         5weA==
+        b=vReVDtOUaQRmP5oYjIlvopjN1gB9iHtLdt5oS5XDmM5NuSzqA4VTWnjYPj64F3b7in
+         /HvhTUZTupq9a0Ct0vzRChMUh/EQbo1DnkgGEicOuaeFYvsxUEr+Todn32EKYIU/d++q
+         TvdcvjuxFysB0WkxD78spqUxO0cson2iX/ImkNRZUwIttVdecTuvjgzFQh9mMouaSQSf
+         pRklXu4gWDScqoY0y1wSzIDZ78rsYzqyiyO3ERVnKeM26z15COKdZJTu4eYaZtp1LsmQ
+         7Q+U/VzmVxzhpmpsQvVJYI62RckzmboUe5PVZ/+vI+oNJmeCHgzPvKYjHKdgpFcDTuso
+         E6cA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ViBWmnJ1WWRjeadhKTVeKeDH/rKW/qS58ZTaSpuylpA=;
-        b=eRgPMU47Bq/4XchAJ1alh4MY40suyHDJlMFrPaoR3xYoYkgDi/uXCn0iy7Q3ClVxvd
-         JxeynmR2GtrGt0kxT1Po8NGnuwBNrVXrOFy1qR6jBGQPkMcLybk1iLmj1nd8JLkClHEa
-         4XuvnYrLPCf5iudI9BTgDFXXCLzQV677pfaJHHTGW3zJ+Nqs7XCydyp/0qtJ/YJX1RlI
-         ohLJww3LEhNhlDj7T4a7kJbN27gFxnxFwjkIUYIDOBoFcuLxnLILu0poFsno5qH6GAXE
-         GfNEES/V+6lE+sY5WuAV0/Bsp0S/cSaxHLz3MOwZBD7DZ2ayjWYfMXmpuDpMUexYrJ69
-         xT0w==
+        bh=7Cnh1zv+MpTD//W/ZciU7p3rLJeN3HTGu169lbfCN2g=;
+        b=uKersmK0xaSij/JjVG6cs+qfZlx48IFGBQoQu+I9sTTXnS/Bdd6OR2R/uDCqxbzct/
+         oNbKFb8n/eOgVB4Q8Sv9hbXSVAGUhVrnuTyDUoLwRyGuCh2ONlXMiKHygCksW1DORot2
+         OhTrPZwAibeuPT8P8A7jEO2UmB83yWiD8Qa/BRueZ/TZKhoVQ+X7u1UHmpx9xsOj96zH
+         3l5EB6XOkuo9ywHtfsXZQCxbL8Dy261V0d4+fBf/bEDZ4CbzoXQ+ZuZ3uOziUZl5VVtU
+         NblRSJ4E+vJyZJMdkOIOUtX2YcVHyzIPv3W5TiTDBm+xrybi8wkyVy+35V/MMlXcOtfx
+         pbIw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=UgB1AQS4;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q19si27710120pgj.42.2019.05.22.13.03.20
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=YE0IpP8H;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w45sor11126241qvc.66.2019.05.22.13.12.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 May 2019 13:03:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Wed, 22 May 2019 13:12:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=UgB1AQS4;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 50B7D21019;
-	Wed, 22 May 2019 20:03:20 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1558555400;
-	bh=k7OHZtB7uPGFrxLGQe4UNcjIGj64t1q7pu44dSe2Cyw=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=UgB1AQS4VimS8HjoFDHM9P9wg8hUv9+hL3dU6a/IOC2C5rf2F5QJeknzjX1MMcx+O
-	 zy5C8PlqiqGx2uRa9D6wVdzLPrifZd3GiOtzdkobg3piCl2OjFEsPbpQXty60iwe6d
-	 bp0Z6gFrH0dwHH6wIEnMZHaqGN2rZQ443G0Vo6uc=
-Date: Wed, 22 May 2019 13:03:18 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
-Subject: Re: [PATCH] mm: Introduce page_size()
-Message-Id: <20190522130318.4ad4dda1169e652528ecd7af@linux-foundation.org>
-In-Reply-To: <eb4db346-fe5f-5b3e-1a7b-d92aee03332c@virtuozzo.com>
-References: <20190510181242.24580-1-willy@infradead.org>
-	<eb4db346-fe5f-5b3e-1a7b-d92aee03332c@virtuozzo.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=YE0IpP8H;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=7Cnh1zv+MpTD//W/ZciU7p3rLJeN3HTGu169lbfCN2g=;
+        b=YE0IpP8H/ucijkv4/zVjJ988m9xdFimUhpaxBkJCS59qhW+IMnbR5pbeV+sCn5JTOS
+         gnpOAP2B7c7aSbThavZLfsAIQj0lK8/J6U5K81Q9AEGVlG1oL3YLff6Xl2EKWr9XjEkA
+         geDiqGupSN0dwV7h2nmanpeorMbMVIzI3K66c6I1FbvRklAixBgNAHFgUgLIYhWM7+87
+         SqNE9J6Q2mU7C2V1w8oSbOzkukq9H2Wzl4FjIBKmYR1zkdE4CtQVQu2NgFSgxYgzoLx7
+         EninpQWhc6XcEFj3CacFG5qrFVCVGo4ER7wIDqD+nMQ8C1GEk+QD3ezARs843/aXHBk3
+         jb9A==
+X-Google-Smtp-Source: APXvYqwkv+L37w9ixCVNgbTzJP9c7J84nOh7MnCV4O6X3TGfqnjt15mUAu7vDi6h84TgA4gSyjkUXA==
+X-Received: by 2002:a0c:b04f:: with SMTP id l15mr59907485qvc.191.1558555968376;
+        Wed, 22 May 2019 13:12:48 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-49-251.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.49.251])
+        by smtp.gmail.com with ESMTPSA id g65sm1475777qkb.1.2019.05.22.13.12.47
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 22 May 2019 13:12:47 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hTXbT-0003PL-Eq; Wed, 22 May 2019 17:12:47 -0300
+Date: Wed, 22 May 2019 17:12:47 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Jerome Glisse <jglisse@redhat.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-rdma@vger.kernel.org,
+	Leon Romanovsky <leonro@mellanox.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Artemy Kovalyov <artemyko@mellanox.com>,
+	Moni Shoua <monis@mellanox.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Kaike Wan <kaike.wan@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>
+Subject: Re: [PATCH v4 0/1] Use HMM for ODP v4
+Message-ID: <20190522201247.GH6054@ziepe.ca>
+References: <20190411181314.19465-1-jglisse@redhat.com>
+ <20190506195657.GA30261@ziepe.ca>
+ <20190521205321.GC3331@redhat.com>
+ <20190522005225.GA30819@ziepe.ca>
+ <20190522174852.GA23038@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190522174852.GA23038@redhat.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 13 May 2019 15:43:08 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+On Wed, May 22, 2019 at 01:48:52PM -0400, Jerome Glisse wrote:
 
-> > +/*
-> > + * Returns the number of bytes in this potentially compound page.
-> > + * Must be called with the head page, not a tail page.
-> > + */
-> > +static inline unsigned long page_size(struct page *page)
-> > +{
-> 
-> Maybe we should underline commented head page limitation with VM_BUG_ON()?
+>  static void put_per_mm(struct ib_umem_odp *umem_odp)
+>  {
+>  	struct ib_ucontext_per_mm *per_mm = umem_odp->per_mm;
+> @@ -325,9 +283,10 @@ static void put_per_mm(struct ib_umem_odp *umem_odp)
+>  	up_write(&per_mm->umem_rwsem);
+>  
+>  	WARN_ON(!RB_EMPTY_ROOT(&per_mm->umem_tree.rb_root));
+> -	mmu_notifier_unregister_no_release(&per_mm->mn, per_mm->mm);
+> +	hmm_mirror_unregister(&per_mm->mirror);
+>  	put_pid(per_mm->tgid);
+> -	mmu_notifier_call_srcu(&per_mm->rcu, free_per_mm);
+> +
+> +	kfree(per_mm);
 
-VM_WARN_ONCE() if poss, please.
+Notice that mmu_notifier only uses SRCU to fence in-progress ops
+callbacks, so I think hmm internally has the bug that this ODP
+approach prevents.
 
-The code bloatage from that is likely to be distressing.  Perhaps
-adding an out-of-line compound_order_head_only() for this reason would
-help.  In which case, just uninline the whole thing...
+hmm should follow the same pattern ODP has and 'kfree_srcu' the hmm
+struct, use container_of in the mmu_notifier callbacks, and use the
+otherwise vestigal kref_get_unless_zero() to bail:
 
-> +	return (unsigned long)PAGE_SIZE << compound_order(page);
-> + }
+From 0cb536dc0150ba964a1d655151d7b7a84d0f915a Mon Sep 17 00:00:00 2001
+From: Jason Gunthorpe <jgg@mellanox.com>
+Date: Wed, 22 May 2019 16:52:52 -0300
+Subject: [PATCH] hmm: Fix use after free with struct hmm in the mmu notifiers
 
-Also, I suspect the cast here is unneeded.  Architectures used to
-differe in the type of PAGE_SIZE but please tell me that's been fixed
-for a lomng time...
+mmu_notifier_unregister_no_release() is not a fence and the mmu_notifier
+system will continue to reference hmm->mn until the srcu grace period
+expires.
+
+         CPU0                                     CPU1
+                                               __mmu_notifier_invalidate_range_start()
+                                                 srcu_read_lock
+                                                 hlist_for_each ()
+                                                   // mn == hmm->mn
+hmm_mirror_unregister()
+  hmm_put()
+    hmm_free()
+      mmu_notifier_unregister_no_release()
+         hlist_del_init_rcu(hmm-mn->list)
+			                           mn->ops->invalidate_range_start(mn, range);
+					             mm_get_hmm()
+      mm->hmm = NULL;
+      kfree(hmm)
+                                                     mutex_lock(&hmm->lock);
+
+Use SRCU to kfree the hmm memory so that the notifiers can rely on hmm
+existing. Get the now-safe hmm struct through container_of and directly
+check kref_get_unless_zero to lock it against free.
+
+Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+---
+ include/linux/hmm.h |  1 +
+ mm/hmm.c            | 25 +++++++++++++++++++------
+ 2 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 51ec27a8466816..8b91c90d3b88cb 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -102,6 +102,7 @@ struct hmm {
+ 	struct mmu_notifier	mmu_notifier;
+ 	struct rw_semaphore	mirrors_sem;
+ 	wait_queue_head_t	wq;
++	struct rcu_head		rcu;
+ 	long			notifiers;
+ 	bool			dead;
+ };
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 816c2356f2449f..824e7e160d8167 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -113,6 +113,11 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
+ 	return NULL;
+ }
+ 
++static void hmm_fee_rcu(struct rcu_head *rcu)
++{
++	kfree(container_of(rcu, struct hmm, rcu));
++}
++
+ static void hmm_free(struct kref *kref)
+ {
+ 	struct hmm *hmm = container_of(kref, struct hmm, kref);
+@@ -125,7 +130,7 @@ static void hmm_free(struct kref *kref)
+ 		mm->hmm = NULL;
+ 	spin_unlock(&mm->page_table_lock);
+ 
+-	kfree(hmm);
++	mmu_notifier_call_srcu(&hmm->rcu, hmm_fee_rcu);
+ }
+ 
+ static inline void hmm_put(struct hmm *hmm)
+@@ -153,10 +158,14 @@ void hmm_mm_destroy(struct mm_struct *mm)
+ 
+ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+ {
+-	struct hmm *hmm = mm_get_hmm(mm);
++	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+ 	struct hmm_mirror *mirror;
+ 	struct hmm_range *range;
+ 
++	/* hmm is in progress to free */
++	if (!kref_get_unless_zero(&hmm->kref))
++		return;
++
+ 	/* Report this HMM as dying. */
+ 	hmm->dead = true;
+ 
+@@ -194,13 +203,15 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+ 			const struct mmu_notifier_range *nrange)
+ {
+-	struct hmm *hmm = mm_get_hmm(nrange->mm);
++	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+ 	struct hmm_mirror *mirror;
+ 	struct hmm_update update;
+ 	struct hmm_range *range;
+ 	int ret = 0;
+ 
+-	VM_BUG_ON(!hmm);
++	/* hmm is in progress to free */
++	if (!kref_get_unless_zero(&hmm->kref))
++		return 0;
+ 
+ 	update.start = nrange->start;
+ 	update.end = nrange->end;
+@@ -248,9 +259,11 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+ static void hmm_invalidate_range_end(struct mmu_notifier *mn,
+ 			const struct mmu_notifier_range *nrange)
+ {
+-	struct hmm *hmm = mm_get_hmm(nrange->mm);
++	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+ 
+-	VM_BUG_ON(!hmm);
++	/* hmm is in progress to free */
++	if (!kref_get_unless_zero(&hmm->kref))
++		return;
+ 
+ 	mutex_lock(&hmm->lock);
+ 	hmm->notifiers--;
+-- 
+2.21.0
 
