@@ -2,297 +2,213 @@ Return-Path: <SRS0=Hl4p=TW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D94F3C18E7C
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 08:22:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CD39C072A4
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 08:27:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8EEB021019
-	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 08:22:54 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=brauner.io header.i=@brauner.io header.b="KMEggWfK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EEB021019
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=brauner.io
+	by mail.kernel.org (Postfix) with ESMTP id BF3CB217F9
+	for <linux-mm@archiver.kernel.org>; Wed, 22 May 2019 08:27:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF3CB217F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 12E3F6B0003; Wed, 22 May 2019 04:22:54 -0400 (EDT)
+	id 599B06B0007; Wed, 22 May 2019 04:27:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0DF9F6B0006; Wed, 22 May 2019 04:22:54 -0400 (EDT)
+	id 54AB96B0008; Wed, 22 May 2019 04:27:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EEB2F6B0007; Wed, 22 May 2019 04:22:53 -0400 (EDT)
+	id 439D66B000A; Wed, 22 May 2019 04:27:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 834576B0003
-	for <linux-mm@kvack.org>; Wed, 22 May 2019 04:22:53 -0400 (EDT)
-Received: by mail-lf1-f69.google.com with SMTP id v5so354496lfi.13
-        for <linux-mm@kvack.org>; Wed, 22 May 2019 01:22:53 -0700 (PDT)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 242426B0007
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 04:27:18 -0400 (EDT)
+Received: by mail-yb1-f197.google.com with SMTP id y3so1418531ybg.12
+        for <linux-mm@kvack.org>; Wed, 22 May 2019 01:27:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=m4JEalCIglmSi8asd0GswElo01+07VAIE94yc//5CSY=;
-        b=iCZ99yH63AfALbIiAb0T6aNQXKKt7JIXJ0E9JrrsQhjtL8rR+wSulD7b8c8ixXhtFC
-         +Eke8UHWV1Ry4ObfV1daS38Uwfyi7Ak6hT9fOrHFgeGZhSZnJZHcH7HrMJm6XdwUlqDw
-         0Bsil5Q0sxAftzceQuyPYtwvjb4t8XHvdXI87qiM1mXuZciWVYPBQoxOdwuZCU8RZaI9
-         dFDe7cmQW9CmSUGe5MNBzz18Q0dVleZFJ7T1w3sT+u7b7l46+ORMCsqiRFAJdZQUhNSj
-         fF3ZP+Wfn/AhTGsnushL621Tg8We4Sa/Kecc5cSPdyRwKvkyFumJ2n5upAmHxvbmi4BX
-         C4CA==
-X-Gm-Message-State: APjAAAUK02znVxDE2/WLNxM7bfO5fJXDwqv64da9OFlfBcsP9o0ZymNl
-	RSG/uUgOlWzVPdRcFyA90kQuW3+oxlGadYM7FIqdlMkak9wd1IJhNAlz3sPs4jfvRuk5JEB7aTM
-	eRls42JR3Wdv5gFMr2S/0i9qZidFGd8zjzgEgjIOZrjCXxIsaR6r91zNpi/hykDtR/A==
-X-Received: by 2002:ac2:59c7:: with SMTP id x7mr5252990lfn.75.1558513372570;
-        Wed, 22 May 2019 01:22:52 -0700 (PDT)
-X-Received: by 2002:ac2:59c7:: with SMTP id x7mr5252923lfn.75.1558513371215;
-        Wed, 22 May 2019 01:22:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558513371; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:in-reply-to:references:mime-version
+         :content-transfer-encoding:message-id;
+        bh=X9uBNzC2btm2KmWV6r/+ddlF60lonpFz8lJksHabHHE=;
+        b=d+thF0Orp0Xl6OCYeSwM3k24pUbM2xNIMbtJNQdb7VHvmUfVJvxi5F+f5b/CwT5hLp
+         8GjUCTMSyNO3Zrch6yHQK/fvTGH5899oojzuOyoHNxFr7UdL2APUwKy0sZeUh8nVbwwk
+         iardgns2xV+ZDZRgj0CSjxRXfRvlil3oKmSNCokWiMwpYmRcW16kBEYyycZbHL5moqA2
+         aJgWxj+UDUAyrt51s8BCRp3KaNCSVZBHtnolf5OTrwWK09kMQ+Drp+UoduxYkp8EKNPw
+         l8Pt77ofdaKfyyFbLSVwr+iR02qzwCnhcDrbftTLWBd0YpdM/CtAq+4HWB4NMg8H/uqy
+         zrWQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAV2Rvn/PCmaSr1HSvI2yp4lA5Xx3Ul3F4lL02Qj4TK/CP3fkJBm
+	nq+9B5gbBOd4HJ8BYLrZVlpe4arZP3M3DmTntIxScZ4ZGe5wEoa7NrVdQhdi+ZKy4Xw8gW/OLUe
+	aM2pJAF7FSKzPowhwxQOJrkcTGjUIywuIzv/H4Z54F6ABw2BjpLktKDosn6uY2HDHWQ==
+X-Received: by 2002:a5b:30a:: with SMTP id j10mr18490275ybp.466.1558513637834;
+        Wed, 22 May 2019 01:27:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxhGvf1rE7yjvEeOQELiWyhOW0/w64NBOnzSYwVEf/lGxZc0i/HGER0cDUwDdciqf0WEVGI
+X-Received: by 2002:a5b:30a:: with SMTP id j10mr18490258ybp.466.1558513636740;
+        Wed, 22 May 2019 01:27:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558513636; cv=none;
         d=google.com; s=arc-20160816;
-        b=NRiNmmXabM/D577UI99dX/J2ltxWCDmNwJ5PbnnfwXoylLC87REJsXzCCONw2Xvz+8
-         xFW5VZYAPDfg71Ot0OxnuIpVrBWHe5hYoQisteASoXDdl/ep0XVL7c20tKg1RsilKcAt
-         pLPB8tvHkTWmQ+8Q5EmvTMFrNmnj4qo19EHr5seieihwj8fJl6RMau5fIE/0eE2TAKy9
-         RwEOujHA4M0HHf1zK7nf4ymFNpSat1jfb3UUh8AnqBDnjJv77c8blWn/O7I8e1PyXRjL
-         LQMcUJhNzhJ+/d6MIOL7RAMOK0GFQ/ttYwGB/UpqxsGnd9m1ZdtEtY7X1wbScOH3hWM1
-         G8VQ==
+        b=DgvJMU7OcX9TgrmUUkTmfcAg/6ITwQVOjKti/CFCYoNblEWCWlEFYfzrkq7R+nUgNX
+         Z6KBfODHnPERnpQP+wVvTor5o/y8LD5IAFuPHnez9efVBOX/tkNorjqTTfAu5ofbd17/
+         TVT0Me9rGDR9UN9IP8pgizHKsfWFw9aQmLV8D1dWNPLvw8EUkrASvSmg6yYkaVo0ennG
+         /45KgwuHvtGiRCwqgkBdvrNLrjB6BlOWwyFOZsc1QIxui6pDL/ZsAaonOTYOTBUuZXC/
+         akSIRuthEW5JOK1mDQWxO5Ws0x8xlGEwJpjjHx+NHOZ7fZ0BjIjLMhhXWnX1xrNPtWow
+         Fd1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=m4JEalCIglmSi8asd0GswElo01+07VAIE94yc//5CSY=;
-        b=PdvXk27TXjbrlW6LeseJ1nx6YNoCNz1RcY8CrzwV+Pd03yqYpjZhiUiBK1Pw7FkWmq
-         quYIRstB7JQ2Yf3bM+XAB52IFjlR5fXuC1h2rchXVmACFAJ+2Zxq5ftRR5Z4L6TQu68j
-         7jlcESgdJOGbiU5CYXow95d8KHeCfzXPrvTcleAYrufsgwZM87NaSfG6zxS5GUbfLVY9
-         fCgut3wAi61UfhHwUIWbkt0ExUnvwY9d5+dKJ6QZ8SO3nyfJC0M4Dp2KsQtZTrH7s6RH
-         U5K5xhQujTJ+5efITLyWhPEmQVOHZZruF8RU1nXcEyketZgv/aifAz6lO4kPlAj83jx7
-         w7+w==
+        h=message-id:content-transfer-encoding:mime-version:references
+         :in-reply-to:date:subject:cc:to:from;
+        bh=X9uBNzC2btm2KmWV6r/+ddlF60lonpFz8lJksHabHHE=;
+        b=QbpT7S/U//tHW728OVMVHlE0Kkf5zDf2dSguLHCPUGAUMOB/m5GzQo6TB8utb+Q7UA
+         3xGS8Ckmivr4daFSZTGpCILowJn5g5cTj0kQBXiyTInVxSqoq+TuiuzRYZ7wb+exyR1O
+         lL5646orcWAnUI3rv0E0t33mTuO7I6scN5UA6edyWBUT6RZ2QqT0THdldnj9pbF2cGSa
+         plx4LZu95Z3a7aw5kpuno24fPeFU4eN9QYWv5IbD9aEH4oNkzAE5TlcXHhA8/BGJWS87
+         2FkpLvXXymsuK/JgU062lMitUpP43jbH1WKlN3j86J9kExRESd3NIFt/9m3Cr68EReKX
+         1GZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@brauner.io header.s=google header.b=KMEggWfK;
-       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h127sor6716946lfh.12.2019.05.22.01.22.50
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id n14si6288115ybp.91.2019.05.22.01.27.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 May 2019 01:22:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 May 2019 01:27:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@brauner.io header.s=google header.b=KMEggWfK;
-       spf=pass (google.com: domain of christian@brauner.io designates 209.85.220.65 as permitted sender) smtp.mailfrom=christian@brauner.io
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=brauner.io; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=m4JEalCIglmSi8asd0GswElo01+07VAIE94yc//5CSY=;
-        b=KMEggWfKkR3sBMob8FbBK3AkPY0Qn4wLBU1yAM0kOqN5gKbp7l4OR3rxcZCe1Ov1Ye
-         uED7haoNqzLbV39Qaj2z/pOqC3lVob2FBEWPQyBmcQJX1WVPrnZqCGBi//2l7ms8rLXv
-         +0+tBjPhna2s7pUUqEpZfT71jdxWJ8iPP3fJhloXDk+nX0Ufjanfb3bbxhnJW/jGf07H
-         3UWg0mYN+wHNOckgclt+Yj6aG3vssyp7F86XCh/IySq5+IYFBEJzZAQ6dVsQdei2r5EE
-         mvEQPxdad4w3p93NQApykF9saCcvOzUKnpwqj3xC6v7ijNc3aJVs7zN9kuqnXuBzBxu1
-         y5yw==
-X-Google-Smtp-Source: APXvYqw9OPOwrmLIkGIU0Xy3co7TwRd7WwgYVENZTQrjpSNRDD9FLuWiCbXB17r/o1f6TgOoNhgJ68m6pD96JCSigLo=
-X-Received: by 2002:ac2:5606:: with SMTP id v6mr5522539lfd.129.1558513370602;
- Wed, 22 May 2019 01:22:50 -0700 (PDT)
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4M8RGn1134519
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 04:27:16 -0400
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2sn1tpttb1-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 May 2019 04:27:16 -0400
+Received: from localhost
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Wed, 22 May 2019 09:27:15 +0100
+Received: from b03cxnp08028.gho.boulder.ibm.com (9.17.130.20)
+	by e33.co.us.ibm.com (192.168.1.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 22 May 2019 09:27:12 +0100
+Received: from b03ledav006.gho.boulder.ibm.com (b03ledav006.gho.boulder.ibm.com [9.17.130.237])
+	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4M8RBSF30409194
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 22 May 2019 08:27:11 GMT
+Received: from b03ledav006.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 9DC79C605B;
+	Wed, 22 May 2019 08:27:11 +0000 (GMT)
+Received: from b03ledav006.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id F33B4C6055;
+	Wed, 22 May 2019 08:27:09 +0000 (GMT)
+Received: from skywalker.in.ibm.com (unknown [9.124.31.87])
+	by b03ledav006.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Wed, 22 May 2019 08:27:09 +0000 (GMT)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: dan.j.williams@intel.com
+Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+        linuxppc-dev@lists.ozlabs.org,
+        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [RFC PATCH V2 3/3] mm/nvdimm: Use correct #defines instead of opencoding
+Date: Wed, 22 May 2019 13:57:01 +0530
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190522082701.6817-1-aneesh.kumar@linux.ibm.com>
+References: <20190522082701.6817-1-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
-References: <20190520035254.57579-1-minchan@kernel.org> <20190521084158.s5wwjgewexjzrsm6@brauner.io>
- <20190521110552.GG219653@google.com> <20190521113029.76iopljdicymghvq@brauner.io>
- <20190521113911.2rypoh7uniuri2bj@brauner.io> <CAKOZuesjDcD3EM4PS7aO7yTa3KZ=FEzMP63MR0aEph4iW1NCYQ@mail.gmail.com>
-In-Reply-To: <CAKOZuesjDcD3EM4PS7aO7yTa3KZ=FEzMP63MR0aEph4iW1NCYQ@mail.gmail.com>
-From: Christian Brauner <christian@brauner.io>
-Date: Wed, 22 May 2019 10:22:39 +0200
-Message-ID: <CAHrFyr6iuoZ-r6e57zp1rz7b=Ee0Vko+syuUKW2an+TkAEz_iA@mail.gmail.com>
-Subject: Re: [RFC 0/7] introduce memory hinting API for external process
-To: Daniel Colascione <dancol@google.com>, Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 
-	linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Tim Murray <timmurray@google.com>, 
-	Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>, 
-	Brian Geffon <bgeffon@google.com>, Jann Horn <jannh@google.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 8bit
+X-TM-AS-GCONF: 00
+x-cbid: 19052208-0036-0000-0000-00000AC1343D
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011141; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000286; SDB=6.01206886; UDB=6.00633780; IPR=6.00987861;
+ MB=3.00026999; MTD=3.00000008; XFM=3.00000015; UTC=2019-05-22 08:27:13
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19052208-0037-0000-0000-00004BE5854A
+Message-Id: <20190522082701.6817-3-aneesh.kumar@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-22_03:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905220062
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 22, 2019 at 7:12 AM Daniel Colascione <dancol@google.com> wrote=
-:
->
-> On Tue, May 21, 2019 at 4:39 AM Christian Brauner <christian@brauner.io> =
-wrote:
-> >
-> > On Tue, May 21, 2019 at 01:30:29PM +0200, Christian Brauner wrote:
-> > > On Tue, May 21, 2019 at 08:05:52PM +0900, Minchan Kim wrote:
-> > > > On Tue, May 21, 2019 at 10:42:00AM +0200, Christian Brauner wrote:
-> > > > > On Mon, May 20, 2019 at 12:52:47PM +0900, Minchan Kim wrote:
-> > > > > > - Background
-> > > > > >
-> > > > > > The Android terminology used for forking a new process and star=
-ting an app
-> > > > > > from scratch is a cold start, while resuming an existing app is=
- a hot start.
-> > > > > > While we continually try to improve the performance of cold sta=
-rts, hot
-> > > > > > starts will always be significantly less power hungry as well a=
-s faster so
-> > > > > > we are trying to make hot start more likely than cold start.
-> > > > > >
-> > > > > > To increase hot start, Android userspace manages the order that=
- apps should
-> > > > > > be killed in a process called ActivityManagerService. ActivityM=
-anagerService
-> > > > > > tracks every Android app or service that the user could be inte=
-racting with
-> > > > > > at any time and translates that into a ranked list for lmkd(low=
- memory
-> > > > > > killer daemon). They are likely to be killed by lmkd if the sys=
-tem has to
-> > > > > > reclaim memory. In that sense they are similar to entries in an=
-y other cache.
-> > > > > > Those apps are kept alive for opportunistic performance improve=
-ments but
-> > > > > > those performance improvements will vary based on the memory re=
-quirements of
-> > > > > > individual workloads.
-> > > > > >
-> > > > > > - Problem
-> > > > > >
-> > > > > > Naturally, cached apps were dominant consumers of memory on the=
- system.
-> > > > > > However, they were not significant consumers of swap even thoug=
-h they are
-> > > > > > good candidate for swap. Under investigation, swapping out only=
- begins
-> > > > > > once the low zone watermark is hit and kswapd wakes up, but the=
- overall
-> > > > > > allocation rate in the system might trip lmkd thresholds and ca=
-use a cached
-> > > > > > process to be killed(we measured performance swapping out vs. z=
-apping the
-> > > > > > memory by killing a process. Unsurprisingly, zapping is 10x tim=
-es faster
-> > > > > > even though we use zram which is much faster than real storage)=
- so kill
-> > > > > > from lmkd will often satisfy the high zone watermark, resulting=
- in very
-> > > > > > few pages actually being moved to swap.
-> > > > > >
-> > > > > > - Approach
-> > > > > >
-> > > > > > The approach we chose was to use a new interface to allow users=
-pace to
-> > > > > > proactively reclaim entire processes by leveraging platform inf=
-ormation.
-> > > > > > This allowed us to bypass the inaccuracy of the kernel=E2=80=99=
-s LRUs for pages
-> > > > > > that are known to be cold from userspace and to avoid races wit=
-h lmkd
-> > > > > > by reclaiming apps as soon as they entered the cached state. Ad=
-ditionally,
-> > > > > > it could provide many chances for platform to use much informat=
-ion to
-> > > > > > optimize memory efficiency.
-> > > > > >
-> > > > > > IMHO we should spell it out that this patchset complements MADV=
-_WONTNEED
-> > > > > > and MADV_FREE by adding non-destructive ways to gain some free =
-memory
-> > > > > > space. MADV_COLD is similar to MADV_WONTNEED in a way that it h=
-ints the
-> > > > > > kernel that memory region is not currently needed and should be=
- reclaimed
-> > > > > > immediately; MADV_COOL is similar to MADV_FREE in a way that it=
- hints the
-> > > > > > kernel that memory region is not currently needed and should be=
- reclaimed
-> > > > > > when memory pressure rises.
-> > > > > >
-> > > > > > To achieve the goal, the patchset introduce two new options for=
- madvise.
-> > > > > > One is MADV_COOL which will deactive activated pages and the ot=
-her is
-> > > > > > MADV_COLD which will reclaim private pages instantly. These new=
- options
-> > > > > > complement MADV_DONTNEED and MADV_FREE by adding non-destructiv=
-e ways to
-> > > > > > gain some free memory space. MADV_COLD is similar to MADV_DONTN=
-EED in a way
-> > > > > > that it hints the kernel that memory region is not currently ne=
-eded and
-> > > > > > should be reclaimed immediately; MADV_COOL is similar to MADV_F=
-REE in a way
-> > > > > > that it hints the kernel that memory region is not currently ne=
-eded and
-> > > > > > should be reclaimed when memory pressure rises.
-> > > > > >
-> > > > > > This approach is similar in spirit to madvise(MADV_WONTNEED), b=
-ut the
-> > > > > > information required to make the reclaim decision is not known =
-to the app.
-> > > > > > Instead, it is known to a centralized userspace daemon, and tha=
-t daemon
-> > > > > > must be able to initiate reclaim on its own without any app inv=
-olvement.
-> > > > > > To solve the concern, this patch introduces new syscall -
-> > > > > >
-> > > > > >         struct pr_madvise_param {
-> > > > > >                 int size;
-> > > > > >                 const struct iovec *vec;
-> > > > > >         }
-> > > > > >
-> > > > > >         int process_madvise(int pidfd, ssize_t nr_elem, int *be=
-havior,
-> > > > > >                                 struct pr_madvise_param *restul=
-s,
-> > > > > >                                 struct pr_madvise_param *ranges=
-,
-> > > > > >                                 unsigned long flags);
-> > > > > >
-> > > > > > The syscall get pidfd to give hints to external process and pro=
-vides
-> > > > > > pair of result/ranges vector arguments so that it could give se=
-veral
-> > > > > > hints to each address range all at once.
-> > > > > >
-> > > > > > I guess others have different ideas about the naming of syscall=
- and options
-> > > > > > so feel free to suggest better naming.
-> > > > >
-> > > > > Yes, all new syscalls making use of pidfds should be named
-> > > > > pidfd_<action>. So please make this pidfd_madvise.
-> > > >
-> > > > I don't have any particular preference but just wondering why pidfd=
- is
-> > > > so special to have it as prefix of system call name.
-> > >
-> > > It's a whole new API to address processes. We already have
-> > > clone(CLONE_PIDFD) and pidfd_send_signal() as you have seen since you
-> > > exported pidfd_to_pid(). And we're going to have pidfd_open(). Your
-> > > syscall works only with pidfds so it's tied to this api as well so it
-> > > should follow the naming scheme. This also makes life easier for
-> > > userspace and is consistent.
-> >
-> > This is at least my reasoning. I'm not going to make this a whole big
-> > pedantic argument. If people have really strong feelings about not usin=
-g
-> > this prefix then fine. But if syscalls can be grouped together and have
-> > consistent naming this is always a big plus.
->
-> My hope has been that pidfd use becomes normalized enough that
-> prefixing "pidfd_" to pidfd-accepting system calls becomes redundant.
-> We write write(), not fd_write(), right? :-) pidfd_open() makes sense
-> because the primary purpose of this system call is to operate on a
-> pidfd, but I think process_madvise() is fine.
+The nfpn related change is needed to fix the kernel message
 
-This madvise syscall just operates on pidfds. It would make sense to
-name it process_madvise() if were to operate both on pid_t and int pidfd.
-Giving specific names to system calls won't stop it from becoming
-normalized. The fact that people built other system calls around it
-is enough proof of that. :)
-For userspace pidfd_madvise is nicer and it clearly expresses
-that it only accepts pidfds.
-So please, Minchan make it pidfd_madvise() in the next version. :)
+"number of pfns truncated from 2617344 to 163584"
 
-Christian
+The change makes sure the nfpns stored in the superblock is right value.
+
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+ drivers/nvdimm/label.c       | 2 +-
+ drivers/nvdimm/pfn_devs.c    | 6 +++---
+ drivers/nvdimm/region_devs.c | 8 ++++----
+ 3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/nvdimm/label.c b/drivers/nvdimm/label.c
+index f3d753d3169c..bc6de8fb0153 100644
+--- a/drivers/nvdimm/label.c
++++ b/drivers/nvdimm/label.c
+@@ -361,7 +361,7 @@ static bool slot_valid(struct nvdimm_drvdata *ndd,
+ 
+ 	/* check that DPA allocations are page aligned */
+ 	if ((__le64_to_cpu(nd_label->dpa)
+-				| __le64_to_cpu(nd_label->rawsize)) % SZ_4K)
++				| __le64_to_cpu(nd_label->rawsize)) % PAGE_SIZE)
+ 		return false;
+ 
+ 	/* check checksum */
+diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
+index 39fa8cf8ef58..9fc2e514e28a 100644
+--- a/drivers/nvdimm/pfn_devs.c
++++ b/drivers/nvdimm/pfn_devs.c
+@@ -769,8 +769,8 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+ 		 * when populating the vmemmap. This *should* be equal to
+ 		 * PMD_SIZE for most architectures.
+ 		 */
+-		offset = ALIGN(start + reserve + 64 * npfns,
+-				max(nd_pfn->align, PMD_SIZE)) - start;
++		offset = ALIGN(start + reserve + sizeof(struct page) * npfns,
++			       max(nd_pfn->align, PMD_SIZE)) - start;
+ 	} else if (nd_pfn->mode == PFN_MODE_RAM)
+ 		offset = ALIGN(start + reserve, nd_pfn->align) - start;
+ 	else
+@@ -782,7 +782,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+ 		return -ENXIO;
+ 	}
+ 
+-	npfns = (size - offset - start_pad - end_trunc) / SZ_4K;
++	npfns = (size - offset - start_pad - end_trunc) / PAGE_SIZE;
+ 	pfn_sb->mode = cpu_to_le32(nd_pfn->mode);
+ 	pfn_sb->dataoff = cpu_to_le64(offset);
+ 	pfn_sb->npfns = cpu_to_le64(npfns);
+diff --git a/drivers/nvdimm/region_devs.c b/drivers/nvdimm/region_devs.c
+index b4ef7d9ff22e..2d8facea5a03 100644
+--- a/drivers/nvdimm/region_devs.c
++++ b/drivers/nvdimm/region_devs.c
+@@ -994,10 +994,10 @@ static struct nd_region *nd_region_create(struct nvdimm_bus *nvdimm_bus,
+ 		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
+ 		struct nvdimm *nvdimm = mapping->nvdimm;
+ 
+-		if ((mapping->start | mapping->size) % SZ_4K) {
+-			dev_err(&nvdimm_bus->dev, "%s: %s mapping%d is not 4K aligned\n",
+-					caller, dev_name(&nvdimm->dev), i);
+-
++		if ((mapping->start | mapping->size) % PAGE_SIZE) {
++			dev_err(&nvdimm_bus->dev,
++				"%s: %s mapping%d is not 4K aligned\n",
++				caller, dev_name(&nvdimm->dev), i);
+ 			return NULL;
+ 		}
+ 
+-- 
+2.21.0
 
