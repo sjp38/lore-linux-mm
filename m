@@ -2,157 +2,197 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.0 required=3.0
-	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D23FCC04AAC
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 08:52:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E33EBC282DE
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 08:54:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 759432075E
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 08:52:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 759432075E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id ADA172075E
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 08:54:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADA172075E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D33E46B0003; Thu, 23 May 2019 04:52:51 -0400 (EDT)
+	id 4F6E76B0007; Thu, 23 May 2019 04:54:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CE5056B0006; Thu, 23 May 2019 04:52:51 -0400 (EDT)
+	id 4D7016B0008; Thu, 23 May 2019 04:54:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BD2816B0007; Thu, 23 May 2019 04:52:51 -0400 (EDT)
+	id 3BF146B000A; Thu, 23 May 2019 04:54:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A28A6B0003
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 04:52:51 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id h132so636637lfh.23
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 01:52:51 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 062726B0007
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 04:54:19 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id o12so3072560pll.17
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 01:54:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=sz4UZ+kS7GmFLyBvXVIykzQAS9lKB4VP6bT/MciVzPw=;
-        b=o6JDPZ4tSQHAky/GiqFWDxZKmILmKQx6bHEt5PaqYyOOQpEFWZGTaYktJaWmawSNQ/
-         xQbX/hdxOKATlHJUOYZDSb0aEHtDy3LjaEQd+hRmEL9nc0Hs1d26k6WbTXV+iX1i8reU
-         /gL5C9eJij62geyqEzbBv/1V0noG8d/xfYzlaDXE8rVWkVZOudrbNrqEqChxDGM4/+cR
-         tlB3lqFliLgseAYfBWTGB9xZi7hSscJ2qBm95C0bmE6+ZNhuC+juiy53RwjhG9l5SB7Z
-         Z1n6qxgZ/pe5kKOLdUqEUtGs1vtmHKD6TOdJA4ASttAku85anlNhJ5yLMBG+yM7YleOf
-         t7gA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAWBi9bP82Euer4I7WZJtZO8Pmkfq4E0WDu+I+zomKdtlSsp2PnD
-	JnW8rW8jvP2D/mah7izwoBre0i0iPusYWjTpKopmUIW3atpgODy1CrFgqZFo+AZaL3zphCU2tpT
-	TqAvPBrB1KBCNqSLFAZ/zh00bpnceQTgZiBRV5bn7mH8yX7EQm8yi2+2N00PJ+VAf8A==
-X-Received: by 2002:ac2:4c1c:: with SMTP id t28mr4722216lfq.69.1558601570614;
-        Thu, 23 May 2019 01:52:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy5wOAh+1AOnTBtqj16IpoqK+fmotALqDgBPJIgVWUcgGImcHoBGYK2gF7Hnaczi8tGO7Io
-X-Received: by 2002:ac2:4c1c:: with SMTP id t28mr4722171lfq.69.1558601569659;
-        Thu, 23 May 2019 01:52:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558601569; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=LG5SlxU8Oc8Q3qAf12aVUVPOQdkgYmY8CA0ELwPZeZ0=;
+        b=YS3C8aBZxUZdLAxZ7ZV+uB9rHFxEjtiF2cxbKaFqsW/H2BgdM43kFdTwGU6LoMxABd
+         J/KcEcn5jQWu8y1lDvUVUzJDV0AJqQ2EjAk0ubIXlwmq2OQu2aqSDkyrhl8NlbDPvYJn
+         5CrxAPdGAD/mpX6xqy6UT5jm7ignBd9u3u6B9k0dmcUU8PQcmx4dSBI88be5aQ4MFzxy
+         pjKfBFj453pXsjaMQHGyOJEAP+OBmCxahMkga6qL10tFrmbqXIYpDcey2OHJ7f+1dQET
+         WEj6TG+W6NHCVPoOFQKzK8UAclgcWwNNT/kxHTFTcI3RZolczrJcpcHWaffS+36kGodS
+         8iOA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAX2C2J0dcRHxTJ5PMbEhQjvVqsfHLL0VUMrvtdUdDrG3K8O/FnO
+	lpET5mFMSB20EPWMoxWNCgj1JtXsyAj6NkgxugolKby1IKmn2ofu0q7mm5XKgoVLT3hBn3prtUT
+	c8WPFGY4zyTWNGeBFZz0OxavO4Ll4h1mL+DN1z/sAUExFMxZf9h2RUiyKG5dSjW2E5Q==
+X-Received: by 2002:a17:90a:3848:: with SMTP id l8mr238040pjf.142.1558601658242;
+        Thu, 23 May 2019 01:54:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyayewvjqrVY5xRrFG/e8s9JqhsbvHsd9+iSKaboAq0n6OHzBHSvs1H9fmZCZNPUQn0K/fl
+X-Received: by 2002:a17:90a:3848:: with SMTP id l8mr238016pjf.142.1558601657042;
+        Thu, 23 May 2019 01:54:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558601657; cv=none;
         d=google.com; s=arc-20160816;
-        b=ljQyxArtaV4k7mjuCeaMe3MOKmd5CtK2kL4DocLT12IBQOTTlafhmO7T4szLysiQx4
-         AOeKMsJdkkz5/vGvA1qQp0Yqj6MX2o+0lS6fNucm+bxkj+LNHWDxZ5Pkosc0S197+iUA
-         tnKoFd0eUIm1yEedq9PwqvUtNzvjwM5In09tWOLNbrmv2LKKHYTij/ySRW+uVqGGrJkK
-         iJdAoeV8sQDsGcj8o/UWYfUa7pev1uWxqR4BP7mQxB5i57NvAHr1ZHS1fEc3PjUbHSXh
-         891cYi/podsOzQTkLiXunZrZY95I57JLFdjIGAlrIbwO+oADVb70YNCQngiIPG6p6Rii
-         jzJw==
+        b=SsmE685gfJuKdCJEST4/zQq+WKZsMEjwNdy7WTBP0t/xybgy68LdilG614E0m45tIn
+         t9Fp/GuY+UF0H0Crhk+u8C/geOff2f10/+/OOWljzp+wpQsoTXhtsq5Veg0x8lUAcWsz
+         uIManXdacU1HRTyLncPD1SQSMhQTrRT803Gwz2f+iR6FQxCAAdgTeFnB3cfPzxr4IOB8
+         8J1IwRLKeRQq9l0OLAJ30WGvKQH3rA7SbzJNzXio+xEAMPnzlLFNJHzQeFrHLkbNHNcQ
+         qC8Q0aL16YfIyURzZ4K3WA3PLNC1VyWz8kTmGJ7qoUqEaXswS9uisqJaboDeViZ5dx87
+         YHwA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=sz4UZ+kS7GmFLyBvXVIykzQAS9lKB4VP6bT/MciVzPw=;
-        b=AcKUnLBdxZcuKf2X/z9w0jn1e1LA3PEVlr09hTl5ZNdPZNOnA5n7u1RTZw7n0TYDQV
-         nQ5kE37oCTCRa9h++14e/orKjSJz32zrtayaVRv5VwNbWTP3sqw32TYw2tv96R+jrXMa
-         8I7SFHGwcjfv4yLsyr9/sIuABApWE6Qr/sDkcMRE8fffobaylnSU+RFVhjTCI49Wukc6
-         0eVbkXvN6Pt0oN7WJc0ZCrl+8pSF+M0bEft8RAaInWl6NAepMDg2QnGF8mJvz25im4WD
-         jNIHLoO14tj6wrb0Rgcaz5dYyNBTt8mWQPApNEM4YNrdLIb0ucSmyhU0qJkxYixNycvA
-         RbTQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=LG5SlxU8Oc8Q3qAf12aVUVPOQdkgYmY8CA0ELwPZeZ0=;
+        b=OE/n62+dQRknf92QhNcJ8k77R9G1XWangAJ9TE2AkV1QE5KZRb2WyyoYkYa96TdKYe
+         rc1mdiCHg12qcB/V52cFBJisjSdo/1sVSIeYzCqi0WHnasRp9jIO2o+6Ljg0HP++jHRq
+         Bhi65U48LS28oVr7zK3uot3dAl713ra4sqjBCy2mbWaynUoNpFwU5YNP8BhkyGGlNnk+
+         VTcI/35eyn5N7QYBXUhxdv0EcvC3qY+D4XkupsqA8CP3pG+W6rLCFKu1HyBjGq/6BdOD
+         1WJxmRqaehUoKYRtc7WFPibOsl+3uuZB4gdN6MTkFPT/21XOjyrAnEwSGHIROtqUEZN3
+         uKLg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id e3si22117627ljg.124.2019.05.23.01.52.49
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id h1si23326490pgs.290.2019.05.23.01.54.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 01:52:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        Thu, 23 May 2019 01:54:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1hTjSu-0000Q9-Mk; Thu, 23 May 2019 11:52:44 +0300
-Subject: Re: [PATCH v2] kasan: Initialize tag to 0xff in __kasan_kmalloc
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 May 2019 01:54:16 -0700
+X-ExtLoop1: 1
+Received: from yhuang-dev.sh.intel.com ([10.239.159.29])
+  by orsmga002.jf.intel.com with ESMTP; 23 May 2019 01:54:12 -0700
+From: "Huang, Ying" <ying.huang@intel.com>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nathan Chancellor <natechancellor@gmail.com>,
- Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>,
- kasan-dev@googlegroups.com, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, Nick Desaulniers <ndesaulniers@google.com>,
- clang-built-linux@googlegroups.com
-References: <20190502153538.2326-1-natechancellor@gmail.com>
- <20190502163057.6603-1-natechancellor@gmail.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <126d5884-b906-f85b-e893-a6a30ac0082c@virtuozzo.com>
-Date: Thu, 23 May 2019 11:53:02 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+Cc: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Huang Ying <ying.huang@intel.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Hugh Dickins <hughd@google.com>,
+	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
+	Minchan Kim <minchan@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Chen <tim.c.chen@linux.intel.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Yang Shi <yang.shi@linux.alibaba.com>,
+	David Rientjes <rientjes@google.com>,
+	Rik van Riel <riel@redhat.com>,
+	Jan Kara <jack@suse.cz>,
+	Dave Jiang <dave.jiang@intel.com>,
+	Daniel Jordan <daniel.m.jordan@oracle.com>,
+	Andrea Parri <andrea.parri@amarulasolutions.com>
+Subject: [PATCH -mm] mm: fix race between swapoff and mincore
+Date: Thu, 23 May 2019 16:53:47 +0800
+Message-Id: <20190523085347.14498-1-ying.huang@intel.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-In-Reply-To: <20190502163057.6603-1-natechancellor@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+From: Huang Ying <ying.huang@intel.com>
 
+Via commit 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB trunks") on,
+after swapoff, the address_space associated with the swap device will be
+freed.  So swap_address_space() users which touch the address_space need
+some kind of mechanism to prevent the address_space from being freed
+during accessing.
 
-On 5/2/19 7:30 PM, Nathan Chancellor wrote:
-> When building with -Wuninitialized and CONFIG_KASAN_SW_TAGS unset, Clang
-> warns:
-> 
-> mm/kasan/common.c:484:40: warning: variable 'tag' is uninitialized when
-> used here [-Wuninitialized]
->         kasan_unpoison_shadow(set_tag(object, tag), size);
->                                               ^~~
-> 
-> set_tag ignores tag in this configuration but clang doesn't realize it
-> at this point in its pipeline, as it points to arch_kasan_set_tag as
-> being the point where it is used, which will later be expanded to
-> (void *)(object) without a use of tag. Initialize tag to 0xff, as it
-> removes this warning and doesn't change the meaning of the code.
-> 
-> Link: https://github.com/ClangBuiltLinux/linux/issues/465
-> Signed-off-by: Nathan Chancellor <natechancellor@gmail.com>
+When mincore process unmapped range for swapped shmem pages, it doesn't
+hold the lock to prevent swap device from being swapoff.  So the following
+race is possible,
 
-Fixes: 7f94ffbc4c6a ("kasan: add hooks implementation for tag-based mode")
-Cc: <stable@vger.kernel.org>
-Reviewed-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+CPU1					CPU2
+do_mincore()				swapoff()
+  walk_page_range()
+    mincore_unmapped_range()
+      __mincore_unmapped_range
+        mincore_page
+	  as = swap_address_space()
+          ...				  exit_swap_address_space()
+          ...				    kvfree(spaces)
+	  find_get_page(as)
 
-> ---
-> 
-> v1 -> v2:
-> 
-> * Initialize tag to 0xff at Andrey's request
-> 
->  mm/kasan/common.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/kasan/common.c b/mm/kasan/common.c
-> index 36afcf64e016..242fdc01aaa9 100644
-> --- a/mm/kasan/common.c
-> +++ b/mm/kasan/common.c
-> @@ -464,7 +464,7 @@ static void *__kasan_kmalloc(struct kmem_cache *cache, const void *object,
->  {
->  	unsigned long redzone_start;
->  	unsigned long redzone_end;
-> -	u8 tag;
-> +	u8 tag = 0xff;
->  
->  	if (gfpflags_allow_blocking(flags))
->  		quarantine_reduce();
-> 
+The address space may be accessed after being freed.
+
+To fix the race, get_swap_device()/put_swap_device() is used to enclose
+find_get_page() to check whether the swap entry is valid and prevent the
+swap device from being swapoff during accessing.
+
+Fixes: 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB trunks")
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Jérôme Glisse <jglisse@redhat.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Dave Jiang <dave.jiang@intel.com>
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: Andrea Parri <andrea.parri@amarulasolutions.com>
+---
+ mm/mincore.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/mm/mincore.c b/mm/mincore.c
+index c3f058bd0faf..4fe91d497436 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -68,8 +68,16 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
+ 		 */
+ 		if (xa_is_value(page)) {
+ 			swp_entry_t swp = radix_to_swp_entry(page);
+-			page = find_get_page(swap_address_space(swp),
+-					     swp_offset(swp));
++			struct swap_info_struct *si;
++
++			/* Prevent swap device to being swapoff under us */
++			si = get_swap_device(swp);
++			if (si) {
++				page = find_get_page(swap_address_space(swp),
++						     swp_offset(swp));
++				put_swap_device(si);
++			} else
++				page = NULL;
+ 		}
+ 	} else
+ 		page = find_get_page(mapping, pgoff);
+-- 
+2.20.1
 
