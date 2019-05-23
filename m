@@ -7,111 +7,107 @@ X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_MED,USER_AGENT_GIT,
 	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9368FC282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 12:42:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7ECF3C282E1
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 12:42:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4651F21019
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 12:42:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3197921019
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 12:42:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="kwxaN5TX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4651F21019
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="c4PTxt6G"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3197921019
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DE60D6B0007; Thu, 23 May 2019 08:42:36 -0400 (EDT)
+	id C38626B0008; Thu, 23 May 2019 08:42:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D482D6B0008; Thu, 23 May 2019 08:42:36 -0400 (EDT)
+	id BC1E46B000A; Thu, 23 May 2019 08:42:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BEAFE6B000A; Thu, 23 May 2019 08:42:36 -0400 (EDT)
+	id A14386B000C; Thu, 23 May 2019 08:42:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 91A016B0007
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 08:42:36 -0400 (EDT)
-Received: by mail-vs1-f71.google.com with SMTP id h22so1318411vso.18
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 05:42:36 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AA8A6B0008
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 08:42:40 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id p123so399236ywg.3
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 05:42:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=NCAxoLMPldvKQMidzNTr8hyOEHq1jSHIcOt+CxAESVs=;
-        b=Xxkahhr7yBFrS/BLPo5kRQLDXLIZyZVBbNQFJ86X/pwway+ct+3E7fOHtPfRNcHAwp
-         2Ry/EzJLF05cwIMYzRX9NVffyjDKdLHmfdkBdbO9oh8ClR1frmoZUE/Bd4VyLrpPt58x
-         DpQpeVEGi6I9QbGoSfghp9SSKb4lLJOT/Zf1qV59Q2+eVAq2FEK+I7yXrg+KAb9Gzg01
-         1zXzmJG2MLUJencgJ99R2wHg4C3a5M5O9FDiKG2kg+cE7N20X0JAZxM6WHLFaB4KWZe3
-         gfzWc4rmrp6tzi0+OC5PU1jxsFRNnoaalzXxVWarQZ/JJzeS6wKpt+cxkEFuvLPzPg/C
-         zFkA==
-X-Gm-Message-State: APjAAAW9oBMDoHKhob/d1yxMqL9Gm9kZDQc1va9kud/qpjVZjHvc+9w5
-	u4nk2aMCgk2OxsdnRaGKWzx5N9Jmh6TDWWxVrnouixBg5TDsE2i4fI7N/7fiivB3APfprMaI3Eu
-	iwNCTXdc34eGGkTOCvCYRUfj1m1Eu76gJcOQT5khksPtnyUj5czC8PQiZmLnb+ZzJRw==
-X-Received: by 2002:a67:8e01:: with SMTP id q1mr673322vsd.1.1558615356170;
-        Thu, 23 May 2019 05:42:36 -0700 (PDT)
-X-Received: by 2002:a67:8e01:: with SMTP id q1mr673301vsd.1.1558615355585;
-        Thu, 23 May 2019 05:42:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558615355; cv=none;
+        bh=GrPd0Ehzkwgs8flG0McuJvkTnr/DIjfrIhDeOSvXnoY=;
+        b=cGzzvH76bZ+iUMGoZzQpcXslOQHBydL2jGnhYsqex16wLuGSuwhebvq1WKk9aLdfk+
+         Pn7rpwBO3PobPRiuyH0UxIYjVwAApflXio+/0aPyHsfKtGm19p7YAhNaJZfonWekaNao
+         ZNKFKE5d7k/6kLHwnWi+w7MUxc7GsdwWiPUHTHC5mxxl/kqlejI1XDRTjvF6W3a/XwF/
+         cDxfgWo5E854iuwDo4m8kTOZF4tHfO0GCWE9zDr7fnTWqvIECLVreVEbAHIZHeXZ7A1u
+         6b2DmK437/kMHlzxvkIoSt6ZRGO8bRcRMBwdOzkAK+axooR4V1DTGXivrhMlVcS47sjx
+         L7Tw==
+X-Gm-Message-State: APjAAAUu2OGAZSmcG7cGQOYPyb2ykEntazHiJQHiHRrk3bRUzXQgXed7
+	fWnEzOk5y/t2rCaldXrLZzzbcKUllit7zfSp0kzIJ1fTJ3oKmD7/8tOCSTs9k5/CTA/UJS0bQcy
+	LF/ePJN+Laojt+4X0ZdKqJwi245jHYEOdoKXwaZjpEEXdv9/F36qoWGTEsCj8H7GQeg==
+X-Received: by 2002:a25:390:: with SMTP id 138mr595613ybd.404.1558615360210;
+        Thu, 23 May 2019 05:42:40 -0700 (PDT)
+X-Received: by 2002:a25:390:: with SMTP id 138mr595588ybd.404.1558615359493;
+        Thu, 23 May 2019 05:42:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558615359; cv=none;
         d=google.com; s=arc-20160816;
-        b=fubk4oSEotanEg5IXw8/l4He3/+CUIMscTxnNOjHPSuhiI8NC2aM4e7myTbLQBiElt
-         UeJ2ecUnvnzKtBDCqD6hPpE90+pBcJO6ylCF0R8iXIxvTg5AQRhr3292A7usoIIkwOtX
-         kCAJjBu1M/YMzva1suiyXeEn5kJx3YGhCuzNj2AVqWBc6bksFx9zBBglcPxJvdr3TVLb
-         hJogEky2fSMztvv9cpB9xImOgQ/VnzCKuUZWN8b/keBB5PVZjZLOcE5SLV/bDDrq7nKg
-         1BpDE9KjJQJFkyRooR0ni2rZ3fOKxTCEuqtLa41Et98FGGW8ZzVXjI/rzsaoBuFh8ONQ
-         8NCA==
+        b=TUJ5cLcW5eUA2WZ11w48nzBYVr291IXW6UbTWs6KdYuCMtyqd7pHwJLBMg/MdiEDhu
+         5jMqQM93M1MH6i2Ny6rS9DplsCRshM+cRFwopS/GbMj1tsEj35j1TIpiAfOODVUH6zRg
+         YjfWNzNZJfi6CyjlPKzqMQshKBWBmjgQxFN3xKenz4MgxRMwK6Poa1KMg0GF3mfxBtLU
+         vPC/G3O+rOr/nhAVChOjNJS3YfbfVXD4T3u1Y38jLRxHinrHsTN9LScpqt34Ax9iVFGX
+         L51Sd+9qLu1wjqmE0E/IuCIABcCN1HQhf0C8zlSPOXBxDubyOdpC3OglvYUPaKzi0bUF
+         DHbw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=NCAxoLMPldvKQMidzNTr8hyOEHq1jSHIcOt+CxAESVs=;
-        b=es2PV5gH5wYRePwTuj5sFjdOSmH2k8vqzoRkwk4OhBIz/LkYJgQxo57pcgoWTS2+sD
-         OnHchJkKl7J1iWM8znzMqy1pr555O0GVufcQrQO6LGyAnEpKGqynO4Vrl8V14y/woEAA
-         96NUwlHx0Xyszr2ZCsstSuQkN0NxXZb2raeW63dVe151uC/rIjO5JuF63sTL2FaFFb1z
-         UlPH+Uo6ehJ5TP6JG36+G62c5qM939Wfnl0ZiRb74Sj5GrZAoj/9F1EfOdM/Wkztddjh
-         UHJsYiwebiRSSjv4bBkwOd+6WVPgusKGncAOfGZX+GQ5HS/folKRAtNAbCWu4Mul68Oo
-         hrmw==
+        bh=GrPd0Ehzkwgs8flG0McuJvkTnr/DIjfrIhDeOSvXnoY=;
+        b=uyCPF/zICzHnQBImgkLmbphz92ti5VUTIFoYzzwA60ouSgEFf70sRPdUTVCUyGDfJu
+         BCR5dFc2hRUnDwrg7hDHlHNIKeK/P9iiVOprwagvfOGMymZ2mYSdkmi9X8/twT0n1nwU
+         9/MfIZJW4t9E+6PALqPGbHDcJ0dM+0G/ihXUlgZd0o9OwJYvL+NbMcNrlzgTaIIUv+Ea
+         TX930c3RJokCRs2lkTrqIYC0R7SrhuFpfihdKmgjuQ3PHCoaP5z0rRViodKoqlljD5ol
+         j4EPRxn7yQXWiMF8PY/YJOs7yGJyxv+CkIt2rmVDdkV4F/9OZf9UN4Wlz4FiGmZH6iBE
+         BgGA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=kwxaN5TX;
-       spf=pass (google.com: domain of 3o5xmxaykcowuzwrsfuccuzs.qcazwbil-aayjoqy.cfu@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3O5XmXAYKCOwUZWRSfUccUZS.QcaZWbil-aaYjOQY.cfU@flex--glider.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=c4PTxt6G;
+       spf=pass (google.com: domain of 3p5xmxaykcpaydavwjyggydw.ugedafmp-eecnsuc.gjy@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3P5XmXAYKCPAYdaVWjYggYdW.Ugedafmp-eecnSUc.gjY@flex--glider.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id x4sor8833929vkg.36.2019.05.23.05.42.35
+        by mx.google.com with SMTPS id w18sor3520337ybs.55.2019.05.23.05.42.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 23 May 2019 05:42:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3o5xmxaykcowuzwrsfuccuzs.qcazwbil-aayjoqy.cfu@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Thu, 23 May 2019 05:42:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3p5xmxaykcpaydavwjyggydw.ugedafmp-eecnsuc.gjy@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=kwxaN5TX;
-       spf=pass (google.com: domain of 3o5xmxaykcowuzwrsfuccuzs.qcazwbil-aayjoqy.cfu@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3O5XmXAYKCOwUZWRSfUccUZS.QcaZWbil-aaYjOQY.cfU@flex--glider.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=c4PTxt6G;
+       spf=pass (google.com: domain of 3p5xmxaykcpaydavwjyggydw.ugedafmp-eecnsuc.gjy@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3P5XmXAYKCPAYdaVWjYggYdW.Ugedafmp-eecnSUc.gjY@flex--glider.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=NCAxoLMPldvKQMidzNTr8hyOEHq1jSHIcOt+CxAESVs=;
-        b=kwxaN5TXi2fzUmuexBBY0GXWxXPKI1jjIZBR+Z9tiHoEQ/9ujAqPr7MVyXRNhvSd9+
-         AK6kCkOhJm5SbE0jSM+BNskxXce/VCkWz+Q+nhHVzGM9EiVIxQWQw6xGFRwc293n6pL6
-         UjuOZc6NpSLuxS9lgkZ9YHgOqEJdb30RHbq5NVEGKZ2RrMvsO8eGym5LjADg9LCNz+Mj
-         M2xn9+Ia0uIgVsD4bzKVJvdYZBbu08DtKLv/k2Kp238pWpoARR/ey5wwSaCTCcg+zg5u
-         IdrKv4BJiVUrPXZyjmF08n8tXNbuPmuj2yNUQwZ+XjwO6HLAiarXc1mbTJcvhpLSEk3Y
-         /qnA==
-X-Google-Smtp-Source: APXvYqyogFkZZsLOf7+neUZRBCYC8MGU1KnLcLqehoJt4hw5P+8oApijqvC8NaJniUHj65EbWsPUM/NXYM8=
-X-Received: by 2002:a1f:944d:: with SMTP id w74mr1575300vkd.38.1558615355140;
- Thu, 23 May 2019 05:42:35 -0700 (PDT)
-Date: Thu, 23 May 2019 14:42:15 +0200
+        bh=GrPd0Ehzkwgs8flG0McuJvkTnr/DIjfrIhDeOSvXnoY=;
+        b=c4PTxt6GbbkKh29sih5enoKVGyMiYVYDStyGmFdx5QefGnvHTake1qlrYrHoHEQrCE
+         ++1kksetXbRrLBsUzGoBPVIMAAMNahTmjf785FIERAu9VEACDN6Dz1mlWOxOGpbeA7pb
+         j/fU9z5gy2GIxuhbsTrOsbsC5W7GBJTGTn7dwa9/LCuRdsWwyAmoyq3PDyg5GU2ug5s+
+         HLYCxfheuLXUX4xre/bvMAurMTrcffJpEMMKp+j6Wtq8qnswrfxvwcbQ75DKYA0YMApY
+         vroFWYFkyIu9Htfdesto2WrVrIfrGq7SCiUXYBDLUYAih13Eo2rIPWIc+nwn32ib129k
+         jpNw==
+X-Google-Smtp-Source: APXvYqx6+4Lx9KEyyCmocn+ERDYmrBvW59FCcdrGthGBmVTyeg7hNq7ggY14xUbi5JovTOJdj/wBvcGas8A=
+X-Received: by 2002:a5b:888:: with SMTP id e8mr12252456ybq.505.1558615359109;
+ Thu, 23 May 2019 05:42:39 -0700 (PDT)
+Date: Thu, 23 May 2019 14:42:16 +0200
 In-Reply-To: <20190523124216.40208-1-glider@google.com>
-Message-Id: <20190523124216.40208-3-glider@google.com>
+Message-Id: <20190523124216.40208-4-glider@google.com>
 Mime-Version: 1.0
 References: <20190523124216.40208-1-glider@google.com>
 X-Mailer: git-send-email 2.21.0.1020.gf2820cf01a-goog
-Subject: [PATCH 2/3] mm: init: report memory auto-initialization features at
- boot time
+Subject: [PATCH 3/3] lib: introduce test_meminit module
 From: Alexander Potapenko <glider@google.com>
 To: akpm@linux-foundation.org, cl@linux.com, keescook@chromium.org
 Cc: kernel-hardening@lists.openwall.com, linux-mm@kvack.org, 
-	linux-security-module@vger.kernel.org, Dmitry Vyukov <dvyukov@google.com>, 
-	James Morris <jmorris@namei.org>, Jann Horn <jannh@google.com>, Kostya Serebryany <kcc@google.com>, 
-	Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, 
-	Masahiro Yamada <yamada.masahiro@socionext.com>, Matthew Wilcox <willy@infradead.org>, 
-	Nick Desaulniers <ndesaulniers@google.com>, Randy Dunlap <rdunlap@infradead.org>, 
-	Sandeep Patil <sspatil@android.com>, "Serge E. Hallyn" <serge@hallyn.com>, 
-	Souptick Joarder <jrdr.linux@gmail.com>
+	linux-security-module@vger.kernel.org, 
+	Nick Desaulniers <ndesaulniers@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Laura Abbott <labbott@redhat.com>, Jann Horn <jannh@google.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -119,87 +115,290 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Print the currently enabled stack and heap initialization modes.
+Add tests for heap and pagealloc initialization.
+These can be used to check init_on_alloc and init_on_free implementations
+as well as other approaches to initialization.
 
-The possible options for stack are:
- - "all" for CONFIG_INIT_STACK_ALL;
- - "byref_all" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL;
- - "byref" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF;
- - "__user" for CONFIG_GCC_PLUGIN_STRUCTLEAK_USER;
- - "off" otherwise.
+Expected test output in the case the kernel provides heap initialization
+(e.g. when running with either init_on_alloc=1 or init_on_free=1):
 
-Depending on the values of init_on_alloc and init_on_free boottime
-options we also report "heap alloc" and "heap free" as "on"/"off".
-
-In the init_on_free mode initializing pages at boot time may take some
-time, so print a notice about that as well.
+  test_meminit: all 10 tests in test_pages passed
+  test_meminit: all 40 tests in test_kvmalloc passed
+  test_meminit: all 20 tests in test_kmemcache passed
+  test_meminit: all 70 tests passed!
 
 Signed-off-by: Alexander Potapenko <glider@google.com>
-Suggested-by: Kees Cook <keescook@chromium.org>
+To: Kees Cook <keescook@chromium.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: James Morris <jmorris@namei.org>
-Cc: Jann Horn <jannh@google.com>
-Cc: Kostya Serebryany <kcc@google.com>
-Cc: Laura Abbott <labbott@redhat.com>
-Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-Cc: Matthew Wilcox <willy@infradead.org>
 Cc: Nick Desaulniers <ndesaulniers@google.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>
+Cc: Kostya Serebryany <kcc@google.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
 Cc: Sandeep Patil <sspatil@android.com>
-Cc: "Serge E. Hallyn" <serge@hallyn.com>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>
-Cc: kernel-hardening@lists.openwall.com
+Cc: Laura Abbott <labbott@redhat.com>
+Cc: Jann Horn <jannh@google.com>
 Cc: linux-mm@kvack.org
 Cc: linux-security-module@vger.kernel.org
+Cc: kernel-hardening@lists.openwall.com
 ---
- init/main.c | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ v3:
+  - added example test output to the description
+  - fixed a missing include spotted by kbuild test robot <lkp@intel.com>
+  - added a missing MODULE_LICENSE
+  - call do_kmem_cache_size() with size >= sizeof(void*) to unbreak
+  debug builds
+---
+ lib/Kconfig.debug  |   8 ++
+ lib/Makefile       |   1 +
+ lib/test_meminit.c | 208 +++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 217 insertions(+)
+ create mode 100644 lib/test_meminit.c
 
-diff --git a/init/main.c b/init/main.c
-index 5a2c69b4d7b3..90f721c58e61 100644
---- a/init/main.c
-+++ b/init/main.c
-@@ -519,6 +519,29 @@ static inline void initcall_debug_enable(void)
- }
- #endif
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index fdfa173651eb..036e8ef03831 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -2043,6 +2043,14 @@ config TEST_STACKINIT
  
-+/* Report memory auto-initialization states for this boot. */
-+void __init report_meminit(void)
+ 	  If unsure, say N.
+ 
++config TEST_MEMINIT
++	tristate "Test level of heap/page initialization"
++	help
++	  Test if the kernel is zero-initializing heap and page allocations.
++	  This can be useful to test init_on_alloc and init_on_free features.
++
++	  If unsure, say N.
++
+ endif # RUNTIME_TESTING_MENU
+ 
+ config MEMTEST
+diff --git a/lib/Makefile b/lib/Makefile
+index fb7697031a79..05980c802500 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -91,6 +91,7 @@ obj-$(CONFIG_TEST_DEBUG_VIRTUAL) += test_debug_virtual.o
+ obj-$(CONFIG_TEST_MEMCAT_P) += test_memcat_p.o
+ obj-$(CONFIG_TEST_OBJAGG) += test_objagg.o
+ obj-$(CONFIG_TEST_STACKINIT) += test_stackinit.o
++obj-$(CONFIG_TEST_MEMINIT) += test_meminit.o
+ 
+ obj-$(CONFIG_TEST_LIVEPATCH) += livepatch/
+ 
+diff --git a/lib/test_meminit.c b/lib/test_meminit.c
+new file mode 100644
+index 000000000000..d46e2b8c8e8e
+--- /dev/null
++++ b/lib/test_meminit.c
+@@ -0,0 +1,208 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Test cases for SL[AOU]B/page initialization at alloc/free time.
++ */
++#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
++
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/mm.h>
++#include <linux/module.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <linux/vmalloc.h>
++
++#define GARBAGE_INT (0x09A7BA9E)
++#define GARBAGE_BYTE (0x9E)
++
++#define REPORT_FAILURES_IN_FN() \
++	do {	\
++		if (failures)	\
++			pr_info("%s failed %d out of %d times\n",	\
++				__func__, failures, num_tests);		\
++		else		\
++			pr_info("all %d tests in %s passed\n",		\
++				num_tests, __func__);			\
++	} while (0)
++
++/* Calculate the number of uninitialized bytes in the buffer. */
++static int count_nonzero_bytes(void *ptr, size_t size)
 +{
-+	const char *stack;
++	int i, ret = 0;
++	unsigned char *p = (unsigned char *)ptr;
 +
-+	if (IS_ENABLED(CONFIG_INIT_STACK_ALL))
-+		stack = "all";
-+	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL))
-+		stack = "byref_all";
-+	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF))
-+		stack = "byref";
-+	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_USER))
-+		stack = "__user";
-+	else
-+		stack = "off";
-+
-+	pr_info("mem auto-init: stack:%s, heap alloc:%s, heap free:%s\n",
-+		stack, want_init_on_alloc(GFP_KERNEL) ? "on" : "off",
-+		want_init_on_free() ? "on" : "off");
-+	if (want_init_on_free())
-+		pr_info("Clearing system memory may take some time...\n");
++	for (i = 0; i < size; i++)
++		if (p[i])
++			ret++;
++	return ret;
 +}
 +
- /*
-  * Set up kernel memory allocators
-  */
-@@ -529,6 +552,7 @@ static void __init mm_init(void)
- 	 * bigger than MAX_ORDER unless SPARSEMEM.
- 	 */
- 	page_ext_init_flatmem();
-+	report_meminit();
- 	mem_init();
- 	kmem_cache_init();
- 	pgtable_init();
++static void fill_with_garbage(void *ptr, size_t size)
++{
++	unsigned int *p = (unsigned int *)ptr;
++	int i = 0;
++
++	while (size >= sizeof(*p)) {
++		p[i] = GARBAGE_INT;
++		i++;
++		size -= sizeof(*p);
++	}
++	if (size)
++		memset(&p[i], GARBAGE_BYTE, size);
++}
++
++static int __init do_alloc_pages_order(int order, int *total_failures)
++{
++	struct page *page;
++	void *buf;
++	size_t size = PAGE_SIZE << order;
++
++	page = alloc_pages(GFP_KERNEL, order);
++	buf = page_address(page);
++	fill_with_garbage(buf, size);
++	__free_pages(page, order);
++
++	page = alloc_pages(GFP_KERNEL, order);
++	buf = page_address(page);
++	if (count_nonzero_bytes(buf, size))
++		(*total_failures)++;
++	fill_with_garbage(buf, size);
++	__free_pages(page, order);
++	return 1;
++}
++
++static int __init test_pages(int *total_failures)
++{
++	int failures = 0, num_tests = 0;
++	int i;
++
++	for (i = 0; i < 10; i++)
++		num_tests += do_alloc_pages_order(i, &failures);
++
++	REPORT_FAILURES_IN_FN();
++	*total_failures += failures;
++	return num_tests;
++}
++
++static int __init do_kmalloc_size(size_t size, int *total_failures)
++{
++	void *buf;
++
++	buf = kmalloc(size, GFP_KERNEL);
++	fill_with_garbage(buf, size);
++	kfree(buf);
++
++	buf = kmalloc(size, GFP_KERNEL);
++	if (count_nonzero_bytes(buf, size))
++		(*total_failures)++;
++	fill_with_garbage(buf, size);
++	kfree(buf);
++	return 1;
++}
++
++static int __init do_vmalloc_size(size_t size, int *total_failures)
++{
++	void *buf;
++
++	buf = vmalloc(size);
++	fill_with_garbage(buf, size);
++	vfree(buf);
++
++	buf = vmalloc(size);
++	if (count_nonzero_bytes(buf, size))
++		(*total_failures)++;
++	fill_with_garbage(buf, size);
++	vfree(buf);
++	return 1;
++}
++
++static int __init test_kvmalloc(int *total_failures)
++{
++	int failures = 0, num_tests = 0;
++	int i, size;
++
++	for (i = 0; i < 20; i++) {
++		size = 1 << i;
++		num_tests += do_kmalloc_size(size, &failures);
++		num_tests += do_vmalloc_size(size, &failures);
++	}
++
++	REPORT_FAILURES_IN_FN();
++	*total_failures += failures;
++	return num_tests;
++}
++
++#define CTOR_BYTES 4
++/* Initialize the first 4 bytes of the object. */
++void some_ctor(void *obj)
++{
++	memset(obj, 'A', CTOR_BYTES);
++}
++
++static int __init do_kmem_cache_size(size_t size, bool want_ctor,
++				     int *total_failures)
++{
++	struct kmem_cache *c;
++	void *buf;
++	int iter, bytes = 0;
++	int fail = 0;
++
++	c = kmem_cache_create("test_cache", size, 1, 0,
++			      want_ctor ? some_ctor : NULL);
++	for (iter = 0; iter < 10; iter++) {
++		buf = kmem_cache_alloc(c, GFP_KERNEL);
++		if (!want_ctor || iter == 0)
++			bytes = count_nonzero_bytes(buf, size);
++		if (want_ctor) {
++			/*
++			 * Newly initialized memory must be initialized using
++			 * the constructor.
++			 */
++			if (iter == 0 && bytes < CTOR_BYTES)
++				fail = 1;
++		} else {
++			if (bytes)
++				fail = 1;
++		}
++		fill_with_garbage(buf, size);
++		kmem_cache_free(c, buf);
++	}
++	kmem_cache_destroy(c);
++
++	*total_failures += fail;
++	return 1;
++}
++
++static int __init test_kmemcache(int *total_failures)
++{
++	int failures = 0, num_tests = 0;
++	int i, size;
++
++	for (i = 0; i < 10; i++) {
++		size = 8 << i;
++		num_tests += do_kmem_cache_size(size, false, &failures);
++		num_tests += do_kmem_cache_size(size, true, &failures);
++	}
++	REPORT_FAILURES_IN_FN();
++	*total_failures += failures;
++	return num_tests;
++}
++
++static int __init test_meminit_init(void)
++{
++	int failures = 0, num_tests = 0;
++
++	num_tests += test_pages(&failures);
++	num_tests += test_kvmalloc(&failures);
++	num_tests += test_kmemcache(&failures);
++
++	if (failures == 0)
++		pr_info("all %d tests passed!\n", num_tests);
++	else
++		pr_info("failures: %d out of %d\n", failures, num_tests);
++
++	return failures ? -EINVAL : 0;
++}
++module_init(test_meminit_init);
++
++MODULE_LICENSE("GPL");
 -- 
 2.21.0.1020.gf2820cf01a-goog
 
