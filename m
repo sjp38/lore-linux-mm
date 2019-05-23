@@ -1,247 +1,182 @@
 Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Level: *
+X-Spam-Status: No, score=1.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D9F7C282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 12:52:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A2B1C282E1
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 13:07:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5470521019
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 12:52:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5470521019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id A820C2133D
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 13:07:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ljJU6suY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A820C2133D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D19F86B0003; Thu, 23 May 2019 08:52:52 -0400 (EDT)
+	id 4D2686B0003; Thu, 23 May 2019 09:07:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CA4426B000D; Thu, 23 May 2019 08:52:52 -0400 (EDT)
+	id 484E26B000C; Thu, 23 May 2019 09:07:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B92116B000E; Thu, 23 May 2019 08:52:52 -0400 (EDT)
+	id 399FE6B000D; Thu, 23 May 2019 09:07:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 809976B0003
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 08:52:52 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id h12so3410189pll.20
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 05:52:52 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 028A16B0003
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 09:07:26 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id d36so2858854pla.18
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 06:07:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=zJEMEWtLBL2ehZnVpdFKkDN09uYl4+fqSrN4fePstj4=;
-        b=KG5/kSlFdCna6eaXk9IHrq5iwNHIWDdxLi0SRGldqcVoaBH6ljhVFKrxOvfaKWqdAL
-         KzE+v1TxISbt5sdyc8ffoLwcIAmsirQJKEXW8ykBqsb2ZsvBojkYVy4U9o8npmzeR+c5
-         oQLivKdlqQs8RUtycTeB9CHQuM08mygpaQrA496siwDEaOHkyL4wfDp3c9uJSDRaUiFD
-         pi05CHe4gJHZ5Wdyaf58gKFFlmeHyKyGhRdNeeGZAZGj3Nv8NlAZ/AwihmjLGWDh3WST
-         XmlZ1DPoksZyNKndRfxl3AvbLJTweTi+AZPsS4UmMllxWxfBf06rWUaQWKyVp5RMgeij
-         zodg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAX+SpKCuVNkUVYx29MUkG03SCecuuMx/e3AZJHplTCH10x+0e7b
-	0yBtlSNy+8UQrC9RWlrbcUgDDB+8EfAztMT7CTpYMxjj7Mc2u5jbXKV6PsY9qXI6Q7btMFk2M2m
-	gnndNq1PcV1cq4tDByoMABsdHDt2R/XvI38Eo6ffDX67VgjG0mjErDuY33lkv84cIxA==
-X-Received: by 2002:a17:902:fa2:: with SMTP id 31mr99563057plz.128.1558615972141;
-        Thu, 23 May 2019 05:52:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxwIW6JcgQpMzPuE93gJxYUOLKFmf81GVhLQ/gsnf3+GrwYUeMTRephuqOYta3DjqDlYPuQ
-X-Received: by 2002:a17:902:fa2:: with SMTP id 31mr99562960plz.128.1558615971355;
-        Thu, 23 May 2019 05:52:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558615971; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=s9xCy18W59wKBWAvDaH6JYHoJT0+JbJc9ipAphcb2DM=;
+        b=h8jbD+MOOU0mbJc64sWN48P50Z6hXZrRFXswe1FleztkP7NhiVCm93wRSl4DdO0Uad
+         UupSMpf5KujSuntyjTXK4bCHeX0yVlvQU71/QKpZjdl16A7c6aNm62kuIwcbqByJYqX3
+         idB+X9xBQzVNYsxe58b8QWtCC+wsnmBtvRkQ+WSxB9AmxU3N/kmeJKhlQpIIuVoBMAcV
+         vuPj7ecLvYYGKBiPTlT2mFu18rDIgP2Tui9p5mJvHf2SICE1z9XwX8WQ7c1tM9ltJ4Ns
+         xeMCy9UDmX1dDTSfbfNc+5qwXsIiTzSr7jnu5B4Dw9j6VPs2X7Efa8XIHqSP20JXvDfH
+         5Zwg==
+X-Gm-Message-State: APjAAAW/2GlFLJwk9pSpe1MiCoYEgMsygtwPYl4AhKnDiRu/e9q+S4Lq
+	qA03PCAAcCmCzgxoyuu2gQCh+ekAhPy1Sm9H24dMM0yt7a81NdjdmjTd1XWiLLEN9yI2cE82zv3
+	6E8qNWdyBFco9Gzc+oqJRE/v4RFCkzTTYhMj7+9uHIy6qDJ6eaH/Hi0Nv838vx+w=
+X-Received: by 2002:a17:902:fa2:: with SMTP id 31mr99676363plz.128.1558616845553;
+        Thu, 23 May 2019 06:07:25 -0700 (PDT)
+X-Received: by 2002:a17:902:fa2:: with SMTP id 31mr99676243plz.128.1558616844665;
+        Thu, 23 May 2019 06:07:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558616844; cv=none;
         d=google.com; s=arc-20160816;
-        b=lVEqMkPBkAE1U5AEnRQrAXcTRHfonPdjVKPWRJfbvYqJwWHgaraUCEC4p/l94641p7
-         hbCQw9jZ/6Zcx9azAWrGakOWXkfBpRYoarjjiroIx9RYz3mAJP2IQsZ5ettnZAK1e2vt
-         lvhKugVCrUDYgfHBfNMxqJgivmM4eBRCWaxRHlSqlQbbYMALZGrPcEFtSVnS3hHRks5a
-         X6/uiIq4y39rPM/0qo+1XoqRWDDBlsZa6RmYsszW3lWC2PhnB4GY8iTDpDcCEi6jlWv/
-         jBkbGe8ZCbhIArDAzggZOYVoiv+vZlReIIdtBsgtsjhTTw64QXZL9R0BwfiRhIZd7r9o
-         p2Mw==
+        b=vzlycVrVnp1+ExYyfbsohaf8X1woGnKXl5vq4iWD6RaPGKSQpgInRJMIkclXsIBSPs
+         DEHAFRsWj4eI5J1BULNLjbgp46KBKLgeiQU5+jXO2oFuQZmiZGKZB3GNzJ/5ba5OR4I1
+         1K4nj+XBo44J+Cju30AnAL1+vLH+xOXsy8fK2NvCJiGvsQnSfckNArC2kOvFHAd02V58
+         D51W//8HkADryS5cd4/O6Jer9xt5aSLWYAJPyKL7kdkhGwk+sbCkqobLTMILgjYavapt
+         yzUjHvgNKiwRhYjtEZmo8wIp5+fG3poLJoZXe7W03fCP4C9zDGUf+dBiRH2QBpdX0aXe
+         OUEA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=zJEMEWtLBL2ehZnVpdFKkDN09uYl4+fqSrN4fePstj4=;
-        b=MQC/HIelIF2gd3xbeZ8OLgzyD5C0//V3Dk88e53bGA7Q1E7KYIZ6DNq5J9EPA5dcSm
-         oHkJ/2GnqwOoYkEAVZs1E33jTQ4c0E2rk3lTpcC/QvW5cS+tU2jJ+noo1P2gpjPVcP39
-         zZMfb1zn+tB4CaEw2ApgbRcNtervtygVezThwgbUI7hQ6R2ssdgf91nEAL38+1iPD7Fq
-         ywU8Odyoy8Q+11q1hVG/63bytgJbbvBkdzxBkykK3jF3VOPW+N6GDGHUM35el8HkvwlU
-         YcBNRDHl3Ara+Kk1aSuSxIVFf4JrlF/021saXMFBubjX3I5UkilgijhtuJ766Z/mUWy1
-         shxQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=s9xCy18W59wKBWAvDaH6JYHoJT0+JbJc9ipAphcb2DM=;
+        b=bsTPNiDVM1wdN1bkhzSztsKYQeUqc4DJesxCZyKw16uKv31xCyCNSwq0nZhilPvQVt
+         DO1cBrmESCi9iGA5/FicJFukREv6MYdp4pCHKcGlzepiOQMEfMd4jk1IBFLnmggUWG3F
+         R+VRJXPab2EaA4lHedHBE746EmcQMMDmtNWs3yf4jVZPuLG28m56c/kD3tyB4wNqy8FB
+         O5UBAJrXD7A+Sz/hYefJJSSaiLX6PATj6/ZDyWmgPFCB0m4a/uzumgcAMDZHbGBc62er
+         CLyQJl3i6N29559izcEpnNtnGowzIgGfXcDkIjx0kWLVd5GCO2DnTSBx7hqcyJCp/oBB
+         LYjg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id z27si30489336pga.47.2019.05.23.05.52.51
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ljJU6suY;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q9sor279828pjv.16.2019.05.23.06.07.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 05:52:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        (Google Transport Security);
+        Thu, 23 May 2019 06:07:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga008.fm.intel.com ([10.253.24.58])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 May 2019 05:52:50 -0700
-X-ExtLoop1: 1
-Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.29])
-  by fmsmga008.fm.intel.com with ESMTP; 23 May 2019 05:52:48 -0700
-From: "Huang\, Ying" <ying.huang@intel.com>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: <hannes@cmpxchg.org>,  <mhocko@suse.com>,  <mgorman@techsingularity.net>,  <kirill.shutemov@linux.intel.com>,  <josef@toxicpanda.com>,  <hughd@google.com>,  <shakeelb@google.com>,  <akpm@linux-foundation.org>,  <linux-mm@kvack.org>,  <linux-kernel@vger.kernel.org>
-Subject: Re: [v4 PATCH 2/2] mm: vmscan: correct some vmscan counters for THP swapout
-References: <1558578458-83807-1-git-send-email-yang.shi@linux.alibaba.com>
-	<1558578458-83807-2-git-send-email-yang.shi@linux.alibaba.com>
-Date: Thu, 23 May 2019 20:52:48 +0800
-In-Reply-To: <1558578458-83807-2-git-send-email-yang.shi@linux.alibaba.com>
-	(Yang Shi's message of "Thu, 23 May 2019 10:27:38 +0800")
-Message-ID: <87lfyx9vtr.fsf@yhuang-dev.intel.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ljJU6suY;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=s9xCy18W59wKBWAvDaH6JYHoJT0+JbJc9ipAphcb2DM=;
+        b=ljJU6suYXw3oRrTgoSVmjqUkCXi1M6cW8rzJN3n8+YRKzycDEPVDeKYbXn3/mMprqa
+         fC16A8wn7VpuAGkN1uBB3G/k9Mjokt5JkLynZHE2vAkh9w/7owa46EWLrkiYt3tPegfL
+         MWqz1Ug9XJL48A1GMq21a5uM9NYw3fplKybZZ6lS7T3TPwpM/5nfKV82w0Nbq8dzdyT2
+         8Ahz/g2EZLckDjc587U1x5xNYmSxKRr73V8NLM7cngHFhsq1GU1Hou6Q/5IbjyhY8cEn
+         ifwbNanA59oiVsd5rYAoHRmp/C3UqusAPv3tPAbERw00p/1IEjtQIkGw96Wng4n34vo+
+         jmfQ==
+X-Google-Smtp-Source: APXvYqwOrAosXxrN7lYZl1zDX9p1VHy989m4OxZl4V043iIEU+gL/oZsLZGr/sDCZOW1bvXAmmDLhA==
+X-Received: by 2002:a17:90a:8e86:: with SMTP id f6mr966074pjo.66.1558616844214;
+        Thu, 23 May 2019 06:07:24 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id j72sm654518pje.12.2019.05.23.06.07.19
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 23 May 2019 06:07:22 -0700 (PDT)
+Date: Thu, 23 May 2019 22:07:17 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Daniel Colascione <dancol@google.com>
+Cc: Christian Brauner <christian@brauner.io>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, Jann Horn <jannh@google.com>
+Subject: Re: [RFC 0/7] introduce memory hinting API for external process
+Message-ID: <20190523130717.GA203306@google.com>
+References: <20190521113911.2rypoh7uniuri2bj@brauner.io>
+ <CAKOZuesjDcD3EM4PS7aO7yTa3KZ=FEzMP63MR0aEph4iW1NCYQ@mail.gmail.com>
+ <CAHrFyr6iuoZ-r6e57zp1rz7b=Ee0Vko+syuUKW2an+TkAEz_iA@mail.gmail.com>
+ <CAKOZueupb10vmm-bmL0j_b__qsC9ZrzhzHgpGhwPVUrfX0X-Og@mail.gmail.com>
+ <20190522145216.jkimuudoxi6pder2@brauner.io>
+ <CAKOZueu837QGDAGat-tdA9J1qtKaeuQ5rg0tDyEjyvd_hjVc6g@mail.gmail.com>
+ <20190522154823.hu77qbjho5weado5@brauner.io>
+ <CAKOZuev97fTvmXhEkjb7_RfDvjki4UoPw+QnVOsSAg0RB8RyMQ@mail.gmail.com>
+ <20190522160108.l5i7t4lkfy3tyx3z@brauner.io>
+ <CAKOZuevR2WTbeFdvpx8K9jJj0Sc=wpNJKr24ePWsvE_WS5wgNw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKOZuevR2WTbeFdvpx8K9jJj0Sc=wpNJKr24ePWsvE_WS5wgNw@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Yang Shi <yang.shi@linux.alibaba.com> writes:
+On Wed, May 22, 2019 at 09:01:33AM -0700, Daniel Colascione wrote:
+> On Wed, May 22, 2019 at 9:01 AM Christian Brauner <christian@brauner.io> wrote:
+> >
+> > On Wed, May 22, 2019 at 08:57:47AM -0700, Daniel Colascione wrote:
+> > > On Wed, May 22, 2019 at 8:48 AM Christian Brauner <christian@brauner.io> wrote:
+> > > >
+> > > > On Wed, May 22, 2019 at 08:17:23AM -0700, Daniel Colascione wrote:
+> > > > > On Wed, May 22, 2019 at 7:52 AM Christian Brauner <christian@brauner.io> wrote:
+> > > > > > I'm not going to go into yet another long argument. I prefer pidfd_*.
+> > > > >
+> > > > > Ok. We're each allowed our opinion.
+> > > > >
+> > > > > > It's tied to the api, transparent for userspace, and disambiguates it
+> > > > > > from process_vm_{read,write}v that both take a pid_t.
+> > > > >
+> > > > > Speaking of process_vm_readv and process_vm_writev: both have a
+> > > > > currently-unused flags argument. Both should grow a flag that tells
+> > > > > them to interpret the pid argument as a pidfd. Or do you support
+> > > > > adding pidfd_vm_readv and pidfd_vm_writev system calls? If not, why
+> > > > > should process_madvise be called pidfd_madvise while process_vm_readv
+> > > > > isn't called pidfd_vm_readv?
+> > > >
+> > > > Actually, you should then do the same with process_madvise() and give it
+> > > > a flag for that too if that's not too crazy.
+> > >
+> > > I don't know what you mean. My gut feeling is that for the sake of
+> > > consistency, process_madvise, process_vm_readv, and process_vm_writev
+> > > should all accept a first argument interpreted as either a numeric PID
+> > > or a pidfd depending on a flag --- ideally the same flag. Is that what
+> > > you have in mind?
+> >
+> > Yes. For the sake of consistency they should probably all default to
+> > interpret as pid and if say PROCESS_{VM_}PIDFD is passed as flag
+> > interpret as pidfd.
+> 
+> Sounds good to me!
 
-> Since commit bd4c82c22c36 ("mm, THP, swap: delay splitting THP after
-> swapped out"), THP can be swapped out in a whole.  But, nr_reclaimed
-> and some other vm counters still get inc'ed by one even though a whole
-> THP (512 pages) gets swapped out.
->
-> This doesn't make too much sense to memory reclaim.  For example, direct
-> reclaim may just need reclaim SWAP_CLUSTER_MAX pages, reclaiming one THP
-> could fulfill it.  But, if nr_reclaimed is not increased correctly,
-> direct reclaim may just waste time to reclaim more pages,
-> SWAP_CLUSTER_MAX * 512 pages in worst case.
->
-> And, it may cause pgsteal_{kswapd|direct} is greater than
-> pgscan_{kswapd|direct}, like the below:
->
-> pgsteal_kswapd 122933
-> pgsteal_direct 26600225
-> pgscan_kswapd 174153
-> pgscan_direct 14678312
->
-> nr_reclaimed and nr_scanned must be fixed in parallel otherwise it would
-> break some page reclaim logic, e.g.
->
-> vmpressure: this looks at the scanned/reclaimed ratio so it won't
-> change semantics as long as scanned & reclaimed are fixed in parallel.
->
-> compaction/reclaim: compaction wants a certain number of physical pages
-> freed up before going back to compacting.
->
-> kswapd priority raising: kswapd raises priority if we scan fewer pages
-> than the reclaim target (which itself is obviously expressed in order-0
-> pages). As a result, kswapd can falsely raise its aggressiveness even
-> when it's making great progress.
->
-> Other than nr_scanned and nr_reclaimed, some other counters, e.g.
-> pgactivate, nr_skipped, nr_ref_keep and nr_unmap_fail need to be fixed
-> too since they are user visible via cgroup, /proc/vmstat or trace
-> points, otherwise they would be underreported.
->
-> When isolating pages from LRUs, nr_taken has been accounted in base
-> page, but nr_scanned and nr_skipped are still accounted in THP.  It
-> doesn't make too much sense too since this may cause trace point
-> underreport the numbers as well.
->
-> So accounting those counters in base page instead of accounting THP as
-> one page.
->
-> nr_dirty, nr_unqueued_dirty, nr_congested and nr_writeback are used by
-> file cache, so they are not impacted by THP swap.
->
-> This change may result in lower steal/scan ratio in some cases since
-> THP may get split during page reclaim, then a part of tail pages get
-> reclaimed instead of the whole 512 pages, but nr_scanned is accounted
-> by 512, particularly for direct reclaim.  But, this should be not a
-> significant issue.
->
-> Cc: "Huang, Ying" <ying.huang@intel.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Shakeel Butt <shakeelb@google.com>
-> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> ---
-> v4: Fixed the comments from Johannes and Huang Ying
-> v3: Removed Shakeel's Reviewed-by since the patch has been changed significantly
->     Switched back to use compound_order per Matthew
->     Fixed more counters per Johannes
-> v2: Added Shakeel's Reviewed-by
->     Use hpage_nr_pages instead of compound_order per Huang Ying and William Kucharski
->
->  mm/vmscan.c | 34 ++++++++++++++++++++++------------
->  1 file changed, 22 insertions(+), 12 deletions(-)
->
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index b65bc50..1b35a7a 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1118,6 +1118,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		int may_enter_fs;
->  		enum page_references references = PAGEREF_RECLAIM_CLEAN;
->  		bool dirty, writeback;
-> +		unsigned int nr_pages;
->  
->  		cond_resched();
->  
-> @@ -1129,7 +1130,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  
->  		VM_BUG_ON_PAGE(PageActive(page), page);
->  
-> -		sc->nr_scanned++;
-> +		/* Account the number of base pages evne though THP */
+Then, I want to change from pidfd to pid at next revsion and stick to
+process_madvise as naming. Later, you guys could define PROCESS_PIDFD
+flag and change all at once every process_xxx syscall friends.
 
-s/evne/even/
+If you are faster so that I see PROCESS_PIDFD earlier, I am happy to
+use it.
 
-> +		nr_pages = 1 << compound_order(page);
-> +		sc->nr_scanned += nr_pages;
->  
->  		if (unlikely(!page_evictable(page)))
->  			goto activate_locked;
-> @@ -1250,7 +1253,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  		case PAGEREF_ACTIVATE:
->  			goto activate_locked;
->  		case PAGEREF_KEEP:
-> -			stat->nr_ref_keep++;
-> +			stat->nr_ref_keep += nr_pages;
->  			goto keep_locked;
->  		case PAGEREF_RECLAIM:
->  		case PAGEREF_RECLAIM_CLEAN:
-
-If the THP is split, you need
-
-        sc->nr_scanned -= nr_pages - 1;
-
-Otherwise the tail pages will be counted twice.
-
-> @@ -1315,7 +1318,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  			if (unlikely(PageTransHuge(page)))
->  				flags |= TTU_SPLIT_HUGE_PMD;
->  			if (!try_to_unmap(page, flags)) {
-> -				stat->nr_unmap_fail++;
-> +				stat->nr_unmap_fail += nr_pages;
->  				goto activate_locked;
->  			}
->  		}
-> @@ -1442,7 +1445,11 @@ static unsigned long shrink_page_list(struct list_head *page_list,
->  
->  		unlock_page(page);
->  free_it:
-> -		nr_reclaimed++;
-> +		/*
-> +		 * THP may get swapped out in a whole, need account
-> +		 * all base pages.
-> +		 */
-> +		nr_reclaimed += (1 << compound_order(page));
-
-Best Regards,
-Huang, Ying
+Thanks.
 
