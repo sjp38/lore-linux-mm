@@ -2,456 +2,258 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 58146C282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 14:24:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12AEDC282DE
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 14:45:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 05D092081C
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 14:24:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 05D092081C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id B81E7206BA
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 14:45:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B81E7206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 77EB06B0003; Thu, 23 May 2019 10:24:44 -0400 (EDT)
+	id 489336B0006; Thu, 23 May 2019 10:45:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 72FDA6B0005; Thu, 23 May 2019 10:24:44 -0400 (EDT)
+	id 413D46B0007; Thu, 23 May 2019 10:45:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5F74E6B0006; Thu, 23 May 2019 10:24:44 -0400 (EDT)
+	id 2B4D46B0008; Thu, 23 May 2019 10:45:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 357786B0003
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 10:24:44 -0400 (EDT)
-Received: by mail-it1-f200.google.com with SMTP id m188so5504897ita.0
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 07:24:44 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CBB726B0006
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 10:45:01 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c1so9329372edi.20
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 07:45:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mime-version:content-disposition:user-agent;
-        bh=8PJ1UVNjXtMIvYKCC66cLGiTdJNAVd4zIy4FKi1qJKI=;
-        b=qx0fKT+dcYiGe8slB6ZudtetoljWdQrDtTpO2plPO7VSdVLOrZyFyHnwEEaVctQzh7
-         9DBQEdS7gxYAbxpMzs+EPkeBS4BSj/MbUN3iaq/s72AQ+c5Cy3XtdPsicZb0CthT0GNn
-         3rRSFZhXClc85ZtFKxh6SBZBJznkkWGHD92+XIkx299jPfgS3I3rBvCgmdJiaPrFRmFr
-         CINplAeORoPx4gobcHiUXxfbNmRSOSFtjesBijmEzJBbFP7q3YhxHxrB0L5s+lxRR/Qh
-         9XWXHQXPDwDNRG6SweSwxDVSOfuIrnUYzstO8/XbkUkWDeTn/z8yMs1OjQg5kN20YTj8
-         akzA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUjA6KGhubxvzkYA4Y2qLUWP5wc1DUvY1GAIzWFi+VzPU0eAzxx
-	6K781nsvm2O6Lwj576qLE+moEpwGXDqgvqdIrb/G47jpXbcG8tpsdUR9CuhTaf7GWAW8tgzvEes
-	j0bHUjWYGZ3kwP4C1ALNevX2VANwgXOM6kHf4r0xUDSAF/QP9UgRB79QsTKUJujK+3w==
-X-Received: by 2002:a24:47cc:: with SMTP id t195mr12890420itb.117.1558621483873;
-        Thu, 23 May 2019 07:24:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwJPTCrWV6Ov9clqpkgUaXJ89taE3BIbgfAsj72Lr6MBReTdEGkE6tR48oDHxDke1WGf+D6
-X-Received: by 2002:a24:47cc:: with SMTP id t195mr12890318itb.117.1558621482348;
-        Thu, 23 May 2019 07:24:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558621482; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=ByR+n0+FgeMFtvcbJswV+g8orZFB92ECuCPV2vmRMkk=;
+        b=B2vbSE3PUkhj5rLjRnFfoFp9MmOCidglhcABHqpcrg+1YfsaVMnNB0Gi4dWgugFvdB
+         HW9l3OUyyBnb1pKzsH5Lh6CNdk64TOTn5SNNnK06y6S6ziCZhN+L0f70wyvlm9f9ufUZ
+         NrJ7njIFX33TW7snBeew6hlkM2fNg+U3p3kF7c+ZWnq3nfPKIAS4gxTexlB8AN8KCUa3
+         9fb020z0WKKmUgdt/VhENykBqmglPesMdkXN3ohZ/f7DrE3yNw8gdZyO6IkpTRHFhRaG
+         fmrU0KSoOciGq+7nhKtz0fLVj5VDsPT5bb5VCGF8MWx6Qh6lGGt4VqxN2LHj4Fsn+bKG
+         RFLg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAVnWzKq/Z1Fjf7xh2tSE62VaG/0SIHuVzaaUQ2N4Rbaahijj6QK
+	An6P8LLeqIXLorP8oIMyllBGL/BT4StXv3XnXhY7wG8hL93pnSt2zINWF0X6bpO2ylZ08MuL1bo
+	aSdf5Xtsw0BUkn/Egq+RAQxePFNGEfNDtnwQb7gr3Yxx9QbadX2X+WABUQ7x2xOSXCA==
+X-Received: by 2002:a05:6402:149a:: with SMTP id e26mr97173075edv.241.1558622701375;
+        Thu, 23 May 2019 07:45:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwasHcSURNEXigapb7KfBIqQCM0Ud23oxz/ofN7ElWBOVMdxamiWoMmH1Y0uW2V+rD07va7
+X-Received: by 2002:a05:6402:149a:: with SMTP id e26mr97172955edv.241.1558622700306;
+        Thu, 23 May 2019 07:45:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558622700; cv=none;
         d=google.com; s=arc-20160816;
-        b=TMjCg+R3oEpUAmZpK9+02B/8/3+hZb65CCUJhEbY5N85TzdPTf9E3ffpJd7d4jzXTS
-         l9V5i0yA88CFY9AkCcBElHXFY6SJ8WHt7LkzdfbMnT9aJ/5bfNauut5+itOawMEni0r7
-         fxgCszZMiAqPyOxSC4OU1GQJHzIFKXAqtsFsZmF0EkTo490e5vhOZbwF1Aa+BHLLZpy3
-         nWdjd+OJoIqUHHvPQ+4iB7J6JRfOg+LTJdWJPTrU7QcmLggNivfMRoZW0QkmlnvPZ9ym
-         PA26CEz6VbMurESmptx4pBu9xNZaKdkZuSvgcYPkpehcvfC0QDgmc+xyIoCnG23HQ02x
-         wfqQ==
+        b=sueBwomSKeloK9Qd5zewzoogLkVAN+E09F83B6FTJS4m/x16dUE1REHYjKjA+Xfuib
+         ZloZaQ4HlZ+gQ8MOdQTQqVk6xiUvd07FsMOi5Bk5F3fvBWxRLxFVcB673fJJfWpCJudI
+         WnGX6jMSHxgPcPiKDF8wct32ylyEuY2wCDmo1emShBOKeLmblVGfRPqo+JaKDHx2H6Dj
+         uL+suREDW2yFnow/Tl5eet/nHAOS8tAehz1b+lI/y485NSUoj0RFS8LvFy+QaDOhHjzA
+         fSOVZvBCiAGRyznzxDoagtkQMvnR2WCC0tv1x1RuqA03/q8jQYEYneHL04bhmF8fIJEL
+         dVMg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date;
-        bh=8PJ1UVNjXtMIvYKCC66cLGiTdJNAVd4zIy4FKi1qJKI=;
-        b=h2ZuI3kxTAC50d1vW7bckuvL48FguVZ2DGDiFMTcPw7m6Sz2b1cVZ9gIwAtEkmbHHH
-         sQmLcUAt3gh1fKZ8ntc1Dza7H4nFITfaD93o2L3bnnDb7S4It+9J2AjihE1aVCgjyvAv
-         ZxsEf0wfe7lvlFXxoEFPt12Ysilgq6hfMU8dH+s7asUC0jkZ6VmY0Uowr6GBOUxLVqUQ
-         PnUUT8aDiUKnJq+GjCArpadwuMbUSKujmYMS0A1Pm0VI1lUMjn1Azb6tVIPvFqMGs8+/
-         PtBYF6q7P8Cp1Y+3h6uY8GbQj9/C8TAhp7tEBU+6sOk+GC9XEqOy8RRfEYw4G5rskQ00
-         uTrw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=ByR+n0+FgeMFtvcbJswV+g8orZFB92ECuCPV2vmRMkk=;
+        b=PBVRMNgSxfkSzVYj1Y8JAD/xBxcOCX/WqIvKNKDKUrKU9mndui/mQn/kRYYucsWmyH
+         xLiSnTHfmRqMYxLkBhBXsvtEvt18EtcawQqEaA2o4eoOsNjLMumlJysGwWahzLRueV++
+         N+2KKNL4TtPaIn71hwCUWtYKIdo93+baObu3besSwYVlvb/Qtcxf6QLaR3FcHcz3CViG
+         qjV6yb9JpqFxCSQT4rzTM0/JdPPtLTSM62QnM/H2ex6Tj1bA8H1wPJh/fTamqXsxNUas
+         uG2Cr1tYWp03urAuPfmVtCCcSw9YPQGGVypAHvLkXQXWhFNQbpa7Oa0xZ2rpgPkPoDvC
+         FSfg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id m44si3410639iti.132.2019.05.23.07.24.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 07:24:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) client-ip=115.124.30.133;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 9si4851044edz.10.2019.05.23.07.44.59
+        for <linux-mm@kvack.org>;
+        Thu, 23 May 2019 07:45:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R241e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04394;MF=aaron.lu@linux.alibaba.com;NM=1;PH=DS;RN=3;SR=0;TI=SMTPD_---0TSTuuDA_1558621456;
-Received: from aaronlu(mailfrom:aaron.lu@linux.alibaba.com fp:SMTPD_---0TSTuuDA_1558621456)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Thu, 23 May 2019 22:24:24 +0800
-Date: Thu, 23 May 2019 22:24:15 +0800
-From: Aaron Lu <aaron.lu@linux.alibaba.com>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Huang Ying <ying.huang@intel.com>
-Subject: [PATCH] mm, swap: use rbtree for swap_extent
-Message-ID: <20190523142404.GA181@aaronlu>
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id B972A80D;
+	Thu, 23 May 2019 07:44:58 -0700 (PDT)
+Received: from mbp (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 9DF2A3F690;
+	Thu, 23 May 2019 07:44:52 -0700 (PDT)
+Date: Thu, 23 May 2019 15:44:49 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: enh <enh@google.com>, Evgenii Stepanov <eugenis@google.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
+Message-ID: <20190523144449.waam2mkyzhjpqpur@mbp>
+References: <cover.1557160186.git.andreyknvl@google.com>
+ <20190517144931.GA56186@arrakis.emea.arm.com>
+ <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
+ <20190521182932.sm4vxweuwo5ermyd@mbp>
+ <201905211633.6C0BF0C2@keescook>
+ <20190522101110.m2stmpaj7seezveq@mbp>
+ <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
+ <20190522163527.rnnc6t4tll7tk5zw@mbp>
+ <201905221316.865581CF@keescook>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <201905221316.865581CF@keescook>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Aaron Lu <ziqian.lzq@antfin.com>
+On Wed, May 22, 2019 at 01:47:36PM -0700, Kees Cook wrote:
+> On Wed, May 22, 2019 at 05:35:27PM +0100, Catalin Marinas wrote:
+> > The two hard requirements I have for supporting any new hardware feature
+> > in Linux are (1) a single kernel image binary continues to run on old
+> > hardware while making use of the new feature if available and (2) old
+> > user space continues to run on new hardware while new user space can
+> > take advantage of the new feature.
+> 
+> Agreed! And I think the series meets these requirements, yes?
 
-swap_extent is used to map swap page offset to backing device's block
-offset. For a continuous block range, one swap_extent is used and all
-these swap_extents are managed in a linked list.
+Yes. I mentioned this just to make sure people don't expect different
+kernel builds for different hardware features.
 
-These swap_extents are used by map_swap_entry() during swap's read and
-write path. To find out the backing device's block offset for a page
-offset, the swap_extent list will be traversed linearly, with
-curr_swap_extent being used as a cache to speed up the search.
+There is also the obvious requirement which I didn't mention: new user
+space continues to run on new/subsequent kernel versions. That's one of
+the points of contention for this series (ignoring MTE) with the
+maintainers having to guarantee this without much effort. IOW, do the
+500K+ new lines in a subsequent kernel version break any user space out
+there? I'm only talking about the relaxed TBI ABI. Are the usual LTP,
+syskaller sufficient? Better static analysis would definitely help.
 
-This works well as long as swap_extents are not huge or when the number
-of processes that access swap device are few, but when the swap device
-has many extents and there are a number of processes accessing the swap
-device concurrently, it can be a problem. On one of our servers, the
-disk's remaining size is tight:
-$df -h
-Filesystem      Size  Used Avail Use% Mounted on
-... ...
-/dev/nvme0n1p1  1.8T  1.3T  504G  72% /home/t4
+> > For MTE, we just can't enable it by default since there are applications
+> > who use the top byte of a pointer and expect it to be ignored rather
+> > than failing with a mismatched tag. Just think of a hwasan compiled
+> > binary where TBI is expected to work and you try to run it with MTE
+> > turned on.
+> 
+> Ah! Okay, here's the use-case I wasn't thinking of: the concern is TBI
+> conflicting with MTE. And anything that starts using TBI suddenly can't
+> run in the future because it's being interpreted as MTE bits? (Is that
+> the ABI concern?
 
-When creating a 80G swapfile there, there are as many as 84656 swap
-extents. The end result is, kernel spends abou 30% time in map_swap_entry()
-and swap throughput is only 70MB/s. As a comparison, when I used smaller
-sized swapfile, like 4G whose swap_extent dropped to 2000, swap throughput
-is back to 400-500MB/s and map_swap_entry() is about 3%.
+That's another aspect to figure out when we add the MTE support. I don't
+think we'd be able to do this without an explicit opt-in by the user.
 
-One downside of using rbtree for swap_extent is, 'struct rbtree' takes
-24 bytes while 'struct list_head' takes 16 bytes, that's 8 bytes more
-for each swap_extent. For a swapfile that has 80k swap_extents, that
-means 625KiB more memory consumed.
+Or, if we ever want MTE to be turned on by default (i.e. tag checking),
+even if everything is tagged with 0, we have to disallow TBI for user
+and this includes hwasan. There were a small number of programs using
+the TBI (I think some JavaScript compilers tried this). But now we are
+bringing in the hwasan support and this can be a large user base. Shall
+we add an ELF note for such binaries that use TBI/hwasan?
 
-Test:
+This series is still required for MTE but we may decide not to relax the
+ABI blindly, therefore the opt-in (prctl) or personality idea.
 
-Since it's not possible to reboot that server, I can not test this patch
-diretly there. Instead, I tested it on another server with NVMe disk.
+> I feel like we got into the weeds about ioctl()s and one-off bugs...)
 
-I created a 20G swapfile on an NVMe backed XFS fs. By default, the
-filesystem is quite clean and the created swapfile has only 2 extents.
-Testing vanilla and this patch shows no obvious performance difference
-when swapfile is not fragmented.
+This needs solving as well. Most driver developers won't know why
+untagged_addr() is needed unless we have more rigorous types or type
+annotations and a tool to check them (we should probably revive the old
+sparse thread).
 
-To see the patch's effects, I used some tweaks to manually fragment the
-swapfile by breaking the extent at 1M boundary. This made the swapfile
-have 20K extents.
+> So there needs to be some way to let the kernel know which of three
+> things it should be doing:
+> 1- leaving userspace addresses as-is (present)
+> 2- wiping the top bits before using (this series)
 
-nr_task=4
-kernel   swapout(KB/s) map_swap_entry(perf)  swapin(KB/s) map_swap_entry(perf)
-vanilla  165191           90.77%             171798         90.21%
-patched  858993 +420%      2.16%      	     715827 +317%    0.77%
+(I'd say tolerating rather than wiping since get_user still uses the tag
+in the current series)
 
-nr_task=8
-kernel   swapout(KB/s) map_swap_entry(perf)  swapin(KB/s) map_swap_entry(perf)
-vanilla  306783           92.19%             318145	    87.76%
-patched  954437 +211%      2.35%            1073741 +237%    1.57%
+The current series does not allow any choice between 1 and 2, the
+default ABI basically becomes option 2.
 
-swapout: the throughput of swap out, in KB/s, higher is better
-1st map_swap_entry: cpu cycles percent sampled by perf
-swapin: the throughput of swap in, in KB/s, higher is better.
-2nd map_swap_entry: cpu cycles percent sampled by perf
+> 3- wiping the top bits for most things, but retaining them for MTE as
+>    needed (the future)
 
-nr_task=1 doesn't show any difference, this is due to the
-curr_swap_extent can be effectively used to cache the correct swap
-extent for single task workload.
+2 and 3 are not entirely compatible as a tagged pointer may be checked
+against the memory colour by the hardware. So you can't have hwasan
+binary with MTE enabled.
 
-Signed-off-by: Aaron Lu <ziqian.lzq@antfin.com>
----
- include/linux/swap.h |   5 +-
- mm/page_io.c         |   2 +-
- mm/swapfile.c        | 137 +++++++++++++++++++++++--------------------
- 3 files changed, 78 insertions(+), 66 deletions(-)
+> I expect MTE to be the "default" in the future. Once a system's libc has
+> grown support for it, everything will be trying to use MTE. TBI will be
+> the special case (but TBI is effectively a prerequisite).
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 4bfb5c4ac108..a229c6273781 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -148,7 +148,7 @@ struct zone;
-  * We always assume that blocks are of size PAGE_SIZE.
-  */
- struct swap_extent {
--	struct list_head list;
-+	struct rb_node rb_node;
- 	pgoff_t start_page;
- 	pgoff_t nr_pages;
- 	sector_t start_block;
-@@ -247,8 +247,7 @@ struct swap_info_struct {
- 	unsigned int cluster_next;	/* likely index for next allocation */
- 	unsigned int cluster_nr;	/* countdown to next cluster search */
- 	struct percpu_cluster __percpu *percpu_cluster; /* per cpu's swap location */
--	struct swap_extent *curr_swap_extent;
--	struct swap_extent first_swap_extent;
-+	struct rb_root swap_extent_root;/* root of the swap extent rbtree */
- 	struct block_device *bdev;	/* swap device or bdev of swap file */
- 	struct file *swap_file;		/* seldom referenced */
- 	unsigned int old_block_size;	/* seldom referenced */
-diff --git a/mm/page_io.c b/mm/page_io.c
-index 2e8019d0e048..24ad2d43c11d 100644
---- a/mm/page_io.c
-+++ b/mm/page_io.c
-@@ -164,7 +164,7 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
- 	blocks_per_page = PAGE_SIZE >> blkbits;
- 
- 	/*
--	 * Map all the blocks into the extent list.  This code doesn't try
-+	 * Map all the blocks into the extent tree.  This code doesn't try
- 	 * to be very smart.
- 	 */
- 	probe_block = 0;
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 596ac98051c5..82b96750ad45 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -152,6 +152,18 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
- 	return ret;
- }
- 
-+static inline struct swap_extent *first_se(struct swap_info_struct *sis)
-+{
-+	struct rb_node *rb = rb_first(&sis->swap_extent_root);
-+	return rb_entry(rb, struct swap_extent, rb_node);
-+}
-+
-+static inline struct swap_extent *next_se(struct swap_extent *se)
-+{
-+	struct rb_node *rb = rb_next(&se->rb_node);
-+	return rb ? rb_entry(rb, struct swap_extent, rb_node) : NULL;
-+}
-+
- /*
-  * swapon tell device that all the old swap contents can be discarded,
-  * to allow the swap device to optimize its wear-levelling.
-@@ -164,7 +176,7 @@ static int discard_swap(struct swap_info_struct *si)
- 	int err = 0;
- 
- 	/* Do not discard the swap header page! */
--	se = &si->first_swap_extent;
-+	se = first_se(si);
- 	start_block = (se->start_block + 1) << (PAGE_SHIFT - 9);
- 	nr_blocks = ((sector_t)se->nr_pages - 1) << (PAGE_SHIFT - 9);
- 	if (nr_blocks) {
-@@ -175,7 +187,7 @@ static int discard_swap(struct swap_info_struct *si)
- 		cond_resched();
- 	}
- 
--	list_for_each_entry(se, &si->first_swap_extent.list, list) {
-+	for (se = next_se(se); se; se = next_se(se)) {
- 		start_block = se->start_block << (PAGE_SHIFT - 9);
- 		nr_blocks = (sector_t)se->nr_pages << (PAGE_SHIFT - 9);
- 
-@@ -189,6 +201,26 @@ static int discard_swap(struct swap_info_struct *si)
- 	return err;		/* That will often be -EOPNOTSUPP */
- }
- 
-+static struct swap_extent *
-+offset_to_swap_extent(struct swap_info_struct *sis, unsigned long offset)
-+{
-+	struct swap_extent *se;
-+	struct rb_node *rb;
-+
-+	rb = sis->swap_extent_root.rb_node;
-+	while (rb) {
-+		se = rb_entry(rb, struct swap_extent, rb_node);
-+		if (offset < se->start_page)
-+			rb = rb->rb_left;
-+		else if (offset >= se->start_page + se->nr_pages)
-+			rb = rb->rb_right;
-+		else
-+			return se;
-+	}
-+	/* It *must* be present */
-+	BUG_ON(1);
-+}
-+
- /*
-  * swap allocation tell device that a cluster of swap can now be discarded,
-  * to allow the swap device to optimize its wear-levelling.
-@@ -196,32 +228,25 @@ static int discard_swap(struct swap_info_struct *si)
- static void discard_swap_cluster(struct swap_info_struct *si,
- 				 pgoff_t start_page, pgoff_t nr_pages)
- {
--	struct swap_extent *se = si->curr_swap_extent;
--	int found_extent = 0;
-+	struct swap_extent *se = offset_to_swap_extent(si, start_page);
- 
- 	while (nr_pages) {
--		if (se->start_page <= start_page &&
--		    start_page < se->start_page + se->nr_pages) {
--			pgoff_t offset = start_page - se->start_page;
--			sector_t start_block = se->start_block + offset;
--			sector_t nr_blocks = se->nr_pages - offset;
--
--			if (nr_blocks > nr_pages)
--				nr_blocks = nr_pages;
--			start_page += nr_blocks;
--			nr_pages -= nr_blocks;
--
--			if (!found_extent++)
--				si->curr_swap_extent = se;
--
--			start_block <<= PAGE_SHIFT - 9;
--			nr_blocks <<= PAGE_SHIFT - 9;
--			if (blkdev_issue_discard(si->bdev, start_block,
--				    nr_blocks, GFP_NOIO, 0))
--				break;
--		}
-+		pgoff_t offset = start_page - se->start_page;
-+		sector_t start_block = se->start_block + offset;
-+		sector_t nr_blocks = se->nr_pages - offset;
-+
-+		if (nr_blocks > nr_pages)
-+			nr_blocks = nr_pages;
-+		start_page += nr_blocks;
-+		nr_pages -= nr_blocks;
-+
-+		start_block <<= PAGE_SHIFT - 9;
-+		nr_blocks <<= PAGE_SHIFT - 9;
-+		if (blkdev_issue_discard(si->bdev, start_block,
-+					nr_blocks, GFP_NOIO, 0))
-+			break;
- 
--		se = list_next_entry(se, list);
-+		se = next_se(se);
- 	}
- }
- 
-@@ -1684,7 +1709,7 @@ int swap_type_of(dev_t device, sector_t offset, struct block_device **bdev_p)
- 			return type;
- 		}
- 		if (bdev == sis->bdev) {
--			struct swap_extent *se = &sis->first_swap_extent;
-+			struct swap_extent *se = first_se(sis);
- 
- 			if (se->start_block == offset) {
- 				if (bdev_p)
-@@ -2161,7 +2186,6 @@ static void drain_mmlist(void)
- static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
- {
- 	struct swap_info_struct *sis;
--	struct swap_extent *start_se;
- 	struct swap_extent *se;
- 	pgoff_t offset;
- 
-@@ -2169,18 +2193,8 @@ static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
- 	*bdev = sis->bdev;
- 
- 	offset = swp_offset(entry);
--	start_se = sis->curr_swap_extent;
--	se = start_se;
--
--	for ( ; ; ) {
--		if (se->start_page <= offset &&
--				offset < (se->start_page + se->nr_pages)) {
--			return se->start_block + (offset - se->start_page);
--		}
--		se = list_next_entry(se, list);
--		sis->curr_swap_extent = se;
--		BUG_ON(se == start_se);		/* It *must* be present */
--	}
-+	se = offset_to_swap_extent(sis, offset);
-+	return se->start_block + (offset - se->start_page);
- }
- 
- /*
-@@ -2198,12 +2212,11 @@ sector_t map_swap_page(struct page *page, struct block_device **bdev)
-  */
- static void destroy_swap_extents(struct swap_info_struct *sis)
- {
--	while (!list_empty(&sis->first_swap_extent.list)) {
--		struct swap_extent *se;
-+	while (!RB_EMPTY_ROOT(&sis->swap_extent_root)) {
-+		struct rb_node *rb = sis->swap_extent_root.rb_node;
-+		struct swap_extent *se = rb_entry(rb, struct swap_extent, rb_node);
- 
--		se = list_first_entry(&sis->first_swap_extent.list,
--				struct swap_extent, list);
--		list_del(&se->list);
-+		rb_erase(rb, &sis->swap_extent_root);
- 		kfree(se);
- 	}
- 
-@@ -2219,7 +2232,7 @@ static void destroy_swap_extents(struct swap_info_struct *sis)
- 
- /*
-  * Add a block range (and the corresponding page range) into this swapdev's
-- * extent list.  The extent list is kept sorted in page order.
-+ * extent tree.
-  *
-  * This function rather assumes that it is called in ascending page order.
-  */
-@@ -2227,20 +2240,21 @@ int
- add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
- 		unsigned long nr_pages, sector_t start_block)
- {
-+	struct rb_node **link = &sis->swap_extent_root.rb_node, *parent = NULL;
- 	struct swap_extent *se;
- 	struct swap_extent *new_se;
--	struct list_head *lh;
--
--	if (start_page == 0) {
--		se = &sis->first_swap_extent;
--		sis->curr_swap_extent = se;
--		se->start_page = 0;
--		se->nr_pages = nr_pages;
--		se->start_block = start_block;
--		return 1;
--	} else {
--		lh = sis->first_swap_extent.list.prev;	/* Highest extent */
--		se = list_entry(lh, struct swap_extent, list);
-+
-+	/*
-+	 * place the new node at the right most since the
-+	 * function is called in ascending page order.
-+	 */
-+	while (*link) {
-+		parent = *link;
-+		link = &parent->rb_right;
-+	}
-+
-+	if (parent) {
-+		se = rb_entry(parent, struct swap_extent, rb_node);
- 		BUG_ON(se->start_page + se->nr_pages != start_page);
- 		if (se->start_block + se->nr_pages == start_block) {
- 			/* Merge it */
-@@ -2249,9 +2263,7 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
- 		}
- 	}
- 
--	/*
--	 * No merge.  Insert a new extent, preserving ordering.
--	 */
-+	/* No merge, insert a new extent. */
- 	new_se = kmalloc(sizeof(*se), GFP_KERNEL);
- 	if (new_se == NULL)
- 		return -ENOMEM;
-@@ -2259,7 +2271,8 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
- 	new_se->nr_pages = nr_pages;
- 	new_se->start_block = start_block;
- 
--	list_add_tail(&new_se->list, &sis->first_swap_extent.list);
-+	rb_link_node(&new_se->rb_node, parent, link);
-+	rb_insert_color(&new_se->rb_node, &sis->swap_extent_root);
- 	return 1;
- }
- EXPORT_SYMBOL_GPL(add_swap_extent);
-@@ -2749,7 +2762,7 @@ static struct swap_info_struct *alloc_swap_info(void)
- 		 * would be relying on p->type to remain valid.
- 		 */
- 	}
--	INIT_LIST_HEAD(&p->first_swap_extent.list);
-+	p->swap_extent_root = RB_ROOT;
- 	plist_node_init(&p->list, 0);
- 	for_each_node(i)
- 		plist_node_init(&p->avail_lists[i], 0);
+The kernel handling of tagged pointers is indeed a prerequisite. The ABI
+distinction between the above 2 and 3 needs to be solved.
+
+> AFAICT, the only difference I see between 2 and 3 will be the tag handling
+> in usercopy (all other places will continue to ignore the top bits). Is
+> that accurate?
+
+Yes, mostly (for the kernel). If MTE is enabled by default for a hwasan
+binary, it will SEGFAULT (either in user space or in kernel uaccess).
+How does the kernel choose between 2 and 3?
+
+> Is "1" a per-process state we want to keep? (I assume not, but rather it
+> is available via no TBI/MTE CONFIG or a boot-time option, if at all?)
+
+Possibly, though not necessarily per process. For testing or if
+something goes wrong during boot, a command line option with a static
+label would do. The AT_FLAGS bit needs to be checked by user space. My
+preference would be per-process.
+
+> To choose between "2" and "3", it seems we need a per-process flag to
+> opt into TBI (and out of MTE).
+
+Or leave option 2 the default and get it to opt in to MTE.
+
+> For userspace, how would a future binary choose TBI over MTE? If it's
+> a library issue, we can't use an ELF bit, since the choice may be
+> "late" after ELF load (this implies the need for a prctl().) If it's
+> binary-only ("built with HWKASan") then an ELF bit seems sufficient.
+> And without the marking, I'd expect the kernel to enforce MTE when
+> there are high bits.
+
+The current plan is that a future binary issues a prctl(), after
+checking the HWCAP_MTE bit (as I replied to Elliot, the MTE instructions
+are not in the current NOP space). I'd expect this to be done by the
+libc or dynamic loader under the assumption that the binaries it loads
+do _not_ use the top pointer byte for anything else. With hwasan
+compiled objects this gets more confusing (any ELF note to identify
+them?).
+
+(there is also the risk of existing applications using TBI already but
+I'm not aware of any still using this feature other than hwasan)
+
 -- 
-2.19.1.3.ge56e4f7
+Catalin
 
