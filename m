@@ -2,328 +2,254 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D590FC282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 21:01:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 507C5C282E1
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 21:31:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7AEA52081C
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 21:01:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 06918217D9
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 21:31:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="oyz/0Gh3";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="PLZ9cqz2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7AEA52081C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="SXshT/JW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06918217D9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1EA6A6B02B4; Thu, 23 May 2019 17:01:04 -0400 (EDT)
+	id 8FE8C6B0003; Thu, 23 May 2019 17:31:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 172656B02B6; Thu, 23 May 2019 17:01:04 -0400 (EDT)
+	id 8AF9A6B0005; Thu, 23 May 2019 17:31:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 013456B02B7; Thu, 23 May 2019 17:01:03 -0400 (EDT)
+	id 776716B0006; Thu, 23 May 2019 17:31:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C70A96B02B4
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 17:01:03 -0400 (EDT)
-Received: by mail-vs1-f71.google.com with SMTP id h22so1552198vso.18
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 14:01:03 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DB0E6B0003
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 17:31:21 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id e16so4730137pga.4
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 14:31:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=ClXmZI/N8fwomQ8i6o2AXSf9bNgp0rLsWx833fh4w7w=;
-        b=ez9ADwojIsz+F+UZGm6VPMm0Nu0E9fCkT1nop0kBOh4PaaEb5ZyYHHvs7EMLVBYZPo
-         U0VPtE5zLPKk9yNfHgHf+T8HG0rmzGzjfovmQwXF6qTtVgduYdq0t2sPqH66OsYQpSvQ
-         fEVnA/Jb6m5TNuH+k0yocTaNgpJiu4n5xGiWnBXLnGva0vgZel3c6LUyYnNH3A4AWQsm
-         ab7vCeGf2xFshFhzB+WH5m4EQAR6piPpCzcCy1AoZWJdWwmosVlCGVx9Dg69xQuB/lhd
-         BBdrAtsED5Jiub8XA2XbdSbxMzVoHr+2F4aRZNLPXUITAyE1lrkH5/bZZrWASXeg0VOq
-         9vHw==
-X-Gm-Message-State: APjAAAUHEYG2/P//gjB24aKZwNffq+T9gsy04HDLkXZFeq6O8ef13ENb
-	ltXDGFB9hSgrvF1/D+F4Ly4v2z87esh338ydVGfe+QbTgciZgT0WjBQRwrvCI+ogYAH0bGMiuTO
-	ceskc2t6wHer69W1NUkoQP1hGh97pnz1Y08bjb0llkCT5G3pxEonKvVIRWmDY5kl1QQ==
-X-Received: by 2002:a67:6046:: with SMTP id u67mr26897139vsb.106.1558645263376;
-        Thu, 23 May 2019 14:01:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqysevQqj3E/aKmrw6ZkWVrNiUfD9FzWJ7HHUxGlE3wvOJzqjZ7bczCgb7sF1HYiB/1ItSVJ
-X-Received: by 2002:a67:6046:: with SMTP id u67mr26897086vsb.106.1558645262385;
-        Thu, 23 May 2019 14:01:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558645262; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=RooTx4nZ0Zm8m1fxzq6UPxwDmwN2R9frxfJHiTxcRUE=;
+        b=D1GnFZGzanwDyXHNGVXxm+J33O0bWGpxzoMGfoBNT2JOB+AN3dK3O+qTwxHVXLjyJ+
+         vLOA+ZO59gIA/lI/EV/TFBSMG8ecUqG4Brq3PI2qd+eQHYxdFycc32qC3vgiUkzj1fxs
+         elE2um+SmBkGZsghTdY1ueLYj7sOve7wVH3XjVB9dVF2sY3BAZiqZyU3LzZMx4++Ovf4
+         3rQDHaK6cer1NGkjEzjGJ+c7mRwdmfdtk5jRfZVaaSsssGfe7W0eHlkST8elpHS4q4ef
+         ZBARsxR3sW8IaszMayltqIrpv51y4dDmGrM/fNdXcTHiFLtvRKAYtZTFCjb98dxYBtLw
+         wiEg==
+X-Gm-Message-State: APjAAAU0KMQ+AJqazMmgT0pMma86HF5141joIhbwtewPq9GzWJscPmti
+	2aotjNfpJ8VSJB7N8AO6bBp0DSdMhF3W0wxdcpqyPjgvYCE51QK7Gs0pKOGz03Hh22rPFC/WWPc
+	tCtfyfhzpEcDBBPSbrEYMtxgUJwiT1aKki07gEG4QjRGfj/5A+8X6s/nWMTclBHF7og==
+X-Received: by 2002:a65:63c8:: with SMTP id n8mr1951021pgv.96.1558647080590;
+        Thu, 23 May 2019 14:31:20 -0700 (PDT)
+X-Received: by 2002:a65:63c8:: with SMTP id n8mr1950924pgv.96.1558647079575;
+        Thu, 23 May 2019 14:31:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558647079; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZdZdJI/0GqgrOT5BpXTWgjdIIcFAa2jXZWdFChnhaQT6YO7PyDwZdmR80yKKLYDD18
-         Mo7IuTD6ASwnS9B83/l9a2kcLHK7Pl5kPVPXZm4kf5GDHV9dC8KwecvoSIhk/Jlzi/jt
-         lu/Gx3lri+5Dz2wxaf+STiPZv0r8VHj9kgo0vcxHcLKnUMsrKBrIdRj2sT1o8foSICxp
-         xMhlujOep6tFLoK04b1AYYbF2mvOMu7Zzyere1IlKuHPdDHKq/MuO2gpOvGeEg1irQjl
-         QTPrJKAQOQGEEpXshlB7KH0DxSbON6NgQyok/tNnG2WuHlDuOXOJEOdKKU4Ol0/TgbrC
-         aMpA==
+        b=M8NQDhtLv/KpYvbOKp/X89t+CMK1lR/K98fTMkezVV3i6/HgAPXi9fzSP9AkPIzRwe
+         VF0IxDTZzGWjHlxpv2cRwWtQrvzZcpfLKdRlwNQWvcOpFaWvF05VVJqzxyQ3R/yZJ7JP
+         P1ySgelwbHf+kvfuWc2eebPsKmQUxoqkzGU0Z3jL/2pakXds7dqsLbt4mBfPbSUNMr3q
+         1a2MIaIUCbHlzke7ecdvtSYzCwFA6T2pDakKFrmmC74F7do59GQKnHVI5Dg8bsUWV7bh
+         hZH0WeRUTbDGgxb6+8kG87VhDJW0A+D31580h/aaNtmq5EdFfp5T8TDzEosTYFrClzw+
+         iQ2Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=ClXmZI/N8fwomQ8i6o2AXSf9bNgp0rLsWx833fh4w7w=;
-        b=uFsTWGfw28dVKjRXa3LQ+msvXKXbt8D79DIWHNMCzQSXwiT9t2n3wpEa2+bxhDAfJM
-         pQ9Xyo0kfnGIFpqDcTPRllfbsKy2XP0hbfTBAp63BcaWqNRevIJaf1dpUMPxqsWVyuL2
-         58poMiqqDGcAH9O9J1pR1M6h9GubPQE4IxO9y/bNYU91KOkMw5WgqisuXjXzF6vX/SxM
-         nL2dDUt6YqFLY71iFIiikPZ/dQLGcFDbN0qktfdOZCTdjAesSHnmLVMSk29sNS7UBumR
-         pvYdXmlngC/rSrhv2MT1cjhUQwKx5dGhiDqU33MnhIjuCeZhLjq0xPpnacCgThm0l1GU
-         bL7g==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=RooTx4nZ0Zm8m1fxzq6UPxwDmwN2R9frxfJHiTxcRUE=;
+        b=eZmghQg+UkCWCGWcA5vzmOTpmrV/rmuhzPLNTMVPRc6yMzZaTZBOdMycTUGMe161xM
+         Iixu5NycSx6PgXH1eKxLGrR6PihNLmTyrRyfO8HakjYGX8wIoQ9YZKjyGR4vTcZgwMAj
+         7MBVRWKgbzxKck2SlSCIZCXD4kMJ/pCB18sfyu7ZMUglH8epczkxQwkrlwyd72S0hmWy
+         RXdMs2Gm5byAVX+FY4DTSs4tNShenmg7TqAVdjmhvUSWJybsylJXrP5lV8KTTjPnWRX3
+         JMYejeWPWprnIWTCCfCBnmJWeJFp4wmIGcpSBUOkdd+oSExn6hysfl2mYIqYAQ+OqoeP
+         cIhA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="oyz/0Gh3";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=PLZ9cqz2;
-       spf=pass (google.com: domain of prvs=004624121d=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=004624121d=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id v9si81312uao.186.2019.05.23.14.01.02
+       dkim=pass header.i=@chromium.org header.s=google header.b="SXshT/JW";
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d1sor649038pgt.65.2019.05.23.14.31.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 14:01:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=004624121d=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        (Google Transport Security);
+        Thu, 23 May 2019 14:31:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="oyz/0Gh3";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=PLZ9cqz2;
-       spf=pass (google.com: domain of prvs=004624121d=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=004624121d=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109332.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4NKxF58025315;
-	Thu, 23 May 2019 14:00:55 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=ClXmZI/N8fwomQ8i6o2AXSf9bNgp0rLsWx833fh4w7w=;
- b=oyz/0Gh3XwjNR0oV+t3VLB0rHM+XdWjakeoqcANNGJD2oebAcnO8BM5XPXWUew0qud6s
- pkAAPEwMSl+j7Yg89U8dLSJxr5YjZ29tVzWX7TT1p2GG1SzIvFyuYntHn3G6y9YE0tTc
- gJ/qwyA++j9+/2tp4bb2+v/QxuMhoceKs88= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2snvfs9jya-3
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Thu, 23 May 2019 14:00:54 -0700
-Received: from prn-hub03.TheFacebook.com (2620:10d:c081:35::127) by
- prn-hub01.TheFacebook.com (2620:10d:c081:35::125) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Thu, 23 May 2019 14:00:52 -0700
-Received: from NAM02-CY1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.27) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Thu, 23 May 2019 14:00:52 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=ClXmZI/N8fwomQ8i6o2AXSf9bNgp0rLsWx833fh4w7w=;
- b=PLZ9cqz2KZq65koeqD8iXRwBudhiGAyk5JVjfYRsOv1kA9inn4eYt4DmhNd6INkgWu1rAOwc2DcFTBjwimXBxEqHYckOzsgfxTZ5tLeq5RyZeddQGNLr/Div8May8XsBnMsEchBKPFvywYzW0BKpavGJVTqX4JlaxBbvDtN5tOs=
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
- BYAPR15MB3031.namprd15.prod.outlook.com (20.178.238.92) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1922.15; Thu, 23 May 2019 21:00:46 +0000
-Received: from BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d4f6:b485:69ee:fd9a]) by BYAPR15MB2631.namprd15.prod.outlook.com
- ([fe80::d4f6:b485:69ee:fd9a%7]) with mapi id 15.20.1922.018; Thu, 23 May 2019
- 21:00:46 +0000
-From: Roman Gushchin <guro@fb.com>
-To: kernel test robot <rong.a.chen@intel.com>
-CC: Andrew Morton <akpm@linux-foundation.org>,
-        Shakeel Butt
-	<shakeelb@google.com>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        Kernel Team
-	<Kernel-team@fb.com>,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        Michal Hocko
-	<mhocko@kernel.org>, Rik van Riel <riel@surriel.com>,
-        Christoph Lameter
-	<cl@linux.com>,
-        Vladimir Davydov <vdavydov.dev@gmail.com>,
-        "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>,
-        "lkp@01.org"
-	<lkp@01.org>
-Subject: Re: [mm] e52271917f:
- BUG:sleeping_function_called_from_invalid_context_at_mm/slab.h
-Thread-Topic: [mm] e52271917f:
- BUG:sleeping_function_called_from_invalid_context_at_mm/slab.h
-Thread-Index: AQHVEQK9HmiEhlc+A0m0AWi9Kp8XiKZ5MyQA
-Date: Thu, 23 May 2019 21:00:46 +0000
-Message-ID: <20190523210040.GA8420@tower.DHCP.thefacebook.com>
-References: <20190514213940.2405198-6-guro@fb.com>
- <20190523005858.GJ19312@shao2-debian>
-In-Reply-To: <20190523005858.GJ19312@shao2-debian>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR08CA0009.namprd08.prod.outlook.com
- (2603:10b6:301:5f::22) To BYAPR15MB2631.namprd15.prod.outlook.com
- (2603:10b6:a03:152::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::2:7b7b]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 16109ef3-93e3-47fa-af2c-08d6dfc1ba34
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600141)(711020)(4605104)(2017052603328)(7193020);SRVR:BYAPR15MB3031;
-x-ms-traffictypediagnostic: BYAPR15MB3031:
-x-ms-exchange-purlcount: 1
-x-microsoft-antispam-prvs: <BYAPR15MB30312DE969B6BF7F69A78032BE010@BYAPR15MB3031.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:4714;
-x-forefront-prvs: 00462943DE
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(136003)(366004)(39860400002)(346002)(396003)(199004)(189003)(9686003)(6512007)(6306002)(6116002)(6436002)(6486002)(14454004)(7736002)(305945005)(54906003)(25786009)(5660300002)(4326008)(76176011)(102836004)(99286004)(52116002)(6246003)(386003)(6506007)(256004)(66446008)(66946007)(64756008)(66556008)(66476007)(73956011)(8936002)(5024004)(14444005)(7416002)(86362001)(53936002)(1076003)(446003)(2906002)(46003)(71200400001)(966005)(229853002)(478600001)(186003)(33656002)(11346002)(81166006)(81156014)(8676002)(68736007)(71190400001)(476003)(486006)(6916009)(316002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3031;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: ui5iva2r30+dgXH/R+kZUFfoQxMDLAxCGrnFhGRGafEbS7zrZwtApcsDzStE6aakAm2H5srheV9jV7lifEIeTRBPIGnMFO3MYAQyYQLjV8XkV0PzjAsWZyUvq+qpN3KMIw3p6oyU46TF8RtpJO0Iv887JahMWjeng/SjyLZCDdWKRy69mUh0YKv05Ddl/9pm/sGvPyzSQpvTxd1W2EypjRysou82nEesWh/uQmJTyXqXnFxv037Oa8f36zl3Kxb6zG5ZYwcDaE3g6sStdhM/WNCIS68rd3MPZq/l5fDq6gUJCA5wZX9m4Ehvxp1rHHS/NUp6F/2mhOVbgn9tGCBHstqyBtfxcvy3jg8vIkrJ9BP6VbuzznJIB2iQzum/pMqDRruQMptMpCCxjXuqMqZAhRY5IaNlW6gv6PyiBWVBOuI=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <14F14FC4BCF487408A51CD4FB01F9AD2@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@chromium.org header.s=google header.b="SXshT/JW";
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=RooTx4nZ0Zm8m1fxzq6UPxwDmwN2R9frxfJHiTxcRUE=;
+        b=SXshT/JWt4/VxFaxzUCPBis/uU7CKJhnvqILKuBvKuHgZM/0X3lQPlS9BrcA9GPwgN
+         mNP52DBHjW70HoXLGw3kCTAML6GHF8r2zv6T7pohAbgiWS2GBzlP+CcIwmEuaO+qZxq4
+         C2Jko0HEb2Ra0I9vlZLyIy+YOud56hz3nr/kE=
+X-Google-Smtp-Source: APXvYqw6NOt/dAzFGypTG6hDOH9RhK81m8D3qkjrLvBMN1nJLO77YhSc++d1DOA7/Z/CI2DiFH6JYA==
+X-Received: by 2002:a63:2226:: with SMTP id i38mr5980879pgi.403.1558647079048;
+        Thu, 23 May 2019 14:31:19 -0700 (PDT)
+Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
+        by smtp.gmail.com with ESMTPSA id f186sm406654pfb.5.2019.05.23.14.31.17
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 23 May 2019 14:31:17 -0700 (PDT)
+Date: Thu, 23 May 2019 14:31:16 -0700
+From: Kees Cook <keescook@chromium.org>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: enh <enh@google.com>, Evgenii Stepanov <eugenis@google.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
+Message-ID: <201905231327.77CA8D0A36@keescook>
+References: <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
+ <20190521182932.sm4vxweuwo5ermyd@mbp>
+ <201905211633.6C0BF0C2@keescook>
+ <20190522101110.m2stmpaj7seezveq@mbp>
+ <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
+ <20190522163527.rnnc6t4tll7tk5zw@mbp>
+ <201905221316.865581CF@keescook>
+ <20190523144449.waam2mkyzhjpqpur@mbp>
+ <201905230917.DEE7A75EF0@keescook>
+ <20190523174345.6sv3kcipkvlwfmox@mbp>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 16109ef3-93e3-47fa-af2c-08d6dfc1ba34
-X-MS-Exchange-CrossTenant-originalarrivaltime: 23 May 2019 21:00:46.7859
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: guro@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3031
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-23_17:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=276 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905230135
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190523174345.6sv3kcipkvlwfmox@mbp>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 23, 2019 at 08:58:58AM +0800, kernel test robot wrote:
-> FYI, we noticed the following commit (built with gcc-7):
->=20
-> commit: e52271917f9f5159c791eda8ba748a66d659c27e ("[PATCH v4 5/7] mm: rew=
-ork non-root kmem_cache lifecycle management")
-> url: https://github.com/0day-ci/linux/commits/Roman-Gushchin/mm-reparent-=
-slab-memory-on-cgroup-removal/20190517-173841
->=20
->=20
-> in testcase: nvml
-> with following parameters:
->=20
-> 	group: obj
-> 	test: non-pmem
->=20
->=20
->=20
-> on test machine: qemu-system-x86_64 -enable-kvm -cpu SandyBridge -smp 2 -=
-m 8G
->=20
-> caused below changes (please refer to attached dmesg/kmsg for entire log/=
-backtrace):
->=20
->=20
-> +------------------------------------------------------------------------=
-------+------------+------------+
-> |                                                                        =
-      | ff756a15f3 | e52271917f |
-> +------------------------------------------------------------------------=
-------+------------+------------+
-> | boot_successes                                                         =
-      | 5          | 4          |
-> | boot_failures                                                          =
-      | 861        | 852        |
-> | BUG:kernel_reboot-without-warning_in_test_stage                        =
-      | 738        | 163        |
-> | BUG:kernel_hang_in_boot_stage                                          =
-      | 120        | 122        |
-> | BUG:soft_lockup-CPU##stuck_for#s                                       =
-      | 4          | 1          |
-> | RIP:free_unref_page                                                    =
-      | 1          |            |
-> | Kernel_panic-not_syncing:softlockup:hung_tasks                         =
-      | 4          | 1          |
-> | RIP:free_reserved_area                                                 =
-      | 3          | 1          |
-> | BUG:sleeping_function_called_from_invalid_context_at_mm/slab.h         =
-      | 0          | 560        |
-> | BUG:scheduling_while_atomic                                            =
-      | 0          | 561        |
-> | WARNING:at_lib/usercopy.c:#_copy_to_user                               =
-      | 0          | 116        |
-> | RIP:_copy_to_user                                                      =
-      | 0          | 116        |
-> | WARNING:at_arch/x86/kernel/fpu/signal.c:#copy_fpstate_to_sigframe      =
-      | 0          | 534        |
-> | RIP:copy_fpstate_to_sigframe                                           =
-      | 0          | 532        |
-> | WARNING:at_arch/x86/kernel/signal.c:#do_signal                         =
-      | 0          | 527        |
-> | RIP:do_signal                                                          =
-      | 0          | 526        |
-> | WARNING:at_lib/usercopy.c:#_copy_from_user                             =
-      | 0          | 389        |
-> | RIP:_copy_from_user                                                    =
-      | 0          | 388        |
-> | kernel_BUG_at_mm/vmalloc.c                                             =
-      | 0          | 304        |
-> | invalid_opcode:#[##]                                                   =
-      | 0          | 304        |
-> | RIP:__get_vm_area_node                                                 =
-      | 0          | 301        |
-> | Kernel_panic-not_syncing:Fatal_exception_in_interrupt                  =
-      | 0          | 294        |
-> | Kernel_panic-not_syncing:Aiee,killing_interrupt_handler                =
-      | 0          | 155        |
-> | WARNING:at_fs/read_write.c:#vfs_write                                  =
-      | 0          | 15         |
-> | RIP:vfs_write                                                          =
-      | 0          | 15         |
-> | BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/rws=
-em.c  | 0          | 101        |
-> | BUG:sleeping_function_called_from_invalid_context_at_include/linux/uacc=
-ess.h | 0          | 54         |
-> | Kernel_panic-not_syncing:Attempted_to_kill_init!exitcode=3D            =
-        | 0          | 47         |
-> | BUG:sleeping_function_called_from_invalid_context_at_lib/iov_iter.c    =
-      | 0          | 1          |
-> | BUG:sleeping_function_called_from_invalid_context_at_fs/dcache.c       =
-      | 0          | 57         |
-> | BUG:sleeping_function_called_from_invalid_context_at_mm/memory.c       =
-      | 0          | 1          |
-> | BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/mut=
-ex.c  | 0          | 104        |
-> | BUG:kernel_hang_in_test_stage                                          =
-      | 0          | 5          |
-> | WARNING:at_arch/x86/include/asm/uaccess.h:#strncpy_from_user           =
-      | 0          | 4          |
-> | RIP:strncpy_from_user                                                  =
-      | 0          | 4          |
-> | WARNING:at_fs/read_write.c:#vfs_read                                   =
-      | 0          | 4          |
-> | RIP:vfs_read                                                           =
-      | 0          | 4          |
-> | BUG:sleeping_function_called_from_invalid_context_at_mm/filemap.c      =
-      | 0          | 3          |
-> | BUG:sleeping_function_called_from_invalid_context_at_mm/page_alloc.c   =
-      | 0          | 8          |
-> | BUG:sleeping_function_called_from_invalid_context_at_mm/gup.c          =
-      | 0          | 1          |
-> | BUG:sleeping_function_called_from_invalid_context_at_include/linux/free=
-zer.h | 0          | 1          |
-> | BUG:sleeping_function_called_from_invalid_context_at/kb                =
-      | 0          | 1          |
-> +------------------------------------------------------------------------=
-------+------------+------------+
->=20
->=20
-> If you fix the issue, kindly add following tag
-> Reported-by: kernel test robot <rong.a.chen@intel.com>
+On Thu, May 23, 2019 at 06:43:46PM +0100, Catalin Marinas wrote:
+> On Thu, May 23, 2019 at 09:38:19AM -0700, Kees Cook wrote:
+> > What on this front would you be comfortable with? Given it's a new
+> > feature isn't it sufficient to have a CONFIG (and/or boot option)?
+> 
+> I'd rather avoid re-building kernels. A boot option would do, unless we
+> see value in a per-process (inherited) personality or prctl. The
 
-Hi!
+I think I've convinced myself that the normal<->TBI ABI control should
+be a boot parameter. More below...
 
-It seems that it's caused by unbalanced rcu_read_lock(),
-which already has been fixed in v5.
+> > What about testing tools that intentionally insert high bits for syscalls
+> > and are _expecting_ them to fail? It seems the TBI series will break them?
+> > In that case, do we need to opt into TBI as well?
+> 
+> If there are such tools, then we may need a per-process control. It's
+> basically an ABI change.
 
-Thanks!
+syzkaller already attempts to randomly inject non-canonical and
+0xFFFF....FFFF addresses for user pointers in syscalls in an effort to
+find bugs like CVE-2017-5123 where waitid() via unchecked put_user() was
+able to write directly to kernel memory[1].
+
+It seems that using TBI by default and not allowing a switch back to
+"normal" ABI without a reboot actually means that userspace cannot inject
+kernel pointers into syscalls any more, since they'll get universally
+stripped now. Is my understanding correct, here? i.e. exploiting
+CVE-2017-5123 would be impossible under TBI?
+
+If so, then I think we should commit to the TBI ABI and have a boot
+flag to disable it, but NOT have a process flag, as that would allow
+attackers to bypass the masking. The only flag should be "TBI or MTE".
+
+If so, can I get top byte masking for other architectures too? Like,
+just to strip high bits off userspace addresses? ;)
+
+(Oh, in looking I see this is implemented with sign-extension... why
+not just a mask? So it'll either be valid userspace address or forced
+into the non-canonical range?)
+
+[1] https://salls.github.io/Linux-Kernel-CVE-2017-5123/
+
+> > Alright, the tl;dr appears to be:
+> > - you want more assurances that we can find __user stripping in the
+> >   kernel more easily. (But this seems like a parallel problem.)
+> 
+> Yes, and that we found all (most) cases now. The reason I don't see it
+> as a parallel problem is that, as maintainer, I promise an ABI to user
+> and I'd rather stick to it. I don't want, for example, ncurses to stop
+> working because of some ioctl() rejecting tagged pointers.
+
+But this is what I don't understand: it would need to be ncurses _using
+TBI_, that would stop working (having started to work before, but then
+regress due to a newly added one-off bug). Regular ncurses will be fine
+because it's not using TBI. So The Golden Rule isn't violated, and by
+definition, it's a specific regression caused by some bug (since TBI
+would have had to have worked _before_ in the situation to be considered
+a regression now). Which describes the normal path for kernel
+development... add feature, find corner cases where it doesn't work,
+fix them, encounter new regressions, fix those, repeat forever.
+
+> If it's just the occasional one-off bug I'm fine to deal with it. But
+> no-one convinced me yet that this is the case.
+
+You believe there still to be some systemic cases that haven't been
+found yet? And even if so -- isn't it better to work on that
+incrementally?
+
+> As for the generic driver code (filesystems or other subsystems),
+> without some clear direction for developers, together with static
+> checking/sparse, on how user pointers are cast to longs (one example),
+> it would become my responsibility to identify and fix them up with any
+> kernel release. This series is not providing such guidance, just adding
+> untagged_addr() in some places that we think matter.
+
+What about adding a nice bit of .rst documentation that describes the
+situation and shows how to use untagged_addr(). This is the kind of
+kernel-wide change that "everyone" needs to know about, and shouldn't
+be the arch maintainer's sole responsibility to fix.
+
+> > - we might need to opt in to TBI with a prctl()
+> 
+> Yes, although still up for discussion.
+
+I think I've talked myself out of it. I say boot param only! :)
+
+
+So what do you say to these next steps:
+
+- change untagged_addr() to use a static branch that is controlled with
+  a boot parameter.
+- add, say, Documentation/core-api/user-addresses.rst to describe
+  proper care and handling of user space pointers with untagged_addr(),
+  with examples based on all the cases seen so far in this series.
+- continue work to improve static analysis.
+
+Thanks for wading through this with me! :)
+
+-- 
+Kees Cook
 
