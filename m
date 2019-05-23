@@ -7,91 +7,91 @@ X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9ECBC282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:23:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9372CC282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:30:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 65F0021841
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:23:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3F4F521841
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:30:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ge58KPWr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 65F0021841
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="iKWtBtV5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F4F521841
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0AD836B02A7; Thu, 23 May 2019 15:23:23 -0400 (EDT)
+	id CDAAD6B02A9; Thu, 23 May 2019 15:30:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0832A6B02A8; Thu, 23 May 2019 15:23:23 -0400 (EDT)
+	id C8BE26B02AA; Thu, 23 May 2019 15:30:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E98E36B02A9; Thu, 23 May 2019 15:23:22 -0400 (EDT)
+	id B52386B02AB; Thu, 23 May 2019 15:30:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AFDAF6B02A7
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 15:23:22 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id c7so4867584pfp.14
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 12:23:22 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BA846B02A9
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 15:30:11 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id n4so4494130pgm.19
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 12:30:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:user-agent:mime-version
          :content-transfer-encoding;
-        bh=T70QC1iYSvKWJ7HKtOT8aADR9VEBZzitKh+O4ccR8Os=;
-        b=FoFQ2kOAvNeX5FVNTEJO/+ZKcktULdySI3K8MGRa8ZqjRu5KXqXj+jPjr6ysOvJoxn
-         9vNo3gdqVwlGh+L4P9q500TamnrIN+FO2vwZq7I/p2VXkt8tK1YXMUygSgDh2rr9P2t2
-         22Jge6/leYNFeHI7LIGuSsXVMhwdT5Y2L10SRBNXh0F2B2WOjg22lwNICln6caqy6rSJ
-         MXnU78pmv9oXi5AQQcl7dr0lumET25JpP/+whr4DUtOWWHh9mUhKaauoGBl0ZW1UDlzZ
-         rpgraKh6GyKl5AHKywzYzQB6l1s9F8QdUPtXLor5HxWqJaYxt30ujd1/xu43Q6MNrWRW
-         vbEg==
-X-Gm-Message-State: APjAAAWVMVzWpCtpHwgAIeJXy3xhnt04Gu/JbGj0UJdkuaOFcZBcwsUd
-	hTDf8fSvMmje/f7dxWCu572xfWKheEG8rsUsqV9lGD8BNKVtTCHs729dNJj7KVMSaMtzcp5zjbQ
-	L3mEYaJXefLG1taDkCqbFjTW9AL7kUW+NfFa7BGVSaw1/zKDJzg2QaUnC1oiI7Uxy1A==
-X-Received: by 2002:a17:90a:af8e:: with SMTP id w14mr3647192pjq.89.1558639402254;
-        Thu, 23 May 2019 12:23:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxoIhLchIhgs6gRzObBMfvd0Ip1D1AqM5TN9MuAvrt6Zz/Hp8x3Kahfezx5A83ges3PrGHp
-X-Received: by 2002:a17:90a:af8e:: with SMTP id w14mr3647072pjq.89.1558639401192;
-        Thu, 23 May 2019 12:23:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558639401; cv=none;
+        bh=L2HoHJqTHhyGWdFCXC9nZwp4mlxiqdId/uOLMF+709M=;
+        b=PzrjEzXgKHDNhyLoVQ0pkWi2z0QPCVvfUAJOB9wuDLoYlzHAtBiNKhvJTReTPU/8mh
+         6WCd+6GKdpqmwsbNE02LXI+55a1UZtr6wqIy9Wh7oApeKKGzF8td2ogAyzIFc58+fwI2
+         52xEW+7RdUAD6H7Pgf4h99RW8msBgowshKt2LHbO/Q3z2zLACWV1NsHsTCsJtiNavhz+
+         96N5L39kAbKps8Xj1eAV88b90te+IE0K4+HAmnHC96fHSnGCHhlloaDzG/98Sk04gp7m
+         3WypPXD0C4mrtaofeejI/MhlMLSH0oCdv2GjZZDHiIX7q+ZjjDcavhhoPx3bmo0oMIBl
+         YpiQ==
+X-Gm-Message-State: APjAAAU9CLWWxaGNv7FsFj82rGHa1gTNMiGaIoAtuswKeDRmBoXuo5U/
+	dn3yA7jhuEsljRq35KcCpU2WPIuMOd3E913f6fudPx0rToDEpTuKYmIkBVyLGxYPrwhs8TR2Jjk
+	qoLjsr88K3EKTtVn+s8GrBuJNafOarPtIlphi5A5ipXUQ3b0gD0iuGkKOb5tzDURRmA==
+X-Received: by 2002:a17:902:2e81:: with SMTP id r1mr84639118plb.0.1558639811084;
+        Thu, 23 May 2019 12:30:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyIX/0YC6LT9T2v0X/n+BnwOVIuHq3sorFny0RO6W+f/7EP/Me9oNEnfrSkLXozW1NfP9yv
+X-Received: by 2002:a17:902:2e81:: with SMTP id r1mr84638978plb.0.1558639810041;
+        Thu, 23 May 2019 12:30:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558639810; cv=none;
         d=google.com; s=arc-20160816;
-        b=Hz2p8okrWO+jtWH1pAuKw5RrNxgVp4vXasYRGqMnn2YGA+nkXvlpp05KFlvv5Hl0K4
-         Z0uSpLKdWn63teIyypJlIRZKiuh1kxKqAAyDgnffvGVSFXvJAYkW/IRBgfx3402L16HZ
-         atw8LqnrnZS1MaFokfFXCljn+tGfqzpTQbBhvM6S/qJkNIDH/t25WNoflkPdJ/XQmV8x
-         Z2KCjUNb/AMmhtFdTYY90ui7sG9hZS1j45iV1U5JgSlndceopNMJiUCNHcZPL3mXmVSv
-         54EAeJ3dJhxrI9qfgBvrGLefqgqtfxax5EX/rLDIMG7L5AhCl1Rif2fLd+KUKzSqMkP8
-         5raQ==
+        b=Kh6w270qw6tq1Cx0KHkDo3Qg6i/JAX8jc35yl7WKMiwn1mPlUDrretzcjXwcTHzCeV
+         rQxJW1rXbmCkYvKKbsS7vV/ALaWRAtJ3tn97vyHOicrveCJ1nMaHL8rOpsQ6zb6QHS6J
+         UpUq7ThQvfonGW1I9IRnSLmrwBPRzd84yJ3DQuFSkzuUDGlzLP1X8K4aiiF7icqMC6gb
+         iUgGgVNvsHQGxAJdnRQjZwv/iCeC9qEfbNwDpN+0796bR7rmhYGYFPpR/k0Bt2r0WykH
+         UdLKu7mbBbq0PG9WT2KpfIpEL1HHxx0JDQn9xqJO7MX59+F6+wQsm3jjTA45/NNzNadE
+         HP6A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature;
-        bh=T70QC1iYSvKWJ7HKtOT8aADR9VEBZzitKh+O4ccR8Os=;
-        b=td6BHqSKHOKgl7PTPTgqRpxRK/IAMPR0Y923DyPanaFLmU0RrVgU65hTe0wtvxStCF
-         vLO34L/iOOccCxqbzbwT+arz4J4HXXu1RvPH7r1tRMxFc9DvVFKJ8EKrZpdpsd2xoUW8
-         fwFhB4k26yASudVb3aYcON3PPLpy/uUQBpv22Qmk+mTE2mgzbAvFJbhiKEO82aQ7qlxD
-         Y+BcBlE0ImbO+UHkFwSj7XwHqHCCb0xK5InuHDG1mk/6mcFronyVkqGKjZJUXz38D5dj
-         yXYW2+a8sd5CHpKyFNkZ2b7DGSbsiZY92JOvVlrmcQ5U3yYwuQ99fLtyQIi40PEKKS0H
-         fihg==
+        bh=L2HoHJqTHhyGWdFCXC9nZwp4mlxiqdId/uOLMF+709M=;
+        b=DLKEvSzw4B5UZnMjzedYyCOOebLlWLx2YELbD/VeBCUkujL+C7okOs3SSiNzWRDuAX
+         mAluZkk5ncXhawmaxf9IMPqsHDVKBfvVQOoimdfvrTj2ztKsz+9GYoKiLfU1+wYwi4ud
+         Qz+p1BJtme9FHXd+Qsausiq/BGPaNeBm8KmBynFYZetuibMQ2zMNALKpjPR8lg4WcwAJ
+         ZFzM4lirRujS5J3h+Jnrs6z/cZwDbsGFxZMMTFOZd7LyquI37kph1CIf6qqr2/T0Li1A
+         83X5KGVw//v9mTSCZpED9dmY6csUGQYhxXeNNujCPE0avbWGsNHWt8hWzT3Bqwef7wTF
+         rq7g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=ge58KPWr;
+       dkim=pass header.i=@kernel.org header.s=default header.b=iKWtBtV5;
        spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d1si571739plo.137.2019.05.23.12.23.21
+        by mx.google.com with ESMTPS id t10si598142plr.177.2019.05.23.12.30.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 12:23:21 -0700 (PDT)
+        Thu, 23 May 2019 12:30:10 -0700 (PDT)
 Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=ge58KPWr;
+       dkim=pass header.i=@kernel.org header.s=default header.b=iKWtBtV5;
        spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
 Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 3E1E220868;
-	Thu, 23 May 2019 19:23:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 2C6D62184E;
+	Thu, 23 May 2019 19:30:09 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1558639400;
-	bh=2RbjxuETqCYHxBeM3B7PFPrflHs91gMsDYPlQQFhKMg=;
+	s=default; t=1558639809;
+	bh=CEjSQKcQX8NSHi1TNZ+5ZjFl4c/v4c2fuPv/tZD9tFQ=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=ge58KPWrSV7wz9R7P10QsrfSe3YNnb7FpLhxrd1Swv1TGFKciuI98TEXWm0Q6rwxu
-	 uqGxp0l30P5U+a9nNodBxNMjBF54FESz2ZUynQsQR7wZAulLB/COMMtCPm1QgPYbOu
-	 ut+tG+iAZ4wpDslT0s6oXhU0rI0HR8HmA+TVqPvk=
+	b=iKWtBtV5S+Nm27ABAq95oyWEZPS02Rb/dbx++GYXJ1Q8Pit8SZQRJZNcZy0hrzlc3
+	 kQ9PcPsiOw9Nvbfg28V4sz253SeX8aUbV5Oy0OQZn4tkEufnI1HILNFGNEI4S8aTjq
+	 0qpUHl2CyqUYt/5/mXiy9MpCFbt1nLEuhXv3Iv8w=
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 To: linux-kernel@vger.kernel.org
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
@@ -121,12 +121,12 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
 	linux-um@lists.infradead.org,
 	linuxppc-dev@lists.ozlabs.org,
 	Ingo Molnar <mingo@kernel.org>
-Subject: [PATCH 5.0 075/139] x86/mpx, mm/core: Fix recursive munmap() corruption
-Date: Thu, 23 May 2019 21:06:03 +0200
-Message-Id: <20190523181730.571246299@linuxfoundation.org>
+Subject: [PATCH 5.1 084/122] x86/mpx, mm/core: Fix recursive munmap() corruption
+Date: Thu, 23 May 2019 21:06:46 +0200
+Message-Id: <20190523181716.017288615@linuxfoundation.org>
 X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190523181720.120897565@linuxfoundation.org>
-References: <20190523181720.120897565@linuxfoundation.org>
+In-Reply-To: <20190523181705.091418060@linuxfoundation.org>
+References: <20190523181705.091418060@linuxfoundation.org>
 User-Agent: quilt/0.66
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
@@ -448,7 +448,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  }
 --- a/mm/mmap.c
 +++ b/mm/mmap.c
-@@ -2736,9 +2736,17 @@ int __do_munmap(struct mm_struct *mm, un
+@@ -2735,9 +2735,17 @@ int __do_munmap(struct mm_struct *mm, un
  		return -EINVAL;
  
  	len = PAGE_ALIGN(len);
@@ -466,7 +466,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  	/* Find the first overlapping VMA */
  	vma = find_vma(mm, start);
  	if (!vma)
-@@ -2747,7 +2755,6 @@ int __do_munmap(struct mm_struct *mm, un
+@@ -2746,7 +2754,6 @@ int __do_munmap(struct mm_struct *mm, un
  	/* we have  start < vma->vm_end  */
  
  	/* if it doesn't overlap, we have nothing.. */
@@ -474,7 +474,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  	if (vma->vm_start >= end)
  		return 0;
  
-@@ -2817,12 +2824,6 @@ int __do_munmap(struct mm_struct *mm, un
+@@ -2816,12 +2823,6 @@ int __do_munmap(struct mm_struct *mm, un
  	/* Detach vmas from rbtree */
  	detach_vmas_to_be_unmapped(mm, vma, prev, end);
  
