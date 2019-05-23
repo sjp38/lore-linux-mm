@@ -2,281 +2,151 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05D42C282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 23:38:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C658C282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 23:48:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8302C2133D
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 23:38:37 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="mD5Bb1lj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8302C2133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id E483D2133D
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 23:48:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E483D2133D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EDF236B0005; Thu, 23 May 2019 19:38:36 -0400 (EDT)
+	id 6C1296B0005; Thu, 23 May 2019 19:48:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E90476B0006; Thu, 23 May 2019 19:38:36 -0400 (EDT)
+	id 6718A6B0006; Thu, 23 May 2019 19:48:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D56746B0007; Thu, 23 May 2019 19:38:36 -0400 (EDT)
+	id 560CB6B0007; Thu, 23 May 2019 19:48:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B06C86B0005
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 19:38:36 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id b81so6886886ywc.8
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 16:38:36 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 191E06B0005
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 19:48:44 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id e20so4933005pgm.16
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 16:48:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=b2p6msGZOO1o6S/1xXYAPaJstC2ds8NUPA6vMi5IZfQ=;
-        b=biR+eOZi/Ubiubg3RFqAhsVjzZx4WkqUpr6z3Zo54tPbQtEZ4+WM3bqARHEw3T4Wk9
-         JeC99YTfR47D6fSw3KowXuq2wk01I5nmsxnMwsHNl+8hDIBfKsgaG/wf5vPl5bNVxhTN
-         9b5fujV4VSsEi82u4iGJ/JTrIsZ+2qDwAdI4/iQL2np88XNDojDPSB05ZP9mCZlGlpzf
-         l2Zn20XOnJkBxLvfqc9+m0V5C4ga0GjZfkB7+KJXUpxLJrKymk/Ze/5FG7InofwyhSfx
-         BJYGAidIYbGlvbiBMCs3/ZcKzxXUcwFptyFjx8qAsQqfrKPJiXCaIRDf86vks61jCAYv
-         uvag==
-X-Gm-Message-State: APjAAAXkp2iM69d+KYy8vbGjmQgptYbhgmiVpOluyuWUU2S2yA8pUiop
-	U0EoCh9hDy1PYT/po6vqLk6r6/dmrEZnTOMT+SllAyKnR150OdovwmkX+I1WZ76tcH2DJoYN9ys
-	l3c7PSKlk1XmYs5/txox+6rFH1x2rGZ3hEJ1bLvskmlbuY5tMzQv5bDl/IzB1YcFWCw==
-X-Received: by 2002:a25:cc51:: with SMTP id l78mr21485829ybf.215.1558654716411;
-        Thu, 23 May 2019 16:38:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw/BejNxOMDVtMuJrI63Uk7l6+ZTogbo1TOKIv3NAeTuxGL6gxzGFI5epAXAjYin93wbW0+
-X-Received: by 2002:a25:cc51:: with SMTP id l78mr21485792ybf.215.1558654715381;
-        Thu, 23 May 2019 16:38:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558654715; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=AydqY+5NA2QwK3sIaKZoD3clH3qwqW5hznPdtqS1iMA=;
+        b=VvB/vNaYaL1qWygUGBfT4CMbZwLjWo1jj5/+g6eSX4/pHO964AJSNclTLw2RtKTEoX
+         2PPkZE44Pzg4JPGhbb0AN4sULTTxMTMNYJIyczaRLj7dHFsjDx47YyPrHfuopL/ZREZB
+         AUpaqlQhR7Sox9pKPySwUKytEUMeIyL8w12D79DrmDoRnQtSFOEYcryC/LmZKBu7SF3m
+         FHFP53C4zKAaDgY537edGZNlRwkf3BR3GcWFgAC+OT9rlHXMddGS8dCX93Usl3SRtgbl
+         QlhVM6381XAajBDT4Vv4gT5os6Y/ad32DlUhu4UQupfMMPhzFPAZgv0uYR7XGrlrpl9B
+         xELQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAU2CN3f9sZtgCLRekbMTQhSDSRhb+wWE0SzZ5hIpw+6as7buOOi
+	AaOzpnNxMq7gtf+KcIE/drYZes8avKYbTis1KckWooWepN5+XQAwt/FfeRSRb3wD6xm0BtRGuJR
+	3YKOGg7uW/KXdgiRgp0m5j0V4gwB9n/U5NrthIxH0K73cn0CHWHfnbvGol8RO952qDQ==
+X-Received: by 2002:a62:ee05:: with SMTP id e5mr106114979pfi.117.1558655323747;
+        Thu, 23 May 2019 16:48:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyrgO2z5DE1o591C5lMRbJX+TS7HFC7DmNwmZnShqt3bZArzZkecwZyH4DXT/D/2oqh0cZI
+X-Received: by 2002:a62:ee05:: with SMTP id e5mr106114886pfi.117.1558655322917;
+        Thu, 23 May 2019 16:48:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558655322; cv=none;
         d=google.com; s=arc-20160816;
-        b=QNio0iCcPRGKYCETijwd7GLVxCGDGuZuxHFBpQvDqFCE4EwcUkAnL1Zh0QZgrflMLS
-         yZ8JCYsOHtcHu7sTle7UJFxQJYsv2HX6FCru+xIa58a5OomHC9OrQgm14WJvw/Vk9Ncm
-         2TkuV7vrLQdNjU/wVvbhEA9to/KmaNzvbET5riOoixyVZhtyaTENWgfwLk53xfEokp5/
-         968ZFeFhTPIXAn2byir9tyLYO1cBsXqs3WzUsD+A9ih9T48w43q+7fPqKxqSk2luE4OP
-         TtpviGP6CL7XuRssjRkuZRbUtwn59mQdOKQcqltWh0wo01KWbVooj/2iYJL+rPkIrBx+
-         Bjtg==
+        b=qypjgQ1qgoeE79+/XN0AD+dGxM4bhCiw/AE5XuR6h2wXmjfm3wgDTud2tZuRBFPYKE
+         9XKqA4zZtZIgBbYBfN90fW3kn9znKJ6Fcj94WFScPLAV5oJhdelYsxMAWjf7NFOYeaY5
+         XdqjS9h0YPkdDK2H37VbH/33/MJj0JyxCQakxlFTmKLV+xkoJy7Bs6gMmNrNzavcymW6
+         YIlcI+EWMsSBEodqlFOx+V+7MwVS/VOg/xgtpLCtNzrPCACgULmotFnB6YB9Nouti9Mj
+         XceOgpe2JTnmxG3F4LzQwX/lhk6/MrNp1HkBLX6EY2MAhQDvGq9ICWOa8fUikfPulL0W
+         B2pw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=b2p6msGZOO1o6S/1xXYAPaJstC2ds8NUPA6vMi5IZfQ=;
-        b=gNhi++ou0QJpdcD4QGa8E6AXT0m13LvFS8Y6rf+6VBWLN1FN8yILm3gY3twEbH6wtn
-         iIHMcJ361Fwpmayaw1L/CK1oq7u8i9us8B8OaSWxgCMQY2EdYqeX97W+zw9Ws02J6Okq
-         uw1i2cInyb78n7l8RZ6xLyI11abX9p1FFc1hsvU4YkkjPGKUYVpNLrHZ0DMMxk/AxeF1
-         lE24dwalkWXAsUkRAqj8tVFx87SAuBW0z0r4XFG2IYSfhH89AH8XjJsyICcvcOp/h5Ne
-         lLMt9GW6tATPDtykFMWHvhyiPYaFFlFr62CyzRHRtdvcetGpJnvqu7h9Xbo+pfZ6VE46
-         bMgg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=AydqY+5NA2QwK3sIaKZoD3clH3qwqW5hznPdtqS1iMA=;
+        b=hhX3NFl7b7XmfhZvQTP0TeIG7dnuRVBkYFRU8v/TcbFhTUnqbXOzwYOmuidOGF7uGz
+         x9qVwy2aBbg2wF4peOEpRU4Ju/6sr8KWGaTgdehmzFdOf1/shKJCPMuF3jkMZcB2GZDp
+         Ea0krNMILerzNMg/nYQhsSHRTSqVdVZCu1k630Tk+Zea2KhJviDERr/rvJ6yYU5dc8oX
+         FWxnpXiFsuexV3onJ85HpNiqea20VLmUg38JjprPXR5Sf5sMZHi7cwQDkZxf7gDfS4vr
+         JgtpNcGG0Mx6VhG1UdcEpm1SGc7ggzrf8m3+klh3Nm5KCHTHiKI2/Kzgj8XHtLM2Lt8n
+         OTmw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=mD5Bb1lj;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id f125si283216ybg.28.2019.05.23.16.38.34
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id k10si1612070plt.133.2019.05.23.16.48.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 16:38:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        Thu, 23 May 2019 16:48:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=mD5Bb1lj;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5ce72efa0000>; Thu, 23 May 2019 16:38:34 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 23 May 2019 16:38:34 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 23 May 2019 16:38:34 -0700
-Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 23 May
- 2019 23:38:28 +0000
-Subject: Re: [RFC PATCH 04/11] mm/hmm: Simplify hmm_get_or_create and make it
- reliable
-To: Jason Gunthorpe <jgg@ziepe.ca>, <linux-rdma@vger.kernel.org>,
-	<linux-mm@kvack.org>, Jerome Glisse <jglisse@redhat.com>, John Hubbard
-	<jhubbard@nvidia.com>
-CC: Jason Gunthorpe <jgg@mellanox.com>
-References: <20190523153436.19102-1-jgg@ziepe.ca>
- <20190523153436.19102-5-jgg@ziepe.ca>
-From: Ralph Campbell <rcampbell@nvidia.com>
-Message-ID: <6945b6c9-338a-54e6-64df-2590d536910a@nvidia.com>
-Date: Thu, 23 May 2019 16:38:28 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.0
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 May 2019 16:48:42 -0700
+X-ExtLoop1: 1
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga007.fm.intel.com with ESMTP; 23 May 2019 16:48:41 -0700
+Date: Thu, 23 May 2019 16:49:35 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Jerome Glisse <jglisse@redhat.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: [PATCH] hmm: Suppress compilation warnings when
+ CONFIG_HUGETLB_PAGE is not set
+Message-ID: <20190523234935.GA5472@iweiny-DESK2.sc.intel.com>
+References: <20190522195151.GA23955@ziepe.ca>
+ <20190522132322.15605c8b344f46b31ea8233b@linux-foundation.org>
+ <20190522235102.GA15370@mellanox.com>
+ <07f97bf3-cc38-6016-b9fc-1dc4efa5a190@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20190523153436.19102-5-jgg@ziepe.ca>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1558654714; bh=b2p6msGZOO1o6S/1xXYAPaJstC2ds8NUPA6vMi5IZfQ=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:Message-ID:Date:
-	 User-Agent:MIME-Version:In-Reply-To:X-Originating-IP:
-	 X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=mD5Bb1ljRlQVnOXf6N0+Gn9PipOahIO4xwqqHApUTi/EQT0VsA0WHW2c+jZ+K/Ivv
-	 kbjwUw3D5GzhyV8DdOOjCYiBzzfpCingWfKO4uAbnhG4W7uhia7Ct2QqYZZMn7inO/
-	 M0rvAfHN0iWUHpU8LCbyNsafRXJjPqMO/ri8AmZgMRJKDwg4w7mgYlG9pr3UpvrjxD
-	 nvomTrVL/nhavUBfbEkKcqhg3sth0el6LVCvn3gqK8ucxmI1xVERb7evMyEIV0WYrj
-	 RxkbiMWNNyNOHxc99Caepn8sfrDO7xtk3xIy3yDNJBfpxIsNh08cFSYqM6peYzPjJR
-	 US6/8Q6ULMK1g==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <07f97bf3-cc38-6016-b9fc-1dc4efa5a190@oracle.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On 5/23/19 8:34 AM, Jason Gunthorpe wrote:
-> From: Jason Gunthorpe <jgg@mellanox.com>
+On Thu, May 23, 2019 at 10:56:09AM -0700, Mike Kravetz wrote:
+> On 5/22/19 4:51 PM, Jason Gunthorpe wrote:
+> > On Wed, May 22, 2019 at 01:23:22PM -0700, Andrew Morton wrote:
+> >>
+> >> Also fair enough.  But why the heck is huge_page_shift() a macro?  We
+> >> keep doing that and it bites so often :(
+> > 
+> > Let's fix it, with the below? (compile tested)
+> > 
+> > Note __alloc_bootmem_huge_page was returning null but the signature
+> > was unsigned int.
+> > 
+> > From b5e2ff3c88e6962d0e8297c87af855e6fe1a584e Mon Sep 17 00:00:00 2001
+> > From: Jason Gunthorpe <jgg@mellanox.com>
+> > Date: Wed, 22 May 2019 20:45:59 -0300
+> > Subject: [PATCH] mm: Make !CONFIG_HUGE_PAGE wrappers into static inlines
+> > 
+> > Instead of using defines, which looses type safety and provokes unused
+> > variable warnings from gcc, put the constants into static inlines.
+> > 
+> > Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+> > Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 > 
-> As coded this function can false-fail in various racy situations. Make it
-> reliable by running only under the write side of the mmap_sem and avoiding
-> the false-failing compare/exchange pattern.
+> Thanks for doing this Jason.
 > 
-> Also make the locking very easy to understand by only ever reading or
-> writing mm->hmm while holding the write side of the mmap_sem.
+> I do not see any issues unless there is some weird arch specific usage which
+> would be caught by zero day testing.
+
+Agreed.  I did a couple quick searches and I don't see any such issues.  I was
+thinking the same thing WRT zero day.
+
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+
 > 
-> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
-> ---
->   mm/hmm.c | 75 ++++++++++++++++++++------------------------------------
->   1 file changed, 27 insertions(+), 48 deletions(-)
+> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 > 
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index e27058e92508b9..ec54be54d81135 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -40,16 +40,6 @@
->   #if IS_ENABLED(CONFIG_HMM_MIRROR)
->   static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
->   
-> -static inline struct hmm *mm_get_hmm(struct mm_struct *mm)
-> -{
-> -	struct hmm *hmm = READ_ONCE(mm->hmm);
-> -
-> -	if (hmm && kref_get_unless_zero(&hmm->kref))
-> -		return hmm;
-> -
-> -	return NULL;
-> -}
-> -
->   /**
->    * hmm_get_or_create - register HMM against an mm (HMM internal)
->    *
-> @@ -64,11 +54,20 @@ static inline struct hmm *mm_get_hmm(struct mm_struct *mm)
->    */
->   static struct hmm *hmm_get_or_create(struct mm_struct *mm)
->   {
-> -	struct hmm *hmm = mm_get_hmm(mm);
-> -	bool cleanup = false;
-> +	struct hmm *hmm;
->   
-> -	if (hmm)
-> -		return hmm;
-> +	lockdep_assert_held_exclusive(mm->mmap_sem);
-> +
-> +	if (mm->hmm) {
-> +		if (kref_get_unless_zero(&mm->hmm->kref))
-> +			return mm->hmm;
-> +		/*
-> +		 * The hmm is being freed by some other CPU and is pending a
-> +		 * RCU grace period, but this CPU can NULL now it since we
-> +		 * have the mmap_sem.
-> +		 */
-> +		mm->hmm = NULL;
-
-Shouldn't there be a "return NULL;" here so it doesn't fall through and
-allocate a struct hmm below?
-
-> +	}
->   
->   	hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
->   	if (!hmm)
-> @@ -85,54 +84,34 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
->   	hmm->mm = mm;
->   	mmgrab(hmm->mm);
->   
-> -	spin_lock(&mm->page_table_lock);
-> -	if (!mm->hmm)
-> -		mm->hmm = hmm;
-> -	else
-> -		cleanup = true;
-> -	spin_unlock(&mm->page_table_lock);
-> -
-> -	if (cleanup)
-> -		goto error;
-> -
-> -	/*
-> -	 * We should only get here if hold the mmap_sem in write mode ie on
-> -	 * registration of first mirror through hmm_mirror_register()
-> -	 */
->   	hmm->mmu_notifier.ops = &hmm_mmu_notifier_ops;
-> -	if (__mmu_notifier_register(&hmm->mmu_notifier, mm))
-> -		goto error_mm;
-> +	if (__mmu_notifier_register(&hmm->mmu_notifier, mm)) {
-> +		kfree(hmm);
-> +		return NULL;
-> +	}
->   
-> +	mm->hmm = hmm;
->   	return hmm;
-> -
-> -error_mm:
-> -	spin_lock(&mm->page_table_lock);
-> -	if (mm->hmm == hmm)
-> -		mm->hmm = NULL;
-> -	spin_unlock(&mm->page_table_lock);
-> -error:
-> -	kfree(hmm);
-> -	return NULL;
->   }
->   
->   static void hmm_fee_rcu(struct rcu_head *rcu)
-
-I see Jerome already saw and named this hmm_free_rcu()
-which I agree with.
-
->   {
-> +	struct hmm *hmm = container_of(rcu, struct hmm, rcu);
-> +
-> +	down_write(&hmm->mm->mmap_sem);
-> +	if (hmm->mm->hmm == hmm)
-> +		hmm->mm->hmm = NULL;
-> +	up_write(&hmm->mm->mmap_sem);
-> +	mmdrop(hmm->mm);
-> +
->   	kfree(container_of(rcu, struct hmm, rcu));
->   }
->   
->   static void hmm_free(struct kref *kref)
->   {
->   	struct hmm *hmm = container_of(kref, struct hmm, kref);
-> -	struct mm_struct *mm = hmm->mm;
-> -
-> -	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, mm);
->   
-> -	spin_lock(&mm->page_table_lock);
-> -	if (mm->hmm == hmm)
-> -		mm->hmm = NULL;
-> -	spin_unlock(&mm->page_table_lock);
-> -
-> -	mmdrop(hmm->mm);
-> +	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, hmm->mm);
->   	mmu_notifier_call_srcu(&hmm->rcu, hmm_fee_rcu);
->   }
->   
+> -- 
+> Mike Kravetz
 > 
-
------------------------------------------------------------------------------------
-This email message is for the sole use of the intended recipient(s) and may contain
-confidential information.  Any unauthorized review, use, disclosure or distribution
-is prohibited.  If you are not the intended recipient, please contact the sender by
-reply email and destroy all copies of the original message.
------------------------------------------------------------------------------------
 
