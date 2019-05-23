@@ -2,404 +2,456 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_MED,URIBL_BLOCKED,
-	USER_AGENT_GIT,USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9AD39C282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 14:09:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 58146C282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 14:24:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 42ED620863
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 14:09:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="HxdHAURk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 42ED620863
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 05D092081C
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 14:24:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 05D092081C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E68ED6B000E; Thu, 23 May 2019 10:09:12 -0400 (EDT)
+	id 77EB06B0003; Thu, 23 May 2019 10:24:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E1AF66B0010; Thu, 23 May 2019 10:09:12 -0400 (EDT)
+	id 72FDA6B0005; Thu, 23 May 2019 10:24:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D09226B0266; Thu, 23 May 2019 10:09:12 -0400 (EDT)
+	id 5F74E6B0006; Thu, 23 May 2019 10:24:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B20E16B000E
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 10:09:12 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id n21so5423104qtp.15
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 07:09:12 -0700 (PDT)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 357786B0003
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 10:24:44 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id m188so5504897ita.0
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 07:24:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
-         :mime-version:references:subject:from:to:cc;
-        bh=GrPd0Ehzkwgs8flG0McuJvkTnr/DIjfrIhDeOSvXnoY=;
-        b=R32LxICex7oNv1qnM9cB4rhn+mmT9LSXEBUVQ2zWQG5WRfndBWlFMUULK4WYAnffIn
-         2764Ug5F7HUqH66G5wSMc0q46bJAHWO84hdfWI65yL03a5VX3HldeCqQS5YQI9VA3yhW
-         c09FeZG0EHoY7jzOrneCAgVbrQNbN6UaIjFygu5CEJJVQgh8+VKjrIYwpb/VzJ3SZizk
-         5Y7K+zUpiz0kTytAkXIGDfF6sJEKZG3agdcr8AxSWtfURrDwVsLjoVaBvMbJKixGwkaU
-         QhjDHu7NUu76fReBo+awZwmziPXhZN8s3zcSFiSpf3rd4JIebX76QdYIt3DWFdwOxfrK
-         I9eg==
-X-Gm-Message-State: APjAAAUdmRegYSZtZpf6upGbLn72d9QyNxO5rWVdcbPf371cwqQ71QdM
-	acyFQ6hvHRNb12+gghJMlxAQ+4rA7NOg0OWcV4pRzKmsz6Z1GEZs68VFDtu8YZ0D2JSIMUodA4a
-	A9u/Q7Gg/wvbDIpCsPjf7kvToWL2QXM69KMTc0uBS8FCxXJIjjTYG4HZjFnUXmPR3BA==
-X-Received: by 2002:ac8:5246:: with SMTP id y6mr79010251qtn.242.1558620552488;
-        Thu, 23 May 2019 07:09:12 -0700 (PDT)
-X-Received: by 2002:ac8:5246:: with SMTP id y6mr79010173qtn.242.1558620551740;
-        Thu, 23 May 2019 07:09:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558620551; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:mime-version:content-disposition:user-agent;
+        bh=8PJ1UVNjXtMIvYKCC66cLGiTdJNAVd4zIy4FKi1qJKI=;
+        b=qx0fKT+dcYiGe8slB6ZudtetoljWdQrDtTpO2plPO7VSdVLOrZyFyHnwEEaVctQzh7
+         9DBQEdS7gxYAbxpMzs+EPkeBS4BSj/MbUN3iaq/s72AQ+c5Cy3XtdPsicZb0CthT0GNn
+         3rRSFZhXClc85ZtFKxh6SBZBJznkkWGHD92+XIkx299jPfgS3I3rBvCgmdJiaPrFRmFr
+         CINplAeORoPx4gobcHiUXxfbNmRSOSFtjesBijmEzJBbFP7q3YhxHxrB0L5s+lxRR/Qh
+         9XWXHQXPDwDNRG6SweSwxDVSOfuIrnUYzstO8/XbkUkWDeTn/z8yMs1OjQg5kN20YTj8
+         akzA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUjA6KGhubxvzkYA4Y2qLUWP5wc1DUvY1GAIzWFi+VzPU0eAzxx
+	6K781nsvm2O6Lwj576qLE+moEpwGXDqgvqdIrb/G47jpXbcG8tpsdUR9CuhTaf7GWAW8tgzvEes
+	j0bHUjWYGZ3kwP4C1ALNevX2VANwgXOM6kHf4r0xUDSAF/QP9UgRB79QsTKUJujK+3w==
+X-Received: by 2002:a24:47cc:: with SMTP id t195mr12890420itb.117.1558621483873;
+        Thu, 23 May 2019 07:24:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwJPTCrWV6Ov9clqpkgUaXJ89taE3BIbgfAsj72Lr6MBReTdEGkE6tR48oDHxDke1WGf+D6
+X-Received: by 2002:a24:47cc:: with SMTP id t195mr12890318itb.117.1558621482348;
+        Thu, 23 May 2019 07:24:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558621482; cv=none;
         d=google.com; s=arc-20160816;
-        b=I2oHK7FAdoNBe9fSJTSePHw/QA7vcuVHP5XxxXedRJNFxGbN579ORsmZEasFrfjPSd
-         nqHD/Q65MxzNNIxLFPkP7KCddj/Uxv1x5W2x7ltJhCi4gWSakrmqY0DbXpPTBdBs3ewS
-         MEzu39Eg2crxIpfvn7ASOHNInAyl2mlVhKPd2OsVXK5nvn//JdQ8wfk9QuSCw6IRwnYX
-         2bdNIyE1QJRyo3wimKuF06QcZtwgO9Krleq7tRbJFIUaYVjXJlufcxeI55clhA70ilW8
-         3NZMHXAqPeFRpyil3/BPPa9ExiNSkvQHuz0QB2LSmaqjX9RDGDEOjLL4VOG260Vb0O4o
-         lVvQ==
+        b=TMjCg+R3oEpUAmZpK9+02B/8/3+hZb65CCUJhEbY5N85TzdPTf9E3ffpJd7d4jzXTS
+         l9V5i0yA88CFY9AkCcBElHXFY6SJ8WHt7LkzdfbMnT9aJ/5bfNauut5+itOawMEni0r7
+         fxgCszZMiAqPyOxSC4OU1GQJHzIFKXAqtsFsZmF0EkTo490e5vhOZbwF1Aa+BHLLZpy3
+         nWdjd+OJoIqUHHvPQ+4iB7J6JRfOg+LTJdWJPTrU7QcmLggNivfMRoZW0QkmlnvPZ9ym
+         PA26CEz6VbMurESmptx4pBu9xNZaKdkZuSvgcYPkpehcvfC0QDgmc+xyIoCnG23HQ02x
+         wfqQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
-         :date:dkim-signature;
-        bh=GrPd0Ehzkwgs8flG0McuJvkTnr/DIjfrIhDeOSvXnoY=;
-        b=LaZ38kuqXTU3gFw1SxxI0gMkiR0n+yrkrvTjC/SLU2/Qeb1e4GbiN3IPokr9PAd2kM
-         CGmkV3Xcy4fDppsPvvfZNhmcNGdTb+TD4uEv/6k9CpdceNpikfWV9X4BxOD4D1fjePH/
-         VRRy8RbXjIcK9TW3URjoJvs3a4j62GEkpeqEaigfs7PzWgRE7EC8rHZsOXX4x7GGMaAZ
-         VJ9f7TQ3rq5P+giSlRlldFqn03ZUIF9QDnphon1qGKvmnzjuQXNcmzKS1mTaOrSHRJsd
-         Muq4BROD+SrB8Sn7Upqr2rbSLHV2NvpF472u2WZopytDf3idNMxUQz1muglXMM6twrXO
-         SLzQ==
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
+         :to:from:date;
+        bh=8PJ1UVNjXtMIvYKCC66cLGiTdJNAVd4zIy4FKi1qJKI=;
+        b=h2ZuI3kxTAC50d1vW7bckuvL48FguVZ2DGDiFMTcPw7m6Sz2b1cVZ9gIwAtEkmbHHH
+         sQmLcUAt3gh1fKZ8ntc1Dza7H4nFITfaD93o2L3bnnDb7S4It+9J2AjihE1aVCgjyvAv
+         ZxsEf0wfe7lvlFXxoEFPt12Ysilgq6hfMU8dH+s7asUC0jkZ6VmY0Uowr6GBOUxLVqUQ
+         PnUUT8aDiUKnJq+GjCArpadwuMbUSKujmYMS0A1Pm0VI1lUMjn1Azb6tVIPvFqMGs8+/
+         PtBYF6q7P8Cp1Y+3h6uY8GbQj9/C8TAhp7tEBU+6sOk+GC9XEqOy8RRfEYw4G5rskQ00
+         uTrw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=HxdHAURk;
-       spf=pass (google.com: domain of 3h6nmxaykcgiglidergoogle.comlinux-mmkvack.org@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3h6nmXAYKCGIGLIDERGOOGLE.COMLINUX-MMKVACK.ORG@flex--glider.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id p30sor21696609qvc.71.2019.05.23.07.09.11
+       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id m44si3410639iti.132.2019.05.23.07.24.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 23 May 2019 07:09:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3h6nmxaykcgiglidergoogle.comlinux-mmkvack.org@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 May 2019 07:24:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) client-ip=115.124.30.133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=HxdHAURk;
-       spf=pass (google.com: domain of 3h6nmxaykcgiglidergoogle.comlinux-mmkvack.org@flex--glider.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3h6nmXAYKCGIGLIDERGOOGLE.COMLINUX-MMKVACK.ORG@flex--glider.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
-         :cc;
-        bh=GrPd0Ehzkwgs8flG0McuJvkTnr/DIjfrIhDeOSvXnoY=;
-        b=HxdHAURkSl4n27A0yrQIRU1ITTYPBWK1In1KGlmB43xzTe8tfXSa/dWul7q4I/3UzU
-         zAXTkoEFSDGlQlwPxRKEPIsS4gx1GWROBjhSdaDe+osjq2IOHCxE8AK8vVLls9jsiCni
-         Ah0o+mZ5lkt/KWNdF1YGyCq0Tn9kR2BizpDzBrgZFEG+PKOtey/cz+kMH+/+NJpItHf2
-         vzgiCe1wjnIMjaRo26wo/zwzLMMxV+51y6MNX1nzooG5KC1QggYgSZIVxhYV85G0/IFG
-         eyM/9zRs+5DIGCsdt23RjOyg9gSR0BPyH9rKZ0GdAzhvalKjcPMUFbug9urWslsi51qX
-         M31w==
-X-Google-Smtp-Source: APXvYqwTc2z+TMaFN0UPPlnm9rius4RP7zoq7ED5Y5T2qgqHTis5h9UUibnhY+/7LWm7HuiK8P97MvS3qoo=
-X-Received: by 2002:a0c:95d5:: with SMTP id t21mr70859708qvt.215.1558620551451;
- Thu, 23 May 2019 07:09:11 -0700 (PDT)
-Date: Thu, 23 May 2019 16:08:44 +0200
-In-Reply-To: <20190523140844.132150-1-glider@google.com>
-Message-Id: <20190523140844.132150-4-glider@google.com>
-Mime-Version: 1.0
-References: <20190523140844.132150-1-glider@google.com>
-X-Mailer: git-send-email 2.21.0.1020.gf2820cf01a-goog
-Subject: [PATCH v4 3/3] lib: introduce test_meminit module
-From: Alexander Potapenko <glider@google.com>
-To: akpm@linux-foundation.org, cl@linux.com, keescook@chromium.org
-Cc: kernel-hardening@lists.openwall.com, linux-mm@kvack.org, 
-	linux-security-module@vger.kernel.org, 
-	Nick Desaulniers <ndesaulniers@google.com>, Kostya Serebryany <kcc@google.com>, 
-	Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
-	Laura Abbott <labbott@redhat.com>, Jann Horn <jannh@google.com>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R241e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04394;MF=aaron.lu@linux.alibaba.com;NM=1;PH=DS;RN=3;SR=0;TI=SMTPD_---0TSTuuDA_1558621456;
+Received: from aaronlu(mailfrom:aaron.lu@linux.alibaba.com fp:SMTPD_---0TSTuuDA_1558621456)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Thu, 23 May 2019 22:24:24 +0800
+Date: Thu, 23 May 2019 22:24:15 +0800
+From: Aaron Lu <aaron.lu@linux.alibaba.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Huang Ying <ying.huang@intel.com>
+Subject: [PATCH] mm, swap: use rbtree for swap_extent
+Message-ID: <20190523142404.GA181@aaronlu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add tests for heap and pagealloc initialization.
-These can be used to check init_on_alloc and init_on_free implementations
-as well as other approaches to initialization.
+From: Aaron Lu <ziqian.lzq@antfin.com>
 
-Expected test output in the case the kernel provides heap initialization
-(e.g. when running with either init_on_alloc=1 or init_on_free=1):
+swap_extent is used to map swap page offset to backing device's block
+offset. For a continuous block range, one swap_extent is used and all
+these swap_extents are managed in a linked list.
 
-  test_meminit: all 10 tests in test_pages passed
-  test_meminit: all 40 tests in test_kvmalloc passed
-  test_meminit: all 20 tests in test_kmemcache passed
-  test_meminit: all 70 tests passed!
+These swap_extents are used by map_swap_entry() during swap's read and
+write path. To find out the backing device's block offset for a page
+offset, the swap_extent list will be traversed linearly, with
+curr_swap_extent being used as a cache to speed up the search.
 
-Signed-off-by: Alexander Potapenko <glider@google.com>
-To: Kees Cook <keescook@chromium.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Nick Desaulniers <ndesaulniers@google.com>
-Cc: Kostya Serebryany <kcc@google.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>
-Cc: Sandeep Patil <sspatil@android.com>
-Cc: Laura Abbott <labbott@redhat.com>
-Cc: Jann Horn <jannh@google.com>
-Cc: linux-mm@kvack.org
-Cc: linux-security-module@vger.kernel.org
-Cc: kernel-hardening@lists.openwall.com
+This works well as long as swap_extents are not huge or when the number
+of processes that access swap device are few, but when the swap device
+has many extents and there are a number of processes accessing the swap
+device concurrently, it can be a problem. On one of our servers, the
+disk's remaining size is tight:
+$df -h
+Filesystem      Size  Used Avail Use% Mounted on
+... ...
+/dev/nvme0n1p1  1.8T  1.3T  504G  72% /home/t4
+
+When creating a 80G swapfile there, there are as many as 84656 swap
+extents. The end result is, kernel spends abou 30% time in map_swap_entry()
+and swap throughput is only 70MB/s. As a comparison, when I used smaller
+sized swapfile, like 4G whose swap_extent dropped to 2000, swap throughput
+is back to 400-500MB/s and map_swap_entry() is about 3%.
+
+One downside of using rbtree for swap_extent is, 'struct rbtree' takes
+24 bytes while 'struct list_head' takes 16 bytes, that's 8 bytes more
+for each swap_extent. For a swapfile that has 80k swap_extents, that
+means 625KiB more memory consumed.
+
+Test:
+
+Since it's not possible to reboot that server, I can not test this patch
+diretly there. Instead, I tested it on another server with NVMe disk.
+
+I created a 20G swapfile on an NVMe backed XFS fs. By default, the
+filesystem is quite clean and the created swapfile has only 2 extents.
+Testing vanilla and this patch shows no obvious performance difference
+when swapfile is not fragmented.
+
+To see the patch's effects, I used some tweaks to manually fragment the
+swapfile by breaking the extent at 1M boundary. This made the swapfile
+have 20K extents.
+
+nr_task=4
+kernel   swapout(KB/s) map_swap_entry(perf)  swapin(KB/s) map_swap_entry(perf)
+vanilla  165191           90.77%             171798         90.21%
+patched  858993 +420%      2.16%      	     715827 +317%    0.77%
+
+nr_task=8
+kernel   swapout(KB/s) map_swap_entry(perf)  swapin(KB/s) map_swap_entry(perf)
+vanilla  306783           92.19%             318145	    87.76%
+patched  954437 +211%      2.35%            1073741 +237%    1.57%
+
+swapout: the throughput of swap out, in KB/s, higher is better
+1st map_swap_entry: cpu cycles percent sampled by perf
+swapin: the throughput of swap in, in KB/s, higher is better.
+2nd map_swap_entry: cpu cycles percent sampled by perf
+
+nr_task=1 doesn't show any difference, this is due to the
+curr_swap_extent can be effectively used to cache the correct swap
+extent for single task workload.
+
+Signed-off-by: Aaron Lu <ziqian.lzq@antfin.com>
 ---
- v3:
-  - added example test output to the description
-  - fixed a missing include spotted by kbuild test robot <lkp@intel.com>
-  - added a missing MODULE_LICENSE
-  - call do_kmem_cache_size() with size >= sizeof(void*) to unbreak
-  debug builds
----
- lib/Kconfig.debug  |   8 ++
- lib/Makefile       |   1 +
- lib/test_meminit.c | 208 +++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 217 insertions(+)
- create mode 100644 lib/test_meminit.c
+ include/linux/swap.h |   5 +-
+ mm/page_io.c         |   2 +-
+ mm/swapfile.c        | 137 +++++++++++++++++++++++--------------------
+ 3 files changed, 78 insertions(+), 66 deletions(-)
 
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index fdfa173651eb..036e8ef03831 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -2043,6 +2043,14 @@ config TEST_STACKINIT
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 4bfb5c4ac108..a229c6273781 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -148,7 +148,7 @@ struct zone;
+  * We always assume that blocks are of size PAGE_SIZE.
+  */
+ struct swap_extent {
+-	struct list_head list;
++	struct rb_node rb_node;
+ 	pgoff_t start_page;
+ 	pgoff_t nr_pages;
+ 	sector_t start_block;
+@@ -247,8 +247,7 @@ struct swap_info_struct {
+ 	unsigned int cluster_next;	/* likely index for next allocation */
+ 	unsigned int cluster_nr;	/* countdown to next cluster search */
+ 	struct percpu_cluster __percpu *percpu_cluster; /* per cpu's swap location */
+-	struct swap_extent *curr_swap_extent;
+-	struct swap_extent first_swap_extent;
++	struct rb_root swap_extent_root;/* root of the swap extent rbtree */
+ 	struct block_device *bdev;	/* swap device or bdev of swap file */
+ 	struct file *swap_file;		/* seldom referenced */
+ 	unsigned int old_block_size;	/* seldom referenced */
+diff --git a/mm/page_io.c b/mm/page_io.c
+index 2e8019d0e048..24ad2d43c11d 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -164,7 +164,7 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
+ 	blocks_per_page = PAGE_SIZE >> blkbits;
  
- 	  If unsure, say N.
+ 	/*
+-	 * Map all the blocks into the extent list.  This code doesn't try
++	 * Map all the blocks into the extent tree.  This code doesn't try
+ 	 * to be very smart.
+ 	 */
+ 	probe_block = 0;
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index 596ac98051c5..82b96750ad45 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -152,6 +152,18 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
+ 	return ret;
+ }
  
-+config TEST_MEMINIT
-+	tristate "Test level of heap/page initialization"
-+	help
-+	  Test if the kernel is zero-initializing heap and page allocations.
-+	  This can be useful to test init_on_alloc and init_on_free features.
-+
-+	  If unsure, say N.
-+
- endif # RUNTIME_TESTING_MENU
- 
- config MEMTEST
-diff --git a/lib/Makefile b/lib/Makefile
-index fb7697031a79..05980c802500 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -91,6 +91,7 @@ obj-$(CONFIG_TEST_DEBUG_VIRTUAL) += test_debug_virtual.o
- obj-$(CONFIG_TEST_MEMCAT_P) += test_memcat_p.o
- obj-$(CONFIG_TEST_OBJAGG) += test_objagg.o
- obj-$(CONFIG_TEST_STACKINIT) += test_stackinit.o
-+obj-$(CONFIG_TEST_MEMINIT) += test_meminit.o
- 
- obj-$(CONFIG_TEST_LIVEPATCH) += livepatch/
- 
-diff --git a/lib/test_meminit.c b/lib/test_meminit.c
-new file mode 100644
-index 000000000000..d46e2b8c8e8e
---- /dev/null
-+++ b/lib/test_meminit.c
-@@ -0,0 +1,208 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Test cases for SL[AOU]B/page initialization at alloc/free time.
-+ */
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+
-+#include <linux/init.h>
-+#include <linux/kernel.h>
-+#include <linux/mm.h>
-+#include <linux/module.h>
-+#include <linux/slab.h>
-+#include <linux/string.h>
-+#include <linux/vmalloc.h>
-+
-+#define GARBAGE_INT (0x09A7BA9E)
-+#define GARBAGE_BYTE (0x9E)
-+
-+#define REPORT_FAILURES_IN_FN() \
-+	do {	\
-+		if (failures)	\
-+			pr_info("%s failed %d out of %d times\n",	\
-+				__func__, failures, num_tests);		\
-+		else		\
-+			pr_info("all %d tests in %s passed\n",		\
-+				num_tests, __func__);			\
-+	} while (0)
-+
-+/* Calculate the number of uninitialized bytes in the buffer. */
-+static int count_nonzero_bytes(void *ptr, size_t size)
++static inline struct swap_extent *first_se(struct swap_info_struct *sis)
 +{
-+	int i, ret = 0;
-+	unsigned char *p = (unsigned char *)ptr;
-+
-+	for (i = 0; i < size; i++)
-+		if (p[i])
-+			ret++;
-+	return ret;
++	struct rb_node *rb = rb_first(&sis->swap_extent_root);
++	return rb_entry(rb, struct swap_extent, rb_node);
 +}
 +
-+static void fill_with_garbage(void *ptr, size_t size)
++static inline struct swap_extent *next_se(struct swap_extent *se)
 +{
-+	unsigned int *p = (unsigned int *)ptr;
-+	int i = 0;
++	struct rb_node *rb = rb_next(&se->rb_node);
++	return rb ? rb_entry(rb, struct swap_extent, rb_node) : NULL;
++}
 +
-+	while (size >= sizeof(*p)) {
-+		p[i] = GARBAGE_INT;
-+		i++;
-+		size -= sizeof(*p);
+ /*
+  * swapon tell device that all the old swap contents can be discarded,
+  * to allow the swap device to optimize its wear-levelling.
+@@ -164,7 +176,7 @@ static int discard_swap(struct swap_info_struct *si)
+ 	int err = 0;
+ 
+ 	/* Do not discard the swap header page! */
+-	se = &si->first_swap_extent;
++	se = first_se(si);
+ 	start_block = (se->start_block + 1) << (PAGE_SHIFT - 9);
+ 	nr_blocks = ((sector_t)se->nr_pages - 1) << (PAGE_SHIFT - 9);
+ 	if (nr_blocks) {
+@@ -175,7 +187,7 @@ static int discard_swap(struct swap_info_struct *si)
+ 		cond_resched();
+ 	}
+ 
+-	list_for_each_entry(se, &si->first_swap_extent.list, list) {
++	for (se = next_se(se); se; se = next_se(se)) {
+ 		start_block = se->start_block << (PAGE_SHIFT - 9);
+ 		nr_blocks = (sector_t)se->nr_pages << (PAGE_SHIFT - 9);
+ 
+@@ -189,6 +201,26 @@ static int discard_swap(struct swap_info_struct *si)
+ 	return err;		/* That will often be -EOPNOTSUPP */
+ }
+ 
++static struct swap_extent *
++offset_to_swap_extent(struct swap_info_struct *sis, unsigned long offset)
++{
++	struct swap_extent *se;
++	struct rb_node *rb;
++
++	rb = sis->swap_extent_root.rb_node;
++	while (rb) {
++		se = rb_entry(rb, struct swap_extent, rb_node);
++		if (offset < se->start_page)
++			rb = rb->rb_left;
++		else if (offset >= se->start_page + se->nr_pages)
++			rb = rb->rb_right;
++		else
++			return se;
 +	}
-+	if (size)
-+		memset(&p[i], GARBAGE_BYTE, size);
++	/* It *must* be present */
++	BUG_ON(1);
 +}
 +
-+static int __init do_alloc_pages_order(int order, int *total_failures)
-+{
-+	struct page *page;
-+	void *buf;
-+	size_t size = PAGE_SIZE << order;
+ /*
+  * swap allocation tell device that a cluster of swap can now be discarded,
+  * to allow the swap device to optimize its wear-levelling.
+@@ -196,32 +228,25 @@ static int discard_swap(struct swap_info_struct *si)
+ static void discard_swap_cluster(struct swap_info_struct *si,
+ 				 pgoff_t start_page, pgoff_t nr_pages)
+ {
+-	struct swap_extent *se = si->curr_swap_extent;
+-	int found_extent = 0;
++	struct swap_extent *se = offset_to_swap_extent(si, start_page);
+ 
+ 	while (nr_pages) {
+-		if (se->start_page <= start_page &&
+-		    start_page < se->start_page + se->nr_pages) {
+-			pgoff_t offset = start_page - se->start_page;
+-			sector_t start_block = se->start_block + offset;
+-			sector_t nr_blocks = se->nr_pages - offset;
+-
+-			if (nr_blocks > nr_pages)
+-				nr_blocks = nr_pages;
+-			start_page += nr_blocks;
+-			nr_pages -= nr_blocks;
+-
+-			if (!found_extent++)
+-				si->curr_swap_extent = se;
+-
+-			start_block <<= PAGE_SHIFT - 9;
+-			nr_blocks <<= PAGE_SHIFT - 9;
+-			if (blkdev_issue_discard(si->bdev, start_block,
+-				    nr_blocks, GFP_NOIO, 0))
+-				break;
+-		}
++		pgoff_t offset = start_page - se->start_page;
++		sector_t start_block = se->start_block + offset;
++		sector_t nr_blocks = se->nr_pages - offset;
 +
-+	page = alloc_pages(GFP_KERNEL, order);
-+	buf = page_address(page);
-+	fill_with_garbage(buf, size);
-+	__free_pages(page, order);
++		if (nr_blocks > nr_pages)
++			nr_blocks = nr_pages;
++		start_page += nr_blocks;
++		nr_pages -= nr_blocks;
 +
-+	page = alloc_pages(GFP_KERNEL, order);
-+	buf = page_address(page);
-+	if (count_nonzero_bytes(buf, size))
-+		(*total_failures)++;
-+	fill_with_garbage(buf, size);
-+	__free_pages(page, order);
-+	return 1;
-+}
++		start_block <<= PAGE_SHIFT - 9;
++		nr_blocks <<= PAGE_SHIFT - 9;
++		if (blkdev_issue_discard(si->bdev, start_block,
++					nr_blocks, GFP_NOIO, 0))
++			break;
+ 
+-		se = list_next_entry(se, list);
++		se = next_se(se);
+ 	}
+ }
+ 
+@@ -1684,7 +1709,7 @@ int swap_type_of(dev_t device, sector_t offset, struct block_device **bdev_p)
+ 			return type;
+ 		}
+ 		if (bdev == sis->bdev) {
+-			struct swap_extent *se = &sis->first_swap_extent;
++			struct swap_extent *se = first_se(sis);
+ 
+ 			if (se->start_block == offset) {
+ 				if (bdev_p)
+@@ -2161,7 +2186,6 @@ static void drain_mmlist(void)
+ static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
+ {
+ 	struct swap_info_struct *sis;
+-	struct swap_extent *start_se;
+ 	struct swap_extent *se;
+ 	pgoff_t offset;
+ 
+@@ -2169,18 +2193,8 @@ static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
+ 	*bdev = sis->bdev;
+ 
+ 	offset = swp_offset(entry);
+-	start_se = sis->curr_swap_extent;
+-	se = start_se;
+-
+-	for ( ; ; ) {
+-		if (se->start_page <= offset &&
+-				offset < (se->start_page + se->nr_pages)) {
+-			return se->start_block + (offset - se->start_page);
+-		}
+-		se = list_next_entry(se, list);
+-		sis->curr_swap_extent = se;
+-		BUG_ON(se == start_se);		/* It *must* be present */
+-	}
++	se = offset_to_swap_extent(sis, offset);
++	return se->start_block + (offset - se->start_page);
+ }
+ 
+ /*
+@@ -2198,12 +2212,11 @@ sector_t map_swap_page(struct page *page, struct block_device **bdev)
+  */
+ static void destroy_swap_extents(struct swap_info_struct *sis)
+ {
+-	while (!list_empty(&sis->first_swap_extent.list)) {
+-		struct swap_extent *se;
++	while (!RB_EMPTY_ROOT(&sis->swap_extent_root)) {
++		struct rb_node *rb = sis->swap_extent_root.rb_node;
++		struct swap_extent *se = rb_entry(rb, struct swap_extent, rb_node);
+ 
+-		se = list_first_entry(&sis->first_swap_extent.list,
+-				struct swap_extent, list);
+-		list_del(&se->list);
++		rb_erase(rb, &sis->swap_extent_root);
+ 		kfree(se);
+ 	}
+ 
+@@ -2219,7 +2232,7 @@ static void destroy_swap_extents(struct swap_info_struct *sis)
+ 
+ /*
+  * Add a block range (and the corresponding page range) into this swapdev's
+- * extent list.  The extent list is kept sorted in page order.
++ * extent tree.
+  *
+  * This function rather assumes that it is called in ascending page order.
+  */
+@@ -2227,20 +2240,21 @@ int
+ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
+ 		unsigned long nr_pages, sector_t start_block)
+ {
++	struct rb_node **link = &sis->swap_extent_root.rb_node, *parent = NULL;
+ 	struct swap_extent *se;
+ 	struct swap_extent *new_se;
+-	struct list_head *lh;
+-
+-	if (start_page == 0) {
+-		se = &sis->first_swap_extent;
+-		sis->curr_swap_extent = se;
+-		se->start_page = 0;
+-		se->nr_pages = nr_pages;
+-		se->start_block = start_block;
+-		return 1;
+-	} else {
+-		lh = sis->first_swap_extent.list.prev;	/* Highest extent */
+-		se = list_entry(lh, struct swap_extent, list);
 +
-+static int __init test_pages(int *total_failures)
-+{
-+	int failures = 0, num_tests = 0;
-+	int i;
-+
-+	for (i = 0; i < 10; i++)
-+		num_tests += do_alloc_pages_order(i, &failures);
-+
-+	REPORT_FAILURES_IN_FN();
-+	*total_failures += failures;
-+	return num_tests;
-+}
-+
-+static int __init do_kmalloc_size(size_t size, int *total_failures)
-+{
-+	void *buf;
-+
-+	buf = kmalloc(size, GFP_KERNEL);
-+	fill_with_garbage(buf, size);
-+	kfree(buf);
-+
-+	buf = kmalloc(size, GFP_KERNEL);
-+	if (count_nonzero_bytes(buf, size))
-+		(*total_failures)++;
-+	fill_with_garbage(buf, size);
-+	kfree(buf);
-+	return 1;
-+}
-+
-+static int __init do_vmalloc_size(size_t size, int *total_failures)
-+{
-+	void *buf;
-+
-+	buf = vmalloc(size);
-+	fill_with_garbage(buf, size);
-+	vfree(buf);
-+
-+	buf = vmalloc(size);
-+	if (count_nonzero_bytes(buf, size))
-+		(*total_failures)++;
-+	fill_with_garbage(buf, size);
-+	vfree(buf);
-+	return 1;
-+}
-+
-+static int __init test_kvmalloc(int *total_failures)
-+{
-+	int failures = 0, num_tests = 0;
-+	int i, size;
-+
-+	for (i = 0; i < 20; i++) {
-+		size = 1 << i;
-+		num_tests += do_kmalloc_size(size, &failures);
-+		num_tests += do_vmalloc_size(size, &failures);
++	/*
++	 * place the new node at the right most since the
++	 * function is called in ascending page order.
++	 */
++	while (*link) {
++		parent = *link;
++		link = &parent->rb_right;
 +	}
 +
-+	REPORT_FAILURES_IN_FN();
-+	*total_failures += failures;
-+	return num_tests;
-+}
-+
-+#define CTOR_BYTES 4
-+/* Initialize the first 4 bytes of the object. */
-+void some_ctor(void *obj)
-+{
-+	memset(obj, 'A', CTOR_BYTES);
-+}
-+
-+static int __init do_kmem_cache_size(size_t size, bool want_ctor,
-+				     int *total_failures)
-+{
-+	struct kmem_cache *c;
-+	void *buf;
-+	int iter, bytes = 0;
-+	int fail = 0;
-+
-+	c = kmem_cache_create("test_cache", size, 1, 0,
-+			      want_ctor ? some_ctor : NULL);
-+	for (iter = 0; iter < 10; iter++) {
-+		buf = kmem_cache_alloc(c, GFP_KERNEL);
-+		if (!want_ctor || iter == 0)
-+			bytes = count_nonzero_bytes(buf, size);
-+		if (want_ctor) {
-+			/*
-+			 * Newly initialized memory must be initialized using
-+			 * the constructor.
-+			 */
-+			if (iter == 0 && bytes < CTOR_BYTES)
-+				fail = 1;
-+		} else {
-+			if (bytes)
-+				fail = 1;
-+		}
-+		fill_with_garbage(buf, size);
-+		kmem_cache_free(c, buf);
-+	}
-+	kmem_cache_destroy(c);
-+
-+	*total_failures += fail;
-+	return 1;
-+}
-+
-+static int __init test_kmemcache(int *total_failures)
-+{
-+	int failures = 0, num_tests = 0;
-+	int i, size;
-+
-+	for (i = 0; i < 10; i++) {
-+		size = 8 << i;
-+		num_tests += do_kmem_cache_size(size, false, &failures);
-+		num_tests += do_kmem_cache_size(size, true, &failures);
-+	}
-+	REPORT_FAILURES_IN_FN();
-+	*total_failures += failures;
-+	return num_tests;
-+}
-+
-+static int __init test_meminit_init(void)
-+{
-+	int failures = 0, num_tests = 0;
-+
-+	num_tests += test_pages(&failures);
-+	num_tests += test_kvmalloc(&failures);
-+	num_tests += test_kmemcache(&failures);
-+
-+	if (failures == 0)
-+		pr_info("all %d tests passed!\n", num_tests);
-+	else
-+		pr_info("failures: %d out of %d\n", failures, num_tests);
-+
-+	return failures ? -EINVAL : 0;
-+}
-+module_init(test_meminit_init);
-+
-+MODULE_LICENSE("GPL");
++	if (parent) {
++		se = rb_entry(parent, struct swap_extent, rb_node);
+ 		BUG_ON(se->start_page + se->nr_pages != start_page);
+ 		if (se->start_block + se->nr_pages == start_block) {
+ 			/* Merge it */
+@@ -2249,9 +2263,7 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
+ 		}
+ 	}
+ 
+-	/*
+-	 * No merge.  Insert a new extent, preserving ordering.
+-	 */
++	/* No merge, insert a new extent. */
+ 	new_se = kmalloc(sizeof(*se), GFP_KERNEL);
+ 	if (new_se == NULL)
+ 		return -ENOMEM;
+@@ -2259,7 +2271,8 @@ add_swap_extent(struct swap_info_struct *sis, unsigned long start_page,
+ 	new_se->nr_pages = nr_pages;
+ 	new_se->start_block = start_block;
+ 
+-	list_add_tail(&new_se->list, &sis->first_swap_extent.list);
++	rb_link_node(&new_se->rb_node, parent, link);
++	rb_insert_color(&new_se->rb_node, &sis->swap_extent_root);
+ 	return 1;
+ }
+ EXPORT_SYMBOL_GPL(add_swap_extent);
+@@ -2749,7 +2762,7 @@ static struct swap_info_struct *alloc_swap_info(void)
+ 		 * would be relying on p->type to remain valid.
+ 		 */
+ 	}
+-	INIT_LIST_HEAD(&p->first_swap_extent.list);
++	p->swap_extent_root = RB_ROOT;
+ 	plist_node_init(&p->list, 0);
+ 	for_each_node(i)
+ 		plist_node_init(&p->avail_lists[i], 0);
 -- 
-2.21.0.1020.gf2820cf01a-goog
+2.19.1.3.ge56e4f7
 
