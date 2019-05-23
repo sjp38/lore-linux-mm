@@ -2,162 +2,220 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+	T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 14D05C46470
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:00:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B071C282E1
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:00:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CE673217D7
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:00:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 24FE1217D7
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:00:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Miz1U9o2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE673217D7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="UKb2x9rl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24FE1217D7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5C4D36B027D; Thu, 23 May 2019 15:00:36 -0400 (EDT)
+	id C314F6B0282; Thu, 23 May 2019 15:00:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 575526B0282; Thu, 23 May 2019 15:00:36 -0400 (EDT)
+	id BB8956B028D; Thu, 23 May 2019 15:00:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 464186B0286; Thu, 23 May 2019 15:00:36 -0400 (EDT)
+	id A0AAB6B028F; Thu, 23 May 2019 15:00:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CF4D6B027D
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 15:00:36 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 23so1079363pgq.21
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 12:00:36 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 669A46B0282
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 15:00:38 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id u11so4043877plz.22
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 12:00:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=/CV1FhBU6ocaD5fOePWATFvyxYduYyIfBpfvSQwN/B8=;
-        b=SjM8wVtwZQ1OOj05kQuii6x/qVVoH9x/MNW7NKOwV1sOLmexFUo1kHpphutOMjoHBG
-         KD+ZspafdH4ItNLlV2EIaozuPHxfKZ9C5viFagMW4mnOXq8tNiitH/SpQwjiwQe7SfWn
-         nf48Emb23miVvmGKUssb/O70Z0VaS25I1CObQVC5lMEiT2jP8Pj1mFVhFMUGelHnBvo/
-         FL3jPdh9JtLQloubPAhZKowVqyIMl1zVRDknIQ92Ssb6d1dI4jt4U+kvCzdfiSs/5Nsz
-         dUS6kInaXrlyMy0e9gNmLvwZfiWMeKzO+59cwZ+Qnz7s5i65jLrb5+WJl+P3WqFeICNg
-         HpkQ==
-X-Gm-Message-State: APjAAAW+YabSkuleeTPEXr8BWRBRTAh3B4U2bbVEkq7j1eJluunXaGEI
-	xUnOWBYUyDH/Da8YVp25v71v78zcx0aYTwXxJcf48bLN2wNNf5UNq5w1HAccVrewC/ZDEd1mqcZ
-	DOpMZ+D3S/1qPDBiwebqTlWG+STNkYqDAhf08f9kM/HS+ibi2Qy9dpHT5W31IcWPOdw==
-X-Received: by 2002:a62:2506:: with SMTP id l6mr105374964pfl.250.1558638035652;
-        Thu, 23 May 2019 12:00:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwTRYE336388Og+qbzW0dL4M3PrYEaKqnOEEAjldj7xlVu2Ey2oBaPOZqqkY1FWsiIXdqLs
-X-Received: by 2002:a62:2506:: with SMTP id l6mr105374845pfl.250.1558638034787;
-        Thu, 23 May 2019 12:00:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558638034; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=2ANG0ElVZ/rPDPxKXuA88IUbN3whPdkvGrD4K4bBAhg=;
+        b=hixCYNXM/E/4p7s17OUwyaKhPrUgetLar4cbPwQr+Iq7P+h/7euwgNW0LrZtLslCsU
+         aQQeps9qaN0+LFtrQL1lm0EFVDajqRYY40yqc2Q9pngqocjXibLEoCpITC224JDAkP62
+         XqVz7hHHVP/S2bxx/XYAxjMHnefSlAH/nu4No24MzVgN1T/FIeCVST44w342WKHqFNM8
+         6Kbw3KvFp3QyFI0700S+klkf9Om/j3cIvRMfPq5AQ4GkQLrS5J/I8BsM3U85J7OmVnCq
+         eAc2i0JHawEr1u5rGq8/fAhDnBiPADH9PKCay4PIdQdB+roRJwu0CRfN7PgWsDb8+hA7
+         B9oA==
+X-Gm-Message-State: APjAAAV0Uyt9D77d8W61+L5ZWqPFBQ5KBuNPRCE5aDUJmGBSxJV+OldP
+	H1iWQwkIr7c+6oAKDMfvFsNVsGAJC+70+5dzWXYhYQDWE8W99fwilfHLED739nUImGbp6VosnTp
+	tlF/U1Zt7YGs0x1pYznPP0EaP55omPPPInAuc6LurP/bzXXdCwgdHsM3bhYX2N5qiTA==
+X-Received: by 2002:a62:ee04:: with SMTP id e4mr42095863pfi.232.1558638037766;
+        Thu, 23 May 2019 12:00:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxD17+xmPzSK3rp3l+RW9WWA9OvXRhRe9hF4dtURmmYjLRak17L+4IgpzjKVAotrmYZG+9R
+X-Received: by 2002:a62:ee04:: with SMTP id e4mr42095708pfi.232.1558638036620;
+        Thu, 23 May 2019 12:00:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558638036; cv=none;
         d=google.com; s=arc-20160816;
-        b=jZWmW+tnyS/WRW6uXpFOGjKC8Sm+XKLIp5+S3i6KSCO2KE6VTpbilN2vHO1FJR/3ds
-         IqxRaOHazhwf9XvlGSgfgLyF4VFnDCeVt2q5/6EWnnuz40R4LzpdIEJp695pjgJYzm35
-         wYdMgC/6y5Wxj6raqTphlA/l3Js+h+i3zTPVjK1e5j7REpB4EQ2DlCrk/dI69T/gv8v2
-         85eE5GMrjjxD5tfIXDvpuY0Obi+Q4mm2Sd5KCAQfWB78Gb/zvVSVgfp21fXWoZsi6Axg
-         dphL1CNGP8Ov/wVHSIi/1qT/SyoiO1gYtMbzSR+Iahw+Y86fB9HLUVUBakbRpp2KS9U3
-         nwxg==
+        b=Eknz2S7g/m4T+Q5qPUvovXdoMP8dnsdmbcqFVXimz6oPPtjLS2jEA60BcO10Dj103G
+         +RpgHCJm9fgHSvBIihePrV0bxfLrpCzS71r4uws98YwxsdEOGyhERU34Kxzku9jvlqXx
+         g42bEXQ82RZSp5kBVmWXDpogJWWAMMCv4vj0ZNRVYtEqphcwIedWJMKOZWWyT5YUDpfi
+         G39lO8j8dCsiTH8pV3egNV0bm3O3bjmHZyWhx7Uct8CP0tjQFYXyMYR+dyHgA/WBy1gF
+         21T86xmaPUqx43BPLBCAWWla/EG4Yy5bTmjFp6R8WGYiu80i6Buc+zfr/IyepxV3kXDL
+         c+Vg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
+        h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=/CV1FhBU6ocaD5fOePWATFvyxYduYyIfBpfvSQwN/B8=;
-        b=I8jTnjkCA9nAGoR8mUPmFpTFNg1AHtsq9oOlSNt+l3+WjkG2iowuRNkWVH3kCzAano
-         8exnFSogLA10OZo053mD8yRE2xlfYdpvj89oXPFI1GDosr00c+H9TU/PtuYYcXiA+RQQ
-         s3dBqY0Hm3HEpVHQ0MuSldIeaQ4dlVnigPpV9CbE0aomktFtDS+u7xU7Y0AH5kuYRnZ2
-         29YV8Xb5fDK4WfAxI0XacWIbba4U4RT6iLcvCPTlQH5/feUqeLCYUzS/65/f/R+pp+4s
-         BQUaLIN2aL+u73SkHs8HSvXqCjdV/mzh+aE2JmFQDQXssDKUkO+wpF3h7veFIDNDE9aq
-         TtIg==
+        bh=2ANG0ElVZ/rPDPxKXuA88IUbN3whPdkvGrD4K4bBAhg=;
+        b=G9S3vv0WoD+OZ8zrlotDoe072Pf5a6E6LMyLGZxl2/wPtxyo54q3CfDc4JSr3R/TBF
+         2wVVvivT1Ncyqw9l5mJb5MFGaoMuSnqPRslgqKi/7nes2ygqCkHIaqJtUJoI32Nzkcbk
+         ABnrJMxxwapjGJNeOm9d7pFrm4+LqaX42Dah6UqcqbGdV2QwYeA6UDGcHX4J+kiDEQN3
+         SQWakHYlLFvHvCmzAonPe/o7XNsmKITM+aAOhxWB17D4bzshokxVoh6VZCf8Mu9x2pHH
+         Si7gc50uP1w1q3CRYenegWke5aih5ujK9uN78aHvWeVVLhjqETpLZS44FXpC/L4pwpLQ
+         /M3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Miz1U9o2;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id o4si503112pgg.49.2019.05.23.12.00.34
+       dkim=pass header.i=@kernel.org header.s=default header.b=UKb2x9rl;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id t4si536185plb.11.2019.05.23.12.00.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 23 May 2019 12:00:34 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 May 2019 12:00:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Miz1U9o2;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=/CV1FhBU6ocaD5fOePWATFvyxYduYyIfBpfvSQwN/B8=; b=Miz1U9o2wXcym4Jtn1wzy+VUn
-	4BJDF2kiponhBBRN/KFC/M/0I/Qr5ov6lMO9Mf5Zm7DnA/drcPmOna2euyKCsqRj/bZL9uIvcPKhY
-	xRqkO46Ak525MvJjJSV98ayqh2zv2tkbQvjt+Oz8ptIzGb2UICnoz/YNjZPrKZFdhOqkwlo9hz5Ag
-	V7bHvynIZUjN91dxR3oaRTqX6JHTfWbptGKyB5J28TfrS/yCOgTXrBmitaAhzM+KrELPYl1vC+100
-	i4YZjccf377zAwdOuTpxCZufHXIPfo9aPCLr53mVS5BW7O7U0YOVAu4c0RyKUDxyyRjrF3347VNLB
-	ImPknIcRg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hTsx7-0004yj-2H; Thu, 23 May 2019 19:00:33 +0000
-Date: Thu, 23 May 2019 12:00:32 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Kernel Team <kernel-team@fb.com>
-Subject: Re: xarray breaks thrashing detection and cgroup isolation
-Message-ID: <20190523190032.GA7873@bombadil.infradead.org>
-References: <20190523174349.GA10939@cmpxchg.org>
- <20190523183713.GA14517@bombadil.infradead.org>
- <CALvZod4o0sA8CM961ZCCp-Vv+i6awFY0U07oJfXFDiVfFiaZfg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALvZod4o0sA8CM961ZCCp-Vv+i6awFY0U07oJfXFDiVfFiaZfg@mail.gmail.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+       dkim=pass header.i=@kernel.org header.s=default header.b=UKb2x9rl;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id CFE1021773;
+	Thu, 23 May 2019 19:00:35 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1558638036;
+	bh=13UIe49+GBeGtJ+E53dBPhK+OZie9iCfaWakjVcwuYM=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=UKb2x9rl1vfTGb8v0sVVNuU2To49zaCWbwzfJAwkWxeIzgiVpA7tzDS0Z/6Vr1Vp3
+	 ndIElgQ3+ytxDzjPz2BeRmZWJmoBbIuOz2CVquV3kDamimSK+VAMKV4E7PML5ctTts
+	 apps6YWhnSV9Sghzka5xpyBkV7eA3kTcQcYnpuOs=
+Date: Thu, 23 May 2019 12:00:35 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Aaron Lu <aaron.lu@linux.alibaba.com>
+Cc: linux-mm@kvack.org, Huang Ying <ying.huang@intel.com>, Hugh Dickins
+ <hughd@google.com>
+Subject: Re: [PATCH] mm, swap: use rbtree for swap_extent
+Message-Id: <20190523120035.efb7c3bf4c91e3aef255621c@linux-foundation.org>
+In-Reply-To: <20190523142404.GA181@aaronlu>
+References: <20190523142404.GA181@aaronlu>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 23, 2019 at 11:49:41AM -0700, Shakeel Butt wrote:
-> On Thu, May 23, 2019 at 11:37 AM Matthew Wilcox <willy@infradead.org> wrote:
-> >
-> > On Thu, May 23, 2019 at 01:43:49PM -0400, Johannes Weiner wrote:
-> > > I noticed that recent upstream kernels don't account the xarray nodes
-> > > of the page cache to the allocating cgroup, like we used to do for the
-> > > radix tree nodes.
-> > >
-> > > This results in broken isolation for cgrouped apps, allowing them to
-> > > escape their containment and harm other cgroups and the system with an
-> > > excessive build-up of nonresident information.
-> > >
-> > > It also breaks thrashing/refault detection because the page cache
-> > > lives in a different domain than the xarray nodes, and so the shadow
-> > > shrinker can reclaim nonresident information way too early when there
-> > > isn't much cache in the root cgroup.
-> > >
-> > > I'm not quite sure how to fix this, since the xarray code doesn't seem
-> > > to have per-tree gfp flags anymore like the radix tree did. We cannot
-> > > add SLAB_ACCOUNT to the radix_tree_node_cachep slab cache. And the
-> > > xarray api doesn't seem to really support gfp flags, either (xas_nomem
-> > > does, but the optimistic internal allocations have fixed gfp flags).
-> >
-> > Would it be a problem to always add __GFP_ACCOUNT to the fixed flags?
-> > I don't really understand cgroups.
-> 
-> Does xarray cache allocated nodes, something like radix tree's:
-> 
-> static DEFINE_PER_CPU(struct radix_tree_preload, radix_tree_preloads) = { 0, };
-> 
-> For the cached one, no __GFP_ACCOUNT flag.
+On Thu, 23 May 2019 22:24:15 +0800 Aaron Lu <aaron.lu@linux.alibaba.com> wrote:
 
-No.  That was the point of the XArray conversion; no cached nodes.
+> From: Aaron Lu <ziqian.lzq@antfin.com>
+> 
+> swap_extent is used to map swap page offset to backing device's block
+> offset. For a continuous block range, one swap_extent is used and all
+> these swap_extents are managed in a linked list.
+> 
+> These swap_extents are used by map_swap_entry() during swap's read and
+> write path. To find out the backing device's block offset for a page
+> offset, the swap_extent list will be traversed linearly, with
+> curr_swap_extent being used as a cache to speed up the search.
+> 
+> This works well as long as swap_extents are not huge or when the number
+> of processes that access swap device are few, but when the swap device
+> has many extents and there are a number of processes accessing the swap
+> device concurrently, it can be a problem. On one of our servers, the
+> disk's remaining size is tight:
+> $df -h
+> Filesystem      Size  Used Avail Use% Mounted on
+> ... ...
+> /dev/nvme0n1p1  1.8T  1.3T  504G  72% /home/t4
+> 
+> When creating a 80G swapfile there, there are as many as 84656 swap
+> extents. The end result is, kernel spends abou 30% time in map_swap_entry()
+> and swap throughput is only 70MB/s. As a comparison, when I used smaller
+> sized swapfile, like 4G whose swap_extent dropped to 2000, swap throughput
+> is back to 400-500MB/s and map_swap_entry() is about 3%.
+> 
+> One downside of using rbtree for swap_extent is, 'struct rbtree' takes
+> 24 bytes while 'struct list_head' takes 16 bytes, that's 8 bytes more
+> for each swap_extent. For a swapfile that has 80k swap_extents, that
+> means 625KiB more memory consumed.
+> 
+> Test:
+> 
+> Since it's not possible to reboot that server, I can not test this patch
+> diretly there. Instead, I tested it on another server with NVMe disk.
+> 
+> I created a 20G swapfile on an NVMe backed XFS fs. By default, the
+> filesystem is quite clean and the created swapfile has only 2 extents.
+> Testing vanilla and this patch shows no obvious performance difference
+> when swapfile is not fragmented.
+> 
+> To see the patch's effects, I used some tweaks to manually fragment the
+> swapfile by breaking the extent at 1M boundary. This made the swapfile
+> have 20K extents.
+> 
+> nr_task=4
+> kernel   swapout(KB/s) map_swap_entry(perf)  swapin(KB/s) map_swap_entry(perf)
+> vanilla  165191           90.77%             171798         90.21%
+> patched  858993 +420%      2.16%      	     715827 +317%    0.77%
+> 
+> nr_task=8
+> kernel   swapout(KB/s) map_swap_entry(perf)  swapin(KB/s) map_swap_entry(perf)
+> vanilla  306783           92.19%             318145	    87.76%
+> patched  954437 +211%      2.35%            1073741 +237%    1.57%
+> 
+> swapout: the throughput of swap out, in KB/s, higher is better
+> 1st map_swap_entry: cpu cycles percent sampled by perf
+> swapin: the throughput of swap in, in KB/s, higher is better.
+> 2nd map_swap_entry: cpu cycles percent sampled by perf
+> 
+> nr_task=1 doesn't show any difference, this is due to the
+> curr_swap_extent can be effectively used to cache the correct swap
+> extent for single task workload.
 
-> Also some users of xarray may not want __GFP_ACCOUNT. That's the
-> reason we had __GFP_ACCOUNT for page cache instead of hard coding it
-> in radix tree.
+Seems sensible and the code looks straightforward.  Hopefully Hugh will
+be able to cast a gimlet eye over it.
 
-This is what I don't understand -- why would someone not want
-__GFP_ACCOUNT?  For a shared resource?  But the page cache is a shared
-resource.  So what is a good example of a time when an allocation should
-_not_ be accounted to the cgroup?
+>  
+> ...
+>
+> +static struct swap_extent *
+> +offset_to_swap_extent(struct swap_info_struct *sis, unsigned long offset)
+> +{
+> +	struct swap_extent *se;
+> +	struct rb_node *rb;
+> +
+> +	rb = sis->swap_extent_root.rb_node;
+> +	while (rb) {
+> +		se = rb_entry(rb, struct swap_extent, rb_node);
+> +		if (offset < se->start_page)
+> +			rb = rb->rb_left;
+> +		else if (offset >= se->start_page + se->nr_pages)
+> +			rb = rb->rb_right;
+> +		else
+> +			return se;
+> +	}
+> +	/* It *must* be present */
+> +	BUG_ON(1);
+
+I'm surprised this doesn't generate a warning about the function
+failing to return a value.  I guess the compiler figured out that
+BUG_ON(non-zero-constant) is equivalent to BUG(), which is noreturn.
+
+Let's do this?
+
+--- a/mm/swapfile.c~mm-swap-use-rbtree-for-swap_extent-fix
++++ a/mm/swapfile.c
+@@ -218,7 +218,7 @@ offset_to_swap_extent(struct swap_info_s
+ 			return se;
+ 	}
+ 	/* It *must* be present */
+-	BUG_ON(1);
++	BUG();
+ }
+ 
 
