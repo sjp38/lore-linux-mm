@@ -2,205 +2,485 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D7BEC282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 10:43:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DC1FDC282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 11:29:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3D9592133D
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 10:43:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3D9592133D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 7D18321873
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 11:29:29 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Jfhvi61p"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D18321873
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B82046B0003; Thu, 23 May 2019 06:43:08 -0400 (EDT)
+	id 089456B0003; Thu, 23 May 2019 07:29:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B32266B0006; Thu, 23 May 2019 06:43:08 -0400 (EDT)
+	id 039F46B0006; Thu, 23 May 2019 07:29:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9F9B96B0007; Thu, 23 May 2019 06:43:08 -0400 (EDT)
+	id E69ED6B0007; Thu, 23 May 2019 07:29:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FCC06B0003
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 06:43:08 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id h12so8356958edl.23
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 03:43:08 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AC93A6B0003
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 07:29:28 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id d125so800271pfd.3
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 04:29:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=gU+3lqsoWF7Hzm+RBc+ukiaSDRZZ3u+etuBmqyigeJ4=;
-        b=klAOomUSH5hwnAKvbQEQoOvznjVPZcTemb0NlOmWx5HVhfGlCrcGjSGkBE1K5olJ4A
-         O7oIAKzhZNVc4LW2DUTaqGESa+/SoJbqJOG0OVYQ5j+W24xDnJGu0PUhO250i6XibxXn
-         mbkgSzJe0mZzBHDpoDUb2efUhJqmOK9J063NdSaA8LvS2clykD0cPVB+gd9BIpTyrZ3d
-         eG/9aMLDN/vhsCjKZGfAVdFqFtj5n4mZ9TJLlgmfCoTZp7C0/OF8Z+owyzJwcZVznjnD
-         9H/KY94uIX+RsGkCpRBb2DQ6N5Pg0ieiiUbcbKu6pgWk0FV44GQQAKm/gyrgacIf0pUL
-         dvMw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-X-Gm-Message-State: APjAAAWfJS/MQ7Y2QAL/4DFexgenVTz4lYOOi2UjpQhzRQsJPu4394mt
-	i6Tn1TbOjP0P+WiT9ySzUFPAHnBWDbilliIY1q7btSogOeCaag63hc4K2W3mdNQVoE01ZZp4keQ
-	F3LR0CFvpcs5nBJOGVjspmL6/jNwMRZwrVLhm83tYg+/9rgX3VF3+iL9r2clVnS1Znw==
-X-Received: by 2002:a17:906:7cd2:: with SMTP id h18mr39227665ejp.267.1558608187878;
-        Thu, 23 May 2019 03:43:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxPh2HltUT4lm9sf+qyA32hJkRdTLCb30Ats66oFswcAcFBKvdMbQUQqGNIF/k0vW2kl3ZW
-X-Received: by 2002:a17:906:7cd2:: with SMTP id h18mr39227582ejp.267.1558608186846;
-        Thu, 23 May 2019 03:43:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558608186; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:from:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=KI9o0ILKA0kC5fhQFgz5VimI4xPFvLtrUGrVUP8aSkE=;
+        b=HW5ZAEKOuqG2LLLjSXrP2O2zYVib7HCOiA+QYu6OMGK+Tt7OcfFqRourtVMHr7sL+v
+         s5XssgNgaryVs9zsJXxffY+Rs6WErUjv1rKd3uszR7g7vXWx/fY4fBNz+SHyalyU56uw
+         TPOjb3N1w7Kzd3KmPE6+bhq7TrUUfuadIlq5GWRESJdwxEd/C18fByFROvUSKqHczBIm
+         txVg80EwvlB1op8HKafHwnKZU/jbDf8VYsGITwpkaNiC0F/f6chNjvAkQWyzWuAU05AE
+         +buNA7llZLpqq+PRIFaokQp+YT10YIhTBzeQYTBg0KMlRIbamx+AlY7pbCDGjdJ94iIX
+         srDw==
+X-Gm-Message-State: APjAAAVAvzExhHQDHgwZx5qWdGfRp8aPoYdlrAHe7dhrf3BxMq6PAhhn
+	4PSaWv3A0ZcUseiyAXdmA/TNCUSfJWu7q62z9hBLaD1q5GVoJpSdCGMcofaQi/3EhecCLs+6+MZ
+	Pb8jAKyPKIPeQ8pgfJOs+UhGYpxBRSjJKmXfdUqucqLVuL/lGoTg5QivmvljUAVB27w==
+X-Received: by 2002:a17:90a:b393:: with SMTP id e19mr645711pjr.91.1558610968201;
+        Thu, 23 May 2019 04:29:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzo/5r209psAqvpWo+8pfsS1abjZQRDh8kADYi+BbFTqu7dQN3FcGyssIgg5RusGRZzfsiL
+X-Received: by 2002:a17:90a:b393:: with SMTP id e19mr645663pjr.91.1558610967230;
+        Thu, 23 May 2019 04:29:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558610967; cv=none;
         d=google.com; s=arc-20160816;
-        b=QT68nie1M0liX9K2DPE6RQPn0yIy0VNRCM7o+dnUPXW/7luzxt9ZT5U9g8+IurboWL
-         zlkv1KAcPUro6IIrJcKDda4YqGgt9KuWb4geDVQkkvucdjQv+7yGOYqATob6M1V3+wN0
-         AQDZ9tnUNHZgGXoik6EDQW3sb7cLvadCOiQ7TiyoR0swlMykyo5bnLDDFDKSsozMqeOB
-         XjG2+LtQ0c9lUHG5NadLnUSWgqQdoUC1SkQQ1ueMIq+ptAjkM6DXeYSmi51Lw8e1t/8g
-         BURKK+WPEDap4s8sJlPo5Hr9XwS9uleURndgHZiCtmCmO9KUr/unXEkVKQYvtWepxaIx
-         /PgA==
+        b=gOOBX61hY7GGwi4WgSO7PihaprR+CvZW1g+3Ptnpo7XINsvIKP3dOE6sJMKm9Chu9U
+         rs4XqvsTXySHGEm3/FcwkceDvY6yTQgDMDXM962ie8Z5WBLx097TyOmPlOjuCUTTDgWK
+         GmbMXnSFUG5vpatvdEd2CuVXJWfHUBGy58Fob8mFqJlQbLcGz9J9CsjxKlcMhCgY+xXn
+         lMboO2WMDARb2Au6IR/xECvOoWDYTUS8tnPvcePEhWmfeiDm9hAzptK1YqFSNZtDTz48
+         gEpbQ3pSagLdJThCu7ggXfFsISIyY17AAI0hXnqB9IYFylfOm/jApm/CuI757h+1/SGK
+         ioEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=gU+3lqsoWF7Hzm+RBc+ukiaSDRZZ3u+etuBmqyigeJ4=;
-        b=tooe3swxOShAvPDwI6V9laUONRR7wlKcz0EtgUMjJHo1EaaTdhct2J5JFEH+OKCdCa
-         uBjFrX6la+wxvo67fAyTWwHRAF4DhNZ11jCjtnSkX1kg9OjNac15xitwl52GZ+Jh5osD
-         yXxl8rSRANZhGqknSvXy8ppqV3MFYgEOdsAMEELa9jHeymXaEezWCEUbpEWUR2ZvNZkw
-         9g4HkA9xvf9U4jkNZUIaqRK7eQRj24ZOqicyQOyjYOS+moL1e1/+VaWtZk+Zpw5ggtuA
-         jq0T36OaXMWoTMck2GY+NUgYb5z5QtDEvVU3Rd2G1+4NDAmF/N1X2xZsfsPgBct5y1Jl
-         ECCQ==
+        h=content-transfer-encoding:mime-version:message-id:date:from:cc:to
+         :subject:dkim-signature;
+        bh=KI9o0ILKA0kC5fhQFgz5VimI4xPFvLtrUGrVUP8aSkE=;
+        b=DH/BwRYVNkuZLk2A/Xn3xuA8kHLIMhFeldRO/iC8hlgpM4ptS7rGKR1peWqj9KPVIQ
+         tqUfpudwf5S91agnm73hYmmqDgAFESmEry+Tem/pfmem5CiU+o/ycE63Z66DY2Q2enUB
+         7d+ckpftGF8n6dlxPgoaaH/0OR2/T/C4AC97TouZHb6Vkvlkr0Yvw2reCUYtBmkWc5VI
+         5QcRLoyJSk53WNXGlGcba/KGE3NyCy0jQsV1c1yfF3jIkFIgwB8MyJrLGqf6Syjpyc75
+         GnjHxwf9aqJV53g8xWNNKj93uC5Ewf6/vg+T5aH4PxYMfffG0uL7RhQyaeZp0ZB5QfGJ
+         1mew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id h36si2833206edb.397.2019.05.23.03.43.06
-        for <linux-mm@kvack.org>;
-        Thu, 23 May 2019 03:43:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Jfhvi61p;
+       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id c4si28504866pgn.428.2019.05.23.04.29.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 May 2019 04:29:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 84A77341;
-	Thu, 23 May 2019 03:43:05 -0700 (PDT)
-Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C9A023F718;
-	Thu, 23 May 2019 03:42:59 -0700 (PDT)
-Date: Thu, 23 May 2019 11:42:57 +0100
-From: Dave Martin <Dave.Martin@arm.com>
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Mark Rutland <mark.rutland@arm.com>, kvm@vger.kernel.org,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, Lee Smith <Lee.Smith@arm.com>,
-	linux-kselftest@vger.kernel.org,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Leon Romanovsky <leon@kernel.org>, linux-rdma@vger.kernel.org,
-	amd-gfx@lists.freedesktop.org, linux-arm-kernel@lists.infradead.org,
-	Evgeniy Stepanov <eugenis@google.com>, linux-media@vger.kernel.org,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	linux-kernel@vger.kernel.org,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
-Message-ID: <20190523104256.GX28398@e103592.cambridge.arm.com>
-References: <cover.1557160186.git.andreyknvl@google.com>
- <20190517144931.GA56186@arrakis.emea.arm.com>
- <20190521184856.GC2922@ziepe.ca>
- <20190522134925.GV28398@e103592.cambridge.arm.com>
- <20190523002052.GF15389@ziepe.ca>
+       dkim=pass header.i=@kernel.org header.s=default header.b=Jfhvi61p;
+       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
+Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 15FF621871;
+	Thu, 23 May 2019 11:29:26 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1558610966;
+	bh=LRQ74B2rYPwMQlOWa99wSe0znTiX8FTGrc5uKOZNdto=;
+	h=Subject:To:Cc:From:Date:From;
+	b=Jfhvi61p9TrhJ4eor1tqhz4eNdHL8/8DwZdDkS393WkKmGU2/SyiSKfiDe8Pxqpss
+	 QkoQumh8yyZpqw4BICELpWlcZnBJYI8GLXMUrgxuBqlgw7X75/Vk24i1m7kI0R0VBO
+	 60XPoMTwLFKqQ3kMzHBUbw7ZzWpvLKWK1FZM9Lek=
+Subject: Patch "x86/mpx, mm/core: Fix recursive munmap() corruption" has been added to the 5.0-stable tree
+To: 20190419194747.5E1AD6DC@viggo.jf.intel.com,akpm@linux-foundation.org,anton.ivanov@cambridgegreys.com,benh@kernel.crashing.org,bp@alien8.de,dave.hansen@linux.intel.com,gregkh@linuxfoundation.org,gxt@pku.edu.cn,hjl.tools@gmail.com,hpa@zytor.com,jdike@addtoit.com,linux-mm@kvack.org,linux-um@lists.infradead.org,linuxppc-dev@lists.ozlabs.org,luto@kernel.org,mhocko@suse.com,mingo@kernel.org,mpe@ellerman.id.au,paulus@samba.org,peterz@infradead.org,rguenther@suse.de,richard@nod.at,riel@surriel.com,tglx@linutronix.de,torvalds@linux-foundation.org,vbabka@suse.cz,yang.shi@linux.alibaba.com
+Cc: <stable-commits@vger.kernel.org>
+From: <gregkh@linuxfoundation.org>
+Date: Thu, 23 May 2019 13:26:17 +0200
+Message-ID: <155861077763253@kroah.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190523002052.GF15389@ziepe.ca>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+Content-Type: text/plain; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 8bit
+X-stable: commit
+X-Patchwork-Hint: ignore 
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 22, 2019 at 09:20:52PM -0300, Jason Gunthorpe wrote:
-> On Wed, May 22, 2019 at 02:49:28PM +0100, Dave Martin wrote:
-> > On Tue, May 21, 2019 at 03:48:56PM -0300, Jason Gunthorpe wrote:
-> > > On Fri, May 17, 2019 at 03:49:31PM +0100, Catalin Marinas wrote:
-> > > 
-> > > > The tagged pointers (whether hwasan or MTE) should ideally be a
-> > > > transparent feature for the application writer but I don't think we can
-> > > > solve it entirely and make it seamless for the multitude of ioctls().
-> > > > I'd say you only opt in to such feature if you know what you are doing
-> > > > and the user code takes care of specific cases like ioctl(), hence the
-> > > > prctl() proposal even for the hwasan.
-> > > 
-> > > I'm not sure such a dire view is warrented.. 
-> > > 
-> > > The ioctl situation is not so bad, other than a few special cases,
-> > > most drivers just take a 'void __user *' and pass it as an argument to
-> > > some function that accepts a 'void __user *'. sparse et al verify
-> > > this. 
-> > > 
-> > > As long as the core functions do the right thing the drivers will be
-> > > OK.
-> > > 
-> > > The only place things get dicy is if someone casts to unsigned long
-> > > (ie for vma work) but I think that reflects that our driver facing
-> > > APIs for VMAs are compatible with static analysis (ie I have no
-> > > earthly idea why get_user_pages() accepts an unsigned long), not that
-> > > this is too hard.
-> > 
-> > If multiple people will care about this, perhaps we should try to
-> > annotate types more explicitly in SYSCALL_DEFINEx() and ABI data
-> > structures.
-> > 
-> > For example, we could have a couple of mutually exclusive modifiers
-> > 
-> > T __object *
-> > T __vaddr * (or U __vaddr)
-> > 
-> > In the first case the pointer points to an object (in the C sense)
-> > that the call may dereference but not use for any other purpose.
-> 
-> How would you use these two differently?
-> 
-> So far the kernel has worked that __user should tag any pointer that
-> is from userspace and then you can't do anything with it until you
-> transform it into a kernel something
 
-Ultimately it would be good to disallow casting __object pointers execpt
-to compatible __object pointer types, and to make get_user etc. demand
-__object.
+This is a note to let you know that I've just added the patch titled
 
-__vaddr pointers / addresses would be freely castable, but not to
-__object and so would not be dereferenceable even indirectly.
+    x86/mpx, mm/core: Fix recursive munmap() corruption
 
-Or that's the general idea.  Figuring out a sane set of rules that we
-could actually check / enforce would require a bit of work.
+to the 5.0-stable tree which can be found at:
+    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
-(Whether the __vaddr base type is a pointer or an integer type is
-probably moot, due to the restrictions we would place on the use of
-these anyway.)
+The filename of the patch is:
+     x86-mpx-mm-core-fix-recursive-munmap-corruption.patch
+and it can be found in the queue-5.0 subdirectory.
 
-> > to tell static analysers the real type of pointers smuggled through
-> > UAPI disguised as other types (*cough* KVM, etc.)
-> 
-> Yes, that would help alot, we often have to pass pointers through a
-> u64 in the uAPI, and there is no static checker support to make sure
-> they are run through the u64_to_user_ptr() helper.
+If you, or anyone else, feels it should not be added to the stable tree,
+please let <stable@vger.kernel.org> know about it.
 
-Agreed.
 
-Cheers
----Dave
+From 5a28fc94c9143db766d1ba5480cae82d856ad080 Mon Sep 17 00:00:00 2001
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Fri, 19 Apr 2019 12:47:47 -0700
+Subject: x86/mpx, mm/core: Fix recursive munmap() corruption
+
+From: Dave Hansen <dave.hansen@linux.intel.com>
+
+commit 5a28fc94c9143db766d1ba5480cae82d856ad080 upstream.
+
+This is a bit of a mess, to put it mildly.  But, it's a bug
+that only seems to have showed up in 4.20 but wasn't noticed
+until now, because nobody uses MPX.
+
+MPX has the arch_unmap() hook inside of munmap() because MPX
+uses bounds tables that protect other areas of memory.  When
+memory is unmapped, there is also a need to unmap the MPX
+bounds tables.  Barring this, unused bounds tables can eat 80%
+of the address space.
+
+But, the recursive do_munmap() that gets called vi arch_unmap()
+wreaks havoc with __do_munmap()'s state.  It can result in
+freeing populated page tables, accessing bogus VMA state,
+double-freed VMAs and more.
+
+See the "long story" further below for the gory details.
+
+To fix this, call arch_unmap() before __do_unmap() has a chance
+to do anything meaningful.  Also, remove the 'vma' argument
+and force the MPX code to do its own, independent VMA lookup.
+
+== UML / unicore32 impact ==
+
+Remove unused 'vma' argument to arch_unmap().  No functional
+change.
+
+I compile tested this on UML but not unicore32.
+
+== powerpc impact ==
+
+powerpc uses arch_unmap() well to watch for munmap() on the
+VDSO and zeroes out 'current->mm->context.vdso_base'.  Moving
+arch_unmap() makes this happen earlier in __do_munmap().  But,
+'vdso_base' seems to only be used in perf and in the signal
+delivery that happens near the return to userspace.  I can not
+find any likely impact to powerpc, other than the zeroing
+happening a little earlier.
+
+powerpc does not use the 'vma' argument and is unaffected by
+its removal.
+
+I compile-tested a 64-bit powerpc defconfig.
+
+== x86 impact ==
+
+For the common success case this is functionally identical to
+what was there before.  For the munmap() failure case, it's
+possible that some MPX tables will be zapped for memory that
+continues to be in use.  But, this is an extraordinarily
+unlikely scenario and the harm would be that MPX provides no
+protection since the bounds table got reset (zeroed).
+
+I can't imagine anyone doing this:
+
+	ptr = mmap();
+	// use ptr
+	ret = munmap(ptr);
+	if (ret)
+		// oh, there was an error, I'll
+		// keep using ptr.
+
+Because if you're doing munmap(), you are *done* with the
+memory.  There's probably no good data in there _anyway_.
+
+This passes the original reproducer from Richard Biener as
+well as the existing mpx selftests/.
+
+The long story:
+
+munmap() has a couple of pieces:
+
+ 1. Find the affected VMA(s)
+ 2. Split the start/end one(s) if neceesary
+ 3. Pull the VMAs out of the rbtree
+ 4. Actually zap the memory via unmap_region(), including
+    freeing page tables (or queueing them to be freed).
+ 5. Fix up some of the accounting (like fput()) and actually
+    free the VMA itself.
+
+This specific ordering was actually introduced by:
+
+  dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
+
+during the 4.20 merge window.  The previous __do_munmap() code
+was actually safe because the only thing after arch_unmap() was
+remove_vma_list().  arch_unmap() could not see 'vma' in the
+rbtree because it was detached, so it is not even capable of
+doing operations unsafe for remove_vma_list()'s use of 'vma'.
+
+Richard Biener reported a test that shows this in dmesg:
+
+  [1216548.787498] BUG: Bad rss-counter state mm:0000000017ce560b idx:1 val:551
+  [1216548.787500] BUG: non-zero pgtables_bytes on freeing mm: 24576
+
+What triggered this was the recursive do_munmap() called via
+arch_unmap().  It was freeing page tables that has not been
+properly zapped.
+
+But, the problem was bigger than this.  For one, arch_unmap()
+can free VMAs.  But, the calling __do_munmap() has variables
+that *point* to VMAs and obviously can't handle them just
+getting freed while the pointer is still in use.
+
+I tried a couple of things here.  First, I tried to fix the page
+table freeing problem in isolation, but I then found the VMA
+issue.  I also tried having the MPX code return a flag if it
+modified the rbtree which would force __do_munmap() to re-walk
+to restart.  That spiralled out of control in complexity pretty
+fast.
+
+Just moving arch_unmap() and accepting that the bonkers failure
+case might eat some bounds tables seems like the simplest viable
+fix.
+
+This was also reported in the following kernel bugzilla entry:
+
+  https://bugzilla.kernel.org/show_bug.cgi?id=203123
+
+There are some reports that this commit triggered this bug:
+
+  dd2283f2605 ("mm: mmap: zap pages with read mmap_sem in munmap")
+
+While that commit certainly made the issues easier to hit, I believe
+the fundamental issue has been with us as long as MPX itself, thus
+the Fixes: tag below is for one of the original MPX commits.
+
+[ mingo: Minor edits to the changelog and the patch. ]
+
+Reported-by: Richard Biener <rguenther@suse.de>
+Reported-by: H.J. Lu <hjl.tools@gmail.com>
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Reviewed-by Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Yang Shi <yang.shi@linux.alibaba.com>
+Acked-by: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Anton Ivanov <anton.ivanov@cambridgegreys.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Guan Xuetao <gxt@pku.edu.cn>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Jeff Dike <jdike@addtoit.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Richard Weinberger <richard@nod.at>
+Cc: Rik van Riel <riel@surriel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-arch@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: linux-um@lists.infradead.org
+Cc: linuxppc-dev@lists.ozlabs.org
+Cc: stable@vger.kernel.org
+Fixes: dd2283f2605e ("mm: mmap: zap pages with read mmap_sem in munmap")
+Link: http://lkml.kernel.org/r/20190419194747.5E1AD6DC@viggo.jf.intel.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ arch/powerpc/include/asm/mmu_context.h   |    1 -
+ arch/um/include/asm/mmu_context.h        |    1 -
+ arch/unicore32/include/asm/mmu_context.h |    1 -
+ arch/x86/include/asm/mmu_context.h       |    6 +++---
+ arch/x86/include/asm/mpx.h               |   15 ++++++++-------
+ arch/x86/mm/mpx.c                        |   10 ++++++----
+ include/asm-generic/mm_hooks.h           |    1 -
+ mm/mmap.c                                |   15 ++++++++-------
+ 8 files changed, 25 insertions(+), 25 deletions(-)
+
+--- a/arch/powerpc/include/asm/mmu_context.h
++++ b/arch/powerpc/include/asm/mmu_context.h
+@@ -237,7 +237,6 @@ extern void arch_exit_mmap(struct mm_str
+ #endif
+ 
+ static inline void arch_unmap(struct mm_struct *mm,
+-			      struct vm_area_struct *vma,
+ 			      unsigned long start, unsigned long end)
+ {
+ 	if (start <= mm->context.vdso_base && mm->context.vdso_base < end)
+--- a/arch/um/include/asm/mmu_context.h
++++ b/arch/um/include/asm/mmu_context.h
+@@ -22,7 +22,6 @@ static inline int arch_dup_mmap(struct m
+ }
+ extern void arch_exit_mmap(struct mm_struct *mm);
+ static inline void arch_unmap(struct mm_struct *mm,
+-			struct vm_area_struct *vma,
+ 			unsigned long start, unsigned long end)
+ {
+ }
+--- a/arch/unicore32/include/asm/mmu_context.h
++++ b/arch/unicore32/include/asm/mmu_context.h
+@@ -88,7 +88,6 @@ static inline int arch_dup_mmap(struct m
+ }
+ 
+ static inline void arch_unmap(struct mm_struct *mm,
+-			struct vm_area_struct *vma,
+ 			unsigned long start, unsigned long end)
+ {
+ }
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -277,8 +277,8 @@ static inline void arch_bprm_mm_init(str
+ 	mpx_mm_init(mm);
+ }
+ 
+-static inline void arch_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+-			      unsigned long start, unsigned long end)
++static inline void arch_unmap(struct mm_struct *mm, unsigned long start,
++			      unsigned long end)
+ {
+ 	/*
+ 	 * mpx_notify_unmap() goes and reads a rarely-hot
+@@ -298,7 +298,7 @@ static inline void arch_unmap(struct mm_
+ 	 * consistently wrong.
+ 	 */
+ 	if (unlikely(cpu_feature_enabled(X86_FEATURE_MPX)))
+-		mpx_notify_unmap(mm, vma, start, end);
++		mpx_notify_unmap(mm, start, end);
+ }
+ 
+ /*
+--- a/arch/x86/include/asm/mpx.h
++++ b/arch/x86/include/asm/mpx.h
+@@ -64,12 +64,15 @@ struct mpx_fault_info {
+ };
+ 
+ #ifdef CONFIG_X86_INTEL_MPX
+-int mpx_fault_info(struct mpx_fault_info *info, struct pt_regs *regs);
+-int mpx_handle_bd_fault(void);
++
++extern int mpx_fault_info(struct mpx_fault_info *info, struct pt_regs *regs);
++extern int mpx_handle_bd_fault(void);
++
+ static inline int kernel_managing_mpx_tables(struct mm_struct *mm)
+ {
+ 	return (mm->context.bd_addr != MPX_INVALID_BOUNDS_DIR);
+ }
++
+ static inline void mpx_mm_init(struct mm_struct *mm)
+ {
+ 	/*
+@@ -78,11 +81,10 @@ static inline void mpx_mm_init(struct mm
+ 	 */
+ 	mm->context.bd_addr = MPX_INVALID_BOUNDS_DIR;
+ }
+-void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+-		      unsigned long start, unsigned long end);
+ 
+-unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len,
+-		unsigned long flags);
++extern void mpx_notify_unmap(struct mm_struct *mm, unsigned long start, unsigned long end);
++extern unsigned long mpx_unmapped_area_check(unsigned long addr, unsigned long len, unsigned long flags);
++
+ #else
+ static inline int mpx_fault_info(struct mpx_fault_info *info, struct pt_regs *regs)
+ {
+@@ -100,7 +102,6 @@ static inline void mpx_mm_init(struct mm
+ {
+ }
+ static inline void mpx_notify_unmap(struct mm_struct *mm,
+-				    struct vm_area_struct *vma,
+ 				    unsigned long start, unsigned long end)
+ {
+ }
+--- a/arch/x86/mm/mpx.c
++++ b/arch/x86/mm/mpx.c
+@@ -881,9 +881,10 @@ static int mpx_unmap_tables(struct mm_st
+  * the virtual address region start...end have already been split if
+  * necessary, and the 'vma' is the first vma in this range (start -> end).
+  */
+-void mpx_notify_unmap(struct mm_struct *mm, struct vm_area_struct *vma,
+-		unsigned long start, unsigned long end)
++void mpx_notify_unmap(struct mm_struct *mm, unsigned long start,
++		      unsigned long end)
+ {
++	struct vm_area_struct *vma;
+ 	int ret;
+ 
+ 	/*
+@@ -902,11 +903,12 @@ void mpx_notify_unmap(struct mm_struct *
+ 	 * which should not occur normally. Being strict about it here
+ 	 * helps ensure that we do not have an exploitable stack overflow.
+ 	 */
+-	do {
++	vma = find_vma(mm, start);
++	while (vma && vma->vm_start < end) {
+ 		if (vma->vm_flags & VM_MPX)
+ 			return;
+ 		vma = vma->vm_next;
+-	} while (vma && vma->vm_start < end);
++	}
+ 
+ 	ret = mpx_unmap_tables(mm, start, end);
+ 	if (ret)
+--- a/include/asm-generic/mm_hooks.h
++++ b/include/asm-generic/mm_hooks.h
+@@ -18,7 +18,6 @@ static inline void arch_exit_mmap(struct
+ }
+ 
+ static inline void arch_unmap(struct mm_struct *mm,
+-			struct vm_area_struct *vma,
+ 			unsigned long start, unsigned long end)
+ {
+ }
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2736,9 +2736,17 @@ int __do_munmap(struct mm_struct *mm, un
+ 		return -EINVAL;
+ 
+ 	len = PAGE_ALIGN(len);
++	end = start + len;
+ 	if (len == 0)
+ 		return -EINVAL;
+ 
++	/*
++	 * arch_unmap() might do unmaps itself.  It must be called
++	 * and finish any rbtree manipulation before this code
++	 * runs and also starts to manipulate the rbtree.
++	 */
++	arch_unmap(mm, start, end);
++
+ 	/* Find the first overlapping VMA */
+ 	vma = find_vma(mm, start);
+ 	if (!vma)
+@@ -2747,7 +2755,6 @@ int __do_munmap(struct mm_struct *mm, un
+ 	/* we have  start < vma->vm_end  */
+ 
+ 	/* if it doesn't overlap, we have nothing.. */
+-	end = start + len;
+ 	if (vma->vm_start >= end)
+ 		return 0;
+ 
+@@ -2817,12 +2824,6 @@ int __do_munmap(struct mm_struct *mm, un
+ 	/* Detach vmas from rbtree */
+ 	detach_vmas_to_be_unmapped(mm, vma, prev, end);
+ 
+-	/*
+-	 * mpx unmap needs to be called with mmap_sem held for write.
+-	 * It is safe to call it before unmap_region().
+-	 */
+-	arch_unmap(mm, vma, start, end);
+-
+ 	if (downgrade)
+ 		downgrade_write(&mm->mmap_sem);
+ 
+
+
+Patches currently in stable-queue which might be from dave.hansen@linux.intel.com are
+
+queue-5.0/x86-mpx-mm-core-fix-recursive-munmap-corruption.patch
 
