@@ -2,160 +2,198 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EE5C4C282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 15:21:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4AD1BC282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 15:32:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BC19320665
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 15:21:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC19320665
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 05F712175B
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 15:32:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 05F712175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4BD056B026E; Thu, 23 May 2019 11:21:36 -0400 (EDT)
+	id 921C56B0271; Thu, 23 May 2019 11:32:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 446336B0270; Thu, 23 May 2019 11:21:36 -0400 (EDT)
+	id 8D20C6B0272; Thu, 23 May 2019 11:32:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2E6C06B0271; Thu, 23 May 2019 11:21:36 -0400 (EDT)
+	id 79A2C6B0273; Thu, 23 May 2019 11:32:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D1F5F6B026E
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 11:21:35 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id n52so9560965edd.2
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 08:21:35 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 574C36B0271
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 11:32:00 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id w34so5640459qtc.16
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 08:32:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=fb+sRFUqop/LR09JWznlfcD+auxrcxFlhwW+VrYfGE8=;
-        b=dXf6rmGOt9/Gcs/M6Fr2/ZnCdh1C1jZ3a4V83adGLbDW7BT8wiQ2IMEXDYeF3xGeNs
-         +7Ri6erk3jZ6sVp0S1ouIacshxnjqMSf/7IoQGkHBan25bebQk3q49oE6eCAnyPoyQNK
-         g5ERCFJeh3rdeEPZR4M0F6mi7uAIxMmpbKfPPtIxzQCfQktd8CIuyHU77DmpymvwRyBy
-         Osx+eIu7hy5nBfV9HMnLajG62zlOCnq7+UGxvJPoWMfspKzfrq9jfLTA01HpptMZg342
-         BPsMNhY+CP4gNHyPreI5hapoUKHS2YukkoNV/UZ1/GLhXQdZI0xWigCRLckEI7h2/Mde
-         fJ9A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAU+xAqslFD4lSN8tu7F3Krc2aHQFj3zuhqTGS6pAI1ipqtFGNBi
-	oP+d921mUyBiSraxAMT0kmu2S+G9ADZcHFRMZgzdZ3zfWwgHVv1c/rxEVfovvfgJ+nv/mC1iNdX
-	4QEfhjONSC4OMQx/Ligxe6Nx6QGC552Qh5Nx3Y3hMN9oKXmGOyxVWLpsdGs2nhOZCoA==
-X-Received: by 2002:a17:906:f848:: with SMTP id ks8mr69927846ejb.165.1558624895338;
-        Thu, 23 May 2019 08:21:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxcWqJlzmFUyeiv4UkJlpDMJ9NgU4lusAwh4ZiO5TBQTcOu+e8DLS5ODymgkPkxGbmgtLcz
-X-Received: by 2002:a17:906:f848:: with SMTP id ks8mr69927655ejb.165.1558624893406;
-        Thu, 23 May 2019 08:21:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558624893; cv=none;
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=lEVfPkVfbwccBniTLIDBnpF3OcPrQhqGvlqNpb+wuV0=;
+        b=X+Zj6bJPAM5Pieaq3sOeI7AZn7HefzHoTTM/WlL+e3VURWDRjHeXzdB9/tnY0Nrml7
+         LFZvlAUc+7k+tz3tPVgBC//Ogfkw+FA/v33ACaTU38riYbHd1D0WwWjJ4VF+h5BL+lnw
+         uCS6wwcLh4LmmTUs+uezmFyenbl9a6sbZ5ATB5NGHafyAXubTstxvDBDUOXweAROF+wE
+         TPG5RRnHLNapLV3XRw7gze0FpXn/cRCT62+z6/IGUi9o6h9h8xWD6xKDaM+mOAVRh1UP
+         bdHg+8ykHbA1KgZeyAi6EaazOROv+lwHdhvAMNZ7/smYga005v6BrAfd0xWILzD95H6z
+         F7rQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUtTZqHo+0UV0IiJGUxHKTocM7g9BJ54P5reJci+9jG+jVvOFVA
+	JLKbfwxYv+Ke1ERMngj+fHAcGN5U/v0zquXJLxad6qrgK8fvyL1Qj7QKldIiyTaIwcLhLuDm80/
+	337EOBuYse4UXoHCxcLE/y4VN2QjhEgQp9VRi3vphjOm6eVPmSRn+9bhR9Avcc/RfHA==
+X-Received: by 2002:ac8:8fd:: with SMTP id y58mr82756439qth.375.1558625520058;
+        Thu, 23 May 2019 08:32:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxPxqXDKzTiYPdNY1oB/WDcVBl1DwFnE2uZjzGHPAXiPoWiHoQ0dN163LYAcUlzZc3CLlrB
+X-Received: by 2002:ac8:8fd:: with SMTP id y58mr82756360qth.375.1558625519432;
+        Thu, 23 May 2019 08:31:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558625519; cv=none;
         d=google.com; s=arc-20160816;
-        b=u58SWtIJ3aSO5/YLFGz8fLA08VsYCFazFbxWWJl+VEB70Td+FRnNs11WMlz09TsjqG
-         Ds/aBxbOUEyPfqpBFcN51K+pQDEiGYauV/5mpkWAAr8TX+/Xjw+zEIq3ByFbWCDeTAcA
-         Uv4Vcq52nknYcwklZ0K6C5yTpZN8rYDJ9RIWSTsowBvyb91d4zhPMYHcH0PUk1B3GRa5
-         UyzjVSqWiSBAPIkYkepuuSGjay22jfgvCxqyPqMVo1qQCdikZedji8AXA6lpqIi5lGBo
-         flLq1BsNxgfdobENkkP+pR51qk9+AjuNxL15UQTflql9bZ4coHMrvxOLONN1k6hKLe/L
-         OshA==
+        b=EtJBlTWFRJOH+Nz7czdTaOuqQIg85Qq+a3eF4i3F6LO29nh0RCvG5DA7XH/f5luTOM
+         pve9pNEHMqo+8g7GyaPSzqc7/F/Uzxsq6v4uBrpO5kIPXDrI8x3T5vdpJkG4qEMi1g/+
+         YBCAFHcKiNJIprls8A9VHbOxuhKsgeA4TEREouq7cmdBzuIwQVIwqqdjsQofX5fK5K4K
+         MyK8Q5buFxNdHXYSThRsSWA51b1CFFLKDTsF0o83sTGCNWVKCEYkaF1FX+zn2+8YomXY
+         3yyDhp4hTGQD74nAZZoTH+0QKShe8JK/bgWFZzBPY9clBomHx5ygJfNo11/6WZ9hzIXo
+         A4Lw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=fb+sRFUqop/LR09JWznlfcD+auxrcxFlhwW+VrYfGE8=;
-        b=r6LVHiOlmdEdpndeqL1jkrrfcL/xtBR+vyZRFFP0wcqBAG+oyAHTM2oECTL4zY35vd
-         NGLsDiyDZjgaPtsgh+LNjY5hBl4IPCKJtxaHvHcXZheVObxKqGunx4T0eAyqcRSriPDC
-         205+mePLfifcX9xj70QrPaJVp68X7hVvm1dJzpNfovsTeMya///lVsyoJdDg44LqD/pd
-         h/tayqM0RpX4IW6Bsg26JflcGbm0VbXBq4CUrX5eJlFSzh1+eQKoE1ZfcBPkPsENipFO
-         3rb0rpjQk8R8+reH5I9Jys1IiDuIpo9/Z2DbhTUU3iwnHQijKXXVfgLq2a8CSX0rSP+j
-         fsoQ==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=lEVfPkVfbwccBniTLIDBnpF3OcPrQhqGvlqNpb+wuV0=;
+        b=u9LkHxYFqxLFc6ZnibPgZ0H3vurwSxeyIVMazE49xN8Bf/8ClpNzjFWWZQsKQs2nP3
+         ZROwTnI4QJHlqhdbUNk3RBCBAynE4k6zFBGLkl7uejUAN2EHuicaw1NS1vbfbvZPZ+S2
+         OI1m/Wja4++3PFo9Uc2pEuWMP99Hgkx7+yKYwlk5Y/NhOm4lLrzuGREZO516YnG5GKJZ
+         QKqnMFrKJ+cbu1nGI3kKOhgKv5GP9UmnebXodh/jMAZDGlfbUOc3oF1FkZEyh6QdwYfF
+         VdApju3lkE2AOwL77Em+cHIVzjXuHlhUvI8SSi/YwL4xDmrDKu9ufL3zcTHqdbQ36eR8
+         CFXw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id j17si5498688ejv.3.2019.05.23.08.21.33
-        for <linux-mm@kvack.org>;
-        Thu, 23 May 2019 08:21:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v7si2600444qvc.122.2019.05.23.08.31.59
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 May 2019 08:31:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5555380D;
-	Thu, 23 May 2019 08:21:32 -0700 (PDT)
-Received: from mbp (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 3D6CE3F690;
-	Thu, 23 May 2019 08:21:26 -0700 (PDT)
-Date: Thu, 23 May 2019 16:21:19 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: enh <enh@google.com>
-Cc: Kees Cook <keescook@chromium.org>,
-	Evgenii Stepanov <eugenis@google.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
-Message-ID: <20190523152118.t22z37mpqfwjjtkw@mbp>
-References: <cover.1557160186.git.andreyknvl@google.com>
- <20190517144931.GA56186@arrakis.emea.arm.com>
- <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
- <20190521182932.sm4vxweuwo5ermyd@mbp>
- <201905211633.6C0BF0C2@keescook>
- <20190522101110.m2stmpaj7seezveq@mbp>
- <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
- <20190522163527.rnnc6t4tll7tk5zw@mbp>
- <CAJgzZooc+wXBBXenm62n2zR8TVrv-y1pXMmHSdxeaNYhFLSzBA@mail.gmail.com>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id A6B89C05B038;
+	Thu, 23 May 2019 15:31:39 +0000 (UTC)
+Received: from redhat.com (unknown [10.20.6.178])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 461DB79599;
+	Thu, 23 May 2019 15:31:35 +0000 (UTC)
+Date: Thu, 23 May 2019 11:31:33 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: john.hubbard@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Jason Gunthorpe <jgg@ziepe.ca>, LKML <linux-kernel@vger.kernel.org>,
+	linux-rdma@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>,
+	Doug Ledford <dledford@redhat.com>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Dennis Dalessandro <dennis.dalessandro@intel.com>,
+	Christian Benvenuti <benve@cisco.com>, Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@mellanox.com>, Ira Weiny <ira.weiny@intel.com>
+Subject: Re: [PATCH 1/1] infiniband/mm: convert put_page() to put_user_page*()
+Message-ID: <20190523153133.GB5104@redhat.com>
+References: <20190523072537.31940-1-jhubbard@nvidia.com>
+ <20190523072537.31940-2-jhubbard@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAJgzZooc+wXBBXenm62n2zR8TVrv-y1pXMmHSdxeaNYhFLSzBA@mail.gmail.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190523072537.31940-2-jhubbard@nvidia.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 23 May 2019 15:31:58 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 22, 2019 at 09:58:22AM -0700, enh wrote:
-> i was questioning the argument about the ioctl issues, and saying that
-> from my perspective, untagging bugs are not really any different than
-> any other kind of kernel bug.
+On Thu, May 23, 2019 at 12:25:37AM -0700, john.hubbard@gmail.com wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
+> 
+> For infiniband code that retains pages via get_user_pages*(),
+> release those pages via the new put_user_page(), or
+> put_user_pages*(), instead of put_page()
+> 
+> This is a tiny part of the second step of fixing the problem described
+> in [1]. The steps are:
+> 
+> 1) Provide put_user_page*() routines, intended to be used
+>    for releasing pages that were pinned via get_user_pages*().
+> 
+> 2) Convert all of the call sites for get_user_pages*(), to
+>    invoke put_user_page*(), instead of put_page(). This involves dozens of
+>    call sites, and will take some time.
+> 
+> 3) After (2) is complete, use get_user_pages*() and put_user_page*() to
+>    implement tracking of these pages. This tracking will be separate from
+>    the existing struct page refcounting.
+> 
+> 4) Use the tracking and identification of these pages, to implement
+>    special handling (especially in writeback paths) when the pages are
+>    backed by a filesystem. Again, [1] provides details as to why that is
+>    desirable.
+> 
+> [1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
+> 
+> Cc: Doug Ledford <dledford@redhat.com>
+> Cc: Jason Gunthorpe <jgg@ziepe.ca>
+> Cc: Mike Marciniszyn <mike.marciniszyn@intel.com>
+> Cc: Dennis Dalessandro <dennis.dalessandro@intel.com>
+> Cc: Christian Benvenuti <benve@cisco.com>
+> 
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> Reviewed-by: Dennis Dalessandro <dennis.dalessandro@intel.com>
+> Acked-by: Jason Gunthorpe <jgg@mellanox.com>
+> Tested-by: Ira Weiny <ira.weiny@intel.com>
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
 
-Once this series gets in, they are indeed just kernel bugs. What I want
-is an easier way to identify them, ideally before they trigger in the
-field.
+Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 
-> i still don't see how this isn't just a regular testing/CI issue, the
-> same as any other kind of kernel bug. it's already the case that i can
-> get a bad kernel...
+Between i have a wishlist see below
 
-The testing would have a smaller code coverage in terms of drivers,
-filesystems than something like a static checker (though one does not
-exclude the other).
 
--- 
-Catalin
+> ---
+>  drivers/infiniband/core/umem.c              |  7 ++++---
+>  drivers/infiniband/core/umem_odp.c          | 10 +++++-----
+>  drivers/infiniband/hw/hfi1/user_pages.c     | 11 ++++-------
+>  drivers/infiniband/hw/mthca/mthca_memfree.c |  6 +++---
+>  drivers/infiniband/hw/qib/qib_user_pages.c  | 11 ++++-------
+>  drivers/infiniband/hw/qib/qib_user_sdma.c   |  6 +++---
+>  drivers/infiniband/hw/usnic/usnic_uiom.c    |  7 ++++---
+>  7 files changed, 27 insertions(+), 31 deletions(-)
+> 
+> diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
+> index e7ea819fcb11..673f0d240b3e 100644
+> --- a/drivers/infiniband/core/umem.c
+> +++ b/drivers/infiniband/core/umem.c
+> @@ -54,9 +54,10 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
+>  
+>  	for_each_sg_page(umem->sg_head.sgl, &sg_iter, umem->sg_nents, 0) {
+>  		page = sg_page_iter_page(&sg_iter);
+> -		if (!PageDirty(page) && umem->writable && dirty)
+> -			set_page_dirty_lock(page);
+> -		put_page(page);
+> +		if (umem->writable && dirty)
+> +			put_user_pages_dirty_lock(&page, 1);
+> +		else
+> +			put_user_page(page);
+
+Can we get a put_user_page_dirty(struct page 8*pages, bool dirty, npages) ?
+
+It is a common pattern that we might have to conditionaly dirty the pages
+and i feel it would look cleaner if we could move the branch within the
+put_user_page*() function.
+
+Cheers,
+Jérôme
 
