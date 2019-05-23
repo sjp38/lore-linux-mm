@@ -2,254 +2,129 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	T_DKIMWL_WL_HIGH,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 507C5C282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 21:31:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B5C11C282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 21:33:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 06918217D9
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 21:31:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 748782177E
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 21:33:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="SXshT/JW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06918217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="mFbl7W2X"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 748782177E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8FE8C6B0003; Thu, 23 May 2019 17:31:21 -0400 (EDT)
+	id 0727F6B0003; Thu, 23 May 2019 17:33:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8AF9A6B0005; Thu, 23 May 2019 17:31:21 -0400 (EDT)
+	id 0214E6B0005; Thu, 23 May 2019 17:33:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 776716B0006; Thu, 23 May 2019 17:31:21 -0400 (EDT)
+	id E2BB26B0006; Thu, 23 May 2019 17:33:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DB0E6B0003
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 17:31:21 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id e16so4730137pga.4
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 14:31:21 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BC34E6B0003
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 17:33:17 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 11so5149430pfb.4
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 14:33:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=RooTx4nZ0Zm8m1fxzq6UPxwDmwN2R9frxfJHiTxcRUE=;
-        b=D1GnFZGzanwDyXHNGVXxm+J33O0bWGpxzoMGfoBNT2JOB+AN3dK3O+qTwxHVXLjyJ+
-         vLOA+ZO59gIA/lI/EV/TFBSMG8ecUqG4Brq3PI2qd+eQHYxdFycc32qC3vgiUkzj1fxs
-         elE2um+SmBkGZsghTdY1ueLYj7sOve7wVH3XjVB9dVF2sY3BAZiqZyU3LzZMx4++Ovf4
-         3rQDHaK6cer1NGkjEzjGJ+c7mRwdmfdtk5jRfZVaaSsssGfe7W0eHlkST8elpHS4q4ef
-         ZBARsxR3sW8IaszMayltqIrpv51y4dDmGrM/fNdXcTHiFLtvRKAYtZTFCjb98dxYBtLw
-         wiEg==
-X-Gm-Message-State: APjAAAU0KMQ+AJqazMmgT0pMma86HF5141joIhbwtewPq9GzWJscPmti
-	2aotjNfpJ8VSJB7N8AO6bBp0DSdMhF3W0wxdcpqyPjgvYCE51QK7Gs0pKOGz03Hh22rPFC/WWPc
-	tCtfyfhzpEcDBBPSbrEYMtxgUJwiT1aKki07gEG4QjRGfj/5A+8X6s/nWMTclBHF7og==
-X-Received: by 2002:a65:63c8:: with SMTP id n8mr1951021pgv.96.1558647080590;
-        Thu, 23 May 2019 14:31:20 -0700 (PDT)
-X-Received: by 2002:a65:63c8:: with SMTP id n8mr1950924pgv.96.1558647079575;
-        Thu, 23 May 2019 14:31:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558647079; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=brzwJ9/Q1crPupxO4pYw46UIbDNtVFld1Gc4iiV7UvI=;
+        b=QUtSrUNZL6+ovzR9i7Ka0LWbsNuoWRloQ0jexfNU9LUdD3pGRNPmTeKYbqOXH6YtAz
+         +bMzXtxw1gB2phWhHsFL7/aT2kAgdhmftQ0NpUT02uOkNnU0NQwuucrXNDXbszQ7xwC7
+         9Qs78wIENve3XLWyXqHmYgqKx/38Na7BpRkETylW+uxKI9Gnj7pCUJ1yTDy1DN288fGt
+         INuaqCLIKnBWYo4OlYuesRvPgzpd2dFoi6Oz/ERzkRPP03QGokMeGPrdDYWipd8v5ue/
+         OmIf1EeOS7JshFsRNlCY4Y+8NKHZTUAoghc1pGLLZfaPIvmttWpg4rhliFU9mVyepQg+
+         1/BQ==
+X-Gm-Message-State: APjAAAUDDAQZvAbn+0XPxXCUhckagS46qXy87fedqAZgtoBbZoCY+m6x
+	o4RceSkEF2BSdLBJ+h3TiL07fHxOe3rj5k832SEHc9eFvFggo81wxi81nHwIrq2I+CB5e5Ielns
+	J2K9xIP961dk5eZlRLak9rMiJiilc4ib94PWXaPSaIAS4yuEzEaGD6awKPMr5g7ob0g==
+X-Received: by 2002:a63:191b:: with SMTP id z27mr100871047pgl.327.1558647197306;
+        Thu, 23 May 2019 14:33:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzQcTATR6LqHKtw1wToRHBccuScpmXLqO7ydDt1BHFavHp0Kkd0r3eDiJvjIXy45/4vFS/s
+X-Received: by 2002:a63:191b:: with SMTP id z27mr100870985pgl.327.1558647196643;
+        Thu, 23 May 2019 14:33:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558647196; cv=none;
         d=google.com; s=arc-20160816;
-        b=M8NQDhtLv/KpYvbOKp/X89t+CMK1lR/K98fTMkezVV3i6/HgAPXi9fzSP9AkPIzRwe
-         VF0IxDTZzGWjHlxpv2cRwWtQrvzZcpfLKdRlwNQWvcOpFaWvF05VVJqzxyQ3R/yZJ7JP
-         P1ySgelwbHf+kvfuWc2eebPsKmQUxoqkzGU0Z3jL/2pakXds7dqsLbt4mBfPbSUNMr3q
-         1a2MIaIUCbHlzke7ecdvtSYzCwFA6T2pDakKFrmmC74F7do59GQKnHVI5Dg8bsUWV7bh
-         hZH0WeRUTbDGgxb6+8kG87VhDJW0A+D31580h/aaNtmq5EdFfp5T8TDzEosTYFrClzw+
-         iQ2Q==
+        b=Xpe96j1AEWOfYNOvo7V8DfQIjotVU2ohNU1bHKSI3IjFHDXLKUhYpg6dae8dAv7QUk
+         STv/lGDFUzS4K9amxIOgbvHKF+LjUXtYToTk3Re66IycmtTroaJLvK4AA+U0Lu/bp0gJ
+         0vq4/1EeV+q5gXCM6kc5zkD4xvl+mXPt2WaUTKUHQaORIIw3aHcBJhFh2gewuQNT4TJ9
+         ba3YihR2ROqumi8NbQgKPbCDph9KtzznK4KgGjPYrz65/tfOdg6Pp+xWwD7oSpEeDzzj
+         OeqCeoDXqLSp6hEAN7gNGL7XQ7xqiy6BVK7ATH9Ix1/cAS4bRSEysH5kiGa+vD5BkAb6
+         bMrg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=RooTx4nZ0Zm8m1fxzq6UPxwDmwN2R9frxfJHiTxcRUE=;
-        b=eZmghQg+UkCWCGWcA5vzmOTpmrV/rmuhzPLNTMVPRc6yMzZaTZBOdMycTUGMe161xM
-         Iixu5NycSx6PgXH1eKxLGrR6PihNLmTyrRyfO8HakjYGX8wIoQ9YZKjyGR4vTcZgwMAj
-         7MBVRWKgbzxKck2SlSCIZCXD4kMJ/pCB18sfyu7ZMUglH8epczkxQwkrlwyd72S0hmWy
-         RXdMs2Gm5byAVX+FY4DTSs4tNShenmg7TqAVdjmhvUSWJybsylJXrP5lV8KTTjPnWRX3
-         JMYejeWPWprnIWTCCfCBnmJWeJFp4wmIGcpSBUOkdd+oSExn6hysfl2mYIqYAQ+OqoeP
-         cIhA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=brzwJ9/Q1crPupxO4pYw46UIbDNtVFld1Gc4iiV7UvI=;
+        b=QWQ+OT5CDL7zTbf5KVVF3qSNfAwDemPVYEJrk3wa+UHCSTubL0YMctjRQh3j3f006x
+         IzxGYrjH8muuHEpekNchrTi5TJi1504GCv08aaBSwold1StJ/bqRG2LIlnxPHsuMh+YC
+         WHP7u0+ZAfwRuhpGMO/Urm/g64gUoOIWWrK9uFWz8a1G9GwQriVGgveu43Knr2Z6O1sw
+         Eo00fnoedLKyvK88a8XpWtTAE3SMOp0l2Zf4iW0Itg/amvcsPuR5bQ72HE5Ptwfz1mNY
+         +okR+DPU22McAVYGSEXMlSN3YH7JHWwvaNhBGRoU2eUc+hmhsvEkJLdrySeybt1iZgWF
+         KgwQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b="SXshT/JW";
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d1sor649038pgt.65.2019.05.23.14.31.19
+       dkim=pass header.i=@kernel.org header.s=default header.b=mFbl7W2X;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id u92si1091189pjb.10.2019.05.23.14.33.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 23 May 2019 14:31:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 May 2019 14:33:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b="SXshT/JW";
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=RooTx4nZ0Zm8m1fxzq6UPxwDmwN2R9frxfJHiTxcRUE=;
-        b=SXshT/JWt4/VxFaxzUCPBis/uU7CKJhnvqILKuBvKuHgZM/0X3lQPlS9BrcA9GPwgN
-         mNP52DBHjW70HoXLGw3kCTAML6GHF8r2zv6T7pohAbgiWS2GBzlP+CcIwmEuaO+qZxq4
-         C2Jko0HEb2Ra0I9vlZLyIy+YOud56hz3nr/kE=
-X-Google-Smtp-Source: APXvYqw6NOt/dAzFGypTG6hDOH9RhK81m8D3qkjrLvBMN1nJLO77YhSc++d1DOA7/Z/CI2DiFH6JYA==
-X-Received: by 2002:a63:2226:: with SMTP id i38mr5980879pgi.403.1558647079048;
-        Thu, 23 May 2019 14:31:19 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id f186sm406654pfb.5.2019.05.23.14.31.17
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 23 May 2019 14:31:17 -0700 (PDT)
-Date: Thu, 23 May 2019 14:31:16 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: enh <enh@google.com>, Evgenii Stepanov <eugenis@google.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
-Message-ID: <201905231327.77CA8D0A36@keescook>
-References: <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
- <20190521182932.sm4vxweuwo5ermyd@mbp>
- <201905211633.6C0BF0C2@keescook>
- <20190522101110.m2stmpaj7seezveq@mbp>
- <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
- <20190522163527.rnnc6t4tll7tk5zw@mbp>
- <201905221316.865581CF@keescook>
- <20190523144449.waam2mkyzhjpqpur@mbp>
- <201905230917.DEE7A75EF0@keescook>
- <20190523174345.6sv3kcipkvlwfmox@mbp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190523174345.6sv3kcipkvlwfmox@mbp>
+       dkim=pass header.i=@kernel.org header.s=default header.b=mFbl7W2X;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 273AB21773;
+	Thu, 23 May 2019 21:33:16 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1558647196;
+	bh=h+m829r5l+lLoTjaTPTWUFMyS7kSp9Q6x/ifJZKzvys=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=mFbl7W2XislDUBDw4y7W7sGD+tt8q4dupSwJpNl1UFMLw/TqySTuiQSgwEb6f2dFB
+	 4kf48agroeTyyY95Xhwg0Y0i1bpC1h5zgbNuRrKluk83XJ9KHUNKWoOvpoYS8beUtY
+	 TweqmB1RvIF7BfIQ5BYFO8KMMHuo9efJo3Kwzrew=
+Date: Thu, 23 May 2019 14:33:15 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>, linux-mm@kvack.org
+Subject: Re: [PATCH] mm: Introduce page_size()
+Message-Id: <20190523143315.9191b62231fc57942b490079@linux-foundation.org>
+In-Reply-To: <20190523015511.GD6738@bombadil.infradead.org>
+References: <20190510181242.24580-1-willy@infradead.org>
+	<eb4db346-fe5f-5b3e-1a7b-d92aee03332c@virtuozzo.com>
+	<20190522130318.4ad4dda1169e652528ecd7af@linux-foundation.org>
+	<20190523015511.GD6738@bombadil.infradead.org>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 23, 2019 at 06:43:46PM +0100, Catalin Marinas wrote:
-> On Thu, May 23, 2019 at 09:38:19AM -0700, Kees Cook wrote:
-> > What on this front would you be comfortable with? Given it's a new
-> > feature isn't it sufficient to have a CONFIG (and/or boot option)?
+On Wed, 22 May 2019 18:55:11 -0700 Matthew Wilcox <willy@infradead.org> wrote:
+
+> > > +	return (unsigned long)PAGE_SIZE << compound_order(page);
+> > > + }
+> > 
+> > Also, I suspect the cast here is unneeded.  Architectures used to
+> > differe in the type of PAGE_SIZE but please tell me that's been fixed
+> > for a lomng time...
 > 
-> I'd rather avoid re-building kernels. A boot option would do, unless we
-> see value in a per-process (inherited) personality or prctl. The
+> It's an unsigned int for most, if not all architectures.  For, eg,
+> PowerPC, a PUD page is larger than 4GB.  So let's just include the cast
+> and not have to worry about undefined semantics screwing us over.
 
-I think I've convinced myself that the normal<->TBI ABI control should
-be a boot parameter. More below...
-
-> > What about testing tools that intentionally insert high bits for syscalls
-> > and are _expecting_ them to fail? It seems the TBI series will break them?
-> > In that case, do we need to opt into TBI as well?
-> 
-> If there are such tools, then we may need a per-process control. It's
-> basically an ABI change.
-
-syzkaller already attempts to randomly inject non-canonical and
-0xFFFF....FFFF addresses for user pointers in syscalls in an effort to
-find bugs like CVE-2017-5123 where waitid() via unchecked put_user() was
-able to write directly to kernel memory[1].
-
-It seems that using TBI by default and not allowing a switch back to
-"normal" ABI without a reboot actually means that userspace cannot inject
-kernel pointers into syscalls any more, since they'll get universally
-stripped now. Is my understanding correct, here? i.e. exploiting
-CVE-2017-5123 would be impossible under TBI?
-
-If so, then I think we should commit to the TBI ABI and have a boot
-flag to disable it, but NOT have a process flag, as that would allow
-attackers to bypass the masking. The only flag should be "TBI or MTE".
-
-If so, can I get top byte masking for other architectures too? Like,
-just to strip high bits off userspace addresses? ;)
-
-(Oh, in looking I see this is implemented with sign-extension... why
-not just a mask? So it'll either be valid userspace address or forced
-into the non-canonical range?)
-
-[1] https://salls.github.io/Linux-Kernel-CVE-2017-5123/
-
-> > Alright, the tl;dr appears to be:
-> > - you want more assurances that we can find __user stripping in the
-> >   kernel more easily. (But this seems like a parallel problem.)
-> 
-> Yes, and that we found all (most) cases now. The reason I don't see it
-> as a parallel problem is that, as maintainer, I promise an ABI to user
-> and I'd rather stick to it. I don't want, for example, ncurses to stop
-> working because of some ioctl() rejecting tagged pointers.
-
-But this is what I don't understand: it would need to be ncurses _using
-TBI_, that would stop working (having started to work before, but then
-regress due to a newly added one-off bug). Regular ncurses will be fine
-because it's not using TBI. So The Golden Rule isn't violated, and by
-definition, it's a specific regression caused by some bug (since TBI
-would have had to have worked _before_ in the situation to be considered
-a regression now). Which describes the normal path for kernel
-development... add feature, find corner cases where it doesn't work,
-fix them, encounter new regressions, fix those, repeat forever.
-
-> If it's just the occasional one-off bug I'm fine to deal with it. But
-> no-one convinced me yet that this is the case.
-
-You believe there still to be some systemic cases that haven't been
-found yet? And even if so -- isn't it better to work on that
-incrementally?
-
-> As for the generic driver code (filesystems or other subsystems),
-> without some clear direction for developers, together with static
-> checking/sparse, on how user pointers are cast to longs (one example),
-> it would become my responsibility to identify and fix them up with any
-> kernel release. This series is not providing such guidance, just adding
-> untagged_addr() in some places that we think matter.
-
-What about adding a nice bit of .rst documentation that describes the
-situation and shows how to use untagged_addr(). This is the kind of
-kernel-wide change that "everyone" needs to know about, and shouldn't
-be the arch maintainer's sole responsibility to fix.
-
-> > - we might need to opt in to TBI with a prctl()
-> 
-> Yes, although still up for discussion.
-
-I think I've talked myself out of it. I say boot param only! :)
-
-
-So what do you say to these next steps:
-
-- change untagged_addr() to use a static branch that is controlled with
-  a boot parameter.
-- add, say, Documentation/core-api/user-addresses.rst to describe
-  proper care and handling of user space pointers with untagged_addr(),
-  with examples based on all the cases seen so far in this series.
-- continue work to improve static analysis.
-
-Thanks for wading through this with me! :)
-
--- 
-Kees Cook
+I think you'll find that PAGE_SIZE is unsigned long on all
+architectures.
 
