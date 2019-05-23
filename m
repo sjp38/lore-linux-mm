@@ -2,367 +2,178 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D21A8C04AAC
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 07:26:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B01FC04AAC
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 07:34:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 791232175B
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 07:26:55 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="OjW5O6Si"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 791232175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 18236204EC
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 07:34:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18236204EC
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2ED216B0008; Thu, 23 May 2019 03:26:54 -0400 (EDT)
+	id A8A786B0006; Thu, 23 May 2019 03:34:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 27A2C6B000A; Thu, 23 May 2019 03:26:54 -0400 (EDT)
+	id A60F56B0007; Thu, 23 May 2019 03:34:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 006E36B000C; Thu, 23 May 2019 03:26:53 -0400 (EDT)
+	id 9501B6B000A; Thu, 23 May 2019 03:34:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B84376B0008
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 03:26:53 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id h12so2939292pll.20
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 00:26:53 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 48B336B0006
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 03:34:38 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id x16so7659135edm.16
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 00:34:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=cNcV6I85o9LrI3r/Syor12nb46xMIaIZWeU7Fq+C8Y0=;
-        b=l//rzZZpV8p4h89T40pCrpL8SKEF+8GGPnyioDAqIq6rTTJJkUnXb4YpvX725Xpga3
-         4Dy09orR7Fyva6Q+wC2E5Cs05TaxKRPSl1Pt7dy9Co/ug3U7BINDWlY+pLmfz1QWerfZ
-         OCwK56ZXyLliRz7i14F2zAR343PDYWPyGvzwTQjEpiyARbcey+iu+b6MAy06gxDGfcy3
-         TpTobZ8f5JJLbEQkguAENSAR01N3XLKj0vCnPQEj/nZcnQZJo9NkV7IQyFIhQIBjScJX
-         2fGgEnV8UOtokzoPgTLpCCVPK+AY6+CKgpvGxAj75DogSQnWWzTrdvOm9JjQtNS0DOD/
-         Uy8A==
-X-Gm-Message-State: APjAAAWKr3w4J8ddLIL6ft36traT3PN3egYs5JPMPAf3qQcnOGy6VnAk
-	CtBRHB5plW+ckG/DTSXPct2vhZpxE9Fu2lztJ7YcbRlq4+UkHLEHGzsYVr3ZqE/c4X+m2W4Sbs0
-	uHuH2q1umOEEeuXKNYF/DvQlKhUzHG3yIpm98iU+mfIBq5j4QvGdD7zZHL4evsn98aA==
-X-Received: by 2002:a63:7141:: with SMTP id b1mr94703743pgn.331.1558596413148;
-        Thu, 23 May 2019 00:26:53 -0700 (PDT)
-X-Received: by 2002:a63:7141:: with SMTP id b1mr94703679pgn.331.1558596412267;
-        Thu, 23 May 2019 00:26:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558596412; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=IVl4LltDxPODbndeBL2zCf1BFEvRQB4sJ5VTDw4EkxQ=;
+        b=J/0tHFbZsU+QLDyjP7KjClbWLKHNBTIMu0a4pkU55lE0fyvufIiRq9DnYaNNVsP0Zc
+         3Upp5GLpiqvOnhpukXqM3Ht2/rgCiHsv8y+L8pxmODh5KPd42KUpmmcmRwVycCS8nk2P
+         BtFHpfLQQIwZ14AS5DRM4rVBJlDDQyIQdziSiL4/m/OtKhvWqiBEn2INYWs7O8tvZX/B
+         bqqDho9h+OOMMwiC72ODTssqYMyOMn/TQtyMX2uE0nYYBDGiv5hkUP+9y+AW6HyUeNvM
+         0FLweJ4U6GwrkskPl1MLJdAMF9UtysNHWCiRADfKboHN3iUmp1jTwiSL4SgaICbqW4PT
+         6tJg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAWeBV9YRSU3ZBx/nHu0+/ybZfhC+6anSI8jXGOTiPoyyngHRdfF
+	Mr3GJyj743IrYj7bToouICIIH3gHpJduWxGDyS0cMUgMJRIlDMO4axH+QwOpY74fMBpbp0sd7cj
+	MjaRSeZdxQVeX8bcOyKQr4kNaVXBH1F1cPisxKEt+nxDpkqRdzEGP21yuFSISojRy8g==
+X-Received: by 2002:a17:906:66c9:: with SMTP id k9mr26660917ejp.21.1558596877834;
+        Thu, 23 May 2019 00:34:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz5e/gYvlKqsQyI9riINBiSfeNVtzH/kWghS5ojlhh2GvQKK8vsiSt6wKxjss3VPu61k078
+X-Received: by 2002:a17:906:66c9:: with SMTP id k9mr26660863ejp.21.1558596876868;
+        Thu, 23 May 2019 00:34:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558596876; cv=none;
         d=google.com; s=arc-20160816;
-        b=qMM3YgbXKhXWVAWNR1VOeIWQoeeEZga3WVCcEi9pAEbWyCa64opgmukbBXPewAtGki
-         hAwO9aAlAj8/Urk7Oxa7lQJnDXESLS8I9uuL6C5plbENU6MnluTl4rdYHxv3CtsMs7ZJ
-         9yU11NQa92EG+BalGM2oKimVdpCF/NoY06BR55Hal/gI6slVRh2fGlCaG98LHT3uJGrn
-         V3eMCIWCICOZ59GsuxJnagh/+0S01ZTeUPvf00Syll9ajNqIyC5VAxd1r8JHQBW6lwp4
-         s7u5bpY8w8ycliIKtRssxjHfEIJgplJu3rbfXL9R4kUJWV6IAUaMDsls74Z50NXQCyq6
-         oZZA==
+        b=gPDECRremHnUIaSZvUWTPddp5YqV1Sum47HT20VZYEr3tSTX2V/s2Nhz60sFxEgsD1
+         srK4jEdfQ9JKGGaqZdD5T3hegNgOvA8lVz/17sHV/IY98Ew1qxdfBfCjYpU/3kGocNeU
+         9Mz493B0ub7/D4AFHe2krXyquBR1u/kzrd+zPBG0CyIePIJwtZyOP0nwHw0CgVcyG5K0
+         iauSkm4BI7psrzc13CvVyf6nf2yq+MAn4xyb5DKwlulUMtClqfWQvD7cftrFC4/KaOQe
+         oU5htMTXneAYKXJ5jE3sWsiOXVSSy3yf0zkQrd9IJx0Q8aWiQtM4+I1zm1JBzwYgj/7o
+         33+w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=cNcV6I85o9LrI3r/Syor12nb46xMIaIZWeU7Fq+C8Y0=;
-        b=BChPxdEb5KnB/MIwADm63SZ9mziVEHgpelIRJZUCh1j/P9D7qtxE0y2oIDmPlT14D/
-         lfJYF6OgQyeG4adSAQdqksNMYpPhesHyANA64NsEiUXcOzsMZuSXPQAeScNXYkve312c
-         wLBsdB4Q3Ejk320nEfJxGt0ig4t51P/6mrZTP3Em+sgeGI44CvNmy5kDqkEg2JquKNLi
-         f+C7PJyVLrSvNQp6Cxrq1Y5Eqmgu0hZSabALGjDGoF2cPITUFfa25ZZ0IyrtW+cmuNvO
-         goutzuYhtvfw1bAGpIEymaZ9kx483g3azFfTHVjkPBhz1A5CVXxRWgJzHpaeGkcY8EnO
-         M3Dw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=IVl4LltDxPODbndeBL2zCf1BFEvRQB4sJ5VTDw4EkxQ=;
+        b=Rf4OTindUzHzxgPrYFt1Z5vcgxqTJ8LuZXGTGH6IIzkL/WWznzLDZGUfMV3qjzhxlc
+         SHg/gmYPkAuZzjKwBKU3UPAHV3Oh36rptFv0I+8NcoPMEx1X9gUhvCP4JOLwQrzBQDSk
+         4UXh38/TFvfpudSshgar1sL82QMCEsD1vVv2iRPlzu+mpaaScroCZGHQFWxtGVDg/mh3
+         jqw2tf2hbbP0aV11aCjHEc7h+wfUi8D4xIWqjr8W9WOPTgJ1OoZPnlgc05eF5G6wSEKP
+         ZFCIF8c/0XmPKI12RtCeWwMH0Tl1BupP1uaCR0PoG0oSeGIxPnVaKGIk/V2mIbfig2x6
+         qG1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OjW5O6Si;
-       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p4sor9418433plk.55.2019.05.23.00.26.52
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 23 May 2019 00:26:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id z35si4988846edb.186.2019.05.23.00.34.35
+        for <linux-mm@kvack.org>;
+        Thu, 23 May 2019 00:34:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OjW5O6Si;
-       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=cNcV6I85o9LrI3r/Syor12nb46xMIaIZWeU7Fq+C8Y0=;
-        b=OjW5O6Si6LlPoOnELDryN/BY6YjXJsYVEFR/3bVZotqvB1BI8fRpgvxYSBLUXQPO+m
-         EQ/yo0a3HM32Ymq7G4RJAERVDWCUAG3/WLtzC0dYgzB+6mdu9moVnEEDdgPsh6Wh5vrG
-         7p0BA28Vm9C9Uk0ZSYvpdleNkkkM7Rj3pRLbNd/ujP4aA4SzG8sykZOGfQEqz7xP2yba
-         sws8HcbzFJUxi2inOE2JUG7mpsv5749lC76KqlwEgjYf26F5nPifaxfJnNK+9/q8QQjU
-         T4S09R0lNnmg2mptx2WDKrPGXuiwG+GicSUyoh1vO29UIuj7KADPC5vmJJvKAX6lidwe
-         XNjw==
-X-Google-Smtp-Source: APXvYqwvpDKnseLFR8ksWi/aDIjkUW2oxxtvQ73AKZLWnJ5tnztDthJXW5SwGdaCHSsC2d2Vft8zUQ==
-X-Received: by 2002:a17:902:6bc8:: with SMTP id m8mr94175971plt.227.1558596411932;
-        Thu, 23 May 2019 00:26:51 -0700 (PDT)
-Received: from sandstorm.nvidia.com (thunderhill.nvidia.com. [216.228.112.22])
-        by smtp.gmail.com with ESMTPSA id i7sm25052054pfo.19.2019.05.23.00.26.50
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 00:26:51 -0700 (PDT)
-From: john.hubbard@gmail.com
-X-Google-Original-From: jhubbard@nvidia.com
-To: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org
-Cc: Jason Gunthorpe <jgg@ziepe.ca>,
-	LKML <linux-kernel@vger.kernel.org>,
-	linux-rdma@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>,
-	Doug Ledford <dledford@redhat.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Christian Benvenuti <benve@cisco.com>,
-	Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Ira Weiny <ira.weiny@intel.com>
-Subject: [PATCH 1/1] infiniband/mm: convert put_page() to put_user_page*()
-Date: Thu, 23 May 2019 00:25:37 -0700
-Message-Id: <20190523072537.31940-2-jhubbard@nvidia.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190523072537.31940-1-jhubbard@nvidia.com>
-References: <20190523072537.31940-1-jhubbard@nvidia.com>
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id AF17480D;
+	Thu, 23 May 2019 00:34:34 -0700 (PDT)
+Received: from MBP.local (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 89C463F575;
+	Thu, 23 May 2019 00:34:28 -0700 (PDT)
+Date: Thu, 23 May 2019 08:34:25 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: enh <enh@google.com>
+Cc: Evgenii Stepanov <eugenis@google.com>,
+	Kees Cook <keescook@chromium.org>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
+Message-ID: <20190523073425.GA43379@MBP.local>
+References: <20190517144931.GA56186@arrakis.emea.arm.com>
+ <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
+ <20190521182932.sm4vxweuwo5ermyd@mbp>
+ <201905211633.6C0BF0C2@keescook>
+ <20190522101110.m2stmpaj7seezveq@mbp>
+ <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
+ <20190522163527.rnnc6t4tll7tk5zw@mbp>
+ <201905221316.865581CF@keescook>
+ <CAFKCwrjOjdJAbcABp3qxwyYy+hgfyQirvmqGkDSJVJe5pSz0Uw@mail.gmail.com>
+ <CAJgzZorUPzrXu0ysDdKwnqdvgWZJ9tqRjF-9_5CU_UV+c0bRCA@mail.gmail.com>
 MIME-Version: 1.0
-X-NVConfidentiality: public
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJgzZorUPzrXu0ysDdKwnqdvgWZJ9tqRjF-9_5CU_UV+c0bRCA@mail.gmail.com>
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: John Hubbard <jhubbard@nvidia.com>
+On Wed, May 22, 2019 at 04:09:31PM -0700, enh wrote:
+> On Wed, May 22, 2019 at 4:03 PM Evgenii Stepanov <eugenis@google.com> wrote:
+> > On Wed, May 22, 2019 at 1:47 PM Kees Cook <keescook@chromium.org> wrote:
+> > > On Wed, May 22, 2019 at 05:35:27PM +0100, Catalin Marinas wrote:
+> > > > I would also expect the C library or dynamic loader to check for the
+> > > > presence of a HWCAP_MTE bit before starting to tag memory allocations,
+> > > > otherwise it would get SIGILL on the first MTE instruction it tries to
+> > > > execute.
+> > >
+> > > I've got the same question as Elliot: aren't MTE instructions just NOP
+> > > to older CPUs? I.e. if the CPU (or kernel) don't support it, it just
+> > > gets entirely ignored: checking is only needed to satisfy curiosity
+> > > or behavioral expectations.
+> >
+> > MTE instructions are not NOP. Most of them have side effects (changing
+> > register values, zeroing memory).
+> 
+> no, i meant "they're encoded in a space that was previously no-ops, so
+> running on MTE code on old hardware doesn't cause SIGILL".
 
-For infiniband code that retains pages via get_user_pages*(),
-release those pages via the new put_user_page(), or
-put_user_pages*(), instead of put_page()
+It does result in SIGILL, there wasn't enough encoding left in the NOP
+space for old/current CPU implementations (in hindsight, we should have
+reserved a bigger NOP space).
 
-This is a tiny part of the second step of fixing the problem described
-in [1]. The steps are:
+As Evgenii said, the libc needs to be careful when tagging the heap as
+it would cause a SIGILL if the HWCAP_MTE is not set. The standard
+application doesn't need to be recompiled as it would not issue MTE
+colouring instructions, just standard LDR/STR.
 
-1) Provide put_user_page*() routines, intended to be used
-   for releasing pages that were pinned via get_user_pages*().
+Stack tagging is problematic if you want to colour each frame
+individually, the function prologue would need the non-NOP MTE
+instructions. The best we can do here is just having the (thread) stacks
+of different colours.
 
-2) Convert all of the call sites for get_user_pages*(), to
-   invoke put_user_page*(), instead of put_page(). This involves dozens of
-   call sites, and will take some time.
-
-3) After (2) is complete, use get_user_pages*() and put_user_page*() to
-   implement tracking of these pages. This tracking will be separate from
-   the existing struct page refcounting.
-
-4) Use the tracking and identification of these pages, to implement
-   special handling (especially in writeback paths) when the pages are
-   backed by a filesystem. Again, [1] provides details as to why that is
-   desirable.
-
-[1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
-
-Cc: Doug Ledford <dledford@redhat.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Mike Marciniszyn <mike.marciniszyn@intel.com>
-Cc: Dennis Dalessandro <dennis.dalessandro@intel.com>
-Cc: Christian Benvenuti <benve@cisco.com>
-
-Reviewed-by: Jan Kara <jack@suse.cz>
-Reviewed-by: Dennis Dalessandro <dennis.dalessandro@intel.com>
-Acked-by: Jason Gunthorpe <jgg@mellanox.com>
-Tested-by: Ira Weiny <ira.weiny@intel.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
- drivers/infiniband/core/umem.c              |  7 ++++---
- drivers/infiniband/core/umem_odp.c          | 10 +++++-----
- drivers/infiniband/hw/hfi1/user_pages.c     | 11 ++++-------
- drivers/infiniband/hw/mthca/mthca_memfree.c |  6 +++---
- drivers/infiniband/hw/qib/qib_user_pages.c  | 11 ++++-------
- drivers/infiniband/hw/qib/qib_user_sdma.c   |  6 +++---
- drivers/infiniband/hw/usnic/usnic_uiom.c    |  7 ++++---
- 7 files changed, 27 insertions(+), 31 deletions(-)
-
-diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-index e7ea819fcb11..673f0d240b3e 100644
---- a/drivers/infiniband/core/umem.c
-+++ b/drivers/infiniband/core/umem.c
-@@ -54,9 +54,10 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
- 
- 	for_each_sg_page(umem->sg_head.sgl, &sg_iter, umem->sg_nents, 0) {
- 		page = sg_page_iter_page(&sg_iter);
--		if (!PageDirty(page) && umem->writable && dirty)
--			set_page_dirty_lock(page);
--		put_page(page);
-+		if (umem->writable && dirty)
-+			put_user_pages_dirty_lock(&page, 1);
-+		else
-+			put_user_page(page);
- 	}
- 
- 	sg_free_table(&umem->sg_head);
-diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
-index f962b5bbfa40..17e46df3990a 100644
---- a/drivers/infiniband/core/umem_odp.c
-+++ b/drivers/infiniband/core/umem_odp.c
-@@ -487,7 +487,7 @@ void ib_umem_odp_release(struct ib_umem_odp *umem_odp)
-  * The function returns -EFAULT if the DMA mapping operation fails. It returns
-  * -EAGAIN if a concurrent invalidation prevents us from updating the page.
-  *
-- * The page is released via put_page even if the operation failed. For
-+ * The page is released via put_user_page even if the operation failed. For
-  * on-demand pinning, the page is released whenever it isn't stored in the
-  * umem.
-  */
-@@ -536,7 +536,7 @@ static int ib_umem_odp_map_dma_single_page(
- 	}
- 
- out:
--	put_page(page);
-+	put_user_page(page);
- 
- 	if (remove_existing_mapping) {
- 		ib_umem_notifier_start_account(umem_odp);
-@@ -659,7 +659,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
- 					ret = -EFAULT;
- 					break;
- 				}
--				put_page(local_page_list[j]);
-+				put_user_page(local_page_list[j]);
- 				continue;
- 			}
- 
-@@ -686,8 +686,8 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
- 			 * ib_umem_odp_map_dma_single_page().
- 			 */
- 			if (npages - (j + 1) > 0)
--				release_pages(&local_page_list[j+1],
--					      npages - (j + 1));
-+				put_user_pages(&local_page_list[j+1],
-+					       npages - (j + 1));
- 			break;
- 		}
- 	}
-diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
-index 02eee8eff1db..b89a9b9aef7a 100644
---- a/drivers/infiniband/hw/hfi1/user_pages.c
-+++ b/drivers/infiniband/hw/hfi1/user_pages.c
-@@ -118,13 +118,10 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
- void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
- 			     size_t npages, bool dirty)
- {
--	size_t i;
--
--	for (i = 0; i < npages; i++) {
--		if (dirty)
--			set_page_dirty_lock(p[i]);
--		put_page(p[i]);
--	}
-+	if (dirty)
-+		put_user_pages_dirty_lock(p, npages);
-+	else
-+		put_user_pages(p, npages);
- 
- 	if (mm) { /* during close after signal, mm can be NULL */
- 		atomic64_sub(npages, &mm->pinned_vm);
-diff --git a/drivers/infiniband/hw/mthca/mthca_memfree.c b/drivers/infiniband/hw/mthca/mthca_memfree.c
-index 8ff0e90d7564..edccfd6e178f 100644
---- a/drivers/infiniband/hw/mthca/mthca_memfree.c
-+++ b/drivers/infiniband/hw/mthca/mthca_memfree.c
-@@ -482,7 +482,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
- 
- 	ret = pci_map_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
- 	if (ret < 0) {
--		put_page(pages[0]);
-+		put_user_page(pages[0]);
- 		goto out;
- 	}
- 
-@@ -490,7 +490,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
- 				 mthca_uarc_virt(dev, uar, i));
- 	if (ret) {
- 		pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
--		put_page(sg_page(&db_tab->page[i].mem));
-+		put_user_page(sg_page(&db_tab->page[i].mem));
- 		goto out;
- 	}
- 
-@@ -556,7 +556,7 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
- 		if (db_tab->page[i].uvirt) {
- 			mthca_UNMAP_ICM(dev, mthca_uarc_virt(dev, uar, i), 1);
- 			pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
--			put_page(sg_page(&db_tab->page[i].mem));
-+			put_user_page(sg_page(&db_tab->page[i].mem));
- 		}
- 	}
- 
-diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
-index f712fb7fa82f..bfbfbb7e0ff4 100644
---- a/drivers/infiniband/hw/qib/qib_user_pages.c
-+++ b/drivers/infiniband/hw/qib/qib_user_pages.c
-@@ -40,13 +40,10 @@
- static void __qib_release_user_pages(struct page **p, size_t num_pages,
- 				     int dirty)
- {
--	size_t i;
--
--	for (i = 0; i < num_pages; i++) {
--		if (dirty)
--			set_page_dirty_lock(p[i]);
--		put_page(p[i]);
--	}
-+	if (dirty)
-+		put_user_pages_dirty_lock(p, num_pages);
-+	else
-+		put_user_pages(p, num_pages);
- }
- 
- /**
-diff --git a/drivers/infiniband/hw/qib/qib_user_sdma.c b/drivers/infiniband/hw/qib/qib_user_sdma.c
-index 0c204776263f..ac5bdb02144f 100644
---- a/drivers/infiniband/hw/qib/qib_user_sdma.c
-+++ b/drivers/infiniband/hw/qib/qib_user_sdma.c
-@@ -317,7 +317,7 @@ static int qib_user_sdma_page_to_frags(const struct qib_devdata *dd,
- 		 * the caller can ignore this page.
- 		 */
- 		if (put) {
--			put_page(page);
-+			put_user_page(page);
- 		} else {
- 			/* coalesce case */
- 			kunmap(page);
-@@ -631,7 +631,7 @@ static void qib_user_sdma_free_pkt_frag(struct device *dev,
- 			kunmap(pkt->addr[i].page);
- 
- 		if (pkt->addr[i].put_page)
--			put_page(pkt->addr[i].page);
-+			put_user_page(pkt->addr[i].page);
- 		else
- 			__free_page(pkt->addr[i].page);
- 	} else if (pkt->addr[i].kvaddr) {
-@@ -706,7 +706,7 @@ static int qib_user_sdma_pin_pages(const struct qib_devdata *dd,
- 	/* if error, return all pages not managed by pkt */
- free_pages:
- 	while (i < j)
--		put_page(pages[i++]);
-+		put_user_page(pages[i++]);
- 
- done:
- 	return ret;
-diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.c b/drivers/infiniband/hw/usnic/usnic_uiom.c
-index e312f522a66d..0b0237d41613 100644
---- a/drivers/infiniband/hw/usnic/usnic_uiom.c
-+++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
-@@ -75,9 +75,10 @@ static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
- 		for_each_sg(chunk->page_list, sg, chunk->nents, i) {
- 			page = sg_page(sg);
- 			pa = sg_phys(sg);
--			if (!PageDirty(page) && dirty)
--				set_page_dirty_lock(page);
--			put_page(page);
-+			if (dirty)
-+				put_user_pages_dirty_lock(&page, 1);
-+			else
-+				put_user_page(page);
- 			usnic_dbg("pa: %pa\n", &pa);
- 		}
- 		kfree(chunk);
 -- 
-2.21.0
+Catalin
 
