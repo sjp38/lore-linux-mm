@@ -2,137 +2,293 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E7DF0C282E1
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 18:37:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BF52C282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 18:47:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9083520868
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 18:37:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 024D920868
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 18:47:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="WTfyIvoK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9083520868
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="JA5v5DeR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 024D920868
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 00ACB6B029C; Thu, 23 May 2019 14:37:18 -0400 (EDT)
+	id 77C656B029F; Thu, 23 May 2019 14:47:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EFD996B029E; Thu, 23 May 2019 14:37:17 -0400 (EDT)
+	id 72D3A6B02A0; Thu, 23 May 2019 14:47:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DEB9C6B029F; Thu, 23 May 2019 14:37:17 -0400 (EDT)
+	id 61C706B02A1; Thu, 23 May 2019 14:47:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A9A836B029C
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 14:37:17 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id i8so4755786pfo.21
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 11:37:17 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4223C6B029F
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 14:47:47 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id w6so3130228ybp.19
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 11:47:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=mcI32xfmsEoQcujsoa3t+R8aU7MbjBpf8zoUWNfm5Mc=;
-        b=BTvuzgJZ4+UaUBebS2rmJqG1pxZlB1syil9vYd6VqWLI6fpNKqcwbdMah1trdIgPX0
-         gezg3zQhKhX/03R0QWvxbUXwKUMrl2r7fSoEA+wEB5tJ7obJL3bc9Vx+iEVmZuuWQx/f
-         hpzm+efgPlZRp+Sf+qdb/CRx6WDCHLlj9kdzphkWYokDwCJsy1Pve1Ee50AYaJIbKHwI
-         20RyqPRZ476wc+4jl5Bx756SSpvMz8LYujSQ6T5xbrheOcDQMelLZtez2pzC+6kV6lq+
-         oIunlyYgLtoJJCtna4EWxpd6zdPqvoq6Clnl+zFdaQNWv13aZr07QJDzNFZAvPuLDT/Q
-         KZjQ==
-X-Gm-Message-State: APjAAAW+QdpPGYPqiO+9jdUr0Ggbmj72l2H+xW+alHITZ0b2mAOu4Fve
-	pUBNllcxfppfOzUYK4sZuudI0E2jquuPRkPI5BHcbS4hvvRBrRIOIja6KC4n535bWfwqtJaR4dU
-	b0iT7UEB/9ZIumtfkyFH4yc3RcicCZOvURW/hjQP3myrb4VJTJpyTVVmtX7V/g+qp5A==
-X-Received: by 2002:a62:75d8:: with SMTP id q207mr73833466pfc.35.1558636637369;
-        Thu, 23 May 2019 11:37:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy70gvEt7fWMlIuMRyYWePqszmoGHmobv2jidnH1R8CxZZRDtH8nHTSAOPyPqL4Niq7He9Y
-X-Received: by 2002:a62:75d8:: with SMTP id q207mr73833358pfc.35.1558636636462;
-        Thu, 23 May 2019 11:37:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558636636; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=tVzIzXhTQ6hb7xFSzDM7/YhxaHOlgS0CMmNs/PhECls=;
+        b=D4yj+nEq0cMy5W4BqOr4ATZjf3dC4gnSLLSHPqIkPHALH0mGpkKMMDN07bU18bX6Kl
+         ucdyfavFHKbMGg4dWfi+9zxLa07Dkk7zWbFhFJwoZzBG/4fnQ9eEj5Z9Ums0y6iehZm1
+         qYbsOsub799SXFYU2kbhUnNvuuwSJqs8rxP1J4MHy4j3unaOcoMp+okgfTmpLmElHsnP
+         o3vWl9AGzOKJJjWREM8vSf/9Psn24/PC0d61t0PY84c0Ez907gNaZ6zzdGaQxl99h8Qb
+         RIWn1NECgeXrAIB0D8lpohjEUWfW/S6WsvzR7RmZJzkT3wCE/DbGsy8CpZWsQQaTZQDe
+         A6fg==
+X-Gm-Message-State: APjAAAUhobJINhqjEmPzEiQSqk89zUW7BUd1SyBT0vDNs3f74/c+5DKH
+	t18zMIoSNjPvjHywBUAQ5chwPnxTfwmqFUEYzoIcu1DYjPVKlSqPc9tvernRngCVU2aJf7LrYxL
+	Qp8erizipgwGb8yDPQ0CMB+rw4gdCI2GgxGrerg6iM5M4jVRgZVW6LycmIRix6n+RQw==
+X-Received: by 2002:a5b:490:: with SMTP id n16mr45317981ybp.219.1558637266896;
+        Thu, 23 May 2019 11:47:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw30tbB4zN+7OqpwZlnqCjcSj60glmUGoAEshaDAmgr2bfgQC5Ax2FR0e890xoJDMfmPyv/
+X-Received: by 2002:a5b:490:: with SMTP id n16mr45317956ybp.219.1558637266128;
+        Thu, 23 May 2019 11:47:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558637266; cv=none;
         d=google.com; s=arc-20160816;
-        b=pq3UUAaCV7jQtsyruFNttgrXT+jXS1vP1akiFs+4uzSdzoqzWpoDvRa1I3sjUnlma7
-         CfpMWlq11e4KPjpZKI28CmgTwBKZ859U8VhjpySwZ32JqVRm2mmDurjXFFtfU8hKUONF
-         TOoVn/bph41HpSzPJ+eGnYcmNjKp1oGb7+uRct+hOrQbgD1Qqh6S4pGV0KbjJWW8ezT4
-         IZn6DNKOiyfPs1WJtiq6OOddb8CN07eE28eIKRRnFSOWRfrIQ05ichphul6gxE6DcRQp
-         knKrS4asxK1iTr7qtE524j9bfJI8h1MKBdJucG/lg78A253gzyoWq/FIa830ZpKI5/2v
-         XUmw==
+        b=rap4CAfQ0G/+iGWXdHNgj96ujvebsBAUPbPqz5ApoIDJkBCckvBDbbiaDH7Q3zjQMl
+         ymLNB4/M18WFmrVnVcrwO43jlUhiLXTxJ3MJvEE0qSjqB76bMnsjJTLvZbJTn1Q/+YHq
+         sVnEpLIKzW3H4VZ084VOo4JIFcyJaqNYPztOfEFW3xgldh2u7FbRhNjeGuTO5stYdT8Q
+         viwAshKF3LjlqAwf7tZJMXxxakjVXfR8ZaCyo0MsyhGAgoaiR8EB1MG/Tnlltlh+7H6c
+         tnCxZKCNIOYFuM2CLK8WnX2U3bQltLI79uGlubxPyR5wGdH8AANBa8FMgxKumFbxHrNo
+         q6uA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=mcI32xfmsEoQcujsoa3t+R8aU7MbjBpf8zoUWNfm5Mc=;
-        b=txHP4buutw12cY+soRB/Q2ptVHJcnt2uUVE31+AtAV6FRjwCe1O2Nt7Ulg9RUcLpcG
-         C7kjzDet/loFwPIcZONRSyWf/E0ynFe1SNnIg33GuSl5PMkrz89bR4k8GeakSRxLTJ2V
-         5r2VxO9wH3yXJFBUClQ9nx+G/QGXpdqI1/N7Tf8XmQOrsVilND0HTVtcDUm3CYTMJL0i
-         hF1xJTA2209u5ysCh7eN1tU19y0RCHQU/qRTm2s6XPVs3RouKdTIPgbA4VU3P2ytKVn4
-         i1sCsdI5o+DOM6vX7g+eJO7+gSDVyEYuQ3bst+oGzQ9e51QF45yz7MkKWoQDzUMAoKDc
-         MghA==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=tVzIzXhTQ6hb7xFSzDM7/YhxaHOlgS0CMmNs/PhECls=;
+        b=NGkLWHdec1/kHZ9mvpIZFxq6BSnhp5BwVMOw3eAItiVNA/LWqIRq/2DKh6aOZ9N7Mt
+         QPR4h6wELAjUrDecBaFLcUG+h5PxnyrnMN8E6Uz72IdKLtILvnwW1KbBYMzcZV5b05KS
+         9u1XC4UiqoMvAReWPxfcYvk/A4c8NyGqOCuLhv63UJQBQi1rbtbOsGK41LiEEYOX7MlT
+         7x5QzhG0sJbhl6xz1KQ4h8zkHy7xqY4WNyzfuw4Q+67OLgKtN4/ACBRYDuxJaMmgKY3y
+         10ENMIkuJLwY+FvqMHlJqsH72Wi0fm0FwJRo/+9aO7LjoNpU/fNB3PTBUopUwG/Y1GuU
+         d35A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WTfyIvoK;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d24si389887pgm.405.2019.05.23.11.37.15
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=JA5v5DeR;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id b188si47233ywh.113.2019.05.23.11.47.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 23 May 2019 11:37:16 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 May 2019 11:47:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WTfyIvoK;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=mcI32xfmsEoQcujsoa3t+R8aU7MbjBpf8zoUWNfm5Mc=; b=WTfyIvoKVJm2DtUE/xPqWyYm+
-	Z0YNQ6XiR2MOOAu+0LvMWrNrpmIaQYlAXhcb1EkVK0yf4yZmSN3JFep+4miWgbPzPJyVVR1w1Ox3h
-	auWVTq8Zue8S7pfTCV0sfCU3vS0Qj5jPsbsPCGHr3NmFY5ZATleXTeHZWt4MyNOdf8vSBkIPYxJLK
-	wO6b+VxTYrkEOI2zTm0LvCjqyMZBGtB81IhsgJZT/Auj/8FA/F7FPWMtVr+s7sYDSF08ckTEKytJq
-	+gsKFxg7ihVs8pvvq5JBdorV8+zoiycyDywe9Jjg40fmAAS2NrzkIVDXt2RQY16w8LqMQvAGnDAng
-	4QH435N1Q==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hTsaX-0005kv-P8; Thu, 23 May 2019 18:37:13 +0000
-Date: Thu, 23 May 2019 11:37:13 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com
-Subject: Re: xarray breaks thrashing detection and cgroup isolation
-Message-ID: <20190523183713.GA14517@bombadil.infradead.org>
-References: <20190523174349.GA10939@cmpxchg.org>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=JA5v5DeR;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5ce6ead10000>; Thu, 23 May 2019 11:47:45 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 23 May 2019 11:47:45 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 23 May 2019 11:47:45 -0700
+Received: from [10.2.169.219] (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 23 May
+ 2019 18:47:44 +0000
+Subject: Re: [PATCH 3/5] mm/hmm: Use mm_get_hmm() in hmm_range_register()
+To: Jason Gunthorpe <jgg@ziepe.ca>, <rcampbell@nvidia.com>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, Ira Weiny
+	<ira.weiny@intel.com>, Dan Williams <dan.j.williams@intel.com>, Arnd Bergmann
+	<arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Dan Carpenter
+	<dan.carpenter@oracle.com>, Matthew Wilcox <willy@infradead.org>, Souptick
+ Joarder <jrdr.linux@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+References: <20190506232942.12623-1-rcampbell@nvidia.com>
+ <20190506232942.12623-4-rcampbell@nvidia.com>
+ <20190523125108.GA14013@ziepe.ca>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <1435fa10-fef1-0fbf-de20-70ed145ab6ab@nvidia.com>
+Date: Thu, 23 May 2019 11:46:48 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190523174349.GA10939@cmpxchg.org>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+In-Reply-To: <20190523125108.GA14013@ziepe.ca>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1558637265; bh=tVzIzXhTQ6hb7xFSzDM7/YhxaHOlgS0CMmNs/PhECls=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=JA5v5DeRlkhcFTDxT2DHtmNJydY8aluWht3QgPQHhzM8CkXOmI10blP375OYVWc3j
+	 chssnY/fB/6okvOrxAm11slC0pLddF7r8e3mhOTKI6UpGEO4oGUQLqXowSdACMdcev
+	 pfivN58HleoZZTLzsHthXLW+PHrMHnHbtmgoHE/aiBHrN82z0iCOpNCDmV0fWIN2jB
+	 8B7ixIe0KIEhUkEVG7d46BnHWF56JCQKDHo2EZaNdD5ko/I/UDVRc2rrWAijh2cqbg
+	 RbFQnEMTA+MyQj4Wjt7WqigTpz5S4W0K/jXc2J9Pfrn5ZnuT6Sxr+Y8ulFFU3rpcQq
+	 qu8My+EHH1OHQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 23, 2019 at 01:43:49PM -0400, Johannes Weiner wrote:
-> I noticed that recent upstream kernels don't account the xarray nodes
-> of the page cache to the allocating cgroup, like we used to do for the
-> radix tree nodes.
+On 5/23/19 5:51 AM, Jason Gunthorpe wrote:
+> On Mon, May 06, 2019 at 04:29:40PM -0700, rcampbell@nvidia.com wrote:
+>> From: Ralph Campbell <rcampbell@nvidia.com>
+>>
+>> In hmm_range_register(), the call to hmm_get_or_create() implies that
+>> hmm_range_register() could be called before hmm_mirror_register() when
+>> in fact, that would violate the HMM API.
+>>
+>> Use mm_get_hmm() instead of hmm_get_or_create() to get the HMM structure.
+>>
+>> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+>> Cc: John Hubbard <jhubbard@nvidia.com>
+>> Cc: Ira Weiny <ira.weiny@intel.com>
+>> Cc: Dan Williams <dan.j.williams@intel.com>
+>> Cc: Arnd Bergmann <arnd@arndb.de>
+>> Cc: Balbir Singh <bsingharora@gmail.com>
+>> Cc: Dan Carpenter <dan.carpenter@oracle.com>
+>> Cc: Matthew Wilcox <willy@infradead.org>
+>> Cc: Souptick Joarder <jrdr.linux@gmail.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>>   mm/hmm.c | 2 +-
+>>   1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/mm/hmm.c b/mm/hmm.c
+>> index f6c4c8633db9..2aa75dbed04a 100644
+>> +++ b/mm/hmm.c
+>> @@ -936,7 +936,7 @@ int hmm_range_register(struct hmm_range *range,
+>>   	range->start = start;
+>>   	range->end = end;
+>>   
+>> -	range->hmm = hmm_get_or_create(mm);
+>> +	range->hmm = mm_get_hmm(mm);
+>>   	if (!range->hmm)
+>>   		return -EFAULT;
 > 
-> This results in broken isolation for cgrouped apps, allowing them to
-> escape their containment and harm other cgroups and the system with an
-> excessive build-up of nonresident information.
+> I looked for documentation saying that hmm_range_register should only
+> be done inside a hmm_mirror_register and didn't see it. Did I miss it?
+> Can you add a comment?
 > 
-> It also breaks thrashing/refault detection because the page cache
-> lives in a different domain than the xarray nodes, and so the shadow
-> shrinker can reclaim nonresident information way too early when there
-> isn't much cache in the root cgroup.
->
-> I'm not quite sure how to fix this, since the xarray code doesn't seem
-> to have per-tree gfp flags anymore like the radix tree did. We cannot
-> add SLAB_ACCOUNT to the radix_tree_node_cachep slab cache. And the
-> xarray api doesn't seem to really support gfp flags, either (xas_nomem
-> does, but the optimistic internal allocations have fixed gfp flags).
+> It is really good to fix this because it means we can rely on mmap sem
+> to manage mm->hmm!
+> 
+> If this is true then I also think we should change the signature of
+> the function to make this dependency relationship clear, and remove
+> some possible confusing edge cases.
+> 
+> What do you think about something like this? (unfinished)
 
-Would it be a problem to always add __GFP_ACCOUNT to the fixed flags?
-I don't really understand cgroups.
+I like it...
+
+> 
+> commit 29098bd59cf481ad1915db40aefc8435dabb8b28
+> Author: Jason Gunthorpe <jgg@mellanox.com>
+> Date:   Thu May 23 09:41:19 2019 -0300
+> 
+>      mm/hmm: Use hmm_mirror not mm as an argument for hmm_register_range
+>      
+>      Ralf observes that hmm_register_range() can only be called by a driver
+
+       ^Ralph
+:)
+
+>      while a mirror is registered. Make this clear in the API by passing
+>      in the mirror structure as a parameter.
+>      
+>      This also simplifies understanding the lifetime model for struct hmm,
+>      as the hmm pointer must be valid as part of a registered mirror
+>      so all we need in hmm_register_range() is a simple kref_get.
+>      
+>      Suggested-by: Ralph Campbell <rcampbell@nvidia.com>
+>      Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+> 
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index 8b91c90d3b88cb..87d29e085a69f7 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -503,7 +503,7 @@ static inline bool hmm_mirror_mm_is_alive(struct hmm_mirror *mirror)
+>    * Please see Documentation/vm/hmm.rst for how to use the range API.
+>    */
+>   int hmm_range_register(struct hmm_range *range,
+> -		       struct mm_struct *mm,
+> +		       struct hmm_mirror *mirror,
+>   		       unsigned long start,
+>   		       unsigned long end,
+>   		       unsigned page_shift);
+> @@ -539,7 +539,8 @@ static inline bool hmm_vma_range_done(struct hmm_range *range)
+>   }
+>   
+>   /* This is a temporary helper to avoid merge conflict between trees. */
+> -static inline int hmm_vma_fault(struct hmm_range *range, bool block)
+> +static inline int hmm_vma_fault(struct hmm_mirror *mirror,
+> +				struct hmm_range *range, bool block)
+>   {
+>   	long ret;
+>   
+> @@ -552,7 +553,7 @@ static inline int hmm_vma_fault(struct hmm_range *range, bool block)
+>   	range->default_flags = 0;
+>   	range->pfn_flags_mask = -1UL;
+>   
+> -	ret = hmm_range_register(range, range->vma->vm_mm,
+> +	ret = hmm_range_register(range, mirror,
+>   				 range->start, range->end,
+>   				 PAGE_SHIFT);
+>   	if (ret)
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 824e7e160d8167..fa1b04fcfc2549 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -927,7 +927,7 @@ static void hmm_pfns_clear(struct hmm_range *range,
+>    * Track updates to the CPU page table see include/linux/hmm.h
+>    */
+>   int hmm_range_register(struct hmm_range *range,
+> -		       struct mm_struct *mm,
+> +		       struct hmm_mirror *mirror,
+>   		       unsigned long start,
+>   		       unsigned long end,
+>   		       unsigned page_shift)
+> @@ -935,7 +935,6 @@ int hmm_range_register(struct hmm_range *range,
+>   	unsigned long mask = ((1UL << page_shift) - 1UL);
+>   
+>   	range->valid = false;
+> -	range->hmm = NULL;
+>   
+>   	if ((start & mask) || (end & mask))
+>   		return -EINVAL;
+> @@ -946,15 +945,12 @@ int hmm_range_register(struct hmm_range *range,
+>   	range->start = start;
+>   	range->end = end;
+>   
+> -	range->hmm = hmm_get_or_create(mm);
+> -	if (!range->hmm)
+> -		return -EFAULT;
+> -
+>   	/* Check if hmm_mm_destroy() was call. */
+> -	if (range->hmm->mm == NULL || range->hmm->dead) {
+> -		hmm_put(range->hmm);
+> +	if (mirror->hmm->mm == NULL || mirror->hmm->dead)
+>   		return -EFAULT;
+> -	}
+> +
+> +	range->hmm = mirror->hmm;
+> +	kref_get(&range->hmm->kref);
+>   
+>   	/* Initialize range to track CPU page table update */
+>   	mutex_lock(&range->hmm->lock);
+> 
+
+So far, this looks very good to me. Passing the mirror around is an
+elegant API solution to the "we must have a valid mirror in order to
+call this function" constraint.
+
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
