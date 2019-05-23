@@ -2,185 +2,174 @@ Return-Path: <SRS0=On+J=TX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CEFECC282DE
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:03:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DE271C282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:05:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8803A2177E
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:03:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8803A2177E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 93A182177E
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 19:05:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="ABVkXe49"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93A182177E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 39F856B028D; Thu, 23 May 2019 15:03:33 -0400 (EDT)
+	id 3C55C6B0290; Thu, 23 May 2019 15:05:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 34FFA6B0290; Thu, 23 May 2019 15:03:33 -0400 (EDT)
+	id 375A46B0298; Thu, 23 May 2019 15:05:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 267086B0293; Thu, 23 May 2019 15:03:33 -0400 (EDT)
+	id 28DB76B029B; Thu, 23 May 2019 15:05:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E61CF6B028D
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 15:03:32 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id g38so4424989pgl.22
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 12:03:32 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 08EE26B0290
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 15:05:18 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id k142so6222468ywa.9
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 12:05:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=KqGAq2Kn4l7r0bF2ES0l0CVItmj8+uVIeJFieuoStEs=;
-        b=RknCs/lr7COvnQOH3+Abge5m5WNDPBGbH5L3sS/9FtjfGQxMqy3WfZZqa4DIYnvCJ1
-         4m/eEmtNiOzr+ba+U240fQczlf/2igQRGZP4tRtRctbh3q9m/eAG0ZbKUk7GZ99vsa4y
-         Ou9G4005+5Fyq/xQDQMmAflRN69aTSobfMgO6mRin7rXy+8RjxtUWRY+UbQCXpY484aJ
-         NxsBYjGZXnUlzTnKGhZhARkQWzwVo/oU8qYGc/a2apz1ZgjwVHjbEW4Sg/xs8DmzScJU
-         NXQPjT2gsEOHY0H1o94Q9J64O+DK4FfCunLfkKsHqijFEvsmWBMWjfy0/mpsxw5P1oQ5
-         nktQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUDH6hmAK3g4FqqrMhEcpmC3ujPGgil6sY8J3t1uSCl5cZVFAeu
-	7u9EtGa2kLD7JC3cGfwyR9N91ngJm+1VLQt6Y9i8SJokwiZUYMDPWjLKn5VNRtBf9ZYimKyFSif
-	ENXdkv/cbvpeyp08fLE+L47caqaHjw7MqEYn6ENdmIUu6yHSvFydsfuD1eRF5ccv4mw==
-X-Received: by 2002:a17:90a:2ec9:: with SMTP id h9mr3549969pjs.130.1558638212596;
-        Thu, 23 May 2019 12:03:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxRyMlhHyf8pwKF85uX7Jc6FEiXaTzmX+euHp95Kw7fRFnw/dwijCUk2O5e2iWeNBJI4OG6
-X-Received: by 2002:a17:90a:2ec9:: with SMTP id h9mr3549863pjs.130.1558638211800;
-        Thu, 23 May 2019 12:03:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558638211; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=YP2OrLXcg7+GgleBA75F5zjB/aDAnmSGT6B98RFmL+A=;
+        b=Ayzrqw3PxPjeBlrewa8FJ1kGTl1gA7SWZEbA2qB5mZLcHbsZwWMzzUD9N3fBVX9gbD
+         l7bfBuPOpd8HmxnVViU4u1S1QbbhyYh59i1Q6frGHgAQNA+3tn/N1aOUwwD9JdnIam3E
+         kQLyBAVV/UL2XYzptoUYfVvlnrDRqDJjzlrFO8MaEkWJKzGmd54Q5nnurBFR1hBJqfQS
+         Cf+prwjf8/C6PS4wOBljhsuuU08OVNwxIJDG5vu3z0tBRLtnRZ30ookAcV2j15/fuhTF
+         Tj6ErjRbnkOVECeCBQhGpRfMH1L36Ljr4+Ot5t4mlxFQzljvL4qOOoZ4qkhUMbFzCAHh
+         mkmQ==
+X-Gm-Message-State: APjAAAXxWI3EeeX877oCn8s+koFhmlABts5wSqNQbit3SnnieyUkFJBp
+	cO4qqLpz/0P1sWgM4PnYM8jl0JOsZ69dNHjpzp09iukRwQIPH9z7pslU/vJGr1c/hynmVlv2Rft
+	LXUk7Cv4i82WFPSP/nVF1GF9sq7JjvHTTGXf9HajesgFGILvMrL9GOIUV0+LVFPh+AA==
+X-Received: by 2002:a25:3803:: with SMTP id f3mr18434812yba.158.1558638317774;
+        Thu, 23 May 2019 12:05:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyZfhtl2rrCsEU4Sd9CtPMlW/j31Vjq1ftMQQmno9+UCZZdXtehpKIxZeZVz3Yks7NbA1U+
+X-Received: by 2002:a25:3803:: with SMTP id f3mr18434764yba.158.1558638317108;
+        Thu, 23 May 2019 12:05:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558638317; cv=none;
         d=google.com; s=arc-20160816;
-        b=pF1mkSCwOFllXyen8nXeTk78heVHcoSIrtqtkOsg1SAfcb87QoQDGJytQPW87wBAKH
-         YBieUaCd+/xIgoi1cvl2ULcI7uCRALIX+ZkaBFEbvRJ+TGST6AZi0KSBJow/GHgmRai3
-         qpUBda6pKst0JnsL4t+wM17NpveQ4b/H0stGGseqbza8peS2xSwAeW4JLJDM07gnJwY4
-         0MBQ0mfjykQdBKcvcxh0ioZ5/p3ExzQtELn0a1j5VvBBXyCDN8ICg6qJhJf/zLlncdkZ
-         uH/cWaVZS45QUusReVKSTUqrGuALSJMRlTDPaKHB9Xfbdim4WGtSe2B5Is3V702ww8hC
-         uYGQ==
+        b=CC8s/kz/B8wkaCrdOxGxvkJPFHu+paj922F7dnKMstWEdMqos+8FianIl0ZpFHZJQ9
+         H7JWR6h3heMxtlleYLdrgAIVE6la8k7D9nvyxVjgbnP4Lj8FrAO3c+gCVTt3zHKjB660
+         8p86MbmUVhDrTaauU8BU++7gnOt/13+weqlPVSvAxrqGgka+WmyLWqmFbDsUmye1J0Aw
+         GzGm944/ejwHkba/TSHfNsGsEHYPkcXAcMk2abPcB9qYSVrS1SZp9V9ETZHRPOOvi5eU
+         y+X06HHHvU0+b147sw/Bzw3siEUI/SOmgGQdM5ScE/7M0zKuw5V+Ckh+GAs2AO3F0IMH
+         VEjA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=KqGAq2Kn4l7r0bF2ES0l0CVItmj8+uVIeJFieuoStEs=;
-        b=tXGo9NSgza9BvH6L46U4xuwBKCDXU5Ptz1Q7OnV6l+npJsXJKTaHF7gBPP40yD8z6K
-         DqORuumP7gToHi2aqf+A6xY5j3Renow+LMfMMR2Dg9OEKtPeZVUgCDIw0eiUGOJqRPPK
-         ObJoZVRV/je5ux9k9JlQL2v6OwE91k4Ar8UIJ+HF456YbBzEWAOfddpSgcuutHEL7Tad
-         POw5gnca6jlqB8k4UcIfpKmf8d//tD92gusjGyzyVKmEy1YoNwR9pGMopQS+eZLFT6u0
-         SoS6pmnFLyKNv4ZMfwa2868GgFnU1xqu4dcK8Yefxq34sgGRFi3yiz61BAPsdWnKgTl/
-         zdcA==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=YP2OrLXcg7+GgleBA75F5zjB/aDAnmSGT6B98RFmL+A=;
+        b=t+GVkoF+b9WvrvB3Zcr+XX1zTDU74936jjC5hNsnhbdYEiOU8HJycvgTvfDHv7WBJJ
+         j6VU0g7vCkwH9Hd+bcSeQPEM5omzfif5hEVUoG20ncJ1ulSkoq+B8OON5wgFoU7gNCSY
+         tVaGhq8T4lUC4cGuKQg4dh7NYjq5vJTtCEB0s2ds/x/T7hi4enKrygF5xI3Tl9d2YPGl
+         EtqPOmDBWyJuHrT9zAUDQQruehiN4W8PkIm0OAuCNa7u71NtAQEkLkwfSVfwyH2UPXwz
+         LC1dfSSgtcjsSipjdteSt8Z8u7+GKRiGdO+6Qhqxz8EaCxWehZeh1Wm+tFAuQqymfSn+
+         9BWw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id c1si259289pjs.86.2019.05.23.12.03.31
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ABVkXe49;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id u73si57315ywu.227.2019.05.23.12.05.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 12:03:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Thu, 23 May 2019 12:05:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 May 2019 12:03:31 -0700
-X-ExtLoop1: 1
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga008.jf.intel.com with ESMTP; 23 May 2019 12:03:30 -0700
-Date: Thu, 23 May 2019 12:04:24 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jason Gunthorpe <jgg@mellanox.com>,
-	"john.hubbard@gmail.com" <john.hubbard@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
-	Doug Ledford <dledford@redhat.com>,
-	Mike Marciniszyn <mike.marciniszyn@intel.com>,
-	Dennis Dalessandro <dennis.dalessandro@intel.com>,
-	Christian Benvenuti <benve@cisco.com>, Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/1] infiniband/mm: convert put_page() to put_user_page*()
-Message-ID: <20190523190423.GA19578@iweiny-DESK2.sc.intel.com>
-References: <20190523072537.31940-1-jhubbard@nvidia.com>
- <20190523072537.31940-2-jhubbard@nvidia.com>
- <20190523172852.GA27175@iweiny-DESK2.sc.intel.com>
- <20190523173222.GH12145@mellanox.com>
- <fa6d7d7c-13a3-0586-6384-768ebb7f0561@nvidia.com>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=ABVkXe49;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5ce6eeec0000>; Thu, 23 May 2019 12:05:16 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 23 May 2019 12:05:15 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 23 May 2019 12:05:15 -0700
+Received: from [10.2.169.219] (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 23 May
+ 2019 19:05:12 +0000
+Subject: Re: [RFC PATCH 00/11] mm/hmm: Various revisions from a locking/code
+ review
+To: Jason Gunthorpe <jgg@ziepe.ca>, <linux-rdma@vger.kernel.org>,
+	<linux-mm@kvack.org>, Jerome Glisse <jglisse@redhat.com>, Ralph Campbell
+	<rcampbell@nvidia.com>
+CC: Jason Gunthorpe <jgg@mellanox.com>
+References: <20190523153436.19102-1-jgg@ziepe.ca>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <6ee88cde-5365-9bbc-6c4d-7459d5c3ebe2@nvidia.com>
+Date: Thu, 23 May 2019 12:04:16 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <fa6d7d7c-13a3-0586-6384-768ebb7f0561@nvidia.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+In-Reply-To: <20190523153436.19102-1-jgg@ziepe.ca>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL106.nvidia.com (172.18.146.12) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1558638316; bh=YP2OrLXcg7+GgleBA75F5zjB/aDAnmSGT6B98RFmL+A=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=ABVkXe49Iwt9HNArMqPpHmNl0uJRGzlQvFw8q92phwZF7JmzwKUNZOaNCTi4Wht9w
+	 2wNftys44mCri3WYu2IQsS2msA6zvIaHCp0Cvz8q/YjbkPDIKq5FTeqZu1sxr89D4b
+	 ETwGXxWTZ7LjM4ajaIOSMJb5z53WNPrhPwx5kNkFvNrISKpc8+UziwycRt5zENV+V6
+	 aAIVE0rDiZ/8+aNThPhKyWCWdv7hifp8UaGKiip1BrYHprhY5UlhjLLSFbym6ZcvBa
+	 Spflg8pZ4Ap8Q3REzEIkaKoWwuNIXzSTlv5sesMjG46x194a7GNeebHGp9IoEmoknK
+	 eZ9FzMjZUpzbg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 23, 2019 at 10:46:38AM -0700, John Hubbard wrote:
-> On 5/23/19 10:32 AM, Jason Gunthorpe wrote:
-> > On Thu, May 23, 2019 at 10:28:52AM -0700, Ira Weiny wrote:
-> > > > @@ -686,8 +686,8 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
-> > > >   			 * ib_umem_odp_map_dma_single_page().
-> > > >   			 */
-> > > >   			if (npages - (j + 1) > 0)
-> > > > -				release_pages(&local_page_list[j+1],
-> > > > -					      npages - (j + 1));
-> > > > +				put_user_pages(&local_page_list[j+1],
-> > > > +					       npages - (j + 1));
-> > > 
-> > > I don't know if we discussed this before but it looks like the use of
-> > > release_pages() was not entirely correct (or at least not necessary) here.  So
-> > > I think this is ok.
-> > 
-> > Oh? John switched it from a put_pages loop to release_pages() here:
-> > 
-> > commit 75a3e6a3c129cddcc683538d8702c6ef998ec589
-> > Author: John Hubbard <jhubbard@nvidia.com>
-> > Date:   Mon Mar 4 11:46:45 2019 -0800
-> > 
-> >      RDMA/umem: minor bug fix in error handling path
-> >      1. Bug fix: fix an off by one error in the code that cleans up if it fails
-> >         to dma-map a page, after having done a get_user_pages_remote() on a
-> >         range of pages.
-> >      2. Refinement: for that same cleanup code, release_pages() is better than
-> >         put_page() in a loop.
-> > 
-> > And now we are going to back something called put_pages() that
-> > implements the same for loop the above removed?
-> > 
-> > Seems like we are going in circles?? John?
-> > 
+On 5/23/19 8:34 AM, Jason Gunthorpe wrote:
+> From: Jason Gunthorpe <jgg@mellanox.com>
 > 
-> put_user_pages() is meant to be a drop-in replacement for release_pages(),
-> so I made the above change as an interim step in moving the callsite from
-> a loop, to a single call.
+> This patch series arised out of discussions with Jerome when looking at the
+> ODP changes, particularly informed by use after free races we have already
+> found and fixed in the ODP code (thanks to syzkaller) working with mmu
+> notifiers, and the discussion with Ralph on how to resolve the lifetime model.
 > 
-> And at some point, it may be possible to find a way to optimize put_user_pages()
-> in a similar way to the batching that release_pages() does, that was part
-> of the plan for this.
+> Overall this brings in a simplified locking scheme and easy to explain
+> lifetime model:
 > 
-> But I do see what you mean: in the interim, maybe put_user_pages() should
-> just be calling release_pages(), how does that change sound?
+>   If a hmm_range is valid, then the hmm is valid, if a hmm is valid then the mm
+>   is allocated memory.
+> 
+>   If the mm needs to still be alive (ie to lock the mmap_sem, find a vma, etc)
+>   then the mmget must be obtained via mmget_not_zero().
+> 
+> Locking of mm->hmm is shifted to use the mmap_sem consistently for all
+> read/write and unlocked accesses are removed.
+> 
+> The use unlocked reads on 'hmm->dead' are also eliminated in favour of using
+> standard mmget() locking to prevent the mm from being released. Many of the
+> debugging checks of !range->hmm and !hmm->mm are dropped in favour of poison -
+> which is much clearer as to the lifetime intent.
+> 
+> The trailing patches are just some random cleanups I noticed when reviewing
+> this code.
+> 
+> I expect Jerome & Ralph will have some design notes so this is just RFC, and
+> it still needs a matching edit to nouveau. It is only compile tested.
+> 
 
-I'm certainly not the expert here but FWICT release_pages() was originally
-designed to work with the page cache.
+Thanks so much for doing this. Jerome has already absorbed these into his
+hmm-5.3 branch, along with Ralph's other fixes, so we can start testing,
+as well as reviewing, the whole set. We'll have feedback soon.
 
-aabfb57296e3  mm: memcontrol: do not kill uncharge batching in free_pages_and_swap_cache
 
-But at some point it was changed to be more general?
-
-ea1754a08476 mm, fs: remove remaining PAGE_CACHE_* and page_cache_{get,release} usage
-
-... and it is exported and used outside of the swapping code... and used at
-lease 1 place to directly "put" pages gotten from get_user_pages_fast()
-[arch/x86/kvm/svm.c]
-
-From that it seems like it is safe.
-
-But I don't see where release_page() actually calls put_page() anywhere?  What
-am I missing?
-
-Ira
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
