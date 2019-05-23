@@ -4,193 +4,196 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 435F4C282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 17:47:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 82E55C282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 17:52:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EA0632184B
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 17:47:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3A7B72184B
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 17:52:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="FfbPZT6Q"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA0632184B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="vDS9uTH4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A7B72184B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7F6CE6B028F; Thu, 23 May 2019 13:47:40 -0400 (EDT)
+	id D4C7B6B0291; Thu, 23 May 2019 13:52:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A8686B0291; Thu, 23 May 2019 13:47:40 -0400 (EDT)
+	id D238D6B0294; Thu, 23 May 2019 13:52:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6976B6B0293; Thu, 23 May 2019 13:47:40 -0400 (EDT)
+	id C116E6B0295; Thu, 23 May 2019 13:52:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BB056B028F
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 13:47:40 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id d10so5850566ybs.23
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 10:47:40 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D4326B0291
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 13:52:07 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id w139so2217374ywd.13
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 10:52:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=cJu+WJeaivnLRPXuXP9NC7KepKeSbgIbtxawo6JxqHQ=;
-        b=Qs56Vk/VrSLntwzUdvFlo2x9IBzpNl26PZkZMrci/oOOk2wndC+sqz/DNV9toxovkf
-         caV+xnxuWMmjOqkmkd9DuXcbHY4nZbZ2yrgVcQ9t4I8uPzq2tEk1j1Qhh+37dtgSAw2Y
-         rvUvIZ7iO699irOVavmB5HXnzJ6RPw1noOz2Ifd7oz5gl1vgqy8Tu+nC3QLq0BHqrM0f
-         busZAT0kGrnyrfZbN8yDXRpmL+JpanD1/xN/6kljJ1pZwW7IbHZ6dv3bGqTTTCx7QtFs
-         F+Irfy9J1KRal2DtZlQAdwoC7jbNSvCJBtbrYDyUrvjzXHDGA/3BhGpJM7NLxa8FmMzi
-         aNEw==
-X-Gm-Message-State: APjAAAWjgds0xW+10yow73wFobRBZ1hdRLtzawpRNzpeWf1SY3pseqo3
-	NtWKxTSpw1IpJfID31rEyygFzRZsk+bp49GQqBtR/2Izb7akiEuLtXLHjbw+jnbF0UMwD+YA9gE
-	Co72LYwm/bKcuLmK3+SW1Qm6PAND8UAF7uCmOE+zV+YkrlVM3FPA+ZnH/FuQR/iCO9A==
-X-Received: by 2002:a81:5741:: with SMTP id l62mr37688631ywb.4.1558633659938;
-        Thu, 23 May 2019 10:47:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxLeigXKggaD4Puj/EK7vM+hCAZ13JUToL0OAH4ec5AsD5Wqlwk06GlStZdxhQaIsyQh/TF
-X-Received: by 2002:a81:5741:: with SMTP id l62mr37688607ywb.4.1558633659326;
-        Thu, 23 May 2019 10:47:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558633659; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=2Qeh79aDTooqgUiqrhLo6Vy7tycJTudTXGs6zz5dfRs=;
+        b=V9XYXzzpPLjwB01u7aZgCGDCzxtHP6zIGgJjQWLvmSvgq5pfwGyh7ZE+L11hBI1Ev4
+         BXWTBpHQBe6OFWR431Q051hRIN7d2Af4AG3NMp47+AwkUKFcOidlmnpA+Q79v4g6mdNc
+         +GGPjeSo2rBmHDU0USrzhp9mu80otUPITVo5w41ssataoUxtAtWg8aZZ26g6C0xXi2TS
+         EfymhRXZgSIX9C491zlLbNl0NPg2taNWd2dW+uWvDCi1wvyWlIynsDpIi3zZ43nRUVwo
+         MVLGKIq6MEsiCZ4Ya7gOfw8B8FJnshbbe6OKpZdVbg6FCcHr8Mj+rF/F99bxo9pfVYNF
+         2IxA==
+X-Gm-Message-State: APjAAAWtdD4f9F+oFu4calYqHuPasRk14F/NYAV/SJGiSVECL5BVmilr
+	j6skWtTUboO7cQj8ZEBnlbO6MImm5ivzEeKM3xNPe7NKaHL4K3/fjr42nk7i1sUFHzSffIemuWF
+	KERBIeVMXWAu/w9vHNOSdUEu1vJ6y+YeAfZ13HIqsozQ8IsmA4KviQmHKuz0YHM0FWw==
+X-Received: by 2002:a25:db93:: with SMTP id g141mr9768176ybf.230.1558633927347;
+        Thu, 23 May 2019 10:52:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxwJ409jZGK4uau2kbAtSLO7fKr1TYI0UifxzzuyHqxp13EqraypKdXcLTBIRHvW0bVQQ0i
+X-Received: by 2002:a25:db93:: with SMTP id g141mr9768154ybf.230.1558633926756;
+        Thu, 23 May 2019 10:52:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558633926; cv=none;
         d=google.com; s=arc-20160816;
-        b=FFm/wnyNxElYcS16PBjhYhDraZsu6vDx4zM3NtrZYSfqsgBzuY88Sm3+BJu91sFlmY
-         iWrLJR37R4MoD3RwQf0ysMXap+C7HGUGNmxaPDkbmmBTW8vfKKqg7uFdD7CQbJMsVUPo
-         RqWRby7Q0Cbf7KogaEjAwSTD67TRpuMHmWdQGe+IC/y2e2yFrQF6pQj3kJpSmoMyAiW5
-         md468JP8IEJya8CEzv2PIDSvdv2Isg/iVW63hiPzoKJ3oFyuCOmYZTakygsYDwpxQGWY
-         Dyi/ZowI5OErKMdUto/oQ8d5wUjaTLxI7r/IjE/lvkYWoCKj8lHadke4bBvG/Wm7Y4vK
-         47Yw==
+        b=hAFQEPNuejTc5R2xhXYx49QhOkn2eoiPYw8Z7trYE7s0uYc+45NHGVVzHnpFPwF77h
+         Jne7x5mhEsmz31u0JD/2ByURIBnvlWkegLCGNINl9tpaELoub7gxGjj2KDDn8+SMS7yb
+         jtVNHngHpIWuojLqn/dWTgtxa1KWE8D/0V8w9KfEnhRQblE7o21lM/iW5+mEe2x9sVVw
+         FrK1ib0U2RiZQ+REPyDXu7PG2ny/0xE2+hjJyNPrv6pZzmXybz76VCUnVfO/6sj7RzXv
+         o604kKnx0F0e1+cI3V+X3V0CgTRHf/qi/v7XNjQXQLnE6F14YyXA7uri6R8xCU1aD8Ud
+         gJbQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=cJu+WJeaivnLRPXuXP9NC7KepKeSbgIbtxawo6JxqHQ=;
-        b=Dr6YSIP62xl0POXdfHHbMylRNtdCUYIU0IBqPaEYDvKOTIfMWZWjR1qREZCLtPiWS8
-         QFi2rR0t12LlAQ5i5+q3FVi6vECWHyiwFDguMTMs2/StYw5/kpTTvmwtpGYJwTKTM+aJ
-         dv6lQTlaGUlAtX63Bc6lvx3cSJPsecPbS6s/YFZrrlotvcauLNAPJ6vzSkI4Yr1oubaf
-         +RNxL13QtRFLDOHXPouRR2IrAXGqEKacYX8n0I7y8CHE0PRQ2JwE7yHZdIn7nAc7HWOP
-         rr60Ha2/9KH792et+Nux00+tWPstYVbZbHM3i/NAMc7xJ8FMSQgxYIcIS5LibyQyJBBP
-         sSrQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=2Qeh79aDTooqgUiqrhLo6Vy7tycJTudTXGs6zz5dfRs=;
+        b=BjQyjrPQ5eHy08zeDa6wdNJV1diJKh+P1Arfu+KpU+TpIZF4NwlD2uS9AvLUgosQRB
+         X58BM0kYNHT+k5dLXMn+n+fMXTgB3E0ic/K4Njp0UGGUXLD4QYZopWhd2WGGqNXqyw8H
+         2JIb/ca1gAm74W8xBYGlun8+iC+wwIYtpZT21uV1Tz86gbiFOeNPXzfThyrewAPmQ2xA
+         BlNtWYvLfxeIrIrinBud3mo6cKEbpFWe1pezPFky5gKKjf0EgZK46ZlT7tYkHUz9PuiP
+         TokUPP1dAK3L/QkJDqQtuNt6gmGW7+VpBLl7TLVe+9OIpvYT4NqA59E6V72pL2/hTLuM
+         BiZg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=FfbPZT6Q;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id u17si8840900ywu.114.2019.05.23.10.47.39
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=vDS9uTH4;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id a13si1486773ybl.184.2019.05.23.10.52.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 10:47:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Thu, 23 May 2019 10:52:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=FfbPZT6Q;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5ce6dcb50001>; Thu, 23 May 2019 10:47:33 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 23 May 2019 10:47:38 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 23 May 2019 10:47:38 -0700
-Received: from [10.2.169.219] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 23 May
- 2019 17:47:34 +0000
-Subject: Re: [PATCH 1/1] infiniband/mm: convert put_page() to put_user_page*()
-To: Jason Gunthorpe <jgg@mellanox.com>, Ira Weiny <ira.weiny@intel.com>
-CC: "john.hubbard@gmail.com" <john.hubbard@gmail.com>, Andrew Morton
-	<akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML
-	<linux-kernel@vger.kernel.org>, "linux-rdma@vger.kernel.org"
-	<linux-rdma@vger.kernel.org>, "linux-fsdevel@vger.kernel.org"
-	<linux-fsdevel@vger.kernel.org>, Doug Ledford <dledford@redhat.com>, "Mike
- Marciniszyn" <mike.marciniszyn@intel.com>, Dennis Dalessandro
-	<dennis.dalessandro@intel.com>, Christian Benvenuti <benve@cisco.com>, "Jan
- Kara" <jack@suse.cz>
-References: <20190523072537.31940-1-jhubbard@nvidia.com>
- <20190523072537.31940-2-jhubbard@nvidia.com>
- <20190523172852.GA27175@iweiny-DESK2.sc.intel.com>
- <20190523173222.GH12145@mellanox.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <fa6d7d7c-13a3-0586-6384-768ebb7f0561@nvidia.com>
-Date: Thu, 23 May 2019 10:46:38 -0700
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=vDS9uTH4;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4NHcV4s194594;
+	Thu, 23 May 2019 17:51:53 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=2Qeh79aDTooqgUiqrhLo6Vy7tycJTudTXGs6zz5dfRs=;
+ b=vDS9uTH4+Zc8nPFLnuUvRu142pBiqAxGE5BbMuCn+MA1cOmcParAIWPYB10Gy4C7hxOT
+ CRf7KLq6LlEZK+PTvChfiuPo3LEMa9ckzl+/kAdOakkMJYpGPlnCYhLx+3+n6Ntz8J6i
+ 3fNosLO+WWxHrhBnbE6IQD52DA+Q7+ZHzBvkxtJ6IhCd+FH3wqHlFGg3maBxYupT10pT
+ epJuSNSnm8akAZ06VD98fPXl3vSfL7K8WT0tE28XcUzOExtBXHl5878ViO1cXVVBk4Tq
+ 4+ZzcfJ8p6oqlalneN0hlMs1txpq4s5U0HxUj4eJGEhRr1s4PIHpmSUBA5IcjIQCgxcH gg== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by userp2120.oracle.com with ESMTP id 2smsk5c473-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 23 May 2019 17:51:53 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4NHpCpe145061;
+	Thu, 23 May 2019 17:51:52 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3030.oracle.com with ESMTP id 2smshfd4y8-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 23 May 2019 17:51:52 +0000
+Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4NHphUB003086;
+	Thu, 23 May 2019 17:51:44 GMT
+Received: from [192.168.1.16] (/24.9.64.241)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 23 May 2019 17:51:43 +0000
+Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
+To: Kees Cook <keescook@chromium.org>,
+        Catalin Marinas <catalin.marinas@arm.com>
+Cc: Evgenii Stepanov <eugenis@google.com>,
+        Andrey Konovalov <andreyknvl@google.com>,
+        Linux ARM <linux-arm-kernel@lists.infradead.org>,
+        Linux Memory Management List <linux-mm@kvack.org>,
+        LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
+        dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+        linux-media@vger.kernel.org, kvm@vger.kernel.org,
+        "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+        Vincenzo Frascino <vincenzo.frascino@arm.com>,
+        Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+        Yishai Hadas <yishaih@mellanox.com>,
+        Felix Kuehling
+ <Felix.Kuehling@amd.com>,
+        Alexander Deucher <Alexander.Deucher@amd.com>,
+        Christian Koenig <Christian.Koenig@amd.com>,
+        Mauro Carvalho Chehab <mchehab@kernel.org>,
+        Jens Wiklander <jens.wiklander@linaro.org>,
+        Alex Williamson <alex.williamson@redhat.com>,
+        Leon Romanovsky <leon@kernel.org>, Dmitry Vyukov <dvyukov@google.com>,
+        Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
+        Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+        Jacob Bramley <Jacob.Bramley@arm.com>,
+        Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+        Robin Murphy <robin.murphy@arm.com>,
+        Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+        Dave Martin <Dave.Martin@arm.com>,
+        Kevin Brodsky <kevin.brodsky@arm.com>,
+        Szabolcs Nagy <Szabolcs.Nagy@arm.com>, Elliott Hughes <enh@google.com>
+References: <cover.1557160186.git.andreyknvl@google.com>
+ <20190517144931.GA56186@arrakis.emea.arm.com>
+ <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
+ <20190521182932.sm4vxweuwo5ermyd@mbp> <201905211633.6C0BF0C2@keescook>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Organization: Oracle Corp
+Message-ID: <6049844a-65f5-f513-5b58-7141588fef2b@oracle.com>
+Date: Thu, 23 May 2019 11:51:40 -0600
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190523173222.GH12145@mellanox.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
+In-Reply-To: <201905211633.6C0BF0C2@keescook>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1558633653; bh=cJu+WJeaivnLRPXuXP9NC7KepKeSbgIbtxawo6JxqHQ=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=FfbPZT6QVH6VAlR1feLRskrMhm5Y90TbypPeesLGrfGfd7gw4yml32K5pWQRTfTer
-	 D4rsycEUWb1uIuGiI+4NyFotZpYk072iAv6M8985uVUZB5YnFvYcHUzwdOgwYBYvk7
-	 Oie7zgGrFj5klPYmfYYnJLwI+Mge3sPjjJ59YitQTd/QDOLRYLZpNkZ9gYH2Sva3tp
-	 kd7kFGqP9BgfExZaQ8g6ePlt9zkuiWwkJurGW+wpfiR6jXlQTPjLzyq2/ZAvuAl/Gj
-	 VgraXs1B91kLLWDN9ZQ5eNpaxgFv9Xv1QqMz+EDdPjAXr0uclLOfBp+7vD31LhjHgI
-	 35gTwnCDBIXBQ==
+Content-Transfer-Encoding: quoted-printable
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9265 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905230119
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9265 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905230119
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/23/19 10:32 AM, Jason Gunthorpe wrote:
-> On Thu, May 23, 2019 at 10:28:52AM -0700, Ira Weiny wrote:
->>>   
->>> @@ -686,8 +686,8 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
->>>   			 * ib_umem_odp_map_dma_single_page().
->>>   			 */
->>>   			if (npages - (j + 1) > 0)
->>> -				release_pages(&local_page_list[j+1],
->>> -					      npages - (j + 1));
->>> +				put_user_pages(&local_page_list[j+1],
->>> +					       npages - (j + 1));
->>
->> I don't know if we discussed this before but it looks like the use of
->> release_pages() was not entirely correct (or at least not necessary) here.  So
->> I think this is ok.
-> 
-> Oh? John switched it from a put_pages loop to release_pages() here:
-> 
-> commit 75a3e6a3c129cddcc683538d8702c6ef998ec589
-> Author: John Hubbard <jhubbard@nvidia.com>
-> Date:   Mon Mar 4 11:46:45 2019 -0800
-> 
->      RDMA/umem: minor bug fix in error handling path
->      
->      1. Bug fix: fix an off by one error in the code that cleans up if it fails
->         to dma-map a page, after having done a get_user_pages_remote() on a
->         range of pages.
->      
->      2. Refinement: for that same cleanup code, release_pages() is better than
->         put_page() in a loop.
->      
-> 
-> And now we are going to back something called put_pages() that
-> implements the same for loop the above removed?
-> 
-> Seems like we are going in circles?? John?
-> 
+On 5/21/19 6:04 PM, Kees Cook wrote:
+> As an aside: I think Sparc ADI support in Linux actually side-stepped
+> this[1] (i.e. chose "solution 1"): "All addresses passed to kernel must=
 
-put_user_pages() is meant to be a drop-in replacement for release_pages(),
-so I made the above change as an interim step in moving the callsite from
-a loop, to a single call.
-
-And at some point, it may be possible to find a way to optimize put_user_pages()
-in a similar way to the batching that release_pages() does, that was part
-of the plan for this.
-
-But I do see what you mean: in the interim, maybe put_user_pages() should
-just be calling release_pages(), how does that change sound?
+> be non-ADI tagged addresses." (And sadly, "Kernel does not enable ADI
+> for kernel code.") I think this was a mistake we should not repeat for
+> arm64 (we do seem to be at least in agreement about this, I think).
+>=20
+> [1] https://lore.kernel.org/patchwork/patch/654481/
 
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+That is a very early version of the sparc ADI patch. Support for tagged
+addresses in syscalls was added in later versions and is in the patch
+that is in the kernel.
+
+That part "Kernel does not enable ADI for kernel code." is correct. It
+is a possible enhancement for future.
+
+--
+Khalid
 
