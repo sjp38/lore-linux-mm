@@ -4,98 +4,99 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC1FDC282DD
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 11:29:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F9E2C282DD
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 11:30:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7D18321873
-	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 11:29:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3C1EF21882
+	for <linux-mm@archiver.kernel.org>; Thu, 23 May 2019 11:30:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Jfhvi61p"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D18321873
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="e14TSiAK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C1EF21882
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 089456B0003; Thu, 23 May 2019 07:29:29 -0400 (EDT)
+	id 0FE7B6B0007; Thu, 23 May 2019 07:30:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 039F46B0006; Thu, 23 May 2019 07:29:29 -0400 (EDT)
+	id 0B14D6B0008; Thu, 23 May 2019 07:30:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E69ED6B0007; Thu, 23 May 2019 07:29:28 -0400 (EDT)
+	id EE1256B000A; Thu, 23 May 2019 07:30:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AC93A6B0003
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 07:29:28 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id d125so800271pfd.3
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 04:29:28 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B45BB6B0007
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 07:30:40 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id t16so3681570pgv.13
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 04:30:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:to:cc:from:date
          :message-id:mime-version:content-transfer-encoding;
-        bh=KI9o0ILKA0kC5fhQFgz5VimI4xPFvLtrUGrVUP8aSkE=;
-        b=HW5ZAEKOuqG2LLLjSXrP2O2zYVib7HCOiA+QYu6OMGK+Tt7OcfFqRourtVMHr7sL+v
-         s5XssgNgaryVs9zsJXxffY+Rs6WErUjv1rKd3uszR7g7vXWx/fY4fBNz+SHyalyU56uw
-         TPOjb3N1w7Kzd3KmPE6+bhq7TrUUfuadIlq5GWRESJdwxEd/C18fByFROvUSKqHczBIm
-         txVg80EwvlB1op8HKafHwnKZU/jbDf8VYsGITwpkaNiC0F/f6chNjvAkQWyzWuAU05AE
-         +buNA7llZLpqq+PRIFaokQp+YT10YIhTBzeQYTBg0KMlRIbamx+AlY7pbCDGjdJ94iIX
-         srDw==
-X-Gm-Message-State: APjAAAVAvzExhHQDHgwZx5qWdGfRp8aPoYdlrAHe7dhrf3BxMq6PAhhn
-	4PSaWv3A0ZcUseiyAXdmA/TNCUSfJWu7q62z9hBLaD1q5GVoJpSdCGMcofaQi/3EhecCLs+6+MZ
-	Pb8jAKyPKIPeQ8pgfJOs+UhGYpxBRSjJKmXfdUqucqLVuL/lGoTg5QivmvljUAVB27w==
-X-Received: by 2002:a17:90a:b393:: with SMTP id e19mr645711pjr.91.1558610968201;
-        Thu, 23 May 2019 04:29:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzo/5r209psAqvpWo+8pfsS1abjZQRDh8kADYi+BbFTqu7dQN3FcGyssIgg5RusGRZzfsiL
-X-Received: by 2002:a17:90a:b393:: with SMTP id e19mr645663pjr.91.1558610967230;
-        Thu, 23 May 2019 04:29:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558610967; cv=none;
+        bh=UyYoniEPDMQGygYTq3Pw9bM6xCQ15njNPtlFQj1whmM=;
+        b=Tn+1S8OBU/O0VezQtx5hg4fnCjShf5FnGypsF0NPJVe759ciZmvb+e4BnaPdTbg5la
+         2LEhwAjU0YlfErqoVEtVlMFXmH4uuIbS9u+CXheALtylkkIWDzHWDayu9sH428AbmAsl
+         fCM7QI+zU1vOUuPu3baa8TvCWO5OgYH9/JYkcioqnKdRQCxc1i/LUhUHiUK/ksi81YYB
+         u2zCXOtvObGJx7zECrzQIYuMnPiD+97hYO7PPyrGdSWPSGt59UVOACWlv6Vfs0k0lHKh
+         Avz911JvfP/Ku23M+d03fB8pJifn4dHIwbff+o/dJlDNzKwvcZ1uuhuLcAnQcdqnLueg
+         CtRg==
+X-Gm-Message-State: APjAAAX+4mLy/o8edUx5HBfvAJx9gqQXr3bk1doRAv8v73i1UcTbUUQt
+	HYt5LMFH4U6d4Avb0OYg3M3VrfnowVsq5YtzjyJRx1BTpCvR7n8YvkUj7de28mffjSNal8rn4LC
+	wztDlpGKP7xfe+3QfUKuoz/NCdeueKrPpqhcOEUaeD1pjnapJGObQYJ9iL/qgXxDaHw==
+X-Received: by 2002:a17:90a:658b:: with SMTP id k11mr645019pjj.44.1558611040329;
+        Thu, 23 May 2019 04:30:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy1Nlw+3foQqTGSb/ixYfJtROnTMA+Rq+ZhiwaiTZEiDfXZ/1xp1IkglRbbAHbmYLiK32C0
+X-Received: by 2002:a17:90a:658b:: with SMTP id k11mr644941pjj.44.1558611039119;
+        Thu, 23 May 2019 04:30:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558611039; cv=none;
         d=google.com; s=arc-20160816;
-        b=gOOBX61hY7GGwi4WgSO7PihaprR+CvZW1g+3Ptnpo7XINsvIKP3dOE6sJMKm9Chu9U
-         rs4XqvsTXySHGEm3/FcwkceDvY6yTQgDMDXM962ie8Z5WBLx097TyOmPlOjuCUTTDgWK
-         GmbMXnSFUG5vpatvdEd2CuVXJWfHUBGy58Fob8mFqJlQbLcGz9J9CsjxKlcMhCgY+xXn
-         lMboO2WMDARb2Au6IR/xECvOoWDYTUS8tnPvcePEhWmfeiDm9hAzptK1YqFSNZtDTz48
-         gEpbQ3pSagLdJThCu7ggXfFsISIyY17AAI0hXnqB9IYFylfOm/jApm/CuI757h+1/SGK
-         ioEg==
+        b=D10YgEyAYAVets+DDppbH4ttm2/+qVQJiN+oi/BGqtSlgjnXOS5FDHb6+wmEFO4Znr
+         MZWf/3hm3UhhDSz01qf5eBudH5IEzzb/88/NNEVGWAkjYV8uesjRgEW5OyvRyjWv0aBm
+         7pcLZmGPq9eakNpobtZbR1q9p4xMPbH4plapGOVNYVWNz1qX3aMmu5Zx0KI/PBoHfnFM
+         KNPToaIG9685Cwv6yKOtvlde1qLsyPVAVVcFGCzPJJnJQ2ZTlbWNqEz/rEIWH5I7g1gk
+         KCSgUWmibqLppY1U2VO08FNY76QL1I4UCsbWRp/owfjk4hxff6OkdLKavb6p/iEQrKZI
+         p3ow==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:message-id:date:from:cc:to
          :subject:dkim-signature;
-        bh=KI9o0ILKA0kC5fhQFgz5VimI4xPFvLtrUGrVUP8aSkE=;
-        b=DH/BwRYVNkuZLk2A/Xn3xuA8kHLIMhFeldRO/iC8hlgpM4ptS7rGKR1peWqj9KPVIQ
-         tqUfpudwf5S91agnm73hYmmqDgAFESmEry+Tem/pfmem5CiU+o/ycE63Z66DY2Q2enUB
-         7d+ckpftGF8n6dlxPgoaaH/0OR2/T/C4AC97TouZHb6Vkvlkr0Yvw2reCUYtBmkWc5VI
-         5QcRLoyJSk53WNXGlGcba/KGE3NyCy0jQsV1c1yfF3jIkFIgwB8MyJrLGqf6Syjpyc75
-         GnjHxwf9aqJV53g8xWNNKj93uC5Ewf6/vg+T5aH4PxYMfffG0uL7RhQyaeZp0ZB5QfGJ
-         1mew==
+        bh=UyYoniEPDMQGygYTq3Pw9bM6xCQ15njNPtlFQj1whmM=;
+        b=SagPNqZFcnxbus/C0BXmfBQwr6Ub84ju5HyeS7aX80uoeRUxSL1wk1Ilt18SaTZT5p
+         8gFhi2/HgGxMAmLiiBulo0cRCD4RfdDvaOriAjWXyiRKaS34gPpnXe5dz3qcrDOXxhyT
+         EkmzsGzWTSmf6eVdrCgQgo9Zl181kDDSI1ROTXZY5ZsJyfhapkdf/0vQVFz1eQ8pcaNf
+         AtpK6XK3MIWSl+gjYOEaaXfglKvx2SyuvU56ZH3YXjIw2hzuBkmWJR6GWV1bCct6YRsR
+         UGNYCuEH1E3NdwyEHd2lwNrrPwAU9SQeeaggJ0Fke0hLtXRVhl4u2dPvgzcAnPvEhvpP
+         uRAA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Jfhvi61p;
+       dkim=pass header.i=@kernel.org header.s=default header.b=e14TSiAK;
        spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c4si28504866pgn.428.2019.05.23.04.29.26
+        by mx.google.com with ESMTPS id l36si704195plb.58.2019.05.23.04.30.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 04:29:27 -0700 (PDT)
+        Thu, 23 May 2019 04:30:39 -0700 (PDT)
 Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Jfhvi61p;
+       dkim=pass header.i=@kernel.org header.s=default header.b=e14TSiAK;
        spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
 Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 15FF621871;
-	Thu, 23 May 2019 11:29:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 4461A21873;
+	Thu, 23 May 2019 11:30:38 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1558610966;
-	bh=LRQ74B2rYPwMQlOWa99wSe0znTiX8FTGrc5uKOZNdto=;
+	s=default; t=1558611038;
+	bh=iqSuTD7PVtjRi6mKaicsjbueODzhC9YF2RHYYjQezXc=;
 	h=Subject:To:Cc:From:Date:From;
-	b=Jfhvi61p9TrhJ4eor1tqhz4eNdHL8/8DwZdDkS393WkKmGU2/SyiSKfiDe8Pxqpss
-	 QkoQumh8yyZpqw4BICELpWlcZnBJYI8GLXMUrgxuBqlgw7X75/Vk24i1m7kI0R0VBO
-	 60XPoMTwLFKqQ3kMzHBUbw7ZzWpvLKWK1FZM9Lek=
-Subject: Patch "x86/mpx, mm/core: Fix recursive munmap() corruption" has been added to the 5.0-stable tree
+	b=e14TSiAKol5YPgz8qbyTOmVxUN3dibzJXd4G3qeAjfnKXBnrSE3MoThjgBKbLlZJo
+	 n4fz46EE9gLdx1syZk2fNgzco+76pslVL6sLaaODPd0kfwWSARnmt4wCIcYBeU3YY6
+	 1M1RSvi0BDe5UCBQuANwP4zP0DwiHNTT5qFeqzH8=
+Subject: Patch "x86/mpx, mm/core: Fix recursive munmap() corruption" has been added to the 5.1-stable tree
 To: 20190419194747.5E1AD6DC@viggo.jf.intel.com,akpm@linux-foundation.org,anton.ivanov@cambridgegreys.com,benh@kernel.crashing.org,bp@alien8.de,dave.hansen@linux.intel.com,gregkh@linuxfoundation.org,gxt@pku.edu.cn,hjl.tools@gmail.com,hpa@zytor.com,jdike@addtoit.com,linux-mm@kvack.org,linux-um@lists.infradead.org,linuxppc-dev@lists.ozlabs.org,luto@kernel.org,mhocko@suse.com,mingo@kernel.org,mpe@ellerman.id.au,paulus@samba.org,peterz@infradead.org,rguenther@suse.de,richard@nod.at,riel@surriel.com,tglx@linutronix.de,torvalds@linux-foundation.org,vbabka@suse.cz,yang.shi@linux.alibaba.com
 Cc: <stable-commits@vger.kernel.org>
 From: <gregkh@linuxfoundation.org>
-Date: Thu, 23 May 2019 13:26:17 +0200
-Message-ID: <155861077763253@kroah.com>
+Date: Thu, 23 May 2019 13:26:35 +0200
+Message-ID: <155861079524166@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 8bit
@@ -112,12 +113,12 @@ This is a note to let you know that I've just added the patch titled
 
     x86/mpx, mm/core: Fix recursive munmap() corruption
 
-to the 5.0-stable tree which can be found at:
+to the 5.1-stable tree which can be found at:
     http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
 
 The filename of the patch is:
      x86-mpx-mm-core-fix-recursive-munmap-corruption.patch
-and it can be found in the queue-5.0 subdirectory.
+and it can be found in the queue-5.1 subdirectory.
 
 If you, or anyone else, feels it should not be added to the stable tree,
 please let <stable@vger.kernel.org> know about it.
@@ -439,7 +440,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  }
 --- a/mm/mmap.c
 +++ b/mm/mmap.c
-@@ -2736,9 +2736,17 @@ int __do_munmap(struct mm_struct *mm, un
+@@ -2735,9 +2735,17 @@ int __do_munmap(struct mm_struct *mm, un
  		return -EINVAL;
  
  	len = PAGE_ALIGN(len);
@@ -457,7 +458,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  	/* Find the first overlapping VMA */
  	vma = find_vma(mm, start);
  	if (!vma)
-@@ -2747,7 +2755,6 @@ int __do_munmap(struct mm_struct *mm, un
+@@ -2746,7 +2754,6 @@ int __do_munmap(struct mm_struct *mm, un
  	/* we have  start < vma->vm_end  */
  
  	/* if it doesn't overlap, we have nothing.. */
@@ -465,7 +466,7 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
  	if (vma->vm_start >= end)
  		return 0;
  
-@@ -2817,12 +2824,6 @@ int __do_munmap(struct mm_struct *mm, un
+@@ -2816,12 +2823,6 @@ int __do_munmap(struct mm_struct *mm, un
  	/* Detach vmas from rbtree */
  	detach_vmas_to_be_unmapped(mm, vma, prev, end);
  
@@ -482,5 +483,5 @@ Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 Patches currently in stable-queue which might be from dave.hansen@linux.intel.com are
 
-queue-5.0/x86-mpx-mm-core-fix-recursive-munmap-corruption.patch
+queue-5.1/x86-mpx-mm-core-fix-recursive-munmap-corruption.patch
 
