@@ -2,184 +2,166 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E40E9C282DD
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 01:27:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F030BC282DE
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 03:58:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A05162168B
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 01:27:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A05162168B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 99F5E21773
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 03:58:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Qs74XkHj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99F5E21773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 42E4F6B0007; Thu, 23 May 2019 21:27:17 -0400 (EDT)
+	id EE1656B0005; Thu, 23 May 2019 23:58:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3DEAC6B0008; Thu, 23 May 2019 21:27:17 -0400 (EDT)
+	id E91A86B0006; Thu, 23 May 2019 23:58:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2CDAB6B000A; Thu, 23 May 2019 21:27:17 -0400 (EDT)
+	id D81356B0007; Thu, 23 May 2019 23:58:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E847B6B0007
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 21:27:16 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 21so5140637pgl.5
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 18:27:16 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ADA406B0005
+	for <linux-mm@kvack.org>; Thu, 23 May 2019 23:58:25 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id z1so3874968oth.8
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 20:58:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=+khW/DQO1VcPKNDkRmBjKgBsqSADE78QnWtHeSz7egE=;
-        b=cG0XC4cDdP8U9g17FVcgbW1kTDHnFrJq++DffUo4bQUGt7LerHoCg9b9dfbWjWE2f9
-         0nwEO3j5xh8hdHTX0BrpvG6XK7mLoZP2JwHmIiSOWMXb/YESqQbKPkcebmiw5qzJr+p5
-         t5V1a0xuI3etQehiBdag3BH2WbmaFwwwS64+rpW2yDOIEVtE3/B7QPFjqEo7cnCRlh9F
-         S6ExUJepVwyQaAmb/tS4xL1YiJ6v0EE3IcIpWpe60FKl0nDpapVqBla5rYnklhbX49hZ
-         j+yfu04HSivUzEwiG4ztRuGztQZoCnRnfsDwIz/9Ac3MmKKaEuBjCe7XrgxKbMcetuyj
-         zreg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWZz3FVweqLAqNTNV+WKitsP02Q6uk01IBwb5yBTCcBom3pRm+k
-	WtQh6gQcG3WWwJZTILB7OXRAnFHQ0ufA6j9n1r+VJJ7mXr4VSyBDHtUEW8TKbjj8icA91oOo0FH
-	ke6d+iBOdXiqt/5I+ONQtTl6toleQ9OC4o3OBvwOB28yNmyc4mLPz0qk9hHB6zriZnQ==
-X-Received: by 2002:a63:ed16:: with SMTP id d22mr101431929pgi.35.1558661236569;
-        Thu, 23 May 2019 18:27:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx6ldKGOxen1g3s1d2qnPhYl1xlHj0sOV+QoYiVTpMc8NEtRU3KE138LAF6y3urfiRd1bMN
-X-Received: by 2002:a63:ed16:: with SMTP id d22mr101431838pgi.35.1558661235785;
-        Thu, 23 May 2019 18:27:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558661235; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=f6c9m1oolNz7qnNp31NpIo+ILEox6NGu8lwYyMw+NLU=;
+        b=Tp8e62zrmuPGRiekR3MyBc8zu2OubGEjd8wnsYeTFj/notY2DE7jetQkF1F6DVJcaK
+         yrGTLHgLYQ+DL5me4iHTNR3LhMA3Qm+1fUb95Sd7jiKJNdqH9a2gMErZeeY7oOcyg4gN
+         kEvgJyYQe3/n4NYMYS5IVPoqAzqqZhub8gQhkmpsCEerXRRXnx7x82/VwM5STI9LnnFq
+         8u6z3SsM6BOdSuqlQ9elsRKi0l0q2huaf1aGGMQLDI9pdlMUn/TAdO3g7v9gd7vIraNG
+         leDc79rsi+gPXUjiqRc7FSIOcYnGB1NUQNxflnjfgCByGW8TyWC59t5j406isc+uIEU0
+         u7Og==
+X-Gm-Message-State: APjAAAUw5gPQCTpnqK58nxuffoJWOGdN0HgA+K8E+PUtGIi8D6t99g1H
+	z7+Cmc/gK5C8skhnCTCaNhjsyqYG8ijV+KLCmcCdeZOJE5jLl85dfJ2P12CBegKm1zli8tXR6nl
+	9bw7pmKZ3cKOapJGr3FyEjJdALTnGfZN8vS1TZR/G58I7GrzfAw51hjXUWsjHvehyHw==
+X-Received: by 2002:a9d:640f:: with SMTP id h15mr13757258otl.338.1558670305345;
+        Thu, 23 May 2019 20:58:25 -0700 (PDT)
+X-Received: by 2002:a9d:640f:: with SMTP id h15mr13757226otl.338.1558670304355;
+        Thu, 23 May 2019 20:58:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558670304; cv=none;
         d=google.com; s=arc-20160816;
-        b=n8V6F4LHpwjohZ1DENsGymRpwGNyl4E8tH7GbtSCktD2TDEMVs8n8s/HEyzZ1yMQBc
-         +DyxAVbsdNLLLMO2pw39JrbyssaohPvqkIVIjSN+abiORpd3mg2N9JMPkQ9OcIt11NoO
-         0QHcEyJMFxdojkl1sJCWFKSFGYeVJxf+3KKfYn4ogNIX/+fVjM7WEZpjHb1p8jCqT8To
-         zE3ydMBk7cdo9uYp/RC/5u8wu42GAG1U+1iiY1lse0MJ7Rcuk092cSSaJIwOu2cjeHrF
-         wLhKOn1j53vnIBs29QB7ZtAY1OMqJPUd2P9iThQ39L0ChQjCZtQsPHgJ/SQWNz9H4SfR
-         kpGg==
+        b=O3i3y1Zyks4ATcGZVhO/Jwsaz4hvvFX6hDFacg5qHbcLc11dyTf5DP9L6NBlEFf1EQ
+         Rtu2xLvcLIct5H2w6D5+yWYmyjJKtsKXHcNr/YIuce95GHidSdaYvQsLPc9faEyZPZpM
+         ANLv2B1seKf4K7YHlNFuY6jGIDlcFhbcZHywGaSXByiJwSG5QbJBCWM3MqYWhZCiqF5I
+         ASEw0R8oVTmB3i8sx7T6Mlx6BQKTS8IhlpOtfMVleB+luYTFIY2HD7rq61uRez7ElB1d
+         o71uJR56W88djrPN+BsVWf5CrMSJIgAx3EJJq1SkaZk0qSfAqiVrraWnWvQqAA15yJgf
+         neag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=+khW/DQO1VcPKNDkRmBjKgBsqSADE78QnWtHeSz7egE=;
-        b=d+1mP/36G3w/jbmXXOsfLNV3UTmJruDpQzgg1R5RsHTLGU5dQM8F/CXM0VvzB26Vvt
-         2qbvprNdWTmjsQQsWhBl8+gT0+h5vHyBEGCoFJXJ3xk0JvDAC/lC2cf+MMTzD3ODzF1u
-         eiQi2jk/c+o0SsZcV7Jtc5bjgpEa2byu4TabTmrShqqPucsdcJxxVzP9QpLXVFhGuH10
-         9auZuwU0C3t6vyDtPgqY5qBPl62t8phPdMJF22dBxA4J1zfujV+JbBr2DUGZXF0uEPJ/
-         Pi/pLOohwfwhLT9SkuBSu+2+nXpJjdrN++b3CLi+gH9mnG71IuETfGGPgXkDzbf7dQmF
-         yTHg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=f6c9m1oolNz7qnNp31NpIo+ILEox6NGu8lwYyMw+NLU=;
+        b=iJGVbkto5Er7g69VYplWAXEDz1B4L6QhJUpJoJjFtNt06AiujZl8uNU1pe2xhhOTp/
+         WyAHbHxxKimpyxuEP/8x1aqUpNx19ElnPqznXxh7qxad/mfjQHQwUH0TgDps8MxjyjYs
+         HGlcJJdQmJ8TfxNJHKCV6l8CUnn9rmPrBCsTX5Wp4OVaebirVCXXQPDzoH53scgpNxuj
+         S8NfP8+7To2Fbr4biKtYjEFAIicClVRxUo3EUNGYikDEmvEO21d6kNZUT+emkqLhKd/z
+         WqncUDAa2hi+rAOoZ8u2QU9Bpa62OgylF2PlkylNBcrmKV1QiqUBjyaYn3hUdSsuvbjy
+         cRUA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id c16si1971125pfr.94.2019.05.23.18.27.14
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Qs74XkHj;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s13sor553142otq.14.2019.05.23.20.58.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 18:27:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
+        (Google Transport Security);
+        Thu, 23 May 2019 20:58:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=12;SR=0;TI=SMTPD_---0TSWQwwc_1558661219;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TSWQwwc_1558661219)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 24 May 2019 09:27:00 +0800
-Subject: Re: [v4 PATCH 2/2] mm: vmscan: correct some vmscan counters for THP
- swapout
-To: Hillf Danton <hdanton@sina.com>
-Cc: ying.huang@intel.com, hannes@cmpxchg.org, mhocko@suse.com,
- mgorman@techsingularity.net, kirill.shutemov@linux.intel.com,
- josef@toxicpanda.com, hughd@google.com, shakeelb@google.com,
- akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190523155126.2312-1-hdanton@sina.com>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <b9c24d05-776a-4c4d-162a-e756e2c20d0f@linux.alibaba.com>
-Date: Fri, 24 May 2019 09:26:57 +0800
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Qs74XkHj;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=f6c9m1oolNz7qnNp31NpIo+ILEox6NGu8lwYyMw+NLU=;
+        b=Qs74XkHjFhIG5eWAqZuHInffVvs+3AV05OrIpZ2xTnqAoDqX14pggyRk9f9DKHpuSs
+         IRIBA2Ri/L1Hws5vXuO4/80WJMPdl81Bfp9VTtv6MkS+yeMMugK5uHJSDrPNnXcruuw3
+         fJM4itI1+d6xJhugS2SaMdwDq6lT+66DbFSttJHrPC9+6vC2KDSJ8ido/7gjDGJXyt6f
+         Eli8t58rYv3qybUABQC+8jQRyJo3F65nGswTPDcjH5BfeMOzlFdaSN0IOzN5j/p+fvgV
+         4gO7UElauHskekm3kCMewjQB2ilKCmqgQOr8DJjZu2CsqzL0iuxZTXFDWF/JNWUVpQX/
+         GcNg==
+X-Google-Smtp-Source: APXvYqywpzGD5Aa+i2XlHKnDBTwl+TOaDWcG21EMI6kjm8dn1v7UUbbQbcsfdcmnB3N5ud5QB84Okj6zu4K2XRFRUpg=
+X-Received: by 2002:a9d:6e96:: with SMTP id a22mr4573516otr.207.1558670303779;
+ Thu, 23 May 2019 20:58:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190523155126.2312-1-hdanton@sina.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+References: <20190523223746.4982-1-ira.weiny@intel.com>
+In-Reply-To: <20190523223746.4982-1-ira.weiny@intel.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 23 May 2019 20:58:12 -0700
+Message-ID: <CAPcyv4gYxyoX5U+Fg0LhwqDkMRb-NRvPShOh+nXp-r_HTwhbyA@mail.gmail.com>
+Subject: Re: [PATCH] mm/swap: Fix release_pages() when releasing devmap pages
+To: "Weiny, Ira" <ira.weiny@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 5/23/19 11:51 PM, Hillf Danton wrote:
-> On Thu, 23 May 2019 10:27:38 +0800 Yang Shi wrote:
->> @ -1642,14 +1650,14 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->>   	unsigned long nr_zone_taken[MAX_NR_ZONES] = { 0 };
->>   	unsigned long nr_skipped[MAX_NR_ZONES] = { 0, };
->>   	unsigned long skipped = 0;
->> -	unsigned long scan, total_scan, nr_pages;
->> +	unsigned long scan, total_scan;
->> +	unsigned long nr_pages;
-> Change for no earn:)
-
-Aha, yes.
-
+On Thu, May 23, 2019 at 3:37 PM <ira.weiny@intel.com> wrote:
 >
->>   	LIST_HEAD(pages_skipped);
->>   	isolate_mode_t mode = (sc->may_unmap ? 0 : ISOLATE_UNMAPPED);
->>   
->> +	total_scan = 0;
->>   	scan = 0;
->> -	for (total_scan = 0;
->> -	     scan < nr_to_scan && nr_taken < nr_to_scan && !list_empty(src);
->> -	     total_scan++) {
->> +	while (scan < nr_to_scan && !list_empty(src)) {
->>   		struct page *page;
-> AFAICS scan currently prevents us from looping for ever, while nr_taken bails
-> us out once we get what's expected, so I doubt it makes much sense to cut
-> nr_taken off.
-
-It is because "scan < nr_to_scan && nr_taken >= nr_to_scan" is 
-impossible now with the units fixed.
-
->>   
->>   		page = lru_to_page(src);
->> @@ -1657,9 +1665,12 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->>   
->>   		VM_BUG_ON_PAGE(!PageLRU(page), page);
->>   
->> +		nr_pages = 1 << compound_order(page);
->> +		total_scan += nr_pages;
->> +
->>   		if (page_zonenum(page) > sc->reclaim_idx) {
->>   			list_move(&page->lru, &pages_skipped);
->> -			nr_skipped[page_zonenum(page)]++;
->> +			nr_skipped[page_zonenum(page)] += nr_pages;
->>   			continue;
->>   		}
->>   
->> @@ -1669,10 +1680,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->>   		 * ineligible pages.  This causes the VM to not reclaim any
->>   		 * pages, triggering a premature OOM.
->>   		 */
->> -		scan++;
->> +		scan += nr_pages;
-> The comment looks to defy the change if we fail to add a huge page to
-> the dst list; otherwise nr_taken knows how to do the right thing. What
-> I prefer is to let scan to do one thing a time.
-
-I don't get your point. Do you mean the comment "Do not count skipped 
-pages because that makes the function return with no isolated pages if 
-the LRU mostly contains ineligible pages."? I'm supposed the comment is 
-used to explain why not count skipped page.
-
+> From: Ira Weiny <ira.weiny@intel.com>
 >
->>   		switch (__isolate_lru_page(page, mode)) {
->>   		case 0:
->> -			nr_pages = hpage_nr_pages(page);
->>   			nr_taken += nr_pages;
->>   			nr_zone_taken[page_zonenum(page)] += nr_pages;
->>   			list_move(&page->lru, dst);
->> -- 
->> 1.8.3.1
->>
-> Best Regards
-> Hillf
+> Device pages can be more than type MEMORY_DEVICE_PUBLIC.
+>
+> Handle all device pages within release_pages()
+>
+> This was found via code inspection while determining if release_pages()
+> and the new put_user_pages() could be interchangeable.
+>
+> Cc: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
+> ---
+>  mm/swap.c | 7 +++----
+>  1 file changed, 3 insertions(+), 4 deletions(-)
+>
+> diff --git a/mm/swap.c b/mm/swap.c
+> index 3a75722e68a9..d1e8122568d0 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -739,15 +739,14 @@ void release_pages(struct page **pages, int nr)
+>                 if (is_huge_zero_page(page))
+>                         continue;
+>
+> -               /* Device public page can not be huge page */
+> -               if (is_device_public_page(page)) {
+> +               if (is_zone_device_page(page)) {
+>                         if (locked_pgdat) {
+>                                 spin_unlock_irqrestore(&locked_pgdat->lru=
+_lock,
+>                                                        flags);
+>                                 locked_pgdat =3D NULL;
+>                         }
+> -                       put_devmap_managed_page(page);
+> -                       continue;
+> +                       if (put_devmap_managed_page(page))
+
+This "shouldn't" fail, and if it does the code that follows might get
+confused by a ZONE_DEVICE page. If anything I would make this a
+WARN_ON_ONCE(!put_devmap_managed_page(page)), but always continue
+unconditionally.
+
+Other than that you can add:
+
+    Reviewed-by: Dan Williams <dan.j.williams@intel.com>
 
