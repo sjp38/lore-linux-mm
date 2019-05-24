@@ -2,295 +2,195 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2EF3DC072B5
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 15:31:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 20AC4C282E3
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 15:32:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF224217D7
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 15:31:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="z485kAr9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF224217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id CFA38217D7
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 15:32:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CFA38217D7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 55D636B0005; Fri, 24 May 2019 11:31:56 -0400 (EDT)
+	id 7CE636B0006; Fri, 24 May 2019 11:32:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 50E5B6B0006; Fri, 24 May 2019 11:31:56 -0400 (EDT)
+	id 7AF516B000A; Fri, 24 May 2019 11:32:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3AEEF6B000A; Fri, 24 May 2019 11:31:56 -0400 (EDT)
+	id 66F8B6B000C; Fri, 24 May 2019 11:32:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F32FC6B0005
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 11:31:55 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id e16so6519309pga.4
-        for <linux-mm@kvack.org>; Fri, 24 May 2019 08:31:55 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 186226B0006
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 11:32:06 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id h2so14701623edi.13
+        for <linux-mm@kvack.org>; Fri, 24 May 2019 08:32:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=xax+Itit2redxrlh2xu6KH2UMjJ3BZeeSxkOY3WyROU=;
-        b=QG60oNqBVSbn4yDQeNBuuexuB+8gpIOPu5XNndw3Hs5GhdqxpeLX3mlSt90BEFefjS
-         VKf6ke65NARek9EeBk7CCkT4EJnNeYuMJL4qoYv5B3wRDgycDqAyePXjscKAS9tRy/gq
-         W8Pa1HEKTuoqMxPcF4i4Alqs1hyR7A0WLJIBBQlxj9rZq6AiH34qtsL32pPgqr6TZyel
-         jLGUIitI1A0ci4pLUOZ4jjTV5bKkuPhogQm6XtHRpjmEElERdDEhbnYbN4LgRvvZAnh5
-         axDIEiXBhC7C0Z3hVhlW8SrChkzl/WF4C0IwiYlcLcokNkHWwtkoK8nvyjbzjtpngsyA
-         ffKw==
-X-Gm-Message-State: APjAAAXemRA10RJuPJhCpyomZq0LSrkCfHpE7SOQe7YBzlhZ5MNivjER
-	ckAnSpC9/oJyVRAzqkmRH8fYKh3NLj4QJoKjbzX8oD8bDpGunH9PeoCFFWr+LxPcCjlOSUGnVw1
-	9luBjwPWlsTWo1o1zzZupO9CVntvO+rgEgln3ABAxCKLfiiUx2YEcn5RfKHf9jZE0zg==
-X-Received: by 2002:a63:2b96:: with SMTP id r144mr92338598pgr.314.1558711915463;
-        Fri, 24 May 2019 08:31:55 -0700 (PDT)
-X-Received: by 2002:a63:2b96:: with SMTP id r144mr92338457pgr.314.1558711914213;
-        Fri, 24 May 2019 08:31:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558711914; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references;
+        bh=RnqC/4aATsfnryRf2O1Equd0/Sj7rMOmnZ1JksNvb0w=;
+        b=CnxbbdZ5dffTXG3fQ1UMCG6l2h7kYdqFPQr8rTC3LCoXB65KZBCAf7gQ/zqcV+DM3V
+         Z1jNLXY9qV6iSjTuEPuJdxt8629olp7GDojocp9UzdItf5mf5C39VhpFJGEAB4I8pRVS
+         +vf40nEYqxYpp7WiaP6XpYYTBUE6tUGtxqI4ktuqocB2JfL6L2Mi6cHT+83fFXgtVlVn
+         rJPcxbaGNjmIr+HctbVxtZjYm4X3s6Pwz/mALu2f1bxItyXU/XTZgFOFMwfseEzn2Nk9
+         tnzZj7zRoWxF7oe7cZN6EyhFX/I2X9o1GmZ54yYH4/uk86IP+e/UzIDsah5kzwpAV+b6
+         sPKA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
+X-Gm-Message-State: APjAAAWmJ6ggp2gVKFL67CAqNVlvcN2w/5fFGT7PlxPU78sW5Yh4qU4d
+	NP1ekR4Oq60WXrePsNZ0eUOzkm+HiMQX3H4A5C36IMS2OvA3iiFg5XrNL4EK/xYTTrtgn5OYQ/O
+	m8iczOj6qLhLJFBMFyLFmFJOvN+pHWsoldU7QpRjC6wZj1xtxO+vi1Q+ydU9SZ4gjbA==
+X-Received: by 2002:aa7:c645:: with SMTP id z5mr69985454edr.43.1558711925477;
+        Fri, 24 May 2019 08:32:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzTzqg8SW7g4RJhQwSXkpmPwRnsJRM1xzko4AfXeW4GuJIyBxaEvNhg7XeNxdTxUwuq8V54
+X-Received: by 2002:aa7:c645:: with SMTP id z5mr69985326edr.43.1558711924509;
+        Fri, 24 May 2019 08:32:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558711924; cv=none;
         d=google.com; s=arc-20160816;
-        b=gg7N+6wmbzEoKgLRkHDxK2VBIrg+2R1dP4eb5KsqNPCI6bj0SRqVI7QrvzNXSAavCS
-         CrRwyerKL6mEZ+qARM1PPVRj8eWbPk7wsf61g2KVldSxZcR2g6L2sTnILJVZ29gHXxAR
-         lqGRpSY4WUfB34CVDsdYdV+DfDXs2zRXz+STYOPnfCnR7WHSdLkgxp1swstcLZHaaw54
-         r9C1DHBRdezbrNg1FODkrJKzeHVrlxb4LIv8vEemBjxAz+hVxTF48BORpv0KZesVs2US
-         Mae0buk4+CfZB4ab0Ns5cKjE2K2uWkMDvykBwUrWOyZgQOZOv4kg4QAxSlYIUWiqJvn/
-         el6A==
+        b=u81/MVLehEcBHyzGxnJgW1QyJxh0lsgsCJE1Uqkc8CM0b7YAJMmiZzV+LA+14NhNgl
+         MOujFtJtwAUCd3ysNzjrGemzMxnzreuWxR/1031IGCVbUthbWUMeDVTDlETfZ4Rgi9HX
+         L3b+87Ab1udoDh0HB2wlEN5YDtSfR+v/IPRBsnSO5mT558OwNxF5Lbt4XxkHSHkGqFLT
+         XxkZBh8lOXFnsvWRCu28wfdbJdxO0GAUUh7eV+oh1Z2Ba8qk3X2j7l69oqteKb7ktBvm
+         rvR/wy5v2tfdpxQLnrHdLe+UTufLkHu31A5qAbJqMCy2qZQ1OkGtTUy85x37t7V0He+2
+         NJxg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=xax+Itit2redxrlh2xu6KH2UMjJ3BZeeSxkOY3WyROU=;
-        b=MkW4sumTL5AeQqs5M4tmkXZnKJQJRaym5gy1A8XxPD6ulhG1y9LGs/eggdypjpSH7Z
-         UpfhkkQ9t0OaAVF0FfFPwVlSCXMxtLeLZxa/Lth/2HI8LMrS9z/OiLCZXRmRMYmytC43
-         sRSv3dUzcpcPPlYCuzAe8m3J6t3SJxfmt6XQ2sVwcSwl/SL4aZ+cgKYz4NwdO1pskqVO
-         7QryEZafvMBgNURCYBv83Ndyr9RYrA5yGP2gIrHv47VncMP/qPhjPeumsXS9aZZ5uPIC
-         Y05PYekGKtgnQeqJx8l2bVeNANgBeh5mV1LQrXpOPtf7yt+63mL4kHETLBDahLjgO2Iq
-         3aag==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=RnqC/4aATsfnryRf2O1Equd0/Sj7rMOmnZ1JksNvb0w=;
+        b=kztVQrHJ4GiU9p/3iWRU2Ti4x2ipnwKuGoixypzm8abH7Ye03a9gQBdCM/c0z1Z72C
+         cYLiYC2m/PMzh1UgzKD4zkkmvvBOhrIKn58Nrn06c731W3b6/kRy2j5+SfWJSQjAR+m4
+         MYAlYkS3pjqjTMT2usHwxIwezPAwM2BFzHb4+6diaMyKmByiaw7AUHzdmo8opcRj82Tk
+         viKCH024SewzYacxiusDND1Ub7ih+xY8D+7qHVF5dzcFUK/xf7QXg17GCl+iDGvu+b/o
+         9nuIg8v36DIn10NjkG6GegNxktb3++YWai6Zhn5eHHRHAtse3qTKxCLEzc6hCvjgiX5r
+         VziA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=z485kAr9;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q8sor3595043pll.16.2019.05.24.08.31.51
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 24 May 2019 08:31:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id k25si1949322ejz.258.2019.05.24.08.32.03
+        for <linux-mm@kvack.org>;
+        Fri, 24 May 2019 08:32:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=z485kAr9;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=xax+Itit2redxrlh2xu6KH2UMjJ3BZeeSxkOY3WyROU=;
-        b=z485kAr9blKJo6NBcbFr+fn20i1azeIo3+m7fUvokaeqRUDgcc0Eo9zWEeVNtRD1lh
-         y8wnAE4K60RClRAnK0p7rP6oJCWY56aQWFQyaaetR3chFQKdoud5UkTqffwxDnZrBC1c
-         AKlGkIuVvJuetDxg4BKn90i8pRVi3aL3y5jwHOYTBIpTXcGfK/RFsXGI6ixujey85UfO
-         RtIEsCCVTd7dqNaA4HkMOE5TGlTeIruWEdryqC1zR9XDeidfqPF5zSyeCCEzzgzUgrO7
-         /xBYTJd7bBwfT2YNxIrnTJ7MrR6t2ftIbdJShesXRo+8/jmZqk7VE/n94cYHv6ZpW0HQ
-         6uOw==
-X-Google-Smtp-Source: APXvYqzJDR+ptpnVNFiBcyHOv6NHmG2mK8rNF3q+c/HygM64gpdEeAHy3TO3MHZ4nC0zBp3xVj++ag==
-X-Received: by 2002:a17:902:8c8f:: with SMTP id t15mr51364381plo.87.1558711911326;
-        Fri, 24 May 2019 08:31:51 -0700 (PDT)
-Received: from localhost ([2620:10d:c090:180::805])
-        by smtp.gmail.com with ESMTPSA id j2sm4862174pfb.157.2019.05.24.08.31.50
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 24 May 2019 08:31:50 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org,
-	cgroups@vger.kernel.org,
+       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 11F4180D;
+	Fri, 24 May 2019 08:32:03 -0700 (PDT)
+Received: from en101.cambridge.arm.com (en101.cambridge.arm.com [10.1.196.93])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 429663F575;
+	Fri, 24 May 2019 08:32:01 -0700 (PDT)
+From: Suzuki K Poulose <suzuki.poulose@arm.com>
+To: linux-mm@kvack.org
+Cc: mgorman@techsingularity.net,
+	akpm@linux-foundation.org,
+	mhocko@suse.com,
+	cai@lca.pw,
 	linux-kernel@vger.kernel.org,
-	kernel-team@fb.com
-Subject: [PATCH] mm: fix page cache convergence regression
-Date: Fri, 24 May 2019 11:31:48 -0400
-Message-Id: <20190524153148.18481-1-hannes@cmpxchg.org>
-X-Mailer: git-send-email 2.21.0
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+	marc.zyngier@arm.com,
+	kvmarm@lists.cs.columbia.edu,
+	kvm@vger.kernel.org,
+	suzuki.poulose@arm.com
+Subject: [PATCH] mm, compaction: Make sure we isolate a valid PFN
+Date: Fri, 24 May 2019 16:31:48 +0100
+Message-Id: <1558711908-15688-1-git-send-email-suzuki.poulose@arm.com>
+X-Mailer: git-send-email 2.7.4
+In-Reply-To: <20190524103924.GN18914@techsingularity.net>
+References: <20190524103924.GN18914@techsingularity.net>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Since a28334862993 ("page cache: Finish XArray conversion"), on most
-major Linux distributions, the page cache doesn't correctly transition
-when the hot data set is changing, and leaves the new pages thrashing
-indefinitely instead of kicking out the cold ones.
+When we have holes in a normal memory zone, we could endup having
+cached_migrate_pfns which may not necessarily be valid, under heavy memory
+pressure with swapping enabled ( via __reset_isolation_suitable(), triggered
+by kswapd).
 
-On a freshly booted, freshly ssh'd into virtual machine with 1G RAM
-running stock Arch Linux:
+Later if we fail to find a page via fast_isolate_freepages(), we may
+end up using the migrate_pfn we started the search with, as valid
+page. This could lead to accessing NULL pointer derefernces like below,
+due to an invalid mem_section pointer.
 
-[root@ham ~]# ./reclaimtest.sh
-+ dd of=workingset-a bs=1M count=0 seek=600
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ ./mincore workingset-a
-153600/153600 workingset-a
-+ dd of=workingset-b bs=1M count=0 seek=600
-+ cat workingset-b
-+ cat workingset-b
-+ cat workingset-b
-+ cat workingset-b
-+ ./mincore workingset-a workingset-b
-104029/153600 workingset-a
-120086/153600 workingset-b
-+ cat workingset-b
-+ cat workingset-b
-+ cat workingset-b
-+ cat workingset-b
-+ ./mincore workingset-a workingset-b
-104029/153600 workingset-a
-120268/153600 workingset-b
+Unable to handle kernel NULL pointer dereference at virtual address 0000000000000008 [47/1825]
+ Mem abort info:
+   ESR = 0x96000004
+   Exception class = DABT (current EL), IL = 32 bits
+   SET = 0, FnV = 0
+   EA = 0, S1PTW = 0
+ Data abort info:
+   ISV = 0, ISS = 0x00000004
+   CM = 0, WnR = 0
+ user pgtable: 4k pages, 48-bit VAs, pgdp = 0000000082f94ae9
+ [0000000000000008] pgd=0000000000000000
+ Internal error: Oops: 96000004 [#1] SMP
+ ...
+ CPU: 10 PID: 6080 Comm: qemu-system-aar Not tainted 510-rc1+ #6
+ Hardware name: AmpereComputing(R) OSPREY EV-883832-X3-0001/OSPREY, BIOS 4819 09/25/2018
+ pstate: 60000005 (nZCv daif -PAN -UAO)
+ pc : set_pfnblock_flags_mask+0x58/0xe8
+ lr : compaction_alloc+0x300/0x950
+ [...]
+ Process qemu-system-aar (pid: 6080, stack limit = 0x0000000095070da5)
+ Call trace:
+  set_pfnblock_flags_mask+0x58/0xe8
+  compaction_alloc+0x300/0x950
+  migrate_pages+0x1a4/0xbb0
+  compact_zone+0x750/0xde8
+  compact_zone_order+0xd8/0x118
+  try_to_compact_pages+0xb4/0x290
+  __alloc_pages_direct_compact+0x84/0x1e0
+  __alloc_pages_nodemask+0x5e0/0xe18
+  alloc_pages_vma+0x1cc/0x210
+  do_huge_pmd_anonymous_page+0x108/0x7c8
+  __handle_mm_fault+0xdd4/0x1190
+  handle_mm_fault+0x114/0x1c0
+  __get_user_pages+0x198/0x3c0
+  get_user_pages_unlocked+0xb4/0x1d8
+  __gfn_to_pfn_memslot+0x12c/0x3b8
+  gfn_to_pfn_prot+0x4c/0x60
+  kvm_handle_guest_abort+0x4b0/0xcd8
+  handle_exit+0x140/0x1b8
+  kvm_arch_vcpu_ioctl_run+0x260/0x768
+  kvm_vcpu_ioctl+0x490/0x898
+  do_vfs_ioctl+0xc4/0x898
+  ksys_ioctl+0x8c/0xa0
+  __arm64_sys_ioctl+0x28/0x38
+  el0_svc_common+0x74/0x118
+  el0_svc_handler+0x38/0x78
+  el0_svc+0x8/0xc
+ Code: f8607840 f100001f 8b011401 9a801020 (f9400400)
+ ---[ end trace af6a35219325a9b6 ]---
 
-workingset-b is a 600M file on a 1G host that is otherwise entirely
-idle. No matter how often it's being accessed, it won't get cached.
+The issue was reported on an arm64 server with 128GB with holes in the zone
+(e.g, [32GB@4GB, 96GB@544GB]), with a swap device enabled, while running 100 KVM
+guest instances.
 
-While investigating, I noticed that the non-resident information gets
-aggressively reclaimed - /proc/vmstat::workingset_nodereclaim. This is
-a problem because a workingset transition like this relies on the
-non-resident information tracked in the page cache tree of evicted
-file ranges: when the cache faults are refaults of recently evicted
-cache, we challenge the existing active set, and that allows a new
-workingset to establish itself.
+This patch fixes the issue by ensuring that the page belongs to a valid PFN
+when we fallback to using the lower limit of the scan range upon failure in
+fast_isolate_freepages().
 
-Tracing the shrinker that maintains this memory revealed that all page
-cache tree nodes were allocated to the root cgroup. This is a problem,
-because 1) the shrinker sizes the amount of non-resident information
-it keeps to the size of the cgroup's other memory and 2) on most major
-Linux distributions, only kernel threads live in the root cgroup and
-everything else gets put into services or session groups:
-
-[root@ham ~]# cat /proc/self/cgroup
-0::/user.slice/user-0.slice/session-c1.scope
-
-As a result, we basically maintain no non-resident information for the
-workloads running on the system, thus breaking the caching algorithm.
-
-Looking through the code, I found the culprit in the above-mentioned
-patch: when switching from the radix tree to xarray, it dropped the
-__GFP_ACCOUNT flag from the tree node allocations - the flag that
-makes sure the allocated memory gets charged to and tracked by the
-cgroup of the calling process - in this case, the one doing the fault.
-
-To fix this, allow xarray users to specify per-tree gfp flags that
-supplement the hardcoded gfp flags inside the xarray expansion code.
-This is analogous to the radix tree API. Then restore the page cache
-tree annotation that passes the __GFP_ACCOUNT flag during expansions.
-
-With this patch applied, the page cache correctly converges on new
-workingsets again after just a few iterations:
-
-[root@ham ~]# ./reclaimtest.sh
-+ dd of=workingset-a bs=1M count=0 seek=600
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ cat workingset-a
-+ ./mincore workingset-a
-153600/153600 workingset-a
-+ dd of=workingset-b bs=1M count=0 seek=600
-+ cat workingset-b
-+ ./mincore workingset-a workingset-b
-124607/153600 workingset-a
-87876/153600 workingset-b
-+ cat workingset-b
-+ ./mincore workingset-a workingset-b
-81313/153600 workingset-a
-133321/153600 workingset-b
-+ cat workingset-b
-+ ./mincore workingset-a workingset-b
-63036/153600 workingset-a
-153600/153600 workingset-b
-
-Cc: stable@vger.kernel.org # 4.20+
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Fixes: 5a811889de10f1eb ("mm, compaction: use free lists to quickly locate a migration target")
+Reported-by: Marc Zyngier <marc.zyngier@arm.com>
+Signed-off-by: Suzuki K Poulose <suzuki.poulose@arm.com>
 ---
- fs/inode.c             | 1 +
- include/linux/xarray.h | 2 ++
- lib/xarray.c           | 8 ++++++--
- 3 files changed, 9 insertions(+), 2 deletions(-)
+ mm/compaction.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/inode.c b/fs/inode.c
-index e9d18b2c3f91..3b454d2119c4 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -362,6 +362,7 @@ EXPORT_SYMBOL(inc_nlink);
- static void __address_space_init_once(struct address_space *mapping)
- {
- 	xa_init_flags(&mapping->i_pages, XA_FLAGS_LOCK_IRQ);
-+	mapping->i_pages.xa_gfp = __GFP_ACCOUNT;
- 	init_rwsem(&mapping->i_mmap_rwsem);
- 	INIT_LIST_HEAD(&mapping->private_list);
- 	spin_lock_init(&mapping->private_lock);
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index 0e01e6129145..cbbf76e4c973 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -292,6 +292,7 @@ struct xarray {
- 	spinlock_t	xa_lock;
- /* private: The rest of the data structure is not to be used directly. */
- 	gfp_t		xa_flags;
-+	gfp_t		xa_gfp;
- 	void __rcu *	xa_head;
- };
- 
-@@ -374,6 +375,7 @@ static inline void xa_init_flags(struct xarray *xa, gfp_t flags)
- {
- 	spin_lock_init(&xa->xa_lock);
- 	xa->xa_flags = flags;
-+	xa->xa_gfp = 0;
- 	xa->xa_head = NULL;
- }
- 
-diff --git a/lib/xarray.c b/lib/xarray.c
-index 6be3acbb861f..324be9534861 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -298,6 +298,7 @@ bool xas_nomem(struct xa_state *xas, gfp_t gfp)
- 		xas_destroy(xas);
- 		return false;
- 	}
-+	gfp |= xas->xa->xa_gfp;
- 	xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
- 	if (!xas->xa_alloc)
- 		return false;
-@@ -325,6 +326,7 @@ static bool __xas_nomem(struct xa_state *xas, gfp_t gfp)
- 		xas_destroy(xas);
- 		return false;
- 	}
-+	gfp |= xas->xa->xa_gfp;
- 	if (gfpflags_allow_blocking(gfp)) {
- 		xas_unlock_type(xas, lock_type);
- 		xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
-@@ -358,8 +360,10 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
- 	if (node) {
- 		xas->xa_alloc = NULL;
- 	} else {
--		node = kmem_cache_alloc(radix_tree_node_cachep,
--					GFP_NOWAIT | __GFP_NOWARN);
-+		gfp_t gfp;
-+
-+		gfp = GFP_NOWAIT | __GFP_NOWARN | xas->xa->xa_gfp;
-+		node = kmem_cache_alloc(radix_tree_node_cachep, gfp);
- 		if (!node) {
- 			xas_set_err(xas, -ENOMEM);
- 			return NULL;
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 9febc8c..9e1b9ac 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1399,7 +1399,7 @@ fast_isolate_freepages(struct compact_control *cc)
+ 				page = pfn_to_page(highest);
+ 				cc->free_pfn = highest;
+ 			} else {
+-				if (cc->direct_compaction) {
++				if (cc->direct_compaction && pfn_valid(min_pfn)) {
+ 					page = pfn_to_page(min_pfn);
+ 					cc->free_pfn = min_pfn;
+ 				}
 -- 
-2.21.0
+2.7.4
 
