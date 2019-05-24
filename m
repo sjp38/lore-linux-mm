@@ -2,155 +2,204 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BCBEC282E3
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 20:08:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 25D99C072B5
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 20:29:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0F7142133D
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 20:08:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F7142133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id D98CA20868
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 20:29:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D98CA20868
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8D4726B0008; Fri, 24 May 2019 16:08:47 -0400 (EDT)
+	id 78CFB6B0008; Fri, 24 May 2019 16:29:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 85ED06B000A; Fri, 24 May 2019 16:08:47 -0400 (EDT)
+	id 73DFA6B000A; Fri, 24 May 2019 16:29:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D8086B000C; Fri, 24 May 2019 16:08:47 -0400 (EDT)
+	id 604386B000C; Fri, 24 May 2019 16:29:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 32CB76B0008
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 16:08:47 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id k22so7729166pfg.18
-        for <linux-mm@kvack.org>; Fri, 24 May 2019 13:08:47 -0700 (PDT)
+Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EFAC6B0008
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 16:29:49 -0400 (EDT)
+Received: by mail-ua1-f70.google.com with SMTP id 76so2509077uat.12
+        for <linux-mm@kvack.org>; Fri, 24 May 2019 13:29:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:dlp-product
-         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
-        bh=Y7mQaRfoF7ixlk7NLLzSYIdcLw3Cr3TrbfyB6qGloDk=;
-        b=S+Ws8KEmSQQcFbB00koEPTAb38NWV5a3RKlFdLnkoNZh8oyu55TZF74rvso0IkCMRD
-         OUZvS9dXxiQBc38+2H/cTjZrMvgynJooc7we3tjPp2G/fgGllQMgwjo58v2qANXHMKEG
-         0urVd+aPfL4cTDBSDpzE2AblkI+Cj69F7dQdSkerbKAG1YFYyErwb5w0KAf4SyjVZJZ/
-         Ggto4Ke1Hjiw1gASKjq65+yTXDpzZyRcwnTT93plb9HhGqNGRBZtcmeBU92RAnHtsihs
-         32Pusfg5biSrXvmwypIqntf2EbMEmhyKkvvfmLlXFmNTeRmYqFTcTc+OcDT8Yx/SoijL
-         3Daw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWzBfeezz4/SvXvD7PhMbXhYeth7YI+RWbI8+kOyBYpgozA+PcY
-	ivTXJ7P3THJage1AK114viV0TgtR0JmrOlLOz4DAyhSu0FJrw87Aj+o0BW+58U/izZ2jWofp23f
-	ijT5W2vZnoOkItggjS5LlQ5YFIP0qec4IdpWdvEf7yaLbpuRaRa8RM+uDjsqv1sB86Q==
-X-Received: by 2002:aa7:90d3:: with SMTP id k19mr113084139pfk.1.1558728526739;
-        Fri, 24 May 2019 13:08:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyKoND6viRMfXMEQcd5f4vb/DqIXlLLZwQoe+Dt6gl0uY65Zp//iokST2bj9JgW9Eo0uENn
-X-Received: by 2002:aa7:90d3:: with SMTP id k19mr113084065pfk.1.1558728526010;
-        Fri, 24 May 2019 13:08:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558728526; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=X58Az4dHX3doqWoVsrR+YLAOqx/yB2iQnaJ8PW+XYpg=;
+        b=g2NZoNUlEw4qdrJCVHSHJuJvMLPuArUDxta4eMuxc2lg42fUEhRyzYZIqWldLSywHm
+         aFr0G6LbLEeo3DuxHYadRA/6pnU+GgauZAbhEMmDU9gA7lyLa4tTp9ZUmT2TqcZBfFD6
+         CLhRS/pDlHeuLTrD5BeLs0eo3teebwNLRggBzxCLoFQetyGBZw/5llxz0kJmz5pZQNk1
+         UHh2OCodCTk9GgwLAqVwCcZiPbmfqopZJIzU7d5G2W07HYuQ/571FePvHuGS5m5Ve9PK
+         uUKP68Dd8ZNsivtaVu1bP013J8ptdtARYY42N+31s9nOO30cTB9pvxg97fh51cyS8M06
+         fDmA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUakKh8cgAxQguBmXI9ovGihuS79JYaqRP63N464JtAaZbzX2Fj
+	JGeEUD3ifWPf61b5a25m/jK1/QNlfQAOPQJIJ/gpUPdXYAHSPO0mh9UOO0YLpy51JkVhVMVqJ6p
+	0Ic3gQciigdpafjzx6dcz7uMX9cUnfbLNPSZf5W3CC2Hio8+o8baiYLuuWfnJW5icxA==
+X-Received: by 2002:a67:dd8e:: with SMTP id i14mr11176758vsk.149.1558729788991;
+        Fri, 24 May 2019 13:29:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyY4w1d+rPyc9RBLOBPJm1+6P0gJlhNRbDicbgdweGwrLWHxbTY+RygQhG6RZakppi1asyP
+X-Received: by 2002:a67:dd8e:: with SMTP id i14mr11176664vsk.149.1558729788058;
+        Fri, 24 May 2019 13:29:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558729788; cv=none;
         d=google.com; s=arc-20160816;
-        b=WdUKLGoPBnNx0dZVEZ83xkSCQQ/9TPtKcgnU43h2hbU8UH/mWTBrCrGizXx6JepQpO
-         bcvm5rqAj0Y2Byy6BcxRH0pmGQ4b7djPexssEtbLzEn585xl2+CBz88HNSGfP7wNp4st
-         yxmHZCKkKk+e5pcoqKkHxqpZ9JWiqW1R420jC0vpnySfUIGqs1mRjV+gaq+dQIsQGUl3
-         I3mlt9hP0KCb5DluuNV4fOBGN2OKgFxToW9A/uPwAHbY7Dw0soM89AhCLlIvjZVR62LO
-         tYJNMmV5uZdk4nddLL7wjiVGgXZ8zhW5fZrrtwDkMoGwNxwxw0Edsk4K3UPs6Cfhwgwy
-         4VPA==
+        b=Ypxfl1T0pzAcY+lTd7y/RLazYchJAjMW8sMqWo+so6/CWwx0RzvL5qCyk4o1fP2two
+         E5XR+MH3efWMZ2d2OfuYVSWutndMRHkU5d1r7yTyIkw8xFx8h1ba3rHAsSpvvKKRTGmL
+         kz+B0rdyhXCKgErky704nHwQh9s2F1oHOX++FEhoLJ+a4DBTF5GrQhFyIMaoc9W6yU/F
+         7FabLsrMuRAwSVJejp45+Tcsz2EA0Mn8bEiru7gd/qi0qjzQP1OpjG5yKUhvuZz85C/9
+         YQw2g5pSX3rA6BcvKOYSBY5W9ApbH7DGhUp+uWAmNjcZR8WJCrzZwxy/zFot1hjCYDuw
+         HE3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
-         :dlp-product:content-language:accept-language:in-reply-to:references
-         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
-        bh=Y7mQaRfoF7ixlk7NLLzSYIdcLw3Cr3TrbfyB6qGloDk=;
-        b=fF1tyHsfw9PSNEWvLWmU/fA20QZUQfZjEYrosTJCcwcIuamh3FIH4MWkWyrGu8DOL4
-         Lp3tsRHqNTgQFSHFGN+n/Pw9wD+NZB5oosP3m5h8S7rhwn2BsYIZaj1UpgbFcYM+Rt6+
-         4sE/NAj6gEGvyh5vc8vj6L9b+S/xLk5ya0066k+zkki3jkbJXSxmjX24H8UlSnkAnrR3
-         7cHniMVb0SgXZlWmOA1Gnv56/BpsthP8y9QHCcDkNKkBnk5H5McfVQFslLwNEDZ80SLk
-         Gqxy8ti1YHBJXLUo+UaVeGELFuPr9emWpeXElmd3lo6VAkaZWRYFl9vp5c9+egBEsbIi
-         p9Cw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=X58Az4dHX3doqWoVsrR+YLAOqx/yB2iQnaJ8PW+XYpg=;
+        b=BT4yemBvZxstPA95P+rZVNtp8DHKpdbrkQWossFDeSeGELmR+PpdgmkF2sScX7djKC
+         CAall1CjhLM2sHz4Kk6GmEKmLWpYHBmHnm7hb8XyyZKGpsOnCX9y6dqhca1XdqqhCmIZ
+         v/UmQA2VGpLPK8IjAr6CtgzAfPfYzh7RTARX0LT3RLORkp6s8VPE0bkzlADQ4kiTEHLr
+         foq1qd7H4rUjD1s+E6iEjU1a0GrYnNWTLZPWiHvmZmZRs4fSWy7/CnSnTFTLF1Sp9aqp
+         ZLoENJpXndKFjDcfzD06QOQ57K4nLZvYpyfDeKhiuX097mgw85pPEgG/WaW92fJxDDeb
+         6j6w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id x13si1860846pgi.165.2019.05.24.13.08.45
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h8si1335319vsq.215.2019.05.24.13.29.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 May 2019 13:08:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        Fri, 24 May 2019 13:29:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 24 May 2019 13:08:45 -0700
-X-ExtLoop1: 1
-Received: from fmsmsx105.amr.corp.intel.com ([10.18.124.203])
-  by fmsmga006.fm.intel.com with ESMTP; 24 May 2019 13:08:44 -0700
-Received: from fmsmsx112.amr.corp.intel.com (10.18.116.6) by
- FMSMSX105.amr.corp.intel.com (10.18.124.203) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Fri, 24 May 2019 13:08:44 -0700
-Received: from crsmsx104.amr.corp.intel.com (172.18.63.32) by
- FMSMSX112.amr.corp.intel.com (10.18.116.6) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Fri, 24 May 2019 13:08:44 -0700
-Received: from crsmsx101.amr.corp.intel.com ([169.254.1.116]) by
- CRSMSX104.amr.corp.intel.com ([169.254.6.192]) with mapi id 14.03.0415.000;
- Fri, 24 May 2019 14:08:42 -0600
-From: "Weiny, Ira" <ira.weiny@intel.com>
-To: Shakeel Butt <shakeelb@google.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka
-	<vbabka@suse.cz>, Michal Hocko <mhocko@suse.com>, Matthew Wilcox
-	<willy@infradead.org>, Linux MM <linux-mm@kvack.org>, LKML
-	<linux-kernel@vger.kernel.org>
-Subject: RE: [PATCH RFC] mm/swap: make release_pages() and put_pages() match
-Thread-Topic: [PATCH RFC] mm/swap: make release_pages() and put_pages() match
-Thread-Index: AQHVEmeV6lwaEiR3+E6UJvvneFDW0qZ7EgQA//+iDIA=
-Date: Fri, 24 May 2019 20:08:42 +0000
-Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79D3ACC3@CRSMSX101.amr.corp.intel.com>
-References: <20190524193415.9733-1-ira.weiny@intel.com>
- <CALvZod6skK6NxeRXjKS64+1jpF9NwbLp7DhpWueB0F6Tj4MNUw@mail.gmail.com>
-In-Reply-To: <CALvZod6skK6NxeRXjKS64+1jpF9NwbLp7DhpWueB0F6Tj4MNUw@mail.gmail.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiMDJlYzY3Y2ItYjdlMC00NDc0LThlN2EtNDZmODQxOTFlNTUyIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiWGhaUUYxZ29XQW9TaXRNU2VBVHFcL0tkRWJrdDN3OFlUcFJyNFNKRmJmYWVubmZvVkdDTzFDRWU3VmtFcDc3b3kifQ==
-x-ctpclassification: CTP_NT
-dlp-product: dlpe-windows
-dlp-version: 11.0.600.7
-dlp-reaction: no-action
-x-originating-ip: [172.18.205.10]
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 940B630821B3;
+	Fri, 24 May 2019 20:29:35 +0000 (UTC)
+Received: from ultra.random (ovpn-120-242.rdu2.redhat.com [10.10.120.242])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 51E0868B02;
+	Fri, 24 May 2019 20:29:32 +0000 (UTC)
+Date: Fri, 24 May 2019 16:29:31 -0400
+From: Andrea Arcangeli <aarcange@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>,
+	Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>,
+	Zi Yan <zi.yan@cs.rutgers.edu>,
+	Stefan Priebe - Profihost AG <s.priebe@profihost.ag>,
+	"Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 2/2] Revert "mm, thp: restore node-local hugepage
+ allocations"
+Message-ID: <20190524202931.GB11202@redhat.com>
+References: <20190503223146.2312-1-aarcange@redhat.com>
+ <20190503223146.2312-3-aarcange@redhat.com>
+ <alpine.DEB.2.21.1905151304190.203145@chino.kir.corp.google.com>
+ <20190520153621.GL18914@techsingularity.net>
+ <alpine.DEB.2.21.1905201018480.96074@chino.kir.corp.google.com>
+ <20190523175737.2fb5b997df85b5d117092b5b@linux-foundation.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190523175737.2fb5b997df85b5d117092b5b@linux-foundation.org>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Fri, 24 May 2019 20:29:43 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PiANCj4gT24gRnJpLCBNYXkgMjQsIDIwMTkgYXQgMTI6MzMgUE0gPGlyYS53ZWlueUBpbnRlbC5j
-b20+IHdyb3RlOg0KPiA+DQo+ID4gRnJvbTogSXJhIFdlaW55IDxpcmEud2VpbnlAaW50ZWwuY29t
-Pg0KPiA+DQo+ID4gUkZDIEkgaGF2ZSBubyBpZGVhIGlmIHRoaXMgaXMgY29ycmVjdCBvciBub3Qu
-ICBCdXQgbG9va2luZyBhdA0KPiA+IHJlbGVhc2VfcGFnZXMoKSBJIHNlZSBhIGNhbGwgdG8gYm90
-aCBfX0NsZWFyUGFnZUFjdGl2ZSgpIGFuZA0KPiA+IF9fQ2xlYXJQYWdlV2FpdGVycygpIHdoaWxl
-IGluIF9fcGFnZV9jYWNoZV9yZWxlYXNlKCkgSSBkbyBub3QuDQo+ID4NCj4gPiBJcyB0aGlzIGEg
-YnVnIHdoaWNoIG5lZWRzIHRvIGJlIGZpeGVkPyAgRGlkIEkgbWlzcyBjbGVhcmluZyBhY3RpdmUN
-Cj4gPiBzb21ld2hlcmUgZWxzZSBpbiB0aGUgY2FsbCBjaGFpbiBvZiBwdXRfcGFnZT8NCj4gPg0K
-PiA+IFRoaXMgd2FzIGZvdW5kIHZpYSBjb2RlIGluc3BlY3Rpb24gd2hpbGUgZGV0ZXJtaW5pbmcg
-aWYNCj4gPiByZWxlYXNlX3BhZ2VzKCkgYW5kIHRoZSBuZXcgcHV0X3VzZXJfcGFnZXMoKSBjb3Vs
-ZCBiZSBpbnRlcmNoYW5nZWFibGUuDQo+ID4NCj4gPiBTaWduZWQtb2ZmLWJ5OiBJcmEgV2Vpbnkg
-PGlyYS53ZWlueUBpbnRlbC5jb20+DQo+ID4gLS0tDQo+ID4gIG1tL3N3YXAuYyB8IDEgKw0KPiA+
-ICAxIGZpbGUgY2hhbmdlZCwgMSBpbnNlcnRpb24oKykNCj4gPg0KPiA+IGRpZmYgLS1naXQgYS9t
-bS9zd2FwLmMgYi9tbS9zd2FwLmMNCj4gPiBpbmRleCAzYTc1NzIyZTY4YTkuLjlkMDQzMmJhZGRi
-MCAxMDA2NDQNCj4gPiAtLS0gYS9tbS9zd2FwLmMNCj4gPiArKysgYi9tbS9zd2FwLmMNCj4gPiBA
-QCAtNjksNiArNjksNyBAQCBzdGF0aWMgdm9pZCBfX3BhZ2VfY2FjaGVfcmVsZWFzZShzdHJ1Y3Qg
-cGFnZSAqcGFnZSkNCj4gPiAgICAgICAgICAgICAgICAgZGVsX3BhZ2VfZnJvbV9scnVfbGlzdChw
-YWdlLCBscnV2ZWMsDQo+ID4gcGFnZV9vZmZfbHJ1KHBhZ2UpKTsNCj4gDQo+IHNlZSBwYWdlX29m
-Zl9scnUocGFnZSkgYWJvdmUgd2hpY2ggY2xlYXIgYWN0aXZlIGJpdC4NCg0KVGhhbmtzLCAgU29y
-cnkgZm9yIHRoZSBub2lzZSwNCklyYQ0KDQoNCj4gDQo+ID4gICAgICAgICAgICAgICAgIHNwaW5f
-dW5sb2NrX2lycXJlc3RvcmUoJnBnZGF0LT5scnVfbG9jaywgZmxhZ3MpOw0KPiA+ICAgICAgICAg
-fQ0KPiA+ICsgICAgICAgX19DbGVhclBhZ2VBY3RpdmUocGFnZSk7DQo+ID4gICAgICAgICBfX0Ns
-ZWFyUGFnZVdhaXRlcnMocGFnZSk7DQo+ID4gICAgICAgICBtZW1fY2dyb3VwX3VuY2hhcmdlKHBh
-Z2UpOw0KPiA+ICB9DQo+ID4gLS0NCj4gPiAyLjIwLjENCj4gPg0K
+Hello everyone,
+
+On Thu, May 23, 2019 at 05:57:37PM -0700, Andrew Morton wrote:
+> On Mon, 20 May 2019 10:54:16 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+> 
+> > We are going in circles, *yes* there is a problem for potential swap 
+> > storms today because of the poor interaction between memory compaction and 
+> > directed reclaim but this is a result of a poor API that does not allow 
+> > userspace to specify that its workload really will span multiple sockets 
+> > so faulting remotely is the best course of action.  The fix is not to 
+> > cause regressions for others who have implemented a userspace stack that 
+> > is based on the past 3+ years of long standing behavior or for specialized 
+> > workloads where it is known that it spans multiple sockets so we want some 
+> > kind of different behavior.  We need to provide a clear and stable API to 
+> > define these terms for the page allocator that is independent of any 
+> > global setting of thp enabled, defrag, zone_reclaim_mode, etc.  It's 
+> > workload dependent.
+> 
+> um, who is going to do this work?
+
+That's a good question. It's going to be a not simple patch to
+backport to -stable: it'll be intrusive and it will affect
+mm/page_alloc.c significantly so it'll reject heavy. I wouldn't
+consider it -stable material at least in the short term, it will
+require some testing.
+
+This is why applying a simple fix that avoids the swap storms (and the
+swap-less pathological THP regression for vfio device assignment GUP
+pinning) is preferable before adding an alloc_pages_multi_order (or
+equivalent) so that it'll be the allocator that will decide when
+exactly to fallback from 2M to 4k depending on the NUMA distance and
+memory availability during the zonelist walk. The basic idea is to
+call alloc_pages just once (not first for 2M and then for 4k) and
+alloc_pages will decide which page "order" to return.
+
+> Implementing a new API doesn't help existing userspace which is hurting
+> from the problem which this patch addresses.
+
+Yes, we can't change all apps that may not fit in a single NUMA
+node. Currently it's unsafe to turn "transparent_hugepages/defrag =
+always" or the bad behavior can then materialize also outside of
+MADV_HUGEPAGE. Those apps that use MADV_HUGEPAGE on their long lived
+allocations (i.e. guest physical memory) like qemu are affected even
+with the default "defrag = madvise". Those apps are using
+MADV_HUGEPAGE for more than 3 years and they are widely used and open
+source of course.
+
+> It does appear to me that this patch does more good than harm for the
+> totality of kernel users, so I'm inclined to push it through and to try
+> to talk Linus out of reverting it again.  
+
+That sounds great. It's also what 3 enterprise distributions had to do
+already.
+
+As Mel described in detail, remote THP can't be slower than the swap
+I/O (even if we'd swap on a nvdimm it wouldn't change this).
+
+As Michael suggested a dynamic "numa_node_id()" mbind could be pursued
+orthogonally to still be able to retain the current upstream behavior
+for small apps that can fit in the node and do extremely long lived
+static allocations and that don't care if they cause a swap storm
+during startup. All we argue about is the default "defrag = always"
+and MADV_HUGEPAGE behavior.
+
+The current behavior of "defrag = always" and MADV_HUGEPAGE is way
+more aggressive than zone_reclaim_mode in fact, which is also not
+enabled by default for similar reasons (but enabling zone_reclaim_mode
+by default would cause much less risk of pathological regressions to
+large workloads that can't fit in a single node). Enabling
+zone_reclaim_mode would eventually fallback to remote nodes
+gracefully. As opposed the fallback to remote nodes with
+__GFP_THISNODE can only happen after the 2M allocation has failed and
+the problem is that 2M allocation don't fail because
+compaction+reclaim interleaving keeps succeeding by swapping out more
+and more memory, which would the perfectly right behavior for
+compaction+reclaim interleaving if only the whole system would be out
+of memory in all nodes (and it isn't).
+
+The false positive result from the automated testing (where swapping
+overall performance decreased because fariness increased) wasn't
+anybody's fault and so the revert at the end of the merge window was a
+safe approach. So we can try again to fix it now.
+
+Thanks!
+Andrea
 
