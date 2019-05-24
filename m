@@ -2,204 +2,176 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A6513C072B5
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 13:40:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BE8EBC072B5
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 14:00:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 54A7B2175B
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 13:40:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="TJ1v3fkn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 54A7B2175B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 5285620815
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 14:00:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5285620815
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E3D676B0003; Fri, 24 May 2019 09:40:38 -0400 (EDT)
+	id DE0846B0003; Fri, 24 May 2019 10:00:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DEF266B0005; Fri, 24 May 2019 09:40:38 -0400 (EDT)
+	id D68F66B0005; Fri, 24 May 2019 10:00:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CDD976B0006; Fri, 24 May 2019 09:40:38 -0400 (EDT)
+	id C09DB6B0006; Fri, 24 May 2019 10:00:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A88AF6B0003
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 09:40:38 -0400 (EDT)
-Received: by mail-vs1-f71.google.com with SMTP id y70so2073472vsc.6
-        for <linux-mm@kvack.org>; Fri, 24 May 2019 06:40:38 -0700 (PDT)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5426C6B0003
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 10:00:46 -0400 (EDT)
+Received: by mail-lf1-f70.google.com with SMTP id r63so496017lfe.7
+        for <linux-mm@kvack.org>; Fri, 24 May 2019 07:00:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:subject:message-id
-         :references:mime-version:content-disposition:in-reply-to:user-agent;
-        bh=jk1Lvx1FvIw772wUrAuBFbuzjdT4riWG2uGTCncDffw=;
-        b=CiDZXi1BXG4GppKSfNjA6h8dA45LrXbVR34Heb+jk1WQGQnCd3ouTHh0hY0UCFs7zk
-         LF7i/esCIVWvNHpA4R7dcrZGvkokatBRTzGVzmAr5YtcAXL/Lr6JupLYjv5dT4In0+6K
-         7UDlp8tGaBmxOGGjBG0L6lVd9T5hlNI1v2n1Tr89O38/vaLJ1et8jnvzVxFiJ1IbDIgk
-         /lWKEfVYUrS4GgZ5q1s1l6EEFgAf1tmNox7ZXu54nhVNU8K3uF2YzE/dyRcEyvV7OV3o
-         WNbQjgN97LxmvN9jZ3l/BjkHswOeXt29bajufDT5A4zUqPYF65EQof5ShofNh8Lw50+M
-         Gwsw==
-X-Gm-Message-State: APjAAAWHWsm3mbqynFlMGkPoXe/b9duJGtqc2nu5ILpZWUMLqN5p90Bc
-	X3Sj7cR8GpJzzIXTI23gUxdCeYHQimbv4nGPpzUGhOC5wlj6TxeZanHv7ryJDx5sGdNJrdNsV/U
-	ipb7TYhewd7vmTBWzH/BOFP7+VSTphEOuaessr/2cU1IxOriS5MV6fxBMSJ72SRgyCQ==
-X-Received: by 2002:a67:ed0b:: with SMTP id l11mr8274617vsp.55.1558705238394;
-        Fri, 24 May 2019 06:40:38 -0700 (PDT)
-X-Received: by 2002:a67:ed0b:: with SMTP id l11mr8274540vsp.55.1558705237709;
-        Fri, 24 May 2019 06:40:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558705237; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=QpTJZZY+MTFqqbxx4mMAvnADTWSX8F9Xt/OK6AUUwgg=;
+        b=sJlfxfT/f9yBcfATGLzUEFN3RwacEClmCcTD3pdkjiHjKKf480KJPypL7i6ReeSxlL
+         BWx8H0pSWZ+BJZT8kkGgi6y5eS2VyEtpNS4l4EZpQS6I2zl21EBKVhJ9SzZiI/R/UoZC
+         Md7s9Vval23TbOc4bYP3MY0/gr/T28jtE53wsrW55eH1Zfh1OKkCnO5POOi2LQQl/qPh
+         nG3VyHDw5LOub/E2zHs9NaPys5NiWGz5OJPfgN8jTS/TryLoGPmFOA0JQeo6Himcqi+b
+         SNsThe+euswSLzEoESIXKjpSaIVUSyA2P7XRlFeiXJFbvEJHcWP6uvRr+1beNsG7BlVl
+         tj2g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAV0friILI8/cO0/d4sAWorlD2kxYzH+pp2DW8vETklrH3ZROnE4
+	P2fA0GVZ24E97oyIT2SN6PTRsi1MK9XMqJZ/0golyTi+6K7lE6H8YxB3LtEReXlJqq6IGKqXQBV
+	7b0U75ycK+Q84a8IzeokB24h2qmin+RrjZtGC8JW/WbVk1WFhv252/Xnw5QhFNvM3JQ==
+X-Received: by 2002:a19:740e:: with SMTP id v14mr45529996lfe.144.1558706445630;
+        Fri, 24 May 2019 07:00:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxTJVEEgUpzp6SpkwRMxfpbD+r6nqY1b3BWVSwlCaBUmgsa4b1HHi0lSYdHbUFUOwG4PAci
+X-Received: by 2002:a19:740e:: with SMTP id v14mr45529936lfe.144.1558706444564;
+        Fri, 24 May 2019 07:00:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558706444; cv=none;
         d=google.com; s=arc-20160816;
-        b=o2oPFkq04KVhsGFHNEncooS9jXBh2/fRxzAF9gLLc7kDAsMyHtrdz1pJgcjEa5nDvf
-         VQDJ3M73rL8s6X27Y/Lyb0d4+phOG/x+TPQ9d3dhGk/POAxUc6Wr/d/tZcC4PkJcYQZO
-         lMLnJSGLrrFdgeDJnMuW59tVH2C1lc225k1xAlOrli+ZEXONhJh0ZG3Bv9lXziNqhXBP
-         WUYphBDHoAmeNMjgCV1R48C9Di57TJ+G++VFmISkegtfSC3beRYiyTXooAvGgfPwYVv/
-         rPw9yYYaEH10/jNq9nuGIxUgF5pVRcvXrTRxJRL5BfWxri42n6f7uwZ50FMSWnd2Uvto
-         9lDg==
+        b=DuTnhPjLjmE++YxTmTAPX0o6qNN47klsDTlLxgFmxBywVrvb1IOVFQEjtjd3oap19D
+         mmz+P4Uo62vd1oLaRBywcNpTVa90cxhXpOW1OMgZIYEKd7bEQxqGqxYI/CSqNNFzGu3G
+         cLF6jhOcrKqgSLd/7bJSjsuQpc0Z4DDpz2mguB1VEMdsSun/8vBH9oKBMEY+yzF0xCEM
+         HFlvh4aWwo9pdhWcHiJB99hBzRFEeR8V7DFmr6zywfXaoAVtotYJvXzVwhhrccunllCS
+         unGRYJiVl1y0WWmX0t2tO3tOCKs2YLGo2U9kutzzcvnU3KA52bVxZCj1+7rocupnx91C
+         BlKw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:to:from:date:dkim-signature;
-        bh=jk1Lvx1FvIw772wUrAuBFbuzjdT4riWG2uGTCncDffw=;
-        b=SK1qVJwhcdcuY/9cB3TVVAhAF5H8374wvgRO8iRfZ4vL27bx+YToVk41ttlSyIfXt+
-         bZeeu+iHGl4uexdcd39C6UiAot+khn4KSePsVHY8zMOPXTIhyxHdlcP5uEf3JUSNHL9r
-         fNlCuqlcKSh+rXnAAm2LeUiWuJusAVeas6fqVgvsv5xrwpAiTuhQlo/+aEJ2vhk8oI/S
-         PVzAdOwvm8GfHuJ3J6n9dZRnswiRporkQtWrf0IjM0GhSxLFMkmQYNRWLnIolbr/VRq5
-         l3TSBx4QfTfscTJo+BrhBjxiQDH20bY9R9ux5AtAr1vj4rCVVM5tLVswZnH10CAosGUb
-         BmTg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=QpTJZZY+MTFqqbxx4mMAvnADTWSX8F9Xt/OK6AUUwgg=;
+        b=GMWz6wMZNmQua5kwzmRPSR5nZynPnjyGzBCgrWBBfszvLPXUApbWZ07qo5gVyln0u7
+         LpdqMlrW4z1p8VlcN502idIKT/fuwCE/ixBnW9iD2Drev0AUD5fICp7DManLOItITrC4
+         sl53Mng9s5nWvs0nrC27BTUgYm6zRwtoUwRD6ONKO/P49add/Mn603d34SJJY80uZxig
+         uk+K7J5pjvfI37sgI0MRPiDDF0mzKfb0l3UWAi18EQ9Gq+suSstwAkmPccH1wIaQiCxp
+         wYiY7GVqxdOXMj9BbCW+BD0u0jW5WzcNZajnJC8w5rngYbezPWjeCZXQsSuRNhE+EuYA
+         amUw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=TJ1v3fkn;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g7sor1105931vsa.74.2019.05.24.06.40.37
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id s22si2393494ljh.180.2019.05.24.07.00.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 24 May 2019 06:40:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 May 2019 07:00:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=TJ1v3fkn;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=jk1Lvx1FvIw772wUrAuBFbuzjdT4riWG2uGTCncDffw=;
-        b=TJ1v3fknWXI7eBDTfpR4QuLVeyX1otnSWo1H+q2e4OMUI4FDYhMl+gkN9H1i+7mOhO
-         7/aDgJCW3ND4tnYxrEw1oB8b8v0vhLGSWJwGFDhhFwdjtmXO1CjA9vX5aIeYCApUY6Oz
-         oNA0Bacu6lV9kocnIprEn4BtBq9N0vh25RDNUa7RUM7LzAI70qLEi+L74kbDWi/ebHHq
-         EZOI/Y/fhswKPJt/JjMudE0M0zKse16oB9WUlDb4A6Dy36PRO74rbqLaTf0yGGxwJlz6
-         DBqTn1hSDKCT3Hdy3NmSOlACj5Q4uQPtcDwQrpx9MluvudT6JLzTdpifJWxlcS0JwkCT
-         ZkOA==
-X-Google-Smtp-Source: APXvYqw8mwBk3DO7N2wH6PK1f+AD1sgPGSjHEWIChiWeOIKAMl3omYHQb8VqEw5144BspC8y2H55mg==
-X-Received: by 2002:a67:e9cf:: with SMTP id q15mr19361500vso.194.1558705236966;
-        Fri, 24 May 2019 06:40:36 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-49-251.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.49.251])
-        by smtp.gmail.com with ESMTPSA id 102sm864606uar.11.2019.05.24.06.40.36
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 24 May 2019 06:40:36 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hUAR1-0003QD-Jx; Fri, 24 May 2019 10:40:35 -0300
-Date: Fri, 24 May 2019 10:40:35 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: linux-rdma@vger.kernel.org, linux-mm@kvack.org,
-	Jerome Glisse <jglisse@redhat.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [RFC PATCH 05/11] mm/hmm: Improve locking around hmm->dead
-Message-ID: <20190524134035.GA12653@ziepe.ca>
-References: <20190523153436.19102-1-jgg@ziepe.ca>
- <20190523153436.19102-6-jgg@ziepe.ca>
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hUAkL-0006lR-1n; Fri, 24 May 2019 17:00:33 +0300
+Subject: Re: [PATCH v2 0/7] mm: process_vm_mmap() -- syscall for duplication a
+ process mapping
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com,
+ keith.busch@intel.com, kirill.shutemov@linux.intel.com,
+ alexander.h.duyck@linux.intel.com, ira.weiny@intel.com,
+ andreyknvl@google.com, arunks@codeaurora.org, vbabka@suse.cz, cl@linux.com,
+ riel@surriel.com, keescook@chromium.org, hannes@cmpxchg.org,
+ npiggin@gmail.com, mathieu.desnoyers@efficios.com, shakeelb@google.com,
+ guro@fb.com, aarcange@redhat.com, hughd@google.com, jglisse@redhat.com,
+ mgorman@techsingularity.net, daniel.m.jordan@oracle.com, jannh@google.com,
+ kilobyte@angband.pl, linux-api@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org
+References: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
+ <20190522152254.5cyxhjizuwuojlix@box>
+ <358bb95e-0dca-6a82-db39-83c0cf09a06c@virtuozzo.com>
+ <20190524115239.ugxv766doolc6nsc@box>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <c3cd3719-0a5e-befe-89f2-328526bb714d@virtuozzo.com>
+Date: Fri, 24 May 2019 17:00:32 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190523153436.19102-6-jgg@ziepe.ca>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190524115239.ugxv766doolc6nsc@box>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 23, 2019 at 12:34:30PM -0300, Jason Gunthorpe wrote:
-> From: Jason Gunthorpe <jgg@mellanox.com>
+On 24.05.2019 14:52, Kirill A. Shutemov wrote:
+> On Fri, May 24, 2019 at 01:45:50PM +0300, Kirill Tkhai wrote:
+>> On 22.05.2019 18:22, Kirill A. Shutemov wrote:
+>>> On Mon, May 20, 2019 at 05:00:01PM +0300, Kirill Tkhai wrote:
+>>>> This patchset adds a new syscall, which makes possible
+>>>> to clone a VMA from a process to current process.
+>>>> The syscall supplements the functionality provided
+>>>> by process_vm_writev() and process_vm_readv() syscalls,
+>>>> and it may be useful in many situation.
+>>>
+>>> Kirill, could you explain how the change affects rmap and how it is safe.
+>>>
+>>> My concern is that the patchset allows to map the same page multiple times
+>>> within one process or even map page allocated by child to the parrent.
+>>>
+>>> It was not allowed before.
+>>>
+>>> In the best case it makes reasoning about rmap substantially more difficult.
+>>>
+>>> But I'm worry it will introduce hard-to-debug bugs, like described in
+>>> https://lwn.net/Articles/383162/.
+>>
+>> Andy suggested to unmap PTEs from source page table, and this make the single
+>> page never be mapped in the same process twice. This is OK for my use case,
+>> and here we will just do a small step "allow to inherit VMA by a child process",
+>> which we didn't have before this. If someone still needs to continue the work
+>> to allow the same page be mapped twice in a single process in the future, this
+>> person will have a supported basis we do in this small step. I believe, someone
+>> like debugger may want to have this to make a fast snapshot of a process private
+>> memory (when the task is stopped for a small time to get its memory). But for
+>> me remapping is enough at the moment.
+>>
+>> What do you think about this?
 > 
-> This value is being read without any locking, so it is just an unreliable
-> hint, however in many cases we need to have certainty that code is not
-> racing with mmput()/hmm_release().
+> I don't think that unmapping alone will do. Consider the following
+> scenario:
 > 
-> For the two functions doing find_vma(), document that the caller is
-> expected to hold mmap_sem and thus also have a mmget().
+> 1. Task A creates and populates the mapping.
+> 2. Task A forks. We have now Task B mapping the same pages, but
+> write-protected.
+> 3. Task B calls process_vm_mmap() and passes the mapping to the parent.
 > 
-> For hmm_range_register acquire a mmget internally as it must not race with
-> hmm_release() when it sets valid.
-> 
-> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
->  mm/hmm.c | 27 +++++++++++++++++++--------
->  1 file changed, 19 insertions(+), 8 deletions(-)
-> 
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index ec54be54d81135..d97ec293336ea5 100644
-> +++ b/mm/hmm.c
-> @@ -909,8 +909,10 @@ int hmm_range_register(struct hmm_range *range,
->  	range->start = start;
->  	range->end = end;
->  
-> -	/* Check if hmm_mm_destroy() was call. */
-> -	if (mirror->hmm->mm == NULL || mirror->hmm->dead)
-> +	/*
-> +	 * We cannot set range->value to true if hmm_release has already run.
-> +	 */
-> +	if (!mmget_not_zero(mirror->hmm->mm))
->  		return -EFAULT;
->  
->  	range->hmm = mirror->hmm;
-> @@ -928,6 +930,7 @@ int hmm_range_register(struct hmm_range *range,
->  	if (!range->hmm->notifiers)
->  		range->valid = true;
->  	mutex_unlock(&range->hmm->lock);
-> +	mmput(mirror->hmm->mm);
+> After this Task A will have the same anon pages mapped twice.
 
-Hi Jerome, when you revised this patch to move the mmput to
-hmm_range_unregister() it means hmm_release() cannot run while a range
-exists, and thus we can have this futher simplification rolled into
-this patch. Can you update your git? Thanks:
+Ah, sure.
 
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 2a08b78550b90d..ddd05f2ebe739a 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -128,17 +128,17 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
- {
- 	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
- 	struct hmm_mirror *mirror;
--	struct hmm_range *range;
- 
- 	/* hmm is in progress to free */
- 	if (!kref_get_unless_zero(&hmm->kref))
- 		return;
- 
--	/* Wake-up everyone waiting on any range. */
- 	mutex_lock(&hmm->lock);
--	list_for_each_entry(range, &hmm->ranges, list)
--		range->valid = false;
--	wake_up_all(&hmm->wq);
-+	/*
-+	 * Since hmm_range_register() holds the mmget() lock hmm_release() is
-+	 * prevented as long as a range exists.
-+	 */
-+	WARN_ON(!list_empty(&hmm->ranges));
- 	mutex_unlock(&hmm->lock);
- 
- 	down_write(&hmm->mirrors_sem);
-@@ -908,9 +908,7 @@ int hmm_range_register(struct hmm_range *range,
- 	range->hmm = mm->hmm;
- 	kref_get(&range->hmm->kref);
- 
--	/*
--	 * We cannot set range->value to true if hmm_release has already run.
--	 */
-+	/* Prevent hmm_release() from running while the range is valid */
- 	if (!mmget_not_zero(mm))
- 		return -EFAULT;
- 
+> One possible way out would be to force CoW on all pages in the mapping,
+> before passing the mapping to the new process.
+
+This will pop all swapped pages up, which is the thing the patchset aims
+to prevent.
+
+Hm, what about allow remapping only VMA, which anon_vma::rb_root contain
+only chain and which vma->anon_vma_chain contains single entry? This is
+a vma, which were faulted, but its mm never were duplicated (or which
+forks already died).
+
+Thanks,
+Kirill
 
