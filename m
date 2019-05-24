@@ -2,204 +2,169 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 25D99C072B5
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 20:29:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 55214C282E5
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 21:04:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D98CA20868
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 20:29:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D98CA20868
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id EB6492175B
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 21:04:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="SVznC4KC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB6492175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 78CFB6B0008; Fri, 24 May 2019 16:29:49 -0400 (EDT)
+	id 4B37D6B0008; Fri, 24 May 2019 17:04:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 73DFA6B000A; Fri, 24 May 2019 16:29:49 -0400 (EDT)
+	id 4648F6B000A; Fri, 24 May 2019 17:04:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 604386B000C; Fri, 24 May 2019 16:29:49 -0400 (EDT)
+	id 37A106B000C; Fri, 24 May 2019 17:04:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EFAC6B0008
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 16:29:49 -0400 (EDT)
-Received: by mail-ua1-f70.google.com with SMTP id 76so2509077uat.12
-        for <linux-mm@kvack.org>; Fri, 24 May 2019 13:29:49 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E6666B0008
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 17:04:06 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id y14so4105092oia.9
+        for <linux-mm@kvack.org>; Fri, 24 May 2019 14:04:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=X58Az4dHX3doqWoVsrR+YLAOqx/yB2iQnaJ8PW+XYpg=;
-        b=g2NZoNUlEw4qdrJCVHSHJuJvMLPuArUDxta4eMuxc2lg42fUEhRyzYZIqWldLSywHm
-         aFr0G6LbLEeo3DuxHYadRA/6pnU+GgauZAbhEMmDU9gA7lyLa4tTp9ZUmT2TqcZBfFD6
-         CLhRS/pDlHeuLTrD5BeLs0eo3teebwNLRggBzxCLoFQetyGBZw/5llxz0kJmz5pZQNk1
-         UHh2OCodCTk9GgwLAqVwCcZiPbmfqopZJIzU7d5G2W07HYuQ/571FePvHuGS5m5Ve9PK
-         uUKP68Dd8ZNsivtaVu1bP013J8ptdtARYY42N+31s9nOO30cTB9pvxg97fh51cyS8M06
-         fDmA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUakKh8cgAxQguBmXI9ovGihuS79JYaqRP63N464JtAaZbzX2Fj
-	JGeEUD3ifWPf61b5a25m/jK1/QNlfQAOPQJIJ/gpUPdXYAHSPO0mh9UOO0YLpy51JkVhVMVqJ6p
-	0Ic3gQciigdpafjzx6dcz7uMX9cUnfbLNPSZf5W3CC2Hio8+o8baiYLuuWfnJW5icxA==
-X-Received: by 2002:a67:dd8e:: with SMTP id i14mr11176758vsk.149.1558729788991;
-        Fri, 24 May 2019 13:29:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyY4w1d+rPyc9RBLOBPJm1+6P0gJlhNRbDicbgdweGwrLWHxbTY+RygQhG6RZakppi1asyP
-X-Received: by 2002:a67:dd8e:: with SMTP id i14mr11176664vsk.149.1558729788058;
-        Fri, 24 May 2019 13:29:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558729788; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=TZLUTKJ3F2aogiV4hxpY25KLHdygnyYYVAPTh5EB7PA=;
+        b=SDXC7BxF9GpV4gaIx7HHFSwDDguK3D2VFz4096nkyPSbgcj3lGcV+l7mtXjghp6Hng
+         Ts7erSpeCgKdfJPjkAw3JxFSTDSdROIklT9tyjN2r8VKYwZK5JX/eNKaNXv/9+tFpR+A
+         hdoDqV/13izIEtiSnSDJQnHDhnNejjGEfSg/BthMF3KkU5qxeY+fZ3N87VsCFapwqmz/
+         GRShPPn22xIxi3/DBRfJaSekArKTKLqWH1dR1Hl8LJEb2aXRJjbVECPnXfbI+Ve+HkJe
+         40y1RfGl5flseWy8AmlOBLOH18cGJFMGiUycpI54E5SchcWogCIPC9No6rNOzOBuWyq9
+         rUeA==
+X-Gm-Message-State: APjAAAVEeK2Y7/BfXs+LBVWzzi/YmPwPNjLLsOYnJtYAfpTDYaXhyiu4
+	BWdbzKyG2fUofWPElO/CyasV4FRpbFLYDkqzV/BX6eCQ9uODfnyqRJolaae5RoKbsGZMn31vjk2
+	krqjH4GZCl35f8m/2Zp95LN6dC8LkxDClcsiQ1qVeVDBAhYLsne3SC+B31FjyseQ3kA==
+X-Received: by 2002:aca:40c1:: with SMTP id n184mr6409632oia.73.1558731845661;
+        Fri, 24 May 2019 14:04:05 -0700 (PDT)
+X-Received: by 2002:aca:40c1:: with SMTP id n184mr6409596oia.73.1558731844926;
+        Fri, 24 May 2019 14:04:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558731844; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ypxfl1T0pzAcY+lTd7y/RLazYchJAjMW8sMqWo+so6/CWwx0RzvL5qCyk4o1fP2two
-         E5XR+MH3efWMZ2d2OfuYVSWutndMRHkU5d1r7yTyIkw8xFx8h1ba3rHAsSpvvKKRTGmL
-         kz+B0rdyhXCKgErky704nHwQh9s2F1oHOX++FEhoLJ+a4DBTF5GrQhFyIMaoc9W6yU/F
-         7FabLsrMuRAwSVJejp45+Tcsz2EA0Mn8bEiru7gd/qi0qjzQP1OpjG5yKUhvuZz85C/9
-         YQw2g5pSX3rA6BcvKOYSBY5W9ApbH7DGhUp+uWAmNjcZR8WJCrzZwxy/zFot1hjCYDuw
-         HE3Q==
+        b=gt1K4WEDC0beRkBJAZboTJvE9eEFJ/wufx/7moybnWk6DqRjHVEeoGmDXMhz4itaUi
+         AY6/XZ9ibqvjkRKJarQRZRJZkclj33LTp2uf0jZEPsG8guHCJ6pUcOiOe3rIuUVIN02u
+         cIYPG5mjfh7fEF9b77OAHq7XmH5zKDiFPh7eFxhvnhQJzdPfECEicbYrJK+9gjP+qgDJ
+         7cpGGO6KoRHR2r9OGQBXIj6OiPC7lNo2rnztobXZ49Jl7ioSG5aAV+vq9x08c/oH3nsN
+         s+f616HXbqIPnmVV8W5gDhcVmFwbTaFC7Mzp0PARtUGXKB/gQS0ewOIBIKnCruClPuro
+         eAXw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=X58Az4dHX3doqWoVsrR+YLAOqx/yB2iQnaJ8PW+XYpg=;
-        b=BT4yemBvZxstPA95P+rZVNtp8DHKpdbrkQWossFDeSeGELmR+PpdgmkF2sScX7djKC
-         CAall1CjhLM2sHz4Kk6GmEKmLWpYHBmHnm7hb8XyyZKGpsOnCX9y6dqhca1XdqqhCmIZ
-         v/UmQA2VGpLPK8IjAr6CtgzAfPfYzh7RTARX0LT3RLORkp6s8VPE0bkzlADQ4kiTEHLr
-         foq1qd7H4rUjD1s+E6iEjU1a0GrYnNWTLZPWiHvmZmZRs4fSWy7/CnSnTFTLF1Sp9aqp
-         ZLoENJpXndKFjDcfzD06QOQ57K4nLZvYpyfDeKhiuX097mgw85pPEgG/WaW92fJxDDeb
-         6j6w==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=TZLUTKJ3F2aogiV4hxpY25KLHdygnyYYVAPTh5EB7PA=;
+        b=voj8W2pWup28Vs++lbeN+G8tQuIJ3Bh2IGuhVSTbTbHUGTBRPmsuS60OjAAzV2a4R/
+         Kj+22dpfRanaj1YNq2ok5MSErg47GSq8MRILR7YaCf+ldk9t3f/9kkNZBOsIf246MLd1
+         LgovQp+z/4429Vz5w7JT+4JXh8TlJf12RSxIkhal9g2LqSrzm+K+v3ARXRsdeixKXno6
+         c6+zRgfl5KkeJBHQ9Q4dXlzYMPn8F1a6n+VLpnZ64rBPPH/G0EG9T2fRuxK47iL3r71f
+         /AmNTEQOUkV+OUuDsynyqc0i64jn3XTud0xx4jno0rhzYYlPiRZDCTXZhZ9XttAuEGF7
+         c5ZQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h8si1335319vsq.215.2019.05.24.13.29.47
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=SVznC4KC;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u135sor1506944oif.18.2019.05.24.14.04.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 May 2019 13:29:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Fri, 24 May 2019 14:04:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aarcange@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aarcange@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 940B630821B3;
-	Fri, 24 May 2019 20:29:35 +0000 (UTC)
-Received: from ultra.random (ovpn-120-242.rdu2.redhat.com [10.10.120.242])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 51E0868B02;
-	Fri, 24 May 2019 20:29:32 +0000 (UTC)
-Date: Fri, 24 May 2019 16:29:31 -0400
-From: Andrea Arcangeli <aarcange@redhat.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>,
-	Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>,
-	Zi Yan <zi.yan@cs.rutgers.edu>,
-	Stefan Priebe - Profihost AG <s.priebe@profihost.ag>,
-	"Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 2/2] Revert "mm, thp: restore node-local hugepage
- allocations"
-Message-ID: <20190524202931.GB11202@redhat.com>
-References: <20190503223146.2312-1-aarcange@redhat.com>
- <20190503223146.2312-3-aarcange@redhat.com>
- <alpine.DEB.2.21.1905151304190.203145@chino.kir.corp.google.com>
- <20190520153621.GL18914@techsingularity.net>
- <alpine.DEB.2.21.1905201018480.96074@chino.kir.corp.google.com>
- <20190523175737.2fb5b997df85b5d117092b5b@linux-foundation.org>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=SVznC4KC;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=TZLUTKJ3F2aogiV4hxpY25KLHdygnyYYVAPTh5EB7PA=;
+        b=SVznC4KCLx7YSAx2b6fQ+ZtJiZ6ujYdV9mSMxY84cZ56j+I/vr7lCZ/TTMGPqIrmG2
+         n+MXhfhPC5SPlCZeuF2ieZOIOLtAiTxsv8dTJ3LY+T++Gx1kU0nnyQjXCoaVyIRN2139
+         bNjLSLTnsM4vNLAE53uhz0BWJ5+IUfLiAbY/s+oxqkfDD+60ZakSOC4NcjsVb/AdikkC
+         Ep3lJuX0jO9ltkpAJ7esLFb6M7WD0hEd9tkFPAhX3J2Jbb5HOcty+jYUuRdcBSREf+Rw
+         JqYkgRMAVIy/x+dJaSnpwbW1LDzz1JAl9eng+iVqHCNf+jFOWorG+cxdGn6taPp9T4ya
+         Clvg==
+X-Google-Smtp-Source: APXvYqxZIFyFGsR/pXREy00mCK+6RQ0bxehaezcZvJguGqHs6hXw7JjGal55rGe16XzZYEOCHBpbDovT+9fdeN+vXHk=
+X-Received: by 2002:aca:b641:: with SMTP id g62mr7861089oif.149.1558731844633;
+ Fri, 24 May 2019 14:04:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190523175737.2fb5b997df85b5d117092b5b@linux-foundation.org>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Fri, 24 May 2019 20:29:43 +0000 (UTC)
+References: <20190523223746.4982-1-ira.weiny@intel.com> <CAPcyv4gYxyoX5U+Fg0LhwqDkMRb-NRvPShOh+nXp-r_HTwhbyA@mail.gmail.com>
+In-Reply-To: <CAPcyv4gYxyoX5U+Fg0LhwqDkMRb-NRvPShOh+nXp-r_HTwhbyA@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 24 May 2019 14:03:52 -0700
+Message-ID: <CAPcyv4i7+AVR9_U+g8npO_ixJFz=5kEUJ9RaiD2aKBmBOo-PJA@mail.gmail.com>
+Subject: Re: [PATCH] mm/swap: Fix release_pages() when releasing devmap pages
+To: "Weiny, Ira" <ira.weiny@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello everyone,
+On Thu, May 23, 2019 at 8:58 PM Dan Williams <dan.j.williams@intel.com> wro=
+te:
+>
+> On Thu, May 23, 2019 at 3:37 PM <ira.weiny@intel.com> wrote:
+> >
+> > From: Ira Weiny <ira.weiny@intel.com>
+> >
+> > Device pages can be more than type MEMORY_DEVICE_PUBLIC.
+> >
+> > Handle all device pages within release_pages()
+> >
+> > This was found via code inspection while determining if release_pages()
+> > and the new put_user_pages() could be interchangeable.
+> >
+> > Cc: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+> > Cc: Dan Williams <dan.j.williams@intel.com>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: John Hubbard <jhubbard@nvidia.com>
+> > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
+> > ---
+> >  mm/swap.c | 7 +++----
+> >  1 file changed, 3 insertions(+), 4 deletions(-)
+> >
+> > diff --git a/mm/swap.c b/mm/swap.c
+> > index 3a75722e68a9..d1e8122568d0 100644
+> > --- a/mm/swap.c
+> > +++ b/mm/swap.c
+> > @@ -739,15 +739,14 @@ void release_pages(struct page **pages, int nr)
+> >                 if (is_huge_zero_page(page))
+> >                         continue;
+> >
+> > -               /* Device public page can not be huge page */
+> > -               if (is_device_public_page(page)) {
+> > +               if (is_zone_device_page(page)) {
+> >                         if (locked_pgdat) {
+> >                                 spin_unlock_irqrestore(&locked_pgdat->l=
+ru_lock,
+> >                                                        flags);
+> >                                 locked_pgdat =3D NULL;
+> >                         }
+> > -                       put_devmap_managed_page(page);
+> > -                       continue;
+> > +                       if (put_devmap_managed_page(page))
+>
+> This "shouldn't" fail, and if it does the code that follows might get
+> confused by a ZONE_DEVICE page. If anything I would make this a
+> WARN_ON_ONCE(!put_devmap_managed_page(page)), but always continue
+> unconditionally.
 
-On Thu, May 23, 2019 at 05:57:37PM -0700, Andrew Morton wrote:
-> On Mon, 20 May 2019 10:54:16 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
-> 
-> > We are going in circles, *yes* there is a problem for potential swap 
-> > storms today because of the poor interaction between memory compaction and 
-> > directed reclaim but this is a result of a poor API that does not allow 
-> > userspace to specify that its workload really will span multiple sockets 
-> > so faulting remotely is the best course of action.  The fix is not to 
-> > cause regressions for others who have implemented a userspace stack that 
-> > is based on the past 3+ years of long standing behavior or for specialized 
-> > workloads where it is known that it spans multiple sockets so we want some 
-> > kind of different behavior.  We need to provide a clear and stable API to 
-> > define these terms for the page allocator that is independent of any 
-> > global setting of thp enabled, defrag, zone_reclaim_mode, etc.  It's 
-> > workload dependent.
-> 
-> um, who is going to do this work?
-
-That's a good question. It's going to be a not simple patch to
-backport to -stable: it'll be intrusive and it will affect
-mm/page_alloc.c significantly so it'll reject heavy. I wouldn't
-consider it -stable material at least in the short term, it will
-require some testing.
-
-This is why applying a simple fix that avoids the swap storms (and the
-swap-less pathological THP regression for vfio device assignment GUP
-pinning) is preferable before adding an alloc_pages_multi_order (or
-equivalent) so that it'll be the allocator that will decide when
-exactly to fallback from 2M to 4k depending on the NUMA distance and
-memory availability during the zonelist walk. The basic idea is to
-call alloc_pages just once (not first for 2M and then for 4k) and
-alloc_pages will decide which page "order" to return.
-
-> Implementing a new API doesn't help existing userspace which is hurting
-> from the problem which this patch addresses.
-
-Yes, we can't change all apps that may not fit in a single NUMA
-node. Currently it's unsafe to turn "transparent_hugepages/defrag =
-always" or the bad behavior can then materialize also outside of
-MADV_HUGEPAGE. Those apps that use MADV_HUGEPAGE on their long lived
-allocations (i.e. guest physical memory) like qemu are affected even
-with the default "defrag = madvise". Those apps are using
-MADV_HUGEPAGE for more than 3 years and they are widely used and open
-source of course.
-
-> It does appear to me that this patch does more good than harm for the
-> totality of kernel users, so I'm inclined to push it through and to try
-> to talk Linus out of reverting it again.  
-
-That sounds great. It's also what 3 enterprise distributions had to do
-already.
-
-As Mel described in detail, remote THP can't be slower than the swap
-I/O (even if we'd swap on a nvdimm it wouldn't change this).
-
-As Michael suggested a dynamic "numa_node_id()" mbind could be pursued
-orthogonally to still be able to retain the current upstream behavior
-for small apps that can fit in the node and do extremely long lived
-static allocations and that don't care if they cause a swap storm
-during startup. All we argue about is the default "defrag = always"
-and MADV_HUGEPAGE behavior.
-
-The current behavior of "defrag = always" and MADV_HUGEPAGE is way
-more aggressive than zone_reclaim_mode in fact, which is also not
-enabled by default for similar reasons (but enabling zone_reclaim_mode
-by default would cause much less risk of pathological regressions to
-large workloads that can't fit in a single node). Enabling
-zone_reclaim_mode would eventually fallback to remote nodes
-gracefully. As opposed the fallback to remote nodes with
-__GFP_THISNODE can only happen after the 2M allocation has failed and
-the problem is that 2M allocation don't fail because
-compaction+reclaim interleaving keeps succeeding by swapping out more
-and more memory, which would the perfectly right behavior for
-compaction+reclaim interleaving if only the whole system would be out
-of memory in all nodes (and it isn't).
-
-The false positive result from the automated testing (where swapping
-overall performance decreased because fariness increased) wasn't
-anybody's fault and so the revert at the end of the merge window was a
-safe approach. So we can try again to fix it now.
-
-Thanks!
-Andrea
+As discussed offline, I'm wrong here. It needs to fall through to
+put_page_testzero() for the device-dax case, but perhaps a comment for
+the next time I forget that subtlety.
 
