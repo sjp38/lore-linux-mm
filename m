@@ -2,213 +2,183 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 857EFC282E1
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 15:50:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A44C1C072B5
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 15:51:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3CB2A21841
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 15:50:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CB2A21841
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 618BD2075E
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 15:51:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 618BD2075E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C55476B0010; Fri, 24 May 2019 11:50:52 -0400 (EDT)
+	id 094366B000A; Fri, 24 May 2019 11:51:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C2D156B0266; Fri, 24 May 2019 11:50:52 -0400 (EDT)
+	id 06CAC6B000C; Fri, 24 May 2019 11:51:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AF4166B0269; Fri, 24 May 2019 11:50:52 -0400 (EDT)
+	id E77456B0266; Fri, 24 May 2019 11:51:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 768626B0010
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 11:50:52 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id v125so3639066pgv.3
-        for <linux-mm@kvack.org>; Fri, 24 May 2019 08:50:52 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A1106B000A
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 11:51:58 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id p14so14836292edc.4
+        for <linux-mm@kvack.org>; Fri, 24 May 2019 08:51:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:user-agent:content-id
-         :content-transfer-encoding:mime-version;
-        bh=asU3vnEN/8icSIHV94km3rDKklvwXfLlXJdjQfg3ZWw=;
-        b=cJBaYWogTmXF4iL2qUz8B6yf71ehf42a6kEJlOC6cwqu5x8u+yJNL3Am7KBfq0+QOf
-         gNwbR9izESK5zhLqcl2hDSqPLopa4Z9TyUCXLC11QNWN2SO4HEWtVItRTjjGsD7zRPv7
-         xxPhzSkZInMksn4e3mCaPEMz3HhuTY/GRNQrKnhDY4PqThJHt+OuA5NfQaYqAT/IvA2k
-         2IGH1yW167/1ZajoOxDKcZv3trgKyRtHghKa5KEekFrXfAMyf2/qWnWmRnvrynk03ch4
-         HJSw4KN18zOCo0bAISUf9MGx44QUipWL7fKIXPvlsFkmbdEb6yJB4sTVCUlqLX1zDRyJ
-         2d8w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVMwDRrjZ4xBLk1T2Rz2kOCMphAGR52ROX/8d4wY7pcPrpqDN9S
-	Lsw3Wb1eWsE+neiCecKneXxvQ58ejFgwyDN8+bt2HYKd73u5dPUk1Y6bxYUbc9J9KZ0mlurwBDa
-	Ab+blhMMWwPZnNf8KHGyl6G8AHORqe/omf0NkSxfMtzGu1RWtAxy4oAxZi27wurFlmA==
-X-Received: by 2002:a63:2ac9:: with SMTP id q192mr35901973pgq.144.1558713052099;
-        Fri, 24 May 2019 08:50:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxrwmyHE8iHi65k+cYfidMm9n1mjybkbYe6fkxcWes8A3HdKaBMQWtMRIdo4WAnVLEVpCzZ
-X-Received: by 2002:a63:2ac9:: with SMTP id q192mr35901889pgq.144.1558713051071;
-        Fri, 24 May 2019 08:50:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558713051; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=VIze2iBGaJH6DRuZZ+HkDVlqe6aoAL2eu78GhYDgnfc=;
+        b=XZKbpV7EwgehjHsYn7/2IC5KPopoZCfs9niIsHhnzRa8ue+AINSpeBmSHWREjB5+jV
+         6juhx8Sc783KYDt1T6+DjEENX90zRHl9lSTfipatyoVzOymAKdLiziAknLuH91IyfyHc
+         //I9cMQ9TdxLmGi3upW7cw7IuLcHIQZ+Zi0YL2uNLvRjwsNblhwKOEzZD5VaCY2vtWGd
+         QYZHlRJiVWenyp3syCh1/HOR9Mgkr6pWHZQG9R1fnEr6+F9ab9/UbMttajkAM6bkFTDM
+         O6x+Lt6NiSYzvCmoHyXfublIRJ1tpGEfv6Qw9eEqgdyjNV5oLgX/EphHW8PwjwXi5U+2
+         pHYw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.246 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAXavKBeJEK6cr2DnRMRGTjQZbae/51D6quxE1VfbNPrHxRgxB/l
+	qa9AQQZ+mXvg70qGWsKzJUvhyJnCKkjnWsuBahIxf8HsHVibQ9YrIJ7i/oC6p2enLyfxrhfk4Q2
+	f2GeoRDl3z2NDiJKzndhRj1L3tY5ZZJfOM1pEVYng1Xb0Q6gyFY4kZq53f4QLqT1fzg==
+X-Received: by 2002:a17:906:fc6:: with SMTP id c6mr15827425ejk.218.1558713118180;
+        Fri, 24 May 2019 08:51:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzKAArwYlnLD+Vfkrq2bKA1InHNqZqQjvrTkDCxdDBpTJ+RGjK+Dq5WWaYu6mX/Z6FgdToa
+X-Received: by 2002:a17:906:fc6:: with SMTP id c6mr15827356ejk.218.1558713117378;
+        Fri, 24 May 2019 08:51:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558713117; cv=none;
         d=google.com; s=arc-20160816;
-        b=eaeAxKKWYiFpiUTFDbQrcvkeAK3Xj6J075ETyI6ZveG1pCyFLbgfYfzwP9r1iuN/zo
-         OBjfSeHgB0lpZTPlZUVfP1w9RK/kBFhEzWCY7ms/oH7ocwGmCPQ8pVmEmWGNI13DL32M
-         jSDAtEgqJiHrqN4Dq06hQ/kHiM+SdaH1+n+pj7AaJ9qF3f5R2slrmLrw49rBKg/uO7Is
-         qsWOX+aGjz0y2uRwchW7I5ZnSP6Qh18V1BDY5+fst7lh0Nm5pgaP6vuJo+KBtV3CLYgR
-         cKybjHFC+0sVJ80oTuzV1cxvSdzvhIQpfFAY9cM79xIqxtN5xC0ijQj8Cu2HywJQaF+e
-         RTcw==
+        b=VkoSpckKEs2Tdpa8XRP+H/yUAZ8E55r6qRVe3oDJy56NHjVb7dS2/DAJUkji/g3PGL
+         Lx7jRRUjpsk+n2+RuH2oQ97hOZTypLeey4VXF8NVQRKpSAWKVW7fqEz+ux3/I7rm4fUP
+         genZ5vXDUENqcsdyEmJN/wRuD70bu4UIU65+BWqH/2U/NgEiS+cv/xIl8ngod9jcNECS
+         jGn/Zrk5Jsd/Fc49Qvs90e+EwIi1zcRJMMP9ETMPj895+JSgr4CqaC4dO2c79Fw8T21C
+         CtCvFdU9/I/YZhNrejQmjFRLVLuYR5ysmLKM0yazljgW+uyvrSyh3OWziDoOc8M3iE8J
+         xLTQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from;
-        bh=asU3vnEN/8icSIHV94km3rDKklvwXfLlXJdjQfg3ZWw=;
-        b=1LO2FydqpjdHQzm+EL1iyxVbo/9YasMulqt9CFyu7c17X63zMmlMTvlSK9TsJSlZSB
-         fuDv7v3ATteYUZUKheCrKeWjIgHTQMwMcs7LJgdcvis86Ub9RbAJUclue5LY5EddNhZS
-         PYYwgTERoDKvP+rG6yDq3taMf3l1r1sfqAwAeGuLXmQVwq2mVxqsl8rO8kJIhLIHVam1
-         daogMSKFIC8wG6+nfgCOrEhbMGCLW1z167oZEXy7C0Wy/XxT52/ttny341w3dJyvICV/
-         ElBmU4/msy1n7dC5PTbPaf3UTzqur3Ik7VRPxgwWl6HD/k8K1A4UN4XEQyS1na7ozGjJ
-         CRSQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=VIze2iBGaJH6DRuZZ+HkDVlqe6aoAL2eu78GhYDgnfc=;
+        b=K+Yc2iDCihGhXKMA1E4cPlQO21AYuATJiML9k0bCKKq/cqyRzaG9z18NSSNsjH4oXm
+         lXtNvoUqgWubeQ9dVH9xTEJn3adGKzfDRumFQ9575FJxTngrQU/xxIoQjFY5ZwOhVABe
+         aBrfG+drxah9V4g4RZJJeFX0T/2/qT7U29l7PW70pdRNEeVXWzZT8KfFthTH0b9OYGN9
+         54eVvrNu05z2WkI7HRdkUuXOLDAX2kUNNCKi7i9S3yK8zVLLDr2jRuBHZ5Xlt8ESray5
+         63U/EUzJ+9teHWXcObD0kurDvbzsw7gVnCpz2TYnY77AkrqQVah5DTqVbHeKSfAW+BZ5
+         /ijw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id 5si4770872pgm.540.2019.05.24.08.50.50
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.246 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp19.blacknight.com (outbound-smtp19.blacknight.com. [46.22.139.246])
+        by mx.google.com with ESMTPS id c15si1898202ejk.217.2019.05.24.08.51.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 May 2019 08:50:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        Fri, 24 May 2019 08:51:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.246 as permitted sender) client-ip=46.22.139.246;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 24 May 2019 08:50:50 -0700
-X-ExtLoop1: 1
-Received: from orsmsx102.amr.corp.intel.com ([10.22.225.129])
-  by fmsmga001.fm.intel.com with ESMTP; 24 May 2019 08:50:49 -0700
-Received: from orsmsx126.amr.corp.intel.com (10.22.240.126) by
- ORSMSX102.amr.corp.intel.com (10.22.225.129) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Fri, 24 May 2019 08:50:49 -0700
-Received: from orsmsx112.amr.corp.intel.com ([169.254.3.79]) by
- ORSMSX126.amr.corp.intel.com ([169.254.4.35]) with mapi id 14.03.0415.000;
- Fri, 24 May 2019 08:50:49 -0700
-From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
-To: "davem@davemloft.net" <davem@davemloft.net>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"peterz@infradead.org" <peterz@infradead.org>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, "mroos@linux.ee" <mroos@linux.ee>, "mingo@redhat.com"
-	<mingo@redhat.com>, "namit@vmware.com" <namit@vmware.com>, "luto@kernel.org"
-	<luto@kernel.org>, "bp@alien8.de" <bp@alien8.de>, "netdev@vger.kernel.org"
-	<netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>,
-	"sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>
-Subject: Re: [PATCH v2] vmalloc: Fix issues with flush flag
-Thread-Topic: [PATCH v2] vmalloc: Fix issues with flush flag
-Thread-Index: AQHVD0ezpbXySuUS5EinefGl750kkaZ0/uwAgAALkwCAAAiygIAAGYEAgAADqwCAAA0vgIAABnMAgAAEjYCAApkWgIAAHb0AgAA1/4CAArJUAA==
-Date: Fri, 24 May 2019 15:50:48 +0000
-Message-ID: <c9c96d83838beab6eb3a5309ad6b4b409fbce0f3.camel@intel.com>
-References: <a43f9224e6b245ade4b587a018c8a21815091f0f.camel@intel.com>
-	 <20190520.184336.743103388474716249.davem@davemloft.net>
-	 <339ef85d984f329aa66f29fa80781624e6e4aecc.camel@intel.com>
-	 <20190522.104019.40493905027242516.davem@davemloft.net>
-	 <01a23900329e605fcd41ad8962cfd8f2d9b1fa44.camel@intel.com>
-	 <2d8c59be7e591a0d0ff17627ea34ea1eaa110a09.camel@intel.com>
-In-Reply-To: <2d8c59be7e591a0d0ff17627ea34ea1eaa110a09.camel@intel.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-user-agent: Evolution 3.30.1 (3.30.1-1.fc29) 
-x-originating-ip: [10.251.0.167]
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <3FAE5003E9627F419617E9DC8A2441C1@intel.com>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.246 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp19.blacknight.com (Postfix) with ESMTPS id E324C1C28BF
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 16:51:56 +0100 (IST)
+Received: (qmail 32091 invoked from network); 24 May 2019 15:51:56 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 24 May 2019 15:51:56 -0000
+Date: Fri, 24 May 2019 16:51:55 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Suzuki K Poulose <suzuki.poulose@arm.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com,
+	cai@lca.pw, linux-kernel@vger.kernel.org, marc.zyngier@arm.com,
+	kvmarm@lists.cs.columbia.edu, kvm@vger.kernel.org
+Subject: Re: [PATCH] mm, compaction: Make sure we isolate a valid PFN
+Message-ID: <20190524155155.GQ18914@techsingularity.net>
+References: <20190524103924.GN18914@techsingularity.net>
+ <1558711908-15688-1-git-send-email-suzuki.poulose@arm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1558711908-15688-1-git-send-email-suzuki.poulose@arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gV2VkLCAyMDE5LTA1LTIyIGF0IDE1OjQwIC0wNzAwLCBSaWNrIEVkZ2Vjb21iZSB3cm90ZToN
-Cj4gT24gV2VkLCAyMDE5LTA1LTIyIGF0IDEyOjI2IC0wNzAwLCBSaWNrIEVkZ2Vjb21iZSB3cm90
-ZToNCj4gPiBPbiBXZWQsIDIwMTktMDUtMjIgYXQgMTA6NDAgLTA3MDAsIERhdmlkIE1pbGxlciB3
-cm90ZToNCj4gPiA+IEZyb206ICJFZGdlY29tYmUsIFJpY2sgUCIgPHJpY2sucC5lZGdlY29tYmVA
-aW50ZWwuY29tPg0KPiA+ID4gRGF0ZTogVHVlLCAyMSBNYXkgMjAxOSAwMTo1OTo1NCArMDAwMA0K
-PiA+ID4gDQo+ID4gPiA+IE9uIE1vbiwgMjAxOS0wNS0yMCBhdCAxODo0MyAtMDcwMCwgRGF2aWQg
-TWlsbGVyIHdyb3RlOg0KPiA+ID4gPiA+IEZyb206ICJFZGdlY29tYmUsIFJpY2sgUCIgPHJpY2su
-cC5lZGdlY29tYmVAaW50ZWwuY29tPg0KPiA+ID4gPiA+IERhdGU6IFR1ZSwgMjEgTWF5IDIwMTkg
-MDE6MjA6MzMgKzAwMDANCj4gPiA+ID4gPiANCj4gPiA+ID4gPiA+IFNob3VsZCBpdCBoYW5kbGUg
-ZXhlY3V0aW5nIGFuIHVubWFwcGVkIHBhZ2UgZ3JhY2VmdWxseT8NCj4gPiA+ID4gPiA+IEJlY2F1
-c2UNCj4gPiA+ID4gPiA+IHRoaXMNCj4gPiA+ID4gPiA+IGNoYW5nZSBpcyBjYXVzaW5nIHRoYXQg
-dG8gaGFwcGVuIG11Y2ggZWFybGllci4gSWYgc29tZXRoaW5nDQo+ID4gPiA+ID4gPiB3YXMNCj4g
-PiA+ID4gPiA+IHJlbHlpbmcNCj4gPiA+ID4gPiA+IG9uIGEgY2FjaGVkIHRyYW5zbGF0aW9uIHRv
-IGV4ZWN1dGUgc29tZXRoaW5nIGl0IGNvdWxkIGZpbmQNCj4gPiA+ID4gPiA+IHRoZQ0KPiA+ID4g
-PiA+ID4gbWFwcGluZw0KPiA+ID4gPiA+ID4gZGlzYXBwZWFyLg0KPiA+ID4gPiA+IA0KPiA+ID4g
-PiA+IERvZXMgdGhpcyB3b3JrIGJ5IG5vdCBtYXBwaW5nIGFueSBrZXJuZWwgbWFwcGluZ3MgYXQg
-dGhlDQo+ID4gPiA+ID4gYmVnaW5uaW5nLA0KPiA+ID4gPiA+IGFuZCB0aGVuIGZpbGxpbmcgaW4g
-dGhlIEJQRiBtYXBwaW5ncyBpbiByZXNwb25zZSB0byBmYXVsdHM/DQo+ID4gPiA+IE5vLCBub3Ro
-aW5nIHRvbyBmYW5jeS4gSXQganVzdCBmbHVzaGVzIHRoZSB2bSBtYXBwaW5nDQo+ID4gPiA+IGlt
-bWVkaWF0bHkNCj4gPiA+ID4gaW4NCj4gPiA+ID4gdmZyZWUgZm9yIGV4ZWN1dGUgKGFuZCBSTykg
-bWFwcGluZ3MuIFRoZSBvbmx5IHRoaW5nIHRoYXQNCj4gPiA+ID4gaGFwcGVucw0KPiA+ID4gPiBh
-cm91bmQNCj4gPiA+ID4gYWxsb2NhdGlvbiB0aW1lIGlzIHNldHRpbmcgb2YgYSBuZXcgZmxhZyB0
-byB0ZWxsIHZtYWxsb2MgdG8gZG8NCj4gPiA+ID4gdGhlDQo+ID4gPiA+IGZsdXNoLg0KPiA+ID4g
-PiANCj4gPiA+ID4gVGhlIHByb2JsZW0gYmVmb3JlIHdhcyB0aGF0IHRoZSBwYWdlcyB3b3VsZCBi
-ZSBmcmVlZCBiZWZvcmUgdGhlDQo+ID4gPiA+IGV4ZWN1dGUNCj4gPiA+ID4gbWFwcGluZyB3YXMg
-Zmx1c2hlZC4gU28gdGhlbiB3aGVuIHRoZSBwYWdlcyBnb3QgcmVjeWNsZWQsDQo+ID4gPiA+IHJh
-bmRvbSwNCj4gPiA+ID4gc29tZXRpbWVzIGNvbWluZyBmcm9tIHVzZXJzcGFjZSwgZGF0YSB3b3Vs
-ZCBiZSBtYXBwZWQgYXMNCj4gPiA+ID4gZXhlY3V0YWJsZQ0KPiA+ID4gPiBpbg0KPiA+ID4gPiB0
-aGUga2VybmVsIGJ5IHRoZSB1bi1mbHVzaGVkIHRsYiBlbnRyaWVzLg0KPiA+ID4gDQo+ID4gPiBJ
-ZiBJIGFtIHRvIHVuZGVyc3RhbmQgdGhpbmdzIGNvcnJlY3RseSwgdGhlcmUgd2FzIGEgY2FzZSB3
-aGVyZQ0KPiA+ID4gJ2VuZCcNCj4gPiA+IGNvdWxkIGJlIHNtYWxsZXIgdGhhbiAnc3RhcnQnIHdo
-ZW4gZG9pbmcgYSByYW5nZSBmbHVzaC4gIFRoYXQNCj4gPiA+IHdvdWxkDQo+ID4gPiBkZWZpbml0
-ZWx5IGtpbGwgc29tZSBvZiB0aGUgc3BhcmM2NCBUTEIgZmx1c2ggcm91dGluZXMuDQo+ID4gDQo+
-ID4gT2ssIHRoYW5rcy4NCj4gPiANCj4gPiBUaGUgcGF0Y2ggYXQgdGhlIGJlZ2lubmluZyBvZiB0
-aGlzIHRocmVhZCBkb2Vzbid0IGhhdmUgdGhhdA0KPiA+IGJlaGF2aW9yDQo+ID4gdGhvdWdoIGFu
-ZCBpdCBhcHBhcmVudGx5IHN0aWxsIGh1bmcuIEkgYXNrZWQgaWYgTWVlbGlzIGNvdWxkIHRlc3QN
-Cj4gPiB3aXRoDQo+ID4gdGhpcyBmZWF0dXJlIGRpc2FibGVkIGFuZCBERUJVR19QQUdFQUxMT0Mg
-b24sIHNpbmNlIGl0IGZsdXNoZXMgb24NCj4gPiBldmVyeQ0KPiA+IHZmcmVlIGFuZCBpcyBub3Qg
-bmV3IGxvZ2ljLCBhbmQgYWxzbyB3aXRoIGEgcGF0Y2ggdGhhdCBsb2dzIGV4YWN0DQo+ID4gVExC
-DQo+ID4gZmx1c2ggcmFuZ2VzIGFuZCBmYXVsdCBhZGRyZXNzZXMgb24gdG9wIG9mIHRoZSBrZXJu
-ZWwgaGF2aW5nIHRoaXMNCj4gPiBpc3N1ZS4gSG9wZWZ1bGx5IHRoYXQgd2lsbCBzaGVkIHNvbWUg
-bGlnaHQuDQo+ID4gDQo+ID4gU29ycnkgZm9yIGFsbCB0aGUgbm9pc2UgYW5kIHNwZWN1bGF0aW9u
-IG9uIHRoaXMuIEl0IGhhcyBiZWVuDQo+ID4gZGlmZmljdWx0DQo+ID4gdG8gZGVidWcgcmVtb3Rl
-bHkgd2l0aCBhIHRlc3RlciBhbmQgZGV2ZWxvcGVyIGluIGRpZmZlcmVudCB0aW1lDQo+ID4gem9u
-ZXMuDQo+ID4gDQo+ID4gDQo+IE9rLCBzbyB3aXRoIGEgcGF0Y2ggdG8gZGlzYWJsZSBzZXR0aW5n
-IHRoZSBuZXcgdm1hbGxvYyBmbHVzaCBmbGFnIG9uDQo+IGFyY2hpdGVjdHVyZXMgdGhhdCBoYXZl
-IG5vcm1hbCBtZW1vcnkgYXMgZXhlY3V0YWJsZSAoaW5jbHVkZXMgc3BhcmMpLA0KPiBib290IHN1
-Y2NlZWRzLg0KPiANCj4gV2l0aCB0aGlzIGRpc2FibGUgcGF0Y2ggYW5kIERFQlVHX1BBR0VBTExP
-QyBvbiwgaXQgaGFuZ3MgZWFybGllciB0aGFuDQo+IGJlZm9yZS4gR29pbmcgZnJvbSBjbHVlcyBp
-biBvdGhlciBsb2dzLCBpdCBsb29rcyBsaWtlIGl0IGhhbmdzIHJpZ2h0DQo+IGF0DQo+IHRoZSBm
-aXJzdCBub3JtYWwgdmZyZWUuDQo+IA0KPiBUaGFua3MgZm9yIGFsbCB0aGUgdGVzdGluZyBNZWVs
-aXMhDQo+IA0KPiBTbyBpdCBzZWVtcyBsaWtlIG90aGVyLCBub3QgbmV3LCBUTEIgZmx1c2hlcyBh
-bHNvIHRyaWdnZXIgdGhlIGhhbmcuDQo+IA0KPiBGcm9tIGVhcmxpZXIgbG9ncyBwcm92aWRlZCwg
-dGhpcyB2ZnJlZSB3b3VsZCBiZSB0aGUgZmlyc3QgY2FsbCB0bw0KPiBmbHVzaF90bGJfa2VybmVs
-X3JhbmdlKCksIGFuZCBiZWZvcmUgYW55IEJQRiBhbGxvY2F0aW9ucyBhcHBlYXIgaW4NCj4gdGhl
-DQo+IGxvZ3MuIFNvIEkgYW0gc3VzcGVjdGluZyBzb21lIG90aGVyIGNhdXNlIHRoYW4gdGhlIGJp
-c2VjdGVkIHBhdGNoIGF0DQo+IHRoaXMgcG9pbnQsIGJ1dCBJIGd1ZXNzIGl0J3Mgbm90IGZ1bGx5
-IGNvbmNsdXNpdmUuDQo+IA0KPiBJdCBjb3VsZCBiZSBpbmZvcm1hdGl2ZSB0byBiaXNlY3QgdXBz
-dHJlYW0gYWdhaW4gd2l0aCB0aGUNCj4gREVCVUdfUEFHRUFMTE9DIGNvbmZpZ3Mgb24sIHRvIHNl
-ZSBpZiBpdCBpbmRlZWQgcG9pbnRzIHRvIGFuIGVhcmxpZXINCj4gY29tbWl0Lg0KDQpTbyBub3cg
-TWVlbGlzIGhhcyBmb3VuZCB0aGF0IHRoZSBjb21taXQgYmVmb3JlIGFueSBvZiBteSB2bWFsbG9j
-DQpjaGFuZ2VzIGFsc28gaGFuZ3MgZHVyaW5nIGJvb3Qgd2l0aCBERUJVR19QQUdFQUxMT0Mgb24u
-IEl0IGRvZXMgdGhpcw0Kc2hvcnRseSBhZnRlciB0aGUgZmlyc3QgdmZyZWUsIHdoaWNoIERFQlVH
-X1BBR0VBTExPQyB3b3VsZCBvZiBjb3Vyc2UNCm1ha2UgdHJpZ2dlciBhIGZsdXNoX3RsYl9rZXJu
-ZWxfcmFuZ2UoKSBvbiB0aGUgYWxsb2NhdGlvbiBqdXN0IGxpa2UgbXkNCnZtYWxsb2MgY2hhbmdl
-cyBkbyBvbiBjZXJ0YWluIHZtYWxsb2NzLiBUaGUgdXBzdHJlYW0gY29kZSBjYWxscw0Kdm1fdW5t
-YXBfYWxpYXNlcygpIGluc3RlYWQgb2YgdGhlIGZsdXNoX3RsYl9rZXJuZWxfcmFuZ2UoKSBkaXJl
-Y3RseSwNCmJ1dCB3ZSBhbHNvIHRlc3RlZCBhIHZlcnNpb24gdGhhdCBjYWxsZWQgdGhlIGZsdXNo
-IGRpcmVjdGx5IG9uIGp1c3QgdGhlDQphbGxvY2F0aW9uIGFuZCBpdCBhbHNvIGh1bmcuIFNvIGl0
-IHNlZW1zIGxpa2UgaXNzdWVzIGZsdXNoaW5nIHZtYWxsb2NzDQpvbiB0aGlzIHBsYXRmb3JtIGV4
-aXN0IG91dHNpZGUgbXkgY29tbWl0cy4NCg0KSG93IGRvIHBlb3BsZSBmZWVsIGFib3V0IGNhbGxp
-bmcgdGhpcyBhIHNwYXJjIHNwZWNpZmljIGlzc3VlIHVuY292ZXJlZA0KYnkgbXkgcGF0Y2ggaW5z
-dGVhZCBvZiBjYXVzZWQgYnkgaXQgYXQgdGhpcyBwb2ludD8NCg0KSWYgcGVvcGxlIGFncmVlIHdp
-dGggdGhpcyBhc3Nlc21lbnQsIGl0IG9mIGNvdXJzZSBzdGlsbCBzZWVtcyBsaWtlIHRoZQ0KbmV3
-IGNoYW5nZXMgdHVybiB0aGUgcm9vdCBjYXVzZSBpbnRvIGEgbW9yZSBpbXBhY3RmdWwgaXNzdWUg
-Zm9yIHRoaXMNCnNwZWNpZmljIGNvbWJpbmF0aW9uLiBPbiB0aGUgb3RoZXIgaGFuZCBJIGFtIG5v
-dCB0aGUgcmlnaHQgcGVyc29uIHRvDQpmaXggdGhlIHJvb3QgY2F1c2UgZm9yIHNldmVyYWwgcmVh
-c29ucyBpbmNsdWRpbmcgbm8gaGFyZHdhcmUgYWNjZXNzLiANCg0KT3RoZXJ3aXNlIEkgY291bGQg
-c3VibWl0IGEgcGF0Y2ggdG8gZGlzYWJsZSB0aGlzIGZvciBzcGFyYyBzaW5jZSBpdA0KZG9lc24n
-dCByZWFsbHkgZ2V0IGEgc2VjdXJpdHkgYmVuZWZpdCBmcm9tIGl0IGFueXdheS4gV2hhdCBkbyBw
-ZW9wbGUNCnRoaW5rPw0K
+On Fri, May 24, 2019 at 04:31:48PM +0100, Suzuki K Poulose wrote:
+> When we have holes in a normal memory zone, we could endup having
+> cached_migrate_pfns which may not necessarily be valid, under heavy memory
+> pressure with swapping enabled ( via __reset_isolation_suitable(), triggered
+> by kswapd).
+> 
+> Later if we fail to find a page via fast_isolate_freepages(), we may
+> end up using the migrate_pfn we started the search with, as valid
+> page. This could lead to accessing NULL pointer derefernces like below,
+> due to an invalid mem_section pointer.
+> 
+> Unable to handle kernel NULL pointer dereference at virtual address 0000000000000008 [47/1825]
+>  Mem abort info:
+>    ESR = 0x96000004
+>    Exception class = DABT (current EL), IL = 32 bits
+>    SET = 0, FnV = 0
+>    EA = 0, S1PTW = 0
+>  Data abort info:
+>    ISV = 0, ISS = 0x00000004
+>    CM = 0, WnR = 0
+>  user pgtable: 4k pages, 48-bit VAs, pgdp = 0000000082f94ae9
+>  [0000000000000008] pgd=0000000000000000
+>  Internal error: Oops: 96000004 [#1] SMP
+>  ...
+>  CPU: 10 PID: 6080 Comm: qemu-system-aar Not tainted 510-rc1+ #6
+>  Hardware name: AmpereComputing(R) OSPREY EV-883832-X3-0001/OSPREY, BIOS 4819 09/25/2018
+>  pstate: 60000005 (nZCv daif -PAN -UAO)
+>  pc : set_pfnblock_flags_mask+0x58/0xe8
+>  lr : compaction_alloc+0x300/0x950
+>  [...]
+>  Process qemu-system-aar (pid: 6080, stack limit = 0x0000000095070da5)
+>  Call trace:
+>   set_pfnblock_flags_mask+0x58/0xe8
+>   compaction_alloc+0x300/0x950
+>   migrate_pages+0x1a4/0xbb0
+>   compact_zone+0x750/0xde8
+>   compact_zone_order+0xd8/0x118
+>   try_to_compact_pages+0xb4/0x290
+>   __alloc_pages_direct_compact+0x84/0x1e0
+>   __alloc_pages_nodemask+0x5e0/0xe18
+>   alloc_pages_vma+0x1cc/0x210
+>   do_huge_pmd_anonymous_page+0x108/0x7c8
+>   __handle_mm_fault+0xdd4/0x1190
+>   handle_mm_fault+0x114/0x1c0
+>   __get_user_pages+0x198/0x3c0
+>   get_user_pages_unlocked+0xb4/0x1d8
+>   __gfn_to_pfn_memslot+0x12c/0x3b8
+>   gfn_to_pfn_prot+0x4c/0x60
+>   kvm_handle_guest_abort+0x4b0/0xcd8
+>   handle_exit+0x140/0x1b8
+>   kvm_arch_vcpu_ioctl_run+0x260/0x768
+>   kvm_vcpu_ioctl+0x490/0x898
+>   do_vfs_ioctl+0xc4/0x898
+>   ksys_ioctl+0x8c/0xa0
+>   __arm64_sys_ioctl+0x28/0x38
+>   el0_svc_common+0x74/0x118
+>   el0_svc_handler+0x38/0x78
+>   el0_svc+0x8/0xc
+>  Code: f8607840 f100001f 8b011401 9a801020 (f9400400)
+>  ---[ end trace af6a35219325a9b6 ]---
+> 
+> The issue was reported on an arm64 server with 128GB with holes in the zone
+> (e.g, [32GB@4GB, 96GB@544GB]), with a swap device enabled, while running 100 KVM
+> guest instances.
+> 
+> This patch fixes the issue by ensuring that the page belongs to a valid PFN
+> when we fallback to using the lower limit of the scan range upon failure in
+> fast_isolate_freepages().
+> 
+> Fixes: 5a811889de10f1eb ("mm, compaction: use free lists to quickly locate a migration target")
+> Reported-by: Marc Zyngier <marc.zyngier@arm.com>
+> Signed-off-by: Suzuki K Poulose <suzuki.poulose@arm.com>
+
+Reviewed-by: Mel Gorman <mgorman@techsingularity.net>
+
+-- 
+Mel Gorman
+SUSE Labs
 
