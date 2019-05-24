@@ -2,166 +2,178 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F030BC282DE
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 03:58:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C4BEC072B5
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 04:06:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 99F5E21773
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 03:58:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Qs74XkHj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99F5E21773
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 724CA2081C
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 04:06:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 724CA2081C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EE1656B0005; Thu, 23 May 2019 23:58:25 -0400 (EDT)
+	id 16DE76B0005; Fri, 24 May 2019 00:06:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E91A86B0006; Thu, 23 May 2019 23:58:25 -0400 (EDT)
+	id 11F7A6B0006; Fri, 24 May 2019 00:06:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D81356B0007; Thu, 23 May 2019 23:58:25 -0400 (EDT)
+	id 00CC26B0007; Fri, 24 May 2019 00:06:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id ADA406B0005
-	for <linux-mm@kvack.org>; Thu, 23 May 2019 23:58:25 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id z1so3874968oth.8
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 20:58:25 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE1B46B0005
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 00:06:51 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id r4so5886684pfh.16
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 21:06:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=f6c9m1oolNz7qnNp31NpIo+ILEox6NGu8lwYyMw+NLU=;
-        b=Tp8e62zrmuPGRiekR3MyBc8zu2OubGEjd8wnsYeTFj/notY2DE7jetQkF1F6DVJcaK
-         yrGTLHgLYQ+DL5me4iHTNR3LhMA3Qm+1fUb95Sd7jiKJNdqH9a2gMErZeeY7oOcyg4gN
-         kEvgJyYQe3/n4NYMYS5IVPoqAzqqZhub8gQhkmpsCEerXRRXnx7x82/VwM5STI9LnnFq
-         8u6z3SsM6BOdSuqlQ9elsRKi0l0q2huaf1aGGMQLDI9pdlMUn/TAdO3g7v9gd7vIraNG
-         leDc79rsi+gPXUjiqRc7FSIOcYnGB1NUQNxflnjfgCByGW8TyWC59t5j406isc+uIEU0
-         u7Og==
-X-Gm-Message-State: APjAAAUw5gPQCTpnqK58nxuffoJWOGdN0HgA+K8E+PUtGIi8D6t99g1H
-	z7+Cmc/gK5C8skhnCTCaNhjsyqYG8ijV+KLCmcCdeZOJE5jLl85dfJ2P12CBegKm1zli8tXR6nl
-	9bw7pmKZ3cKOapJGr3FyEjJdALTnGfZN8vS1TZR/G58I7GrzfAw51hjXUWsjHvehyHw==
-X-Received: by 2002:a9d:640f:: with SMTP id h15mr13757258otl.338.1558670305345;
-        Thu, 23 May 2019 20:58:25 -0700 (PDT)
-X-Received: by 2002:a9d:640f:: with SMTP id h15mr13757226otl.338.1558670304355;
-        Thu, 23 May 2019 20:58:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558670304; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=So6yFBf7hJ4R+6CdQNdGVz3g63/ApEkxQiomH8Cz3rc=;
+        b=I4YVg/KuNY/jIsPiw/ccRDKIZS8kJtDQw7CtUCGbOBymnagrllgqhyd4XBoUk+/n6y
+         Mi4uyR6mVDmUEBLFFGgB9rSb73305u68L8tJOsDGhX/sB8w1SlLaICK8WxUq4gtUmEbX
+         3tqpvlpgYY2n5Je9a8/Vif80B0nNZN16RFMYe9Y8EMem7naX1emVt4PO/M29p5IiOkDC
+         ATpGH4e/8PTwbqeI/mItGZZ4zbaMlTF8QdnkrnVEIXPO4pTC6eFowN13Yv5C4UU5bgCW
+         wiAlT3bXXKHg8rOzqGLcjijpV9mLanAylMsT4MRbf16OqK2hYZ4sNfBi1u9vrP4GZHNI
+         nahw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWa4OKZ4hAkWSUHmAw9BRnL28ZuSbkEuMKhg1BBK751htFkFsSz
+	uAClsT7OBkUsE2YYECSGheTyKPW561aKrscgvoHj4FyC2vpEi0HsRvWZWwj92eu7AESM52/s8AA
+	4M0RSFDrk4Hec3akw1rDjNPRGAdVYaFe69jsLdv45r594CNHQyNRoiw/ZRLkb+c6ByA==
+X-Received: by 2002:a63:27c7:: with SMTP id n190mr42736110pgn.250.1558670811407;
+        Thu, 23 May 2019 21:06:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzdCb5n71fagNZbChP1qA3wtMI1gz5jQqaL/GoNQ7EhV4bumsPWnbhwFHoyUA+1b7vpZunf
+X-Received: by 2002:a63:27c7:: with SMTP id n190mr42736038pgn.250.1558670810313;
+        Thu, 23 May 2019 21:06:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558670810; cv=none;
         d=google.com; s=arc-20160816;
-        b=O3i3y1Zyks4ATcGZVhO/Jwsaz4hvvFX6hDFacg5qHbcLc11dyTf5DP9L6NBlEFf1EQ
-         Rtu2xLvcLIct5H2w6D5+yWYmyjJKtsKXHcNr/YIuce95GHidSdaYvQsLPc9faEyZPZpM
-         ANLv2B1seKf4K7YHlNFuY6jGIDlcFhbcZHywGaSXByiJwSG5QbJBCWM3MqYWhZCiqF5I
-         ASEw0R8oVTmB3i8sx7T6Mlx6BQKTS8IhlpOtfMVleB+luYTFIY2HD7rq61uRez7ElB1d
-         o71uJR56W88djrPN+BsVWf5CrMSJIgAx3EJJq1SkaZk0qSfAqiVrraWnWvQqAA15yJgf
-         neag==
+        b=CYQvneG+WWXf/mObK4iYZ0ym6IfzTLNqfgE+7iQ5TSUCu+aZzEmeX08mM/keWKGUeZ
+         PmihLeKHvGRuL2U8IF+gFinETBiyM3BhCtdbr9XfC3tww4azK64dfX23Q2csnHLetJgc
+         2ifBIMmQJZJMnLsK6xwC4mMcGi8Ns4mbDMWkgRW1Vbj93esVz9zpSlcB/IfROotFhbv0
+         CJ6II0qiqj7XAstOXQQkvgpVnaNlEy5GASSfycY8+wiYgi0rZldqAz/KpbF2H2EiGwIz
+         MIJa+C3+uQUdW3OyY/Z1dl1+xWIh6Jt/YoeVtYz+naOtuiMFAnoJqLVwHg3wmNHeqIBc
+         KXyA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=f6c9m1oolNz7qnNp31NpIo+ILEox6NGu8lwYyMw+NLU=;
-        b=iJGVbkto5Er7g69VYplWAXEDz1B4L6QhJUpJoJjFtNt06AiujZl8uNU1pe2xhhOTp/
-         WyAHbHxxKimpyxuEP/8x1aqUpNx19ElnPqznXxh7qxad/mfjQHQwUH0TgDps8MxjyjYs
-         HGlcJJdQmJ8TfxNJHKCV6l8CUnn9rmPrBCsTX5Wp4OVaebirVCXXQPDzoH53scgpNxuj
-         S8NfP8+7To2Fbr4biKtYjEFAIicClVRxUo3EUNGYikDEmvEO21d6kNZUT+emkqLhKd/z
-         WqncUDAa2hi+rAOoZ8u2QU9Bpa62OgylF2PlkylNBcrmKV1QiqUBjyaYn3hUdSsuvbjy
-         cRUA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=So6yFBf7hJ4R+6CdQNdGVz3g63/ApEkxQiomH8Cz3rc=;
+        b=Qdy3jwWIPOR80CS8WPHHTr+lu7Z7gteucCn6XSMRRuaGRjUEIlSpv4w7diTyz1WNb6
+         OMLgEJ2iYTFIai/+OMrNg8p4wa9EQXIAr+LdVNL9NJQkQw/BdoA1eAjMI2adjVHM91CA
+         QAe+e4oPHHt8OVp+vIj/jc8cXcnxNaj0OweiAUQFHzAKU0n3h2MprCFYcdshabsDOr/3
+         HdndWi4zjpkZreAS6vvOarTwnabXdt180mdnhQeQ7p2OqlsE9Cy0VGvmIITmhvh89Bax
+         P+UANj5sK5eUhYqJFgTKGZv0qs+IonB2Q70bmc/rkYNkjUi4v3XhEAYr+19N0BKTI8xQ
+         BJlQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Qs74XkHj;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s13sor553142otq.14.2019.05.23.20.58.23
+       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-44.freemail.mail.aliyun.com (out30-44.freemail.mail.aliyun.com. [115.124.30.44])
+        by mx.google.com with ESMTPS id l7si2400497plt.244.2019.05.23.21.06.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 23 May 2019 20:58:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 May 2019 21:06:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.44 as permitted sender) client-ip=115.124.30.44;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Qs74XkHj;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=f6c9m1oolNz7qnNp31NpIo+ILEox6NGu8lwYyMw+NLU=;
-        b=Qs74XkHjFhIG5eWAqZuHInffVvs+3AV05OrIpZ2xTnqAoDqX14pggyRk9f9DKHpuSs
-         IRIBA2Ri/L1Hws5vXuO4/80WJMPdl81Bfp9VTtv6MkS+yeMMugK5uHJSDrPNnXcruuw3
-         fJM4itI1+d6xJhugS2SaMdwDq6lT+66DbFSttJHrPC9+6vC2KDSJ8ido/7gjDGJXyt6f
-         Eli8t58rYv3qybUABQC+8jQRyJo3F65nGswTPDcjH5BfeMOzlFdaSN0IOzN5j/p+fvgV
-         4gO7UElauHskekm3kCMewjQB2ilKCmqgQOr8DJjZu2CsqzL0iuxZTXFDWF/JNWUVpQX/
-         GcNg==
-X-Google-Smtp-Source: APXvYqywpzGD5Aa+i2XlHKnDBTwl+TOaDWcG21EMI6kjm8dn1v7UUbbQbcsfdcmnB3N5ud5QB84Okj6zu4K2XRFRUpg=
-X-Received: by 2002:a9d:6e96:: with SMTP id a22mr4573516otr.207.1558670303779;
- Thu, 23 May 2019 20:58:23 -0700 (PDT)
+       spf=pass (google.com: domain of aaron.lu@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=aaron.lu@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07487;MF=aaron.lu@linux.alibaba.com;NM=1;PH=DS;RN=4;SR=0;TI=SMTPD_---0TSXA6aZ_1558670807;
+Received: from 30.17.232.208(mailfrom:aaron.lu@linux.alibaba.com fp:SMTPD_---0TSXA6aZ_1558670807)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 24 May 2019 12:06:47 +0800
+Subject: Re: [PATCH] mm, swap: use rbtree for swap_extent
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Huang Ying <ying.huang@intel.com>,
+ Hugh Dickins <hughd@google.com>
+References: <20190523142404.GA181@aaronlu>
+ <20190523120035.efb7c3bf4c91e3aef255621c@linux-foundation.org>
+From: Aaron Lu <aaron.lu@linux.alibaba.com>
+Message-ID: <357d963e-2657-4926-bab0-a87096a82230@linux.alibaba.com>
+Date: Fri, 24 May 2019 12:06:47 +0800
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-References: <20190523223746.4982-1-ira.weiny@intel.com>
-In-Reply-To: <20190523223746.4982-1-ira.weiny@intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 23 May 2019 20:58:12 -0700
-Message-ID: <CAPcyv4gYxyoX5U+Fg0LhwqDkMRb-NRvPShOh+nXp-r_HTwhbyA@mail.gmail.com>
-Subject: Re: [PATCH] mm/swap: Fix release_pages() when releasing devmap pages
-To: "Weiny, Ira" <ira.weiny@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
-	Linux MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, John Hubbard <jhubbard@nvidia.com>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20190523120035.efb7c3bf4c91e3aef255621c@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 23, 2019 at 3:37 PM <ira.weiny@intel.com> wrote:
->
-> From: Ira Weiny <ira.weiny@intel.com>
->
-> Device pages can be more than type MEMORY_DEVICE_PUBLIC.
->
-> Handle all device pages within release_pages()
->
-> This was found via code inspection while determining if release_pages()
-> and the new put_user_pages() could be interchangeable.
->
-> Cc: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-> ---
->  mm/swap.c | 7 +++----
->  1 file changed, 3 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 3a75722e68a9..d1e8122568d0 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -739,15 +739,14 @@ void release_pages(struct page **pages, int nr)
->                 if (is_huge_zero_page(page))
->                         continue;
->
-> -               /* Device public page can not be huge page */
-> -               if (is_device_public_page(page)) {
-> +               if (is_zone_device_page(page)) {
->                         if (locked_pgdat) {
->                                 spin_unlock_irqrestore(&locked_pgdat->lru=
-_lock,
->                                                        flags);
->                                 locked_pgdat =3D NULL;
->                         }
-> -                       put_devmap_managed_page(page);
-> -                       continue;
-> +                       if (put_devmap_managed_page(page))
+On 2019/5/24 3:00, Andrew Morton wrote:
+...
 
-This "shouldn't" fail, and if it does the code that follows might get
-confused by a ZONE_DEVICE page. If anything I would make this a
-WARN_ON_ONCE(!put_devmap_managed_page(page)), but always continue
-unconditionally.
+> On Thu, 23 May 2019 22:24:15 +0800 Aaron Lu <aaron.lu@linux.alibaba.com> wrote:
+>> ...
+>>
+>> +static struct swap_extent *
+>> +offset_to_swap_extent(struct swap_info_struct *sis, unsigned long offset)
+>> +{
+>> +	struct swap_extent *se;
+>> +	struct rb_node *rb;
+>> +
+>> +	rb = sis->swap_extent_root.rb_node;
+>> +	while (rb) {
+>> +		se = rb_entry(rb, struct swap_extent, rb_node);
+>> +		if (offset < se->start_page)
+>> +			rb = rb->rb_left;
+>> +		else if (offset >= se->start_page + se->nr_pages)
+>> +			rb = rb->rb_right;
+>> +		else
+>> +			return se;
+>> +	}
+>> +	/* It *must* be present */
+>> +	BUG_ON(1);
+> 
+> I'm surprised this doesn't generate a warning about the function
 
-Other than that you can add:
+Ah right, I'm also surprised after you mentioned.
+This BUG_ON(1) here is meant to serve the same purpose as the
+original code in map_swap_entry():
 
-    Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+static sector_t map_swap_entry(swp_entry_t entry, struct block_device **bdev)
+{
+	...
+
+	offset = swp_offset(entry);
+	start_se = sis->curr_swap_extent;
+	se = start_se;
+
+	for ( ; ; ) {
+		if (se->start_page <= offset &&
+				offset < (se->start_page + se->nr_pages)) {
+			return se->start_block + (offset - se->start_page);
+		}
+		se = list_next_entry(se, list);
+		sis->curr_swap_extent = se;
+		BUG_ON(se == start_se);		/* It *must* be present */
+	}
+}
+
+I just copied the pattern and changed the condition to 1 without
+much thought.
+
+> failing to return a value.  I guess the compiler figured out that
+> BUG_ON(non-zero-constant) is equivalent to BUG(), which is noreturn.
+> 
+> Let's do this?
+
+Yes, it doesn't make much sense to use BUG_ON when the condition
+is 1...Thanks for the cleanup.
+
+> 
+> --- a/mm/swapfile.c~mm-swap-use-rbtree-for-swap_extent-fix
+> +++ a/mm/swapfile.c
+> @@ -218,7 +218,7 @@ offset_to_swap_extent(struct swap_info_s
+>  			return se;
+>  	}
+>  	/* It *must* be present */
+> -	BUG_ON(1);
+> +	BUG();
+>  }
+>  
 
