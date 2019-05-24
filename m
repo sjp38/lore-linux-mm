@@ -2,178 +2,215 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A1260C282E1
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 21:43:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E914C282E1
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 22:09:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 652F8217D7
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 21:43:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BAF74206BA
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 22:09:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="m+Zhhh6b"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 652F8217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="bKmgytC7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BAF74206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E80D96B0008; Fri, 24 May 2019 17:43:18 -0400 (EDT)
+	id 2D4C86B0008; Fri, 24 May 2019 18:09:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E0AB26B000A; Fri, 24 May 2019 17:43:18 -0400 (EDT)
+	id 25E3E6B000A; Fri, 24 May 2019 18:09:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CAA266B000C; Fri, 24 May 2019 17:43:18 -0400 (EDT)
+	id 0D7666B000C; Fri, 24 May 2019 18:09:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A3B786B0008
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 17:43:18 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id p13so9744891ywm.20
-        for <linux-mm@kvack.org>; Fri, 24 May 2019 14:43:18 -0700 (PDT)
+Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D7D096B0008
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 18:09:26 -0400 (EDT)
+Received: by mail-ua1-f70.google.com with SMTP id j43so2599897uae.16
+        for <linux-mm@kvack.org>; Fri, 24 May 2019 15:09:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=5ZYOEzS+65K8bB/ZHCHtVMV0q6W5qUrvuM4ooNhr7KA=;
-        b=OX2dpB8Bo8f987T9p/5RX5BhGNJfKvzpa2wo5cVZ5M98rlRPQQpEgpRikRaBz9Gt0w
-         TZ8GYHdhAhqnuMLpGLnoiMQ30cDC9gwwUWwirTCNecGoxM9O50fQ3RIycse5fEhfjZCu
-         9D69zdxWSc0GKGoLIuWitII8e9h/bWRndTUVymbwvSb5SQu17cR+34sSf2uuUOwBpI9u
-         kTOw+qnpVXeDI2Y9TOZEPdU1q0SKrl0jhfS0RY5NUEdVDWd707jfhnV1+EjcAyU0P+B9
-         9lwExIHeV/2ONKMdsg3QG2wRxpSyKfCI4CF1rZHqV/VlM2eZeN2IXiGO+H4BowfVYAtC
-         MKuA==
-X-Gm-Message-State: APjAAAUYR0btyA5fn6HrELVTpwNftS53woRZFDwG7CYM9iWDF+rhZvKt
-	th8lIzuEq+GkDN+N0l/Mjctp55UVyjnruXrPDrqRdJB/0YYB1CXdttYhUy89lGcX/hLuSa9uOyk
-	G4BR0A3/1V8QRS9H8JtHvGosp0ZbC05jeFds8t2IGqaWK0JWaRTQU4hhb9drbQACRUA==
-X-Received: by 2002:a81:2183:: with SMTP id h125mr18687130ywh.289.1558734198320;
-        Fri, 24 May 2019 14:43:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwZEvB2WNi8QfvKVeF7jaqS3+mU7v3eijwxsVX60lVaZck6MYSSKhKhl4H6w7CkwUb5t4rO
-X-Received: by 2002:a81:2183:: with SMTP id h125mr18687115ywh.289.1558734197554;
-        Fri, 24 May 2019 14:43:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558734197; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=N9WMPAq1SBJByj8qM7LaEK8FLATRoK2GkIV6yeIQrTg=;
+        b=QTVAXLItkPOAAd2ONNfCRUVcpr2vRmn+qCIGSASN8Lj1hinqIPcYMbyknvByjeKCFC
+         9NWMZ8gfd18F7vVS2dMJ21rz+0dcZY/LrrEtI8LrSFwEm8KdDVpU0s0jHuPrCSmUJgi2
+         b9524SOSCErEszzPDoNneY9HomnEByDKWE2PgkDSbcwCINLSYCR7nf4xAnB6nFk+ZMzY
+         0cqjEpBGftixTqVtgclPiCY0vTSZLdlh3oCO8o0cMHXSA1N52G+bAQZCd/hnk/+7i5os
+         rlgJ/vz2MNnwbzh4PF0fvbPMggJsSsrwit2ujTs074mmbwX3BeLmWjdn9iuoIuz3EIbk
+         eMBA==
+X-Gm-Message-State: APjAAAWZwPC8+frUuyf7oZGkyKY+3xOKFLZMs+fLazHMnGM5a70N1tnY
+	Ia8rcoQEEX5tuGIoQUTj6nW8yc9A+kDtafC+4imaIawirnr2tX67Bo0sz+jgo+kdt2/fZ3SAMLs
+	shjgT3ZngqzHbc/jw0N1Ahkgz/E+NLqvfUjSudxapUGUzXB3TCQ+b4AIG3HZqPzf7oA==
+X-Received: by 2002:ab0:348a:: with SMTP id c10mr9233933uar.79.1558735766539;
+        Fri, 24 May 2019 15:09:26 -0700 (PDT)
+X-Received: by 2002:ab0:348a:: with SMTP id c10mr9233856uar.79.1558735765843;
+        Fri, 24 May 2019 15:09:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558735765; cv=none;
         d=google.com; s=arc-20160816;
-        b=KdaiaD/lv/AKu3AuFQIiMzB+EoYb8LenNrRK6KLskFGHB+5SXj7p5ud9UYv6E2tHv1
-         2gket0JqrD4lLU561N2x6vIwb1pci2A67z3M9Wlg/wEwvSNbWVZxGu2H5vlVFgG5lJlf
-         FKl9RRBh+7SDKP4OR+6u6F3VOJsJAaufIUnCOmvQcNuSAOlmywowJIfmcnvUz35JIHcL
-         wgDRv5SYca5ntCm4ZUdbErNXm9c1EjIgQRTXX47lFxnVXhh46eMh3rxQSy/q5DOfUb2a
-         QWw7aVrhtzZyb+UeXqk0/brxFNwL3fdJYX6xbTj6U9nkjxUEqDiGHBuGbfMuTNssvPqz
-         MR4w==
+        b=CoqBE8elkFMrPmibOBig2oH9/wk4okU5dcoqjlS0SugnEpehaUYFJaUDrdA80jPk9Z
+         DBsxsRGqVxvl8L+zrP212eBzJvaP8PODLNC5g+4L3vwNQT7phlcGl+wJPKaUxMMuKlgm
+         S/dDfhTr7maMZg9c/5FpMzJx76Vu/ykBMzVUdwzcT5zskFcnQmWRXviFAEx5+cLQ5BUa
+         a+qnsexJ/BKGlweuKqAcP1Bi7B6au9r5DXB834/bO6nPI6DU9KBIKViZvaubY6JrHTA+
+         5Tc+2O8dQTc4/xPY6MfaKZ15RlmRL2AfSCgck3MBFOhK4c7CG3h1HJ0BqvQ96PkK38cK
+         5YEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=5ZYOEzS+65K8bB/ZHCHtVMV0q6W5qUrvuM4ooNhr7KA=;
-        b=kHFYB5HyYCjH36Ubt85Sq2WhF+K85mxiZ22gY+0NgzusCS/yJSwzwiVn5n1GNrJSXV
-         T6+RHOULnzConU0nbgAWDfiUEmLlUcvWv3vRwbkppqWe14K25V5aksaltT1wix5wOBq5
-         f3SgTxymA7BC7Our6WRTEoBekbIkZlTF5WiLZHd3AqSLOGaod2/SsAAa8qgHj9kgDr/8
-         dy23ZkMutdpMbjW0dzv57iEcaIxfdGtzB/PnOrnEfRDCiFFtVOzykCjC4NTi87FtopJm
-         ww1qLiKwzmZaWQbxRlsr6Rwkr+7G62O/NwoAnPfq5xOQbO55wNLweyvraWXlLslPmluc
-         K/rA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=N9WMPAq1SBJByj8qM7LaEK8FLATRoK2GkIV6yeIQrTg=;
+        b=QscW0JTUOrqpZ9fGdcny7lMg+QOeSidC4nPG8t4/Qc80ZEV2kwRmrzbqIBYXFl78cw
+         cmMLYjmFN7PYa7fh0+XPXHTFRuDYR4Kk/PCG23t/L+I3wtLPNzKdtOVs5TLPIHtwF458
+         QYsejLbizhirTwqG85Upb3XZ8zBi9ZCQtcQqmprURN7gy0lnvwNoNeKfDqeCp8pin3re
+         IG8g3Tf3dV0USJgZuql6YFl+oPizYPCI6Jg5mui7BhV7eztz7Tmzg4BbfWsIETEo1Dqo
+         JPvF8Ih1AGYiSX1hcUJNnRle+pVWYDFzInIK+Gh1bq0pxruIs8FSLULbTRXeZPTmUPH0
+         B9tQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=m+Zhhh6b;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id y12si1093244ybg.5.2019.05.24.14.43.17
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=bKmgytC7;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p6sor1672403vsf.6.2019.05.24.15.09.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 May 2019 14:43:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        (Google Transport Security);
+        Fri, 24 May 2019 15:09:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=m+Zhhh6b;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4OLdSlE141964;
-	Fri, 24 May 2019 21:43:11 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- content-transfer-encoding : in-reply-to; s=corp-2018-07-02;
- bh=5ZYOEzS+65K8bB/ZHCHtVMV0q6W5qUrvuM4ooNhr7KA=;
- b=m+Zhhh6bDXlaH1hAoV9gd9ihKiKeb6nlkBYBgRMj+BZ38id0RqowMWRjt6wKtIptu7jM
- V5LvrzcunUIC2M9aHa7Lhz8vwdFsYhJIr+IEpJHXTQJrBNVw2PDwFWns+SUkHrXUhp1z
- ws62Zjw3BrtWx0HiRj+WN/Me+RoLyUUyWZTMKXNVcGUKDmoShFrg1wkG9Yu120lCzOQ6
- zTD5DrSu0fgXVIydHgRcbqeEGca7YgMFmKAsHdS7rqgodWOlU5hztSQOYxxx9gFc2mai
- iEAb3F37E4XWVYZPO3j41WDxYJ3rzu8pBjLswBwpyde6jwpFDyRLsnqmdP/igSiq6gUy 8g== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2120.oracle.com with ESMTP id 2smsk5kgm1-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 24 May 2019 21:43:11 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4OLhBln162017;
-	Fri, 24 May 2019 21:43:11 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userp3030.oracle.com with ESMTP id 2smshg3ec9-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 24 May 2019 21:43:10 +0000
-Received: from abhmp0022.oracle.com (abhmp0022.oracle.com [141.146.116.28])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4OLh4p9016253;
-	Fri, 24 May 2019 21:43:04 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 24 May 2019 21:43:04 +0000
-Date: Fri, 24 May 2019 17:43:04 -0400
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: "Potyra, Stefan" <Stefan.Potyra@elektrobit.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        "Jordan, Tobias" <Tobias.Jordan@elektrobit.com>,
-        akpm@linux-foundation.org, vbabka@suse.cz, mhocko@suse.com,
-        kirill.shutemov@linux.intel.com, linux-api@vger.kernel.org
-Subject: Re: [PATCH] mm: mlockall error for flag MCL_ONFAULT
-Message-ID: <20190524214304.enntpu4tvzpyxzfe@ca-dmjordan1.us.oracle.com>
-References: <20190522112329.GA25483@er01809n.ebgroup.elektrobit.com>
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=bKmgytC7;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=N9WMPAq1SBJByj8qM7LaEK8FLATRoK2GkIV6yeIQrTg=;
+        b=bKmgytC7SrgoXWBeLhiR5hCTMa6fcLiMm5rC93YfDESWnXQkf9DWnWbpwOA2qai62r
+         UQQrf8KjLit1Nysl+fEDFWUYjRQ1BCAU5L2WBIVkSkvA3HxAdgjSCgRcrkwYzG0lVhKA
+         rkkm+QbUJn+xpBU32Ur7JFZ7RZnEvVuQ0Oh66ODXmdl++FyoKYM0Ut04eJ2K3+2AemGg
+         DWabdEAuNWRwAaZALYzLij44xk2C0zYcEH2yx16sPHNGrOzr4f9fAGoOIdFEHsBFqwCQ
+         KYvwVWtFbbfLv/HLr+MXFFfA2r3iSqVRvy/XUT9TF/l6/+fUUsNCW96LKaMe1KS1GPH8
+         qURw==
+X-Google-Smtp-Source: APXvYqwgrX8m55ZYTOzrECuhHF6YZsdnmGWgqzcToJx9OiFpqNA9rfK65uaAw5d6QYwQwUEAquscGg==
+X-Received: by 2002:a67:2e15:: with SMTP id u21mr30135920vsu.50.1558735765273;
+        Fri, 24 May 2019 15:09:25 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-49-251.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.49.251])
+        by smtp.gmail.com with ESMTPSA id v14sm2014695vkd.4.2019.05.24.15.09.23
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 24 May 2019 15:09:24 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hUINP-0002IN-DS; Fri, 24 May 2019 19:09:23 -0300
+Date: Fri, 24 May 2019 19:09:23 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: linux-rdma@vger.kernel.org, linux-mm@kvack.org,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [RFC PATCH 00/11] mm/hmm: Various revisions from a locking/code
+ review
+Message-ID: <20190524220923.GA8519@ziepe.ca>
+References: <20190523153436.19102-1-jgg@ziepe.ca>
+ <20190524143649.GA14258@ziepe.ca>
+ <20190524164902.GA3346@redhat.com>
+ <20190524165931.GF16845@ziepe.ca>
+ <20190524170148.GB3346@redhat.com>
+ <20190524175203.GG16845@ziepe.ca>
+ <20190524180321.GD3346@redhat.com>
+ <20190524183225.GI16845@ziepe.ca>
+ <20190524184608.GE3346@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190522112329.GA25483@er01809n.ebgroup.elektrobit.com>
-User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9267 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905240141
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9267 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905240141
+In-Reply-To: <20190524184608.GE3346@redhat.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[ Adding linux-api and some of the people who were involved in the
-MCL_ONFAULT/mlock2/etc discussions.  Author of the Fixes patch appears to
-have moved on. ]
+On Fri, May 24, 2019 at 02:46:08PM -0400, Jerome Glisse wrote:
+> > Here is the big 3 CPU ladder diagram that shows how 'valid' does not
+> > work:
+> > 
+> >        CPU0                                               CPU1                                          CPU2
+> >                                                         DEVICE PAGE FAULT
+> >                                                         range = hmm_range_register()
+> >
+> >   // Overlaps with range
+> >   hmm_invalidate_start()
+> >     range->valid = false
+> >     ops->sync_cpu_device_pagetables()
+> >       take_lock(driver->update);
+> >        // Wipe out page tables in device, enable faulting
+> >       release_lock(driver->update);
+> >                                                                                                    // Does not overlap with range
+> >                                                                                                    hmm_invalidate_start()
+> >                                                                                                    hmm_invalidate_end()
+> >                                                                                                        list_for_each
+> >                                                                                                            range->valid =  true
+> 
+>                                                                                                              ^
+> No this can not happen because CPU0 still has invalidate_range in progress and
+> thus hmm->notifiers > 0 so the hmm_invalidate_range_end() will not set the
+> range->valid as true.
 
-On Wed, May 22, 2019 at 11:23:37AM +0000, Potyra, Stefan wrote:
-> If mlockall() is called with only MCL_ONFAULT as flag,
-> it removes any previously applied lockings and does
-> nothing else.
+Oh, Okay, I now see how this all works, thank you
 
-The change looks reasonable.  Hard to imagine any application relies on it, and
-they really shouldn't be if they are.  Debian codesearch turned up only a few
-cases where stress-ng was doing this for unknown reasons[1] and this change
-isn't gonna break those.  In this case I think changing the syscall's behavior
-is justified.  
+> > And I can make this more complicated (ie overlapping parallel
+> > invalidates, etc) and show any 'bool' valid cannot work.
+> 
+> It does work. 
 
-> This behavior is counter-intuitive and doesn't match the
-> Linux man page.
+Well, I ment the bool alone cannot work, but this is really bool + a
+counter.
 
-I'd quote it for the changelog:
+> If you want i can remove the range->valid = true from the
+> hmm_invalidate_range_end() and move it within hmm_range_wait_until_valid()
+> ie modifying the hmm_range_wait_until_valid() logic, this might look
+> cleaner.
 
-  For mlockall():
+Let me reflect on it for a bit. I have to say I don't like the clarity
+here, and I don't like the valid=true loop in the invalidate_end, it
+is pretty clunky.
 
-  EINVAL Unknown  flags were specified or MCL_ONFAULT was specified with‐
-         out either MCL_FUTURE or MCL_CURRENT.
+I'm thinking a more obvious API for drivers, as something like:
 
-With that you can add
+again:
+    hmm_range_start();
+     [..]
+    if (hmm_range_test_retry())
+          goto again
 
-Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+    driver_lock()
+      if (hmm_range_end())
+           goto again
+    driver_unlock();
 
-[1] https://sources.debian.org/src/stress-ng/0.09.50-1/stress-mlock.c/?hl=203#L203
+Just because it makes it very clear to the driver author what to do
+and how this is working, and makes it clear that there is no such
+thing as 'valid' - what we *really* have is a locking collision
+forcing retry. ie this is really closer to a seq-lock scheme, not a
+valid/invalid scheme. Being able to explain the concept does matter
+for maintainability...
+
+And I'm thinking the above API design would comfortably support a more
+efficient seq-lock like approach without the loop in invalidate_end..
+
+But I haven't quite thought it all through yet. Next week!
+
+> > I still think the best solution is to move device_lock() into mirror
+> > and have hmm manage it for the driver as ODP does. It is certainly the
+> > simplest solution to understand.
+> 
+> It is un-efficient and would block further than needed forward progress
+> by mm code.
+
+I'm not sure how you get to that, we already have the device_lock()
+and it already blocks forward progress by mm code.
+
+Really the big unfortunate thing here is that valid is manipulated
+outside the device_lock, but really, logically, it is covered under
+the device_lock
+
+Jason
 
