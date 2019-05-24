@@ -2,103 +2,133 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30F97C072B5
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 13:13:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C716C072B5
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 13:14:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CA20121773
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 13:13:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA20121773
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id D3F7521773
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 13:14:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="bUkJxWW2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3F7521773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 291FF6B0003; Fri, 24 May 2019 09:13:56 -0400 (EDT)
+	id 6B0196B0006; Fri, 24 May 2019 09:14:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 243256B0006; Fri, 24 May 2019 09:13:56 -0400 (EDT)
+	id 661546B0007; Fri, 24 May 2019 09:14:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 10A596B0007; Fri, 24 May 2019 09:13:56 -0400 (EDT)
+	id 550E06B0008; Fri, 24 May 2019 09:14:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B94196B0003
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 09:13:55 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id t58so14064090edb.22
-        for <linux-mm@kvack.org>; Fri, 24 May 2019 06:13:55 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AABF6B0006
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 09:14:05 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id r7so4465221wrn.8
+        for <linux-mm@kvack.org>; Fri, 24 May 2019 06:14:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=3fw090aTVktVJ3NzZ7aWLVmJU6bW++ZMYzHZhNmKVZU=;
-        b=YukBvz9xJY4DxPIkgpbpA9Z9/k0fzMHRIU8HhEKazne4wV5cm+wDM7oLgie1ZztHfS
-         ULZDjzJ14nwwvu5Z2tbIhmXd0A04MeiyFij2Lhq8prnx8O+/X7MBKw+UhWvbAu5nB6g8
-         inICDLfgeoXviOquwpEGGzWzeGXg7LP+sDF78Okv3HWfQA6Flpv+xCVWich4Ajij1Rjf
-         NHQhnR2tVCzDB2rv7VANNlodyaEe0ELnQX2GEtLfnBpUxlaVUcD2X3g1aJojq3NYC2V/
-         BMjLU6OulYCTjZesw2RHH2UuBZF18ryMQJJxsqcy9E4wUllOeL2iNCdkuLl8p54TGRkq
-         etSA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAX5UTRF1NvUIdSzZVvetBdxAmvlZo/LmACR/zDnnul21OL13ESn
-	T2AiCj0FVQEEpEP3pQB3oL0xDEmiI0+cvhSWZDi8Y+97abvkakxgBg5zz/MKPhtVydTye38D0kq
-	AIWJALdYMbCJN4x93ubuK6KYiu+NbyAtbYxRfJwp42JkKbHWuj7PtZFsg6Y6ggWdVmg==
-X-Received: by 2002:a05:6402:1610:: with SMTP id f16mr105099110edv.171.1558703635320;
-        Fri, 24 May 2019 06:13:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxwTfbPLWC1qvJkOOfbZnpW9nq5D9Dt075bexDU9h100tA63TGGhIOqUldF/khN43zAPctN
-X-Received: by 2002:a05:6402:1610:: with SMTP id f16mr105099003edv.171.1558703634445;
-        Fri, 24 May 2019 06:13:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558703634; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=/n51XGtaWTFL2kzn79WHLkkiSbCnRxm63xReP9D+Qhg=;
+        b=Wup46yAVONiRuyTToYJ6+hvWZuf5nM7Cpvr57vqEYM9r+MpYCzI1KmloNcN6DgNq/9
+         jYEkjcWP0/TsT6A3XMfmxVLn1UGpPNjuCXoxO1wO89NhpqmqSX3qKv0Pzayv5ltPcykz
+         dm7Nl38kInOAyjaiamq0rhXtLj482NSplj7DJtJMxBJBmK4dwZgX0tEEVARzRxEWVq75
+         kaDnXhmdaAgmze3Zss+WW95pZNHRaDpCiAanNzZyvyEXzf/IGeropK0uMICFqCHiS48H
+         tfbQ3YTNnwjYER6feDW/uGP60XX16Q45qKkHzyqiJKiK7FftDgBIuLZlYL3e+XILx8ok
+         ODtw==
+X-Gm-Message-State: APjAAAVxYsP0G8F4MRHDOgEfUvFZx0Sso1Wm2Tx7zB9ct+hZCjxQ8lm5
+	k1jC8N+Mi75RSujm/Ks0+Fo9dHagCgcRPMLZ7f8JsU3yxarOIMq/dW0obZikFjIYDsjp0Bts45Q
+	QfYnm6tZmA3zTMd12DlltOSkk1BfvJ9FsHmC6HtGCpOLLmlrLiOev1rfed777lvE=
+X-Received: by 2002:adf:e301:: with SMTP id b1mr32795429wrj.304.1558703644534;
+        Fri, 24 May 2019 06:14:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyf4mgLCCKoJ/OYK1+rpJ9lt5y9RbGBrhjyZutRye7C1TTLkHUHuavZqb+TH4QI5NOI3jRz
+X-Received: by 2002:adf:e301:: with SMTP id b1mr32795376wrj.304.1558703643794;
+        Fri, 24 May 2019 06:14:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558703643; cv=none;
         d=google.com; s=arc-20160816;
-        b=w+nDngIzJSYXNtSUOLAyI6rYoZz6Rd7geQZqz5st4gu75d1Eog7OiOwxW6k2H071o6
-         yhUOYezYJa+FLW5MX7oM4Dmp10IT3W+m1TTTXij4Z/42d8DuBoQoYn9Q6x4BQ65p3TfX
-         ol1OiFJHVgzjmb/5NuAE6EHFRijJ37p08LSJcUTC2sO4w/ApmRwksr3WfFiqoT6ww4vf
-         txGnrSbo0SZaX8le5Sr0lXPAmXzfeGRhneZvw1KfOOMk77oK6dCdlG4ftF8geD1tL/8X
-         y43PB9dQDJR4gQqoxYUx1GGTFtDoJp2TtnkOVsUPo+TU5rrXOdINv//tQ5KGmYIbck1p
-         C/mw==
+        b=N7UA7v/9KgA8FQ5hmOJLRNGCeUTQxUrUuXWLV5wL1fN3fEbk6s4KfBFvOxoAVH4gJ0
+         c/kQuDenKwK3gk7W+OZsj4Pk1nLUvq1EavtqfjbvIJGVB9t0ac1tDl/bMOOBSebP6mgd
+         5tQD8ET02werc2MvPJY8xj5X4smdgpeZnJpRDpmNADDtfDWXsEZhHLubXGEfl6oYJVGX
+         8ZipQKLcUVOBl9TJHg/D2f9Bfe9/tdLkS2cguQ4FjVMER/u5BsD8lRzaWigYhqgzYCy/
+         cXDLv+nkWI2mEu/Duh5Q6VfidEOBLDJJ7X5EvhYtKbfZnsuKktykXLTVJExgGAblNoCJ
+         6jWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=3fw090aTVktVJ3NzZ7aWLVmJU6bW++ZMYzHZhNmKVZU=;
-        b=m+WRs2tZ0gEU8nPVDfNQGgsMWS/nsU2xZnkrx0Br0nknEM4GhwR6y2GGhRDqenh3yP
-         10ZOFw7OasmK394IfElcCCsp4jGcRt8Wjvx2TiRraFLZqsU1m8A+kinfRRCOgViz22ct
-         u1Ebske7prsSNm5mY5+v05ZO1LEBqtRpvcpy6jPFmXKHzm0DHQfSSIjx9QWv/8HR0dD/
-         8MtA2zbeKWhtnnY+UvofO9ztllnIdmndZPydiwKRFF/Sx1VL9evEJzlf6nrTVvh8R5fq
-         FnGrP7Qo59X4Wf46aoh4En18bOROdWgQ5/Kh+7Yq8Gf70o6MtKm+o8MLJunLL+ra053u
-         jx4Q==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=/n51XGtaWTFL2kzn79WHLkkiSbCnRxm63xReP9D+Qhg=;
+        b=hz7C9bJbz3l54SfkucICBnO817kb5YcBDcMsv9qkSK57pCCq0JMzyUdZrEmL6CuYyP
+         xbzopsJNnMo4+1V6dlntlsBfVj3n6IaIY86rswsjqkTpBvhkkz3pzZ7Mpe7OwhS6BTFd
+         TvHt9a4S6ipXdSDYbkRbvFnJfFZlj5TFCz+KgYyh1qWi/mKfzGVRm2qrhEd7tKO3FLVZ
+         kfRRSWhoH89UpECcmt+oaqItYSf39SbUaCLlINWOcvWq2l3oAPZl7VC1DH+ywpzqdmI5
+         w+KzPsr9K8YUV0CwPGe9755FkAr7IxvfdUHYKG45nhSYhEJelkqkpzrwjA2r4aexWvS6
+         50zA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id z5si1686544ejb.106.2019.05.24.06.13.53
-        for <linux-mm@kvack.org>;
-        Fri, 24 May 2019 06:13:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@infradead.org header.s=casper.20170209 header.b=bUkJxWW2;
+       spf=softfail (google.com: domain of transitioning mchehab+samsung@kernel.org does not designate 2001:8b0:10b:1236::1 as permitted sender) smtp.mailfrom=mchehab+samsung@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from casper.infradead.org (casper.infradead.org. [2001:8b0:10b:1236::1])
+        by mx.google.com with ESMTPS id u18si2156823wro.31.2019.05.24.06.14.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 24 May 2019 06:14:03 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mchehab+samsung@kernel.org does not designate 2001:8b0:10b:1236::1 as permitted sender) client-ip=2001:8b0:10b:1236::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1388CA78;
-	Fri, 24 May 2019 06:13:53 -0700 (PDT)
-Received: from [10.162.42.134] (p8cg001049571a15.blr.arm.com [10.162.42.134])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 99E793F5AF;
-	Fri, 24 May 2019 06:13:49 -0700 (PDT)
-Subject: Re: mm/compaction: BUG: NULL pointer dereference
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Suzuki K Poulose <suzuki.poulose@arm.com>, linux-mm@kvack.org,
- akpm@linux-foundation.org, mhocko@suse.com, cai@lca.pw,
- linux-kernel@vger.kernel.org, marc.zyngier@arm.com,
- kvmarm@lists.cs.columbia.edu, kvm@vger.kernel.org
-References: <1558689619-16891-1-git-send-email-suzuki.poulose@arm.com>
- <cfddd75a-b302-5557-05b8-2b328bba27c8@arm.com>
- <20190524123047.GO18914@techsingularity.net>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <9ae23db2-e696-047b-af18-1e75ebbda085@arm.com>
-Date: Fri, 24 May 2019 18:43:59 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@infradead.org header.s=casper.20170209 header.b=bUkJxWW2;
+       spf=softfail (google.com: domain of transitioning mchehab+samsung@kernel.org does not designate 2001:8b0:10b:1236::1 as permitted sender) smtp.mailfrom=mchehab+samsung@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=casper.20170209; h=Content-Transfer-Encoding:Content-Type:
+	MIME-Version:References:In-Reply-To:Message-ID:Subject:Cc:To:From:Date:Sender
+	:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=/n51XGtaWTFL2kzn79WHLkkiSbCnRxm63xReP9D+Qhg=; b=bUkJxWW27UUn0amoOcX30OMJrj
+	ZKVRSd1fLa7wKAL02nzw4IuOiQA4rzgr054ftsu9MviuEbu9mlGcvkuzEzVnirDZFWPfHjMMLLRk3
+	ZsW9iClnPD6BeArzI/irNnfgAKRVNaTgvodZ4TtoBZwoHm+HpL855LvNq4JvaGdw7aEGxArIj4/ar
+	bjQ2iBjNGlyPTpQSCWDE80zIQI9EXYMUp8RizSkmI+AmxIKaaD96lVlDCETopHnXFcxZVFNsAuFYn
+	eLi0l7CIdF+p1i1kh/+U5yW0qGVeRM/1NgoUENimwmZJ/qxCwebQt5wRW4slq4faCCWf2/ok2eNHJ
+	OcM7Zp+w==;
+Received: from 177.97.63.247.dynamic.adsl.gvt.net.br ([177.97.63.247] helo=coco.lan)
+	by casper.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hUA1G-0007UW-C4; Fri, 24 May 2019 13:13:58 +0000
+Date: Fri, 24 May 2019 10:13:45 -0300
+From: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
+ dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+ linux-media@vger.kernel.org, kvm@vger.kernel.org,
+ linux-kselftest@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>,
+ Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>, Andrew Morton
+ <akpm@linux-foundation.org>, Greg Kroah-Hartman
+ <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, Yishai
+ Hadas <yishaih@mellanox.com>, Felix Kuehling <Felix.Kuehling@amd.com>,
+ Alexander Deucher <Alexander.Deucher@amd.com>, Christian Koenig
+ <Christian.Koenig@amd.com>, Jens Wiklander <jens.wiklander@linaro.org>,
+ Alex Williamson <alex.williamson@redhat.com>, Leon Romanovsky
+ <leon@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany
+ <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith
+ <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+ Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan
+ <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, Luc Van
+ Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin
+ <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy
+ <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v15 14/17] media/v4l2-core, arm64: untag user pointers
+ in videobuf_dma_contig_user_get
+Message-ID: <20190524101345.67c425fa@coco.lan>
+In-Reply-To: <b7999d13af54eb3ed8d7b0192397c7cde3df0b28.1557160186.git.andreyknvl@google.com>
+References: <cover.1557160186.git.andreyknvl@google.com>
+	<b7999d13af54eb3ed8d7b0192397c7cde3df0b28.1557160186.git.andreyknvl@google.com>
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-redhat-linux-gnu)
 MIME-Version: 1.0
-In-Reply-To: <20190524123047.GO18914@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -106,69 +136,68 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Em Mon,  6 May 2019 18:31:00 +0200
+Andrey Konovalov <andreyknvl@google.com> escreveu:
 
-
-On 05/24/2019 06:00 PM, Mel Gorman wrote:
-> On Fri, May 24, 2019 at 04:26:16PM +0530, Anshuman Khandual wrote:
->>
->>
->> On 05/24/2019 02:50 PM, Suzuki K Poulose wrote:
->>> Hi,
->>>
->>> We are hitting NULL pointer dereferences while running stress tests with KVM.
->>> See splat [0]. The test is to spawn 100 VMs all doing standard debian
->>> installation (Thanks to Marc's automated scripts, available here [1] ).
->>> The problem has been reproduced with a better rate of success from 5.1-rc6
->>> onwards.
->>>
->>> The issue is only reproducible with swapping enabled and the entire
->>> memory is used up, when swapping heavily. Also this issue is only reproducible
->>> on only one server with 128GB, which has the following memory layout:
->>>
->>> [32GB@4GB, hole , 96GB@544GB]
->>>
->>> Here is my non-expert analysis of the issue so far.
->>>
->>> Under extreme memory pressure, the kswapd could trigger reset_isolation_suitable()
->>> to figure out the cached values for migrate/free pfn for a zone, by scanning through
->>> the entire zone. On our server it does so in the range of [ 0x10_0000, 0xa00_0000 ],
->>> with the following area of holes : [ 0x20_0000, 0x880_0000 ].
->>> In the failing case, we end up setting the cached migrate pfn as : 0x508_0000, which
->>> is right in the center of the zone pfn range. i.e ( 0x10_0000 + 0xa00_0000 ) / 2,
->>> with reset_migrate = 0x88_4e00, reset_free = 0x10_0000.
->>>
->>> Now these cached values are used by the fast_isolate_freepages() to find a pfn. However,
->>> since we cant find anything during the search we fall back to using the page belonging
->>> to the min_pfn (which is the migrate_pfn), without proper checks to see if that is valid
->>> PFN or not. This is then passed on to fast_isolate_around() which tries to do :
->>> set_pageblock_skip(page) on the page which blows up due to an NULL mem_section pointer.
->>>
->>> The following patch seems to fix the issue for me, but I am not quite convinced that
->>> it is the right fix. Thoughts ?
->>>
->>>
->>> diff --git a/mm/compaction.c b/mm/compaction.c
->>> index 9febc8c..9e1b9ac 100644
->>> --- a/mm/compaction.c
->>> +++ b/mm/compaction.c
->>> @@ -1399,7 +1399,7 @@ fast_isolate_freepages(struct compact_control *cc)
->>>  				page = pfn_to_page(highest);
->>>  				cc->free_pfn = highest;
->>>  			} else {
->>> -				if (cc->direct_compaction) {
->>> +				if (cc->direct_compaction && pfn_valid(min_pfn)) {
->>>  					page = pfn_to_page(min_pfn);
->>
->> pfn_to_online_page() here would be better as it does not add pfn_valid() cost on
->> architectures which does not subscribe to CONFIG_HOLES_IN_ZONE. But regardless if
->> the compaction is trying to scan pfns in zone holes, then it should be avoided.
+> This patch is a part of a series that extends arm64 kernel ABI to allow to
+> pass tagged user pointers (with the top byte set to something else other
+> than 0x00) as syscall arguments.
 > 
-> CONFIG_HOLES_IN_ZONE typically applies in special cases where an arch
-> punches holes within a section. As both do a section lookup, the cost is
-> similar but pfn_valid in general is less subtle in this case. Normally
-> pfn_valid_within is only ok when a pfn_valid check has been made on the
-> max_order aligned range as well as a zone boundary check. In this case,
-> it's much more straight-forward to leave it as pfn_valid.
+> videobuf_dma_contig_user_get() uses provided user pointers for vma
+> lookups, which can only by done with untagged pointers.
+> 
+> Untag the pointers in this function.
+> 
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 
-Sure, makes sense.
+Acked-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+
+> ---
+>  drivers/media/v4l2-core/videobuf-dma-contig.c | 9 +++++----
+>  1 file changed, 5 insertions(+), 4 deletions(-)
+> 
+> diff --git a/drivers/media/v4l2-core/videobuf-dma-contig.c b/drivers/media/v4l2-core/videobuf-dma-contig.c
+> index e1bf50df4c70..8a1ddd146b17 100644
+> --- a/drivers/media/v4l2-core/videobuf-dma-contig.c
+> +++ b/drivers/media/v4l2-core/videobuf-dma-contig.c
+> @@ -160,6 +160,7 @@ static void videobuf_dma_contig_user_put(struct videobuf_dma_contig_memory *mem)
+>  static int videobuf_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
+>  					struct videobuf_buffer *vb)
+>  {
+> +	unsigned long untagged_baddr = untagged_addr(vb->baddr);
+>  	struct mm_struct *mm = current->mm;
+>  	struct vm_area_struct *vma;
+>  	unsigned long prev_pfn, this_pfn;
+> @@ -167,22 +168,22 @@ static int videobuf_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
+>  	unsigned int offset;
+>  	int ret;
+>  
+> -	offset = vb->baddr & ~PAGE_MASK;
+> +	offset = untagged_baddr & ~PAGE_MASK;
+>  	mem->size = PAGE_ALIGN(vb->size + offset);
+>  	ret = -EINVAL;
+>  
+>  	down_read(&mm->mmap_sem);
+>  
+> -	vma = find_vma(mm, vb->baddr);
+> +	vma = find_vma(mm, untagged_baddr);
+>  	if (!vma)
+>  		goto out_up;
+>  
+> -	if ((vb->baddr + mem->size) > vma->vm_end)
+> +	if ((untagged_baddr + mem->size) > vma->vm_end)
+>  		goto out_up;
+>  
+>  	pages_done = 0;
+>  	prev_pfn = 0; /* kill warning */
+> -	user_address = vb->baddr;
+> +	user_address = untagged_baddr;
+>  
+>  	while (pages_done < (mem->size >> PAGE_SHIFT)) {
+>  		ret = follow_pfn(vma, user_address, &this_pfn);
+
+
+
+Thanks,
+Mauro
 
