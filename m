@@ -2,161 +2,321 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7285BC072B5
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 17:36:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E855C282E3
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 17:39:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 24F392184E
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 17:36:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24F392184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id BB03021773
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 17:39:05 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="n6dbur+B"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB03021773
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8D27B6B0277; Fri, 24 May 2019 13:36:07 -0400 (EDT)
+	id 5C2A96B0278; Fri, 24 May 2019 13:39:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 882486B0278; Fri, 24 May 2019 13:36:07 -0400 (EDT)
+	id 54B2C6B027A; Fri, 24 May 2019 13:39:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 771676B0279; Fri, 24 May 2019 13:36:07 -0400 (EDT)
+	id 3EC526B027B; Fri, 24 May 2019 13:39:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F3FE6B0277
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 13:36:07 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id r4so7451503pfh.16
-        for <linux-mm@kvack.org>; Fri, 24 May 2019 10:36:07 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F37266B0278
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 13:39:04 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 97so3791978plb.7
+        for <linux-mm@kvack.org>; Fri, 24 May 2019 10:39:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=PKI4YfKx4JUOr32uCjvDAzGjPav8r1bjv373hdqyqNY=;
-        b=TIUEmrExozpdZtvv0gpyEcxuM2hTWIhrEA6v9GMEdxYC6mIhvCwtkWaK9Ny4SIRWS1
-         dJVyFE2vLcy8YvHVWObYsBnCXrg3JchsMEX2LvbthZw2CTBYADDUCvZGjmZCKtdc9rA5
-         wrbjYU1NfGHoDCWJwuqjEn5EgXjrIC9jvSlOp0A09XuFQK2ksDfgJN8W2vGhAE4W2LbO
-         wBJ+m285slJtkmTUSDlpjZp+BsABDkbR1kE85YVQEWmGCwGh7t29QYaEVdG21l6H5+Qc
-         fpc4lR9TAVMgVSuFhZKxjqZuBBkJ9TO9VdFSPGlBKfkdw7E9Bpw/zei+pLgfLpK1UKiJ
-         D+tQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAX+W/wD/LxAZbJjbui/OftnRfyGl2cJmIZp0Yck6aIYpgjJz2n2
-	JsgR08n/tKkS1ZTEVuSWJP5DPZ1AzSxm+2JWJOyTcowWHwCOCxgwjfdmC3kjhGCGRsPj7deMALB
-	JAxB9kNmer86GfofnUh3Q1gThM6L3nrxJyDv5/0hAQXHwFtpCKl9OA6AvZ868rXGHyQ==
-X-Received: by 2002:a65:4c07:: with SMTP id u7mr103584370pgq.93.1558719366936;
-        Fri, 24 May 2019 10:36:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy2jjdVl1UrVdBj6QOvI869pIfTqThfc2kOKMOW3r5GKLpUL0mVCpZOLhZtbi20xE4nbhOw
-X-Received: by 2002:a65:4c07:: with SMTP id u7mr103584304pgq.93.1558719365802;
-        Fri, 24 May 2019 10:36:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558719365; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=nyAGe/ZR2qCl2jcH2bXcLfSjZ2XY6PxF57WjX3zmMwM=;
+        b=jQr4P1Z7zaw1mPgcvXLs/s7AGjdBPrWCsIQTd8tTrjjb2VWW/oPAQJ57XWXq58icAY
+         K1C22kdak7fZ/HZnUWfqrXMjFc4IAV87bwEiMv18/XW2USj7yrOFigqDyUeOLKTJAJv4
+         LZvyXG5wHrlHOp1p0C3h9eMjrlxx2vlmkrFWNLrLm9wgfrxdq+DkG3Q4yoWctziMziia
+         uxI6gEbJ7044/b4Hr3teKz05JG58EuiQg8LlNrajEE4eVwZgWCuQ69CYbv4qTDHN7gB8
+         OA5WBLMrKV1QWM2MXfqt3OfXXci1JOrBaW010nzOPF4SI68tQOyzxNzcBCA49hHbsZDK
+         iT5g==
+X-Gm-Message-State: APjAAAV7XJjo5ucpLVDdUS2A3zHQwhrENLWQh53Rkm/pXdks+Pbmubum
+	q1E5gAJfPyhU3coYD0S1DlYuaXjy9iEdyayPShRfG0MyARksEZ+Pz4WzItxJE8/I3VJhhP2wTjr
+	fPPpBwC+HUp5JvyBLADJWVn0czIneID2eAxeGoJXIRdQbbKD0Epn6gsaQoOVsVYGW8g==
+X-Received: by 2002:a62:460a:: with SMTP id t10mr113194275pfa.3.1558719544501;
+        Fri, 24 May 2019 10:39:04 -0700 (PDT)
+X-Received: by 2002:a62:460a:: with SMTP id t10mr113194215pfa.3.1558719543679;
+        Fri, 24 May 2019 10:39:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558719543; cv=none;
         d=google.com; s=arc-20160816;
-        b=UDS1G/BX/nwKHk94I5zmJDVxeioBKIOGzyZIJNT0oJfTDxLe35uZlE2TZ90B7ddPhl
-         FFSCMX9xQJyjeug7hYe4U/syLZWPiO1k15L/PkFdCYkbfTTeQTL/2p27ouzqXm3Hu/LH
-         HmsgqapawpQdpOuhPaC1SuTumfewzJDFZxPetO7umXmcQJWp4SB9WPlhO8NW7CjbdRv/
-         Dn+I7eVpT2QroqIQLHKJrKNHzj/Tq6i+255x1/8R2UjoQOl7Yl03QtltgamHL3QhhZPa
-         UfjkhdUx9UynYdUHjOioah4k+SHDWBJwxGL6p3tZ5eyMiyRuo4FSAv5Frh1Dnm4/Orng
-         a5jQ==
+        b=qxbaba/ff8QHEuTRG5K61HTRDqluMEQqTyKy9laarqwC4HKdqTN9IeE65ooV5hbJzQ
+         /vPK9ab2PEcdA3CzFHKQT2O/okwT76dfT0ydnM/KHdNPddkSZCrvyPxRKsOmclJTo/IP
+         xUsSfy/Ph8pSmTg+AtXkG5WslJYE6Hl4jfag4TxTxQS+kIajCHC1djK/2PWxxdFhwnPz
+         hpEAk23QW9MVrUq+LbY9dcAzfKyEJ+ZicfvxOTnAekzEbe6bKKxrOwImc7x4d7na6oxU
+         KfejCvH82MTRPEdQyWcm2jTexcnvtsY4OeugGtJlCc93HLd+2X4wtOAz2X5RudJeD/U2
+         QO8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=PKI4YfKx4JUOr32uCjvDAzGjPav8r1bjv373hdqyqNY=;
-        b=NEcaD7Y+wpGoZmGTkkhkBLoT9SVRvgbZ9tzGE4yyM5WyK372JWxmefudwq2Dt/R+Bw
-         ui3uvVeg+HXNWPErn6qFERexAL4nlMPmTvItSwosWrWa66jR50XLbZd4108KlMyb0OPZ
-         qsQrf1WkePihgNsNGnEYWqfWNtuvpOmKJ/ULP5mqJ7LPMe+f8yKaCEn5PC08hyXK0w7G
-         7BY4199Essbpzo2WlU/q8S7is9hUa1fSI2VWctU0/XYFgf+uoiiML91Uw2C2RoVa4pCM
-         ZskxDs/Y0w8Or7U+lGPxbPXK4XuRi0zr+fTxCG0D28ijVUmFFic4aEOqfA2B8D4AGaXR
-         U6HQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=nyAGe/ZR2qCl2jcH2bXcLfSjZ2XY6PxF57WjX3zmMwM=;
+        b=QtOCbtFpNaoyYLecrk8TAziEhKuyQY4BMPosuZ3QxIA81FZ+QLebFPOszss5curwaa
+         4CUuvkCqJCBGESSvVOso73I/pSiadQ3lOykp39g2oKhBWCM+hI090L+nxM1ufaF0vAhs
+         pltTbhh/FxBrtkurg1mlh4yaHOrIZ+cjddeOO4jsxpiqT5cybxD0l4l05PPNN2MegrS2
+         YVxb6KGiDSuzkq928HNdumTOX71fpQmpLk8iFZPse0QH42e+9dcGr30Cwf8VPO5u0478
+         tRHsdfCuOqcPUGEl5+kQ0SHFT/vcSkkcd3NZaX50l4jXexrZj8vOIGEZRBabn0p/rxa5
+         xAnw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id i22si4967072pfd.84.2019.05.24.10.36.05
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=n6dbur+B;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m11sor4116787plt.30.2019.05.24.10.39.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 May 2019 10:36:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        (Google Transport Security);
+        Fri, 24 May 2019 10:39:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 24 May 2019 10:36:05 -0700
-X-ExtLoop1: 1
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga005.fm.intel.com with ESMTP; 24 May 2019 10:36:04 -0700
-From: ira.weiny@intel.com
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>,
-	Ira Weiny <ira.weiny@intel.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: [PATCH v2] mm/swap: Fix release_pages() when releasing devmap pages
-Date: Fri, 24 May 2019 10:36:56 -0700
-Message-Id: <20190524173656.8339-1-ira.weiny@intel.com>
-X-Mailer: git-send-email 2.20.1
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=n6dbur+B;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=nyAGe/ZR2qCl2jcH2bXcLfSjZ2XY6PxF57WjX3zmMwM=;
+        b=n6dbur+BmKYV6EDJkvnaZkqre40ZcNPejsdxgzNShah9xqH4f8tlzpnh/u0urSaM+h
+         /1Bex7TxS4+BzabkWmnDSExzJav9EHmLOlwFUrTBOHuC2ppqxpmRitBTVw8gIgrgcU2J
+         6QuCqiSGziEklgQoMfPMXD1KTR3+SLCjY/EuoArpsDuE59+kI2P6zrjQQw2k1WI/vpkd
+         tIpgna7p1gY56VS4qtUdLXP87qyWkzgeRl/9trETyO3eZD9YFpZx/Fej5T4I9woAPXM7
+         d2/ui0ktTyeQJ9tr5hUN7sy52JYWt6oaXNDdKdocc0DIc7c80I5ynG24LSKawjZ3oZV6
+         34aQ==
+X-Google-Smtp-Source: APXvYqzFawM3FsxaN8KrS37GCCwDD6pToqDos87g5+9DlQY2z4p0UPRIlClDsQs+/e4Ob2Kp2KHscQ==
+X-Received: by 2002:a17:902:a407:: with SMTP id p7mr17759721plq.41.1558719542879;
+        Fri, 24 May 2019 10:39:02 -0700 (PDT)
+Received: from localhost ([2620:10d:c090:180::805])
+        by smtp.gmail.com with ESMTPSA id a66sm3340142pfa.89.2019.05.24.10.39.01
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 24 May 2019 10:39:01 -0700 (PDT)
+Date: Fri, 24 May 2019 13:39:00 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com
+Subject: Re: [PATCH] mm: fix page cache convergence regression
+Message-ID: <20190524173900.GA11702@cmpxchg.org>
+References: <20190524153148.18481-1-hannes@cmpxchg.org>
+ <20190524160417.GB1075@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190524160417.GB1075@bombadil.infradead.org>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Ira Weiny <ira.weiny@intel.com>
+On Fri, May 24, 2019 at 09:04:17AM -0700, Matthew Wilcox wrote:
+> On Fri, May 24, 2019 at 11:31:48AM -0400, Johannes Weiner wrote:
+> > diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+> > index 0e01e6129145..cbbf76e4c973 100644
+> > --- a/include/linux/xarray.h
+> > +++ b/include/linux/xarray.h
+> > @@ -292,6 +292,7 @@ struct xarray {
+> >  	spinlock_t	xa_lock;
+> >  /* private: The rest of the data structure is not to be used directly. */
+> >  	gfp_t		xa_flags;
+> > +	gfp_t		xa_gfp;
+> >  	void __rcu *	xa_head;
+> >  };
+> 
+> No.  I'm willing to go for a xa_flag which says to use __GFP_ACCOUNT, but
+> you can't add another element to the struct xarray.
 
-Device pages can be more than type MEMORY_DEVICE_PUBLIC.
+Ok, we can generalize per-tree gfp flags later if necessary.
 
-Handle all device pages within release_pages()
-
-This was found via code inspection while determining if release_pages()
-and the new put_user_pages() could be interchangeable.
-
-Cc: Jérôme Glisse <jglisse@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Reviewed-by: Dan Williams <dan.j.williams@intel.com>
-Reviewed-by: John Hubbard <jhubbard@nvidia.com>
-Signed-off-by: Ira Weiny <ira.weiny@intel.com>
+Below is the updated fix that uses an XA_FLAGS_ACCOUNT flag instead.
 
 ---
-Changes from V1:
-	Add comment clarifying that put_devmap_managed_page() can still
-	fail.
-	Add Reviewed-by tags.
+From 63a0dbc571ff38f7c072c62d6bc28192debe37ac Mon Sep 17 00:00:00 2001
+From: Johannes Weiner <hannes@cmpxchg.org>
+Date: Fri, 24 May 2019 10:12:46 -0400
+Subject: [PATCH] mm: fix page cache convergence regression
 
- mm/swap.c | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+Since a28334862993 ("page cache: Finish XArray conversion"), on most
+major Linux distributions, the page cache doesn't correctly transition
+when the hot data set is changing, and leaves the new pages thrashing
+indefinitely instead of kicking out the cold ones.
 
-diff --git a/mm/swap.c b/mm/swap.c
-index 9d0432baddb0..f03b7b4bfb4f 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -740,15 +740,18 @@ void release_pages(struct page **pages, int nr)
- 		if (is_huge_zero_page(page))
- 			continue;
+On a freshly booted, freshly ssh'd into virtual machine with 1G RAM
+running stock Arch Linux:
+
+[root@ham ~]# ./reclaimtest.sh
++ dd of=workingset-a bs=1M count=0 seek=600
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ ./mincore workingset-a
+153600/153600 workingset-a
++ dd of=workingset-b bs=1M count=0 seek=600
++ cat workingset-b
++ cat workingset-b
++ cat workingset-b
++ cat workingset-b
++ ./mincore workingset-a workingset-b
+104029/153600 workingset-a
+120086/153600 workingset-b
++ cat workingset-b
++ cat workingset-b
++ cat workingset-b
++ cat workingset-b
++ ./mincore workingset-a workingset-b
+104029/153600 workingset-a
+120268/153600 workingset-b
+
+workingset-b is a 600M file on a 1G host that is otherwise entirely
+idle. No matter how often it's being accessed, it won't get cached.
+
+While investigating, I noticed that the non-resident information gets
+aggressively reclaimed - /proc/vmstat::workingset_nodereclaim. This is
+a problem because a workingset transition like this relies on the
+non-resident information tracked in the page cache tree of evicted
+file ranges: when the cache faults are refaults of recently evicted
+cache, we challenge the existing active set, and that allows a new
+workingset to establish itself.
+
+Tracing the shrinker that maintains this memory revealed that all page
+cache tree nodes were allocated to the root cgroup. This is a problem,
+because 1) the shrinker sizes the amount of non-resident information
+it keeps to the size of the cgroup's other memory and 2) on most major
+Linux distributions, only kernel threads live in the root cgroup and
+everything else gets put into services or session groups:
+
+[root@ham ~]# cat /proc/self/cgroup
+0::/user.slice/user-0.slice/session-c1.scope
+
+As a result, we basically maintain no non-resident information for the
+workloads running on the system, thus breaking the caching algorithm.
+
+Looking through the code, I found the culprit in the above-mentioned
+patch: when switching from the radix tree to xarray, it dropped the
+__GFP_ACCOUNT flag from the tree node allocations - the flag that
+makes sure the allocated memory gets charged to and tracked by the
+cgroup of the calling process - in this case, the one doing the fault.
+
+To fix this, allow xarray users to specify per-tree flag that makes
+xarray allocate nodes using __GFP_ACCOUNT. Then restore the page cache
+tree annotation to request such cgroup tracking for the cache nodes.
+
+With this patch applied, the page cache correctly converges on new
+workingsets again after just a few iterations:
+
+[root@ham ~]# ./reclaimtest.sh
++ dd of=workingset-a bs=1M count=0 seek=600
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ cat workingset-a
++ ./mincore workingset-a
+153600/153600 workingset-a
++ dd of=workingset-b bs=1M count=0 seek=600
++ cat workingset-b
++ ./mincore workingset-a workingset-b
+124607/153600 workingset-a
+87876/153600 workingset-b
++ cat workingset-b
++ ./mincore workingset-a workingset-b
+81313/153600 workingset-a
+133321/153600 workingset-b
++ cat workingset-b
++ ./mincore workingset-a workingset-b
+63036/153600 workingset-a
+153600/153600 workingset-b
+
+Cc: stable@vger.kernel.org # 4.20+
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ fs/inode.c             |  2 +-
+ include/linux/xarray.h |  1 +
+ lib/xarray.c           | 12 ++++++++++--
+ 3 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/fs/inode.c b/fs/inode.c
+index e9d18b2c3f91..cd67859dbaf1 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -361,7 +361,7 @@ EXPORT_SYMBOL(inc_nlink);
  
--		/* Device public page can not be huge page */
--		if (is_device_public_page(page)) {
-+		if (is_zone_device_page(page)) {
- 			if (locked_pgdat) {
- 				spin_unlock_irqrestore(&locked_pgdat->lru_lock,
- 						       flags);
- 				locked_pgdat = NULL;
- 			}
--			put_devmap_managed_page(page);
--			continue;
-+			/*
-+			 * zone-device-pages can still fail here and will
-+			 * therefore need put_page_testzero()
-+			 */
-+			if (put_devmap_managed_page(page))
-+				continue;
- 		}
+ static void __address_space_init_once(struct address_space *mapping)
+ {
+-	xa_init_flags(&mapping->i_pages, XA_FLAGS_LOCK_IRQ);
++	xa_init_flags(&mapping->i_pages, XA_FLAGS_LOCK_IRQ | XA_FLAGS_ACCOUNT);
+ 	init_rwsem(&mapping->i_mmap_rwsem);
+ 	INIT_LIST_HEAD(&mapping->private_list);
+ 	spin_lock_init(&mapping->private_lock);
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+index 0e01e6129145..5921599b6dc4 100644
+--- a/include/linux/xarray.h
++++ b/include/linux/xarray.h
+@@ -265,6 +265,7 @@ enum xa_lock_type {
+ #define XA_FLAGS_TRACK_FREE	((__force gfp_t)4U)
+ #define XA_FLAGS_ZERO_BUSY	((__force gfp_t)8U)
+ #define XA_FLAGS_ALLOC_WRAPPED	((__force gfp_t)16U)
++#define XA_FLAGS_ACCOUNT	((__force gfp_t)32U)
+ #define XA_FLAGS_MARK(mark)	((__force gfp_t)((1U << __GFP_BITS_SHIFT) << \
+ 						(__force unsigned)(mark)))
  
- 		page = compound_head(page);
+diff --git a/lib/xarray.c b/lib/xarray.c
+index 6be3acbb861f..446b956c9188 100644
+--- a/lib/xarray.c
++++ b/lib/xarray.c
+@@ -298,6 +298,8 @@ bool xas_nomem(struct xa_state *xas, gfp_t gfp)
+ 		xas_destroy(xas);
+ 		return false;
+ 	}
++	if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
++		gfp |= __GFP_ACCOUNT;
+ 	xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
+ 	if (!xas->xa_alloc)
+ 		return false;
+@@ -325,6 +327,8 @@ static bool __xas_nomem(struct xa_state *xas, gfp_t gfp)
+ 		xas_destroy(xas);
+ 		return false;
+ 	}
++	if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
++		gfp |= __GFP_ACCOUNT;
+ 	if (gfpflags_allow_blocking(gfp)) {
+ 		xas_unlock_type(xas, lock_type);
+ 		xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
+@@ -358,8 +362,12 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
+ 	if (node) {
+ 		xas->xa_alloc = NULL;
+ 	} else {
+-		node = kmem_cache_alloc(radix_tree_node_cachep,
+-					GFP_NOWAIT | __GFP_NOWARN);
++		gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN;
++
++		if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
++			gfp |= __GFP_ACCOUNT;
++
++		node = kmem_cache_alloc(radix_tree_node_cachep, gfp);
+ 		if (!node) {
+ 			xas_set_err(xas, -ENOMEM);
+ 			return NULL;
 -- 
-2.20.1
+2.21.0
 
