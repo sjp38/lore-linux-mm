@@ -2,192 +2,139 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A481C072B5
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 06:00:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 288CEC072B5
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 06:34:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A614A20851
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 06:00:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A614A20851
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id DAB3720879
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 06:34:48 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="N5xiqRQb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DAB3720879
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1DC056B0005; Fri, 24 May 2019 02:00:06 -0400 (EDT)
+	id 740116B0005; Fri, 24 May 2019 02:34:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 18C2A6B0006; Fri, 24 May 2019 02:00:06 -0400 (EDT)
+	id 6F0646B0006; Fri, 24 May 2019 02:34:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 07B2B6B0007; Fri, 24 May 2019 02:00:06 -0400 (EDT)
+	id 5B8796B0007; Fri, 24 May 2019 02:34:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C25FB6B0005
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 02:00:05 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 93so5132772plf.14
-        for <linux-mm@kvack.org>; Thu, 23 May 2019 23:00:05 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 26E546B0005
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 02:34:48 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id t1so6144378pfa.10
+        for <linux-mm@kvack.org>; Thu, 23 May 2019 23:34:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=bmdTSJYIf0UASnQRz1FyYRCr2E+59ic8jJRr7WCLF+A=;
-        b=ebj4NXTtdUNOAR/zKk2xvnTsZplu9ZFQlLFA24Z0VVBcrB9Ah1rgc4ugs9aYGI4GkB
-         C17mJS0N5wDsemu2c9Nya5rnoprrBqG+Z3wejyYKziqUSpwfkPJyFXbFLBDlKPpUn9R6
-         5+HH8liTRLwFztNfrgS7eZXOLYwj9bz45lS2MDkwAEa6SsbvUdLjWupMg3RcYc9+1+zd
-         uRBw7aZIhr50Rf6zHDkV1ShhNxOgqqVmdCtiIsXA1g7TfkpMxQAdU9GEMhwMn7nPPXXP
-         XCWn34Yg7w6rFlGwt86Ywvu7KVCRzKF6gP7osJcxQNiBHaTaMk/LczZItITf+X1MqhEg
-         pjbg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWNQuVPhMBZzNyRcl/SXJgqhYF0/wmx7ekC4reAEyEdwsHS7bK5
-	5pCC/ugyHpfgqkBAKFJWGHWXepc0+yEF88uTzZNC/4n7kHkxLGcc07SiZ5R/sRMsDevj6j26NTN
-	FXa9ZmMBn9ee0qeSjLtb1ps3K/ctbZVgx5L1RjGyTWq7ezH8s+X7yvSwYV1NOeroNfw==
-X-Received: by 2002:a17:902:e104:: with SMTP id cc4mr103221763plb.254.1558677605442;
-        Thu, 23 May 2019 23:00:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxNFKlA3ZcnIWsV7iEQq9TOGeYrYxoKJYdSssT0KlnPMEwXC60gfRfdjmO+KBkudHu1zo+v
-X-Received: by 2002:a17:902:e104:: with SMTP id cc4mr103221658plb.254.1558677604092;
-        Thu, 23 May 2019 23:00:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558677604; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=u2o3UzKkWTUfB1f82a7SGgQAWjeYiA8xLwM3pufnUuk=;
+        b=ZveUS2r7KF1cWnB2F7bJ+U15JI2QVnRqt1+5vKBRDL/l6sQOL0BmziFhjTZdPYj13d
+         pJd8RSulFA5KczJtQUyRkuV/tt7r4U9+x9AfMaZ8Q/wXuzqRNCfspoZiM96k9oZtipP2
+         tQq+D09nDgaPeBaRkScgRVkSuNgy5xLsbp8BnOZxtPH5C5N0Dx7kIKIVrAY4ir07dIa1
+         r0UXng6pVBOwL6PaAexVkHZAH4DPo0hKq9SYLMoZX0m/IPPmBMfntZtbV4vS0yejnr9o
+         BmvBg4snPG/tZrGr6yxfoiEcG3A3XPpDlyx56N3vEWmlNWZXGsHUVEveKtqAvLPic+cJ
+         T/pA==
+X-Gm-Message-State: APjAAAX2vW2Ijhu5ukDhdNWXvyyFCPLnTfzqrCToxOK21ubE5264OZ0q
+	76KRXsl6Wq9Up8AJjuxe7cyl1yYTr8EZJ2Gw1/lPF1xdSXwGGU4Ina7c6eDNIUa/8dxrPIeNcsU
+	g1twrvCVXb3hVeTfwxTjE20whSXrDSuBa7Iek6z8SyJqAE7lMPGzkA2CDm8UbBjR3jw==
+X-Received: by 2002:a17:902:728a:: with SMTP id d10mr1798620pll.90.1558679687650;
+        Thu, 23 May 2019 23:34:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzk/V6Y+/9Ho2LmTZfmbZqn/J0tc6eqWr6RJstgUnFqW86ADEe5vH0WKMtw90uXrmkqllz4
+X-Received: by 2002:a17:902:728a:: with SMTP id d10mr1798585pll.90.1558679686881;
+        Thu, 23 May 2019 23:34:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558679686; cv=none;
         d=google.com; s=arc-20160816;
-        b=f5cNyTf3Ge06s32O2dk+nDrMXDVaqiyOa1P6gg33LDxP+IQZtvT74HhY36rWldVg6f
-         LSRlIqqRnGF8FOS7S8CigRPImQsdicR1JBz24e9eVdElbm5eardKhWyuzX4cYskPqTpn
-         5a3tcMLapOoLL+eH7zdjAoKPBwOLkNp+ElmaIorNSBOIZKF+0vFRYtTcctUj7Ozg6whP
-         toJhum9xbV3orP9V67gLWJ1FhUO2Y81KiU5C0dXUVmJ13+rAYZuE7lx7cUYpFIniLETc
-         xIsW3OGQzsbIELgPSoRCJY6ZLsCJdLufmvM1JcG3Jb1+sM/fuKaNSBvKVgjCoABeE4p0
-         m7uQ==
+        b=jiSWrhW1p8kfUW9nWCFblBdJJi1tQqI1t5sBHd1q5XpUorV6q1DtSmNQ86ahHUnqST
+         J0aSR5Y3Nu2dLj4FMcXopDK6wBKoOkb+eXqULRHJbQee3Vp9lPepjeZL99A5QgNpa7GW
+         jXF2hmRrE1ci5Av0tLL1hl+DMVVR/bcA0vq3MRw3dtYmFkNY5I96KkCEnvPpkQC3x+r1
+         42O2+66FNV+zrs+DMyg85k1OXJ+fJLUdGpw8lgGKC6wiXWbQe7SVXKHW3cWWiwCldP4f
+         uFy5xpEsRsxM/P1Anh3gqKTcZT6YAWnwszNH8KqJAonZBcnxjytfNmFAv8SQo0/sp4kD
+         SXkg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=bmdTSJYIf0UASnQRz1FyYRCr2E+59ic8jJRr7WCLF+A=;
-        b=OJOc5r2fLeHDsAcTSzNZlH4M3y2k3Jj9XL8/9dq/Jkr1DIAm3700dDFOpb/SRE+AfJ
-         qUPGwYcK8mKYjrjRLNXo0RANtk51IltMhOTSQBkax+/6ZQ8xPY7QMIpesz0zSfmlwb8e
-         Ma5FssyibSces6aX/UbwLrNkcp0PY9vNo3C06nfqMw90zHmWsmPsIxZjHc5sy3Scthgr
-         o1Sk0hJbblx0IvD9Je6JFEa0VyJniViCyYg79ye4y/YfX2pFl0RSv52XwJsAGoAVPzEg
-         8Np/v7/yN/+3ANYKREK3dbvNApFwpPbaUCTOTz8cIhRy17dRkVMYPEr7wJOQKYBb3nwj
-         jBgw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=u2o3UzKkWTUfB1f82a7SGgQAWjeYiA8xLwM3pufnUuk=;
+        b=aMPPq36A3PpZmgi23u8iYM8n+6ZbH/i/KEs10/VoFL3qFTW8tJ5mN7TyHkYixculxT
+         B+bq0duwiqjna47EshNb9SmtBUPIDgnsfHPod05cx5PvDhhgn21cYaNYkQKmHJMlHsth
+         H35FVllo1g+aTonzC40oLx2OykNcrcdfpqt5vzEAp9yBrLO3T1vJnoYf1IUGRIGpCd43
+         eUJy0rmH7wjUjvgnkh0Vmy2xUlkWFmf1KfoJetTGCMT397voBPRvUQM1l0v5XuB8mB9H
+         fa/94zRhYpYN+BgXwH6kbFO0NS3ydpDhYDECaFRxD/IMAF9cZouCnZ8r2jAS1cRskiS2
+         MxQA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-130.freemail.mail.aliyun.com (out30-130.freemail.mail.aliyun.com. [115.124.30.130])
-        by mx.google.com with ESMTPS id e67si2722246pgc.11.2019.05.23.23.00.03
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=N5xiqRQb;
+       spf=pass (google.com: best guess record for domain of batv+78cc17f237ae777ce2e2+5752+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+78cc17f237ae777ce2e2+5752+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d27si2751902pgl.202.2019.05.23.23.34.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 May 2019 23:00:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) client-ip=115.124.30.130;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 23 May 2019 23:34:46 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+78cc17f237ae777ce2e2+5752+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.130 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R201e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04400;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=12;SR=0;TI=SMTPD_---0TSXfk8M_1558677600;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TSXfk8M_1558677600)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 24 May 2019 14:00:01 +0800
-Subject: Re: [v4 PATCH 2/2] mm: vmscan: correct some vmscan counters for
-To: Hillf Danton <hdanton@sina.com>
-Cc: ying.huang@intel.com, hannes@cmpxchg.org, mhocko@suse.com,
- mgorman@techsingularity.net, kirill.shutemov@linux.intel.com,
- josef@toxicpanda.com, hughd@google.com, shakeelb@google.com,
- akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190524055125.3036-1-hdanton@sina.com>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <fbc9a823-7e6a-f923-92e1-c7e93a256aff@linux.alibaba.com>
-Date: Fri, 24 May 2019 14:00:00 +0800
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=N5xiqRQb;
+       spf=pass (google.com: best guess record for domain of batv+78cc17f237ae777ce2e2+5752+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+78cc17f237ae777ce2e2+5752+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=u2o3UzKkWTUfB1f82a7SGgQAWjeYiA8xLwM3pufnUuk=; b=N5xiqRQbHA+cr341IMqdw3WRQ
+	J7QcoS7dgTMX7zji3unStp3THlp87kkVok02ZaDqTyJbMiKs3Fai2BOv522JbCFs9EJDZV2biDi9K
+	5l0JvFczpAiCfj6UXURHVCpx/KyxMvernW1LjZncqrH+x3f0Vz8z/uoVQsGYCMJyRlBNxZxsBMyGB
+	rdlRL0VKbK9fArypn1AO18jR+PGWpIjnhosCn7xejkd/26F8ooB+3f5Dl5UypAzatEG1uJ1qTZHhY
+	q+sojMX4NpLVbtKVlN0+C8DySDGNLIAIu6uwytVX93Ctigm+LIvHpMjd9qOmBisJFTY+s1kPHKdPE
+	sAdxfTf5A==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hU3mt-0005Al-Db; Fri, 24 May 2019 06:34:43 +0000
+Date: Thu, 23 May 2019 23:34:43 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Kirill Tkhai <ktkhai@virtuozzo.com>, linux-mm@kvack.org
+Subject: Re: [PATCH] mm: Introduce page_size()
+Message-ID: <20190524063443.GA11151@infradead.org>
+References: <20190510181242.24580-1-willy@infradead.org>
+ <eb4db346-fe5f-5b3e-1a7b-d92aee03332c@virtuozzo.com>
+ <20190522130318.4ad4dda1169e652528ecd7af@linux-foundation.org>
+ <20190523015511.GD6738@bombadil.infradead.org>
+ <20190523143315.9191b62231fc57942b490079@linux-foundation.org>
+ <20190523214402.GA1075@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20190524055125.3036-1-hdanton@sina.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190523214402.GA1075@bombadil.infradead.org>
+User-Agent: Mutt/1.9.2 (2017-12-15)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, May 23, 2019 at 02:44:02PM -0700, Matthew Wilcox wrote:
+> > I think you'll find that PAGE_SIZE is unsigned long on all
+> > architectures.
+> 
+> arch/openrisc/include/asm/page.h:#define PAGE_SIZE       (1 << PAGE_SHIFT)
 
+Well, the whole context is:
 
-On 5/24/19 1:51 PM, Hillf Danton wrote:
-> On Fri, 24 May 2019 09:27:02 +0800 Yang Shi wrote:
->> On 5/23/19 11:51 PM, Hillf Danton wrote:
->>> On Thu, 23 May 2019 10:27:38 +0800 Yang Shi wrote:
->>>> @ -1642,14 +1650,14 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->>>>    	unsigned long nr_zone_taken[MAX_NR_ZONES] = { 0 };
->>>>    	unsigned long nr_skipped[MAX_NR_ZONES] = { 0, };
->>>>    	unsigned long skipped = 0;
->>>> -	unsigned long scan, total_scan, nr_pages;
->>>> +	unsigned long scan, total_scan;
->>>> +	unsigned long nr_pages;
->>> Change for no earn:)
->> Aha, yes.
->>
->>>>    	LIST_HEAD(pages_skipped);
->>>>    	isolate_mode_t mode = (sc->may_unmap ? 0 : ISOLATE_UNMAPPED);
->>>> +	total_scan = 0;
->>>>    	scan = 0;
->>>> -	for (total_scan = 0;
->>>> -	     scan < nr_to_scan && nr_taken < nr_to_scan && !list_empty(src);
->>>> -	     total_scan++) {
->>>> +	while (scan < nr_to_scan && !list_empty(src)) {
->>>>    		struct page *page;
->>> AFAICS scan currently prevents us from looping for ever, while nr_taken bails
->>> us out once we get what's expected, so I doubt it makes much sense to cut
->>> nr_taken off.
->> It is because "scan < nr_to_scan && nr_taken >= nr_to_scan" is
->> impossible now with the units fixed.
->>
-> With the units fixed, nr_taken is no longer checked.
+ifdef __ASSEMBLY__
+#define PAGE_SIZE       (1 << PAGE_SHIFT)
+#else
+#define PAGE_SIZE       (1UL << PAGE_SHIFT)
+#endif
 
-It is because scan would be always >= nr_taken.
+Which reminds me that there is absolutely not point in letting
+architectures even defined this.
 
->
->>>>    		page = lru_to_page(src);
->>>> @@ -1657,9 +1665,12 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->>>>    		VM_BUG_ON_PAGE(!PageLRU(page), page);
->>>> +		nr_pages = 1 << compound_order(page);
->>>> +		total_scan += nr_pages;
->>>> +
->>>>    		if (page_zonenum(page) > sc->reclaim_idx) {
->>>>    			list_move(&page->lru, &pages_skipped);
->>>> -			nr_skipped[page_zonenum(page)]++;
->>>> +			nr_skipped[page_zonenum(page)] += nr_pages;
->>>>    			continue;
->>>>    		}
->>>> @@ -1669,10 +1680,9 @@ static unsigned long isolate_lru_pages(unsigned long nr_to_scan,
->>>>    		 * ineligible pages.  This causes the VM to not reclaim any
->>>>    		 * pages, triggering a premature OOM.
->>>>    		 */
->>>> -		scan++;
->>>> +		scan += nr_pages;
->>> The comment looks to defy the change if we fail to add a huge page to
->>> the dst list; otherwise nr_taken knows how to do the right thing. What
->>> I prefer is to let scan to do one thing a time.
->> I don't get your point. Do you mean the comment "Do not count skipped
->> pages because that makes the function return with no isolated pages if
->> the LRU mostly contains ineligible pages."? I'm supposed the comment is
->> used to explain why not count skipped page.
->>
-> Well consider the case where there is a huge page in the second place
-> reversely on the src list along with other 20 regular pages, and we are
-> not able to add the huge page to the dst list. Currently we can go on and
-> try to scan other pages, provided nr_to_scan is 32; with the units fixed,
-> however, scan goes over nr_to_scan, leaving us no chance to scan any page
-> that may be not busy. I wonder that triggers a premature OOM, because I
-> think scan means the number of list nodes we try to isolate, and
-> nr_taken the number of regular pages successfully isolated.
-
-Yes, good point. I think I just need roll back to what v3 did here to 
-get scan accounted for each case separately to avoid the possible 
-over-account.
-
->>>>    		switch (__isolate_lru_page(page, mode)) {
->>>>    		case 0:
->>>> -			nr_pages = hpage_nr_pages(page);
->>>>    			nr_taken += nr_pages;
->>>>    			nr_zone_taken[page_zonenum(page)] += nr_pages;
->>>>    			list_move(&page->lru, dst);
->>>> --
->>>> 1.8.3.1
-> Best Regards
-> Hillf
+Add a Kconfig PAGE_SHIFT symbol, and let common code define
+PAGE_SHIFT/PAGE_SIZE/PAGE_MASK..
 
