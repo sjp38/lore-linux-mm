@@ -3,99 +3,108 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D2D8C282E3
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 10:43:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6BB30C072B5
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 10:45:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2DCA2217F9
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 10:43:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DCA2217F9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 3C122217D7
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 10:45:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C122217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BB7C06B0005; Fri, 24 May 2019 06:43:00 -0400 (EDT)
+	id D3B8C6B0005; Fri, 24 May 2019 06:45:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B685E6B0007; Fri, 24 May 2019 06:43:00 -0400 (EDT)
+	id CC4466B0007; Fri, 24 May 2019 06:45:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A55C16B000A; Fri, 24 May 2019 06:43:00 -0400 (EDT)
+	id B8C7E6B000A; Fri, 24 May 2019 06:45:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 540D16B0005
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 06:43:00 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id x16so13516351edm.16
-        for <linux-mm@kvack.org>; Fri, 24 May 2019 03:43:00 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 53D366B0005
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 06:45:56 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id b29so1593214lfo.17
+        for <linux-mm@kvack.org>; Fri, 24 May 2019 03:45:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=+jVfA2CCya8e7TQrZKJhRiJKDbB4ooZugW7xIpPmfpA=;
-        b=U5dsUr02DvlVty56X2xGMPTIgeve2XyJ21kF6Dew1xUL68G1/SOykcy6OVHPSnfSpr
-         gMmLFU9xl1IqaN8JfXIGc8cETXZXoUYAF+7G/OGXXIoJL2lij8m7ZhM7IpbQ5KeMmjjF
-         GEnciGCxcZJxNFAWDHe/vEfCFVPjTf7EB0/T/iUPsnwFRHt3WoXLsnYbi31xDaXZNUzn
-         XFE7CoD9ooKm7GXQtu+98jHoZ6PTRV1Gl2CE5xLEnLQx88p7QvLzF70BmC+0HF5e0rj3
-         H1a5AKyj4RSMrzG/V65gqiA91ENW8SJ8n7q2kfhbs/FE1KS7XfQ4zAL+kniXFegkIbTn
-         U8qA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
-X-Gm-Message-State: APjAAAUPqiR1efT1mJeyn/pZu3IBrmywVFeOKTi2jI4mPy0zmQrl144w
-	CZYhXy8YRJS5R8Cv81mR+FP0KEgkGfFoYXQDtC9jbliv07Z4I1s1NhF5cF2r04QVdtFI1qd0izj
-	TEArLewdyJB8M19qK2fbOSKv1TeXXLgWlzUl4hCm06giXwccib9MLzp54tBdzsjF3Jw==
-X-Received: by 2002:a50:974d:: with SMTP id d13mr104839642edb.209.1558694579902;
-        Fri, 24 May 2019 03:42:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxaIdLdvyOE8Ajt2ClV0Z/r3jD8lLqKUAqa1IKDiyLG3TJThjebcuvi38vjFGTnmbglAkW5
-X-Received: by 2002:a50:974d:: with SMTP id d13mr104839566edb.209.1558694579080;
-        Fri, 24 May 2019 03:42:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558694579; cv=none;
+        bh=EHzBNm7jpoAZqEAdIPtmn9MMNs37cXWjlC4ginYqACk=;
+        b=npNZjOFjeBpy6QtgChgEV5vDPDCjlyXmARElKsCowcblHJ2+PEDnEfNAUqGj5ay7gn
+         2A1oI1uODGmn7fAIvVbENV3TW/69t5/3EpQYNttYL85HBwFIj6NYyfXpGu7GMgurmrB7
+         pwVGp+bxEIBLp4yipSFqBbvyqXmfDCTPxIQ7DvqAqJOTGp721MfYN5FKBYXleb2cpQma
+         kK4conGf/LqTBLwlm/g31vWtbAzve4pL6rFQp861MjXfgMY697xJbM6Y6HIXwZC7kAFO
+         OGQ3ktlVuJlfnLxwKoMkVDSbnG8FISxcVM/FdseXReOrj5Z26cq6xpfeazUb5WfxJKVR
+         EW+g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAUNUeE+mLYskEEN3M8WhRfgS8gjynPSxxx0WY7lhCDyeN00cC5U
+	uxZBemKnW/r+VHxunH1St0tUHlNVqVTCdon+Sj0cmhcuGndGUA1FFUbx1LZ/y23k3LdIzvLJdAK
+	l3sD8Yv9Va+xksE355Ak1bVMyz5OsQNZQpHM1h1C/I4oLm1c3IgFUrAmCAVZWa9gQXg==
+X-Received: by 2002:a2e:8143:: with SMTP id t3mr27797863ljg.131.1558694755792;
+        Fri, 24 May 2019 03:45:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzYCXZfBUH0O9W96n4N2e56p7LymZtEyHxtGvLZjRsqQPm94K++UZVSwTiafZ5KzE0w08VR
+X-Received: by 2002:a2e:8143:: with SMTP id t3mr27797797ljg.131.1558694754465;
+        Fri, 24 May 2019 03:45:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558694754; cv=none;
         d=google.com; s=arc-20160816;
-        b=sNqMEsZOpgCxBSOkFm+dttaICn+Iz65SQQm7LJdW2LYlLlcCpXQN2kxcpHDiUlI7OL
-         t8HYSkCRtaws52e6XHlaE5dEuwmSzoS4r5Ozk9Va44p8SqgTspmhPj70IFlmpHpxm9w+
-         tNCV3F9MqLvDIywinSTsQhD7GwI0MNYzOrhqrBfJnhAgkYWBk95kbv78QyWtKHwveUYg
-         MfrTGHCTucTMnD9eBIFU1w82bl7/Xh9bKmCHRYZHbqnvUK4/TxrjPkNmORv9hKm+umSW
-         Areq8hf6j60/sa61AcHxKRHPXRjgAwVJ9rhKk/kp9h1JcQuWHZTn+1kL2aw4QQAKMxzv
-         f5nA==
+        b=tY5RBDewbavFXVe/TG3c49roouT0lAR21YueJZUi8WFoSWslu6SlndRCxzmaQtx7Tz
+         F3Rzqe02hCilhKu5Mx/rrepWlMjZg6HrrN/Dg6iGh2xoDhFS+xRBwKu4OLgFIydtRqgZ
+         PXtsvUTdlEWR+LSh+LOH4pcYX6LT/9SV6C0WeSpliCY9kG1Z40U1oFoTZjvDPdtaeGkW
+         rCFx1eusTZIxovnnD2YxBEfz49Gw57qw0JjsPZRUk+Uzfv+2G8NkVkw9B+bFtppi3tob
+         tLOSJOq6qNrXZV8fHy6scxkkM/BCUyPEJsQEVKA8cmvR1PoIt7V1nHx123WYg7BJoohU
+         aJ0Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=+jVfA2CCya8e7TQrZKJhRiJKDbB4ooZugW7xIpPmfpA=;
-        b=IlBFXl/8oUGE1h86psDFDE1+0ki9nxKq00exJYQDq00a/Wj9KaZWRb3gq46fbsU85d
-         tQnAlL50PUOEWWRSAE04vEWeT8RZd6QxqH9oGXdpphdQXnFIHXf2Yc4O2pbfJJtbEfJb
-         GU9iQDqsd1KQaMYilpG0JCtXkvsztOxnBMznO3xx2KvME4+vfsle+rGB3GlwGtOUk4/W
-         nD4ledFxgyI4+0JE7XViqaL5eI9vr29SNpYFOQhn3mQyWc30mAq0XjeBP6LUPPhCe3on
-         CvKLmNauzN2fEkPPxQvkVmAK0AI+PXezpj5q8sVJs35igxcfna5AgYWb/2ehIvalDli0
-         DGRQ==
+        bh=EHzBNm7jpoAZqEAdIPtmn9MMNs37cXWjlC4ginYqACk=;
+        b=zvitNolggHnWNMV8mGUu+4ugzcNr9lIHl5KVUJScJBcbWS+LiMKXK7GKQHuH2KSTFe
+         /wHCBMEy0s1Z5ddVmXI94i03VPhJ7ndKrKOr3VGfi1nh0p5BcH6GYw+aB7OpS4YkVWiw
+         wVERLiOTwWSgUUiAEYKndrXhjgyjEB9nNmliDv7me3hUriAIE0b2Iua8pfe1GogDlWSi
+         ym91XUkxtod4iXQbfrgomgEiIm+pChE+wG3ZrkOfXUYwnFiQtKG0Qqxx4kHd0jMkyxKz
+         CjR/AfwJ6jzL2sMBYrF8RZrsNrxnJDVFMZyYc/p22fKmYgdLxcvV9/Imiyz6tP0He/xp
+         2x1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w50si1601138edc.110.2019.05.24.03.42.58
-        for <linux-mm@kvack.org>;
-        Fri, 24 May 2019 03:42:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id e3si2258991ljg.124.2019.05.24.03.45.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 May 2019 03:45:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of suzuki.poulose@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=suzuki.poulose@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D473B374;
-	Fri, 24 May 2019 03:42:57 -0700 (PDT)
-Received: from [10.1.196.93] (en101.cambridge.arm.com [10.1.196.93])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5690D3F703;
-	Fri, 24 May 2019 03:42:56 -0700 (PDT)
-Subject: Re: mm/compaction: BUG: NULL pointer dereference
-To: mgorman@techsingularity.net
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com,
- cai@lca.pw, linux-kernel@vger.kernel.org, marc.zyngier@arm.com,
- kvmarm@lists.cs.columbia.edu, kvm@vger.kernel.org
-References: <1558689619-16891-1-git-send-email-suzuki.poulose@arm.com>
- <20190524103924.GN18914@techsingularity.net>
-From: Suzuki K Poulose <suzuki.poulose@arm.com>
-Message-ID: <98b93f38-64a7-dcd1-c027-6d1195f3380f@arm.com>
-Date: Fri, 24 May 2019 11:42:54 +0100
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hU7hv-00060o-CJ; Fri, 24 May 2019 13:45:51 +0300
+Subject: Re: [PATCH v2 0/7] mm: process_vm_mmap() -- syscall for duplication a
+ process mapping
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com,
+ keith.busch@intel.com, kirill.shutemov@linux.intel.com,
+ alexander.h.duyck@linux.intel.com, ira.weiny@intel.com,
+ andreyknvl@google.com, arunks@codeaurora.org, vbabka@suse.cz, cl@linux.com,
+ riel@surriel.com, keescook@chromium.org, hannes@cmpxchg.org,
+ npiggin@gmail.com, mathieu.desnoyers@efficios.com, shakeelb@google.com,
+ guro@fb.com, aarcange@redhat.com, hughd@google.com, jglisse@redhat.com,
+ mgorman@techsingularity.net, daniel.m.jordan@oracle.com, jannh@google.com,
+ kilobyte@angband.pl, linux-api@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org
+References: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
+ <20190522152254.5cyxhjizuwuojlix@box>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <358bb95e-0dca-6a82-db39-83c0cf09a06c@virtuozzo.com>
+Date: Fri, 24 May 2019 13:45:50 +0300
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190524103924.GN18914@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15; format=flowed
+In-Reply-To: <20190522152254.5cyxhjizuwuojlix@box>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -104,67 +113,39 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
-
-Thanks for your quick response.
-
-On 24/05/2019 11:39, Mel Gorman wrote:
-> On Fri, May 24, 2019 at 10:20:19AM +0100, Suzuki K Poulose wrote:
->> Hi,
->>
->> We are hitting NULL pointer dereferences while running stress tests with KVM.
->> See splat [0]. The test is to spawn 100 VMs all doing standard debian
->> installation (Thanks to Marc's automated scripts, available here [1] ).
->> The problem has been reproduced with a better rate of success from 5.1-rc6
->> onwards.
->>
->> The issue is only reproducible with swapping enabled and the entire
->> memory is used up, when swapping heavily. Also this issue is only reproducible
->> on only one server with 128GB, which has the following memory layout:
->>
->> [32GB@4GB, hole , 96GB@544GB]
->>
->> Here is my non-expert analysis of the issue so far.
->>
->> Under extreme memory pressure, the kswapd could trigger reset_isolation_suitable()
->> to figure out the cached values for migrate/free pfn for a zone, by scanning through
->> the entire zone. On our server it does so in the range of [ 0x10_0000, 0xa00_0000 ],
->> with the following area of holes : [ 0x20_0000, 0x880_0000 ].
->> In the failing case, we end up setting the cached migrate pfn as : 0x508_0000, which
->> is right in the center of the zone pfn range. i.e ( 0x10_0000 + 0xa00_0000 ) / 2,
->> with reset_migrate = 0x88_4e00, reset_free = 0x10_0000.
->>
->> Now these cached values are used by the fast_isolate_freepages() to find a pfn. However,
->> since we cant find anything during the search we fall back to using the page belonging
->> to the min_pfn (which is the migrate_pfn), without proper checks to see if that is valid
->> PFN or not. This is then passed on to fast_isolate_around() which tries to do :
->> set_pageblock_skip(page) on the page which blows up due to an NULL mem_section pointer.
->>
->> The following patch seems to fix the issue for me, but I am not quite convinced that
->> it is the right fix. Thoughts ?
->>
+On 22.05.2019 18:22, Kirill A. Shutemov wrote:
+> On Mon, May 20, 2019 at 05:00:01PM +0300, Kirill Tkhai wrote:
+>> This patchset adds a new syscall, which makes possible
+>> to clone a VMA from a process to current process.
+>> The syscall supplements the functionality provided
+>> by process_vm_writev() and process_vm_readv() syscalls,
+>> and it may be useful in many situation.
 > 
-> I think the patch is valid and the alternatives would be unnecessarily
-> complicated. During a normal scan for free pages to isolate, there
-> is a check for pageblock_pfn_to_page() which uses a pfn_valid check
-> for non-contiguous zones in __pageblock_pfn_to_page. Now, while the
-
-I had the initial version with the pageblock_pfn_to_page(), but as you said,
-it is a complicated way of perform the same check as pfn_valid().
-
-> non-contiguous check could be made in the area you highlight, it would be a
-> relatively small optimisation that would be unmeasurable overall. However,
-> it is definitely the case that if the PFN you highlight is invalid that
-> badness happens. If you want to express this as a signed-off patch with
-> an adjusted changelog then I'd be happy to add
-
-Sure, will send it right away.
-
+> Kirill, could you explain how the change affects rmap and how it is safe.
 > 
-> Reviewed-by: Mel Gorman <mgorman@techsingularity.net>
+> My concern is that the patchset allows to map the same page multiple times
+> within one process or even map page allocated by child to the parrent.
 > 
+> It was not allowed before.
+> 
+> In the best case it makes reasoning about rmap substantially more difficult.
+> 
+> But I'm worry it will introduce hard-to-debug bugs, like described in
+> https://lwn.net/Articles/383162/.
 
-Thanks.
+Andy suggested to unmap PTEs from source page table, and this make the single
+page never be mapped in the same process twice. This is OK for my use case,
+and here we will just do a small step "allow to inherit VMA by a child process",
+which we didn't have before this. If someone still needs to continue the work
+to allow the same page be mapped twice in a single process in the future, this
+person will have a supported basis we do in this small step. I believe, someone
+like debugger may want to have this to make a fast snapshot of a process private
+memory (when the task is stopped for a small time to get its memory). But for
+me remapping is enough at the moment.
 
-Suzuki
+What do you think about this?
+
+[...]
+
+Kirill
 
