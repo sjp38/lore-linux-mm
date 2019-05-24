@@ -2,220 +2,295 @@ Return-Path: <SRS0=0yrr=TY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA4F1C282E1
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 14:24:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 915AEC072B5
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 14:26:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BC4D820868
-	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 14:24:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC4D820868
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 4401520863
+	for <linux-mm@archiver.kernel.org>; Fri, 24 May 2019 14:26:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Ymf3dbVV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4401520863
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3E3556B000A; Fri, 24 May 2019 10:24:06 -0400 (EDT)
+	id DCC986B000A; Fri, 24 May 2019 10:26:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 397346B000C; Fri, 24 May 2019 10:24:06 -0400 (EDT)
+	id D7D096B000C; Fri, 24 May 2019 10:26:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2AAB86B000D; Fri, 24 May 2019 10:24:06 -0400 (EDT)
+	id C45676B000D; Fri, 24 May 2019 10:26:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D16556B000A
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 10:24:05 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id r48so14418515eda.11
-        for <linux-mm@kvack.org>; Fri, 24 May 2019 07:24:05 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A4C136B000A
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 10:26:05 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id v15so8295878ybe.13
+        for <linux-mm@kvack.org>; Fri, 24 May 2019 07:26:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=/ni3H7vmzRcpLi5zY2OG4Vfzj9SMruM5cp3s3+OGOqM=;
-        b=e3oBwCsvlz3uGiLsjkEleycKBmdjnB5olCmWS1vwx1KFHNk76SqymMMNvl2or7KFQN
-         P4WRt1dxY6LxSnbY7t9sKcUqWV/0V+248yUUGezLIuZHhOAgURotxudZEUxwO5FF+NVk
-         JFcNCQWc3vulOwUvqFehyL3tMPDHFFkzdWrENOXTTXLfQGH62erocGccC6al0x/rECEa
-         idCuteI/ODJP1e2Ep7EHEmUKvv0Hb1yvGSGtEz+ik2JpsRinAbv/Dc3OwSU0afaC4z+r
-         4sW5fJx1bnDA3RiPx8IHimc6gAJlvyTtd2QtrQ9vF7o3W6vh6t3ilkdaEXFARnRbZLm3
-         zFvQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-X-Gm-Message-State: APjAAAXVurd95b1nuSH2Ran5+ONDn8bWdfwhp0z/4GPFOqPY/CtJUiFu
-	cb4/fgyjdm154EguaeCoMDXsmnfen8pKfcT+OOTBCdZemyChIwSUbR+z7qLoNKmLm7pP6vD57Od
-	XdHsCMlGJvonpTHPQFowJGA5dUutEDW/TELe5zSirXK/7V1AYbGaxCcfO7+17wjUqYg==
-X-Received: by 2002:a17:906:3482:: with SMTP id g2mr27303109ejb.186.1558707845379;
-        Fri, 24 May 2019 07:24:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxupKBwYaSIn3/hBXRJXvqOEaHOCUaitwMe0KOPxj7nEBKBHq/sLyBEBN17hYcsFn4xw+20
-X-Received: by 2002:a17:906:3482:: with SMTP id g2mr27303001ejb.186.1558707844373;
-        Fri, 24 May 2019 07:24:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558707844; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=OJhMCvW2kp8bOu0Aj9xHYqe11sQBRT1hGdecAvzomjs=;
+        b=T7FxwcJ5Gq/S+C9QuvELagOVxrisReLaGJh072fk1wfapTW07oOqf2j1Ulq2J/89uT
+         0bxvmmbn5GUnZmI9ZfNFaRN6vfSHegI0KDhHqwjODyMhnUlOqGtiNk0pCTurAYsDWTDh
+         Wx1ELBs0GnPKS+tDrcPZXCXEuBKfJ/O+Jqj/LAUKjzJV8AgewWVB5nbFIr6zG/qdO7IS
+         S8a1EHSOIzJjgWcstGcGi5Eq1ZFoinf38OsZ0kF1M8eqlW5CTMS9guoAbAipkVSx4Sup
+         W0VticBycTXdQpob95cdKpock8uSobKU37MCyIL3G2wsDN9grYqNZdbK4AMdqmso2jNN
+         5DnQ==
+X-Gm-Message-State: APjAAAWX9OY83+CkLnhuAWGS5IFRSEZCSp64JzvRvdGVZGWj/PPkn8fV
+	XrZerMmoSO01RNG/p6/Hr8JjI3cR1u2DcbNb3uheigg5Jww0DVCGjn9S84Anin8ClByM+ltDKUZ
+	YC4jeDJvClekHp2SWf83wCXrPZmZxpToivAIKdz+d2h1Kzdz7kXkKjIK5SwLc6YOHIg==
+X-Received: by 2002:a81:5806:: with SMTP id m6mr46250102ywb.102.1558707965239;
+        Fri, 24 May 2019 07:26:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwzyYCL/aMl3Xg9FmXTQmOG93wO0GDBb9pDsX5n2iWGgGznDaGRm797yno3I8g9AbuDVQuu
+X-Received: by 2002:a81:5806:: with SMTP id m6mr46250036ywb.102.1558707964069;
+        Fri, 24 May 2019 07:26:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558707964; cv=none;
         d=google.com; s=arc-20160816;
-        b=Yt1EezsJEURyqQLB3lvZ/WRn/wf9GHizoIlMYA2AgK6zh8UkNgUIw7Y4V+pR7duodn
-         lioGP9Z8PRv4QzcMx2f9m4A2/FaAKcuYKp721W/0QIVZQWoitYktyqZZeZYSbboRJAYs
-         Vu7kPPu2RIDrmGrX8powXkahN3zJmVgix3330cZsZ1gtZlFVPrc4CvNAKe8V9pmGbkVA
-         I3SUb+fB80g+//xmIpnszFon62rzFkFjxhABYL4WXokgGPYTUk29zVfPmlVaKHZjQ8c+
-         av/YwAMMA7zV8FBobhyzZ/FIz9b1q4rqYb5Wrn59drZSTO91k5Vp3gGVPYKO8N+eiv+Z
-         FtEQ==
+        b=I0fPx0JRMxwVZUUYwqekW2UHHbwShdt+SXC5oGPiNwT3kMmEOUpf0laDVSN47cuRks
+         brGzLhENUgFIpqecn+tEWq5WEIFbd1aJHeKEHdFSt/UDLP5utXgPNcBBmH4nvbebkhee
+         H6T6IMxnXt8YKnub074BCVj8OAMvAfpiP9uIPFNrSt6/Ks5p0mcWiL8//xehNUKtZ1vq
+         hIBulyTbfEzvHxUnAbWkz6sIeeRH0dl6B6nnPWNuULLbseugxxSQ+K5DPJJYGTBa7B+L
+         /9zIpVipsQ8Ybxhq9cBuM5fA8+MezATN5BU4fzj6vjmiJk7qq+gF3JCJ5Fgvctaoo9Vp
+         unzA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=/ni3H7vmzRcpLi5zY2OG4Vfzj9SMruM5cp3s3+OGOqM=;
-        b=p1ZZPwxT36oKqnHF2l6wBa/EiwxB/D1UKjR2Hf/coT+hPY5qVaMF+AIzb6C3i2QPX1
-         RMLNsuQ+JuoY/PY/N4mSPgCIdOR0O5zcXqEf5aGn1BSSnMrD8x7b+DgW+ydmNjsEs3uN
-         HS4KXWaYYQjUs8e9MMesZvW7Xc3fm06YykIZ5YKOuK16X/9fH0/petvggWLm6ox9NrJf
-         slaP8s4EvI3NBFr0XXoYabFsEHYPXD+LlnLJm3WSJErehK2+6hn+DSEdpRlJd+swGFKi
-         aqSoB5hkivQMZ7mLml33vLerKn895/U9ukMIk8H2l+4RYI8m8y+Qxqj8ysY7V2MfrSqZ
-         th3g==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=OJhMCvW2kp8bOu0Aj9xHYqe11sQBRT1hGdecAvzomjs=;
+        b=weLs32OkvAu6Z1iXr2tiCIscyhEh6/Yi5Bp+ExUPYlw0khDK9LEKuaUai77Fyh6fiY
+         yZDhbZ9ZYbEqdS1W+SPMgKSltmNaljBLXYgV6rwB19tDI2pmbU71wiUU2/kq9DKTw4EX
+         JPoCmZoylWsEtGw7kKdH1Z+LqMId+PeSx49nSmRrRDnX7iLOSGCMr9l++DL+NvN4Fqm6
+         mAEINMV9djPpf/4x8w0Lf+Oi66PmkdlcukyJkC86+//yfbJyO7v7aV2LsTNzLYLaFKYH
+         iyTKsnP17RaptP7b/yUdeRgQuH/m7BTUbiAftd4Ikyhp7tm6XKQYzaPgD7uC2iIBZ8kj
+         LOPw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id v11si1802958ejo.14.2019.05.24.07.24.03
-        for <linux-mm@kvack.org>;
-        Fri, 24 May 2019 07:24:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Ymf3dbVV;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id j185si958771ywf.80.2019.05.24.07.26.03
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 May 2019 07:26:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 268E8A78;
-	Fri, 24 May 2019 07:24:03 -0700 (PDT)
-Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 65CAA3F575;
-	Fri, 24 May 2019 07:23:57 -0700 (PDT)
-Date: Fri, 24 May 2019 15:23:54 +0100
-From: Dave Martin <Dave.Martin@arm.com>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, kvm@vger.kernel.org,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Will Deacon <will.deacon@arm.com>, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, linux-kselftest@vger.kernel.org,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Leon Romanovsky <leon@kernel.org>, linux-rdma@vger.kernel.org,
-	amd-gfx@lists.freedesktop.org, Jason Gunthorpe <jgg@ziepe.ca>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Evgeniy Stepanov <eugenis@google.com>, linux-media@vger.kernel.org,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	linux-arm-kernel@lists.infradead.org,
-	Kostya Serebryany <kcc@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	linux-kernel@vger.kernel.org,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Ymf3dbVV;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4OE8bjv170883;
+	Fri, 24 May 2019 14:25:48 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=OJhMCvW2kp8bOu0Aj9xHYqe11sQBRT1hGdecAvzomjs=;
+ b=Ymf3dbVVSk/usGv/LWyN8I3YdUizbsu/NiEI/I45nxcgQtjyJP24xaCjavUVvrMsM2O6
+ yEP3RCJrHDJF5nnRuz4iw9XN7owpeQqjW6DAcNsFAO79ZSNGKG1WbLKp1rBvO3sJA5Dr
+ +fBrLpy1lQu6d91Ea6iJuVHlzyPxZBxwhYSSJ8nFZjA8cuYTCNKl6zTycOpBAIsWwpl+
+ g1GFUsvpVXx8ufMZ3zfNa2womboo5KLhh4oJCIIc9jToeIVyIP/Opv9xH3hpRByfsilL
+ vIwIH66z4yFn+YxGOtQgVRvyfsmkvl77RxspM3YzOuGKjPJ5b3GlOA6tg3BSpgx4LR4x mw== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by aserp2130.oracle.com with ESMTP id 2smsk5sewf-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 24 May 2019 14:25:48 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4OEPft9008165;
+	Fri, 24 May 2019 14:25:48 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserp3030.oracle.com with ESMTP id 2smsgtwpfx-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 24 May 2019 14:25:47 +0000
+Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4OEPkT8002811;
+	Fri, 24 May 2019 14:25:46 GMT
+Received: from [192.168.1.16] (/24.9.64.241)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Fri, 24 May 2019 14:25:45 +0000
 Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
-Message-ID: <20190524142352.GY28398@e103592.cambridge.arm.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Kees Cook <keescook@chromium.org>, Evgenii Stepanov <eugenis@google.com>,
+        Andrey Konovalov <andreyknvl@google.com>,
+        Linux ARM <linux-arm-kernel@lists.infradead.org>,
+        Linux Memory Management List <linux-mm@kvack.org>,
+        LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
+        dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+        linux-media@vger.kernel.org, kvm@vger.kernel.org,
+        "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+        Vincenzo Frascino <vincenzo.frascino@arm.com>,
+        Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+        Yishai Hadas <yishaih@mellanox.com>,
+        Felix Kuehling
+ <Felix.Kuehling@amd.com>,
+        Alexander Deucher <Alexander.Deucher@amd.com>,
+        Christian Koenig <Christian.Koenig@amd.com>,
+        Mauro Carvalho Chehab <mchehab@kernel.org>,
+        Jens Wiklander <jens.wiklander@linaro.org>,
+        Alex Williamson <alex.williamson@redhat.com>,
+        Leon Romanovsky <leon@kernel.org>, Dmitry Vyukov <dvyukov@google.com>,
+        Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
+        Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+        Jacob Bramley <Jacob.Bramley@arm.com>,
+        Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+        Robin Murphy <robin.murphy@arm.com>,
+        Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+        Dave Martin <Dave.Martin@arm.com>,
+        Kevin Brodsky <kevin.brodsky@arm.com>,
+        Szabolcs Nagy <Szabolcs.Nagy@arm.com>, Elliott Hughes <enh@google.com>
 References: <cover.1557160186.git.andreyknvl@google.com>
  <20190517144931.GA56186@arrakis.emea.arm.com>
- <20190521184856.GC2922@ziepe.ca>
- <20190522134925.GV28398@e103592.cambridge.arm.com>
- <20190523002052.GF15389@ziepe.ca>
- <20190523104256.GX28398@e103592.cambridge.arm.com>
- <20190523165708.q6ru7xg45aqfjzpr@mbp>
+ <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
+ <20190521182932.sm4vxweuwo5ermyd@mbp> <201905211633.6C0BF0C2@keescook>
+ <6049844a-65f5-f513-5b58-7141588fef2b@oracle.com>
+ <20190523201105.oifkksus4rzcwqt4@mbp>
+ <ffe58af3-7c70-d559-69f6-1f6ebcb0fec6@oracle.com>
+ <20190524101139.36yre4af22bkvatx@mbp>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Organization: Oracle Corp
+Message-ID: <c6dd53d8-142b-3d8d-6a40-d21c5ee9d272@oracle.com>
+Date: Fri, 24 May 2019 08:25:42 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190523165708.q6ru7xg45aqfjzpr@mbp>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+In-Reply-To: <20190524101139.36yre4af22bkvatx@mbp>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9266 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905240096
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9266 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905240096
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 23, 2019 at 05:57:09PM +0100, Catalin Marinas wrote:
-> On Thu, May 23, 2019 at 11:42:57AM +0100, Dave P Martin wrote:
-> > On Wed, May 22, 2019 at 09:20:52PM -0300, Jason Gunthorpe wrote:
-> > > On Wed, May 22, 2019 at 02:49:28PM +0100, Dave Martin wrote:
-> > > > If multiple people will care about this, perhaps we should try to
-> > > > annotate types more explicitly in SYSCALL_DEFINEx() and ABI data
-> > > > structures.
-> > > > 
-> > > > For example, we could have a couple of mutually exclusive modifiers
-> > > > 
-> > > > T __object *
-> > > > T __vaddr * (or U __vaddr)
-> > > > 
-> > > > In the first case the pointer points to an object (in the C sense)
-> > > > that the call may dereference but not use for any other purpose.
-> > > 
-> > > How would you use these two differently?
-> > > 
-> > > So far the kernel has worked that __user should tag any pointer that
-> > > is from userspace and then you can't do anything with it until you
-> > > transform it into a kernel something
-> > 
-> > Ultimately it would be good to disallow casting __object pointers execpt
-> > to compatible __object pointer types, and to make get_user etc. demand
-> > __object.
-> > 
-> > __vaddr pointers / addresses would be freely castable, but not to
-> > __object and so would not be dereferenceable even indirectly.
-> 
-> I think it gets too complicated and there are ambiguous cases that we
-> may not be able to distinguish. For example copy_from_user() may be used
-> to copy a user data structure into the kernel, hence __object would
-> work, while the same function may be used to copy opaque data to a file,
-> so __vaddr may be a better option (unless I misunderstood your
-> proposal).
+On 5/24/19 4:11 AM, Catalin Marinas wrote:
+> On Thu, May 23, 2019 at 03:49:05PM -0600, Khalid Aziz wrote:
+>> On 5/23/19 2:11 PM, Catalin Marinas wrote:
+>>> On Thu, May 23, 2019 at 11:51:40AM -0600, Khalid Aziz wrote:
+>>>> On 5/21/19 6:04 PM, Kees Cook wrote:
+>>>>> As an aside: I think Sparc ADI support in Linux actually side-stepp=
+ed
+>>>>> this[1] (i.e. chose "solution 1"): "All addresses passed to kernel =
+must
+>>>>> be non-ADI tagged addresses." (And sadly, "Kernel does not enable A=
+DI
+>>>>> for kernel code.") I think this was a mistake we should not repeat =
+for
+>>>>> arm64 (we do seem to be at least in agreement about this, I think).=
 
-Can you illustrate?  I'm not sure of your point here.
+>>>>>
+>>>>> [1] https://lore.kernel.org/patchwork/patch/654481/
+>>>>
+>>>> That is a very early version of the sparc ADI patch. Support for tag=
+ged
+>>>> addresses in syscalls was added in later versions and is in the patc=
+h
+>>>> that is in the kernel.
+>>>
+>>> I tried to figure out but I'm not familiar with the sparc port. How d=
+id
+>>> you solve the tagged address going into various syscall implementatio=
+ns
+>>> in the kernel (e.g. sys_write)? Is the tag removed on kernel entry or=
+ it
+>>> ends up deeper in the core code?
+>>
+>> Another spot I should point out in ADI patch - Tags are not stored in
+>> VMAs and IOMMU does not support ADI tags on M7. ADI tags are stripped
+>> before userspace addresses are passed to IOMMU in the following snippe=
+t
+>> from the patch:
+>>
+>> diff --git a/arch/sparc/mm/gup.c b/arch/sparc/mm/gup.c
+>> index 5335ba3c850e..357b6047653a 100644
+>> --- a/arch/sparc/mm/gup.c
+>> +++ b/arch/sparc/mm/gup.c
+>> @@ -201,6 +202,24 @@ int __get_user_pages_fast(unsigned long start, in=
+t
+>> nr_pages
+>> , int write,
+>>         pgd_t *pgdp;
+>>         int nr =3D 0;
+>>
+>> +#ifdef CONFIG_SPARC64
+>> +       if (adi_capable()) {
+>> +               long addr =3D start;
+>> +
+>> +               /* If userspace has passed a versioned address, kernel=
 
-> We currently have T __user * and I think it's a good starting point. The
-> prior attempt [1] was shut down because it was just hiding the cast
-> using __force. We'd need to work through those cases again and rather
-> start changing the function prototypes to avoid unnecessary casting in
-> the callers (e.g. get_user_pages(void __user *) or come up with a new
-> type) while changing the explicit casting to a macro where it needs to
-> be obvious that we are converting a user pointer, potentially typed
-> (tagged), to an untyped address range. We may need a user_ptr_to_ulong()
-> macro or similar (it seems that we have a u64_to_user_ptr, wasn't aware
-> of it).
-> 
-> It may actually not be far from what you suggested but I'd keep the
-> current T __user * to denote possible dereference.
+>> +                * will not find it in the VMAs since it does not stor=
+e
+>> +                * the version tags in the list of VMAs. Storing versi=
+on
+>> +                * tags in list of VMAs is impractical since they can =
+be
+>> +                * changed any time from userspace without dropping in=
+to
+>> +                * kernel. Any address search in VMAs will be done wit=
+h
+>> +                * non-versioned addresses. Ensure the ADI version bit=
+s
+>> +                * are dropped here by sign extending the last bit bef=
+ore
+>> +                * ADI bits. IOMMU does not implement version tags.
+>> +                */
+>> +               addr =3D (addr << (long)adi_nbits()) >> (long)adi_nbit=
+s();
+>> +               start =3D addr;
+>> +       }
+>> +#endif
+>>         start &=3D PAGE_MASK;
+>>         addr =3D start;
+>>         len =3D (unsigned long) nr_pages << PAGE_SHIFT;
+>=20
+> Thanks Khalid. I missed that sparc does not enable HAVE_GENERIC_GUP, so=
 
-This may not have been clear, but __object and __vaddr would be
-orthogonal to __user.  Since __object and __vaddr strictly constrain
-what can be done with an lvalue, they could be cast on, but not be
-cast off without __force.
+> you fix this case here. If we add the generic untagged_addr() macro in
+> the generic code, I think sparc can start making use of it rather than
+> open-coding the shifts.
 
-Syscall arguments and pointer in ioctl structs etc. would typically
-be annotated as __object __user * or __vaddr __user *.  Plain old
-__user * would work as before, but would be more permissive and give
-static analysers less information to go on.
+Hi Catalin,
 
-Conversion or use or __object or __vaddr pointers would require specific
-APIs in the kernel, so that we can be clear about the semantics.
+Yes, that will be good. Right now addresses are untagged in sparc code
+in only two spots but that will expand as we expand use of tags.
+Scalabale solution is definitely better.
 
-Doing things this way would allow migration to annotation of most or all
-ABI pointers with __object or __vaddr over time, but we wouldn't have to
-do it all in one go.  Problem cases (which won't be the majority) could
-continue to be plain __user.
+>=20
+> There are a few other other places where tags can leak and the core cod=
+e
+> would get confused (for example, madvise()). I presume your user space
+> doesn't exercise them. On arm64 we plan to just allow the C library to
+> tag any new memory allocation, so those core code paths would need to b=
+e
+> covered.
+>=20
+> And similarly, devices, IOMMU, any DMA would ignore tags.
+>=20
+
+Right. You are doing lot more with tags than sparc code intended to do.
+I had looked into implementing just malloc(), mmap() and possibly
+shmat() in library that automatically tags pointers. Expanding tags to
+any pointers in C library will require covering lot more paths in kernel.=
 
 
-This does not magically solve the challenges of MTE, but might provide
-tools that are useful to help avoid bitrot and regressions over time.
+--
+Khalid
 
-I agree though that there might be a fair number of of cases that don't
-conveniently fall under __object or __vaddr semantics.  It's hard to
-know without trying it.
-
-_Most_ syscall arguments seem to be fairly obviously one or another
-though, and this approach has some possibility of scaling to ioctls
-and other odd interfaces.
-
-Cheers
----Dave
 
