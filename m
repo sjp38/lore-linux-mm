@@ -2,102 +2,104 @@ Return-Path: <SRS0=GxOJ=TZ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A2D42C282E1
-	for <linux-mm@archiver.kernel.org>; Sat, 25 May 2019 01:45:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C2E4C282E1
+	for <linux-mm@archiver.kernel.org>; Sat, 25 May 2019 01:45:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2586D2081C
-	for <linux-mm@archiver.kernel.org>; Sat, 25 May 2019 01:45:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 15B772081C
+	for <linux-mm@archiver.kernel.org>; Sat, 25 May 2019 01:45:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="K5N+Xnyh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2586D2081C
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="e7HPbN4b"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15B772081C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4F1F76B0008; Fri, 24 May 2019 21:45:28 -0400 (EDT)
+	id D57E96B000C; Fri, 24 May 2019 21:45:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4A3816B000A; Fri, 24 May 2019 21:45:28 -0400 (EDT)
+	id D06696B0010; Fri, 24 May 2019 21:45:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36AEC6B000C; Fri, 24 May 2019 21:45:28 -0400 (EDT)
+	id B5A686B000E; Fri, 24 May 2019 21:45:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 00E916B0008
-	for <linux-mm@kvack.org>; Fri, 24 May 2019 21:45:28 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id cc5so7048743plb.12
-        for <linux-mm@kvack.org>; Fri, 24 May 2019 18:45:27 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C6F86B000A
+	for <linux-mm@kvack.org>; Fri, 24 May 2019 21:45:29 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id d125so5193631pfd.3
+        for <linux-mm@kvack.org>; Fri, 24 May 2019 18:45:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=Skm0BooE8bru2DUWoCfdtPEN/f8K6576ki1g23+28oU=;
-        b=LmcjQH5uURTsKJT2dFVaG1w7180yQ8el2qVuy0DeaUqNXj8VpMYsOQCtURwTvPpolG
-         uBX/hChbLIhxhpUtRTrPVFyV0lb2hAB6QHhsIKIpjM4V+YAOokuUvaaHjK7t0EpPTc65
-         fukis4sKychR9YnxlADHvsMYt3SLZAeynFmdHZOB8nfum4Roqwx9KOZ0syJR5yCVBg5p
-         HLTP0bjoVWOrZAOF3PSzX9DzBVuwDPezXPoM6R9Wd3ppqoidmlyHyhA8vHViPoni0oTx
-         lkSbtWaFC/zGGikTwwxOPQDB/lJWg3I9xBPe7pKjZsjaklYUKNtAb3s6Gx/ShAdM3ztT
-         RAxA==
-X-Gm-Message-State: APjAAAVFVGGXCstZ12QM0DAC+PiOskXkvv+y54q0Ul36e7axkdzNFKZg
-	TIeQivClNACxhCNqzkl77kjW58rNqK8gtJLm/g5mBBtDAia3La5iNhiGA6mXvvyCtV/guvOMVza
-	Rt95KB9N1EHzCnXF/YeF8ft3kB6xJUwxT1RzhoVlBxDLiKWOKzCCJE2lpKjNsTop+2A==
-X-Received: by 2002:a17:90a:3848:: with SMTP id l8mr13691780pjf.142.1558748727546;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=mLhDg6S0CfqQOqCrIKbk67a0F1vWJTX9vUy8kGziMYM=;
+        b=YzHeaWBJ2CKyhZg7Hqo76jBU4JyTH9ZPiRJKXYbXNMeqYRfQ8+R+NMve4UmHvCcvZx
+         wEJJYNt5do/5pgwmb27T8qWeaxgzpCYoOnlVvnfqCHCLHAPCZzPJl9IgGuZ/yrPloiyb
+         Mo5+hMXa0n5H2D6ap+G5+xpAseOYdnAqNNak6hRXTd3jbGTi7s60Q9sdulafHL9faP0H
+         xObbmy32chY9pzj/MlBQ+WW92Awy9FmiIYPZVum67YVq8aPG5JcTn824TWxm1By/t4jM
+         2CXO33KeBj1Viqb50Kg52cBEAfFU+ZaaZs7UyBL2DaFaClm71CmpKX2X7t+BH6z0J5Gl
+         jTog==
+X-Gm-Message-State: APjAAAWyX0tgIYgqYbXVRpJurzhOi9M+3cCUuORr+aiicCjRAOoYqnVi
+	7cDVNCROpIfRYCu0PpnllkRWDcmq4smoo001KvL2wm2sbfL8QGH02mqPnZkoZFWF0d7drvL6Owb
+	gJy3NgAKlQFIXNWaOxCWF9S6xf+2GmTmimKLj7ePudeyFPTdDBBcjLsJIc/oXaI8AsQ==
+X-Received: by 2002:a17:90a:a00a:: with SMTP id q10mr13400440pjp.102.1558748728981;
+        Fri, 24 May 2019 18:45:28 -0700 (PDT)
+X-Received: by 2002:a17:90a:a00a:: with SMTP id q10mr13400340pjp.102.1558748727501;
         Fri, 24 May 2019 18:45:27 -0700 (PDT)
-X-Received: by 2002:a17:90a:3848:: with SMTP id l8mr13691699pjf.142.1558748726363;
-        Fri, 24 May 2019 18:45:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558748726; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1558748727; cv=none;
         d=google.com; s=arc-20160816;
-        b=YftFSquSBLY+GimZqICdqmBIfbfiTfbqqc/LTNXPkZIUfj/VHMCF1RZ2OUbzCYYbGh
-         tgAb7yhcHz159JOeFAiCtnjztm2XnF/i4RMdLQDN4YWpEM9XPj0NR9kYlboUyH2q7M0E
-         BtBI1h+gcG218BC//plsyZR+oelJOn7wDaLkvhFfQ0enO57m0jRdgoSvhRRNDphbfiqU
-         H6u0OHEJ3pkJwqXQO829QFAsNBoW3RbXuG5lOMDYo+V+I0qB0b7Luh9OR+ZrZ2xKKdvu
-         HoJocjQdhBjLBhWPOHL0N98nKUts89m0pei1O0UXWi0SYZOSfv/QXOTG8FnDuPXc09ZK
-         xFWA==
+        b=e4bKQzf+ymkYdVZ+bjkHmnDaPUs+8x+xgtMWtev+tsJZVvrwIvqCk7pkATtXh1fH2K
+         KiplSghj7oZDx8Izwm1oeBpCWHzQaIzfVvwSkAP44Nx4aECzqzzgbzvMonp9fUPrAIg2
+         06q1z2I/IEgp9GopxwqaKqeIWCKkX6VHpUk4IzUum3PqOdJ/Qj6Wujy7MDzryVbKKAIu
+         LeK73muPpGOeI/oYz4cnYwt6Pcxf+SQztVZaFG3EMoePXsKcUm92RkvQuX9WqBGs7/lj
+         oE/myGDieTruYaqsCAf0UDF9ZoqBqNzbEpsvDyuVPQ+Z9TTe+qNePLD/kOcKpbn3IMts
+         JYkw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=Skm0BooE8bru2DUWoCfdtPEN/f8K6576ki1g23+28oU=;
-        b=v9b8uPeEzYcRTNy1ioE7qaMitkE7tZ/c5/n4MjERWserP4kbxX0nailG4zBdx0mFR/
-         xrm4n6UVUPLJON1kgRIGRq98z0pPtc77UHEdXOcUNDrbh+ifK7aHo5sQhujP7DwJHLBt
-         RTO22+Hoo7EFGh92mgGZhSSx9To03mX8EmPM8SYTd3pHi/w8olCSPs/CsX3KJ7shMtyl
-         MgaIxcr5SoidBmQgMZneoCQeVcGP64/fwolRxHg1QETuQtmRR1bgh90IMKZncABCbng3
-         fsDfmfKlsK2rdKwddtbtUyJT1poxE3V2cejr6oCu9nw4Xvhl5Tl5WalV/kw8gkYEnKC1
-         shTA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=mLhDg6S0CfqQOqCrIKbk67a0F1vWJTX9vUy8kGziMYM=;
+        b=KRucDm/rti6AIEtfAIRMxlnaACoDLtZ+VfZQmsCBxlbysDg9QbiLv7WxrDfMdUTRkf
+         tWPRXSLj5XO420ji1JsIaBttZiqIm8oNvGk3EW23prLxu0etCSFOpIWua1ua5ECVsm2R
+         dmVAJ/f7+69eZbZoodNTlQ3LqMNBn+iHgLWe56LMFEENB81vNffTokIeqLuRjhwrZ4o0
+         3TSoebAPgbqf1WkOWwf5eA9IBdL2rsi5ECANUrUXNGtvobcux06caiYceoq7/6T3zbPq
+         tzuy4fPaZ0VMC8j6Yc5ale49D127MfUWTVlJJX4PaAjSFQ/j1CG1h5SaxL8rNW/dOYI7
+         7RFw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=K5N+Xnyh;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=e7HPbN4b;
        spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p4sor5340370plk.55.2019.05.24.18.45.26
+        by mx.google.com with SMTPS id s22sor2795323pgg.83.2019.05.24.18.45.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 24 May 2019 18:45:26 -0700 (PDT)
+        Fri, 24 May 2019 18:45:27 -0700 (PDT)
 Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=K5N+Xnyh;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=e7HPbN4b;
        spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=Skm0BooE8bru2DUWoCfdtPEN/f8K6576ki1g23+28oU=;
-        b=K5N+XnyhqbWmWhUFvHOx/ERUs9BUIfMuHlfBr6gTOB6CFeaYPRdw4zcRM1nYTEHTOU
-         xBoX1wV8yIbIWcxiaxJ3nG+vzjoVEjeR7osDiXIRft7fmyDpFasAhmzfHZvtlSf7KKVw
-         pwvJ3/LmrBOBrGfkhf1J68H6E4w2H+AmDUMngEweiFNd8EdDYF1hqRD68Y4BPN/VIyZg
-         wrwtDwL/00b8fvLVUrAtRplkJJT4BzxxCjbLsBL+JbOO0Kh/+refSPYawJT+HI6SOFHn
-         y+R8Rc47sHq9eihpvoqo1aFOedQPZFFGUm100G1iExkf6ax6Lxju2syMwDIScZTO9kTd
-         tCVg==
-X-Google-Smtp-Source: APXvYqzPm1svpXwxu1qbq8IVYDweHwhOwp0Qkbxn4JKbwdQNGlhYtqaAT122dNOctLZcYWMWiq2KDg==
-X-Received: by 2002:a17:902:aa97:: with SMTP id d23mr110476812plr.313.1558748725891;
-        Fri, 24 May 2019 18:45:25 -0700 (PDT)
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=mLhDg6S0CfqQOqCrIKbk67a0F1vWJTX9vUy8kGziMYM=;
+        b=e7HPbN4bXPknB1QlMB8ogWOwmPQuvifFCvd3p0OhyrHduD754ko52JLzEq2E48Jhmc
+         IgpGH4T84idsz4IP1QmWllXw9eonYcY5u8XT3E3Lcn1BLcdzFnqYPqTLjM5oRlkq5ii9
+         VVsr189mmFhQ1/u+/W7IPN2qECQ3iFQnry2yjyOj42tSLqxGb/Tpf33/icmkR8hex2hm
+         VSGmCd2KEqXE+PQzRPbA1vhjSt5petiQpBoTTn/+yGOpR806HBIPp9T06dsJTQOA6jYc
+         XwR2HR2oivTAp6tH7vlLBzmeZbOOzpl4RjhbYbxdsu7RSGVKE43FDlAgMtC60MozXeS7
+         XcSw==
+X-Google-Smtp-Source: APXvYqyuK2N5hJVqOg+ZibTBAXUV8Ga5lYSzBAp1zUbNCf5cUSfj+CoVMfODGNLl3MRQV7CUt0d+kA==
+X-Received: by 2002:a63:dc15:: with SMTP id s21mr19217487pgg.215.1558748727173;
+        Fri, 24 May 2019 18:45:27 -0700 (PDT)
 Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
-        by smtp.gmail.com with ESMTPSA id x6sm5441611pgr.36.2019.05.24.18.45.23
+        by smtp.gmail.com with ESMTPSA id x6sm5441611pgr.36.2019.05.24.18.45.25
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 May 2019 18:45:24 -0700 (PDT)
+        Fri, 24 May 2019 18:45:26 -0700 (PDT)
 From: john.hubbard@gmail.com
 X-Google-Original-From: jhubbard@nvidia.com
 To: Andrew Morton <akpm@linux-foundation.org>,
@@ -112,16 +114,18 @@ Cc: Jason Gunthorpe <jgg@ziepe.ca>,
 	Dennis Dalessandro <dennis.dalessandro@intel.com>,
 	Christian Benvenuti <benve@cisco.com>,
 	Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@mellanox.com>,
 	Ira Weiny <ira.weiny@intel.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
-Subject: [PATCH v2 0/1] infiniband/mm: convert put_page() to put_user_page*()
-Date: Fri, 24 May 2019 18:45:21 -0700
-Message-Id: <20190525014522.8042-1-jhubbard@nvidia.com>
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Jason Gunthorpe <jgg@mellanox.com>
+Subject: [PATCH v2] infiniband/mm: convert put_page() to put_user_page*()
+Date: Fri, 24 May 2019 18:45:22 -0700
+Message-Id: <20190525014522.8042-2-jhubbard@nvidia.com>
 X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190525014522.8042-1-jhubbard@nvidia.com>
+References: <20190525014522.8042-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
-X-NVConfidentiality: public
 Content-Type: text/plain; charset=UTF-8
+X-NVConfidentiality: public
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -131,41 +135,45 @@ List-ID: <linux-mm.kvack.org>
 
 From: John Hubbard <jhubbard@nvidia.com>
 
-Hi Jason and all,
+For infiniband code that retains pages via get_user_pages*(),
+release those pages via the new put_user_page(), or
+put_user_pages*(), instead of put_page()
 
-I've added Jerome's and Ira's Reviewed-by tags. Other than that, this patch
-is the same as v1.
+This is a tiny part of the second step of fixing the problem described
+in [1]. The steps are:
 
-==========================================================================
-Earlier cover letter:
+1) Provide put_user_page*() routines, intended to be used
+   for releasing pages that were pinned via get_user_pages*().
 
-IIUC, now that we have the put_user_pages() merged in to linux.git, we can
-start sending up the callsite conversions via different subsystem
-maintainer trees. Here's one for linux-rdma.
+2) Convert all of the call sites for get_user_pages*(), to
+   invoke put_user_page*(), instead of put_page(). This involves dozens of
+   call sites, and will take some time.
 
-I've left the various Reviewed-by: and Tested-by: tags on here, even
-though it's been through a few rebases.
+3) After (2) is complete, use get_user_pages*() and put_user_page*() to
+   implement tracking of these pages. This tracking will be separate from
+   the existing struct page refcounting.
 
-If anyone has hardware, it would be good to get a real test of this.
+4) Use the tracking and identification of these pages, to implement
+   special handling (especially in writeback paths) when the pages are
+   backed by a filesystem. Again, [1] provides details as to why that is
+   desirable.
 
-thanks,
---
-John Hubbard
-NVIDIA
+[1] https://lwn.net/Articles/753027/ : "The Trouble with get_user_pages()"
 
 Cc: Doug Ledford <dledford@redhat.com>
 Cc: Jason Gunthorpe <jgg@ziepe.ca>
 Cc: Mike Marciniszyn <mike.marciniszyn@intel.com>
 Cc: Dennis Dalessandro <dennis.dalessandro@intel.com>
 Cc: Christian Benvenuti <benve@cisco.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Ira Weiny <ira.weiny@intel.com>
-Cc: Jérôme Glisse <jglisse@redhat.com>
 
-John Hubbard (1):
-  infiniband/mm: convert put_page() to put_user_page*()
-
+Reviewed-by: Jan Kara <jack@suse.cz>
+Reviewed-by: Dennis Dalessandro <dennis.dalessandro@intel.com>
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+Acked-by: Jason Gunthorpe <jgg@mellanox.com>
+Tested-by: Ira Weiny <ira.weiny@intel.com>
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+---
  drivers/infiniband/core/umem.c              |  7 ++++---
  drivers/infiniband/core/umem_odp.c          | 10 +++++-----
  drivers/infiniband/hw/hfi1/user_pages.c     | 11 ++++-------
@@ -175,6 +183,190 @@ John Hubbard (1):
  drivers/infiniband/hw/usnic/usnic_uiom.c    |  7 ++++---
  7 files changed, 27 insertions(+), 31 deletions(-)
 
+diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
+index e7ea819fcb11..673f0d240b3e 100644
+--- a/drivers/infiniband/core/umem.c
++++ b/drivers/infiniband/core/umem.c
+@@ -54,9 +54,10 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
+ 
+ 	for_each_sg_page(umem->sg_head.sgl, &sg_iter, umem->sg_nents, 0) {
+ 		page = sg_page_iter_page(&sg_iter);
+-		if (!PageDirty(page) && umem->writable && dirty)
+-			set_page_dirty_lock(page);
+-		put_page(page);
++		if (umem->writable && dirty)
++			put_user_pages_dirty_lock(&page, 1);
++		else
++			put_user_page(page);
+ 	}
+ 
+ 	sg_free_table(&umem->sg_head);
+diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
+index f962b5bbfa40..17e46df3990a 100644
+--- a/drivers/infiniband/core/umem_odp.c
++++ b/drivers/infiniband/core/umem_odp.c
+@@ -487,7 +487,7 @@ void ib_umem_odp_release(struct ib_umem_odp *umem_odp)
+  * The function returns -EFAULT if the DMA mapping operation fails. It returns
+  * -EAGAIN if a concurrent invalidation prevents us from updating the page.
+  *
+- * The page is released via put_page even if the operation failed. For
++ * The page is released via put_user_page even if the operation failed. For
+  * on-demand pinning, the page is released whenever it isn't stored in the
+  * umem.
+  */
+@@ -536,7 +536,7 @@ static int ib_umem_odp_map_dma_single_page(
+ 	}
+ 
+ out:
+-	put_page(page);
++	put_user_page(page);
+ 
+ 	if (remove_existing_mapping) {
+ 		ib_umem_notifier_start_account(umem_odp);
+@@ -659,7 +659,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
+ 					ret = -EFAULT;
+ 					break;
+ 				}
+-				put_page(local_page_list[j]);
++				put_user_page(local_page_list[j]);
+ 				continue;
+ 			}
+ 
+@@ -686,8 +686,8 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
+ 			 * ib_umem_odp_map_dma_single_page().
+ 			 */
+ 			if (npages - (j + 1) > 0)
+-				release_pages(&local_page_list[j+1],
+-					      npages - (j + 1));
++				put_user_pages(&local_page_list[j+1],
++					       npages - (j + 1));
+ 			break;
+ 		}
+ 	}
+diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
+index 02eee8eff1db..b89a9b9aef7a 100644
+--- a/drivers/infiniband/hw/hfi1/user_pages.c
++++ b/drivers/infiniband/hw/hfi1/user_pages.c
+@@ -118,13 +118,10 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
+ void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
+ 			     size_t npages, bool dirty)
+ {
+-	size_t i;
+-
+-	for (i = 0; i < npages; i++) {
+-		if (dirty)
+-			set_page_dirty_lock(p[i]);
+-		put_page(p[i]);
+-	}
++	if (dirty)
++		put_user_pages_dirty_lock(p, npages);
++	else
++		put_user_pages(p, npages);
+ 
+ 	if (mm) { /* during close after signal, mm can be NULL */
+ 		atomic64_sub(npages, &mm->pinned_vm);
+diff --git a/drivers/infiniband/hw/mthca/mthca_memfree.c b/drivers/infiniband/hw/mthca/mthca_memfree.c
+index 8ff0e90d7564..edccfd6e178f 100644
+--- a/drivers/infiniband/hw/mthca/mthca_memfree.c
++++ b/drivers/infiniband/hw/mthca/mthca_memfree.c
+@@ -482,7 +482,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
+ 
+ 	ret = pci_map_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
+ 	if (ret < 0) {
+-		put_page(pages[0]);
++		put_user_page(pages[0]);
+ 		goto out;
+ 	}
+ 
+@@ -490,7 +490,7 @@ int mthca_map_user_db(struct mthca_dev *dev, struct mthca_uar *uar,
+ 				 mthca_uarc_virt(dev, uar, i));
+ 	if (ret) {
+ 		pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
+-		put_page(sg_page(&db_tab->page[i].mem));
++		put_user_page(sg_page(&db_tab->page[i].mem));
+ 		goto out;
+ 	}
+ 
+@@ -556,7 +556,7 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
+ 		if (db_tab->page[i].uvirt) {
+ 			mthca_UNMAP_ICM(dev, mthca_uarc_virt(dev, uar, i), 1);
+ 			pci_unmap_sg(dev->pdev, &db_tab->page[i].mem, 1, PCI_DMA_TODEVICE);
+-			put_page(sg_page(&db_tab->page[i].mem));
++			put_user_page(sg_page(&db_tab->page[i].mem));
+ 		}
+ 	}
+ 
+diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
+index f712fb7fa82f..bfbfbb7e0ff4 100644
+--- a/drivers/infiniband/hw/qib/qib_user_pages.c
++++ b/drivers/infiniband/hw/qib/qib_user_pages.c
+@@ -40,13 +40,10 @@
+ static void __qib_release_user_pages(struct page **p, size_t num_pages,
+ 				     int dirty)
+ {
+-	size_t i;
+-
+-	for (i = 0; i < num_pages; i++) {
+-		if (dirty)
+-			set_page_dirty_lock(p[i]);
+-		put_page(p[i]);
+-	}
++	if (dirty)
++		put_user_pages_dirty_lock(p, num_pages);
++	else
++		put_user_pages(p, num_pages);
+ }
+ 
+ /**
+diff --git a/drivers/infiniband/hw/qib/qib_user_sdma.c b/drivers/infiniband/hw/qib/qib_user_sdma.c
+index 0c204776263f..ac5bdb02144f 100644
+--- a/drivers/infiniband/hw/qib/qib_user_sdma.c
++++ b/drivers/infiniband/hw/qib/qib_user_sdma.c
+@@ -317,7 +317,7 @@ static int qib_user_sdma_page_to_frags(const struct qib_devdata *dd,
+ 		 * the caller can ignore this page.
+ 		 */
+ 		if (put) {
+-			put_page(page);
++			put_user_page(page);
+ 		} else {
+ 			/* coalesce case */
+ 			kunmap(page);
+@@ -631,7 +631,7 @@ static void qib_user_sdma_free_pkt_frag(struct device *dev,
+ 			kunmap(pkt->addr[i].page);
+ 
+ 		if (pkt->addr[i].put_page)
+-			put_page(pkt->addr[i].page);
++			put_user_page(pkt->addr[i].page);
+ 		else
+ 			__free_page(pkt->addr[i].page);
+ 	} else if (pkt->addr[i].kvaddr) {
+@@ -706,7 +706,7 @@ static int qib_user_sdma_pin_pages(const struct qib_devdata *dd,
+ 	/* if error, return all pages not managed by pkt */
+ free_pages:
+ 	while (i < j)
+-		put_page(pages[i++]);
++		put_user_page(pages[i++]);
+ 
+ done:
+ 	return ret;
+diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.c b/drivers/infiniband/hw/usnic/usnic_uiom.c
+index e312f522a66d..0b0237d41613 100644
+--- a/drivers/infiniband/hw/usnic/usnic_uiom.c
++++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
+@@ -75,9 +75,10 @@ static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
+ 		for_each_sg(chunk->page_list, sg, chunk->nents, i) {
+ 			page = sg_page(sg);
+ 			pa = sg_phys(sg);
+-			if (!PageDirty(page) && dirty)
+-				set_page_dirty_lock(page);
+-			put_page(page);
++			if (dirty)
++				put_user_pages_dirty_lock(&page, 1);
++			else
++				put_user_page(page);
+ 			usnic_dbg("pa: %pa\n", &pa);
+ 		}
+ 		kfree(chunk);
 -- 
 2.21.0
 
