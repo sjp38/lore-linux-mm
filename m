@@ -2,185 +2,146 @@ Return-Path: <SRS0=xW7F=T2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 71A0BC282E3
-	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 15:49:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B5F0C28CBF
+	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 17:26:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1726D20815
-	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 15:49:50 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="CQdUPBgP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1726D20815
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id C7EEC20815
+	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 17:26:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7EEC20815
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ucw.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 98AB16B000A; Sun, 26 May 2019 11:49:50 -0400 (EDT)
+	id 1533C6B000D; Sun, 26 May 2019 13:26:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 914C96B000C; Sun, 26 May 2019 11:49:50 -0400 (EDT)
+	id 104026B000E; Sun, 26 May 2019 13:26:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7DC566B000D; Sun, 26 May 2019 11:49:50 -0400 (EDT)
+	id F0D826B0010; Sun, 26 May 2019 13:26:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 18EB66B000A
-	for <linux-mm@kvack.org>; Sun, 26 May 2019 11:49:50 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id h1so2718655ljj.14
-        for <linux-mm@kvack.org>; Sun, 26 May 2019 08:49:50 -0700 (PDT)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A4AAF6B000D
+	for <linux-mm@kvack.org>; Sun, 26 May 2019 13:26:10 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id y204so3516899wmd.7
+        for <linux-mm@kvack.org>; Sun, 26 May 2019 10:26:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=n4m+LiumTm1QgY7CqTcS7kpSCtNHRS8I7/w8UUQMGTQ=;
-        b=DhxfP2WFs6s2jJ6RCeP/Fg6Ef0TKZe75GN6ouf7psEiPUKGvgl9XAu2+ukuWYrP1H2
-         7VOZMv9Db4uYbMet1kdq3crpKmRog/6wVUM8w0vro1Dj3JBzgHsQfZYSH36xTIZq/zbl
-         vEkqb5TK9q8UDnGeonTk7KD7U9PvVcBSFVAe7RM97UpkdLqPrDzEAR9KJ8DrZPvkb2ur
-         OkyEVSJ/RuCZdHda5nZpV8nHn3blR0Bf3ofZEJQK3+Q1wAwWwBtbbVh8K+RZ18LwDXuG
-         G4zXDuUAp/VnS2DmlK2W3NgDHSbIFjOy7tWzQzTPPRKA9F8EyFm73TQngPGvqAMK0kQA
-         1hag==
-X-Gm-Message-State: APjAAAVey2CpPvEdRWfpCPdw8SHj5I7D43Ot/tt3uuuceW9PLlNoXl8s
-	D5HWG/NrKHCfFmCD25S0cJmvr1GihOUOoSkMDkHYdKSXl1OycsUuHJEVohxJrAU1qqOrjXbec5H
-	3AmbpmjM31JumTSKakKL2hxnv8Y/1fnP1lvoRv9xhuce/w5j1/Rc2MJOw1XTqx0mk1g==
-X-Received: by 2002:a2e:5515:: with SMTP id j21mr32105370ljb.198.1558885789546;
-        Sun, 26 May 2019 08:49:49 -0700 (PDT)
-X-Received: by 2002:a2e:5515:: with SMTP id j21mr32105343ljb.198.1558885788496;
-        Sun, 26 May 2019 08:49:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558885788; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=uBxgdWpNrCpZkjyq48bAbxY/E4kBjXC2I2OkPOfuQK0=;
+        b=CgDaerzYyGxnZLGLRkqORZjTh3p+IEm8cklr6/cOKwPStLhpLaU9Flib8MjjCraQyT
+         serBZDTamqgnZZo/lXf3IR1oquFm8IrCEXzCgZS854CRrS9R25E3q4I6hEiEribjSEf/
+         BOvpjdUmL0NHGKeLS97JNckPP3wU1/m2LT5rc9shjQ2hiJThZr4AS+mTBEYHKcYMHWP+
+         dF9DKqc2HRu2q9n1NqpIW+iEgehiY79EUITCE5OaLRtlTPLgqAe5m1gJsQs5PvGjWINx
+         djcmj7OBP7aMsyGYpOcJL7fn5Hb/dWsFQiQb9AGN+0gsObgw4jcPiS4mYLWsfUADuT31
+         QemQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
+X-Gm-Message-State: APjAAAW2BLvyIYU/Wu1pbEga36ivvySTDj/mVhmoj9mbEVqTkFWLB/ar
+	eYgXJkzM8FabQVvvGs0qqwepUVLnPCBRDhfhIpbTo0yB4FVWJxjIpLty3xzKeuhftS3PeKvaFnT
+	t744ZxUaOLqgRM+Mlr0oUIc0EsGCHLZNE0ijiFQp7mQvaMRiAiepQCZh1zpWMKGQ=
+X-Received: by 2002:a1c:f009:: with SMTP id a9mr22333750wmb.110.1558891570055;
+        Sun, 26 May 2019 10:26:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxLnt9/X6/4a4HuhoYDwChSLOcC+n1fwpZipp25oiksNa+a5visqlIrZmTJl9PBOmvbNnmN
+X-Received: by 2002:a1c:f009:: with SMTP id a9mr22333702wmb.110.1558891568874;
+        Sun, 26 May 2019 10:26:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558891568; cv=none;
         d=google.com; s=arc-20160816;
-        b=oYnp1pipNKt9Bgolrsw8mlK8UzrVq88zQkTWTd9J9W/PaSbExX4C8VJ8H4HBaQmTH+
-         k5616lAhqw4iAbbctgvSpa94hF0iXlbhWvY5hz4xYxJzCPpTmxrJa8Gvyg6fKmKthujk
-         bY7wki6F3JFqvx83LmOOQ9Tm0ISBEq+sG97GY1eVlj3B0DSgarO+Jgk1pgKpf0aJg/v+
-         J/JyaY5MgRj2nO9n9A/dGi+bqq10a023L058GgdyjXMj8tlZ90VskKm+aRnKzcccEZo9
-         ZNv09RgJjEEutwjIzkjaguYKOiJjwS0g3xpHSlAIWtRziAyZmhN6/3K+4B0yEIoLNRLa
-         fotw==
+        b=WpylSwv3NK2Kc1i6sv7LHQQqoJt5zVdOCQe4Fc3haueiZJ2Y2a2WYpwwgRVTHtHX0k
+         +apT119woQ2xDh5z690BWab6OVRf/c8/B8F+teh7TsF7ptz9HRQBZnw7UzQbTiTe7xFp
+         OxnH/iTB/1wt1hCakapmXbxzGQLHqPfN7TCC5nmDw2A3NbOYv5u/uZAD/hcEOPY0Ao0f
+         sdP/4CzPtW4zxTIWpwRxZfehaiFUgS0i7DIlyHG8xxYkvtaI1OgNh2wnSSUaii4AILrQ
+         N8NVhvlPOSSgYwPbwW+tgjRNXu2IM5Rmy0O158Eob+eRHX39clad/yjy7b3g1P+J7AA8
+         Jw7g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=n4m+LiumTm1QgY7CqTcS7kpSCtNHRS8I7/w8UUQMGTQ=;
-        b=ZSj7ihV4kKUWeYCUYYQ7Hv1o4kACS1gkqaiKBo3SGZQPzb2MBHAmlw1P+LcDuEkAaJ
-         Pd7ncWpgNfgjGGRQOLQIMNIEpHmp0hqyrvFJ10esUsJ3VBnHheUTkiVDfPn42yHH905P
-         pN+pUqtUyXnXaozlppw4Vc65P0sGXbhL+AmST9vo2NK0nCWRZVhCvaGjGajNfe2kQAZ+
-         dELfKCEdZ6yvobbxgTJQ9hdpNYZ5XBQtkTs0YGxg1KBCNsB/7ZG35FIZlg9SHCfFe1eF
-         zSZ0LDVAmrxPbTA9nxxnsnqqkuaXXbKYHXX9gLsW8W7wd1fM5+ExlSUaYH7kogg54lBw
-         Q1nQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=uBxgdWpNrCpZkjyq48bAbxY/E4kBjXC2I2OkPOfuQK0=;
+        b=bTGIgSXkaIEHp78X2j1ijKFCwSA7OSu92DYiStieF/g1g3zCfPcTROsqqkN5EQ/v3H
+         orhqj5qryqyc+1YHZTyaKs01u+27RRSO4t56ADVpnqGWObf/6uE9xWAswQWhaa8jf7/e
+         lMt6boDrQHSy93fvqgsYcG0MiCa8Q0ouzmJYzKJTRSd6Z8ZXNwKlaeSQnjx/P6GaNY2O
+         9/Gk1K0zTEb1q09cNqvoHxUw5yNn92kmUwImkoF0FKT8C9BiALZ1AjCzn+siAzeifxa2
+         hcVtHw1U2D9LoiK3nQKv/+GysWc/T2DIUIAqRXSOlw/6zSs8F3YWSTYOm+AWNw6qhwqq
+         EetQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=CQdUPBgP;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p16sor457719lfc.34.2019.05.26.08.49.48
+       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id r5si6482417wma.126.2019.05.26.10.26.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 26 May 2019 08:49:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 26 May 2019 10:26:08 -0700 (PDT)
+Received-SPF: neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) client-ip=195.113.26.193;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=CQdUPBgP;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=n4m+LiumTm1QgY7CqTcS7kpSCtNHRS8I7/w8UUQMGTQ=;
-        b=CQdUPBgPKphNRWvCidFWM4dXfQ0J88+9ox6K3fgr2GI+OeJMLrnw0+uT8t+2/FogzO
-         +PXI/yCxkf5WTo5RRiyfS1cBYUNX309YGN0DpMxcmUjPUCVRHcljTOksbSAGpUuDk3U+
-         PujWZGMtZ+hRfZsUitKWI3JkZsLDJo6PGjdPUhupH5nwS8XtU8WuI64wDFYVbJ1z2uN+
-         uMQWF8njEJmnj/wa9m6u9qEi4bgB0bodrjLiDK5QopKXqn8Omqz/4vHKWHCylf+mTJQT
-         XvVe17GaK8Wpg/EiaHsd2dgtf32iBYPCB1CPcWvOEA+PnnE0BTIYPVEEzgHQLYQKxaW8
-         nhRA==
-X-Google-Smtp-Source: APXvYqyunb1STqBIBU39BsUSnBhhEnB3LeECVtcncwQGw3Y81kvjw/L7+x7FYetvuwFlF8rgcQz0hZKBwylfkIRbEZ0=
-X-Received: by 2002:a19:d1cb:: with SMTP id i194mr55809485lfg.13.1558885788010;
- Sun, 26 May 2019 08:49:48 -0700 (PDT)
+       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
+Received: by atrey.karlin.mff.cuni.cz (Postfix, from userid 512)
+	id 021E4803F7; Sun, 26 May 2019 19:25:57 +0200 (CEST)
+Date: Sun, 26 May 2019 19:25:09 +0200
+From: Pavel Machek <pavel@ucw.cz>
+To: Hugh Dickins <hughd@google.com>
+Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Borislav Petkov <bp@suse.de>
+Subject: Re: [PATCH] mm/gup: continue VM_FAULT_RETRY processing event for
+ pre-faults
+Message-ID: <20190526172509.GC1282@xo-6d-61-c0.localdomain>
+References: <1557844195-18882-1-git-send-email-rppt@linux.ibm.com>
+ <20190522122113.a2edc8aba32f0fad189bae21@linux-foundation.org>
+ <20190522194322.5k52docwgp5zkdcj@linutronix.de>
+ <alpine.LSU.2.11.1905241429460.1141@eggly.anvils>
 MIME-Version: 1.0
-References: <201905261855.ag29CM2I%lkp@intel.com> <CAFqt6zYC0vGozczTTtU0YiM-PiREj-VYuq1PexQCPCpn0OwKVA@mail.gmail.com>
- <VI1PR03MB4206678FD979F4855AE26BA5AC1C0@VI1PR03MB4206.eurprd03.prod.outlook.com>
-In-Reply-To: <VI1PR03MB4206678FD979F4855AE26BA5AC1C0@VI1PR03MB4206.eurprd03.prod.outlook.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Sun, 26 May 2019 21:24:46 +0530
-Message-ID: <CAFqt6zZYkGMGsD2XYdoXunD+fDTRs+3MMAoVVs7s2BWQa=nffw@mail.gmail.com>
-Subject: Re: [kwiboo-linux-rockchip:rockchip-5.1-patches-from-5.3-v5.1.5
- 83/106] drivers/gpu//drm/rockchip/rockchip_drm_gem.c:230:9: error: implicit
- declaration of function 'vm_map_pages'; did you mean 'vma_pages'?
-To: Jonas Karlman <jonas@kwiboo.se>
-Cc: kbuild test robot <lkp@intel.com>, "kbuild-all@01.org" <kbuild-all@01.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1905241429460.1141@eggly.anvils>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 26, 2019 at 9:07 PM Jonas Karlman <jonas@kwiboo.se> wrote:
->
-> On 2019-05-26 17:25, Souptick Joarder wrote:
-> > Hi Jonas,
-> >
-> > On Sun, May 26, 2019 at 4:29 PM kbuild test robot <lkp@intel.com> wrote:
-> >> tree:   https://github.com/Kwiboo/linux-rockchip rockchip-5.1-patches-from-5.3-v5.1.5
-> >> head:   622dad206e3b82c53acac1857f8a6ff970c0d01b
-> >> commit: 4004964b0854f3258032a723627d487882a74380 [83/106] drm/rockchip/rockchip_drm_gem.c: convert to use vm_map_pages()
-> >> config: arm64-allyesconfig (attached as .config)
-> >> compiler: aarch64-linux-gcc (GCC) 7.4.0
-> >> reproduce:
-> >>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
-> >>         chmod +x ~/bin/make.cross
-> >>         git checkout 4004964b0854f3258032a723627d487882a74380
-> >>         # save the attached .config to linux build tree
-> >>         GCC_VERSION=7.4.0 make.cross ARCH=arm64
-> >>
-> >> If you fix the issue, kindly add following tag
-> >> Reported-by: kbuild test robot <lkp@intel.com>
-> >>
-> >> All errors (new ones prefixed by >>):
-> >>
-> >>    drivers/gpu//drm/rockchip/rockchip_drm_gem.c: In function 'rockchip_drm_gem_object_mmap_iommu':
-> >>>> drivers/gpu//drm/rockchip/rockchip_drm_gem.c:230:9: error: implicit declaration of function 'vm_map_pages'; did you mean 'vma_pages'? [-Werror=implicit-function-declaration]
-> >>      return vm_map_pages(vma, rk_obj->pages, count);
-> >>             ^~~~~~~~~~~~
-> >>             vma_pages
-> >>    cc1: some warnings being treated as errors
-> > Looking into https://github.com/Kwiboo/linux-rockchip/blob/rockchip-5.1-patches-from-5.3-v5.1.5/mm/memory.c
-> > vm_map_pages() API is missing. vm_map_pages() merged into 5.2-rc1.
-> > Is the below match merged into  https://github.com/Kwiboo/linux-rockchip ?
-> >
-> > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?h=v5.2-rc1&id=a667d7456f189e3422725dddcd067537feac49c0
->
-> Thanks for looking, I do not know why kbuild test robot have started building from my github tree,
-> I pushed a v5.1 branch with cherry-picked commits from v5.2+next before I did a local build test and kbuild test robot started making some unnecessary noise.
+On Fri 2019-05-24 15:22:51, Hugh Dickins wrote:
+> On Wed, 22 May 2019, Sebastian Andrzej Siewior wrote:
+> > On 2019-05-22 12:21:13 [-0700], Andrew Morton wrote:
+> > > On Tue, 14 May 2019 17:29:55 +0300 Mike Rapoport <rppt@linux.ibm.com> wrote:
+> > > 
+> > > > When get_user_pages*() is called with pages = NULL, the processing of
+> > > > VM_FAULT_RETRY terminates early without actually retrying to fault-in all
+> > > > the pages.
+> > > > 
+> > > > If the pages in the requested range belong to a VMA that has userfaultfd
+> > > > registered, handle_userfault() returns VM_FAULT_RETRY *after* user space
+> > > > has populated the page, but for the gup pre-fault case there's no actual
+> > > > retry and the caller will get no pages although they are present.
+> > > > 
+> > > > This issue was uncovered when running post-copy memory restore in CRIU
+> > > > after commit d9c9ce34ed5c ("x86/fpu: Fault-in user stack if
+> > > > copy_fpstate_to_sigframe() fails").
+> 
+> I've been getting unexplained segmentation violations, and "make" giving
+> up early, when running kernel builds under swapping memory pressure: no
+> CRIU involved.
+> 
+> Bisected last night to that same x86/fpu commit, not itself guilty, but
+> suffering from the odd behavior of get_user_pages_unlocked() giving up
+> too early.
+> 
+> (I wondered at first if copy_fpstate_to_sigframe() ought to retry if
+> non-negative ret < nr_pages, but no, that would be wrong: a present page
+> followed by an invalid area would repeatedly return 1 for nr_pages 2.)
+> 
+> Cc'ing Pavel, who's been having segfault trouble in emacs: maybe same?
 
-Thanks for your quick response. I think, if kbuild picked your github tree
-wrongly, you need to notify kbuild for the same.
+The emacs segfault was always during process exit. This sounds different...
 
-> Will be more careful not to push code before making a local test build.
->
-> Regards,
-> Jonas
->
-> >> vim +230 drivers/gpu//drm/rockchip/rockchip_drm_gem.c
-> >>
-> >>    219
-> >>    220  static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
-> >>    221                                                struct vm_area_struct *vma)
-> >>    222  {
-> >>    223          struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
-> >>    224          unsigned int count = obj->size >> PAGE_SHIFT;
-> >>    225          unsigned long user_count = vma_pages(vma);
-> >>    226
-> >>    227          if (user_count == 0)
-> >>    228                  return -ENXIO;
-> >>    229
-> >>  > 230          return vm_map_pages(vma, rk_obj->pages, count);
-> >>    231  }
-> >>    232
-> >>
-> >> ---
-> >> 0-DAY kernel test infrastructure                Open Source Technology Center
-> >> https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
->
+I don't see problems with make.
+
+But its true that at least one of affected machines uses swap heavily.
+
+Best regards,
+								Pavel
 
