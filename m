@@ -2,146 +2,160 @@ Return-Path: <SRS0=xW7F=T2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B5F0C28CBF
-	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 17:26:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B841AC282E3
+	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 17:33:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C7EEC20815
-	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 17:26:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7EEC20815
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ucw.cz
+	by mail.kernel.org (Postfix) with ESMTP id 8157520815
+	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 17:33:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8157520815
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1533C6B000D; Sun, 26 May 2019 13:26:11 -0400 (EDT)
+	id 0D8B36B0010; Sun, 26 May 2019 13:33:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 104026B000E; Sun, 26 May 2019 13:26:11 -0400 (EDT)
+	id 089C96B0266; Sun, 26 May 2019 13:33:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F0D826B0010; Sun, 26 May 2019 13:26:10 -0400 (EDT)
+	id EBB5E6B0269; Sun, 26 May 2019 13:33:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A4AAF6B000D
-	for <linux-mm@kvack.org>; Sun, 26 May 2019 13:26:10 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id y204so3516899wmd.7
-        for <linux-mm@kvack.org>; Sun, 26 May 2019 10:26:10 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A18E96B0010
+	for <linux-mm@kvack.org>; Sun, 26 May 2019 13:33:37 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id q7so7766402wrw.9
+        for <linux-mm@kvack.org>; Sun, 26 May 2019 10:33:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=uBxgdWpNrCpZkjyq48bAbxY/E4kBjXC2I2OkPOfuQK0=;
-        b=CgDaerzYyGxnZLGLRkqORZjTh3p+IEm8cklr6/cOKwPStLhpLaU9Flib8MjjCraQyT
-         serBZDTamqgnZZo/lXf3IR1oquFm8IrCEXzCgZS854CRrS9R25E3q4I6hEiEribjSEf/
-         BOvpjdUmL0NHGKeLS97JNckPP3wU1/m2LT5rc9shjQ2hiJThZr4AS+mTBEYHKcYMHWP+
-         dF9DKqc2HRu2q9n1NqpIW+iEgehiY79EUITCE5OaLRtlTPLgqAe5m1gJsQs5PvGjWINx
-         djcmj7OBP7aMsyGYpOcJL7fn5Hb/dWsFQiQb9AGN+0gsObgw4jcPiS4mYLWsfUADuT31
-         QemQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
-X-Gm-Message-State: APjAAAW2BLvyIYU/Wu1pbEga36ivvySTDj/mVhmoj9mbEVqTkFWLB/ar
-	eYgXJkzM8FabQVvvGs0qqwepUVLnPCBRDhfhIpbTo0yB4FVWJxjIpLty3xzKeuhftS3PeKvaFnT
-	t744ZxUaOLqgRM+Mlr0oUIc0EsGCHLZNE0ijiFQp7mQvaMRiAiepQCZh1zpWMKGQ=
-X-Received: by 2002:a1c:f009:: with SMTP id a9mr22333750wmb.110.1558891570055;
-        Sun, 26 May 2019 10:26:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxLnt9/X6/4a4HuhoYDwChSLOcC+n1fwpZipp25oiksNa+a5visqlIrZmTJl9PBOmvbNnmN
-X-Received: by 2002:a1c:f009:: with SMTP id a9mr22333702wmb.110.1558891568874;
-        Sun, 26 May 2019 10:26:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558891568; cv=none;
+         :cc:subject:message-id:mime-version:content-disposition:user-agent;
+        bh=cNwt8jxrbWcE5noyG1OUv2kNpkiSO+S3XqdYDpukk7o=;
+        b=Y8s0coZkpbT5buL/XugjDxyv9d8hsj19pOMYGP8Pr3qmpGbDEP1x22AzbUWndqNIRz
+         m/+9pWDjwhZAxPl66Owjvok1m70WtnU1qwI2gDvh5484PrQz2TuQQiMkCr6yjEAEQN8z
+         MqQpRVQFz2vJTN6QVcuEahrwbBWWfYNUrqZOW11gl3nnbTEVjGurAZUQDXumixItc7jf
+         hbkUTOEKWdJ7w6oqvquQ5bnk37BC7hY1r9UjymQ/CuOQ+HlV5eL0TdQdqhUvkSJdqlmh
+         qlaKfuo9YYA6U7+89pnumxzquFMnr/SL7oOEgMJ3Yo9mKdxFvGM2hOmE5esOVns87dLt
+         su9A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+X-Gm-Message-State: APjAAAU1qkpNiisGbSPanWLL8kNrfcBNmz1BkLBMsBJ/W27QpSy3PGDx
+	6O8baGjZqyhsNqaEHP5xshMd9wQkCZ9B+Z8GnJO61yIJrFhHz04KKwRpN0Cm7guP7VR24NN4Khv
+	dOU/aVmsH9meYVUNhiQgjBZAbtv+7hc1dJE3BMxpEr1ckZ7PgLUiv9YSR6fX81VR1HA==
+X-Received: by 2002:adf:afdf:: with SMTP id y31mr67470226wrd.315.1558892017186;
+        Sun, 26 May 2019 10:33:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz8Nrxp24MkBfr7uofufb5krUgf21LyE3moG//UGiQiNG3gF8CoK17yl/2v//5rj9KvxuXl
+X-Received: by 2002:adf:afdf:: with SMTP id y31mr67470196wrd.315.1558892016247;
+        Sun, 26 May 2019 10:33:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558892016; cv=none;
         d=google.com; s=arc-20160816;
-        b=WpylSwv3NK2Kc1i6sv7LHQQqoJt5zVdOCQe4Fc3haueiZJ2Y2a2WYpwwgRVTHtHX0k
-         +apT119woQ2xDh5z690BWab6OVRf/c8/B8F+teh7TsF7ptz9HRQBZnw7UzQbTiTe7xFp
-         OxnH/iTB/1wt1hCakapmXbxzGQLHqPfN7TCC5nmDw2A3NbOYv5u/uZAD/hcEOPY0Ao0f
-         sdP/4CzPtW4zxTIWpwRxZfehaiFUgS0i7DIlyHG8xxYkvtaI1OgNh2wnSSUaii4AILrQ
-         N8NVhvlPOSSgYwPbwW+tgjRNXu2IM5Rmy0O158Eob+eRHX39clad/yjy7b3g1P+J7AA8
-         Jw7g==
+        b=jb1y6ecfe/sKxw3Aaao0rIrOOAVwwBX+ngrVpc8Zb3y1ybpgvZ0T7qddqmQ/FRzXAp
+         Xr0jlybbSoBykSxN9Mvem226pfRLCjDE2MdNY7MdQAmyrIPzZ3lGMFe/88m18ZJbOgNM
+         82szx5XvcxawvhhDL3mcz8/tVXLj6vFRZPeuqr2iWIiUHMXo3k2CqAaIE69sfYkZX6xW
+         OnFCd7WNuDnZ7qABAdIw0BQPn9ZrULEalbNUk7jGtlUIJWFHHAXgu5yTNmWoaucMfioJ
+         sxblpk/nCbCGkuJBI6kTEQ3xXz7cYh6w4b1A9nBCgCn0nT3WTcfXygg69bpiwTR7741Q
+         9Zcg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=uBxgdWpNrCpZkjyq48bAbxY/E4kBjXC2I2OkPOfuQK0=;
-        b=bTGIgSXkaIEHp78X2j1ijKFCwSA7OSu92DYiStieF/g1g3zCfPcTROsqqkN5EQ/v3H
-         orhqj5qryqyc+1YHZTyaKs01u+27RRSO4t56ADVpnqGWObf/6uE9xWAswQWhaa8jf7/e
-         lMt6boDrQHSy93fvqgsYcG0MiCa8Q0ouzmJYzKJTRSd6Z8ZXNwKlaeSQnjx/P6GaNY2O
-         9/Gk1K0zTEb1q09cNqvoHxUw5yNn92kmUwImkoF0FKT8C9BiALZ1AjCzn+siAzeifxa2
-         hcVtHw1U2D9LoiK3nQKv/+GysWc/T2DIUIAqRXSOlw/6zSs8F3YWSTYOm+AWNw6qhwqq
-         EetQ==
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
+         :to:from:date;
+        bh=cNwt8jxrbWcE5noyG1OUv2kNpkiSO+S3XqdYDpukk7o=;
+        b=JDLihM9Q7tpFSERYaWNlG0Q5SRi653Dm1FL9lcEk5LjilzWi6Fd54x+Esbpl+w5Xrf
+         Am+IS2RiVAq8RKE4PIsSUyh+IF35EeUFv7t/yZL5FdDv9MH7wVioC2wT0BZ7GjrrFVKn
+         VcfyzWKiUJspQV4oureolTw5oPNbdN8W0OsdUfDtviBowXMBMI0RajGsrGaFkZP2myRI
+         +7XNfr7PkZZO9lKNLbAf2YxRF1nv/RagetZ+iqFXGhyXvfXdSng9vvT08YjorYUo9pyu
+         vAswhApBg/n9WXwcXwS4BW37q9RSQdXpAciG/GIyGZKs/GYM5gxD2DjCX6AVdFDb43hu
+         fizQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id r5si6482417wma.126.2019.05.26.10.26.08
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id u11si7639998wrm.317.2019.05.26.10.33.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 May 2019 10:26:08 -0700 (PDT)
-Received-SPF: neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) client-ip=195.113.26.193;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Sun, 26 May 2019 10:33:36 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
-Received: by atrey.karlin.mff.cuni.cz (Postfix, from userid 512)
-	id 021E4803F7; Sun, 26 May 2019 19:25:57 +0200 (CEST)
-Date: Sun, 26 May 2019 19:25:09 +0200
-From: Pavel Machek <pavel@ucw.cz>
-To: Hugh Dickins <hughd@google.com>
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
+       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
+Received: from bigeasy by Galois.linutronix.de with local (Exim 4.80)
+	(envelope-from <bigeasy@linutronix.de>)
+	id 1hUx1S-00024Z-LB; Sun, 26 May 2019 19:33:26 +0200
+Date: Sun, 26 May 2019 19:33:25 +0200
+From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+To: Hugh Dickins <hughd@google.com>, x86@kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
 	Mike Rapoport <rppt@linux.ibm.com>,
 	Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Borislav Petkov <bp@suse.de>
-Subject: Re: [PATCH] mm/gup: continue VM_FAULT_RETRY processing event for
- pre-faults
-Message-ID: <20190526172509.GC1282@xo-6d-61-c0.localdomain>
-References: <1557844195-18882-1-git-send-email-rppt@linux.ibm.com>
- <20190522122113.a2edc8aba32f0fad189bae21@linux-foundation.org>
- <20190522194322.5k52docwgp5zkdcj@linutronix.de>
- <alpine.LSU.2.11.1905241429460.1141@eggly.anvils>
+	linux-kernel@vger.kernel.org, Borislav Petkov <bp@suse.de>,
+	Pavel Machek <pavel@ucw.cz>,
+	Dave Hansen <dave.hansen@linux.intel.com>
+Subject: [PATCH] x86/fpu: Use fault_in_pages_writeable() for pre-faulting
+Message-ID: <20190526173325.lpt5qtg7c6rnbql5@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1905241429460.1141@eggly.anvils>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 2019-05-24 15:22:51, Hugh Dickins wrote:
-> On Wed, 22 May 2019, Sebastian Andrzej Siewior wrote:
-> > On 2019-05-22 12:21:13 [-0700], Andrew Morton wrote:
-> > > On Tue, 14 May 2019 17:29:55 +0300 Mike Rapoport <rppt@linux.ibm.com> wrote:
-> > > 
-> > > > When get_user_pages*() is called with pages = NULL, the processing of
-> > > > VM_FAULT_RETRY terminates early without actually retrying to fault-in all
-> > > > the pages.
-> > > > 
-> > > > If the pages in the requested range belong to a VMA that has userfaultfd
-> > > > registered, handle_userfault() returns VM_FAULT_RETRY *after* user space
-> > > > has populated the page, but for the gup pre-fault case there's no actual
-> > > > retry and the caller will get no pages although they are present.
-> > > > 
-> > > > This issue was uncovered when running post-copy memory restore in CRIU
-> > > > after commit d9c9ce34ed5c ("x86/fpu: Fault-in user stack if
-> > > > copy_fpstate_to_sigframe() fails").
-> 
-> I've been getting unexplained segmentation violations, and "make" giving
-> up early, when running kernel builds under swapping memory pressure: no
-> CRIU involved.
-> 
-> Bisected last night to that same x86/fpu commit, not itself guilty, but
-> suffering from the odd behavior of get_user_pages_unlocked() giving up
-> too early.
-> 
-> (I wondered at first if copy_fpstate_to_sigframe() ought to retry if
-> non-negative ret < nr_pages, but no, that would be wrong: a present page
-> followed by an invalid area would repeatedly return 1 for nr_pages 2.)
-> 
-> Cc'ing Pavel, who's been having segfault trouble in emacs: maybe same?
+From: Hugh Dickins <hughd@google.com>
 
-The emacs segfault was always during process exit. This sounds different...
+Since commit
 
-I don't see problems with make.
+   d9c9ce34ed5c8 ("x86/fpu: Fault-in user stack if copy_fpstate_to_sigframe() fails")
 
-But its true that at least one of affected machines uses swap heavily.
+we use get_user_pages_unlocked() to pre-faulting user's memory if a
+write generates a page fault while the handler is disabled.
+This works in general and uncovered a bug as reported by Mike Rapoport.
 
-Best regards,
-								Pavel
+It has been pointed out that this function may be fragile and a
+simple pre-fault as in fault_in_pages_writeable() would be a better
+solution. Better as in taste and simplicity: That write (as performed by
+the alternative function) performs exactly the same faulting of memory
+that we had before. This was suggested by Hugh Dickins and Andrew
+Morton.
+
+Use fault_in_pages_writeable() for pre-faulting of user's stack.
+
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Hugh Dickins <hughd@google.com>
+Link: https://lkml.kernel.org/r/alpine.LSU.2.11.1905251033230.1112@eggly.anvils
+[bigeasy: patch description]
+Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+---
+ arch/x86/kernel/fpu/signal.c | 11 ++---------
+ 1 file changed, 2 insertions(+), 9 deletions(-)
+
+diff --git a/arch/x86/kernel/fpu/signal.c b/arch/x86/kernel/fpu/signal.c
+index 5a8d118bc423e..060d6188b4533 100644
+--- a/arch/x86/kernel/fpu/signal.c
++++ b/arch/x86/kernel/fpu/signal.c
+@@ -5,6 +5,7 @@
+ 
+ #include <linux/compat.h>
+ #include <linux/cpu.h>
++#include <linux/pagemap.h>
+ 
+ #include <asm/fpu/internal.h>
+ #include <asm/fpu/signal.h>
+@@ -189,15 +190,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __user *buf_fx, int size)
+ 	fpregs_unlock();
+ 
+ 	if (ret) {
+-		int aligned_size;
+-		int nr_pages;
+-
+-		aligned_size = offset_in_page(buf_fx) + fpu_user_xstate_size;
+-		nr_pages = DIV_ROUND_UP(aligned_size, PAGE_SIZE);
+-
+-		ret = get_user_pages_unlocked((unsigned long)buf_fx, nr_pages,
+-					      NULL, FOLL_WRITE);
+-		if (ret == nr_pages)
++		if (!fault_in_pages_writeable(buf_fx, fpu_user_xstate_size))
+ 			goto retry;
+ 		return -EFAULT;
+ 	}
+-- 
+2.20.1
 
