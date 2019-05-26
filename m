@@ -8,96 +8,96 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DE210C282E5
-	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 21:22:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DC3A5C282E3
+	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 21:22:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A3F96206BA
-	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 21:22:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9E17C20815
+	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 21:22:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ao5CkBZM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A3F96206BA
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kW8EQGCX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E17C20815
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5FA816B0269; Sun, 26 May 2019 17:22:28 -0400 (EDT)
+	id 8925F6B026A; Sun, 26 May 2019 17:22:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 55E186B026A; Sun, 26 May 2019 17:22:28 -0400 (EDT)
+	id 8436E6B026B; Sun, 26 May 2019 17:22:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 425346B026B; Sun, 26 May 2019 17:22:28 -0400 (EDT)
+	id 70A346B026C; Sun, 26 May 2019 17:22:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D36A96B0269
-	for <linux-mm@kvack.org>; Sun, 26 May 2019 17:22:27 -0400 (EDT)
-Received: by mail-lf1-f70.google.com with SMTP id 17so2464659lfr.14
-        for <linux-mm@kvack.org>; Sun, 26 May 2019 14:22:27 -0700 (PDT)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 07B0A6B026A
+	for <linux-mm@kvack.org>; Sun, 26 May 2019 17:22:29 -0400 (EDT)
+Received: by mail-lf1-f71.google.com with SMTP id a25so473149lfl.0
+        for <linux-mm@kvack.org>; Sun, 26 May 2019 14:22:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=zcDlkJTeHrjHVEgzRPAEZQALvFAG5US4eI5mM5YgZuY=;
-        b=fPM3UeapCZOQMxYiXnqn504djpmdAXYqSYKYKN7Q+mtRtYyiro5g67RANJl79MTfUw
-         k3PyfeIum3n9GjBqojzBtMLT0CpFIHWCF/ar4kVSNTWo2mCp9WzhjVwbyLjSajyLvdZ/
-         +Ki3wEgf8VoD+ngpLZRxWD/5y3FKcYhZ7W23ixpBnqMexl0M+9XQ+OEViyE5maveHNnz
-         lhvcfRoFjEQO5HSz6M3WO6LDMTNUqf1hKdxZ9IfeZBEz5rjsTi2/6MhFMHuNaM6v9YS9
-         WIflZn4IzoIXEsY47eVxKYODwOlVXbir5fOEgwGQfWK2eq4E+X1T5e5ZrCcym6rkygVo
-         g6VA==
-X-Gm-Message-State: APjAAAWvaSFRPD236J9rlX2wzaFfYHvmAroOFq5quLAjdYQ2uIyxs0ac
-	Fc483OI/TpVOfZUgC/yr6ZYQYWWLMyleeGF2SGjzjpdLhHF8TpQlalNH0XUJR9WNsACt/3zETN3
-	nOYVxWj55KxeexDve9rwe52NvUmF/MspgZ4FXxyqSDXwQ2D4np9NeB1NjCqktlFBBQQ==
-X-Received: by 2002:a19:3f16:: with SMTP id m22mr2130741lfa.104.1558905747315;
+        bh=nMiFTZq9m8Tud2oYGi2GiJ1Z+X/2sbQtc11N2qZi8ps=;
+        b=UW9tDapsb+sI+puvb6VV9coMbBh+ko5zL752/Hn8y+mn/w6h9pgRRurak27Pm6PTiL
+         1ALcsJB27Y3apwYz4r8cX+M3BYKJQjnb2cInzZcilzJNx+/33JuUrdjKILio9oJRdTOz
+         0o48SngZlacJEG/TIFFwld7PHq2FtRsIMJJKpreGUJBnjaC/g4rp2sFEcq4DyOG1U5tO
+         mxiaHXhILu4RQ5DzDrxeu/4UnCfN/0uuhYexSs9Shtk6hsnN+XjxOOoJ2J+NQM9Za6en
+         2D8Y3lY2TOw8WT/c954qC2A7ufM5hj0iqgrchCxCaFVRffaUz+yOzREw/ngpmR3Fmmbr
+         I4kA==
+X-Gm-Message-State: APjAAAUB9tOYKOM6Wn6/rzgm/fYxMt5luQZ4SOZm4sqz9zhwMa4bcC+e
+	KwcNHSB3HYjSWiH1KREBFcUPi1gzvJggvdd6AcMhm4vakxZOejF1uIbgQhFtMvlQcoEW2mJmu04
+	Z2s6hIYRAXJvhmBU6z8aGhAtcIF1M9NfgRHKc+M5+prZXaHrgQU2NdtH4UmU5dHTbtA==
+X-Received: by 2002:a19:e05c:: with SMTP id g28mr5620085lfj.167.1558905748479;
+        Sun, 26 May 2019 14:22:28 -0700 (PDT)
+X-Received: by 2002:a19:e05c:: with SMTP id g28mr5620064lfj.167.1558905747430;
         Sun, 26 May 2019 14:22:27 -0700 (PDT)
-X-Received: by 2002:a19:3f16:: with SMTP id m22mr2130707lfa.104.1558905746206;
-        Sun, 26 May 2019 14:22:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558905746; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1558905747; cv=none;
         d=google.com; s=arc-20160816;
-        b=KA7lf/O1zrHtWLr+iwwwEFG60VrnJTemEW0kqOnkx6m8lDSFn46xbLWk3E11tOOYXb
-         kZuQ7w73PmzsTkug+bPZbno7Xv8afx/3+HSBAlg8KZLwrjKF5sr5m9tcBNCVwTysPT7W
-         whQCry3K1HDM1q12sm4uz2Ywyw3JD1VY3DMneIIBiK5X9DE1R2hidVPoWKH6tsKKljSZ
-         ehnafEvVyuAXa1PI4qNI5EQKl/kVeRZj2yF8zTbstkoQ3LhqFL8sO1uPtFgKFp40mBCQ
-         oMJ7U7C7QYXK6mUzXkRiOWdSZYQG4Z5sXKACQHojiv+zyjlEnKOcwXeBFdVMK1H0rP77
-         PiHg==
+        b=act50UKuhNEfQmAJeXtZY4ApK18MsyCBQbjqJ8kZdyUQwp07Sarx535NGSkJ8QSVJ+
+         j+w0tDNXgtBWNdOhRz17DpXxJwZF5/Cswv3zu/3hvkT3iIK6gCipQdekzjX8kWa3NMFe
+         oR+D6IjJba8TYHa2t9goqwdwwYqhbc9PMQLWgNUy0z/PMwkipHvYVm+HS5HoZN4F7Xac
+         okvmJDcyNid2dzqE0M5kqJ9hRTh6TXooHMA7OWFTgfmbAqmilYzaAO01PF+1IMr8P83Q
+         Nxu3iSpx7OmZVwwxiHHL3E9gvF3UE1hFyM+9bGY67ZDtamn8/FQDdrCjSUy5R5QngPl/
+         Rh7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=zcDlkJTeHrjHVEgzRPAEZQALvFAG5US4eI5mM5YgZuY=;
-        b=x1idipNSZ7pxtnHwhm/te8spgvs45TaxKrPwi62F3AHmepi/rxNR/JYR5meq57OWcc
-         nP31eBA5UZ4j6FlRr/pnM+3fx481VNp1DsKk5WUkO+5kOZ1UBLMthl6mP6/jMWysuv6T
-         MSUJaJb1mZHKCu6IiqPT8FilvqjdnH7/fhrO8SrDaNuMp//mSfws5o0q6T1XoVPBDS+F
-         VY645M6IKqjET6FXtChqAX53gVzlMlGx9OQlOMOa4mX8ERwcXXrLutQnmi9/dyLlzAnB
-         UT7PQtH7yPQ2pWczsacCITVrn1/2wBtZW8+LigyYiHAe/ypVWaNvILvom825/uEz81m/
-         cOKw==
+        bh=nMiFTZq9m8Tud2oYGi2GiJ1Z+X/2sbQtc11N2qZi8ps=;
+        b=KDLdZKwCdyvBXFBO0GVyXshR+1GRvQv2k/trft4ktO5OtwJO3m0pgyROW9Tddj+ETg
+         vT2eNrZmofdr2qLMw2ITCA8THTr0+MN5JaJcSFxa6MjTwdAVpSSPoRjayc+BIbM465Fm
+         Osy7wc/R8pH0xfJVi5rzAoaUuLePor1WZiQZBTVkAT/ukx7VQVd03bjzKjhCrAy1Of1D
+         fmj433lve5MhnZ1/CYT1hOuoOLfN2PzsBniwnV0J9eeNetBxu/KlllxyYML5XT/kCoCU
+         uNU2VosHd96VVfSLNkNACNI5YVXVrC2QPQgdsRkQ5wInH+Z9PbXZsUokNP/pKB6it5dj
+         aALA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ao5CkBZM;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kW8EQGCX;
        spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y5sor2126295lfl.36.2019.05.26.14.22.26
+        by mx.google.com with SMTPS id p27sor4135813ljp.8.2019.05.26.14.22.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 26 May 2019 14:22:26 -0700 (PDT)
+        Sun, 26 May 2019 14:22:27 -0700 (PDT)
 Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ao5CkBZM;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kW8EQGCX;
        spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=zcDlkJTeHrjHVEgzRPAEZQALvFAG5US4eI5mM5YgZuY=;
-        b=Ao5CkBZMIKG8lMZLADM2cFJSxDg0Ojot0t///bzeuKFY03bvOBAnzd/IYRNsnx1egd
-         3cx0VIwpT7ShMf+DETVPyhQbGBL4J7Dq99mDqyJg9c16+rDrd31BAiUqhE+YSuLBA84g
-         xyPOC78X5H2fEytgSnUVAtMS0oN4D55Qh4L+biWyJ0niL4cwDMbctSZPD0sko/8Wt+NL
-         LwcBZwe5kMfaF35crXxjCxAx0oMGBleEaBvzu7biLO379bYGhX9Rla8wNqgEaWl9NWDQ
-         Nu5wVqUKH58QonUtZTVWyTbAR65RhJDpanmma1bnW5KnExBlTs7P+ZcleNLu4AQoOqJP
-         Y4WA==
-X-Google-Smtp-Source: APXvYqxcGZ6X45TO6AjIW2X5VxteP29qd3Xp+Mlo5MYszszCZhtL1+swSlNelKa8z6Y5OwrNMEa4KA==
-X-Received: by 2002:ac2:5922:: with SMTP id v2mr164163lfi.180.1558905745839;
-        Sun, 26 May 2019 14:22:25 -0700 (PDT)
+        bh=nMiFTZq9m8Tud2oYGi2GiJ1Z+X/2sbQtc11N2qZi8ps=;
+        b=kW8EQGCX9RPA7Y1Hbh9+m37Rg3nnmFcAhCEEN+Wn4d6HHxofUWi5NJZicvFduiIiWH
+         Z4tWfptAT8kbByu96/Af1k9A65xG9kG1xwVMP+zdYzfi5mBI3MfRi++wLymSduYdjNPS
+         el25ZYIltNE8kQrBHpSMo9w+RS1fCViSv708fFUtKfLosmGswxo1c4tg/wZs9epUFFel
+         ipOv7KktBtXHfm5LZmxBImQl05kSuQGLu5g/C2/JEqvzEanQeYq1WFYBsfHbm4lXQFMl
+         0gdsAkkrqKf4WYwHkn8KFBNHuGoBxYk55CqocVHv6l8pqAYsNa0wErxcHIB5sV+ZYsyz
+         bOwA==
+X-Google-Smtp-Source: APXvYqwLtfKo3g1XsLcA3UgctcSE5rh7e9LElVzrf5Zs8QIa2LJrFz7rsW567IrrpGxEhHMpbftXEw==
+X-Received: by 2002:a2e:8985:: with SMTP id c5mr14828724lji.84.1558905747025;
+        Sun, 26 May 2019 14:22:27 -0700 (PDT)
 Received: from pc636.lan (h5ef52e31.seluork.dyn.perspektivbredband.net. [94.245.46.49])
-        by smtp.gmail.com with ESMTPSA id y4sm1885105lje.24.2019.05.26.14.22.24
+        by smtp.gmail.com with ESMTPSA id y4sm1885105lje.24.2019.05.26.14.22.25
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 May 2019 14:22:25 -0700 (PDT)
+        Sun, 26 May 2019 14:22:26 -0700 (PDT)
 From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	linux-mm@kvack.org
@@ -114,9 +114,9 @@ Cc: Roman Gushchin <guro@fb.com>,
 	Thomas Gleixner <tglx@linutronix.de>,
 	Ingo Molnar <mingo@elte.hu>,
 	Tejun Heo <tj@kernel.org>
-Subject: [PATCH v2 3/4] mm/vmap: get rid of one single unlink_va() when merge
-Date: Sun, 26 May 2019 23:22:12 +0200
-Message-Id: <20190526212213.5944-4-urezki@gmail.com>
+Subject: [PATCH v2 4/4] mm/vmap: move BUG_ON() check to the unlink_va()
+Date: Sun, 26 May 2019 23:22:13 +0200
+Message-Id: <20190526212213.5944-5-urezki@gmail.com>
 X-Mailer: git-send-email 2.11.0
 In-Reply-To: <20190526212213.5944-1-urezki@gmail.com>
 References: <20190526212213.5944-1-urezki@gmail.com>
@@ -126,50 +126,58 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It does not make sense to try to "unlink" the node that is
-definitely not linked with a list nor tree. On the first
-merge step VA just points to the previously disconnected
-busy area.
-
-On the second step, check if the node has been merged and do
-"unlink" if so, because now it points to an object that must
-be linked.
+Move the BUG_ON()/RB_EMPTY_NODE() check under unlink_va()
+function, it means if an empty node gets freed it is a BUG
+thus is considered as faulty behaviour.
 
 Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
 ---
- mm/vmalloc.c | 9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
+ mm/vmalloc.c | 24 +++++++++---------------
+ 1 file changed, 9 insertions(+), 15 deletions(-)
 
 diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index b553047aa05b..6f91136f2cc8 100644
+index 6f91136f2cc8..0cd2a152826e 100644
 --- a/mm/vmalloc.c
 +++ b/mm/vmalloc.c
-@@ -718,9 +718,6 @@ merge_or_add_vmap_area(struct vmap_area *va,
- 			/* Check and update the tree if needed. */
- 			augment_tree_propagate_from(sibling);
+@@ -533,20 +533,16 @@ link_va(struct vmap_area *va, struct rb_root *root,
+ static __always_inline void
+ unlink_va(struct vmap_area *va, struct rb_root *root)
+ {
+-	/*
+-	 * During merging a VA node can be empty, therefore
+-	 * not linked with the tree nor list. Just check it.
+-	 */
+-	if (!RB_EMPTY_NODE(&va->rb_node)) {
+-		if (root == &free_vmap_area_root)
+-			rb_erase_augmented(&va->rb_node,
+-				root, &free_vmap_area_rb_augment_cb);
+-		else
+-			rb_erase(&va->rb_node, root);
++	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
  
--			/* Remove this VA, it has been merged. */
--			unlink_va(va, root);
+-		list_del(&va->list);
+-		RB_CLEAR_NODE(&va->rb_node);
+-	}
++	if (root == &free_vmap_area_root)
++		rb_erase_augmented(&va->rb_node,
++			root, &free_vmap_area_rb_augment_cb);
++	else
++		rb_erase(&va->rb_node, root);
++
++	list_del(&va->list);
++	RB_CLEAR_NODE(&va->rb_node);
+ }
+ 
+ #if DEBUG_AUGMENT_PROPAGATE_CHECK
+@@ -1188,8 +1184,6 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
+ 
+ static void __free_vmap_area(struct vmap_area *va)
+ {
+-	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
 -
- 			/* Free vmap_area object. */
- 			kmem_cache_free(vmap_area_cachep, va);
- 
-@@ -745,12 +742,12 @@ merge_or_add_vmap_area(struct vmap_area *va,
- 			/* Check and update the tree if needed. */
- 			augment_tree_propagate_from(sibling);
- 
--			/* Remove this VA, it has been merged. */
--			unlink_va(va, root);
-+			/* Remove this VA, if it has been merged. */
-+			if (merged)
-+				unlink_va(va, root);
- 
- 			/* Free vmap_area object. */
- 			kmem_cache_free(vmap_area_cachep, va);
--
- 			return;
- 		}
- 	}
+ 	/*
+ 	 * Remove from the busy tree/list.
+ 	 */
 -- 
 2.11.0
 
