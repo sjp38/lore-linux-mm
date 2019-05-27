@@ -2,175 +2,152 @@ Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 521F5C07542
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 12:59:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1715EC072B1
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 13:09:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0902620883
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 12:59:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0902620883
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=goodmis.org
+	by mail.kernel.org (Postfix) with ESMTP id C0B3B20883
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 13:09:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C0B3B20883
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 907E06B027F; Mon, 27 May 2019 08:59:32 -0400 (EDT)
+	id 1D5016B027D; Mon, 27 May 2019 09:09:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 891766B0280; Mon, 27 May 2019 08:59:32 -0400 (EDT)
+	id 15E0D6B027E; Mon, 27 May 2019 09:09:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7599E6B0281; Mon, 27 May 2019 08:59:32 -0400 (EDT)
+	id F1A6C6B027F; Mon, 27 May 2019 09:09:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3286F6B027F
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 08:59:32 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id d9so13315386pfo.13
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 05:59:32 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E9306B027D
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 09:09:51 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id l3so27972557edl.10
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 06:09:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=wLiBt/t/UjkGi1BhdUme/ZAvgvM1qy5UCuVgCoqAn3g=;
-        b=ZS3REJ8kxUz9OF22n8gzlNLLPdaS3na+Bwjfk7Z4H0A6oZYeEScUPWq1zuusKzAFxt
-         3DBfFxZpz3PV4zM9PagFi5T0C9ZA8a4MQ5VKZix7qZq2mpUpHs2OMQKNk1IPGj1HSwXl
-         w7owJlPSRz9lfXoujIeQrk6xPEU3ryZ7gWu4unSLVSHEygRdf+VBq8xBbs8Hp1QrWHuo
-         gfJdJW3qNNWlKOEZGSENoHaPs6karb9BK8v5RZJX+SLC6hSfJLyxBtkACqFmWnrpqev8
-         0Qpjez3ernvmMzYyNGjGbetyGHVQVuMjG9rHaxZFtoSgWKEALhivuIPHeooyNrVYb8cR
-         /uoA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of srs0=gqbm=t3=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=GqBM=T3=goodmis.org=rostedt@kernel.org"
-X-Gm-Message-State: APjAAAUNmxsudg/ORhDD5B497GGhQQRZWslX9HV31tfhTvwI88jfi2gS
-	/TEySMCLlHkkgo1+RRTUT3CKVDwN9iBCCN2ZUFIjmhf81VnIV0NVmujjt3aXOF58ZfX1WvGd6zH
-	kvkOZEqONQ0k8npYR2YdKmVdHH0m5MSaHKNQeyOeG9SnPwirWX+yswq/hZZtQfTQ=
-X-Received: by 2002:a63:b1d:: with SMTP id 29mr126030090pgl.103.1558961971802;
-        Mon, 27 May 2019 05:59:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzzkl/p9e2l+Hzn3U3Mak2U8A7c+rWhw6KsI+jtgFQoxa5C8lf3nHiuIvVqmi141/+Ch4Ql
-X-Received: by 2002:a63:b1d:: with SMTP id 29mr126030055pgl.103.1558961971059;
-        Mon, 27 May 2019 05:59:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558961971; cv=none;
+         :cc:subject:message-id:reply-to:mail-followup-to:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=sliIN/6bT9A2L9h0yW4oubn7AriJkxfwz8z06mUi3Ro=;
+        b=Z/2LDg/rZ929AKNKRx9Miwg3aP0tVkUWA0RPoCRvPy0LyWj4rZiLnxueyzv02UMtVq
+         J0/90OtHsmzxPaPNf5xlf1UGA+vLM80XKfN+whYvroIT4uJ9NxO3qdeY3JI4sHI/jfk3
+         PEEEYjUsRV9K3rIcOc8gOCYeXBhiUkUAN9qsangZqiR7DdbxvhOgUK7hqvqMjTcMrvl8
+         3DAiLIxSA6Dq/vCG8yHWnGsiquLISwLghhJ2s1o1Hurpu4YO25W7LMa7Z0TGxSMjgDFz
+         bv0pZ2SOleHYZ77otqQOf/m/aPMrKgtZ2OLjF9nqIVueTbYgFM1Q7GAG8EUWgk0CUqNt
+         GlUA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=dsterba@suse.cz
+X-Gm-Message-State: APjAAAW0fwyN6yLSsSlHo8Xx2KNrtf5FdQx4hIxIS43R5pTyKBFsbwSW
+	FpFD6owiTek5wqCD3qPRDMDT8A1LowSYenwt1pdQEzd5Kv3zu16kv6a77uVJeYaQLZATV0jx1Uz
+	gglU/ir9mirCwYAcfMCHA76609Z6i7d0GEeGup+/EoeSiB5yJif0bGtdCvP84BQlWfw==
+X-Received: by 2002:a50:9292:: with SMTP id k18mr17809644eda.301.1558962591215;
+        Mon, 27 May 2019 06:09:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqycebsT4hUByL3uhSlup3je6LTL/P51DTKm4wKCMGPdb5oDqTsnVOl+udPHyUcElyiesY5F
+X-Received: by 2002:a50:9292:: with SMTP id k18mr17809542eda.301.1558962590240;
+        Mon, 27 May 2019 06:09:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558962590; cv=none;
         d=google.com; s=arc-20160816;
-        b=xZvDc+VcILVZ8eGnz3ASwjy1EXbA0GTA9vn+j3DyB7O9pHxqk4oXLda0Q8QuJTABoh
-         EaTyetD2EOsPTde5J35WLTbK0JAGsIKdLFM8n0sOXUpdYFvfWcspMYdl9miizpDfOB5i
-         XN9ODtiF5yZz4mMs2iC7rNsFJynbf7zotjaikmcfjfkVlOXThMC8vqj/g9GTFsBiiuq3
-         OTokpurz2tjw9jPqyYel9yzqbzydFsrP1S5A3EVtts8BocDRNA1IpmHdLgLIB8ZqcxwF
-         YciktWSItVWPe0LJ9CaBB/pORr4mOImHTGqGQUBL2JTsP8eviLgBhveMmVHbSd6gDFeS
-         ppPg==
+        b=DjJ1lhfdiMH0Gd4ekKgcN49UWgDExLKnfB0iiJ1LKN9imz/pq2M/tiTwkmRBUlvHJX
+         dc+3KKSFgR1sOzFzfLlaM9T4wtKaL0QmRqu2ySl7Xi18q244KrBHa1LatyK9Mrumov/n
+         9AIZjyqKevxaNFjjnGKzJRjMskM4sGfL1iMTeGgo57ty/4xEKVcDivBhcrr+FWybgl1x
+         WuLxI1dE9kJQ7v6ctTHHBy6nl7z0R2rc5wYn9clSSQqsl8T/lq1GpeJyMQG+DN1P1abd
+         92Iuhr3BEZJRtv1QFBwzEjmP6Dv26msqS0sKXdCwH0TSPgF9xAGjqm4AP8Mb32bGde6r
+         eb9g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=wLiBt/t/UjkGi1BhdUme/ZAvgvM1qy5UCuVgCoqAn3g=;
-        b=qMIQwh63J3tgP+zFvy8beLc5447rbdjiuFl6E0R4Wjg6ECfLif4cnru25COYNqlbky
-         Tr0W52HNZVjxYodxADkMVig6UDbDwqhfuO0Xg4dRzoa0l5/45urqpTsXAR4E6sxdBOYp
-         5SfbbrkkQvT5vS7kNl6rM4Nnh/hghZaO/sM4MQRndohd5uK8gXDNzikjwzwZqqC6tQtT
-         v0NAx5OQjkQOVouNiQAVK1VSFuJV/HvV8x8s4Q/FBWSe4vUpKMuOtYvIMGrdsvLCZm2e
-         R48G5SRePIGlzx95khfmqRxNAVVZGAnmrPgtHAQwupP3gZ0Ivun5uMqYp1++sLZFCSjd
-         vwxw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :mail-followup-to:reply-to:message-id:subject:cc:to:from:date;
+        bh=sliIN/6bT9A2L9h0yW4oubn7AriJkxfwz8z06mUi3Ro=;
+        b=InZAkHY78/LmpeqFgERzaAlFiZFjh9OsvaqdcadP5kiSL2vaF1cpCnPczj8no4rAgS
+         Sm571Vg1+G9BlCxbBVgYqTGM5PB5zGP0X9RyTgdYATgksJG2mGImJ1CMOvGERTbi4Tvc
+         JS8RYwvFKR7VtVL9ma6LpZqe3i0bWQDifaPuUXwI2zUBNrsQf+S4BiZ1pHqzkPTjLazM
+         2n8hiNwsUvA4aqntRQjXZ9UUYymGpUQFSmEXCwrcU4J5+BmrCThSwebEXw+FLSCGJUnJ
+         vF//CaeFc9xdx2iaCk1U1Hhle2EviPp3fxjAEj7Qx76CTxenDaoaghquBAxrgf0V1+tv
+         8wpw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of srs0=gqbm=t3=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=GqBM=T3=goodmis.org=rostedt@kernel.org"
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id s16si17030072plr.292.2019.05.27.05.59.30
+       spf=pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=dsterba@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q6si9136633edd.141.2019.05.27.06.09.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 May 2019 05:59:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of srs0=gqbm=t3=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Mon, 27 May 2019 06:09:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of srs0=gqbm=t3=goodmis.org=rostedt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom="SRS0=GqBM=T3=goodmis.org=rostedt@kernel.org"
-Received: from gandalf.local.home (cpe-66-24-58-225.stny.res.rr.com [66.24.58.225])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 733AE20859;
-	Mon, 27 May 2019 12:59:29 +0000 (UTC)
-Date: Mon, 27 May 2019 08:59:27 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Roman
- Gushchin <guro@fb.com>, Hillf Danton <hdanton@sina.com>, Michal Hocko
- <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>, LKML
- <linux-kernel@vger.kernel.org>, Thomas Garnier <thgarnie@google.com>,
- Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Joel Fernandes
- <joelaf@google.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar
- <mingo@elte.hu>, Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 4/4] mm/vmap: move BUG_ON() check to the unlink_va()
-Message-ID: <20190527085927.19152502@gandalf.local.home>
-In-Reply-To: <20190527093842.10701-5-urezki@gmail.com>
-References: <20190527093842.10701-1-urezki@gmail.com>
-	<20190527093842.10701-5-urezki@gmail.com>
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+       spf=pass (google.com: domain of dsterba@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=dsterba@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id E70CBAEBB;
+	Mon, 27 May 2019 13:09:48 +0000 (UTC)
+Received: by ds.suse.cz (Postfix, from userid 10065)
+	id 7E694DA85C; Mon, 27 May 2019 15:10:42 +0200 (CEST)
+Date: Mon, 27 May 2019 15:10:41 +0200
+From: David Sterba <dsterba@suse.cz>
+To: Juergen Gross <jgross@suse.com>
+Cc: linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-erofs@lists.ozlabs.org, devel@driverdev.osuosl.org,
+	linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org,
+	linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	linux-mm@kvack.org, Jonathan Corbet <corbet@lwn.net>,
+	Gao Xiang <gaoxiang25@huawei.com>, Chao Yu <yuchao0@huawei.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Alexander Viro <viro@zeniv.linux.org.uk>, Chris Mason <clm@fb.com>,
+	Josef Bacik <josef@toxicpanda.com>, David Sterba <dsterba@suse.com>,
+	Theodore Ts'o <tytso@mit.edu>,
+	Andreas Dilger <adilger.kernel@dilger.ca>,
+	Jaegeuk Kim <jaegeuk@kernel.org>, Mark Fasheh <mark@fasheh.com>,
+	Joel Becker <jlbec@evilplan.org>,
+	Joseph Qi <joseph.qi@linux.alibaba.com>, ocfs2-devel@oss.oracle.com
+Subject: Re: [PATCH 2/3] mm: remove cleancache.c
+Message-ID: <20190527131041.GH15290@twin.jikos.cz>
+Reply-To: dsterba@suse.cz
+Mail-Followup-To: dsterba@suse.cz, Juergen Gross <jgross@suse.com>,
+	linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-erofs@lists.ozlabs.org, devel@driverdev.osuosl.org,
+	linux-fsdevel@vger.kernel.org, linux-btrfs@vger.kernel.org,
+	linux-ext4@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net,
+	linux-mm@kvack.org, Jonathan Corbet <corbet@lwn.net>,
+	Gao Xiang <gaoxiang25@huawei.com>, Chao Yu <yuchao0@huawei.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Alexander Viro <viro@zeniv.linux.org.uk>, Chris Mason <clm@fb.com>,
+	Josef Bacik <josef@toxicpanda.com>, David Sterba <dsterba@suse.com>,
+	Theodore Ts'o <tytso@mit.edu>,
+	Andreas Dilger <adilger.kernel@dilger.ca>,
+	Jaegeuk Kim <jaegeuk@kernel.org>, Mark Fasheh <mark@fasheh.com>,
+	Joel Becker <jlbec@evilplan.org>,
+	Joseph Qi <joseph.qi@linux.alibaba.com>, ocfs2-devel@oss.oracle.com
+References: <20190527103207.13287-1-jgross@suse.com>
+ <20190527103207.13287-3-jgross@suse.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190527103207.13287-3-jgross@suse.com>
+User-Agent: Mutt/1.5.23.1 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 May 2019 11:38:42 +0200
-"Uladzislau Rezki (Sony)" <urezki@gmail.com> wrote:
-
-> Move the BUG_ON()/RB_EMPTY_NODE() check under unlink_va()
-> function, it means if an empty node gets freed it is a BUG
-> thus is considered as faulty behaviour.
-
-Can we switch it to a WARN_ON(). We are trying to remove all BUG_ON()s.
-If a user wants to crash on warning, there's a sysctl for that. But
-crashing the system can make it hard to debug. Especially if it is hit
-by someone without a serial console, and the machine just hangs in X.
-That is very annoying.
-
-With a WARN_ON, you at least get a chance to see the crash dump.
-
--- Steve
-
-
+On Mon, May 27, 2019 at 12:32:06PM +0200, Juergen Gross wrote:
+> With the removal of tmem and xen-selfballoon the only user of
+> cleancache is gone. Remove it, too.
 > 
-> Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+> Signed-off-by: Juergen Gross <jgross@suse.com>
 > ---
->  mm/vmalloc.c | 24 +++++++++---------------
->  1 file changed, 9 insertions(+), 15 deletions(-)
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index 371aba9a4bf1..340959b81228 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -533,20 +533,16 @@ link_va(struct vmap_area *va, struct rb_root *root,
->  static __always_inline void
->  unlink_va(struct vmap_area *va, struct rb_root *root)
->  {
-> -	/*
-> -	 * During merging a VA node can be empty, therefore
-> -	 * not linked with the tree nor list. Just check it.
-> -	 */
-> -	if (!RB_EMPTY_NODE(&va->rb_node)) {
-> -		if (root == &free_vmap_area_root)
-> -			rb_erase_augmented(&va->rb_node,
-> -				root, &free_vmap_area_rb_augment_cb);
-> -		else
-> -			rb_erase(&va->rb_node, root);
-> +	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
->  
-> -		list_del(&va->list);
-> -		RB_CLEAR_NODE(&va->rb_node);
-> -	}
-> +	if (root == &free_vmap_area_root)
-> +		rb_erase_augmented(&va->rb_node,
-> +			root, &free_vmap_area_rb_augment_cb);
-> +	else
-> +		rb_erase(&va->rb_node, root);
-> +
-> +	list_del(&va->list);
-> +	RB_CLEAR_NODE(&va->rb_node);
->  }
->  
->  #if DEBUG_AUGMENT_PROPAGATE_CHECK
-> @@ -1187,8 +1183,6 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
->  
->  static void __free_vmap_area(struct vmap_area *va)
->  {
-> -	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
-> -
->  	/*
->  	 * Remove from the busy tree/list.
->  	 */
+>  Documentation/vm/cleancache.rst  | 296 ------------------------------------
+>  Documentation/vm/frontswap.rst   |  10 +-
+>  Documentation/vm/index.rst       |   1 -
+>  MAINTAINERS                      |   7 -
+>  drivers/staging/erofs/data.c     |   6 -
+>  drivers/staging/erofs/internal.h |   1 -
+>  fs/block_dev.c                   |   5 -
+
+For the btrfs part:
+
+>  fs/btrfs/extent_io.c             |   9 --
+>  fs/btrfs/super.c                 |   2 -
+
+Acked-by: David Sterba <dsterba@suse.com>
 
