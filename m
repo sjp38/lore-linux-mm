@@ -2,220 +2,189 @@ Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1904FC07542
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 12:23:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 99DF3C04AB3
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 12:24:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C226820673
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 12:23:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C226820673
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 5E01420673
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 12:24:33 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="V0EcI0Rt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E01420673
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4DE046B027E; Mon, 27 May 2019 08:23:37 -0400 (EDT)
+	id 134D96B027D; Mon, 27 May 2019 08:24:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 48E426B027F; Mon, 27 May 2019 08:23:37 -0400 (EDT)
+	id 0E5456B027F; Mon, 27 May 2019 08:24:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3580F6B0280; Mon, 27 May 2019 08:23:37 -0400 (EDT)
+	id EA1286B0280; Mon, 27 May 2019 08:24:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DBBC16B027E
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 08:23:36 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id d15so27849815edm.7
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 05:23:36 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 993006B027D
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 08:24:32 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id g1so8138277wrw.20
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 05:24:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=rp/Ap/7Cj6hynWtQSOXxKX7uaC8ywFEL4vtIrA2RkNQ=;
-        b=krsYQAH8bW4w3M5qVxQZ3A9W16VVqdZJcvYXs+tzTyeqRt673ycCxbkNfJWzYh/Tma
-         V2fsATEtfBtI20X+e9WxuKcUvmiYM0eVBgEi7RsNq/QWJGUToQoqhdKGSniMbvrqn4IB
-         xOazx1FbClr4Rf7JKwcSf2oAPnjr5BJBjkRKWPmFXWHxWpWDu58+du8+z4GRi61fMczm
-         15M0H4CWxiF1Pl8cb/TQE3mkr0j96hNejGs5dTTnutFkAT9ybNy3t45HE/mbjbj+xlbO
-         YtnDKvSgnFHC6i+pT2kLN7qefnaORTzEdcsjKyZZxJkJzBGwAZ4pxMv4zCfOrO/AbXEW
-         qggw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAVFi/1k6Avc20WNVlw/WuYY+0sgfEVjBtfVmVBKPUx6Wi101+Mo
-	uHuV0Ng9+N5gc9G6xKVt/B1czeTvnIYK/faNnZlNSRvN9SrnPE5CeU60hf9kW6EBgyMDp9FZk0V
-	KPGbTXazmbRg0EN0jkeuKDP4qSaVJCSKzm4Lihl03+hFgmnuzR6oPW0d6FePVzQjWkg==
-X-Received: by 2002:a17:906:e28b:: with SMTP id gg11mr14105998ejb.306.1558959816470;
-        Mon, 27 May 2019 05:23:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwFaK+ZqFuCAz6lXmPv02t4prF/9Hy37S3Cvg9UrhcrQshweJpMTsE9tfDVXVP2239qCxZe
-X-Received: by 2002:a17:906:e28b:: with SMTP id gg11mr14105911ejb.306.1558959815380;
-        Mon, 27 May 2019 05:23:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558959815; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=XYW6Bv1LchMVefhh2WDoaK3VxoyotGe8j5acHUJ6YR8=;
+        b=lP59vPKxafL/UuRj+VPk7Gyllm1qTNxNPLixDOyjgH/Jv1XRI517ldfmJyEn8ACdLC
+         Mk1Kl/UX/DoctzyRh732/tTFDy6Z076fa2TJU5fTc3VwwxKatjnW10FVSVBd69qrxstS
+         hBF6Z/YV551ZjMz1JQYgc2USeXeRozLkHSvry59gC7p2ZATvwtTu0lLNIucaU436AQfj
+         Y1qGoyhCg9YIMxaNNfqa3FZOdt8FSJ8Y0J1+9UkL2uCIOOwBecgHeBtb9HhDJgAwViHL
+         0wNm4XLuBLf8bhtaSS/+Wk5nINZ3zj8AtJ1M4Od+K1YCGSpH78uwsnpr1Y4VxNd143Nk
+         QjSQ==
+X-Gm-Message-State: APjAAAXUOTqLk4YnW9VrlGpqPkSlkY3DhZNu2YvjtDR3JUcX34ItKFJV
+	p337j6OXwVrD7GNOM1SAfphFu5Fa0PZLT4PhVepwU96WIx/WNo/npgb5Bsgm3wFxpvgJ9MYGysH
+	Jm97dS9ba3p+1nL7kydAV9Jk7WYLEdyI67GGwPdv0Ry0rFaLMfQB3YoTiGjK+Nb1KCA==
+X-Received: by 2002:a5d:484f:: with SMTP id n15mr56695781wrs.314.1558959872070;
+        Mon, 27 May 2019 05:24:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzPlcrBoIEr9bRIph6ULRnyT4/nOrfX6ZwiQuH3bPx74LJ/nbvP11DQzaU2Vz6n6ZXHXRuS
+X-Received: by 2002:a5d:484f:: with SMTP id n15mr56695753wrs.314.1558959871395;
+        Mon, 27 May 2019 05:24:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558959871; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZjhreqajVcMWOrZh8z+18oKYA16eQ9s2OQkbrn8wSUWoFILsgwNeXBlvZgeDPeI/VC
-         7uUF+uffJ1LUXa7PRRVpWjDH6BNMtjc2lIkvrGvp51QlcJATLgmjIqedsH/Jb1pEcyn2
-         broKA/TOMj7LZ8pc65j+LG2M+U5WXKdD6CdwJVv4Z6UWCoyUg9X7oaHic3ghaA4ngzuu
-         1rY2shY0U2qz0AAHFepXSkMH76PjvdMjnVMt1aE8ANvt4tW5dSjy0ZIxoz0/pbyQv1EN
-         HqZeGOIAdPSZn3V6JEb6at3MWlxkZ3SQk0UGKrbstA6V7WyaVXDnnYkIHre9DsQg1zLg
-         LeIA==
+        b=hFs2zJx6+Fic7DJhBFpG/8EPfnu/LEfPZd3cSEVTh16hdueh0DvaxRDK2WYQv8lfuK
+         ZfRTBd8wjXqkRlEQcknGKdDVT0qfK+Or4l/xJ/mkCBurV7RVu4qLAM82SgKi56stDAyT
+         b6vF48CrWy62NDH1yDXqZiWhyLv29C0k+/znj2GOH0CIBLMHyKdYmpAeeGlADkpNFzRw
+         krdzcXKpSyvilffT84qwGYDVJiKe+5G70YcHebHUxBpGnrU3ywNpX9w3A/hG3rkvfKs3
+         tetKoY7WApQ7zltsBWwEjmYYZb0EvQoBBLL/WIueksQdvIMjfUu4cAoJekrbAfPNxRnz
+         HKmg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=rp/Ap/7Cj6hynWtQSOXxKX7uaC8ywFEL4vtIrA2RkNQ=;
-        b=fO2zJs4C1mpjaexV+l4Fa6a9vR6bC/qUinuN/D1RsI2D0PjqsMWRvQ29UpQBBABEbT
-         RVMA0JtmnDEE36aeSA6tz6A5UBsg/RZ6d8cgxjVp6QYNHAPEIlf8IqFcbNEP3LqOqxxb
-         eNv+bgAksSJjlG3eVjRZKDuBUn37PprM5p3gmIDmv5f3h+8Z2SGvl4dcu3GdX01POKKn
-         V7JzH1ImvTkV4cKQmpDkFzI7MKLuYHOLomnqvD66Znu9eMpnY0b19x6oJ0aQv+yhPnBa
-         cdc3A3m6IvaWIQEYEffXzbaX98Rc9x1C3/xQGAVhBMdLPZ9wyyGqGQsKELsr/kuC7s2B
-         CEQg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=XYW6Bv1LchMVefhh2WDoaK3VxoyotGe8j5acHUJ6YR8=;
+        b=DEGNCFvmf0ZsOlpWV0WOpH6+sa1PXouGaqA6NNACIRKDTzG76JQWyjMbtE67OcXOMA
+         /XqmJ8kPYZD+vTGmhyRHgO77SKNQP9hM3HaasSGGfo+PWdXnr0+rZzKQk/xmEH46Awup
+         j1w1gF6nj8ehSz+AyIpq7fpJJuLc1dmFuvQrt9MUctMJaHPnAM+kGSghQIur3xgq8Y31
+         GsxB4UufroF7bjp9A4qShKzAr9KN5pZkag5nQzRTcDasmJQ4/C/JIq6JvZEseFDnd8+P
+         J1PN5hG/SquzH6qlG3W91NIw1UnjZ07mDm7lH0vLbA1hT5Lkfnk0NEuVQLOdKjIoXhoQ
+         0jxg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y23si3885512eju.228.2019.05.27.05.23.34
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=V0EcI0Rt;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id x15si6451941wrw.160.2019.05.27.05.24.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 May 2019 05:23:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 27 May 2019 05:24:31 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D79C5AF96;
-	Mon, 27 May 2019 12:23:33 +0000 (UTC)
-Subject: Re: [PATCH] mm/mempolicy: Fix an incorrect rebind node in
- mpol_rebind_nodemask
-To: Andrew Morton <akpm@linux-foundation.org>,
- zhong jiang <zhongjiang@huawei.com>
-Cc: osalvador@suse.de, khandual@linux.vnet.ibm.com, mhocko@suse.com,
- mgorman@techsingularity.net, aarcange@redhat.com, rcampbell@nvidia.com,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1558768043-23184-1-git-send-email-zhongjiang@huawei.com>
- <20190525112851.ee196bcbbc33bf9e0d869236@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <2ff829ea-1d74-9d4b-8501-e9c2ebdc36ef@suse.cz>
-Date: Mon, 27 May 2019 14:23:31 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=V0EcI0Rt;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=XYW6Bv1LchMVefhh2WDoaK3VxoyotGe8j5acHUJ6YR8=; b=V0EcI0RtOJJpB+YbYiMjW84SJ
+	RaFIbLmIDNiEbmjmJ8DGCudJ/OzXkWaMgB0SjYCi3/DWNR2QKQXFekISwvHnRrlv5ysM4blDvEEmG
+	G5aRvcIjzAgTxPtDCbcwcocVNHxH27LL5nKZXJivG+pmRc9tyjJwXcDD/Pcc5UsVHfX7AQCbzyOpL
+	InUesZfcRGLTQYJNF4Z9nSHl2jVqcuKpE/0rdDCn8MTWBltA9on+6DqS1/CsIT9wi1+KgL5KqnfGD
+	SEvP3cAO6zqGahEQ4X2aX/xTt3wDDdmYzmyxKfpTmfIE2ygIJ/f4lSZeEBBY3IrczBWHIHgKBbAGj
+	JcOcmE+qw==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hVEfy-00039G-Jg; Mon, 27 May 2019 12:24:26 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 368AA20254842; Mon, 27 May 2019 14:24:25 +0200 (CEST)
+Date: Mon, 27 May 2019 14:24:25 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Rick Edgecombe <rick.p.edgecombe@intel.com>
+Cc: linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org,
+	linux-mm@kvack.org, netdev@vger.kernel.org, luto@kernel.org,
+	dave.hansen@intel.com, namit@vmware.com,
+	Meelis Roos <mroos@linux.ee>,
+	"David S. Miller" <davem@davemloft.net>,
+	Borislav Petkov <bp@alien8.de>, Ingo Molnar <mingo@redhat.com>
+Subject: Re: [PATCH v4 2/2] vmalloc: Avoid rare case of flushing tlb with
+ weird arguements
+Message-ID: <20190527122425.GQ2606@hirez.programming.kicks-ass.net>
+References: <20190521205137.22029-1-rick.p.edgecombe@intel.com>
+ <20190521205137.22029-3-rick.p.edgecombe@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20190525112851.ee196bcbbc33bf9e0d869236@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190521205137.22029-3-rick.p.edgecombe@intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/25/19 8:28 PM, Andrew Morton wrote:
-> (Cc Vlastimil)
-
-Oh dear, 2 years and I forgot all the details about how this works.
-
-> On Sat, 25 May 2019 15:07:23 +0800 zhong jiang <zhongjiang@huawei.com> wrote:
+On Tue, May 21, 2019 at 01:51:37PM -0700, Rick Edgecombe wrote:
+> In a rare case, flush_tlb_kernel_range() could be called with a start
+> higher than the end. Most architectures should be fine with with this, but
+> some may not like it, so avoid doing this.
 > 
->> We bind an different node to different vma, Unluckily,
->> it will bind different vma to same node by checking the /proc/pid/numa_maps.   
->> Commit 213980c0f23b ("mm, mempolicy: simplify rebinding mempolicies when updating cpusets")
->> has introduced the issue.  when we change memory policy by seting cpuset.mems,
->> A process will rebind the specified policy more than one times. 
->> if the cpuset_mems_allowed is not equal to user specified nodes. hence the issue will trigger.
->> Maybe result in the out of memory which allocating memory from same node.
-
-I have a hard time understanding what the problem is. Could you please
-write it as a (pseudo) reproducer? I.e. an example of the process/admin
-mempolicy/cpuset actions that have some wrong observed results vs the
-correct expected result.
-
->> --- a/mm/mempolicy.c
->> +++ b/mm/mempolicy.c
->> @@ -345,7 +345,7 @@ static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes)
->>  	else {
->>  		nodes_remap(tmp, pol->v.nodes,pol->w.cpuset_mems_allowed,
->>  								*nodes);
->> -		pol->w.cpuset_mems_allowed = tmp;
->> +		pol->w.cpuset_mems_allowed = *nodes;
-
-Looks like a mechanical error on my side when removing the code for
-step1+step2 rebinding. Before my commit there was
-
-pol->w.cpuset_mems_allowed = step ? tmp : *nodes;
-
-Since 'step' was removed and thus 0, I should have used *nodes indeed.
-Thanks for catching that.
-
->>  	}
->>  
->>  	if (nodes_empty(tmp))
+> In vm_remove_mappings(), in case page_address() returns 0 for all pages,
+> _vm_unmap_aliases() will be called with start = ULONG_MAX, end = 0 and
+> flush = 1.
 > 
-> hm, I'm not surprised the code broke.  What the heck is going on in
-> there?  It used to have a perfunctory comment, but Vlastimil deleted
-> it.
+> If at the same time, the vmalloc purge operation is triggered by something
+> else while the current operation is between remove_vm_area() and
+> _vm_unmap_aliases(), then the vm mapping just removed will be already
+> purged. In this case the call of vm_unmap_aliases() may not find any other
+> mappings to flush and so end up flushing start = ULONG_MAX, end = 0. So
+> only set flush = true if we find something in the direct mapping that we
+> need to flush, and this way this can't happen.
+> 
+> Fixes: 868b104d7379 ("mm/vmalloc: Add flag for freeing of special permsissions")
+> Cc: Meelis Roos <mroos@linux.ee>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: "David S. Miller" <davem@davemloft.net>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Borislav Petkov <bp@alien8.de>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: Nadav Amit <namit@vmware.com>
+> Signed-off-by: Rick Edgecombe <rick.p.edgecombe@intel.com>
+> ---
+>  mm/vmalloc.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 836888ae01f6..537d1134b40e 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -2125,6 +2125,7 @@ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
+>  	unsigned long addr = (unsigned long)area->addr;
+>  	unsigned long start = ULONG_MAX, end = 0;
+>  	int flush_reset = area->flags & VM_FLUSH_RESET_PERMS;
+> +	int flush_dmap = 0;
+>  	int i;
+>  
+>  	/*
+> @@ -2163,6 +2164,7 @@ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
+>  		if (addr) {
+>  			start = min(addr, start);
+>  			end = max(addr + PAGE_SIZE, end);
+> +			flush_dmap = 1;
+>  		}
+>  	}
+>  
+> @@ -2172,7 +2174,7 @@ static void vm_remove_mappings(struct vm_struct *area, int deallocate_pages)
+>  	 * reset the direct map permissions to the default.
+>  	 */
+>  	set_area_direct_map(area, set_direct_map_invalid_noflush);
+> -	_vm_unmap_aliases(start, end, 1);
+> +	_vm_unmap_aliases(start, end, flush_dmap);
+>  	set_area_direct_map(area, set_direct_map_default_noflush);
+>  }
 
-Yeah the comment was specific for the case that was being removed.
+Hurmph.. another clue that this range flushing is crap I feel. The phys
+addrs of the page array can be scattered all over the place, a range
+doesn't properly represent things.
 
-> Could someone please propose a comment for the above code block
-> explaining why we're doing what we do?
-
-I'll have to relearn this first...
+But yes, this seems like a minimal fix in spirit with the existing code.
 
