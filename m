@@ -2,172 +2,151 @@ Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 251C2C28CBF
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 06:23:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E3CCAC28CBF
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 07:04:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB3DB2075E
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 06:23:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB3DB2075E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 8CAF12075B
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 07:04:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CAF12075B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 725026B000C; Mon, 27 May 2019 02:23:06 -0400 (EDT)
+	id 04F846B000C; Mon, 27 May 2019 03:04:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6D4246B0266; Mon, 27 May 2019 02:23:06 -0400 (EDT)
+	id F41356B0266; Mon, 27 May 2019 03:04:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 59C5D6B026B; Mon, 27 May 2019 02:23:06 -0400 (EDT)
+	id E30566B026B; Mon, 27 May 2019 03:04:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BD176B000C
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 02:23:06 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id e21so26466741edr.18
-        for <linux-mm@kvack.org>; Sun, 26 May 2019 23:23:05 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 958CB6B000C
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 03:04:19 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c1so26605591edi.20
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 00:04:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=wXU7IXNhTV1CWq8L01LaYW5UJ4S7AmQA4U0IHEhoIuw=;
-        b=ZOkmPgxj6sgGx7rZxw/28dK4kg/3Q5ZxjwxwxR8+REQgDYPOQ6zAzClnf3GSYeqbd2
-         omh9dYMKhKDwlVBr7Lc/Crrvr0wNAEABkAgGvZELMA36CwUTbk9L3fbyad5Ti7zQSjYO
-         vyIRXnMLMcssr6S7rE/6J99sy5UvLEce/3novaVHdlW3hWNYnzS8Nm3wQAdiFKrPnvW1
-         4R8B3PtQs3R0wZra6+Q6Bo4pOap7ariZTRYko64G11yjH7YeORN9UajU0xmiFJ90s1Tw
-         piXPeQYd1d+kfwPU9YvHr1ZWV2jJNU5Ttq9HQN4hoHEHKItg5fnNlTL1/aHMKxTV7Vao
-         841Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAWKwTj0wf/tAvUv6oLBMZn3TWtjPau7bl5ipCHB1PLs1zdfta94
-	fZnFtOhZMbfMM0hiNAY9pNUZI8NNOu1uPZgR0H8zlRft2XP0f83U/HzQ83BSyYNnR/T4u5vbnKL
-	RUeuoWb1FdiNNPXaRsd2TNlWAAc/83l5Nm/jorsydMcNoXDA83JVxXaWOwBBNIaphvw==
-X-Received: by 2002:a50:f706:: with SMTP id g6mr71108171edn.187.1558938185616;
-        Sun, 26 May 2019 23:23:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzUGty99BNjC31E/ZVkdaXjAqGUWsO2cVbJhX7uuPOdSwrDhcq5RtfqLO6rVgJlis1mqnTG
-X-Received: by 2002:a50:f706:: with SMTP id g6mr71108122edn.187.1558938184824;
-        Sun, 26 May 2019 23:23:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558938184; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=k/tkMiIayZFbP7u88jZyibBDIoRVeWVcY7hj5qmCMM4=;
+        b=HLqvd6OkRAIJ2YHwSXYwzeoC4OHhXfkJc1zAjm9lUc7VDg8ivv/V2yv8du12rNnXO/
+         EEtNM8shVXvG1u/nnTo1Fu16A09O17gpeU+prPIo2pS600AjSrAIiD3Ho2tPis7CjthX
+         SZU3pVC3dihKrWufXoEwZtDA3EHTL3FeKPkr6HUv/JdGxWkwljb+stAI95Cb15UNSCNi
+         HsUXl44X0fusvYct75RjLy016gyyqfG7vGDXRuXWCLnBcVwRyAPARiAB9+Cx1Z6A2cuw
+         zIQdgHE73Yb/bfGB4WP/r1IC4oZZcjrH7EBJ3Cq0QF69JBbBfPXKxkBAbK28qSb3tUCv
+         3g5Q==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWlmpfvmfqom8CRULe1WGlNnw0FgQ8WmYc6/6fG6knCy3BKdTjp
+	31v1M/R6CRUI5wc5Nj3liIBHt3ISJixHO7jSAODR3kmbZdHF1jpr1gQjCPJ6h+ZBnoeUwNBzSWv
+	xxq4lIQVQhf8qYv6f1tyFFR/cuECGx+yJZxwKut3CGXAJjbnB6LfYhT6q6oJkEck=
+X-Received: by 2002:a50:b665:: with SMTP id c34mr120316295ede.148.1558940659163;
+        Mon, 27 May 2019 00:04:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxWgbY673Lpax7JI1uauyBY4PVTNagM7LFsox740arVmG3iFHD3jgaM8Q7cEuc+1JBbUhyo
+X-Received: by 2002:a50:b665:: with SMTP id c34mr120316218ede.148.1558940658331;
+        Mon, 27 May 2019 00:04:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558940658; cv=none;
         d=google.com; s=arc-20160816;
-        b=QmqM1bNXY4yvnHQIzOslNsCbmhyFfxLhO3eCM93nQH1T9juKL0+0yLfwFC79FJZE/B
-         OQZXDeJ4rfgTG7NJi4qin0QtPY9Ii0rx2EMiWalQ5hz8cfrUvkGMXYFjzCfUPIc0SA9l
-         w7oum9OjiHPeHJHZ8yiWN3Ql2luYjWf9nQKYyHg6o/nc1rCfZrSr5FGxiKCrl8hFnTYU
-         9yMHfrI8A40GLU90lbmV8oTeanKEu9XpAKLIASUc/DhvIzYOIl3qebhj5hYegDOS3937
-         u25IgmAWghQMFez/XAfdkfKG5yhZ1PTtdUtKjvQnFrUZL4y3QYveGeV9sCK6dMNCUYuW
-         mXKw==
+        b=FxU3H5xz3cF3TG3rQe+XLGh6xm1EXhxPFynD4igfuXp0KByaEVJtn+17J+/w06LdP+
+         cwTm6wrxNbc4WG9gQKEMvGzw0Fs5xXl4cD4W5+rojuEIYi2haGcNpkABDRBxubIzjFjy
+         Firla8a9CXd7WtvFRGayfJH0Z7XAV6/rhJfpsJO5v7nmCTuCRgszoegLudWfdDhWwfzo
+         qeue+y66NHTy5YSvm5AgOxcoITRGNqgPjYOSP/cftk4pqanm9UdRNmCTeNx01hSF1820
+         1ZbdDQmkWcNzvPOcca0lEIAZot68A/T2Od7HtxNKrkBHZtZH8Jdi0y/Ex7SLjMI2DAjm
+         pkGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=wXU7IXNhTV1CWq8L01LaYW5UJ4S7AmQA4U0IHEhoIuw=;
-        b=pKrqYq0pqNFT3La22+pmy/7O4N161LdHuKRyvNq1LE8g76RN5IKLV0IsRoYhqWv8Mu
-         38D+L7foXskJuBM9ge/yUoVgg8tfX/MIq2DCSGvyXnfwLqQkxhL1L4bZKc3b5exbKDRT
-         mwyfyTz6Dhf1KFiLU73EbAJVpD0zISvxal8fX6Uj+HuZNbHqIsIFIfp9R+XycuaFMPOT
-         RlTg2XWUAZRXWnb571UOqXVdiYNDT4P7DE2WT5fkwIzk+YYNNvSgGbNJeUnKB7dBCL1Z
-         t93gHlGISXw6z7g03+vZKoP1q6metzSZ4bneamMI4eK8ek7JfY17WWlIa/vjNlmL02iL
-         e7Pw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=k/tkMiIayZFbP7u88jZyibBDIoRVeWVcY7hj5qmCMM4=;
+        b=0d8VFuPR9r46C5KXTu5W5GBrqlydtv+jmyyv4mHGNiyin9WbJ59z5lAGBGSKFsHcaC
+         eWs1ZqWymBUwKIaxNMkuVfg7z0tPbmGXgldBhIDmvB/nRY2d0yq9NFSZ5Ej7vqVrfIMw
+         HwfhljGaw25Mym101v+1OFPAYpGZmvzVOQwpZboE4ktaqeMXJMp2nY6Dtsd+qmBFRzzw
+         beQWiG9nK2y9Am04U6Px2fjEEVjTXFnvMpej5Mb55Za49/FAOoCafPVHIGwMWdVas0C/
+         uB1kASvoeKj3sKCJ1Zv4e5ekDscIpvd2987K35rEK/+BtEMuogdToPnIp/Dg3hUorZoL
+         R+9Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w3si7706876edl.309.2019.05.26.23.23.04
-        for <linux-mm@kvack.org>;
-        Sun, 26 May 2019 23:23:04 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b28si2441065edn.15.2019.05.27.00.04.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 May 2019 00:04:18 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id CDB861688;
-	Sun, 26 May 2019 23:23:03 -0700 (PDT)
-Received: from [10.162.40.17] (p8cg001049571a15.blr.arm.com [10.162.40.17])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 794233F59C;
-	Sun, 26 May 2019 23:23:01 -0700 (PDT)
-Subject: Re: [PATCH v3 4/4] arm64: mm: Implement pte_devmap support
-To: Will Deacon <will.deacon@arm.com>, Robin Murphy <robin.murphy@arm.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, catalin.marinas@arm.com,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
-References: <cover.1558547956.git.robin.murphy@arm.com>
- <817d92886fc3b33bcbf6e105ee83a74babb3a5aa.1558547956.git.robin.murphy@arm.com>
- <20190524180805.GA9697@fuggles.cambridge.arm.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <b94b23a7-4e6f-7787-aaa8-3c2d355fad03@arm.com>
-Date: Mon, 27 May 2019 11:53:13 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 9EFD7AD9C;
+	Mon, 27 May 2019 07:04:17 +0000 (UTC)
+Date: Mon, 27 May 2019 09:04:15 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: "Potyra, Stefan" <Stefan.Potyra@elektrobit.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"Jordan, Tobias" <Tobias.Jordan@elektrobit.com>,
+	akpm@linux-foundation.org, vbabka@suse.cz,
+	kirill.shutemov@linux.intel.com, linux-api@vger.kernel.org
+Subject: Re: [PATCH] mm: mlockall error for flag MCL_ONFAULT
+Message-ID: <20190527070415.GA1658@dhcp22.suse.cz>
+References: <20190522112329.GA25483@er01809n.ebgroup.elektrobit.com>
+ <20190524214304.enntpu4tvzpyxzfe@ca-dmjordan1.us.oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20190524180805.GA9697@fuggles.cambridge.arm.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190524214304.enntpu4tvzpyxzfe@ca-dmjordan1.us.oracle.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 05/24/2019 11:38 PM, Will Deacon wrote:
-> On Thu, May 23, 2019 at 04:03:16PM +0100, Robin Murphy wrote:
->> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
->> index 2c41b04708fe..a6378625d47c 100644
->> --- a/arch/arm64/include/asm/pgtable.h
->> +++ b/arch/arm64/include/asm/pgtable.h
->> @@ -90,6 +90,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
->>  #define pte_write(pte)		(!!(pte_val(pte) & PTE_WRITE))
->>  #define pte_user_exec(pte)	(!(pte_val(pte) & PTE_UXN))
->>  #define pte_cont(pte)		(!!(pte_val(pte) & PTE_CONT))
->> +#define pte_devmap(pte)		(!!(pte_val(pte) & PTE_DEVMAP))
->>  
->>  #define pte_cont_addr_end(addr, end)						\
->>  ({	unsigned long __boundary = ((addr) + CONT_PTE_SIZE) & CONT_PTE_MASK;	\
->> @@ -217,6 +218,11 @@ static inline pmd_t pmd_mkcont(pmd_t pmd)
->>  	return __pmd(pmd_val(pmd) | PMD_SECT_CONT);
->>  }
->>  
->> +static inline pte_t pte_mkdevmap(pte_t pte)
->> +{
->> +	return set_pte_bit(pte, __pgprot(PTE_DEVMAP));
->> +}
->> +
->>  static inline void set_pte(pte_t *ptep, pte_t pte)
->>  {
->>  	WRITE_ONCE(*ptep, pte);
->> @@ -381,6 +387,9 @@ static inline int pmd_protnone(pmd_t pmd)
->>  
->>  #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
->>  
->> +#define pmd_devmap(pmd)		pte_devmap(pmd_pte(pmd))
->> +#define pmd_mkdevmap(pmd)	pte_pmd(pte_mkdevmap(pmd_pte(pmd)))
->> +
->>  #define __pmd_to_phys(pmd)	__pte_to_phys(pmd_pte(pmd))
->>  #define __phys_to_pmd_val(phys)	__phys_to_pte_val(phys)
->>  #define pmd_pfn(pmd)		((__pmd_to_phys(pmd) & PMD_MASK) >> PAGE_SHIFT)
->> @@ -537,6 +546,11 @@ static inline phys_addr_t pud_page_paddr(pud_t pud)
->>  	return __pud_to_phys(pud);
->>  }
->>  
->> +static inline int pud_devmap(pud_t pud)
->> +{
->> +	return 0;
->> +}
->> +
->>  /* Find an entry in the second-level page table. */
->>  #define pmd_index(addr)		(((addr) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))
->>  
->> @@ -624,6 +638,11 @@ static inline phys_addr_t pgd_page_paddr(pgd_t pgd)
->>  
->>  #define pgd_ERROR(pgd)		__pgd_error(__FILE__, __LINE__, pgd_val(pgd))
->>  
->> +static inline int pgd_devmap(pgd_t pgd)
->> +{
->> +	return 0;
->> +}
+On Fri 24-05-19 17:43:04, Daniel Jordan wrote:
+> [ Adding linux-api and some of the people who were involved in the
+> MCL_ONFAULT/mlock2/etc discussions.  Author of the Fixes patch appears to
+> have moved on. ]
 > 
-> I think you need to guard this and pXd_devmap() with
-> CONFIG_TRANSPARENT_HUGEPAGE, otherwise you'll conflict with the dummy
-> definitions in mm.h and the build will fail.
+> On Wed, May 22, 2019 at 11:23:37AM +0000, Potyra, Stefan wrote:
+> > If mlockall() is called with only MCL_ONFAULT as flag,
+> > it removes any previously applied lockings and does
+> > nothing else.
+> 
+> The change looks reasonable.  Hard to imagine any application relies on it, and
+> they really shouldn't be if they are.  Debian codesearch turned up only a few
+> cases where stress-ng was doing this for unknown reasons[1] and this change
+> isn't gonna break those.  In this case I think changing the syscall's behavior
+> is justified.  
+> 
+> > This behavior is counter-intuitive and doesn't match the
+> > Linux man page.
+> 
+> I'd quote it for the changelog:
+> 
+>   For mlockall():
+> 
+>   EINVAL Unknown  flags were specified or MCL_ONFAULT was specified with‐
+>          out either MCL_FUTURE or MCL_CURRENT.
+> 
+> With that you can add
+> 
+> Reviewed-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> 
+> [1] https://sources.debian.org/src/stress-ng/0.09.50-1/stress-mlock.c/?hl=203#L203
 
-Just curious why pgd_devmap() also needs to be wrapped in TRANSPARENT_HUGEPAGE
-config (or use this dummy otherwise). IIUC in case of DAX mappings there can
-never be a huge mapping at PGD level. It only supports PMD or PUD based ones.
+Well spotted and the fix looks reasonable as well. Quoting the man page
+seems useful as well.
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
