@@ -2,174 +2,136 @@ Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8CE40C04AB3
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 15:01:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B57D8C07542
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 15:12:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 41C982182B
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 15:01:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 41C982182B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 846A8217F4
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 15:12:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 846A8217F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 948E86B0270; Mon, 27 May 2019 11:01:13 -0400 (EDT)
+	id 179836B027E; Mon, 27 May 2019 11:12:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8D1FA6B0272; Mon, 27 May 2019 11:01:13 -0400 (EDT)
+	id 12AB56B0280; Mon, 27 May 2019 11:12:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 774076B0281; Mon, 27 May 2019 11:01:13 -0400 (EDT)
+	id F33136B0281; Mon, 27 May 2019 11:12:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 26C6E6B0270
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 11:01:13 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c1so28379395edi.20
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 08:01:13 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C11476B027E
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 11:12:07 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id 72so8908612otv.23
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 08:12:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=1GNZVkr57fgdF1rUp1cbQT5WCv4nVhkLxgTXkpSsqfk=;
-        b=BkZtW+8IbNwV3V2gKH8Su9YqBvmStLdXhvyryLZvzIo3qMqriBW0QNMZx+KnYghJo2
-         lsPyT/x7yGbgWuoIH9PFUJqv+8t6iEZ+Hb+5UXF0yTCcjRcuma6F3jR0+/C4j1CHgn+u
-         niIBydpSBElNVf1koMxZwpsxDfvbMKK/c+KL47MaflZyGi7mOpnMPfIAWIGuoAW2Nqph
-         YC4bDAR0zhAD3C4aYYbkIahMiIJ2W3GMLz+JXurCJ1e/JfmpqFgTGB6nh95SwhBOq/z2
-         9f6gRPzY7AsufWvhX5L8HsRK677R52apMnWEznY3SxzITJ94ssqKVd1cfR1KLdh+inzv
-         wWFA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVeWn8jUHVw3ufKKVu1xCYbwZh2dEMiC2do+ULVlcdqe2w/4Xmj
-	FSvWrRDRKVwD9T1zuzev5bmxYT0kyM1XBHFv1xfQsZxktXWbABzyW7EmLwin5xJH6q+6VpTn5i1
-	Turufssr1BnZ+dlK41qU0khxD+JxmKqRmVPXqhfVuJEqhi6ELzzlvi8MnCiSRdwo=
-X-Received: by 2002:a50:89b0:: with SMTP id g45mr124140509edg.200.1558969272695;
-        Mon, 27 May 2019 08:01:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwWRVPaIBUcnO4Jap+y/jGsY1Z7WiL2t+rlyjIV3HotU/4HCouWCikJ5xekzip4yKzUqugy
-X-Received: by 2002:a50:89b0:: with SMTP id g45mr124140166edg.200.1558969269825;
-        Mon, 27 May 2019 08:01:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558969269; cv=none;
+         :in-reply-to:user-agent;
+        bh=+SwoNYGdL5TJTcjSuNRdZDV3y9fIFV4dZFCT9dM/VBA=;
+        b=ZGGrXWkK0H4a8pSB0hpyJ5DYWenQ+f5Ga/lc+UlgwUt/ADEpvL5i+WF+RhP8OcoFSw
+         MLMqpB37N5PTNK1hagufdk0q6xJixPM6Rl8SIui+hVgPRcJzXZyx2NkHb/5IFXLfTtmG
+         5/cuICopmcp8E3Lq4TJcEYKYqYDwg8JwH5ZHw/kTBywRT6cq/5G5pzifjITogZNNPeZQ
+         E/GZOzF/Fm8A4n3R5OyZ9Am85QPzdVqP+UKPMEMBQFyZq8hf8GbG4CCA9u6sRTJzC9SW
+         zb2YqHQnW5IRva3u9nO/x1DBXQnCpLZLxXKpGRCU2NkCXfpm0E1CaF+pWk3KhkhchfT6
+         0GkQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXYxB7WbW/AEPxoBz35pbADi+VtRWcdRCXVBpamEAPTZrUSW0Ys
+	PBny3DRxbK4btKi7Tf0ZQaCSwzS9IEGfzakViL8fhEHUrdu8DOhHpgiW2as08rFd/dzI1Lt9fOr
+	l2GySpwHOVN1OJ+pjKLan3wfJBXK6/wIBHOeq+Hn5ZeZOA2BQVil6OfSN9yIZw+3G1w==
+X-Received: by 2002:aca:f002:: with SMTP id o2mr14557150oih.31.1558969927450;
+        Mon, 27 May 2019 08:12:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzQYi6YUmusdqvglwynmydM/bPF4laIWlMcZSRZ37siPJyDS/3SZ9BGWJug3LcF9K488+3c
+X-Received: by 2002:aca:f002:: with SMTP id o2mr14557116oih.31.1558969926708;
+        Mon, 27 May 2019 08:12:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558969926; cv=none;
         d=google.com; s=arc-20160816;
-        b=QGCQhmJ8Z4ogb0LlS0z49+9RQFHgoIinSqaP7XuqQ5/mtmpD90MtF8WMpcvn1RdxsW
-         dSaKAIt1L+RS9s7EBRpbcuOJcmOQ62ebZGX6AIYaR9elMJ7kh67XIGsa+2J6hDnbakcd
-         QSA0ORZQfh6ChzGKMIQIPEUxJQqPuYOW+PAguqqAueJo0INoUesVB+TXOdfXsNPMEK0K
-         udAIg7B9CT1Nst/vIFP3v0iV5VrY1xXyuwhWsiU1oskCv80BJIHZlYNZqOU/aszZtgNU
-         yxPZOyMXFLL1IPe+l84KhpWaPC/44vtoXxWjMhJQHyyLnuC5CAwpvBWB3ZwO/u4xeV0u
-         L3+g==
+        b=RHsDAMEtB/wxLxDhPkBtRuCk8ydpKNZ7tYN1I+gKRm4eFzVmYP1Uv+oqg4oUsH0Lmg
+         h6LxN4+EPOoIlStcfpRDeKxnkKvZHQtJQLbBoir7/IjOwGb3O2+dvlQfeEtvLHgeC5ZL
+         jI0XUJqtbI/VT8h2UEKA1z2TuYYK+TJ3ztvcERgU6GOS+6pibgRjIJWWxIKysuzgH5kr
+         XhF7/diG0x58H5PvtkIe6LRAc1OV4I1d2k8kSN00L3l40Za4whk7edG/yYlzGfB7+XYu
+         ORkmO/G5n44c5P+m8GdjJHtch07mHC4oJsJ1tRUyMQL5+81JReMTf2yC0JYRjEYtfC/2
+         rsTw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=1GNZVkr57fgdF1rUp1cbQT5WCv4nVhkLxgTXkpSsqfk=;
-        b=foPw8pHgWjO5PiRAcFiDYgCTb7uBFi0F2C7wkE2bMvSOlMfe/VUm3RRSVGgFbIEi8L
-         uzjBcovH9mH2MYC8ES/mO8zI86oQZCjGbcBVAlDgBeBg2d2qxEX1eXy71ThkgbxmBgy0
-         pjCsqFD5Q1C9AiC0A1XZqFO1kA1nK98w+QhybSQuNfjYzMr5N9JpYiOOOGP9srcNJ75V
-         L1LqVzbQpqriX6Mjq2EtcFfssBp0Hp4i3c8cJmURnyonk0XoLEF2mkhvsfnw8Faj37rb
-         CUGws1DKc5D9f0mPxJ9GbCmIvMdz3m3ELV1bhWuaTrvtrZNOy4axJXoVXA3U86rIG8Ox
-         IFfw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=+SwoNYGdL5TJTcjSuNRdZDV3y9fIFV4dZFCT9dM/VBA=;
+        b=wV6ALIlJwj1zYpQIsWdiCYE6QKLWfNS1dCLuY/ZncEEu84LIrhggYZTR0C4t4mA0YF
+         PYqAEHrvy4dfvrxx3nJ2+s9dun42Ao/JmJ6dfGLq15gA5aOMaaAuGHMqLFJFZJanxoJf
+         VtuqeV6W7tiX5ZdMeTl/UqBip46ZEGd+lNVUTqqettBcMDzb2s5bXzNm8JQiwNrXCFgZ
+         zR0QiGo+fbX2+nlacVfDay7en+Y/+AiQdXX+eDvxpeHuei4C1W8AhKZ/o/GZBHeDfA8F
+         EFJYOiy0QpZ4U0ewgAyHfGTVEhrDFbEWoq0ZeD1cq2tjSLI73+sYb3nXJuNgjd0kP8nl
+         WUKQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e36si8950507ede.438.2019.05.27.08.01.09
+       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q23si5877282otk.310.2019.05.27.08.12.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 May 2019 08:01:09 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 27 May 2019 08:12:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 065A5AE74;
-	Mon, 27 May 2019 15:01:08 +0000 (UTC)
-Date: Mon, 27 May 2019 17:01:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: ira.weiny@intel.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH v2] mm/swap: Fix release_pages() when releasing devmap
- pages
-Message-ID: <20190527150107.GG1658@dhcp22.suse.cz>
-References: <20190524173656.8339-1-ira.weiny@intel.com>
+       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id ECD117FDFA;
+	Mon, 27 May 2019 15:12:05 +0000 (UTC)
+Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.159])
+	by smtp.corp.redhat.com (Postfix) with SMTP id 2D197608A4;
+	Mon, 27 May 2019 15:12:03 +0000 (UTC)
+Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
+	oleg@redhat.com; Mon, 27 May 2019 17:12:05 +0200 (CEST)
+Date: Mon, 27 May 2019 17:12:02 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>
+Subject: Re: [RFC 5/7] mm: introduce external memory hinting API
+Message-ID: <20190527151201.GB8961@redhat.com>
+References: <20190520035254.57579-1-minchan@kernel.org>
+ <20190520035254.57579-6-minchan@kernel.org>
+ <20190521153113.GA2235@redhat.com>
+ <20190527074300.GA6879@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190524173656.8339-1-ira.weiny@intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190527074300.GA6879@google.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Mon, 27 May 2019 15:12:06 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 24-05-19 10:36:56, ira.weiny@intel.com wrote:
-> From: Ira Weiny <ira.weiny@intel.com>
-> 
-> Device pages can be more than type MEMORY_DEVICE_PUBLIC.
-> 
-> Handle all device pages within release_pages()
-> 
-> This was found via code inspection while determining if release_pages()
-> and the new put_user_pages() could be interchangeable.
+On 05/27, Minchan Kim wrote:
+>
+> > another problem is that pid_task(pid) can return a zombie leader, in this case
+> > mm_access() will fail while it shouldn't.
+>
+> I'm sorry. I didn't notice that. However, I couldn't understand your point.
+> Why do you think mm_access shouldn't fail even though pid_task returns
+> a zombie leader?
 
-Please expand more about who is such a user and why does it use
-release_pages rather than put_*page API. The above changelog doesn't
-really help understanding what is the actual problem. I also do not
-understand the fix and a failure mode from release_pages is just scary.
-It is basically impossible to handle the error case. So what is going on
-here?
+The leader can exit (call sys_exit(), not sys_exit_group()), this won't affect
+other threads. In this case the process is still alive even if the leader thread
+is zombie. That is why we have find_lock_task_mm().
 
-> Cc: Jérôme Glisse <jglisse@redhat.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
-> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
-> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-> 
-> ---
-> Changes from V1:
-> 	Add comment clarifying that put_devmap_managed_page() can still
-> 	fail.
-> 	Add Reviewed-by tags.
-> 
->  mm/swap.c | 11 +++++++----
->  1 file changed, 7 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 9d0432baddb0..f03b7b4bfb4f 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -740,15 +740,18 @@ void release_pages(struct page **pages, int nr)
->  		if (is_huge_zero_page(page))
->  			continue;
->  
-> -		/* Device public page can not be huge page */
-> -		if (is_device_public_page(page)) {
-> +		if (is_zone_device_page(page)) {
->  			if (locked_pgdat) {
->  				spin_unlock_irqrestore(&locked_pgdat->lru_lock,
->  						       flags);
->  				locked_pgdat = NULL;
->  			}
-> -			put_devmap_managed_page(page);
-> -			continue;
-> +			/*
-> +			 * zone-device-pages can still fail here and will
-> +			 * therefore need put_page_testzero()
-> +			 */
-> +			if (put_devmap_managed_page(page))
-> +				continue;
->  		}
->  
->  		page = compound_head(page);
-> -- 
-> 2.20.1
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+Oleg.
 
