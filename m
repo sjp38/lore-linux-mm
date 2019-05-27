@@ -2,161 +2,150 @@ Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 677A8C04AB3
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 13:58:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DBD78C04AB3
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 14:02:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 28B2020717
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 13:58:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28B2020717
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id A110C205ED
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 14:02:51 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="CJ2irMJK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A110C205ED
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9795F6B027D; Mon, 27 May 2019 09:58:30 -0400 (EDT)
+	id 381C16B027D; Mon, 27 May 2019 10:02:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 92B106B027E; Mon, 27 May 2019 09:58:30 -0400 (EDT)
+	id 30B456B027E; Mon, 27 May 2019 10:02:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7F2DC6B027F; Mon, 27 May 2019 09:58:30 -0400 (EDT)
+	id 1D3886B027F; Mon, 27 May 2019 10:02:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5335C6B027D
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 09:58:30 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id x23so8848075otp.5
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 06:58:30 -0700 (PDT)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AF7056B027D
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 10:02:50 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id d11so3191266lji.21
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 07:02:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:user-agent:mime-version:to:cc:subject:references
-         :in-reply-to:content-transfer-encoding;
-        bh=rbJlnYa7bR8IixIQV45NuiieODr6ig8AjY5FOCblSXs=;
-        b=I69zCiQIT1TLew7mp91pwYFevPeWLXi3Qt4OxIG72uHtHSb08cj1Y99dkCxG6RaUCf
-         sMZCzRjVXHMrPWfOZlURIu5j3jV9GBTpCNimdg7zQhL8KGexMmMV810r0rd4WZFxgaS7
-         ZgUvdtWrZ3zyGlmqkFWH9M1o/ZZcVXJnUMdSRUstEcZ9B3vO3gxUAO9wMk5TKK5UAxK3
-         C53OqYImeym158y3bK5k3BSBdhfgVmBZcmeHhTmeS2Is6awdiUclCbfDogtNn3KZssYg
-         C37cPDqd6mw3TAm/CvswEUhqI6dZMHel3Xo9C66pCH0Z9x23crTeLiMqFScDNQWUEQG4
-         +ZDA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-X-Gm-Message-State: APjAAAUNBO35chX7kxOwLN0k9FjX3B4bbL3xm7oEpuayCdah70sQUxXf
-	Al0BLs5EtC1l2U9xuz9mVXVT3H2ADSyOYjdpEVowmXJh7/BK/m8g8eqJYPkQKnXX7SrfKlBROph
-	XvRy3oOArzhC35f6aps7tGLet/VUdj5/xqsEomSKLA1PP9p8zjUuB4uDO/KCh/mysQw==
-X-Received: by 2002:a9d:7e88:: with SMTP id m8mr39262782otp.358.1558965510011;
-        Mon, 27 May 2019 06:58:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxdWpiapZwtUSpXRJoyX11DnY6BqHTx5+54XfvH8QV/ljuP75K2CE6KMoDvITsTMtSvJfHX
-X-Received: by 2002:a9d:7e88:: with SMTP id m8mr39262716otp.358.1558965508405;
-        Mon, 27 May 2019 06:58:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558965508; cv=none;
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=nCMqcLWyCA+4Q/MEIIgUaDC50B6QNtxtBMlc97ZOozY=;
+        b=AXM8BVLQkqAQM4fuaI02Q1Q8kYC8+ZyO8Dx17BnCOudwlxRCw9N2eKcUMcolunYjhp
+         1ISlGf96YWLucZu4yb2OoKcdB8JyEhBczDZCXVrDupj1hI2CwvrAbt+3Odb4/LjAaPhF
+         JHL3YhiwMV6SkMDHDnWMZiiwBb2ElrFh2/IjOsPI8WQ+l5bsvxLRCSCX1KupfIwFOihe
+         ksYLV2oIPVI9zZknD8eKdZMm/nawAnRyipDx3Ze0yrEwo60aypIHiByQs0KNcCgckDxQ
+         ONTL0auI9iEKgZg/4J0wl9QvUgHhU9mVz421Uo8Om+0e8Btdk44o8qlIzlnqxCkqK6nt
+         cicw==
+X-Gm-Message-State: APjAAAUz58xvjWx2EqsiAxF0JlZGPePY9cPDc1e05eCz1UrHHVgOUG5E
+	5fJBDQqOnRe8vm1zuw/QrXuZOPje7tGe+MimDajATC63fBp7H71VIY4NLHfFkdDZnN3QD2alxKs
+	vBQSZg+R15eVn6lSyXrtfJlkrhyBVl2sMZxMV7Qc0XHUSY/WX1hIQp52k+zKktqRRAg==
+X-Received: by 2002:a2e:9f41:: with SMTP id v1mr23591141ljk.66.1558965769910;
+        Mon, 27 May 2019 07:02:49 -0700 (PDT)
+X-Received: by 2002:a2e:9f41:: with SMTP id v1mr23591100ljk.66.1558965769171;
+        Mon, 27 May 2019 07:02:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558965769; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xc2iRDeRoqK8G61Xy/RHJU+pGy8rOW7OTPeV1QdSVzEsnb/3ldMW+n/4MvzWYvbD2W
-         qVfwJ4X6E4foC0FbwROAElYqY8gD+dNnvpbr9RNig7vQu4cf4igCDUufhN7hYCOFswSF
-         eUdkzHRzl6ZV3tywL9yWd6UKoY2OgpfJ9mw2I+iIr/X87NuJVbQ2H3zVwnL5YxoO80yf
-         Zj7cD6+rf7Ej5eJYu9GKYXRWiiONhG3vshxa4HJEa4pWQp8TkxkwEO7Qcf/c601RR1Fu
-         KRl58CRRtOPffGF8pMp1Ir2ya68LVfLFvIvMOfbhhhmAuMT7+2BLASVFsocbINuyu/Bo
-         PP3A==
+        b=s2TSqWlp+wEeQgllmL+jYXZJq0hAJRWiTbYj2kq78XO6MVJkAz8BJB0Bq6AtLRE0bw
+         s+7CiI9KkmVe5HDRozTrRlt3cSw9GoXKDS3gyE7pyOdQRwHHYENXjs1P1oo2uD3dS32Y
+         DZDJyktMe+vzLSX4pAcxWnfzzl3jK412aM3HZfDoJcJG0u7nLk/W2FVidIqiEOIYcI5Z
+         vVRObjzeR0wZu2cFzZ138Fg0EZ2oI7d6snTs3gds9ZG+xcppyaYAt/IqtdXxIscMnlYt
+         YZlEwVCOcDCn1tBEmGjnWnveBKpbdIfbVJSiML8iiXtZ1BRwKrDV+f1n6lQ2OoCvZLXG
+         GgRQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
-         :mime-version:user-agent:from:date:message-id;
-        bh=rbJlnYa7bR8IixIQV45NuiieODr6ig8AjY5FOCblSXs=;
-        b=amDZtVrCQupAauI2HHjLGB2pPC6pmeSAs3qxR5FlobMd8Xed89FmyK+aZL8UEwGQxq
-         sOsIYHxPwpqeZ7OO23IVuWr2bhuZgvujNYKFQnXUexTE2FjwEyt1LfjMIRosLSS5hMC4
-         90H1q7HKnrMAZa0JDLv5IfAYVQR3nhqKP3acSqENrkUByWFyrcyZbHmki1h7O18ztllH
-         ocL3vAtXf6/V647FR6TfcClh0Mu3v2WNxzGenZvB4Dxq1X19SK9QgPByH8mR1HzcF2W/
-         X2XIFv1wwPS7ll9ot7Y4SmO16ONMw7ICEA78GlEF4XjHBbW43RnJseVtenbM7Kk3WxYK
-         2vvg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=nCMqcLWyCA+4Q/MEIIgUaDC50B6QNtxtBMlc97ZOozY=;
+        b=UlyI9luJ+K9h9ndUGvIvA8wUo0LU0qWaIbftyxgqi/xH03AHWIJZe9zQl8REmtXfuy
+         PzWYf5S+OGLT4Cr9zfFwH02eNmWJKjklL0nqRmGMAkuUkjVKE3oVviw5l8s9u5CdJB3m
+         uvBu3cX3zglVxBvLtAhOrp/jE+KvSigx7gQ6nlWy9QQ9Auz3ClxtCnUFWj6jwFiCSyQO
+         Y89QssAUFJH5YBwtCle1wYrD+jZ0PEaZOs6lO5S0KHy9X+9RWTkY+PzNj9/5KfzWwZRs
+         4QaMm9Q4J7f2TkU0akpzoMy2hNnMgZa5+RjqTVaNQ3aR9a7CZCn3/c7nXP+EWvxiYhkL
+         mMmg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id v17si5708841otj.162.2019.05.27.06.58.27
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=CJ2irMJK;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l22sor5407981ljg.23.2019.05.27.07.02.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 May 2019 06:58:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
+        (Google Transport Security);
+        Mon, 27 May 2019 07:02:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
-Received: from DGGEMS409-HUB.china.huawei.com (unknown [172.30.72.58])
-	by Forcepoint Email with ESMTP id A18F1DA764C56511616F;
-	Mon, 27 May 2019 21:58:22 +0800 (CST)
-Received: from [127.0.0.1] (10.177.29.68) by DGGEMS409-HUB.china.huawei.com
- (10.3.19.209) with Microsoft SMTP Server id 14.3.439.0; Mon, 27 May 2019
- 21:58:18 +0800
-Message-ID: <5CEBECF9.2060500@huawei.com>
-Date: Mon, 27 May 2019 21:58:17 +0800
-From: zhong jiang <zhongjiang@huawei.com>
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=CJ2irMJK;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=nCMqcLWyCA+4Q/MEIIgUaDC50B6QNtxtBMlc97ZOozY=;
+        b=CJ2irMJKh684KUcwCc9e3mRWyJ3si0NiJuPS8075E4MvXvGMVcYFMOXShhgQ6jQ65m
+         5ZT8nQuRaOztT3vV1jR1mOBIKUw3uFP111pf95gc1AWajJpwzTjYYE3a8pNrNFx8YM3G
+         qF+VgZDKakhfXS6vsoAA15xxhlI70teCFJXoQOhdt+aB+nwDh+M1AUnaMOaH2u4iowZF
+         M9RDJ51+OJf4FjpByIo02Fg5yIq6EfeQVZk5SdkqFnA4eQFbHfJ3XquqOWlYbMC024Gc
+         vgdX3QYfA4UtbUxk8wiLe15FW8s3SdFjoTNbTQfmI/ASsEOrqluE4QTc3bmQiVdMTCm3
+         diYQ==
+X-Google-Smtp-Source: APXvYqzXY+tlQxq7QCiBnJ+JYYpe6XAxMrsHVoWpLgb9r76XvPQ1r14R5z8LOJLwEgnfZ3qF0GJRWg==
+X-Received: by 2002:a2e:81d9:: with SMTP id s25mr21926270ljg.139.1558965768729;
+        Mon, 27 May 2019 07:02:48 -0700 (PDT)
+Received: from pc636 ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id r62sm2335963lja.48.2019.05.27.07.02.47
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 27 May 2019 07:02:47 -0700 (PDT)
+From: Uladzislau Rezki <urezki@gmail.com>
+X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
+Date: Mon, 27 May 2019 16:02:40 +0200
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Roman Gushchin <guro@fb.com>, Hillf Danton <hdanton@sina.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Thomas Garnier <thgarnie@google.com>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Joel Fernandes <joelaf@google.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
+	Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 4/4] mm/vmap: move BUG_ON() check to the unlink_va()
+Message-ID: <20190527140240.6lzhunbc4py573yl@pc636>
+References: <20190527093842.10701-1-urezki@gmail.com>
+ <20190527093842.10701-5-urezki@gmail.com>
+ <20190527085927.19152502@gandalf.local.home>
 MIME-Version: 1.0
-To: Vlastimil Babka <vbabka@suse.cz>
-CC: Andrew Morton <akpm@linux-foundation.org>, <osalvador@suse.de>,
-	<khandual@linux.vnet.ibm.com>, <mhocko@suse.com>,
-	<mgorman@techsingularity.net>, <aarcange@redhat.com>, <rcampbell@nvidia.com>,
-	<linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH] mm/mempolicy: Fix an incorrect rebind node in mpol_rebind_nodemask
-References: <1558768043-23184-1-git-send-email-zhongjiang@huawei.com> <20190525112851.ee196bcbbc33bf9e0d869236@linux-foundation.org> <2ff829ea-1d74-9d4b-8501-e9c2ebdc36ef@suse.cz>
-In-Reply-To: <2ff829ea-1d74-9d4b-8501-e9c2ebdc36ef@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.177.29.68]
-X-CFilter-Loop: Reflected
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190527085927.19152502@gandalf.local.home>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019/5/27 20:23, Vlastimil Babka wrote:
-> On 5/25/19 8:28 PM, Andrew Morton wrote:
->> (Cc Vlastimil)
-> Oh dear, 2 years and I forgot all the details about how this works.
->
->> On Sat, 25 May 2019 15:07:23 +0800 zhong jiang <zhongjiang@huawei.com> wrote:
->>
->>> We bind an different node to different vma, Unluckily,
->>> it will bind different vma to same node by checking the /proc/pid/numa_maps.   
->>> Commit 213980c0f23b ("mm, mempolicy: simplify rebinding mempolicies when updating cpusets")
->>> has introduced the issue.  when we change memory policy by seting cpuset.mems,
->>> A process will rebind the specified policy more than one times. 
->>> if the cpuset_mems_allowed is not equal to user specified nodes. hence the issue will trigger.
->>> Maybe result in the out of memory which allocating memory from same node.
-> I have a hard time understanding what the problem is. Could you please
-> write it as a (pseudo) reproducer? I.e. an example of the process/admin
-> mempolicy/cpuset actions that have some wrong observed results vs the
-> correct expected result.
-Sorry, I havn't an testcase to reproduce the issue. At first, It was disappeared by
-my colleague to configure the xml to start an vm.  To his suprise, The bind mempolicy
-doesn't work.
+> > Move the BUG_ON()/RB_EMPTY_NODE() check under unlink_va()
+> > function, it means if an empty node gets freed it is a BUG
+> > thus is considered as faulty behaviour.
+> 
+> Can we switch it to a WARN_ON(). We are trying to remove all BUG_ON()s.
+> If a user wants to crash on warning, there's a sysctl for that. But
+> crashing the system can make it hard to debug. Especially if it is hit
+> by someone without a serial console, and the machine just hangs in X.
+> That is very annoying.
+> 
+> With a WARN_ON, you at least get a chance to see the crash dump.
+Yes we can. Even though it is considered as faulty behavior it is not
+a good reason to trigger a BUG. I will fix that.
 
-Thanks,
-zhong jiang
->>> --- a/mm/mempolicy.c
->>> +++ b/mm/mempolicy.c
->>> @@ -345,7 +345,7 @@ static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes)
->>>  	else {
->>>  		nodes_remap(tmp, pol->v.nodes,pol->w.cpuset_mems_allowed,
->>>  								*nodes);
->>> -		pol->w.cpuset_mems_allowed = tmp;
->>> +		pol->w.cpuset_mems_allowed = *nodes;
-> Looks like a mechanical error on my side when removing the code for
-> step1+step2 rebinding. Before my commit there was
->
-> pol->w.cpuset_mems_allowed = step ? tmp : *nodes;
->
-> Since 'step' was removed and thus 0, I should have used *nodes indeed.
-> Thanks for catching that.
->
->>>  	}
->>>  
->>>  	if (nodes_empty(tmp))
->> hm, I'm not surprised the code broke.  What the heck is going on in
->> there?  It used to have a perfunctory comment, but Vlastimil deleted
->> it.
-> Yeah the comment was specific for the case that was being removed.
->
->> Could someone please propose a comment for the above code block
->> explaining why we're doing what we do?
-> I'll have to relearn this first...
->
->
+Thank you!
 
+--
+Vlad Rezki 
 
