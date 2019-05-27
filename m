@@ -2,646 +2,201 @@ Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94F2FC04AB3
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 19:58:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AEB67C46470
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 20:05:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 28F4520883
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 19:58:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="WnhCB7P7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28F4520883
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id 5BA5520883
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 20:05:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BA5520883
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD8816B027C; Mon, 27 May 2019 15:58:40 -0400 (EDT)
+	id DDFF06B0283; Mon, 27 May 2019 16:05:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A606D6B027F; Mon, 27 May 2019 15:58:40 -0400 (EDT)
+	id D8FC96B0285; Mon, 27 May 2019 16:05:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8DD896B0283; Mon, 27 May 2019 15:58:40 -0400 (EDT)
+	id CAA2F6B0286; Mon, 27 May 2019 16:05:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 23BB56B027C
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 15:58:40 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id y12so29343992ede.19
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 12:58:40 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 93EB26B0283
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 16:05:16 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id d125so10851558pfd.3
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 13:05:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=HsTAO4MPFDORutqttq/+3p/7+cC2uB2dPdEX9r6irIM=;
-        b=q/N/4I75eg8Uw+I9E/ViM9GyPxmFOyLdlTqa0k63l3o2m7WbE+FhgIF+lud00feWU8
-         5aMMClcqRE2u3XufZ1HVqyE5EvO1mMRDI7Q3iXeZ46LWL1pD2oyQqw8hCNdkHwtQFoK5
-         AybqoyxVv4vMysdMFvZVimY9NPZovteN2ZicFOgxNJCVBjWCGmjqb/dhccfL93ducRY+
-         uztcVIJgwWGNb/rUKmfjvNaWJj6ReC3xOC+aWVXAvSPcTlynP+zDvNCNhHOB0hjDkE9e
-         /jCuP5kVrDzoOVc2rFYRVxA2cuYbz2YwRlLx4CB0GjhUiQzk6xN01qZ7gFiqAOTEBQF0
-         qoKg==
-X-Gm-Message-State: APjAAAXssz/FJ8tvDjHdNwoxf1+GFXOLWPzfsNYAAO+aRqJR5WSnuHl5
-	ijkFi76AsFcNBYOKCqKxbJK5VL29Yevez1nlTF5ipjUAJTQzbs7M82o8K95KKPLNk0rbE652gav
-	8323fstsYfS2+ND/kwR7Pog0lrk8TRHptC4UhtLB+lDGd/r+U1IRR2PvXYO8WTxuwsw==
-X-Received: by 2002:a50:9855:: with SMTP id h21mr71249348edb.264.1558987119547;
-        Mon, 27 May 2019 12:58:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwt4JgObq2tD5BxTLKbh26kJ8Bp8tnrcnuyP/UtKfVonYkH4KAV5Y55WzgsnUqTjxhp8MIg
-X-Received: by 2002:a50:9855:: with SMTP id h21mr71249270edb.264.1558987118277;
-        Mon, 27 May 2019 12:58:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558987118; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:user-agent:content-id
+         :content-transfer-encoding:mime-version;
+        bh=J35uRVbx7ftrhzqrWHFaAS8UieoRF4KzW1s1OSUU4s4=;
+        b=AG7eo18RNQQ3PLAvm5jIhcGVjXYztfLLV1qIKDm9dDQLH7y66ffVPnB9AGjXPkYIGt
+         MynAkXlRShSi6sp6btPetrxlzNYt5mxhjS+IP938CzEQBuAknNjZDG1ntcb2az3mVF+w
+         CgDNzdzIdeuoaDrTEY3tkllRGlgPhJZaulx/YcZYv+zILk+NfzpEqsfDFMwGL6DxM71w
+         +81jVqHwr7wylKUXXeSohBFE0laQQ/XqzpQat2paEyFxqBFxyRELnACHqLvKRSXzCuGh
+         uB1mRdqnuJPmS6RJxYIWAbFK3LdFsQ2pfVekZErYU+HjPupPNlQp1lVA3edunXakDacf
+         YOeQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWPcuWdiUBOG2/KADFE0qVcFbNwUbW5g4dNaWVEfyxEGq7WnMmP
+	h2euSksoDoZF3jLhJ4iKRe7zDF2PguWB7E8oOhgZiCox65bLM8OZRccyQ6wdYpev6eZ1+5xSfDc
+	6zFPBPZQ3nUSMijNzhsGwdOZat2dbNB3MdNJwL78m9Jb1g2YeAMUxyTHgnavVZSFiug==
+X-Received: by 2002:a63:2315:: with SMTP id j21mr33177326pgj.414.1558987516113;
+        Mon, 27 May 2019 13:05:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzQ2RixT6DfOwOKFWcpWTgDy/76rQBpm5TUw4xHWHmDGwd5HVDFqM2sU1Cy2zK1EZjXdyIT
+X-Received: by 2002:a63:2315:: with SMTP id j21mr33177263pgj.414.1558987515190;
+        Mon, 27 May 2019 13:05:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558987515; cv=none;
         d=google.com; s=arc-20160816;
-        b=g7GNsvrC5er1VRyKHo0eo+tu9eaMwxtgUO7Dz+qNmcF7elBIQhx1Ta2puzbfTiP1k7
-         SoBj/D86O14wqYhAnt32uTVWRi7zkxY3+WgwoPVCSM6UsO3Mk563deLOFWzOD1/c/210
-         g3X6auoGDTR+C7xhLFgXzTObisWpVScQBsms/hmxG24h2tpMOYYjm3TNtzjyg1Mnl/Cx
-         jFlH7aKtvcDh+T1S3U4xppMYCsP/18d6Cvfe98HLxxk/o82PcHLRISYXU+iB6qx1Nspm
-         GsTWII4wnq1CM+7YJNYCyHV1IRjYL2v94/SfE+DVK0KvYHVknkv5KMIx3ToHBgxXX9Ts
-         pc7w==
+        b=jh+yQvMxWOBF+FulJN2KOUwlOk+il+cOF9hwmC8xTIBBCiKqYzGoczUQJ7DK+U8PXn
+         x8p+SbgYHCRQVP1SHJf8UhkAGW1/2h2kzfv2kRstJt6s7WbRmSyb21te+zU3cmp6xCDp
+         bHp/tpGW1A0bWLWej2y4D2KEx5L1ue+zh/MsfcOLnHZsaZ6TXPx1Se/mAYjyYOeCFcZx
+         D6MbXf8VbshYgNLvFo50Jo47/p8S4RTrTh+PKRdFnWIRNGv1DN/tAoXF3NJjw4ig1C3H
+         ptZe8iUs0b04kAouonQC1n9+wua3HpyPRWNzMG6ROLwijNWFWbEaqj+y0s6A9lU/z2Pz
+         8VSA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=HsTAO4MPFDORutqttq/+3p/7+cC2uB2dPdEX9r6irIM=;
-        b=vJsdYNnesG/FBsgncOy/Vv0PpS9E+9nONqsnGqtUJ/iePARWeIGdSdq5ZQdYHhhSJx
-         vZBRlDZbT7PidnS4Kj0PVDSOkoHyGy9FEgN2NZ6bL+kr70dZfGpng1cimJEFDONNHche
-         COtZ0OB4GEtZwEmA70cImr5Q6iMDK+S9xyOeluK0PM7ZMcirhACSWwl53FbLJvXnsD7U
-         Z58PkGqV5HZq808fztbhTx7Rv8upNQqcXW+CIAjcSCOzYmsjq2duhrs+RUwcb4dNiAzL
-         yoRuVNchyojv9QDcPhQWIw9awapCsFJ0qpGqYgC9BTrzIXyv9o4sou61LildoxwMh2pm
-         cHMQ==
+        h=mime-version:content-transfer-encoding:content-id:user-agent
+         :content-language:accept-language:in-reply-to:references:message-id
+         :date:thread-index:thread-topic:subject:cc:to:from;
+        bh=J35uRVbx7ftrhzqrWHFaAS8UieoRF4KzW1s1OSUU4s4=;
+        b=mwHKkcO1hSdICbSA31mjJWFTcX3lVKqTnRyeGyArXPNaMD1r7T2k0LZEY16D6ONIoR
+         QfAnH8EjhMqGD6a3fQGe3vYF5OmSzF4zOnfoXUOexY1O+srmL7TqXEVRMdwcP81YqzIz
+         0nRVc1jwO2q67evJzHwo5UOh4xHaOuiJj99wF9XLpr/cXQM5jvj4xwZ/dD/AEN68fctd
+         GpJbPs5zrjVDwbUgUNd/zVXAYdsMuyzvH66jc5xtpwkzU3U1zh+9aF9g53mDHQ4dLpYQ
+         fBL1Hgw6PyVzsnyJh7XW9PpwUTDGnSm/Op6zkigVG2J+o8S2TDW4XuhtvSNhojpSjTxy
+         Jefw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=WnhCB7P7;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.7.51 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR04-HE1-obe.outbound.protection.outlook.com (mail-eopbgr70051.outbound.protection.outlook.com. [40.107.7.51])
-        by mx.google.com with ESMTPS id f34si2269853edf.38.2019.05.27.12.58.37
+       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id 15si14591517pgk.227.2019.05.27.13.05.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 27 May 2019 12:58:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.7.51 as permitted sender) client-ip=40.107.7.51;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 May 2019 13:05:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=WnhCB7P7;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.7.51 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=HsTAO4MPFDORutqttq/+3p/7+cC2uB2dPdEX9r6irIM=;
- b=WnhCB7P7/VM1aLfLBU7fAcQjwdRIe7+AUL0o/KT/miMtsBBvX6vvpTztnucVt2R9/3EfS1CCpNuzLyDFM5ixsz94+o3N33E8A+hpHnNYeIaIhlPP0nvPOZ/WJ6oWf0c0MXTlQsCXWaPwSDmGI4e8MWNPyu5Bd5ahue5yBMdI4Hg=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB6509.eurprd05.prod.outlook.com (20.179.25.86) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1922.17; Mon, 27 May 2019 19:58:35 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::c16d:129:4a40:9ba1]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::c16d:129:4a40:9ba1%6]) with mapi id 15.20.1922.021; Mon, 27 May 2019
- 19:58:35 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Jerome Glisse <jglisse@redhat.com>
-CC: "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, Ralph Campbell
-	<rcampbell@nvidia.com>, John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [RFC PATCH 00/11] mm/hmm: Various revisions from a locking/code
- review
-Thread-Topic: [RFC PATCH 00/11] mm/hmm: Various revisions from a locking/code
- review
-Thread-Index: AQHVEX0JnOUAStpfyEOu2lSXF8F8eg==
-Date: Mon, 27 May 2019 19:58:35 +0000
-Message-ID: <20190527195829.GB18019@mellanox.com>
-References: <20190523153436.19102-1-jgg@ziepe.ca>
- <20190524143649.GA14258@ziepe.ca> <20190524164902.GA3346@redhat.com>
- <20190524165931.GF16845@ziepe.ca> <20190524170148.GB3346@redhat.com>
- <20190524175203.GG16845@ziepe.ca> <20190524180321.GD3346@redhat.com>
- <20190524183225.GI16845@ziepe.ca> <20190524184608.GE3346@redhat.com>
- <20190524220923.GA8519@ziepe.ca>
-In-Reply-To: <20190524220923.GA8519@ziepe.ca>
+       spf=pass (google.com: domain of rick.p.edgecombe@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=rick.p.edgecombe@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 May 2019 13:05:14 -0700
+X-ExtLoop1: 1
+Received: from orsmsx104.amr.corp.intel.com ([10.22.225.131])
+  by fmsmga004.fm.intel.com with ESMTP; 27 May 2019 13:05:14 -0700
+Received: from orsmsx159.amr.corp.intel.com (10.22.240.24) by
+ ORSMSX104.amr.corp.intel.com (10.22.225.131) with Microsoft SMTP Server (TLS)
+ id 14.3.408.0; Mon, 27 May 2019 13:05:13 -0700
+Received: from orsmsx112.amr.corp.intel.com ([169.254.3.79]) by
+ ORSMSX159.amr.corp.intel.com ([169.254.11.57]) with mapi id 14.03.0415.000;
+ Mon, 27 May 2019 13:05:13 -0700
+From: "Edgecombe, Rick P" <rick.p.edgecombe@intel.com>
+To: "peterz@infradead.org" <peterz@infradead.org>
+CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "mroos@linux.ee" <mroos@linux.ee>,
+	"mingo@redhat.com" <mingo@redhat.com>, "namit@vmware.com" <namit@vmware.com>,
+	"luto@kernel.org" <luto@kernel.org>, "netdev@vger.kernel.org"
+	<netdev@vger.kernel.org>, "Hansen, Dave" <dave.hansen@intel.com>,
+	"bp@alien8.de" <bp@alien8.de>, "davem@davemloft.net" <davem@davemloft.net>,
+	"sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>
+Subject: Re: [PATCH v4 1/2] vmalloc: Fix calculation of direct map addr range
+Thread-Topic: [PATCH v4 1/2] vmalloc: Fix calculation of direct map addr
+ range
+Thread-Index: AQHVEBc70xeDpvMdbkm+DpMWjEkdYqZ/YkYAgACB4AA=
+Date: Mon, 27 May 2019 20:05:13 +0000
+Message-ID: <dbf5f298d51183589c92cbd94da3b1e078457f4d.camel@intel.com>
+References: <20190521205137.22029-1-rick.p.edgecombe@intel.com>
+	 <20190521205137.22029-2-rick.p.edgecombe@intel.com>
+	 <20190527122022.GP2606@hirez.programming.kicks-ass.net>
+In-Reply-To: <20190527122022.GP2606@hirez.programming.kicks-ass.net>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach:
 X-MS-TNEF-Correlator:
-x-clientproxiedby: YTXPR0101CA0059.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:b00:1::36) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 4f673fff-154c-46d3-c4a3-08d6e2ddb396
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4618075)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:VI1PR05MB6509;
-x-ms-traffictypediagnostic: VI1PR05MB6509:
-x-microsoft-antispam-prvs:
- <VI1PR05MB6509023C60CD9FBA109F2ECCCF1D0@VI1PR05MB6509.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:10000;
-x-forefront-prvs: 0050CEFE70
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(39860400002)(396003)(376002)(136003)(346002)(366004)(189003)(199004)(66946007)(73956011)(102836004)(66476007)(66446008)(64756008)(66556008)(76176011)(53936002)(71190400001)(71200400001)(30864003)(1076003)(25786009)(305945005)(33656002)(53546011)(6246003)(6506007)(14444005)(7736002)(386003)(5660300002)(26005)(256004)(36756003)(54906003)(2906002)(6916009)(3846002)(229853002)(6486002)(2616005)(476003)(6512007)(81166006)(8676002)(81156014)(86362001)(68736007)(52116002)(486006)(6436002)(8936002)(4326008)(99286004)(186003)(316002)(14454004)(66066001)(478600001)(53946003)(11346002)(446003)(6116002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6509;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- q9wHYYuq1rYO/Y/hK3wCPijAjK56PCl9HC8VzjsNRvnNaUpu1nJ7nxBshRA4CJDZoDvDyNImYY3WjStevdvOH8lNGv6LW4fosWzXlgO4vUoKzmyrxT0MM/Laci8cxjeOiTpVt4hD5vjFGPU3FplOe9DvGJbjItFZDLvWQDTtprqQToober+N6uT+0tCYP2ech8w/YR/kk4XZ4mqaGqjtp1CrvxESzHzY0Bvf/AyuneGVRjAphQorEK6XddmqJUb8hsqEKESzlyQdaDnjH3iQrZvWBkOJLe8DmzbodFroBmYfXlB+euHzC+l+zN+meZPnhh1yTHIxBgCeAnMqulRAA2zeBCdTCK6VlGMnj4Nd1tWD47slSfRSjSW9A2SSGkqjKBrkn3ffl0uDHfCQ/Xs3BsZj/Jc1K7ZiikcC1KwP/Iw=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <15715ABBFF5EE1499FFD3F81450AAA32@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+user-agent: Evolution 3.30.1 (3.30.1-1.fc29) 
+x-originating-ip: [10.251.0.167]
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <F500BEE106FE694D98FD28E43C08884B@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 4f673fff-154c-46d3-c4a3-08d6e2ddb396
-X-MS-Exchange-CrossTenant-originalarrivaltime: 27 May 2019 19:58:35.5811
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6509
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 24, 2019 at 07:09:23PM -0300, Jason Gunthorpe wrote:
-> On Fri, May 24, 2019 at 02:46:08PM -0400, Jerome Glisse wrote:
-> > > Here is the big 3 CPU ladder diagram that shows how 'valid' does not
-> > > work:
-> > >=20
-> > >        CPU0                                               CPU1       =
-                                   CPU2
-> > >                                                         DEVICE PAGE F=
-AULT
-> > >                                                         range =3D hmm=
-_range_register()
-> > >
-> > >   // Overlaps with range
-> > >   hmm_invalidate_start()
-> > >     range->valid =3D false
-> > >     ops->sync_cpu_device_pagetables()
-> > >       take_lock(driver->update);
-> > >        // Wipe out page tables in device, enable faulting
-> > >       release_lock(driver->update);
-> > >                                                                      =
-                              // Does not overlap with range
-> > >                                                                      =
-                              hmm_invalidate_start()
-> > >                                                                      =
-                              hmm_invalidate_end()
-> > >                                                                      =
-                                  list_for_each
-> > >                                                                      =
-                                      range->valid =3D  true
-> >=20
-> >                                                                        =
-                                      ^
-> > No this can not happen because CPU0 still has invalidate_range in progr=
-ess and
-> > thus hmm->notifiers > 0 so the hmm_invalidate_range_end() will not set =
-the
-> > range->valid as true.
->=20
-> Oh, Okay, I now see how this all works, thank you
->=20
-> > > And I can make this more complicated (ie overlapping parallel
-> > > invalidates, etc) and show any 'bool' valid cannot work.
-> >=20
-> > It does work.=20
->=20
-> Well, I ment the bool alone cannot work, but this is really bool + a
-> counter.
-
-I couldn't shake this unease that bool shouldn't work for this type of
-locking, especially since odp also used a sequence lock as well as the
-rwsem...
-
-What about this situation:
-
-       CPU0                                               CPU1
-                                                        DEVICE PAGE FAULT
-                                                        range =3D hmm_range=
-_register()
-							hmm_range_snapshot(&range);
-
-
-   // Overlaps with range
-   hmm_invalidate_start()
-     range->valid =3D false
-     ops->sync_cpu_device_pagetables()
-       take_lock(driver->update);
-        // Wipe out page tables in device, enable faulting
-       release_lock(driver->update);
-   hmm_invalidate_end()
-      range->valid =3D true
-
-
-							take_lock(driver->update);
-							if (!hmm_range_valid(&range))
-							    goto again
-							ESTABLISH SPTES
-                                                        release_lock(driver=
-->update);
-
-
-The ODP patch appears to follow this pattern as the dma_map and the
-mlx5_ib_update_xlt are in different locking regions. We should dump
-the result of rmm_range_snapshot in this case, certainly the driver
-shouldn't be tasked with fixing this..
-
-So, something like this is what I'm thinking about:
-
-From 41b6a6120e30978e7335ada04fb9168db4e5fd29 Mon Sep 17 00:00:00 2001
-From: Jason Gunthorpe <jgg@mellanox.com>
-Date: Mon, 27 May 2019 16:48:53 -0300
-Subject: [PATCH] RFC mm/hmm: Replace the range->valid with a seqcount
-
-Instead of trying to use a single valid to keep track of parallel
-invalidations use a traditional seqcount retry lock.
-
-Replace the range->valid with the concept of a 'update critical region'
-bounded by hmm_range_start_update() / hmm_range_end_update() which can
-fail and need retry if it is ever interrupted by a parallel
-invalidation. Updaters must create the critical section and can only
-finish their update while holding the device_lock.
-
-Continue to take a very loose approach to track invalidation, now with a
-single global seqcount for all ranges. This is done to minimize the
-overhead in the mmu notifier, and expects there will only be a small
-number of ranges active at once. It could be converted to a seqcount per
-range if necessary.
-
-Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
----
- Documentation/vm/hmm.rst | 22 +++++--------
- include/linux/hmm.h      | 60 ++++++++++++++++++++++++---------
- mm/hmm.c                 | 71 ++++++++++++++++++++++------------------
- 3 files changed, 93 insertions(+), 60 deletions(-)
-
-diff --git a/Documentation/vm/hmm.rst b/Documentation/vm/hmm.rst
-index 7c1e929931a07f..7e827058964579 100644
---- a/Documentation/vm/hmm.rst
-+++ b/Documentation/vm/hmm.rst
-@@ -229,32 +229,27 @@ The usage pattern is::
-        * will use the return value of hmm_range_snapshot() below under the
-        * mmap_sem to ascertain the validity of the range.
-        */
--      hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
--
-  again:
-+       if (!hmm_range_start_update(&range, TIMEOUT_IN_MSEC))
-+             goto err
-+
-       down_read(&mm->mmap_sem);
-       ret =3D hmm_range_snapshot(&range);
-       if (ret) {
-           up_read(&mm->mmap_sem);
--          if (ret =3D=3D -EAGAIN) {
--            /*
--             * No need to check hmm_range_wait_until_valid() return value
--             * on retry we will get proper error with hmm_range_snapshot()
--             */
--            hmm_range_wait_until_valid(&range, TIMEOUT_IN_MSEC);
--            goto again;
--          }
-+          if (ret =3D=3D -EAGAIN)
-+              goto again;
-           hmm_mirror_unregister(&range);
-           return ret;
-       }
-       take_lock(driver->update);
--      if (!hmm_range_valid(&range)) {
-+      if (!hmm_range_end_update(&range)) {
-           release_lock(driver->update);
-           up_read(&mm->mmap_sem);
-           goto again;
-       }
-=20
--      // Use pfns array content to update device page table
-+      // Use pfns array content to update device page table, must hold dri=
-ver->update
-=20
-       hmm_mirror_unregister(&range);
-       release_lock(driver->update);
-@@ -264,7 +259,8 @@ The usage pattern is::
-=20
- The driver->update lock is the same lock that the driver takes inside its
- sync_cpu_device_pagetables() callback. That lock must be held before calli=
-ng
--hmm_range_valid() to avoid any race with a concurrent CPU page table updat=
-e.
-+hmm_range_end_update() to avoid any race with a concurrent CPU page table
-+update.
-=20
- HMM implements all this on top of the mmu_notifier API because we wanted a
- simpler API and also to be able to perform optimizations latter on like do=
-ing
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 26dfd9377b5094..9096113cfba8de 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -90,7 +90,9 @@
-  * @mmu_notifier: mmu notifier to track updates to CPU page table
-  * @mirrors_sem: read/write semaphore protecting the mirrors list
-  * @wq: wait queue for user waiting on a range invalidation
-- * @notifiers: count of active mmu notifiers
-+ * @active_invalidates: count of active mmu notifier invalidations
-+ * @range_invalidated: seqcount indicating that an active range was
-+ *                     maybe invalidated
-  */
- struct hmm {
- 	struct mm_struct	*mm;
-@@ -102,7 +104,8 @@ struct hmm {
- 	struct rw_semaphore	mirrors_sem;
- 	wait_queue_head_t	wq;
- 	struct rcu_head		rcu;
--	long			notifiers;
-+	unsigned int		active_invalidates;
-+	seqcount_t		range_invalidated;
- };
-=20
- /*
-@@ -169,7 +172,7 @@ enum hmm_pfn_value_e {
-  * @pfn_flags_mask: allows to mask pfn flags so that only default_flags ma=
-tter
-  * @page_shift: device virtual address shift value (should be >=3D PAGE_SH=
-IFT)
-  * @pfn_shifts: pfn shift value (should be <=3D PAGE_SHIFT)
-- * @valid: pfns array did not change since it has been fill by an HMM func=
-tion
-+ * @update_seq: sequence number for the seqcount lock read side
-  */
- struct hmm_range {
- 	struct hmm		*hmm;
-@@ -184,7 +187,7 @@ struct hmm_range {
- 	uint64_t		pfn_flags_mask;
- 	uint8_t			page_shift;
- 	uint8_t			pfn_shift;
--	bool			valid;
-+	unsigned int		update_seq;
- };
-=20
- /*
-@@ -208,27 +211,52 @@ static inline unsigned long hmm_range_page_size(const=
- struct hmm_range *range)
- }
-=20
- /*
-- * hmm_range_wait_until_valid() - wait for range to be valid
-+ * hmm_range_start_update() - wait for range to be valid
-  * @range: range affected by invalidation to wait on
-  * @timeout: time out for wait in ms (ie abort wait after that period of t=
-ime)
-  * Return: true if the range is valid, false otherwise.
-  */
--static inline bool hmm_range_wait_until_valid(struct hmm_range *range,
--					      unsigned long timeout)
-+// FIXME: hmm should handle the timeout for the driver too.
-+static inline unsigned int hmm_range_start_update(struct hmm_range *range,
-+						  unsigned long timeout)
- {
--	wait_event_timeout(range->hmm->wq, range->valid,
-+	wait_event_timeout(range->hmm->wq,
-+			   READ_ONCE(range->hmm->active_invalidates) =3D=3D 0,
- 			   msecs_to_jiffies(timeout));
--	return READ_ONCE(range->valid);
-+
-+	// FIXME: wants a non-raw seq helper
-+	seqcount_lockdep_reader_access(&range->hmm->range_invalidated);
-+	range->update_seq =3D raw_seqcount_begin(&range->hmm->range_invalidated);
-+	return !read_seqcount_retry(&range->hmm->range_invalidated,
-+				    range->update_seq);
- }
-=20
- /*
-- * hmm_range_valid() - test if a range is valid or not
-+ * hmm_range_needs_retry() - test if a range that has begun update
-+ *                 via hmm_range_start_update() needs to be retried.
-  * @range: range
-- * Return: true if the range is valid, false otherwise.
-+ * Return: true if the update needs to be restarted from hmm_range_start_u=
-pdate(),
-+ *         false otherwise.
-+ */
-+static inline bool hmm_range_needs_retry(struct hmm_range *range)
-+{
-+	return read_seqcount_retry(&range->hmm->range_invalidated,
-+				   range->update_seq);
-+}
-+
-+/*
-+ * hmm_range_end_update() - finish an update of a range
-+ * @range: range
-+ *
-+ * This must only be called while holding the device lock as described in
-+ * hmm.rst, and must be called before making any of the update visible.
-+ *
-+ * Return: true if the update was not interrupted by an invalidation of th=
-e
-+ * covered virtual memory range, false if the update needs to be retried.
-  */
--static inline bool hmm_range_valid(struct hmm_range *range)
-+static inline bool hmm_range_end_update(struct hmm_range *range)
- {
--	return range->valid;
-+	return !hmm_range_needs_retry(range);
- }
-=20
- /*
-@@ -511,7 +539,7 @@ static inline int hmm_mirror_range_register(struct hmm_=
-range *range,
- /* This is a temporary helper to avoid merge conflict between trees. */
- static inline bool hmm_vma_range_done(struct hmm_range *range)
- {
--	bool ret =3D hmm_range_valid(range);
-+	bool ret =3D !hmm_range_needs_retry(range);
-=20
- 	hmm_range_unregister(range);
- 	return ret;
-@@ -537,7 +565,7 @@ static inline int hmm_vma_fault(struct hmm_range *range=
-, bool block)
- 	if (ret)
- 		return (int)ret;
-=20
--	if (!hmm_range_wait_until_valid(range, HMM_RANGE_DEFAULT_TIMEOUT)) {
-+	if (!hmm_range_start_update(range, HMM_RANGE_DEFAULT_TIMEOUT)) {
- 		hmm_range_unregister(range);
- 		/*
- 		 * The mmap_sem was taken by driver we release it here and
-@@ -549,6 +577,8 @@ static inline int hmm_vma_fault(struct hmm_range *range=
-, bool block)
- 	}
-=20
- 	ret =3D hmm_range_fault(range, block);
-+	if (!hmm_range_end_update(range))
-+		ret =3D -EAGAIN;
- 	if (ret <=3D 0) {
- 		hmm_range_unregister(range);
- 		if (ret =3D=3D -EBUSY || !ret) {
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 8396a65710e304..09725774ff6112 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -79,7 +79,8 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm=
-)
- 	INIT_LIST_HEAD(&hmm->ranges);
- 	mutex_init(&hmm->lock);
- 	kref_init(&hmm->kref);
--	hmm->notifiers =3D 0;
-+	hmm->active_invalidates =3D 0;
-+	seqcount_init(&hmm->range_invalidated);
- 	hmm->mm =3D mm;
- 	mmgrab(mm);
-=20
-@@ -155,13 +156,22 @@ static void hmm_release(struct mmu_notifier *mn, stru=
-ct mm_struct *mm)
- 	hmm_put(hmm);
- }
-=20
-+static bool any_range_overlaps(struct hmm *hmm, unsigned long start, unsig=
-ned long end)
-+{
-+	struct hmm_range *range;
-+
-+	list_for_each_entry(range, &hmm->ranges, list)
-+		// FIXME: check me
-+		if (range->start <=3D end && range->end < start)
-+			return true;
-+	return false;
-+}
- static int hmm_invalidate_range_start(struct mmu_notifier *mn,
- 			const struct mmu_notifier_range *nrange)
- {
- 	struct hmm *hmm =3D container_of(mn, struct hmm, mmu_notifier);
- 	struct hmm_mirror *mirror;
- 	struct hmm_update update;
--	struct hmm_range *range;
- 	int ret =3D 0;
-=20
- 	/* hmm is in progress to free */
-@@ -179,13 +189,22 @@ static int hmm_invalidate_range_start(struct mmu_noti=
-fier *mn,
- 		ret =3D -EAGAIN;
- 		goto out;
- 	}
--	hmm->notifiers++;
--	list_for_each_entry(range, &hmm->ranges, list) {
--		if (update.end < range->start || update.start >=3D range->end)
--			continue;
--
--		range->valid =3D false;
--	}
-+	/*
-+	 * The seqcount is used as a fast but inaccurate indication that
-+	 * another CPU working with a range needs to retry due to invalidation
-+	 * of the same virtual address space covered by the range by this
-+	 * CPU.
-+	 *
-+	 * It is based on the assumption that the ranges will be short lived,
-+	 * so there is no need to be aggressively accurate in the mmu notifier
-+	 * fast path. Any notifier intersection will cause all registered
-+	 * ranges to retry.
-+	 */
-+	hmm->active_invalidates++;
-+	// FIXME: needs a seqcount helper
-+	if (!(hmm->range_invalidated.sequence & 1) &&
-+	    any_range_overlaps(hmm, update.start, update.end))
-+		write_seqcount_begin(&hmm->range_invalidated);
- 	mutex_unlock(&hmm->lock);
-=20
- 	if (mmu_notifier_range_blockable(nrange))
-@@ -218,15 +237,11 @@ static void hmm_invalidate_range_end(struct mmu_notif=
-ier *mn,
- 		return;
-=20
- 	mutex_lock(&hmm->lock);
--	hmm->notifiers--;
--	if (!hmm->notifiers) {
--		struct hmm_range *range;
--
--		list_for_each_entry(range, &hmm->ranges, list) {
--			if (range->valid)
--				continue;
--			range->valid =3D true;
--		}
-+	hmm->active_invalidates--;
-+	if (hmm->active_invalidates =3D=3D 0) {
-+		// FIXME: needs a seqcount helper
-+		if (hmm->range_invalidated.sequence & 1)
-+			write_seqcount_end(&hmm->range_invalidated);
- 		wake_up_all(&hmm->wq);
- 	}
- 	mutex_unlock(&hmm->lock);
-@@ -882,7 +897,7 @@ int hmm_range_register(struct hmm_range *range,
- {
- 	unsigned long mask =3D ((1UL << page_shift) - 1UL);
-=20
--	range->valid =3D false;
-+	range->update_seq =3D 0;
- 	range->hmm =3D NULL;
-=20
- 	if ((start & mask) || (end & mask))
-@@ -908,15 +923,7 @@ int hmm_range_register(struct hmm_range *range,
-=20
- 	/* Initialize range to track CPU page table updates. */
- 	mutex_lock(&range->hmm->lock);
--
- 	list_add(&range->list, &range->hmm->ranges);
--
--	/*
--	 * If there are any concurrent notifiers we have to wait for them for
--	 * the range to be valid (see hmm_range_wait_until_valid()).
--	 */
--	if (!range->hmm->notifiers)
--		range->valid =3D true;
- 	mutex_unlock(&range->hmm->lock);
-=20
- 	return 0;
-@@ -947,7 +954,6 @@ void hmm_range_unregister(struct hmm_range *range)
- 	hmm_put(hmm);
-=20
- 	/* The range is now invalid, leave it poisoned. */
--	range->valid =3D false;
- 	memset(&range->hmm, POISON_INUSE, sizeof(range->hmm));
- }
- EXPORT_SYMBOL(hmm_range_unregister);
-@@ -981,7 +987,7 @@ long hmm_range_snapshot(struct hmm_range *range)
-=20
- 	do {
- 		/* If range is no longer valid force retry. */
--		if (!range->valid)
-+		if (hmm_range_needs_retry(range))
- 			return -EAGAIN;
-=20
- 		vma =3D find_vma(hmm->mm, start);
-@@ -1080,7 +1086,7 @@ long hmm_range_fault(struct hmm_range *range, bool bl=
-ock)
-=20
- 	do {
- 		/* If range is no longer valid force retry. */
--		if (!range->valid) {
-+		if (hmm_range_needs_retry(range)) {
- 			up_read(&hmm->mm->mmap_sem);
- 			return -EAGAIN;
- 		}
-@@ -1134,7 +1140,7 @@ long hmm_range_fault(struct hmm_range *range, bool bl=
-ock)
- 			start =3D hmm_vma_walk.last;
-=20
- 			/* Keep trying while the range is valid. */
--		} while (ret =3D=3D -EBUSY && range->valid);
-+		} while (ret =3D=3D -EBUSY && !hmm_range_needs_retry(range));
-=20
- 		if (ret) {
- 			unsigned long i;
-@@ -1195,7 +1201,8 @@ long hmm_range_dma_map(struct hmm_range *range,
- 			continue;
-=20
- 		/* Check if range is being invalidated */
--		if (!range->valid) {
-+		if (hmm_range_needs_retry(range)) {
-+			// ?? EAGAIN??
- 			ret =3D -EBUSY;
- 			goto unmap;
- 		}
---=20
-2.21.0
+T24gTW9uLCAyMDE5LTA1LTI3IGF0IDE0OjIwICswMjAwLCBQZXRlciBaaWpsc3RyYSB3cm90ZToN
+Cj4gT24gVHVlLCBNYXkgMjEsIDIwMTkgYXQgMDE6NTE6MzZQTSAtMDcwMCwgUmljayBFZGdlY29t
+YmUgd3JvdGU6DQo+ID4gVGhlIGNhbGN1bGF0aW9uIG9mIHRoZSBkaXJlY3QgbWFwIGFkZHJlc3Mg
+cmFuZ2UgdG8gZmx1c2ggd2FzIHdyb25nLg0KPiA+IFRoaXMgY291bGQgY2F1c2UgcHJvYmxlbXMg
+b24geDg2IGlmIGEgUk8gZGlyZWN0IG1hcCBhbGlhcyBldmVyIGdvdA0KPiA+IGxvYWRlZA0KPiA+
+IGludG8gdGhlIFRMQi4gVGhpcyBzaG91bGRuJ3Qgbm9ybWFsbHkgaGFwcGVuLCBidXQgaXQgY291
+bGQgY2F1c2UNCj4gPiB0aGUNCj4gPiBwZXJtaXNzaW9ucyB0byByZW1haW4gUk8gb24gdGhlIGRp
+cmVjdCBtYXAgYWxpYXMsIGFuZCB0aGVuIHRoZSBwYWdlDQo+ID4gd291bGQgcmV0dXJuIGZyb20g
+dGhlIHBhZ2UgYWxsb2NhdG9yIHRvIHNvbWUgb3RoZXIgY29tcG9uZW50IGFzIFJPDQo+ID4gYW5k
+DQo+ID4gY2F1c2UgYSBjcmFzaC4NCj4gPiANCj4gPiBTbyBmaXggZml4IHRoZSBhZGRyZXNzIHJh
+bmdlIGNhbGN1bGF0aW9uIHNvIHRoZSBmbHVzaCB3aWxsIGluY2x1ZGUNCj4gPiB0aGUNCj4gPiBk
+aXJlY3QgbWFwIHJhbmdlLg0KPiA+IA0KPiA+IEZpeGVzOiA4NjhiMTA0ZDczNzkgKCJtbS92bWFs
+bG9jOiBBZGQgZmxhZyBmb3IgZnJlZWluZyBvZiBzcGVjaWFsDQo+ID4gcGVybXNpc3Npb25zIikN
+Cj4gPiBDYzogTWVlbGlzIFJvb3MgPG1yb29zQGxpbnV4LmVlPg0KPiA+IENjOiBQZXRlciBaaWps
+c3RyYSA8cGV0ZXJ6QGluZnJhZGVhZC5vcmc+DQo+ID4gQ2M6ICJEYXZpZCBTLiBNaWxsZXIiIDxk
+YXZlbUBkYXZlbWxvZnQubmV0Pg0KPiA+IENjOiBEYXZlIEhhbnNlbiA8ZGF2ZS5oYW5zZW5AaW50
+ZWwuY29tPg0KPiA+IENjOiBCb3Jpc2xhdiBQZXRrb3YgPGJwQGFsaWVuOC5kZT4NCj4gPiBDYzog
+QW5keSBMdXRvbWlyc2tpIDxsdXRvQGtlcm5lbC5vcmc+DQo+ID4gQ2M6IEluZ28gTW9sbmFyIDxt
+aW5nb0ByZWRoYXQuY29tPg0KPiA+IENjOiBOYWRhdiBBbWl0IDxuYW1pdEB2bXdhcmUuY29tPg0K
+PiA+IFNpZ25lZC1vZmYtYnk6IFJpY2sgRWRnZWNvbWJlIDxyaWNrLnAuZWRnZWNvbWJlQGludGVs
+LmNvbT4NCj4gPiAtLS0NCj4gPiAgbW0vdm1hbGxvYy5jIHwgNSArKystLQ0KPiA+ICAxIGZpbGUg
+Y2hhbmdlZCwgMyBpbnNlcnRpb25zKCspLCAyIGRlbGV0aW9ucygtKQ0KPiA+IA0KPiA+IGRpZmYg
+LS1naXQgYS9tbS92bWFsbG9jLmMgYi9tbS92bWFsbG9jLmMNCj4gPiBpbmRleCBjNDI4NzJlZDgy
+YWMuLjgzNjg4OGFlMDFmNiAxMDA2NDQNCj4gPiAtLS0gYS9tbS92bWFsbG9jLmMNCj4gPiArKysg
+Yi9tbS92bWFsbG9jLmMNCj4gPiBAQCAtMjE1OSw5ICsyMTU5LDEwIEBAIHN0YXRpYyB2b2lkIHZt
+X3JlbW92ZV9tYXBwaW5ncyhzdHJ1Y3QNCj4gPiB2bV9zdHJ1Y3QgKmFyZWEsIGludCBkZWFsbG9j
+YXRlX3BhZ2VzKQ0KPiA+ICAJICogdGhlIHZtX3VubWFwX2FsaWFzZXMoKSBmbHVzaCBpbmNsdWRl
+cyB0aGUgZGlyZWN0IG1hcC4NCj4gPiAgCSAqLw0KPiA+ICAJZm9yIChpID0gMDsgaSA8IGFyZWEt
+Pm5yX3BhZ2VzOyBpKyspIHsNCj4gPiAtCQlpZiAocGFnZV9hZGRyZXNzKGFyZWEtPnBhZ2VzW2ld
+KSkgew0KPiA+ICsJCWFkZHIgPSAodW5zaWduZWQgbG9uZylwYWdlX2FkZHJlc3MoYXJlYS0+cGFn
+ZXNbaV0pOw0KPiA+ICsJCWlmIChhZGRyKSB7DQo+ID4gIAkJCXN0YXJ0ID0gbWluKGFkZHIsIHN0
+YXJ0KTsNCj4gPiAtCQkJZW5kID0gbWF4KGFkZHIsIGVuZCk7DQo+ID4gKwkJCWVuZCA9IG1heChh
+ZGRyICsgUEFHRV9TSVpFLCBlbmQpOw0KPiA+ICAJCX0NCj4gPiAgCX0NCj4gPiAgDQo+IA0KPiBJ
+bmRlZWQ7IGhvd2V2ciBJJ20gdGhpbmtpbmcgdGhpcyBidWcgd2FzIGNhdXNlZCB0byBleGlzdCBi
+eSB0aGUgZHVhbA0KPiB1c2UNCj4gb2YgQGFkZHIgaW4gdGhpcyBmdW5jdGlvbiwgc28gc2hvdWxk
+IHdlIG5vdCwgcGVyaGFwcywgZG8gc29tZXRoaW5nDQo+IGxpa2UNCj4gdGhlIGJlbG93IGluc3Rl
+YWQ/DQo+IA0KPiBBbHNvOyBoYXZpbmcgbG9va2VkIGF0IHRoaXMsIGl0IG1ha2VzIG1lIHF1ZXN0
+aW9uIHRoZSB1c2Ugb2YNCj4gZmx1c2hfdGxiX2tlcm5lbF9yYW5nZSgpIGluIF92bV91bm1hcF9h
+bGlhc2VzKCkgYW5kDQo+IF9fcHVyZ2Vfdm1hcF9hcmVhX2xhenkoKSwgaXQncyBwb3RlbnRpYWxs
+eSBjb21iaW5pbmcgbXVsdGlwbGUgcmFuZ2VzLA0KPiB3aGljaCBuZXZlciByZWFsbHkgd29ya3Mg
+d2VsbC4NCj4gDQo+IEFyZ3VhYmx5LCB3ZSBzaG91bGQganVzdCBkbyBmbHVzaF90bGJfYWxsKCkg
+aGVyZSwgYnV0IHRoYXQncyBmb3INCj4gYW5vdGhlcg0KPiBwYXRjaCBJJ20gdGhpbmtpbmcuDQoN
+ClRoYW5rcy4gSXQgbW9zdGx5IGdvdCBicm9rZW4gaW1wbGVtZW50aW5nIGEgc3R5bGUgc3VnZ2Vz
+dGlvbiBsYXRlIGluDQp0aGUgc2VyaWVzLiBJJ2xsIGNoYW5nZSB0aGUgYWRkciB2YXJpYWJsZSBh
+cm91bmQgbGlrZSB5b3Ugc3VnZ2VzdCB0bw0KbWFrZSBpdCBtb3JlIHJlc2lzdGFudC4NCg0KVGhl
+IGZsdXNoX3RsYl9hbGwoKSBzdWdnZXN0aW9uIG1ha2VzIHNlbnNlIHRvIG1lLCBidXQgSSdsbCBs
+ZWF2ZSBpdCBmb3INCm5vdy4NCg0KPiAtLS0NCj4gLS0tIGEvbW0vdm1hbGxvYy5jDQo+ICsrKyBi
+L21tL3ZtYWxsb2MuYw0KPiBAQCAtMjEyMyw3ICsyMTIzLDYgQEAgc3RhdGljIGlubGluZSB2b2lk
+IHNldF9hcmVhX2RpcmVjdF9tYXAoYw0KPiAgLyogSGFuZGxlIHJlbW92aW5nIGFuZCByZXNldHRp
+bmcgdm0gbWFwcGluZ3MgcmVsYXRlZCB0byB0aGUNCj4gdm1fc3RydWN0LiAqLw0KPiAgc3RhdGlj
+IHZvaWQgdm1fcmVtb3ZlX21hcHBpbmdzKHN0cnVjdCB2bV9zdHJ1Y3QgKmFyZWEsIGludA0KPiBk
+ZWFsbG9jYXRlX3BhZ2VzKQ0KPiAgew0KPiAtCXVuc2lnbmVkIGxvbmcgYWRkciA9ICh1bnNpZ25l
+ZCBsb25nKWFyZWEtPmFkZHI7DQo+ICAJdW5zaWduZWQgbG9uZyBzdGFydCA9IFVMT05HX01BWCwg
+ZW5kID0gMDsNCj4gIAlpbnQgZmx1c2hfcmVzZXQgPSBhcmVhLT5mbGFncyAmIFZNX0ZMVVNIX1JF
+U0VUX1BFUk1TOw0KPiAgCWludCBpOw0KPiBAQCAtMjEzNSw4ICsyMTM0LDggQEAgc3RhdGljIHZv
+aWQgdm1fcmVtb3ZlX21hcHBpbmdzKHN0cnVjdCB2bQ0KPiAgCSAqIGV4ZWN1dGUgcGVybWlzc2lv
+bnMsIHdpdGhvdXQgbGVhdmluZyBhIFJXK1ggd2luZG93Lg0KPiAgCSAqLw0KPiAgCWlmIChmbHVz
+aF9yZXNldCAmJiAhSVNfRU5BQkxFRChDT05GSUdfQVJDSF9IQVNfU0VUX0RJUkVDVF9NQVApKQ0K
+PiB7DQo+IC0JCXNldF9tZW1vcnlfbngoYWRkciwgYXJlYS0+bnJfcGFnZXMpOw0KPiAtCQlzZXRf
+bWVtb3J5X3J3KGFkZHIsIGFyZWEtPm5yX3BhZ2VzKTsNCj4gKwkJc2V0X21lbW9yeV9ueCgodW5z
+aWduZWQgbG9uZylhcmVhLT5hZGRyLCBhcmVhLQ0KPiA+bnJfcGFnZXMpOw0KPiArCQlzZXRfbWVt
+b3J5X3J3KCh1bnNpZ25lZCBsb25nKWFyZWEtPmFkZHIsIGFyZWEtDQo+ID5ucl9wYWdlcyk7DQo+
+ICAJfQ0KPiAgDQo+ICAJcmVtb3ZlX3ZtX2FyZWEoYXJlYS0+YWRkcik7DQo+IEBAIC0yMTYwLDkg
+KzIxNTksMTAgQEAgc3RhdGljIHZvaWQgdm1fcmVtb3ZlX21hcHBpbmdzKHN0cnVjdCB2bQ0KPiAg
+CSAqIHRoZSB2bV91bm1hcF9hbGlhc2VzKCkgZmx1c2ggaW5jbHVkZXMgdGhlIGRpcmVjdCBtYXAu
+DQo+ICAJICovDQo+ICAJZm9yIChpID0gMDsgaSA8IGFyZWEtPm5yX3BhZ2VzOyBpKyspIHsNCj4g
+LQkJaWYgKHBhZ2VfYWRkcmVzcyhhcmVhLT5wYWdlc1tpXSkpIHsNCj4gKwkJdW5zaWduZWQgbG9u
+ZyBhZGRyID0gKHVuc2lnbmVkIGxvbmcpcGFnZV9hZGRyZXNzKGFyZWEtDQo+ID5wYWdlc1tpXSk7
+DQo+ICsJCWlmIChhZGRyKSB7DQo+ICAJCQlzdGFydCA9IG1pbihhZGRyLCBzdGFydCk7DQo+IC0J
+CQllbmQgPSBtYXgoYWRkciwgZW5kKTsNCj4gKwkJCWVuZCA9IG1heChhZGRyICsgUEFHRV9TSVpF
+LCBlbmQpOw0KPiAgCQl9DQo+ICAJfQ0KPiAgDQo=
 
