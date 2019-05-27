@@ -2,182 +2,147 @@ Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B920C07542
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 09:39:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9A02C07542
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 09:43:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E2D5B21743
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 09:39:00 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="WdyDohT7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2D5B21743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 7A13221721
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 09:43:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A13221721
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 113F06B026D; Mon, 27 May 2019 05:38:59 -0400 (EDT)
+	id 10F2A6B0271; Mon, 27 May 2019 05:43:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 09CDF6B026F; Mon, 27 May 2019 05:38:59 -0400 (EDT)
+	id 0E7E16B0272; Mon, 27 May 2019 05:43:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E59096B0270; Mon, 27 May 2019 05:38:58 -0400 (EDT)
+	id F3FBA6B0273; Mon, 27 May 2019 05:43:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 769B66B026D
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 05:38:58 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id q20so3085580ljg.0
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 02:38:58 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A8FA06B0271
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 05:43:07 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id i3so27199935edr.12
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 02:43:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=5tFxW9hH4KTKWLbD5PL7NocPZCk93KxY6ol7ln5ws1s=;
-        b=NeheIFffpUsh4sNpadK7rR0dZpy92rnEwsWq4FTBY0eTJbQlTdcgPBtYZog9OCgjpN
-         6uGeWQOyebmtUyM3OuZJqtv4spq9ahr9JfXIQV/fYBSk9JcWPr039iGALLk+/MefgZzb
-         iRLyy4ACLIve9UuiNGDw1P2eMjMbUccv/MNg714SzYK2UFrqpF7DsF4X9YbUzJMNiSEu
-         mqLAt9I43+k5E2b/7P1J8uwxfovH2WhqVPdRc56zuBKDNaB9lNwjzxh6zxMGdY/dV6M3
-         W/8bSkV1u8GtxYnqwrv+xFMjGtBThjlfkykhma/fEAbbKHWGPtso8IDcvell7thY/yLm
-         rEqA==
-X-Gm-Message-State: APjAAAXojJzm1DrpWYjPCnIikGCDKQL3USo9E2CjLIaAqsQiv67lcg/m
-	JswfM1dru566W186Mv5YeN9mEIAbdVBShqHTrkgh4UmOXa6/HX255qFNFyvHdAZGCHQCtba51oD
-	nDssXWtEQLu1AEo4frxlHzLW6JT+LSIu1L3GCbg2XTOmgtFYV9vLFR7AlVgN8HOOd8Q==
-X-Received: by 2002:a2e:9185:: with SMTP id f5mr30990585ljg.51.1558949937879;
-        Mon, 27 May 2019 02:38:57 -0700 (PDT)
-X-Received: by 2002:a2e:9185:: with SMTP id f5mr30990540ljg.51.1558949936822;
-        Mon, 27 May 2019 02:38:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558949936; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=TIQmgKkJ58tcbWhFiwKmHk6v9Dk08ln3ge/lw/xh/t0=;
+        b=tDAy6DWlKq1IzUUZcx/fvnO56mtgmNLE/kmkh3YfiiAymlJleQxBg65b421IQCgkNd
+         y7OhLDmsOLOUMKnBBVP9ePDZu8R/AiFhV8oLOuQWhSoH+dKHreV66Ivrp4FARX/kwVXt
+         xktg8yUTIQ5tGfuDGnF8Q1+KieM9t8erBpjaRiLB3GP4OBMvnrlVmkZ018A87QcUqeSK
+         E0XC7XQ+ANmbfkdkqXjgxkQspr4mPsktJW9lwsI5Mt0L827f0tdoz83/u5kP1NASWQX3
+         pPRMIsEpUvQZCVQB4aCrjWId//1R0a2x+JedzFcdrjK0z+NnHwCn9UUsvqlK88vR7YV6
+         8irw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAU2zQ4Qpwv34vP+BkTsdHNDxcGpk96IS+2FCISFvssRDH0EqW4n
+	Ou0/oK+WoXGdKhEOnUDQGmsrqRYycXpCU7RzLhpi2bWGyhUzooLmFnaKo194a082N1xDOfLK7Eb
+	dErjD9R9sN8EJoVv6yFl++6ePoU1lKym5WPCBzT3RG/2xtRzkcoUwgKVr9gtgor3lPg==
+X-Received: by 2002:a17:906:7cb:: with SMTP id m11mr13211383ejc.311.1558950187272;
+        Mon, 27 May 2019 02:43:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyJ1XRRAG2kCulZiFdfgNMMDA6jKuDa6xJI+dxnvfuy6WgllJ+lJ4PU/9t1YWRGT9HkwvT/
+X-Received: by 2002:a17:906:7cb:: with SMTP id m11mr13211344ejc.311.1558950186392;
+        Mon, 27 May 2019 02:43:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558950186; cv=none;
         d=google.com; s=arc-20160816;
-        b=mTIpEFBb0FxQhHUdiKEU+BFJFTfun12KenLed/D9SuaoaZm0lc6TFSiwIV4/mN+KHy
-         wIaalfs7LSwzAmp0iJR/pkfhrGATtueInNs3V2ZpYsYTBRRNDVH3xrd4jqPiXUf24baT
-         vjlqkBANhehQMnokMhpc0R28iTzSlsShddUfq0SxXQR1Lmz17ECnXbpaEaNId+r7x5UI
-         Ykbs2e4zjSZ9IH4TrGOdlGgbSS54EI7dFRsEuhFALo+fqE03YB2KLDoydrkKmP2A4lvH
-         RAKB6ol5qcNTJTU7iLyIbWlUMHooZ9d579AWaftIsbpmk+xgbqZ/AoXJ4azKG6UpZcfh
-         usRA==
+        b=nNnGwMwdszk5czcky1qmuqQnIVBNsvSTubAbLR045abVkCFOu0f88DkCDZ8VpjSSs2
+         tRkVZ8raVZX0Fl7H+aDcnPGWpQa/2eddaGXj58/OVLbUR2clAXMKBdu+jxSgH21ghyTK
+         A9NjniUqsSr2TB01zrcuc/SgZ6mNa1b8hQGxWxVug8+JncrIkxxbjniR4ICvNwYtL4jF
+         Sil8JNBjqj+jix6ayJgBwioasJDpYQODI67h/JeK2dWpO4yOu0DDTzpy1MVGRwunuqz4
+         0LoCGN5XHWJqmlgqvNqXZcGFArovBa+kzp4tnc6Fc7UC04NzojofiAxveLfd5V0nNw/W
+         +AGw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=5tFxW9hH4KTKWLbD5PL7NocPZCk93KxY6ol7ln5ws1s=;
-        b=l2LFtx5oZttRlRshdMOvmmL+WnkVIsBE77EYqaDvZ5gXyvy45hkGbfZ/YK4JLjcRyF
-         /z4unNX8Fjmfm63zQ3DGLsjC55htkJQaWVmum/WMITkheCsQqUBbx94ylofJqiCHzBkd
-         zmIh0c8jlq8QMBCo8/XGREQf5hvXvQxqDqm8rl5LDjAh2PeEO35t3HJMjJ8tz5GxMSKS
-         TPIcIAKGHUa8bfgJx/mzRcuvgUmRgIGwyxhpjofeJ22zNpL+B/Y1WfKeQ1ZHbQXRGmBJ
-         8+j+yOeoU0NFFi8VxWmzGzrQCkjfDvG3krDuPdYKqwVndbBEAIGlqsAc/PMZBs6G4YU5
-         Etpw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=TIQmgKkJ58tcbWhFiwKmHk6v9Dk08ln3ge/lw/xh/t0=;
+        b=IGG5k6kMWQPHK+hwK8iqX/yDH1eKWwzFF4LYXVo13/MfcO7F9bAAl2CQI8WW2/UHeD
+         gAb3FrWI2kZW1kEfSYfiCD18KbyCt3r7ddSHkV8Bk0BHK92sgPmR8Sn4f9V4GIzKQqeu
+         8FQHgVRYV527TO1wPAg4S++q+s13X5msK1Uw5rrsTisHxWipmONUe0tNvja/MRwyNZzS
+         qZpkHAtup8o6EFt2fnB1Wj8gdyTyqIwc5wA0KEAiHxC+BtVO9jb4hIWl0g9WNf0xK17y
+         2Fekf/w/gc3jRlWiCAuOrmDoOlrURoRX1ii5sXbT+uBpxUOg+nbLDX1hDcXKwJR7nquN
+         45cQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=WdyDohT7;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x5sor2555270lfn.7.2019.05.27.02.38.56
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 27 May 2019 02:38:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id k14si660258edb.27.2019.05.27.02.43.06
+        for <linux-mm@kvack.org>;
+        Mon, 27 May 2019 02:43:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=WdyDohT7;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=5tFxW9hH4KTKWLbD5PL7NocPZCk93KxY6ol7ln5ws1s=;
-        b=WdyDohT79RWv5sQw8j/CoiyAF1ieXhBzh55F/UbajT9jF/0uJ67nJC3KNnHTUPoI0T
-         oUBP1DChU3kD4+oixvGJZjalRgEuupfxfw3tAciwmhJ8azlHnw/9zdY211g0HetUZqHo
-         pcLoUQjOziPwn7lefVncMQD2ZdI0BPz9lVodeDp4CHJnFXoNRL5DLmsx9CbYtKPcw5No
-         UCR/uvKE8YK6JKhvoExYF/ggb0izBa8VIDKiBvqNTs5o+yZ8G4Hrb4BkQtKx1Z4I6Pvb
-         0wCCaGD8KZvWTFTFFm9Z0/PQLWWVEWN+7T6Eg+/RaX3QawT2c0YbBBzBtdNCU4JatZ7j
-         wZ9A==
-X-Google-Smtp-Source: APXvYqywlNbALD5TT5l11okB4ZaZ9LJNYUAYl35+RlPAv4hvj0NbaW0wQ0+uLocyyjJWapoGw3TE1w==
-X-Received: by 2002:ac2:5324:: with SMTP id f4mr5086344lfh.156.1558949936459;
-        Mon, 27 May 2019 02:38:56 -0700 (PDT)
-Received: from pc636.semobile.internal ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id z26sm2176293lfg.31.2019.05.27.02.38.55
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 May 2019 02:38:55 -0700 (PDT)
-From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-To: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org
-Cc: Roman Gushchin <guro@fb.com>,
-	Uladzislau Rezki <urezki@gmail.com>,
-	Hillf Danton <hdanton@sina.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Joel Fernandes <joelaf@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: [PATCH v3 4/4] mm/vmap: move BUG_ON() check to the unlink_va()
-Date: Mon, 27 May 2019 11:38:42 +0200
-Message-Id: <20190527093842.10701-5-urezki@gmail.com>
-X-Mailer: git-send-email 2.11.0
-In-Reply-To: <20190527093842.10701-1-urezki@gmail.com>
-References: <20190527093842.10701-1-urezki@gmail.com>
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 2E16CA78;
+	Mon, 27 May 2019 02:43:05 -0700 (PDT)
+Received: from MBP.local (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 4D0DA3F5AF;
+	Mon, 27 May 2019 02:42:59 -0700 (PDT)
+Date: Mon, 27 May 2019 10:42:48 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	linux-kselftest@vger.kernel.org,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Kees Cook <keescook@chromium.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v15 05/17] arms64: untag user pointers passed to memory
+ syscalls
+Message-ID: <20190527094247.GA45660@MBP.local>
+References: <cover.1557160186.git.andreyknvl@google.com>
+ <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Move the BUG_ON()/RB_EMPTY_NODE() check under unlink_va()
-function, it means if an empty node gets freed it is a BUG
-thus is considered as faulty behaviour.
+On Mon, May 06, 2019 at 06:30:51PM +0200, Andrey Konovalov wrote:
+> +SYSCALL_DEFINE2(arm64_mlock2, unsigned long, start, size_t, len)
+> +{
+> +	start = untagged_addr(start);
+> +	return ksys_mlock(start, len, VM_LOCKED);
+> +}
 
-Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
----
- mm/vmalloc.c | 24 +++++++++---------------
- 1 file changed, 9 insertions(+), 15 deletions(-)
+Copy/paste error: sys_mlock2() has 3 arguments and should call
+ksys_mlock2().
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 371aba9a4bf1..340959b81228 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -533,20 +533,16 @@ link_va(struct vmap_area *va, struct rb_root *root,
- static __always_inline void
- unlink_va(struct vmap_area *va, struct rb_root *root)
- {
--	/*
--	 * During merging a VA node can be empty, therefore
--	 * not linked with the tree nor list. Just check it.
--	 */
--	if (!RB_EMPTY_NODE(&va->rb_node)) {
--		if (root == &free_vmap_area_root)
--			rb_erase_augmented(&va->rb_node,
--				root, &free_vmap_area_rb_augment_cb);
--		else
--			rb_erase(&va->rb_node, root);
-+	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
- 
--		list_del(&va->list);
--		RB_CLEAR_NODE(&va->rb_node);
--	}
-+	if (root == &free_vmap_area_root)
-+		rb_erase_augmented(&va->rb_node,
-+			root, &free_vmap_area_rb_augment_cb);
-+	else
-+		rb_erase(&va->rb_node, root);
-+
-+	list_del(&va->list);
-+	RB_CLEAR_NODE(&va->rb_node);
- }
- 
- #if DEBUG_AUGMENT_PROPAGATE_CHECK
-@@ -1187,8 +1183,6 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
- 
- static void __free_vmap_area(struct vmap_area *va)
- {
--	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
--
- 	/*
- 	 * Remove from the busy tree/list.
- 	 */
+Still tracking down an LTP failure on test mlock01.
+
 -- 
-2.11.0
+Catalin
 
