@@ -1,183 +1,154 @@
-Return-Path: <SRS0=xW7F=T2=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC3A5C282E3
-	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 21:22:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 55568C282E3
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 01:58:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9E17C20815
-	for <linux-mm@archiver.kernel.org>; Sun, 26 May 2019 21:22:35 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kW8EQGCX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E17C20815
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id AF0A820815
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 01:58:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF0A820815
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8925F6B026A; Sun, 26 May 2019 17:22:29 -0400 (EDT)
+	id 1347A6B026F; Sun, 26 May 2019 21:58:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8436E6B026B; Sun, 26 May 2019 17:22:29 -0400 (EDT)
+	id 0ED9F6B0270; Sun, 26 May 2019 21:58:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 70A346B026C; Sun, 26 May 2019 17:22:29 -0400 (EDT)
+	id F3C9F6B0271; Sun, 26 May 2019 21:58:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 07B0A6B026A
-	for <linux-mm@kvack.org>; Sun, 26 May 2019 17:22:29 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id a25so473149lfl.0
-        for <linux-mm@kvack.org>; Sun, 26 May 2019 14:22:28 -0700 (PDT)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C706B026F
+	for <linux-mm@kvack.org>; Sun, 26 May 2019 21:58:19 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id k63so3183700oih.15
+        for <linux-mm@kvack.org>; Sun, 26 May 2019 18:58:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=nMiFTZq9m8Tud2oYGi2GiJ1Z+X/2sbQtc11N2qZi8ps=;
-        b=UW9tDapsb+sI+puvb6VV9coMbBh+ko5zL752/Hn8y+mn/w6h9pgRRurak27Pm6PTiL
-         1ALcsJB27Y3apwYz4r8cX+M3BYKJQjnb2cInzZcilzJNx+/33JuUrdjKILio9oJRdTOz
-         0o48SngZlacJEG/TIFFwld7PHq2FtRsIMJJKpreGUJBnjaC/g4rp2sFEcq4DyOG1U5tO
-         mxiaHXhILu4RQ5DzDrxeu/4UnCfN/0uuhYexSs9Shtk6hsnN+XjxOOoJ2J+NQM9Za6en
-         2D8Y3lY2TOw8WT/c954qC2A7ufM5hj0iqgrchCxCaFVRffaUz+yOzREw/ngpmR3Fmmbr
-         I4kA==
-X-Gm-Message-State: APjAAAUB9tOYKOM6Wn6/rzgm/fYxMt5luQZ4SOZm4sqz9zhwMa4bcC+e
-	KwcNHSB3HYjSWiH1KREBFcUPi1gzvJggvdd6AcMhm4vakxZOejF1uIbgQhFtMvlQcoEW2mJmu04
-	Z2s6hIYRAXJvhmBU6z8aGhAtcIF1M9NfgRHKc+M5+prZXaHrgQU2NdtH4UmU5dHTbtA==
-X-Received: by 2002:a19:e05c:: with SMTP id g28mr5620085lfj.167.1558905748479;
-        Sun, 26 May 2019 14:22:28 -0700 (PDT)
-X-Received: by 2002:a19:e05c:: with SMTP id g28mr5620064lfj.167.1558905747430;
-        Sun, 26 May 2019 14:22:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558905747; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=fTV9+QJ3Qlr+eWA8hqTAepwEMa3PO/pXGof/Ta/9BdY=;
+        b=nRM/ic/392njJ/Bh73rKUj15gJsB+bnNvyAtIPD2qbPBAoSCEEcpGak6PeIoUtC5lE
+         AOVHPk81sy3kqnc1SRGnMOtUR1r/RMTL65duiHYZqSybLJbUTCYn1ucXefwmgtPDhyvm
+         Vs5y3+teUE8TmLfNYfCC1IKwA6YCdi6jE5DREUPQPzOwWqUlyDxSkOYXv4FamL32Dpkl
+         JBLTM61qZU3EW5HYAPGljgoCWZmY5v8m0GByJP0hW2YY+oYDQAxoPOZy1s8LEE3tMFa0
+         EID5sRO0aMBP12yqOUziKlPIFZ7CQGeGOqqoXUbVIuffAlYchdCMpzFPhKu9//DbfiVu
+         UWPg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAV0ihcrmNH7zfkdQwzneOlKMAfDRT2Sx3cG1rjLDUJxJ74Inquw
+	jiRBn5XPoCqAAhiVpxLbgznp0IN7pwwPoSH1rmnThz3lhjYEAj1WngIzmk4e6QhfPIVVkKR2vGc
+	qsAu6Qx/M5rzGUkvH2NAuMnExu/6kqdy+/IwSV+sU6UDrKgjLjPObYTlgz/LiRoxeEA==
+X-Received: by 2002:a9d:6013:: with SMTP id h19mr67314840otj.215.1558922299386;
+        Sun, 26 May 2019 18:58:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy6sOJsyVyzalR3yTeDTR/dWwdp+lGq3dXZwYAneO+MvE9xylXx7WtzpVeAqi6niije2gEL
+X-Received: by 2002:a9d:6013:: with SMTP id h19mr67314799otj.215.1558922298136;
+        Sun, 26 May 2019 18:58:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558922298; cv=none;
         d=google.com; s=arc-20160816;
-        b=act50UKuhNEfQmAJeXtZY4ApK18MsyCBQbjqJ8kZdyUQwp07Sarx535NGSkJ8QSVJ+
-         j+w0tDNXgtBWNdOhRz17DpXxJwZF5/Cswv3zu/3hvkT3iIK6gCipQdekzjX8kWa3NMFe
-         oR+D6IjJba8TYHa2t9goqwdwwYqhbc9PMQLWgNUy0z/PMwkipHvYVm+HS5HoZN4F7Xac
-         okvmJDcyNid2dzqE0M5kqJ9hRTh6TXooHMA7OWFTgfmbAqmilYzaAO01PF+1IMr8P83Q
-         Nxu3iSpx7OmZVwwxiHHL3E9gvF3UE1hFyM+9bGY67ZDtamn8/FQDdrCjSUy5R5QngPl/
-         Rh7Q==
+        b=YoCqJ559KiZZ5MiTeUJ7fN8aaaTOHHYO7Jvf3BZhQNN8om94IzJN2XtgDtfAxADXev
+         +enuCAl18Rt/LAQTILsZnsYKSLT/tUsntK1WaG4+oUAJHueJpZK2+4jijUJNTO0MTLGU
+         47FqzujaCA6mfDA4bPlPGtgzMp1j0izommL/lMJyr8XAF6WDYlgRgAjDu1ZC4DUF8gas
+         1X45OjK3hOEe2c5z5jRSh+snRkHHzJQkngshZRSY/EZTvivhwgZkEzsz7D+szGLjiYqv
+         o9RW/pLagLv1j2eV/cXhbre501tfBbednl/pn9UTTrZ6tIxZkgHg9Rfn0cRNCNtJuorj
+         gdVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=nMiFTZq9m8Tud2oYGi2GiJ1Z+X/2sbQtc11N2qZi8ps=;
-        b=KDLdZKwCdyvBXFBO0GVyXshR+1GRvQv2k/trft4ktO5OtwJO3m0pgyROW9Tddj+ETg
-         vT2eNrZmofdr2qLMw2ITCA8THTr0+MN5JaJcSFxa6MjTwdAVpSSPoRjayc+BIbM465Fm
-         Osy7wc/R8pH0xfJVi5rzAoaUuLePor1WZiQZBTVkAT/ukx7VQVd03bjzKjhCrAy1Of1D
-         fmj433lve5MhnZ1/CYT1hOuoOLfN2PzsBniwnV0J9eeNetBxu/KlllxyYML5XT/kCoCU
-         uNU2VosHd96VVfSLNkNACNI5YVXVrC2QPQgdsRkQ5wInH+Z9PbXZsUokNP/pKB6it5dj
-         aALA==
+        h=message-id:date:subject:cc:to:from;
+        bh=fTV9+QJ3Qlr+eWA8hqTAepwEMa3PO/pXGof/Ta/9BdY=;
+        b=DZ/praRjcnowHKo38ne7z5F/vB9/VENf7E8R/JlAt7jK1V2iMCLX+Ggxzx7x8rnzQn
+         Q1WSlT3FZcBR5xPgxxB2sGNcec/Ayo6QooEG3PoGeOQJ7IOcE3THLrdpm7R+2xh3zEil
+         ZjsaATZHFdnFaeftnPEvlr/EkoLJ0Wayf8XyG3jwepIzYVj8tk7cXs06laDQO5F/lOvh
+         3lPtZMRy6QF2/b/mEuFS14U4Qs1Eo8+luA3+lQ6OXJzlezZY9eJZynP+1toyXII9gYee
+         VtqbkvvoddlkO90fotyoQfTSOZ8rAVmNaUyeVeUveWpye1zFdRjBzo+hzi8ZM7Y2wVIx
+         AIOA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kW8EQGCX;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p27sor4135813ljp.8.2019.05.26.14.22.27
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-43.freemail.mail.aliyun.com (out30-43.freemail.mail.aliyun.com. [115.124.30.43])
+        by mx.google.com with ESMTPS id g8si5615704otp.236.2019.05.26.18.58.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 26 May 2019 14:22:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kW8EQGCX;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=nMiFTZq9m8Tud2oYGi2GiJ1Z+X/2sbQtc11N2qZi8ps=;
-        b=kW8EQGCX9RPA7Y1Hbh9+m37Rg3nnmFcAhCEEN+Wn4d6HHxofUWi5NJZicvFduiIiWH
-         Z4tWfptAT8kbByu96/Af1k9A65xG9kG1xwVMP+zdYzfi5mBI3MfRi++wLymSduYdjNPS
-         el25ZYIltNE8kQrBHpSMo9w+RS1fCViSv708fFUtKfLosmGswxo1c4tg/wZs9epUFFel
-         ipOv7KktBtXHfm5LZmxBImQl05kSuQGLu5g/C2/JEqvzEanQeYq1WFYBsfHbm4lXQFMl
-         0gdsAkkrqKf4WYwHkn8KFBNHuGoBxYk55CqocVHv6l8pqAYsNa0wErxcHIB5sV+ZYsyz
-         bOwA==
-X-Google-Smtp-Source: APXvYqwLtfKo3g1XsLcA3UgctcSE5rh7e9LElVzrf5Zs8QIa2LJrFz7rsW567IrrpGxEhHMpbftXEw==
-X-Received: by 2002:a2e:8985:: with SMTP id c5mr14828724lji.84.1558905747025;
-        Sun, 26 May 2019 14:22:27 -0700 (PDT)
-Received: from pc636.lan (h5ef52e31.seluork.dyn.perspektivbredband.net. [94.245.46.49])
-        by smtp.gmail.com with ESMTPSA id y4sm1885105lje.24.2019.05.26.14.22.25
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 May 2019 14:22:26 -0700 (PDT)
-From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-To: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org
-Cc: Roman Gushchin <guro@fb.com>,
-	Uladzislau Rezki <urezki@gmail.com>,
-	Hillf Danton <hdanton@sina.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Joel Fernandes <joelaf@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: [PATCH v2 4/4] mm/vmap: move BUG_ON() check to the unlink_va()
-Date: Sun, 26 May 2019 23:22:13 +0200
-Message-Id: <20190526212213.5944-5-urezki@gmail.com>
-X-Mailer: git-send-email 2.11.0
-In-Reply-To: <20190526212213.5944-1-urezki@gmail.com>
-References: <20190526212213.5944-1-urezki@gmail.com>
+        Sun, 26 May 2019 18:58:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) client-ip=115.124.30.43;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.43 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R191e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04391;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TSlLoRp_1558922275;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TSlLoRp_1558922275)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Mon, 27 May 2019 09:58:04 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: ying.huang@intel.com,
+	hannes@cmpxchg.org,
+	mhocko@suse.com,
+	mgorman@techsingularity.net,
+	kirill.shutemov@linux.intel.com,
+	josef@toxicpanda.com,
+	hughd@google.com,
+	shakeelb@google.com,
+	hdanton@sina.com,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [RESEND v5 PATCH 1/2] mm: vmscan: remove double slab pressure by inc'ing sc->nr_scanned
+Date: Mon, 27 May 2019 09:57:54 +0800
+Message-Id: <1558922275-31782-1-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Move the BUG_ON()/RB_EMPTY_NODE() check under unlink_va()
-function, it means if an empty node gets freed it is a BUG
-thus is considered as faulty behaviour.
+The commit 9092c71bb724 ("mm: use sc->priority for slab shrink targets")
+has broken up the relationship between sc->nr_scanned and slab pressure.
+The sc->nr_scanned can't double slab pressure anymore.  So, it sounds no
+sense to still keep sc->nr_scanned inc'ed.  Actually, it would prevent
+from adding pressure on slab shrink since excessive sc->nr_scanned would
+prevent from scan->priority raise.
 
-Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+The bonnie test doesn't show this would change the behavior of
+slab shrinkers.
+
+				w/		w/o
+			  /sec    %CP      /sec      %CP
+Sequential delete: 	3960.6    94.6    3997.6     96.2
+Random delete: 		2518      63.8    2561.6     64.6
+
+The slight increase of "/sec" without the patch would be caused by the
+slight increase of CPU usage.
+
+Cc: Josef Bacik <josef@toxicpanda.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- mm/vmalloc.c | 24 +++++++++---------------
- 1 file changed, 9 insertions(+), 15 deletions(-)
+v4: Added Johannes's ack
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 6f91136f2cc8..0cd2a152826e 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -533,20 +533,16 @@ link_va(struct vmap_area *va, struct rb_root *root,
- static __always_inline void
- unlink_va(struct vmap_area *va, struct rb_root *root)
- {
--	/*
--	 * During merging a VA node can be empty, therefore
--	 * not linked with the tree nor list. Just check it.
--	 */
--	if (!RB_EMPTY_NODE(&va->rb_node)) {
--		if (root == &free_vmap_area_root)
--			rb_erase_augmented(&va->rb_node,
--				root, &free_vmap_area_rb_augment_cb);
--		else
--			rb_erase(&va->rb_node, root);
-+	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
+ mm/vmscan.c | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7acd0af..b65bc50 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1137,11 +1137,6 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		if (!sc->may_unmap && page_mapped(page))
+ 			goto keep_locked;
  
--		list_del(&va->list);
--		RB_CLEAR_NODE(&va->rb_node);
--	}
-+	if (root == &free_vmap_area_root)
-+		rb_erase_augmented(&va->rb_node,
-+			root, &free_vmap_area_rb_augment_cb);
-+	else
-+		rb_erase(&va->rb_node, root);
-+
-+	list_del(&va->list);
-+	RB_CLEAR_NODE(&va->rb_node);
- }
- 
- #if DEBUG_AUGMENT_PROPAGATE_CHECK
-@@ -1188,8 +1184,6 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
- 
- static void __free_vmap_area(struct vmap_area *va)
- {
--	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
+-		/* Double the slab pressure for mapped and swapcache pages */
+-		if ((page_mapped(page) || PageSwapCache(page)) &&
+-		    !(PageAnon(page) && !PageSwapBacked(page)))
+-			sc->nr_scanned++;
 -
- 	/*
- 	 * Remove from the busy tree/list.
- 	 */
+ 		may_enter_fs = (sc->gfp_mask & __GFP_FS) ||
+ 			(PageSwapCache(page) && (sc->gfp_mask & __GFP_IO));
+ 
 -- 
-2.11.0
+1.8.3.1
 
