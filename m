@@ -2,198 +2,243 @@ Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B6468C07542
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 10:54:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C31FC04AB3
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 11:12:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B76020859
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 10:54:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dR84Z3nu"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B76020859
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 2BB3520883
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 11:12:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2BB3520883
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8C95D6B0271; Mon, 27 May 2019 06:54:38 -0400 (EDT)
+	id BA29B6B0273; Mon, 27 May 2019 07:12:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 87A8E6B0272; Mon, 27 May 2019 06:54:38 -0400 (EDT)
+	id B79966B0274; Mon, 27 May 2019 07:12:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 767BA6B0273; Mon, 27 May 2019 06:54:38 -0400 (EDT)
+	id A67D16B0275; Mon, 27 May 2019 07:12:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DCD26B0271
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 06:54:38 -0400 (EDT)
-Received: by mail-lf1-f70.google.com with SMTP id q29so1231053lfn.6
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 03:54:37 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DDF86B0273
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 07:12:13 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id l63so5309642oia.7
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 04:12:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=T2n4gBNEt3oKhgRBGoBZWnyBBkiJxP3xEBbVU5SxBlY=;
-        b=Eg/oXojf6uW6EUzRY5Vfn7mrVioBSguvMJf/PRtaWKjQdkhivYybZCRKLaKPGlym55
-         1z+tisaA4P78Vw5CbYrGnGauE7m+GETnT+a6NihTAeUJokWf9eKMMjB0qWsgmbEwDoZk
-         yBt77yKe010YQQeAbquPDM0uhOZf3qEVBcSWc5EobZe/um0uRbRL662Guaco1f2wmFF0
-         p36WVRZjtfBFl5JCic4MH4o2fzY3uHLvLRsw+TgwpeUSrfSR4DnWuFPbOqwh5urZ6C2b
-         F9eXkj6W0MsCyHP4JWQuZ3g6YVpnL4Pa0zyPfvdPs5jUDZ2AkWDD6pEagJqnvZt4VVmP
-         LRkw==
-X-Gm-Message-State: APjAAAVscGsYB72FHROjWwZBFTiTxPoWzXQla0BtZtJjF9jVhRzQkMQ0
-	i14gtFe6F2ERqngP6hb/PW/wJgkHfhTbMhqP9tojhheWeYNsS2b86FB2bMbca2RjNwmOVYRXZTP
-	rqARjs6G8n8VCwV0tmn55C86smR1zGcVljOumVcYLwmScCP1FVFj1+X+kWiWC/GkMGQ==
-X-Received: by 2002:ac2:546a:: with SMTP id e10mr3606765lfn.75.1558954477109;
-        Mon, 27 May 2019 03:54:37 -0700 (PDT)
-X-Received: by 2002:ac2:546a:: with SMTP id e10mr3606711lfn.75.1558954475992;
-        Mon, 27 May 2019 03:54:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558954475; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=VgBcPqadfULIhJTxRz7nlUgkvxKbDxlVi28M/NCXNAQ=;
+        b=C1H3mRItcUDUkJvUEw1nezk7NiA2euo5+00D6wBnSz0mnC+6sAMnV8Xds7cXYIaqX2
+         E+1knvZkDEk3oRqrpnyj97Y1qd9QU6mW1tzXmrtBiQb7I5XEtLkn65fL8rdIF8E9HF3J
+         F17ii/I0EpekTg4SQt//rXX2LMA1HVO1fXuRMYa3Q0OzTGU6OZcgwpaj/m0gO4U5tqkJ
+         6F2cnrQBlyslcjfwGTgYIINkXkKYu2dMQyy+3NUgUF+w8OuzXpEHzzAken0ARVocym+k
+         Y8qdu/xWT2OBvB8hxvRvgOShAqTDwtenM6xc8zjYx30xQEcwXNc1q8ZuzAsRqVI7gEqP
+         VoOQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWdYGuaY6fl9c94KKwzeH+zXiF7qnWmeI1QnLB7PMjhJZ046q8w
+	JgtZwFOJljyexVzvwmQTAoLUAZ20A+MG3882GIHwNtKAbxSq9fGMvARgXt19+AwEJg+Z9yl297K
+	4qkidb/hZT9BDFdcLlNZxCgR+oZEV53fDO8bWYO3YhMcFpFB+GhyMMQ/3lb6atX+TLQ==
+X-Received: by 2002:aca:4457:: with SMTP id r84mr100934oia.42.1558955533130;
+        Mon, 27 May 2019 04:12:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz6JX1bNFjDZw4bR5eInJ3YtG/7UwgT1Plsngx8luAWvh6tQaEZqb+cE87SKtJ+DTS7kyFF
+X-Received: by 2002:aca:4457:: with SMTP id r84mr100884oia.42.1558955532210;
+        Mon, 27 May 2019 04:12:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558955532; cv=none;
         d=google.com; s=arc-20160816;
-        b=xh6Q9NtAf/w9M67Bt1ZcuA9rVN1WhIouFgqk99/VPqYjnbNbfQP878JW29KSQplBxj
-         YX3i1HqUjRdFRopiGSnxR/+aOTkW87L9MjLZqtjAkYL1lODH8HZ3KB81lklSG8XwGtel
-         1RdlMkdACYQTzSUI5LPJFHp6Tn6bql12PnSKPkaQQzloefs+SXN2FD/84y3Lw8xuVm+X
-         Pr/nh3Zom/WPPmPWQ2x1k6xJ+f9GcbIscEH4EIgMuvREM3+OeCD0jaVB2qioBryKx3D8
-         f+1A9pETgaxrYL4GOdRANcT1J2L8NFiUYKCiAa+E+aXpiZL2kRrhLNn8tqnP5q1tgkSP
-         AH6w==
+        b=PJFJRSnBtMzof0ZsIHoVkGJoJNtw4rs8KZ1+RB511DsjWGeqQjNrasUATeatZqQ8o2
+         Rh1aeMIfkyAZBYnPe4ct/aErkhhRrjcOaRdE4LevwxOZ8CTMBxx7DzONVqfPKhQXfMgI
+         RM6SgtQcj4ZVKzMNVP5xloaepm49rf2rdEXrYWTVxlb/ZEqQj72fiz6IKVVr4yINCV1A
+         9pgFfXSixIO1hDDn2ZsnadMUZC5801r3YEL5i6zB5P7L0jgmrRXWzCzWXBcuKLeS+LYK
+         cBtVoKd+EalW0++KtzJf6hwCvF43o5TJ9Kgh3KxDwY5m3eh7hshmxDoMnVkkGHTjWfzX
+         WadA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=T2n4gBNEt3oKhgRBGoBZWnyBBkiJxP3xEBbVU5SxBlY=;
-        b=oLU3b+PkX50xT7m3dFhDCNSLeyiTuMWMfcbdc0I6fiFAa2EhJc4a362i276UU2nUW3
-         0ZZu5YlfTtd+eW4HTl56x3EqTy7BMDyaFcsiASVsVg2xb9OHHQKXfM5YPRpUfBrQQwnA
-         mbJst+4/A0UajFRKkxm6mhdJvPuwcWQ2Ir6pph0jLjiTTCXrcnkWknfZRYaaVdV6+cQo
-         Tu/Fah3oIP0oRd06Ebw51y9yv9BOaYZz7p4nTjX2hgmgorwetP1IbeqOqUiBvn3KJwDk
-         M6BOe7PfzMmYkTqOVT/k4hbjb5GJ9+zIV9tqEDFkJzEEHx6haUqLgR8tCY4bnTBkcDa6
-         RsWg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=VgBcPqadfULIhJTxRz7nlUgkvxKbDxlVi28M/NCXNAQ=;
+        b=RjYbWblU94Ji+zlmihUz57pgRWJUkadnn8mNP1cjUUO/Uu7ZLk+LOVY0BdnSE+Po1a
+         OWBIOR5kBkA8+GGHMVNeKzKR5xoIroa376CSCSidowH/aPum7oHInV8QnXErowWx/4Na
+         9kMXN8cDPb9SO4Yx10zu3z6M2HWksa94EP4XaIWQsS01UDOna4LU3ywijX3pJIUXE5a4
+         47ZgXD/5JH/qcr+gUoNfZ656fDB8XAqef9YKbqtSRWaqEJsNLgWe8MV9Ts/qQVEnaTSl
+         6mPg+alEA54ujrYBAK+ngIEIC/GO6cg+RJwLXiKIQe0uMTER2F6mMV5fBi42USfu4LSx
+         /FtQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dR84Z3nu;
-       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z9sor2609890lfh.44.2019.05.27.03.54.35
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id n204si5702809oih.75.2019.05.27.04.12.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 27 May 2019 03:54:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 May 2019 04:12:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dR84Z3nu;
-       spf=pass (google.com: domain of vitalywool@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vitalywool@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=T2n4gBNEt3oKhgRBGoBZWnyBBkiJxP3xEBbVU5SxBlY=;
-        b=dR84Z3nuv3s5YOrQqiLB6Ix9wMQyT82iqcq3wrUTRa/kZxr+uBwRmuVxh7hx4Lj3FM
-         KEhFHkxTmGv6Kam6nBU+3HqKorCFNvjw9OKzYn2VNr6iYG7Vd9fuyzf40YRt32xz2mSg
-         bOlKoojrSHXP5UsyZ7jQAqUTsUqLpKSgzi5DR4/VRyJe0G/djkI1+RjUawiyvAvHZEv3
-         3XP1nkgpkAxPkHG7+BRQVTg9/MdbHsZdjvMS8pi4eVrG7fJTgAEcOXKiSiV6YDPNq6jw
-         6xUNJqhwJr+anTyRiB+gdR3lBXp1Y/etJgAXzlqqmzfgEdAxjIYaFfuQhg6wQqVmQwf3
-         vXaQ==
-X-Google-Smtp-Source: APXvYqxlu5SnIBVa0aUlRiEJtdFyNmXZap0vDJRssM/5GGdUmvTYcWWazIPXEdPkaGYaXb7kqt5b4zLGBxOPmONRBqE=
-X-Received: by 2002:a19:9e46:: with SMTP id h67mr8374590lfe.120.1558954475111;
- Mon, 27 May 2019 03:54:35 -0700 (PDT)
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id F158C88317;
+	Mon, 27 May 2019 11:12:09 +0000 (UTC)
+Received: from t460s.redhat.com (ovpn-117-89.ams2.redhat.com [10.36.117.89])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 9B2952AA81;
+	Mon, 27 May 2019 11:11:53 +0000 (UTC)
+From: David Hildenbrand <david@redhat.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org,
+	linux-ia64@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org,
+	linux-s390@vger.kernel.org,
+	linux-sh@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org,
+	akpm@linux-foundation.org,
+	Dan Williams <dan.j.williams@intel.com>,
+	Wei Yang <richard.weiyang@gmail.com>,
+	Igor Mammedov <imammedo@redhat.com>,
+	David Hildenbrand <david@redhat.com>,
+	Alex Deucher <alexander.deucher@amd.com>,
+	Andrew Banman <andrew.banman@hpe.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Anshuman Khandual <anshuman.khandual@arm.com>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Arun KS <arunks@codeaurora.org>,
+	Baoquan He <bhe@redhat.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Borislav Petkov <bp@alien8.de>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Christophe Leroy <christophe.leroy@c-s.fr>,
+	Chris Wilson <chris@chris-wilson.co.uk>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Fenghua Yu <fenghua.yu@intel.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@kernel.org>,
+	Ingo Molnar <mingo@redhat.com>,
+	Jonathan Cameron <Jonathan.Cameron@huawei.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Jun Yao <yaojun8558363@gmail.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Mark Brown <broonie@kernel.org>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Mathieu Malaterre <malat@debian.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Michal Hocko <mhocko@suse.com>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	"mike.travis@hpe.com" <mike.travis@hpe.com>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Oscar Salvador <osalvador@suse.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	Paul Mackerras <paulus@samba.org>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Pavel Tatashin <pavel.tatashin@microsoft.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Qian Cai <cai@lca.pw>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	Rich Felker <dalias@libc.org>,
+	Rob Herring <robh@kernel.org>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Tony Luck <tony.luck@intel.com>,
+	Vasily Gorbik <gor@linux.ibm.com>,
+	Wei Yang <richardw.yang@linux.intel.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Yu Zhao <yuzhao@google.com>
+Subject: [PATCH v3 00/11] mm/memory_hotplug: Factor out memory block devicehandling
+Date: Mon, 27 May 2019 13:11:41 +0200
+Message-Id: <20190527111152.16324-1-david@redhat.com>
 MIME-Version: 1.0
-References: <20190524174918.71074b358001bdbf1c23cd77@gmail.com> <20190525150948.e1ff1a2a894ca8110abc8183@linux-foundation.org>
-In-Reply-To: <20190525150948.e1ff1a2a894ca8110abc8183@linux-foundation.org>
-From: Vitaly Wool <vitalywool@gmail.com>
-Date: Mon, 27 May 2019 12:54:23 +0200
-Message-ID: <CAMJBoFNXVc3BBdEOsKTSHO51reHL93GPQNO4Tjkx+OaDcpb22g@mail.gmail.com>
-Subject: Re: [PATCH] z3fold: add inter-page compaction
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Dan Streetman <ddstreet@ieee.org>, Oleksiy.Avramchenko@sony.com, 
-	Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Uladzislau Rezki <urezki@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Mon, 27 May 2019 11:12:11 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 26, 2019 at 12:09 AM Andrew Morton
-<akpm@linux-foundation.org> wrote:
+We only want memory block devices for memory to be onlined/offlined
+(add/remove from the buddy). This is required so user space can
+online/offline memory and kdump gets notified about newly onlined memory.
 
-<snip>
-> Forward-declaring inline functions is peculiar, but it does appear to work.
->
-> z3fold is quite inline-happy.  Fortunately the compiler will ignore the
-> inline hint if it seems a bad idea.  Even then, the below shrinks
-> z3fold.o text from 30k to 27k.  Which might even make it faster....
+Let's factor out creation/removal of memory block devices. This helps
+to further cleanup arch_add_memory/arch_remove_memory() and to make
+implementation of new features easier - especially sub-section
+memory hot add from Dan.
 
-It is faster with inlines, I'll try to find a better balance between
-size and performance in the next version of the patch though.
+Anshuman Khandual is currently working on arch_remove_memory(). I added
+a temporary solution via "arm64/mm: Add temporary arch_remove_memory()
+implementation", that is sufficient as a firsts tep in the context of
+this series. (we don't cleanup page tables in case anything goes
+wrong already)
 
-<snip>
-> >
-> > ...
-> >
-> > +static inline struct z3fold_header *__get_z3fold_header(unsigned long handle,
-> > +                                                     bool lock)
-> > +{
-> > +     struct z3fold_buddy_slots *slots;
-> > +     struct z3fold_header *zhdr;
-> > +     unsigned int seq;
-> > +     bool is_valid;
-> > +
-> > +     if (!(handle & (1 << PAGE_HEADLESS))) {
-> > +             slots = handle_to_slots(handle);
-> > +             do {
-> > +                     unsigned long addr;
-> > +
-> > +                     seq = read_seqbegin(&slots->seqlock);
-> > +                     addr = *(unsigned long *)handle;
-> > +                     zhdr = (struct z3fold_header *)(addr & PAGE_MASK);
-> > +                     preempt_disable();
->
-> Why is this done?
->
-> > +                     is_valid = !read_seqretry(&slots->seqlock, seq);
-> > +                     if (!is_valid) {
-> > +                             preempt_enable();
-> > +                             continue;
-> > +                     }
-> > +                     /*
-> > +                      * if we are here, zhdr is a pointer to a valid z3fold
-> > +                      * header. Lock it! And then re-check if someone has
-> > +                      * changed which z3fold page this handle points to
-> > +                      */
-> > +                     if (lock)
-> > +                             z3fold_page_lock(zhdr);
-> > +                     preempt_enable();
-> > +                     /*
-> > +                      * we use is_valid as a "cached" value: if it's false,
-> > +                      * no other checks needed, have to go one more round
-> > +                      */
-> > +             } while (!is_valid || (read_seqretry(&slots->seqlock, seq) &&
-> > +                     (lock ? ({ z3fold_page_unlock(zhdr); 1; }) : 1)));
-> > +     } else {
-> > +             zhdr = (struct z3fold_header *)(handle & PAGE_MASK);
-> > +     }
-> > +
-> > +     return zhdr;
-> > +}
-> >
-> > ...
-> >
-> >  static unsigned short handle_to_chunks(unsigned long handle)
-> >  {
-> > -     unsigned long addr = *(unsigned long *)handle;
-> > +     unsigned long addr;
-> > +     struct z3fold_buddy_slots *slots = handle_to_slots(handle);
-> > +     unsigned int seq;
-> > +
-> > +     do {
-> > +             seq = read_seqbegin(&slots->seqlock);
-> > +             addr = *(unsigned long *)handle;
-> > +     } while (read_seqretry(&slots->seqlock, seq));
->
-> It isn't done here (I think).
+Did a quick sanity test with DIMM plug/unplug, making sure all devices
+and sysfs links properly get added/removed. Compile tested on s390x and
+x86-64.
 
-handle_to_chunks() is always called with z3fold header locked which
-makes it a lot easier in this case. I'll add some comments in V2.
+Based on next/master.
 
-Thanks,
-   Vitaly
+Next refactoring on my list will be making sure that remove_memory()
+will never deal with zones / access "struct pages". Any kind of zone
+handling will have to be done when offlining system memory / before
+removing device memory. I am thinking about remove_pfn_range_from_zone()",
+du undo everything "move_pfn_range_to_zone()" did.
+
+v2 -> v3:
+- Add "s390x/mm: Fail when an altmap is used for arch_add_memory()"
+- Add "arm64/mm: Add temporary arch_remove_memory() implementation"
+- Add "drivers/base/memory: Pass a block_id to init_memory_block()"
+- Various changes to "mm/memory_hotplug: Create memory block devices
+  after arch_add_memory()" and "mm/memory_hotplug: Create memory block
+  devices after arch_add_memory()" due to switching from sections to
+  block_id's.
+
+v1 -> v2:
+- s390x/mm: Implement arch_remove_memory()
+-- remove mapping after "__remove_pages"
+
+David Hildenbrand (11):
+  mm/memory_hotplug: Simplify and fix check_hotplug_memory_range()
+  s390x/mm: Fail when an altmap is used for arch_add_memory()
+  s390x/mm: Implement arch_remove_memory()
+  arm64/mm: Add temporary arch_remove_memory() implementation
+  drivers/base/memory: Pass a block_id to init_memory_block()
+  mm/memory_hotplug: Allow arch_remove_pages() without
+    CONFIG_MEMORY_HOTREMOVE
+  mm/memory_hotplug: Create memory block devices after arch_add_memory()
+  mm/memory_hotplug: Drop MHP_MEMBLOCK_API
+  mm/memory_hotplug: Remove memory block devices before
+    arch_remove_memory()
+  mm/memory_hotplug: Make unregister_memory_block_under_nodes() never
+    fail
+  mm/memory_hotplug: Remove "zone" parameter from
+    sparse_remove_one_section
+
+ arch/arm64/mm/mmu.c            |  17 +++++
+ arch/ia64/mm/init.c            |   2 -
+ arch/powerpc/mm/mem.c          |   2 -
+ arch/s390/mm/init.c            |  18 +++--
+ arch/sh/mm/init.c              |   2 -
+ arch/x86/mm/init_32.c          |   2 -
+ arch/x86/mm/init_64.c          |   2 -
+ drivers/base/memory.c          | 134 +++++++++++++++++++--------------
+ drivers/base/node.c            |  27 +++----
+ include/linux/memory.h         |   6 +-
+ include/linux/memory_hotplug.h |  12 +--
+ include/linux/node.h           |   7 +-
+ mm/memory_hotplug.c            |  44 +++++------
+ mm/sparse.c                    |  10 +--
+ 14 files changed, 140 insertions(+), 145 deletions(-)
+
+-- 
+2.20.1
 
