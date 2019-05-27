@@ -1,171 +1,164 @@
 Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C3D1AC28CBF
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 07:49:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A029C07542
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 07:53:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A6D22075B
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 07:49:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8DEBD2070D
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 07:53:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dcaj37bC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A6D22075B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (1024-bit key) header.d=rasmusvillemoes.dk header.i=@rasmusvillemoes.dk header.b="RQVILT43"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DEBD2070D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=rasmusvillemoes.dk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 29D996B026D; Mon, 27 May 2019 03:49:49 -0400 (EDT)
+	id 0298F6B026D; Mon, 27 May 2019 03:53:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 24DC16B026E; Mon, 27 May 2019 03:49:49 -0400 (EDT)
+	id ECE5A6B026E; Mon, 27 May 2019 03:53:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 13D126B026F; Mon, 27 May 2019 03:49:49 -0400 (EDT)
+	id D6FAD6B026F; Mon, 27 May 2019 03:53:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CF9056B026D
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 03:49:48 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 14so11265234pgo.14
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 00:49:48 -0700 (PDT)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C5DA6B026D
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 03:53:38 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id n14so3041724ljj.19
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 00:53:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=UAaLUDeqiG1NP6oRWwwXznCvAzla34GzLiXiS6KmTYY=;
-        b=KsX8H3gOZ5dwu81pRS8TYDtIbGYg28XIQ+8oAk5K+YOCYJAnoybci/eAgdTnJFp2hK
-         h6R8IY1U753Z9Om0Zg9WDF/vZvVBurg3IQC8w7ZZ2IvMYKkKh+3m4fQ0kZvIhWcUGpW5
-         tBPsnAmxrN4rSMnKgAI1sCrOCI5vuLeavkEbDpfzwGdBfff4ceSgOWXqE1Xuv6msuS2P
-         9WCIKPWZDwt3ZYB0241Jf4Uca66D8VjAsVNy4FVaDETGHv935hACQQQje1Brq+P4NWhH
-         i8by0ScRycUV+IqHPA0yWC4MOdjCB3btQWoQ9x7+s3P3bKkxBkNqYt9KdWOo5hX4sO+s
-         6KvA==
-X-Gm-Message-State: APjAAAUWRmcae5JCdbdpzTP8YgiZX1h7AfOfeyTS48w6sdDizDK6wGZj
-	LgnH5+2ZrNoDUQQZ9CBn7Zp+HN7m6l1eJ9aauNb71KMq0eblsqPQxVSg/mt34Kg4ZqNrK243BYf
-	7QIwdiR1z0sovxUq3+wZR2SQ30BYsQ9yZ0WV2lSbyDPZVbyxvyE6aLt0MfpXxkJg=
-X-Received: by 2002:a63:fc08:: with SMTP id j8mr123081586pgi.432.1558943388436;
-        Mon, 27 May 2019 00:49:48 -0700 (PDT)
-X-Received: by 2002:a63:fc08:: with SMTP id j8mr123081513pgi.432.1558943387513;
-        Mon, 27 May 2019 00:49:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558943387; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=u/jG7PRHQvQ/gJu4mWkgic1YFhICzQ7oYnhDTYgh/+A=;
+        b=NlG/5Hb3QBpNKobrnDxA6vsRFUFNi/RGeK+wuXFoZ91QXKq0+WDYoMyh4itdhuhqUx
+         ZGC2x9QFbKvFz+ZoNXGaSXbp3j1v7VgRTKyUbkiR7rJxKVHXjvUBnQew4fLrIQRtyvTD
+         nizG5kb7PBFHlMgfZ7kLIM6T93T0Oc9JtZiGP1IHgFtgmXjgCRJfzxXJOXzES2Xe9iIQ
+         +jcgYw7QkP8VWMLUQs2MRB0Fm6dW4tYVY4d2UUgpSaS91pxk2UXvJxFptUc4+eRb6mgJ
+         KhtPKzqUb2FaA5NOT8HtOoX3T2sk7om9xVH2HypAjeL+sL08Siw5h8kvyRqq+rICvl7l
+         DJ2g==
+X-Gm-Message-State: APjAAAUvYMgjH7fn8EF1pTzTi9jCtjVtQg5xH/DdQjHZtEbRMEeJQxza
+	RBUGbTvezLxmi3j3x+l36061DTwQBWNoklxB9yOk0UbQIJ0zhD2J2zm9Y/rps4qDA03h6cdeU/H
+	ts1Auf/pcBrcHG2DNqcKLsMPT3M54rmgweJYPUtndVgPjwyv0GoH8ITSOrHz29O/i2Q==
+X-Received: by 2002:ac2:5382:: with SMTP id g2mr5413431lfh.92.1558943617748;
+        Mon, 27 May 2019 00:53:37 -0700 (PDT)
+X-Received: by 2002:ac2:5382:: with SMTP id g2mr5413399lfh.92.1558943616983;
+        Mon, 27 May 2019 00:53:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558943616; cv=none;
         d=google.com; s=arc-20160816;
-        b=d5+uv4hJondQzoEy2UmSys9yuH1KxEtX5pUsqwCvG+JH/PmiDL4n0+d8KxMROgcDiz
-         pk2t0bzjYOT1U6hfOUe0racj+N03FL/EpEO2cZ86HDrikoBn29KP6HQd7LNKA15IqIBu
-         0WtHCvUfASiekG31DwrJU646rz3N82wUdViJrKId6eCylCDRjrA9+c4IyqF91UGxoUec
-         /PsWLEXLnCZ0x75TYiQGBAmLf5SLrJ+T9YJD7/9DKdQ9yLFlrzUQ9pwF2bVHU1dJITZM
-         YpCaFFTEYjF+GyRfM+GvY0t7qUHiFOLZrUI5axFoQF7j5w6e3JtpPUG+lCTQXANgNq86
-         qzHQ==
+        b=gt6QDfhXBUE1JlfzHq/ZlJ80hRFkWxdd6kI05lt1ExRc8QPeFHDEU1KNzYDZoClaV9
+         mUYOuvZaYD34NROvrFune5v5+Knv4qOyCZrZDkflpwgxZso7RrMc4DgPqyy4b//YH4yt
+         pB/YisxhxGXhzgosOs1+m/yLAAm4Rt6CZulbUv5QQxq8FoqsgZzMF8zz2t5YI8Ngm8Yd
+         UI747/FJonSrZ5IFvTQIAqg+WIkEdI5MkbzasYbtukUGujpmeNeJAjDoRftPLOupLAqk
+         eoL7lig4jF6/yekGMKXEeIT+FGOya6fWa6G8eO1k0eUnSCy88CtMsF1Au86cJAoeROKf
+         J1kw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=UAaLUDeqiG1NP6oRWwwXznCvAzla34GzLiXiS6KmTYY=;
-        b=HXZAhroJ5L6JCsIrPQ3L1BG+79IdwCXRpXIqFyk+02+iwiNkoXQt8RHsslfGWaEQTN
-         qw9z8eDA6OPQ3/Da09i4XbzGEH/Zdum/ohnFlZt6pYNFZ8FpqS/eMCu4O3VMqzy5B6YB
-         C25HTBhWnsDBBJeMXfgxR4K1LxnhFNVVbgSF3r0S+CudHGnerN08PAEOJfrrCeYIeIUV
-         I4sbinAQhfOGwflmLveLZun4J+3ilbsETlqqlqhQExE4y8E4nJGNelwBvN7ZF52s9Sz0
-         YSx4MlJRM5vV7BZ57sWJUxT8GGP3wWCfjRrmxcPkSejWpVg0LsIoOxNFNDBIBCcsUm3q
-         YuRg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=u/jG7PRHQvQ/gJu4mWkgic1YFhICzQ7oYnhDTYgh/+A=;
+        b=d4/ojfbDGBZDwf+isXFPwoLNWY9xTBznCNgeQ8MOacE2f5Jtv8N0+5Q5ecvBEiT4dY
+         nuPmfKgzi0r2sVof9w9V7Xqa6Bs9/J0h21cuoelxVeyy6io3pf/70BbghoKDa2LMt+BB
+         AxZWlgz0rD2lFTQrTVov36rjr9taRWe2ycmrrUHSt5XCUtMYhmXhODX8cig6mk8GTSAW
+         AkQw32uiWhaqv1wOt1Zj+dTwTnNCUymJx8nVKacvWFMJYtMlkp7banyFV8ySTTkUkXOE
+         hc08kbF9PkBFLxPtn7lW3OihCf6iZEK3BKTdwR+R3EjOmWHeTeRkmw+qp8PvOsf13i57
+         DRPA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dcaj37bC;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@rasmusvillemoes.dk header.s=google header.b=RQVILT43;
+       spf=pass (google.com: domain of linux@rasmusvillemoes.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux@rasmusvillemoes.dk
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bh4sor12558882plb.25.2019.05.27.00.49.47
+        by mx.google.com with SMTPS id r6sor4783165ljg.27.2019.05.27.00.53.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 May 2019 00:49:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 27 May 2019 00:53:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of linux@rasmusvillemoes.dk designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dcaj37bC;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@rasmusvillemoes.dk header.s=google header.b=RQVILT43;
+       spf=pass (google.com: domain of linux@rasmusvillemoes.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux@rasmusvillemoes.dk
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=UAaLUDeqiG1NP6oRWwwXznCvAzla34GzLiXiS6KmTYY=;
-        b=dcaj37bCGUBkTgKtlwvXFPEIuX2F6UmuMUU5vrFtZ3MCfY5mEozm2J0Kxt0xiWbjBx
-         p5j/krk+oCCMX1wl7lfkOqs2PJiP+4y2Z+jHyS0+VH4lZyT8b+FbwGyjtxfgsgGgiw2n
-         bqMXvJcr5CFZM6QbRYbqqY/0oHmhio8Ky1QfKX7vrgL8O/9ZqYFYACTfyFVYnnsrZQXz
-         TnVe+KKgKAUnZERuRC4nlyRiVrVCrror364HWIUX+r5ew7kKXg/j+cepsCNa/GZpqq2r
-         hpVaPnIJdna7Ev8sKDaKYlw9eZsUkuUvf8AeN+KaKWaDR4v4cvYgJZP4OkNhyBsv0E2T
-         eo3A==
-X-Google-Smtp-Source: APXvYqysI7IOkBNmcR/djcrJ/5JIth+TrYyPAhn/ojlSa+KZOHOuhmEpThUW7Eam0JapW4Wf5PUOuw==
-X-Received: by 2002:a17:902:2e81:: with SMTP id r1mr110527179plb.0.1558943386837;
-        Mon, 27 May 2019 00:49:46 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id k190sm146239pgk.28.2019.05.27.00.49.42
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 27 May 2019 00:49:45 -0700 (PDT)
-Date: Mon, 27 May 2019 16:49:40 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>, linux-api@vger.kernel.org
-Subject: Re: [RFC 6/7] mm: extend process_madvise syscall to support vector
- arrary
-Message-ID: <20190527074940.GB6879@google.com>
-References: <20190520035254.57579-1-minchan@kernel.org>
- <20190520035254.57579-7-minchan@kernel.org>
- <20190520092258.GZ6836@dhcp22.suse.cz>
- <20190521024820.GG10039@google.com>
- <20190521062421.GD32329@dhcp22.suse.cz>
- <20190521102613.GC219653@google.com>
- <20190521103726.GM32329@dhcp22.suse.cz>
+        d=rasmusvillemoes.dk; s=google;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=u/jG7PRHQvQ/gJu4mWkgic1YFhICzQ7oYnhDTYgh/+A=;
+        b=RQVILT43qONfsxpQOQEQsUoX7Zku4pvkoHN7Vng5hM09sRKV87QSs0JRpHBdlpprBe
+         UkGMd+fEQJlvhhZ6OtbZHb9Ar1EAWn9mxSrnIoAqRkqlQtLAj/tgjjBdWtEyxv+6xdR3
+         s9kC4Hm3+NrcuGFU450aVm6xCpDsoUvA9zv0w=
+X-Google-Smtp-Source: APXvYqw+Ija1yj1WbZ5QX3cIC+EjlZ9jBXxlLm1pyF3XxZqbylvz/66EsA4BJLkcl+dOysbZnAJljQ==
+X-Received: by 2002:a2e:80d5:: with SMTP id r21mr7934450ljg.43.1558943616590;
+        Mon, 27 May 2019 00:53:36 -0700 (PDT)
+Received: from [172.16.11.26] ([81.216.59.226])
+        by smtp.gmail.com with ESMTPSA id p5sm2124466ljg.55.2019.05.27.00.53.33
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 May 2019 00:53:35 -0700 (PDT)
+Subject: Re: lib/test_overflow.c causes WARNING and tainted kernel
+To: Randy Dunlap <rdunlap@infradead.org>, Kees Cook <keescook@chromium.org>
+Cc: LKML <linux-kernel@vger.kernel.org>,
+ Dan Carpenter <dan.carpenter@oracle.com>,
+ Matthew Wilcox <willy@infradead.org>, Linux MM <linux-mm@kvack.org>,
+ Andrew Morton <akpm@linux-foundation.org>
+References: <9fa84db9-084b-cf7f-6c13-06131efb0cfa@infradead.org>
+ <CAGXu5j+yRt_yf2CwvaZDUiEUMwTRRiWab6aeStxqodx9i+BR4g@mail.gmail.com>
+ <e2646ac0-c194-4397-c021-a64fa2935388@infradead.org>
+From: Rasmus Villemoes <linux@rasmusvillemoes.dk>
+Message-ID: <97c4b023-06fe-2ec3-86c4-bfdb5505bf6d@rasmusvillemoes.dk>
+Date: Mon, 27 May 2019 09:53:33 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190521103726.GM32329@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <e2646ac0-c194-4397-c021-a64fa2935388@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 21, 2019 at 12:37:26PM +0200, Michal Hocko wrote:
-> On Tue 21-05-19 19:26:13, Minchan Kim wrote:
-> > On Tue, May 21, 2019 at 08:24:21AM +0200, Michal Hocko wrote:
-> > > On Tue 21-05-19 11:48:20, Minchan Kim wrote:
-> > > > On Mon, May 20, 2019 at 11:22:58AM +0200, Michal Hocko wrote:
-> > > > > [Cc linux-api]
-> > > > > 
-> > > > > On Mon 20-05-19 12:52:53, Minchan Kim wrote:
-> > > > > > Currently, process_madvise syscall works for only one address range
-> > > > > > so user should call the syscall several times to give hints to
-> > > > > > multiple address range.
-> > > > > 
-> > > > > Is that a problem? How big of a problem? Any numbers?
-> > > > 
-> > > > We easily have 2000+ vma so it's not trivial overhead. I will come up
-> > > > with number in the description at respin.
-> > > 
-> > > Does this really have to be a fast operation? I would expect the monitor
-> > > is by no means a fast path. The system call overhead is not what it used
-> > > to be, sigh, but still for something that is not a hot path it should be
-> > > tolerable, especially when the whole operation is quite expensive on its
-> > > own (wrt. the syscall entry/exit).
-> > 
-> > What's different with process_vm_[readv|writev] and vmsplice?
-> > If the range needed to be covered is a lot, vector operation makes senese
-> > to me.
+On 25/05/2019 17.33, Randy Dunlap wrote:
+> On 3/13/19 7:53 PM, Kees Cook wrote:
+>> Hi!
+>>
+>> On Wed, Mar 13, 2019 at 2:29 PM Randy Dunlap <rdunlap@infradead.org> wrote:
+>>>
+>>> This is v5.0-11053-gebc551f2b8f9, MAR-12 around 4:00pm PT.
+>>>
+>>> In the first test_kmalloc() in test_overflow_allocation():
+>>>
+>>> [54375.073895] test_overflow: ok: (s64)(0 << 63) == 0
+>>> [54375.074228] WARNING: CPU: 2 PID: 5462 at ../mm/page_alloc.c:4584 __alloc_pages_nodemask+0x33f/0x540
+>>> [...]
+>>> [54375.079236] ---[ end trace 754acb68d8d1a1cb ]---
+>>> [54375.079313] test_overflow: kmalloc detected saturation
+>>
+>> Yup! This is expected and operating as intended: it is exercising the
+>> allocator's detection of insane allocation sizes. :)
+>>
+>> If we want to make it less noisy, perhaps we could add a global flag
+>> the allocators could check before doing their WARNs?
+>>
+>> -Kees
 > 
-> I am not saying that the vector API is wrong. All I am trying to say is
-> that the benefit is not really clear so far. If you want to push it
-> through then you should better get some supporting data.
+> I didn't like that global flag idea.  I also don't like the kernel becoming
+> tainted by this test.
 
-I measured 1000 madvise syscall vs. a vector range syscall with 1000
-ranges on ARM64 mordern device. Even though I saw 15% improvement but
-absoluate gain is just 1ms so I don't think it's worth to support.
-I will drop vector support at next revision.
+Me neither. Can't we pass __GFP_NOWARN from the testcases, perhaps with
+a module parameter to opt-in to not pass that flag? That way one can
+make the overflow module built-in (and thus run at boot) without
+automatically tainting the kernel.
 
-Thanks for the review, Michal!
+The vmalloc cases do not take gfp_t, would they still cause a warning?
+
+BTW, I noticed that the 'wrap to 8K' depends on 64 bit and
+pagesize==4096; for 32 bit the result is 20K, while if the pagesize is
+64K one gets 128K and 512K for 32/64 bit size_t, respectively. Don't
+know if that's a problem, but it's easy enough to make it independent of
+pagesize (just make it 9*4096 explicitly), and if we use 5 instead of 9
+it also becomes independent of sizeof(size_t) (wrapping to 16K).
+
+Rasmus
 
