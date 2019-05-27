@@ -3,77 +3,77 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C843C04AB3
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 11:12:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F62EC04AB3
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 11:12:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D3D0F2146F
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 11:12:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3D0F2146F
+	by mail.kernel.org (Postfix) with ESMTP id 12B95214D8
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 11:12:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12B95214D8
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 784346B0278; Mon, 27 May 2019 07:12:32 -0400 (EDT)
+	id 9A5CE6B0279; Mon, 27 May 2019 07:12:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 75AF36B0279; Mon, 27 May 2019 07:12:32 -0400 (EDT)
+	id 97DBB6B027A; Mon, 27 May 2019 07:12:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D4A46B027A; Mon, 27 May 2019 07:12:32 -0400 (EDT)
+	id 86E966B027B; Mon, 27 May 2019 07:12:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3567E6B0278
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 07:12:32 -0400 (EDT)
-Received: by mail-oi1-f200.google.com with SMTP id r78so5294136oie.8
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 04:12:32 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 5D3DF6B0279
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 07:12:45 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id w5so5283530oig.18
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 04:12:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=FNTktvj0kV+SOdLAQ71+yr15WutmVjJpnyIy6jk9OZM=;
-        b=T70ZJfUlRpS3gc1fpb7E57bu3dfGlN6gZym3N7P3dkaUV/AApz0rnzrJpiS4rkTXXT
-         t6ftgwy49R9v2O3ciGTJPc651aJq48uW+kX8DVxHR1gcwVbnSiuqfawicpT965DZVBNj
-         j1dmYC1vlozZY+AdQglCGMYQrTsqlso9ftnEBzagLnBU6AWB3fd2kJKzR1hU4RMakexi
-         Hs2/lgYHVD5DsBj1TL2ICBw731IesZyYbRZ0oin1dsvW/hNB/sqM7EE8i/X3Xyj+q9LE
-         lAVGWPYQacGtFGchJRy2cKTGRNZD0d7kAltqLzTwUEDLJEJFxRxgQav6Q1voK6erZ7j5
-         mUtw==
+        bh=YRiQ/Ft+/J+a7B/8egatgJP8Bg39rSfzFQA6NK4ANOk=;
+        b=FF7QbpeDNjQPL9Vo9Mvr5NQBsNd0edcUmHDcts87jSW7QEQgGcwKSjook9YjvaZ26/
+         LmS9qKz51WKE8QdtvA2FlU7CNFmzD2d6FuwRkEx/GuW3G8pHfVBv+l70aYhCseeNZDMJ
+         h/TKGgwUyZtoBfj4RPPUKjpS0G82fgp2nBeOrrD2bLpZxzVZNf75+s4tpn5oQpz8MEdH
+         RiiUVqw30bJ/83kcT9j5FSZfv86gWNzsoCO1fvCsPSZjDlYk1lN0WEEXogdfMpmmXC8J
+         jpjwPmkhXTmc4s7C2AtpUW7B5NEF7U2TCj0uMhKy6Yun+yXRcPNls7nd7yXXrTUwQ+wa
+         2mCA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWhEPI1sbGKD8e7qXVJomrazS9vTeAl7/oLIWg3xvaDFDCQmO33
-	0MJ3xKm31E1XTIL1gwhpiSKW1anG+QA1ShdkI6PD/4XJeH+6l4Y7z9YCbd92q/6isrcLqlO3eNo
-	3y+RfSXzLbXRytOW/gCPi702A+WrX5rMMF3xyhBvN3gh0QTjuE04bl6HZ3Hjhmch1aA==
-X-Received: by 2002:a9d:6287:: with SMTP id x7mr22722402otk.287.1558955551913;
-        Mon, 27 May 2019 04:12:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyZ8sQfhP38lV3aOH75A7pSjctcddeZX6MqBND8EnimWoK0gR469rsfPR2v4mMWZ5u1jiS6
-X-Received: by 2002:a9d:6287:: with SMTP id x7mr22722368otk.287.1558955551350;
-        Mon, 27 May 2019 04:12:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558955551; cv=none;
+X-Gm-Message-State: APjAAAVaHKwzO4Wnq9RbMPSSVLfPzT2u457acr0TrOthKkJuzbwIMOkp
+	nfIUy2C7rVUssKxzZx17zlS2QWs11eaLtZCh7bZcud4l9RM0vtGX5qBIJx9H6UPGNE56Q3EA8dS
+	eB6cDSTbONraI4Bp/vuSPj+FRFW3/6gYbh2jlsn5YCZz8gJlWxqfiRMBy3WIYS3SLtQ==
+X-Received: by 2002:a9d:2f68:: with SMTP id h95mr57217475otb.152.1558955565078;
+        Mon, 27 May 2019 04:12:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxah7q+n/IGj34R3n5hXguVAJ/GZe0RdgZGMHejtj92VnW+nl+a57KixATAYiGLvjPTrNE2
+X-Received: by 2002:a9d:2f68:: with SMTP id h95mr57217430otb.152.1558955564355;
+        Mon, 27 May 2019 04:12:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558955564; cv=none;
         d=google.com; s=arc-20160816;
-        b=MDmPBaBQdPvSTgoIPAV0MN+Bz7znOXcBzQiF0TN6JjdV6cUMFblDp72H3zUxRvtw8p
-         9IBnhkn4EtLfZBVs0paD9VAyZvBpavv+ae+5GSlIe6haq5joRZ+Ydlva4tTJ/dlhDSQu
-         VSlfXA4wNUPvXCSpug9rLjTIqFkPYfL7S2MfQfOXUu9oWYNoZ5PLpmlxjOLHBXE+fJGm
-         4pCClf1XXaS9hLUL3G77yTA/psV8OHdusG9oJUEQ63IpRtmCf6ys/6z3xSfnF8wKVesK
-         UYZuWiUnviYPmJo1xATFj+33Wd9/oZeIR4eTvm2Zs6+6JSq1aSulTgXQm128SNwvg1fn
-         xT4g==
+        b=d4RJMGHaE6f8eIBulFdiyFcfrRO1dnwDsupj79ycwLL/rAKMLxB+NB+KB0eCfm3/Oq
+         TT2joNJA/pXlR9TLq/lZsMZ5dtdWwPEEvGyNcI8hcUma10I+P5Uq/dE1Akt3/z/ASY7g
+         GTV00TV1UbDT/o7FfFQ2Fa2MLpAqVjkOXRYblQoA1vvZmxQt9t8EwJSPuP6sZrEp7AL+
+         lCVNLWb+TTR+tlZoBZv6HKXsOP5ydBSH7AiO59M6Cuw9QDPoZGZltlrB52n371ovFvOz
+         iasDNKtvgJwD8p1Zt/PpLdm1VHyZgdUNqcF6ZqNkXhD2D1ZLJQG+tsNhVjoJfS92V+uP
+         tIBQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=FNTktvj0kV+SOdLAQ71+yr15WutmVjJpnyIy6jk9OZM=;
-        b=AKcdprAYQD+MtiakdtxOBf3Hhfe7kY/rf0sJs+ewv4kt9S1h5Djqthg4vEwjHYJD96
-         JgU/O2qX1VlrnbR8ToEPYAUD7+2jQhfYs8vyVOpso/Ouqp6nZQGKH3J6uV27ghUtORuq
-         diOWsdbQ63yVhPFONP/ihr0Ib9X3+64lg0MdsXBABK68GZYug/LM00pEnnSn5TtKn8YB
-         8iIZESQu52G3ary/REh/YyWf5Ba4LpwcwKinZrCPgASEgP9F+XYX35vqWLZZvAqQ9HJs
-         my9JnbJvxBaH6i0W/MZiSK/xoE0lzbJ1a8ix2flqz5Ct+sLy0Nl6AyoTleOvdJmyZ3nA
-         Rx1g==
+        bh=YRiQ/Ft+/J+a7B/8egatgJP8Bg39rSfzFQA6NK4ANOk=;
+        b=DkG6DlWro5SOWNb8glg7ZsakuLBN7ZN0TwQ8rUR6UzwtCDHUTNKztvchi3sEAZ2sjn
+         Wrbre8qBIBOaox23gpSi9YCjWQxxzO5hD8D+GQ8yZjZwnDLiecrG9tB+qMKypMikckRc
+         ++us4aL6q/1l997SqCzAu8l90fOZxduSArT1e47iJ32WXzydh32nvH6wtAuGNvEGqcr5
+         6PW7umWEDwFkH3ujAJ+hpE7GlZZf0l8qXXUMkspZBzFYMgEfv9iH+vzUN0JqJGfnX7T5
+         Q769xi1SInLVKwK1IK7TSdgxbF1MEgfrSr90QE4PD+2BbdB6nDXNjsYh3xB8JKWS5Jd9
+         DWlw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r84si4664079oig.180.2019.05.27.04.12.31
+        by mx.google.com with ESMTPS id h3si6043514oia.212.2019.05.27.04.12.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 May 2019 04:12:31 -0700 (PDT)
+        Mon, 27 May 2019 04:12:44 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
@@ -81,11 +81,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id B17DE88319;
-	Mon, 27 May 2019 11:12:30 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id DFAD930832EA;
+	Mon, 27 May 2019 11:12:42 +0000 (UTC)
 Received: from t460s.redhat.com (ovpn-117-89.ams2.redhat.com [10.36.117.89])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 0FD3919C7F;
-	Mon, 27 May 2019 11:12:27 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 094702AA81;
+	Mon, 27 May 2019 11:12:30 +0000 (UTC)
 From: David Hildenbrand <david@redhat.com>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org,
@@ -99,89 +99,385 @@ Cc: linux-kernel@vger.kernel.org,
 	Wei Yang <richard.weiyang@gmail.com>,
 	Igor Mammedov <imammedo@redhat.com>,
 	David Hildenbrand <david@redhat.com>,
+	Tony Luck <tony.luck@intel.com>,
+	Fenghua Yu <fenghua.yu@intel.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	Borislav Petkov <bp@alien8.de>,
+	"H. Peter Anvin" <hpa@zytor.com>,
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>
-Subject: [PATCH v3 05/11] drivers/base/memory: Pass a block_id to init_memory_block()
-Date: Mon, 27 May 2019 13:11:46 +0200
-Message-Id: <20190527111152.16324-6-david@redhat.com>
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Oscar Salvador <osalvador@suse.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Alex Deucher <alexander.deucher@amd.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Mark Brown <broonie@kernel.org>,
+	Chris Wilson <chris@chris-wilson.co.uk>,
+	Christophe Leroy <christophe.leroy@c-s.fr>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Vasily Gorbik <gor@linux.ibm.com>,
+	Rob Herring <robh@kernel.org>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	"mike.travis@hpe.com" <mike.travis@hpe.com>,
+	Andrew Banman <andrew.banman@hpe.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Wei Yang <richardw.yang@linux.intel.com>,
+	Arun KS <arunks@codeaurora.org>,
+	Qian Cai <cai@lca.pw>,
+	Mathieu Malaterre <malat@debian.org>,
+	Baoquan He <bhe@redhat.com>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: [PATCH v3 06/11] mm/memory_hotplug: Allow arch_remove_pages() without CONFIG_MEMORY_HOTREMOVE
+Date: Mon, 27 May 2019 13:11:47 +0200
+Message-Id: <20190527111152.16324-7-david@redhat.com>
 In-Reply-To: <20190527111152.16324-1-david@redhat.com>
 References: <20190527111152.16324-1-david@redhat.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Mon, 27 May 2019 11:12:30 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Mon, 27 May 2019 11:12:43 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We'll rework hotplug_memory_register() shortly, so it no longer consumes
-pass a section.
+We want to improve error handling while adding memory by allowing
+to use arch_remove_memory() and __remove_pages() even if
+CONFIG_MEMORY_HOTREMOVE is not set to e.g., implement something like:
 
+	arch_add_memory()
+	rc = do_something();
+	if (rc) {
+		arch_remove_memory();
+	}
+
+We won't get rid of CONFIG_MEMORY_HOTREMOVE for now, as it will require
+quite some dependencies for memory offlining.
+
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: Fenghua Yu <fenghua.yu@intel.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
+Cc: Rich Felker <dalias@libc.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Cc: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Mike Rapoport <rppt@linux.ibm.com>
+Cc: David Hildenbrand <david@redhat.com>
+Cc: Oscar Salvador <osalvador@suse.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Alex Deucher <alexander.deucher@amd.com>
+Cc: "David S. Miller" <davem@davemloft.net>
+Cc: Mark Brown <broonie@kernel.org>
+Cc: Chris Wilson <chris@chris-wilson.co.uk>
+Cc: Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Nicholas Piggin <npiggin@gmail.com>
+Cc: Vasily Gorbik <gor@linux.ibm.com>
+Cc: Rob Herring <robh@kernel.org>
+Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+Cc: "mike.travis@hpe.com" <mike.travis@hpe.com>
+Cc: Andrew Banman <andrew.banman@hpe.com>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Wei Yang <richardw.yang@linux.intel.com>
+Cc: Arun KS <arunks@codeaurora.org>
+Cc: Qian Cai <cai@lca.pw>
+Cc: Mathieu Malaterre <malat@debian.org>
+Cc: Baoquan He <bhe@redhat.com>
+Cc: Logan Gunthorpe <logang@deltatee.com>
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>
 Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- drivers/base/memory.c | 15 +++++++--------
- 1 file changed, 7 insertions(+), 8 deletions(-)
+ arch/arm64/mm/mmu.c            | 2 --
+ arch/ia64/mm/init.c            | 2 --
+ arch/powerpc/mm/mem.c          | 2 --
+ arch/s390/mm/init.c            | 2 --
+ arch/sh/mm/init.c              | 2 --
+ arch/x86/mm/init_32.c          | 2 --
+ arch/x86/mm/init_64.c          | 2 --
+ drivers/base/memory.c          | 2 --
+ include/linux/memory.h         | 2 --
+ include/linux/memory_hotplug.h | 2 --
+ mm/memory_hotplug.c            | 2 --
+ mm/sparse.c                    | 6 ------
+ 12 files changed, 28 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index f180427e48f4..f914fa6fe350 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -651,21 +651,18 @@ int register_memory(struct memory_block *memory)
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index e569a543c384..9ccd7539f2d4 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -1084,7 +1084,6 @@ int arch_add_memory(int nid, u64 start, u64 size,
+ 	return __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
+ 			   restrictions);
+ }
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ void arch_remove_memory(int nid, u64 start, u64 size,
+ 			struct vmem_altmap *altmap)
+ {
+@@ -1103,4 +1102,3 @@ void arch_remove_memory(int nid, u64 start, u64 size,
+ 	__remove_pages(zone, start_pfn, nr_pages, altmap);
+ }
+ #endif
+-#endif
+diff --git a/arch/ia64/mm/init.c b/arch/ia64/mm/init.c
+index d28e29103bdb..aae75fd7b810 100644
+--- a/arch/ia64/mm/init.c
++++ b/arch/ia64/mm/init.c
+@@ -681,7 +681,6 @@ int arch_add_memory(int nid, u64 start, u64 size,
  	return ret;
  }
  
--static int init_memory_block(struct memory_block **memory,
--			     struct mem_section *section, unsigned long state)
-+static int init_memory_block(struct memory_block **memory, int block_id,
-+			     unsigned long state)
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ void arch_remove_memory(int nid, u64 start, u64 size,
+ 			struct vmem_altmap *altmap)
  {
- 	struct memory_block *mem;
- 	unsigned long start_pfn;
--	int scn_nr;
- 	int ret = 0;
+@@ -693,4 +692,3 @@ void arch_remove_memory(int nid, u64 start, u64 size,
+ 	__remove_pages(zone, start_pfn, nr_pages, altmap);
+ }
+ #endif
+-#endif
+diff --git a/arch/powerpc/mm/mem.c b/arch/powerpc/mm/mem.c
+index e885fe2aafcc..e4bc2dc3f593 100644
+--- a/arch/powerpc/mm/mem.c
++++ b/arch/powerpc/mm/mem.c
+@@ -130,7 +130,6 @@ int __ref arch_add_memory(int nid, u64 start, u64 size,
+ 	return __add_pages(nid, start_pfn, nr_pages, restrictions);
+ }
  
- 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
- 	if (!mem)
- 		return -ENOMEM;
- 
--	scn_nr = __section_nr(section);
--	mem->start_section_nr =
--			base_memory_block_id(scn_nr) * sections_per_block;
-+	mem->start_section_nr = block_id * sections_per_block;
- 	mem->end_section_nr = mem->start_section_nr + sections_per_block - 1;
- 	mem->state = state;
- 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
-@@ -694,7 +691,8 @@ static int add_memory_block(int base_section_nr)
- 
- 	if (section_count == 0)
- 		return 0;
--	ret = init_memory_block(&mem, __nr_to_section(section_nr), MEM_ONLINE);
-+	ret = init_memory_block(&mem, base_memory_block_id(base_section_nr),
-+				MEM_ONLINE);
- 	if (ret)
- 		return ret;
- 	mem->section_count = section_count;
-@@ -707,6 +705,7 @@ static int add_memory_block(int base_section_nr)
-  */
- int hotplug_memory_register(int nid, struct mem_section *section)
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ void __ref arch_remove_memory(int nid, u64 start, u64 size,
+ 			     struct vmem_altmap *altmap)
  {
-+	int block_id = base_memory_block_id(__section_nr(section));
- 	int ret = 0;
- 	struct memory_block *mem;
+@@ -164,7 +163,6 @@ void __ref arch_remove_memory(int nid, u64 start, u64 size,
+ 		pr_warn("Hash collision while resizing HPT\n");
+ }
+ #endif
+-#endif /* CONFIG_MEMORY_HOTPLUG */
  
-@@ -717,7 +716,7 @@ int hotplug_memory_register(int nid, struct mem_section *section)
- 		mem->section_count++;
- 		put_device(&mem->dev);
- 	} else {
--		ret = init_memory_block(&mem, section, MEM_OFFLINE);
-+		ret = init_memory_block(&mem, block_id, MEM_OFFLINE);
- 		if (ret)
- 			goto out;
- 		mem->section_count++;
+ #ifndef CONFIG_NEED_MULTIPLE_NODES
+ void __init mem_topology_setup(void)
+diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
+index 14955e0a9fcf..ffb81fe95c77 100644
+--- a/arch/s390/mm/init.c
++++ b/arch/s390/mm/init.c
+@@ -239,7 +239,6 @@ int arch_add_memory(int nid, u64 start, u64 size,
+ 	return rc;
+ }
+ 
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ void arch_remove_memory(int nid, u64 start, u64 size,
+ 			struct vmem_altmap *altmap)
+ {
+@@ -251,5 +250,4 @@ void arch_remove_memory(int nid, u64 start, u64 size,
+ 	__remove_pages(zone, start_pfn, nr_pages, altmap);
+ 	vmem_remove_mapping(start, size);
+ }
+-#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index 13c6a6bb5fd9..dfdbaa50946e 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -429,7 +429,6 @@ int memory_add_physaddr_to_nid(u64 addr)
+ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
+ #endif
+ 
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ void arch_remove_memory(int nid, u64 start, u64 size,
+ 			struct vmem_altmap *altmap)
+ {
+@@ -440,5 +439,4 @@ void arch_remove_memory(int nid, u64 start, u64 size,
+ 	zone = page_zone(pfn_to_page(start_pfn));
+ 	__remove_pages(zone, start_pfn, nr_pages, altmap);
+ }
+-#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+diff --git a/arch/x86/mm/init_32.c b/arch/x86/mm/init_32.c
+index f265a4316179..4068abb9427f 100644
+--- a/arch/x86/mm/init_32.c
++++ b/arch/x86/mm/init_32.c
+@@ -860,7 +860,6 @@ int arch_add_memory(int nid, u64 start, u64 size,
+ 	return __add_pages(nid, start_pfn, nr_pages, restrictions);
+ }
+ 
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ void arch_remove_memory(int nid, u64 start, u64 size,
+ 			struct vmem_altmap *altmap)
+ {
+@@ -872,7 +871,6 @@ void arch_remove_memory(int nid, u64 start, u64 size,
+ 	__remove_pages(zone, start_pfn, nr_pages, altmap);
+ }
+ #endif
+-#endif
+ 
+ int kernel_set_to_readonly __read_mostly;
+ 
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 693aaf28d5fe..8335ac6e1112 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -1196,7 +1196,6 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
+ 	remove_pagetable(start, end, false, altmap);
+ }
+ 
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ static void __meminit
+ kernel_physical_mapping_remove(unsigned long start, unsigned long end)
+ {
+@@ -1221,7 +1220,6 @@ void __ref arch_remove_memory(int nid, u64 start, u64 size,
+ 	__remove_pages(zone, start_pfn, nr_pages, altmap);
+ 	kernel_physical_mapping_remove(start, start + size);
+ }
+-#endif
+ #endif /* CONFIG_MEMORY_HOTPLUG */
+ 
+ static struct kcore_list kcore_vsyscall;
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index f914fa6fe350..ac17c95a5f28 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -727,7 +727,6 @@ int hotplug_memory_register(int nid, struct mem_section *section)
+ 	return ret;
+ }
+ 
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ static void
+ unregister_memory(struct memory_block *memory)
+ {
+@@ -766,7 +765,6 @@ void unregister_memory_section(struct mem_section *section)
+ out_unlock:
+ 	mutex_unlock(&mem_sysfs_mutex);
+ }
+-#endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ /* return true if the memory block is offlined, otherwise, return false */
+ bool is_memblock_offlined(struct memory_block *mem)
+diff --git a/include/linux/memory.h b/include/linux/memory.h
+index e1dc1bb2b787..474c7c60c8f2 100644
+--- a/include/linux/memory.h
++++ b/include/linux/memory.h
+@@ -112,9 +112,7 @@ extern void unregister_memory_notifier(struct notifier_block *nb);
+ extern int register_memory_isolate_notifier(struct notifier_block *nb);
+ extern void unregister_memory_isolate_notifier(struct notifier_block *nb);
+ int hotplug_memory_register(int nid, struct mem_section *section);
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ extern void unregister_memory_section(struct mem_section *);
+-#endif
+ extern int memory_dev_init(void);
+ extern int memory_notify(unsigned long val, void *v);
+ extern int memory_isolate_notify(unsigned long val, void *v);
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index ae892eef8b82..2d4de313926d 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -123,12 +123,10 @@ static inline bool movable_node_is_enabled(void)
+ 	return movable_node_enabled;
+ }
+ 
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ extern void arch_remove_memory(int nid, u64 start, u64 size,
+ 			       struct vmem_altmap *altmap);
+ extern void __remove_pages(struct zone *zone, unsigned long start_pfn,
+ 			   unsigned long nr_pages, struct vmem_altmap *altmap);
+-#endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ /*
+  * Do we want sysfs memblock files created. This will allow userspace to online
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 762887b2358b..4b9d2974f86c 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -318,7 +318,6 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
+ 	return err;
+ }
+ 
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ /* find the smallest valid pfn in the range [start_pfn, end_pfn) */
+ static unsigned long find_smallest_section_pfn(int nid, struct zone *zone,
+ 				     unsigned long start_pfn,
+@@ -582,7 +581,6 @@ void __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+ 
+ 	set_zone_contiguous(zone);
+ }
+-#endif /* CONFIG_MEMORY_HOTREMOVE */
+ 
+ int set_online_page_callback(online_page_callback_t callback)
+ {
+diff --git a/mm/sparse.c b/mm/sparse.c
+index fd13166949b5..d1d5e05f5b8d 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -604,7 +604,6 @@ static void __kfree_section_memmap(struct page *memmap,
+ 
+ 	vmemmap_free(start, end, altmap);
+ }
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ static void free_map_bootmem(struct page *memmap)
+ {
+ 	unsigned long start = (unsigned long)memmap;
+@@ -612,7 +611,6 @@ static void free_map_bootmem(struct page *memmap)
+ 
+ 	vmemmap_free(start, end, NULL);
+ }
+-#endif /* CONFIG_MEMORY_HOTREMOVE */
+ #else
+ static struct page *__kmalloc_section_memmap(void)
+ {
+@@ -651,7 +649,6 @@ static void __kfree_section_memmap(struct page *memmap,
+ 			   get_order(sizeof(struct page) * PAGES_PER_SECTION));
+ }
+ 
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ static void free_map_bootmem(struct page *memmap)
+ {
+ 	unsigned long maps_section_nr, removing_section_nr, i;
+@@ -681,7 +678,6 @@ static void free_map_bootmem(struct page *memmap)
+ 			put_page_bootmem(page);
+ 	}
+ }
+-#endif /* CONFIG_MEMORY_HOTREMOVE */
+ #endif /* CONFIG_SPARSEMEM_VMEMMAP */
+ 
+ /**
+@@ -746,7 +742,6 @@ int __meminit sparse_add_one_section(int nid, unsigned long start_pfn,
+ 	return ret;
+ }
+ 
+-#ifdef CONFIG_MEMORY_HOTREMOVE
+ #ifdef CONFIG_MEMORY_FAILURE
+ static void clear_hwpoisoned_pages(struct page *memmap, int nr_pages)
+ {
+@@ -823,5 +818,4 @@ void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
+ 			PAGES_PER_SECTION - map_offset);
+ 	free_section_usemap(memmap, usemap, altmap);
+ }
+-#endif /* CONFIG_MEMORY_HOTREMOVE */
+ #endif /* CONFIG_MEMORY_HOTPLUG */
 -- 
 2.20.1
 
