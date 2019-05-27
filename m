@@ -2,143 +2,161 @@ Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 790FDC072B1
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 13:29:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 677A8C04AB3
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 13:58:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2DA602075E
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 13:29:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amarulasolutions.com header.i=@amarulasolutions.com header.b="WzL1+1C2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DA602075E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amarulasolutions.com
+	by mail.kernel.org (Postfix) with ESMTP id 28B2020717
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 13:58:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28B2020717
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E993D6B027D; Mon, 27 May 2019 09:29:06 -0400 (EDT)
+	id 9795F6B027D; Mon, 27 May 2019 09:58:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E47AB6B027E; Mon, 27 May 2019 09:29:06 -0400 (EDT)
+	id 92B106B027E; Mon, 27 May 2019 09:58:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D36A36B027F; Mon, 27 May 2019 09:29:06 -0400 (EDT)
+	id 7F2DC6B027F; Mon, 27 May 2019 09:58:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 85CAE6B027D
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 09:29:06 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id o17so2134873wrm.10
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 06:29:06 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5335C6B027D
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 09:58:30 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id x23so8848075otp.5
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 06:58:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=m+dXzPFPF0QC/08N8/jLGXcjGIV+v/pjQg8Lvb1aVuM=;
-        b=O5tH6/M7gXW96HUhby+co/0fsVHCu0rfW04yIdUX03N0so7zpX1MCteJMszqPKtHVu
-         Seb4GQKF8oFIBwyppRIIRmjn0HQer9xXnb6dw4YVIZRLiOfnUwUAvdY3mlqXCUY93dpZ
-         nsWUocied7F9G2tVFdrB6UOHO/h03BELZn0mZM3CFKKQFdvHiBJWV/9PIeISTWpZq5uP
-         IGcKNzrniOBM/rt/+768tK6Qz/KMo33AaySasrFkBm/TkkHDapEVhC5fOFUxqHJTc3tm
-         r3tBl1CfFLFcRYSTDiTIkr7rRsJzPerc1iMWRewEwGyx9oGb3vR+Z0RiVWdnYjqI7zOP
-         bcFg==
-X-Gm-Message-State: APjAAAVgA9fkiuNpigxlf2Aj2DJP74UUq1TE4h/7IUWrLmLGJo4b+JAm
-	Ocg7uWii6AXa3FAcGFqeq4BPoLRWRoB3GBsQJiAPrb39gWB8SDY8bnH4rBixc+KJQ+6xOpGyP8P
-	eR++WsKBkdrm+uoIOMoBqe5Z3mliXc7Fy2V2/q149OdykXUQN7W03e38haZWzPVM63Q==
-X-Received: by 2002:a5d:55ce:: with SMTP id i14mr10714542wrw.352.1558963746020;
-        Mon, 27 May 2019 06:29:06 -0700 (PDT)
-X-Received: by 2002:a5d:55ce:: with SMTP id i14mr10714498wrw.352.1558963745197;
-        Mon, 27 May 2019 06:29:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558963745; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :date:from:user-agent:mime-version:to:cc:subject:references
+         :in-reply-to:content-transfer-encoding;
+        bh=rbJlnYa7bR8IixIQV45NuiieODr6ig8AjY5FOCblSXs=;
+        b=I69zCiQIT1TLew7mp91pwYFevPeWLXi3Qt4OxIG72uHtHSb08cj1Y99dkCxG6RaUCf
+         sMZCzRjVXHMrPWfOZlURIu5j3jV9GBTpCNimdg7zQhL8KGexMmMV810r0rd4WZFxgaS7
+         ZgUvdtWrZ3zyGlmqkFWH9M1o/ZZcVXJnUMdSRUstEcZ9B3vO3gxUAO9wMk5TKK5UAxK3
+         C53OqYImeym158y3bK5k3BSBdhfgVmBZcmeHhTmeS2Is6awdiUclCbfDogtNn3KZssYg
+         C37cPDqd6mw3TAm/CvswEUhqI6dZMHel3Xo9C66pCH0Z9x23crTeLiMqFScDNQWUEQG4
+         +ZDA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+X-Gm-Message-State: APjAAAUNBO35chX7kxOwLN0k9FjX3B4bbL3xm7oEpuayCdah70sQUxXf
+	Al0BLs5EtC1l2U9xuz9mVXVT3H2ADSyOYjdpEVowmXJh7/BK/m8g8eqJYPkQKnXX7SrfKlBROph
+	XvRy3oOArzhC35f6aps7tGLet/VUdj5/xqsEomSKLA1PP9p8zjUuB4uDO/KCh/mysQw==
+X-Received: by 2002:a9d:7e88:: with SMTP id m8mr39262782otp.358.1558965510011;
+        Mon, 27 May 2019 06:58:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxdWpiapZwtUSpXRJoyX11DnY6BqHTx5+54XfvH8QV/ljuP75K2CE6KMoDvITsTMtSvJfHX
+X-Received: by 2002:a9d:7e88:: with SMTP id m8mr39262716otp.358.1558965508405;
+        Mon, 27 May 2019 06:58:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558965508; cv=none;
         d=google.com; s=arc-20160816;
-        b=KyrGRUdZF8ZJUqXbY49tanaYzPc+TFTJxaTBnT5g7k9tpB1XBaG7Uc6fDXpqkHDfO5
-         yZj++v2DsU2/PlWd2+eMVDF6xMQENgR2l1/xc6jj+FG1ixAnK+vKDSeAxezgI3BpguyA
-         bVNZWVx+lBhafKThr6l4UyNzDlMDvJkMV/ESkeFyz+6Wy5709PdO7551kgJ1aT1uh0SY
-         D6yACngUnTySWARNzj/DDNHuLRIuWQdi5F+rSRTg/uS83uYq2PtoVErHG/fcJKZrXpko
-         S2fuTj8nzWeVKzOwDfe/yx1i+sT9SSlrpXadgpob1ktVEcekXRglPGz9L0+rMmorVme7
-         S37g==
+        b=Xc2iRDeRoqK8G61Xy/RHJU+pGy8rOW7OTPeV1QdSVzEsnb/3ldMW+n/4MvzWYvbD2W
+         qVfwJ4X6E4foC0FbwROAElYqY8gD+dNnvpbr9RNig7vQu4cf4igCDUufhN7hYCOFswSF
+         eUdkzHRzl6ZV3tywL9yWd6UKoY2OgpfJ9mw2I+iIr/X87NuJVbQ2H3zVwnL5YxoO80yf
+         Zj7cD6+rf7Ej5eJYu9GKYXRWiiONhG3vshxa4HJEa4pWQp8TkxkwEO7Qcf/c601RR1Fu
+         KRl58CRRtOPffGF8pMp1Ir2ya68LVfLFvIvMOfbhhhmAuMT7+2BLASVFsocbINuyu/Bo
+         PP3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=m+dXzPFPF0QC/08N8/jLGXcjGIV+v/pjQg8Lvb1aVuM=;
-        b=h4MWMUgEAsFNE17rgWPTAkMSNroMoHRfzDIqZuWXaIs3UAAfHz+zd406lcRe7AqVEa
-         cltIlQmoE7d3BVrlxS5pWvgZX04xSo3YBo1srnE8HD8Pzz9XTgH1SUQzJUsS3UX+X2d3
-         PN+7DsFsvqLldYjwo8JABupXY3W/F4z9tCmYS1cXo+yVil7+JIzSMb521iM+u7nlEjOQ
-         VKijjCpUOChtk9rjq2l3qnP9WVjjAa8Mnfw6YdWulrafcDbEUARqxTZ9ahnvdaGKknsz
-         NQyqDlzdbAWbEE3KfueOxMX5bNecQZ0jyv6j6RVUckqWPFUxj8EG4Yb9Or7h7dGHygiH
-         chtA==
+        h=content-transfer-encoding:in-reply-to:references:subject:cc:to
+         :mime-version:user-agent:from:date:message-id;
+        bh=rbJlnYa7bR8IixIQV45NuiieODr6ig8AjY5FOCblSXs=;
+        b=amDZtVrCQupAauI2HHjLGB2pPC6pmeSAs3qxR5FlobMd8Xed89FmyK+aZL8UEwGQxq
+         sOsIYHxPwpqeZ7OO23IVuWr2bhuZgvujNYKFQnXUexTE2FjwEyt1LfjMIRosLSS5hMC4
+         90H1q7HKnrMAZa0JDLv5IfAYVQR3nhqKP3acSqENrkUByWFyrcyZbHmki1h7O18ztllH
+         ocL3vAtXf6/V647FR6TfcClh0Mu3v2WNxzGenZvB4Dxq1X19SK9QgPByH8mR1HzcF2W/
+         X2XIFv1wwPS7ll9ot7Y4SmO16ONMw7ICEA78GlEF4XjHBbW43RnJseVtenbM7Kk3WxYK
+         2vvg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amarulasolutions.com header.s=google header.b=WzL1+1C2;
-       spf=pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andrea.parri@amarulasolutions.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h4sor865746wrw.1.2019.05.27.06.29.04
+       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id v17si5708841otj.162.2019.05.27.06.58.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 27 May 2019 06:29:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amarulasolutions.com header.s=google header.b=WzL1+1C2;
-       spf=pass (google.com: domain of andrea.parri@amarulasolutions.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andrea.parri@amarulasolutions.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=amarulasolutions.com; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=m+dXzPFPF0QC/08N8/jLGXcjGIV+v/pjQg8Lvb1aVuM=;
-        b=WzL1+1C2hQtI9ONr/IqYQEZ+4v1XArIttWiAETlxVdn4U0Xd1Gr6peUX1hFoSTulxo
-         DOB5jUtmPKC9AOLSl7nkNoLllSdcLbKe/8sQsKDi3f9Ak0liBKjC/S39b3sLyJdkJCc0
-         5WKLezBgJUOPDVnZUgdTZyP85Qg4h94tAac+Q=
-X-Google-Smtp-Source: APXvYqx3FVL85vZsOLhYUKwWkJDyaB5qlY0duEg6rDcbtKj+K4FAMYFxlrwC4j8WWJveRBfJUvOY6Q==
-X-Received: by 2002:adf:8062:: with SMTP id 89mr3791540wrk.97.1558963744716;
-        Mon, 27 May 2019 06:29:04 -0700 (PDT)
-Received: from andrea (86.100.broadband17.iol.cz. [109.80.100.86])
-        by smtp.gmail.com with ESMTPSA id n10sm5377784wrr.11.2019.05.27.06.29.03
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 May 2019 06:29:04 -0700 (PDT)
-Date: Mon, 27 May 2019 15:28:57 +0200
-From: Andrea Parri <andrea.parri@amarulasolutions.com>
-To: "Paul E. McKenney" <paulmck@linux.ibm.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Chen <tim.c.chen@linux.intel.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Yang Shi <yang.shi@linux.alibaba.com>,
-	David Rientjes <rientjes@google.com>,
-	Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>,
-	Dave Jiang <dave.jiang@intel.com>,
-	Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [PATCH -mm] mm, swap: Simplify total_swapcache_pages() with
- get_swap_device()
-Message-ID: <20190527132857.GA1429@andrea>
-References: <20190527082714.12151-1-ying.huang@intel.com>
- <20190527101536.GI28207@linux.ibm.com>
+        Mon, 27 May 2019 06:58:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of zhongjiang@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=zhongjiang@huawei.com
+Received: from DGGEMS409-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id A18F1DA764C56511616F;
+	Mon, 27 May 2019 21:58:22 +0800 (CST)
+Received: from [127.0.0.1] (10.177.29.68) by DGGEMS409-HUB.china.huawei.com
+ (10.3.19.209) with Microsoft SMTP Server id 14.3.439.0; Mon, 27 May 2019
+ 21:58:18 +0800
+Message-ID: <5CEBECF9.2060500@huawei.com>
+Date: Mon, 27 May 2019 21:58:17 +0800
+From: zhong jiang <zhongjiang@huawei.com>
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:12.0) Gecko/20120428 Thunderbird/12.0.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190527101536.GI28207@linux.ibm.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+To: Vlastimil Babka <vbabka@suse.cz>
+CC: Andrew Morton <akpm@linux-foundation.org>, <osalvador@suse.de>,
+	<khandual@linux.vnet.ibm.com>, <mhocko@suse.com>,
+	<mgorman@techsingularity.net>, <aarcange@redhat.com>, <rcampbell@nvidia.com>,
+	<linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH] mm/mempolicy: Fix an incorrect rebind node in mpol_rebind_nodemask
+References: <1558768043-23184-1-git-send-email-zhongjiang@huawei.com> <20190525112851.ee196bcbbc33bf9e0d869236@linux-foundation.org> <2ff829ea-1d74-9d4b-8501-e9c2ebdc36ef@suse.cz>
+In-Reply-To: <2ff829ea-1d74-9d4b-8501-e9c2ebdc36ef@suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.177.29.68]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> But where do I find get_swap_device() and put_swap_device()?  I do not
-> see them in current mainline.
-
-You should see them in the -mm tree:
-
-  https://ozlabs.org/~akpm/mmots/broken-out/mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch
-
-or
-
-  http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/commit/?id=87efc56527b92a59d15c5d4e4b05f875b276a59a
+On 2019/5/27 20:23, Vlastimil Babka wrote:
+> On 5/25/19 8:28 PM, Andrew Morton wrote:
+>> (Cc Vlastimil)
+> Oh dear, 2 years and I forgot all the details about how this works.
+>
+>> On Sat, 25 May 2019 15:07:23 +0800 zhong jiang <zhongjiang@huawei.com> wrote:
+>>
+>>> We bind an different node to different vma, Unluckily,
+>>> it will bind different vma to same node by checking the /proc/pid/numa_maps.   
+>>> Commit 213980c0f23b ("mm, mempolicy: simplify rebinding mempolicies when updating cpusets")
+>>> has introduced the issue.  when we change memory policy by seting cpuset.mems,
+>>> A process will rebind the specified policy more than one times. 
+>>> if the cpuset_mems_allowed is not equal to user specified nodes. hence the issue will trigger.
+>>> Maybe result in the out of memory which allocating memory from same node.
+> I have a hard time understanding what the problem is. Could you please
+> write it as a (pseudo) reproducer? I.e. an example of the process/admin
+> mempolicy/cpuset actions that have some wrong observed results vs the
+> correct expected result.
+Sorry, I havn't an testcase to reproduce the issue. At first, It was disappeared by
+my colleague to configure the xml to start an vm.  To his suprise, The bind mempolicy
+doesn't work.
 
 Thanks,
-  Andrea
+zhong jiang
+>>> --- a/mm/mempolicy.c
+>>> +++ b/mm/mempolicy.c
+>>> @@ -345,7 +345,7 @@ static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes)
+>>>  	else {
+>>>  		nodes_remap(tmp, pol->v.nodes,pol->w.cpuset_mems_allowed,
+>>>  								*nodes);
+>>> -		pol->w.cpuset_mems_allowed = tmp;
+>>> +		pol->w.cpuset_mems_allowed = *nodes;
+> Looks like a mechanical error on my side when removing the code for
+> step1+step2 rebinding. Before my commit there was
+>
+> pol->w.cpuset_mems_allowed = step ? tmp : *nodes;
+>
+> Since 'step' was removed and thus 0, I should have used *nodes indeed.
+> Thanks for catching that.
+>
+>>>  	}
+>>>  
+>>>  	if (nodes_empty(tmp))
+>> hm, I'm not surprised the code broke.  What the heck is going on in
+>> there?  It used to have a perfunctory comment, but Vlastimil deleted
+>> it.
+> Yeah the comment was specific for the case that was being removed.
+>
+>> Could someone please propose a comment for the above code block
+>> explaining why we're doing what we do?
+> I'll have to relearn this first...
+>
+>
+
 
