@@ -2,182 +2,225 @@ Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94E5CC282CE
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 05:38:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 585ADC28CBF
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 06:06:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3B51D2175B
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 05:38:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B51D2175B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 12898204EC
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 06:06:48 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="OlkrPsci"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12898204EC
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8F46A6B000C; Mon, 27 May 2019 01:38:49 -0400 (EDT)
+	id A18116B000C; Mon, 27 May 2019 02:06:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8A3F26B0266; Mon, 27 May 2019 01:38:49 -0400 (EDT)
+	id 9C7746B0266; Mon, 27 May 2019 02:06:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 792E86B026B; Mon, 27 May 2019 01:38:49 -0400 (EDT)
+	id 8DF2B6B026B; Mon, 27 May 2019 02:06:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 27D376B000C
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 01:38:49 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id t58so26224349edb.22
-        for <linux-mm@kvack.org>; Sun, 26 May 2019 22:38:49 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5645F6B000C
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 02:06:48 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 14so11106478pgo.14
+        for <linux-mm@kvack.org>; Sun, 26 May 2019 23:06:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=3JKO27Xp9WsSegQDWWrLwzHPR5pxW3eLEEz6i7ZSbuw=;
-        b=oUmtJG0pl4R0H0JjRIsCWls/1ALVyNYtXH+PY5GQKbvQarreJdkTljedngtnSCH9Rp
-         tzLnEWb8y4UmDkkdUy5tOS8GR4+mP4IJ7ZV17d4YYpwCKDIBLJWpliHqkH5sh9lr8OeH
-         fE9vTWK274xn7+VxndiPRTRGPJ6n1T3oadIBpMJGHyac/frqvkDWOcf/V4+EojB1iO0e
-         fnTQblpcdmPNb0Sna5Us8vtFFzvxk4Yirir4xMCv/dDTQKAReurK+aH4hTZ3yDQbdMiP
-         TRF8iOCF2xmHamfgfbRa/3ucEYP9F/DHxM/mZF7tlw7vylITM3bbts/ZQbt0Rw7/5Rcb
-         ID6A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAUP9unqi+Nd55XgBk2uXYLEwmMl+f1the+jR3KYJTKiS+XNvRdT
-	1mWWJHlI2NcU9Ll6YU/IgOwon42NLTqC28D7FQZ7eBXqLIiQDf66V3sTSHD5KOUMFM4zcZGv/lY
-	QqHC80uNPBvE/364j8qSpETQy5T+njZIFzqJCpYoW1IqzJto+7ETNyIWYKGCrZuOSDw==
-X-Received: by 2002:a17:906:4ed1:: with SMTP id i17mr27065039ejv.118.1558935528589;
-        Sun, 26 May 2019 22:38:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzJifAUk8Rn0sb/9GUUzZcp1kXxyJsb7Qxu6NAL8KInS0WsoEvEz31Qx5OTkWW06ddinjij
-X-Received: by 2002:a17:906:4ed1:: with SMTP id i17mr27064991ejv.118.1558935527483;
-        Sun, 26 May 2019 22:38:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558935527; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:from:to:cc:subject:date
+         :message-id;
+        bh=J+flJg4D+B292+R0mjnCGOvi2ClGFqVNzhwfO4APIzk=;
+        b=QDwP0A0fannLsfsvg27gaGDyoGz4yL/EDl4n8LQRe2SKMWLGTek86E++XAh9kfEMtG
+         R3fM/SFGHwzlKORXWSSnevyV006MMDmFfCDEkjudUhUFR5DpvALto692UTzZLkz82l9e
+         SPTC07e4cqFu44IyXiG0OynASMOlgIui48FqDSQy0p2cj1qkP8XE/pnBsP5BUMJ9Tzv4
+         nOnWGm3qJOEezlBOz6CsYLJRoRla6cNsPXEq1JzBbWgAXxCvk9IxfXK1usUPqoOMhwvV
+         J6moGnwZ3n4Gf13d+L5mptNh36IqGBRMFvCGES8MIz+81g5l7/aEFCG8PhXZID0nF3EK
+         HWxA==
+X-Gm-Message-State: APjAAAVo4qNAKDGWTPvWAMZtSig83RLXFQSZGWQ+ItKf19kkm7KkPfWz
+	IOQi8s0god8tikB8hBOmTBSzfyFbwMEUIQZyW37FMRkLNljpqtuYZ3c1OK2rckl49L3XfLdXADs
+	ZNV0x45Pkf26TorT3BUoze20UanPzFLLbGmhTfhJKIicaqJxUrGWXHaa4NVYKvzM=
+X-Received: by 2002:a17:90a:cb82:: with SMTP id a2mr14672762pju.80.1558937207849;
+        Sun, 26 May 2019 23:06:47 -0700 (PDT)
+X-Received: by 2002:a17:90a:cb82:: with SMTP id a2mr14672653pju.80.1558937205883;
+        Sun, 26 May 2019 23:06:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558937205; cv=none;
         d=google.com; s=arc-20160816;
-        b=nA6/XMr3hN50ZNjpu9/r7AMoxyHxjb5MESaWcOfIHb6KtIF7ogPSf1L8hrhNgZQvXI
-         BU4JjrcgJKQ4or/NUyOR8elr4KW359ZH+s8+K3/RTrGWQUzBU+ld6ogp6Tnigz/RsjLl
-         1BY2qXI936qNQgkkupF5H9huU47fbTce5Bl3sN6DOccDoXLCEmbmkxWzWyQ3+FdYa1Lt
-         HHjIyMPbLgmYU5WiYPOClnEruAdYtGz7lMazqsuU1LuWnp315NXMLpNp/b3DfWBJsO6D
-         PWbd+jpNoOsjcvDde8u/Vi8Cjokn4HLy11jR09YIpTF/Bo6BATAJKLGAaxkfXQVGeZGn
-         pXMg==
+        b=Bx0XR157RTRdweiqImU+HvNdLMGHe6ZLY44gkG8DJHpFRSJb7fRv/BjXUD7swtFPYt
+         0u0ZZkVKj9nQswGlRGc1gVAVvleb+OdVFQpKKGnU8N8J36E251BcJXroT44EioiEJ8M2
+         qXMbKTMAkEOEz1AzfI2mgS7w9YlM99q01QLyIo2JQWEZCztKhgPwYHM7IJeRYvUnUykf
+         stQEx7WAkNSEWAfukwGHdJBfiQjojp+gK44SQH2Jvql5+B7nj47Ek+XnjP6XCFbFiPwi
+         6+GGJYdGRScn/kFjAjA1ZLiMQGdMbFZ9WTTYMXobNBnkd2VmDvhH52UKWgOjwwmZ74fw
+         jN0Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=3JKO27Xp9WsSegQDWWrLwzHPR5pxW3eLEEz6i7ZSbuw=;
-        b=ha/6GbqpuWQXIg0z6I704VOGGPdsu/tVOGrSAgHjaklo9fWkPLtZ5vVqNfhQNum7pf
-         A+hi9g51tK8xcvOGinVE6VUwRds1+I77tkS30qkB8+1/mU27yROMPgaPfgvneam4/FCY
-         inrE9LvC3tVHKqrGeaz3L3k8ePP9TVIcdJ4I855sCdc8A07XsQZZNTxbQ0X0jALNyDgy
-         FjxUOYopbkxEExdzw3QKIRMlQdiho6wH0GJEP1u21+mFL4UzUVn6cdmjBUGL0PsDlTBA
-         OEwmaeWSKahhZXbEq1ajc2kdA8UUKEy+eHi2YEDMJ9fBjn6zs5LCzyfuYoV/4pnx2ORe
-         jR3w==
+        h=message-id:date:subject:cc:to:from:sender:dkim-signature;
+        bh=J+flJg4D+B292+R0mjnCGOvi2ClGFqVNzhwfO4APIzk=;
+        b=D6Yr3ZshvZVXzDHtf4f3yFlfFFTqtKU1gPMC6KJRnfygRx6HpIVGX56tiRVN4LgwSj
+         8FiODzYOEpSEe3yFmPN2hBi0qcsrdgrLS+niVMLMA/ea3kMTIFq72W+71QnsVgLH5H16
+         5jgZCapnVV8OLQEGuUZhDNyd0C3zD8luc1PT12iKB9JRAG99TAnFWWKSyXi7BBJ4pO8Y
+         SqwdOM9cpa3q5cfcLMI/qHGf6SW5j0mL/VsZikilV/YM1r8sPB9wV5m35VP16OQwdVS3
+         2m2cUS7e/VpA0jsH/FSyPvducSb0ydMiEDzqp4r/Ay7byDaytT1yNGnnngyrdQtXT9qX
+         4Qug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id e26si614921edd.76.2019.05.26.22.38.46
-        for <linux-mm@kvack.org>;
-        Sun, 26 May 2019 22:38:46 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OlkrPsci;
+       spf=pass (google.com: domain of nao.horiguchi@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nao.horiguchi@gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id ay3sor10774128plb.20.2019.05.26.23.06.45
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sun, 26 May 2019 23:06:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nao.horiguchi@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1783D374;
-	Sun, 26 May 2019 22:38:45 -0700 (PDT)
-Received: from [10.162.40.17] (p8cg001049571a15.blr.arm.com [10.162.40.17])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 3D7E53F690;
-	Sun, 26 May 2019 22:38:42 -0700 (PDT)
-Subject: Re: [PATCH] mm, compaction: Make sure we isolate a valid PFN
-To: Suzuki K Poulose <suzuki.poulose@arm.com>, linux-mm@kvack.org
-Cc: mgorman@techsingularity.net, akpm@linux-foundation.org, mhocko@suse.com,
- cai@lca.pw, linux-kernel@vger.kernel.org, marc.zyngier@arm.com,
- kvmarm@lists.cs.columbia.edu, kvm@vger.kernel.org
-References: <20190524103924.GN18914@techsingularity.net>
- <1558711908-15688-1-git-send-email-suzuki.poulose@arm.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <8068e2e2-e90d-e8b8-55dc-9dee7d73c5e3@arm.com>
-Date: Mon, 27 May 2019 11:08:54 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
-MIME-Version: 1.0
-In-Reply-To: <1558711908-15688-1-git-send-email-suzuki.poulose@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=OlkrPsci;
+       spf=pass (google.com: domain of nao.horiguchi@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nao.horiguchi@gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:from:to:cc:subject:date:message-id;
+        bh=J+flJg4D+B292+R0mjnCGOvi2ClGFqVNzhwfO4APIzk=;
+        b=OlkrPsciOkbhWZp3PP44UreYr8KL5SZwPqqMfrHRqMPhAIRFfzi8ZkB26S4HuYnWXf
+         eL/2+2N+Ct1wjX1UiIPfIe29z48HiAE2LS0lX+Tv362vNKl/wkXZYhh4Ym5kTUK0YmiP
+         Ht1PEIMm9bkr6Wd7JTRmdqTfGesPel0ffT/ILlMLbUBvKOVXFoWlXe+lRTMbJNwBmoZ0
+         5HlvHblnBsRhv/7CxEKdnLRDjcNugmUknRqpexNkhwq8Q5H0+EFwbGhf7wVl2yzEnDds
+         RTcGgj3AQRwXjhWuCqq9yGeQW7qlongtT5ABvk5WRKh8cMmv4++nywV0CY13wjDO20ki
+         5bgg==
+X-Google-Smtp-Source: APXvYqwcJ9eOvwbIDlqK3f4QPizo7yl9wzvO6W3lyPysMIRbzpS6HwEeDl/L8G/QTThaFCHQWOAOmg==
+X-Received: by 2002:a17:902:2ba7:: with SMTP id l36mr29760193plb.334.1558937205300;
+        Sun, 26 May 2019 23:06:45 -0700 (PDT)
+Received: from www9186uo.sakura.ne.jp (www9186uo.sakura.ne.jp. [153.121.56.200])
+        by smtp.gmail.com with ESMTPSA id b4sm9939550pfd.120.2019.05.26.23.06.42
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 26 May 2019 23:06:44 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	xishi.qiuxishi@alibaba-inc.com,
+	"Chen, Jerry T" <jerry.t.chen@intel.com>,
+	"Zhuo, Qiuxu" <qiuxu.zhuo@intel.com>,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH v1] mm: hugetlb: soft-offline: fix wrong return value of soft offline
+Date: Mon, 27 May 2019 15:06:40 +0900
+Message-Id: <1558937200-18544-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+X-Mailer: git-send-email 2.7.0
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Soft offline events for hugetlb pages return -EBUSY when page migration
+succeeded and dissolve_free_huge_page() failed, which can happen when
+there're surplus hugepages. We should judge pass/fail of soft offline by
+checking whether the raw error page was finally contained or not (i.e.
+the result of set_hwpoison_free_buddy_page()), so this behavior is wrong.
 
+This problem was introduced by the following change of commit 6bc9b56433b76
+("mm: fix race on soft-offlining"):
 
-On 05/24/2019 09:01 PM, Suzuki K Poulose wrote:
-> When we have holes in a normal memory zone, we could endup having
-> cached_migrate_pfns which may not necessarily be valid, under heavy memory
-> pressure with swapping enabled ( via __reset_isolation_suitable(), triggered
-> by kswapd).
-> 
-> Later if we fail to find a page via fast_isolate_freepages(), we may
-> end up using the migrate_pfn we started the search with, as valid
-> page. This could lead to accessing NULL pointer derefernces like below,
-> due to an invalid mem_section pointer.
-> 
-> Unable to handle kernel NULL pointer dereference at virtual address 0000000000000008 [47/1825]
->  Mem abort info:
->    ESR = 0x96000004
->    Exception class = DABT (current EL), IL = 32 bits
->    SET = 0, FnV = 0
->    EA = 0, S1PTW = 0
->  Data abort info:
->    ISV = 0, ISS = 0x00000004
->    CM = 0, WnR = 0
->  user pgtable: 4k pages, 48-bit VAs, pgdp = 0000000082f94ae9
->  [0000000000000008] pgd=0000000000000000
->  Internal error: Oops: 96000004 [#1] SMP
->  ...
->  CPU: 10 PID: 6080 Comm: qemu-system-aar Not tainted 510-rc1+ #6
->  Hardware name: AmpereComputing(R) OSPREY EV-883832-X3-0001/OSPREY, BIOS 4819 09/25/2018
->  pstate: 60000005 (nZCv daif -PAN -UAO)
->  pc : set_pfnblock_flags_mask+0x58/0xe8
->  lr : compaction_alloc+0x300/0x950
->  [...]
->  Process qemu-system-aar (pid: 6080, stack limit = 0x0000000095070da5)
->  Call trace:
->   set_pfnblock_flags_mask+0x58/0xe8
->   compaction_alloc+0x300/0x950
->   migrate_pages+0x1a4/0xbb0
->   compact_zone+0x750/0xde8
->   compact_zone_order+0xd8/0x118
->   try_to_compact_pages+0xb4/0x290
->   __alloc_pages_direct_compact+0x84/0x1e0
->   __alloc_pages_nodemask+0x5e0/0xe18
->   alloc_pages_vma+0x1cc/0x210
->   do_huge_pmd_anonymous_page+0x108/0x7c8
->   __handle_mm_fault+0xdd4/0x1190
->   handle_mm_fault+0x114/0x1c0
->   __get_user_pages+0x198/0x3c0
->   get_user_pages_unlocked+0xb4/0x1d8
->   __gfn_to_pfn_memslot+0x12c/0x3b8
->   gfn_to_pfn_prot+0x4c/0x60
->   kvm_handle_guest_abort+0x4b0/0xcd8
->   handle_exit+0x140/0x1b8
->   kvm_arch_vcpu_ioctl_run+0x260/0x768
->   kvm_vcpu_ioctl+0x490/0x898
->   do_vfs_ioctl+0xc4/0x898
->   ksys_ioctl+0x8c/0xa0
->   __arm64_sys_ioctl+0x28/0x38
->   el0_svc_common+0x74/0x118
->   el0_svc_handler+0x38/0x78
->   el0_svc+0x8/0xc
->  Code: f8607840 f100001f 8b011401 9a801020 (f9400400)
->  ---[ end trace af6a35219325a9b6 ]---
-> 
-> The issue was reported on an arm64 server with 128GB with holes in the zone
-> (e.g, [32GB@4GB, 96GB@544GB]), with a swap device enabled, while running 100 KVM
-> guest instances.
-> 
-> This patch fixes the issue by ensuring that the page belongs to a valid PFN
-> when we fallback to using the lower limit of the scan range upon failure in
-> fast_isolate_freepages().
-> 
-> Fixes: 5a811889de10f1eb ("mm, compaction: use free lists to quickly locate a migration target")
-> Reported-by: Marc Zyngier <marc.zyngier@arm.com>
-> Signed-off-by: Suzuki K Poulose <suzuki.poulose@arm.com>
+                    if (ret > 0)
+                            ret = -EIO;
+            } else {
+    -               if (PageHuge(page))
+    -                       dissolve_free_huge_page(page);
+    +               /*
+    +                * We set PG_hwpoison only when the migration source hugepage
+    +                * was successfully dissolved, because otherwise hwpoisoned
+    +                * hugepage remains on free hugepage list, then userspace will
+    +                * find it as SIGBUS by allocation failure. That's not expected
+    +                * in soft-offlining.
+    +                */
+    +               ret = dissolve_free_huge_page(page);
+    +               if (!ret) {
+    +                       if (set_hwpoison_free_buddy_page(page))
+    +                               num_poisoned_pages_inc();
+    +               }
+            }
+            return ret;
+     }
 
-Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
+, so a simple fix is to restore the PageHuge precheck, but my code
+reading shows that we already have PageHuge check in
+dissolve_free_huge_page() with hugetlb_lock, which is better place to
+check it.  And currently dissolve_free_huge_page() returns -EBUSY for
+!PageHuge but that's simply wrong because that that case should be
+considered as success (meaning that "the given hugetlb was already
+dissolved.")
+
+This change affects other callers of dissolve_free_huge_page(),
+which are also cleaned up by this patch.
+
+Reported-by: Chen, Jerry T <jerry.t.chen@intel.com>
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Fixes: 6bc9b56433b76 ("mm: fix race on soft-offlining")
+Cc: <stable@vger.kernel.org> # v4.19+
+---
+ mm/hugetlb.c        | 15 +++++++++------
+ mm/memory-failure.c |  7 +++----
+ 2 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git v5.1-rc6-mmotm-2019-04-25-16-30/mm/hugetlb.c v5.1-rc6-mmotm-2019-04-25-16-30_patched/mm/hugetlb.c
+index bf58cee..385899f 100644
+--- v5.1-rc6-mmotm-2019-04-25-16-30/mm/hugetlb.c
++++ v5.1-rc6-mmotm-2019-04-25-16-30_patched/mm/hugetlb.c
+@@ -1518,7 +1518,12 @@ int dissolve_free_huge_page(struct page *page)
+ 	int rc = -EBUSY;
+ 
+ 	spin_lock(&hugetlb_lock);
+-	if (PageHuge(page) && !page_count(page)) {
++	if (!PageHuge(page)) {
++		rc = 0;
++		goto out;
++	}
++
++	if (!page_count(page)) {
+ 		struct page *head = compound_head(page);
+ 		struct hstate *h = page_hstate(head);
+ 		int nid = page_to_nid(head);
+@@ -1563,11 +1568,9 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order) {
+ 		page = pfn_to_page(pfn);
+-		if (PageHuge(page) && !page_count(page)) {
+-			rc = dissolve_free_huge_page(page);
+-			if (rc)
+-				break;
+-		}
++		rc = dissolve_free_huge_page(page);
++		if (rc)
++			break;
+ 	}
+ 
+ 	return rc;
+diff --git v5.1-rc6-mmotm-2019-04-25-16-30/mm/memory-failure.c v5.1-rc6-mmotm-2019-04-25-16-30_patched/mm/memory-failure.c
+index fc8b517..3a83e27 100644
+--- v5.1-rc6-mmotm-2019-04-25-16-30/mm/memory-failure.c
++++ v5.1-rc6-mmotm-2019-04-25-16-30_patched/mm/memory-failure.c
+@@ -1733,6 +1733,8 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 		if (!ret) {
+ 			if (set_hwpoison_free_buddy_page(page))
+ 				num_poisoned_pages_inc();
++			else
++				ret = -EBUSY;
+ 		}
+ 	}
+ 	return ret;
+@@ -1857,11 +1859,8 @@ static int soft_offline_in_use_page(struct page *page, int flags)
+ 
+ static int soft_offline_free_page(struct page *page)
+ {
+-	int rc = 0;
+-	struct page *head = compound_head(page);
++	int rc = dissolve_free_huge_page(page);
+ 
+-	if (PageHuge(head))
+-		rc = dissolve_free_huge_page(page);
+ 	if (!rc) {
+ 		if (set_hwpoison_free_buddy_page(page))
+ 			num_poisoned_pages_inc();
+-- 
+2.7.0
 
