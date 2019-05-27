@@ -2,150 +2,422 @@ Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DBD78C04AB3
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 14:02:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C174C04AB3
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 14:12:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A110C205ED
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 14:02:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="CJ2irMJK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A110C205ED
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id DDCF721851
+	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 14:12:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDCF721851
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 381C16B027D; Mon, 27 May 2019 10:02:51 -0400 (EDT)
+	id 3A1386B027F; Mon, 27 May 2019 10:12:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 30B456B027E; Mon, 27 May 2019 10:02:51 -0400 (EDT)
+	id 352276B0280; Mon, 27 May 2019 10:12:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1D3886B027F; Mon, 27 May 2019 10:02:51 -0400 (EDT)
+	id 241FA6B0281; Mon, 27 May 2019 10:12:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AF7056B027D
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 10:02:50 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id d11so3191266lji.21
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 07:02:50 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C1B556B027F
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 10:12:27 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id r48so28209276eda.11
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 07:12:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=nCMqcLWyCA+4Q/MEIIgUaDC50B6QNtxtBMlc97ZOozY=;
-        b=AXM8BVLQkqAQM4fuaI02Q1Q8kYC8+ZyO8Dx17BnCOudwlxRCw9N2eKcUMcolunYjhp
-         1ISlGf96YWLucZu4yb2OoKcdB8JyEhBczDZCXVrDupj1hI2CwvrAbt+3Odb4/LjAaPhF
-         JHL3YhiwMV6SkMDHDnWMZiiwBb2ElrFh2/IjOsPI8WQ+l5bsvxLRCSCX1KupfIwFOihe
-         ksYLV2oIPVI9zZknD8eKdZMm/nawAnRyipDx3Ze0yrEwo60aypIHiByQs0KNcCgckDxQ
-         ONTL0auI9iEKgZg/4J0wl9QvUgHhU9mVz421Uo8Om+0e8Btdk44o8qlIzlnqxCkqK6nt
-         cicw==
-X-Gm-Message-State: APjAAAUz58xvjWx2EqsiAxF0JlZGPePY9cPDc1e05eCz1UrHHVgOUG5E
-	5fJBDQqOnRe8vm1zuw/QrXuZOPje7tGe+MimDajATC63fBp7H71VIY4NLHfFkdDZnN3QD2alxKs
-	vBQSZg+R15eVn6lSyXrtfJlkrhyBVl2sMZxMV7Qc0XHUSY/WX1hIQp52k+zKktqRRAg==
-X-Received: by 2002:a2e:9f41:: with SMTP id v1mr23591141ljk.66.1558965769910;
-        Mon, 27 May 2019 07:02:49 -0700 (PDT)
-X-Received: by 2002:a2e:9f41:: with SMTP id v1mr23591100ljk.66.1558965769171;
-        Mon, 27 May 2019 07:02:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558965769; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=ZXsBSb1B2f8Xg+mSZ+FAtjEX2rbfXb9EUHSvyXl2Vgg=;
+        b=JWtjidOWhQY69YQBawrZbEbCH3DXaxcCgWm4V2UmEt1jzOhO2sJkGSpaUAHKdZ63D1
+         TLueMbvgdb6WVWaefmtvQLKS9wKpW9fwWh8+xOcmwkPpxGWrub4382z98m9DqkIFwRYB
+         +uCW0cqYAwsujO7V+dfl9/aQ+cxRDh3qQjINpKgz5qNSkzpsQO0+TVS6BOv4G4ukpBhm
+         6haTqI1ASMVkKuirYdVG/rRN/1Da+YEpM8teoi57jO+tZUPVGbJbxt7CCpHF0u8VbjSy
+         E3GH/4QinAkKzrYKfyh1fER79nrw989U5m/4w+I3vcyAzCtKrk4FicwiexxokRrS4UgZ
+         NAxQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVBRuhwbo3HrPO9slzhLeiQH0oB7vnKpPfmplh9ozBiXLMgkcOA
+	ms8lsRYableLBglRjdpMMKc11H2WbZNSMVGXKBRwiO2EbOp4bx7vASu9wbB60nEjiATYiaER5hO
+	7BNm+nHCSxvV3YBW6Ac3a+UtVqcqrmecu5+f6qsBPm/2KMjfg3fvgDWcDjkavvDU=
+X-Received: by 2002:a50:92c9:: with SMTP id l9mr122160312eda.75.1558966347325;
+        Mon, 27 May 2019 07:12:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwTw/TMa1glRsh9Zt84iOWyLWOA6dMPl6m3MDsCjuHb+dAAzezlyQwIdQB8tbiIc//4drK3
+X-Received: by 2002:a50:92c9:: with SMTP id l9mr122160150eda.75.1558966345993;
+        Mon, 27 May 2019 07:12:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1558966345; cv=none;
         d=google.com; s=arc-20160816;
-        b=s2TSqWlp+wEeQgllmL+jYXZJq0hAJRWiTbYj2kq78XO6MVJkAz8BJB0Bq6AtLRE0bw
-         s+7CiI9KkmVe5HDRozTrRlt3cSw9GoXKDS3gyE7pyOdQRwHHYENXjs1P1oo2uD3dS32Y
-         DZDJyktMe+vzLSX4pAcxWnfzzl3jK412aM3HZfDoJcJG0u7nLk/W2FVidIqiEOIYcI5Z
-         vVRObjzeR0wZu2cFzZ138Fg0EZ2oI7d6snTs3gds9ZG+xcppyaYAt/IqtdXxIscMnlYt
-         YZlEwVCOcDCn1tBEmGjnWnveBKpbdIfbVJSiML8iiXtZ1BRwKrDV+f1n6lQ2OoCvZLXG
-         GgRQ==
+        b=Sx9M1juCu/opP1kMraXHpYBnr556mEqyy8FwZAkcYm+iy4v/BLRWs/kWp7f/hVXN50
+         RfMgsKspY1Mkr8se1XW7yu8LxzRbxJ8J35ZyVUcqmKQ+K3WTM/j/hsZl7jLV8SoBr8k0
+         DBBc0lLIvZPTC3vph6DkW5d+oUmzCKc5srExthMDlIpuJhAfCpXDS8medkLJnVw7Rwou
+         bvo5Ludt8o/gQTkOqJbVv1yS2MVAyoukxgcZg83oRyl/+trYJ+e5N4OgD7On7U8+umTP
+         uZuEHwxziTEN2+ojsaDSBC/RQ2HXuoOf1UUA107FkmP7eS4sB7HvKyVSYYMXw0szL3Zy
+         7LXg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=nCMqcLWyCA+4Q/MEIIgUaDC50B6QNtxtBMlc97ZOozY=;
-        b=UlyI9luJ+K9h9ndUGvIvA8wUo0LU0qWaIbftyxgqi/xH03AHWIJZe9zQl8REmtXfuy
-         PzWYf5S+OGLT4Cr9zfFwH02eNmWJKjklL0nqRmGMAkuUkjVKE3oVviw5l8s9u5CdJB3m
-         uvBu3cX3zglVxBvLtAhOrp/jE+KvSigx7gQ6nlWy9QQ9Auz3ClxtCnUFWj6jwFiCSyQO
-         Y89QssAUFJH5YBwtCle1wYrD+jZ0PEaZOs6lO5S0KHy9X+9RWTkY+PzNj9/5KfzWwZRs
-         4QaMm9Q4J7f2TkU0akpzoMy2hNnMgZa5+RjqTVaNQ3aR9a7CZCn3/c7nXP+EWvxiYhkL
-         mMmg==
+         :message-id:subject:cc:to:from:date;
+        bh=ZXsBSb1B2f8Xg+mSZ+FAtjEX2rbfXb9EUHSvyXl2Vgg=;
+        b=IFutdD4kvH0y6WSNxMqcFztuKJf48EX/Aktveh5Pvkc03EkN36O7+LpX/jRZCBENjK
+         cizsOMInknsnOpmH7hXhJqJ3naMjG0cQrIAONJg3FjLuf57E0XGhmAXXp3T8MClI5u3h
+         EnOWXqkctLu2pnWs/qoIO9HidJ+zccfTBVeAqP1MqOA2Wt8ljXb7xa6LTgnhEoKhgz/s
+         5WWpciM3ZrUW3NMmhKK/8MN1Av7aEqDWy3HdEyX/lJ85tYiOlDiEa1gNGEIE+iKMBa2/
+         gJ6WhFtWqzAbA64UoI7MXaWmeqiydPgGEzfLdnV5yQHNYSWHs7ELlh3Jr9iq3+uvBxTD
+         9htw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=CJ2irMJK;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l22sor5407981ljg.23.2019.05.27.07.02.49
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e2si8982730ede.347.2019.05.27.07.12.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 27 May 2019 07:02:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 May 2019 07:12:25 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=CJ2irMJK;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=nCMqcLWyCA+4Q/MEIIgUaDC50B6QNtxtBMlc97ZOozY=;
-        b=CJ2irMJKh684KUcwCc9e3mRWyJ3si0NiJuPS8075E4MvXvGMVcYFMOXShhgQ6jQ65m
-         5ZT8nQuRaOztT3vV1jR1mOBIKUw3uFP111pf95gc1AWajJpwzTjYYE3a8pNrNFx8YM3G
-         qF+VgZDKakhfXS6vsoAA15xxhlI70teCFJXoQOhdt+aB+nwDh+M1AUnaMOaH2u4iowZF
-         M9RDJ51+OJf4FjpByIo02Fg5yIq6EfeQVZk5SdkqFnA4eQFbHfJ3XquqOWlYbMC024Gc
-         vgdX3QYfA4UtbUxk8wiLe15FW8s3SdFjoTNbTQfmI/ASsEOrqluE4QTc3bmQiVdMTCm3
-         diYQ==
-X-Google-Smtp-Source: APXvYqzXY+tlQxq7QCiBnJ+JYYpe6XAxMrsHVoWpLgb9r76XvPQ1r14R5z8LOJLwEgnfZ3qF0GJRWg==
-X-Received: by 2002:a2e:81d9:: with SMTP id s25mr21926270ljg.139.1558965768729;
-        Mon, 27 May 2019 07:02:48 -0700 (PDT)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id r62sm2335963lja.48.2019.05.27.07.02.47
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 27 May 2019 07:02:47 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Mon, 27 May 2019 16:02:40 +0200
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Roman Gushchin <guro@fb.com>, Hillf Danton <hdanton@sina.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Joel Fernandes <joelaf@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 4/4] mm/vmap: move BUG_ON() check to the unlink_va()
-Message-ID: <20190527140240.6lzhunbc4py573yl@pc636>
-References: <20190527093842.10701-1-urezki@gmail.com>
- <20190527093842.10701-5-urezki@gmail.com>
- <20190527085927.19152502@gandalf.local.home>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 1A564AC3F;
+	Mon, 27 May 2019 14:12:25 +0000 (UTC)
+Date: Mon, 27 May 2019 16:12:23 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Roman Gushchin <guro@fb.com>, linux-api@vger.kernel.org
+Subject: Re: [PATCH RFC] mm/madvise: implement MADV_STOCKPILE (kswapd from
+ user space)
+Message-ID: <20190527141223.GD1658@dhcp22.suse.cz>
+References: <155895155861.2824.318013775811596173.stgit@buzz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190527085927.19152502@gandalf.local.home>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <155895155861.2824.318013775811596173.stgit@buzz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > Move the BUG_ON()/RB_EMPTY_NODE() check under unlink_va()
-> > function, it means if an empty node gets freed it is a BUG
-> > thus is considered as faulty behaviour.
-> 
-> Can we switch it to a WARN_ON(). We are trying to remove all BUG_ON()s.
-> If a user wants to crash on warning, there's a sysctl for that. But
-> crashing the system can make it hard to debug. Especially if it is hit
-> by someone without a serial console, and the machine just hangs in X.
-> That is very annoying.
-> 
-> With a WARN_ON, you at least get a chance to see the crash dump.
-Yes we can. Even though it is considered as faulty behavior it is not
-a good reason to trigger a BUG. I will fix that.
+[Cc linux-api. Please always cc this list when proposing a new user
+ visible api. Keeping the rest of the email intact for reference]
 
-Thank you!
+On Mon 27-05-19 13:05:58, Konstantin Khlebnikov wrote:
+> Memory cgroup has no background memory reclaimer. Reclaiming after passing
+> high-limit blocks task because works synchronously in task-work.
+> 
+> This implements manual kswapd-style memory reclaim initiated by userspace.
+> It reclaims both physical memory and cgroup pages. It works in context of
+> task who calls syscall madvise thus cpu time is accounted correctly.
+> 
+> Interface:
+> 
+> ret = madvise(ptr, size, MADV_STOCKPILE)
+> 
+> Returns:
+>   0         - ok, free memory >= size
+>   -EINVAL   - not supported
+>   -ENOMEM   - not enough memory/cgroup limit
+>   -EINTR    - interrupted by pending signal
+>   -EAGAIN   - cannot reclaim enough memory
+> 
+> Argument 'size' is interpreted size of required free memory.
+> Implementation triggers direct reclaim until amount of free memory is
+> lower than that size. Argument 'ptr' could points to vma for specifying
+> numa allocation policy, right now should be NULL.
+> 
+> Usage scenario: independent thread or standalone daemon estimates rate of
+> allocations and calls MADV_STOCKPILE in loop to prepare free pages.
+> Thus fast path avoids allocation latency induced by direct reclaim.
+> 
+> We are using this embedded into memory allocator based on MADV_FREE.
+> 
+> 
+> Demonstration in memory cgroup with limit 1G:
+> 
+> touch zero
+> truncate -s 5G zero
+> 
+> Without stockpile:
+> 
+> perf stat -e vmscan:* md5sum zero
+> 
+>  Performance counter stats for 'md5sum zero':
+> 
+>                  0      vmscan:mm_vmscan_kswapd_sleep
+>                  0      vmscan:mm_vmscan_kswapd_wake
+>                  0      vmscan:mm_vmscan_wakeup_kswapd
+>                  0      vmscan:mm_vmscan_direct_reclaim_begin
+>              10147      vmscan:mm_vmscan_memcg_reclaim_begin
+>                  0      vmscan:mm_vmscan_memcg_softlimit_reclaim_begin
+>                  0      vmscan:mm_vmscan_direct_reclaim_end
+>              10147      vmscan:mm_vmscan_memcg_reclaim_end
+>                  0      vmscan:mm_vmscan_memcg_softlimit_reclaim_end
+>              99910      vmscan:mm_shrink_slab_start
+>              99910      vmscan:mm_shrink_slab_end
+>              39654      vmscan:mm_vmscan_lru_isolate
+>                  0      vmscan:mm_vmscan_writepage
+>              39652      vmscan:mm_vmscan_lru_shrink_inactive
+>                  2      vmscan:mm_vmscan_lru_shrink_active
+>              19982      vmscan:mm_vmscan_inactive_list_is_low
+> 
+>       10.886832585 seconds time elapsed
+> 
+>        8.928366000 seconds user
+>        1.935212000 seconds sys
+> 
+> With stockpile:
+> 
+> stockpile 100 10 &   # up to 100M every 10ms
+> perf stat -e vmscan:* md5sum zero
+> 
+>  Performance counter stats for 'md5sum zero':
+> 
+>                  0      vmscan:mm_vmscan_kswapd_sleep
+>                  0      vmscan:mm_vmscan_kswapd_wake
+>                  0      vmscan:mm_vmscan_wakeup_kswapd
+>                  0      vmscan:mm_vmscan_direct_reclaim_begin
+>                  0      vmscan:mm_vmscan_memcg_reclaim_begin
+>                  0      vmscan:mm_vmscan_memcg_softlimit_reclaim_begin
+>                  0      vmscan:mm_vmscan_direct_reclaim_end
+>                  0      vmscan:mm_vmscan_memcg_reclaim_end
+>                  0      vmscan:mm_vmscan_memcg_softlimit_reclaim_end
+>                  0      vmscan:mm_shrink_slab_start
+>                  0      vmscan:mm_shrink_slab_end
+>                  0      vmscan:mm_vmscan_lru_isolate
+>                  0      vmscan:mm_vmscan_writepage
+>                  0      vmscan:mm_vmscan_lru_shrink_inactive
+>                  0      vmscan:mm_vmscan_lru_shrink_active
+>                  0      vmscan:mm_vmscan_inactive_list_is_low
+> 
+>       10.469776675 seconds time elapsed
+> 
+>        8.976261000 seconds user
+>        1.491378000 seconds sys
+> 
+> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> ---
+>  include/linux/memcontrol.h             |    6 +++++
+>  include/uapi/asm-generic/mman-common.h |    2 ++
+>  mm/madvise.c                           |   39 ++++++++++++++++++++++++++++++
+>  mm/memcontrol.c                        |   41 ++++++++++++++++++++++++++++++++
+>  tools/vm/Makefile                      |    2 +-
+>  tools/vm/stockpile.c                   |   30 +++++++++++++++++++++++
+>  6 files changed, 119 insertions(+), 1 deletion(-)
+>  create mode 100644 tools/vm/stockpile.c
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index bc74d6a4407c..25325f18ad55 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -517,6 +517,7 @@ unsigned long mem_cgroup_get_zone_lru_size(struct lruvec *lruvec,
+>  }
+>  
+>  void mem_cgroup_handle_over_high(void);
+> +int mem_cgroup_stockpile(unsigned long goal_pages);
+>  
+>  unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg);
+>  
+> @@ -968,6 +969,11 @@ static inline void mem_cgroup_handle_over_high(void)
+>  {
+>  }
+>  
+> +static inline int mem_cgroup_stockpile(unsigned long goal_page)
+> +{
+> +	return 0;
+> +}
+> +
+>  static inline void mem_cgroup_enter_user_fault(void)
+>  {
+>  }
+> diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
+> index abd238d0f7a4..675145864fee 100644
+> --- a/include/uapi/asm-generic/mman-common.h
+> +++ b/include/uapi/asm-generic/mman-common.h
+> @@ -64,6 +64,8 @@
+>  #define MADV_WIPEONFORK 18		/* Zero memory on fork, child only */
+>  #define MADV_KEEPONFORK 19		/* Undo MADV_WIPEONFORK */
+>  
+> +#define MADV_STOCKPILE	20		/* stockpile free pages */
+> +
+>  /* compatibility flags */
+>  #define MAP_FILE	0
+>  
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 628022e674a7..f908b08ecc9f 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -686,6 +686,41 @@ static int madvise_inject_error(int behavior,
+>  }
+>  #endif
+>  
+> +static long madvise_stockpile(unsigned long start, size_t len)
+> +{
+> +	unsigned long goal_pages, progress;
+> +	struct zonelist *zonelist;
+> +	int ret;
+> +
+> +	if (start)
+> +		return -EINVAL;
+> +
+> +	goal_pages = len >> PAGE_SHIFT;
+> +
+> +	if (goal_pages > totalram_pages() - totalreserve_pages)
+> +		return -ENOMEM;
+> +
+> +	ret = mem_cgroup_stockpile(goal_pages);
+> +	if (ret)
+> +		return ret;
+> +
+> +	/* TODO: use vma mempolicy */
+> +	zonelist = node_zonelist(numa_node_id(), GFP_HIGHUSER);
+> +
+> +	while (global_zone_page_state(NR_FREE_PAGES) <
+> +			goal_pages + totalreserve_pages) {
+> +
+> +		if (signal_pending(current))
+> +			return -EINTR;
+> +
+> +		progress = try_to_free_pages(zonelist, 0, GFP_HIGHUSER, NULL);
+> +		if (!progress)
+> +			return -EAGAIN;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+>  static long
+>  madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+>  		unsigned long start, unsigned long end, int behavior)
+> @@ -728,6 +763,7 @@ madvise_behavior_valid(int behavior)
+>  	case MADV_DODUMP:
+>  	case MADV_WIPEONFORK:
+>  	case MADV_KEEPONFORK:
+> +	case MADV_STOCKPILE:
+>  #ifdef CONFIG_MEMORY_FAILURE
+>  	case MADV_SOFT_OFFLINE:
+>  	case MADV_HWPOISON:
+> @@ -834,6 +870,9 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+>  		return madvise_inject_error(behavior, start, start + len_in);
+>  #endif
+>  
+> +	if (behavior == MADV_STOCKPILE)
+> +		return madvise_stockpile(start, len);
+> +
+>  	write = madvise_need_mmap_write(behavior);
+>  	if (write) {
+>  		if (down_write_killable(&current->mm->mmap_sem))
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index e50a2db5b4ff..dc23dc6bbeb3 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2276,6 +2276,47 @@ void mem_cgroup_handle_over_high(void)
+>  	current->memcg_nr_pages_over_high = 0;
+>  }
+>  
+> +int mem_cgroup_stockpile(unsigned long goal_pages)
+> +{
+> +	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> +	unsigned long limit, nr_free, progress;
+> +	struct mem_cgroup *memcg, *pos;
+> +	int ret = 0;
+> +
+> +	pos = memcg = get_mem_cgroup_from_mm(current->mm);
+> +
+> +retry:
+> +	if (signal_pending(current)) {
+> +		ret = -EINTR;
+> +		goto out;
+> +	}
+> +
+> +	limit = min(pos->memory.max, pos->high);
+> +	if (goal_pages > limit) {
+> +		ret = -ENOMEM;
+> +		goto out;
+> +	}
+> +
+> +	nr_free = limit - page_counter_read(&pos->memory);
+> +	if ((long)nr_free < (long)goal_pages) {
+> +		progress = try_to_free_mem_cgroup_pages(pos,
+> +				goal_pages - nr_free, GFP_HIGHUSER, true);
+> +		if (progress || nr_retries--)
+> +			goto retry;
+> +		ret = -EAGAIN;
+> +		goto out;
+> +	}
+> +
+> +	nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> +	pos = parent_mem_cgroup(pos);
+> +	if (pos)
+> +		goto retry;
+> +
+> +out:
+> +	css_put(&memcg->css);
+> +	return ret;
+> +}
+> +
+>  static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+>  		      unsigned int nr_pages)
+>  {
+> diff --git a/tools/vm/Makefile b/tools/vm/Makefile
+> index 20f6cf04377f..e5b5bc0d9421 100644
+> --- a/tools/vm/Makefile
+> +++ b/tools/vm/Makefile
+> @@ -1,7 +1,7 @@
+>  # SPDX-License-Identifier: GPL-2.0
+>  # Makefile for vm tools
+>  #
+> -TARGETS=page-types slabinfo page_owner_sort
+> +TARGETS=page-types slabinfo page_owner_sort stockpile
+>  
+>  LIB_DIR = ../lib/api
+>  LIBS = $(LIB_DIR)/libapi.a
+> diff --git a/tools/vm/stockpile.c b/tools/vm/stockpile.c
+> new file mode 100644
+> index 000000000000..245e24f293ec
+> --- /dev/null
+> +++ b/tools/vm/stockpile.c
+> @@ -0,0 +1,30 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +#include <sys/mman.h>
+> +#include <stdlib.h>
+> +#include <unistd.h>
+> +#include <err.h>
+> +#include <errno.h>
+> +
+> +#ifndef MADV_STOCKPILE
+> +# define MADV_STOCKPILE	20
+> +#endif
+> +
+> +int main(int argc, char **argv)
+> +{
+> +	int interval;
+> +	size_t size;
+> +	int ret;
+> +
+> +	if (argc != 3)
+> +		errx(1, "usage: %s <size_mb> <interval_ms>", argv[0]);
+> +
+> +	size = atol(argv[1]) << 20;
+> +	interval = atoi(argv[2]) * 1000;
+> +
+> +	while (1) {
+> +		ret = madvise(NULL, size, MADV_STOCKPILE);
+> +		if (ret && errno != EAGAIN)
+> +			err(2, "madvise(NULL, %zu, MADV_STOCKPILE)", size);
+> +		usleep(interval);
+> +	}
+> +}
+> 
 
---
-Vlad Rezki 
+-- 
+Michal Hocko
+SUSE Labs
 
