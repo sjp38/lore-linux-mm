@@ -2,142 +2,207 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BD6F2C04AB6
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 07:23:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3BCCC04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 07:30:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7504520883
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 07:23:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7504520883
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 787D020883
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 07:30:17 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="DeNEc67D"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 787D020883
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D1EF26B0270; Tue, 28 May 2019 03:23:48 -0400 (EDT)
+	id F16916B0270; Tue, 28 May 2019 03:30:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CCFD76B0273; Tue, 28 May 2019 03:23:48 -0400 (EDT)
+	id EC62A6B0273; Tue, 28 May 2019 03:30:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BE5446B0275; Tue, 28 May 2019 03:23:48 -0400 (EDT)
+	id D40076B0275; Tue, 28 May 2019 03:30:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 736EC6B0270
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 03:23:48 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c26so31672427eda.15
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 00:23:48 -0700 (PDT)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 718256B0270
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 03:30:16 -0400 (EDT)
+Received: by mail-lf1-f70.google.com with SMTP id l26so3247255lfk.4
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 00:30:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=7q87WTTa/ot1Wj66VKE+53bC/MlLpUvP7FaIekCpkDA=;
-        b=Tum95obeQ+VAmoVLLOzywZ5DVIHOBDThdYMleCljBc9YJcdRkCNSVu4FtKhBb999e1
-         xvcwvQB6VdOlrRqXW0iv4RQI8T7I9gZiZvJI6/y9j9CytjUMb2+iYPK1zIervU73Dlwe
-         mYEF3KLrDGOvNGnxM1B+tz+RHTwW11delFFnb6vxDD4o7eUBQEdK9JRhriifWSm4ejuP
-         GnirajhQG19aWnHs88W6uDqPYFK4kFI8rUK6Eyk7MqWIDFwzPUxYSStvd3eYxanozq+4
-         Idb6P4fBXIYylwQ3RcaBNSJG8ODdwSgi7yq++QPnxTTEiydiRylx5P3opETwmqEhsnnI
-         Ojvg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXYbbmFaLIAl18WdylT+8pBqBwbn4fgyW0uuL2PhBTl7toANsB7
-	/yJ0VSdPMk98WZaPsp/WQDcW3I6+3Df38ZmytrXMlyuLWNzW5nT8UJFDl+oSkarbGMnt9+j2LFC
-	7/4UTWhDCVIjSv2ZTZhND2iWnqYpAne59NUu7D/CjUKZQQ/zOLFhhv3DiKcBShfA=
-X-Received: by 2002:a50:e048:: with SMTP id g8mr127595263edl.26.1559028228007;
-        Tue, 28 May 2019 00:23:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqybe08w/7+K1TscIGrcXvz3OtpI08teB3smZ0joNpVG+yGQyYk6ZTcDhALabt7apoOApzM0
-X-Received: by 2002:a50:e048:: with SMTP id g8mr127595174edl.26.1559028226541;
-        Tue, 28 May 2019 00:23:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559028226; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=b0tnBEaeSE0wx9SZBTkiemsceGG2gh/BPri5iBFlmTM=;
+        b=a/AxzepUTbEzdCPW4yRZXsd+repG7BmBnUSVb/5R733mqr/3LvZna+exyJ1WpyriF/
+         /+N/WALpbkFnEHqtzn8t8HaJZsJouux+XBiR0D7zyo1/6Z3SZtsU+WcOhn8LyLgaMJzJ
+         0oyQMijRC/XRbYM6C3F8ryOJQgkGzcW0+63FK9bSMk7IUYmaPH6Ze+MkQmfS795QkRNU
+         GBLxppEewCX61+1DTzaFLcgHn4e72D2DXVYaNEeQWY4+N6ZwCCyHsszl7s1JTIBitHe0
+         hHv638ACXsEAKVa4FTAVzqXJe5w/sWWIREvMZIfYzPumtwBommvXVXu+hq+ptir7zWkX
+         pw2g==
+X-Gm-Message-State: APjAAAVuHTBzDDEeuZ+W2r972g+NzTg+iU5vO93usUH+dpyFx6v2ULLS
+	OvynZ6NZWSIY0bzF4boBqyTGCUys0UdeSvluRdMfeyDXtQ2qRbUFwnv4V4qD4RT83zrMU5fBmz0
+	qU3xoe3MJNb3ynMSe228uiDx9wNBwAdi3CvWRzkiccL+0U509Pan74BWYgBszqxKGYA==
+X-Received: by 2002:a2e:970e:: with SMTP id r14mr15359786lji.86.1559028615612;
+        Tue, 28 May 2019 00:30:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw/C4yXQ1FUgwzohXpPg23V9vDZT20LBYtC+IKnFx5A3I1rJi4RCyya9pF38P84xnOZF2FB
+X-Received: by 2002:a2e:970e:: with SMTP id r14mr15359725lji.86.1559028614576;
+        Tue, 28 May 2019 00:30:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559028614; cv=none;
         d=google.com; s=arc-20160816;
-        b=g1XwEnh1IxK1E8lzHc6RcDffl7d4BlY1uzH2qdLdVVi2PNDU6uEk72Sxb4jYnnttt/
-         uTtlVBK1J+wLyOgYek1u/NdzZ7BANB2eASVYLeKjSp+X4xUXf41JnPSNkrMxvRbm9zVv
-         9bqX9vMuN7biS7NqdVzRPGukhIbfOlEkaNrwIssviSP4b8JW+xj3QqAJvODr9meyDPzX
-         tmWhTXtWqTjmpiMhVGgAZEr8UfYnvsyPiqJbffQnwHM+sedi/5ywcmn9ojZqdVY+9WiA
-         AO+RPitA6aeRo33obI16f1/FQyrwKX1eVmPbxGBx1Y8i6KreUzpCQ7fKUW8Fsy9/n4zu
-         lfGg==
+        b=YkFRT6rszsWvNCXTWSE/jBxw+htpAjXVzevAsRCSzDR1cyEa8md3a2PFrWKqXJ1GLQ
+         Z6XzaxEBa4t/8udHGf+2L3ziYXNZZCs/WbzVKvEujw9C6pFAW09KW7UC6F28pbYky5I1
+         4qvyB4rlw5TVT9/vESBrk/XXNxNjoXVOlnWenF0Lq3q+fpm3ePxCfYaa/VcgJ+4CJtpp
+         qODTMJk5s21ZiPVeJwXSF6MghBtiRp/xTsMjI/caCdfdWmhCfDrXZ7IRexwkuQPxxqu0
+         OFqo9zEUUDM3IHy/Zq6z+fD52Udv2SQSqK9kO8GC9EZi8z81X4JulTE9dbM92lBmkIRe
+         I6xg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=7q87WTTa/ot1Wj66VKE+53bC/MlLpUvP7FaIekCpkDA=;
-        b=xgbuDfY7Kuszm7wFYGZY7Xr/o3k+HmUEsinzJOH9XivBXn5YSM7wQOQbWSHmBJxTyo
-         zGFRYFiRlgICB06DdyoipShjdf6c35Ix98Tf+0q6JdAU7mh2Q5ajokgpHN+OmBXygepK
-         N/YmMWPL61gvF7pPnW2DBjdQSP2LsL5gvVmgCcXoZXJboJgc45/HEwHaABM0Xy7L2v74
-         XR/yvFbIWH92ujXaL7/olByAlKYuFn/owbKqSp3hgQMRUslJIqSpxRgrizZdCv+5ju2Q
-         tncrHEkULrqq9JXDffcbyL1jQeVDdnVZkHEXHsqWqf4Ewb2eg/tkXCwzQZgyXEQlmpTD
-         1zsQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=b0tnBEaeSE0wx9SZBTkiemsceGG2gh/BPri5iBFlmTM=;
+        b=uUFjL6gGptABP6ty7uLOVm9gD7moiJUx2CVQXdJnIUK4cBpEbJ2EDMox4XRlCNzbR4
+         9Os6Uvgfb22KZV22/6oZ0BdKR6AInEuCIRBUcBMEW2fTej1J9UO2bYpxq4re8+yVuMZ/
+         AmX6hCMcfqu1O5a/XxVS0sKxGJyWYYT5HKlSYET7AfQZDtEo+4OVT6astv5oqVtIk7Bn
+         fi6iiK9nXG0KwxWYdP8DZS5pr10pO8pkGxcBPbvri7zJJOfUO5HkX2ztP4QSZCAUm4/r
+         H7k0pJAJ8sOW/LqU5qCKcVL2d/4/8p8ANpZdxvflD7A2ci6sBmD5xy96AqZ5GZWuTbNe
+         zxvg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p12si188765eju.75.2019.05.28.00.23.46
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=DeNEc67D;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from forwardcorp1o.mail.yandex.net (forwardcorp1o.mail.yandex.net. [2a02:6b8:0:1a2d::193])
+        by mx.google.com with ESMTPS id d3si11602518lfc.65.2019.05.28.00.30.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 May 2019 00:23:46 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 28 May 2019 00:30:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) client-ip=2a02:6b8:0:1a2d::193;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B7A0CADC1;
-	Tue, 28 May 2019 07:23:45 +0000 (UTC)
-Date: Tue, 28 May 2019 09:23:44 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Oleg Nesterov <oleg@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>
-Subject: Re: [RFC 5/7] mm: introduce external memory hinting API
-Message-ID: <20190528072344.GO1658@dhcp22.suse.cz>
-References: <20190520035254.57579-1-minchan@kernel.org>
- <20190520035254.57579-6-minchan@kernel.org>
- <20190521153113.GA2235@redhat.com>
- <20190527074300.GA6879@google.com>
- <20190527151201.GB8961@redhat.com>
- <20190527233306.GE6879@google.com>
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=DeNEc67D;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from mxbackcorp1j.mail.yandex.net (mxbackcorp1j.mail.yandex.net [IPv6:2a02:6b8:0:1619::162])
+	by forwardcorp1o.mail.yandex.net (Yandex) with ESMTP id 9F0C32E1491;
+	Tue, 28 May 2019 10:30:13 +0300 (MSK)
+Received: from smtpcorp1o.mail.yandex.net (smtpcorp1o.mail.yandex.net [2a02:6b8:0:1a2d::30])
+	by mxbackcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id WmZsxO0Rsv-UCpWmw9d;
+	Tue, 28 May 2019 10:30:13 +0300
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
+	t=1559028613; bh=b0tnBEaeSE0wx9SZBTkiemsceGG2gh/BPri5iBFlmTM=;
+	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
+	b=DeNEc67DccTvfjrv2GfpuCVW+0gZXFHC6VH0rBG93Qz6lpTLSEf0QDCDa+3WL7I+X
+	 GZ8AN9RY+GikIyHi0zKEkYkJ7LcVcPAMrKYVVVMk3GQ1tgfpYnF2u0AnUQXSJ9zY2x
+	 SaDK7qu1acKd2GlSFahxObLpKxDazFH1JAOnVFfc=
+Authentication-Results: mxbackcorp1j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
+Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:d877:17c:81de:6e43])
+	by smtpcorp1o.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id bD1sDRHzsZ-UClmLKBl;
+	Tue, 28 May 2019 10:30:12 +0300
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(Client certificate not present)
+Subject: Re: [PATCH RFC] mm/madvise: implement MADV_STOCKPILE (kswapd from
+ user space)
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Vladimir Davydov <vdavydov.dev@gmail.com>,
+ Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Mel Gorman <mgorman@techsingularity.net>, Roman Gushchin <guro@fb.com>,
+ linux-api@vger.kernel.org
+References: <155895155861.2824.318013775811596173.stgit@buzz>
+ <20190527141223.GD1658@dhcp22.suse.cz> <20190527142156.GE1658@dhcp22.suse.cz>
+ <20190527143926.GF1658@dhcp22.suse.cz>
+ <9c55a343-2a91-46c6-166d-41b94bf5e9c8@yandex-team.ru>
+ <20190528065153.GB1803@dhcp22.suse.cz>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <a4e5eeb8-3560-d4b4-08a0-8a22c677c0f7@yandex-team.ru>
+Date: Tue, 28 May 2019 10:30:12 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190527233306.GE6879@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190528065153.GB1803@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-CA
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 28-05-19 08:33:06, Minchan Kim wrote:
-> On Mon, May 27, 2019 at 05:12:02PM +0200, Oleg Nesterov wrote:
-> > On 05/27, Minchan Kim wrote:
-> > >
-> > > > another problem is that pid_task(pid) can return a zombie leader, in this case
-> > > > mm_access() will fail while it shouldn't.
-> > >
-> > > I'm sorry. I didn't notice that. However, I couldn't understand your point.
-> > > Why do you think mm_access shouldn't fail even though pid_task returns
-> > > a zombie leader?
-> > 
-> > The leader can exit (call sys_exit(), not sys_exit_group()), this won't affect
-> > other threads. In this case the process is still alive even if the leader thread
-> > is zombie. That is why we have find_lock_task_mm().
+On 28.05.2019 9:51, Michal Hocko wrote:
+> On Tue 28-05-19 09:25:13, Konstantin Khlebnikov wrote:
+>> On 27.05.2019 17:39, Michal Hocko wrote:
+>>> On Mon 27-05-19 16:21:56, Michal Hocko wrote:
+>>>> On Mon 27-05-19 16:12:23, Michal Hocko wrote:
+>>>>> [Cc linux-api. Please always cc this list when proposing a new user
+>>>>>    visible api. Keeping the rest of the email intact for reference]
+>>>>>
+>>>>> On Mon 27-05-19 13:05:58, Konstantin Khlebnikov wrote:
+>>>> [...]
+>>>>>> This implements manual kswapd-style memory reclaim initiated by userspace.
+>>>>>> It reclaims both physical memory and cgroup pages. It works in context of
+>>>>>> task who calls syscall madvise thus cpu time is accounted correctly.
+>>>>
+>>>> I do not follow. Does this mean that the madvise always reclaims from
+>>>> the memcg the process is member of?
+>>>
+>>> OK, I've had a quick look at the implementation (the semantic should be
+>>> clear from the patch descrition btw.) and it goes all the way up the
+>>> hierarchy and finally try to impose the same limit to the global state.
+>>> This doesn't really make much sense to me. For few reasons.
+>>>
+>>> First of all it breaks isolation where one subgroup can influence a
+>>> different hierarchy via parent reclaim.
+>>
+>> madvise(NULL, size, MADV_STOCKPILE) is the same as memory allocation and
+>> freeing immediately, but without pinning memory and provoking oom.
+>>
+>> So, there is shouldn't be any isolation or security issues.
+>>
+>> At least probably it should be limited with portion of limit (like half)
+>> instead of whole limit as it does now.
 > 
-> Thanks for clarification, Oleg. Then, Let me have a further question.
+> I do not think so. If a process is running inside a memcg then it is
+> a subject of a limit and that implies an isolation. What you are
+> proposing here is to allow escaping that restriction unless I am missing
+> something. Just consider the following setup
 > 
-> It means process_vm_readv, move_pages have same problem too because find_task_by_vpid
-> can return a zomebie leader and next line checks for mm_struct validation makes a
-> failure. My understand is correct? If so, we need to fix all places.
+> 		root (total memory = 2G)
+> 		 / \
+>             (1G) A   B (1G)
+>                     / \
+>             (500M) C   D (500M)
+> 
+> all of them used up close to the limit and a process inside D requests
+> shrinking to 250M. Unless I am misunderstanding this implementation
+> will shrink D, B root to 250M (which means reclaiming C and A as well)
+> and then globally if that was not sufficient. So you have allowed D to
+> "allocate" 1,75G of memory effectively, right?
 
-Isn't that a problem of most callers of get_task_mm? Shouldn't we fix it
-turning it into find_lock_task_mm?
--- 
-Michal Hocko
-SUSE Labs
+It shrinks not 'size' memory - only while usage + size > limit.
+So, after reclaiming 250M in D all other levels will have 250M free.
+
+Of course there might be race because reclaimer works with one level
+at the time. Probably it should start from inner level at each iteration.
+
+>   
+>>>
+>>> I also have a problem with conflating the global and memcg states. Does
+>>> it really make any sense to have the same target to the global state
+>>> as per-memcg? How are you supposed to use this interface to shrink a
+>>> particular memcg or for the global situation with a proportional
+>>> distribution to all memcgs?
+>>
+>> For now this is out of my use cease. This could be done in userspace
+>> with multiple daemons in different contexts and connection between them.
+>> In this case each daemon should apply pressure only its own level.
+> 
+> Do you expect all daemons to agree on their shrinking target? Could you
+> elaborate? I simply do not see how this can work with memcgs lower in
+> the hierarchy having a smaller limit than their parents.
+> 
+
+Daemons could distribute pressure among leaves and propagate it into parents.
+Together with low-limit this gives enough control over pressure distribution.
 
