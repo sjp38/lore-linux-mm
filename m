@@ -1,225 +1,241 @@
 Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FE96C072B1
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 12:39:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 68BE6C04E84
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 12:44:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 562D320883
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 12:39:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UGOy2/kZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 562D320883
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 1BBA120883
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 12:44:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BBA120883
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 070B66B027F; Tue, 28 May 2019 08:39:36 -0400 (EDT)
+	id 7E7C46B026E; Tue, 28 May 2019 08:44:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 023156B0281; Tue, 28 May 2019 08:39:35 -0400 (EDT)
+	id 797876B0274; Tue, 28 May 2019 08:44:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E2CF96B0282; Tue, 28 May 2019 08:39:35 -0400 (EDT)
+	id 688E26B0276; Tue, 28 May 2019 08:44:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A82FF6B027F
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 08:39:35 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id c3so2892594plr.16
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 05:39:35 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 320A06B026E
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 08:44:47 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id s3so4133423pgv.12
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 05:44:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=s0GGJ9E3lhqD0UC/knIrJEgiqCZ8PrxRG6rZ2SffQ2U=;
-        b=B7LgZkGpmjmg9hFy3vjZ7O+c4MrjofcQLJEANdD0DKdRJC6kDjRMb4OLThFMl/7QRh
-         z974FlfzvWdbaqFErRftv/K4q/oe/poR8kiXEbRghlI58/ml0Q91F+cYVrr1nzrH4iqh
-         L64a1ZgLBxJFOkUn59emLXOg9ueW62BQnpG3CrFo+VzOR9RXHQ8JAfTCJUNIQmGLnvcq
-         sjUozA4Q5lmmt9ObBJNBdZnFJby0JO5+2TrWTnovXP3oYZ75MXmZQrwUeLHgLBc2c9r3
-         iI1LGsGOABs0F3OBDS07BVcLE0bOVNTP7vZnyoEMxuF0ILIJq9H3pW0STWd69+zVsNNl
-         VoyA==
-X-Gm-Message-State: APjAAAVRPoc44FX6NjmSMz3GAxCbTOuIBrRTiiMewv0f0ry8M6YvZ8QE
-	QftIB7wi/U3VWCOmAOcXk1OH330zAs7Mg3cLZePwaVs6fIjIKEYkVkaTnENE19dpgbZqnLR7znV
-	vEwIzZDXBGmiwYqIymML4+8qnuekeJeWjc0ZjJSwZOziMfkcdNgdr2fuOF5qzkhw=
-X-Received: by 2002:a65:4646:: with SMTP id k6mr37307623pgr.324.1559047175254;
-        Tue, 28 May 2019 05:39:35 -0700 (PDT)
-X-Received: by 2002:a65:4646:: with SMTP id k6mr37307551pgr.324.1559047174471;
-        Tue, 28 May 2019 05:39:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559047174; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references;
+        bh=EL3WaUojtEFSPLnxz76NTYB+H5mCq7+P+XAJiuAKjzY=;
+        b=nux4LhS+c048DPp3BjIchGzuNK/66BnadcEXRW9MTeutmpRA79fmw5/4a0fac++XPR
+         BwPcSV4bmiGu58pQ/iREbcGxNaSEKLgsJfknNTT6xXqdX/4frUkKbdfqEG2lW6H6AT3Y
+         zij4owFn7YGi4tRo37oHn6f8MnXGe8Q1nVLxDY3T6O29ZBea26par5sOFNHyGAARbLTn
+         Sdfn8ECL0TC/3Jc54A49ySOp+HdrwNKKwfF3N7L/csbPEluBgBjDI/7QKI5o4IDb1dhj
+         BE5US6reMv/AabFVkYFK3ce/QCUPCtayjOHp7fTfRsxClxfnKkbRloHqZ4gyCSGJ8gyt
+         dICQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAX1u9uGcl1jPgwmcA+PrPj7/DE4mZMiSYVDJ2MLJF51O15RZnJw
+	OfkrFmDFnsivN8fnyklApknGNf+c/hOyUd4k9qlzMqgCXxe9GTAbFUKfeS3G/8vt3T54syjTYql
+	ZpLh3QbIrOiSpLLiSQACpu+ouo6y4/YwOKvot88exFv8seH5UeJh927RetII6mrtWcQ==
+X-Received: by 2002:a62:1cd5:: with SMTP id c204mr104882853pfc.205.1559047486823;
+        Tue, 28 May 2019 05:44:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyWEgLbFV0HCKZrS0m7/cq0EDWDkKtbpw4irjVTT9txs3jeOuStnZy0LUxL71lxEJ3TPSjz
+X-Received: by 2002:a62:1cd5:: with SMTP id c204mr104882691pfc.205.1559047485438;
+        Tue, 28 May 2019 05:44:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559047485; cv=none;
         d=google.com; s=arc-20160816;
-        b=t0VvF6UhevtNaICH/EwP/mjInnr76WukJrM6E20VJ8tcqSr//rEwDsxYe2q8HrjG79
-         kzqadPbVtxFWh8jHLcwni3+FzmMgNLu+DaeLN77kL3bYO+6DGenYk4aXpMis4yNGOuyz
-         sGOqhy7a9CkLczgF/ufEPrRkpfW9DQWDa5OYqhyjOnFiA9fMDGwcRZNXYVpxAh6hVu7z
-         TrzplTT6Db2OzTo6v/zwucYhIVP/9KiAFV9SVYMd+eIflNSEsjUb4oNoY4MjhXf2hrZg
-         cBjTyUg9lracehLZrgKk4XH/VcEnIyjhZj0PO/G6PCt6aMGTLwyiOWE9PtUmdyhhX7mL
-         0zGg==
+        b=IqlI/Iqfxciu8M8fcdnFb9K7SERG9T8GS1MB/9zF4HiQx2IjYEgVbnr2uWWFGs1cSs
+         R430lrccm5Q8uZN6dInOqH+HUd0IN5U2tODQPF8QjF1pQKQz0+wqs7qoUqBdgjJEy0c8
+         ugFhYlm0E6/6j5Pt79esjgrnyPgFBPltNbGAhjZ79hjdbmEifgR6wd4Fcr7ByBNgUBYT
+         JwKcUQqORWpp5FuLYpNQ0+hwfli5PWsDB9u4m9NgcSKNgirSCjrquPgnGUYfGYlcNEQD
+         529Kt98nRB49qqdCh4HowxPQSLVzntoqPDmt7Q764z21CCnx3dBQtopInNhlh9qs51QU
+         2Zjg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=s0GGJ9E3lhqD0UC/knIrJEgiqCZ8PrxRG6rZ2SffQ2U=;
-        b=NsMNtav/CDGCznxKPXuBg4aDqJrJPUZQOdGNgiQ3/RJuaZJSzx021rBKwtuzL8XXuB
-         Nyo2j1gf7NVnEHamp+u3qdoj9ZrMbszpIXjjUWOtaITsWqwOi65/tAas1wZCAJRiLYrR
-         TCd2wYHaaPq8au3GzJXJtTZk56MLBl6q1N3+MeLn4q/QtuJSY25O5800bE9n0U41QaTG
-         FxOzOWvc5ZiXlrQwULmI23yStkffaT2IPcSYxa23YLVTLUNeplmqk7omRP5fpzi+apy6
-         OwAPgsS6z7QsMMdE2EBwFtdoWmASLHQ2wrNw+kT/biTqax/b9homkYkB2gr5ViDBzXom
-         ixDw==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=EL3WaUojtEFSPLnxz76NTYB+H5mCq7+P+XAJiuAKjzY=;
+        b=WgbigMj5l5Fw3we9j2boah5Wd5ZXATseoTlBCaxKUqSDCfwyEjNiribDq4J4LvVAoo
+         nxhzn5h6HtNQ8REfExrUT1m4ziWcHpVQ98fOkB04p/Hu+n+m3LBc7x5uVqwi/7GK+BEl
+         Aw/e+9CEgCAjCGr41S4RP69Oi6zQS4QpTPuPEF6P3Ao206/yavt8lwroKass5kS+pDqO
+         dsvRtU6ey27dWf7QiQmCt5p9a+p4bpUHNpNwQ6/HvfCq3k5BG45whryF4AyUgFrrgsIn
+         A591AT6NTeSKyjw+ykSt3c5t+6OHUW4fAvB1b3aieY51w9a6siV4zQce0pNrYrJDhxhN
+         bmGQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="UGOy2/kZ";
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g82sor14405203pfb.72.2019.05.28.05.39.34
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-42.freemail.mail.aliyun.com (out30-42.freemail.mail.aliyun.com. [115.124.30.42])
+        by mx.google.com with ESMTPS id 19si21122550pga.249.2019.05.28.05.44.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 28 May 2019 05:39:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 May 2019 05:44:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) client-ip=115.124.30.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="UGOy2/kZ";
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=s0GGJ9E3lhqD0UC/knIrJEgiqCZ8PrxRG6rZ2SffQ2U=;
-        b=UGOy2/kZjdBjgfqvj1j+jxHyO5V/VSEN+HuHhC+2OGbzfLU7oqz0skSQ+OlstxFagu
-         Oh/P/pIHFr82HvV4kKoX7NLHUuUz7XTtoQCn7pnhyHUjvRaDR6aOwNZthNLoqFxYGdis
-         MKZGhRt3nQpWj3oX09OEYSwF5JC3T/Jw0wQ+12b7xHbCS4S1/IFLXck/d+fHU7AmWRMZ
-         r7vsq7jfxI8BhYamJ+HmZuSHnu/6XMSsbg21SvWzAUOfukwhdnTrHkYVHdR4QTQUdzGC
-         PudCObJVy0vCeVUi5BFF7wLRoAbIJlictzAx2JgexOMgb7af3/yOcwkQ7anksLfwZCpa
-         fEVw==
-X-Google-Smtp-Source: APXvYqyGM1xtjCB2K9oAV87OuF9CGEazBx3PokYX+PUZTSq8vJPyK7BaRMcc0ieAyWVWRj5Yk5ZofQ==
-X-Received: by 2002:a62:2c17:: with SMTP id s23mr112882243pfs.51.1559047173978;
-        Tue, 28 May 2019 05:39:33 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id z32sm11451756pgk.25.2019.05.28.05.39.29
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 28 May 2019 05:39:32 -0700 (PDT)
-Date: Tue, 28 May 2019 21:39:27 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Hillf Danton <hdanton@sina.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>
-Subject: Re: [RFC 1/7] mm: introduce MADV_COOL
-Message-ID: <20190528123927.GE30365@google.com>
-References: <20190528121523.8764-1-hdanton@sina.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190528121523.8764-1-hdanton@sina.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=10;SR=0;TI=SMTPD_---0TStMl0v_1559047475;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TStMl0v_1559047475)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Tue, 28 May 2019 20:44:42 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: ktkhai@virtuozzo.com,
+	hannes@cmpxchg.org,
+	mhocko@suse.com,
+	kirill.shutemov@linux.intel.com,
+	hughd@google.com,
+	shakeelb@google.com,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 3/3] mm: shrinker: make shrinker not depend on memcg kmem
+Date: Tue, 28 May 2019 20:44:24 +0800
+Message-Id: <1559047464-59838-4-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
+In-Reply-To: <1559047464-59838-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1559047464-59838-1-git-send-email-yang.shi@linux.alibaba.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 28, 2019 at 08:15:23PM +0800, Hillf Danton wrote:
-< snip >
-> > > > +
-> > > > +			get_page(page);
-> > > > +			spin_unlock(ptl);
-> > > > +			lock_page(page);
-> > > > +			err = split_huge_page(page);
-> > > > +			unlock_page(page);
-> > > > +			put_page(page);
-> > > > +			if (!err)
-> > > > +				goto regular_page;
-> > > > +			return 0;
-> > > > +		}
-> > > > +
-> > > > +		pmdp_test_and_clear_young(vma, addr, pmd);
-> > > > +		deactivate_page(page);
-> > > > +huge_unlock:
-> > > > +		spin_unlock(ptl);
-> > > > +		return 0;
-> > > > +	}
-> > > > +
-> > > > +	if (pmd_trans_unstable(pmd))
-> > > > +		return 0;
-> > > > +
-> > > > +regular_page:
-> > >
-> > > Take a look at pending signal?
-> >
-> > Do you have any reason to see pending signal here? I want to know what's
-> > your requirement so that what's the better place to handle it.
-> >
-> We could bail out without work done IMO if there is a fatal siganl pending.
-> And we can do that, if it makes sense to you, before the hard work.
+Currently shrinker is just allocated and can work when memcg kmem is
+enabled.  But, THP deferred split shrinker is not slab shrinker, it
+doesn't make too much sense to have such shrinker depend on memcg kmem.
+It should be able to reclaim THP even though memcg kmem is disabled.
 
-Make sense, especically, swapping out.
-I will add it in next revision.
+Introduce a new shrinker flag, SHRINKER_NONSLAB, for non-slab shrinker,
+i.e. THP deferred split shrinker.  When memcg kmem is disabled, just
+such shrinkers can be called in shrinking memcg slab.
 
-> 
-> > >
-> > > > +	orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> > > > +	for (pte = orig_pte; addr < end; pte++, addr += PAGE_SIZE) {
-> > >
-> > > s/end/next/ ?
-> >
-> > Why do you think it should be next?
-> >
-> Simply based on the following line, and afraid that next != end
-> 	> > > +	next = pmd_addr_end(addr, end);
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Shakeel Butt <shakeelb@google.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ include/linux/shrinker.h |  3 +--
+ mm/huge_memory.c         |  3 ++-
+ mm/vmscan.c              | 27 ++++++---------------------
+ 3 files changed, 9 insertions(+), 24 deletions(-)
 
-pmd_addr_end will return smaller address so end is more proper.
-
-> 
-> > > > +		ptent = *pte;
-> > > > +
-> > > > +		if (pte_none(ptent))
-> > > > +			continue;
-> > > > +
-> > > > +		if (!pte_present(ptent))
-> > > > +			continue;
-> > > > +
-> > > > +		page = vm_normal_page(vma, addr, ptent);
-> > > > +		if (!page)
-> > > > +			continue;
-> > > > +
-> > > > +		if (page_mapcount(page) > 1)
-> > > > +			continue;
-> > > > +
-> > > > +		ptep_test_and_clear_young(vma, addr, pte);
-> > > > +		deactivate_page(page);
-> > > > +	}
-> > > > +
-> > > > +	pte_unmap_unlock(orig_pte, ptl);
-> > > > +	cond_resched();
-> > > > +
-> > > > +	return 0;
-> > > > +}
-> > > > +
-> > > > +static long madvise_cool(struct vm_area_struct *vma,
-> > > > +			unsigned long start_addr, unsigned long end_addr)
-> > > > +{
-> > > > +	struct mm_struct *mm = vma->vm_mm;
-> > > > +	struct mmu_gather tlb;
-> > > > +
-> > > > +	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
-> > > > +		return -EINVAL;
-> > >
-> > > No service in case of VM_IO?
-> >
-> > I don't know VM_IO would have regular LRU pages but just follow normal
-> > convention for DONTNEED and FREE.
-> > Do you have anything in your mind?
-> >
-> I want to skip a mapping set up for DMA.
-
-What you meant is those pages in VM_IO vma are not in LRU list?
-Or
-pages in the vma are always pinned so no worth to deactivate or reclaim?
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index 9443caf..e18dc00 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -69,10 +69,8 @@ struct shrinker {
+ 
+ 	/* These are for internal use */
+ 	struct list_head list;
+-#ifdef CONFIG_MEMCG_KMEM
+ 	/* ID in shrinker_idr */
+ 	int id;
+-#endif
+ 	/* objs pending delete, per node */
+ 	atomic_long_t *nr_deferred;
+ };
+@@ -81,6 +79,7 @@ struct shrinker {
+ /* Flags */
+ #define SHRINKER_NUMA_AWARE	(1 << 0)
+ #define SHRINKER_MEMCG_AWARE	(1 << 1)
++#define SHRINKER_NONSLAB	(1 << 3)
+ 
+ extern int prealloc_shrinker(struct shrinker *shrinker);
+ extern void register_shrinker_prepared(struct shrinker *shrinker);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 91a709e..b01fdc3 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2963,7 +2963,8 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
+ 	.count_objects = deferred_split_count,
+ 	.scan_objects = deferred_split_scan,
+ 	.seeks = DEFAULT_SEEKS,
+-	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE,
++	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE |
++		 SHRINKER_NONSLAB,
+ };
+ 
+ #ifdef CONFIG_DEBUG_FS
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7acd0af..62000ae 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -174,8 +174,6 @@ struct scan_control {
+ static LIST_HEAD(shrinker_list);
+ static DECLARE_RWSEM(shrinker_rwsem);
+ 
+-#ifdef CONFIG_MEMCG_KMEM
+-
+ /*
+  * We allow subsystems to populate their shrinker-related
+  * LRU lists before register_shrinker_prepared() is called
+@@ -227,16 +225,6 @@ static void unregister_memcg_shrinker(struct shrinker *shrinker)
+ 	idr_remove(&shrinker_idr, id);
+ 	up_write(&shrinker_rwsem);
+ }
+-#else /* CONFIG_MEMCG_KMEM */
+-static int prealloc_memcg_shrinker(struct shrinker *shrinker)
+-{
+-	return 0;
+-}
+-
+-static void unregister_memcg_shrinker(struct shrinker *shrinker)
+-{
+-}
+-#endif /* CONFIG_MEMCG_KMEM */
+ 
+ #ifdef CONFIG_MEMCG
+ static bool global_reclaim(struct scan_control *sc)
+@@ -579,7 +567,6 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	return freed;
+ }
+ 
+-#ifdef CONFIG_MEMCG_KMEM
+ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 			struct mem_cgroup *memcg, int priority)
+ {
+@@ -587,7 +574,7 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 	unsigned long ret, freed = 0;
+ 	int i;
+ 
+-	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
++	if (!mem_cgroup_online(memcg))
+ 		return 0;
+ 
+ 	if (!down_read_trylock(&shrinker_rwsem))
+@@ -613,6 +600,11 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 			continue;
+ 		}
+ 
++		/* Call non-slab shrinkers even though kmem is disabled */
++		if (!memcg_kmem_enabled() &&
++		    !(shrinker->flags & SHRINKER_NONSLAB))
++			continue;
++
+ 		ret = do_shrink_slab(&sc, shrinker, priority);
+ 		if (ret == SHRINK_EMPTY) {
+ 			clear_bit(i, map->map);
+@@ -649,13 +641,6 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 	up_read(&shrinker_rwsem);
+ 	return freed;
+ }
+-#else /* CONFIG_MEMCG_KMEM */
+-static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+-			struct mem_cgroup *memcg, int priority)
+-{
+-	return 0;
+-}
+-#endif /* CONFIG_MEMCG_KMEM */
+ 
+ /**
+  * shrink_slab - shrink slab caches
+-- 
+1.8.3.1
 
