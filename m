@@ -2,177 +2,201 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49916C04AB6
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 12:45:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 32583C04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 13:05:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1779D20883
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 12:45:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1779D20883
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id EB8DD20717
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 13:05:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB8DD20717
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A09406B026E; Tue, 28 May 2019 08:45:58 -0400 (EDT)
+	id 73C866B0274; Tue, 28 May 2019 09:05:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9BA226B027C; Tue, 28 May 2019 08:45:58 -0400 (EDT)
+	id 6EC2C6B0276; Tue, 28 May 2019 09:05:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8D0616B027E; Tue, 28 May 2019 08:45:58 -0400 (EDT)
+	id 5DC756B0279; Tue, 28 May 2019 09:05:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5877B6B026E
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 08:45:58 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i8so15633094pfo.21
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 05:45:58 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 110F86B0274
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 09:05:30 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k22so2024459ede.0
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 06:05:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=Tr6OFS5Oxvi0s6GjNtS1zQPYLjHYXXZZYXHV57erJ6I=;
-        b=gXobagwunNLR/UXisUs6Uw/ZMceXSPjVRBJFxllts71d6nmwu75xYg8MN5um2nhh3S
-         BcE7lHFbsmTdm8jd8B+DCk76nOwdeEuumaEzq6AeFXqvpPvvUOk0TI6TTjiIPx/2mMcY
-         6Y/bgCa4DxzzUjH0wam/GoKBlDROWJh1M6xi6MNkcnzy7TKVIR8p0F81b4QJQcTl91pt
-         1rFqDB6E5+f/6e0CDkNVVBAqQ4zFh/g1wwcOKfZS7KuTh+U1doUTU1zoCIKnkyk8vwXO
-         ppxh0/A4XkRCSuSx4H8niMqbwPA/SIY3yI/8F8RRecdJ36Ynk22nATPQ5iW0ID4HZc5i
-         G+Iw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAVoHZvsiNp+HKKg5S3xMmwzL6i2MqybbixWnT1Y0yuCVJn4X6se
-	JXo/cVW3b41uDMIWtLESP7I0i2MmtSI52hyzwic9wp95fEvrq37ECfadg5hT4YHrZrAgZefVVRf
-	sZDF1jWctjyFd9ZQUd8hj6cXGsJ6o2R2OpTLRx0/9yGRcO2PgcZntdM3Uc6g2aCIung==
-X-Received: by 2002:a65:5785:: with SMTP id b5mr96895666pgr.252.1559047558008;
-        Tue, 28 May 2019 05:45:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy4YU2tJnQiro+/4kA56TJdYGXFZL+Hb05ivwo5Ps8QGJM5KKpe9fXY7VV0ZsZSeYk+/j+X
-X-Received: by 2002:a65:5785:: with SMTP id b5mr96895542pgr.252.1559047556906;
-        Tue, 28 May 2019 05:45:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559047556; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=PKZ76gp/yVpYupXGz47pT+82L05hOr0NPSHNDqqLuAA=;
+        b=TuAWfEm7kymFA04wsvS30UJs3F9txEQwAA3ycAaI2IzisxHEC9UCmU1X9WyXbKPHSp
+         IsBQkVP6J1J0OI5BA1Jqcr5orqxAg9zbVtIGAiP81YaPak3av9EfpawoQS2bbGn95EEU
+         In5swc/aM4vvYzpzspJMfAQj5WFKj7jMPMRsGn3HaBibZC9GaScrG3CDun49airBEk18
+         Bao8PwLDN4R2cJFVK4sZ17zc/XwnPP4m5f2RErWpFvhCmIH77GDU5nprLjAfCyQOcv96
+         11w+qrR3GwBIjAeRHxblg+jsxrTOWoJU/b83nEWS/Y8kbgLi656xS6v5V/bZeqnz/XDp
+         wSRg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAXBZZFUX7H419I/NVV46HnwiI19j24nnD7HXKa1D9qigsiN9fon
+	LJ/qEkEPjSMrOavINjoyLPQgXQI/TlZwZyxYMUNctiJed7f8RZOOjuao2TrTeC3m0Z3r3RxGq3Q
+	DHR4yYs8aHYkCQG/4tDzUFeKYnQw10zZ/jPqahP+teJHD8OJxD1a0IoRCY4ah4C/00A==
+X-Received: by 2002:a50:9430:: with SMTP id p45mr126623594eda.257.1559048729647;
+        Tue, 28 May 2019 06:05:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyCsBBrZ0deQoLhsojc97SfCWNITPzlqY+2IB7r7YYLvM4G6BujxGbd3YRQlDCcSnlaHA5k
+X-Received: by 2002:a50:9430:: with SMTP id p45mr126623444eda.257.1559048728359;
+        Tue, 28 May 2019 06:05:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559048728; cv=none;
         d=google.com; s=arc-20160816;
-        b=fJEw4ZlVqxcdKxX1jTqAAk5k2HyPGrJQTdixQaK6n1EbBmODPTf9dIFO7kljkfPLzS
-         fCM9w924oe0xzV0HdozWDk37i1WVMEdLar1hGZPG60A606jJ3iPjjVQ1ytcC6FAI3VLi
-         yGOYDuy1xM8LrsYNVQyPyE9OWRLm3KkxVbJiZr14taR0mUrlSFtUfeVlPLmdDStU8hRA
-         DY8eenUoqlRazDaL6Ma7oGv9gm3CVYzprtToSi4SUq+I6BccMLwr8VCJFMz40bw6Bb6c
-         U6iw+rvN0fOJKHW4irgTwWXfIvzNH9tykzkYCX89GvnEHiPVVdEyIFLSMaWr9dnG/aSu
-         LOyg==
+        b=ptn4DQmXxIQ/S8vAULKGApb9ONkFaDyscXq2iSXAokTpa6ac6bSwwyfsfONgUjNren
+         ePhom4ZHfnqqR796pamOr9FH608vNO7q61xx5/jhLe3oUvk6fC5TNManlW01Yyxp0EUv
+         1efXla3uaJKZJ7EoKX5LqnbxIGfltVrEa0jJNMS+RFe1k9aYbWwyUiGBwnLxtIQ2I346
+         j72gGup4Ba6rpYxdSpSjW0HNGx7IesTAeVVr/OjL3gnStgHuQDqZqb1mq9450H+eRvin
+         x87Mgw8NJKGkTVdj5FTTp3tthEToC5rOWUnBE4M+63tN7gtGMgBZG66DKTixZGcqtWPB
+         KbDA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=Tr6OFS5Oxvi0s6GjNtS1zQPYLjHYXXZZYXHV57erJ6I=;
-        b=vmWw+TvA1mk+cSOd8/2z02gVb/RtXu3bl3dJNlL2wFnuErbnk+eAXK9hA/yX3LTKm2
-         CbYIYETvPNpAgg98Y90VX9pHHxfz9l7cixa4slKXK6P9kKi3pEa0SwyU8pzn0NJEk0BX
-         p1Rwgp84gFpp40RS41Gc9HL1qLchkLYMhc7W5lzqIib1ISN514nyUlMPchQshbh1FLVN
-         0PAldvXkrAyqVuU2inpvRITGe7YQM+gn5FfRsh6oz2s6g2M4YRoFqxeBj6xFF/r+hbX5
-         cDAevzgWwSHEHUhR21aSSjq5IiVe6TrA5R+xyhcuM2RtOp11AAK/wRHWXErpzdHsGc0x
-         dlkg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=PKZ76gp/yVpYupXGz47pT+82L05hOr0NPSHNDqqLuAA=;
+        b=mL2Yc0bFEaMG8aLW4Hvq1aTyAGYDkUPqZ1eufJ9848Wz+aEsK93Ln2SpBf6XjxGoJr
+         DB4cCoiAM6T6SDLm+Z519BycI4D2NkxjqLrIUeJkDU2VMRd1/OcWiZd2JoBrpT4g8SD/
+         LgwZGm5kv/IUop2qG2BU9q70NJe7zEKhIs8f606d17nK29edtTo4RV6XaMlRGKtTrDpR
+         NEAs9kvM0/o9qLKBxNNGTOno40DN2vCn7j5VoFLGg74F/EGpkozAt4RmZfUFRAC4TDTh
+         QCAoX4lPXSqtS02fmrdiRB6RvMH8UokV19rOPPzKDo1RJfPGFT2D8B4bqWNFJladwEPB
+         Xhmg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id k15si22885591pfi.61.2019.05.28.05.45.55
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 May 2019 05:45:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id l27si1978793edd.52.2019.05.28.06.05.27
+        for <linux-mm@kvack.org>;
+        Tue, 28 May 2019 06:05:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R361e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07417;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=10;SR=0;TI=SMTPD_---0TStMl0v_1559047475;
-Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TStMl0v_1559047475)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Tue, 28 May 2019 20:44:42 +0800
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: ktkhai@virtuozzo.com,
-	hannes@cmpxchg.org,
-	mhocko@suse.com,
-	kirill.shutemov@linux.intel.com,
-	hughd@google.com,
-	shakeelb@google.com,
-	akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH 2/3] mm: thp: remove THP destructor
-Date: Tue, 28 May 2019 20:44:23 +0800
-Message-Id: <1559047464-59838-3-git-send-email-yang.shi@linux.alibaba.com>
-X-Mailer: git-send-email 1.8.3.1
-In-Reply-To: <1559047464-59838-1-git-send-email-yang.shi@linux.alibaba.com>
-References: <1559047464-59838-1-git-send-email-yang.shi@linux.alibaba.com>
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D01EC80D;
+	Tue, 28 May 2019 06:05:26 -0700 (PDT)
+Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 479923F5AF;
+	Tue, 28 May 2019 06:05:21 -0700 (PDT)
+Date: Tue, 28 May 2019 14:05:18 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	linux-kselftest@vger.kernel.org,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Kees Cook <keescook@chromium.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v15 05/17] arms64: untag user pointers passed to memory
+ syscalls
+Message-ID: <20190528130518.GB32006@arrakis.emea.arm.com>
+References: <cover.1557160186.git.andreyknvl@google.com>
+ <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The THP destructor is used to delete THP from per node deferred split
-queue, now the operation is moved out of it, so the destructor is not
-used anymore, remove it.
+On Mon, May 06, 2019 at 06:30:51PM +0200, Andrey Konovalov wrote:
+>  /*
+>   * Wrappers to pass the pt_regs argument.
+>   */
+>  #define sys_personality		sys_arm64_personality
+> +#define sys_mmap_pgoff		sys_arm64_mmap_pgoff
+> +#define sys_mremap		sys_arm64_mremap
+> +#define sys_munmap		sys_arm64_munmap
+> +#define sys_brk			sys_arm64_brk
+> +#define sys_get_mempolicy	sys_arm64_get_mempolicy
+> +#define sys_madvise		sys_arm64_madvise
+> +#define sys_mbind		sys_arm64_mbind
+> +#define sys_mlock		sys_arm64_mlock
+> +#define sys_mlock2		sys_arm64_mlock2
+> +#define sys_munlock		sys_arm64_munlock
+> +#define sys_mprotect		sys_arm64_mprotect
+> +#define sys_msync		sys_arm64_msync
+> +#define sys_mincore		sys_arm64_mincore
+> +#define sys_remap_file_pages	sys_arm64_remap_file_pages
+> +#define sys_shmat		sys_arm64_shmat
+> +#define sys_shmdt		sys_arm64_shmdt
 
-Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Shakeel Butt <shakeelb@google.com>
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
- include/linux/mm.h | 3 ---
- mm/huge_memory.c   | 6 ------
- mm/page_alloc.c    | 3 ---
- 3 files changed, 12 deletions(-)
+This hunk should be (I sent a separate patch for sys_personality):
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0e8834a..e543984 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -740,9 +740,6 @@ enum compound_dtor_id {
- #ifdef CONFIG_HUGETLB_PAGE
- 	HUGETLB_PAGE_DTOR,
- #endif
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--	TRANSHUGE_PAGE_DTOR,
--#endif
- 	NR_COMPOUND_DTORS,
- };
- extern compound_page_dtor * const compound_page_dtors[];
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 0b9cfe1..91a709e 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -503,7 +503,6 @@ void prep_transhuge_page(struct page *page)
- 		INIT_LIST_HEAD(page_deferred_list(page));
- 	else
- 		INIT_LIST_HEAD(page_memcg_deferred_list(page));
--	set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
- }
+@@ -160,23 +163,23 @@ SYSCALL_DEFINE1(arm64_shmdt, char __user *, shmaddr)
+ /*
+  * Wrappers to pass the pt_regs argument.
+  */
+-#define sys_personality		sys_arm64_personality
+-#define sys_mmap_pgoff		sys_arm64_mmap_pgoff
+-#define sys_mremap		sys_arm64_mremap
+-#define sys_munmap		sys_arm64_munmap
+-#define sys_brk			sys_arm64_brk
+-#define sys_get_mempolicy	sys_arm64_get_mempolicy
+-#define sys_madvise		sys_arm64_madvise
+-#define sys_mbind		sys_arm64_mbind
+-#define sys_mlock		sys_arm64_mlock
+-#define sys_mlock2		sys_arm64_mlock2
+-#define sys_munlock		sys_arm64_munlock
+-#define sys_mprotect		sys_arm64_mprotect
+-#define sys_msync		sys_arm64_msync
+-#define sys_mincore		sys_arm64_mincore
+-#define sys_remap_file_pages	sys_arm64_remap_file_pages
+-#define sys_shmat		sys_arm64_shmat
+-#define sys_shmdt		sys_arm64_shmdt
++#define __arm64_sys_personality		__arm64_sys_arm64_personality
++#define __arm64_sys_mmap_pgoff		__arm64_sys_arm64_mmap_pgoff
++#define __arm64_sys_mremap		__arm64_sys_arm64_mremap
++#define __arm64_sys_munmap		__arm64_sys_arm64_munmap
++#define __arm64_sys_brk			__arm64_sys_arm64_brk
++#define __arm64_sys_get_mempolicy	__arm64_sys_arm64_get_mempolicy
++#define __arm64_sys_madvise		__arm64_sys_arm64_madvise
++#define __arm64_sys_mbind		__arm64_sys_arm64_mbind
++#define __arm64_sys_mlock		__arm64_sys_arm64_mlock
++#define __arm64_sys_mlock2		__arm64_sys_arm64_mlock2
++#define __arm64_sys_munlock		__arm64_sys_arm64_munlock
++#define __arm64_sys_mprotect		__arm64_sys_arm64_mprotect
++#define __arm64_sys_msync		__arm64_sys_arm64_msync
++#define __arm64_sys_mincore		__arm64_sys_arm64_mincore
++#define __arm64_sys_remap_file_pages	__arm64_sys_arm64_remap_file_pages
++#define __arm64_sys_shmat		__arm64_sys_arm64_shmat
++#define __arm64_sys_shmdt		__arm64_sys_arm64_shmdt
  
- static unsigned long __thp_get_unmapped_area(struct file *filp, unsigned long len,
-@@ -2837,11 +2836,6 @@ void del_thp_from_deferred_split_queue(struct page *page)
- 	}
- }
- 
--void free_transhuge_page(struct page *page)
--{
--	free_compound_page(page);
--}
--
- void deferred_split_huge_page(struct page *page)
- {
- 	struct pglist_data *pgdata = NODE_DATA(page_to_nid(page));
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3b13d39..7d39b91 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -261,9 +261,6 @@ bool pm_suspended_storage(void)
- #ifdef CONFIG_HUGETLB_PAGE
- 	free_huge_page,
- #endif
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--	free_transhuge_page,
--#endif
- };
- 
- int min_free_kbytes = 1024;
+ asmlinkage long sys_ni_syscall(const struct pt_regs *);
+ #define __arm64_sys_ni_syscall	sys_ni_syscall
+
 -- 
-1.8.3.1
+Catalin
 
