@@ -2,207 +2,178 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74E42C072B1
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 15:04:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2974AC072B1
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 15:14:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F9A4206C1
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 15:04:59 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="bgq/F8b/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F9A4206C1
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id E357F206C1
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 15:14:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E357F206C1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A3E7C6B0276; Tue, 28 May 2019 11:04:58 -0400 (EDT)
+	id 83B726B0276; Tue, 28 May 2019 11:14:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9EE356B0279; Tue, 28 May 2019 11:04:58 -0400 (EDT)
+	id 7EBF46B0279; Tue, 28 May 2019 11:14:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8B6C96B027A; Tue, 28 May 2019 11:04:58 -0400 (EDT)
+	id 6DA8B6B027A; Tue, 28 May 2019 11:14:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 623976B0276
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 11:04:58 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id z11so6895148otk.7
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 08:04:58 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DABC6B0276
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 11:14:11 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c26so33517536eda.15
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 08:14:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=G9vBM5THlG8pywNzVbsKIK8sbELnMUDNM7aCaLdslP0=;
-        b=qCwNjPRBkG91JXt/TKW0MhfIv7Q7vkg0Cn/JSFq2MvHrpDzHIfyTadycPp8GpqHnl/
-         K4vJKdjw1xopSEJV5VTTUqmdhclPbNhINuP8aFr6hb88c2IWy9zlQ9lCXO4Lx0pOKWQu
-         6T/vKpkRhe26Rqhi5KO/N7cgGiKW5kOZtA0gXGrgnCee2YdcDzr6YK4BmTj9inD3Zu42
-         Lb+xNIwnr9dpzyd6OGowvaoep7+Sk4yoMvrGc0aOjuiYnm2YN/Qmrs6yi8ipRuKOLzQS
-         +doFgm2wFnTrGbB30aMxyHaudLUOcj/XSyN7nBKq4WboYnPEI87ksykjOgow5DRkffaA
-         whiA==
-X-Gm-Message-State: APjAAAWkNZdxaAnA/Z3LkrYxw0jBEcI+hZKmXdRR+Ppgric1gJl4YKtK
-	xwRhcJra8l6riiEH6wCpV74YddOGBSVepVECt6B5gXoJ/bPdUnTcx90Yhsn7gMWvEcXZNBdBreX
-	C/9tcq7lc9xM2/HIU1UxhKUGJo3JQ5intYLNym4kg6/jQqpP1Tam38J8JmCvOogji8A==
-X-Received: by 2002:a9d:480f:: with SMTP id c15mr69720488otf.255.1559055898028;
-        Tue, 28 May 2019 08:04:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx9q2PYRespLS4ZYaLYxMbMaAPDlyyT177BrsGL18FtioHoy3YlbK8886Uas8+pezNK/xgt
-X-Received: by 2002:a9d:480f:: with SMTP id c15mr69720441otf.255.1559055897420;
-        Tue, 28 May 2019 08:04:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559055897; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=3BnTUEEbed8NAU4EudqbipVdWhwTZhwgsRylJhd7Uok=;
+        b=a6k/8QLrHtOcgn36kJBOkKH/v3ltAkCwB7jwUxtkz+RyduTQJqmOtGCbj5hTk2dZ5K
+         vRAzFDfW9ngBcXr/vVTyTmsTOwCpHNuKBEYv5/ZJpTFyNLtXLDv0YMaCqpvaUwtYwCaf
+         RKNA6JkXO+N8wfG6gGAbpEPOO56GCfCRkpIOcK299WzfhimrqEASikKt1wEh3XHzrxRL
+         2Mx8kysrtDs1Y1y4KFOMYnLShLiXz96LtixAr8BCVYHHkVR1djaYXYONhkwgelFZ5uQQ
+         7EuM5IGT/N/pPboq0hci9QmCVTNnQ7d4u4cFqjKN9QeTm3VPICJmbVDKK1OFLEVsr5hr
+         serA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXGPRew6Q1E6gmtOLAwnwQXj/OconKwsbd9TeNLqY/U2prGyfbF
+	x5lg796qFo7W1472Hsh5IsK9/xR+FXRWRPOrZhpYYNdFYG7Y99/3rj+BjGegE4dkxuMSnz0qceD
+	sjc4iw7lbJpkxpoWc+FdRxcf/NeQoe7WXPHv5g0klIE2US0g6Ws+fFFsBYq0MOz0=
+X-Received: by 2002:a50:9007:: with SMTP id b7mr129268836eda.194.1559056450648;
+        Tue, 28 May 2019 08:14:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqze3ZbHr0PLWJT7LzpsX3E7zO7nbGsofr+rXh2/WCF+yXk8/1V4fOGVDKex7h3A7PGyOHgX
+X-Received: by 2002:a50:9007:: with SMTP id b7mr129268704eda.194.1559056449578;
+        Tue, 28 May 2019 08:14:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559056449; cv=none;
         d=google.com; s=arc-20160816;
-        b=xoB9wPrvqUHDw4qG94MQAAhIAmDolp5LPU0C68MWevoOaHqUqLSosg4jl44n7gn60/
-         kJceTI91Jpe03fTcfTHt4SCLQILk6GNWen0GqPe26pLF5aWmel6N9zyvOA/GQzWcD40q
-         5dFcHx9JmiP9Ztl10a9p3gIVGDai8nWLrL9DPHbcc83m//49mmYGTMjk8VANgdrsEv10
-         i3fJFmzfxQuNyCQnJlBCxuQOByhs7PliZeRqXyMk5/e2mOsE/o2T6wI0GLM7n8dasvug
-         dV37WOhUxkNf/vha2C72zRKJTfxp8r0wS3lNqEntTjA8DlrTS7Q9fDiKwKoY9Ezl6c0u
-         xdvA==
+        b=sF6Pp0XmpELXdVGRf4ctVmexPSAZ+QLpfKPtIb9eERnmVGnvUMYQoLTTfKD/e5Vqhr
+         FxDMgZP3VfnnAPvpe2F0Ideb2RMGzsS9OsWbuxw5U+FWSJ5UNq8ZcRsgym2oVauIzt4j
+         SVtaKBae48XgpxisCAmKV8QUcmriNEySWLprrD9HwkiiJIMgkhWIdeyDKNDmFDQiMiJ0
+         ovLAlNfC8LEe+iYW7/lZhAG7cwDJG2rWsQre/zQ08rSw51DLed9FgMwAHBxROCiN1V5F
+         hSdhqm0o3HoaXfrxb4y53uzPCBd7Kf9MnY4WALwi5/ojyC1mM+J1jNFEAvBVN5Mjvr66
+         mcqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=G9vBM5THlG8pywNzVbsKIK8sbELnMUDNM7aCaLdslP0=;
-        b=V54UhuT/9JHUUq8Ofuxg18wxz9okVT2B+tPaOXWUyDgQwNlQcKgFwldVyvoOyd/fEw
-         9WUPXOiaj7E3QG4ykC/Jx4CzSnQGFiM9wYHKVfXAUXECzA9eSgJfQZRYqmkSI/ChvPqR
-         T+Y7iO8q/VZg1b/b6nKlW3m7CRDFKBf/aWKuMji73TcIc3uUhq33vn+rh1KkPeIKezET
-         phRvilwJnUaRGgUipizso7XJwefeJVKjuB0S39HnofyoWYr1WDe6lIS4ivZSriXZnP+5
-         2PdPvzfnm5xUoVtPww+XgEfPI/2VaTCBd/6H3NHoGQqqOD7xp3VckAg2h+C9KfJeWdfe
-         Iz8w==
+         :message-id:subject:cc:to:from:date;
+        bh=3BnTUEEbed8NAU4EudqbipVdWhwTZhwgsRylJhd7Uok=;
+        b=ZafJsKtZEp8wd+2yijDqWFSaFHrb0I7xFwKODkLCO6J0aENUBZz9a03lU0s7VNCi0T
+         44pEBEoMjSvlBVrr38lgKikun4bWkY/Dom4ZWmDPnoShuiQ16hiGK11AbnIdh0sx52qc
+         TLJyn+FOS4b4a3eFdM3h9GDZjPo6ycGjE8uHdRISra5MB6UqQi29FJ5nuUNROWrpN6eQ
+         Y/qIXlxagPHL0TWGLloZXdd1Rq7GH9LuQgPYWcfZy1UzoWQvaN0xP0DvSsof74Wp4k9n
+         r3mVnX9ZUF+PiCMEHP1yZNO4m/DNrLD8dE68t5qLjz0YkNli/NfofDQ5ig6Tk7VAyNrn
+         yCAQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="bgq/F8b/";
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id j15si7216618otq.62.2019.05.28.08.04.57
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id pg1si9385039ejb.285.2019.05.28.08.14.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 May 2019 08:04:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Tue, 28 May 2019 08:14:09 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="bgq/F8b/";
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4SF4QUp083027;
-	Tue, 28 May 2019 15:04:39 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=G9vBM5THlG8pywNzVbsKIK8sbELnMUDNM7aCaLdslP0=;
- b=bgq/F8b/2xwUVXMlsJqTT/j8YvUXLiDeS1H4MJ+nX4NOQ5xuZxuO5UeAXzVEoTG1w3bf
- iu6Ce7E+Lhxw9casXB7xzxnF/LglbRQEC8Hux6StMYE/xjblB+T7bJ8nOxdBonl07JjK
- i4LWZr8dbuD44I3nkitg/rpMislB3CGkymXU4mlpDIqIm+8/2CgEmV0kh75+vCfvC2L4
- Z8Adu0/Y0OQ8FReXSRrA1zB1u+Z7W4E2Dt6b4GdDgXE31SyMNMgBPdc0LZpdUzdIuZHh
- ka4eUEOZ3WXQdsjyQL6SgjVs8mBV0FmA9pPrU0yOOD7DKhfxFyHFYXk1s/ronu4hv6Mr 7g== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2130.oracle.com with ESMTP id 2spw4tbtqn-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 28 May 2019 15:04:39 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4SF3Kh9017458;
-	Tue, 28 May 2019 15:04:39 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userp3030.oracle.com with ESMTP id 2ss1fmwp16-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 28 May 2019 15:04:38 +0000
-Received: from abhmp0015.oracle.com (abhmp0015.oracle.com [141.146.116.21])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4SF4OV0025272;
-	Tue, 28 May 2019 15:04:24 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 28 May 2019 08:04:24 -0700
-Date: Tue, 28 May 2019 11:04:24 -0400
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
-        Alexey Kardashevskiy <aik@ozlabs.ru>, Alan Tull <atull@kernel.org>,
-        Alex Williamson <alex.williamson@redhat.com>,
-        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-        Christoph Lameter <cl@linux.com>,
-        Christophe Leroy <christophe.leroy@c-s.fr>,
-        Davidlohr Bueso <dave@stgolabs.net>,
-        Jason Gunthorpe <jgg@mellanox.com>,
-        Mark Rutland <mark.rutland@arm.com>,
-        Michael Ellerman <mpe@ellerman.id.au>, Moritz Fischer <mdf@kernel.org>,
-        Paul Mackerras <paulus@ozlabs.org>,
-        Steve Sistare <steven.sistare@oracle.com>, Wu Hao <hao.wu@intel.com>,
-        linux-mm@kvack.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
-        linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
-        linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v2] mm: add account_locked_vm utility function
-Message-ID: <20190528150424.tjbaiptpjhzg7y75@ca-dmjordan1.us.oracle.com>
-References: <de375582-2c35-8e8a-4737-c816052a8e58@ozlabs.ru>
- <20190524175045.26897-1-daniel.m.jordan@oracle.com>
- <20190525145118.bfda2d75a14db05a001e49ad@linux-foundation.org>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 0FE26ACE8;
+	Tue, 28 May 2019 15:14:09 +0000 (UTC)
+Date: Tue, 28 May 2019 17:14:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	stable@kernel.org, Wu Fangsuo <fangsuowu@asrmicro.com>,
+	Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
+Subject: Re: [PATCH] mm: fix trying to reclaim unevicable LRU page
+Message-ID: <20190528151407.GE1658@dhcp22.suse.cz>
+References: <20190524071114.74202-1-minchan@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190525145118.bfda2d75a14db05a001e49ad@linux-foundation.org>
-User-Agent: NeoMutt/20180323-268-5a959c
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9270 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=18 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905280098
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9270 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=18 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905280098
+In-Reply-To: <20190524071114.74202-1-minchan@kernel.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, May 25, 2019 at 02:51:18PM -0700, Andrew Morton wrote:
-> On Fri, 24 May 2019 13:50:45 -0400 Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
-> 
-> > locked_vm accounting is done roughly the same way in five places, so
-> > unify them in a helper.  Standardize the debug prints, which vary
-> > slightly, but include the helper's caller to disambiguate between
-> > callsites.
-> > 
-> > Error codes stay the same, so user-visible behavior does too.  The one
-> > exception is that the -EPERM case in tce_account_locked_vm is removed
-> > because Alexey has never seen it triggered.
-> > 
-> > ...
-> >
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -1564,6 +1564,25 @@ long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
-> >  int get_user_pages_fast(unsigned long start, int nr_pages,
-> >  			unsigned int gup_flags, struct page **pages);
-> >  
-> > +int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
-> > +			struct task_struct *task, bool bypass_rlim);
-> > +
-> > +static inline int account_locked_vm(struct mm_struct *mm, unsigned long pages,
-> > +				    bool inc)
-> > +{
-> > +	int ret;
-> > +
-> > +	if (pages == 0 || !mm)
-> > +		return 0;
-> > +
-> > +	down_write(&mm->mmap_sem);
-> > +	ret = __account_locked_vm(mm, pages, inc, current,
-> > +				  capable(CAP_IPC_LOCK));
-> > +	up_write(&mm->mmap_sem);
-> > +
-> > +	return ret;
-> > +}
-> 
-> That's quite a mouthful for an inlined function.  How about uninlining
-> the whole thing and fiddling drivers/vfio/vfio_iommu_type1.c to suit. 
-> I wonder why it does down_write_killable and whether it really needs
-> to...
+[Cc Pankaj Suryawanshi who has reported a similar problem
+http://lkml.kernel.org/r/SG2PR02MB309806967AE91179CAFEC34BE84B0@SG2PR02MB3098.apcprd02.prod.outlook.com]
 
-Sure, I can uninline it.  vfio changelogs don't show a particular reason for
-_killable[1].  Maybe Alex has something to add.  Otherwise I'll respin without
-it since the simplification seems worth removing _killable.
+On Fri 24-05-19 16:11:14, Minchan Kim wrote:
+> There was below bugreport from Wu Fangsuo.
+> 
+> 7200 [  680.491097] c4 7125 (syz-executor) page:ffffffbf02f33b40 count:86 mapcount:84 mapping:ffffffc08fa7a810 index:0x24
+> 7201 [  680.531186] c4 7125 (syz-executor) flags: 0x19040c(referenced|uptodate|arch_1|mappedtodisk|unevictable|mlocked)
+> 7202 [  680.544987] c0 7125 (syz-executor) raw: 000000000019040c ffffffc08fa7a810 0000000000000024 0000005600000053
+> 7203 [  680.556162] c0 7125 (syz-executor) raw: ffffffc009b05b20 ffffffc009b05b20 0000000000000000 ffffffc09bf3ee80
+> 7204 [  680.566860] c0 7125 (syz-executor) page dumped because: VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page))
+> 7205 [  680.578038] c0 7125 (syz-executor) page->mem_cgroup:ffffffc09bf3ee80
+> 7206 [  680.585467] c0 7125 (syz-executor) ------------[ cut here ]------------
+> 7207 [  680.592466] c0 7125 (syz-executor) kernel BUG at /home/build/farmland/adroid9.0/kernel/linux/mm/vmscan.c:1350!
+> 7223 [  680.603663] c0 7125 (syz-executor) Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
+> 7224 [  680.611436] c0 7125 (syz-executor) Modules linked in:
+> 7225 [  680.616769] c0 7125 (syz-executor) CPU: 0 PID: 7125 Comm: syz-executor Tainted: G S              4.14.81 #3
+> 7226 [  680.626826] c0 7125 (syz-executor) Hardware name: ASR AQUILAC EVB (DT)
+> 7227 [  680.633623] c0 7125 (syz-executor) task: ffffffc00a54cd00 task.stack: ffffffc009b00000
+> 7228 [  680.641917] c0 7125 (syz-executor) PC is at shrink_page_list+0x1998/0x3240
+> 7229 [  680.649144] c0 7125 (syz-executor) LR is at shrink_page_list+0x1998/0x3240
+> 7230 [  680.656303] c0 7125 (syz-executor) pc : [<ffffff90083a2158>] lr : [<ffffff90083a2158>] pstate: 60400045
+> 7231 [  680.666086] c0 7125 (syz-executor) sp : ffffffc009b05940
+> ..
+> 7342 [  681.671308] c0 7125 (syz-executor) [<ffffff90083a2158>] shrink_page_list+0x1998/0x3240
+> 7343 [  681.679567] c0 7125 (syz-executor) [<ffffff90083a3dc0>] reclaim_clean_pages_from_list+0x3c0/0x4f0
+> 7344 [  681.688793] c0 7125 (syz-executor) [<ffffff900837ed64>] alloc_contig_range+0x3bc/0x650
+> 7347 [  681.717421] c0 7125 (syz-executor) [<ffffff90084925cc>] cma_alloc+0x214/0x668
+> 7348 [  681.724892] c0 7125 (syz-executor) [<ffffff90091e4d78>] ion_cma_allocate+0x98/0x1d8
+> 7349 [  681.732872] c0 7125 (syz-executor) [<ffffff90091e0b20>] ion_alloc+0x200/0x7e0
+> 7350 [  681.740302] c0 7125 (syz-executor) [<ffffff90091e154c>] ion_ioctl+0x18c/0x378
+> 7351 [  681.747738] c0 7125 (syz-executor) [<ffffff90084c6824>] do_vfs_ioctl+0x17c/0x1780
+> 7352 [  681.755514] c0 7125 (syz-executor) [<ffffff90084c7ed4>] SyS_ioctl+0xac/0xc0
+> 
+> Wu found it's due to [1]. Before that, unevictable page goes to cull_mlocked
+> routine so that it couldn't reach the VM_BUG_ON_PAGE line.
+> 
+> To fix the issue, this patch filter out unevictable LRU pages
+> from the reclaim_clean_pages_from_list in CMA.
 
-[1] 0cfef2b7410b ("vfio/type1: Remove locked page accounting workqueue")
+The changelog is rather modest on details and I have to confess I have
+little bit hard time to understand it. E.g. why do not we need to handle
+the regular reclaim path?
+
+> [1] ad6b67041a45, mm: remove SWAP_MLOCK in ttu
+> 
+> Cc: <stable@kernel.org>	[4.12+]
+> Reported-debugged-by: Wu Fangsuo <fangsuowu@asrmicro.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/vmscan.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index d9c3e873eca6..7350afae5c3c 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1505,7 +1505,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>  
+>  	list_for_each_entry_safe(page, next, page_list, lru) {
+>  		if (page_is_file_cache(page) && !PageDirty(page) &&
+> -		    !__PageMovable(page)) {
+> +		    !__PageMovable(page) && !PageUnevictable(page)) {
+>  			ClearPageActive(page);
+>  			list_move(&page->lru, &clean_pages);
+>  		}
+> -- 
+> 2.22.0.rc1.257.g3120a18244-goog
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
