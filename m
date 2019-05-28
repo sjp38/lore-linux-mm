@@ -2,163 +2,136 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 47DF7C072B1
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 10:41:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BE83C04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 10:50:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D84820B7C
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 10:41:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D84820B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 6D51C208CB
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 10:50:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D51C208CB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 697B66B0273; Tue, 28 May 2019 06:41:21 -0400 (EDT)
+	id EA7666B026E; Tue, 28 May 2019 06:50:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 622BC6B0274; Tue, 28 May 2019 06:41:21 -0400 (EDT)
+	id E56526B026F; Tue, 28 May 2019 06:50:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E8826B0275; Tue, 28 May 2019 06:41:21 -0400 (EDT)
+	id D1E916B0273; Tue, 28 May 2019 06:50:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 023286B0273
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 06:41:21 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id k22so1452885ede.0
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 03:41:20 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 883A36B026E
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 06:50:28 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id r5so32433666edd.21
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 03:50:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=gksd89347YQP8h40owAO8ZPk7NT56rVFZiRRVryAoXI=;
-        b=ZCaelAKjXDMAfgj+ryZX3sMcOI5mG2+c/UkyV+HHZk+bpmPfbGfwkSIC5q0O3TxDPh
-         OrBFhfUlaghYFZINlgAv2twAgPxIPkHp7vaFKUIHFFLTGdj9xg0V32M4hWQl36fTgnH5
-         McX4m/l3FZ0zIylCaL/QdDrPBgBbiAjKLT/Qe/uMdwe19R6lh6zymeFPUUGZodzW3dtb
-         3KUUUFeKLr1JmVgq7ev07oLLhDduTPLSw58Tzye/P/Ykd1iDrSUV6GxyB2SLJ8fGQAXP
-         JhbNtkGO/MgZh338UnVaJmgg+9Hf8Z+MhkYH9O3wc5JD9wBK4/aI9xvm1VGsx6OzMPkL
-         e4jQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWniWlg9gxWba/O2dEOClLAKYZVBNu7UReyywejOEAw3gHQ1hEz
-	2CFW0Tti95yrmZwBRqyF+wPmQnDBTtvR4E1SXydA4kls3hhky5QmfxkFFnSdacV71EXigtmEWVw
-	9wp7ZXhYmkouwII17EhrlLDcCHg+rrkRl42B6Zm2F9fjM58KglwZKOHZ8gKPFUJ4=
-X-Received: by 2002:a17:907:10d0:: with SMTP id rv16mr63546249ejb.138.1559040080578;
-        Tue, 28 May 2019 03:41:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw3b9WyrdkzxTgAtRlk0sdeduNPP0jRoTIr4mvyeHkdEgE8FTdTjog6XvkJM0GaYC/BSL9i
-X-Received: by 2002:a17:907:10d0:: with SMTP id rv16mr63546158ejb.138.1559040079445;
-        Tue, 28 May 2019 03:41:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559040079; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=QsqFaGaz1HGsf63u50aDNMgF3AaFfbAtnyMKn5jou+I=;
+        b=WyMyBDg1XORCZ6xaMnDBjumLjVJgNfxClxsckDHavM0q8WZVhVwuGe4RYcBWcHfs+u
+         inFJk2MX9ov6iZr/M+gVsjKmu1wY4OORMsDMWYObF2RQ6bHUvlZ9LgFT3c4lKZtq5hYD
+         8YEqyg9V35ZzxW6nahbwyDp3sOocCcLwg5LZPr4l/IXsF/gmxVMBr6JCSe8rY9tddDEC
+         BKJkq0IzPHTrSlmLRMlY05tbbxr7X9JuXP83AVtaOOADDWIRAoVOsdACq+y1MxrsXkqB
+         qETMLNjLPTZlVCqR5wiroIdZcLFhTuI28al2tPCcnzqOBnNN+v/1oastSzmw5RPPOfq3
+         59HA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAUoV/1t+EoHA5t5qqNWZb/CZHR2YTwlcdJcFv1BKq+QLHMwyRAo
+	/48WSG3ERiklCU1SCxcCskDx9V7Ta9xgbkFJNuoAQu2Rp23SKsxg+MZiRfBro7bg5QjMFVIA73F
+	B94uYB5KZdCZrkflWp5HBZxrDvP8K5CBLM71PxmrgivZ0TCCUe67HasFLJNAxbAm9qA==
+X-Received: by 2002:a50:ba1d:: with SMTP id g29mr74289525edc.298.1559040628151;
+        Tue, 28 May 2019 03:50:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyh2IkSWc9QmA0UdwCe3huo24/EjkYLYUiW4ReYTPeUt4YlmtlU6EJwsyFzfFBM+6lrtL5V
+X-Received: by 2002:a50:ba1d:: with SMTP id g29mr74289447edc.298.1559040627089;
+        Tue, 28 May 2019 03:50:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559040627; cv=none;
         d=google.com; s=arc-20160816;
-        b=K2iSGy90J4gbW2jZJ/StJh0UZXwbxvWM1VBxdLHlSnyuDV4Zxa+iGhb27MOXFwtdaP
-         rFSFkHwy7LHosUitkI9uY29yHDvfc7WvgUgPaM1e6YauO8HsdfqcEdJGDuc1lBNaPyb3
-         EkevfHTwMh+lvXXPjn1leuXZ8oTpgsEUgCMO5+8bzWCpBqxnx6tL4eY2OWCGfhVVbcLl
-         4z8CX/G/Tj2TVOaHToOICRYWlLFRkxKKA94DQmcoUGMRnnMHwGN4sGyTyvbYGtrRzzWT
-         qOmUjmwJOPUBg3twt0WZQS0cFrKZkbHrjt6mAlSJzw+17YJGSSkVuvUJxN8Y9/JieSzt
-         RIrg==
+        b=XywZGAHVTz1E1C8DZzpAHip0oL/OP7BqSOE183CmyxAt9255rX8s4J8sfNtNJzZRTj
+         QHWBn7F1Fezi6lLi4mFvzO1CXbMJkBpdLi89IK/xUB/K/E87cYuuxuCAOmysr4K4QVPu
+         z9Z15thwOs+DD6+mcbOMfqOTQtHPgY93iwaPXoSjOZwVriq+8NRNXvCMQQDAGJXWK7No
+         j8B4RiD1M2PAFJQmjNTu60egeFu3Siopi4DBA0xprIw9B8q9WlDYsGiyD4XqSng5BEEN
+         KOfSaW1ePRg6CpYiBe3B2tNJT8iT4ItrdButk55/QjHpNImC5frZ820KKwOKVM0PjB5J
+         NDRQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=gksd89347YQP8h40owAO8ZPk7NT56rVFZiRRVryAoXI=;
-        b=tgEZCM0xlFXlkVMvQYLrqwbwKn4v8JJ97YVVI0SmvNB6+31cx2gIi5lV3XEdPlyZ7+
-         QwsTQAj6aDvmisdPRFcSOSR4TQY53P0ZLpkmGXA7+5Id7rGudVBunidwddP0T6qmiDu5
-         N9YVod7YOY9J/TWPL3INU/6Vt8poK5HbUTyL11wjif+bg2yg+jmSjWGx8PmlXM71co5J
-         d/mn2THCdDjNX/sqWFsldpRbCpLaqlyRifFd/IwCkUeh+HaGPkBzPvAMo4DmwwsLnX9v
-         W0R+v1rWKBKcIfvVlNfaFRALQ9yWgPGsoS5ooy14H/Eg3mlf9aIkwG/u1RKgiJnkPu2v
-         2VwQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=QsqFaGaz1HGsf63u50aDNMgF3AaFfbAtnyMKn5jou+I=;
+        b=U7gqdzQTA+21BDuraaqqpSqgLVuCZGxTahadyYmr0UErRhh723Gr1lRv8dcsOivHEr
+         1+w0HcwGayKyzMs9uNlW5FOPNrxLsnBPTH6xE8odEW0O2mjfqIkjzOoxp9Y1CjcmqNfj
+         XSg2EUnOQTFKI14zcceHIiglwsM/9XWggWVoan8xfSmHH33fbAtXEqvAmLP2lbJdeSJU
+         kOF+Tpb9HRfVdX3NatYpEhIG0Sgky8tCNocA8LPoXiqFC+2JW7ehmUlKIPqN55aesyL7
+         ZG/Lcp3XjLj6mpPFkU+TVPnQS2TJseeqwFIYAcWPWOlTAz8UIl2UJlHJceV7T5nxRkAJ
+         9ngg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z16si10539540edb.381.2019.05.28.03.41.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 May 2019 03:41:19 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id k10si3194475ejs.195.2019.05.28.03.50.26
+        for <linux-mm@kvack.org>;
+        Tue, 28 May 2019 03:50:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E7A0CAEC8;
-	Tue, 28 May 2019 10:41:18 +0000 (UTC)
-Date: Tue, 28 May 2019 12:41:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Daniel Colascione <dancol@google.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>,
-	Linux API <linux-api@vger.kernel.org>
-Subject: Re: [RFC 7/7] mm: madvise support MADV_ANONYMOUS_FILTER and
- MADV_FILE_FILTER
-Message-ID: <20190528104117.GW1658@dhcp22.suse.cz>
-References: <20190521062628.GE32329@dhcp22.suse.cz>
- <20190527075811.GC6879@google.com>
- <20190527124411.GC1658@dhcp22.suse.cz>
- <20190528032632.GF6879@google.com>
- <20190528062947.GL1658@dhcp22.suse.cz>
- <20190528081351.GA159710@google.com>
- <CAKOZuesnS6kBFX-PKJ3gvpkv8i-ysDOT2HE2Z12=vnnHQv0FDA@mail.gmail.com>
- <20190528084927.GB159710@google.com>
- <20190528090821.GU1658@dhcp22.suse.cz>
- <20190528103256.GA9199@google.com>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 090F8341;
+	Tue, 28 May 2019 03:50:26 -0700 (PDT)
+Received: from [10.162.40.141] (p8cg001049571a15.blr.arm.com [10.162.40.141])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id AC2493F59C;
+	Tue, 28 May 2019 03:50:21 -0700 (PDT)
+Subject: Re: [RFC 0/7] introduce memory hinting API for external process
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tim Murray <timmurray@google.com>, Minchan Kim <minchan@kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+ Johannes Weiner <hannes@cmpxchg.org>, Joel Fernandes
+ <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>,
+ Daniel Colascione <dancol@google.com>, Shakeel Butt <shakeelb@google.com>,
+ Sonny Rao <sonnyrao@google.com>, Brian Geffon <bgeffon@google.com>
+References: <20190520035254.57579-1-minchan@kernel.org>
+ <dbe801f0-4bbe-5f6e-9053-4b7deb38e235@arm.com>
+ <CAEe=Sxka3Q3vX+7aWUJGKicM+a9Px0rrusyL+5bB1w4ywF6N4Q@mail.gmail.com>
+ <1754d0ef-6756-d88b-f728-17b1fe5d5b07@arm.com>
+ <20190521103433.GL32329@dhcp22.suse.cz>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <719d3ebf-c6c2-2468-4f04-0ba54b74b054@arm.com>
+Date: Tue, 28 May 2019 16:20:33 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190528103256.GA9199@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190521103433.GL32329@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 28-05-19 19:32:56, Minchan Kim wrote:
-> On Tue, May 28, 2019 at 11:08:21AM +0200, Michal Hocko wrote:
-> > On Tue 28-05-19 17:49:27, Minchan Kim wrote:
-> > > On Tue, May 28, 2019 at 01:31:13AM -0700, Daniel Colascione wrote:
-> > > > On Tue, May 28, 2019 at 1:14 AM Minchan Kim <minchan@kernel.org> wrote:
-> > > > > if we went with the per vma fd approach then you would get this
-> > > > > > feature automatically because map_files would refer to file backed
-> > > > > > mappings while map_anon could refer only to anonymous mappings.
-> > > > >
-> > > > > The reason to add such filter option is to avoid the parsing overhead
-> > > > > so map_anon wouldn't be helpful.
-> > > > 
-> > > > Without chiming on whether the filter option is a good idea, I'd like
-> > > > to suggest that providing an efficient binary interfaces for pulling
-> > > > memory map information out of processes.  Some single-system-call
-> > > > method for retrieving a binary snapshot of a process's address space
-> > > > complete with attributes (selectable, like statx?) for each VMA would
-> > > > reduce complexity and increase performance in a variety of areas,
-> > > > e.g., Android memory map debugging commands.
-> > > 
-> > > I agree it's the best we can get *generally*.
-> > > Michal, any opinion?
-> > 
-> > I am not really sure this is directly related. I think the primary
-> > question that we have to sort out first is whether we want to have
-> > the remote madvise call process or vma fd based. This is an important
-> > distinction wrt. usability. I have only seen pid vs. pidfd discussions
-> > so far unfortunately.
+
+
+On 05/21/2019 04:04 PM, Michal Hocko wrote:
+> On Tue 21-05-19 08:25:55, Anshuman Khandual wrote:
+>> On 05/20/2019 10:29 PM, Tim Murray wrote:
+> [...]
+>>> not seem to introduce a noticeable hot start penalty, not does it
+>>> cause an increase in performance problems later in the app's
+>>> lifecycle. I've measured with and without process_madvise, and the
+>>> differences are within our noise bounds. Second, because we're not
+>>
+>> That is assuming that post process_madvise() working set for the application is
+>> always smaller. There is another challenge. The external process should ideally
+>> have the knowledge of active areas of the working set for an application in
+>> question for it to invoke process_madvise() correctly to prevent such scenarios.
 > 
-> With current usecase, it's per-process API with distinguishable anon/file
-> but thought it could be easily extended later for each address range
-> operation as userspace getting smarter with more information.
+> But that doesn't really seem relevant for the API itself, right? The
+> higher level logic the monitor's business.
 
-Never design user API based on a single usecase, please. The "easily
-extended" part is by far not clear to me TBH. As I've already mentioned
-several times, the synchronization model has to be thought through
-carefuly before a remote process address range operation can be
-implemented.
-
--- 
-Michal Hocko
-SUSE Labs
+Right. I was just wondering how the monitor would even decide what areas of the
+target application is active or inactive. The target application is still just an
+opaque entity for the monitor unless there is some sort of communication. But you
+are right, this not relevant to the API itself.
 
