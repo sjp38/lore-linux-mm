@@ -2,214 +2,162 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EE700C04AB6
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 12:06:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B5743C04E84
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 12:08:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AD96F20B7C
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 12:06:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD96F20B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 7ABEC2081C
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 12:08:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="gePFim6z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7ABEC2081C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2AE976B026E; Tue, 28 May 2019 08:06:18 -0400 (EDT)
+	id 19A156B026F; Tue, 28 May 2019 08:08:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 25E8F6B026F; Tue, 28 May 2019 08:06:18 -0400 (EDT)
+	id 14BFE6B0272; Tue, 28 May 2019 08:08:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0FFF36B0272; Tue, 28 May 2019 08:06:18 -0400 (EDT)
+	id 03A756B0273; Tue, 28 May 2019 08:08:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B87D16B026E
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 08:06:17 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id z5so32815526edz.3
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 05:06:17 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BD6F66B026F
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 08:08:57 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id d22so5958964plr.0
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 05:08:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=atALGkc/9d+3aESPAIxbybpgVzCALCCsfmt3kGF7Bas=;
-        b=Z/oW2/TmJJ08b9d9BEKywHVyy4fYTuESO4SPR6xIyOXad7mBzYJNgCJF5/Dps7zn9i
-         lReZ9000lCN0vCLi3cb/+MYa/+kfX4Rh31dG35nM5iCRzNovc8jmkqA0b1AyeCr/GEHA
-         jaBrNVP64ndyYGwCj7EQvK/8l5ZCfxNcxDf7wFsjZAaS3OKBkEOqi/MBWFdzjZzCNH2W
-         Awa7vFfzCgEbKK1DuvbXngEHtSfUlivcVxTYRRxbtG/qYxTuuR349Vu3AeBjGrU66q64
-         Szpwh0N58mYS9jv07LO3eXOJA7abNI99e2Yqylh5//KAhi8WP1F+qMmJUvLGYqYdT+0z
-         qIyQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUj/BibgWdbIRLVAfr16JK60K3QyA/zHu9aQqRhvR2MU3+37EvK
-	T55E/xyOWWr7gjRDIDGIRD1Y7nAIyVkY0eDB4y0J30PoV7T8bOQffZODQYmwvb5NLYs881qX0YL
-	hidwe03+OYvpcf0RWzssZ3/+MLQNNzF4JVO049HwA9ZzdobQeajJ8qvz/aQ//wm4=
-X-Received: by 2002:a05:6402:180b:: with SMTP id g11mr129847072edy.268.1559045177281;
-        Tue, 28 May 2019 05:06:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxLI9c1ayV7SrMohDMSjOoLAtfhFjv9JwRWZZxWPOkdVupwK4bbs3YLlgxtbjvMZas83dEq
-X-Received: by 2002:a05:6402:180b:: with SMTP id g11mr129846976edy.268.1559045176441;
-        Tue, 28 May 2019 05:06:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559045176; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=eTusNcynv/bdHJGyOGAguPJgIGBXkK8mZssjLj2XyYA=;
+        b=JcLwILsZTLHj2mnaC8wiWHloURpnNKavoJjhMWOX0pv0H3GbKNDM9h4CX5YtRrtAXh
+         JuZy3ApuwK4SHl4LdHH6aQVrZCwQ+KUXMJGXrMbFxgVr9DIv+nVkPxB0g1kYAjpvfvJ/
+         EAKrF9xw110WdOHmWQ7K5tO85IjQJzKOdVEkB0WB7cAXXDsVhaiKZyLQsIYsz7J8qyug
+         F0EiGBZAfE5Po8khFFsHyGEXbdGC0+mCySqc0HWpWeV3ZaPgSHMahdg2jrgtiIhi5ltp
+         Qajp3K7znG2eVG5bx8IIIieOqjywQKtECuQyaWKw7slHDcZz70fYeSq76EPp1tVJVhbD
+         OGuA==
+X-Gm-Message-State: APjAAAVQOnXHFGPIWSFjl8XEwwzEgf0k8GlmBlJ+/Xp8kzfB9QHt+Jlc
+	aL45l8iHOJi6tiTocY/n/YdkCVtH9PkMnUksTKQSteZOAF8CInRSRQWCUDR/gyYCvmsnjiUZ5DT
+	2NbGgIstat23kBXFq1QVhkKwAPYMpdovJWtUDF24Vr7fsLdwNMe4y3pY5P2i19toViA==
+X-Received: by 2002:a63:4621:: with SMTP id t33mr131670323pga.246.1559045337305;
+        Tue, 28 May 2019 05:08:57 -0700 (PDT)
+X-Received: by 2002:a63:4621:: with SMTP id t33mr131670232pga.246.1559045336571;
+        Tue, 28 May 2019 05:08:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559045336; cv=none;
         d=google.com; s=arc-20160816;
-        b=bGHs95HkB/y3FduKvjF2+OMAbf1zkEfrJLuPqgMnYBW90bgHXOVrPvEULXI2jkKdTt
-         rYanaDjU6qBg4cpVUw0gQqIeiLs+dv0SdSejpRs2sC4BuR71wOP7LZUQL3WTzb2mEcQe
-         vyYbV4WlEO4UeC6Y/5hH0dMjPqKmvuK97I4WCx30EobWrxasCTvVo5Xk+iD2oWhn2ADw
-         aTeCyv1kMt4elPqPBNS7oP0P0gWpkebwHJWMSXuloaME2GkocV8riVLAZssukmTtW9Ip
-         Ig6ncKZIW8R1YQcej9JlMJFMt7zXnda6zQuYWtH4bAa52wOr/limNO9jwPUrX5PLZ5+J
-         Iu2g==
+        b=Z/QtoO0egxaM4oYPNuKGZ8rYcY72Ihky+XiNhhayAT7Tc4ihBmeK4FUvRmXu3Hw1ji
+         K1JxOhO5AW9F2vte4LGSFa1fd8UP+JuF8wlc6G0f7YdGLnZA2DCmUcc0y1uWLTtlu5IA
+         x1vLmGV0lTI/kEDSE87VwIfavonoOCIDuqB7+st88L1Hb0HF9B30I4Flr2t0OOZr8OAF
+         gRmBheqcWlHJWYqxj07AcWyXdWqsGL1av1n+sn94za10VDTPPKOqtFoVSSK0OzsJmMZ8
+         ZB4YhEqs3A+HZ8Vz5D1KzQPMGrKdfMJeVBos4ZjzYaiKlnFHkr00rmic9yXel7Kki9K8
+         vflg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=atALGkc/9d+3aESPAIxbybpgVzCALCCsfmt3kGF7Bas=;
-        b=MXps9qn1rRXJAHNd2HUcflZvnMwcFwZodf24qGhvoPjfaCiQ8nMcyQuVznGPTtWCC7
-         d2cHQpzDIHkapXsstr7Saie3jFvx2lUwd0D4yMZiZcgSTT4Zjx+jSuQKAxo5ut/VirwP
-         AKshztdSEhcw9v1BxAaS8PEijj32tEqeKaCB+RxlbmFRxFxmApdgXARpBY+U6FZN0YL+
-         57Rl+ZCyQeWOjjDlqNpTo39lGYXvnZPuS9dPEltW7EAIEIg/Qv4INOjQGNl75dJ+J7Wn
-         jjsZ4ic7s4QjHPQ0Mtv7UZbfGsF0QbVH85K+qDSbdFkG6JpYcW1f2buC/VCt6l7dvX8R
-         0A0w==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=eTusNcynv/bdHJGyOGAguPJgIGBXkK8mZssjLj2XyYA=;
+        b=gItL5JO7syJfH0H+2sN0nQI0PmTShoqx3Ju3ACyF0EpYmKPHFNfYRbAt0z0+UFUZO1
+         vqJVRi9bHKC9blaFOReiNHJ4i7EXo64Bn3FTX3RuZtKZih4rrsyd8AAqoFwnECHJtALE
+         TXY50xi6ieGKP+hqe3iuuWJUKG/q75YAUfkc6kcHR9+WzlZ2txY8TC54P6JLsEOIzIfN
+         D/VPQR+5eusTjmVmIDxEYHMDqH9Xjh/mjOTg0P8EnGvmQ8HJWY4jaeoab6ZG+65LtF1A
+         ogBWg4RtLEvLyYVubWjNm+Jpq/V2F/U0Whjb6Gew+fIJXF99sPjKVCDWfwcVbJbFbuFR
+         vFvg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b51si4685640edc.153.2019.05.28.05.06.16
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gePFim6z;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 185sor14183486pfe.20.2019.05.28.05.08.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 May 2019 05:06:16 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 28 May 2019 05:08:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9D27DAEF9;
-	Tue, 28 May 2019 12:06:15 +0000 (UTC)
-Date: Tue, 28 May 2019 14:06:14 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Daniel Colascione <dancol@google.com>,
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gePFim6z;
+       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=eTusNcynv/bdHJGyOGAguPJgIGBXkK8mZssjLj2XyYA=;
+        b=gePFim6zy/Px8intSzG3g1lUm9vIEviqyResVqM6CMdmkHMLPZyzYcfuwwNOxWJfyT
+         PrAf+88EhsQYxRofAWQhwIpvu02BtlRxH6B7y9bPp7IW4+Pw9hlXglaG+/T1Rl7dEf2c
+         Ig3Z4yWui4X8BvFJKwhblZtN94P9o9ze/YWo3gZ4Y/oLOWaOth0PPKAWRL02FmRw+ZhO
+         eCyYQZ5uc/WVq9pca8eZV/pt/jB5V+O/cby5U0eP2B94eRM+PQasAlPHQZ/0QI2iJOch
+         MXkQGbR47WKp7efgV3Z9hfcGZr2aRt3ImGKBmxlbUwF+NHv7L3aSaV9JLouvyVVxraO8
+         wbxQ==
+X-Google-Smtp-Source: APXvYqxouyX+FBCZ+/B4VzV3O/6LZwxnEZp2c8WyrjNaNIPzurMIp7er5TLrN3wxXTQP4ciUsmcvow==
+X-Received: by 2002:a62:38d8:: with SMTP id f207mr82932613pfa.131.1559045334758;
+        Tue, 28 May 2019 05:08:54 -0700 (PDT)
+Received: from bobo.local0.net (193-116-79-40.tpgi.com.au. [193.116.79.40])
+        by smtp.gmail.com with ESMTPSA id d15sm37463327pfm.186.2019.05.28.05.08.50
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 May 2019 05:08:53 -0700 (PDT)
+From: Nicholas Piggin <npiggin@gmail.com>
+To: linux-mm@kvack.org
+Cc: Nicholas Piggin <npiggin@gmail.com>,
+	linux-arch@vger.kernel.org,
+	Toshi Kani <toshi.kani@hp.com>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>,
-	Linux API <linux-api@vger.kernel.org>
-Subject: Re: [RFC 7/7] mm: madvise support MADV_ANONYMOUS_FILTER and
- MADV_FILE_FILTER
-Message-ID: <20190528120614.GB1658@dhcp22.suse.cz>
-References: <20190528062947.GL1658@dhcp22.suse.cz>
- <20190528081351.GA159710@google.com>
- <CAKOZuesnS6kBFX-PKJ3gvpkv8i-ysDOT2HE2Z12=vnnHQv0FDA@mail.gmail.com>
- <20190528084927.GB159710@google.com>
- <20190528090821.GU1658@dhcp22.suse.cz>
- <20190528103256.GA9199@google.com>
- <20190528104117.GW1658@dhcp22.suse.cz>
- <20190528111208.GA30365@google.com>
- <20190528112840.GY1658@dhcp22.suse.cz>
- <20190528114436.GB30365@google.com>
+	Uladzislau Rezki <urezki@gmail.com>
+Subject: [PATCH 1/4] mm/large system hash: use vmalloc for size > MAX_ORDER when !hashdist
+Date: Tue, 28 May 2019 22:04:50 +1000
+Message-Id: <20190528120453.27374-1-npiggin@gmail.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190528114436.GB30365@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 28-05-19 20:44:36, Minchan Kim wrote:
-> On Tue, May 28, 2019 at 01:28:40PM +0200, Michal Hocko wrote:
-> > On Tue 28-05-19 20:12:08, Minchan Kim wrote:
-> > > On Tue, May 28, 2019 at 12:41:17PM +0200, Michal Hocko wrote:
-> > > > On Tue 28-05-19 19:32:56, Minchan Kim wrote:
-> > > > > On Tue, May 28, 2019 at 11:08:21AM +0200, Michal Hocko wrote:
-> > > > > > On Tue 28-05-19 17:49:27, Minchan Kim wrote:
-> > > > > > > On Tue, May 28, 2019 at 01:31:13AM -0700, Daniel Colascione wrote:
-> > > > > > > > On Tue, May 28, 2019 at 1:14 AM Minchan Kim <minchan@kernel.org> wrote:
-> > > > > > > > > if we went with the per vma fd approach then you would get this
-> > > > > > > > > > feature automatically because map_files would refer to file backed
-> > > > > > > > > > mappings while map_anon could refer only to anonymous mappings.
-> > > > > > > > >
-> > > > > > > > > The reason to add such filter option is to avoid the parsing overhead
-> > > > > > > > > so map_anon wouldn't be helpful.
-> > > > > > > > 
-> > > > > > > > Without chiming on whether the filter option is a good idea, I'd like
-> > > > > > > > to suggest that providing an efficient binary interfaces for pulling
-> > > > > > > > memory map information out of processes.  Some single-system-call
-> > > > > > > > method for retrieving a binary snapshot of a process's address space
-> > > > > > > > complete with attributes (selectable, like statx?) for each VMA would
-> > > > > > > > reduce complexity and increase performance in a variety of areas,
-> > > > > > > > e.g., Android memory map debugging commands.
-> > > > > > > 
-> > > > > > > I agree it's the best we can get *generally*.
-> > > > > > > Michal, any opinion?
-> > > > > > 
-> > > > > > I am not really sure this is directly related. I think the primary
-> > > > > > question that we have to sort out first is whether we want to have
-> > > > > > the remote madvise call process or vma fd based. This is an important
-> > > > > > distinction wrt. usability. I have only seen pid vs. pidfd discussions
-> > > > > > so far unfortunately.
-> > > > > 
-> > > > > With current usecase, it's per-process API with distinguishable anon/file
-> > > > > but thought it could be easily extended later for each address range
-> > > > > operation as userspace getting smarter with more information.
-> > > > 
-> > > > Never design user API based on a single usecase, please. The "easily
-> > > > extended" part is by far not clear to me TBH. As I've already mentioned
-> > > > several times, the synchronization model has to be thought through
-> > > > carefuly before a remote process address range operation can be
-> > > > implemented.
-> > > 
-> > > I agree with you that we shouldn't design API on single usecase but what
-> > > you are concerning is actually not our usecase because we are resilient
-> > > with the race since MADV_COLD|PAGEOUT is not destruptive.
-> > > Actually, many hints are already racy in that the upcoming pattern would
-> > > be different with the behavior you thought at the moment.
-> > 
-> > How come they are racy wrt address ranges? You would have to be in
-> > multithreaded environment and then the onus of synchronization is on
-> > threads. That model is quite clear. But we are talking about separate
-> 
-> Think about MADV_FREE. Allocator would think the chunk is worth to mark
-> "freeable" but soon, user of the allocator asked the chunk - ie, it's not
-> freeable any longer once user start to use it.
+The kernel currently clamps large system hashes to MAX_ORDER when
+hashdist is not set, which is rather arbitrary.
 
-That is not a race in the address space, right. The underlying object
-hasn't changed. It has been declared as freeable and since that moment
-nobody can rely on the content because it might have been discarded.
-Or put simply, the content is undefined. It is responsibility of the
-madvise caller to make sure that the object is not in active use while
-it is marking it.
+vmalloc space is limited on 32-bit machines, but this shouldn't
+result in much more used because of small physical memory limiting
+system hash sizes.
 
-> My point is that kinds of *hints* are always racy so any synchronization
-> couldn't help a lot. That's why I want to restrict hints process_madvise
-> supports as such kinds of non-destruptive one at next respin.
+Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+---
+ mm/page_alloc.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
-I agree that a non-destructive operations are safer against paralel
-modifications because you just get a annoying and unexpected latency at
-worst case. But we should discuss whether this assumption is sufficient
-for further development. I am pretty sure once we open remote madvise
-people will find usecases for destructive operations or even new madvise
-modes we haven't heard of. What then?
-
-> > processes and some of them might be even not aware of an external entity
-> > tweaking their address space.
-> > 
-> > > If you are still concerning of address range synchronization, how about
-> > > moving such hints to per-process level like prctl?
-> > > Does it make sense to you?
-> > 
-> > No it doesn't. How is prctl any relevant to any address range
-> > operations.
-> 
-> "whether we want to have the remote madvise call process or vma fd based."
-
-Still not following. So you want to have a prctl (one of the worst API
-we have along with ioctl) to tell the semantic? This sounds like a
-terrible idea to me.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d66bc8abe0af..dd419a074141 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -8029,7 +8029,7 @@ void *__init alloc_large_system_hash(const char *tablename,
+ 			else
+ 				table = memblock_alloc_raw(size,
+ 							   SMP_CACHE_BYTES);
+-		} else if (hashdist) {
++		} else if (get_order(size) >= MAX_ORDER || hashdist) {
+ 			table = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+ 		} else {
+ 			/*
+@@ -8037,10 +8037,8 @@ void *__init alloc_large_system_hash(const char *tablename,
+ 			 * some pages at the end of hash table which
+ 			 * alloc_pages_exact() automatically does
+ 			 */
+-			if (get_order(size) < MAX_ORDER) {
+-				table = alloc_pages_exact(size, gfp_flags);
+-				kmemleak_alloc(table, size, 1, gfp_flags);
+-			}
++			table = alloc_pages_exact(size, gfp_flags);
++			kmemleak_alloc(table, size, 1, gfp_flags);
+ 		}
+ 	} while (!table && size > PAGE_SIZE && --log2qty);
+ 
 -- 
-Michal Hocko
-SUSE Labs
+2.20.1
 
