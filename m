@@ -2,133 +2,160 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C127DC072B1
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 18:21:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C532FC46460
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 18:33:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9580D20B7C
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 18:21:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9580D20B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 8B69C208CB
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 18:33:09 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JdETCGK0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B69C208CB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 11FBF6B028A; Tue, 28 May 2019 14:21:35 -0400 (EDT)
+	id 13E1D6B0289; Tue, 28 May 2019 14:33:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0CFE76B028B; Tue, 28 May 2019 14:21:35 -0400 (EDT)
+	id 0C7256B028A; Tue, 28 May 2019 14:33:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F29356B028C; Tue, 28 May 2019 14:21:34 -0400 (EDT)
+	id EF8956B028B; Tue, 28 May 2019 14:33:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A6F896B028A
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 14:21:34 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id 18so34318902eds.5
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 11:21:34 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 898A16B0289
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 14:33:08 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id h1so3946163ljj.14
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 11:33:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=648JJbwQvwAB/uwhXdfmyCLHy3g9zEsmwANnRpUyMfg=;
-        b=D2vs7HYjwJ07B8FI0TOsq3zO6TTO9oMwchyeqCVBaSPOiNdWpFvh5/eWFaz7SWITkd
-         fBvN2U/DTcfnXIqSrQ+3ykP04DQkI9V0d73Z1xdmk/VhOK/P4eXNTazKMhJS/HK/KV57
-         HsEg03X4HMYteyEj0f7NJEVdlE/vT8Ms8NoRZe2iQFvFFjIFCLzO9lonpY3LvPPJ6OAV
-         qe8hrK9gpKISvyqLCYZQheYhbUF4b3CjmyAfsDVj6gkv63kZ65qgzPhNU185mKB1xc1A
-         4maTHDkLnZc3tHZsxn9zOQgJllQ2jBQPVxs0LqRiBS+IXSK6beRY+CU+xC5bHwAf3ARW
-         a5lQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXwFq5tlYA/SLhTBRh6f6mKEzIIxB4TDSEcUtm+RbgEcr59sSA/
-	/zCAbEdD1PXXKVuN99ujbm0uHR3OYGAxFouIbvOKHWOmpcYTFUBYiG11iNpoaEpY9gFJcmwoIv+
-	S9UDt0WaqzoDuZxdtdHon3FZpF0J9vSkHHSt+BS8xa2/J9KSIIGHWFNhc6jr27K0=
-X-Received: by 2002:a50:abe5:: with SMTP id u92mr10539718edc.164.1559067694290;
-        Tue, 28 May 2019 11:21:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzjTsjwhPfKiq2jDadV28pcILiFKXADZp7g4t0KQ+AbagkDXtCQ/f7hqJlgUsL+Q7pWomhK
-X-Received: by 2002:a50:abe5:: with SMTP id u92mr10539658edc.164.1559067693585;
-        Tue, 28 May 2019 11:21:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559067693; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=/dxRboK00I5JVZJIcKIh8lDmjqTZ8vT2RGIZXym9hs8=;
+        b=WYK4Q8kynD2wkuWEhQJkrDPrzo9yIb8RHXgIv22qzsLMi7TpMnUHWJvzKR3jzqyu8d
+         fQaTk4ha64N6UV6l3dbejnGxLdIkoMvUCP21Hfr7r9Wlhyqh9CGEUx6xxFHtFKoxYn7t
+         l7IqTobMhWech4kRYE+Tgpeqe6SGs5ntgA47hgPnqn2l6FQ1uyNy1TiEnlLtXKcY0m2Y
+         3/LeUjjXkHuj+xQKABVQrNAXLaIyE1kXa8PGZx+N13F6nD2+DH4TaJnvhCspkq22C9an
+         gaI8Lh7CypZ/MNFQsLTUf29kWlOsTvzuGveLI9nSHCkjsUl19NMCRkuKXG2R+vLVF66p
+         roSw==
+X-Gm-Message-State: APjAAAWFs8qzfRqeQlOrtDppeeoR0umOqWowpR6EHFgo94T692Clr5gV
+	31ebZ/8AlLsNLpISdb68EM1nMb6/h6DJk6vrjUo55SCdBoLwF7E+BXtX5I+gH0RbCKV52zqk6vk
+	kyAoOAEWm+VjS7NsBygN2Q3xWMnCakokcKz216mY0J9H/IvUzZhYqnRDEJ4haEMQt9w==
+X-Received: by 2002:a2e:99c3:: with SMTP id l3mr16626212ljj.73.1559068387616;
+        Tue, 28 May 2019 11:33:07 -0700 (PDT)
+X-Received: by 2002:a2e:99c3:: with SMTP id l3mr16626163ljj.73.1559068386541;
+        Tue, 28 May 2019 11:33:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559068386; cv=none;
         d=google.com; s=arc-20160816;
-        b=lU3vS8R99X8XHNVa9GEDjE6Aqd+F0LXM+hxmxLhPj/JHNLbKpa0nNA33v0wQWBoPgm
-         810SQ/urO4OIApGf0NbKO9/YIAdng1caTdTzXRV9IUgTqwODhydeuk0RGD4oXC8hKVcu
-         kOsLfzrxTt98qNi/DGnBV5OkSGf6JZjyxDWfqQUjvq3rbqTOWan+oetU6RXlqitEHqsr
-         ghypvVZ4BUhYY/wf4o1E+U5HeIW1zXRymbcF4n0CCaJvn8hZbdK4/zrK4P6EMHPnwKr+
-         wfGsJ1gOJ+TS1xySlFQ4e/afHxQ3nVdEhcqhnqarTV0gIwtLHo22+GJqVTSQUJXq1esG
-         Aizw==
+        b=wYdxl/xB5lIN2ETSQWtDOXkmIF9NpIIAIVYbXBBRbLeBIf95BuRP9yvXFqvERG7e41
+         c+Gpm50wTL3nFtKBwu8vms2pfVZckUPom+v10bZDo+7MiyahwDXKkjLAnyK7B0WIxPRI
+         ejEFBMfOXDa7Gws42pfXFTrqstEcyM9U5xynpfYTLJeqvWundOehIx5AJNnJy8cow4vx
+         p5jNS9P+7SuhDGONSvjpaYwammv+Gc/FEdSlHlT0lhJ6nGLYKwR0qjHppI3lw8Nn/nfN
+         EMLFoRP2R6Ag90O6ZrQ68GmednTK1keZmZ/0eHWSimfgXtIi/6+2FBz0VXqAq+0d8d2X
+         l68g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=648JJbwQvwAB/uwhXdfmyCLHy3g9zEsmwANnRpUyMfg=;
-        b=MVaLBis0Wsy68I6Er66LPHpPIKOQGSQ6uhWlKkkM3eZig3g+vc6WUyl56pxNleAI1I
-         h0HV1BUgGpANaCrWSG7jShS35KzvBuyXpCZir5N2oWjLPDYT/uj/hvWSe3VidqOpdGb0
-         LW4dWQXtVj4RLGgoJxKJRvy33s/HiostTfJtfUorZgaXkFRAT0DMdzdgQy6/vpZtJsDx
-         94J49QmULHSftmki2FsMCjXuvIV/iLQ5/bv4b/kvvbfLVZB8/W2vs71hvrfMB5GLzJCL
-         LIWSPYjqboZye6tfnxExOW6zJ7xDaWLN976kEuXXnRyQIGnyQ8u/DvqSkIuNX+QeYGZo
-         7yaQ==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=/dxRboK00I5JVZJIcKIh8lDmjqTZ8vT2RGIZXym9hs8=;
+        b=bkNvypxZfQ7F86V5w8ft7ZBm105ttaamdnh1FQz+ld+1lafIGZrjXGouptqBSls7CU
+         Sp202nviNKOZ4dEuYbCa0gKmnRmPfp7j9B03Dff/I+2KdabaMO/FaTuQs5uX8bS3qOWH
+         YSlNQ7UTGE6PtMwdpF9hI5Q4BxEfOX2JfVdQc5O2pH/Ug9Ms/IVo7CrUXArc0H2JQKJK
+         FbYdorLMEfpu2skqrdeAE9bRj3jbQfmE00kXyE38qLfdOdBsJNHkVj95toqEEnJtD1oE
+         JKWtd/iOXOiIYs/Ul45AU6fqpGF9gjPJYSHf1h6VVP+52djqkaFmq5u3T+L4mMFMNw9B
+         0Lvg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v3si9630815edm.338.2019.05.28.11.21.33
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JdETCGK0;
+       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d9sor7848860lji.7.2019.05.28.11.33.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 May 2019 11:21:33 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 28 May 2019 11:33:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 33F7CAEA0;
-	Tue, 28 May 2019 18:21:33 +0000 (UTC)
-Date: Tue, 28 May 2019 20:21:32 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>,
-	Barret Rhoden <brho@google.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@elte.hu>,
-	Oscar Salvador <osalvador@suse.de>,
-	Andy Lutomirski <luto@kernel.org>,
-	Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org,
-	LKML <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH -next v2] mm/hotplug: fix a null-ptr-deref during NUMA
- boot
-Message-ID: <20190528182132.GH1658@dhcp22.suse.cz>
-References: <20190512054829.11899-1-cai@lca.pw>
- <20190513124112.GH24036@dhcp22.suse.cz>
- <1557755039.6132.23.camel@lca.pw>
- <20190513140448.GJ24036@dhcp22.suse.cz>
- <1557760846.6132.25.camel@lca.pw>
- <20190513153143.GK24036@dhcp22.suse.cz>
- <CAFgQCTt9XA9_Y6q8wVHkE9_i+b0ZXCAj__zYU0DU9XUkM3F4Ew@mail.gmail.com>
- <20190522111655.GA4374@dhcp22.suse.cz>
- <CAFgQCTuKVif9gPTsbNdAqLGQyQpQ+gC2D1BQT99d0yDYHj4_mA@mail.gmail.com>
- <CAFgQCTvKZU1B0e4Bg3hQedMJ4Oq2uiOshnsBQCjKinmrGdKcYg@mail.gmail.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JdETCGK0;
+       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=/dxRboK00I5JVZJIcKIh8lDmjqTZ8vT2RGIZXym9hs8=;
+        b=JdETCGK02W+TtswFGWYTMmY9WIEyBXPpCljaIU/VvB/d3DyEtFWnP0lJVxjUjx9TD+
+         BbFimxaiEpjpXaitfVH8KM8TBEOsn6oSsKdEWrPjq9D15Ew99jozw+GsV/lZqrVVZ0bd
+         sGtow18Jv93Jk3c4kkSM9BZ05m3scy1imL1EdiSpaSjWhIrIPyNB9w8DdlCdVlnDOZNn
+         KB5glui+lV+DZKpPu++CN6VKlXQmcVFXpxLJUgk52DMVAvzV1zTNcKZuZuMlzrMfr+zo
+         qH7zlgas8ajm6z/0f37WMEh9ITFodHk5tXZpvMdRGXtAceFsYcaEo3ESqN2B34xySD+d
+         KVXQ==
+X-Google-Smtp-Source: APXvYqy3s9q75FdgW1jA17eTPuwlMKdHK6SG0NcuvVUvEqKB1BuEK4FqNNQLezmX/qt3sQkeKbs49Q==
+X-Received: by 2002:a2e:9193:: with SMTP id f19mr24449382ljg.111.1559068386280;
+        Tue, 28 May 2019 11:33:06 -0700 (PDT)
+Received: from esperanza ([176.120.239.149])
+        by smtp.gmail.com with ESMTPSA id a7sm171218lji.13.2019.05.28.11.33.04
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 28 May 2019 11:33:05 -0700 (PDT)
+Date: Tue, 28 May 2019 21:33:02 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, kernel-team@fb.com,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Michal Hocko <mhocko@kernel.org>, Rik van Riel <riel@surriel.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Christoph Lameter <cl@linux.com>, cgroups@vger.kernel.org,
+	Waiman Long <longman@redhat.com>
+Subject: Re: [PATCH v5 6/7] mm: reparent slab memory on cgroup removal
+Message-ID: <20190528183302.zv75bsxxblc6v4dt@esperanza>
+References: <20190521200735.2603003-1-guro@fb.com>
+ <20190521200735.2603003-7-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAFgQCTvKZU1B0e4Bg3hQedMJ4Oq2uiOshnsBQCjKinmrGdKcYg@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190521200735.2603003-7-guro@fb.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 23-05-19 12:00:46, Pingfan Liu wrote:
-[...]
-> > Yes, but maybe it will pay great effort on it.
-> >
-> And as a first step, we can find a way to fix the bug reported by me
-> and the one reported by Barret
+On Tue, May 21, 2019 at 01:07:34PM -0700, Roman Gushchin wrote:
+> Let's reparent memcg slab memory on memcg offlining. This allows us
+> to release the memory cgroup without waiting for the last outstanding
+> kernel object (e.g. dentry used by another application).
+> 
+> So instead of reparenting all accounted slab pages, let's do reparent
+> a relatively small amount of kmem_caches. Reparenting is performed as
+> a part of the deactivation process.
+> 
+> Since the parent cgroup is already charged, everything we need to do
+> is to splice the list of kmem_caches to the parent's kmem_caches list,
+> swap the memcg pointer and drop the css refcounter for each kmem_cache
+> and adjust the parent's css refcounter. Quite simple.
+> 
+> Please, note that kmem_cache->memcg_params.memcg isn't a stable
+> pointer anymore. It's safe to read it under rcu_read_lock() or
+> with slab_mutex held.
+> 
+> We can race with the slab allocation and deallocation paths. It's not
+> a big problem: parent's charge and slab global stats are always
+> correct, and we don't care anymore about the child usage and global
+> stats. The child cgroup is already offline, so we don't use or show it
+> anywhere.
+> 
+> Local slab stats (NR_SLAB_RECLAIMABLE and NR_SLAB_UNRECLAIMABLE)
+> aren't used anywhere except count_shadow_nodes(). But even there it
+> won't break anything: after reparenting "nodes" will be 0 on child
+> level (because we're already reparenting shrinker lists), and on
+> parent level page stats always were 0, and this patch won't change
+> anything.
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Reviewed-by: Shakeel Butt <shakeelb@google.com>
 
-Can we try http://lkml.kernel.org/r/20190513140448.GJ24036@dhcp22.suse.cz
-for starter?
--- 
-Michal Hocko
-SUSE Labs
+This one looks good to me. I can't see why anything could possibly go
+wrong after this change.
 
