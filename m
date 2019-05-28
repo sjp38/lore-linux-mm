@@ -2,204 +2,142 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	HTML_MESSAGE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 16416C04AB6
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 17:38:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A17D5C04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 17:38:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CC47021734
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 17:38:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC47021734
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 6AA09217F4
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 17:38:21 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JT4C1GZ5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6AA09217F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 781596B0284; Tue, 28 May 2019 13:38:18 -0400 (EDT)
+	id 056836B0285; Tue, 28 May 2019 13:38:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 70A936B0285; Tue, 28 May 2019 13:38:18 -0400 (EDT)
+	id EF9CD6B0286; Tue, 28 May 2019 13:38:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5AC256B0286; Tue, 28 May 2019 13:38:18 -0400 (EDT)
+	id DE8D96B0287; Tue, 28 May 2019 13:38:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3009D6B0284
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 13:38:18 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id 73so10631400oty.2
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 10:38:18 -0700 (PDT)
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A0F46B0285
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 13:38:20 -0400 (EDT)
+Received: by mail-lf1-f72.google.com with SMTP id a21so3541980lff.9
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 10:38:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:organization:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language;
-        bh=Bk2LsvsBSuSaHOjj9Wy0EZFxVxL6bxXfc+CWqcO5Pv8=;
-        b=ThRW0nUpONkvcyOk8q6mYZJ7I5SjT4yBb+k6Z7AKplIjgo7gTWGi+t97zfuutpCKqc
-         c7PBdZiu7cyMWzBG2zaAhOwa69J7Ck+xqsOfjtwkSderNZUEt1bhvOC82OTJ+4kRnUfj
-         wNJ+h7YikUnKGfpBpxV0D6sIWLsGXGe1tknW/29BIfPq//+5RHnhoXsJzxs7qXmvYDmM
-         PQ0AnqoLHQxyGcJBuVznqhZzM1J7d87OUtOhROtkJAH/OB8IxXrSmFjnNDDQDqKtVYT5
-         5wuIqMrCAtj81Pkv+XGi6Yrzu7bK1GIaXeVOAXKk3MtWw2GwXm/GVFxOeR6GNtYYQEOe
-         AMIA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXbf5fmzlTUzxY/tXKmF8XhK3KO37+Qfu4k51Y8L2Eo+uyHZapI
-	mBqEHey4HGiABZ191p1WdvFIcmRl6NCdGZ2+Z6HkrNJkCXkppG9DiNYAnqnpN4P6YY9yZFv10q8
-	4JPrhUX6esabq6ipD3hC95GUxCb5cALb64cIsEV339jkVOT30+60WPMggrXpNALXVQw==
-X-Received: by 2002:aca:cc41:: with SMTP id c62mr3505396oig.167.1559065097861;
-        Tue, 28 May 2019 10:38:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx2DFnPgpxQma0A/uEhZgsJfLjHt4TqW1LaQ3g4i/Wa3ENhNFOnXhovWik0QlA2DGkkzYZm
-X-Received: by 2002:aca:cc41:: with SMTP id c62mr3505366oig.167.1559065097329;
-        Tue, 28 May 2019 10:38:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559065097; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=r8PmQcft5RJ51eoZR31WNho/xyilsVu7uCLR1yi4QeM=;
+        b=SFpdBSzKGBtHw/AdnBTrdD5RGCOAUEyLfSpmUXcGMFKm90hzYQiMvjQCOltN93QPXf
+         wCSTFTCCv2eCpkM/s+BGTi1qn2mprE6Yim+WsDTNSuc99kiqVG16XF7QqUoYhUB99+lH
+         H+bMouJdlgarzg3oKFR7Jczsg8Nu7IqhbiwMs3PBs4JLA1hxr339nkObspr6jXiGLfOr
+         mD4vi4jNLoIXJ5Fi9yr3fQszEIjrWgmHT1lKF+P7E8EO5DDfXlZvH1C/x5gQWrXRkNVB
+         ANkcLhjTm2jhQO7pk7KVmRTZA6R6vaYmJXPtg5/vBMqz7GDwGi5X5ZHx2V8CaM7//80q
+         tsrg==
+X-Gm-Message-State: APjAAAUka0mvY2J5nyyewqKXBxZlLTIuYoNcmRieSeNWb/tI5LGjPs3/
+	b0lnORqg4hc8wVR1hAL5nMsKitzIN2j0En93y31Pm+qv9FjkvLr7lg+2KwNfDjUvnXjuz4fRsk8
+	49F+C1gFAZXKclZFxitZ5xwiCvfr13c4Flcx8Mvxmww+FE+MIVjAcahDsALFz+zfxQw==
+X-Received: by 2002:ac2:5a41:: with SMTP id r1mr63328478lfn.148.1559065099977;
+        Tue, 28 May 2019 10:38:19 -0700 (PDT)
+X-Received: by 2002:ac2:5a41:: with SMTP id r1mr63328452lfn.148.1559065099256;
+        Tue, 28 May 2019 10:38:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559065099; cv=none;
         d=google.com; s=arc-20160816;
-        b=yIj2MgAz3xtgyz6L1+o8KtH9+v9QgjLbu4TszgFbmg9CBSxIoamV2diFl8A/cjTPM2
-         UTWe3gwgX/ZMQzcdlg9op/Z/RrSlW3bWvEDf8/HmAgOECTeEcX6/oHPgOfq8aOZJjWGR
-         bSMVBYu8hNjwX5LFwyC8siH/WQx8nsbxYUqGQV1aWj3smCCk8uHUgRhYgN8cuBcMku5J
-         pDusGbAsmZvQ2wmKavXHkO8Cxft0dOpwbyIK3thvbYQDvz/F/bq8AuYMopwZ9Gg6jojO
-         Hp4NtLkd6b+FzOV3MVpcmyCdVRJ+HxDNYMYRUMHxFS1pnF2rOnpdKtJB794JKijnbv2s
-         Zxjg==
+        b=hm4je2LxDENSBCA66y6BJiSj7cM2c9ZcQzo9TNqLfPBt+O9HKOUnFEjeYjiTWcawZh
+         CH31scGx43GNg927uhv213vA71ZOmmw8Nxpv5jU2cnrXwF2vmOdOqtlCxrId+By2o/gX
+         0A2IlLL1J74zKEFGBJmouRdPbYEt56yJIVx1d/RK35MmwdURrTQMzlkLV/J5LC92ORKF
+         NLvQSEg/pnT4QzyP6bapq1fV1yQ6Z+xZrX20+AdlWv1OnXDl8ZiHfY8cOhH1ovAueqLG
+         RVFiC3fG6yYGJGpEbZRiKnbEOtX5O5IoNCqyJyzyWRVoPRDCQzsWrw0f0KTcNr/sHJsL
+         Ml0w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:in-reply-to:mime-version:user-agent:date
-         :message-id:organization:from:references:cc:to:subject;
-        bh=Bk2LsvsBSuSaHOjj9Wy0EZFxVxL6bxXfc+CWqcO5Pv8=;
-        b=R6RAvmHqVDdctSn4S9DyEis3GPTBW/LsxbTvJ5XKAXVdAa2AWrqYiNkTyqO5t8MKpC
-         Y6E62wlw7+nsWAZQwm3YE0cqgPlQwb89FxydVpprfa8gk6KbdBFDK3tGTpZ+frJK/R5R
-         vMKGCmZosdMnlecKCMLwuY5wxXts4Ui3fyGukrmUe461H5GePW+YOBbAT2ImvzHQaiDO
-         JhYHksy274tAMEvr7cFFnnWxFEkJPj1gtwu67uTofkRPyoFi81ZvNdSakZgYIVpYP4Bd
-         hYKHm8hpMI6C71JmhgdOTJLLB7zL7RcO9yJs9swKzD062jlFFghsEfzy1uMBl4DjnSXq
-         Ox3g==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=r8PmQcft5RJ51eoZR31WNho/xyilsVu7uCLR1yi4QeM=;
+        b=t0hEL8PzCuOnWP8i+5hPTKiI0oBXkvF8irIUHhm/+MtYPR6Yv/4qHsjCgp15kYpCYP
+         K7ZXTjQ11nYaa0p0NIlmY7DluW2UItAkccZoPxmg+B3EykSLeEgDS8WEQ02fcPaZ7KHx
+         XNynFIdYM9bJL9cwDwGj8DBqXMcZxu6nSHXhO3sBcKbyxNusBTX0SoJDM282XyTPhFqT
+         KiuEpG/4HyS3k342zws2+lPGjHf5TlIKQtKj/j+10SF/DjiIjRT8MRlrxUS8PxB9Bpz6
+         cur4mG4Yixj3Mretyoi6DwmpFo6KzhgdEyAXlBFkWqdx97rJr2kaHJXMOm1JS7deMh75
+         qv8A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k67si7544286oih.168.2019.05.28.10.38.17
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JT4C1GZ5;
+       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i12sor1431525lfo.73.2019.05.28.10.38.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 May 2019 10:38:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 28 May 2019 10:38:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0A7D37E424;
-	Tue, 28 May 2019 17:37:59 +0000 (UTC)
-Received: from llong.remote.csb (dhcp-17-85.bos.redhat.com [10.18.17.85])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 9884910027C7;
-	Tue, 28 May 2019 17:37:50 +0000 (UTC)
-Subject: Re: [PATCH v5 5/7] mm: rework non-root kmem_cache lifecycle
- management
-To: Vladimir Davydov <vdavydov.dev@gmail.com>, Roman Gushchin <guro@fb.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JT4C1GZ5;
+       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=r8PmQcft5RJ51eoZR31WNho/xyilsVu7uCLR1yi4QeM=;
+        b=JT4C1GZ5u716MuG38oMA8m4kjqZNa8qKH9ij5bmN31mD37QnGs2q/DkpLNNQT54Zah
+         rUr1i5yoLx+yn8qZ9Z6/k+NXbn69dEk4UXskpJRCo4dqFVYZi1Gp9O+oNSmX7wtFtmTW
+         i41ZJ+O6WEW+B/XteUFnOgI6Ny+omV83U8+9UxpLp7+YOX51rxGfMYlVkqNg9scqKNfI
+         WJIUBk6E9hEM4Vz1E/YKBi102DMg1BYgG9OCd3G59CHXnh2xpEjE3S386PD07hkNTX/E
+         2OeALMR2jlduzQUdutJqLwqHpL4y34Re7iAU4oyso+lxa2BJz+GZ5rAHJg7MSOyUyYXg
+         XYOg==
+X-Google-Smtp-Source: APXvYqwduzggJa3CuKgzzvG/ZBPz7SyrVxU3HSrA2hFtyUmdW0XFIf6xWdZSBNqyarXqgVcEOsgxzQ==
+X-Received: by 2002:a19:2981:: with SMTP id p123mr11785310lfp.190.1559065098989;
+        Tue, 28 May 2019 10:38:18 -0700 (PDT)
+Received: from esperanza ([176.120.239.149])
+        by smtp.gmail.com with ESMTPSA id q124sm3003230ljq.75.2019.05.28.10.38.18
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 28 May 2019 10:38:18 -0700 (PDT)
+Date: Tue, 28 May 2019 20:38:16 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Roman Gushchin <guro@fb.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, kernel-team@fb.com,
- Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
- Rik van Riel <riel@surriel.com>, Shakeel Butt <shakeelb@google.com>,
- Christoph Lameter <cl@linux.com>, cgroups@vger.kernel.org
+	linux-kernel@vger.kernel.org, kernel-team@fb.com,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Michal Hocko <mhocko@kernel.org>, Rik van Riel <riel@surriel.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Christoph Lameter <cl@linux.com>, cgroups@vger.kernel.org,
+	Waiman Long <longman@redhat.com>
+Subject: Re: [PATCH v5 7/7] mm: fix /proc/kpagecgroup interface for slab pages
+Message-ID: <20190528173815.2km65nchedfumslt@esperanza>
 References: <20190521200735.2603003-1-guro@fb.com>
- <20190521200735.2603003-6-guro@fb.com>
- <20190528170828.zrkvcdsj3d3jzzzo@esperanza>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <96b8a923-49e4-f13e-b1e3-3df4598d849e@redhat.com>
-Date: Tue, 28 May 2019 13:37:50 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+ <20190521200735.2603003-8-guro@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <20190528170828.zrkvcdsj3d3jzzzo@esperanza>
-Content-Type: multipart/alternative;
- boundary="------------93207EDE24F79E4B4BD55885"
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Tue, 28 May 2019 17:38:08 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190521200735.2603003-8-guro@fb.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------93207EDE24F79E4B4BD55885
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+On Tue, May 21, 2019 at 01:07:35PM -0700, Roman Gushchin wrote:
+> Switching to an indirect scheme of getting mem_cgroup pointer for
+> !root slab pages broke /proc/kpagecgroup interface for them.
+> 
+> Let's fix it by learning page_cgroup_ino() how to get memcg
+> pointer for slab pages.
+> 
+> Reported-by: Shakeel Butt <shakeelb@google.com>
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Reviewed-by: Shakeel Butt <shakeelb@google.com>
+> ---
+>  mm/memcontrol.c  |  5 ++++-
+>  mm/slab.h        | 25 +++++++++++++++++++++++++
+>  mm/slab_common.c |  1 +
+>  3 files changed, 30 insertions(+), 1 deletion(-)
 
-On 5/28/19 1:08 PM, Vladimir Davydov wrote:
->>  static void flush_memcg_workqueue(struct kmem_cache *s)
->>  {
->> +	/*
->> +	 * memcg_params.dying is synchronized using slab_mutex AND
->> +	 * memcg_kmem_wq_lock spinlock, because it's not always
->> +	 * possible to grab slab_mutex.
->> +	 */
->>  	mutex_lock(&slab_mutex);
->> +	spin_lock(&memcg_kmem_wq_lock);
->>  	s->memcg_params.dying = true;
->> +	spin_unlock(&memcg_kmem_wq_lock);
-> I would completely switch from the mutex to the new spin lock -
-> acquiring them both looks weird.
->
->>  	mutex_unlock(&slab_mutex);
->>  
->>  	/*
-
-There are places where the slab_mutex is held and sleeping functions
-like kvzalloc() are called. I understand that taking both mutex and
-spinlocks look ugly, but converting all the slab_mutex critical sections
-to spinlock critical sections will be a major undertaking by itself. So
-I would suggest leaving that for now.
-
-Cheers,
-Longman
-
-
---------------93207EDE24F79E4B4BD55885
-Content-Type: text/html; charset=utf-8
-Content-Transfer-Encoding: 7bit
-
-<html>
-  <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  </head>
-  <body text="#000000" bgcolor="#FFFFFF">
-    <div class="moz-cite-prefix">On 5/28/19 1:08 PM, Vladimir Davydov
-      wrote:<br>
-    </div>
-    <blockquote type="cite"
-      cite="mid:20190528170828.zrkvcdsj3d3jzzzo@esperanza">
-      <blockquote type="cite" style="color: #000000;">
-        <pre class="moz-quote-pre" wrap=""> static void flush_memcg_workqueue(struct kmem_cache *s)
- {
-+	/*
-+	 * memcg_params.dying is synchronized using slab_mutex AND
-+	 * memcg_kmem_wq_lock spinlock, because it's not always
-+	 * possible to grab slab_mutex.
-+	 */
- 	mutex_lock(&amp;slab_mutex);
-+	spin_lock(&amp;memcg_kmem_wq_lock);
- 	s-&gt;memcg_params.dying = true;
-+	spin_unlock(&amp;memcg_kmem_wq_lock);
-</pre>
-      </blockquote>
-      <pre class="moz-quote-pre" wrap="">I would completely switch from the mutex to the new spin lock -
-acquiring them both looks weird.
-
-</pre>
-      <blockquote type="cite" style="color: #000000;">
-        <pre class="moz-quote-pre" wrap=""> 	mutex_unlock(&amp;slab_mutex);
- 
- 	/*
-</pre>
-      </blockquote>
-    </blockquote>
-    <p>There are places where the slab_mutex is held and sleeping
-      functions like kvzalloc() are called. I understand that taking
-      both mutex and spinlocks look ugly, but converting all the
-      slab_mutex critical sections to spinlock critical sections will be
-      a major undertaking by itself. So I would suggest leaving that for
-      now.</p>
-    <p>Cheers,<br>
-      Longman<br>
-    </p>
-  </body>
-</html>
-
---------------93207EDE24F79E4B4BD55885--
+What about mem_cgroup_from_kmem, see mm/list_lru.c?
+Shouldn't we fix it, too?
 
