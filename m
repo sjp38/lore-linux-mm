@@ -2,136 +2,150 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C5E9C04AB3
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 00:46:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F210C04AB3
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 00:50:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2E2082081C
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 00:46:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E2082081C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 5C0A620823
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 00:50:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C0A620823
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 857F46B027A; Mon, 27 May 2019 20:46:14 -0400 (EDT)
+	id E958F6B027F; Mon, 27 May 2019 20:50:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E1056B027C; Mon, 27 May 2019 20:46:14 -0400 (EDT)
+	id E463C6B0281; Mon, 27 May 2019 20:50:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 681196B027F; Mon, 27 May 2019 20:46:14 -0400 (EDT)
+	id CE6AD6B0283; Mon, 27 May 2019 20:50:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C9046B027A
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 20:46:14 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 11so14436790pfb.4
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 17:46:14 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9497B6B027F
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 20:50:24 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id y9so12167524plt.11
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 17:50:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=bE+rooZMEZ++B5MReWbEgBGHcAahTBIpJd9+nFIpA/c=;
-        b=Nz41/4K5mlk83e6wLmWeMva90cWqFwGboTJDwD57xt4ZEDlUK5BZg4SCjbmd3LOGxb
-         kvljRYZK3LxDF6kO45TbtMSRsB39iH6U/h1d4HQOBTipbkJWm1ip64s1ClkzR8ESDTOY
-         w+VMo5pvmBeKbJNCsDJkMitU68g+lD8LHvVhL2Z+K9ow6hbUrXZUDtuhMKkXHLL4KKqr
-         5cMHqoQUUt4nKjBySbQdfUp0EuLH+VCfQQTdsNlfaDI5AOzEj3OMYoxVKORI8Ea3D6Yh
-         1FtzF1ToQLs/qDCtpGkISxzvOQPoPzzEukKE7MuMZmD4AaF1hrS1cVtySa1XHnnySFvW
-         OdjA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAX0FZhWDwTrjmIGaJkioofveacm7KrkFl6gzl45MDePO5hQVDFM
-	uKPsZv627v0pAsZOfwcnKo5j257/rMaU/kd1slNXZJweBixmkdR32p40fy8sOb/b1wTJAD87uzR
-	z0X0xhQlNpXoieV4E9jeDPdrV2dPo0qtw9934EmspQju4ifmZINIrFKY386Xr4A4YKw==
-X-Received: by 2002:a17:90a:364b:: with SMTP id s69mr1962996pjb.15.1559004373734;
-        Mon, 27 May 2019 17:46:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqynU2hfQ81gyijI9ScNElpSvIfFGEy+N/VkrwvbpI6a6hOE9xpNWeM2BUoXrWCoChS5KpZH
-X-Received: by 2002:a17:90a:364b:: with SMTP id s69mr1962919pjb.15.1559004372956;
-        Mon, 27 May 2019 17:46:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559004372; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=ObUsOjfYi2knL12seS4WJmK3UEY6GkuNgXPzUMFfCvE=;
+        b=UQr5wHAw3OV8Luso72meaeLmp48iWgrKvnpgnvGZqCdDsk6rQr72VgRFG81FBBiRej
+         1/c9Nvy38bhws/spKDp0f8+NM3NI0ab/nEcK1AtLKEojM55H4m9/zzmvfpT7Rmc5Z8ez
+         OaFNxgz8OgFqF41DieyJZl/3HHo9AWEjRZhM6CZEroHHRESEfVo57jr3xO/KoU6pvzeI
+         pXMrDOWiiiSf/dZ/GteT1vRc0T5zs7NbtffdM7xAQFqjJQDP7m/AgW5CoAmJ3Xj2rwSs
+         vaGFnPEMSVEE2mHejN0phx+6tqqa8AI4mtxZjcZLKnqAlbXZ/6R4/3Hwn3w6NZIESDDd
+         Kv0A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWQNj5w4XtFC4LOUrVg7rGYuWf3Uk/kxhmXUYadMm/te24LBoKV
+	Oz8Aw4lKPbd7X91EXDaELhr3IxhUqU2dOS0JkcupzPh6uDyMCslJTekMGm7/ZzXEhSwL1SFKq/U
+	2ms2MXo7vkSwD8F7nfzN9MYTxO8eajnlgycYYp6npqlEhIqo9kfNOzaUbNyzWPfhIpA==
+X-Received: by 2002:a63:950d:: with SMTP id p13mr129068021pgd.269.1559004624214;
+        Mon, 27 May 2019 17:50:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzJPdSCcQHfOWB2sGW+6TjDymC/uGEFMKHyI3sFJYkeUiDgqBIODZ3A6XcM1BRPWRZRkfJw
+X-Received: by 2002:a63:950d:: with SMTP id p13mr129067959pgd.269.1559004623641;
+        Mon, 27 May 2019 17:50:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559004623; cv=none;
         d=google.com; s=arc-20160816;
-        b=yP+F84ZU6PO6WD4+K12LAta7UERxGnuvYXlPj/CWTLgWicIPnXRi7RHd0L9q49d/zj
-         3qW7cVLzXx80jcZAbybJ1cA2UaI64dQoycrkbeXw71lOmqtdup4lw0Gj6e6ddc+KgoPb
-         QBIKWc9W0JJ6Vaqv2b0nNYVdp+Kn/04v+I7vdr5QLlmx1LkJbU0AuuUzO56Xw/nmKpQw
-         N1+Mnwtci+666W81fG/asnJTdh0LrSBMn6jqOydnIte0Na8FYxoQrj108Aqg51N5rJRB
-         ztwm2g3HAawrIakxeVTJp8GI+INVEtjpv9OG34uZP5rv4h8TCOat10eOG7u8yFnV1deO
-         6HPg==
+        b=rFC7TGZw5O3TcTOxkaWzXrxPIGZymXHKMRKn+B+92uz63GBeE9NSrtOs0do7WprV86
+         PymgoUXoXCrr1U/j9rIQSmfb7CQn9NbqzIQTuBxgVkIS4W/7mNXx0XcA6kAJy93XEqks
+         i7lyK5oHKnosQqrMBtE/MXElt/7PPTb/h5+3J40GAb8JZpRjzAfJIM2+At3mdJUqZ/Vl
+         mOqB2add/hqiyiZE5aXkQY8z1BAOMOL6yjlztozpO4ZAPXDH2F4lS7/nKtg8/NttMeIL
+         JHzEsinzKGZ2vErsgm3H/4ctaDgEPMzIU3YWutgEgnbX1OcMqqiIQzMEG7RNo4NZLy9f
+         CD6g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=bE+rooZMEZ++B5MReWbEgBGHcAahTBIpJd9+nFIpA/c=;
-        b=o0ty9Tk9wX8A3BB5ZYscxemyI2E+iY/TfaVfN+g8sISN0IQudGCa/iOSpGMRTXchID
-         uz058RPM+45BwoM8EM2qRph5OfiQ5SYbW6cNCUTYO0pR19YKros4CUA8ET0p+RZDboiY
-         vNLipXgKOecRBEbS7un/OteJOijKuEl/dQTqqCD9rjRAUSvK9Go9x1ZVqifDFZKdCYdQ
-         fJk9KsC0kUl6YrAWLpC/10rfiKp7wcqDGCeymrR20d0Ktu0BF0w+cREgLyAiCF9H4nFO
-         gbnZwf7JJg8Fd4LLWsg3K8lodALe5ssCdys8ZhmLKPOruaBUbUhb/F1Y444Fqr0TyoTL
-         uegg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=ObUsOjfYi2knL12seS4WJmK3UEY6GkuNgXPzUMFfCvE=;
+        b=vdghoR3MPnkDrXmZOkM5bbAreJ2BasR6AfcPCh9Si8jQghFb/8UULiu0r6ca+QxKhF
+         0IqA72wpQAEPt1F3tAv0VSkkLcuDeM7M8/RiCoc0v52dgmqZ8Z48ZoT0KF7HF4hDvYSY
+         in0eeDHhawijgDzSOZHHrME/KsfO3VRrEaRs+ymG5ccgLOrNElJhC90NJhDinBjATq4A
+         6iUX+dIgGASmKk2OGd0tJIwPTCAkt2AlzfNJqMp9QBP0YCTcTOqkVkxnMlUb9Q0R5rTm
+         z44z/wxFTrkd1dqHEBzvoTOUk/cdU2eni0R4fXcZroKQjVubxatFgq9GPGBGJrhwu984
+         IlJQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id t1si18835036plr.74.2019.05.27.17.46.12
+       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id z12si18524879pgl.467.2019.05.27.17.50.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 May 2019 17:46:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        Mon, 27 May 2019 17:50:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joseph.qi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 May 2019 17:46:12 -0700
-X-ExtLoop1: 1
-Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.29])
-  by fmsmga007.fm.intel.com with ESMTP; 27 May 2019 17:46:09 -0700
-From: "Huang\, Ying" <ying.huang@intel.com>
-To: "Paul E. McKenney" <paulmck@linux.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,  <linux-mm@kvack.org>,  <linux-kernel@vger.kernel.org>,  Hugh Dickins <hughd@google.com>,  Minchan Kim <minchan@kernel.org>,  Johannes Weiner <hannes@cmpxchg.org>,  Tim Chen <tim.c.chen@linux.intel.com>,  Mel Gorman <mgorman@techsingularity.net>,  Jérôme Glisse <jglisse@redhat.com>,  Michal Hocko <mhocko@suse.com>,  Andrea Arcangeli <aarcange@redhat.com>,  Yang Shi <yang.shi@linux.alibaba.com>,  David Rientjes <rientjes@google.com>,  "Rik van Riel" <riel@redhat.com>,  Jan Kara <jack@suse.cz>,  Dave Jiang <dave.jiang@intel.com>,  Daniel Jordan <daniel.m.jordan@oracle.com>,  "Andrea Parri" <andrea.parri@amarulasolutions.com>
-Subject: Re: [PATCH -mm] mm, swap: Simplify total_swapcache_pages() with get_swap_device()
-References: <20190527082714.12151-1-ying.huang@intel.com>
-	<20190527101536.GI28207@linux.ibm.com>
-Date: Tue, 28 May 2019 08:46:02 +0800
-In-Reply-To: <20190527101536.GI28207@linux.ibm.com> (Paul E. McKenney's
-	message of "Mon, 27 May 2019 03:15:36 -0700")
-Message-ID: <871s0j8kz9.fsf@yhuang-dev.intel.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R471e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04400;MF=joseph.qi@linux.alibaba.com;NM=1;PH=DS;RN=24;SR=0;TI=SMTPD_---0TSq1luR_1559004607;
+Received: from JosephdeMacBook-Pro.local(mailfrom:joseph.qi@linux.alibaba.com fp:SMTPD_---0TSq1luR_1559004607)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Tue, 28 May 2019 08:50:07 +0800
+Subject: Re: [PATCH 2/3] mm: remove cleancache.c
+To: Juergen Gross <jgross@suse.com>, linux-kernel@vger.kernel.org,
+ linux-doc@vger.kernel.org, linux-erofs@lists.ozlabs.org,
+ devel@driverdev.osuosl.org, linux-fsdevel@vger.kernel.org,
+ linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
+ linux-f2fs-devel@lists.sourceforge.net, linux-mm@kvack.org
+Cc: Jonathan Corbet <corbet@lwn.net>, Gao Xiang <gaoxiang25@huawei.com>,
+ Chao Yu <yuchao0@huawei.com>, Greg Kroah-Hartman
+ <gregkh@linuxfoundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>,
+ Chris Mason <clm@fb.com>, Josef Bacik <josef@toxicpanda.com>,
+ David Sterba <dsterba@suse.com>, Theodore Ts'o <tytso@mit.edu>,
+ Andreas Dilger <adilger.kernel@dilger.ca>, Jaegeuk Kim <jaegeuk@kernel.org>,
+ Mark Fasheh <mark@fasheh.com>, Joel Becker <jlbec@evilplan.org>,
+ ocfs2-devel@oss.oracle.com
+References: <20190527103207.13287-1-jgross@suse.com>
+ <20190527103207.13287-3-jgross@suse.com>
+From: Joseph Qi <joseph.qi@linux.alibaba.com>
+Message-ID: <7c75d310-1beb-08f3-d590-b4ff2c42cbcd@linux.alibaba.com>
+Date: Tue, 28 May 2019 08:50:06 +0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:60.0)
+ Gecko/20100101 Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <20190527103207.13287-3-jgross@suse.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Paul,
 
-"Paul E. McKenney" <paulmck@linux.ibm.com> writes:
 
-> On Mon, May 27, 2019 at 04:27:14PM +0800, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> total_swapcache_pages() may race with swapper_spaces[] allocation and
->> freeing.  Previously, this is protected with a swapper_spaces[]
->> specific RCU mechanism.  To simplify the logic/code complexity, it is
->> replaced with get/put_swap_device().  The code line number is reduced
->> too.  Although not so important, the swapoff() performance improves
->> too because one synchronize_rcu() call during swapoff() is deleted.
->
-> I am guessing that total_swapcache_pages() is not used on any
-> fastpaths, but must defer to others on this.  Of course, if the
-> performance/scalability of total_swapcache_pages() is important,
-> benchmarking is needed.
+On 19/5/27 18:32, Juergen Gross wrote:
+> With the removal of tmem and xen-selfballoon the only user of
+> cleancache is gone. Remove it, too.
+> 
+> Signed-off-by: Juergen Gross <jgross@suse.com>
+> ---
+>  Documentation/vm/cleancache.rst  | 296 ------------------------------------
+>  Documentation/vm/frontswap.rst   |  10 +-
+>  Documentation/vm/index.rst       |   1 -
+>  MAINTAINERS                      |   7 -
+>  drivers/staging/erofs/data.c     |   6 -
+>  drivers/staging/erofs/internal.h |   1 -
+>  fs/block_dev.c                   |   5 -
+>  fs/btrfs/extent_io.c             |   9 --
+>  fs/btrfs/super.c                 |   2 -
+>  fs/ext4/readpage.c               |   6 -
+>  fs/ext4/super.c                  |   2 -
+>  fs/f2fs/data.c                   |   3 +-
+>  fs/mpage.c                       |   7 -
+>  fs/ocfs2/super.c                 |   2 -
 
-This patch is mostly about code cleanup instead of performance.  That
-is, to make the code easier to be understand.
+For ocfs2 part,
+Reviewed-by: Joseph Qi <joseph.qi@linux.alibaba.com>
 
-> But where do I find get_swap_device() and put_swap_device()?  I do not
-> see them in current mainline.
-
-They are not in mainline, but in -mm tree.  I should have made it more
-clear.  Sorry about that.
-
-Best Regards,
-Huang, Ying
+>  fs/super.c                       |   3 -
+>  include/linux/cleancache.h       | 124 ---------------
+>  include/linux/fs.h               |   5 -
+>  mm/Kconfig                       |  22 ---
+>  mm/Makefile                      |   1 -
+>  mm/cleancache.c                  | 317 ---------------------------------------
+>  mm/filemap.c                     |  11 --
+>  mm/truncate.c                    |  15 +-
 
