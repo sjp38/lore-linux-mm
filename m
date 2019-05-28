@@ -2,278 +2,226 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E5D34C04AB6
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:54:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3BDE3C072B1
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:56:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A74182075B
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:54:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A74182075B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ucw.cz
+	by mail.kernel.org (Postfix) with ESMTP id EFFFC20B7C
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:56:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EFFFC20B7C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2B63C6B026E; Tue, 28 May 2019 07:54:47 -0400 (EDT)
+	id 881176B026F; Tue, 28 May 2019 07:56:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2664E6B026F; Tue, 28 May 2019 07:54:47 -0400 (EDT)
+	id 8316F6B0272; Tue, 28 May 2019 07:56:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 17C3E6B0272; Tue, 28 May 2019 07:54:47 -0400 (EDT)
+	id 6FA726B0273; Tue, 28 May 2019 07:56:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BD06A6B026E
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 07:54:46 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id e14so10411828wrx.7
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 04:54:46 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 23DA76B026F
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 07:56:13 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id y22so32742079eds.14
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 04:56:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=m06acolN1j8vOdMrN03K65G8SlY2hmv7dm/Qi7OArks=;
-        b=P1sLaO8c8yITxCJ43cvwzi8wp8/3NgoGXk37+ATKAdGVBruVfxgaPBcFxSzL3yb1if
-         Cgm7KDIG9/YPIFGa2/lIdWS7jGq+gTIZHFwn3LE9wph8/dywhb3E64o41Kn57tJcUwNg
-         tP1i3CcFy2BanoEVMhqOa/9Ce8vRQ05yJvmujOlf4y0yBRBF4QbxLC49k2acqMHIGiCb
-         S32wrkhDhwO1vfrYWhWfRmSjOpEWqYoDoZm1m7YTyfPZAw12g9LNY3iRKJo+bblhNbnq
-         fH6Xor6Sv/mVjrmEw6NM2dovUK/BYgywkdA/WfpS4PJv/z2A6It37ofQgpDeDIg5TTPP
-         gyYw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
-X-Gm-Message-State: APjAAAUaw0MIbSJ0tlspMDcEBUzmzYfCtFnnvbco6XbrR5qmNHsk1XBi
-	p/o5U2tfGAWYDl7W7GYgpqUQkHmFxtxHHnRm5Fvv6FDtZMBGyDWOXjTs4XHMXR6bjWw031iMldf
-	BHZYUCIdgK6eDbTlJqJGAHlEXGZapC2nunsIZq96QHA39hl1Npy8hFsIi87kjuQA=
-X-Received: by 2002:a1c:9e08:: with SMTP id h8mr2810983wme.168.1559044486154;
-        Tue, 28 May 2019 04:54:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyyTdFbCk1WCRgq4QlK/caCg6gRdz8KqM0CfKMTNiaW9dCmbHXUlymbRsTo2s+RA53OiCIO
-X-Received: by 2002:a1c:9e08:: with SMTP id h8mr2810925wme.168.1559044485128;
-        Tue, 28 May 2019 04:54:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559044485; cv=none;
+        bh=oXeVIQ9QS+dITA61XAEL8EPsLqLMJzYMLQi0Uyib3MM=;
+        b=ObbuJSdXahIfRakaXohykuA+oa3343viVKONsHnUbs8mjkdp2MwQqPxUS61PIfU8kZ
+         yZxY8QNH3Ql6hUXtg5G7RGl0czQc8iFT9T8r5q5an1IrSYe8mW7+S5SO9nIgMhLbVfnU
+         vLAtxfC131cWWyOhTjG0LfqzqOj2H0fxM5N6wCHggTEMvinR/KmW1rbpGGHVfPJuAqtm
+         EvazV/YcfFzAtvjw5AYuotl7hhZjyPViAKPV9nueoo+rOwbown05GO512GGBlzg+74wY
+         0W14sO5X2liag0IvsccKUGj3ea+VwPyoK3WaAtncudP4zN2Ou2H/rZB8+LnP9hpkPw3G
+         wReg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXPML3AkraHlLNKFeyxjyUdWiJdCiqB77qVuKvoJf8ctGNtFNY1
+	8hJymSsrbJrOZYbUAbXUBS1fMohYdNFoBq85xmV1lNO1oMepVKBqKRiONalPN77qJXLXJktnFQN
+	Ipg5LDsS+5DocR0w3H1Y1Wqf6pC3Wail43hecPmx75QEl8RjoLb97t8WaSYCN/8U=
+X-Received: by 2002:a50:86a2:: with SMTP id r31mr127483323eda.259.1559044572698;
+        Tue, 28 May 2019 04:56:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw6NJYtMeRcO1vl9VBGQ7MHhXZgnrEYTXMll3QbObSWz1PTNOJs5h7aX5NopOGI0AOoW1H/
+X-Received: by 2002:a50:86a2:: with SMTP id r31mr127483264eda.259.1559044571883;
+        Tue, 28 May 2019 04:56:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559044571; cv=none;
         d=google.com; s=arc-20160816;
-        b=CriHf6coal6trfTmDidjal1QJ/FAk70huDv9YID57XvGFj4FlWMSOutzcKDMOh9zEe
-         3EdnCuslN1EoVb/V40lemkV+7RdQo1ezcsWNip3jLDLGiwjXr7VLHfrqzn+Hucv4g1HY
-         J0Y8Elf5ihgR8VuMdmwjkFS/5KmQhbR8Um0yUS6PVbADk5Xu2mYrrm52Yo+6puyfLtOO
-         vMzOeqGjMZeZxif/oVwKYXFlOlHxCCXfWaFYwGOVytODUAARvcYJ+KsQJjbE+hPn0LPa
-         4SJANPWxvOHzAKQlYhmXPsrIxqUfgvl8Zojo8yrYur5NksMqsSddlzcWBnx+8dBRzv5B
-         tjXg==
+        b=oGwaXjfGW46rPDNDt0e0vOIjzRD10vCZJh2recatdcDlXwoK1cHmtuPNidIu2lpTux
+         /AB8PAvTjICJeeMbpv27VAOdFGI0lSyIjaDl1Wx9LTiUO2z82jJVqq5D1ZE+6pTlLOk2
+         8tkbN+z0B43Wh0S63HHzdBMFRXAXnuZ2zzT8g22WNtutJeHqfJeqaATCh5rGDv4xsF/k
+         XebjLuLJAfXMVPFtnwjA7t7xy9KSaqI0TjjYzbU6PhBYbREHAVUBrjw1NQlcaXM1IxNc
+         JlHQbe0xbPbZptuu4z0faU7mgCvKWiZJ12jHtEuQ8uFGh0DRxuMIONIgRBlsdVT/wbZC
+         k6+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=m06acolN1j8vOdMrN03K65G8SlY2hmv7dm/Qi7OArks=;
-        b=CaFNG3OW4tMRzbN9k4so1n2qw1eeKKGYnbOEeInvJKrTOQnLxOgDd8t6cQG6xPfEmU
-         iZrV2/2AaN4NsiqHJOAgETSO5e5i7xf8+oVfRHfcUIHC1aIErbOsNYKgyzuWEkU4WOXD
-         G1q+YI9i1MF6NbmCx+nlb/z2+267aNwBpKwCaUAcH9BzGtzqgWzwmdHnchYiItJXX1nu
-         znGzausyIucRQrU1YcBGZ3QqSyj/P8mQlvps40awvdjK+3QG8vV6e4cYNi7WPFjFgNaZ
-         uKE8/jMs9x4SVu3nzHwgd8sHed2hye9f08Z/zDDkr7SwdClPHPs9NS8R8rPEwXIo92zG
-         /sLA==
+        bh=oXeVIQ9QS+dITA61XAEL8EPsLqLMJzYMLQi0Uyib3MM=;
+        b=tlmfb1JqBudFDmneJEk45Sn3LkewTSx3i6AF4PaF7zypxJnbGFuDMVlnP+Xi0DMa1s
+         rUXqaJzn1bVDnpX879gRuRE49G6rJHiT1xudA5X7IcFWJWPIjSeaaTfrCnAsGTv/VLnN
+         Z0woPOrw1P9XI1ZolLG3OD4qs3He4vcbDyN1y7EiMlP7gnAdai0vHhM7JWF12G/J7uOe
+         VoW0pCg6odKDquhRIagaj+Yz0fW51KhzHnXV2+0oxCiN3CGPIzFyZ942Kc410pL5zoZK
+         mV831ZvMzBlpQA2O/8apDmykIvB1j9X32JpLhBtvRzjWH+EARINdqcEh9zQl8I9bM1U2
+         LO3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id w17si3454651wrv.115.2019.05.28.04.54.44
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h13si6354980edh.215.2019.05.28.04.56.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 May 2019 04:54:45 -0700 (PDT)
-Received-SPF: neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) client-ip=195.113.26.193;
+        Tue, 28 May 2019 04:56:11 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
-Received: by atrey.karlin.mff.cuni.cz (Postfix, from userid 512)
-	id 7B43E80324; Tue, 28 May 2019 13:54:34 +0200 (CEST)
-Date: Tue, 28 May 2019 13:54:44 +0200
-From: Pavel Machek <pavel@ucw.cz>
-To: Hugh Dickins <hughd@google.com>
-Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, x86@kernel.org,
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 2AFCEAD4A;
+	Tue, 28 May 2019 11:56:11 +0000 (UTC)
+Date: Tue, 28 May 2019 13:56:09 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Daniel Colascione <dancol@google.com>
+Cc: Minchan Kim <minchan@kernel.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Borislav Petkov <bp@suse.de>,
-	Dave Hansen <dave.hansen@linux.intel.com>
-Subject: My emacs problem -- was Re: [PATCH] x86/fpu: Use
- fault_in_pages_writeable() for pre-faulting
-Message-ID: <20190528115443.GA27627@amd>
-References: <20190526173325.lpt5qtg7c6rnbql5@linutronix.de>
- <20190526173501.6pdufup45rc2omeo@linutronix.de>
- <alpine.LSU.2.11.1905261211400.2004@eggly.anvils>
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>,
+	Linux API <linux-api@vger.kernel.org>
+Subject: Re: [RFC 7/7] mm: madvise support MADV_ANONYMOUS_FILTER and
+ MADV_FILE_FILTER
+Message-ID: <20190528115609.GA1658@dhcp22.suse.cz>
+References: <20190528062947.GL1658@dhcp22.suse.cz>
+ <20190528081351.GA159710@google.com>
+ <CAKOZuesnS6kBFX-PKJ3gvpkv8i-ysDOT2HE2Z12=vnnHQv0FDA@mail.gmail.com>
+ <20190528084927.GB159710@google.com>
+ <20190528090821.GU1658@dhcp22.suse.cz>
+ <20190528103256.GA9199@google.com>
+ <20190528104117.GW1658@dhcp22.suse.cz>
+ <20190528111208.GA30365@google.com>
+ <20190528112840.GY1658@dhcp22.suse.cz>
+ <CAKOZuesCSrE0esqDDbo8x5u5rM-Uv_81jjBt1QRXFKNOUJu0aw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="3V7upXqbjpZ4EhLz"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1905261211400.2004@eggly.anvils>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+In-Reply-To: <CAKOZuesCSrE0esqDDbo8x5u5rM-Uv_81jjBt1QRXFKNOUJu0aw@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue 28-05-19 04:42:47, Daniel Colascione wrote:
+> On Tue, May 28, 2019 at 4:28 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Tue 28-05-19 20:12:08, Minchan Kim wrote:
+> > > On Tue, May 28, 2019 at 12:41:17PM +0200, Michal Hocko wrote:
+> > > > On Tue 28-05-19 19:32:56, Minchan Kim wrote:
+> > > > > On Tue, May 28, 2019 at 11:08:21AM +0200, Michal Hocko wrote:
+> > > > > > On Tue 28-05-19 17:49:27, Minchan Kim wrote:
+> > > > > > > On Tue, May 28, 2019 at 01:31:13AM -0700, Daniel Colascione wrote:
+> > > > > > > > On Tue, May 28, 2019 at 1:14 AM Minchan Kim <minchan@kernel.org> wrote:
+> > > > > > > > > if we went with the per vma fd approach then you would get this
+> > > > > > > > > > feature automatically because map_files would refer to file backed
+> > > > > > > > > > mappings while map_anon could refer only to anonymous mappings.
+> > > > > > > > >
+> > > > > > > > > The reason to add such filter option is to avoid the parsing overhead
+> > > > > > > > > so map_anon wouldn't be helpful.
+> > > > > > > >
+> > > > > > > > Without chiming on whether the filter option is a good idea, I'd like
+> > > > > > > > to suggest that providing an efficient binary interfaces for pulling
+> > > > > > > > memory map information out of processes.  Some single-system-call
+> > > > > > > > method for retrieving a binary snapshot of a process's address space
+> > > > > > > > complete with attributes (selectable, like statx?) for each VMA would
+> > > > > > > > reduce complexity and increase performance in a variety of areas,
+> > > > > > > > e.g., Android memory map debugging commands.
+> > > > > > >
+> > > > > > > I agree it's the best we can get *generally*.
+> > > > > > > Michal, any opinion?
+> > > > > >
+> > > > > > I am not really sure this is directly related. I think the primary
+> > > > > > question that we have to sort out first is whether we want to have
+> > > > > > the remote madvise call process or vma fd based. This is an important
+> > > > > > distinction wrt. usability. I have only seen pid vs. pidfd discussions
+> > > > > > so far unfortunately.
+> > > > >
+> > > > > With current usecase, it's per-process API with distinguishable anon/file
+> > > > > but thought it could be easily extended later for each address range
+> > > > > operation as userspace getting smarter with more information.
+> > > >
+> > > > Never design user API based on a single usecase, please. The "easily
+> > > > extended" part is by far not clear to me TBH. As I've already mentioned
+> > > > several times, the synchronization model has to be thought through
+> > > > carefuly before a remote process address range operation can be
+> > > > implemented.
+> > >
+> > > I agree with you that we shouldn't design API on single usecase but what
+> > > you are concerning is actually not our usecase because we are resilient
+> > > with the race since MADV_COLD|PAGEOUT is not destruptive.
+> > > Actually, many hints are already racy in that the upcoming pattern would
+> > > be different with the behavior you thought at the moment.
+> >
+> > How come they are racy wrt address ranges? You would have to be in
+> > multithreaded environment and then the onus of synchronization is on
+> > threads. That model is quite clear. But we are talking about separate
+> > processes and some of them might be even not aware of an external entity
+> > tweaking their address space.
+> 
+> I don't think the difference between a thread and a process matters in
+> this context. Threads race on address space operations all the time
+> --- in the sense that multiple threads modify a process's address
+> space without synchronization.
 
---3V7upXqbjpZ4EhLz
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+I would disagree. They do have in-kernel synchronization as long as they
+do not use MAP_FIXED. If they do want to use MAP_FIXED then they better
+synchronize or the result is undefined.
 
-Hi!
+> The main reasons that these races
+> hasn't been a problem are: 1) threads mostly "mind their own business"
+> and modify different parts of the address space or use locks to ensure
+> that they don't stop on each other (e.g., the malloc heap lock), and
+> 2) POSIX mmap atomic-replacement semantics make certain classes of
+> operation (like "magic ring buffer" setup) safe even in the presence
+> of other threads stomping over an address space.
 
-On Sun 2019-05-26 12:25:27, Hugh Dickins wrote:
-> On Sun, 26 May 2019, Sebastian Andrzej Siewior wrote:
-> > On 2019-05-26 19:33:25 [+0200], To Hugh Dickins wrote:
-> > From: Hugh Dickins <hughd@google.com>
-> > =E2=80=A6
-> > > Signed-off-by: Hugh Dickins <hughd@google.com>
-> >=20
-> > Hugh, I took your patch, slapped a signed-off-by line. Please say that
-> > you are fine with it (or object otherwise).
->=20
-> I'm fine with it, thanks Sebastian. Sorry if I wasted your time by not
-> giving it my sign-off in the first place, but I was not comfortable to
-> dabble there without your sign-off too - which it now has. (And thought
-> you might already have your own version anyway: just provided mine as
-> illustration, so that we could be sure of exactly what I'd been testing.)
+Agreed here.
 
-I applied Hugh's patch on top of -rc2, but still get emacs problems:
+[...]
 
-But this time I'm not sure if it is same emacs problem or different
-emacs problem....
+> From a synchronization point
+> of view, it doesn't really matter whether it's a thread within the
+> target process or a thread outside the target process that does the
+> address space manipulation. What's new is the inspection of the
+> address space before performing an operation.
 
-X protocol error: BadValue (integer parameter out of range for
-operation) on protocol request 139
-When compiled with GTK, Emacs cannot recover from X disconnects.
-This is a GTK bug: https://bugzilla.gnome.org/show_bug.cgi?id=3D85715
-For details, see etc/PROBLEMS.
+The fundamental difference is that if you want to achieve the same
+inside the process then your application is inherenly aware of the
+operation and use whatever synchronization is needed to achieve a
+consistency. As soon as you allow the same from outside you either
+have to have an aware target application as well or you need a mechanism
+to find out that your decision has been invalidated by a later
+unsynchronized action.
 
-(emacs:8175): GLib-WARNING **: g_main_context_prepare() called
-recursively from within a source's check() or prepare() member.
+> Minchan started this thread by proposing some flags that would
+> implement a few of the filtering policies I used as examples above.
+> Personally, instead of providing a few pre-built policies as flags,
+> I'd rather push the page manipulation policy to userspace as much as
+> possible and just have the kernel provide a mechanism that *in
+> general* makes these read-decide-modify operations efficient and
+> robust. I still think there's way to achieve this goal very
+> inexpensively without compromising on flexibility.
 
-(emacs:8175): GLib-WARNING **: g_main_context_check() called
-recursively from within a source's check() or prepare() member.
-Fatal error 6: Aborted
-Backtrace:
-emacs[0x8138719]
-emacs[0x8120446]
-emacs[0x813875c]
-emacs[0x80f54c0]
-emacs[0x80f6f3f]
-emacs[0x80f6fab]
-/usr/lib/i386-linux-gnu/libX11.so.6(_XError+0x11a)[0xf6ea1b3a]
-/usr/lib/i386-linux-gnu/libX11.so.6(+0x39b5b)[0xf6e9eb5b]
-/usr/lib/i386-linux-gnu/libX11.so.6(+0x39c26)[0xf6e9ec26]
-/usr/lib/i386-linux-gnu/libX11.so.6(_XEventsQueued+0x6e)[0xf6e9f4be]
-/usr/lib/i386-linux-gnu/libX11.so.6(XPending+0x62)[0xf6e90752]
-/usr/lib/i386-linux-gnu/libgdk-3.so.0(+0x48073)[0xf7566073]
-/lib/i386-linux-gnu/libglib-2.0.so.0(g_main_context_prepare+0x17b)[0xf70244=
-fb]
-/lib/i386-linux-gnu/libglib-2.0.so.0(+0x46f74)[0xf7024f74]
-/lib/i386-linux-gnu/libglib-2.0.so.0(g_main_context_pending+0x34)[0xf702514=
-4]
-/usr/lib/i386-linux-gnu/libgtk-3.so.0(gtk_events_pending+0x1f)[0xf77c9a8f]
-emacs[0x80f55a9]
-emacs[0x812714f]
-emacs[0x8126a95]
-emacs[0x8172db9]
-emacs[0x8192bd7]
-emacs[0x819312d]
-emacs[0x8125634]
-emacs[0x8125c6d]
-emacs[0x812725b]
-emacs[0x8129eaa]
-emacs[0x81c7c90]
-emacs[0x8127815]
-emacs[0x812ada3]
-emacs[0x812bdad]
-emacs[0x812d838]
-emacs[0x818b76c]
-emacs[0x8120890]
-emacs[0x818b66b]
-emacs[0x8124b84]
-emacs[0x8124e3f]
-emacs[0x8059cb0]
-/lib/i386-linux-gnu/i686/cmov/libc.so.6(__libc_start_main+0xf3)[0xf61a7a63]
-emacs[0x805a76f]
-Aborted (core dumped)
+Agreed here.
 
-Best regards,
-									Pavel
-
-
-commit 018c9da72adf920efd0ba250fcf433b836d3cfbc
-Author: Hugh Dickins <hughd@google.com>
-Date:   Sun May 26 19:33:25 2019 +0200
-
-    x86/fpu: Use fault_in_pages_writeable() for pre-faulting
-   =20
-    Since commit
-   =20
-       d9c9ce34ed5c8 ("x86/fpu: Fault-in user stack if copy_fpstate_to_sigf=
-rame() fails")
-   =20
-    we use get_user_pages_unlocked() to pre-faulting user's memory if a
-    write generates a page fault while the handler is disabled.
-    This works in general and uncovered a bug as reported by Mike Rapoport.
-   =20
-    It has been pointed out that this function may be fragile and a
-    simple pre-fault as in fault_in_pages_writeable() would be a better
-    solution. Better as in taste and simplicity: That write (as performed by
-    the alternative function) performs exactly the same faulting of memory
-    that we had before. This was suggested by Hugh Dickins and Andrew
-    Morton.
-   =20
-    Use fault_in_pages_writeable() for pre-faulting of user's stack.
-   =20
-    Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-    Signed-off-by: Hugh Dickins <hughd@google.com>
-    Link: https://lkml.kernel.org/r/alpine.LSU.2.11.1905251033230.1112@eggl=
-y.anvils
-    [bigeasy: patch description]
-    Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-
-diff --git a/arch/x86/kernel/fpu/signal.c b/arch/x86/kernel/fpu/signal.c
-index 5a8d118..060d618 100644
---- a/arch/x86/kernel/fpu/signal.c
-+++ b/arch/x86/kernel/fpu/signal.c
-@@ -5,6 +5,7 @@
-=20
- #include <linux/compat.h>
- #include <linux/cpu.h>
-+#include <linux/pagemap.h>
-=20
- #include <asm/fpu/internal.h>
- #include <asm/fpu/signal.h>
-@@ -189,15 +190,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __=
-user *buf_fx, int size)
- 	fpregs_unlock();
-=20
- 	if (ret) {
--		int aligned_size;
--		int nr_pages;
--
--		aligned_size =3D offset_in_page(buf_fx) + fpu_user_xstate_size;
--		nr_pages =3D DIV_ROUND_UP(aligned_size, PAGE_SIZE);
--
--		ret =3D get_user_pages_unlocked((unsigned long)buf_fx, nr_pages,
--					      NULL, FOLL_WRITE);
--		if (ret =3D=3D nr_pages)
-+		if (!fault_in_pages_writeable(buf_fx, fpu_user_xstate_size))
- 			goto retry;
- 		return -EFAULT;
- 	}
-
-
-
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---3V7upXqbjpZ4EhLz
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAlztIYMACgkQMOfwapXb+vI75ACdHJt+UjplhowDy8ZXEkJhicP0
-z70Anih1OGc59Aa8Dl3kUnN28Z4i83Dy
-=94bm
------END PGP SIGNATURE-----
-
---3V7upXqbjpZ4EhLz--
+-- 
+Michal Hocko
+SUSE Labs
 
