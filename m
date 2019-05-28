@@ -2,201 +2,199 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 32583C04AB6
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 13:05:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E2C8BC04E84
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 13:47:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EB8DD20717
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 13:05:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB8DD20717
+	by mail.kernel.org (Postfix) with ESMTP id 887962166E
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 13:47:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 887962166E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 73C866B0274; Tue, 28 May 2019 09:05:30 -0400 (EDT)
+	id E6F796B0274; Tue, 28 May 2019 09:47:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6EC2C6B0276; Tue, 28 May 2019 09:05:30 -0400 (EDT)
+	id E1FC96B0276; Tue, 28 May 2019 09:47:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5DC756B0279; Tue, 28 May 2019 09:05:30 -0400 (EDT)
+	id D370C6B0279; Tue, 28 May 2019 09:47:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 110F86B0274
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 09:05:30 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id k22so2024459ede.0
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 06:05:30 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 86B976B0274
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 09:47:11 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id r48so33183008eda.11
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 06:47:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=PKZ76gp/yVpYupXGz47pT+82L05hOr0NPSHNDqqLuAA=;
-        b=TuAWfEm7kymFA04wsvS30UJs3F9txEQwAA3ycAaI2IzisxHEC9UCmU1X9WyXbKPHSp
-         IsBQkVP6J1J0OI5BA1Jqcr5orqxAg9zbVtIGAiP81YaPak3av9EfpawoQS2bbGn95EEU
-         In5swc/aM4vvYzpzspJMfAQj5WFKj7jMPMRsGn3HaBibZC9GaScrG3CDun49airBEk18
-         Bao8PwLDN4R2cJFVK4sZ17zc/XwnPP4m5f2RErWpFvhCmIH77GDU5nprLjAfCyQOcv96
-         11w+qrR3GwBIjAeRHxblg+jsxrTOWoJU/b83nEWS/Y8kbgLi656xS6v5V/bZeqnz/XDp
-         wSRg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAXBZZFUX7H419I/NVV46HnwiI19j24nnD7HXKa1D9qigsiN9fon
-	LJ/qEkEPjSMrOavINjoyLPQgXQI/TlZwZyxYMUNctiJed7f8RZOOjuao2TrTeC3m0Z3r3RxGq3Q
-	DHR4yYs8aHYkCQG/4tDzUFeKYnQw10zZ/jPqahP+teJHD8OJxD1a0IoRCY4ah4C/00A==
-X-Received: by 2002:a50:9430:: with SMTP id p45mr126623594eda.257.1559048729647;
-        Tue, 28 May 2019 06:05:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyCsBBrZ0deQoLhsojc97SfCWNITPzlqY+2IB7r7YYLvM4G6BujxGbd3YRQlDCcSnlaHA5k
-X-Received: by 2002:a50:9430:: with SMTP id p45mr126623444eda.257.1559048728359;
-        Tue, 28 May 2019 06:05:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559048728; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=aMFru+FDM/TDLQp4wYpaQ25MLnIXUbp+IgwfShTVwUs=;
+        b=mSoxiLc1uxLN8f6Xe5+vFby9OLg3exrRaqX34dzikHri2Z8Bk1vzIfA/0pm2VbWePJ
+         X0+cSzLBpkelca1oFYISD6iPHUF5E711De2Ur8zZvMOTmzVtK+gYbhz8EbsZV4ttufGK
+         57Aq1k9Qdsqrh8RSFja3nxhvGgqANBDPx+AFoD2RQF2XJyKzJ5kVjq8dy6yUQuRj2H3T
+         9GIP9pwuS8+nNQmtgILUF8IDSBj3xlqX7SWDSgr1yXCsjTXZlsi5vf1yvO8PTvOxd9KO
+         lnb0hlrI0axwnAkUHMNPqi1N0kzuJLmbaIIvH/5TK2Q9K3mW8u+Z2i5bwyMuxWzRJWDF
+         NRMg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
+X-Gm-Message-State: APjAAAWiszhif7XU76b9WF/JamMLlqkA8FMIBb59lUFyqv0XAEB/hcwd
+	qrwjxbq/VT7/eCzh1tem5u1y+92gLpUhqVQfJcHEIqPWP1FRUzId+dpR7Em5n8adajf/E5UF3oQ
+	xC7q9wGI0EGzLxrvyqqpt5HFWVMz4j24sKwiEG45hzHg5rA6OzA8r7809pnId6paXAw==
+X-Received: by 2002:a50:95af:: with SMTP id w44mr128682763eda.95.1559051231141;
+        Tue, 28 May 2019 06:47:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy+v2TwecY5jYaxSVbEvsnWHsjSf2fupbDXEffa+WePMYWBx89PPhtMadHwH5TOlbfmZGWa
+X-Received: by 2002:a50:95af:: with SMTP id w44mr128682659eda.95.1559051229921;
+        Tue, 28 May 2019 06:47:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559051229; cv=none;
         d=google.com; s=arc-20160816;
-        b=ptn4DQmXxIQ/S8vAULKGApb9ONkFaDyscXq2iSXAokTpa6ac6bSwwyfsfONgUjNren
-         ePhom4ZHfnqqR796pamOr9FH608vNO7q61xx5/jhLe3oUvk6fC5TNManlW01Yyxp0EUv
-         1efXla3uaJKZJ7EoKX5LqnbxIGfltVrEa0jJNMS+RFe1k9aYbWwyUiGBwnLxtIQ2I346
-         j72gGup4Ba6rpYxdSpSjW0HNGx7IesTAeVVr/OjL3gnStgHuQDqZqb1mq9450H+eRvin
-         x87Mgw8NJKGkTVdj5FTTp3tthEToC5rOWUnBE4M+63tN7gtGMgBZG66DKTixZGcqtWPB
-         KbDA==
+        b=BZQq0a1ec7hfDUNmg6dvEWbzAMQOMV8Ab/u3ycy5JKY4xkNMr6a0P1I2/sVzFGCIp1
+         GXWbyqXqc2vBopLofa2Mepf4EPKANMxWfHKsURvnpp/z0F606uKh//+4CjIH0Itz+CCv
+         /vpHQ/MFZ85K0BhKpqY8XYQJ2tOXcyuxqUyCX8Z9GXtVxJTIL8mOUwU3yPPPGdK82GD6
+         adDR0gaxbElMhN0sI1jqvRppKdUoP3RZgNN7+Az+u+AcAzHrf03pAHFlftOvinaVVD69
+         7a70WjICSF34hktSIOl4ADGDxe+YHz7nunkEEKugirgfEbIXn1t+pyn5mVbBY9/QMeFr
+         BHsQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=PKZ76gp/yVpYupXGz47pT+82L05hOr0NPSHNDqqLuAA=;
-        b=mL2Yc0bFEaMG8aLW4Hvq1aTyAGYDkUPqZ1eufJ9848Wz+aEsK93Ln2SpBf6XjxGoJr
-         DB4cCoiAM6T6SDLm+Z519BycI4D2NkxjqLrIUeJkDU2VMRd1/OcWiZd2JoBrpT4g8SD/
-         LgwZGm5kv/IUop2qG2BU9q70NJe7zEKhIs8f606d17nK29edtTo4RV6XaMlRGKtTrDpR
-         NEAs9kvM0/o9qLKBxNNGTOno40DN2vCn7j5VoFLGg74F/EGpkozAt4RmZfUFRAC4TDTh
-         QCAoX4lPXSqtS02fmrdiRB6RvMH8UokV19rOPPzKDo1RJfPGFT2D8B4bqWNFJladwEPB
-         Xhmg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=aMFru+FDM/TDLQp4wYpaQ25MLnIXUbp+IgwfShTVwUs=;
+        b=vQMNTma1mmT4g+f++HN2GZlAqAL/eRzRdmmGN6BSLSxkSJk1Od5qaC/ALZWAZ2AvWG
+         H0bE3audyzv1ZfjI5qiKsEFGaGx16tDyqa9LVGYY4b8hKG+Y7kKZUPtAlokTrMOHbZza
+         3YSnOXIgNdKuOWr5cc4Wqycwq2umzXbYDunQ+X8+ejrpJwz0Lgi5YANN5lFKz7TCQMC5
+         k73O0s6X0gXegiEV9joC/QcWEoJHPuYuRFTYn6+a5Ni5rM+cRToO63pxJHZ0/g6sp9x1
+         aT6xAkggj8eMhgDKrdK0tmkTWPaBaDTfwOauYtzh82JXCsKWLmbv1xZq0rr05gfRywLB
+         kBmA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l27si1978793edd.52.2019.05.28.06.05.27
+        by mx.google.com with ESMTP id h3si2405672edn.330.2019.05.28.06.47.09
         for <linux-mm@kvack.org>;
-        Tue, 28 May 2019 06:05:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+        Tue, 28 May 2019 06:47:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D01EC80D;
-	Tue, 28 May 2019 06:05:26 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 479923F5AF;
-	Tue, 28 May 2019 06:05:21 -0700 (PDT)
-Date: Tue, 28 May 2019 14:05:18 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Kees Cook <keescook@chromium.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v15 05/17] arms64: untag user pointers passed to memory
- syscalls
-Message-ID: <20190528130518.GB32006@arrakis.emea.arm.com>
-References: <cover.1557160186.git.andreyknvl@google.com>
- <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 56D3F80D;
+	Tue, 28 May 2019 06:47:08 -0700 (PDT)
+Received: from e110467-lin.cambridge.arm.com (e110467-lin.cambridge.arm.com [10.1.196.75])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 22C303F5AF;
+	Tue, 28 May 2019 06:47:06 -0700 (PDT)
+From: Robin Murphy <robin.murphy@arm.com>
+To: will.deacon@arm.com,
+	catalin.marinas@arm.com,
+	akpm@linux-foundation.org
+Cc: linux-mm@kvack.org,
+	linux-arm-kernel@lists.infradead.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH v3.1 4/4] arm64: mm: Implement pte_devmap support
+Date: Tue, 28 May 2019 14:46:59 +0100
+Message-Id: <13026c4e64abc17133bbfa07d7731ec6691c0bcd.1559050949.git.robin.murphy@arm.com>
+X-Mailer: git-send-email 2.21.0.dirty
+In-Reply-To: <817d92886fc3b33bcbf6e105ee83a74babb3a5aa.1558547956.git.robin.murphy@arm.com>
+References: <cover.1558547956.git.robin.murphy@arm.com> <817d92886fc3b33bcbf6e105ee83a74babb3a5aa.1558547956.git.robin.murphy@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 06, 2019 at 06:30:51PM +0200, Andrey Konovalov wrote:
->  /*
->   * Wrappers to pass the pt_regs argument.
->   */
->  #define sys_personality		sys_arm64_personality
-> +#define sys_mmap_pgoff		sys_arm64_mmap_pgoff
-> +#define sys_mremap		sys_arm64_mremap
-> +#define sys_munmap		sys_arm64_munmap
-> +#define sys_brk			sys_arm64_brk
-> +#define sys_get_mempolicy	sys_arm64_get_mempolicy
-> +#define sys_madvise		sys_arm64_madvise
-> +#define sys_mbind		sys_arm64_mbind
-> +#define sys_mlock		sys_arm64_mlock
-> +#define sys_mlock2		sys_arm64_mlock2
-> +#define sys_munlock		sys_arm64_munlock
-> +#define sys_mprotect		sys_arm64_mprotect
-> +#define sys_msync		sys_arm64_msync
-> +#define sys_mincore		sys_arm64_mincore
-> +#define sys_remap_file_pages	sys_arm64_remap_file_pages
-> +#define sys_shmat		sys_arm64_shmat
-> +#define sys_shmdt		sys_arm64_shmdt
+In order for things like get_user_pages() to work on ZONE_DEVICE memory,
+we need a software PTE bit to identify device-backed PFNs. Hook this up
+along with the relevant helpers to join in with ARCH_HAS_PTE_DEVMAP.
 
-This hunk should be (I sent a separate patch for sys_personality):
+Signed-off-by: Robin Murphy <robin.murphy@arm.com>
+---
 
-@@ -160,23 +163,23 @@ SYSCALL_DEFINE1(arm64_shmdt, char __user *, shmaddr)
- /*
-  * Wrappers to pass the pt_regs argument.
-  */
--#define sys_personality		sys_arm64_personality
--#define sys_mmap_pgoff		sys_arm64_mmap_pgoff
--#define sys_mremap		sys_arm64_mremap
--#define sys_munmap		sys_arm64_munmap
--#define sys_brk			sys_arm64_brk
--#define sys_get_mempolicy	sys_arm64_get_mempolicy
--#define sys_madvise		sys_arm64_madvise
--#define sys_mbind		sys_arm64_mbind
--#define sys_mlock		sys_arm64_mlock
--#define sys_mlock2		sys_arm64_mlock2
--#define sys_munlock		sys_arm64_munlock
--#define sys_mprotect		sys_arm64_mprotect
--#define sys_msync		sys_arm64_msync
--#define sys_mincore		sys_arm64_mincore
--#define sys_remap_file_pages	sys_arm64_remap_file_pages
--#define sys_shmat		sys_arm64_shmat
--#define sys_shmdt		sys_arm64_shmdt
-+#define __arm64_sys_personality		__arm64_sys_arm64_personality
-+#define __arm64_sys_mmap_pgoff		__arm64_sys_arm64_mmap_pgoff
-+#define __arm64_sys_mremap		__arm64_sys_arm64_mremap
-+#define __arm64_sys_munmap		__arm64_sys_arm64_munmap
-+#define __arm64_sys_brk			__arm64_sys_arm64_brk
-+#define __arm64_sys_get_mempolicy	__arm64_sys_arm64_get_mempolicy
-+#define __arm64_sys_madvise		__arm64_sys_arm64_madvise
-+#define __arm64_sys_mbind		__arm64_sys_arm64_mbind
-+#define __arm64_sys_mlock		__arm64_sys_arm64_mlock
-+#define __arm64_sys_mlock2		__arm64_sys_arm64_mlock2
-+#define __arm64_sys_munlock		__arm64_sys_arm64_munlock
-+#define __arm64_sys_mprotect		__arm64_sys_arm64_mprotect
-+#define __arm64_sys_msync		__arm64_sys_arm64_msync
-+#define __arm64_sys_mincore		__arm64_sys_arm64_mincore
-+#define __arm64_sys_remap_file_pages	__arm64_sys_arm64_remap_file_pages
-+#define __arm64_sys_shmat		__arm64_sys_arm64_shmat
-+#define __arm64_sys_shmdt		__arm64_sys_arm64_shmdt
+Fix to build correctly under all combinations of
+CONFIG_PGTABLE_LEVELS and CONFIG_TRANSPARENT_HUGEPAGE.
+
+ arch/arm64/Kconfig                    |  1 +
+ arch/arm64/include/asm/pgtable-prot.h |  1 +
+ arch/arm64/include/asm/pgtable.h      | 21 +++++++++++++++++++++
+ 3 files changed, 23 insertions(+)
+
+diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+index 4780eb7af842..b5a4611fa4c6 100644
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -23,6 +23,7 @@ config ARM64
+ 	select ARCH_HAS_KCOV
+ 	select ARCH_HAS_KEEPINITRD
+ 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
++	select ARCH_HAS_PTE_DEVMAP
+ 	select ARCH_HAS_PTE_SPECIAL
+ 	select ARCH_HAS_SETUP_DMA_OPS
+ 	select ARCH_HAS_SET_MEMORY
+diff --git a/arch/arm64/include/asm/pgtable-prot.h b/arch/arm64/include/asm/pgtable-prot.h
+index 986e41c4c32b..af0b372d15e5 100644
+--- a/arch/arm64/include/asm/pgtable-prot.h
++++ b/arch/arm64/include/asm/pgtable-prot.h
+@@ -28,6 +28,7 @@
+ #define PTE_WRITE		(PTE_DBM)		 /* same as DBM (51) */
+ #define PTE_DIRTY		(_AT(pteval_t, 1) << 55)
+ #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
++#define PTE_DEVMAP		(_AT(pteval_t, 1) << 57)
+ #define PTE_PROT_NONE		(_AT(pteval_t, 1) << 58) /* only when !PTE_VALID */
  
- asmlinkage long sys_ni_syscall(const struct pt_regs *);
- #define __arm64_sys_ni_syscall	sys_ni_syscall
-
+ #ifndef __ASSEMBLY__
+diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+index 2c41b04708fe..7a2cf6939311 100644
+--- a/arch/arm64/include/asm/pgtable.h
++++ b/arch/arm64/include/asm/pgtable.h
+@@ -90,6 +90,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
+ #define pte_write(pte)		(!!(pte_val(pte) & PTE_WRITE))
+ #define pte_user_exec(pte)	(!(pte_val(pte) & PTE_UXN))
+ #define pte_cont(pte)		(!!(pte_val(pte) & PTE_CONT))
++#define pte_devmap(pte)		(!!(pte_val(pte) & PTE_DEVMAP))
+ 
+ #define pte_cont_addr_end(addr, end)						\
+ ({	unsigned long __boundary = ((addr) + CONT_PTE_SIZE) & CONT_PTE_MASK;	\
+@@ -217,6 +218,11 @@ static inline pmd_t pmd_mkcont(pmd_t pmd)
+ 	return __pmd(pmd_val(pmd) | PMD_SECT_CONT);
+ }
+ 
++static inline pte_t pte_mkdevmap(pte_t pte)
++{
++	return set_pte_bit(pte, __pgprot(PTE_DEVMAP));
++}
++
+ static inline void set_pte(pte_t *ptep, pte_t pte)
+ {
+ 	WRITE_ONCE(*ptep, pte);
+@@ -381,6 +387,11 @@ static inline int pmd_protnone(pmd_t pmd)
+ 
+ #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
+ 
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++#define pmd_devmap(pmd)		pte_devmap(pmd_pte(pmd))
++#endif
++#define pmd_mkdevmap(pmd)	pte_pmd(pte_mkdevmap(pmd_pte(pmd)))
++
+ #define __pmd_to_phys(pmd)	__pte_to_phys(pmd_pte(pmd))
+ #define __phys_to_pmd_val(phys)	__phys_to_pte_val(phys)
+ #define pmd_pfn(pmd)		((__pmd_to_phys(pmd) & PMD_MASK) >> PAGE_SHIFT)
+@@ -666,6 +677,16 @@ static inline int pmdp_set_access_flags(struct vm_area_struct *vma,
+ {
+ 	return ptep_set_access_flags(vma, address, (pte_t *)pmdp, pmd_pte(entry), dirty);
+ }
++
++static inline int pud_devmap(pud_t pud)
++{
++	return 0;
++}
++
++static inline int pgd_devmap(pgd_t pgd)
++{
++	return 0;
++}
+ #endif
+ 
+ /*
 -- 
-Catalin
+2.21.0.dirty
 
