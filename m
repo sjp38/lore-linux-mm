@@ -2,176 +2,193 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
+	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 78C30C04AB6
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 14:54:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 402BCC04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 14:54:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 230E4206BA
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 14:54:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 230E4206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id DF9D6206BA
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 14:54:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF9D6206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7ADA36B0276; Tue, 28 May 2019 10:54:17 -0400 (EDT)
+	id 75E7D6B0279; Tue, 28 May 2019 10:54:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 738726B0279; Tue, 28 May 2019 10:54:17 -0400 (EDT)
+	id 70F746B027A; Tue, 28 May 2019 10:54:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D7776B027A; Tue, 28 May 2019 10:54:17 -0400 (EDT)
+	id 5FF396B027C; Tue, 28 May 2019 10:54:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E9986B0276
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 10:54:17 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id p14so33536594edc.4
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 07:54:17 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BE776B0279
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 10:54:46 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id g11so15898111pfq.7
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 07:54:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=8d74jFy6weW1l3n6RJracSmjeKOey4N+g70LbZoZ0uo=;
-        b=WMYZ7cJWbhYwpGyikJXQsJVZ1IAGGrAYUNnNdJ/0NN1owtaA1ulhV3m06YX9BHIsy+
-         Jr8bMcLndjKxezKsQcil+1OrsjlcqBEK6lvzzZSCgSYE87IT1CaGGuVPceY6My0duuLy
-         ME+LmVCfsmwsS5vBNLZgMtJa3rl+LoCQbZXXPoxzrq89QxnzIozg2ii8IetSObu43yJ4
-         ZMwysXZIabLyvd0guzcYfF2LwYmdy74hHC5qCDvNQT8812p39aUIc0MK9IBTr53U4FNd
-         lISRWsmAlG7/q/1doKc+8SsgI8rKRKaXYEOQWc+nJPr/WHUHnS0D/OoVZMbaE6Vlq+NC
-         6Cfw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of andrew.murray@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=andrew.murray@arm.com
-X-Gm-Message-State: APjAAAWeDLPh0XVnPOazrbj6ZqsXGFKqzYGsC648cLrktQ2LbfCzlNvs
-	+kMppDOuw0miNRcBvMvBqDJZAAZ2FMg7bLQmzbUxsdDEs/RfhLPfMWvUpwpMDkyW0Bxw0vcEbDF
-	KJY/kSPCujckYMVLT9pd1M2fLCpwno6SylFW9SlreaGZLaB4Lzb90Q2FriF7Jj3HH6A==
-X-Received: by 2002:a50:a53c:: with SMTP id y57mr3200434edb.17.1559055256540;
-        Tue, 28 May 2019 07:54:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy/ggY5EeVkXbu5JzN7zHmHf8QFaIu1adjuExm4gqC/VuQ34V/WQJdDrEwbt56uvqz9ZVCl
-X-Received: by 2002:a50:a53c:: with SMTP id y57mr3200345edb.17.1559055255586;
-        Tue, 28 May 2019 07:54:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559055255; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version:sender
+         :precedence:list-id:archived-at:list-archive:list-post
+         :content-transfer-encoding;
+        bh=7Kj+lJqtsCYo6JwqA7bZB82Qh/jE+Tu1vFi/SfcX0Vw=;
+        b=eRn1DKOBNAbOIWTKc6Y3TAeJiwTMoN7bfvoXlRJHFPmNG+jEJh8o6+IDcjpViwjceu
+         YTA/LGz7EreXZp7ENA0izVYnPUDmPdQoEAhsyqNErmI7x/L2Qy2a8umG3i+5sb5jykzU
+         IozkiUb/Qi5R1QWYe1Q2DOxMQ+kO9RFjmxSoGCqGI+VL5hxAUx1i56Muav0Zi2euwrCa
+         udNK7NgoZHmO9bt/TzwYMBkF5NpC5qf+NzGGP19HOwUkuTdo+MyMO8IMxX1sGU5ayURe
+         4eUL0HFA4Dc4p7r1N9uZsZdtDVFdLW3udpKb96VZxWtZIzQz07GYXNoR419xKezTiloE
+         EV5A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.166 as permitted sender) smtp.mailfrom=hdanton@sina.com
+X-Gm-Message-State: APjAAAVmLsjIBWhbbFJCY8VipdTTB8+GPYIns/kAleT9yy7OIXTDGJKY
+	0xqfEsn0c+sTWsFt5JKqN7mSz2NisHS7PS1wMuZ3O2CaJUViOY5XggfW+IvZbuYRWROsdPM91Gt
+	7iIHOyA8kwMYs3JRh0OT/QyNlARItWMbChkUhviiTYzEgdqulogPzRlBW8Bn44Dkvcg==
+X-Received: by 2002:a63:231d:: with SMTP id j29mr105982546pgj.278.1559055285697;
+        Tue, 28 May 2019 07:54:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzkL1cVm2l1A6M8HfW8MB5VrTgEafnGTieXye7jjwML1Hjy4L37YbLaSKRk8MkFX/syEEdB
+X-Received: by 2002:a63:231d:: with SMTP id j29mr105982505pgj.278.1559055285009;
+        Tue, 28 May 2019 07:54:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559055285; cv=none;
         d=google.com; s=arc-20160816;
-        b=ormyA7ULcO/IWKPujEGHMj9pvRAC8ANHyvMCgnRfy+F1MdK1D7JkSUYEdJndMld5D+
-         iE446fs5IqC/CBFxVSAUONGrW4efKE+g35IHxE7AHePejW5rbCal2LXkvDVrj/FG05tr
-         b5zPyvvKvlbBgsKlfuJ2fcQhFfOtygxQT+vAhDfkxu0/P+Bdk08d1MFT1wbYVKO8z5YG
-         fmo0kKtNIB1idOKXdnl4NZ4knGZfKdFOcUrz//fKMA3Kg/c/txV3vN5vHc/94fSffOaF
-         U781VwAT8L10f25ybn09y4SEM5lFhQf5FzVG9NKwvbwbNJlIoeKY0817i6F5lbDfhqkV
-         Z4hA==
+        b=umLYwtqiH6m/ojT0GqQVV1hfGV8Q6FEvXEWN3/d7JEMMU05X2gAi191BNfZ8W5tQBb
+         w5w4KcV0khbpIxlZzMzi0VynA3sRVCgNzbbbZaf7L0cuYkgOUH+RntaQYoSaSaN+L22F
+         Onp9uofT9gf6CiS8h3qR3P8L1tWp8GiUBZ2Z2lPVU+35ZCd/P+nxDc2sTZHEoiOiCRyH
+         bNq7XYI6TW+P8hNATMJ/3V2Yb1VZUsSuNSZaPMklOmOnBwZQfRp6aK7TXHEpcbNF6QxD
+         fHT8pKxwfJ/PWxhMgzpAwn9CU3t6UNnCNFWpipnK+bSXIBDA66kIvJY+VbvCMg53jZ9x
+         jd3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=8d74jFy6weW1l3n6RJracSmjeKOey4N+g70LbZoZ0uo=;
-        b=aZQZKjX6VYUxhJ56RyZTSUOOia9pcC9ZF2Du+mAVm7tfjiO3Vb7dnSWNIUWYCtvbg+
-         M4j9BjN7eFCNGG5bdbP+wiIbdyx+bUtPc391Tb/w+kBt7UKDq0GEHreEixtwBVn1A/Te
-         2nMdasG2lzAwoXQA4CAkMadK42GvFZdRS9gOQl0B3D9Q5XLDJ0RnmZvkoOVhyVUTlwhX
-         lH9zYgU5mZTPa1nF0ysEGs6f8t6DYYjRuCo6J5sU4WVq14isO8rk8JolYVwzb444JW4f
-         slcnhd0WqNNtPhsA7SqPHRYXp6apyr96KuPPKDJ/d2M9GteweJn5iCg4dtWs4xNkr5IG
-         dp+g==
+        h=content-transfer-encoding:list-post:list-archive:archived-at
+         :list-id:precedence:sender:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=7Kj+lJqtsCYo6JwqA7bZB82Qh/jE+Tu1vFi/SfcX0Vw=;
+        b=Nffmj44GpvG8upnwQ8oV9yJLu9Z+BpQ2qLA05RmQcSCqVLMVTs1KqbtxBtKZixFVdq
+         pP4hZttNGeKyb9wDvnCM1ZOVE7cH+Luc/XmASVR7raS3994EQaxt1kajOUEt1EnwIhES
+         8Wf6qqCYPMdR1PwlqLtdiz9CLCiUzXCUcQqB+WltfsFyo79IrpEj+z35JuG4/vFG0mlA
+         dEN4wPM1cbinPBAJhzf06f7K7n2KXXUlyO/jZcRHTWeX8ZdWU/BmoLzSfSuw//GqFy6r
+         D87G85saWGVaJ5yeXzw3qVwcdyYDTgxdpifXD1jzz4qROSuABghdw1KgL8F3ls0wcGOi
+         3kCQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of andrew.murray@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=andrew.murray@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id b20si3724915ede.282.2019.05.28.07.54.14
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.166 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from mail3-166.sinamail.sina.com.cn (mail3-166.sinamail.sina.com.cn. [202.108.3.166])
+        by mx.google.com with SMTP id e67si22555026pgc.11.2019.05.28.07.54.44
         for <linux-mm@kvack.org>;
-        Tue, 28 May 2019 07:54:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andrew.murray@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+        Tue, 28 May 2019 07:54:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hdanton@sina.com designates 202.108.3.166 as permitted sender) client-ip=202.108.3.166;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of andrew.murray@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=andrew.murray@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id F18CC80D;
-	Tue, 28 May 2019 07:54:13 -0700 (PDT)
-Received: from localhost (unknown [10.37.6.20])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 689083F5AF;
-	Tue, 28 May 2019 07:54:13 -0700 (PDT)
-Date: Tue, 28 May 2019 15:54:11 +0100
-From: Andrew Murray <andrew.murray@arm.com>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, kvm@vger.kernel.org,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Will Deacon <will.deacon@arm.com>, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, linux-kselftest@vger.kernel.org,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Leon Romanovsky <leon@kernel.org>, linux-rdma@vger.kernel.org,
-	amd-gfx@lists.freedesktop.org, Dmitry Vyukov <dvyukov@google.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Evgeniy Stepanov <eugenis@google.com>, linux-media@vger.kernel.org,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	linux-arm-kernel@lists.infradead.org,
-	Kostya Serebryany <kcc@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>, linux-kernel@vger.kernel.org,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v15 05/17] arms64: untag user pointers passed to memory
- syscalls
-Message-ID: <20190528145411.GA709@e119886-lin.cambridge.arm.com>
-References: <cover.1557160186.git.andreyknvl@google.com>
- <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
- <20190527143719.GA59948@MBP.local>
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.166 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from unknown (HELO localhost.localdomain)([123.112.52.157])
+	by sina.com with ESMTP
+	id 5CED4BB00000730B; Tue, 28 May 2019 22:54:42 +0800 (CST)
+X-Sender: hdanton@sina.com
+X-Auth-ID: hdanton@sina.com
+X-SMAIL-MID: 928312401584
+From: Hillf Danton <hdanton@sina.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>
+Subject: Re: [RFC 3/7] mm: introduce MADV_COLD
+Date: Tue, 28 May 2019 22:54:32 +0800
+Message-Id: <20190520035254.57579-4-minchan@kernel.org>
+In-Reply-To: <20190520035254.57579-1-minchan@kernel.org>
+References: <20190520035254.57579-1-minchan@kernel.org>
+X-Mailer: git-send-email 2.21.0.1020.gf2820cf01a-goog
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190527143719.GA59948@MBP.local>
-User-Agent: Mutt/1.10.1+81 (426a6c1) (2018-08-26)
+List-ID: <linux-kernel.vger.kernel.org>
+X-Mailing-List: linux-kernel@vger.kernel.org
+Archived-At: <https://lore.kernel.org/lkml/20190520035254.57579-4-minchan@kernel.org/>
+List-Archive: <https://lore.kernel.org/lkml/>
+List-Post: <mailto:linux-kernel@vger.kernel.org>
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
+Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20190528145432.aTY3UAMkk4fihjUmD4rrpoPkg64ZcTij7eSY3gEI7E8@z>
 
-On Mon, May 27, 2019 at 03:37:20PM +0100, Catalin Marinas wrote:
-> On Mon, May 06, 2019 at 06:30:51PM +0200, Andrey Konovalov wrote:
-> > This patch is a part of a series that extends arm64 kernel ABI to allow to
-> > pass tagged user pointers (with the top byte set to something else other
-> > than 0x00) as syscall arguments.
-> > 
-> > This patch allows tagged pointers to be passed to the following memory
-> > syscalls: brk, get_mempolicy, madvise, mbind, mincore, mlock, mlock2,
-> > mmap, mmap_pgoff, mprotect, mremap, msync, munlock, munmap,
-> > remap_file_pages, shmat and shmdt.
-> > 
-> > This is done by untagging pointers passed to these syscalls in the
-> > prologues of their handlers.
-> > 
-> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> 
-> Actually, I don't think any of these wrappers get called (have you
-> tested this patch?). Following commit 4378a7d4be30 ("arm64: implement
-> syscall wrappers"), I think we have other macro names for overriding the
-> sys_* ones.
 
-What is the value in adding these wrappers?
+On Mon, 20 May 2019 12:52:50 +0900 Minchan Kim wrote:
+> +unsigned long reclaim_pages(struct list_head *page_list)
+> +{
+> +	int nid = -1;
+> +	unsigned long nr_isolated[2] = {0, };
+> +	unsigned long nr_reclaimed = 0;
+> +	LIST_HEAD(node_page_list);
+> +	struct reclaim_stat dummy_stat;
+> +	struct scan_control sc = {
+> +		.gfp_mask = GFP_KERNEL,
+> +		.priority = DEF_PRIORITY,
+> +		.may_writepage = 1,
+> +		.may_unmap = 1,
+> +		.may_swap = 1,
+> +	};
+> +
+> +	while (!list_empty(page_list)) {
+> +		struct page *page;
+> +
+> +		page = lru_to_page(page_list);
+> +		list_del(&page->lru);
+> +
+> +		if (nid == -1) {
+> +			nid = page_to_nid(page);
+> +			INIT_LIST_HEAD(&node_page_list);
+> +			nr_isolated[0] = nr_isolated[1] = 0;
+> +		}
+> +
+> +		if (nid == page_to_nid(page)) {
+> +			list_add(&page->lru, &node_page_list);
+> +			nr_isolated[!!page_is_file_cache(page)] +=
+> +						hpage_nr_pages(page);
+> +			continue;
+> +		}
+> +
+Now, page's node != nid and any page on the node_page_list has
+node == nid. 
+> +		nid = page_to_nid(page);
 
-The untagged_addr macro is defined for all in linux/mm.h and these patches
-already use untagged_addr in generic code. Thus adding a few more
-untagged_addr in the generic syscall handlers (which turn to a nop for most)
-is surely better than adding wrappers?
+After updating nid, we get the node id of the isolated pages lost.
 
-Even if other architectures implement untagged_addr in the future it would
-be more consistent if they untagged in the same places and thus not adding
-these wrappers enforces that.
+> +
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_ANON,
+> +					nr_isolated[0]);
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_FILE,
+> +					nr_isolated[1]);
+> +		nr_reclaimed += shrink_page_list(&node_page_list,
+> +				NODE_DATA(nid), &sc, TTU_IGNORE_ACCESS,
 
-Thanks,
+And nid no longer matches the node of the pages to be shrunk.
 
-Andrew Murray
+> +				&dummy_stat, true);
+> +		while (!list_empty(&node_page_list)) {
+> +			struct page *page = lru_to_page(page_list);
 
-> 
-> -- 
-> Catalin
-> 
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+Non-empty node_page_list will never become empty if pages are deleted
+only from the page_list.
+> +
+> +			list_del(&page->lru);
+> +			putback_lru_page(page);
+> +		}
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_ANON,
+> +					-nr_isolated[0]);
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_FILE,
+> +					-nr_isolated[1]);
+> +		nr_isolated[0] = nr_isolated[1] = 0;
+> +		INIT_LIST_HEAD(&node_page_list);
+> +	}
+> +
+
+BR
+Hillf
 
