@@ -2,133 +2,208 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 70449C072B1
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:41:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D592AC072B1
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:43:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 34B5F20989
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:41:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8F96820989
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:43:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="uRa9ej4A"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34B5F20989
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="hlDW9jPS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F96820989
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C103D6B026F; Tue, 28 May 2019 07:41:03 -0400 (EDT)
+	id 4945B6B026E; Tue, 28 May 2019 07:43:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BBF7E6B0272; Tue, 28 May 2019 07:41:03 -0400 (EDT)
+	id 445446B026F; Tue, 28 May 2019 07:43:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A60326B0273; Tue, 28 May 2019 07:41:03 -0400 (EDT)
+	id 335336B0272; Tue, 28 May 2019 07:43:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7908A6B026F
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 07:41:03 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id b69so13199763plb.9
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 04:41:03 -0700 (PDT)
+Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 10D916B026E
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 07:43:01 -0400 (EDT)
+Received: by mail-vk1-f197.google.com with SMTP id b135so8320306vkd.3
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 04:43:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=Pmf36PSoO6MqqVNDWMf/14CvackxSCX3cql021PGiak=;
-        b=fQqcEi33ldzzuqM7GEJDsnpu40NU2dkHuXy/5jweOg94kqbfHOfvO79cqOunOjVxtT
-         ukp6pVzXfcfarZwf9R3jFxOkZ/JBUG7vVewnkKEKoGjdeOEFeO0cDd8B5ozUDw8vybTb
-         PuqemSaNL50DMyCRjGVl9SHDVlRiKxEMUq2t5QzK5JZjw5opXR6eMRFcLo8Q4DbeaXGx
-         xWCoDhly7lzSPzu9yW7RjT6sqCgDK4z7nr4s9foNCce2h0pYLqc22l0mSiAN7NSxZIHm
-         nQstP4sE0EhZ1VoDpkAm93nPvB0Mtn7UNipbgiKnxClSv2qHzUVD15VUcoCsVa/ZZC47
-         BCSQ==
-X-Gm-Message-State: APjAAAXHzEke+M+c801O/Ncqq7I+lqHowxMfD9DygRc2SYHrWa2TrGWv
-	nFSFoSBOMzoAYp1rpFfDSzschI0U/8qRNLP3uKRhOBPBu19XC4Yb1tldT8dqsnxGHjAu2gxMCBK
-	PJpCMGBN+VmSEcfzYtUuDq6hNorVq1NoDYcrQQZAdYeZFAlg0HrkAaV6IlKKfl0qXog==
-X-Received: by 2002:a63:c106:: with SMTP id w6mr48025349pgf.422.1559043663126;
-        Tue, 28 May 2019 04:41:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw/fZsir2jQSIBcu6QMj2km+Lq00Y+amwXYBYuJyXgix7DulWuGzHYUlkpx3zzAJtNzaua2
-X-Received: by 2002:a63:c106:: with SMTP id w6mr48025291pgf.422.1559043662505;
-        Tue, 28 May 2019 04:41:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559043662; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=gmF/MjZR30MUZnp5xpEZAXbIkiTvDuZ5uonAoWGSVI0=;
+        b=ds+9CLRnEgkxQApuEVL7XnpMCG0JKcKD3eErjWz8/lq5TDeOdL2FBayNmBcNn4PZJo
+         8CEKJEjs//Kgi1u32fZVnhw4I8BSJhdC3v8D1oAgT8BuvytIsECcMICuiNVVp5YPho6r
+         9udcux8gLjS04i/IzG0gumBbCcqZtTmsQqmp3Y6cqN3eeYuBjspNVwdyWFaOTQ+iJMUj
+         +cnljVVujdelMVNUsWomcsxXL3Jin4BC6y4AF4tNe17vQry//ZHnQDYfk1QzVI9hH7kD
+         3b3Fbhjvh99byhAVeclWClyXeDqveoYAIhxn9smpW2+t3uqGxBkyzhzsItxqOj5FhQ6H
+         BlrA==
+X-Gm-Message-State: APjAAAVjRrUz96yzO5cZdfncjyOqO66GEBILNwoGB2/oAQF62Y8kj6aW
+	A4KtBj9HNn6zUPckQMaURBogpMPPvu/TSnCfEGZMnjhlm/F/Bh7k1ozjCN6Nb0ILdsZf6GeWLch
+	CtiF4FqPMYp91ZGVEHxH8XZvZNSmL0TWsz7nnQrEXDGzhCOpobdEgA9j+Qvl+UGoyQg==
+X-Received: by 2002:a1f:3692:: with SMTP id d140mr25305170vka.70.1559043780675;
+        Tue, 28 May 2019 04:43:00 -0700 (PDT)
+X-Received: by 2002:a1f:3692:: with SMTP id d140mr25305152vka.70.1559043779969;
+        Tue, 28 May 2019 04:42:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559043779; cv=none;
         d=google.com; s=arc-20160816;
-        b=JQ0C6rXxMQNjluV1dNe6q538/SCFYxTXcgEbLebJ/BzWhRhnJRBx98R45ZDI9YF8zx
-         z95+MACBikM3E64gTeDllKNI7LEfJdsT62wRL0aL5Fsw/qo6+JdgvJEegw2aY7Z6Y8zC
-         DZxr/cV8kh0i7pkOf8di58z3x1YjRbwpwQjIYalbRXEcRpA3/h25kMuJUdaR+d3MW0+u
-         o/t8dQCEDAMs6UYp9Hh5hp2fMgyLXtMs9ShnMbHkmK755lnYAK92nQjFyj7PErFhPfvA
-         zksaqMsTygtaQ0BKscHZoUWTCRJsRi9olroGpcPSFT1JnNRGfoO0OjedvwJ5AKEnqMI2
-         1RMQ==
+        b=RvBtLzwuBN5yEWZWtqduu+azi7glnHbpsiF9ggR3oHDQjJjDWsnquI6A4g0gY2GsCV
+         Jmi1Ap9eizjCuP1Sjj9kunulXPywOUVwWWz4FzhReNJacAOAXagvqmxFfuAdiOAS6nAp
+         zMibiPS/RSP5oD8Ruy7Zapt52cPowVfgHhxDOAgcOUHmYzUYAgNXR+PQBDGd4RGx/SsU
+         oxzRJIt9isxZzBE9ijA+5vcA4PkqoKeZF5erT39RJZENjPk+eA96VJjX7nEyco0IvdP3
+         aD/MzoyCgvwXUjawRV+kZ2FS7od/+IVkxOBXx4hZHcQB1LqUnOB/RTukcFa9Fe81j5mC
+         RiwA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Pmf36PSoO6MqqVNDWMf/14CvackxSCX3cql021PGiak=;
-        b=s2+9mphJHCParfBi+t8XlIR4bTdnlbvTkz0aC6+PGrypWtG+TLH5jFSRD9x67IENkx
-         0OO+lnZAN9ozzVtwWW6xSiCr/A/inAu52EWZHULVmjDDixLLG3mjRVcz6z5B6VUdrKg8
-         mUF2M5x7/uRCRqnV5nGL8baP4ukONtCiVCCTOC7u8zJYcWFo/mSlifYALxOhZXx2mzz0
-         MuBz8jJMNI5CF6UMRBu6itBIVtY1S0yTgnJnPSsBJ2srJTCyxm6zJfi+HNFueEb/clJA
-         20TRsZXWRxKNY9AV/7GfE+0ZRZQ+r1/0dvXdURv/DdJgcEzWj9H/3pTDzgRKT73YjAOt
-         KgzA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=gmF/MjZR30MUZnp5xpEZAXbIkiTvDuZ5uonAoWGSVI0=;
+        b=TDn0M8d3U9pYcgcO+EfxPSdZai3Al1PqYKOH4WADrleYmcutawWQLkjOwqTDk2h57b
+         hupsgQDppHWAl8oLleYnCa/FNI7b9yAbGBFKq2DuXqXnjuLJ9RkADcLcfG1TMvrycycd
+         h2w0UOpKCJhIgoEwX/ndPcBeY9OJgUOcL5DsRWE8tlZvqjOuix9XBr4NHG5eVN3r7brZ
+         jF2BvThdb518okpeTuiBf3U6+UkMUxPwsq28UjAQQT7hA10kLwx8Oxy9k5oogVV52swm
+         sbPLtHas5QOgpHQee8JxQw4PEFifi7zWWHBGS8uur3FM1NXO3VNYZn+q3tKIoTnCIUz3
+         6qgw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=uRa9ej4A;
-       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b95si18197719plb.401.2019.05.28.04.41.02
+       dkim=pass header.i=@google.com header.s=20161025 header.b=hlDW9jPS;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j18sor5656707uan.31.2019.05.28.04.42.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 May 2019 04:41:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Tue, 28 May 2019 04:42:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=uRa9ej4A;
-       spf=pass (google.com: domain of leon@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=leon@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [193.47.165.251])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 83B1E2070D;
-	Tue, 28 May 2019 11:41:01 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559043662;
-	bh=Pmf36PSoO6MqqVNDWMf/14CvackxSCX3cql021PGiak=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=uRa9ej4A2afDXo/lHs1JyaDCQtE/lA1B2deM7fWA7F+QbCG2xWGVnnubjBb0iv5wV
-	 v3xDILdEZA5Pk4oHr2M/DIwFOBowuLByJLQ9RWMckvmp8DkjQ5Nfvj5gCQ/wGJOXok
-	 DQfqXdM2+jSD3YcRmy/cHYXUn4uWT2SJdP1kwXNM=
-Date: Tue, 28 May 2019 14:40:58 +0300
-From: Leon Romanovsky <leon@kernel.org>
-To: RDMA mailing list <linux-rdma@vger.kernel.org>
-Cc: linux-netdev <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Doug Ledford <dledford@redhat.com>
-Subject: Re: CFP: 4th RDMA Mini-Summit at LPC 2019
-Message-ID: <20190528114058.GI4633@mtr-leonro.mtl.com>
-References: <20190514122321.GH6425@mtr-leonro.mtl.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=hlDW9jPS;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=gmF/MjZR30MUZnp5xpEZAXbIkiTvDuZ5uonAoWGSVI0=;
+        b=hlDW9jPSp+Zbp5gHMYiybd+exCPEPCxNejShzWmQtQboUqXn2NyzXiKthdzcnC/KGv
+         NC+lMlsvUobu5t8d92IzghMfsBLj4J9wEvm2lJNgh7U0f25F8QH1ktixuiqijW+nyb+1
+         9A1qxf5vlCfNwqhErg/re/ZoKu6xzxdcM2/a73qTvu+MpL2E/QRt1iy1KoddOjj85Q5J
+         YIDmDuYb3+tsCmvCUWoVk93+zXRkWy+rIr2TtUBpSMmgo3JGmcrzeF/C5dZq3YaFUcGl
+         75Hud1H9paC2qUBkzZ/DKOjMh+Y4Lx+PxJglgVpehWRLTUO5y9+r4cSKvheGlpWNduOP
+         3bKg==
+X-Google-Smtp-Source: APXvYqyiNr7P2DjlbLU9A4NNhpmBOKWSjQk2Y7tSLL6dWBbAVxeNAYgXEWOY1g8aEtm+2Vm9om7Y96HxIiS3+0AuAA0=
+X-Received: by 2002:ab0:1407:: with SMTP id b7mr41595946uae.112.1559043779267;
+ Tue, 28 May 2019 04:42:59 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190514122321.GH6425@mtr-leonro.mtl.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+References: <20190527124411.GC1658@dhcp22.suse.cz> <20190528032632.GF6879@google.com>
+ <20190528062947.GL1658@dhcp22.suse.cz> <20190528081351.GA159710@google.com>
+ <CAKOZuesnS6kBFX-PKJ3gvpkv8i-ysDOT2HE2Z12=vnnHQv0FDA@mail.gmail.com>
+ <20190528084927.GB159710@google.com> <20190528090821.GU1658@dhcp22.suse.cz>
+ <20190528103256.GA9199@google.com> <20190528104117.GW1658@dhcp22.suse.cz>
+ <20190528111208.GA30365@google.com> <20190528112840.GY1658@dhcp22.suse.cz>
+In-Reply-To: <20190528112840.GY1658@dhcp22.suse.cz>
+From: Daniel Colascione <dancol@google.com>
+Date: Tue, 28 May 2019 04:42:47 -0700
+Message-ID: <CAKOZuesCSrE0esqDDbo8x5u5rM-Uv_81jjBt1QRXFKNOUJu0aw@mail.gmail.com>
+Subject: Re: [RFC 7/7] mm: madvise support MADV_ANONYMOUS_FILTER and MADV_FILE_FILTER
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Tim Murray <timmurray@google.com>, 
+	Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>, 
+	Brian Geffon <bgeffon@google.com>, Linux API <linux-api@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-REMINDER
+On Tue, May 28, 2019 at 4:28 AM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Tue 28-05-19 20:12:08, Minchan Kim wrote:
+> > On Tue, May 28, 2019 at 12:41:17PM +0200, Michal Hocko wrote:
+> > > On Tue 28-05-19 19:32:56, Minchan Kim wrote:
+> > > > On Tue, May 28, 2019 at 11:08:21AM +0200, Michal Hocko wrote:
+> > > > > On Tue 28-05-19 17:49:27, Minchan Kim wrote:
+> > > > > > On Tue, May 28, 2019 at 01:31:13AM -0700, Daniel Colascione wrote:
+> > > > > > > On Tue, May 28, 2019 at 1:14 AM Minchan Kim <minchan@kernel.org> wrote:
+> > > > > > > > if we went with the per vma fd approach then you would get this
+> > > > > > > > > feature automatically because map_files would refer to file backed
+> > > > > > > > > mappings while map_anon could refer only to anonymous mappings.
+> > > > > > > >
+> > > > > > > > The reason to add such filter option is to avoid the parsing overhead
+> > > > > > > > so map_anon wouldn't be helpful.
+> > > > > > >
+> > > > > > > Without chiming on whether the filter option is a good idea, I'd like
+> > > > > > > to suggest that providing an efficient binary interfaces for pulling
+> > > > > > > memory map information out of processes.  Some single-system-call
+> > > > > > > method for retrieving a binary snapshot of a process's address space
+> > > > > > > complete with attributes (selectable, like statx?) for each VMA would
+> > > > > > > reduce complexity and increase performance in a variety of areas,
+> > > > > > > e.g., Android memory map debugging commands.
+> > > > > >
+> > > > > > I agree it's the best we can get *generally*.
+> > > > > > Michal, any opinion?
+> > > > >
+> > > > > I am not really sure this is directly related. I think the primary
+> > > > > question that we have to sort out first is whether we want to have
+> > > > > the remote madvise call process or vma fd based. This is an important
+> > > > > distinction wrt. usability. I have only seen pid vs. pidfd discussions
+> > > > > so far unfortunately.
+> > > >
+> > > > With current usecase, it's per-process API with distinguishable anon/file
+> > > > but thought it could be easily extended later for each address range
+> > > > operation as userspace getting smarter with more information.
+> > >
+> > > Never design user API based on a single usecase, please. The "easily
+> > > extended" part is by far not clear to me TBH. As I've already mentioned
+> > > several times, the synchronization model has to be thought through
+> > > carefuly before a remote process address range operation can be
+> > > implemented.
+> >
+> > I agree with you that we shouldn't design API on single usecase but what
+> > you are concerning is actually not our usecase because we are resilient
+> > with the race since MADV_COLD|PAGEOUT is not destruptive.
+> > Actually, many hints are already racy in that the upcoming pattern would
+> > be different with the behavior you thought at the moment.
+>
+> How come they are racy wrt address ranges? You would have to be in
+> multithreaded environment and then the onus of synchronization is on
+> threads. That model is quite clear. But we are talking about separate
+> processes and some of them might be even not aware of an external entity
+> tweaking their address space.
 
-On Tue, May 14, 2019 at 03:23:21PM +0300, Leon Romanovsky wrote:
-> This is a call for proposals for the 4th RDMA mini-summit at the Linux
-> Plumbers Conference in Lisbon, Portugal, which will be happening on
-> September 9-11h, 2019.
->
-> We are looking for topics with focus on active audience discussions
-> and problem solving. The preferable topic is up to 30 minutes with
-> 3-5 slides maximum.
->
-> This year, the LPC will include netdev track too and it is
-> collocated with Kernel Summit, such timing makes an excellent
-> opportunity to drive cross-tree solutions.
->
-> BTW, RDMA is not accepted yet as a track in LPC, but let's think
-> positive and start collect topics.
->
-> Thanks
+I don't think the difference between a thread and a process matters in
+this context. Threads race on address space operations all the time
+--- in the sense that multiple threads modify a process's address
+space without synchronization. The main reasons that these races
+hasn't been a problem are: 1) threads mostly "mind their own business"
+and modify different parts of the address space or use locks to ensure
+that they don't stop on each other (e.g., the malloc heap lock), and
+2) POSIX mmap atomic-replacement semantics make certain classes of
+operation (like "magic ring buffer" setup) safe even in the presence
+of other threads stomping over an address space.
+
+The thing that's new in this discussion from a synchronization point
+of view isn't that the VM operation we're talking about is coming from
+outside the process, but that we want to do a read-decide-modify-ish
+thing. We want to affect (using various hints) classes of pages like
+"all file pages" or "all anonymous pages" or "some pages referring to
+graphics buffers up to 100MB" (to pick an example off the top of my
+head of a policy that might make sense). From a synchronization point
+of view, it doesn't really matter whether it's a thread within the
+target process or a thread outside the target process that does the
+address space manipulation. What's new is the inspection of the
+address space before performing an operation.
+
+Minchan started this thread by proposing some flags that would
+implement a few of the filtering policies I used as examples above.
+Personally, instead of providing a few pre-built policies as flags,
+I'd rather push the page manipulation policy to userspace as much as
+possible and just have the kernel provide a mechanism that *in
+general* makes these read-decide-modify operations efficient and
+robust. I still think there's way to achieve this goal very
+inexpensively without compromising on flexibility.
 
