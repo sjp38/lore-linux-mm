@@ -2,209 +2,828 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_MED,URIBL_BLOCKED,
+	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 70E23C04E84
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:32:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A76BC04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:35:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 419C72081C
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:32:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 419C72081C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
+	by mail.kernel.org (Postfix) with ESMTP id 38E3A2081C
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:35:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="dQjYiWPc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38E3A2081C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ADDD76B026C; Tue, 28 May 2019 07:32:24 -0400 (EDT)
+	id BC7116B026C; Tue, 28 May 2019 07:35:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A67BA6B026E; Tue, 28 May 2019 07:32:24 -0400 (EDT)
+	id B9D806B026E; Tue, 28 May 2019 07:35:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8E07F6B026F; Tue, 28 May 2019 07:32:24 -0400 (EDT)
+	id A8EAD6B026F; Tue, 28 May 2019 07:35:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 62B756B026C
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 07:32:24 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id r78so6198314oie.8
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 04:32:24 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D6226B026C
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 07:35:06 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id v187so15636673ioe.9
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 04:35:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:organization
-         :mime-version:content-transfer-encoding;
-        bh=j4rLqsv0oVYqOpu+UiPxgG5DIk8iWlhw2EOlR7uoIf8=;
-        b=kJWvt7VV7VbUqt2/0/FFpWH/aybIJo/4C4QmWMwe/gYzpb96pfFSVWRopGKfw71Bo4
-         HYEdrvvltQOtnbPpGvyC9+FIE4Y8atNOn3J93GXZJRo1/LSQWZSSZED5qOd9k9NRhaW1
-         U9+TIbsR00euQGiEZXI8xqaCB+tJeTTZZ9qlnZXC6588a4Wnme8ojE459atsTpSftU1L
-         OGnMhz0NwKrZbwDsWq2RnCaG0ATI8nh8XFxZ1MUnZpU4/k2/g4Bjvo3TlEaDmWQPusn6
-         BlVT7LV97wmWuAepbK84evO8jSts+rWLzt3ze+Q+BZFy7XRQhtcw+Hw7V0MNqIoE8EJO
-         p3Ig==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-X-Gm-Message-State: APjAAAXocSHcg4U+jFCezGWc39qhk8COyGStoS2sAQvVAcTAcYd6GKsd
-	4fmclI4sIlvoBsSJP4t9SSTqRMg6jvhRTSwYJqdKRZW+HISSlnirtC9qF6ceqf9MKK91Z7E9CMI
-	Rzre1jVM2YjtaALybvbel/pQSGd+C1Jq9qromlMSk9JWkZuIn/9Asi+Jx6xtrm5D2gA==
-X-Received: by 2002:a9d:5902:: with SMTP id t2mr123094oth.147.1559043144108;
-        Tue, 28 May 2019 04:32:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw2Syn5RPHRLFdLgCXHCIKEFKVv0rGNoI8JCdqvYQu5Hs4iiYQBlMK5v/BnySOBpG7m1x/s
-X-Received: by 2002:a9d:5902:: with SMTP id t2mr123055oth.147.1559043143231;
-        Tue, 28 May 2019 04:32:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559043143; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=K0oetpqyVaJp/5Bm/JiZ1b8eJxLnFMSEqKc92w+46bQ=;
+        b=OInKgeB7Dk4w2tEDaxBt14FZa9Uj+yhG92yDLFeTMHFuvH67B9o8qUYpkgeb0fawXM
+         T7osPW8VtI2OChvj1esw1oNmskxce8QWypD1NZN7jj055RDdKYqQIquW1nGJMSU3j1Nj
+         kpXImAdDdWVGqJjGsc9Npr/foscA+BfLvolsHjiteB0344REvxLqQxFOiqyKOrQJXhU2
+         cnMFTX5dC363sxTfRzubtm0KKbn9TToi+m3qOHfhYr8iLd95WGNTRq23nofmox7xvDLK
+         ir5Ye04f7sIzU+tsC0aNWmc25xZAaTeX3wzRrzjzPzhAI6FSZbwU9lUyjigp5weLY/9t
+         oZww==
+X-Gm-Message-State: APjAAAUsHAcZnSKfgxa8z54j3DWTBDbPa2e01L8fKMgLlezrRyI9A/OL
+	C5N0wTDYtHTOiMqdAcj7U6sN7mcck2Gm1ZPYkUaZM+GF4XKYKIyVN+QFy4aowbImRxfR1vV9Bnx
+	AeXGSN394evvYsUxEqSNeTs6Rd5UvN5QM0vcwgPliNJDFPOq6SEKzhErYqUQLpVNr+w==
+X-Received: by 2002:a24:b649:: with SMTP id d9mr523658itj.61.1559043306109;
+        Tue, 28 May 2019 04:35:06 -0700 (PDT)
+X-Received: by 2002:a24:b649:: with SMTP id d9mr523561itj.61.1559043304409;
+        Tue, 28 May 2019 04:35:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559043304; cv=none;
         d=google.com; s=arc-20160816;
-        b=nyibmIXyI8/Z74YgxRZ7OOOs9ju9Md8uQbsJsNmptt19Q0SppGyCsQ1xPl2rPbPEau
-         PSZ6BncG8Rc/I5VrkVpavLcKTlI4x5eqAQNdyKsy7qOyGDobmxz3pOQmwZDvl0UjOWsH
-         /yQWRUK5tJSAhN1DkgykkVK/LPT32jHOoVZrWPqSOQYFyFU88VNP/3L2zJ+CT5ceaIuU
-         sMuR1fBRbIZZVQu+/7L8YMHFDPbuZni7RM4yrzLOa9sv14ivsY7QXLExIgDXUJwCBH/u
-         EKoohml0OA2NZHD9Ho/AVKI6Kmwr8gDm4i124x2YY8QHpOMPDiTd6jKhTbIIZ6aN6cGy
-         jngA==
+        b=l0y5mcnRJQz/1zRw9QG1sjFyBqdqwtbArQ3hy14eLfKeyNzdCrKMNLQmSK2LDUfrO4
+         u3ZQp/RajVKjreVZe7/aZyZRHD59nk1ZjrQ64b4+zqNtxmEv49kGPUp30IdmiG7p/kTT
+         lt29+I7V3+5iPaon4wvLwo8xJzDnhovY+gmhDQNwY3bQMNJK+pp5pY/iHCwBhz20eUYf
+         Vyy33J3mVxQ68YPnAl4sNJLecpD/ndO8u2fI8ZS3mxIoa/62nUJex/BuFWRVwUsOLrq4
+         d8uux5uwNnhHgCXY6QiWyMFiTKiVyJfkzza2p/F4t7xesTHrsOLGYIG+2AtKB2Evjp1/
+         iF3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:organization:references
-         :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=j4rLqsv0oVYqOpu+UiPxgG5DIk8iWlhw2EOlR7uoIf8=;
-        b=qIjY4bO/3Lm8+uhCd7z0IP6Ttc1ZiPlYS0zH3DHGqs+OR4yZ+O8oP/d+tmXvPyy8WL
-         3A9hOTkTN0ZZaDERzo6BChLQNARqgicSOL5P+adJynQL8IarYHk4/HI+PQsftsuREPsC
-         FVFE77mrog9AGSFqdhTLV4qDWGWX1qFxnzsk68fA02iSvm9iewRLPcVt+QTz/3tI73a/
-         1bAFQyfdyQldR/dhNbzOYOj4URZyI3CX3HdrRKWL9+m5XX/qnhLm88Gl7zQyIjgkaVIP
-         OE4auqOP8OTuLxCZ4brY07azVHWv5p2Mtu6/hO25CQQZtaU/chIwqDcEAkBJng7aAJ2R
-         PMXA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=K0oetpqyVaJp/5Bm/JiZ1b8eJxLnFMSEqKc92w+46bQ=;
+        b=ku84eUpivVSitvKuUh32XhF3mqMsibd77T4mRbQViQRVMcvs9iOQkFnUNUT3K3nH02
+         mXDjU7IGyHt6Pd7UPXa2idoMOYDzmtQqhmuHoQ+I8OlQXwEosgj3DfDWeSQTUeGDgkn/
+         9R2hp77aWFpF1eVDEtXrsReN/Gdc844q2gyrCHJI6emj7kpTU4zEh/j4A1MjDnX12glq
+         1nI1HaiC6PrILxNHn6jcbm/ZGR2J+98ky4VS6NXLbCAQLVQ9Z/0O9EYAUYya836oWk3x
+         fhYEYcloLZupft3zqyk8ciloYhIMrdSKGeZUJfxEVHcjb0kJJKFP7l0GwyQCNUHjnMK1
+         UPgA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
-        by mx.google.com with ESMTPS id b7si7695348otf.83.2019.05.28.04.32.22
+       dkim=pass header.i=@google.com header.s=20161025 header.b=dQjYiWPc;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 137sor2568314itk.36.2019.05.28.04.35.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 May 2019 04:32:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
+        (Google Transport Security);
+        Tue, 28 May 2019 04:35:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
-Received: from DGGEMS406-HUB.china.huawei.com (unknown [172.30.72.60])
-	by Forcepoint Email with ESMTP id 66B21B82AD9FDEAAE061;
-	Tue, 28 May 2019 19:32:19 +0800 (CST)
-Received: from localhost (10.202.226.61) by DGGEMS406-HUB.china.huawei.com
- (10.3.19.206) with Microsoft SMTP Server id 14.3.439.0; Tue, 28 May 2019
- 19:32:09 +0800
-Date: Tue, 28 May 2019 12:31:58 +0100
-From: Jonathan Cameron <jonathan.cameron@huawei.com>
-To: <linux-mm@kvack.org>, <linux-acpi@vger.kernel.org>,
-	<linux-kernel@vger.kernel.org>, <linux-arm-kernel@lists.infradead.org>
-CC: =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Keith Busch
-	<keith.busch@intel.com>, "Rafael J . Wysocki" <rjw@rjwysocki.net>,
-	<linuxarm@huawei.com>, Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/4 V3] ACPI: Support generic initiator proximity
- domains
-Message-ID: <20190528123158.0000167a@huawei.com>
-In-Reply-To: <20190415174907.102307-1-Jonathan.Cameron@huawei.com>
-References: <20190415174907.102307-1-Jonathan.Cameron@huawei.com>
-Organization: Huawei
-X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; i686-w64-mingw32)
+       dkim=pass header.i=@google.com header.s=20161025 header.b=dQjYiWPc;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=K0oetpqyVaJp/5Bm/JiZ1b8eJxLnFMSEqKc92w+46bQ=;
+        b=dQjYiWPcgP2bsXY6+upo0QhTSf1QCoHNlCx6nSLNNqyu0OALBEuew0xbxC++0I21iX
+         FB2tDbPHn//d7yySMZDokozEukyoiLzV0arVT3aOaZW8ii42vikgG3fUIk4BjM+rJFv3
+         cN28D/KBCjI6OYUjx922zn+iobUWtSUVZmTRq7l2dsrihssdrY8JH1X8jLokptGWWVAp
+         +BX0tDtPAe2t9Lf+ymDGP7c13f8k7YRVVaTu5i0wcHbERHckkq9Ue/fd//DaaN9/O/jC
+         DEeXrGkoY+e8lsObY4kxWieGr0VN48yId8J4QxRF1cs95PSidQ54EHJeKfXtEM7psQgj
+         bBxw==
+X-Google-Smtp-Source: APXvYqwWruxYrwhBaPseL/d1BIIWG40Vv2PrIHgEg9xMT+ePVTJjSYviatAKyjqYN7DG5fMq1brVEPZsOhLtYA5o3CM=
+X-Received: by 2002:a24:91d2:: with SMTP id i201mr2838342ite.88.1559043303521;
+ Tue, 28 May 2019 04:35:03 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
-X-Originating-IP: [10.202.226.61]
-X-CFilter-Loop: Reflected
+References: <1559027797-30303-1-git-send-email-walter-zh.wu@mediatek.com>
+In-Reply-To: <1559027797-30303-1-git-send-email-walter-zh.wu@mediatek.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 28 May 2019 13:34:50 +0200
+Message-ID: <CACT4Y+aCnODuffR7PafyYispp_U+ZdY1Dr0XQYvmghkogLJzSw@mail.gmail.com>
+Subject: Re: [PATCH] kasan: add memory corruption identification for software
+ tag-based mode
+To: Walter Wu <walter-zh.wu@mediatek.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Matthias Brugger <matthias.bgg@gmail.com>, 
+	Miles Chen <miles.chen@mediatek.com>, kasan-dev <kasan-dev@googlegroups.com>, 
+	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-mediatek@lists.infradead.org, 
+	wsd_upstream@mediatek.com, Catalin Marinas <catalin.marinas@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi All,
+   and On Tue, May 28, 2019 at 9:17 AM Walter Wu
+<walter-zh.wu@mediatek.com> wrote:
+>
+> This patch adds memory corruption identification at bug report for
+> software tag-based mode, the report show whether it is "use-after-free"
+> or "out-of-bound" error instead of "invalid-access" error.This will make
+> it easier for programmers to see the memory corruption problem.
+>
+> Now we extend the quarantine to support both generic and tag-based kasan.
+> For tag-based kasan, the quarantine stores only freed object information
+> to check if an object is freed recently. When tag-based kasan reports an
+> error, we can check if the tagged addr is in the quarantine and make a
+> good guess if the object is more like "use-after-free" or "out-of-bound".
+>
+> Due to tag-based kasan, the tag values are stored in the shadow memory,
+> all tag comparison failures are memory corruption. Even if those freed
+> object have been deallocated, we still can get the memory corruption.
+> So the freed object doesn't need to be kept in quarantine, it can be
+> immediately released after calling kfree(). We only need the freed object
+> information in quarantine, the error handler is able to use object
+> information to know if it has been allocated or deallocated, therefore
+> every slab memory corruption can be identified whether it's
+> "use-after-free" or "out-of-bound".
+>
+> The difference between generic kasan and tag-based kasan quarantine is
+> slab memory usage. Tag-based kasan only stores freed object information
+> rather than the object itself. So tag-based kasan quarantine memory usage
+> is smaller than generic kasan.
+>
+>
+> ====== Benchmarks
+>
+> The following numbers were collected in QEMU.
+> Both generic and tag-based KASAN were used in inline instrumentation mode
+> and no stack checking.
+>
+> Boot time :
+> * ~1.5 sec for clean kernel
+> * ~3 sec for generic KASAN
+> * ~3.5  sec for tag-based KASAN
+> * ~3.5 sec for tag-based KASAN + corruption identification
+>
+> Slab memory usage after boot :
+> * ~10500 kb  for clean kernel
+> * ~30500 kb  for generic KASAN
+> * ~12300 kb  for tag-based KASAN
+> * ~17100 kb  for tag-based KASAN + corruption identification
 
-Anyone had a change to take a look at this?
+Hi Walter,
 
-Thanks,
+Please describe your use case.
+For testing context the generic KASAN works better and it does have
+quarantine already. For prod/canary environment the quarantine may be
+unacceptable in most cases.
+I think we also want to use tag-based KASAN as a base for ARM MTE
+support in near future and quarantine will be most likely unacceptable
+for main MTE use cases. So at the very least I think this should be
+configurable. +Catalin for this.
 
-Jonathan
+You don't change total quarantine size and charge only sizeof(struct
+qlist_object). If I am reading this correctly, this means that
+quarantine will have the same large overhead as with generic KASAN. We
+will just cache much more objects there. The boot benchmarks may be
+unrepresentative for this. Don't we need to reduce quarantine size or
+something?
 
-On Tue, 16 Apr 2019 01:49:03 +0800
-Jonathan Cameron <Jonathan.Cameron@huawei.com> wrote:
 
-> Changes since RFC V2.
-> * RFC dropped as now we have x86 support, so the lack of guards in in the
-> ACPI code etc should now be fine.
-> * Added x86 support.  Note this has only been tested on QEMU as I don't have
-> a convenient x86 NUMA machine to play with.  Note that this fitted together
-> rather differently form arm64 so I'm particularly interested in feedback
-> on the two solutions.
-> 
-> Since RFC V1.
-> * Fix incorrect interpretation of the ACPI entry noted by Keith Busch
-> * Use the acpica headers definitions that are now in mmotm.
-> 
-> It's worth noting that, to safely put a given device in a GI node, may
-> require changes to the existing drivers as it's not unusual to assume
-> you have local memory or processor core. There may be futher constraints
-> not yet covered by this patch.
-> 
-> Original cover letter...
-> 
-> ACPI 6.3 introduced a new entity that can be part of a NUMA proximity domain.
-> It may share such a domain with the existing options (memory, cpu etc) but it
-> may also exist on it's own.
-> 
-> The intent is to allow the description of the NUMA properties (particulary
-> via HMAT) of accelerators and other initiators of memory activity that are not
-> the host processor running the operating system.
-> 
-> This patch set introduces 'just enough' to make them work for arm64 and x86.
-> It should be trivial to support other architectures, I just don't suitable
-> NUMA systems readily available to test.
-> 
-> There are a few quirks that need to be considered.
-> 
-> 1. Fall back nodes
-> ******************
-> 
-> As pre ACPI 6.3 supporting operating systems do not have Generic Initiator
-> Proximity Domains it is possible to specify, via _PXM in DSDT that another
-> device is part of such a GI only node.  This currently blows up spectacularly.
-> 
-> Whilst we can obviously 'now' protect against such a situation (see the related
-> thread on PCI _PXM support and the  threadripper board identified there as
-> also falling into the  problem of using non existent nodes
-> https://patchwork.kernel.org/patch/10723311/ ), there is no way to  be sure
-> we will never have legacy OSes that are not protected  against this.  It would
-> also be 'non ideal' to fallback to  a default node as there may be a better
-> (non GI) node to pick  if GI nodes aren't available.
-> 
-> The work around is that we also have a new system wide OSC bit that allows
-> an operating system to 'annouce' that it supports Generic Initiators.  This
-> allows, the firmware to us DSDT magic to 'move' devices between the nodes
-> dependent on whether our new nodes are there or not.
-> 
-> 2. New ways of assigning a proximity domain for devices
-> *******************************************************
-> 
-> Until now, the only way firmware could indicate that a particular device
-> (outside the 'special' set of cpus etc) was to be found in a particular
-> Proximity Domain by the use of _PXM in DSDT.
-> 
-> That is equally valid with GI domains, but we have new options. The SRAT
-> affinity structure includes a handle (ACPI or PCI) to identify devices
-> with the system and specify their proximity domain that way.  If both _PXM
-> and this are provided, they should give the same answer.
-> 
-> For now this patch set completely ignores that feature as we don't need
-> it to start the discussion.  It will form a follow up set at some point
-> (if no one else fancies doing it).
-> 
-> Jonathan Cameron (4):
->   ACPI: Support Generic Initiator only domains
->   arm64: Support Generic Initiator only domains
->   x86: Support Generic Initiator only proximity domains
->   ACPI: Let ACPI know we support Generic Initiator Affinity Structures
-> 
->  arch/arm64/kernel/smp.c        |  8 +++++
->  arch/x86/include/asm/numa.h    |  2 ++
->  arch/x86/kernel/setup.c        |  1 +
->  arch/x86/mm/numa.c             | 14 ++++++++
->  drivers/acpi/bus.c             |  1 +
->  drivers/acpi/numa.c            | 62 +++++++++++++++++++++++++++++++++-
->  drivers/base/node.c            |  3 ++
->  include/asm-generic/topology.h |  3 ++
->  include/linux/acpi.h           |  1 +
->  include/linux/nodemask.h       |  1 +
->  include/linux/topology.h       |  7 ++++
->  11 files changed, 102 insertions(+), 1 deletion(-)
-> 
+> Signed-off-by: Walter Wu <walter-zh.wu@mediatek.com>
+> ---
+>  include/linux/kasan.h  |  20 +++++---
+>  mm/kasan/Makefile      |   4 +-
+>  mm/kasan/common.c      |  15 +++++-
+>  mm/kasan/generic.c     |  11 -----
+>  mm/kasan/kasan.h       |  45 ++++++++++++++++-
+>  mm/kasan/quarantine.c  | 107 ++++++++++++++++++++++++++++++++++++++---
+>  mm/kasan/report.c      |  36 +++++++++-----
+>  mm/kasan/tags.c        |  64 ++++++++++++++++++++++++
+>  mm/kasan/tags_report.c |   5 +-
+>  mm/slub.c              |   2 -
+>  10 files changed, 262 insertions(+), 47 deletions(-)
+>
+> diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+> index b40ea104dd36..bbb52a8bf4a9 100644
+> --- a/include/linux/kasan.h
+> +++ b/include/linux/kasan.h
+> @@ -83,6 +83,9 @@ size_t kasan_metadata_size(struct kmem_cache *cache);
+>  bool kasan_save_enable_multi_shot(void);
+>  void kasan_restore_multi_shot(bool enabled);
+>
+> +void kasan_cache_shrink(struct kmem_cache *cache);
+> +void kasan_cache_shutdown(struct kmem_cache *cache);
+> +
+>  #else /* CONFIG_KASAN */
+>
+>  static inline void kasan_unpoison_shadow(const void *address, size_t size) {}
+> @@ -153,20 +156,14 @@ static inline void kasan_remove_zero_shadow(void *start,
+>  static inline void kasan_unpoison_slab(const void *ptr) { }
+>  static inline size_t kasan_metadata_size(struct kmem_cache *cache) { return 0; }
+>
+> +static inline void kasan_cache_shrink(struct kmem_cache *cache) {}
+> +static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
+>  #endif /* CONFIG_KASAN */
+>
+>  #ifdef CONFIG_KASAN_GENERIC
+>
+>  #define KASAN_SHADOW_INIT 0
+>
+> -void kasan_cache_shrink(struct kmem_cache *cache);
+> -void kasan_cache_shutdown(struct kmem_cache *cache);
+> -
+> -#else /* CONFIG_KASAN_GENERIC */
+> -
+> -static inline void kasan_cache_shrink(struct kmem_cache *cache) {}
+> -static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
 
+Why do we need to move these functions?
+For generic KASAN that's required because we store the objects
+themselves in the quarantine, but it's not the case for tag-based mode
+with your patch...
+
+> -
+>  #endif /* CONFIG_KASAN_GENERIC */
+>
+>  #ifdef CONFIG_KASAN_SW_TAGS
+> @@ -180,6 +177,8 @@ void *kasan_reset_tag(const void *addr);
+>  void kasan_report(unsigned long addr, size_t size,
+>                 bool is_write, unsigned long ip);
+>
+> +struct kasan_alloc_meta *get_object_track(void);
+> +
+>  #else /* CONFIG_KASAN_SW_TAGS */
+>
+>  static inline void kasan_init_tags(void) { }
+> @@ -189,6 +188,11 @@ static inline void *kasan_reset_tag(const void *addr)
+>         return (void *)addr;
+>  }
+>
+> +static inline struct kasan_alloc_meta *get_object_track(void)
+> +{
+> +       return 0;
+> +}
+> +
+>  #endif /* CONFIG_KASAN_SW_TAGS */
+>
+>  #endif /* LINUX_KASAN_H */
+> diff --git a/mm/kasan/Makefile b/mm/kasan/Makefile
+> index 5d1065efbd47..03b0fe22ec55 100644
+> --- a/mm/kasan/Makefile
+> +++ b/mm/kasan/Makefile
+> @@ -16,6 +16,6 @@ CFLAGS_common.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
+>  CFLAGS_generic.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
+>  CFLAGS_tags.o := $(call cc-option, -fno-conserve-stack -fno-stack-protector)
+>
+> -obj-$(CONFIG_KASAN) := common.o init.o report.o
+> -obj-$(CONFIG_KASAN_GENERIC) += generic.o generic_report.o quarantine.o
+> +obj-$(CONFIG_KASAN) := common.o init.o report.o quarantine.o
+> +obj-$(CONFIG_KASAN_GENERIC) += generic.o generic_report.o
+>  obj-$(CONFIG_KASAN_SW_TAGS) += tags.o tags_report.o
+> diff --git a/mm/kasan/common.c b/mm/kasan/common.c
+> index 80bbe62b16cd..919f693a58ab 100644
+> --- a/mm/kasan/common.c
+> +++ b/mm/kasan/common.c
+> @@ -81,7 +81,7 @@ static inline depot_stack_handle_t save_stack(gfp_t flags)
+>         return depot_save_stack(&trace, flags);
+>  }
+>
+> -static inline void set_track(struct kasan_track *track, gfp_t flags)
+> +void set_track(struct kasan_track *track, gfp_t flags)
+>  {
+>         track->pid = current->pid;
+>         track->stack = save_stack(flags);
+> @@ -457,7 +457,7 @@ static bool __kasan_slab_free(struct kmem_cache *cache, void *object,
+>                 return false;
+>
+>         set_track(&get_alloc_info(cache, object)->free_track, GFP_NOWAIT);
+> -       quarantine_put(get_free_info(cache, object), cache);
+> +       quarantine_put(get_free_info(cache, tagged_object), cache);
+
+Why do we need this change?
+
+>
+>         return IS_ENABLED(CONFIG_KASAN_GENERIC);
+>  }
+> @@ -614,6 +614,17 @@ void kasan_free_shadow(const struct vm_struct *vm)
+>                 vfree(kasan_mem_to_shadow(vm->addr));
+>  }
+>
+> +void kasan_cache_shrink(struct kmem_cache *cache)
+> +{
+> +       quarantine_remove_cache(cache);
+> +}
+> +
+> +void kasan_cache_shutdown(struct kmem_cache *cache)
+> +{
+> +       if (!__kmem_cache_empty(cache))
+> +               quarantine_remove_cache(cache);
+> +}
+> +
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+>  static bool shadow_mapped(unsigned long addr)
+>  {
+> diff --git a/mm/kasan/generic.c b/mm/kasan/generic.c
+> index 504c79363a34..5f579051dead 100644
+> --- a/mm/kasan/generic.c
+> +++ b/mm/kasan/generic.c
+> @@ -191,17 +191,6 @@ void check_memory_region(unsigned long addr, size_t size, bool write,
+>         check_memory_region_inline(addr, size, write, ret_ip);
+>  }
+>
+> -void kasan_cache_shrink(struct kmem_cache *cache)
+> -{
+> -       quarantine_remove_cache(cache);
+> -}
+> -
+> -void kasan_cache_shutdown(struct kmem_cache *cache)
+> -{
+> -       if (!__kmem_cache_empty(cache))
+> -               quarantine_remove_cache(cache);
+> -}
+> -
+>  static void register_global(struct kasan_global *global)
+>  {
+>         size_t aligned_size = round_up(global->size, KASAN_SHADOW_SCALE_SIZE);
+> diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+> index 3e0c11f7d7a1..6848a93660d9 100644
+> --- a/mm/kasan/kasan.h
+> +++ b/mm/kasan/kasan.h
+> @@ -95,9 +95,21 @@ struct kasan_alloc_meta {
+>         struct kasan_track free_track;
+>  };
+>
+> +#ifdef CONFIG_KASAN_GENERIC
+>  struct qlist_node {
+>         struct qlist_node *next;
+>  };
+> +#else
+> +struct qlist_object {
+> +       unsigned long addr;
+> +       unsigned int size;
+> +       struct kasan_alloc_meta free_track;
+
+Why is this kasan_alloc_meta rather then kasan_track? We don't
+memorize alloc stack...
+
+> +};
+> +struct qlist_node {
+> +       struct qlist_object *qobject;
+> +       struct qlist_node *next;
+> +};
+> +#endif
+>  struct kasan_free_meta {
+>         /* This field is used while the object is in the quarantine.
+>          * Otherwise it might be used for the allocator freelist.
+> @@ -133,16 +145,19 @@ void kasan_report(unsigned long addr, size_t size,
+>                 bool is_write, unsigned long ip);
+>  void kasan_report_invalid_free(void *object, unsigned long ip);
+>
+> -#if defined(CONFIG_KASAN_GENERIC) && \
+> +#if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS) && \
+
+This condition seems to be always true, no?
+
+>         (defined(CONFIG_SLAB) || defined(CONFIG_SLUB))
+> +
+>  void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache);
+>  void quarantine_reduce(void);
+>  void quarantine_remove_cache(struct kmem_cache *cache);
+> +void set_track(struct kasan_track *track, gfp_t flags);
+>  #else
+>  static inline void quarantine_put(struct kasan_free_meta *info,
+>                                 struct kmem_cache *cache) { }
+>  static inline void quarantine_reduce(void) { }
+>  static inline void quarantine_remove_cache(struct kmem_cache *cache) { }
+> +static inline void set_track(struct kasan_track *track, gfp_t flags) {}
+>  #endif
+>
+>  #ifdef CONFIG_KASAN_SW_TAGS
+> @@ -151,6 +166,15 @@ void print_tags(u8 addr_tag, const void *addr);
+>
+>  u8 random_tag(void);
+>
+> +bool quarantine_find_object(void *object);
+> +
+> +int qobject_add_size(void);
+
+Would be more reasonable to use size_t type for object sizes.
+
+> +
+> +struct qlist_node *qobject_create(struct kasan_free_meta *info,
+> +               struct kmem_cache *cache);
+> +
+> +void qobject_free(struct qlist_node *qlink, struct kmem_cache *cache);
+> +
+>  #else
+>
+>  static inline void print_tags(u8 addr_tag, const void *addr) { }
+> @@ -160,6 +184,25 @@ static inline u8 random_tag(void)
+>         return 0;
+>  }
+>
+> +static inline bool quarantine_find_object(void *object)
+> +{
+> +       return 0;
+
+s/0/false/
+
+> +}
+> +
+> +static inline int qobject_add_size(void)
+> +{
+> +       return 0;
+> +}
+> +
+> +static inline struct qlist_node *qobject_create(struct kasan_free_meta *info,
+> +               struct kmem_cache *cache)
+> +{
+> +       return 0;
+
+s/0/NULL/
+
+> +}
+> +
+> +static inline void qobject_free(struct qlist_node *qlink,
+> +               struct kmem_cache *cache) {}
+> +
+>  #endif
+>
+>  #ifndef arch_kasan_set_tag
+> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+> index 978bc4a3eb51..f14c8dbec552 100644
+> --- a/mm/kasan/quarantine.c
+> +++ b/mm/kasan/quarantine.c
+> @@ -67,7 +67,10 @@ static void qlist_put(struct qlist_head *q, struct qlist_node *qlink,
+>                 q->tail->next = qlink;
+>         q->tail = qlink;
+>         qlink->next = NULL;
+> -       q->bytes += size;
+> +       if (IS_ENABLED(CONFIG_KASAN_SW_TAGS))
+
+It would be more reasonable to pass the right size from the caller. It
+already have to have the branch on CONFIG_KASAN_SW_TAGS because it
+needs to allocate qobject or not, that would be the right place to
+pass the right size.
+
+> +               q->bytes += qobject_add_size();
+> +       else
+> +               q->bytes += size;
+>  }
+>
+>  static void qlist_move_all(struct qlist_head *from, struct qlist_head *to)
+> @@ -139,13 +142,18 @@ static void *qlink_to_object(struct qlist_node *qlink, struct kmem_cache *cache)
+>
+>  static void qlink_free(struct qlist_node *qlink, struct kmem_cache *cache)
+>  {
+> -       void *object = qlink_to_object(qlink, cache);
+>         unsigned long flags;
+> +       struct kmem_cache *obj_cache =
+> +                       cache ? cache : qlink_to_cache(qlink);
+> +       void *object = qlink_to_object(qlink, obj_cache);
+> +
+> +       if (IS_ENABLED(CONFIG_KASAN_SW_TAGS))
+> +               qobject_free(qlink, cache);
+>
+>         if (IS_ENABLED(CONFIG_SLAB))
+>                 local_irq_save(flags);
+>
+> -       ___cache_free(cache, object, _THIS_IP_);
+> +       ___cache_free(obj_cache, object, _THIS_IP_);
+>
+>         if (IS_ENABLED(CONFIG_SLAB))
+>                 local_irq_restore(flags);
+> @@ -160,11 +168,9 @@ static void qlist_free_all(struct qlist_head *q, struct kmem_cache *cache)
+>
+>         qlink = q->head;
+>         while (qlink) {
+> -               struct kmem_cache *obj_cache =
+> -                       cache ? cache : qlink_to_cache(qlink);
+>                 struct qlist_node *next = qlink->next;
+>
+> -               qlink_free(qlink, obj_cache);
+> +               qlink_free(qlink, cache);
+>                 qlink = next;
+>         }
+>         qlist_init(q);
+> @@ -187,7 +193,18 @@ void quarantine_put(struct kasan_free_meta *info, struct kmem_cache *cache)
+>         local_irq_save(flags);
+>
+>         q = this_cpu_ptr(&cpu_quarantine);
+> -       qlist_put(q, &info->quarantine_link, cache->size);
+> +       if (IS_ENABLED(CONFIG_KASAN_SW_TAGS)) {
+> +               struct qlist_node *free_obj_info = qobject_create(info, cache);
+> +
+> +               if (!free_obj_info) {
+> +                       local_irq_restore(flags);
+> +                       return;
+> +               }
+> +               qlist_put(q, free_obj_info, cache->size);
+> +       } else {
+> +               qlist_put(q, &info->quarantine_link, cache->size);
+> +       }
+> +
+>         if (unlikely(q->bytes > QUARANTINE_PERCPU_SIZE)) {
+>                 qlist_move_all(q, &temp);
+>
+> @@ -327,3 +344,79 @@ void quarantine_remove_cache(struct kmem_cache *cache)
+>
+>         synchronize_srcu(&remove_cache_srcu);
+>  }
+> +
+> +#ifdef CONFIG_KASAN_SW_TAGS
+> +static struct kasan_alloc_meta object_free_track;
+
+This global is a dirty solution. It's better passed as argument to the
+required functions rather than functions leave part of state in a
+global and somebody picks it up later.
+
+> +
+> +struct kasan_alloc_meta *get_object_track(void)
+> +{
+> +       return &object_free_track;
+> +}
+> +
+> +static bool qlist_find_object(struct qlist_head *from, void *addr)
+> +{
+> +       struct qlist_node *curr;
+> +       struct qlist_object *curr_obj;
+> +
+> +       if (unlikely(qlist_empty(from)))
+> +               return false;
+> +
+> +       curr = from->head;
+> +       while (curr) {
+> +               struct qlist_node *next = curr->next;
+> +
+> +               curr_obj = curr->qobject;
+> +               if (unlikely(((unsigned long)addr >= curr_obj->addr)
+> +                       && ((unsigned long)addr <
+> +                                       (curr_obj->addr + curr_obj->size)))) {
+> +                       object_free_track = curr_obj->free_track;
+> +
+> +                       return true;
+> +               }
+> +
+> +               curr = next;
+> +       }
+> +       return false;
+> +}
+> +
+> +static int per_cpu_find_object(void *arg)
+> +{
+> +       void *addr = arg;
+> +       struct qlist_head *q;
+> +
+> +       q = this_cpu_ptr(&cpu_quarantine);
+> +       return qlist_find_object(q, addr);
+> +}
+> +
+> +struct cpumask cpu_allowed_mask __read_mostly;
+> +
+> +bool quarantine_find_object(void *addr)
+> +{
+> +       unsigned long flags, i;
+> +       bool find = false;
+> +       int cpu;
+> +
+> +       cpumask_copy(&cpu_allowed_mask, cpu_online_mask);
+> +       for_each_cpu(cpu, &cpu_allowed_mask) {
+> +               find = smp_call_on_cpu(cpu, per_cpu_find_object, addr, true);
+
+There can be multiple qobjects in the quarantine associated with the
+address, right? If so, we need to find the last one rather then a
+random one.
+
+> +               if (find)
+> +                       return true;
+> +       }
+> +
+> +       raw_spin_lock_irqsave(&quarantine_lock, flags);
+> +       for (i = 0; i < QUARANTINE_BATCHES; i++) {
+> +               if (qlist_empty(&global_quarantine[i]))
+> +                       continue;
+> +               find = qlist_find_object(&global_quarantine[i], addr);
+> +               /* Scanning whole quarantine can take a while. */
+> +               raw_spin_unlock_irqrestore(&quarantine_lock, flags);
+> +               cond_resched();
+> +               raw_spin_lock_irqsave(&quarantine_lock, flags);
+> +       }
+> +       raw_spin_unlock_irqrestore(&quarantine_lock, flags);
+> +
+> +       synchronize_srcu(&remove_cache_srcu);
+> +
+> +       return find;
+> +}
+> +#endif
+> diff --git a/mm/kasan/report.c b/mm/kasan/report.c
+> index ca9418fe9232..9cfabf2f0c40 100644
+> --- a/mm/kasan/report.c
+> +++ b/mm/kasan/report.c
+> @@ -150,18 +150,26 @@ static void describe_object_addr(struct kmem_cache *cache, void *object,
+>  }
+>
+>  static void describe_object(struct kmem_cache *cache, void *object,
+> -                               const void *addr)
+> +                               const void *tagged_addr)
+>  {
+> +       void *untagged_addr = reset_tag(tagged_addr);
+>         struct kasan_alloc_meta *alloc_info = get_alloc_info(cache, object);
+>
+>         if (cache->flags & SLAB_KASAN) {
+> -               print_track(&alloc_info->alloc_track, "Allocated");
+> -               pr_err("\n");
+> -               print_track(&alloc_info->free_track, "Freed");
+> -               pr_err("\n");
+> +               if (IS_ENABLED(CONFIG_KASAN_SW_TAGS) &&
+> +                       quarantine_find_object((void *)tagged_addr)) {
+
+Can't this be an out-of-bound even if we find the object in quarantine?
+For example, if we've freed an object, then reallocated and accessed
+out-of-bounds within the object bounds?
+Overall suggesting that this is a use-after-free rather than
+out-of-bounds without redzones and quarantining the object itself is
+quite imprecise. We can confuse a user even more...
+
+
+> +                       alloc_info = get_object_track();
+> +                       print_track(&alloc_info->free_track, "Freed");
+> +                       pr_err("\n");
+> +               } else {
+> +                       print_track(&alloc_info->alloc_track, "Allocated");
+> +                       pr_err("\n");
+> +                       print_track(&alloc_info->free_track, "Freed");
+> +                       pr_err("\n");
+> +               }
+>         }
+>
+> -       describe_object_addr(cache, object, addr);
+> +       describe_object_addr(cache, object, untagged_addr);
+>  }
+>
+>  static inline bool kernel_or_module_addr(const void *addr)
+> @@ -180,23 +188,25 @@ static inline bool init_task_stack_addr(const void *addr)
+>                         sizeof(init_thread_union.stack));
+>  }
+>
+> -static void print_address_description(void *addr)
+> +static void print_address_description(void *tagged_addr)
+>  {
+> -       struct page *page = addr_to_page(addr);
+> +       void *untagged_addr = reset_tag(tagged_addr);
+> +       struct page *page = addr_to_page(untagged_addr);
+>
+>         dump_stack();
+>         pr_err("\n");
+>
+>         if (page && PageSlab(page)) {
+>                 struct kmem_cache *cache = page->slab_cache;
+> -               void *object = nearest_obj(cache, page, addr);
+> +               void *object = nearest_obj(cache, page, untagged_addr);
+>
+> -               describe_object(cache, object, addr);
+> +               describe_object(cache, object, tagged_addr);
+>         }
+>
+> -       if (kernel_or_module_addr(addr) && !init_task_stack_addr(addr)) {
+> +       if (kernel_or_module_addr(untagged_addr) &&
+> +                       !init_task_stack_addr(untagged_addr)) {
+>                 pr_err("The buggy address belongs to the variable:\n");
+> -               pr_err(" %pS\n", addr);
+> +               pr_err(" %pS\n", untagged_addr);
+>         }
+>
+>         if (page) {
+> @@ -314,7 +324,7 @@ void kasan_report(unsigned long addr, size_t size,
+>         pr_err("\n");
+>
+>         if (addr_has_shadow(untagged_addr)) {
+> -               print_address_description(untagged_addr);
+> +               print_address_description(tagged_addr);
+>                 pr_err("\n");
+>                 print_shadow_for_address(info.first_bad_addr);
+>         } else {
+> diff --git a/mm/kasan/tags.c b/mm/kasan/tags.c
+> index 63fca3172659..fa5d1e29003d 100644
+> --- a/mm/kasan/tags.c
+> +++ b/mm/kasan/tags.c
+> @@ -124,6 +124,70 @@ void check_memory_region(unsigned long addr, size_t size, bool write,
+>         }
+>  }
+>
+> +int qobject_add_size(void)
+> +{
+> +       return sizeof(struct qlist_object);
+
+Shouldn't this also account for qlist_node?
+
+> +}
+> +
+> +static struct kmem_cache *qobject_to_cache(struct qlist_object *qobject)
+> +{
+> +       return virt_to_head_page(qobject)->slab_cache;
+> +}
+> +
+> +struct qlist_node *qobject_create(struct kasan_free_meta *info,
+> +                                               struct kmem_cache *cache)
+> +{
+> +       struct qlist_node *free_obj_info;
+> +       struct qlist_object *qobject_info;
+> +       struct kasan_alloc_meta *object_track;
+> +       void *object;
+> +
+> +       object = ((void *)info) - cache->kasan_info.free_meta_offset;
+> +       qobject_info = kmalloc(sizeof(struct qlist_object), GFP_NOWAIT);
+> +       if (!qobject_info)
+> +               return NULL;
+> +       qobject_info->addr = (unsigned long) object;
+> +       qobject_info->size = cache->object_size;
+> +       object_track = &qobject_info->free_track;
+> +       set_track(&object_track->free_track, GFP_NOWAIT);
+> +
+> +       free_obj_info = kmalloc(sizeof(struct qlist_node), GFP_NOWAIT);
+
+Why don't we allocate qlist_object and qlist_node in a single
+allocation? Doing 2 allocations is both unnecessary slow and leads to
+more complex code. We need to allocate them with a single allocations.
+Also I think they should be allocated from a dedicated cache that opts
+out of quarantine?
+
+
+> +       if (!free_obj_info) {
+> +               unsigned long flags;
+> +               struct kmem_cache *qobject_cache =
+> +                       qobject_to_cache(qobject_info);
+> +
+> +               if (IS_ENABLED(CONFIG_SLAB))
+> +                       local_irq_save(flags);
+> +
+> +               ___cache_free(qobject_cache, (void *)qobject_info, _THIS_IP_);
+> +
+> +               if (IS_ENABLED(CONFIG_SLAB))
+> +                       local_irq_restore(flags);
+> +               return NULL;
+> +       }
+> +       free_obj_info->qobject = qobject_info;
+> +
+> +       return free_obj_info;
+> +}
+> +
+> +void qobject_free(struct qlist_node *qlink, struct kmem_cache *cache)
+> +{
+> +       struct qlist_object *qobject = qlink->qobject;
+> +       unsigned long flags;
+> +
+> +       struct kmem_cache *qobject_cache =
+> +                       cache ? cache : qobject_to_cache(qobject);
+> +
+> +       if (IS_ENABLED(CONFIG_SLAB))
+> +               local_irq_save(flags);
+> +
+> +       ___cache_free(qobject_cache, (void *)qobject, _THIS_IP_);
+> +
+> +       if (IS_ENABLED(CONFIG_SLAB))
+> +               local_irq_restore(flags);
+> +}
+> +
+>  #define DEFINE_HWASAN_LOAD_STORE(size)                                 \
+>         void __hwasan_load##size##_noabort(unsigned long addr)          \
+>         {                                                               \
+> diff --git a/mm/kasan/tags_report.c b/mm/kasan/tags_report.c
+> index 8eaf5f722271..8c8871b2cb09 100644
+> --- a/mm/kasan/tags_report.c
+> +++ b/mm/kasan/tags_report.c
+> @@ -36,7 +36,10 @@
+>
+>  const char *get_bug_type(struct kasan_access_info *info)
+>  {
+> -       return "invalid-access";
+> +       if (quarantine_find_object((void *)info->access_addr))
+> +               return "use-after-free";
+> +       else
+> +               return "out-of-bounds";
+>  }
+>
+>  void *find_first_bad_addr(void *addr, size_t size)
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 1b08fbcb7e61..11c54f3995c8 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3004,12 +3004,10 @@ static __always_inline void slab_free(struct kmem_cache *s, struct page *page,
+>                 do_slab_free(s, page, head, tail, cnt, addr);
+>  }
+>
+> -#ifdef CONFIG_KASAN_GENERIC
+>  void ___cache_free(struct kmem_cache *cache, void *x, unsigned long addr)
+>  {
+>         do_slab_free(cache, virt_to_head_page(x), x, NULL, 1, addr);
+>  }
+> -#endif
+>
+>  void kmem_cache_free(struct kmem_cache *s, void *x)
+>  {
+> --
+> 2.18.0
+>
+> --
+> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
+> To post to this group, send email to kasan-dev@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/1559027797-30303-1-git-send-email-walter-zh.wu%40mediatek.com.
+> For more options, visit https://groups.google.com/d/optout.
 
