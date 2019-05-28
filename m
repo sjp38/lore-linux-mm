@@ -2,197 +2,278 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BBD65C04AB6
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:52:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E5D34C04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:54:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7637820717
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:52:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="PosD1hmu"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7637820717
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id A74182075B
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 11:54:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A74182075B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ucw.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1678E6B026E; Tue, 28 May 2019 07:52:08 -0400 (EDT)
+	id 2B63C6B026E; Tue, 28 May 2019 07:54:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 109706B026F; Tue, 28 May 2019 07:52:08 -0400 (EDT)
+	id 2664E6B026F; Tue, 28 May 2019 07:54:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 01EED6B0272; Tue, 28 May 2019 07:52:07 -0400 (EDT)
+	id 17C3E6B0272; Tue, 28 May 2019 07:54:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D55D06B026E
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 07:52:07 -0400 (EDT)
-Received: by mail-vk1-f198.google.com with SMTP id l20so7870946vkl.9
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 04:52:07 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id BD06A6B026E
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 07:54:46 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id e14so10411828wrx.7
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 04:54:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=i1aTFeYdC8ihQzpvWtoviM3ZNZ2tyKMHAXg6yp7ic20=;
-        b=Y7eLIv4eQYcTFg9eDuv5bZaKtp9hQg7/YCyEnmdHyrMWmmbhIa9PgJVbdJR7IcCfTf
-         k0043hy5agE2Vf7Bg6Xs6kNd/4oY8//8IIzcGXuKm8MIF7IZSaOnUehEB+Btg8KOFTgQ
-         ldzVaB6BIH8xbguAQPuTdt1PePvARzrFjo0c+yx/ukmUXI3t7cKtBWvLMf4giOFjwjKv
-         hfuO6yEUCeXXJmfNwS+hOVaqKfs1I/X1v61Ob1xL73xvBiNE9dcV+K0X5wgGLMTlMNKX
-         E7qZa9qEX6L5MJldvfuwvYOBs52Pu39Zn2Q+cjPD3D095EBaYOcMBklSoQOjW3dp2l6F
-         p0/w==
-X-Gm-Message-State: APjAAAV5o4qsOGigzf6gg0oC+V66OWXgJF3o2jYU+1da/T796kVb/n+Y
-	eop/F4l9RuX6h3zUlzdmkH5yiB32+wNAxBuo9u80ubXHczm0OmUXfzPla3XSbMJUcZDASXp4J8p
-	SXSrYijRqTamDAScXSLQViQHo5QHL57Mz6cbuwFyWQkyG17R4p5f/8+u+KKNtCAWi0w==
-X-Received: by 2002:ab0:3182:: with SMTP id d2mr3402843uan.62.1559044327586;
-        Tue, 28 May 2019 04:52:07 -0700 (PDT)
-X-Received: by 2002:ab0:3182:: with SMTP id d2mr3402807uan.62.1559044326865;
-        Tue, 28 May 2019 04:52:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559044326; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=m06acolN1j8vOdMrN03K65G8SlY2hmv7dm/Qi7OArks=;
+        b=P1sLaO8c8yITxCJ43cvwzi8wp8/3NgoGXk37+ATKAdGVBruVfxgaPBcFxSzL3yb1if
+         Cgm7KDIG9/YPIFGa2/lIdWS7jGq+gTIZHFwn3LE9wph8/dywhb3E64o41Kn57tJcUwNg
+         tP1i3CcFy2BanoEVMhqOa/9Ce8vRQ05yJvmujOlf4y0yBRBF4QbxLC49k2acqMHIGiCb
+         S32wrkhDhwO1vfrYWhWfRmSjOpEWqYoDoZm1m7YTyfPZAw12g9LNY3iRKJo+bblhNbnq
+         fH6Xor6Sv/mVjrmEw6NM2dovUK/BYgywkdA/WfpS4PJv/z2A6It37ofQgpDeDIg5TTPP
+         gyYw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
+X-Gm-Message-State: APjAAAUaw0MIbSJ0tlspMDcEBUzmzYfCtFnnvbco6XbrR5qmNHsk1XBi
+	p/o5U2tfGAWYDl7W7GYgpqUQkHmFxtxHHnRm5Fvv6FDtZMBGyDWOXjTs4XHMXR6bjWw031iMldf
+	BHZYUCIdgK6eDbTlJqJGAHlEXGZapC2nunsIZq96QHA39hl1Npy8hFsIi87kjuQA=
+X-Received: by 2002:a1c:9e08:: with SMTP id h8mr2810983wme.168.1559044486154;
+        Tue, 28 May 2019 04:54:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyyTdFbCk1WCRgq4QlK/caCg6gRdz8KqM0CfKMTNiaW9dCmbHXUlymbRsTo2s+RA53OiCIO
+X-Received: by 2002:a1c:9e08:: with SMTP id h8mr2810925wme.168.1559044485128;
+        Tue, 28 May 2019 04:54:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559044485; cv=none;
         d=google.com; s=arc-20160816;
-        b=rv1eWjd5Af0DjQ/ymaNDZc4KrLLGj/7QYyB1dbFOPA3NmtFSSi0kEkK4up7Jzt09hQ
-         JBgqLzY9nx5/JFR9lu8lsy5863FzTDmcxFElBhGfkGLN54pjBpniE1Ig5VeMPQBABy0V
-         EEe+V+XoOwCZC6+dSW8moZvg7bynKWFl4rHx2GPV6yAcGzo0pu5VQwm70tWhsUuTqtAc
-         v+f5wS1z2RY1opxtQNEioMtJKZQCEM3egqrKT8QCi28S6JzqU2zSfYeaeRRJfBqbid3m
-         wu8SlLdSlc9jP+oDIxshNVu4yf69/bMElr4+1FOke5cZ9tKuFIKxJaDFHpR5Vw6Z4j8F
-         NHlA==
+        b=CriHf6coal6trfTmDidjal1QJ/FAk70huDv9YID57XvGFj4FlWMSOutzcKDMOh9zEe
+         3EdnCuslN1EoVb/V40lemkV+7RdQo1ezcsWNip3jLDLGiwjXr7VLHfrqzn+Hucv4g1HY
+         J0Y8Elf5ihgR8VuMdmwjkFS/5KmQhbR8Um0yUS6PVbADk5Xu2mYrrm52Yo+6puyfLtOO
+         vMzOeqGjMZeZxif/oVwKYXFlOlHxCCXfWaFYwGOVytODUAARvcYJ+KsQJjbE+hPn0LPa
+         4SJANPWxvOHzAKQlYhmXPsrIxqUfgvl8Zojo8yrYur5NksMqsSddlzcWBnx+8dBRzv5B
+         tjXg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=i1aTFeYdC8ihQzpvWtoviM3ZNZ2tyKMHAXg6yp7ic20=;
-        b=m4LSbvRLi0pC3Vhj0miIAM20uEMNSrkT/zuSDBwKocVZoUSF/m94x/SRhWtY6HYwuF
-         uXBPx0Qlcf+QgVyM1565E8JK7R11Lg1w22u3k93d7niLfrJBjYGoGy9FGr/Ux8PAAmZa
-         h2e40nbhcvqzw/U5sfBCczKvd/BSiPmgkSPy7lL6WLdMZ+hBAT6J6uRRpbHJP/+Z4ED3
-         FNBdYNM/RlroZY6FVmBhcNL6rek0r4N3HhkLbswAyH2OIkEK7Cc2DnIzKfbfTQLlk8xq
-         35Zmux/yEVBUFennwh7ueMqNzr5kxK1J0RToA8e1IdUYNd3dfApfjp4v8xGrhNFLnhL8
-         fxag==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=m06acolN1j8vOdMrN03K65G8SlY2hmv7dm/Qi7OArks=;
+        b=CaFNG3OW4tMRzbN9k4so1n2qw1eeKKGYnbOEeInvJKrTOQnLxOgDd8t6cQG6xPfEmU
+         iZrV2/2AaN4NsiqHJOAgETSO5e5i7xf8+oVfRHfcUIHC1aIErbOsNYKgyzuWEkU4WOXD
+         G1q+YI9i1MF6NbmCx+nlb/z2+267aNwBpKwCaUAcH9BzGtzqgWzwmdHnchYiItJXX1nu
+         znGzausyIucRQrU1YcBGZ3QqSyj/P8mQlvps40awvdjK+3QG8vV6e4cYNi7WPFjFgNaZ
+         uKE8/jMs9x4SVu3nzHwgd8sHed2hye9f08Z/zDDkr7SwdClPHPs9NS8R8rPEwXIo92zG
+         /sLA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=PosD1hmu;
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y128sor5470832vsc.54.2019.05.28.04.52.06
+       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id w17si3454651wrv.115.2019.05.28.04.54.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 28 May 2019 04:52:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 May 2019 04:54:45 -0700 (PDT)
+Received-SPF: neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) client-ip=195.113.26.193;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=PosD1hmu;
-       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=i1aTFeYdC8ihQzpvWtoviM3ZNZ2tyKMHAXg6yp7ic20=;
-        b=PosD1hmuB27HZrO906sYy0hewh4Vct55iIo0ByAp5WPqAr20vF5v6fG5Uxip/NrYLY
-         QjNnEufZ8cZ02hvqUlK+kE3rzkvD77a6u2RqFou/IyqQ/DUV5A8SEpapg7REnhCFXf8f
-         u9vjOMgPCoIbg724+0XcflX2NkQmUJFCsD+SMjVGC6JLL5Sstt5s7We8VUgj8MRjdTP7
-         7LmPrujpPcmv4jaTkhKrCAJkq3XSFukprMN1b7c8kCdwOZ1tnM/O9Di7jnoUHqdDlfk1
-         d/uI/EnpyQ1PHBBvLQ3TCqurKIo2lqu05a0yHDeZjxhFgubelY7FKKvZEfDq3rfs0RSv
-         LrFw==
-X-Google-Smtp-Source: APXvYqziveOhM5aNGo++tqUxS5XQXmXAHH/ek/mb/jgasaqofdw7uSl7LyXM4Lvz7mZ8iIPG7/VXfBvYqhiTJAbga5g=
-X-Received: by 2002:a67:1485:: with SMTP id 127mr43387796vsu.77.1559044326244;
- Tue, 28 May 2019 04:52:06 -0700 (PDT)
+       spf=neutral (google.com: 195.113.26.193 is neither permitted nor denied by best guess record for domain of pavel@ucw.cz) smtp.mailfrom=pavel@ucw.cz
+Received: by atrey.karlin.mff.cuni.cz (Postfix, from userid 512)
+	id 7B43E80324; Tue, 28 May 2019 13:54:34 +0200 (CEST)
+Date: Tue, 28 May 2019 13:54:44 +0200
+From: Pavel Machek <pavel@ucw.cz>
+To: Hugh Dickins <hughd@google.com>
+Cc: Sebastian Andrzej Siewior <bigeasy@linutronix.de>, x86@kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Borislav Petkov <bp@suse.de>,
+	Dave Hansen <dave.hansen@linux.intel.com>
+Subject: My emacs problem -- was Re: [PATCH] x86/fpu: Use
+ fault_in_pages_writeable() for pre-faulting
+Message-ID: <20190528115443.GA27627@amd>
+References: <20190526173325.lpt5qtg7c6rnbql5@linutronix.de>
+ <20190526173501.6pdufup45rc2omeo@linutronix.de>
+ <alpine.LSU.2.11.1905261211400.2004@eggly.anvils>
 MIME-Version: 1.0
-References: <20190528032632.GF6879@google.com> <20190528062947.GL1658@dhcp22.suse.cz>
- <20190528081351.GA159710@google.com> <CAKOZuesnS6kBFX-PKJ3gvpkv8i-ysDOT2HE2Z12=vnnHQv0FDA@mail.gmail.com>
- <20190528084927.GB159710@google.com> <20190528090821.GU1658@dhcp22.suse.cz>
- <20190528103256.GA9199@google.com> <20190528104117.GW1658@dhcp22.suse.cz>
- <20190528111208.GA30365@google.com> <20190528112840.GY1658@dhcp22.suse.cz> <20190528114436.GB30365@google.com>
-In-Reply-To: <20190528114436.GB30365@google.com>
-From: Daniel Colascione <dancol@google.com>
-Date: Tue, 28 May 2019 04:51:54 -0700
-Message-ID: <CAKOZueu7ayjDoV904gFPRQu84_toxWAN5hBBe17x=g-MOBJ7uQ@mail.gmail.com>
-Subject: Re: [RFC 7/7] mm: madvise support MADV_ANONYMOUS_FILTER and MADV_FILE_FILTER
-To: Minchan Kim <minchan@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Johannes Weiner <hannes@cmpxchg.org>, Tim Murray <timmurray@google.com>, 
-	Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>, 
-	Brian Geffon <bgeffon@google.com>, Linux API <linux-api@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="3V7upXqbjpZ4EhLz"
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1905261211400.2004@eggly.anvils>
+User-Agent: Mutt/1.5.23 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 28, 2019 at 4:44 AM Minchan Kim <minchan@kernel.org> wrote:
->
-> On Tue, May 28, 2019 at 01:28:40PM +0200, Michal Hocko wrote:
-> > On Tue 28-05-19 20:12:08, Minchan Kim wrote:
-> > > On Tue, May 28, 2019 at 12:41:17PM +0200, Michal Hocko wrote:
-> > > > On Tue 28-05-19 19:32:56, Minchan Kim wrote:
-> > > > > On Tue, May 28, 2019 at 11:08:21AM +0200, Michal Hocko wrote:
-> > > > > > On Tue 28-05-19 17:49:27, Minchan Kim wrote:
-> > > > > > > On Tue, May 28, 2019 at 01:31:13AM -0700, Daniel Colascione wrote:
-> > > > > > > > On Tue, May 28, 2019 at 1:14 AM Minchan Kim <minchan@kernel.org> wrote:
-> > > > > > > > > if we went with the per vma fd approach then you would get this
-> > > > > > > > > > feature automatically because map_files would refer to file backed
-> > > > > > > > > > mappings while map_anon could refer only to anonymous mappings.
-> > > > > > > > >
-> > > > > > > > > The reason to add such filter option is to avoid the parsing overhead
-> > > > > > > > > so map_anon wouldn't be helpful.
-> > > > > > > >
-> > > > > > > > Without chiming on whether the filter option is a good idea, I'd like
-> > > > > > > > to suggest that providing an efficient binary interfaces for pulling
-> > > > > > > > memory map information out of processes.  Some single-system-call
-> > > > > > > > method for retrieving a binary snapshot of a process's address space
-> > > > > > > > complete with attributes (selectable, like statx?) for each VMA would
-> > > > > > > > reduce complexity and increase performance in a variety of areas,
-> > > > > > > > e.g., Android memory map debugging commands.
-> > > > > > >
-> > > > > > > I agree it's the best we can get *generally*.
-> > > > > > > Michal, any opinion?
-> > > > > >
-> > > > > > I am not really sure this is directly related. I think the primary
-> > > > > > question that we have to sort out first is whether we want to have
-> > > > > > the remote madvise call process or vma fd based. This is an important
-> > > > > > distinction wrt. usability. I have only seen pid vs. pidfd discussions
-> > > > > > so far unfortunately.
-> > > > >
-> > > > > With current usecase, it's per-process API with distinguishable anon/file
-> > > > > but thought it could be easily extended later for each address range
-> > > > > operation as userspace getting smarter with more information.
-> > > >
-> > > > Never design user API based on a single usecase, please. The "easily
-> > > > extended" part is by far not clear to me TBH. As I've already mentioned
-> > > > several times, the synchronization model has to be thought through
-> > > > carefuly before a remote process address range operation can be
-> > > > implemented.
-> > >
-> > > I agree with you that we shouldn't design API on single usecase but what
-> > > you are concerning is actually not our usecase because we are resilient
-> > > with the race since MADV_COLD|PAGEOUT is not destruptive.
-> > > Actually, many hints are already racy in that the upcoming pattern would
-> > > be different with the behavior you thought at the moment.
-> >
-> > How come they are racy wrt address ranges? You would have to be in
-> > multithreaded environment and then the onus of synchronization is on
-> > threads. That model is quite clear. But we are talking about separate
->
-> Think about MADV_FREE. Allocator would think the chunk is worth to mark
-> "freeable" but soon, user of the allocator asked the chunk - ie, it's not
-> freeable any longer once user start to use it.
->
-> My point is that kinds of *hints* are always racy so any synchronization
-> couldn't help a lot. That's why I want to restrict hints process_madvise
-> supports as such kinds of non-destruptive one at next respin.
 
-I think it's more natural for process_madvise to be a superset of
-regular madvise. What's the harm? There are no security implications,
-since anyone who could process_madvise could just ptrace anyway. I
-also don't think limiting the hinting to non-destructive operations
-guarantees safety (in a broad sense) either, since operating on the
-wrong memory range can still cause unexpected system performance
-issues even if there's no data loss.
+--3V7upXqbjpZ4EhLz
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-More broadly, what I want to see is a family of process_* APIs that
-provide a superset of the functionality that the existing intraprocess
-APIs provide. I think this approach is elegant and generalizes easily.
-I'm worried about prematurely limiting the interprocess memory APIs
-and creating limitations that will last a long time in order to avoid
-having to consider issues like VMA synchronization.
+Hi!
+
+On Sun 2019-05-26 12:25:27, Hugh Dickins wrote:
+> On Sun, 26 May 2019, Sebastian Andrzej Siewior wrote:
+> > On 2019-05-26 19:33:25 [+0200], To Hugh Dickins wrote:
+> > From: Hugh Dickins <hughd@google.com>
+> > =E2=80=A6
+> > > Signed-off-by: Hugh Dickins <hughd@google.com>
+> >=20
+> > Hugh, I took your patch, slapped a signed-off-by line. Please say that
+> > you are fine with it (or object otherwise).
+>=20
+> I'm fine with it, thanks Sebastian. Sorry if I wasted your time by not
+> giving it my sign-off in the first place, but I was not comfortable to
+> dabble there without your sign-off too - which it now has. (And thought
+> you might already have your own version anyway: just provided mine as
+> illustration, so that we could be sure of exactly what I'd been testing.)
+
+I applied Hugh's patch on top of -rc2, but still get emacs problems:
+
+But this time I'm not sure if it is same emacs problem or different
+emacs problem....
+
+X protocol error: BadValue (integer parameter out of range for
+operation) on protocol request 139
+When compiled with GTK, Emacs cannot recover from X disconnects.
+This is a GTK bug: https://bugzilla.gnome.org/show_bug.cgi?id=3D85715
+For details, see etc/PROBLEMS.
+
+(emacs:8175): GLib-WARNING **: g_main_context_prepare() called
+recursively from within a source's check() or prepare() member.
+
+(emacs:8175): GLib-WARNING **: g_main_context_check() called
+recursively from within a source's check() or prepare() member.
+Fatal error 6: Aborted
+Backtrace:
+emacs[0x8138719]
+emacs[0x8120446]
+emacs[0x813875c]
+emacs[0x80f54c0]
+emacs[0x80f6f3f]
+emacs[0x80f6fab]
+/usr/lib/i386-linux-gnu/libX11.so.6(_XError+0x11a)[0xf6ea1b3a]
+/usr/lib/i386-linux-gnu/libX11.so.6(+0x39b5b)[0xf6e9eb5b]
+/usr/lib/i386-linux-gnu/libX11.so.6(+0x39c26)[0xf6e9ec26]
+/usr/lib/i386-linux-gnu/libX11.so.6(_XEventsQueued+0x6e)[0xf6e9f4be]
+/usr/lib/i386-linux-gnu/libX11.so.6(XPending+0x62)[0xf6e90752]
+/usr/lib/i386-linux-gnu/libgdk-3.so.0(+0x48073)[0xf7566073]
+/lib/i386-linux-gnu/libglib-2.0.so.0(g_main_context_prepare+0x17b)[0xf70244=
+fb]
+/lib/i386-linux-gnu/libglib-2.0.so.0(+0x46f74)[0xf7024f74]
+/lib/i386-linux-gnu/libglib-2.0.so.0(g_main_context_pending+0x34)[0xf702514=
+4]
+/usr/lib/i386-linux-gnu/libgtk-3.so.0(gtk_events_pending+0x1f)[0xf77c9a8f]
+emacs[0x80f55a9]
+emacs[0x812714f]
+emacs[0x8126a95]
+emacs[0x8172db9]
+emacs[0x8192bd7]
+emacs[0x819312d]
+emacs[0x8125634]
+emacs[0x8125c6d]
+emacs[0x812725b]
+emacs[0x8129eaa]
+emacs[0x81c7c90]
+emacs[0x8127815]
+emacs[0x812ada3]
+emacs[0x812bdad]
+emacs[0x812d838]
+emacs[0x818b76c]
+emacs[0x8120890]
+emacs[0x818b66b]
+emacs[0x8124b84]
+emacs[0x8124e3f]
+emacs[0x8059cb0]
+/lib/i386-linux-gnu/i686/cmov/libc.so.6(__libc_start_main+0xf3)[0xf61a7a63]
+emacs[0x805a76f]
+Aborted (core dumped)
+
+Best regards,
+									Pavel
+
+
+commit 018c9da72adf920efd0ba250fcf433b836d3cfbc
+Author: Hugh Dickins <hughd@google.com>
+Date:   Sun May 26 19:33:25 2019 +0200
+
+    x86/fpu: Use fault_in_pages_writeable() for pre-faulting
+   =20
+    Since commit
+   =20
+       d9c9ce34ed5c8 ("x86/fpu: Fault-in user stack if copy_fpstate_to_sigf=
+rame() fails")
+   =20
+    we use get_user_pages_unlocked() to pre-faulting user's memory if a
+    write generates a page fault while the handler is disabled.
+    This works in general and uncovered a bug as reported by Mike Rapoport.
+   =20
+    It has been pointed out that this function may be fragile and a
+    simple pre-fault as in fault_in_pages_writeable() would be a better
+    solution. Better as in taste and simplicity: That write (as performed by
+    the alternative function) performs exactly the same faulting of memory
+    that we had before. This was suggested by Hugh Dickins and Andrew
+    Morton.
+   =20
+    Use fault_in_pages_writeable() for pre-faulting of user's stack.
+   =20
+    Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+    Signed-off-by: Hugh Dickins <hughd@google.com>
+    Link: https://lkml.kernel.org/r/alpine.LSU.2.11.1905251033230.1112@eggl=
+y.anvils
+    [bigeasy: patch description]
+    Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
+
+diff --git a/arch/x86/kernel/fpu/signal.c b/arch/x86/kernel/fpu/signal.c
+index 5a8d118..060d618 100644
+--- a/arch/x86/kernel/fpu/signal.c
++++ b/arch/x86/kernel/fpu/signal.c
+@@ -5,6 +5,7 @@
+=20
+ #include <linux/compat.h>
+ #include <linux/cpu.h>
++#include <linux/pagemap.h>
+=20
+ #include <asm/fpu/internal.h>
+ #include <asm/fpu/signal.h>
+@@ -189,15 +190,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __=
+user *buf_fx, int size)
+ 	fpregs_unlock();
+=20
+ 	if (ret) {
+-		int aligned_size;
+-		int nr_pages;
+-
+-		aligned_size =3D offset_in_page(buf_fx) + fpu_user_xstate_size;
+-		nr_pages =3D DIV_ROUND_UP(aligned_size, PAGE_SIZE);
+-
+-		ret =3D get_user_pages_unlocked((unsigned long)buf_fx, nr_pages,
+-					      NULL, FOLL_WRITE);
+-		if (ret =3D=3D nr_pages)
++		if (!fault_in_pages_writeable(buf_fx, fpu_user_xstate_size))
+ 			goto retry;
+ 		return -EFAULT;
+ 	}
+
+
+
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
+
+--3V7upXqbjpZ4EhLz
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAlztIYMACgkQMOfwapXb+vI75ACdHJt+UjplhowDy8ZXEkJhicP0
+z70Anih1OGc59Aa8Dl3kUnN28Z4i83Dy
+=94bm
+-----END PGP SIGNATURE-----
+
+--3V7upXqbjpZ4EhLz--
 
