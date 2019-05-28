@@ -2,197 +2,207 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D91B6C04AB6
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 06:25:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E7C4C04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 06:29:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 533D5208C3
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 06:25:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="0UqRsySv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 533D5208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	by mail.kernel.org (Postfix) with ESMTP id 1E97D208C3
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 06:29:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E97D208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D996E6B0276; Tue, 28 May 2019 02:25:17 -0400 (EDT)
+	id A13F56B0276; Tue, 28 May 2019 02:29:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D23616B0278; Tue, 28 May 2019 02:25:17 -0400 (EDT)
+	id 9EAB16B0278; Tue, 28 May 2019 02:29:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC4896B027A; Tue, 28 May 2019 02:25:17 -0400 (EDT)
+	id 8B2E86B027A; Tue, 28 May 2019 02:29:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 52DB26B0276
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 02:25:17 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id r8so3225163ljg.6
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 23:25:17 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D06A6B0276
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 02:29:50 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id f41so31525607ede.1
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 23:29:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=K6zlxuXc3ZiiYmoECKuEjIeU1HxTh98Kh3YIPYtNrec=;
-        b=IEb5iBKVI5xFCf/OywPwFrRtAPOOZf1jpBkJRaNEF5r1Qc4FYnQ/+/jMtn0NIzf46b
-         vaqJd6zKdqVmFkHeIVJ0+Qa+eX7eO7PK7EjfhjKg6NV4oj7k+Db1UUB+7LssAKLXp7Bb
-         bnEwcBuggW/SnBmHu8YoSkEiFzNx9gaxWtqZadJxTp6+6853jMBQHpAdRBTREKetb7UO
-         Q8FpmGXIt8MTc0pcc6ct8jmDyWlRyG1pmMJIRvA06fBSGv6RwGvSeyUZD7PekmfBGBVq
-         PUJe0XS07/tTqaZLK5SGGfJMsiUIu+v1v7Fq1kF7izpwP0N+Yi8/7wb5VguJsRSFhpMf
-         v/4A==
-X-Gm-Message-State: APjAAAUovqjwQjW2Ys9iW5RF+954OZTP2LQFFHluDpbjvhO6+vJ/Ktgk
-	6HEbARbpGCOO88elVL8+mhyZXI3S3f975HV43GQV8n4IWa/3Zb0993FV4xCtrhDb7bKOKhgHaH3
-	VPD74JMSUAVoYru75NKtAB/W4xH0yTeqZ1PSEMBeF9xJUZNboD9ZSAunrAd4V8Q6gtg==
-X-Received: by 2002:a2e:1312:: with SMTP id 18mr15366104ljt.79.1559024716405;
-        Mon, 27 May 2019 23:25:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxIaLbxKUk8wzTMVACD7ca+ydaIgsX+mtQf9pc70e1M2/eOESMCDxKuHb03cxTxDgm2UdSV
-X-Received: by 2002:a2e:1312:: with SMTP id 18mr15366052ljt.79.1559024715396;
-        Mon, 27 May 2019 23:25:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559024715; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Yqr6t8w6ANxnLvbD9qo2aZfKmt5mddRVVcwXU3Mvtjg=;
+        b=Ze4xc3bAl5v//0FtcWkrlH94eYBHS/SxX7qfpagrv92qxYzayY0qWBsWZsxnkW5D7c
+         40mYe+KR2zCySjCZq1Q8USUOdBGJkw8CY0M3NVdgx2rMLlelgup3bEuxyAtLS6AjN7BR
+         e0fAZZgFR0gVW+O5xQlrw6fvDFG6aF8w9TqHH30vbqq+ct/XddHaK8TUlnOfQUHDRYeB
+         C2SYnuTVmNYe2x90z7FqQcKb6a8C1vxac+OG0boFXJLr4gHQMyNyZUrQbMHAphO2Wll/
+         SruqKBcBdDRSb5pTBxonkGKZoykMqevRPYFfSNGl0GWjmTWYNRjJRyv89MFlaSlHIgKe
+         55HQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXMJOpsxWdvzyWJxU+ydkzwjLelZI3hp/fUdBn/MhUW5XR+wDpF
+	3s7wyirXVWn0Fv28sMVulT6YpHzsv0BwooWKZjOzwUshsbfMp7cFUy5IyNAN5vUMqZbs+5QmAyp
+	s88sZ1ID2ofkJWlF7GmAIpErIpFHOjEJqsTOEsgse7M3o9rF5GGTvXub1N1DffKQ=
+X-Received: by 2002:aa7:cdc1:: with SMTP id h1mr625790edw.102.1559024989825;
+        Mon, 27 May 2019 23:29:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyuzkTF7LsodOawkfU/ilVaWyftojZY6Yle6M1exswpqFhEzwkEL05QTW7luh/09G8V3HyD
+X-Received: by 2002:aa7:cdc1:: with SMTP id h1mr625728edw.102.1559024988992;
+        Mon, 27 May 2019 23:29:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559024988; cv=none;
         d=google.com; s=arc-20160816;
-        b=J6W8gxcrlKyC7xv7THK5xVCzVeJscsAHNh+EPd7Os7AcN7A0I57zrOeHcOjA+ju1R2
-         6xmJ3l7eXNwJCg3m10OlEdYC0Q2vOjf745Oq2xvA6fpxIYz1qNGxtwf68vadsqfwxhIC
-         DK+6+5BNqVEPmFJCFT1XxrUPOBYB9WHmWS8YR3jegXNNqHmD527UAERHWBWs669D7Hcx
-         x31QrRQMyQkwgeA3V0NeNu9Bk9SEt6zLSswLQDpGlpp3iuKPehj18ga2C97pRwr4+22E
-         ewSPANFlQSGSQFxZi8QEIT5gLccmuzRyuqRpk2SKDJ4JDhBXaXM3EavAhJxTpNwmFghz
-         2TsA==
+        b=DH9Y72qTPfAgbXbcVkAkV3/oxe0NS6Qjf0unBPGaUbOP3UBQGMdIxGFyrKngJoFvWr
+         UMDWKL9jvkg3iD16tsxNvXmfbNoKmBTPC4IEMw6thyYwfAEJkI+U56Ma2Z668DHcM9ky
+         yRt94oNQit1vEx7g2h2ZILYr0rsGegCn+0t9oQ+lFxLyxMH9dDEXoPNKQdActwzpBtgu
+         NdPoCcIlN/4BOLRVPvd8pZ33E4EZiNdH/HbtdIwf/U3CUS7WO1Pq2UAa9WAF/uVPF9pD
+         VhqDXfGPgXyC+4mSvPUZRG7vFxaMpBGx57X696Tr/HhqXX3ipo4IEwNoZmBaQ2cRY7d+
+         jsmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=K6zlxuXc3ZiiYmoECKuEjIeU1HxTh98Kh3YIPYtNrec=;
-        b=vtkIaobdn3qaYBVYyREAFh1ocipiFSvLr9tsDwdT21DUAO42t3epyVE1lDJ2LViaAQ
-         p5G0YZbrNXEaJh//P40pMJ+c+9Wo6fXwlRTkR5zwA6GhbKefIBXEzAn5eLLQyr0XB34I
-         J1zJYdrZJoIedkfjpxZFyuYawm7c4U7SR60VII3BEKJKmN03o2ArOCd8jzDeRm1Ctyuu
-         55ehM8B6owfrCNTG+TdfINg+lghB6qovprCFJRcfAr2gZA90VjPQk97S6EqNCZgL5gH4
-         p364p6NJE1pgOu6arDzm2hrUmP9pADPD4ijKcoxZxsfH8PKAP/hezYm1ZOLj9dZiHdwU
-         dJPw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Yqr6t8w6ANxnLvbD9qo2aZfKmt5mddRVVcwXU3Mvtjg=;
+        b=Tl+O/asr4ayGR12O+RzU6TrRydIfdvaUPUChGUMFE+VFuEPMjthi9RL7/AV4hBHr60
+         k3ygcQNIxf9b04W92LdZya/GDfCP3HduDVXBxnzdxrc4HWSuIIX4NppqWffDl+GptQuo
+         ig8eV+jXACcqk+V3wpIoRntGoY2x0gv/+UibthHszvdx9PA0jPpkHgp5WKQ5ByXtjNbJ
+         ShGE5rrJtOwURDkUMO3QEeg0kkPznN6ToUN3cbjnbbVijKVIb6DokXZcR83Q/cuzWy5c
+         YGa+TLQB6o6d/Sis0BFTNX4jL2w1wC+yR6xvc3C9pXgOkshyGv67H2RYi18ShG9184QC
+         uW/w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=0UqRsySv;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1j.mail.yandex.net (forwardcorp1j.mail.yandex.net. [2a02:6b8:0:1619::183])
-        by mx.google.com with ESMTPS id e21si14620577ljl.207.2019.05.27.23.25.15
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t55si11124721edd.123.2019.05.27.23.29.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 May 2019 23:25:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) client-ip=2a02:6b8:0:1619::183;
+        Mon, 27 May 2019 23:29:48 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=0UqRsySv;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp1g.mail.yandex.net (mxbackcorp1g.mail.yandex.net [IPv6:2a02:6b8:0:1402::301])
-	by forwardcorp1j.mail.yandex.net (Yandex) with ESMTP id 697642E09A5;
-	Tue, 28 May 2019 09:25:14 +0300 (MSK)
-Received: from smtpcorp1p.mail.yandex.net (smtpcorp1p.mail.yandex.net [2a02:6b8:0:1472:2741:0:8b6:10])
-	by mxbackcorp1g.mail.yandex.net (nwsmtp/Yandex) with ESMTP id gjyj3ZqPVy-PDkmUO4v;
-	Tue, 28 May 2019 09:25:14 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1559024714; bh=K6zlxuXc3ZiiYmoECKuEjIeU1HxTh98Kh3YIPYtNrec=;
-	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
-	b=0UqRsySvqkS3LazKxNnApMjZpK/fP1oYQCh/U/or4cG9kcftMas6WFNhHUnoTm/mu
-	 xhatMyLM6ZE7I7HlX2it0JxbGr6r05Hd3NVN81shFwOyBHjHeocCoevZ6WNjmXGgQa
-	 ppF4bsoDsM3TaIHQpkY0itz36FQqkPfJa8J7/QvI=
-Authentication-Results: mxbackcorp1g.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:d877:17c:81de:6e43])
-	by smtpcorp1p.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id jGMIvBUfvr-PDd4CQrV;
-	Tue, 28 May 2019 09:25:13 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-Subject: Re: [PATCH RFC] mm/madvise: implement MADV_STOCKPILE (kswapd from
- user space)
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Vladimir Davydov <vdavydov.dev@gmail.com>,
- Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
- Andrew Morton <akpm@linux-foundation.org>,
- Mel Gorman <mgorman@techsingularity.net>, Roman Gushchin <guro@fb.com>,
- linux-api@vger.kernel.org
-References: <155895155861.2824.318013775811596173.stgit@buzz>
- <20190527141223.GD1658@dhcp22.suse.cz> <20190527142156.GE1658@dhcp22.suse.cz>
- <20190527143926.GF1658@dhcp22.suse.cz>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <9c55a343-2a91-46c6-166d-41b94bf5e9c8@yandex-team.ru>
-Date: Tue, 28 May 2019 09:25:13 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 2B3F8AFE2;
+	Tue, 28 May 2019 06:29:48 +0000 (UTC)
+Date: Tue, 28 May 2019 08:29:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, linux-api@vger.kernel.org
+Subject: Re: [RFC 7/7] mm: madvise support MADV_ANONYMOUS_FILTER and
+ MADV_FILE_FILTER
+Message-ID: <20190528062947.GL1658@dhcp22.suse.cz>
+References: <20190520035254.57579-1-minchan@kernel.org>
+ <20190520035254.57579-8-minchan@kernel.org>
+ <20190520092801.GA6836@dhcp22.suse.cz>
+ <20190521025533.GH10039@google.com>
+ <20190521062628.GE32329@dhcp22.suse.cz>
+ <20190527075811.GC6879@google.com>
+ <20190527124411.GC1658@dhcp22.suse.cz>
+ <20190528032632.GF6879@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20190527143926.GF1658@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190528032632.GF6879@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 27.05.2019 17:39, Michal Hocko wrote:
-> On Mon 27-05-19 16:21:56, Michal Hocko wrote:
->> On Mon 27-05-19 16:12:23, Michal Hocko wrote:
->>> [Cc linux-api. Please always cc this list when proposing a new user
->>>   visible api. Keeping the rest of the email intact for reference]
->>>
->>> On Mon 27-05-19 13:05:58, Konstantin Khlebnikov wrote:
->> [...]
->>>> This implements manual kswapd-style memory reclaim initiated by userspace.
->>>> It reclaims both physical memory and cgroup pages. It works in context of
->>>> task who calls syscall madvise thus cpu time is accounted correctly.
->>
->> I do not follow. Does this mean that the madvise always reclaims from
->> the memcg the process is member of?
+On Tue 28-05-19 12:26:32, Minchan Kim wrote:
+> On Mon, May 27, 2019 at 02:44:11PM +0200, Michal Hocko wrote:
+> > On Mon 27-05-19 16:58:11, Minchan Kim wrote:
+> > > On Tue, May 21, 2019 at 08:26:28AM +0200, Michal Hocko wrote:
+> > > > On Tue 21-05-19 11:55:33, Minchan Kim wrote:
+> > > > > On Mon, May 20, 2019 at 11:28:01AM +0200, Michal Hocko wrote:
+> > > > > > [cc linux-api]
+> > > > > > 
+> > > > > > On Mon 20-05-19 12:52:54, Minchan Kim wrote:
+> > > > > > > System could have much faster swap device like zRAM. In that case, swapping
+> > > > > > > is extremely cheaper than file-IO on the low-end storage.
+> > > > > > > In this configuration, userspace could handle different strategy for each
+> > > > > > > kinds of vma. IOW, they want to reclaim anonymous pages by MADV_COLD
+> > > > > > > while it keeps file-backed pages in inactive LRU by MADV_COOL because
+> > > > > > > file IO is more expensive in this case so want to keep them in memory
+> > > > > > > until memory pressure happens.
+> > > > > > > 
+> > > > > > > To support such strategy easier, this patch introduces
+> > > > > > > MADV_ANONYMOUS_FILTER and MADV_FILE_FILTER options in madvise(2) like
+> > > > > > > that /proc/<pid>/clear_refs already has supported same filters.
+> > > > > > > They are filters could be Ored with other existing hints using top two bits
+> > > > > > > of (int behavior).
+> > > > > > 
+> > > > > > madvise operates on top of ranges and it is quite trivial to do the
+> > > > > > filtering from the userspace so why do we need any additional filtering?
+> > > > > > 
+> > > > > > > Once either of them is set, the hint could affect only the interested vma
+> > > > > > > either anonymous or file-backed.
+> > > > > > > 
+> > > > > > > With that, user could call a process_madvise syscall simply with a entire
+> > > > > > > range(0x0 - 0xFFFFFFFFFFFFFFFF) but either of MADV_ANONYMOUS_FILTER and
+> > > > > > > MADV_FILE_FILTER so there is no need to call the syscall range by range.
+> > > > > > 
+> > > > > > OK, so here is the reason you want that. The immediate question is why
+> > > > > > cannot the monitor do the filtering from the userspace. Slightly more
+> > > > > > work, all right, but less of an API to expose and that itself is a
+> > > > > > strong argument against.
+> > > > > 
+> > > > > What I should do if we don't have such filter option is to enumerate all of
+> > > > > vma via /proc/<pid>/maps and then parse every ranges and inode from string,
+> > > > > which would be painful for 2000+ vmas.
+> > > > 
+> > > > Painful is not an argument to add a new user API. If the existing API
+> > > > suits the purpose then it should be used. If it is not usable, we can
+> > > > think of a different way.
+> > > 
+> > > I measured 1568 vma parsing overhead of /proc/<pid>/maps in ARM64 modern
+> > > mobile CPU. It takes 60ms and 185ms on big cores depending on cpu governor.
+> > > It's never trivial.
+> > 
+> > This is not the only option. Have you tried to simply use
+> > /proc/<pid>/map_files interface? This will provide you with all the file
+> > backed mappings.
 > 
-> OK, I've had a quick look at the implementation (the semantic should be
-> clear from the patch descrition btw.) and it goes all the way up the
-> hierarchy and finally try to impose the same limit to the global state.
-> This doesn't really make much sense to me. For few reasons.
+> I compared maps vs. map_files with 3036 file-backed vma.
+> Test scenario is to dump all of vmas of the process and parse address
+> ranges.
+> For map_files, it's easy to parse each address range because directory name
+> itself is range. However, in case of maps, I need to parse each range
+> line by line so need to scan all of lines.
 > 
-> First of all it breaks isolation where one subgroup can influence a
-> different hierarchy via parent reclaim.
-
-madvise(NULL, size, MADV_STOCKPILE) is the same as memory allocation and
-freeing immediately, but without pinning memory and provoking oom.
-
-So, there is shouldn't be any isolation or security issues.
-
-At least probably it should be limited with portion of limit (like half)
-instead of whole limit as it does now.
-
+> (maps cover additional non-file-backed vmas so nr_vma is a little bigger)
 > 
-> I also have a problem with conflating the global and memcg states. Does
-> it really make any sense to have the same target to the global state
-> as per-memcg? How are you supposed to use this interface to shrink a
-> particular memcg or for the global situation with a proportional
-> distribution to all memcgs?
-
-For now this is out of my use cease. This could be done in userspace
-with multiple daemons in different contexts and connection between them.
-In this case each daemon should apply pressure only its own level.
-
-Also kernel could remember static pressure applied from each cgroup which
-fades away when memory is allocated. And each call adds this pressure to
-own requests to cooperate with neighbours. But rhight I don't know how to
-implement this without over-engineering. Pure userspace solution looks
-much better.
-
+> performance mode:
+> map_files: nr_vma 3036 usec 13387
+> maps     : nr_vma 3078 usec 12923
 > 
-> There also doens't seem to be anything about security model for this
-> operation. There is no capability check from a quick look. Is it really
-> safe to expose such a functionality for a common user?
-
-Yep, it seems save. This is same as memory allocation and freeing.
-
+> powersave mode:
 > 
-> Last but not least, I am not really convinced that madvise is a proper
-> interface. It stretches the API which is address range based and it has
-> per-process implications.
+> map_files: nr_vma 3036 usec 52614
+> maps     : nr_vma 3078 usec 41089
 > 
+> map_files is slower than maps if we dump all of vmas. I guess directory
+> operation needs much more jobs(e.g., dentry lookup, instantiation)
+> compared to maps.
 
-Well, this is silly but semantic could be explained as preparation for
-memory allocation via faulting into region. But since it doesn't need
-to know exact range starting address could be arbitrary.
+OK, that is somehow surprising. I am still not convinced the filter is a
+good idea though. The primary reason is that it encourages using madvise
+on a wide range without having a clue what the range contains. E.g. the
+full address range and rely the right thing will happen. Do we really
+want madvise to operate in that mode?
 
-Also we employ MADV_POPULATE which implements batched faults into range
-for robust memory allocation and undo for MADV_FREE. Will publish later.
+Btw. if we went with the per vma fd approach then you would get this
+feature automatically because map_files would refer to file backed
+mappings while map_anon could refer only to anonymous mappings.
+
+-- 
+Michal Hocko
+SUSE Labs
 
