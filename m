@@ -2,199 +2,151 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E2C8BC04E84
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 13:47:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18F70C04E84
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 14:15:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 887962166E
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 13:47:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 887962166E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id D004621530
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 14:15:00 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="tL4iRhDx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D004621530
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E6F796B0274; Tue, 28 May 2019 09:47:11 -0400 (EDT)
+	id 692906B0276; Tue, 28 May 2019 10:15:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E1FC96B0276; Tue, 28 May 2019 09:47:11 -0400 (EDT)
+	id 643C36B0279; Tue, 28 May 2019 10:15:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D370C6B0279; Tue, 28 May 2019 09:47:11 -0400 (EDT)
+	id 55AFC6B027A; Tue, 28 May 2019 10:15:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 86B976B0274
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 09:47:11 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id r48so33183008eda.11
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 06:47:11 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 20D6A6B0276
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 10:15:00 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 11so15831351pfb.4
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 07:15:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=aMFru+FDM/TDLQp4wYpaQ25MLnIXUbp+IgwfShTVwUs=;
-        b=mSoxiLc1uxLN8f6Xe5+vFby9OLg3exrRaqX34dzikHri2Z8Bk1vzIfA/0pm2VbWePJ
-         X0+cSzLBpkelca1oFYISD6iPHUF5E711De2Ur8zZvMOTmzVtK+gYbhz8EbsZV4ttufGK
-         57Aq1k9Qdsqrh8RSFja3nxhvGgqANBDPx+AFoD2RQF2XJyKzJ5kVjq8dy6yUQuRj2H3T
-         9GIP9pwuS8+nNQmtgILUF8IDSBj3xlqX7SWDSgr1yXCsjTXZlsi5vf1yvO8PTvOxd9KO
-         lnb0hlrI0axwnAkUHMNPqi1N0kzuJLmbaIIvH/5TK2Q9K3mW8u+Z2i5bwyMuxWzRJWDF
-         NRMg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
-X-Gm-Message-State: APjAAAWiszhif7XU76b9WF/JamMLlqkA8FMIBb59lUFyqv0XAEB/hcwd
-	qrwjxbq/VT7/eCzh1tem5u1y+92gLpUhqVQfJcHEIqPWP1FRUzId+dpR7Em5n8adajf/E5UF3oQ
-	xC7q9wGI0EGzLxrvyqqpt5HFWVMz4j24sKwiEG45hzHg5rA6OzA8r7809pnId6paXAw==
-X-Received: by 2002:a50:95af:: with SMTP id w44mr128682763eda.95.1559051231141;
-        Tue, 28 May 2019 06:47:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy+v2TwecY5jYaxSVbEvsnWHsjSf2fupbDXEffa+WePMYWBx89PPhtMadHwH5TOlbfmZGWa
-X-Received: by 2002:a50:95af:: with SMTP id w44mr128682659eda.95.1559051229921;
-        Tue, 28 May 2019 06:47:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559051229; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=uILrnXKlYf2xjYbSzuRjxVZ/GKBRZG6iBlNh5FVzNqg=;
+        b=Tb9cskqf0N0RpY7k/fSp3A/VSdaYGtMYClwKIenTe4guzDumEq5XHXlH4hf3aGWsqg
+         jYq6RxkPnvjVL14xC4FosHtPZ3ZqpiJBj1Pf++pCMPkBgReyeqLZ1UV118vPGYsp6lQa
+         pBya9bMROWGtHZWO1bKYDthEFbizUnJP5z1auvm6T+amOCTXnrVPFKAzq9JK0cOQcTTy
+         x9fVEx23OPxhIHsXKShmGbZy7WyXEvBXaLfZErwJOOx1t3fOVNM5eKdiHyvrqPN6j9dJ
+         wObF6g5+MpfkNcuQS1/67b4jZ7jd9tJ0wshomaGjGKbfOI2JTzKpSzjKZzmQbWiyFxi3
+         s/NA==
+X-Gm-Message-State: APjAAAWAgn9yJzyMZvXVqMpfhGqZe7mxD/2fmOrbnUziQUCTcuoNnBgf
+	3jNy2/A3SQB3pAMBVnVHssZc6WiDVHoHvAOobAtfJ5nQXsGaiMZeOCULPsWInql0dPHLeO2xth0
+	Dm2RCnWuF5CvH4chh0JBG8RuQRyY25b85xARfwB7Qo2E7kYJdPDOsH0LHRX093474wA==
+X-Received: by 2002:a62:2706:: with SMTP id n6mr63376238pfn.150.1559052899746;
+        Tue, 28 May 2019 07:14:59 -0700 (PDT)
+X-Received: by 2002:a62:2706:: with SMTP id n6mr63376158pfn.150.1559052898725;
+        Tue, 28 May 2019 07:14:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559052898; cv=none;
         d=google.com; s=arc-20160816;
-        b=BZQq0a1ec7hfDUNmg6dvEWbzAMQOMV8Ab/u3ycy5JKY4xkNMr6a0P1I2/sVzFGCIp1
-         GXWbyqXqc2vBopLofa2Mepf4EPKANMxWfHKsURvnpp/z0F606uKh//+4CjIH0Itz+CCv
-         /vpHQ/MFZ85K0BhKpqY8XYQJ2tOXcyuxqUyCX8Z9GXtVxJTIL8mOUwU3yPPPGdK82GD6
-         adDR0gaxbElMhN0sI1jqvRppKdUoP3RZgNN7+Az+u+AcAzHrf03pAHFlftOvinaVVD69
-         7a70WjICSF34hktSIOl4ADGDxe+YHz7nunkEEKugirgfEbIXn1t+pyn5mVbBY9/QMeFr
-         BHsQ==
+        b=sP00WCeXqPlfgyKBgPjie+IQUQ09bapZ7nU1cxyGV3yb6m2Hudq7171LpTLQ9Fp7At
+         5LI+Sfu2yEpNuOgeTOJEksQFnZsf5BWRTM68gCeleMtQOotBQHazhwZOBoqjPQucqgIO
+         SH3W6jjuhjN98dd1peLri/P0z2q+mnyvsvkpLUCHotdzSB6hChnnTPHGzqIKrsxcaRYZ
+         mlHbrMGUUHI7N8qQaQc623Ahxll99WWajIdAPFGC3MZ7axPwOQdDK/g3wadF2h79ZYtb
+         f0Lg00D7vRoQ5/8oFnmEMyklgX8Si8+h48FCJ7Ry+qOIXxN9JPSHihuSYsXes+NMN8c4
+         TsHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=aMFru+FDM/TDLQp4wYpaQ25MLnIXUbp+IgwfShTVwUs=;
-        b=vQMNTma1mmT4g+f++HN2GZlAqAL/eRzRdmmGN6BSLSxkSJk1Od5qaC/ALZWAZ2AvWG
-         H0bE3audyzv1ZfjI5qiKsEFGaGx16tDyqa9LVGYY4b8hKG+Y7kKZUPtAlokTrMOHbZza
-         3YSnOXIgNdKuOWr5cc4Wqycwq2umzXbYDunQ+X8+ejrpJwz0Lgi5YANN5lFKz7TCQMC5
-         k73O0s6X0gXegiEV9joC/QcWEoJHPuYuRFTYn6+a5Ni5rM+cRToO63pxJHZ0/g6sp9x1
-         aT6xAkggj8eMhgDKrdK0tmkTWPaBaDTfwOauYtzh82JXCsKWLmbv1xZq0rr05gfRywLB
-         kBmA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=uILrnXKlYf2xjYbSzuRjxVZ/GKBRZG6iBlNh5FVzNqg=;
+        b=qFlEXBQsmB8ob7NCdW3MOZiQw+AEejYrCQHAGKO3nirXPC1VZWEyHl83lFniFxXcAv
+         79+ubpDuB6FD6vna5qLqhcviGdATX4oZcKkAYkAXzGtACgZMt+8MFRsko4V3uLmnDhkj
+         X8z13+IZXJ2GxQxevAWvdhCPIHdUmmM/eUavGy3DUZDrQZ6zRjqYUPYn2wkU4+Y63Cge
+         Od00mQhYzi7xa+oyVOccy+Qq7rvD9IThwf9RwgV19q0xWZqaMBYUN/Ii0GqTeTrMDw7p
+         qCcUhBuKzZwDf0CIFzz5XZlqWQwe0OC7arlX/1YGUmqNILXAeuMXrINuhWdrVbyimFi0
+         XmSA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id h3si2405672edn.330.2019.05.28.06.47.09
-        for <linux-mm@kvack.org>;
-        Tue, 28 May 2019 06:47:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=tL4iRhDx;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j16sor9688413pgl.59.2019.05.28.07.14.58
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 28 May 2019 07:14:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of robin.murphy@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=robin.murphy@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 56D3F80D;
-	Tue, 28 May 2019 06:47:08 -0700 (PDT)
-Received: from e110467-lin.cambridge.arm.com (e110467-lin.cambridge.arm.com [10.1.196.75])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 22C303F5AF;
-	Tue, 28 May 2019 06:47:06 -0700 (PDT)
-From: Robin Murphy <robin.murphy@arm.com>
-To: will.deacon@arm.com,
-	catalin.marinas@arm.com,
-	akpm@linux-foundation.org
-Cc: linux-mm@kvack.org,
-	linux-arm-kernel@lists.infradead.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH v3.1 4/4] arm64: mm: Implement pte_devmap support
-Date: Tue, 28 May 2019 14:46:59 +0100
-Message-Id: <13026c4e64abc17133bbfa07d7731ec6691c0bcd.1559050949.git.robin.murphy@arm.com>
-X-Mailer: git-send-email 2.21.0.dirty
-In-Reply-To: <817d92886fc3b33bcbf6e105ee83a74babb3a5aa.1558547956.git.robin.murphy@arm.com>
-References: <cover.1558547956.git.robin.murphy@arm.com> <817d92886fc3b33bcbf6e105ee83a74babb3a5aa.1558547956.git.robin.murphy@arm.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=tL4iRhDx;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=uILrnXKlYf2xjYbSzuRjxVZ/GKBRZG6iBlNh5FVzNqg=;
+        b=tL4iRhDxBHlVQ+tyr45nAjSTrWm4FGkpU9/gqgAOrFY5B7cJ7oOHLY740uFY6v9Apt
+         FqrRnmxExj3iQTQYzs/PenqdbelZVqX7ImfSm34SI3kUWnaFv2Pd1vXHqDLGJYPgxvw8
+         7KLV8hWWHlsDJ/UwTZYLqE3rqDzmSrpBL95BUyqXducEuzu32sr8cYoLi6lrm/VHbu19
+         kGodX0/6n5OKGvwKCkqnvqlMkPVgQ7D246As7ltK/sqPD0kwVjhXWCNgzf39x95m1k16
+         0eXP9QfKOUXReSvTh9f0l8fCYrSWQokxzY+jcITzAkXcdghBa76eI6mVVXYUH34oj3Ib
+         qnwQ==
+X-Google-Smtp-Source: APXvYqyOX9PeZsCaqURSrIEWPGIBd1WFVQ7exVP3S114miK0Cy+gUD/uDqW5wGxUjPG0aHqJLJFWW3mMb6YG8JIQdRk=
+X-Received: by 2002:a65:64d9:: with SMTP id t25mr132418776pgv.130.1559052897854;
+ Tue, 28 May 2019 07:14:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <cover.1557160186.git.andreyknvl@google.com> <20190517144931.GA56186@arrakis.emea.arm.com>
+ <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
+ <20190521182932.sm4vxweuwo5ermyd@mbp> <201905211633.6C0BF0C2@keescook>
+ <6049844a-65f5-f513-5b58-7141588fef2b@oracle.com> <20190523201105.oifkksus4rzcwqt4@mbp>
+ <ffe58af3-7c70-d559-69f6-1f6ebcb0fec6@oracle.com> <20190524101139.36yre4af22bkvatx@mbp>
+ <c6dd53d8-142b-3d8d-6a40-d21c5ee9d272@oracle.com>
+In-Reply-To: <c6dd53d8-142b-3d8d-6a40-d21c5ee9d272@oracle.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Tue, 28 May 2019 16:14:45 +0200
+Message-ID: <CAAeHK+yAUsZWhp6xPAbWewX5Nbw+-G3svUyPmhXu5MVeEDKYvA@mail.gmail.com>
+Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
+To: Catalin Marinas <catalin.marinas@arm.com>, Kees Cook <keescook@chromium.org>
+Cc: Evgenii Stepanov <eugenis@google.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
+	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yishai Hadas <yishaih@mellanox.com>, 
+	Felix Kuehling <Felix.Kuehling@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, 
+	Christian Koenig <Christian.Koenig@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
+	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
+	Leon Romanovsky <leon@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
+	Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, 
+	Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, 
+	Robin Murphy <robin.murphy@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, 
+	Dave Martin <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>, 
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>, Elliott Hughes <enh@google.com>, 
+	Khalid Aziz <khalid.aziz@oracle.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In order for things like get_user_pages() to work on ZONE_DEVICE memory,
-we need a software PTE bit to identify device-backed PFNs. Hook this up
-along with the relevant helpers to join in with ARCH_HAS_PTE_DEVMAP.
+Thanks for a lot of valuable input! I've read through all the replies
+and got somewhat lost. What are the changes I need to do to this
+series?
 
-Signed-off-by: Robin Murphy <robin.murphy@arm.com>
----
+1. Should I move untagging for memory syscalls back to the generic
+code so other arches would make use of it as well, or should I keep
+the arm64 specific memory syscalls wrappers and address the comments
+on that patch?
 
-Fix to build correctly under all combinations of
-CONFIG_PGTABLE_LEVELS and CONFIG_TRANSPARENT_HUGEPAGE.
+2. Should I make untagging opt-in and controlled by a command line argument?
 
- arch/arm64/Kconfig                    |  1 +
- arch/arm64/include/asm/pgtable-prot.h |  1 +
- arch/arm64/include/asm/pgtable.h      | 21 +++++++++++++++++++++
- 3 files changed, 23 insertions(+)
+3. Should I "add Documentation/core-api/user-addresses.rst to describe
+proper care and handling of user space pointers with untagged_addr(),
+with examples based on all the cases seen so far in this series"?
+Which examples specifically should it cover?
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 4780eb7af842..b5a4611fa4c6 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -23,6 +23,7 @@ config ARM64
- 	select ARCH_HAS_KCOV
- 	select ARCH_HAS_KEEPINITRD
- 	select ARCH_HAS_MEMBARRIER_SYNC_CORE
-+	select ARCH_HAS_PTE_DEVMAP
- 	select ARCH_HAS_PTE_SPECIAL
- 	select ARCH_HAS_SETUP_DMA_OPS
- 	select ARCH_HAS_SET_MEMORY
-diff --git a/arch/arm64/include/asm/pgtable-prot.h b/arch/arm64/include/asm/pgtable-prot.h
-index 986e41c4c32b..af0b372d15e5 100644
---- a/arch/arm64/include/asm/pgtable-prot.h
-+++ b/arch/arm64/include/asm/pgtable-prot.h
-@@ -28,6 +28,7 @@
- #define PTE_WRITE		(PTE_DBM)		 /* same as DBM (51) */
- #define PTE_DIRTY		(_AT(pteval_t, 1) << 55)
- #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
-+#define PTE_DEVMAP		(_AT(pteval_t, 1) << 57)
- #define PTE_PROT_NONE		(_AT(pteval_t, 1) << 58) /* only when !PTE_VALID */
- 
- #ifndef __ASSEMBLY__
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index 2c41b04708fe..7a2cf6939311 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -90,6 +90,7 @@ extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
- #define pte_write(pte)		(!!(pte_val(pte) & PTE_WRITE))
- #define pte_user_exec(pte)	(!(pte_val(pte) & PTE_UXN))
- #define pte_cont(pte)		(!!(pte_val(pte) & PTE_CONT))
-+#define pte_devmap(pte)		(!!(pte_val(pte) & PTE_DEVMAP))
- 
- #define pte_cont_addr_end(addr, end)						\
- ({	unsigned long __boundary = ((addr) + CONT_PTE_SIZE) & CONT_PTE_MASK;	\
-@@ -217,6 +218,11 @@ static inline pmd_t pmd_mkcont(pmd_t pmd)
- 	return __pmd(pmd_val(pmd) | PMD_SECT_CONT);
- }
- 
-+static inline pte_t pte_mkdevmap(pte_t pte)
-+{
-+	return set_pte_bit(pte, __pgprot(PTE_DEVMAP));
-+}
-+
- static inline void set_pte(pte_t *ptep, pte_t pte)
- {
- 	WRITE_ONCE(*ptep, pte);
-@@ -381,6 +387,11 @@ static inline int pmd_protnone(pmd_t pmd)
- 
- #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
- 
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmd_devmap(pmd)		pte_devmap(pmd_pte(pmd))
-+#endif
-+#define pmd_mkdevmap(pmd)	pte_pmd(pte_mkdevmap(pmd_pte(pmd)))
-+
- #define __pmd_to_phys(pmd)	__pte_to_phys(pmd_pte(pmd))
- #define __phys_to_pmd_val(phys)	__phys_to_pte_val(phys)
- #define pmd_pfn(pmd)		((__pmd_to_phys(pmd) & PMD_MASK) >> PAGE_SHIFT)
-@@ -666,6 +677,16 @@ static inline int pmdp_set_access_flags(struct vm_area_struct *vma,
- {
- 	return ptep_set_access_flags(vma, address, (pte_t *)pmdp, pmd_pte(entry), dirty);
- }
-+
-+static inline int pud_devmap(pud_t pud)
-+{
-+	return 0;
-+}
-+
-+static inline int pgd_devmap(pgd_t pgd)
-+{
-+	return 0;
-+}
- #endif
- 
- /*
--- 
-2.21.0.dirty
+Is there something else?
 
