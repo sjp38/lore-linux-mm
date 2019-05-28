@@ -2,178 +2,160 @@ Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
+	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2974AC072B1
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 15:14:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6987CC04AB6
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 15:38:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E357F206C1
-	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 15:14:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E357F206C1
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 152032075C
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 15:38:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 152032075C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 83B726B0276; Tue, 28 May 2019 11:14:11 -0400 (EDT)
+	id 876586B0276; Tue, 28 May 2019 11:38:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7EBF46B0279; Tue, 28 May 2019 11:14:11 -0400 (EDT)
+	id 827956B0279; Tue, 28 May 2019 11:38:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6DA8B6B027A; Tue, 28 May 2019 11:14:11 -0400 (EDT)
+	id 6EE7A6B027A; Tue, 28 May 2019 11:38:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DABC6B0276
-	for <linux-mm@kvack.org>; Tue, 28 May 2019 11:14:11 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c26so33517536eda.15
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 08:14:11 -0700 (PDT)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 42F626B0276
+	for <linux-mm@kvack.org>; Tue, 28 May 2019 11:38:33 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id y14so6486966oia.9
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 08:38:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=3BnTUEEbed8NAU4EudqbipVdWhwTZhwgsRylJhd7Uok=;
-        b=a6k/8QLrHtOcgn36kJBOkKH/v3ltAkCwB7jwUxtkz+RyduTQJqmOtGCbj5hTk2dZ5K
-         vRAzFDfW9ngBcXr/vVTyTmsTOwCpHNuKBEYv5/ZJpTFyNLtXLDv0YMaCqpvaUwtYwCaf
-         RKNA6JkXO+N8wfG6gGAbpEPOO56GCfCRkpIOcK299WzfhimrqEASikKt1wEh3XHzrxRL
-         2Mx8kysrtDs1Y1y4KFOMYnLShLiXz96LtixAr8BCVYHHkVR1djaYXYONhkwgelFZ5uQQ
-         7EuM5IGT/N/pPboq0hci9QmCVTNnQ7d4u4cFqjKN9QeTm3VPICJmbVDKK1OFLEVsr5hr
-         serA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXGPRew6Q1E6gmtOLAwnwQXj/OconKwsbd9TeNLqY/U2prGyfbF
-	x5lg796qFo7W1472Hsh5IsK9/xR+FXRWRPOrZhpYYNdFYG7Y99/3rj+BjGegE4dkxuMSnz0qceD
-	sjc4iw7lbJpkxpoWc+FdRxcf/NeQoe7WXPHv5g0klIE2US0g6Ws+fFFsBYq0MOz0=
-X-Received: by 2002:a50:9007:: with SMTP id b7mr129268836eda.194.1559056450648;
-        Tue, 28 May 2019 08:14:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqze3ZbHr0PLWJT7LzpsX3E7zO7nbGsofr+rXh2/WCF+yXk8/1V4fOGVDKex7h3A7PGyOHgX
-X-Received: by 2002:a50:9007:: with SMTP id b7mr129268704eda.194.1559056449578;
-        Tue, 28 May 2019 08:14:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559056449; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:thread-topic
+         :content-transfer-encoding;
+        bh=QqHi5rnCnje298s5JTOgIMBpgHjAjm+mGWSK41+WGKI=;
+        b=Pf5iYrErix/ozcDql4wpJjShdp7ZZGy8mXfxcYYIPZV0Pl29LF+6UnmboTL4SpTw75
+         CFxAcsEPhw7qMZCtfQe2HGuSILDeX165ACFTXIQEmi1LAbZZmJ9cVmrQcOsSsAjxr6Pd
+         as4gt9/EAsAS4XUfGFuhZR8QpfcHWiDS9cuFrUQppD3H1how5DnBvnrOgKNdwBzL1A6o
+         qIbhngBJ+EGauSw04cNdy7pb06c8aiOoZ6IU3d/p4A8/lrRKcO8KWK9/fDXxROQWjtQL
+         UjsVbmwtOLBMYOyO/bLkSZ6dGo8LAn6yOnmtnQoQOjWesqSOpnSqOIdBPL/veZ3hkjmt
+         vjwQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
+X-Gm-Message-State: APjAAAXhrEBP3DWXEMwMPJI7QbPfPZx/hktu006PS9HdzcGeQtFWyc6U
+	sl/sWNsTuieBYy8QAB0SWeqPgZBH7tJsFwJ4UbC7Q0q6gFOFj/oAoVgp3G5K8mkq9fd+DBZy2GB
+	ctcDQbf3mCoNK7NRgU7VOuR6MHN+oYi9tdr+tTfo3RGL0/ijxrqUO19i6+PAAcLcyBA==
+X-Received: by 2002:a9d:6b0d:: with SMTP id g13mr40038899otp.91.1559057912982;
+        Tue, 28 May 2019 08:38:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzUX7yuRNmkL+u97+JwznEJJt48Pc2OYRbrEF05R06Um9UEFdebYZIQCpU4EoDGeJ6k6Xov
+X-Received: by 2002:a9d:6b0d:: with SMTP id g13mr40038824otp.91.1559057911848;
+        Tue, 28 May 2019 08:38:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559057911; cv=none;
         d=google.com; s=arc-20160816;
-        b=sF6Pp0XmpELXdVGRf4ctVmexPSAZ+QLpfKPtIb9eERnmVGnvUMYQoLTTfKD/e5Vqhr
-         FxDMgZP3VfnnAPvpe2F0Ideb2RMGzsS9OsWbuxw5U+FWSJ5UNq8ZcRsgym2oVauIzt4j
-         SVtaKBae48XgpxisCAmKV8QUcmriNEySWLprrD9HwkiiJIMgkhWIdeyDKNDmFDQiMiJ0
-         ovLAlNfC8LEe+iYW7/lZhAG7cwDJG2rWsQre/zQ08rSw51DLed9FgMwAHBxROCiN1V5F
-         hSdhqm0o3HoaXfrxb4y53uzPCBd7Kf9MnY4WALwi5/ojyC1mM+J1jNFEAvBVN5Mjvr66
-         mcqA==
+        b=tSUkp4kQdeFi/aFfxGAbMEgNGb2SDs9fiEZeELhiiG3hfH+lnuJScnur16Krv0jTm3
+         ezl2Bf+gx94fiMrCt17mNqDMTWIc+QrZ6DL64Kr70Xigz8K+/3WRAqXdQAihc/tvdGpm
+         pxzs3oEkJzaKNen9AxOC18dnAk8xKxWHcC3krG6+31BBuBMkTrQ9tkuBYMDtZA2rvm+1
+         JUobZR5HH5TfszFxIfdZwZFnXSyfHcjk76gAHxCbUCs2xX+QZ8esQOsu/ZxlbhzKgPkF
+         8FBzVf7ohIoHrVU/hUyy5tfQ6Xukphm2X6CtlaN2rtwaTPR2/81I0fHgt7P6gR9byqLL
+         4d6w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=3BnTUEEbed8NAU4EudqbipVdWhwTZhwgsRylJhd7Uok=;
-        b=ZafJsKtZEp8wd+2yijDqWFSaFHrb0I7xFwKODkLCO6J0aENUBZz9a03lU0s7VNCi0T
-         44pEBEoMjSvlBVrr38lgKikun4bWkY/Dom4ZWmDPnoShuiQ16hiGK11AbnIdh0sx52qc
-         TLJyn+FOS4b4a3eFdM3h9GDZjPo6ycGjE8uHdRISra5MB6UqQi29FJ5nuUNROWrpN6eQ
-         Y/qIXlxagPHL0TWGLloZXdd1Rq7GH9LuQgPYWcfZy1UzoWQvaN0xP0DvSsof74Wp4k9n
-         r3mVnX9ZUF+PiCMEHP1yZNO4m/DNrLD8dE68t5qLjz0YkNli/NfofDQ5ig6Tk7VAyNrn
-         yCAQ==
+        h=content-transfer-encoding:thread-topic:mime-version:message-id:date
+         :subject:cc:to:from;
+        bh=QqHi5rnCnje298s5JTOgIMBpgHjAjm+mGWSK41+WGKI=;
+        b=JnhKZDXipEr9pn5EErE2GaBRmVBiuFw8mkzuD/em7uns4hLqUA/RpnAvJMH61v3pZa
+         b0c1egA6znAdfKtgDsJeeJjPWNP4s3tgZr/j+kpj3gidrdozafYh93cFdaytzSh5kp37
+         UMahyPsPx2C0BlWHdtLqdbQfilUWr9FT2v6kzb+S9C/l105X8MWS3IbsDpC+Iq0bedlT
+         yFdEB3LzVlEdwy9e88oaLrMLGGg/X+WjzPX7Yh+EiLo09ZK5vv7JRkM4U501ppXtnPX5
+         kMrcBrRskJmGbUkD2BAIhdRZc5oEeLjpfuC6ZjjLODuAN3YP/X4ZH4ep4o7rG8haPSFS
+         IfyA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id pg1si9385039ejb.285.2019.05.28.08.14.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 May 2019 08:14:09 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from mail3-162.sinamail.sina.com.cn (mail3-162.sinamail.sina.com.cn. [202.108.3.162])
+        by mx.google.com with SMTP id n28si9105944otj.17.2019.05.28.08.38.30
+        for <linux-mm@kvack.org>;
+        Tue, 28 May 2019 08:38:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) client-ip=202.108.3.162;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0FE26ACE8;
-	Tue, 28 May 2019 15:14:09 +0000 (UTC)
-Date: Tue, 28 May 2019 17:14:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from unknown (HELO localhost.localdomain)([123.112.52.157])
+	by sina.com with ESMTP
+	id 5CED55EB00004A05; Tue, 28 May 2019 23:38:22 +0800 (CST)
+X-Sender: hdanton@sina.com
+X-Auth-ID: hdanton@sina.com
+X-SMAIL-MID: 193347399538
+From: Hillf Danton <hdanton@sina.com>
 To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	stable@kernel.org, Wu Fangsuo <fangsuowu@asrmicro.com>,
-	Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
-Subject: Re: [PATCH] mm: fix trying to reclaim unevicable LRU page
-Message-ID: <20190528151407.GE1658@dhcp22.suse.cz>
-References: <20190524071114.74202-1-minchan@kernel.org>
+	LKML <linux-kernel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>
+Subject: Re: [RFC 1/7] mm: introduce MADV_COOL
+Date: Tue, 28 May 2019 23:38:11 +0800
+Message-Id: <20190528153811.7684-1-hdanton@sina.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190524071114.74202-1-minchan@kernel.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Thread-Topic: Re: [RFC 1/7] mm: introduce MADV_COOL
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Cc Pankaj Suryawanshi who has reported a similar problem
-http://lkml.kernel.org/r/SG2PR02MB309806967AE91179CAFEC34BE84B0@SG2PR02MB3098.apcprd02.prod.outlook.com]
 
-On Fri 24-05-19 16:11:14, Minchan Kim wrote:
-> There was below bugreport from Wu Fangsuo.
+On Tue, 28 May 2019 20:39:36 +0800 Minchan Kim wrote:
+> On Tue, May 28, 2019 at 08:15:23PM +0800, Hillf Danton wrote:
+> < snip >
+> > > > > +	orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> > > > > +	for (pte = orig_pte; addr < end; pte++, addr += PAGE_SIZE) {
+> > > >
+> > > > s/end/next/ ?
+> > >
+> > > Why do you think it should be next?
+> > >
+> > Simply based on the following line, and afraid that next != end
+> > 	> > > +	next = pmd_addr_end(addr, end);
 > 
-> 7200 [  680.491097] c4 7125 (syz-executor) page:ffffffbf02f33b40 count:86 mapcount:84 mapping:ffffffc08fa7a810 index:0x24
-> 7201 [  680.531186] c4 7125 (syz-executor) flags: 0x19040c(referenced|uptodate|arch_1|mappedtodisk|unevictable|mlocked)
-> 7202 [  680.544987] c0 7125 (syz-executor) raw: 000000000019040c ffffffc08fa7a810 0000000000000024 0000005600000053
-> 7203 [  680.556162] c0 7125 (syz-executor) raw: ffffffc009b05b20 ffffffc009b05b20 0000000000000000 ffffffc09bf3ee80
-> 7204 [  680.566860] c0 7125 (syz-executor) page dumped because: VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page))
-> 7205 [  680.578038] c0 7125 (syz-executor) page->mem_cgroup:ffffffc09bf3ee80
-> 7206 [  680.585467] c0 7125 (syz-executor) ------------[ cut here ]------------
-> 7207 [  680.592466] c0 7125 (syz-executor) kernel BUG at /home/build/farmland/adroid9.0/kernel/linux/mm/vmscan.c:1350!
-> 7223 [  680.603663] c0 7125 (syz-executor) Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
-> 7224 [  680.611436] c0 7125 (syz-executor) Modules linked in:
-> 7225 [  680.616769] c0 7125 (syz-executor) CPU: 0 PID: 7125 Comm: syz-executor Tainted: G S              4.14.81 #3
-> 7226 [  680.626826] c0 7125 (syz-executor) Hardware name: ASR AQUILAC EVB (DT)
-> 7227 [  680.633623] c0 7125 (syz-executor) task: ffffffc00a54cd00 task.stack: ffffffc009b00000
-> 7228 [  680.641917] c0 7125 (syz-executor) PC is at shrink_page_list+0x1998/0x3240
-> 7229 [  680.649144] c0 7125 (syz-executor) LR is at shrink_page_list+0x1998/0x3240
-> 7230 [  680.656303] c0 7125 (syz-executor) pc : [<ffffff90083a2158>] lr : [<ffffff90083a2158>] pstate: 60400045
-> 7231 [  680.666086] c0 7125 (syz-executor) sp : ffffffc009b05940
-> ..
-> 7342 [  681.671308] c0 7125 (syz-executor) [<ffffff90083a2158>] shrink_page_list+0x1998/0x3240
-> 7343 [  681.679567] c0 7125 (syz-executor) [<ffffff90083a3dc0>] reclaim_clean_pages_from_list+0x3c0/0x4f0
-> 7344 [  681.688793] c0 7125 (syz-executor) [<ffffff900837ed64>] alloc_contig_range+0x3bc/0x650
-> 7347 [  681.717421] c0 7125 (syz-executor) [<ffffff90084925cc>] cma_alloc+0x214/0x668
-> 7348 [  681.724892] c0 7125 (syz-executor) [<ffffff90091e4d78>] ion_cma_allocate+0x98/0x1d8
-> 7349 [  681.732872] c0 7125 (syz-executor) [<ffffff90091e0b20>] ion_alloc+0x200/0x7e0
-> 7350 [  681.740302] c0 7125 (syz-executor) [<ffffff90091e154c>] ion_ioctl+0x18c/0x378
-> 7351 [  681.747738] c0 7125 (syz-executor) [<ffffff90084c6824>] do_vfs_ioctl+0x17c/0x1780
-> 7352 [  681.755514] c0 7125 (syz-executor) [<ffffff90084c7ed4>] SyS_ioctl+0xac/0xc0
+> pmd_addr_end will return smaller address so end is more proper.
 > 
-> Wu found it's due to [1]. Before that, unevictable page goes to cull_mlocked
-> routine so that it couldn't reach the VM_BUG_ON_PAGE line.
-> 
-> To fix the issue, this patch filter out unevictable LRU pages
-> from the reclaim_clean_pages_from_list in CMA.
+Fair.
 
-The changelog is rather modest on details and I have to confess I have
-little bit hard time to understand it. E.g. why do not we need to handle
-the regular reclaim path?
+> > > > > +static long madvise_cool(struct vm_area_struct *vma,
+> > > > > +			unsigned long start_addr, unsigned long end_addr)
+> > > > > +{
+> > > > > +	struct mm_struct *mm = vma->vm_mm;
+> > > > > +	struct mmu_gather tlb;
+> > > > > +
+> > > > > +	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+> > > > > +		return -EINVAL;
+> > > >
+> > > > No service in case of VM_IO?
+> > >
+> > > I don't know VM_IO would have regular LRU pages but just follow normal
+> > > convention for DONTNEED and FREE.
+> > > Do you have anything in your mind?
+> > >
+> > I want to skip a mapping set up for DMA.
+> 
+> What you meant is those pages in VM_IO vma are not in LRU list?
 
-> [1] ad6b67041a45, mm: remove SWAP_MLOCK in ttu
+What I concern is the case that there are IO pages on lru list.
+> Or
+> pages in the vma are always pinned so no worth to deactivate or reclaim?
 > 
-> Cc: <stable@kernel.org>	[4.12+]
-> Reported-debugged-by: Wu Fangsuo <fangsuowu@asrmicro.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/vmscan.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index d9c3e873eca6..7350afae5c3c 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1505,7 +1505,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
->  
->  	list_for_each_entry_safe(page, next, page_list, lru) {
->  		if (page_is_file_cache(page) && !PageDirty(page) &&
-> -		    !__PageMovable(page)) {
-> +		    !__PageMovable(page) && !PageUnevictable(page)) {
->  			ClearPageActive(page);
->  			list_move(&page->lru, &clean_pages);
->  		}
-> -- 
-> 2.22.0.rc1.257.g3120a18244-goog
-> 
+I will not be nervous or paranoid if they are pinned.
 
--- 
-Michal Hocko
-SUSE Labs
+In short, I prefer to skip IO mapping since any kind of address range
+can be expected from userspace, and it may probably cover an IO mapping.
+And things can get out of control, if we reclaim some IO pages while
+underlying device is trying to fill data into any of them, for instance.
+
+BR
+Hillf
 
