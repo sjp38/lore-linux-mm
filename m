@@ -1,151 +1,137 @@
-Return-Path: <SRS0=UsNd=T3=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=UfqE=T4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E33CC07542
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 23:33:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C5E9C04AB3
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 00:46:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 13F922081C
-	for <linux-mm@archiver.kernel.org>; Mon, 27 May 2019 23:33:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Pcm1ooQR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13F922081C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 2E2082081C
+	for <linux-mm@archiver.kernel.org>; Tue, 28 May 2019 00:46:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E2082081C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9EDEE6B027C; Mon, 27 May 2019 19:33:15 -0400 (EDT)
+	id 857F46B027A; Mon, 27 May 2019 20:46:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 99E526B027F; Mon, 27 May 2019 19:33:15 -0400 (EDT)
+	id 7E1056B027C; Mon, 27 May 2019 20:46:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 88DC86B0281; Mon, 27 May 2019 19:33:15 -0400 (EDT)
+	id 681196B027F; Mon, 27 May 2019 20:46:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 522476B027C
-	for <linux-mm@kvack.org>; Mon, 27 May 2019 19:33:15 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id d9so14312620pfo.13
-        for <linux-mm@kvack.org>; Mon, 27 May 2019 16:33:15 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C9046B027A
+	for <linux-mm@kvack.org>; Mon, 27 May 2019 20:46:14 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 11so14436790pfb.4
+        for <linux-mm@kvack.org>; Mon, 27 May 2019 17:46:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=+Tzevj0aBFVFkJCWK4eLpOvzUlkBo2BfRqQfZEvwMvs=;
-        b=bT9wRes/UNuXYaZMdUE9PXvTfGcX2n61EDn1OxiebnmxrITYdZTsb3xE4jyJ5Ndvw6
-         +N6Ei+XjpAvLU/berRs7NhsHX7FUZo4iBz4I4ff3wezzpuavmFN8BMWwhvhaDCA9PUc5
-         8iB+9Oj4EQWcVRy34r5JGl8KZ5MM4IJzYm6iuPsMuN5Ukkn50mndlPXojEPV3Y29RG/c
-         9FzvC32taopdvwhHtMVCPMpiA906SGSWqeRvw/2QDA4SwzQASPC3CaPr86B5Wa6MD1NF
-         4nF73zz1nn+lkC5ym3YSs6O0qlN8SK00iOmD1WVrTSMv5/1OeE9M+fqHpVYvVWKGD1yP
-         RJdw==
-X-Gm-Message-State: APjAAAXsd9zkhtPh2r7xPQmn7/vjcRyBaWLjMIQIRaXPbOo8hRDF34J2
-	PR65+KYyJiW9WXeHbM5D3JBhP7N6ATms/pl+fgcCMMvoGPZ1QH1f20Cjb6pP+28TUd6itAXhx9u
-	TOtqlZXeUNEh24jYyLCh7vWhKGhMiGwTG3+k3JHtcudcdNmUcPcoNRCiBSCrTt04=
-X-Received: by 2002:a17:902:9f8b:: with SMTP id g11mr124226844plq.199.1558999994869;
-        Mon, 27 May 2019 16:33:14 -0700 (PDT)
-X-Received: by 2002:a17:902:9f8b:: with SMTP id g11mr124226803plq.199.1558999994188;
-        Mon, 27 May 2019 16:33:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1558999994; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=bE+rooZMEZ++B5MReWbEgBGHcAahTBIpJd9+nFIpA/c=;
+        b=Nz41/4K5mlk83e6wLmWeMva90cWqFwGboTJDwD57xt4ZEDlUK5BZg4SCjbmd3LOGxb
+         kvljRYZK3LxDF6kO45TbtMSRsB39iH6U/h1d4HQOBTipbkJWm1ip64s1ClkzR8ESDTOY
+         w+VMo5pvmBeKbJNCsDJkMitU68g+lD8LHvVhL2Z+K9ow6hbUrXZUDtuhMKkXHLL4KKqr
+         5cMHqoQUUt4nKjBySbQdfUp0EuLH+VCfQQTdsNlfaDI5AOzEj3OMYoxVKORI8Ea3D6Yh
+         1FtzF1ToQLs/qDCtpGkISxzvOQPoPzzEukKE7MuMZmD4AaF1hrS1cVtySa1XHnnySFvW
+         OdjA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAX0FZhWDwTrjmIGaJkioofveacm7KrkFl6gzl45MDePO5hQVDFM
+	uKPsZv627v0pAsZOfwcnKo5j257/rMaU/kd1slNXZJweBixmkdR32p40fy8sOb/b1wTJAD87uzR
+	z0X0xhQlNpXoieV4E9jeDPdrV2dPo0qtw9934EmspQju4ifmZINIrFKY386Xr4A4YKw==
+X-Received: by 2002:a17:90a:364b:: with SMTP id s69mr1962996pjb.15.1559004373734;
+        Mon, 27 May 2019 17:46:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqynU2hfQ81gyijI9ScNElpSvIfFGEy+N/VkrwvbpI6a6hOE9xpNWeM2BUoXrWCoChS5KpZH
+X-Received: by 2002:a17:90a:364b:: with SMTP id s69mr1962919pjb.15.1559004372956;
+        Mon, 27 May 2019 17:46:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559004372; cv=none;
         d=google.com; s=arc-20160816;
-        b=Kcp87hz857N/rBTH1lUHvFlzOJYHixvsSpcG9WltGBBlIt/uh0DGZoelxUm+ZZgqUT
-         F4zZd5rPFnzl5NFBvLG0tMkJ1aNbHQpmltrRWoyY1uEJGecrmNtT/4xqRD57CC9cDDu7
-         tg4so+D+KNk4uA/f6iSdKlV9SGOoSXylK0AysLuCLB6/Qq/7A9bOXuwEhnc8xvJP+bwf
-         ZTCTfgbxK0dky2LLXdIFCokglFKYQs8Kf0vRlc4VnKV3AkYXvrUCB5JOZ7A+8fyhM3QA
-         nPHhG/znMmcHF39Oy/zs7cPoW/Ub3+sop00vy1TSa5DklW4Y4Qy7fP3oF6ps+8fQ+eiR
-         Ip+Q==
+        b=yP+F84ZU6PO6WD4+K12LAta7UERxGnuvYXlPj/CWTLgWicIPnXRi7RHd0L9q49d/zj
+         3qW7cVLzXx80jcZAbybJ1cA2UaI64dQoycrkbeXw71lOmqtdup4lw0Gj6e6ddc+KgoPb
+         QBIKWc9W0JJ6Vaqv2b0nNYVdp+Kn/04v+I7vdr5QLlmx1LkJbU0AuuUzO56Xw/nmKpQw
+         N1+Mnwtci+666W81fG/asnJTdh0LrSBMn6jqOydnIte0Na8FYxoQrj108Aqg51N5rJRB
+         ztwm2g3HAawrIakxeVTJp8GI+INVEtjpv9OG34uZP5rv4h8TCOat10eOG7u8yFnV1deO
+         6HPg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=+Tzevj0aBFVFkJCWK4eLpOvzUlkBo2BfRqQfZEvwMvs=;
-        b=Ng+dWwwlPEGps++gQphuLd/2kqYINERWP4LJiLnN02Y0rWGWkjXG9mSM7HRZvJRfbm
-         cyGuIpOl8zU/m/I1UtHUql/W2hPtzOjDfI4D1VAGDI2RV+o+tioW7txUcwxBqlpY071y
-         Fz0XI77uDnrm7+/RqqPHC9GytBE6nYfCbT78bq+aPrpHAa1MEcFSZq9mAv1kZE71xv1W
-         bdDOzyX+VNYOQY38gFcBl95Pn1ZHNSta3CHJSy7pTllRzFnk0KR8AU5/vJTiFg2dlxNm
-         n7oPFa3x9ns/ICdnfMreij/iza/6WVXMK4OphTeQHPrQRuopsg/GOQ9ePZnRnZxJdy3v
-         iGWA==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=bE+rooZMEZ++B5MReWbEgBGHcAahTBIpJd9+nFIpA/c=;
+        b=o0ty9Tk9wX8A3BB5ZYscxemyI2E+iY/TfaVfN+g8sISN0IQudGCa/iOSpGMRTXchID
+         uz058RPM+45BwoM8EM2qRph5OfiQ5SYbW6cNCUTYO0pR19YKros4CUA8ET0p+RZDboiY
+         vNLipXgKOecRBEbS7un/OteJOijKuEl/dQTqqCD9rjRAUSvK9Go9x1ZVqifDFZKdCYdQ
+         fJk9KsC0kUl6YrAWLpC/10rfiKp7wcqDGCeymrR20d0Ktu0BF0w+cREgLyAiCF9H4nFO
+         gbnZwf7JJg8Fd4LLWsg3K8lodALe5ssCdys8ZhmLKPOruaBUbUhb/F1Y444Fqr0TyoTL
+         uegg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Pcm1ooQR;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w4sor14743687pfi.67.2019.05.27.16.33.14
+       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id t1si18835036plr.74.2019.05.27.17.46.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 27 May 2019 16:33:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 May 2019 17:46:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Pcm1ooQR;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=+Tzevj0aBFVFkJCWK4eLpOvzUlkBo2BfRqQfZEvwMvs=;
-        b=Pcm1ooQR7nJPiwEsinFV/L6nU72jYejpbNC7QlSuOh8Pr/Z7jHPUQy9LUaDpG3ZZiM
-         +y0KLQUxNoHblKkmwGb+K2LT3jNmHSweUA8KOn53jFvOagl8BB01uHMmr4Urgm7G7kzD
-         i9oE0PzDFV3dp3p4jzFvhv08fTGoOAyudo4yFzXQ/AYO1FA/npUwnQLAk0eTJe8aRySd
-         xpHXTeOT1+LNS9vzNUHPyk3kEzHbL8xv+pWQfDUV7yC6yNTdtI7zVh6xRdi56muGJLNV
-         vrxlxGW79TUzoRd+V1xYEHmU+3m+Re5rThIDKwi1R9C/6KzcnUuFWJPjFMXqnM9HA3Tt
-         aC1Q==
-X-Google-Smtp-Source: APXvYqw64MwbF8rBzoFZuNCZfbyzEPvHcK3q4MMq9vzVc16EWSgge+/RGsYDd+RrqQ/wO+LlCjxZUw==
-X-Received: by 2002:a62:d41c:: with SMTP id a28mr40306175pfh.31.1558999993555;
-        Mon, 27 May 2019 16:33:13 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id n2sm10802478pgp.27.2019.05.27.16.33.09
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 27 May 2019 16:33:12 -0700 (PDT)
-Date: Tue, 28 May 2019 08:33:06 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>
-Subject: Re: [RFC 5/7] mm: introduce external memory hinting API
-Message-ID: <20190527233306.GE6879@google.com>
-References: <20190520035254.57579-1-minchan@kernel.org>
- <20190520035254.57579-6-minchan@kernel.org>
- <20190521153113.GA2235@redhat.com>
- <20190527074300.GA6879@google.com>
- <20190527151201.GB8961@redhat.com>
+       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 27 May 2019 17:46:12 -0700
+X-ExtLoop1: 1
+Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.29])
+  by fmsmga007.fm.intel.com with ESMTP; 27 May 2019 17:46:09 -0700
+From: "Huang\, Ying" <ying.huang@intel.com>
+To: "Paul E. McKenney" <paulmck@linux.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,  <linux-mm@kvack.org>,  <linux-kernel@vger.kernel.org>,  Hugh Dickins <hughd@google.com>,  Minchan Kim <minchan@kernel.org>,  Johannes Weiner <hannes@cmpxchg.org>,  Tim Chen <tim.c.chen@linux.intel.com>,  Mel Gorman <mgorman@techsingularity.net>,  Jérôme Glisse <jglisse@redhat.com>,  Michal Hocko <mhocko@suse.com>,  Andrea Arcangeli <aarcange@redhat.com>,  Yang Shi <yang.shi@linux.alibaba.com>,  David Rientjes <rientjes@google.com>,  "Rik van Riel" <riel@redhat.com>,  Jan Kara <jack@suse.cz>,  Dave Jiang <dave.jiang@intel.com>,  Daniel Jordan <daniel.m.jordan@oracle.com>,  "Andrea Parri" <andrea.parri@amarulasolutions.com>
+Subject: Re: [PATCH -mm] mm, swap: Simplify total_swapcache_pages() with get_swap_device()
+References: <20190527082714.12151-1-ying.huang@intel.com>
+	<20190527101536.GI28207@linux.ibm.com>
+Date: Tue, 28 May 2019 08:46:02 +0800
+In-Reply-To: <20190527101536.GI28207@linux.ibm.com> (Paul E. McKenney's
+	message of "Mon, 27 May 2019 03:15:36 -0700")
+Message-ID: <871s0j8kz9.fsf@yhuang-dev.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190527151201.GB8961@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=ascii
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 27, 2019 at 05:12:02PM +0200, Oleg Nesterov wrote:
-> On 05/27, Minchan Kim wrote:
-> >
-> > > another problem is that pid_task(pid) can return a zombie leader, in this case
-> > > mm_access() will fail while it shouldn't.
-> >
-> > I'm sorry. I didn't notice that. However, I couldn't understand your point.
-> > Why do you think mm_access shouldn't fail even though pid_task returns
-> > a zombie leader?
-> 
-> The leader can exit (call sys_exit(), not sys_exit_group()), this won't affect
-> other threads. In this case the process is still alive even if the leader thread
-> is zombie. That is why we have find_lock_task_mm().
+Hi, Paul,
 
-Thanks for clarification, Oleg. Then, Let me have a further question.
+"Paul E. McKenney" <paulmck@linux.ibm.com> writes:
 
-It means process_vm_readv, move_pages have same problem too because find_task_by_vpid
-can return a zomebie leader and next line checks for mm_struct validation makes a
-failure. My understand is correct? If so, we need to fix all places.
+> On Mon, May 27, 2019 at 04:27:14PM +0800, Huang, Ying wrote:
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> total_swapcache_pages() may race with swapper_spaces[] allocation and
+>> freeing.  Previously, this is protected with a swapper_spaces[]
+>> specific RCU mechanism.  To simplify the logic/code complexity, it is
+>> replaced with get/put_swap_device().  The code line number is reduced
+>> too.  Although not so important, the swapoff() performance improves
+>> too because one synchronize_rcu() call during swapoff() is deleted.
+>
+> I am guessing that total_swapcache_pages() is not used on any
+> fastpaths, but must defer to others on this.  Of course, if the
+> performance/scalability of total_swapcache_pages() is important,
+> benchmarking is needed.
+
+This patch is mostly about code cleanup instead of performance.  That
+is, to make the code easier to be understand.
+
+> But where do I find get_swap_device() and put_swap_device()?  I do not
+> see them in current mainline.
+
+They are not in mainline, but in -mm tree.  I should have made it more
+clear.  Sorry about that.
+
+Best Regards,
+Huang, Ying
 
