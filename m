@@ -2,185 +2,700 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A73EC28CC0
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 20:32:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D6BD0C28CC0
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 20:51:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B2AFC2415A
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 20:32:02 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6FF152419D
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 20:51:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=kernel-dk.20150623.gappssmtp.com header.i=@kernel-dk.20150623.gappssmtp.com header.b="w6GpgIMW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B2AFC2415A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.dk
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="JjkSvx+I"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6FF152419D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 387FD6B026A; Wed, 29 May 2019 16:32:02 -0400 (EDT)
+	id 06C166B026A; Wed, 29 May 2019 16:51:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3386A6B026D; Wed, 29 May 2019 16:32:02 -0400 (EDT)
+	id F39A76B026D; Wed, 29 May 2019 16:51:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 226BA6B026E; Wed, 29 May 2019 16:32:02 -0400 (EDT)
+	id DB2776B026E; Wed, 29 May 2019 16:51:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 056066B026A
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 16:32:02 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id s18so3045293itl.7
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 13:32:02 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B2F756B026A
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 16:51:11 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id i7so2854041ioh.8
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 13:51:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=+j1iS5dNAudmx4UH+uWG9vQsSzXOCdgsKti/KKoA57M=;
-        b=S2t/d4+ItvqGWtJtOVlI+81w1L/XTTEzWexsP66kLo5XdM3SmD+WzXXSiDgdBXdk2Y
-         /ctN/nzWzLHXbmzxwC7a3xpOTWEWBPsIl63cYrIy+Yrw1wx1LvjY0rNXKARCWZdNK01O
-         93+hlwIO/XnOUR9A2XWQKu3Cyn1LZUgpPJtPo2lIoa6vXdxDOCnPelSgui78DrM8H+u9
-         9PRnTebVKzi4yI3g/SkIrX/QQH1J/Gm3PH50iuIpf98NPGLhyjA3l90X1dSlF6ecmMIG
-         0hOiYdYY4OX5YjzHfYvUSKo0H0UDfNElOqoRfc7SGdYNr1ATxzr6+pM+/9ZBYkythtG7
-         qwgA==
-X-Gm-Message-State: APjAAAWwKEom9WITCGynBif2sRzCwOydJY1kh2Dj0gcUL+w+4jcZ30QX
-	4F2eV2P+XGTc2amgmEu6kOC6U8Jh+Vr5sx6FjT7Sx/mYUeAOBZ+4DmQibT0flozu67wth+IUBHW
-	ScgS0hJ6Of5FNxdtwuui4T8znNqctS4Exhy7SC2y1Q3moxVAfwkwdn7eDKUZVPwEL5Q==
-X-Received: by 2002:a05:6638:605:: with SMTP id g5mr20108148jar.110.1559161921450;
-        Wed, 29 May 2019 13:32:01 -0700 (PDT)
-X-Received: by 2002:a05:6638:605:: with SMTP id g5mr20108094jar.110.1559161920626;
-        Wed, 29 May 2019 13:32:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559161920; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=UEVjydkCiSNXBnxPUv8ZPRtyzn2pRdmlL8Y0MMMRS90=;
+        b=tvttT66SOD6k54JuTOir/rZbM/8NB2KDt/sHSslXU6g0ji2JJwZMoZiitToC8Yj4XC
+         yTdrvuvG03ozLh26o3e/h5XZZUwiwjg31zH6mppxuFOguynCzMbXbq1bneRfTDQtI3dk
+         8YOBYjYYg/XpZQ/tr0ixbxIKB63piDoh1YFvuXenUxhKdGE+QTxeWnUbsXAAzSNjBzUb
+         YJ0mgohXKCap+9HVLc7KidzDo/Lubdreg2n5F30FjOArUYXkSG6lePbj4KhTH6bN/mBA
+         kKVsVy6tOwwb9oxirfX6m4bZ/sUCw+/FTsB2hPdbHTvWrG3RIn7TZP3IFxCb+wlHM/pa
+         XjZA==
+X-Gm-Message-State: APjAAAVEYN7PXBIsIVnjHeAjjTNlxArvsdQn5gaM1qa8fiJjOaaqPNsu
+	jtupSO9YvptIlxyRJ2vLVFjLoz89Wl7Tx/p5I0MSkkGlTeLyMme06YJdFLpIem7aAuKsL7OCIIl
+	46c1Z12wci7dsf6lpNJGksynCSvztGXJw9xLNTr5YzxpA7QcfNRzG681CmBrzb4pTjg==
+X-Received: by 2002:a6b:e702:: with SMTP id b2mr19401ioh.175.1559163069890;
+        Wed, 29 May 2019 13:51:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzx2sP/tcEOIk5ru8PGaB12GCEaziyT5kmCluUqBUjkH2FI/NYNhDThoO0JOIDz+u9lZqbk
+X-Received: by 2002:a6b:e702:: with SMTP id b2mr19250ioh.175.1559163066983;
+        Wed, 29 May 2019 13:51:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559163066; cv=none;
         d=google.com; s=arc-20160816;
-        b=VZikJPIKPsNMdpG9+W3rwHW7nvShsSKqyXN+XV0ryRQEZlExHmmJj4wMly8m3U2fVt
-         y5MxxZikIs0OLLtsJU/fD/k4fjhqJiESos9smzpl9e4OHNmFsTJxwxrkxTF68XxFMLfT
-         sF2t3JG/7hKKszTy94pDWyYSzlF4uZR51906fec0f811Vwj5MK++LtPCGjWCN92mbgiv
-         7n+n+mRZxSxbVfc9XDvcU4PignS/wESda2Jj4YqwvBw2tElcPKo317YVs0OAh+gk1qmi
-         Ih0FwpsL3/JEA3dCrBgzJUTdTp5zVIwBPCyCOyBN81cnBS/G//6vRFTc+HW+JFykYqqW
-         o5IA==
+        b=ai6ui1nhlJF82KdENyAGq2yDYzi6+JbXQ2PEJgRitvPRAZlrIjXNhiRXkE6jMtQWZz
+         TR+QfPfSu3WuiQXVuhWjk/F709j3uKgnV7ZRf8pDMC3CVvqgL1tHBsaUIlvc0RJpjIHG
+         lKeyshwxAmYT/FRrdKAxYL6MbakkTPAyZUrDk34ECJN70VxbwmIdKh96mOxonJzmowYo
+         mFE4Rlsr/K2f+fPzLmw1eTqH/rlqVwh6xcQQLe1ywxnbXnxXPYs7KMF+REO5cw4YH6wI
+         XN2wgHpHppg5RHjFCgnkOMEqvAYYJ+wWjMZEj4W8z3tuA0UQahfm8tcQx4q7lmFQokUE
+         2aHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=+j1iS5dNAudmx4UH+uWG9vQsSzXOCdgsKti/KKoA57M=;
-        b=RoQ9ycg9Vsr3XzhiVijDi24YyZmlLVo9kJEaXV0tEcg/1QKjHed4PYqoFqt4oWnJnS
-         N7aFZSCu48Z31L2baVnRFQk0esfOxrkWFuQDQ2ZXA4lYG38Frh9BqbvkQdkmfa8TQctc
-         cMmXGD7KvyIvjrHqt1IhfTKgELaxxF9KUIwO7+hD1JK1YO4hI/hTTzsawphaDMbKq4UP
-         VtvKCYkhzSZbrCamX2sMsX68kscHhamX0l4/IhJuG/Lz4xETcl8PyJAVcj8bBNZuqZbY
-         DGhe4zHi0ZQAb7rGh3N4jgwjlHA2/SjGnOquDnSTlIYG2aQ17r2TWUpwPqHE1LdAugz/
-         Dhmw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=UEVjydkCiSNXBnxPUv8ZPRtyzn2pRdmlL8Y0MMMRS90=;
+        b=EYDY+5tqv2Dc5baljoZsz9wSwxs2ufK75NWSiULclMI8BYKUDU5s+Slc1bjhrDpkj7
+         iKGUl2VQowgVmqNpZVqvQIxeqxDu6T3dpgWZ5H2ChtjarjrnprFq0D8NlEtxcNZhkf0E
+         tTlVaC18Y5Ueh04h4Ir58ShK/uKDqTj5dJaQMDepzW/N/lZryGQtX48NNGDBxoHDFvc5
+         fTZICDrss8a07yiMTW2o/xUOGigrO3s5/Fl2Xxwq+BZJJyqlWi0ehu7rhqr1/JPEo3nP
+         IAaAyw06et8CWq6Fx107DwNAoiGs1GHWvk2RC0aagjQIha3GiO7r0lL6kf5ODzphtJtc
+         4U4Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=w6GpgIMW;
-       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e9sor852986ite.30.2019.05.29.13.32.00
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=JjkSvx+I;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id 192si509681iti.11.2019.05.29.13.51.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 29 May 2019 13:32:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=w6GpgIMW;
-       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=kernel-dk.20150623.gappssmtp.com; s=20150623;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=+j1iS5dNAudmx4UH+uWG9vQsSzXOCdgsKti/KKoA57M=;
-        b=w6GpgIMW8hIiwXx5o1J3d7Bser43fI2PfRq0K2wMU1lyLzNumJpQ5ARAbG1NExEahG
-         +u/bAFy+fgsAQ5mdxsV/A8D3Q8x06C7UcgnqOhvFt8P8wgiAnIW2AtzFcqn1zBnADeeQ
-         zDf6UuxZHjjPhSEeVR3KG7+Sbqid7fm/w6HsESA8MxKMNUxgTo3xYVVRph1rJH7BXEFG
-         TNh77ryxkOQavb/RKDOAdtBly2PZ7pSAre/+T7urveK81n5LKBvFLOlA4/NIX8ymG9om
-         d9RCTtoayKgPCkQMN57R9yNDZA+qNkFwXTt2pzPYsTy7vk2oSepZXP1ql33H/vuJJlSU
-         Ki9Q==
-X-Google-Smtp-Source: APXvYqy3RaoAImWLO3Q8NdcbbkYqij1DCbkDSj7fKDMoc5wdjPmduML0c53h9RnSe8d0KxuFcuKF+w==
-X-Received: by 2002:a24:5252:: with SMTP id d79mr157943itb.14.1559161920322;
-        Wed, 29 May 2019 13:32:00 -0700 (PDT)
-Received: from [192.168.1.158] ([216.160.245.98])
-        by smtp.gmail.com with ESMTPSA id d71sm190824itc.18.2019.05.29.13.31.58
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 May 2019 13:31:59 -0700 (PDT)
-Subject: Re: [PATCH] block: fix a crash in do_task_dead()
-To: Qian Cai <cai@lca.pw>
-Cc: akpm@linux-foundation.org, hch@lst.de, peterz@infradead.org,
- oleg@redhat.com, gkohli@codeaurora.org, mingo@redhat.com,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1559161526-618-1-git-send-email-cai@lca.pw>
-From: Jens Axboe <axboe@kernel.dk>
-Message-ID: <ad24b8de-c1dc-f52a-06af-103ceda891a6@kernel.dk>
-Date: Wed, 29 May 2019 14:31:58 -0600
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+        Wed, 29 May 2019 13:51:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=JjkSvx+I;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4TKcb9H153712;
+	Wed, 29 May 2019 20:50:48 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
+ subject : date : message-id : in-reply-to : references : mime-version :
+ content-transfer-encoding; s=corp-2018-07-02;
+ bh=UEVjydkCiSNXBnxPUv8ZPRtyzn2pRdmlL8Y0MMMRS90=;
+ b=JjkSvx+I/jOJ1R55SJ9XTx3aJdMo6srOfR7bY39nKueu9xTbA3TP1z86EBVVQtLRcFX4
+ NTJnFOlMUgercHroPKflAKP0zrU4z2Tj3hbr5W/f+7A1ObUht4XcNXRhLmVednMZpG/F
+ pG5kfmEvgrD/TWtLirzReJCAWcokxiWj3tNbgOJPRYJA55jvFRqOPYeK417+zKem8O9b
+ HCOKUk74lKFOaDUZcpv//SPd1LEyN58nft9EQ64c7mueIcIQFTvsTo38XNIDD0ukVyHQ
+ wHPYIA6W1/ESw93USm7ioq+/NgqShXxtUiB0zIPx+ovrQpp9t1oUULZ6KL7x3FdCxn0h Yw== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by userp2130.oracle.com with ESMTP id 2spw4tmfgv-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 29 May 2019 20:50:48 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4TKoSMl163806;
+	Wed, 29 May 2019 20:50:47 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3020.oracle.com with ESMTP id 2sqh73xegs-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 29 May 2019 20:50:46 +0000
+Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4TKoZ3O027508;
+	Wed, 29 May 2019 20:50:35 GMT
+Received: from localhost.localdomain (/73.60.114.248)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 29 May 2019 13:50:34 -0700
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+To: akpm@linux-foundation.org
+Cc: Daniel Jordan <daniel.m.jordan@oracle.com>,
+        Alexey Kardashevskiy <aik@ozlabs.ru>, Alan Tull <atull@kernel.org>,
+        Alex Williamson <alex.williamson@redhat.com>,
+        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+        Christoph Lameter <cl@linux.com>,
+        Christophe Leroy <christophe.leroy@c-s.fr>,
+        Davidlohr Bueso <dave@stgolabs.net>, Ira Weiny <ira.weiny@intel.com>,
+        Jason Gunthorpe <jgg@mellanox.com>,
+        Mark Rutland <mark.rutland@arm.com>,
+        Michael Ellerman <mpe@ellerman.id.au>, Moritz Fischer <mdf@kernel.org>,
+        Paul Mackerras <paulus@ozlabs.org>,
+        Steve Sistare <steven.sistare@oracle.com>, Wu Hao <hao.wu@intel.com>,
+        linux-mm@kvack.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
+        linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
+        linux-kernel@vger.kernel.org
+Subject: [PATCH v3] mm: add account_locked_vm utility function
+Date: Wed, 29 May 2019 16:50:19 -0400
+Message-Id: <20190529205019.20927-1-daniel.m.jordan@oracle.com>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190529125627.0cb5b704@x1.home>
+References: <20190529125627.0cb5b704@x1.home>
 MIME-Version: 1.0
-In-Reply-To: <1559161526-618-1-git-send-email-cai@lca.pw>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9272 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=62 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905290130
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9272 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=62 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905290130
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/29/19 2:25 PM, Qian Cai wrote:
-> The commit 0619317ff8ba ("block: add polled wakeup task helper")
-> replaced wake_up_process() with blk_wake_io_task() in
-> end_swap_bio_read() which triggers a crash when running heavy swapping
-> workloads.
-> 
-> [T114538] kernel BUG at kernel/sched/core.c:3462!
-> [T114538] Process oom01 (pid: 114538, stack limit = 0x000000004f40e0c1)
-> [T114538] Call trace:
-> [T114538]  do_task_dead+0xf0/0xf8
-> [T114538]  do_exit+0xd5c/0x10fc
-> [T114538]  do_group_exit+0xf4/0x110
-> [T114538]  get_signal+0x280/0xdd8
-> [T114538]  do_notify_resume+0x720/0x968
-> [T114538]  work_pending+0x8/0x10
-> 
-> This is because shortly after set_special_state(TASK_DEAD),
-> end_swap_bio_read() is called from an interrupt handler that revive the
-> task state to TASK_RUNNING causes __schedule() to return and trip the
-> BUG() later.
-> 
-> [  C206] Call trace:
-> [  C206]  dump_backtrace+0x0/0x268
-> [  C206]  show_stack+0x20/0x2c
-> [  C206]  dump_stack+0xb4/0x108
-> [  C206]  blk_wake_io_task+0x7c/0x80
-> [  C206]  end_swap_bio_read+0x22c/0x31c
-> [  C206]  bio_endio+0x3d8/0x414
-> [  C206]  dec_pending+0x280/0x378 [dm_mod]
-> [  C206]  clone_endio+0x128/0x2ac [dm_mod]
-> [  C206]  bio_endio+0x3d8/0x414
-> [  C206]  blk_update_request+0x3ac/0x924
-> [  C206]  scsi_end_request+0x54/0x350
-> [  C206]  scsi_io_completion+0xf0/0x6f4
-> [  C206]  scsi_finish_command+0x214/0x228
-> [  C206]  scsi_softirq_done+0x170/0x1a4
-> [  C206]  blk_done_softirq+0x100/0x194
-> [  C206]  __do_softirq+0x350/0x790
-> [  C206]  irq_exit+0x200/0x26c
-> [  C206]  handle_IPI+0x2e8/0x514
-> [  C206]  gic_handle_irq+0x224/0x228
-> [  C206]  el1_irq+0xb8/0x140
-> [  C206]  _raw_spin_unlock_irqrestore+0x3c/0x74
-> [  C206]  do_task_dead+0x88/0xf8
-> [  C206]  do_exit+0xd5c/0x10fc
-> [  C206]  do_group_exit+0xf4/0x110
-> [  C206]  get_signal+0x280/0xdd8
-> [  C206]  do_notify_resume+0x720/0x968
-> [  C206]  work_pending+0x8/0x10
-> 
-> Before the offensive commit, wake_up_process() will prevent this from
-> happening by taking the pi_lock and bail out immediately if TASK_DEAD is
-> set.
-> 
-> if (!(p->state & TASK_NORMAL))
-> 	goto out;
-> 
-> Fix it by calling wake_up_process() if it is in a non-task context.
+locked_vm accounting is done roughly the same way in five places, so
+unify them in a helper.
 
-I like this one a lot better than the previous fix. Unless folks
-object, I'll queue this up for 5.2, thanks.
+Include the helper's caller in the debug print to distinguish between
+callsites.
 
+Error codes stay the same, so user-visible behavior does too.  The one
+exception is that the -EPERM case in tce_account_locked_vm is removed
+because Alexey has never seen it triggered.
+
+Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+Tested-by: Alexey Kardashevskiy <aik@ozlabs.ru>
+Cc: Alan Tull <atull@kernel.org>
+Cc: Alex Williamson <alex.williamson@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Davidlohr Bueso <dave@stgolabs.net>
+Cc: Ira Weiny <ira.weiny@intel.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Mark Rutland <mark.rutland@arm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Moritz Fischer <mdf@kernel.org>
+Cc: Paul Mackerras <paulus@ozlabs.org>
+Cc: Steve Sistare <steven.sistare@oracle.com>
+Cc: Wu Hao <hao.wu@intel.com>
+Cc: linux-mm@kvack.org
+Cc: kvm@vger.kernel.org
+Cc: kvm-ppc@vger.kernel.org
+Cc: linuxppc-dev@lists.ozlabs.org
+Cc: linux-fpga@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+---
+v3:
+ - uninline account_locked_vm (Andrew)
+ - fix doc comment (Ira)
+ - retain down_write_killable in vfio type1 (Alex)
+ - leave Alexey's T-b since the code is the same aside from uninlining
+ - sanity tested with vfio type1, sanity-built on ppc
+
+ arch/powerpc/kvm/book3s_64_vio.c     | 44 ++--------------
+ arch/powerpc/mm/book3s64/iommu_api.c | 41 ++-------------
+ drivers/fpga/dfl-afu-dma-region.c    | 53 ++------------------
+ drivers/vfio/vfio_iommu_spapr_tce.c  | 54 ++------------------
+ drivers/vfio/vfio_iommu_type1.c      | 17 +------
+ include/linux/mm.h                   |  4 ++
+ mm/util.c                            | 75 ++++++++++++++++++++++++++++
+ 7 files changed, 98 insertions(+), 190 deletions(-)
+
+diff --git a/arch/powerpc/kvm/book3s_64_vio.c b/arch/powerpc/kvm/book3s_64_vio.c
+index 66270e07449a..768b645c7edf 100644
+--- a/arch/powerpc/kvm/book3s_64_vio.c
++++ b/arch/powerpc/kvm/book3s_64_vio.c
+@@ -30,6 +30,7 @@
+ #include <linux/anon_inodes.h>
+ #include <linux/iommu.h>
+ #include <linux/file.h>
++#include <linux/mm.h>
+ 
+ #include <asm/kvm_ppc.h>
+ #include <asm/kvm_book3s.h>
+@@ -56,43 +57,6 @@ static unsigned long kvmppc_stt_pages(unsigned long tce_pages)
+ 	return tce_pages + ALIGN(stt_bytes, PAGE_SIZE) / PAGE_SIZE;
+ }
+ 
+-static long kvmppc_account_memlimit(unsigned long stt_pages, bool inc)
+-{
+-	long ret = 0;
+-
+-	if (!current || !current->mm)
+-		return ret; /* process exited */
+-
+-	down_write(&current->mm->mmap_sem);
+-
+-	if (inc) {
+-		unsigned long locked, lock_limit;
+-
+-		locked = current->mm->locked_vm + stt_pages;
+-		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+-		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+-			ret = -ENOMEM;
+-		else
+-			current->mm->locked_vm += stt_pages;
+-	} else {
+-		if (WARN_ON_ONCE(stt_pages > current->mm->locked_vm))
+-			stt_pages = current->mm->locked_vm;
+-
+-		current->mm->locked_vm -= stt_pages;
+-	}
+-
+-	pr_debug("[%d] RLIMIT_MEMLOCK KVM %c%ld %ld/%ld%s\n", current->pid,
+-			inc ? '+' : '-',
+-			stt_pages << PAGE_SHIFT,
+-			current->mm->locked_vm << PAGE_SHIFT,
+-			rlimit(RLIMIT_MEMLOCK),
+-			ret ? " - exceeded" : "");
+-
+-	up_write(&current->mm->mmap_sem);
+-
+-	return ret;
+-}
+-
+ static void kvm_spapr_tce_iommu_table_free(struct rcu_head *head)
+ {
+ 	struct kvmppc_spapr_tce_iommu_table *stit = container_of(head,
+@@ -302,7 +266,7 @@ static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
+ 
+ 	kvm_put_kvm(stt->kvm);
+ 
+-	kvmppc_account_memlimit(
++	account_locked_vm(current->mm,
+ 		kvmppc_stt_pages(kvmppc_tce_pages(stt->size)), false);
+ 	call_rcu(&stt->rcu, release_spapr_tce_table);
+ 
+@@ -327,7 +291,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
+ 		return -EINVAL;
+ 
+ 	npages = kvmppc_tce_pages(size);
+-	ret = kvmppc_account_memlimit(kvmppc_stt_pages(npages), true);
++	ret = account_locked_vm(current->mm, kvmppc_stt_pages(npages), true);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -373,7 +337,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
+ 
+ 	kfree(stt);
+  fail_acct:
+-	kvmppc_account_memlimit(kvmppc_stt_pages(npages), false);
++	account_locked_vm(current->mm, kvmppc_stt_pages(npages), false);
+ 	return ret;
+ }
+ 
+diff --git a/arch/powerpc/mm/book3s64/iommu_api.c b/arch/powerpc/mm/book3s64/iommu_api.c
+index 5c521f3924a5..18d22eec0ebd 100644
+--- a/arch/powerpc/mm/book3s64/iommu_api.c
++++ b/arch/powerpc/mm/book3s64/iommu_api.c
+@@ -19,6 +19,7 @@
+ #include <linux/hugetlb.h>
+ #include <linux/swap.h>
+ #include <linux/sizes.h>
++#include <linux/mm.h>
+ #include <asm/mmu_context.h>
+ #include <asm/pte-walk.h>
+ #include <linux/mm_inline.h>
+@@ -51,40 +52,6 @@ struct mm_iommu_table_group_mem_t {
+ 	u64 dev_hpa;		/* Device memory base address */
+ };
+ 
+-static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
+-		unsigned long npages, bool incr)
+-{
+-	long ret = 0, locked, lock_limit;
+-
+-	if (!npages)
+-		return 0;
+-
+-	down_write(&mm->mmap_sem);
+-
+-	if (incr) {
+-		locked = mm->locked_vm + npages;
+-		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+-		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+-			ret = -ENOMEM;
+-		else
+-			mm->locked_vm += npages;
+-	} else {
+-		if (WARN_ON_ONCE(npages > mm->locked_vm))
+-			npages = mm->locked_vm;
+-		mm->locked_vm -= npages;
+-	}
+-
+-	pr_debug("[%d] RLIMIT_MEMLOCK HASH64 %c%ld %ld/%ld\n",
+-			current ? current->pid : 0,
+-			incr ? '+' : '-',
+-			npages << PAGE_SHIFT,
+-			mm->locked_vm << PAGE_SHIFT,
+-			rlimit(RLIMIT_MEMLOCK));
+-	up_write(&mm->mmap_sem);
+-
+-	return ret;
+-}
+-
+ bool mm_iommu_preregistered(struct mm_struct *mm)
+ {
+ 	return !list_empty(&mm->context.iommu_group_mem_list);
+@@ -101,7 +68,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+ 	unsigned long entry, chunk;
+ 
+ 	if (dev_hpa == MM_IOMMU_TABLE_INVALID_HPA) {
+-		ret = mm_iommu_adjust_locked_vm(mm, entries, true);
++		ret = account_locked_vm(mm, entries, true);
+ 		if (ret)
+ 			return ret;
+ 
+@@ -216,7 +183,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
+ 	kfree(mem);
+ 
+ unlock_exit:
+-	mm_iommu_adjust_locked_vm(mm, locked_entries, false);
++	account_locked_vm(mm, locked_entries, false);
+ 
+ 	return ret;
+ }
+@@ -316,7 +283,7 @@ long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
+ unlock_exit:
+ 	mutex_unlock(&mem_list_mutex);
+ 
+-	mm_iommu_adjust_locked_vm(mm, unlock_entries, false);
++	account_locked_vm(mm, unlock_entries, false);
+ 
+ 	return ret;
+ }
+diff --git a/drivers/fpga/dfl-afu-dma-region.c b/drivers/fpga/dfl-afu-dma-region.c
+index c438722bf4e1..0a532c602d8f 100644
+--- a/drivers/fpga/dfl-afu-dma-region.c
++++ b/drivers/fpga/dfl-afu-dma-region.c
+@@ -12,6 +12,7 @@
+ #include <linux/dma-mapping.h>
+ #include <linux/sched/signal.h>
+ #include <linux/uaccess.h>
++#include <linux/mm.h>
+ 
+ #include "dfl-afu.h"
+ 
+@@ -31,52 +32,6 @@ void afu_dma_region_init(struct dfl_feature_platform_data *pdata)
+ 	afu->dma_regions = RB_ROOT;
+ }
+ 
+-/**
+- * afu_dma_adjust_locked_vm - adjust locked memory
+- * @dev: port device
+- * @npages: number of pages
+- * @incr: increase or decrease locked memory
+- *
+- * Increase or decrease the locked memory size with npages input.
+- *
+- * Return 0 on success.
+- * Return -ENOMEM if locked memory size is over the limit and no CAP_IPC_LOCK.
+- */
+-static int afu_dma_adjust_locked_vm(struct device *dev, long npages, bool incr)
+-{
+-	unsigned long locked, lock_limit;
+-	int ret = 0;
+-
+-	/* the task is exiting. */
+-	if (!current->mm)
+-		return 0;
+-
+-	down_write(&current->mm->mmap_sem);
+-
+-	if (incr) {
+-		locked = current->mm->locked_vm + npages;
+-		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+-
+-		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+-			ret = -ENOMEM;
+-		else
+-			current->mm->locked_vm += npages;
+-	} else {
+-		if (WARN_ON_ONCE(npages > current->mm->locked_vm))
+-			npages = current->mm->locked_vm;
+-		current->mm->locked_vm -= npages;
+-	}
+-
+-	dev_dbg(dev, "[%d] RLIMIT_MEMLOCK %c%ld %ld/%ld%s\n", current->pid,
+-		incr ? '+' : '-', npages << PAGE_SHIFT,
+-		current->mm->locked_vm << PAGE_SHIFT, rlimit(RLIMIT_MEMLOCK),
+-		ret ? "- exceeded" : "");
+-
+-	up_write(&current->mm->mmap_sem);
+-
+-	return ret;
+-}
+-
+ /**
+  * afu_dma_pin_pages - pin pages of given dma memory region
+  * @pdata: feature device platform data
+@@ -92,7 +47,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
+ 	struct device *dev = &pdata->dev->dev;
+ 	int ret, pinned;
+ 
+-	ret = afu_dma_adjust_locked_vm(dev, npages, true);
++	ret = account_locked_vm(current->mm, npages, true);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -121,7 +76,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
+ free_pages:
+ 	kfree(region->pages);
+ unlock_vm:
+-	afu_dma_adjust_locked_vm(dev, npages, false);
++	account_locked_vm(current->mm, npages, false);
+ 	return ret;
+ }
+ 
+@@ -141,7 +96,7 @@ static void afu_dma_unpin_pages(struct dfl_feature_platform_data *pdata,
+ 
+ 	put_all_pages(region->pages, npages);
+ 	kfree(region->pages);
+-	afu_dma_adjust_locked_vm(dev, npages, false);
++	account_locked_vm(current->mm, npages, false);
+ 
+ 	dev_dbg(dev, "%ld pages unpinned\n", npages);
+ }
+diff --git a/drivers/vfio/vfio_iommu_spapr_tce.c b/drivers/vfio/vfio_iommu_spapr_tce.c
+index 40ddc0c5f677..d06e8e291924 100644
+--- a/drivers/vfio/vfio_iommu_spapr_tce.c
++++ b/drivers/vfio/vfio_iommu_spapr_tce.c
+@@ -22,6 +22,7 @@
+ #include <linux/vmalloc.h>
+ #include <linux/sched/mm.h>
+ #include <linux/sched/signal.h>
++#include <linux/mm.h>
+ 
+ #include <asm/iommu.h>
+ #include <asm/tce.h>
+@@ -34,51 +35,6 @@
+ static void tce_iommu_detach_group(void *iommu_data,
+ 		struct iommu_group *iommu_group);
+ 
+-static long try_increment_locked_vm(struct mm_struct *mm, long npages)
+-{
+-	long ret = 0, locked, lock_limit;
+-
+-	if (WARN_ON_ONCE(!mm))
+-		return -EPERM;
+-
+-	if (!npages)
+-		return 0;
+-
+-	down_write(&mm->mmap_sem);
+-	locked = mm->locked_vm + npages;
+-	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+-	if (locked > lock_limit && !capable(CAP_IPC_LOCK))
+-		ret = -ENOMEM;
+-	else
+-		mm->locked_vm += npages;
+-
+-	pr_debug("[%d] RLIMIT_MEMLOCK +%ld %ld/%ld%s\n", current->pid,
+-			npages << PAGE_SHIFT,
+-			mm->locked_vm << PAGE_SHIFT,
+-			rlimit(RLIMIT_MEMLOCK),
+-			ret ? " - exceeded" : "");
+-
+-	up_write(&mm->mmap_sem);
+-
+-	return ret;
+-}
+-
+-static void decrement_locked_vm(struct mm_struct *mm, long npages)
+-{
+-	if (!mm || !npages)
+-		return;
+-
+-	down_write(&mm->mmap_sem);
+-	if (WARN_ON_ONCE(npages > mm->locked_vm))
+-		npages = mm->locked_vm;
+-	mm->locked_vm -= npages;
+-	pr_debug("[%d] RLIMIT_MEMLOCK -%ld %ld/%ld\n", current->pid,
+-			npages << PAGE_SHIFT,
+-			mm->locked_vm << PAGE_SHIFT,
+-			rlimit(RLIMIT_MEMLOCK));
+-	up_write(&mm->mmap_sem);
+-}
+-
+ /*
+  * VFIO IOMMU fd for SPAPR_TCE IOMMU implementation
+  *
+@@ -336,7 +292,7 @@ static int tce_iommu_enable(struct tce_container *container)
+ 		return ret;
+ 
+ 	locked = table_group->tce32_size >> PAGE_SHIFT;
+-	ret = try_increment_locked_vm(container->mm, locked);
++	ret = account_locked_vm(container->mm, locked, true);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -355,7 +311,7 @@ static void tce_iommu_disable(struct tce_container *container)
+ 	container->enabled = false;
+ 
+ 	BUG_ON(!container->mm);
+-	decrement_locked_vm(container->mm, container->locked_pages);
++	account_locked_vm(container->mm, container->locked_pages, false);
+ }
+ 
+ static void *tce_iommu_open(unsigned long arg)
+@@ -659,7 +615,7 @@ static long tce_iommu_create_table(struct tce_container *container,
+ 	if (!table_size)
+ 		return -EINVAL;
+ 
+-	ret = try_increment_locked_vm(container->mm, table_size >> PAGE_SHIFT);
++	ret = account_locked_vm(container->mm, table_size >> PAGE_SHIFT, true);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -678,7 +634,7 @@ static void tce_iommu_free_table(struct tce_container *container,
+ 	unsigned long pages = tbl->it_allocated_size >> PAGE_SHIFT;
+ 
+ 	iommu_tce_table_put(tbl);
+-	decrement_locked_vm(container->mm, pages);
++	account_locked_vm(container->mm, pages, false);
+ }
+ 
+ static long tce_iommu_create_window(struct tce_container *container,
+diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
+index 3ddc375e7063..bf449ace1676 100644
+--- a/drivers/vfio/vfio_iommu_type1.c
++++ b/drivers/vfio/vfio_iommu_type1.c
+@@ -275,21 +275,8 @@ static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
+ 
+ 	ret = down_write_killable(&mm->mmap_sem);
+ 	if (!ret) {
+-		if (npage > 0) {
+-			if (!dma->lock_cap) {
+-				unsigned long limit;
+-
+-				limit = task_rlimit(dma->task,
+-						RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+-
+-				if (mm->locked_vm + npage > limit)
+-					ret = -ENOMEM;
+-			}
+-		}
+-
+-		if (!ret)
+-			mm->locked_vm += npage;
+-
++		ret = __account_locked_vm(mm, abs(npage), npage > 0, dma->task,
++					  dma->lock_cap);
+ 		up_write(&mm->mmap_sem);
+ 	}
+ 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0e8834ac32b7..95510f6fad45 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1564,6 +1564,10 @@ long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
+ int get_user_pages_fast(unsigned long start, int nr_pages,
+ 			unsigned int gup_flags, struct page **pages);
+ 
++int account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc);
++int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
++			struct task_struct *task, bool bypass_rlim);
++
+ /* Container for pinned pfns / pages */
+ struct frame_vector {
+ 	unsigned int nr_allocated;	/* Number of frames we have space for */
+diff --git a/mm/util.c b/mm/util.c
+index 91682a2090ee..cbbcc035b12b 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -7,6 +7,7 @@
+ #include <linux/err.h>
+ #include <linux/sched.h>
+ #include <linux/sched/mm.h>
++#include <linux/sched/signal.h>
+ #include <linux/sched/task_stack.h>
+ #include <linux/security.h>
+ #include <linux/swap.h>
+@@ -347,6 +348,80 @@ int __weak get_user_pages_fast(unsigned long start,
+ }
+ EXPORT_SYMBOL_GPL(get_user_pages_fast);
+ 
++/**
++ * __account_locked_vm - account locked pages to an mm's locked_vm
++ * @mm:          mm to account against
++ * @pages:       number of pages to account
++ * @inc:         %true if @pages should be considered positive, %false if not
++ * @task:        task used to check RLIMIT_MEMLOCK
++ * @bypass_rlim: %true if checking RLIMIT_MEMLOCK should be skipped
++ *
++ * Assumes @task and @mm are valid (i.e. at least one reference on each), and
++ * that mmap_sem is held as writer.
++ *
++ * Return:
++ * * 0       on success
++ * * -ENOMEM if RLIMIT_MEMLOCK would be exceeded.
++ */
++int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
++			struct task_struct *task, bool bypass_rlim)
++{
++	unsigned long locked_vm, limit;
++	int ret = 0;
++
++	lockdep_assert_held_exclusive(&mm->mmap_sem);
++
++	locked_vm = mm->locked_vm;
++	if (inc) {
++		if (!bypass_rlim) {
++			limit = task_rlimit(task, RLIMIT_MEMLOCK) >> PAGE_SHIFT;
++			if (locked_vm + pages > limit)
++				ret = -ENOMEM;
++		}
++		if (!ret)
++			mm->locked_vm = locked_vm + pages;
++	} else {
++		WARN_ON_ONCE(pages > locked_vm);
++		mm->locked_vm = locked_vm - pages;
++	}
++
++	pr_debug("%s: [%d] caller %ps %c%lu %lu/%lu%s\n", __func__, task->pid,
++		 (void *)_RET_IP_, (inc) ? '+' : '-', pages << PAGE_SHIFT,
++		 locked_vm << PAGE_SHIFT, task_rlimit(task, RLIMIT_MEMLOCK),
++		 ret ? " - exceeded" : "");
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(__account_locked_vm);
++
++/**
++ * account_locked_vm - account locked pages to an mm's locked_vm
++ * @mm:          mm to account against, may be NULL
++ * @pages:       number of pages to account
++ * @inc:         %true if @pages should be considered positive, %false if not
++ *
++ * Assumes a non-NULL @mm is valid (i.e. at least one reference on it).
++ *
++ * Return:
++ * * 0       on success, or if mm is NULL
++ * * -ENOMEM if RLIMIT_MEMLOCK would be exceeded.
++ */
++int account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc)
++{
++	int ret;
++
++	if (pages == 0 || !mm)
++		return 0;
++
++	down_write(&mm->mmap_sem);
++	ret = __account_locked_vm(mm, pages, inc, current,
++				  capable(CAP_IPC_LOCK));
++	up_write(&mm->mmap_sem);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(account_locked_vm);
++
+ unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
+ 	unsigned long len, unsigned long prot,
+ 	unsigned long flag, unsigned long pgoff)
+
+base-commit: cd6c84d8f0cdc911df435bb075ba22ce3c605b07
 -- 
-Jens Axboe
+2.21.0
 
