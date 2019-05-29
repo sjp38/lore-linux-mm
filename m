@@ -2,133 +2,141 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.8 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
-	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 591E2C28CC0
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 04:36:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06361C04AB3
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 05:05:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 042FD21721
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 04:36:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 042FD21721
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
+	by mail.kernel.org (Postfix) with ESMTP id B009C20B1F
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 05:05:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B009C20B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 936A16B026E; Wed, 29 May 2019 00:36:44 -0400 (EDT)
+	id 1A8726B026E; Wed, 29 May 2019 01:05:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8E7DC6B0271; Wed, 29 May 2019 00:36:44 -0400 (EDT)
+	id 159266B0271; Wed, 29 May 2019 01:05:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D5F56B0272; Wed, 29 May 2019 00:36:44 -0400 (EDT)
+	id 06EC36B0272; Wed, 29 May 2019 01:05:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 517776B026E
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 00:36:44 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id bb9so725693plb.2
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 21:36:44 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AC1116B026E
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 01:05:50 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id y24so1409471edb.1
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 22:05:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version:sender
-         :precedence:list-id:archived-at:list-archive:list-post
-         :content-transfer-encoding;
-        bh=WcXCR0OuZ7dOG6IKLRLbHDfybaQe9gCYatVl+1THdlg=;
-        b=m6rVaD3874furcfgDZC+vCj9XN9fZGd098oObDVfiNcz/kIGXsXojsaC77OydWj1Mi
-         bLj9T9STqwEKxZwzmjSMD9KWHflSSptgfeuk2LbI5wWhC3O/ytJPa9zIrMYvEeohyU35
-         fJDMcOlW+n3lp48JZr0+0olUzdLrht5HbxzMvoYJNTN6VvLaoXJGyLcS9oyJcRlFkX8B
-         0xQd9jDSBypqmvXgAO4w3O+MB0m5ly/LUJe8wlCS91s+UY4X8V+b1UkQ9OhBxNlqMQ07
-         7Bv+9V91w2kQ/Y6RygtZjqPnVMFRwtT6dvGakCR1z0i7RbhyAzEpawyL7JLf6fUgUKCY
-         fwkA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
-X-Gm-Message-State: APjAAAWgnj0lxjFUOvOXyhhFuhv0R0wduHN1d8NDkhziWPpSJ/XeNuFK
-	VDUP3MZfekPDbhuXrT5tq7yTbcS8/4/AHmhLl99RRwqsi2wOsi2nIc9YXKV7wy3pPKKfKejZlXz
-	sINIVHMvMQZGOi8K0/Mv5Y06rXJefFM7gu2l1pgNLVfAJaWkVR8kpSuq38ADGaF9D6Q==
-X-Received: by 2002:aa7:9e9a:: with SMTP id p26mr114767446pfq.176.1559104604026;
-        Tue, 28 May 2019 21:36:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzXilayjzMrmIYbqhI/PH37mPj6LIS+sJtEeSgoSl42uJ9a0Roc/BNPV/yls8NsPHNizcti
-X-Received: by 2002:aa7:9e9a:: with SMTP id p26mr114767408pfq.176.1559104603274;
-        Tue, 28 May 2019 21:36:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559104603; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=YL+Pkk8hmtEX6kOEbAMOVKaxsl63VsMPaFNVZ/M/rPg=;
+        b=Qmr2PtjFnZyTk0zv/EnSCKHBUlO0nH3L5G9zf2gr4lSzn2gCqWxqcViyzcDp7iq7fV
+         h4gje1zIPgN/NQqckL0IY86LDfAB4KJrYmeJD7pLFkmoQKnPP8X5JHWnVNhEuBXM0QCD
+         7BJdAXczngzRGk2FikoF5ftmpZufvmC4h4JxvxQvjgDaTeRxfx9l5RmMezQJzqfexcKw
+         PZnukJk+0RO/ldQROGSpdPXVq29BLKwVWexqCuDTxeissZO9Ezb9tXU9ZkbWeLanQJmv
+         oedaQ+80njAvjhcHlIukmugkKw/ImgCcyMvedCjYETotNhG0xbR7Bq0DoLOIODtfjz0S
+         IE0g==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVHcC1QP+xH6QuZNrBvCvM6gmRe5wIj0xMEO7ARfXsWKtaI7Ps2
+	8GktLmeYky2EsBG99vHk0ApGFOnv1Zrs0Yrnh6L9omwPFXVUC1jLLbmeiAj4lApO7Io369b9G80
+	Uk2BYlhgRApNW6tHAaDsmWYwYGBwDdv2VCAwbM85HC5vs+1VbCnvpEyLaR0OB5BU=
+X-Received: by 2002:a50:ba5c:: with SMTP id 28mr54751134eds.238.1559106350111;
+        Tue, 28 May 2019 22:05:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyWd1iwpPP8knFRXWY7xHqXH7P//RMqC5T6BvFhc92JeRkLN0t0AZWlb1hxmYupR6WWV5BM
+X-Received: by 2002:a50:ba5c:: with SMTP id 28mr54750935eds.238.1559106347803;
+        Tue, 28 May 2019 22:05:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559106347; cv=none;
         d=google.com; s=arc-20160816;
-        b=0ynxb3rA8X+z7oplzg1QxSqQwx03V2IfgQtqmsHAk4FR3dng0zw4r3tC0MRvNIPrCI
-         XlE7EazeqGuwAJEXrlWU+zwMWjAaOg6jWqxMvRJRNc70oVKLOG1KfDyOSqb7Ri+ejiUE
-         qJD1c3xYIOMzR1hYCocjtZG+woVevpF3A//ZWJVqUNdhR2nIWGdj8qChaptIcPmE5uTm
-         /4wHPUrRqSAesAuSZdIgNX0W9xi/PivPdq4bazktTrxNTXaI+c5tl4iWz7zbRBhnB0UW
-         g22Dmm3Sl3jPS83bIfHm0fsEXUUptkba+ev7cZEPA/VAtz8StygwLSaHu5yjA3nADVtt
-         nyhA==
+        b=KMVqazQYFdrmTLgCGwh0o1BAgXD9iTmI8aWFPsvF0Yrg66TYQVbhxxqUNX1V8IKtMK
+         UMTT0Kfv2Bx6SspOUe0ThMpRIxpp+BpHD1BppqKdhtQY+Aq4o2NLgHqaDA9gUE+OHNEx
+         gHsK4LLQCuqcGfHjXCo4B/fzbRg2cTQC1Xn0hqtHtANmSnLasCm1iTbhOdySpA4zTi6a
+         g+TIv+DOYIqWkdde8/hEOJ3EAjHYQ00DdlPC5WklIPtnQIiil9ed8WbVE8uzO6lAltSv
+         D5SdOJVkybfJPPetwopRGSv2Xr9HMynYdBZoK4C3flSBTl/E3ZGWjwFEQ+g/baAe6UYy
+         zeHg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:list-post:list-archive:archived-at
-         :list-id:precedence:sender:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=WcXCR0OuZ7dOG6IKLRLbHDfybaQe9gCYatVl+1THdlg=;
-        b=LxCtxx1Aegc9TAptv0rv7GtzWWabBNKqElny49D7qWilEQskTqTr2BMAf8YR6KjPqe
-         8VQt9MY3SQbz6DvDgEXwJj0vlcblkpEs+2nrDq3hnU0hwu48RLlerWVBtxX8WRnRSvZu
-         jPtUItvdzah0ruP0+mTe3cPrrNexryi+npsg7M0iznEK+vjaP5B9PpUUpJXqJYTNrdpo
-         ufoOZrMA0oEmmuanbLwxmvAs3bkhgTh9cP1JqqwfLq0snob6HXLxYbJWYCITez8o48Nq
-         3ky6hGXVcXeQ8wX05drtXWgufk+c3NHzCczO23QoicBu6JWYPT1jwmXdFP/Pvt09Vv/Y
-         eSlw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=YL+Pkk8hmtEX6kOEbAMOVKaxsl63VsMPaFNVZ/M/rPg=;
+        b=jwDE59Ow9uOR/a0b718gJJWqJk43CSB/fAQPVSSgqylm/qTs3WvY+eJd3j4XOL4d+E
+         YmNGUR+FxpwwZTEP2LKjmjppEsIUaswLCo1qvfRSk7g2ktzXI58s9O4A9Q/L/4LB67R9
+         QPOC/JxLBe3RaZkvyMEWmGw+N9c4hxb7foIt2Tfo/Y4gnieCL+n33dzpNQ5YggYZEhFm
+         coNCFyFe9J63KCziwWC73/c4uYjD2JFMJ2z5uG8I8Sx7K4iq3CzvEH8UEdI0CSyd1y7C
+         n/jTneQfjZuRxV1gziqL8LhFJoPCjnmf5JumwkGQFq6OpjZXYbUbfuGMJ69jA+e28+Qn
+         Cx4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
-Received: from mail3-162.sinamail.sina.com.cn (mail3-162.sinamail.sina.com.cn. [202.108.3.162])
-        by mx.google.com with SMTP id l96si20519775plb.115.2019.05.28.21.36.42
-        for <linux-mm@kvack.org>;
-        Tue, 28 May 2019 21:36:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) client-ip=202.108.3.162;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g26si302905edb.410.2019.05.28.22.05.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 May 2019 22:05:47 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
-Received: from unknown (HELO localhost.localdomain)([123.112.52.157])
-	by sina.com with ESMTP
-	id 5CEE0C4500006C74; Wed, 29 May 2019 12:36:39 +0800 (CST)
-X-Sender: hdanton@sina.com
-X-Auth-ID: hdanton@sina.com
-X-SMAIL-MID: 87217397293
-From: Hillf Danton <hdanton@sina.com>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	linux-mm <linux-mm@kvack.org>,
-	Michal Hocko <mhocko@suse.com>,
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 434C4AD7E;
+	Wed, 29 May 2019 05:05:47 +0000 (UTC)
+Date: Wed, 29 May 2019 07:05:45 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Hillf Danton <hdanton@sina.com>
+Cc: Minchan Kim <minchan@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
 	Johannes Weiner <hannes@cmpxchg.org>,
 	Tim Murray <timmurray@google.com>,
 	Joel Fernandes <joel@joelfernandes.org>,
 	Suren Baghdasaryan <surenb@google.com>,
 	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>,
-	Sonny Rao <sonnyrao@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
 	Brian Geffon <bgeffon@google.com>
-Subject: Re: [RFC 7/7] mm: madvise support MADV_ANONYMOUS_FILTER and MADV_FILE_FILTER
-Date: Wed, 29 May 2019 12:36:04 +0800
-Message-Id: <20190520035254.57579-8-minchan@kernel.org>
-In-Reply-To: <20190520035254.57579-1-minchan@kernel.org>
-References: <20190520035254.57579-1-minchan@kernel.org>
-X-Mailer: git-send-email 2.21.0.1020.gf2820cf01a-goog
+Subject: Re: [RFC 1/7] mm: introduce MADV_COOL
+Message-ID: <20190529050545.GA18589@dhcp22.suse.cz>
+References: <20190529024033.13500-1-hdanton@sina.com>
 MIME-Version: 1.0
-List-ID: <linux-kernel.vger.kernel.org>
-X-Mailing-List: linux-kernel@vger.kernel.org
-Archived-At: <https://lore.kernel.org/lkml/20190520035254.57579-8-minchan@kernel.org/>
-List-Archive: <https://lore.kernel.org/lkml/>
-List-Post: <mailto:linux-kernel@vger.kernel.org>
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190529024033.13500-1-hdanton@sina.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-Message-ID: <20190529043604.nRVP92CIzdPrMHnDptXKYYyHgsm8Qhx9t-6jFVSU99Y@z>
 
-
-On Mon, 20 May 2019 12:52:54 +0900 Minchan Kim wrote:
+On Wed 29-05-19 10:40:33, Hillf Danton wrote:
 > 
-> With that, user could call a process_madvise syscall simply with a entire
-> range(0x0 - 0xFFFFFFFFFFFFFFFF) but either of MADV_ANONYMOUS_FILTER and
-> MADV_FILE_FILTER so there is no need to call the syscall range by range.
+> On Wed, 29 May 2019 00:11:15 +0800 Michal Hocko wrote:
+> > On Tue 28-05-19 23:38:11, Hillf Danton wrote:
+> > > 
+> > > In short, I prefer to skip IO mapping since any kind of address range
+> > > can be expected from userspace, and it may probably cover an IO mapping.
+> > > And things can get out of control, if we reclaim some IO pages while
+> > > underlying device is trying to fill data into any of them, for instance.
+> > 
+> > What do you mean by IO pages why what is the actual problem?
+> > 
+> Io pages are the backing-store pages of a mapping whose vm_flags has
+> VM_IO set, and the comment in mm/memory.c says:
+>         /*
+>          * Physically remapped pages are special. Tell the
+>          * rest of the world about it:
+>          *   VM_IO tells people not to look at these pages
+>          *      (accesses can have side effects).
 > 
-Cool.
 
-Look forward to seeing the non-RFC delivery.
-
-BR
-Hillf
+OK, thanks for the clarification of the first part of the question. Now
+to the second and the more important one. What is the actual concern?
+AFAIK those pages shouldn't be on LRU list. If they are then they should
+be safe to get reclaimed otherwise we would have a problem when
+reclaiming them on the normal memory pressure. Why is this madvise any
+different?
+-- 
+Michal Hocko
+SUSE Labs
 
