@@ -2,131 +2,130 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1310EC28CC3
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 14:20:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 390E3C28CC2
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 14:27:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A450A239C8
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 14:20:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A450A239C8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id E84A723A57
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 14:27:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uAmDYZgj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E84A723A57
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 05AD16B000C; Wed, 29 May 2019 10:20:22 -0400 (EDT)
+	id 86B516B000C; Wed, 29 May 2019 10:27:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 00B206B000D; Wed, 29 May 2019 10:20:21 -0400 (EDT)
+	id 7F53E6B000D; Wed, 29 May 2019 10:27:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E150C6B000E; Wed, 29 May 2019 10:20:21 -0400 (EDT)
+	id 696AE6B000E; Wed, 29 May 2019 10:27:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C0366B000C
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 10:20:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id 18so3691302eds.5
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 07:20:21 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ED78A6B000C
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 10:27:25 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id w18so269402ljw.8
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 07:27:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Vqy3713cS4eypRPw49/IKcFBXjnQSqGq/yy5YrdNS+8=;
-        b=tU05uy7EpN0UHLwPWfXBRD2T5kzokrJ67VapPQQx4sy2rkCf8yFTFWyipZyMZRxZhj
-         qNzV87nZX4aBAa34t8NaqjN+Ib4iwwMCwiOIj1nT8zXY2/T4ysPdFn/awpmjnkALBehb
-         k83nenQdiuYmbyWHAI8dHx6inh5qVpJO6c2Hu+SLLxzvDIFdAH+ZooxlZ5ziPwjiWbPR
-         OLq3FV61Yk5/9YXv0BQ6BKxbtzYjZB0D6tOacB6eTm5oU9NpYyEvP17XRCu/8q9bPUAC
-         W3zRy0QhRi4dXbtxTEzQKqsbVYzyNFXNGU3BJkxShGOAF7qqGmuyKwPArQwPh2io7Ox9
-         wi0g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAV9wtGZANJ4kg7ofgCz1iSoR8JwfhM7nNIV0zWGGgUe7pgEckA9
-	PJRmkef3r2BZeVDM1WEUT2qxV0qaIAkNKXxVfruPyog8XpMfU3dxsJIrbSTl70VEmlPIfxx+eOF
-	qfABg6NdZLhw4p70zBQe7XQOSqhAevvk4C7/U8rBE8FAuMxsqFWuGBhgxqQmXmSC5LQ==
-X-Received: by 2002:a17:906:6d3:: with SMTP id v19mr70783643ejb.46.1559139620944;
-        Wed, 29 May 2019 07:20:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwTJ9DAy4EIMOBdAlQEZINVUXCDTrcqQ/GIJ1ZRp7i5W/btA5CEUaCffnft+OBz0MnrPICd
-X-Received: by 2002:a17:906:6d3:: with SMTP id v19mr70783501ejb.46.1559139619358;
-        Wed, 29 May 2019 07:20:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559139619; cv=none;
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=txpjRqYYOZS/ShrVU6bXWv+qUy5T0vwzzaHXMZH9BOU=;
+        b=hXWqg+5LTkb8oB8PHcyM6AVsiJKXER/xylBB9Pt/yMOZS/Meowkx8WwpI9YP30optR
+         eQ4QgFKw7fexM3masq3pZhSPjIBgvUPpJP3SXOwn26vh7Dd4XS3fUZjMPKA6n49RGzHF
+         SSSlU6wQWoTiYMm4UZNw/91j33jtfSMyJMu9dqOoTpCaQRO34Jy7HP/xTVeo04BpQdZ9
+         2Q92puqW9swKjyBwq5eYkzBhTmSbMY1NdZ+dwvHZ4zoFWpd/oQb/HWwIhQ6DjFEgmh45
+         4/oBTg1MPAcOtw/dU3t2glxIYPJluKrJY/OiC0ZMYT25BdUt2+ImpTmn3uGF8b1jLNKR
+         rBCw==
+X-Gm-Message-State: APjAAAUbpzhrKmt5B9uDxm+N8hV1Cg/KOofAE4oNg0vBpKMRfQnfQDdO
+	x2g9WZYt9vr0hooYE44OYyLHHQQgOqJX9dQhoibRE0xK+YkKLgRTgbw8l8VX3zsIII+jqgaIcw5
+	AfrUiUNn+AucALSBxAyo40dHVphwYKUUtsPSeqJkOioYJkH8w11P3h3bS2Feu6QZwuQ==
+X-Received: by 2002:a2e:9157:: with SMTP id q23mr17579912ljg.188.1559140045236;
+        Wed, 29 May 2019 07:27:25 -0700 (PDT)
+X-Received: by 2002:a2e:9157:: with SMTP id q23mr17579851ljg.188.1559140043966;
+        Wed, 29 May 2019 07:27:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559140043; cv=none;
         d=google.com; s=arc-20160816;
-        b=ze5Xbvfq1VY0tWOI4jgiM4HsVSmFQ+7GC//TkSCc265CDkXwdSiA6lwkembh7yuJ1Y
-         Y0mVKXTkD0eMGR/Ekr4v7Eyv52W97Qv/kI0QrsCwQ+joC3cBMYHQ8a/aD9JVVVLHV05T
-         oFMc3GQKu1rwmBE8oyV15wWsUqAsYYHFCWNY0zqLgNjIgJho96Pp2ewQ1m74UknTJwAk
-         M4AVKvBhQ6eyqEVH83+FQucaQQkzjmfNQT/8l/Alxsr6euIuVL3Sx22d7KFeMdt+0XYx
-         xDO2k/P/tYIiSlsOl8WkvsLry7jLeHUV/7iHsFBMzjuVuSNrxMa8yYWXkl5DLCklmsEz
-         tmRg==
+        b=nV7EtuYfjYIhO8U7GfEjrTbqjNodZKL5mjISSY9M2LzSAO3YYCbQHphOd7+LPspoZ4
+         3bSHsLAt3GrknX1ZMmJhA4ZSCmKtknK9DN9PJQc9a2XMbH02JXd1tbrbQjSpFoOnl3Sb
+         MLCGJcOjo9z9ocToFlAFOwPNRMJq/afNnVObczPRbUrVNluej4k7pOE+q+YPdSI+FFk5
+         SZLMa911N6dwPkwanoNk2f7MAz3g8VHidDgyB+7saa6Cjs1s/969gFoE524mmPkwEDZo
+         m33lg8JhRFkPeM50z8vSSgiwB9XXUtE/ovjXvquWJEqYBZUcoasmg6C2ERp8i62iW61G
+         4qfQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Vqy3713cS4eypRPw49/IKcFBXjnQSqGq/yy5YrdNS+8=;
-        b=t8DWN6wrLLYqcVMsVUb0hs33EUSt/TsrGyUX16gslgp7xlyEbWxMlEFSX9+Q0HyhUA
-         YEP5DXaLWcwRhzOC+nth+H0f8YQYJZai9jGg9yPGiVEPHOrR4Fwy0QC1msVg1oqIr6xT
-         KkE++lUxXTi+1TTKi/g6HlB7SRXEncoPavj9v2FYw5pzslx7hK+SWxlNNfytdwwKMC6j
-         tN4Z44l0WI/Qw6VOXXO7bQ2er455LCjJRIxQBYcIphZndtGidKSA/m+h+TbzfZ3y7BVb
-         Ib3rqZtSvUTLTbauyXhMP7oDLKWEJiCfmaeb52i/9q24GPDygxh5Y4AS9YZOYcfQFqQt
-         AGcw==
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=txpjRqYYOZS/ShrVU6bXWv+qUy5T0vwzzaHXMZH9BOU=;
+        b=LPXaMMPaVEi8o8KiPQeGX9nPUwSLAnjMUSl9fLRyEGVY4MTe+iouefkHLFP6v42foL
+         Jb2GyqLPkg45T498FeMuU9Vu/XCZcomi8Wel08DHxsDSntZvi6D2o16gcEvK2yLLwCER
+         yu4CspAkPriVRGdnWP6dIqhISaSlUEaFvRkqSG7RXYe+lwGmZ3tU0y5rrpNeGffeVLR3
+         5mXM3sLiC9PHF6VN8Br65MiBnJrF1Q1Q7gVA6YjOXDe2aqTevwFBqmO9ZSxHuskoj0C0
+         2o3EjTabTI4BLqQarCIrq0OVvrNoryqRHK6G1MIunyhmQTw5oQZkLpCruFwOJ4jtn55Q
+         y5zQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id qt10si1886678ejb.35.2019.05.29.07.20.18
-        for <linux-mm@kvack.org>;
-        Wed, 29 May 2019 07:20:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uAmDYZgj;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r2sor9662582lji.33.2019.05.29.07.27.23
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 29 May 2019 07:27:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 00935A78;
-	Wed, 29 May 2019 07:20:18 -0700 (PDT)
-Received: from mbp (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 6612C3F5AF;
-	Wed, 29 May 2019 07:20:11 -0700 (PDT)
-Date: Wed, 29 May 2019 15:20:08 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: Andrew Murray <andrew.murray@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, kvm@vger.kernel.org,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Will Deacon <will.deacon@arm.com>, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, linux-kselftest@vger.kernel.org,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Leon Romanovsky <leon@kernel.org>, linux-rdma@vger.kernel.org,
-	amd-gfx@lists.freedesktop.org, Dmitry Vyukov <dvyukov@google.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Evgeniy Stepanov <eugenis@google.com>, linux-media@vger.kernel.org,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	linux-arm-kernel@lists.infradead.org,
-	Kostya Serebryany <kcc@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>, linux-kernel@vger.kernel.org,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uAmDYZgj;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=txpjRqYYOZS/ShrVU6bXWv+qUy5T0vwzzaHXMZH9BOU=;
+        b=uAmDYZgjUx18rTghGSreZ2ScwAmCoyJOdnrFBi6ptsxhagi/ce47qucnOXUOM/Tyv+
+         TRzShMAWLjojmNsQL/VjuaCPwtqj01laNNolm62wJ8wV8x7vCBKih4FMz28nW4mJXu67
+         Vsz/C2cPu9g4hF7vy9dtNtzMK3nEXsFczuLjqVPN/uo9+oZejH/96fBwlEdgCsJO+tY4
+         bzRgJqPX2b9VYVcZJoQ0P7cEzZJC3UHWKSBImlCPt+SZG1c5TE8Zh3wc8fWRKmR1hRKp
+         FoB0pF4m/QVRpUKvjRDN6g3wAUT/DzgALpzbuuUn12Z6PjIRbSA8ZLdzFHuLgqR6Hn81
+         tBtA==
+X-Google-Smtp-Source: APXvYqy+KK61FLPg3ccG6ErfwW09hYPA1YPZRGlYX9JcVUajhRDTFh8WV3sCPQlsg2as8CG6+LAHPg==
+X-Received: by 2002:a2e:9cc4:: with SMTP id g4mr59470737ljj.47.1559140038726;
+        Wed, 29 May 2019 07:27:18 -0700 (PDT)
+Received: from pc636 ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id j10sm4069946lfc.45.2019.05.29.07.27.17
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 29 May 2019 07:27:17 -0700 (PDT)
+From: Uladzislau Rezki <urezki@gmail.com>
+X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
+Date: Wed, 29 May 2019 16:27:15 +0200
+To: Roman Gushchin <guro@fb.com>
+Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v15 05/17] arms64: untag user pointers passed to memory
- syscalls
-Message-ID: <20190529142008.5quqv3wskmpwdfbu@mbp>
-References: <cover.1557160186.git.andreyknvl@google.com>
- <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
- <20190527143719.GA59948@MBP.local>
- <20190528145411.GA709@e119886-lin.cambridge.arm.com>
- <20190528154057.GD32006@arrakis.emea.arm.com>
- <11193998209cc6ff34e7d704f081206b8787b174.camel@oracle.com>
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Thomas Garnier <thgarnie@google.com>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Joel Fernandes <joelaf@google.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
+	Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 2/4] mm/vmap: preload a CPU with one object for split
+ purpose
+Message-ID: <20190529142715.pxzrjthsthqudgh2@pc636>
+References: <20190527093842.10701-1-urezki@gmail.com>
+ <20190527093842.10701-3-urezki@gmail.com>
+ <20190528224217.GG27847@tower.DHCP.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <11193998209cc6ff34e7d704f081206b8787b174.camel@oracle.com>
+In-Reply-To: <20190528224217.GG27847@tower.DHCP.thefacebook.com>
 User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -134,178 +133,201 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Khalid,
+Hello, Roman!
 
-On Tue, May 28, 2019 at 05:33:04PM -0600, Khalid Aziz wrote:
-> On Tue, 2019-05-28 at 16:40 +0100, Catalin Marinas wrote:
-> > I think another aspect is how we define the ABI. Is allowing tags to
-> > mlock() for example something specific to arm64 or would sparc ADI
-> > need the same? In the absence of other architectures defining such
-> > ABI, my preference would be to keep the wrappers in the arch code.
+> On Mon, May 27, 2019 at 11:38:40AM +0200, Uladzislau Rezki (Sony) wrote:
+> > Refactor the NE_FIT_TYPE split case when it comes to an
+> > allocation of one extra object. We need it in order to
+> > build a remaining space.
 > > 
-> > Assuming sparc won't implement untagged_addr(), we can place the
-> > macros back in the generic code but, as per the review here, we need
-> > to be more restrictive on where we allow tagged addresses. For
-> > example, if mmap() gets a tagged address with MAP_FIXED, is it
-> > expected to return the tag?
-> 
-> I would recommend against any ABI differences between ARM64 MTE/TBI and
-> sparc ADI unless it simply can not be helped. My understanding of
-> MTE/TBI is limited, so I will explain how sparc ADI works. On sparc, a
-> tagged address has no meaning until following steps happen:
-
-Before we go into the MTE/ADI similarities or differences, just to
-clarify that TBI is something that we supported from the start of the
-arm64 kernel port. TBI (top byte ignore) allows a user pointer to have
-non-zero top byte and dereference it without causing a fault (the
-hardware masks it out). The user/kernel ABI does not allow such tagged
-pointers into the kernel, nor would the kernel return any such tagged
-addresses.
-
-With MTE (memory tagging extensions), the top-byte meaning is changed
-from no longer being ignored to actually being checked against a tag in
-the physical RAM (we call it allocation tag).
-
-> 1. set the user mode PSTATE.mcde bit. This acts as the master switch to
-> enable ADI for a process.
-> 
-> 2. set TTE.mcd bit on TLB entries that match the address range ADI is
-> being enabled on.
-
-Something close enough for MTE, with the difference that enabling it is
-not a PSTATE bit but rather a system control bit (SCTLR_EL1 register),
-so only the kernel can turn it on/off for the user.
-
-> 3. Store version tag for the range of addresses userspace wants ADI
-> enabled on using "stxa" instruction. These tags are stored in physical
-> memory by the memory controller.
-
-Do you have an "ldxa" instruction to load the tags from physical memory?
-
-> Steps 1 and 2 are accomplished by userspace by calling mprotect() with
-> PROT_ADI. Tags are set by storing tags in a loop, for example:
-> 
->         version = 10;
->         tmp_addr = shmaddr;
->         end = shmaddr + BUFFER_SIZE;
->         while (tmp_addr < end) {
->                 asm volatile(
->                         "stxa %1, [%0]0x90\n\t"
->                         :
->                         : "r" (tmp_addr), "r" (version));
->                 tmp_addr += adi_blksz;
->         }
-
-On arm64, a sequence similar to the above would live in the libc. So a
-malloc() call will tag the memory and return the tagged address to the
-user.
-
-We were not planning for a PROT_ADI/MTE but rather have MTE enabled for
-all user memory ranges. We may revisit this before we upstream the MTE
-support (probably some marginal benefit for the hardware not fetching
-the tags from memory if we don't need to, e.g. code sections).
-
-Given that we already have the TBI feature and with MTE enabled the top
-byte is no longer ignored, we are planning for an explicit opt-in by the
-user via prctl() to enable MTE.
-
-> With these semantics, giving mmap() or shamat() a tagged address is
-> meaningless since no tags have been stored at the addresses mmap() will
-> allocate and one can not store tags before memory range has been
-> allocated. If we choose to allow tagged addresses to come into mmap()
-> and shmat(), sparc code can strip the tags unconditionally and that may
-> help simplify ABI and/or code.
-
-We could say that with TBI (pre-MTE support), the top byte is actually
-ignored on mmap(). Now, if you pass a MAP_FIXED with a tagged address,
-should the user expect the same tagged address back or stripping the tag
-is acceptable? If we want to keep the current mmap() semantics, I'd say
-the same tag is returned. However, with MTE this also implies that the
-memory was coloured.
-
-> > My thoughts on allowing tags (quick look):
+> > Introduce ne_fit_preload()/ne_fit_preload_end() functions
+> > for preloading one extra vmap_area object to ensure that
+> > we have it available when fit type is NE_FIT_TYPE.
 > > 
-> > brk - no
-> > get_mempolicy - yes
-> > madvise - yes
-> > mbind - yes
-> > mincore - yes
-> > mlock, mlock2, munlock - yes
-> > mmap - no (we may change this with MTE but not for TBI)
-> > mmap_pgoff - not used on arm64
-> > mprotect - yes
-> > mremap - yes for old_address, no for new_address (on par with mmap)
-> > msync - yes
-> > munmap - probably no (mmap does not return tagged ptrs)
-> > remap_file_pages - no (also deprecated syscall)
-> > shmat, shmdt - shall we allow tagged addresses on shared memory?
+> > The preload is done per CPU in non-atomic context thus with
+> > GFP_KERNEL allocation masks. More permissive parameters can
+> > be beneficial for systems which are suffer from high memory
+> > pressure or low memory condition.
 > > 
-> > The above is only about the TBI ABI while ignoring hardware MTE. For
-> > the latter, we may want to change the mmap() to allow pre-colouring
-> > on page fault which means that munmap()/mprotect() should also
-> > support tagged pointers. Possibly mremap() as well but we need to
-> > decide whether it should allow re-colouring the page (probably no,
-> > in which case old_address and new_address should have the same tag).
-> > For some of these we'll end up with arm64 specific wrappers again,
-> > unless sparc ADI adopts exactly the same ABI restrictions.
+> > Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+> > ---
+> >  mm/vmalloc.c | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+> >  1 file changed, 76 insertions(+), 3 deletions(-)
 > 
-> Let us keep any restrictions common across ARM64 and sparc. pre-
-> coloring on sparc in the kernel would mean kernel will have to execute
-> stxa instructions in a loop for each page being faulted in.
+> Hi Uladzislau!
+> 
+> This patch generally looks good to me (see some nits below),
+> but it would be really great to add some motivation, e.g. numbers.
+> 
+The main goal of this patch to get rid of using GFP_NOWAIT since it is
+more restricted due to allocation from atomic context. IMHO, if we can
+avoid of using it that is a right way to go.
 
-Since the user can probe the pre-existing colour in a faulted-in page
-(either with some 'ldxa' instruction or by performing a tag-checked
-access), the kernel should always pre-colour (even if colour 0) any
-allocated page. There might not be an obvious security risk but I feel
-uneasy about letting colours leak between address spaces (different user
-processes or between kernel and user).
+From the other hand, as i mentioned before i have not seen any issues
+with that on all my test systems during big rework. But it could be
+beneficial for tiny systems where we do not have any swap and are
+limited in memory size.
 
-Since we already need such loop in the kernel, we might as well allow
-user space to require a certain colour. This comes in handy for large
-malloc() and another advantage is that the C library won't be stuck
-trying to paint the whole range (think GB).
+> > 
+> > diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> > index ea1b65fac599..b553047aa05b 100644
+> > --- a/mm/vmalloc.c
+> > +++ b/mm/vmalloc.c
+> > @@ -364,6 +364,13 @@ static LIST_HEAD(free_vmap_area_list);
+> >   */
+> >  static struct rb_root free_vmap_area_root = RB_ROOT;
+> >  
+> > +/*
+> > + * Preload a CPU with one object for "no edge" split case. The
+> > + * aim is to get rid of allocations from the atomic context, thus
+> > + * to use more permissive allocation masks.
+> > + */
+> > +static DEFINE_PER_CPU(struct vmap_area *, ne_fit_preload_node);
+> > +
+> >  static __always_inline unsigned long
+> >  va_size(struct vmap_area *va)
+> >  {
+> > @@ -950,9 +957,24 @@ adjust_va_to_fit_type(struct vmap_area *va,
+> >  		 *   L V  NVA  V R
+> >  		 * |---|-------|---|
+> >  		 */
+> > -		lva = kmem_cache_alloc(vmap_area_cachep, GFP_NOWAIT);
+> > -		if (unlikely(!lva))
+> > -			return -1;
+> > +		lva = __this_cpu_xchg(ne_fit_preload_node, NULL);
+> > +		if (unlikely(!lva)) {
+> > +			/*
+> > +			 * For percpu allocator we do not do any pre-allocation
+> > +			 * and leave it as it is. The reason is it most likely
+> > +			 * never ends up with NE_FIT_TYPE splitting. In case of
+> > +			 * percpu allocations offsets and sizes are aligned to
+> > +			 * fixed align request, i.e. RE_FIT_TYPE and FL_FIT_TYPE
+> > +			 * are its main fitting cases.
+> > +			 *
+> > +			 * There are a few exceptions though, as an example it is
+> > +			 * a first allocation (early boot up) when we have "one"
+> > +			 * big free space that has to be split.
+> > +			 */
+> > +			lva = kmem_cache_alloc(vmap_area_cachep, GFP_NOWAIT);
+> > +			if (!lva)
+> > +				return -1;
+> > +		}
+> >  
+> >  		/*
+> >  		 * Build the remainder.
+> > @@ -1023,6 +1045,48 @@ __alloc_vmap_area(unsigned long size, unsigned long align,
+> >  }
+> >  
+> >  /*
+> > + * Preload this CPU with one extra vmap_area object to ensure
+> > + * that we have it available when fit type of free area is
+> > + * NE_FIT_TYPE.
+> > + *
+> > + * The preload is done in non-atomic context, thus it allows us
+> > + * to use more permissive allocation masks to be more stable under
+> > + * low memory condition and high memory pressure.
+> > + *
+> > + * If success it returns 1 with preemption disabled. In case
+> > + * of error 0 is returned with preemption not disabled. Note it
+> > + * has to be paired with ne_fit_preload_end().
+> > + */
+> > +static int
+> 
+> Cosmetic nit: you don't need a new line here.
+> 
+> > +ne_fit_preload(int nid)
+> 
+I can fix that.
 
-> Not that big a deal but doesn't that assume the entire page has the
-> same tag which is dedcued from the upper bits of address? Shouldn't we
-> support tags at the same granularity level as what the hardware
-> supports?
+> > +{
+> > +	preempt_disable();
+> > +
+> > +	if (!__this_cpu_read(ne_fit_preload_node)) {
+> > +		struct vmap_area *node;
+> > +
+> > +		preempt_enable();
+> > +		node = kmem_cache_alloc_node(vmap_area_cachep, GFP_KERNEL, nid);
+> > +		if (node == NULL)
+> > +			return 0;
+> > +
+> > +		preempt_disable();
+> > +
+> > +		if (__this_cpu_cmpxchg(ne_fit_preload_node, NULL, node))
+> > +			kmem_cache_free(vmap_area_cachep, node);
+> > +	}
+> > +
+> > +	return 1;
+> > +}
+> > +
+> > +static void
+> 
+> Here too.
+> 
+> > +ne_fit_preload_end(int preloaded)
+> > +{
+> > +	if (preloaded)
+> > +		preempt_enable();
+> > +}
+I can fix that.
 
-That's mostly about large malloc() optimisation via mmap(), the latter
-working on page granularity already. There is another use-case for
-pre-coloured thread stacks, also allocated via anonymous mmap().
+> 
+> I'd open code it. It's used only once, but hiding preempt_disable()
+> behind a helper makes it harder to understand and easier to mess.
+> 
+> Then ne_fit_preload() might require disabled preemption (which it can
+> temporarily re-enable), so that preempt_enable()/disable() logic
+> will be in one place.
+> 
+I see your point. One of the aim was to make less clogged the
+alloc_vmap_area() function. But we can refactor it like you say:
 
-> We went through this discussion for sparc and decision was to support
-> tags at the same granularity as hardware. That means we can not deduce
-> tags from the first address that pioints into an mmap or shmat region.
-> Those tags and the upper bytes of colored address could change for
-> every cacheline sized block (64-bytes on sparc M7).
+<snip>
+ static void
+@@ -1091,7 +1089,7 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+                                unsigned long vstart, unsigned long vend,
+                                int node, gfp_t gfp_mask)
+ {
+-       struct vmap_area *va;
++       struct vmap_area *va, *pva;
+        unsigned long addr;
+        int purged = 0;
+        int preloaded;
+@@ -1122,16 +1120,26 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
+         * Just proceed as it is. "overflow" path will refill
+         * the cache we allocate from.
+         */
+-       ne_fit_preload(&preloaded);
++       preempt_disable();
++       if (!__this_cpu_read(ne_fit_preload_node)) {
++               preempt_enable();
++               pva = kmem_cache_alloc_node(vmap_area_cachep, GFP_KERNEL, node);
++               preempt_disable();
++
++               if (__this_cpu_cmpxchg(ne_fit_preload_node, NULL, pva)) {
++                       if (pva)
++                               kmem_cache_free(vmap_area_cachep, pva);
++               }
++       }
++
+        spin_lock(&vmap_area_lock);
++       preempt_enable();
+ 
+        /*
+         * If an allocation fails, the "vend" address is
+         * returned. Therefore trigger the overflow path.
+         */
+        addr = __alloc_vmap_area(size, align, vstart, vend);
+-       ne_fit_preload_end(preloaded);
+-
+        if (unlikely(addr == vend))
+                goto overflow;
+<snip>
 
-It's 16-byte for arm64, so smaller than the cacheline.
+Do you mean something like that? If so, i can go with that, unless there are no
+any objections from others.
 
-> We can try to store tags for an entire region in vma but that is
-> expensive, plus on sparc tags are set in userspace with no
-> participation from kernel and now we need a way for userspace to
-> communicate the tags to kernel.
+Thank you for your comments, Roman!
 
-We can't support finer granularity through the mmap() syscall and, as
-you said, the vma is not the right thing to store the individual tags.
-With the above extension to mmap(), we'd have to store a colour per vma
-and prevent merging if different colours (we could as well use the
-pkeys mechanism we already have in the kernel but use a colour per vma
-instead of a key).
-
-Of course, the user is allowed to change the in-memory colours at a
-finer granularity and the kernel will preserve them during swapping
-out/in, page migration etc. The above mmap() proposal is just for the
-first fault-in of a page in a given range/vma.
-
-> From sparc point of view, making kernel responsible for assigning tags
-> to a page on page fault is full of pitfalls.
-
-This could be just some arm64-specific but if you plan to deploy it more
-generically for sparc (at the C library level), you may find this
-useful.
-
--- 
-Catalin
+--
+Vlad Rezki
 
