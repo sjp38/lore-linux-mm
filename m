@@ -2,148 +2,268 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2074AC04AB3
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:09:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F36DEC07542
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:21:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DCA9721019
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:09:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="p49ChQ13"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCA9721019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 8407921019
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:21:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8407921019
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 795716B0266; Wed, 29 May 2019 03:09:41 -0400 (EDT)
+	id CE3456B026B; Wed, 29 May 2019 03:21:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 71F066B026A; Wed, 29 May 2019 03:09:41 -0400 (EDT)
+	id C948C6B026C; Wed, 29 May 2019 03:21:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5E6816B026B; Wed, 29 May 2019 03:09:41 -0400 (EDT)
+	id B5B0C6B026D; Wed, 29 May 2019 03:21:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EA8AB6B0266
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 03:09:40 -0400 (EDT)
-Received: by mail-lf1-f72.google.com with SMTP id m2so433072lfj.1
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 00:09:40 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EFBC6B026B
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 03:21:23 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id e7so1219716ybk.22
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 00:21:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=0hmEt8XBAszMFOt/NHrMak9iR4Ln+O6rhKTThaepQX0=;
-        b=hQKpenvwPqGTwtXyG8cn5TmCm/toyxyjuEgTWnhLI9Pjlq4v+3OCQeb+QtvFExzVMI
-         t/4nrikgL+2piYUOWs7yqQFQRXOr94wFGevaRyV0+dEm2zeW8FYPaMgqhXcDz3HhL1Wl
-         AbCbq3P7jzMmCwau5KrUqulcqrEeGxsEzNwQt1eZHQRjlbPr0Si00qvTT3ibhVDrcl7W
-         orJ4XrO40E43cX7gDqPDwE8R0iE2LKoQfskl3k3rfvROEHBMFHc+zVtNMEm7xdppaSGg
-         HBzmgvQcNwEAJnkKXsdXVV6cm7x6HvQIBSCpKZPpYV4qcJ7hpWC5dMfQ6YQebYklk8rj
-         +LKQ==
-X-Gm-Message-State: APjAAAUD/RZ3n4YfzT+rUVNtuLt6/3KzwhywRRIBT4zgPBTjXhquh7Eq
-	VW8qXD01cN5hD4013kuDfLcKSKTyNiZSuBvltmpRMscfdxvb9RuMyGlNvDzOD7f1dWYRvUbCfPD
-	6a8wii4T/LaD/BP/7lKCiSxv4zM7D0PzCfam9B6JvSennEyC7tGcVpyFVLxiMPnzxCg==
-X-Received: by 2002:a2e:880d:: with SMTP id x13mr26572333ljh.72.1559113780075;
-        Wed, 29 May 2019 00:09:40 -0700 (PDT)
-X-Received: by 2002:a2e:880d:: with SMTP id x13mr26572297ljh.72.1559113779278;
-        Wed, 29 May 2019 00:09:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559113779; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=8s1Cyd84uQMLnLM76MePEuV1tpYh1KuPZNFd67UkAds=;
+        b=jZM3+JEAv7+ATZrHYk1ERZp4D0wkzFXBDHf9RHiHKV8BbEc9GU5r9m0F9QMaXLpPRT
+         RFaokI4lmjwvAXho6hkDv46jJ1ef+C2VHhOPyJ070b5VNUtbdkPSmOuMy+bsYbboIqYP
+         x7R2Vw4sx9Q1MPgCgL5Jr4Yg0k3uESzgcZ7wu1IMcF8v9OVLwoWp118Pz3WUYKnSWzHm
+         982SAqglrasz575mnF5lmRBqUEtg2Ym/DqI+f7dfbzDSbwyDgp5nvSBV2T5CHa68EmC8
+         OldV4jV9HttIDaR5TKHMlspEFQRxvTAs1DpqJ+g97EeZvSgVobXYTC5+nWUpZiZYQwUk
+         IbLQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWjzf/PGh1TgL1z35vPkQMUBta7/kTSpQrilgz3yMMoiWIzldBi
+	AOOXEcoarbNVds4T4X7yEIXoMSQv/ZV7FkAZJb0vQSZcMnIfS2oOAS733G0Q8KlMUrCUqanFaws
+	gzJDdU0YKLYHwqsv/7Ftu3oKh2uHzHRVMaxMS6NPGIlODArucLaU3ENL0Ofirv12cQw==
+X-Received: by 2002:a25:9d84:: with SMTP id v4mr50184519ybp.88.1559114483125;
+        Wed, 29 May 2019 00:21:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw/S74dZdZhbgFuKeVnFKCd2tOc8XVCb7jiSer7o77AaJuz6OWeGUAcG3sPVk37fvRYrfGY
+X-Received: by 2002:a25:9d84:: with SMTP id v4mr50184504ybp.88.1559114482343;
+        Wed, 29 May 2019 00:21:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559114482; cv=none;
         d=google.com; s=arc-20160816;
-        b=yixcWUTH1N9umJN3A0XhQq1L2YpxO5YL1AE8cWUnQ6jiJtB8M49AT8bT4rrXwBc1Mk
-         gkvltP9NtPhRONtuKb3MQGLEsW+B0NHc7bEpJHHBRiDh1Fj51Vuy/5VcK7JgilZqWnU7
-         AaDLBLaLyhAjtUKUts15wpYHwiKvjSmj2TqBnCBKBA/tsrKyGqJ3/H8t7RepLsz4gWtf
-         ET8OHne9sEZZlFd96nkhPkB8MX7K5pp5Gagu264b+VmmGPrdsPTDyEv64we5QJNub2SO
-         3O8ZBPANtdEGqFWFf3J3g375DC3ztUQSSBa2+HynNuyE9PQ0DnrFzXD2lQR0fH3EHmbs
-         3mZw==
+        b=NjA2+VLDgIwtmapZVaxM2jPocPQqRNeck294Nz4OSiB91IIkx1Un40NZc6D12vRbz0
+         kZ1EUlNFVGY2OZ56caN7h3cWrDC4LQCVzALxOBcEBOIeqRkN8SuT9/E0541eI87t+8gw
+         u1XVI5UUgpH7dbdF9IKoUeKDvysweC7LX4kMcE9MEt66aAnVLrJn1X4CpMZuwEtSgMm7
+         P9Jkyq7SfKAqn+NlcorJd8Y9ie2bsnWKpDEk2hvC6YDuo+PQ8PxlVHq3LppNWPVnWtMC
+         oHle1ogGse06PynSjZwmBkoqDAM1vx1zhPrMzEF39zqFAtj4WZfwoWnPBYLg8nOlm620
+         Wtpw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=0hmEt8XBAszMFOt/NHrMak9iR4Ln+O6rhKTThaepQX0=;
-        b=MvK6HjmnDFAl1P6fPWIPlbSUbGRhLteKZ2xVgR0Cahm1J5jDT0868FcaoQAd4X+kFb
-         FIVBDCgo/8jTeRfPyprVnDjKxGoOwICbT/6AKAAT2wkLp3YhQQetJJniA0VfoYAo37tr
-         dA66NLsqn2QnojolP9P80O3zjCRVdei0SY4w1DCwJdadkJ36zY35jG0P1X9x/ABYnuiR
-         sYYEn6r6SwpSq6kHTHH2VB/DMOmFnl9LF6pGNeyKplj4QwzS5gQYXn2qpgQTTW1qDf6Y
-         DyEfsMdb4S3gPZdvZqaCHA5LS2lVA0XCQVgIZxV2AUODhrs9W7MnCvQm4mkiN5BMmQKP
-         yi0Q==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=8s1Cyd84uQMLnLM76MePEuV1tpYh1KuPZNFd67UkAds=;
+        b=aZAj/Q2KDWDU84hBV7t9mPPoXHiRVNaKDBc2Pp6bjFftpHx00rxF+Qr/4147zf5GaF
+         zLG92A/HYQaGFV/90BkwhUX3+LfUQxViBkhnhSrNSaoU5TiatQMWrM0qYQDkjZg1/Y/q
+         eItoSCqfcrLxhMbbyPBKyFZHnnZPf+sik/QkX/x/puuX3DH/dOvjeM4LzNBxiefOsaCH
+         ZTa6ZJTPz01l7ZXaAOvOXvWhIcTEkOTSXJgZvv5Llww0uI9Vj+nDcWMIKW8m9M56e/23
+         n8+zwKOs+bIzwKEcyuEhkLym0SdRPHoiPnV+0dLaXwFxdT9ee89Hugh4SRey0wfwrSYk
+         GktA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=p49ChQ13;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r26sor2427184ljb.10.2019.05.29.00.09.39
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id l207si1823691ywc.380.2019.05.29.00.21.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 29 May 2019 00:09:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 May 2019 00:21:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=p49ChQ13;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=0hmEt8XBAszMFOt/NHrMak9iR4Ln+O6rhKTThaepQX0=;
-        b=p49ChQ13CkTgafcWq6Mx8FOk/3a/AeGpi05o5uxn0TRjMP7yQKQUwXpN1bbkt6bsUL
-         BOp03/oTIkbFDCJgo8EFfNE0dDIo9i7rKReMyFNF1dZ/M1Tga6IFPJqU6RNwQ9ztAKEi
-         kVPSOn09OJUcGey1NdvjzyLfUrSxYu2LvzfPCvj/ykDhrPxYoFREu8hf7+IFKkVuznxg
-         wzzsesZ5sTsck6PUx8smbK+YfBzvT0kXI2A1La8N2CmQUuFn1pR26ai5oseyyE1t//7M
-         Jp5OBTnFMGRX4xsL05DMLjI183G/vREXuSDRD9tAOSzGCVHCv3Od22rktQlI1NPK0/Wh
-         hWLQ==
-X-Google-Smtp-Source: APXvYqzPybpE3leNNpeYsxD/syHNbqQB4AamoUBooFN787Z8X3jpIs8qqKLWY3d8qJDJTDSMGWjIGZogbhlUDWuIO+4=
-X-Received: by 2002:a2e:9dc6:: with SMTP id x6mr1537784ljj.27.1559113778900;
- Wed, 29 May 2019 00:09:38 -0700 (PDT)
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4T7KBQ6074061
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 03:21:22 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2ssjt2wu24-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 03:21:21 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 29 May 2019 08:21:19 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 29 May 2019 08:21:14 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4T7LDwl53149950
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 29 May 2019 07:21:13 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 4AEFBAE055;
+	Wed, 29 May 2019 07:21:13 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id E3C3BAE057;
+	Wed, 29 May 2019 07:21:11 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.53])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed, 29 May 2019 07:21:11 +0000 (GMT)
+Date: Wed, 29 May 2019 10:21:10 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
+        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+        "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>,
+        Peter Zijlstra <peterz@infradead.org>,
+        Andy Lutomirski <luto@amacapital.net>,
+        David Howells <dhowells@redhat.com>, Kees Cook <keescook@chromium.org>,
+        Dave Hansen <dave.hansen@intel.com>,
+        Kai Huang <kai.huang@linux.intel.com>,
+        Jacob Pan <jacob.jun.pan@linux.intel.com>,
+        Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
+        kvm@vger.kernel.org, keyrings@vger.kernel.org,
+        linux-kernel@vger.kernel.org
+Subject: Re: [PATCH, RFC 02/62] mm: Add helpers to setup zero page mappings
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-3-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-References: <20190528193004.GA7744@gmail.com>
-In-Reply-To: <20190528193004.GA7744@gmail.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Wed, 29 May 2019 12:39:27 +0530
-Message-ID: <CAFqt6zZ0SHXddLoQMoO3LHT=50Br0x4r3Wn4XviypRxRUtn9zQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: Fail when offset == num in first check of vm_map_pages_zero()
-To: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
-Cc: Matthew Wilcox <willy@infradead.org>, Peter Zijlstra <peterz@infradead.org>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Huang Ying <ying.huang@intel.com>, 
-	open list <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190508144422.13171-3-kirill.shutemov@linux.intel.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19052907-0020-0000-0000-000003418013
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19052907-0021-0000-0000-000021947F7A
+Message-Id: <20190529072109.GB3656@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-29_04:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905290049
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 29, 2019 at 1:38 AM Miguel Ojeda
-<miguel.ojeda.sandonis@gmail.com> wrote:
->
-> If the user asks us for offset == num, we should already fail in the
-> first check, i.e. the one testing for offsets beyond the object.
->
-> At the moment, we are failing on the second test anyway,
-> since count cannot be 0. Still, to agree with the comment of the first
-> test, we should first there.
+On Wed, May 08, 2019 at 05:43:22PM +0300, Kirill A. Shutemov wrote:
+> When kernel setups an encrypted page mapping, encryption KeyID is
 
-I think, we need to cc linux-mm.
->
-> Signed-off-by: Miguel Ojeda <miguel.ojeda.sandonis@gmail.com>
+Nit: "when kernel sets up an encrypted..."
+
+> derived from a VMA. KeyID is going to be part of vma->vm_page_prot and
+> it will be propagated transparently to page table entry on mk_pte().
+> 
+> But there is an exception: zero page is never encrypted and its mapping
+> must use KeyID-0, regardless VMA's KeyID.
+> 
+> Introduce helpers that create a page table entry for zero page.
+> 
+> The generic implementation will be overridden by architecture-specific
+> code that takes care about using correct KeyID.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > ---
->  mm/memory.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
+>  fs/dax.c                      | 3 +--
+>  include/asm-generic/pgtable.h | 8 ++++++++
+>  mm/huge_memory.c              | 6 ++----
+>  mm/memory.c                   | 3 +--
+>  mm/userfaultfd.c              | 3 +--
+>  5 files changed, 13 insertions(+), 10 deletions(-)
+> 
+> diff --git a/fs/dax.c b/fs/dax.c
+> index e5e54da1715f..6d609bff53b9 100644
+> --- a/fs/dax.c
+> +++ b/fs/dax.c
+> @@ -1441,8 +1441,7 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
+>  		pgtable_trans_huge_deposit(vma->vm_mm, vmf->pmd, pgtable);
+>  		mm_inc_nr_ptes(vma->vm_mm);
+>  	}
+> -	pmd_entry = mk_pmd(zero_page, vmf->vma->vm_page_prot);
+> -	pmd_entry = pmd_mkhuge(pmd_entry);
+> +	pmd_entry = mk_zero_pmd(zero_page, vmf->vma->vm_page_prot);
+>  	set_pmd_at(vmf->vma->vm_mm, pmd_addr, vmf->pmd, pmd_entry);
+>  	spin_unlock(ptl);
+>  	trace_dax_pmd_load_hole(inode, vmf, zero_page, *entry);
+> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+> index fa782fba51ee..cde8b81f6f2b 100644
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -879,8 +879,16 @@ static inline unsigned long my_zero_pfn(unsigned long addr)
+>  }
+>  #endif
+> 
+> +#ifndef mk_zero_pte
+> +#define mk_zero_pte(addr, prot) pte_mkspecial(pfn_pte(my_zero_pfn(addr), prot))
+> +#endif
+> +
+>  #ifdef CONFIG_MMU
+> 
+> +#ifndef mk_zero_pmd
+> +#define mk_zero_pmd(zero_page, prot) pmd_mkhuge(mk_pmd(zero_page, prot))
+> +#endif
+> +
+>  #ifndef CONFIG_TRANSPARENT_HUGEPAGE
+>  static inline int pmd_trans_huge(pmd_t pmd)
+>  {
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 165ea46bf149..26c3503824ba 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -675,8 +675,7 @@ static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
+>  	pmd_t entry;
+>  	if (!pmd_none(*pmd))
+>  		return false;
+> -	entry = mk_pmd(zero_page, vma->vm_page_prot);
+> -	entry = pmd_mkhuge(entry);
+> +	entry = mk_zero_pmd(zero_page, vma->vm_page_prot);
+>  	if (pgtable)
+>  		pgtable_trans_huge_deposit(mm, pmd, pgtable);
+>  	set_pmd_at(mm, haddr, pmd, entry);
+> @@ -2101,8 +2100,7 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
+> 
+>  	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
+>  		pte_t *pte, entry;
+> -		entry = pfn_pte(my_zero_pfn(haddr), vma->vm_page_prot);
+> -		entry = pte_mkspecial(entry);
+> +		entry = mk_zero_pte(haddr, vma->vm_page_prot);
+>  		pte = pte_offset_map(&_pmd, haddr);
+>  		VM_BUG_ON(!pte_none(*pte));
+>  		set_pte_at(mm, haddr, pte, entry);
 > diff --git a/mm/memory.c b/mm/memory.c
-> index ddf20bd0c317..74cf8b0ce353 100644
+> index ab650c21bccd..c5e0c87a12b7 100644
 > --- a/mm/memory.c
 > +++ b/mm/memory.c
-> @@ -1547,7 +1547,7 @@ static int __vm_map_pages(struct vm_area_struct *vma, struct page **pages,
->         int ret, i;
->
->         /* Fail if the user requested offset is beyond the end of the object */
-> -       if (offset > num)
-> +       if (offset >= num)
->                 return -ENXIO;
->
->         /* Fail if the user requested size exceeds available object size */
-> --
-> 2.17.1
->
+> @@ -2927,8 +2927,7 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
+>  	/* Use the zero-page for reads */
+>  	if (!(vmf->flags & FAULT_FLAG_WRITE) &&
+>  			!mm_forbids_zeropage(vma->vm_mm)) {
+> -		entry = pte_mkspecial(pfn_pte(my_zero_pfn(vmf->address),
+> -						vma->vm_page_prot));
+> +		entry = mk_zero_pte(vmf->address, vma->vm_page_prot);
+>  		vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
+>  				vmf->address, &vmf->ptl);
+>  		if (!pte_none(*vmf->pte))
+> diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+> index d59b5a73dfb3..ac1ce3866036 100644
+> --- a/mm/userfaultfd.c
+> +++ b/mm/userfaultfd.c
+> @@ -122,8 +122,7 @@ static int mfill_zeropage_pte(struct mm_struct *dst_mm,
+>  	pgoff_t offset, max_off;
+>  	struct inode *inode;
+> 
+> -	_dst_pte = pte_mkspecial(pfn_pte(my_zero_pfn(dst_addr),
+> -					 dst_vma->vm_page_prot));
+> +	_dst_pte = mk_zero_pte(dst_addr, dst_vma->vm_page_prot);
+>  	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
+>  	if (dst_vma->vm_file) {
+>  		/* the shmem MAP_PRIVATE case requires checking the i_size */
+> -- 
+> 2.20.1
+> 
+
+-- 
+Sincerely yours,
+Mike.
 
