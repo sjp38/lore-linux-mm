@@ -2,170 +2,183 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CD9EBC28CC0
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:06:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D4D82C28CC1
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:08:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8F906241CB
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:06:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 87615241C3
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:08:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Dit7xG7b"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F906241CB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="iCu9MPsy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 87615241C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D1BF6B026A; Wed, 29 May 2019 17:06:22 -0400 (EDT)
+	id 20FC66B026E; Wed, 29 May 2019 17:08:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 282806B026D; Wed, 29 May 2019 17:06:22 -0400 (EDT)
+	id 1BDE36B026F; Wed, 29 May 2019 17:08:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 197FC6B026E; Wed, 29 May 2019 17:06:22 -0400 (EDT)
+	id F2CEA6B0270; Wed, 29 May 2019 17:08:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EC0116B026A
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 17:06:21 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id w6so2265197qto.18
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 14:06:21 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B72666B026E
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 17:08:02 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id w14so2398028plp.4
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 14:08:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=kDZhofxy6mufe3ksiaEz/xmHPiYjpnBL8G/C22N/e+4=;
-        b=CGgUPKHg4NP1GbLnI0l624X6aeRnUAvfXviAomRQPCWajvUH6ekm0qPNgzlPC9lTiG
-         7PHZBUtb9MbZLQm+tx+en1y1R+8BNKQfHa4gf4xIvmH54rHIaJle31GiZv4b3PGVRyyb
-         TXnn2DCnXt8f3exNL5ZPj103qoCNSkC/WSnGVCqPK53Rna8W4ecQcYJoDz8UnyyUBVm6
-         HT+nMHmXERHAXCNFjU6kpTWm40YYN8gBrz/ensvjwa90dChIU4xOhsJ9wmmPDUYA6CBe
-         Eb+en6ll5iOpkLgr+bYhwS4NypizSkHJIZ/FBGFEmrbHuOrOfuEeazuUSKxUJAptEnbA
-         4d5A==
-X-Gm-Message-State: APjAAAWIB3dgijAif/Uh2hrxWUfJR8CZkrFdaiBSbzdJyKpJ9HRBy9BD
-	gLqfIokOPsurlDxxpVg3kncKtcviA5EksiyniTXL9mzcCFSk5kcpXQCUWCpk0YiV9JlIWLMuRTa
-	H7S38AfQLOCkSVOQVXl7jV6vxLZN/GTf67o6VCnvv0dHru7zuwSC/HXeahyjphks=
-X-Received: by 2002:a0c:9850:: with SMTP id e16mr82771qvd.163.1559163981720;
-        Wed, 29 May 2019 14:06:21 -0700 (PDT)
-X-Received: by 2002:a0c:9850:: with SMTP id e16mr82700qvd.163.1559163980666;
-        Wed, 29 May 2019 14:06:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559163980; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=JDuSTehyNdkjsOxtouLoAdMdAueINAK3K8uBz+p0jwg=;
+        b=K/kjEybXyUhCmqJ7OLj3i6Jixbg/nrwgce+Ve51KnARe1rroTa2B6ogWv3TzBKAjaM
+         AjbwHoSdfhsgDRCEWvLsG7ujxYkfemy40Y0cyfRrjCokk2BwzgcmwDCGUkbiqKYbDC0N
+         jH9AXGzGM+QUench8W5sGCnPT7YDLCNJ44T3xQ6SudYqkGHN3oIER5R3VGsyXmgeEvUf
+         x4aDZiKiaIrHpvpQr5NnJAamMwDMR2nyjiRoGf5/fknhbbeAPEH3lML1oYzMpOW+6Hzx
+         4V9BTkZXLfiMyfIRlGcrAtLYFxckDrIV6a1gqKLzqsXw6A/Kl1ytkd4GMuTcMD4Umo6B
+         7rHQ==
+X-Gm-Message-State: APjAAAVpTH+uCzQR+Tw/4MOyhBNhu0kDpqDWfOSroccLYMNe5egPW4Er
+	6OSXvPg+qBsuptxGA793rgqCAu7f61re6tS/K3tSxsBQHfAKB9tv8ia0UDMZxqHLCtEACDROoKA
+	2Et3HOasgaxuvdW3V1z/dSbrOYX8Lsr/VSKtS5Ouu2gcg3Wtjtm5UGj24SMusiUJPIg==
+X-Received: by 2002:a63:9a52:: with SMTP id e18mr1581pgo.335.1559164082367;
+        Wed, 29 May 2019 14:08:02 -0700 (PDT)
+X-Received: by 2002:a63:9a52:: with SMTP id e18mr1542pgo.335.1559164081594;
+        Wed, 29 May 2019 14:08:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559164081; cv=none;
         d=google.com; s=arc-20160816;
-        b=Hn07+zLQWVnJFxGgkRm/rgahe0VyhyrJtuDIVc456ufXl6mI5BhhYVpShfiVTZv8yk
-         MSFqxdzJ0GbrOms4OD24cBH05T72zwfPOIoYAGOIA9k0ScpCSKyUapPcvensTsUapgZD
-         rUYpAzvj9uPT7+/Jxz9V1R2EdclB4N7ZijHRw9dzhPPSjHt602fsIUSbZYrrU+LqKuEF
-         qZQf+kJAHc5g8eKGYMH8HR1WrmKxaOtjf4gnAoboenWQql3BbBBz3ko0SbBT4RTN3eYE
-         NjAnUb4x/pt4sU1s2qbzEfzTW3xnjJG0pXKbKaBcZMaxw0C24jYpRyk1hSqaVXn/N6s9
-         sD7Q==
+        b=BU5p+MJwebnrOzOIgDY+x9SdtwYTC8ACgxbAJjiA3q8TxaQGtepxPMk6xYHGkW1745
+         WWjkZ1zdhzshdRN//lV0seWHza4xouILzxkDiW4xID6FCJhl9rFo5R/tcu/65Qgbg7D6
+         x28RkckmkAOguc6tu7MIjMLUf5D3rSYb+AUv4qwR4YYRRKbIO6noSGNA5G2M+jpwKB7h
+         qMJvtYv5ynPShvHYfs/PgkKlPzo4X2O23deF/X22ASNKfoRTEQtVCmUpfMbcmPzfN/i3
+         ToHQrWUNlJroaNeeYS9A9IBIwPY2E/T/BmR1orck9BqIDJlOWWw525i7vxfe5rvPZTuk
+         ASkg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:sender:dkim-signature;
-        bh=kDZhofxy6mufe3ksiaEz/xmHPiYjpnBL8G/C22N/e+4=;
-        b=ygpWRme7tpSuN1h9XJMIgrmRwP7UCSKNDf81muzQVlUkSmlp+xsVOuUpW0/P7O6oKg
-         DUM9XJX+BjSwSJwtlmvuYzF1rsN4vS8MV7hMohD9NkonorBXchkMucWKWnXBVOijBnZr
-         +7Wcum7aLQvu8Fw3t6wtMSNY3LPUgAZsYbi0XIZEDP1S3PCHuGO5nn/Dyu1T5h11EBoq
-         Nu1V2/WMWOh/H5XPbqQgCVk0onde7HRQHC1+7CDs5BWZ6466pwpwJv93f1lkZo2c9QtZ
-         NDk4FzBLf8zgaM//218WneitKoUGOX2O1Nri9R0ZvqgMpBOMpoR++wpbV7YcLON1crhe
-         P9sA==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=JDuSTehyNdkjsOxtouLoAdMdAueINAK3K8uBz+p0jwg=;
+        b=XwNKefyBln/6pjAWAuGQWhSLsy9k55hzItsbf3Q/keyXqXVxoSWBXrbryl76EA8A1b
+         LrZm0S9RGGMEPt+8lSz/T8RsvrXB6xu+IR25FbvRiu45Sy3WqV1+h41qBt8fXlUsEGOL
+         Ip56qG8pvIn97buvjYyh/O14bt0/s84V0Yj7Lm6oUxSIou3413bYftxXhIbjkhdsTHdI
+         WmYFjWhGz3oi0+7a2cF/yaTIEmzfpBAXW3oIuXywxTida/rgGVo7m/LrIms9chY5GDll
+         8aiOzgkniwoYjQjLnPG4FjDAEkCm2uAGEURT5CJ75qq6WzGKTeKV9y4F8TbH3kOHMc2e
+         xMTg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Dit7xG7b;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=iCu9MPsy;
+       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z126sor268115qkc.96.2019.05.29.14.06.20
+        by mx.google.com with SMTPS id k4sor860945pfa.60.2019.05.29.14.08.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 29 May 2019 14:06:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 29 May 2019 14:08:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Dit7xG7b;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=iCu9MPsy;
+       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:mime-version
-         :content-disposition:user-agent;
-        bh=kDZhofxy6mufe3ksiaEz/xmHPiYjpnBL8G/C22N/e+4=;
-        b=Dit7xG7bM1QDMHav6URFGcGdjxjlhT/gUPKBtE42oGWAdDT3YZbeZYtObRKdxM3Bzl
-         948MWlm2R8M/jiQ3JTm865KfiiVxQdQ7I2jJeYjwXMGyprW/kwm+lxoQJENyx+w9chzp
-         Q7J/+qlmpnu91qGcb7v5KcRxEtAGsWUnJo6l+DzaimKsyCV6YQT/jxCIjc+DPCUQSvLo
-         NE+3Pkq6Zj97IW3rf0iK0hqngJK6sWRZ0C8UwndmSJUzEKnqqq22b3CGDW5W3WOGaYK4
-         FisXuLDVkP4NSjcjBUz171btDOTsv3tl1Q/2+JLcOv67XlLuB2cvkgcxuHyfk5nAS2p2
-         yZXw==
-X-Google-Smtp-Source: APXvYqwJkpegnMhQjW+QQW841v8rVagC6Jn6IrcotmLN4smB41C542UQJIDCuIDgyKfrB3TFDcvRrw==
-X-Received: by 2002:a05:620a:16c1:: with SMTP id a1mr12635399qkn.269.1559163980173;
-        Wed, 29 May 2019 14:06:20 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::2:849f])
-        by smtp.gmail.com with ESMTPSA id w48sm269662qtb.91.2019.05.29.14.06.19
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 May 2019 14:06:19 -0700 (PDT)
-Date: Wed, 29 May 2019 14:06:17 -0700
-From: Tejun Heo <tj@kernel.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
-Subject: [PATCH for-5.2-fixes] memcg: Don't loop on css_tryget_online()
- failure
-Message-ID: <20190529210617.GP374014@devbig004.ftw2.facebook.com>
+        d=google.com; s=20161025;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=JDuSTehyNdkjsOxtouLoAdMdAueINAK3K8uBz+p0jwg=;
+        b=iCu9MPsyqSyo52dk3bz2YcMkQmNZYRBnUvKfoC/4nlsyxR2kImqL5WSQ/tyUgbQGS5
+         tWRxoAuFxGICRlXINV3c2tZaoNnVTDCu3AQWUlvkm0C+fQdRbz4FGqR1DvMkNENEbQCo
+         4mLnFfcmw7g7RiFYFM3uP/L9kskO6vNvXIOsYcoEhUccyXOhOgTv1ZIoqlt4GkhouIyt
+         NoatEjQ0v842w1+LfUE6qcm/wVA+RI1gtWZSmg7y9eYS/xmE8gKbr0HdmnWyXfEA8pYA
+         D2roDVoI+GkFybcqvS37aJdhvvXWEunPHYJZmGU1JBmPeR7muDxlo4h6jHkWn7gz9wTu
+         D19Q==
+X-Google-Smtp-Source: APXvYqz7P8HgjdZeBHIm1rggdqtNB5srYYVApd3MRmDP73Wpy18Y0LXtAZVWv+Kw+t04RSc4FWh44w==
+X-Received: by 2002:a62:e303:: with SMTP id g3mr150555799pfh.220.1559164080811;
+        Wed, 29 May 2019 14:08:00 -0700 (PDT)
+Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
+        by smtp.gmail.com with ESMTPSA id 25sm574143pfp.76.2019.05.29.14.07.58
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 29 May 2019 14:07:58 -0700 (PDT)
+Date: Wed, 29 May 2019 14:07:58 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+X-X-Sender: rientjes@chino.kir.corp.google.com
+To: Yang Shi <yang.shi@linux.alibaba.com>
+cc: ktkhai@virtuozzo.com, hannes@cmpxchg.org, mhocko@suse.com, 
+    kirill.shutemov@linux.intel.com, hughd@google.com, shakeelb@google.com, 
+    Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
+    linux-kernel@vger.kernel.org
+Subject: Re: [RFC PATCH 0/3] Make deferred split shrinker memcg aware
+In-Reply-To: <2e23bd8c-6120-5a86-9e9e-ab43b02ce150@linux.alibaba.com>
+Message-ID: <alpine.DEB.2.21.1905291402360.242480@chino.kir.corp.google.com>
+References: <1559047464-59838-1-git-send-email-yang.shi@linux.alibaba.com> <alpine.DEB.2.21.1905281817090.86034@chino.kir.corp.google.com> <2e23bd8c-6120-5a86-9e9e-ab43b02ce150@linux.alibaba.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.5.21 (2010-09-15)
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-A PF_EXITING task may stay associated with an offline css.
-get_mem_cgroup_from_mm() may deadlock if mm->owner is in such state.
-All similar logics in memcg are falling back to root memcg on
-tryget_online failure and get_mem_cgroup_from_mm() can do the same.
+On Wed, 29 May 2019, Yang Shi wrote:
 
-A similar failure existed for task_get_css() and could be triggered
-through BSD process accounting racing against memcg offlining.  See
-18fa84a2db0e ("cgroup: Use css_tryget() instead of css_tryget_online()
-in task_get_css()") for details.
+> > Right, we've also encountered this.  I talked to Kirill about it a week or
+> > so ago where the suggestion was to split all compound pages on the
+> > deferred split queues under the presence of even memory pressure.
+> > 
+> > That breaks cgroup isolation and perhaps unfairly penalizes workloads that
+> > are running attached to other memcg hierarchies that are not under
+> > pressure because their compound pages are now split as a side effect.
+> > There is a benefit to keeping these compound pages around while not under
+> > memory pressure if all pages are subsequently mapped again.
+> 
+> Yes, I do agree. I tried other approaches too, it sounds making deferred split
+> queue per memcg is the optimal one.
+> 
 
-Signed-off-by: Tejun Heo <tj@kernel.org>
----
- mm/memcontrol.c |   24 ++++++++++--------------
- 1 file changed, 10 insertions(+), 14 deletions(-)
+The approach we went with were to track the actual counts of compound 
+pages on the deferred split queue for each pgdat for each memcg and then 
+invoke the shrinker for memcg reclaim and iterate those not charged to the 
+hierarchy under reclaim.  That's suboptimal and was a stop gap measure 
+under time pressure: it's refreshing to see the optimal method being 
+pursued, thanks!
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e50a2db5b4ff..be1fa89db198 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -918,23 +918,19 @@ struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
- 
- 	if (mem_cgroup_disabled())
- 		return NULL;
-+	/*
-+	 * Page cache insertions can happen without an actual mm context,
-+	 * e.g. during disk probing on boot, loopback IO, acct() writes.
-+	 */
-+	if (unlikely(!mm))
-+		return root_mem_cgroup;
- 
- 	rcu_read_lock();
--	do {
--		/*
--		 * Page cache insertions can happen withou an
--		 * actual mm context, e.g. during disk probing
--		 * on boot, loopback IO, acct() writes etc.
--		 */
--		if (unlikely(!mm))
--			memcg = root_mem_cgroup;
--		else {
--			memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
--			if (unlikely(!memcg))
--				memcg = root_mem_cgroup;
--		}
--	} while (!css_tryget_online(&memcg->css));
-+	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
-+	if (!css_tryget_online(&memcg->css))
-+		memcg = root_mem_cgroup;
- 	rcu_read_unlock();
-+
- 	return memcg;
- }
- EXPORT_SYMBOL(get_mem_cgroup_from_mm);
+> > I'm curious if your internal applications team is also asking for
+> > statistics on how much memory can be freed if the deferred split queues
+> > can be shrunk?  We have applications that monitor their own memory usage
+> 
+> No, but this reminds me. The THPs on deferred split queue should be accounted
+> into available memory too.
+> 
+
+Right, and we have also seen this for users of MADV_FREE that have both an 
+increased rss and memcg usage that don't realize that the memory is freed 
+under pressure.  I'm thinking that we need some kind of MemAvailable for 
+memcg hierarchies to be the authoritative source of what can be reclaimed 
+under pressure.
+
+> > through memcg stats or usage and proactively try to reduce that usage when
+> > it is growing too large.  The deferred split queues have significantly
+> > increased both memcg usage and rss when they've upgraded kernels.
+> > 
+> > How are your applications monitoring how much memory from deferred split
+> > queues can be freed on memory pressure?  Any thoughts on providing it as a
+> > memcg stat?
+> 
+> I don't think they have such monitor. I saw rss_huge is abormal in memcg stat
+> even after the application is killed by oom, so I realized the deferred split
+> queue may play a role here.
+> 
+
+Exactly the same in my case :)  We were likely looking at the exact same 
+issue at the same time.
+
+> The memcg stat doesn't have counters for available memory as global vmstat. It
+> may be better to have such statistics, or extending reclaimable "slab" to
+> shrinkable/reclaimable "memory".
+> 
+
+Have you considered following how NR_ANON_MAPPED is tracked for each pgdat 
+and using that as an indicator of when the modify a memcg stat to track 
+the amount of memory on a compound page?  I think this would be necessary 
+for userspace to know what their true memory usage is.
 
