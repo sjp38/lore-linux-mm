@@ -2,182 +2,184 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,
+	URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E583C28CC0
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 13:58:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 56A2FC28CC0
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 14:01:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CD61822DA7
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 13:58:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0C1EB233FC
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 14:01:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uXjwPjRZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD61822DA7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="nMlg+I8J"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C1EB233FC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 685686B000C; Wed, 29 May 2019 09:58:31 -0400 (EDT)
+	id 832436B000E; Wed, 29 May 2019 10:01:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 636D46B000D; Wed, 29 May 2019 09:58:31 -0400 (EDT)
+	id 7BBB26B0010; Wed, 29 May 2019 10:01:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5252C6B000E; Wed, 29 May 2019 09:58:31 -0400 (EDT)
+	id 65ABE6B0266; Wed, 29 May 2019 10:01:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DC6956B000C
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 09:58:30 -0400 (EDT)
-Received: by mail-lf1-f70.google.com with SMTP id a25so736429lfl.0
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 06:58:30 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FA046B000E
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 10:01:16 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id b189so2158452ywa.19
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 07:01:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=FvnuOzvWWHxvWxRXVyec6ngD8uETWcADOgiOUZyOXOI=;
-        b=GWDjrMfe8JGCfH5f1sJEy7TPwe1AfJIeDyTTvwq3poHxW0hXEx4TwqtV5r2qhy6cvx
-         2VoPhKQX+Razt0jf4jf4ohHZ/mlYEKFIDqlLFRsnqkZzj3hPZfxiMJDYgGFUHY05waNT
-         ZyVebqb95uc9MKrX2QCj96vElNi3GMOIfyuUtU0Anu+kAB5nQwletyeaEz7v/JorDTig
-         MZ2CneRLE6OkEOLmJ0VwKZHc2qjPhB+cfkWK5R9CLQGaUB37wzrsdYxpygytceqUqw9f
-         /wMOv+Px9pBKFXJayWbW9K7YqqrhzS/Su0SpOamaRzMoAyoYmauEYbnpD+1snOCDxX8N
-         VRXQ==
-X-Gm-Message-State: APjAAAXTi4eQgNPnqdlci4TXieYBDpyc7xnItOx005CBX87ivANztkkP
-	FUXN1MZGU/WVuLa6a+xpygdcN+QkzdkgxTfMgyuutF3/N1lIq2A6PCljUe3wq1J7N6IF28IllG2
-	Ftq3gR6BMu/o3xLk/mEcPA18C1arPDf2mOb8F/09Clz567Ah9feDZCTbBo3lCNBdRRA==
-X-Received: by 2002:a19:521a:: with SMTP id m26mr18964906lfb.134.1559138310043;
-        Wed, 29 May 2019 06:58:30 -0700 (PDT)
-X-Received: by 2002:a19:521a:: with SMTP id m26mr18964768lfb.134.1559138307028;
-        Wed, 29 May 2019 06:58:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559138307; cv=none;
+        bh=096L/LOXEdmc+XaWi2V/0dCL3u92z1sdlldyNO1mdgI=;
+        b=U1NTW8QuVbtv3KImZnssCtHzwTYb55n7uv8PJxno1dLodm+BYXf/LqXQgcV2L+wbrj
+         9wJmg5XtpuxhXu6n5AzLRsqXr9YiDg3l9feZs1NgO/w0O42nB07BxoPoVF9IKm/LanDc
+         eH8Bh3mmRx1iP4aqtMwrD2oL+qE3x968ikWmfXQK0/b5wyI94M+Nemh8VRL2c0NX9pfk
+         DyUnKsFwQwytF891Ov2a0RH5fajoyzEf1kjt5uTv7abDaSWDvXrsdlDfgs2scKQSrE3t
+         yTJlzCUXzjxvMFHD/H2iXYW1xZgpoAlbqS8FpGGOJK7q8h0iGNvJsJdRmU2g7Se9ULjM
+         JAHA==
+X-Gm-Message-State: APjAAAVVcCIybbeEQY9qsxw/ox/8N8OTgevZN/+TBL4gjRDY0wHGgfLx
+	O/r/BayL7u6551yT2KzUqMOiymSSgX/XX/YlrkiA3UxD9eGXn9xFWr8dINHQX0zjIiJHV89OJNT
+	uSL8ENl28TSgoMTq6PHIbTNiLuCoQowH3Q/PE1/It4pVjER8l52Tg5LFsm2E1pN9OKQ==
+X-Received: by 2002:a81:120c:: with SMTP id 12mr64281159yws.74.1559138475909;
+        Wed, 29 May 2019 07:01:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyHM4qBa0YG3sUA/ip/PGvstI4UxZzMzsxltEbf73KtgbF/xX4flumjFv8mt6yGhRUSlcrF
+X-Received: by 2002:a81:120c:: with SMTP id 12mr64281079yws.74.1559138475052;
+        Wed, 29 May 2019 07:01:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559138475; cv=none;
         d=google.com; s=arc-20160816;
-        b=WceY2yQAgddqQgUNDAfiPCJIKmMBYG3lkWH4S7nLZ8L30YjJBu77iBJU3OtN/IPFtE
-         luBYZ/JGWUpVnPl0P9RYUWoBISUW6IY5Ka2Hj5yQE00G3+ogeSa4hUPFo8Maxfxsbgz8
-         mSgOTl7VHnBcJ+51wmNjAtwYZpS63JkCHHgL2SEq8PDSWqDQ3G5DxQZ6/FSyXvMhYw/c
-         yKrldF4LXRACaLKq9g/MG5hmmxVhBqSc1F8MM5ZxLaMxxYfueN9N9hCpX+6dqG811L/P
-         9JMwZj7MupVHIHL3UZlzaHrp8m13qH2qbAsATiQG9+56dV4aIETvcZ6FBQ2mTmisO0Eo
-         1IjA==
+        b=HlLI8AmYDMB3G1Jh5GQ6/t9SmrgDX3lK3XB4cwEzd6oRBDo+50yDhoKtiB7jENZP8D
+         tks92zinQEtgxvRGw0CWkHxThjvXEM+N8MWXAx/iSIw8INnQgx2bKqEaOzA67IlVc4U6
+         qXYlPFulUYSXaBO3ZRJ6d098kF68MrgH4F0TVO0yHPZ5be83T1gw5EHbMAT+es9I9SM1
+         RAudZkOYZ+ZcVoH5iqIDqdx2JtohgDx6GxV8XCp+2O5ZiaAJzW6tR2ivG8TdX1Yhk/2W
+         FME+WbYDpVdNLLTcapoQLUYPxonPGlvUQ9H6wPoc4MzRSHTaWStcyvhyduLG136Vxs8U
+         R7bw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:date:from:dkim-signature;
-        bh=FvnuOzvWWHxvWxRXVyec6ngD8uETWcADOgiOUZyOXOI=;
-        b=DxqJTTtZSvzWHVLQEsed6Ph7D04Jk0p47D4sRdMoI0403br5dzAiPKI3xKb077fMPV
-         7I0PidioMYuSDJAn9jSa3xo1vHTsgmFF+C7YwfND00IfA4tmNm04xNhNQtXwLQ6MEZTk
-         JeQhRCJS+patkWkOcBN3aCa9lFN/FYucQDvYOClBUiOcUHlV5zI0wo8jeYmP7esCXK4w
-         telk//SowkM0SK31j26MG6f6IZMw3Wk08pA60RvM9p0qDu5kP67zBkUbOvumVprty7G7
-         yd9B8TH03K2IhXUavvCJxNL1P4zVBJIHJofXA35nIDXLTeX2plE5z82aEbefJ4FDk20x
-         wsWA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=096L/LOXEdmc+XaWi2V/0dCL3u92z1sdlldyNO1mdgI=;
+        b=ewTsWO6+LJoWGbMEO+t8TJdYrCdWxMcWAMBmzuWg5/G5Avd+m8hu5Bz1uk28CWeB9k
+         +kdTeGsv+e8rb4/j//m7q9pa1fUEa2kwGt7wcuSC/CdokGv4Uj7HbzY9eTSJ0+OcRL3I
+         Z8vJANei0iIKecC9wcDoDNzsHIP5nmkRp9mDysGpIjRMU/iAvmwxVADcDB8znPBprmTL
+         PCaMHih+SFXVfOoIQgwOB6rwl/sRzfdR3SBF16YoB/BBY8OOX2/FS8K0YTVykvGYcP/q
+         UsPrffphAoE4hWZkM4eZFseHS+4LgrYsFfC3wzYTA2r9bIqrpyPcRUGzqX8mpoMjm3iS
+         3FjQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uXjwPjRZ;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a5sor2726047ljf.4.2019.05.29.06.58.26
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=nMlg+I8J;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id v7si2500335ywg.157.2019.05.29.07.01.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 29 May 2019 06:58:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 May 2019 07:01:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uXjwPjRZ;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:date:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=FvnuOzvWWHxvWxRXVyec6ngD8uETWcADOgiOUZyOXOI=;
-        b=uXjwPjRZCt5+NzEnNPmdCCkF3iYjQdmKQjzHPmIBvcHk21+tVcQk6R/TffAC7mbzK7
-         3OwgsrDjSkovmg4CpeCxkjLO/kQQvYs0pmQohCNI7L8gZdD8RGrfY4VGJdYTU4SoFB3v
-         vxOJmH2NmOUBLSaEMsTV4T0d7uI//nBlM9nMZjIItiftF4IVJAOz7r5HkBkNRO1ocej9
-         uSw6MboF7GCpcr9BVSt1oVeMNInBa+xY8WKUwIpqaSATf3Ri/vgGphqjpJDKCfIuJNPw
-         2XVz/73HtiI5Ls00TDoUhrA2TsMBVDDDh2a2MIgaAD8+i7k63TUUX87Zz6QC0oBlSFQ1
-         qdNA==
-X-Google-Smtp-Source: APXvYqxJcXNy9tjvGvb6p0Lmjk07Ff52IXEus1xxpwJYnnL8XqCx75U51Gw9O4dVXAeZBa+45pmDaQ==
-X-Received: by 2002:a2e:a0ca:: with SMTP id f10mr1708409ljm.113.1559138306581;
-        Wed, 29 May 2019 06:58:26 -0700 (PDT)
-Received: from pc636 ([37.139.158.167])
-        by smtp.gmail.com with ESMTPSA id d18sm3473580lfl.95.2019.05.29.06.58.24
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 29 May 2019 06:58:25 -0700 (PDT)
-From: Uladzislau Rezki <urezki@gmail.com>
-X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
-Date: Wed, 29 May 2019 15:58:17 +0200
-To: Roman Gushchin <guro@fb.com>
-Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Thomas Garnier <thgarnie@google.com>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>,
-	Joel Fernandes <joelaf@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
-	Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v3 4/4] mm/vmap: move BUG_ON() check to the unlink_va()
-Message-ID: <20190529135817.tr7usoi2xwx5zl2s@pc636>
-References: <20190527093842.10701-1-urezki@gmail.com>
- <20190527093842.10701-5-urezki@gmail.com>
- <20190528225001.GI27847@tower.DHCP.thefacebook.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=nMlg+I8J;
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4TDrJA7001159;
+	Wed, 29 May 2019 14:01:08 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=096L/LOXEdmc+XaWi2V/0dCL3u92z1sdlldyNO1mdgI=;
+ b=nMlg+I8J1a0BUCwqzV37xbUI5/URaP1WCX6i4ybMyd2pIT5QV/ccJEJGoB8N2X4Vg5Tz
+ Wc2y5oa4ocs5lGXdDZE6hHEmfm4jpAUNYiZ/dlkl4spLqRe1QwiSQC4w3lMbwKO18Wuy
+ U7e3yBLQmyf/5Yd540pZEL5T6gQ0olmU2OTLtr3OJkLXKvYShLe1ja3Ewd3oLNb36NOK
+ RyBvaQ7gfrXKRDWcPkTF5QmQ25+dbFT9bsj/uNvod2xON8nY31ZUsKQ5j/84uoPjv9yD
+ 8AmYvTV7IMhZX3S2LhCWRmGayuH8lUKTVBB8sEmR/QeElO+WwjzMVDjRsk1vlxv+dCjz wQ== 
+Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
+	by aserp2130.oracle.com with ESMTP id 2spu7dj5tg-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 29 May 2019 14:01:08 +0000
+Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
+	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4TE03Ll058476;
+	Wed, 29 May 2019 14:01:07 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3020.oracle.com with ESMTP id 2sr31v9chy-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 29 May 2019 14:01:07 +0000
+Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4TE11MY017847;
+	Wed, 29 May 2019 14:01:01 GMT
+Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 29 May 2019 07:01:01 -0700
+Date: Wed, 29 May 2019 10:01:02 -0400
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: akpm@linux-foundation.org, daniel.m.jordan@oracle.com, mhocko@suse.com,
+        hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: Fix recent_rotated history
+Message-ID: <20190529140102.xfxeiv3fvcw555tv@ca-dmjordan1.us.oracle.com>
+References: <155905972210.26456.11178359431724024112.stgit@localhost.localdomain>
+ <0354e97d-ecc5-f150-7b36-410984c666db@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190528225001.GI27847@tower.DHCP.thefacebook.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <0354e97d-ecc5-f150-7b36-410984c666db@virtuozzo.com>
+User-Agent: NeoMutt/20180323-268-5a959c
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9271 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905290092
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9271 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905290092
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello, Roman!
-
-> > Move the BUG_ON()/RB_EMPTY_NODE() check under unlink_va()
-> > function, it means if an empty node gets freed it is a BUG
-> > thus is considered as faulty behaviour.
+On Wed, May 29, 2019 at 11:30:09AM +0300, Kirill Tkhai wrote:
+> Missed Johannes :(
 > 
-> It's not exactly clear from the description, why it's better.
+> CC
 > 
-It is rather about if "unlink" happens on unhandled node it is
-faulty behavior. Something that clearly written in stone. We used
-to call "unlink" on detached node during merge, but after:
+> On 28.05.2019 19:09, Kirill Tkhai wrote:
+> > Johannes pointed that after commit 886cf1901db9
+> > we lost all zone_reclaim_stat::recent_rotated
+> > history. This commit fixes that.
 
-[PATCH v3 3/4] mm/vmap: get rid of one single unlink_va() when merge
+Ugh, good catch.
 
-it is not supposed to be ever happened across the logic.
+I took another pass through this series but didn't notice anything else.
 
->
-> Also, do we really need a BUG_ON() in either place?
+> > 
+> > Fixes: 886cf1901db9 "mm: move recent_rotated pages calculation to shrink_inactive_list()"
+> > Reported-by: Johannes Weiner <hannes@cmpxchg.org>
+> > Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> > ---
+> >  mm/vmscan.c |    4 ++--
+> >  1 file changed, 2 insertions(+), 2 deletions(-)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index d9c3e873eca6..1d49329a4d7d 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -1953,8 +1953,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+> >  	if (global_reclaim(sc))
+> >  		__count_vm_events(item, nr_reclaimed);
+> >  	__count_memcg_events(lruvec_memcg(lruvec), item, nr_reclaimed);
+> > -	reclaim_stat->recent_rotated[0] = stat.nr_activate[0];
+> > -	reclaim_stat->recent_rotated[1] = stat.nr_activate[1];
+> > +	reclaim_stat->recent_rotated[0] += stat.nr_activate[0];
+> > +	reclaim_stat->recent_rotated[1] += stat.nr_activate[1];
+> >  
+> >  	move_pages_to_lru(lruvec, &page_list);
+> >  
+> > 
 > 
-Historically we used to have the BUG_ON there. We can get rid of it
-for sure. But in this case, it would be harder to find a head or tail
-of it when the crash occurs, soon or later.
-
-> Isn't something like this better?
-> 
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index c42872ed82ac..2df0e86d6aff 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -1118,7 +1118,8 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
->  
->  static void __free_vmap_area(struct vmap_area *va)
->  {
-> -       BUG_ON(RB_EMPTY_NODE(&va->rb_node));
-> +       if (WARN_ON_ONCE(RB_EMPTY_NODE(&va->rb_node)))
-> +               return;
->
-I was thinking about WARN_ON_ONCE. The concern was about if the
-message gets lost due to kernel ring buffer. Therefore i used that.
-I am not sure if we have something like WARN_ONE_RATELIMIT that
-would be the best i think. At least it would indicate if a warning
-happens periodically or not.
-
-Any thoughts?
-
-Thanks for the comments!
-
---
-Vlad Rezki
 
