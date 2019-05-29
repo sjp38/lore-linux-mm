@@ -2,106 +2,123 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 18C9EC28CC2
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 15:38:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6127DC28CC1
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 15:44:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C420623AB3
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 15:38:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C420623AB3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 1004823BB5
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 15:44:54 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="CEz/AAKk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1004823BB5
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 32C206B000E; Wed, 29 May 2019 11:38:41 -0400 (EDT)
+	id 9423B6B000E; Wed, 29 May 2019 11:44:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2DC9F6B0010; Wed, 29 May 2019 11:38:41 -0400 (EDT)
+	id 8CCE06B0010; Wed, 29 May 2019 11:44:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1CBAE6B0266; Wed, 29 May 2019 11:38:41 -0400 (EDT)
+	id 745A66B0266; Wed, 29 May 2019 11:44:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C0C5A6B000E
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 11:38:40 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d15so3999348edm.7
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 08:38:40 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 39F6B6B000E
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 11:44:54 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id c3so1788152plr.16
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 08:44:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=4TQBgESvWIyC2qv4jAqQ8/XfYwZ1mN0/SAx+fIQikaw=;
-        b=dN0ECoDbLJdVBhYXO9MfhDzQlchoZjGoTY5taYgxuLlnjLu+z8K0BLSASLjZddy9+0
-         wJ57uuN/d+kuybqJrzeVBUwi6l8aq2+6m8dt2eIIifo1ec+B2twcSM06cihfzJl9srvs
-         s3178Txw+VZtMCFBuPcxxlt16dNba/rVY3bOVA2GPes1zds45aj/2mMU9hkzOUPo+cru
-         qTkS2jlFCXD9fFl1/jnbTA34NMleimbEzVGWXbv0BPh8CwY68VO2eV9PX/o4uUIjGV22
-         kYP17mkuPrPTGOrf7RqUJH5fET0S4uhThWPHtrVWj4EUpMbO6Y42rw2VaW4SwJCHaqXG
-         Vx6w==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXinuQcKYTULFUS5uquSS5XcmRoR0RGGoSoHCZfoRKZnAlffLMT
-	zcEnKjMXrpnoGoShR13sCZvXiSJg8Pf7yGiN5wzda4osJqEih/poSfNpDNi3NpCxnoPbQqsNinO
-	vpYHuWlkrrVIT5XxqGhCuwhhQZr8bIOuFjXa/ZRjNUyb4Dd2F4Wigstug2Stnpdg=
-X-Received: by 2002:aa7:d9cb:: with SMTP id v11mr136106474eds.159.1559144320268;
-        Wed, 29 May 2019 08:38:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqztdhYXuSvDyrsvc+oduzkVdcM7RqKikRqUALYauoFXnzMspNVDwoGhsJpXMIavizMFGLdU
-X-Received: by 2002:aa7:d9cb:: with SMTP id v11mr136106372eds.159.1559144319202;
-        Wed, 29 May 2019 08:38:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559144319; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=5rb0csxEYpq6VfGz5/QVGNKPlo9rHsx48NwguhVphjA=;
+        b=QeVmGFwAcmMeWF2rTyUcvHiKoGcy6hl2nnwwYUcqeukGN72ut1WNbPa33v1OVutAfI
+         wDtDx0vR0ItxEWQHf9u2kiTNtFKH7Sj5cob1XhYKu1e9ySN4amtsxaZQeBBHfQpfPGfq
+         tF+5VIzA6jCUV+rk/PzLE/h0HjLsFK+HDtKkSVCUvbSrAky7294Xp/9zfDEZReajvIhg
+         Nu1bKHtSFtWNEKroy6Ne/pjwcl1gennFOwqxbTlKN1Np/8uHZQwx0imXt2GelAu+cchi
+         K9xv/adwkQEGdkW1ERbODKliPbAFbHeEgG4ahEfp5pWCPHG4suWUS1rFJU5goY5aNJvC
+         FgTQ==
+X-Gm-Message-State: APjAAAVn5EPn89GMHf6R5S9AKpU6rpb5vjnRSxjZ5ut4kRRMb12h52qT
+	z16MHtnrewxTQynG5z3SW1s/JMHIa+Z/H9oAg2Uhjr+1ToQng0nZeZqnsWonJG5uk4i4RfolLV/
+	6HHwqIwlrh3sPGLxV0zwQlm2+qkuoy63BFFxTBYbrF8g1lWBewT81gyFyiETBJ6TctQ==
+X-Received: by 2002:a62:2e47:: with SMTP id u68mr62866697pfu.24.1559144693892;
+        Wed, 29 May 2019 08:44:53 -0700 (PDT)
+X-Received: by 2002:a62:2e47:: with SMTP id u68mr62866593pfu.24.1559144693010;
+        Wed, 29 May 2019 08:44:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559144693; cv=none;
         d=google.com; s=arc-20160816;
-        b=QJptxeUT/yifgnTIMOQADGxYDFT6FsRK3chziwxyZlvYINzrci9umoqSfP0e5LBQjV
-         pgL+l3T5OiGfRdnlyrcjIW5S/kOYMfJwOmFeCuit5jpNMvboOAe5+e7gTlnKDNTp3oHs
-         O2rIKbLzS871mTOi2H1zu/zGEPIoVupoGlrxqOELUZi5OuCBEfqKjhqoW+WAiupveuKG
-         7KCvCCVs2oLes0H7acM1NhgXDVz0c0eC/9cS2gmBl+qgT9ZQ3ciGt8VscOLytLZBX397
-         XmzdSqj1KvA5LH2dprQJVcfcC6kMo1eGGJm29gX4JhKmdpGOdBsTJfPO/15OZ8x34ZDX
-         xRrA==
+        b=BHEY4znHs5AkO2zDk5Lb9ww//YbYhcqO4zcLFf/Y8yNN0DIOnhqs18jbak1rtoIF/3
+         glV6i9SvF6bZqZTdRN4Te5e3hNa3ziWdNaDkWwXfYC70caP0Y99uwmDsCVFBRKUUqgrg
+         gPnpwaaG/6zZTSzQcbz2A+qKemG7aaqW9iFbfrfRlzVQA/UysDyh8PItRPKmq9JPoWoQ
+         dKOsR4u+d8Vnfur2A/QRvu10S30PbCiu8NTqkT9F51egtIW2tqoBAL1SwchcxQZDUzML
+         5LpaR15NTukY+d0zlAQlqjQyqxzcqwxKslah3vPPEXhQ4yG37Wuh9z011W+TGP4S08q1
+         LdrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=4TQBgESvWIyC2qv4jAqQ8/XfYwZ1mN0/SAx+fIQikaw=;
-        b=zKuctRObCUFTkSCJAkEDmh8t8F0R6ZHmFhwZTDDuGx1tDXhc4jOoYmhlIyyc5edljH
-         XoqfhKGIme1/BSmfO3OSZRIk5vkqEFcKLx0z1xVN1M90HB+xtN1Lyps8MnLvj3/VWXra
-         ZB/5Yx+jFSG2PffiPWC1MJ4f6m7YGLg4onCnxrZyilHD+KdAb8DbEugX931ybhouJld8
-         TO4CFLKacsvNXKOHjo4H5tUeP7xG2l8hqQIzbCtgaDoJelt8lJT3ywwScJs8seHF0vMW
-         JLYV07ltRL89A+D5H8R1JqVOk6JUJgCu7/WDTZ847hHQ90LRIUWfXgJpjGySOi1o6rKf
-         ORXA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=5rb0csxEYpq6VfGz5/QVGNKPlo9rHsx48NwguhVphjA=;
+        b=IyaIzhxqVYtzjbGsbUlNOKm/FMKHED7/Ca/Uam5vmDx3FAXYmN2UQxF48f7beUUqKp
+         TdLJfpKsXqG16VwreV6G/FzChHEUUirybB7bo74tnzPbx/nR4T8322tRaxi07+e13prS
+         p3pTEsVml+sCJLJ9L/lYbA30dwRQOXlBeHyY0BX5+bGUcQl53DJ4DHY6NwzlMJwtOr73
+         jnBPZcyIWMX17YFGe+weK4wFZA82JcWVwTMzgpnOCT1T+cJaCv+7juPMzJTMndBCfX2m
+         4L7NG9p5RTNjJAGazttRUoqkdbqyEFdi756e/f8LEck72N8yeSQWmGuESyh4W8jCVObA
+         3tEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j17si3123902ejv.3.2019.05.29.08.38.38
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="CEz/AAKk";
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r3sor6931pgh.12.2019.05.29.08.44.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 May 2019 08:38:39 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 29 May 2019 08:44:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id A3677AC50;
-	Wed, 29 May 2019 15:38:38 +0000 (UTC)
-Date: Wed, 29 May 2019 17:38:36 +0200
-From: Michal Hocko <mhocko@kernel.org>
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="CEz/AAKk";
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=5rb0csxEYpq6VfGz5/QVGNKPlo9rHsx48NwguhVphjA=;
+        b=CEz/AAKkGLOaVc6lKqbFaOc50JrPG1TariHgp5nHwAf4jc9op0iyz3MxM7nZQO/ymz
+         TKSA2wwMayYrX89UdiTQxgkG4S2uhqZZfbfJxJVrGdU/vGSjR0D9qbnlCv3hPvxbf04h
+         Ptmo3H9PVCcjr5mewqD05lu0+wKuy3MLedN6FiIdjWSRebWK1w/ufeqTcilgHIHBazbc
+         tyoemTy21uGhYOqr9lyIgiAn/tR8SfT65+AmsE1LktTtLpWu7PLifc6+sL7ywovtk1bi
+         74jY3Z9dWSAxMmcGS8tt10gNmMq+Ozl+YJCCkookIzFLu2enYs7QRr8eHmDBbvyKGl4B
+         9HTw==
+X-Google-Smtp-Source: APXvYqwzUrKfcPoy1hsbTCw6ESg7o3qVXGDDyPIfLq5La7nokllnQ2NESefsdh56kWG23ear160irQ==
+X-Received: by 2002:a63:e953:: with SMTP id q19mr14654295pgj.313.1559144690141;
+        Wed, 29 May 2019 08:44:50 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::1:a47c])
+        by smtp.gmail.com with ESMTPSA id u123sm34317pfu.67.2019.05.29.08.44.48
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 29 May 2019 08:44:49 -0700 (PDT)
+Date: Wed, 29 May 2019 11:44:47 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
 To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, daniel.m.jordan@oracle.com,
+Cc: akpm@linux-foundation.org, daniel.m.jordan@oracle.com, mhocko@suse.com,
 	linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Subject: Re: [PATCH] mm: Fix recent_rotated history
-Message-ID: <20190529153836.GF18589@dhcp22.suse.cz>
+Message-ID: <20190529154447.GA28937@cmpxchg.org>
 References: <155905972210.26456.11178359431724024112.stgit@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <155905972210.26456.11178359431724024112.stgit@localhost.localdomain>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 28-05-19 19:09:02, Kirill Tkhai wrote:
+On Tue, May 28, 2019 at 07:09:02PM +0300, Kirill Tkhai wrote:
 > Johannes pointed that after commit 886cf1901db9
 > we lost all zone_reclaim_stat::recent_rotated
 > history. This commit fixes that.
@@ -110,33 +127,5 @@ On Tue 28-05-19 19:09:02, Kirill Tkhai wrote:
 > Reported-by: Johannes Weiner <hannes@cmpxchg.org>
 > Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
 
-I didn't get to review the original bug series but this one looks
-obviously correct.
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/vmscan.c |    4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index d9c3e873eca6..1d49329a4d7d 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1953,8 +1953,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->  	if (global_reclaim(sc))
->  		__count_vm_events(item, nr_reclaimed);
->  	__count_memcg_events(lruvec_memcg(lruvec), item, nr_reclaimed);
-> -	reclaim_stat->recent_rotated[0] = stat.nr_activate[0];
-> -	reclaim_stat->recent_rotated[1] = stat.nr_activate[1];
-> +	reclaim_stat->recent_rotated[0] += stat.nr_activate[0];
-> +	reclaim_stat->recent_rotated[1] += stat.nr_activate[1];
->  
->  	move_pages_to_lru(lruvec, &page_list);
->  
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
