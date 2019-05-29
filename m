@@ -2,171 +2,115 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C74C3C04AB3
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:25:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4299C04AB3
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:26:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 95BAC208CB
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:25:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95BAC208CB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id 73D6121019
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:26:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73D6121019
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3E0DF6B026D; Wed, 29 May 2019 03:25:50 -0400 (EDT)
+	id 082DB6B026E; Wed, 29 May 2019 03:26:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 38EC26B026E; Wed, 29 May 2019 03:25:50 -0400 (EDT)
+	id 033EE6B0270; Wed, 29 May 2019 03:26:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 27F746B0270; Wed, 29 May 2019 03:25:50 -0400 (EDT)
+	id E8B316B0271; Wed, 29 May 2019 03:26:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D02856B026D
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 03:25:49 -0400 (EDT)
-Received: by mail-wm1-f69.google.com with SMTP id 20so653194wma.2
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 00:25:49 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B526E6B026E
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 03:26:53 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id o17so551785wrm.10
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 00:26:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=bomsryVb7O/EfEAtrXt07PzTGwnGlwCL33oL4IAcx5I=;
-        b=smIfBvEl/7xjqlXg8k1eh9OJP93VTj10ornu3qSz7zJa754a2nM3qgsRt6F6vIvF+y
-         rQCwRzDLyBdebtzT2BO+CcPIU5kF9DPrND4LBW5797VCz+F2ID6pbOSQCLLsFmxbiO1x
-         6YPIg/L/yg0woVk++0zxmSXV4pe/XeG6ZzBOGvJFI71NAweC7T2XRb/a/r79hG4eG/51
-         NRB5zc7SvzeuUvKIGa31k9WM5zFCKOGnEu5MjQRVYV25Q6pQXUIDup6/AMQonqTbz+Sm
-         1/otcmv4j+s65n9FKJ5nYf/AbNCcC1xOLLkT318lb2PNIky21L98YvFXzdZeMrsQE+bl
-         Chvg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-X-Gm-Message-State: APjAAAX7TNiXLrEuVjz1rlcdZBhgs6SJh7dX+pkKoGCLIaPRBJoCLdUj
-	a+y1W7Upoffk0hAhl2Gc3Vszcv3xi4cfjKGZu8CNAAU9wO4HIzQNIwxMRVML+btQKMDdQvvFpvH
-	3AVbNabCMDij1FPRSqLuNuEY6q0igx6LWxAyIxfeNRJc38cvtviK+xDZuqk4wVKG1VQ==
-X-Received: by 2002:a7b:c344:: with SMTP id l4mr5664747wmj.25.1559114749375;
-        Wed, 29 May 2019 00:25:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx5Hf9ddfgdVr8UXBOdqZHxGnpVHzont+NThK7hLxYew2LePwn+zJRlrWfE/D4ogxjHFrFA
-X-Received: by 2002:a7b:c344:: with SMTP id l4mr5664700wmj.25.1559114748343;
-        Wed, 29 May 2019 00:25:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559114748; cv=none;
+         :in-reply-to:user-agent;
+        bh=qh/qSPQWjgTJpode52UkaU8Ej8u/Nsp0ZG/MDjTRj7Q=;
+        b=BVhMjF+c5/Nz0nuuGsmCL2XHqZdGB5u0bkWciJ4C4dDeB/9AXKR4WIAE17DXgN25YY
+         rvSM7L20j1CepmCYBoT4+3LhXRAPlHzrBVaaXgZwesNT7Af1z7MemxRgALFj3qCbwmeY
+         +GVd//owJn65QaIkqc3HAfuVTa3w9SONOTwwpe10WSTyySEaXXy3agkOfkm5zl45rIcL
+         NfrHqCpUBKicwBlGukHfE5Gsy5YUEhs1m98jh+bMzEtBM9cl4U+cwnAj8R2GdsrIDU32
+         pBKyqrTA45WfSau4pW8dIsfAXWGlIzrbsrb0cjMO2vXwf8CpgK8uiONTl+bAmCNCJ0sZ
+         F1og==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAXDy80HKTXISW7nKaqoqfyBZ7XEErIJ06DtMXI233fz+hOHccms
+	V6HVJbW6oXtukJxgyElyVgl87m2Fqkk0haNuOkerZKCiujaw5CPqCB2RyYh6e9lPYQ7cWNA9JxU
+	wqqwey1s/cxF8Tt142MutOOtRZ737qiLXmALccNdOLUXBbLC+SaYCK5zQajQgrUfuHg==
+X-Received: by 2002:a1c:7e8d:: with SMTP id z135mr5606572wmc.72.1559114813292;
+        Wed, 29 May 2019 00:26:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwTdd9yr3+ycuFQQjUXW9/16AkvUgmYxer5G7Jpo7IYmcymfLZ1LVzmAWnrg5AIU2QEDqYf
+X-Received: by 2002:a1c:7e8d:: with SMTP id z135mr5606536wmc.72.1559114812602;
+        Wed, 29 May 2019 00:26:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559114812; cv=none;
         d=google.com; s=arc-20160816;
-        b=zGfJvO87BfbkYXLdz3D5viTU09KfR1SayzknYfhin9x7OkX4qcCMCsdneTJyPgsMwO
-         DZFDH/Sofwlsm+8i9z6labLGAzyUh/LBHZonLfWQuyVq27DQUEJWpzNrOYKd5gMMomDn
-         A5lLOD0Z24mh9vbYa61SKQX4tU+Y+fII4Si0iCEtZopjVHKSsiWU93ufnm6wZnC1moBP
-         pPRna2UpKlc9FMo59cFDOMa+Exy9cICBwbEeVrJu+gQ/883+kPkQWEF8h1SVw7gkeTj1
-         cliGO56EkZJhtysA2LmSuTwtpXJEHQZ8CJId3EJoc1ZOh+Dma5TvRJt/+6/kPB3Rfj1p
-         6v4w==
+        b=HdJWRYIMnq4nVFg71wS2yKH+ZPSixDYRtzQHGGZrbChGHVvVIj93F7irJ8FcmiR/PN
+         FVuCOt7WqzOA7guOKWBAZC3XXoNnfq7+TgcvsVbuYLLpSaLmEld8eHm0U3n57OpOsALq
+         c0D3F4XAC+X1alMvF1lJouTQQ/HOtpyMtdKBkcUHYAq+6z2Ea1kjCdopuSsacWLTxIxD
+         +/vVZb+E2FYAJKHaNV+HnZLOisjp8SL2Wfdp8KVPkDUDKSyrzQpBeLOBTk/bLev1jKSl
+         ffMNPXe/kyNgdFg8NYQZd+/MPaE0g69XmGUbSXw0DDjz1kcfpgoonOoC07Qjz20Dx3hb
+         U9fQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=bomsryVb7O/EfEAtrXt07PzTGwnGlwCL33oL4IAcx5I=;
-        b=uoVxqZCgBwUTJaJgeQfPflyeNJUxjTef6gCAy4XjG5Bc/l8HwZbG+RZCqrnVKNa8Zf
-         fvzHoVcqK/jdKDMlWG3BxBJage//H09x2amoZYusWUDRtYWOfkAaSlAlq1W3REPS52se
-         m+W/ZB7Tx7cz4xf7yE8YYJTRA86vLLqA2eEr/OvuO5QagTtWHX5VasB69pUGShrRv15i
-         +cRdvPy2XKzyMaP3wBhzHa47+gxB1VzHclgWmKUlawHpA51Vci+086S76L2GwFdtvGJ6
-         27O6C7YLSlLo7u5WEcvVgEF0U9I+FX2bBEESXVV+FPukNRwJbZ2gfWdAk2DMZQD3f5Vm
-         SAWQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=qh/qSPQWjgTJpode52UkaU8Ej8u/Nsp0ZG/MDjTRj7Q=;
+        b=CBPAOlJTB6vOdESKUFr/wlZ3ceYsc6NxAsuUZHcyt+EvWKqFHwoxKGWD05KqgSqK8t
+         uwxrzHT+qZt8EA4/3cXReVMq+ebFinAxVe56SK+RDPmlpiuSY81CJS+H/AL/0pyB1yNE
+         A8fsr+L3Bf4jofvYwK37GQEvu+cuyqx08E8f+CeGyQTF6SCxnCySVdl34QEipIcor4Cx
+         uaAzGpN2MsowQsrhthRiRcgnljyBMQVDlcf5aLOS31Bl9avdFag6tlTwUWD/iz7YEBgR
+         5jGvrDQJEqC413yKONUMQBjKyu1xymbg0LGRBOLhqPJZAHNMSXDoCDPI88rQU28CNCqX
+         QqtA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id x23si2893705wrd.77.2019.05.29.00.25.48
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id c6si3697918wmb.103.2019.05.29.00.26.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 29 May 2019 00:25:48 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 May 2019 00:26:52 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of bigeasy@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=bigeasy@linutronix.de
-Received: from bigeasy by Galois.linutronix.de with local (Exim 4.80)
-	(envelope-from <bigeasy@linutronix.de>)
-	id 1hVsxw-0002SA-HC; Wed, 29 May 2019 09:25:40 +0200
-Date: Wed, 29 May 2019 09:25:40 +0200
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, x86@kernel.org,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Borislav Petkov <bp@suse.de>,
-	Pavel Machek <pavel@ucw.cz>,
-	Dave Hansen <dave.hansen@linux.intel.com>
-Subject: [PATCH v2] x86/fpu: Use fault_in_pages_writeable() for pre-faulting
-Message-ID: <20190529072540.g46j4kfeae37a3iu@linutronix.de>
-References: <20190526173325.lpt5qtg7c6rnbql5@linutronix.de>
- <20190528211826.0fa593de5f2c7480357d3ca5@linux-foundation.org>
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id 6E18068AFE; Wed, 29 May 2019 09:26:28 +0200 (CEST)
+Date: Wed, 29 May 2019 09:26:28 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+	Christoph Hellwig <hch@lst.de>, Paul Burton <paul.burton@mips.com>,
+	James Hogan <jhogan@kernel.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Nicholas Piggin <npiggin@gmail.com>, linux-mips@vger.kernel.org,
+	Linux-sh list <linux-sh@vger.kernel.org>,
+	sparclinux@vger.kernel.org, Linux-MM <linux-mm@kvack.org>,
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 4/6] mm: add a gup_fixup_start_addr hook
+Message-ID: <20190529072628.GA4149@lst.de>
+References: <20190525133203.25853-1-hch@lst.de> <20190525133203.25853-5-hch@lst.de> <CAHk-=wg-KDU9Gp8NGTAffEO2Vh6F_xA4SE9=PCOMYamnEj0D4w@mail.gmail.com> <2eecb673-cb18-990e-0a61-900ecd056152@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <20190528211826.0fa593de5f2c7480357d3ca5@linux-foundation.org>
-User-Agent: NeoMutt/20180716
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <2eecb673-cb18-990e-0a61-900ecd056152@oracle.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000003, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-=46rom: Hugh Dickins <hughd@google.com>
+On Tue, May 28, 2019 at 09:57:25AM -0600, Khalid Aziz wrote:
+> Since untagging addresses is a generic need required for far more than
+> gup, I prefer the way Andrey wrote it -
+> <https://patchwork.kernel.org/patch/10923637/>
 
-Since commit
-
-   d9c9ce34ed5c8 ("x86/fpu: Fault-in user stack if copy_fpstate_to_sigframe=
-() fails")
-
-we use get_user_pages_unlocked() to pre-faulting user's memory if a
-write generates a pagefault while the handler is disabled.
-This works in general and uncovered a bug as reported by Mike Rapoport.
-It has been pointed out that this function may be fragile and a
-simple pre-fault as in fault_in_pages_writeable() would be a better
-solution. Better as in taste and simplicity: That write (as performed by
-the alternative function) performs exactly the same faulting of memory
-that we had before. This was suggested by Hugh Dickins and Andrew
-Morton.
-
-Use fault_in_pages_writeable() for pre-faulting of user's stack.
-
-Fixes: d9c9ce34ed5c8 ("x86/fpu: Fault-in user stack if copy_fpstate_to_sigf=
-rame() fails")
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Hugh Dickins <hughd@google.com>
-[bigeasy: patch description]
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
----
-v1=E2=80=A6v2: Added a Fixes tag.
-
- arch/x86/kernel/fpu/signal.c | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
-
-diff --git a/arch/x86/kernel/fpu/signal.c b/arch/x86/kernel/fpu/signal.c
-index 5a8d118bc423e..060d6188b4533 100644
---- a/arch/x86/kernel/fpu/signal.c
-+++ b/arch/x86/kernel/fpu/signal.c
-@@ -5,6 +5,7 @@
-=20
- #include <linux/compat.h>
- #include <linux/cpu.h>
-+#include <linux/pagemap.h>
-=20
- #include <asm/fpu/internal.h>
- #include <asm/fpu/signal.h>
-@@ -189,15 +190,7 @@ int copy_fpstate_to_sigframe(void __user *buf, void __=
-user *buf_fx, int size)
- 	fpregs_unlock();
-=20
- 	if (ret) {
--		int aligned_size;
--		int nr_pages;
--
--		aligned_size =3D offset_in_page(buf_fx) + fpu_user_xstate_size;
--		nr_pages =3D DIV_ROUND_UP(aligned_size, PAGE_SIZE);
--
--		ret =3D get_user_pages_unlocked((unsigned long)buf_fx, nr_pages,
--					      NULL, FOLL_WRITE);
--		if (ret =3D=3D nr_pages)
-+		if (!fault_in_pages_writeable(buf_fx, fpu_user_xstate_size))
- 			goto retry;
- 		return -EFAULT;
- 	}
---=20
-2.20.1
+Linus, what do you think of picking up that trivial prep patch for
+5.2?  That way the arm64 and get_user_pages series can progress
+independently for 5.3.
 
