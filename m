@@ -4,104 +4,104 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E25FDC28CC1
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:36:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E5545C28CC0
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:36:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8ED7024223
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:36:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8EC6824223
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:36:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="h0HkURYE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8ED7024223
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="LTkQ1wQE"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EC6824223
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CCE1F6B026A; Wed, 29 May 2019 17:36:54 -0400 (EDT)
+	id 0A2BB6B026D; Wed, 29 May 2019 17:36:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CA8436B026D; Wed, 29 May 2019 17:36:54 -0400 (EDT)
+	id EEF596B0273; Wed, 29 May 2019 17:36:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AD12F6B0274; Wed, 29 May 2019 17:36:54 -0400 (EDT)
+	id C3CC36B0272; Wed, 29 May 2019 17:36:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5432F6B026D
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A0DE6B026A
 	for <linux-mm@kvack.org>; Wed, 29 May 2019 17:36:54 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id r191so786966pgr.23
+Received: by mail-pf1-f200.google.com with SMTP id f1so2902184pfb.0
         for <linux-mm@kvack.org>; Wed, 29 May 2019 14:36:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
          :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
          :message-id:in-reply-to:references:mime-version;
-        bh=e4fE3iJAPMCO/Qbuvxgy9RjCcmbzJ+JxIMLpqr9tekI=;
-        b=B8eLg95d1zofvcCONdptKO0klnQMhVFY2WSsBZRxI9pLvpvGQkc8X4fWO5mYJofVBY
-         vF9K1NTaCr49D4TBW76iIfDka25UyQgohk86DqMsw5Ro6RN0DHZIt1K5FAqwH0s5Fe8e
-         3lMfm1ZnAmbeuWqnxsVzwjy0aygkWpDiC4nIo3FO7UQFI8l+s+X1/Uc5nJfJgA+vIM1z
-         FChovOGiXor3N9OzGEKiAfjtIAvH20fk7zXnvK5uxFT2EvaHj4rEkKOmBlGvOxZWsYI9
-         zFD0qYfEnyZ4+fIeU48R1LUQjpSjTxzEj/mFSdrPF8cmExCUS+z0+I3fCkH/R2Qh9Mr7
-         GP2w==
-X-Gm-Message-State: APjAAAU4+Z302ivVZ522qmM4V7nkNyCl0BS0bvHsbq5Tj/H8HQH0pBwO
-	uvhr52emkn2Wyn9iJ/gIeV4uIh6lo3HA7h7+YBBgPBtyPRwxEC5Qx4/lyJRYUbpCwUGkqCBDqXu
-	VUm0p4ciudjieWpMRnh8xpk5PLgVcVMN2B1umEi5SCnzg0SjrWMERMgL+wfYrNVF79Q==
-X-Received: by 2002:a63:ee0b:: with SMTP id e11mr93726pgi.453.1559165813900;
+        bh=qndMC0xqMluPTNov9/3iwaOnMII97myVrvnzznwxlUw=;
+        b=ZANSFr9ZbjsnlcmC+cLdjhGQLth06hxWNScIqfDa9v2lMqqBGfHIR+eeI8vd0clXYl
+         ysmkRUPngBcPt7HOVzrOp+1+tuhJYyGhKD2SQwAJdWgWCNKp54OzLZh8HPhidCNV4WTd
+         cXHMUNLyaD6VnBb4mliM1MCGQSBgVN1EU9JGg18Bd1/zwll04tdm1Z823b/Wn+DrdMUh
+         QDBBr5OEsVKUHBMndfB3UKw6Og/xO5fZhp2PcA84NK8s3GePmtj01yuUy1ya7KPyixmy
+         JqnQaAeo/gsCKfLA9bMCR4qveJf9kH9qIswCNaLPYfgPEi/mAs59kU3vn9WebZo1djwU
+         r3Jw==
+X-Gm-Message-State: APjAAAX7ki4TFsspf03otl3/i5c9Qx/eOqZtggmdZNtMJIE8Gs5FE1bf
+	Ee3ZTP+7hBBzyM01/cFQNhN2S8Yu5oTPN6Hj4xkuBircTHsDlCRi4W240EUijdVGgiSd2eLoSrk
+	aj9eyuDpni9b83zJrYpkhAsY5zHv4vXduwmu5DAI80d/1RidQAZF6RcuzrBfjLOA3AQ==
+X-Received: by 2002:a17:90a:9dca:: with SMTP id x10mr103429pjv.105.1559165813947;
         Wed, 29 May 2019 14:36:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy5HJq6HynN9xSxkO/u3kYbTd8P0d0bAp4h8+ONUM/HPit4Y+QJNo/3khDmKQg+pqKnanDc
-X-Received: by 2002:a63:ee0b:: with SMTP id e11mr93675pgi.453.1559165812699;
+X-Google-Smtp-Source: APXvYqxV1I+Ej+jSpQKU/0gctSjl2ZFb0xmeOjFhUP6i+XOPKoyRuMJfMkja4K38CnvTQ7rTDuxM
+X-Received: by 2002:a17:90a:9dca:: with SMTP id x10mr103373pjv.105.1559165812697;
         Wed, 29 May 2019 14:36:52 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1559165812; cv=none;
         d=google.com; s=arc-20160816;
-        b=pZe++amySsExI5Ik3E95J+EHvEdaN9krgMBMMYe+/vD/gxu286AP1ILjCRAbatPoj2
-         9NnxLejQMmgXpfRyn+09zRnW9jN4xqMeW23NzBu+PSJzQyxbLRB4Mvr4HUr15oQ9JELj
-         1vJKnh2NXC+P5v0n7QPA3nUxb87FHCFGJrDoMpFihRdeeAKgupAkoFQPWQzCHvEbDpfd
-         mlS0dXghW0XqIGf1h2k2Z6a9XL/gNDobI1QfBdx1ntnAsuAo4gC4BE6zk0PTROKcc1uX
-         Mgyup7g6lyjvH61j2918DdPPnS4SSzovv8hrwsfZzItOVT2/Ah8o2g3jFYo9COaET/3r
-         DUBQ==
+        b=OwvHQLSV/IeJRJmUopLOUVLnzbC7ZGtIaJUwXUlXSktWHn9D4hxqEJYYU9Wz58t3LI
+         yaz3hSA152h6NFku3DLYLCQsVNHqVcyTp0nLyisB/gmJWi+YVIt2+wxCB+zrDFCKsrwE
+         /1ZJmadhZ6FCBQ+YgBy6opfrVm87wmk42W85t5X0uW1O3WfagNC5K3JYPd1fAC6S3+7J
+         15flbD3OoMCWV6LY8XVKOZwNhezF7amH292x8Y1J79sZ8TCy+xkhhduypYOGc+7tHaqW
+         6vhdyxuSyKjMXfy4e4Ca7Fzs0L5Y/NUahOWShGXiPCmEVBqyzaEDU+3OK+qnAGznHJzU
+         pATA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject
          :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
          :smtp-origin-hostprefix:dkim-signature;
-        bh=e4fE3iJAPMCO/Qbuvxgy9RjCcmbzJ+JxIMLpqr9tekI=;
-        b=bt9eVLEPwJW9QnL8C5Tww3MT3VRpVRdTcYrEYZqdvpb/remCqdd3y7vV5wLohLuGoC
-         2ew2KDwvgbCkqkp2ii+h4XrxscuHFyYjG273QY1t+bXQsNhGedD1ItEPeJK6TpYAoglk
-         LAg05BnqvYg8yutOy1PF28CyLvwsSyHRAzemnoceewHhjiXuCSsGyOpZL86XVbdySTfS
-         kpojUQ/Br6a+Fx2CRomLYh1gWdxaQaAZaDFBc0H8Zd3Rin58xPbwZFQItXJNqXVwSzNo
-         PSS6jUrXFLgHCkxFsq7JLfCN28XybfrPPK6NNWJlO2Wd0VDxn7fL2Z+6dw6cnkoImf67
-         01Ew==
+        bh=qndMC0xqMluPTNov9/3iwaOnMII97myVrvnzznwxlUw=;
+        b=i7hJidAAvBb56i9dzfSxJMxBkufujDSR8K5r89MzsSnMCYgE0bYR2oNlbEeGBaws4h
+         30EXDK99s60vh5KmXf/rNwzaPgkuJg1aaTto1+N1BZRUjiOLvx8cAH98sLG0cGcIZc2V
+         V34ZIu41yDaHZPFlNNdv6HjF9fnAygvRJq4dpzF8n0n+jiOfA5S4BstcMGmQK6pBfzB/
+         6qXU9jjYim6AKJAZGEjFnEh6dJjxJaWh/S3sbN+hDYUNKp7FVY4+EHa93GvzE0XgT7zf
+         a+nsJgOVi0qGd5BsWla4E+F1TZgR5SwcrOUb1eJqoEoxI6Gp+K+3itAk75q6AR/flquL
+         jgQA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=h0HkURYE;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=LTkQ1wQE;
        spf=pass (google.com: domain of prvs=105246f206=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=105246f206=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
 Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id q17si981771pgl.27.2019.05.29.14.36.52
+        by mx.google.com with ESMTPS id x21si691542pjn.61.2019.05.29.14.36.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 29 May 2019 14:36:52 -0700 (PDT)
 Received-SPF: pass (google.com: domain of prvs=105246f206=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=h0HkURYE;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=LTkQ1wQE;
        spf=pass (google.com: domain of prvs=105246f206=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=105246f206=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044008.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4TLTHvl011980
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 14:36:50 -0700
+Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4TLXFaA029780
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 14:36:51 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
  : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=e4fE3iJAPMCO/Qbuvxgy9RjCcmbzJ+JxIMLpqr9tekI=;
- b=h0HkURYEjg9fLq+Wub9w8QuMyIbE+9Tj+Oqdm/UqK7ZWyiyevkDoiDhjnAiyxq3fmWjb
- CmnSzy8S7tTvI9S7+mGGz+SQD1UwS4UVUYfXqpEZo/bWpJfacN1KdQUipB0xsjLGZR8z
- 4BaEmDl5lLMvC7QiE8fzH4U6+/q3lzwXcAY= 
+ content-type; s=facebook; bh=qndMC0xqMluPTNov9/3iwaOnMII97myVrvnzznwxlUw=;
+ b=LTkQ1wQEoMYl6maX4Qm4eWZZSKF3T2qxbtzfn/2yYogdb+4V3LFaHgo8wiAq6NGxBkJd
+ aTe758DWrooYpZU6e6V+eiqY1EGkBCpvv9Z69AZbPJDMWWk8QIZwKrbAS3IHE9TcYJkb
+ ZWVuxyitfP5YHkU3ABSScb9jAn2gSEVFV0E= 
 Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2ssv0esfw1-6
+	by mx0a-00082601.pphosted.com with ESMTP id 2ssqq9jb6r-8
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
 	for <linux-mm@kvack.org>; Wed, 29 May 2019 14:36:50 -0700
 Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
- mail.thefacebook.com (2620:10d:c081:35::125) with Microsoft SMTP Server
+ mail.thefacebook.com (2620:10d:c081:35::129) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
- Wed, 29 May 2019 14:36:49 -0700
+ Wed, 29 May 2019 14:36:48 -0700
 Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
-	id C392762E1F88; Wed, 29 May 2019 14:21:11 -0700 (PDT)
+	id 47ACB62E215C; Wed, 29 May 2019 14:21:22 -0700 (PDT)
 Smtp-Origin-Hostprefix: devbig
 From: Song Liu <songliubraving@fb.com>
 Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
@@ -113,9 +113,9 @@ CC: <namit@vmware.com>, <peterz@infradead.org>, <oleg@redhat.com>,
         <chad.mynhier@oracle.com>, <mike.kravetz@oracle.com>,
         Song Liu <songliubraving@fb.com>
 Smtp-Origin-Cluster: ftw2c04
-Subject: [PATCH uprobe, thp 1/4] mm, thp: allow preallocate pgtable for split_huge_pmd_address()
-Date: Wed, 29 May 2019 14:20:46 -0700
-Message-ID: <20190529212049.2413886-2-songliubraving@fb.com>
+Subject: [PATCH uprobe, thp 3/4] uprobe: support huge page by only splitting the pmd
+Date: Wed, 29 May 2019 14:20:48 -0700
+Message-ID: <20190529212049.2413886-4-songliubraving@fb.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190529212049.2413886-1-songliubraving@fb.com>
 References: <20190529212049.2413886-1-songliubraving@fb.com>
@@ -125,9 +125,9 @@ Content-Type: text/plain
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-29_11:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=971 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1905290134
 X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -136,164 +136,174 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently, __split_huge_pmd_locked() uses page fault to handle file backed
-THP. This is required because splitting pmd requires allocating a new
-pgtable.
+Instead of splitting the compound page with FOLL_SPLIT, this patch allows
+uprobe to only split pmd for huge pages.
 
-This patch allows the caller of __split_huge_pmd_locked() and
-split_huge_pmd_address() to preallocate the pgtable, so that refault is
-not required.
-
-This is useful when the caller of split_huge_pmd_address() would like to
-use small pages before refault.
+A helper function mm_address_trans_huge(mm, address) was introduced to
+test whether the address in mm is pointing to THP.
 
 Signed-off-by: Song Liu <songliubraving@fb.com>
 ---
- include/linux/huge_mm.h |  5 +++--
- mm/huge_memory.c        | 33 +++++++++++++++++++++++----------
- mm/rmap.c               |  2 +-
- 3 files changed, 27 insertions(+), 13 deletions(-)
+ include/linux/huge_mm.h |  8 ++++++++
+ kernel/events/uprobes.c | 38 ++++++++++++++++++++++++++++++++------
+ mm/huge_memory.c        | 24 ++++++++++++++++++++++++
+ 3 files changed, 64 insertions(+), 6 deletions(-)
 
 diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 7cd5c150c21d..2d8a40fd06e4 100644
+index 2d8a40fd06e4..4832d6580969 100644
 --- a/include/linux/huge_mm.h
 +++ b/include/linux/huge_mm.h
-@@ -161,7 +161,7 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 
- 
+@@ -163,6 +163,8 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
  void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
--		bool freeze, struct page *page);
-+		bool freeze, struct page *page, pgtable_t prealloc_pgtable);
+ 		bool freeze, struct page *page, pgtable_t prealloc_pgtable);
  
++bool mm_address_trans_huge(struct mm_struct *mm, unsigned long address);
++
  void __split_huge_pud(struct vm_area_struct *vma, pud_t *pud,
  		unsigned long address);
-@@ -299,7 +299,8 @@ static inline void deferred_split_huge_page(struct page *page) {}
- static inline void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long address, bool freeze, struct page *page) {}
- static inline void split_huge_pmd_address(struct vm_area_struct *vma,
--		unsigned long address, bool freeze, struct page *page) {}
-+		unsigned long address, bool freeze, struct page *page,
-+		pgtable_t prealloc_pgtable) {}
  
- #define split_huge_pud(__vma, __pmd, __address)	\
- 	do { } while (0)
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 9f8bce9a6b32..dcb0e30213af 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2118,7 +2118,7 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
- }
+@@ -302,6 +304,12 @@ static inline void split_huge_pmd_address(struct vm_area_struct *vma,
+ 		unsigned long address, bool freeze, struct page *page,
+ 		pgtable_t prealloc_pgtable) {}
  
- static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
--		unsigned long haddr, bool freeze)
-+		unsigned long haddr, bool freeze, pgtable_t prealloc_pgtable)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct page *page;
-@@ -2133,10 +2133,15 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 	VM_BUG_ON_VMA(vma->vm_end < haddr + HPAGE_PMD_SIZE, vma);
- 	VM_BUG_ON(!is_pmd_migration_entry(*pmd) && !pmd_trans_huge(*pmd)
- 				&& !pmd_devmap(*pmd));
-+	/* only file backed vma need preallocate pgtable*/
-+	VM_BUG_ON(vma_is_anonymous(vma) && prealloc_pgtable);
- 
- 	count_vm_event(THP_SPLIT_PMD);
- 
--	if (!vma_is_anonymous(vma)) {
-+	if (prealloc_pgtable) {
-+		pgtable_trans_huge_deposit(mm, pmd, prealloc_pgtable);
-+		mm_inc_nr_pmds(mm);
-+	} else if (!vma_is_anonymous(vma)) {
- 		_pmd = pmdp_huge_clear_flush_notify(vma, haddr, pmd);
- 		/*
- 		 * We are going to unmap this huge page. So
-@@ -2277,8 +2282,9 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
- 	}
- }
- 
--void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
--		unsigned long address, bool freeze, struct page *page)
-+static void ____split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long address, bool freeze, struct page *page,
-+		pgtable_t prealloc_pgtable)
- {
- 	spinlock_t *ptl;
- 	struct mmu_notifier_range range;
-@@ -2303,7 +2309,8 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 			clear_page_mlock(page);
- 	} else if (!(pmd_devmap(*pmd) || is_pmd_migration_entry(*pmd)))
- 		goto out;
--	__split_huge_pmd_locked(vma, pmd, range.start, freeze);
-+	__split_huge_pmd_locked(vma, pmd, range.start, freeze,
-+				prealloc_pgtable);
- out:
- 	spin_unlock(ptl);
- 	/*
-@@ -2322,8 +2329,14 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 	mmu_notifier_invalidate_range_only_end(&range);
- }
- 
-+void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
-+		unsigned long address, bool freeze, struct page *page)
++static inline bool mm_address_trans_huge(struct mm_struct *mm,
++					 unsigned long address)
 +{
-+	____split_huge_pmd(vma, pmd, address, freeze, page, NULL);
++	return false;
 +}
 +
- void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
--		bool freeze, struct page *page)
-+		bool freeze, struct page *page, pgtable_t prealloc_pgtable)
+ #define split_huge_pud(__vma, __pmd, __address)	\
+ 	do { } while (0)
+ 
+diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
+index ba49da99d2a2..56eeccc2f7a2 100644
+--- a/kernel/events/uprobes.c
++++ b/kernel/events/uprobes.c
+@@ -26,6 +26,7 @@
+ #include <linux/percpu-rwsem.h>
+ #include <linux/task_work.h>
+ #include <linux/shmem_fs.h>
++#include <asm/pgalloc.h>
+ 
+ #include <linux/uprobes.h>
+ 
+@@ -153,7 +154,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
  {
- 	pgd_t *pgd;
- 	p4d_t *p4d;
-@@ -2344,7 +2357,7 @@ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	struct page_vma_mapped_walk pvmw = {
+-		.page = old_page,
++		.page = compound_head(old_page),
+ 		.vma = vma,
+ 		.address = addr,
+ 	};
+@@ -165,8 +166,6 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+ 	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, mm, addr,
+ 				addr + PAGE_SIZE);
  
- 	pmd = pmd_offset(pud, address);
+-	VM_BUG_ON_PAGE(PageTransHuge(old_page), old_page);
+-
+ 	if (!orig) {
+ 		err = mem_cgroup_try_charge(new_page, vma->vm_mm, GFP_KERNEL,
+ 					    &memcg, false);
+@@ -188,7 +187,8 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
  
--	__split_huge_pmd(vma, pmd, address, freeze, page);
-+	____split_huge_pmd(vma, pmd, address, freeze, page, prealloc_pgtable);
+ 	get_page(new_page);
+ 	if (orig) {
+-		page_add_file_rmap(new_page, false);
++		page_add_file_rmap(compound_head(new_page),
++				   PageTransHuge(compound_head(new_page)));
+ 		inc_mm_counter(mm, mm_counter_file(new_page));
+ 		dec_mm_counter(mm, MM_ANONPAGES);
+ 	} else {
+@@ -207,7 +207,8 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+ 	set_pte_at_notify(mm, addr, pvmw.pte,
+ 			mk_pte(new_page, vma->vm_page_prot));
+ 
+-	page_remove_rmap(old_page, false);
++	page_remove_rmap(compound_head(old_page),
++			 PageTransHuge(compound_head(old_page)));
+ 	if (!page_mapped(old_page))
+ 		try_to_free_swap(old_page);
+ 	page_vma_mapped_walk_done(&pvmw);
+@@ -475,17 +476,42 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
+ 	struct vm_area_struct *vma;
+ 	int ret, is_register, ref_ctr_updated = 0;
+ 	pgoff_t index;
++	pgtable_t prealloc_pgtable = NULL;
++	unsigned long foll_flags = FOLL_FORCE;
+ 
+ 	is_register = is_swbp_insn(&opcode);
+ 	uprobe = container_of(auprobe, struct uprobe, arch);
+ 
++	/* do not FOLL_SPLIT yet */
++	ret = get_user_pages_remote(NULL, mm, vaddr, 1,
++			foll_flags, &old_page, &vma, NULL);
++
++	if (ret <= 0)
++		return ret;
++
++	if (mm_address_trans_huge(mm, vaddr)) {
++		prealloc_pgtable = pte_alloc_one(mm);
++		if (likely(prealloc_pgtable)) {
++			split_huge_pmd_address(vma, vaddr, false, NULL,
++					       prealloc_pgtable);
++			goto verify;
++		} else {
++			/* fallback to FOLL_SPLIT */
++			foll_flags |= FOLL_SPLIT;
++			put_page(old_page);
++		}
++	} else {
++		goto verify;
++	}
++
+ retry:
+ 	/* Read the page with vaddr into memory */
+ 	ret = get_user_pages_remote(NULL, mm, vaddr, 1,
+-			FOLL_FORCE | FOLL_SPLIT, &old_page, &vma, NULL);
++			foll_flags, &old_page, &vma, NULL);
+ 	if (ret <= 0)
+ 		return ret;
+ 
++verify:
+ 	ret = verify_opcode(old_page, vaddr, &opcode);
+ 	if (ret <= 0)
+ 		goto put_old;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index dcb0e30213af..4714871353c0 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2360,6 +2360,30 @@ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
+ 	____split_huge_pmd(vma, pmd, address, freeze, page, prealloc_pgtable);
  }
  
++bool mm_address_trans_huge(struct mm_struct *mm, unsigned long address)
++{
++	pgd_t *pgd;
++	p4d_t *p4d;
++	pud_t *pud;
++	pmd_t *pmd;
++
++	pgd = pgd_offset(mm, address);
++	if (!pgd_present(*pgd))
++		return false;
++
++	p4d = p4d_offset(pgd, address);
++	if (!p4d_present(*p4d))
++		return false;
++
++	pud = pud_offset(p4d, address);
++	if (!pud_present(*pud))
++		return false;
++
++	pmd = pmd_offset(pud, address);
++
++	return pmd_trans_huge(*pmd);
++}
++
  void vma_adjust_trans_huge(struct vm_area_struct *vma,
-@@ -2360,7 +2373,7 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
- 	if (start & ~HPAGE_PMD_MASK &&
- 	    (start & HPAGE_PMD_MASK) >= vma->vm_start &&
- 	    (start & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= vma->vm_end)
--		split_huge_pmd_address(vma, start, false, NULL);
-+		split_huge_pmd_address(vma, start, false, NULL, NULL);
- 
- 	/*
- 	 * If the new end address isn't hpage aligned and it could
-@@ -2370,7 +2383,7 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
- 	if (end & ~HPAGE_PMD_MASK &&
- 	    (end & HPAGE_PMD_MASK) >= vma->vm_start &&
- 	    (end & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= vma->vm_end)
--		split_huge_pmd_address(vma, end, false, NULL);
-+		split_huge_pmd_address(vma, end, false, NULL, NULL);
- 
- 	/*
- 	 * If we're also updating the vma->vm_next->vm_start, if the new
-@@ -2384,7 +2397,7 @@ void vma_adjust_trans_huge(struct vm_area_struct *vma,
- 		if (nstart & ~HPAGE_PMD_MASK &&
- 		    (nstart & HPAGE_PMD_MASK) >= next->vm_start &&
- 		    (nstart & HPAGE_PMD_MASK) + HPAGE_PMD_SIZE <= next->vm_end)
--			split_huge_pmd_address(next, nstart, false, NULL);
-+			split_huge_pmd_address(next, nstart, false, NULL, NULL);
- 	}
- }
- 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index e5dfe2ae6b0d..6970d732507c 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1361,7 +1361,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 
- 	if (flags & TTU_SPLIT_HUGE_PMD) {
- 		split_huge_pmd_address(vma, address,
--				flags & TTU_SPLIT_FREEZE, page);
-+				flags & TTU_SPLIT_FREEZE, page, NULL);
- 	}
- 
- 	/*
+ 			     unsigned long start,
+ 			     unsigned long end,
 -- 
 2.17.1
 
