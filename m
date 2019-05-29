@@ -2,167 +2,204 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AB5A3C28CC2
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 22:54:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9784FC28CC2
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 22:57:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6F3F5242BC
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 22:54:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 51361242BC
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 22:57:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="i2m6pNEp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F3F5242BC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=kernel-dk.20150623.gappssmtp.com header.i=@kernel-dk.20150623.gappssmtp.com header.b="HE9E00Ev"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51361242BC
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.dk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 05F2D6B026A; Wed, 29 May 2019 18:54:34 -0400 (EDT)
+	id D092B6B026E; Wed, 29 May 2019 18:57:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 00FEA6B026D; Wed, 29 May 2019 18:54:33 -0400 (EDT)
+	id CBA3D6B026F; Wed, 29 May 2019 18:57:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E412F6B026E; Wed, 29 May 2019 18:54:33 -0400 (EDT)
+	id B810C6B0270; Wed, 29 May 2019 18:57:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AD19A6B026A
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 18:54:33 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id d125so3043569pfd.3
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 15:54:33 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 82AED6B026E
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 18:57:17 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id k22so3009360pfg.18
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 15:57:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=jSKQLZwrhmnSigLvBb1y7bTu3QweUmRNvIXEtuAqha8=;
-        b=Fn52LCAPW8gtIORrHK1r2YTFO/t9O0WrPTQMha7j3uoKkoyJ5kTCKVBPx2tdEJPIgN
-         yR0iZupRhCxifulz5N73Xo46Bu9yDkd/1Z089YazoOnL/cpvkhovVjP/1vKqvXrS2VKi
-         +PifcFkOSpP7d5XzFozt1RG6r+Mm687gqu6lSehIJc6RcfFwnXf5TWzNjSCfCeU8AtQl
-         hX9VDtFF1qkL6DmT26+IN3ii8Ym3D3/Nq2lZTrdUkM+trDcUWSTYzBfqTBmGJ0xW4yEC
-         +9g53PFFcklX6R7PE6uafIngv4dqTFyIZkdhP3dfL9YUo5KqJORmeeG9SBtmElpQDdcF
-         7Itw==
-X-Gm-Message-State: APjAAAWD6/4/i5W+QPtoSSATwPVWbynUrhYhPDyWhY++bzNY4Hm5fzMd
-	XOuh1o5kuhuFsAvK4Hb/4ad1go0grq+586lPJ9wddxrLHtgI9Zi3ECARD2UFrqZ0FcZ9WNRTt3q
-	zcYWjsnd+OT8CZYx+3zO1BDb00C79m7I4JVVD1/fA/knwjUcwOlZuFt/k1zcgx8KiWA==
-X-Received: by 2002:a17:90a:ac18:: with SMTP id o24mr388404pjq.116.1559170473238;
-        Wed, 29 May 2019 15:54:33 -0700 (PDT)
-X-Received: by 2002:a17:90a:ac18:: with SMTP id o24mr388335pjq.116.1559170472450;
-        Wed, 29 May 2019 15:54:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559170472; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=ccsFrMe6KP8aiz8EyYKirxWsnxkvhC/brM0NiqqoSf0=;
+        b=mQ8IXs64wI+oa5eOYrYb5C40SzUtWbtydVFs3ZF87Vq42YwODwfDcroqtoKHiedPUK
+         9eHcmIySB+S6Lbg+/qsSpnG7//jShn8t4aIfA4OS9PPcOrlffMlw3WTCLGVuq2Gerfae
+         /FDXEuW+15s3C3bDmCqiP8xb0f/oZwhSeFrA2BkMLAy62wa2Vfu51dqeMoaz8FsTSL1c
+         Ag3vyPtT+khYIUpH7rraR+k26eyyhH8qPoKmixt/iMaAt5wUdUnq118IAbsojJ0uKC1p
+         sRxLgMZs+v+LARb3jQLlTUzGivv6S3Owtay/KZfI6d8ya7E0XVystsN5hXeop9Ptpi37
+         tNTA==
+X-Gm-Message-State: APjAAAVR1sC8o5I9TApiEb4wn4SIg1RcSueTlQwwFpbWEPoOJ6dvaHDz
+	VXoKisnOlr/VvbXAl0fs5TqHs5V822gI8qy2ylhJr4I7PfX2BRPFA1L23tBMidi3GvzVc2gE8+R
+	fT6zQowSzwlS8fUMNO2o86Ta5JtlwFSh8yDFE8wFt3lmghwDhnZR0AP+3Kyy2oaqlhA==
+X-Received: by 2002:a17:902:1347:: with SMTP id r7mr462000ple.45.1559170637189;
+        Wed, 29 May 2019 15:57:17 -0700 (PDT)
+X-Received: by 2002:a17:902:1347:: with SMTP id r7mr461954ple.45.1559170636449;
+        Wed, 29 May 2019 15:57:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559170636; cv=none;
         d=google.com; s=arc-20160816;
-        b=gEt3Jch7QBvq7Bb3Q7bRWkpWYNwkiHVm+ML8+bstXMUvZo5Mwx15FHGTdtGbHKTY6p
-         LfZrqCprkuVwUhq3kb2zvbgpdFlayUBXZxCbWulDRBlpw9tbDhmXiOiIRnzDnyUY2rRh
-         9zi9vqP6uscATLWVg7RJeU23ROgmIynF7vD2vbuGILzhcG9ECwnzSIN5deQhDstg/xXf
-         hlkLl9/uGaPWwTMVhCHoIu1qYJ8/8449Yx0okvld71gYIXCL0LIx7ZAUorNwhJvVUN3l
-         eZBErGk/Fdl2iMkYA+4Qfgiso3k2wBgL5oEnhglqQpodq7uMIZOr2ieq0U6Z93GafF3y
-         743Q==
+        b=nTpejFLWxMP+C0qtY9db9AclcWoH6bMf9jotysfGxUi3f7L9mPkNtJtb8fsZ9hPor/
+         TXTn7sfn1farDVzgHpj7xswo/ObRodgRYn7jtbk00JXccJPbaaSYe4u+4JQLAWGW+jk0
+         QqwPuyZwIaKtZjMgxJUbaRoZHUiOVLYp08mIwhMfA3EKSg1Sza2uXMD+2h/cNo5EX5MX
+         mhjZx3WI29PKz1dAA9rSr9VqjZm4AilhvkfpNFKCCi3Ev+npbjSauonMjFE0kAZD0Yds
+         IVVJanEkXOzc0WOZIqQfdXWgY+W+8XM/YsHjxPqWhAuqoLzH1qlwXeBqRo90BvJh54pr
+         YjZg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=jSKQLZwrhmnSigLvBb1y7bTu3QweUmRNvIXEtuAqha8=;
-        b=eW5jVLtdDEokHpk2WaC0xFz5h4nldSM+9wmXGYSWUKfZp5EV8oG4cSWSJXSCAq3OfY
-         D0aZHP9RrRa8Cg0LEE1WedTshTJFVHr9u1kErlnsjnB7EHuHB//7MD2Lj4QoE3YPSTwd
-         sYBSSsXFP9OjEWgVDu2F+CjCga1rwRq2c+HGrq5nEY8UsuOjhWcUlcnFGdwBSxlFyqtQ
-         hq5edIQ4pg4pNRG9QiL3KfDKlNqpl/qetoWX9wcagLR6jlW0YAgt4D5zcW0RRt82kL3b
-         ml4JGPhva27OpVnoHVWAmyS/BYt8+ehiXzBvF9lVJ+/9Z6dLC/tcKtxSHr9cRGTEmkuw
-         rzVQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=ccsFrMe6KP8aiz8EyYKirxWsnxkvhC/brM0NiqqoSf0=;
+        b=K1B2NRNza76IaVLfQDe8LoN+BlSU+zK6gdeCct7hTdK/3vyRm+j8N6rKGqWX8rR7pI
+         Lbnk3b1foxf12ZkAf9R0r/QSi4zEVTocspSTbORu+eVfUd5SbvKCcSIJ0RuOehh/4sKB
+         usJD8DsYB5wsDGeSQUrx+CzPqqhqxQzyqwPAjrXxk8LL+PzlzwvVhgWS0ZiTIaJ89cHd
+         ekTuZ5bM8EMtLfkw5YA3Rw3O1pYxLda7cuRYszMTBWIrYOQecySrTLr1K/86IphjFrz4
+         8+8SWD60wkku2Jhn8D7/UzoYiGdrx/v5VDo5dB+xFX5du6w6tHEGB3NkMyH7/imCQCyU
+         0JlQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=i2m6pNEp;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=HE9E00Ev;
+       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m184sor1142927pgm.36.2019.05.29.15.54.32
+        by mx.google.com with SMTPS id p65sor1158209pfg.64.2019.05.29.15.57.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 29 May 2019 15:54:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 29 May 2019 15:57:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=i2m6pNEp;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=HE9E00Ev;
+       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=jSKQLZwrhmnSigLvBb1y7bTu3QweUmRNvIXEtuAqha8=;
-        b=i2m6pNEp//jAEdoVKlUepZrqCrxOeGMnhLpqIgwHYjCZuF1j3b+HZSW8SKuGwf1zDt
-         0bhyfZQPgyaivPOywVbLs91S4hzEVqMfYIG3C5qkLNxgmWMxMkjSo7UKUzLzHVsKOgvb
-         2r2aceu5kfodmmZkfuuAz0O4G4lZv5m/9XI0on/lp9xeE60SF9e+JH3tFD3v0ohkBZoV
-         w+7veRU2N4ilJsskcWqJRw3UYj6ram4axcu3rhFFM6R8kQJtHkKuJlk17BYP4tYHHjY9
-         Ye2nbDpDWlhbhMpO7j+4cMkzYkUwtNMixcy88LTT3FUX0DPvQNzrI/nWRZXRQqSH6+ix
-         kraA==
-X-Google-Smtp-Source: APXvYqwxpupc9N7njSo6f+msnHvsDLFKL5Sq7Tzn0RujPl74omIALXvHB2HQqQuQvOJWf8s9Yh/43Q==
-X-Received: by 2002:a63:d157:: with SMTP id c23mr504819pgj.125.1559170471934;
-        Wed, 29 May 2019 15:54:31 -0700 (PDT)
-Received: from mylaptop.redhat.com ([2408:8207:782a:8650:1229:85cd:500a:f525])
-        by smtp.gmail.com with ESMTPSA id e12sm690266pfl.122.2019.05.29.15.54.24
+        d=kernel-dk.20150623.gappssmtp.com; s=20150623;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=ccsFrMe6KP8aiz8EyYKirxWsnxkvhC/brM0NiqqoSf0=;
+        b=HE9E00EvJ7o8sB9u2IBisHlbg8URix/DMrkDq4JGbmITr2VrN3s9bocIka9bOjVbSx
+         XKjZuu1jeBy8klRSNbkhUj+zTwSokHfMq6/fPdW1tvDTdY2Ln5FWZPl4jyJQhJoorS0U
+         lBjyThtI+5+YK2Z8a1kGNCEIw0pUngfWmMtSyvmi7q28Dq4UoCwQudZDb3NmzCJAiZJo
+         muuq+5j8JFJggBKvWWGN7lJHG48lfw8D5np8mpFEbC1mv4bWF6DdacLSkSQGpkkmadBw
+         VUekQcV0HcvWDJbUqFIG4sU0Rkdxsb3Hy8yMvT9vosUtmEZTkCiN/qXLpMCiCOAWzhB3
+         08fw==
+X-Google-Smtp-Source: APXvYqw6Z+KcPoaQ5yIAnQ055ieAIXfUyBwwmKI99T3gUkL7mzAPKw5N2QmTZmBFV/yvhC9n3STIcw==
+X-Received: by 2002:a62:fb10:: with SMTP id x16mr162681pfm.112.1559170635534;
+        Wed, 29 May 2019 15:57:15 -0700 (PDT)
+Received: from [192.168.1.121] (66.29.164.166.static.utbb.net. [66.29.164.166])
+        by smtp.gmail.com with ESMTPSA id r44sm532812pjb.13.2019.05.29.15.57.13
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 May 2019 15:54:31 -0700 (PDT)
-From: Pingfan Liu <kernelfans@gmail.com>
-To: linux-mm@kvack.org
-Cc: Pingfan Liu <kernelfans@gmail.com>,
-	Ira Weiny <ira.weiny@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Keith Busch <keith.busch@intel.com>,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] mm/gup: fix omission of check on FOLL_LONGTERM in get_user_pages_fast()
-Date: Thu, 30 May 2019 06:54:04 +0800
-Message-Id: <1559170444-3304-1-git-send-email-kernelfans@gmail.com>
-X-Mailer: git-send-email 2.7.5
+        Wed, 29 May 2019 15:57:14 -0700 (PDT)
+Subject: Re: [PATCH] mm/page_io: fix a crash in do_task_dead()
+To: Andrew Morton <akpm@linux-foundation.org>, Qian Cai <cai@lca.pw>
+Cc: hch@lst.de, peterz@infradead.org, oleg@redhat.com, gkohli@codeaurora.org,
+ mingo@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1559156813-30681-1-git-send-email-cai@lca.pw>
+ <20190529154424.c0fe2758cf5af42ff258714a@linux-foundation.org>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <73a24780-6760-926b-40be-7a31562704d8@kernel.dk>
+Date: Wed, 29 May 2019 16:57:11 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
+MIME-Version: 1.0
+In-Reply-To: <20190529154424.c0fe2758cf5af42ff258714a@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-As for FOLL_LONGTERM, it is checked in the slow path
-__gup_longterm_unlocked(). But it is not checked in the fast path, which
-means a possible leak of CMA page to longterm pinned requirement through
-this crack.
+On 5/29/19 4:44 PM, Andrew Morton wrote:
+> On Wed, 29 May 2019 15:06:53 -0400 Qian Cai <cai@lca.pw> wrote:
+> 
+>> The commit 0619317ff8ba ("block: add polled wakeup task helper")
+>> replaced wake_up_process() with blk_wake_io_task() in
+>> end_swap_bio_read() which triggers a crash when running heavy swapping
+>> workloads.
+>>
+>> [T114538] kernel BUG at kernel/sched/core.c:3462!
+>> [T114538] Process oom01 (pid: 114538, stack limit = 0x000000004f40e0c1)
+>> [T114538] Call trace:
+>> [T114538]  do_task_dead+0xf0/0xf8
+>> [T114538]  do_exit+0xd5c/0x10fc
+>> [T114538]  do_group_exit+0xf4/0x110
+>> [T114538]  get_signal+0x280/0xdd8
+>> [T114538]  do_notify_resume+0x720/0x968
+>> [T114538]  work_pending+0x8/0x10
+>>
+>> This is because shortly after set_special_state(TASK_DEAD),
+>> end_swap_bio_read() is called from an interrupt handler that revive the
+>> task state to TASK_RUNNING causes __schedule() to return and trip the
+>> BUG() later.
+>>
+>> [  C206] Call trace:
+>> [  C206]  dump_backtrace+0x0/0x268
+>> [  C206]  show_stack+0x20/0x2c
+>> [  C206]  dump_stack+0xb4/0x108
+>> [  C206]  blk_wake_io_task+0x7c/0x80
+>> [  C206]  end_swap_bio_read+0x22c/0x31c
+>> [  C206]  bio_endio+0x3d8/0x414
+>> [  C206]  dec_pending+0x280/0x378 [dm_mod]
+>> [  C206]  clone_endio+0x128/0x2ac [dm_mod]
+>> [  C206]  bio_endio+0x3d8/0x414
+>> [  C206]  blk_update_request+0x3ac/0x924
+>> [  C206]  scsi_end_request+0x54/0x350
+>> [  C206]  scsi_io_completion+0xf0/0x6f4
+>> [  C206]  scsi_finish_command+0x214/0x228
+>> [  C206]  scsi_softirq_done+0x170/0x1a4
+>> [  C206]  blk_done_softirq+0x100/0x194
+>> [  C206]  __do_softirq+0x350/0x790
+>> [  C206]  irq_exit+0x200/0x26c
+>> [  C206]  handle_IPI+0x2e8/0x514
+>> [  C206]  gic_handle_irq+0x224/0x228
+>> [  C206]  el1_irq+0xb8/0x140
+>> [  C206]  _raw_spin_unlock_irqrestore+0x3c/0x74
+>> [  C206]  do_task_dead+0x88/0xf8
+>> [  C206]  do_exit+0xd5c/0x10fc
+>> [  C206]  do_group_exit+0xf4/0x110
+>> [  C206]  get_signal+0x280/0xdd8
+>> [  C206]  do_notify_resume+0x720/0x968
+>> [  C206]  work_pending+0x8/0x10
+>>
+>> Before the offensive commit, wake_up_process() will prevent this from
+>> happening by taking the pi_lock and bail out immediately if TASK_DEAD is
+>> set.
+>>
+>> if (!(p->state & TASK_NORMAL))
+>> 	goto out;
+> 
+> Nice description, thanks.
+> 
+> And...  ouch.  blk_wake_io_task() is a scary thing - changing a task to
+> TASK_RUNNING state from interrupt context.  I wonder whether the
+> assumptions which that is making hold true in all situations even after
+> this change.
+> 
+> Is polled block IO important enough for doing this stuff?
 
-Place a check in the fast path.
+Andrew, you missed the improved patch, you were CC'ed on that one too
+and I queued it up a few hours ago:
 
-Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-Cc: Ira Weiny <ira.weiny@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Keith Busch <keith.busch@intel.com>
-Cc: linux-kernel@vger.kernel.org
----
- mm/gup.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
+http://git.kernel.dk/cgit/linux-block/commit/?h=for-linus&id=6f3ead091fe2a8fb57a5996fe8b94237a896c6e9
 
-diff --git a/mm/gup.c b/mm/gup.c
-index f173fcb..00feab3 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -2235,6 +2235,18 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
- 		local_irq_enable();
- 		ret = nr;
- 	}
-+#if defined(CONFIG_CMA)
-+	if (unlikely(gup_flags & FOLL_LONGTERM)) {
-+		int i, j;
-+
-+		for (i = 0; i < nr; i++)
-+			if (is_migrate_cma_page(pages[i])) {
-+				for (j = i; j < nr; j++)
-+					put_page(pages[j]);
-+				nr = i;
-+			}
-+	}
-+#endif
- 
- 	if (nr < nr_pages) {
- 		/* Try to get the remaining pages with get_user_pages */
+Please drop this one.
+
+>> Fixes: 0619317ff8ba ("block: add polled wakeup task helper")
+> 
+> That will be needing a cc:stable, no?
+
+Also added that when I did.
+
 -- 
-2.7.5
+Jens Axboe
 
