@@ -2,270 +2,244 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 098FAC28CC0
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 23:24:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69B9BC28CC0
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 23:31:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A4A0B24329
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 23:24:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 133B524371
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 23:31:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="V2B9Vgs8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4A0B24329
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="IAaKB5qa"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 133B524371
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 32E596B0270; Wed, 29 May 2019 19:24:10 -0400 (EDT)
+	id B67C86B0272; Wed, 29 May 2019 19:31:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2DECF6B0271; Wed, 29 May 2019 19:24:10 -0400 (EDT)
+	id B182C6B0273; Wed, 29 May 2019 19:31:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A8BD6B0272; Wed, 29 May 2019 19:24:10 -0400 (EDT)
+	id 9E1F96B0274; Wed, 29 May 2019 19:31:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D67B76B0270
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 19:24:09 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id d7so993404pgc.8
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 16:24:09 -0700 (PDT)
+Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AC116B0272
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 19:31:33 -0400 (EDT)
+Received: by mail-vk1-f198.google.com with SMTP id d143so1623740vkf.10
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 16:31:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding:sender;
-        bh=StJ6LM8sQHkYI5UThzShneAjra5wi5bo/RYRsdxPQsA=;
-        b=eN0yXMBNaaYEAd3/ezBbkED8JrWZTvAxI3B7e6CdtDOpIQu7RwU+jvyUcp/Dg6Ccgz
-         C8ZhZY3eWObLZIiechYRZ6/aTC8OU0BluUIiE4DC8m8KUK4ULl04DFI+CevXhz1cdoSD
-         +2nfJObwHwnRW7iufRkM190u/5TO6oH8Qenhi08Oz1cVIWnE6ONz/dHVbxz/1KqRENLJ
-         cmk0SMZDbV2a9M5trGUpeHGxukdDUjcho5hHCtJ+J/0MHswvs3ymQxl7+ziOA9/OS9yw
-         y9YFZXyPBVfjBiRNy6krfqq8tDTJhjUnJmjxo3dXZuXLvrLGO2xZenBLrPACy/8xRFw1
-         u+WQ==
-X-Gm-Message-State: APjAAAX/JVjnbiYb2Nf0pSSszv/PI0cm+CgtAWoDkcjsg5j6PZ5fkI+A
-	WbG3bocrLjYGEyzyP6ongubXLPQC1GkmvKs+enTh+Z1PbxeW2+FH+hUrvLMz1SP2W2rn3w001HW
-	bLZQZ0keBhHFtaUe/O54W54p2WqEso5DEyB03++2rWAsFWlas4EGFvUmTuGapiFQ=
-X-Received: by 2002:a63:cd4c:: with SMTP id a12mr667451pgj.362.1559172249381;
-        Wed, 29 May 2019 16:24:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw8FhUTSh8Cz77PkEdD4z4mG5lj5RRCZCgLA/avXD3kd1y++Nh9vMNeXt3UNc/9YcOL8TNA
-X-Received: by 2002:a63:cd4c:: with SMTP id a12mr667378pgj.362.1559172248275;
-        Wed, 29 May 2019 16:24:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559172248; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=ZeIntJUzf6RoM7jUUPQSe8jXByDyh+4YkHIeg3GAXsQ=;
+        b=l5LGbIeyKxUicEPxS+jrDYavWr6J3sqG/PnU8B+kB1RHJcnJXHJCTAr522QHOJf/1O
+         FOXiFlJpRw9B6FyCP+Bo56XBBm79ewM3lximB5WzQIy1fDxOlNWKSweVQR0YNX0p7Q3v
+         sKJxRH+o6vf2KCU9WVsrSHfPkmTpKv+72boNBRMTe/MONhzZh5neXQTnBTpSIc2GWOMr
+         19PwwcvD9nvyVdF6fgONwZrf98BB5HkqJCPjVAwZanPIYUYGtM1IKlzrR/+v+17/1lxm
+         JUWPFD4Rmb3D73Ylgx04y37j0xq8dDS2rWgXSu2jdGa+KAVDtlh4W+x0kCAk8qIJYEiO
+         gzcQ==
+X-Gm-Message-State: APjAAAX07LgHdMkwBEnAMcVL4ircefV+tOsw8MY5RyDpzsn0dF2m9mtw
+	vh2mAwsA+pfJYmNljQonS5a6L1CKmN1zanhsqXkPPJhbDkH9kfVoPduhDBcTz9G+d9EgeymQZuN
+	GrhrKvDzW8bKcf0Blh6dY6+U8AL7f8/vpVGFtc5qDrvK46X5AuhAmnEjZJE7AydiU6g==
+X-Received: by 2002:a67:db06:: with SMTP id z6mr257836vsj.69.1559172693098;
+        Wed, 29 May 2019 16:31:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxAa2aJBxGY/hUkAPflxZd7VW2HbmM1dvG0Ddw0uGeOgCgW8QVY3fTkkly/QCHT2k8+Zqvh
+X-Received: by 2002:a67:db06:: with SMTP id z6mr257800vsj.69.1559172692251;
+        Wed, 29 May 2019 16:31:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559172692; cv=none;
         d=google.com; s=arc-20160816;
-        b=Kd1V3gPyc/qlhOX3MOeYfC3nE59mUX11/oNhdWwuS5xaGx+R0cOyzGm0BuxF/V6tBq
-         S8/mRyVL9EJ82Zx6cANgr7wuUs86Z6CXHoLwEcuxtHcIKxdIkqU7tI+3g77VIGSTeaxt
-         XX25kBVCSsV78aMlyNwVTj8U/CueE8YwByT0mu4xhakATkUfHmJjL1ssTb55M7RcDIrI
-         aF0w/kS1+qF6jDcrwgLmpAlg44BO5jiCVSmbmB7/gNMSXU5KAsv1CUGSjOs/zcTiEgjP
-         TkzBSAXAS1V+CZHnoYFPqmmRuj6N+w1bnOf+rKQ4bZ9U9EMhylijC4weZTc8IvHUPLmf
-         CnlQ==
+        b=UTTqCazJmL8GlxaoURIPG/eNzQgMsMSfpMcmwfAb0I3xMZptXbB/5pz/tBrO6LOgox
+         N+rlspCXsS8uH/TjmsNmjB86sRBAhyffHgi8wd7G/ahB4LlVkceeHr1FyWl+VoMnWNkn
+         fxbO3JJjAJgK436kRP82Jl0vHUHCy7JSHxjS9kqUVAYFHBE3exs8GoVGe/UHIeSZmC5p
+         nAk+Dw9Zs3A099g9ktiUo2viQGPman23YThFwL0KbuVkUNy06+04qXgbu/Jf/uoXWqqq
+         tmDKfCgbcnTuJpE0Qs36I3JDQAx/iCiaRA4Wd3kOnepowu5jHEAhsJTZTVq4x1ZTd1sx
+         8YgQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=sender:content-transfer-encoding:mime-version:message-id:date
-         :subject:cc:to:from:dkim-signature;
-        bh=StJ6LM8sQHkYI5UThzShneAjra5wi5bo/RYRsdxPQsA=;
-        b=DdziDuF50fJ4zArxOEuwihLMoGVx6ZAbDga/6z1PnAIMFu+2+ycEOO4WxOzWQFKrDM
-         xtS52CTWNteDZo2/HvM95pbjv2rRQRvZHT6jVYeC86LS2z3HSl6Za3zTC5T8jdvr/G0e
-         AcWJgkCHyxETvThtr08xJmRJ+dwhMfoF0hoM+bTfReAbNaHCd1fAsRJRCNsZFeEMawjo
-         Hw+3pr/UHG9qwr6RtZcO3qBCwQGcxXTaOATYSBcjGl6jrfKAJjxV6gtauRvyphhUBoAD
-         yDWqZIqxxKX3Wzl7/c92QBtcAvwH1ChZQCBhu0fstzFgvXEaHeWlZ4q04AfGl0xX8TyK
-         aeJA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=ZeIntJUzf6RoM7jUUPQSe8jXByDyh+4YkHIeg3GAXsQ=;
+        b=Zu2jU6N20I7YBaIBws32/mTJDGrYV1BbW3KMzzAJXZuRu0z5dkWKG8jVMl0WZZESqf
+         DtOQ1S5rQdCinoc8UqKu/gLuxl+szssN2Q+OLmZSzeYFkipJRKQ9kfjIZyEqQZ6Lz0+u
+         O9cX9s9+kft0U//tQWaNdHg/aF5uIHXI/pXw5LgRGIRXywTaCIVXfAJ7aXfAuPwlbyL9
+         oktC82NmgpvEtmmGLUKNtJLgCFXCQkMJNvYYFN3zRtwAp5/MTOODvN8ik0lNM1PCqUel
+         FHmx5fDXBUmlqK15lCNklnRJikGejqWqTnyixYUnbMpQT/c64+KGt4Dfl6hvWOICFl1Y
+         wNIQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=V2B9Vgs8;
-       spf=pass (google.com: best guess record for domain of mchehab@bombadil.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=mchehab@bombadil.infradead.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 32si1283172pld.6.2019.05.29.16.24.08
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=IAaKB5qa;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id u21si378743uan.235.2019.05.29.16.31.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 29 May 2019 16:24:08 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of mchehab@bombadil.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 May 2019 16:31:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=V2B9Vgs8;
-       spf=pass (google.com: best guess record for domain of mchehab@bombadil.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=mchehab@bombadil.infradead.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Sender:Content-Transfer-Encoding:
-	MIME-Version:Message-Id:Date:Subject:Cc:To:From:Reply-To:Content-Type:
-	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
-	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=StJ6LM8sQHkYI5UThzShneAjra5wi5bo/RYRsdxPQsA=; b=V2B9Vgs83dRLjIuQnd2C2vgYZ
-	+JgyOXeO1GKHOK9c4tRnNUqThik6tzysID2WPnKRr+36Nqy1H2ECRX9ShWnHkjcDarRRE36sMjLp8
-	rMBiNxdP14bOP1wi/jaweQN4P3parh4up8rfOPsYIJGMzClSMcNhqm2YUZ7FfQaCciCjPJlpLJJ9c
-	aeXT61eHnnOWKaxRn+HXRc3LwC2Y8Shpt7KozKcXuJxu6PITTqtbQgKa7rv4JBRtqJqIYr0SPtFcn
-	/5RDAzsKEfsB7oXgNPBlX7TDbPq/0Xg+hPhZkg4J+5oeanlc8QNxz2G9sF0j0yZAp7oTlogcPh66P
-	SAaTMxt+g==;
-Received: from 177.132.232.81.dynamic.adsl.gvt.net.br ([177.132.232.81] helo=bombadil.infradead.org)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hW7vL-0005Rx-II; Wed, 29 May 2019 23:23:59 +0000
-Received: from mchehab by bombadil.infradead.org with local (Exim 4.92)
-	(envelope-from <mchehab@bombadil.infradead.org>)
-	id 1hW7vI-0007wg-Fn; Wed, 29 May 2019 20:23:56 -0300
-From: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
-To: Linux Doc Mailing List <linux-doc@vger.kernel.org>
-Cc: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>,
-	Mauro Carvalho Chehab <mchehab@infradead.org>,
-	linux-kernel@vger.kernel.org,
-	Jonathan Corbet <corbet@lwn.net>,
-	xen-devel@lists.xenproject.org,
-	linux-kselftest@vger.kernel.org,
-	linux-amlogic@lists.infradead.org,
-	linux-gpio@vger.kernel.org,
-	linux-pm@vger.kernel.org,
-	devel@driverdev.osuosl.org,
-	keyrings@vger.kernel.org,
-	dri-devel@lists.freedesktop.org,
-	linux-integrity@vger.kernel.org,
-	linux-mtd@lists.infradead.org,
-	patches@opensource.cirrus.com,
-	devicetree@vger.kernel.org,
-	netdev@vger.kernel.org,
-	alsa-devel@alsa-project.org,
-	devel@acpica.org,
-	virtualization@lists.linux-foundation.org,
-	linux-mm@kvack.org,
-	linux-pci@vger.kernel.org,
-	linux-acpi@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org,
-	linux-security-module@vger.kernel.org,
-	linux-i2c@vger.kernel.org,
-	kvm@vger.kernel.org,
-	bpf@vger.kernel.org,
-	x86@kernel.org
-Subject: [PATCH 00/22] Some documentation fixes
-Date: Wed, 29 May 2019 20:23:31 -0300
-Message-Id: <cover.1559171394.git.mchehab+samsung@kernel.org>
-X-Mailer: git-send-email 2.21.0
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=IAaKB5qa;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4TNSRIp080130;
+	Wed, 29 May 2019 23:31:18 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=ZeIntJUzf6RoM7jUUPQSe8jXByDyh+4YkHIeg3GAXsQ=;
+ b=IAaKB5qaUOqWsmMianN1GrQXpj9HG3cU0oz4ab6U1xB/tXO6+QR4XtP3ZMrOtiUMkOoV
+ 4E5Psrzd26xnaBWY4KxDwMtLYLrwtpzQmCqBocQFFxj26Y0zHm7WphZ5Vy7kvikFllbw
+ K8oaFQODFc4ZYWzCBXppsBGoVQwYQdQg2GW8EUlLymnnHNwmkbT5lBnfY5IXgtKbeuvb
+ fRuY8+2I/DomXosaX6EOYlvf6BUj2JvvkWAYxRpc9VIrwm5f0jD27GRQgV/1zhr4IIot
+ MQ7LFuYSpR3RENpPYFVJ87Ior67/wGNxK49Fdt541GiLuVThQPe3y929dj9OI1biQ4aK dA== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by userp2130.oracle.com with ESMTP id 2spw4tn09w-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 29 May 2019 23:31:18 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4TNTqPs081158;
+	Wed, 29 May 2019 23:31:17 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserp3030.oracle.com with ESMTP id 2srbdxp6qf-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 29 May 2019 23:31:17 +0000
+Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x4TNV3Z4032602;
+	Wed, 29 May 2019 23:31:04 GMT
+Received: from [192.168.1.222] (/71.63.128.209)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 29 May 2019 16:31:03 -0700
+Subject: Re: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB
+ hugepage
+To: Wanpeng Li <kernellwp@gmail.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Punit Agrawal <punit.agrawal@arm.com>,
+        Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        Michal Hocko <mhocko@kernel.org>,
+        "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>,
+        Anshuman Khandual <khandual@linux.vnet.ibm.com>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+        "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
+        kvm <kvm@vger.kernel.org>, Paolo Bonzini <pbonzini@redhat.com>,
+        Xiao Guangrong <xiaoguangrong@tencent.com>, lidongchen@tencent.com,
+        yongkaiwu@tencent.com
+References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
+ <1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <87inbbjx2w.fsf@e105922-lin.cambridge.arm.com>
+ <20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp>
+ <87fu6bfytm.fsf@e105922-lin.cambridge.arm.com>
+ <20180208121749.0ac09af2b5a143106f339f55@linux-foundation.org>
+ <87wozhvc49.fsf@concordia.ellerman.id.au>
+ <e673f38a-9e5f-21f6-421b-b3cb4ff02e91@oracle.com>
+ <CANRm+CxAgWVv5aVzQ0wdP_A7QQgqfy7nN_SxyaactG7Mnqfr2A@mail.gmail.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <f79d828c-b0b4-8a20-c316-a13430cfb13c@oracle.com>
+Date: Wed, 29 May 2019 16:31:01 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <CANRm+CxAgWVv5aVzQ0wdP_A7QQgqfy7nN_SxyaactG7Mnqfr2A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9272 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1905290145
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9272 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1905290146
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fix several warnings and broken links.
+On 5/28/19 2:49 AM, Wanpeng Li wrote:
+> Cc Paolo,
+> Hi all,
+> On Wed, 14 Feb 2018 at 06:34, Mike Kravetz <mike.kravetz@oracle.com> wrote:
+>>
+>> On 02/12/2018 06:48 PM, Michael Ellerman wrote:
+>>> Andrew Morton <akpm@linux-foundation.org> writes:
+>>>
+>>>> On Thu, 08 Feb 2018 12:30:45 +0000 Punit Agrawal <punit.agrawal@arm.com> wrote:
+>>>>
+>>>>>>
+>>>>>> So I don't think that the above test result means that errors are properly
+>>>>>> handled, and the proposed patch should help for arm64.
+>>>>>
+>>>>> Although, the deviation of pud_huge() avoids a kernel crash the code
+>>>>> would be easier to maintain and reason about if arm64 helpers are
+>>>>> consistent with expectations by core code.
+>>>>>
+>>>>> I'll look to update the arm64 helpers once this patch gets merged. But
+>>>>> it would be helpful if there was a clear expression of semantics for
+>>>>> pud_huge() for various cases. Is there any version that can be used as
+>>>>> reference?
+>>>>
+>>>> Is that an ack or tested-by?
+>>>>
+>>>> Mike keeps plaintively asking the powerpc developers to take a look,
+>>>> but they remain steadfastly in hiding.
+>>>
+>>> Cc'ing linuxppc-dev is always a good idea :)
+>>>
+>>
+>> Thanks Michael,
+>>
+>> I was mostly concerned about use cases for soft/hard offline of huge pages
+>> larger than PMD_SIZE on powerpc.  I know that powerpc supports PGD_SIZE
+>> huge pages, and soft/hard offline support was specifically added for this.
+>> See, 94310cbcaa3c "mm/madvise: enable (soft|hard) offline of HugeTLB pages
+>> at PGD level"
+>>
+>> This patch will disable that functionality.  So, at a minimum this is a
+>> 'heads up'.  If there are actual use cases that depend on this, then more
+>> work/discussions will need to happen.  From the e-mail thread on PGD_SIZE
+>> support, I can not tell if there is a real use case or this is just a
+>> 'nice to have'.
+> 
+> 1GB hugetlbfs pages are used by DPDK and VMs in cloud deployment, we
+> encounter gup_pud_range() panic several times in product environment.
+> Is there any plan to reenable and fix arch codes?
 
-This series was generated against linux-next, but was rebased to be applied at
-docs-next. It should apply cleanly on either tree.
+I too am aware of slightly more interest in 1G huge pages.  Suspect that as
+Intel MMU capacity increases to handle more TLB entries there will be more
+and more interest.
 
-There's a git tree with all of them applied on the top of docs/docs-next
-at:
+Personally, I am not looking at this issue.  Perhaps Naoya will comment as
+he know most about this code.
 
-https://git.linuxtv.org/mchehab/experimental.git/log/?h=fix_doc_links_v2
+> In addition, https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/x86/kvm/mmu.c#n3213
+> The memory in guest can be 1GB/2MB/4K, though the host-backed memory
+> are 1GB hugetlbfs pages, after above PUD panic is fixed,
+> try_to_unmap() which is called in MCA recovery path will mark the PUD
+> hwpoison entry. The guest will vmexit and retry endlessly when
+> accessing any memory in the guest which is backed by this 1GB poisoned
+> hugetlbfs page. We have a plan to split this 1GB hugetblfs page by 2MB
+> hugetlbfs pages/4KB pages, maybe file remap to a virtual address range
+> which is 2MB/4KB page granularity, also split the KVM MMU 1GB SPTE
+> into 2MB/4KB and mark the offensive SPTE w/ a hwpoison flag, a sigbus
+> will be delivered to VM at page fault next time for the offensive
+> SPTE. Is this proposal acceptable?
 
-
-Mauro Carvalho Chehab (21):
-  ABI: sysfs-devices-system-cpu: point to the right docs
-  isdn: mISDN: remove a bogus reference to a non-existing doc
-  dt: fix broken references to nand.txt
-  docs: zh_CN: get rid of basic_profiling.txt
-  doc: it_IT: fix reference to magic-number.rst
-  docs: mm: numaperf.rst: get rid of a build warning
-  docs: bpf: get rid of two warnings
-  docs: mark orphan documents as such
-  docs: amd-memory-encryption.rst get rid of warnings
-  gpu: amdgpu: fix broken amdgpu_dma_buf.c references
-  gpu: i915.rst: Fix references to renamed files
-  docs: zh_CN: avoid duplicate citation references
-  docs: vm: hmm.rst: fix some warnings
-  docs: it: license-rules.rst: get rid of warnings
-  docs: gpio: driver.rst: fix a bad tag
-  docs: soundwire: locking: fix tags for a code-block
-  docs: security: trusted-encrypted.rst: fix code-block tag
-  docs: security: core.rst: Fix several warnings
-  docs: net: dpio-driver.rst: fix two codeblock warnings
-  docs: net: sja1105.rst: fix table format
-  docs: fix broken documentation links
-
-Otto Sabart (1):
-  mfd: madera: Fix bad reference to pinctrl.txt file
-
- .../ABI/testing/sysfs-devices-system-cpu      |  3 +-
- Documentation/accelerators/ocxl.rst           |  2 +
- Documentation/acpi/dsd/leds.txt               |  2 +-
- .../admin-guide/kernel-parameters.rst         |  6 +-
- .../admin-guide/kernel-parameters.txt         | 16 ++---
- Documentation/admin-guide/mm/numaperf.rst     |  5 +-
- Documentation/admin-guide/ras.rst             |  2 +-
- Documentation/arm/stm32/overview.rst          |  2 +
- .../arm/stm32/stm32f429-overview.rst          |  2 +
- .../arm/stm32/stm32f746-overview.rst          |  2 +
- .../arm/stm32/stm32f769-overview.rst          |  2 +
- .../arm/stm32/stm32h743-overview.rst          |  2 +
- .../arm/stm32/stm32mp157-overview.rst         |  2 +
- Documentation/bpf/btf.rst                     |  2 +
- .../bindings/mtd/amlogic,meson-nand.txt       |  2 +-
- .../devicetree/bindings/mtd/gpmc-nand.txt     |  2 +-
- .../devicetree/bindings/mtd/marvell-nand.txt  |  2 +-
- .../devicetree/bindings/mtd/tango-nand.txt    |  2 +-
- .../devicetree/bindings/net/fsl-enetc.txt     |  7 +-
- .../bindings/pci/amlogic,meson-pcie.txt       |  2 +-
- .../regulator/qcom,rpmh-regulator.txt         |  2 +-
- .../devicetree/booting-without-of.txt         |  2 +-
- Documentation/driver-api/gpio/board.rst       |  2 +-
- Documentation/driver-api/gpio/consumer.rst    |  2 +-
- Documentation/driver-api/gpio/driver.rst      |  2 +-
- .../driver-api/soundwire/locking.rst          |  4 +-
- .../firmware-guide/acpi/enumeration.rst       |  2 +-
- .../firmware-guide/acpi/method-tracing.rst    |  2 +-
- Documentation/gpu/amdgpu.rst                  |  4 +-
- Documentation/gpu/i915.rst                    |  6 +-
- Documentation/gpu/msm-crash-dump.rst          |  2 +
- Documentation/i2c/instantiating-devices       |  2 +-
- Documentation/interconnect/interconnect.rst   |  2 +
- Documentation/laptops/lg-laptop.rst           |  2 +
- .../freescale/dpaa2/dpio-driver.rst           |  4 +-
- Documentation/networking/dsa/sja1105.rst      |  6 +-
- Documentation/powerpc/isa-versions.rst        |  2 +
- Documentation/security/keys/core.rst          | 16 +++--
- .../security/keys/trusted-encrypted.rst       |  4 +-
- Documentation/sysctl/kernel.txt               |  4 +-
- .../translations/it_IT/process/howto.rst      |  2 +-
- .../it_IT/process/license-rules.rst           | 28 ++++----
- .../it_IT/process/magic-number.rst            |  2 +-
- .../it_IT/process/stable-kernel-rules.rst     |  4 +-
- .../translations/zh_CN/basic_profiling.txt    | 71 -------------------
- .../translations/zh_CN/process/4.Coding.rst   |  2 +-
- .../zh_CN/process/management-style.rst        |  4 +-
- .../zh_CN/process/programming-language.rst    | 28 ++++----
- .../virtual/kvm/amd-memory-encryption.rst     |  5 ++
- Documentation/virtual/kvm/vcpu-requests.rst   |  2 +
- Documentation/vm/hmm.rst                      |  9 ++-
- Documentation/x86/x86_64/5level-paging.rst    |  2 +-
- Documentation/x86/x86_64/boot-options.rst     |  4 +-
- .../x86/x86_64/fake-numa-for-cpusets.rst      |  2 +-
- MAINTAINERS                                   |  6 +-
- arch/arm/Kconfig                              |  2 +-
- arch/arm64/kernel/kexec_image.c               |  2 +-
- arch/powerpc/Kconfig                          |  2 +-
- arch/x86/Kconfig                              | 16 ++---
- arch/x86/Kconfig.debug                        |  2 +-
- arch/x86/boot/header.S                        |  2 +-
- arch/x86/entry/entry_64.S                     |  2 +-
- arch/x86/include/asm/bootparam_utils.h        |  2 +-
- arch/x86/include/asm/page_64_types.h          |  2 +-
- arch/x86/include/asm/pgtable_64_types.h       |  2 +-
- arch/x86/kernel/cpu/microcode/amd.c           |  2 +-
- arch/x86/kernel/kexec-bzimage64.c             |  2 +-
- arch/x86/kernel/pci-dma.c                     |  2 +-
- arch/x86/mm/tlb.c                             |  2 +-
- arch/x86/platform/pvh/enlighten.c             |  2 +-
- drivers/acpi/Kconfig                          | 10 +--
- drivers/isdn/mISDN/dsp_core.c                 |  2 -
- drivers/net/ethernet/faraday/ftgmac100.c      |  2 +-
- .../fieldbus/Documentation/fieldbus_dev.txt   |  4 +-
- drivers/vhost/vhost.c                         |  2 +-
- include/acpi/acpi_drivers.h                   |  2 +-
- include/linux/fs_context.h                    |  2 +-
- include/linux/lsm_hooks.h                     |  2 +-
- include/linux/mfd/madera/pdata.h              |  3 +-
- mm/Kconfig                                    |  2 +-
- security/Kconfig                              |  2 +-
- tools/include/linux/err.h                     |  2 +-
- .../Documentation/stack-validation.txt        |  4 +-
- tools/testing/selftests/x86/protection_keys.c |  2 +-
- 84 files changed, 183 insertions(+), 212 deletions(-)
- delete mode 100644 Documentation/translations/zh_CN/basic_profiling.txt
+I am not sure of the error handling design, but this does sound reasonable.
+That block of code which potentially dissolves a huge page on memory error
+is hard to understand and I'm not sure if that is even the 'normal'
+functionality.  Certainly, we would hate to waste/poison an entire 1G page
+for an error on a small subsection.
 
 -- 
-2.21.0
-
+Mike Kravetz
 
