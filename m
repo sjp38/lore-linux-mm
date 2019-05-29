@@ -4,112 +4,116 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D4D82C28CC1
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:08:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E217BC28CC2
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:24:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 87615241C3
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:08:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 80BA224204
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:24:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="iCu9MPsy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 87615241C3
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="wVDIB2aj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80BA224204
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 20FC66B026E; Wed, 29 May 2019 17:08:03 -0400 (EDT)
+	id D26656B0270; Wed, 29 May 2019 17:24:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1BDE36B026F; Wed, 29 May 2019 17:08:03 -0400 (EDT)
+	id CD6666B0271; Wed, 29 May 2019 17:24:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F2CEA6B0270; Wed, 29 May 2019 17:08:02 -0400 (EDT)
+	id BC7966B0272; Wed, 29 May 2019 17:24:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B72666B026E
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 17:08:02 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id w14so2398028plp.4
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 14:08:02 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 85F126B0270
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 17:24:37 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id v125so807475pgv.3
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 14:24:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=JDuSTehyNdkjsOxtouLoAdMdAueINAK3K8uBz+p0jwg=;
-        b=K/kjEybXyUhCmqJ7OLj3i6Jixbg/nrwgce+Ve51KnARe1rroTa2B6ogWv3TzBKAjaM
-         AjbwHoSdfhsgDRCEWvLsG7ujxYkfemy40Y0cyfRrjCokk2BwzgcmwDCGUkbiqKYbDC0N
-         jH9AXGzGM+QUench8W5sGCnPT7YDLCNJ44T3xQ6SudYqkGHN3oIER5R3VGsyXmgeEvUf
-         x4aDZiKiaIrHpvpQr5NnJAamMwDMR2nyjiRoGf5/fknhbbeAPEH3lML1oYzMpOW+6Hzx
-         4V9BTkZXLfiMyfIRlGcrAtLYFxckDrIV6a1gqKLzqsXw6A/Kl1ytkd4GMuTcMD4Umo6B
-         7rHQ==
-X-Gm-Message-State: APjAAAVpTH+uCzQR+Tw/4MOyhBNhu0kDpqDWfOSroccLYMNe5egPW4Er
-	6OSXvPg+qBsuptxGA793rgqCAu7f61re6tS/K3tSxsBQHfAKB9tv8ia0UDMZxqHLCtEACDROoKA
-	2Et3HOasgaxuvdW3V1z/dSbrOYX8Lsr/VSKtS5Ouu2gcg3Wtjtm5UGj24SMusiUJPIg==
-X-Received: by 2002:a63:9a52:: with SMTP id e18mr1581pgo.335.1559164082367;
-        Wed, 29 May 2019 14:08:02 -0700 (PDT)
-X-Received: by 2002:a63:9a52:: with SMTP id e18mr1542pgo.335.1559164081594;
-        Wed, 29 May 2019 14:08:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559164081; cv=none;
+        bh=/VjnBzka0ntx7tOJYYS02mgCPrG/ZdRlbuD+pRSLDes=;
+        b=JNOfoKgiDpu+NcXognZJmtYG6QKPQl/wCXpdFIlxTuzt6n88CO0alCBdWtoLSb7C2W
+         gT2/Dyx8fHrju4UHw+z/Bq1/VbOeX6HatOgqgeL03rKiVC5+D0DJNHxcWXe+yHQBHBTN
+         M7Pqcy2MVsxwj7zJnH3e3CmLuiWf3pNxRe6D45XWmiBqzc47RdKuDaFErPskXevvhqSh
+         3JAA4x5hX1UCESK0keKJ0BF8zeACKKgkBtGXQsYtmM2A+Dk5E+oA6VNn0W6tLRO8gyFS
+         QehTarOj3DZXru2np3lfuxdYSDvdyBSqGXrWFKc2VXtQs20WvFe/3c5hGigK3g6a7H9A
+         Z6Fg==
+X-Gm-Message-State: APjAAAUkg/UJAYbZ52ngoNpD0jg3cfj3DcKoroP7u3rJ5JtYnremcIDa
+	or4rH2WpeogLAg25gpamSatO4d9erG1gwNBsTpIXskNgQAZ8H2pwriYetdbwJ+CzZoVhL6O8PQP
+	PT9ntUAkS6Z7NPZ3zmJZewn9P2uDcHaiI1t5XUXiVhwLej29mSMBLIj77lnSWeHa4hg==
+X-Received: by 2002:a17:90a:480a:: with SMTP id a10mr14937910pjh.57.1559165077102;
+        Wed, 29 May 2019 14:24:37 -0700 (PDT)
+X-Received: by 2002:a17:90a:480a:: with SMTP id a10mr14937866pjh.57.1559165076372;
+        Wed, 29 May 2019 14:24:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559165076; cv=none;
         d=google.com; s=arc-20160816;
-        b=BU5p+MJwebnrOzOIgDY+x9SdtwYTC8ACgxbAJjiA3q8TxaQGtepxPMk6xYHGkW1745
-         WWjkZ1zdhzshdRN//lV0seWHza4xouILzxkDiW4xID6FCJhl9rFo5R/tcu/65Qgbg7D6
-         x28RkckmkAOguc6tu7MIjMLUf5D3rSYb+AUv4qwR4YYRRKbIO6noSGNA5G2M+jpwKB7h
-         qMJvtYv5ynPShvHYfs/PgkKlPzo4X2O23deF/X22ASNKfoRTEQtVCmUpfMbcmPzfN/i3
-         ToHQrWUNlJroaNeeYS9A9IBIwPY2E/T/BmR1orck9BqIDJlOWWw525i7vxfe5rvPZTuk
-         ASkg==
+        b=H10u2/1R2hJoO8Z3LHTHhXeNvKeVtcWGO0OKYbpA1BpK22RUItRY1pfWM6JDmSCt4O
+         owFfWiegv/hu/htp66bAJEMrajLHa8r+c7Biu3P1bCz/8DDYDrBdtvanqCuMxShaP5pc
+         kLrGG03+cA3NwBWwR25zk9a0/ns2foBqhEHpLeGPEMiPIXroz6RzYbDR4BrDsWy2iiXY
+         KXcrmzyYkUGI5DN81q8gwvqoepFAcnkuIO8+bckoVdrwWC3d/lI33imA7FrC0DVxBBxX
+         fo2j2LFew8gr2njFtE9wKHPPdfGwvZ7PhUF8mb8kypp0walF7O7VbjI/O7x7tV07z5hv
+         uhoA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:user-agent:references:message-id:in-reply-to:subject
          :cc:to:from:date:dkim-signature;
-        bh=JDuSTehyNdkjsOxtouLoAdMdAueINAK3K8uBz+p0jwg=;
-        b=XwNKefyBln/6pjAWAuGQWhSLsy9k55hzItsbf3Q/keyXqXVxoSWBXrbryl76EA8A1b
-         LrZm0S9RGGMEPt+8lSz/T8RsvrXB6xu+IR25FbvRiu45Sy3WqV1+h41qBt8fXlUsEGOL
-         Ip56qG8pvIn97buvjYyh/O14bt0/s84V0Yj7Lm6oUxSIou3413bYftxXhIbjkhdsTHdI
-         WmYFjWhGz3oi0+7a2cF/yaTIEmzfpBAXW3oIuXywxTida/rgGVo7m/LrIms9chY5GDll
-         8aiOzgkniwoYjQjLnPG4FjDAEkCm2uAGEURT5CJ75qq6WzGKTeKV9y4F8TbH3kOHMc2e
-         xMTg==
+        bh=/VjnBzka0ntx7tOJYYS02mgCPrG/ZdRlbuD+pRSLDes=;
+        b=BE8IU6e33+INpZ5vyHolKv6UL/gIpyVqUsQWQZSzFDlA+GxsYZzYHqbbnzCGoVj/B6
+         jdEPKT7+lIRNl/AUAN73qSWyKEAZ6VywTUy40aze6c9ARWTae78DLIIh9ASBI3Lp29i9
+         2iila/EGsaTTmwh11bZ96yVJ4mE2T1ljicz15eZCCX662W0+DXKaD12mxGfdbCThI7+l
+         lYB8AqIOouk0wab8NPSchcD16S/emY9SMu4n+aqPxsI2CJCyNrIxSOslhjhLQZ24EWq8
+         7spPeiasSe8Dm1ZYOmFjx6+ZEMoXIQH88yCJ9Alxobyhy/qXjc6w0X2vDU3F+y5oPC4u
+         6hHg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=iCu9MPsy;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=wVDIB2aj;
        spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k4sor860945pfa.60.2019.05.29.14.08.01
+        by mx.google.com with SMTPS id d33sor724997pla.46.2019.05.29.14.24.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 29 May 2019 14:08:01 -0700 (PDT)
+        Wed, 29 May 2019 14:24:36 -0700 (PDT)
 Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=iCu9MPsy;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=wVDIB2aj;
        spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:from:to:cc:subject:in-reply-to:message-id:references
          :user-agent:mime-version;
-        bh=JDuSTehyNdkjsOxtouLoAdMdAueINAK3K8uBz+p0jwg=;
-        b=iCu9MPsyqSyo52dk3bz2YcMkQmNZYRBnUvKfoC/4nlsyxR2kImqL5WSQ/tyUgbQGS5
-         tWRxoAuFxGICRlXINV3c2tZaoNnVTDCu3AQWUlvkm0C+fQdRbz4FGqR1DvMkNENEbQCo
-         4mLnFfcmw7g7RiFYFM3uP/L9kskO6vNvXIOsYcoEhUccyXOhOgTv1ZIoqlt4GkhouIyt
-         NoatEjQ0v842w1+LfUE6qcm/wVA+RI1gtWZSmg7y9eYS/xmE8gKbr0HdmnWyXfEA8pYA
-         D2roDVoI+GkFybcqvS37aJdhvvXWEunPHYJZmGU1JBmPeR7muDxlo4h6jHkWn7gz9wTu
-         D19Q==
-X-Google-Smtp-Source: APXvYqz7P8HgjdZeBHIm1rggdqtNB5srYYVApd3MRmDP73Wpy18Y0LXtAZVWv+Kw+t04RSc4FWh44w==
-X-Received: by 2002:a62:e303:: with SMTP id g3mr150555799pfh.220.1559164080811;
-        Wed, 29 May 2019 14:08:00 -0700 (PDT)
+        bh=/VjnBzka0ntx7tOJYYS02mgCPrG/ZdRlbuD+pRSLDes=;
+        b=wVDIB2ajNcHg7hsPFzPNMH3O9KEy1WDcsjQKtoka4U2ZBN1vZ7D+qKxIibQrm38LYC
+         Nrdwur3uPpDLwjQ4TnC1AV859Jt1/RP1YMONTS+JgDUk3vIVq+D1t9daEwQF1yAa/OBM
+         I107FaouZn5cM26PVMcp6ROnM63unZjjgW6iZCihgLfgxHj3wQMN159WDsbad4Zd4AtL
+         yYJ+3l7wbh+b1pmR5gpoJ1aJMSFW2TAby0fYs8G+P6By6Qz34969Jz6sRtm2i3F0KHLa
+         m/ZpLlBuMgH5A8ottpc7PubUz1+V7uIL40yY7L+G5EpeFquPpFxl9a0B3pN8+4gIYiV3
+         ph0w==
+X-Google-Smtp-Source: APXvYqw5AnaaWWqmrWqXULzKKuTxZx2r0lmDn7r1dm5gO3QKz0czvs4AxpYS2G/AGO46AAVsVkcBwA==
+X-Received: by 2002:a17:902:27a8:: with SMTP id d37mr25680plb.150.1559165075643;
+        Wed, 29 May 2019 14:24:35 -0700 (PDT)
 Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id 25sm574143pfp.76.2019.05.29.14.07.58
+        by smtp.gmail.com with ESMTPSA id m7sm613626pff.44.2019.05.29.14.24.34
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 29 May 2019 14:07:58 -0700 (PDT)
-Date: Wed, 29 May 2019 14:07:58 -0700 (PDT)
+        Wed, 29 May 2019 14:24:34 -0700 (PDT)
+Date: Wed, 29 May 2019 14:24:33 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
 X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Yang Shi <yang.shi@linux.alibaba.com>
-cc: ktkhai@virtuozzo.com, hannes@cmpxchg.org, mhocko@suse.com, 
-    kirill.shutemov@linux.intel.com, hughd@google.com, shakeelb@google.com, 
-    Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
+To: Andrew Morton <akpm@linux-foundation.org>
+cc: Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, 
+    Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, 
+    Zi Yan <zi.yan@cs.rutgers.edu>, 
+    Stefan Priebe - Profihost AG <s.priebe@profihost.ag>, 
+    "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, 
     linux-kernel@vger.kernel.org
-Subject: Re: [RFC PATCH 0/3] Make deferred split shrinker memcg aware
-In-Reply-To: <2e23bd8c-6120-5a86-9e9e-ab43b02ce150@linux.alibaba.com>
-Message-ID: <alpine.DEB.2.21.1905291402360.242480@chino.kir.corp.google.com>
-References: <1559047464-59838-1-git-send-email-yang.shi@linux.alibaba.com> <alpine.DEB.2.21.1905281817090.86034@chino.kir.corp.google.com> <2e23bd8c-6120-5a86-9e9e-ab43b02ce150@linux.alibaba.com>
+Subject: Re: [PATCH 2/2] Revert "mm, thp: restore node-local hugepage
+ allocations"
+In-Reply-To: <20190523175737.2fb5b997df85b5d117092b5b@linux-foundation.org>
+Message-ID: <alpine.DEB.2.21.1905281907060.86034@chino.kir.corp.google.com>
+References: <20190503223146.2312-1-aarcange@redhat.com> <20190503223146.2312-3-aarcange@redhat.com> <alpine.DEB.2.21.1905151304190.203145@chino.kir.corp.google.com> <20190520153621.GL18914@techsingularity.net> <alpine.DEB.2.21.1905201018480.96074@chino.kir.corp.google.com>
+ <20190523175737.2fb5b997df85b5d117092b5b@linux-foundation.org>
 User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -119,66 +123,58 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 May 2019, Yang Shi wrote:
+On Thu, 23 May 2019, Andrew Morton wrote:
 
-> > Right, we've also encountered this.  I talked to Kirill about it a week or
-> > so ago where the suggestion was to split all compound pages on the
-> > deferred split queues under the presence of even memory pressure.
-> > 
-> > That breaks cgroup isolation and perhaps unfairly penalizes workloads that
-> > are running attached to other memcg hierarchies that are not under
-> > pressure because their compound pages are now split as a side effect.
-> > There is a benefit to keeping these compound pages around while not under
-> > memory pressure if all pages are subsequently mapped again.
+> > We are going in circles, *yes* there is a problem for potential swap 
+> > storms today because of the poor interaction between memory compaction and 
+> > directed reclaim but this is a result of a poor API that does not allow 
+> > userspace to specify that its workload really will span multiple sockets 
+> > so faulting remotely is the best course of action.  The fix is not to 
+> > cause regressions for others who have implemented a userspace stack that 
+> > is based on the past 3+ years of long standing behavior or for specialized 
+> > workloads where it is known that it spans multiple sockets so we want some 
+> > kind of different behavior.  We need to provide a clear and stable API to 
+> > define these terms for the page allocator that is independent of any 
+> > global setting of thp enabled, defrag, zone_reclaim_mode, etc.  It's 
+> > workload dependent.
 > 
-> Yes, I do agree. I tried other approaches too, it sounds making deferred split
-> queue per memcg is the optimal one.
+> um, who is going to do this work?
 > 
-
-The approach we went with were to track the actual counts of compound 
-pages on the deferred split queue for each pgdat for each memcg and then 
-invoke the shrinker for memcg reclaim and iterate those not charged to the 
-hierarchy under reclaim.  That's suboptimal and was a stop gap measure 
-under time pressure: it's refreshing to see the optimal method being 
-pursued, thanks!
-
-> > I'm curious if your internal applications team is also asking for
-> > statistics on how much memory can be freed if the deferred split queues
-> > can be shrunk?  We have applications that monitor their own memory usage
-> 
-> No, but this reminds me. The THPs on deferred split queue should be accounted
-> into available memory too.
+> Implementing a new API doesn't help existing userspace which is hurting
+> from the problem which this patch addresses.
 > 
 
-Right, and we have also seen this for users of MADV_FREE that have both an 
-increased rss and memcg usage that don't realize that the memory is freed 
-under pressure.  I'm thinking that we need some kind of MemAvailable for 
-memcg hierarchies to be the authoritative source of what can be reclaimed 
-under pressure.
+The problem which this patch addresses has apparently gone unreported for 
+4+ years since
 
-> > through memcg stats or usage and proactively try to reduce that usage when
-> > it is growing too large.  The deferred split queues have significantly
-> > increased both memcg usage and rss when they've upgraded kernels.
-> > 
-> > How are your applications monitoring how much memory from deferred split
-> > queues can be freed on memory pressure?  Any thoughts on providing it as a
-> > memcg stat?
-> 
-> I don't think they have such monitor. I saw rss_huge is abormal in memcg stat
-> even after the application is killed by oom, so I realized the deferred split
-> queue may play a role here.
-> 
+commit 077fcf116c8c2bd7ee9487b645aa3b50368db7e1
+Author: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Date:   Wed Feb 11 15:27:12 2015 -0800
 
-Exactly the same in my case :)  We were likely looking at the exact same 
-issue at the same time.
+    mm/thp: allocate transparent hugepages on local node
 
-> The memcg stat doesn't have counters for available memory as global vmstat. It
-> may be better to have such statistics, or extending reclaimable "slab" to
-> shrinkable/reclaimable "memory".
+My goal is to reach a solution that does not cause anybody to incur 
+performance penalties as a result of it.  It's surprising that such a 
+severe swap storm issue that went unnoticed for four years is something 
+that can't reach an amicable solution that doesn't cause other users to 
+regress.
+
+> It does appear to me that this patch does more good than harm for the
+> totality of kernel users, so I'm inclined to push it through and to try
+> to talk Linus out of reverting it again.  
 > 
 
-Have you considered following how NR_ANON_MAPPED is tracked for each pgdat 
-and using that as an indicator of when the modify a memcg stat to track 
-the amount of memory on a compound page?  I think this would be necessary 
-for userspace to know what their true memory usage is.
+(1) The totality of kernel users are not running workloads that span 
+multiple sockets, it's the minority, (2) it's changing 4+ year behavior 
+based on NUMA locality of hugepage allocations and provides no workarounds 
+for users who incur regressions as a result, and (3) does not solve the 
+underlying issue if remote memory is also fragmented or low on memory: it 
+actually makes the problem worse.
+
+The easiest solution would be to define the MADV_HUGEPAGE behavior 
+explicitly in sysfs: local or remote.  Defaut to local as the behavior 
+from the past four years and allow users to specify remote if their 
+workloads will span multiple sockets.  This is somewhat coarse but no more 
+than the thp defrag setting in sysfs today that defines defrag behavior 
+for everybody on the system.
 
