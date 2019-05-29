@@ -2,128 +2,165 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 09261C28CC0
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 10:03:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E6EA2C28CC2
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 10:08:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CBC1721670
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 10:03:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CBC1721670
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 9DA6D21670
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 10:08:46 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="XvJCcOWl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DA6D21670
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 513416B000C; Wed, 29 May 2019 06:03:45 -0400 (EDT)
+	id 277396B026A; Wed, 29 May 2019 06:08:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C4976B0010; Wed, 29 May 2019 06:03:45 -0400 (EDT)
+	id 22A4D6B026B; Wed, 29 May 2019 06:08:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 409D06B0266; Wed, 29 May 2019 06:03:45 -0400 (EDT)
+	id 117036B026C; Wed, 29 May 2019 06:08:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A45C6B000C
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 06:03:45 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c1so2610902edi.20
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 03:03:44 -0700 (PDT)
+Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E2C326B026A
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 06:08:45 -0400 (EDT)
+Received: by mail-vs1-f70.google.com with SMTP id v4so278617vsl.4
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 03:08:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=k7vAdyLZjnT8uLHEkZ9JbwrYg6ht7jQJOdRxeraMo4U=;
-        b=MXvI/sSIz4F/LEhLqEaPLSzmvuJyeB7XoYzry8N4MDXk3cqjfNeQ4UqeojPTdr8e3L
-         dbIfV6ZEhJ0kp248IpfPFC+6+sHTpbTUqkeX0S/zFglr7WRXmVSLhiBF4fb1aivbUNPf
-         nBrpbjJEdK6KqIYHKcghiNNWx30m5ZiX90oZL+63svXjcIy9DMnkfyZEqq21Jytzp+T9
-         Otq6KfUVfwcvc3qknE2nvpP60yOiA9d75bkgeLQe/pO+Figa5lSZ9Yol9XjEnaRvcamq
-         jKk4qlO7q9bpP0QkI7neJZBsq9SiUZCpOVkKNPzLFmBD7UhQGlodwtjIcSSeEuDNrXeg
-         h70Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
-X-Gm-Message-State: APjAAAXggdU8jB78U9CguayQoKSK4ZWxJF1yhnNABZymRwpmLTvR/3Rb
-	kU4Vf0nXDgGxkqLvLJk4sGvU7EQF8GDwfXxG/Fdn0XLaeKiPP7kejwFqIuI4oBZIBw56iWRiNvJ
-	2S18tHZOevFsL24YabvQ6rqb25D8ADmRrCdL3WAqWEwHQEtRpRAP7ZCalzDCXYEbCfQ==
-X-Received: by 2002:aa7:c403:: with SMTP id j3mr99165526edq.144.1559124224600;
-        Wed, 29 May 2019 03:03:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw8+QwIWLSDFHlxzCI8l61Cx4PNMNg+limi24hM91FL3ifFvv1Y+NVFe9ocVYHG/F7CXexw
-X-Received: by 2002:aa7:c403:: with SMTP id j3mr99165370edq.144.1559124223621;
-        Wed, 29 May 2019 03:03:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559124223; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=JqrLgxA4AciEivrwCOum3XhYhFc14FWOXrSGbHtn8l4=;
+        b=F3/pnbB25C26+TzLBDgb5NvHDoeRi6937XME+a4Utchvr7DbqZyoHkmF/ul8wnV79o
+         TQW4GuQ0EkeP7CF8h/tcFBiifdaTc0MNX2Hvt4tLQK0vyN1bbntLFM5vvQkaQh9G8eB2
+         L0nVk3Crsh7IlQ2XMl0Y0aD7/ObpG4m/+ACRwBJzj8dqzThJ76xoFh2T1Qnvfih14JSt
+         y/lIw7UhJbl1PkTC8BYAdDyDA8Uo5ZxapsBurScpJD+Wzb/YBozOV6CUNn8JxmC4SVgv
+         Hd1iz6y3C6BaLPfHPnm4NGnQFMrH/uKgmv1ZImB8MZxmhpnUL4Tb4FxVa2aXkNTFhdCd
+         HXhA==
+X-Gm-Message-State: APjAAAX73SXNAQsQNxLYc27U+iMOdRFxhz3e4MyEGD7g4tZaJgypQXpE
+	9kErJKGzUK+1kTumHkq0GJaXu/x8RGkjRmvkJLSX7XrYELSxXb2UKaYi9N1TPPs1zkU4SNJEXIN
+	F24ITpjxc8fippMAPVJ6q+3lM+xUvfWag1QTjrsPmMvaeroxH2yLdH7kPXssN030fDA==
+X-Received: by 2002:a67:d68e:: with SMTP id o14mr46880942vsj.140.1559124525579;
+        Wed, 29 May 2019 03:08:45 -0700 (PDT)
+X-Received: by 2002:a67:d68e:: with SMTP id o14mr46880895vsj.140.1559124524553;
+        Wed, 29 May 2019 03:08:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559124524; cv=none;
         d=google.com; s=arc-20160816;
-        b=QtGgPsODG09IoV3H0YAbpRSI2OVaY6sielW/gIww0Lmcx+v0cENqeBJX7ECR3+vUnp
-         xhrqsWZ8luU/LN/Y7NsI5SJ5uO1tXx3bGJxyI24befzlqfmkw+3pH8iXWSOCEvRiDRo7
-         b/jyYNMuQEhb35bgdNQcWt4atlZDid7DA8Pi65o35h+ui86j2I54HpsYXGLzXSZoPQh3
-         B4CTlwOjNfq1Q2r8yFuly+dxEMGS/XzF+LnTc3j4ZHWPrY6K7A6UvhFrhKg7vUj1McmH
-         Wtpi6Kb+sxlwtj9UmyzWf4tKYSptezaZ264/rppFWbE0ljhEQuQzIr5BRFHzunVzMjEo
-         mqug==
+        b=zasjQ3JevfjPejcQXRVgk2/EtITmd5YVxUFO9bdterIHPAirSUJ2VTaYis+4vVQUBr
+         A7pXVpkfJcljEqYm8zr8bdlHGc6EDKd2QgQKYb7iQozM9sB4bZFtnvZBCykOiQ62GwM0
+         ZyZOdNJpgHaUhgvPxy8ooYhEsbKW3g++WePPXWHTDQONQuhqaldy6z/KzQhTEhtDu8hY
+         WD5HficgBDxbhHbeZMO6MLjpkMWkOGKgXjTdLFtoRb4QnQB+jZfKALQvwziKQk1cKAqi
+         U75xv5GOabiJAZAkGlcNDTakCfWNwfrI1abPluIo3n8yChY7PEvxAb5C+3dkUSGQ5aoM
+         o0dw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=k7vAdyLZjnT8uLHEkZ9JbwrYg6ht7jQJOdRxeraMo4U=;
-        b=txBePtO5yvTTy4ftaQTYvrCf76cEyNunAQNCzegzVYZma+JSY+PeSxnAETHNTn0MOO
-         iHdcWs0nl2kTv18AnwQ2lRweKfGTDICSpCWkBqBJvngbx9UshCT3ubce+kE4mGUtvWZl
-         WM1IHR/xkxopQcu1ZIo+f8cvlCR3+xjucLQs5QOzLWDRoLG+uYAjh7aGmt2PK/ZSRIMO
-         lIQuO9SgcbTIqqY0k+AmNDMTJQDd0/qUyS1Nzv4bexUsAnCBOV4DqtjbND5QohgaTMLl
-         FKR8C11/pw4LsuBuEXQD1hpgJVSZHIMvKjYWVyRmfMe6noSrzGp7xurFcsQUqSgMc54n
-         tt/Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=JqrLgxA4AciEivrwCOum3XhYhFc14FWOXrSGbHtn8l4=;
+        b=UQB1mO8hVk3hdYDfQt/iScwz7ZZOhW9eJFNopoxhv3NMsgWECDP2SXQTUXfESAeVHS
+         6zInkiv7Alt2IcLTS4nEHCFFGA9m5QOD/iwtUStnpTzc4JAXVpP4q9asAFwEFd409f0u
+         zTeaB7lZQQwlmrHuhr/tyDuV3VVRJykiZAHrV50V/Gc69AJBBnsryKXmqdsMyAx8Lwi0
+         gGCO553/lxA0aOYUuCLlj7gI1e4rT9EfacpZ8AousLS73kQC1ycbcTNM9wv9UoeOHEvf
+         f+dUoF3iVNUD30Rajh9dUTkceKX6V9MB62pdC4nfeacmtUdqpkXP8uJd3pP4gZoumA4J
+         oWBQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id l14si3802171edv.262.2019.05.29.03.03.43
-        for <linux-mm@kvack.org>;
-        Wed, 29 May 2019 03:03:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=XvJCcOWl;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y23sor6846621vsk.1.2019.05.29.03.08.44
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 29 May 2019 03:08:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=will.deacon@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9374A341;
-	Wed, 29 May 2019 03:03:42 -0700 (PDT)
-Received: from fuggles.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 6034F3F5AF;
-	Wed, 29 May 2019 03:03:41 -0700 (PDT)
-Date: Wed, 29 May 2019 11:03:38 +0100
-From: Will Deacon <will.deacon@arm.com>
-To: Robin Murphy <robin.murphy@arm.com>, akpm@linux-foundation.org
-Cc: catalin.marinas@arm.com, linux-mm@kvack.org,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v3.1 4/4] arm64: mm: Implement pte_devmap support
-Message-ID: <20190529100338.GB4485@fuggles.cambridge.arm.com>
-References: <cover.1558547956.git.robin.murphy@arm.com>
- <817d92886fc3b33bcbf6e105ee83a74babb3a5aa.1558547956.git.robin.murphy@arm.com>
- <13026c4e64abc17133bbfa07d7731ec6691c0bcd.1559050949.git.robin.murphy@arm.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=XvJCcOWl;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=JqrLgxA4AciEivrwCOum3XhYhFc14FWOXrSGbHtn8l4=;
+        b=XvJCcOWlfI2cAhepwsVATWYEeMXjuPGe36MHEYZY73iUGWkDtfiutI6POmJ9WBgnS5
+         7Zc+MH34Bcng8GBK5pAcN4+/ymPXCE+cXwGYB27pb6fpcm7JJpWRObHmiVtzA72kO7Vt
+         9+YOcI2Zw1oJR4UQfSqS3YY8SCLdrxar3eA2YXi5fviMqALw30QBbOqvt5re4j9bK06T
+         MxXx7a5LVP5i0xbfny+YkspK2cwfOCnZBTAt3WnFtwFkd4xGRcuYSn0qZjjDGgjxXAFp
+         q1ZvaHN3BjJcwWhnr0OVqYGhnNyVRVJJJjOo2VP9Y1mgoPIvFrPK79bYI9MyJL/gQWXB
+         lB1w==
+X-Google-Smtp-Source: APXvYqzSCE0z59kl4Upmp3wn1FWiwFbydqjXU+SBtt9efM9Z8jZQTMXLALdpKllyD+vumjd3lYW8613GvLhWpIBE3/g=
+X-Received: by 2002:a67:e90f:: with SMTP id c15mr3517797vso.9.1559124523923;
+ Wed, 29 May 2019 03:08:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <13026c4e64abc17133bbfa07d7731ec6691c0bcd.1559050949.git.robin.murphy@arm.com>
-User-Agent: Mutt/1.11.1+86 (6f28e57d73f2) ()
+References: <20190520035254.57579-1-minchan@kernel.org> <20190520035254.57579-7-minchan@kernel.org>
+ <20190520092258.GZ6836@dhcp22.suse.cz> <20190521024820.GG10039@google.com>
+ <20190521062421.GD32329@dhcp22.suse.cz> <20190521102613.GC219653@google.com>
+ <20190521103726.GM32329@dhcp22.suse.cz> <20190527074940.GB6879@google.com>
+In-Reply-To: <20190527074940.GB6879@google.com>
+From: Daniel Colascione <dancol@google.com>
+Date: Wed, 29 May 2019 03:08:32 -0700
+Message-ID: <CAKOZuesK-8zrm1zua4dzqh4TEMivsZKiccySMvfBjOyDkg-MEw@mail.gmail.com>
+Subject: Re: [RFC 6/7] mm: extend process_madvise syscall to support vector arrary
+To: Minchan Kim <minchan@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Tim Murray <timmurray@google.com>, 
+	Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>, 
+	Brian Geffon <bgeffon@google.com>, Linux API <linux-api@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 28, 2019 at 02:46:59PM +0100, Robin Murphy wrote:
-> In order for things like get_user_pages() to work on ZONE_DEVICE memory,
-> we need a software PTE bit to identify device-backed PFNs. Hook this up
-> along with the relevant helpers to join in with ARCH_HAS_PTE_DEVMAP.
-> 
-> Signed-off-by: Robin Murphy <robin.murphy@arm.com>
-> ---
-> 
-> Fix to build correctly under all combinations of
-> CONFIG_PGTABLE_LEVELS and CONFIG_TRANSPARENT_HUGEPAGE.
-> 
->  arch/arm64/Kconfig                    |  1 +
->  arch/arm64/include/asm/pgtable-prot.h |  1 +
->  arch/arm64/include/asm/pgtable.h      | 21 +++++++++++++++++++++
->  3 files changed, 23 insertions(+)
+On Mon, May 27, 2019 at 12:49 AM Minchan Kim <minchan@kernel.org> wrote:
+>
+> On Tue, May 21, 2019 at 12:37:26PM +0200, Michal Hocko wrote:
+> > On Tue 21-05-19 19:26:13, Minchan Kim wrote:
+> > > On Tue, May 21, 2019 at 08:24:21AM +0200, Michal Hocko wrote:
+> > > > On Tue 21-05-19 11:48:20, Minchan Kim wrote:
+> > > > > On Mon, May 20, 2019 at 11:22:58AM +0200, Michal Hocko wrote:
+> > > > > > [Cc linux-api]
+> > > > > >
+> > > > > > On Mon 20-05-19 12:52:53, Minchan Kim wrote:
+> > > > > > > Currently, process_madvise syscall works for only one address range
+> > > > > > > so user should call the syscall several times to give hints to
+> > > > > > > multiple address range.
+> > > > > >
+> > > > > > Is that a problem? How big of a problem? Any numbers?
+> > > > >
+> > > > > We easily have 2000+ vma so it's not trivial overhead. I will come up
+> > > > > with number in the description at respin.
+> > > >
+> > > > Does this really have to be a fast operation? I would expect the monitor
+> > > > is by no means a fast path. The system call overhead is not what it used
+> > > > to be, sigh, but still for something that is not a hot path it should be
+> > > > tolerable, especially when the whole operation is quite expensive on its
+> > > > own (wrt. the syscall entry/exit).
+> > >
+> > > What's different with process_vm_[readv|writev] and vmsplice?
+> > > If the range needed to be covered is a lot, vector operation makes senese
+> > > to me.
+> >
+> > I am not saying that the vector API is wrong. All I am trying to say is
+> > that the benefit is not really clear so far. If you want to push it
+> > through then you should better get some supporting data.
+>
+> I measured 1000 madvise syscall vs. a vector range syscall with 1000
+> ranges on ARM64 mordern device. Even though I saw 15% improvement but
+> absoluate gain is just 1ms so I don't think it's worth to support.
+> I will drop vector support at next revision.
 
-Acked-by: Will Deacon <will.deacon@arm.com>
-
-Andrew -- please can you update the previous version of this patch, which
-I think you picked up?
-
-Thanks,
-
-Will
+Please do keep the vector support. Absolute timing is misleading,
+since in a tight loop, you're not going to contend on mmap_sem. We've
+seen tons of improvements in things like camera start come from
+coalescing mprotect calls, with the gains coming from taking and
+releasing various locks a lot less often and bouncing around less on
+the contended lock paths. Raw throughput doesn't tell the whole story,
+especially on mobile.
 
