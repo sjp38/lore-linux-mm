@@ -2,135 +2,192 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
+	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B259DC04AB3
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 04:05:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EF416C282E3
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 04:15:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6CE6121734
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 04:05:19 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ta44pz2N"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6CE6121734
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 8CAE32075B
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 04:15:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CAE32075B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 073186B026E; Wed, 29 May 2019 00:05:19 -0400 (EDT)
+	id 0456C6B0272; Wed, 29 May 2019 00:15:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 025796B0271; Wed, 29 May 2019 00:05:18 -0400 (EDT)
+	id EEA246B0273; Wed, 29 May 2019 00:15:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E7C7D6B0272; Wed, 29 May 2019 00:05:18 -0400 (EDT)
+	id D8A946B0275; Wed, 29 May 2019 00:15:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CE9DE6B026E
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 00:05:18 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id j6so806828iom.3
-        for <linux-mm@kvack.org>; Tue, 28 May 2019 21:05:18 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AF416B0272
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 00:15:06 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id r4so898606pfh.16
+        for <linux-mm@kvack.org>; Tue, 28 May 2019 21:15:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
-         :subject:to;
-        bh=qoCRgKEqb2cNIP9iBbmcP+1MshPj3Nktj6OiPwbarXY=;
-        b=iAqsEk06u3PAHcU9plmABOY8cXmxox6ODQufajPuhSopUl5QlPf3J2+rnFJlNEmGB9
-         qaEwTshEZ9zydnhxGgdoke8zwodDts4ffaFrV40tIdRqUsqxKtUhK9/Sty64LHSM8/d7
-         hfUnWy9374v4vclP1/KWgExdzbouZiF9TkzSoPFzLphXYazyAOHIBSSPfREbORPuWFK8
-         kgkg1tY3nlZHQYybGbA+aCcRUSFOM21/WpZC03fT/4qKHXimJ/9pBVDdcqxCqrsO5TVj
-         D8F/z302CY2ko6S97DHiSlGjleePCGtmkVE33D5SO1CBfQ0SqPj2ogBtKEPToNlhb0ZR
-         zgUg==
-X-Gm-Message-State: APjAAAVKHumGaYJvMUJDP4mJuhK459HCpyoyFEbsswQHc9VdNHE7WWlB
-	fKme5oQyJ2uaQQzlJTkyGyYvtWfn714ZJUrNk4fZiLe+H8dLXnxxSrywLO/kfOUtBvsBjJxcopO
-	gmiPFWETCe+SK10/ZUTpIf+yI+M1s5oAFbbpS2iyqG60lt0wqnIZVLVV18dhV1kfEAQ==
-X-Received: by 2002:a5d:8043:: with SMTP id b3mr72763569ior.115.1559102718561;
-        Tue, 28 May 2019 21:05:18 -0700 (PDT)
-X-Received: by 2002:a5d:8043:: with SMTP id b3mr72763550ior.115.1559102717668;
-        Tue, 28 May 2019 21:05:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559102717; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version:list-id
+         :archived-at:list-archive:list-post:content-transfer-encoding;
+        bh=r5/OjtXFuUE+uWCMge6H1dbZg9/1vgpsiaMnC8Ch1NQ=;
+        b=mmQO3+PvwyBCSDGxmYEZHyzvCTWsfLI4kp3pHZxfubY8GXBDerPf1Z1sgJs9qCcoeT
+         3nO5hNQs56pdLQMeSrgDlTp8UG+bt2BcYmvIgQdZ/rlrFHBgvadHc1ml/kSS/MLxcVvS
+         sgF/a1y8Yr99RrpNAvDF2QKozsAVV8mnmjtbHnRqJmvPh/Khagw7wPF1taKV9Hrm1iCH
+         UEFuJETow+3iczZCIaojyA6gB5i4N1wvBcL08e+jk/bqejAhUffn/y1yx/S9L773HmPv
+         cGZIXRAj6KQLyFDjcK8x4Ga4psdK2yDIeFRILibuWen/qcJFHiE8b4FOTxLiiMOHdazz
+         yIOg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.165 as permitted sender) smtp.mailfrom=hdanton@sina.com
+X-Gm-Message-State: APjAAAVnZLI0mig4muzPpJ++Z5OLGYMFVrz/7PINgPw5qa7Mbq5Oix6c
+	Kt+Ih4zlbzdm17k88mvXuGKP+ptTdZbXS59VPEYFSfnHnd+IZhjtK+G0iJl+AtiMaOYzoeqwpjA
+	rJMlM+YfgbMiyVhhvhx7QutuzZfvbwuLC3DXP3JVV1i9ZLw89Sz1VvN48VWBVIxvaqQ==
+X-Received: by 2002:a65:6543:: with SMTP id a3mr107669718pgw.300.1559103306164;
+        Tue, 28 May 2019 21:15:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqybiCnDs5fyZtwA4OjRhM4+Gd4LW3IAIosuCN526ckdDWGUr9zoDg1yA+UzgBfvqG/EDXSU
+X-Received: by 2002:a65:6543:: with SMTP id a3mr107669677pgw.300.1559103305502;
+        Tue, 28 May 2019 21:15:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559103305; cv=none;
         d=google.com; s=arc-20160816;
-        b=p+QPA3o6Vk/52wyWGhEDiR+DuFMoj13N98e9Grd7FSZA3Ueuqqrl+I1m/8hfjgjutT
-         DS/Ogfw9sP1a9bTezzLj32C7T4mDNS1DpnDMdQTpBArZLopQS7heJObrrv9WrGlxU82o
-         DskQnZiV69eG0RV3Ojxu1wCrAHMH81LHyYopqgIUrGACfG4stNrYSV0mgSbqXcHdEhTX
-         l92gPyk4DtTpoi+sIEyds3WxfczhvXgjL+ByeJ2gAIVxgNoO3fOnSLfUNFWB/+UBhc5s
-         lgQLXUsoVVjeneD+88a9KDqr/sCYVtbDeMPDB3KNd9TFUIsYWN/5y7scOpygU6fzDKl8
-         ytAQ==
+        b=KbLTXKNPmUq0mTwJbkDYBqyhzurtd4yvFvy8c4ll4+RoHwc35BGafvIZmPB18C0n7K
+         rrOgd7i6iuJ+DNqlyB6WOL3LAWyLn2ymQJW7WMLdO5UW7M2e2V3vSelPfkY0nu96lw2A
+         KHj2BtnaWGpvqAgqIVji2aETBAPA6JtT7JwBWvZlj9+d9SpGKpLqouPXtGNDcNpM4UI3
+         lxqv4a7drcN9KdxepgkzPaMIL79SAIeHO2PfXmr9s+K1z+1Lu6byTwhVYliRO1LBqrKz
+         axMzC3e72wZ7HLadjdXxavbzZVoPSSEMKXu0xQvmAdCXrkfOJxc/3ecm3nwHM8XwQhFq
+         7sZw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:subject:message-id:date:from:mime-version:dkim-signature;
-        bh=qoCRgKEqb2cNIP9iBbmcP+1MshPj3Nktj6OiPwbarXY=;
-        b=G/kdpcE2ovzgAiwLNrmPJqn/IxALSYvqyzIccqsOFkJb4vyPcT785rKH/YuHSHbVGr
-         V7G7euQ+9YFrpcHZiEdOfYr/ILPqHVF5m8i2jrENp0cb7I01Lj2eFoBA9jtUP2O+ji3v
-         t0r8Icc7iBDfZy5JDTzZ1hb8iIm9Mpd/7H1FY+MkjSYCrlkUN/oXcH80uHwIoi6ONpO5
-         OGZlBFZVWJ1ZBeVgnYFgSK+r7KdsRxyGjromHKxplFSXlJqS1GTpm1d9vpgFw79n8oK+
-         +WtOCf9o1IqpHO9wtB5PUUw9xnklQ2FeQLcLrMGvreHeRzYei0c4IDkx5Svb3lw7Q9Uh
-         oP9g==
+        h=content-transfer-encoding:list-post:list-archive:archived-at
+         :list-id:mime-version:references:in-reply-to:message-id:date:subject
+         :cc:to:from;
+        bh=r5/OjtXFuUE+uWCMge6H1dbZg9/1vgpsiaMnC8Ch1NQ=;
+        b=oJ8ORMJmSlVwmYq0U0bTCwqI2E8dciVYgjVANqKW0mnY+LQzpdNfxDRwAvwLXXIXl5
+         qn/dOthMHBaoQeCyLpQxHM2pBS2QmchLiWluaKb96FDU+Q3I95d5d3Cx7uE8uJVlE4OP
+         lciXE0CwQVsxWiQiMTNVhJXkkfOgUr4huQkavE3APmGPh5w+yryvaxLHJEvQiVPl8ALD
+         PDcCGcCi2yn6vU4mMck6hMC27q9MA9LqTaktYOkUdPcql6F70VGt/LcSPL29wQZ7YG0L
+         zrknUGal77rNimIuI62Nsh2wShF7EhfHAdYkq+2dy7vVV34JRxsVf3s/7JjwDv7gs7xl
+         Kzvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ta44pz2N;
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f1sor4241751ioc.19.2019.05.28.21.05.17
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 28 May 2019 21:05:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.165 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from mail3-165.sinamail.sina.com.cn (mail3-165.sinamail.sina.com.cn. [202.108.3.165])
+        by mx.google.com with SMTP id 204si22894960pga.373.2019.05.28.21.15.04
+        for <linux-mm@kvack.org>;
+        Tue, 28 May 2019 21:15:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hdanton@sina.com designates 202.108.3.165 as permitted sender) client-ip=202.108.3.165;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ta44pz2N;
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:from:date:message-id:subject:to;
-        bh=qoCRgKEqb2cNIP9iBbmcP+1MshPj3Nktj6OiPwbarXY=;
-        b=Ta44pz2N6vCsDgFB/YzCguDFPvKoN0XrV1PKQ4fEBWZ2ERaHYWnbT/J29GnDrAm3Q7
-         AM3uZD1QG2eRlrvcinZcs+1PQMK4LTC9YezWYBUZJjfV0pnyMCfIAYJvDNLAzG9vU3pd
-         ZmqqDS3xlEC0dFbnkg8AFgLdi8qp+/J9e/SCpqQZUkMua6FjYoQPGJ/LlWLrApM+j5cW
-         nugMzWpzkjSlBmEBIygtEQDay08/Ot0Y4z2MUYdVUgzKbMkj6Lou7ahZJWPwW63K1xFu
-         e9KoBVdHojf4Tc2uQhUtLlrd8GVkuDSuvPw5JW6NObfBF1ZsnfMG3LOOx45242BscHQW
-         /Nxg==
-X-Google-Smtp-Source: APXvYqzUgiVnU+ecS/L3fcr3coeSpkq06FPF9E/xGA0Vgap0A2MpheGiZZG3Yep4zHc/xlpCpJr4mEN0UD4EDpMfJ4s=
-X-Received: by 2002:a5e:c24b:: with SMTP id w11mr1108900iop.111.1559102717163;
- Tue, 28 May 2019 21:05:17 -0700 (PDT)
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.165 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from unknown (HELO localhost.localdomain)([123.112.52.157])
+	by sina.com with ESMTP
+	id 5CEE073F00004B7C; Wed, 29 May 2019 12:15:02 +0800 (CST)
+X-Sender: hdanton@sina.com
+X-Auth-ID: hdanton@sina.com
+X-SMAIL-MID: 564143396047
+From: Hillf Danton <hdanton@sina.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>
+Subject: Re: [RFC 6/7] mm: extend process_madvise syscall to support vector arrary
+Date: Wed, 29 May 2019 12:14:47 +0800
+Message-Id: <20190520035254.57579-7-minchan@kernel.org>
+In-Reply-To: <20190520035254.57579-1-minchan@kernel.org>
+References: <20190520035254.57579-1-minchan@kernel.org>
+X-Mailer: git-send-email 2.21.0.1020.gf2820cf01a-goog
 MIME-Version: 1.0
-From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Date: Wed, 29 May 2019 09:05:06 +0500
-Message-ID: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
-Subject: kernel BUG at mm/swap_state.c:170!
-To: Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Content-Type: text/plain; charset="UTF-8"
+List-ID: <linux-kernel.vger.kernel.org>
+X-Mailing-List: linux-kernel@vger.kernel.org
+Archived-At: <https://lore.kernel.org/lkml/20190520035254.57579-7-minchan@kernel.org/>
+List-Archive: <https://lore.kernel.org/lkml/>
+List-Post: <mailto:linux-kernel@vger.kernel.org>
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-
-Hi folks.
-I am observed kernel panic after update to git tag 5.2-rc2.
-This crash happens at memory pressing when swap being used.
-
-Unfortunately in journalctl saved only this:
-
-May 29 08:02:02 localhost.localdomain kernel: page:ffffe90958230000
-refcount:1 mapcount:1 mapping:ffff8f3ffeb36949 index:0x625002ab2
-May 29 08:02:02 localhost.localdomain kernel: anon
-May 29 08:02:02 localhost.localdomain kernel: flags:
-0x17fffe00080034(uptodate|lru|active|swapbacked)
-May 29 08:02:02 localhost.localdomain kernel: raw: 0017fffe00080034
-ffffe90944640888 ffffe90956e208c8 ffff8f3ffeb36949
-May 29 08:02:02 localhost.localdomain kernel: raw: 0000000625002ab2
-0000000000000000 0000000100000000 ffff8f41aeeff000
-May 29 08:02:02 localhost.localdomain kernel: page dumped because:
-VM_BUG_ON_PAGE(entry != page)
-May 29 08:02:02 localhost.localdomain kernel: page->mem_cgroup:ffff8f41aeeff000
-May 29 08:02:02 localhost.localdomain kernel: ------------[ cut here
-]------------
-May 29 08:02:02 localhost.localdomain kernel: kernel BUG at mm/swap_state.c:170!
+Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20190529041447.yS-hNnmHaZzavxxZ3nqUepUZaP3KF5kZrSyKZcKdKIQ@z>
 
 
+On Mon, 20 May 2019 12:52:53 +0900 Minchan Kim wrote:
+> Example)
+> 
+Better if the following stuff is stored somewhere under the
+tools/testing directory.
 
+BR
+Hillf
 
---
-Best Regards,
-Mike Gavrilov.
+> struct pr_madvise_param {
+>         int size;
+>         const struct iovec *vec;
+> };
+> 
+> int main(int argc, char *argv[])
+> {
+>         struct pr_madvise_param retp, rangep;
+>         struct iovec result_vec[2], range_vec[2];
+>         int hints[2];
+>         long ret[2];
+>         void *addr[2];
+> 
+>         pid_t pid;
+>         char cmd[64] = {0,};
+>         addr[0] = mmap(NULL, ALLOC_SIZE, PROT_READ|PROT_WRITE,
+>                           MAP_POPULATE|MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+> 
+>         if (MAP_FAILED == addr[0])
+>                 return 1;
+> 
+>         addr[1] = mmap(NULL, ALLOC_SIZE, PROT_READ|PROT_WRITE,
+>                           MAP_POPULATE|MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+> 
+>         if (MAP_FAILED == addr[1])
+>                 return 1;
+> 
+>         hints[0] = MADV_COLD;
+> 	range_vec[0].iov_base = addr[0];
+>         range_vec[0].iov_len = ALLOC_SIZE;
+>         result_vec[0].iov_base = &ret[0];
+>         result_vec[0].iov_len = sizeof(long);
+> 	retp.vec = result_vec;
+>         retp.size = sizeof(struct pr_madvise_param);
+> 
+>         hints[1] = MADV_COOL;
+>         range_vec[1].iov_base = addr[1];
+>         range_vec[1].iov_len = ALLOC_SIZE;
+>         result_vec[1].iov_base = &ret[1];
+>         result_vec[1].iov_len = sizeof(long);
+>         rangep.vec = range_vec;
+>         rangep.size = sizeof(struct pr_madvise_param);
+> 
+>         pid = fork();
+>         if (!pid) {
+>                 sleep(10);
+>         } else {
+>                 int pidfd = open(cmd,  O_DIRECTORY | O_CLOEXEC);
+>                 if (pidfd < 0)
+>                         return 1;
+> 
+>                 /* munmap to make pages private for the child */
+>                 munmap(addr[0], ALLOC_SIZE);
+>                 munmap(addr[1], ALLOC_SIZE);
+>                 system("cat /proc/vmstat | egrep 'pswpout|deactivate'");
+>                 if (syscall(__NR_process_madvise, pidfd, 2, behaviors,
+> 						&retp, &rangep, 0))
+>                         perror("process_madvise fail\n");
+>                 system("cat /proc/vmstat | egrep 'pswpout|deactivate'");
+>         }
+> 
+>         return 0;
+> }
 
