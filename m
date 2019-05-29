@@ -2,106 +2,106 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-6.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,UNWANTED_LANGUAGE_BODY,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E5545C28CC0
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:36:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9507C28CC0
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:37:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8EC6824223
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:36:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6BD8424223
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 21:37:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="LTkQ1wQE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EC6824223
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="leQ/opXV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BD8424223
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0A2BB6B026D; Wed, 29 May 2019 17:36:55 -0400 (EDT)
+	id 282246B026E; Wed, 29 May 2019 17:36:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EEF596B0273; Wed, 29 May 2019 17:36:54 -0400 (EDT)
+	id 10DEE6B0272; Wed, 29 May 2019 17:36:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C3CC36B0272; Wed, 29 May 2019 17:36:54 -0400 (EDT)
+	id E0DF16B0274; Wed, 29 May 2019 17:36:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A0DE6B026A
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 84B806B026E
 	for <linux-mm@kvack.org>; Wed, 29 May 2019 17:36:54 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id f1so2902184pfb.0
+Received: by mail-pf1-f197.google.com with SMTP id i8so2854993pfo.21
         for <linux-mm@kvack.org>; Wed, 29 May 2019 14:36:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
          :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
          :message-id:in-reply-to:references:mime-version;
-        bh=qndMC0xqMluPTNov9/3iwaOnMII97myVrvnzznwxlUw=;
-        b=ZANSFr9ZbjsnlcmC+cLdjhGQLth06hxWNScIqfDa9v2lMqqBGfHIR+eeI8vd0clXYl
-         ysmkRUPngBcPt7HOVzrOp+1+tuhJYyGhKD2SQwAJdWgWCNKp54OzLZh8HPhidCNV4WTd
-         cXHMUNLyaD6VnBb4mliM1MCGQSBgVN1EU9JGg18Bd1/zwll04tdm1Z823b/Wn+DrdMUh
-         QDBBr5OEsVKUHBMndfB3UKw6Og/xO5fZhp2PcA84NK8s3GePmtj01yuUy1ya7KPyixmy
-         JqnQaAeo/gsCKfLA9bMCR4qveJf9kH9qIswCNaLPYfgPEi/mAs59kU3vn9WebZo1djwU
-         r3Jw==
-X-Gm-Message-State: APjAAAX7ki4TFsspf03otl3/i5c9Qx/eOqZtggmdZNtMJIE8Gs5FE1bf
-	Ee3ZTP+7hBBzyM01/cFQNhN2S8Yu5oTPN6Hj4xkuBircTHsDlCRi4W240EUijdVGgiSd2eLoSrk
-	aj9eyuDpni9b83zJrYpkhAsY5zHv4vXduwmu5DAI80d/1RidQAZF6RcuzrBfjLOA3AQ==
-X-Received: by 2002:a17:90a:9dca:: with SMTP id x10mr103429pjv.105.1559165813947;
+        bh=vH2HloBkxs0E6y5mQ4CjNY7e4RAkgwr31RBvR6O3DQc=;
+        b=cTasGexP+GlezuLmbCDCqlsCpBcQs3YUqdgdJTIJggvgzTWayYlSiIwTNtsR+BnxjF
+         5uDdiiPhedY7x2cwKnnAXPMs/23aU/tCaKVoce9WpZGeQVm9cTBGrYWqr+Q0fujUUYjS
+         s/+q0TBVYTk2bW5bmN1O0i6TbKM7pduXXaXhl7T12sbsd4XPwKnCLAV5la0btlpV4GKh
+         s0O953c85yB+j+bU7b7D05vo05h+pS0zet0wpCzaJZWuDjJTkuKHEbCiGLFK0CQXzTfA
+         cqXAbwR0npTQLekeOIVqj+aBZkgZM3cpfkPtR3zMZpree9Xeq1V5bZuKSTij9H6ksOxM
+         OJuA==
+X-Gm-Message-State: APjAAAWg7o/VPReIv5XtErHLeqXoQFsSa7ox364toXhK/SI7VV7MHuty
+	b2cWZ4tJ7U5ETOpHJTkI5SFtZJhgND2xfc9JWqbR94nlqF1snhvfNi+Vfp7pnaXG4Z6nJ+rMhmz
+	OmS1z4p4bur+ki2fTQyQv01R43IFTJMHAQJbIDrXtYpvHnw2//Km4O92AicW0bMn+4A==
+X-Received: by 2002:a17:902:ab98:: with SMTP id f24mr25035plr.223.1559165814041;
+        Wed, 29 May 2019 14:36:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxuuHkRRTDwkP0+suyjTsMzBKFH7LISuUJ9CnWZjw89Tuo7YiJgHrtnrYSTDlDLKx7pHe3e
+X-Received: by 2002:a17:902:ab98:: with SMTP id f24mr24987plr.223.1559165813033;
         Wed, 29 May 2019 14:36:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxV1I+Ej+jSpQKU/0gctSjl2ZFb0xmeOjFhUP6i+XOPKoyRuMJfMkja4K38CnvTQ7rTDuxM
-X-Received: by 2002:a17:90a:9dca:: with SMTP id x10mr103373pjv.105.1559165812697;
-        Wed, 29 May 2019 14:36:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559165812; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1559165813; cv=none;
         d=google.com; s=arc-20160816;
-        b=OwvHQLSV/IeJRJmUopLOUVLnzbC7ZGtIaJUwXUlXSktWHn9D4hxqEJYYU9Wz58t3LI
-         yaz3hSA152h6NFku3DLYLCQsVNHqVcyTp0nLyisB/gmJWi+YVIt2+wxCB+zrDFCKsrwE
-         /1ZJmadhZ6FCBQ+YgBy6opfrVm87wmk42W85t5X0uW1O3WfagNC5K3JYPd1fAC6S3+7J
-         15flbD3OoMCWV6LY8XVKOZwNhezF7amH292x8Y1J79sZ8TCy+xkhhduypYOGc+7tHaqW
-         6vhdyxuSyKjMXfy4e4Ca7Fzs0L5Y/NUahOWShGXiPCmEVBqyzaEDU+3OK+qnAGznHJzU
-         pATA==
+        b=Do6y24gSrtET62eMRSeYq6nsL8/5TyY9z75FgHCFR41f8Ijsg6n43IQA8JH1s2RGnl
+         K5eGgh0L5n+I5wg4obsyi7QnzrY75QhrG2JY3Wsr/InWXID5W2P8faKi8n/M4Axh6Ajf
+         M1zrZx1HFwRZDnwQnR13oJ/FgFwiHEIZQbBAPqCi8RYtYRbWMDaHOWOK+l8IBKQdSaB7
+         Hk8XF/bREzJEIXXWky27LQeeFcgB+rnRi/hPodxVielLUSbLeCPflwrf0GCu2jHf/fD9
+         41MzVI1OLrJlst3zhvgvPtFAybItoRc1hgL0jDNpzSYGzAWfn/VF/QCAm5F5whUqlQRo
+         La4A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject
          :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
          :smtp-origin-hostprefix:dkim-signature;
-        bh=qndMC0xqMluPTNov9/3iwaOnMII97myVrvnzznwxlUw=;
-        b=i7hJidAAvBb56i9dzfSxJMxBkufujDSR8K5r89MzsSnMCYgE0bYR2oNlbEeGBaws4h
-         30EXDK99s60vh5KmXf/rNwzaPgkuJg1aaTto1+N1BZRUjiOLvx8cAH98sLG0cGcIZc2V
-         V34ZIu41yDaHZPFlNNdv6HjF9fnAygvRJq4dpzF8n0n+jiOfA5S4BstcMGmQK6pBfzB/
-         6qXU9jjYim6AKJAZGEjFnEh6dJjxJaWh/S3sbN+hDYUNKp7FVY4+EHa93GvzE0XgT7zf
-         a+nsJgOVi0qGd5BsWla4E+F1TZgR5SwcrOUb1eJqoEoxI6Gp+K+3itAk75q6AR/flquL
-         jgQA==
+        bh=vH2HloBkxs0E6y5mQ4CjNY7e4RAkgwr31RBvR6O3DQc=;
+        b=QGJg8USfC/x4CvkxRcnv3Vu17mr7LDxRGhNj8QbpCZ1r/FB2K+pqzeYQHpZUnSOdGz
+         HRCtz5KbtmENfrY1GRVWEm47Pv7RIIE4VHMxVDZw1G+HjImgL07fX0PP9om69sLYFwu/
+         NPFe/t3Ku6OgVG2XtFcDEdbFOe7DupLqKUvQQABYKcz7YuO/kRkDrpQ9IR+H0qcr6Iax
+         qhDeB8J3MMCnY4cyimcCLiZfq+I2I9wa8Qv1nsEDROatPrCExE74clNPw43tJerT8fuH
+         t6us2H7awG0BBLi11qfd0DpWSOB8JYC3jpavaC3eC1RzPxpIIlKq3mOgZeltgO5By86Q
+         iSAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=LTkQ1wQE;
+       dkim=pass header.i=@fb.com header.s=facebook header.b="leQ/opXV";
        spf=pass (google.com: domain of prvs=105246f206=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=105246f206=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
 Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id x21si691542pjn.61.2019.05.29.14.36.52
+        by mx.google.com with ESMTPS id p7si903989pgh.497.2019.05.29.14.36.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 May 2019 14:36:52 -0700 (PDT)
+        Wed, 29 May 2019 14:36:53 -0700 (PDT)
 Received-SPF: pass (google.com: domain of prvs=105246f206=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=LTkQ1wQE;
+       dkim=pass header.i=@fb.com header.s=facebook header.b="leQ/opXV";
        spf=pass (google.com: domain of prvs=105246f206=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=105246f206=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
 Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4TLXFaA029780
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 14:36:51 -0700
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4TLXFaE029780
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 14:36:52 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
  : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=qndMC0xqMluPTNov9/3iwaOnMII97myVrvnzznwxlUw=;
- b=LTkQ1wQEoMYl6maX4Qm4eWZZSKF3T2qxbtzfn/2yYogdb+4V3LFaHgo8wiAq6NGxBkJd
- aTe758DWrooYpZU6e6V+eiqY1EGkBCpvv9Z69AZbPJDMWWk8QIZwKrbAS3IHE9TcYJkb
- ZWVuxyitfP5YHkU3ABSScb9jAn2gSEVFV0E= 
+ content-type; s=facebook; bh=vH2HloBkxs0E6y5mQ4CjNY7e4RAkgwr31RBvR6O3DQc=;
+ b=leQ/opXVYpqVUDrxSdj4Ktb74UjnKrLbSU4Q57tkH+Tr8ZlEQE8x7tcWa2DqRRneIB6v
+ W5K/0bzvmab0GSW6VbzFxHczPg7EevoFPI2JeUZc7zgyigmd+qtUkTo1UYgWgJxtsI20
+ Kdm2ZOn+1azQzr3ZPEXJLQNhUgLy5Q/vLFo= 
 Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2ssqq9jb6r-8
+	by mx0a-00082601.pphosted.com with ESMTP id 2ssqq9jb6r-12
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 14:36:50 -0700
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 14:36:52 -0700
 Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
  mail.thefacebook.com (2620:10d:c081:35::129) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
  Wed, 29 May 2019 14:36:48 -0700
 Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
-	id 47ACB62E215C; Wed, 29 May 2019 14:21:22 -0700 (PDT)
+	id E135662E2076; Wed, 29 May 2019 14:21:16 -0700 (PDT)
 Smtp-Origin-Hostprefix: devbig
 From: Song Liu <songliubraving@fb.com>
 Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
@@ -113,9 +113,9 @@ CC: <namit@vmware.com>, <peterz@infradead.org>, <oleg@redhat.com>,
         <chad.mynhier@oracle.com>, <mike.kravetz@oracle.com>,
         Song Liu <songliubraving@fb.com>
 Smtp-Origin-Cluster: ftw2c04
-Subject: [PATCH uprobe, thp 3/4] uprobe: support huge page by only splitting the pmd
-Date: Wed, 29 May 2019 14:20:48 -0700
-Message-ID: <20190529212049.2413886-4-songliubraving@fb.com>
+Subject: [PATCH uprobe, thp 2/4] uprobe: use original page when all uprobes are removed
+Date: Wed, 29 May 2019 14:20:47 -0700
+Message-ID: <20190529212049.2413886-3-songliubraving@fb.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190529212049.2413886-1-songliubraving@fb.com>
 References: <20190529212049.2413886-1-songliubraving@fb.com>
@@ -136,174 +136,107 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Instead of splitting the compound page with FOLL_SPLIT, this patch allows
-uprobe to only split pmd for huge pages.
+Currently, uprobe swaps the target page with a anonymous page in both
+install_breakpoint() and remove_breakpoint(). When all uprobes on a page
+are removed, the given mm is still using an anonymous page (not the
+original page).
 
-A helper function mm_address_trans_huge(mm, address) was introduced to
-test whether the address in mm is pointing to THP.
+This patch allows uprobe to use original page when possible (all uprobes
+on the page are already removed).
 
 Signed-off-by: Song Liu <songliubraving@fb.com>
 ---
- include/linux/huge_mm.h |  8 ++++++++
- kernel/events/uprobes.c | 38 ++++++++++++++++++++++++++++++++------
- mm/huge_memory.c        | 24 ++++++++++++++++++++++++
- 3 files changed, 64 insertions(+), 6 deletions(-)
+ kernel/events/uprobes.c | 43 ++++++++++++++++++++++++++++++++---------
+ 1 file changed, 34 insertions(+), 9 deletions(-)
 
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 2d8a40fd06e4..4832d6580969 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -163,6 +163,8 @@ void __split_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
- 		bool freeze, struct page *page, pgtable_t prealloc_pgtable);
- 
-+bool mm_address_trans_huge(struct mm_struct *mm, unsigned long address);
-+
- void __split_huge_pud(struct vm_area_struct *vma, pud_t *pud,
- 		unsigned long address);
- 
-@@ -302,6 +304,12 @@ static inline void split_huge_pmd_address(struct vm_area_struct *vma,
- 		unsigned long address, bool freeze, struct page *page,
- 		pgtable_t prealloc_pgtable) {}
- 
-+static inline bool mm_address_trans_huge(struct mm_struct *mm,
-+					 unsigned long address)
-+{
-+	return false;
-+}
-+
- #define split_huge_pud(__vma, __pmd, __address)	\
- 	do { } while (0)
- 
 diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index ba49da99d2a2..56eeccc2f7a2 100644
+index 78f61bfc6b79..ba49da99d2a2 100644
 --- a/kernel/events/uprobes.c
 +++ b/kernel/events/uprobes.c
-@@ -26,6 +26,7 @@
- #include <linux/percpu-rwsem.h>
- #include <linux/task_work.h>
- #include <linux/shmem_fs.h>
-+#include <asm/pgalloc.h>
+@@ -160,16 +160,19 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+ 	int err;
+ 	struct mmu_notifier_range range;
+ 	struct mem_cgroup *memcg;
++	bool orig = new_page->mapping != NULL;  /* new_page == orig_page */
  
- #include <linux/uprobes.h>
- 
-@@ -153,7 +154,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	struct page_vma_mapped_walk pvmw = {
--		.page = old_page,
-+		.page = compound_head(old_page),
- 		.vma = vma,
- 		.address = addr,
- 	};
-@@ -165,8 +166,6 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
  	mmu_notifier_range_init(&range, MMU_NOTIFY_CLEAR, 0, vma, mm, addr,
  				addr + PAGE_SIZE);
  
--	VM_BUG_ON_PAGE(PageTransHuge(old_page), old_page);
--
- 	if (!orig) {
- 		err = mem_cgroup_try_charge(new_page, vma->vm_mm, GFP_KERNEL,
- 					    &memcg, false);
-@@ -188,7 +187,8 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+ 	VM_BUG_ON_PAGE(PageTransHuge(old_page), old_page);
+ 
+-	err = mem_cgroup_try_charge(new_page, vma->vm_mm, GFP_KERNEL, &memcg,
+-			false);
+-	if (err)
+-		return err;
++	if (!orig) {
++		err = mem_cgroup_try_charge(new_page, vma->vm_mm, GFP_KERNEL,
++					    &memcg, false);
++		if (err)
++			return err;
++	}
+ 
+ 	/* For try_to_free_swap() and munlock_vma_page() below */
+ 	lock_page(old_page);
+@@ -177,15 +180,22 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
+ 	mmu_notifier_invalidate_range_start(&range);
+ 	err = -EAGAIN;
+ 	if (!page_vma_mapped_walk(&pvmw)) {
+-		mem_cgroup_cancel_charge(new_page, memcg, false);
++		if (!orig)
++			mem_cgroup_cancel_charge(new_page, memcg, false);
+ 		goto unlock;
+ 	}
+ 	VM_BUG_ON_PAGE(addr != pvmw.address, old_page);
  
  	get_page(new_page);
- 	if (orig) {
--		page_add_file_rmap(new_page, false);
-+		page_add_file_rmap(compound_head(new_page),
-+				   PageTransHuge(compound_head(new_page)));
- 		inc_mm_counter(mm, mm_counter_file(new_page));
- 		dec_mm_counter(mm, MM_ANONPAGES);
- 	} else {
-@@ -207,7 +207,8 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
- 	set_pte_at_notify(mm, addr, pvmw.pte,
- 			mk_pte(new_page, vma->vm_page_prot));
+-	page_add_new_anon_rmap(new_page, vma, addr, false);
+-	mem_cgroup_commit_charge(new_page, memcg, false, false);
+-	lru_cache_add_active_or_unevictable(new_page, vma);
++	if (orig) {
++		page_add_file_rmap(new_page, false);
++		inc_mm_counter(mm, mm_counter_file(new_page));
++		dec_mm_counter(mm, MM_ANONPAGES);
++	} else {
++		page_add_new_anon_rmap(new_page, vma, addr, false);
++		mem_cgroup_commit_charge(new_page, memcg, false, false);
++		lru_cache_add_active_or_unevictable(new_page, vma);
++	}
  
--	page_remove_rmap(old_page, false);
-+	page_remove_rmap(compound_head(old_page),
-+			 PageTransHuge(compound_head(old_page)));
- 	if (!page_mapped(old_page))
- 		try_to_free_swap(old_page);
- 	page_vma_mapped_walk_done(&pvmw);
-@@ -475,17 +476,42 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
+ 	if (!PageAnon(old_page)) {
+ 		dec_mm_counter(mm, mm_counter_file(old_page));
+@@ -461,9 +471,10 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
+ 			unsigned long vaddr, uprobe_opcode_t opcode)
+ {
+ 	struct uprobe *uprobe;
+-	struct page *old_page, *new_page;
++	struct page *old_page, *new_page, *orig_page = NULL;
  	struct vm_area_struct *vma;
  	int ret, is_register, ref_ctr_updated = 0;
- 	pgoff_t index;
-+	pgtable_t prealloc_pgtable = NULL;
-+	unsigned long foll_flags = FOLL_FORCE;
++	pgoff_t index;
  
  	is_register = is_swbp_insn(&opcode);
  	uprobe = container_of(auprobe, struct uprobe, arch);
+@@ -501,6 +512,20 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
+ 	copy_highpage(new_page, old_page);
+ 	copy_to_page(new_page, vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
  
-+	/* do not FOLL_SPLIT yet */
-+	ret = get_user_pages_remote(NULL, mm, vaddr, 1,
-+			foll_flags, &old_page, &vma, NULL);
-+
-+	if (ret <= 0)
-+		return ret;
-+
-+	if (mm_address_trans_huge(mm, vaddr)) {
-+		prealloc_pgtable = pte_alloc_one(mm);
-+		if (likely(prealloc_pgtable)) {
-+			split_huge_pmd_address(vma, vaddr, false, NULL,
-+					       prealloc_pgtable);
-+			goto verify;
++	index = vaddr_to_offset(vma, vaddr & PAGE_MASK) >> PAGE_SHIFT;
++	orig_page = find_get_page(vma->vm_file->f_inode->i_mapping, index);
++	if (orig_page) {
++		if (memcmp(page_address(orig_page),
++			   page_address(new_page), PAGE_SIZE) == 0) {
++			/* if new_page matches orig_page, use orig_page */
++			put_page(new_page);
++			new_page = orig_page;
 +		} else {
-+			/* fallback to FOLL_SPLIT */
-+			foll_flags |= FOLL_SPLIT;
-+			put_page(old_page);
++			put_page(orig_page);
++			orig_page = NULL;
 +		}
-+	} else {
-+		goto verify;
 +	}
 +
- retry:
- 	/* Read the page with vaddr into memory */
- 	ret = get_user_pages_remote(NULL, mm, vaddr, 1,
--			FOLL_FORCE | FOLL_SPLIT, &old_page, &vma, NULL);
-+			foll_flags, &old_page, &vma, NULL);
- 	if (ret <= 0)
- 		return ret;
- 
-+verify:
- 	ret = verify_opcode(old_page, vaddr, &opcode);
- 	if (ret <= 0)
- 		goto put_old;
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index dcb0e30213af..4714871353c0 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2360,6 +2360,30 @@ void split_huge_pmd_address(struct vm_area_struct *vma, unsigned long address,
- 	____split_huge_pmd(vma, pmd, address, freeze, page, prealloc_pgtable);
- }
- 
-+bool mm_address_trans_huge(struct mm_struct *mm, unsigned long address)
-+{
-+	pgd_t *pgd;
-+	p4d_t *p4d;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+
-+	pgd = pgd_offset(mm, address);
-+	if (!pgd_present(*pgd))
-+		return false;
-+
-+	p4d = p4d_offset(pgd, address);
-+	if (!p4d_present(*p4d))
-+		return false;
-+
-+	pud = pud_offset(p4d, address);
-+	if (!pud_present(*pud))
-+		return false;
-+
-+	pmd = pmd_offset(pud, address);
-+
-+	return pmd_trans_huge(*pmd);
-+}
-+
- void vma_adjust_trans_huge(struct vm_area_struct *vma,
- 			     unsigned long start,
- 			     unsigned long end,
+ 	ret = __replace_page(vma, vaddr, old_page, new_page);
+ 	put_page(new_page);
+ put_old:
 -- 
 2.17.1
 
