@@ -2,133 +2,128 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EFBC9C28CC1
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 13:23:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E583C28CC0
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 13:58:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A5DA5217D4
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 13:23:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A5DA5217D4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id CD61822DA7
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 13:58:31 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uXjwPjRZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD61822DA7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 36B486B000D; Wed, 29 May 2019 09:23:54 -0400 (EDT)
+	id 685686B000C; Wed, 29 May 2019 09:58:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31C646B0010; Wed, 29 May 2019 09:23:54 -0400 (EDT)
+	id 636D46B000D; Wed, 29 May 2019 09:58:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 20BE66B0266; Wed, 29 May 2019 09:23:54 -0400 (EDT)
+	id 5252C6B000E; Wed, 29 May 2019 09:58:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C92696B000D
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 09:23:53 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l3so3441164edl.10
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 06:23:53 -0700 (PDT)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DC6956B000C
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 09:58:30 -0400 (EDT)
+Received: by mail-lf1-f70.google.com with SMTP id a25so736429lfl.0
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 06:58:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=euesoUjkSQJ2miEAPNfPDRSCP16azLpN27jylWUcuXQ=;
-        b=gAsEpp40zZF6e3FWl6tuYJNYu629ymbPl1MtgJbcm6h8fs42J9rTmfkpBxc3XpkdaU
-         ZUpNpjI/FoPpC1qtEPMjvxeGeyZtevKIJIJHV14TsSW7vOUDcwp/TLiqnxBitezhQ5pN
-         y+uUvyZlwOQyZxW5TBfKS1Q3ZRzeifJrou7gIZd7siqOsg7wGwjdgOOfkXVRYRkghjDU
-         k9Aqm/VNzNXlXFDiIIp3wCKcE4Jj3SKvs1lul931usr4HBubFfCtODIehRQruLRVfrNF
-         VPWQ21I+KdiS+DVtyI4w1MxGrpUd+XXOIN0rnz6gvidQhu+KXQ/xIVUvXbThDX9Ia/YE
-         crpA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAUMax+OE1tLeNxI6DbzlbAXFnOu45ALWVUQhwnf5x/9tGKNUrpa
-	PMsQVM/7ZJmDlOSejsnoy9+AZ2qrxczKKhLBCh3r3x6Bb385tt4mw8wMJ8iuiygUDnf8XKOkT5l
-	6rNgm39QF2h2FXjPYWUNlBiVCXUL1SszESRIrCHNNwKJc/0Pz5gj8ZJXrlAa8+4sc2A==
-X-Received: by 2002:a17:906:fc02:: with SMTP id ov2mr39668831ejb.22.1559136233368;
-        Wed, 29 May 2019 06:23:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz1XSny1luFwML9ARHOzqfk2gJbyahXLESHp4YSDJVoNDoMOhlAQRzmIob5WyiCkubTIzl5
-X-Received: by 2002:a17:906:fc02:: with SMTP id ov2mr39668737ejb.22.1559136232220;
-        Wed, 29 May 2019 06:23:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559136232; cv=none;
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=FvnuOzvWWHxvWxRXVyec6ngD8uETWcADOgiOUZyOXOI=;
+        b=GWDjrMfe8JGCfH5f1sJEy7TPwe1AfJIeDyTTvwq3poHxW0hXEx4TwqtV5r2qhy6cvx
+         2VoPhKQX+Razt0jf4jf4ohHZ/mlYEKFIDqlLFRsnqkZzj3hPZfxiMJDYgGFUHY05waNT
+         ZyVebqb95uc9MKrX2QCj96vElNi3GMOIfyuUtU0Anu+kAB5nQwletyeaEz7v/JorDTig
+         MZ2CneRLE6OkEOLmJ0VwKZHc2qjPhB+cfkWK5R9CLQGaUB37wzrsdYxpygytceqUqw9f
+         /wMOv+Px9pBKFXJayWbW9K7YqqrhzS/Su0SpOamaRzMoAyoYmauEYbnpD+1snOCDxX8N
+         VRXQ==
+X-Gm-Message-State: APjAAAXTi4eQgNPnqdlci4TXieYBDpyc7xnItOx005CBX87ivANztkkP
+	FUXN1MZGU/WVuLa6a+xpygdcN+QkzdkgxTfMgyuutF3/N1lIq2A6PCljUe3wq1J7N6IF28IllG2
+	Ftq3gR6BMu/o3xLk/mEcPA18C1arPDf2mOb8F/09Clz567Ah9feDZCTbBo3lCNBdRRA==
+X-Received: by 2002:a19:521a:: with SMTP id m26mr18964906lfb.134.1559138310043;
+        Wed, 29 May 2019 06:58:30 -0700 (PDT)
+X-Received: by 2002:a19:521a:: with SMTP id m26mr18964768lfb.134.1559138307028;
+        Wed, 29 May 2019 06:58:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559138307; cv=none;
         d=google.com; s=arc-20160816;
-        b=L2Ry9B21A6BetNVs4KDHEBrD+5jAtcLcSkX+qc0j6CtZfPsLzLVAePUEtUK/RJDIg8
-         nzoiYQ7+bjF2GFnMiauNXGfr1mGWLF07gpQfodSl6nsLCXS2W4lGOp6yqVPbw5GqvHr3
-         nsEmpqtDo62qZzEZUSonNy+UsYf/3kDhNVyNL2WCsrTuBaRA0J3d3TmnzzizzJmG6K9k
-         0EUkGMLredSB6mDcT+GtuxTL2pMkxHXenzdUVRJTfy/jpNehN1DULIyhCyV3CKgJ7Wf7
-         izjR5lQugS7GBxzmoHlOgZxMXkC25C4gKep0oQNudjVDITdY3OwV8QOptWLTLGFA9SrO
-         eURw==
+        b=WceY2yQAgddqQgUNDAfiPCJIKmMBYG3lkWH4S7nLZ8L30YjJBu77iBJU3OtN/IPFtE
+         luBYZ/JGWUpVnPl0P9RYUWoBISUW6IY5Ka2Hj5yQE00G3+ogeSa4hUPFo8Maxfxsbgz8
+         mSgOTl7VHnBcJ+51wmNjAtwYZpS63JkCHHgL2SEq8PDSWqDQ3G5DxQZ6/FSyXvMhYw/c
+         yKrldF4LXRACaLKq9g/MG5hmmxVhBqSc1F8MM5ZxLaMxxYfueN9N9hCpX+6dqG811L/P
+         9JMwZj7MupVHIHL3UZlzaHrp8m13qH2qbAsATiQG9+56dV4aIETvcZ6FBQ2mTmisO0Eo
+         1IjA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=euesoUjkSQJ2miEAPNfPDRSCP16azLpN27jylWUcuXQ=;
-        b=yezE8G7PA6VN+mEMdVmudBU+6vHGkmBkMt7vM5Dy9sTmKKt0moUZHdQpa0x1ysISUo
-         8y81lqyVFF90VV51vJoflwnHN+bDNSi4dntbdIt8a2qT4vhSH/YuKEL3JKyIkQRX+2UD
-         LtSkBVnaad9fQ/80sxlx87OS8HDD6ljOFO4tESEbNv4NyA1g3W0zxlYdmCmUya/s07DJ
-         pPJsiAFX4ZjOQmukHRymn5gF4bxQ/0BUvrVhZd7+DzNz1NfEwYXkVpbXYh37Tjta1L+U
-         jGoZVpikXfVSffxweKwYYyHKNBiCKFutpqm8I6sFBoO3Ph8i3Sfbw8TYH1/LsLKiJoFz
-         htDg==
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=FvnuOzvWWHxvWxRXVyec6ngD8uETWcADOgiOUZyOXOI=;
+        b=DxqJTTtZSvzWHVLQEsed6Ph7D04Jk0p47D4sRdMoI0403br5dzAiPKI3xKb077fMPV
+         7I0PidioMYuSDJAn9jSa3xo1vHTsgmFF+C7YwfND00IfA4tmNm04xNhNQtXwLQ6MEZTk
+         JeQhRCJS+patkWkOcBN3aCa9lFN/FYucQDvYOClBUiOcUHlV5zI0wo8jeYmP7esCXK4w
+         telk//SowkM0SK31j26MG6f6IZMw3Wk08pA60RvM9p0qDu5kP67zBkUbOvumVprty7G7
+         yd9B8TH03K2IhXUavvCJxNL1P4zVBJIHJofXA35nIDXLTeX2plE5z82aEbefJ4FDk20x
+         wsWA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c47si1268470edc.304.2019.05.29.06.23.51
-        for <linux-mm@kvack.org>;
-        Wed, 29 May 2019 06:23:52 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uXjwPjRZ;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a5sor2726047ljf.4.2019.05.29.06.58.26
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 29 May 2019 06:58:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E0EF180D;
-	Wed, 29 May 2019 06:23:50 -0700 (PDT)
-Received: from mbp (usa-sjc-mx-foss1.foss.arm.com [217.140.101.70])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E5BC23F59C;
-	Wed, 29 May 2019 06:23:44 -0700 (PDT)
-Date: Wed, 29 May 2019 14:23:42 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Dave Martin <Dave.Martin@arm.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, kvm@vger.kernel.org,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Will Deacon <will.deacon@arm.com>, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, linux-kselftest@vger.kernel.org,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Leon Romanovsky <leon@kernel.org>, linux-rdma@vger.kernel.org,
-	amd-gfx@lists.freedesktop.org, Dmitry Vyukov <dvyukov@google.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Evgeniy Stepanov <eugenis@google.com>, linux-media@vger.kernel.org,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	linux-arm-kernel@lists.infradead.org,
-	Kostya Serebryany <kcc@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	linux-kernel@vger.kernel.org,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Andrew Murray <andrew.murray@arm.com>,
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uXjwPjRZ;
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=FvnuOzvWWHxvWxRXVyec6ngD8uETWcADOgiOUZyOXOI=;
+        b=uXjwPjRZCt5+NzEnNPmdCCkF3iYjQdmKQjzHPmIBvcHk21+tVcQk6R/TffAC7mbzK7
+         3OwgsrDjSkovmg4CpeCxkjLO/kQQvYs0pmQohCNI7L8gZdD8RGrfY4VGJdYTU4SoFB3v
+         vxOJmH2NmOUBLSaEMsTV4T0d7uI//nBlM9nMZjIItiftF4IVJAOz7r5HkBkNRO1ocej9
+         uSw6MboF7GCpcr9BVSt1oVeMNInBa+xY8WKUwIpqaSATf3Ri/vgGphqjpJDKCfIuJNPw
+         2XVz/73HtiI5Ls00TDoUhrA2TsMBVDDDh2a2MIgaAD8+i7k63TUUX87Zz6QC0oBlSFQ1
+         qdNA==
+X-Google-Smtp-Source: APXvYqxJcXNy9tjvGvb6p0Lmjk07Ff52IXEus1xxpwJYnnL8XqCx75U51Gw9O4dVXAeZBa+45pmDaQ==
+X-Received: by 2002:a2e:a0ca:: with SMTP id f10mr1708409ljm.113.1559138306581;
+        Wed, 29 May 2019 06:58:26 -0700 (PDT)
+Received: from pc636 ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id d18sm3473580lfl.95.2019.05.29.06.58.24
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 29 May 2019 06:58:25 -0700 (PDT)
+From: Uladzislau Rezki <urezki@gmail.com>
+X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
+Date: Wed, 29 May 2019 15:58:17 +0200
+To: Roman Gushchin <guro@fb.com>
+Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v15 05/17] arms64: untag user pointers passed to memory
- syscalls
-Message-ID: <20190529132341.27t3knoxpb7t7y3g@mbp>
-References: <cover.1557160186.git.andreyknvl@google.com>
- <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
- <20190527143719.GA59948@MBP.local>
- <20190528145411.GA709@e119886-lin.cambridge.arm.com>
- <20190528154057.GD32006@arrakis.emea.arm.com>
- <20190528155644.GD28398@e103592.cambridge.arm.com>
- <20190528163400.GE32006@arrakis.emea.arm.com>
- <20190529124224.GE28398@e103592.cambridge.arm.com>
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Thomas Garnier <thgarnie@google.com>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Joel Fernandes <joelaf@google.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
+	Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 4/4] mm/vmap: move BUG_ON() check to the unlink_va()
+Message-ID: <20190529135817.tr7usoi2xwx5zl2s@pc636>
+References: <20190527093842.10701-1-urezki@gmail.com>
+ <20190527093842.10701-5-urezki@gmail.com>
+ <20190528225001.GI27847@tower.DHCP.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190529124224.GE28398@e103592.cambridge.arm.com>
+In-Reply-To: <20190528225001.GI27847@tower.DHCP.thefacebook.com>
 User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -136,64 +131,53 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 29, 2019 at 01:42:25PM +0100, Dave P Martin wrote:
-> On Tue, May 28, 2019 at 05:34:00PM +0100, Catalin Marinas wrote:
-> > On Tue, May 28, 2019 at 04:56:45PM +0100, Dave P Martin wrote:
-> > > On Tue, May 28, 2019 at 04:40:58PM +0100, Catalin Marinas wrote:
-> > > 
-> > > [...]
-> > > 
-> > > > My thoughts on allowing tags (quick look):
-> > > >
-> > > > brk - no
-> > > 
-> > > [...]
-> > > 
-> > > > mlock, mlock2, munlock - yes
-> > > > mmap - no (we may change this with MTE but not for TBI)
-> > > 
-> > > [...]
-> > > 
-> > > > mprotect - yes
-> > > 
-> > > I haven't following this discussion closely... what's the rationale for
-> > > the inconsistencies here (feel free to refer me back to the discussion
-> > > if it's elsewhere).
-> > 
-> > _My_ rationale (feel free to disagree) is that mmap() by default would
-> > not return a tagged address (ignoring MTE for now). If it gets passed a
-> > tagged address or a "tagged NULL" (for lack of a better name) we don't
-> > have clear semantics of whether the returned address should be tagged in
-> > this ABI relaxation. I'd rather reserve this specific behaviour if we
-> > overload the non-zero tag meaning of mmap() for MTE. Similar reasoning
-> > for mremap(), at least on the new_address argument (not entirely sure
-> > about old_address).
-> > 
-> > munmap() should probably follow the mmap() rules.
-> > 
-> > As for brk(), I don't see why the user would need to pass a tagged
-> > address, we can't associate any meaning to this tag.
-> > 
-> > For the rest, since it's likely such addresses would have been tagged by
-> > malloc() in user space, we should allow tagged pointers.
-> 
-> Those arguments seem reasonable.  We should try to capture this
-> somewhere when documenting the ABI.
-> 
-> To be clear, I'm not sure that we should guarantee anywhere that a
-> tagged pointer is rejected: rather the behaviour should probably be
-> left unspecified.  Then we can tidy it up incrementally.
-> 
-> (The behaviour is unspecified today, in any case.)
+Hello, Roman!
 
-What is specified (or rather de-facto ABI) today is that passing a user
-address above TASK_SIZE (e.g. non-zero top byte) would fail in most
-cases. If we relax this with the TBI we may end up with some de-facto
-ABI before we actually get MTE hardware. Tightening it afterwards may be
-slightly more problematic, although MTE needs to be an explicit opt-in.
+> > Move the BUG_ON()/RB_EMPTY_NODE() check under unlink_va()
+> > function, it means if an empty node gets freed it is a BUG
+> > thus is considered as faulty behaviour.
+> 
+> It's not exactly clear from the description, why it's better.
+> 
+It is rather about if "unlink" happens on unhandled node it is
+faulty behavior. Something that clearly written in stone. We used
+to call "unlink" on detached node during merge, but after:
 
-IOW, I wouldn't want to unnecessarily relax the ABI if we don't need to.
+[PATCH v3 3/4] mm/vmap: get rid of one single unlink_va() when merge
 
--- 
-Catalin
+it is not supposed to be ever happened across the logic.
+
+>
+> Also, do we really need a BUG_ON() in either place?
+> 
+Historically we used to have the BUG_ON there. We can get rid of it
+for sure. But in this case, it would be harder to find a head or tail
+of it when the crash occurs, soon or later.
+
+> Isn't something like this better?
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index c42872ed82ac..2df0e86d6aff 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -1118,7 +1118,8 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
+>  
+>  static void __free_vmap_area(struct vmap_area *va)
+>  {
+> -       BUG_ON(RB_EMPTY_NODE(&va->rb_node));
+> +       if (WARN_ON_ONCE(RB_EMPTY_NODE(&va->rb_node)))
+> +               return;
+>
+I was thinking about WARN_ON_ONCE. The concern was about if the
+message gets lost due to kernel ring buffer. Therefore i used that.
+I am not sure if we have something like WARN_ONE_RATELIMIT that
+would be the best i think. At least it would indicate if a warning
+happens periodically or not.
+
+Any thoughts?
+
+Thanks for the comments!
+
+--
+Vlad Rezki
 
