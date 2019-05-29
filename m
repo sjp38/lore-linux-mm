@@ -2,252 +2,161 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B906FC04AB3
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:22:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EB08FC46470
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:24:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 797262075C
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:22:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 797262075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id B2B2B208CB
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 07:24:31 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ML6xZxh0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B2B2B208CB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D0556B026E; Wed, 29 May 2019 03:22:02 -0400 (EDT)
+	id 391466B026B; Wed, 29 May 2019 03:24:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2859C6B0270; Wed, 29 May 2019 03:22:02 -0400 (EDT)
+	id 344256B026C; Wed, 29 May 2019 03:24:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1486F6B0271; Wed, 29 May 2019 03:22:02 -0400 (EDT)
+	id 20B8B6B026D; Wed, 29 May 2019 03:24:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E38DF6B026E
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 03:22:01 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id 126so1258487ybw.9
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 00:22:01 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DC6736B026B
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 03:24:30 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id e69so1115895pgc.7
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 00:24:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent:message-id;
-        bh=UUaZisK+vU/C/Az61XsuCiJnFQevGKk/DQSz/jQIcUY=;
-        b=EZHhdG2MadZjhQea1nKHkRKndGbI4NHFl0smNYODaTlljR9i/NoPlqJgLki4FdLcbs
-         B/CMyKM2YDJre7o/TU3p5/FJ6rgcXYcQtIygyZNXIKs8cUPNLg8FwK5sl9h7XYRQ2lms
-         mnRAeRhXNBPX7SudNwdziesJ/l/HIrQY7XOUdXi9WH4Btvlj39mS/NSK34JiHwz0JtE2
-         3WHpUD5aVs2vv+PEtBVHBABUlLjvWy+ZczUaX8BIJ7KscT/a3+NQcAun/+mzcfciDx1u
-         zDDvloHaT6eDLFOp9A988MIfDQ0DxK3f7EKqBODHJkwDc/tlZewBJYRd8l9zRQrF1bmw
-         l9/A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAU4ZVaKlFj2D0yYXsGkRGZx9tuBysMY/q9pgmASyFyFGvOLsQbP
-	Vo8U/lGP/FUNYqnMG6jefZoRZLq0ApTyay5v2mou6sXeUYWHv8PkgOg2o6aAzlM7tQJgP8HbHbL
-	6/epXf0MuINMb86E63J22chTu8AihzXzNHiNH3E1L36I4pbYTZFa78dceFowHZNRjAQ==
-X-Received: by 2002:a81:364b:: with SMTP id d72mr30321107ywa.70.1559114521677;
-        Wed, 29 May 2019 00:22:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy2DmIAAy2nGPZI5RWqAPb0VIl9QEOZBqKel/YN7aD1d5+6WcjIGK/Yxx9x5uWA1+m3xB4h
-X-Received: by 2002:a81:364b:: with SMTP id d72mr30321087ywa.70.1559114520899;
-        Wed, 29 May 2019 00:22:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559114520; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=xpHPXBq8KvHvbVOvl8VVx4rTQEIBc+yRDEo5R/DXTDM=;
+        b=O4S7pZdAwznu7d19IkZFMWieX2AUuhvHCDwrY72wsB8e//rCfFMY0YzfYgtHjoRzml
+         5tzvkddAN501iinozX7JSzcOB7QLSzlI9TJkealtRvrXus6CwfgApwpab8WfKQ8NyvbD
+         6bP4mdRQleEVrvxh0I2XO4Hp6QvVnypckZ1oqgJfrLhoZ7ABKVic7guqqasD6659EKJC
+         n+wG9RZmPaaC2DQdCiswFo3yn5xLmKibmU7yCX6Jp6nS7m0tORRFmjdElyA4EJkNexR+
+         1aFcBXHK0ODLvKd68c0sppt3134oaVAOWs9EPydwvQ52tKGD2XTUe1RU4j87nSOJmfiR
+         trZg==
+X-Gm-Message-State: APjAAAXdRKs1xiDz5/Mkyxjem/KCXK1HcxCKKuTkf2Z5O7Schfwuht/j
+	MOUXXAFKiZIrfyXtta+ubiGINwki4Qcw0YlGMYVF3RYgHB2BGgIqyiQcpvRdT2gJ8tDWuf3yHJB
+	T1eULqvJTmSGhSAY6jzNXI05TbXzDNGYh9RvzpnOvrrKAQiKJtNfuBcd/CVkFpzNm2A==
+X-Received: by 2002:a63:1316:: with SMTP id i22mr138921785pgl.274.1559114670489;
+        Wed, 29 May 2019 00:24:30 -0700 (PDT)
+X-Received: by 2002:a63:1316:: with SMTP id i22mr138921758pgl.274.1559114669855;
+        Wed, 29 May 2019 00:24:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559114669; cv=none;
         d=google.com; s=arc-20160816;
-        b=cm/+M8r2Sn4WOa2nX1CWXfEga5AZfGRkOWJaCc/heB3jUiANuTleNQ4EMyBQWKdMZt
-         oZe5TcAiPNP1o0kbPLJlV7dTROza0O49JO+Dt1CRXIcOPNOH2vhU2akG0rdJ1rot7v1/
-         91Z1h2Bj2SM+BKtntuFNSPluqolwtWNAfuW0JdLeEm2b5BIqHXUMOLO3pCrG/ciivAww
-         3OFZwZzJYvVn/aLmBFW6xGYtaAXLdLp4yG7xI08tmFKwXlir8aT4R94beAH6eOdG92l3
-         Jf3YsKb3z68RCO/ig7QvQ8qGBE1xuDEMzCNF1K3tvLyRQlypysdxq8utg7xPbkO3hsZ9
-         xECg==
+        b=cwlB7OFJUT7Yp3g/vDetgj/DmehgdFFHbUvlI+l/PArGWOBSdexKs3Nz55+dMnXFqw
+         5oNDaFyfLJkhw4GF0LU6sMX+DmTCFJzTX5K8s64ujgzUbEv4hEJibXv/5LdJrklhVvta
+         QQYcXqpxQ6s+EMbGIyEC+ZNX+ahsMqiyZXGHQjOXLx1GnbvkwpiRPYl77OoLMT+wOgDE
+         7vbTkvDEvGVa41PRomHN0P5L0nlwubklQQgLLLgHbhn9xFzEVLCe2P8o1WUmPQCmm8WN
+         PCuU/zz1LI3XSEf9HhkQMvpzo50Vc6lgq/69wDJjKTWGMB4bHpiGhhJQLPxIJ5vnmBBw
+         6pxg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:subject:cc:to:from:date;
-        bh=UUaZisK+vU/C/Az61XsuCiJnFQevGKk/DQSz/jQIcUY=;
-        b=vOaB/ZhPdmkQqAXmsEwbNL+JpEHxEUD6ls9ObeNYZV3zrWpNAkkiA7+Xtaou8XmUHv
-         a0aY+aG2PZoVkqcY85aUP8OwnudckgXRVaBdEtViiHchPLtLsP5OlaFRNVDPygqCk/xH
-         hOsW0o/Srx+uZiWMhOqWvufWdazYUqW1sqmSHLPYyLuEMCig2DVUpdWyfV29Y7Vt/wJR
-         k8WQJ86XliZFfZx8KxeutYsJGESG59jrxNB2l71IgzsgFX+AWuH+op1sVUfq47zk249z
-         JjBk1d1Gh5geS8ZXITnP5UBzO/mHkFT2ekQi77jIPOCQlxNpn1+irrHsY5rkEqPZolwx
-         PlMw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=xpHPXBq8KvHvbVOvl8VVx4rTQEIBc+yRDEo5R/DXTDM=;
+        b=xytp7WhRWMI+KlKl6OhzfRWZgrRqM5eaRoxUlnzYexmUuJStpyBHxU/Aj1vG7OYTfh
+         bESjosnQQmLeqHVEoMmZSHMFny/8Tlg/hwUpZNy0L4hGQvxby6qkwIzC0hkAdbIGTz0R
+         RgqCoDoDMCKUmvOlcEmS6W49JmcK6JygdMurH98pecxCHPkoZVgy8cAnNiN4cTqZmdqy
+         kETx+dYpcl9WEU+SkcU6H1XOlc4320CZGRWblVwMhzxrUKeGsAv1EUKX5RxudOTjOspg
+         fzRSmIFau6hgpPtLHTy+TfkQlF+N+xRWYoTpLipY6CzZkl4ZWQNTna9vNriKvd+jI9CV
+         BinA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id g187si301492ywg.75.2019.05.29.00.22.00
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ML6xZxh0;
+       spf=pass (google.com: domain of sergey.senozhatsky.work@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sergey.senozhatsky.work@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z6sor5841639pjb.19.2019.05.29.00.24.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 May 2019 00:22:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        (Google Transport Security);
+        Wed, 29 May 2019 00:24:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sergey.senozhatsky.work@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4T7JHIN043467
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 03:22:00 -0400
-Received: from e06smtp02.uk.ibm.com (e06smtp02.uk.ibm.com [195.75.94.98])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2sskwsv1dm-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 03:22:00 -0400
-Received: from localhost
-	by e06smtp02.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 29 May 2019 08:21:58 +0100
-Received: from b06cxnps4074.portsmouth.uk.ibm.com (9.149.109.196)
-	by e06smtp02.uk.ibm.com (192.168.101.132) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 29 May 2019 08:21:53 +0100
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps4074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4T7LqrD48693492
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 29 May 2019 07:21:52 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id CE5FC4C052;
-	Wed, 29 May 2019 07:21:51 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7C0104C04E;
-	Wed, 29 May 2019 07:21:50 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.53])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed, 29 May 2019 07:21:50 +0000 (GMT)
-Date: Wed, 29 May 2019 10:21:48 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
-        Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
-        "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>,
-        Peter Zijlstra <peterz@infradead.org>,
-        Andy Lutomirski <luto@amacapital.net>,
-        David Howells <dhowells@redhat.com>, Kees Cook <keescook@chromium.org>,
-        Dave Hansen <dave.hansen@intel.com>,
-        Kai Huang <kai.huang@linux.intel.com>,
-        Jacob Pan <jacob.jun.pan@linux.intel.com>,
-        Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
-        kvm@vger.kernel.org, keyrings@vger.kernel.org,
-        linux-kernel@vger.kernel.org
-Subject: Re: [PATCH, RFC 57/62] x86/mktme: Overview of Multi-Key Total Memory
- Encryption
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
- <20190508144422.13171-58-kirill.shutemov@linux.intel.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ML6xZxh0;
+       spf=pass (google.com: domain of sergey.senozhatsky.work@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sergey.senozhatsky.work@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=xpHPXBq8KvHvbVOvl8VVx4rTQEIBc+yRDEo5R/DXTDM=;
+        b=ML6xZxh0hJe90j/v3mWzzYkO2KOVBfDxOp7EOrttZpaxNgo4v+jkI3jRGxPjOxUYsz
+         k4iwHnLNKvBlXesx1X/1jJY006WLsz3g+q47Fld6/v+0QSazSDC5D1/my1y5oxIy9UjG
+         nCJ3dtpF+62FL6onG4KgZa/e+vQU8Bu1MZXxqUg6X2rLeKY5D8E8mDqKzjua+yFsVEi+
+         ohpMrYnsqr5+HTSyR3+ESLIcZUgtcDqWRPTut2AFJmoO/x88CKkBBfGzldCg+zibW2Kw
+         po7tc87f+I9Mp2oOBaTx8WyH7K91cz1Wk8vl4V9UdwTmdylc6FuvDYKfnWUWbPSmBkdU
+         AI9A==
+X-Google-Smtp-Source: APXvYqxuvCTK3y2JN1wKkhCPAxhMoMaWb9H7F3jZFEtwkZAkDx2qQHpZo7gG1LJtGH2wZ33pY/T12A==
+X-Received: by 2002:a17:90a:9b8b:: with SMTP id g11mr10095555pjp.103.1559114669495;
+        Wed, 29 May 2019 00:24:29 -0700 (PDT)
+Received: from localhost ([110.70.55.225])
+        by smtp.gmail.com with ESMTPSA id l8sm5093517pgb.76.2019.05.29.00.24.28
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 29 May 2019 00:24:28 -0700 (PDT)
+Date: Wed, 29 May 2019 16:24:24 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Hui Zhu <teawaterz@linux.alibaba.com>
+Cc: minchan@kernel.org, ngupta@vflare.org,
+	sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [UPSTREAM KERNEL] mm/zsmalloc.c: Add module parameter
+ malloc_force_movable
+Message-ID: <20190529072424.GA29276@jagdpanzerIV>
+References: <20190529012230.89042-1-teawaterz@linux.alibaba.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190508144422.13171-58-kirill.shutemov@linux.intel.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19052907-0008-0000-0000-000002EB7A72
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19052907-0009-0000-0000-000022584A02
-Message-Id: <20190529072148.GE3656@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-29_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905290049
+In-Reply-To: <20190529012230.89042-1-teawaterz@linux.alibaba.com>
+User-Agent: Mutt/1.12.0 (2019-05-25)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 08, 2019 at 05:44:17PM +0300, Kirill A. Shutemov wrote:
-> From: Alison Schofield <alison.schofield@intel.com>
-> 
-> Provide an overview of MKTME on Intel Platforms.
-> 
-> Signed-off-by: Alison Schofield <alison.schofield@intel.com>
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  Documentation/x86/mktme/index.rst          |  8 +++
->  Documentation/x86/mktme/mktme_overview.rst | 57 ++++++++++++++++++++++
+On (05/29/19 09:22), Hui Zhu wrote:
+> When it enabled:
+> ~# echo 1 > /sys/module/zsmalloc/parameters/malloc_force_movable
+> ~# echo lz4 > /sys/module/zswap/parameters/compressor
+> ~# echo zsmalloc > /sys/module/zswap/parameters/zpool
+> ~# echo 1 > /sys/module/zswap/parameters/enabled
+> ~# swapon /swapfile
 
-I'd expect addition of mktme docs to Documentation/x86/index.rst
+[..]
 
->  2 files changed, 65 insertions(+)
->  create mode 100644 Documentation/x86/mktme/index.rst
->  create mode 100644 Documentation/x86/mktme/mktme_overview.rst
-> 
-> diff --git a/Documentation/x86/mktme/index.rst b/Documentation/x86/mktme/index.rst
-> new file mode 100644
-> index 000000000000..1614b52dd3e9
-> --- /dev/null
-> +++ b/Documentation/x86/mktme/index.rst
-> @@ -0,0 +1,8 @@
+>   * We assign a page to ZS_ALMOST_EMPTY fullness group when:
+>   *	n <= N / f, where
+> @@ -1479,6 +1486,9 @@ unsigned long zs_malloc(struct zs_pool *pool, size_t size, gfp_t gfp)
+>  	if (unlikely(!size || size > ZS_MAX_ALLOC_SIZE))
+>  		return 0;
+>  
+> +	if (zs_malloc_force_movable)
+> +		gfp |= __GFP_HIGHMEM | __GFP_MOVABLE;
 > +
-> +=========================================
-> +Multi-Key Total Memory Encryption (MKTME)
-> +=========================================
-> +
-> +.. toctree::
-> +
-> +   mktme_overview
-> diff --git a/Documentation/x86/mktme/mktme_overview.rst b/Documentation/x86/mktme/mktme_overview.rst
-> new file mode 100644
-> index 000000000000..59c023965554
-> --- /dev/null
-> +++ b/Documentation/x86/mktme/mktme_overview.rst
-> @@ -0,0 +1,57 @@
-> +Overview
-> +=========
-> +Multi-Key Total Memory Encryption (MKTME)[1] is a technology that
-> +allows transparent memory encryption in upcoming Intel platforms.
-> +It uses a new instruction (PCONFIG) for key setup and selects a
-> +key for individual pages by repurposing physical address bits in
-> +the page tables.
-> +
-> +Support for MKTME is added to the existing kernel keyring subsystem
-> +and via a new mprotect_encrypt() system call that can be used by
-> +applications to encrypt anonymous memory with keys obtained from
-> +the keyring.
-> +
-> +This architecture supports encrypting both normal, volatile DRAM
-> +and persistent memory.  However, persistent memory support is
-> +not included in the Linux kernel implementation at this time.
-> +(We anticipate adding that support next.)
-> +
-> +Hardware Background
-> +===================
-> +
-> +MKTME is built on top of an existing single-key technology called
-> +TME.  TME encrypts all system memory using a single key generated
-> +by the CPU on every boot of the system. TME provides mitigation
-> +against physical attacks, such as physically removing a DIMM or
-> +watching memory bus traffic.
-> +
-> +MKTME enables the use of multiple encryption keys[2], allowing
-> +selection of the encryption key per-page using the page tables.
-> +Encryption keys are programmed into each memory controller and
-> +the same set of keys is available to all entities on the system
-> +with access to that memory (all cores, DMA engines, etc...).
-> +
-> +MKTME inherits many of the mitigations against hardware attacks
-> +from TME.  Like TME, MKTME does not mitigate vulnerable or
-> +malicious operating systems or virtual machine managers.  MKTME
-> +offers additional mitigations when compared to TME.
-> +
-> +TME and MKTME use the AES encryption algorithm in the AES-XTS
-> +mode.  This mode, typically used for block-based storage devices,
-> +takes the physical address of the data into account when
-> +encrypting each block.  This ensures that the effective key is
-> +different for each block of memory. Moving encrypted content
-> +across physical address results in garbage on read, mitigating
-> +block-relocation attacks.  This property is the reason many of
-> +the discussed attacks require control of a shared physical page
-> +to be handed from the victim to the attacker.
-> +
-> +--
-> +1. https://software.intel.com/sites/default/files/managed/a5/16/Multi-Key-Total-Memory-Encryption-Spec.pdf
-> +2. The MKTME architecture supports up to 16 bits of KeyIDs, so a
-> +   maximum of 65535 keys on top of the “TME key” at KeyID-0.  The
-> +   first implementation is expected to support 5 bits, making 63
-> +   keys available to applications.  However, this is not guaranteed.
-> +   The number of available keys could be reduced if, for instance,
-> +   additional physical address space is desired over additional
-> +   KeyIDs.
-> -- 
-> 2.20.1
-> 
+>  	handle = cache_alloc_handle(pool, gfp);
+>  	if (!handle)
+>  		return 0;
 
--- 
-Sincerely yours,
-Mike.
+It's zsmalloc user's responsibility to pass appropriate GFP mask
+to zs_malloc().
+
+Take a loot at ZRAM, for instance,
+
+	                handle = zs_malloc(zram->mem_pool, comp_len,
+                                __GFP_KSWAPD_RECLAIM |
+                                __GFP_NOWARN |
+                                __GFP_HIGHMEM |
+                                __GFP_MOVABLE);
+
+zsmalloc should not change GFP. If zswap, for some reason,
+doesn't pass __GFP_MOVABLE, then I'd suggest to patch zswap.
+
+	-ss
 
