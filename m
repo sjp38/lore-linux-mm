@@ -2,202 +2,133 @@ Return-Path: <SRS0=FSMz=T5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B544FC28CC0
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 17:32:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62CA5C28CC2
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 17:49:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7340421855
-	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 17:32:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="U8X6tS1G"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7340421855
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 1B8CF23FFE
+	for <linux-mm@archiver.kernel.org>; Wed, 29 May 2019 17:49:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B8CF23FFE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 018386B0266; Wed, 29 May 2019 13:32:22 -0400 (EDT)
+	id 7AC336B026B; Wed, 29 May 2019 13:49:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F0A906B026A; Wed, 29 May 2019 13:32:21 -0400 (EDT)
+	id 75CA76B026D; Wed, 29 May 2019 13:49:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E1FCB6B026B; Wed, 29 May 2019 13:32:21 -0400 (EDT)
+	id 64BB76B026E; Wed, 29 May 2019 13:49:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C0E4C6B0266
-	for <linux-mm@kvack.org>; Wed, 29 May 2019 13:32:21 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id w3so2410633iot.5
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 10:32:21 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B9736B026B
+	for <linux-mm@kvack.org>; Wed, 29 May 2019 13:49:36 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f15so2706640ede.8
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 10:49:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to;
-        bh=IIFsJ6Yevo2NFwTJqan/HqzEkDJSaCO62nPJNhhmr9A=;
-        b=eIhryfuRacVu3uZo9eiZSAaQvpT6+MADZ3WA3mDIMudN21fhHIsYLbAeeTQrU/Vfq3
-         g/Le5iv33na9yuOP06+LymZii7E5nJM4hRkCtHI7dWWZZ+4T6RxApBfYQUO0kRUOBkh6
-         MKJbUg8vCw+MQqV0miUKLnCNABbHDXzt+WiJfu/husOmkV9wLqvtqrkJd/HdNlCymCVd
-         9PCaDAQz6wut3xf0msLnJtCq5cggapxq0TSlu9DV9Jj8Xl4g3J/Qz92l9te8fBSdRk7d
-         NYLOhW/J+/BgqHaBAp6t7opJzUsg/zt1Z1K9DiTGIct6qpY48q4S2a8cXs0imUUhRjOL
-         8/NQ==
-X-Gm-Message-State: APjAAAUE93kPWfs7ALRW0lT8XZdJXhbvMjsHIVYB3V6AWn2Xxy/UfED+
-	qufRCEKfvKrPp+DtNU5HVICXs2wXKeser4okht2vds7lGZWhPKrePcB+Advd5EKduzMnnUqwHiR
-	I20wsXnNdbzBsqbUmiHjbtKpbAlLdnd32/hc+LEIR8eYY4HZoO90PP/ff1AcDq92tBQ==
-X-Received: by 2002:a5e:a710:: with SMTP id b16mr5326900iod.38.1559151141518;
-        Wed, 29 May 2019 10:32:21 -0700 (PDT)
-X-Received: by 2002:a5e:a710:: with SMTP id b16mr5326827iod.38.1559151140512;
-        Wed, 29 May 2019 10:32:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559151140; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=P7ysRMZt6AAuCtlwAp6M6h3nYp7ECC73QBcM+lIyMIY=;
+        b=KKAOT8JCZ4sXrfnli7ENL7pe3OSWWaCDmXyV5CB1iOyReoGs/IbjzbUq711J+SO6nE
+         Ej63Qq7LkwL1zguW5K/YKY4a/arB7MP53bqXluLlSsSfqTUjeFFSnLX4U8+LoY0iWrH/
+         xteW4F8eAsD0H0/qzIrAl4aYjpNkVdxF+bmFkh7n2Q67XSC15BNQbtdm7oH8CVqSWFIs
+         cviKheu2+M8UKVpDw16A6Tv2Eroz+87EkYgztQo6k73+jnOts17rGItCwgtzBbymYaO4
+         pPAhNGL3bsbAHy3d1mBFIIEyQCqyXpD1xLt8ZFmC1hkp9QVKkoT0XJAG9xQwW6pQS8Gj
+         Jxsg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWTYwqZotoqdMMralq1d5gf3eKL6/v36JODhD72Cxw7s8xpERfS
+	cH89Z73U492PmPItens9ueK7X1KT4Gaqz9ojAqd0QWzdlfArUn4mSFZQO5YLSkj+i/Z/5VCRQYu
+	lcenBLJMLJSc9tuDggDZAEpPX5/9u1eD5SgNEk97zLSc422NANzTGPFN0Yw1uSlc=
+X-Received: by 2002:a50:8a46:: with SMTP id i64mr136878848edi.177.1559152175768;
+        Wed, 29 May 2019 10:49:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyOnvXpPuLpRlXUZtsa6E8DdIEU8qe5tYoxLhc5vvm6yL1VtKNWw1cwR9gm8yP6+WLi+EEM
+X-Received: by 2002:a50:8a46:: with SMTP id i64mr136878755edi.177.1559152174835;
+        Wed, 29 May 2019 10:49:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559152174; cv=none;
         d=google.com; s=arc-20160816;
-        b=0Fu3/g1Q2ncRguORxtQHdJAPpqhSkQlqpCUPfjXYbF7QwEAxYvCRzFkmpAUL+hLGtN
-         w/d/lzg5QrIgqg4vvgggrP8eA+tDGKtSaP0i4oAm9YjUwHfMXwnzcduoLgw+fFl9PINq
-         GC3mc8UthRKTnWqpPgR3pF71xElEXMCEvoM3JoyVhCFG07VczGrzfDITjvCPmGBc6JG7
-         xo33mFkTHOCmFT0HsaRFR+KQXVp83KMrOj7qMtFHs6ZWqm36G+Lk84eyJwUnt7dE6Eig
-         w816sR3E52In5a9lhwcX8JMXX8bYt+kT0H9CiTt2IV+8HMiBFVG/HMUyRaZcymbcojeM
-         sbiA==
+        b=0PZaFgzm7iEXzWD7WcpRRLXVwnN5svLHlrRVPvfwcZ0G6bVWX5+S557vDbfYtDVdPU
+         ZoF1g+FGZhQEC9DTOVB7AMyBLrsn2PkF4Fp7o6FFU5VYMrosldXkazBKjS4FdrTu/NGA
+         zeZLPPHE6Bo8LfXtZ62G7eGo3H9pEbCmDhekWTV3v6H7dDlGVD1hmJN+oP0FSisgLxVj
+         z0Oru6euNeDnF6ZzwcR5dS8h+0VgBEWLgVoKT20TXgcEM7OIdCLvLecMgZB6n9fVoJpT
+         3cKrF9l0sL3/w9vPg0a6SeC6G36qzTqsqaTcMQx78+zc1IcMBMKB9uU1cdTZ74DiCa9U
+         bzOg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
-         :dkim-signature;
-        bh=IIFsJ6Yevo2NFwTJqan/HqzEkDJSaCO62nPJNhhmr9A=;
-        b=z0YKYVPsPzui4Zkync72biEPTVTaSoGUghUxC6y4NHeixAwZ3rF5vrFQ/nhB+elWS1
-         k3kyxUTHugH1IFsGLx2unFvtkczi2Ls3XMjQWHFl42KcuJ8cJnU6jBQhn8E/AbPycph+
-         CnrW+VqtkOZA9ghBgv8Mm9iq3VUlBOIIuZPNq64owqMebS3Qeb3vAOmyFd/7LgY7GVRM
-         K8ZgtO471mDfQWS1LJftt4xxJB+l+yELUHoBGToHqyrIb7o+8UvCNww8jksa65nU7vMf
-         E2AT1lz61nn81+UUR1sUnBPlf3YWCSOWI8lAhI3vE6Nyn2ekP5yCR96kzUDuBWCXbk2G
-         EF3w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=P7ysRMZt6AAuCtlwAp6M6h3nYp7ECC73QBcM+lIyMIY=;
+        b=mq1objEiRCR45mstpFBwEQv3C3UQtaFaNmCjmMuWCdLcoH4UWBl6uhU08FNsG4yOdH
+         N+yBQJiYUL50SArvcEJOf5h71em+koCZc9CfRR1XbBoxCNjjKNMn7yed/XlZdClxyW2n
+         9oMtiXkAaBXp22gfCLe4XF6zJSeqchCXYHr2Q4LGEbzVb8UQrko7Q56mWIH7OmoE+dLI
+         HfcL6rW4Px1bobNZxuSKAXR8mwexvVYc3TTsK1E4QkiSOIIQxsf6PJunkJPAIQxNhbHY
+         c6QAcCdQ8m0my4ORtrP195IInAmiAEqDeAybIOF5ITiRdWgATT5+rvpIE9fK/M2UsYnr
+         qZfw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=U8X6tS1G;
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q5sor264751itg.7.2019.05.29.10.32.20
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p14si196946ejj.111.2019.05.29.10.49.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 29 May 2019 10:32:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 May 2019 10:49:34 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=U8X6tS1G;
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to;
-        bh=IIFsJ6Yevo2NFwTJqan/HqzEkDJSaCO62nPJNhhmr9A=;
-        b=U8X6tS1GXkPYA3XY5xrCoF84CkY3FD4cR0pilBAs92V0vmkKIotP+XwY3W8d2lWEkk
-         TKoMviZGXft25bj01k/0nEfIl6fy0rDAVYHF96XkXfHL6KvQA/4pZB3Zpxu/+xMXdAPF
-         T7k5zbB5m0LvPXR2NS5ozndZLC34abaEmVx98/IUVhSOmvsMP2lMu6Ui71mxQgsAGYkU
-         ZUP0R0KlYtOE9M3UlKdfqDT8uMeoDSh4YKpss0OYGKZFqMWKISSNpJYTGxreQoLqp+Ih
-         IuLqoYijB2jTN1aH+NSXyXWwY/025IaXJq0eAZ1BCkc02jHoqvP8nObdsXvgnxilo5Py
-         soFg==
-X-Google-Smtp-Source: APXvYqwozQsvPy233eaKB0wYMTv0I8IFk7vNlWpAnM6+345ysanReut81mkMkMdmrmv1VLALOpXHvz2znCNLxP2xwbY=
-X-Received: by 2002:a24:5094:: with SMTP id m142mr8551838itb.96.1559151139165;
- Wed, 29 May 2019 10:32:19 -0700 (PDT)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id C68D6ACD8;
+	Wed, 29 May 2019 17:49:33 +0000 (UTC)
+Date: Wed, 29 May 2019 19:49:31 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Dianzhang Chen <dianzhangchen0@gmail.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com,
+	iamjoonsoo.kim@lge.com, akpm@linux-foundation.org,
+	linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH] mm/slab_common.c: fix possible spectre-v1 in
+ kmalloc_slab()
+Message-ID: <20190529174931.GH18589@dhcp22.suse.cz>
+References: <1559133448-31779-1-git-send-email-dianzhangchen0@gmail.com>
+ <20190529162532.GG18589@dhcp22.suse.cz>
+ <CAFbcbMDJB0uNjTa9xwT9npmTdqMJ1Hez3CyeOCjjrLF2W0Wprw@mail.gmail.com>
 MIME-Version: 1.0
-References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
-In-Reply-To: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
-From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Date: Wed, 29 May 2019 22:32:08 +0500
-Message-ID: <CABXGCsNq4xTFeeLeUXBj7vXBz55aVu31W9q74r+pGM83DrPjfA@mail.gmail.com>
-Subject: Re: kernel BUG at mm/swap_state.c:170!
-To: Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAFbcbMDJB0uNjTa9xwT9npmTdqMJ1Hez3CyeOCjjrLF2W0Wprw@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 May 2019 at 09:05, Mikhail Gavrilov
-<mikhail.v.gavrilov@gmail.com> wrote:
->
-> Hi folks.
-> I am observed kernel panic after update to git tag 5.2-rc2.
-> This crash happens at memory pressing when swap being used.
->
-> Unfortunately in journalctl saved only this:
->
+On Thu 30-05-19 00:39:53, Dianzhang Chen wrote:
+> It's come from `192+1`.
+> 
+> 
+> The more code fragment is:
+> 
+> 
+> if (size <= 192) {
+> 
+>     if (!size)
+> 
+>         return ZERO_SIZE_PTR;
+> 
+>     size = array_index_nospec(size, 193);
+> 
+>     index = size_index[size_index_elem(size)];
+> 
+> }
 
-Now I captured better trace.
-
-: page:ffffd6d34dff0000 refcount:1 mapcount:1 mapping:ffff97812323a689
-index:0xfecec363
-: anon
-: flags: 0x17fffe00080034(uptodate|lru|active|swapbacked)
-: raw: 0017fffe00080034 ffffd6d34c67c508 ffffd6d3504b8d48 ffff97812323a689
-: raw: 00000000fecec363 0000000000000000 0000000100000000 ffff978433ace000
-: page dumped because: VM_BUG_ON_PAGE(entry != page)
-: page->mem_cgroup:ffff978433ace000
-: ------------[ cut here ]------------
-: kernel BUG at mm/swap_state.c:170!
-: invalid opcode: 0000 [#1] SMP NOPTI
-: CPU: 1 PID: 221 Comm: kswapd0 Not tainted 5.2.0-0.rc2.git0.1.fc31.x86_64 #1
-: Hardware name: System manufacturer System Product Name/ROG STRIX
-X470-I GAMING, BIOS 2202 04/11/2019
-: RIP: 0010:__delete_from_swap_cache+0x20d/0x240
-: Code: 30 65 48 33 04 25 28 00 00 00 75 4a 48 83 c4 38 5b 5d 41 5c 41
-5d 41 5e 41 5f c3 48 c7 c6 2f dc 0f 8a 48 89 c7 e8 93 1b fd ff <0f> 0b
-48 c7 c6 a8 74 0f 8a e8 85 1b fd ff 0f 0b 48 c7 c6 a8 7d 0f
-: RSP: 0018:ffffa982036e7980 EFLAGS: 00010046
-: RAX: 0000000000000021 RBX: 0000000000000040 RCX: 0000000000000006
-: RDX: 0000000000000000 RSI: 0000000000000086 RDI: ffff97843d657900
-: RBP: 0000000000000001 R08: ffffa982036e7835 R09: 0000000000000535
-: R10: ffff97845e21a46c R11: ffffa982036e7835 R12: ffff978426387120
-: R13: 0000000000000000 R14: ffffd6d34dff0040 R15: ffffd6d34dff0000
-: FS:  0000000000000000(0000) GS:ffff97843d640000(0000) knlGS:0000000000000000
-: CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-: CR2: 00002cba88ef5000 CR3: 000000078a97c000 CR4: 00000000003406e0
-: Call Trace:
-:  delete_from_swap_cache+0x46/0xa0
-:  try_to_free_swap+0xbc/0x110
-:  swap_writepage+0x13/0x70
-:  pageout.isra.0+0x13c/0x350
-:  shrink_page_list+0xc14/0xdf0
-:  shrink_inactive_list+0x1e5/0x3c0
-:  shrink_node_memcg+0x202/0x760
-:  ? do_shrink_slab+0x52/0x2c0
-:  shrink_node+0xe0/0x470
-:  balance_pgdat+0x2d1/0x510
-:  kswapd+0x220/0x420
-:  ? finish_wait+0x80/0x80
-:  kthread+0xfb/0x130
-:  ? balance_pgdat+0x510/0x510
-:  ? kthread_park+0x90/0x90
-:  ret_from_fork+0x22/0x40
-: Modules linked in: uinput rfcomm fuse xt_CHECKSUM xt_MASQUERADE tun
-bridge stp llc nf_conntrack_netbios_ns nf_conntrack_broadcast xt_CT
-ip6t_rpfilter ip6t_REJECT nf_reject_ipv6 ipt_REJECT nf_reject_ipv4
-xt_conntrack ebtable_nat ip6table_nat ip6table_mangle ip6table_raw
-ip6table_security iptable_nat nf_nat iptable_mangle iptable_raw
-iptable_security cmac nf_conntrack nf_defrag_ipv6 nf_defrag_ipv4
-libcrc32c ip_set nfnetlink ebtable_filter ebtables ip6table_filter
-ip6_tables iptable_filter ip_tables bnep sunrpc vfat fat edac_mce_amd
-arc4 kvm_amd rtwpci snd_hda_codec_realtek rtw88 kvm eeepc_wmi
-snd_hda_codec_generic asus_wmi sparse_keymap ledtrig_audio
-snd_hda_codec_hdmi video wmi_bmof mac80211 snd_hda_intel uvcvideo
-snd_hda_codec videobuf2_vmalloc videobuf2_memops videobuf2_v4l2
-irqbypass snd_usb_audio videobuf2_common snd_hda_core videodev
-snd_usbmidi_lib snd_seq snd_hwdep snd_rawmidi snd_seq_device btusb
-snd_pcm crct10dif_pclmul btrtl crc32_pclmul btbcm btintel bluetooth
-:  cfg80211 snd_timer ghash_clmulni_intel joydev snd k10temp soundcore
-media sp5100_tco ccp i2c_piix4 ecdh_generic rfkill ecc gpio_amdpt
-pcc_cpufreq gpio_generic acpi_cpufreq binfmt_misc hid_logitech_hidpp
-hid_logitech_dj uas usb_storage hid_sony ff_memless amdgpu
-amd_iommu_v2 gpu_sched ttm drm_kms_helper igb nvme dca drm
-crc32c_intel i2c_algo_bit nvme_core wmi pinctrl_amd
-: ---[ end trace 3840e49b1d8d2c24 ]---
-
-
-$ /usr/src/kernels/`uname -r`/scripts/faddr2line
-/lib/debug/lib/modules/`uname -r`/vmlinux
-__delete_from_swap_cache+0x20d
-__delete_from_swap_cache+0x20d/0x240:
-__delete_from_swap_cache at mm/swap_state.c:170 (discriminator 1)
-
-
-
-
---
-Best Regards,
-Mike Gavrilov.
+OK I see, I could have looked into the code, my bad. But I am still not
+sure what is the potential exploit scenario and why this particular path
+a needs special treatment while other size branches are ok. Could you be
+more specific please?
+-- 
+Michal Hocko
+SUSE Labs
 
