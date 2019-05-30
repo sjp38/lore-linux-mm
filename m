@@ -6,99 +6,99 @@ X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5362BC28CC0
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 12:14:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 79AE6C28CC0
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 12:21:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0F8C32568D
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 12:14:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3DFE4243CF
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 12:21:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="WwpXvpKM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F8C32568D
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="Z2k6P15B"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DFE4243CF
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 88FCB6B0010; Thu, 30 May 2019 08:14:05 -0400 (EDT)
+	id C0C046B0010; Thu, 30 May 2019 08:20:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 83F126B026B; Thu, 30 May 2019 08:14:05 -0400 (EDT)
+	id BE4536B026B; Thu, 30 May 2019 08:20:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 72D906B026C; Thu, 30 May 2019 08:14:05 -0400 (EDT)
+	id AD2036B026C; Thu, 30 May 2019 08:20:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 265C86B0010
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 08:14:05 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id l3so8380136edl.10
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 05:14:05 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E9C16B0010
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 08:20:59 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id k15so7498346eda.6
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 05:20:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=p1918MnxARtKvEc6ceYsEUd3Epplrq3Dno0QWUAOQIc=;
-        b=pNauE3nQVPugIOQk9vWG/8seVlhCnj/rlj+2Z9wzVE5vi7GY2Mkr699Fck5IuYD0RV
-         Ed71PqgCtnlLNP9KKuOPQGKL92kJXdDGIeM6g1ennVX6vdNVxnfDit0ylFoTBR1PuAD7
-         kSHY0P/OLe6NdK8nxNEHMiPH50GMxR1wxKQxTG4fMZ5wIZJE73xHrksLkrL7kTASU2xr
-         N/UjnDZQyZxVQcS+ve2zQYEsjxYfnQm9+fAz9itDA7QwrFnSR1NqxgsPSlSb65gqfVHb
-         QYHDNBrCPuOS7ixAkLuq+U7hyD9QEtGjFf6yiVR22gnuG9XlhfuSPb/pheLys5ZOfzcf
-         tbLA==
-X-Gm-Message-State: APjAAAXd6EgeDrFldbD8TMokB675vynK91yFAN0YZJVTPzMMLF5H8yuv
-	pWrKqnHYtSbnJ1TVPll9rWc1LbjgGlB4kiSZWQfof/FMf5t4P50FbmzOgGY4f19i/9l1UCnhAvu
-	9zhQ6VnWP7lufb3TRBRk1B8cT5JnBIhKoru/Fipy6XD4dA+WryiTggO3g+eXh3XvI2Q==
-X-Received: by 2002:a05:6402:1610:: with SMTP id f16mr4112402edv.171.1559218444644;
-        Thu, 30 May 2019 05:14:04 -0700 (PDT)
-X-Received: by 2002:a05:6402:1610:: with SMTP id f16mr4112307edv.171.1559218443773;
-        Thu, 30 May 2019 05:14:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559218443; cv=none;
+        bh=YT3ORHa/ZvJBb9khTyipcwzY8aPEUTPQ5f0pg4jxr5Y=;
+        b=k0Nv+/2oNdQibxLiS0FD1/Y4ahMjTquP9jM+wpHzZ18dWvl36lxKlMAcZQG7FjivUF
+         YvnSnb1Z4V5UPXeqpfOHPS+VnTQ7QkYHAOX6aLF/+E3Oy/GBTbqmKc0nYaeXCF9nhRm1
+         ADGlXBN5BGv+V2q9DJtCSH/GkBoJa105xR2+QzGTDCnt+RL5ka2RW2/r13TImpDkXgf7
+         0dF+yxSbPRC9uFq/c6Wt//SVKKpXqKmdwoN2Y5s7rAexzOLf0h8DQTCcdZ4EiiDqAyuY
+         NaKuFXbzP7raxlOh5r0pueHaOtYfkgjVhYdZpYaAhpz1WRZw5wQcqcXEsxJThzlZKTDZ
+         SLeQ==
+X-Gm-Message-State: APjAAAVIP3g74RMStc2NSdniKjv89zGKu/GJ7oclouFRLdCrafEFwsy2
+	t3oARemfqDBIrIqZKjWAN+pAp8J7sh94tIFaDYTNJ9P4fpVwZqYmbH3Dziz4sETQYxf1syfY1Jy
+	bG/aXr8IweFipTfu/cgGh/0ODUfJCHU4VHeyf5m7H0UA4dO2Gx3zsGvWsdUdMnIbKCw==
+X-Received: by 2002:a50:a3b5:: with SMTP id s50mr4285365edb.149.1559218858921;
+        Thu, 30 May 2019 05:20:58 -0700 (PDT)
+X-Received: by 2002:a50:a3b5:: with SMTP id s50mr4285256edb.149.1559218857938;
+        Thu, 30 May 2019 05:20:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559218857; cv=none;
         d=google.com; s=arc-20160816;
-        b=Kr9zbMpHCJ8ySYVyD1iIg6YTTyo1U7Xz0vQV1mNvYSHimztcU52iGnebiPSeEj+Dsj
-         VMqdXolY53efhSdUaeDB6OZO3B2/Lc5GbF+xZzShg2fpn8F73GRMILLE33DlnLx8WQcy
-         OfOK1c+GRVmLVS2zlEjOO17x3s2bO5ttLaYitRDNtwg3uhNmWIjJIo730FwOJPTwVW/p
-         N6g69WuMx0bBXTjKPNbRhgtdD/KAUlxhcb7U2OlLf81XyhHO+1wkvRd6nQ0mqCeajVd8
-         d4TcLyJkFpQXf39GyrNmJDawpEvgGuhdLONTuaNV+RyldmdU6Ys0I6LSlRoTLecmQhjO
-         7Wcg==
+        b=s3JG6tybpC8WKgua67//EMZNkkWL+kWUec+8ePoUXw6rSfq2tFp3aVGL5htkmWS59e
+         sEL9lDl7jOsyMfRXkk48N9CkCdlE4LUt6Hbkv8r5O1ThvP6b5/1Q+Ve/h05n39xT9n9R
+         w8QxIc+p583HuOOmimaMkKVHq8CdDuyGuZmlPv1LLbeIcbT9nP46rj8cEPF9DHsVfLin
+         Am3xLwC4T6vjBcs61xhesRGyUQ0FtBDat9SGp2k0q4Gets+rwt3pLFQE5PSFfveLWIal
+         7feqUql53pasmrVY1Vvs1Vd6wVzfM+1sKaeYesMNjrun8FMYbL9knH9RlVCjaxZZtaJR
+         YGiw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=p1918MnxARtKvEc6ceYsEUd3Epplrq3Dno0QWUAOQIc=;
-        b=M1vlwYSkfg9pcCgmfagouPBDzzwMV5zT7U165Ys1GbVxzZ2BTZkBF6trM8FuzSsEq6
-         gIvff381A0xaH81Nv2AgiFqsEHU6C5S+VQLFlQKVsh1kDV8iR+NxmDwIltCPs+6DPxgP
-         lVBv6DzA5NTTLd4U/zTx99CFApnRR4kXsVqC0cSqG9qASSQYMWnVeDfyxHKsWtdAGnM5
-         yID9ZK4d2bnosbflhK0J400L2q7Oy139t5hPZCAW3eO+zhih80m2G8S5xtZOtzf+1kYc
-         d2sBYuEMF7EgIPTvp4cSOPDfMMfdkOb/Gp7aiU+bco8B/yREWBx5BBKFsWs5A6Mad43W
-         U5FA==
+        bh=YT3ORHa/ZvJBb9khTyipcwzY8aPEUTPQ5f0pg4jxr5Y=;
+        b=TtCXbyAVpNFgCwDnRa1kFyLf71HdF8TidhSs4otwFqoe/S/usujYP18PlJPhPRQMRf
+         /kRUgp1q9tujrMFoTX7d8fWdVXRUU4FDisnCDbCOi8npYC0BANiNNNBMY61Y8RWUDuBp
+         j0jc70wJPTBwd/EX39PBwtyqzBr/1qjxQor7512J73FzVJaqpe4GkkXQ4nEyM8UBxWmn
+         obEBcKzUi2Acc6BKmMNaPj6yXcx0lLcr3Cj7Pb6/aEe/pHT1TKqRfOcNCtSPicclII1f
+         XkT//NS0Sci9wC1fyT+BL/dTcqklddcpfFPmTp7SkaQuJxadnmsO9J7QgvXjbP/ki4zg
+         E+1w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=WwpXvpKM;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=Z2k6P15B;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d6sor805905ejp.4.2019.05.30.05.14.03
+        by mx.google.com with SMTPS id b1sor780096ejq.50.2019.05.30.05.20.57
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 30 May 2019 05:14:03 -0700 (PDT)
+        Thu, 30 May 2019 05:20:57 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=WwpXvpKM;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=Z2k6P15B;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=p1918MnxARtKvEc6ceYsEUd3Epplrq3Dno0QWUAOQIc=;
-        b=WwpXvpKM9wyVqaBDvR0ygQVcZ42ff9V7UdQHrCrSBwcUIEVEmjuTKBZ/IcXWH9eb5r
-         LM2dQI9+J0VXq6CKq0RCQVNNfFNFV7wXEVX6NmISCJthmIw0bOFXuveRJjd3kAcqEdmH
-         2kXefMuUqNOvxd8cf4G/K8smJTb967IvuR2zQJyzvKmuTmEJjeY909hYgmoeDTt9dJqw
-         tIy9hLMgZ4lmN0z3tHsNhdeexSGkNFDu0lIElK/3gavacIosueW6YA0nyyn5+T38ggfF
-         TqQMY95IlMlKA9y5AfiRxQGvPAHj/giAOKuetihepllUU1tcrz57Yur9DY5wjCsZV4WJ
-         Zr9A==
-X-Google-Smtp-Source: APXvYqyeQ7RjD8auQNHx3XF4JeRe83d9ggJZiR6/yHiQKW8mGxbq1bQy7fyk84Y985CtTEYnjKtW9g==
-X-Received: by 2002:a17:906:a302:: with SMTP id j2mr3149843ejz.155.1559218443491;
-        Thu, 30 May 2019 05:14:03 -0700 (PDT)
+        bh=YT3ORHa/ZvJBb9khTyipcwzY8aPEUTPQ5f0pg4jxr5Y=;
+        b=Z2k6P15BL06hicotC2dSnEhV4GaouaYG/VP+GJ3fGnAhF6at7jpkvpP/YG0JsS3EXO
+         /WmsTJLB5yROTZTpRxkMVP5tsNLz1NTj4KHZjtrEY3hwmzJ0k+hnd8h5BPu5s5utlIaY
+         4GgG5pQr07iKIMbAzXkcfrvYvubSvkZzB0y/Tgyo+teWVipAtuwqkcQ0mATGh2pId31v
+         FlOjjKi7NJhawjq3cI2k0UcyG6Uo1GdWhl0a6KGpV9MNvka+4sAXH206O2kwt8JdXvdP
+         xVnDd4ry5jN/dyzJLCyT7PseowF6bzOXZRvj0IjQMxxiKs8NV0ibOIfa+4TYyVwTHni2
+         V63w==
+X-Google-Smtp-Source: APXvYqz1QMEcICzGq1904VHz2gHy6zj21AwriFZbwIfNLZqfdA6Rb2hqgd+xEtLtBupnaHP/sjhZpw==
+X-Received: by 2002:a17:906:63c1:: with SMTP id u1mr3160741ejk.173.1559218857620;
+        Thu, 30 May 2019 05:20:57 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id g18sm684004edh.13.2019.05.30.05.14.02
+        by smtp.gmail.com with ESMTPSA id d11sm682334eda.45.2019.05.30.05.20.56
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 May 2019 05:14:02 -0700 (PDT)
+        Thu, 30 May 2019 05:20:56 -0700 (PDT)
 Received: by box.localdomain (Postfix, from userid 1000)
-	id C43031041ED; Thu, 30 May 2019 15:14:00 +0300 (+03)
-Date: Thu, 30 May 2019 15:14:00 +0300
+	id 975811041ED; Thu, 30 May 2019 15:20:55 +0300 (+03)
+Date: Thu, 30 May 2019 15:20:55 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 To: Song Liu <songliubraving@fb.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, namit@vmware.com,
@@ -107,15 +107,15 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, namit@vmware.com,
 	kirill.shutemov@linux.intel.com, kernel-team@fb.com,
 	william.kucharski@oracle.com, chad.mynhier@oracle.com,
 	mike.kravetz@oracle.com
-Subject: Re: [PATCH uprobe, thp 3/4] uprobe: support huge page by only
- splitting the pmd
-Message-ID: <20190530121400.amti2s5ilrba2wvb@box>
+Subject: Re: [PATCH uprobe, thp 4/4] uprobe: collapse THP pmd after removing
+ all uprobes
+Message-ID: <20190530122055.xzlbo3wfpqtmo2fw@box>
 References: <20190529212049.2413886-1-songliubraving@fb.com>
- <20190529212049.2413886-4-songliubraving@fb.com>
+ <20190529212049.2413886-5-songliubraving@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190529212049.2413886-4-songliubraving@fb.com>
+In-Reply-To: <20190529212049.2413886-5-songliubraving@fb.com>
 User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -123,18 +123,14 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 29, 2019 at 02:20:48PM -0700, Song Liu wrote:
-> Instead of splitting the compound page with FOLL_SPLIT, this patch allows
-> uprobe to only split pmd for huge pages.
-> 
-> A helper function mm_address_trans_huge(mm, address) was introduced to
-> test whether the address in mm is pointing to THP.
+On Wed, May 29, 2019 at 02:20:49PM -0700, Song Liu wrote:
+> After all uprobes are removed from the huge page (with PTE pgtable), it
+> is possible to collapse the pmd and benefit from THP again. This patch
+> does the collapse.
 
-Maybe it would be cleaner to have FOLL_SPLIT_PMD which would strip
-trans_huge PMD if any and then set pte using get_locked_pte()?
-
-This way you'll not need any changes in split_huge_pmd() path. Clearing
-PMD will be fine.
+I don't think it's right way to go. We should deferred it to khugepaged.
+We need to teach khugepaged to deal with PTE-mapped compound page.
+And uprobe should only kick khugepaged for a VMA. Maybe synchronously.
 
 -- 
  Kirill A. Shutemov
