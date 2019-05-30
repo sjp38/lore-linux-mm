@@ -2,499 +2,279 @@ Return-Path: <SRS0=aa49=T6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CEC3BC28CC2
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:12:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C7070C28CC0
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:12:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 87AED25C5F
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:12:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 87AED25C5F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 799BD25C63
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:12:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 799BD25C63
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1530A6B026E; Thu, 30 May 2019 11:12:37 -0400 (EDT)
+	id 17B486B026F; Thu, 30 May 2019 11:12:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 104DC6B026F; Thu, 30 May 2019 11:12:37 -0400 (EDT)
+	id 1521C6B0270; Thu, 30 May 2019 11:12:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F0EED6B0270; Thu, 30 May 2019 11:12:36 -0400 (EDT)
+	id 01B506B0271; Thu, 30 May 2019 11:12:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CD7D6B026E
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 11:12:36 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y12so9031922ede.19
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 08:12:36 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BD7CD6B026F
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 11:12:41 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id j26so2531505pgj.6
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 08:12:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=DRCN9LZL3NXHWxzh1DCHusL5JojCXk2BRcj5P2fg5XY=;
-        b=ipnHQI7WXDZLL++ukXJwzKQzVdlfOaPwyrnF3zqnvWDnHC88tzO+JhjNhT8fAyVNvm
-         RDf0MY3x3HcmuqjfGgm9o1sBy5iD4H3q7EXn8wBLwNMWVWCZ39cL8I7Xbg5AWvc6jL72
-         jVJDTqZ7j2y63yso3A/yMaob/rBL82gsVkbu7AIVQSHFst/fiic8PIyDEF8XB93GBfaV
-         QTUGEX6UQIJka+pdaWJdFZsQ7lx/O0gDcpkmEQnwbBNe3YG+qHY9kFm/4fSEoNPkPGya
-         AUz2Q9RdsCeAxvNrkHXQTYFaggMYumH/iygxU95OCvGo3pU+uSSrTjfwA/bAQMBMFbfH
-         r0GQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAXgTYXayYi0bXi0R4WSg49+Op7VRpSWTHLdbJSjoZISbTqwlIp3
-	ZoFsbUAWtpYAJpSdFP0JkmN6ncZI+GjA6UPMCU/IzAbocxmT3DFpYWmC4zYVUde9734ytpwFUxG
-	IsSx296F5XjQj8eKISUq8czxpCrAMBDg0CHrtv6NnQ3oycgbucwAX7B1GvYa/v8lbDA==
-X-Received: by 2002:a17:906:d79a:: with SMTP id pj26mr4000847ejb.205.1559229156145;
-        Thu, 30 May 2019 08:12:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzcdQ+lqL22IHM2GEgKd1Fb4P+B+InMecFxi3ikvsLO5jl8sVXhfY3xBY7HT6XEsxssss2e
-X-Received: by 2002:a17:906:d79a:: with SMTP id pj26mr4000680ejb.205.1559229154451;
-        Thu, 30 May 2019 08:12:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559229154; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:mime-version:message-id;
+        bh=Dl0GS4kLiTu2ILYHI+1T3a2uEm+hg0wNj0g3w2Dbmc4=;
+        b=Q6NG5MhzpKrctK8fZ2xulfr3XLA6bYOvAlG1LMPtRB7ylySTSGFa5OEZSiCJjjmKpD
+         iyGqadNmqcvVVd6ZGD+WgkLHml8/w30yxYGsFbz0GY/o02mZJAjCLUBjPHsjjz59RDBQ
+         MVzaCR4rZc1A9ctgGiENlUJci0o4sge+dJFvTlrbmOaaQFS5oANjfbi9NVCx1ZxkhRmE
+         ljzm9MLKL4FK9Flfappizm+hzlb9sghuLYIB/yfT2o6rxrqkKTmxPZDuclJD96du/uSi
+         tTd8rhqfMYv6T7sjECUfiRGe0qJptbTNMCqq27fNMMV4asGKFl/0ndMlmNmq4D8t9D2E
+         oNOQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWjm4gjZ/Q5txneKwUT0F3feh6w3ITkh/PngFWyMQIM42/+UOYE
+	Zgjne/v8bG/pQUnPrId4yL5CvUx7VbliTZ5tjVUwhg5xV9zSLs2JIKuqvGqYZyeFrAjYWf51adw
+	ebRsoGp86oXdZChKPThb4vga/JKXmI1fSKqx0FdOM3aEkvBAF8N++XEnqDIKPjpGMAw==
+X-Received: by 2002:a62:4ed8:: with SMTP id c207mr4070833pfb.241.1559229161422;
+        Thu, 30 May 2019 08:12:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyUFtor4rxMBW12YrMDmprx2uy9KNLgdVF92F0oqRcCJc6qMYyPKgK0RXRnyDTc2D8dOFp+
+X-Received: by 2002:a62:4ed8:: with SMTP id c207mr4070778pfb.241.1559229160572;
+        Thu, 30 May 2019 08:12:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559229160; cv=none;
         d=google.com; s=arc-20160816;
-        b=T4ALfwoBhbLnS8uRGz2b5a+GVesBb38AovmidmRDtqbxhpFMaSwfx9e3o/fvyusHcK
-         IMGbN6eRfRlCbwV+Ec0Tsb6WrXervH7ZuTVPPZVn3GnCk1cLRNyHm+BC9XMWSPWcDK/s
-         EVczeuNP8aJwsXRqcfiV9kJY3KknTuOWs1JPwrE+mPDDawCU5I7FmAJUShzLFwU8K3NQ
-         6Q51nwB94HF8c63kKap/4HuO/ayEw1O0fnjYJy3e/1hAWr0Mg+L71TgSXun4M2QuI8IH
-         XjA6gGQ6EefWVwVV3to26fdxL47ts9Ev6Xg0uZEUYipb+srRhjrIKZ5hXqypaka0h4Z9
-         UJKg==
+        b=hgUtfQnWJegLpxVY3JoE2NfmIEujDvpr8uDSBm88uSNfpqRgR5AvUraPP7xo/FwIeS
+         fKmnuosIuo+syYpMzpyRWXnNceeMNLvoCZN3hdfjirz/kM8Hsr5inu3xw8rD3HU38f4+
+         sBCWASJ7WcUlLkuIcLeaI7O9Ab7BXA4PZWANsgy+NHiL+yUAvXFKMV26ftldg3G6dxx5
+         ezj3bove9eh54UjPdRD7NITP7O4pyPGjz0QTROizuxNLcWHxS5I+jX/3ZOG9uB6hGZT1
+         kdFD9zsTxW+Fz9+c+Ep8lz8zxa4uz++Y9342Tl1DTUj7DIls/BxXY+SRKTy7yClI3wwA
+         CeMg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=DRCN9LZL3NXHWxzh1DCHusL5JojCXk2BRcj5P2fg5XY=;
-        b=v7OcGPu1Pr9kDWRbeJDV0pXfO/QgjpOnNlB06RQyNeUVTu++uhBIrpBibgl0lb0nRw
-         Zk69AOJbImvvHbnxA7fUbL/vQcncs2JPjQZff5QFtFHIP9tdZ1EYR9A5TbJ01jSJD84B
-         Gdjks/Uibu5uwn0JrhI3XRVzicwNxTVZHty2/HwkiSrCmgIytz0W5Z41fklQDe3KJ6Yn
-         PI58mniUkB6Mq8rzSgipWn421Tb+bLJ+ODbgPe+BdPzC4dsGC2HKoncNthwHOQ+uiJtP
-         G51zQO1uUNJuK9p6nBUFXQXzbhwd1JTx0DixbW/8VleN2x669kd+82uoEroWRdJUjEdL
-         /lNQ==
+        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=Dl0GS4kLiTu2ILYHI+1T3a2uEm+hg0wNj0g3w2Dbmc4=;
+        b=xNixlzA3Tjea2MkJNVHaGR09bt/z4on5o2v9VUCij5uVsimXzTXsK+tolKiNXyJVPD
+         PHBo1tcVZMPMHV5snoDSA9yFsifrUyVy1inmPsHBTNh+4QSkFuQ0K/rL1mGWRbZg0EJc
+         xoYjrcVXEvPad8MlQSQeC8fohS5mJn9D04VWsERZR0jAhfi3mbiG26OrO74gW0gePqG7
+         tFJl6oXlZyg/PeNOTbV9nLRJbOiFm2+7m8uFyPATEXR53CN1UOv7fH+yvo8MFdfB8/QU
+         KeMYK/bTyitbaL8hgUTG5W/9h0L3pvXIz6olvzopmajy1CKMVy0I5csc6xY+rJMuI5H0
+         t3Dg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r7si1570494edd.232.2019.05.30.08.12.33
-        for <linux-mm@kvack.org>;
-        Thu, 30 May 2019 08:12:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d8si3183279pls.208.2019.05.30.08.12.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 May 2019 08:12:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 401CF341;
-	Thu, 30 May 2019 08:12:33 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 1F8A13F59C;
-	Thu, 30 May 2019 08:12:29 -0700 (PDT)
-Date: Thu, 30 May 2019 16:12:27 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
-	catalin.marinas@arm.com, will.deacon@arm.com, mhocko@suse.com,
-	ira.weiny@intel.com, david@redhat.com, cai@lca.pw,
-	logang@deltatee.com, james.morse@arm.com, cpandya@codeaurora.org,
-	arunks@codeaurora.org, dan.j.williams@intel.com,
-	mgorman@techsingularity.net, osalvador@suse.de,
-	ard.biesheuvel@arm.com
-Subject: Re: [PATCH V5 3/3] arm64/mm: Enable memory hot remove
-Message-ID: <20190530151227.GD56046@lakrids.cambridge.arm.com>
-References: <1559121387-674-1-git-send-email-anshuman.khandual@arm.com>
- <1559121387-674-4-git-send-email-anshuman.khandual@arm.com>
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4UF33MO016133
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 11:12:40 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2stfb3q7km-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 11:12:39 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Thu, 30 May 2019 16:12:37 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Thu, 30 May 2019 16:12:35 +0100
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4UFCY4h20381756
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 30 May 2019 15:12:34 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id A0A5EA405B;
+	Thu, 30 May 2019 15:12:34 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 836A3A4062;
+	Thu, 30 May 2019 15:12:33 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.199.37.131])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Thu, 30 May 2019 15:12:33 +0000 (GMT)
+X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: dan.j.williams@intel.com
+Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+        linuxppc-dev@lists.ozlabs.org
+Subject: Re: [RFC PATCH V2 1/3] mm/nvdimm: Add PFN_MIN_VERSION support
+In-Reply-To: <20190522082701.6817-1-aneesh.kumar@linux.ibm.com>
+References: <20190522082701.6817-1-aneesh.kumar@linux.ibm.com>
+Date: Thu, 30 May 2019 20:42:32 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1559121387-674-4-git-send-email-anshuman.khandual@arm.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+Content-Type: text/plain
+X-TM-AS-GCONF: 00
+x-cbid: 19053015-0020-0000-0000-000003420062
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19053015-0021-0000-0000-00002195061A
+Message-Id: <874l5c563j.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-30_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905300107
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Anshuman,
 
-From reviwing the below, I can see some major issues that need to be
-addressed, which I've commented on below.
+Hi Dan,
 
-Andrew, please do not pick up this patch.
+Are you ok with this patch series? If yes I can send a non-RFC version for
+this series. Since we are now marking all previously created pfn_sb on
+ppc64 as not supported, (pfn_sb->page_size = SZ_4K) I would like to get
+this merged early.
 
-On Wed, May 29, 2019 at 02:46:27PM +0530, Anshuman Khandual wrote:
-> The arch code for hot-remove must tear down portions of the linear map and
-> vmemmap corresponding to memory being removed. In both cases the page
-> tables mapping these regions must be freed, and when sparse vmemmap is in
-> use the memory backing the vmemmap must also be freed.
-> 
-> This patch adds a new remove_pagetable() helper which can be used to tear
-> down either region, and calls it from vmemmap_free() and
-> ___remove_pgd_mapping(). The sparse_vmap argument determines whether the
-> backing memory will be freed.
-> 
-> While freeing intermediate level page table pages bail out if any of it's
+-aneesh
 
-Nit: s/it's/its/
+"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
 
-> entries are still valid. This can happen for partially filled kernel page
-> table either from a previously attempted failed memory hot add or while
-> removing an address range which does not span the entire page table page
-> range.
-> 
-> The vmemmap region may share levels of table with the vmalloc region. Take
-> the kernel ptl so that we can safely free potentially-shared tables.
-
-AFAICT, this is not sufficient; please see below for details.
-
-> While here update arch_add_memory() to handle __add_pages() failures by
-> just unmapping recently added kernel linear mapping. Now enable memory hot
-> remove on arm64 platforms by default with ARCH_ENABLE_MEMORY_HOTREMOVE.
-> 
-> This implementation is overall inspired from kernel page table tear down
-> procedure on X86 architecture.
-> 
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> Acked-by: David Hildenbrand <david@redhat.com>
-
-Looking at this some more, I don't think this is quite right, and tI
-think that structure of the free_*() and remove_*() functions makes this
-unnecessarily hard to follow. We should aim for this to be obviously
-correct.
-
-The x86 code is the best template to follow here. As mentioned
-previously, I'm fairly certain it's not entirely correct (e.g. due to
-missing TLB maintenance), and we've already diverged a fair amount in
-fixing up obvious issues, so we shouldn't aim to mirror it.
-
-I think that the structure of unmap_region() is closer to what we want
-here -- do one pass to unmap leaf entries (and freeing the associated
-memory if unmapping the vmemmap), then do a second pass cleaning up any
-empty tables.
-
-In general I'm concerned that we don't strictly follow a
-clear->tlbi->free sequence, and free pages before tearing down their
-corresponding mapping. It doesn't feel great to leave a cacheable alias
-around, even transiently. Further, as commented below, the
-remove_p?d_table() functions leave stale leaf entries in the TLBs when
-removing section entries.
-
+> This allows us to make changes in a backward incompatible way. I have
+> kept the PFN_MIN_VERSION in this patch '0' because we are not introducing
+> any incompatible changes in this patch. We also may want to backport this
+> to older kernels.
+>
+> The error looks like
+>
+>   dax0.1: init failed, superblock min version 1, kernel support version 0
+>
+> and the namespace is marked disabled
+>
+> $ndctl list -Ni
+> [
+>   {
+>     "dev":"namespace0.0",
+>     "mode":"fsdax",
+>     "map":"mem",
+>     "size":10737418240,
+>     "uuid":"9605de6d-cefa-4a87-99cd-dec28b02cffe",
+>     "state":"disabled"
+>   }
+> ]
+>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 > ---
->  arch/arm64/Kconfig  |   3 +
->  arch/arm64/mm/mmu.c | 211 +++++++++++++++++++++++++++++++++++++++++++++++++++-
->  2 files changed, 212 insertions(+), 2 deletions(-)
-> 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index 697ea05..7f917fe 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -268,6 +268,9 @@ config HAVE_GENERIC_GUP
->  config ARCH_ENABLE_MEMORY_HOTPLUG
->  	def_bool y
+>  drivers/nvdimm/pfn.h      |  9 ++++++++-
+>  drivers/nvdimm/pfn_devs.c |  8 ++++++++
+>  drivers/nvdimm/pmem.c     | 26 ++++++++++++++++++++++----
+>  3 files changed, 38 insertions(+), 5 deletions(-)
+>
+> diff --git a/drivers/nvdimm/pfn.h b/drivers/nvdimm/pfn.h
+> index dde9853453d3..5fd29242745a 100644
+> --- a/drivers/nvdimm/pfn.h
+> +++ b/drivers/nvdimm/pfn.h
+> @@ -20,6 +20,12 @@
+>  #define PFN_SIG_LEN 16
+>  #define PFN_SIG "NVDIMM_PFN_INFO\0"
+>  #define DAX_SIG "NVDIMM_DAX_INFO\0"
+> +/*
+> + * increment this when we are making changes such that older
+> + * kernel should fail to initialize that namespace.
+> + */
+> +
+> +#define PFN_MIN_VERSION 0
 >  
-> +config ARCH_ENABLE_MEMORY_HOTREMOVE
-> +	def_bool y
-> +
->  config SMP
->  	def_bool y
+>  struct nd_pfn_sb {
+>  	u8 signature[PFN_SIG_LEN];
+> @@ -36,7 +42,8 @@ struct nd_pfn_sb {
+>  	__le32 end_trunc;
+>  	/* minor-version-2 record the base alignment of the mapping */
+>  	__le32 align;
+> -	u8 padding[4000];
+> +	__le16 min_version;
+> +	u8 padding[3998];
+>  	__le64 checksum;
+>  };
 >  
-> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-> index a1bfc44..4803624 100644
-> --- a/arch/arm64/mm/mmu.c
-> +++ b/arch/arm64/mm/mmu.c
-> @@ -733,6 +733,187 @@ int kern_addr_valid(unsigned long addr)
+> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
+> index 01f40672507f..a2268cf262f5 100644
+> --- a/drivers/nvdimm/pfn_devs.c
+> +++ b/drivers/nvdimm/pfn_devs.c
+> @@ -439,6 +439,13 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
+>  	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb), 0))
+>  		return -ENXIO;
 >  
->  	return pfn_valid(pte_pfn(pte));
->  }
-> +
-> +#ifdef CONFIG_MEMORY_HOTPLUG
-> +static void free_hotplug_page_range(struct page *page, ssize_t size)
-
-The size argument should never be negative, so size_t would be best.
-
-> +{
-> +	WARN_ON(PageReserved(page));
-> +	free_pages((unsigned long)page_address(page), get_order(size));
-> +}
-> +
-> +static void free_hotplug_pgtable_page(struct page *page)
-> +{
-> +	free_hotplug_page_range(page, PAGE_SIZE);
-> +}
-> +
-> +static void free_pte_table(pte_t *ptep, pmd_t *pmdp, unsigned long addr)
-> +{
-> +	struct page *page;
-> +	int i;
-> +
-> +	for (i = 0; i < PTRS_PER_PTE; i++) {
-> +		if (!pte_none(ptep[i]))
-> +			return;
+> +	if (le16_to_cpu(pfn_sb->min_version) > PFN_MIN_VERSION) {
+> +		dev_err(&nd_pfn->dev,
+> +			"init failed, superblock min version %ld kernel support version %ld\n",
+> +			le16_to_cpu(pfn_sb->min_version), PFN_MIN_VERSION);
+> +		return -EOPNOTSUPP;
 > +	}
 > +
-> +	page = pmd_page(READ_ONCE(*pmdp));
-> +	pmd_clear(pmdp);
-> +	__flush_tlb_kernel_pgtable(addr);
-> +	free_hotplug_pgtable_page(page);
-> +}
-> +
-> +static void free_pmd_table(pmd_t *pmdp, pud_t *pudp, unsigned long addr)
-> +{
-> +	struct page *page;
-> +	int i;
-> +
-> +	if (CONFIG_PGTABLE_LEVELS <= 2)
-> +		return;
-> +
-> +	for (i = 0; i < PTRS_PER_PMD; i++) {
-> +		if (!pmd_none(pmdp[i]))
-> +			return;
-> +	}
-> +
-> +	page = pud_page(READ_ONCE(*pudp));
-> +	pud_clear(pudp);
-> +	__flush_tlb_kernel_pgtable(addr);
-> +	free_hotplug_pgtable_page(page);
-> +}
-> +
-> +static void free_pud_table(pud_t *pudp, pgd_t *pgdp, unsigned long addr)
-> +{
-> +	struct page *page;
-> +	int i;
-> +
-> +	if (CONFIG_PGTABLE_LEVELS <= 3)
-> +		return;
-> +
-> +	for (i = 0; i < PTRS_PER_PUD; i++) {
-> +		if (!pud_none(pudp[i]))
-> +			return;
-> +	}
-> +
-> +	page = pgd_page(READ_ONCE(*pgdp));
-> +	pgd_clear(pgdp);
-> +	__flush_tlb_kernel_pgtable(addr);
-> +	free_hotplug_pgtable_page(page);
-> +}
-> +
-> +static void
-> +remove_pte_table(pmd_t *pmdp, unsigned long addr,
-
-Please put this on a single line.
-
-All the existing functions in this file (and the ones you add above)
-have the return type on the same line as the name, and since this
-portion of the prototype doesn't encroach 80 columns there's no reason
-to flow it.
-
-> +			unsigned long end, bool sparse_vmap)
-> +{
-> +	struct page *page;
-> +	pte_t *ptep, pte;
-> +	unsigned long start = addr;
-> +
-> +	for (; addr < end; addr += PAGE_SIZE) {
-> +		ptep = pte_offset_kernel(pmdp, addr);
-> +		pte = READ_ONCE(*ptep);
-> +
-> +		if (pte_none(pte))
-> +			continue;
-> +
-> +		WARN_ON(!pte_present(pte));
-> +		if (sparse_vmap) {
-> +			page = pte_page(pte);
-> +			free_hotplug_page_range(page, PAGE_SIZE);
-> +		}
-> +		pte_clear(&init_mm, addr, ptep);
-> +	}
-> +	flush_tlb_kernel_range(start, end);
-> +}
-
-For consistency we should use a do { ... } while (..., addr != end) loop
-to iterate over the page tables. All the other code in our mmu.c does
-that, and diverging from that doesn't save use anything here but does
-make review and maintenance harder.
-
-> +
-> +static void
-> +remove_pmd_table(pud_t *pudp, unsigned long addr,
-
-Same line please.
-
-> +			unsigned long end, bool sparse_vmap)
-> +{
-> +	unsigned long next;
-> +	struct page *page;
-> +	pte_t *ptep_base;
-> +	pmd_t *pmdp, pmd;
-> +
-> +	for (; addr < end; addr = next) {
-> +		next = pmd_addr_end(addr, end);
-> +		pmdp = pmd_offset(pudp, addr);
-> +		pmd = READ_ONCE(*pmdp);
-> +
-> +		if (pmd_none(pmd))
-> +			continue;
-> +
-> +		WARN_ON(!pmd_present(pmd));
-> +		if (pmd_sect(pmd)) {
-> +			if (sparse_vmap) {
-> +				page = pmd_page(pmd);
-> +				free_hotplug_page_range(page, PMD_SIZE);
-> +			}
-> +			pmd_clear(pmdp);
-
-As mentioned above, this has no corresponding TLB maintenance, and I'm
-concerned that we free the page before clearing the entry. If the page
-gets re-allocated elsewhere, whoever received the page may not be
-expecting a cacheable alias to exist other than the linear map.
-
-> +			continue;
-> +		}
-> +		ptep_base = pte_offset_kernel(pmdp, 0UL);
-> +		remove_pte_table(pmdp, addr, next, sparse_vmap);
-> +		free_pte_table(ptep_base, pmdp, addr);
-> +	}
-> +}
-> +
-> +static void
-> +remove_pud_table(pgd_t *pgdp, unsigned long addr,
-
-Same line please
-
-> +			unsigned long end, bool sparse_vmap)
-> +{
-> +	unsigned long next;
-> +	struct page *page;
-> +	pmd_t *pmdp_base;
-> +	pud_t *pudp, pud;
-> +
-> +	for (; addr < end; addr = next) {
-> +		next = pud_addr_end(addr, end);
-> +		pudp = pud_offset(pgdp, addr);
-> +		pud = READ_ONCE(*pudp);
-> +
-> +		if (pud_none(pud))
-> +			continue;
-> +
-> +		WARN_ON(!pud_present(pud));
-> +		if (pud_sect(pud)) {
-> +			if (sparse_vmap) {
-> +				page = pud_page(pud);
-> +				free_hotplug_page_range(page, PUD_SIZE);
-> +			}
-> +			pud_clear(pudp);
-
-Same issue as in remove_pmd_table().
-
-> +			continue;
-> +		}
-> +		pmdp_base = pmd_offset(pudp, 0UL);
-> +		remove_pmd_table(pudp, addr, next, sparse_vmap);
-> +		free_pmd_table(pmdp_base, pudp, addr);
-> +	}
-> +}
-> +
-> +static void
-> +remove_pagetable(unsigned long start, unsigned long end, bool sparse_vmap)
-
-Same line please (with the sparse_vmap argument flowed on to the next
-line as that will encroach 80 characters).
-
-> +{
-> +	unsigned long addr, next;
-> +	pud_t *pudp_base;
-> +	pgd_t *pgdp, pgd;
-> +
-> +	spin_lock(&init_mm.page_table_lock);
-
-Please add a comment above this to explain why we need to take the
-init_mm ptl. Per the cover letter, this should be something like:
-
-	/*
-	 * We may share tables with the vmalloc region, so we must take
-	 * the init_mm ptl so that we can safely free any
-	 * potentially-shared tables that we have emptied.
-	 */
-
-The vmalloc code doesn't hold the init_mm ptl when walking a table; it
-only takes the init_mm ptl when populating a none entry in
-__p??_alloc(), to avoid a race where two threads need to populate the
-entry.
-
-So AFAICT, taking the init_mm ptl here is not sufficient to make this
-safe.
-
-Thanks,
-Mark.
-
-> +	for (addr = start; addr < end; addr = next) {
-> +		next = pgd_addr_end(addr, end);
-> +		pgdp = pgd_offset_k(addr);
-> +		pgd = READ_ONCE(*pgdp);
-> +
-> +		if (pgd_none(pgd))
-> +			continue;
-> +
-> +		WARN_ON(!pgd_present(pgd));
-> +		pudp_base = pud_offset(pgdp, 0UL);
-> +		remove_pud_table(pgdp, addr, next, sparse_vmap);
-> +		free_pud_table(pudp_base, pgdp, addr);
-> +	}
-> +	spin_unlock(&init_mm.page_table_lock);
-> +}
-> +#endif
-> +
->  #ifdef CONFIG_SPARSEMEM_VMEMMAP
->  #if !ARM64_SWAPPER_USES_SECTION_MAPS
->  int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
-> @@ -780,6 +961,9 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
->  void vmemmap_free(unsigned long start, unsigned long end,
->  		struct vmem_altmap *altmap)
+>  	if (memcmp(pfn_sb->signature, sig, PFN_SIG_LEN) != 0)
+>  		return -ENODEV;
+>  
+> @@ -769,6 +776,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+>  	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
+>  	pfn_sb->version_major = cpu_to_le16(1);
+>  	pfn_sb->version_minor = cpu_to_le16(2);
+> +	pfn_sb->min_version = cpu_to_le16(PFN_MIN_VERSION);
+>  	pfn_sb->start_pad = cpu_to_le32(start_pad);
+>  	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
+>  	pfn_sb->align = cpu_to_le32(nd_pfn->align);
+> diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
+> index 845c5b430cdd..406427c064d9 100644
+> --- a/drivers/nvdimm/pmem.c
+> +++ b/drivers/nvdimm/pmem.c
+> @@ -490,6 +490,7 @@ static int pmem_attach_disk(struct device *dev,
+>  
+>  static int nd_pmem_probe(struct device *dev)
 >  {
-> +#ifdef CONFIG_MEMORY_HOTPLUG
-> +	remove_pagetable(start, end, true);
-> +#endif
->  }
->  #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
+> +	int ret;
+>  	struct nd_namespace_common *ndns;
 >  
-> @@ -1070,10 +1254,16 @@ int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
->  }
+>  	ndns = nvdimm_namespace_common_probe(dev);
+> @@ -505,12 +506,29 @@ static int nd_pmem_probe(struct device *dev)
+>  	if (is_nd_pfn(dev))
+>  		return pmem_attach_disk(dev, ndns);
 >  
->  #ifdef CONFIG_MEMORY_HOTPLUG
-> +static void __remove_pgd_mapping(pgd_t *pgdir, unsigned long start, u64 size)
-> +{
-> +	WARN_ON(pgdir != init_mm.pgd);
-> +	remove_pagetable(start, start + size, false);
-> +}
+> -	/* if we find a valid info-block we'll come back as that personality */
+> -	if (nd_btt_probe(dev, ndns) == 0 || nd_pfn_probe(dev, ndns) == 0
+> -			|| nd_dax_probe(dev, ndns) == 0)
+> +	ret = nd_btt_probe(dev, ndns);
+> +	if (ret == 0)
+>  		return -ENXIO;
+> +	else if (ret == -EOPNOTSUPP)
+> +		return ret;
+>  
+> -	/* ...otherwise we're just a raw pmem device */
+> +	ret = nd_pfn_probe(dev, ndns);
+> +	if (ret == 0)
+> +		return -ENXIO;
+> +	else if (ret == -EOPNOTSUPP)
+> +		return ret;
 > +
->  int arch_add_memory(int nid, u64 start, u64 size,
->  			struct mhp_restrictions *restrictions)
->  {
-> -	int flags = 0;
-> +	int ret, flags = 0;
->  
->  	if (rodata_full || debug_pagealloc_enabled())
->  		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
-> @@ -1081,7 +1271,24 @@ int arch_add_memory(int nid, u64 start, u64 size,
->  	__create_pgd_mapping(swapper_pg_dir, start, __phys_to_virt(start),
->  			     size, PAGE_KERNEL, __pgd_pgtable_alloc, flags);
->  
-> -	return __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
-> +	ret = __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
->  			   restrictions);
-> +	if (ret)
-> +		__remove_pgd_mapping(swapper_pg_dir,
-> +				     __phys_to_virt(start), size);
-> +	return ret;
-> +}
-> +
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +void arch_remove_memory(int nid, u64 start, u64 size,
-> +				struct vmem_altmap *altmap)
-> +{
-> +	unsigned long start_pfn = start >> PAGE_SHIFT;
-> +	unsigned long nr_pages = size >> PAGE_SHIFT;
-> +	struct zone *zone = page_zone(pfn_to_page(start_pfn));
-> +
-> +	__remove_pages(zone, start_pfn, nr_pages, altmap);
-> +	__remove_pgd_mapping(swapper_pg_dir, __phys_to_virt(start), size);
+> +	ret = nd_dax_probe(dev, ndns);
+> +	if (ret == 0)
+> +		return -ENXIO;
+> +	else if (ret == -EOPNOTSUPP)
+> +		return ret;
+> +	/*
+> +	 * We have two failure conditions here, there is no
+> +	 * info reserver block or we found a valid info reserve block
+> +	 * but failed to initialize the pfn superblock.
+> +	 * Don't create a raw pmem disk for the second case.
+> +	 */
+>  	return pmem_attach_disk(dev, ndns);
 >  }
->  #endif
-> +#endif
+>  
 > -- 
-> 2.7.4
-> 
+> 2.21.0
 
