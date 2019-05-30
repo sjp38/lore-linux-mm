@@ -2,285 +2,499 @@ Return-Path: <SRS0=aa49=T6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE647C28CC2
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:11:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CEC3BC28CC2
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:12:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6697125C5F
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:11:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6697125C5F
+	by mail.kernel.org (Postfix) with ESMTP id 87AED25C5F
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:12:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 87AED25C5F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC2CD6B026E; Thu, 30 May 2019 11:11:18 -0400 (EDT)
+	id 1530A6B026E; Thu, 30 May 2019 11:12:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E4ACA6B026F; Thu, 30 May 2019 11:11:18 -0400 (EDT)
+	id 104DC6B026F; Thu, 30 May 2019 11:12:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CC46A6B0270; Thu, 30 May 2019 11:11:18 -0400 (EDT)
+	id F0EED6B0270; Thu, 30 May 2019 11:12:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 79DDE6B026E
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 11:11:18 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id p14so9087931edc.4
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 08:11:18 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CD7D6B026E
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 11:12:36 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y12so9031922ede.19
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 08:12:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=nLN0w4JRFrEmBg9UrF3ncr11bn+CwSdQ+8NQ5brF9XI=;
-        b=qYNF6st5+bOTpkLbWV5yDRgEeBV26UHpxvkc9TQs07abaC+QIoiYoVOmGw4d9tgYW7
-         vzDb/Kinuh9zHYJsY+4g4BnuqZ9qha8T/i/fYhUlpHTvR+vnUsYGrdVK7bWE+TiJwJL7
-         4HsRF3bd7BZitQl+DoqRyzcHxn3NxFFZ0QyV9sC6+OEz/KP/VmrcLWDoflcmAhKbTaAG
-         tNFIhyBu25aJwQgq77HDT4AEokiB3swEvwp2tAXCA+J0hXCurHhPgRTRBP4RMOEKqKQk
-         3C0ezCo++Lwt2guvSrQWBYwDzMEhCrW4RyXyjKysgDefDJNjAWwysqeo/Sy4SzOhyvBf
-         Ey6Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAXgQLeNlUyhdV1AE6EUiddKkLrI6s2JSJ4BhKqgZ4O3/g5HsAg4
-	o5CHO8Yl63sLZEOxxtx4uruN2AVl3WXu9M+z+y/dCX/wiR1FnSgYNy2CxlJVnXE3qlQmIVNsgFy
-	gIZ4I0cRtmFU22jh6Ta7mF4w6ftC+JMNu4UcQY51gUxfJXqQxSOAN5oSfRo8xqYIrCw==
-X-Received: by 2002:a50:addc:: with SMTP id b28mr5276596edd.7.1559229078035;
-        Thu, 30 May 2019 08:11:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwHPYG0cvJUHP8oBgOJdJa7tkWggBJwut+BiZbfYRuBSCfa4sSjCRwTbEFIYbxHBWwfsMIY
-X-Received: by 2002:a50:addc:: with SMTP id b28mr5276447edd.7.1559229076771;
-        Thu, 30 May 2019 08:11:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559229076; cv=none;
+        bh=DRCN9LZL3NXHWxzh1DCHusL5JojCXk2BRcj5P2fg5XY=;
+        b=ipnHQI7WXDZLL++ukXJwzKQzVdlfOaPwyrnF3zqnvWDnHC88tzO+JhjNhT8fAyVNvm
+         RDf0MY3x3HcmuqjfGgm9o1sBy5iD4H3q7EXn8wBLwNMWVWCZ39cL8I7Xbg5AWvc6jL72
+         jVJDTqZ7j2y63yso3A/yMaob/rBL82gsVkbu7AIVQSHFst/fiic8PIyDEF8XB93GBfaV
+         QTUGEX6UQIJka+pdaWJdFZsQ7lx/O0gDcpkmEQnwbBNe3YG+qHY9kFm/4fSEoNPkPGya
+         AUz2Q9RdsCeAxvNrkHXQTYFaggMYumH/iygxU95OCvGo3pU+uSSrTjfwA/bAQMBMFbfH
+         r0GQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+X-Gm-Message-State: APjAAAXgTYXayYi0bXi0R4WSg49+Op7VRpSWTHLdbJSjoZISbTqwlIp3
+	ZoFsbUAWtpYAJpSdFP0JkmN6ncZI+GjA6UPMCU/IzAbocxmT3DFpYWmC4zYVUde9734ytpwFUxG
+	IsSx296F5XjQj8eKISUq8czxpCrAMBDg0CHrtv6NnQ3oycgbucwAX7B1GvYa/v8lbDA==
+X-Received: by 2002:a17:906:d79a:: with SMTP id pj26mr4000847ejb.205.1559229156145;
+        Thu, 30 May 2019 08:12:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzcdQ+lqL22IHM2GEgKd1Fb4P+B+InMecFxi3ikvsLO5jl8sVXhfY3xBY7HT6XEsxssss2e
+X-Received: by 2002:a17:906:d79a:: with SMTP id pj26mr4000680ejb.205.1559229154451;
+        Thu, 30 May 2019 08:12:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559229154; cv=none;
         d=google.com; s=arc-20160816;
-        b=fsZB5sNNWgoI6LMWsitOf03KzvwRyh26At6XBwi4KVsyz7c1W1izMH460PbPFt8q+X
-         VuxhrrgMD6YCQO0iNzDk5Q96OTDkhaGfm4npTboJX580XlpU2WbVOKEBBK1qyDgJeZGL
-         HlNuT1KXXCwGRUyUthArIdd/CWOBY+n0QcRrRFO1sQf3X7/xIf2wwZpNo7gjw1ZYEiap
-         6liZJuwSPAL+MDhT7EuAs55pgUzzsTwrPQfAwKp4clKcm+p7Nbe2rTK+Vg/N4OkG/thv
-         yH/CSWMYyxZxosImPlrpwtubK1S05WAtZpw5CrCoe2CC8Fk3Raj9IhkItZE9dYU1khA+
-         PZxw==
+        b=T4ALfwoBhbLnS8uRGz2b5a+GVesBb38AovmidmRDtqbxhpFMaSwfx9e3o/fvyusHcK
+         IMGbN6eRfRlCbwV+Ec0Tsb6WrXervH7ZuTVPPZVn3GnCk1cLRNyHm+BC9XMWSPWcDK/s
+         EVczeuNP8aJwsXRqcfiV9kJY3KknTuOWs1JPwrE+mPDDawCU5I7FmAJUShzLFwU8K3NQ
+         6Q51nwB94HF8c63kKap/4HuO/ayEw1O0fnjYJy3e/1hAWr0Mg+L71TgSXun4M2QuI8IH
+         XjA6gGQ6EefWVwVV3to26fdxL47ts9Ev6Xg0uZEUYipb+srRhjrIKZ5hXqypaka0h4Z9
+         UJKg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=nLN0w4JRFrEmBg9UrF3ncr11bn+CwSdQ+8NQ5brF9XI=;
-        b=CegvFS/ojTondczOBmLZZa1pgxoajSj4Ew2VIFIlVaMcEQgsnuusGWvrWwz5UgGWAq
-         v8QBAfNPu4J9VWrtqSUKXSDiM1vGIt3KMuYe+aHbO4vBtIesjYJxa23FxL1qEw7IeWWa
-         M0a+G85yTUYmh7pKk3JjqBJWkgRSYJBG685UmkNONG2G2uLSvszFrh2n1mVd/IppgsQ8
-         ZkWmaW+lXZz+vr9P7Bf+qywB0EFOv05Rb+oRz6JJsys9xSzg/vuwbA6q7WCtkFn4iwHA
-         5Fnhm1JZau+U6A7fAZ1l6j6q5fNZNZKbE0GiM/njXGCRjS9QcnVFMvtvHPAxdwyORQJm
-         O4ug==
+        bh=DRCN9LZL3NXHWxzh1DCHusL5JojCXk2BRcj5P2fg5XY=;
+        b=v7OcGPu1Pr9kDWRbeJDV0pXfO/QgjpOnNlB06RQyNeUVTu++uhBIrpBibgl0lb0nRw
+         Zk69AOJbImvvHbnxA7fUbL/vQcncs2JPjQZff5QFtFHIP9tdZ1EYR9A5TbJ01jSJD84B
+         Gdjks/Uibu5uwn0JrhI3XRVzicwNxTVZHty2/HwkiSrCmgIytz0W5Z41fklQDe3KJ6Yn
+         PI58mniUkB6Mq8rzSgipWn421Tb+bLJ+ODbgPe+BdPzC4dsGC2HKoncNthwHOQ+uiJtP
+         G51zQO1uUNJuK9p6nBUFXQXzbhwd1JTx0DixbW/8VleN2x669kd+82uoEroWRdJUjEdL
+         /lNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k14si1924395ejd.222.2019.05.30.08.11.16
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id r7si1570494edd.232.2019.05.30.08.12.33
         for <linux-mm@kvack.org>;
-        Thu, 30 May 2019 08:11:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+        Thu, 30 May 2019 08:12:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 66C00341;
-	Thu, 30 May 2019 08:11:15 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 8A9563F59C;
-	Thu, 30 May 2019 08:11:09 -0700 (PDT)
-Date: Thu, 30 May 2019 16:11:07 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: Andrew Murray <andrew.murray@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, kvm@vger.kernel.org,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Will Deacon <will.deacon@arm.com>, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, linux-kselftest@vger.kernel.org,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Leon Romanovsky <leon@kernel.org>, linux-rdma@vger.kernel.org,
-	amd-gfx@lists.freedesktop.org, Dmitry Vyukov <dvyukov@google.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Evgeniy Stepanov <eugenis@google.com>, linux-media@vger.kernel.org,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	linux-arm-kernel@lists.infradead.org,
-	Kostya Serebryany <kcc@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>, linux-kernel@vger.kernel.org,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v15 05/17] arms64: untag user pointers passed to memory
- syscalls
-Message-ID: <20190530151105.GA35418@arrakis.emea.arm.com>
-References: <cover.1557160186.git.andreyknvl@google.com>
- <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
- <20190527143719.GA59948@MBP.local>
- <20190528145411.GA709@e119886-lin.cambridge.arm.com>
- <20190528154057.GD32006@arrakis.emea.arm.com>
- <11193998209cc6ff34e7d704f081206b8787b174.camel@oracle.com>
- <20190529142008.5quqv3wskmpwdfbu@mbp>
- <b2753e81-7b57-481f-0095-3c6fecb1a74c@oracle.com>
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 401CF341;
+	Thu, 30 May 2019 08:12:33 -0700 (PDT)
+Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 1F8A13F59C;
+	Thu, 30 May 2019 08:12:29 -0700 (PDT)
+Date: Thu, 30 May 2019 16:12:27 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
+	catalin.marinas@arm.com, will.deacon@arm.com, mhocko@suse.com,
+	ira.weiny@intel.com, david@redhat.com, cai@lca.pw,
+	logang@deltatee.com, james.morse@arm.com, cpandya@codeaurora.org,
+	arunks@codeaurora.org, dan.j.williams@intel.com,
+	mgorman@techsingularity.net, osalvador@suse.de,
+	ard.biesheuvel@arm.com
+Subject: Re: [PATCH V5 3/3] arm64/mm: Enable memory hot remove
+Message-ID: <20190530151227.GD56046@lakrids.cambridge.arm.com>
+References: <1559121387-674-1-git-send-email-anshuman.khandual@arm.com>
+ <1559121387-674-4-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b2753e81-7b57-481f-0095-3c6fecb1a74c@oracle.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <1559121387-674-4-git-send-email-anshuman.khandual@arm.com>
+User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 29, 2019 at 01:16:37PM -0600, Khalid Aziz wrote:
-> On 5/29/19 8:20 AM, Catalin Marinas wrote:
-> > On Tue, May 28, 2019 at 05:33:04PM -0600, Khalid Aziz wrote:
-> >> Steps 1 and 2 are accomplished by userspace by calling mprotect() with
-> >> PROT_ADI. Tags are set by storing tags in a loop, for example:
-> >>
-> >>         version = 10;
-> >>         tmp_addr = shmaddr;
-> >>         end = shmaddr + BUFFER_SIZE;
-> >>         while (tmp_addr < end) {
-> >>                 asm volatile(
-> >>                         "stxa %1, [%0]0x90\n\t"
-> >>                         :
-> >>                         : "r" (tmp_addr), "r" (version));
-> >>                 tmp_addr += adi_blksz;
-> >>         }
-> > 
-> > On arm64, a sequence similar to the above would live in the libc. So a
-> > malloc() call will tag the memory and return the tagged address to thePre-coloring could easily be done by 
-> > user.
-> > 
-> > We were not planning for a PROT_ADI/MTE but rather have MTE enabled for
-> > all user memory ranges. We may revisit this before we upstream the MTE
-> > support (probably some marginal benefit for the hardware not fetching
-> > the tags from memory if we don't need to, e.g. code sections).
-> > 
-> > Given that we already have the TBI feature and with MTE enabled the top
-> > byte is no longer ignored, we are planning for an explicit opt-in by the
-> > user via prctl() to enable MTE.
+Hi Anshuman,
+
+From reviwing the below, I can see some major issues that need to be
+addressed, which I've commented on below.
+
+Andrew, please do not pick up this patch.
+
+On Wed, May 29, 2019 at 02:46:27PM +0530, Anshuman Khandual wrote:
+> The arch code for hot-remove must tear down portions of the linear map and
+> vmemmap corresponding to memory being removed. In both cases the page
+> tables mapping these regions must be freed, and when sparse vmemmap is in
+> use the memory backing the vmemmap must also be freed.
 > 
-> OK. I had initially proposed enabling ADI for a process using prctl().
-> Feedback I got was prctl was not a desirable interface and I ended up
-> making mprotect() with PROT_ADI enable ADI on the process instead. Just
-> something to keep in mind.
-
-Thanks for the feedback. We'll keep this in mind when adding MTE
-support. In the way we plan to deploy this, it would be a libc decision
-to invoke the mmap() with the right flag.
-
-This could actually simplify the automatic page faulting below brk(),
-basically no tagged/coloured memory allowed implicitly. It needs
-feedback from the bionic/glibc folk.
-
-> >> With these semantics, giving mmap() or shamat() a tagged address is
-> >> meaningless since no tags have been stored at the addresses mmap() will
-> >> allocate and one can not store tags before memory range has been
-> >> allocated. If we choose to allow tagged addresses to come into mmap()
-> >> and shmat(), sparc code can strip the tags unconditionally and that may
-> >> help simplify ABI and/or code.
-> > 
-> > We could say that with TBI (pre-MTE support), the top byte is actually
-> > ignored on mmap(). Now, if you pass a MAP_FIXED with a tagged address,
-> > should the user expect the same tagged address back or stripping the tag
-> > is acceptable? If we want to keep the current mmap() semantics, I'd say
-> > the same tag is returned. However, with MTE this also implies that the
-> > memory was coloured.
+> This patch adds a new remove_pagetable() helper which can be used to tear
+> down either region, and calls it from vmemmap_free() and
+> ___remove_pgd_mapping(). The sparse_vmap argument determines whether the
+> backing memory will be freed.
 > 
-> Is assigning a tag aprivileged operationon ARM64? I am thinking not
-> since you mentioned libc could do it in a loop for malloc'd memory.
+> While freeing intermediate level page table pages bail out if any of it's
 
-Indeed it's not, the user can do it.
+Nit: s/it's/its/
 
-> mmap() can return the same tagged address but I am uneasy about kernel
-> pre-coloring the pages. Database can mmap 100's of GB of memory. That is
-> lot of work being offloaded to the kernel to pre-color the page even if
-> done in batches as pages are faulted in.
-
-For anonymous mmap() for example, the kernel would have to zero the
-faulted in pages anyway. We can handle the colouring at the same time in
-clear_user_page() (as I said below, we have to clear the colour anyway
-from previous uses, so it's simply extending this to support something
-other than tag/colour 0 by default with no additional overhead).
-
-> > Since the user can probe the pre-existing colour in a faulted-in page
-> > (either with some 'ldxa' instruction or by performing a tag-checked
-> > access), the kernel should always pre-colour (even if colour 0) any
-> > allocated page. There might not be an obvious security risk but I feel
-> > uneasy about letting colours leak between address spaces (different user
-> > processes or between kernel and user).
+> entries are still valid. This can happen for partially filled kernel page
+> table either from a previously attempted failed memory hot add or while
+> removing an address range which does not span the entire page table page
+> range.
 > 
-> On sparc, tags 0 and 15 are special in that 0 means untagged memory and
-> 15 means match any tag in the address. Colour 0 is the default for any
-> newly faulted in page on sparc.
+> The vmemmap region may share levels of table with the vmalloc region. Take
+> the kernel ptl so that we can safely free potentially-shared tables.
 
-With MTE we don't have match-all/any tag in memory, only in the virtual
-address/pointer. So if we turn on MTE for all pages and the user
-accesses an address with a 0 tag, the underlying memory needs to be
-coloured with the same 0 value.
+AFAICT, this is not sufficient; please see below for details.
 
-> > Since we already need such loop in the kernel, we might as well allow
-> > user space to require a certain colour. This comes in handy for large
-> > malloc() and another advantage is that the C library won't be stuck
-> > trying to paint the whole range (think GB).
+> While here update arch_add_memory() to handle __add_pages() failures by
+> just unmapping recently added kernel linear mapping. Now enable memory hot
+> remove on arm64 platforms by default with ARCH_ENABLE_MEMORY_HOTREMOVE.
 > 
-> If kernel is going to pre-color all pages in a vma, we will need to
-> store the default tag in the vma. It will add more time to page fault
-> handling code. On sparc M7, kernel will need to execute additional 128
-> stxa instructions to set the tags on a normal page.
-
-As I said, since the user can retrieve an old colour using ldxa, the
-kernel should perform this operation anyway on any newly allocated page
-(unless you clear the existing colour on page freeing).
-
-> >> We can try to store tags for an entire region in vma but that is
-> >> expensive, plus on sparc tags are set in userspace with no
-> >> participation from kernel and now we need a way for userspace to
-> >> communicate the tags to kernel.
-> > 
-> > We can't support finer granularity through the mmap() syscall and, as
-> > you said, the vma is not the right thing to store the individual tags.
-> > With the above extension to mmap(), we'd have to store a colour per vma
-> > and prevent merging if different colours (we could as well use the
-> > pkeys mechanism we already have in the kernel but use a colour per vma
-> > instead of a key).
+> This implementation is overall inspired from kernel page table tear down
+> procedure on X86 architecture.
 > 
-> Since tags can change on any part of mmap region on sparc at any time
-> without kernel being involved, I am not sure I see much reason for
-> kernel to enforce any tag related restrictions.
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> Acked-by: David Hildenbrand <david@redhat.com>
 
-It's not enforcing a tag, more like the default colour for a faulted in
-page. Anyway, if sparc is going with default 0/untagged, that's fine as
-well. We may add this mmap() option to arm64 only.
+Looking at this some more, I don't think this is quite right, and tI
+think that structure of the free_*() and remove_*() functions makes this
+unnecessarily hard to follow. We should aim for this to be obviously
+correct.
 
-> >> From sparc point of view, making kernel responsible for assigning tags
-> >> to a page on page fault is full of pitfalls.
-> > 
-> > This could be just some arm64-specific but if you plan to deploy it more
-> > generically for sparc (at the C library level), you may find this
-> > useful.
+The x86 code is the best template to follow here. As mentioned
+previously, I'm fairly certain it's not entirely correct (e.g. due to
+missing TLB maintenance), and we've already diverged a fair amount in
+fixing up obvious issues, so we shouldn't aim to mirror it.
+
+I think that the structure of unmap_region() is closer to what we want
+here -- do one pass to unmap leaf entries (and freeing the associated
+memory if unmapping the vmemmap), then do a second pass cleaning up any
+empty tables.
+
+In general I'm concerned that we don't strictly follow a
+clear->tlbi->free sequence, and free pages before tearing down their
+corresponding mapping. It doesn't feel great to leave a cacheable alias
+around, even transiently. Further, as commented below, the
+remove_p?d_table() functions leave stale leaf entries in the TLBs when
+removing section entries.
+
+> ---
+>  arch/arm64/Kconfig  |   3 +
+>  arch/arm64/mm/mmu.c | 211 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+>  2 files changed, 212 insertions(+), 2 deletions(-)
 > 
-> Common semantics from app developer point of view will be very useful to
-> maintain. If arm64 says mmap with MAP_FIXED and a tagged address will
-> return a pre-colored page, I would rather have it be the same on any
-> architecture. Is there a use case that justifies kernel doing this extra
-> work?
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 697ea05..7f917fe 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -268,6 +268,9 @@ config HAVE_GENERIC_GUP
+>  config ARCH_ENABLE_MEMORY_HOTPLUG
+>  	def_bool y
+>  
+> +config ARCH_ENABLE_MEMORY_HOTREMOVE
+> +	def_bool y
+> +
+>  config SMP
+>  	def_bool y
+>  
+> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+> index a1bfc44..4803624 100644
+> --- a/arch/arm64/mm/mmu.c
+> +++ b/arch/arm64/mm/mmu.c
+> @@ -733,6 +733,187 @@ int kern_addr_valid(unsigned long addr)
+>  
+>  	return pfn_valid(pte_pfn(pte));
+>  }
+> +
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +static void free_hotplug_page_range(struct page *page, ssize_t size)
 
-So if a database program is doing an anonymous mmap(PROT_TBI) of 100GB,
-IIUC for sparc the faulted-in pages will have random colours (on 64-byte
-granularity). Ignoring the information leak from prior uses of such
-pages, it would be the responsibility of the db program to issue the
-stxa. On arm64, since we also want to do this via malloc(), any large
-allocation would require all pages to be faulted in so that malloc() can
-set the write colour before being handed over to the user. That's what
-we want to avoid and the user is free to repaint the memory as it likes.
+The size argument should never be negative, so size_t would be best.
 
--- 
-Catalin
+> +{
+> +	WARN_ON(PageReserved(page));
+> +	free_pages((unsigned long)page_address(page), get_order(size));
+> +}
+> +
+> +static void free_hotplug_pgtable_page(struct page *page)
+> +{
+> +	free_hotplug_page_range(page, PAGE_SIZE);
+> +}
+> +
+> +static void free_pte_table(pte_t *ptep, pmd_t *pmdp, unsigned long addr)
+> +{
+> +	struct page *page;
+> +	int i;
+> +
+> +	for (i = 0; i < PTRS_PER_PTE; i++) {
+> +		if (!pte_none(ptep[i]))
+> +			return;
+> +	}
+> +
+> +	page = pmd_page(READ_ONCE(*pmdp));
+> +	pmd_clear(pmdp);
+> +	__flush_tlb_kernel_pgtable(addr);
+> +	free_hotplug_pgtable_page(page);
+> +}
+> +
+> +static void free_pmd_table(pmd_t *pmdp, pud_t *pudp, unsigned long addr)
+> +{
+> +	struct page *page;
+> +	int i;
+> +
+> +	if (CONFIG_PGTABLE_LEVELS <= 2)
+> +		return;
+> +
+> +	for (i = 0; i < PTRS_PER_PMD; i++) {
+> +		if (!pmd_none(pmdp[i]))
+> +			return;
+> +	}
+> +
+> +	page = pud_page(READ_ONCE(*pudp));
+> +	pud_clear(pudp);
+> +	__flush_tlb_kernel_pgtable(addr);
+> +	free_hotplug_pgtable_page(page);
+> +}
+> +
+> +static void free_pud_table(pud_t *pudp, pgd_t *pgdp, unsigned long addr)
+> +{
+> +	struct page *page;
+> +	int i;
+> +
+> +	if (CONFIG_PGTABLE_LEVELS <= 3)
+> +		return;
+> +
+> +	for (i = 0; i < PTRS_PER_PUD; i++) {
+> +		if (!pud_none(pudp[i]))
+> +			return;
+> +	}
+> +
+> +	page = pgd_page(READ_ONCE(*pgdp));
+> +	pgd_clear(pgdp);
+> +	__flush_tlb_kernel_pgtable(addr);
+> +	free_hotplug_pgtable_page(page);
+> +}
+> +
+> +static void
+> +remove_pte_table(pmd_t *pmdp, unsigned long addr,
+
+Please put this on a single line.
+
+All the existing functions in this file (and the ones you add above)
+have the return type on the same line as the name, and since this
+portion of the prototype doesn't encroach 80 columns there's no reason
+to flow it.
+
+> +			unsigned long end, bool sparse_vmap)
+> +{
+> +	struct page *page;
+> +	pte_t *ptep, pte;
+> +	unsigned long start = addr;
+> +
+> +	for (; addr < end; addr += PAGE_SIZE) {
+> +		ptep = pte_offset_kernel(pmdp, addr);
+> +		pte = READ_ONCE(*ptep);
+> +
+> +		if (pte_none(pte))
+> +			continue;
+> +
+> +		WARN_ON(!pte_present(pte));
+> +		if (sparse_vmap) {
+> +			page = pte_page(pte);
+> +			free_hotplug_page_range(page, PAGE_SIZE);
+> +		}
+> +		pte_clear(&init_mm, addr, ptep);
+> +	}
+> +	flush_tlb_kernel_range(start, end);
+> +}
+
+For consistency we should use a do { ... } while (..., addr != end) loop
+to iterate over the page tables. All the other code in our mmu.c does
+that, and diverging from that doesn't save use anything here but does
+make review and maintenance harder.
+
+> +
+> +static void
+> +remove_pmd_table(pud_t *pudp, unsigned long addr,
+
+Same line please.
+
+> +			unsigned long end, bool sparse_vmap)
+> +{
+> +	unsigned long next;
+> +	struct page *page;
+> +	pte_t *ptep_base;
+> +	pmd_t *pmdp, pmd;
+> +
+> +	for (; addr < end; addr = next) {
+> +		next = pmd_addr_end(addr, end);
+> +		pmdp = pmd_offset(pudp, addr);
+> +		pmd = READ_ONCE(*pmdp);
+> +
+> +		if (pmd_none(pmd))
+> +			continue;
+> +
+> +		WARN_ON(!pmd_present(pmd));
+> +		if (pmd_sect(pmd)) {
+> +			if (sparse_vmap) {
+> +				page = pmd_page(pmd);
+> +				free_hotplug_page_range(page, PMD_SIZE);
+> +			}
+> +			pmd_clear(pmdp);
+
+As mentioned above, this has no corresponding TLB maintenance, and I'm
+concerned that we free the page before clearing the entry. If the page
+gets re-allocated elsewhere, whoever received the page may not be
+expecting a cacheable alias to exist other than the linear map.
+
+> +			continue;
+> +		}
+> +		ptep_base = pte_offset_kernel(pmdp, 0UL);
+> +		remove_pte_table(pmdp, addr, next, sparse_vmap);
+> +		free_pte_table(ptep_base, pmdp, addr);
+> +	}
+> +}
+> +
+> +static void
+> +remove_pud_table(pgd_t *pgdp, unsigned long addr,
+
+Same line please
+
+> +			unsigned long end, bool sparse_vmap)
+> +{
+> +	unsigned long next;
+> +	struct page *page;
+> +	pmd_t *pmdp_base;
+> +	pud_t *pudp, pud;
+> +
+> +	for (; addr < end; addr = next) {
+> +		next = pud_addr_end(addr, end);
+> +		pudp = pud_offset(pgdp, addr);
+> +		pud = READ_ONCE(*pudp);
+> +
+> +		if (pud_none(pud))
+> +			continue;
+> +
+> +		WARN_ON(!pud_present(pud));
+> +		if (pud_sect(pud)) {
+> +			if (sparse_vmap) {
+> +				page = pud_page(pud);
+> +				free_hotplug_page_range(page, PUD_SIZE);
+> +			}
+> +			pud_clear(pudp);
+
+Same issue as in remove_pmd_table().
+
+> +			continue;
+> +		}
+> +		pmdp_base = pmd_offset(pudp, 0UL);
+> +		remove_pmd_table(pudp, addr, next, sparse_vmap);
+> +		free_pmd_table(pmdp_base, pudp, addr);
+> +	}
+> +}
+> +
+> +static void
+> +remove_pagetable(unsigned long start, unsigned long end, bool sparse_vmap)
+
+Same line please (with the sparse_vmap argument flowed on to the next
+line as that will encroach 80 characters).
+
+> +{
+> +	unsigned long addr, next;
+> +	pud_t *pudp_base;
+> +	pgd_t *pgdp, pgd;
+> +
+> +	spin_lock(&init_mm.page_table_lock);
+
+Please add a comment above this to explain why we need to take the
+init_mm ptl. Per the cover letter, this should be something like:
+
+	/*
+	 * We may share tables with the vmalloc region, so we must take
+	 * the init_mm ptl so that we can safely free any
+	 * potentially-shared tables that we have emptied.
+	 */
+
+The vmalloc code doesn't hold the init_mm ptl when walking a table; it
+only takes the init_mm ptl when populating a none entry in
+__p??_alloc(), to avoid a race where two threads need to populate the
+entry.
+
+So AFAICT, taking the init_mm ptl here is not sufficient to make this
+safe.
+
+Thanks,
+Mark.
+
+> +	for (addr = start; addr < end; addr = next) {
+> +		next = pgd_addr_end(addr, end);
+> +		pgdp = pgd_offset_k(addr);
+> +		pgd = READ_ONCE(*pgdp);
+> +
+> +		if (pgd_none(pgd))
+> +			continue;
+> +
+> +		WARN_ON(!pgd_present(pgd));
+> +		pudp_base = pud_offset(pgdp, 0UL);
+> +		remove_pud_table(pgdp, addr, next, sparse_vmap);
+> +		free_pud_table(pudp_base, pgdp, addr);
+> +	}
+> +	spin_unlock(&init_mm.page_table_lock);
+> +}
+> +#endif
+> +
+>  #ifdef CONFIG_SPARSEMEM_VMEMMAP
+>  #if !ARM64_SWAPPER_USES_SECTION_MAPS
+>  int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+> @@ -780,6 +961,9 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+>  void vmemmap_free(unsigned long start, unsigned long end,
+>  		struct vmem_altmap *altmap)
+>  {
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +	remove_pagetable(start, end, true);
+> +#endif
+>  }
+>  #endif	/* CONFIG_SPARSEMEM_VMEMMAP */
+>  
+> @@ -1070,10 +1254,16 @@ int p4d_free_pud_page(p4d_t *p4d, unsigned long addr)
+>  }
+>  
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+> +static void __remove_pgd_mapping(pgd_t *pgdir, unsigned long start, u64 size)
+> +{
+> +	WARN_ON(pgdir != init_mm.pgd);
+> +	remove_pagetable(start, start + size, false);
+> +}
+> +
+>  int arch_add_memory(int nid, u64 start, u64 size,
+>  			struct mhp_restrictions *restrictions)
+>  {
+> -	int flags = 0;
+> +	int ret, flags = 0;
+>  
+>  	if (rodata_full || debug_pagealloc_enabled())
+>  		flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
+> @@ -1081,7 +1271,24 @@ int arch_add_memory(int nid, u64 start, u64 size,
+>  	__create_pgd_mapping(swapper_pg_dir, start, __phys_to_virt(start),
+>  			     size, PAGE_KERNEL, __pgd_pgtable_alloc, flags);
+>  
+> -	return __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
+> +	ret = __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
+>  			   restrictions);
+> +	if (ret)
+> +		__remove_pgd_mapping(swapper_pg_dir,
+> +				     __phys_to_virt(start), size);
+> +	return ret;
+> +}
+> +
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +void arch_remove_memory(int nid, u64 start, u64 size,
+> +				struct vmem_altmap *altmap)
+> +{
+> +	unsigned long start_pfn = start >> PAGE_SHIFT;
+> +	unsigned long nr_pages = size >> PAGE_SHIFT;
+> +	struct zone *zone = page_zone(pfn_to_page(start_pfn));
+> +
+> +	__remove_pages(zone, start_pfn, nr_pages, altmap);
+> +	__remove_pgd_mapping(swapper_pg_dir, __phys_to_virt(start), size);
+>  }
+>  #endif
+> +#endif
+> -- 
+> 2.7.4
+> 
 
