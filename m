@@ -2,102 +2,89 @@ Return-Path: <SRS0=aa49=T6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CD8F2C28CC2
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 06:44:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 053B0C46460
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 06:51:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 96A2925AE2
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 06:44:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="XUEorjCr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96A2925AE2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
+	by mail.kernel.org (Postfix) with ESMTP id CB8C525B88
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 06:51:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CB8C525B88
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 197766B0285; Thu, 30 May 2019 02:44:57 -0400 (EDT)
+	id 4A1106B0288; Thu, 30 May 2019 02:51:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 122236B0287; Thu, 30 May 2019 02:44:57 -0400 (EDT)
+	id 450796B0289; Thu, 30 May 2019 02:51:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 00FDC6B0288; Thu, 30 May 2019 02:44:56 -0400 (EDT)
+	id 3668C6B028A; Thu, 30 May 2019 02:51:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BC6116B0285
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 02:44:56 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id k22so3880384pfg.18
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 23:44:56 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DFB976B0288
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 02:51:15 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f15so5424676ede.8
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 23:51:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=OtJUoXoSDr8VsqZMlQCV4tuhz5lMclRWprZBC+48UZI=;
-        b=q0iSxbEEdqrQMyRzGw4gb8WCV0lljZon9rVYojwKilZgDtD08eR4X27XK8qHJpM5/Q
-         AHg2tPIPBQT4Yn9fR3QT5QH3p/MlXq6Mlxt4moalKBYgcFIeI/17/u9RSR2M9qANbf3D
-         9LTg0JIyyX5ieD5rTxtWVPF544jx0flveO4ctD0rSaSi6Jt5GnBuPKp1kaMluBgFPW+4
-         NQYzalMCa8mRU0PxiY0DHweYiQuJUUap7GkH3LrYD0wnGTH64Cxz+HCxUiXD92NyI0FZ
-         MbWd2OGG8qKm3b29hAC+oCOkQb4sCWusmDcvOI5ypJbRUy79HCPwEJ+NDKaerLH3VLpa
-         xLCA==
-X-Gm-Message-State: APjAAAVKsJopS/AAJI2CVOrG4trIVgcJRpGfU7F+LJnRJEG++J5NS4Ax
-	/tzEQf8Im1e3ElEHlsaw+M8s3ff8EMzadsnfqeh9bEL/8O5rpUjnlOaA0C3oCeZIWTWRrZh9ezC
-	GBLrJYvhXdAkWmTozIy4OGMRlGN/jHrl8LP+W+NN5Nv1iLkwfLglbhG4Od5M3UdVCnQ==
-X-Received: by 2002:a65:6088:: with SMTP id t8mr2266722pgu.381.1559198696275;
-        Wed, 29 May 2019 23:44:56 -0700 (PDT)
-X-Received: by 2002:a65:6088:: with SMTP id t8mr2266687pgu.381.1559198695524;
-        Wed, 29 May 2019 23:44:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559198695; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=pl46aRszmpdjuU2z6gGkrMXy/xn/vJww6HCwYJJamOU=;
+        b=muainVy90xWstQqqQibsuciWeqXYWZhTqXYcskKBq6jf5QIwJWXKluRun0LuIPSpxZ
+         kvAByVzTBtB8k3mBBg+0nnaYDWDb1OTOn4gO3pW9IvnB94LcFdBUIShI6j68MmTHBQzZ
+         Bn/gQKS0cxmb1K4uGoO0V8SMt1ZhUR56bTtE6nMMoSZchjaUINe8jfK3WUikeYH2ZE8p
+         tGNApZzFzZAVOEmRRqceo749/LggXYFOkLf6s0rogrTvpxAYsBwP5tNs9g8ONuA/VJvz
+         LkB/cHDaD4gRbhIrg6nQH7gG0BBA5HEbPIp+cGaj8lzJl6NjlmyJaI3icGbDSAsa14S9
+         EeKA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXKDkNrrTKP1K77bcNaHuqLyGh3FUjCtPZS1NUI0SGXing0kr3C
+	Q1wU1f6h0Y9UL1oB8xBZqWOZXwPbzaC7JxenGIVfW35TCnihcb49S8rok+tEAJA45CBRpzbyYFd
+	b5vCsCfO722kxa7sqZVhLXioOoLhhsY5RLY0aNxrS638IiWUFNVkslUyWauSO7b8=
+X-Received: by 2002:a17:906:2e58:: with SMTP id r24mr1931351eji.184.1559199075485;
+        Wed, 29 May 2019 23:51:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxeSzWL9p/Myg0hppsY1ZiI8QKlYTORbvrXoFrDqF82H/pINvi2h+5bDv9diVKAkPq78Dwi
+X-Received: by 2002:a17:906:2e58:: with SMTP id r24mr1931308eji.184.1559199074559;
+        Wed, 29 May 2019 23:51:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559199074; cv=none;
         d=google.com; s=arc-20160816;
-        b=nNoZXByeXPqL9ZMrFnjmEUFd2Mev3TGKNxggmUa1/0lpI6lTLiintDSuKhVZsyQ4QT
-         qTDqDEgjd7X9S5AGEeC7xoX6XDyc3O1z2UV7i/hC6a1BXyiUV3mXToDzndhxrG3NpicO
-         7qwSDVVRtQ3JT7CudzX42pA/kctiCyElPI9kfTkl5YHiXeb6SUH8BL+Z1tKCIVstr6FO
-         Ez4ZDAM0QsrbqZSlzN1VBXH6VnufywyNE+Q91+dlFzVsEyCgd2R09+R2zZ4zPf3ZgKSI
-         FIvSsJDAXfgX2gfeesYH2m3PC8P8GayH7Pspm0cSlPSn7Z4LEiYZbtho8b/P+AGSWzuM
-         G1iQ==
+        b=A/+MVvto67u7eODclUpwGl54xR3TmaiNsN62+5LMa00fVyk5QqXylUNcvoEklBVRhc
+         9MHZStG6aD+8SwoZoVMADwP3LQ16E1wfQLIyvMAGkkvT8h1vlHLCFNMbpklcc9CljjcZ
+         pSf3GX2DCPmgdFC5FU3N/OFns8h0OrrAkt2SO4a0lxStlSnv1z/J7pSg1le+aH5zayH7
+         2xXpZK0v+kFYSeyHk98DF0G98f/359/qvFP7RGQ/5Mrt+zKatU4MF6+eJuSJEaOQoD7s
+         S1jZn4X8lzykymI8Cgbscz85BLa2rkc15wKFHypsRc1a3vihILs9+mKL7G4BJ63PtkCW
+         I1vA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=OtJUoXoSDr8VsqZMlQCV4tuhz5lMclRWprZBC+48UZI=;
-        b=t/gbL6nvEWuY6MmSFVsPOtjI79+zBmtDf/qfCzwpZXbkrhDBXr2IjPREhbHPAEVlTX
-         e58FhqGbeoJIMlK0lrvkSxUZUMVjEJmUQc2qTc9MN5kJ43JdEi2RvgTkGsjVMps4Ly17
-         s36x9PinnV5uRY6lS7hbaD/+pq+h4FSZGA8v/fjkopWiye1OAOHP/3YNOZDrA3w1nK9g
-         p37Ya82+yNWo1m+C2fi9ezvoCAi8FQBG7Lt/oHfkrAvG91WO3gXtlxfZNJ/C2AYcj/Na
-         0eR2tL22IVoRKNU1dIfrebtLKcumgqhVIeUTeXZmQsbnxped0MfVPJ9WlCx9L8aOu9ex
-         WMGg==
+         :message-id:subject:cc:to:from:date;
+        bh=pl46aRszmpdjuU2z6gGkrMXy/xn/vJww6HCwYJJamOU=;
+        b=0HxCBhnoFk/Qlg4V92kGBZUBmbZ2WFSJPGM4aGZE3B4rx59exD85P+G39+Ee1pqvya
+         oF7hpKR2iEJtNIsv691qsxl9hVSw8RuwqFrxPvRSLO5GccMd+/5WO1LgzIIOHlFr9Ngb
+         4VUFAwTueNhjqKDbHz5gR4A+x4F47MrcWlTyoCTcz7J2X7jRCuxXHfKGk3FkYWy1r4p0
+         3K/wDoIYE06cTVS8hZi6Iw2mKMc1Qw4CEpG7nlFM83o6EXJCYbHc2AYsmMqe8hy90FjQ
+         YzDDzGaRZ2miRLkLd+BaFUwecav5MNugF4J2GPDUVyuUOjRVAadlIA6TcceZO4fbzlOJ
+         4CLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=XUEorjCr;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f38sor414198pjg.13.2019.05.29.23.44.55
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t22si1258240ejq.16.2019.05.29.23.51.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 29 May 2019 23:44:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 May 2019 23:51:14 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=XUEorjCr;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=OtJUoXoSDr8VsqZMlQCV4tuhz5lMclRWprZBC+48UZI=;
-        b=XUEorjCrLN9OrKuTIaR8sqQcataBFWGo19e2lBEQq/O74XS3Rv/gHEewD1Xhxg87dF
-         Li12khbvVst/JlwygCiwvAhusNa3tSQFd4Sci5NEM5LIDG4i1O/IuqU4NCA4JrjyTjI5
-         Z8e+mv6BlLgw2Wij6fVvKbwpyso+4TBaM01wI=
-X-Google-Smtp-Source: APXvYqyoyOiL1g0uw5EVCPG0xAn0ze5ad3M0tRvk7mVR1v4xGNiEEXjkXPCgkCattXKsglAopRzh3g==
-X-Received: by 2002:a17:90a:8089:: with SMTP id c9mr2007919pjn.68.1559198694988;
-        Wed, 29 May 2019 23:44:54 -0700 (PDT)
-Received: from localhost ([12.15.241.26])
-        by smtp.gmail.com with ESMTPSA id x1sm1242193pgq.13.2019.05.29.23.44.54
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 29 May 2019 23:44:54 -0700 (PDT)
-Date: Wed, 29 May 2019 23:44:53 -0700
-From: Chris Down <chris@chrisdown.name>
-To: Michal Hocko <mhocko@kernel.org>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 15D2EACF8;
+	Thu, 30 May 2019 06:51:14 +0000 (UTC)
+Date: Thu, 30 May 2019 08:51:11 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Chris Down <chris@chrisdown.name>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
 	Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
 	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
@@ -105,31 +92,48 @@ Cc: Andrew Morton <akpm@linux-foundation.org>,
 	linux-mm@kvack.org, kernel-team@fb.com
 Subject: Re: [PATCH REBASED] mm, memcg: Make scan aggression always exclude
  protection
-Message-ID: <20190530064453.GA110128@chrisdown.name>
+Message-ID: <20190530065111.GC6703@dhcp22.suse.cz>
 References: <20190228213050.GA28211@chrisdown.name>
  <20190322160307.GA3316@chrisdown.name>
  <20190530061221.GA6703@dhcp22.suse.cz>
+ <20190530064453.GA110128@chrisdown.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190530061221.GA6703@dhcp22.suse.cz>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+In-Reply-To: <20190530064453.GA110128@chrisdown.name>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Michal Hocko writes:
->Maybe I am missing something so correct me if I am wrong but the new
->calculation actually means that we always allow to scan even min
->protected memcgs right?
+On Wed 29-05-19 23:44:53, Chris Down wrote:
+> Michal Hocko writes:
+> > Maybe I am missing something so correct me if I am wrong but the new
+> > calculation actually means that we always allow to scan even min
+> > protected memcgs right?
+> 
+> We check if the memcg is min protected as a precondition for coming into
+> this function at all, so this generally isn't possible. See the
+> mem_cgroup_protected MEMCG_PROT_MIN check in shrink_node.
 
-We check if the memcg is min protected as a precondition for coming into this 
-function at all, so this generally isn't possible. See the mem_cgroup_protected 
-MEMCG_PROT_MIN check in shrink_node.
+OK, that is the part I was missing, I got confused by checking the min
+limit as well here. Thanks for the clarification. A comment would be
+handy or do we really need to consider min at all?
 
-(Of course, it's possible we race with going within protection thresholds 
-again, but this patch doesn't make that any better or worse than the previous 
-situation.)
+> (Of course, it's possible we race with going within protection thresholds
+> again, but this patch doesn't make that any better or worse than the
+> previous situation.)
+
+Yeah.
+
+With the above clarified. The code the resulting code is much easier to
+follow and the overal logic makes sense to me.
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+-- 
+Michal Hocko
+SUSE Labs
 
