@@ -6,93 +6,95 @@ X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A75D4C28CC0
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 23:13:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 52768C28CC2
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 23:13:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 78E2F262F8
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 23:13:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78E2F262F8
+	by mail.kernel.org (Postfix) with ESMTP id 169D42630B
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 23:13:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 169D42630B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2341F6B0281; Thu, 30 May 2019 19:13:23 -0400 (EDT)
+	id 9D4E16B0282; Thu, 30 May 2019 19:13:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E4D66B0282; Thu, 30 May 2019 19:13:23 -0400 (EDT)
+	id 987616B0283; Thu, 30 May 2019 19:13:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0D4146B0283; Thu, 30 May 2019 19:13:23 -0400 (EDT)
+	id 875246B0285; Thu, 30 May 2019 19:13:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C65056B0281
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 19:13:22 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id e69so3311806pgc.7
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 16:13:22 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FFF16B0282
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 19:13:28 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id h7so5702774pfq.22
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 16:13:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:from
          :to:cc:date:message-id:in-reply-to:references:user-agent
          :mime-version:content-transfer-encoding;
-        bh=7kUKQNIdOWgFr9qr6uEyM12Od3PL5kNQnr9fjqXe59M=;
-        b=ecyqyB77nDi4pzcXzuyAaZv3Q/eMk309h02b9A9nspNNE1icdD0fRoXqGNYjwh45GM
-         sMRvCE078mkSsRm4k9rD1/fs5bR0vXG531PC/YBPomJWPKXZZpQ6fnmVWbMA6Nd5h97R
-         JLUS0igJPuTMkNyQdGDbAvv31U7hVCimJFz6YMpkf1uvAXtNelHrSNH9JxDLkvQjU/WU
-         bQiKIUG9rF6srqOaTbHdqnVIegX0Zjvv1WZD1sgjUzZv4smmnfuO5Phs83RczxRXejn+
-         lXHvyEu2j0F2HSpFjIuMvJCXDZ71XEpK8IND+7d9TYSB+P4YeY5GHplTLeN2G+FFXF3y
-         fjcQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXNqnZvJO5qxwbdyYEGOtAdd3s2r3TRovah4S/ELxVYLUlngUiq
-	+p+lOjaqS/CA40ds97EP/D8a5lI9YRuDTyV3IYLnUFsjtOWE2K+1rPTiuujdEzPcopxKV1s/yef
-	dZAWoe/PuYGx9PXtjv5Bu2/Xd229i6lsP1GQcO1pcHOlYFj24DbpQGuoHPVZO0g3ESw==
-X-Received: by 2002:aa7:93a7:: with SMTP id x7mr6329044pff.196.1559258002381;
-        Thu, 30 May 2019 16:13:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqznTKgS04EBm49u1+wM+NMebxjO/HrNUBzsgCV44lGamjPFEXXjl/zxoGZsF0NEt9VRNCF9
-X-Received: by 2002:aa7:93a7:: with SMTP id x7mr6328987pff.196.1559258001603;
-        Thu, 30 May 2019 16:13:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559258001; cv=none;
+        bh=1to0Jqiq9dVqRgEdJfEpfS5IGUBxKlxG9mS5T8zXRtg=;
+        b=WmAWQ4z7qq3nmUxs+1veR7yA6Y8naeZsR+s1Tj4MbTVB/WroOt9LlmR/NOdukFUuyM
+         8aLaea5P+D0JEMSuj2N1IK0yDkc2mOXxPQ93sh+k6vUtD7A45/SrNcPZ2GOVDVWVQpEf
+         rMYN/IINC8XxHpVa84/DnLFTy8PT5/u1pelGDJKl8kE/HmzxO0UV7kIwO8aZ4Wv907Tt
+         RSIGT5ZZQYEikabm+vVYQPxL0bnuNozNqsZgVm1ZzW2spMiYAr/sx+0LOiK+Bmu3qCTy
+         h0PJj+qxKwBceoOJFNdSFq+tItcYCMDUEmCRhzqf4Y1GRB2EgjFmMsJ4BDSvfjtJArt4
+         zxPg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVCERXxupLm3BssfLBZ5YA4hzeuv6T+SsTTyejWq/yJYI8Lz9t7
+	7KPPDFdtTShnWSWDk3Q+jQpVuOanFSJ+T29Ep0zTV/STrU16XwYjSEr26WIhuCTo5KDf71RRrhI
+	/j/Z6INHsQGEGJppXfWvl323EyAv1+7jEcogamjqF2bcUN3hDxt6poIVTMxNFXcVfAg==
+X-Received: by 2002:a63:c006:: with SMTP id h6mr1722339pgg.368.1559258007940;
+        Thu, 30 May 2019 16:13:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyKX3gKQRJZNx+hbYSWfyUMued2eLxK0z4/SkYG5zUb9YKulHE9ue+jL/u1/wQI3ocMrIE1
+X-Received: by 2002:a63:c006:: with SMTP id h6mr1722274pgg.368.1559258006646;
+        Thu, 30 May 2019 16:13:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559258006; cv=none;
         d=google.com; s=arc-20160816;
-        b=NYK3z/I53ZaxC1Bp641Waoq6AsMCw7dsUHFU160QxyM9d3si/IoXvX8WHzcGmYYjnS
-         jcZ3qngGdxYS90KAkb4/GxGzdyJq1JgVN2MmIVAzDU4tMhwTRQj/wxsdqGFc2d/n5/zX
-         d00+6lsXb3mEqOEGy98hmFecJitzwk2m3wexNExUpN/l5meUdmPMUBIXSEuXcD22jtIr
-         ZqskP4m8yyiH/wYAj7C9chG+UMgRO8FCprfrhA/d1s8bn4qoQi7J8KmEb9PisJNDtqCp
-         kKhhVRjnaltAJ8l08XteTByK8YEUqQl+j36HNrM1tcGY/0sd549FJOacuEYGBD0ZHaSd
-         NsDg==
+        b=ASXHMsA+6xC0RAdx212myzMssUEoEieB8w/0Ty7fVWhrgVCXigSgKBechNPgWw917t
+         q+W+8iqVI/eI8vY5vsSeo173AOfCiWey6oi6mevktcHw7CIhFAR6vmLC4q3Rwd7T9N0c
+         +QTPROnhaQRUavlCHzn260pFDaD695Ojy47jbCxZfjyCuTvrMkm51XatTCbTyf4q0m+8
+         gkJjeC4B2aAYHub+H17aYe+EY7sYUccO3r9jGoQI6DNpecH0IhBL8iTW7DEe4E346QoJ
+         HJsttao9rXu2yuoCsvpAtsa6cnNasw96fOU0yOdfbyMl0k77sG+3rC5k+NbV1kVqKcNJ
+         5wDg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=7kUKQNIdOWgFr9qr6uEyM12Od3PL5kNQnr9fjqXe59M=;
-        b=Pm3hQpfmdo7cG/PxB50gmAdbUG+jVColWS9g/pCGKYGsgRKDy8x+AGsZ/kS2GfA62U
-         OPprwPMrjLH673SYWBXSFYiLrpztG5HlRcyzuiZU+svyuRM7iaUs0Um5DtsdQTA6xSnD
-         4gn0WwEfSmGYo7v1CvlGShbkmpFDo9caSfOLsDorB7fzOw5X2JFnnTgIfMz9Rhjfx7LT
-         jRxN/VSIxSdK73/zo1fPg/xq8UK+nDLxGZxOC+o6oB6bbokmlOgqx8dRFbu9Px+EybYH
-         u+ZlRLC2MPE18YAw5VjBEds9Fb2UsiUfuCWTGA83Ncc5YNMM0i4hoktBwceW+xbyPGYU
-         Lw4A==
+        bh=1to0Jqiq9dVqRgEdJfEpfS5IGUBxKlxG9mS5T8zXRtg=;
+        b=lJmWEiwOotb29MszN8Mqx8QscwK0/CvB9gLduINqmjfBwvTzdkGXG3v2GFvv1eh8DN
+         5C9gxfik5E5xSYVjAA2/44Kw483wllCtps6EwG/LnQqFUQVPu2RSzfYdeEfXqz5P7N2L
+         gmNXBho9hwnwInzQu0HWIuoHhOjpWOTD1PceCpYY5FY6p79p4vpMSrFrnxABd+F+YXFe
+         DNJCWSJf0f7S2mgXRMa7BVlc7S7IN26N7hqykqd0IPX6RHm2JhXCKwLfXn6t7Picq1DZ
+         B88iJyEjfFy76FRAEJ6NiI8NK8dIvHUKlT5Lv7TFx0KYdd1ErTwatVPIX5iSYd4u/o+n
+         kFVg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id w2si4183851pga.495.2019.05.30.16.13.21
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id d75si4519548pfm.259.2019.05.30.16.13.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 May 2019 16:13:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        Thu, 30 May 2019 16:13:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 30 May 2019 16:13:21 -0700
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 30 May 2019 16:13:26 -0700
 X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.60,532,1549958400"; 
+   d="scan'208";a="180115547"
 Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by orsmga006.jf.intel.com with ESMTP; 30 May 2019 16:13:20 -0700
-Subject: [PATCH v2 2/8] acpi/hmat: Skip publishing target info for nodes
- with no online memory
+  by fmsmga002.fm.intel.com with ESMTP; 30 May 2019 16:13:25 -0700
+Subject: [PATCH v2 3/8] efi: Enumerate EFI_MEMORY_SP
 From: Dan Williams <dan.j.williams@intel.com>
 To: linux-efi@vger.kernel.org
-Cc: vishal.l.verma@intel.com, ard.biesheuvel@linaro.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, x86@kernel.org, linux-nvdimm@lists.01.org
-Date: Thu, 30 May 2019 15:59:32 -0700
-Message-ID: <155925717294.3775979.5007799093584209240.stgit@dwillia2-desk3.amr.corp.intel.com>
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>, vishal.l.verma@intel.com,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org,
+ linux-nvdimm@lists.01.org
+Date: Thu, 30 May 2019 15:59:38 -0700
+Message-ID: <155925717803.3775979.14412010256191901040.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <155925716254.3775979.16716824941364738117.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <155925716254.3775979.16716824941364738117.stgit@dwillia2-desk3.amr.corp.intel.com>
 User-Agent: StGit/0.18-2-gc94f
@@ -105,57 +107,73 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There are multiple scenarios where the HMAT may contain information
-about proximity domains that are not currently online. Rather than fail
-to report any HMAT data just elide those offline domains.
+UEFI 2.8 defines an EFI_MEMORY_SP attribute bit to augment the
+interpretation of the EFI Memory Types as "reserved for a specific
+purpose". The intent of this bit is to allow the OS to identify precious
+or scarce memory resources and optionally manage it separately from
+EfiConventionalMemory. As defined older OSes that do not know about this
+attribute are permitted to ignore it and the memory will be handled
+according to the OS default policy for the given memory type.
 
-If and when those domains are later onlined they can be added to the
-HMEM reporting at that point.
+In other words, this "specific purpose" hint is deliberately weaker than
+EfiReservedMemoryType in that the system continues to operate if the OS
+takes no action on the attribute. The risk of taking no action is
+potentially unwanted / unmovable kernel allocations from the designated
+resource that prevent the full realization of the "specific purpose".
+For example, consider a system with a high-bandwidth memory pool. Older
+kernels are permitted to boot and consume that memory as conventional
+"System-RAM" newer kernels may arrange for that memory to be set aside
+by the system administrator for a dedicated high-bandwidth memory aware
+application to consume.
 
-This was found while testing EFI_MEMORY_SP support which reserves
-"specific purpose" memory from the general allocation pool. If that
-reservation results in an empty numa-node then the node is not marked
-online leading a spurious:
+Specifically, this mechanism allows for the elimination of scenarios
+where platform firmware tries to game OS policy by lying about ACPI SLIT
+values, i.e. claiming that a precious memory resource has a high
+distance to trigger the OS to avoid it by default.
 
-    "acpi/hmat: Ignoring HMAT: Invalid table"
+Implement simple detection of the bit for EFI memory table dumps and
+save the kernel policy for a follow-on change.
 
-...result for HMAT parsing.
-
+Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/acpi/hmat.c |   14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ drivers/firmware/efi/efi.c |    5 +++--
+ include/linux/efi.h        |    1 +
+ 2 files changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/drivers/acpi/hmat.c b/drivers/acpi/hmat.c
-index 96b7d39a97c6..2c220cb7b620 100644
---- a/drivers/acpi/hmat.c
-+++ b/drivers/acpi/hmat.c
-@@ -96,9 +96,6 @@ static __init void alloc_memory_target(unsigned int mem_pxm)
- {
- 	struct memory_target *target;
+diff --git a/drivers/firmware/efi/efi.c b/drivers/firmware/efi/efi.c
+index 55b77c576c42..81db09485881 100644
+--- a/drivers/firmware/efi/efi.c
++++ b/drivers/firmware/efi/efi.c
+@@ -848,15 +848,16 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
+ 	if (attr & ~(EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT |
+ 		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_RO |
+ 		     EFI_MEMORY_WP | EFI_MEMORY_RP | EFI_MEMORY_XP |
+-		     EFI_MEMORY_NV |
++		     EFI_MEMORY_NV | EFI_MEMORY_SP |
+ 		     EFI_MEMORY_RUNTIME | EFI_MEMORY_MORE_RELIABLE))
+ 		snprintf(pos, size, "|attr=0x%016llx]",
+ 			 (unsigned long long)attr);
+ 	else
+ 		snprintf(pos, size,
+-			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
++			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+ 			 attr & EFI_MEMORY_RUNTIME ? "RUN" : "",
+ 			 attr & EFI_MEMORY_MORE_RELIABLE ? "MR" : "",
++			 attr & EFI_MEMORY_SP      ? "SP"  : "",
+ 			 attr & EFI_MEMORY_NV      ? "NV"  : "",
+ 			 attr & EFI_MEMORY_XP      ? "XP"  : "",
+ 			 attr & EFI_MEMORY_RP      ? "RP"  : "",
+diff --git a/include/linux/efi.h b/include/linux/efi.h
+index 6ebc2098cfe1..91368f5ce114 100644
+--- a/include/linux/efi.h
++++ b/include/linux/efi.h
+@@ -112,6 +112,7 @@ typedef	struct {
+ #define EFI_MEMORY_MORE_RELIABLE \
+ 				((u64)0x0000000000010000ULL)	/* higher reliability */
+ #define EFI_MEMORY_RO		((u64)0x0000000000020000ULL)	/* read-only */
++#define EFI_MEMORY_SP		((u64)0x0000000000040000ULL)	/* special purpose */
+ #define EFI_MEMORY_RUNTIME	((u64)0x8000000000000000ULL)	/* range requires runtime mapping */
+ #define EFI_MEMORY_DESCRIPTOR_VERSION	1
  
--	if (pxm_to_node(mem_pxm) == NUMA_NO_NODE)
--		return;
--
- 	target = find_mem_target(mem_pxm);
- 	if (target)
- 		return;
-@@ -588,6 +585,17 @@ static __init void hmat_register_targets(void)
- 	struct memory_target *target;
- 
- 	list_for_each_entry(target, &targets, node) {
-+		int nid = pxm_to_node(target->memory_pxm);
-+
-+		/*
-+		 * Skip offline nodes. This can happen when memory
-+		 * marked EFI_MEMORY_SP, "specific purpose", is applied
-+		 * to all the memory in a promixity domain leading to
-+		 * the node being marked offline / unplugged, or if
-+		 * memory-only "hotplug" node is offline.
-+		 */
-+		if (nid == NUMA_NO_NODE || !node_online(nid))
-+			continue;
- 		hmat_register_target_initiators(target);
- 		hmat_register_target_perf(target);
- 	}
 
