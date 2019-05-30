@@ -2,173 +2,226 @@ Return-Path: <SRS0=aa49=T6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0FF27C28CC0
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 17:15:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 85512C28CC0
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 17:19:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C956D25E2F
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 17:15:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C956D25E2F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 2AB8F25E40
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 17:19:24 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="dPPRkci1";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="Qupa5ciZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AB8F25E40
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5FEDF6B000E; Thu, 30 May 2019 13:15:52 -0400 (EDT)
+	id B52E76B000D; Thu, 30 May 2019 13:19:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5B0256B026E; Thu, 30 May 2019 13:15:52 -0400 (EDT)
+	id B03876B000E; Thu, 30 May 2019 13:19:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 478576B026F; Thu, 30 May 2019 13:15:52 -0400 (EDT)
+	id 9F1B96B026E; Thu, 30 May 2019 13:19:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E9E586B000E
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 13:15:51 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c1so9493849edi.20
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 10:15:51 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8064F6B000D
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 13:19:23 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id v15so5168214ybe.13
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 10:19:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=5ePg/QOJdz+LgfndhGhdzpIZLCS0EdvG3KfIddKvX8k=;
-        b=bqei5aTC0qqXRIhpZ6xzQCxw36SlDxuNAgws3kksa6ogY8MbnrYpxAWmJj1DZp2QFs
-         7J4O4AhGx2jbN1YfxBHYf4QoHcx3NpKwhDAU25J0hLI9QfYxCHz2l0bP+ASkSq8GLg7V
-         w46NuTMIfrYjN+M7fZMkQlPFyewTOWXGSaNM8VfgKgzdT1J16Gu4dfZdJ7C+07cHeWQ7
-         w+M9AugMLN0aTcWLScqYBcrKKo2vOyJT4SnqtHR+QojPsnesuHM5PvGq3x9QM/TU21l7
-         RPIJFb/FFkwtMFWM500yn022E0cwKt2aUECzdRI0Iip93SYr3pf9rb+YOZT4AYIjf2rn
-         8npA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAW71okhHjzKfFW8aqVN0B1BzcP5yDqlgnzqfObOM9ikJokXRIaX
-	s2cqNw8CbawZtGD4cqsMnb5j1bkmbvxraPuhMLXtNg21a+RknmfmbhDR/UpBh35sWAlrDbigWfW
-	ChSvg3TkWLPXPv+yfist6jZjBvJscfk29eGLOf0iqQBgrwF7GrWCHMnydHxMYO+MOJA==
-X-Received: by 2002:a50:90e7:: with SMTP id d36mr6066981eda.202.1559236551535;
-        Thu, 30 May 2019 10:15:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxIM0xEaNhdSqG/v7ntfckaBnuXSMP/zBdmLq+L9rOOnUS6Tkfm660U7ukO0Sjtut9SO/lB
-X-Received: by 2002:a50:90e7:: with SMTP id d36mr6066869eda.202.1559236550358;
-        Thu, 30 May 2019 10:15:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559236550; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=3T6nroDY3DinVVOxA+4sYA7U+RaGiCglnLDagGHPffg=;
+        b=RNWz3tlWQxYP6iqUlyGSfaLArJFXuGnDl0HYfvX8FRXn6qozMZpX++dSUogT8uYee/
+         g20aINCe8QY09Ea/dYAVq9Wz8m1EIAQOt51czL+bhGYPhOT5WNXdULCnIhUb4CmFETl/
+         BDq8me4O8qzsjxs6JUDR8ftWdaBwpHFFswp9G3x3cenNhwYgCPrpF65dwQib0Fonf2QE
+         0oe6m3wgSLvoC1xBRO7SHGeC2bTZ1mftz17MFyaCiuCq/dtMu+ml1vBXpsUqlaYSh0dX
+         8ai5R3Df8rn7JQMhmW4VW6glB7Z/4wgFF4hQN5RAdLpMKNCS/rdui56JFhnY7DhUzoqo
+         TrEg==
+X-Gm-Message-State: APjAAAXWlLtvMDIJ45qymx44FDPrFXG6/HaKw0kuEcsNo9ksAFfhhZ/m
+	3R4vYh3qznyYil7W/Ke9rK9uOIbGNlDzihmQB4tEhWWpG5mIK3dZOIurtA8M5NQCALjrV40OnFj
+	EQaBjqrv5+nXGhOKZU8zd42Jh/W6GxrPow+mAQimdwTSS2JiYtxIZnX/p17h5QsjzsQ==
+X-Received: by 2002:a81:9855:: with SMTP id p82mr2845211ywg.498.1559236763152;
+        Thu, 30 May 2019 10:19:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwkb+Ro8mKtU2ZAlxVLOwf3ZSvX1jUz+XRsU9hzY6IOVfTl60AtgT5ScWfoNimWDBplBGvo
+X-Received: by 2002:a81:9855:: with SMTP id p82mr2845186ywg.498.1559236762524;
+        Thu, 30 May 2019 10:19:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559236762; cv=none;
         d=google.com; s=arc-20160816;
-        b=mMvuryGOaEube+V30nni7p9I/ul1N49ruEaML0uhQZ79VJXzUAqOXNqLMHwahVQo3y
-         K+3diZU2xrS3MjLO96OxuiwqnUrsF2h2YbhPkfRBmBJRUm3KVSJdFDiIR8zzplrTxxLc
-         SL8V8/e4u0oxUc1Fhk1rAOiniuKfrukZe0cPacW1OJv3Iapv2Mv07tv60jLtSOCKDwNs
-         BSQ3SMf+pUk7gexgfnbYmbMgzRaRIl94S1bm5Oujbwt7Qf3FzfPsudZ5zFAOaE+pTSfr
-         HxVpGAZRD+VMURKk2I8w/yAPmgIuEhVuddqgUZLwykvTQL/fdyW8b7q/qYZikB8TQzfk
-         VShg==
+        b=h4+V95r/j7a/tTfSoEX+oZGe4YaH7Ri8J5R9DJ5pehrhTEROCzTtesjLr10EMJZBoq
+         qzY1KQN10VoQsEeMXsgoKbXTSEDsQrj/9BCsB8mZL6jFhTK88eWGQ90C5ISmyWjLZYvn
+         0GDGVrqsqteV6XlO9fGKrqdIOTw47SfGvulmgU9oU8p7JWzEHnQpVuYrrjHQaRjE8znA
+         Eb8xbnsqzKhU5AuuIIvpMnwTfSCqLEyYC9I7AAC02KMNXnK22CeiWaOAUAwwOLtoAsSg
+         fVQcXMcPYV0kayQ2R71teHTU3FBg9Lvt3gVciAND/RLgVWci7bDqbyTh5rHT8BBy7LlZ
+         BJYQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=5ePg/QOJdz+LgfndhGhdzpIZLCS0EdvG3KfIddKvX8k=;
-        b=c0vyRX6jgSU9T5snRREw1WfC3NId4ysaCkXalE9wZcOT5cgjGkS7RqraGM31mloNGw
-         9I9JsSOjPb+JkfWFswT0IpnJ+BVGsq/k0VA2KNtt0Dxu2ySiTftqdOKraOlnyt3ZgM9x
-         DfwkG4GOMWmhi/vxj3FJ7vNzjD2cvnw4yaRvXfk+JBnjEgGpERmmzEm8fyIOfBZc0FgC
-         5dI/vIlwQOC9ggwSlCD9iLAb3QoDrvxGoFAnmxg9s8VWp6se/+b4+2foGp0NE/b++9pi
-         eM4CgoN56V9QnNlABI2tyDwj9c1b1tkZLKdMfubobiKB1p7cIJjxsCcqTlSU/yK/NPmY
-         ASkA==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=3T6nroDY3DinVVOxA+4sYA7U+RaGiCglnLDagGHPffg=;
+        b=KjP2joAvIroKjLV7QN2969uKXVTzAZ5cp5F3wKSN4x11Kgu76XvAajGY9+bwbywBuD
+         SG6QEcqJftOvm/vT/UxZl8LRFTWaZM734O7QSL0uZ1kw+oowJ+KfBKeDGmACwyVARdsM
+         PIOmgUz3+iI0LcbDLtJvPfPrY90PDhGcw0S18307c4ccsaoSPQs7DwLFFQQqApi/Ui2C
+         ojGIMlaUGm4FYZ/ekK/f5t2FI0rHr1Y5zUfDfnbvsgR2LC/hzuRyRRASUBkx82QyFrqW
+         vOWVRykj2C0C0kPTTmxdR6RgqIqSmKsurOfth7Juu+QS81nbTLs/62kvDlDHcef1t4Bd
+         ojpA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id k39si2237129eda.333.2019.05.30.10.15.49
-        for <linux-mm@kvack.org>;
-        Thu, 30 May 2019 10:15:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=dPPRkci1;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=Qupa5ciZ;
+       spf=pass (google.com: domain of prvs=105329df1d=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=105329df1d=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id v198si1053320ybv.133.2019.05.30.10.19.22
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 May 2019 10:19:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=105329df1d=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0E146341;
-	Thu, 30 May 2019 10:15:49 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 32A333F5AF;
-	Thu, 30 May 2019 10:15:43 -0700 (PDT)
-Date: Thu, 30 May 2019 18:15:40 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Kees Cook <keescook@chromium.org>,
-	Evgenii Stepanov <eugenis@google.com>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Elliott Hughes <enh@google.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>
-Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
-Message-ID: <20190530171540.GD35418@arrakis.emea.arm.com>
-References: <20190517144931.GA56186@arrakis.emea.arm.com>
- <CAFKCwrj6JEtp4BzhqO178LFJepmepoMx=G+YdC8sqZ3bcBp3EQ@mail.gmail.com>
- <20190521182932.sm4vxweuwo5ermyd@mbp>
- <201905211633.6C0BF0C2@keescook>
- <6049844a-65f5-f513-5b58-7141588fef2b@oracle.com>
- <20190523201105.oifkksus4rzcwqt4@mbp>
- <ffe58af3-7c70-d559-69f6-1f6ebcb0fec6@oracle.com>
- <20190524101139.36yre4af22bkvatx@mbp>
- <c6dd53d8-142b-3d8d-6a40-d21c5ee9d272@oracle.com>
- <CAAeHK+yAUsZWhp6xPAbWewX5Nbw+-G3svUyPmhXu5MVeEDKYvA@mail.gmail.com>
+       dkim=pass header.i=@fb.com header.s=facebook header.b=dPPRkci1;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=Qupa5ciZ;
+       spf=pass (google.com: domain of prvs=105329df1d=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=105329df1d=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0089730.ppops.net [127.0.0.1])
+	by m0089730.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x4UH97i7016413;
+	Thu, 30 May 2019 10:18:47 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=3T6nroDY3DinVVOxA+4sYA7U+RaGiCglnLDagGHPffg=;
+ b=dPPRkci17U3M4aLXAZfBtx+bzM0plzsNtVF/gEvKoyZJT0Wivyj2r2c3uTDTz0ZTN5FT
+ q1F3Qc/Pe0WKCmakZzEQaXNjlYTVaGdrAm6haVtkZac6I4AX6Wjsd9WOMqLXZ3Dx5stY
+ yn04aw1srzoiIwTMQCfAwyvhykmgNRY7sIo= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by m0089730.ppops.net with ESMTP id 2stftprtsw-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
+	Thu, 30 May 2019 10:18:47 -0700
+Received: from ash-exhub104.TheFacebook.com (2620:10d:c0a8:82::d) by
+ ash-exhub104.TheFacebook.com (2620:10d:c0a8:82::d) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Thu, 30 May 2019 10:18:45 -0700
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (100.104.31.183)
+ by o365-in.thefacebook.com (100.104.35.175) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
+ via Frontend Transport; Thu, 30 May 2019 10:18:45 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=3T6nroDY3DinVVOxA+4sYA7U+RaGiCglnLDagGHPffg=;
+ b=Qupa5ciZYj3rSUffCPX4e5i8sAHT5I+Q4pGZQvCmvnkkBgEFtf9WdM6H11FUBaPFG9uBPToFMjdiUOR/LPLPhbRKrXBjWbk3qVXi+1SdFlfr7zaAusATn0eWz6M7QyYhS6vDxRlTVNu5/VSkEt7w0egiucvtbURA69JYq1kEZ4s=
+Received: from BN6PR15MB1154.namprd15.prod.outlook.com (10.172.208.137) by
+ BN6PR15MB1793.namprd15.prod.outlook.com (10.174.115.17) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1943.16; Thu, 30 May 2019 17:18:44 +0000
+Received: from BN6PR15MB1154.namprd15.prod.outlook.com
+ ([fe80::adc0:9bbf:9292:27bd]) by BN6PR15MB1154.namprd15.prod.outlook.com
+ ([fe80::adc0:9bbf:9292:27bd%2]) with mapi id 15.20.1922.021; Thu, 30 May 2019
+ 17:18:44 +0000
+From: Song Liu <songliubraving@fb.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+CC: linux-kernel <linux-kernel@vger.kernel.org>,
+        "linux-mm@kvack.org"
+	<linux-mm@kvack.org>,
+        "namit@vmware.com" <namit@vmware.com>,
+        "peterz@infradead.org" <peterz@infradead.org>,
+        "oleg@redhat.com"
+	<oleg@redhat.com>,
+        "rostedt@goodmis.org" <rostedt@goodmis.org>,
+        "mhiramat@kernel.org" <mhiramat@kernel.org>,
+        "matthew.wilcox@oracle.com"
+	<matthew.wilcox@oracle.com>,
+        "kirill.shutemov@linux.intel.com"
+	<kirill.shutemov@linux.intel.com>,
+        Kernel Team <Kernel-team@fb.com>,
+        "william.kucharski@oracle.com" <william.kucharski@oracle.com>,
+        "chad.mynhier@oracle.com" <chad.mynhier@oracle.com>,
+        "mike.kravetz@oracle.com" <mike.kravetz@oracle.com>
+Subject: Re: [PATCH uprobe, thp 2/4] uprobe: use original page when all
+ uprobes are removed
+Thread-Topic: [PATCH uprobe, thp 2/4] uprobe: use original page when all
+ uprobes are removed
+Thread-Index: AQHVFmapFXZ5K+77uUK6eWDD22eshaaDhceAgABk4oA=
+Date: Thu, 30 May 2019 17:18:43 +0000
+Message-ID: <F97FB4EB-3416-4BE7-9539-E58A3AD86874@fb.com>
+References: <20190529212049.2413886-1-songliubraving@fb.com>
+ <20190529212049.2413886-3-songliubraving@fb.com>
+ <20190530111739.r6b2hpzjadep4xr5@box>
+In-Reply-To: <20190530111739.r6b2hpzjadep4xr5@box>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-mailer: Apple Mail (2.3445.104.11)
+x-originating-ip: [2620:10d:c090:200::3:bc80]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: e4ef1874-a86e-4f28-2153-08d6e522de56
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:BN6PR15MB1793;
+x-ms-traffictypediagnostic: BN6PR15MB1793:
+x-microsoft-antispam-prvs: <BN6PR15MB17939E8756F938742D54EFEAB3180@BN6PR15MB1793.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:989;
+x-forefront-prvs: 00531FAC2C
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(396003)(39860400002)(366004)(136003)(346002)(376002)(199004)(189003)(33656002)(6246003)(7416002)(2906002)(36756003)(99286004)(5660300002)(229853002)(57306001)(6506007)(53936002)(446003)(82746002)(54906003)(486006)(316002)(76176011)(102836004)(81166006)(11346002)(256004)(68736007)(53546011)(7736002)(476003)(2616005)(305945005)(6916009)(25786009)(186003)(14454004)(71190400001)(71200400001)(83716004)(8676002)(46003)(478600001)(4744005)(66556008)(8936002)(50226002)(6436002)(4326008)(6116002)(64756008)(66946007)(66446008)(6512007)(6486002)(66476007)(86362001)(91956017)(81156014)(73956011)(76116006);DIR:OUT;SFP:1102;SCL:1;SRVR:BN6PR15MB1793;H:BN6PR15MB1154.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: YhyDiPd3FP7X/qv3flvqEQjFex8nNdD9A3heognhhMiFB2SV1afcTFgbkI4PYbvv9kckOE5GXLKVSkGAj2CW6XpuJTdg7QKb3ldHj8ctUBBPRDU1sPU/trj3R/xkwJLKsblVFNXNDx+IEBfXSa9fuVPkuezUq5MV5UV5HPQbOw5e56lh5vWHo3yWaE8C6ruG/QRIg0JUxPzbH8Qw3SBIkKdlnyaNieIokXi0+WTrj56HdsAM04gNilwY5aD66BCqliYmWcvgOxKlsjsw7JaRt/WICYfI8DufghQpG8DwBQ3Eqbiu+A7TtwM+Xp5krq1A+spN2ahlxyjCx/TdMRK6YjuL/PAOpfIg7xxQxTCgfT5+EYpyWrfCwamQxI77BtHP3dtH354VGPBd6Cv9hQZ35Hm9rV14tLEwTAbqBRtuW1Q=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <A65156D150C53842A08DD92CCC6D94A7@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAAeHK+yAUsZWhp6xPAbWewX5Nbw+-G3svUyPmhXu5MVeEDKYvA@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-MS-Exchange-CrossTenant-Network-Message-Id: e4ef1874-a86e-4f28-2153-08d6e522de56
+X-MS-Exchange-CrossTenant-originalarrivaltime: 30 May 2019 17:18:43.9607
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BN6PR15MB1793
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-30_10:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=960 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1905300121
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 28, 2019 at 04:14:45PM +0200, Andrey Konovalov wrote:
-> Thanks for a lot of valuable input! I've read through all the replies
-> and got somewhat lost. What are the changes I need to do to this
-> series?
-> 
-> 1. Should I move untagging for memory syscalls back to the generic
-> code so other arches would make use of it as well, or should I keep
-> the arm64 specific memory syscalls wrappers and address the comments
-> on that patch?
 
-Keep them generic again but make sure we get agreement with Khalid on
-the actual ABI implications for sparc.
 
-> 2. Should I make untagging opt-in and controlled by a command line argument?
+> On May 30, 2019, at 4:17 AM, Kirill A. Shutemov <kirill@shutemov.name> wr=
+ote:
+>=20
+> On Wed, May 29, 2019 at 02:20:47PM -0700, Song Liu wrote:
+>> @@ -501,6 +512,20 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe=
+, struct mm_struct *mm,
+>> 	copy_highpage(new_page, old_page);
+>> 	copy_to_page(new_page, vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
+>>=20
+>> +	index =3D vaddr_to_offset(vma, vaddr & PAGE_MASK) >> PAGE_SHIFT;
+>> +	orig_page =3D find_get_page(vma->vm_file->f_inode->i_mapping, index);
+>> +	if (orig_page) {
+>> +		if (memcmp(page_address(orig_page),
+>> +			   page_address(new_page), PAGE_SIZE) =3D=3D 0) {
+>=20
+> Does it work for highmem?
 
-Opt-in, yes, but per task rather than kernel command line option.
-prctl() is a possibility of opting in.
+Good catch! I will fix it in v2.=20
 
-> 3. Should I "add Documentation/core-api/user-addresses.rst to describe
-> proper care and handling of user space pointers with untagged_addr(),
-> with examples based on all the cases seen so far in this series"?
-> Which examples specifically should it cover?
+Thanks!
+Song
 
-I think we can leave 3 for now as not too urgent. What I'd like is for
-Vincenzo's TBI user ABI document to go into a more common place since we
-can expand it to cover both sparc and arm64. We'd need an arm64-specific
-doc as well for things like prctl() and later MTE that sparc may support
-differently.
-
--- 
-Catalin
+>=20
+>=20
+> --=20
+> Kirill A. Shutemov
 
