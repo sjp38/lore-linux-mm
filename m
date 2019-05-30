@@ -2,297 +2,305 @@ Return-Path: <SRS0=aa49=T6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 071C2C28CC0
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 16:06:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9840C28CC0
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 16:15:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A667F25D58
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 16:06:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 77BA825D83
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 16:15:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="AwmlutIR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A667F25D58
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="iLQl/tzl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77BA825D83
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3E8DF6B0272; Thu, 30 May 2019 12:06:36 -0400 (EDT)
+	id 0D4BE6B0274; Thu, 30 May 2019 12:15:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 39A516B0273; Thu, 30 May 2019 12:06:36 -0400 (EDT)
+	id 085F26B0275; Thu, 30 May 2019 12:15:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 23C4E6B0274; Thu, 30 May 2019 12:06:36 -0400 (EDT)
+	id E8EE16B0276; Thu, 30 May 2019 12:15:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0105E6B0272
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 12:06:36 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id v191so5887719ywc.11
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 09:06:35 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B080F6B0274
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 12:15:57 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id q2so4230346plr.19
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 09:15:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=+GLA6qLrn26KPJEpEajh3ipF/BPoxxfouik/rd34OzM=;
-        b=H0y7A9XMWKtkDil7bN/+A41MUhUQ7KhLHJjR453aqYDUE+6q60Yq880X//PVKcB28T
-         WF/S5GlvKx1SGop8uvBPfar0PKBtI8/6O2iNL3Pal/GNaoQa8JoGmB20vwXGFGa6b+l7
-         b0ZI0V8yFVuIFwf+F5KTlwvXlbAczti6NywaF+sKozLx8GuO5xjdivXj4hDKVwf4gRvs
-         cKbm9GPev1R5Y3zu7vYUCIv26EJR3Jw9NIaibK9+gBHxXOO0zh5bR15GeHWtR9HHKVY1
-         tpZnLWwxk1hIL6PXlcyFGxychRoDghuVCdJ4zm+S7FJ1/sN5/2bIlUHr4B5ZhKTFumVO
-         ioGQ==
-X-Gm-Message-State: APjAAAV3YmhS6l4rTJ1XlOtMwLQvkDWE+znQZabD6y5d32rKPN2rJgHj
-	itmf/Ngrsic7mizVL2eZUvLRe05Mod4U52SPn/7VKXCHxd5ZawlosDuWceQSKoCq8vOY4o0320d
-	cPuXTB/9yh8AfSZ69zP0fJZojDt+nX4lTbgE0l816CtqCr1hfr2Oo9LbgS4YDcrkQTQ==
-X-Received: by 2002:a25:504b:: with SMTP id e72mr2129029ybb.146.1559232395718;
-        Thu, 30 May 2019 09:06:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqygTSb0ZSZ01gF9FZX0hHhHN9sDIX1rQC0qWoIPNcwJWosg+oE+KmXy1JjWizMs49pSepcs
-X-Received: by 2002:a25:504b:: with SMTP id e72mr2128951ybb.146.1559232394502;
-        Thu, 30 May 2019 09:06:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559232394; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=QdCnbVnvU3JKpvLwtQ0RZP1XXmjXKTawTWYBTDGInu4=;
+        b=WUl4x9YohvEHBIy3Vg6ZQdGsyDYeQBayriT3LfXDcoCdPtp6eTcSHL9ufp5ovHPwHu
+         cnH+0EEPA/sG5FlOI84HkTdhN7USgG5tt0EX5L+5hWZeASzy6q9o0tB5CNEFt6sheI01
+         DoFZdZx9gdz4FW04vOCs/234EUBXi2WHi/qh3B6UpyswlintAjDq18+r7RQhjrZj7rxE
+         OqyfRRJsDHmVcq+D7iJ9iYhbtmlQn8Zp+BDrYCeoOsBNftehgjaxY5htshpUoeP36Auz
+         GEXpIpeF9+jbKT67ynwKwFJpcs/I0XEw4JgMb4p2NQnjByHnk/7vUKMeZZvUTAxnD9KH
+         hWTA==
+X-Gm-Message-State: APjAAAWDyq7x9p1rK+V1pMoS2HEWMnvZA4QmUUjubySeigER/N5nlErB
+	WCvjg4Ac7muxlG7T2qAQUASrAjfhDGIUaEYiAGixvUSgqGPyAV/9GZdcKIUY3s7CIJMtyTDuzgb
+	zOGt/B/lbnKI7gLjgf6IuHG+TMVwwa1p7bl1ULECaA21ytlyrHo/NNKy0e9rTDDnFJA==
+X-Received: by 2002:a17:902:868b:: with SMTP id g11mr4311627plo.183.1559232957240;
+        Thu, 30 May 2019 09:15:57 -0700 (PDT)
+X-Received: by 2002:a17:902:868b:: with SMTP id g11mr4311558plo.183.1559232956184;
+        Thu, 30 May 2019 09:15:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559232956; cv=none;
         d=google.com; s=arc-20160816;
-        b=IudWAQyDspv9mbM3XglwgDMwttTv8J5w82dKmZW5gOIIwIa2VF0E5c1u77FpeDzix4
-         yzVymHxFpya4yovWhpr4w0LFoLnLmwUt/M7pvC/5nkUBNAPPRr2MjuR99o9svmJMy5zT
-         LD/het+QvM9ZNwdHYr09t5EayqNFM2KEnlm/IS5DNi48YZAsEZezzr7AohscYFqepvb/
-         pDhiPRNpkyM7W4M97BWgEjnHTync52LUh8iQLEKWRX2GSR1Kd7UwnQLS3ganAfwOygc7
-         krnK103TMnxBsV+J1DgAB3Ocg4Nbc4TASIuelELlav8NcQXpJRJMdzrrBn4zY+YUbuXT
-         xuIA==
+        b=UQPQuVxLU0FYtzCuwS06vjK9lwvfn3sooIVQd2n7pejB2rp2nPoOYq+UwGjo0Ho2gL
+         4az/teAvt8uHBNm/TCCtivtUa5/3eLj4PwkUuwQJAujMNjMN4TT7P0RreDZ5As2U4EZ9
+         LPSeDuIWyBSY9OOQLjyPPDcitmADM/2Zh4zAyjrUER0bS+9ICrbylOSYXIUxZ4xnW1eW
+         Ea9374L1f4R/kz0WpsoBqCfu+L5CfGrAHzXtP+i+DgwTl4uAVPO4g7R7oEEY6MZki2rO
+         7iEZoLJ+13+QpHIw18XvpOlH9PlATnBaY+Ojym7a2l1gFMQpCBgQ0JyFaptkW/hXEGOw
+         GeGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject:dkim-signature;
-        bh=+GLA6qLrn26KPJEpEajh3ipF/BPoxxfouik/rd34OzM=;
-        b=t21QzK2s8kLERDDhjWtiDtQiJbC+XuDma0pnj/rl48Bre7AkhBYNgZ3mpQJi9Aa2M5
-         bNNrjdvBVziupLUv6t/fpjAE39Gi5Cgjr1XS4lHRhtksscDmCZRPdcMF/36X8zpba566
-         3T+ch3eIG39p0a58uGULO+RiWNAFFi/irNI4LRR5UanTZs3U5KNLuwr8yCcu5eVL5cAj
-         rDCTJTKg+tXoiqRcabjUcGPT12kvkYA/SSWStm3fh8SGiucbOelFkoPaqFry3lxjB3tO
-         EnkWvind7raAMNmAsKmDl8HHWQBvIPkRCvgHUXyIIb0sEoM3seWDXoksAlvg5EWAJuHW
-         x4aQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=QdCnbVnvU3JKpvLwtQ0RZP1XXmjXKTawTWYBTDGInu4=;
+        b=df8wfncKW/hb0uRXji49jcCq+b7+x5NlXNo5N1BhvmGgIiRv4s/Vu3eTKvcq2S3q52
+         ZWmeBQLtKsgvH4DdD5bouYF5QVIjEqMN31BDZWbDy8la/vFOD0e872BURtO4X71SSurV
+         /o8ZEeMdQBZL9FSC7/2D5yJe91At+bcAdkaIbu3CYvkfuXOxhm3nQManfY1s1Fy9Oo7U
+         +3jyVfcslZssjZLhG0n4dAv/9tcSqvmUabTTqQ2vNw9AB2gROSGp16+auPSAQWYx+FlU
+         7QlApnIuSKeFJmYyJXRET0weT28+B5e7F4wbF4LkH67bb0vsqlNVWAqjC2hIRbt4Ykc1
+         Eq+A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=AwmlutIR;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id f138si1099746ywb.69.2019.05.30.09.06.34
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="iLQl/tzl";
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a37sor3678189pje.3.2019.05.30.09.15.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 May 2019 09:06:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (Google Transport Security);
+        Thu, 30 May 2019 09:15:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=AwmlutIR;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4UG4VBr062702;
-	Thu, 30 May 2019 16:06:13 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=+GLA6qLrn26KPJEpEajh3ipF/BPoxxfouik/rd34OzM=;
- b=AwmlutIReVoUCST+0CvuT1i683wuk/bgaVaXpwFLuLObOH6WAfasg+1gIzeRdE2lXYjb
- k8P67eGtLM2jUaKR9Cy3m4TvgSb5+cBwa2T8P+yN1HdMoZWh+Ggt2lVsYNq8wgS4RczC
- Ob71kUfljvyH5fcGoqQaqFQS4TYWXfMx3pY3C+r2yQF46AIqpx1jAW7P3kPlizYiO3T0
- ZblzYxr+PrepeLcYjU1orVLKF6nQOQcaFQBGNaPWrM8vzs9svllGt0RN7sK/lmLWd9+b
- VLJpczb5tPtPCsmplNczUgngjT1jT/8Yk0IfRgeZkTSIRA/aLnoWnZFsdY3idrib592i Ow== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by userp2130.oracle.com with ESMTP id 2spw4ts5tq-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 30 May 2019 16:06:12 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4UG64iQ193779;
-	Thu, 30 May 2019 16:06:12 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3020.oracle.com with ESMTP id 2sr31vy3va-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 30 May 2019 16:06:12 +0000
-Received: from abhmp0008.oracle.com (abhmp0008.oracle.com [141.146.116.14])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4UG62SZ026718;
-	Thu, 30 May 2019 16:06:02 GMT
-Received: from [192.168.1.16] (/24.9.64.241)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 30 May 2019 09:06:02 -0700
-Subject: Re: [PATCH v15 05/17] arms64: untag user pointers passed to memory
- syscalls
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrew Murray <andrew.murray@arm.com>,
-        Andrey Konovalov <andreyknvl@google.com>,
-        Mark Rutland
- <mark.rutland@arm.com>, kvm@vger.kernel.org,
-        Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-        Will Deacon <will.deacon@arm.com>, dri-devel@lists.freedesktop.org,
-        linux-mm@kvack.org, linux-kselftest@vger.kernel.org,
-        Felix Kuehling <Felix.Kuehling@amd.com>,
-        Vincenzo Frascino <vincenzo.frascino@arm.com>,
-        Jacob Bramley <Jacob.Bramley@arm.com>,
-        Leon Romanovsky <leon@kernel.org>, linux-rdma@vger.kernel.org,
-        amd-gfx@lists.freedesktop.org, Dmitry Vyukov <dvyukov@google.com>,
-        Dave Martin <Dave.Martin@arm.com>,
-        Evgeniy Stepanov <eugenis@google.com>, linux-media@vger.kernel.org,
-        Kevin Brodsky <kevin.brodsky@arm.com>,
-        Kees Cook <keescook@chromium.org>,
-        Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-        Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-        Alex Williamson <alex.williamson@redhat.com>,
-        Mauro Carvalho Chehab <mchehab@kernel.org>,
-        linux-arm-kernel@lists.infradead.org,
-        Kostya Serebryany <kcc@google.com>,
-        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-        Yishai Hadas <yishaih@mellanox.com>, linux-kernel@vger.kernel.org,
-        Jens Wiklander <jens.wiklander@linaro.org>,
-        Lee Smith <Lee.Smith@arm.com>,
-        Alexander Deucher <Alexander.Deucher@amd.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Robin Murphy <robin.murphy@arm.com>,
-        Christian Koenig <Christian.Koenig@amd.com>,
-        Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-References: <cover.1557160186.git.andreyknvl@google.com>
- <00eb4c63fefc054e2c8d626e8fedfca11d7c2600.1557160186.git.andreyknvl@google.com>
- <20190527143719.GA59948@MBP.local>
- <20190528145411.GA709@e119886-lin.cambridge.arm.com>
- <20190528154057.GD32006@arrakis.emea.arm.com>
- <11193998209cc6ff34e7d704f081206b8787b174.camel@oracle.com>
- <20190529142008.5quqv3wskmpwdfbu@mbp>
- <b2753e81-7b57-481f-0095-3c6fecb1a74c@oracle.com>
- <20190530151105.GA35418@arrakis.emea.arm.com>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Organization: Oracle Corp
-Message-ID: <f79336b5-46b4-39c0-b754-23366207e32d@oracle.com>
-Date: Thu, 30 May 2019 10:05:55 -0600
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="iLQl/tzl";
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=QdCnbVnvU3JKpvLwtQ0RZP1XXmjXKTawTWYBTDGInu4=;
+        b=iLQl/tzlA9IoLss9iCFQI/uNGICbYiY4oejGcOmvASeKUe1o9NBlHzZdiKIU2xU58Y
+         3pKqXYhhLPDvcUMN7eyQqGRC4IryxuvQMWpUXEv8jnvIzDG7kZZg9PxBjkDzEFxg+RQf
+         IVDhR19utfM7z+cRwAL4kdXgETyC+JmOUaA4KHKVd+GagQ+bXc+lAzNsMdpe3bzXPDPx
+         KDOv/heXOJc5v7KdT7sv1ibco32xt7Ynm8VHLcvCtns9QqQ/Lj7JCkgVMV9pp/OkoWPD
+         Zcc+T3tyl96dUAbeOBndyhsXipIkP4D9akQIpA985eo1aayznx92rFD0B7fd/9tZaa6C
+         VapA==
+X-Google-Smtp-Source: APXvYqzdneacRJ3jMe8/a4aYeOWI8YILi6WoYZXJpCLl8ovLvQkhojhfLpNV90VPB11YoHs72pAphw==
+X-Received: by 2002:a17:90a:240c:: with SMTP id h12mr4366079pje.12.1559232951269;
+        Thu, 30 May 2019 09:15:51 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::7ef9])
+        by smtp.gmail.com with ESMTPSA id s42sm7645186pjc.5.2019.05.30.09.15.49
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 30 May 2019 09:15:50 -0700 (PDT)
+Date: Thu, 30 May 2019 12:15:48 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com
+Subject: Re: [PATCH] mm: fix page cache convergence regression
+Message-ID: <20190530161548.GA8415@cmpxchg.org>
+References: <20190524153148.18481-1-hannes@cmpxchg.org>
+ <20190524160417.GB1075@bombadil.infradead.org>
+ <20190524173900.GA11702@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20190530151105.GA35418@arrakis.emea.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9272 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=660
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905300114
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9272 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=684 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905300114
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190524173900.GA11702@cmpxchg.org>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/30/19 9:11 AM, Catalin Marinas wrote:
-> On Wed, May 29, 2019 at 01:16:37PM -0600, Khalid Aziz wrote:
->> mmap() can return the same tagged address but I am uneasy about kernel=
+Are there any objections or feedback on the proposed fix below? This
+is kind of a serious regression.
 
->> pre-coloring the pages. Database can mmap 100's of GB of memory. That =
-is
->> lot of work being offloaded to the kernel to pre-color the page even i=
-f
->> done in batches as pages are faulted in.
->=20
-> For anonymous mmap() for example, the kernel would have to zero the
-> faulted in pages anyway. We can handle the colouring at the same time i=
-n
-> clear_user_page() (as I said below, we have to clear the colour anyway
-> from previous uses, so it's simply extending this to support something
-> other than tag/colour 0 by default with no additional overhead).
->=20
-
-On sparc M7, clear_user_page() ends up in M7clear_user_page defined in
-arch/sparc/lib/M7memset.S. M7 code use Block Init Store (BIS) to clear
-the page. BIS on M7 clears the memory tags as well and no separate
-instructions are needed to clear the tags. As a result when kernel
-clears a page before returning it to user, the page is not only zeroed
-out, its tags are also cleared to 0.
-
->>> Since we already need such loop in the kernel, we might as well allow=
-
->>> user space to require a certain colour. This comes in handy for large=
-
->>> malloc() and another advantage is that the C library won't be stuck
->>> trying to paint the whole range (think GB).
->>
->> If kernel is going to pre-color all pages in a vma, we will need to
->> store the default tag in the vma. It will add more time to page fault
->> handling code. On sparc M7, kernel will need to execute additional 128=
-
->> stxa instructions to set the tags on a normal page.
->=20
-> As I said, since the user can retrieve an old colour using ldxa, the
-> kernel should perform this operation anyway on any newly allocated page=
-
-> (unless you clear the existing colour on page freeing).>
-
-Tags are not cleared on sparc on freeing. They get cleared when the page
-is allocated again.
-
->>>> We can try to store tags for an entire region in vma but that is
->>>> expensive, plus on sparc tags are set in userspace with no
->>>> participation from kernel and now we need a way for userspace to
->>>> communicate the tags to kernel.
->>>
->>> We can't support finer granularity through the mmap() syscall and, as=
-
->>> you said, the vma is not the right thing to store the individual tags=
-=2E
->>> With the above extension to mmap(), we'd have to store a colour per v=
-ma
->>> and prevent merging if different colours (we could as well use the
->>> pkeys mechanism we already have in the kernel but use a colour per vm=
-a
->>> instead of a key).
->>
->> Since tags can change on any part of mmap region on sparc at any time
->> without kernel being involved, I am not sure I see much reason for
->> kernel to enforce any tag related restrictions.
->=20
-> It's not enforcing a tag, more like the default colour for a faulted in=
-
-> page. Anyway, if sparc is going with default 0/untagged, that's fine as=
-
-> well. We may add this mmap() option to arm64 only.
->=20
->>>> From sparc point of view, making kernel responsible for assigning ta=
-gs
->>>> to a page on page fault is full of pitfalls.
->>>
->>> This could be just some arm64-specific but if you plan to deploy it m=
-ore
->>> generically for sparc (at the C library level), you may find this
->>> useful.
->>
->> Common semantics from app developer point of view will be very useful =
-to
->> maintain. If arm64 says mmap with MAP_FIXED and a tagged address will
->> return a pre-colored page, I would rather have it be the same on any
->> architecture. Is there a use case that justifies kernel doing this ext=
-ra
->> work?
->=20
-> So if a database program is doing an anonymous mmap(PROT_TBI) of 100GB,=
-
-> IIUC for sparc the faulted-in pages will have random colours (on 64-byt=
-e
-> granularity). Ignoring the information leak from prior uses of such
-> pages, it would be the responsibility of the db program to issue the
-> stxa. On arm64, since we also want to do this via malloc(), any large
-> allocation would require all pages to be faulted in so that malloc() ca=
-n
-> set the write colour before being handed over to the user. That's what
-> we want to avoid and the user is free to repaint the memory as it likes=
-=2E
->=20
-
-On sparc, any newly allocated page is cleared along with any old tags on
-it. Since clearing tag happens automatically when page is cleared on
-sparc, clear_user_page() will need to execute additional stxa
-instructions to set a new tag. It is doable. In a way it is done already
-if page is being pre-colored with tag 0 always ;) Where would the
-pre-defined tag be stored - as part of address stored in vm_start or a
-new field in vm_area_struct?
-
---
-Khalid
+On Fri, May 24, 2019 at 01:39:00PM -0400, Johannes Weiner wrote:
+> From 63a0dbc571ff38f7c072c62d6bc28192debe37ac Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Fri, 24 May 2019 10:12:46 -0400
+> Subject: [PATCH] mm: fix page cache convergence regression
+> 
+> Since a28334862993 ("page cache: Finish XArray conversion"), on most
+> major Linux distributions, the page cache doesn't correctly transition
+> when the hot data set is changing, and leaves the new pages thrashing
+> indefinitely instead of kicking out the cold ones.
+> 
+> On a freshly booted, freshly ssh'd into virtual machine with 1G RAM
+> running stock Arch Linux:
+> 
+> [root@ham ~]# ./reclaimtest.sh
+> + dd of=workingset-a bs=1M count=0 seek=600
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + ./mincore workingset-a
+> 153600/153600 workingset-a
+> + dd of=workingset-b bs=1M count=0 seek=600
+> + cat workingset-b
+> + cat workingset-b
+> + cat workingset-b
+> + cat workingset-b
+> + ./mincore workingset-a workingset-b
+> 104029/153600 workingset-a
+> 120086/153600 workingset-b
+> + cat workingset-b
+> + cat workingset-b
+> + cat workingset-b
+> + cat workingset-b
+> + ./mincore workingset-a workingset-b
+> 104029/153600 workingset-a
+> 120268/153600 workingset-b
+> 
+> workingset-b is a 600M file on a 1G host that is otherwise entirely
+> idle. No matter how often it's being accessed, it won't get cached.
+> 
+> While investigating, I noticed that the non-resident information gets
+> aggressively reclaimed - /proc/vmstat::workingset_nodereclaim. This is
+> a problem because a workingset transition like this relies on the
+> non-resident information tracked in the page cache tree of evicted
+> file ranges: when the cache faults are refaults of recently evicted
+> cache, we challenge the existing active set, and that allows a new
+> workingset to establish itself.
+> 
+> Tracing the shrinker that maintains this memory revealed that all page
+> cache tree nodes were allocated to the root cgroup. This is a problem,
+> because 1) the shrinker sizes the amount of non-resident information
+> it keeps to the size of the cgroup's other memory and 2) on most major
+> Linux distributions, only kernel threads live in the root cgroup and
+> everything else gets put into services or session groups:
+> 
+> [root@ham ~]# cat /proc/self/cgroup
+> 0::/user.slice/user-0.slice/session-c1.scope
+> 
+> As a result, we basically maintain no non-resident information for the
+> workloads running on the system, thus breaking the caching algorithm.
+> 
+> Looking through the code, I found the culprit in the above-mentioned
+> patch: when switching from the radix tree to xarray, it dropped the
+> __GFP_ACCOUNT flag from the tree node allocations - the flag that
+> makes sure the allocated memory gets charged to and tracked by the
+> cgroup of the calling process - in this case, the one doing the fault.
+> 
+> To fix this, allow xarray users to specify per-tree flag that makes
+> xarray allocate nodes using __GFP_ACCOUNT. Then restore the page cache
+> tree annotation to request such cgroup tracking for the cache nodes.
+> 
+> With this patch applied, the page cache correctly converges on new
+> workingsets again after just a few iterations:
+> 
+> [root@ham ~]# ./reclaimtest.sh
+> + dd of=workingset-a bs=1M count=0 seek=600
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + cat workingset-a
+> + ./mincore workingset-a
+> 153600/153600 workingset-a
+> + dd of=workingset-b bs=1M count=0 seek=600
+> + cat workingset-b
+> + ./mincore workingset-a workingset-b
+> 124607/153600 workingset-a
+> 87876/153600 workingset-b
+> + cat workingset-b
+> + ./mincore workingset-a workingset-b
+> 81313/153600 workingset-a
+> 133321/153600 workingset-b
+> + cat workingset-b
+> + ./mincore workingset-a workingset-b
+> 63036/153600 workingset-a
+> 153600/153600 workingset-b
+> 
+> Cc: stable@vger.kernel.org # 4.20+
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  fs/inode.c             |  2 +-
+>  include/linux/xarray.h |  1 +
+>  lib/xarray.c           | 12 ++++++++++--
+>  3 files changed, 12 insertions(+), 3 deletions(-)
+> 
+> diff --git a/fs/inode.c b/fs/inode.c
+> index e9d18b2c3f91..cd67859dbaf1 100644
+> --- a/fs/inode.c
+> +++ b/fs/inode.c
+> @@ -361,7 +361,7 @@ EXPORT_SYMBOL(inc_nlink);
+>  
+>  static void __address_space_init_once(struct address_space *mapping)
+>  {
+> -	xa_init_flags(&mapping->i_pages, XA_FLAGS_LOCK_IRQ);
+> +	xa_init_flags(&mapping->i_pages, XA_FLAGS_LOCK_IRQ | XA_FLAGS_ACCOUNT);
+>  	init_rwsem(&mapping->i_mmap_rwsem);
+>  	INIT_LIST_HEAD(&mapping->private_list);
+>  	spin_lock_init(&mapping->private_lock);
+> diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+> index 0e01e6129145..5921599b6dc4 100644
+> --- a/include/linux/xarray.h
+> +++ b/include/linux/xarray.h
+> @@ -265,6 +265,7 @@ enum xa_lock_type {
+>  #define XA_FLAGS_TRACK_FREE	((__force gfp_t)4U)
+>  #define XA_FLAGS_ZERO_BUSY	((__force gfp_t)8U)
+>  #define XA_FLAGS_ALLOC_WRAPPED	((__force gfp_t)16U)
+> +#define XA_FLAGS_ACCOUNT	((__force gfp_t)32U)
+>  #define XA_FLAGS_MARK(mark)	((__force gfp_t)((1U << __GFP_BITS_SHIFT) << \
+>  						(__force unsigned)(mark)))
+>  
+> diff --git a/lib/xarray.c b/lib/xarray.c
+> index 6be3acbb861f..446b956c9188 100644
+> --- a/lib/xarray.c
+> +++ b/lib/xarray.c
+> @@ -298,6 +298,8 @@ bool xas_nomem(struct xa_state *xas, gfp_t gfp)
+>  		xas_destroy(xas);
+>  		return false;
+>  	}
+> +	if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
+> +		gfp |= __GFP_ACCOUNT;
+>  	xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
+>  	if (!xas->xa_alloc)
+>  		return false;
+> @@ -325,6 +327,8 @@ static bool __xas_nomem(struct xa_state *xas, gfp_t gfp)
+>  		xas_destroy(xas);
+>  		return false;
+>  	}
+> +	if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
+> +		gfp |= __GFP_ACCOUNT;
+>  	if (gfpflags_allow_blocking(gfp)) {
+>  		xas_unlock_type(xas, lock_type);
+>  		xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
+> @@ -358,8 +362,12 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
+>  	if (node) {
+>  		xas->xa_alloc = NULL;
+>  	} else {
+> -		node = kmem_cache_alloc(radix_tree_node_cachep,
+> -					GFP_NOWAIT | __GFP_NOWARN);
+> +		gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN;
+> +
+> +		if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
+> +			gfp |= __GFP_ACCOUNT;
+> +
+> +		node = kmem_cache_alloc(radix_tree_node_cachep, gfp);
+>  		if (!node) {
+>  			xas_set_err(xas, -ENOMEM);
+>  			return NULL;
+> -- 
+> 2.21.0
+> 
 
