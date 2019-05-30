@@ -3,278 +3,155 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C7070C28CC0
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:12:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E887C28CC0
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:31:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 799BD25C63
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:12:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 799BD25C63
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 3AF7E25CB6
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 15:31:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3AF7E25CB6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 17B486B026F; Thu, 30 May 2019 11:12:42 -0400 (EDT)
+	id A93A46B0270; Thu, 30 May 2019 11:31:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1521C6B0270; Thu, 30 May 2019 11:12:42 -0400 (EDT)
+	id A445F6B0272; Thu, 30 May 2019 11:31:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 01B506B0271; Thu, 30 May 2019 11:12:41 -0400 (EDT)
+	id 933716B0273; Thu, 30 May 2019 11:31:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BD7CD6B026F
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 11:12:41 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id j26so2531505pgj.6
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 08:12:41 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A93D6B0270
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 11:31:23 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id e3so2984603otk.1
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 08:31:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:mime-version:message-id;
-        bh=Dl0GS4kLiTu2ILYHI+1T3a2uEm+hg0wNj0g3w2Dbmc4=;
-        b=Q6NG5MhzpKrctK8fZ2xulfr3XLA6bYOvAlG1LMPtRB7ylySTSGFa5OEZSiCJjjmKpD
-         iyGqadNmqcvVVd6ZGD+WgkLHml8/w30yxYGsFbz0GY/o02mZJAjCLUBjPHsjjz59RDBQ
-         MVzaCR4rZc1A9ctgGiENlUJci0o4sge+dJFvTlrbmOaaQFS5oANjfbi9NVCx1ZxkhRmE
-         ljzm9MLKL4FK9Flfappizm+hzlb9sghuLYIB/yfT2o6rxrqkKTmxPZDuclJD96du/uSi
-         tTd8rhqfMYv6T7sjECUfiRGe0qJptbTNMCqq27fNMMV4asGKFl/0ndMlmNmq4D8t9D2E
-         oNOQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWjm4gjZ/Q5txneKwUT0F3feh6w3ITkh/PngFWyMQIM42/+UOYE
-	Zgjne/v8bG/pQUnPrId4yL5CvUx7VbliTZ5tjVUwhg5xV9zSLs2JIKuqvGqYZyeFrAjYWf51adw
-	ebRsoGp86oXdZChKPThb4vga/JKXmI1fSKqx0FdOM3aEkvBAF8N++XEnqDIKPjpGMAw==
-X-Received: by 2002:a62:4ed8:: with SMTP id c207mr4070833pfb.241.1559229161422;
-        Thu, 30 May 2019 08:12:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUFtor4rxMBW12YrMDmprx2uy9KNLgdVF92F0oqRcCJc6qMYyPKgK0RXRnyDTc2D8dOFp+
-X-Received: by 2002:a62:4ed8:: with SMTP id c207mr4070778pfb.241.1559229160572;
-        Thu, 30 May 2019 08:12:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559229160; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:cc:from:message-id:date:user-agent:mime-version
+         :in-reply-to:content-transfer-encoding;
+        bh=dbDV6bc1zJz4CRu5/vu+qvrcU3EI0H2cWCtFXW0Tezg=;
+        b=NjfYvLir/ALqZDP6mmtnWsXE/cZUeuWUcQURMZwzLqs+TYyeWegxIN65bbfJWTHuCf
+         Z91t/5noWCUyz8snGlZKQz794lP5aSrIdAQDD5xZDwbmK2m8o7k38WONGCiyT8SL8j0H
+         TdXk9sqfrRgazalcWk9H1INrRoGQIoikSGNnYmYIzufPlYISjR0HYVln8eA6JNfjusIg
+         VoDNBfY5nzJlaQro/czWz3VOmiil7cxGoTbpXo5B0grC5eVbwykahdo3WFckcatK8iVd
+         XBFxxkmsIuf/jGPXfUyk8G8zOCFP77/b4U8e0YMq1IZnrUP9/r9BICEGBU9t0Lr6AWVj
+         GCOg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=yuehaibing@huawei.com
+X-Gm-Message-State: APjAAAWZ8wafEmocTv0KcYsoaI1wolOpqV55iVk/RWYVosu6qljWbZ/m
+	1GDwudVRMfJKPdUnFnHRH+8WY6GQKqEyOPtA1IzhWFuT/1HfNZfHLt2ki1CW06No1BiVd11G2r+
+	8TUbjEe5WeCOOGZV4u3NQzrW5MnmIEkcIf1dhRUYXshXuo5qLGJse2ttxT4VqTAKoLQ==
+X-Received: by 2002:a05:6830:199:: with SMTP id q25mr3060473ota.145.1559230283098;
+        Thu, 30 May 2019 08:31:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwkOVtmQFDkm+TM1jNP0Cb37gCurSl9GGY8pJ/bbK0MW9grRV8It5/1R4DT9nfiDlQK4oHU
+X-Received: by 2002:a05:6830:199:: with SMTP id q25mr3060397ota.145.1559230281969;
+        Thu, 30 May 2019 08:31:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559230281; cv=none;
         d=google.com; s=arc-20160816;
-        b=hgUtfQnWJegLpxVY3JoE2NfmIEujDvpr8uDSBm88uSNfpqRgR5AvUraPP7xo/FwIeS
-         fKmnuosIuo+syYpMzpyRWXnNceeMNLvoCZN3hdfjirz/kM8Hsr5inu3xw8rD3HU38f4+
-         sBCWASJ7WcUlLkuIcLeaI7O9Ab7BXA4PZWANsgy+NHiL+yUAvXFKMV26ftldg3G6dxx5
-         ezj3bove9eh54UjPdRD7NITP7O4pyPGjz0QTROizuxNLcWHxS5I+jX/3ZOG9uB6hGZT1
-         kdFD9zsTxW+Fz9+c+Ep8lz8zxa4uz++Y9342Tl1DTUj7DIls/BxXY+SRKTy7yClI3wwA
-         CeMg==
+        b=PvObj8/8TZMD+Mh4ZUEWKLqmmG6K64+Cur52VSUejJFeRBqYoUFDnE/opxjkpnCLH+
+         4DZwaF3GLoUAcONfdZEo1mF47Wam/4OMKl0oEXDiQY1U8cT1nCnp1bnSfvGLX78cGfC3
+         9KShXFFFbwQz8F67NmqxLwOMPcYE2a6o+x6Jg3F9PkXZKwrdluvsKYA7noTAM+dG/UWX
+         VLUfLORyA97cUEvwie+m4UTiODvy3rPlkIehsVDoAHHdtGJIOVqu1OINLrtTOjtUComy
+         xGyJBKNMREh/gcmbZ2k5wwbXy++grUwyKZMKwWPTwFqQIOHYkuiC7pB8nP7PWC2h8gvr
+         P/vw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=Dl0GS4kLiTu2ILYHI+1T3a2uEm+hg0wNj0g3w2Dbmc4=;
-        b=xNixlzA3Tjea2MkJNVHaGR09bt/z4on5o2v9VUCij5uVsimXzTXsK+tolKiNXyJVPD
-         PHBo1tcVZMPMHV5snoDSA9yFsifrUyVy1inmPsHBTNh+4QSkFuQ0K/rL1mGWRbZg0EJc
-         xoYjrcVXEvPad8MlQSQeC8fohS5mJn9D04VWsERZR0jAhfi3mbiG26OrO74gW0gePqG7
-         tFJl6oXlZyg/PeNOTbV9nLRJbOiFm2+7m8uFyPATEXR53CN1UOv7fH+yvo8MFdfB8/QU
-         KeMYK/bTyitbaL8hgUTG5W/9h0L3pvXIz6olvzopmajy1CKMVy0I5csc6xY+rJMuI5H0
-         t3Dg==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:from:cc:references:to:subject;
+        bh=dbDV6bc1zJz4CRu5/vu+qvrcU3EI0H2cWCtFXW0Tezg=;
+        b=Gz+IRJdPK5HJDDanM7Nu4wqI7Ll6gshrPTI41cY+BTTz80UHddZZ65xgZB4Cz1S6Tk
+         v2ilWS1zW7LcnmhuUxim+nKDvJRrStKqzih3tlYwwh0k4RlhclgTBJiQa7gOl8O7EZR7
+         KTP65cwDN4L6w7b08L46/IalMnCVJnYrnNJKIuho1f9+cE3aWRU0/FMpAS52tpd7rGFZ
+         uFFAwWRrWGfEUYovuxEfJ/4oY7orp5c3k8UOTTgry23VNpiMiEjo95IsWLreO41ID4/u
+         ntnORE9W9ke85pJ/+g0rdp7rKNP5LznWhV0dlekmpg/rc6QQiEoeKlb9ztQ3IoT2lAc8
+         6J7Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d8si3183279pls.208.2019.05.30.08.12.40
+       spf=pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=yuehaibing@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id e60si1700881otb.293.2019.05.30.08.31.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 May 2019 08:12:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Thu, 30 May 2019 08:31:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4UF33MO016133
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 11:12:40 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2stfb3q7km-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 11:12:39 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Thu, 30 May 2019 16:12:37 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 30 May 2019 16:12:35 +0100
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x4UFCY4h20381756
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 30 May 2019 15:12:34 GMT
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A0A5EA405B;
-	Thu, 30 May 2019 15:12:34 +0000 (GMT)
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 836A3A4062;
-	Thu, 30 May 2019 15:12:33 +0000 (GMT)
-Received: from skywalker.linux.ibm.com (unknown [9.199.37.131])
-	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Thu, 30 May 2019 15:12:33 +0000 (GMT)
-X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: dan.j.williams@intel.com
-Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
-        linuxppc-dev@lists.ozlabs.org
-Subject: Re: [RFC PATCH V2 1/3] mm/nvdimm: Add PFN_MIN_VERSION support
-In-Reply-To: <20190522082701.6817-1-aneesh.kumar@linux.ibm.com>
-References: <20190522082701.6817-1-aneesh.kumar@linux.ibm.com>
-Date: Thu, 30 May 2019 20:42:32 +0530
+       spf=pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=yuehaibing@huawei.com
+Received: from DGGEMS414-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id 780E2B06B6B9790FDA8F;
+	Thu, 30 May 2019 23:31:16 +0800 (CST)
+Received: from [127.0.0.1] (10.133.213.239) by DGGEMS414-HUB.china.huawei.com
+ (10.3.19.214) with Microsoft SMTP Server id 14.3.439.0; Thu, 30 May 2019
+ 23:31:14 +0800
+Subject: Re: [PATCH] drm/nouveau: Fix DEVICE_PRIVATE dependencies
+To: <bskeggs@redhat.com>, <airlied@linux.ie>, <daniel@ffwll.ch>,
+	<jglisse@redhat.com>, <jgg@mellanox.com>, <rcampbell@nvidia.com>,
+	<leonro@mellanox.com>, <akpm@linux-foundation.org>, <sfr@canb.auug.org.au>,
+	<gregkh@linuxfoundation.org>, <b.zolnierkie@samsung.com>
+References: <20190417142632.12992-1-yuehaibing@huawei.com>
+CC: <linux-kernel@vger.kernel.org>, <nouveau@lists.freedesktop.org>,
+	<dri-devel@lists.freedesktop.org>, <linux-mm@kvack.org>
+From: Yuehaibing <yuehaibing@huawei.com>
+Message-ID: <583de550-d816-f619-d402-688c87c86fe3@huawei.com>
+Date: Thu, 30 May 2019 23:31:12 +0800
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:45.0) Gecko/20100101
+ Thunderbird/45.2.0
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-AS-GCONF: 00
-x-cbid: 19053015-0020-0000-0000-000003420062
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19053015-0021-0000-0000-00002195061A
-Message-Id: <874l5c563j.fsf@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-30_08:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1905300107
+In-Reply-To: <20190417142632.12992-1-yuehaibing@huawei.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.133.213.239]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi all,
 
-Hi Dan,
+Friendly ping:
 
-Are you ok with this patch series? If yes I can send a non-RFC version for
-this series. Since we are now marking all previously created pfn_sb on
-ppc64 as not supported, (pfn_sb->page_size = SZ_4K) I would like to get
-this merged early.
+Who can take this?
 
--aneesh
-
-"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
-
-> This allows us to make changes in a backward incompatible way. I have
-> kept the PFN_MIN_VERSION in this patch '0' because we are not introducing
-> any incompatible changes in this patch. We also may want to backport this
-> to older kernels.
->
-> The error looks like
->
->   dax0.1: init failed, superblock min version 1, kernel support version 0
->
-> and the namespace is marked disabled
->
-> $ndctl list -Ni
-> [
->   {
->     "dev":"namespace0.0",
->     "mode":"fsdax",
->     "map":"mem",
->     "size":10737418240,
->     "uuid":"9605de6d-cefa-4a87-99cd-dec28b02cffe",
->     "state":"disabled"
->   }
-> ]
->
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+On 2019/4/17 22:26, Yue Haibing wrote:
+> From: YueHaibing <yuehaibing@huawei.com>
+> 
+> During randconfig builds, I occasionally run into an invalid configuration
+> 
+> WARNING: unmet direct dependencies detected for DEVICE_PRIVATE
+>   Depends on [n]: ARCH_HAS_HMM_DEVICE [=n] && ZONE_DEVICE [=n]
+>   Selected by [y]:
+>   - DRM_NOUVEAU_SVM [=y] && HAS_IOMEM [=y] && ARCH_HAS_HMM [=y] && DRM_NOUVEAU [=y] && STAGING [=y]
+> 
+> mm/memory.o: In function `do_swap_page':
+> memory.c:(.text+0x2754): undefined reference to `device_private_entry_fault'
+> 
+> commit 5da25090ab04 ("mm/hmm: kconfig split HMM address space mirroring from device memory")
+> split CONFIG_DEVICE_PRIVATE dependencies from
+> ARCH_HAS_HMM to ARCH_HAS_HMM_DEVICE and ZONE_DEVICE,
+> so enable DRM_NOUVEAU_SVM will trigger this warning,
+> cause building failed.
+> 
+> Reported-by: Hulk Robot <hulkci@huawei.com>
+> Fixes: 5da25090ab04 ("mm/hmm: kconfig split HMM address space mirroring from device memory")
+> Signed-off-by: YueHaibing <yuehaibing@huawei.com>
 > ---
->  drivers/nvdimm/pfn.h      |  9 ++++++++-
->  drivers/nvdimm/pfn_devs.c |  8 ++++++++
->  drivers/nvdimm/pmem.c     | 26 ++++++++++++++++++++++----
->  3 files changed, 38 insertions(+), 5 deletions(-)
->
-> diff --git a/drivers/nvdimm/pfn.h b/drivers/nvdimm/pfn.h
-> index dde9853453d3..5fd29242745a 100644
-> --- a/drivers/nvdimm/pfn.h
-> +++ b/drivers/nvdimm/pfn.h
-> @@ -20,6 +20,12 @@
->  #define PFN_SIG_LEN 16
->  #define PFN_SIG "NVDIMM_PFN_INFO\0"
->  #define DAX_SIG "NVDIMM_DAX_INFO\0"
-> +/*
-> + * increment this when we are making changes such that older
-> + * kernel should fail to initialize that namespace.
-> + */
-> +
-> +#define PFN_MIN_VERSION 0
+>  drivers/gpu/drm/nouveau/Kconfig | 3 ++-
+>  1 file changed, 2 insertions(+), 1 deletion(-)
+> 
+> diff --git a/drivers/gpu/drm/nouveau/Kconfig b/drivers/gpu/drm/nouveau/Kconfig
+> index 00cd9ab..99e30c1 100644
+> --- a/drivers/gpu/drm/nouveau/Kconfig
+> +++ b/drivers/gpu/drm/nouveau/Kconfig
+> @@ -74,7 +74,8 @@ config DRM_NOUVEAU_BACKLIGHT
 >  
->  struct nd_pfn_sb {
->  	u8 signature[PFN_SIG_LEN];
-> @@ -36,7 +42,8 @@ struct nd_pfn_sb {
->  	__le32 end_trunc;
->  	/* minor-version-2 record the base alignment of the mapping */
->  	__le32 align;
-> -	u8 padding[4000];
-> +	__le16 min_version;
-> +	u8 padding[3998];
->  	__le64 checksum;
->  };
->  
-> diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-> index 01f40672507f..a2268cf262f5 100644
-> --- a/drivers/nvdimm/pfn_devs.c
-> +++ b/drivers/nvdimm/pfn_devs.c
-> @@ -439,6 +439,13 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
->  	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb), 0))
->  		return -ENXIO;
->  
-> +	if (le16_to_cpu(pfn_sb->min_version) > PFN_MIN_VERSION) {
-> +		dev_err(&nd_pfn->dev,
-> +			"init failed, superblock min version %ld kernel support version %ld\n",
-> +			le16_to_cpu(pfn_sb->min_version), PFN_MIN_VERSION);
-> +		return -EOPNOTSUPP;
-> +	}
-> +
->  	if (memcmp(pfn_sb->signature, sig, PFN_SIG_LEN) != 0)
->  		return -ENODEV;
->  
-> @@ -769,6 +776,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
->  	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
->  	pfn_sb->version_major = cpu_to_le16(1);
->  	pfn_sb->version_minor = cpu_to_le16(2);
-> +	pfn_sb->min_version = cpu_to_le16(PFN_MIN_VERSION);
->  	pfn_sb->start_pad = cpu_to_le32(start_pad);
->  	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
->  	pfn_sb->align = cpu_to_le32(nd_pfn->align);
-> diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-> index 845c5b430cdd..406427c064d9 100644
-> --- a/drivers/nvdimm/pmem.c
-> +++ b/drivers/nvdimm/pmem.c
-> @@ -490,6 +490,7 @@ static int pmem_attach_disk(struct device *dev,
->  
->  static int nd_pmem_probe(struct device *dev)
->  {
-> +	int ret;
->  	struct nd_namespace_common *ndns;
->  
->  	ndns = nvdimm_namespace_common_probe(dev);
-> @@ -505,12 +506,29 @@ static int nd_pmem_probe(struct device *dev)
->  	if (is_nd_pfn(dev))
->  		return pmem_attach_disk(dev, ndns);
->  
-> -	/* if we find a valid info-block we'll come back as that personality */
-> -	if (nd_btt_probe(dev, ndns) == 0 || nd_pfn_probe(dev, ndns) == 0
-> -			|| nd_dax_probe(dev, ndns) == 0)
-> +	ret = nd_btt_probe(dev, ndns);
-> +	if (ret == 0)
->  		return -ENXIO;
-> +	else if (ret == -EOPNOTSUPP)
-> +		return ret;
->  
-> -	/* ...otherwise we're just a raw pmem device */
-> +	ret = nd_pfn_probe(dev, ndns);
-> +	if (ret == 0)
-> +		return -ENXIO;
-> +	else if (ret == -EOPNOTSUPP)
-> +		return ret;
-> +
-> +	ret = nd_dax_probe(dev, ndns);
-> +	if (ret == 0)
-> +		return -ENXIO;
-> +	else if (ret == -EOPNOTSUPP)
-> +		return ret;
-> +	/*
-> +	 * We have two failure conditions here, there is no
-> +	 * info reserver block or we found a valid info reserve block
-> +	 * but failed to initialize the pfn superblock.
-> +	 * Don't create a raw pmem disk for the second case.
-> +	 */
->  	return pmem_attach_disk(dev, ndns);
->  }
->  
-> -- 
-> 2.21.0
+>  config DRM_NOUVEAU_SVM
+>  	bool "(EXPERIMENTAL) Enable SVM (Shared Virtual Memory) support"
+> -	depends on ARCH_HAS_HMM
+> +	depends on ARCH_HAS_HMM_DEVICE
+> +	depends on ZONE_DEVICE
+>  	depends on DRM_NOUVEAU
+>  	depends on STAGING
+>  	select HMM_MIRROR
+> 
 
