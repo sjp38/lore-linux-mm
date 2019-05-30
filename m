@@ -2,427 +2,268 @@ Return-Path: <SRS0=aa49=T6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D936C28CC0
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 23:13:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B0DAC28CC0
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 23:21:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 40CCC2630C
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 23:13:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40CCC2630C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 304E526312
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 23:21:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="XiAlvrxQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 304E526312
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E69E46B0288; Thu, 30 May 2019 19:13:54 -0400 (EDT)
+	id D78526B027F; Thu, 30 May 2019 19:21:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DF4D26B0289; Thu, 30 May 2019 19:13:54 -0400 (EDT)
+	id D28F66B0280; Thu, 30 May 2019 19:21:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C92BF6B028A; Thu, 30 May 2019 19:13:54 -0400 (EDT)
+	id C17056B0281; Thu, 30 May 2019 19:21:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 90A256B0288
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 19:13:54 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id d19so4922452pls.1
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 16:13:54 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D6556B027F
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 19:21:22 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id w6so5918043ybp.19
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 16:21:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:date:message-id:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=XtiKYu/9Wz1HoJjONkoVJc8Zdc5PX4OKfafpmfTQaBQ=;
-        b=UiFSNnSJKbPGECmpXCEvsEFqiaSQq1lprGRHtmAteQ0aNZG6pCDuZzMHYNuTowwiB0
-         ExprK2U25MzqRMHh5/bvsjyyDLDT9xrGcmPYky8FT5YBQ1pNAAwWDp/zHTXbORsvBcI/
-         D4g88dKzJeOH8tNTK00aEgnOu1SS4Q0RAi6iRyr8XTNiRIq5M5hJwp4f7twy6mN6bPNY
-         o7bWhyBkSt19Prik/vPptTwlnadXH2tLQtRKKMo5GmpYcnqbXK0YNkzSZYrPvnW6cfcX
-         dtYH06iyXrvaXGUUjzPDm8STPdtl4yIjyEWpngNeTmR9d6Tkxrs+k3PlSnihE9LH1M8F
-         oL2w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVCJxv8Dh27ypP959zOZriaLJgT2yeNgOUXy1oCiyCEcljfCc2B
-	dRr9sGzTSvDYnXcd5aydKaT2X5jz1dqFO91CHmjewXy64JBSZWEwqjqxRzwton3INe7gcEep7Iy
-	qSvWlrAPRXId8/85+K1kCJoR6CYy9KNZvj0pP2w3dPK1/R9i+qr2zZMt8noDlePqY6Q==
-X-Received: by 2002:a17:902:a708:: with SMTP id w8mr5665918plq.162.1559258034069;
-        Thu, 30 May 2019 16:13:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwLxj2CEONZ2Ar4zXiqSohC+NAU6tFCWJOmqkDX2LF5eWjCDc8si44EfCpF4iIFC1s9yE0U
-X-Received: by 2002:a17:902:a708:: with SMTP id w8mr5665847plq.162.1559258032848;
-        Thu, 30 May 2019 16:13:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559258032; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=QhD5O+DXskHMvk5bCSbNvo+3TeENBCiNBwQHbm3XDKA=;
+        b=cJRSFSM62LfdBAPUT3NGHtEhQ8+1FySWdl3SjUesIgU/l0xWI56deapTczUQk/RXau
+         OdyP9YKY8kmoM/+SRKuXqkhQ3PZ5YMyk3iXhYPdGZxn+Ku4p43Ub1S5PMGgEVnq5kEZn
+         saYrjnOg2XZkDEdTuI9M+yX33IKgMv3/zBF4ksX4uJr4tkAOxw2rEoaYmlfWjNjIit5v
+         gvjUSMxFlQ223Cz6+Z+OcpNEIahF130xLcv9pW/u08q0ht06zkAaTPEV4WN31xfvsFRk
+         NiiwN8lgxtSzNkvh2xlPs6+SAWGllhsPpAIFQVOcAodLih1i5VBkQ97tkJXjDXwVSCI8
+         OFoQ==
+X-Gm-Message-State: APjAAAW0lNE2lBOI/u2XgyddBSYlnrJNEwPqWsuWSObTFJXQdR6h5bNX
+	jGEvS3cntIJZmwi2nv+WrgYbqmj/3a5WNmEykNrS+uu2JtnOOOyq+WiJluDcXZel6Qgh5C0i9jM
+	QKOA1Zzb3KusXKi/+gSsPmnjLuX53/JSXfBADal67ubkL2C/AAFvsMLy/5sdc1LkmKg==
+X-Received: by 2002:a81:4709:: with SMTP id u9mr3557445ywa.39.1559258482283;
+        Thu, 30 May 2019 16:21:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzQlq0E75Y2KSVlVFAvMX4IigdBK4uben26DeG+Pjqxg8InRv9O8I5/1Hbwk1HWRlAcz+iN
+X-Received: by 2002:a81:4709:: with SMTP id u9mr3557429ywa.39.1559258481607;
+        Thu, 30 May 2019 16:21:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559258481; cv=none;
         d=google.com; s=arc-20160816;
-        b=XoByC1Xeg19BV/sT+kZrUCAU/CSJNitZ+e8bkGnRybgCZU4CiWAb3tidq1jElCmGnb
-         VvWEAP+WTjHBtIuMLHosCvfCzPtFUW3Sp3UHQ2zlfNU8qMvPbWxExGqxGBT+2c8307CJ
-         z3v7Gf6isHwMAD+/lMeuSTs1t1nA7wf+W3ZLQOBnQHD8+YrpjxAXXbZ4ci7EmFRs0CC2
-         l1jVvZD1Vs60lARTXJiZRP781zxmFn2fEcc2J8QNA4cKzMP5M6U97PrT3pDWGBeF7rXn
-         Icwnq28hdy1joxUZXzHUqWMtB4lX6jIMmpvfBRMaiTCGS4vR73QaK+S3lFy1gtFh/o/H
-         unog==
+        b=O6+o6+n9aLcwxn9Ebar/YBh4RI/7ltgOalQRNO6eeRDOsId6AjpNIc3yXWSuoGGjaI
+         rwuwAtlz5NrWGk67uMglZN2esnSpekbJYJEoFVqbXUPrM/zTuHXM1TRuBUn9JJbbfh1q
+         cOV25KHOdifXLRF20ukZv/Plov0F/vQAVrdrrcMlGTT1y4eH4ihYDFiLIOOHUB0mjUgt
+         y9//lVwSNj6tcGkRqQKfaEwuHFp+yhpPBbSEzUQw+Baw2tFQUxDyHQrYHJxXlNHbWDjK
+         bh10tmnyZxxc3Qlh+v0egLoDcUhOQYbYEVt8GZOZV0nqg84IaXAY2DGcQzpDUGHQlSf3
+         L5Zw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject;
-        bh=XtiKYu/9Wz1HoJjONkoVJc8Zdc5PX4OKfafpmfTQaBQ=;
-        b=qMeo7gQAIEubn7w0+BD6s3aIRzMlJBscPEOYNkz55uEeooWTDVUMBGZQvQ3oG9a3Ew
-         tKh/3EUw3uAM5x1CIC5vQobIpoEfwCqs5cRpVJVDeXGvhwoDSGThOvvAm4XdxN78JCWi
-         wFMJVyc15HLES84n/oior2SIIkuXy/ffZzi4WxNsyrCHli/WuFj6ISie4kNb6nhUHKa2
-         zEH9nA64Ro3rZpGHgNFoDqpw9ZVCBp5vD4IVcRn6SijxBZZrflYtqTIVEnbVwyF3/yy9
-         d/1f6itGvqhxHEEuOIAT8t+tLLPjs2VLCUDJ68J52otUW7mJrso+6EaMAgrEgyRPAN2l
-         uhfw==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=QhD5O+DXskHMvk5bCSbNvo+3TeENBCiNBwQHbm3XDKA=;
+        b=Ot7gGtv9idKIVjsz8v9q/5H6w524U2vE3nfBQZY4F5o5HuVxVS2PCaoJP2WmE/NTb7
+         kk/hkQmmsuvH17P2I2RrlYyvdzThBb8M2EV1ZcTzYZxQyPojOvUC4t7t0R/z0o95PU39
+         CmbdcUHzSn/UZ+Pje57eSI54aA3aX7ULiKwGnmRFCUsDJvG4+w0rLx+hzUpzs2mBbtVj
+         a3qQAzEcowFelAxz9oof0BLUw9XDAINEGCFqcy5pCHapYl/2Slx27R22loKFJTWaDz+p
+         1k59VGBXCRCY9CM8nYPEGHxttRTfn8V4F0tkJvIlSYLzcFlrLCq4Cy9YVwWPd0mpDwpo
+         ADlQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id y8si4057486plt.202.2019.05.30.16.13.52
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=XiAlvrxQ;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id 126si1327357ybq.10.2019.05.30.16.21.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 May 2019 16:13:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+        Thu, 30 May 2019 16:21:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga008.fm.intel.com ([10.253.24.58])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 30 May 2019 16:13:51 -0700
-X-ExtLoop1: 1
-Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
-  by fmsmga008.fm.intel.com with ESMTP; 30 May 2019 16:13:51 -0700
-Subject: [PATCH v2 8/8] acpi/hmat: Register "specific purpose" memory as an
- "hmem" device
-From: Dan Williams <dan.j.williams@intel.com>
-To: linux-efi@vger.kernel.org
-Cc: Len Brown <lenb@kernel.org>, Keith Busch <keith.busch@intel.com>,
- "Rafael J. Wysocki" <rjw@rjwysocki.net>,
- Vishal Verma <vishal.l.verma@intel.com>,
- Jonathan Cameron <Jonathan.Cameron@huawei.com>, ard.biesheuvel@linaro.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org, x86@kernel.org,
- linux-nvdimm@lists.01.org
-Date: Thu, 30 May 2019 16:00:04 -0700
-Message-ID: <155925720396.3775979.9430953493521643811.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <155925716254.3775979.16716824941364738117.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <155925716254.3775979.16716824941364738117.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: StGit/0.18-2-gc94f
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=XiAlvrxQ;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5cf0656f0000>; Thu, 30 May 2019 16:21:19 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 30 May 2019 16:21:20 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 30 May 2019 16:21:20 -0700
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 30 May
+ 2019 23:21:19 +0000
+Subject: Re: [PATCH] mm/gup: fix omission of check on FOLL_LONGTERM in
+ get_user_pages_fast()
+To: Ira Weiny <ira.weiny@intel.com>, Pingfan Liu <kernelfans@gmail.com>
+CC: <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mike
+ Rapoport <rppt@linux.ibm.com>, Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Aneesh Kumar K.V
+	<aneesh.kumar@linux.ibm.com>, Keith Busch <keith.busch@intel.com>,
+	<linux-kernel@vger.kernel.org>
+References: <1559170444-3304-1-git-send-email-kernelfans@gmail.com>
+ <20190530214726.GA14000@iweiny-DESK2.sc.intel.com>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <1497636a-8658-d3ff-f7cd-05230fdead19@nvidia.com>
+Date: Thu, 30 May 2019 16:21:19 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
+In-Reply-To: <20190530214726.GA14000@iweiny-DESK2.sc.intel.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL107.nvidia.com (172.20.187.13)
 Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1559258480; bh=QhD5O+DXskHMvk5bCSbNvo+3TeENBCiNBwQHbm3XDKA=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=XiAlvrxQMbOM4ctL1paRuyrwrfNDjIvPv7YOz+g2l5YnbUB9x0KNsYyTY1HfvYFSF
+	 yBtV6cth8iJifwd7zlMXe73i9be+V9eO3nWlEA9iMgbXkbKvlgFrkidWZ9cJeGaN7r
+	 I9wbcXt0uaPJGuZ2NEwS678W1Vrlpi1pCFOZzOjSrkMtXA7dlsm4RN18QJaFV1Ia2F
+	 VNhrXiCP9q4b/gl89V17PN3FXaSJgSZjrvBkvzMjK3wnEUyOzzrnYmtb/qNpczYywl
+	 CWbiigFdnV9y0tsKvBKbqikIcppyd4EdwDOzMj800aJadNysiw9FJayKfJwHmOqlMK
+	 irQf8rDCTzQwQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Memory that has been tagged EFI_MEMORY_SP, and has performance
-properties described by the ACPI HMAT is expected to have an application
-specific consumer.
+On 5/30/19 2:47 PM, Ira Weiny wrote:
+> On Thu, May 30, 2019 at 06:54:04AM +0800, Pingfan Liu wrote:
+[...]
+>> +				for (j = i; j < nr; j++)
+>> +					put_page(pages[j]);
+> 
+> Should be put_user_page() now.  For now that just calls put_page() but it is
+> slated to change soon.
+> 
+> I also wonder if this would be more efficient as a check as we are walking the
+> page tables and bail early.
+> 
+> Perhaps the code complexity is not worth it?
 
-Those consumers may want 100% of the memory capacity to be reserved from
-any usage by the kernel. By default, with this enabling, a platform
-device is created to represent this differentiated resource.
+Good point, it might be worth it. Because now we've got two loops that
+we run, after the interrupts-off page walk, and it's starting to look like
+a potential performance concern. 
 
-The device-dax "hmem" driver claims these devices by default and
-provides an mmap interface for the target application.  If the
-administrator prefers, the hmem resource range can be made available to
-the core-mm via the device-dax hotplug facility, kmem, to online the
-memory with its own numa node.
+> 
+>> +				nr = i;
+> 
+> Why not just break from the loop here?
+> 
+> Or better yet just use 'i' in the inner loop...
+> 
 
-This was tested with an emulated HMAT produced by qemu (with the pending
-HMAT enabling patches), and "efi_fake_mem=8G@9G:0x40000" on the kernel
-command line to mark the memory ranges associated with node2 and node3
-as EFI_MEMORY_SP.
+...but if you do end up putting in the after-the-fact check, then we can
+go one or two steps further in cleaning it up, by:
 
-qemu numa configuration options:
+    * hiding the visible #ifdef that was slicing up gup_fast,
 
--numa node,mem=4G,cpus=0-19,nodeid=0
--numa node,mem=4G,cpus=20-39,nodeid=1
--numa node,mem=4G,nodeid=2
--numa node,mem=4G,nodeid=3
--numa dist,src=0,dst=0,val=10
--numa dist,src=0,dst=1,val=21
--numa dist,src=0,dst=2,val=21
--numa dist,src=0,dst=3,val=21
--numa dist,src=1,dst=0,val=21
--numa dist,src=1,dst=1,val=10
--numa dist,src=1,dst=2,val=21
--numa dist,src=1,dst=3,val=21
--numa dist,src=2,dst=0,val=21
--numa dist,src=2,dst=1,val=21
--numa dist,src=2,dst=2,val=10
--numa dist,src=2,dst=3,val=21
--numa dist,src=3,dst=0,val=21
--numa dist,src=3,dst=1,val=21
--numa dist,src=3,dst=2,val=21
--numa dist,src=3,dst=3,val=10
--numa hmat-lb,initiator=0,target=0,hierarchy=memory,data-type=access-latency,base-lat=10,latency=5
--numa hmat-lb,initiator=0,target=0,hierarchy=memory,data-type=access-bandwidth,base-bw=20,bandwidth=5
--numa hmat-lb,initiator=0,target=1,hierarchy=memory,data-type=access-latency,base-lat=10,latency=10
--numa hmat-lb,initiator=0,target=1,hierarchy=memory,data-type=access-bandwidth,base-bw=20,bandwidth=10
--numa hmat-lb,initiator=0,target=2,hierarchy=memory,data-type=access-latency,base-lat=10,latency=15
--numa hmat-lb,initiator=0,target=2,hierarchy=memory,data-type=access-bandwidth,base-bw=20,bandwidth=15
--numa hmat-lb,initiator=0,target=3,hierarchy=memory,data-type=access-latency,base-lat=10,latency=20
--numa hmat-lb,initiator=0,target=3,hierarchy=memory,data-type=access-bandwidth,base-bw=20,bandwidth=20
--numa hmat-lb,initiator=1,target=0,hierarchy=memory,data-type=access-latency,base-lat=10,latency=10
--numa hmat-lb,initiator=1,target=0,hierarchy=memory,data-type=access-bandwidth,base-bw=20,bandwidth=10
--numa hmat-lb,initiator=1,target=1,hierarchy=memory,data-type=access-latency,base-lat=10,latency=5
--numa hmat-lb,initiator=1,target=1,hierarchy=memory,data-type=access-bandwidth,base-bw=20,bandwidth=5
--numa hmat-lb,initiator=1,target=2,hierarchy=memory,data-type=access-latency,base-lat=10,latency=15
--numa hmat-lb,initiator=1,target=2,hierarchy=memory,data-type=access-bandwidth,base-bw=20,bandwidth=15
--numa hmat-lb,initiator=1,target=3,hierarchy=memory,data-type=access-latency,base-lat=10,latency=20
--numa hmat-lb,initiator=1,target=3,hierarchy=memory,data-type=access-bandwidth,base-bw=20,bandwidth=20
+    * using put_user_pages() instead of either put_page or put_user_page,
+      thus getting rid of j entirely, and
 
-Result:
+    * renaming an ancient minor confusion: nr --> nr_pinned), 
 
-# daxctl list -RDu
-[
-  {
-    "path":"\/platform\/hmem.1",
-    "id":1,
-    "size":"4.00 GiB (4.29 GB)",
-    "align":2097152,
-    "devices":[
-      {
-        "chardev":"dax1.0",
-        "size":"4.00 GiB (4.29 GB)"
-      }
-    ]
-  },
-  {
-    "path":"\/platform\/hmem.0",
-    "id":0,
-    "size":"4.00 GiB (4.29 GB)",
-    "align":2097152,
-    "devices":[
-      {
-        "chardev":"dax0.0",
-        "size":"4.00 GiB (4.29 GB)"
-      }
-    ]
-  }
-]
+we could have this, which is looks cleaner and still does the same thing:
 
-# cat /proc/iomem
-[..]
-240000000-43fffffff : Application Reserved
-  240000000-33fffffff : hmem.0
-    240000000-33fffffff : dax0.0
-  340000000-43fffffff : hmem.1
-    340000000-43fffffff : dax1.0
-
-Cc: Len Brown <lenb@kernel.org>
-Cc: Keith Busch <keith.busch@intel.com>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Vishal Verma <vishal.l.verma@intel.com>
-Cc: Jonathan Cameron <Jonathan.Cameron@huawei.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/acpi/Kconfig |    1 
- drivers/acpi/hmat.c  |  133 ++++++++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 123 insertions(+), 11 deletions(-)
-
-diff --git a/drivers/acpi/Kconfig b/drivers/acpi/Kconfig
-index ec8691e4152f..a4e67b7dcc9d 100644
---- a/drivers/acpi/Kconfig
-+++ b/drivers/acpi/Kconfig
-@@ -480,6 +480,7 @@ config ACPI_HMAT
- 	bool "ACPI Heterogeneous Memory Attribute Table Support"
- 	depends on ACPI_NUMA
- 	select HMEM_REPORTING
-+	select MEMREGION
- 	help
- 	 If set, this option has the kernel parse and report the
- 	 platform's ACPI HMAT (Heterogeneous Memory Attributes Table),
-diff --git a/drivers/acpi/hmat.c b/drivers/acpi/hmat.c
-index 1d329c4af3bf..5c714e6e5293 100644
---- a/drivers/acpi/hmat.c
-+++ b/drivers/acpi/hmat.c
-@@ -8,11 +8,17 @@
-  * the applicable attributes with the node's interfaces.
-  */
- 
-+#define pr_fmt(fmt) "acpi/hmat: " fmt
-+#define dev_fmt(fmt) "acpi/hmat: " fmt
-+
- #include <linux/acpi.h>
- #include <linux/bitops.h>
- #include <linux/device.h>
- #include <linux/init.h>
- #include <linux/list.h>
-+#include <linux/mm.h>
-+#include <linux/memregion.h>
-+#include <linux/platform_device.h>
- #include <linux/list_sort.h>
- #include <linux/node.h>
- #include <linux/sysfs.h>
-@@ -40,6 +46,7 @@ struct memory_target {
- 	struct list_head node;
- 	unsigned int memory_pxm;
- 	unsigned int processor_pxm;
-+	struct resource memregions;
- 	struct node_hmem_attrs hmem_attrs;
- };
- 
-@@ -92,21 +99,35 @@ static __init void alloc_memory_initiator(unsigned int cpu_pxm)
- 	list_add_tail(&initiator->node, &initiators);
+diff --git a/mm/gup.c b/mm/gup.c
+index f173fcbaf1b2..0c1f36be1863 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -1486,6 +1486,33 @@ static __always_inline long __gup_longterm_locked(struct task_struct *tsk,
  }
+ #endif /* CONFIG_FS_DAX || CONFIG_CMA */
  
--static __init void alloc_memory_target(unsigned int mem_pxm)
-+static __init void alloc_memory_target(unsigned int mem_pxm,
-+		resource_size_t start, resource_size_t len)
- {
- 	struct memory_target *target;
- 
- 	target = find_mem_target(mem_pxm);
--	if (target)
--		return;
--
--	target = kzalloc(sizeof(*target), GFP_KERNEL);
--	if (!target)
--		return;
-+	if (!target) {
-+		target = kzalloc(sizeof(*target), GFP_KERNEL);
-+		if (!target)
-+			return;
-+		target->memory_pxm = mem_pxm;
-+		target->processor_pxm = PXM_INVAL;
-+		target->memregions = (struct resource) {
-+			.name	= "ACPI mem",
-+			.start	= 0,
-+			.end	= -1,
-+			.flags	= IORESOURCE_MEM,
-+		};
-+		list_add_tail(&target->node, &targets);
-+	}
- 
--	target->memory_pxm = mem_pxm;
--	target->processor_pxm = PXM_INVAL;
--	list_add_tail(&target->node, &targets);
-+	/*
-+	 * There are potentially multiple ranges per PXM, so record each
-+	 * in the per-target memregions resource tree.
-+	 */
-+	if (!__request_region(&target->memregions, start, len, "memory target",
-+				IORESOURCE_MEM))
-+		pr_warn("failed to reserve %#llx - %#llx in pxm: %d\n",
-+				start, start + len, mem_pxm);
- }
- 
- static __init const char *hmat_data_type(u8 type)
-@@ -428,7 +449,7 @@ static __init int srat_parse_mem_affinity(union acpi_subtable_headers *header,
- 		return -EINVAL;
- 	if (!(ma->flags & ACPI_SRAT_MEM_ENABLED))
- 		return 0;
--	alloc_memory_target(ma->proximity_domain);
-+	alloc_memory_target(ma->proximity_domain, ma->base_address, ma->length);
- 	return 0;
- }
- 
-@@ -580,6 +601,81 @@ static __init void hmat_register_target_perf(struct memory_target *target)
- 	node_set_perf_attrs(mem_nid, &target->hmem_attrs, 0);
- }
- 
-+static __init void hmat_register_target_device(struct memory_target *target,
-+		struct resource *r)
++#ifdef CONFIG_CMA
++/*
++ * Returns the number of pages that were *not* rejected. This makes it
++ * exactly compatible with its callers.
++ */
++static int reject_cma_pages(int nr_pinned, unsigned gup_flags,
++			    struct page **pages)
 +{
-+	/* define a clean / non-busy resource for the platform device */
-+	struct resource res = {
-+		.start = r->start,
-+		.end = r->end,
-+		.flags = IORESOURCE_MEM,
-+	};
-+	struct platform_device *pdev;
-+	struct memregion_info info;
-+	int rc, id;
++	int i = 0;
++	if (unlikely(gup_flags & FOLL_LONGTERM)) {
 +
-+	rc = region_intersects(res.start, resource_size(&res), IORESOURCE_MEM,
-+			IORES_DESC_APPLICATION_RESERVED);
-+	if (rc != REGION_INTERSECTS)
-+		return;
-+
-+	id = memregion_alloc(GFP_KERNEL);
-+	if (id < 0) {
-+		pr_err("memregion allocation failure for %pr\n", &res);
-+		return;
++		for (i = 0; i < nr_pinned; i++)
++			if (is_migrate_cma_page(pages[i])) {
++				put_user_pages(&pages[i], nr_pinned - i);
++				break;
++			}
 +	}
-+
-+	pdev = platform_device_alloc("hmem", id);
-+	if (!pdev) {
-+		pr_err("hmem device allocation failure for %pr\n", &res);
-+		goto out_pdev;
-+	}
-+
-+	pdev->dev.numa_node = acpi_map_pxm_to_online_node(target->memory_pxm);
-+	info = (struct memregion_info) {
-+		.target_node = acpi_map_pxm_to_node(target->memory_pxm),
-+	};
-+	rc = platform_device_add_data(pdev, &info, sizeof(info));
-+	if (rc < 0) {
-+		pr_err("hmem memregion_info allocation failure for %pr\n", &res);
-+		goto out_pdev;
-+	}
-+
-+	rc = platform_device_add_resources(pdev, &res, 1);
-+	if (rc < 0) {
-+		pr_err("hmem resource allocation failure for %pr\n", &res);
-+		goto out_resource;
-+	}
-+
-+	rc = platform_device_add(pdev);
-+	if (rc < 0) {
-+		dev_err(&pdev->dev, "device add failed for %pr\n", &res);
-+		goto out_resource;
-+	}
-+
-+	return;
-+
-+out_resource:
-+	put_device(&pdev->dev);
-+out_pdev:
-+	memregion_free(id);
++	return i;
 +}
-+
-+static __init void hmat_register_target_devices(struct memory_target *target)
++#else
++static int reject_cma_pages(int nr_pinned, unsigned gup_flags,
++			    struct page **pages)
 +{
-+	struct resource *res;
-+
-+	/*
-+	 * Do not bother creating devices if no driver is available to
-+	 * consume them.
-+	 */
-+	if (!IS_ENABLED(CONFIG_DEV_DAX_HMEM))
-+		return;
-+
-+	for (res = target->memregions.child; res; res = res->sibling)
-+		hmat_register_target_device(target, res);
++	return nr_pinned;
 +}
++#endif
 +
- static __init void hmat_register_targets(void)
+ /*
+  * This is the same as get_user_pages_remote(), just with a
+  * less-flexible calling convention where we assume that the task
+@@ -2216,7 +2243,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
+ 			unsigned int gup_flags, struct page **pages)
  {
- 	struct memory_target *target;
-@@ -587,6 +683,12 @@ static __init void hmat_register_targets(void)
- 	list_for_each_entry(target, &targets, node) {
- 		int nid = pxm_to_node(target->memory_pxm);
+ 	unsigned long addr, len, end;
+-	int nr = 0, ret = 0;
++	int nr_pinned = 0, ret = 0;
  
-+		/*
-+		 * Devices may belong to either an offline or online
-+		 * node, so unconditionally add them.
-+		 */
-+		hmat_register_target_devices(target);
-+
- 		/*
- 		 * Skip offline nodes. This can happen when memory
- 		 * marked EFI_MEMORY_SP, "specific purpose", is applied
-@@ -608,7 +710,16 @@ static __init void hmat_free_structures(void)
- 	struct memory_initiator *initiator, *inext;
+ 	start &= PAGE_MASK;
+ 	addr = start;
+@@ -2231,25 +2258,27 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
  
- 	list_for_each_entry_safe(target, tnext, &targets, node) {
-+		struct resource *res, *res_next;
-+
- 		list_del(&target->node);
-+		res = target->memregions.child;
-+		while (res) {
-+			res_next = res->sibling;
-+			__release_region(&target->memregions, res->start,
-+					resource_size(res));
-+			res = res_next;
-+		}
- 		kfree(target);
+ 	if (gup_fast_permitted(start, nr_pages)) {
+ 		local_irq_disable();
+-		gup_pgd_range(addr, end, gup_flags, pages, &nr);
++		gup_pgd_range(addr, end, gup_flags, pages, &nr_pinned);
+ 		local_irq_enable();
+-		ret = nr;
++		ret = nr_pinned;
  	}
  
+-	if (nr < nr_pages) {
++	nr_pinned = reject_cma_pages(nr_pinned, gup_flags, pages);
++
++	if (nr_pinned < nr_pages) {
+ 		/* Try to get the remaining pages with get_user_pages */
+-		start += nr << PAGE_SHIFT;
+-		pages += nr;
++		start += nr_pinned << PAGE_SHIFT;
++		pages += nr_pinned;
+ 
+-		ret = __gup_longterm_unlocked(start, nr_pages - nr,
++		ret = __gup_longterm_unlocked(start, nr_pages - nr_pinned,
+ 					      gup_flags, pages);
+ 
+ 		/* Have to be a bit careful with return values */
+-		if (nr > 0) {
++		if (nr_pinned > 0) {
+ 			if (ret < 0)
+-				ret = nr;
++				ret = nr_pinned;
+ 			else
+-				ret += nr;
++				ret += nr_pinned;
+ 		}
+ 	}
+ 
+
+Rather lightly tested...I've compile-tested with CONFIG_CMA and !CONFIG_CMA, 
+and boot tested with CONFIG_CMA, but could use a second set of eyes on whether
+I've added any off-by-one errors, or worse. :)
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
