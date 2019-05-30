@@ -3,102 +3,103 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C337C072B1
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 06:12:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FBB0C28CC0
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 06:24:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E8047242F9
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 06:12:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8047242F9
+	by mail.kernel.org (Postfix) with ESMTP id 6398225979
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 06:24:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6398225979
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 559556B000E; Thu, 30 May 2019 02:12:27 -0400 (EDT)
+	id EED0E6B0274; Thu, 30 May 2019 02:24:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 50A0E6B027F; Thu, 30 May 2019 02:12:27 -0400 (EDT)
+	id E9DD66B0280; Thu, 30 May 2019 02:24:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3F9396B0281; Thu, 30 May 2019 02:12:27 -0400 (EDT)
+	id D66446B0281; Thu, 30 May 2019 02:24:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E4D546B000E
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 02:12:26 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f15so5290617ede.8
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 23:12:26 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BE166B0274
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 02:24:22 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c26so7095730eda.15
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 23:24:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=xdJ/3URvdSp0KyZIHuSEzbOlmDTET6N7hN4IpPrd1/k=;
-        b=KRIIbknu4EIs89R2OysrSAMve+dLWj9GyxfSm0Ph9ztYyeLf+OOxvSIJm0zI3s6cA2
-         qXy/sXdFOc4pCzKc7ZGDnSULDbHiQEX1uIaQJgji/8bTJOcKZoqqKyxDCGgUgRzcz7/o
-         nPFD84T2n6W2/FpkIwZ0YwaVS7Wqhlo5QjAm/Cu8tpb8LPt4dv7xkG/EJXeaSpk9X+VD
-         aTPGIlDYmXSttN0zK+jPuiJ1QV7X0YhwAKkbM8GVAH9592GlH6SyKJNkFkxOV6HAgcbX
-         GWkkqxpUjx0WlS8poG5O/u1/9r0wnIhXx8S+uUix8fSXRMxv4bZvyYBTtlwCWNjfdglV
-         SDXQ==
+        bh=lFbxJVmwwDktBP7Omlp2VSDl1R2lSTomTFt7z7dkoXE=;
+        b=m2atYvoBXKm0q3aICDmb8dgc9jCEg0GvhHpW7zzSgcvW9iNegrbfcUxnA9p5gvkxqz
+         NpGO7KtfA1DYCs4zKYh7uZMic/qm2PL4NJ4CmueTYL0xcLmaquJk7s7za7xSeC3jPq3F
+         Ga48Dd0x+5VkPMHXCdu0rSSDYaaF2RgpxMX+AgslIaw5L3a7XrrugNn4un2WeBgrVsR9
+         Q9YMLFzsm+PsFLfzhvh2xtRzAR2VmRnFMCuaBM4YT6dU1L5WtjWB6W8FYw9uQ+rOqoFL
+         VgAD1QFEBpjs9q4+0KwvLRY27CB0c9rDOaqUM7gzsuqiObytT/CWi4NIPmuBapfHTHB/
+         loKw==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWDLB4HUgNBlQQstjh70rjPM/TnUqJjHdk56+bg0OKAKQf1k0yl
-	PTjTo+MArTc0k2C88rwE1A+egUiIxForU+OQMQpTcXJIXFgTRsLOcUJQ5MWCxVn4K+4llXgUsVG
-	IkdQi8nlFjHILAElcxL2SV/S0YNvom9PYjnZHxAs7CfA7TWdlpDhao/DRwAJF2b0=
-X-Received: by 2002:a50:d791:: with SMTP id w17mr2437927edi.223.1559196746426;
-        Wed, 29 May 2019 23:12:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx1agQThM5tlRroy9XO3tU/AuEWjSZ6itrkpM25CEZ9c28uaAxrI2rArCjoCJPjG60K0mlI
-X-Received: by 2002:a50:d791:: with SMTP id w17mr2437881edi.223.1559196745655;
-        Wed, 29 May 2019 23:12:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559196745; cv=none;
+X-Gm-Message-State: APjAAAUUcKSw4c35zGuc2DFwnfOruP0RzeTF9UXbQQUkgoZs2c2CFgK/
+	2nNvMLmDgYFM7taWNyDOc8CweEFPNwcGWRMIymRuCPR5gNIzGQiOpOIoHLW3VRttOcqTJEAqg18
+	3TivzMkQoAleA96ToCxXsMMUUrTLOaShSTiCRnhs8LjpnZaxwzjwjK6qQkHWwyjA=
+X-Received: by 2002:aa7:db0c:: with SMTP id t12mr2524170eds.170.1559197462139;
+        Wed, 29 May 2019 23:24:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx2NwHxmFww9k5aR7cCryzfmiAUSa3wcvDs0SqWUq3oKQRkN6oAKUtZIcf/OFYMNb9udtU9
+X-Received: by 2002:aa7:db0c:: with SMTP id t12mr2524111eds.170.1559197461262;
+        Wed, 29 May 2019 23:24:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559197461; cv=none;
         d=google.com; s=arc-20160816;
-        b=CC+AiJvBlqo2UXHwhRrWnByJI5cXiTbkuEAtGVn1rHm2wCi3HyK2MB9Odf7BJ50w3T
-         Qg+eIrDBdzOm5hE2YLkW80rnnavcS5t+DmkCVXoED4YWJQL4u47hCGL+hVfvh24uZJJ4
-         bU/ncMuRdoMOn4jiGa+f3f7Z2b6BNvKCRcWs0KXlaznS/hZFdgfhHq8o3j/c7n67q43d
-         fquXZJhzAYerwBWoKm7OK47/61lkQxahH/tJYRnLm5jn37ZF59BaJlu8oyHGbtJ3iD6p
-         xXBttHlxac9ZMcP/wZfkCA3Q5HduxWPPuV1130WEqyxAvS0T8C4wLReRh8zXXkz4lAlw
-         bfnA==
+        b=XgubDouvojcsYoIXqoOTrixpkZTJ24pqReVVABayPPnXHBSHTTiC6SaFFhC0+mS8rt
+         Sh96pumyq2ODsu//G41epbHMxfDWBOr7G2yLwpU/jwkIZs1H1MzWGMqD5+UMS59i61K8
+         G42BYHe0GZ8ntgQ0lZoO9eWHnpuyoBFHk+xMn4vLM8DpBpwAUzO8sv24v+wb2irDsmfu
+         wdJhYxZOqlaaTw2g+K8vTN6s9V1dTMO2KHsAs+1zTYyiMJhtgX2pRkeTXhuw9nhhk/Jq
+         CBTeIC0020Pg2ee9ynw5Bkcr1+a8WBTO8hHD63wgjmzvuVXnFVa4o0Ip+oHpjt9ICewq
+         BbHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=xdJ/3URvdSp0KyZIHuSEzbOlmDTET6N7hN4IpPrd1/k=;
-        b=S8YWuzUcWjgW1DcB1zSnYAM3zTEHTHIyjDmuvJmnXNySPhe/n8gee/HfLmDQaqAofq
-         d6shw8/Q/fwKxKcJc7phDunOrR5aumQZ01aW31Dvq8wylHqChYUrzYIqVmqR87YQQ3Su
-         /6KwnspmKC3KWq2/aFqJ5G+HR8Iq3harna3fRLfMlm7BfiMkjOufZ2q5fyCgUQ4NwK/n
-         a4YRAvyIghmDsc24gzOFcj2ILWOEVE5sc8weKyHH8kJpo9OsLZ22tEXqyMcCaf1Bg8ro
-         oXUwxBZqo1DN6XxK86lN7/EuGwCafjHUadIXjyKdkx2PwqG13Reoh+8ByyTkPuQC4tT6
-         cr/Q==
+        bh=lFbxJVmwwDktBP7Omlp2VSDl1R2lSTomTFt7z7dkoXE=;
+        b=MSzr904gn59n3wQvvZ3+GmBb9WDFG/XXN3Ix4ekq15dPOwe+JGoLvAXui/qqvpy8BB
+         ZJ8oGu9eiePi5F0WgJVYkKZfoveLIdLu5RykerGgl/QZLOwwSqe1t16OKQFCm6mKT5z5
+         Qx1PJRgS5RC89JjexN/MURmGL1vidKthvN5pWqbk8aXMz7yyAKAQAvqfeRRD4fJfpmuN
+         fCHfCxX143zaQBOW88oVxpYuA3lGrBbPRBGAbfnjZk4B41sbGIwy0jQypPNnPVhjcBmm
+         zcNCsjNtrPQQFL6/gyqZ5HWI/lUgK7ZIOBKlhHXmgop7UJASVZmiV6yQZYzTh79ZBgHs
+         /XRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e2si1107759ejs.209.2019.05.29.23.12.25
+        by mx.google.com with ESMTPS id bo3si1175106ejb.43.2019.05.29.23.24.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 May 2019 23:12:25 -0700 (PDT)
+        Wed, 29 May 2019 23:24:21 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id AF839B01C;
-	Thu, 30 May 2019 06:12:24 +0000 (UTC)
-Date: Thu, 30 May 2019 08:12:21 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 38A4AACA8;
+	Thu, 30 May 2019 06:24:20 +0000 (UTC)
+Date: Thu, 30 May 2019 08:24:18 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Chris Down <chris@chrisdown.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
-	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
-	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, kernel-team@fb.com
-Subject: Re: [PATCH REBASED] mm, memcg: Make scan aggression always exclude
- protection
-Message-ID: <20190530061221.GA6703@dhcp22.suse.cz>
-References: <20190228213050.GA28211@chrisdown.name>
- <20190322160307.GA3316@chrisdown.name>
+To: Dianzhang Chen <dianzhangchen0@gmail.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com,
+	iamjoonsoo.kim@lge.com, akpm@linux-foundation.org,
+	linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH] mm/slab_common.c: fix possible spectre-v1 in
+ kmalloc_slab()
+Message-ID: <20190530062418.GB6703@dhcp22.suse.cz>
+References: <1559133448-31779-1-git-send-email-dianzhangchen0@gmail.com>
+ <20190529162532.GG18589@dhcp22.suse.cz>
+ <CAFbcbMDJB0uNjTa9xwT9npmTdqMJ1Hez3CyeOCjjrLF2W0Wprw@mail.gmail.com>
+ <20190529174931.GH18589@dhcp22.suse.cz>
+ <CAFbcbMA6XjZqrgHmG70Vm_a34Rn4tKqoMgQkRBXES2r3+ymYwg@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190322160307.GA3316@chrisdown.name>
+In-Reply-To: <CAFbcbMA6XjZqrgHmG70Vm_a34Rn4tKqoMgQkRBXES2r3+ymYwg@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -106,67 +107,63 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Sorry for a late reply]
+[Please do not top-post]
 
-On Fri 22-03-19 16:03:07, Chris Down wrote:
-[...]
-> With this patch, memory.low and memory.min affect reclaim pressure in a
-> more understandable and composable way. For example, from a user
-> standpoint, "protected" memory now remains untouchable from a reclaim
-> aggression standpoint, and users can also have more confidence that
-> bursty workloads will still receive some amount of guaranteed
-> protection.
+On Thu 30-05-19 13:20:01, Dianzhang Chen wrote:
+> It is possible that a CPU mis-predicts the conditional branch, and
+> speculatively loads size_index[size_index_elem(size)], even if size >192.
+> Although this value will subsequently be discarded,
+> but it can not drop all the effects of speculative execution,
+> such as the presence or absence of data in caches. Such effects may
+> form side-channels which can be
+> observed to extract secret information.
 
-Maybe I am missing something so correct me if I am wrong but the new
-calculation actually means that we always allow to scan even min
-protected memcgs right?
+I understand the general mechanism of spectre v1. What I was asking for
+is an example of where userspace directly controls the allocation size
+as this is usually bounded to an in kernel object size. I can see how
+and N * sizeof(object) where N is controlled by the userspace could be
+the target. But calling that out explicitly would be appreciated.
+ 
+> As for "why this particular path a needs special treatment while other
+> size branches are ok",
+> i think the other size branches need to treatment as well at first place,
+> but in code `index = fls(size - 1)` the function `fls` will make the
+> index at specific range,
+> so it can not use `kmalloc_caches[kmalloc_type(flags)][index]` to load
+> arbitury data.
+> But, still it may load some date that it shouldn't, if necessary, i
+> think can add array_index_nospec as well.
 
-Because ...
-
-[...]
-
-> +static inline unsigned long mem_cgroup_protection(struct mem_cgroup *memcg,
-> +						  bool in_low_reclaim)
->  {
-> -	if (mem_cgroup_disabled()) {
-> -		*min = 0;
-> -		*low = 0;
-> -		return;
-> -	}
-> +	if (mem_cgroup_disabled())
-> +		return 0;
-> +
-> +	if (in_low_reclaim)
-> +		return READ_ONCE(memcg->memory.emin);
->  
-> -	*min = READ_ONCE(memcg->memory.emin);
-> -	*low = READ_ONCE(memcg->memory.elow);
-> +	return max(READ_ONCE(memcg->memory.emin),
-> +		   READ_ONCE(memcg->memory.elow));
->  }
-[...]
-> +			unsigned long cgroup_size = mem_cgroup_size(memcg);
-> +
-> +			/* Avoid TOCTOU with earlier protection check */
-> +			cgroup_size = max(cgroup_size, protection);
-> +
-> +			scan = lruvec_size - lruvec_size * protection /
-> +				cgroup_size;
->  
-[...]
-> -			scan = clamp(scan, SWAP_CLUSTER_MAX, lruvec_size);
-> +			scan = max(scan, SWAP_CLUSTER_MAX);
-
-here the zero or sub SWAP_CLUSTER_MAX scan target gets extended to
-SWAP_CLUSTER_MAX. Unless I am missing something this is not correct
-because min protection should be a guarantee even in in_low_reclaim
-mode.
-
->  		} else {
->  			scan = lruvec_size;
->  		}
-> -- 
-> 2.21.0
+Please mention that in the changelog as well.
+ 
+> On Thu, May 30, 2019 at 1:49 AM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Thu 30-05-19 00:39:53, Dianzhang Chen wrote:
+> > > It's come from `192+1`.
+> > >
+> > >
+> > > The more code fragment is:
+> > >
+> > >
+> > > if (size <= 192) {
+> > >
+> > >     if (!size)
+> > >
+> > >         return ZERO_SIZE_PTR;
+> > >
+> > >     size = array_index_nospec(size, 193);
+> > >
+> > >     index = size_index[size_index_elem(size)];
+> > >
+> > > }
+> >
+> > OK I see, I could have looked into the code, my bad. But I am still not
+> > sure what is the potential exploit scenario and why this particular path
+> > a needs special treatment while other size branches are ok. Could you be
+> > more specific please?
+> > --
+> > Michal Hocko
+> > SUSE Labs
 
 -- 
 Michal Hocko
