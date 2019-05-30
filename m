@@ -2,185 +2,175 @@ Return-Path: <SRS0=aa49=T6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F8E9C28CC3
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 12:55:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B0EBFC28CC0
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 12:56:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 59E2A2591B
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 12:55:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 62DD225919
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 12:56:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="WKcka6UV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 59E2A2591B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="U3p0Rwbu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62DD225919
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DA0CD6B0010; Thu, 30 May 2019 08:55:45 -0400 (EDT)
+	id D51F46B026C; Thu, 30 May 2019 08:56:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D76FE6B026B; Thu, 30 May 2019 08:55:45 -0400 (EDT)
+	id D028A6B026D; Thu, 30 May 2019 08:56:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C8CC06B026C; Thu, 30 May 2019 08:55:45 -0400 (EDT)
+	id BF17E6B026E; Thu, 30 May 2019 08:56:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A75556B0010
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 08:55:45 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id y13so2286855iol.6
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 05:55:45 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A01D76B026C
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 08:56:16 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id i196so4725739qke.20
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 05:56:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=ZLW1xk6MLnaOhKxjAOhSGRAO81reaAV4lGbib7H9s5k=;
-        b=NV/4u3aDz2BDcJFjJzjMa0rYTe/in2tAMkgYy+lGsMQQgAgllUkZaBcVLkggYUWMJV
-         dTZqNjTkIf6g6/C/bamynoWLQGl+2iRDPmQxD+KHiqm9dmL+zRImkb3oV4MYRTYfSopH
-         JIGTNCIl135ATlDrKe2Wo+1GUaZz9/AZdyPtsaAToSnwIH2z83GWcU6Niv9sPEcXtau0
-         Ebb4nDHkXqnvGXeGpJDIFbVaL3lWiFBawPaqabulcBIyAdwdZb2WrSgstu2Df0C6NHhA
-         UgwS8jSNrbOCH9cgRrKA2R5twAeENBDGvHC8oh8X7dIejQR+C9vHsxf1eyXhH7Lmzjjc
-         hL6w==
-X-Gm-Message-State: APjAAAW2JvSMHn9SInROomjp7J2IFAqNpPh44cd+3Gj7VZLwNUhzfjDP
-	pJRl5epbYtpFd/2Ow3+gogym3sQqyOhwCoOtMTUc8xHeqFJ6tAir/+0cjLUUP3pCBZ1mFsquTzo
-	z+4cTLfgpwK+valwdYXMMfc5Mcz0fRAG8WR8vdfgQXNG3ZBmCiy2TvKJptKCUPBrwOw==
-X-Received: by 2002:a02:c544:: with SMTP id g4mr267063jaj.45.1559220945433;
-        Thu, 30 May 2019 05:55:45 -0700 (PDT)
-X-Received: by 2002:a02:c544:: with SMTP id g4mr267017jaj.45.1559220944551;
-        Thu, 30 May 2019 05:55:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559220944; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=m11j/gNOc1w/3oqxOsmN4bOzC/13TvTUCwPbj99AGq4=;
+        b=to4xuxt+34uhwa4siO5QoFLbiKfNpgnKmvfFIcpAcqZ787D4RQkWAiwI4zlHQCHEB/
+         hcw9+RdGSJR2s8uAp+z9WPfuHn8b5yDF5gOwJHnO2mQ9/+B9Ehl6xud3cMkkOFRPFt5G
+         fuZASGfgP5GpIpKNUPzJRtVfC7xO0FcTEln8tNlbZ27ShabyKgOX6btZmAIzcAye54M/
+         gbivR3KhV1GBSVjAkTs3Z60MJG0nIkDZaIYxbSGb3io40s2FS9jbEJjRktC/Kwp9ZIcM
+         YpDXHvCLG8lxHHHwigLEb+GA6xvo3hopF4uyBmGl1N3ijs7ltHaNPIEe0G7ubMnw5mFa
+         LzTQ==
+X-Gm-Message-State: APjAAAUoJ9WrSErmQ/btqbh9UJoiRs8z5VswiraGxaG+47EZYhBYMgSq
+	oXExTw3D1UBkkFHsu4jRPt4KbpAVD0UFNtRhekKrOfYpTriqrbvk5tUTkOxIiRv8iYMC45qeGe8
+	vwXyTUyM/pM4mbZhXvAHRDwjZig8RvCg0qBU1zKWbDSDCKkRsw9mzqlBvFDgYXz47rw==
+X-Received: by 2002:a0c:b78a:: with SMTP id l10mr3204306qve.62.1559220976353;
+        Thu, 30 May 2019 05:56:16 -0700 (PDT)
+X-Received: by 2002:a0c:b78a:: with SMTP id l10mr3204247qve.62.1559220975592;
+        Thu, 30 May 2019 05:56:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559220975; cv=none;
         d=google.com; s=arc-20160816;
-        b=NBHXdKhXeMf+ncI5lpvbsX0J8GsZ/zyGn98OwZdgek7Efa/2sfkBGc2NSZc9D/ry8T
-         Vb8TdQ+QHDHjVOLnKLQ9x+QnfshwA3mSem8ZZ7QNVWuCX+qRgOwj+hJFiAHHkkJTh1Kr
-         E2A8pNvGxHi8gndEaILQ+mqbhPFqFO+y4iWtFN4FEkzNAeYWIXLF9c6129xIVJ7dZv1G
-         pDc4OvlaXhjA75G0z6I2wv0dIRGiunQtzEIaKXwkEqSZmaKDoDAsqg62oCH8GeChseS2
-         0U2oa2qnaUoljoUwA8RxUIlD2PZuaK+pt/HfcMZG/2jY858b1Hp2qW9yn+8Tmu5ue8nf
-         KtAg==
+        b=AQROFkRTXg4zcZOLwymt61OBmXtJLSylZFKPfpQ+ciGJxpfa8obYZ0CCwmQ2W8LvE/
+         l8ZKrehFtQs78CFMDJPoI3X4B0cOUhHKeNPOBDsEznh01cczQVVcpJ7y5s+q/SMK7t7q
+         iaSP0d97aQXBt15JrhLZF2a7i7hnXBqoVvC6PfSjZJPBE8g6R8TCmB4RQZo+QQURqM/x
+         faLKWsX51Ez/m+rn6J5ceNltLVwq3Xi3A4ZJIKiAQT8wPHugZ5A3OtnJK1WfZge2wAYH
+         843X6g4hYxilCduVqcbR9vP06WKxkm5qZk/PHay/G+xxk6sjZe+EnJSt/bAaMpEKP/Ha
+         6udA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=ZLW1xk6MLnaOhKxjAOhSGRAO81reaAV4lGbib7H9s5k=;
-        b=qr60n97mbh/hL6hNStYb1bbxWSPNaeiUWVZu4MZlWOC31SXqu+HfUR0Cm8b7f75bBE
-         NMRrCfkjlAV+Ckww/4uTY7KztiJ817yiu0ajxDVHmCiSv59A3O5RS0NMHJJ2hXAazVvN
-         YfKfT9K0ZphsbLtHgthB+YmPhH0zIXwzJc+HQSiFlcjG25eWqJCbfhJg+ymo8Pg5lX3a
-         Vvs/WK1ZqCcieSH+3AbTaPck8c8TtGp9CpEdOWyF37GWdqR/0G2AcTlylAG+3kJPhJmh
-         aZOQ+9rqssOpQ5s7g1YYTLm0hQkiuV7R1vYBIPRwY9e6N/hKbuA22rJe1ci6n1kStDQW
-         5Ohw==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=m11j/gNOc1w/3oqxOsmN4bOzC/13TvTUCwPbj99AGq4=;
+        b=B+zKCjNzu7JZxp2s42CRp6M9/QPdgEFsiNraC5zzDlgymk1yG/I28C9N9z7mzME59p
+         gnofGP5s/NuyT45vw5g0aSCqcCKdOG14dHF9L2Cf/fJnKMfuvOxOhZc7rkDI3CVUOj03
+         YcNqqKYgj7WNXAbJKxOegDEqY3m0NbBn1OVdUGlfuPSnfvHonktJD3Y1qfqMSzNq8imY
+         0KZueCP4S58SqpYjOgtA/MFhKha3I/PCoTQYKCBVIvzigE4IKUauDI6bP7TVyz6toIrT
+         sZTdRGRWsDxKgK7Kspl42KJwSpffScIjzjk7wV0K8Etlabc+DVZ/ZYClSL2K9npVEbJB
+         zkhQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=WKcka6UV;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 131sor3683906ita.34.2019.05.30.05.55.44
+       dkim=pass header.i=@lca.pw header.s=google header.b=U3p0Rwbu;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z40sor2171204qvg.16.2019.05.30.05.56.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 30 May 2019 05:55:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Thu, 30 May 2019 05:56:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=WKcka6UV;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=U3p0Rwbu;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=ZLW1xk6MLnaOhKxjAOhSGRAO81reaAV4lGbib7H9s5k=;
-        b=WKcka6UV3NWduPvibld4d8yUqcUyByrokKY6G+iCDvd6HZ36y1aoZiTjlJu2iNaJjx
-         azIsFUtD/Yyrqx1Vnz5DtMMvCyzsX9Z1jM/WgMLv02/FcvuQ/R4Kt5mgNxo/D9jrOXNp
-         U8dKa6WykLy01iUkWBz/DSJ2+NBSuHEBIk31mV9/GUMPei3V5dd/aNjN3HdPtcCS8YOm
-         4x3V8yqinaPyDzV+4YMzdL+wycjLOn71Hve4jnAHCn5bSC5fIFZfl74IMfIm5bxb7Rpn
-         Q1aRCH7DY2StscthroSzFSR+CS59v+ozhFpU4/07BhClMyRsRAmn2/tDzTS+W+tiskTD
-         1E2Q==
-X-Google-Smtp-Source: APXvYqwiaONSUG5G2UwUM9H9pZgzyJ5xk3qr7gpb/QqGbbvw7tYPHcxkMWO22H5pPEWQFhhV0jfdTWi3zocd6DPaZ40=
-X-Received: by 2002:a24:2e17:: with SMTP id i23mr2484976ita.100.1559220944233;
- Thu, 30 May 2019 05:55:44 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190512054829.11899-1-cai@lca.pw> <20190513124112.GH24036@dhcp22.suse.cz>
- <1557755039.6132.23.camel@lca.pw> <20190513140448.GJ24036@dhcp22.suse.cz>
- <1557760846.6132.25.camel@lca.pw> <20190513153143.GK24036@dhcp22.suse.cz>
- <CAFgQCTt9XA9_Y6q8wVHkE9_i+b0ZXCAj__zYU0DU9XUkM3F4Ew@mail.gmail.com>
- <20190522111655.GA4374@dhcp22.suse.cz> <CAFgQCTuKVif9gPTsbNdAqLGQyQpQ+gC2D1BQT99d0yDYHj4_mA@mail.gmail.com>
- <20190528182011.GG1658@dhcp22.suse.cz>
-In-Reply-To: <20190528182011.GG1658@dhcp22.suse.cz>
-From: Pingfan Liu <kernelfans@gmail.com>
-Date: Thu, 30 May 2019 20:55:32 +0800
-Message-ID: <CAFgQCTtD5OYuDwRx1uE7R9N+qYf5k_e=OxajpPWZWb70+QgBvg@mail.gmail.com>
-Subject: Re: [PATCH -next v2] mm/hotplug: fix a null-ptr-deref during NUMA boot
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>, 
-	Barret Rhoden <brho@google.com>, Dave Hansen <dave.hansen@intel.com>, 
-	Mike Rapoport <rppt@linux.ibm.com>, Peter Zijlstra <peterz@infradead.org>, 
-	Michael Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@elte.hu>, Oscar Salvador <osalvador@suse.de>, 
-	Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, 
-	LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=m11j/gNOc1w/3oqxOsmN4bOzC/13TvTUCwPbj99AGq4=;
+        b=U3p0Rwbu3DOqRwv1KFoktsVBmhSaEGhbclQX96bGWiPXbTevw90DCpH9+C8OhcOg5c
+         R2T0jNdN85kqdEv5h294CX8GDP0nJTdflA2WkjQ6nQoCndHvsDebT5oRxUwQP2rkNm/N
+         cZlKArDW975ct+mpI/fb3R0ncTV3ePAs8qu6PBxwkZne1JhNKhw6Kr6oGHUKEDg4RTP4
+         vk+xQJw4z19QtHG5f3MRgfFR5p5ZQaRIVkb6fDP+djOPO3lrL+8Kh6ROez/+xtrEMvv6
+         ybBxxg6zuZvy7co5sNwvy03NtCoZ0CYjMaln3YfYQX9hrJEm0AfnV1dS4+1xyi9gKNgm
+         nyig==
+X-Google-Smtp-Source: APXvYqw/80cpKy1geLrXhFGd8uOHZgCtfnZyLJaTqr/FkVp7JyBWsQ16MRrRQMC9MgVB5/OPyuItfQ==
+X-Received: by 2002:a0c:e7c7:: with SMTP id c7mr2011877qvo.173.1559220975275;
+        Thu, 30 May 2019 05:56:15 -0700 (PDT)
+Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id 22sm1532601qto.92.2019.05.30.05.56.14
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 May 2019 05:56:14 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: vitalywool@gmail.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH] mm/z3fold: fix variable set but not used warnings
+Date: Thu, 30 May 2019 08:55:52 -0400
+Message-Id: <1559220952-21081-1-git-send-email-cai@lca.pw>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 29, 2019 at 2:20 AM Michal Hocko <mhocko@kernel.org> wrote:
->
-> [Sorry for a late reply]
->
-> On Thu 23-05-19 11:58:45, Pingfan Liu wrote:
-> > On Wed, May 22, 2019 at 7:16 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > >
-> > > On Wed 22-05-19 15:12:16, Pingfan Liu wrote:
-> [...]
-> > > > But in fact, we already have for_each_node_state(nid, N_MEMORY) to
-> > > > cover this purpose.
-> > >
-> > > I do not really think we want to spread N_MEMORY outside of the core MM.
-> > > It is quite confusing IMHO.
-> > > .
-> > But it has already like this. Just git grep N_MEMORY.
->
-> I might be wrong but I suspect a closer review would reveal that the use
-> will be inconsistent or dubious so following the existing users is not
-> the best approach.
->
-> > > > Furthermore, changing the definition of online may
-> > > > break something in the scheduler, e.g. in task_numa_migrate(), where
-> > > > it calls for_each_online_node.
-> > >
-> > > Could you be more specific please? Why should numa balancing consider
-> > > nodes without any memory?
-> > >
-> > As my understanding, the destination cpu can be on a memory less node.
-> > BTW, there are several functions in the scheduler facing the same
-> > scenario, task_numa_migrate() is an example.
->
-> Even if the destination node is memoryless then any migration would fail
-> because there is no memory. Anyway I still do not see how using online
-> node would break anything.
->
-Suppose we have nodes A, B,C, where C is memory less but has little
-distance to B, comparing with the one from A to B. Then if a task is
-running on A, but prefer to run on B due to memory footprint.
-task_numa_migrate() allows us to migrate the task to node C. Changing
-for_each_online_node will break this.
+The linux-next commit f41a586ddc2d ("z3fold: add inter-page compaction")
+introduced a few new compilation warnings.
 
-Regards,
-  Pingfan
+mm/z3fold.c: In function 'compact_single_buddy':
+mm/z3fold.c:781:16: warning: variable 'newpage' set but not used
+[-Wunused-but-set-variable]
+mm/z3fold.c:752:13: warning: variable 'bud' set but not used
+[-Wunused-but-set-variable]
 
-> > > > By keeping the node owning cpu as online, Michal's patch can avoid
-> > > > such corner case and keep things easy. Furthermore, if needed, the
-> > > > other patch can use for_each_node_state(nid, N_MEMORY) to replace
-> > > > for_each_online_node is some space.
-> > >
-> > > Ideally no code outside of the core MM should care about what kind of
-> > > memory does the node really own. The external code should only care
-> > > whether the node is online and thus usable or offline and of no
-> > > interest.
-> >
-> > Yes, but maybe it will pay great effort on it.
->
-> Even if that is the case it would be preferable because the current
-> situation is just not sustainable wrt maintenance cost. It is just too
-> simple to break the existing logic as this particular report outlines.
-> --
-> Michal Hocko
-> SUSE Labs
+It does not seem those variables are actually used, so just remove them.
+
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/z3fold.c | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index 2bc3dbde6255..67c29101ffc5 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -749,7 +749,6 @@ static struct z3fold_header *compact_single_buddy(struct z3fold_header *zhdr)
+ 	struct z3fold_pool *pool = zhdr_to_pool(zhdr);
+ 	void *p = zhdr;
+ 	unsigned long old_handle = 0;
+-	enum buddy bud;
+ 	size_t sz = 0;
+ 	struct z3fold_header *new_zhdr = NULL;
+ 	int first_idx = __idx(zhdr, FIRST);
+@@ -761,24 +760,20 @@ static struct z3fold_header *compact_single_buddy(struct z3fold_header *zhdr)
+ 	 * the page lock is already taken
+ 	 */
+ 	if (zhdr->first_chunks && zhdr->slots->slot[first_idx]) {
+-		bud = FIRST;
+ 		p += ZHDR_SIZE_ALIGNED;
+ 		sz = zhdr->first_chunks << CHUNK_SHIFT;
+ 		old_handle = (unsigned long)&zhdr->slots->slot[first_idx];
+ 	} else if (zhdr->middle_chunks && zhdr->slots->slot[middle_idx]) {
+-		bud = MIDDLE;
+ 		p += zhdr->start_middle << CHUNK_SHIFT;
+ 		sz = zhdr->middle_chunks << CHUNK_SHIFT;
+ 		old_handle = (unsigned long)&zhdr->slots->slot[middle_idx];
+ 	} else if (zhdr->last_chunks && zhdr->slots->slot[last_idx]) {
+-		bud = LAST;
+ 		p += PAGE_SIZE - (zhdr->last_chunks << CHUNK_SHIFT);
+ 		sz = zhdr->last_chunks << CHUNK_SHIFT;
+ 		old_handle = (unsigned long)&zhdr->slots->slot[last_idx];
+ 	}
+ 
+ 	if (sz > 0) {
+-		struct page *newpage;
+ 		enum buddy new_bud = HEADLESS;
+ 		short chunks = size_to_chunks(sz);
+ 		void *q;
+@@ -787,7 +782,6 @@ static struct z3fold_header *compact_single_buddy(struct z3fold_header *zhdr)
+ 		if (!new_zhdr)
+ 			return NULL;
+ 
+-		newpage = virt_to_page(new_zhdr);
+ 		if (WARN_ON(new_zhdr == zhdr))
+ 			goto out_fail;
+ 
+-- 
+1.8.3.1
 
