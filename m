@@ -2,250 +2,253 @@ Return-Path: <SRS0=007R=T7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D2B4AC28CC0
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 00:00:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E0E1C28CC0
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 00:06:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 962C425972
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 00:00:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A3292261DE
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 00:06:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="YtsLcn5D"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 962C425972
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
+	dkim=pass (2048-bit key) header.d=marvell.com header.i=@marvell.com header.b="YZyNA+5L";
+	dkim=pass (1024-bit key) header.d=marvell.onmicrosoft.com header.i=@marvell.onmicrosoft.com header.b="Z/GWibAX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A3292261DE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=marvell.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 321866B027F; Thu, 30 May 2019 20:00:31 -0400 (EDT)
+	id 3E13C6B027F; Thu, 30 May 2019 20:06:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2D3356B0280; Thu, 30 May 2019 20:00:31 -0400 (EDT)
+	id 39AB86B0280; Thu, 30 May 2019 20:06:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1C1986B0281; Thu, 30 May 2019 20:00:31 -0400 (EDT)
+	id 233C66B0281; Thu, 30 May 2019 20:06:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D84DA6B027F
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 20:00:30 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id s195so3373701pgs.13
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 17:00:30 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DCFA96B027F
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 20:06:44 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 14so3383050pgo.14
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 17:06:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version;
-        bh=mQCPK+vZCIeYpKq0x+6b8ZtHTXL+f2Z6f07HEITCI4c=;
-        b=IIPzFDizZCNkud9gd4S2rs7OT9ulEp6tyZtHxcMFvlzKB9Mgj6nYWk5g1TzohxZwVK
-         j5l6RkNY+M69SV58fOYqOiCKFtIvBS3fQDagOUak2LkbjHpWfRAc3o6SlHRYtG3BI9UX
-         kBS3LboONPEPhtOAvJSk+dEjsQcWg8veK/elXsDcsDLK6+XPkjkFO5QvfOsBVDwQQS+V
-         Ka6tMdP9UXDHjycYp/0/r58IOgQDBXL06DvRpUHGWImuUzL1aZe1N4/dHIiYLHNTUvCu
-         HmRdVQr7TFNqTlzH/l25T80gZ1ZTbOVLpCu0xJWTrKopJmLkQy2hyFYRH9GBnSAnl8nm
-         AFYg==
-X-Gm-Message-State: APjAAAVT9Ka7pAP3SgAz24FdsTqN9e734wmgk4sQGfSLwi3KbE4LRtf6
-	9uncH/dEL96VikwwvMKDC6ppmO9gp7yxv9PpPyBYlhANKmIG4POcCHgPzZXVcb/sCnc482vY3HC
-	ILD8VffdpzZUp7ULeOyLX4cW6/Sp0QVaPGlLN2Lxwk1wdd0QxoIWDrNRHfcx2ZNgZvQ==
-X-Received: by 2002:a17:902:9a9:: with SMTP id 38mr6393855pln.10.1559260830361;
-        Thu, 30 May 2019 17:00:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyfl7f5BkTGGKFSoL3E1PhTthhiMUtX+vnO31wNlRovIzsoOP0tBhCYF0TP4IVqQ9+C8iCL
-X-Received: by 2002:a17:902:9a9:: with SMTP id 38mr6393741pln.10.1559260829074;
-        Thu, 30 May 2019 17:00:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559260829; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:mime-version;
+        bh=d7nxq1uSw40pP14jbOcFOYWZTOInzJ9O+Oscz7fFsrc=;
+        b=KejOdTsH7TyN3Tz82LcGeIQQiZOgovsDp6kbWKiZLGrfbSAT3FCZwpfqV0iWrbcaiw
+         2K4jRoNsHfzFCv5m0dyOx4eOJdB+cRXy/ceFtDG7RAPuPKTqxEterVXQhWWpjCxp9Agv
+         Dla+Zw/FdvLySb8/jQorYgj+8klWLKVpTmLnGgclQYtdZFL/0d2F1sSFfCpe/JMEJKJc
+         9dnw3wUOqKDgssJZdWKJ4WFRVZKL25/E5Wn66ZeccM0U6h0Bemc6WLo0Gh0vRiebbu5x
+         gblagB2cDhv6jxqhRul0JrnKBU6RMwvK1W4yyQ22w8d2AvcUfEmx9XJBc/Q424pAK+O7
+         e2RA==
+X-Gm-Message-State: APjAAAUSXCwtgJS8Yeqr9bkY6IfH9ScUcYP/FpmMa0vYqSO/KDGzL12i
+	gMuWvwLxGRUqVLFnFD77QO2Es5c5rusG8R0O8tBxAD6cFSrn0gZzmkXA05ijC49U33Gwjy8ftJO
+	hpNBjUd9PLArpp+AhhYIdeFfVJJTIdoM76aehMCWs9RYi+4ngjDcWlC3Vr9sid+lljQ==
+X-Received: by 2002:a17:90a:2561:: with SMTP id j88mr5955005pje.121.1559261204546;
+        Thu, 30 May 2019 17:06:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqydG44B7Wka+rvlzXaA2DXP7WP5rlONpU/qN+DqYlTpymECCItAMBsYkGtAgT2Bk5UodCgu
+X-Received: by 2002:a17:90a:2561:: with SMTP id j88mr5954948pje.121.1559261203658;
+        Thu, 30 May 2019 17:06:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559261203; cv=none;
         d=google.com; s=arc-20160816;
-        b=UvomAyqm8vxmAqBiSP8h/DRJUQ9BTQbu6jdJer05b4BshPUPInopQNYeNfdWAcVbWZ
-         MYCaEY15vH6qhUmAt93ePkLS1jqlR0ua1nA0HEDUS/jtSblB95yFyFUcfktgqj8+uXSc
-         O72On9U/aWaRCNT14a0QP2VItiwFiap2us9bC3Z+vbjWlbm5YkVQ8R+llQqq02eyhDns
-         NsdEWODeKt2LrmZWtjM8h6WCQE7Qd0p6+yKYma4p7FkDYZRlWcsM+q/amcuHg5dlVimL
-         zgADyRMwvBWBB+4Ucoa50UGb2KIfIxFiiB75C+iHCkuFhZiIHXREQjFZdfgneJXrbEKG
-         G8xw==
+        b=At/SjGiqwPDX+t11rUmGDCLqwar7910PD65MoJ+1RjqszHHz9qWaeXeQlYbf3bGRmH
+         B2BgNB0Z9J21kRCSq95fWbRkfyS3PuO9bOPAfyimJn1cFNqvwXrpYxZWjilDKJDFYPyp
+         ynDaX2a+7u9kVDb+Aev1kDm77AfLykL8XrY4AY+z75+iuGFAcJxhsLF6p5OV7jVRIQts
+         T6bOrk2ioSmXDtelaiA04Dll+t439GyT8O7PgY9UAMOCa/6O7kiOS4ehZUgjZZLiSYy6
+         IWJKj/n3xwYWKcCSHMKmkTngge/atJFw5A50fcAqPiAIMX4T1L7/zYjPV2eW5uvsEA2v
+         0o3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
-         :date:dkim-signature;
-        bh=mQCPK+vZCIeYpKq0x+6b8ZtHTXL+f2Z6f07HEITCI4c=;
-        b=vk24+0bCVLATyVOOxeXvG7jWR2TBJMUzxZjoDJI4ofHSpOaHfZKKjfHthPN7bVwfFx
-         qU9WyWeeNlr5iUexjMlOTcFlAOHMRYwBivb583Crl66+/PplzVc398kM8u1OHx3YpUwt
-         /yWVvjFIc8jjd50dqpHdhzsUWhrFf8Nzicnor/4U3H6u+XkAF3aiIpcAoH7YvKjPchh2
-         EA4kgZh+IFI+GMbqDTyynDXoTLnPEATZ+XhiF+qJVLjGFpl38chimSDoSCnnPVWNCKPQ
-         E4c5VIILGr8006AI93kx1D860Ry/5UcT+hnevPszSyfQ8sl4224vkz1AIqqC3TB7S53N
-         2+TA==
+        h=mime-version:content-language:accept-language:in-reply-to
+         :references:message-id:date:thread-index:thread-topic:subject:cc:to
+         :from:dkim-signature:dkim-signature;
+        bh=d7nxq1uSw40pP14jbOcFOYWZTOInzJ9O+Oscz7fFsrc=;
+        b=cbxyrpQeDSv8WRPhbKhH9JqmMccc9biDZVWfr5XjsrTrgkG9zwaXtYqq3wTr9y3+gW
+         XCRmsBEL1lqZkSJEqq6iV9gNgrfHKX72ZBb7A6G9cziGFNfFjTasn4+zUBUd2wCOwpQX
+         BZy1KZrsNOYU4ltLxX6EU273KlJMP5qKZKz5e2KKHjUE1+Ry5hCc2/ybhSiFYcKWLxMi
+         2kJiTU5Jg4P4Y3jwXIKuttvPYNPnBaJw1z9p0Y0U0HoAx0/fcqh116ZbGpZyCCubuO4h
+         qA0Ir7MOLLs3c9fJS69p/iu4k2pinaaZfersXL9Uh0BJ1dQdS28eNa7Yp6t5QA6lxUF4
+         EOFw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=YtsLcn5D;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id t25si4442349pfe.240.2019.05.30.17.00.28
+       dkim=pass header.i=@marvell.com header.s=pfpt0818 header.b=YZyNA+5L;
+       dkim=pass header.i=@marvell.onmicrosoft.com header.s=selector2-marvell-onmicrosoft-com header.b="Z/GWibAX";
+       spf=pass (google.com: domain of prvs=30532b5d15=ynorov@marvell.com designates 67.231.148.174 as permitted sender) smtp.mailfrom="prvs=30532b5d15=ynorov@marvell.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=marvell.com
+Received: from mx0b-0016f401.pphosted.com (mx0a-0016f401.pphosted.com. [67.231.148.174])
+        by mx.google.com with ESMTPS id y125si4811756pfb.115.2019.05.30.17.06.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 30 May 2019 17:00:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) client-ip=203.11.71.1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 May 2019 17:06:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=30532b5d15=ynorov@marvell.com designates 67.231.148.174 as permitted sender) client-ip=67.231.148.174;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=YtsLcn5D;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 45FPj46hxjz9s4V;
-	Fri, 31 May 2019 10:00:24 +1000 (AEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
-	s=201702; t=1559260826;
-	bh=+W/kPMCnPX3G040qq9SfOqrYhRy9N0s6PHAHIKwgkdc=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=YtsLcn5DWIULUp2E0BKQF/9uB4UdOXhUp98ThYaRABDRVgE/lMxFhXMCqc62sIGWi
-	 OmfpUUg0Dv711wmBfAnhpTiCnARVtksV3Z0ZGDsW7zS6fYHnt4pXf0TrlZz/XLLoXj
-	 G/AYgGidtqrSxf0gKwlB2l8VJyHKIZx3SQ/CEoDADx2JWEhxsTiOXUjOXW2dfcGNB0
-	 JQElH89Ud/SUCesWvBeVyUrjC53BgeGljm/B980H8VbAX3wQj5oGMeLlCYXDeW4Re2
-	 9WrmcmTqJDlt9y4P6k7e1+ZVoMcfjsRhJPwVprvt80qyCm2Cfyy7iUCZ1CL/xl3PLT
-	 Z6ukqM+zMdf+Q==
-Date: Fri, 31 May 2019 10:00:04 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, Greg Kroah-Hartman
- <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>,
- Linux Memory Management List <linux-mm@kvack.org>, "Sasha Levin
- (Microsoft)" <sashal@kernel.org>, Yoshinori Sato
- <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
- linux-sh@vger.kernel.org
-Subject: Re: [linux-stable-rc:linux-5.0.y 1434/2350]
- arch/sh/kernel/cpu/sh2/clock-sh7619.o:undefined reference to
- `followparent_recalc'
-Message-ID: <20190531100004.0b1f4983@canb.auug.org.au>
-In-Reply-To: <92c0e331-9910-82e9-86de-67f593ef4e5d@infradead.org>
-References: <201905301509.9Hu4aGF1%lkp@intel.com>
-	<92c0e331-9910-82e9-86de-67f593ef4e5d@infradead.org>
+       dkim=pass header.i=@marvell.com header.s=pfpt0818 header.b=YZyNA+5L;
+       dkim=pass header.i=@marvell.onmicrosoft.com header.s=selector2-marvell-onmicrosoft-com header.b="Z/GWibAX";
+       spf=pass (google.com: domain of prvs=30532b5d15=ynorov@marvell.com designates 67.231.148.174 as permitted sender) smtp.mailfrom="prvs=30532b5d15=ynorov@marvell.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=marvell.com
+Received: from pps.filterd (m0045849.ppops.net [127.0.0.1])
+	by mx0a-0016f401.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x4UNKoJB013270;
+	Thu, 30 May 2019 16:20:53 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=marvell.com; h=from : to : cc :
+ subject : date : message-id : references : in-reply-to : content-type :
+ mime-version; s=pfpt0818; bh=d7nxq1uSw40pP14jbOcFOYWZTOInzJ9O+Oscz7fFsrc=;
+ b=YZyNA+5Lch6NzdWnjDTDuvZlfduemPIhqe7Qc+umwmhKldIDxfRSpH7oBTJdRewldPAX
+ wC6KH8pAHj6PZWDU+wTFDQGknXrLb9TETFGQXIF3PWmssOX4Q34hrHXt97UoeWHdMtbV
+ dnfhjkV00DEP7jlew2a7M7ZVqma1TZfbakMk8m/kEyAymJBVXAhKabtYo+vfh/kAAqoo
+ wcGCQDXDkeXmxVn4SV7zFR12LQ1cTMLD3rYquzaf4t3choejU5BmE1R/+uL9u3ygfnx0
+ S5IMxYu1Z0ZaeyJoWOKoUIjwLJwcG5v9mK5vDHNPqVKffaFs+7XEBrKH/Q1ivhvk9ipe VA== 
+Received: from sc-exch02.marvell.com ([199.233.58.182])
+	by mx0a-0016f401.pphosted.com with ESMTP id 2stba9bm7a-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Thu, 30 May 2019 16:20:53 -0700
+Received: from SC-EXCH03.marvell.com (10.93.176.83) by SC-EXCH02.marvell.com
+ (10.93.176.82) with Microsoft SMTP Server (TLS) id 15.0.1367.3; Thu, 30 May
+ 2019 16:20:52 -0700
+Received: from NAM04-SN1-obe.outbound.protection.outlook.com (104.47.44.56) by
+ SC-EXCH03.marvell.com (10.93.176.83) with Microsoft SMTP Server (TLS) id
+ 15.0.1367.3 via Frontend Transport; Thu, 30 May 2019 16:20:52 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=marvell.onmicrosoft.com; s=selector2-marvell-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=d7nxq1uSw40pP14jbOcFOYWZTOInzJ9O+Oscz7fFsrc=;
+ b=Z/GWibAXTFCmueaxc6Ft2rxKRxU63GCOvFrjK01/AV/jfO6+UIycJJ8Ve3u1az77EPKFypCHYDMxbNsU5U7PpYbzVhIwjtdZa+P64n7U3+JNumwIbNixBlLg3/GDgDrgf6FJrrMUqCsBindg0PC379D2UFIvlnuikz90yb9jLps=
+Received: from BN6PR1801MB2065.namprd18.prod.outlook.com (10.161.157.12) by
+ BN6PR1801MB1985.namprd18.prod.outlook.com (10.161.154.32) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1922.20; Thu, 30 May 2019 23:20:45 +0000
+Received: from BN6PR1801MB2065.namprd18.prod.outlook.com
+ ([fe80::dcb8:35bc:5639:1942]) by BN6PR1801MB2065.namprd18.prod.outlook.com
+ ([fe80::dcb8:35bc:5639:1942%5]) with mapi id 15.20.1922.021; Thu, 30 May 2019
+ 23:20:45 +0000
+From: Yuri Norov <ynorov@marvell.com>
+To: Qian Cai <cai@lca.pw>
+CC: Andrey Konovalov <andreyknvl@google.com>,
+        "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>,
+        Andy Shevchenko
+	<andriy.shevchenko@linux.intel.com>,
+        Andrew Morton
+	<akpm@linux-foundation.org>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>
+Subject: Re: [EXT] "lib: rework bitmap_parse()" triggers invalid access errors
+Thread-Topic: [EXT] "lib: rework bitmap_parse()" triggers invalid access
+ errors
+Thread-Index: AQHVFxoODR4JTfLgj0qm7X2ZHF02n6aETV3p
+Date: Thu, 30 May 2019 23:20:45 +0000
+Message-ID: <BN6PR1801MB20652E92AA9F04B2490BD4F3CB180@BN6PR1801MB2065.namprd18.prod.outlook.com>
+References: <1559242868.6132.35.camel@lca.pw>
+In-Reply-To: <1559242868.6132.35.camel@lca.pw>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-originating-ip: [192.31.105.237]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: e859e793-7414-4802-1cd7-08d6e5557167
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BN6PR1801MB1985;
+x-ms-traffictypediagnostic: BN6PR1801MB1985:
+x-microsoft-antispam-prvs: <BN6PR1801MB1985230AC0C81ED6E42EB114CB180@BN6PR1801MB1985.namprd18.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:605;
+x-forefront-prvs: 00531FAC2C
+x-forefront-antispam-report: SFV:NSPM;SFS:(10009020)(39860400002)(346002)(136003)(396003)(366004)(376002)(199004)(189003)(486006)(478600001)(4326008)(66066001)(476003)(11346002)(14454004)(53546011)(102836004)(53936002)(6246003)(99286004)(19627405001)(4744005)(3846002)(71190400001)(6506007)(52536014)(6116002)(33656002)(86362001)(71200400001)(5660300002)(68736007)(64756008)(66946007)(8676002)(76176011)(7736002)(9686003)(316002)(55016002)(74316002)(8936002)(66446008)(54896002)(26005)(6436002)(25786009)(81156014)(2906002)(76116006)(73956011)(6606003)(81166006)(229853002)(7696005)(256004)(66556008)(66476007)(91956017)(6916009)(446003)(54906003)(186003)(14444005);DIR:OUT;SFP:1101;SCL:1;SRVR:BN6PR1801MB1985;H:BN6PR1801MB2065.namprd18.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: marvell.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: iIwHqKYVnMt5xa91OOsr74Bp9tP/SphxRoXRDy+jTD2yys5zFe5dQRijQRTyFJyx68g+wI8Lk9Yf90UUXKt4/2/bxSVBhb/lFX9DxWytGvW0GrCqnVGfeMRSJfT9N1T40vP2J8UnRC0fi6rvFknDWfVX7TXG5jh208C5OzYsMA/p0ShIkvD7Ii21hOM3/wB2pDoEmQ8bqCE70RpMxCwPAxB+oK+uaDbkFJ057mdrZif30ry/dhgKMUbeRrlQcm5hTy0XG9B8oqXTjQ+guywZDcfk2XGV27UIsC7V/10oxQn539Faovtg9Zuy3vmOPbrbPgKILh2V3BT4gaUN1g75jEAkUpc3sIxwUmgC55syRFm2W1kGJRTHQe4XHO0MXfmkLUGZEZh+dd3AwP7zLftPp2lGE72QTvcmzdP4rBfTX0k=
+Content-Type: multipart/alternative;
+	boundary="_000_BN6PR1801MB20652E92AA9F04B2490BD4F3CB180BN6PR1801MB2065_"
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_//Urd_40J.ripfqILoQhBQM6"; protocol="application/pgp-signature"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-MS-Exchange-CrossTenant-Network-Message-Id: e859e793-7414-4802-1cd7-08d6e5557167
+X-MS-Exchange-CrossTenant-originalarrivaltime: 30 May 2019 23:20:45.5131
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 70e1fb47-1155-421d-87fc-2e58f638b6e0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: ynorov@marvell.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BN6PR1801MB1985
+X-OriginatorOrg: marvell.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-05-30_14:,,
+ signatures=0
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000054, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Sig_//Urd_40J.ripfqILoQhBQM6
-Content-Type: text/plain; charset=US-ASCII
+--_000_BN6PR1801MB20652E92AA9F04B2490BD4F3CB180BN6PR1801MB2065_
+Content-Type: text/plain; charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
 
-Hi all,
+From: Qian Cai <cai@lca.pw>
+Sent: Thursday, May 30, 2019 11:01 PM
+To: Yuri Norov
+Cc: Andrey Konovalov; linux-kernel@vger.kernel.org; Andy Shevchenko; Andrew=
+ Morton; linux-mm@kvack.org
+Subject: "lib: rework bitmap_parse()" triggers invalid access errors
 
-On Thu, 30 May 2019 07:43:10 -0700 Randy Dunlap <rdunlap@infradead.org> wro=
-te:
+> The linux-next commit "lib: rework bitmap_parse" triggers errors below du=
+ring
+> boot on both arm64 and powerpc with KASAN_SW_TAGS or SLUB_DEBUG enabled.
+
+> Reverted the commit and its dependency (lib: opencode in_str()) fixed the=
+ issue.
+
+Thanks, I'll take a look
+
+[...]
+
+
+--_000_BN6PR1801MB20652E92AA9F04B2490BD4F3CB180BN6PR1801MB2065_
+Content-Type: text/html; charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+
+<html>
+<head>
+<meta http-equiv=3D"Content-Type" content=3D"text/html; charset=3Diso-8859-=
+1">
+<style type=3D"text/css" style=3D"display:none;"><!-- P {margin-top:0;margi=
+n-bottom:0;} --></style>
+</head>
+<body dir=3D"ltr">
+<div id=3D"divtagdefaultwrapper" style=3D"font-size: 12pt; color: rgb(0, 0,=
+ 0); font-family: Calibri, Helvetica, sans-serif, &quot;EmojiFont&quot;, &q=
+uot;Apple Color Emoji&quot;, &quot;Segoe UI Emoji&quot;, NotoColorEmoji, &q=
+uot;Segoe UI Symbol&quot;, &quot;Android Emoji&quot;, EmojiSymbols;" dir=3D=
+"ltr">
+<font style=3D"font-size:11pt" face=3D"Calibri, sans-serif" color=3D"#00000=
+0"><b>From:</b> Qian Cai &lt;cai@lca.pw&gt;</font><br>
+<div style=3D"color: rgb(0, 0, 0);">
+<div class=3D"PlainText"><font style=3D"font-size:11pt" face=3D"Calibri, sa=
+ns-serif" color=3D"#000000"><b>Sent:</b> Thursday, May 30, 2019 11:01 PM<br=
 >
-> On 5/30/19 12:31 AM, kbuild test robot wrote:
-> > Hi Randy,
-> >=20
-> > It's probably a bug fix that unveils the link errors.
-> >=20
-> > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-st=
-able-rc.git linux-5.0.y
-> > head:   8c963c3dcbdec7b2a1fd90044f23bc8124848381
-> > commit: b174065805b55300d9d4e6ae6865c7b0838cc0f4 [1434/2350] sh: fix mu=
-ltiple function definition build errors
-> > config: sh-allmodconfig (attached as .config)
-> > compiler: sh4-linux-gcc (GCC) 7.4.0
-> > reproduce:
-> >         wget https://raw.githubusercontent.com/intel/lkp-tests/master/s=
-bin/make.cross -O ~/bin/make.cross
-> >         chmod +x ~/bin/make.cross
-> >         git checkout b174065805b55300d9d4e6ae6865c7b0838cc0f4
-> >         # save the attached .config to linux build tree
-> >         GCC_VERSION=3D7.4.0 make.cross ARCH=3Dsh=20
-> >=20
-> > If you fix the issue, kindly add following tag
-> > Reported-by: kbuild test robot <lkp@intel.com>
-> >=20
-> > All errors (new ones prefixed by >>):
-> >  =20
-> >>> arch/sh/kernel/cpu/sh2/clock-sh7619.o:(.data+0x1c): undefined referen=
-ce to `followparent_recalc' =20
-> >=20
-> > ---
-> > 0-DAY kernel test infrastructure                Open Source Technology =
-Center
-> > https://lists.01.org/pipermail/kbuild-all                   Intel Corpo=
-ration =20
->=20
->=20
-> The maintainer posted a patch for this but AFAIK it is not merged anywher=
-e.
->=20
-> https://marc.info/?l=3Dlinux-sh&m=3D155585522728632&w=3D2
+<b>To:</b> Yuri Norov<br>
+<b>Cc:</b> Andrey Konovalov; linux-kernel@vger.kernel.org; Andy Shevchenko;=
+ Andrew Morton; linux-mm@kvack.org<br>
+<b>Subject:</b> &quot;lib: rework bitmap_parse()&quot; triggers invalid acc=
+ess errors</font></div>
+<div class=3D"PlainText"><br>
+&gt; The linux-next commit &quot;lib: rework bitmap_parse&quot; triggers er=
+rors below during<br>
+&gt; boot on both arm64 and powerpc with KASAN_SW_TAGS or SLUB_DEBUG enable=
+d.<br>
+<br>
+&gt; Reverted the commit and its dependency (lib: opencode in_str()) fixed =
+the issue.<br>
+<span><br>
+</span></div>
+<div class=3D"PlainText"><span>Thanks, I'll take a look</span><br>
+</div>
+<div class=3D"PlainText"><br>
+</div>
+<div class=3D"PlainText">[...]<br>
+<br>
+</div>
+<div class=3D"BodyFragment"><font size=3D"2"><span style=3D"font-size:11pt;=
+"></span></font></div>
+</div>
+</div>
+</body>
+</html>
 
-Unfortunately, the sh tree (git://git.libc.org/linux-sh#for-next) has
-been removed from linux-next due to lack of any updates in over a year,
-but I will add that patch (see below) to linux-next today, but someone
-will need to make sure it gets to Linus at some point (preferably
-sooner rather than later).  (I can send it if someone associated with
-the sh development wants/asks me to ...)
-
-From: Yoshinori Sato <ysato@users.sourceforge.jp>
-Date: Sun, 21 Apr 2019 14:00:16 +0000
-Subject: [PATCH] sh: Fix allyesconfig output
-
-Conflict JCore-SoC and SolutionEngine 7619.
-
-Reported-by: kbuild test robot <lkp@intel.com>
-Acked-by: Randy Dunlap <rdunlap@infradead.org> # build-tested
-Signed-off-by: Yoshinori Sato <ysato@users.sourceforge.jp>
----
- arch/sh/boards/Kconfig | 14 +++-----------
- 1 file changed, 3 insertions(+), 11 deletions(-)
-
-diff --git a/arch/sh/boards/Kconfig b/arch/sh/boards/Kconfig
-index b9a37057b77a..cee24c308337 100644
---- a/arch/sh/boards/Kconfig
-+++ b/arch/sh/boards/Kconfig
-@@ -8,27 +8,19 @@ config SH_ALPHA_BOARD
- 	bool
-=20
- config SH_DEVICE_TREE
--	bool "Board Described by Device Tree"
-+	bool
- 	select OF
- 	select OF_EARLY_FLATTREE
- 	select TIMER_OF
- 	select COMMON_CLK
- 	select GENERIC_CALIBRATE_DELAY
--	help
--	  Select Board Described by Device Tree to build a kernel that
--	  does not hard-code any board-specific knowledge but instead uses
--	  a device tree blob provided by the boot-loader. You must enable
--	  drivers for any hardware you want to use separately. At this
--	  time, only boards based on the open-hardware J-Core processors
--	  have sufficient driver coverage to use this option; do not
--	  select it if you are using original SuperH hardware.
-=20
- config SH_JCORE_SOC
- 	bool "J-Core SoC"
--	depends on SH_DEVICE_TREE && (CPU_SH2 || CPU_J2)
-+	select SH_DEVICE_TREE
- 	select CLKSRC_JCORE_PIT
- 	select JCORE_AIC
--	default y if CPU_J2
-+	depends on CPU_J2
- 	help
- 	  Select this option to include drivers core components of the
- 	  J-Core SoC, including interrupt controllers and timers.
---=20
-2.11.0
-
---=20
-Cheers,
-Stephen Rothwell
-
---Sig_//Urd_40J.ripfqILoQhBQM6
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAlzwboQACgkQAVBC80lX
-0GySOQf/T+Goi4No9tDwJYA952YXZzB0jB1/cwe3Z6PZ8UQWoeI7iEaA7kuj1+8L
-z6Eo0aF9KAfzCxJYVByINBUxQ+LS2847bezjsm+c2/CTgW180H/lMRad3cjaD3JF
-xsNO5+utt+YM54xXPAUOySND/XtRnjzn2LJe+zxh9087xVFmamWFrKyqRAPRhjg0
-9SnSa2DEulCOfi4fv8lWXaRJg81HowDqczHZ7N2wtMGuW3ELxNchALFcwdWt+rOl
-p5YYJO/HsCOmj5lspNcEl8sUMRzcL8qRwwRXo7rqzWfn2ifbj3RcAQJvFhIy/hCy
-SWhbdV5NnLxFroLheN0colbcEWCCMQ==
-=Zrm5
------END PGP SIGNATURE-----
-
---Sig_//Urd_40J.ripfqILoQhBQM6--
+--_000_BN6PR1801MB20652E92AA9F04B2490BD4F3CB180BN6PR1801MB2065_--
 
