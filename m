@@ -4,106 +4,104 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B249C28CC2
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 05:20:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 181D7C072B1
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 05:21:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1DCBE26084
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 05:20:15 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CA2DE2606C
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 05:21:37 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ck0fdUx3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DCBE26084
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nOfp6xAb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA2DE2606C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 88D5E6B027A; Thu, 30 May 2019 01:20:15 -0400 (EDT)
+	id 4BBA76B027B; Thu, 30 May 2019 01:21:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 83F1E6B027B; Thu, 30 May 2019 01:20:15 -0400 (EDT)
+	id 46CA96B027D; Thu, 30 May 2019 01:21:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 72DC16B027C; Thu, 30 May 2019 01:20:15 -0400 (EDT)
+	id 335296B027E; Thu, 30 May 2019 01:21:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 510CB6B027A
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 01:20:15 -0400 (EDT)
-Received: by mail-vk1-f197.google.com with SMTP id f4so1301533vkg.4
-        for <linux-mm@kvack.org>; Wed, 29 May 2019 22:20:15 -0700 (PDT)
+Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 125EE6B027B
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 01:21:37 -0400 (EDT)
+Received: by mail-ua1-f70.google.com with SMTP id a23so1137336uas.17
+        for <linux-mm@kvack.org>; Wed, 29 May 2019 22:21:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=Oa2XmYFYaHQCqkjGn+uHZ6oMylXcAxewRNyQ+T2pvSA=;
-        b=olUQBxrxPrV0wmrkg1Oj0kuSkdm7BvwjWbEV5rizOarhr+HweEZV1o5T0VWU+xe2Va
-         OXcsNfPSqpEL+JoW/EkInPZHbZ/83tL7GzeJk22KXn3yG/cZ8fAuC0SkWWKXDNoOCCdq
-         iN6wLwphM/sc4I9GSuw0Emt39+yK/o/WMS//q7JaaMxEP60gLO09voQqWvaYMlh6zPEh
-         sKlqVOtVS02XrVN5mbjGTypOWwzvkirarykb+rteaBM2CfzjKT6org57VVD8zqohh4zD
-         GI0WOyKPS8SctYUsd5lmzUQdo/HKjqcjQ/etShmLnaKsgYzPV/tsYrir4AMLwHmBr7B4
-         zKhw==
-X-Gm-Message-State: APjAAAWoMMeFhIiJlORhQpT9WMPY75W5as6VnJcYU6De1QhM5NyZMgy+
-	6pJRpQ/xdItNVfgagTl5Y8cSPKqsJBN9ret3iySwlYK67KFrOiyvZM0n2plcZKu+4PGOhmbNABu
-	qnt9nW2Wh+7fAMe9yE62Biuz5Ffz6mekd387sloNJpW9K3/+ueq7enW1xTHKoNtl5oA==
-X-Received: by 2002:a1f:8251:: with SMTP id e78mr640211vkd.83.1559193614966;
-        Wed, 29 May 2019 22:20:14 -0700 (PDT)
-X-Received: by 2002:a1f:8251:: with SMTP id e78mr640196vkd.83.1559193614042;
-        Wed, 29 May 2019 22:20:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559193614; cv=none;
+        bh=N8Kqu9XhDk4eyHxJOCvnDVEeURLn9nIM7WXDv7rJ8RQ=;
+        b=iHIbX/zAPqnnsIl9yqy4XPrvNN2zh1td0ysof4a0A+BCcqpKdOuN0N/o2ryj8WnH4U
+         PuxGRnuxqAiNpHKpIBZ5rU/4WU1UQcpn5P+3sKT8cvc58e9iO4CSjUq5G8e9jeqop6p8
+         JeVCBIR9TGTopx/iRoP0EchR/bVkQreSJrzApy8rvnpaNKSJ4lCNa7nw8e9GMbGBm2CD
+         UILjgodzNxAvbgpSvSsMOGAXRkh/6zvlZEDcjhxbX6TU2FYktf1pmhwi6ttr8Sm/Dp/u
+         vKKOTcJ/JjOH6xm/5pdb4bL+ChEpc5Txly/WRlmOS4djB4y+6ZTJXQDmeR8fs8L3R9HP
+         x7oQ==
+X-Gm-Message-State: APjAAAWnoH8Af2t9Q3VY+gbf2iRjo59y80eTSRqgf3dbI3GedIRbhJeZ
+	EMdENBpTxiuNpTjNxqdwlsCffcHQKJUfR9psdo8yiXp1kakHXZ0PvuJlPOhnuSb1Hp+Lav89Zj0
+	wnfggpZzvzdLOXL/M+/uZYkzPdlby2Zg/3GGvkgkz30uhDYjjvjEbV1l5WWBTNokSiQ==
+X-Received: by 2002:a9f:3241:: with SMTP id y1mr886841uad.107.1559193696847;
+        Wed, 29 May 2019 22:21:36 -0700 (PDT)
+X-Received: by 2002:a9f:3241:: with SMTP id y1mr886831uad.107.1559193696375;
+        Wed, 29 May 2019 22:21:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559193696; cv=none;
         d=google.com; s=arc-20160816;
-        b=IHLu1hqu9Xa7g2EGBb8ofLk0B1tNPNQkrdQrQiWv4UDEt8KLLjVUrbQ7eE7+QAMGws
-         eBJX5PNJmhXITx2lJ+8IiD7XwcuP07BCQXYSRiPbj9Hi2Eli5w7MIeacMZJ2qpWnN0Kd
-         CT31YA6r9N5weIwMwjTZIdkzjzIXEBKEvzwXj3qI2kHpK2ad4Ch0FYrRV0Ex4B/vMDUW
-         jfmbh10bPhBFFaf51wETABM2PqOHnH3uchU5Zs/5jwaa0eXS73Gn3EgucaIZG1lImOpb
-         o6wMhLvz146sEbLm1tDTZNabCr59WkjO+LQSDk2nCQ9PgoJOWK/DJq0u2N7T7v9CH+bZ
-         +M8w==
+        b=hxUY1t5+CpCxPZmRfhVEeVZwBP3HTGrMVMOV5fUm5laKtr5xKDdvKFWnR9PIM9UmmZ
+         INUxV6l8GIKTagGGqQRTl+1z6rNYPsu4mISvmWLNP88qW0VD8SxXYMB80jw3TVWWjj2k
+         Rxltva4xn1d33FCk0oc5CMP8gCP96UDRREqBE/i9p8QMRfbY2KnWbaFw5R3dCIe3WZ+8
+         5jZnisVF5Ix0Kd7CCd0nmaOHxdy9aAwkZLQqDKvZKIpIUHZVgQ8lO0RMNoRfQzDP44R9
+         DCeg+Nk3Ad8eBmiZoiGuFv8zK7L9y+QAHgKirmp7xjsxY6CIeD4rThkIQxVe3USrrb/i
+         QUWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=Oa2XmYFYaHQCqkjGn+uHZ6oMylXcAxewRNyQ+T2pvSA=;
-        b=rjpXIaf463jrJm7qypvHSLvFXh/qyU+6NA9qi0tSqt9sfkqs0XuVpUskLgc7CQOIcX
-         Diu17rltMIVVn2amVxXv4sPqImm3mjrJbZlkx946TUla/70MoA6CjwV65RVHCHzbo0vo
-         7x8iXerW1xjyqPM5+mdrt96yGVt1Mbj3vk3zW7+KIcL0fg6/zDue7kKjfifzZgjCfeDL
-         61qSJiEpcWNR39TmwC44UZfM5V29AN8flacAI2AAb9UEJcrr8bGbyUl4Hab4IT6NNo8s
-         9JBPaJvbiWkPHyFkAECQPlb86BLqoeM26D1VNwtNLgf1zqp6VhFkWrVjr/zj74Ybkyka
-         BorQ==
+        bh=N8Kqu9XhDk4eyHxJOCvnDVEeURLn9nIM7WXDv7rJ8RQ=;
+        b=nhvTEvtchy++dbu12ppND/CGSZOsQqD6FPkY2HTRvGq9rzo4YdL76JgodnTHOgXnir
+         TP/0/HUby41Wf/LyrvvsNIwKkyXRHJ+wy3pSUm9BoxyxNkALvDPxkAoVuvLnKlwSmpGn
+         gUv9kxnSLhvh0n/yXrSXe5pGpd5T9T/XE+qOzOwFojvDPrC23I6NvXtSmCK7LfvNVlOY
+         KeM6NQTTGh6x1j3bwKy5Hj02PbTh8HqP1SuHncWf4fX3RAmy6nqRGl4XQ8HLQERfDtHT
+         65qbGmgaFfnRaYhNM0M0r0asshV11GC5RtmrHNuy3xSyYuswjkD/ZNOqwcqfFL/6zhHK
+         JHxg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ck0fdUx3;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nOfp6xAb;
        spf=pass (google.com: domain of dianzhangchen0@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dianzhangchen0@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q11sor789750vsh.42.2019.05.29.22.20.13
+        by mx.google.com with SMTPS id m94sor753939uam.55.2019.05.29.22.21.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 29 May 2019 22:20:14 -0700 (PDT)
+        Wed, 29 May 2019 22:21:36 -0700 (PDT)
 Received-SPF: pass (google.com: domain of dianzhangchen0@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ck0fdUx3;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nOfp6xAb;
        spf=pass (google.com: domain of dianzhangchen0@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dianzhangchen0@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=Oa2XmYFYaHQCqkjGn+uHZ6oMylXcAxewRNyQ+T2pvSA=;
-        b=ck0fdUx3qlekQ6XD3iyUQ6GxahV8SsA1xj2y/dpxn1bg81IYZ6ANB3rcRNTrZUmExc
-         ypDf+MYG5fygkDbeII077c/s/UWa5S2IfP0b1Kbj3V/EJUM/ZCVqp76o6f9Lzf5PcuRx
-         AghFTKbCId16wOFLWE/aM9zt5ptOhAAM7MrdGEhBD5XbAVPY8TEGjsOWJnlEVV0Jxhy9
-         9lK2+rU0p7MquCsirQ9DUTbUiVF8FdYhlPYvJKOWdWrtoxdixrYA4UM5wcKzrCAn4PWP
-         Fvt+KZaGAhx+9YKHV3BPs9aMuyyoVMoLyxXO9Fjkqpg5KYYhVjv1LzoLXqXzFj2tZHIH
-         vfvA==
-X-Google-Smtp-Source: APXvYqzVoxCIcgDU/3WlEJIDK2NaAgiIm8ROgOtrojeJ+OR5OZLgQtxlKNiC0CU7W9CEYTJndJ1xDTtH30r8CdlnVow=
-X-Received: by 2002:a67:2c0f:: with SMTP id s15mr951689vss.48.1559193613809;
- Wed, 29 May 2019 22:20:13 -0700 (PDT)
+        bh=N8Kqu9XhDk4eyHxJOCvnDVEeURLn9nIM7WXDv7rJ8RQ=;
+        b=nOfp6xAb07c7fhTyEPViJQwkSTSfmWU/+klmqnkI9vWOtbvMhwszY6GFh6ufjBdu7g
+         lpAq4QP0/Cufz4WaULPfWsua/GesqDG2HDvXk+NuUgfQhTvzxOdjgBniDIDnyRqY+4fc
+         An+1RHMH7FDXq/dua0p+KM1Wew9m4jHnfDye9QEjShQPodvTTw4FEv0fxvn2El8x5kYE
+         u7wJAhoUmz/cK93kAVTxiCQyxdHucxSw2pHYN8eV3W/n4u9DHZgjW8VbNnVhqIJV20Tq
+         LXlRJ1w0Pc3GwDkob5jfDxszTaaQka77OPeVhsoOcZ8gO8m8HX1jb2INfcKGvedR7Q4R
+         6U9g==
+X-Google-Smtp-Source: APXvYqyBATh4neWGs74AqOJks4aL5K6flzPg8l6Xjw6Lgiu2KpqI9R909KkBWb43GnuU+RKAbdUiztE2zTdgEAImfno=
+X-Received: by 2002:a9f:3241:: with SMTP id y1mr886824uad.107.1559193696177;
+ Wed, 29 May 2019 22:21:36 -0700 (PDT)
 MIME-Version: 1.0
-References: <1559133448-31779-1-git-send-email-dianzhangchen0@gmail.com>
- <20190529162532.GG18589@dhcp22.suse.cz> <CAFbcbMDJB0uNjTa9xwT9npmTdqMJ1Hez3CyeOCjjrLF2W0Wprw@mail.gmail.com>
- <20190529174931.GH18589@dhcp22.suse.cz>
-In-Reply-To: <20190529174931.GH18589@dhcp22.suse.cz>
+References: <1559133448-31779-1-git-send-email-dianzhangchen0@gmail.com> <20190529194852.GA23461@bombadil.infradead.org>
+In-Reply-To: <20190529194852.GA23461@bombadil.infradead.org>
 From: Dianzhang Chen <dianzhangchen0@gmail.com>
-Date: Thu, 30 May 2019 13:20:01 +0800
-Message-ID: <CAFbcbMA6XjZqrgHmG70Vm_a34Rn4tKqoMgQkRBXES2r3+ymYwg@mail.gmail.com>
+Date: Thu, 30 May 2019 13:21:23 +0800
+Message-ID: <CAFbcbMAKOSjZzCumK3iGxBGL1Bjf+Qx==87F8A9xPBy5msj+Dw@mail.gmail.com>
 Subject: Re: [PATCH] mm/slab_common.c: fix possible spectre-v1 in kmalloc_slab()
-To: Michal Hocko <mhocko@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
 Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com, 
 	iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, linux-mm@kvack.org, 
 	LKML <linux-kernel@vger.kernel.org>
@@ -114,53 +112,28 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It is possible that a CPU mis-predicts the conditional branch, and
-speculatively loads size_index[size_index_elem(size)], even if size >192.
-Although this value will subsequently be discarded,
-but it can not drop all the effects of speculative execution,
-such as the presence or absence of data in caches. Such effects may
-form side-channels which can be
-observed to extract secret information.
-
-
-As for "why this particular path a needs special treatment while other
-size branches are ok",
-i think the other size branches need to treatment as well at first place,
-but in code `index = fls(size - 1)` the function `fls` will make the
-index at specific range,
-so it can not use `kmalloc_caches[kmalloc_type(flags)][index]` to load
-arbitury data.
-But, still it may load some date that it shouldn't, if necessary, i
-think can add array_index_nospec as well.
+thanks, i think your suggestion is ok.
+in my previous method is easy to understand for spectre  logic,
+but your suggestion is more sense to use of array_index_nospec.
 
 
 
-On Thu, May 30, 2019 at 1:49 AM Michal Hocko <mhocko@kernel.org> wrote:
+On Thu, May 30, 2019 at 3:48 AM Matthew Wilcox <willy@infradead.org> wrote:
 >
-> On Thu 30-05-19 00:39:53, Dianzhang Chen wrote:
-> > It's come from `192+1`.
+> On Wed, May 29, 2019 at 08:37:28PM +0800, Dianzhang Chen wrote:
+> > The `size` in kmalloc_slab() is indirectly controlled by userspace via syscall: poll(defined in fs/select.c), hence leading to a potential exploitation of the Spectre variant 1 vulnerability.
+> > The `size` can be controlled from: poll -> do_sys_poll -> kmalloc -> __kmalloc -> kmalloc_slab.
 > >
-> >
-> > The more code fragment is:
-> >
-> >
-> > if (size <= 192) {
-> >
-> >     if (!size)
-> >
-> >         return ZERO_SIZE_PTR;
-> >
-> >     size = array_index_nospec(size, 193);
-> >
-> >     index = size_index[size_index_elem(size)];
-> >
-> > }
+> > Fix this by sanitizing `size` before using it to index size_index.
 >
-> OK I see, I could have looked into the code, my bad. But I am still not
-> sure what is the potential exploit scenario and why this particular path
-> a needs special treatment while other size branches are ok. Could you be
-> more specific please?
-> --
-> Michal Hocko
-> SUSE Labs
+> I think it makes more sense to sanitize size in size_index_elem(),
+> don't you?
+>
+>  static inline unsigned int size_index_elem(unsigned int bytes)
+>  {
+> -       return (bytes - 1) / 8;
+> +       return array_index_nospec((bytes - 1) / 8, ARRAY_SIZE(size_index));
+>  }
+>
+> (untested)
 
