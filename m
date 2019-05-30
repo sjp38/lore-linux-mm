@@ -2,305 +2,376 @@ Return-Path: <SRS0=aa49=T6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9840C28CC0
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 16:15:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C787FC28CC2
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 16:19:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 77BA825D83
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 16:15:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 75D1525D91
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 16:19:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="iLQl/tzl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77BA825D83
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Ao3SJVxj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75D1525D91
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0D4BE6B0274; Thu, 30 May 2019 12:15:58 -0400 (EDT)
+	id 20D876B0274; Thu, 30 May 2019 12:19:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 085F26B0275; Thu, 30 May 2019 12:15:58 -0400 (EDT)
+	id 1BA546B0275; Thu, 30 May 2019 12:19:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E8EE16B0276; Thu, 30 May 2019 12:15:57 -0400 (EDT)
+	id 05C8D6B0276; Thu, 30 May 2019 12:19:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B080F6B0274
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 12:15:57 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id q2so4230346plr.19
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 09:15:57 -0700 (PDT)
+Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CE7636B0274
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 12:19:43 -0400 (EDT)
+Received: by mail-ua1-f71.google.com with SMTP id b47so817693uad.3
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 09:19:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=QdCnbVnvU3JKpvLwtQ0RZP1XXmjXKTawTWYBTDGInu4=;
-        b=WUl4x9YohvEHBIy3Vg6ZQdGsyDYeQBayriT3LfXDcoCdPtp6eTcSHL9ufp5ovHPwHu
-         cnH+0EEPA/sG5FlOI84HkTdhN7USgG5tt0EX5L+5hWZeASzy6q9o0tB5CNEFt6sheI01
-         DoFZdZx9gdz4FW04vOCs/234EUBXi2WHi/qh3B6UpyswlintAjDq18+r7RQhjrZj7rxE
-         OqyfRRJsDHmVcq+D7iJ9iYhbtmlQn8Zp+BDrYCeoOsBNftehgjaxY5htshpUoeP36Auz
-         GEXpIpeF9+jbKT67ynwKwFJpcs/I0XEw4JgMb4p2NQnjByHnk/7vUKMeZZvUTAxnD9KH
-         hWTA==
-X-Gm-Message-State: APjAAAWDyq7x9p1rK+V1pMoS2HEWMnvZA4QmUUjubySeigER/N5nlErB
-	WCvjg4Ac7muxlG7T2qAQUASrAjfhDGIUaEYiAGixvUSgqGPyAV/9GZdcKIUY3s7CIJMtyTDuzgb
-	zOGt/B/lbnKI7gLjgf6IuHG+TMVwwa1p7bl1ULECaA21ytlyrHo/NNKy0e9rTDDnFJA==
-X-Received: by 2002:a17:902:868b:: with SMTP id g11mr4311627plo.183.1559232957240;
-        Thu, 30 May 2019 09:15:57 -0700 (PDT)
-X-Received: by 2002:a17:902:868b:: with SMTP id g11mr4311558plo.183.1559232956184;
-        Thu, 30 May 2019 09:15:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559232956; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=gavpP5r3sxrBoYJ1YlT/UKhEf930n83vDNz/RveyAJE=;
+        b=L50YsqqgvZDEJ4AMoRkfSer2dUbjCOPeLB5ajISrjiGi3rvNAavtDZnzXvqEhBLHJM
+         MUC4qDlCH8JlpwcrjDpIOcBBSgxy86aQ9eeB5/eQ+Td7nBWtHs4iVnhaxbVCcV43/nQj
+         6RiwyGz2JrSHKAPMDt7916xyQmTZ7u9Huk8fHG/POord9y+5SJqB5dANb8FEPQ4r5luw
+         GJ8dnwszYM3aYQJTgwHTVs8ao/YS1W46e4MDUB0THleNwhk26CMqfipqmLTdS75voEEI
+         tT7CeBPq3P7hJ1zIL/yHddFLxgfbPbToRs29QxMEYe+MAtoOiXdM8fRNxhm9Bs7PuOGX
+         IrYg==
+X-Gm-Message-State: APjAAAVDtESbFyJ294SK65SQe4mwdYDv2vB+tOvMam6kTxEzcFV/tuW6
+	EGz1NNJdY1CUeygzkmmbHVgWGW+armWc2GowECufKn11KI3az3KkYyPmQJvVPD3XZpOcCv/3Iqj
+	102tEhrur49/dN5iOXy08zHAZpNO0JtRMM8vxN5JyEiWUafmyJpJZK1vgiScgLAppgA==
+X-Received: by 2002:a67:f8cf:: with SMTP id c15mr2581658vsp.174.1559233183321;
+        Thu, 30 May 2019 09:19:43 -0700 (PDT)
+X-Received: by 2002:a67:f8cf:: with SMTP id c15mr2581578vsp.174.1559233182034;
+        Thu, 30 May 2019 09:19:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559233182; cv=none;
         d=google.com; s=arc-20160816;
-        b=UQPQuVxLU0FYtzCuwS06vjK9lwvfn3sooIVQd2n7pejB2rp2nPoOYq+UwGjo0Ho2gL
-         4az/teAvt8uHBNm/TCCtivtUa5/3eLj4PwkUuwQJAujMNjMN4TT7P0RreDZ5As2U4EZ9
-         LPSeDuIWyBSY9OOQLjyPPDcitmADM/2Zh4zAyjrUER0bS+9ICrbylOSYXIUxZ4xnW1eW
-         Ea9374L1f4R/kz0WpsoBqCfu+L5CfGrAHzXtP+i+DgwTl4uAVPO4g7R7oEEY6MZki2rO
-         7iEZoLJ+13+QpHIw18XvpOlH9PlATnBaY+Ojym7a2l1gFMQpCBgQ0JyFaptkW/hXEGOw
-         GeGg==
+        b=ZMBJmu9vM0ruNH5JR1Nq/exRc5GErrUCvujjg+GJvkWAGuWQeuzzcg7Q3zX9fWLOxj
+         lkOXoYQ1xmakTjAA4DgKoPutMB5ZOTRb3PfJT12palPWkt5YxZ1mIYhs8SrVcytc/arE
+         htdvWaxVxhp5BwxF5cIPYIs+r1HkgmOyQrX+zHDUdvnu1OUgp+i21fZepWy5cc8xOove
+         M6NbfFz6CFZ6POtXP7ekC0hz4dZeY9OmToMGkAQL1yKj2+3DAzfNo/4tpMspyUF5L8IZ
+         DXw22NUAtMgCrVCBhULfRyBUPH1Wo2+Nq6AkEheX2aibRqaK2KOyhH7j0yqClDkxIa21
+         FU3g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=QdCnbVnvU3JKpvLwtQ0RZP1XXmjXKTawTWYBTDGInu4=;
-        b=df8wfncKW/hb0uRXji49jcCq+b7+x5NlXNo5N1BhvmGgIiRv4s/Vu3eTKvcq2S3q52
-         ZWmeBQLtKsgvH4DdD5bouYF5QVIjEqMN31BDZWbDy8la/vFOD0e872BURtO4X71SSurV
-         /o8ZEeMdQBZL9FSC7/2D5yJe91At+bcAdkaIbu3CYvkfuXOxhm3nQManfY1s1Fy9Oo7U
-         +3jyVfcslZssjZLhG0n4dAv/9tcSqvmUabTTqQ2vNw9AB2gROSGp16+auPSAQWYx+FlU
-         7QlApnIuSKeFJmYyJXRET0weT28+B5e7F4wbF4LkH67bb0vsqlNVWAqjC2hIRbt4Ykc1
-         Eq+A==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=gavpP5r3sxrBoYJ1YlT/UKhEf930n83vDNz/RveyAJE=;
+        b=EBVXKSZIrdhiTYMPKvj7RcRhvPRItSqWQ2FxNQGnnBKadZLX76SAjFJbQrX71tjPSZ
+         37zfzFP4MBc0MTOhpWHz3W2AWgDMWsaiI2xxM2kS2ZSBH2MjRQvl1l+5wTUvHcenpeI6
+         cCy7oMc9QZFMNs3jI4lRID61Qdl7fPK56glqm3dF02R6UqKVoZiWiG7TJeUjqvIBEH5/
+         tzmm+N3GrGZWIpVraM8Q+guTXIDET1iyAR3Xzh75ZFqD1wPIvsNt4CqeLwv9A2r2K286
+         8UXPN2oWVQwRmQf1radDtT6KEvpQJB0/SB721QeTS/Wd6iuLZ/A9U9O3+G8YY3lmT1jQ
+         D0aw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="iLQl/tzl";
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Ao3SJVxj;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a37sor3678189pje.3.2019.05.30.09.15.51
+        by mx.google.com with SMTPS id z20sor1444908uan.2.2019.05.30.09.19.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 30 May 2019 09:15:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 30 May 2019 09:19:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="iLQl/tzl";
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@google.com header.s=20161025 header.b=Ao3SJVxj;
+       spf=pass (google.com: domain of dancol@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dancol@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=QdCnbVnvU3JKpvLwtQ0RZP1XXmjXKTawTWYBTDGInu4=;
-        b=iLQl/tzlA9IoLss9iCFQI/uNGICbYiY4oejGcOmvASeKUe1o9NBlHzZdiKIU2xU58Y
-         3pKqXYhhLPDvcUMN7eyQqGRC4IryxuvQMWpUXEv8jnvIzDG7kZZg9PxBjkDzEFxg+RQf
-         IVDhR19utfM7z+cRwAL4kdXgETyC+JmOUaA4KHKVd+GagQ+bXc+lAzNsMdpe3bzXPDPx
-         KDOv/heXOJc5v7KdT7sv1ibco32xt7Ynm8VHLcvCtns9QqQ/Lj7JCkgVMV9pp/OkoWPD
-         Zcc+T3tyl96dUAbeOBndyhsXipIkP4D9akQIpA985eo1aayznx92rFD0B7fd/9tZaa6C
-         VapA==
-X-Google-Smtp-Source: APXvYqzdneacRJ3jMe8/a4aYeOWI8YILi6WoYZXJpCLl8ovLvQkhojhfLpNV90VPB11YoHs72pAphw==
-X-Received: by 2002:a17:90a:240c:: with SMTP id h12mr4366079pje.12.1559232951269;
-        Thu, 30 May 2019 09:15:51 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::7ef9])
-        by smtp.gmail.com with ESMTPSA id s42sm7645186pjc.5.2019.05.30.09.15.49
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 30 May 2019 09:15:50 -0700 (PDT)
-Date: Thu, 30 May 2019 12:15:48 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com
-Subject: Re: [PATCH] mm: fix page cache convergence regression
-Message-ID: <20190530161548.GA8415@cmpxchg.org>
-References: <20190524153148.18481-1-hannes@cmpxchg.org>
- <20190524160417.GB1075@bombadil.infradead.org>
- <20190524173900.GA11702@cmpxchg.org>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=gavpP5r3sxrBoYJ1YlT/UKhEf930n83vDNz/RveyAJE=;
+        b=Ao3SJVxjYTPncN3+OanMOZUwFPR6WkzxJQqdQj9IGciXk4MlsMpN/xGZg1Z8yT/mkS
+         Vncul0Uks15kzX+KSFwI1EWO6boykkuvONSoHdWB8JfZ/FqyY1cQkpjvznaiDvvq4DK+
+         JrYJ9xtOchvm8kAGfJwZBq8qp6eZcBlo2fm0QmLQkI1xNTT/gPigmO9ivzatvB88DXGb
+         BqpkdgZtqXPeYdabWXyqubnJKj7kyJs5XVWpH1tQtOBycCp1gYbjO0JBpuKplTohM70y
+         0n7U+obvoEPbKr9TQpq2uA9xNntpxv/EheEk0lxG55YBm9H4yVUmpbvkGUJYpI4DHfRA
+         buPA==
+X-Google-Smtp-Source: APXvYqypdAt8noDHPph2koXGVWzzlm5dziEUK5dARgr9OFm4N22aVfMoe9G2dOZvUHkxGtyhnkpYYP8QjZWC2Znv8nU=
+X-Received: by 2002:ab0:60d0:: with SMTP id g16mr1322111uam.85.1559233181146;
+ Thu, 30 May 2019 09:19:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190524173900.GA11702@cmpxchg.org>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+References: <20190520092258.GZ6836@dhcp22.suse.cz> <20190521024820.GG10039@google.com>
+ <20190521062421.GD32329@dhcp22.suse.cz> <20190521102613.GC219653@google.com>
+ <20190521103726.GM32329@dhcp22.suse.cz> <20190527074940.GB6879@google.com>
+ <CAKOZuesK-8zrm1zua4dzqh4TEMivsZKiccySMvfBjOyDkg-MEw@mail.gmail.com>
+ <20190529103352.GD18589@dhcp22.suse.cz> <20190530021748.GE229459@google.com>
+ <20190530065755.GD6703@dhcp22.suse.cz> <20190530080214.GA159502@google.com>
+In-Reply-To: <20190530080214.GA159502@google.com>
+From: Daniel Colascione <dancol@google.com>
+Date: Thu, 30 May 2019 09:19:29 -0700
+Message-ID: <CAKOZuetx5QDPBEcUT4A2vNq3rbN_2SRMDVMeYP5p+didtUV0bA@mail.gmail.com>
+Subject: Re: [RFC 6/7] mm: extend process_madvise syscall to support vector arrary
+To: Minchan Kim <minchan@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	Johannes Weiner <hannes@cmpxchg.org>, Tim Murray <timmurray@google.com>, 
+	Joel Fernandes <joel@joelfernandes.org>, Suren Baghdasaryan <surenb@google.com>, 
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>, 
+	Brian Geffon <bgeffon@google.com>, Linux API <linux-api@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Are there any objections or feedback on the proposed fix below? This
-is kind of a serious regression.
+On Thu, May 30, 2019 at 1:02 AM Minchan Kim <minchan@kernel.org> wrote:
+>
+> On Thu, May 30, 2019 at 08:57:55AM +0200, Michal Hocko wrote:
+> > On Thu 30-05-19 11:17:48, Minchan Kim wrote:
+> > > On Wed, May 29, 2019 at 12:33:52PM +0200, Michal Hocko wrote:
+> > > > On Wed 29-05-19 03:08:32, Daniel Colascione wrote:
+> > > > > On Mon, May 27, 2019 at 12:49 AM Minchan Kim <minchan@kernel.org> wrote:
+> > > > > >
+> > > > > > On Tue, May 21, 2019 at 12:37:26PM +0200, Michal Hocko wrote:
+> > > > > > > On Tue 21-05-19 19:26:13, Minchan Kim wrote:
+> > > > > > > > On Tue, May 21, 2019 at 08:24:21AM +0200, Michal Hocko wrote:
+> > > > > > > > > On Tue 21-05-19 11:48:20, Minchan Kim wrote:
+> > > > > > > > > > On Mon, May 20, 2019 at 11:22:58AM +0200, Michal Hocko wrote:
+> > > > > > > > > > > [Cc linux-api]
+> > > > > > > > > > >
+> > > > > > > > > > > On Mon 20-05-19 12:52:53, Minchan Kim wrote:
+> > > > > > > > > > > > Currently, process_madvise syscall works for only one address range
+> > > > > > > > > > > > so user should call the syscall several times to give hints to
+> > > > > > > > > > > > multiple address range.
+> > > > > > > > > > >
+> > > > > > > > > > > Is that a problem? How big of a problem? Any numbers?
+> > > > > > > > > >
+> > > > > > > > > > We easily have 2000+ vma so it's not trivial overhead. I will come up
+> > > > > > > > > > with number in the description at respin.
+> > > > > > > > >
+> > > > > > > > > Does this really have to be a fast operation? I would expect the monitor
+> > > > > > > > > is by no means a fast path. The system call overhead is not what it used
+> > > > > > > > > to be, sigh, but still for something that is not a hot path it should be
+> > > > > > > > > tolerable, especially when the whole operation is quite expensive on its
+> > > > > > > > > own (wrt. the syscall entry/exit).
+> > > > > > > >
+> > > > > > > > What's different with process_vm_[readv|writev] and vmsplice?
+> > > > > > > > If the range needed to be covered is a lot, vector operation makes senese
+> > > > > > > > to me.
+> > > > > > >
+> > > > > > > I am not saying that the vector API is wrong. All I am trying to say is
+> > > > > > > that the benefit is not really clear so far. If you want to push it
+> > > > > > > through then you should better get some supporting data.
+> > > > > >
+> > > > > > I measured 1000 madvise syscall vs. a vector range syscall with 1000
+> > > > > > ranges on ARM64 mordern device. Even though I saw 15% improvement but
+> > > > > > absoluate gain is just 1ms so I don't think it's worth to support.
+> > > > > > I will drop vector support at next revision.
+> > > > >
+> > > > > Please do keep the vector support. Absolute timing is misleading,
+> > > > > since in a tight loop, you're not going to contend on mmap_sem. We've
+> > > > > seen tons of improvements in things like camera start come from
+> > > > > coalescing mprotect calls, with the gains coming from taking and
+> > > > > releasing various locks a lot less often and bouncing around less on
+> > > > > the contended lock paths. Raw throughput doesn't tell the whole story,
+> > > > > especially on mobile.
+> > > >
+> > > > This will always be a double edge sword. Taking a lock for longer can
+> > > > improve a throughput of a single call but it would make a latency for
+> > > > anybody contending on the lock much worse.
+> > > >
+> > > > Besides that, please do not overcomplicate the thing from the early
+> > > > beginning please. Let's start with a simple and well defined remote
+> > > > madvise alternative first and build a vector API on top with some
+> > > > numbers based on _real_ workloads.
+> > >
+> > > First time, I didn't think about atomicity about address range race
+> > > because MADV_COLD/PAGEOUT is not critical for the race.
+> > > However you raised the atomicity issue because people would extend
+> > > hints to destructive ones easily. I agree with that and that's why
+> > > we discussed how to guarantee the race and Daniel comes up with good idea.
+> >
+> > Just for the clarification, I didn't really mean atomicity but rather a
+> > _consistency_ (essentially time to check to time to use consistency).
+>
+> What do you mean by *consistency*? Could you elaborate it more?
+>
+> >
+> > >   - vma configuration seq number via process_getinfo(2).
+> > >
+> > > We discussed the race issue without _read_ workloads/requests because
+> > > it's common sense that people might extend the syscall later.
+> > >
+> > > Here is same. For current workload, we don't need to support vector
+> > > for perfomance point of view based on my experiment. However, it's
+> > > rather limited experiment. Some configuration might have 10000+ vmas
+> > > or really slow CPU.
+> > >
+> > > Furthermore, I want to have vector support due to atomicity issue
+> > > if it's really the one we should consider.
+> > > With vector support of the API and vma configuration sequence number
+> > > from Daniel, we could support address ranges operations's atomicity.
+> >
+> > I am not sure what do you mean here. Perform all ranges atomicaly wrt.
+> > other address space modifications? If yes I am not sure we want that
+>
+> Yub, I think it's *necessary* if we want to support destructive hints
+> via process_madvise.
 
-On Fri, May 24, 2019 at 01:39:00PM -0400, Johannes Weiner wrote:
-> From 63a0dbc571ff38f7c072c62d6bc28192debe37ac Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Fri, 24 May 2019 10:12:46 -0400
-> Subject: [PATCH] mm: fix page cache convergence regression
-> 
-> Since a28334862993 ("page cache: Finish XArray conversion"), on most
-> major Linux distributions, the page cache doesn't correctly transition
-> when the hot data set is changing, and leaves the new pages thrashing
-> indefinitely instead of kicking out the cold ones.
-> 
-> On a freshly booted, freshly ssh'd into virtual machine with 1G RAM
-> running stock Arch Linux:
-> 
-> [root@ham ~]# ./reclaimtest.sh
-> + dd of=workingset-a bs=1M count=0 seek=600
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + ./mincore workingset-a
-> 153600/153600 workingset-a
-> + dd of=workingset-b bs=1M count=0 seek=600
-> + cat workingset-b
-> + cat workingset-b
-> + cat workingset-b
-> + cat workingset-b
-> + ./mincore workingset-a workingset-b
-> 104029/153600 workingset-a
-> 120086/153600 workingset-b
-> + cat workingset-b
-> + cat workingset-b
-> + cat workingset-b
-> + cat workingset-b
-> + ./mincore workingset-a workingset-b
-> 104029/153600 workingset-a
-> 120268/153600 workingset-b
-> 
-> workingset-b is a 600M file on a 1G host that is otherwise entirely
-> idle. No matter how often it's being accessed, it won't get cached.
-> 
-> While investigating, I noticed that the non-resident information gets
-> aggressively reclaimed - /proc/vmstat::workingset_nodereclaim. This is
-> a problem because a workingset transition like this relies on the
-> non-resident information tracked in the page cache tree of evicted
-> file ranges: when the cache faults are refaults of recently evicted
-> cache, we challenge the existing active set, and that allows a new
-> workingset to establish itself.
-> 
-> Tracing the shrinker that maintains this memory revealed that all page
-> cache tree nodes were allocated to the root cgroup. This is a problem,
-> because 1) the shrinker sizes the amount of non-resident information
-> it keeps to the size of the cgroup's other memory and 2) on most major
-> Linux distributions, only kernel threads live in the root cgroup and
-> everything else gets put into services or session groups:
-> 
-> [root@ham ~]# cat /proc/self/cgroup
-> 0::/user.slice/user-0.slice/session-c1.scope
-> 
-> As a result, we basically maintain no non-resident information for the
-> workloads running on the system, thus breaking the caching algorithm.
-> 
-> Looking through the code, I found the culprit in the above-mentioned
-> patch: when switching from the radix tree to xarray, it dropped the
-> __GFP_ACCOUNT flag from the tree node allocations - the flag that
-> makes sure the allocated memory gets charged to and tracked by the
-> cgroup of the calling process - in this case, the one doing the fault.
-> 
-> To fix this, allow xarray users to specify per-tree flag that makes
-> xarray allocate nodes using __GFP_ACCOUNT. Then restore the page cache
-> tree annotation to request such cgroup tracking for the cache nodes.
-> 
-> With this patch applied, the page cache correctly converges on new
-> workingsets again after just a few iterations:
-> 
-> [root@ham ~]# ./reclaimtest.sh
-> + dd of=workingset-a bs=1M count=0 seek=600
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + cat workingset-a
-> + ./mincore workingset-a
-> 153600/153600 workingset-a
-> + dd of=workingset-b bs=1M count=0 seek=600
-> + cat workingset-b
-> + ./mincore workingset-a workingset-b
-> 124607/153600 workingset-a
-> 87876/153600 workingset-b
-> + cat workingset-b
-> + ./mincore workingset-a workingset-b
-> 81313/153600 workingset-a
-> 133321/153600 workingset-b
-> + cat workingset-b
-> + ./mincore workingset-a workingset-b
-> 63036/153600 workingset-a
-> 153600/153600 workingset-b
-> 
-> Cc: stable@vger.kernel.org # 4.20+
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  fs/inode.c             |  2 +-
->  include/linux/xarray.h |  1 +
->  lib/xarray.c           | 12 ++++++++++--
->  3 files changed, 12 insertions(+), 3 deletions(-)
-> 
-> diff --git a/fs/inode.c b/fs/inode.c
-> index e9d18b2c3f91..cd67859dbaf1 100644
-> --- a/fs/inode.c
-> +++ b/fs/inode.c
-> @@ -361,7 +361,7 @@ EXPORT_SYMBOL(inc_nlink);
->  
->  static void __address_space_init_once(struct address_space *mapping)
->  {
-> -	xa_init_flags(&mapping->i_pages, XA_FLAGS_LOCK_IRQ);
-> +	xa_init_flags(&mapping->i_pages, XA_FLAGS_LOCK_IRQ | XA_FLAGS_ACCOUNT);
->  	init_rwsem(&mapping->i_mmap_rwsem);
->  	INIT_LIST_HEAD(&mapping->private_list);
->  	spin_lock_init(&mapping->private_lock);
-> diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-> index 0e01e6129145..5921599b6dc4 100644
-> --- a/include/linux/xarray.h
-> +++ b/include/linux/xarray.h
-> @@ -265,6 +265,7 @@ enum xa_lock_type {
->  #define XA_FLAGS_TRACK_FREE	((__force gfp_t)4U)
->  #define XA_FLAGS_ZERO_BUSY	((__force gfp_t)8U)
->  #define XA_FLAGS_ALLOC_WRAPPED	((__force gfp_t)16U)
-> +#define XA_FLAGS_ACCOUNT	((__force gfp_t)32U)
->  #define XA_FLAGS_MARK(mark)	((__force gfp_t)((1U << __GFP_BITS_SHIFT) << \
->  						(__force unsigned)(mark)))
->  
-> diff --git a/lib/xarray.c b/lib/xarray.c
-> index 6be3acbb861f..446b956c9188 100644
-> --- a/lib/xarray.c
-> +++ b/lib/xarray.c
-> @@ -298,6 +298,8 @@ bool xas_nomem(struct xa_state *xas, gfp_t gfp)
->  		xas_destroy(xas);
->  		return false;
->  	}
-> +	if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
-> +		gfp |= __GFP_ACCOUNT;
->  	xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
->  	if (!xas->xa_alloc)
->  		return false;
-> @@ -325,6 +327,8 @@ static bool __xas_nomem(struct xa_state *xas, gfp_t gfp)
->  		xas_destroy(xas);
->  		return false;
->  	}
-> +	if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
-> +		gfp |= __GFP_ACCOUNT;
->  	if (gfpflags_allow_blocking(gfp)) {
->  		xas_unlock_type(xas, lock_type);
->  		xas->xa_alloc = kmem_cache_alloc(radix_tree_node_cachep, gfp);
-> @@ -358,8 +362,12 @@ static void *xas_alloc(struct xa_state *xas, unsigned int shift)
->  	if (node) {
->  		xas->xa_alloc = NULL;
->  	} else {
-> -		node = kmem_cache_alloc(radix_tree_node_cachep,
-> -					GFP_NOWAIT | __GFP_NOWARN);
-> +		gfp_t gfp = GFP_NOWAIT | __GFP_NOWARN;
-> +
-> +		if (xas->xa->xa_flags & XA_FLAGS_ACCOUNT)
-> +			gfp |= __GFP_ACCOUNT;
-> +
-> +		node = kmem_cache_alloc(radix_tree_node_cachep, gfp);
->  		if (!node) {
->  			xas_set_err(xas, -ENOMEM);
->  			return NULL;
-> -- 
-> 2.21.0
-> 
+[Puts on flame-proof suit]
+
+Here's a quick sketch of what I have in mind for process_getinfo(2).
+Keep in mind that it's still just a rough idea.
+
+We've had trouble efficiently learning about process and memory state
+of the system via procfs. Android background memory-use scans (the
+android.bg daemon) consume quite a bit of CPU time for PSS; Minchan's
+done a lot of thinking for how we can specify desired page sets for
+compaction as part of this patch set; and the full procfs walks that
+some trace collection tools need to undertake take more than 200ms to
+collect (sometimes much more) due mostly to procfs iteration. ISTM we
+can do better.
+
+While procfs *works* on a functional level, it's inefficient due to
+the splatting of information we want across several different files
+(which need to be independently opened --- e.g.,
+/proc/pid/oom_score_adj *and* /proc/pid/status), inefficient due to
+the ad-hoc text formatting, inefficient due to information over-fetch,
+and cumbersome due to the fundamental impedance mismatch between
+filesystem APIs and process lifetimes. procfs itself is also optional,
+which has caused various bits of awkwardness that you'll recall from
+the pidfd discussions.
+
+How about we solve the problem once and for all? I'm imagining a new
+process_getinfo(2) that solves all of these problems at the same time.
+I want something with a few properties:
+
+1) if we want to learn M facts about N things, we enter the kernel
+once and learn all M*N things,
+2) the information we collect is self-consistent (which implies
+atomicity most of the time),
+3) we retrieve the information we want in an efficient binary format, and
+4) we don't pay to learn anything not in M.
+
+I've jotted down a quick sketch of the API below; I'm curious what
+everyone else thinks. It'd basically look like this:
+
+int process_getinfo(int nr_proc, int* proc, int flags, unsigned long
+mask, void* out_buf, size_t* inout_sz)
+
+We wouldn't use the return value for much: 0 on success and -1 on
+error with errno set. NR_PROC and PROC together would specify the
+objects we want to learn about, which would be either PIDs or PIDFDs
+or maybe nothing at all if FLAGS tells us to inspect every process on
+the system. MASK is a bitset of facts we want to learn, described
+below. OUT_BUF and INOUT_SZ are for actually communicating the result.
+On input, the caller would fill *INOUT_SZ with the size of the buffer
+to which OUT_BUF points; on success, we'd fill *INOUT_SZ with the
+number of bytes we actually used. If the output buffer is too small,
+we'll truncate the result, fail the system call with E2BIG, and fill
+*INOUT_SZ with the number of needed bytes, inviting the caller to try
+again. (If a caller supplies something huge like a reusable 512KB
+buffer on the first call, no reallocation and retries will be
+necessary in practice on a typically-sized system.)
+
+The actual returned buffer is a collection of structures and data
+blocks starting with a struct process_info. The structures in the
+returned buffer sometimes contain "pointers" to other structures
+encoded as byte offsets from the start of the information buffer.
+Using offsets instead of actual pointers keeps the format the same
+across 32- and 64-bit versions of process_getinfo and makes it
+possible to relocate the returned information buffer with memcpy.
+
+struct process_info {
+  int first_procrec_offset;  // struct procrec*
+  //  Examples of system-wide things we could ask for
+  int mem_total_kb;
+  int mem_free_kb;
+  int mem_available_kb;
+  char reserved[];
+};
+
+struct procrec {
+  int next_procrec_offset;  // struct procrec*
+  // Following fields are self-explanatory and are only examples of the
+  // kind of information we could provide.
+  int tid;
+  int tgid;
+  char status;
+  int oom_score_adj;
+  struct { int real, effective, saved, fs; } uids;
+  int prio;
+  int comm_offset;  // char*
+  uint64_t rss_file_kb
+  uint64_t rss_anon_fb;
+  uint64_t vm_seq;
+  int first_procrec_vma_offset;  // struct procrec_vma*
+  char reserved[];
+};
+
+struct procrec_vma {
+  int next_procrec_vma_offset;  // struct procrec_vma*
+  unsigned long start;
+  unsigned long end;
+  int backing_file_name_offset;  // char*
+  int prot;
+  char reserved[];
+};
+
+Callers would use the returned buffer by casting it to a struct
+process_info and following the internal "pointers".
+
+MASK would specify which bits of information we wanted: for example,
+if we asked for PROCESS_VM_MEMORY_MAP, the kernel would fill in each
+struct procret's memory_map field and have it point to a struct
+procrec_vma in the returned output buffer. If we omitted
+PROCESS_VM_MEMORY_MAP, we'd leave the memory_map field as NULL
+(encoded as offset zero). The kernel would embed any strings (like
+comm and VMA names) into the output buffer; the precise locations
+would be unspecified so long as callers could find these fields via
+output-buffer pointers.
+
+Because all the structures are variable-length and are chained
+together with explicit pointers (or offsets) instead of being stuffed
+into a literal array, we can add additional fields to the output
+structures any time we want without breaking binary compatibility.
+Callers would tell the kernel that they're interested in the added
+struct fields by asking for them via bits in MASK, and kernels that
+don't understand those fields would just fail the system call with
+EINVAL or something.
+
+Depending on how we call it, we can use this API as a bunch of different things:
+
+1) Quick retrieval of system-wide memory counters, like /proc/meminfo
+2) Quick snapshot of all process-thread identities (asking for the
+wildcard TID match via FLAGS)
+3) Fast enumeration of one process's address space
+4) Collecting process-summary VM counters (e.g., rss_anon and
+rss_file) for a set of processes
+5) Retrieval of every VMA of every process on the system for debugging
+
+We can do all of this with one entry into the kernel and without
+opening any new file descriptors (unless we want to use pidfds as
+inputs). We can also make this operation as atomic as we want, e.g.,
+taking mmap_sem while looking at each process and taking tasklist_lock
+so all the thread IDs line up with their processes. We don't
+necessarily need to take the mmap_sems of all processes we care about
+at the same time.
+
+Since this isn't a filesystem-based API, we don't have to deal with
+seq_file or deal with consistency issues arising from userspace
+programs doing strange things like reading procfs files very slowly in
+small chunks. Security-wise, we'd just use different access checks for
+different requested information bits in MASK, maybe supplying "no
+access" struct procrec entries if a caller doesn't happen to have
+access to a particular process. I suppose we can talk about whether
+access check failures should result in dummy values or syscall
+failure: maybe callers should select which behavior they want.
+Format-wise, we could also just return flatbuffer messages from the
+kernel, but I suspect that we don't want flatbuffer in the kernel
+right now. :-)
+
+The API I'm proposing accepts an array of processes to inspect. We
+could simplify it by accepting just one process and making the caller
+enter the kernel once per process it wants to learn about, but this
+simplification would make the API less useful for answering questions
+like "What's the RSS of every process on the system right now?".
+
+What do you think?
 
