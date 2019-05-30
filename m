@@ -2,177 +2,206 @@ Return-Path: <SRS0=aa49=T6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 35030C28CC0
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 21:46:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D2CD0C28CC0
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 21:53:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00C8524267
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 21:46:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00C8524267
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 69C79261E3
+	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 21:53:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="DrgK6T7p"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69C79261E3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8DD296B000A; Thu, 30 May 2019 17:46:36 -0400 (EDT)
+	id C5A176B000A; Thu, 30 May 2019 17:53:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 895DB6B0266; Thu, 30 May 2019 17:46:36 -0400 (EDT)
+	id C0CE26B0266; Thu, 30 May 2019 17:53:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 77D5D6B026A; Thu, 30 May 2019 17:46:36 -0400 (EDT)
+	id AF9226B026A; Thu, 30 May 2019 17:53:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4176E6B000A
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 17:46:36 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id d7so3173827pgc.8
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 14:46:36 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 826BE6B000A
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 17:53:38 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id r11so3462949otk.20
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 14:53:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=oc9hItpI/FRIQClQww39z7Qln7Gifr8/ffDEC0elnlc=;
-        b=ctg0rZ9rlI63hAuVFJXoJ8a2ncIauCTkHHTHKlEM5oRRVV/77nmd6SEnMoYm6nqJ1U
-         Y9HVxPSTSNN3tWqs4XT0ssT+j5t8/iG7krxD9YSL0moK9U+RrzoLnisczyITxKkAYpRb
-         rWZx+08kD7kGiIig05qetTrGMy0cP7WnS6D/lm3LVAVPsG/9JTNuGLSasg/PnTEguXwp
-         mlEIYW/Cl+StXADyrEwpH+dyO2F8VkiyvNIlcKdMAOrA0F8zZ451eX9L0vFJ4NRmrcgI
-         vTZLQUSyNX5NdKs5RRvuXuK6PzCfpKd3l+AxiANivcIxBAWvjuPvPPTFY+HgYKmwLrh+
-         4d6A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVvsPqPNPFGyFeWLjFMHwMPSX5TqMYyUGMcC8XvrG7R34ywzCVi
-	7S6f+gmCLHntMb2YT4riufYtsxsfqf/SOijgzfAiLxUmcF0QuKlLTLDZEHaKSguB84DdyvPh+l6
-	R9itjSpYmkec+tPaEQ6w2RT8vlmNlEsYTuvvIFYR2wrpLrZ6zkj4DZKWdvkRl+gcJkQ==
-X-Received: by 2002:a17:902:8ec3:: with SMTP id x3mr5489529plo.340.1559252795809;
-        Thu, 30 May 2019 14:46:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxJ3gB8YiDt6yt1QfHvJ7kjAOc7pLD0RMHn6vZGmY3A9RLjx8/t7757A22sutfDYtUHZf2U
-X-Received: by 2002:a17:902:8ec3:: with SMTP id x3mr5489467plo.340.1559252794981;
-        Thu, 30 May 2019 14:46:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559252794; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
+         :message-id:user-agent:mime-version:content-transfer-encoding;
+        bh=L4eRJoRAM9BshBnywrSkE8cQ8ajHKA/DqmlOsjnC6aU=;
+        b=ZuVNF0fczW7QoJCgAw5HjsMHDBaUAI9mB6C3/Y+MolauH2uMJLJc05cKkGIMMDVzLA
+         YkEgHF0lSfzoSMpgvMbNQs8/4QD7/ixc8Fbvdvl17dGtSfjmfygiXTTiK9YhV+QkByhQ
+         wnCwyIT3hfidsLYELoQ0Eve6iLNN1Pa+9UOHbH2rDKkugFF7B3xdFCG15A0aRF8jsSie
+         RoV5bymfgOo3NyagtGTiZVGrg9patV6ZU2ZkcKaMyxE43hb5kXJaODOna9lZG2Fu/Zol
+         IJ5dUc9zHx3PiRMDC/YLOi5FLvh/3q1mlyx7SC0052nNbcVZQy6n8RGGszYlotfS4Caq
+         khqw==
+X-Gm-Message-State: APjAAAWzfry7ffPUpcp5pzsf13QZDkJ+IOAjpDtXnELYwoVN0XM46Etp
+	JOokwS7ZGCsvFCGOA5IEXg/BzgHZgZjw3AOrrq5hlVj89++M8+W7IA6vQglDR07saR029cyzxBM
+	Jprem3gmQI0NB1ohlD2vjrvhX5EGtNUQV6QaxP8ShZ2Dpmx2Ua76apGDrLDMtEug9Mg==
+X-Received: by 2002:a9d:469e:: with SMTP id z30mr4653839ote.311.1559253218083;
+        Thu, 30 May 2019 14:53:38 -0700 (PDT)
+X-Received: by 2002:a9d:469e:: with SMTP id z30mr4653795ote.311.1559253217216;
+        Thu, 30 May 2019 14:53:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559253217; cv=none;
         d=google.com; s=arc-20160816;
-        b=nWbwmOdruzj1BqOl/5j0kv9WticCUjJQEu1hcfZbfZCGTlJOI8ZYstkTLQpKbCEJ0s
-         JBka5xqjkM/hRI7ZOkDtK7qcCtQO4WlIN1+ckY23G1BZZK8kQIVPMIjDAr2iyaSaZTIE
-         u1lGp4mYDGIrmLd1mASP3A40Adt+viDMVt8KHmMRhHpG8WfRLm1QV/xO5d3opVwzKJrS
-         jYmDwT7eGiR3ct56H0nyCi6QHcFgQk2wzUbAVRtIufr6c1YuSRrHDk5L6tL3bzXwU8iP
-         aL6jpRR2aKgyCVBWsGr8ECYIvvovBHWKuy8KnXw9/NoEXG2QQDXtOX1mMT0eLTAdj9Vt
-         Iztg==
+        b=HUSsMKg2Qa/NzPjSmeftw5qqT+bt2BCCpcCgZwON/7B9kYSESeF3v19uQVgGKnGCnt
+         JfX3odv0ND2bdwUi8flgurKbKN6In/uETGdDdANnDSapDPv30u7Cu7VmVyeZS8nzUdzn
+         8jPTV0zEK0MPe3wBGzePkoNU2A/hGh6Yh0XDwhUXd7XlX7bus0KJAg3j0S2+UFEAoTrm
+         drjIO+R+QVUk2Eh0HPSyyk4hpQlWStijpDRyDYaa5qlyhWRgWAbtp9FLuL2vMtDoxZ2C
+         cv6LO6dTzaRKKBg+YYRzcmpBg41njR9OyBuN88KARAhwTEdDWvIjS7YcUkcE7oYrOPsc
+         3a8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=oc9hItpI/FRIQClQww39z7Qln7Gifr8/ffDEC0elnlc=;
-        b=w8pb8FkpByGneE2PqhxOGV6MV3CPZm1ZQ11G9zA1YFWXeQUAg7bF39SS8VWmSXOn0k
-         HYh4em+RSi8r4kwcqtYTtfWpw6jdVibSQY0wQSrHwOzmQC48gq7UR4YW+ZH6hFnPHvF6
-         N2oun+lCEy3m+idYByyvHowUMEZ3NksbACYB5xCNg/t872Y35SgueoSoZaCE9Zemx35p
-         Y6fRY+F94/ztItoXMC2FdzijkNPLxWRdrS/OzAuEBf+TtLJwriHWmnB4GjLdSA+qBWvS
-         J5qJoEk1cHFzf4Z8E/nS1G8x3KGnu3woax/hUhqcKDDYa4XB1goUxTsH9Tp18s4G1zLI
-         kKMA==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :cc:to:from:subject:dkim-signature;
+        bh=L4eRJoRAM9BshBnywrSkE8cQ8ajHKA/DqmlOsjnC6aU=;
+        b=DCuZf3oMQ7KOBx53r37X/IHh1iPfO4tt2dunlT6k5Awwo9/p+uzoJUAu8zDY63PFOq
+         1Q8Vz0FuQSvKlGPB1hhMlJhn/TXd2zsvVkZk9WhAfi/TYJOGwhD5o0gDhWZfq3NY3nbz
+         CnlTBrPCgjYmohk1ZZQYqpn7PLQTLIO9w+8R/f092NtTzbiQ5v+wCKZon6eMxodDYOJT
+         erTniMz9s8AWH5T6XcX7b0pKsUI4o/rHGqg9fSRFxXnbtwSILq/ETiXCzvoS4YqEPzdl
+         pmp7KMZ6kmY3iWsziSoXkxeZWdZRZLcWcoeVbdNnxxt1uM7I4VDU/aPL3P3lMfOlSi+m
+         XShw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id t74si3782171pgc.265.2019.05.30.14.46.34
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DrgK6T7p;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 3sor1614678oix.78.2019.05.30.14.53.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 May 2019 14:46:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        (Google Transport Security);
+        Thu, 30 May 2019 14:53:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 30 May 2019 14:46:34 -0700
-X-ExtLoop1: 1
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga007.jf.intel.com with ESMTP; 30 May 2019 14:46:33 -0700
-Date: Thu, 30 May 2019 14:47:26 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Keith Busch <keith.busch@intel.com>, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/gup: fix omission of check on FOLL_LONGTERM in
- get_user_pages_fast()
-Message-ID: <20190530214726.GA14000@iweiny-DESK2.sc.intel.com>
-References: <1559170444-3304-1-git-send-email-kernelfans@gmail.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=DrgK6T7p;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:from:to:cc:date:message-id:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=L4eRJoRAM9BshBnywrSkE8cQ8ajHKA/DqmlOsjnC6aU=;
+        b=DrgK6T7pO2KGErcPsenn6+dgrK5pYhXn1+wL/FHloXypSYcxVhuuFIcgp3mZZdPpO7
+         znr5fDthSEHXSBn0urZKNPauubicT85wwoRDbjY/XAvZjGgEnW83XCGc6KG4wGcUyoka
+         eZjtLlLKozdey6w7A6Yqi3yO/XCFSfSm/GgmDHQ0UCDzCxLZmuLBnQ0n4ZLMcudRoT2s
+         UTBBdTmwz5GhlW2PWNRhpo/aeKN/B+tN1xMSwAUrpsMPSdICbdawNhP1rTWjU4YW3AoQ
+         ArhdHt1cN+GD4z0ZFxlnFnD/pTsYbCwEvJtp5kYdMQrSgLur3PRx3kmaw34F9amOAACA
+         s+Dg==
+X-Google-Smtp-Source: APXvYqxFvLQbXtfmzGSX+Ab6mYng9B7q/SFrUu2Vi2ikCBcKwjb0GT4lghL89v6z5fdD+2Y9eB47Og==
+X-Received: by 2002:aca:c057:: with SMTP id q84mr4092001oif.135.1559253216673;
+        Thu, 30 May 2019 14:53:36 -0700 (PDT)
+Received: from localhost.localdomain (50-126-100-225.drr01.csby.or.frontiernet.net. [50.126.100.225])
+        by smtp.gmail.com with ESMTPSA id a31sm1557360otc.60.2019.05.30.14.53.34
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 May 2019 14:53:36 -0700 (PDT)
+Subject: [RFC PATCH 00/11] mm / virtio: Provide support for paravirtual
+ waste page treatment
+From: Alexander Duyck <alexander.duyck@gmail.com>
+To: nitesh@redhat.com, kvm@vger.kernel.org, david@redhat.com, mst@redhat.com,
+ dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
+ konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
+ aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
+ alexander.h.duyck@linux.intel.com
+Date: Thu, 30 May 2019 14:53:34 -0700
+Message-ID: <20190530215223.13974.22445.stgit@localhost.localdomain>
+User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1559170444-3304-1-git-send-email-kernelfans@gmail.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 30, 2019 at 06:54:04AM +0800, Pingfan Liu wrote:
-> As for FOLL_LONGTERM, it is checked in the slow path
-> __gup_longterm_unlocked(). But it is not checked in the fast path, which
-> means a possible leak of CMA page to longterm pinned requirement through
-> this crack.
-> 
-> Place a check in the fast path.
-> 
-> Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-> Cc: Ira Weiny <ira.weiny@intel.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Mike Rapoport <rppt@linux.ibm.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: John Hubbard <jhubbard@nvidia.com>
-> Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-> Cc: Keith Busch <keith.busch@intel.com>
-> Cc: linux-kernel@vger.kernel.org
-> ---
->  mm/gup.c | 12 ++++++++++++
->  1 file changed, 12 insertions(+)
-> 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index f173fcb..00feab3 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -2235,6 +2235,18 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
->  		local_irq_enable();
->  		ret = nr;
->  	}
-> +#if defined(CONFIG_CMA)
-> +	if (unlikely(gup_flags & FOLL_LONGTERM)) {
-> +		int i, j;
-> +
-> +		for (i = 0; i < nr; i++)
-> +			if (is_migrate_cma_page(pages[i])) {
-> +				for (j = i; j < nr; j++)
-> +					put_page(pages[j]);
+This series provides an asynchronous means of hinting to a hypervisor
+that a guest page is no longer in use and can have the data associated
+with it dropped. To do this I have implemented functionality that allows
+for what I am referring to as "waste page treatment".
 
-Should be put_user_page() now.  For now that just calls put_page() but it is
-slated to change soon.
+I have based many of the terms and functionality off of waste water
+treatment, the idea for the similarity occured to me after I had reached
+the point of referring to the hints as "bubbles", as the hints used the
+same approach as the balloon functionality but would disappear if they
+were touched, as a result I started to think of the virtio device as an
+aerator. The general idea with all of this is that the guest should be
+treating the unused pages so that when they end up heading "downstream"
+to either another guest, or back at the host they will not need to be
+written to swap.
 
-I also wonder if this would be more efficient as a check as we are walking the
-page tables and bail early.
+So for a bit of background for the treatment process, it is based on a
+sequencing batch reactor (SBR)[1]. The treatment process itself has five
+stages. The first stage is the fill, with this we take the raw pages and
+add them to the reactor. The second stage is react, in this stage we hand
+the pages off to the Virtio Balloon driver to have hints attached to them
+and for those hints to be sent to the hypervisor. The third stage is
+settle, in this stage we are waiting for the hypervisor to process the
+pages, and we should receive an interrupt when it is completed. The fourth
+stage is to decant, or drain the reactor of pages. Finally we have the
+idle stage which we will go into if the reference count for the reactor
+gets down to 0 after a drain, or if a fill operation fails to obtain any
+pages and the reference count has hit 0. Otherwise we return to the first
+state and start the cycle over again.
 
-Perhaps the code complexity is not worth it?
+This patch set is still far more intrusive then I would really like for
+what it has to do. Currently I am splitting the nr_free_pages into two
+values and having to add a pointer and an index to track where we area in
+the treatment process for a given free_area. I'm also not sure I have
+covered all possible corner cases where pages can get into the free_area
+or move from one migratetype to another.
 
-> +				nr = i;
+Also I am still leaving a number of things hard-coded such as limiting the
+lowest order processed to PAGEBLOCK_ORDER, and have left it up to the
+guest to determine what size of reactor it wants to allocate to process
+the hints.
 
-Why not just break from the loop here?
+Another consideration I am still debating is if I really want to process
+the aerator_cycle() function in interrupt context or if I should have it
+running in a thread somewhere else.
 
-Or better yet just use 'i' in the inner loop...
+[1]: https://en.wikipedia.org/wiki/Sequencing_batch_reactor
 
-Ira
+---
 
-> +			}
-> +	}
-> +#endif
->  
->  	if (nr < nr_pages) {
->  		/* Try to get the remaining pages with get_user_pages */
-> -- 
-> 2.7.5
-> 
+Alexander Duyck (11):
+      mm: Move MAX_ORDER definition closer to pageblock_order
+      mm: Adjust shuffle code to allow for future coalescing
+      mm: Add support for Treated Buddy pages
+      mm: Split nr_free into nr_free_raw and nr_free_treated
+      mm: Propogate Treated bit when splitting
+      mm: Add membrane to free area to use as divider between treated and raw pages
+      mm: Add support for acquiring first free "raw" or "untreated" page in zone
+      mm: Add support for creating memory aeration
+      mm: Count isolated pages as "treated"
+      virtio-balloon: Add support for aerating memory via bubble hinting
+      mm: Add free page notification hook
+
+
+ arch/x86/include/asm/page.h         |   11 +
+ drivers/virtio/Kconfig              |    1 
+ drivers/virtio/virtio_balloon.c     |   89 ++++++++++
+ include/linux/gfp.h                 |   10 +
+ include/linux/memory_aeration.h     |   54 ++++++
+ include/linux/mmzone.h              |  100 +++++++++--
+ include/linux/page-flags.h          |   32 +++
+ include/linux/pageblock-flags.h     |    8 +
+ include/uapi/linux/virtio_balloon.h |    1 
+ mm/Kconfig                          |    5 +
+ mm/Makefile                         |    1 
+ mm/aeration.c                       |  324 +++++++++++++++++++++++++++++++++++
+ mm/compaction.c                     |    4 
+ mm/page_alloc.c                     |  220 ++++++++++++++++++++----
+ mm/shuffle.c                        |   24 ---
+ mm/shuffle.h                        |   35 ++++
+ mm/vmstat.c                         |    5 -
+ 17 files changed, 838 insertions(+), 86 deletions(-)
+ create mode 100644 include/linux/memory_aeration.h
+ create mode 100644 mm/aeration.c
+
+--
 
