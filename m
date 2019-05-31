@@ -2,202 +2,191 @@ Return-Path: <SRS0=007R=T7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B9F1C28CC3
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 07:33:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7EB1EC28CC4
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 08:16:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 26AEA2650B
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 07:33:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 26AEA2650B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 33F4E26595
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 08:16:57 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=linaro.org header.i=@linaro.org header.b="FW/qqnwd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33F4E26595
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 79B326B0269; Fri, 31 May 2019 03:33:40 -0400 (EDT)
+	id A3A7A6B0272; Fri, 31 May 2019 04:16:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 74C316B026F; Fri, 31 May 2019 03:33:40 -0400 (EDT)
+	id 9EA656B0274; Fri, 31 May 2019 04:16:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 63AF36B0276; Fri, 31 May 2019 03:33:40 -0400 (EDT)
+	id 8D84A6B0276; Fri, 31 May 2019 04:16:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 14F1E6B0269
-	for <linux-mm@kvack.org>; Fri, 31 May 2019 03:33:40 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id x16so12647561edm.16
-        for <linux-mm@kvack.org>; Fri, 31 May 2019 00:33:40 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DFA46B0272
+	for <linux-mm@kvack.org>; Fri, 31 May 2019 04:16:56 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id o126so7511901itc.5
+        for <linux-mm@kvack.org>; Fri, 31 May 2019 01:16:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=AHN0N7iMOljEqBbYSsAXzbg1fhBzisGEeWdKdQIYGnw=;
-        b=EO5GvG9BTpsUaDfyPVhnysFBvMKbbbJMAq8KiubKbM0gvZ6Hzs3wQsXnKl1FpG+zNY
-         YC/n0OoGhd4Dw2ZOOYjJKeuTL/V5bHk/GMavyGPEpf3t6kA0ERxecwCiRcpKU0wQ4l1T
-         j2QiUQj781ENdMe0KSWcwrmtWXSjmBU0+x6OsMN4OPHTTnue8xAgWkG6YoXb9/s9UcyI
-         fcZgFkig3zcHjgTx3duAH7iVk9r8buHkdezjPkZlYf8prGsMyZiQ/D61jCY1KiD4FmEk
-         nSYUL7cjuzpcT93Xku3onaxaMt0JRU2HLxO8MHLkVIHuR7JQPpX/3XeUpMziB/G7hbpf
-         25Hw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAVl2kE8xvKdksFU0wfdYC7coYy+zslZIqhZJ8rnIDTJGHE0Ac4N
-	ALpbwGZWdJtXq1CDLo4RwTnKnK3eXW2f1MZd0wcgvMZr87amK32TPB86eaDdFmzVPEdmHsRnUVw
-	M3gJ57mGAanui0glOuLP/pb1H04TkeUPk70w96+0nzpL/ieSYlp1NJyRnpofILYwWmw==
-X-Received: by 2002:a50:cb45:: with SMTP id h5mr9827041edi.12.1559288019556;
-        Fri, 31 May 2019 00:33:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz6qMMf5OtXKJKOEcvmE5tGyktI4V4yxMLyPNR9+qtdepHRia2sQuAnObFNfHvSuzKw8wyT
-X-Received: by 2002:a50:cb45:: with SMTP id h5mr9826951edi.12.1559288018589;
-        Fri, 31 May 2019 00:33:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559288018; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=TyU1z8yaq1bO5gAC7lJ3UvtvJG+4a0ROhgbK2ALXN8o=;
+        b=Umuoc4xKaeyk4BzbH4d9NLwydht+QXkgVJwiRnkCETpKP1vsAWIcL3RJeM/ejkd4do
+         4mBnlfHjAtj1R677Tyl74sEo2X1K6NEU5N24j3MhnAWahCI6LPrQ9d0wH1xkVw0GsEZ4
+         CjhRUA0EsX3sTalJdSOJlOOzQjmBELNpD3EJRVoeG6nov/gJycqS0FaqOIq/UhAbLupQ
+         h/Ly6+NbELDQZrrGJec6+UtR9MgF/LKaUyX8dvb3OgsQFotkmJwifF1Avj9KskX1RVfg
+         yYn5VtoY5xtp7ppICxS3w1EI2+ENhhZEO7G+GD2onoZ/Zdl7yy4ZE52EGQyTnnmHNBSo
+         kvYA==
+X-Gm-Message-State: APjAAAVvSXsfsoB/H9LjB1t/Wy1kvVE0Seee66RbFMmB9Mnv+oV4RtDU
+	IwV8/T6RiBoXw1sNKMPY/kEbkGvsIBsiYWAhPtLOwWiucOTPz8TBqGeYzkGjgOITF/AZt6Ti5PS
+	hhiSfTszGZku1eYcBuNHW5bQE6Ytc4cOm0dBvRltoJxUzMZQqZMVUr2sfQqticdCeAw==
+X-Received: by 2002:a24:1c8f:: with SMTP id c137mr6705250itc.165.1559290616104;
+        Fri, 31 May 2019 01:16:56 -0700 (PDT)
+X-Received: by 2002:a24:1c8f:: with SMTP id c137mr6705197itc.165.1559290615068;
+        Fri, 31 May 2019 01:16:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559290615; cv=none;
         d=google.com; s=arc-20160816;
-        b=jUTPgRuz9D0dA1qo3/6JrxHL6vJW8DfFK/jxu26ZYu8I6AQxN7p8FCj1rVtbutYk3y
-         V9CuyVEokHNGLvUkfxq6Rmxmsg7UVyByUvRUYe93cAk2OsP5w3b79Fu9wFvONCQ8YLM4
-         xISYYlv72FLYeiJSEULjk5sVKp+cUrsVXTFpSWv5THNe/WQA2gFkQG0/3tZwtGJuLXOF
-         Me4RqPJfC5S5ScJJ19ApfVZ0hzq53IYl11uKOSoVmywVYF9Nx58GhymC5lmkUNyAwbgb
-         h4PKXnnUtxTrU3faFKX6p17o3tcyDANh8b5k48Q9AI0MODoFbyzmMp6GqoiA3N8iO6X3
-         LcCQ==
+        b=tlAFSygIs+DDx+EUhgXytCYanpTzqP87ZPid1VNYcRrEMZjekEsnRVV9L2ohsgXT2N
+         Klj/vy+8kDapt3eYBVz+mUS5keSoZODFPS8wXa8FPgBdHzDchMvtXgVorTOPxTQ1YXjY
+         1eJO6bkHMxSrAwl57m3iMiYEEcFg+dU1Hcb/hu/4AkzTnovF6r2S1QdS89K2aCk+0lRw
+         mz/o+VTOeuKsHS1PuLzJjDy5lCdwUYaXVsf+jGO4qsFrLwSKfTQ6DeiyprPczMQqtEtF
+         CyXosCmJ4HtIDzhd/sVZySzQXbWILOAi878QpUl72qmAosRzzLN88SPo2bAfJLYBNINs
+         /2dw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=AHN0N7iMOljEqBbYSsAXzbg1fhBzisGEeWdKdQIYGnw=;
-        b=jLFkMa/FFM2MWFBDRqwa+VteWPJMAUuI3F9FJMbUI1m15Hy9wdElqWcePXgwcIYmAy
-         6sFPSFzs8/4Ql4KyQ+A+UcMbMYLJ2FkRlsh6b3crYbsis3m8ISVmocYAUthzW6TQpsox
-         vkTLZWSMElKooWSkOzm5PWtHsJwTEeZe++CKuCaRs69ms4tY1HpAHyIOwSjzUScltvLX
-         dPC9m7Vt2saGnlvf/JvF/LQQFlVjufM3odXbSr5FIlBcQjYyp1AGuyhs5Rm0jfm95sHZ
-         FinQmbbHUnywO9iH8m2G/MnYwWenZ4r1hr2WeZm4u4ILCvOlYxDRVlLw5vKHt3iBjvYl
-         FPJw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=TyU1z8yaq1bO5gAC7lJ3UvtvJG+4a0ROhgbK2ALXN8o=;
+        b=o7sjc4njfFDnAnqLbNq/ILIghCuQLA/FpP0MWKrJXWtPXwqA9mYX0WmLDjFXkmA2Be
+         n05TNcBp+uWDkMua24JvGXlw4VEZVsxI0MXblKh/4OtoAdQYaYn9Q9eOU66abzF0o/d9
+         0SSQnZigY3M6exi+n7bS0a9Hn3FDgzdMKZe4c2tEiH/dri5eIvsBwMFCL+KrroYT25Ag
+         +EdSSkyPhUNnkeTiC4PIkukiCog6GGVUJPCUtoxd5BymvVOZG/hk51K9piSBKSbtf2DK
+         BZmYfjzBl58L107AWVeWRY/B6gg7fudQPyyKF2sxqicVMKDVN0IUPO+ZApm6jr/+XU4I
+         2W/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w12si3434564edt.193.2019.05.31.00.33.38
+       dkim=pass header.i=@linaro.org header.s=google header.b="FW/qqnwd";
+       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p6sor2908637ioh.117.2019.05.31.01.16.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 May 2019 00:33:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 31 May 2019 01:16:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9F973AE0E;
-	Fri, 31 May 2019 07:33:37 +0000 (UTC)
-Subject: Re: [PATCH v10 1/3] mm: Shuffle initial free memory to improve
- memory-side-cache utilization
-To: Dan Williams <dan.j.williams@intel.com>, akpm@linux-foundation.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Michal Hocko
- <mhocko@suse.com>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, keith.busch@intel.com
-References: <154899811208.3165233.17623209031065121886.stgit@dwillia2-desk3.amr.corp.intel.com>
- <154899811738.3165233.12325692939590944259.stgit@dwillia2-desk3.amr.corp.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <cddd43de-62f6-6a91-83aa-da02ff17254d@suse.cz>
-Date: Fri, 31 May 2019 09:33:36 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@linaro.org header.s=google header.b="FW/qqnwd";
+       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linaro.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=TyU1z8yaq1bO5gAC7lJ3UvtvJG+4a0ROhgbK2ALXN8o=;
+        b=FW/qqnwdQpjp6KMKEf6nJ1JbhZZ1Gru4BFb3xt0G/ys9qonneCpXnHW4xCtmIehQln
+         /9z4/prGn9WDiKxcPRdExWbHI5VnR8T4pWIVSXGdB+JRnoF6e5Clgo4Sy88kU5XuvvcD
+         AA1Xx1sgEO7qrRZC+Iybk5fGtKo2XcDRC0DfL64MfExnBZRIFvAUgF+C6X5Hcn4VXwGs
+         PX4Qb2CSJ3Ni0kRyNSsYM3+0i5zRhHQUIpCX+n+eSlaQiktsu8nRn1MmxaGxCT/hldwy
+         YlMolgk+sjJiGyQkjMAVrhKdMAtRXo4y9+F/MsJyvRypwvlsbglOXfQUprlXbUaa3gcY
+         NnfA==
+X-Google-Smtp-Source: APXvYqzLw5Kn1dmC2QWi7Vjf8M5tDzYUEjQgKCiGeLOt/yNhsIg2SGsHLvoWOmr0SYc+/Q0q/zBirv0DBGLcuXCQvYg=
+X-Received: by 2002:a5d:9402:: with SMTP id v2mr5590698ion.128.1559290614556;
+ Fri, 31 May 2019 01:16:54 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <154899811738.3165233.12325692939590944259.stgit@dwillia2-desk3.amr.corp.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <155925716254.3775979.16716824941364738117.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155925717803.3775979.14412010256191901040.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <155925717803.3775979.14412010256191901040.stgit@dwillia2-desk3.amr.corp.intel.com>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Fri, 31 May 2019 10:16:39 +0200
+Message-ID: <CAKv+Gu8S8DaywCdEzQoZvSoE5by87+tBPPDeiVOVzr8naRstyA@mail.gmail.com>
+Subject: Re: [PATCH v2 3/8] efi: Enumerate EFI_MEMORY_SP
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-efi <linux-efi@vger.kernel.org>, Vishal L Verma <vishal.l.verma@intel.com>, 
+	Linux-MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "the arch/x86 maintainers" <x86@kernel.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2/1/19 6:15 AM, Dan Williams wrote:
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -1714,6 +1714,29 @@ config SLAB_FREELIST_HARDENED
->  	  sacrifies to harden the kernel slab allocator against common
->  	  freelist exploit methods.
->  
-> +config SHUFFLE_PAGE_ALLOCATOR
-> +	bool "Page allocator randomization"
-> +	default SLAB_FREELIST_RANDOM && ACPI_NUMA
-> +	help
-> +	  Randomization of the page allocator improves the average
-> +	  utilization of a direct-mapped memory-side-cache. See section
-> +	  5.2.27 Heterogeneous Memory Attribute Table (HMAT) in the ACPI
-> +	  6.2a specification for an example of how a platform advertises
-> +	  the presence of a memory-side-cache. There are also incidental
-> +	  security benefits as it reduces the predictability of page
-> +	  allocations to compliment SLAB_FREELIST_RANDOM, but the
-> +	  default granularity of shuffling on 4MB (MAX_ORDER) pages is
-> +	  selected based on cache utilization benefits.
-> +
-> +	  While the randomization improves cache utilization it may
-> +	  negatively impact workloads on platforms without a cache. For
-> +	  this reason, by default, the randomization is enabled only
-> +	  after runtime detection of a direct-mapped memory-side-cache.
-> +	  Otherwise, the randomization may be force enabled with the
-> +	  'page_alloc.shuffle' kernel command line parameter.
-> +
-> +	  Say Y if unsure.
+On Fri, 31 May 2019 at 01:13, Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> UEFI 2.8 defines an EFI_MEMORY_SP attribute bit to augment the
+> interpretation of the EFI Memory Types as "reserved for a specific
+> purpose". The intent of this bit is to allow the OS to identify precious
+> or scarce memory resources and optionally manage it separately from
+> EfiConventionalMemory. As defined older OSes that do not know about this
+> attribute are permitted to ignore it and the memory will be handled
+> according to the OS default policy for the given memory type.
+>
+> In other words, this "specific purpose" hint is deliberately weaker than
+> EfiReservedMemoryType in that the system continues to operate if the OS
+> takes no action on the attribute. The risk of taking no action is
+> potentially unwanted / unmovable kernel allocations from the designated
+> resource that prevent the full realization of the "specific purpose".
+> For example, consider a system with a high-bandwidth memory pool. Older
+> kernels are permitted to boot and consume that memory as conventional
+> "System-RAM" newer kernels may arrange for that memory to be set aside
+> by the system administrator for a dedicated high-bandwidth memory aware
+> application to consume.
+>
+> Specifically, this mechanism allows for the elimination of scenarios
+> where platform firmware tries to game OS policy by lying about ACPI SLIT
+> values, i.e. claiming that a precious memory resource has a high
+> distance to trigger the OS to avoid it by default.
+>
+> Implement simple detection of the bit for EFI memory table dumps and
+> save the kernel policy for a follow-on change.
+>
+> Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-It says "Say Y if unsure", yet if I run make oldconfig, the default is
-N. Does that make sense?
+Reviewed-by: Ard Biesheuvel <ard.biesheuvel@linaro.org>
 
-> Page allocator randomization (SHUFFLE_PAGE_ALLOCATOR) [N/y/?] (NEW)
+> ---
+>  drivers/firmware/efi/efi.c |    5 +++--
+>  include/linux/efi.h        |    1 +
+>  2 files changed, 4 insertions(+), 2 deletions(-)
+>
+> diff --git a/drivers/firmware/efi/efi.c b/drivers/firmware/efi/efi.c
+> index 55b77c576c42..81db09485881 100644
+> --- a/drivers/firmware/efi/efi.c
+> +++ b/drivers/firmware/efi/efi.c
+> @@ -848,15 +848,16 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
+>         if (attr & ~(EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT |
+>                      EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_RO |
+>                      EFI_MEMORY_WP | EFI_MEMORY_RP | EFI_MEMORY_XP |
+> -                    EFI_MEMORY_NV |
+> +                    EFI_MEMORY_NV | EFI_MEMORY_SP |
+>                      EFI_MEMORY_RUNTIME | EFI_MEMORY_MORE_RELIABLE))
+>                 snprintf(pos, size, "|attr=0x%016llx]",
+>                          (unsigned long long)attr);
+>         else
+>                 snprintf(pos, size,
+> -                        "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+> +                        "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+>                          attr & EFI_MEMORY_RUNTIME ? "RUN" : "",
+>                          attr & EFI_MEMORY_MORE_RELIABLE ? "MR" : "",
+> +                        attr & EFI_MEMORY_SP      ? "SP"  : "",
+>                          attr & EFI_MEMORY_NV      ? "NV"  : "",
+>                          attr & EFI_MEMORY_XP      ? "XP"  : "",
+>                          attr & EFI_MEMORY_RP      ? "RP"  : "",
+> diff --git a/include/linux/efi.h b/include/linux/efi.h
+> index 6ebc2098cfe1..91368f5ce114 100644
+> --- a/include/linux/efi.h
+> +++ b/include/linux/efi.h
+> @@ -112,6 +112,7 @@ typedef     struct {
+>  #define EFI_MEMORY_MORE_RELIABLE \
+>                                 ((u64)0x0000000000010000ULL)    /* higher reliability */
+>  #define EFI_MEMORY_RO          ((u64)0x0000000000020000ULL)    /* read-only */
+> +#define EFI_MEMORY_SP          ((u64)0x0000000000040000ULL)    /* special purpose */
+>  #define EFI_MEMORY_RUNTIME     ((u64)0x8000000000000000ULL)    /* range requires runtime mapping */
+>  #define EFI_MEMORY_DESCRIPTOR_VERSION  1
+>
+>
 
