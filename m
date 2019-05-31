@@ -6,99 +6,99 @@ X-Spam-Status: No, score=1.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
 	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3DA25C04AB6
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 13:19:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8108EC28CC3
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 13:39:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0560B26049
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 13:19:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3B5EF2133D
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 13:39:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="A3WPnRqn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0560B26049
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="IDKwcaOH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B5EF2133D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E1A86B027A; Fri, 31 May 2019 09:19:12 -0400 (EDT)
+	id B42366B0007; Fri, 31 May 2019 09:39:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B8A66B027C; Fri, 31 May 2019 09:19:12 -0400 (EDT)
+	id AF3936B026A; Fri, 31 May 2019 09:39:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7A7876B027E; Fri, 31 May 2019 09:19:12 -0400 (EDT)
+	id 9BB066B027A; Fri, 31 May 2019 09:39:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4375F6B027A
-	for <linux-mm@kvack.org>; Fri, 31 May 2019 09:19:12 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 14so4698109pgo.14
-        for <linux-mm@kvack.org>; Fri, 31 May 2019 06:19:12 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 66EEE6B0007
+	for <linux-mm@kvack.org>; Fri, 31 May 2019 09:39:16 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id i123so7390900pfb.19
+        for <linux-mm@kvack.org>; Fri, 31 May 2019 06:39:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=NGbXt3/IQA1b49aRJS6BBAi0DW9ybOJRqUfZBPY09dA=;
-        b=DBVetRPhGVfm2lnNquTIBnYJfOqtBMHbdutzRuR45QxLiEa5BJnD38bss0S/nuqVGh
-         xq2UhvSnOrLQUhqpAFg/J0iSjic9/vzEjZtcxvJeRxSwj8pxE+UW3UmGgTxuSD6hDEfR
-         mdHHKqL4proS69IHEp52iVfvao87fo5mPJbTGGHbCR1H5RC6OwUQWN8ds/0WY1iMbavX
-         1Syk5C3cYlMPZ55pyvUBTDRfkQFtNdSi7/CKMU4Ab7AaBp3jvEyvDt9RNSmHlQyqiS6d
-         mPguoDEYFrhtIlkC5A1s5WiM0E0RojK1h7d7L43zQSfCKWBjRLz7ggxx6b6Y9FlarRnN
-         aEMg==
-X-Gm-Message-State: APjAAAUedWtIgmeQ8E7XJJEv8f5rAYANXiW1A7ZcHTzBjuInpoGiN/tl
-	gF54Ca1eo9Nrdu+J+k1EBR7PoL+G8SzdqX9RpQIzTUZ72rMOz7C8t+qHC0zc+heKvQNi76h6xu3
-	h+n3lqH1W1/SOfmJonoDtdRB1718QndvRldtGGFf/wb2LDkCn1EN+37pK844nb54=
-X-Received: by 2002:a17:902:581:: with SMTP id f1mr9470989plf.343.1559308751856;
-        Fri, 31 May 2019 06:19:11 -0700 (PDT)
-X-Received: by 2002:a17:902:581:: with SMTP id f1mr9470887plf.343.1559308750926;
-        Fri, 31 May 2019 06:19:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559308750; cv=none;
+        bh=p2xs/JXfPoxuMW8YWnH2CaGd+XoTegPAh3+JTTCbB5s=;
+        b=Itv1AO7pvrWuHZj0huKZ9kB5fdbjDlkG1RPySsNZ9homs9XnTUGeevELaz2FWX8Nih
+         V9MnDhfBu9qS2ZyPZVTRoYxXDUK5C2K+1mmLLfCfKsYxQs2O4MckTpovCxbdFnI2ICYI
+         sdpqcPaC7v8N9BinrPDW1cWAw+I2s9VqoNJTTZSjl7Ns9jWbHqYjDCfRfLXLcBempTZ8
+         eQaTiOuR4hkD0oPfDfQdzz04YS58FLemXtZW3s+JIMz6QDqoUNSCIaogHxtY2nFw7hdO
+         jAsIIcAjMsnkzlGGLJGwFQbfVJ06VTvENA/QKtkE+rHJwjN1MMP/hnhxB5jQ0K9M5z4A
+         37sQ==
+X-Gm-Message-State: APjAAAUeNRIqlt/wLXBBVYii8DXbc6JOivXPQoirctWZbTYLm3ulREu4
+	uP5dx1wnnlfNZoGZWOcrcOXwWj30au8BEvMD94KhZsbK0gr10rRWymP+NqOXnAaiD9vV86SFqjs
+	4LiZOYexUe9p+tyTXM9SV+TTqLQmykSmW5tlBreIa0+ZIcf7K/Ts96hXiSTU0Oek=
+X-Received: by 2002:a17:90a:195e:: with SMTP id 30mr9606583pjh.116.1559309956008;
+        Fri, 31 May 2019 06:39:16 -0700 (PDT)
+X-Received: by 2002:a17:90a:195e:: with SMTP id 30mr9606469pjh.116.1559309954942;
+        Fri, 31 May 2019 06:39:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559309954; cv=none;
         d=google.com; s=arc-20160816;
-        b=w+QVtDktkPrY7s+AMxgr/gTxUilWUTPC/CcLyFfX/f0NYiDb45JdyMnnfcjlqpAQ+Q
-         Zj6LLySTIpBQzkWXWpsWsgjyd0+v7DuM7QQKEK16gRkITq9MALRIGJGR5PsAvQTuIr+S
-         6KnPKjt/7UazehRCMdbqe6vOOuenLGeERXAcFvgJvAAReLKOrG+uvuoIDAM8sn00FN+v
-         LYBp0fwMg2UnNlVKY9TVcnSruPVTRYwglHjvLpcApvfJYQ6Us5wLAv4p6ZzXYzQcMtoO
-         MFxrmgWBlhG9T6HAwTZxO/ygkacokMQm0r1wReTCvTLPe/ipcFMrYLHlVixxJBYHwx+R
-         mgtA==
+        b=vYt/0BMrjEvztYaiK2o/H5ghNzHm6p7ZxyE3bRN28oip1K+yRwRcWQuw1JzX0OlO9s
+         8tvNxEGh1m2CpL5jKVxezra6vEn3ke3SUMwETKJO5BP6dbnsjftft/8Xqtc7aGghmvA2
+         To1d+Jzjhom7TLtop3Z2M/3XM13lS1PB9eX5t9chAmrP2K+SzIZD7vEXrdx5o0e6k2TS
+         h38LhAiZbScL4DS/zTVNGjdCq16TR7KY9BbMeNz+SoqZGLJzrflvyFchj7u6FcaV8yns
+         sMI9LFa0P1S+ifPT0NEGgcCiWG4KE6aBlvxomCJuppiUgc5jNffo9+M3cJo+YgKTFs9J
+         eaXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=NGbXt3/IQA1b49aRJS6BBAi0DW9ybOJRqUfZBPY09dA=;
-        b=C7yLFrSfXQ05GoGgEKrxh6aTuMiBJybRJiPgkS62iSU9QUdjFnajmjntdtwHfqyEd4
-         o3Y8T5mrcFbFMuBuSDxH/0WDDwtOZaQjhCCgoBOFu0mhrgKclFrCKJQSIj2CeP9RiE4x
-         zcmBGK9D2p31/ZCw8TB/NJe5DnlYMEYbIIhITZHIOsXQtSvZqBN6iJH8Hl+z6RWByleY
-         M6rOQ2DhaCCXS9E5v87+9LfM4g4JSz/XTY6OWhUdIOXUVdKbD2Bu1KxAjCmD0x4iYudM
-         PDPIpzCOp/kNDZztqlwMoGQuLGsOspsAPa4UldJHwGCDb/adA2+Ye0vlNB5pXwMFwzvZ
-         kYxQ==
+        bh=p2xs/JXfPoxuMW8YWnH2CaGd+XoTegPAh3+JTTCbB5s=;
+        b=JCYUh9AtXBMpUADTDVdUCMPBQu23oWkABUj3ioAC9iENwbRpH+KTvVLl5psMfLpusR
+         0sHsgspE7Egs5h3VVX4eAM47CeFtye/XIQkdhMLZtdOJ56sZ8UD1GPbYYAqiR9h8wkjP
+         UEkGGxz5G8RhlqxL9qg3RFHYFQsQYGf+KvzH2oslznDUUppdRNsx5j0kFlNxyzuEf2BP
+         5eiYWtUWU+O84dEDyb4MJm7U6PZcgFulF7RkzMzyWXqGckY+1Mbrs2RT6SQwhCh+mPxU
+         3wNoqK9TlviqnOTtn0AmspL0v3lPf6agJbpVhtzE4QsAMEsZGStzQ0Eqg6xD6MaB4U6Y
+         9Rew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=A3WPnRqn;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IDKwcaOH;
        spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z63sor6228791pgb.41.2019.05.31.06.19.10
+        by mx.google.com with SMTPS id n1sor6341848pgh.2.2019.05.31.06.39.14
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 31 May 2019 06:19:10 -0700 (PDT)
+        Fri, 31 May 2019 06:39:14 -0700 (PDT)
 Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=A3WPnRqn;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IDKwcaOH;
        spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=sender:date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=NGbXt3/IQA1b49aRJS6BBAi0DW9ybOJRqUfZBPY09dA=;
-        b=A3WPnRqnTUdG3crEHGBb/NpBr+tWmhd8IyhewWKj1R4bjxJzKPyXLzw5G3U9Lnteyl
-         S36wH0W0+2k1njFZy2Ds2f/9kFql5X0DZRwamUx250rLJpRwx19xr3wuHqAOJBBYxLq9
-         D5yvDqjjRPT9mniegqhTMI69xTfamzNzmqGuYDQC27qaWbbK2U1nrf6NWOVP/AQgAVed
-         27HAfAIiBEc/pMFVtc2MGWrATM8vpC7OKdA/xorvzdMTJRgsu4MAyOAQ07qRReLzaC1m
-         vS3W5pSSEa4XJdth4E3PvyqmD9aT/s5qNUBsNMohsGUqNgFntqIxkqkXVq7VroDVR9nb
-         xcZw==
-X-Google-Smtp-Source: APXvYqwfmPTYrU4YNg70+w+fekZWbolWXYkyOovH8OK5qnvs6Xh/v3zPDoIKALH3CJn/NV3nmmscEA==
-X-Received: by 2002:a63:6884:: with SMTP id d126mr9237347pgc.154.1559308750486;
-        Fri, 31 May 2019 06:19:10 -0700 (PDT)
+        bh=p2xs/JXfPoxuMW8YWnH2CaGd+XoTegPAh3+JTTCbB5s=;
+        b=IDKwcaOHGadMB1TmLSObOSA0W/aGdtHDC0stKAbwq4TtKsZB6mhzcklZYmOzKQnzhq
+         hxywSfajmRY5mDRpAvWBh1M3KgJKwf/zl9jOd1WGYj6UXQ2fSX3E1nhZkkIegcSHln1Z
+         dOs3dg8Pt1GBE3ik7m7RbCDl9neE8lReHVYFYme1QyB0wwO829iUToFVHsE9Dm4FXoHq
+         gzk7kwcDaPtxSBv+Lo75tbXdD+lu0qJyhYndZkyHayIjT+3oQ3oUFEBtO971zCVy2KXw
+         du35CsPT0zBzdgBTKHgTqnxMc3iatZyQXdovcqC1wmgrge9T/uteTBvSpZeWOVZdU+7Z
+         upLw==
+X-Google-Smtp-Source: APXvYqwpn6INIam9Hj1iduhR8iI5bXQQTo7X1hltxvTWMZbD5dIKnXsGM8MX89DjI7uadV0NebmWCw==
+X-Received: by 2002:a63:4714:: with SMTP id u20mr9412205pga.347.1559309954195;
+        Fri, 31 May 2019 06:39:14 -0700 (PDT)
 Received: from google.com ([122.38.223.241])
-        by smtp.gmail.com with ESMTPSA id d186sm5485008pgc.58.2019.05.31.06.19.02
+        by smtp.gmail.com with ESMTPSA id 128sm7105292pff.16.2019.05.31.06.39.07
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 31 May 2019 06:19:09 -0700 (PDT)
-Date: Fri, 31 May 2019 22:19:00 +0900
+        Fri, 31 May 2019 06:39:12 -0700 (PDT)
+Date: Fri, 31 May 2019 22:39:04 +0900
 From: Minchan Kim <minchan@kernel.org>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
@@ -112,15 +112,15 @@ Cc: Andrew Morton <akpm@linux-foundation.org>,
 	Brian Geffon <bgeffon@google.com>, jannh@google.com,
 	oleg@redhat.com, christian@brauner.io, oleksandr@redhat.com,
 	hdanton@sina.com
-Subject: Re: [RFCv2 5/6] mm: introduce external memory hinting API
-Message-ID: <20190531131859.GB195463@google.com>
+Subject: Re: [RFCv2 1/6] mm: introduce MADV_COLD
+Message-ID: <20190531133904.GC195463@google.com>
 References: <20190531064313.193437-1-minchan@kernel.org>
- <20190531064313.193437-6-minchan@kernel.org>
- <20190531083757.GH6896@dhcp22.suse.cz>
+ <20190531064313.193437-2-minchan@kernel.org>
+ <20190531084752.GI6896@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190531083757.GH6896@dhcp22.suse.cz>
+In-Reply-To: <20190531084752.GI6896@dhcp22.suse.cz>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -128,49 +128,63 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 31, 2019 at 10:37:57AM +0200, Michal Hocko wrote:
-> On Fri 31-05-19 15:43:12, Minchan Kim wrote:
-> > There is some usecase that centralized userspace daemon want to give
-> > a memory hint like MADV_[COLD|PAGEEOUT] to other process. Android's
-> > ActivityManagerService is one of them.
+On Fri, May 31, 2019 at 10:47:52AM +0200, Michal Hocko wrote:
+> On Fri 31-05-19 15:43:08, Minchan Kim wrote:
+> > When a process expects no accesses to a certain memory range, it could
+> > give a hint to kernel that the pages can be reclaimed when memory pressure
+> > happens but data should be preserved for future use.  This could reduce
+> > workingset eviction so it ends up increasing performance.
 > > 
-> > It's similar in spirit to madvise(MADV_WONTNEED), but the information
-> > required to make the reclaim decision is not known to the app. Instead,
-> > it is known to the centralized userspace daemon(ActivityManagerService),
-> > and that daemon must be able to initiate reclaim on its own without
-> > any app involvement.
+> > This patch introduces the new MADV_COLD hint to madvise(2) syscall.
+> > MADV_COLD can be used by a process to mark a memory range as not expected
+> > to be used in the near future. The hint can help kernel in deciding which
+> > pages to evict early during memory pressure.
 > > 
-> > To solve the issue, this patch introduces new syscall process_madvise(2).
-> > It could give a hint to the exeternal process of pidfd.
-> > 
-> >  int process_madvise(int pidfd, void *addr, size_t length, int advise,
-> > 			unsigned long cookie, unsigned long flag);
-> > 
-> > Since it could affect other process's address range, only privileged
-> > process(CAP_SYS_PTRACE) or something else(e.g., being the same UID)
-> > gives it the right to ptrace the process could use it successfully.
-> > 
-> > The syscall has a cookie argument to privode atomicity(i.e., detect
-> > target process's address space change since monitor process has parsed
-> > the address range of target process so the operaion could fail in case
-> > of happening race). Although there is no interface to get a cookie
-> > at this moment, it could be useful to consider it as argument to avoid
-> > introducing another new syscall in future. It could support *atomicity*
-> > for disruptive hint(e.g., MADV_DONTNEED|FREE).
-> > flag argument is reserved for future use if we need to extend the API.
+> > Internally, it works via deactivating pages from active list to inactive's
+> > head if the page is private because inactive list could be full of
+> > used-once pages which are first candidate for the reclaiming and that's a
+> > reason why MADV_FREE move pages to head of inactive LRU list. Therefore,
+> > if the memory pressure happens, they will be reclaimed earlier than other
+> > active pages unless there is no access until the time.
 > 
-> Providing an API that is incomplete will not fly. Really. As this really
-> begs for much more discussion and it would be good to move on with the
-> core idea of the pro active memory memory management from userspace
-> usecase. Could you split out the core change so that we can move on and
-> leave the external for a later discussion. I believe this would lead to
-> a smoother integration.
+> [I am intentionally not looking at the implementation because below
+> points should be clear from the changelog - sorry about nagging ;)]
+> 
+> What kind of pages can be deactivated? Anonymous/File backed.
+> Private/shared? If shared, are there any restrictions?
 
-No problem but I need to understand what you want a little bit more because
-I thought this patchset is already step by step so if we reach the agreement
-of part of them like [1-5/6], it could be merged first.
+Both file and private pages could be deactived from each active LRU
+to each inactive LRU if the page has one map_count. In other words,
 
-Could you say how you want to split the patchset for forward progress?
+    if (page_mapcount(page) <= 1)
+        deactivate_page(page);
 
-Thanks.
+> 
+> Are there any restrictions on mappings? E.g. what would be an effect of
+> this operation on hugetlbfs mapping?
+
+VM_LOCKED|VM_HUGETLB|VM_PFNMAP vma will be skipped like MADV_FREE|DONTNEED
+
+> 
+> Also you are talking about inactive LRU but what kind of LRU is that? Is
+> it the anonymous LRU? If yes, don't we have the same problem as with the
+
+active file page -> inactive file LRU
+active anon page -> inacdtive anon LRU
+
+> early MADV_FREE implementation when enough page cache causes that
+> deactivated anonymous memory doesn't get reclaimed anytime soon. Or
+> worse never when there is no swap available?
+
+I think MADV_COLD is a little bit different symantic with MAVD_FREE.
+MADV_FREE means it's okay to discard when the memory pressure because
+the content of the page is *garbage*. Furthemore, freeing such pages is
+almost zero overhead since we don't need to swap out and access
+afterward causes minor fault. Thus, it would make sense to put those
+freeable pages in inactive file LRU to compete other used-once pages.
+
+However, MADV_COLD doesn't means it's a garbage and freeing requires
+swap out/swap in afterward. So, it would be better to move inactive
+anon's LRU list, not file LRU. Furthermore, it would avoid unnecessary
+scanning of those cold anonymous if system doesn't have a swap device.
 
