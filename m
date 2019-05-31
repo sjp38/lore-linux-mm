@@ -2,180 +2,316 @@ Return-Path: <SRS0=007R=T7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F2F33C04AB6
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 15:32:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C65BFC04AB6
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 15:49:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ABEF326A46
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 15:32:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 716A62680B
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 15:49:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="YeiseFld"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABEF326A46
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="GhRpfx2A"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 716A62680B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 484BE6B0278; Fri, 31 May 2019 11:32:43 -0400 (EDT)
+	id BCB0F6B027A; Fri, 31 May 2019 11:49:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 435A86B027A; Fri, 31 May 2019 11:32:43 -0400 (EDT)
+	id B7C056B027C; Fri, 31 May 2019 11:49:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 34BF66B027C; Fri, 31 May 2019 11:32:43 -0400 (EDT)
+	id A91EB6B027E; Fri, 31 May 2019 11:49:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E07B06B0278
-	for <linux-mm@kvack.org>; Fri, 31 May 2019 11:32:42 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id d18so4181232wre.22
-        for <linux-mm@kvack.org>; Fri, 31 May 2019 08:32:42 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 70F5D6B027A
+	for <linux-mm@kvack.org>; Fri, 31 May 2019 11:49:14 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id c3so6550971plr.16
+        for <linux-mm@kvack.org>; Fri, 31 May 2019 08:49:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=fGL6EqRvLB+NZa/jkmcp3go/mVh1h/1Q1GkUa9Q/sF4=;
-        b=FE6IhKqJ20Ss8DszRNBVR8DW0W0SZEDZKLPsSt/As+XlgReUM2HQQ/xwoeK0xiJ9dZ
-         IMngkbhNUs3ebk4ssVz7PrJhz0b3YtIqt1fbIIMxrMj6ONva/ykcAlXxP5Le483uzPlE
-         7OckkaMqqO3uQfLerjgVe34dxLS/BRP7Yzbtz0Y2qQTmD3pkVHl9YOmM7FmfsiLP0Rch
-         ks9qclBVJgHNpvSFi/zU9RWD/SFomzMIL4rkozmWm5updo73WFSzzrA59C8sPqkcPcX+
-         wjHxGyEyQ5aDHEW+HtcpHs0wY+QT1uTHpW7ZkrQxV8cN24HEFJVzUUjU7XiCiAc1bPdH
-         IvEQ==
-X-Gm-Message-State: APjAAAVr+GJbUbzwguOS7OUNCQZ6YPCOMgRdiMLZRIGJ+MASFScjhhjg
-	FILiqX+POCBgu5TrMnFG5Je2MofaidQOBFtskEFLgXfW+HLqtgAhF4tWxHHBjATF9l76mfnwLJz
-	ghlDnjDbtpewHDO+P9yRWiiBh31Is7tiHeIA2oDGi5nSSplwY2Gi0scvfZZwPeBE64w==
-X-Received: by 2002:a5d:5302:: with SMTP id e2mr6945198wrv.347.1559316762473;
-        Fri, 31 May 2019 08:32:42 -0700 (PDT)
-X-Received: by 2002:a5d:5302:: with SMTP id e2mr6945159wrv.347.1559316761608;
-        Fri, 31 May 2019 08:32:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559316761; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=lUFtp2yOlfQq1CKiEF9tMKsKqyXjNbP4nir3ck8sFaE=;
+        b=G+aJ1e9tZ+urFabbM3+cqGhNf9+OpMmSojCCO8YVnK7eO1eSqz2LeNQmnVk1d8ZwmF
+         Ayr2gM0zDyyeR0CWYzKQ291JysNJPeUy7GuhKX7Gt+qVjHyr9uuVjuv4ov5rkRsqKDtw
+         y/puPpvXR7tHEsULTj3v6+A27lLQoheo2/7B8rzh6aVHZouK31Xf4bP1/qz9cPfHaIDu
+         YK+a2XTwFqhuQY4TLPBZ+/ty+x8nULVUhL16CttBIq2j09WYp/4sTiPqsC9Rvz8bGBY6
+         5ZINdlxsdyci6vTHq90v4G/MNxu9R6SKjD6LGLQGWfbh6DnC7KWgci6N7NAD2QwvJm46
+         T+XA==
+X-Gm-Message-State: APjAAAWZud1eVYbntKoJLA2vBjd5wK8cpmVV++Y+9hT/U0M6eMZDNG3Q
+	II3iqV+uXZ1MWSIueVmc+Yq28+JB2Q6WrbDDlsJmOgtvSYJV4KjJt5la2NolVQuMw071jjIrxtP
+	a5bt3cOCujk7Zp2LTmZXRfBunhtqlIv+dje//U/nMeO7GqrzQIYjfh6dmRzafh6P5+w==
+X-Received: by 2002:a17:90a:37c8:: with SMTP id v66mr3405026pjb.33.1559317754056;
+        Fri, 31 May 2019 08:49:14 -0700 (PDT)
+X-Received: by 2002:a17:90a:37c8:: with SMTP id v66mr3404888pjb.33.1559317752869;
+        Fri, 31 May 2019 08:49:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559317752; cv=none;
         d=google.com; s=arc-20160816;
-        b=rPuJMQlW2O1SgM9tTbMgToJpw30Teq/R4AEOQr/dgrI8aCGMz1DPTBILwx7y3mNaKv
-         YFnC9j4PwkF1+ckSGNaLk/MZWMzhKaKyuntbgs2hF5MsvDjti96t/mPLvAOURhkBkJWB
-         I+1l69iDND84bP4/bllba9QqcG2+h0JVXY6MqrhmwWfEg+7PfeztsNEWYBFSGUJJ54ih
-         /2cC7xVtYsVOoBbgd8lxIce4kOWJxvweqWUybBBU9NWzCILPW0Bm/01jIpCUtZIw6A13
-         Q8IUw/+eW12pFAvaWjYkeSs7+X0TjPZUL/DqF39237Q20HUkyGJ78p0dJlOPDO6Ihh6N
-         UGZg==
+        b=njjLw6YEAj+547cpcM+5V2nTH9CCtEFmg5DmCSECesvdPaK+BwndsQXMDXnFIt8j3y
+         yulc3R6HqSLqqiLT6KpTI5OBakMalciN+FWh2Lj1DHrMFgfDneNrIoU7rFDobz8xyAoG
+         BOCSpghu5PVIdNN+kQ6FaYuNrS4KPBLGJ9bnFavwdbhS7eoTrSWBpQnjBhBvE0Nx9ujS
+         fs5JNYU9c8xSMhiRStUxvioEG8DALwnGRbZKnwhSbn2+A2+B8uge7HnOXhke/mm4qUxw
+         kt+NpugKxh0ygEwXNftcMDBGAclAZYQebqZWgeNelr2WQKEA9eFjeoNqn5hfi/bjS8+G
+         H+og==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=fGL6EqRvLB+NZa/jkmcp3go/mVh1h/1Q1GkUa9Q/sF4=;
-        b=fOU43Sdcemc5rN9vxI4sVySued0sVt05mrYlidKXcK7ulZvThH5CXGi2NY7wriH6KU
-         Cv4BpMgS4C93CNeSkaRgnSDP00DcV8+Dgy8E1/QqtP2YII2+E+Ye675Khjpjh1SJHAVh
-         Cwp57EOtnh4BUa8ObjjwHTV788cKFDdWfIlkSPZIuCHL4JZw4BKZ66akmnsC/1+SfH7+
-         KwpYymSuIIUCh0lbA1zKLsh+D8LIrlFWL/cAI7gSmChEn7Kbi3j3XF8zlrwKypBmbv0r
-         aMydV+7EIExfIRTb4LUApxDRCfFdQcd00L2fFWh9mknCRqsvSlS0sPMstWo8reFT8luJ
-         Feng==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=lUFtp2yOlfQq1CKiEF9tMKsKqyXjNbP4nir3ck8sFaE=;
+        b=csLmI8FkyVKkd2KgJyCa0U+B23CvB4sgFjeZWZczwRS3GZXjPcP6kBNDiSi4XwPzda
+         nfE01x02rBpy1gRLglExrGoXPTc+NKdX3Z2V1GyJlqa1AZ1KKtzl39TqmfuVPsDdQsOu
+         5qr+bADeVbZFeUPR1ZIOjBCMH1t1QZneSo5z2qXkFxxW+YQas7tGlXGQGd3XkAHn4Xau
+         d6YVHNvgpTEm7KuZzfBOQNCOaqouzOQnWTUwzDVPQ5vB2siS1qwTfbtXMyUbtBlSIOzf
+         6ZKqIPOqvzYIj8xxnQHjw/yTSeAJYjuNPy13lBKpPGIrZxWif0l30bw+qG4Qb3zOdIEd
+         IoVQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=YeiseFld;
-       spf=pass (google.com: domain of semenzato@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@google.com;
+       dkim=pass header.i=@chromium.org header.s=google header.b=GhRpfx2A;
+       spf=pass (google.com: domain of semenzato@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@chromium.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k18sor2802567wmc.21.2019.05.31.08.32.41
+        by mx.google.com with SMTPS id t97sor7422028pjb.0.2019.05.31.08.49.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 31 May 2019 08:32:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of semenzato@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 31 May 2019 08:49:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of semenzato@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=YeiseFld;
-       spf=pass (google.com: domain of semenzato@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@google.com;
+       dkim=pass header.i=@chromium.org header.s=google header.b=GhRpfx2A;
+       spf=pass (google.com: domain of semenzato@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=semenzato@chromium.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=chromium.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=fGL6EqRvLB+NZa/jkmcp3go/mVh1h/1Q1GkUa9Q/sF4=;
-        b=YeiseFldSN/5+crIbCEpQiudtO1RaplBzltFA4ASnVlWCmQ5W16mI5EqqeFw1Z3UKg
-         chuiyCFEKBLndFf+WsXRKqU5M0jaPWk+Qo8tUXLgtYCXxT6pOezcfWx43g+SkwyNxlGp
-         uMij9JgqtyU8jbzy5Mip8p9o83a0ss3Q2QaQA=
-X-Google-Smtp-Source: APXvYqyNRxhqo4AWL/lfKd/hj4rWl6fa+Jp4jN534MW6jCEZuWtdLzqLwGQqfEj5trBIQEyKlzPo6lqzNySqrOsiRrk=
-X-Received: by 2002:a1c:ed07:: with SMTP id l7mr5803517wmh.148.1559316760517;
- Fri, 31 May 2019 08:32:40 -0700 (PDT)
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=lUFtp2yOlfQq1CKiEF9tMKsKqyXjNbP4nir3ck8sFaE=;
+        b=GhRpfx2A5bxND9pas2Gk+Vdmrk2F/pXrfRMH0ecWkCkA8JZ3hSvXhkBVcDnQHmN8PB
+         ITmxk4tJ8dqEYWINfudSzwLTJrucAkYYaawM8P2s0bJ2xU3V2adfUY8LuZfNbBu6BioV
+         fFVXURHP/e4drwXX+jAAM0tPncLDWYozgC1lA=
+X-Google-Smtp-Source: APXvYqz6ur5HqPd6uxOkgbZFaVWa+IJqvEKWFNcRchWcH8iA4hDtSasywAKZwQnFBxhrX6Tz7WF2XA==
+X-Received: by 2002:a17:90b:d8c:: with SMTP id bg12mr10399048pjb.70.1559317752008;
+        Fri, 31 May 2019 08:49:12 -0700 (PDT)
+Received: from luigi2.mtv.corp.google.com ([2620:15c:202:1:2c30:5512:25f8:631d])
+        by smtp.gmail.com with ESMTPSA id e127sm2916716pfe.98.2019.05.31.08.49.10
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 31 May 2019 08:49:10 -0700 (PDT)
+From: semenzato@chromium.org
+To: linux-mm@kvack.org,
+	akpm@linux-foundation.org
+Cc: sonnyrao@chromium.org,
+	linux-api@vger.kernel.org,
+	Luigi Semenzato <semenzato@chromium.org>,
+	Yu Zhao <yuzhao@chromium.org>
+Subject: [PATCH v3 1/1] mm: smaps: split PSS into components
+Date: Fri, 31 May 2019 08:46:45 -0700
+Message-Id: <20190531154645.39365-1-semenzato@chromium.org>
+X-Mailer: git-send-email 2.22.0.rc1.257.g3120a18244-goog
 MIME-Version: 1.0
-References: <20190531002633.128370-1-semenzato@chromium.org>
- <20190531060401.GA7386@dhcp22.suse.cz> <20190531062206.GD6896@dhcp22.suse.cz> <20190531062318.GE6896@dhcp22.suse.cz>
-In-Reply-To: <20190531062318.GE6896@dhcp22.suse.cz>
-From: Luigi Semenzato <semenzato@chromium.org>
-Date: Fri, 31 May 2019 08:32:27 -0700
-Message-ID: <CAA25o9TQYDCdLj-qGkwwNGDGSthX2yAtnqNWDkx-4WEe5TGxGQ@mail.gmail.com>
-Subject: Re: [PATCH v2 1/1] mm: smaps: split PSS into components
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	Sonny Rao <sonnyrao@chromium.org>, Yu Zhao <yuzhao@chromium.org>, linux-api@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 30, 2019 at 11:23 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Fri 31-05-19 08:22:06, Michal Hocko wrote:
-> > On Fri 31-05-19 08:04:01, Michal Hocko wrote:
-> > > [Please always Cc linux-api mailing list (now added) when adding a new
-> > > user visible API. Keeping the rest of the email intact for reference]
-> > >
-> > > On Thu 30-05-19 17:26:33, semenzato@chromium.org wrote:
-> > > > From: Luigi Semenzato <semenzato@chromium.org>
-> > > >
-> > > > Report separate components (anon, file, and shmem)
-> > > > for PSS in smaps_rollup.
-> > > >
-> > > > This helps understand and tune the memory manager behavior
-> > > > in consumer devices, particularly mobile devices.  Many of
-> > > > them (e.g. chromebooks and Android-based devices) use zram
-> > > > for anon memory, and perform disk reads for discarded file
-> > > > pages.  The difference in latency is large (e.g. reading
-> > > > a single page from SSD is 30 times slower than decompressing
-> > > > a zram page on one popular device), thus it is useful to know
-> > > > how much of the PSS is anon vs. file.
-> >
-> > Could you describe how exactly are those new counters going to be used?
+From: Luigi Semenzato <semenzato@chromium.org>
 
-Yes.  We wish to gather stats of memory usage by groups of processes
-on chromebooks: various types of chrome processes, android processes
-(for ARC++, i.e. android running on Chrome OS), VMs, daemons etc.  See
+Report separate components (anon, file, and shmem)
+for PSS in smaps_rollup.
 
-https://chromium.googlesource.com/chromiumos/platform2/+/refs/heads/master/metrics/pgmem.cc
+This helps understand and tune the memory manager behavior
+in consumer devices, particularly mobile devices.  Many of
+them (e.g. chromebooks and Android-based devices) use zram
+for anon memory, and perform disk reads for discarded file
+pages.  The difference in latency is large (e.g. reading
+a single page from SSD is 30 times slower than decompressing
+a zram page on one popular device), thus it is useful to know
+how much of the PSS is anon vs. file.
 
-and related files. The stats help us tune the memory manager better in
-different scenarios.  Without this patch we only have a global
-proportional RSS, but splitting into components help us deal with
-situations such as a varying ratio of file vs. anon pages, which can
-result, for instance, by starting/stopping android.  (In theory the
-"swappiness" tunable should help with that, but it doesn't seem
-effective under extreme pressure, which is unfortunately rather common
-on these consumer devices).
+This patch also removes a small code duplication in smaps_account,
+which would have gotten worse otherwise.
 
-On older kernels, which we have to support for several years, we've
-added an equivalent "totmaps" locally and we'd be super-happy if going
-forward we can just switch to smaps_rollup.
+Also added missing entry for smaps_rollup in
+Documentation/filesystems/proc.txt.
 
-> > I do not expect this to add a visible penalty to users who are not going
-> > to use the counter but have you tried to measure that?
+Acked-by: Yu Zhao <yuzhao@chromium.org>
+Signed-off-by: Luigi Semenzato <semenzato@chromium.org>
+---
+ Documentation/filesystems/proc.txt |  6 +-
+ fs/proc/task_mmu.c                 | 91 ++++++++++++++++++++----------
+ 2 files changed, 65 insertions(+), 32 deletions(-)
 
-Right, if smaps or smaps_rollup is not used, this cannot have a
-measurable impact (maybe more code->more TLB misses, but that's at
-most tiny), so no, I haven't tried to measure that.
-
-I have been measuring the cost of smaps_rollup for all processes in a
-chromebook under load (about 400 processes) but those measurements are
-too noisy to show change.
-
-The code is shared between smaps and smaps_rollup, and some of the
-results aren't used in smaps, only in smaps_rollup, so there's some
-waste (a couple of extra conditional branches, and loads/stores), but
-again I didn't think that reducing it is worth the trouble in terms of
-code complexity.
-
-> Also forgot to mention that any change to smaps should be documented in
-> Documentation/filesystems/proc.txt.
-
-Thank you, I'll fix that and send a v3 (and Cc linux-api).
-
-
-> --
-> Michal Hocko
-> SUSE Labs
+diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
+index 66cad5c86171..b48e85e19877 100644
+--- a/Documentation/filesystems/proc.txt
++++ b/Documentation/filesystems/proc.txt
+@@ -153,9 +153,11 @@ Table 1-1: Process specific entries in /proc
+ 		symbol the task is blocked in - or "0" if not blocked.
+  pagemap	Page table
+  stack		Report full stack trace, enable via CONFIG_STACKTRACE
+- smaps		an extension based on maps, showing the memory consumption of
++ smaps		An extension based on maps, showing the memory consumption of
+ 		each mapping and flags associated with it
+- numa_maps	an extension based on maps, showing the memory locality and
++ smaps_rollup	Accumulated smaps stats for all mappings of the process.  This
++		can be derived from smaps, but is faster and more convenient
++ numa_maps	An extension based on maps, showing the memory locality and
+ 		binding policy as well as mem usage (in pages) of each mapping.
+ ..............................................................................
+ 
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 01d4eb0e6bd1..ed3b952f0d30 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -417,17 +417,53 @@ struct mem_size_stats {
+ 	unsigned long shared_hugetlb;
+ 	unsigned long private_hugetlb;
+ 	u64 pss;
++	u64 pss_anon;
++	u64 pss_file;
++	u64 pss_shmem;
+ 	u64 pss_locked;
+ 	u64 swap_pss;
+ 	bool check_shmem_swap;
+ };
+ 
++static void smaps_page_accumulate(struct mem_size_stats *mss,
++		struct page *page, unsigned long size, unsigned long pss,
++		bool dirty, bool locked, bool private)
++{
++	mss->pss += pss;
++
++	if (PageAnon(page))
++		mss->pss_anon += pss;
++	else if (PageSwapBacked(page))
++		mss->pss_shmem += pss;
++	else
++		mss->pss_file += pss;
++
++	if (locked)
++		mss->pss_locked += pss;
++
++	if (dirty || PageDirty(page)) {
++		if (private)
++			mss->private_dirty += size;
++		else
++			mss->shared_dirty += size;
++	} else {
++		if (private)
++			mss->private_clean += size;
++		else
++			mss->shared_clean += size;
++	}
++}
++
+ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+ 		bool compound, bool young, bool dirty, bool locked)
+ {
+ 	int i, nr = compound ? 1 << compound_order(page) : 1;
+ 	unsigned long size = nr * PAGE_SIZE;
+ 
++	/*
++	 * First accumulate quantities that depend only on |size| and the type
++	 * of the compound page.
++	 */
+ 	if (PageAnon(page)) {
+ 		mss->anonymous += size;
+ 		if (!PageSwapBacked(page) && !dirty && !PageDirty(page))
+@@ -440,42 +476,24 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
+ 		mss->referenced += size;
+ 
+ 	/*
++	 * Then accumulate quantities that may depend on sharing, or that may
++	 * differ page-by-page.
++	 *
+ 	 * page_count(page) == 1 guarantees the page is mapped exactly once.
+ 	 * If any subpage of the compound page mapped with PTE it would elevate
+ 	 * page_count().
+ 	 */
+ 	if (page_count(page) == 1) {
+-		if (dirty || PageDirty(page))
+-			mss->private_dirty += size;
+-		else
+-			mss->private_clean += size;
+-		mss->pss += (u64)size << PSS_SHIFT;
+-		if (locked)
+-			mss->pss_locked += (u64)size << PSS_SHIFT;
++		smaps_page_accumulate(mss, page, size, size << PSS_SHIFT, dirty,
++			locked, true);
+ 		return;
+ 	}
+-
+ 	for (i = 0; i < nr; i++, page++) {
+ 		int mapcount = page_mapcount(page);
+-		unsigned long pss = (PAGE_SIZE << PSS_SHIFT);
+-
+-		if (mapcount >= 2) {
+-			if (dirty || PageDirty(page))
+-				mss->shared_dirty += PAGE_SIZE;
+-			else
+-				mss->shared_clean += PAGE_SIZE;
+-			mss->pss += pss / mapcount;
+-			if (locked)
+-				mss->pss_locked += pss / mapcount;
+-		} else {
+-			if (dirty || PageDirty(page))
+-				mss->private_dirty += PAGE_SIZE;
+-			else
+-				mss->private_clean += PAGE_SIZE;
+-			mss->pss += pss;
+-			if (locked)
+-				mss->pss_locked += pss;
+-		}
++		unsigned long pss = PAGE_SIZE << PSS_SHIFT;
++
++		smaps_page_accumulate(mss, page, PAGE_SIZE, pss / mapcount,
++			dirty, locked, mapcount < 2);
+ 	}
+ }
+ 
+@@ -754,10 +772,23 @@ static void smap_gather_stats(struct vm_area_struct *vma,
+ 		seq_put_decimal_ull_width(m, str, (val) >> 10, 8)
+ 
+ /* Show the contents common for smaps and smaps_rollup */
+-static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss)
++static void __show_smap(struct seq_file *m, const struct mem_size_stats *mss,
++	bool rollup_mode)
+ {
+ 	SEQ_PUT_DEC("Rss:            ", mss->resident);
+ 	SEQ_PUT_DEC(" kB\nPss:            ", mss->pss >> PSS_SHIFT);
++	if (rollup_mode) {
++		/*
++		 * These are meaningful only for smaps_rollup, otherwise two of
++		 * them are zero, and the other one is the same as Pss.
++		 */
++		SEQ_PUT_DEC(" kB\nPss_Anon:       ",
++			mss->pss_anon >> PSS_SHIFT);
++		SEQ_PUT_DEC(" kB\nPss_File:       ",
++			mss->pss_file >> PSS_SHIFT);
++		SEQ_PUT_DEC(" kB\nPss_Shmem:      ",
++			mss->pss_shmem >> PSS_SHIFT);
++	}
+ 	SEQ_PUT_DEC(" kB\nShared_Clean:   ", mss->shared_clean);
+ 	SEQ_PUT_DEC(" kB\nShared_Dirty:   ", mss->shared_dirty);
+ 	SEQ_PUT_DEC(" kB\nPrivate_Clean:  ", mss->private_clean);
+@@ -794,7 +825,7 @@ static int show_smap(struct seq_file *m, void *v)
+ 	SEQ_PUT_DEC(" kB\nMMUPageSize:    ", vma_mmu_pagesize(vma));
+ 	seq_puts(m, " kB\n");
+ 
+-	__show_smap(m, &mss);
++	__show_smap(m, &mss, false);
+ 
+ 	seq_printf(m, "THPeligible:    %d\n", transparent_hugepage_enabled(vma));
+ 
+@@ -841,7 +872,7 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
+ 	seq_pad(m, ' ');
+ 	seq_puts(m, "[rollup]\n");
+ 
+-	__show_smap(m, &mss);
++	__show_smap(m, &mss, true);
+ 
+ 	release_task_mempolicy(priv);
+ 	up_read(&mm->mmap_sem);
+-- 
+2.22.0.rc1.257.g3120a18244-goog
 
