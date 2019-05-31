@@ -2,181 +2,156 @@ Return-Path: <SRS0=007R=T7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_MED,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EC32DC28CC3
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 16:24:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7BAFBC04AB6
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 16:30:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A66F526BFC
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 16:24:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3F31526C24
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 16:30:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="WkbNgEwA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A66F526BFC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="f/GyB5Aj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3F31526C24
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 522616B026B; Fri, 31 May 2019 12:24:21 -0400 (EDT)
+	id DCEDF6B026C; Fri, 31 May 2019 12:30:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4F9986B026C; Fri, 31 May 2019 12:24:21 -0400 (EDT)
+	id D80906B0274; Fri, 31 May 2019 12:30:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 40F6A6B0274; Fri, 31 May 2019 12:24:21 -0400 (EDT)
+	id C953D6B0278; Fri, 31 May 2019 12:30:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B9306B026B
-	for <linux-mm@kvack.org>; Fri, 31 May 2019 12:24:21 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id s3so5036167pgv.12
-        for <linux-mm@kvack.org>; Fri, 31 May 2019 09:24:21 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A847C6B026C
+	for <linux-mm@kvack.org>; Fri, 31 May 2019 12:30:30 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id 18so8349302qkl.13
+        for <linux-mm@kvack.org>; Fri, 31 May 2019 09:30:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=h/x2RsdaGEeomdfj9zckwm1ZuXHc7ti1LUsxVKWauDI=;
-        b=Q30TtQAq2k3Zep/uAS6yAKuiDDpM6MK6Yu+puc8T0TViuaXzOrl2Rdey6aCDzybEmU
-         fV54btrrX1rP43yjjwU0lnD1P5G9HgSH14ccKtFKc1wgotqq6Od/CU5B2xnt2wqSzKYh
-         0PQXROo8/RIrdDpLcdfcuwKfYcrz7R/o561U3eE8OXQoGkO3U6mEgURK96MVAFFBYThG
-         bgAq6EmWeTefsDA0vb/6zfSnpArvmtvYPiz0ai/xEdigL6VmmapJgMXFOKRq86/6yCs/
-         AUx5TRrVIF//UVBaK0tagFk2XNQRGolB5XcaBRUEEUq8hY6EbW70A1VDHMAVV9gTWJPs
-         xZxQ==
-X-Gm-Message-State: APjAAAUy2AqogCFx5zeegI7L/uJfZ+cXS2KKpyLZ+1VRR9Okq2eL7Pf0
-	eHsy6qLl3zTgdTIKqdweN8A/8OUfzu+XXDJMjBT3Q9h5Bp85UkOtimen5M3CNMkLxRnBE4hJKMV
-	/Qvpj7k3P5OLNDlv+9dVqWUKtny1fHA/MGPYADvamRT5SaaKSqnXCWCSGWlAkt2GRZQ==
-X-Received: by 2002:a63:c24c:: with SMTP id l12mr10346887pgg.173.1559319860611;
-        Fri, 31 May 2019 09:24:20 -0700 (PDT)
-X-Received: by 2002:a63:c24c:: with SMTP id l12mr10346811pgg.173.1559319859850;
-        Fri, 31 May 2019 09:24:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559319859; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=Q5G8+82ntOUP6LsPY/2FoFYtaIUU0yVJDral6+z2qOM=;
+        b=Y5RY+AWKoA5AL77ybXcFhUoc7+1M8G3ZvBLYaZ3nG0qZMrIoEL/L0q1coqFLWebT+e
+         +Tj0iSOTrqWLs9Yt/BTu+BpWAvNucwDOXzOdHC/ykIPemilGC83R5Y/Xlgi0OtP8hp9+
+         p545OZSRcAT1HTPdjPm1+uw08G5tVNjDZJ4c6odNP8c4Bm8iGHo+syLUtaJ/f7qvsxUF
+         JAfQTnW8SWwcO7WHyaiW1Xt9TvVnu8oMsXfUwoLRgyon+7uRE1IR2Ta5WUQgBxe18Q0H
+         amicVmjEQ2gTY7S56Q8IPdNnz6oILG6rp3Hww3zHspDvsmbgZXzNm1nHmqUiJwOY95Vc
+         anjQ==
+X-Gm-Message-State: APjAAAVqlXa4+D46JrTzWcGtCpyYP+7LIXZasU4ijJxDkWA43GPJ2tqr
+	+WsgNPtKU9TY6VlXsXC4pvWCyRw48Voa0BYSu+W849wbXrBovk+Yb13VdWSOGf6y+ViTXdgvsEx
+	Jd7buGFOEOscSd6/upPVm9eFO0BjNPzZN/HP+/Z1GMGiBJLfXUu/tPd5T0w8fzokd5Q==
+X-Received: by 2002:ae9:ed48:: with SMTP id c69mr9234363qkg.114.1559320230346;
+        Fri, 31 May 2019 09:30:30 -0700 (PDT)
+X-Received: by 2002:ae9:ed48:: with SMTP id c69mr9234316qkg.114.1559320229741;
+        Fri, 31 May 2019 09:30:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559320229; cv=none;
         d=google.com; s=arc-20160816;
-        b=nvINYKQ3Ophs10Y2J8tlopZGnOWwic53F5ltA9abB6NFYwhn03gpOTj7W1FhtARJSa
-         Lx81uTqT+SnFcP2y0kffvzk9eoRmMrRSJ0ol+EZDmWIDl47lRW26m39kkkjRtlYDmahQ
-         F/h06lxDqc9QxeQLRyBPUpHBBPT5ZA7CQmEbG3LVkqKz1UFdOQ7uLyNY4kHKnU+LNN3a
-         xTPtFqr4UQZ4v829WOmCa430M2c6BKgBujvnoIIrUKC+6/rJh/fPiWtqKp6uh3sSxO4o
-         jxkBPZWVUILunHzBOgCTayoJiUAd2PUttyu7GSkOBrWwhqvCERsnmLSFjGBPkxcvGvbC
-         yJJQ==
+        b=Z7vqRGPj7ycEk6IDnNVwV5WVtqkCcPvo7Yx+ftK6sLlD+SBeZPeFiLNYH8pF0LrT3+
+         qc045vbPdJGhc7WS4NUL/ow+5Z976ClKVdrWlMOEsAn+8YcCYGeFXFMsrr9eVJdjEDW4
+         Z+ytaCk+aYlaMENT0fOJkTg8RF+5yW3ikfOhNHWmzWh+CkN5y9bbZ+IlX/97NJzpFVG+
+         fgkyZ0aE/7kO3JBMeOrtaeex9FpSoBZpUtDb7OyaoW8ctfXdP9oO2SQr/Qj2aZlOTfjK
+         ygfjkyhd/bz28uiZd7q0npXrDxk6iBwtTyaRE6EKBwneoonTOVTA5QKlUWkrD04dNFLa
+         /YIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=h/x2RsdaGEeomdfj9zckwm1ZuXHc7ti1LUsxVKWauDI=;
-        b=Mv38uoyByKY++gci0rgZJjiGgOAIoIqna2A3UjqkKH8lRyEVNkUYTtWfvDfda+9aNX
-         zFR/1CEniBxaQiZSSIrys8vyDZOZN6xcwexg8WhgPpWIj8O3PIOzg3aOLVDmfqA+GabU
-         TfN0ig6FYc2S6MSOdx1AxeIZhQdvb5WJTeC/DBYrmc32fzKAvomWO6I/yOqeU4/2EUlU
-         EPIun+w2j+UgRXbdu+Pa6by5iDg0+xSNX0+6l67aTn40NOTN47l2Hez1AP4AzA4R68Z2
-         i+AbbkXXcUEHlJoYSBWO9ji9F2RORe0+Q1BunjpImaaMH2qvZ++3AvQjWf+Ic5G8F2k6
-         svhQ==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=Q5G8+82ntOUP6LsPY/2FoFYtaIUU0yVJDral6+z2qOM=;
+        b=EJ2WiZULvU7onw1GPgT/8bvEKOUPm1xT3DSy9BopU+truGSINL/iBeW5hCvT6ImyFx
+         MlGmhX6vN5UGObF9WpWQsaK/NawoLCWFQwPTIL/vWr4MLiB1k/VXHB5K2r3Q4Pew1eSL
+         F/vAjPPG2V0MrZia6fLv4/yvpZ5l8t8nZ9B5yJhClON3VfCmCuyMGtjFhXdXK3CBzUmK
+         VwJbfItv5fAEwkorDr9tS08B8TnR6o61+LjWEDPj/GC23M8H9+3E6J8cp3wnjXOwpQlE
+         nVGwcGOiWp9r5IkHP7stJzMqtkOOeCR8+kjFIPdX4JVlUJ2XGUNYwYFPSU4lIHq/DIi/
+         iUfA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=WkbNgEwA;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@lca.pw header.s=google header.b="f/GyB5Aj";
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a12sor1846496pff.63.2019.05.31.09.24.19
+        by mx.google.com with SMTPS id 56sor8497926qtq.15.2019.05.31.09.30.29
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 31 May 2019 09:24:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 31 May 2019 09:30:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=WkbNgEwA;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@lca.pw header.s=google header.b="f/GyB5Aj";
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=h/x2RsdaGEeomdfj9zckwm1ZuXHc7ti1LUsxVKWauDI=;
-        b=WkbNgEwAtHoOpsgf2n/OOj9tvUzmqxkk0wFQPqMbZDhKXrycKmph8DKGky42GC+koN
-         LJDEln958wkwnmRH28ZEap3NrGgf1V1D0g9IZCcP3z1+J4jMqALHLTOUy5KwiFNCWFFp
-         J5Vof1T/5pKxOH0N8kkgt3VneNxkghx7TLiVO3NO5Dfw0XE9zLDEnv4oejnEpiTXZOeJ
-         tDxDbRBsv0ZCYRogl5V2uwQD8iTi3aUBJXQrVEho7perE1vFrdRi0BvQ0ve9Pq7qowuL
-         FRZuY21tQBRvNHvnsPyF6is+8mWCTar820ssvKvNtiwoTjNWK3ZyaVAaR6TMz/HMowZi
-         esrQ==
-X-Google-Smtp-Source: APXvYqxuY1CYuxd04Kewq/lINHwhx4xTvJLFZIhJ6+qsHKD7HtPQ0W1vOSTfUsi9VyOoypjJcb2qINRGGNrlijbQeNg=
-X-Received: by 2002:a62:2c17:: with SMTP id s23mr11223321pfs.51.1559319859023;
- Fri, 31 May 2019 09:24:19 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190521182932.sm4vxweuwo5ermyd@mbp> <201905211633.6C0BF0C2@keescook>
- <6049844a-65f5-f513-5b58-7141588fef2b@oracle.com> <20190523201105.oifkksus4rzcwqt4@mbp>
- <ffe58af3-7c70-d559-69f6-1f6ebcb0fec6@oracle.com> <20190524101139.36yre4af22bkvatx@mbp>
- <c6dd53d8-142b-3d8d-6a40-d21c5ee9d272@oracle.com> <CAAeHK+yAUsZWhp6xPAbWewX5Nbw+-G3svUyPmhXu5MVeEDKYvA@mail.gmail.com>
- <20190530171540.GD35418@arrakis.emea.arm.com> <CAAeHK+y34+SNz3Vf+_378bOxrPaj_3GaLCeC2Y2rHAczuaSz1A@mail.gmail.com>
- <20190531161954.GA3568@arrakis.emea.arm.com>
-In-Reply-To: <20190531161954.GA3568@arrakis.emea.arm.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Fri, 31 May 2019 18:24:06 +0200
-Message-ID: <CAAeHK+zRDD7ZPPUA9cpwHOdgTRrJLWAby8Wg9oPgmhqMpHwvFw@mail.gmail.com>
-Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Kees Cook <keescook@chromium.org>, Evgenii Stepanov <eugenis@google.com>, 
-	Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yishai Hadas <yishaih@mellanox.com>, 
-	Felix Kuehling <Felix.Kuehling@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, 
-	Christian Koenig <Christian.Koenig@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
-	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
-	Leon Romanovsky <leon@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, 
-	Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, 
-	Jacob Bramley <Jacob.Bramley@arm.com>, Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, 
-	Robin Murphy <robin.murphy@arm.com>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, 
-	Dave Martin <Dave.Martin@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>, 
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>, Elliott Hughes <enh@google.com>, 
-	Khalid Aziz <khalid.aziz@oracle.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=Q5G8+82ntOUP6LsPY/2FoFYtaIUU0yVJDral6+z2qOM=;
+        b=f/GyB5AjpKNQpbIgXn1dL/HsR1xUokrKYkDcpzYtXRAlsDBOGwokCPAaMLbb8OnyNe
+         MmXj1kMMS/VOy41vMPmph5ei+NB6KGqNIPKz/8CpysWcD6Uw8JY6UOFwLuy3/R+QJt/a
+         CP7lMVo5defF9kNZhZUx134A8NolLuVAHub3M51cg6MMtyVyEF0tH38vOoGdZA84SbwG
+         r+RvULz1qN+CUNW/pkVA8+YRy+bIsnl/eVz19dlVqFHFoiodl0MrGcmENHdizvbomriG
+         bBJ8PzXbqczvWrUalngcVbk00UaMX+XBHoO8GgxE17t5lZgR2V/6FBe20ya6yybIiZtr
+         M40A==
+X-Google-Smtp-Source: APXvYqwh0MZsXG7rMTmxjY1aYZor4YQ3T8qzjntqPH4bM9WwE22dEwE5LPtml1s2IhWnws4mwHunBg==
+X-Received: by 2002:aed:237b:: with SMTP id i56mr9727574qtc.370.1559320228181;
+        Fri, 31 May 2019 09:30:28 -0700 (PDT)
+Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id f33sm4533179qtf.64.2019.05.31.09.30.26
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 31 May 2019 09:30:27 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: gregkh@linuxfoundation.org,
+	rafael@kernel.org,
+	david@redhat.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH -next] drivers/base/memory: fix a compilation warning
+Date: Fri, 31 May 2019 12:29:46 -0400
+Message-Id: <1559320186-28337-1-git-send-email-cai@lca.pw>
+X-Mailer: git-send-email 1.8.3.1
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000559, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 31, 2019 at 6:20 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
->
-> On Fri, May 31, 2019 at 04:29:10PM +0200, Andrey Konovalov wrote:
-> > On Thu, May 30, 2019 at 7:15 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
-> > > On Tue, May 28, 2019 at 04:14:45PM +0200, Andrey Konovalov wrote:
-> > > > Thanks for a lot of valuable input! I've read through all the replies
-> > > > and got somewhat lost. What are the changes I need to do to this
-> > > > series?
-> > > >
-> > > > 1. Should I move untagging for memory syscalls back to the generic
-> > > > code so other arches would make use of it as well, or should I keep
-> > > > the arm64 specific memory syscalls wrappers and address the comments
-> > > > on that patch?
-> > >
-> > > Keep them generic again but make sure we get agreement with Khalid on
-> > > the actual ABI implications for sparc.
-> >
-> > OK, will do. I find it hard to understand what the ABI implications
-> > are. I'll post the next version without untagging in brk, mmap,
-> > munmap, mremap (for new_address), mmap_pgoff, remap_file_pages, shmat
-> > and shmdt.
->
-> It's more about not relaxing the ABI to accept non-zero top-byte unless
-> we have a use-case for it. For mmap() etc., I don't think that's needed
-> but if you think otherwise, please raise it.
->
-> > > > 2. Should I make untagging opt-in and controlled by a command line argument?
-> > >
-> > > Opt-in, yes, but per task rather than kernel command line option.
-> > > prctl() is a possibility of opting in.
-> >
-> > OK. Should I store a flag somewhere in task_struct? Should it be
-> > inheritable on clone?
->
-> A TIF flag would do but I'd say leave it out for now (default opted in)
-> until we figure out the best way to do this (can be a patch on top of
-> this series).
+The linux-next commit 8553938ba3bd ("drivers/base/memory: pass a
+block_id to init_memory_block()") left an unused variable,
 
-You mean leave the whole opt-in/prctl part out? So the only change
-would be to move untagging for memory syscalls into generic code?
+drivers/base/memory.c: In function 'add_memory_block':
+drivers/base/memory.c:697:33: warning: variable 'section_nr' set but not
+used [-Wunused-but-set-variable]
 
->
-> Thanks.
->
-> --
-> Catalin
+Also, rework the code logic a bit.
+
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ drivers/base/memory.c | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+index f28efb0bf5c7..826dd76f662e 100644
+--- a/drivers/base/memory.c
++++ b/drivers/base/memory.c
+@@ -694,17 +694,13 @@ static int init_memory_block(struct memory_block **memory, int block_id,
+ static int add_memory_block(int base_section_nr)
+ {
+ 	struct memory_block *mem;
+-	int i, ret, section_count = 0, section_nr;
++	int i, ret, section_count = 0;
+ 
+ 	for (i = base_section_nr;
+ 	     i < base_section_nr + sections_per_block;
+-	     i++) {
+-		if (!present_section_nr(i))
+-			continue;
+-		if (section_count == 0)
+-			section_nr = i;
+-		section_count++;
+-	}
++	     i++)
++		if (present_section_nr(i))
++			section_count++;
+ 
+ 	if (section_count == 0)
+ 		return 0;
+-- 
+1.8.3.1
 
