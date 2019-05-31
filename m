@@ -2,171 +2,204 @@ Return-Path: <SRS0=007R=T7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D6F6BC28CC3
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 17:49:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 68B53C28CC2
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 18:27:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 931F026D5E
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 17:49:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2606F24DF9
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 18:27:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="EAUDatB5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 931F026D5E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="q3mAGvJt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2606F24DF9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2E6D46B0010; Fri, 31 May 2019 13:49:00 -0400 (EDT)
+	id B08EE6B026E; Fri, 31 May 2019 14:27:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2BEA06B026F; Fri, 31 May 2019 13:49:00 -0400 (EDT)
+	id ADEA56B026F; Fri, 31 May 2019 14:27:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 110D06B0272; Fri, 31 May 2019 13:49:00 -0400 (EDT)
+	id 9F52B6B0272; Fri, 31 May 2019 14:27:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D01386B0010
-	for <linux-mm@kvack.org>; Fri, 31 May 2019 13:48:59 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id b69so6798049plb.9
-        for <linux-mm@kvack.org>; Fri, 31 May 2019 10:48:59 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AB186B026E
+	for <linux-mm@kvack.org>; Fri, 31 May 2019 14:27:34 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id 77so8038359pfu.1
+        for <linux-mm@kvack.org>; Fri, 31 May 2019 11:27:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ox5SYttOkOuRXfS7cs3JsHQ+R0GLTw4N6BHjQRoaW9E=;
-        b=ht39l/tCs93dWK1LaILe6RcM/VNZUJ5mJcvd2CvZRvHX2SXBJuGLUDZMYUXN6A/2Xf
-         if+pjsNlRQ/0SgXo9J8KEBctCAYfEdGXK66KmDLKslzQCOiJSjMuRD58GvogqSipz7xX
-         WJRvBkSd+gBPxAkbBrh+0BqWFsxb7XFg7wrULCureqZ+MZgHbDgqYt9VQIKLNS4fcH5H
-         tFtd7kLIVy4nRAWl1PDLM3c2wZWgqnFR3Y3l164DP96ivwK7FYRqQwuqCtFP+okl2q3r
-         ymcCqh5bT1Ot+6cEi2ER5FgJvSxywP6hUCW6/coNDB3dvEnrGk/OMrBVWAR58wE3hxwd
-         HKVw==
-X-Gm-Message-State: APjAAAUNKNTCo2+yJoBlNOzYArZI8gJn9jG94xyH1fpsbjkGx97I4O0W
-	XvG1v/qwtvRAH5wwybiUcfGumBa6Q61y3JSH5ywrKc/4rUEKplc+Wi4TF9xVs2+Htxqg48KsvKB
-	ZjsgCNPT3/fUSB36M/Mq1HMh38aKWGM/LcT+bffmuGPz0HQPShi9pdd3a5LlvF60wiQ==
-X-Received: by 2002:a63:fb02:: with SMTP id o2mr10666418pgh.357.1559324939323;
-        Fri, 31 May 2019 10:48:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzuv8FCPyR02gI1e/dfNSu2pZ3/fyVk43KqFs0v5cpIJx+3iimjwG0yW3AKClSzBggdVW5G
-X-Received: by 2002:a63:fb02:: with SMTP id o2mr10666368pgh.357.1559324938569;
-        Fri, 31 May 2019 10:48:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559324938; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=1bbOqnbmTGXv/6/haJB5JLsDUylGaUzhOYgszuwARoI=;
+        b=YAy0HwnTaD9+MjC4lsJAQ2IAan1nuO5w3HtPoDKMPfKXYpYn7E+JMctsmAmENLa36F
+         gfk2QD2hcmtsOxYoNtWsKabwGGm+OEzl/3QHD5sJOMeriia6BAw5kTy+JQnPrcfobpD3
+         uctTQxrE9V1tXZE3y8bn5TLJqhQrebMrDjDNgiUCYZQ1UAp/efPOKLvqQodGBZxz9KPF
+         bJZp2/nPHvsVLOUOXd9z6sVWOGGKt5d4CRI6Sb2NY09JoWo1QB2t8HmWJqibgQIuz1Jf
+         IbaNMinXtUZXMm1B/lj3bol0auA0LSYjslm4w5Phq2Fx+u5LEjwtjDIcL1zAKOQaS8Ss
+         7ETg==
+X-Gm-Message-State: APjAAAXWtPg64Y8WuVSgN5lHKc7R9jL56u3ycM0yy6KIUvJScEcPPLdN
+	5yPupc5iyKjMFiOb8H4kaEPsxhnGkwaPDk1irQWHiAeGlUMzTvDdVZa/qLPqtrcqKLrnU/pN2Ex
+	v4zKRSqvoUwWhMIzwSkVcrq3k73Pa1tEndkkU6UDLtV6I15xSYTFNVwpaNW0m1XdVOA==
+X-Received: by 2002:a65:56cc:: with SMTP id w12mr10845886pgs.415.1559327253905;
+        Fri, 31 May 2019 11:27:33 -0700 (PDT)
+X-Received: by 2002:a65:56cc:: with SMTP id w12mr10845789pgs.415.1559327252821;
+        Fri, 31 May 2019 11:27:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559327252; cv=none;
         d=google.com; s=arc-20160816;
-        b=l68ri08jqPrQtgq2qCaGa7Q55YJ3GPsAmHaksTt/BKaNBYypVxwP1M0njDGqOJWi7S
-         5dY11C05qksWizfCVLYQeTyJV8SGIpQiXtstg2xuosF23nYwLFZqT794rCOSlQdcAjYh
-         LTci9JyLCV+x3oH2a0vExmo+OHPidpq0Jp9YBcLOnhafptNtTx+lyhAKG3TNcZ1UOILS
-         yTofW0+laMOKUqEJuRiolVq3CXS3bO+hvNnbJQ6HPQMNV/EDepebeewrJ6Nutr+Lp/Wl
-         heRSf4Z9wIgEap7oqG9Igl68k068Qjovu23igtQ23sQ2MkIXzajTxYuxLJXiiMm4+CzL
-         U7UA==
+        b=FGPtHb2VfGQ63gBBfsNQ7a7DK4Zs8A25C1X9W0l3sltP9CZWLuHnZTmlsy3cYG4QS6
+         GTEsRAySIiXnCyVgHfu3dMbxoEQus3Ys0xAhEfpHwpzbo8p6Ni87PD2hCgF4pbVf5RGE
+         1IvBP3LJ7SHfswcLi/w3dquKOd95ocjYKtCj4u4P5fQid4pCQ1iVSykRUPatlnl2R+DE
+         X6ke0Yuaa8GVrcjjGVQDGlYQonP6MLWdVDrmv3Bb3T8TH7hyEZjnkCt735JZLAvazHoM
+         FGP7OJ5nxzvEeDjG8tjuAeg1bIYZUbxqFJ+DPcOUYM1gSteXiEYnzvtJNyrVnzrpomxQ
+         Zx/Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ox5SYttOkOuRXfS7cs3JsHQ+R0GLTw4N6BHjQRoaW9E=;
-        b=lLs2T76ygHYQAt9M3+NcZZ7xYYIQFt9K1J8KUHRJs6LqoTVMstksti7X+zSibLqIAb
-         I8HuPcJRY26lKPBPfee+PLe903V6YJxVvr1IHccmCXvXPuSPXviLkYBzzzH2419qAfUg
-         a/3HwIUL+YWnUdmdkQuJmmFwRNjl5BSvp/I67UXAI3+q6kBofKowiQXR7hhkaLHKO/6o
-         /Prv1VUavZVf2zz8qIc5h9Qmzv+x1rHn+1qN0VNW+y28mYqr6kcqDm5CBovm+PA0T5vd
-         D7lZkX+ZavSB+w84SkSInIDBGrC4kRifp5LASZ4YEf1fW6iVC+QoMFt3+qeyJUNisKw5
-         zxTg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=1bbOqnbmTGXv/6/haJB5JLsDUylGaUzhOYgszuwARoI=;
+        b=doPwq749AkNYxxk6sJJPov0VXbcEf9rrVCyS8ITPh5/ePr85B2mSln+E/jg5C48oja
+         QmWvPbReAW84lJFDYrl6yqEbzybrD/sC86+aQTZLT5LvEDCPgvqJv57QaQvNRL+u3YqD
+         h6O44oxJNWUECHRwIFFPPTAd/cGz6D+YmbAyYsyGEmU+4UG4TkT7qS8nxSIL50Ib7K/k
+         Fb0b+f83sUkyiDCfqiINzXfKmXBGZoTcssPJSOoUGiQjrQeqsA7YdsH5++A9qrm+N7VY
+         MwrDdJN//2qo/WEToCZFxb/PhEgjzs1oCQhy3Edf8Ggr4ehBz69kkFlW/R0VeZUK14MI
+         bwqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=EAUDatB5;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id y22si6824581pgj.402.2019.05.31.10.48.58
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=q3mAGvJt;
+       spf=pass (google.com: domain of dexuan.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dexuan.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b4sor6700077pff.16.2019.05.31.11.27.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 31 May 2019 10:48:58 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Fri, 31 May 2019 11:27:32 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dexuan.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=EAUDatB5;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=ox5SYttOkOuRXfS7cs3JsHQ+R0GLTw4N6BHjQRoaW9E=; b=EAUDatB5hW46G9M1Ux5rKjKdO
-	2gatVjjYZRPlz/Y8yieBJl+NTOqpgatgBKBU0KD4TsTPRHuOAOdASb97lecou22eiM2OapeLCzPgp
-	B0i0qPk66SspAy6OJFa1NIO4ol3ItewiiFaxYuuw7LLCg6ihQcITsomL18HAh28KsH655hSpvEaXK
-	xELWZ9GoG8dKe0FlwT+BYKfNw7vVZDolyKXu+JXuRall/zajJ1hcm3jvaxeoZ0nnxHMg7OjxSwtOg
-	5Emd9DEvLQB4DtO5nEcmw84mXxgWLl2OJrNXW+ggkep9wq+uTLg1JfxZNt1MTnoW7sdnu4+jS5Uxt
-	sHxXOWYlg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hWleA-0002Ni-V0; Fri, 31 May 2019 17:48:54 +0000
-Date: Fri, 31 May 2019 10:48:54 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>, Mark Rutland <mark.rutland@arm.com>,
-	Christophe Leroy <christophe.leroy@c-s.fr>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Paul Mackerras <paulus@samba.org>,
-	Russell King <linux@armlinux.org.uk>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>, Tony Luck <tony.luck@intel.com>,
-	Fenghua Yu <fenghua.yu@intel.com>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	"David S. Miller" <davem@davemloft.net>
-Subject: Re: [RFC] mm: Generalize notify_page_fault()
-Message-ID: <20190531174854.GA31852@bombadil.infradead.org>
-References: <1559195713-6956-1-git-send-email-anshuman.khandual@arm.com>
- <20190530110639.GC23461@bombadil.infradead.org>
- <4f9a610d-e856-60f6-4467-09e9c3836771@arm.com>
- <20190530133954.GA2024@bombadil.infradead.org>
- <f1995445-d5ab-f292-d26c-809581002184@arm.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=q3mAGvJt;
+       spf=pass (google.com: domain of dexuan.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dexuan.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=1bbOqnbmTGXv/6/haJB5JLsDUylGaUzhOYgszuwARoI=;
+        b=q3mAGvJtn/FGfV5nqwCBNUkHV2yfFVW/ZH8teze3YIS4vx/yz/KQVsxWIOgvan37n+
+         9aaMX2KNuiMUxYhFH6kCLdCQ3lqWNoMxLoxYJqIhqtF48CAR70F2hCzaMzru8Ue2eNY1
+         OITa4PMxjQsb6BVOdunQQK3xduHsxEp2ycL0+7h7q7pA8UuF40TYB490dwb5KADwoPQs
+         dxZiMKY4WMl5pSPIJOUaN9hqKQw2Sp7woWaQCcEgj3IaOi+F37mktiz05ih+QSihJ1YW
+         SQKn7HlK4ZZtKEGBtiweqZuqbFCtqwR+7dOYJCovF+W2YnHoLetG00/2f7hP9XNt1Mgs
+         JTbg==
+X-Google-Smtp-Source: APXvYqwQMcr1qn0FkaYD3DdOVIWXjRV6sg40ZSZOHCBykJYBOaDa1v/PIa0HksZ5+N2GYPqKhF22NlekYme7g+TIHug=
+X-Received: by 2002:aa7:8dc3:: with SMTP id j3mr12239577pfr.141.1559327251853;
+ Fri, 31 May 2019 11:27:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f1995445-d5ab-f292-d26c-809581002184@arm.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
+References: <20190531024102.21723-1-ying.huang@intel.com> <2d8e1195-e0f1-4fa8-b0bd-b9ea69032b51@oracle.com>
+In-Reply-To: <2d8e1195-e0f1-4fa8-b0bd-b9ea69032b51@oracle.com>
+From: Dexuan-Linux Cui <dexuan.linux@gmail.com>
+Date: Fri, 31 May 2019 11:27:20 -0700
+Message-ID: <CAA42JLZ=X_gzvH6e3Kt805gJc0PSLSgmE5ozPDjXeZbiSipuXA@mail.gmail.com>
+Subject: Re: [PATCH -mm] mm, swap: Fix bad swap file entry warning
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+	Andrea Parri <andrea.parri@amarulasolutions.com>, 
+	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.com>, 
+	Minchan Kim <minchan@kernel.org>, Hugh Dickins <hughd@google.com>, Dexuan Cui <decui@microsoft.com>, 
+	v-lide@microsoft.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 31, 2019 at 02:17:43PM +0530, Anshuman Khandual wrote:
-> On 05/30/2019 07:09 PM, Matthew Wilcox wrote:
-> > On Thu, May 30, 2019 at 05:31:15PM +0530, Anshuman Khandual wrote:
-> >> On 05/30/2019 04:36 PM, Matthew Wilcox wrote:
-> >>> The two handle preemption differently.  Why is x86 wrong and this one
-> >>> correct?
-> >>
-> >> Here it expects context to be already non-preemptible where as the proposed
-> >> generic function makes it non-preemptible with a preempt_[disable|enable]()
-> >> pair for the required code section, irrespective of it's present state. Is
-> >> not this better ?
-> > 
-> > git log -p arch/x86/mm/fault.c
-> > 
-> > search for 'kprobes'.
-> > 
-> > tell me what you think.
-> 
-> Are you referring to these following commits
-> 
-> a980c0ef9f6d ("x86/kprobes: Refactor kprobes_fault() like kprobe_exceptions_notify()")
-> b506a9d08bae ("x86: code clarification patch to Kprobes arch code")
-> 
-> In particular the later one (b506a9d08bae). It explains how the invoking context
-> in itself should be non-preemptible for the kprobes processing context irrespective
-> of whether kprobe_running() or perhaps smp_processor_id() is safe or not. Hence it
-> does not make much sense to continue when original invoking context is preemptible.
-> Instead just bail out earlier. This seems to be making more sense than preempt
-> disable-enable pair. If there are no concerns about this change from other platforms,
-> I will change the preemption behavior in proposed generic function next time around.
+On Fri, May 31, 2019 at 10:00 AM Mike Kravetz <mike.kravetz@oracle.com> wrote:
+>
+> On 5/30/19 7:41 PM, Huang, Ying wrote:
+> > From: Huang Ying <ying.huang@intel.com>
+> >
+> > Mike reported the following warning messages
+> >
+> >   get_swap_device: Bad swap file entry 1400000000000001
+> >
+> > This is produced by
+> >
+> > - total_swapcache_pages()
+> >   - get_swap_device()
+> >
+> > Where get_swap_device() is used to check whether the swap device is
+> > valid and prevent it from being swapoff if so.  But get_swap_device()
+> > may produce warning message as above for some invalid swap devices.
+> > This is fixed via calling swp_swap_info() before get_swap_device() to
+> > filter out the swap devices that may cause warning messages.
+> >
+> > Fixes: 6a946753dbe6 ("mm/swap_state.c: simplify total_swapcache_pages() with get_swap_device()")
+> > Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+>
+> Thank you, this eliminates the messages for me:
+>
+> Tested-by: Mike Kravetz <mike.kravetz@oracle.com>
+>
+> --
+> Mike Kravetz
 
-Exactly.
+Hi,
+Did you know about the panic reported here:
+https://marc.info/?t=155930773000003&r=1&w=2
 
-So, any of the arch maintainers know of a reason they behave differently
-from x86 in this regard?  Or can Anshuman use the x86 implementation
-for all the architectures supporting kprobes?
+"Kernel panic - not syncing: stack-protector: Kernel stack is
+corrupted in: write_irq_affinity.isra"
+
+This panic is reported on PowerPC and x86.
+
+In the case of x86, we see a lot of "get_swap_device: Bad swap file entry"
+errors before the panic:
+
+...
+[   24.404693] get_swap_device: Bad swap file entry 5800000000000001
+[   24.408702] get_swap_device: Bad swap file entry 5c00000000000001
+[   24.412510] get_swap_device: Bad swap file entry 6000000000000001
+[   24.416519] get_swap_device: Bad swap file entry 6400000000000001
+[   24.420217] get_swap_device: Bad swap file entry 6800000000000001
+[   24.423921] get_swap_device: Bad swap file entry 6c00000000000001
+[   24.427685] get_swap_device: Bad swap file entry 7000000000000001
+[   24.760678] Kernel panic - not syncing: stack-protector: Kernel
+stack is corrupted in: write_irq_affinity.isra.7+0xe5/0xf0
+[   24.760975] CPU: 25 PID: 1773 Comm: irqbalance Not tainted
+5.2.0-rc2-2fefea438dac #1
+[   24.760975] Hardware name: Microsoft Corporation Virtual
+Machine/Virtual Machine, BIOS 090007  06/02/2017
+[   24.760975] Call Trace:
+[   24.760975]  dump_stack+0x46/0x5b
+[   24.760975]  panic+0xf8/0x2d2
+[   24.760975]  ? write_irq_affinity.isra.7+0xe5/0xf0
+[   24.760975]  __stack_chk_fail+0x15/0x20
+[   24.760975]  write_irq_affinity.isra.7+0xe5/0xf0
+[   24.760975]  proc_reg_write+0x40/0x60
+[   24.760975]  vfs_write+0xb3/0x1a0
+[   24.760975]  ? _cond_resched+0x16/0x40
+[   24.760975]  ksys_write+0x5c/0xe0
+[   24.760975]  do_syscall_64+0x4f/0x120
+[   24.760975]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+[   24.760975] RIP: 0033:0x7f93bcdde187
+[   24.760975] Code: c3 66 90 41 54 55 49 89 d4 53 48 89 f5 89 fb 48
+83 ec 10 e8 6b 05 02 00 4c 89 e2 41 89 c0 48 89 ee 89 df b8 01 00 00
+00 0f 05 <48> 3d 00 f0 ff ff 77 35 44 89 c7 48 89 44 24 08 e8 a4 05 02
+00 48
+[   24.760975] RSP: 002b:00007ffc4600d900 EFLAGS: 00000293 ORIG_RAX:
+0000000000000001
+[   24.760975] RAX: ffffffffffffffda RBX: 0000000000000006 RCX: 00007f93bcdde187
+[   24.760975] RDX: 0000000000000008 RSI: 00005595ad515540 RDI: 0000000000000006
+[   24.760975] RBP: 00005595ad515540 R08: 0000000000000000 R09: 00005595ab381820
+[   24.760975] R10: 0000000000000008 R11: 0000000000000293 R12: 0000000000000008
+[   24.760975] R13: 0000000000000008 R14: 00007f93bd0b62a0 R15: 00007f93bd0b5760
+[   24.760975] Kernel Offset: 0x3a000000 from 0xffffffff81000000
+(relocation range: 0xffffffff80000000-0xffffffffbfffffff)
+[   24.760975] ---[ end Kernel panic - not syncing: stack-protector:
+Kernel stack is corrupted in: write_irq_affinity.isra.7+0xe5/0xf0 ]---
+
+Thanks,
+-- Dexuan
 
