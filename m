@@ -6,98 +6,98 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84A93C28CC3
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 06:43:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3403CC28CC3
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 06:44:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 30419264B6
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 06:43:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D4188264AC
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 06:43:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="YEsBwFGp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30419264B6
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XKSLVIvf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4188264AC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA3A06B027E; Fri, 31 May 2019 02:43:53 -0400 (EDT)
+	id 7C0E36B0280; Fri, 31 May 2019 02:43:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C2DE76B0280; Fri, 31 May 2019 02:43:53 -0400 (EDT)
+	id 74B3C6B0281; Fri, 31 May 2019 02:43:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ACC626B0281; Fri, 31 May 2019 02:43:53 -0400 (EDT)
+	id 5EB546B0282; Fri, 31 May 2019 02:43:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 714D26B027E
-	for <linux-mm@kvack.org>; Fri, 31 May 2019 02:43:53 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id d22so5649636plr.0
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 23:43:53 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 23B4B6B0280
+	for <linux-mm@kvack.org>; Fri, 31 May 2019 02:43:59 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id 91so5635609pla.7
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 23:43:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:sender:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=/1KtkTjpM2F7VqpMpplgHbrJXqxrx2Yg1QX8m2jGqnM=;
-        b=Yo82ZCtKK7LXRGy5dY07oo1toaVVXPUA4qmNPsfKhyHlE70Dpz0SyA6NzaJzoP8kQO
-         yQk16A9HrsZRrXfVk3YYNDrxuezjgT8ocJnR/V2aSTku/90KIo7vDFnof2khIbVKv2m+
-         zARlnJjZZPXDyOpk+/M+mBcOiAOpRgbbRK9Fy6SeHFrOkYeRP2mp8qYPYkXzY2DRymbk
-         SJSs144fgANm7KvnEWo8Kwk4r6jBmfXBOMXdOqYk4+gdq8vWENrhl0SbqhQGJUjtZRLq
-         rB8iXvZVH9fTNQUd/P/nI78iTGrZqVKDoz2l1Kh0kVcg6cjKXco0Yz4NKZRv5SaoKPLh
-         +BmQ==
-X-Gm-Message-State: APjAAAU52yiL/RFlkpyS54wsO8HNeseToje1m6LyIEdiidPYWhn27DHO
-	vWljkW1+zRt5eSEsgxKP6X2Xh8msrHqCFiY4NqBkmcbdERCYhpd13zTb5QiCICeEpY8braXrnhv
-	kSEMA+N2A0Y1Zh2hgxXa3E2YMZA7UTgWvpNH9I60/q8Yvg9G6OpDpUtXvhq5gewQ=
-X-Received: by 2002:aa7:87ca:: with SMTP id i10mr7752201pfo.157.1559285033083;
-        Thu, 30 May 2019 23:43:53 -0700 (PDT)
-X-Received: by 2002:aa7:87ca:: with SMTP id i10mr7752133pfo.157.1559285031943;
-        Thu, 30 May 2019 23:43:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559285031; cv=none;
+        bh=/qxKh5Sd2cIvdmEp7qaPCDBJLZKehHIzssQM7btjaog=;
+        b=G+TlR7gIMYdz3YClQV2+zxjLB4JkKpoYZDUZqOhhWL5ni1+8TG2Ae7z4dcwTM8XQiG
+         6XayZ9isbD+4HaQABXG9ek8IUUzTwilB/1FwR+9n+zLh89fmkSupk3LS5Hte2rB9fQPJ
+         FxPgAZCFTrZl7GWaFYPym2xxIBmLLbZmFbGJw8s60o6RgJbEHRRveM9uAuNi3dQb+SKw
+         VLOwQ8knVHVAoReP6hccBULQdiZBEDsNB7KiwnYxPw7mO30pOpQN/K2bwkuJytnsxMPA
+         GljxCNlZTpbmiVkgYDNDWwkz0T94/2pX+/uZV2fp8D6xvKA552CMAV4LoeoEMlKtHgHw
+         W8lg==
+X-Gm-Message-State: APjAAAW5KriXb0ExtAeF31tEMSC28OTnOAHaklLKyUuad+Sa3rhJpFla
+	M7R4lpNCq+sjLkqrjbGN6N6lKuUO4YbDqtbKrFYhewozGr1t1+FwsWyiwsxgtRCFU4n7HS/htUc
+	3bkNWN9GVQx0JVYDGEHsvCU+AHYdWVxyjufUAkOLTRjoYMly2jlIJdulBGR80Yfg=
+X-Received: by 2002:a17:902:8d92:: with SMTP id v18mr7289149plo.225.1559285038697;
+        Thu, 30 May 2019 23:43:58 -0700 (PDT)
+X-Received: by 2002:a17:902:8d92:: with SMTP id v18mr7289095plo.225.1559285037506;
+        Thu, 30 May 2019 23:43:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559285037; cv=none;
         d=google.com; s=arc-20160816;
-        b=WAdEt2ikaVsVw6LAqqlunrKWow2/c59td6K1ScRcwTWScwaAf/oy7/GuifRNjaxY24
-         X6CU2nsLDU0l0Fj4cvaGHNn//jzPmS6qreE0f/ST8I4WkoSQDMZlMsiU3cSjoUz5RrwK
-         2YJ72W2C/mBXTjr6ZLb/fVCeuXUTtwWcuvtG75YdcXm43LZFtFEEquWdBML425W8e4mN
-         ht4FeruyacdGl54wtvGr1r1oI/O7lOoTKbRvH/L+lO/HOYdgYcueHDak4IBn6NOB/tTW
-         6FHAu6fxVKeNeltrJmYNeG4FvpKXNI1oKFVxSd9m0z9C1X7sOz0pjhBbg9chPKWeiOi9
-         5y2w==
+        b=XxNBlu4xEQRZt/g5QavIrtJOBp2JJnbD+Fiszd+H49LwnUpxqp7lXrb86Ta5oY6hfw
+         nC8OrVI+opd4jmQxwwt9g7A1hC469IHVWjFjUivnoO5oygoAr26iTmqE9l+tq/7mdckO
+         liKkoJsCuhFarIS1wIMZKM56uQMXws56+ndCOPD829IuBFz7lsxHbhqz3K6M/cs3HT1n
+         yS2WCIwNCObZl7Si6dsbtepiEV5/b4eRlwuWq8CLYmJwpVFgFWruFkcgsjBjvQfo1PA8
+         NW2H9JT3EfX2SUj9+oTC9bdDIiLmp2WG119aSjIVQGPWD80KVELgXTpuprJTJfqt60YD
+         FH9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:sender:dkim-signature;
-        bh=/1KtkTjpM2F7VqpMpplgHbrJXqxrx2Yg1QX8m2jGqnM=;
-        b=bQcej59PB6hxur1i2XDkHzNB2e52SxH9arKaYbvzM9IFGnJfyhRnHqJb9PjCzXFuDC
-         ua4qyBfvR1t0FGk8yuC9PUoYGZHOK9XHrfhLh+u5QJNV/xSlNJ1SBxbKN7erKp7BdJcR
-         1HUh1r/ChmEDmvyxklW61aCMZeRcaMbBjR7ZIpKcUj53NJFdYIXDZdyiH3OgoanfJzLF
-         dmrPnjst6kK5lpOYQray9OLPHKqbZqnJzAnvt/AipZcqwM182PNfXTQoERGgh5aNjEx4
-         oQ17KVcLJTvvRtyZuxeDfoDcPZYnuC5k9qr5VwRfPBEtPO8i/wKb40d6LmdR5KkFRasX
-         H66g==
+        bh=/qxKh5Sd2cIvdmEp7qaPCDBJLZKehHIzssQM7btjaog=;
+        b=GfYsDoIItB2PhuDyZmFwCmPjwIAxnJpfeufmPrVDpE1Xjmf2Qml3UK9mHmQ6K3Eqrq
+         gfqAoCWOU3d6zmJjJ5rGMhkWvvOU2QRclw8aJmWkL4wrHVt8hZghNDEvHV0VV3eb2YR9
+         0tRaw6R8qZlESdPko+qjRshiGRbhDa3eJ8fo+DpP/pYstA4AyrNWxt/iJ+295daKtNoU
+         Zh1nGoQoKN8xv8iZ34DQt7YYMsRRTje5LsifHAmlfQRhEgOKlns5672o1KlByGqFyXYF
+         5Zyd0TQPXe8XZzdXDfsiIgBYJMxaMI4/BwVlwc+DU9XddsAG2wcPFzlJHZGLBx8m0lcr
+         j9iQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=YEsBwFGp;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XKSLVIvf;
        spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id az4sor917497plb.53.2019.05.30.23.43.51
+        by mx.google.com with SMTPS id c34sor5310485pgb.8.2019.05.30.23.43.57
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 30 May 2019 23:43:51 -0700 (PDT)
+        Thu, 30 May 2019 23:43:57 -0700 (PDT)
 Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=YEsBwFGp;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XKSLVIvf;
        spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=sender:from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=/1KtkTjpM2F7VqpMpplgHbrJXqxrx2Yg1QX8m2jGqnM=;
-        b=YEsBwFGprnt0P096FjbN8VGCSTOtpp5VtwAcs4d0O5djn46yEI1ThviZsV8gHM5SRs
-         g77Xcn9BAXeaersL08jx4tGOFlBndGVF3aB2ATh4nM1P4LJI1SkjYqCY/OWZpFXOqo3/
-         3PY4n0DyQwTLX+F7AinFsc3xzg1ujHCWjHQXhN+QaCOqTnPVgaNKT+vYay+a7cA10FBA
-         qi8DrCEZteJ//y5V8pQBaMOzNdsL44ov3oG/4pegLyMytXtm6h7vW/si2O7/9A5xaYaa
-         +eLP9pIywLISqXcfXrpD4+3La62D4pROiX8uwt2OMAQIq/7H7raT+Dtr76c8gdFJM1r6
-         h9qQ==
-X-Google-Smtp-Source: APXvYqzoefQeJ1C97Vsx+NAezzE29KGmSgaLlD+4lJUr/OpwWASbCKw2YAxZCKcGf1+iV7yxUZ9u/w==
-X-Received: by 2002:a17:902:868b:: with SMTP id g11mr7213277plo.183.1559285031493;
-        Thu, 30 May 2019 23:43:51 -0700 (PDT)
+        bh=/qxKh5Sd2cIvdmEp7qaPCDBJLZKehHIzssQM7btjaog=;
+        b=XKSLVIvfbXFduytLOVRRP+7q+9eS6PVclnbre5yWnQ2ulCLxJC+U5oTgFrMnEQeNAf
+         eObYAkBLjnRSzHgTxAR+qO9wGvvMLR3l+58XoqDjZMnGJfBLDCohcRa+VL/pMmst2VY4
+         4NkoKyOpgPaQD2AXu7CZdNs05heoLQwWvAkOuals+tANzP9I5itzGEWwaCCbkenvjrvJ
+         zOGFz0MIxeC+wowv/sL3U66m0bBSBW18XeLnISIVwaWJ+wBJrsGidFeXsm7kIBiocmUs
+         KUvffuUdYxn8vMi33LZVCZZLRY7+2tTmRHigoExmUp4G51N8eW2O35cDsDY4ftA9G0P8
+         Iu8w==
+X-Google-Smtp-Source: APXvYqxG5/PbTB6PPKuzAXJIcjNhgNf6ZhMN+PpfuPfgq3fEGC9dwq5i1uswo13q01oJzXIAx3/6Uw==
+X-Received: by 2002:a63:2ad2:: with SMTP id q201mr7003061pgq.94.1559285037009;
+        Thu, 30 May 2019 23:43:57 -0700 (PDT)
 Received: from bbox-2.seo.corp.google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id f30sm4243340pjg.13.2019.05.30.23.43.46
+        by smtp.gmail.com with ESMTPSA id f30sm4243340pjg.13.2019.05.30.23.43.51
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 May 2019 23:43:50 -0700 (PDT)
+        Thu, 30 May 2019 23:43:55 -0700 (PDT)
 From: Minchan Kim <minchan@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm <linux-mm@kvack.org>,
@@ -118,9 +118,9 @@ Cc: linux-mm <linux-mm@kvack.org>,
 	oleksandr@redhat.com,
 	hdanton@sina.com,
 	Minchan Kim <minchan@kernel.org>
-Subject: [RFCv2 5/6] mm: introduce external memory hinting API
-Date: Fri, 31 May 2019 15:43:12 +0900
-Message-Id: <20190531064313.193437-6-minchan@kernel.org>
+Subject: [RFCv2 6/6] mm: extend process_madvise syscall to support vector arrary
+Date: Fri, 31 May 2019 15:43:13 +0900
+Message-Id: <20190531064313.193437-7-minchan@kernel.org>
 X-Mailer: git-send-email 2.22.0.rc1.257.g3120a18244-goog
 In-Reply-To: <20190531064313.193437-1-minchan@kernel.org>
 References: <20190531064313.193437-1-minchan@kernel.org>
@@ -132,305 +132,343 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There is some usecase that centralized userspace daemon want to give
-a memory hint like MADV_[COLD|PAGEEOUT] to other process. Android's
-ActivityManagerService is one of them.
+Currently, process_madvise syscall works for only one address range so
+user should call the syscall several times to give hints to multiple
+address ranges. However, it's not efficient to support atomicity of
+address range opreations as well as performance perspective.
 
-It's similar in spirit to madvise(MADV_WONTNEED), but the information
-required to make the reclaim decision is not known to the app. Instead,
-it is known to the centralized userspace daemon(ActivityManagerService),
-and that daemon must be able to initiate reclaim on its own without
-any app involvement.
+This patch extends process_madvise syscall to support multiple hints,
+address ranges and return vaules so user could give hints all at once.
 
-To solve the issue, this patch introduces new syscall process_madvise(2).
-It could give a hint to the exeternal process of pidfd.
+struct pr_madvise_param {
+        int size;               /* the size of this structure */
+        int cookie;             /* reserved to support atomicity */
+        int nr_elem;            /* count of below arrary fields */
+        int __user *hints;      /* hints for each range */
+        /* to store result of each operation */
+        const struct iovec __user *results;
+        /* input address ranges */
+        const struct iovec __user *ranges;
+};
 
- int process_madvise(int pidfd, void *addr, size_t length, int advise,
-			unsigned long cookie, unsigned long flag);
+  int process_madvise(int pidfd, struct pr_madvise_param *u_param,
+			unsigned long flags);
 
-Since it could affect other process's address range, only privileged
-process(CAP_SYS_PTRACE) or something else(e.g., being the same UID)
-gives it the right to ptrace the process could use it successfully.
+About cookie, Daniel Colascione suggested a idea[1] to support atomicity
+as well as improving parsing speed of address ranges of the target process.
+The process_getinfo(2) syscall could create vma configuration sequence
+number and returns(e.g., the seq number will be increased when target process
+holds mmap_sem exclusive lock) the number with address ranges as binary form.
+With calling the this vector syscall with the sequence number and address
+ranges we got from process_getinfo, we could detect there was race of
+the target process address space layout and makes the fail of the syscall
+if user want to have atomicity. It also speed up the address range
+parsing because we don't need to parse human-friend strings from /proc fs.
 
-The syscall has a cookie argument to privode atomicity(i.e., detect
-target process's address space change since monitor process has parsed
-the address range of target process so the operaion could fail in case
-of happening race). Although there is no interface to get a cookie
-at this moment, it could be useful to consider it as argument to avoid
-introducing another new syscall in future. It could support *atomicity*
-for disruptive hint(e.g., MADV_DONTNEED|FREE).
-flag argument is reserved for future use if we need to extend the API.
+[1] https://lore.kernel.org/lkml/20190520035254.57579-1-minchan@kernel.org/T/#m7694416fd179b2066a2c62b5b139b14e3894e224
 
-I think supporting all hints madvise has/will supported/support to
-process_madvise are rather risky. Because I'm not sure all hints makes
-sense from external process and implementation for the hint may rely on
-caller is current context like MADV_INJECT_ERROR so it could be error-prone
-if the caller is external process. Other example is userfaultfd because
-userfaultfd_remove need to release mmap_sem during the operation, which
-wouuld be a obstacle to implement atomicity later. So, I just limited hints
-as MADV_[COLD|PAGEOUT] at this moment. If someone want to expose other hint
-we need to hear their workload/scenario and could review carefully by
-design/implmentation of each hint. It's more safe for maintainace -
-Once we open a buggy syscall but found hard to fix it later, we never
-roll back.
+struct pr_madvise_param {
+    int size;               /* the size of this structure */
+    int cookie;             /* reserved to support atomicity */
+    int nr_elem;            /* count of below arrary fields */
+    int *hints;      /* hints for each range */
+    /* to store result of each operation */
+    const struct iovec *results;
+    /* input address ranges */
+    const struct iovec *ranges;
+};
 
-TODO: once we agree the direction, I need to define the syscall for
-every architecture.
+int main(int argc, char *argv[])
+{
+        struct pr_madvise_param param;
+        int hints[NR_ADDR_RANGE];
+        int ret[NR_ADDR_RANGE];
+        struct iovec ret_vec[NR_ADDR_RANGE];
+        struct iovec range_vec[NR_ADDR_RANGE];
+        void *addr[NR_ADDR_RANGE];
+        pid_t pid;
 
-* RFCv1
-  * not export pidfd_to_pid. Use pidfd_pid - Christian
-  * use mm struct instead of task_struct for madvise_core - Oleg
-  * add cookie variable as syscall argument to guarantee atomicity - dancol
+        addr[0] = mmap(NULL, ALLOC_SIZE, PROT_READ|PROT_WRITE,
+                          MAP_POPULATE|MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
+        if (MAP_FAILED == addr[0]) {
+                printf("Fail to alloc\n");
+                return 1;
+        }
 
-* internal review
-  * use ptrace capability - surenb, dancol
+        addr[1] = mmap(NULL, ALLOC_SIZE, PROT_READ|PROT_WRITE,
+                          MAP_POPULATE|MAP_PRIVATE|MAP_ANONYMOUS, 0, 0);
 
-I didn't solve the issue Olge pointed out(task we got from
-pid_task could be a zombie leader so that syscall will fai
-by mm_access even though process is alive with other threads)
-because it's not a only problem of this new syscall but it's
-general problem for other MM syscalls like process_vm_readv,
-move_pages so need more discussion.
+        if (MAP_FAILED == addr[1]) {
+                printf("Fail to alloc\n");
+                return 1;
+        }
 
-Cc: Oleg Nesterov <oleg@redhat.com>
+        ret_vec[0].iov_base = &ret[0];
+        ret_vec[0].iov_len = sizeof(long);
+        ret_vec[1].iov_base = &ret[1];
+        ret_vec[1].iov_len = sizeof(long);
+        range_vec[0].iov_base = addr[0];
+        range_vec[0].iov_len = ALLOC_SIZE;
+        range_vec[1].iov_base = addr[1];
+        range_vec[1].iov_len = ALLOC_SIZE;
+
+        hints[0] = MADV_COLD;
+        hints[1] = MADV_PAGEOUT;
+
+        param.size = sizeof(struct pr_madvise_param);
+        param.cookie = 0;
+        param.nr_elem = NR_ADDR_RANGE;
+        param.hints = hints;
+        param.results = ret_vec;
+        param.ranges = range_vec;
+
+        pid = fork();
+        if (!pid) {
+                sleep(10);
+        } else {
+                int pidfd = syscall(__NR_pidfd_open, pid, 0);
+                if (pidfd < 0) {
+                        printf("Fail to open process file descriptor\n");
+                        return 1;
+                }
+
+                munmap(addr[0], ALLOC_SIZE);
+                munmap(addr[1], ALLOC_SIZE);
+
+                system("cat /proc/vmstat | egrep 'pswpout|deactivate'");
+                if (syscall(__NR_process_madvise, pidfd, &param, 0))
+                        perror("process_madvise fail\n");
+                system("cat /proc/vmstat | egrep 'pswpout|deactivate'");
+        }
+
+	return 0;
+}
+
 Signed-off-by: Minchan Kim <minchan@kernel.org>
 ---
- arch/x86/entry/syscalls/syscall_32.tbl |  1 +
- arch/x86/entry/syscalls/syscall_64.tbl |  1 +
- include/linux/pid.h                    |  4 ++
- include/linux/syscalls.h               |  3 +
- include/uapi/asm-generic/unistd.h      |  4 +-
- kernel/fork.c                          |  8 +++
- kernel/signal.c                        |  7 ++-
- kernel/sys_ni.c                        |  1 +
- mm/madvise.c                           | 87 ++++++++++++++++++++++++++
- 9 files changed, 113 insertions(+), 3 deletions(-)
+ include/linux/syscalls.h               |   6 +-
+ include/uapi/asm-generic/mman-common.h |  11 +++
+ mm/madvise.c                           | 126 ++++++++++++++++++++++---
+ 3 files changed, 126 insertions(+), 17 deletions(-)
 
-diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
-index 43e4429a5272..5f44a29b7882 100644
---- a/arch/x86/entry/syscalls/syscall_32.tbl
-+++ b/arch/x86/entry/syscalls/syscall_32.tbl
-@@ -439,3 +439,4 @@
- 432	i386	fsmount			sys_fsmount			__ia32_sys_fsmount
- 433	i386	fspick			sys_fspick			__ia32_sys_fspick
- 434	i386	pidfd_open		sys_pidfd_open			__ia32_sys_pidfd_open
-+435	i386	process_madvise		sys_process_madvise		__ia32_sys_process_madvise
-diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-index 1bee0a77fdd3..35e91f3e9646 100644
---- a/arch/x86/entry/syscalls/syscall_64.tbl
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl
-@@ -356,6 +356,7 @@
- 432	common	fsmount			__x64_sys_fsmount
- 433	common	fspick			__x64_sys_fspick
- 434	common	pidfd_open		__x64_sys_pidfd_open
-+435	common	process_madvise		__x64_sys_process_madvise
- 
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
-diff --git a/include/linux/pid.h b/include/linux/pid.h
-index a261712ac3fe..a49ef789c034 100644
---- a/include/linux/pid.h
-+++ b/include/linux/pid.h
-@@ -73,6 +73,10 @@ extern struct pid init_struct_pid;
- extern const struct file_operations pidfd_fops;
- extern int pidfd_create(struct pid *pid);
- 
-+struct file;
-+
-+extern struct pid *pidfd_pid(const struct file *file);
-+
- static inline struct pid *get_pid(struct pid *pid)
- {
- 	if (pid)
 diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-index 1a4dc53f40d9..6ba081c955f6 100644
+index 6ba081c955f6..05627718a547 100644
 --- a/include/linux/syscalls.h
 +++ b/include/linux/syscalls.h
-@@ -872,6 +872,9 @@ asmlinkage long sys_munlockall(void);
+@@ -872,9 +872,9 @@ asmlinkage long sys_munlockall(void);
  asmlinkage long sys_mincore(unsigned long start, size_t len,
  				unsigned char __user * vec);
  asmlinkage long sys_madvise(unsigned long start, size_t len, int behavior);
-+asmlinkage long sys_process_madvise(int pidfd, unsigned long start,
-+				size_t len, int behavior,
-+				unsigned long cookie, unsigned long flags);
+-asmlinkage long sys_process_madvise(int pidfd, unsigned long start,
+-				size_t len, int behavior,
+-				unsigned long cookie, unsigned long flags);
++asmlinkage long sys_process_madvise(int pidfd,
++				struct pr_madvise_param __user *u_params,
++				unsigned long flags);
  asmlinkage long sys_remap_file_pages(unsigned long start, unsigned long size,
  			unsigned long prot, unsigned long pgoff,
  			unsigned long flags);
-diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
-index e5684a4512c0..082d1f3fe3a2 100644
---- a/include/uapi/asm-generic/unistd.h
-+++ b/include/uapi/asm-generic/unistd.h
-@@ -846,9 +846,11 @@ __SYSCALL(__NR_fsmount, sys_fsmount)
- __SYSCALL(__NR_fspick, sys_fspick)
- #define __NR_pidfd_open 434
- __SYSCALL(__NR_pidfd_open, sys_pidfd_open)
-+#define __NR_process_madvise 435
-+__SYSCALL(__NR_process_madvise, sys_process_madvise)
+diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
+index 92e347a89ddc..220c2b5eb961 100644
+--- a/include/uapi/asm-generic/mman-common.h
++++ b/include/uapi/asm-generic/mman-common.h
+@@ -75,4 +75,15 @@
+ #define PKEY_ACCESS_MASK	(PKEY_DISABLE_ACCESS |\
+ 				 PKEY_DISABLE_WRITE)
  
- #undef __NR_syscalls
--#define __NR_syscalls 435
-+#define __NR_syscalls 436
- 
- /*
-  * 32 bit systems traditionally used different
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 9f238cdd886e..b76aade51631 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -1738,6 +1738,14 @@ const struct file_operations pidfd_fops = {
- #endif
- };
- 
-+struct pid *pidfd_pid(const struct file *file)
-+{
-+	if (file->f_op == &pidfd_fops)
-+		return file->private_data;
++struct pr_madvise_param {
++	int size;		/* the size of this structure */
++	int cookie;		/* reserved to support atomicity */
++	int nr_elem;		/* count of below arrary fields */
++	int __user *hints;	/* hints for each range */
++	/* to store result of each operation */
++	const struct iovec __user *results;
++	/* input address ranges */
++	const struct iovec __user *ranges;
++};
 +
-+	return ERR_PTR(-EBADF);
-+}
-+
- /**
-  * pidfd_create() - Create a new pid file descriptor.
-  *
-diff --git a/kernel/signal.c b/kernel/signal.c
-index b477e21ecafc..b376870d7565 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -3702,8 +3702,11 @@ static int copy_siginfo_from_user_any(kernel_siginfo_t *kinfo, siginfo_t *info)
- 
- static struct pid *pidfd_to_pid(const struct file *file)
- {
--	if (file->f_op == &pidfd_fops)
--		return file->private_data;
-+	struct pid *pid;
-+
-+	pid = pidfd_pid(file);
-+	if (pid)
-+		return pid;
- 
- 	return tgid_pidfd_to_pid(file);
- }
-diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
-index 4d9ae5ea6caf..5277421795ab 100644
---- a/kernel/sys_ni.c
-+++ b/kernel/sys_ni.c
-@@ -278,6 +278,7 @@ COND_SYSCALL(mlockall);
- COND_SYSCALL(munlockall);
- COND_SYSCALL(mincore);
- COND_SYSCALL(madvise);
-+COND_SYSCALL(process_madvise);
- COND_SYSCALL(remap_file_pages);
- COND_SYSCALL(mbind);
- COND_SYSCALL_COMPAT(mbind);
+ #endif /* __ASM_GENERIC_MMAN_COMMON_H */
 diff --git a/mm/madvise.c b/mm/madvise.c
-index 466623ea8c36..fd205e928a1b 100644
+index fd205e928a1b..94d782097afd 100644
 --- a/mm/madvise.c
 +++ b/mm/madvise.c
-@@ -15,6 +15,7 @@
- #include <linux/hugetlb.h>
- #include <linux/falloc.h>
- #include <linux/sched.h>
-+#include <linux/sched/mm.h>
- #include <linux/ksm.h>
- #include <linux/fs.h>
- #include <linux/file.h>
-@@ -983,6 +984,31 @@ madvise_behavior_valid(int behavior)
- 	}
+@@ -1107,6 +1107,56 @@ static int madvise_core(struct task_struct *task, struct mm_struct *mm,
+ 	return error;
  }
  
-+static bool
-+process_madvise_behavior_valid(int behavior)
++static int pr_madvise_copy_param(struct pr_madvise_param __user *u_param,
++		struct pr_madvise_param *param)
 +{
-+	switch (behavior) {
-+	case MADV_COLD:
-+	case MADV_PAGEOUT:
-+		return true;
-+
-+	default:
-+		return false;
-+	}
-+}
-+
-+/*
-+ * madvise_core - request behavior hint to address range of the target process
-+ *
-+ * @task: task_struct got behavior hint, not giving the hint
-+ * @mm: mm_struct got behavior hint, not giving the hint
-+ * @start: base address of the hinted range
-+ * @len_in: length of the hinted range
-+ * @behavior: requested hint
-+ *
-+ * @task could be a zombie leader if it calls sys_exit so accessing mm_struct
-+ * via task->mm is prohibited. Please use @mm insetad of task->mm.
-+ */
- static int madvise_core(struct task_struct *task, struct mm_struct *mm,
- 			unsigned long start, size_t len_in, int behavior)
- {
-@@ -1146,3 +1172,64 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
- {
- 	return madvise_core(current, current->mm, start, len_in, behavior);
- }
-+
-+SYSCALL_DEFINE6(process_madvise, int, pidfd, unsigned long, start,
-+		size_t, len_in, int, behavior, unsigned long, cookie,
-+		unsigned long, flags)
-+{
++	u32 size;
 +	int ret;
-+	struct fd f;
-+	struct pid *pid;
-+	struct task_struct *task;
-+	struct mm_struct *mm;
 +
-+	if (flags != 0)
++	memset(param, 0, sizeof(*param));
++
++	ret = get_user(size, &u_param->size);
++	if (ret)
++		return ret;
++
++	if (size > PAGE_SIZE)
++		return -E2BIG;
++
++	if (!size || size > sizeof(struct pr_madvise_param))
 +		return -EINVAL;
 +
-+	/*
-+	 * We don't support cookie to gaurantee address space change
-+	 * atomicity yet.
-+	 */
-+	if (cookie != 0)
-+		return -EINVAL;
++	ret = copy_from_user(param, u_param, size);
++	if (ret)
++		return -EFAULT;
 +
-+	if (!process_madvise_behavior_valid(behavior))
-+		return return -EINVAL;
-+
-+	f = fdget(pidfd);
-+	if (!f.file)
-+		return -EBADF;
-+
-+	pid = pidfd_pid(f.file);
-+	if (IS_ERR(pid)) {
-+		ret = PTR_ERR(pid);
-+		goto err;
-+	}
-+
-+	rcu_read_lock();
-+	task = pid_task(pid, PIDTYPE_PID);
-+	if (!task) {
-+		rcu_read_unlock();
-+		ret = -ESRCH;
-+		goto err;
-+	}
-+
-+	get_task_struct(task);
-+	rcu_read_unlock();
-+
-+	mm = mm_access(task, PTRACE_MODE_ATTACH_FSCREDS);
-+	if (!mm || IS_ERR(mm)) {
-+		ret = IS_ERR(mm) ? PTR_ERR(mm) : -ESRCH;
-+		if (ret == -EACCES)
-+			ret = -EPERM;
-+		goto release_task;
-+	}
-+
-+	ret = madvise_core(task, mm, start, len_in, behavior);
-+	mmput(mm);
-+release_task:
-+	put_task_struct(task);
-+err:
-+	fdput(f);
 +	return ret;
 +}
++
++static int process_madvise_core(struct task_struct *tsk, struct mm_struct *mm,
++				int *behaviors,
++				struct iov_iter *iter,
++				const struct iovec *range_vec,
++				unsigned long riovcnt)
++{
++	int i;
++	long err;
++
++	for (i = 0; i < riovcnt && iov_iter_count(iter); i++) {
++		err = -EINVAL;
++		if (process_madvise_behavior_valid(behaviors[i]))
++			err = madvise_core(tsk, mm,
++				(unsigned long)range_vec[i].iov_base,
++				range_vec[i].iov_len, behaviors[i]);
++
++		if (copy_to_iter(&err, sizeof(long), iter) !=
++				sizeof(long)) {
++			return -EFAULT;
++		}
++	}
++
++	return 0;
++}
++
+ /*
+  * The madvise(2) system call.
+  *
+@@ -1173,37 +1223,78 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 	return madvise_core(current, current->mm, start, len_in, behavior);
+ }
+ 
+-SYSCALL_DEFINE6(process_madvise, int, pidfd, unsigned long, start,
+-		size_t, len_in, int, behavior, unsigned long, cookie,
+-		unsigned long, flags)
++
++SYSCALL_DEFINE3(process_madvise, int, pidfd,
++				struct pr_madvise_param __user *, u_params,
++				unsigned long, flags)
+ {
+ 	int ret;
+ 	struct fd f;
+ 	struct pid *pid;
+ 	struct task_struct *task;
+ 	struct mm_struct *mm;
++	struct pr_madvise_param params;
++	const struct iovec __user *result_vec, __user *range_vec;
++	int *behaviors;
++	struct iovec iovstack_result[UIO_FASTIOV];
++	struct iovec iovstack_r[UIO_FASTIOV];
++	struct iovec *iov_l = iovstack_result;
++	struct iovec *iov_r = iovstack_r;
++	struct iov_iter iter;
++	int nr_elem;
+ 
+ 	if (flags != 0)
+ 		return -EINVAL;
+ 
++	ret = pr_madvise_copy_param(u_params, &params);
++	if (ret)
++		return ret;
++
+ 	/*
+-	 * We don't support cookie to gaurantee address space change
+-	 * atomicity yet.
++	 * We don't support cookie to gaurantee address space atomicity yet.
++	 * Once we implment cookie, process_madvise_core need to hold mmap_sme
++	 * during entire operation to guarantee atomicity.
+ 	 */
+-	if (cookie != 0)
++	if (params.cookie != 0)
+ 		return -EINVAL;
+ 
+-	if (!process_madvise_behavior_valid(behavior))
+-		return return -EINVAL;
++	range_vec = params.ranges;
++	result_vec = params.results;
++	nr_elem = params.nr_elem;
++
++	behaviors = kmalloc_array(nr_elem, sizeof(int), GFP_KERNEL);
++	if (!behaviors)
++		return -ENOMEM;
++
++	ret = copy_from_user(behaviors, params.hints, sizeof(int) * nr_elem);
++	if (ret < 0)
++		goto free_behavior_vec;
++
++	ret = import_iovec(READ, result_vec, params. nr_elem, UIO_FASTIOV,
++				&iov_l, &iter);
++	if (ret < 0)
++		goto free_behavior_vec;
++
++	if (!iov_iter_count(&iter)) {
++		ret = -EINVAL;
++		goto free_iovecs;
++	}
++
++	ret = rw_copy_check_uvector(CHECK_IOVEC_ONLY, range_vec, nr_elem,
++					UIO_FASTIOV, iovstack_r, &iov_r);
++	if (ret <= 0)
++		goto free_iovecs;
+ 
+ 	f = fdget(pidfd);
+-	if (!f.file)
+-		return -EBADF;
++	if (!f.file) {
++		ret = -EBADF;
++		goto free_iovecs;
++	}
+ 
+ 	pid = pidfd_pid(f.file);
+ 	if (IS_ERR(pid)) {
+ 		ret = PTR_ERR(pid);
+-		goto err;
++		goto put_fd;
+ 	}
+ 
+ 	rcu_read_lock();
+@@ -1211,7 +1302,7 @@ SYSCALL_DEFINE6(process_madvise, int, pidfd, unsigned long, start,
+ 	if (!task) {
+ 		rcu_read_unlock();
+ 		ret = -ESRCH;
+-		goto err;
++		goto put_fd;
+ 	}
+ 
+ 	get_task_struct(task);
+@@ -1225,11 +1316,18 @@ SYSCALL_DEFINE6(process_madvise, int, pidfd, unsigned long, start,
+ 		goto release_task;
+ 	}
+ 
+-	ret = madvise_core(task, mm, start, len_in, behavior);
++	ret = process_madvise_core(task, mm, behaviors, &iter, iov_r, nr_elem);
+ 	mmput(mm);
+ release_task:
+ 	put_task_struct(task);
+-err:
++put_fd:
+ 	fdput(f);
++free_iovecs:
++	if (iov_r != iovstack_r)
++		kfree(iov_r);
++	kfree(iov_l);
++free_behavior_vec:
++	kfree(behaviors);
++
+ 	return ret;
+ }
 -- 
 2.22.0.rc1.257.g3120a18244-goog
 
