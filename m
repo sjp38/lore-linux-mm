@@ -2,177 +2,232 @@ Return-Path: <SRS0=007R=T7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8A4D2C04AB6
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 16:59:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CB604C04AB6
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 16:59:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 421EB26CA0
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 16:59:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 90A5326CA2
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 16:59:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="vaNEY3xb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 421EB26CA0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="f8WPz/+h"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90A5326CA2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C81D06B0010; Fri, 31 May 2019 12:59:20 -0400 (EDT)
+	id 297FD6B026F; Fri, 31 May 2019 12:59:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C59E46B026F; Fri, 31 May 2019 12:59:20 -0400 (EDT)
+	id 26DB56B0272; Fri, 31 May 2019 12:59:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B6EF86B0272; Fri, 31 May 2019 12:59:20 -0400 (EDT)
+	id 183986B0274; Fri, 31 May 2019 12:59:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 98B7A6B0010
-	for <linux-mm@kvack.org>; Fri, 31 May 2019 12:59:20 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id k10so9285061ywb.18
-        for <linux-mm@kvack.org>; Fri, 31 May 2019 09:59:20 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EB6466B026F
+	for <linux-mm@kvack.org>; Fri, 31 May 2019 12:59:34 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id r58so1102673qtb.5
+        for <linux-mm@kvack.org>; Fri, 31 May 2019 09:59:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=G82jjtVPtIBiymxHtt3594fMUhRhOyCXS9qt0zROSRs=;
-        b=V+T6gFnDXFuOKFI3mA5TrfYKkQJD9QxBJ+bZMlCFSLE+jwVdhHHMLI23U/2sW/Rjur
-         Gl57rA1vadWKqCTt6hpXBrDNnS5feG67ajyViMPEwwea024xeBrRH9tRXRlor+XXORbU
-         5mx37dWxgo/KM6Nh1FS/S9sdoiOizbjgmwXL6K79OzkmrQ1Nr4oRPkCJ5tIodt3pSVGH
-         /Hc6DYrD6X9Zhcw+U00BoxPAL4qY7pO8wTPoIytdCyBl5qbIiQZcLvpS0ilbuk2U5l6c
-         gqCJ/sSd71PMrUx5n/i49/xooYoUpOZU+cSBdQCIcedaaa+yLNpCjLpyfvSekGXlKOJ6
-         bwTg==
-X-Gm-Message-State: APjAAAUEuKUaHum1VxDaqAasUWpD0XiTrU9e4A24+GncETUNOEs3fPQe
-	bb5et1YgnFnkL8FrGQVWMG1p3OXy8zFbdmxi7dJL8YSsRwuaNTce5VWJmLvTVmVSkPPb6LLVdsU
-	f3Gz+BJGCnf0Sr2Q9hpwEs4IVtT8NV/u6SKGAaIN1KW7jaoJDBBU1ssbek/PPPgqtPA==
-X-Received: by 2002:a0d:d342:: with SMTP id v63mr5842050ywd.369.1559321960294;
-        Fri, 31 May 2019 09:59:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyFTj0jWcKok8HSIrt3ED+/pOxlj3gBHNOY9i3yM6uUUcvrde5YMTf2tfDDLwaHcdQK4EyK
-X-Received: by 2002:a0d:d342:: with SMTP id v63mr5842029ywd.369.1559321959581;
-        Fri, 31 May 2019 09:59:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559321959; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=e3NDCjv26v8d/6GmHIuWCh8rhIogpl4fMn5sXvVuI0c=;
+        b=oWU7g6MPCXZLABV05dz7zFLa1NsLsfMrXReZOXePo8tKuRFAIRTxM9qq3/QYkZ6AMm
+         X+VhmHCOlRK9tgNEQZBzJko2Nq4MF2b+3wZzDQPabtxTCwfKvXKyUyOLPzworBH9xxD5
+         bU3V8lxblntweOmM4OW/wT2K5SC8qniAXmjUCVTUoRbNP19JyW/KKlXvS7kbLbdC5h97
+         GEfDcKHE1VmszEyI5V+baRNgwVkXZ7sCviM59wPVzLL1EW7sJ0d/lDacTynP99Wqyilk
+         1PejXPCUsRWp9uMnW/yBRPFDKTDP1UKkG4vvRRwLbe93jQXXlKmVUuBal0QgGxzON1/T
+         pRyA==
+X-Gm-Message-State: APjAAAW+lfZUlGYmAS9SFe/+de0GxdS4IIIPnQp7FQMcxbLGozhQgd2V
+	qjRsT+no0PZIV2u62d2drSSKNaJ6oc2Tuw9AtqWPTF3HYZLnubi9FT/YfxGbR5tDHFZM0XGxGb/
+	NvPXma13+mq9yR/qIQY9zzfDkrWnVxQOuCaUODkpFQk20ixbEA5/j6oGrOOiUYkou3A==
+X-Received: by 2002:a0c:b98d:: with SMTP id v13mr9714255qvf.11.1559321974665;
+        Fri, 31 May 2019 09:59:34 -0700 (PDT)
+X-Received: by 2002:a0c:b98d:: with SMTP id v13mr9714226qvf.11.1559321974042;
+        Fri, 31 May 2019 09:59:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559321974; cv=none;
         d=google.com; s=arc-20160816;
-        b=L8BuKDdz4VSDY2Q32dWDZ9C2iX+IDKCRkrFdZxhgHdjBcBti44EWIPy4eHvxCyIQA7
-         fiCoudnImlAdjwweEWa8Hj1s8DND6Rk/SjcwCtIA2neDWdVMYrC0cuW1Q8y2KP2wI5Y8
-         YN882LCWE7iY3/m9mOz2zrLRSzqGeOP/BDGsFx7qv8TZpvXfAtU7Rn80Bk++xMESDChj
-         Adm6T03mre3gtSuSrOcYu3c/Hq9rWli+vWYReqzitsaut3IwBLxWHgkFzCsDDYESZDzT
-         6wegmDTEdkw8nEWjlvIfLdksE68PGkXR6UHXk40jMqbeIMxoMcBx4VPXoa5BoDPje3Di
-         75vQ==
+        b=yri5TeOMDDXCl2Z1Ie6HznIt10z8F3+G9zBS12UY010gnGPVJn36k0l/b1wqrxuEHh
+         RmszIo1F9dUfp8lsR5/Sr0gGFWJqjn2IQoCZvnTVhJCQhzNxEBXOqjY22YmltpZLkSno
+         8Wkx7bMqnYs65UI7jVOb02C9qEZK4RQVQVFXedoLyqYw3fg6VL6QiN3hEIIp1JfFakua
+         fLWbH34kPe22SCYl9EfcW/3G/oHBDXEW5pAXM2rtF2UGenwpgGX0nmUhE/yjctIFGqz8
+         tYqo+YjPIB9Pip6dT5fRsRFnAv9pJ7rQQv8hMhuEx9eYnMZ4+Mn4gTfeLETVBy72sre2
+         iA1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=G82jjtVPtIBiymxHtt3594fMUhRhOyCXS9qt0zROSRs=;
-        b=CdOSzNIrZbRcG16ZbcJnoWMa2tMj/rrMAzAEZNynTSl60vBoRxWKjQyISjh/6ZjfA7
-         Dx2+xEV/QaOwJSItNygz+mHrbfoiOcFgfw4Hkz+ZdkaZiAnfJvX7g3eqMCIglv8nUfYL
-         qNPvmIgzP8gXMhntCxFQMTr4cf7NgY4h24PlsVVuZs3Qge1WNxBmDA0/1TshTFAVi8+s
-         wr1jgmW420yetjBE3vYEsn1FbNdb4uz/v/CPnwBJLAFRbrXP7ILLGe4/6Mq+bazl5s6C
-         h3jq3r0BjYEUBmCBp2NoOVIt8zqy1cJwOua0jxS0TcgW//vbR9iaioXhvhMOpackKMI2
-         9WUw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=e3NDCjv26v8d/6GmHIuWCh8rhIogpl4fMn5sXvVuI0c=;
+        b=WK3cpX5iulqx0dZ8ibFElaahWx9lB2aAgWWm+lQ47jmLV+vhBgqhwj2Il1Sv8phW9P
+         y9Gz4iIWN2vImwK4LI+BRw9d+2n00SGA0Mt/mQr5tmV+R6MPXoABNGfAPhmlpw4cAZV4
+         mI1axvESWexIdnVVdivz4pYEnnSbEH2TIquHUiHOgYfwHZnW6cZqrIq2fP0A0+QrXIoq
+         vHuaQ1kObKQYF5mjdJ36GNS7byLnm1fBD668X2ckfPBuvwxj/uv6UoUm289zhmWcUyV4
+         ZAgmsmeSUGPEegyDK0qFzCFqifdOBJtJNgqbYXZlt06T8Opr4pbdB4xDpbUEtqIfLKQB
+         Sbjg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=vaNEY3xb;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id 204si2010592ywu.374.2019.05.31.09.59.19
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="f8WPz/+h";
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t10sor5167402qvm.12.2019.05.31.09.59.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 31 May 2019 09:59:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (Google Transport Security);
+        Fri, 31 May 2019 09:59:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=vaNEY3xb;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4VGmkRa037317;
-	Fri, 31 May 2019 16:59:05 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=G82jjtVPtIBiymxHtt3594fMUhRhOyCXS9qt0zROSRs=;
- b=vaNEY3xbHbsmFj4uuy58MnSzoYNnmBWMZ1uHLJz4TFgQS3PDxWUY7uo0/yb+5cHLLCQI
- GPx/XnsFEsPnQn9U1wJYM1XDXZtZkBSA5i9qKO+NWK5gGJBFA5LeeSsgb1/2jPXiKqU0
- Ifu/u2p8g04sYFmK5eV0CPPxOFSlT7KCzWSvdKifcZ/8RR8VLBpEs73OSYPVr4kfC81D
- EveRMMmF5HRn9+TFQXc35gdIgha+aTQqi2X0T3LXHfMzmagOchgedP58kzYQlVlkeBk/
- tsbLdCCdJQ0krqpBY9ZVH3eytgUQRnKCKvtp05KQHOSWorDRSYve3FvE//mlmiRGkTEc Ig== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2130.oracle.com with ESMTP id 2spw4tyn5e-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 31 May 2019 16:59:05 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x4VGvdh1084819;
-	Fri, 31 May 2019 16:59:05 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userp3030.oracle.com with ESMTP id 2ss1fprjt9-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 31 May 2019 16:59:05 +0000
-Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x4VGx2Fc009144;
-	Fri, 31 May 2019 16:59:02 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 31 May 2019 09:59:01 -0700
-Subject: Re: [PATCH -mm] mm, swap: Fix bad swap file entry warning
-To: "Huang, Ying" <ying.huang@intel.com>,
-        Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        Andrea Parri <andrea.parri@amarulasolutions.com>,
-        "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
-        Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>,
-        Hugh Dickins <hughd@google.com>
-References: <20190531024102.21723-1-ying.huang@intel.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <2d8e1195-e0f1-4fa8-b0bd-b9ea69032b51@oracle.com>
-Date: Fri, 31 May 2019 09:59:00 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b="f8WPz/+h";
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=e3NDCjv26v8d/6GmHIuWCh8rhIogpl4fMn5sXvVuI0c=;
+        b=f8WPz/+hD8iie5whEpGer0vyU0wOgv311IGNFCXMOj/NFL+1xQv5rdq/sLr0vTGqyR
+         D6cgjU6mJcydC2jbjchTtkfzjxQEhtKuhmZI5YdJqCj3Ohw0b/OOQ3QicxR77uGLCTSs
+         tNJeznJPLPhwE2A8dhYmVKeOkBegUCxn8GC87aElTzNPvaLVwzoxqNKoG8OuHJPolcr8
+         QDLJyRD84j7hLlmTwwwkBOFvc65tS5RO6ip0IJxG28S5uNa0GTZ2GXR/BlShA8I4Zngn
+         bIVsIScBIk8K9a5HRlG5NsLb9Q/MvJtZw5Ay8p/0G7CAxHPRREYcTfTCO3UzAgv3Gzmm
+         NXow==
+X-Google-Smtp-Source: APXvYqzaN7Osp+sFUz/UO2xtX8ksDYOwDOi8/ZwHvqZxRo9bRaBiMSUChy138SG9ks/ETIGz6vQ6cg==
+X-Received: by 2002:a0c:93e1:: with SMTP id g30mr9477692qvg.194.1559321969216;
+        Fri, 31 May 2019 09:59:29 -0700 (PDT)
+Received: from localhost (pool-108-27-252-85.nycmny.fios.verizon.net. [108.27.252.85])
+        by smtp.gmail.com with ESMTPSA id y29sm4638814qkj.8.2019.05.31.09.59.28
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 31 May 2019 09:59:28 -0700 (PDT)
+Date: Fri, 31 May 2019 12:59:27 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, jannh@google.com,
+	oleg@redhat.com, christian@brauner.io, oleksandr@redhat.com,
+	hdanton@sina.com
+Subject: Re: [RFCv2 3/6] mm: introduce MADV_PAGEOUT
+Message-ID: <20190531165927.GA20067@cmpxchg.org>
+References: <20190531064313.193437-1-minchan@kernel.org>
+ <20190531064313.193437-4-minchan@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20190531024102.21723-1-ying.huang@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9273 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1905310104
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9273 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1905310104
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190531064313.193437-4-minchan@kernel.org>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 5/30/19 7:41 PM, Huang, Ying wrote:
-> From: Huang Ying <ying.huang@intel.com>
-> 
-> Mike reported the following warning messages
-> 
->   get_swap_device: Bad swap file entry 1400000000000001
-> 
-> This is produced by
-> 
-> - total_swapcache_pages()
->   - get_swap_device()
-> 
-> Where get_swap_device() is used to check whether the swap device is
-> valid and prevent it from being swapoff if so.  But get_swap_device()
-> may produce warning message as above for some invalid swap devices.
-> This is fixed via calling swp_swap_info() before get_swap_device() to
-> filter out the swap devices that may cause warning messages.
-> 
-> Fixes: 6a946753dbe6 ("mm/swap_state.c: simplify total_swapcache_pages() with get_swap_device()")
-> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+Hi Michan,
 
-Thank you, this eliminates the messages for me:
+this looks pretty straight-forward to me, only one kink:
 
-Tested-by: Mike Kravetz <mike.kravetz@oracle.com>
+On Fri, May 31, 2019 at 03:43:10PM +0900, Minchan Kim wrote:
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2126,6 +2126,83 @@ static void shrink_active_list(unsigned long nr_to_scan,
+>  			nr_deactivate, nr_rotated, sc->priority, file);
+>  }
+>  
+> +unsigned long reclaim_pages(struct list_head *page_list)
+> +{
+> +	int nid = -1;
+> +	unsigned long nr_isolated[2] = {0, };
+> +	unsigned long nr_reclaimed = 0;
+> +	LIST_HEAD(node_page_list);
+> +	struct reclaim_stat dummy_stat;
+> +	struct scan_control sc = {
+> +		.gfp_mask = GFP_KERNEL,
+> +		.priority = DEF_PRIORITY,
+> +		.may_writepage = 1,
+> +		.may_unmap = 1,
+> +		.may_swap = 1,
+> +	};
+> +
+> +	while (!list_empty(page_list)) {
+> +		struct page *page;
+> +
+> +		page = lru_to_page(page_list);
+> +		if (nid == -1) {
+> +			nid = page_to_nid(page);
+> +			INIT_LIST_HEAD(&node_page_list);
+> +			nr_isolated[0] = nr_isolated[1] = 0;
+> +		}
+> +
+> +		if (nid == page_to_nid(page)) {
+> +			list_move(&page->lru, &node_page_list);
+> +			nr_isolated[!!page_is_file_cache(page)] +=
+> +						hpage_nr_pages(page);
+> +			continue;
+> +		}
+> +
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_ANON,
+> +					nr_isolated[0]);
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_FILE,
+> +					nr_isolated[1]);
+> +		nr_reclaimed += shrink_page_list(&node_page_list,
+> +				NODE_DATA(nid), &sc, TTU_IGNORE_ACCESS,
+> +				&dummy_stat, true);
+> +		while (!list_empty(&node_page_list)) {
+> +			struct page *page = lru_to_page(&node_page_list);
+> +
+> +			list_del(&page->lru);
+> +			putback_lru_page(page);
+> +		}
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_ANON,
+> +					-nr_isolated[0]);
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_FILE,
+> +					-nr_isolated[1]);
+> +		nid = -1;
+> +	}
+> +
+> +	if (!list_empty(&node_page_list)) {
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_ANON,
+> +					nr_isolated[0]);
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_FILE,
+> +					nr_isolated[1]);
+> +		nr_reclaimed += shrink_page_list(&node_page_list,
+> +				NODE_DATA(nid), &sc, TTU_IGNORE_ACCESS,
+> +				&dummy_stat, true);
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_ANON,
+> +					-nr_isolated[0]);
+> +		mod_node_page_state(NODE_DATA(nid), NR_ISOLATED_FILE,
+> +					-nr_isolated[1]);
+> +
+> +		while (!list_empty(&node_page_list)) {
+> +			struct page *page = lru_to_page(&node_page_list);
+> +
+> +			list_del(&page->lru);
+> +			putback_lru_page(page);
+> +		}
+> +
+> +	}
 
--- 
-Mike Kravetz
+The NR_ISOLATED accounting, nid parsing etc. is really awkward and
+makes it hard to see what the function actually does.
+
+Can you please make those ISOLATED counters part of the isolation API?
+Your patch really shows this is an overdue cleanup.
+
+These are fast local percpu counters, we don't need the sprawling
+batching we do all over vmscan.c, migrate.c, khugepaged.c,
+compaction.c etc. Isolation can increase the counter page by page, and
+reclaim or putback can likewise decrease them one by one.
+
+It looks like mlock is the only user of the isolation api that does
+not participate in the NR_ISOLATED_* counters protocol, but I don't
+see why it wouldn't, or why doing so would hurt.
+
+There are also seem to be quite a few callsites that use the atomic
+versions of the counter API when they're clearly under the irqsafe
+lru_lock. That would be fixed automatically by this work as well.
 
