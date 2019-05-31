@@ -2,160 +2,141 @@ Return-Path: <SRS0=007R=T7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D2B39C28CC3
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 02:41:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CE6D6C28CC0
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 02:42:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A3A4626162
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 02:41:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A3A4626162
+	by mail.kernel.org (Postfix) with ESMTP id 99CAE26215
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 02:42:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99CAE26215
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2A8696B0280; Thu, 30 May 2019 22:41:33 -0400 (EDT)
+	id 282176B0281; Thu, 30 May 2019 22:42:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 259F96B0281; Thu, 30 May 2019 22:41:33 -0400 (EDT)
+	id 231A86B0282; Thu, 30 May 2019 22:42:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 149566B0282; Thu, 30 May 2019 22:41:33 -0400 (EDT)
+	id 1485D6B0283; Thu, 30 May 2019 22:42:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CE31B6B0280
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 22:41:32 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id d2so5236619pla.18
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 19:41:32 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D2B8E6B0281
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 22:42:39 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id d7so3676778pgc.8
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 19:42:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=+OLMXcEs3qrKGR0MjG5Pet6MFnocpP6ohXP1uelfhvQ=;
-        b=ek73qlQ+kxPfSWbwMnJ3lX8nKEcfQdFm1YTum1ldjahe9S4T59WyWM1L5zGeF2U9LB
-         9e0tYW7UYKNWioX90fCPcJ1JEAIGCbHuBst4XChjwKNgtWr3Qhekc2UTNVdyI4QNOLI8
-         Qoz1huWj4tGFAcArdOD5cPb3TSewfVeVDKcg9L6fFHVPZbxXoDJk+sLMa8d630LPe+Yb
-         bgdyzjK1y4xp5n72UZoq89IRBQh+8cTxMAJkYOsTBFQBDpdegbPbuy/CsjsyygYwswxY
-         Ar2l/iXA4Zr6uxjMf55S5R3hYzt8gwHc9i3kdRqalMuvPmlAV55yaTy/YtbYWOrHQuL9
-         JKEg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVeIMbA+Vkrq1ooSRm5KLl51EkZ/2Czts5P34aBQLwOWpb1Uslx
-	PDYAiUqy8m02a01vIsxb5074tylg9T7ZZ5dDi+hH1fHyyXYbqnOkE9pweiHc7UKdjrV1JLXGdcg
-	GOKtAy6kd1Qd5Cwz5GBgxLVAN6lLVecCkVFyhH8lfGg8mqG4+Wpx9RRnna14cLKMWrg==
-X-Received: by 2002:a17:902:2869:: with SMTP id e96mr6416835plb.203.1559270492501;
-        Thu, 30 May 2019 19:41:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxpaNxT6lbeis2IRMYYcDT1r1yDqLEdlkLmIpP8OnmqDkR0OwWoyTKEtD51wcllO4mqv023
-X-Received: by 2002:a17:902:2869:: with SMTP id e96mr6416786plb.203.1559270491527;
-        Thu, 30 May 2019 19:41:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559270491; cv=none;
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=tU7jex5GIzwZejVuIEKLBEybbkHIktkFUjNVgunM9dM=;
+        b=HWdkN0aHfogb4VJR2/xrQbdssXXZL8VBRcDb331Ko+wn8aMTMxtYWFf4fLBfyB7wKd
+         wcoIjw887H9fRJWxbD55rvywTZDhFcTKp34B6Mh/00yWwCRze4n2RwcTph55EoFaTMVw
+         U7cg9q26BycQh4lRbglm5moxyr1Z0F4DCbtFgP9Win4vr4l+mR/27mayzgHbZ6dSWo3x
+         E92/sgLsmQLMbdGvfrUdVT/12ugVZCFa0QAk/FwUAb+8lgs66KJrwfrDJm7//cMerB00
+         kb8p96/SnU9B+nUiVGU9kXMPU1XOrI77/pSSeRUSrjI2BB3PJfyrz8dWqU+B+f8xAPON
+         Repw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUxWjN4TlAUgi0KaSMNJJGRr8Wgq917ND/demMkfau6G9XsvMOQ
+	lH/YDSEbkQGP7va7DfqT/fwceSVZ4AAG0ZFNaXwX9lb8s/QqRpm1SBot1KWK6DV8/HEzkubypOa
+	V8M/qVOe1ldQnQxJST20BxM8CZ91AfuLwUXxHC6+0q25L53mdtmcJqh6NhoinKw5PQg==
+X-Received: by 2002:aa7:8dc3:: with SMTP id j3mr7160113pfr.141.1559270559535;
+        Thu, 30 May 2019 19:42:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwppcOFazCIiYhiYQ3QqtWDuapjb2KeFRfLnofgRX1jhO+TIwf+CWnihE0gdb/ZLUTac9w1
+X-Received: by 2002:aa7:8dc3:: with SMTP id j3mr7160039pfr.141.1559270558244;
+        Thu, 30 May 2019 19:42:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559270558; cv=none;
         d=google.com; s=arc-20160816;
-        b=uqrnhYN0He1/abIoC/E1pSh/IFXYz+OQgeuLonxuXg3QPDzfz5TJGzPTP8r2cpX27n
-         SrfsIY/uSIdNKGSS+W9ixfJfuQz3KJ12QdpOl/IA/Ak5M/BzmeX2yfegcm8Bbv341Z/j
-         /VboN0QUt0fJq8daIRSf/KGGciXpqqzglDkIhbNTXWfruJctC2bnS2KdhgWr7MAJcHWO
-         6l29TWqcJjxvGpxGZ6mh0K7wm5cZ/UU3FUhsOmVGM7z9rGTMEC+cyYSUtcSZb135I0gg
-         3idFWoG2zJMQzUvzMsIYmjqsFziAoRVEcKCKFSABUBFxoHjcs+XK6hHK8brAzYzupCQW
-         zYuA==
+        b=YF37blY9TfbbF1nNQeaJx7vdBMNUt+uSZpjjmCFOdTaQ2pHHNt6zU/eS0L8zwRhnni
+         /zWvT5sx9ra2TEXVRj8wdLuRgmDej5wrzeJ2XIOcwSsHpGL+BkTQCFsybVtOQC0pSfEM
+         VR/8NXmn5/Dvkb3pLLkLLJXX2qmDDTHOzqWerZCDpbBq2ymrpTMf8X5NkCZBQY5Z9Xpy
+         oqg43uWzGV9+JzVs+1SrViKsJBmqPMFfH1HoxKzeXu9k0fkriZyOg4AovzZz/nkQ9TyY
+         xd31LvSrCod2nW9j8rSuUCWchd5e0TMrtPwrj8f2iGaEVh8WElxU3H4Bg+yo2sCAY+kW
+         hYQQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=+OLMXcEs3qrKGR0MjG5Pet6MFnocpP6ohXP1uelfhvQ=;
-        b=GUhSyq8W/pkCM4/IKZ6j74xojpaij/6b/y5SduhBbzhxGIAiIz7DQWk5UEi3pGrkUF
-         2RqsYY/TNAUt8XlVqPa/ttusyBxeGMZgYEF8SYxsKJz0OVsny8R5rKvJMZGRYgED/EvA
-         756RPkJzzJE5EC5BpvYRMKWQVSW/PrLL4W7JjouHnII61+8nHrpKcZwQcPPO67Gfay/H
-         MYrIX2R7Zzgxdzz2EpGV/4yItxmySiOFJUN2JuatxJhSwc+ZXKfBi7wgwJ/PtcY6PLgs
-         vStIAFp2DtBa+DsxtgiPmKRB1HpX3Qi2/eVnH5eVBjFQsw5FPRoIWfVduiRy1nU3ifEa
-         EG7A==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=tU7jex5GIzwZejVuIEKLBEybbkHIktkFUjNVgunM9dM=;
+        b=jVLBmtCBeRSfFERdrdCQwwRsB7mNiYyX7dOrilWWmIaZowhdh51YVPhHiNIlOIpDol
+         yhtA2p3NkJQyOhP6yvb65FEg5KQgHyMOGEXuhxtUmQlqJ+0ak4Yhq+5ye1fOub3K9PAq
+         bnPx2ro7RzhCCelO/khe5uopSKQePdTTDQ6tSHWe9ZiZfeNzfXVjy6P1xTsYkJsZH2Az
+         knPvENc6OKWQGSkDvC6LjKPx5ZxrbMoX1lHVjexY/dHqhGNF3OfQsRSy5KCN7A3JFhza
+         cV4JpzoTQHnaAOUOLyVuJ1nUgrfGKAoBvVlZJMOFTLS8Ot6elKS3KCLBHMwqkOAaM35v
+         qM/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id p7si3375484pls.253.2019.05.30.19.41.31
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id k14si4993836pfa.206.2019.05.30.19.42.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 May 2019 19:41:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        Thu, 30 May 2019 19:42:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 30 May 2019 19:41:30 -0700
+  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 30 May 2019 19:42:37 -0700
 X-ExtLoop1: 1
-Received: from yhuang-dev.sh.intel.com ([10.239.159.29])
-  by fmsmga001.fm.intel.com with ESMTP; 30 May 2019 19:41:28 -0700
-From: "Huang, Ying" <ying.huang@intel.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Huang Ying <ying.huang@intel.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Andrea Parri <andrea.parri@amarulasolutions.com>,
-	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Hugh Dickins <hughd@google.com>
-Subject: [PATCH -mm] mm, swap: Fix bad swap file entry warning
-Date: Fri, 31 May 2019 10:41:02 +0800
-Message-Id: <20190531024102.21723-1-ying.huang@intel.com>
-X-Mailer: git-send-email 2.20.1
+Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.29])
+  by fmsmga001.fm.intel.com with ESMTP; 30 May 2019 19:42:35 -0700
+From: "Huang\, Ying" <ying.huang@intel.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: <akpm@linux-foundation.org>,  <broonie@kernel.org>,  <linux-fsdevel@vger.kernel.org>,  <linux-kernel@vger.kernel.org>,  <linux-mm@kvack.org>,  <linux-next@vger.kernel.org>,  <mhocko@suse.cz>,  <mm-commits@vger.kernel.org>,  <sfr@canb.auug.org.au>
+Subject: Re: mmotm 2019-05-29-20-52 uploaded
+References: <20190530035339.hJr4GziBa%akpm@linux-foundation.org>
+	<fac5f029-ef20-282e-b0d2-2357589839e8@oracle.com>
+	<87lfyn5rgu.fsf@yhuang-dev.intel.com>
+Date: Fri, 31 May 2019 10:42:35 +0800
+In-Reply-To: <87lfyn5rgu.fsf@yhuang-dev.intel.com> (Ying Huang's message of
+	"Fri, 31 May 2019 09:43:13 +0800")
+Message-ID: <87h89b5opw.fsf@yhuang-dev.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=ascii
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Huang Ying <ying.huang@intel.com>
+"Huang, Ying" <ying.huang@intel.com> writes:
 
-Mike reported the following warning messages
+> Hi, Mike,
+>
+> Mike Kravetz <mike.kravetz@oracle.com> writes:
+>
+>> On 5/29/19 8:53 PM, akpm@linux-foundation.org wrote:
+>>> The mm-of-the-moment snapshot 2019-05-29-20-52 has been uploaded to
+>>> 
+>>>    http://www.ozlabs.org/~akpm/mmotm/
+>>> 
+>>
+>> With this kernel, I seem to get many messages such as:
+>>
+>> get_swap_device: Bad swap file entry 1400000000000001
+>>
+>> It would seem to be related to commit 3e2c19f9bef7e
+>>> * mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch
+>
+> Hi, Mike,
+>
+> Thanks for reporting!  I find an issue in my patch and I can reproduce
+> your problem now.  The reason is total_swapcache_pages() will call
+> get_swap_device() for invalid swap device.  So we need to find a way to
+> silence the warning.  I will post a fix ASAP.
 
-  get_swap_device: Bad swap file entry 1400000000000001
+I have sent out a fix patch in another thread with title
 
-This is produced by
+"[PATCH -mm] mm, swap: Fix bad swap file entry warning"
 
-- total_swapcache_pages()
-  - get_swap_device()
+Can you try it?
 
-Where get_swap_device() is used to check whether the swap device is
-valid and prevent it from being swapoff if so.  But get_swap_device()
-may produce warning message as above for some invalid swap devices.
-This is fixed via calling swp_swap_info() before get_swap_device() to
-filter out the swap devices that may cause warning messages.
-
-Fixes: 6a946753dbe6 ("mm/swap_state.c: simplify total_swapcache_pages() with get_swap_device()")
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Andrea Parri <andrea.parri@amarulasolutions.com>
-Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
----
- mm/swap_state.c | 7 ++++++-
- 1 file changed, 6 insertions(+), 1 deletion(-)
-
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index b84c58b572ca..62da25b7f2ed 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -76,8 +76,13 @@ unsigned long total_swapcache_pages(void)
- 	struct swap_info_struct *si;
- 
- 	for (i = 0; i < MAX_SWAPFILES; i++) {
-+		swp_entry_t entry = swp_entry(i, 1);
-+
-+		/* Avoid get_swap_device() to warn for bad swap entry */
-+		if (!swp_swap_info(entry))
-+			continue;
- 		/* Prevent swapoff to free swapper_spaces */
--		si = get_swap_device(swp_entry(i, 1));
-+		si = get_swap_device(entry);
- 		if (!si)
- 			continue;
- 		nr = nr_swapper_spaces[i];
--- 
-2.20.1
+Best Regards,
+Huang, Ying
 
