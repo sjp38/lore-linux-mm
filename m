@@ -2,157 +2,189 @@ Return-Path: <SRS0=007R=T7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A1C90C28CC2
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 19:27:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F04FC28CC2
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 19:30:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 696AF26E56
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 19:27:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C9D5326E5A
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 19:30:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="SbI05ChM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 696AF26E56
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="MFhL+uVt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C9D5326E5A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E36096B026A; Fri, 31 May 2019 15:27:44 -0400 (EDT)
+	id 4978C6B027E; Fri, 31 May 2019 15:30:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE5896B026E; Fri, 31 May 2019 15:27:44 -0400 (EDT)
+	id 446F26B0280; Fri, 31 May 2019 15:30:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CD4B46B027E; Fri, 31 May 2019 15:27:44 -0400 (EDT)
+	id 30F606B0281; Fri, 31 May 2019 15:30:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 97C226B026A
-	for <linux-mm@kvack.org>; Fri, 31 May 2019 15:27:44 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id r12so7935296pfl.2
-        for <linux-mm@kvack.org>; Fri, 31 May 2019 12:27:44 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EFCD96B027E
+	for <linux-mm@kvack.org>; Fri, 31 May 2019 15:30:37 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id u1so3591089pgh.3
+        for <linux-mm@kvack.org>; Fri, 31 May 2019 12:30:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=3oPC7MpGNkmIv4lC37rTS0RoLjGGQjB5vfa5jgin/Xo=;
-        b=e2Ch+BMRcyXId/nTHICa7kKS2DIN1LM6VB/7CecN9YhHvIFeGKMOPzZEeH9zgfZGKp
-         KpDCpElJzbvCp7omx+DFBdu10YygBFzDQXdcORn2RPMXF7ZJc21InEA10BV/e8oM6YXD
-         XaYHeyRTddrpGCpjx5RHh9Nzl/JvpWlv4d1NFS9k8ne0ZHaYza+J+qURfrjSi227Xj+Z
-         sZ+807QoiIixozh1oeEzfC5j+xLDJtyPNs9cMyL6N5QjaLGaPKB/jBac8IDe+8a52M5A
-         6LIz2wnz4ZuxpHJPy3N0t0YXJqOcknlLYylPNlSFTfv09JSWkCFVZHRdmgOMPNrrbYK2
-         QwzA==
-X-Gm-Message-State: APjAAAWi1pTvA5ZJBfTJXax12vVXxmPSz+gYym4RwtjCf5pJerbi/ZTb
-	xz4/zkDibi+7KfC6lWE+diQD84a0lEl4KAr4ax7qQEe/AS7B79KMKJKqjE5FAD20idHlVvJU72C
-	FruyU2v7AIJ7M9gVZHDNXrX5NZHr209VNtz/9MKauZS4wRjNx4lLqjWDqUgJ4jplvng==
-X-Received: by 2002:a17:90a:22ea:: with SMTP id s97mr11288543pjc.39.1559330864070;
-        Fri, 31 May 2019 12:27:44 -0700 (PDT)
-X-Received: by 2002:a17:90a:22ea:: with SMTP id s97mr11288509pjc.39.1559330863231;
-        Fri, 31 May 2019 12:27:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559330863; cv=none;
+        bh=6c2SIvVpUk/yolgwoL1u4zazZACLHYstcfuHPby3v0w=;
+        b=NsqYmZ60Y2/4nPqLr1lf74FYypExQSSzCHztz5pB2bnSTIX6iZIvjZY65oozzBoyZ1
+         kyHJ1SeEuLmYciWgISNd8k2OT0lb6SEa9MpZjwifM0GgoPYM7stY2uja6eIDJdJSfzP4
+         wLAds1jZPYDD4RllZSeM7yspzHdG/AlI51g20IaEUoUa/tGmbmQRgibyvp6xjKBzl3+6
+         wsg8828uMvg5mK0aCdRctsKcmUtmVGrqNK+8quF7cy91Yxklyr+13TSr109V8sA38Shq
+         PqDo7sqRXdPON8nO9X+XhOntOuAKeZKcFS+BvDapQL7ks04h5EgHoQdb/PpG0SSbxhjn
+         304Q==
+X-Gm-Message-State: APjAAAX/dxcL6M4VGAnu/PjI0RBFALXeZROv0j7aAZEPcl+/lmZpSK5q
+	w0aqE8QGspBt/WCUZgzdSpErwzap3/Zq+VIRd9l0EA6XCVxoqg4MDdKcYxwVRj0qBnFIjT3jsuK
+	EX/m0EOMWD9pM5Z2m+o1Qw2b15ZRA/iJGl7hqq1mr04PR1b2b6kTfwVZTEkEw7dbAng==
+X-Received: by 2002:a63:6b45:: with SMTP id g66mr10837708pgc.352.1559331037607;
+        Fri, 31 May 2019 12:30:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwTiOn8zdKASJrk6KjY7UecFovTJGSKTYFU/b2ttqAjSNHzATik5q5Dn58tzT+QJGG0ck0J
+X-Received: by 2002:a63:6b45:: with SMTP id g66mr10837636pgc.352.1559331036627;
+        Fri, 31 May 2019 12:30:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559331036; cv=none;
         d=google.com; s=arc-20160816;
-        b=cOhc3x0QVmDon/BxWCivQStwzh1JCdoL/nNlgUlltetYSjDoLNnQX8/BgDFTYZMZNL
-         i7/oL+fpem8kHs+CZxRhdEKGWAwuFWoPgxaKvAI5r2smAP4fJTfiTRemOygi0TR1w/AO
-         ZS+QHn2uAA0tMCjnFF/K3pWuxOXYjIyqvx07l9j9bNVky8Lb8G6jjfwOkfICbG4J/U7D
-         gM7c4cStY1uVQyO6RIC21Lfu+gud3666VHr55FUbrrR3X7Kah5P28l8K89fYgbF7nZ4l
-         JQgsC2asE7PUGIdNDXplSPVQmFgxdVN7rWlHIQXxC4u4f9bTOfsM4AT5XwhYPEejj3t4
-         8KQA==
+        b=aaMK5cq/ZJWTVLW9+N/co/FaftqdtQdLAImX3jJKjPwp90Mh3SFhWKfqzfcAreX+r6
+         pNhAvlf7NtaU5hqT5vM3ccEedxIjRmc6bOaGlRNY9GwkUF4iIbyaVZHbjHsL0e6Z/s61
+         n6SV5nZoVQ6EfyRT/wuKbdHQ0nOEsne08J+PGWgqN4sKMWj3MJi2axEbMdYMdAp/J2Ka
+         Y3B/cd3U5n13wHSAbbQrcjZ9F7RsbvLmUt1CIQA53pjNK5BtVzB+10k3rwy2MX8M6iGU
+         mI2xYKqu5HoX4Pm8swlbwiyRnnF2evcXThCU4QOB5eVkJVxBakshwqux7wbVqXGzKSn0
+         i83g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=3oPC7MpGNkmIv4lC37rTS0RoLjGGQjB5vfa5jgin/Xo=;
-        b=O/KW9lGAdpDqR8yqaDxYBoqFrhjajnKx7VdP8Py+q4C2r0EsBHZqqok9agljWS7DFP
-         XmBef/QzlAB0GrLkUtDF3l7VkMsIT6WxucO43/TDimQ1drnxJpG7otyEDeV+1E1Pmykg
-         8jVx9bGzcfH4IUNCmwh8+ExETdd52eCm9tHoZlWxVmW8wbN6tO5tMORqdWemy2VLDeR1
-         dgh+5uXDht2Wp+LBudl7z3LfGBygDl3bX7u5aToSTR32e2K96ip/P0tpKC5/aGz1z5Ob
-         VEi1+wWptDLn++f3OstFG5Nq0Ypqh0Tp9R+wcu078wbciJyL7v6sr7el4i0Vv6YhoFvA
-         qkIA==
+        bh=6c2SIvVpUk/yolgwoL1u4zazZACLHYstcfuHPby3v0w=;
+        b=BjpuI4nQ1VabnEFeA4tlTBk0ODGW/74cNzJiqcN87Sx6sVzTxARt+0NjaTtNVzLgaJ
+         z4c/7HfRbpe0QKqzcpyyn6gKTMbTTsfMtJPLtk0fUwsT6wJJrA6QSJVvD0LkQ1LtMZOM
+         d4VqLWTI6WDI3qhsAytsOR8s2iFzT7UJgmyTf2YLyRdgSVX6qJHRvbMMbpMAFY7BNOnA
+         683a2kFHkaRQoOzvjVLOBgEYvI7ohBlp7RAA6hH44Jnb4zi0z5rfV4KULZ3IAjHXDE8f
+         24oW5R8wW8cw2sMTcJIPt61iE573ZhrlMyOtFFsYMzqYAXYgBQRh1z6lfG45/nIMy1zj
+         H9Lw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=SbI05ChM;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g9sor7945991pfi.35.2019.05.31.12.27.42
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=MFhL+uVt;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id t139si8296000pfc.192.2019.05.31.12.30.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 31 May 2019 12:27:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 31 May 2019 12:30:36 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=SbI05ChM;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=3oPC7MpGNkmIv4lC37rTS0RoLjGGQjB5vfa5jgin/Xo=;
-        b=SbI05ChMOHpTulNwmjhSR5ZbY9idO2IxEcT87P8CRpkS49RpLitZ6wSoqJeEdL1yVK
-         cww6Si5nneZ2edimkGsX9/iIsmxdqDJDY5OVjkYb730pjSBbLnqr5fWiePVGdfkZ6x8p
-         K2nnnRVs/YngzaK04SXScheJ4pWXrpnvyJLow=
-X-Google-Smtp-Source: APXvYqx8hFRJFZmWhsZTcS5jPsQcgCdx6RY9Azo2rv/4QAY3o3jE3z984dUqq8bjDr4wU09ByZJlcQ==
-X-Received: by 2002:a62:1885:: with SMTP id 127mr12522926pfy.48.1559330862439;
-        Fri, 31 May 2019 12:27:42 -0700 (PDT)
-Received: from localhost ([2620:10d:c090:200::3:3d82])
-        by smtp.gmail.com with ESMTPSA id f2sm5497516pgs.83.2019.05.31.12.27.41
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 31 May 2019 12:27:41 -0700 (PDT)
-Date: Fri, 31 May 2019 12:27:40 -0700
-From: Chris Down <chris@chrisdown.name>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
-	Roman Gushchin <guro@fb.com>, Dennis Zhou <dennis@kernel.org>,
-	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, kernel-team@fb.com
-Subject: Re: [PATCH REBASED] mm, memcg: Make scan aggression always exclude
- protection
-Message-ID: <20190531192740.GA286159@chrisdown.name>
-References: <20190228213050.GA28211@chrisdown.name>
- <20190322160307.GA3316@chrisdown.name>
- <20190530061221.GA6703@dhcp22.suse.cz>
- <20190530064453.GA110128@chrisdown.name>
- <20190530065111.GC6703@dhcp22.suse.cz>
- <20190530205210.GA165912@chrisdown.name>
- <20190531062854.GG6896@dhcp22.suse.cz>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=MFhL+uVt;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=6c2SIvVpUk/yolgwoL1u4zazZACLHYstcfuHPby3v0w=; b=MFhL+uVt82Xmaiv+qttE1YiKC
+	Kq6BN39GAA0SMvCPsDsCZWjHJXA+bwFxCXeyt8UeowoJzKJGqlDvPAuYKviH2ZL+7N+pP3GSd+6sF
+	q61+o7w4qam0osKENO2S0xabwseOkmk56ebiEQaQKRWu5jctx+x4Qxbrc6PKWUX7U2qvYZczcrsVP
+	40PJmyFek7yvWBOeZbn5dcpDFwRhAEPxqZGUgOaMOZrM2su0m5NBnbpbOua6eO/brjraXOYWxu6qc
+	/BQP9CZydnU/XggsEfdVVGxxvrCSOqj3EzMEMIIYA9dehjShYv9ZBRN5y/llZZ4ntQLFwj/EtMLjj
+	Z7V25dnLA==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hWnEZ-0008Gt-9x; Fri, 31 May 2019 19:30:35 +0000
+Date: Fri, 31 May 2019 12:30:35 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: "Nagal, Amit               UTC CCS" <Amit.Nagal@utc.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"CHAWLA, RITU              UTC CCS" <RITU.CHAWLA@utc.com>,
+	netdev@vger.kernel.org
+Subject: Re: linux kernel page allocation failure and tuning of page cache
+Message-ID: <20190531193035.GB15496@bombadil.infradead.org>
+References: <09c5d10e9d6b4c258b22db23e7a17513@UUSALE1A.utcmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190531062854.GG6896@dhcp22.suse.cz>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+In-Reply-To: <09c5d10e9d6b4c258b22db23e7a17513@UUSALE1A.utcmail.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Michal Hocko writes:
->On Thu 30-05-19 13:52:10, Chris Down wrote:
->> Michal Hocko writes:
->> > On Wed 29-05-19 23:44:53, Chris Down wrote:
->> > > Michal Hocko writes:
->> > > > Maybe I am missing something so correct me if I am wrong but the new
->> > > > calculation actually means that we always allow to scan even min
->> > > > protected memcgs right?
->> > >
->> > > We check if the memcg is min protected as a precondition for coming into
->> > > this function at all, so this generally isn't possible. See the
->> > > mem_cgroup_protected MEMCG_PROT_MIN check in shrink_node.
->> >
->> > OK, that is the part I was missing, I got confused by checking the min
->> > limit as well here. Thanks for the clarification. A comment would be
->> > handy or do we really need to consider min at all?
->>
->> You mean as part of the reclaim pressure calculation? Yeah, we still need
->> it, because we might only set memory.min, but not set memory.low.
->
->But then the memcg will get excluded as well right?
+> 1) the platform is low memory platform having memory 64MB.
+> 
+> 2)  we are doing around 45MB TCP data transfer from PC to target using netcat utility .On Target , a process receives data over socket and writes the data to flash disk .
 
-I'm not sure what you mean, could you clarify? :-)
+I think your network is faster than your disk ...
 
-The only thing we use memory.min for in this patch is potentially as the 
-protection size, which we then use to determine reclaim pressure. We don't use 
-this information if the cgroup is below memory.min, because you'll never come 
-in here. This is for if you *do* have memory.min or memory.low set and you are 
-*exceeding* it (or we are in low reclaim), in which case we want it (or 
-memory.low if higher) considered as the protection size.
+> 5) sometimes , we observed kernel memory getting exhausted as page allocation failure happens in kernel  with the backtrace is printed below :
+> # [  775.947949] nc.traditional: page allocation failure: order:0, mode:0x2080020(GFP_ATOMIC)
+
+We're in the soft interrupt handler at this point, so we have very
+few options for freeing memory; we can't wait for I/O to complete,
+for example.
+
+That said, this is a TCP connection.  We could drop the packet silently
+without such a noisy warning.  Perhaps just collect statistics on how
+many packets we dropped due to a low memory situation.
+
+> [  775.956362] CPU: 0 PID: 1288 Comm: nc.traditional Tainted: G           O    4.9.123-pic6-g31a13de-dirty #19
+> [  775.966085] Hardware name: Generic R7S72100 (Flattened Device Tree)
+> [  775.972501] [<c0109829>] (unwind_backtrace) from [<c010796f>] (show_stack+0xb/0xc)
+> [  775.980118] [<c010796f>] (show_stack) from [<c0151de3>] (warn_alloc+0x89/0xba)
+> [  775.987361] [<c0151de3>] (warn_alloc) from [<c0152043>] (__alloc_pages_nodemask+0x1eb/0x634)
+> [  775.995790] [<c0152043>] (__alloc_pages_nodemask) from [<c0152523>] (__alloc_page_frag+0x39/0xde)
+> [  776.004685] [<c0152523>] (__alloc_page_frag) from [<c03190f1>] (__netdev_alloc_skb+0x51/0xb0)
+> [  776.013217] [<c03190f1>] (__netdev_alloc_skb) from [<c02c1b6f>] (sh_eth_poll+0xbf/0x3c0)
+> [  776.021342] [<c02c1b6f>] (sh_eth_poll) from [<c031fd8f>] (net_rx_action+0x77/0x170)
+> [  776.029051] [<c031fd8f>] (net_rx_action) from [<c011238f>] (__do_softirq+0x107/0x160)
+> [  776.036896] [<c011238f>] (__do_softirq) from [<c0112589>] (irq_exit+0x5d/0x80)
+> [  776.044165] [<c0112589>] (irq_exit) from [<c012f4db>] (__handle_domain_irq+0x57/0x8c)
+> [  776.052007] [<c012f4db>] (__handle_domain_irq) from [<c01012e1>] (gic_handle_irq+0x31/0x48)
+> [  776.060362] [<c01012e1>] (gic_handle_irq) from [<c0108025>] (__irq_svc+0x65/0xac)
+> [  776.067835] Exception stack(0xc1cafd70 to 0xc1cafdb8)
+> [  776.072876] fd60:                                     0002751c c1dec6a0 0000000c 521c3be5
+> [  776.081042] fd80: 56feb08e f64823a6 ffb35f7b feab513d f9cb0643 0000056c c1caff10 ffffe000
+> [  776.089204] fda0: b1f49160 c1cafdc4 c180c677 c0234ace 200e0033 ffffffff
+> [  776.095816] [<c0108025>] (__irq_svc) from [<c0234ace>] (__copy_to_user_std+0x7e/0x430)
+> [  776.103796] [<c0234ace>] (__copy_to_user_std) from [<c0241715>] (copy_page_to_iter+0x105/0x250)
+> [  776.112503] [<c0241715>] (copy_page_to_iter) from [<c0319aeb>] (skb_copy_datagram_iter+0xa3/0x108)
+> [  776.121469] [<c0319aeb>] (skb_copy_datagram_iter) from [<c03443a7>] (tcp_recvmsg+0x3ab/0x5f4)
+> [  776.130045] [<c03443a7>] (tcp_recvmsg) from [<c035e249>] (inet_recvmsg+0x21/0x2c)
+> [  776.137576] [<c035e249>] (inet_recvmsg) from [<c031009f>] (sock_read_iter+0x51/0x6e)
+> [  776.145384] [<c031009f>] (sock_read_iter) from [<c017795d>] (__vfs_read+0x97/0xb0)
+> [  776.152967] [<c017795d>] (__vfs_read) from [<c01781d9>] (vfs_read+0x51/0xb0)
+> [  776.159983] [<c01781d9>] (vfs_read) from [<c0178aab>] (SyS_read+0x27/0x52)
+> [  776.166837] [<c0178aab>] (SyS_read) from [<c0105261>] (ret_fast_syscall+0x1/0x54)
+> [  776.174308] Mem-Info:
+> [  776.176650] active_anon:2037 inactive_anon:23 isolated_anon:0
+> [  776.176650]  active_file:2636 inactive_file:7391 isolated_file:32
+> [  776.176650]  unevictable:0 dirty:1366 writeback:1281 unstable:0
+
+Almost all the dirty pages are under writeback at this point.
+
+> [  776.176650]  slab_reclaimable:719 slab_unreclaimable:724
+> [  776.176650]  mapped:1990 shmem:26 pagetables:159 bounce:0
+> [  776.176650]  free:373 free_pcp:6 free_cma:0
+
+We have 373 free pages, but refused to allocate one of them to GFP_ATOMIC?
+I don't understand why that failed.  We also didn't try to steal an
+inactive_file or inactive_anon page, which seems like an obvious thing
+we might want to do.
+
+> [  776.209062] Node 0 active_anon:8148kB inactive_anon:92kB active_file:10544kB inactive_file:29564kB unevictable:0kB isolated(anon):0kB isolated(file):128kB mapped:7960kB dirty:5464kB writeback:5124kB shmem:104kB writeback_tmp:0kB unstable:0kB pages_scanned:0 all_unreclaimable? no
+> [  776.233602] Normal free:1492kB min:964kB low:1204kB high:1444kB active_anon:8148kB inactive_anon:92kB active_file:10544kB inactive_file:29564kB unevictable:0kB writepending:10588kB present:65536kB managed:59304kB mlocked:0kB slab_reclaimable:2876kB slab_unreclaimable:2896kB kernel_stack:1152kB pagetables:636kB bounce:0kB free_pcp:24kB local_pcp:24kB free_cma:0kB
+> [  776.265406] lowmem_reserve[]: 0 0
+> [  776.268761] Normal: 7*4kB (H) 5*8kB (H) 7*16kB (H) 5*32kB (H) 6*64kB (H) 2*128kB (H) 2*256kB (H) 0*512kB 0*1024kB 0*2048kB 0*4096kB = 1492kB
+> 10071 total pagecache pages
+> [  776.284124] 0 pages in swap cache
+> [  776.287446] Swap cache stats: add 0, delete 0, find 0/0
+> [  776.292645] Free swap  = 0kB
+> [  776.295532] Total swap = 0kB
+> [  776.298421] 16384 pages RAM
+> [  776.301224] 0 pages HighMem/MovableOnly
+> [  776.305052] 1558 pages reserved
 
