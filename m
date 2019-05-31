@@ -1,127 +1,126 @@
 Return-Path: <SRS0=007R=T7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-4.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Level: *
+X-Spam-Status: No, score=1.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3569BC28CC2
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 13:12:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3DA25C04AB6
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 13:19:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D18272689D
-	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 13:12:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0560B26049
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 13:19:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="B/E7Iah5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D18272689D
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="A3WPnRqn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0560B26049
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 675136B0007; Fri, 31 May 2019 09:12:38 -0400 (EDT)
+	id 8E1A86B027A; Fri, 31 May 2019 09:19:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6246D6B026A; Fri, 31 May 2019 09:12:38 -0400 (EDT)
+	id 8B8A66B027C; Fri, 31 May 2019 09:19:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4C6826B027E; Fri, 31 May 2019 09:12:38 -0400 (EDT)
+	id 7A7876B027E; Fri, 31 May 2019 09:19:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1173C6B0007
-	for <linux-mm@kvack.org>; Fri, 31 May 2019 09:12:38 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id y1so6283964plr.13
-        for <linux-mm@kvack.org>; Fri, 31 May 2019 06:12:38 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4375F6B027A
+	for <linux-mm@kvack.org>; Fri, 31 May 2019 09:19:12 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 14so4698109pgo.14
+        for <linux-mm@kvack.org>; Fri, 31 May 2019 06:19:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=9KHsRNI4q1qCWnGmPczkdOM0myR1vhuW2pTdzPAj/o4=;
-        b=E4RxqK0dJ9AaYjKXGHluBx/xmSmUl0MlnxZTYaRybBX88oltNAwLqpcHb0edHMNJgH
-         GakH39xalMrWS7h7KN+dswVaPVQCvTT11UgPygH417At1d4IFbgqFtNwQc5uxvMnQ5GY
-         1ItNJu/Mv8z2SBkkwl233MpMV0Hl4GY7UYhpvUar0owb018ERIOahf0diwLi8SZHMlOV
-         O2Tj16Lr3qfu/vN9Z7kpFULASl6miPjUl71Tbu8I4zrMtjsWTo+GebkzoIiXaSwTGQrn
-         R6SffhGed7AusiCNOFgh1zhHQOlzaZU/N7EaVFoZcySUqA9iQRiKw3H+UPyPSCJZXLQX
-         EBMg==
-X-Gm-Message-State: APjAAAWXEWWwOu7LFEXNv/qXfbOzVWKQ+M0njolZjQOI2MKRQAxScgXh
-	GOnq9ZQKR/1hjrr8HxGCv586A2O+14i60rq7KZMmKlsyfiEVYGuH/JlpAYcwzU6ysJEii88iMdS
-	wagyoHFJvmEIUhCCflc+YoKXe8/udeACskudeYWTdiTCHjZmXUw3dmp7Fi+pl8LY=
-X-Received: by 2002:a17:90a:a616:: with SMTP id c22mr9275539pjq.46.1559308357668;
-        Fri, 31 May 2019 06:12:37 -0700 (PDT)
-X-Received: by 2002:a17:90a:a616:: with SMTP id c22mr9275356pjq.46.1559308356047;
-        Fri, 31 May 2019 06:12:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559308356; cv=none;
+        bh=NGbXt3/IQA1b49aRJS6BBAi0DW9ybOJRqUfZBPY09dA=;
+        b=DBVetRPhGVfm2lnNquTIBnYJfOqtBMHbdutzRuR45QxLiEa5BJnD38bss0S/nuqVGh
+         xq2UhvSnOrLQUhqpAFg/J0iSjic9/vzEjZtcxvJeRxSwj8pxE+UW3UmGgTxuSD6hDEfR
+         mdHHKqL4proS69IHEp52iVfvao87fo5mPJbTGGHbCR1H5RC6OwUQWN8ds/0WY1iMbavX
+         1Syk5C3cYlMPZ55pyvUBTDRfkQFtNdSi7/CKMU4Ab7AaBp3jvEyvDt9RNSmHlQyqiS6d
+         mPguoDEYFrhtIlkC5A1s5WiM0E0RojK1h7d7L43zQSfCKWBjRLz7ggxx6b6Y9FlarRnN
+         aEMg==
+X-Gm-Message-State: APjAAAUedWtIgmeQ8E7XJJEv8f5rAYANXiW1A7ZcHTzBjuInpoGiN/tl
+	gF54Ca1eo9Nrdu+J+k1EBR7PoL+G8SzdqX9RpQIzTUZ72rMOz7C8t+qHC0zc+heKvQNi76h6xu3
+	h+n3lqH1W1/SOfmJonoDtdRB1718QndvRldtGGFf/wb2LDkCn1EN+37pK844nb54=
+X-Received: by 2002:a17:902:581:: with SMTP id f1mr9470989plf.343.1559308751856;
+        Fri, 31 May 2019 06:19:11 -0700 (PDT)
+X-Received: by 2002:a17:902:581:: with SMTP id f1mr9470887plf.343.1559308750926;
+        Fri, 31 May 2019 06:19:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559308750; cv=none;
         d=google.com; s=arc-20160816;
-        b=X3ElXhycQvaEvmgUXyYUcd8bCfWSu864WwPagreVxcEIoiQdoALEEWaqudBRtf8Var
-         eYA/L61lZTMEPlvSWHDiVupE/o1YvvdLeOli7/g0MhvOV2dc3aBx15T2GZeMDge1KP4i
-         DQ5e0NxgGyFB8szw5Kz86QIiGdXiufxxzHvO2JXQQ3V7St8u4o2+dCn+vRH5gRG4qwTm
-         KGE1LJHp41UNhhaXpn/xqjgobbxw6OdE6O/+v5bpnLKegsHKPHDvr2zsfssTtgNntQwb
-         qyrfslh2nL+q0oBW5KkqYB8r8s3wl8LAclmwua89SVFvRG9X+/P6XYo31kh8SedzTTtE
-         3DHQ==
+        b=w+QVtDktkPrY7s+AMxgr/gTxUilWUTPC/CcLyFfX/f0NYiDb45JdyMnnfcjlqpAQ+Q
+         Zj6LLySTIpBQzkWXWpsWsgjyd0+v7DuM7QQKEK16gRkITq9MALRIGJGR5PsAvQTuIr+S
+         6KnPKjt/7UazehRCMdbqe6vOOuenLGeERXAcFvgJvAAReLKOrG+uvuoIDAM8sn00FN+v
+         LYBp0fwMg2UnNlVKY9TVcnSruPVTRYwglHjvLpcApvfJYQ6Us5wLAv4p6ZzXYzQcMtoO
+         MFxrmgWBlhG9T6HAwTZxO/ygkacokMQm0r1wReTCvTLPe/ipcFMrYLHlVixxJBYHwx+R
+         mgtA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=9KHsRNI4q1qCWnGmPczkdOM0myR1vhuW2pTdzPAj/o4=;
-        b=PYnNZ5L02MQ2vNtc2hfjsOD+KyiMBum+Lba6g20dyHUKLZnpJrKZKlt02PaZXz2gMI
-         +RngESChayGAz9IwvN2OmzMGHZOp+WALC6qGEOF6U9IltttuAbkTaYMADeVtG9+eegAS
-         lyBrZS73apSOtd3TclMygbJ++4AhF2ScPPROqMDpxpmWCXIJ2p2TBAB0xyMaXVSTYFFw
-         Xy6x3xQCF9Lw0etJfk/hgOtzGUFau692xDhgmxumIY5k4hF/MZhXgnOgDdH1TtVJ87W9
-         PACJNZA1p72SEc6B7z/vSFI5j/G7lojwkXvM818LpCzrqcujNEKHWENSwTTj0dncEvDy
-         E3lw==
+        bh=NGbXt3/IQA1b49aRJS6BBAi0DW9ybOJRqUfZBPY09dA=;
+        b=C7yLFrSfXQ05GoGgEKrxh6aTuMiBJybRJiPgkS62iSU9QUdjFnajmjntdtwHfqyEd4
+         o3Y8T5mrcFbFMuBuSDxH/0WDDwtOZaQjhCCgoBOFu0mhrgKclFrCKJQSIj2CeP9RiE4x
+         zcmBGK9D2p31/ZCw8TB/NJe5DnlYMEYbIIhITZHIOsXQtSvZqBN6iJH8Hl+z6RWByleY
+         M6rOQ2DhaCCXS9E5v87+9LfM4g4JSz/XTY6OWhUdIOXUVdKbD2Bu1KxAjCmD0x4iYudM
+         PDPIpzCOp/kNDZztqlwMoGQuLGsOspsAPa4UldJHwGCDb/adA2+Ye0vlNB5pXwMFwzvZ
+         kYxQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="B/E7Iah5";
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=A3WPnRqn;
        spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g95sor6577570plb.67.2019.05.31.06.12.35
+        by mx.google.com with SMTPS id z63sor6228791pgb.41.2019.05.31.06.19.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 31 May 2019 06:12:36 -0700 (PDT)
+        Fri, 31 May 2019 06:19:10 -0700 (PDT)
 Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="B/E7Iah5";
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=A3WPnRqn;
        spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=sender:date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=9KHsRNI4q1qCWnGmPczkdOM0myR1vhuW2pTdzPAj/o4=;
-        b=B/E7Iah5xOzd7kUYA0Hf89CcQEzyaC9ErJ573MnRH8e/jxbRg315RYZAHLrnqa7jED
-         wqHs1v4dcqHGN1tDdzO5aT9I8gOiLyA+N8Zs/0P0RmHBDdulH69roqZKEltlb3cBKXa/
-         khIa+e6HJ2Q6oUUJ/45dFLs1hZA9ylVu2yd2HiIL/YX6DhA+a89GkJc3USu8TIJ0QoT4
-         2DV3F1pMkl81uU/XLN4bCFMk4V8OUo4rSJaqbxWsV9XhjhiaT2IYIkFkxPMhMs0Fw3zU
-         +TDSAqbU7R4xGSaM1QoMvRNakPgW0zZ9yDLSR1FOUdc/ry3XYGeb+RTbdD4Id5tCiie6
-         9xig==
-X-Google-Smtp-Source: APXvYqy7Jgf27DPChwbcQAGQ8nsn/N8QFLKkuC0cBK7/8I3xRLMf23jBQpdMMIkVgJqWw+CCHy38gw==
-X-Received: by 2002:a17:902:2983:: with SMTP id h3mr9458413plb.267.1559308355443;
-        Fri, 31 May 2019 06:12:35 -0700 (PDT)
+        bh=NGbXt3/IQA1b49aRJS6BBAi0DW9ybOJRqUfZBPY09dA=;
+        b=A3WPnRqnTUdG3crEHGBb/NpBr+tWmhd8IyhewWKj1R4bjxJzKPyXLzw5G3U9Lnteyl
+         S36wH0W0+2k1njFZy2Ds2f/9kFql5X0DZRwamUx250rLJpRwx19xr3wuHqAOJBBYxLq9
+         D5yvDqjjRPT9mniegqhTMI69xTfamzNzmqGuYDQC27qaWbbK2U1nrf6NWOVP/AQgAVed
+         27HAfAIiBEc/pMFVtc2MGWrATM8vpC7OKdA/xorvzdMTJRgsu4MAyOAQ07qRReLzaC1m
+         vS3W5pSSEa4XJdth4E3PvyqmD9aT/s5qNUBsNMohsGUqNgFntqIxkqkXVq7VroDVR9nb
+         xcZw==
+X-Google-Smtp-Source: APXvYqwfmPTYrU4YNg70+w+fekZWbolWXYkyOovH8OK5qnvs6Xh/v3zPDoIKALH3CJn/NV3nmmscEA==
+X-Received: by 2002:a63:6884:: with SMTP id d126mr9237347pgc.154.1559308750486;
+        Fri, 31 May 2019 06:19:10 -0700 (PDT)
 Received: from google.com ([122.38.223.241])
-        by smtp.gmail.com with ESMTPSA id x24sm705609pfa.52.2019.05.31.06.12.29
+        by smtp.gmail.com with ESMTPSA id d186sm5485008pgc.58.2019.05.31.06.19.02
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 31 May 2019 06:12:33 -0700 (PDT)
-Date: Fri, 31 May 2019 22:12:26 +0900
+        Fri, 31 May 2019 06:19:09 -0700 (PDT)
+Date: Fri, 31 May 2019 22:19:00 +0900
 From: Minchan Kim <minchan@kernel.org>
-To: Oleksandr Natalenko <oleksandr@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
 	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
+	linux-api@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>,
 	Tim Murray <timmurray@google.com>,
 	Joel Fernandes <joel@joelfernandes.org>,
 	Suren Baghdasaryan <surenb@google.com>,
 	Daniel Colascione <dancol@google.com>,
 	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
 	Brian Geffon <bgeffon@google.com>, jannh@google.com,
-	oleg@redhat.com, christian@brauner.io, hdanton@sina.com
-Subject: Re: [RFCv2 4/6] mm: factor out madvise's core functionality
-Message-ID: <20190531131226.GA195463@google.com>
+	oleg@redhat.com, christian@brauner.io, oleksandr@redhat.com,
+	hdanton@sina.com
+Subject: Re: [RFCv2 5/6] mm: introduce external memory hinting API
+Message-ID: <20190531131859.GB195463@google.com>
 References: <20190531064313.193437-1-minchan@kernel.org>
- <20190531064313.193437-5-minchan@kernel.org>
- <20190531070420.m7sxybbzzayig44o@butterfly.localdomain>
+ <20190531064313.193437-6-minchan@kernel.org>
+ <20190531083757.GH6896@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190531070420.m7sxybbzzayig44o@butterfly.localdomain>
+In-Reply-To: <20190531083757.GH6896@dhcp22.suse.cz>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -129,274 +128,49 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 31, 2019 at 09:04:20AM +0200, Oleksandr Natalenko wrote:
-> On Fri, May 31, 2019 at 03:43:11PM +0900, Minchan Kim wrote:
-> > This patch factor out madvise's core functionality so that upcoming
-> > patch can reuse it without duplication. It shouldn't change any behavior.
+On Fri, May 31, 2019 at 10:37:57AM +0200, Michal Hocko wrote:
+> On Fri 31-05-19 15:43:12, Minchan Kim wrote:
+> > There is some usecase that centralized userspace daemon want to give
+> > a memory hint like MADV_[COLD|PAGEEOUT] to other process. Android's
+> > ActivityManagerService is one of them.
 > > 
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  mm/madvise.c | 188 +++++++++++++++++++++++++++------------------------
-> >  1 file changed, 101 insertions(+), 87 deletions(-)
+> > It's similar in spirit to madvise(MADV_WONTNEED), but the information
+> > required to make the reclaim decision is not known to the app. Instead,
+> > it is known to the centralized userspace daemon(ActivityManagerService),
+> > and that daemon must be able to initiate reclaim on its own without
+> > any app involvement.
 > > 
-> > diff --git a/mm/madvise.c b/mm/madvise.c
-> > index 9d749a1420b4..466623ea8c36 100644
-> > --- a/mm/madvise.c
-> > +++ b/mm/madvise.c
-> > @@ -425,9 +425,10 @@ static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
-> >  	struct page *page;
-> >  	int isolated = 0;
-> >  	struct vm_area_struct *vma = walk->vma;
-> > +	struct task_struct *task = walk->private;
-> >  	unsigned long next;
-> >  
-> > -	if (fatal_signal_pending(current))
-> > +	if (fatal_signal_pending(task))
-> >  		return -EINTR;
-> >  
-> >  	next = pmd_addr_end(addr, end);
-> > @@ -505,12 +506,14 @@ static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
-> >  }
-> >  
-> >  static void madvise_pageout_page_range(struct mmu_gather *tlb,
-> > -			     struct vm_area_struct *vma,
-> > -			     unsigned long addr, unsigned long end)
-> > +				struct task_struct *task,
-> > +				struct vm_area_struct *vma,
-> > +				unsigned long addr, unsigned long end)
-> >  {
-> >  	struct mm_walk warm_walk = {
-> >  		.pmd_entry = madvise_pageout_pte_range,
-> >  		.mm = vma->vm_mm,
-> > +		.private = task,
-> >  	};
-> >  
-> >  	tlb_start_vma(tlb, vma);
-> > @@ -519,9 +522,9 @@ static void madvise_pageout_page_range(struct mmu_gather *tlb,
-> >  }
-> >  
-> >  
-> > -static long madvise_pageout(struct vm_area_struct *vma,
-> > -			struct vm_area_struct **prev,
-> > -			unsigned long start_addr, unsigned long end_addr)
-> > +static long madvise_pageout(struct task_struct *task,
-> > +		struct vm_area_struct *vma, struct vm_area_struct **prev,
-> > +		unsigned long start_addr, unsigned long end_addr)
-> >  {
-> >  	struct mm_struct *mm = vma->vm_mm;
-> >  	struct mmu_gather tlb;
-> > @@ -532,7 +535,7 @@ static long madvise_pageout(struct vm_area_struct *vma,
-> >  
-> >  	lru_add_drain();
-> >  	tlb_gather_mmu(&tlb, mm, start_addr, end_addr);
-> > -	madvise_pageout_page_range(&tlb, vma, start_addr, end_addr);
-> > +	madvise_pageout_page_range(&tlb, task, vma, start_addr, end_addr);
-> >  	tlb_finish_mmu(&tlb, start_addr, end_addr);
-> >  
-> >  	return 0;
-> > @@ -744,7 +747,8 @@ static long madvise_dontneed_single_vma(struct vm_area_struct *vma,
-> >  	return 0;
-> >  }
-> >  
-> > -static long madvise_dontneed_free(struct vm_area_struct *vma,
-> > +static long madvise_dontneed_free(struct mm_struct *mm,
-> > +				  struct vm_area_struct *vma,
-> >  				  struct vm_area_struct **prev,
-> >  				  unsigned long start, unsigned long end,
-> >  				  int behavior)
-> > @@ -756,8 +760,8 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
-> >  	if (!userfaultfd_remove(vma, start, end)) {
-> >  		*prev = NULL; /* mmap_sem has been dropped, prev is stale */
-> >  
-> > -		down_read(&current->mm->mmap_sem);
-> > -		vma = find_vma(current->mm, start);
-> > +		down_read(&mm->mmap_sem);
-> > +		vma = find_vma(mm, start);
-> >  		if (!vma)
-> >  			return -ENOMEM;
-> >  		if (start < vma->vm_start) {
-> > @@ -804,7 +808,8 @@ static long madvise_dontneed_free(struct vm_area_struct *vma,
-> >   * Application wants to free up the pages and associated backing store.
-> >   * This is effectively punching a hole into the middle of a file.
-> >   */
-> > -static long madvise_remove(struct vm_area_struct *vma,
-> > +static long madvise_remove(struct mm_struct *mm,
-> > +				struct vm_area_struct *vma,
-> >  				struct vm_area_struct **prev,
-> >  				unsigned long start, unsigned long end)
-> >  {
-> > @@ -838,13 +843,13 @@ static long madvise_remove(struct vm_area_struct *vma,
-> >  	get_file(f);
-> >  	if (userfaultfd_remove(vma, start, end)) {
-> >  		/* mmap_sem was not released by userfaultfd_remove() */
-> > -		up_read(&current->mm->mmap_sem);
-> > +		up_read(&mm->mmap_sem);
-> >  	}
-> >  	error = vfs_fallocate(f,
-> >  				FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE,
-> >  				offset, end - start);
-> >  	fput(f);
-> > -	down_read(&current->mm->mmap_sem);
-> > +	down_read(&mm->mmap_sem);
-> >  	return error;
-> >  }
-> >  
-> > @@ -918,21 +923,23 @@ static int madvise_inject_error(int behavior,
-> >  #endif
-> >  
-> >  static long
-> > -madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
-> > +madvise_vma(struct task_struct *task, struct mm_struct *mm,
-> > +		struct vm_area_struct *vma, struct vm_area_struct **prev,
-> >  		unsigned long start, unsigned long end, int behavior)
-> >  {
-> >  	switch (behavior) {
-> >  	case MADV_REMOVE:
-> > -		return madvise_remove(vma, prev, start, end);
-> > +		return madvise_remove(mm, vma, prev, start, end);
-> >  	case MADV_WILLNEED:
-> >  		return madvise_willneed(vma, prev, start, end);
-> >  	case MADV_COLD:
-> >  		return madvise_cold(vma, prev, start, end);
-> >  	case MADV_PAGEOUT:
-> > -		return madvise_pageout(vma, prev, start, end);
-> > +		return madvise_pageout(task, vma, prev, start, end);
-> >  	case MADV_FREE:
-> >  	case MADV_DONTNEED:
-> > -		return madvise_dontneed_free(vma, prev, start, end, behavior);
-> > +		return madvise_dontneed_free(mm, vma, prev, start,
-> > +						end, behavior);
-> >  	default:
-> >  		return madvise_behavior(vma, prev, start, end, behavior);
-> >  	}
-> > @@ -976,68 +983,8 @@ madvise_behavior_valid(int behavior)
-> >  	}
-> >  }
-> >  
-> > -/*
-> > - * The madvise(2) system call.
-> > - *
-> > - * Applications can use madvise() to advise the kernel how it should
-> > - * handle paging I/O in this VM area.  The idea is to help the kernel
-> > - * use appropriate read-ahead and caching techniques.  The information
-> > - * provided is advisory only, and can be safely disregarded by the
-> > - * kernel without affecting the correct operation of the application.
-> > - *
-> > - * behavior values:
-> > - *  MADV_NORMAL - the default behavior is to read clusters.  This
-> > - *		results in some read-ahead and read-behind.
-> > - *  MADV_RANDOM - the system should read the minimum amount of data
-> > - *		on any access, since it is unlikely that the appli-
-> > - *		cation will need more than what it asks for.
-> > - *  MADV_SEQUENTIAL - pages in the given range will probably be accessed
-> > - *		once, so they can be aggressively read ahead, and
-> > - *		can be freed soon after they are accessed.
-> > - *  MADV_WILLNEED - the application is notifying the system to read
-> > - *		some pages ahead.
-> > - *  MADV_DONTNEED - the application is finished with the given range,
-> > - *		so the kernel can free resources associated with it.
-> > - *  MADV_FREE - the application marks pages in the given range as lazy free,
-> > - *		where actual purges are postponed until memory pressure happens.
-> > - *  MADV_REMOVE - the application wants to free up the given range of
-> > - *		pages and associated backing store.
-> > - *  MADV_DONTFORK - omit this area from child's address space when forking:
-> > - *		typically, to avoid COWing pages pinned by get_user_pages().
-> > - *  MADV_DOFORK - cancel MADV_DONTFORK: no longer omit this area when forking.
-> > - *  MADV_WIPEONFORK - present the child process with zero-filled memory in this
-> > - *              range after a fork.
-> > - *  MADV_KEEPONFORK - undo the effect of MADV_WIPEONFORK
-> > - *  MADV_HWPOISON - trigger memory error handler as if the given memory range
-> > - *		were corrupted by unrecoverable hardware memory failure.
-> > - *  MADV_SOFT_OFFLINE - try to soft-offline the given range of memory.
-> > - *  MADV_MERGEABLE - the application recommends that KSM try to merge pages in
-> > - *		this area with pages of identical content from other such areas.
-> > - *  MADV_UNMERGEABLE- cancel MADV_MERGEABLE: no longer merge pages with others.
-> > - *  MADV_HUGEPAGE - the application wants to back the given range by transparent
-> > - *		huge pages in the future. Existing pages might be coalesced and
-> > - *		new pages might be allocated as THP.
-> > - *  MADV_NOHUGEPAGE - mark the given range as not worth being backed by
-> > - *		transparent huge pages so the existing pages will not be
-> > - *		coalesced into THP and new pages will not be allocated as THP.
-> > - *  MADV_DONTDUMP - the application wants to prevent pages in the given range
-> > - *		from being included in its core dump.
-> > - *  MADV_DODUMP - cancel MADV_DONTDUMP: no longer exclude from core dump.
-> > - *
-> > - * return values:
-> > - *  zero    - success
-> > - *  -EINVAL - start + len < 0, start is not page-aligned,
-> > - *		"behavior" is not a valid value, or application
-> > - *		is attempting to release locked or shared pages,
-> > - *		or the specified address range includes file, Huge TLB,
-> > - *		MAP_SHARED or VMPFNMAP range.
-> > - *  -ENOMEM - addresses in the specified range are not currently
-> > - *		mapped, or are outside the AS of the process.
-> > - *  -EIO    - an I/O error occurred while paging in data.
-> > - *  -EBADF  - map exists, but area maps something that isn't a file.
-> > - *  -EAGAIN - a kernel resource was temporarily unavailable.
-> > - */
-> > -SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
-> > +static int madvise_core(struct task_struct *task, struct mm_struct *mm,
-> > +			unsigned long start, size_t len_in, int behavior)
+> > To solve the issue, this patch introduces new syscall process_madvise(2).
+> > It could give a hint to the exeternal process of pidfd.
+> > 
+> >  int process_madvise(int pidfd, void *addr, size_t length, int advise,
+> > 			unsigned long cookie, unsigned long flag);
+> > 
+> > Since it could affect other process's address range, only privileged
+> > process(CAP_SYS_PTRACE) or something else(e.g., being the same UID)
+> > gives it the right to ptrace the process could use it successfully.
+> > 
+> > The syscall has a cookie argument to privode atomicity(i.e., detect
+> > target process's address space change since monitor process has parsed
+> > the address range of target process so the operaion could fail in case
+> > of happening race). Although there is no interface to get a cookie
+> > at this moment, it could be useful to consider it as argument to avoid
+> > introducing another new syscall in future. It could support *atomicity*
+> > for disruptive hint(e.g., MADV_DONTNEED|FREE).
+> > flag argument is reserved for future use if we need to extend the API.
 > 
-> Just a minor nitpick, but can we please have it named madvise_common,
-> not madvise_core? This would follow a usual naming scheme, when some
-> common functionality is factored out (like, for mutexes, semaphores
-> etc), and within the kernel "core" usually means something completely
-> different.
+> Providing an API that is incomplete will not fly. Really. As this really
+> begs for much more discussion and it would be good to move on with the
+> core idea of the pro active memory memory management from userspace
+> usecase. Could you split out the core change so that we can move on and
+> leave the external for a later discussion. I believe this would lead to
+> a smoother integration.
 
-Sure.
+No problem but I need to understand what you want a little bit more because
+I thought this patchset is already step by step so if we reach the agreement
+of part of them like [1-5/6], it could be merged first.
 
-> 
-> >  {
-> >  	unsigned long end, tmp;
-> >  	struct vm_area_struct *vma, *prev;
-> > @@ -1068,15 +1015,16 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
-> >  
-> >  #ifdef CONFIG_MEMORY_FAILURE
-> >  	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
-> > -		return madvise_inject_error(behavior, start, start + len_in);
-> > +		return madvise_inject_error(behavior,
-> > +					start, start + len_in);
-> 
-> Not sure what this change is about except changing the line length.
-> Note, madvise_inject_error() still operates on "current" through
-> get_user_pages_fast() and gup_pgd_range(), but that was not changed
-> here. I Know you've filtered out this hint later, so technically this
-> is not an issue, but, maybe, this needs some attention too since we've
-> already spotted it?
+Could you say how you want to split the patchset for forward progress?
 
-It is leftover I had done. I actually modified it to handle remote
-task but changed my mind not to fix it because process_madvise
-will not support it at this moment. I'm not sure it's a good idea
-to change it for *might-be-done-in-future* at this moment even though
-we have spotted.
-
-> 
-> >  #endif
-> >  
-> >  	write = madvise_need_mmap_write(behavior);
-> >  	if (write) {
-> > -		if (down_write_killable(&current->mm->mmap_sem))
-> > +		if (down_write_killable(&mm->mmap_sem))
-> >  			return -EINTR;
-> 
-> Do you still need that trick with mmget_still_valid() here?
-> Something like:
-
-Since MADV_COLD|PAGEOUT doesn't change address space layout or
-vma->vm_flags, technically, we don't need it if I understand
-correctly. Right?
-
-> 
-> if (current->mm != mm && !mmget_still_valid(mm))
->    goto skip_mm;
-> 
-> and that skip_mm label would be before
-> 
-> if (write)
->    up_write(&mm->mmap_sem);
-> 
-> below.
-> 
-> (see 04f5866e41fb70690e28397487d8bd8eea7d712a for details on this)
+Thanks.
 
