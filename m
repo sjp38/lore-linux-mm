@@ -1,262 +1,251 @@
-Return-Path: <SRS0=aa49=T6=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=007R=T7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-12.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F44FC28CC3
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 23:52:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D2B4AC28CC0
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 00:00:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1EE102632B
-	for <linux-mm@archiver.kernel.org>; Thu, 30 May 2019 23:52:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1EE102632B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 962C425972
+	for <linux-mm@archiver.kernel.org>; Fri, 31 May 2019 00:00:31 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="YtsLcn5D"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 962C425972
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B17806B027F; Thu, 30 May 2019 19:52:07 -0400 (EDT)
+	id 321866B027F; Thu, 30 May 2019 20:00:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AC7D46B0280; Thu, 30 May 2019 19:52:07 -0400 (EDT)
+	id 2D3356B0280; Thu, 30 May 2019 20:00:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B7BD6B0281; Thu, 30 May 2019 19:52:07 -0400 (EDT)
+	id 1C1986B0281; Thu, 30 May 2019 20:00:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 65AD96B027F
-	for <linux-mm@kvack.org>; Thu, 30 May 2019 19:52:07 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id i33so4952521pld.15
-        for <linux-mm@kvack.org>; Thu, 30 May 2019 16:52:07 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D84DA6B027F
+	for <linux-mm@kvack.org>; Thu, 30 May 2019 20:00:30 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id s195so3373701pgs.13
+        for <linux-mm@kvack.org>; Thu, 30 May 2019 17:00:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=w7/nh7jNGcnAjGcgOVCiCiVcfRWT6qSK62EO0/8r5q8=;
-        b=OxMSDyLtPH/VOQJ6vylScAXBUUMwfX33nMH12v1fQGh4/IbIQjwT3K/L+SQMC9vj+w
-         MXqZ0HX8vySR3oRXvqSmP694ybfmIx/GOdFC6zrgRVJjgJzja1nDjr5+n1cJFGQJwWpf
-         X+ZJ450ix6iN+8sPgmQ4TtQxPqNBoDzsFBih5pmh4vlf1loALb+C3EZ5bSM0BbYY+P9u
-         w5BS24P2rBW7/7acId5bwFtsCO2yHm9xF++DV4yyrVNU6OQ8+o6B5AQ27OtxJSdx4lWt
-         HiiISfGu8ArCuaQRzVeIECxHL/T81RuS8zFgjGcvgjkRDMsc1vVhHjTmecs0OOFW+pwo
-         On6g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWGDkaK8Rk3772tbcu2EzcVd4Z8sS/hNgYWwpFHfMGPqkIDNM32
-	Ea1yBcSYrr5+VgBrF7Tyj/41Q6q4xAKKBSG+qGsJXZhCkGq1f79gDEpDOpbBx8KWLXoUvyEMszr
-	s2rvFI9cySNOfqBdDEcbxnWlcY+xcLGxgu/aMha3aD9ku07vWEpM995xVn3xJIO3n0w==
-X-Received: by 2002:a63:eb01:: with SMTP id t1mr6025542pgh.385.1559260326994;
-        Thu, 30 May 2019 16:52:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzFuDwKBZ6HQEruVjLoHJJuHrT/PScd8BjoQtnXgBA4MRLo8dL5ciPXDYC2yy4FXfCz7afs
-X-Received: by 2002:a63:eb01:: with SMTP id t1mr6025482pgh.385.1559260326207;
-        Thu, 30 May 2019 16:52:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559260326; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version;
+        bh=mQCPK+vZCIeYpKq0x+6b8ZtHTXL+f2Z6f07HEITCI4c=;
+        b=IIPzFDizZCNkud9gd4S2rs7OT9ulEp6tyZtHxcMFvlzKB9Mgj6nYWk5g1TzohxZwVK
+         j5l6RkNY+M69SV58fOYqOiCKFtIvBS3fQDagOUak2LkbjHpWfRAc3o6SlHRYtG3BI9UX
+         kBS3LboONPEPhtOAvJSk+dEjsQcWg8veK/elXsDcsDLK6+XPkjkFO5QvfOsBVDwQQS+V
+         Ka6tMdP9UXDHjycYp/0/r58IOgQDBXL06DvRpUHGWImuUzL1aZe1N4/dHIiYLHNTUvCu
+         HmRdVQr7TFNqTlzH/l25T80gZ1ZTbOVLpCu0xJWTrKopJmLkQy2hyFYRH9GBnSAnl8nm
+         AFYg==
+X-Gm-Message-State: APjAAAVT9Ka7pAP3SgAz24FdsTqN9e734wmgk4sQGfSLwi3KbE4LRtf6
+	9uncH/dEL96VikwwvMKDC6ppmO9gp7yxv9PpPyBYlhANKmIG4POcCHgPzZXVcb/sCnc482vY3HC
+	ILD8VffdpzZUp7ULeOyLX4cW6/Sp0QVaPGlLN2Lxwk1wdd0QxoIWDrNRHfcx2ZNgZvQ==
+X-Received: by 2002:a17:902:9a9:: with SMTP id 38mr6393855pln.10.1559260830361;
+        Thu, 30 May 2019 17:00:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyfl7f5BkTGGKFSoL3E1PhTthhiMUtX+vnO31wNlRovIzsoOP0tBhCYF0TP4IVqQ9+C8iCL
+X-Received: by 2002:a17:902:9a9:: with SMTP id 38mr6393741pln.10.1559260829074;
+        Thu, 30 May 2019 17:00:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559260829; cv=none;
         d=google.com; s=arc-20160816;
-        b=kd6hnZ+WNecBCfmx3DdUBPWimAjGUD6MW/z18QVOc84HQPPQrzh95WyXzOljAPnb+E
-         wYci2IV/hPItYPeOx5SUM6jlgyDIHSwgSTzqS+R1/INX9inpJh4FJGDLXloqpiJfcAmX
-         ZlysBwXfUagn5i2O8zZYhkQ3vmlk2CKaGMCkD8KrAJc9OjHcKklXl9UKki4P2Wwj4RfT
-         XMYfWz/GX/M61Yv9MU7F2jcnx74ny/p+btCWUXeKOA3joCfrvVjvnncx0yduge5v0THP
-         ARHT/Gj5reB79GrSmNAfBOY7gnsTFqQlc3RAEPxm2W2jrcM65Ce+L8mHE7ZUxU+aUIEa
-         dj2g==
+        b=UvomAyqm8vxmAqBiSP8h/DRJUQ9BTQbu6jdJer05b4BshPUPInopQNYeNfdWAcVbWZ
+         MYCaEY15vH6qhUmAt93ePkLS1jqlR0ua1nA0HEDUS/jtSblB95yFyFUcfktgqj8+uXSc
+         O72On9U/aWaRCNT14a0QP2VItiwFiap2us9bC3Z+vbjWlbm5YkVQ8R+llQqq02eyhDns
+         NsdEWODeKt2LrmZWtjM8h6WCQE7Qd0p6+yKYma4p7FkDYZRlWcsM+q/amcuHg5dlVimL
+         zgADyRMwvBWBB+4Ucoa50UGb2KIfIxFiiB75C+iHCkuFhZiIHXREQjFZdfgneJXrbEKG
+         G8xw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=w7/nh7jNGcnAjGcgOVCiCiVcfRWT6qSK62EO0/8r5q8=;
-        b=iE497nd+lhe7UGPTfD5BD67x7eSmSFkEMAAowjirXXyxeH7OMsUfor3lu8/oAf5Wx9
-         cg2fo4s6fuS6+/oD3LUzKvjZawayD2koVLAQjWi2/uj6bKUBtKJwhYsNyXUZ9ai993hv
-         xm+mc6tz/prQUI4og1sKeHES2ojS2IH+tiAprB/1YlZbHtQXjvvuiUeT67EoG3o0Bv2H
-         5cffACVAr+LwOIpBWj2+tmsl+JL4h0F+TOKdbneTGHOiGWPzUqjW5WUbxhoFJX8M+v01
-         Vh+Xj1R2MTsmS7PvbCYIpkeikUDG87P3aa0iBcy7LrP1+17gMpsAMt9R0UDU2Xg8avNe
-         GwBQ==
+        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
+         :date:dkim-signature;
+        bh=mQCPK+vZCIeYpKq0x+6b8ZtHTXL+f2Z6f07HEITCI4c=;
+        b=vk24+0bCVLATyVOOxeXvG7jWR2TBJMUzxZjoDJI4ofHSpOaHfZKKjfHthPN7bVwfFx
+         qU9WyWeeNlr5iUexjMlOTcFlAOHMRYwBivb583Crl66+/PplzVc398kM8u1OHx3YpUwt
+         /yWVvjFIc8jjd50dqpHdhzsUWhrFf8Nzicnor/4U3H6u+XkAF3aiIpcAoH7YvKjPchh2
+         EA4kgZh+IFI+GMbqDTyynDXoTLnPEATZ+XhiF+qJVLjGFpl38chimSDoSCnnPVWNCKPQ
+         E4c5VIILGr8006AI93kx1D860Ry/5UcT+hnevPszSyfQ8sl4224vkz1AIqqC3TB7S53N
+         2+TA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id f92si4334284plb.77.2019.05.30.16.52.05
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=YtsLcn5D;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from ozlabs.org (ozlabs.org. [203.11.71.1])
+        by mx.google.com with ESMTPS id t25si4442349pfe.240.2019.05.30.17.00.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 May 2019 16:52:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 30 May 2019 17:00:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) client-ip=203.11.71.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 30 May 2019 16:52:05 -0700
-X-ExtLoop1: 1
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga003.jf.intel.com with ESMTP; 30 May 2019 16:52:04 -0700
-Date: Thu, 30 May 2019 16:53:08 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Pingfan Liu <kernelfans@gmail.com>, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Keith Busch <keith.busch@intel.com>, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/gup: fix omission of check on FOLL_LONGTERM in
- get_user_pages_fast()
-Message-ID: <20190530235307.GA28605@iweiny-DESK2.sc.intel.com>
-References: <1559170444-3304-1-git-send-email-kernelfans@gmail.com>
- <20190530214726.GA14000@iweiny-DESK2.sc.intel.com>
- <1497636a-8658-d3ff-f7cd-05230fdead19@nvidia.com>
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=YtsLcn5D;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 203.11.71.1 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 45FPj46hxjz9s4V;
+	Fri, 31 May 2019 10:00:24 +1000 (AEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
+	s=201702; t=1559260826;
+	bh=+W/kPMCnPX3G040qq9SfOqrYhRy9N0s6PHAHIKwgkdc=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=YtsLcn5DWIULUp2E0BKQF/9uB4UdOXhUp98ThYaRABDRVgE/lMxFhXMCqc62sIGWi
+	 OmfpUUg0Dv711wmBfAnhpTiCnARVtksV3Z0ZGDsW7zS6fYHnt4pXf0TrlZz/XLLoXj
+	 G/AYgGidtqrSxf0gKwlB2l8VJyHKIZx3SQ/CEoDADx2JWEhxsTiOXUjOXW2dfcGNB0
+	 JQElH89Ud/SUCesWvBeVyUrjC53BgeGljm/B980H8VbAX3wQj5oGMeLlCYXDeW4Re2
+	 9WrmcmTqJDlt9y4P6k7e1+ZVoMcfjsRhJPwVprvt80qyCm2Cfyy7iUCZ1CL/xl3PLT
+	 Z6ukqM+zMdf+Q==
+Date: Fri, 31 May 2019 10:00:04 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: kbuild test robot <lkp@intel.com>, kbuild-all@01.org, Greg Kroah-Hartman
+ <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>,
+ Linux Memory Management List <linux-mm@kvack.org>, "Sasha Levin
+ (Microsoft)" <sashal@kernel.org>, Yoshinori Sato
+ <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ linux-sh@vger.kernel.org
+Subject: Re: [linux-stable-rc:linux-5.0.y 1434/2350]
+ arch/sh/kernel/cpu/sh2/clock-sh7619.o:undefined reference to
+ `followparent_recalc'
+Message-ID: <20190531100004.0b1f4983@canb.auug.org.au>
+In-Reply-To: <92c0e331-9910-82e9-86de-67f593ef4e5d@infradead.org>
+References: <201905301509.9Hu4aGF1%lkp@intel.com>
+	<92c0e331-9910-82e9-86de-67f593ef4e5d@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1497636a-8658-d3ff-f7cd-05230fdead19@nvidia.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_//Urd_40J.ripfqILoQhBQM6"; protocol="application/pgp-signature"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 30, 2019 at 04:21:19PM -0700, John Hubbard wrote:
-> On 5/30/19 2:47 PM, Ira Weiny wrote:
-> > On Thu, May 30, 2019 at 06:54:04AM +0800, Pingfan Liu wrote:
-> [...]
-> >> +				for (j = i; j < nr; j++)
-> >> +					put_page(pages[j]);
-> > 
-> > Should be put_user_page() now.  For now that just calls put_page() but it is
-> > slated to change soon.
-> > 
-> > I also wonder if this would be more efficient as a check as we are walking the
-> > page tables and bail early.
-> > 
-> > Perhaps the code complexity is not worth it?
-> 
-> Good point, it might be worth it. Because now we've got two loops that
-> we run, after the interrupts-off page walk, and it's starting to look like
-> a potential performance concern. 
+--Sig_//Urd_40J.ripfqILoQhBQM6
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-FWIW I don't see this being a huge issue at the moment.  Perhaps those more
-familiar with CMA can weigh in here.  How was this issue found?  If it was
-found by running some test perhaps that indicates a performance preference?
+Hi all,
 
-> 
-> > 
-> >> +				nr = i;
-> > 
-> > Why not just break from the loop here?
-> > 
-> > Or better yet just use 'i' in the inner loop...
-> > 
-> 
-> ...but if you do end up putting in the after-the-fact check, then we can
-> go one or two steps further in cleaning it up, by:
-> 
->     * hiding the visible #ifdef that was slicing up gup_fast,
-> 
->     * using put_user_pages() instead of either put_page or put_user_page,
->       thus getting rid of j entirely, and
-> 
->     * renaming an ancient minor confusion: nr --> nr_pinned), 
-> 
-> we could have this, which is looks cleaner and still does the same thing:
-> 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index f173fcbaf1b2..0c1f36be1863 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -1486,6 +1486,33 @@ static __always_inline long __gup_longterm_locked(struct task_struct *tsk,
->  }
->  #endif /* CONFIG_FS_DAX || CONFIG_CMA */
->  
-> +#ifdef CONFIG_CMA
-> +/*
-> + * Returns the number of pages that were *not* rejected. This makes it
-> + * exactly compatible with its callers.
-> + */
-> +static int reject_cma_pages(int nr_pinned, unsigned gup_flags,
-> +			    struct page **pages)
-> +{
-> +	int i = 0;
-> +	if (unlikely(gup_flags & FOLL_LONGTERM)) {
-> +
-> +		for (i = 0; i < nr_pinned; i++)
-> +			if (is_migrate_cma_page(pages[i])) {
-> +				put_user_pages(&pages[i], nr_pinned - i);
+On Thu, 30 May 2019 07:43:10 -0700 Randy Dunlap <rdunlap@infradead.org> wro=
+te:
+>
+> On 5/30/19 12:31 AM, kbuild test robot wrote:
+> > Hi Randy,
+> >=20
+> > It's probably a bug fix that unveils the link errors.
+> >=20
+> > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-st=
+able-rc.git linux-5.0.y
+> > head:   8c963c3dcbdec7b2a1fd90044f23bc8124848381
+> > commit: b174065805b55300d9d4e6ae6865c7b0838cc0f4 [1434/2350] sh: fix mu=
+ltiple function definition build errors
+> > config: sh-allmodconfig (attached as .config)
+> > compiler: sh4-linux-gcc (GCC) 7.4.0
+> > reproduce:
+> >         wget https://raw.githubusercontent.com/intel/lkp-tests/master/s=
+bin/make.cross -O ~/bin/make.cross
+> >         chmod +x ~/bin/make.cross
+> >         git checkout b174065805b55300d9d4e6ae6865c7b0838cc0f4
+> >         # save the attached .config to linux build tree
+> >         GCC_VERSION=3D7.4.0 make.cross ARCH=3Dsh=20
+> >=20
+> > If you fix the issue, kindly add following tag
+> > Reported-by: kbuild test robot <lkp@intel.com>
+> >=20
+> > All errors (new ones prefixed by >>):
+> >  =20
+> >>> arch/sh/kernel/cpu/sh2/clock-sh7619.o:(.data+0x1c): undefined referen=
+ce to `followparent_recalc' =20
+> >=20
+> > ---
+> > 0-DAY kernel test infrastructure                Open Source Technology =
+Center
+> > https://lists.01.org/pipermail/kbuild-all                   Intel Corpo=
+ration =20
+>=20
+>=20
+> The maintainer posted a patch for this but AFAIK it is not merged anywher=
+e.
+>=20
+> https://marc.info/?l=3Dlinux-sh&m=3D155585522728632&w=3D2
 
-Yes this is cleaner.
+Unfortunately, the sh tree (git://git.libc.org/linux-sh#for-next) has
+been removed from linux-next due to lack of any updates in over a year,
+but I will add that patch (see below) to linux-next today, but someone
+will need to make sure it gets to Linus at some point (preferably
+sooner rather than later).  (I can send it if someone associated with
+the sh development wants/asks me to ...)
 
-> +				break;
-> +			}
-> +	}
-> +	return i;
-> +}
-> +#else
-> +static int reject_cma_pages(int nr_pinned, unsigned gup_flags,
-> +			    struct page **pages)
-> +{
-> +	return nr_pinned;
-> +}
-> +#endif
-> +
->  /*
->   * This is the same as get_user_pages_remote(), just with a
->   * less-flexible calling convention where we assume that the task
-> @@ -2216,7 +2243,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
->  			unsigned int gup_flags, struct page **pages)
->  {
->  	unsigned long addr, len, end;
-> -	int nr = 0, ret = 0;
-> +	int nr_pinned = 0, ret = 0;
+From: Yoshinori Sato <ysato@users.sourceforge.jp>
+Date: Sun, 21 Apr 2019 14:00:16 +0000
+Subject: [PATCH] sh: Fix allyesconfig output
 
-To be absolutely pedantic I would have split the nr_pinned change to a separate
-patch.
+Conflict JCore-SoC and SolutionEngine 7619.
 
-Ira
+Reported-by: kbuild test robot <lkp@intel.com>
+Acked-by: Randy Dunlap <rdunlap@infradead.org> # build-tested
+Signed-off-by: Yoshinori Sato <ysato@users.sourceforge.jp>
+---
+ arch/sh/boards/Kconfig | 14 +++-----------
+ 1 file changed, 3 insertions(+), 11 deletions(-)
 
->  
->  	start &= PAGE_MASK;
->  	addr = start;
-> @@ -2231,25 +2258,27 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
->  
->  	if (gup_fast_permitted(start, nr_pages)) {
->  		local_irq_disable();
-> -		gup_pgd_range(addr, end, gup_flags, pages, &nr);
-> +		gup_pgd_range(addr, end, gup_flags, pages, &nr_pinned);
->  		local_irq_enable();
-> -		ret = nr;
-> +		ret = nr_pinned;
->  	}
->  
-> -	if (nr < nr_pages) {
-> +	nr_pinned = reject_cma_pages(nr_pinned, gup_flags, pages);
-> +
-> +	if (nr_pinned < nr_pages) {
->  		/* Try to get the remaining pages with get_user_pages */
-> -		start += nr << PAGE_SHIFT;
-> -		pages += nr;
-> +		start += nr_pinned << PAGE_SHIFT;
-> +		pages += nr_pinned;
->  
-> -		ret = __gup_longterm_unlocked(start, nr_pages - nr,
-> +		ret = __gup_longterm_unlocked(start, nr_pages - nr_pinned,
->  					      gup_flags, pages);
->  
->  		/* Have to be a bit careful with return values */
-> -		if (nr > 0) {
-> +		if (nr_pinned > 0) {
->  			if (ret < 0)
-> -				ret = nr;
-> +				ret = nr_pinned;
->  			else
-> -				ret += nr;
-> +				ret += nr_pinned;
->  		}
->  	}
->  
-> 
-> Rather lightly tested...I've compile-tested with CONFIG_CMA and !CONFIG_CMA, 
-> and boot tested with CONFIG_CMA, but could use a second set of eyes on whether
-> I've added any off-by-one errors, or worse. :)
-> 
-> thanks,
-> -- 
-> John Hubbard
-> NVIDIA
+diff --git a/arch/sh/boards/Kconfig b/arch/sh/boards/Kconfig
+index b9a37057b77a..cee24c308337 100644
+--- a/arch/sh/boards/Kconfig
++++ b/arch/sh/boards/Kconfig
+@@ -8,27 +8,19 @@ config SH_ALPHA_BOARD
+ 	bool
+=20
+ config SH_DEVICE_TREE
+-	bool "Board Described by Device Tree"
++	bool
+ 	select OF
+ 	select OF_EARLY_FLATTREE
+ 	select TIMER_OF
+ 	select COMMON_CLK
+ 	select GENERIC_CALIBRATE_DELAY
+-	help
+-	  Select Board Described by Device Tree to build a kernel that
+-	  does not hard-code any board-specific knowledge but instead uses
+-	  a device tree blob provided by the boot-loader. You must enable
+-	  drivers for any hardware you want to use separately. At this
+-	  time, only boards based on the open-hardware J-Core processors
+-	  have sufficient driver coverage to use this option; do not
+-	  select it if you are using original SuperH hardware.
+=20
+ config SH_JCORE_SOC
+ 	bool "J-Core SoC"
+-	depends on SH_DEVICE_TREE && (CPU_SH2 || CPU_J2)
++	select SH_DEVICE_TREE
+ 	select CLKSRC_JCORE_PIT
+ 	select JCORE_AIC
+-	default y if CPU_J2
++	depends on CPU_J2
+ 	help
+ 	  Select this option to include drivers core components of the
+ 	  J-Core SoC, including interrupt controllers and timers.
+--=20
+2.11.0
+
+--=20
+Cheers,
+Stephen Rothwell
+
+--Sig_//Urd_40J.ripfqILoQhBQM6
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAlzwboQACgkQAVBC80lX
+0GySOQf/T+Goi4No9tDwJYA952YXZzB0jB1/cwe3Z6PZ8UQWoeI7iEaA7kuj1+8L
+z6Eo0aF9KAfzCxJYVByINBUxQ+LS2847bezjsm+c2/CTgW180H/lMRad3cjaD3JF
+xsNO5+utt+YM54xXPAUOySND/XtRnjzn2LJe+zxh9087xVFmamWFrKyqRAPRhjg0
+9SnSa2DEulCOfi4fv8lWXaRJg81HowDqczHZ7N2wtMGuW3ELxNchALFcwdWt+rOl
+p5YYJO/HsCOmj5lspNcEl8sUMRzcL8qRwwRXo7rqzWfn2ifbj3RcAQJvFhIy/hCy
+SWhbdV5NnLxFroLheN0colbcEWCCMQ==
+=Zrm5
+-----END PGP SIGNATURE-----
+
+--Sig_//Urd_40J.ripfqILoQhBQM6--
 
