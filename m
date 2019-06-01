@@ -4,115 +4,115 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D372C28CC1
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:25:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 80778C28CC3
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:26:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C61C8273AC
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:25:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3B7DA273C4
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:26:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="DGXicQ4V"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C61C8273AC
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Iq00m0vD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B7DA273C4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89CB46B02BA; Sat,  1 Jun 2019 09:25:30 -0400 (EDT)
+	id D647E6B02BC; Sat,  1 Jun 2019 09:26:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 826326B02BC; Sat,  1 Jun 2019 09:25:30 -0400 (EDT)
+	id CDFDD6B02BE; Sat,  1 Jun 2019 09:26:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6A50E6B02BD; Sat,  1 Jun 2019 09:25:30 -0400 (EDT)
+	id BA8316B02BF; Sat,  1 Jun 2019 09:26:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BF9E6B02BA
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:25:30 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id d2so8221058pla.18
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:25:30 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 800926B02BC
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:26:11 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 14so6562087pgo.14
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:26:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=xlUSJNUSuud7dA2K52Nt4537OvrwHh41t1oTIpozQng=;
-        b=JMDjxGDa8gPRXlXkuzaYmDmppAnBFZSZVr70fWU4S7hVXrP0kzBJ7N72alqvMLjH/e
-         pHqT9ewKcC6+mBO1JYAXwk9HzQFMja9rBp7Rpi+hQHrMo7eUvfUnKc6KP9AvuVMiU3/V
-         urvvxb7uDU7Yy6hk3BM6d/uh0S0ZRv9GqL1wiq1UGSaEHSA0fafrkbnTCC3sHTtmZzMs
-         yrwBo5fFNUxfIxax/eyh22kk9fP8SprQ4Cz4uSgECCjVVFpRjuISSDu1U5vonBMhcEXI
-         Oy5KovcebhKnFN2Vd4YHkqw75J3AlkUXixzTGqT4vBR66/CmGS4NBYOOVz5Pqx24iMMc
-         A1WA==
-X-Gm-Message-State: APjAAAUuzJKIvNprTrjiINFpMrrDM52z9f/Ag1e8gAlO3xmGPmd6r25y
-	6MtYSh1LhAK/m0nCGrQdMR7z5DEiZkOVGVJDBgxFD8l1AdBCiLxIXE9NkfhjUqGyqfxpgkWL2MH
-	Q21pr5O7eHUDmxJFSG3gbV0LJCJuvGHTYBLdj85FQjCOX7bVFHVW0tWjSKhTD3F0OWA==
-X-Received: by 2002:a62:65c7:: with SMTP id z190mr17311900pfb.73.1559395529790;
-        Sat, 01 Jun 2019 06:25:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwhDmD9ZYvm0Cw3iROeyY3lptea7SSgyHinKIsPj1/lxRPVBNobXCtlTMuT4xqj1HQ7Sj8N
-X-Received: by 2002:a62:65c7:: with SMTP id z190mr17311831pfb.73.1559395529182;
-        Sat, 01 Jun 2019 06:25:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559395529; cv=none;
+        bh=zrFojBGxOCbHE/MGRRox7g27NCe5aG01jBEKz2hdAoA=;
+        b=DaqO3Hxr9Hdx/vKR1U7IJIHXZVaObyfff6M18hxAE50snFPlWsGhxTUMPGxQEN+XpC
+         VKgMJ5ydR+789t+krVVudk5Dnn21XhIOEaQgel7G9dIXefxjuUnq4bOfcPMAZj/qawGM
+         8MyCgEKq/FUMX/lVT13dfrDgjNJP0z9oyaHZ/Z+E8iamT4VbTsvIcD8+kRQG+6ZXpLQq
+         spmipRDcZAijk6SbRKyvMQBCpsRgXYA0JSSiS4B0l7JpN8na4JTuDDvXbpiMCiB2c9ai
+         HkLuaIpqKOitxzeTx7UmNTwHa3muatJZrOc3pKIHuhxvtIisieHnLvCBUt5MlijJPUM8
+         nxIQ==
+X-Gm-Message-State: APjAAAUcNQxWsTXfvmoWQYLj1oeMGS2xtqeOSdNgVjJNvFKR+RRHnsdt
+	0V8V4scu0Z/H7YrO+00VKDShdnwTDKWFxUYVdQqMoCRYmhz4EKInmHHJu5YtjMBy1qCZTkg3NMP
+	ySJ+hhQl6abhdX5SwwNLglUhl7gPbF3a9kfwS9tVWW8d4iANtEdTSMoo37wCPZboyZQ==
+X-Received: by 2002:a17:902:1347:: with SMTP id r7mr16414635ple.45.1559395571182;
+        Sat, 01 Jun 2019 06:26:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxlOZnNNlZDzBnwHJdmP5mKJsuXUFfz/D4YjcqpJA7G0yeOs2XQECZt43dnV7fqsvU7NVsR
+X-Received: by 2002:a17:902:1347:: with SMTP id r7mr16414564ple.45.1559395570594;
+        Sat, 01 Jun 2019 06:26:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559395570; cv=none;
         d=google.com; s=arc-20160816;
-        b=zh4IbJUCcpy91VUX44c3ql9TW2IjERIYKvE9WuBWw2uAZlsm7vCZazuepyNniZRhiW
-         s7WZyAhGLd587LtI73tg9TC4l+o5NoifSva5llQdmtjcdFF0V3XPeQiumAdWtxiJS1UL
-         mWDgTrpKX2iZp58ppcCIO0f/o+16oOYqVoFyxJQBYuz8xSnGVDaKHfMoJjkF87YQaqEQ
-         EQPBqnBTa0rOTfZEymYLmMK4Vi7gKpevSbuRO4ruIttNAzHMOHo/HCaP/zNL6yT7gD4r
-         fdUbF3H4un2O8zTrgwuJINuRcexGOZKdBr6OVMej/cvj3/Un4Ww8zw2Shzyvee4waT/6
-         IlSw==
+        b=EvwoR8P/P/zRD/Tz7wEPM6iNUlUXNacmfKRfyH6vTld6a9ep0vOr98OWEYFxRncf14
+         jK1XWNirwdEu8gF9Gr4d99MWQIhAEBj9o3mDg4CwjHRB/HJ1p0rCycelESHvwN0F+gmn
+         uXIN95nfMgbdAqoWdwrTw6fXAHqrDQZH/PYIBbcBhc6BEvTtBT+AJjMrVwtHmy8nOCwI
+         msUpDdNGGF4/cOR+fkLrjbEiC+qBFebr5mDjqX9lOnT040C38imAMgBGutFrV8fefsm1
+         szFPcEHDLO7pEF9rIMYCBuNoU84mZ5JoS2bYdYGoCqLhgqlpnSMUTzD8QAWn5NbyQfOK
+         sqew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=xlUSJNUSuud7dA2K52Nt4537OvrwHh41t1oTIpozQng=;
-        b=cAijUwQ/IEsdj5HGZ2uf/M/qYGKMnSD3+dM8SW9xHBEeU98fnSag6lfUlBmAI1XtMu
-         luaRekhp4GdVP1TsRtyKqef49DEwBVpY5iqyw5swuuC1ZymfoQ0hvs6IQCtKjXNH8agc
-         zgCFlkoChsu3EMXh1PSWDr8E7sn/02/2xDyR/F4ooaS7v8LmaPzhSRKjNoLNOcH/3fqG
-         azjCIiNZw49E2bifQlAwkfKJWyCZSYAormevTOZXns73jYz+bPWZDxIBDbxw0mKEP4sT
-         XfbIzsor6v+cGyNSajrp4w4KgK2sBXHQ1h+AKTImOshNjiKHy+N8gRu41B11nFC7siMe
-         g6gQ==
+        bh=zrFojBGxOCbHE/MGRRox7g27NCe5aG01jBEKz2hdAoA=;
+        b=VvhCF1Zc76fjTEc7zoQ5e48TUFw1fxHxR4g7oVNv21ZpJn093axaZt62K81gBogThX
+         AkgHsYZiE9aK0tCo/Krkdab9NoEBqnXfg/NgWDgnARNmnMEZ/KfSaoLQcLMcA0LiqTos
+         uOhmoPndvxh1CBYoHKwi94ryEdpk+rK672pR94P+dguxlTw8dUXL7JbO9iHcJxHfsmH/
+         Pe/VCsdyo79ykW/W0eske0B9+wWwIbFlHEZ87iodJQiLgWl43KbEaYyh8ZKsCvlOl1Zk
+         Uh3bQ3qg0HASQczBTkKZvzQxrEdZqHHo4XZCMmsQX2iklc8yRaa+bHaHw5OdyOwMxPPL
+         +eew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=DGXicQ4V;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Iq00m0vD;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 92si10273960plf.299.2019.06.01.06.25.29
+        by mx.google.com with ESMTPS id g23si11152734pfi.153.2019.06.01.06.26.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 06:25:29 -0700 (PDT)
+        Sat, 01 Jun 2019 06:26:10 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=DGXicQ4V;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Iq00m0vD;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id A3FE8273AC;
-	Sat,  1 Jun 2019 13:25:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 19FF72739A;
+	Sat,  1 Jun 2019 13:26:09 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395528;
-	bh=2gwOA4oXprxT5utFsmFxHJm6LeTnp8J00kQIUqH1TKQ=;
+	s=default; t=1559395570;
+	bh=me0jHZ4okS1/tGNFwIDuP/a8uqOaFJTeahlh8eX/lQo=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=DGXicQ4V7Hdnq14PC3+r2NtPJNQcUo/K87bCRiCW7JdRPVfhwNT/3CmDHwcCNbdxk
-	 NPY/Oh9mp2EvwXCilUwa54YbFRUM1h5OOeOl5YzZwFANuZbZg3TESI8daUJYC/+O4P
-	 hNVJgLy6OkudECk6pqq/Afr7TSrBWBGI69bUuMmA=
+	b=Iq00m0vDFEnvXuJMWFm6+xE3RS7cMzVSIqdSkYfn3WFT70VcOXdbErjh/U7Qabqc0
+	 d8h7pxH5Yf0sjlu2IZqyaRX6u5+4L2MQOJPqyrWViLUWiwYiHZDemMYfQmrnKK8Bgz
+	 rbpxqJ3tc7ILnG4npup7DTERmlBFDVm5rXJ1qYwM=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Qian Cai <cai@lca.pw>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Christoph Lameter <cl@linux.com>,
-	Pekka Enberg <penberg@kernel.org>,
-	David Rientjes <rientjes@google.com>,
+Cc: Mike Kravetz <mike.kravetz@oracle.com>,
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+	Davidlohr Bueso <dave@stgolabs.net>,
 	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.9 10/74] mm/slab.c: fix an infinite loop in leaks_show()
-Date: Sat,  1 Jun 2019 09:23:57 -0400
-Message-Id: <20190601132501.27021-10-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.4 04/56] hugetlbfs: on restore reserve error path retain subpool reservation
+Date: Sat,  1 Jun 2019 09:25:08 -0400
+Message-Id: <20190601132600.27427-4-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190601132501.27021-1-sashal@kernel.org>
-References: <20190601132501.27021-1-sashal@kernel.org>
+In-Reply-To: <20190601132600.27427-1-sashal@kernel.org>
+References: <20190601132600.27427-1-sashal@kernel.org>
 MIME-Version: 1.0
 X-stable: review
 X-Patchwork-Hint: Ignore
@@ -123,85 +123,80 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Qian Cai <cai@lca.pw>
+From: Mike Kravetz <mike.kravetz@oracle.com>
 
-[ Upstream commit 745e10146c31b1c6ed3326286704ae251b17f663 ]
+[ Upstream commit 0919e1b69ab459e06df45d3ba6658d281962db80 ]
 
-"cat /proc/slab_allocators" could hang forever on SMP machines with
-kmemleak or object debugging enabled due to other CPUs running do_drain()
-will keep making kmemleak_object or debug_objects_cache dirty and unable
-to escape the first loop in leaks_show(),
+When a huge page is allocated, PagePrivate() is set if the allocation
+consumed a reservation.  When freeing a huge page, PagePrivate is checked.
+If set, it indicates the reservation should be restored.  PagePrivate
+being set at free huge page time mostly happens on error paths.
 
-do {
-	set_store_user_clean(cachep);
-	drain_cpu_caches(cachep);
-	...
+When huge page reservations are created, a check is made to determine if
+the mapping is associated with an explicitly mounted filesystem.  If so,
+pages are also reserved within the filesystem.  The default action when
+freeing a huge page is to decrement the usage count in any associated
+explicitly mounted filesystem.  However, if the reservation is to be
+restored the reservation/use count within the filesystem should not be
+decrementd.  Otherwise, a subsequent page allocation and free for the same
+mapping location will cause the file filesystem usage to go 'negative'.
 
-} while (!is_store_user_clean(cachep));
+Filesystem                         Size  Used Avail Use% Mounted on
+nodev                              4.0G -4.0M  4.1G    - /opt/hugepool
 
-For example,
+To fix, when freeing a huge page do not adjust filesystem usage if
+PagePrivate() is set to indicate the reservation should be restored.
 
-do_drain
-  slabs_destroy
-    slab_destroy
-      kmem_cache_free
-        __cache_free
-          ___cache_free
-            kmemleak_free_recursive
-              delete_object_full
-                __delete_object
-                  put_object
-                    free_object_rcu
-                      kmem_cache_free
-                        cache_free_debugcheck --> dirty kmemleak_object
+I did not cc stable as the problem has been around since reserves were
+added to hugetlbfs and nobody has noticed.
 
-One approach is to check cachep->name and skip both kmemleak_object and
-debug_objects_cache in leaks_show().  The other is to set store_user_clean
-after drain_cpu_caches() which leaves a small window between
-drain_cpu_caches() and set_store_user_clean() where per-CPU caches could
-be dirty again lead to slightly wrong information has been stored but
-could also speed up things significantly which sounds like a good
-compromise.  For example,
-
- # cat /proc/slab_allocators
- 0m42.778s # 1st approach
- 0m0.737s  # 2nd approach
-
-[akpm@linux-foundation.org: tweak comment]
-Link: http://lkml.kernel.org/r/20190411032635.10325-1-cai@lca.pw
-Fixes: d31676dfde25 ("mm/slab: alternative implementation for DEBUG_SLAB_LEAK")
-Signed-off-by: Qian Cai <cai@lca.pw>
-Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
+Link: http://lkml.kernel.org/r/20190328234704.27083-2-mike.kravetz@oracle.com
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Davidlohr Bueso <dave@stgolabs.net>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/slab.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ mm/hugetlb.c | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index d2c0499c6b15d..9547f02b4af96 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -4365,8 +4365,12 @@ static int leaks_show(struct seq_file *m, void *p)
- 	 * whole processing.
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 324b2953e57e9..0357ad53af368 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1221,12 +1221,23 @@ void free_huge_page(struct page *page)
+ 	ClearPagePrivate(page);
+ 
+ 	/*
+-	 * A return code of zero implies that the subpool will be under its
+-	 * minimum size if the reservation is not restored after page is free.
+-	 * Therefore, force restore_reserve operation.
++	 * If PagePrivate() was set on page, page allocation consumed a
++	 * reservation.  If the page was associated with a subpool, there
++	 * would have been a page reserved in the subpool before allocation
++	 * via hugepage_subpool_get_pages().  Since we are 'restoring' the
++	 * reservtion, do not call hugepage_subpool_put_pages() as this will
++	 * remove the reserved page from the subpool.
  	 */
- 	do {
--		set_store_user_clean(cachep);
- 		drain_cpu_caches(cachep);
+-	if (hugepage_subpool_put_pages(spool, 1) == 0)
+-		restore_reserve = true;
++	if (!restore_reserve) {
 +		/*
-+		 * drain_cpu_caches() could make kmemleak_object and
-+		 * debug_objects_cache dirty, so reset afterwards.
++		 * A return code of zero implies that the subpool will be
++		 * under its minimum size if the reservation is not restored
++		 * after page is free.  Therefore, force restore_reserve
++		 * operation.
 +		 */
-+		set_store_user_clean(cachep);
++		if (hugepage_subpool_put_pages(spool, 1) == 0)
++			restore_reserve = true;
++	}
  
- 		x[1] = 0;
- 
+ 	spin_lock(&hugetlb_lock);
+ 	clear_page_huge_active(page);
 -- 
 2.20.1
 
