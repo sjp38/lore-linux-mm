@@ -7,109 +7,143 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 53FA9C28CC4
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05315C28CC3
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0FCB6268D2
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A849523A9F
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="F7RoYFZN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FCB6268D2
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="WdBT87pg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A849523A9F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 91BFD6B000A; Sat,  1 Jun 2019 09:17:30 -0400 (EDT)
+	id 3BF4A6B000D; Sat,  1 Jun 2019 09:17:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 82BD86B000C; Sat,  1 Jun 2019 09:17:30 -0400 (EDT)
+	id 3492D6B000E; Sat,  1 Jun 2019 09:17:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6F4B76B000D; Sat,  1 Jun 2019 09:17:30 -0400 (EDT)
+	id 1EA986B0010; Sat,  1 Jun 2019 09:17:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 317D86B000A
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:17:30 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id k23so4282594pgh.10
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:17:30 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D3A986B000D
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:17:35 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id x5so9623367pfi.5
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:17:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=DO0P/NqpWaxU8vXSAVfvUgsQrfX5X5DHsidBEuTbznE=;
-        b=OlRGuX1/BghRrt3WLYf3gFLlRsnddmb1Y64G4gfyJn5+tmmHOX5D3PYGDI3XEHud9i
-         uH8aSK1P6eLLdoOvwN1hKJJBmUEoLzPfYfoDQLcCBN03cktEKIUtdFGIiER3f0zZDzs/
-         VUeWh/WFm2cekUeJMDB5BUivDuEHQXgBzWh5DKxMrmZZMrKacXMlN5zP27DP9mRyU4Qu
-         fnMZZAvc/p8bxXirIRgBMStDzDIUPejIFiNffPtKjVZWdEqfvL3igor7xM7UfNA9CjSO
-         1+K/mx4nhWUPYXB9DluwUGyh/rw3NoZdQlmmXvCWUs1NA37dihpv6L5YP8ERmDnL/bEy
-         3RVg==
-X-Gm-Message-State: APjAAAXolcQLoQRtNeZ5DecA8Mmyvc/DLF1Qz9KC3n8v0hq/Irbrh4kG
-	QYCDLm6GCY6eTrTvV8LrsOr5iEGVsctf8MXN6FX8KMJ8ZOT9LWEHyMuqfZWnxgMfqjS46qgNX9N
-	0rmyBD1bdxLpinfONA99MWRKXJf6Q30BGhUq0/stnZu49bJiMQAr4iV43NZl0O6+Fgg==
-X-Received: by 2002:a63:ee0a:: with SMTP id e10mr15271211pgi.28.1559395049742;
-        Sat, 01 Jun 2019 06:17:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyDd987xdCWMujxhokPP+/hz4c07+HCreOza2I/B8MAjJjqht6meV9DrGcau9huSTQx5APo
-X-Received: by 2002:a63:ee0a:: with SMTP id e10mr15271114pgi.28.1559395048733;
-        Sat, 01 Jun 2019 06:17:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559395048; cv=none;
+        bh=9luxp6xqSTt2H1t9f1N166Q+JQj2PyWjHbTZSnkMdIc=;
+        b=CaKjCAKkSeq1FL3hqqUjT7EW2RQP78TpilgsfIWZf9FSb367ooQ1DteMk7axvE+/XK
+         dYSrlJOPqx68v0bWYnezT7XqCmuNvwtRn+T8FXVvdRluWH/YO0wZk70tVKtVU5pOXsY3
+         v06aEq6VCCN+9+uGvSiBBxdcuA6GbdTWyL+E2V4GoYSQrTA5yZ6PiQDrLdMy6YtDdD3J
+         e3VD8B08g7mGdsJYK5fuqtaQvwNBOoYci5q3fmwFr33wPuo4h8OfTnyVH/zIPGaVU90V
+         qV4wuehSPib4Y23RLbY6VBQ+b8xDE5FdMwKhTkqqf79w+5Btdb6GztIccOGOKc/z/JCH
+         BEtg==
+X-Gm-Message-State: APjAAAWXenXVVpFl1OjiDD9WSlWiE1cfcFaO8c0KxF9HBMSKycmm+Ki7
+	BJM4BJIMWYIIvnmy7Hyez8I5W0g3I+X+Q/vo7WGvE/vrPg2Y/pGM3s38KDDBB84vBzEcdMgkC17
+	KK+sTf6qFzffm7ZGMYeYQGE1kLv+d2ktXBsYFnxZ0WXPwC3frQ2Tv2Vnzx6NOAb/UQA==
+X-Received: by 2002:a17:902:9f94:: with SMTP id g20mr16585423plq.56.1559395055497;
+        Sat, 01 Jun 2019 06:17:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwwc5TOkonPZqKy7DFrRKv//resTcsVfnplmkrX/fu+wERHDuEpX6UobEW1hSBpRST2lC6x
+X-Received: by 2002:a17:902:9f94:: with SMTP id g20mr16585341plq.56.1559395054752;
+        Sat, 01 Jun 2019 06:17:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559395054; cv=none;
         d=google.com; s=arc-20160816;
-        b=Y2d/hY7ZhBY4TvLgWeqfPLGkqlDGE0bkg8lR577G5540RpVhZ9yVPrOhCYrZRTVffW
-         iDp61bhkPTZYQb1O4Uw9knEpVK76hVY2GjFiavmsyoUl3yzSYxA0GY/EtPXkEuiMi/+6
-         +0vxp9AdNodzNQ2l7C6ejZ7PKEif4So58Sz1SHFOR2dFIj1oJVe5LChL2avA45mzbtnh
-         I/+BVWf912tQshE1vjIqPmefYGBQycItAWJD0uBqjEV407QxxTpDSg7KwNKO0k9aZKKY
-         nAGGwB8QSNfkiUHrtmnVZqc4lXkmBQn9PLtKcBD640hNsBE5iZAzM2dJwSSCjqB0WV4q
-         hDXg==
+        b=hrnmIGQkcy5aAWlKmFhP5yUvxKv+mVlhZwZuXMi+wIGKzPNmGsj6oH5xLQtNMBr3xk
+         F9fYSlSykwktT7KWL/gRFRZ8RzxuVa3C5uWiiJa+5BxNAaNyTOxXSI4s/cKTSrmwXptd
+         wlL020cexuQTnKhNpKSYdU5joLGDu9rOkauUchFVDb66jCWB0uazFEY3jxNSkO9Ef66y
+         z9ijLIchE/hD/Ec0sxSmZCjLSuSWVAh5HvUSKnt/fU5ejTk9b07oopBd7D4ITtT00w2f
+         l78lu/PJhVD38oqVeFXrIMxSxHOzNzwC4RViDtC2S6wvh4n8FyiCA3pAvYn0BlZUNa/t
+         Azgg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=DO0P/NqpWaxU8vXSAVfvUgsQrfX5X5DHsidBEuTbznE=;
-        b=xxi8fQz9Lhlg3BebaucCwJoQalRmwlNOGkJqOQKojrK2BQ9lX1oj8tbHrTdgA1UJNy
-         XlFEW95qrkjI52NrMDLo0Z6LtSi9QqgUOOQ7LBMnvhthxJXKCZLYUOLcuC47BlbFtvjj
-         KvkLsT4blHQfq8DzyRUBUcE9Xqd/hNWn1spg/7adIkBQxjDahccP9+3XH2BgcQnDJv7r
-         /vqBSDJMUL+2XtstwSZWn8r1kQS74W6fGWmBDN5UuDP+ovDcYdIQ8a6I1XHnkpOUQiRz
-         zLr4Rhd1skZhWQPqZ9xi5e1WfHJLDtO1aXY+nY8QRUDrBqbahSYfJmNmnYXLDWoOe1U+
-         huaw==
+        bh=9luxp6xqSTt2H1t9f1N166Q+JQj2PyWjHbTZSnkMdIc=;
+        b=aTf47d0uNxYQ8ABMHNLJ7Qx0PlZ5i47miPmBf0wywAHDNXkIYV9B4CVyTtbjhWV4Xv
+         LJWtJ7jTl2mEvVDVAq6fh4ETx38e+kM/F4xDyXTGdVDmdboqbcQvPkS2CtdoJrj3kFnk
+         BfuF0PDQhu0ayo0Wu0v76ZiDeuhT6yiVghmIl9ssQVRWUH+rTGbuizug3fq4voINYvaL
+         Ba7sKimxPXGaDlTiwdngT/qcEIYoRWKgy2ESovxJ83/E7tUOmF4YljN1N8N77go2/iUt
+         RN0fjd/usAMroME699jMXthmAfEldRohy6miJMjzQAfqLgkjP5F3rnyMzhxNwzApDJgG
+         K77g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=F7RoYFZN;
+       dkim=pass header.i=@kernel.org header.s=default header.b=WdBT87pg;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id i11si10934529plb.416.2019.06.01.06.17.28
+        by mx.google.com with ESMTPS id f13si10136242pgs.90.2019.06.01.06.17.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 06:17:28 -0700 (PDT)
+        Sat, 01 Jun 2019 06:17:34 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=F7RoYFZN;
+       dkim=pass header.i=@kernel.org header.s=default header.b=WdBT87pg;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 38FB523B55;
-	Sat,  1 Jun 2019 13:17:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 38A8525F5A;
+	Sat,  1 Jun 2019 13:17:30 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395048;
-	bh=adYvW22iqvVHA34DPtYAqlnX/zQXWKyEMfkrJ54DvBg=;
+	s=default; t=1559395054;
+	bh=FSFoZTMt11iXc0aoK+/E7I+63GFkRN+cT3nCiArd59o=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=F7RoYFZNb+Cbu6HlQ2I7BjeCmGbC7jxcXKSq+0fzI4WvhHYpIaVgH2LpkSZRLsdK1
-	 Hr2ETIBWIHMK3Nm0oJLrcN6OR5jTjHXb17MslFhVEPbla1Tq230IarzIzYplk+Zd0f
-	 rKrVDjlEyCBPcBMoOXOUoEabBAT0CwhS9kq5UdCg=
+	b=WdBT87pg0UO5w1MqB8+z4+fAVpvvH1f/91WDmyZLQIH7xUwCxvlkBgwNbObVLTRQe
+	 5lPZypnb312K9GYy6vDqflQRDvLkg19l8InDv5tFYopf1uWwoLTNRzmDJ+MVu0lEqh
+	 8lWAAI22pjolklMNRrpkxMa3jC9SBfedVlcS5Fl8=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Mike Kravetz <mike.kravetz@oracle.com>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Davidlohr Bueso <dave@stgolabs.net>,
+Cc: David Hildenbrand <david@redhat.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	Michal Hocko <mhocko@suse.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Wei Yang <richard.weiyang@gmail.com>,
+	Qian Cai <cai@lca.pw>,
+	Arun KS <arunks@codeaurora.org>,
+	Mathieu Malaterre <malat@debian.org>,
+	Andrew Banman <andrew.banman@hpe.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Borislav Petkov <bp@alien8.de>,
+	Christophe Leroy <christophe.leroy@c-s.fr>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Fenghua Yu <fenghua.yu@intel.com>,
+	Geert Uytterhoeven <geert@linux-m68k.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@kernel.org>,
+	Ingo Molnar <mingo@redhat.com>,
 	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Travis <mike.travis@hpe.com>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Oscar Salvador <osalvador@suse.com>,
+	Paul Mackerras <paulus@samba.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	Rich Felker <dalias@libc.org>,
+	Rob Herring <robh@kernel.org>,
+	Stefan Agner <stefan@agner.ch>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Tony Luck <tony.luck@intel.com>,
+	Vasily Gorbik <gor@linux.ibm.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.1 012/186] hugetlbfs: on restore reserve error path retain subpool reservation
-Date: Sat,  1 Jun 2019 09:13:48 -0400
-Message-Id: <20190601131653.24205-12-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.1 013/186] mm/memory_hotplug: release memory resource after arch_remove_memory()
+Date: Sat,  1 Jun 2019 09:13:49 -0400
+Message-Id: <20190601131653.24205-13-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190601131653.24205-1-sashal@kernel.org>
 References: <20190601131653.24205-1-sashal@kernel.org>
@@ -123,80 +157,178 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mike Kravetz <mike.kravetz@oracle.com>
+From: David Hildenbrand <david@redhat.com>
 
-[ Upstream commit 0919e1b69ab459e06df45d3ba6658d281962db80 ]
+[ Upstream commit d9eb1417c77df7ce19abd2e41619e9dceccbdf2a ]
 
-When a huge page is allocated, PagePrivate() is set if the allocation
-consumed a reservation.  When freeing a huge page, PagePrivate is checked.
-If set, it indicates the reservation should be restored.  PagePrivate
-being set at free huge page time mostly happens on error paths.
+Patch series "mm/memory_hotplug: Better error handling when removing
+memory", v1.
 
-When huge page reservations are created, a check is made to determine if
-the mapping is associated with an explicitly mounted filesystem.  If so,
-pages are also reserved within the filesystem.  The default action when
-freeing a huge page is to decrement the usage count in any associated
-explicitly mounted filesystem.  However, if the reservation is to be
-restored the reservation/use count within the filesystem should not be
-decrementd.  Otherwise, a subsequent page allocation and free for the same
-mapping location will cause the file filesystem usage to go 'negative'.
+Error handling when removing memory is somewhat messed up right now.  Some
+errors result in warnings, others are completely ignored.  Memory unplug
+code can essentially not deal with errors properly as of now.
+remove_memory() will never fail.
 
-Filesystem                         Size  Used Avail Use% Mounted on
-nodev                              4.0G -4.0M  4.1G    - /opt/hugepool
+We have basically two choices:
+1. Allow arch_remov_memory() and friends to fail, propagating errors via
+   remove_memory(). Might be problematic (e.g. DIMMs consisting of multiple
+   pieces added/removed separately).
+2. Don't allow the functions to fail, handling errors in a nicer way.
 
-To fix, when freeing a huge page do not adjust filesystem usage if
-PagePrivate() is set to indicate the reservation should be restored.
+It seems like most errors that can theoretically happen are really corner
+cases and mostly theoretical (e.g.  "section not valid").  However e.g.
+aborting removal of sections while all callers simply continue in case of
+errors is not nice.
 
-I did not cc stable as the problem has been around since reserves were
-added to hugetlbfs and nobody has noticed.
+If we can gurantee that removal of memory always works (and WARN/skip in
+case of theoretical errors so we can figure out what is going on), we can
+go ahead and implement better error handling when adding memory.
 
-Link: http://lkml.kernel.org/r/20190328234704.27083-2-mike.kravetz@oracle.com
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Davidlohr Bueso <dave@stgolabs.net>
+E.g. via add_memory():
+
+arch_add_memory()
+ret = do_stuff()
+if (ret) {
+	arch_remove_memory();
+	goto error;
+}
+
+Handling here that arch_remove_memory() might fail is basically
+impossible.  So I suggest, let's avoid reporting errors while removing
+memory, warning on theoretical errors instead and continuing instead of
+aborting.
+
+This patch (of 4):
+
+__add_pages() doesn't add the memory resource, so __remove_pages()
+shouldn't remove it.  Let's factor it out.  Especially as it is a special
+case for memory used as system memory, added via add_memory() and friends.
+
+We now remove the resource after removing the sections instead of doing it
+the other way around.  I don't think this change is problematic.
+
+add_memory()
+	register memory resource
+	arch_add_memory()
+
+remove_memory
+	arch_remove_memory()
+	release memory resource
+
+While at it, explain why we ignore errors and that it only happeny if
+we remove memory in a different granularity as we added it.
+
+[david@redhat.com: fix printk warning]
+  Link: http://lkml.kernel.org/r/20190417120204.6997-1-david@redhat.com
+Link: http://lkml.kernel.org/r/20190409100148.24703-2-david@redhat.com
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: David Hildenbrand <david@redhat.com>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>
+Cc: Qian Cai <cai@lca.pw>
+Cc: Arun KS <arunks@codeaurora.org>
+Cc: Mathieu Malaterre <malat@debian.org>
+Cc: Andrew Banman <andrew.banman@hpe.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Fenghua Yu <fenghua.yu@intel.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Mike Travis <mike.travis@hpe.com>
+Cc: Nicholas Piggin <npiggin@gmail.com>
+Cc: Oscar Salvador <osalvador@suse.com>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Rich Felker <dalias@libc.org>
+Cc: Rob Herring <robh@kernel.org>
+Cc: Stefan Agner <stefan@agner.ch>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: Vasily Gorbik <gor@linux.ibm.com>
+Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/hugetlb.c | 21 ++++++++++++++++-----
- 1 file changed, 16 insertions(+), 5 deletions(-)
+ mm/memory_hotplug.c | 35 +++++++++++++++++++++--------------
+ 1 file changed, 21 insertions(+), 14 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 5baf1f00ad427..5b4f00be325d7 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1258,12 +1258,23 @@ void free_huge_page(struct page *page)
- 	ClearPagePrivate(page);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index b236069ff0d82..28587f2901090 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -561,20 +561,6 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+ 	if (is_dev_zone(zone)) {
+ 		if (altmap)
+ 			map_offset = vmem_altmap_offset(altmap);
+-	} else {
+-		resource_size_t start, size;
+-
+-		start = phys_start_pfn << PAGE_SHIFT;
+-		size = nr_pages * PAGE_SIZE;
+-
+-		ret = release_mem_region_adjustable(&iomem_resource, start,
+-					size);
+-		if (ret) {
+-			resource_size_t endres = start + size - 1;
+-
+-			pr_warn("Unable to release resource <%pa-%pa> (%d)\n",
+-					&start, &endres, ret);
+-		}
+ 	}
  
- 	/*
--	 * A return code of zero implies that the subpool will be under its
--	 * minimum size if the reservation is not restored after page is free.
--	 * Therefore, force restore_reserve operation.
-+	 * If PagePrivate() was set on page, page allocation consumed a
-+	 * reservation.  If the page was associated with a subpool, there
-+	 * would have been a page reserved in the subpool before allocation
-+	 * via hugepage_subpool_get_pages().  Since we are 'restoring' the
-+	 * reservtion, do not call hugepage_subpool_put_pages() as this will
-+	 * remove the reserved page from the subpool.
- 	 */
--	if (hugepage_subpool_put_pages(spool, 1) == 0)
--		restore_reserve = true;
-+	if (!restore_reserve) {
-+		/*
-+		 * A return code of zero implies that the subpool will be
-+		 * under its minimum size if the reservation is not restored
-+		 * after page is free.  Therefore, force restore_reserve
-+		 * operation.
-+		 */
-+		if (hugepage_subpool_put_pages(spool, 1) == 0)
-+			restore_reserve = true;
+ 	clear_zone_contiguous(zone);
+@@ -1843,6 +1829,26 @@ void try_offline_node(int nid)
+ }
+ EXPORT_SYMBOL(try_offline_node);
+ 
++static void __release_memory_resource(resource_size_t start,
++				      resource_size_t size)
++{
++	int ret;
++
++	/*
++	 * When removing memory in the same granularity as it was added,
++	 * this function never fails. It might only fail if resources
++	 * have to be adjusted or split. We'll ignore the error, as
++	 * removing of memory cannot fail.
++	 */
++	ret = release_mem_region_adjustable(&iomem_resource, start, size);
++	if (ret) {
++		resource_size_t endres = start + size - 1;
++
++		pr_warn("Unable to release resource <%pa-%pa> (%d)\n",
++			&start, &endres, ret);
 +	}
++}
++
+ /**
+  * remove_memory
+  * @nid: the node ID
+@@ -1877,6 +1883,7 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
+ 	memblock_remove(start, size);
  
- 	spin_lock(&hugetlb_lock);
- 	clear_page_huge_active(page);
+ 	arch_remove_memory(nid, start, size, NULL);
++	__release_memory_resource(start, size);
+ 
+ 	try_offline_node(nid);
+ 
 -- 
 2.20.1
 
