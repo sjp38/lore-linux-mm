@@ -4,81 +4,81 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 12B83C28CC1
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 07:51:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 99D4AC28CC3
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 07:51:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BD13E27144
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 07:51:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 53E4427144
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 07:51:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="W5Fzpc87"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD13E27144
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ZtJlig3V"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 53E4427144
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DB7646B000E; Sat,  1 Jun 2019 03:50:52 -0400 (EDT)
+	id 5A1B36B026B; Sat,  1 Jun 2019 03:50:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D68D56B026A; Sat,  1 Jun 2019 03:50:52 -0400 (EDT)
+	id 5781E6B026C; Sat,  1 Jun 2019 03:50:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BE3CC6B026B; Sat,  1 Jun 2019 03:50:52 -0400 (EDT)
+	id 469B06B026D; Sat,  1 Jun 2019 03:50:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 671EC6B000E
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 03:50:52 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id 21so6214952pgl.5
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 00:50:52 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DE5C6B026B
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 03:50:55 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id d7so6205708pgc.8
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 00:50:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=NGsW8HzLPAPHTIJruOFYV46CCZebbD2jcoy4DVgB5lc=;
-        b=WPOgVbvfdtZeJSBAQ+1C3twMJs+FYcX5kmWb3lWk+l6kc+VNmJzZ7SxUGRRxocBTz6
-         AtsH0OeiGNMfXMcHwbMjnRphDcZUVxFzaiO0U9i4shZ3G77+F5jrK4jLe0Z2EiTj0W29
-         iCxS7aD1vG07Blv3npS15nmwfVe+TdRJE065Snnpz1j1JFlpmq9TQzDqzjsy7AHe/Zx+
-         qgMzA/RkROhm2mjUpVodatwtYutFPWMJDrAbS1g1rysnjkfDtR7qgSKPAFJda9joxU5a
-         qKFlsh1GAMKdA6xTqioRQ+87MJyGeV8y91bo4p93om4qeJJlSmvY0B7zBK7gdhFkEa6F
-         muKw==
-X-Gm-Message-State: APjAAAWVBxwftArgLPoGyPLx5i7J5ykQhCf+TQmy3ELjckD0eJ3rnxie
-	jk1GXNoNduZ2DCbG7y4f9bPS23tw91CUAu79C/YtR/xLlc8aYKqj2bU2jaKUwmtFlU69hzWoiQr
-	uKpCY7wYCInCDVmTZc6I+JIiEK08bH0lFOIqIcDJnZht6gzlGZw4c2PADQZxfXPY=
-X-Received: by 2002:a17:902:e65:: with SMTP id 92mr13725912plw.13.1559375451952;
-        Sat, 01 Jun 2019 00:50:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwcPjmlVcvSE0mM8uh3OiBaJfJK5IfHy7NfPGi+HiHDABovKsmFtJ4eUeDKX6SN2+Fo7/H1
-X-Received: by 2002:a17:902:e65:: with SMTP id 92mr13725864plw.13.1559375450994;
-        Sat, 01 Jun 2019 00:50:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559375450; cv=none;
+        bh=X2YVbgqGFpTprzpI9hgCNMZIAzqWGH+eXDnTmW0sVJU=;
+        b=hhIUSPEzMU251VvWrPKWdY2TCKQSU4cXuJvJRFKcakqRasIlDgMNk9N9tDWqwVXzj7
+         sP7c6IcMjhK9BnxC+lGuDpM5CKmzA47vVfcB5g4f9o2rYKltmr8yHHJDBobRnT79HzNM
+         eZN7lH2uox+tkZzcNOgruZJUTEeTCNIRZIf1y6D1pkLYzFu8iVMqitxj4xREbaP2d4/J
+         CJIu/SFiDujbQOG8iFfoEytLQF77uycDoq6+0woNAHSwRSPLj9fQ6/rxcQQWlmQe3R9N
+         7fwY35/9ZfAfURuf6YEukZfXVKDvN6WRXYnrWtKAoslVjdizfN8Twk+JmQRtwshxdW/0
+         jSow==
+X-Gm-Message-State: APjAAAWgGNsh527k0CKbVDUD92PMKJSCcJbiAa1fH0FtqkFvfvt1vTOL
+	7dD5t0g5gK8mEfYIpUBTVyOZBu5vrqBNTuElW0BDtrrRelz3G00k8cpuBwOQF7g6c8NFd68CqoD
+	fZpyczFyLLyF2vqE0I9R2ZloHTqKaCDVLxUnWS2AFYqrQSkSSfxX4ZnYEL4upR/0=
+X-Received: by 2002:aa7:9095:: with SMTP id i21mr12842671pfa.119.1559375454698;
+        Sat, 01 Jun 2019 00:50:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwaIDIfX7ie6BNYJs8SNgEpbeSqWSqyKZPTsVIiOL9S3iBopLlSIOmgUodJvXjFrBrI+Hik
+X-Received: by 2002:aa7:9095:: with SMTP id i21mr12842639pfa.119.1559375453846;
+        Sat, 01 Jun 2019 00:50:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559375453; cv=none;
         d=google.com; s=arc-20160816;
-        b=fXgqj2eJuM+yD8yvt2AMQGlxayttWDB9M9fvB/eh+/Kf0sdWWkyk9kaHbRdBjwL3Z5
-         nLEHr0p8C1Q2VofK3lCxU46JjF2Q4GHKEeEH84okfkFv/gSnKPI3jvPpdkPwxdZ3TYSi
-         sBKmTYwlapkR9E3Phi2STOOlaVIZqIXq32+9kidLjXBY9CvXTzW0rxaotVlcyYCgRT++
-         605yn0kHt1FGFTACs41JKNdigbh0oMPR8LDIRe9OEZVR2OvVbxYTs883bUYgs/qANOYJ
-         CYxta/eQUB4WD67j8ULD7wlCckrfMkUJRbyIJa2Zr0Q3ZRXgGdvKCT0lmZhoCUQx9EGB
-         Of+g==
+        b=a8BLDGjrMaJidgHEmCZ/xFL+VoQd28eD/2696W1iqQnBgpNpWwtwz44Yif0OnPWPId
+         MQP4p8quMKThJMtc8Oxtn97SKwxoxUEqIe3+cPskRH3LdXSHilJg5W7C2ECraQYi8XD8
+         TtRih8M94YV8jynkv5GF/VIZVeIpS1xQIzjF2GggEvfhDD5ZfZbfFoqTntVOvnXezlwA
+         xZkoIXQkhIX/CKN+CUowAqiRKjRB1NEHLzeESCrESGHLVK/pEi53X2DQ0b/s2/Zw626b
+         Oxyrnood2A+OF8rBxC8YYAONKXNRPOQgKvLxzPyIoY3ik2U8lFbx+KSLbG7abo0R8w0d
+         cdfQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=NGsW8HzLPAPHTIJruOFYV46CCZebbD2jcoy4DVgB5lc=;
-        b=mdK0ACMG6eBWQ6thJf5weAH9bzY8DNGQ3u5Sp2xq8gto7As4HvY2I1jhtErTnECHT+
-         OnOBb5hLpKFgM+FgWs30vMzff+6koAqlDWl2da2MHChMfxZdqUWzgtvkp500uHhV8+Mz
-         WOJzYgr9kuPWNIwkHWaNL/EoEwPIiBxrfR4Qxx03F+gjiwD4CtnbOOJyVU7EDs+nCV8T
-         TJuR+LRj2uCvtkdPPYrAtwnBkBVPIf7vaVzNePK7+4vB2I7deh3cvGRydMDEOdDegC21
-         NmhZYb4AXqckhBKgEzMGgEKT7r2qWeWjOuI9S5aSkCFIVzxfqypcznMOpBlFaftFjqIZ
-         hIXw==
+        bh=X2YVbgqGFpTprzpI9hgCNMZIAzqWGH+eXDnTmW0sVJU=;
+        b=oQ/DvVn67I4t2G91gftCCB1Y8/Vg+8TzFzOW+nyrQv2JpNlllelZJeyZeMVtAyGnCX
+         RWUvZlfTp/a2Lqsrr2J7PfPU6pRlvSd1KPEiwPpNBp/8EJLgVoFcfvN7eDBYuKoGRmuZ
+         TubqVIRq+l5vAhz+Sj2L3Kcc5CwJL00S1Sjrb0Gg+61JGXBba0Xx11dq1jAldZTKQNRL
+         w3m6S8ONkMlj38X9JU6HH3fhHdpKJS1TlkikZKADc8e3OD6XJO/GaoXmgnKshl2Gx1wB
+         Mqs/voEJ7NwYqBk/7S606ezJySkdrb0ekMq5QCM5Ih+k8/98Ww1GHmu/2/HWVDhL+8aw
+         WepA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=W5Fzpc87;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ZtJlig3V;
        spf=pass (google.com: best guess record for domain of batv+47bfdebe920718d2a071+5760+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+47bfdebe920718d2a071+5760+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c20si9583668pfn.256.2019.06.01.00.50.50
+        by mx.google.com with ESMTPS id n7si8698526plk.435.2019.06.01.00.50.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 01 Jun 2019 00:50:50 -0700 (PDT)
+        Sat, 01 Jun 2019 00:50:53 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+47bfdebe920718d2a071+5760+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=W5Fzpc87;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ZtJlig3V;
        spf=pass (google.com: best guess record for domain of batv+47bfdebe920718d2a071+5760+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+47bfdebe920718d2a071+5760+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=NGsW8HzLPAPHTIJruOFYV46CCZebbD2jcoy4DVgB5lc=; b=W5Fzpc87jCQCC5I6JcXqu1in1I
-	bTayVjBGlByQf2ZOtE9bIqErZj9AM62H0OpGdn2Lwn/2GipoPoUap/cZI48aqF3c67aiqzWD7xbwy
-	rEe/vNn2Y5BW+ULmJtjeZ+Mr2peQo/QDFuFWa1wpYjvtqDabrbi1+Lb/vRP/IS07oRb2z359JnkOl
-	Oy9vNMlvt4znhmC6ieL36xbVUTGtLHkLluq9lqqbb8gj0tnpd4cHSTEZjmUUmFznkNsHwT38QqN8p
-	+Fn/qI7Ube5PWwxb07Fd0bPoB3Fs0JRhQF3NXFvyAv7RtQdHYjOw1aOnL3P8wYLYee4qTtR8skK0a
-	sow2i3GQ==;
+	bh=X2YVbgqGFpTprzpI9hgCNMZIAzqWGH+eXDnTmW0sVJU=; b=ZtJlig3VMwLrE3XBd3epSBCFB2
+	cZmqrWkQ/wKi02+ByfE4Vhsmik2Rj5BCC8ZLuKRSHBHIT5Q45EtH0aRHAtFwtRFtRhiDiZrjaAoA4
+	8RTsfsQ60cd74rPAkeo/Cn3/XAtwgId2fdhBRwTqwEu6GknlPe5g8YfZ+z77k2gCLpl24hX1VjjIC
+	TnCIKT4Hf0cJ2uH1YJfG8fO3GBgKwmBtHVuYNOIMAEhwh3WpgrHqC4Nk44qGMziz/MuA1JaU90A/3
+	vFhqt1HRTaKMkCTuh8llBkmIaAlqI9ShNU0aucN01pOF2uvfFOHa+lDOaDgEu+Dn2ZOkDTe/8hAIA
+	6Vk5ptvQ==;
 Received: from 217-76-161-89.static.highway.a1.net ([217.76.161.89] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hWymP-0007lT-Rf; Sat, 01 Jun 2019 07:50:18 +0000
+	id 1hWymj-0007nL-UH; Sat, 01 Jun 2019 07:50:38 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Linus Torvalds <torvalds@linux-foundation.org>,
 	Paul Burton <paul.burton@mips.com>,
@@ -115,9 +115,9 @@ Cc: Nicholas Piggin <npiggin@gmail.com>,
 	linux-mm@kvack.org,
 	x86@kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 04/16] mm: lift the x86_32 PAE version of gup_get_pte to common code
-Date: Sat,  1 Jun 2019 09:49:47 +0200
-Message-Id: <20190601074959.14036-5-hch@lst.de>
+Subject: [PATCH 09/16] sparc64: define untagged_addr()
+Date: Sat,  1 Jun 2019 09:49:52 +0200
+Message-Id: <20190601074959.14036-10-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190601074959.14036-1-hch@lst.de>
 References: <20190601074959.14036-1-hch@lst.de>
@@ -130,185 +130,47 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The split low/high access is the only non-READ_ONCE version of
-gup_get_pte that did show up in the various arch implemenations.
-Lift it to common code and drop the ifdef based arch override.
+Add a helper to untag a user pointer.  This is needed for ADI support
+in get_user_pages_fast.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/x86/Kconfig                      |  1 +
- arch/x86/include/asm/pgtable-3level.h | 47 ------------------------
- arch/x86/kvm/mmu.c                    |  2 +-
- mm/Kconfig                            |  3 ++
- mm/gup.c                              | 51 ++++++++++++++++++++++++---
- 5 files changed, 52 insertions(+), 52 deletions(-)
+ arch/sparc/include/asm/pgtable_64.h | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 2bbbd4d1ba31..7cd53cc59f0f 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -121,6 +121,7 @@ config X86
- 	select GENERIC_STRNCPY_FROM_USER
- 	select GENERIC_STRNLEN_USER
- 	select GENERIC_TIME_VSYSCALL
-+	select GUP_GET_PTE_LOW_HIGH		if X86_PAE
- 	select HARDLOCKUP_CHECK_TIMESTAMP	if X86_64
- 	select HAVE_ACPI_APEI			if ACPI
- 	select HAVE_ACPI_APEI_NMI		if ACPI
-diff --git a/arch/x86/include/asm/pgtable-3level.h b/arch/x86/include/asm/pgtable-3level.h
-index f8b1ad2c3828..e3633795fb22 100644
---- a/arch/x86/include/asm/pgtable-3level.h
-+++ b/arch/x86/include/asm/pgtable-3level.h
-@@ -285,53 +285,6 @@ static inline pud_t native_pudp_get_and_clear(pud_t *pudp)
- #define __pte_to_swp_entry(pte)	(__swp_entry(__pteval_swp_type(pte), \
- 					     __pteval_swp_offset(pte)))
- 
--#define gup_get_pte gup_get_pte
--/*
-- * WARNING: only to be used in the get_user_pages_fast() implementation.
-- *
-- * With get_user_pages_fast(), we walk down the pagetables without taking
-- * any locks.  For this we would like to load the pointers atomically,
-- * but that is not possible (without expensive cmpxchg8b) on PAE.  What
-- * we do have is the guarantee that a PTE will only either go from not
-- * present to present, or present to not present or both -- it will not
-- * switch to a completely different present page without a TLB flush in
-- * between; something that we are blocking by holding interrupts off.
-- *
-- * Setting ptes from not present to present goes:
-- *
-- *   ptep->pte_high = h;
-- *   smp_wmb();
-- *   ptep->pte_low = l;
-- *
-- * And present to not present goes:
-- *
-- *   ptep->pte_low = 0;
-- *   smp_wmb();
-- *   ptep->pte_high = 0;
-- *
-- * We must ensure here that the load of pte_low sees 'l' iff pte_high
-- * sees 'h'. We load pte_high *after* loading pte_low, which ensures we
-- * don't see an older value of pte_high.  *Then* we recheck pte_low,
-- * which ensures that we haven't picked up a changed pte high. We might
-- * have gotten rubbish values from pte_low and pte_high, but we are
-- * guaranteed that pte_low will not have the present bit set *unless*
-- * it is 'l'. Because get_user_pages_fast() only operates on present ptes
-- * we're safe.
-- */
--static inline pte_t gup_get_pte(pte_t *ptep)
--{
--	pte_t pte;
--
--	do {
--		pte.pte_low = ptep->pte_low;
--		smp_rmb();
--		pte.pte_high = ptep->pte_high;
--		smp_rmb();
--	} while (unlikely(pte.pte_low != ptep->pte_low));
--
--	return pte;
--}
--
- #include <asm/pgtable-invert.h>
- 
- #endif /* _ASM_X86_PGTABLE_3LEVEL_H */
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index 1e9ba81accba..3f7cd11168f9 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -653,7 +653,7 @@ static u64 __update_clear_spte_slow(u64 *sptep, u64 spte)
- 
- /*
-  * The idea using the light way get the spte on x86_32 guest is from
-- * gup_get_pte(arch/x86/mm/gup.c).
-+ * gup_get_pte (mm/gup.c).
-  *
-  * An spte tlb flush may be pending, because kvm_set_pte_rmapp
-  * coalesces them and we are running out of the MMU lock.  Therefore
-diff --git a/mm/Kconfig b/mm/Kconfig
-index f0c76ba47695..fe51f104a9e0 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -762,6 +762,9 @@ config GUP_BENCHMARK
- 
- 	  See tools/testing/selftests/vm/gup_benchmark.c
- 
-+config GUP_GET_PTE_LOW_HIGH
-+	bool
-+
- config ARCH_HAS_PTE_SPECIAL
- 	bool
- 
-diff --git a/mm/gup.c b/mm/gup.c
-index e7566f5ff9cf..a86d65cd7051 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1683,17 +1683,60 @@ struct page *get_dump_page(unsigned long addr)
-  * This code is based heavily on the PowerPC implementation by Nick Piggin.
-  */
- #ifdef CONFIG_HAVE_GENERIC_GUP
-+#ifdef CONFIG_GUP_GET_PTE_LOW_HIGH
-+/*
-+ * WARNING: only to be used in the get_user_pages_fast() implementation.
-+ *
-+ * With get_user_pages_fast(), we walk down the pagetables without taking any
-+ * locks.  For this we would like to load the pointers atomically, but sometimes
-+ * that is not possible (e.g. without expensive cmpxchg8b on x86_32 PAE).  What
-+ * we do have is the guarantee that a PTE will only either go from not present
-+ * to present, or present to not present or both -- it will not switch to a
-+ * completely different present page without a TLB flush in between; something
-+ * that we are blocking by holding interrupts off.
-+ *
-+ * Setting ptes from not present to present goes:
-+ *
-+ *   ptep->pte_high = h;
-+ *   smp_wmb();
-+ *   ptep->pte_low = l;
-+ *
-+ * And present to not present goes:
-+ *
-+ *   ptep->pte_low = 0;
-+ *   smp_wmb();
-+ *   ptep->pte_high = 0;
-+ *
-+ * We must ensure here that the load of pte_low sees 'l' IFF pte_high sees 'h'.
-+ * We load pte_high *after* loading pte_low, which ensures we don't see an older
-+ * value of pte_high.  *Then* we recheck pte_low, which ensures that we haven't
-+ * picked up a changed pte high. We might have gotten rubbish values from
-+ * pte_low and pte_high, but we are guaranteed that pte_low will not have the
-+ * present bit set *unless* it is 'l'. Because get_user_pages_fast() only
-+ * operates on present ptes we're safe.
-+ */
-+static inline pte_t gup_get_pte(pte_t *ptep)
-+{
-+	pte_t pte;
- 
--#ifndef gup_get_pte
-+	do {
-+		pte.pte_low = ptep->pte_low;
-+		smp_rmb();
-+		pte.pte_high = ptep->pte_high;
-+		smp_rmb();
-+	} while (unlikely(pte.pte_low != ptep->pte_low));
-+
-+	return pte;
-+}
-+#else /* CONFIG_GUP_GET_PTE_LOW_HIGH */
- /*
-- * We assume that the PTE can be read atomically. If this is not the case for
-- * your architecture, please provide the helper.
-+ * We require that the PTE can be read atomically.
-  */
- static inline pte_t gup_get_pte(pte_t *ptep)
- {
- 	return READ_ONCE(*ptep);
+diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+index dcf970e82262..a93eca29e85a 100644
+--- a/arch/sparc/include/asm/pgtable_64.h
++++ b/arch/sparc/include/asm/pgtable_64.h
+@@ -1076,6 +1076,28 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
  }
--#endif
-+#endif /* CONFIG_GUP_GET_PTE_LOW_HIGH */
+ #define io_remap_pfn_range io_remap_pfn_range 
  
- static void undo_dev_pagemap(int *nr, int nr_start, struct page **pages)
- {
++static inline unsigned long untagged_addr(unsigned long start)
++{
++	if (adi_capable()) {
++		long addr = start;
++
++		/* If userspace has passed a versioned address, kernel
++		 * will not find it in the VMAs since it does not store
++		 * the version tags in the list of VMAs. Storing version
++		 * tags in list of VMAs is impractical since they can be
++		 * changed any time from userspace without dropping into
++		 * kernel. Any address search in VMAs will be done with
++		 * non-versioned addresses. Ensure the ADI version bits
++		 * are dropped here by sign extending the last bit before
++		 * ADI bits. IOMMU does not implement version tags.
++		 */
++		return (addr << (long)adi_nbits()) >> (long)adi_nbits();
++	}
++
++	return start;
++}
++#define untagged_addr untagged_addr
++
+ #include <asm/tlbflush.h>
+ #include <asm-generic/pgtable.h>
+ 
 -- 
 2.20.1
 
