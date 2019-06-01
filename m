@@ -4,112 +4,112 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CC0BFC28CC1
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:25:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D372C28CC1
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:25:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8C14F273B1
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:25:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C61C8273AC
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:25:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="vkrfiYXH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C14F273B1
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="DGXicQ4V"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C61C8273AC
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D7E676B02B8; Sat,  1 Jun 2019 09:25:28 -0400 (EDT)
+	id 89CB46B02BA; Sat,  1 Jun 2019 09:25:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D08916B02BA; Sat,  1 Jun 2019 09:25:28 -0400 (EDT)
+	id 826326B02BC; Sat,  1 Jun 2019 09:25:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BCF926B02BB; Sat,  1 Jun 2019 09:25:28 -0400 (EDT)
+	id 6A50E6B02BD; Sat,  1 Jun 2019 09:25:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F1BC6B02B8
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:25:28 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id q25so9619062pfg.10
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:25:28 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BF9E6B02BA
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:25:30 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id d2so8221058pla.18
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:25:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=wvRNJqh7r6tQHZDAM384f5hhC5mXuxiJjJH1rckLOuA=;
-        b=Erybv3VPGVcGtXuv9qb9E+zyuJjqZkofFSxPHAfvFgwaxnBMElxP5GhaNmtNO5qKlP
-         5h1BOX573fDL+pTxDuIjyf4bPGhUnpvuIgfMgb7PqN3T1gUddbr5JHxnyUOVF7h9kuz1
-         4zs0082YcAxZ119PYA/wMHMMBgKNYVGCQUMHC82FwafsbG2blRmpJbihDhpCJeK5Bfu4
-         uPwZq172ToATOrTs1V4yuDXkPchvBCe+xnWuwStQW2wYhm2tJAwosf/V785QifcBI+rT
-         3C0rVr+4WW0ae3E60vgtYKbxbC4aleNWiUZYGZyEYAdlu/c4C21FBYp2Pjo+I63NwomC
-         v12A==
-X-Gm-Message-State: APjAAAXb0O6hU7FF6TBWpbv2k7JW231bITXXx0IUVM7MuX728RNbImIy
-	xn4Sznff1OCnvD8824omWWwKGGz/pkz01DsG/XovnRDBw8xAXHJXg9Z0lQ/ug9g58ntUw2MmlbE
-	dRIjcTmcAGMIQYnuwBg3ISD6JzThiDTtHqn+kv9XnQ6LFjodul/DfG/+G/dGc89rg3Q==
-X-Received: by 2002:a62:683:: with SMTP id 125mr9741593pfg.168.1559395528167;
-        Sat, 01 Jun 2019 06:25:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzZRZh5VJlZXO91j7O4oO7PR2as0zu0b57uGC7L4sMEnC2/5Ha2XSVIvu3xCaH/F+Ywp6bW
-X-Received: by 2002:a62:683:: with SMTP id 125mr9741512pfg.168.1559395527563;
-        Sat, 01 Jun 2019 06:25:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559395527; cv=none;
+        bh=xlUSJNUSuud7dA2K52Nt4537OvrwHh41t1oTIpozQng=;
+        b=JMDjxGDa8gPRXlXkuzaYmDmppAnBFZSZVr70fWU4S7hVXrP0kzBJ7N72alqvMLjH/e
+         pHqT9ewKcC6+mBO1JYAXwk9HzQFMja9rBp7Rpi+hQHrMo7eUvfUnKc6KP9AvuVMiU3/V
+         urvvxb7uDU7Yy6hk3BM6d/uh0S0ZRv9GqL1wiq1UGSaEHSA0fafrkbnTCC3sHTtmZzMs
+         yrwBo5fFNUxfIxax/eyh22kk9fP8SprQ4Cz4uSgECCjVVFpRjuISSDu1U5vonBMhcEXI
+         Oy5KovcebhKnFN2Vd4YHkqw75J3AlkUXixzTGqT4vBR66/CmGS4NBYOOVz5Pqx24iMMc
+         A1WA==
+X-Gm-Message-State: APjAAAUuzJKIvNprTrjiINFpMrrDM52z9f/Ag1e8gAlO3xmGPmd6r25y
+	6MtYSh1LhAK/m0nCGrQdMR7z5DEiZkOVGVJDBgxFD8l1AdBCiLxIXE9NkfhjUqGyqfxpgkWL2MH
+	Q21pr5O7eHUDmxJFSG3gbV0LJCJuvGHTYBLdj85FQjCOX7bVFHVW0tWjSKhTD3F0OWA==
+X-Received: by 2002:a62:65c7:: with SMTP id z190mr17311900pfb.73.1559395529790;
+        Sat, 01 Jun 2019 06:25:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwhDmD9ZYvm0Cw3iROeyY3lptea7SSgyHinKIsPj1/lxRPVBNobXCtlTMuT4xqj1HQ7Sj8N
+X-Received: by 2002:a62:65c7:: with SMTP id z190mr17311831pfb.73.1559395529182;
+        Sat, 01 Jun 2019 06:25:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559395529; cv=none;
         d=google.com; s=arc-20160816;
-        b=ymy4Nt3l6f+JnvcYenIz66inZNk0HmO+/zbvcD1HBD67vifCCvf895Bw0jmuSUzXWn
-         iK9uEt2109LOT0pdtirXHWGlw4NNnV6OLxdfN/eDmRrSkNz0/nyf2sv7xTb3FlfldmOy
-         CuMS8brfNso4SeGEYQQDklJ/lvsO+q2VtJ02+0ni601ktEOKNV0ZY1SCGJyUyLhVeAVY
-         MKEJ+LF7Rcqer0rqN8DjrsxGD7n+9bghJub3wRCmns7ZZB0jkkmNHJWadHKa7GVjtpNP
-         K5Gg8ui/DtGxQWWmP6QFGvyq5Mss4qNfqTzcIC9yaV9om8NmuTWB4Pj+GoQ/RVq5jCIc
-         wY1A==
+        b=zh4IbJUCcpy91VUX44c3ql9TW2IjERIYKvE9WuBWw2uAZlsm7vCZazuepyNniZRhiW
+         s7WZyAhGLd587LtI73tg9TC4l+o5NoifSva5llQdmtjcdFF0V3XPeQiumAdWtxiJS1UL
+         mWDgTrpKX2iZp58ppcCIO0f/o+16oOYqVoFyxJQBYuz8xSnGVDaKHfMoJjkF87YQaqEQ
+         EQPBqnBTa0rOTfZEymYLmMK4Vi7gKpevSbuRO4ruIttNAzHMOHo/HCaP/zNL6yT7gD4r
+         fdUbF3H4un2O8zTrgwuJINuRcexGOZKdBr6OVMej/cvj3/Un4Ww8zw2Shzyvee4waT/6
+         IlSw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=wvRNJqh7r6tQHZDAM384f5hhC5mXuxiJjJH1rckLOuA=;
-        b=c4t6dQBkioZ6ovpveo5jDiVBSTJWtvtUMGxkKDL57UP8SE6i0X+jqSRVm7Oj1UAzIB
-         7D5HXDCDwMl8O4NuiNTR8gjz+e4qXNhfpMHPt63L+WLUvHC1y74MkCowol0RW2viFUTh
-         vNdpo4CWFsnfOzJQ8xXmV3+kFH6jnnuuLuwYfgGy35ljhNod64P+Qq86ORNJAECMJzAp
-         bCAqTgZavHP80hiP9C8U9sH6AU0lGAn+PPkAKbMY7K4hRXazH2NRSbaLqNBZpe6RqCJ7
-         DtrYWU6Imdwoo2BiVYdgBVfP6IP6KTRmtJ3MMvCF7wcNiwcAL9S8qGITyoAAUHqADeJF
-         2xAw==
+        bh=xlUSJNUSuud7dA2K52Nt4537OvrwHh41t1oTIpozQng=;
+        b=cAijUwQ/IEsdj5HGZ2uf/M/qYGKMnSD3+dM8SW9xHBEeU98fnSag6lfUlBmAI1XtMu
+         luaRekhp4GdVP1TsRtyKqef49DEwBVpY5iqyw5swuuC1ZymfoQ0hvs6IQCtKjXNH8agc
+         zgCFlkoChsu3EMXh1PSWDr8E7sn/02/2xDyR/F4ooaS7v8LmaPzhSRKjNoLNOcH/3fqG
+         azjCIiNZw49E2bifQlAwkfKJWyCZSYAormevTOZXns73jYz+bPWZDxIBDbxw0mKEP4sT
+         XfbIzsor6v+cGyNSajrp4w4KgK2sBXHQ1h+AKTImOshNjiKHy+N8gRu41B11nFC7siMe
+         g6gQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=vkrfiYXH;
+       dkim=pass header.i=@kernel.org header.s=default header.b=DGXicQ4V;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id z18si10038200plo.175.2019.06.01.06.25.27
+        by mx.google.com with ESMTPS id 92si10273960plf.299.2019.06.01.06.25.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 06:25:27 -0700 (PDT)
+        Sat, 01 Jun 2019 06:25:29 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=vkrfiYXH;
+       dkim=pass header.i=@kernel.org header.s=default header.b=DGXicQ4V;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 156E5273A3;
-	Sat,  1 Jun 2019 13:25:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id A3FE8273AC;
+	Sat,  1 Jun 2019 13:25:27 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395527;
-	bh=W+mXVN4o7qdgu7foKIesICoUXtgOLDULDim6bbYHyBQ=;
+	s=default; t=1559395528;
+	bh=2gwOA4oXprxT5utFsmFxHJm6LeTnp8J00kQIUqH1TKQ=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=vkrfiYXHG/UaTTFIJkMaF3CYR+GkeoS90ASRMOvcQ+jOeUO0EqsMsh9illfg0NwZZ
-	 1WuvbE08RCqe3f6lm6Wlyofn2CcC2eHzrj4B8dvijGt9ldTT14H60B41TXrlAlY/gz
-	 N0XwX7G6UbN0MTCDPcTFXeRe3nzfBsa8BbobhsCk=
+	b=DGXicQ4V7Hdnq14PC3+r2NtPJNQcUo/K87bCRiCW7JdRPVfhwNT/3CmDHwcCNbdxk
+	 NPY/Oh9mp2EvwXCilUwa54YbFRUM1h5OOeOl5YzZwFANuZbZg3TESI8daUJYC/+O4P
+	 hNVJgLy6OkudECk6pqq/Afr7TSrBWBGI69bUuMmA=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Yue Hu <huyue2@yulong.com>,
+Cc: Qian Cai <cai@lca.pw>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Joe Perches <joe@perches.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Christoph Lameter <cl@linux.com>,
+	Pekka Enberg <penberg@kernel.org>,
 	David Rientjes <rientjes@google.com>,
-	Dmitry Safonov <d.safonov@partner.samsung.com>,
 	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.9 09/74] mm/cma_debug.c: fix the break condition in cma_maxchunk_get()
-Date: Sat,  1 Jun 2019 09:23:56 -0400
-Message-Id: <20190601132501.27021-9-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.9 10/74] mm/slab.c: fix an infinite loop in leaks_show()
+Date: Sat,  1 Jun 2019 09:23:57 -0400
+Message-Id: <20190601132501.27021-10-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190601132501.27021-1-sashal@kernel.org>
 References: <20190601132501.27021-1-sashal@kernel.org>
@@ -123,44 +123,85 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Yue Hu <huyue2@yulong.com>
+From: Qian Cai <cai@lca.pw>
 
-[ Upstream commit f0fd50504a54f5548eb666dc16ddf8394e44e4b7 ]
+[ Upstream commit 745e10146c31b1c6ed3326286704ae251b17f663 ]
 
-If not find zero bit in find_next_zero_bit(), it will return the size
-parameter passed in, so the start bit should be compared with bitmap_maxno
-rather than cma->count.  Although getting maxchunk is working fine due to
-zero value of order_per_bit currently, the operation will be stuck if
-order_per_bit is set as non-zero.
+"cat /proc/slab_allocators" could hang forever on SMP machines with
+kmemleak or object debugging enabled due to other CPUs running do_drain()
+will keep making kmemleak_object or debug_objects_cache dirty and unable
+to escape the first loop in leaks_show(),
 
-Link: http://lkml.kernel.org/r/20190319092734.276-1-zbestahu@gmail.com
-Signed-off-by: Yue Hu <huyue2@yulong.com>
+do {
+	set_store_user_clean(cachep);
+	drain_cpu_caches(cachep);
+	...
+
+} while (!is_store_user_clean(cachep));
+
+For example,
+
+do_drain
+  slabs_destroy
+    slab_destroy
+      kmem_cache_free
+        __cache_free
+          ___cache_free
+            kmemleak_free_recursive
+              delete_object_full
+                __delete_object
+                  put_object
+                    free_object_rcu
+                      kmem_cache_free
+                        cache_free_debugcheck --> dirty kmemleak_object
+
+One approach is to check cachep->name and skip both kmemleak_object and
+debug_objects_cache in leaks_show().  The other is to set store_user_clean
+after drain_cpu_caches() which leaves a small window between
+drain_cpu_caches() and set_store_user_clean() where per-CPU caches could
+be dirty again lead to slightly wrong information has been stored but
+could also speed up things significantly which sounds like a good
+compromise.  For example,
+
+ # cat /proc/slab_allocators
+ 0m42.778s # 1st approach
+ 0m0.737s  # 2nd approach
+
+[akpm@linux-foundation.org: tweak comment]
+Link: http://lkml.kernel.org/r/20190411032635.10325-1-cai@lca.pw
+Fixes: d31676dfde25 ("mm/slab: alternative implementation for DEBUG_SLAB_LEAK")
+Signed-off-by: Qian Cai <cai@lca.pw>
 Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Joe Perches <joe@perches.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>
 Cc: David Rientjes <rientjes@google.com>
-Cc: Dmitry Safonov <d.safonov@partner.samsung.com>
 Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/cma_debug.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/slab.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
 
-diff --git a/mm/cma_debug.c b/mm/cma_debug.c
-index f8e4b60db1672..da50dab56b700 100644
---- a/mm/cma_debug.c
-+++ b/mm/cma_debug.c
-@@ -57,7 +57,7 @@ static int cma_maxchunk_get(void *data, u64 *val)
- 	mutex_lock(&cma->lock);
- 	for (;;) {
- 		start = find_next_zero_bit(cma->bitmap, bitmap_maxno, end);
--		if (start >= cma->count)
-+		if (start >= bitmap_maxno)
- 			break;
- 		end = find_next_bit(cma->bitmap, bitmap_maxno, start);
- 		maxchunk = max(end - start, maxchunk);
+diff --git a/mm/slab.c b/mm/slab.c
+index d2c0499c6b15d..9547f02b4af96 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -4365,8 +4365,12 @@ static int leaks_show(struct seq_file *m, void *p)
+ 	 * whole processing.
+ 	 */
+ 	do {
+-		set_store_user_clean(cachep);
+ 		drain_cpu_caches(cachep);
++		/*
++		 * drain_cpu_caches() could make kmemleak_object and
++		 * debug_objects_cache dirty, so reset afterwards.
++		 */
++		set_store_user_clean(cachep);
+ 
+ 		x[1] = 0;
+ 
 -- 
 2.20.1
 
