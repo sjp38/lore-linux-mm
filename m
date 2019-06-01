@@ -7,109 +7,110 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D19BEC28CC1
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E89DC28CC3
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8D7502569E
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ED75B27251
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="IjPEdmaa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D7502569E
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="sHpNuSFm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED75B27251
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 411E96B026D; Sat,  1 Jun 2019 09:17:51 -0400 (EDT)
+	id A2A716B026F; Sat,  1 Jun 2019 09:17:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 399916B026E; Sat,  1 Jun 2019 09:17:51 -0400 (EDT)
+	id 98CC86B0270; Sat,  1 Jun 2019 09:17:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 25FE46B026F; Sat,  1 Jun 2019 09:17:51 -0400 (EDT)
+	id 7DDA86B0271; Sat,  1 Jun 2019 09:17:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DB9346B026D
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:17:50 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id e20so6543453pgm.16
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:17:50 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 42B5E6B026F
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:17:54 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id d19so8251879pls.1
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:17:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=ZBk5VgSkaQoCa1V1C97UfQBCcOPIp9dtMyMx8qLDux4=;
-        b=YAv2QrvIKqer78QGf0BQeRm1qLotNCLO6SKAproPnEcaMFhSg575Qrl9lMmFGMRYTT
-         /c6/Ojn/S1zs0cNImbjR2MmVyfDdXxar2bH2qJR/CfU43kZgNyoqkwSRFcukrfYmT0D2
-         qdUqwMqE/0k4d+B03XIqGFavL9+2DrubHOQ9mXH5d2IF00nMutBvetocOEY0ZSjpqCF7
-         3tSfGZB6ud3QNNHg9veCBZmyWMCxgulO8aEvTziYBr8aQ8A2vidTAHvzvjDX9sVxSm7e
-         Ej73UuXHXJtQ/uasdI0whU1lFgqt6eljTvUnOvZLmtVPoBbvyqiFTGYgACrkOfNYGAbn
-         f/8w==
-X-Gm-Message-State: APjAAAXCoH88mj1dPJhV1x3npjXHkY9mFhUkWCaoX6o+nRO3jtdVcEQT
-	kDqWETKHboGhMpIUdd73nme+ck36OWceuT1EoNN6xyo0cSFOw2l1cGD7Bh6YVWqX5lWhoKQSnZw
-	GF1TSiCoTTMX2bXcPCaNu1QLLGLMHXPtbqIDUz5WlirQSksdikKa7+YchrqhXsq9v4Q==
-X-Received: by 2002:a17:90a:5d09:: with SMTP id s9mr15679759pji.120.1559395070576;
-        Sat, 01 Jun 2019 06:17:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxpWCWWTTOrFz+StxR+VSFNNHvcYgaiz/FCnHPiFJupBUd40NTPNIan8v96msDp+meeQvAw
-X-Received: by 2002:a17:90a:5d09:: with SMTP id s9mr15679682pji.120.1559395069962;
-        Sat, 01 Jun 2019 06:17:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559395069; cv=none;
+        bh=dptnAhz5RBPpHRHfYkvicw5QHXQnGBAI+wN23jOI3Z4=;
+        b=evUg1R14wsLoIqEXb7PjOuNYI8v789i1uF6aUwd8/OBFCPJ7JQyzypvbDALXtHRB5M
+         KpfBIighuvGKO6bB6Hu85Dwv7iGS+3lYmXEkZNz3G4bEk6tqJHlQm/nimyPjlo0hUYvB
+         UCgqJO3nczKdXEhwkOHcx21pObzao6CCVk4baZhEsKVmaey9vWTNjec66JZjwKQHrNxt
+         UXusyetXEOJesqcWqzdmKcTwvalyqtAScJuroOCSikAcDSYski3zKe02hWG4UO9emS5L
+         JPuhOVTB8Pu8klR00PiU5i3WJ0aDARDS+iqo28uahaTvFhd84OqoEy8t5bKgeiTEo6O1
+         wfVQ==
+X-Gm-Message-State: APjAAAVu9KZsR8zdxE0WjkOZav/ZNErHThjkNYVaHLrioAZqv2k1epXN
+	6fXBK8TxVmw+w2MbIUx79l7zaRw/LgSi8WAXz6cBNVpx2vQQ07oKMi3DMoxVohJMitsBye4L5CK
+	eupAQMRr9I/4KB0A4oruAvYK9L/k3cyN76EbZilPvAb3IgcyQNbpXWBO6ZDG6N7kFHA==
+X-Received: by 2002:a63:2c14:: with SMTP id s20mr15139404pgs.182.1559395073810;
+        Sat, 01 Jun 2019 06:17:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx4P0hpduejmRWlkis/GHphLJ4LlhasZgp4bamPSUCJ4Pss0VkXjnEzwrrmUFpWktDrYqYE
+X-Received: by 2002:a63:2c14:: with SMTP id s20mr15139339pgs.182.1559395073103;
+        Sat, 01 Jun 2019 06:17:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559395073; cv=none;
         d=google.com; s=arc-20160816;
-        b=WecZNTnYsRvuEq1T2Y/oOk6JF5r93yGqZoR9/J17rOrn0jHdQ8n4pQcKzXM2JH/VhN
-         GNmNy80PfzDW6XIJ2clUNOsRjX7Bc4+I1HDeN1aMfkkiXXtS99S6Xc196mCTmIKM1N7f
-         vENLXm5jHF1q5oKyUb7bbrHZXyTKcbCanX6qHVIL+Os8Mk7IMy45PJmSo93cTeiAzYlx
-         FZPoTsak36DsCoIMXGlQAWLRrormr9GzTCC1fdT4o6qEOuaESrxdnPULSx6mIXw9pbLK
-         7du7Ml1Nr8LOw7rz3CedN08iQzmmAwlMoa0zL53TkcCYBYEtT94x7n0nIE7PAyBr+EGo
-         98bw==
+        b=ZgjZ7UA37hl20y91OJzBmi5t+DqwX60vrxPePcosjFDiG+dYXi0ktwVxRXL7yPViv8
+         H1LXesFyFlIVL0QwPg0OHXN2KZTFfVlfhsRcbFX/ZDTh9LGqc71miuohI0BrsYXYxOo7
+         4HpzWXAmZA0nJaqJGuoMtQw447Uk4T3iAJWmgay8XTM++jfGqY17D0JSWOZWdOWiY6Uy
+         sXWV9+U60GbeOUnRSSHB9hW0gsVlJwj1XxYxRwzpTMrw6nfrACZRjumw08Vgr/Bz85JL
+         0nOxXpGNOp8G6eYGggoQtzSISyM4x/a3bJHxVnrUMeyljMTVKmLoLdvktFApY6SOjT8J
+         8K2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=ZBk5VgSkaQoCa1V1C97UfQBCcOPIp9dtMyMx8qLDux4=;
-        b=TIXi61+M0yhIsmFDWBPvz2TtK3VbvG1Z1e6AlFyaKjaiD5oGaFMCcPmaM+OruAqdnx
-         bZKr0klwieL2F7Cdwr0IrsobMyhWRzNi7lqeQGQh22zINGZilm8ZW7aNJYj8uS+uH5Au
-         yIAjhV3KbHjMROln3RmhHS0xGbOrDjgOvAjzOrUsDJjTilgY3YwUBtIzknRqm42crhjA
-         y0WusOkqTkJ5WdzzOqq9K02VNuii/PnHgVm8JJacHYRhJQQ9qbfVr5fGIouZ9ATBXxkG
-         HCPHCLSF77qC9sAGBfCuIVM/QJEj/EM65CWHwU5umxU/KthZ1qLO8/HCMMfaGUz3/IoC
-         ItPQ==
+        bh=dptnAhz5RBPpHRHfYkvicw5QHXQnGBAI+wN23jOI3Z4=;
+        b=hhW50/KdoVP7elVy21HM45d+5UIeDDuzngkm8B4YSRcO2c6hjuh84m/ECqMpxGkQGp
+         pvkl3qSR2ip/MJT2izYYbN05JnKHxXL52ZJxWckvWmhHtwvHWH/v32BkxkHilscPaPm2
+         HFKfPVvuQEAfTWgPgUErHo/zbWOd2kcZr1kqJK0LeT0vRNQtyhCGzCgSH58vBA7nYtRK
+         LbEfE0v00JmS88voLtnxjXyx9bb7XmbavNlTVU21Gop6in6tRqvL3A4M6QeoVLqZ2+S7
+         dkMV/TxA6JxzEEf3K39o/rO3H3f2PMEXMWcqCLaucrJBgy0xw3TwgAsaY6z2Gp8J4Ldl
+         yS6w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=IjPEdmaa;
+       dkim=pass header.i=@kernel.org header.s=default header.b=sHpNuSFm;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id l35si10856846plb.276.2019.06.01.06.17.49
+        by mx.google.com with ESMTPS id o31si9652080pje.45.2019.06.01.06.17.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 06:17:49 -0700 (PDT)
+        Sat, 01 Jun 2019 06:17:53 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=IjPEdmaa;
+       dkim=pass header.i=@kernel.org header.s=default header.b=sHpNuSFm;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 6B6F72569E;
-	Sat,  1 Jun 2019 13:17:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 73ADA25525;
+	Sat,  1 Jun 2019 13:17:51 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395069;
-	bh=ozNdxPZMMldBMxTx2148v/sOELintvbGZMBdO0YDIDM=;
+	s=default; t=1559395072;
+	bh=B1J+LEftpT2eJ8CNTcSUayV3uaqVgtvofuMySmehwFo=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=IjPEdmaa5DkhPP6Ft/n3WzZ2irB/YgpdkR0LsbJUdkFf9GCkba/ySjwblc+IVaAjE
-	 6Utdw7cEjtKDG8LZKdw1/XQ9JLhddWAFjqiyWSi8lQlZKpXokzFRRMNzA3qpEBFG02
-	 dXsE9NY8n3FpBd0Tb6df8Tev0/5vl6F89LQ19Zz4=
+	b=sHpNuSFmbOrn9rekG1Bxye6ZCyacrs1xTNf9ToWq/Q+2yH3VvdETLwL53F/4pqw11
+	 2igMUZT07ZGcb4KAO0LNC3L6PTQLvJ7/cr6iElTh1fTvrnCWybfWKuUAv8uFj8mZRo
+	 2IX5VH3/44iwzPs52VgK8Es6tnUm6uPKduaKCUgk=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Baoquan He <bhe@redhat.com>,
-	David Hildenbrand <david@redhat.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Oscar Salvador <osalvador@suse.de>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Mike Rapoport <rppt@linux.ibm.com>,
+Cc: Yue Hu <huyue2@yulong.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Ingo Molnar <mingo@kernel.org>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Laura Abbott <labbott@redhat.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.1 018/186] mm/memory_hotplug.c: fix the wrong usage of N_HIGH_MEMORY
-Date: Sat,  1 Jun 2019 09:13:54 -0400
-Message-Id: <20190601131653.24205-18-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.1 019/186] mm/cma.c: fix the bitmap status to show failed allocation reason
+Date: Sat,  1 Jun 2019 09:13:55 -0400
+Message-Id: <20190601131653.24205-19-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190601131653.24205-1-sashal@kernel.org>
 References: <20190601131653.24205-1-sashal@kernel.org>
@@ -123,47 +124,85 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Baoquan He <bhe@redhat.com>
+From: Yue Hu <huyue2@yulong.com>
 
-[ Upstream commit d3ba3ae19751e476b0840a0c9a673a5766fa3219 ]
+[ Upstream commit 2b59e01a3aa665f751d1410b99fae9336bd424e1 ]
 
-In node_states_check_changes_online(), N_HIGH_MEMORY is used to substitute
-ZONE_HIGHMEM directly.  This is not right.  N_HIGH_MEMORY is to mark the
-memory state of node.  Here zone index is checked, which should be
-compared with 'ZONE_HIGHMEM' accordingly.
+Currently one bit in cma bitmap represents number of pages rather than
+one page, cma->count means cma size in pages. So to find available pages
+via find_next_zero_bit()/find_next_bit() we should use cma size not in
+pages but in bits although current free pages number is correct due to
+zero value of order_per_bit. Once order_per_bit is changed the bitmap
+status will be incorrect.
 
-Replace it with ZONE_HIGHMEM.
+The size input in cma_debug_show_areas() is not correct.  It will
+affect the available pages at some position to debug the failure issue.
 
-This is a code cleanup - no known runtime effects.
+This is an example with order_per_bit = 1
 
-Link: http://lkml.kernel.org/r/20190320080732.14933-1-bhe@redhat.com
-Fixes: 8efe33f40f3e ("mm/memory_hotplug.c: simplify node_states_check_changes_online")
-Signed-off-by: Baoquan He <bhe@redhat.com>
-Reviewed-by: David Hildenbrand <david@redhat.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
-Cc: Wei Yang <richard.weiyang@gmail.com>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
+Before this change:
+[    4.120060] cma: number of available pages: 1@93+4@108+7@121+7@137+7@153+7@169+7@185+7@201+3@213+3@221+3@229+3@237+3@245+3@253+3@261+3@269+3@277+3@285+3@293+3@301+3@309+3@317+3@325+19@333+15@369+512@512=> 638 free of 1024 total pages
+
+After this change:
+[    4.143234] cma: number of available pages: 2@93+8@108+14@121+14@137+14@153+14@169+14@185+14@201+6@213+6@221+6@229+6@237+6@245+6@253+6@261+6@269+6@277+6@285+6@293+6@301+6@309+6@317+6@325+38@333+30@369=> 252 free of 1024 total pages
+
+Obviously the bitmap status before is incorrect.
+
+Link: http://lkml.kernel.org/r/20190320060829.9144-1-zbestahu@gmail.com
+Signed-off-by: Yue Hu <huyue2@yulong.com>
+Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>
+Cc: Laura Abbott <labbott@redhat.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/memory_hotplug.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/cma.c | 19 +++++++++++--------
+ 1 file changed, 11 insertions(+), 8 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 28587f2901090..547e48addced1 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -700,7 +700,7 @@ static void node_states_check_changes_online(unsigned long nr_pages,
- 	if (zone_idx(zone) <= ZONE_NORMAL && !node_state(nid, N_NORMAL_MEMORY))
- 		arg->status_change_nid_normal = nid;
- #ifdef CONFIG_HIGHMEM
--	if (zone_idx(zone) <= N_HIGH_MEMORY && !node_state(nid, N_HIGH_MEMORY))
-+	if (zone_idx(zone) <= ZONE_HIGHMEM && !node_state(nid, N_HIGH_MEMORY))
- 		arg->status_change_nid_high = nid;
- #endif
+diff --git a/mm/cma.c b/mm/cma.c
+index 8cb95cd1193a9..5e36d7418031c 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -369,23 +369,26 @@ int __init cma_declare_contiguous(phys_addr_t base,
+ #ifdef CONFIG_CMA_DEBUG
+ static void cma_debug_show_areas(struct cma *cma)
+ {
+-	unsigned long next_zero_bit, next_set_bit;
++	unsigned long next_zero_bit, next_set_bit, nr_zero;
+ 	unsigned long start = 0;
+-	unsigned int nr_zero, nr_total = 0;
++	unsigned long nr_part, nr_total = 0;
++	unsigned long nbits = cma_bitmap_maxno(cma);
+ 
+ 	mutex_lock(&cma->lock);
+ 	pr_info("number of available pages: ");
+ 	for (;;) {
+-		next_zero_bit = find_next_zero_bit(cma->bitmap, cma->count, start);
+-		if (next_zero_bit >= cma->count)
++		next_zero_bit = find_next_zero_bit(cma->bitmap, nbits, start);
++		if (next_zero_bit >= nbits)
+ 			break;
+-		next_set_bit = find_next_bit(cma->bitmap, cma->count, next_zero_bit);
++		next_set_bit = find_next_bit(cma->bitmap, nbits, next_zero_bit);
+ 		nr_zero = next_set_bit - next_zero_bit;
+-		pr_cont("%s%u@%lu", nr_total ? "+" : "", nr_zero, next_zero_bit);
+-		nr_total += nr_zero;
++		nr_part = nr_zero << cma->order_per_bit;
++		pr_cont("%s%lu@%lu", nr_total ? "+" : "", nr_part,
++			next_zero_bit);
++		nr_total += nr_part;
+ 		start = next_zero_bit + nr_zero;
+ 	}
+-	pr_cont("=> %u free of %lu total pages\n", nr_total, cma->count);
++	pr_cont("=> %lu free of %lu total pages\n", nr_total, cma->count);
+ 	mutex_unlock(&cma->lock);
  }
+ #else
 -- 
 2.20.1
 
