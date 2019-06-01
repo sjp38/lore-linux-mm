@@ -4,121 +4,150 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B5010C28CC3
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 902D4C28CC5
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7DC6B272E2
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3DEF7272DE
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:22 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="czmnKxGr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DC6B272E2
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="mHDCelFL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DEF7272DE
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D3356B027A; Sat,  1 Jun 2019 09:20:18 -0400 (EDT)
+	id 2FB1F6B027D; Sat,  1 Jun 2019 09:20:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 284876B027C; Sat,  1 Jun 2019 09:20:18 -0400 (EDT)
+	id 2AD936B027E; Sat,  1 Jun 2019 09:20:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 173E86B027D; Sat,  1 Jun 2019 09:20:18 -0400 (EDT)
+	id 19B516B0280; Sat,  1 Jun 2019 09:20:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CF33C6B027A
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:20:17 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id b127so9608486pfb.8
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:20:17 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C3AE16B027D
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:20:18 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id k23so4286283pgh.10
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:20:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=aieyxn0mEzFmT/SVMyLfZDKWsbL/bT/xQcHnCZy3OlU=;
-        b=TZd7ZzOfdJdA0siJoerb0kAOmk1wYOzR/NLpsuue+nWXed4wS/V3DDdpNGNUh1iqzl
-         +cmmf/qOIO3SGDkhqOdUDiMuT+sHn5L2VMfPw7G/Vkf+AFpp3xLexlF0yaL3OoZzFdrd
-         Gc3rLiJMITrzON3yWzqLTJg0Uv2aBYYB/802yvZUxqgSjTAO9TXtvk6NqXEt/b1gYeTu
-         R3ZGR3kw4fsOWtbvzOEFKn76O0VD+1nv59SV9gwJdovTqYI9gub1qYyT3ZpB0y4fS8Dc
-         uIEhA0kwIfnYH3uMx1PWveZ0D5SClokY18kM3Ta7c4KK59rMoE2QHEqvKMVmI2B0YNsA
-         Ep8A==
-X-Gm-Message-State: APjAAAVVc4XxtYzYmfDHu6t5nPFf2gAkY2rVr2uvMutHk/4x2umYxjOh
-	46sJtySEuS55k2pJ2QF4YnLtGi9g9B+JZXvE12o3jDBR9sMoJdBXMhVAMqIv0sGL5fbT7haFtn0
-	ItxA4iYgu/PC7qzK7a01K9T2PFuQQIER8ulkNqW+kXB8Lsm9RcF/ZwbCOFvc9gY0w9A==
-X-Received: by 2002:a62:ae05:: with SMTP id q5mr16575521pff.13.1559395217503;
+        bh=SVd5wm86dE1jOuxPHa00ZWw4TwzzqXWy+5qFrO8Pupc=;
+        b=CFXvwJwwGuKbkf3DodGRX40ICcX3lyPyNCsUD4BvLAUXJ73xZ9fB6DNa3arJ3XzKDk
+         CbMjNqxaBWp94dIR/uRhYYyiBu9qO9B2NNRFuH3WZqN5Wo1YZYrgm7a0z1SwfAK7XJJI
+         riu8Vp/tPRYn1T79K2ynZoY7SHrF7tbZ4uqJH1hT4bUaZv4EbHEhDHzZBDd0WH4pG7jK
+         AhfDuJaff8KEa3HI977lG9apFSkpnZCNH6vpt20AyrJeYKVhVfQubvZDa7m/3y3raobJ
+         UxKrgogYTJFu4mZtyBmO8gWONXzZLSnJ9EsRfbhbFxuRycBtX4PHIPRHTTyTT8HS2izK
+         LR7w==
+X-Gm-Message-State: APjAAAW0TrG7gZN4I6zjENRC+w74d0pJubzxsAJRt0UtQC2bMAiWvFCT
+	jtErnK5Xwq25pHwHoXENSnczeLTpkzTZGslWUI4UlCVE+BuWqegPHKRth3og38K6PK0YVOoEePb
+	rYAuXhabmmlS62K/4d6xemCVd3TUCkx+hJ6AnMsP7Phes8Cue5Shn5JXb1/YjqYpiJQ==
+X-Received: by 2002:aa7:8294:: with SMTP id s20mr9106462pfm.75.1559395218395;
+        Sat, 01 Jun 2019 06:20:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxNpA85cGpZoK3bP/xNPaNnuPKu8dwwSqvAtKdS6d5ZBfPwKD4x73br0Ff6bhjyRc96SN2f
+X-Received: by 2002:aa7:8294:: with SMTP id s20mr9106375pfm.75.1559395217527;
         Sat, 01 Jun 2019 06:20:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyS8wtgzBsrde5QjWFOxS5U3rPr9CAl5HTUWH+fGEf5e/fYV/0tNkXuv+Ws+fw7m3l9NHA2
-X-Received: by 2002:a62:ae05:: with SMTP id q5mr16575479pff.13.1559395216916;
-        Sat, 01 Jun 2019 06:20:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559395216; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1559395217; cv=none;
         d=google.com; s=arc-20160816;
-        b=izL7L5JVV5Vp8xo7TttxY8pC7GxY1LLPgc0q+UgxOjcfktcZdT0CcEwh4BONy+kNGE
-         e08x5yFUYhTCc3iXsoQGuAPnCaYRBNfO2DVM21mp+nwdJuhhZgWGVo8LG+7U4spryeCK
-         ZSeGsX7wckjiC3BCIIven5OJ/RPsw+Caixbmq0RbBDgF7tL7+KPGy2NnNRsSdigswufi
-         fNTdbdrTX/l3X3hiCQ84n/9FlrGerqa7U+gyLmBHufjnZGUoYHKffE3stKDYlEq4sEe7
-         KeD7xCxHqQCAufsQ5yOWkZou/qEJF7SEXaNWsuHgiIDo11ozuHvsOpHcpCxg0X0TQoOi
-         OL+g==
+        b=zEoPIi/g1eLXyuCf37W8wOVgayCmvw8GuBnHsCVGv0yN24oVVuoiJJSzV7Cp/e9ijw
+         NM+ZRG/AwU43GjZ+i3BAFQA4KJQPb0JBHpPQ34/O+zxDlDDCmZfUugKoH9JqeEDqpPd5
+         nFkdT0nCFyzyCPovHrqBacDRw1I3/TGl9IooIBOYAIf1u0p6Row8Z3I+s0B6j5/8hZQR
+         kgpLS1az/EHPWHr9xB4P9SgO0S3Hw+XSyzt4Y/6dNLukkM2IHPdpb4j2hXdtoS0OW0Xy
+         RJMfeyR3Mx378cpDSTEifkAsFHuJbKDk16eNIIkaiewt9LlTd1AvH4SPeIeVYANmbzY/
+         f7Hw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=aieyxn0mEzFmT/SVMyLfZDKWsbL/bT/xQcHnCZy3OlU=;
-        b=PmUYkz7X8X594PRFenr1kAyynr+nOyD3sStxY4d6eP0ADfZWq9/dhdFahhcfr9QCKd
-         VwN4k4aKoiOr94gGA0fXbnERK9dXjtpN1n8xLb3Q4ttuM4rgIuGCKlpYaxRjC4AHeygo
-         A04O/K5UPR3qZJXFRcjatxwEkzjqmNIo6s9iB6uY12o/+FOnQAtxoJgPhkvN/Hl3mjss
-         k/jBsje3OHdwOoXFeYp6iBdIVvHoNY/kp0awZrWDPP30X3SkwoF55aWpxaZr37MG8sRy
-         eamQ/OxAJNJ7KI/i8jY/deBrfCg+pUou2iiAi4f+VzyQqmAw97lT9arppXmBXGID8yO7
-         jRPg==
+        bh=SVd5wm86dE1jOuxPHa00ZWw4TwzzqXWy+5qFrO8Pupc=;
+        b=QOrp88C4jHe6nwXvNkGh4/3oqqp/ElPZiEuMZS7PUn/96WxvxHGnULvl2z8VFfMFtZ
+         mEJMqzS6xSW8A9DM3m+ql/RzLqu+Y6JykHYTIsJAfXilcHtB1SkeoXQL6iO6WgGIrD9w
+         jpFuGPJg1UjfElP0KMVVR6fQf6snEzf9M8D70dmFbC1W0EBIgmwdCBu/L9kS57tzNgOH
+         Zb8eWjUAMs/FTkj0yr6V0TWaEHrbSmkDu2sTm1LbL1/2pKw20Rrwgb4yrkzvpKRjuxK+
+         jmlW4NDDL6EhXhfc6MXlA3TMe/aps8RMF5/AdXMsluo/ZFvnHbnqd/0Pa6dKez14Sy4M
+         58eg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=czmnKxGr;
+       dkim=pass header.i=@kernel.org header.s=default header.b=mHDCelFL;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 31si10577517plf.195.2019.06.01.06.20.16
+        by mx.google.com with ESMTPS id b61si10559184pjc.46.2019.06.01.06.20.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 06:20:16 -0700 (PDT)
+        Sat, 01 Jun 2019 06:20:17 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=czmnKxGr;
+       dkim=pass header.i=@kernel.org header.s=default header.b=mHDCelFL;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 064EB272C8;
-	Sat,  1 Jun 2019 13:20:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 04F89272E6;
+	Sat,  1 Jun 2019 13:20:09 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395206;
-	bh=bjdhm5Xwy5p6mlRyQ5ERQsdIxvgBVKfKEgwzZJc15mE=;
+	s=default; t=1559395217;
+	bh=ScgJYkGTk/PhPT3kjMb9ADqbqdufWP7M/9PRoLC1WvQ=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=czmnKxGra7WO3SLKw3+CELvLifb0gRs2/dn17ZMvsu8iYgZEY9O0h33MKAASTi1qB
-	 Tkhi624YqdZt0dCl+mWSEZv81Eue0OyfsgSp9R7nSpVDzbJTDqoMHEOY80KaxpbIQO
-	 OPC7YUzBdhKx6iqJ78XhcH5ju0BXKeFJEK0/kb3w=
+	b=mHDCelFL7I+6zvUsFsCkioMT7E3sWaMnhhGNDf34Bm1e1EjH5qe40sRJ5aZsMMAnb
+	 yG94GWrBuY9ZOCYS2nVVB/WgikA1FapTtovCHV3usFMEFsekm+jY2CoGr5T9dtLaW/
+	 DBHW4uDn36qp2LQ/0evnv0SGkq2jFFVUd1tKyW0g=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Balbir Singh <bsingharora@gmail.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Arnd Bergmann <arnd@arndb.de>,
-	Dan Carpenter <dan.carpenter@oracle.com>,
-	Ira Weiny <ira.weiny@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
+Cc: David Hildenbrand <david@redhat.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	Michal Hocko <mhocko@suse.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Wei Yang <richard.weiyang@gmail.com>,
+	Qian Cai <cai@lca.pw>,
+	Arun KS <arunks@codeaurora.org>,
+	Mathieu Malaterre <malat@debian.org>,
+	Andrew Banman <andrew.banman@hpe.com>,
+	Andy Lutomirski <luto@kernel.org>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Borislav Petkov <bp@alien8.de>,
+	Christophe Leroy <christophe.leroy@c-s.fr>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Fenghua Yu <fenghua.yu@intel.com>,
+	Geert Uytterhoeven <geert@linux-m68k.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@kernel.org>,
+	Ingo Molnar <mingo@redhat.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Mike Travis <mike.travis@hpe.com>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Oscar Salvador <osalvador@suse.com>,
+	Paul Mackerras <paulus@samba.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	Rich Felker <dalias@libc.org>,
+	Rob Herring <robh@kernel.org>,
+	Stefan Agner <stefan@agner.ch>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Tony Luck <tony.luck@intel.com>,
+	Vasily Gorbik <gor@linux.ibm.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.0 010/173] mm/hmm: select mmu notifier when selecting HMM
-Date: Sat,  1 Jun 2019 09:16:42 -0400
-Message-Id: <20190601131934.25053-10-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.0 012/173] mm/memory_hotplug: release memory resource after arch_remove_memory()
+Date: Sat,  1 Jun 2019 09:16:44 -0400
+Message-Id: <20190601131934.25053-12-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190601131934.25053-1-sashal@kernel.org>
 References: <20190601131934.25053-1-sashal@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
 X-stable: review
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -128,50 +157,178 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jérôme Glisse <jglisse@redhat.com>
+From: David Hildenbrand <david@redhat.com>
 
-[ Upstream commit 734fb89968900b5c5f8edd5038bd4cdeab8c61d2 ]
+[ Upstream commit d9eb1417c77df7ce19abd2e41619e9dceccbdf2a ]
 
-To avoid random config build issue, select mmu notifier when HMM is
-selected.  In any cases when HMM get selected it will be by users that
-will also wants the mmu notifier.
+Patch series "mm/memory_hotplug: Better error handling when removing
+memory", v1.
 
-Link: http://lkml.kernel.org/r/20190403193318.16478-2-jglisse@redhat.com
-Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-Acked-by: Balbir Singh <bsingharora@gmail.com>
-Cc: Ralph Campbell <rcampbell@nvidia.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Dan Carpenter <dan.carpenter@oracle.com>
-Cc: Ira Weiny <ira.weiny@intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Souptick Joarder <jrdr.linux@gmail.com>
+Error handling when removing memory is somewhat messed up right now.  Some
+errors result in warnings, others are completely ignored.  Memory unplug
+code can essentially not deal with errors properly as of now.
+remove_memory() will never fail.
+
+We have basically two choices:
+1. Allow arch_remov_memory() and friends to fail, propagating errors via
+   remove_memory(). Might be problematic (e.g. DIMMs consisting of multiple
+   pieces added/removed separately).
+2. Don't allow the functions to fail, handling errors in a nicer way.
+
+It seems like most errors that can theoretically happen are really corner
+cases and mostly theoretical (e.g.  "section not valid").  However e.g.
+aborting removal of sections while all callers simply continue in case of
+errors is not nice.
+
+If we can gurantee that removal of memory always works (and WARN/skip in
+case of theoretical errors so we can figure out what is going on), we can
+go ahead and implement better error handling when adding memory.
+
+E.g. via add_memory():
+
+arch_add_memory()
+ret = do_stuff()
+if (ret) {
+	arch_remove_memory();
+	goto error;
+}
+
+Handling here that arch_remove_memory() might fail is basically
+impossible.  So I suggest, let's avoid reporting errors while removing
+memory, warning on theoretical errors instead and continuing instead of
+aborting.
+
+This patch (of 4):
+
+__add_pages() doesn't add the memory resource, so __remove_pages()
+shouldn't remove it.  Let's factor it out.  Especially as it is a special
+case for memory used as system memory, added via add_memory() and friends.
+
+We now remove the resource after removing the sections instead of doing it
+the other way around.  I don't think this change is problematic.
+
+add_memory()
+	register memory resource
+	arch_add_memory()
+
+remove_memory
+	arch_remove_memory()
+	release memory resource
+
+While at it, explain why we ignore errors and that it only happeny if
+we remove memory in a different granularity as we added it.
+
+[david@redhat.com: fix printk warning]
+  Link: http://lkml.kernel.org/r/20190417120204.6997-1-david@redhat.com
+Link: http://lkml.kernel.org/r/20190409100148.24703-2-david@redhat.com
+Signed-off-by: David Hildenbrand <david@redhat.com>
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: David Hildenbrand <david@redhat.com>
+Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>
+Cc: Qian Cai <cai@lca.pw>
+Cc: Arun KS <arunks@codeaurora.org>
+Cc: Mathieu Malaterre <malat@debian.org>
+Cc: Andrew Banman <andrew.banman@hpe.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Christophe Leroy <christophe.leroy@c-s.fr>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Fenghua Yu <fenghua.yu@intel.com>
+Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Mike Rapoport <rppt@linux.ibm.com>
+Cc: Mike Travis <mike.travis@hpe.com>
+Cc: Nicholas Piggin <npiggin@gmail.com>
+Cc: Oscar Salvador <osalvador@suse.com>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Rich Felker <dalias@libc.org>
+Cc: Rob Herring <robh@kernel.org>
+Cc: Stefan Agner <stefan@agner.ch>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Tony Luck <tony.luck@intel.com>
+Cc: Vasily Gorbik <gor@linux.ibm.com>
+Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/Kconfig | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/memory_hotplug.c | 35 +++++++++++++++++++++--------------
+ 1 file changed, 21 insertions(+), 14 deletions(-)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 25c71eb8a7dbd..2e6d24d783f78 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -694,12 +694,12 @@ config DEV_PAGEMAP_OPS
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 7493f50ee8800..e06e7a89d0e5b 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -559,20 +559,6 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
+ 	if (is_dev_zone(zone)) {
+ 		if (altmap)
+ 			map_offset = vmem_altmap_offset(altmap);
+-	} else {
+-		resource_size_t start, size;
+-
+-		start = phys_start_pfn << PAGE_SHIFT;
+-		size = nr_pages * PAGE_SIZE;
+-
+-		ret = release_mem_region_adjustable(&iomem_resource, start,
+-					size);
+-		if (ret) {
+-			resource_size_t endres = start + size - 1;
+-
+-			pr_warn("Unable to release resource <%pa-%pa> (%d)\n",
+-					&start, &endres, ret);
+-		}
+ 	}
  
- config HMM
- 	bool
-+	select MMU_NOTIFIER
- 	select MIGRATE_VMA_HELPER
+ 	clear_zone_contiguous(zone);
+@@ -1828,6 +1814,26 @@ void try_offline_node(int nid)
+ }
+ EXPORT_SYMBOL(try_offline_node);
  
- config HMM_MIRROR
- 	bool "HMM mirror CPU page table into a device page table"
- 	depends on ARCH_HAS_HMM
--	select MMU_NOTIFIER
- 	select HMM
- 	help
- 	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
++static void __release_memory_resource(resource_size_t start,
++				      resource_size_t size)
++{
++	int ret;
++
++	/*
++	 * When removing memory in the same granularity as it was added,
++	 * this function never fails. It might only fail if resources
++	 * have to be adjusted or split. We'll ignore the error, as
++	 * removing of memory cannot fail.
++	 */
++	ret = release_mem_region_adjustable(&iomem_resource, start, size);
++	if (ret) {
++		resource_size_t endres = start + size - 1;
++
++		pr_warn("Unable to release resource <%pa-%pa> (%d)\n",
++			&start, &endres, ret);
++	}
++}
++
+ /**
+  * remove_memory
+  * @nid: the node ID
+@@ -1862,6 +1868,7 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
+ 	memblock_remove(start, size);
+ 
+ 	arch_remove_memory(nid, start, size, NULL);
++	__release_memory_resource(start, size);
+ 
+ 	try_offline_node(nid);
+ 
 -- 
 2.20.1
 
