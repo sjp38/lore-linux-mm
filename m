@@ -4,146 +4,113 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 902D4C28CC5
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6CC58C28CC4
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3DEF7272DE
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 294B0272E7
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="mHDCelFL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DEF7272DE
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="uRTQcvKU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 294B0272E7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2FB1F6B027D; Sat,  1 Jun 2019 09:20:19 -0400 (EDT)
+	id 5E3F06B0280; Sat,  1 Jun 2019 09:20:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2AD936B027E; Sat,  1 Jun 2019 09:20:19 -0400 (EDT)
+	id 545856B0281; Sat,  1 Jun 2019 09:20:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 19B516B0280; Sat,  1 Jun 2019 09:20:19 -0400 (EDT)
+	id 40ED56B0282; Sat,  1 Jun 2019 09:20:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C3AE16B027D
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:20:18 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id k23so4286283pgh.10
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:20:18 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 00E956B0280
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:20:22 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id 91so8236826pla.7
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:20:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=SVd5wm86dE1jOuxPHa00ZWw4TwzzqXWy+5qFrO8Pupc=;
-        b=CFXvwJwwGuKbkf3DodGRX40ICcX3lyPyNCsUD4BvLAUXJ73xZ9fB6DNa3arJ3XzKDk
-         CbMjNqxaBWp94dIR/uRhYYyiBu9qO9B2NNRFuH3WZqN5Wo1YZYrgm7a0z1SwfAK7XJJI
-         riu8Vp/tPRYn1T79K2ynZoY7SHrF7tbZ4uqJH1hT4bUaZv4EbHEhDHzZBDd0WH4pG7jK
-         AhfDuJaff8KEa3HI977lG9apFSkpnZCNH6vpt20AyrJeYKVhVfQubvZDa7m/3y3raobJ
-         UxKrgogYTJFu4mZtyBmO8gWONXzZLSnJ9EsRfbhbFxuRycBtX4PHIPRHTTyTT8HS2izK
-         LR7w==
-X-Gm-Message-State: APjAAAW0TrG7gZN4I6zjENRC+w74d0pJubzxsAJRt0UtQC2bMAiWvFCT
-	jtErnK5Xwq25pHwHoXENSnczeLTpkzTZGslWUI4UlCVE+BuWqegPHKRth3og38K6PK0YVOoEePb
-	rYAuXhabmmlS62K/4d6xemCVd3TUCkx+hJ6AnMsP7Phes8Cue5Shn5JXb1/YjqYpiJQ==
-X-Received: by 2002:aa7:8294:: with SMTP id s20mr9106462pfm.75.1559395218395;
-        Sat, 01 Jun 2019 06:20:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxNpA85cGpZoK3bP/xNPaNnuPKu8dwwSqvAtKdS6d5ZBfPwKD4x73br0Ff6bhjyRc96SN2f
-X-Received: by 2002:aa7:8294:: with SMTP id s20mr9106375pfm.75.1559395217527;
-        Sat, 01 Jun 2019 06:20:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559395217; cv=none;
+        bh=TWOU0K/hrU4ngO3PuvwByHo2BTlSzcDB8Zj6yl53G6I=;
+        b=FbD7xDaWX9pUduKT1a39/+hXu6swgr5bSM7+zBfzW6+VmIHV1Dmj0aH8vpjkzUYco/
+         hLRkPOY6vMagd92w4Y7Ihn5xmMdVJ67QZS0QhCbl2v3/+ucDlbUSO4bGv06hw6pPBtDs
+         LDwfAVBK7XSHT/xDa+3P+m+WLkc0rCBuqDRbKeVYHwj/LVtSFFCpxzAFeJIG4VIcrfqK
+         uuNvy+4Y7nIqs7LmZKn6HaQT9tF1Uvq8cXSSCRuYt1iNdU7BxV7mSZNzZY3izZuiWMT5
+         30yYwn0/hIowgikw5x4G3vlFibuOO+SZLN+TVhx/DbrEvUNNgFz02V+p94zDy+t9oe2F
+         WEqQ==
+X-Gm-Message-State: APjAAAUctdYRFztvIsOzjBQJqqS318rHdi/mfE6WfRmdmLEUZtborA6O
+	jBSZJccjFX9XmSB2JkGCDgzIEnxKi05a7rDPwa53DWsR4SwQx9tDX3df8CdaQpzgjiYBmgF41Xa
+	z6arqmMLrDKLWNx1yusr5+97ecA7Xuy5vYb0bgjQoW1sBRlvUzogpflD4EAfY4w5xCA==
+X-Received: by 2002:a17:902:30a3:: with SMTP id v32mr16571599plb.6.1559395221662;
+        Sat, 01 Jun 2019 06:20:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy+K2c3cOboRyi+uvT8SKjoGpjyaBwtUfH1Us4Z4PWpYDEu7J/OtJN0Rh5FNc7yPltxCSPT
+X-Received: by 2002:a17:902:30a3:: with SMTP id v32mr16571529plb.6.1559395221027;
+        Sat, 01 Jun 2019 06:20:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559395221; cv=none;
         d=google.com; s=arc-20160816;
-        b=zEoPIi/g1eLXyuCf37W8wOVgayCmvw8GuBnHsCVGv0yN24oVVuoiJJSzV7Cp/e9ijw
-         NM+ZRG/AwU43GjZ+i3BAFQA4KJQPb0JBHpPQ34/O+zxDlDDCmZfUugKoH9JqeEDqpPd5
-         nFkdT0nCFyzyCPovHrqBacDRw1I3/TGl9IooIBOYAIf1u0p6Row8Z3I+s0B6j5/8hZQR
-         kgpLS1az/EHPWHr9xB4P9SgO0S3Hw+XSyzt4Y/6dNLukkM2IHPdpb4j2hXdtoS0OW0Xy
-         RJMfeyR3Mx378cpDSTEifkAsFHuJbKDk16eNIIkaiewt9LlTd1AvH4SPeIeVYANmbzY/
-         f7Hw==
+        b=heu80UH+6Ezywuh4AXwzpvjp4phqOcLLvqaVi5thij6YhNzRIUIQz6INy1MTTMjRME
+         QAGHjjx5bahioaCc1SsQHViVvzMV4qDl2a2iZ609BFg/KP6t5S1vCYNeXBgrmpePnebk
+         XtG7o3oieSNSAQudRzs16m4raE31uId6ZzeapNp4/4oWjM0USW4epmLfldWoSKBkE5MU
+         jKPR1iUZc7Lx/twySPfTlHtq3PE7zBM/ScDeppikp7t3nKcBSUi9Ww67raHsA/VbbLSF
+         f2dp2BToyBu4HmXH12OCUNY60utP9G7esz8RM9IWqpE5y7/DXI3vO3xuSf3I6QajZG5w
+         j7WQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=SVd5wm86dE1jOuxPHa00ZWw4TwzzqXWy+5qFrO8Pupc=;
-        b=QOrp88C4jHe6nwXvNkGh4/3oqqp/ElPZiEuMZS7PUn/96WxvxHGnULvl2z8VFfMFtZ
-         mEJMqzS6xSW8A9DM3m+ql/RzLqu+Y6JykHYTIsJAfXilcHtB1SkeoXQL6iO6WgGIrD9w
-         jpFuGPJg1UjfElP0KMVVR6fQf6snEzf9M8D70dmFbC1W0EBIgmwdCBu/L9kS57tzNgOH
-         Zb8eWjUAMs/FTkj0yr6V0TWaEHrbSmkDu2sTm1LbL1/2pKw20Rrwgb4yrkzvpKRjuxK+
-         jmlW4NDDL6EhXhfc6MXlA3TMe/aps8RMF5/AdXMsluo/ZFvnHbnqd/0Pa6dKez14Sy4M
-         58eg==
+        bh=TWOU0K/hrU4ngO3PuvwByHo2BTlSzcDB8Zj6yl53G6I=;
+        b=EGVE5fuCxz5WpwCy4kqxLjBKz+TnhKifuxvNwkdTJR7Z9GfQsL362p5onjzkKGkUw9
+         3L/AitH97AAwdZMFU5j79zGs65+z8ZVaD7xpd75oaSFynBZuex5G0OUVATkzpKg/t/ju
+         JCSlB50Xqh8/T/Bltl09YbJEoIN+KT459DYwqwEEh8rVNmaLEid2ZtLX3bORFKYbX5Dd
+         4w+udOIrnNZWM1uAQIIuhWp2g3w9QPTVhs/rcElIpF5RRsREnYn4VH+GH7GgGsdGeYgp
+         Cer2n6Y89foaSNEKe9FTUD+P7zoI9cnK8taR9wwjz6x57bYQtyGkYR6m03MvLbKKN50w
+         lG6w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=mHDCelFL;
+       dkim=pass header.i=@kernel.org header.s=default header.b=uRTQcvKU;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id b61si10559184pjc.46.2019.06.01.06.20.17
+        by mx.google.com with ESMTPS id y13si2116691pfm.34.2019.06.01.06.20.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 06:20:17 -0700 (PDT)
+        Sat, 01 Jun 2019 06:20:21 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=mHDCelFL;
+       dkim=pass header.i=@kernel.org header.s=default header.b=uRTQcvKU;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 04F89272E6;
-	Sat,  1 Jun 2019 13:20:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 60D26272E4;
+	Sat,  1 Jun 2019 13:20:19 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395217;
-	bh=ScgJYkGTk/PhPT3kjMb9ADqbqdufWP7M/9PRoLC1WvQ=;
+	s=default; t=1559395220;
+	bh=i4Yu/3MTaldNHtJo+VKdVtRs33iUDUWR/V3xo/Zz3Lg=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=mHDCelFL7I+6zvUsFsCkioMT7E3sWaMnhhGNDf34Bm1e1EjH5qe40sRJ5aZsMMAnb
-	 yG94GWrBuY9ZOCYS2nVVB/WgikA1FapTtovCHV3usFMEFsekm+jY2CoGr5T9dtLaW/
-	 DBHW4uDn36qp2LQ/0evnv0SGkq2jFFVUd1tKyW0g=
+	b=uRTQcvKUTLEWl/CTApCvSDTRkzDag9dq9Ni/qRUHikROWBJvuW/ze1ZHilQ6U+6T+
+	 1Isc5efo9S/j8fLua3gT3eYoWABxaz2GryN0aPgKsSE5MR9cnKcu7I+rXJ0uRpGoTj
+	 +3Zxfhb5zm0eAG5xsAPASVTwyn7a7kPGUtRR3NIg=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: David Hildenbrand <david@redhat.com>,
-	Oscar Salvador <osalvador@suse.de>,
+Cc: Linxu Fang <fanglinxu@huawei.com>,
+	Taku Izumi <izumi.taku@jp.fujitsu.com>,
+	Xishi Qiu <qiuxishi@huawei.com>,
 	Michal Hocko <mhocko@suse.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Qian Cai <cai@lca.pw>,
-	Arun KS <arunks@codeaurora.org>,
-	Mathieu Malaterre <malat@debian.org>,
-	Andrew Banman <andrew.banman@hpe.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Borislav Petkov <bp@alien8.de>,
-	Christophe Leroy <christophe.leroy@c-s.fr>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Fenghua Yu <fenghua.yu@intel.com>,
-	Geert Uytterhoeven <geert@linux-m68k.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	Ingo Molnar <mingo@kernel.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Mike Travis <mike.travis@hpe.com>,
-	Nicholas Piggin <npiggin@gmail.com>,
-	Oscar Salvador <osalvador@suse.com>,
-	Paul Mackerras <paulus@samba.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	Rich Felker <dalias@libc.org>,
-	Rob Herring <robh@kernel.org>,
-	Stefan Agner <stefan@agner.ch>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Tony Luck <tony.luck@intel.com>,
-	Vasily Gorbik <gor@linux.ibm.com>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Pavel Tatashin <pavel.tatashin@microsoft.com>,
+	Oscar Salvador <osalvador@suse.de>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.0 012/173] mm/memory_hotplug: release memory resource after arch_remove_memory()
-Date: Sat,  1 Jun 2019 09:16:44 -0400
-Message-Id: <20190601131934.25053-12-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.0 013/173] mem-hotplug: fix node spanned pages when we have a node with only ZONE_MOVABLE
+Date: Sat,  1 Jun 2019 09:16:45 -0400
+Message-Id: <20190601131934.25053-13-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190601131934.25053-1-sashal@kernel.org>
 References: <20190601131934.25053-1-sashal@kernel.org>
@@ -157,178 +124,111 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: David Hildenbrand <david@redhat.com>
+From: Linxu Fang <fanglinxu@huawei.com>
 
-[ Upstream commit d9eb1417c77df7ce19abd2e41619e9dceccbdf2a ]
+[ Upstream commit 299c83dce9ea3a79bb4b5511d2cb996b6b8e5111 ]
 
-Patch series "mm/memory_hotplug: Better error handling when removing
-memory", v1.
+342332e6a925 ("mm/page_alloc.c: introduce kernelcore=mirror option") and
+later patches rewrote the calculation of node spanned pages.
 
-Error handling when removing memory is somewhat messed up right now.  Some
-errors result in warnings, others are completely ignored.  Memory unplug
-code can essentially not deal with errors properly as of now.
-remove_memory() will never fail.
+e506b99696a2 ("mem-hotplug: fix node spanned pages when we have a movable
+node"), but the current code still has problems,
 
-We have basically two choices:
-1. Allow arch_remov_memory() and friends to fail, propagating errors via
-   remove_memory(). Might be problematic (e.g. DIMMs consisting of multiple
-   pieces added/removed separately).
-2. Don't allow the functions to fail, handling errors in a nicer way.
+When we have a node with only zone_movable and the node id is not zero,
+the size of node spanned pages is double added.
 
-It seems like most errors that can theoretically happen are really corner
-cases and mostly theoretical (e.g.  "section not valid").  However e.g.
-aborting removal of sections while all callers simply continue in case of
-errors is not nice.
+That's because we have an empty normal zone, and zone_start_pfn or
+zone_end_pfn is not between arch_zone_lowest_possible_pfn and
+arch_zone_highest_possible_pfn, so we need to use clamp to constrain the
+range just like the commit <96e907d13602> (bootmem: Reimplement
+__absent_pages_in_range() using for_each_mem_pfn_range()).
 
-If we can gurantee that removal of memory always works (and WARN/skip in
-case of theoretical errors so we can figure out what is going on), we can
-go ahead and implement better error handling when adding memory.
+e.g.
+Zone ranges:
+  DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+  DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
+  Normal   [mem 0x0000000100000000-0x000000023fffffff]
+Movable zone start for each node
+  Node 0: 0x0000000100000000
+  Node 1: 0x0000000140000000
+Early memory node ranges
+  node   0: [mem 0x0000000000001000-0x000000000009efff]
+  node   0: [mem 0x0000000000100000-0x00000000bffdffff]
+  node   0: [mem 0x0000000100000000-0x000000013fffffff]
+  node   1: [mem 0x0000000140000000-0x000000023fffffff]
 
-E.g. via add_memory():
+node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
+node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
+node 0 Normal	spanned:0	present:0	absent:0
+node 0 Movable	spanned:0x40000 present:0x40000 absent:0
+On node 0 totalpages(node_present_pages): 1048446
+node_spanned_pages:1310719
+node 1 DMA	spanned:0	    present:0		absent:0
+node 1 DMA32	spanned:0	    present:0		absent:0
+node 1 Normal	spanned:0x100000    present:0x100000	absent:0
+node 1 Movable	spanned:0x100000    present:0x100000	absent:0
+On node 1 totalpages(node_present_pages): 2097152
+node_spanned_pages:2097152
+Memory: 6967796K/12582392K available (16388K kernel code, 3686K rwdata,
+4468K rodata, 2160K init, 10444K bss, 5614596K reserved, 0K
+cma-reserved)
 
-arch_add_memory()
-ret = do_stuff()
-if (ret) {
-	arch_remove_memory();
-	goto error;
-}
+It shows that the current memory of node 1 is double added.
+After this patch, the problem is fixed.
 
-Handling here that arch_remove_memory() might fail is basically
-impossible.  So I suggest, let's avoid reporting errors while removing
-memory, warning on theoretical errors instead and continuing instead of
-aborting.
+node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
+node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
+node 0 Normal	spanned:0	present:0	absent:0
+node 0 Movable	spanned:0x40000 present:0x40000 absent:0
+On node 0 totalpages(node_present_pages): 1048446
+node_spanned_pages:1310719
+node 1 DMA	spanned:0	    present:0		absent:0
+node 1 DMA32	spanned:0	    present:0		absent:0
+node 1 Normal	spanned:0	    present:0		absent:0
+node 1 Movable	spanned:0x100000    present:0x100000	absent:0
+On node 1 totalpages(node_present_pages): 1048576
+node_spanned_pages:1048576
+memory: 6967796K/8388088K available (16388K kernel code, 3686K rwdata,
+4468K rodata, 2160K init, 10444K bss, 1420292K reserved, 0K
+cma-reserved)
 
-This patch (of 4):
-
-__add_pages() doesn't add the memory resource, so __remove_pages()
-shouldn't remove it.  Let's factor it out.  Especially as it is a special
-case for memory used as system memory, added via add_memory() and friends.
-
-We now remove the resource after removing the sections instead of doing it
-the other way around.  I don't think this change is problematic.
-
-add_memory()
-	register memory resource
-	arch_add_memory()
-
-remove_memory
-	arch_remove_memory()
-	release memory resource
-
-While at it, explain why we ignore errors and that it only happeny if
-we remove memory in a different granularity as we added it.
-
-[david@redhat.com: fix printk warning]
-  Link: http://lkml.kernel.org/r/20190417120204.6997-1-david@redhat.com
-Link: http://lkml.kernel.org/r/20190409100148.24703-2-david@redhat.com
-Signed-off-by: David Hildenbrand <david@redhat.com>
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Link: http://lkml.kernel.org/r/1554178276-10372-1-git-send-email-fanglinxu@huawei.com
+Signed-off-by: Linxu Fang <fanglinxu@huawei.com>
+Cc: Taku Izumi <izumi.taku@jp.fujitsu.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>
 Cc: Michal Hocko <mhocko@suse.com>
-Cc: David Hildenbrand <david@redhat.com>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>
-Cc: Qian Cai <cai@lca.pw>
-Cc: Arun KS <arunks@codeaurora.org>
-Cc: Mathieu Malaterre <malat@debian.org>
-Cc: Andrew Banman <andrew.banman@hpe.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Fenghua Yu <fenghua.yu@intel.com>
-Cc: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Mike Travis <mike.travis@hpe.com>
-Cc: Nicholas Piggin <npiggin@gmail.com>
-Cc: Oscar Salvador <osalvador@suse.com>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Rich Felker <dalias@libc.org>
-Cc: Rob Herring <robh@kernel.org>
-Cc: Stefan Agner <stefan@agner.ch>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Tony Luck <tony.luck@intel.com>
-Cc: Vasily Gorbik <gor@linux.ibm.com>
-Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
+Cc: Oscar Salvador <osalvador@suse.de>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/memory_hotplug.c | 35 +++++++++++++++++++++--------------
- 1 file changed, 21 insertions(+), 14 deletions(-)
+ mm/page_alloc.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 7493f50ee8800..e06e7a89d0e5b 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -559,20 +559,6 @@ int __remove_pages(struct zone *zone, unsigned long phys_start_pfn,
- 	if (is_dev_zone(zone)) {
- 		if (altmap)
- 			map_offset = vmem_altmap_offset(altmap);
--	} else {
--		resource_size_t start, size;
--
--		start = phys_start_pfn << PAGE_SHIFT;
--		size = nr_pages * PAGE_SIZE;
--
--		ret = release_mem_region_adjustable(&iomem_resource, start,
--					size);
--		if (ret) {
--			resource_size_t endres = start + size - 1;
--
--			pr_warn("Unable to release resource <%pa-%pa> (%d)\n",
--					&start, &endres, ret);
--		}
- 	}
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d59be95ba45cf..140acb4b69aae 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6182,13 +6182,15 @@ static unsigned long __init zone_spanned_pages_in_node(int nid,
+ 					unsigned long *zone_end_pfn,
+ 					unsigned long *ignored)
+ {
++	unsigned long zone_low = arch_zone_lowest_possible_pfn[zone_type];
++	unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
+ 	/* When hotadd a new node from cpu_up(), the node should be empty */
+ 	if (!node_start_pfn && !node_end_pfn)
+ 		return 0;
  
- 	clear_zone_contiguous(zone);
-@@ -1828,6 +1814,26 @@ void try_offline_node(int nid)
- }
- EXPORT_SYMBOL(try_offline_node);
- 
-+static void __release_memory_resource(resource_size_t start,
-+				      resource_size_t size)
-+{
-+	int ret;
-+
-+	/*
-+	 * When removing memory in the same granularity as it was added,
-+	 * this function never fails. It might only fail if resources
-+	 * have to be adjusted or split. We'll ignore the error, as
-+	 * removing of memory cannot fail.
-+	 */
-+	ret = release_mem_region_adjustable(&iomem_resource, start, size);
-+	if (ret) {
-+		resource_size_t endres = start + size - 1;
-+
-+		pr_warn("Unable to release resource <%pa-%pa> (%d)\n",
-+			&start, &endres, ret);
-+	}
-+}
-+
- /**
-  * remove_memory
-  * @nid: the node ID
-@@ -1862,6 +1868,7 @@ void __ref __remove_memory(int nid, u64 start, u64 size)
- 	memblock_remove(start, size);
- 
- 	arch_remove_memory(nid, start, size, NULL);
-+	__release_memory_resource(start, size);
- 
- 	try_offline_node(nid);
- 
+ 	/* Get the start and end of the zone */
+-	*zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+-	*zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
++	*zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
++	*zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
+ 	adjust_zone_range_for_zone_movable(nid, zone_type,
+ 				node_start_pfn, node_end_pfn,
+ 				zone_start_pfn, zone_end_pfn);
 -- 
 2.20.1
 
