@@ -4,112 +4,121 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C246C28CC4
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 43DF6C28CC4
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C900E27227
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0B1F1251F0
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="KEcQjyjM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C900E27227
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="x+MA9Hcl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B1F1251F0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 546446B0005; Sat,  1 Jun 2019 09:17:20 -0400 (EDT)
+	id 9DAB66B0007; Sat,  1 Jun 2019 09:17:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4F66C6B0006; Sat,  1 Jun 2019 09:17:20 -0400 (EDT)
+	id 98A2F6B0008; Sat,  1 Jun 2019 09:17:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3BEA16B0007; Sat,  1 Jun 2019 09:17:20 -0400 (EDT)
+	id 853006B000A; Sat,  1 Jun 2019 09:17:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0728F6B0005
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:17:20 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id q2so8219193plr.19
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:17:19 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A3A16B0007
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:17:28 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id x5so9623166pfi.5
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:17:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=h70okURhlvAWEM4NYE0qde9CjEvbbnTnYv0qKego/VI=;
-        b=BtKqkCSLYwDTnoN7UG7ohs8YkanFSd3IZW5tJ8V4Lg2QkTOxBMflJpYp61WPTnxr1q
-         DUKiO4ZgJP50ury1PB9qY2q3/S/R1cykJ9jdmWGOzJaMNJz6l+uyHxZAsor98JonC+ri
-         wJ/3BL8y7420+iK+gOSXksct8OwTJRG+7knko1HVMnnGbi5mRQc55BdBP13byoRUR77D
-         UFOTVCX4XKSTvcBn72GMYPWJsRzxrfhtucQknbKFBhYGCMRrr1/urF6o0+ZQgn0lMBzX
-         z1ZllJKApcfHKT5EwNsNNVS/HzhntReHMWtgurGpYVAp0i5O9L6OdmZ3nGpHpf4oB6eS
-         24gg==
-X-Gm-Message-State: APjAAAUc4haHWnV4AmCDVi29tGbSMX1AUKrUpfljpGxIKaAgN5kv71Vm
-	FiuvVMjN8GjTo1UvlQndBK6Mrgmg47LO5p+DwyHRMau8uLWXAMQYZLuDU+d3esSvOe5ALLjQ+h/
-	+QNLchF58jvqnyt05/VX48e9knGOwR5MEbngg5e9RgpFU4xawrQUgDLkGh6r609fXBg==
-X-Received: by 2002:a17:90a:734a:: with SMTP id j10mr16370914pjs.92.1559395039479;
-        Sat, 01 Jun 2019 06:17:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxmR9PGnXj2wYpURBG4Ph4dl1bXYR4QTBRR60wH2pmAuB1+juvbyE8JEZVE64rYdnKQVTdp
-X-Received: by 2002:a17:90a:734a:: with SMTP id j10mr16370817pjs.92.1559395038611;
-        Sat, 01 Jun 2019 06:17:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559395038; cv=none;
+        bh=aieyxn0mEzFmT/SVMyLfZDKWsbL/bT/xQcHnCZy3OlU=;
+        b=Pp0/85da30DnuTv6HhFoaj/v53Vt0hHyW0ATeFQZwfGiSJFsJBdIaSZwufV82PJgkV
+         PgVizPla/8aoIpolmno6bsiBNxwW0l4AIQIIr4yNAUW1fqtzUde667Bo81nE4nVtLoIA
+         5RHN4t6vVXHcpEIn2ccxpG4CmOI/eQm2nXP5iM3eqRz8qb3saPpcEOf2N7QzSxEnwDb8
+         VtawdXD41R2ZbTHRc+uJUFqIcG8HReoYukFWEdTZXxsUR5qrP2APtpZrTFk1V5vDa2dI
+         ST28oTXWwUjP0KMF1LSLxhJQanaY1JZkcVi5gwH0Lg+xQfhlTf3L+SR0QhzFMw163nXo
+         jnWw==
+X-Gm-Message-State: APjAAAWAYsQg1n5duvYqNFC6AL6jZJ9sub3njr7fP3aUR/YcxMEXqpo9
+	79nfMNKPXDCS/ptKMjt+jHEQFslqqQpw9W6zKb1nsZaTUd+JhPROBwDqadA6HTVr1R6U2d/fMUG
+	zhaSJ01+KNhG36YhWmFcThZ+K12FwceOeWFDIjlhYJtF0LPbUTVs1OwSu/JAlijd85A==
+X-Received: by 2002:a17:90a:be02:: with SMTP id a2mr14057221pjs.73.1559395047848;
+        Sat, 01 Jun 2019 06:17:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx2i+mgq6jmH96NIsc9DYeNSuVHQOjfYIuEucnAMdOlf21NXg+B6jbChbcomb9ahipEhR2T
+X-Received: by 2002:a17:90a:be02:: with SMTP id a2mr14057145pjs.73.1559395047130;
+        Sat, 01 Jun 2019 06:17:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559395047; cv=none;
         d=google.com; s=arc-20160816;
-        b=jdzSlsAJAxMSXaCoDpVtFme+hydE4U3Aj59poqW2UwZKYyLgR6VXDtVF9+g2CKcDPd
-         4CuFhywt3ZNmxyjKhLlL/6ljAvl+f7oiK+HNJAOcuzMf5B4kxexathffFEihCiIXX4ut
-         aHBYLIX8saqbC8xeY0x8pvjAsU+/HE1EMNGrYD8fZUNfdQWN+NUYboM01QhIxEk+butR
-         ied0OqbuFJraaNyW0eGc1AqUDbxwBIPymJnuSe02v0bBWlrGRv7SMqlfQmkJPeQy2X4r
-         YppjCUBwgyii2PjgCPClvNit+AZIdagMHH9TQlcCYn6XLHvnE458yGzhl/yaNXXCpgCU
-         v7Tw==
+        b=CPdMZ6t+WJEU73UnVJVPZLpfeSyjGWBkOjkSANphrSGJE/lcGC3o6tSflTFg+OQPUy
+         ukz3Jn1LOxI6PKHZWxakVXL6QuM8TXC6QGZWIOCexVh942p8oWuKwb1s5DCEkWbzpnEK
+         Na6komCE1AKtU0Mnk2tOxphfy1rGouZmbC/6yo0JdxufokRZsBn0VfaxQ17h5Jqsm1Lj
+         XqG/KeMoe6681EltgidxV7Em0qd3lGTwOmv566QvCuJ6NS8eyHjIT0PqEMQ22nOiymVf
+         LHSvNjHwEVnTYuGaFMV5nuymei+kg9JrzDV7iphEdM5j463ghkHEunu/xoLXAWAzJldK
+         xrkA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=h70okURhlvAWEM4NYE0qde9CjEvbbnTnYv0qKego/VI=;
-        b=oxExErzehaVm1lO5LNlYA9keVDXH3i/MCI3JlS2VMX2UJci7/Z3DyK0Es/ADn0li5Q
-         raKtc9d9rjXhL8cys27CBpSbB0j/dCgNH4C//LZNgLT6ipqmay1x/rQNGNPHoyhQXQCN
-         4fLA5zL6ZGbI9O4I2jX70FTRWfQgGdUyHP+GvPiKAtcpQIzg86cT8LY8pYp09VnJ8P72
-         UofvHsiyy8nFv3fXKCn46LBHN23LtKPEDNKJJIl0d9qfnJ28hkR6mPZYdB8cGr3XZnYu
-         /J6+cMrK2AU2i9F3N838bpoPPLzYdBlCLEgMSAMQsOxbSU/BiG9w5L7E6IiSfVUNd+y3
-         IdbQ==
+        bh=aieyxn0mEzFmT/SVMyLfZDKWsbL/bT/xQcHnCZy3OlU=;
+        b=RzrO0qeONImX3l6nVW5riY1r30v/ULKvHMw70yBbJKgKeCJyjaAYQJymC5SG2LgMOi
+         net5VNwWismHx8OBe47Lg/LleP/nU7Wl+UcDlHtSx6IwExNR/jaWDstlE+PCFAx5KZAr
+         Y5OmIj7mELBYT+7sMT4n5lUBZhHKFdp9+cIJBjth4abce9QUPOYFxpNOplXWVNtwXrB2
+         tdiX32S7mB3Jr3vn8Ax5bzdmukN+tp0tLUVkHID8nCSKOGyVxBeS1x0DrBN2aT5YBVDs
+         W1wjE6u+fvsvSVteMAXs39Rra1HsJV9+iMBYFT4DqXf4JA97Qk6w4xf12Rb2Sf/PD9PO
+         58Lw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=KEcQjyjM;
+       dkim=pass header.i=@kernel.org header.s=default header.b=x+MA9Hcl;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id s1si10094617pgs.62.2019.06.01.06.17.18
+        by mx.google.com with ESMTPS id j6si10262451plk.120.2019.06.01.06.17.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 06:17:18 -0700 (PDT)
+        Sat, 01 Jun 2019 06:17:27 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=KEcQjyjM;
+       dkim=pass header.i=@kernel.org header.s=default header.b=x+MA9Hcl;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 2B4132725B;
-	Sat,  1 Jun 2019 13:17:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 45455246F5;
+	Sat,  1 Jun 2019 13:17:25 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395038;
-	bh=Jt7V68HZiWXTwbMN1VICdRfxSL5xySYNAxl4eFdrVlE=;
+	s=default; t=1559395046;
+	bh=bjdhm5Xwy5p6mlRyQ5ERQsdIxvgBVKfKEgwzZJc15mE=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=KEcQjyjMTafUVkUJtoC2ywncRgBfpBy+Y4++RYRM5Fys7WbR8OXQyHEUS+hUv9WNw
-	 Zv2shBFQdclcLt+BGP2rgH6VUry4iM4/Lj+nI9GZHCZ0a4rCOduBsm9NcrrnWFzHev
-	 RnLE5w4ovvYcTEvVm268N9MBEO68x9De77dfMfrE=
+	b=x+MA9Hcl/paqVGs4EnEdbjwX5CMgRZPriUFWfbom6NwDCI1JHj4Iabq/g4cFb6ZpJ
+	 IFKGWERZXXaPvsjOiWQIwtqzWgTkSzwp0QYj2ogvvk1zwRNLK3Omyx8AquAFA0tcMZ
+	 rczDcM87bO4HAQH8FUVENyJyM1M8o3TbgN+20vvM=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Mike Rapoport <rppt@linux.ibm.com>,
+Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Ira Weiny <ira.weiny@intel.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Song Liu <liu.song.a23@gmail.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.1 009/186] mm/mprotect.c: fix compilation warning because of unused 'mm' variable
-Date: Sat,  1 Jun 2019 09:13:45 -0400
-Message-Id: <20190601131653.24205-9-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.1 011/186] mm/hmm: select mmu notifier when selecting HMM
+Date: Sat,  1 Jun 2019 09:13:47 -0400
+Message-Id: <20190601131653.24205-11-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190601131653.24205-1-sashal@kernel.org>
 References: <20190601131653.24205-1-sashal@kernel.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 X-stable: review
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -119,68 +128,50 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mike Rapoport <rppt@linux.ibm.com>
+From: Jérôme Glisse <jglisse@redhat.com>
 
-[ Upstream commit 94393c78964c432917014e3a456fa15c3e78f741 ]
+[ Upstream commit 734fb89968900b5c5f8edd5038bd4cdeab8c61d2 ]
 
-Since 0cbe3e26abe0 ("mm: update ptep_modify_prot_start/commit to take
-vm_area_struct as arg") the only place that uses the local 'mm' variable
-in change_pte_range() is the call to set_pte_at().
+To avoid random config build issue, select mmu notifier when HMM is
+selected.  In any cases when HMM get selected it will be by users that
+will also wants the mmu notifier.
 
-Many architectures define set_pte_at() as macro that does not use the 'mm'
-parameter, which generates the following compilation warning:
-
- CC      mm/mprotect.o
-mm/mprotect.c: In function 'change_pte_range':
-mm/mprotect.c:42:20: warning: unused variable 'mm' [-Wunused-variable]
-  struct mm_struct *mm = vma->vm_mm;
-                    ^~
-
-Fix it by passing vma->mm to set_pte_at() and dropping the local 'mm'
-variable in change_pte_range().
-
-[liu.song.a23@gmail.com: fix missed conversions]
-  Link: http://lkml.kernel.org/r/CAPhsuW6wcQgYLHNdBdw6m0YiR4RWsS4XzfpSKU7wBLLeOCTbpw@mail.gmail.comLink: http://lkml.kernel.org/r/1557305432-4940-1-git-send-email-rppt@linux.ibm.com
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
-Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-Cc: Song Liu <liu.song.a23@gmail.com>
+Link: http://lkml.kernel.org/r/20190403193318.16478-2-jglisse@redhat.com
+Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+Acked-by: Balbir Singh <bsingharora@gmail.com>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: Ira Weiny <ira.weiny@intel.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/mprotect.c | 5 ++---
- 1 file changed, 2 insertions(+), 3 deletions(-)
+ mm/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 028c724dcb1ae..ab40f3d04aa37 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -39,7 +39,6 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable, int prot_numa)
- {
--	struct mm_struct *mm = vma->vm_mm;
- 	pte_t *pte, oldpte;
- 	spinlock_t *ptl;
- 	unsigned long pages = 0;
-@@ -136,7 +135,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				newpte = swp_entry_to_pte(entry);
- 				if (pte_swp_soft_dirty(oldpte))
- 					newpte = pte_swp_mksoft_dirty(newpte);
--				set_pte_at(mm, addr, pte, newpte);
-+				set_pte_at(vma->vm_mm, addr, pte, newpte);
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 25c71eb8a7dbd..2e6d24d783f78 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -694,12 +694,12 @@ config DEV_PAGEMAP_OPS
  
- 				pages++;
- 			}
-@@ -150,7 +149,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				 */
- 				make_device_private_entry_read(&entry);
- 				newpte = swp_entry_to_pte(entry);
--				set_pte_at(mm, addr, pte, newpte);
-+				set_pte_at(vma->vm_mm, addr, pte, newpte);
+ config HMM
+ 	bool
++	select MMU_NOTIFIER
+ 	select MIGRATE_VMA_HELPER
  
- 				pages++;
- 			}
+ config HMM_MIRROR
+ 	bool "HMM mirror CPU page table into a device page table"
+ 	depends on ARCH_HAS_HMM
+-	select MMU_NOTIFIER
+ 	select HMM
+ 	help
+ 	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
 -- 
 2.20.1
 
