@@ -4,111 +4,115 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 47C07C28CC1
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:24:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 33971C28CC1
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:25:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 043C627385
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:24:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E72632737A
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:25:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="h76C05+9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 043C627385
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="l6r+31vs"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E72632737A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A71976B02B0; Sat,  1 Jun 2019 09:24:48 -0400 (EDT)
+	id 911CD6B02B2; Sat,  1 Jun 2019 09:25:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A214F6B02B2; Sat,  1 Jun 2019 09:24:48 -0400 (EDT)
+	id 8C9556B02B4; Sat,  1 Jun 2019 09:25:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C2686B02B3; Sat,  1 Jun 2019 09:24:48 -0400 (EDT)
+	id 78A376B02B5; Sat,  1 Jun 2019 09:25:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D90C6B02B0
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:24:48 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x63so944677pfx.22
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:24:48 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 41D906B02B2
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:25:19 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id d19so8262978pls.1
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:25:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=kQP+15dpLya+4CG/wWmiCCpwQfT1PxMMh0eqVaVP9fo=;
-        b=gXbtPDdLheeCQ0/dveZ0qPZNAeX2KA04+LElem1boLULzIQ4VSZRjHutEXUuAIY2cl
-         itPAiouWqVUWF4RsyeM4ntJPfIh7hz64IFNYSqZhUp9nS8pIm+lZl+nvx24wBEaPgEzu
-         S52ibyT3nS+UcME/T98mSppGFzitZxNwK4zKriBjfqEEtdid70b1lEA231idPqmBgoF+
-         bFrFRNrp4HgaUzRPKJi7t5uIdpZNbdVzTrk1uPLTb3Yo6kK5zGjyQ57uUOktEB5V1ZsW
-         jxB5vhYfxsTCuZa06GMXjBCwq24upAbi1OY9CWls2sDHFQwPQ0H+5WxtvXBSJ27EUITC
-         6oRg==
-X-Gm-Message-State: APjAAAWjVLqPkgQj8Qf9ygICKC9oEJmsMH6Y8gkNT69a2Z2+8pjG6Sav
-	PA3qnmqO5QSAVT2yFXE4OiyWEnMV55HBuFVqe2LzVh/fYpaSCcjJR7s78Hr8G2P5YwZpe7bLxWG
-	42rwbnlakvfKQXiG9W7jISAilGvHWj0I/ShSXv9OniGhu3mh//lASS43dpq+ym4qK5Q==
-X-Received: by 2002:a62:ed09:: with SMTP id u9mr17133689pfh.23.1559395487913;
-        Sat, 01 Jun 2019 06:24:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwQQUuCJz4a01zb/PxR6h6M+lpTu9WE7/WVWNSmW/q72XmkBdzrx9eJNmett1CUxfyf7dtX
-X-Received: by 2002:a62:ed09:: with SMTP id u9mr17133616pfh.23.1559395487227;
-        Sat, 01 Jun 2019 06:24:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559395487; cv=none;
+        bh=vLPTCQQrDhuHf+GHDOBloKl1uofMgSWCdUAMsl81gzc=;
+        b=Sc7/XOlkHzJsDE5H9UH495JVOjf5hKoatAjliTc66bxwnYxngR8J+JSV5Jkj/C3E5f
+         fL37Rj5C+r7rCAfjGBKKMyxMpG3otsAcSj67Rc3ofv/Xrprm9TKKlnxlf+WXsTyogXqH
+         eD9Po2hWJO+FWuJLXaEnfrRGhAaFQfVC8P6PZ5zpLYAwWSlUmZV0LmOf76p4Cdr/lNna
+         1mgyrmUd+L1yfMgl7irSdMJmM29l+LwnsJA0A61EY0hgWcbUqc+VaAmJL8Mu+B3K0HEl
+         nxHXJEeQmsFA0dieGkZG/hFkRCZUgf/IVqnZsjXFrPEO8LYZNlXskckx1TXXm0uQX5TO
+         G4iA==
+X-Gm-Message-State: APjAAAUmoaT1E5WZol4WR9L5m+vdcKBDaR8gGeVYriVIJ1XPJBL4zuIa
+	5slKDm+urR+pWIZ5nXFzcholnAXwmrDO9IJGMHq8CfNBpo7vftkudMXkuJ+E1jZzjE9+970tAd8
+	gLahJZFkvihJKO+/MK+GpiunlTyg7oQLZbIyU/NaE5I5J4B29iO395wratNPIfVY/BQ==
+X-Received: by 2002:a17:902:7618:: with SMTP id k24mr16597778pll.78.1559395518890;
+        Sat, 01 Jun 2019 06:25:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxYkIeJCe5/42Wh/wsY6zC61OiYGWifvUIu2KueUTgv+8v8p2ubZHZHxryj2FZ5HMw13YEw
+X-Received: by 2002:a17:902:7618:: with SMTP id k24mr16597710pll.78.1559395518213;
+        Sat, 01 Jun 2019 06:25:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559395518; cv=none;
         d=google.com; s=arc-20160816;
-        b=1LshuvxzVxX2MPpyO6O5xwf8bdmCLTKHzC36Cjnao0CkbyhurbxwNoEJ/xBixQmUDF
-         dO9bZDH2h5ObjTMm/wTdfkg7T7PYU002RcCTfOz1IuDj5C1TsjGt6oU/Bd1BbB+gjW7P
-         KaRnvYQ9VB2hGT7oYYGOrLMaAZG50SA1Hoo2gi7EZFWGVd2D8cZt/OF5nH+MYD5AX/5U
-         38+9xnOAA6bAu9LHuVva1v4alZocQ98OCkIUDO6ojLmWk3mFYWGamXFdM5NvO989ZN6i
-         LAa7fka8ArZuGWGSCOCAWxV+y/oCt3kinSrjbRYOt3zwcQz4nWXTqNVBq2Zx2iJpxW/q
-         H0XQ==
+        b=ZFY1WxCP6/S/3dNQ0yP8ZkAdQx4hamBW6dKTwd7aRseArkT8BVNpczBofm/XsEWAtw
+         OwqubVEkMQAO86i6Fh/7D73L8Xko/M8waTZGjmGBfjsALvCye7r5SWWT8PoxmPbcYqTW
+         d3YwnBqDbFd0AMI6g5p1NutKyg+ODoj+jINNzg2sx0cz5MpEvfvosmkfzaMqnXAuGXSF
+         WVbs3/0oojiYCproi1bkDk+Obh2/hMtd7qXrUrml8nij9MQOq+PXTqGIOv0HAuTW9VZt
+         +0R361oFr23ic1bDBFUUc1ga5hF1NXz5Mc6miwfEeKc7J5e1oXjuCRDGYUY6fubqWXlk
+         hp5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=kQP+15dpLya+4CG/wWmiCCpwQfT1PxMMh0eqVaVP9fo=;
-        b=baTwNzoRhI7iTRp2BblZ9nD3z9djqsu7LP7C8hbd8h26GY+dL5VPrwIOfaBmxdGoIi
-         xFTLk8/AMTDjK0uu59+oW3R2T2P86p/NX781gx1GSnB1XmoFE/+YJHs/jcmUpVlgGjRs
-         764R1xUEGTYUrj2LrgZTyUwfRKBz/kkrrBXSzXXQy3MCcppVE1FgAYiMyLknkslfCjmb
-         l/gYbNVK3uma6XtA7qt8yk8q/t/LdfJalTp43Yhxi5FJZ+VqAzUlogWpPVkQ/27VdWTw
-         NfBV6bZRJ1f4V0azUPIvbxp2RPPfMxaaFu4RYeNXjV5bKNkivBjxbeIphWo52OxkJg/p
-         aOlg==
+        bh=vLPTCQQrDhuHf+GHDOBloKl1uofMgSWCdUAMsl81gzc=;
+        b=IGMkdndTTxx7REvIbJBtOCbLPIF4HU1FRKkBam9XxpKwx6zG9Vf3hbpo2bbd4rfrxQ
+         3pP/pe9lEZwuIsn620nV6JSLflc+9GfzaeySMtZ2JLrdy/xFLRnOmgdpvzJtaPWWXMUy
+         kFG48wWRbMBUObRUeDGZmNRbZDhqt570T6wnwcPtXGHkorAJBSiPUMN3hjMn0Gh2Rn4O
+         josb+YfpY9tIwtezA/zpEa/iJtrf4qqfdPYX3eEEp2rSSR6oqST1vQ176eTaYDD10VdH
+         P9MfO8jG6qY/ZWd4mP3DV9Z8IoG63O2ca0VGFOB5isUv8djtJJpDiEFmk0aE3E5kNn55
+         JnwA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=h76C05+9;
+       dkim=pass header.i=@kernel.org header.s=default header.b=l6r+31vs;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id gn19si10139170plb.67.2019.06.01.06.24.47
+        by mx.google.com with ESMTPS id q29si4865256pfg.28.2019.06.01.06.25.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 06:24:47 -0700 (PDT)
+        Sat, 01 Jun 2019 06:25:18 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=h76C05+9;
+       dkim=pass header.i=@kernel.org header.s=default header.b=l6r+31vs;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 1A6862738C;
-	Sat,  1 Jun 2019 13:24:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id AD4512739B;
+	Sat,  1 Jun 2019 13:25:16 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395486;
-	bh=nuYqMwCwaG4PsWLR2mx2Ey/kaHUQDv6D9pf68XwKee0=;
+	s=default; t=1559395517;
+	bh=yaP2hH6CpFvO7MSIngyl9hWVZPMdRMnYHGCQ+0vGdPE=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=h76C05+9JN+jchdMhc/kD5giIHKOfZF1i61nPydN2+VVg5Wt3YU9JvG/yTlXKcq07
-	 If05kiEjy+V6q8m6gWQyJdQQle5sSuMKSHNZHSh6YViunKYURPXbfy9brpK8Ngjxv2
-	 RRusKEhFhIuD203AzpU7l4183swHEUq2kjA6J3Fc=
+	b=l6r+31vsTtPoxXz+ZE2x/6JyaHv8CWtW63wMRyBuvvYyRJJy2KdYZsu25qOQ9Zw7g
+	 uJbWDuyqdTKSYQZXhXsgTjiow8VbC3G3LgKkLTkuqtMLxHm8DFAPiAu+tG8DDh+x2b
+	 +74Y9F6kIOqfoqh0YeQzTrmH9vpnO1xaOBhYqIDY=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: John Sperbeck <jsperbeck@google.com>,
-	Dennis Zhou <dennis@kernel.org>,
+Cc: Mike Kravetz <mike.kravetz@oracle.com>,
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+	Davidlohr Bueso <dave@stgolabs.net>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
-	linux-mm@kvack.org,
-	netdev@vger.kernel.org,
-	bpf@vger.kernel.org
-Subject: [PATCH AUTOSEL 4.14 31/99] percpu: remove spurious lock dependency between percpu and sched
-Date: Sat,  1 Jun 2019 09:22:38 -0400
-Message-Id: <20190601132346.26558-31-sashal@kernel.org>
+	linux-mm@kvack.org
+Subject: [PATCH AUTOSEL 4.9 06/74] hugetlbfs: on restore reserve error path retain subpool reservation
+Date: Sat,  1 Jun 2019 09:23:53 -0400
+Message-Id: <20190601132501.27021-6-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190601132346.26558-1-sashal@kernel.org>
-References: <20190601132346.26558-1-sashal@kernel.org>
+In-Reply-To: <20190601132501.27021-1-sashal@kernel.org>
+References: <20190601132501.27021-1-sashal@kernel.org>
 MIME-Version: 1.0
 X-stable: review
 X-Patchwork-Hint: Ignore
@@ -119,178 +123,80 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: John Sperbeck <jsperbeck@google.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
 
-[ Upstream commit 198790d9a3aeaef5792d33a560020861126edc22 ]
+[ Upstream commit 0919e1b69ab459e06df45d3ba6658d281962db80 ]
 
-In free_percpu() we sometimes call pcpu_schedule_balance_work() to
-queue a work item (which does a wakeup) while holding pcpu_lock.
-This creates an unnecessary lock dependency between pcpu_lock and
-the scheduler's pi_lock.  There are other places where we call
-pcpu_schedule_balance_work() without hold pcpu_lock, and this case
-doesn't need to be different.
+When a huge page is allocated, PagePrivate() is set if the allocation
+consumed a reservation.  When freeing a huge page, PagePrivate is checked.
+If set, it indicates the reservation should be restored.  PagePrivate
+being set at free huge page time mostly happens on error paths.
 
-Moving the call outside the lock prevents the following lockdep splat
-when running tools/testing/selftests/bpf/{test_maps,test_progs} in
-sequence with lockdep enabled:
+When huge page reservations are created, a check is made to determine if
+the mapping is associated with an explicitly mounted filesystem.  If so,
+pages are also reserved within the filesystem.  The default action when
+freeing a huge page is to decrement the usage count in any associated
+explicitly mounted filesystem.  However, if the reservation is to be
+restored the reservation/use count within the filesystem should not be
+decrementd.  Otherwise, a subsequent page allocation and free for the same
+mapping location will cause the file filesystem usage to go 'negative'.
 
-======================================================
-WARNING: possible circular locking dependency detected
-5.1.0-dbg-DEV #1 Not tainted
-------------------------------------------------------
-kworker/23:255/18872 is trying to acquire lock:
-000000000bc79290 (&(&pool->lock)->rlock){-.-.}, at: __queue_work+0xb2/0x520
+Filesystem                         Size  Used Avail Use% Mounted on
+nodev                              4.0G -4.0M  4.1G    - /opt/hugepool
 
-but task is already holding lock:
-00000000e3e7a6aa (pcpu_lock){..-.}, at: free_percpu+0x36/0x260
+To fix, when freeing a huge page do not adjust filesystem usage if
+PagePrivate() is set to indicate the reservation should be restored.
 
-which lock already depends on the new lock.
+I did not cc stable as the problem has been around since reserves were
+added to hugetlbfs and nobody has noticed.
 
-the existing dependency chain (in reverse order) is:
-
--> #4 (pcpu_lock){..-.}:
-       lock_acquire+0x9e/0x180
-       _raw_spin_lock_irqsave+0x3a/0x50
-       pcpu_alloc+0xfa/0x780
-       __alloc_percpu_gfp+0x12/0x20
-       alloc_htab_elem+0x184/0x2b0
-       __htab_percpu_map_update_elem+0x252/0x290
-       bpf_percpu_hash_update+0x7c/0x130
-       __do_sys_bpf+0x1912/0x1be0
-       __x64_sys_bpf+0x1a/0x20
-       do_syscall_64+0x59/0x400
-       entry_SYSCALL_64_after_hwframe+0x49/0xbe
-
--> #3 (&htab->buckets[i].lock){....}:
-       lock_acquire+0x9e/0x180
-       _raw_spin_lock_irqsave+0x3a/0x50
-       htab_map_update_elem+0x1af/0x3a0
-
--> #2 (&rq->lock){-.-.}:
-       lock_acquire+0x9e/0x180
-       _raw_spin_lock+0x2f/0x40
-       task_fork_fair+0x37/0x160
-       sched_fork+0x211/0x310
-       copy_process.part.43+0x7b1/0x2160
-       _do_fork+0xda/0x6b0
-       kernel_thread+0x29/0x30
-       rest_init+0x22/0x260
-       arch_call_rest_init+0xe/0x10
-       start_kernel+0x4fd/0x520
-       x86_64_start_reservations+0x24/0x26
-       x86_64_start_kernel+0x6f/0x72
-       secondary_startup_64+0xa4/0xb0
-
--> #1 (&p->pi_lock){-.-.}:
-       lock_acquire+0x9e/0x180
-       _raw_spin_lock_irqsave+0x3a/0x50
-       try_to_wake_up+0x41/0x600
-       wake_up_process+0x15/0x20
-       create_worker+0x16b/0x1e0
-       workqueue_init+0x279/0x2ee
-       kernel_init_freeable+0xf7/0x288
-       kernel_init+0xf/0x180
-       ret_from_fork+0x24/0x30
-
--> #0 (&(&pool->lock)->rlock){-.-.}:
-       __lock_acquire+0x101f/0x12a0
-       lock_acquire+0x9e/0x180
-       _raw_spin_lock+0x2f/0x40
-       __queue_work+0xb2/0x520
-       queue_work_on+0x38/0x80
-       free_percpu+0x221/0x260
-       pcpu_freelist_destroy+0x11/0x20
-       stack_map_free+0x2a/0x40
-       bpf_map_free_deferred+0x3c/0x50
-       process_one_work+0x1f7/0x580
-       worker_thread+0x54/0x410
-       kthread+0x10f/0x150
-       ret_from_fork+0x24/0x30
-
-other info that might help us debug this:
-
-Chain exists of:
-  &(&pool->lock)->rlock --> &htab->buckets[i].lock --> pcpu_lock
-
- Possible unsafe locking scenario:
-
-       CPU0                    CPU1
-       ----                    ----
-  lock(pcpu_lock);
-                               lock(&htab->buckets[i].lock);
-                               lock(pcpu_lock);
-  lock(&(&pool->lock)->rlock);
-
- *** DEADLOCK ***
-
-3 locks held by kworker/23:255/18872:
- #0: 00000000b36a6e16 ((wq_completion)events){+.+.},
-     at: process_one_work+0x17a/0x580
- #1: 00000000dfd966f0 ((work_completion)(&map->work)){+.+.},
-     at: process_one_work+0x17a/0x580
- #2: 00000000e3e7a6aa (pcpu_lock){..-.},
-     at: free_percpu+0x36/0x260
-
-stack backtrace:
-CPU: 23 PID: 18872 Comm: kworker/23:255 Not tainted 5.1.0-dbg-DEV #1
-Hardware name: ...
-Workqueue: events bpf_map_free_deferred
-Call Trace:
- dump_stack+0x67/0x95
- print_circular_bug.isra.38+0x1c6/0x220
- check_prev_add.constprop.50+0x9f6/0xd20
- __lock_acquire+0x101f/0x12a0
- lock_acquire+0x9e/0x180
- _raw_spin_lock+0x2f/0x40
- __queue_work+0xb2/0x520
- queue_work_on+0x38/0x80
- free_percpu+0x221/0x260
- pcpu_freelist_destroy+0x11/0x20
- stack_map_free+0x2a/0x40
- bpf_map_free_deferred+0x3c/0x50
- process_one_work+0x1f7/0x580
- worker_thread+0x54/0x410
- kthread+0x10f/0x150
- ret_from_fork+0x24/0x30
-
-Signed-off-by: John Sperbeck <jsperbeck@google.com>
-Signed-off-by: Dennis Zhou <dennis@kernel.org>
+Link: http://lkml.kernel.org/r/20190328234704.27083-2-mike.kravetz@oracle.com
+Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Davidlohr Bueso <dave@stgolabs.net>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/percpu.c | 6 +++++-
- 1 file changed, 5 insertions(+), 1 deletion(-)
+ mm/hugetlb.c | 21 ++++++++++++++++-----
+ 1 file changed, 16 insertions(+), 5 deletions(-)
 
-diff --git a/mm/percpu.c b/mm/percpu.c
-index 0c06e2f549a7b..bc58bcbe4b609 100644
---- a/mm/percpu.c
-+++ b/mm/percpu.c
-@@ -1702,6 +1702,7 @@ void free_percpu(void __percpu *ptr)
- 	struct pcpu_chunk *chunk;
- 	unsigned long flags;
- 	int off;
-+	bool need_balance = false;
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 8b682da98d95b..6d40bd1759cf2 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1247,12 +1247,23 @@ void free_huge_page(struct page *page)
+ 	ClearPagePrivate(page);
  
- 	if (!ptr)
- 		return;
-@@ -1723,7 +1724,7 @@ void free_percpu(void __percpu *ptr)
+ 	/*
+-	 * A return code of zero implies that the subpool will be under its
+-	 * minimum size if the reservation is not restored after page is free.
+-	 * Therefore, force restore_reserve operation.
++	 * If PagePrivate() was set on page, page allocation consumed a
++	 * reservation.  If the page was associated with a subpool, there
++	 * would have been a page reserved in the subpool before allocation
++	 * via hugepage_subpool_get_pages().  Since we are 'restoring' the
++	 * reservtion, do not call hugepage_subpool_put_pages() as this will
++	 * remove the reserved page from the subpool.
+ 	 */
+-	if (hugepage_subpool_put_pages(spool, 1) == 0)
+-		restore_reserve = true;
++	if (!restore_reserve) {
++		/*
++		 * A return code of zero implies that the subpool will be
++		 * under its minimum size if the reservation is not restored
++		 * after page is free.  Therefore, force restore_reserve
++		 * operation.
++		 */
++		if (hugepage_subpool_put_pages(spool, 1) == 0)
++			restore_reserve = true;
++	}
  
- 		list_for_each_entry(pos, &pcpu_slot[pcpu_nr_slots - 1], list)
- 			if (pos != chunk) {
--				pcpu_schedule_balance_work();
-+				need_balance = true;
- 				break;
- 			}
- 	}
-@@ -1731,6 +1732,9 @@ void free_percpu(void __percpu *ptr)
- 	trace_percpu_free_percpu(chunk->base_addr, off, ptr);
- 
- 	spin_unlock_irqrestore(&pcpu_lock, flags);
-+
-+	if (need_balance)
-+		pcpu_schedule_balance_work();
- }
- EXPORT_SYMBOL_GPL(free_percpu);
- 
+ 	spin_lock(&hugetlb_lock);
+ 	clear_page_huge_active(page);
 -- 
 2.20.1
 
