@@ -4,107 +4,107 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B1BAEC28CC1
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 16:14:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DCEAC28CC1
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 16:29:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5E5762774C
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 16:14:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B059A27757
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 16:29:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="RdmXCPI1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E5762774C
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="Fa5BzECD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B059A27757
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C3AAC6B0005; Sat,  1 Jun 2019 12:14:39 -0400 (EDT)
+	id 5A0556B0007; Sat,  1 Jun 2019 12:29:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BC4776B0006; Sat,  1 Jun 2019 12:14:39 -0400 (EDT)
+	id 550516B0008; Sat,  1 Jun 2019 12:29:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB4046B0007; Sat,  1 Jun 2019 12:14:39 -0400 (EDT)
+	id 3A3DF6B000A; Sat,  1 Jun 2019 12:29:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 475116B0005
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 12:14:39 -0400 (EDT)
-Received: by mail-lf1-f70.google.com with SMTP id a1so319205lfi.16
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 09:14:39 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C77CB6B0007
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 12:29:15 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id v188so185862lfa.20
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 09:29:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=TKTAJ8E7sNy2vEZhocfTI/IVyiugHenGqfHPAGmTqUU=;
-        b=p3Sz/0xGXIPWc6FSph1YCyINyqmb2MCKJGPdJdcMJlMwc7xrb+v5G3d2ULwktiydF8
-         B6Y6WNPy/M0R8xibO2IOLRarzEgDxDxEzlFpiZPQxdfpY8XOcKxSMlXOonUk9NPWRogP
-         JEiMUIdcNuYcjjbk8q6LDEZMZp6asuesGC25oq9Udf1amvqfU7ruzmgWEpzyDS0RvIXN
-         afOSigb3Kc/vSICTHjpViBYJsUnIEVonuI5lSQBFkOd96AE6ZLRavJUlVD6YojadKK1S
-         vECmwjaa1EnUZZO1Xfa6Bqf0O3/hyozSPlUov3+newxKJ1T/j/jNRfjgLYBVBnCIEBhm
-         RWEg==
-X-Gm-Message-State: APjAAAXzknsM43C7zD7Md8Q0vWLNZjw96C+YjUQaHYrCBT0CxN+h9t/D
-	78523QRGZ4XyELYYbmDIjEHKAtk1+lBoTSkc7AdFuFI6bj+kfmyaqsTPJBxSFca90j+GMTN1chf
-	P5lCHTSPMBYr7H9+um6mTh8VTbPcVMB1kzzltDCVcTdfYdYGRg6EHmrmaMniA6VjuXA==
-X-Received: by 2002:a2e:97d8:: with SMTP id m24mr9245754ljj.52.1559405678353;
-        Sat, 01 Jun 2019 09:14:38 -0700 (PDT)
-X-Received: by 2002:a2e:97d8:: with SMTP id m24mr9245713ljj.52.1559405677077;
-        Sat, 01 Jun 2019 09:14:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559405677; cv=none;
+        bh=WbBlTtzN8zF5Iqk8bw1nVflVKcbi7cIeUDGHN5Yot1E=;
+        b=CSWjXrSn7DlIaEvoJCDi2UW4Idp0KaIPygfNQyrPJEvzVbX7D7lV+0GLbmx0on/hB+
+         VyJtZQThdZ2eusyZlZvllTswJx6QSmsuXDn65M436saf1qP1Kastzmoh7ZcUjZiIqesd
+         xZ5/7cjDxcWp7NswiZqCkC1M3rlVOVodoItEe5AQ2cDSwY50mZutOsN3Nkdh2nAtpPl5
+         EnNbT6+h2JUafmw/DZsSQMNrZHTNcowYGPxRPLG/JUArYWeEz9ejU76DCAHn8SIL5W7a
+         sG7zkZf35PqiYdm+5QBb28BMy02CxOL+m75dVo0AzLopycwAWhTHFLH9O/Xkjm3ZbUw8
+         Z/0g==
+X-Gm-Message-State: APjAAAVMVEP/icsclcQKrlnoTTzVxDhOavuAjYVERKg5w8vQg6WxMX4O
+	tM3tN94Zynj5GIRRBTKI4U+sRWCqDqDXdgQuVvQ4t+HS6eV88TGpFjIr6bNhtjQRXsTXoxPHa6L
+	aBOfSF1kyo2fOF5b7bNitaRg+QV/AzQXoQWplv/rxu9CgcGIgVXLTeP1Y1MVvtUFMZQ==
+X-Received: by 2002:ac2:50cd:: with SMTP id h13mr7227419lfm.36.1559406555287;
+        Sat, 01 Jun 2019 09:29:15 -0700 (PDT)
+X-Received: by 2002:ac2:50cd:: with SMTP id h13mr7227396lfm.36.1559406554299;
+        Sat, 01 Jun 2019 09:29:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559406554; cv=none;
         d=google.com; s=arc-20160816;
-        b=o8Cad3kf9XDwesSpj/EeR0W2tpANWKsJGgaUUXrawWWTK9kvKdeWeVizCplap7IsWh
-         vNDykNnh+J8md15OEosE/hN+KZgbJawVQ5VTgIVKJfbTHBnpY/3rescW3dlhGaV7Ampc
-         4lm7JlWH4oQXh7Li2vOt8G0V9eEevtKwS+4qXav2SWcCUN++0PrccFV6+hMKgO443/yR
-         Jgj53jPBulrEIS1wYK2zzPcxP0Kk5mLUd1A+S0AjPRSXbbUYefFaHU4E2LANS10o61fB
-         LqJ4mOQXS536EwsUaPsFY4/5FNufDvLs6JGZvI8mdFgmWAphHDY86Zgs0BSguPTc4MrP
-         l5ng==
+        b=c+Yph6wm5YJzbQna7pKMTEI47EtypyjcSVpdiYcdkU/NgrEpkwdhUhDdUpwmyBF5Ix
+         RFJmMKXvp8IPnqgXHwLBCUkiK5AbpmmW+rbJXi/9pDFSyKx/Z6ig9pBX5bTOQ/IYZhZE
+         FCuVemKjWfAeaxOY00RiVo+05bMX62CcV6iFqrtqCOTpZLuUTtDEHf3ZF+NcpLlLh9Fj
+         c1FHPr/FydmzO1aBa3c+StIlH8tfB+AOGN9le0LNfXjjATg0ww8WXdm3cqwvJPVzOKcg
+         VevozIPaycxZj6qoe2lq6iU7DgaIUojIwloFbIfDOhmln23UqCwuzZWNKCNp8SRdRcew
+         cHWg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=TKTAJ8E7sNy2vEZhocfTI/IVyiugHenGqfHPAGmTqUU=;
-        b=LeZY42in52MQhfPu6mx6R5se9ZfxMMnY8PXQiptGYnbsSBen6Oxji3j+5txeERLuDV
-         WWd1FsxyhXC/93tyuJ0fq4XAwxg0bjoBqRr2S2CexmepsIra0D+ENqTkMuAH5kuFS6JG
-         TVS05JQlC+sXtpD59kFyffqGdhwgLHDzWdcX8C2Uyh0O2cs1u7Ollee8bzYyc6MBgmvX
-         x4fX68cgklp9cmYul8dflae19YN6pAdkyYrifzolLx1i6LogckhqgdiiC6FWNJ6btRWA
-         m6Fiu84xeVGMaxjxNJXHCR3BucvZSvCF/WEKpG7iVP3jIONQa+ZmNWkl6e1A/43tporg
-         GQyA==
+        bh=WbBlTtzN8zF5Iqk8bw1nVflVKcbi7cIeUDGHN5Yot1E=;
+        b=EXpRh1pIp5RmnqmeP/Z7Up8Y6qMm1KVIN+KNpd5gGwkrZgRqY+SvnTcHj6YIt+WIwl
+         1krfLGKVYws0nvJIuUhR6QwoYzz0NKBClXAaHt545S4/DsRM4BRwpPTi2ICrH+ozNixd
+         sdxRB5NKeAy3Fgqe585vGFUqfH4EAdmL8CrdwchUEsPMJ1B1N4hm7SsJ2uxePfHFkL+N
+         H8Gcg3EGw4XUtlbXICtgnqurM4RHXsltMtEXP1kV5QUXikcuRWW1YlkhcMp1FQk5gJUS
+         adNtpXqt6KjFlNpdO8egl/HGXa0f8BKuQy5jq6+OpKg7z2jFJYKtl8p6z+eLnw9HUTSX
+         j5QA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=RdmXCPI1;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Fa5BzECD;
        spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n1sor2982387lfg.31.2019.06.01.09.14.36
+        by mx.google.com with SMTPS id r1sor858345lfm.25.2019.06.01.09.29.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 01 Jun 2019 09:14:36 -0700 (PDT)
+        Sat, 01 Jun 2019 09:29:14 -0700 (PDT)
 Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linux-foundation.org header.s=google header.b=RdmXCPI1;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=Fa5BzECD;
        spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=linux-foundation.org; s=google;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=TKTAJ8E7sNy2vEZhocfTI/IVyiugHenGqfHPAGmTqUU=;
-        b=RdmXCPI1V+CWEuQQLIpoDnZHvNbMKl90LuqFIcI1YnEKXhPCSK5AUEFPNd650/ERUV
-         Qh10sm7MSlB6HnOBHykL5KhchRGHirJ9ssAdIkVcDYKPumYo1Zi2YYM6BhTRVFDVSg7U
-         Nczzjs9o+pp1b0tTsgtO9YPvDZ1uwi7oKCdAA=
-X-Google-Smtp-Source: APXvYqz3zoFzjBnAHI9hKd3dD0a7uCC0BGm9xUKMHXjCA5n8ZypusR9CLT/fEUYcSc7FI8NXKWTxKg==
-X-Received: by 2002:ac2:4908:: with SMTP id n8mr8693805lfi.10.1559405675463;
-        Sat, 01 Jun 2019 09:14:35 -0700 (PDT)
-Received: from mail-lf1-f42.google.com (mail-lf1-f42.google.com. [209.85.167.42])
-        by smtp.gmail.com with ESMTPSA id j11sm1868593lfm.29.2019.06.01.09.14.33
+        bh=WbBlTtzN8zF5Iqk8bw1nVflVKcbi7cIeUDGHN5Yot1E=;
+        b=Fa5BzECDkVJJVil3Feep0HbYjDwApJFYj92zZCD6f4aYCxc2Als39M3w9fuXET3xGS
+         3dJFRH9YhqCQxcCzt7i+R2DDortv76Hw0c0yls+ilBPK12ky3bwefHhCdXxs096uQvMr
+         JNZz4F8UnUXJp5G999kMQlHK92/csNz/XzzF4=
+X-Google-Smtp-Source: APXvYqxJKjY2KzE+ZUYSjdYNinkHD+jNwTA/49k5oMj4RcNzUxaj50Dm6Z/imVs566ikE3Pnqp/bxw==
+X-Received: by 2002:a19:c301:: with SMTP id t1mr9356422lff.137.1559406553472;
+        Sat, 01 Jun 2019 09:29:13 -0700 (PDT)
+Received: from mail-lj1-f173.google.com (mail-lj1-f173.google.com. [209.85.208.173])
+        by smtp.gmail.com with ESMTPSA id f10sm1897451ljk.95.2019.06.01.09.29.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 09:14:34 -0700 (PDT)
-Received: by mail-lf1-f42.google.com with SMTP id r15so10335815lfm.11
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 09:14:33 -0700 (PDT)
-X-Received: by 2002:a19:ae01:: with SMTP id f1mr8899724lfc.29.1559405673566;
- Sat, 01 Jun 2019 09:14:33 -0700 (PDT)
+        Sat, 01 Jun 2019 09:29:10 -0700 (PDT)
+Received: by mail-lj1-f173.google.com with SMTP id a10so9223348ljf.6
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 09:29:10 -0700 (PDT)
+X-Received: by 2002:a2e:9ad1:: with SMTP id p17mr9481496ljj.147.1559406549964;
+ Sat, 01 Jun 2019 09:29:09 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190601074959.14036-1-hch@lst.de> <20190601074959.14036-4-hch@lst.de>
-In-Reply-To: <20190601074959.14036-4-hch@lst.de>
+References: <20190601074959.14036-1-hch@lst.de> <20190601074959.14036-9-hch@lst.de>
+In-Reply-To: <20190601074959.14036-9-hch@lst.de>
 From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Sat, 1 Jun 2019 09:14:17 -0700
-X-Gmail-Original-Message-ID: <CAHk-=whusWKhS=SYoC9f9HjVmPvR5uP51Mq=ZCtktqTBT2qiBw@mail.gmail.com>
-Message-ID: <CAHk-=whusWKhS=SYoC9f9HjVmPvR5uP51Mq=ZCtktqTBT2qiBw@mail.gmail.com>
-Subject: Re: [PATCH 03/16] mm: simplify gup_fast_permitted
+Date: Sat, 1 Jun 2019 09:28:54 -0700
+X-Gmail-Original-Message-ID: <CAHk-=wj9w5NxTcJsqpvYUiL3OBOH-J3=4-vXcc3GaG_U8H-gJw@mail.gmail.com>
+Message-ID: <CAHk-=wj9w5NxTcJsqpvYUiL3OBOH-J3=4-vXcc3GaG_U8H-gJw@mail.gmail.com>
+Subject: Re: [PATCH 08/16] sparc64: add the missing pgd_page definition
 To: Christoph Hellwig <hch@lst.de>
 Cc: Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>, 
 	Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>, 
@@ -122,33 +122,40 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Both sparc64 and sh had this pattern, but now that I look at it more
+closely, I think your version is wrong, or at least nonoptimal.
+
 On Sat, Jun 1, 2019 at 12:50 AM Christoph Hellwig <hch@lst.de> wrote:
 >
-> Pass in the already calculated end value instead of recomputing it, and
-> leave the end > start check in the callers instead of duplicating them
-> in the arch code.
+> +#define pgd_page(pgd)                  virt_to_page(__va(pgd_val(pgd)))
 
-Good cleanup, except it's wrong.
+Going through the virtual address is potentially very inefficient, and
+might in some cases just be wrong (ie it's definitely wrong for
+HIGHMEM style setups).
 
-> -       if (nr_pages <= 0)
-> +       if (end < start)
->                 return 0;
+It would likely be much better to go through the physical address and
+use "pfn_to_page()". I realize that we don't have a "pgd to physical",
+but neither do we really have a "pgd to virtual", and your
+"__va(pgd_val(x))" thing is not at allguaranteed to work. You're
+basically assuming that "pgd_val(x)" is the physical address, which is
+likely not entirely incorrect, but it should be checked by the
+architecture people.
 
-You moved the overflow test to generic code - good.
+The pgd value could easily have high bits with meaning, which would
+also potentially screw up the __va(x) model.
 
-You removed the sign and zero test on nr_pages - bad.
+So I thgink this would be better done with
 
-The zero test in particular is _important_ - the GUP range operators
-know and depend on the fact that they are passed a non-empty range.
+     #define pgd_page(pgd)    pfn_to_page(pgd_pfn(pgd))
 
-The sign test it less so, but is definitely appropriate. It might be
-even better to check that the "<< PAGE_SHIFT" doesn't overflow in
-"long", of course, but with callers being supposed to be trusted, the
-sign test at least checks for stupid underflow issues.
+where that "pgd_pfn()" would need to be a new (but likely very
+trivial) function. That's what we do for pte_pfn().
 
-So at the very least that "(end < start)" needs to be "(end <=
-start)", but honestly, I think the sign of the nr_pages should be
-continued to be checked.
+IOW, it would likely end up something like
 
-                      Linus
+  #define pgd_to_pfn(pgd) (pgd_val(x) >> PFN_PGD_SHIFT)
+
+David?
+
+                  Linus
 
