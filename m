@@ -7,108 +7,109 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,T_DKIMWL_WL_HIGH,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0AF39C28CC1
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 52ECFC28CC4
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B671F272E3
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 18B72272E2
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="gmVdpg1I"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B671F272E3
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="y9GkeMhN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18B72272E2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 87A216B0288; Sat,  1 Jun 2019 09:20:37 -0400 (EDT)
+	id 4F62D6B0289; Sat,  1 Jun 2019 09:20:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 82A3F6B0289; Sat,  1 Jun 2019 09:20:37 -0400 (EDT)
+	id 4A5A56B028B; Sat,  1 Jun 2019 09:20:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 657256B028A; Sat,  1 Jun 2019 09:20:37 -0400 (EDT)
+	id 396406B028C; Sat,  1 Jun 2019 09:20:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CC9B6B0288
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:20:37 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id s195so6558307pgs.13
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:20:37 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F0AA96B0289
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:20:39 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id s25so4616053pfd.21
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:20:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=TLX82GjfB2WVVgDtq4KVIuKalD0EQnphPobdQuybo6Y=;
-        b=QZOUb2j4HZbCoJdBR2CsgoxXuEry3nwzvDTs+Wwjtrb2x6TyQuKMSylm+jVAlbvEx7
-         qU5zRoZW5eB/ZF2ssf/OCumJoVapyn1W7h5GYs2Z9BEYCOHME/Tp8AD/wjOOQ/mzfx2+
-         UIp3Y2tpX0ZGrVMRoO+EWvRhIe51LpS0g4l++0Rshj0sJJx2lEXmKJlvbK4y4xsJvBXL
-         7uGtVPArQOwyvww6azSN3nqlWYxQijrdhK2C3IStiXIYlR6Sm2AKd6durn5iu7Q3IfHk
-         kW0f9djK+PTOIY81UP7SPbvJ9f/87Hf+B1nQIqyWSP3PyIE7Mogh3zNxKKtEdGr/tdoH
-         U8+g==
-X-Gm-Message-State: APjAAAXJQwxaocxfIPO835+IWh7FQpml6sYUUk91pb9UlVvWrnXTMTR/
-	eu8sOeANbXmGZc/hymPv1oo2VwGflHvTLB0U1/XBk1mTXdSLmgqseXP7hf6PPmp7LFnihQ7KGPb
-	JoX5gOjhqyO4IzcJcwDytpxso76+bcOyOThgTzp454ZkP3Sp+fT+q/XJNAphwiSpTXg==
-X-Received: by 2002:a17:90a:b296:: with SMTP id c22mr16811705pjr.28.1559395236851;
-        Sat, 01 Jun 2019 06:20:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwIlteNpGM8sWZeZ2BFuvxOr/lvw66jGFj9UUbsROmO29bMq0pePckGpHOahVZ1t+pcKRIS
-X-Received: by 2002:a17:90a:b296:: with SMTP id c22mr16811636pjr.28.1559395236167;
-        Sat, 01 Jun 2019 06:20:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559395236; cv=none;
+        bh=Olle9xQljGas3XNrVqvm1GBkXaQ4T6hhKOwDmwI0ujA=;
+        b=sa2qdqWGKx3cbZWfGZI6Yt6DfXj8Pi90lxw9LTDj25lk00/bPPAipZx8cy4lz/Nu7I
+         2KQoZVAV7FLYWoU9+nVALud12WKmyZ8qfei5aLaD07sUtvUggAjbpqr8ZcIFfSY3dm6J
+         v5XpgWi4XDKAq+Hp8Ii2btYWZV9nnCWTrE/Z3jSch6x0OgZqwxP7BGxzO4goVaqBpjaO
+         YhhcSuXwbYG4ihNMBoze5403xR5hmup61RKtNYf0+91CTXRv0J7e7iGeGrf8C24E7/7Q
+         Pbd8CgGGMy2gJozD104aPIwGpzt0g/0M/HXyRKesOY9oR6PqCATE2huW63YWuAYDHh3r
+         hFFA==
+X-Gm-Message-State: APjAAAUusxMFfkNQIaq29xU0pzL2he5AIAuIowuTvidlJ7ZLrYLTU2cJ
+	wmmFbZtKTk49qeLu5FG/h3Kg6a7b2ZNMJuvB4f3tmXWoGHWHqR2HVcfAcOQcdNS4eJq0izo0us3
+	5kHRHRmrzVfYhP+F8AmlELf1gIyeQ4pc6mwApV7gs7o8sm7fgGQ28u+Rv/LBPpy4NLQ==
+X-Received: by 2002:a63:2844:: with SMTP id o65mr14933184pgo.297.1559395239624;
+        Sat, 01 Jun 2019 06:20:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw4COI9WnfME7lVC0vcMnplCS0GtPSTDuKDX9hF5paoeStWyr3OdjevGJKTW94pjsS9fDBy
+X-Received: by 2002:a63:2844:: with SMTP id o65mr14933140pgo.297.1559395239017;
+        Sat, 01 Jun 2019 06:20:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559395239; cv=none;
         d=google.com; s=arc-20160816;
-        b=wdzS+p+7wZxSCZEXkt9MecOxWY1jD2agT64qHAKYKTx4F1EElK+vrisDBwIcGim9Yo
-         mmbm82Uf4qKMLDsqzKDtWdc+/Kez663iZ/nBh9fAsU7QiEglvwHbvSu3kgy66LmML0Ea
-         +YH7q4hZOB8RmOL3XtDt8dJHYhqfmjeuVOrL32v3dfuviQ3EJ9/+BXeBTKamsGyy0FJ9
-         bd3+pXQflMnVXQAbPRHzd2krnllSGpaZlg0OtEBPNefFG9KFga6G0iGYGpL/ghxnJxqk
-         lL1L3UuhjR3jeb6g/+jO5u3JcaNTfU6NxGanGO6j1OdNnm1TgW39IpLY+YgPp7E+G1cr
-         /nUw==
+        b=MoxhVvmB0jXlBknKG6J3gKYBn9rcIQtwEJte4A/Gqoh6seF7cJDirfk+tAjtlj7gP8
+         ea9Cp1shUxHyvNS1BLyo1BKO2mc3c090jdrfxxXkhP/1udHW1eqxuawRtjsdQsIEj6+3
+         FHr6hgvy4zK1uRDyzCkUMkwCGTJKMUxkEGWG8/UrXczWxH5aLRX7Ole9pMxL6Kjk0VDL
+         3eQSES10QA+I2PV1kmIj0T50/L5xRAGLHLP31m1i8ZlzBM2R0DXhZnxkpVG0xdYJG5j5
+         y6+zlFC6Emx5khTK4/NnELu6MDLKHJa64ac8MAesEEr2FCcxtC/AvSG0PzsKV5ObId4V
+         +PZg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=TLX82GjfB2WVVgDtq4KVIuKalD0EQnphPobdQuybo6Y=;
-        b=iKbEHDs6qpcdG1bmLk1mmk9VR7H/UoHSfgCYDGhLFvLpp11MLPYTNXvAINqCAIs+pD
-         ghVWaas9QyFeQMHkml4ZeOxtC89E+iT+lfppWgBO2qKc4pPQXq1ohr2Q2qqvHlDktPnh
-         QSuYVPERG6XXvFFZLOKLkJDt6fR1sff7+5hrLLA3JOFRcJgclGnmxw/RFpMTyU6hbJDV
-         ndN2rarREhGlKGbavTdYgcIhCKZiGFbh9GB2/1xzNASNu3sEsce/LKvedPNxaXdMAw7z
-         HPqLjYZdrSGo4UuRIO8cIo7nrlD9p3jYI7OfswNaKx83Xu5ZJO5xHbzFYi51K8nx96bJ
-         n/9A==
+        bh=Olle9xQljGas3XNrVqvm1GBkXaQ4T6hhKOwDmwI0ujA=;
+        b=a3zzeI7eYFvvVbUapTQfV6ONiUWMZSn5IbKx8rEUE5YJ4lX8DH6HXKKYjEEjmqgztm
+         LpmSLV6ar4VIWH586NFpBP2ZxG1+Tkgx5EE/m35A6JE/07vpg5uUcXES5GJKcfOwEpoS
+         h9A+KMvZwT1jFqgASEItzj6h4CXwUg8eiQZtQaukAdSu/GWx45gctbzVPzPrPqBYC9UP
+         HnHY5gRXJ62YURGO2B1jEgnLaNfjejTTleRhUIiaPTjpHoNNbpqEoao45gHNhXQEi/aA
+         zebFzZkGTfV39eq2/Hi7Cw7hKnRuK5OcQxNrsacFyvocRx4NIsNtSJfyES/rAgSlfdom
+         aZBQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=gmVdpg1I;
+       dkim=pass header.i=@kernel.org header.s=default header.b=y9GkeMhN;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id gb4si2308757plb.429.2019.06.01.06.20.36
+        by mx.google.com with ESMTPS id s97si10606227pjc.9.2019.06.01.06.20.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 06:20:36 -0700 (PDT)
+        Sat, 01 Jun 2019 06:20:39 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=gmVdpg1I;
+       dkim=pass header.i=@kernel.org header.s=default header.b=y9GkeMhN;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C0B3C272D8;
-	Sat,  1 Jun 2019 13:20:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 86666272D8;
+	Sat,  1 Jun 2019 13:20:37 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395235;
-	bh=lERRBpbiWXcItU0VZZrHkshCFTxnimKBKwtoNIoSXbM=;
+	s=default; t=1559395238;
+	bh=ySSBzNCHE8z5+w8tkOcIZjG4dIlaAl6/E1llUlc4oNg=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=gmVdpg1IjEFC8PHYzXCJUfvfHvJ7ByU/9Nw3/Wp+CqKKQ8qeaL431Yp5IuUe2PgjZ
-	 8AVtzJRnpdFYipS9Hp/SdP/muuVHxqfGwSBKtS/M+Vp1s/71eMBiiKx8jHd86iHiK+
-	 Sf24ts6tzhgj795p5ChcKj8uDGo/PWTyCgxLiuE4=
+	b=y9GkeMhNso9hEr1R8CrY6u/RMNcr4BNYWv/a/qwKITJKSwkEGlYITFTJF2r7ufnZ8
+	 wPuhYJr+D5KzVhBM8QY6VAbxKO93y7CUuGBce93OgUsEIfG+gBUJABAw+w9WQZLhqV
+	 jgnf5MXwA5ZXMArOaCy+vD6osALWZigMyOKd9cUY=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+Cc: Yue Hu <huyue2@yulong.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Joe Perches <joe@perches.com>,
+	David Rientjes <rientjes@google.com>,
+	Dmitry Safonov <d.safonov@partner.samsung.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
-	linux-fsdevel@vger.kernel.org,
-	linux-nvdimm@lists.01.org,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.0 018/173] mm: page_mkclean vs MADV_DONTNEED race
-Date: Sat,  1 Jun 2019 09:16:50 -0400
-Message-Id: <20190601131934.25053-18-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.0 019/173] mm/cma_debug.c: fix the break condition in cma_maxchunk_get()
+Date: Sat,  1 Jun 2019 09:16:51 -0400
+Message-Id: <20190601131934.25053-19-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190601131934.25053-1-sashal@kernel.org>
 References: <20190601131934.25053-1-sashal@kernel.org>
@@ -122,81 +123,44 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+From: Yue Hu <huyue2@yulong.com>
 
-[ Upstream commit 024eee0e83f0df52317be607ca521e0fc572aa07 ]
+[ Upstream commit f0fd50504a54f5548eb666dc16ddf8394e44e4b7 ]
 
-MADV_DONTNEED is handled with mmap_sem taken in read mode.  We call
-page_mkclean without holding mmap_sem.
+If not find zero bit in find_next_zero_bit(), it will return the size
+parameter passed in, so the start bit should be compared with bitmap_maxno
+rather than cma->count.  Although getting maxchunk is working fine due to
+zero value of order_per_bit currently, the operation will be stuck if
+order_per_bit is set as non-zero.
 
-MADV_DONTNEED implies that pages in the region are unmapped and subsequent
-access to the pages in that range is handled as a new page fault.  This
-implies that if we don't have parallel access to the region when
-MADV_DONTNEED is run we expect those range to be unallocated.
-
-w.r.t page_mkclean() we need to make sure that we don't break the
-MADV_DONTNEED semantics.  MADV_DONTNEED check for pmd_none without holding
-pmd_lock.  This implies we skip the pmd if we temporarily mark pmd none.
-Avoid doing that while marking the page clean.
-
-Keep the sequence same for dax too even though we don't support
-MADV_DONTNEED for dax mapping
-
-The bug was noticed by code review and I didn't observe any failures w.r.t
-test run.  This is similar to
-
-commit 58ceeb6bec86d9140f9d91d71a710e963523d063
-Author: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Date:   Thu Apr 13 14:56:26 2017 -0700
-
-    thp: fix MADV_DONTNEED vs. MADV_FREE race
-
-commit ced108037c2aa542b3ed8b7afd1576064ad1362a
-Author: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Date:   Thu Apr 13 14:56:20 2017 -0700
-
-    thp: fix MADV_DONTNEED vs. numa balancing race
-
-Link: http://lkml.kernel.org/r/20190321040610.14226-1-aneesh.kumar@linux.ibm.com
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+Link: http://lkml.kernel.org/r/20190319092734.276-1-zbestahu@gmail.com
+Signed-off-by: Yue Hu <huyue2@yulong.com>
 Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc:"Kirill A . Shutemov" <kirill@shutemov.name>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Joe Perches <joe@perches.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Dmitry Safonov <d.safonov@partner.samsung.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- fs/dax.c  | 2 +-
- mm/rmap.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ mm/cma_debug.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 8eb3e8c2b4bdc..163ebd6cc0d1c 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -814,7 +814,7 @@ static void dax_entry_mkclean(struct address_space *mapping, pgoff_t index,
- 				goto unlock_pmd;
- 
- 			flush_cache_page(vma, address, pfn);
--			pmd = pmdp_huge_clear_flush(vma, address, pmdp);
-+			pmd = pmdp_invalidate(vma, address, pmdp);
- 			pmd = pmd_wrprotect(pmd);
- 			pmd = pmd_mkclean(pmd);
- 			set_pmd_at(vma->vm_mm, address, pmdp, pmd);
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 0454ecc29537a..e0710b258c417 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -928,7 +928,7 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
- 				continue;
- 
- 			flush_cache_page(vma, address, page_to_pfn(page));
--			entry = pmdp_huge_clear_flush(vma, address, pmd);
-+			entry = pmdp_invalidate(vma, address, pmd);
- 			entry = pmd_wrprotect(entry);
- 			entry = pmd_mkclean(entry);
- 			set_pmd_at(vma->vm_mm, address, pmd, entry);
+diff --git a/mm/cma_debug.c b/mm/cma_debug.c
+index ad6723e9d110a..3e0415076cc9e 100644
+--- a/mm/cma_debug.c
++++ b/mm/cma_debug.c
+@@ -58,7 +58,7 @@ static int cma_maxchunk_get(void *data, u64 *val)
+ 	mutex_lock(&cma->lock);
+ 	for (;;) {
+ 		start = find_next_zero_bit(cma->bitmap, bitmap_maxno, end);
+-		if (start >= cma->count)
++		if (start >= bitmap_maxno)
+ 			break;
+ 		end = find_next_bit(cma->bitmap, bitmap_maxno, start);
+ 		maxchunk = max(end - start, maxchunk);
 -- 
 2.20.1
 
