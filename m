@@ -4,116 +4,121 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 792C9C28CC1
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B5010C28CC3
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2EFC2272D6
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7DC6B272E2
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:20:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="fTRpmZ9M"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2EFC2272D6
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="czmnKxGr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DC6B272E2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D81376B027B; Sat,  1 Jun 2019 09:20:17 -0400 (EDT)
+	id 2D3356B027A; Sat,  1 Jun 2019 09:20:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D63096B027C; Sat,  1 Jun 2019 09:20:17 -0400 (EDT)
+	id 284876B027C; Sat,  1 Jun 2019 09:20:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C487C6B027C; Sat,  1 Jun 2019 09:20:17 -0400 (EDT)
+	id 173E86B027D; Sat,  1 Jun 2019 09:20:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F7886B027A
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CF33C6B027A
 	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:20:17 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id q6so5817110pll.22
+Received: by mail-pf1-f198.google.com with SMTP id b127so9608486pfb.8
         for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:20:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=gSHAWGi2Bw2uuD96dbx9euRXJ4Ov19DWyrwW3pERR1Q=;
-        b=MV6OVS11qVxEZGDgwsUUYqAQT0seI91oNeLoJTs+rUd8cPgtbnWVNaN/vlrtX1Pgsa
-         /cRTurFo+L/mdIQJFoD2DYx+cW9aB5Dnz9hqX1m7qjYaLD5V981tYZWnDkQ8d9mJrIOf
-         Y4z5qy5RrqfhQ9gSM/UcF1AEtzKdDSuVEyVuq7YwHphtFNWIQRo4j/HVlLV5X2QsCvGk
-         MfgF/75iX7GLrNERZukQisvIDynCBfmlRBrm7rrce5H3w1wBEO2huw2BK0o2diqpsrgF
-         6JhGaRHn4MGBmsrSkkvMtrFN1YUN0tfRh3gkK/p/NeJz08YrjvyiX2G6E1w4akhETFs4
-         Ltcw==
-X-Gm-Message-State: APjAAAV79rVw5QA/rziphLBCyYpBIBUEP6w1KPjhZpMbtI3gqvjhZFNp
-	QQVUhY1viByvbTWAhCSEyGxuRu2kAZw570ojHqTHMrd1jviFlCFyNr/CY7Kw0yypmFxyWn2H0pz
-	q+b2bmQwhgfHwMleBOWG+awawVoVbeOI/PzaMuDlYE2xLtjSxtW+mE3f2hIYkGTNpYQ==
-X-Received: by 2002:a17:90a:a516:: with SMTP id a22mr16440601pjq.27.1559395217231;
+        bh=aieyxn0mEzFmT/SVMyLfZDKWsbL/bT/xQcHnCZy3OlU=;
+        b=TZd7ZzOfdJdA0siJoerb0kAOmk1wYOzR/NLpsuue+nWXed4wS/V3DDdpNGNUh1iqzl
+         +cmmf/qOIO3SGDkhqOdUDiMuT+sHn5L2VMfPw7G/Vkf+AFpp3xLexlF0yaL3OoZzFdrd
+         Gc3rLiJMITrzON3yWzqLTJg0Uv2aBYYB/802yvZUxqgSjTAO9TXtvk6NqXEt/b1gYeTu
+         R3ZGR3kw4fsOWtbvzOEFKn76O0VD+1nv59SV9gwJdovTqYI9gub1qYyT3ZpB0y4fS8Dc
+         uIEhA0kwIfnYH3uMx1PWveZ0D5SClokY18kM3Ta7c4KK59rMoE2QHEqvKMVmI2B0YNsA
+         Ep8A==
+X-Gm-Message-State: APjAAAVVc4XxtYzYmfDHu6t5nPFf2gAkY2rVr2uvMutHk/4x2umYxjOh
+	46sJtySEuS55k2pJ2QF4YnLtGi9g9B+JZXvE12o3jDBR9sMoJdBXMhVAMqIv0sGL5fbT7haFtn0
+	ItxA4iYgu/PC7qzK7a01K9T2PFuQQIER8ulkNqW+kXB8Lsm9RcF/ZwbCOFvc9gY0w9A==
+X-Received: by 2002:a62:ae05:: with SMTP id q5mr16575521pff.13.1559395217503;
         Sat, 01 Jun 2019 06:20:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyqKkxTc7OOgRyws2Ae90qeoHi6QUkmeRiDOvKAKXBr6MjR39nq1WaduiOax5EF9ytBRufP
-X-Received: by 2002:a17:90a:a516:: with SMTP id a22mr16440527pjq.27.1559395216542;
+X-Google-Smtp-Source: APXvYqyS8wtgzBsrde5QjWFOxS5U3rPr9CAl5HTUWH+fGEf5e/fYV/0tNkXuv+Ws+fw7m3l9NHA2
+X-Received: by 2002:a62:ae05:: with SMTP id q5mr16575479pff.13.1559395216916;
         Sat, 01 Jun 2019 06:20:16 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1559395216; cv=none;
         d=google.com; s=arc-20160816;
-        b=m8TblKbBD2q8rUrao0X4Bjz6+9SuEhNh+7ZRZj9l7a37vBPHw26zP3gRTl2fyW8zmr
-         Whou6Y8fzIUTpWuhrA2Go4ZCpWAGYPVGZBPW4DMSp+f5IGZoMhF5mWweqPwY2lYDoX7/
-         Yfqt6+RFF/uhjy5zQLytG04A65eiL4aERbdUqn8lOM45N3rZuII+VO70/l88UavlcEiC
-         m9jdLvEISmjGl12m7Oc27FcMSEdnzpwW6mLOFT8i2K6WAFOsvdVDAJfmPKpRtkmfbak/
-         8aCu8ZMjy9VDOvpMS3xjMdNfI9zk92WrEuPPJh59qWikuKXNzIjhi1Y9yNhiG3UQhgjF
-         guoA==
+        b=izL7L5JVV5Vp8xo7TttxY8pC7GxY1LLPgc0q+UgxOjcfktcZdT0CcEwh4BONy+kNGE
+         e08x5yFUYhTCc3iXsoQGuAPnCaYRBNfO2DVM21mp+nwdJuhhZgWGVo8LG+7U4spryeCK
+         ZSeGsX7wckjiC3BCIIven5OJ/RPsw+Caixbmq0RbBDgF7tL7+KPGy2NnNRsSdigswufi
+         fNTdbdrTX/l3X3hiCQ84n/9FlrGerqa7U+gyLmBHufjnZGUoYHKffE3stKDYlEq4sEe7
+         KeD7xCxHqQCAufsQ5yOWkZou/qEJF7SEXaNWsuHgiIDo11ozuHvsOpHcpCxg0X0TQoOi
+         OL+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=gSHAWGi2Bw2uuD96dbx9euRXJ4Ov19DWyrwW3pERR1Q=;
-        b=sKARv9+pupAmbqowImn7ox7QsF9ODVHgR91ep3jqOy6BWiF45xYYAtDJ7APbepxGX6
-         9HQSkTyR+HrZ6tj0CP1WFS8fU+nap8zn5ZugcW/H8EcBjBQZgZpdtKtowmP7wwb2APHK
-         MNtJqOA5WuNjZr+hPD53Wh0s1yuu6VpPvLsfdpffyxZkD9V6czA6T3wL9l3d3gdDWGbC
-         T+zhvLUZkonetKBE/qlA30mwkFUwlIWbbHDPHo45hQkIf0mJnal8zFA+uG2m/uLdb0g4
-         0aLGaLV68FicmMpH7lb1U6BPNU39MuihZM6E8zma/UVRYCCIO22hrPMtkiw7LUilHLAr
-         lEaA==
+        bh=aieyxn0mEzFmT/SVMyLfZDKWsbL/bT/xQcHnCZy3OlU=;
+        b=PmUYkz7X8X594PRFenr1kAyynr+nOyD3sStxY4d6eP0ADfZWq9/dhdFahhcfr9QCKd
+         VwN4k4aKoiOr94gGA0fXbnERK9dXjtpN1n8xLb3Q4ttuM4rgIuGCKlpYaxRjC4AHeygo
+         A04O/K5UPR3qZJXFRcjatxwEkzjqmNIo6s9iB6uY12o/+FOnQAtxoJgPhkvN/Hl3mjss
+         k/jBsje3OHdwOoXFeYp6iBdIVvHoNY/kp0awZrWDPP30X3SkwoF55aWpxaZr37MG8sRy
+         eamQ/OxAJNJ7KI/i8jY/deBrfCg+pUou2iiAi4f+VzyQqmAw97lT9arppXmBXGID8yO7
+         jRPg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=fTRpmZ9M;
+       dkim=pass header.i=@kernel.org header.s=default header.b=czmnKxGr;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id f59si10737074plb.107.2019.06.01.06.20.16
+        by mx.google.com with ESMTPS id 31si10577517plf.195.2019.06.01.06.20.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sat, 01 Jun 2019 06:20:16 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=fTRpmZ9M;
+       dkim=pass header.i=@kernel.org header.s=default header.b=czmnKxGr;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id F4026272D0;
-	Sat,  1 Jun 2019 13:20:06 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 064EB272C8;
+	Sat,  1 Jun 2019 13:20:04 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395208;
-	bh=8YaGq8+wExRIEeT0ouEk9b4OzKYM5LOfBqeGXXrKZPg=;
+	s=default; t=1559395206;
+	bh=bjdhm5Xwy5p6mlRyQ5ERQsdIxvgBVKfKEgwzZJc15mE=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=fTRpmZ9MuRHRjHn5V/lvYbpLQ2bqtJrCb5MlDKAURkdraa4rocsZACRw5eq+cO7EY
-	 uKjowb6k9mt7gOfzMJCOJ759QBBiMT5dQmjR1y1Sm/yxicDcZRViSTn6F1rjSQfoaL
-	 ko5jjEY2x6Jb71aq5JgDMKVJ3mUVi0/jRZik0EAA=
+	b=czmnKxGra7WO3SLKw3+CELvLifb0gRs2/dn17ZMvsu8iYgZEY9O0h33MKAASTi1qB
+	 Tkhi624YqdZt0dCl+mWSEZv81Eue0OyfsgSp9R7nSpVDzbJTDqoMHEOY80KaxpbIQO
+	 OPC7YUzBdhKx6iqJ78XhcH5ju0BXKeFJEK0/kb3w=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Mike Kravetz <mike.kravetz@oracle.com>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Davidlohr Bueso <dave@stgolabs.net>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Ira Weiny <ira.weiny@intel.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.0 011/173] hugetlbfs: on restore reserve error path retain subpool reservation
-Date: Sat,  1 Jun 2019 09:16:43 -0400
-Message-Id: <20190601131934.25053-11-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.0 010/173] mm/hmm: select mmu notifier when selecting HMM
+Date: Sat,  1 Jun 2019 09:16:42 -0400
+Message-Id: <20190601131934.25053-10-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190601131934.25053-1-sashal@kernel.org>
 References: <20190601131934.25053-1-sashal@kernel.org>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 X-stable: review
 X-Patchwork-Hint: Ignore
 Content-Transfer-Encoding: 8bit
@@ -123,80 +128,50 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mike Kravetz <mike.kravetz@oracle.com>
+From: Jérôme Glisse <jglisse@redhat.com>
 
-[ Upstream commit 0919e1b69ab459e06df45d3ba6658d281962db80 ]
+[ Upstream commit 734fb89968900b5c5f8edd5038bd4cdeab8c61d2 ]
 
-When a huge page is allocated, PagePrivate() is set if the allocation
-consumed a reservation.  When freeing a huge page, PagePrivate is checked.
-If set, it indicates the reservation should be restored.  PagePrivate
-being set at free huge page time mostly happens on error paths.
+To avoid random config build issue, select mmu notifier when HMM is
+selected.  In any cases when HMM get selected it will be by users that
+will also wants the mmu notifier.
 
-When huge page reservations are created, a check is made to determine if
-the mapping is associated with an explicitly mounted filesystem.  If so,
-pages are also reserved within the filesystem.  The default action when
-freeing a huge page is to decrement the usage count in any associated
-explicitly mounted filesystem.  However, if the reservation is to be
-restored the reservation/use count within the filesystem should not be
-decrementd.  Otherwise, a subsequent page allocation and free for the same
-mapping location will cause the file filesystem usage to go 'negative'.
-
-Filesystem                         Size  Used Avail Use% Mounted on
-nodev                              4.0G -4.0M  4.1G    - /opt/hugepool
-
-To fix, when freeing a huge page do not adjust filesystem usage if
-PagePrivate() is set to indicate the reservation should be restored.
-
-I did not cc stable as the problem has been around since reserves were
-added to hugetlbfs and nobody has noticed.
-
-Link: http://lkml.kernel.org/r/20190328234704.27083-2-mike.kravetz@oracle.com
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Davidlohr Bueso <dave@stgolabs.net>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Link: http://lkml.kernel.org/r/20190403193318.16478-2-jglisse@redhat.com
+Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+Acked-by: Balbir Singh <bsingharora@gmail.com>
+Cc: Ralph Campbell <rcampbell@nvidia.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: Ira Weiny <ira.weiny@intel.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+Cc: Souptick Joarder <jrdr.linux@gmail.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/hugetlb.c | 21 ++++++++++++++++-----
- 1 file changed, 16 insertions(+), 5 deletions(-)
+ mm/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index c161069bfdbc9..3880deb5f8a4c 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1257,12 +1257,23 @@ void free_huge_page(struct page *page)
- 	ClearPagePrivate(page);
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 25c71eb8a7dbd..2e6d24d783f78 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -694,12 +694,12 @@ config DEV_PAGEMAP_OPS
  
- 	/*
--	 * A return code of zero implies that the subpool will be under its
--	 * minimum size if the reservation is not restored after page is free.
--	 * Therefore, force restore_reserve operation.
-+	 * If PagePrivate() was set on page, page allocation consumed a
-+	 * reservation.  If the page was associated with a subpool, there
-+	 * would have been a page reserved in the subpool before allocation
-+	 * via hugepage_subpool_get_pages().  Since we are 'restoring' the
-+	 * reservtion, do not call hugepage_subpool_put_pages() as this will
-+	 * remove the reserved page from the subpool.
- 	 */
--	if (hugepage_subpool_put_pages(spool, 1) == 0)
--		restore_reserve = true;
-+	if (!restore_reserve) {
-+		/*
-+		 * A return code of zero implies that the subpool will be
-+		 * under its minimum size if the reservation is not restored
-+		 * after page is free.  Therefore, force restore_reserve
-+		 * operation.
-+		 */
-+		if (hugepage_subpool_put_pages(spool, 1) == 0)
-+			restore_reserve = true;
-+	}
+ config HMM
+ 	bool
++	select MMU_NOTIFIER
+ 	select MIGRATE_VMA_HELPER
  
- 	spin_lock(&hugetlb_lock);
- 	clear_page_huge_active(page);
+ config HMM_MIRROR
+ 	bool "HMM mirror CPU page table into a device page table"
+ 	depends on ARCH_HAS_HMM
+-	select MMU_NOTIFIER
+ 	select HMM
+ 	help
+ 	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
 -- 
 2.20.1
 
