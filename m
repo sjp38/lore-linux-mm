@@ -2,116 +2,149 @@ Return-Path: <SRS0=MiGm=UA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D3E0AC46470
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 09:05:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D389C28CC1
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 09:26:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7D5B121707
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 09:05:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D5B121707
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 337EF271B4
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 09:26:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 337EF271B4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=chris-wilson.co.uk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DA62E6B0010; Sat,  1 Jun 2019 05:05:03 -0400 (EDT)
+	id C0F0B6B0005; Sat,  1 Jun 2019 05:26:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D58BD6B0266; Sat,  1 Jun 2019 05:05:03 -0400 (EDT)
+	id B99316B0006; Sat,  1 Jun 2019 05:26:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C44C86B0269; Sat,  1 Jun 2019 05:05:03 -0400 (EDT)
+	id AD50A6B0007; Sat,  1 Jun 2019 05:26:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C7506B0010
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 05:05:03 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id i2so5206638wrp.12
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 02:05:03 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FC3C6B0005
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 05:26:46 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id k18so5238572wrl.4
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 02:26:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=l2WBiCb5duYJRA9nKpihqrJOH1Qjg6utSrFiu8qAdtc=;
-        b=IADaInJrVv/oTpHiw3xxIPQ766Jb32uMKAbaXh1a/0rFNA6JUgbnjpUEhxPcEcJbeb
-         cPp9CAOdTvkKiVnIl97/ZSsCd8JjjAwaFEsA/u/ZESu7T2xeeRw4QP/WMY300pueO9kI
-         /oB04JrXHGnz3KIkY/pckQdr+UsQiFrPY8a9xhdYSrWFPskkCVfJvMxrvzuUwD9UXmCB
-         WXkvn7Js+uALNeXEyUN1++VxeBta6D8/C0/0jf54Cme3Dc6LPEBtxoUIlv2cg0XkNChN
-         2J07wS05uPGWc3vXE6gDBuWjDhbuowBbd7ISzP0uTFMNCUdIpnRf49cDGsN3LxbVJ9Bz
-         n94A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAWX+UMUQBfzMSt2F7BhyApVvb94zBZqtZ9hhZ5Or4jji+4e7N3t
-	6u06ORSMGwxsGEtcjyJAzO4dEEVEFLRxsLIQn48PIZZKE3ifCeVd27wulgSwvI5mwUN0WmnTva3
-	OqBrcctSQDP8Nvq4i0ce2f85o3Kga5BEVJPvopxfC3HVvQOlNdFrXRrGvfLl9+9OBXg==
-X-Received: by 2002:a05:600c:22cb:: with SMTP id 11mr8223250wmg.159.1559379903132;
-        Sat, 01 Jun 2019 02:05:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxahfeDPYV5F4WDqBXuM/WieCZQ3G8LHrgifz9PF3tVbjiLGpA8jTSBN3E0YAHJw96sIBd3
-X-Received: by 2002:a05:600c:22cb:: with SMTP id 11mr8223206wmg.159.1559379902158;
-        Sat, 01 Jun 2019 02:05:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559379902; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :content-transfer-encoding:to:from:in-reply-to:cc:references
+         :message-id:user-agent:subject:date;
+        bh=0NTF6YWWF/C/GPt4rO/hlTmPqTjZ3wSj4q0O8XaZv8g=;
+        b=HPPY28t2v2Q7ibKq9eh7PFv8kiNYWydygnDwihE6zBJwblf47DdizStWQsMeY/Rcmx
+         hzUUtipMD95mdX7vpQc8uHVG8VAxNSIuQwuCOF7QIyvJfGCVLncGftMOrLmJjl9virKj
+         HdX37+BDK5s+OCsZEpOwD21VyMkC7d/+FydzrtPOXJIxCqkPFUKljU8JKkl/qVjibvQd
+         BGQAlDfHAVgSFmEWvZZaB73hFAxJkKjBZyGi1U0OE+MVc6oCnwLxqjQ85LokbVzYEy7f
+         Ox4o6VqsNIm7a0V1oB4cQE+YCW5Hz5o71fThHdqO+GfhBwlmu4/FkxaNrhNlQYmuwyXF
+         vfJw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 109.228.58.192 is neither permitted nor denied by best guess record for domain of chris@chris-wilson.co.uk) smtp.mailfrom=chris@chris-wilson.co.uk
+X-Gm-Message-State: APjAAAXIl1yhxLeAUrCrCwmLSSIEakOaLHkio9ITngZmSFA+vXpf2TFb
+	ZX8LFtJ5WyrH98yLnCNQekQ1qP5Q90MdxouMXl10uSL+OYnOy+/6rt04tcagw7DgSoIS5r73DaW
+	fTbxy5J4mnB/Ekn6M94RmWQ75yfy14hZj7v939nDkq1E9IA8S6I81cW1wyoHXg5s=
+X-Received: by 2002:a5d:5501:: with SMTP id b1mr9339789wrv.222.1559381205893;
+        Sat, 01 Jun 2019 02:26:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwspEBbxwdl8xoQTP5swiJzK19pMRCk9pkFFPHXksuAMBxssLB4SaBcxQC4EArVyJtqYfnd
+X-Received: by 2002:a5d:5501:: with SMTP id b1mr9339739wrv.222.1559381204907;
+        Sat, 01 Jun 2019 02:26:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559381204; cv=none;
         d=google.com; s=arc-20160816;
-        b=plT4Xj5CeVjEHqBHV4WFKhkRTNCrTCv3wVT31f++2a4gsL/bI/Eotlz3A0Ne4orn5o
-         NY3C+WZW/di9Mijs3YyzrK6OXn24BTQzMgdT+3EzFrRpiwIB7BbiRDG0+MZGt7e5fI+k
-         zRTiDRkYDzKG7YasQiy44wUJrrLtdcpKo/rLPhiGLeRAi8UqVTxQFNQQC9z1atCrpHN1
-         CkoSZD7cxwx+On7zSIvcQsUMbzz05GBFnK7ZrEAK6iKrFjz0WUvyUPvQX6OL7/EwpbQm
-         OAN0naJk0HmW16bjL5p24AM38EXOMWl0DoZ+4sZYUHCLZFgtkwruDEoK8eMUwoDXqSMH
-         Z7JQ==
+        b=VKA+vnP0BmX/g01CTMBoIlukpsUJ9NPuyQXmyIqQ6dgrEf6FG/vrXq9NIE5fSspKr0
+         99RRJk8BXuM2BuxWL/ExROsTQJn7gU/m7hNKDAc+p0G9xtlmUNt35hB8nON/SNq4K3+Y
+         IClPOTPG8F8K8TAUxNzpLFnLzvGrCyqKH2xd6yAHibmau4I/C8yefFApMKH73XGKclZn
+         Db/086958U174RopGdvZ6nF1zik67SGRNjXltG6ESpJy8hs6cTHUTvshMqIZhq22mfk4
+         bYbkbsQyuJ5hIwBV6iih+LpNVMoqcVC27pcRhL1L0xsdMDYd7nuyxNoGO6veZbXNBaSH
+         VHjg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=l2WBiCb5duYJRA9nKpihqrJOH1Qjg6utSrFiu8qAdtc=;
-        b=s75j4awiXzgtIm1YxqlGVpXNwOCj4DGaRT/e+1jWs7CZYGLO2dYo+fcRqObIZ+6x1R
-         OZqrMA2PWrA7c411VZ8z/F4RJQLo2bvYryeNsp2IE7qtMeIGbjf48I95GuQYVZn0Hv0R
-         IRixyvulHocS61gTSaVyWGuPx2m4u6uK09Bs1eViIBeK/wrAHo0f8fLCGi6qRG8a8ge0
-         sar0qFBRbaP4FitIZLXwtMxTapgWtstDLtfT787EE6Zr/DLOftCbClgRHaLnfbOi18Sh
-         UWQEKkIfhlZ0QPlZKZALliubWaTUSN8hGOIRspx4YVUjPhIE+qW+kzjoDRzdVbRBqDmi
-         gJxA==
+        h=date:subject:user-agent:message-id:references:cc:in-reply-to:from
+         :to:content-transfer-encoding:mime-version;
+        bh=0NTF6YWWF/C/GPt4rO/hlTmPqTjZ3wSj4q0O8XaZv8g=;
+        b=VGy2IzdG1aOzvOhyOtaxMbgdvgqXyjCsJc2fr0qU3/gjN04MeOTCGJfmemOBryTUAe
+         zJoDiJlf+vCX1YWs6aDGa1lFbWVpUHkBTchBNiUjN+dnMhE6vu9npSFJIaJRqM8OsMNY
+         k8Jea88i0dx0jegkZNzi+BNebvv7At/vYhZu07qTqoMslF4jxNKo7dRdXsMGup3SNJ7X
+         UN9wYZ9yM51veioKV+j+Vecehepxzka9tRnDwTDgqxRUPFeQBUVzRjl4DbjhH+t55T7H
+         ol6jC6FvJi71nAfo/Xc0zVn1uspGkEz4vUQbn0SgxoBaj/ZoAA3jwJK9uh9p1/Dsl13t
+         uX3Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id d63si5863497wmf.4.2019.06.01.02.05.01
+       spf=neutral (google.com: 109.228.58.192 is neither permitted nor denied by best guess record for domain of chris@chris-wilson.co.uk) smtp.mailfrom=chris@chris-wilson.co.uk
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
+        by mx.google.com with ESMTPS id z13si6233796wrq.58.2019.06.01.02.26.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 02:05:02 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Sat, 01 Jun 2019 02:26:44 -0700 (PDT)
+Received-SPF: neutral (google.com: 109.228.58.192 is neither permitted nor denied by best guess record for domain of chris@chris-wilson.co.uk) client-ip=109.228.58.192;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by newverein.lst.de (Postfix, from userid 2407)
-	id 5A06068AFE; Sat,  1 Jun 2019 11:04:37 +0200 (CEST)
-Date: Sat, 1 Jun 2019 11:04:37 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Alexandre Ghiti <alex@ghiti.fr>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Hellwig <hch@lst.de>,
-	Russell King <linux@armlinux.org.uk>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Ralf Baechle <ralf@linux-mips.org>,
-	Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
-	Palmer Dabbelt <palmer@sifive.com>,
-	Albert Ou <aou@eecs.berkeley.edu>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Luis Chamberlain <mcgrof@kernel.org>,
-	Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-mips@vger.kernel.org,
-	linux-riscv@lists.infradead.org, linux-fsdevel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH v4 05/14] arm64, mm: Make randomization selected by
- generic topdown mmap layout
-Message-ID: <20190601090437.GF6453@lst.de>
-References: <20190526134746.9315-1-alex@ghiti.fr> <20190526134746.9315-6-alex@ghiti.fr>
+       spf=neutral (google.com: 109.228.58.192 is neither permitted nor denied by best guess record for domain of chris@chris-wilson.co.uk) smtp.mailfrom=chris@chris-wilson.co.uk
+X-Default-Received-SPF: pass (skip=forwardok (res=PASS)) x-ip-name=78.156.65.138;
+Received: from localhost (unverified [78.156.65.138]) 
+	by fireflyinternet.com (Firefly Internet (M1)) with ESMTP (TLS) id 16757666-1500050 
+	for multiple; Sat, 01 Jun 2019 10:26:25 +0100
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190526134746.9315-6-alex@ghiti.fr>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+Content-Transfer-Encoding: quoted-printable
+To: Andrew Morton <akpm@linux-foundation.org>,
+ Matthew Wilcox <willy@infradead.org>, linux-fsdevel@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org
+From: Chris Wilson <chris@chris-wilson.co.uk>
+In-Reply-To: <20190307153051.18815-1-willy@infradead.org>
+Cc: Matthew Wilcox <willy@infradead.org>,
+ "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>,
+ Jan Kara <jack@suse.cz>, Song Liu <liu.song.a23@gmail.com>
+References: <20190307153051.18815-1-willy@infradead.org>
+Message-ID: <155938118174.22493.11599751119608173366@skylake-alporthouse-com>
+User-Agent: alot/0.6
+Subject: Re: [PATCH v4] page cache: Store only head pages in i_pages
+Date: Sat, 01 Jun 2019 10:26:21 +0100
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Looks good,
+Quoting Matthew Wilcox (2019-03-07 15:30:51)
+> Transparent Huge Pages are currently stored in i_pages as pointers to
+> consecutive subpages.  This patch changes that to storing consecutive
+> pointers to the head page in preparation for storing huge pages more
+> efficiently in i_pages.
+> =
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+> Large parts of this are "inspired" by Kirill's patch
+> https://lore.kernel.org/lkml/20170126115819.58875-2-kirill.shutemov@linux=
+.intel.com/
+> =
+
+> Signed-off-by: Matthew Wilcox <willy@infradead.org>
+> Acked-by: Jan Kara <jack@suse.cz>
+> Reviewed-by: Kirill Shutemov <kirill@shutemov.name>
+> Reviewed-and-tested-by: Song Liu <songliubraving@fb.com>
+> Tested-by: William Kucharski <william.kucharski@oracle.com>
+> Reviewed-by: William Kucharski <william.kucharski@oracle.com>
+
+I've bisected some new softlockups under THP mempressure to this patch.
+They are all rcu stalls that look similar to:
+[  242.645276] rcu: INFO: rcu_preempt detected stalls on CPUs/tasks:
+[  242.645293] rcu: 	Tasks blocked on level-0 rcu_node (CPUs 0-3): P828
+[  242.645301] 	(detected by 1, t=3D5252 jiffies, g=3D55501, q=3D221)
+[  242.645307] gem_syslatency  R  running task        0   828    815 0x0000=
+4000
+[  242.645315] Call Trace:
+[  242.645326]  ? __schedule+0x1a0/0x440
+[  242.645332]  ? preempt_schedule_irq+0x27/0x50
+[  242.645337]  ? apic_timer_interrupt+0xa/0x20
+[  242.645342]  ? xas_load+0x3c/0x80
+[  242.645347]  ? xas_load+0x8/0x80
+[  242.645353]  ? find_get_entry+0x4f/0x130
+[  242.645358]  ? pagecache_get_page+0x2b/0x210
+[  242.645364]  ? lookup_swap_cache+0x42/0x100
+[  242.645371]  ? do_swap_page+0x6f/0x600
+[  242.645375]  ? unmap_region+0xc2/0xe0
+[  242.645380]  ? __handle_mm_fault+0x7a9/0xfa0
+[  242.645385]  ? handle_mm_fault+0xc2/0x1c0
+[  242.645393]  ? __do_page_fault+0x198/0x410
+[  242.645399]  ? page_fault+0x5/0x20
+[  242.645404]  ? page_fault+0x1b/0x20
+
+Any suggestions as to what information you might want?
+-Chris
 
