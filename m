@@ -7,109 +7,110 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C1742C28CC5
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:22:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 49DE9C28CC4
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:22:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7BEDF2731D
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:22:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 03F9823FF3
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:22:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Qhl1v0HV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BEDF2731D
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="0I7yIx6m"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03F9823FF3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 237296B0292; Sat,  1 Jun 2019 09:22:21 -0400 (EDT)
+	id A25916B0294; Sat,  1 Jun 2019 09:22:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1C0A06B0294; Sat,  1 Jun 2019 09:22:21 -0400 (EDT)
+	id 9FDC76B0296; Sat,  1 Jun 2019 09:22:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0D59D6B0295; Sat,  1 Jun 2019 09:22:21 -0400 (EDT)
+	id 850546B0297; Sat,  1 Jun 2019 09:22:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BFDD86B0292
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:22:20 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id o12so8222029pll.17
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:22:20 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AD5D6B0294
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:22:24 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id y7so6215764pfy.9
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:22:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=B5mmIFXBwJv1l9kM5SWhBSvZAjXbJapmJmKj7r+SOYo=;
-        b=cAfhmGF0ZFcFilLEeslniqb0QOKJNYUXGWhZ/JiDjrz8gjZu9B/tvHt85cqDghzwL1
-         mZadSnjI4ojC7UB129ei5A+m8ClBuCMUYwVPdarmria09E1l40BtPYQSUZV1UqKPwHdU
-         3/0hq/5pqLZMvrVBTzp4gK35wd9ekXbZHABlVeKYzVawH0VViaz87qkV6b4QF0oooa/a
-         JIfoGbNWaVifo5b2Liy9i0zJASRwYqC7tMt2jelZTxSe/bsPhwFcp1p0oW9Av04LJvSG
-         EO3DjqKfRtkOjwT0+OnI9J9D6sQo8sCYlFS9lF+9p5tATCsFx12Ecou9tpUvBfsK8y6g
-         NFSw==
-X-Gm-Message-State: APjAAAUhS69oHcVFO/kWO7LYXEiYIAGupzWxbe5foRXQwP9HrfoW1e04
-	mKsaqE6b/qVC88lqkmum3703S7y8BFSMaVU55nsXtWuL899F+IO8mdI9pLouMGl4WyOxX3Yi3XO
-	970xjDgIKexLVG6djUSQp0akH3AZ61L2Yuftz+0Ho+pJfVOcylL5OAxyxUXAcF98Y0w==
-X-Received: by 2002:a62:3085:: with SMTP id w127mr16596235pfw.170.1559395340411;
-        Sat, 01 Jun 2019 06:22:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyMLzgLcckXDvzxzEWzGk9i8KLa7YqMax0KAkskhD44OLaHoesmfCF7fKDbX0Pv1MUJObd4
-X-Received: by 2002:a62:3085:: with SMTP id w127mr16596162pfw.170.1559395339732;
-        Sat, 01 Jun 2019 06:22:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559395339; cv=none;
+        bh=OWc1kTwB0fMWMaD+HRgpTNUnH04/U13qtFB17wIfYBU=;
+        b=dIVogYcUKjKy6fALVUh3EOhI6Ne5F8AXC3IXxiH6vApQqp7VsDZCtvF76xoj91pqG4
+         QvEMdoJWJF/VVrf7nlbwSMePfR5JWpqdsG+teaks4sjeLvU8o4CVjUh4nWMirc/YOJq9
+         wZr/VwHnpNRaoVdUKcNLhAM3FUMqpRWPbxVIXVsGI9c5cwg3NMkDmLh8SDDMX7yuvrm8
+         TqofWTnu1k6Kydo5wPVA9pJE4G8/YcHNWlLexmCZflMTQuyIbcDWZM/Hc+AVjxCgKVWm
+         u7QsDi7C3iR4Jw3LZXGHHVs996hLFDvhZjYb6Unv8t9M7XzTqrY9rf7YZJOtmKdAViMM
+         tZ2A==
+X-Gm-Message-State: APjAAAV0LTkffVpLzkDNDU/Te/U2ok0wCIjdMtfHgTX7Cbmyspp59wf9
+	1AT6V02pqwb9+pmUkLcVVLGx8E3SEVLy7hFX3F/j8qWOHxZTv/EKaCuvw8J0HMQTfGTYPyBlGzm
+	Fz2mI4b8YtqtA+BZxHAvO9a9Y9kcQKDtZzr8Cfxr5nByvGWXfk05F7+SrzxsIgdge9w==
+X-Received: by 2002:a62:e90a:: with SMTP id j10mr16924883pfh.147.1559395343936;
+        Sat, 01 Jun 2019 06:22:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxIpL2NDaMsOnRZTZ0vRKvfGMw8wsH/QdKWxYo+qNuFoRAZvZdJ9mD/teEOjIEtsujxdjIe
+X-Received: by 2002:a62:e90a:: with SMTP id j10mr16924811pfh.147.1559395343239;
+        Sat, 01 Jun 2019 06:22:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559395343; cv=none;
         d=google.com; s=arc-20160816;
-        b=rUSzIYRR1mtM81FGzdhZVoqH2we9FAe33ibiewU3E/Pj/cmpVwS2r54Cc74Cwi5M2X
-         2r1L9sBxv3Jf7Y5LpfHDzb+WoElt+F7YCvbPt7KeRD2TT2JU3s/c8sm+E2oXe+3hrH9z
-         ma6KqoYz7W3TJyrLs1mTleiIoX2s8FsecXX+OFa3KiCPuGQqhIOQyP0o9Gs4nm+6Ajm7
-         jnSm1UNqSWERmtY9T828Nw9jS8jhY040SzSNG14YqcwVUvtJxTGA8hozxqvXdn9PG7LR
-         MT1jlhaSa8GAZnUWzY2gciu9irTU5TD6draJFNXyUAjEQ7Y9SEPqnYGnU1D+46jqCJan
-         wRww==
+        b=fJmAIpD0Ol2dfnbFBD4FphRnn64zGUc0/JOcfVaoj3O1ifwgtXmPwFpCVPJ+p3QRJh
+         Hd76K2Iz0nOeUs/sLRJs+RbWv8mRg5gpmI+405b63tU/yg217THnXDdtLfS3IM/IxdR5
+         DANHlqyA8K58WLirmhKRH4tJ/E26zwB+4YAVTGMkF7ZrTwQhHPaWa/44LR/1EieXQZO5
+         Yqg0KVyQF+Zht6osWCuMsXSm/OpwBhFuRqrUUujN9jspyB4ARUuENMyH1raQaulFR3+R
+         WC8qll6uV6WUbhTbPTM0emQGmKFzcP7V6VEO3XA0WOZtOKYG6whtWNiwMRayMmY2U4Aq
+         ybbA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=B5mmIFXBwJv1l9kM5SWhBSvZAjXbJapmJmKj7r+SOYo=;
-        b=PaJrykhVZjqz/lVm40McMm7GnUHuPtgmk/ADOSlaKOFZyqMO2l0SS6yZ3Xf+rv8eYA
-         62r5RKiGjXI6SNA7DcjUT/Ki00am2C//1iBZon/QHKaFoVeCe92lmTVTAwRD/aTRySzI
-         S27mKMwrtJmjuVA4qdNu8ZTQZKAIojDimu54zAy12IPcxikIOGWcZGO1piSYSLxdX9u6
-         dfqZXC+GpLd4L2D2wKcrViA7rxbKYfmtC9Q9PoqCVki3exnYsI6c3v6V/xFdebEslanJ
-         wrGvx2CeZ/M2QIKqytNfvdUx4SaoYGitktyS3MOMvNs6D0RqJ9qYMcz0xICNU4ZWYP1L
-         AV7A==
+        bh=OWc1kTwB0fMWMaD+HRgpTNUnH04/U13qtFB17wIfYBU=;
+        b=kkxKVWFG/+0F4hmty5WGUMGx2sTjC3GnS0z3xE8UgXzd0Gum4T7XlbKqFg7yTx9H9a
+         aoZXNPsYfmAIbIsmU/d5Qg0s7zo4LLI1EkuYi2AK0CH0LAzhp3kof2yUSrUIzBUy6Jhv
+         mWxSBb+d/9QQHSOnR7t5dgzt2pnvZsw41Ni5Rrlkig483K6pdJgNPmAI5vF7GG8Ng46Z
+         Fwa4KdXmf/vCQBizjGuYhfnf4x/oK0i7lmCsYISEVF8m2ZaTV0kcOXAQdjHNlsYu7412
+         6dN/QcKiFgO/YtRXspfT4I88vlVkgg8Mn6FjbwZbJKoSPpd1ZMJ7cBjIzNyY6sB+ffjt
+         ewoA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Qhl1v0HV;
+       dkim=pass header.i=@kernel.org header.s=default header.b=0I7yIx6m;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e14si9699540pgi.586.2019.06.01.06.22.19
+        by mx.google.com with ESMTPS id s20si10415757pgj.63.2019.06.01.06.22.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 06:22:19 -0700 (PDT)
+        Sat, 01 Jun 2019 06:22:23 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Qhl1v0HV;
+       dkim=pass header.i=@kernel.org header.s=default header.b=0I7yIx6m;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 3C38A27303;
-	Sat,  1 Jun 2019 13:22:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 9D7EB27332;
+	Sat,  1 Jun 2019 13:22:21 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395339;
-	bh=R6setUJhWF/X4YsMpKmimjEWXraOxYSnQesJTLW/nQ4=;
+	s=default; t=1559395342;
+	bh=3/W9B79kcjbgSKblNyV8ZM25Nliu0LB0SKO6QQp74H8=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=Qhl1v0HVYsxwBLT3Z8QgVgmb6MphWMz4RKPRGm1dKFRjaW6ijD7Fpqyva6/mX7psv
-	 /Hiqyb/mWTsk+mkFiktl3vAvxVJvmVWxU4mTp9Gg0UIQL2EYIykV4j3U4CgIQDFCLs
-	 NrxIIUpxI5SOlJIXZ2Rrt8s8PP33jvgOqhUTYFw0=
+	b=0I7yIx6mvBzgvnm3Msz5ubxvDVmUr7vIS3yIT49oZFM9o+fmGA/TcafC6XWxBQxVy
+	 7CSgukNjBbhItGjy7KMs8WKSxWqBWQiFkQntGXKOih/KpAP6R0djVc8EJzFSEvQnjw
+	 qyFUFlX4wsPwOUg8M5UIhc24aXJkARy1l/Q5F0pw=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Mike Kravetz <mike.kravetz@oracle.com>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Davidlohr Bueso <dave@stgolabs.net>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
+Cc: Linxu Fang <fanglinxu@huawei.com>,
+	Taku Izumi <izumi.taku@jp.fujitsu.com>,
+	Xishi Qiu <qiuxishi@huawei.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Pavel Tatashin <pavel.tatashin@microsoft.com>,
+	Oscar Salvador <osalvador@suse.de>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.19 008/141] hugetlbfs: on restore reserve error path retain subpool reservation
-Date: Sat,  1 Jun 2019 09:19:44 -0400
-Message-Id: <20190601132158.25821-8-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.19 009/141] mem-hotplug: fix node spanned pages when we have a node with only ZONE_MOVABLE
+Date: Sat,  1 Jun 2019 09:19:45 -0400
+Message-Id: <20190601132158.25821-9-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190601132158.25821-1-sashal@kernel.org>
 References: <20190601132158.25821-1-sashal@kernel.org>
@@ -123,80 +124,111 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mike Kravetz <mike.kravetz@oracle.com>
+From: Linxu Fang <fanglinxu@huawei.com>
 
-[ Upstream commit 0919e1b69ab459e06df45d3ba6658d281962db80 ]
+[ Upstream commit 299c83dce9ea3a79bb4b5511d2cb996b6b8e5111 ]
 
-When a huge page is allocated, PagePrivate() is set if the allocation
-consumed a reservation.  When freeing a huge page, PagePrivate is checked.
-If set, it indicates the reservation should be restored.  PagePrivate
-being set at free huge page time mostly happens on error paths.
+342332e6a925 ("mm/page_alloc.c: introduce kernelcore=mirror option") and
+later patches rewrote the calculation of node spanned pages.
 
-When huge page reservations are created, a check is made to determine if
-the mapping is associated with an explicitly mounted filesystem.  If so,
-pages are also reserved within the filesystem.  The default action when
-freeing a huge page is to decrement the usage count in any associated
-explicitly mounted filesystem.  However, if the reservation is to be
-restored the reservation/use count within the filesystem should not be
-decrementd.  Otherwise, a subsequent page allocation and free for the same
-mapping location will cause the file filesystem usage to go 'negative'.
+e506b99696a2 ("mem-hotplug: fix node spanned pages when we have a movable
+node"), but the current code still has problems,
 
-Filesystem                         Size  Used Avail Use% Mounted on
-nodev                              4.0G -4.0M  4.1G    - /opt/hugepool
+When we have a node with only zone_movable and the node id is not zero,
+the size of node spanned pages is double added.
 
-To fix, when freeing a huge page do not adjust filesystem usage if
-PagePrivate() is set to indicate the reservation should be restored.
+That's because we have an empty normal zone, and zone_start_pfn or
+zone_end_pfn is not between arch_zone_lowest_possible_pfn and
+arch_zone_highest_possible_pfn, so we need to use clamp to constrain the
+range just like the commit <96e907d13602> (bootmem: Reimplement
+__absent_pages_in_range() using for_each_mem_pfn_range()).
 
-I did not cc stable as the problem has been around since reserves were
-added to hugetlbfs and nobody has noticed.
+e.g.
+Zone ranges:
+  DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+  DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
+  Normal   [mem 0x0000000100000000-0x000000023fffffff]
+Movable zone start for each node
+  Node 0: 0x0000000100000000
+  Node 1: 0x0000000140000000
+Early memory node ranges
+  node   0: [mem 0x0000000000001000-0x000000000009efff]
+  node   0: [mem 0x0000000000100000-0x00000000bffdffff]
+  node   0: [mem 0x0000000100000000-0x000000013fffffff]
+  node   1: [mem 0x0000000140000000-0x000000023fffffff]
 
-Link: http://lkml.kernel.org/r/20190328234704.27083-2-mike.kravetz@oracle.com
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Davidlohr Bueso <dave@stgolabs.net>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
+node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
+node 0 Normal	spanned:0	present:0	absent:0
+node 0 Movable	spanned:0x40000 present:0x40000 absent:0
+On node 0 totalpages(node_present_pages): 1048446
+node_spanned_pages:1310719
+node 1 DMA	spanned:0	    present:0		absent:0
+node 1 DMA32	spanned:0	    present:0		absent:0
+node 1 Normal	spanned:0x100000    present:0x100000	absent:0
+node 1 Movable	spanned:0x100000    present:0x100000	absent:0
+On node 1 totalpages(node_present_pages): 2097152
+node_spanned_pages:2097152
+Memory: 6967796K/12582392K available (16388K kernel code, 3686K rwdata,
+4468K rodata, 2160K init, 10444K bss, 5614596K reserved, 0K
+cma-reserved)
+
+It shows that the current memory of node 1 is double added.
+After this patch, the problem is fixed.
+
+node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
+node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
+node 0 Normal	spanned:0	present:0	absent:0
+node 0 Movable	spanned:0x40000 present:0x40000 absent:0
+On node 0 totalpages(node_present_pages): 1048446
+node_spanned_pages:1310719
+node 1 DMA	spanned:0	    present:0		absent:0
+node 1 DMA32	spanned:0	    present:0		absent:0
+node 1 Normal	spanned:0	    present:0		absent:0
+node 1 Movable	spanned:0x100000    present:0x100000	absent:0
+On node 1 totalpages(node_present_pages): 1048576
+node_spanned_pages:1048576
+memory: 6967796K/8388088K available (16388K kernel code, 3686K rwdata,
+4468K rodata, 2160K init, 10444K bss, 1420292K reserved, 0K
+cma-reserved)
+
+Link: http://lkml.kernel.org/r/1554178276-10372-1-git-send-email-fanglinxu@huawei.com
+Signed-off-by: Linxu Fang <fanglinxu@huawei.com>
+Cc: Taku Izumi <izumi.taku@jp.fujitsu.com>
+Cc: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
+Cc: Oscar Salvador <osalvador@suse.de>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/hugetlb.c | 21 ++++++++++++++++-----
- 1 file changed, 16 insertions(+), 5 deletions(-)
+ mm/page_alloc.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 0bbb033d7d8c8..65179513c2b25 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1256,12 +1256,23 @@ void free_huge_page(struct page *page)
- 	ClearPagePrivate(page);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8e6932a140b82..2d04bd2e1ced7 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5937,13 +5937,15 @@ static unsigned long __meminit zone_spanned_pages_in_node(int nid,
+ 					unsigned long *zone_end_pfn,
+ 					unsigned long *ignored)
+ {
++	unsigned long zone_low = arch_zone_lowest_possible_pfn[zone_type];
++	unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
+ 	/* When hotadd a new node from cpu_up(), the node should be empty */
+ 	if (!node_start_pfn && !node_end_pfn)
+ 		return 0;
  
- 	/*
--	 * A return code of zero implies that the subpool will be under its
--	 * minimum size if the reservation is not restored after page is free.
--	 * Therefore, force restore_reserve operation.
-+	 * If PagePrivate() was set on page, page allocation consumed a
-+	 * reservation.  If the page was associated with a subpool, there
-+	 * would have been a page reserved in the subpool before allocation
-+	 * via hugepage_subpool_get_pages().  Since we are 'restoring' the
-+	 * reservtion, do not call hugepage_subpool_put_pages() as this will
-+	 * remove the reserved page from the subpool.
- 	 */
--	if (hugepage_subpool_put_pages(spool, 1) == 0)
--		restore_reserve = true;
-+	if (!restore_reserve) {
-+		/*
-+		 * A return code of zero implies that the subpool will be
-+		 * under its minimum size if the reservation is not restored
-+		 * after page is free.  Therefore, force restore_reserve
-+		 * operation.
-+		 */
-+		if (hugepage_subpool_put_pages(spool, 1) == 0)
-+			restore_reserve = true;
-+	}
- 
- 	spin_lock(&hugetlb_lock);
- 	clear_page_huge_active(page);
+ 	/* Get the start and end of the zone */
+-	*zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
+-	*zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
++	*zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
++	*zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
+ 	adjust_zone_range_for_zone_movable(nid, zone_type,
+ 				node_start_pfn, node_end_pfn,
+ 				zone_start_pfn, zone_end_pfn);
 -- 
 2.20.1
 
