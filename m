@@ -7,110 +7,109 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 785BEC28CC1
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 43CA3C28CC6
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3445924870
-	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0909524870
+	for <linux-mm@archiver.kernel.org>; Sat,  1 Jun 2019 13:17:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="EW9DuTtZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3445924870
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="bwlNeDEW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0909524870
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AC98E6B0010; Sat,  1 Jun 2019 09:17:39 -0400 (EDT)
+	id 6F49E6B0269; Sat,  1 Jun 2019 09:17:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A50D86B0266; Sat,  1 Jun 2019 09:17:39 -0400 (EDT)
+	id 6A48E6B026A; Sat,  1 Jun 2019 09:17:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 87E806B0269; Sat,  1 Jun 2019 09:17:39 -0400 (EDT)
+	id 4AB8F6B026B; Sat,  1 Jun 2019 09:17:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 46A926B0010
-	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:17:39 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id s25so4610750pfd.21
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:17:39 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 10CB46B0269
+	for <linux-mm@kvack.org>; Sat,  1 Jun 2019 09:17:42 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id r12so9411780pfl.2
+        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 06:17:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=oR9rV7mIeR6mdlhFzu/0Y6SfTsiZf/SqP8cDevm0QW4=;
-        b=TkOCdxIaQPBWU9UY+j8du2hdUP/H1e13e7SKegZ9YusMlwxJlCT2shWDJxYlF4gG31
-         208zOf2tuDpia9X4OSq2GoMicfKJNywewTJsHSYpLJWOwZa+cBpHUXr1dPx7mCkqR1w1
-         sR2zg+W6U48vLWKaXpV5reTk3UUL6vRj5eBgV/Nk7BS5Hkh2fRj2BoVVHf6rc223RDNZ
-         xthZewQQt1zeU/y7htmH/ynsnjpahY7gAaH2oiGjpM9GXj1a2XrVM47PC5BGiHNA3sjx
-         XNeH40h4/Zprcvhq9EEAr4vQGHyWUdPOOHtOyDxKUH82TyDw1tgi5hv4iPasW9ki/URW
-         qMlw==
-X-Gm-Message-State: APjAAAVuA0jzl7f8dEsmhh4Cu7/QICPHUmGfussXkKGIgNvew59sHN56
-	51IrA94AjmJZa16hEXlFTip+bT7YZXIpiUM8/itpnV9Yby+t0KTKBqINEakZyX+af8sLqeKkl8k
-	fdR6FdPFwIxb8uwgf3f1TRbjlEblOTErOjnf+8qNAt0FAQ1tBV47sIBi3KHFgQgYT0g==
-X-Received: by 2002:aa7:8a95:: with SMTP id a21mr17265970pfc.215.1559395058922;
-        Sat, 01 Jun 2019 06:17:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwxtRgKEkLVnyZT6qDTU9PhKI3XsR7oSl1u/ZUi0JCK5OdQWfj0We/gUiliWdyKoTHiGua3
-X-Received: by 2002:aa7:8a95:: with SMTP id a21mr17265889pfc.215.1559395058222;
-        Sat, 01 Jun 2019 06:17:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559395058; cv=none;
+        bh=t7BiCuQVUm0eGyupyVDolC8vmiFAwNn1hoWAceAZ65M=;
+        b=oWUIdjl0IhIQ/pXaKoR7BR2tulh5XfmuKkv6jRIXUrW4GL05LiubX2KC14KtngRTHN
+         dd5B2W/n9V/L8zveZAMXMzcOTzgs37LiMcS6rznWgpHc5xeq1AhTm3pWgy7+jMF0w+JI
+         fiFIJHi8yIul6GHLQsBlldEMfZ6Umt6wEz/eo8N2L/Cp3wHDZxYrhRj/1yFpZ4FbvgG5
+         xI4BzAZZMRW5w0d2QrYLlRljcRWpJtuXJEWA732FdyX2HNW+anVBQntHLKU3UhduuBxO
+         KJVJluTsszUHnL1cZRl3zGyUVbaLvA3SqbRWpeWaRAXvy7nPxht8UnF7Iw693kQWLx4I
+         vz4A==
+X-Gm-Message-State: APjAAAWLqOLtkNodICVNyRAK77DVvMac6uIzBBwFjHsWafUiuem3/FEI
+	tDFjgu04VFGEzoGEQtgIZj/DvTPYqfZ918ZqLILREf4mlOiusv+u4wk0nIfjs4Xx3g+FryYw+og
+	dbjk+IsLEa5MZnpQ5ocFRiVlNC6A/N1Yno0YlPBo2vQnYFkCpL7wppy9pgZFeGbrgYg==
+X-Received: by 2002:a17:90a:d803:: with SMTP id a3mr16218637pjv.48.1559395061742;
+        Sat, 01 Jun 2019 06:17:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxw8bM3D+s2hFLhYxFO/aMneNb+LKNeQVI0fF6dZU/swFoxwkW9GvJPpXUqbzMKcRvWG0Ar
+X-Received: by 2002:a17:90a:d803:: with SMTP id a3mr16218557pjv.48.1559395061092;
+        Sat, 01 Jun 2019 06:17:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559395061; cv=none;
         d=google.com; s=arc-20160816;
-        b=ln7aLBu/tWUzdEnpP6StFAOTSDrBbTWUtrW1oG0Ot2+3UxtEsT6KJYX8bLZCfRkler
-         joMxB73O7pq5dP/h2INDIFnuhm7ef/LFdKUR6zZ4EpkvZ65iq/R70Pbrnbot2nZASASz
-         640tad+/aSFbCIzxkRXD5pORYWGeKuhiY4D8kqbVzL/XHGhYcCCyjx+mDA9aGx6Zgfd9
-         Qs2Q01UeyS6ZT8wgHZmpOEOiojIMLnS2J5v6NIx34xAfQPlT1aUZHXlI5klX6Z8++rmC
-         CiGiQ7IkR8gaXFNAKcu1D0RuKdsAHfiuAUIUgi16iiCUe3CH0nQ8fqxr0DwUcVENNWdG
-         MmtA==
+        b=0u2Gi4KQ5R/iP90C5+QRvw2paLB16eoPkPUxcaOy3VinK07tKcVCVnhiv5D3dzTRW+
+         zeAtdnyQWeZLb54KF+0EUVvdJiFaOAv5QWtxQyGoU+3a29MGJeI1qPAM2MT5OLsj7lrZ
+         +PN0r0kDSQDfsqGJt68nxgF0GKBPrFa/TUL90tSgbghckvW9tWmiFUq5VQJYznFoWWpL
+         Ea1+1w9FQ/AY5myx0mcZTdXpVtSN4N3ltXACWRSd/q1yT9x/cG/57bffa+NIqDpJNnni
+         iu9hXOSl4LnvFyxCiQ+BUKLLDxjBW0X09Wkaxf990OtO2GwJdno6iFEiScVoVxAOABrJ
+         ZjOA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=oR9rV7mIeR6mdlhFzu/0Y6SfTsiZf/SqP8cDevm0QW4=;
-        b=dfe3wrQHPzdkFZFsTwh6eawU3JSaQx0wHo3stvKuFJjB/sEWjetKC7OjkDFT9sPWnr
-         /v0F5RBP5NxoGQ1W3LY/ULMgHmM+Lr7kJAHWoAWAfM0RzSfTu8NcRDi0fHoMuKfNXFMB
-         ezHq7CRqLiK2HtjDw8ZVPVNX/Q8DE8hIvZwsDpPMpRI3r/vg3OQHDPWf0pCqJgV1Svx8
-         gCCpYPRJ0V1tuozl9XVuhnpjsQGSgp+yG4ajkjGoMkncJ7EZ0p/LHJlA3i0s5vNrftkz
-         FD2h/2EG1/hDKkjj670SN2phT4/lLoNzcwVhk9+wKie9AfiVC2kWEdr4KPqqFCHl5Ya9
-         C/JQ==
+        bh=t7BiCuQVUm0eGyupyVDolC8vmiFAwNn1hoWAceAZ65M=;
+        b=xOxyqzbXkWrZntn9a5xZssOfCQvXFfxlADSJB+JUDweIxOqILTSh/h9KBeUdwuJQa7
+         jtpMORmGgH2p6CVdmGJq6bHwiVAy/M1BTn4+0IiPKgWSsjXws7SFZvJqWs+ereIgFzXa
+         UGIDBEK91Y4HPx0Sub5HgZ8k9njAZ4/FvClqefEQCbFg5NucoeheOqVS4pj0hVf7wLI8
+         mnkX9H9+4ttldfx3VoxSa9WYGmzUiCGkLJHd+CrGyrv3+IydaKlZplzonXME2qVm00Ch
+         A7+AqLyuXDVihmw1dFML1Uf0u/LCvjkmQozs00yDvLfh4aOns/YMP7XAqXN7P9hqawlE
+         hXKg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=EW9DuTtZ;
+       dkim=pass header.i=@kernel.org header.s=default header.b=bwlNeDEW;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id h5si9703279pjs.96.2019.06.01.06.17.38
+        by mx.google.com with ESMTPS id k1si9327689pll.317.2019.06.01.06.17.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 01 Jun 2019 06:17:38 -0700 (PDT)
+        Sat, 01 Jun 2019 06:17:41 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=EW9DuTtZ;
+       dkim=pass header.i=@kernel.org header.s=default header.b=bwlNeDEW;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 9520D23ACA;
-	Sat,  1 Jun 2019 13:17:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 9033023AC9;
+	Sat,  1 Jun 2019 13:17:39 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559395057;
-	bh=uSBsOaOMUpFUg+IRNQO+uYVn3J96JfULcdCwGMsLu6o=;
+	s=default; t=1559395060;
+	bh=vU6wNY5LtxP5An2zvGCVfUW69gc6W4zPVyDE//3WybY=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=EW9DuTtZG7FG+a7ZwzJdx95Abndub9KkldTtnzi3+7QRJQ0vJk2Pla4ToGrbnKHHK
-	 tra1rZ4T5WDzjdsN8U66F/DFPmTZ4FVb5db59mcM6JXaPHaoZJsnnyTXoApsUInrAS
-	 B1mqBVCfy9p0JXsJqVhpByAfUJGIld+AMSO2n2y8=
+	b=bwlNeDEWG6onBXfiZ4NDE+MedcfcMeVhpJ4pP90vpqEqm3RfQFKZOgCZHLMAD94gM
+	 d/Aq23qeRcx8hHDEc5kRH5hyw4sVbXRAJHaplVDkfXaPFOYiyxUwqEc3LqKf/guWo5
+	 +OOg86b0d4IrMweXY5LGSd/DlI+ADnztOeJ8YXpI=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Linxu Fang <fanglinxu@huawei.com>,
-	Taku Izumi <izumi.taku@jp.fujitsu.com>,
-	Xishi Qiu <qiuxishi@huawei.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Pavel Tatashin <pavel.tatashin@microsoft.com>,
-	Oscar Salvador <osalvador@suse.de>,
+Cc: Yue Hu <huyue2@yulong.com>,
+	Anshuman Khandual <anshuman.khandual@arm.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Laura Abbott <labbott@redhat.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Randy Dunlap <rdunlap@infradead.org>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.1 014/186] mem-hotplug: fix node spanned pages when we have a node with only ZONE_MOVABLE
-Date: Sat,  1 Jun 2019 09:13:50 -0400
-Message-Id: <20190601131653.24205-14-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.1 015/186] mm/cma.c: fix crash on CMA allocation if bitmap allocation fails
+Date: Sat,  1 Jun 2019 09:13:51 -0400
+Message-Id: <20190601131653.24205-15-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190601131653.24205-1-sashal@kernel.org>
 References: <20190601131653.24205-1-sashal@kernel.org>
@@ -124,111 +123,44 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Linxu Fang <fanglinxu@huawei.com>
+From: Yue Hu <huyue2@yulong.com>
 
-[ Upstream commit 299c83dce9ea3a79bb4b5511d2cb996b6b8e5111 ]
+[ Upstream commit 1df3a339074e31db95c4790ea9236874b13ccd87 ]
 
-342332e6a925 ("mm/page_alloc.c: introduce kernelcore=mirror option") and
-later patches rewrote the calculation of node spanned pages.
+f022d8cb7ec7 ("mm: cma: Don't crash on allocation if CMA area can't be
+activated") fixes the crash issue when activation fails via setting
+cma->count as 0, same logic exists if bitmap allocation fails.
 
-e506b99696a2 ("mem-hotplug: fix node spanned pages when we have a movable
-node"), but the current code still has problems,
-
-When we have a node with only zone_movable and the node id is not zero,
-the size of node spanned pages is double added.
-
-That's because we have an empty normal zone, and zone_start_pfn or
-zone_end_pfn is not between arch_zone_lowest_possible_pfn and
-arch_zone_highest_possible_pfn, so we need to use clamp to constrain the
-range just like the commit <96e907d13602> (bootmem: Reimplement
-__absent_pages_in_range() using for_each_mem_pfn_range()).
-
-e.g.
-Zone ranges:
-  DMA      [mem 0x0000000000001000-0x0000000000ffffff]
-  DMA32    [mem 0x0000000001000000-0x00000000ffffffff]
-  Normal   [mem 0x0000000100000000-0x000000023fffffff]
-Movable zone start for each node
-  Node 0: 0x0000000100000000
-  Node 1: 0x0000000140000000
-Early memory node ranges
-  node   0: [mem 0x0000000000001000-0x000000000009efff]
-  node   0: [mem 0x0000000000100000-0x00000000bffdffff]
-  node   0: [mem 0x0000000100000000-0x000000013fffffff]
-  node   1: [mem 0x0000000140000000-0x000000023fffffff]
-
-node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
-node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
-node 0 Normal	spanned:0	present:0	absent:0
-node 0 Movable	spanned:0x40000 present:0x40000 absent:0
-On node 0 totalpages(node_present_pages): 1048446
-node_spanned_pages:1310719
-node 1 DMA	spanned:0	    present:0		absent:0
-node 1 DMA32	spanned:0	    present:0		absent:0
-node 1 Normal	spanned:0x100000    present:0x100000	absent:0
-node 1 Movable	spanned:0x100000    present:0x100000	absent:0
-On node 1 totalpages(node_present_pages): 2097152
-node_spanned_pages:2097152
-Memory: 6967796K/12582392K available (16388K kernel code, 3686K rwdata,
-4468K rodata, 2160K init, 10444K bss, 5614596K reserved, 0K
-cma-reserved)
-
-It shows that the current memory of node 1 is double added.
-After this patch, the problem is fixed.
-
-node 0 DMA	spanned:0xfff   present:0xf9e   absent:0x61
-node 0 DMA32	spanned:0xff000 present:0xbefe0	absent:0x40020
-node 0 Normal	spanned:0	present:0	absent:0
-node 0 Movable	spanned:0x40000 present:0x40000 absent:0
-On node 0 totalpages(node_present_pages): 1048446
-node_spanned_pages:1310719
-node 1 DMA	spanned:0	    present:0		absent:0
-node 1 DMA32	spanned:0	    present:0		absent:0
-node 1 Normal	spanned:0	    present:0		absent:0
-node 1 Movable	spanned:0x100000    present:0x100000	absent:0
-On node 1 totalpages(node_present_pages): 1048576
-node_spanned_pages:1048576
-memory: 6967796K/8388088K available (16388K kernel code, 3686K rwdata,
-4468K rodata, 2160K init, 10444K bss, 1420292K reserved, 0K
-cma-reserved)
-
-Link: http://lkml.kernel.org/r/1554178276-10372-1-git-send-email-fanglinxu@huawei.com
-Signed-off-by: Linxu Fang <fanglinxu@huawei.com>
-Cc: Taku Izumi <izumi.taku@jp.fujitsu.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
-Cc: Oscar Salvador <osalvador@suse.de>
+Link: http://lkml.kernel.org/r/20190325081309.6004-1-zbestahu@gmail.com
+Signed-off-by: Yue Hu <huyue2@yulong.com>
+Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Laura Abbott <labbott@redhat.com>
+Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/page_alloc.c | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ mm/cma.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c02cff1ed56eb..475ca5b1a8244 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6244,13 +6244,15 @@ static unsigned long __init zone_spanned_pages_in_node(int nid,
- 					unsigned long *zone_end_pfn,
- 					unsigned long *ignored)
- {
-+	unsigned long zone_low = arch_zone_lowest_possible_pfn[zone_type];
-+	unsigned long zone_high = arch_zone_highest_possible_pfn[zone_type];
- 	/* When hotadd a new node from cpu_up(), the node should be empty */
- 	if (!node_start_pfn && !node_end_pfn)
- 		return 0;
+diff --git a/mm/cma.c b/mm/cma.c
+index bb2d333ffcb31..8cb95cd1193a9 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -106,8 +106,10 @@ static int __init cma_activate_area(struct cma *cma)
  
- 	/* Get the start and end of the zone */
--	*zone_start_pfn = arch_zone_lowest_possible_pfn[zone_type];
--	*zone_end_pfn = arch_zone_highest_possible_pfn[zone_type];
-+	*zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
-+	*zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
- 	adjust_zone_range_for_zone_movable(nid, zone_type,
- 				node_start_pfn, node_end_pfn,
- 				zone_start_pfn, zone_end_pfn);
+ 	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+ 
+-	if (!cma->bitmap)
++	if (!cma->bitmap) {
++		cma->count = 0;
+ 		return -ENOMEM;
++	}
+ 
+ 	WARN_ON_ONCE(!pfn_valid(pfn));
+ 	zone = page_zone(pfn_to_page(pfn));
 -- 
 2.20.1
 
