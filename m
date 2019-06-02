@@ -2,211 +2,212 @@ Return-Path: <SRS0=2YS/=UB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB309C282DC
-	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 13:12:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E6E14C282DC
+	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 13:59:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1741327915
-	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 13:11:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1741327915
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=chris-wilson.co.uk
+	by mail.kernel.org (Postfix) with ESMTP id 9A3DA2793A
+	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 13:59:00 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dr4zne4H"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A3DA2793A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7548E6B000E; Sun,  2 Jun 2019 09:11:59 -0400 (EDT)
+	id 29E016B000E; Sun,  2 Jun 2019 09:59:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 72A646B0010; Sun,  2 Jun 2019 09:11:59 -0400 (EDT)
+	id 226E96B0010; Sun,  2 Jun 2019 09:59:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 61A576B0266; Sun,  2 Jun 2019 09:11:59 -0400 (EDT)
+	id 0A0B96B0266; Sun,  2 Jun 2019 09:59:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1844E6B000E
-	for <linux-mm@kvack.org>; Sun,  2 Jun 2019 09:11:59 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id v125so232512wmf.4
-        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 06:11:59 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C54606B000E
+	for <linux-mm@kvack.org>; Sun,  2 Jun 2019 09:58:59 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 93so9763549plf.14
+        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 06:58:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :content-transfer-encoding:to:from:in-reply-to:cc:references
-         :message-id:user-agent:subject:date;
-        bh=t9R9n+PAawYfwHuFQwCdyR2k8DvW9GwiFzk1ovH8A9s=;
-        b=fCOgQWw2VLsecnQ8wm6i6YCEnHx0PvINJT7g/vOtROSaVQQ3P1uwyeftXz10dHTVI1
-         RfF1rrTUArEd/ZJUQsACZ4LjmSyf44MN0G7mhMFZg9PFfTsyZWYhZkCvEFBNA9ESvkth
-         jIb5UtQxSW0lvJPM3QrThGyJ2b9OkSMvt9iVIF+nVzdFL34dq1DINL8MOihkMWU5087b
-         i+o8R8hQA8vzcKm/WoTiDkWCh4LAMpj+0R4Rt+20blCXx0SHNewbVuQYP9JTkUQ92SiD
-         zbNWD1ItV1wRT5L2C0B4CXD0BqhV3TwIN7BIYE0jakCI7BrcpGhMgi6fLwMDEpbyISyI
-         4Riw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 109.228.58.192 is neither permitted nor denied by best guess record for domain of chris@chris-wilson.co.uk) smtp.mailfrom=chris@chris-wilson.co.uk
-X-Gm-Message-State: APjAAAUYGdhYe8tjW5ttxOnYmlccb90zUkjC0RS8gP0BqU7uydSWWreQ
-	Bvbg8sTsbBRhuWb/sfiHq/HRfoCFYHjCgNXj3nBZAAxehzFdNMrmanaLBRgEMRUpDgumWvJk33V
-	W4oGpcDgXx6oHsPOPQRnnLK/fSJZEnr8FZgGDI9YC+GXhw07IHoVI7HOJOl199HE=
-X-Received: by 2002:a1c:238e:: with SMTP id j136mr10597585wmj.4.1559481118659;
-        Sun, 02 Jun 2019 06:11:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyk3BKYZHNBpxwTL+7X3fpxTuyskFN9ELxF2bDXF620rGn0pHJ05ZZfVA7dG5wZdBo2MbMI
-X-Received: by 2002:a1c:238e:: with SMTP id j136mr10597547wmj.4.1559481117583;
-        Sun, 02 Jun 2019 06:11:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559481117; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=9ONWqLNyVEgxdlkWmoBEEgBfGAAROFdHUnt1EMHezTI=;
+        b=RHnjqX0oCm7LQReoo8+gj6yDL9Wb7xDKoimDCjCuiAIjWbNgy3d36sMLiuqpszjH9k
+         Uu6IZTKbbJDTxfdTnpgTlEeOgMM2n+Hl3no7YpckN8Sa25tvtG1vNAGheZTe8goAheGs
+         JLHpoKffK9LV+tcKEc6sfCNyBgX36gHFf2HbSOlCMaFZXAVSTaFzK9xotippVohbt3w7
+         auMi/qW2MEqs0RaUpfxcG5IkGlkM4szazfNpK0hUL6ok9vSJggPRJB1ja9tcnJGjlpDs
+         hrgWFeWyu4eLkVLgdrRz4LFZfotDjs7Z5/RxLGfzgS4Q5QwCUhysx9jap4uA4z4CQ9cz
+         C+Kw==
+X-Gm-Message-State: APjAAAXKV2vUXGavEuvjZpRLg9Cgc70S6yPqVq1ULmr6ipDeAdt7OiOm
+	h51gsvhAKBsjWqfiEwJQzYQDv7D2QYsADig/Wp9hUaaEO1XMJTvNcqpHidWS17Fky1newy8Qy5F
+	EIJJlliU/+W7POueBpf2vN75XpQCqR+0nCax/mf9tKhYsNCXr0WdU/z+/emPLO6WJ+g==
+X-Received: by 2002:a63:2315:: with SMTP id j21mr22056259pgj.414.1559483939323;
+        Sun, 02 Jun 2019 06:58:59 -0700 (PDT)
+X-Received: by 2002:a63:2315:: with SMTP id j21mr22056167pgj.414.1559483938432;
+        Sun, 02 Jun 2019 06:58:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559483938; cv=none;
         d=google.com; s=arc-20160816;
-        b=sQYdxp0mUA4l/9Jiz48hfim7D3gwCAB49ZOw43SvQ6aj3eM+76NC5lXVBuwQ9HMymD
-         sZ4XGBXo7rSauuSP6tK8MwjnN1RudG3skvN0MWT29Sg1TyPWnFeNcvOazxdHzsBmFhxb
-         EfO60iEodnIDT9BPJr0Jm6ZUU9dwHI4MdDoekzv/DjHqlVtarDJjURKx+u7fEGI3iLsd
-         uz/fOD408FkY1/VA9F7bruP1Jha543brYU+7bqsllgw2M9YPWzYuS2LlNkKGEFsg6lL0
-         E4U0ve30gLwiEfNdhULKzMHTKHIy+XUt/NSG3QGh4nKdxHLwfFcoUd267CCnUUA+mwmw
-         GYiA==
+        b=RjoVct1AqIi8zTaHdFDctCTYbnzoHWfaO/4jcy4F3zhglG5UvfpR3XCPihrYxKFBQ7
+         sVShxl9BHw7nt6G/r1kQQv0dHGuq8iKIXMCfXKMnPaX5yheduZUvmELGI71XEskJUBNd
+         HaG9YuPtqOEFNf/lmjPuaLenbDmdVx2x+9kPzMFlKY9As8x41ABENnHuXfUzIBafyqAS
+         BPxS/7pdb6qGdI/Uh7WAG18BRt2bhfe1OnZjVUk92T0yAo8f1gjH4ahuQQS8q4tmVr/m
+         Q6ByIt0pjVtUlGaQWPfY3FtSh+1rRzdjfWCmYUiQ5zHHHkMR8LBUALSD+sZA5uIzvr5q
+         OiwQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=date:subject:user-agent:message-id:references:cc:in-reply-to:from
-         :to:content-transfer-encoding:mime-version;
-        bh=t9R9n+PAawYfwHuFQwCdyR2k8DvW9GwiFzk1ovH8A9s=;
-        b=Q7jRKmDpROXgDbC0TbhFojedZ67UkrvW8+gNztuNH/3+kDydu09sBsIYrLpdOhE6p6
-         0pCmAM9k6DwXGbQ+u1KoamIAJHhgMlmJZ0oBLx00OW+DJrZWRSAqjao3+2AppANyKAf4
-         pp7CC9OYzT3L8qvalVA+SqxMbpUxkuzpakxODzeP+k6TEvlNCzsPIsI20dlG/T7qzXB7
-         zZ73h4tFMya5MCT6LbjQXUkQ7Li63/qryVKr+BhL2/TV+XH4XRf0NJXAqwB2gKe4gxv3
-         2Sh1OFGu5x+uvcagadKR5yNjZkr7hzFN3MIkCRcqYe2kb5xaz0SftISocLXyGV3BPEEf
-         aGTw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=9ONWqLNyVEgxdlkWmoBEEgBfGAAROFdHUnt1EMHezTI=;
+        b=SjmL/RMOhALe63OKd9FQ/LxynQP/5SYCObsRirXJp+nlCEvB6kA+aINLwcrQHQxiPy
+         KJiuT7hZdOghN/zta4jxQlc4oNA36dFyQ9TigAyDQWE9IWa6QU2awxgrdQUpmvjca6J/
+         TgfICw0qCr0PT7A7py34XC8O+6joHYtPiPjkXebZuT87zAjvYmt8wnaUrs7cdmn97iao
+         lQqwpOCWgAzJ1kImFJ3zc9X6NmoMviHv6Mq3G9XLQ2onaZX+QILjYYtdkq++ZqeOW5P+
+         oHRlCt+M3wAdve/WDmo45zcGmKqQlPCIQGolbpAahQqxdApPfXpuVIa51YOmBwLWu830
+         BquQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 109.228.58.192 is neither permitted nor denied by best guess record for domain of chris@chris-wilson.co.uk) smtp.mailfrom=chris@chris-wilson.co.uk
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [109.228.58.192])
-        by mx.google.com with ESMTPS id j133si7729104wmj.165.2019.06.02.06.11.57
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dr4zne4H;
+       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c2sor11787092pgd.67.2019.06.02.06.58.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Jun 2019 06:11:57 -0700 (PDT)
-Received-SPF: neutral (google.com: 109.228.58.192 is neither permitted nor denied by best guess record for domain of chris@chris-wilson.co.uk) client-ip=109.228.58.192;
+        (Google Transport Security);
+        Sun, 02 Jun 2019 06:58:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 109.228.58.192 is neither permitted nor denied by best guess record for domain of chris@chris-wilson.co.uk) smtp.mailfrom=chris@chris-wilson.co.uk
-X-Default-Received-SPF: pass (skip=forwardok (res=PASS)) x-ip-name=78.156.65.138;
-Received: from localhost (unverified [78.156.65.138]) 
-	by fireflyinternet.com (Firefly Internet (M1)) with ESMTP (TLS) id 16766024-1500050 
-	for multiple; Sun, 02 Jun 2019 14:11:48 +0100
-Content-Type: text/plain; charset="utf-8"
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dr4zne4H;
+       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=9ONWqLNyVEgxdlkWmoBEEgBfGAAROFdHUnt1EMHezTI=;
+        b=dr4zne4Hpmbp5zbK/HZVaoPqkv+Q/J6QvMUJsdsfx9+XMMJfaPQCm9hv9/u72/mtpJ
+         Hc3lhkikxG6yflrZowYP1yDuz/ud8EKfTIMP70zcOhscVUDtsHy0NUHJxt/PCGyHlPJy
+         p/ZwMDGsOn+Hzm+QyqrQYy+lOTH9Z5AgJeOCo+e2JlVzZ7HYiqB7nZdSGxQawF00XMxi
+         jL8GqvopM7xeezqf65J3fXckiYxj6SgTf5GKpgRatJxR0gysj+F8giwhxsCQoXCGUFDh
+         L+s5eo2//sgrL1HVYvHPHPhDoCRzuMGWYn7b+L0FTsxYHDcUIDUEOwcQWgE76jo/st6l
+         42oQ==
+X-Google-Smtp-Source: APXvYqwl5rc6/q5rnzwt7G5O2VElP2V+PQoL+0/IPsAO/RkxvnvM+qWG5URT7Az8WTMCDG5Sy5uTfA==
+X-Received: by 2002:a63:7508:: with SMTP id q8mr21190649pgc.296.1559483937851;
+        Sun, 02 Jun 2019 06:58:57 -0700 (PDT)
+Received: from bharath12345-Inspiron-5559 ([103.110.42.35])
+        by smtp.gmail.com with ESMTPSA id i73sm10813308pje.9.2019.06.02.06.58.55
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 02 Jun 2019 06:58:57 -0700 (PDT)
+Date: Sun, 2 Jun 2019 19:28:52 +0530
+From: Bharath Vedartham <linux.bhar@gmail.com>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: mhocko@suse.com, akpm@linux-foundation.org, linux-mm@kvack.org,
+	shaoyafang@didiglobal.com
+Subject: Re: [PATCH v3 3/3] mm/vmscan: shrink slab in node reclaim
+Message-ID: <20190602135852.GA24957@bharath12345-Inspiron-5559>
+References: <1559467380-8549-1-git-send-email-laoar.shao@gmail.com>
+ <1559467380-8549-4-git-send-email-laoar.shao@gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-To: Matthew Wilcox <willy@infradead.org>
-From: Chris Wilson <chris@chris-wilson.co.uk>
-In-Reply-To: <20190602105150.GB23346@bombadil.infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fsdevel@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>,
- Jan Kara <jack@suse.cz>, Song Liu <liu.song.a23@gmail.com>
-References: <20190307153051.18815-1-willy@infradead.org>
- <155938118174.22493.11599751119608173366@skylake-alporthouse-com>
- <155938946857.22493.6955534794168533151@skylake-alporthouse-com>
- <20190602105150.GB23346@bombadil.infradead.org>
-Message-ID: <155948110413.22493.13971476014077289998@skylake-alporthouse-com>
-User-Agent: alot/0.6
-Subject: Re: [PATCH v4] page cache: Store only head pages in i_pages
-Date: Sun, 02 Jun 2019 14:11:44 +0100
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1559467380-8549-4-git-send-email-laoar.shao@gmail.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Quoting Matthew Wilcox (2019-06-02 11:51:50)
-> Thanks for the reports, Chris.
-> =
+On Sun, Jun 02, 2019 at 05:23:00PM +0800, Yafang Shao wrote:
+> In the node reclaim, may_shrinkslab is 0 by default,
+> hence shrink_slab will never be performed in it.
+> While shrik_slab should be performed if the relcaimable slab is over
+> min slab limit.
+> 
+> If reclaimable pagecache is less than min_unmapped_pages while
+> reclaimable slab is greater than min_slab_pages, we only shrink slab.
+> Otherwise the min_unmapped_pages will be useless under this condition.
+> 
+> reclaim_state.reclaimed_slab is to tell us how many pages are
+> reclaimed in shrink slab.
+> 
+> This issue is very easy to produce, first you continuously cat a random
+> non-exist file to produce more and more dentry, then you read big file
+> to produce page cache. And finally you will find that the denty will
+> never be shrunk.
+> 
+> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> ---
+>  mm/vmscan.c | 24 ++++++++++++++++++++++++
+>  1 file changed, 24 insertions(+)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index e0c5669..d52014f 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -4157,6 +4157,8 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+>  	p->reclaim_state = &reclaim_state;
+>  
+>  	if (node_pagecache_reclaimable(pgdat) > pgdat->min_unmapped_pages) {
+> +		sc.may_shrinkslab = (pgdat->min_slab_pages <
+> +				node_page_state(pgdat, NR_SLAB_RECLAIMABLE));
+>  		/*
+>  		 * Free memory by calling shrink node with increasing
+>  		 * priorities until we have enough memory freed.
+> @@ -4164,6 +4166,28 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+>  		do {
+>  			shrink_node(pgdat, &sc);
+>  		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
+> +	} else {
+> +		/*
+> +		 * If the reclaimable pagecache is not greater than
+> +		 * min_unmapped_pages, only reclaim the slab.
+> +		 */
+> +		struct mem_cgroup *memcg;
+> +		struct mem_cgroup_reclaim_cookie reclaim = {
+> +			.pgdat = pgdat,
+> +		};
+> +
+> +		do {
+> +			reclaim.priority = sc.priority;
+> +			memcg = mem_cgroup_iter(NULL, NULL, &reclaim);
+> +			do {
+> +				shrink_slab(sc.gfp_mask, pgdat->node_id,
+> +					    memcg, sc.priority);
+> +			} while ((memcg = mem_cgroup_iter(NULL, memcg,
+> +							  &reclaim)));
+> +
+> +			sc.nr_reclaimed += reclaim_state.reclaimed_slab;
+> +			reclaim_state.reclaimed_slab = 0;
+> +		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
+>  	}
+>  
+>  	p->reclaim_state = NULL;
+> -- 
+> 1.8.3.1
+>
 
-> I think they're both canaries; somehow the page cache / swap cache has
-> got corrupted and contains entries that it shouldn't.
-> =
+Hi Yafang,
 
-> This second one (with the VM_BUG_ON_PAGE in __delete_from_swap_cache)
-> shows a regular (non-huge) page at index 1.  There are two ways we might
-> have got there; one is that we asked to delete a page at index 1 which is
-> no longer in the cache.  The other is that we asked to delete a huge page
-> at index 0, but the page wasn't subsequently stored in indices 1-511.
-> =
+Just a few questions regarding this patch.
 
-> We dump the page that we found; not the page we're looking for, so I don't
-> know which.  If this one's easy to reproduce, you could add:
-> =
+Don't you want to check if the number of slab reclaimable pages is
+greater than pgdat->min_slab_pages before reclaiming from slab in your
+else statement? Where is the check to see whether number of
+reclaimable slab pages is greater than pgdat->min_slab_pages? It looks like your
+shrinking slab on the condition if (node_pagecache_reclaimable(pgdata) >
+min_unmapped_pages) is false, Not if (pgdat->min_slab_pages <
+node_page_state(pgdat, NR_SLAB_RECLAIMABLE))? What do you think?
 
->         for (i =3D 0; i < nr; i++) {
->                 void *entry =3D xas_store(&xas, NULL);
-> +               if (entry !=3D page) {
-> +                       printk("Oh dear %d %d\n", i, nr);
-> +                       dump_page(page, "deleting page");
-> +               }
+Also would it be better if we update sc.may_shrinkslab outside the if
+statement of checking min_unmapped_pages? I think it may look better?
 
-[  113.423120] Oh dear 0 1
-[  113.423141] page:ffffea000911cdc0 refcount:0 mapcount:0 mapping:ffff8882=
-6aee7bb1 index:0x7fce6ff37
-[  113.423146] anon
-[  113.423150] flags: 0x8000000000080445(locked|uptodate|workingset|owner_p=
-riv_1|swapbacked)
-[  113.423161] raw: 8000000000080445 dead000000000100 dead000000000200 ffff=
-88826aee7bb1
-[  113.423167] raw: 00000007fce6ff37 0000000000054537 00000000ffffffff 0000=
-000000000000
-[  113.423171] page dumped because: deleting page
-[  113.423176] page:ffffea0009118000 refcount:1 mapcount:0 mapping:ffff8882=
-6aee7bb1 index:0x7fce6fe00
-[  113.423182] anon
-[  113.423183] flags: 0x8000000000080454(uptodate|lru|workingset|owner_priv=
-_1|swapbacked)
-[  113.423191] raw: 8000000000080454 ffffea0009118048 ffffea000911ce08 ffff=
-88826aee7bb1
-[  113.423198] raw: 00000007fce6fe00 0000000000054400 00000001ffffffff ffff=
-8882693e5000
-[  113.423204] page dumped because: VM_BUG_ON_PAGE(entry !=3D page)
-[  113.423209] page->mem_cgroup:ffff8882693e5000
-[  113.423222] ------------[ cut here ]------------
-[  113.423227] kernel BUG at mm/swap_state.c:174!
-[  113.423236] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[  113.423243] CPU: 1 PID: 131 Comm: kswapd0 Tainted: G     U            5.=
-2.0-rc2+ #251
-[  113.423248] Hardware name:  /NUC6CAYB, BIOS AYAPLCEL.86A.0029.2016.1124.=
-1625 11/24/2016
-[  113.423260] RIP: 0010:__delete_from_swap_cache.cold.17+0x30/0x36
-[  113.423265] Code: 48 c7 c7 13 94 bf 81 e8 cd 7f f3 ff 48 89 df 48 c7 c6 =
-24 94 bf 81 e8 95 6c fd ff 48 c7 c6 32 94 bf 81 4c 89 ff e8 86 6c fd ff <0f=
-> 0b 90 90 90 90 48 8b 07 48 8b 16 48 c1 e8 3a 48 c1 ea 3a 29 d0
-[  113.423274] RSP: 0018:ffffc900008b3a80 EFLAGS: 00010046
-[  113.423280] RAX: 0000000000000000 RBX: ffffea000911cdc0 RCX: 00000000000=
-00006
-[  113.423285] RDX: 0000000000000007 RSI: 0000000000000092 RDI: ffff888276c=
-963c0
-[  113.423290] RBP: ffff888265a98d20 R08: 00000000000002ce R09: 00000000000=
-00000
-[  113.423296] R10: 0000000272bc445c R11: 0000000000000000 R12: 00000000000=
-00001
-[  113.423301] R13: 0000000000000000 R14: 0000000000000000 R15: ffffea00091=
-18000
-[  113.423306] FS:  0000000000000000(0000) GS:ffff888276c80000(0000) knlGS:=
-0000000000000000
-[  113.423313] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  113.423317] CR2: 00007fce7c857000 CR3: 0000000002c09000 CR4: 00000000001=
-406e0
-[  113.423323] Call Trace:
-[  113.423331]  __remove_mapping+0x1c2/0x380
-[  113.423337]  shrink_page_list+0x123c/0x1d00
-[  113.423343]  shrink_inactive_list+0x130/0x300
-[  113.423348]  shrink_node_memcg+0x20e/0x740
-[  113.423354]  shrink_node+0xba/0x420
-[  113.423359]  balance_pgdat+0x27d/0x4d0
-[  113.423365]  kswapd+0x216/0x300
-[  113.423372]  ? wait_woken+0x80/0x80
-[  113.423378]  ? balance_pgdat+0x4d0/0x4d0
-[  113.423384]  kthread+0x106/0x120
-[  113.423389]  ? kthread_create_on_node+0x40/0x40
-[  113.423398]  ret_from_fork+0x1f/0x30
-[  113.423405] Modules linked in: i915 intel_gtt drm_kms_helper
-[  113.423414] ---[ end trace 328930613dd77e06 ]---
-[  113.454546] RIP: 0010:__delete_from_swap_cache.cold.17+0x30/0x36
+Would it be better if we move updating sc.may_shrinkslab outside the
+if statement where we check min_unmapped_pages and add a else if
+(sc.may_shrinkslab) rather than an else and then start shrinking the slab?
 
->                 VM_BUG_ON_PAGE(entry !=3D page, entry);
->                 set_page_private(page + i, 0);
->                 xas_next(&xas);
->         }
-> =
-
-> I'll re-read the patch and see if I can figure out how the cache is getti=
-ng
-> screwed up.  Given what you said, probably on the swap-in path.
-
-It may be self-incriminating, but this only occurs when i915.ko is also
-involved via shrink_slab.
--Chris
+Thank you 
+Bharath
 
