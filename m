@@ -2,230 +2,221 @@ Return-Path: <SRS0=2YS/=UB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH autolearn=unavailable
+X-Spam-Status: No, score=-12.0 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C672CC28CC4
-	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 05:06:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CC3CC282DC
+	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 07:13:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 630882783D
-	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 05:06:17 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="I+l433GU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 630882783D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	by mail.kernel.org (Postfix) with ESMTP id AC95024504
+	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 07:13:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC95024504
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=users.sourceforge.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D2E636B0003; Sun,  2 Jun 2019 01:06:15 -0400 (EDT)
+	id 0EB466B0003; Sun,  2 Jun 2019 03:13:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CDE3D6B0005; Sun,  2 Jun 2019 01:06:15 -0400 (EDT)
+	id 09BCB6B0005; Sun,  2 Jun 2019 03:13:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BCDB06B0006; Sun,  2 Jun 2019 01:06:15 -0400 (EDT)
+	id ECCAF6B0006; Sun,  2 Jun 2019 03:13:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 879956B0003
-	for <linux-mm@kvack.org>; Sun,  2 Jun 2019 01:06:15 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id n1so2348049plk.11
-        for <linux-mm@kvack.org>; Sat, 01 Jun 2019 22:06:15 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B6A5D6B0003
+	for <linux-mm@kvack.org>; Sun,  2 Jun 2019 03:13:12 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 14so7597834pgo.14
+        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 00:13:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=8FrEn8Oc47oyqvsIyUn+ei84DckXK5ddHX1nKUOQVF0=;
-        b=pkosEYqaM3n0k9Li7lx3DxOecJdKKuqnSMrMufS8YDadj4XUKeyqjv/9bAmGJloU37
-         GLLqcsmCVw3TibVbuzadKkfJIdQaYt39cDrc0891P7+9m2arJJ4p2PTbFB9buGW0DLEq
-         RxN54MyCBUCvzXuqQiZM82xJJCxyHIkEFKwe2BDwhuxymw7ihsZksfSeCsAPpGXQEfby
-         YCGNBt6N2+exY/bEH2W2L6MLJN2qOOunH1VTL1mjqXilBfo9HnCtvhztakKSrSEXvc0b
-         DNIGjk3o7MbIxpZQtJ7rusMWMtApotk4VI7e43+oe5KPvd0Cp197eELwe7Rti2VGRFW0
-         rW/Q==
-X-Gm-Message-State: APjAAAWu3xszn0OHdQPUo327iRNmYGN/uxW6fMtPhtcbvRLzi3RqeuSf
-	bHHnOB5OyLN5fk5lRal+C++tgA5f6BnAJnzWJKWZvv+fNf/m9wdeQtafOi1aHnj2AgsFUkJ4IKM
-	U+WnRm+ed7AL4Djj3+zdrKx9jSvbqNG2TZOWS0p6gzUwaUl9GuKOkDmOskTQ2g/BJOg==
-X-Received: by 2002:a63:5d20:: with SMTP id r32mr15451625pgb.393.1559451975066;
-        Sat, 01 Jun 2019 22:06:15 -0700 (PDT)
-X-Received: by 2002:a63:5d20:: with SMTP id r32mr15451583pgb.393.1559451973693;
-        Sat, 01 Jun 2019 22:06:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559451973; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date
+         :message-id:from:to:cc:subject:in-reply-to:references:user-agent
+         :mime-version;
+        bh=hoIsIC0OdxCZWAu3i73CuxlwvR004kEXmbYyVxwxMtM=;
+        b=hpT4OgHEX+HUgeKR4HfJSYlXH9S4jY7Te/QQM8lCIOcHxgvm+89ba9qduyR2VQ/+IF
+         pyj8zRyuZYb4VfnUgf3y2eoZ8B3Q8rrIOSCZNtwdCNcu07pLnBHxW/yDPfn4EuOxIgwQ
+         a5Mm9ExmtDWtgVrchyKjJEIaGe2roXrvzmw+DtGd7s5/6dHruoWZqfOZ7IJd0ROHee2t
+         AF0e3yl0J3dc23WCkrcI/W50OtEfkwYWRdSRHvYR4PPS1UNB5l8p2XmKYc8VSbwfEL00
+         hIMgzq3GhqDYA0wl//K28zLRiPkXS9IE0J522EKrCCwFAaD4Ir2sb8TkXuDKSrNZYmpD
+         vWiQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning ysato@users.sourceforge.jp does not designate 202.224.55.15 as permitted sender) smtp.mailfrom=ysato@users.sourceforge.jp
+X-Gm-Message-State: APjAAAXyTbfrvXStbUBuQ67O+t3Axa2N99MBEV8nadZca4tv+z+9h6Cu
+	DWK12l+vWxtLWUg2QWSlpXvPNxvbkxg/rttliBLpa3vyRvaNBiSzn6zIFnPcpmlaa10kFiFyMGJ
+	ZghdegUWgsF0uEqU64kih0OXb5Gbmm5K337l9lyg0Mew+/RBH6fb6bLckVZIeGg0=
+X-Received: by 2002:a63:fc55:: with SMTP id r21mr20259888pgk.441.1559459592213;
+        Sun, 02 Jun 2019 00:13:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzOb1oUwFduODZEB9jjHk5/+eBSI3S/FA/Jcx2Gr5EhILnA6N2nw5QMjr7NlV5c8ghgCuKT
+X-Received: by 2002:a63:fc55:: with SMTP id r21mr20259845pgk.441.1559459591057;
+        Sun, 02 Jun 2019 00:13:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559459591; cv=none;
         d=google.com; s=arc-20160816;
-        b=YLxdaouZ1uRrj2pB7bpFlerw9EWDOdqBx4WYSJudWDpTteppcQXDIAWwkmQz3bx4nV
-         8FIoFCqjEwnPg4rGH9V9rSTLZTmKGHCqHF0MvG/18+PUpUvCYwg/1bYpQQnqUs2aHUAT
-         yca9ukCnql2cKq/AVNvoTXoFaf2oMbl3QoRfzMdk+NYrIQ7jQH9BiqosAv+jcxghwD3m
-         5R25edpxL0hp37hfIiuhyAnT5sepn9KAX+JiE2q9xl/4rQkhb6qxjSDmFjGYQ5ZLFr5F
-         pd+YeWg84vWSelXwrFOlTDeq4SoEWhk3RGYnbsz6I6F++JPZYiK6eFx7B6F6JSw9aKUQ
-         efQg==
+        b=L4YZGSk8rxOdmhWvLjgJTY2WunRIPePI9qx9JtZmhaEGdQHDmZfe0/VwqwSFjLY+bN
+         aSe5aC+BAmiKX0jqi38IFvEcwJXkSHxKCw0HjwumpE5AOdt3cVabTHtDRGyUrker5a5w
+         kebXi2Q6iFw6fsfD7p7fRoR/T4e+YJdwdU44/neaK3lNavnQIFtM06BbcdFqH2GOqHL8
+         jFwfkLjrGl4lStzsy9o0LmT0D1bqGhW4X2xtRrnqtfSaMRyhN1U+EH8mLluNKKLaVxif
+         YUeBj+MsMcuyOLIgrUbK2WFN+5xfDCts0fF6rITUmnoyxZSRcRmrLWHWkkMSpq6tDgmC
+         dG/w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=8FrEn8Oc47oyqvsIyUn+ei84DckXK5ddHX1nKUOQVF0=;
-        b=IspOwEybgQdC61vO/hdSRqlU2ffDLSiibaSYGYcQALZYxY/eT8EQbPuez4HEYMIdwL
-         5o5VbsWz2j3G6TWi/jD0TPbjGomXXt8UcLOptoFg7vkmWYLjGYhb91zA89ObjxNy3cNp
-         YTf4kYnPfw+AGeOuKVY44N/XRMK/2hFZG1PkJvMN3f76Q7tRYBMxbuhi5rv20+EUviD4
-         Nfk3A5S+Ans+snlmCOVUt3cIQww7kuL+Q3UVqnoJZ6DRE2fQK5FRp4xILo2T2TSc868t
-         /53GVmQhxDS503pMgoWWgwqvLnaOF24bJGPIwAkjFLMFWC0LHWr9x0DKYBb91tBIxJ7k
-         kytw==
+        h=mime-version:user-agent:references:in-reply-to:subject:cc:to:from
+         :message-id:date;
+        bh=hoIsIC0OdxCZWAu3i73CuxlwvR004kEXmbYyVxwxMtM=;
+        b=UWovWicfTB615BJzUUCLEFEiQL75lscBBs3sFzbM+it5wJYXqGqZUMGFYbSELLYI+Q
+         ne3+5WuEIOxb8X3lnDUghhDtdjpQXQf6mBjI15++A20JzDJeYpYbNNHX3RavxgXAjBCU
+         W0SyyCvdCLn5tLSrjB6lP1j0dS/CP6vCllNOM4BvfNnXQuZ2TWrRB+jo/0nmCCX/It+s
+         A09PLrToyTDS30AZk9ghJkbW3XseuoekPtX099j54fW+RhXkkkfoAJZNuIfvC6utP4FS
+         4E9etGFHV6T9zHnfDqZh2Z7P4U8dIGfwfNnb8wWvEDusVHigAOZstHdTVro062WTq0ey
+         vuJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=I+l433GU;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i125sor12248353pfb.26.2019.06.01.22.06.13
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 01 Jun 2019 22:06:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=softfail (google.com: domain of transitioning ysato@users.sourceforge.jp does not designate 202.224.55.15 as permitted sender) smtp.mailfrom=ysato@users.sourceforge.jp
+Received: from mail03.asahi-net.or.jp (mail03.asahi-net.or.jp. [202.224.55.15])
+        by mx.google.com with ESMTP id j23si14521195pfh.215.2019.06.02.00.13.10
+        for <linux-mm@kvack.org>;
+        Sun, 02 Jun 2019 00:13:11 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning ysato@users.sourceforge.jp does not designate 202.224.55.15 as permitted sender) client-ip=202.224.55.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=I+l433GU;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=8FrEn8Oc47oyqvsIyUn+ei84DckXK5ddHX1nKUOQVF0=;
-        b=I+l433GU6rh5Vh+cXRg2sWftONjf5E0xtYRJR0maMC3On194A0XuFQ8es0fmdrLaO4
-         QMulbFvcAdi+pOn8HpskX0ufgW7qoStMxwwMGtpoIzBLU8ImYfubQhLJZlu5J4RYe6TO
-         Yim8ter4osHiihcYza518LDlKNV+048cHSWMc=
-X-Google-Smtp-Source: APXvYqww51z53Fj+SFur89FkVZvsAjQrEhIV13t8870aGnrYJ2f32X4e6lxRmTKOa2Pc17jm0i7ppA==
-X-Received: by 2002:a65:520b:: with SMTP id o11mr20347226pgp.184.1559451973138;
-        Sat, 01 Jun 2019 22:06:13 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id x28sm12472404pfo.78.2019.06.01.22.06.11
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 01 Jun 2019 22:06:12 -0700 (PDT)
-Date: Sat, 1 Jun 2019 22:06:10 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: enh <enh@google.com>, Evgenii Stepanov <eugenis@google.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>, Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v15 00/17] arm64: untag user pointers passed to the kernel
-Message-ID: <201906012156.55E2C45@keescook>
-References: <201905211633.6C0BF0C2@keescook>
- <20190522101110.m2stmpaj7seezveq@mbp>
- <CAJgzZoosKBwqXRyA6fb8QQSZXFqfHqe9qO9je5TogHhzuoGXJQ@mail.gmail.com>
- <20190522163527.rnnc6t4tll7tk5zw@mbp>
- <201905221316.865581CF@keescook>
- <20190523144449.waam2mkyzhjpqpur@mbp>
- <201905230917.DEE7A75EF0@keescook>
- <20190523174345.6sv3kcipkvlwfmox@mbp>
- <201905231327.77CA8D0A36@keescook>
- <20190528170244.GF32006@arrakis.emea.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190528170244.GF32006@arrakis.emea.arm.com>
+       spf=softfail (google.com: domain of transitioning ysato@users.sourceforge.jp does not designate 202.224.55.15 as permitted sender) smtp.mailfrom=ysato@users.sourceforge.jp
+Received: from h61-195-96-97.vps.ablenet.jp (h61-195-96-97.ablenetvps.ne.jp [61.195.96.97])
+	(Authenticated sender: PQ4Y-STU)
+	by mail03.asahi-net.or.jp (Postfix) with ESMTPA id 6199949B1B;
+	Sun,  2 Jun 2019 16:13:07 +0900 (JST)
+Received: from yo-satoh-debian.ysato.ml (ZM005235.ppp.dion.ne.jp [222.8.5.235])
+	by h61-195-96-97.vps.ablenet.jp (Postfix) with ESMTPSA id CC84E240085;
+	Sun,  2 Jun 2019 16:13:06 +0900 (JST)
+Date: Sun, 02 Jun 2019 16:13:04 +0900
+Message-ID: <871s0cqx33.wl-ysato@users.sourceforge.jp>
+From: Yoshinori Sato <ysato@users.sourceforge.jp>
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Randy Dunlap <rdunlap@infradead.org>, kbuild test robot <lkp@intel.com>,
+ kbuild-all@01.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management
+ List <linux-mm@kvack.org>, "Sasha Levin (Microsoft)" <sashal@kernel.org>,
+ Rich Felker <dalias@libc.org>, linux-sh@vger.kernel.org
+Subject: Re: [linux-stable-rc:linux-5.0.y 1434/2350] arch/sh/kernel/cpu/sh2/clock-sh7619.o:undefined reference to `followparent_recalc'
+In-Reply-To: <20190531100004.0b1f4983@canb.auug.org.au>
+References: <201905301509.9Hu4aGF1%lkp@intel.com>	<92c0e331-9910-82e9-86de-67f593ef4e5d@infradead.org>	<20190531100004.0b1f4983@canb.auug.org.au>
+User-Agent: Wanderlust/2.15.9 (Almost Unreal) SEMI-EPG/1.14.7 (Harue)
+ FLIM/1.14.9 (=?ISO-8859-4?Q?Goj=F2?=) APEL/10.8 EasyPG/1.0.0 Emacs/25.1
+ (x86_64-pc-linux-gnu) MULE/6.0 (HANACHIRUSATO)
+MIME-Version: 1.0 (generated by SEMI-EPG 1.14.7 - "Harue")
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 28, 2019 at 06:02:45PM +0100, Catalin Marinas wrote:
-> On Thu, May 23, 2019 at 02:31:16PM -0700, Kees Cook wrote:
-> > syzkaller already attempts to randomly inject non-canonical and
-> > 0xFFFF....FFFF addresses for user pointers in syscalls in an effort to
-> > find bugs like CVE-2017-5123 where waitid() via unchecked put_user() was
-> > able to write directly to kernel memory[1].
-> > 
-> > It seems that using TBI by default and not allowing a switch back to
-> > "normal" ABI without a reboot actually means that userspace cannot inject
-> > kernel pointers into syscalls any more, since they'll get universally
-> > stripped now. Is my understanding correct, here? i.e. exploiting
-> > CVE-2017-5123 would be impossible under TBI?
-> > 
-> > If so, then I think we should commit to the TBI ABI and have a boot
-> > flag to disable it, but NOT have a process flag, as that would allow
-> > attackers to bypass the masking. The only flag should be "TBI or MTE".
-> > 
-> > If so, can I get top byte masking for other architectures too? Like,
-> > just to strip high bits off userspace addresses? ;)
+On Fri, 31 May 2019 09:00:04 +0900,
+Stephen Rothwell wrote:
 > 
-> Just for fun, hack/attempt at your idea which should not interfere with
-> TBI. Only briefly tested on arm64 (and the s390 __TYPE_IS_PTR macro is
-> pretty weird ;)):
+> [1  <text/plain; US-ASCII (quoted-printable)>]
+> Hi all,
+> 
+> On Thu, 30 May 2019 07:43:10 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
+> >
+> > On 5/30/19 12:31 AM, kbuild test robot wrote:
+> > > Hi Randy,
+> > > 
+> > > It's probably a bug fix that unveils the link errors.
+> > > 
+> > > tree:   https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable-rc.git linux-5.0.y
+> > > head:   8c963c3dcbdec7b2a1fd90044f23bc8124848381
+> > > commit: b174065805b55300d9d4e6ae6865c7b0838cc0f4 [1434/2350] sh: fix multiple function definition build errors
+> > > config: sh-allmodconfig (attached as .config)
+> > > compiler: sh4-linux-gcc (GCC) 7.4.0
+> > > reproduce:
+> > >         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+> > >         chmod +x ~/bin/make.cross
+> > >         git checkout b174065805b55300d9d4e6ae6865c7b0838cc0f4
+> > >         # save the attached .config to linux build tree
+> > >         GCC_VERSION=7.4.0 make.cross ARCH=sh 
+> > > 
+> > > If you fix the issue, kindly add following tag
+> > > Reported-by: kbuild test robot <lkp@intel.com>
+> > > 
+> > > All errors (new ones prefixed by >>):
+> > >   
+> > >>> arch/sh/kernel/cpu/sh2/clock-sh7619.o:(.data+0x1c): undefined reference to `followparent_recalc'  
+> > > 
+> > > ---
+> > > 0-DAY kernel test infrastructure                Open Source Technology Center
+> > > https://lists.01.org/pipermail/kbuild-all                   Intel Corporation  
+> > 
+> > 
+> > The maintainer posted a patch for this but AFAIK it is not merged anywhere.
+> > 
+> > https://marc.info/?l=linux-sh&m=155585522728632&w=2
+> 
+> Unfortunately, the sh tree (git://git.libc.org/linux-sh#for-next) has
+> been removed from linux-next due to lack of any updates in over a year,
+> but I will add that patch (see below) to linux-next today, but someone
+> will need to make sure it gets to Linus at some point (preferably
+> sooner rather than later).  (I can send it if someone associated with
+> the sh development wants/asks me to ...)
 
-OMG, this is amazing and bonkers. I love it.
+OK.
+Since I created a temporary sh-next, please get it here.
+git://git.sourceforge.jp/gitroot/uclinux-h8/linux.git tags/sh-next
 
-> --------------------------8<---------------------------------
-> diff --git a/arch/s390/include/asm/compat.h b/arch/s390/include/asm/compat.h
-> index 63b46e30b2c3..338455a74eff 100644
-> --- a/arch/s390/include/asm/compat.h
-> +++ b/arch/s390/include/asm/compat.h
-> @@ -11,9 +11,6 @@
+It same host of h8300-next.
+
+> From: Yoshinori Sato <ysato@users.sourceforge.jp>
+> Date: Sun, 21 Apr 2019 14:00:16 +0000
+> Subject: [PATCH] sh: Fix allyesconfig output
+> 
+> Conflict JCore-SoC and SolutionEngine 7619.
+> 
+> Reported-by: kbuild test robot <lkp@intel.com>
+> Acked-by: Randy Dunlap <rdunlap@infradead.org> # build-tested
+> Signed-off-by: Yoshinori Sato <ysato@users.sourceforge.jp>
+> ---
+>  arch/sh/boards/Kconfig | 14 +++-----------
+>  1 file changed, 3 insertions(+), 11 deletions(-)
+> 
+> diff --git a/arch/sh/boards/Kconfig b/arch/sh/boards/Kconfig
+> index b9a37057b77a..cee24c308337 100644
+> --- a/arch/sh/boards/Kconfig
+> +++ b/arch/sh/boards/Kconfig
+> @@ -8,27 +8,19 @@ config SH_ALPHA_BOARD
+>  	bool
 >  
->  #include <asm-generic/compat.h>
+>  config SH_DEVICE_TREE
+> -	bool "Board Described by Device Tree"
+> +	bool
+>  	select OF
+>  	select OF_EARLY_FLATTREE
+>  	select TIMER_OF
+>  	select COMMON_CLK
+>  	select GENERIC_CALIBRATE_DELAY
+> -	help
+> -	  Select Board Described by Device Tree to build a kernel that
+> -	  does not hard-code any board-specific knowledge but instead uses
+> -	  a device tree blob provided by the boot-loader. You must enable
+> -	  drivers for any hardware you want to use separately. At this
+> -	  time, only boards based on the open-hardware J-Core processors
+> -	  have sufficient driver coverage to use this option; do not
+> -	  select it if you are using original SuperH hardware.
 >  
-> -#define __TYPE_IS_PTR(t) (!__builtin_types_compatible_p( \
-> -				typeof(0?(__force t)0:0ULL), u64))
-> -
->  #define __SC_DELOUSE(t,v) ({ \
->  	BUILD_BUG_ON(sizeof(t) > 4 && !__TYPE_IS_PTR(t)); \
->  	(__force t)(__TYPE_IS_PTR(t) ? ((v) & 0x7fffffff) : (v)); \
-> diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
-> index e2870fe1be5b..b1b9fe8502da 100644
-> --- a/include/linux/syscalls.h
-> +++ b/include/linux/syscalls.h
-> @@ -119,8 +119,15 @@ struct io_uring_params;
->  #define __TYPE_IS_L(t)	(__TYPE_AS(t, 0L))
->  #define __TYPE_IS_UL(t)	(__TYPE_AS(t, 0UL))
->  #define __TYPE_IS_LL(t) (__TYPE_AS(t, 0LL) || __TYPE_AS(t, 0ULL))
-> +#define __TYPE_IS_PTR(t) (!__builtin_types_compatible_p(typeof(0 ? (__force t)0 : 0ULL), u64))
->  #define __SC_LONG(t, a) __typeof(__builtin_choose_expr(__TYPE_IS_LL(t), 0LL, 0L)) a
-> +#ifdef CONFIG_64BIT
-> +#define __SC_CAST(t, a)	(__TYPE_IS_PTR(t) \
-> +				? (__force t) ((__u64)a & ~(1UL << 55)) \
-> +				: (__force t) a)
-> +#else
->  #define __SC_CAST(t, a)	(__force t) a
-> +#endif
->  #define __SC_ARGS(t, a)	a
->  #define __SC_TEST(t, a) (void)BUILD_BUG_ON_ZERO(!__TYPE_IS_LL(t) && sizeof(t) > sizeof(long))
-
-I'm laughing, I'm crying. Now I have to go look at the disassembly to
-see how this actually looks. (I mean, it _does_ solve my specific case
-of the waitid() flaw, but wouldn't help with pointers deeper in structs,
-etc, though TBI does, I think still help with that. I have to catch back
-up on the thread...) Anyway, if it's not too expensive it'd block
-reachability for those kinds of flaws.
-
-I wonder what my chances are of actually getting this landed? :)
-(Though, I guess I need to find a "VA width" macro instead of a raw 55.)
-
-Thanks for thinking of __SC_CAST() and __TYPE_IS_PTR() together. Really
-made my day. :)
+>  config SH_JCORE_SOC
+>  	bool "J-Core SoC"
+> -	depends on SH_DEVICE_TREE && (CPU_SH2 || CPU_J2)
+> +	select SH_DEVICE_TREE
+>  	select CLKSRC_JCORE_PIT
+>  	select JCORE_AIC
+> -	default y if CPU_J2
+> +	depends on CPU_J2
+>  	help
+>  	  Select this option to include drivers core components of the
+>  	  J-Core SoC, including interrupt controllers and timers.
+> -- 
+> 2.11.0
+> 
+> -- 
+> Cheers,
+> Stephen Rothwell
+> [2 OpenPGP digital signature <application/pgp-signature (7bit)>]
+> No public key for 015042F34957D06C created at 2019-05-31T09:00:04+0900 using RSA
 
 -- 
-Kees Cook
+Yosinori Sato
 
