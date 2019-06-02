@@ -2,184 +2,201 @@ Return-Path: <SRS0=2YS/=UB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74B7AC282DC
-	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 09:23:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D64D9C282DC
+	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 09:46:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2B4DF278A6
-	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 09:23:33 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ta5/6PDF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B4DF278A6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 8D3FF278AB
+	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 09:46:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D3FF278AB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ABF6A6B000C; Sun,  2 Jun 2019 05:23:32 -0400 (EDT)
+	id 2BF836B000E; Sun,  2 Jun 2019 05:46:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A6F9B6B000D; Sun,  2 Jun 2019 05:23:32 -0400 (EDT)
+	id 2476E6B0010; Sun,  2 Jun 2019 05:46:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9389E6B000E; Sun,  2 Jun 2019 05:23:32 -0400 (EDT)
+	id 1100E6B0266; Sun,  2 Jun 2019 05:46:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AD0A6B000C
-	for <linux-mm@kvack.org>; Sun,  2 Jun 2019 05:23:32 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id r12so10938465pfl.2
-        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 02:23:32 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CD6E26B000E
+	for <linux-mm@kvack.org>; Sun,  2 Jun 2019 05:46:29 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id n1so2550089plk.11
+        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 02:46:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=KUxFJsUduib/8dQMMXEXYzMoxtrq/7ohcGiPCj1I+E8=;
-        b=cXCYCP8xbdmyNBEpCkWHZ22zobxBS6yNyAOHp4B23PCmcCephV/7BYjz4LNngeTwx8
-         oWeQX0jODrXS0z4iCDTjjzbb8kQtXP1khRf7yAjt+d2IIkAbKPCbrbJFIsJP45OH8sgX
-         hZB2RXLs4pSuzPXZf0Re2zuMcfGEkd/M7vthDkvxM/S42CeHw31Z1Q29H5D/8dToMMjC
-         JkTGEau1DKroYsKcwj3nuIU6BdvvfJvSJgrRlKNVY+7NTedQ0HFiCJsqKGQKnTVG0IiD
-         P1IMfcve6ui8jIz9uQ8tFi4f44pX4FC7R2tVSvH/wdW/2QoFS25y4o5htlMbbKPQUqux
-         Shlw==
-X-Gm-Message-State: APjAAAVU9Rv2f9L3mCy8OUKZ0Jv1gvUjNCcgU6aMUvTDqiXd2j4HRYL2
-	lFy1yfkXyUmIwPRfUjVqz3VSj3DL9savWXgfzl58GeaqnC1dfqb6kJsXxs7KEFU/FoG9mS5cRnm
-	aSOvYzRqh2UVAkgc8OpGfnkSs3Yp5VnrNlNP9wO635IjZLfRri/nA758M0nETuC6VYg==
-X-Received: by 2002:a17:902:7295:: with SMTP id d21mr10035025pll.299.1559467411873;
-        Sun, 02 Jun 2019 02:23:31 -0700 (PDT)
-X-Received: by 2002:a17:902:7295:: with SMTP id d21mr10034974pll.299.1559467410620;
-        Sun, 02 Jun 2019 02:23:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559467410; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=2AkO3LxaNyQOB+mW9ZqnbZ02q46v1QMPGKcJa9dKCYY=;
+        b=adQxRTOAFtdBfY0SMOfSWPjCgooNII2oyOJsFyr065dco1seYdSZpct4YT/dm/h/Jn
+         DLdrP6x4ZmUJllmVwP2cS3TA4u1en6NxMUaAiqoKXaZzbzxdyBxmKm6tD6F5yXyWQWDX
+         xEwo0rYrxkgpsPE1r4iF3mz+H8tUZi6p7wSIIju7b1o475iZiVpWuLhwcOc9nlMWgaK0
+         sHHtqIBtsGwWKaGLmtbzSGf4cKKzq//IHdVUmznWDP2LKUyOkiajO9NXemgmR82/ro1y
+         d4nmBt1TAb/u54qv7UWtIEMGZcx/D1TvH1fZ/WHmmKv2cU6kKa2tl4ap0YASv0e3aIRL
+         8bvg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of teawaterz@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=teawaterz@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWSELBMR+okzUyQ2i/CTp/ic+JCsd4YpH/LqO60BCZN1fkX+pwn
+	Cs7Culh/dOL2ari6pMV+FLPgj+8v4uAR32t4DyWHh0Nm2FoXO2hAjGzaMlstmxJHN0TMhClWlw6
+	LRM2jiHcgfFrK25QiaYINNU1rHYUdfmjp+W7zBmp6gTX6MNmbZIsiC+Zxt+0Cz+8jHw==
+X-Received: by 2002:a63:5024:: with SMTP id e36mr21463225pgb.220.1559468789314;
+        Sun, 02 Jun 2019 02:46:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqySMKzzPEH/Ew+qIxKpE68zlkAYuJhyYYhVcQ90B2xJ4IB75b5PYuMYx1spK3K/+Ai80H8s
+X-Received: by 2002:a63:5024:: with SMTP id e36mr21463174pgb.220.1559468787963;
+        Sun, 02 Jun 2019 02:46:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559468787; cv=none;
         d=google.com; s=arc-20160816;
-        b=O+dKXXPU1bJOrM3hZpPJBJmHlZNa1VyXooGoaNTFo9SJmbSQRm2a6u5Q3KBtlTh+Hs
-         SAbshMOXzc8T3VTxc5YPh11271j2x3VRIAbJ3yPhlR0A7RfLLgPNSgfooj+iN5qi2m+p
-         oViXRf2yZygK41ftRRS06gH4poIc0b5fP1NNjbI0er1VoJU7J+vauFtbbVmpoOZGZVbX
-         JUZyp8WkYdiJEK0t9uymLZxcRWa3qnnMH4SuOKe5FtNyyud8bAcHZ3WJfPEi6FXpfxf7
-         4tRGZQOuIG7PFFEsHZuzJeVYLZQglmCBAvh4ozopHPHb2QBaiw+x6O0IMugrLAtq838k
-         VIzg==
+        b=RBnE1JGuAt0+FiYKbnXlJqmhVcc5638ZoV44FKkGXxvZ5ag6iy+WXnezjmflx7+vPb
+         ehCNIw0Qtw48V2gBEwAFSzd2T0yHl/fhRkzzI2/FLVjrqaTyX9W3DNy4KaeS3iB4q/oY
+         ECiRaPs4AfDKbrXtMt0CY3EN30YcCSMvj3LTpcEASUbmi0tpVpkDE7rOrDdZ6pCyno1+
+         keCpFCvlWBuLaccw5HtmILemVpLtnvcdysdiwZXdo9CWeeuapwzbfoYCnZgPRHfCTOCu
+         e+Bx85YZXnu5pUBIE5FBT53aV+DRi7Wpgdzcl3tDKlDcVBlLoBLnYXhSYm2uLcMwe1sJ
+         Y7tQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=KUxFJsUduib/8dQMMXEXYzMoxtrq/7ohcGiPCj1I+E8=;
-        b=haF0K5G5PYhmGPO/GKHvFkQ0CTCjvFPkEZslwO3VHTJ0P0mgNdU91Fh/RB9Hm6wOQs
-         MPy7NKBz7waz06Viyf2RGqNFRw400n4Frc5Zvufbmx/Q3du9sHll28ELe/HkIuACQh8u
-         xJtO3aqvdVM7HRlGxpWFMb98JkiGngIyrg+csfuRivB6EEaPl5Ijk/LBg+tDOzlBxozi
-         jxACEVo7cxQiLQFv8UVh5HXCMkOpI1PnSCk2XadBugDH+UumLqpQN83/+5wcVcIaWUus
-         EEOSEHpR2GSqAxPWAggOMzg8Plrxk3yb0c7uPSzs1ieOmTye9lf90ginY6+yOlRAawHu
-         8pbg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=2AkO3LxaNyQOB+mW9ZqnbZ02q46v1QMPGKcJa9dKCYY=;
+        b=jRvAPNw1Y9vNYpyiqA9+ivXjZ3o0GweELryKWDPheImEvnXDVbSK41Nl9tcGRIv8Dl
+         iyFI2OZKXk2F8h2RPSpGLEfrWXp+GdfBejd741eWwm7jJDMQUFZPKZrj5WoyV/d0PoR8
+         zKJMRjkYhUusl2NB2uO3PLXYGUcPKSgDMpQOZoYYryzky+kw5cNsyWbfXvSonG2/jmfc
+         kkqxP7pZmxW9S793RfKG4lLrLEWlyf9q+6GwT+2UjlueSZ7K8ZO03H0tYkisUZ0w3Tqo
+         MvGgwmZmHKEIsnG1AJAoQoPb9aFVIgxyUC9HsnO7rlTctpOd6ASS7oANwwaivmtfQG9o
+         xKDg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Ta5/6PDF";
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k13sor12552298pfi.31.2019.06.02.02.23.30
+       spf=pass (google.com: domain of teawaterz@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=teawaterz@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-45.freemail.mail.aliyun.com (out30-45.freemail.mail.aliyun.com. [115.124.30.45])
+        by mx.google.com with ESMTPS id q42si488054pjc.103.2019.06.02.02.46.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 02 Jun 2019 02:23:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Ta5/6PDF";
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=KUxFJsUduib/8dQMMXEXYzMoxtrq/7ohcGiPCj1I+E8=;
-        b=Ta5/6PDFxOcyoSc38+MK2T9C0GY6y8hB6BrK46AUxxvC8YScIHO9FG23TS3QUE2JZW
-         y4ockxXOJRMOVwzqQaLuosQkreMZ8iZFwDPDvMHKbw9KKtrJ8P3dVlKOzeNcYv5Is6Fo
-         CqMlWJVwJ/faUuh8xCxIPdyyPPrdVEdhLCkvxAUOG9+65/0jr3hyMi8op5IEQ0/iC0Q8
-         /wlCavloQQ44LB47dzzGYAfZaWOboMjj5OBxouMK6lFV9kTGxYut391eBPNdYerCcHmb
-         /cfx1kGd+v9wODrIve6qKRbtVSeys8UBUchaiWczEjeFXMnc6P1pcYIDcQysgjt8xiUx
-         y2SA==
-X-Google-Smtp-Source: APXvYqzUbBkWq620fD5OxQkEna2WC9+RfBsuglfBTn/q4uST8rpXP/uobCBruDOZLyENt02MzHYxsQ==
-X-Received: by 2002:a62:5306:: with SMTP id h6mr23404255pfb.29.1559467410349;
-        Sun, 02 Jun 2019 02:23:30 -0700 (PDT)
-Received: from localhost.localhost ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id t124sm11633191pfb.80.2019.06.02.02.23.28
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Jun 2019 02:23:29 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-To: mhocko@suse.com,
-	akpm@linux-foundation.org
-Cc: linux-mm@kvack.org,
-	shaoyafang@didiglobal.com,
-	Yafang Shao <laoar.shao@gmail.com>
-Subject: [PATCH v3 3/3] mm/vmscan: shrink slab in node reclaim
-Date: Sun,  2 Jun 2019 17:23:00 +0800
-Message-Id: <1559467380-8549-4-git-send-email-laoar.shao@gmail.com>
-X-Mailer: git-send-email 1.8.3.1
-In-Reply-To: <1559467380-8549-1-git-send-email-laoar.shao@gmail.com>
-References: <1559467380-8549-1-git-send-email-laoar.shao@gmail.com>
+        Sun, 02 Jun 2019 02:46:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of teawaterz@linux.alibaba.com designates 115.124.30.45 as permitted sender) client-ip=115.124.30.45;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of teawaterz@linux.alibaba.com designates 115.124.30.45 as permitted sender) smtp.mailfrom=teawaterz@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R521e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04400;MF=teawaterz@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TTD1lNX_1559468776;
+Received: from localhost(mailfrom:teawaterz@linux.alibaba.com fp:SMTPD_---0TTD1lNX_1559468776)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Sun, 02 Jun 2019 17:46:25 +0800
+From: Hui Zhu <teawaterz@linux.alibaba.com>
+To: ddstreet@ieee.org,
+	minchan@kernel.org,
+	ngupta@vflare.org,
+	sergey.senozhatsky.work@gmail.com,
+	sjenning@redhat.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: Hui Zhu <teawaterz@linux.alibaba.com>
+Subject: [PATCH V2 1/2] zpool: Add malloc_support_movable to zpool_driver
+Date: Sun,  2 Jun 2019 17:46:06 +0800
+Message-Id: <20190602094607.41840-1-teawaterz@linux.alibaba.com>
+X-Mailer: git-send-email 2.20.1 (Apple Git-117)
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In the node reclaim, may_shrinkslab is 0 by default,
-hence shrink_slab will never be performed in it.
-While shrik_slab should be performed if the relcaimable slab is over
-min slab limit.
+As a zpool_driver, zsmalloc can allocate movable memory because it
+support migate pages.
+But zbud and z3fold cannot allocate movable memory.
 
-If reclaimable pagecache is less than min_unmapped_pages while
-reclaimable slab is greater than min_slab_pages, we only shrink slab.
-Otherwise the min_unmapped_pages will be useless under this condition.
+This commit adds malloc_support_movable to zpool_driver.
+If a zpool_driver support allocate movable memory, set it to true.
+And add zpool_malloc_support_movable check malloc_support_movable
+to make sure if a zpool support allocate movable memory.
 
-reclaim_state.reclaimed_slab is to tell us how many pages are
-reclaimed in shrink slab.
-
-This issue is very easy to produce, first you continuously cat a random
-non-exist file to produce more and more dentry, then you read big file
-to produce page cache. And finally you will find that the denty will
-never be shrunk.
-
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+Signed-off-by: Hui Zhu <teawaterz@linux.alibaba.com>
 ---
- mm/vmscan.c | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+ include/linux/zpool.h |  3 +++
+ mm/zpool.c            | 16 ++++++++++++++++
+ mm/zsmalloc.c         | 19 ++++++++++---------
+ 3 files changed, 29 insertions(+), 9 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index e0c5669..d52014f 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -4157,6 +4157,8 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
- 	p->reclaim_state = &reclaim_state;
+diff --git a/include/linux/zpool.h b/include/linux/zpool.h
+index 7238865e75b0..51bf43076165 100644
+--- a/include/linux/zpool.h
++++ b/include/linux/zpool.h
+@@ -46,6 +46,8 @@ const char *zpool_get_type(struct zpool *pool);
  
- 	if (node_pagecache_reclaimable(pgdat) > pgdat->min_unmapped_pages) {
-+		sc.may_shrinkslab = (pgdat->min_slab_pages <
-+				node_page_state(pgdat, NR_SLAB_RECLAIMABLE));
- 		/*
- 		 * Free memory by calling shrink node with increasing
- 		 * priorities until we have enough memory freed.
-@@ -4164,6 +4166,28 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
- 		do {
- 			shrink_node(pgdat, &sc);
- 		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
-+	} else {
-+		/*
-+		 * If the reclaimable pagecache is not greater than
-+		 * min_unmapped_pages, only reclaim the slab.
-+		 */
-+		struct mem_cgroup *memcg;
-+		struct mem_cgroup_reclaim_cookie reclaim = {
-+			.pgdat = pgdat,
-+		};
-+
-+		do {
-+			reclaim.priority = sc.priority;
-+			memcg = mem_cgroup_iter(NULL, NULL, &reclaim);
-+			do {
-+				shrink_slab(sc.gfp_mask, pgdat->node_id,
-+					    memcg, sc.priority);
-+			} while ((memcg = mem_cgroup_iter(NULL, memcg,
-+							  &reclaim)));
-+
-+			sc.nr_reclaimed += reclaim_state.reclaimed_slab;
-+			reclaim_state.reclaimed_slab = 0;
-+		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
- 	}
+ void zpool_destroy_pool(struct zpool *pool);
  
- 	p->reclaim_state = NULL;
++bool zpool_malloc_support_movable(struct zpool *pool);
++
+ int zpool_malloc(struct zpool *pool, size_t size, gfp_t gfp,
+ 			unsigned long *handle);
+ 
+@@ -90,6 +92,7 @@ struct zpool_driver {
+ 			struct zpool *zpool);
+ 	void (*destroy)(void *pool);
+ 
++	bool malloc_support_movable;
+ 	int (*malloc)(void *pool, size_t size, gfp_t gfp,
+ 				unsigned long *handle);
+ 	void (*free)(void *pool, unsigned long handle);
+diff --git a/mm/zpool.c b/mm/zpool.c
+index a2dd9107857d..863669212070 100644
+--- a/mm/zpool.c
++++ b/mm/zpool.c
+@@ -238,6 +238,22 @@ const char *zpool_get_type(struct zpool *zpool)
+ 	return zpool->driver->type;
+ }
+ 
++/**
++ * zpool_malloc_support_movable() - Check if the zpool support
++ * allocate movable memory
++ * @zpool:	The zpool to check
++ *
++ * This returns if the zpool support allocate movable memory.
++ *
++ * Implementations must guarantee this to be thread-safe.
++ *
++ * Returns: true if if the zpool support allocate movable memory, false if not
++ */
++bool zpool_malloc_support_movable(struct zpool *zpool)
++{
++	return zpool->driver->malloc_support_movable;
++}
++
+ /**
+  * zpool_malloc() - Allocate memory
+  * @zpool:	The zpool to allocate from.
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 0787d33b80d8..8f3d9a4d46f4 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -437,15 +437,16 @@ static u64 zs_zpool_total_size(void *pool)
+ }
+ 
+ static struct zpool_driver zs_zpool_driver = {
+-	.type =		"zsmalloc",
+-	.owner =	THIS_MODULE,
+-	.create =	zs_zpool_create,
+-	.destroy =	zs_zpool_destroy,
+-	.malloc =	zs_zpool_malloc,
+-	.free =		zs_zpool_free,
+-	.map =		zs_zpool_map,
+-	.unmap =	zs_zpool_unmap,
+-	.total_size =	zs_zpool_total_size,
++	.type =			  "zsmalloc",
++	.owner =		  THIS_MODULE,
++	.create =		  zs_zpool_create,
++	.destroy =		  zs_zpool_destroy,
++	.malloc_support_movable = true,
++	.malloc =		  zs_zpool_malloc,
++	.free =			  zs_zpool_free,
++	.map =			  zs_zpool_map,
++	.unmap =		  zs_zpool_unmap,
++	.total_size =		  zs_zpool_total_size,
+ };
+ 
+ MODULE_ALIAS("zpool-zsmalloc");
 -- 
-1.8.3.1
+2.20.1 (Apple Git-117)
 
