@@ -8,105 +8,105 @@ X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E22F9C282DC
-	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 09:23:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 74B7AC282DC
+	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 09:23:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9F6AD278A6
-	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 09:23:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2B4DF278A6
+	for <linux-mm@archiver.kernel.org>; Sun,  2 Jun 2019 09:23:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JCa8vrPU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F6AD278A6
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ta5/6PDF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B4DF278A6
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 458636B0008; Sun,  2 Jun 2019 05:23:29 -0400 (EDT)
+	id ABF6A6B000C; Sun,  2 Jun 2019 05:23:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3E02E6B000A; Sun,  2 Jun 2019 05:23:29 -0400 (EDT)
+	id A6F9B6B000D; Sun,  2 Jun 2019 05:23:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 197B06B000C; Sun,  2 Jun 2019 05:23:29 -0400 (EDT)
+	id 9389E6B000E; Sun,  2 Jun 2019 05:23:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D4F416B0008
-	for <linux-mm@kvack.org>; Sun,  2 Jun 2019 05:23:28 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id s195so7712625pgs.13
-        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 02:23:28 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AD0A6B000C
+	for <linux-mm@kvack.org>; Sun,  2 Jun 2019 05:23:32 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id r12so10938465pfl.2
+        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 02:23:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=r73YVNUogeQQh2OCQkJ87PCfKvjUOXiqppG1mlJY+tA=;
-        b=hCkIqt6fexvvpbX1gT743RpZVC43WiYedQGBsBi8Dzm1KgoVR+2mDtvb0op69gh3Ol
-         EOlTLSCZCBjgIDDxSwPekP/Axz1tFYcuKclnZj4RtjB8R9qkf3Q4NEFFuJ01Aq1/0u05
-         qeildE9u0GBMPTlJlCXpF2xrckKMp/kw1t67/5T399DHjv7rCRBEGjBvOfopkSBREMPc
-         RUdlSf+m67ZciowkuEHO5hxmDYlw1E3/s8Tk2TslmGWNdVzMw1ILwUiA93T19AXE+b4G
-         HxT+wEcAKjUPfwCCacAPNRGyCjcfx4ZU6G/JFhH/s+xtavcm70Xj40ExdevTFIhDzDLW
-         Fkmw==
-X-Gm-Message-State: APjAAAU8dqC4ngF0tkxJVe6FCQQ3oRaOQ6wNp9aFMll7o2EDmuP3xmKm
-	7A/PDde5JfUfAF+qf0R4gWcxsWtvH55O0fyFGCWTDuPCMnmS07gHbMH3xnpBfGh6s195QUSqDbO
-	NFpRWVmzgYG5lfBB9SFMNR0cqP6lU5S1dX33OlvRRkzcNAXeE+QahS9ofDOSSMwuW6w==
-X-Received: by 2002:a63:3d89:: with SMTP id k131mr20744065pga.121.1559467408388;
-        Sun, 02 Jun 2019 02:23:28 -0700 (PDT)
-X-Received: by 2002:a63:3d89:: with SMTP id k131mr20744025pga.121.1559467407222;
-        Sun, 02 Jun 2019 02:23:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559467407; cv=none;
+        bh=KUxFJsUduib/8dQMMXEXYzMoxtrq/7ohcGiPCj1I+E8=;
+        b=cXCYCP8xbdmyNBEpCkWHZ22zobxBS6yNyAOHp4B23PCmcCephV/7BYjz4LNngeTwx8
+         oWeQX0jODrXS0z4iCDTjjzbb8kQtXP1khRf7yAjt+d2IIkAbKPCbrbJFIsJP45OH8sgX
+         hZB2RXLs4pSuzPXZf0Re2zuMcfGEkd/M7vthDkvxM/S42CeHw31Z1Q29H5D/8dToMMjC
+         JkTGEau1DKroYsKcwj3nuIU6BdvvfJvSJgrRlKNVY+7NTedQ0HFiCJsqKGQKnTVG0IiD
+         P1IMfcve6ui8jIz9uQ8tFi4f44pX4FC7R2tVSvH/wdW/2QoFS25y4o5htlMbbKPQUqux
+         Shlw==
+X-Gm-Message-State: APjAAAVU9Rv2f9L3mCy8OUKZ0Jv1gvUjNCcgU6aMUvTDqiXd2j4HRYL2
+	lFy1yfkXyUmIwPRfUjVqz3VSj3DL9savWXgfzl58GeaqnC1dfqb6kJsXxs7KEFU/FoG9mS5cRnm
+	aSOvYzRqh2UVAkgc8OpGfnkSs3Yp5VnrNlNP9wO635IjZLfRri/nA758M0nETuC6VYg==
+X-Received: by 2002:a17:902:7295:: with SMTP id d21mr10035025pll.299.1559467411873;
+        Sun, 02 Jun 2019 02:23:31 -0700 (PDT)
+X-Received: by 2002:a17:902:7295:: with SMTP id d21mr10034974pll.299.1559467410620;
+        Sun, 02 Jun 2019 02:23:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559467410; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xuyxgu1isbXQyHkd90xzfCAo1AKn9H0lz9sLT5ieC/jv3rQsrKj2VAETzNq6XDmP+z
-         71hm7q36B04T1AA+3xOo6gASsuiYozsPa+eKyu+FSaq3nPq4tQ8RApuv/ogOF5/qT9vv
-         vgYVRog+JYhi0A/oKMnRv+GDMuzoSWTdmGc6R4Jd4f7Y8ZGyviAhXn/Dh5+PaARNw48P
-         Hlo16pP7FsLTt4K8Stjb9ig4xo3QpxdyJDynEr43w2/6qiqzGSwgE+b35foTfN5zxYeu
-         nQ78zgubYG9Yl6KZR0u1Vrnxp/LryOmjv/aZjicFr1q4fJaD+EumoZP3XgHYT1BQRn3B
-         glsQ==
+        b=O+dKXXPU1bJOrM3hZpPJBJmHlZNa1VyXooGoaNTFo9SJmbSQRm2a6u5Q3KBtlTh+Hs
+         SAbshMOXzc8T3VTxc5YPh11271j2x3VRIAbJ3yPhlR0A7RfLLgPNSgfooj+iN5qi2m+p
+         oViXRf2yZygK41ftRRS06gH4poIc0b5fP1NNjbI0er1VoJU7J+vauFtbbVmpoOZGZVbX
+         JUZyp8WkYdiJEK0t9uymLZxcRWa3qnnMH4SuOKe5FtNyyud8bAcHZ3WJfPEi6FXpfxf7
+         4tRGZQOuIG7PFFEsHZuzJeVYLZQglmCBAvh4ozopHPHb2QBaiw+x6O0IMugrLAtq838k
+         VIzg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from
          :dkim-signature;
-        bh=r73YVNUogeQQh2OCQkJ87PCfKvjUOXiqppG1mlJY+tA=;
-        b=h8moMUWBRVlk2OBbkG2LHOmlkDzvpN6YHi/DX7KUejAdLFSPAw5uB+2AvCGPBaA4n3
-         lZhXKY3thuSQgPPkq7KZ9OjubA+gHQSqYkfvEHvH83zmwKiU70eDZvzde97BwHpXJN7a
-         2Z0ZJEc//Ep2Opjh5g+NTjNS2s/jPIzmZwnJk8tMgMgX6TXqPvXzriwx14qrbUxkFavc
-         E3Jd+MomuwEsI1EO5rzlO70J+2aP1Pez2vma85QSfY3TSu14YGgCZ6Kz2pnuv00Is0Gv
-         KiibykCIMBhXgGxZV0rTiKLXN81gkzyQM136RWc5pQ1P4BupGThCogrlV4lbyZGerbFA
-         X0IQ==
+        bh=KUxFJsUduib/8dQMMXEXYzMoxtrq/7ohcGiPCj1I+E8=;
+        b=haF0K5G5PYhmGPO/GKHvFkQ0CTCjvFPkEZslwO3VHTJ0P0mgNdU91Fh/RB9Hm6wOQs
+         MPy7NKBz7waz06Viyf2RGqNFRw400n4Frc5Zvufbmx/Q3du9sHll28ELe/HkIuACQh8u
+         xJtO3aqvdVM7HRlGxpWFMb98JkiGngIyrg+csfuRivB6EEaPl5Ijk/LBg+tDOzlBxozi
+         jxACEVo7cxQiLQFv8UVh5HXCMkOpI1PnSCk2XadBugDH+UumLqpQN83/+5wcVcIaWUus
+         EEOSEHpR2GSqAxPWAggOMzg8Plrxk3yb0c7uPSzs1ieOmTye9lf90ginY6+yOlRAawHu
+         8pbg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JCa8vrPU;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Ta5/6PDF";
        spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l6sor9030386pgl.84.2019.06.02.02.23.27
+        by mx.google.com with SMTPS id k13sor12552298pfi.31.2019.06.02.02.23.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 02 Jun 2019 02:23:27 -0700 (PDT)
+        Sun, 02 Jun 2019 02:23:30 -0700 (PDT)
 Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JCa8vrPU;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Ta5/6PDF";
        spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=r73YVNUogeQQh2OCQkJ87PCfKvjUOXiqppG1mlJY+tA=;
-        b=JCa8vrPU9ZaSP+d6DhHtJS/xMJbw3LWRN1wlfqqClxCv0kqcH1nayWducq2neQzFA9
-         6GxvXtB4xF1G/BNgTBWcyDlGI/SCOHdgvIjE6IPNDciY0wchACd+yXmj2fagWTRq4GYx
-         a+Hf+bhMClkF/lydXqvxVcZGOqctV4e3jTfh9bsgUWMTrBlV+vp0QgOkOmCSYFqRIVQz
-         GJMaEcoLSuf+ZR+N44ngajYUe3CqgP3rRPGojOKcRkI3Tww41Iwfvyq/Lx5fPZolrdMM
-         OkvIT81Dg2TFFlS2ZoNNJoU0lmAW8BEQ8Jd8v5vaPjmAXm70Y30kzq9RJW1P0PfjtUAS
-         hlVA==
-X-Google-Smtp-Source: APXvYqw1gHKEpelM0277rX1MObYnyaVLeyQXviDqOCMcGV+XM4Nup0wlQgpmbj+SkUQdzl7mhEFgkA==
-X-Received: by 2002:a63:91c4:: with SMTP id l187mr73263pge.95.1559467406938;
-        Sun, 02 Jun 2019 02:23:26 -0700 (PDT)
+        bh=KUxFJsUduib/8dQMMXEXYzMoxtrq/7ohcGiPCj1I+E8=;
+        b=Ta5/6PDFxOcyoSc38+MK2T9C0GY6y8hB6BrK46AUxxvC8YScIHO9FG23TS3QUE2JZW
+         y4ockxXOJRMOVwzqQaLuosQkreMZ8iZFwDPDvMHKbw9KKtrJ8P3dVlKOzeNcYv5Is6Fo
+         CqMlWJVwJ/faUuh8xCxIPdyyPPrdVEdhLCkvxAUOG9+65/0jr3hyMi8op5IEQ0/iC0Q8
+         /wlCavloQQ44LB47dzzGYAfZaWOboMjj5OBxouMK6lFV9kTGxYut391eBPNdYerCcHmb
+         /cfx1kGd+v9wODrIve6qKRbtVSeys8UBUchaiWczEjeFXMnc6P1pcYIDcQysgjt8xiUx
+         y2SA==
+X-Google-Smtp-Source: APXvYqzUbBkWq620fD5OxQkEna2WC9+RfBsuglfBTn/q4uST8rpXP/uobCBruDOZLyENt02MzHYxsQ==
+X-Received: by 2002:a62:5306:: with SMTP id h6mr23404255pfb.29.1559467410349;
+        Sun, 02 Jun 2019 02:23:30 -0700 (PDT)
 Received: from localhost.localhost ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id t124sm11633191pfb.80.2019.06.02.02.23.24
+        by smtp.gmail.com with ESMTPSA id t124sm11633191pfb.80.2019.06.02.02.23.28
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Jun 2019 02:23:26 -0700 (PDT)
+        Sun, 02 Jun 2019 02:23:29 -0700 (PDT)
 From: Yafang Shao <laoar.shao@gmail.com>
 To: mhocko@suse.com,
 	akpm@linux-foundation.org
 Cc: linux-mm@kvack.org,
 	shaoyafang@didiglobal.com,
 	Yafang Shao <laoar.shao@gmail.com>
-Subject: [PATCH v3 2/3] mm/vmscan: change return type of shrink_node() to void
-Date: Sun,  2 Jun 2019 17:22:59 +0800
-Message-Id: <1559467380-8549-3-git-send-email-laoar.shao@gmail.com>
+Subject: [PATCH v3 3/3] mm/vmscan: shrink slab in node reclaim
+Date: Sun,  2 Jun 2019 17:23:00 +0800
+Message-Id: <1559467380-8549-4-git-send-email-laoar.shao@gmail.com>
 X-Mailer: git-send-email 1.8.3.1
 In-Reply-To: <1559467380-8549-1-git-send-email-laoar.shao@gmail.com>
 References: <1559467380-8549-1-git-send-email-laoar.shao@gmail.com>
@@ -116,37 +116,70 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-As the return value of shrink_node() isn't used by any callsites,
-we'd better change the return type of shrink_node() from static inline
-to void.
+In the node reclaim, may_shrinkslab is 0 by default,
+hence shrink_slab will never be performed in it.
+While shrik_slab should be performed if the relcaimable slab is over
+min slab limit.
+
+If reclaimable pagecache is less than min_unmapped_pages while
+reclaimable slab is greater than min_slab_pages, we only shrink slab.
+Otherwise the min_unmapped_pages will be useless under this condition.
+
+reclaim_state.reclaimed_slab is to tell us how many pages are
+reclaimed in shrink slab.
+
+This issue is very easy to produce, first you continuously cat a random
+non-exist file to produce more and more dentry, then you read big file
+to produce page cache. And finally you will find that the denty will
+never be shrunk.
 
 Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
 ---
- mm/vmscan.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ mm/vmscan.c | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
 
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d9c3e87..e0c5669 100644
+index e0c5669..d52014f 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -2657,7 +2657,7 @@ static bool pgdat_memcg_congested(pg_data_t *pgdat, struct mem_cgroup *memcg)
- 		(memcg && memcg_congested(pgdat, memcg));
- }
+@@ -4157,6 +4157,8 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 	p->reclaim_state = &reclaim_state;
  
--static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
-+static void shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- {
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	unsigned long nr_reclaimed, nr_scanned;
-@@ -2827,8 +2827,6 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 	 */
- 	if (reclaimable)
- 		pgdat->kswapd_failures = 0;
--
--	return reclaimable;
- }
+ 	if (node_pagecache_reclaimable(pgdat) > pgdat->min_unmapped_pages) {
++		sc.may_shrinkslab = (pgdat->min_slab_pages <
++				node_page_state(pgdat, NR_SLAB_RECLAIMABLE));
+ 		/*
+ 		 * Free memory by calling shrink node with increasing
+ 		 * priorities until we have enough memory freed.
+@@ -4164,6 +4166,28 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+ 		do {
+ 			shrink_node(pgdat, &sc);
+ 		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
++	} else {
++		/*
++		 * If the reclaimable pagecache is not greater than
++		 * min_unmapped_pages, only reclaim the slab.
++		 */
++		struct mem_cgroup *memcg;
++		struct mem_cgroup_reclaim_cookie reclaim = {
++			.pgdat = pgdat,
++		};
++
++		do {
++			reclaim.priority = sc.priority;
++			memcg = mem_cgroup_iter(NULL, NULL, &reclaim);
++			do {
++				shrink_slab(sc.gfp_mask, pgdat->node_id,
++					    memcg, sc.priority);
++			} while ((memcg = mem_cgroup_iter(NULL, memcg,
++							  &reclaim)));
++
++			sc.nr_reclaimed += reclaim_state.reclaimed_slab;
++			reclaim_state.reclaimed_slab = 0;
++		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
+ 	}
  
- /*
+ 	p->reclaim_state = NULL;
 -- 
 1.8.3.1
 
