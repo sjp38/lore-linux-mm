@@ -2,90 +2,90 @@ Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNWANTED_LANGUAGE_BODY autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B9DAC04AB5
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:04:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 806DAC282CE
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:04:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D75AD274B6
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:04:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D75AD274B6
+	by mail.kernel.org (Postfix) with ESMTP id 367E0274BA
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:04:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 367E0274BA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 862586B0286; Mon,  3 Jun 2019 13:04:23 -0400 (EDT)
+	id C0B886B0288; Mon,  3 Jun 2019 13:04:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7EEF56B0288; Mon,  3 Jun 2019 13:04:23 -0400 (EDT)
+	id BBC416B028A; Mon,  3 Jun 2019 13:04:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6B57A6B0289; Mon,  3 Jun 2019 13:04:23 -0400 (EDT)
+	id A5E096B028B; Mon,  3 Jun 2019 13:04:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 346B26B0286
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 13:04:23 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id t15so5117135oic.14
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 10:04:23 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 795646B0288
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 13:04:56 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id w110so9244010otb.10
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 10:04:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=h73IcnqPEpgE8mC2EW+7uYms27DnNi4SED0AbLYhtfY=;
-        b=exeGkjVbDgGRcbYmzi5qaYpdj5Z25FB5SEXV2ki5frrFzUg5UwdgaNRTWpeJNzJOVi
-         NhIY6QPrZK2fwqkB2ON1G0xGP3cGOeol0RwxJAAtFHZQmw3GpCEzrcAC7GpLK/vZZj9K
-         HZzSpXYG4DpmeiCWtfcXgU09C7eY4d7q7ON+YXjkpRBQiBuw/97TmpHE9XbtVcs3mLxj
-         I+bwKIXk9ElO0b+dLG0IPyTEp95b9KclEwiOy8BBS3fn9heHRpeJEMeH5tgUzUjyKMCS
-         q5dbPlPiBHTgJQ8qjc+OXB1OHPVXHjUOJt5Ta2QBLnd7rO6CZ7nohGHC1v9KGP1Wi2z6
-         WLZQ==
+        bh=XCi1shg9mS6pZNHeutsN7l/1FOaYjdQNy8Jsjq0ERiE=;
+        b=eqbKf6iUJ5OADe5WWxELgbdj4QL/f0TNAkj5SBBbsRgbxyfeXtFve/wqVX1AqOx/uj
+         i6+9BR8fxGlfoujqJdYyMnOk367lroggBqESicBwUcrZq6lWzcsReKkx2OutsOtDJOf4
+         a9G04rcRgi5NYzHHGvOsg35htLT0McFeFQzd1YVeuO82qVgRevip/AIE9xtRDirMTgT8
+         zv/pn51//r4LoXA13SoDtz0GPSEDIj8hTTEhELmE319QZxst3AsOKmRxk/n9TEkxnlfy
+         orGPWBSoKjbsfl6kZVMCuGCn81lxJ3nyd94gb1MsY0v+k2L74ZYwKZN1DTA1WldDJ0v8
+         O5+A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWT5hs45EMkggySb9BZQjsAdr/MFwTxuvJcUIjDnR2T91SWLfNN
-	kQldfCXgcNwf5jzoLwGyfq+1iitJa3jufezuvmxbVOn9iUm/c+1tFEt9Ae329tLkCZ9ri3e+ARY
-	fXho5fJvtps7MIM3pfIoa27iNfnvPW5vD4hXAfR5gsKLQWEY2YS1qiu3anTfnsPNO/g==
-X-Received: by 2002:a05:6830:93:: with SMTP id a19mr656473oto.127.1559581462835;
-        Mon, 03 Jun 2019 10:04:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxSMfOXSNw8TQ6/sNbYtf08lMNd2+Ccx5RfRH6Lu/jY4wpvuksnNGVQqDfsm1S2vsFrgp3B
-X-Received: by 2002:a05:6830:93:: with SMTP id a19mr656369oto.127.1559581461521;
-        Mon, 03 Jun 2019 10:04:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559581461; cv=none;
+X-Gm-Message-State: APjAAAVaUbR6OP7R65Ty96aTspEjT9n9ycKEg6sXFHwj8H2TeVR7Rtdo
+	S6i9ta4bSEX+APBGfovvSrHJAIk5WGdG8zFo/nPs8YovYF0gNzW7kUPcHTlDvZELVzLO48xb6OM
+	Z5vqMb7CPETEZHY27wtYQidWg7pB1pEINy8MSyEjcf+K3cQednX3inLENK4toPO1h5Q==
+X-Received: by 2002:aca:b2d6:: with SMTP id b205mr1660715oif.159.1559581496036;
+        Mon, 03 Jun 2019 10:04:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwBYrSPxNWKLXw6t4Tn+RimV2i97oAnt3tnjiWkg4Hl5LdMUkw6wvkqR7qiubGgJEGbrYSa
+X-Received: by 2002:aca:b2d6:: with SMTP id b205mr1660672oif.159.1559581495165;
+        Mon, 03 Jun 2019 10:04:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559581495; cv=none;
         d=google.com; s=arc-20160816;
-        b=FjrFG/8WhyG8N8HOr7VSVpwZNo7cNv6eQBvaS+SGkRyXKgxAG9lIr8BLfvs/NBpvGA
-         eTFs84uU8sknRaLjtB9LLunOOTFqsQZjhscpSgsRU3x0weLNOetosH0LtjWsm+Dylno3
-         2Yw0SuIrOHVCW/d3y4td5fuk8pgArivDGcd2htdBJAyVFfeDD6/Mxel8TWMdru4TkwoP
-         so2p0PfR39J2L8FawgX5JpQhWPR6+eo3XA3GGllLw6LMlAIjybVgqYB3lpYLaAe6Lbyl
-         vPFIhy7dELaskeCuSPRi22Y6sZS3Os9tS9bO4grAJ+BqPHcxETaRd3ehWmA/gPMJP3f7
-         9AHw==
+        b=Yihh7JwxP+dvhAS3tNOFY9LQPmjoSezy/YrsUuJLVRSX+Y5AqyPYwdyyvrwHhwzpWW
+         fBps3jVV3ZYkmtkj7UG0JmNvWGCzdPlQuI3FMBN5QgoAVbwXxuo5nI52UinZy9fDrZLu
+         3L6UOo4c7rNIKoTLJ62DH+fxtIe1NsgiELU+yEkY8h4ANnfxVcNOKBSBe3XLLz4HvXZ2
+         A1T25npEIERX5kWCvjX3FRllu+jE9z0Edj/gRFLNPVY80ypRVJ1xAavts2ZYoFVWO9TG
+         O1y3fUAQlIXNGE12CSW9Yz4v1NHgntw8eMZzO7jkmbA93igs6ztrdENNrH5RIigO2X/7
+         wEAw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:to:from;
-        bh=h73IcnqPEpgE8mC2EW+7uYms27DnNi4SED0AbLYhtfY=;
-        b=cNwwAR1izKDEJdfE6a7qFr0e+fGZyWap4ECVbLxE/dJ7Ggn7ctctREadAbkkuiKpVb
-         pSSskuvAq4D1ybp96bl3L66Wy/4rDTTCnnzaNSE9JFTKfWgFG2zzJBAAJib/d8OFfodC
-         QfZ7UlXqcP85YS8anqManeLtIitwfSDFdqsJLUDFsRCfaVj8r1T8k7yMOPr3l7SJ9mAO
-         8udR11ZrAoKrJHYyklrhkHqds4mjCSfbTfZGigDUU5gkWUEsNuTZgQdN3/Gp1lBDPhYZ
-         UWplfiY/yN4rXs/nDBMX0XjB2GW5LZY2HI2CFQFhFLx+mATVnkDsQVYNRmEFIr2XmMMa
-         1Xjw==
+        bh=XCi1shg9mS6pZNHeutsN7l/1FOaYjdQNy8Jsjq0ERiE=;
+        b=bJGJf8pc4BzHm+pQ4VOIfHbDzgNO0WUcucwIrQOH6pavWRYAiDFRP9JfaXKiW+nsQP
+         sPsf6G7zXptu9fOqkCuwtMmD6LssejwuK8NNF3xoICN4B8ft2f616CTMMrjG5OwPUXEp
+         7bjXn1LcBrnaiuJxAJZzPFqy09naiTGUUCO0pwdtpNzbadW72KwwB4Nx3CNgVFKPK/M/
+         utDfAtZN+UwpX2BmKb8LlFTSZP5r07haZKV7yhA9ThJ+SiZ04naZS+zpdLD7f/aPbi6E
+         joq96dkoQQ7jIpsux2M2NjtWdVnbP+x1N/ldPiTXIHo5mJzh2qrdxmD8afq/37F13GGR
+         J68A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q133si302646oic.30.2019.06.03.10.04.21
+        by mx.google.com with ESMTPS id i129si7711623oia.63.2019.06.03.10.04.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jun 2019 10:04:21 -0700 (PDT)
+        Mon, 03 Jun 2019 10:04:55 -0700 (PDT)
 Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 2AD41316290E;
-	Mon,  3 Jun 2019 17:04:07 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id C937B89C42;
+	Mon,  3 Jun 2019 17:04:39 +0000 (UTC)
 Received: from virtlab512.virt.lab.eng.bos.redhat.com (virtlab512.virt.lab.eng.bos.redhat.com [10.19.152.206])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 008B36108E;
-	Mon,  3 Jun 2019 17:03:55 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BC4E16090E;
+	Mon,  3 Jun 2019 17:04:32 +0000 (UTC)
 From: Nitesh Narayan Lal <nitesh@redhat.com>
 To: kvm@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
@@ -103,480 +103,223 @@ To: kvm@vger.kernel.org,
 	dhildenb@redhat.com,
 	aarcange@redhat.com,
 	alexander.duyck@gmail.com
-Subject: [RFC][Patch v10 1/2] mm: page_hinting: core infrastructure
-Date: Mon,  3 Jun 2019 13:03:05 -0400
-Message-Id: <20190603170306.49099-2-nitesh@redhat.com>
+Subject: [QEMU PATCH] KVM: Support for page hinting
+Date: Mon,  3 Jun 2019 13:04:32 -0400
+Message-Id: <20190603170432.1195-1-nitesh@redhat.com>
 In-Reply-To: <20190603170306.49099-1-nitesh@redhat.com>
 References: <20190603170306.49099-1-nitesh@redhat.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Mon, 03 Jun 2019 17:04:12 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Mon, 03 Jun 2019 17:04:53 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch introduces the core infrastructure for free page hinting in
-virtual environments. It enables the kernel to track the free pages which
-can be reported to its hypervisor so that the hypervisor could
-free and reuse that memory as per its requirement.
-
-While the pages are getting processed in the hypervisor (e.g.,
-via MADV_FREE), the guest must not use them, otherwise, data loss
-would be possible. To avoid such a situation, these pages are
-temporarily removed from the buddy. The amount of pages removed
-temporarily from the buddy is governed by the backend(virtio-balloon
-in our case).
-
-To efficiently identify free pages that can to be hinted to the
-hypervisor, bitmaps in a coarse granularity are used. Only fairly big
-chunks are reported to the hypervisor - especially, to not break up THP
-in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The bits
-in the bitmap are an indication whether a page *might* be free, not a
-guarantee. A new hook after buddy merging sets the bits.
-
-Bitmaps are stored per zone, protected by the zone lock. A workqueue
-asynchronously processes the bitmaps, trying to isolate and report pages
-that are still free. The backend (virtio-balloon) is responsible for
-reporting these batched pages to the host synchronously. Once reporting/
-freeing is complete, isolated pages are returned back to the buddy.
-
-There are still various things to look into (e.g., memory hotplug, more
-efficient locking, possible races when disabling).
+Enables QEMU to call madvise on the pages which are reported
+by the guest kernel.
 
 Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
 ---
- drivers/virtio/Kconfig       |   1 +
- include/linux/page_hinting.h |  46 +++++++
- mm/Kconfig                   |   6 +
- mm/Makefile                  |   2 +
- mm/page_alloc.c              |  17 +--
- mm/page_hinting.c            | 236 +++++++++++++++++++++++++++++++++++
- 6 files changed, 301 insertions(+), 7 deletions(-)
- create mode 100644 include/linux/page_hinting.h
- create mode 100644 mm/page_hinting.c
+ hw/virtio/trace-events                        |  1 +
+ hw/virtio/virtio-balloon.c                    | 85 +++++++++++++++++++
+ include/hw/virtio/virtio-balloon.h            |  2 +-
+ include/qemu/osdep.h                          |  7 ++
+ .../standard-headers/linux/virtio_balloon.h   |  1 +
+ 5 files changed, 95 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
-index 35897649c24f..5a96b7a2ed1e 100644
---- a/drivers/virtio/Kconfig
-+++ b/drivers/virtio/Kconfig
-@@ -46,6 +46,7 @@ config VIRTIO_BALLOON
- 	tristate "Virtio balloon driver"
- 	depends on VIRTIO
- 	select MEMORY_BALLOON
-+	select PAGE_HINTING
- 	---help---
- 	 This driver supports increasing and decreasing the amount
- 	 of memory within a KVM guest.
-diff --git a/include/linux/page_hinting.h b/include/linux/page_hinting.h
-new file mode 100644
-index 000000000000..e65188fe1e6b
---- /dev/null
-+++ b/include/linux/page_hinting.h
-@@ -0,0 +1,46 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+#ifndef _LINUX_PAGE_HINTING_H
-+#define _LINUX_PAGE_HINTING_H
-+
-+/*
-+ * Minimum page order required for a page to be hinted to the host.
-+ */
-+#define PAGE_HINTING_MIN_ORDER		(MAX_ORDER - 2)
-+
-+/*
-+ * struct page_hinting_cb: holds the callbacks to store, report and cleanup
-+ * isolated pages.
-+ * @prepare:		Callback responsible for allocating an array to hold
-+ *			the isolated pages.
-+ * @hint_pages:		Callback which reports the isolated pages synchornously
-+ *			to the host.
-+ * @cleanup:		Callback to free the the array used for reporting the
-+ *			isolated pages.
-+ * @max_pages:		Maxmimum pages that are going to be hinted to the host
-+ *			at a time of granularity >= PAGE_HINTING_MIN_ORDER.
-+ */
-+struct page_hinting_cb {
-+	int (*prepare)(void);
-+	void (*hint_pages)(struct list_head *list);
-+	void (*cleanup)(void);
-+	int max_pages;
+diff --git a/hw/virtio/trace-events b/hw/virtio/trace-events
+index 07bcbe9e85..015565785c 100644
+--- a/hw/virtio/trace-events
++++ b/hw/virtio/trace-events
+@@ -46,3 +46,4 @@ virtio_balloon_handle_output(const char *name, uint64_t gpa) "section name: %s g
+ virtio_balloon_get_config(uint32_t num_pages, uint32_t actual) "num_pages: %d actual: %d"
+ virtio_balloon_set_config(uint32_t actual, uint32_t oldactual) "actual: %d oldactual: %d"
+ virtio_balloon_to_target(uint64_t target, uint32_t num_pages) "balloon target: 0x%"PRIx64" num_pages: %d"
++virtio_balloon_hinting_request(unsigned long pfn, unsigned int num_pages) "Guest page hinting request: %lu size: %d"
+diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+index a12677d4d5..cbb630279c 100644
+--- a/hw/virtio/virtio-balloon.c
++++ b/hw/virtio/virtio-balloon.c
+@@ -33,6 +33,13 @@
+ 
+ #define BALLOON_PAGE_SIZE  (1 << VIRTIO_BALLOON_PFN_SHIFT)
+ 
++struct guest_pages {
++	uint64_t phys_addr;
++	uint32_t len;
 +};
 +
-+#ifdef CONFIG_PAGE_HINTING
-+void page_hinting_enqueue(struct page *page, int order);
-+void page_hinting_enable(const struct page_hinting_cb *cb);
-+void page_hinting_disable(void);
++void page_hinting_request(uint64_t addr, uint32_t len);
++
+ static void balloon_page(void *addr, int deflate)
+ {
+     if (!qemu_balloon_is_inhibited()) {
+@@ -207,6 +214,80 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
+     balloon_stats_change_timer(s, 0);
+ }
+ 
++static void *gpa2hva(MemoryRegion **p_mr, hwaddr addr, Error **errp)
++{
++    MemoryRegionSection mrs = memory_region_find(get_system_memory(),
++                                                 addr, 1);
++
++    if (!mrs.mr) {
++        error_setg(errp, "No memory is mapped at address 0x%" HWADDR_PRIx, addr);
++        return NULL;
++    }
++
++    if (!memory_region_is_ram(mrs.mr) && !memory_region_is_romd(mrs.mr)) {
++        error_setg(errp, "Memory at address 0x%" HWADDR_PRIx "is not RAM", addr);
++        memory_region_unref(mrs.mr);
++        return NULL;
++    }
++
++    *p_mr = mrs.mr;
++    return qemu_map_ram_ptr(mrs.mr->ram_block, mrs.offset_within_region);
++}
++
++void page_hinting_request(uint64_t addr, uint32_t len)
++{
++    Error *local_err = NULL;
++    MemoryRegion *mr = NULL;
++    int ret = 0;
++    struct guest_pages *guest_obj;
++    int i = 0;
++    void *hvaddr_to_free;
++    uint64_t gpaddr_to_free;
++    void * temp_addr = gpa2hva(&mr, addr, &local_err);
++
++    if (local_err) {
++        error_report_err(local_err);
++        return;
++    }
++    guest_obj = temp_addr;
++    while (i < len) {
++	gpaddr_to_free = guest_obj[i].phys_addr;
++	trace_virtio_balloon_hinting_request(gpaddr_to_free,guest_obj[i].len);
++	hvaddr_to_free = gpa2hva(&mr, gpaddr_to_free, &local_err);
++	if (local_err) {
++		error_report_err(local_err);
++		return;
++	}
++	ret = qemu_madvise((void *)hvaddr_to_free, guest_obj[i].len, QEMU_MADV_FREE);
++	if (ret == -1)
++	    printf("\n%d:%s Error: Madvise failed with error:%d\n", __LINE__, __func__, ret);
++	i++;
++    }
++}
++
++static void virtio_balloon_page_hinting(VirtIODevice *vdev, VirtQueue *vq)
++{
++    VirtQueueElement *elem = NULL;
++    uint64_t temp_addr;
++    uint32_t temp_len;
++    size_t size, t_size = 0;
++
++    elem = virtqueue_pop(vq, sizeof(VirtQueueElement));
++    if (!elem) {
++	printf("\npop error\n");
++	return;
++    }
++    size = iov_to_buf(elem->out_sg, elem->out_num, 0, &temp_addr, sizeof(temp_addr));
++    t_size += size;
++    size = iov_to_buf(elem->out_sg, elem->out_num, 8, &temp_len, sizeof(temp_len));
++    t_size += size;
++    if (!qemu_balloon_is_inhibited())
++	    page_hinting_request(temp_addr, temp_len);
++    virtqueue_push(vq, elem, t_size);
++    virtio_notify(vdev, vq);
++    g_free(elem);
++}
++
+ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+ {
+     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+@@ -376,6 +457,7 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
+     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
+     f |= dev->host_features;
+     virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
++    virtio_add_feature(&f, VIRTIO_BALLOON_F_HINTING);
+     return f;
+ }
+ 
+@@ -445,6 +527,7 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
+     s->ivq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+     s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
+     s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
++    s->hvq = virtio_add_queue(vdev, 128, virtio_balloon_page_hinting);
+ 
+     reset_stats(s);
+ }
+@@ -488,6 +571,8 @@ static void virtio_balloon_instance_init(Object *obj)
+ 
+     object_property_add(obj, "guest-stats", "guest statistics",
+                         balloon_stats_get_all, NULL, NULL, s, NULL);
++    object_property_add(obj, "guest-page-hinting", "guest page hinting",
++                        NULL, NULL, NULL, s, NULL);
+ 
+     object_property_add(obj, "guest-stats-polling-interval", "int",
+                         balloon_stats_get_poll_interval,
+diff --git a/include/hw/virtio/virtio-balloon.h b/include/hw/virtio/virtio-balloon.h
+index e0df3528c8..774498a6ca 100644
+--- a/include/hw/virtio/virtio-balloon.h
++++ b/include/hw/virtio/virtio-balloon.h
+@@ -32,7 +32,7 @@ typedef struct virtio_balloon_stat_modern {
+ 
+ typedef struct VirtIOBalloon {
+     VirtIODevice parent_obj;
+-    VirtQueue *ivq, *dvq, *svq;
++    VirtQueue *ivq, *dvq, *svq, *hvq;
+     uint32_t num_pages;
+     uint32_t actual;
+     uint64_t stats[VIRTIO_BALLOON_S_NR];
+diff --git a/include/qemu/osdep.h b/include/qemu/osdep.h
+index 840af09cb0..4d632933a9 100644
+--- a/include/qemu/osdep.h
++++ b/include/qemu/osdep.h
+@@ -360,6 +360,11 @@ void qemu_anon_ram_free(void *ptr, size_t size);
+ #else
+ #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
+ #endif
++#ifdef MADV_FREE
++#define QEMU_MADV_FREE MADV_FREE
 +#else
-+static inline void page_hinting_enqueue(struct page *page, int order)
-+{
-+}
-+
-+static inline void page_hinting_enable(struct page_hinting_cb *cb)
-+{
-+}
-+
-+static inline void page_hinting_disable(void)
-+{
-+}
++#define QEMU_MADV_FREE QEMU_MADV_INVALID
 +#endif
-+#endif /* _LINUX_PAGE_HINTING_H */
-diff --git a/mm/Kconfig b/mm/Kconfig
-index ee8d1f311858..177d858de758 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -764,4 +764,10 @@ config GUP_BENCHMARK
- config ARCH_HAS_PTE_SPECIAL
- 	bool
  
-+# PAGE_HINTING will allow the guest to report the free pages to the
-+# host in regular interval of time.
-+config PAGE_HINTING
-+       bool
-+       def_bool n
-+       depends on X86_64
- endmenu
-diff --git a/mm/Makefile b/mm/Makefile
-index ac5e5ba78874..bec456dfee34 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -41,6 +41,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
- 			   interval_tree.o list_lru.o workingset.o \
- 			   debug.o $(mmu-y)
+ #elif defined(CONFIG_POSIX_MADVISE)
  
-+
- # Give 'page_alloc' its own module-parameter namespace
- page-alloc-y := page_alloc.o
- page-alloc-$(CONFIG_SHUFFLE_PAGE_ALLOCATOR) += shuffle.o
-@@ -94,6 +95,7 @@ obj-$(CONFIG_Z3FOLD)	+= z3fold.o
- obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
- obj-$(CONFIG_CMA)	+= cma.o
- obj-$(CONFIG_MEMORY_BALLOON) += balloon_compaction.o
-+obj-$(CONFIG_PAGE_HINTING) += page_hinting.o
- obj-$(CONFIG_PAGE_EXTENSION) += page_ext.o
- obj-$(CONFIG_CMA_DEBUGFS) += cma_debug.o
- obj-$(CONFIG_USERFAULTFD) += userfaultfd.o
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 3b13d3914176..d12f69e0e402 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -68,6 +68,7 @@
- #include <linux/lockdep.h>
- #include <linux/nmi.h>
- #include <linux/psi.h>
-+#include <linux/page_hinting.h>
+@@ -373,6 +378,7 @@ void qemu_anon_ram_free(void *ptr, size_t size);
+ #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
+ #define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
+ #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
++#define QEMU_MADV_FREE QEMU_MADV_INVALID
  
- #include <asm/sections.h>
- #include <asm/tlbflush.h>
-@@ -873,10 +874,10 @@ compaction_capture(struct capture_control *capc, struct page *page,
-  * -- nyc
-  */
+ #else /* no-op */
  
--static inline void __free_one_page(struct page *page,
-+inline void __free_one_page(struct page *page,
- 		unsigned long pfn,
- 		struct zone *zone, unsigned int order,
--		int migratetype)
-+		int migratetype, bool hint)
- {
- 	unsigned long combined_pfn;
- 	unsigned long uninitialized_var(buddy_pfn);
-@@ -951,6 +952,8 @@ static inline void __free_one_page(struct page *page,
- done_merging:
- 	set_page_order(page, order);
+@@ -386,6 +392,7 @@ void qemu_anon_ram_free(void *ptr, size_t size);
+ #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
+ #define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
+ #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
++#define QEMU_MADV_FREE QEMU_MADV_INVALID
  
-+	if (hint)
-+		page_hinting_enqueue(page, order);
- 	/*
- 	 * If this is not the largest possible page, check if the buddy
- 	 * of the next-highest order is free. If it is, it's possible
-@@ -1262,7 +1265,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- 		if (unlikely(isolated_pageblocks))
- 			mt = get_pageblock_migratetype(page);
+ #endif
  
--		__free_one_page(page, page_to_pfn(page), zone, 0, mt);
-+		__free_one_page(page, page_to_pfn(page), zone, 0, mt, true);
- 		trace_mm_page_pcpu_drain(page, 0, mt);
- 	}
- 	spin_unlock(&zone->lock);
-@@ -1271,14 +1274,14 @@ static void free_pcppages_bulk(struct zone *zone, int count,
- static void free_one_page(struct zone *zone,
- 				struct page *page, unsigned long pfn,
- 				unsigned int order,
--				int migratetype)
-+				int migratetype, bool hint)
- {
- 	spin_lock(&zone->lock);
- 	if (unlikely(has_isolate_pageblock(zone) ||
- 		is_migrate_isolate(migratetype))) {
- 		migratetype = get_pfnblock_migratetype(page, pfn);
- 	}
--	__free_one_page(page, pfn, zone, order, migratetype);
-+	__free_one_page(page, pfn, zone, order, migratetype, hint);
- 	spin_unlock(&zone->lock);
- }
+diff --git a/include/standard-headers/linux/virtio_balloon.h b/include/standard-headers/linux/virtio_balloon.h
+index 4dbb7dc6c0..f50c0d95ea 100644
+--- a/include/standard-headers/linux/virtio_balloon.h
++++ b/include/standard-headers/linux/virtio_balloon.h
+@@ -34,6 +34,7 @@
+ #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
+ #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
+ #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
++#define VIRTIO_BALLOON_F_HINTING	5 /* Page hinting virtqueue */
  
-@@ -1368,7 +1371,7 @@ static void __free_pages_ok(struct page *page, unsigned int order)
- 	migratetype = get_pfnblock_migratetype(page, pfn);
- 	local_irq_save(flags);
- 	__count_vm_events(PGFREE, 1 << order);
--	free_one_page(page_zone(page), page, pfn, order, migratetype);
-+	free_one_page(page_zone(page), page, pfn, order, migratetype, true);
- 	local_irq_restore(flags);
- }
- 
-@@ -2968,7 +2971,7 @@ static void free_unref_page_commit(struct page *page, unsigned long pfn)
- 	 */
- 	if (migratetype >= MIGRATE_PCPTYPES) {
- 		if (unlikely(is_migrate_isolate(migratetype))) {
--			free_one_page(zone, page, pfn, 0, migratetype);
-+			free_one_page(zone, page, pfn, 0, migratetype, true);
- 			return;
- 		}
- 		migratetype = MIGRATE_MOVABLE;
-diff --git a/mm/page_hinting.c b/mm/page_hinting.c
-new file mode 100644
-index 000000000000..7341c6462de2
---- /dev/null
-+++ b/mm/page_hinting.c
-@@ -0,0 +1,236 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Page hinting support to enable a VM to report the freed pages back
-+ * to the host.
-+ *
-+ * Copyright Red Hat, Inc. 2019
-+ *
-+ * Author(s): Nitesh Narayan Lal <nitesh@redhat.com>
-+ */
-+
-+#include <linux/mm.h>
-+#include <linux/slab.h>
-+#include <linux/page_hinting.h>
-+#include <linux/kvm_host.h>
-+
-+/*
-+ * struct hinting_bitmap: holds the bitmap pointer which tracks the freed PFNs
-+ * and other required parameters which could help in retrieving the original
-+ * PFN value using the bitmap.
-+ * @bitmap:		Pointer to the bitmap of free PFN.
-+ * @base_pfn:		Starting PFN value for the zone whose bitmap is stored.
-+ * @free_pages:		Tracks the number of free pages of granularity
-+ *			PAGE_HINTING_MIN_ORDER.
-+ * @nbits:		Indicates the total size of the bitmap in bits allocated
-+ *			at the time of initialization.
-+ */
-+struct hinting_bitmap {
-+	unsigned long *bitmap;
-+	unsigned long base_pfn;
-+	atomic_t free_pages;
-+	unsigned long nbits;
-+} bm_zone[MAX_NR_ZONES];
-+
-+static void init_hinting_wq(struct work_struct *work);
-+extern int __isolate_free_page(struct page *page, unsigned int order);
-+extern void __free_one_page(struct page *page, unsigned long pfn,
-+			    struct zone *zone, unsigned int order,
-+			    int migratetype, bool hint);
-+const struct page_hinting_cb *hcb;
-+struct work_struct hinting_work;
-+
-+static unsigned long find_bitmap_size(struct zone *zone)
-+{
-+	unsigned long nbits = ALIGN(zone->spanned_pages,
-+			    PAGE_HINTING_MIN_ORDER);
-+
-+	nbits = nbits >> PAGE_HINTING_MIN_ORDER;
-+	return nbits;
-+}
-+
-+void page_hinting_enable(const struct page_hinting_cb *callback)
-+{
-+	struct zone *zone;
-+	int idx = 0;
-+	unsigned long bitmap_size = 0;
-+
-+	for_each_populated_zone(zone) {
-+		spin_lock(&zone->lock);
-+		bitmap_size = find_bitmap_size(zone);
-+		bm_zone[idx].bitmap = bitmap_zalloc(bitmap_size, GFP_KERNEL);
-+		if (!bm_zone[idx].bitmap)
-+			return;
-+		bm_zone[idx].nbits = bitmap_size;
-+		bm_zone[idx].base_pfn = zone->zone_start_pfn;
-+		spin_unlock(&zone->lock);
-+		idx++;
-+	}
-+	hcb = callback;
-+	INIT_WORK(&hinting_work, init_hinting_wq);
-+}
-+EXPORT_SYMBOL_GPL(page_hinting_enable);
-+
-+void page_hinting_disable(void)
-+{
-+	struct zone *zone;
-+	int idx = 0;
-+
-+	cancel_work_sync(&hinting_work);
-+	hcb = NULL;
-+	for_each_populated_zone(zone) {
-+		spin_lock(&zone->lock);
-+		bitmap_free(bm_zone[idx].bitmap);
-+		bm_zone[idx].base_pfn = 0;
-+		bm_zone[idx].nbits = 0;
-+		atomic_set(&bm_zone[idx].free_pages, 0);
-+		spin_unlock(&zone->lock);
-+		idx++;
-+	}
-+}
-+EXPORT_SYMBOL_GPL(page_hinting_disable);
-+
-+static unsigned long pfn_to_bit(struct page *page, int zonenum)
-+{
-+	unsigned long bitnr;
-+
-+	bitnr = (page_to_pfn(page) - bm_zone[zonenum].base_pfn)
-+			 >> PAGE_HINTING_MIN_ORDER;
-+	return bitnr;
-+}
-+
-+static void release_buddy_pages(struct list_head *pages)
-+{
-+	int mt = 0, zonenum, order;
-+	struct page *page, *next;
-+	struct zone *zone;
-+	unsigned long bitnr;
-+
-+	list_for_each_entry_safe(page, next, pages, lru) {
-+		zonenum = page_zonenum(page);
-+		zone = page_zone(page);
-+		bitnr = pfn_to_bit(page, zonenum);
-+		spin_lock(&zone->lock);
-+		list_del(&page->lru);
-+		order = page_private(page);
-+		set_page_private(page, 0);
-+		mt = get_pageblock_migratetype(page);
-+		__free_one_page(page, page_to_pfn(page), zone,
-+				order, mt, false);
-+		spin_unlock(&zone->lock);
-+	}
-+}
-+
-+static void bm_set_pfn(struct page *page)
-+{
-+	unsigned long bitnr = 0;
-+	int zonenum = page_zonenum(page);
-+	struct zone *zone = page_zone(page);
-+
-+	lockdep_assert_held(&zone->lock);
-+	bitnr = pfn_to_bit(page, zonenum);
-+	if (bm_zone[zonenum].bitmap &&
-+	    bitnr < bm_zone[zonenum].nbits &&
-+	    !test_and_set_bit(bitnr, bm_zone[zonenum].bitmap))
-+		atomic_inc(&bm_zone[zonenum].free_pages);
-+}
-+
-+static void scan_hinting_bitmap(int zonenum, int free_pages)
-+{
-+	unsigned long set_bit, start = 0;
-+	struct page *page;
-+	struct zone *zone;
-+	int scanned_pages = 0, ret = 0, order, isolated_cnt = 0;
-+	LIST_HEAD(isolated_pages);
-+
-+	ret = hcb->prepare();
-+	if (ret < 0)
-+		return;
-+	for (;;) {
-+		ret = 0;
-+		set_bit = find_next_bit(bm_zone[zonenum].bitmap,
-+					bm_zone[zonenum].nbits, start);
-+		if (set_bit >= bm_zone[zonenum].nbits)
-+			break;
-+		page = pfn_to_online_page((set_bit << PAGE_HINTING_MIN_ORDER) +
-+				bm_zone[zonenum].base_pfn);
-+		if (!page)
-+			continue;
-+		zone = page_zone(page);
-+		spin_lock(&zone->lock);
-+
-+		if (PageBuddy(page) && page_private(page) >=
-+		    PAGE_HINTING_MIN_ORDER) {
-+			order = page_private(page);
-+			ret = __isolate_free_page(page, order);
-+		}
-+		clear_bit(set_bit, bm_zone[zonenum].bitmap);
-+		spin_unlock(&zone->lock);
-+		if (ret) {
-+			/*
-+			 * restoring page order to use it while releasing
-+			 * the pages back to the buddy.
-+			 */
-+			set_page_private(page, order);
-+			list_add_tail(&page->lru, &isolated_pages);
-+			isolated_cnt++;
-+			if (isolated_cnt == hcb->max_pages) {
-+				hcb->hint_pages(&isolated_pages);
-+				release_buddy_pages(&isolated_pages);
-+				isolated_cnt = 0;
-+			}
-+		}
-+		start = set_bit + 1;
-+		scanned_pages++;
-+	}
-+	if (isolated_cnt) {
-+		hcb->hint_pages(&isolated_pages);
-+		release_buddy_pages(&isolated_pages);
-+	}
-+	hcb->cleanup();
-+	if (scanned_pages > free_pages)
-+		atomic_sub((scanned_pages - free_pages),
-+			   &bm_zone[zonenum].free_pages);
-+}
-+
-+static bool check_hinting_threshold(void)
-+{
-+	int zonenum = 0;
-+
-+	for (; zonenum < MAX_NR_ZONES; zonenum++) {
-+		if (atomic_read(&bm_zone[zonenum].free_pages) >=
-+				hcb->max_pages)
-+			return true;
-+	}
-+	return false;
-+}
-+
-+static void init_hinting_wq(struct work_struct *work)
-+{
-+	int zonenum = 0, free_pages = 0;
-+
-+	for (; zonenum < MAX_NR_ZONES; zonenum++) {
-+		free_pages = atomic_read(&bm_zone[zonenum].free_pages);
-+		if (free_pages >= hcb->max_pages) {
-+			/* Find a better way to synchronize per zone
-+			 * free_pages.
-+			 */
-+			atomic_sub(free_pages,
-+				   &bm_zone[zonenum].free_pages);
-+			scan_hinting_bitmap(zonenum, free_pages);
-+		}
-+	}
-+}
-+
-+void page_hinting_enqueue(struct page *page, int order)
-+{
-+	if (hcb && order >= PAGE_HINTING_MIN_ORDER)
-+		bm_set_pfn(page);
-+	else
-+		return;
-+
-+	if (check_hinting_threshold()) {
-+		int cpu = smp_processor_id();
-+
-+		queue_work_on(cpu, system_wq, &hinting_work);
-+	}
-+}
+ /* Size of a PFN in the balloon interface. */
+ #define VIRTIO_BALLOON_PFN_SHIFT 12
 -- 
 2.21.0
 
