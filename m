@@ -2,205 +2,355 @@ Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 71AC8C28CC6
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 20:32:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62FD9C28CC6
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 20:35:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 34E1C255C0
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 20:32:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34E1C255C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 0E92325687
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 20:35:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="EIZBOWJ7";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="dtxeqp8q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E92325687
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A5C6B6B026B; Mon,  3 Jun 2019 16:32:36 -0400 (EDT)
+	id AA86C6B026B; Mon,  3 Jun 2019 16:35:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9E6F96B026C; Mon,  3 Jun 2019 16:32:36 -0400 (EDT)
+	id A5A906B026C; Mon,  3 Jun 2019 16:35:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 888806B0270; Mon,  3 Jun 2019 16:32:36 -0400 (EDT)
+	id 8D2AE6B0270; Mon,  3 Jun 2019 16:35:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 31CE96B026B
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 16:32:36 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id l26so5805784eda.2
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 13:32:36 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 697316B026B
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 16:35:48 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id h143so15138070ybg.6
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 13:35:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=xZMXF1O3L2BCUBbSh1uUkb+W06NvGrlgRqLNll5Jgw4=;
-        b=FiydisrRVQM6TySaafBADjHQyw2kfeHiuOQrhMDUMqBG3PIbQ+1JEAtIekMRudZAYN
-         S5z0OMDkb3UUxQmHq58pue6AbVfLbMEmAuOh9Eb7ru5NuQ96ZUNF+k+6J+zSpM246hES
-         88d+YFR+hedy0Qssms9SMIPWUJYxMlEgI7ownnVCNx4MHxNjeJlvTCYYwQ8YoypHcUNp
-         igSJiPZP7g0GfgVt6MAUzvhSf8Xae3RbNb+iyzBuCDLfLxDoKjVnj033XXyFlsmDi2k5
-         WxSsKSEUqWHwFJaUtTvVT10peWYygDww0R9tmwy3B1IhliD0Zr1OvoAbDKo6CZsyumPs
-         r8Wg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXtrCAPvSxKxlEY7jn4qfHA5Ntbmk3SPOnqVcHXIdAmc3UbxdzZ
-	S1kGeuUQ9zbfFbuILxgHkPtAZsXch1PqBeX5IwYSqt+gZC5IeqUa2PyU0RA7M1n4Q9FoZRZXPsn
-	n6ecp9UXAFhl7V4Sv26D50jcfGXv3gePVkdALjej0e76gopcOh2azUT3sQOH37xQ=
-X-Received: by 2002:a17:906:3daa:: with SMTP id y10mr13643433ejh.65.1559593955726;
-        Mon, 03 Jun 2019 13:32:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz/eDIr+mI0A0mdM9jYoGa+P46qEZQuaJxtoLMkMHXcwLVgG20JTcMldtblXO0PKTZOA3KI
-X-Received: by 2002:a17:906:3daa:: with SMTP id y10mr13643334ejh.65.1559593954365;
-        Mon, 03 Jun 2019 13:32:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559593954; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=OPssNFO3i/ZLXoO3dC2MAgO7WatPCHbc6KOMcUalcgA=;
+        b=Zk+YwhCz3S8oqGJc8REYivG1COkmRXHN+tsgLrhCJtmnvzeLXtpro1WILif8DbOFv0
+         QqKtypNJOf0DCzUB0/egsop0Hf5ET7q4W/j33nDU+xHMN3WfXoSbr6Sjy2iJEovmwWhe
+         KeowYVagHZgUet4xar3gcVIX2y6t0pdMVHDAOqqnvmdRwyz8FJw645AnkuMxCUpsnTM2
+         0Zh5N28mxP/EzicmhSVC/BuvJWKXQObrnyGubdFhrOK7yuf2tVTGCebxJifTTcTflx0+
+         QEL8TMRmvXjZ0oJS4bJXMLgUsvMhdCP8/hRkNIP/lQwLKobEb+3uykxvW+JWHesHl9zE
+         LqDQ==
+X-Gm-Message-State: APjAAAVhEhNa4cp0tYuCh9XQizPRUKHZfzEwm5xIyLL1lAWClfrjRZB4
+	zm9B+/P2FWPdf+PKLh3jh7fBlW9rnGPUJ/exzyPnBeR7hsI/6ohNJTdOpeb7I8TnyihRQEcgVM8
+	ptg2h1WfX8riVJCeFyg16OMj9myOpZTtgVls8dysFz0hNx97Il0bhV6LiGG3t62HiTg==
+X-Received: by 2002:a81:3c47:: with SMTP id j68mr15966598ywa.293.1559594148137;
+        Mon, 03 Jun 2019 13:35:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqympDJzcqeQ3o89mXdCaaJwMJ+rXyeYVeFrL6YgU4cbUMRkTYuqnzajJdAljV6iNcEHwvWd
+X-Received: by 2002:a81:3c47:: with SMTP id j68mr15966563ywa.293.1559594146977;
+        Mon, 03 Jun 2019 13:35:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559594146; cv=none;
         d=google.com; s=arc-20160816;
-        b=xOivsC0ap2qO7ZalSQniDWS1nnXkhVDfjKR0qa199a/AJpKzM7g278TpkROOBtNVda
-         8deETBLwEzlEO6iq7XeJ4uLuTkGDll2qveKwSnzUJ5xzbnjiZIdEW/+W4QkIL4aZ+jUx
-         2N72BMsa4rNH6SE4nHJNcXOHqAfjWq98L/q0ocqUfFtur9F8NPWPpfKfDTPGv4+d6UDk
-         9bPPVCgRwyFrYp0dUbccMU5p2s+wnIjT8N23X2/h9jFaWNCx+0hMFXiWCBYb9jXXjOEs
-         3zi0kv6iG3LhVwscEHhphXPdCbnJNCBaFeKabK+UdO8lDYagFFZoQXY7Fh/TFw2B3kva
-         IJ7w==
+        b=tCry8kq6D+nYBTMPIRvVdjXiwEK1HswKCpDGHj3My/HhBdLaxeyTkn/fw7ge+5yzAU
+         oSeosAETlbXNPP2vSBZxCwY8VzNRvTY4DcrvXh/HVOo2hbNvNvYDRb6Gy3IvuJu3RiFy
+         VYj90ZvBEx4csmKFmeQKn0TsFjEjddOo2UKePfAd/cNvqckYKpnmJZD2bXgbC41QkWbN
+         JYnnwRqN8CwWgTeMdvIKm5HYb18SB8BiYG1tUbdE7g1JrtHJAzc9wCfheFB6glkr/Kae
+         YrsYuhcmgGX4GUdnVSYay+wiELHKPtuaSxXIwOHEnuf4R0q4JZxomyeo2wIkde7HpaXC
+         D/bQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=xZMXF1O3L2BCUBbSh1uUkb+W06NvGrlgRqLNll5Jgw4=;
-        b=pqicp8fLWBAeUAXB1QCYS4ywoYaD5EsEWzFVSbq18j+AZw55dyExSDNH32Dgmb3JQ3
-         Vlqae6fQ56nMVvsmnqaBSWl3Kqh2akJqnPywNYVKvqhoduS0rK+BioeckKBbmZPNoOCn
-         b5mPZJ1xKJyIPjBIgAWX7tet8aPkbBzQyU0EXq4d7zPHYTXdpvwqXkX0UZEKiujYNSEM
-         bbARmVgwCBGfMvF2fhsziryJ8AxVbrc4xibQiG//yUjSmOEkX/ewUVXkWfDNlQzvTr9C
-         3tKyTomCkElSoeXjBimuttL3w/7PadyxsM5Cbu2O68OBzNArTpwA8sX3T+nMqDDUp/5I
-         2wHA==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=OPssNFO3i/ZLXoO3dC2MAgO7WatPCHbc6KOMcUalcgA=;
+        b=rTTKPjtPNDM9OoSJUdFcMO62rlELTqgy6OCDIIwRuh6hQZdJbG7MwqVUtYYPVraSiU
+         JHkFkelgAxCt4GidusP+XMT2MiQDKCbTl/7YigBcnxyCBehkB9sBMvaLiL7YAVB/Q4xY
+         du9LraVr+BkrBTKQBkMq7q2cOQo9jwXQQehA4Wc3KUyHZtr6npnMeH7IOjKoUK12OGtL
+         eXGBfNwFK4fGPtjtWIgL7eD31XVG8m7mpED3AVb7CAjBsb+lF/XYhtBC5Z4FAqpR7csg
+         oZ9K4uQOE8ro7Ka7r2pV5lF/PUHYRG2cDXREvxxg8KEanhXrpPRIgOB4dATCFM1SjCRM
+         SmUA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a39si1563109edd.216.2019.06.03.13.32.34
+       dkim=pass header.i=@fb.com header.s=facebook header.b=EIZBOWJ7;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=dtxeqp8q;
+       spf=pass (google.com: domain of prvs=1057c191d7=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1057c191d7=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id g188si1926913ywd.229.2019.06.03.13.35.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jun 2019 13:32:34 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 03 Jun 2019 13:35:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=1057c191d7=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 633F7ACF8;
-	Mon,  3 Jun 2019 20:32:33 +0000 (UTC)
-Date: Mon, 3 Jun 2019 22:32:30 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Minchan Kim <minchan@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>, jannh@google.com,
-	oleg@redhat.com, christian@brauner.io, oleksandr@redhat.com,
-	hdanton@sina.com
-Subject: Re: [RFCv2 1/6] mm: introduce MADV_COLD
-Message-ID: <20190603203230.GB22799@dhcp22.suse.cz>
-References: <20190531064313.193437-1-minchan@kernel.org>
- <20190531064313.193437-2-minchan@kernel.org>
- <20190531084752.GI6896@dhcp22.suse.cz>
- <20190531133904.GC195463@google.com>
- <20190531140332.GT6896@dhcp22.suse.cz>
- <20190531143407.GB216592@google.com>
- <20190603071607.GB4531@dhcp22.suse.cz>
- <20190603172717.GA30363@cmpxchg.org>
+       dkim=pass header.i=@fb.com header.s=facebook header.b=EIZBOWJ7;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=dtxeqp8q;
+       spf=pass (google.com: domain of prvs=1057c191d7=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1057c191d7=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x53KWr9j017740;
+	Mon, 3 Jun 2019 13:35:23 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=OPssNFO3i/ZLXoO3dC2MAgO7WatPCHbc6KOMcUalcgA=;
+ b=EIZBOWJ7b5/slK/o33CeUjKoDDpRa47+snbohmnXBuso4nQ4NOT6l4Vgsd9GWeLAjWmG
+ RpyZojv2G8AgBQexjYCIZDqoob5fF92kNiKDp/cOzH8VmcYULzPbUv4piI9JqBn0c5fl
+ k4mFihtQhdvtigzfjrHFQNTBWeEYb1F4Xq4= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2sw5y0938e-11
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Mon, 03 Jun 2019 13:35:23 -0700
+Received: from prn-mbx06.TheFacebook.com (2620:10d:c081:6::20) by
+ prn-hub06.TheFacebook.com (2620:10d:c081:35::130) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Mon, 3 Jun 2019 13:35:02 -0700
+Received: from prn-hub06.TheFacebook.com (2620:10d:c081:35::130) by
+ prn-mbx06.TheFacebook.com (2620:10d:c081:6::20) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Mon, 3 Jun 2019 13:35:01 -0700
+Received: from NAM04-SN1-obe.outbound.protection.outlook.com (192.168.54.28)
+ by o365-in.thefacebook.com (192.168.16.30) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
+ via Frontend Transport; Mon, 3 Jun 2019 13:35:01 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=OPssNFO3i/ZLXoO3dC2MAgO7WatPCHbc6KOMcUalcgA=;
+ b=dtxeqp8qG9KvYUgS4ED7inlnnfX9pJKif9b6oLkv0Jiv+eMJJ4OX0uf0BveRvjGO67+sFA4nV4U2KdENbCSY1gIk3G+H0y+YfGkerRnaIEWxB5YYtyQ9fIfPUkeCid8ZRPj72VTxwa8uvkMnKL5TpDdNhSotZUwZJ151D6i/Mu8=
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
+ BYAPR15MB2472.namprd15.prod.outlook.com (52.135.200.29) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1922.18; Mon, 3 Jun 2019 20:34:58 +0000
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::d4f6:b485:69ee:fd9a]) by BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::d4f6:b485:69ee:fd9a%7]) with mapi id 15.20.1943.018; Mon, 3 Jun 2019
+ 20:34:58 +0000
+From: Roman Gushchin <guro@fb.com>
+To: "Tobin C. Harding" <me@tobin.cc>
+CC: "Tobin C. Harding" <tobin@kernel.org>,
+        Andrew Morton
+	<akpm@linux-foundation.org>,
+        Matthew Wilcox <willy@infradead.org>,
+        "Alexander
+ Viro" <viro@ftp.linux.org.uk>,
+        Christoph Hellwig <hch@infradead.org>,
+        "Pekka
+ Enberg" <penberg@cs.helsinki.fi>,
+        David Rientjes <rientjes@google.com>,
+        Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+        Christopher Lameter <cl@linux.com>,
+        Miklos Szeredi <mszeredi@redhat.com>,
+        Andreas Dilger <adilger@dilger.ca>, Waiman Long <longman@redhat.com>,
+        Tycho Andersen <tycho@tycho.ws>, "Theodore
+ Ts'o" <tytso@mit.edu>,
+        Andi Kleen <ak@linux.intel.com>, David Chinner
+	<david@fromorbit.com>,
+        Nick Piggin <npiggin@gmail.com>, Rik van Riel
+	<riel@redhat.com>,
+        Hugh Dickins <hughd@google.com>, Jonathan Corbet
+	<corbet@lwn.net>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [RFC PATCH v5 16/16] dcache: Add CONFIG_DCACHE_SMO
+Thread-Topic: [RFC PATCH v5 16/16] dcache: Add CONFIG_DCACHE_SMO
+Thread-Index: AQHVDs7p5YZCYW51S0W/c+2xf0nte6Z0TWwAgAB+vAD//5Q4AIANJlUAgABaJgCAB4qDAIABDpyA
+Date: Mon, 3 Jun 2019 20:34:57 +0000
+Message-ID: <20190603203452.GC14526@tower.DHCP.thefacebook.com>
+References: <20190520054017.32299-1-tobin@kernel.org>
+ <20190520054017.32299-17-tobin@kernel.org>
+ <20190521005740.GA9552@tower.DHCP.thefacebook.com>
+ <20190521013118.GB25898@eros.localdomain>
+ <20190521020530.GA18287@tower.DHCP.thefacebook.com>
+ <20190529035406.GA23181@eros.localdomain>
+ <20190529161644.GA3228@tower.DHCP.thefacebook.com>
+ <20190603042620.GA23098@eros.localdomain>
+In-Reply-To: <20190603042620.GA23098@eros.localdomain>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: MWHPR0201CA0084.namprd02.prod.outlook.com
+ (2603:10b6:301:75::25) To BYAPR15MB2631.namprd15.prod.outlook.com
+ (2603:10b6:a03:152::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:200::5409]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: ddcec678-ba46-4af9-2b44-08d6e862f17c
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:BYAPR15MB2472;
+x-ms-traffictypediagnostic: BYAPR15MB2472:
+x-microsoft-antispam-prvs: <BYAPR15MB247203EA794ECFE544756451BE140@BYAPR15MB2472.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8273;
+x-forefront-prvs: 0057EE387C
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(366004)(136003)(346002)(396003)(376002)(189003)(199004)(316002)(8936002)(1076003)(478600001)(7736002)(68736007)(81156014)(81166006)(8676002)(305945005)(6246003)(14454004)(86362001)(46003)(33656002)(446003)(486006)(71200400001)(5660300002)(476003)(102836004)(71190400001)(386003)(6506007)(11346002)(256004)(14444005)(76176011)(52116002)(6116002)(186003)(6436002)(9686003)(6512007)(54906003)(6916009)(53936002)(25786009)(99286004)(4326008)(73956011)(6486002)(2906002)(229853002)(66476007)(66556008)(64756008)(66446008)(66946007)(7416002);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB2472;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: Qav9L8Mr32UJfVLohh32ASpryiD2aI5DqOFyd4qvodDq0k/Awz4Lja9vMscQS3ZooPyFck//Db3YgN58v3xdk+5ZwaF6s9A+w7H4383eUebBeBDfwFYGk85H8j1pJhCChFaztGJ3tvIgjA+IwKxNZsfUUJeNh2duJ5vdhVxaYlyCNJZkCPovBqiHQpMUQGgEEjWzmfFJc+aJOVfUGROImx/364g3NTh0niRGp52H3zBqpy4lVFnrIKPb2aRO+LINML39GLJUWdkCACZ4A6CX9VaHRx0r6qRXQfriQbniaSy3gMB195BAPtQrMdLg2MV3janeG11LiXNJUmbXDi4Lt06Wet5cASd7ZxAy6Vp8f67SpeSVzDhHWv1/ndZHVr7jl/cTR7QcJ9kG3Y8v9c5DBbpvs50lM8W6AWqo9PASb/A=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <12C316C555CDFA43824239090DA0C4CF@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190603172717.GA30363@cmpxchg.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-MS-Exchange-CrossTenant-Network-Message-Id: ddcec678-ba46-4af9-2b44-08d6e862f17c
+X-MS-Exchange-CrossTenant-originalarrivaltime: 03 Jun 2019 20:34:58.0006
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: guro@fb.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB2472
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-03_16:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906030138
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 03-06-19 13:27:17, Johannes Weiner wrote:
-> On Mon, Jun 03, 2019 at 09:16:07AM +0200, Michal Hocko wrote:
-> > On Fri 31-05-19 23:34:07, Minchan Kim wrote:
-> > > On Fri, May 31, 2019 at 04:03:32PM +0200, Michal Hocko wrote:
-> > > > On Fri 31-05-19 22:39:04, Minchan Kim wrote:
-> > > > > On Fri, May 31, 2019 at 10:47:52AM +0200, Michal Hocko wrote:
-> > > > > > On Fri 31-05-19 15:43:08, Minchan Kim wrote:
-> > > > > > > When a process expects no accesses to a certain memory range, it could
-> > > > > > > give a hint to kernel that the pages can be reclaimed when memory pressure
-> > > > > > > happens but data should be preserved for future use.  This could reduce
-> > > > > > > workingset eviction so it ends up increasing performance.
-> > > > > > > 
-> > > > > > > This patch introduces the new MADV_COLD hint to madvise(2) syscall.
-> > > > > > > MADV_COLD can be used by a process to mark a memory range as not expected
-> > > > > > > to be used in the near future. The hint can help kernel in deciding which
-> > > > > > > pages to evict early during memory pressure.
-> > > > > > > 
-> > > > > > > Internally, it works via deactivating pages from active list to inactive's
-> > > > > > > head if the page is private because inactive list could be full of
-> > > > > > > used-once pages which are first candidate for the reclaiming and that's a
-> > > > > > > reason why MADV_FREE move pages to head of inactive LRU list. Therefore,
-> > > > > > > if the memory pressure happens, they will be reclaimed earlier than other
-> > > > > > > active pages unless there is no access until the time.
-> > > > > > 
-> > > > > > [I am intentionally not looking at the implementation because below
-> > > > > > points should be clear from the changelog - sorry about nagging ;)]
-> > > > > > 
-> > > > > > What kind of pages can be deactivated? Anonymous/File backed.
-> > > > > > Private/shared? If shared, are there any restrictions?
-> > > > > 
-> > > > > Both file and private pages could be deactived from each active LRU
-> > > > > to each inactive LRU if the page has one map_count. In other words,
-> > > > > 
-> > > > >     if (page_mapcount(page) <= 1)
-> > > > >         deactivate_page(page);
-> > > > 
-> > > > Why do we restrict to pages that are single mapped?
-> > > 
-> > > Because page table in one of process shared the page would have access bit
-> > > so finally we couldn't reclaim the page. The more process it is shared,
-> > > the more fail to reclaim.
-> > 
-> > So what? In other words why should it be restricted solely based on the
-> > map count. I can see a reason to restrict based on the access
-> > permissions because we do not want to simplify all sorts of side channel
-> > attacks but memory reclaim is capable of reclaiming shared pages and so
-> > far I haven't heard any sound argument why madvise should skip those.
-> > Again if there are any reasons, then document them in the changelog.
-> 
-> I think it makes sense. It could be explained, but it also follows
-> established madvise semantics, and I'm not sure it's necessarily
-> Minchan's job to re-iterate those.
-> 
-> Sharing isn't exactly transparent to userspace. The kernel does COW,
-> ksm etc. When you madvise, you can really only speak for your own
-> reference to that memory - "*I* am not using this."
-> 
-> This is in line with other madvise calls: MADV_DONTNEED clears the
-> local page table entries and drops the corresponding references, so
-> shared pages won't get freed. MADV_FREE clears the pte dirty bit and
-> also has explicit mapcount checks before clearing PG_dirty, so again
-> shared pages don't get freed.
+On Mon, Jun 03, 2019 at 02:26:20PM +1000, Tobin C. Harding wrote:
+> On Wed, May 29, 2019 at 04:16:51PM +0000, Roman Gushchin wrote:
+> > On Wed, May 29, 2019 at 01:54:06PM +1000, Tobin C. Harding wrote:
+> > > On Tue, May 21, 2019 at 02:05:38AM +0000, Roman Gushchin wrote:
+> > > > On Tue, May 21, 2019 at 11:31:18AM +1000, Tobin C. Harding wrote:
+> > > > > On Tue, May 21, 2019 at 12:57:47AM +0000, Roman Gushchin wrote:
+> > > > > > On Mon, May 20, 2019 at 03:40:17PM +1000, Tobin C. Harding wrot=
+e:
+> > > > > > > In an attempt to make the SMO patchset as non-invasive as pos=
+sible add a
+> > > > > > > config option CONFIG_DCACHE_SMO (under "Memory Management opt=
+ions") for
+> > > > > > > enabling SMO for the DCACHE.  Whithout this option dcache con=
+structor is
+> > > > > > > used but no other code is built in, with this option enabled =
+slab
+> > > > > > > mobility is enabled and the isolate/migrate functions are bui=
+lt in.
+> > > > > > >=20
+> > > > > > > Add CONFIG_DCACHE_SMO to guard the partial shrinking of the d=
+cache via
+> > > > > > > Slab Movable Objects infrastructure.
+> > > > > >=20
+> > > > > > Hm, isn't it better to make it a static branch? Or basically an=
+ything
+> > > > > > that allows switching on the fly?
+> > > > >=20
+> > > > > If that is wanted, turning SMO on and off per cache, we can proba=
+bly do
+> > > > > this in the SMO code in SLUB.
+> > > >=20
+> > > > Not necessarily per cache, but without recompiling the kernel.
+> > > > >=20
+> > > > > > It seems that the cost of just building it in shouldn't be that=
+ high.
+> > > > > > And the question if the defragmentation worth the trouble is so=
+ much
+> > > > > > easier to answer if it's possible to turn it on and off without=
+ rebooting.
+> > > > >=20
+> > > > > If the question is 'is defragmentation worth the trouble for the
+> > > > > dcache', I'm not sure having SMO turned off helps answer that que=
+stion.
+> > > > > If one doesn't shrink the dentry cache there should be very littl=
+e
+> > > > > overhead in having SMO enabled.  So if one wants to explore this
+> > > > > question then they can turn on the config option.  Please correct=
+ me if
+> > > > > I'm wrong.
+> > > >=20
+> > > > The problem with a config option is that it's hard to switch over.
+> > > >=20
+> > > > So just to test your changes in production a new kernel should be b=
+uilt,
+> > > > tested and rolled out to a representative set of machines (which ca=
+n be
+> > > > measured in thousands of machines). Then if results are questionabl=
+e,
+> > > > it should be rolled back.
+> > > >=20
+> > > > What you're actually guarding is the kmem_cache_setup_mobility() ca=
+ll,
+> > > > which can be perfectly avoided using a boot option, for example. Tu=
+rning
+> > > > it on and off completely dynamic isn't that hard too.
+> > >=20
+> > > Hi Roman,
+> > >=20
+> > > I've added a boot parameter to SLUB so that admins can enable/disable
+> > > SMO at boot time system wide.  Then for each object that implements S=
+MO
+> > > (currently XArray and dcache) I've also added a boot parameter to
+> > > enable/disable SMO for that cache specifically (these depend on SMO
+> > > being enabled system wide).
+> > >=20
+> > > All three boot parameters default to 'off', I've added a config optio=
+n
+> > > to default each to 'on'.
+> > >=20
+> > > I've got a little more testing to do on another part of the set then =
+the
+> > > PATCH version is coming at you :)
+> > >=20
+> > > This is more a courtesy email than a request for comment, but please
+> > > feel free to shout if you don't like the method outlined above.
+> > >=20
+> > > Fully dynamic config is not currently possible because currently the =
+SMO
+> > > implementation does not support disabling mobility for a cache once i=
+t
+> > > is turned on, a bit of extra logic would need to be added and some st=
+ate
+> > > stored - I'm not sure it warrants it ATM but that can be easily added
+> > > later if wanted.  Maybe Christoph will give his opinion on this.
+> >=20
+> > Perfect!
+>=20
+> Hi Roman,
+>=20
+> I'm about to post PATCH series.  I have removed all the boot time config
+> options in contrast to what I stated in this thread.  I feel it requires
+> some comment so as not to seem rude to you.  Please feel free to
+> re-raise these issues on the series if you feel it is a better place to
+> do it than on this thread.
+>=20
+> I still hear you re making testing easier if there are boot parameters.
+> I don't have extensive experience testing on a large number of machines
+> so I have no basis to contradict what you said.
+>=20
+> It was suggested to me that having switches to turn SMO off implies the
+> series is not ready.  I am claiming that SMO _is_ ready and also that it
+> has no negative effects (especially on the dcache).  I therefore think
+> this comment is pertinent.
+>=20
+> So ... I re-did the boot parameters defaulting to 'on'.  However I could
+> then see no reason (outside of testing) to turn them off.  It seems ugly
+> to have code that is only required during testing and never after.
+> Please correct me if I'm wrong.
+>=20
+> Finally I decided that since adding a boot parameter is trivial that
+> hackers could easily add one to test if they wanted to test a specific
+> cache.  Otherwise we just test 'patched kernel' vs 'unpatched kernel'.
+> Again, please correct me if I'm wrong.
+>=20
+> So, that said, please feel free to voice your opinion as strongly as you
+> wish.  I am super appreciative of the time you have already taken to
+> look at these patches.  I hope I have made the best technical decision,
+> and I am totally open to being told I'm wrong :)
 
-Right, being consistent with other madvise syscalls is certainly a way
-to go. And I am not pushing one way or another, I just want this to be
-documented with a reasoning behind. Consistency is certainly an argument
-to use.
+Hi Tobin!
 
-On the other hand these non-destructive madvise operations are quite
-different and the shared policy might differ as a result as well. We are
-aging objects rather than destroying them after all. Being able to age
-a pagecache with a sufficient privileges sounds like a useful usecase to
-me. In other words you are able to cause the same effect indirectly
-without the madvise operation so it kinda makes sense to allow it in a
-more sophisticated way.
+No boot options looks totally fine to me. I just don't like new config
+options. No options at all is always the best.
 
-That being said, madvise is just a _hint_ and the kernel will be always
-free to ignore it so the future implementation might change so we can
-start simple and consistent with existing MADV_$FOO operations now and
-extend later on. But let's document the intention in the changelog and
-make the decision clear. I am sorry to be so anal about this but I have
-seen so many ad-hoc policies that were undocumented and it was so hard
-to guess when revisiting later on and make some sense of it.
--- 
-Michal Hocko
-SUSE Labs
+Btw, thank you for this clarification!
+
+I'll definitely try to look into the patchset on this week.
+
+Thanks!
 
