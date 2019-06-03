@@ -2,193 +2,130 @@ Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E408C28CC7
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 06:34:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B8A1C04AB6
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 07:05:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F78027C13
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 06:34:37 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JeweOGjj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F78027C13
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 2D12E27C80
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 07:05:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D12E27C80
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B9B496B026A; Mon,  3 Jun 2019 02:34:36 -0400 (EDT)
+	id 9D56F6B026C; Mon,  3 Jun 2019 03:05:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B247F6B026B; Mon,  3 Jun 2019 02:34:36 -0400 (EDT)
+	id 985E96B026D; Mon,  3 Jun 2019 03:05:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9A2266B026C; Mon,  3 Jun 2019 02:34:36 -0400 (EDT)
+	id 84D5B6B026E; Mon,  3 Jun 2019 03:05:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A5F86B026A
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 02:34:36 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id k22so12874105pfg.18
-        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 23:34:36 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B8D96B026C
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 03:05:51 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z5so26155327edz.3
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 00:05:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=R+hQLAUcVNWROrMbU90MxMOWiIFmUVyPvMT6jkT1W4o=;
-        b=VK9NS0vl0h7CjGOFImH7u1tmrsdQI+0XlVEfHxIbGumcLs7ZL+3vTd2b4TwF49Eqbj
-         08n7oA9yw92PZyXiw7xP54Bh5i0SN0KZd5/X1mjiRN0mzwQ1dHad6+T9hHY8I5TfhOk8
-         7r8W5I9PfJ0nPQ80FUzl08A4nxP1QBLHdxcdoiE0yqyr1dWiNIY6gXQ42emWOXAQ07k5
-         SzsY7Romye2T6/oxfVS6lD1/2MI+VBamZHdOzEUGpef8qhN/F9NhtT1bGGUNMVEHVIzX
-         mKdcqni6Bb8UxlhvE9Yb+AUGIVEfmiJY6hptXIsqhuniRfC8gOyJoKpeHszCyJItINym
-         qN9Q==
-X-Gm-Message-State: APjAAAWzmJOvzIhQYc6qLgW6YTE6OUS8Lw57HHpowQ1iH5WWCPxuPtrz
-	mpm0sOio4KYOKCJfPVXCXqBNqBuUf1pqhk7pqhWBXXD9gm3XRt8XCcF9Ts3qC1mpT3fDzNf5/uq
-	1cHOmr8eNMDrVwQkLuoUamt/vbJ5Krpr2FN5qFUIXxEvCfNIAHuDMD2y3fYF6QDp78w==
-X-Received: by 2002:a17:90a:9504:: with SMTP id t4mr28210629pjo.100.1559543675901;
-        Sun, 02 Jun 2019 23:34:35 -0700 (PDT)
-X-Received: by 2002:a17:90a:9504:: with SMTP id t4mr28210588pjo.100.1559543674819;
-        Sun, 02 Jun 2019 23:34:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559543674; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=EM7o9Os3M5DtwAMRoFNvFu9547v4JOKUzUUCVl9kaHk=;
+        b=MzAkTNuzWbYwVTVo6unv6aZ2z3kzHEMyDp7zJUdas686oT8AQLFHAfdQBcHHfJ+WY1
+         yCVuDWXRWElLYA4udT1GSzhwQTTVuL6OGaejXEUzcREc3tErmwksEFnXmUwZFa4JVZ99
+         JlywTGGLPwIQBlvCG2i8McKUK8xmiPvPK7YfxzPU2wKJD+Bm2qcLY9lZLI5mJKlxEQaA
+         OSNezDFvJ9N4+MwU6ifn3HzFYHsTn43mgqseKCjqf3Ks9GUl6ZImqIiXXY3+l9Gxz7dU
+         v/4Dq/DdY0sndgDqpv06Ms/WczlQ9YiuvIcVikHsCYinHIXRS3L9D+VYktaiB44HFOqI
+         PMJg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAXkUbfzkMrU7J691URgcMC7I+iEK1hG7zkFXt0kACyY+oaOxVJ1
+	Usx7+dOpRkOQAJNN/DDoZcZQsxnx5d9h+Z7lE+bkRaExOvzu5CUpdB56K6OU+tko6JuOhlIgxt8
+	PsvL7AHlU28wQ8QZpqdOlkeIGc+Zho7cDsSsWyVwWvc77m2s2CV54w61ysHIbN3A=
+X-Received: by 2002:a17:906:2a92:: with SMTP id l18mr22267865eje.181.1559545550842;
+        Mon, 03 Jun 2019 00:05:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyX9eEXw07iFj74DGoD/vvoVz3aWbP3bQsueYoZR/VzOMZ0bSupd/ATW9JcIhpxT5pmB1q+
+X-Received: by 2002:a17:906:2a92:: with SMTP id l18mr22267806eje.181.1559545549969;
+        Mon, 03 Jun 2019 00:05:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559545549; cv=none;
         d=google.com; s=arc-20160816;
-        b=gA1evp4Ku/ddNsFYC2trjdHXnpFEn4wRulzQWkhe+mfNOJlVX2e1elQvhdpoKlcRcj
-         a1oasiQVRV0IY1PyvxE4t01EyNsha7Y2+rCtKFVVXRwak9D7Ba8GWR4dbEcyebWL6sei
-         Ba23kunPap42JTmZgXOrOHVamfNUiDb+IajJvHYc8jML/I29p1guBxtabYP+4y3UTTcV
-         vtVhJH0o8vKWNnQ89mYc/TXLO7UdabkVmGiEz6dlXUheTVRpp7vPatZpFXY/lpf4IA8n
-         3qhe7kixBKx7hhXd0baLPD2KzrP4Q6oy6u96NoEfQ5R5XOfqc4RLcXEtNWXcKYF89wRW
-         kllQ==
+        b=GIwsxt/Lr43u7R7ZAysdgCFyuQ7bjz1AALpnFYXLvuBE3Zt5EEanSdktqeke6ZMRFe
+         bJ8VaW3oOXJAtiRX/k+PR4FZmsK+kv7xfMxisgbT+CgOxykgAsg9K+MkzlLGzU3RZ9PJ
+         lvTi7K0cT0baMNUs1bja3xz+xN216c87WSK1A2ZltiAEcrC7xXmuoBRSqv/Y6yaO7lTD
+         L0fvLYv0wKhH9WrJcHSNxY2EdU2RsvIiyTalPeS0tPhZuV3q679qi792RQPKBhBlz6td
+         yWLtioZXP05NbfaUE3qYivXkn0TZVC7guaVE0ye4pkNGrh8E5m+moRIG3Ukrqcp5qW0B
+         jWMA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=R+hQLAUcVNWROrMbU90MxMOWiIFmUVyPvMT6jkT1W4o=;
-        b=pJLdt2SJHjmDwfoR97sRiY4yPKV6tkBC37VFn0fMZihVIiL8tLHcfn72CtU4lWmECb
-         1VYiZDfRoxQc9Fxw/VE/oRoTg2sG2uZKwvxbnqq3ST6/u20GsET+IMerjAQCWjINY7s5
-         hhvRltI30gbviGS5jnL5kgIAgYB+zzkAj/B6PgMk//7abC38oTQ6o06NDFN3USA6xH9O
-         bH/GrPoj1EjaXrIQNQBx1GynA3vaYsvKlCunQ0ULh6G+dW6Q7NSlw9hCOVHMQTPCMBww
-         xHHDLz8xhNFwk1Q1fJxSZQLfXhKifWeZby5weX78AcogKtwKplvgR6BuoepBUuEV5N1h
-         a79Q==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=EM7o9Os3M5DtwAMRoFNvFu9547v4JOKUzUUCVl9kaHk=;
+        b=t2F277FkOxPwsg2PPvwwcW1Ool603jFKfCZtPheodkEB368ug2O1QM8tx7+Fp9KM/Z
+         rBG3GrrjDLTBwRhvpA+gU9jD1fqAhtHVDdJ2giEzjbNGnVozBLdXuAfiXAhd+60Wy1/m
+         XwXSvoGC5fj7K9KpbBVLappKqyRfI3OLZbZZ+aLEGGhKvxE+HghXQBRZzT5zjjhCgU9F
+         D1YJJWSyLvoWo55AWXHCRu9OiPVAzqpxkN9rAGTzbPorett/qpkLi+ekMYJdNpSUKKd/
+         XTOTOsq0f9+O9MQ9AucqHdBYZj5Iw7ePEewiUVg3iy5MubB87Txsbtgo7msX1FFFA8e+
+         68dA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JeweOGjj;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 59sor10177662plb.14.2019.06.02.23.34.34
+       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay5-d.mail.gandi.net (relay5-d.mail.gandi.net. [217.70.183.197])
+        by mx.google.com with ESMTPS id e45si7831278eda.383.2019.06.03.00.05.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 02 Jun 2019 23:34:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 03 Jun 2019 00:05:49 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.197;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JeweOGjj;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=R+hQLAUcVNWROrMbU90MxMOWiIFmUVyPvMT6jkT1W4o=;
-        b=JeweOGjjlqVIH0KxKJuMpIq1jSl5UooWsZl6FxhuW8sb2MrVdCeODLdOoT53EObqUZ
-         4qjqklXB8sKCdnrChJYqiO2zwJFomiMOlfWPl/vGQHgSbOXLj/ZLI63GKQJPmNc16MiQ
-         Gtu2Zndm8bSdcTbZ5IgIceYQ0+Y0UKAGwEDJEBVLuPfmUidBnMkozY/geDaUTJLyDzRS
-         9Ad79TVjhULakP38inxlO4HWvIVyy/C0Z2vuFCmg8zNuXIz0ARsxoWQ1M1PdLU0fVXQ8
-         +bV2Y1lvl8+TzKbz1LCnhDqSfNI1mwsALbONIGIuSbcLgLiaYXVT+Dh4vKyRBKAGJS9L
-         wOdA==
-X-Google-Smtp-Source: APXvYqzm7+kJNYspgi7GV1P/I+D5ucOoLPIk/Mc2TPSNdzWzx+ipIDi9/crR7STfyeeK+Yteix/HFg==
-X-Received: by 2002:a17:902:4381:: with SMTP id j1mr27518004pld.286.1559543674435;
-        Sun, 02 Jun 2019 23:34:34 -0700 (PDT)
-Received: from mylaptop.nay.redhat.com ([209.132.188.80])
-        by smtp.gmail.com with ESMTPSA id j14sm13859027pfe.10.2019.06.02.23.34.30
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Jun 2019 23:34:34 -0700 (PDT)
-From: Pingfan Liu <kernelfans@gmail.com>
-To: linux-mm@kvack.org
-Cc: Pingfan Liu <kernelfans@gmail.com>,
-	Ira Weiny <ira.weiny@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Keith Busch <keith.busch@intel.com>,
-	linux-kernel@vger.kernel.org
-Subject: [PATCHv2 2/2] mm/gup: rename nr as nr_pinned in get_user_pages_fast()
-Date: Mon,  3 Jun 2019 14:34:13 +0800
-Message-Id: <1559543653-13185-2-git-send-email-kernelfans@gmail.com>
-X-Mailer: git-send-email 2.7.5
-In-Reply-To: <1559543653-13185-1-git-send-email-kernelfans@gmail.com>
-References: <1559543653-13185-1-git-send-email-kernelfans@gmail.com>
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 81.250.144.103
+Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay5-d.mail.gandi.net (Postfix) with ESMTPSA id 4D6CA1C0002;
+	Mon,  3 Jun 2019 07:05:37 +0000 (UTC)
+Subject: Re: [PATCH v4 05/14] arm64, mm: Make randomization selected by
+ generic topdown mmap layout
+To: Christoph Hellwig <hch@lst.de>
+Cc: Albert Ou <aou@eecs.berkeley.edu>, Kees Cook <keescook@chromium.org>,
+ Catalin Marinas <catalin.marinas@arm.com>, Palmer Dabbelt
+ <palmer@sifive.com>, Will Deacon <will.deacon@arm.com>,
+ Russell King <linux@armlinux.org.uk>, Ralf Baechle <ralf@linux-mips.org>,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ Paul Burton <paul.burton@mips.com>, linux-riscv@lists.infradead.org,
+ Alexander Viro <viro@zeniv.linux.org.uk>, James Hogan <jhogan@kernel.org>,
+ linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
+ linux-mips@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+ Luis Chamberlain <mcgrof@kernel.org>
+References: <20190526134746.9315-1-alex@ghiti.fr>
+ <20190526134746.9315-6-alex@ghiti.fr> <20190601090437.GF6453@lst.de>
+From: Alexandre Ghiti <alex@ghiti.fr>
+Message-ID: <211c4d0b-ec11-c94e-8a7f-9564e7905f50@ghiti.fr>
+Date: Mon, 3 Jun 2019 09:05:37 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
+MIME-Version: 1.0
+In-Reply-To: <20190601090437.GF6453@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: fr
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000993, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-To better reflect the held state of pages and make code self-explaining,
-rename nr as nr_pinned.
+On 6/1/19 11:04 AM, Christoph Hellwig wrote:
+> Looks good,
+>
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
 
-Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-Cc: Ira Weiny <ira.weiny@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Keith Busch <keith.busch@intel.com>
-Cc: linux-kernel@vger.kernel.org
----
- mm/gup.c | 22 +++++++++++-----------
- 1 file changed, 11 insertions(+), 11 deletions(-)
 
-diff --git a/mm/gup.c b/mm/gup.c
-index 6fe2feb..106ab22 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -2239,7 +2239,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
- 			unsigned int gup_flags, struct page **pages)
- {
- 	unsigned long addr, len, end;
--	int nr = 0, ret = 0;
-+	int nr_pinned = 0, ret = 0;
- 
- 	start &= PAGE_MASK;
- 	addr = start;
-@@ -2254,26 +2254,26 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
- 
- 	if (gup_fast_permitted(start, nr_pages)) {
- 		local_irq_disable();
--		gup_pgd_range(addr, end, gup_flags, pages, &nr);
-+		gup_pgd_range(addr, end, gup_flags, pages, &nr_pinned);
- 		local_irq_enable();
--		ret = nr;
-+		ret = nr_pinned;
- 	}
- 
--	nr = reject_cma_pages(nr, gup_flags, pages);
--	if (nr < nr_pages) {
-+	nr_pinned = reject_cma_pages(nr_pinned, gup_flags, pages);
-+	if (nr_pinned < nr_pages) {
- 		/* Try to get the remaining pages with get_user_pages */
--		start += nr << PAGE_SHIFT;
--		pages += nr;
-+		start += nr_pinned << PAGE_SHIFT;
-+		pages += nr_pinned;
- 
--		ret = __gup_longterm_unlocked(start, nr_pages - nr,
-+		ret = __gup_longterm_unlocked(start, nr_pages - nr_pinned,
- 					      gup_flags, pages);
- 
- 		/* Have to be a bit careful with return values */
--		if (nr > 0) {
-+		if (nr_pinned > 0) {
- 			if (ret < 0)
--				ret = nr;
-+				ret = nr_pinned;
- 			else
--				ret += nr;
-+				ret += nr_pinned;
- 		}
- 	}
- 
--- 
-2.7.5
+Thanks for your time,
+
+Alex
+
+
+>
+> _______________________________________________
+> linux-riscv mailing list
+> linux-riscv@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-riscv
 
