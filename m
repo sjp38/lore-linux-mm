@@ -2,302 +2,340 @@ Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E05DAC04AB6
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 05:31:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2A2DFC28CC6
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 05:37:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 66DA527BA4
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 05:31:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CCD0F24CB7
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 05:37:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=utc.com header.i=@utc.com header.b="TBf1PlIq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66DA527BA4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=utc.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sAdoxVOA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CCD0F24CB7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC4EA6B026A; Mon,  3 Jun 2019 01:31:03 -0400 (EDT)
+	id 66E2F6B026A; Mon,  3 Jun 2019 01:37:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D75A06B026B; Mon,  3 Jun 2019 01:31:03 -0400 (EDT)
+	id 61E196B026B; Mon,  3 Jun 2019 01:37:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C3D7B6B026C; Mon,  3 Jun 2019 01:31:03 -0400 (EDT)
+	id 50E3F6B026C; Mon,  3 Jun 2019 01:37:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A19186B026A
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 01:31:03 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id d6so13590022ybj.16
-        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 22:31:03 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 148D86B026A
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 01:37:12 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id s12so9345984plr.5
+        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 22:37:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-transfer-encoding:mime-version;
-        bh=ZwIoX4ayl6QqescuSllZYGCuNmxTLiYBgyr8cmCVYFo=;
-        b=JhcP+qYu791hAh6apBfGt+Ajy6tKovCCgDXkeTOF1qlcET8L+RTM7m0ADi0RSJyFbd
-         24HQmFBiXtcPQJqVX6UGMiG38hePJOSido1rs1vV4GxI0HePaNY3CdlWb9BOFYJ5g2gk
-         2M2ejDKBB7J9m7KAKZOGV03+ckJ7cnOEl6ym4g1EElT6z93sng9axOyPU/qPK2ecX0AZ
-         oq5ada6jX3C6SFecr0xX2Uh4qrt73uKRwjC6jtrCZRW+IHIjlNSAUWixavcjDqxK9Txc
-         Hb4t6Tjb4APIxB/MOfKxVOHvTHeZy94gAwcvd8nfNtW1rfJP51eZAOcEI1Ig8NrNMf+Q
-         AuAg==
-X-Gm-Message-State: APjAAAXDJa3vsa/t03sxXMpH5JgXqesjS8+PmoYEWBB3CMBAutNF18Md
-	Wn6dIfL5dfb9KUr1BYxGaJfVe3D+npnHGP9ayyNTHZnr6pEz6IS6n3ItRqJ3uIq7l5RkjfEVnly
-	2fLXrdzsKtioTtAEgIySZnAx4EaqNs++Tx9VzTIhyE9iM7sUJOx05z5mv8hwuUMmOKQ==
-X-Received: by 2002:a25:8589:: with SMTP id x9mr650029ybk.354.1559539863161;
-        Sun, 02 Jun 2019 22:31:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwda9qfuYtTw0OjSemuSeFwdVyEuqM2QcYqzeDJZ+s8FRIHkmjBlVtm1dyPCj68ezr63aXm
-X-Received: by 2002:a25:8589:: with SMTP id x9mr649983ybk.354.1559539861567;
-        Sun, 02 Jun 2019 22:31:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559539861; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=o/al0jV2fNpBw9iZxp/tA/T1bdR3pFt2W6r+ioNY6xk=;
+        b=n9pPPG657+06YUumTnmT4BCartT/M6hxolaAJM7eQ2J6AwH3CXd8ePrMKb9fzNLe3L
+         RbnDJHJeShtAILtjH9Fh5VLJ6ONy6/EqVrxa/YkrbVCq4vzKbU9m2uDGAZtNNYEd9uQd
+         nl9Bj63G8wlHjgWJ9t1LFwO55nt6b2+ZxZnSyxY+KhKgcIzfBQDYk0x9dRWF85//69en
+         kSmpN6uLJ0rsi2FlczYHArA2eYtCare8CodsSk85qfjH34QraJ09ub3BQlh0sEJWyJSW
+         yu07lr0yIy7TczRLfdFRiBJM5WvRHr9V48H2cvzhkj5jR5GjFr3PFOZbq3kFPjjsKQSY
+         kuAg==
+X-Gm-Message-State: APjAAAUXPRwgza/t+jqRyDR7eDM69F9LqVfH9CFyNOC3SOOHzgemwsL8
+	xLP+WCuqg15Y/W2zSweuCxJnIN5E7NNKwcimCtHl9+X9kU2BYFoEjrDi5fVphyKz2LGyHKyIXKh
+	h95CnhAZvTpcXnky/6bLs7imJ2OHxA5GBBWqoI4z8WY/PdHy/pQ5QQ4WoMFxmavI=
+X-Received: by 2002:a62:1c92:: with SMTP id c140mr28804180pfc.258.1559540231320;
+        Sun, 02 Jun 2019 22:37:11 -0700 (PDT)
+X-Received: by 2002:a62:1c92:: with SMTP id c140mr28804097pfc.258.1559540229759;
+        Sun, 02 Jun 2019 22:37:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559540229; cv=none;
         d=google.com; s=arc-20160816;
-        b=b2ix8HdelF+KfzxgRGEHn7O+Z0F4W+68bghKeLAHyZCznGJFuP5Nb44zobT3mSuIjQ
-         +hrqRBDQkvi+pM0Gtyb2WGD5CkVrk1Ijk6gauZAtpPy5zCeZsqw4naMHGnLH8WBWi+2Q
-         EgelgQKL/2ZfCQvQ3N2185jeZrA9m4zm9dVXnC/z3zOvEWSyVR7LymN+RN1alq8pFpB+
-         vU8jT5o4ZmK7PkhkwF+uTwf8ljL3xbJWdSaS2j5/Wmh2NDZhkV+yH03eRCdzpz0i1pIO
-         X6+MZfECM/tfOI5a82vi1KWLLmgSCAW+lqhxQW56Yz4QOFwyd/b2ZpekSkUarSp4VNYE
-         Jn9A==
+        b=tXnqX35e6Dxutc/kDAJWQ1KUXjq9mTAQUk7huSj2hHqX0rdHgx4oYKp3L0whk1Bfyg
+         +Yj/A7uxZ1na5o/D5nrq13KS2vdOx/d6Y/ggfaFYjYH1XcixhXyJfMh0IZosrg07qFxv
+         cO4LK7q+5TsbKXUf0o0DUGl9xi3kl1Buq2nZMKHd1PKXY38j8hVa1BAmUujWNAQMsInT
+         fxTftsamy2e8phlWmAJBVtUz6R+m4pd1Y/WkHGmSkNVofnk1nq9MxnWtHJ3j50WUenL6
+         Ss8Q5+HTK4mjkj7oMHC2VvKdMEVO+VUlYC608EVhrWTWuguZfRw4iTovzuAJRavFEoh5
+         r0Qg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=ZwIoX4ayl6QqescuSllZYGCuNmxTLiYBgyr8cmCVYFo=;
-        b=r2KdB5+PHKhBaZWMQQH5mqBYBvfUUwcJQV8vRoyB2Kxk0KxF4zibcYly82S73JZjUB
-         fK1OSprqh0tXyx2Kx7Q30VZ9sDvpKA4ID28rmhVuoNvA4glSwgOtmsDVH253/2TRogiF
-         SjySumUVSq3yC3ehy2hsOhfOlfyQKDJqJvIP/pyLmTzO53Zi9w8oj95wmjjdR8xowliu
-         vaLIZ7X9sMPR8VugSjkUvN2nCeKfNc223iU0YlC/ytbcRoB1tsIliIRj/gtTwOqrko2y
-         +BZFVBq3tcuruhaIHWkVhIywAUxH97nZ6DApmBYjtMjkGl4+vLx8Ht9PU7t2WT19pzp1
-         rRYg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:sender:dkim-signature;
+        bh=o/al0jV2fNpBw9iZxp/tA/T1bdR3pFt2W6r+ioNY6xk=;
+        b=kvd+yDlxs1q7oebaPBk9Bzyl5KdeOtIq2t1HXODOsINnx7ImZlFAA6G+t6eUl/XOto
+         vS4ZN1xXLtQv75lPrICgGjbxfEeiqUYfcXFW44tDwSpiuBMyzv67DcWr7x4qIG0lsZ0b
+         Bn4JmyDDKuvCtVnuQtsD/xdsXZiXed/5Vw2WbJwdr94jKaX824kTOtDoNPqPkfm3ejGj
+         HDrlFw2JmT/jsJ7J+3rYgQGs5qRfWShmE7PGoXaVMP0Q2UJBGRZ6oR0V5NP5Wo0rL4i7
+         gKI6lh+Q9ga+klW5ZIiEXjqn/IhGJU7qG6QFWYm22ti7g3NC7GWIoYRATCHxiFktihTj
+         PhFA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@utc.com header.s=POD040618 header.b=TBf1PlIq;
-       spf=pass (google.com: domain of amit.nagal@utc.com designates 67.231.152.184 as permitted sender) smtp.mailfrom=Amit.Nagal@utc.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=utc.com
-Received: from mx0a-00105401.pphosted.com (mx0b-00105401.pphosted.com. [67.231.152.184])
-        by mx.google.com with ESMTPS id n8si683957ywi.152.2019.06.02.22.31.01
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sAdoxVOA;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j19sor6142954pfr.25.2019.06.02.22.37.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Jun 2019 22:31:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of amit.nagal@utc.com designates 67.231.152.184 as permitted sender) client-ip=67.231.152.184;
+        (Google Transport Security);
+        Sun, 02 Jun 2019 22:37:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@utc.com header.s=POD040618 header.b=TBf1PlIq;
-       spf=pass (google.com: domain of amit.nagal@utc.com designates 67.231.152.184 as permitted sender) smtp.mailfrom=Amit.Nagal@utc.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=utc.com
-Received: from pps.filterd (m0081755.ppops.net [127.0.0.1])
-	by mx0b-00105401.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x535QPX0006065;
-	Mon, 3 Jun 2019 01:31:01 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=utc.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type :
- content-transfer-encoding : mime-version; s=POD040618;
- bh=ZwIoX4ayl6QqescuSllZYGCuNmxTLiYBgyr8cmCVYFo=;
- b=TBf1PlIqgMrFV6OWwzQ2GIXPgZzmxd7gkaMWH7kgFYG8ClI/ItHKTBMOHzFY9V2DYBE4
- Cn42TxxN/OicqCs0lgQl14tTiSObVxJOLf8aXRD77Oh2uhOWsWswBEEQOe1YNIrabD2J
- BceTZa3Bz7xIS+85+aqbf4bXV3wq00EBgu+pFgGAcvdNvupAYuWq6fJBxls1MHQ/7Qtb
- t1o529JPq8AGOgDAc22gJwS5fxHaeA9B8amFS/yxrvVhnlZlpj6AXPevx/UeL02OW1pk
- A43b4KgzXJoGnxA0ITlg9Ox+uYPaSk6sX8r+LNE8Q545O6FeI+7ANmtuhHPBV0+oNcyT fA== 
-Received: from xnwpv38.utc.com ([167.17.239.18])
-	by mx0b-00105401.pphosted.com with ESMTP id 2sukvk1g7n-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Mon, 03 Jun 2019 01:31:00 -0400
-Received: from uusmna1r.utc.com (uusmna1r.utc.com [159.82.219.64])
-	by xnwpv38.utc.com (8.16.0.27/8.16.0.27) with ESMTPS id x535Ux9M155466
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 3 Jun 2019 01:30:59 -0400
-Received: from UUSALE0W.utcmail.com (UUSALE0W.utcmail.com [10.220.3.13])
-	by uusmna1r.utc.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id x535UwT3025877
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=OK);
-	Mon, 3 Jun 2019 01:30:58 -0400
-Received: from UUSALE1A.utcmail.com (10.220.3.27) by UUSALE0W.utcmail.com
- (10.220.3.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 3 Jun
- 2019 01:30:57 -0400
-Received: from UUSALE1A.utcmail.com ([10.220.5.27]) by UUSALE1A.utcmail.com
- ([10.220.5.27]) with mapi id 15.00.1473.003; Mon, 3 Jun 2019 01:30:57 -0400
-From: "Nagal, Amit               UTC CCS" <Amit.Nagal@utc.com>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-CC: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "CHAWLA, RITU              UTC
- CCS" <RITU.CHAWLA@utc.com>,
-        "Netter, Christian M       UTC CCS"
-	<christian.Netter@fs.UTC.COM>
-Subject: RE: [External] Re: linux kernel page allocation failure and tuning of
- page cache
-Thread-Topic: [External] Re: linux kernel page allocation failure and tuning
- of page cache
-Thread-Index: AdUXwJaEVv2cRvqaQPqGQFhwqLYB3QAWIwGAAGydulA=
-Date: Mon, 3 Jun 2019 05:30:57 +0000
-Message-ID: <6ec47a90f5b047dabe4028ca90bb74ab@UUSALE1A.utcmail.com>
-References: <09c5d10e9d6b4c258b22db23e7a17513@UUSALE1A.utcmail.com>
- <CAKgT0UfoLDxL_8QkF_fuUK-2-6KGFr5y=2_nRZCNc_u+d+LCrg@mail.gmail.com>
-In-Reply-To: <CAKgT0UfoLDxL_8QkF_fuUK-2-6KGFr5y=2_nRZCNc_u+d+LCrg@mail.gmail.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-ms-exchange-transport-fromentityheader: Hosted
-x-originating-ip: [10.220.3.243]
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sAdoxVOA;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=o/al0jV2fNpBw9iZxp/tA/T1bdR3pFt2W6r+ioNY6xk=;
+        b=sAdoxVOAOp+GO6YNZN5LtXGuCKiogZSjm0dPXOg/bQoYtWBeEr6reEPzdXFvrJ8ULw
+         HiRDcRF07bdQYfEG4MDwgNLuvWOn/2NNLLcNiWZUrPpnWzlTqoPWAj59XDK8NhtqdBhs
+         mIR4CGIdIr84m7jItjdCAZkFZ+bjSfNVN5yYGmWkQwmK/ceuTV6DQhVnhsPKIiLaBqnQ
+         /Q1suhJhWA2KJ+DZeUZs2Z8oEJ25PTb6GYOCCgeJJEcIfQZUGYWgAIFuIJ7LMR0kkXXH
+         pQrcTOfDwBkKM/e8hU/+vbB6ILgNbSuDjMkxzGYNY0D+o8GZXGpvT45dsZ+ig/91Y7fZ
+         CCkw==
+X-Google-Smtp-Source: APXvYqxPIIdG0KZRWNRH9uWlnCDZJ8hRcsW34dm2JMfb1c75+Z6SSx9NsQrOYx3Q/qlfKjp/XbFm6g==
+X-Received: by 2002:a62:6241:: with SMTP id w62mr29405729pfb.226.1559540229171;
+        Sun, 02 Jun 2019 22:37:09 -0700 (PDT)
+Received: from bbox-2.seo.corp.google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id a18sm5986222pjq.0.2019.06.02.22.37.03
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 02 Jun 2019 22:37:07 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org,
+	Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>,
+	jannh@google.com,
+	oleg@redhat.com,
+	christian@brauner.io,
+	oleksandr@redhat.com,
+	hdanton@sina.com,
+	Minchan Kim <minchan@kernel.org>
+Subject: [PATCH v1 0/4] Introduce MADV_COLD and MADV_PAGEOUT
+Date: Mon,  3 Jun 2019 14:36:51 +0900
+Message-Id: <20190603053655.127730-1-minchan@kernel.org>
+X-Mailer: git-send-email 2.22.0.rc1.311.g5d7573a151-goog
 MIME-Version: 1.0
-X-Proofpoint-Spam-Details: rule=outbound_default_notspam policy=outbound_default score=0
- priorityscore=1501 malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0
- spamscore=0 clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906030038
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-LS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCkZyb206IEFsZXhhbmRlciBEdXljayBbbWFpbHRv
-OmFsZXhhbmRlci5kdXlja0BnbWFpbC5jb21dIA0KU2VudDogU2F0dXJkYXksIEp1bmUgMSwgMjAx
-OSAyOjU3IEFNDQpUbzogTmFnYWwsIEFtaXQgVVRDIENDUyA8QW1pdC5OYWdhbEB1dGMuY29tPg0K
-Q2M6IGxpbnV4LWtlcm5lbEB2Z2VyLmtlcm5lbC5vcmc7IGxpbnV4LW1tQGt2YWNrLm9yZzsgQ0hB
-V0xBLCBSSVRVIFVUQyBDQ1MgPFJJVFUuQ0hBV0xBQHV0Yy5jb20+DQpTdWJqZWN0OiBbRXh0ZXJu
-YWxdIFJlOiBsaW51eCBrZXJuZWwgcGFnZSBhbGxvY2F0aW9uIGZhaWx1cmUgYW5kIHR1bmluZyBv
-ZiBwYWdlIGNhY2hlDQoNCk9uIEZyaSwgTWF5IDMxLCAyMDE5IGF0IDg6MDcgQU0gTmFnYWwsIEFt
-aXQgVVRDIENDUyA8QW1pdC5OYWdhbEB1dGMuY29tPiB3cm90ZToNCj4NCj4gSGkNCj4NCj4gV2Ug
-YXJlIHVzaW5nIFJlbmVzYXMgUlovQTEgcHJvY2Vzc29yIGJhc2VkIGN1c3RvbSB0YXJnZXQgYm9h
-cmQgLiBsaW51eCBrZXJuZWwgdmVyc2lvbiBpcyA0LjkuMTIzLg0KPg0KPiAxKSB0aGUgcGxhdGZv
-cm0gaXMgbG93IG1lbW9yeSBwbGF0Zm9ybSBoYXZpbmcgbWVtb3J5IDY0TUIuDQo+DQo+IDIpICB3
-ZSBhcmUgZG9pbmcgYXJvdW5kIDQ1TUIgVENQIGRhdGEgdHJhbnNmZXIgZnJvbSBQQyB0byB0YXJn
-ZXQgdXNpbmcgbmV0Y2F0IHV0aWxpdHkgLk9uIFRhcmdldCAsIGEgcHJvY2VzcyByZWNlaXZlcyBk
-YXRhIG92ZXIgc29ja2V0IGFuZCB3cml0ZXMgdGhlIGRhdGEgdG8gZmxhc2ggZGlzayAuDQo+DQo+
-IDMpIEF0IHRoZSBzdGFydCBvZiBkYXRhIHRyYW5zZmVyICwgd2UgZXhwbGljaXRseSBjbGVhciBs
-aW51eCBrZXJuZWwgY2FjaGVkIG1lbW9yeSBieSAgY2FsbGluZyBlY2hvIDMgPiAvcHJvYy9zeXMv
-dm0vZHJvcF9jYWNoZXMgLg0KPg0KPiA0KSBkdXJpbmcgVENQIGRhdGEgdHJhbnNmZXIgLCB3ZSBj
-b3VsZCBzZWUgZnJlZSAtbSBzaG93aW5nICJmcmVlIiBnZXR0aW5nIGRyb3BwZWQgdG8gYWxtb3N0
-IDFNQiBhbmQgbW9zdCBvZiB0aGUgbWVtb3J5IGFwcGVhcmluZyBhcyAiY2FjaGVkIg0KPg0KPiAj
-IGZyZWUgLW0NCj4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB0
-b3RhbCAgICAgICAgIHVzZWQgICBmcmVlICAgICBzaGFyZWQgICBidWZmZXJzICAgY2FjaGVkDQo+
-IE1lbTogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgNTcgICAgICAgICAgICA1NiAg
-ICAgICAgIDEgICAgICAgICAgICAgICAgIDAgICAgICAgICAgICAyICAgICAgICAgICA0Mg0KPiAt
-LysgYnVmZmVycy9jYWNoZTogICAgICAgICAgICAgICAgICAgICAgICAgIDEyICAgICAgICA0NQ0K
-PiBTd2FwOiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgMCAgICAgICAgICAgICAg
-MCAgICAgICAgICAgMA0KPg0KPiA1KSBzb21ldGltZXMgLCB3ZSBvYnNlcnZlZCBrZXJuZWwgbWVt
-b3J5IGdldHRpbmcgZXhoYXVzdGVkIGFzIHBhZ2UgYWxsb2NhdGlvbiBmYWlsdXJlIGhhcHBlbnMg
-aW4ga2VybmVsICB3aXRoIHRoZSBiYWNrdHJhY2UgaXMgcHJpbnRlZCBiZWxvdyA6DQo+ICMgWyAg
-Nzc1Ljk0Nzk0OV0gbmMudHJhZGl0aW9uYWw6IHBhZ2UgYWxsb2NhdGlvbiBmYWlsdXJlOiBvcmRl
-cjowLCBtb2RlOjB4MjA4MDAyMChHRlBfQVRPTUlDKQ0KPiBbICA3NzUuOTU2MzYyXSBDUFU6IDAg
-UElEOiAxMjg4IENvbW06IG5jLnRyYWRpdGlvbmFsIFRhaW50ZWQ6IEcgICAgICAgICAgIE8gICAg
-NC45LjEyMy1waWM2LWczMWExM2RlLWRpcnR5ICMxOQ0KPiBbICA3NzUuOTY2MDg1XSBIYXJkd2Fy
-ZSBuYW1lOiBHZW5lcmljIFI3UzcyMTAwIChGbGF0dGVuZWQgRGV2aWNlIFRyZWUpIA0KPiBbICA3
-NzUuOTcyNTAxXSBbPGMwMTA5ODI5Pl0gKHVud2luZF9iYWNrdHJhY2UpIGZyb20gWzxjMDEwNzk2
-Zj5dIA0KPiAoc2hvd19zdGFjaysweGIvMHhjKSBbICA3NzUuOTgwMTE4XSBbPGMwMTA3OTZmPl0g
-KHNob3dfc3RhY2spIGZyb20gDQo+IFs8YzAxNTFkZTM+XSAod2Fybl9hbGxvYysweDg5LzB4YmEp
-IFsgIDc3NS45ODczNjFdIFs8YzAxNTFkZTM+XSANCj4gKHdhcm5fYWxsb2MpIGZyb20gWzxjMDE1
-MjA0Mz5dIChfX2FsbG9jX3BhZ2VzX25vZGVtYXNrKzB4MWViLzB4NjM0KQ0KPiBbICA3NzUuOTk1
-NzkwXSBbPGMwMTUyMDQzPl0gKF9fYWxsb2NfcGFnZXNfbm9kZW1hc2spIGZyb20gWzxjMDE1MjUy
-Mz5dIA0KPiAoX19hbGxvY19wYWdlX2ZyYWcrMHgzOS8weGRlKSBbICA3NzYuMDA0Njg1XSBbPGMw
-MTUyNTIzPl0gDQo+IChfX2FsbG9jX3BhZ2VfZnJhZykgZnJvbSBbPGMwMzE5MGYxPl0gKF9fbmV0
-ZGV2X2FsbG9jX3NrYisweDUxLzB4YjApIFsgIA0KPiA3NzYuMDEzMjE3XSBbPGMwMzE5MGYxPl0g
-KF9fbmV0ZGV2X2FsbG9jX3NrYikgZnJvbSBbPGMwMmMxYjZmPl0gDQo+IChzaF9ldGhfcG9sbCsw
-eGJmLzB4M2MwKSBbICA3NzYuMDIxMzQyXSBbPGMwMmMxYjZmPl0gKHNoX2V0aF9wb2xsKSANCj4g
-ZnJvbSBbPGMwMzFmZDhmPl0gKG5ldF9yeF9hY3Rpb24rMHg3Ny8weDE3MCkgWyAgNzc2LjAyOTA1
-MV0gDQo+IFs8YzAzMWZkOGY+XSAobmV0X3J4X2FjdGlvbikgZnJvbSBbPGMwMTEyMzhmPl0gDQo+
-IChfX2RvX3NvZnRpcnErMHgxMDcvMHgxNjApIFsgIDc3Ni4wMzY4OTZdIFs8YzAxMTIzOGY+XSAo
-X19kb19zb2Z0aXJxKSANCj4gZnJvbSBbPGMwMTEyNTg5Pl0gKGlycV9leGl0KzB4NWQvMHg4MCkg
-WyAgNzc2LjA0NDE2NV0gWzxjMDExMjU4OT5dIA0KPiAoaXJxX2V4aXQpIGZyb20gWzxjMDEyZjRk
-Yj5dIChfX2hhbmRsZV9kb21haW5faXJxKzB4NTcvMHg4YykgWyAgNzc2LjA1MjAwN10gWzxjMDEy
-ZjRkYj5dIChfX2hhbmRsZV9kb21haW5faXJxKSBmcm9tIFs8YzAxMDEyZTE+XSAoZ2ljX2hhbmRs
-ZV9pcnErMHgzMS8weDQ4KSBbICA3NzYuMDYwMzYyXSBbPGMwMTAxMmUxPl0gKGdpY19oYW5kbGVf
-aXJxKSBmcm9tIFs8YzAxMDgwMjU+XSAoX19pcnFfc3ZjKzB4NjUvMHhhYykgWyAgNzc2LjA2Nzgz
-NV0gRXhjZXB0aW9uIHN0YWNrKDB4YzFjYWZkNzAgdG8gMHhjMWNhZmRiOCkNCj4gWyAgNzc2LjA3
-Mjg3Nl0gZmQ2MDogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgMDAwMjc1MWMg
-YzFkZWM2YTAgMDAwMDAwMGMgNTIxYzNiZTUNCj4gWyAgNzc2LjA4MTA0Ml0gZmQ4MDogNTZmZWIw
-OGUgZjY0ODIzYTYgZmZiMzVmN2IgZmVhYjUxM2QgZjljYjA2NDMgDQo+IDAwMDAwNTZjIGMxY2Fm
-ZjEwIGZmZmZlMDAwIFsgIDc3Ni4wODkyMDRdIGZkYTA6IGIxZjQ5MTYwIGMxY2FmZGM0IA0KPiBj
-MTgwYzY3NyBjMDIzNGFjZSAyMDBlMDAzMyBmZmZmZmZmZiBbICA3NzYuMDk1ODE2XSBbPGMwMTA4
-MDI1Pl0gDQo+IChfX2lycV9zdmMpIGZyb20gWzxjMDIzNGFjZT5dIChfX2NvcHlfdG9fdXNlcl9z
-dGQrMHg3ZS8weDQzMCkgWyAgDQo+IDc3Ni4xMDM3OTZdIFs8YzAyMzRhY2U+XSAoX19jb3B5X3Rv
-X3VzZXJfc3RkKSBmcm9tIFs8YzAyNDE3MTU+XSANCj4gKGNvcHlfcGFnZV90b19pdGVyKzB4MTA1
-LzB4MjUwKSBbICA3NzYuMTEyNTAzXSBbPGMwMjQxNzE1Pl0gDQo+IChjb3B5X3BhZ2VfdG9faXRl
-cikgZnJvbSBbPGMwMzE5YWViPl0gDQo+IChza2JfY29weV9kYXRhZ3JhbV9pdGVyKzB4YTMvMHgx
-MDgpDQo+IFsgIDc3Ni4xMjE0NjldIFs8YzAzMTlhZWI+XSAoc2tiX2NvcHlfZGF0YWdyYW1faXRl
-cikgZnJvbSBbPGMwMzQ0M2E3Pl0gDQo+ICh0Y3BfcmVjdm1zZysweDNhYi8weDVmNCkgWyAgNzc2
-LjEzMDA0NV0gWzxjMDM0NDNhNz5dICh0Y3BfcmVjdm1zZykgDQo+IGZyb20gWzxjMDM1ZTI0OT5d
-IChpbmV0X3JlY3Ztc2crMHgyMS8weDJjKSBbICA3NzYuMTM3NTc2XSBbPGMwMzVlMjQ5Pl0gDQo+
-IChpbmV0X3JlY3Ztc2cpIGZyb20gWzxjMDMxMDA5Zj5dIChzb2NrX3JlYWRfaXRlcisweDUxLzB4
-NmUpIFsgIA0KPiA3NzYuMTQ1Mzg0XSBbPGMwMzEwMDlmPl0gKHNvY2tfcmVhZF9pdGVyKSBmcm9t
-IFs8YzAxNzc5NWQ+XSANCj4gKF9fdmZzX3JlYWQrMHg5Ny8weGIwKSBbICA3NzYuMTUyOTY3XSBb
-PGMwMTc3OTVkPl0gKF9fdmZzX3JlYWQpIGZyb20gDQo+IFs8YzAxNzgxZDk+XSAodmZzX3JlYWQr
-MHg1MS8weGIwKSBbICA3NzYuMTU5OTgzXSBbPGMwMTc4MWQ5Pl0gDQo+ICh2ZnNfcmVhZCkgZnJv
-bSBbPGMwMTc4YWFiPl0gKFN5U19yZWFkKzB4MjcvMHg1MikgWyAgNzc2LjE2NjgzN10gDQo+IFs8
-YzAxNzhhYWI+XSAoU3lTX3JlYWQpIGZyb20gWzxjMDEwNTI2MT5dIChyZXRfZmFzdF9zeXNjYWxs
-KzB4MS8weDU0KQ0KDQo+U28gaXQgbG9va3MgbGlrZSB5b3UgYXJlIGludGVycnVwdGluZyB0aGUg
-cHJvY2VzcyB0aGF0IGlzIGRyYWluaW5nIHRoZSBzb2NrZXQgdG8gc2VydmljZSB0aGUgaW50ZXJy
-dXB0IHRoYXQgaXMgZmlsbGluZyBpdC4gSSBhbSBjdXJpb3VzIHdoYXQgeW91ciB0Y3Bfcm1lbSB2
-YWx1ZSBpcy4gSWYgdGhpcyBpcyBvY2N1cnJpbmcgb2Z0ZW4gdGhlbiB5b3Ugd2lsbCBsaWtlbHkg
-YnVpbGQgdXAgYSA+YmFja2xvZyBvZiBwYWNrZXRzIGluIHRoZSByZWNlaXZlIGJ1ZmZlciBmb3Ig
-dGhlIHNvY2tldCBhbmQgdGhhdCBtYXkgYmUgd2hlcmUgYWxsIHlvdXIgbWVtb3J5IGlzIGdvaW5n
-Lg0KDQpUaGFua3MgZm9yIHRoZSByZXBseSAuDQojIGNhdCAvcHJvYy9zeXMvbmV0L2lwdjQvdGNw
-X3JtZW0NCjQwOTYgICAgODczODAgICA0NTQ2ODgNCg0KdGhlIG1heGltdW0gdmFsdWUgaXMgbGVz
-cyB0aGFuIDFNQiBoZXJlIC4gIHdoaWNoIG1lYW5zIHRoYXQgc29ja2V0IGJ1ZmZlciBpcyBub3Qg
-Y29uc3VtaW5nIGFsbCB0aGUgbWVtb3J5IGhlcmUgcmlnaHQgPw0KIA0KPiBbICA3NzYuMTc0MzA4
-XSBNZW0tSW5mbzoNCj4gWyAgNzc2LjE3NjY1MF0gYWN0aXZlX2Fub246MjAzNyBpbmFjdGl2ZV9h
-bm9uOjIzIGlzb2xhdGVkX2Fub246MCBbICANCj4gNzc2LjE3NjY1MF0gIGFjdGl2ZV9maWxlOjI2
-MzYgaW5hY3RpdmVfZmlsZTo3MzkxIGlzb2xhdGVkX2ZpbGU6MzIgWyAgDQo+IDc3Ni4xNzY2NTBd
-ICB1bmV2aWN0YWJsZTowIGRpcnR5OjEzNjYgd3JpdGViYWNrOjEyODEgdW5zdGFibGU6MCBbICAN
-Cj4gNzc2LjE3NjY1MF0gIHNsYWJfcmVjbGFpbWFibGU6NzE5IHNsYWJfdW5yZWNsYWltYWJsZTo3
-MjQgWyAgDQo+IDc3Ni4xNzY2NTBdICBtYXBwZWQ6MTk5MCBzaG1lbToyNiBwYWdldGFibGVzOjE1
-OSBib3VuY2U6MCBbICANCj4gNzc2LjE3NjY1MF0gIGZyZWU6MzczIGZyZWVfcGNwOjYgZnJlZV9j
-bWE6MCBbICA3NzYuMjA5MDYyXSBOb2RlIDAgDQo+IGFjdGl2ZV9hbm9uOjgxNDhrQiBpbmFjdGl2
-ZV9hbm9uOjkya0IgYWN0aXZlX2ZpbGU6MTA1NDRrQiANCj4gaW5hY3RpdmVfZmlsZToyOTU2NGtC
-IHVuZXZpY3RhYmxlOjBrQiBpc29sYXRlZChhbm9uKTowa0IgDQo+IGlzb2xhdGVkKGZpbGUpOjEy
-OGtCIG1hcHBlZDo3OTYwa0IgZGlydHk6NTQ2NGtCIHdyaXRlYmFjazo1MTI0a0IgDQo+IHNobWVt
-OjEwNGtCIHdyaXRlYmFja190bXA6MGtCIHVuc3RhYmxlOjBrQiBwYWdlc19zY2FubmVkOjAgDQo+
-IGFsbF91bnJlY2xhaW1hYmxlPyBubyBbICA3NzYuMjMzNjAyXSBOb3JtYWwgZnJlZToxNDkya0Ig
-bWluOjk2NGtCIA0KPiBsb3c6MTIwNGtCIGhpZ2g6MTQ0NGtCIGFjdGl2ZV9hbm9uOjgxNDhrQiBp
-bmFjdGl2ZV9hbm9uOjkya0IgDQo+IGFjdGl2ZV9maWxlOjEwNTQ0a0IgaW5hY3RpdmVfZmlsZToy
-OTU2NGtCIHVuZXZpY3RhYmxlOjBrQiANCj4gd3JpdGVwZW5kaW5nOjEwNTg4a0IgcHJlc2VudDo2
-NTUzNmtCIG1hbmFnZWQ6NTkzMDRrQiBtbG9ja2VkOjBrQiANCj4gc2xhYl9yZWNsYWltYWJsZToy
-ODc2a0Igc2xhYl91bnJlY2xhaW1hYmxlOjI4OTZrQiBrZXJuZWxfc3RhY2s6MTE1MmtCIA0KPiBw
-YWdldGFibGVzOjYzNmtCIGJvdW5jZTowa0IgZnJlZV9wY3A6MjRrQiBsb2NhbF9wY3A6MjRrQiBm
-cmVlX2NtYTowa0IgDQo+IFsgIDc3Ni4yNjU0MDZdIGxvd21lbV9yZXNlcnZlW106IDAgMCBbICA3
-NzYuMjY4NzYxXSBOb3JtYWw6IDcqNGtCIChIKSANCj4gNSo4a0IgKEgpIDcqMTZrQiAoSCkgNSoz
-MmtCIChIKSA2KjY0a0IgKEgpIDIqMTI4a0IgKEgpIDIqMjU2a0IgKEgpIA0KPiAwKjUxMmtCIDAq
-MTAyNGtCIDAqMjA0OGtCIDAqNDA5NmtCID0gMTQ5MmtCDQo+IDEwMDcxIHRvdGFsIHBhZ2VjYWNo
-ZSBwYWdlcw0KPiBbICA3NzYuMjg0MTI0XSAwIHBhZ2VzIGluIHN3YXAgY2FjaGUNCj4gWyAgNzc2
-LjI4NzQ0Nl0gU3dhcCBjYWNoZSBzdGF0czogYWRkIDAsIGRlbGV0ZSAwLCBmaW5kIDAvMCBbICAN
-Cj4gNzc2LjI5MjY0NV0gRnJlZSBzd2FwICA9IDBrQiBbICA3NzYuMjk1NTMyXSBUb3RhbCBzd2Fw
-ID0gMGtCIFsgIA0KPiA3NzYuMjk4NDIxXSAxNjM4NCBwYWdlcyBSQU0gWyAgNzc2LjMwMTIyNF0g
-MCBwYWdlcyBIaWdoTWVtL01vdmFibGVPbmx5IA0KPiBbICA3NzYuMzA1MDUyXSAxNTU4IHBhZ2Vz
-IHJlc2VydmVkDQo+DQo+IDYpIHdlIGhhdmUgY2VydGFpbiBxdWVzdGlvbnMgYXMgYmVsb3cgOg0K
-PiBhKSBob3cgdGhlIGtlcm5lbCBtZW1vcnkgZ290IGV4aGF1c3RlZCA/IGF0IHRoZSB0aW1lIG9m
-IGxvdyBtZW1vcnkgY29uZGl0aW9ucyBpbiBrZXJuZWwgLCBhcmUgdGhlIGtlcm5lbCBwYWdlIGZs
-dXNoZXIgdGhyZWFkcyAsIHdoaWNoIHNob3VsZCBoYXZlIHdyaXR0ZW4gZGlydHkgcGFnZXMgZnJv
-bSBwYWdlIGNhY2hlIHRvIGZsYXNoIGRpc2sgLCBub3QgPiA+ZXhlY3V0aW5nIGF0IHJpZ2h0IHRp
-bWUgPyBpcyB0aGUga2VybmVsIHBhZ2UgcmVjbGFpbSBtZWNoYW5pc20gbm90IGV4ZWN1dGluZyBh
-dCByaWdodCB0aW1lID8NCg0KPkkgc3VzcGVjdCB0aGUgcGFnZXMgYXJlIGxpa2VseSBzdHVjayBp
-biBhIHN0YXRlIG9mIGJ1ZmZlcmluZy4gSW4gdGhlIGNhc2Ugb2Ygc29ja2V0cyB0aGUgcGFja2V0
-cyB3aWxsIGdldCBxdWV1ZWQgdXAgdW50aWwgZWl0aGVyIHRoZXkgY2FuIGJlIHNlcnZpY2VkIG9y
-IHRoZSBtYXhpbXVtIHNpemUgb2YgdGhlIHJlY2VpdmUgYnVmZmVyIGFzIGJlZW4gZXhjZWVkZWQg
-PmFuZCB0aGV5IGFyZSBkcm9wcGVkLg0KDQpNeSBjb25jZXJuIGhlcmUgaXMgdGhhdCB3aHkgdGhl
-IHJlY2xhaW0gcHJvY2VkdXJlIGhhcyBub3QgdHJpZ2dlcmVkID8NCg0KPiBiKSBhcmUgdGhlcmUg
-YW55IHBhcmFtZXRlcnMgYXZhaWxhYmxlIHdpdGhpbiB0aGUgbGludXggbWVtb3J5IHN1YnN5c3Rl
-bSB3aXRoIHdoaWNoIHRoZSByZWNsYWltIHByb2NlZHVyZSBjYW4gYmUgbW9uaXRvcmVkIGFuZCAg
-ZmluZSB0dW5lZCA/DQoNCj5JIGRvbid0IHRoaW5rIGZyZWVpbmcgdXAgbW9yZSBtZW1vcnkgd2ls
-bCBzb2x2ZSB0aGUgaXNzdWUuIEkgcmVhbGx5IHRoaW5rIHlvdSBwcm9iYWJseSBzaG91bGQgbG9v
-ayBhdCB0dW5pbmcgdGhlIG5ldHdvcmsgc2V0dGluZ3MuIEkgc3VzcGVjdCB0aGUgc29ja2V0IGl0
-c2VsZiBpcyBsaWtlbHkgdGhlIHRoaW5nIGhvbGRpbmcgYWxsIG9mIHRoZSBtZW1vcnkuDQoNCj4g
-YykgY2FuICBzb21lIGFtb3VudCBvZiBmcmVlIG1lbW9yeSBiZSByZXNlcnZlZCBzbyB0aGF0IGxp
-bnV4IGtlcm5lbCBkb2VzIG5vdCBjYWNoZXMgaXQgYW5kIGtlcm5lbCBjYW4gdXNlIGl0IGZvciBp
-dHMgb3RoZXIgcmVxdWlyZWQgcGFnZSBhbGxvY2F0aW9uICggcGFydGljdWxhcmx5IGdmcF9hdG9t
-aWMgKSBhcyBuZWVkZWQgYWJvdmUgb24gYmVoYWxmIG9mIG5ldGNhdCBuYyBwcm9jZXNzID8gY2Fu
-IHNvbWUgdHVuaW5nIGJlIGRvbmUgaW4gbGludXggbWVtb3J5IHN1YnN5c3RlbSBlZyBieSB1c2lu
-ZyAvcHJvYy9zeXMvdm0vbWluX2ZyZWVfa2J5dGVzICB0byBhY2hpZXZlIHRoaXMgb2JqZWN0aXZl
-IC4NCg0KPldpdGhpbiB0aGUga2VybmVsIHdlIGFscmVhZHkgaGF2ZSBzb21lIGVtZXJnZW5jeSBy
-ZXNlcnZlZCB0aGF0IGdldCBkaXBwZWQgaW50byBpZiB0aGUgUEZfTUVNQUxMT0MgZmxhZyBpcyBz
-ZXQuIEhvd2V2ZXIgdGhhdCBpcyB1c3VhbGx5IHJlc2VydmVkIGZvciB0aGUgY2FzZXMgd2hlcmUg
-eW91IGFyZSBib290aW5nIG9mZiBvZiBzb21ldGhpbmcgbGlrZSA+aXNjc2kgb3IgTlZNZSBvdmVy
-IFRDUC4NCg0KPiBkKSBjYW4gd2UgYmUgcHJvdmlkZWQgd2l0aCBmdXJ0aGVyIGNsdWVzIG9uIGhv
-dyB0byBkZWJ1ZyB0aGlzIGlzc3VlIGZ1cnRoZXIgZm9yIG91dCBvZiBtZW1vcnkgY29uZGl0aW9u
-IGluIGtlcm5lbCAgPw0KDQo+TXkgYWR2aWNlIHdvdWxkIGJlIGxvb2sgYXQgdHVuaW5nIHlvdXIg
-VENQIHNvY2tldCB2YWx1ZXMgaW4gc3lzY3RsLiBJIHN1c3BlY3QgeW91IGFyZSBsaWtlbHkgdXNp
-bmcgYSBsYXJnZXIgd2luZG93IHRoZW4geW91ciBzeXN0ZW0gY2FuIGN1cnJlbnRseSBoYW5kbGUg
-Z2l2ZW4gdGhlIG1lbW9yeSBjb25zdHJhaW50cyBhbmQgdGhhdCB3aGF0IHlvdSBhcmUgPnNlZWlu
-ZyBpcyB0aGF0IGFsbCB0aGUgbWVtb3J5IGlzIGJlaW5nIGNvbnN1bWVkIGJ5IGJ1ZmZlcmluZyBm
-b3IgdGhlIFRDUCBzb2NrZXQuDQoNCkFueSBzdWdnZXN0aW9ucyBoZXJlIHdoYXQgYWxsIFRDUCBz
-b2NrZXQgdmFsdWVzIEkgc2hvdWxkIGxvb2sgaW50byBhbmQgd2hhdCB2YWx1ZXMgdG8gdHVuZSB0
-byAuICANCg0KDQoNCg==
+This patch is part of previous series:
+https://lore.kernel.org/lkml/20190531064313.193437-1-minchan@kernel.org/T/#u
+Originally, it was created for external madvise hinting feature.
+
+https://lkml.org/lkml/2019/5/31/463
+Michal wanted to separte the discussion from external hinting interface
+so this patchset includes only first part of my entire patchset
+  - introduce MADV_COLD and MADV_PAGEOUT hint to madvise.
+
+However, I keep entire description for others for easier understanding
+why this kinds of hint was born.
+
+Thanks.
+
+This patchset is against on next-20190530.
+
+Below is description of previous entire patchset.
+================= &< =====================
+
+- Background
+
+The Android terminology used for forking a new process and starting an app
+from scratch is a cold start, while resuming an existing app is a hot start.
+While we continually try to improve the performance of cold starts, hot
+starts will always be significantly less power hungry as well as faster so
+we are trying to make hot start more likely than cold start.
+
+To increase hot start, Android userspace manages the order that apps should
+be killed in a process called ActivityManagerService. ActivityManagerService
+tracks every Android app or service that the user could be interacting with
+at any time and translates that into a ranked list for lmkd(low memory
+killer daemon). They are likely to be killed by lmkd if the system has to
+reclaim memory. In that sense they are similar to entries in any other cache.
+Those apps are kept alive for opportunistic performance improvements but
+those performance improvements will vary based on the memory requirements of
+individual workloads.
+
+- Problem
+
+Naturally, cached apps were dominant consumers of memory on the system.
+However, they were not significant consumers of swap even though they are
+good candidate for swap. Under investigation, swapping out only begins
+once the low zone watermark is hit and kswapd wakes up, but the overall
+allocation rate in the system might trip lmkd thresholds and cause a cached
+process to be killed(we measured performance swapping out vs. zapping the
+memory by killing a process. Unsurprisingly, zapping is 10x times faster
+even though we use zram which is much faster than real storage) so kill
+from lmkd will often satisfy the high zone watermark, resulting in very
+few pages actually being moved to swap.
+
+- Approach
+
+The approach we chose was to use a new interface to allow userspace to
+proactively reclaim entire processes by leveraging platform information.
+This allowed us to bypass the inaccuracy of the kernel’s LRUs for pages
+that are known to be cold from userspace and to avoid races with lmkd
+by reclaiming apps as soon as they entered the cached state. Additionally,
+it could provide many chances for platform to use much information to
+optimize memory efficiency.
+
+To achieve the goal, the patchset introduce two new options for madvise.
+One is MADV_COLD which will deactivate activated pages and the other is
+MADV_PAGEOUT which will reclaim private pages instantly. These new options
+complement MADV_DONTNEED and MADV_FREE by adding non-destructive ways to
+gain some free memory space. MADV_PAGEOUT is similar to MADV_DONTNEED in a way
+that it hints the kernel that memory region is not currently needed and
+should be reclaimed immediately; MADV_COLD is similar to MADV_FREE in a way
+that it hints the kernel that memory region is not currently needed and
+should be reclaimed when memory pressure rises.
+
+This approach is similar in spirit to madvise(MADV_WONTNEED), but the
+information required to make the reclaim decision is not known to the app.
+Instead, it is known to a centralized userspace daemon, and that daemon
+must be able to initiate reclaim on its own without any app involvement.
+To solve the concern, this patch introduces new syscall -
+
+    struct pr_madvise_param {
+            int size;               /* the size of this structure */
+            int cookie;             /* reserved to support atomicity */
+            int nr_elem;            /* count of below arrary fields */
+            int __user *hints;      /* hints for each range */
+            /* to store result of each operation */
+            const struct iovec __user *results;
+            /* input address ranges */
+            const struct iovec __user *ranges;
+    };
+    
+    int process_madvise(int pidfd, struct pr_madvise_param *u_param,
+                            unsigned long flags);
+
+The syscall get pidfd to give hints to external process and provides
+pair of result/ranges vector arguments so that it could give several
+hints to each address range all at once. It also has cookie variable
+to support atomicity of the API for address ranges operations. IOW, if
+target process changes address space since monitor process has parsed
+address ranges via map_files or maps, the API can detect the race so
+could cancel entire address space operation. It's not implemented yet.
+Daniel Colascione suggested a idea(Please read description in patch[6/6])
+and this patchset adds cookie a variable for the future.
+
+- Experiment
+
+We did bunch of testing with several hundreds of real users, not artificial
+benchmark on android. We saw about 17% cold start decreasement without any
+significant battery/app startup latency issues. And with artificial benchmark
+which launches and switching apps, we saw average 7% app launching improvement,
+18% less lmkd kill and good stat from vmstat.
+
+A is vanilla and B is process_madvise.
+
+                                       A          B      delta   ratio(%)
+               allocstall_dma          0          0          0       0.00
+           allocstall_movable       1464        457      -1007     -69.00
+            allocstall_normal     263210     190763     -72447     -28.00
+             allocstall_total     264674     191220     -73454     -28.00
+          compact_daemon_wake      26912      25294      -1618      -7.00
+                 compact_fail      17885      14151      -3734     -21.00
+         compact_free_scanned 4204766409 3835994922 -368771487      -9.00
+             compact_isolated    3446484    2967618    -478866     -14.00
+      compact_migrate_scanned 1621336411 1324695710 -296640701     -19.00
+                compact_stall      19387      15343      -4044     -21.00
+              compact_success       1502       1192       -310     -21.00
+kswapd_high_wmark_hit_quickly        234        184        -50     -22.00
+            kswapd_inodesteal     221635     233093      11458       5.00
+ kswapd_low_wmark_hit_quickly      66065      54009     -12056     -19.00
+                   nr_dirtied     259934     296476      36542      14.00
+  nr_vmscan_immediate_reclaim       2587       2356       -231      -9.00
+              nr_vmscan_write    1274232    2661733    1387501     108.00
+                   nr_written    1514060    2937560    1423500      94.00
+                   pageoutrun      67561      55133     -12428     -19.00
+                   pgactivate    2335060    1984882    -350178     -15.00
+                  pgalloc_dma   13743011   14096463     353452       2.00
+              pgalloc_movable          0          0          0       0.00
+               pgalloc_normal   18742440   16802065   -1940375     -11.00
+                pgalloc_total   32485451   30898528   -1586923      -5.00
+                 pgdeactivate    4262210    2930670   -1331540     -32.00
+                      pgfault   30812334   31085065     272731       0.00
+                       pgfree   33553970   31765164   -1788806      -6.00
+                 pginodesteal      33411      15084     -18327     -55.00
+                  pglazyfreed          0          0          0       0.00
+                   pgmajfault     551312    1508299     956987     173.00
+               pgmigrate_fail      43927      29330     -14597     -34.00
+            pgmigrate_success    1399851    1203922    -195929     -14.00
+                       pgpgin   24141776   19032156   -5109620     -22.00
+                      pgpgout     959344    1103316     143972      15.00
+                 pgpgoutclean    4639732    3765868    -873864     -19.00
+                     pgrefill    4884560    3006938   -1877622     -39.00
+                    pgrotated      37828      25897     -11931     -32.00
+                pgscan_direct    1456037     957567    -498470     -35.00
+       pgscan_direct_throttle          0          0          0       0.00
+                pgscan_kswapd    6667767    5047360   -1620407     -25.00
+                 pgscan_total    8123804    6004927   -2118877     -27.00
+                   pgskip_dma          0          0          0       0.00
+               pgskip_movable          0          0          0       0.00
+                pgskip_normal      14907      25382      10475      70.00
+                 pgskip_total      14907      25382      10475      70.00
+               pgsteal_direct    1118986     690215    -428771     -39.00
+               pgsteal_kswapd    4750223    3657107   -1093116     -24.00
+                pgsteal_total    5869209    4347322   -1521887     -26.00
+                       pswpin     417613    1392647     975034     233.00
+                      pswpout    1274224    2661731    1387507     108.00
+                slabs_scanned   13686905   10807200   -2879705     -22.00
+          workingset_activate     668966     569444     -99522     -15.00
+       workingset_nodereclaim      38957      32621      -6336     -17.00
+           workingset_refault    2816795    2179782    -637013     -23.00
+           workingset_restore     294320     168601    -125719     -43.00
+
+pgmajfault is increased by 173% because swapin is increased by 200% by
+process_madvise hint. However, swap read based on zram is much cheaper
+than file IO in performance point of view and app hot start by swapin is
+also cheaper than cold start from the beginning of app which needs many IO
+from storage and initialization steps.
+
+Brian Geffon in ChromeOS team had an experiment with process_madvise(2)
+Quote form him:
+"What I found is that by using process_madvise after a tab has been back
+grounded for more than 45 seconds reduced the average tab switch times by
+25%! This is a huge result and very obvious validation that process_madvise
+hints works well for the ChromeOS use case."
+
+This patchset is against on next-20190530.
+
+Minchan Kim (4):
+  mm: introduce MADV_COLD
+  mm: change PAGEREF_RECLAIM_CLEAN with PAGE_REFRECLAIM
+  mm: account nr_isolated_xxx in [isolate|putback]_lru_page
+  mm: introduce MADV_PAGEOUT
+
+ include/linux/page-flags.h             |   1 +
+ include/linux/page_idle.h              |  15 ++
+ include/linux/swap.h                   |   2 +
+ include/uapi/asm-generic/mman-common.h |   2 +
+ mm/compaction.c                        |   2 -
+ mm/gup.c                               |   7 +-
+ mm/internal.h                          |   2 +-
+ mm/khugepaged.c                        |   3 -
+ mm/madvise.c                           | 241 ++++++++++++++++++++++++-
+ mm/memory-failure.c                    |   3 -
+ mm/memory_hotplug.c                    |   4 -
+ mm/mempolicy.c                         |   6 +-
+ mm/migrate.c                           |  37 +---
+ mm/oom_kill.c                          |   2 +-
+ mm/swap.c                              |  43 +++++
+ mm/vmscan.c                            |  62 ++++++-
+ 16 files changed, 367 insertions(+), 65 deletions(-)
+
+-- 
+2.22.0.rc1.311.g5d7573a151-goog
 
