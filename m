@@ -7,68 +7,68 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 617ABC468BC
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 13:22:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 472FDC282CE
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 13:22:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2755625C0B
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 13:22:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2755625C0B
+	by mail.kernel.org (Postfix) with ESMTP id 0960027DAC
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 13:22:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0960027DAC
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0CA806B0006; Mon,  3 Jun 2019 09:22:06 -0400 (EDT)
+	id A19936B0008; Mon,  3 Jun 2019 09:22:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 07BAF6B0008; Mon,  3 Jun 2019 09:22:05 -0400 (EDT)
+	id 9CADB6B000A; Mon,  3 Jun 2019 09:22:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E66916B000A; Mon,  3 Jun 2019 09:22:05 -0400 (EDT)
+	id 77FD16B000C; Mon,  3 Jun 2019 09:22:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 86F856B0006
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 09:22:05 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d13so15867823edo.5
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 06:22:05 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2B7326B000A
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 09:22:06 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r5so27416726edd.21
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 06:22:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=NUY22rD3X9mHz9jt1gNSoADUzA2AdsUNRnxzsaOlAls=;
-        b=N2RqG0VN/vxa+MPIg27FbxBhLbxbIvu0Z29RuMoUTBzZklQCe2VrW0ttXt57UWQq9d
-         jCG30QOTqKKtSL1JlfqcH9NlCUKsZn4k2CFGf/6C3UWhegA7JEWDjeZ3DYKUeBZ+Q5/z
-         6pKIOaaLlqsx+OakVQPzLcYNq4hJBoWGuznuDEu3Dhl9HJdss2alg94UoKvd8LJK8mnk
-         lz8TwmFld30QNrw6C/Hq0CEqcWTa6FuM0css292JkRZMxZMLnkt6QCbq70umBAFa3dhF
-         WTf7uD3eZ7Orzheil+QKWOAibbzARJKM9JRpv2KuAPKLxs1tlBun1OBxSngCEE3Lm4uk
-         XIMw==
+        bh=aGgl0qNJ4aNC6jFuYzpg+dgXb3L81XRB01wW1xPaAvc=;
+        b=NERpFKBw+9e/7e42VGJJNQw6R3H8Z04MNS8abccgCipquLG0ooIhc3w2IUi3rQW39c
+         Xbt0OCK0oZlebmmUumdZGZE1leV+0dfbDfxOPwLQTPYX12P9MqtDJccsO51TN3C2qE8K
+         oA5prDZFmNLN/tyUY5pEuGsbMVkxtUQ8ATG7JTSB4xJrwCLajFY2yLag4euTlf9jLizB
+         K8TGTtpud/j7Biel+Q8kIFhVIRKhW0Ymv26pbCwxzvRjRFuRN169wyRxVM4+SHJfIyT8
+         r243yqX/RW5tH3zuemkQpCXempQIt0zIDaMQPSgb/hF0wnsrayCvfZC6GUmqz/2LyQXR
+         QV/Q==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAVwnvqr/oPZJymRCmGHr8d0gnGa0mEXglMP1eNT//PVOkPNO4Fx
-	9YaG/bSlJVXUrwwyRQAETSrzxllnlgMLqK9PaJ+7QU3QCbhcd0BBhdqw6NVSV8V1XZurgWm6sU0
-	DSFjpw2gPPuN2iDm21xbIlrg2plQLCVZTAuW/01p+ByBwqCEaJm6EKQ+wWneCQaiahg==
-X-Received: by 2002:a50:ee01:: with SMTP id g1mr27970925eds.263.1559568125001;
+X-Gm-Message-State: APjAAAW0FbZ8COSCaZNdXpBkEjN6R93TBLp9P52VNRDtivXI4uANbY6V
+	fzDleGP+mZwPrIN3da5tvr8R6RQ/xTDcBGFbM9T0uEY8EMX7uYEUfNShfnT7aSiatQUflk3WfnD
+	QzWQDONq5AdyVIHag7uHCef0mGzwrZqC4+8e11jM6jG6RRIdhS0PFD8Ps/9LhK0Ry0g==
+X-Received: by 2002:a50:908a:: with SMTP id c10mr28142669eda.226.1559568125668;
         Mon, 03 Jun 2019 06:22:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzpbKpZHGwRAKmwB+y25/c+mCSxPeYtQ1DgRCLg/q3c0S7U771uqUkQ0dbE/pDpvowsoB6U
-X-Received: by 2002:a50:ee01:: with SMTP id g1mr27970792eds.263.1559568123608;
+X-Google-Smtp-Source: APXvYqwZ1i26flQwuhfMuCvZJcFGC1VMPNaIrvZ5E15VDvj7xWCm5dw99kZ04g/eaCUohsK53GNl
+X-Received: by 2002:a50:908a:: with SMTP id c10mr28142479eda.226.1559568123606;
         Mon, 03 Jun 2019 06:22:03 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1559568123; cv=none;
         d=google.com; s=arc-20160816;
-        b=DLsjFVV6S04dTqGukjU55qhbByHHD79nxN82i4DCruI6ezQt8F4VmY0B/kmccyDEYz
-         /NckFsnzdiF30lM4Yh38phYuS9+Q+IeGYF4yU/zKb3WXNp7/WuMZieo/8OSCWxf6P7pS
-         b/TP8Y1qY/5CwrVbPm42SdAila2e/3TUnKXTafKRkaL3qlf2AQekZijTarYHxK+vJTvt
-         fCDZKLwIoo4A4L41+2ppZimR/NFSVaX6r8LZxHfrI446kXAvBWUzvKlQZss1h4GxSrxq
-         gKoPXQTEe5VQGG++SwIGENC6qrMYhLS3SoUQWPmeEmDB5UetQWtIe93ebqAYUI9A2Y8t
-         VtoQ==
+        b=u35H8kYzLjrN/WMyy/5Uw7ryyjmgdel7E9HhZR1pfC9PWrmWPMKCTO/jYn4UgJUoxP
+         hdU48l8iLNfxMF9WGzKLRtDUtem6JO09NINJ1vJXK5FSzoGRvo2dNHJPcsBjMpULMMs+
+         u1i7zU8uaGtCC0mqgZLXMVBv8SksgqClawQOiKAiOXQ3LtYaMtOondqTyBOY8lzYTDB9
+         22jPqIm7AseFRo7BL5G3DE2TrJgC9sig9yW8PYlKiCOshw6NVpj/5hf8lzO5i8lTVQv6
+         FMc+ii1pwQzuyera4TrqYOlrbfE7t6BWVlDBupbrsdYgHGVbdcB3td6Sa0m0XsgYr9N/
+         ZVEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=NUY22rD3X9mHz9jt1gNSoADUzA2AdsUNRnxzsaOlAls=;
-        b=cgH4gWPIuQaQB7dak/irAUPMbv3iLjNqyz+ZvHryvNwm8lm79M76CHy+WbX7535O3N
-         4AKZtNpi9AE0LA1qjSTMTnTK2z/LvSpVyVE8X9OTP/xqtD8zV28MLdLkvlIKjJFmQFpW
-         MLrAEYIm38Namhh1ufaIzmCnwE/pyZL5Ye4qLkN1Q9Ypn14xHwUB9NrIAdxyFSyo15kS
-         fPqZYAfmpQHm4bWgqRedleTPfdPhlIcx8vvUScW7QJtJeCTDe1VMyfl7h5q5uJm5Jox/
-         jXQPAPivmqQ83n4EbBFuG0gyjCgeMa3m4t/CYhy/FcBc91+vK9oFx5VY6b/zY/lZIDCF
-         uL7g==
+        bh=aGgl0qNJ4aNC6jFuYzpg+dgXb3L81XRB01wW1xPaAvc=;
+        b=CmmNQPDGDuoZ+LOmo+fK8+FjJchlZsoIRsdc6t5epNjmTFkkIKKdYHNKiuo25JE790
+         SWlbGu7B3mybW9cWMSfHNFVLGRYTRqUYyQ60lmgXWUV14kpDwBBDQCsQ1r47268egUUQ
+         gDAPigBZQi8xGQ3RVXPwQdF6QvGrqXSQdN6XO1wpd+mZe/+i8YZ74Pti8oj1Ek6SISnm
+         0CQXafG8sLAFFbbsizfXJK2lQiDIxcbeEb35QFObHexLihxW0Z/nfl6L4oj5bw/pXeog
+         fXMMwZN4XokFXKlNryaJTXSfta5S1fktyNfupzowkqdT2Hz+NrmhkhH6xBGnLg4rkv2m
+         HwAg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 9si1797948ejx.127.2019.06.03.06.22.03
+        by mx.google.com with ESMTPS id w14si4207185ejv.124.2019.06.03.06.22.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 03 Jun 2019 06:22:03 -0700 (PDT)
@@ -77,10 +77,10 @@ Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 325BCADC4;
+	by mx1.suse.de (Postfix) with ESMTP id 04D2BAD31;
 	Mon,  3 Jun 2019 13:22:03 +0000 (UTC)
 Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 4E8AB1E0DBA; Mon,  3 Jun 2019 15:22:00 +0200 (CEST)
+	id 50CEE1E3C9A; Mon,  3 Jun 2019 15:22:00 +0200 (CEST)
 From: Jan Kara <jack@suse.cz>
 To: <linux-ext4@vger.kernel.org>
 Cc: Ted Tso <tytso@mit.edu>,
@@ -89,9 +89,9 @@ Cc: Ted Tso <tytso@mit.edu>,
 	Amir Goldstein <amir73il@gmail.com>,
 	Jan Kara <jack@suse.cz>,
 	stable@vger.kernel.org
-Subject: [PATCH 1/2] mm: Add readahead file operation
-Date: Mon,  3 Jun 2019 15:21:54 +0200
-Message-Id: <20190603132155.20600-2-jack@suse.cz>
+Subject: [PATCH 2/2] ext4: Fix stale data exposure when read races with hole punch
+Date: Mon,  3 Jun 2019 15:21:55 +0200
+Message-Id: <20190603132155.20600-3-jack@suse.cz>
 X-Mailer: git-send-email 2.16.4
 In-Reply-To: <20190603132155.20600-1-jack@suse.cz>
 References: <20190603132155.20600-1-jack@suse.cz>
@@ -101,161 +101,101 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Some filesystems need to acquire locks before pages are read into page
-cache to protect from races with hole punching. The lock generally
-cannot be acquired within readpage as it ranks above page lock so we are
-left with acquiring the lock within filesystem's ->read_iter
-implementation for normal reads and ->fault implementation during page
-faults. That however does not cover all paths how pages can be
-instantiated within page cache - namely explicitely requested readahead.
-Add new ->readahead file operation which filesystem can use for this.
+Hole puching currently evicts pages from page cache and then goes on to
+remove blocks from the inode. This happens under both i_mmap_sem and
+i_rwsem held exclusively which provides appropriate serialization with
+racing page faults. However there is currently nothing that prevents
+ordinary read(2) from racing with the hole punch and instantiating page
+cache page after hole punching has evicted page cache but before it has
+removed blocks from the inode. This page cache page will be mapping soon
+to be freed block and that can lead to returning stale data to userspace
+or even filesystem corruption.
 
-CC: stable@vger.kernel.org # Needed by following ext4 fix
+Fix the problem by protecting reads as well as readahead requests with
+i_mmap_sem.
+
+CC: stable@vger.kernel.org
+Reported-by: Amir Goldstein <amir73il@gmail.com>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- include/linux/fs.h |  5 +++++
- include/linux/mm.h |  3 ---
- mm/fadvise.c       | 12 +-----------
- mm/madvise.c       |  3 ++-
- mm/readahead.c     | 26 ++++++++++++++++++++++++--
- 5 files changed, 32 insertions(+), 17 deletions(-)
+ fs/ext4/file.c | 35 +++++++++++++++++++++++++++++++----
+ 1 file changed, 31 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index f7fdfe93e25d..9968abcd06ea 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -1828,6 +1828,7 @@ struct file_operations {
- 				   struct file *file_out, loff_t pos_out,
- 				   loff_t len, unsigned int remap_flags);
- 	int (*fadvise)(struct file *, loff_t, loff_t, int);
-+	int (*readahead)(struct file *, loff_t, loff_t);
- } __randomize_layout;
+diff --git a/fs/ext4/file.c b/fs/ext4/file.c
+index 2c5baa5e8291..a21fa9f8fb5d 100644
+--- a/fs/ext4/file.c
++++ b/fs/ext4/file.c
+@@ -34,6 +34,17 @@
+ #include "xattr.h"
+ #include "acl.h"
  
- struct inode_operations {
-@@ -3537,6 +3538,10 @@ extern void inode_nohighmem(struct inode *inode);
- extern int vfs_fadvise(struct file *file, loff_t offset, loff_t len,
- 		       int advice);
- 
-+/* mm/readahead.c */
-+extern int generic_readahead(struct file *filp, loff_t start, loff_t end);
-+extern int vfs_readahead(struct file *filp, loff_t start, loff_t end);
-+
- #if defined(CONFIG_IO_URING)
- extern struct sock *io_uring_get_socket(struct file *file);
- #else
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0e8834ac32b7..8f6597295920 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2461,9 +2461,6 @@ void task_dirty_inc(struct task_struct *tsk);
- /* readahead.c */
- #define VM_READAHEAD_PAGES	(SZ_128K / PAGE_SIZE)
- 
--int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
--			pgoff_t offset, unsigned long nr_to_read);
--
- void page_cache_sync_readahead(struct address_space *mapping,
- 			       struct file_ra_state *ra,
- 			       struct file *filp,
-diff --git a/mm/fadvise.c b/mm/fadvise.c
-index 467bcd032037..e5aab207550e 100644
---- a/mm/fadvise.c
-+++ b/mm/fadvise.c
-@@ -36,7 +36,6 @@ static int generic_fadvise(struct file *file, loff_t offset, loff_t len,
- 	loff_t endbyte;			/* inclusive */
- 	pgoff_t start_index;
- 	pgoff_t end_index;
--	unsigned long nrpages;
- 
- 	inode = file_inode(file);
- 	if (S_ISFIFO(inode->i_mode))
-@@ -94,20 +93,11 @@ static int generic_fadvise(struct file *file, loff_t offset, loff_t len,
- 		spin_unlock(&file->f_lock);
- 		break;
- 	case POSIX_FADV_WILLNEED:
--		/* First and last PARTIAL page! */
--		start_index = offset >> PAGE_SHIFT;
--		end_index = endbyte >> PAGE_SHIFT;
--
--		/* Careful about overflow on the "+1" */
--		nrpages = end_index - start_index + 1;
--		if (!nrpages)
--			nrpages = ~0UL;
--
- 		/*
- 		 * Ignore return value because fadvise() shall return
- 		 * success even if filesystem can't retrieve a hint,
- 		 */
--		force_page_cache_readahead(mapping, file, start_index, nrpages);
-+		vfs_readahead(file, offset, endbyte);
- 		break;
- 	case POSIX_FADV_NOREUSE:
- 		break;
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 628022e674a7..9111b75e88cf 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -303,7 +303,8 @@ static long madvise_willneed(struct vm_area_struct *vma,
- 		end = vma->vm_end;
- 	end = ((end - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
- 
--	force_page_cache_readahead(file->f_mapping, file, start, end - start);
-+	vfs_readahead(file, (loff_t)start << PAGE_SHIFT,
-+		      (loff_t)end << PAGE_SHIFT);
- 	return 0;
- }
- 
-diff --git a/mm/readahead.c b/mm/readahead.c
-index 2fe72cd29b47..e66ae8c764ad 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -219,8 +219,9 @@ unsigned int __do_page_cache_readahead(struct address_space *mapping,
-  * Chunk the readahead into 2 megabyte units, so that we don't pin too much
-  * memory at once.
-  */
--int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
--			       pgoff_t offset, unsigned long nr_to_read)
-+static int force_page_cache_readahead(struct address_space *mapping,
-+				      struct file *filp, pgoff_t offset,
-+				      unsigned long nr_to_read)
- {
- 	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
- 	struct file_ra_state *ra = &filp->f_ra;
-@@ -248,6 +249,20 @@ int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
- 	return 0;
- }
- 
-+int generic_readahead(struct file *filp, loff_t start, loff_t end)
++static ssize_t ext4_file_buffered_read(struct kiocb *iocb, struct iov_iter *to)
 +{
-+	pgoff_t first, last;
-+	unsigned long count;
++	ssize_t ret;
++	struct inode *inode = file_inode(iocb->ki_filp);
 +
-+	first = start >> PAGE_SHIFT;
-+	last = end >> PAGE_SHIFT;
-+	count = last - first + 1;
-+	if (!count)
-+		count = ~0UL;
-+	return force_page_cache_readahead(filp->f_mapping, filp, first, count);
++	down_read(&EXT4_I(inode)->i_mmap_sem);
++	ret = generic_file_read_iter(iocb, to);
++	up_read(&EXT4_I(inode)->i_mmap_sem);
++	return ret;
 +}
-+EXPORT_SYMBOL_GPL(generic_readahead);
 +
+ #ifdef CONFIG_FS_DAX
+ static ssize_t ext4_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
+ {
+@@ -52,7 +63,7 @@ static ssize_t ext4_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
+ 	if (!IS_DAX(inode)) {
+ 		inode_unlock_shared(inode);
+ 		/* Fallback to buffered IO in case we cannot support DAX */
+-		return generic_file_read_iter(iocb, to);
++		return ext4_file_buffered_read(iocb, to);
+ 	}
+ 	ret = dax_iomap_rw(iocb, to, &ext4_iomap_ops);
+ 	inode_unlock_shared(inode);
+@@ -64,17 +75,32 @@ static ssize_t ext4_dax_read_iter(struct kiocb *iocb, struct iov_iter *to)
+ 
+ static ssize_t ext4_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
+ {
+-	if (unlikely(ext4_forced_shutdown(EXT4_SB(file_inode(iocb->ki_filp)->i_sb))))
++	struct inode *inode = file_inode(iocb->ki_filp);
++
++	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
+ 		return -EIO;
+ 
+ 	if (!iov_iter_count(to))
+ 		return 0; /* skip atime */
+ 
+ #ifdef CONFIG_FS_DAX
+-	if (IS_DAX(file_inode(iocb->ki_filp)))
++	if (IS_DAX(inode))
+ 		return ext4_dax_read_iter(iocb, to);
+ #endif
+-	return generic_file_read_iter(iocb, to);
++	if (iocb->ki_flags & IOCB_DIRECT)
++		return generic_file_read_iter(iocb, to);
++	return ext4_file_buffered_read(iocb, to);
++}
++
++static int ext4_readahead(struct file *filp, loff_t start, loff_t end)
++{
++	struct inode *inode = file_inode(filp);
++	int ret;
++
++	down_read(&EXT4_I(inode)->i_mmap_sem);
++	ret = generic_readahead(filp, start, end);
++	up_read(&EXT4_I(inode)->i_mmap_sem);
++	return ret;
+ }
+ 
  /*
-  * Set the initial window size, round to next power of 2 and square
-  * for small size, x 4 for medium, and x 2 for large
-@@ -575,6 +590,13 @@ page_cache_async_readahead(struct address_space *mapping,
- }
- EXPORT_SYMBOL_GPL(page_cache_async_readahead);
+@@ -518,6 +544,7 @@ const struct file_operations ext4_file_operations = {
+ 	.splice_read	= generic_file_splice_read,
+ 	.splice_write	= iter_file_splice_write,
+ 	.fallocate	= ext4_fallocate,
++	.readahead	= ext4_readahead,
+ };
  
-+int vfs_readahead(struct file *filp, loff_t start, loff_t end)
-+{
-+	if (filp->f_op->readahead)
-+		return filp->f_op->readahead(filp, start, end);
-+	return generic_readahead(filp, start, end);
-+}
-+
- ssize_t ksys_readahead(int fd, loff_t offset, size_t count)
- {
- 	ssize_t ret;
+ const struct inode_operations ext4_file_inode_operations = {
 -- 
 2.16.4
 
