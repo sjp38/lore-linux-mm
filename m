@@ -4,101 +4,100 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 42A5EC28CC7
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 04:28:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DCA25C28CC7
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 04:28:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F205527249
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 04:28:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 818D327B6C
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 04:28:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="3d+ZatUl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F205527249
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="Vd/2ekDx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 818D327B6C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8EB526B0274; Mon,  3 Jun 2019 00:28:49 -0400 (EDT)
+	id 25BD36B026D; Mon,  3 Jun 2019 00:28:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8C1AD6B0276; Mon,  3 Jun 2019 00:28:49 -0400 (EDT)
+	id 20C9E6B0275; Mon,  3 Jun 2019 00:28:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 78BCA6B0275; Mon,  3 Jun 2019 00:28:49 -0400 (EDT)
+	id 0FA416B0276; Mon,  3 Jun 2019 00:28:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A3546B026C
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 00:28:49 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id r58so6515748qtb.5
-        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 21:28:49 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E1EF46B026D
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 00:28:56 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id w184so13734147qka.15
+        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 21:28:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=rxVuyzm1WS3UxHiswMwmyEkW+N4rdmsFgqzw5exGUx0=;
-        b=HS8qT8xPOLygp5emzcVhDJz0DP9oIiF2vy2NARWDSEtkUogH/DEZpsGtIjHG4QVh8S
-         ioyBUSiXig7XRuNaqK2q8SjzseUweaFzqvObUi1cTJELHnjJuL4lNBOKtTgBXf6HaGyo
-         BZtrScjWlcBw26f7mqCQFB8twuNJ59QPnwvsu3DmMP6V8PTwbdDJqliycb1XWdEfzz2H
-         9o7W0FJu/1UiSHo6bQNxRfLzE5rcMl6TSpWkoDsjoRz4B2kkjCQGIxayH+NOh2yC2wZ5
-         Z2UoBDqL70iDigkfIvLAWUzkuZ5kjXJQaGfy+VXgRuuIxTi5a/H8QLCQ+WeQrTcU1XbO
-         7ouw==
-X-Gm-Message-State: APjAAAUH5wJDHrzvKRUNKJ8qF/L5EmYNp+cIGHunn3I+UJjtNsimNP9G
-	IFMIvEpTY5eEEtEtDmtJ9GLo0cjdEc2MT5kuqw7V/jiXm1xorel+PHBSVnJSRaWXXFTPrgdtFOT
-	8dWXgFGS3xGbOftMPuSa8wQJliQXx8WbRl5O1gUxMkJgl04LOfBaLcRcyqRUgpMY=
-X-Received: by 2002:a05:620a:247:: with SMTP id q7mr17246262qkn.265.1559536129140;
-        Sun, 02 Jun 2019 21:28:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw0nKM8777HlEjLT3735Zs7ScZrEVv1c9o4tS+z0IdcfCTmG5F67A5lzN+tcLqEI4i+GX+2
-X-Received: by 2002:a05:620a:247:: with SMTP id q7mr17246221qkn.265.1559536128130;
-        Sun, 02 Jun 2019 21:28:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559536128; cv=none;
+        bh=K23AG6kPeiLizgBxJZXoFVpxoNhX/Z2JwBtP24yd/wE=;
+        b=Sno8mMpsaF29Abi4GiGRhuSU1U1kDlNDoa52iU9Af2iH32wgB14OXVG4Pm1jXiruPQ
+         6LBOYhNM4J1mvHWfbiraicx2KnLO4FTbLIP1Hq6S2uJFVO/ltXtzD+lobMA2WZ41+FDZ
+         mK9nsU3Rg5SUzuVsFQ6Tf9fSRx7GsXXN5pj0tK6XQbzxQf/xIJJeVQTgeF+juujfiLMY
+         44PWxi0tB7UFz4LPKqhfgwsh63QzIGcOKUHZaU3dohOHGbGbIFc15Wet5YZ3Sewwlqed
+         T7QDAmcE7jZQeejKfXhAl6D1qwUdBBUjBK44SQ93H5gv95CX3wDE34CVxE8+OdOccUFu
+         3caQ==
+X-Gm-Message-State: APjAAAVWeh5I9DatScGjPlYzPxZiWbmBRte/0YhoRqm82OmV/s1joVUS
+	nMJBtlzZ9di9G/ztzR0vFNBiplslSCehtth2v+A71JJ0pmdIzRzTEfFPgbvJNpyE0GfgZCRogPR
+	BVoidRCToDlYWIdSGVftKJ8+kPpIMj8B2kGwIc0fkQrOwGd5JX2K58s28EFaoCIw=
+X-Received: by 2002:ac8:66d8:: with SMTP id m24mr21051666qtp.355.1559536136657;
+        Sun, 02 Jun 2019 21:28:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy1LZbY8j8CPtbPfYHhEq4arnCRcfAW4hcF7oyKYe567gNNYURBhW2mngDCqBHVquAnAVAK
+X-Received: by 2002:ac8:66d8:: with SMTP id m24mr21051607qtp.355.1559536135304;
+        Sun, 02 Jun 2019 21:28:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559536135; cv=none;
         d=google.com; s=arc-20160816;
-        b=prOU82fCeaeuSycXMcjivCx6+wGWErs0PwfL5XmG7Y+7W3mquW50z+jK+coGm2fwmK
-         ehQsF8JwcoMw0H2lgVjhkoJN5L5bp5x6KgVvVzul82v1YwbxVw8AO4gZ4jufU6G6S8jW
-         YwwtF3elsFtHlN3qxH1WhlfaHXoXLPdx7b/lTFfXp/lkJN7lPWa5t6CDbqy5aWVfVQIP
-         DDx9ZmZ1VzynFRrpQ+dwIaW0wQ2Y+rFP9Lzw9wS/6J43cT9tZLX6GhVTI7FmujZx1ZBA
-         nuBp3MYlm+2Neqji7Lfjm2y/xUmcDPYq1JbVWbKO8F0KrV63sTgAV5Gf2pF1brKJd4HX
-         o69Q==
+        b=VTE3nCWnryJdopAgzu6PiyGfe/rdQ8JDgl5333oh1EprOHkKlyV0XPVwot08clrBC3
+         r6WzERJTco9FVZt3KtWPd/v2RBiilDA9Eg60LEKUNIwdsKfC7n2rseUa7ja+OogcyLVF
+         xdA49YQCEZaZDQhWic7RT6hjWVWSfp6uWbiRl+RACEC/cKZ4yloLJb1HDesM47u0zISp
+         BV11pWIug+AllSa/V3o5NE4yc1oafMn9FHmLmDgKFfs2ngsfVO/b4QfOcqjKmOTjjp1G
+         cQG9a+KWTwpVRWqovxZ9EmJV/P47q1gOc6KNh/OujI2TMVS1hh6Y6t1WTnkndAC8nlvA
+         LwVA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=rxVuyzm1WS3UxHiswMwmyEkW+N4rdmsFgqzw5exGUx0=;
-        b=Khhk9IBIAeBD6I00pMy2u/7pKqtFlHZRlVRr9mi0NkH5/JPsTDzDqYGBof6hTUr+s0
-         corE1pRETqKer2wuDwzdAVNjhE7BjnMUwKJyyoEi+am2ZR5ijy3SSEhkgOglNzGCghh4
-         84yZ4NcGdWRVwH1k3dHFnw2h74TqL27FxPMo9afoR7T4cjG8Yuvkpp6tHsjOddKPUq3K
-         yaOxcIXFkom3O9GGbGTzREK9h1fUyJBU1VVIjNESvdKsfl/BQJSYK7wqN10X8xKwlQFw
-         Rzic3JDIzVI5XrXN7IkMjjynXfIFiMFnxa2haN0/OBtI48VjVT+SdcpONGBERVH9OtPT
-         whcg==
+        bh=K23AG6kPeiLizgBxJZXoFVpxoNhX/Z2JwBtP24yd/wE=;
+        b=DniM7aHOz4ieG4HfcBTOwQzot1rPriIotN7gUD8K0cd4354P80Kluv9D9EiM1PzuyI
+         HAyNqRxP/ylF1aLzb2cbAa//9QR0PrY9scB9uRagrqtb7M08k/zBhvR372D308jWezSh
+         60+RcArbriDUwRNNGc5mAYamU37eldlWS/8XS6CUbcPDFRCTLTOuCZrZJTmY88l8snzA
+         skj1uETYassFK+XdXwnIggvNLWVnAcpg/FckRj7YgRyneKytdAsPToU/7+hVOY+g8D9O
+         YxYpBXRwh75XIhHRJzgYCURaJQ3OfRA6MJMVpTzTOEyr7Sqd78024IG2puQ+7NoZmMdk
+         DOyQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=3d+ZatUl;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="Vd/2ekDx";
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from new4-smtp.messagingengine.com (new4-smtp.messagingengine.com. [66.111.4.230])
-        by mx.google.com with ESMTPS id z193si8540868qka.236.2019.06.02.21.28.48
+        by mx.google.com with ESMTPS id e2si1545302qvh.40.2019.06.02.21.28.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Jun 2019 21:28:48 -0700 (PDT)
+        Sun, 02 Jun 2019 21:28:55 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) client-ip=66.111.4.230;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=3d+ZatUl;
+       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b="Vd/2ekDx";
        spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) smtp.mailfrom=tobin@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailnew.nyi.internal (Postfix) with ESMTP id 826751320;
-	Mon,  3 Jun 2019 00:28:47 -0400 (EDT)
+	by mailnew.nyi.internal (Postfix) with ESMTP id CC8E921F6;
+	Mon,  3 Jun 2019 00:28:54 -0400 (EDT)
 Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Mon, 03 Jun 2019 00:28:47 -0400
+  by compute3.internal (MEProxy); Mon, 03 Jun 2019 00:28:54 -0400
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
 	messagingengine.com; h=cc:content-transfer-encoding:date:from
 	:in-reply-to:message-id:mime-version:references:subject:to
 	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=rxVuyzm1WS3UxHiswMwmyEkW+N4rdmsFgqzw5exGUx0=; b=3d+ZatUl
-	A1wPrysCoCMns7irCJnO7Xzs7tZnZQVOKKKVaWHjLzAFoXe4z13qk76ntzD8JLfU
-	4HaxCNIuJL/exRpJajmfocUXwv4Ch6gFZ4YYN09t0niw059zAsAjvYo522x8vOov
-	8L9UEKPmAyncQ0HRHJyMyevUkW+tmjAj1SZXGxDL2hHU/7DRwv7nvFU5FVNe4xNv
-	/uneC2szDjRVXRGohIKjBhyC3shW1yigoMlax+huURJH4w+iuGc2SXRa0N6c6PkO
-	RsV4+o1I9wI13p7aJyXEBTIcn0oPteBIq+ELuOTKKcOimm1Bu1VI1dQi3E9mnaU5
-	LqbFoNczAeDp/A==
-X-ME-Sender: <xms:_6H0XG3MQauOjhRYnA2Qe8C2DuD0XU_YZmqCVKbls8tV5ARuj6XJgA>
+	fm2; bh=K23AG6kPeiLizgBxJZXoFVpxoNhX/Z2JwBtP24yd/wE=; b=Vd/2ekDx
+	gA5d3InCQyT99wEZUUfJWZne58P6Esdwcw/xM133umlva+wJNXyfPoz2p+X2nSVa
+	Yg1NhtRjslyxJkbQuZnNryJf81LZ0/0IeWTBoTLYw5wFCWJjxCMxn0tSCUxRdAGr
+	LV9ouS97aXG/AD4jJk+jXfnUJEbBuyrDoCTCtbZzniHLECz4yxn0Z3WGdCxF84Qu
+	tvKZvBze+IlaeIxYHaQIAoMQcJryg+uHmPf8in7tAINrOw3wKoAOOR8XIrjq1rgC
+	fSqDli/Srm+vV15B19D/vuzv48DHAMsyBO2dR83DRPr4s11595yYCh4OR7j1spE/
+	4dNpA4sThJ5MLA==
+X-ME-Sender: <xms:BqL0XGYqSj1KU9BXwIvMv4DiNyYFPsWPOvXGcst6nohRktv9F8-qiA>
 X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrudefiedgkedvucetufdoteggodetrfdotf
     fvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfqfgfvpdfurfetoffkrfgpnffqhgen
     uceurghilhhouhhtmecufedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmne
@@ -106,13 +105,13 @@ X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrudefiedgkedvucetufdoteggod
     nhcuvedrucfjrghrughinhhgfdcuoehtohgsihhnsehkvghrnhgvlhdrohhrgheqnecukf
     hppeduvdegrddugeelrdduudefrdefieenucfrrghrrghmpehmrghilhhfrhhomhepthho
     sghinheskhgvrhhnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgeptd
-X-ME-Proxy: <xmx:_6H0XDHnyRjJLe3A6QUOQj0F7hHtGtgHam6uYJBbGsXXTn1ipzT2ew>
-    <xmx:_6H0XI90qzVyyfcJc_i-Ej-xnEBO2szNnB6ldCDZav5CEOy78Dkb4w>
-    <xmx:_6H0XJnwznT-s6I0tP2LMLgCENFpQgk1MaDKkmPIX9H40RA7QpYv1Q>
-    <xmx:_6H0XB63MuU8MKLiUkKQp0w-WF2SKTfMOgcCtxhg_FVXf8Fkn6b36Q>
+X-ME-Proxy: <xmx:BqL0XH45HmRm8FFH0WKkySpEqbJbDkpCJLMOuYPn8H3kTnWc4iai9g>
+    <xmx:BqL0XMfty6pdQULl_ASzMP3JocoaB256yBF_s7u__ACnIML7qIjZsw>
+    <xmx:BqL0XCybZJgqBJcH3MyI5RyF2j9rRA6ajc2Tyj_Vb-JtPypSoQPZpg>
+    <xmx:BqL0XA5kqc0tCMCkVg2napgTbB4Xmxbn7J3JdjT3qoqQZEKRSc01EQ>
 Received: from eros.localdomain (124-149-113-36.dyn.iinet.net.au [124.149.113.36])
-	by mail.messagingengine.com (Postfix) with ESMTPA id EC9598005C;
-	Mon,  3 Jun 2019 00:28:39 -0400 (EDT)
+	by mail.messagingengine.com (Postfix) with ESMTPA id A2AC780061;
+	Mon,  3 Jun 2019 00:28:47 -0400 (EDT)
 From: "Tobin C. Harding" <tobin@kernel.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: "Tobin C. Harding" <tobin@kernel.org>,
@@ -138,9 +137,9 @@ Cc: "Tobin C. Harding" <tobin@kernel.org>,
 	linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 10/15] xarray: Implement migration function for xa_node objects
-Date: Mon,  3 Jun 2019 14:26:32 +1000
-Message-Id: <20190603042637.2018-11-tobin@kernel.org>
+Subject: [PATCH 11/15] tools/testing/slab: Add XArray movable objects tests
+Date: Mon,  3 Jun 2019 14:26:33 +1000
+Message-Id: <20190603042637.2018-12-tobin@kernel.org>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190603042637.2018-1-tobin@kernel.org>
 References: <20190603042637.2018-1-tobin@kernel.org>
@@ -152,100 +151,319 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Recently Slab Movable Objects (SMO) was implemented for the SLUB
-allocator.  The XArray can take advantage of this and make the xa_node
-slab cache objects movable.
+We just implemented movable objects for the XArray.  Let's test it
+intree.
 
-Implement functions to migrate objects and activate SMO when we
-initialise the XArray slab cache.
+Add test module for the XArray's movable objects implementation.
 
-This is based on initial code by Matthew Wilcox and was modified to work
-with slab object migration.
+Functionality of the XArray Slab Movable Object implementation can
+usually be seen by simply by using `slabinfo` on a running machine since
+the radix tree is typically in use on a running machine and will have
+partial slabs.  For repeated testing we can use the test module to run
+to simulate a workload on the XArray then use `slabinfo` to test object
+migration is functioning.
 
-Cc: Matthew Wilcox <willy@infradead.org>
+If testing on freshly spun up VM (low radix tree workload) it may be
+necessary to load/unload the module a number of times to create partial
+slabs.
+
+Example test session
+--------------------
+
+Relevant /proc/slabinfo column headers:
+
+  name   <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>
+
+Prior to testing slabinfo report for radix_tree_node:
+
+  # slabinfo radix_tree_node --report
+
+  Slabcache: radix_tree_node  Aliases:  0 Order :  2 Objects: 8352
+  ** Reclaim accounting active
+  ** Defragmentation at 30%
+
+  Sizes (bytes)     Slabs              Debug                Memory
+  ------------------------------------------------------------------------
+  Object :     576  Total  :     497   Sanity Checks : On   Total: 8142848
+  SlabObj:     912  Full   :     473   Redzoning     : On   Used : 4810752
+  SlabSiz:   16384  Partial:      24   Poisoning     : On   Loss : 3332096
+  Loss   :     336  CpuSlab:       0   Tracking      : On   Lalig: 2806272
+  Align  :       8  Objects:      17   Tracing       : Off  Lpadd:  437360
+
+Here you can see the kernel was built with Slab Movable Objects enabled
+for the XArray (XArray uses the radix tree below the surface).
+
+After inserting the test module (note we have triggered allocation of a
+number of radix tree nodes increasing the object count but decreasing the
+number of partial slabs):
+
+  # slabinfo radix_tree_node --report
+
+  Slabcache: radix_tree_node  Aliases:  0 Order :  2 Objects: 8442
+  ** Reclaim accounting active
+  ** Defragmentation at 30%
+
+  Sizes (bytes)     Slabs              Debug                Memory
+  ------------------------------------------------------------------------
+  Object :     576  Total  :     499   Sanity Checks : On   Total: 8175616
+  SlabObj:     912  Full   :     484   Redzoning     : On   Used : 4862592
+  SlabSiz:   16384  Partial:      15   Poisoning     : On   Loss : 3313024
+  Loss   :     336  CpuSlab:       0   Tracking      : On   Lalig: 2836512
+  Align  :       8  Objects:      17   Tracing       : Off  Lpadd:  439120
+
+Now we can shrink the radix_tree_node cache:
+
+  # slabinfo radix_tree_node --shrink
+  # slabinfo radix_tree_node --report
+
+  Slabcache: radix_tree_node  Aliases:  0 Order :  2 Objects: 8515
+  ** Reclaim accounting active
+  ** Defragmentation at 30%
+
+  Sizes (bytes)     Slabs              Debug                Memory
+  ------------------------------------------------------------------------
+  Object :     576  Total  :     501   Sanity Checks : On   Total: 8208384
+  SlabObj:     912  Full   :     500   Redzoning     : On   Used : 4904640
+  SlabSiz:   16384  Partial:       1   Poisoning     : On   Loss : 3303744
+  Loss   :     336  CpuSlab:       0   Tracking      : On   Lalig: 2861040
+  Align  :       8  Objects:      17   Tracing       : Off  Lpadd:  440880
+
+Note the single remaining partial slab.
+
 Signed-off-by: Tobin C. Harding <tobin@kernel.org>
 ---
- lib/xarray.c | 61 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 61 insertions(+)
+ tools/testing/slab/Makefile             |   2 +-
+ tools/testing/slab/slub_defrag_xarray.c | 211 ++++++++++++++++++++++++
+ 2 files changed, 212 insertions(+), 1 deletion(-)
+ create mode 100644 tools/testing/slab/slub_defrag_xarray.c
 
-diff --git a/lib/xarray.c b/lib/xarray.c
-index 861c042daa1d..9354e0f01f26 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -1993,12 +1993,73 @@ static void xa_node_ctor(void *arg)
- 	INIT_LIST_HEAD(&node->private_list);
- }
+diff --git a/tools/testing/slab/Makefile b/tools/testing/slab/Makefile
+index 440c2e3e356f..44c18d9a4d52 100644
+--- a/tools/testing/slab/Makefile
++++ b/tools/testing/slab/Makefile
+@@ -1,4 +1,4 @@
+-obj-m += slub_defrag.o
++obj-m += slub_defrag.o slub_defrag_xarray.o
  
-+static void xa_object_migrate(struct xa_node *node, int numa_node)
+ KTREE=../../..
+ 
+diff --git a/tools/testing/slab/slub_defrag_xarray.c b/tools/testing/slab/slub_defrag_xarray.c
+new file mode 100644
+index 000000000000..41143f73256c
+--- /dev/null
++++ b/tools/testing/slab/slub_defrag_xarray.c
+@@ -0,0 +1,211 @@
++// SPDX-License-Identifier: GPL-2.0+
++#include <linux/init.h>
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <linux/uaccess.h>
++#include <linux/list.h>
++#include <linux/gfp.h>
++#include <linux/xarray.h>
++
++#define SMOX_CACHE_NAME "smox_test"
++static struct kmem_cache *cachep;
++
++/*
++ * Declare XArrays globally so we can clean them up on module unload.
++ */
++
++/* Used by test_smo_xarray()*/
++DEFINE_XARRAY(things);
++
++/* Thing to store pointers to in the XArray */
++struct smox_thing {
++	long id;
++};
++
++/* It's up to the caller to ensure id is unique */
++static struct smox_thing *alloc_thing(int id)
 +{
-+	struct xarray *xa = READ_ONCE(node->array);
-+	void __rcu **slot;
-+	struct xa_node *new_node;
-+	int i;
++	struct smox_thing *thing;
 +
-+	/* Freed or not yet in tree then skip */
-+	if (!xa || xa == XA_RCU_FREE)
-+		return;
++	thing = kmem_cache_alloc(cachep, GFP_KERNEL);
++	if (!thing)
++		return ERR_PTR(-ENOMEM);
 +
-+	new_node = kmem_cache_alloc_node(xa_node_cachep, GFP_KERNEL, numa_node);
-+	if (!new_node) {
-+		pr_err("%s: slab cache allocation failed\n", __func__);
-+		return;
-+	}
-+
-+	xa_lock_irq(xa);
-+
-+	/* Check again..... */
-+	if (xa != node->array) {
-+		node = new_node;
-+		goto unlock;
-+	}
-+
-+	memcpy(new_node, node, sizeof(struct xa_node));
-+
-+	if (list_empty(&node->private_list))
-+		INIT_LIST_HEAD(&new_node->private_list);
-+	else
-+		list_replace(&node->private_list, &new_node->private_list);
-+
-+	for (i = 0; i < XA_CHUNK_SIZE; i++) {
-+		void *x = xa_entry_locked(xa, new_node, i);
-+
-+		if (xa_is_node(x))
-+			rcu_assign_pointer(xa_to_node(x)->parent, new_node);
-+	}
-+	if (!new_node->parent)
-+		slot = &xa->xa_head;
-+	else
-+		slot = &xa_parent_locked(xa, new_node)->slots[new_node->offset];
-+	rcu_assign_pointer(*slot, xa_mk_node(new_node));
-+
-+unlock:
-+	xa_unlock_irq(xa);
-+	xa_node_free(node);
-+	rcu_barrier();
++	thing->id = id;
++	return thing;
 +}
 +
-+static void xa_migrate(struct kmem_cache *s, void **objects, int nr,
-+		       int node, void *_unused)
++/**
++ * smox_object_ctor() - SMO object constructor function.
++ * @ptr: Pointer to memory where the object should be constructed.
++ */
++void smox_object_ctor(void *ptr)
 +{
-+	int i;
++	struct smox_thing *thing = ptr;
 +
-+	for (i = 0; i < nr; i++)
-+		xa_object_migrate(objects[i], node);
++	thing->id = -1;
 +}
 +
- void __init xarray_slabcache_init(void)
- {
- 	xa_node_cachep = kmem_cache_create("xarray_node",
- 					   sizeof(struct xa_node), 0,
- 					   SLAB_PANIC | SLAB_RECLAIM_ACCOUNT,
- 					   xa_node_ctor);
++/**
++ * smox_cache_migrate() - kmem_cache migrate function.
++ * @cp: kmem_cache pointer.
++ * @objs: Array of pointers to objects to migrate.
++ * @size: Number of objects in @objs.
++ * @node: NUMA node where the object should be allocated.
++ * @private: Pointer returned by kmem_cache_isolate_func().
++ */
++void smox_cache_migrate(struct kmem_cache *cp, void **objs, int size,
++			int node, void *private)
++{
++	struct smox_thing **ptrs = (struct smox_thing **)objs;
++	struct smox_thing *old, *new;
++	struct smox_thing *thing;
++	unsigned long index;
++	void *entry;
++	int i;
 +
-+	kmem_cache_setup_mobility(xa_node_cachep, NULL, xa_migrate);
- }
- 
- #ifdef XA_DEBUG
++	for (i = 0; i < size; i++) {
++		old = ptrs[i];
++
++		new = kmem_cache_alloc(cachep, GFP_KERNEL);
++		if (!new) {
++			pr_debug("kmem_cache_alloc failed\n");
++			return;
++		}
++
++		new->id = old->id;
++
++		/* Update reference the brain dead way */
++		xa_for_each(&things, index, thing) {
++			if (thing == old) {
++				entry = xa_store(&things, index, new, GFP_KERNEL);
++				if (entry != old) {
++					pr_err("failed to exchange new/old\n");
++					return;
++				}
++			}
++		}
++		kmem_cache_free(cachep, old);
++	}
++}
++
++/*
++ * test_smo_xarray() - Run some tests using an XArray.
++ */
++static int test_smo_xarray(void)
++{
++	const int keep = 6; /* Free 5 out of 6 items */
++	const int nr_items = 10000;
++	struct smox_thing *thing;
++	unsigned long index;
++	void *entry;
++	int expected;
++	int i;
++
++	/*
++	 * Populate XArray, this adds to the radix_tree_node cache as
++	 * well as the smox_test cache.
++	 */
++	for (i = 0; i < nr_items; i++) {
++		thing = alloc_thing(i);
++		entry = xa_store(&things, i, thing, GFP_KERNEL);
++		if (xa_is_err(entry)) {
++			pr_err("smox: failed to allocate entry: %d\n", i);
++			return -ENOMEM;
++		}
++	}
++
++	/* Now free  items, putting holes in both caches. */
++	for (i = 0; i < nr_items; i++) {
++		if (i % keep == 0)
++			continue;
++
++		thing = xa_erase(&things, i);
++		if (xa_is_err(thing))
++			pr_err("smox: error erasing entry: %d\n", i);
++		kmem_cache_free(cachep, thing);
++	}
++
++	expected = 0;
++	xa_for_each(&things, index, thing) {
++		if (thing->id != expected || index != expected) {
++			pr_err("smox: error; got %ld want %d at %ld\n",
++			       thing->id, expected, index);
++			return -1;
++		}
++		expected += keep;
++	}
++
++	/*
++	 * Leave caches sparsely allocated.  Shrink caches manually with:
++	 *
++	 *   slabinfo radix_tree_node --shrink
++	 *   slabinfo smox_test --shrink
++	 */
++
++	return 0;
++}
++
++static int __init smox_cache_init(void)
++{
++	cachep = kmem_cache_create(SMOX_CACHE_NAME,
++				   sizeof(struct smox_thing),
++				   0, 0, smox_object_ctor);
++	if (!cachep)
++		return -1;
++
++	return 0;
++}
++
++static void __exit smox_cache_cleanup(void)
++{
++	struct smox_thing *thing;
++	unsigned long i;
++
++	xa_for_each(&things, i, thing) {
++		kmem_cache_free(cachep, thing);
++	}
++	xa_destroy(&things);
++	kmem_cache_destroy(cachep);
++}
++
++static int __init smox_init(void)
++{
++	int ret;
++
++	ret = smox_cache_init();
++	if (ret) {
++		pr_err("smo_xarray: failed to create cache\n");
++		return ret;
++	}
++	pr_info("smo_xarray: created kmem_cache: %s\n", SMOX_CACHE_NAME);
++
++	kmem_cache_setup_mobility(cachep, NULL, smox_cache_migrate);
++	pr_info("smo_xarray: kmem_cache %s defrag enabled\n", SMOX_CACHE_NAME);
++
++	/*
++	 * Running this test consumes memory unless you shrink the
++	 * radix_tree_node cache manually with `slabinfo`.
++	 */
++	ret = test_smo_xarray();
++	if (ret)
++		pr_warn("test_smo_xarray failed: %d\n", ret);
++
++	pr_info("smo_xarray: module loaded successfully\n");
++	return 0;
++}
++module_init(smox_init);
++
++static void __exit smox_exit(void)
++{
++	smox_cache_cleanup();
++
++	pr_info("smo_xarray: module removed\n");
++}
++module_exit(smox_exit);
++
++MODULE_LICENSE("GPL");
++MODULE_AUTHOR("Tobin C. Harding");
++MODULE_DESCRIPTION("SMO XArray test module.");
 -- 
 2.21.0
 
