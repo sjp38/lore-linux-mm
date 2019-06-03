@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-16.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_MED,USER_AGENT_GIT,
 	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90755C282CE
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 16:55:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12788C282CE
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 16:55:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4820C251FA
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 16:55:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BEF3127421
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 16:55:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Gd3MS7x4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4820C251FA
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="KWmY1/MT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEF3127421
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C89216B000D; Mon,  3 Jun 2019 12:55:27 -0400 (EDT)
+	id 4224F6B0266; Mon,  3 Jun 2019 12:55:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BEAAB6B0266; Mon,  3 Jun 2019 12:55:27 -0400 (EDT)
+	id 3ABE86B0269; Mon,  3 Jun 2019 12:55:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C8DD6B0269; Mon,  3 Jun 2019 12:55:27 -0400 (EDT)
+	id 227596B026B; Mon,  3 Jun 2019 12:55:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 75C916B000D
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 12:55:27 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id q188so17290308ywc.15
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 09:55:27 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ECE986B0266
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 12:55:30 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id z8so8120278qti.1
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 09:55:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=BzAJ0+9x2pcfr7Do5TUN53ZGOyHm87DfwLwwZIYymzc=;
-        b=BZzU61zpW3R1WMgBYK78uuRGUz/pnko0bMplfqY6xsgVAN2BeSH7afHee/jLg67oIJ
-         WXUodbMi7ntAgC/geqKDBBZPaQSd77cNV58IZNSfp0KTHsKw77uF7xyc7mIddvJX4Cjy
-         CY6ZRXVkLepz1n78f6MN9Vll1kg5pXLWrTfC2N1Htomb8E33tX5cNOPEk9UJ9vzj2LMy
-         nxHmrKxkudOQRqGlbTgaIDzdYvovhl365klWi+MGVyoiB+bJvpX0oJtocU5HjaI50S4k
-         5vZNDZ+WARQqW7MCwxzXV7WPfqMRWLw3gRpXdiWeLTRjiU31oosSlCRAhSzw4wbaePMN
-         qOmA==
-X-Gm-Message-State: APjAAAW1btjgM+AQuOex8tjhufLleG/4FaWrTKHYHnowJSdyez6Q71nM
-	2vypng1p554OFwFNbmHytozH0emm07Qdqeh4iT8n/bePXBEfp5X0R/dO8vufRoMcnSLkri2OJZg
-	LrICodso90u37mEnT/WDTiM/ESNStzi0NEAt3dH/bjvoXol0PV+QiQK0pG0lfQGqr2w==
-X-Received: by 2002:a81:550c:: with SMTP id j12mr13911883ywb.503.1559580927196;
-        Mon, 03 Jun 2019 09:55:27 -0700 (PDT)
-X-Received: by 2002:a81:550c:: with SMTP id j12mr13911870ywb.503.1559580926684;
-        Mon, 03 Jun 2019 09:55:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559580926; cv=none;
+        bh=TMNTkBlmDGgOOZrctIfCYuVqOYCJYB+OoUZL57F6fkg=;
+        b=heYPyJYhUKRc/j88IgMwgVlo5pIHX74nFPht8M4p89wLKhmsJmZQwa+SrayI1y1+aH
+         4DICV9QMZ+ALciqGi4HvEFKzW1u8lNqBID0b09Wse1E3g2yU3jYEjdY/x3SGuLZtwNqz
+         74saEDZIKa0QP2SCC2XKIdwu4LXsBGWAz7cettPyLfPLo2Krc8w3Q3IFV5bTnWB+SjXa
+         QqFxV4fkNPXvPFCtdhF6F8H+3TkM5doEwST2lbb/OIWGFbZVWwZJ0Rnp8NupyYMTSyLq
+         SwZcVb1/0eFU9a/TORSRqehtPX3xk65R5UsTe7GjKB/VxYJSfnXFlVJ9gjpEW114SrLZ
+         IADQ==
+X-Gm-Message-State: APjAAAWuOZ7wWmv1FI01ZL8nkFmDpty1U9iEKHOgmnheVGWw0JWbFsqR
+	fBl41jtvde/Om+SIwDAZRHZyJZ80JAEK7UEJZTRakCxJV5elIT83aRGfr0MIQgFHFUHgjbrOFjZ
+	UDfTdzf+KQewn4JFsqA3Us6Rp7jO+acy636aBgYOlMhdCejqINuKbmlEkzrC9cTLOjQ==
+X-Received: by 2002:ac8:156:: with SMTP id f22mr6832572qtg.58.1559580930626;
+        Mon, 03 Jun 2019 09:55:30 -0700 (PDT)
+X-Received: by 2002:ac8:156:: with SMTP id f22mr6832535qtg.58.1559580930088;
+        Mon, 03 Jun 2019 09:55:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559580930; cv=none;
         d=google.com; s=arc-20160816;
-        b=GBDnIANTHbeWAmjSebOkLwfSPexT5ahURVpL5H/64tdCCiYZY9P0tqVpURuPKLWcGq
-         zT/Eg3xFxtFFNhrUSmhUqaYuVPJFQ9OQQEZ9lU0S0cccAPbqKKShCFdMWG79MJDVE+D3
-         Wi4PBFPC8WNVlr7/BKqpblXweeJa1j5WaWJl2VOuePrjPzG5k3VcHZVASDkI7OZYOfQC
-         sVfR7Ta7TRL52tTp5jFikmAU9LnPZBtCatQAKe151fCP2oFziRSTXRlxrDVE4o6hxpS5
-         4OOhyQoj9UyKM1RdIIUvUCnIRmGolSVNJFndB2mOX3yPQYgzZNsNLp5KOzkq/aLn1qcI
-         3ckg==
+        b=paZiWRhMnDIzmZSOph5ZF0qien+yIFoA04/a9pRawtqJ1V0MWE5zFBkLkqA7Kn4mpS
+         //XgVHP4ZIo+Ys0UAYSLH+Rl6NwMZQwtpD61AS933nEYQ8sXFIsHVtAQuRYdP8m3spy+
+         0DbHoqmfKcptE4VmF2tbaWvModsVZISM5Q0Z1TBVIvwM6CCNtsyYVHYPy6KlfMwVaUxO
+         9VBllnfPDQLe6SCdSY9PjBOB9/Oo+KVgthLUBovTF/19jBPnX1w3zQnOejpnGuS75+sy
+         6GJVtHcRgWG7+yP8TOD+EDm2gtXyBLKTLtgDyrpiyr3UmCFrH/aSPY/Sf3WpkUNNL8nr
+         sZaQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=BzAJ0+9x2pcfr7Do5TUN53ZGOyHm87DfwLwwZIYymzc=;
-        b=rE451iZS3chl+PwKaYSwxDIefDbx5mHUDcLivyHk2KrMtZZ2oPmJuwaApKGbb4pfln
-         yZs2sEOq8emxpwyPv8sCpw4fmp4zFPp5dQr8YYlvT/UD/l67ax2X/XfYYCdYNriELC7l
-         aFTKaB7/e1PbHNyHEirI/2Z64zIq0IbafmHhplQgJYEdcEp5hpa9DOkAfzt9pN2KSS9/
-         MRzgjL+uzi1+9IHPFCjHlK/m/T2Lquzh0pFinMGwntSTBcsxMbyH1UxECbLsGX/oyRtc
-         qF++17/Ai2aCCDB4C2AU1y5XiiVj87tzeyZhtCHuvvGbZOrfjL6HDbaDUWICIvxHANBS
-         98WA==
+        bh=TMNTkBlmDGgOOZrctIfCYuVqOYCJYB+OoUZL57F6fkg=;
+        b=FNt2presVFvBMoN9s+VM2ZEmDxCg3b2/wrQXZ9ZQEtvMtHo4QwFEl0vgiAKuwms+cL
+         a1nx+a5IPBq5mANlmfb3OMeFMsm+FoUoaibLU84MeSeSg/ru/ys1OMCGd2rv9fQBgu70
+         V2lEFpnSWJCgn3idNgKf7pRpD9WaZxyjc8msRcBMRbIwLQHyU9EewcFi/V7EA0GikVm+
+         NWawR1OR6qw5zfDbzCTncqKWoKgQ3PdkCCFrGAiH1BXOfoJUCy+7VSzFJPd3dQoL9A/l
+         gHxg5qTFP5cQLlP8y1ULKSYrqGVEqVNOMYuTl9oJfg1El9xxxgsnCosvhXid2gkBoZcr
+         WJEg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Gd3MS7x4;
-       spf=pass (google.com: domain of 3_ld1xaokcgmboesfzlowmhpphmf.dpnmjovy-nnlwbdl.psh@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3_lD1XAoKCGMBOESFZLOWMHPPHMF.DPNMJOVY-NNLWBDL.PSH@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b="KWmY1/MT";
+       spf=pass (google.com: domain of 3avh1xaokcgyerhvicorzpksskpi.gsqpmryb-qqozego.svk@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3AVH1XAoKCGYERHVIcORZPKSSKPI.GSQPMRYb-QQOZEGO.SVK@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id 184sor6842332ybf.146.2019.06.03.09.55.26
+        by mx.google.com with SMTPS id e34sor1732830qva.31.2019.06.03.09.55.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 03 Jun 2019 09:55:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3_ld1xaokcgmboesfzlowmhpphmf.dpnmjovy-nnlwbdl.psh@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Mon, 03 Jun 2019 09:55:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3avh1xaokcgyerhvicorzpksskpi.gsqpmryb-qqozego.svk@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Gd3MS7x4;
-       spf=pass (google.com: domain of 3_ld1xaokcgmboesfzlowmhpphmf.dpnmjovy-nnlwbdl.psh@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3_lD1XAoKCGMBOESFZLOWMHPPHMF.DPNMJOVY-NNLWBDL.PSH@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b="KWmY1/MT";
+       spf=pass (google.com: domain of 3avh1xaokcgyerhvicorzpksskpi.gsqpmryb-qqozego.svk@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3AVH1XAoKCGYERHVIcORZPKSSKPI.GSQPMRYb-QQOZEGO.SVK@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=BzAJ0+9x2pcfr7Do5TUN53ZGOyHm87DfwLwwZIYymzc=;
-        b=Gd3MS7x4gwNqCAsuebDb+LQXe1ROUCAjzPqIs7DNAteGO+I/k2kuk/JUQDg2yytLs0
-         mAnj4aXyNOLD53bou+rnAjAI+DoFCDM6597Xb+r9d5tHdnUBLOhHUJdZUvwspRQQklB/
-         nVb9mJ+RVgKXuTmdk46XK6MPO9GX2CvoeDiI4JmSZych6aS7p7s1LkUgQ8IFSJW5YLx/
-         IwfItaZEAlz+YxcxGixqEutWhh0H0I+YiPlFdGJFMPEbbW0iVK8sXmL/5Dzp9W2t8wq7
-         Jn42agr19zJj2QbOHan385htTUuPv+QknbBnCycF9d956GlhodbETKPupW6IU9maR3WJ
-         cryQ==
-X-Google-Smtp-Source: APXvYqw8qo6YCAA2LDG0hCmceBSOfUoHZIsTSjRJKNeADMAk1c3BAJX7XTjP1o6wTWUARrevZDffoxW7ORioylDq
-X-Received: by 2002:a25:4445:: with SMTP id r66mr13094125yba.55.1559580926346;
- Mon, 03 Jun 2019 09:55:26 -0700 (PDT)
-Date: Mon,  3 Jun 2019 18:55:03 +0200
+        bh=TMNTkBlmDGgOOZrctIfCYuVqOYCJYB+OoUZL57F6fkg=;
+        b=KWmY1/MTf2lCSA8LP774r8p0/RElUafoWRXpiTV5M0FssBvd2DR+JnorkPH/h4Y5+f
+         yR9XiiiNdq2i4QfOjofZ58b2UAQfK20Q+cucasNJuK58SVUF0twT9Bg5tEaVarSUnpM0
+         CkXfb2ETfWkZvMjhhmX2MfDgGW4xKH4IotNUPi45ZU95oK+BdGaJ73sBg/cX0kzx4m8b
+         MubK1pKIg9ehFkgM51KidZa6DmQaV4zELWE1kuJ9QUfecA/WQ31VKLS+QtHdLvI4uobs
+         geOOZXZ26xHTUKbG4mCrjgzhEEUQSTlmmrjiggpRSIEqoJXM210SSB6rrtJIQUmyJUQs
+         1hHw==
+X-Google-Smtp-Source: APXvYqyPiXiZoks5Ggp2WbCYXPXwRsXJyBinTtF4q2J+DeL6YZqEYLLUcsyCdMKT9rkSKMCpecR3goEaERoY/ZM9
+X-Received: by 2002:a0c:d013:: with SMTP id u19mr1987564qvg.136.1559580929777;
+ Mon, 03 Jun 2019 09:55:29 -0700 (PDT)
+Date: Mon,  3 Jun 2019 18:55:04 +0200
 In-Reply-To: <cover.1559580831.git.andreyknvl@google.com>
-Message-Id: <097bc300a5c6554ca6fd1886421bb2e0adb03420.1559580831.git.andreyknvl@google.com>
+Message-Id: <4327b260fb17c4776a1e3c844f388e4948cfb747.1559580831.git.andreyknvl@google.com>
 Mime-Version: 1.0
 References: <cover.1559580831.git.andreyknvl@google.com>
 X-Mailer: git-send-email 2.22.0.rc1.311.g5d7573a151-goog
-Subject: [PATCH v16 01/16] uaccess: add untagged_addr definition for other arches
+Subject: [PATCH v16 02/16] arm64: untag user pointers in access_ok and __uaccess_mask_ptr
 From: Andrey Konovalov <andreyknvl@google.com>
 To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, 
 	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org, 
@@ -129,35 +129,64 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-To allow arm64 syscalls to accept tagged pointers from userspace, we must
-untag them when they are passed to the kernel. Since untagging is done in
-generic parts of the kernel, the untagged_addr macro needs to be defined
-for all architectures.
+This patch is a part of a series that extends arm64 kernel ABI to allow to
+pass tagged user pointers (with the top byte set to something else other
+than 0x00) as syscall arguments.
 
-Define it as a noop for architectures other than arm64.
+copy_from_user (and a few other similar functions) are used to copy data
+from user memory into the kernel memory or vice versa. Since a user can
+provided a tagged pointer to one of the syscalls that use copy_from_user,
+we need to correctly handle such pointers.
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+Do this by untagging user pointers in access_ok and in __uaccess_mask_ptr,
+before performing access validity checks.
+
+Note, that this patch only temporarily untags the pointers to perform the
+checks, but then passes them as is into the kernel internals.
+
+Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
 Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- include/linux/mm.h | 4 ++++
- 1 file changed, 4 insertions(+)
+ arch/arm64/include/asm/uaccess.h | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0e8834ac32b7..949d43e9c0b6 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -99,6 +99,10 @@ extern int mmap_rnd_compat_bits __read_mostly;
- #include <asm/pgtable.h>
- #include <asm/processor.h>
+diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
+index e5d5f31c6d36..9164ecb5feca 100644
+--- a/arch/arm64/include/asm/uaccess.h
++++ b/arch/arm64/include/asm/uaccess.h
+@@ -94,7 +94,7 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
+ 	return ret;
+ }
  
-+#ifndef untagged_addr
-+#define untagged_addr(addr) (addr)
-+#endif
-+
- #ifndef __pa_symbol
- #define __pa_symbol(x)  __pa(RELOC_HIDE((unsigned long)(x), 0))
- #endif
+-#define access_ok(addr, size)	__range_ok(addr, size)
++#define access_ok(addr, size)	__range_ok(untagged_addr(addr), size)
+ #define user_addr_max			get_fs
+ 
+ #define _ASM_EXTABLE(from, to)						\
+@@ -226,7 +226,8 @@ static inline void uaccess_enable_not_uao(void)
+ 
+ /*
+  * Sanitise a uaccess pointer such that it becomes NULL if above the
+- * current addr_limit.
++ * current addr_limit. In case the pointer is tagged (has the top byte set),
++ * untag the pointer before checking.
+  */
+ #define uaccess_mask_ptr(ptr) (__typeof__(ptr))__uaccess_mask_ptr(ptr)
+ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
+@@ -234,10 +235,11 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
+ 	void __user *safe_ptr;
+ 
+ 	asm volatile(
+-	"	bics	xzr, %1, %2\n"
++	"	bics	xzr, %3, %2\n"
+ 	"	csel	%0, %1, xzr, eq\n"
+ 	: "=&r" (safe_ptr)
+-	: "r" (ptr), "r" (current_thread_info()->addr_limit)
++	: "r" (ptr), "r" (current_thread_info()->addr_limit),
++	  "r" (untagged_addr(ptr))
+ 	: "cc");
+ 
+ 	csdb();
 -- 
 2.22.0.rc1.311.g5d7573a151-goog
 
