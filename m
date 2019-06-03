@@ -2,101 +2,103 @@ Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 929C3C04AB5
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 21:08:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E61F6C28CC6
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 21:08:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 11015241B1
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 21:08:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9D70B241B1
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 21:08:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="hOCZMeOh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11015241B1
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="jQQKpymP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D70B241B1
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A420B6B026F; Mon,  3 Jun 2019 17:08:24 -0400 (EDT)
+	id 1B9696B0270; Mon,  3 Jun 2019 17:08:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9F37A6B0270; Mon,  3 Jun 2019 17:08:24 -0400 (EDT)
+	id 142BC6B0271; Mon,  3 Jun 2019 17:08:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 908806B0271; Mon,  3 Jun 2019 17:08:24 -0400 (EDT)
+	id 02F156B0272; Mon,  3 Jun 2019 17:08:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5575D6B026F
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 17:08:24 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id d125so14511692pfd.3
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 14:08:24 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id BECD26B0270
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 17:08:26 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 145so1262886pfv.18
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 14:08:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=hcbe5XK5tsFMWxSLs2tZ84hRD+cj/6YTqAC2Tmv3P6A=;
-        b=LnQqge0S4AxtQa1lswAaeVn+4uyAbB7BZXhzO5yGjIn5/uBEzWaVR/M9bB1dIjlLr+
-         fSirIl8spjajR6U/fCXdON9o5url++sZAhg+A9UhIOjN03bd0OprTn9KYKneQFAjaIU9
-         arygp1NcEjvRbUFajVct7v8EVpBaNxKwXjdeShQveziuSV/5a6d4ahjTmMjlMSrcqIzW
-         wcKYgX6TbEiuoOqI3fVQmupUUPrTKhWGnPP02GzmwNkOjzutxBagRAtdGh6ZuzTU57r9
-         PqXbJ+8Z/IzNCsz9D/1aAZzDtbwPkIBhOiuXs55aGT6HLGkn/Mex+15Z1IE6+viBuT1w
-         RHzQ==
-X-Gm-Message-State: APjAAAXxQ24bgUIuW6dtAFUsB/WXrw6hsemPGpkqQDaQLTW0RnKjhMs2
-	OzAOSOI2Kn8Hvk0dJ6PmFvP4WFqcKO/XXhspN7jfmrYqipwlP/KtXOBbcthne9GalYrDnOwqMMd
-	WF5rjWNOBbKA18URAhksrC2gbSQL1GK5w+cKOSWC2wehY7xHDR1MEY2Y0tb4ip3vKTw==
-X-Received: by 2002:a17:90a:2488:: with SMTP id i8mr25014102pje.123.1559596103795;
-        Mon, 03 Jun 2019 14:08:23 -0700 (PDT)
-X-Received: by 2002:a17:90a:2488:: with SMTP id i8mr25013964pje.123.1559596102645;
-        Mon, 03 Jun 2019 14:08:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559596102; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=0EoeyvI+6nSZVdPsXoo6A3bLjv7jCmnakg13/Vo0S7g=;
+        b=eeEw2RcJHS2e+djt/AFU9JQw3EnH2GUSXUIFCys6HgEOJ8INAOK++77IdgIYBk5MJz
+         R7sF+HuBTXVyQSLGStrFG0JlGdWIzKFnzArsJNXKH3onBdTzj5jxUOwX9Sj9DaaLKkVD
+         o5eUUSrnJ3nL/T99unU7WiY2M2WgMNHSLPxyNaC7FZACt0xgWD4wPH4FscFxsPPHXOad
+         XPHKOHLGwilTMMGggIodQHxcTL6Jz41zGWFKWpzuwsLg1JzkP2D4leBgmm+sMVvUbQjH
+         W/uo7L+qCTukSCPiJ837Z567m6DzJS3o/vp3nbOwXo4q+kEdowOLkD01u+plV/hb+1x/
+         z7TQ==
+X-Gm-Message-State: APjAAAVrp2sr2GLhqhghsxA2Byt27N+x8pT2ewCpXhf2Lgxmn4qaMqRk
+	zPFfKH2DpBEoJ/p6kzUveDzkmClVA7rusUB0X/NP6YxTpmmstP1wMjV2L3cXpicO7pc2j1GUmoK
+	xpURj1KWOI6/tRUtU012owtjylY2xI7q7liD66JwIK/WA/BSDAhttcKQX7kydzAsVZw==
+X-Received: by 2002:a17:90a:ac11:: with SMTP id o17mr24365621pjq.134.1559596106298;
+        Mon, 03 Jun 2019 14:08:26 -0700 (PDT)
+X-Received: by 2002:a17:90a:ac11:: with SMTP id o17mr24365464pjq.134.1559596104842;
+        Mon, 03 Jun 2019 14:08:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559596104; cv=none;
         d=google.com; s=arc-20160816;
-        b=JDRUej9HUlgJJGPfpcsAJH4XMqjo2RzkvEbTxzYXC3sHsD8mw20Ja34Mz9uzY/czCy
-         /D9p8A70S39+8913sCblRiu8yNjWOP76plswA/WGAL+AFfUyL6EZ8rtwR7ggBh//vDh0
-         WHB5GnKhdtB89SLQ3o7Uk3Fc627DYQVUwKFTYsXSx/Dkr2/I8rc4JW1w23Z07Fw+b8cs
-         /Pd6bwGgj2x4SYFRBpDg3TfI4GOo86U2B04UaXWIO8CgDISDuUq1h6CPJR1ppRHJGVMB
-         YJ8uLmitFtUlPEvOR+i6TKRzoRYbPGekkK3XAKUUOzyYtV7sXosOF3qCd3DqfrcN7GnH
-         Dzjw==
+        b=xwM12bB9+Fxmx9N1tZdclczVxm0nJ/J7OZjS7lmtfKzMNF6vllVUL9uHCVx/MIsTE5
+         zaWD3aZN1tqunlQsQR9NTPDFxjUmngmVmuxzmFBx1VSQ7tzrf7Hj9VhPkP3POROftfmq
+         6Z4nipdfvvsBITNyURHC3OvupccE6e1Dts5Stb+lGpLUWemxN25ZRaU9wQa5st1ByiKc
+         kgAARsq9NcLVOJgQWyMYy6j1RIaIGdE8FlxI6yHYqqHQbAQIQ2uznLImb0iwrXkOG7iL
+         GklktQ9NpQvkaDKmhd5HYfrmHC20FR0z2Rql8B2jFQaXiktELPUEMDEjBXsE185f3fdp
+         /2FQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=hcbe5XK5tsFMWxSLs2tZ84hRD+cj/6YTqAC2Tmv3P6A=;
-        b=B8kocSNvGfqZclO4tisLTWBpIY2byQsiXmKSJu9UnyhflA9nKNMjcoB8VIwyuLSaNA
-         oBo8CXyPwHERC5LDKUFlfu5LVpZH+X5QJYlSO0W6+6axCiZsXrYtVbXcgO/b2/8/F9vb
-         gnwlmqy4FKZtSSxahV957NJpFrkBfyzL1IQBLDLBaLnXPF6+RBU2zEuPrj0J/qgYmt7a
-         ZQOxqsPxPzqB5WrLd+N9aI7cz768Qxquv97aKfYUfBRgtM3wtQMXrQ4nU+Vem+SHIFdC
-         1cpcU9FmWB1pS3ZJbSBP+tMJCz6VNmX3Xy+DWx2F4jkgxe3CRNexEl7CicykEcWWeJ9j
-         l7jw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=0EoeyvI+6nSZVdPsXoo6A3bLjv7jCmnakg13/Vo0S7g=;
+        b=T0MFE6QsVHxNyHAN03j+LNnQ4ifNRCeFZdJi+DQcqDxmbe8CZpFDGD0WLAw6nGwA0X
+         Ixblukq6y7aZDqAnsInn6uuOZ78YnJpz2XRosyMWcLuKYzUDS08zmnynz6GPddfunpBB
+         gr83/UHKDEcJuvi5ahWx8ynfMMdmALeDstpstUtgILgBjhyvifQVeQmAAHM5PFKA76G6
+         ZShgMTzORzF8Ie8Xfg/1kT35XLoUT0RYVQtyL1wk1/rfgASFWQHSfwkUtrnv5TZCJc9q
+         6RDUEWgbE28DKVfBLC3K/qNTjOwpyHpX9QKLME3r/X37Uhy/9AnOtX04rvjWPsMhTVDY
+         XLEg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=hOCZMeOh;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=jQQKpymP;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r65sor18688661pjb.6.2019.06.03.14.08.22
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v13sor16041698pgs.55.2019.06.03.14.08.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 03 Jun 2019 14:08:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Mon, 03 Jun 2019 14:08:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=hOCZMeOh;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=jQQKpymP;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=hcbe5XK5tsFMWxSLs2tZ84hRD+cj/6YTqAC2Tmv3P6A=;
-        b=hOCZMeOhk+mnIUArMWNnC4vOoecC/JJjH016s1tw4Q96mSLD+0XvEFZfhYCyOuiLe3
-         3JPco6SQFbsgOo3tJVA/rGxuMMqV+PxWgHbtFyYjLLr4aJ45fWaaT3ONrFh3O59CMhRv
-         1a7SdQk8hx4KAgvnXTXy4jWGFB5OfJ5r7LCWoltwNWxy5L9bf/dZJoxBT8mbb0BqQ+14
-         aoRFh3Hi+L5+3to6drNMaTiQ5MWNn112T5jPH2jmcr2nTpfYazs2lHbfT0EgV4wDf9p7
-         +ZAzMj5wXkBDVcVYUtZ37FLCh0uEdyTwkwGCZK2XRuhvUzzguAJo+j34T00y0fKG5UdN
-         paFA==
-X-Google-Smtp-Source: APXvYqz4Qw8yGDgRFudiuxfXs7P+jDtt3/2W1h5CX5aNY5aXM70fQ7T4ZIHJj3eYv41Qd3NLYGM9aQ==
-X-Received: by 2002:a17:90a:7146:: with SMTP id g6mr32429865pjs.45.1559596101827;
-        Mon, 03 Jun 2019 14:08:21 -0700 (PDT)
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=0EoeyvI+6nSZVdPsXoo6A3bLjv7jCmnakg13/Vo0S7g=;
+        b=jQQKpymP0x+HXM6AidEDpl+oryXhrFlsULaSJxrk+bRuLIK2zph32NK7fQ9YAJaCBe
+         N7+enaR2Vc1oYLo8aptLEfjl+dIsZ+yBuVWMXGIzNgNQI9SdCmD/jLhITwBQ9ehLSkb+
+         XEVP/h3PMZVC5vzDLRMA2ctacgD5ioiLhXBcIfjUB5IUWXVcT3hHScDrk9eh/9mNvu5o
+         PWXDbM+Um+WQ9hcOjSXq+jo3FDIH6cYOI+MipuzXRWJvoaNI+qxII2acSgoctNl9nHHf
+         375AuTgxJjHK4jIuhHyjGLr4uaIo2/oQ034Ox+mp98rzfJnHVOkExpOIKkw9vVPM1s+r
+         yyag==
+X-Google-Smtp-Source: APXvYqxa0AysWp131gGXPRfGsUoOrmmAU0oaOx10qyqfliSX/gy0fcowTdd1qaAaihU44ugQyNlEYQ==
+X-Received: by 2002:a63:a34c:: with SMTP id v12mr30337699pgn.198.1559596104078;
+        Mon, 03 Jun 2019 14:08:24 -0700 (PDT)
 Received: from localhost ([2620:10d:c091:500::1:9fa4])
-        by smtp.gmail.com with ESMTPSA id i12sm17107336pfd.33.2019.06.03.14.08.20
+        by smtp.gmail.com with ESMTPSA id n32sm7753279pji.29.2019.06.03.14.08.23
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 03 Jun 2019 14:08:21 -0700 (PDT)
+        Mon, 03 Jun 2019 14:08:23 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
@@ -106,10 +108,12 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>,
 	cgroups@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	kernel-team@fb.com
-Subject: [PATCH 00/11] mm: fix page aging across multiple cgroups
-Date: Mon,  3 Jun 2019 17:07:35 -0400
-Message-Id: <20190603210746.15800-1-hannes@cmpxchg.org>
+Subject: [PATCH 01/11] mm: vmscan: move inactive_list_is_low() swap check to the caller
+Date: Mon,  3 Jun 2019 17:07:36 -0400
+Message-Id: <20190603210746.15800-2-hannes@cmpxchg.org>
 X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190603210746.15800-1-hannes@cmpxchg.org>
+References: <20190603210746.15800-1-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -118,98 +122,59 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When applications are put into unconfigured cgroups for memory
-accounting purposes, the cgrouping itself should not change the
-behavior of the page reclaim code. We expect the VM to reclaim the
-coldest pages in the system. But right now the VM can reclaim hot
-pages in one cgroup while there is eligible cold cache in others.
+inactive_list_is_low() should be about one thing: checking the ratio
+between inactive and active list. Kitchensink checks like the one for
+swap space makes the function hard to use and modify its
+callsites. Luckly, most callers already have an understanding of the
+swap situation, so it's easy to clean up.
 
-This is because one part of the reclaim algorithm isn't truly cgroup
-hierarchy aware: the inactive/active list balancing. That is the part
-that is supposed to protect hot cache data from one-off streaming IO.
+get_scan_count() has its own, memcg-aware swap check, and doesn't even
+get to the inactive_list_is_low() check on the anon list when there is
+no swap space available.
 
-The recursive cgroup reclaim scheme will scan and rotate the physical
-LRU lists of each eligible cgroup at the same rate in a round-robin
-fashion, thereby establishing a relative order among the pages of all
-those cgroups. However, the inactive/active balancing decisions are
-made locally within each cgroup, so when a cgroup is running low on
-cold pages, its hot pages will get reclaimed - even when sibling
-cgroups have plenty of cold cache eligible in the same reclaim run.
+shrink_list() is called on the results of get_scan_count(), so that
+check is redundant too.
 
-For example:
+age_active_anon() has its own totalswap_pages check right before it
+checks the list proportions.
 
-   [root@ham ~]# head -n1 /proc/meminfo 
-   MemTotal:        1016336 kB
+The shrink_node_memcg() site is the only one that doesn't do its own
+swap check. Add it there.
 
-   [root@ham ~]# ./reclaimtest2.sh 
-   Establishing 50M active files in cgroup A...
-   Hot pages cached: 12800/12800 workingset-a
-   Linearly scanning through 18G of file data in cgroup B:
-   real    0m4.269s
-   user    0m0.051s
-   sys     0m4.182s
-   Hot pages cached: 134/12800 workingset-a
+Then delete the swap check from inactive_list_is_low().
 
-The streaming IO in B, which doesn't benefit from caching at all,
-pushes out most of the workingset in A.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/vmscan.c | 9 +--------
+ 1 file changed, 1 insertion(+), 8 deletions(-)
 
-Solution
-
-This series fixes the problem by elevating inactive/active balancing
-decisions to the toplevel of the reclaim run. This is either a cgroup
-that hit its limit, or straight-up global reclaim if there is physical
-memory pressure. From there, it takes a recursive view of the cgroup
-subtree to decide whether page deactivation is necessary.
-
-In the test above, the VM will then recognize that cgroup B has plenty
-of eligible cold cache, and that thet hot pages in A can be spared:
-
-   [root@ham ~]# ./reclaimtest2.sh 
-   Establishing 50M active files in cgroup A...
-   Hot pages cached: 12800/12800 workingset-a
-   Linearly scanning through 18G of file data in cgroup B:
-   real    0m4.244s
-   user    0m0.064s
-   sys     0m4.177s
-   Hot pages cached: 12800/12800 workingset-a
-
-Implementation
-
-Whether active pages can be deactivated or not is influenced by two
-factors: the inactive list dropping below a minimum size relative to
-the active list, and the occurence of refaults.
-
-After some cleanups and preparations, this patch series first moves
-refault detection to the reclaim root, then enforces the minimum
-inactive size based on a recursive view of the cgroup tree's LRUs.
-
-History
-
-Note that this actually never worked correctly in Linux cgroups. In
-the past it worked for global reclaim and leaf limit reclaim only (we
-used to have two physical LRU linkages per page), but it never worked
-for intermediate limit reclaim over multiple leaf cgroups.
-
-We're noticing this now because 1) we're putting everything into
-cgroups for accounting, not just the things we want to control and 2)
-we're moving away from leaf limits that invoke reclaim on individual
-cgroups, toward large tree reclaim, triggered by high-level limits or
-physical memory pressure, that is influenced by local protections such
-as memory.low and memory.min instead.
-
-Requirements
-
-These changes are based on the fast recursive memcg stats merged in
-5.2-rc1. The patches are against v5.2-rc2-mmots-2019-05-29-20-56-12
-plus the page cache fix in https://lkml.org/lkml/2019/5/24/813.
-
- include/linux/memcontrol.h |  37 +--
- include/linux/mmzone.h     |  30 +-
- include/linux/swap.h       |   2 +-
- mm/memcontrol.c            |   6 +-
- mm/page_alloc.c            |   2 +-
- mm/vmscan.c                | 667 ++++++++++++++++++++++---------------------
- mm/workingset.c            |  74 +++--
- 7 files changed, 437 insertions(+), 381 deletions(-)
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 84dcb651d05c..f396424850aa 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2165,13 +2165,6 @@ static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+ 	unsigned long refaults;
+ 	unsigned long gb;
+ 
+-	/*
+-	 * If we don't have swap space, anonymous page deactivation
+-	 * is pointless.
+-	 */
+-	if (!file && !total_swap_pages)
+-		return false;
+-
+ 	inactive = lruvec_lru_size(lruvec, inactive_lru, sc->reclaim_idx);
+ 	active = lruvec_lru_size(lruvec, active_lru, sc->reclaim_idx);
+ 
+@@ -2592,7 +2585,7 @@ static void shrink_node_memcg(struct pglist_data *pgdat, struct mem_cgroup *memc
+ 	 * Even if we did not try to evict anon pages at all, we want to
+ 	 * rebalance the anon lru active/inactive ratio.
+ 	 */
+-	if (inactive_list_is_low(lruvec, false, sc, true))
++	if (total_swap_pages && inactive_list_is_low(lruvec, false, sc, true))
+ 		shrink_active_list(SWAP_CLUSTER_MAX, lruvec,
+ 				   sc, LRU_ACTIVE_ANON);
+ }
+-- 
+2.21.0
 
