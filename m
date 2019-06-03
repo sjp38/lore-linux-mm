@@ -4,72 +4,73 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B215C04AB5
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 14:35:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B0DE8C04AB5
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 14:35:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3B99127A83
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 14:35:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B99127A83
+	by mail.kernel.org (Postfix) with ESMTP id 75C0127A8E
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 14:35:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75C0127A8E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6E36E6B000E; Mon,  3 Jun 2019 10:35:15 -0400 (EDT)
+	id 9953F6B000C; Mon,  3 Jun 2019 10:35:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 638946B000D; Mon,  3 Jun 2019 10:35:15 -0400 (EDT)
+	id 7F0EC6B0266; Mon,  3 Jun 2019 10:35:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 32D7F6B0266; Mon,  3 Jun 2019 10:35:15 -0400 (EDT)
+	id 5C4EC6B0269; Mon,  3 Jun 2019 10:35:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B3E4D6B000C
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F03E76B000E
 	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 10:35:14 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id n23so27794316edv.9
+Received: by mail-ed1-f69.google.com with SMTP id k15so26874659eda.6
         for <linux-mm@kvack.org>; Mon, 03 Jun 2019 07:35:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=yR/+zkAXVY/QWPzunwBUOQ1BEAyvoEDYuTLXMqCG/4c=;
-        b=Y4QkVlY1mBIW23iRj0Pyh4QLtKkQoQunRI2ArblVa6S/ftqnbuaHGBQJ94AS892+GN
-         3aiDmT3AHo/QG/25wsrH9saGeTVKaUPi1ASENdl31LaEYDq0yqIXWXj9RjN6PujhdGWA
-         AweGiw+6kKGuYvpGJAMIKb1jy0EAxvlstdaIFn4kzl/Bnt4boDMWwJG1zb3s+P8vJPDW
-         zQWC9XXQEWpDdLigcgKciX0bB6sxP2HTKk3JS7ZHo5dqO9iplV36yPAv0r29Cjyj5IhB
-         ghZnO7d4tSZ5A+EataQIH7PRuR7coqQ34zQ6n6YmbTCrlX2tjO1vRtfDkgvNOYeWRD42
-         tcUg==
+        bh=4lOoSD8nEnj7z+ICw415bghUg9I0LJXDUPsEjFA6gCQ=;
+        b=UgCAHiDmzL3gzcrgmeeiQcK9MVBUGZDA3Mq7RDBL4tbvsWyfLfaMiqrdQmamvZS354
+         rEjLd/HAE1ldojtZWq/qKPADtPJznkXPDYQd92Bp4fQ1+3I/mxo/6O7rjex685ztxRpB
+         hvefAwCUB5kYwwaaKGIIyzf27a9dLfnA6uwm1zt+x9c/20I1PR4xy7qWajlWGhcDxvPx
+         4c2/xeMQXlk7WShlI9KqwCra/ogoxDsm1/nvPh6e0svQAXPCXvJe4m8DxXTDqQ3k1oQb
+         RiBGB2yF8Y2/W0oBbHbPXOk+3dg4rUJDOOx5aLGVWThRGGg84jqVVXlI2ZIfg8ARwB4n
+         GEsw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAXh9Gsq/bSqR5LHulsP5MwOEgzlPwa2B/a3eJIYZN2eA/bJV0U6
-	9uWrGIJqI4hqgaAC/vjoiIYOm7qjxh4TVJYcNgs2NcqRuhjWVISE218+HulY/sFjfmkxAW/92wp
-	YWSaU2TFH/KaMSMtPYSsmDj1X3h4+68/XPJKiK4nremqWe5Pv3c0WGrg/ILmKj1IcfQ==
-X-Received: by 2002:a17:906:c4f:: with SMTP id t15mr24082459ejf.190.1559572514152;
+X-Gm-Message-State: APjAAAVomfleaMptifR3PjrvdEndE2Hb9rS3C5Rg//24lWhAjXCaLvl6
+	jd+qeWt98Ct+39AEEXiAACIJXHQRPkbJpAnrN6cZG7IRzYC6C9icDtwrXyTwX81N3f970r4/8Bs
+	L8a4d/S9hjWmgiFHOEn+/0XWiKG9Gs/S4cxaA1jfHcWIzGsnkmqk/q5roZbF9XwZqqw==
+X-Received: by 2002:a50:bdc6:: with SMTP id z6mr29416142edh.47.1559572514453;
         Mon, 03 Jun 2019 07:35:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxsx1EMucoIIESnFO54DnRxgCmeQ/EJFhu0YNqd556A2W745ZxccwIS3HGrjghDPsXtB0WX
-X-Received: by 2002:a17:906:c4f:: with SMTP id t15mr24082320ejf.190.1559572512669;
+X-Google-Smtp-Source: APXvYqy7animOA9ov+0wr2B3IwDlZ81h7m129j51iQrCF8Vh8o+6MZ4xWXl7A3FStTR1yXKJ9Y1U
+X-Received: by 2002:a50:bdc6:: with SMTP id z6mr29415959edh.47.1559572512492;
         Mon, 03 Jun 2019 07:35:12 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1559572512; cv=none;
         d=google.com; s=arc-20160816;
-        b=stNCMD9YHO38tVGIG3uutKTLmM2Ca9jXqgJqPRxfgRsqJYQ+daXjWArtAsM6reVFxS
-         MX1oEetF+/5s3OpgtzINy3wqSad+w7t+kiQ4UllbsjZt0fkTQk+sWyMnBc19e8YxKW2C
-         n7krQur/dz8HPjLJ0/1x7lQj4RTLWhbc6G4tRvkiOVnEvOPeFXkA4LtJT6Im62m840vz
-         NH0P7Hmrr/cFwnWoJHSWJl8XY2XMTydYP04QVy+EPbfaU9uSvO+0fNj5hoL5Xd8veSKd
-         S3+VNBijvThYy3+VO6kQHcDXV+gQ/KJFLZOZS79TPt70JoAbrlov53V/tx3RWjApa28/
-         IHPQ==
+        b=ibaQwZxAeZR9se2A6fMjJv2PrFMGHA0u45Th4o78OJMwCs2p+uyDBS7msjRtEcwQF/
+         UgZcFAKg5LnIpE7Cl2H3AlPhjpYkx8qNrWOA+OQMpd96ENwwPp0xn14my/GtPHbhVQqi
+         DA1CH4qer30vrD6BsFZ3nJRoU7TMAmCrVleWtdvNzdeos8HTyrN+Xa6Bh8pnSDW0oiMF
+         jx1tvZ2KFIIn3QSMr37WFNlU2vZOXXIZQXlGxJdPUsdJfWBkcqI+M8+HpvWbdCFIadV9
+         1RGecrYfqh7185azvIEtXFcrxQMXnulKctHYrse7SA69Loh0sqGteCXkiBcxM/p0TuYi
+         Sb9A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=yR/+zkAXVY/QWPzunwBUOQ1BEAyvoEDYuTLXMqCG/4c=;
-        b=PFIuvFyH4YdADYD5IbPbff1yiPI3XFHqWLYCwfGXnX87azkp3caEoN0+z/C1HbrwmJ
-         lo0lQ5/ciDwfmzX/mODuquExjysqt239w9bm/Qm/bio9IvdxDQHAwWG4GdAXjQFuHKoH
-         cn+3W7fiydHDlJOcKHlhNdHpxxETT7384QXBvlFO5Dc8LnG8EhKllVCnjwH6hGFrYI2n
-         OUwtR8RhFeLV27mH8ipn1ziH24sjLrITbLnnq/Fn8D18NYE10qI3ScqSpJa88goFo+cW
-         PtTkSB/f2pH1EUWQtVkOk2qnBqwwnMGu4Md/iIB/X/Av8TDGQsjBLyqTPGSeS5gWm9/g
-         ws1g==
+        bh=4lOoSD8nEnj7z+ICw415bghUg9I0LJXDUPsEjFA6gCQ=;
+        b=Tmmswbo/qNs/pRkKC5AsMFeNYcVi2NmOiI1V/L5rWhTXsdzFPbkFxzUeWSyGcFKasa
+         HUOLK81BPlXFYR99JFaWfZ6D0kAMhvwTYQ+PZ2ybbraXe5VB5kawt1Y1abDamPB4BRrK
+         FPV/xrL2alcM2sECTo2t1UjBfbbkcxDTkFPLR65o50eT1nL5AHAqXhpquA9n4f1m1ji8
+         LfR98Wjqbe8lLeT0Es02n5r7ZinJhC1igTNwqT9HDdqESLNOTzKJtlh/U6rH09wi6wng
+         /AdqzOUbNwsKcrm/l+QzEZNW16SbkEPtEquSaZVLcc9q3AiuykbGu0CGI+BI/EoPq9Gk
+         wqDg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u10si782153ejk.38.2019.06.03.07.35.12
+        by mx.google.com with ESMTPS id l43si453371eda.71.2019.06.03.07.35.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 03 Jun 2019 07:35:12 -0700 (PDT)
@@ -78,7 +79,7 @@ Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id F19ADADDA;
+	by mx1.suse.de (Postfix) with ESMTP id ECABCAD43;
 	Mon,  3 Jun 2019 14:35:11 +0000 (UTC)
 From: Vlastimil Babka <vbabka@suse.cz>
 To: linux-mm@kvack.org
@@ -87,12 +88,12 @@ Cc: linux-kernel@vger.kernel.org,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
 	Michal Hocko <mhocko@kernel.org>,
 	Vlastimil Babka <vbabka@suse.cz>,
+	Mel Gorman <mgorman@techsingularity.net>,
 	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Mel Gorman <mgorman@techsingularity.net>
-Subject: [PATCH 1/3] mm, debug_pagelloc: use static keys to enable debugging
-Date: Mon,  3 Jun 2019 16:34:49 +0200
-Message-Id: <20190603143451.27353-2-vbabka@suse.cz>
+	Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH 2/3] mm, page_alloc: more extensive free page checking with debug_pagealloc
+Date: Mon,  3 Jun 2019 16:34:50 +0200
+Message-Id: <20190603143451.27353-3-vbabka@suse.cz>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190603143451.27353-1-vbabka@suse.cz>
 References: <20190603143451.27353-1-vbabka@suse.cz>
@@ -104,111 +105,164 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-CONFIG_DEBUG_PAGEALLOC has been redesigned by 031bc5743f15
-("mm/debug-pagealloc: make debug-pagealloc boottime configurable") to allow
-being always enabled in a distro kernel, but only perform its expensive
-functionality when booted with debug_pagelloc=on. We can further reduce
-the overhead when not boot-enabled (including page allocator fast paths) using
-static keys. This patch introduces one for debug_pagealloc core functionality,
-and another for the optional guard page functionality (enabled by booting with
-debug_guardpage_minorder=X).
+The page allocator checks struct pages for expected state (mapcount, flags etc)
+as pages are being allocated (check_new_page()) and freed (free_pages_check())
+to provide some defense against errors in page allocator users. Prior commits
+479f854a207c ("mm, page_alloc: defer debugging checks of pages allocated from
+the PCP") and 4db7548ccbd9 ("mm, page_alloc: defer debugging checks of freed
+pages until a PCP drain") this has happened for order-0 pages as they were
+allocated from or freed to the per-cpu caches (pcplists). Since those are fast
+paths, the checks are now performed only when pages are moved between pcplists
+and global free lists. This however lowers the chances of catching errors soon
+enough.
+
+In order to increase the chances of the checks to catch errors, the kernel has
+to be rebuilt with CONFIG_DEBUG_VM, which also enables multiple other internal
+debug checks (VM_BUG_ON() etc), which is suboptimal when the goal is to catch
+errors in mm users, not in mm code itself.
+
+To catch some wrong users of page allocator, we have CONFIG_DEBUG_PAGEALLOC,
+which is designed to have virtually no overhead unless enabled at boot time.
+Memory corruptions when writing to freed pages have often the same underlying
+errors (use-after-free, double free) as corrupting the corresponding struct
+pages, so this existing debugging functionality is a good fit to extend by
+also perform struct page checks at least as often as if CONFIG_DEBUG_VM was
+enabled.
+
+Specifically, after this patch, when debug_pagealloc is enabled on boot, and
+CONFIG_DEBUG_VM disabled, pages are checked when allocated from or freed to the
+pcplists *in addition* to being moved between pcplists and free lists. When
+both debug_pagealloc and CONFIG_DEBUG_VM are enabled, pages are checked when
+being moved between pcplists and free lists *in addition* to when allocated
+from or freed to the pcplists.
+
+When debug_pagealloc is not enabled on boot, the overhead in fast paths should
+be virtually none thanks to the use of static key.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
 ---
- include/linux/mm.h | 15 +++++++++++----
- mm/page_alloc.c    | 23 +++++++++++++++++------
- 2 files changed, 28 insertions(+), 10 deletions(-)
+ mm/Kconfig.debug | 13 ++++++++----
+ mm/page_alloc.c  | 53 +++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 52 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0e8834ac32b7..c71ed22769f3 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2685,11 +2685,18 @@ static inline void kernel_poison_pages(struct page *page, int numpages,
- 					int enable) { }
- #endif
+diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+index fa6d79281368..a35ab6c55192 100644
+--- a/mm/Kconfig.debug
++++ b/mm/Kconfig.debug
+@@ -19,12 +19,17 @@ config DEBUG_PAGEALLOC
+ 	  Depending on runtime enablement, this results in a small or large
+ 	  slowdown, but helps to find certain types of memory corruption.
  
--extern bool _debug_pagealloc_enabled;
-+#ifdef CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT
-+DECLARE_STATIC_KEY_TRUE(_debug_pagealloc_enabled);
-+#else
-+DECLARE_STATIC_KEY_FALSE(_debug_pagealloc_enabled);
-+#endif
- 
- static inline bool debug_pagealloc_enabled(void)
- {
--	return IS_ENABLED(CONFIG_DEBUG_PAGEALLOC) && _debug_pagealloc_enabled;
-+	if (!IS_ENABLED(CONFIG_DEBUG_PAGEALLOC))
-+		return false;
++	  Also, the state of page tracking structures is checked more often as
++	  pages are being allocated and freed, as unexpected state changes
++	  often happen for same reasons as memory corruption (e.g. double free,
++	  use-after-free).
 +
-+	return static_branch_unlikely(&_debug_pagealloc_enabled);
- }
+ 	  For architectures which don't enable ARCH_SUPPORTS_DEBUG_PAGEALLOC,
+ 	  fill the pages with poison patterns after free_pages() and verify
+-	  the patterns before alloc_pages().  Additionally,
+-	  this option cannot be enabled in combination with hibernation as
+-	  that would result in incorrect warnings of memory corruption after
+-	  a resume because free pages are not saved to the suspend image.
++	  the patterns before alloc_pages(). Additionally, this option cannot
++	  be enabled in combination with hibernation as that would result in
++	  incorrect warnings of memory corruption after a resume because free
++	  pages are not saved to the suspend image.
  
- #if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_ARCH_HAS_SET_DIRECT_MAP)
-@@ -2843,7 +2850,7 @@ extern struct page_ext_operations debug_guardpage_ops;
- 
- #ifdef CONFIG_DEBUG_PAGEALLOC
- extern unsigned int _debug_guardpage_minorder;
--extern bool _debug_guardpage_enabled;
-+DECLARE_STATIC_KEY_FALSE(_debug_guardpage_enabled);
- 
- static inline unsigned int debug_guardpage_minorder(void)
- {
-@@ -2852,7 +2859,7 @@ static inline unsigned int debug_guardpage_minorder(void)
- 
- static inline bool debug_guardpage_enabled(void)
- {
--	return _debug_guardpage_enabled;
-+	return static_branch_unlikely(&_debug_guardpage_enabled);
- }
- 
- static inline bool page_is_guard(struct page *page)
+ 	  By default this option will have a small overhead, e.g. by not
+ 	  allowing the kernel mapping to be backed by large pages on some
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d66bc8abe0af..639f1f9e74c5 100644
+index 639f1f9e74c5..e6248e391358 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -646,16 +646,27 @@ void prep_compound_page(struct page *page, unsigned int order)
+@@ -1162,19 +1162,36 @@ static __always_inline bool free_pages_prepare(struct page *page,
+ }
  
- #ifdef CONFIG_DEBUG_PAGEALLOC
- unsigned int _debug_guardpage_minorder;
--bool _debug_pagealloc_enabled __read_mostly
--			= IS_ENABLED(CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT);
-+
-+#ifdef CONFIG_DEBUG_PAGEALLOC_ENABLE_DEFAULT
-+DEFINE_STATIC_KEY_TRUE(_debug_pagealloc_enabled);
-+#else
-+DEFINE_STATIC_KEY_FALSE(_debug_pagealloc_enabled);
-+#endif
- EXPORT_SYMBOL(_debug_pagealloc_enabled);
--bool _debug_guardpage_enabled __read_mostly;
-+
-+DEFINE_STATIC_KEY_FALSE(_debug_guardpage_enabled);
- 
- static int __init early_debug_pagealloc(char *buf)
+ #ifdef CONFIG_DEBUG_VM
+-static inline bool free_pcp_prepare(struct page *page)
++/*
++ * With DEBUG_VM enabled, order-0 pages are checked immediately when being freed
++ * to pcp lists. With debug_pagealloc also enabled, they are also rechecked when
++ * moved from pcp lists to free lists.
++ */
++static bool free_pcp_prepare(struct page *page)
  {
--	if (!buf)
-+	bool enable = false;
-+
-+	if (kstrtobool(buf, &enable))
- 		return -EINVAL;
--	return kstrtobool(buf, &_debug_pagealloc_enabled);
-+
-+	if (enable)
-+		static_branch_enable(&_debug_pagealloc_enabled);
-+
-+	return 0;
- }
- early_param("debug_pagealloc", early_debug_pagealloc);
- 
-@@ -679,7 +690,7 @@ static void init_debug_guardpage(void)
- 	if (!debug_guardpage_minorder())
- 		return;
- 
--	_debug_guardpage_enabled = true;
-+	static_branch_enable(&_debug_guardpage_enabled);
+ 	return free_pages_prepare(page, 0, true);
  }
  
- struct page_ext_operations debug_guardpage_ops = {
+-static inline bool bulkfree_pcp_prepare(struct page *page)
++static bool bulkfree_pcp_prepare(struct page *page)
+ {
+-	return false;
++	if (debug_pagealloc_enabled())
++		return free_pages_check(page);
++	else
++		return false;
+ }
+ #else
++/*
++ * With DEBUG_VM disabled, order-0 pages being freed are checked only when
++ * moving from pcp lists to free list in order to reduce overhead. With
++ * debug_pagealloc enabled, they are checked also immediately when being freed
++ * to the pcp lists.
++ */
+ static bool free_pcp_prepare(struct page *page)
+ {
+-	return free_pages_prepare(page, 0, false);
++	if (debug_pagealloc_enabled())
++		return free_pages_prepare(page, 0, true);
++	else
++		return free_pages_prepare(page, 0, false);
+ }
+ 
+ static bool bulkfree_pcp_prepare(struct page *page)
+@@ -2036,23 +2053,39 @@ static inline bool free_pages_prezeroed(void)
+ }
+ 
+ #ifdef CONFIG_DEBUG_VM
+-static bool check_pcp_refill(struct page *page)
++/*
++ * With DEBUG_VM enabled, order-0 pages are checked for expected state when
++ * being allocated from pcp lists. With debug_pagealloc also enabled, they are
++ * also checked when pcp lists are refilled from the free lists.
++ */
++static inline bool check_pcp_refill(struct page *page)
+ {
+-	return false;
++	if (debug_pagealloc_enabled())
++		return check_new_page(page);
++	else
++		return false;
+ }
+ 
+-static bool check_new_pcp(struct page *page)
++static inline bool check_new_pcp(struct page *page)
+ {
+ 	return check_new_page(page);
+ }
+ #else
+-static bool check_pcp_refill(struct page *page)
++/*
++ * With DEBUG_VM disabled, free order-0 pages are checked for expected state
++ * when pcp lists are being refilled from the free lists. With debug_pagealloc
++ * enabled, they are also checked when being allocated from the pcp lists.
++ */
++static inline bool check_pcp_refill(struct page *page)
+ {
+ 	return check_new_page(page);
+ }
+-static bool check_new_pcp(struct page *page)
++static inline bool check_new_pcp(struct page *page)
+ {
+-	return false;
++	if (debug_pagealloc_enabled())
++		return check_new_page(page);
++	else
++		return false;
+ }
+ #endif /* CONFIG_DEBUG_VM */
+ 
 -- 
 2.21.0
 
