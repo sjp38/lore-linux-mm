@@ -2,172 +2,190 @@ Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 338EBC04AB5
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:47:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06164C04AB5
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:53:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E26A32705E
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:47:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ADF7825053
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:53:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="zyV8dwkC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E26A32705E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="hBvj2a/S"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADF7825053
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 92D656B0276; Mon,  3 Jun 2019 13:47:09 -0400 (EDT)
+	id 4BB436B0007; Mon,  3 Jun 2019 13:53:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B4A96B0278; Mon,  3 Jun 2019 13:47:09 -0400 (EDT)
+	id 444366B0276; Mon,  3 Jun 2019 13:53:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 72F066B0279; Mon,  3 Jun 2019 13:47:09 -0400 (EDT)
+	id 30C5D6B0278; Mon,  3 Jun 2019 13:53:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E2C96B0276
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 13:47:09 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id a21so13339025edt.23
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 10:47:09 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C08696B0007
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 13:53:17 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id c25so2773958ljb.3
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 10:53:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=dXNJh93VKnrDRoV3p7QeHW/6uh2W1UxKfkBC3L76x5Y=;
-        b=t4kLrHUOyr6eKKjPSsU2VlAEu8cxiTLgYLkNHFGA6Begrj2hP7MSs/cvQrEdOSf8BV
-         OfelEW0Q+bYVJ3Mbo8zlxBBHeaq8vxjwILzMi5QmbJUnmeCTMka4fyk5ppy/jK1ZurXB
-         Xc6sYZtWwihE96K9dMj4TH59JLPX/cK/kyK3riaW8zOnzzplNf3z26zFBVW21IAZIUyb
-         MxoDq7toMx08RwHV3+4w6MpbQzy2JvKZDdq1cxINHReiGaKTyfBQSJH0wM5ibgZ6U61S
-         0PMLVo3TAwrsKpoj/gtwwmkCDQwWRJEviXzS1wZuZ01CeqrCyZRhNVxeJ/5O/SEgxt2N
-         KLrw==
-X-Gm-Message-State: APjAAAU6/H4XdMiAUzny6t/R68X7YAh0rqFuzgQrmjL/GfsI/q3GaLsg
-	ELFqsKlGfgqLOELUJlRorwSONNrKd309eItCcusDdiU8iU9X9ae9iI0JHwnOMo9mM1kT0rN4W5t
-	VmhIQ83w6pdNHV3+mB8Ae+zy7YqQazRMjo53sEm1HpAp/UwJRrQCOvKRFZ4bw5uazbA==
-X-Received: by 2002:a17:906:90cf:: with SMTP id v15mr2380056ejw.77.1559584028692;
-        Mon, 03 Jun 2019 10:47:08 -0700 (PDT)
-X-Received: by 2002:a17:906:90cf:: with SMTP id v15mr2379996ejw.77.1559584027853;
-        Mon, 03 Jun 2019 10:47:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559584027; cv=none;
+        bh=Srx+JSQEvVah+8jZbb/etDm06U9ghyEFAowtj168rhg=;
+        b=LY0O5aTz1rhMKv/wwQxUT9zYnCT7VyvFGQ/Fuc/vwLImRWaUdZL+5QGfRgcDu0/K4h
+         64xYNArDAUNq+GAkXWYIilUa9BQkis/QMuO4bCKT/pTtrVqA/ptbxa0w6ai/AJlZifHK
+         1QL0sanXd/OcYmNfZU+AxyOXQeUwlFc3pjN55kV/dQSRaOnu69RN46cWdiNmg8l6swrS
+         zAOkXpxFmAnjIiOmbd6fal/18gc9Z5bWHj4ulr5c0cCUoKNdxJJa2e8aEla+M1rA7LDa
+         3yLwmUuPe3QLEG56pzGV5301uhQ6X+JY16RCla8gt+GgQbaU7fqme5jCxWo9yYe3NWoj
+         sjEw==
+X-Gm-Message-State: APjAAAWVqCHPtwvDpDlqjDUUzHXniyyyjiZJ5YK/thw0LKEHFOSGVbfr
+	gfCYzonkY6gGOCnFcIOr8Ih7I7IRI0Mhbe+xdsbrkDa7i5MahKSWtH2Y2JNny8L3a+XwMQRuQaf
+	WDB9epPZL4gtiKPrh+CuMX/4Su/Dbd7JsyLHwyXsRIUpnwoTdmezht3qpOVTMWlvsqw==
+X-Received: by 2002:a2e:89cc:: with SMTP id c12mr14525609ljk.90.1559584397276;
+        Mon, 03 Jun 2019 10:53:17 -0700 (PDT)
+X-Received: by 2002:a2e:89cc:: with SMTP id c12mr14525583ljk.90.1559584396527;
+        Mon, 03 Jun 2019 10:53:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559584396; cv=none;
         d=google.com; s=arc-20160816;
-        b=DoYA0eQEfMxlVaMvi6ZvxXOGnUVczBiGXuPhmG+om3brUghwHG4/4TD5iSWe+fYsgh
-         1Wu36MQhkbkWsRrQLmVwxKmSh12LdzcvqgUjgh0UtDti8og2WXWoonyE+iqC0gPbdLXK
-         q3EDk06QnpMUGTd7pFtZbxNX61vEAdzbWq8wZ/z6zWcrXWCZY45px4QzB3/+YZdwkZ9N
-         3USoLc1XvBE78Xai4kUlgzs7BZzhpxWWcRTP2YtvQgyDWlOVxKDdzXL2yfdTh7kXH/6/
-         m2sMtIv1San6w3nfo+4Xxv9fGNjSN1C5IcG0C84wvtzLI9WrN8gp1nO9IWqXpUvZ0NrB
-         7uTg==
+        b=HvgxJa5+e64C3KfnP9oBm03IpCDhmSh6SCzJ7i17YmVnuNHi9j58CWqSA6AlAjBAbp
+         OABzxl4lV2204y9/MqEyl/Bv7xjA5VOeuH5y92Ryb2AdnLvMUl1fl31ZZSM0BpAZeeMc
+         pbNI3uELS1wnagU5CYcOE75Dyt9JqQEgrR5b/493Qs+YF6LLqjzs8QO4inVW0T8CEeUq
+         2zfiabEKjnqS/+hLLZ/k3O3fcNg/2RVajGK03w4Q9jdbVTEn3pz/ZPe/LuYI+DPU3U9A
+         03d0mBJDWT/wPbj5/mLlYyuS7WkKObyu8ptLnCnd/95lE6s4kDkv6DOezB6EHQQBG0xw
+         BfVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=dXNJh93VKnrDRoV3p7QeHW/6uh2W1UxKfkBC3L76x5Y=;
-        b=wlr//j1YXE9b248yniR+1vsG91JrFloOzUlisJF52BViA4aFVh9iKlRk0LPe0gTJmW
-         kku5LvbjccTrBiKrVgxbqFezBkXNXuagz+51VBV4nkx5wYQTb4Ia9OA39t9wyzz7iiAu
-         PPLvF/UXIddHnbCIsA8jyf/bNOWh0XCFnmqspJbTeDEMmDZpA3byiNtnuY9Qusidbk0x
-         XXgisDlrh9LJUbjEylULlKk6eQbxsMHnSxU0GzIiOwgkBWP7LO2ZF5FjIxafkOYuoQRn
-         R9QNLaVNFLO4DqLbkz/yOgaO3A6TPnOOq88dZxJvCAgiVFa3Led0zSu8XxyYbdIdLSp1
-         /Scg==
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=Srx+JSQEvVah+8jZbb/etDm06U9ghyEFAowtj168rhg=;
+        b=OnO15IozE4JJFdRYsJFJLvNAmya+3NvA03KEAtQXIqyEtR5wQgBofMq85oGnOu2sk6
+         CiB+Dvq3eQbnFf9rMt37XbziLSRk+Q6fjiTgA0nYzKEBWw/dG4rgk3yJW6KKTMuqwhZY
+         3SteSTQJDpLfhhBv8hnJ53lyfPBvBqoTCaO38JAFMNthM0bjigsqQ6OHNsnRwX0vFoLl
+         qc3nOU21gMqrPrnK9SqE8Qe37HsMmLXwwUDjRPsdedH4ZP0IhEJRqjpQybsqEr2xtTPm
+         vXUd0GnkhYD9tBXj+FPz0Xi/uLGY6z9bG2cj63FNoCSFaAvP4sBydyvMGbGfeTQbMNRV
+         SGHg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=zyV8dwkC;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="hBvj2a/S";
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i27sor4783140ejg.40.2019.06.03.10.47.07
+        by mx.google.com with SMTPS id r25sor4532404lfg.72.2019.06.03.10.53.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 03 Jun 2019 10:47:07 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+        Mon, 03 Jun 2019 10:53:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=zyV8dwkC;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="hBvj2a/S";
+       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=dXNJh93VKnrDRoV3p7QeHW/6uh2W1UxKfkBC3L76x5Y=;
-        b=zyV8dwkC82UjElwqhhNjiSRV3X89XUMQWmNIMYTdd6EyIBa1IFcNKjF7ZAXDYGRZfk
-         tfc5lTMfAnYU0qTOOqK9kfJovtKnJhFX6D6BX0YOHAJ3LBeVRXL7Nr1VH/QZB7Q3WCnu
-         hELQcbnUz1l/ZAcBillS1G3mHzX7MYKFGj5pSWqhtBN3WDd704uw6cBBs7ftJHxd37DI
-         zXkHPUwknm1r8pGxDYgOFbH9rfEgcEgRipNQqvtbA49GiP1HZ8ebvVG272SxMRQNQrM2
-         2v3A3zxoOLhUdg7w9CnnbEVubXFowGKItH98uxZff6gHcM/+InqD/hvOwkaTGOoN8Iql
-         HxTA==
-X-Google-Smtp-Source: APXvYqzchOzG2a90eyb97gNmeNZ+rcpDZlbNkRv/65YitVUDISDtqqNHz7rRPcSXIJV7hRryVBAxnw==
-X-Received: by 2002:a17:906:63c1:: with SMTP id u1mr24787573ejk.173.1559584027481;
-        Mon, 03 Jun 2019 10:47:07 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id d20sm2697588ejr.21.2019.06.03.10.47.06
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jun 2019 10:47:06 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id 0E37C10406D; Mon,  3 Jun 2019 20:47:06 +0300 (+03)
-Date: Mon, 3 Jun 2019 20:47:06 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, mhocko@suse.com,
-	keith.busch@intel.com, kirill.shutemov@linux.intel.com,
-	alexander.h.duyck@linux.intel.com, ira.weiny@intel.com,
-	andreyknvl@google.com, arunks@codeaurora.org, vbabka@suse.cz,
-	cl@linux.com, riel@surriel.com, keescook@chromium.org,
-	hannes@cmpxchg.org, npiggin@gmail.com,
-	mathieu.desnoyers@efficios.com, shakeelb@google.com, guro@fb.com,
-	aarcange@redhat.com, hughd@google.com, jglisse@redhat.com,
-	mgorman@techsingularity.net, daniel.m.jordan@oracle.com,
-	jannh@google.com, kilobyte@angband.pl, linux-api@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH v2 0/7] mm: process_vm_mmap() -- syscall for duplication
- a process mapping
-Message-ID: <20190603174706.t4cby7f5ni4gvvom@box>
-References: <155836064844.2441.10911127801797083064.stgit@localhost.localdomain>
- <20190522152254.5cyxhjizuwuojlix@box>
- <4228b541-d31c-b76a-2570-1924df0d4724@virtuozzo.com>
- <5ae7e3c1-3875-ea1e-54b3-ac3c493a11f0@virtuozzo.com>
+        bh=Srx+JSQEvVah+8jZbb/etDm06U9ghyEFAowtj168rhg=;
+        b=hBvj2a/SxeY8uo2/eITryp250u7lguAtkLG3Rzw/28UO6KoV8ECca3G6kiHt9yAFR8
+         4GYgW/r5DAJg5uGAXloHi0Kqx3rpg5+lP5dDjIFmwXxGsTiIlSYcvgfn9XfogyQ/Lw73
+         BBjkwHmuinB+Jej8dicc57ngL+G5Xkokj4e7d4rLBGc8oFNaNuhR+xNXZXgXHj98Rv5e
+         Hd8T2iOkvt6klZc5R/VZB65XH/tHhVZkSWsnW3xgRdaxOKnJ+aEww9sdKG1hp9VB371Z
+         L6pePxzhDKwYKHZskQL5tNPsFmXYZvbYRNnBt4uRwKc7cyZbOOavOnwXzMsKlivIZcxI
+         S75w==
+X-Google-Smtp-Source: APXvYqwkNqnG7HCV7jYR28Yp6QjtylKEBiui88FHYvyLoqwJOwUAPczmn457xBJ7dqYkon33WuCwMg==
+X-Received: by 2002:ac2:42c8:: with SMTP id n8mr6415lfl.28.1559584396076;
+        Mon, 03 Jun 2019 10:53:16 -0700 (PDT)
+Received: from pc636 ([37.139.158.167])
+        by smtp.gmail.com with ESMTPSA id v16sm3315552ljk.80.2019.06.03.10.53.14
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 03 Jun 2019 10:53:15 -0700 (PDT)
+From: Uladzislau Rezki <urezki@gmail.com>
+X-Google-Original-From: Uladzislau Rezki <urezki@pc636>
+Date: Mon, 3 Jun 2019 19:53:12 +0200
+To: Roman Gushchin <guro@fb.com>
+Cc: Uladzislau Rezki <urezki@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@suse.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Thomas Garnier <thgarnie@google.com>,
+	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
+	Steven Rostedt <rostedt@goodmis.org>,
+	Joel Fernandes <joelaf@google.com>,
+	Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>,
+	Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH v3 2/4] mm/vmap: preload a CPU with one object for split
+ purpose
+Message-ID: <20190603175312.72td46uahgchfgma@pc636>
+References: <20190527093842.10701-1-urezki@gmail.com>
+ <20190527093842.10701-3-urezki@gmail.com>
+ <20190528224217.GG27847@tower.DHCP.thefacebook.com>
+ <20190529142715.pxzrjthsthqudgh2@pc636>
+ <20190529163435.GC3228@tower.DHCP.thefacebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5ae7e3c1-3875-ea1e-54b3-ac3c493a11f0@virtuozzo.com>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190529163435.GC3228@tower.DHCP.thefacebook.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 03, 2019 at 05:56:32PM +0300, Kirill Tkhai wrote:
-> On 03.06.2019 17:38, Kirill Tkhai wrote:
-> > On 22.05.2019 18:22, Kirill A. Shutemov wrote:
-> >> On Mon, May 20, 2019 at 05:00:01PM +0300, Kirill Tkhai wrote:
-> >>> This patchset adds a new syscall, which makes possible
-> >>> to clone a VMA from a process to current process.
-> >>> The syscall supplements the functionality provided
-> >>> by process_vm_writev() and process_vm_readv() syscalls,
-> >>> and it may be useful in many situation.
-> >>
-> >> Kirill, could you explain how the change affects rmap and how it is safe.
-> >>
-> >> My concern is that the patchset allows to map the same page multiple times
-> >> within one process or even map page allocated by child to the parrent.
+Hello, Roman!
+
+On Wed, May 29, 2019 at 04:34:40PM +0000, Roman Gushchin wrote:
+> On Wed, May 29, 2019 at 04:27:15PM +0200, Uladzislau Rezki wrote:
+> > Hello, Roman!
 > > 
-> > Speaking honestly, we already support this model, since ZERO_PAGE() may
-> > be mapped multiply times in any number of mappings.
+> > > On Mon, May 27, 2019 at 11:38:40AM +0200, Uladzislau Rezki (Sony) wrote:
+> > > > Refactor the NE_FIT_TYPE split case when it comes to an
+> > > > allocation of one extra object. We need it in order to
+> > > > build a remaining space.
+> > > > 
+> > > > Introduce ne_fit_preload()/ne_fit_preload_end() functions
+> > > > for preloading one extra vmap_area object to ensure that
+> > > > we have it available when fit type is NE_FIT_TYPE.
+> > > > 
+> > > > The preload is done per CPU in non-atomic context thus with
+> > > > GFP_KERNEL allocation masks. More permissive parameters can
+> > > > be beneficial for systems which are suffer from high memory
+> > > > pressure or low memory condition.
+> > > > 
+> > > > Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+> > > > ---
+> > > >  mm/vmalloc.c | 79 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++---
+> > > >  1 file changed, 76 insertions(+), 3 deletions(-)
+> > > 
+> > > Hi Uladzislau!
+> > > 
+> > > This patch generally looks good to me (see some nits below),
+> > > but it would be really great to add some motivation, e.g. numbers.
+> > > 
+> > The main goal of this patch to get rid of using GFP_NOWAIT since it is
+> > more restricted due to allocation from atomic context. IMHO, if we can
+> > avoid of using it that is a right way to go.
+> > 
+> > From the other hand, as i mentioned before i have not seen any issues
+> > with that on all my test systems during big rework. But it could be
+> > beneficial for tiny systems where we do not have any swap and are
+> > limited in memory size.
 > 
-> Picking of huge_zero_page and mremapping its VMA to unaligned address also gives
-> the case, when the same huge page is mapped as huge page and as set of ordinary
-> pages in the same process.
+> Ok, that makes sense to me. Is it possible to emulate such a tiny system
+> on kvm and measure the benefits? Again, not a strong opinion here,
+> but it will be easier to justify adding a good chunk of code.
 > 
-> Summing up two above cases, is there really a fundamental problem with
-> the functionality the patch set introduces? It looks like we already have
-> these cases in stable kernel supported.
+It seems it is not so straightforward as it looks like. I tried it before,
+but usually the systems gets panic due to out of memory or just invokes
+the OOM killer.
 
-It *might* work. But it requires a lot of audit to prove that it actually
-*does* work.
+I will upload a new version of it, where i embed "preloading" logic directly
+into alloc_vmap_area() function.
 
-For instance, are you sure it will not break KSM? What does it mean for
-memory accounting? memcg?
+Thanks.
 
-My point is that you breaking long standing invariant in Linux MM and it
-has to be properly justified.
-
-I would expect to see some strange deadlocks or permanent trylock failure
-as result of such change.
-
--- 
- Kirill A. Shutemov
+--
+Vlad Rezki
 
