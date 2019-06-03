@@ -2,672 +2,151 @@ Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74136C28CC6
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 19:15:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76596C04AB5
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 19:19:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E29F27103
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 19:15:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E29F27103
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 396C92719B
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 19:19:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="B6Luh7lF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 396C92719B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A487D6B0270; Mon,  3 Jun 2019 15:15:43 -0400 (EDT)
+	id C8FAA6B026B; Mon,  3 Jun 2019 15:19:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9F89B6B0271; Mon,  3 Jun 2019 15:15:43 -0400 (EDT)
+	id C401B6B026C; Mon,  3 Jun 2019 15:19:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C06C6B0272; Mon,  3 Jun 2019 15:15:43 -0400 (EDT)
+	id B558F6B0270; Mon,  3 Jun 2019 15:19:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5813D6B0270
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 15:15:43 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id b4so375384otf.15
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 12:15:43 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8096A6B026B
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 15:19:38 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id b127so14283946pfb.8
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 12:19:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:organization
-         :mime-version:content-transfer-encoding;
-        bh=2KkNszJOeYVWnac+r9Nqz/tDPQYXmkioCRqNqMY6WVg=;
-        b=neP/mnaUrYZxM3dicajMPYuakKBs9onvwUmK+t1xxnZlfJ8HFC3x4EpZ4Em2Sz3yll
-         KIVTSfNz0eK9hS5LeU8Xq+VqqtyGQB5CDJr6s+InzMqgXORwpx1WZQYSkD+lmxv5A4ok
-         0Ox2n9c/RL8m5/QskXz7lg7NOMkMHd/sVJAfVToEr7kw9Tn9LrfLtDc6ygHGfgDaKEVS
-         ZL0paq4sQZojQcmoC82K8GEmCCMBj3FuDXYDaD6lw11ceSWsibh8g0Ax7VEPbfSFFQQb
-         i77sYx0VDgun/eoT8K83IMW7t0e6nHZYVRletRWgP59ONnxRHbjaUzBBJpzgN/VwN0ac
-         O86w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alex.williamson@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=alex.williamson@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX+vvC+k/+bKLsrhXmAmfprhEEKcIMygtBuQ720K5KyK3kGeJ0k
-	0adp6PkYSbjCgB8oYD8On4xu/sAvBqCtokYVhs1qrmrSwjxG8oHY2IXX2XCJXiNo1BIPLd+/57m
-	PtDstuKbgBEJgTTguwVDWZEa+ZaLzawuXWBO+8WlBnry8HBl9utCo92pfVUoMyfAR0g==
-X-Received: by 2002:aca:5ed7:: with SMTP id s206mr1865060oib.122.1559589342980;
-        Mon, 03 Jun 2019 12:15:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxJyHgbfegJiQkB8xeJuT7avA4RQv7YK9VRTi5IsEClWWxaxx3emOZ/V4nqEOL8kyUzZxBC
-X-Received: by 2002:aca:5ed7:: with SMTP id s206mr1865004oib.122.1559589341848;
-        Mon, 03 Jun 2019 12:15:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559589341; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=y1POYuY5yv6TKMl+TVizfTG3p/FI2fRpGzaKg8qUjGU=;
+        b=PMdQ228KuTyvZtLXyunYIFGnvbCUBt8iEmlMp3ZB69Ky7ylHQQrmjkQLS6bulZ5nEP
+         9trKLlsJW+qaz3GOaFQDLObTN64pB7QMhauH0RbwqbIdV+pUIoDUtKhLcZS4aWU6vdoa
+         MQQK2gXZ/kwWLrwUy2838RCi2olG8oEcUGXHERtnURYnuqAcQC5kopHDMOxm6vXPoSla
+         pBIXTxQoP0Mv2Q+olRPJ5W4v0X4obJT9AXCXit0OFhGImbwtkk6UMVolBeCTvZr4FHbC
+         iBuHxi372pi8bUG2qaqn3rx76TwIYljibUNw7ZQYdJzK3sz+K6h0VM389iQ4mQ4N7hyU
+         dx9Q==
+X-Gm-Message-State: APjAAAU7mbxbrGh1Ggmo6c/rsZ6f8crapkx+2PwZsWwmffL92aZYm9LU
+	ixQK9EfxpZcJ4N8SXcNR86U3i9mu9uXCjRRhrNBbx8hfnVeye2R9HCTsly2LGiuH45RDh/aSb8h
+	/Ecsg3C+t0xIeN8+VG2gUlyvAZxqWg0PDpyV5jX/8SWXGuItvc0OAI+EddRIbuCIopQ==
+X-Received: by 2002:a65:4c07:: with SMTP id u7mr29342301pgq.93.1559589578151;
+        Mon, 03 Jun 2019 12:19:38 -0700 (PDT)
+X-Received: by 2002:a65:4c07:: with SMTP id u7mr29342213pgq.93.1559589577340;
+        Mon, 03 Jun 2019 12:19:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559589577; cv=none;
         d=google.com; s=arc-20160816;
-        b=Sn0vdo7Csk5cyhfzRsEgE2CTao0jsljb1+UFH/D20Q1GImrVPr4MZftx8A204gOESw
-         jH8LveTSetw7+FjIoZEfUJtViy1pmuWgiI96SnR4GJy48FhYWBRGfsLu/1+xWxJD/lI7
-         2FKC5s2vJMssYk6RtDxeERQkIP8FIt8U2qv8+YSKJrMVHzZ7X7p+axVMAiTkD0CVUcy0
-         WgIrqXFlP+HtlPzu5VzJbd4eWxqrv1ULg/aifx9j6kF3AqChD0jf1eS7Eh22fWufbn06
-         YOyVtPmEEF311fvWtfI/JK53enotQ/Q6LO3EXd4f6lGvGTTJVenTpstWLwI5B30/3rQA
-         vTgw==
+        b=rT3YCZA/jORvucJaxHEZDFjseGtCUtKdjTCEKNUIKuu8MxhFqMRkPzTnGswJKgA78m
+         s4tj05phn05Frv1+WdHMBgnIwi5iEiexRLAdRoKwpurGQZYigQjNSTYR2MO2y4t4BIkf
+         lv/MS6EY0gHMnS2xBamWEAGnzvd8KZBm1+N+i6wyZoFqLZsDyUkOxZzEFqGeDBLaA507
+         zduVFS3mhOcM8g5wRjlUMCAIYk/EquzwLxg0m89FuV0JWXKAhhXGjCmLCs3iTHKw4yn2
+         94o2r+zuoDvSA+RyRuyzGvfFUeZtBMNLpckJ0sAhqixdITtPnu4ZtQg/ySIUofleocEw
+         gEhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:organization:references
-         :in-reply-to:message-id:subject:cc:to:from:date;
-        bh=2KkNszJOeYVWnac+r9Nqz/tDPQYXmkioCRqNqMY6WVg=;
-        b=KuzoGrsKoWF+ouDLB8oXzQ7GG2G4kmqfeZpsHgNJZpeYFwIYRxIjHCFo6D9o61+B3y
-         X9HKlF8oTB1wSwQDx9CCFi/PMybfzBup78T4ACrpNxga0Z4UmWd4yva1oruoGc3bP6cC
-         n8vea5P/SY8Wj3x489HbndNPyxPi2+1m6BsWhm0nrJR2+h17eXY66o3BNPTifK9rokfj
-         v133t1UMDBnWhho6/qIC4rvOFtC16++RB6MQSlj1E1HtK2obZffiSRktsna3aAVNVfrq
-         ddSv+NlVuxeNALW5rEXvzO0v/2EhKOOlJBOM+C3KzWy2S18mXQ46+PsBQcT4IyYoosRq
-         FMvQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=y1POYuY5yv6TKMl+TVizfTG3p/FI2fRpGzaKg8qUjGU=;
+        b=hv+XAWy8S3XNBR+inAbpDCBYsX5EaUanFc5tKcRCbHBwFAnSXMheA9kcIOnXcWwMNJ
+         s0+m95Q3qfTaH2zas0yYFsBg7l3BJnENxIOA7uEYkAUuLOZgGDa2bzNllpFTkT2KqxLy
+         yFHB0L4c211XTxsSWnFTGhltb31U8UYx50T0BW1dT2uRI5mcfMiIdQNYza1yWtfJ+nJ1
+         ZXlkwr0gRT1YtVsbVA8mjv+KanO5crxbPEW+m2EakQS9Zoc1KKRFA4CTG2DfebfTWOfF
+         mYblnTLGQ54Y4As3hXHxUjDBPs0qr3+ZSMCitiB9f4WSSyn4jbPOKLezS/6bt9gIvPXi
+         f1Zw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of alex.williamson@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=alex.williamson@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t92si2844862otb.320.2019.06.03.12.15.41
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=B6Luh7lF;
+       spf=pass (google.com: domain of dexuan.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dexuan.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c2sor15693512pgd.67.2019.06.03.12.19.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jun 2019 12:15:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alex.williamson@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Mon, 03 Jun 2019 12:19:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dexuan.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of alex.williamson@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=alex.williamson@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 507DF81E03;
-	Mon,  3 Jun 2019 19:15:11 +0000 (UTC)
-Received: from x1.home (ovpn-116-22.phx2.redhat.com [10.3.116.22])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 1FE7519C69;
-	Mon,  3 Jun 2019 19:15:06 +0000 (UTC)
-Date: Mon, 3 Jun 2019 13:15:05 -0600
-From: Alex Williamson <alex.williamson@redhat.com>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: akpm@linux-foundation.org, Alexey Kardashevskiy <aik@ozlabs.ru>, Alan
- Tull <atull@kernel.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Christoph Lameter <cl@linux.com>, Christophe Leroy
- <christophe.leroy@c-s.fr>, Davidlohr Bueso <dave@stgolabs.net>, Ira Weiny
- <ira.weiny@intel.com>, Jason Gunthorpe <jgg@mellanox.com>, Mark Rutland
- <mark.rutland@arm.com>, Michael Ellerman <mpe@ellerman.id.au>, Moritz
- Fischer <mdf@kernel.org>, Paul Mackerras <paulus@ozlabs.org>, Steve Sistare
- <steven.sistare@oracle.com>, Wu Hao <hao.wu@intel.com>, linux-mm@kvack.org,
- kvm@vger.kernel.org, kvm-ppc@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-fpga@vger.kernel.org,
- linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v3] mm: add account_locked_vm utility function
-Message-ID: <20190603131505.42e56a78@x1.home>
-In-Reply-To: <20190529205019.20927-1-daniel.m.jordan@oracle.com>
-References: <20190529125627.0cb5b704@x1.home>
-	<20190529205019.20927-1-daniel.m.jordan@oracle.com>
-Organization: Red Hat
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=B6Luh7lF;
+       spf=pass (google.com: domain of dexuan.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dexuan.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=y1POYuY5yv6TKMl+TVizfTG3p/FI2fRpGzaKg8qUjGU=;
+        b=B6Luh7lFrEGKMS0YaCVBv8YPdG1mQ6kipZMlOOIWg7PtGkDH5BzB5dbwoj+XazEPrQ
+         gW4udVF7MtZdA8ZcHF04cxCgpkQ1Bq+DjrhRoEue0Qwkffa0UKyhVn5PZvC7IVcn+W0q
+         jqKBgtw0etiOYNrWWIaxWusHOxiXee9ERSe2jvi8PwAE8XbNewSlVh9Po8LFTzZu1W4g
+         URBPlLPp80M14E+DSIZklLmwiFd9NcKnayxknqEJMYSwethFJ+YjK+IXhoO/vhD5bTaY
+         MiuHszmiwHy9XAa3KIJdZDvcPAXfPUzPE7AqYAr8j2favgR6jg2YNM4ih6TJ08VXIxUL
+         fEMA==
+X-Google-Smtp-Source: APXvYqyxiiO0bsYaQbImkXitEOhDYoQvgmXhCfueX9MbGIWAyuoj8TggJ5ZITYx8TlJOta8cZTfOSJeb38kdARJg9LI=
+X-Received: by 2002:a63:81c6:: with SMTP id t189mr14722226pgd.293.1559589576950;
+ Mon, 03 Jun 2019 12:19:36 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Mon, 03 Jun 2019 19:15:41 +0000 (UTC)
+References: <CAJKOXPcTVpLtSSs=Q0G3fQgXYoVa=kHxWcWXyvS13ie73ByZBw@mail.gmail.com>
+ <20190603135939.e2mb7vkxp64qairr@pc636> <CAJKOXPdczUnsaBeXTuutZXCQ70ejDT68xnVm-e+SSdLZi-vyCA@mail.gmail.com>
+ <20190604003153.76f33dd2@canb.auug.org.au> <CAJKOXPed=npnfk0H2WUDityHg5cPLH_zwShyRd+B2RS8h6C7SQ@mail.gmail.com>
+In-Reply-To: <CAJKOXPed=npnfk0H2WUDityHg5cPLH_zwShyRd+B2RS8h6C7SQ@mail.gmail.com>
+From: Dexuan-Linux Cui <dexuan.linux@gmail.com>
+Date: Mon, 3 Jun 2019 12:19:25 -0700
+Message-ID: <CAA42JLZa4OgiEYk7d+gM9pu-gvVbOfQj3-VfEb8kvx538-atew@mail.gmail.com>
+Subject: Re: [BUG BISECT] bug mm/vmalloc.c:470 (mm/vmalloc.c: get rid of one
+ single unlink_va() when merge)
+To: Krzysztof Kozlowski <krzk@kernel.org>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Uladzislau Rezki <urezki@gmail.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, 
+	Marek Szyprowski <m.szyprowski@samsung.com>, 
+	"linux-samsung-soc@vger.kernel.org" <linux-samsung-soc@vger.kernel.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hillf Danton <hdanton@sina.com>, 
+	Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, Andrei Vagin <avagin@gmail.com>, 
+	Dexuan Cui <decui@microsoft.com>, v-lide@microsoft.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 May 2019 16:50:19 -0400
-Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
+On Mon, Jun 3, 2019 at 7:37 AM Krzysztof Kozlowski <krzk@kernel.org> wrote:
+>
+> On Mon, 3 Jun 2019 at 16:32, Stephen Rothwell <sfr@canb.auug.org.au> wrote:
+> >
+> > Hi Krzysztof,
+> >
+> > On Mon, 3 Jun 2019 16:10:40 +0200 Krzysztof Kozlowski <krzk@kernel.org> wrote:
+> > >
+> > > Indeed it looks like effect of merge conflict resolution or applying.
+> > > When I look at MMOTS, it is the same as yours:
+> > > http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/commit/?id=b77b8cce67f246109f9d87417a32cd38f0398f2f
+> > >
+> > > However in linux-next it is different.
+> > >
+> > > Stephen, any thoughts?
+> >
+> > Have you had a look at today's linux-next?  It looks correct in
+> > there.  Andrew updated his patch series over the weekend.
+>
+> Yes, I am looking at today's next. Both the source code and the commit
+> 728e0fbf263e3ed359c10cb13623390564102881 have wrong "if (merged)" (put
+> in wrong hunk).
+>
+> Best regards,
+> Krzysztof
 
-> locked_vm accounting is done roughly the same way in five places, so
-> unify them in a helper.
-> 
-> Include the helper's caller in the debug print to distinguish between
-> callsites.
-> 
-> Error codes stay the same, so user-visible behavior does too.  The one
-> exception is that the -EPERM case in tce_account_locked_vm is removed
-> because Alexey has never seen it triggered.
-> 
-> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-> Tested-by: Alexey Kardashevskiy <aik@ozlabs.ru>
-> Cc: Alan Tull <atull@kernel.org>
-> Cc: Alex Williamson <alex.williamson@redhat.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Christophe Leroy <christophe.leroy@c-s.fr>
-> Cc: Davidlohr Bueso <dave@stgolabs.net>
-> Cc: Ira Weiny <ira.weiny@intel.com>
-> Cc: Jason Gunthorpe <jgg@mellanox.com>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Michael Ellerman <mpe@ellerman.id.au>
-> Cc: Moritz Fischer <mdf@kernel.org>
-> Cc: Paul Mackerras <paulus@ozlabs.org>
-> Cc: Steve Sistare <steven.sistare@oracle.com>
-> Cc: Wu Hao <hao.wu@intel.com>
-> Cc: linux-mm@kvack.org
-> Cc: kvm@vger.kernel.org
-> Cc: kvm-ppc@vger.kernel.org
-> Cc: linuxppc-dev@lists.ozlabs.org
-> Cc: linux-fpga@vger.kernel.org
-> Cc: linux-kernel@vger.kernel.org
-> ---
-> v3:
->  - uninline account_locked_vm (Andrew)
->  - fix doc comment (Ira)
->  - retain down_write_killable in vfio type1 (Alex)
->  - leave Alexey's T-b since the code is the same aside from uninlining
->  - sanity tested with vfio type1, sanity-built on ppc
-> 
->  arch/powerpc/kvm/book3s_64_vio.c     | 44 ++--------------
->  arch/powerpc/mm/book3s64/iommu_api.c | 41 ++-------------
->  drivers/fpga/dfl-afu-dma-region.c    | 53 ++------------------
->  drivers/vfio/vfio_iommu_spapr_tce.c  | 54 ++------------------
->  drivers/vfio/vfio_iommu_type1.c      | 17 +------
->  include/linux/mm.h                   |  4 ++
->  mm/util.c                            | 75 ++++++++++++++++++++++++++++
->  7 files changed, 98 insertions(+), 190 deletions(-)
+FYI, we also see the issue in our x86 VM running on Hyper-V.
 
-I tend to prefer adding a negative rather than converting to absolute
-and passing a bool for inc/dec, but it all seems equivalent, so for
-vfio parts
-
-Acked-by: Alex Williamson <alex.williamson@redhat.com>
-
-> 
-> diff --git a/arch/powerpc/kvm/book3s_64_vio.c b/arch/powerpc/kvm/book3s_64_vio.c
-> index 66270e07449a..768b645c7edf 100644
-> --- a/arch/powerpc/kvm/book3s_64_vio.c
-> +++ b/arch/powerpc/kvm/book3s_64_vio.c
-> @@ -30,6 +30,7 @@
->  #include <linux/anon_inodes.h>
->  #include <linux/iommu.h>
->  #include <linux/file.h>
-> +#include <linux/mm.h>
->  
->  #include <asm/kvm_ppc.h>
->  #include <asm/kvm_book3s.h>
-> @@ -56,43 +57,6 @@ static unsigned long kvmppc_stt_pages(unsigned long tce_pages)
->  	return tce_pages + ALIGN(stt_bytes, PAGE_SIZE) / PAGE_SIZE;
->  }
->  
-> -static long kvmppc_account_memlimit(unsigned long stt_pages, bool inc)
-> -{
-> -	long ret = 0;
-> -
-> -	if (!current || !current->mm)
-> -		return ret; /* process exited */
-> -
-> -	down_write(&current->mm->mmap_sem);
-> -
-> -	if (inc) {
-> -		unsigned long locked, lock_limit;
-> -
-> -		locked = current->mm->locked_vm + stt_pages;
-> -		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-> -		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
-> -			ret = -ENOMEM;
-> -		else
-> -			current->mm->locked_vm += stt_pages;
-> -	} else {
-> -		if (WARN_ON_ONCE(stt_pages > current->mm->locked_vm))
-> -			stt_pages = current->mm->locked_vm;
-> -
-> -		current->mm->locked_vm -= stt_pages;
-> -	}
-> -
-> -	pr_debug("[%d] RLIMIT_MEMLOCK KVM %c%ld %ld/%ld%s\n", current->pid,
-> -			inc ? '+' : '-',
-> -			stt_pages << PAGE_SHIFT,
-> -			current->mm->locked_vm << PAGE_SHIFT,
-> -			rlimit(RLIMIT_MEMLOCK),
-> -			ret ? " - exceeded" : "");
-> -
-> -	up_write(&current->mm->mmap_sem);
-> -
-> -	return ret;
-> -}
-> -
->  static void kvm_spapr_tce_iommu_table_free(struct rcu_head *head)
->  {
->  	struct kvmppc_spapr_tce_iommu_table *stit = container_of(head,
-> @@ -302,7 +266,7 @@ static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
->  
->  	kvm_put_kvm(stt->kvm);
->  
-> -	kvmppc_account_memlimit(
-> +	account_locked_vm(current->mm,
->  		kvmppc_stt_pages(kvmppc_tce_pages(stt->size)), false);
->  	call_rcu(&stt->rcu, release_spapr_tce_table);
->  
-> @@ -327,7 +291,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
->  		return -EINVAL;
->  
->  	npages = kvmppc_tce_pages(size);
-> -	ret = kvmppc_account_memlimit(kvmppc_stt_pages(npages), true);
-> +	ret = account_locked_vm(current->mm, kvmppc_stt_pages(npages), true);
->  	if (ret)
->  		return ret;
->  
-> @@ -373,7 +337,7 @@ long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
->  
->  	kfree(stt);
->   fail_acct:
-> -	kvmppc_account_memlimit(kvmppc_stt_pages(npages), false);
-> +	account_locked_vm(current->mm, kvmppc_stt_pages(npages), false);
->  	return ret;
->  }
->  
-> diff --git a/arch/powerpc/mm/book3s64/iommu_api.c b/arch/powerpc/mm/book3s64/iommu_api.c
-> index 5c521f3924a5..18d22eec0ebd 100644
-> --- a/arch/powerpc/mm/book3s64/iommu_api.c
-> +++ b/arch/powerpc/mm/book3s64/iommu_api.c
-> @@ -19,6 +19,7 @@
->  #include <linux/hugetlb.h>
->  #include <linux/swap.h>
->  #include <linux/sizes.h>
-> +#include <linux/mm.h>
->  #include <asm/mmu_context.h>
->  #include <asm/pte-walk.h>
->  #include <linux/mm_inline.h>
-> @@ -51,40 +52,6 @@ struct mm_iommu_table_group_mem_t {
->  	u64 dev_hpa;		/* Device memory base address */
->  };
->  
-> -static long mm_iommu_adjust_locked_vm(struct mm_struct *mm,
-> -		unsigned long npages, bool incr)
-> -{
-> -	long ret = 0, locked, lock_limit;
-> -
-> -	if (!npages)
-> -		return 0;
-> -
-> -	down_write(&mm->mmap_sem);
-> -
-> -	if (incr) {
-> -		locked = mm->locked_vm + npages;
-> -		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-> -		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
-> -			ret = -ENOMEM;
-> -		else
-> -			mm->locked_vm += npages;
-> -	} else {
-> -		if (WARN_ON_ONCE(npages > mm->locked_vm))
-> -			npages = mm->locked_vm;
-> -		mm->locked_vm -= npages;
-> -	}
-> -
-> -	pr_debug("[%d] RLIMIT_MEMLOCK HASH64 %c%ld %ld/%ld\n",
-> -			current ? current->pid : 0,
-> -			incr ? '+' : '-',
-> -			npages << PAGE_SHIFT,
-> -			mm->locked_vm << PAGE_SHIFT,
-> -			rlimit(RLIMIT_MEMLOCK));
-> -	up_write(&mm->mmap_sem);
-> -
-> -	return ret;
-> -}
-> -
->  bool mm_iommu_preregistered(struct mm_struct *mm)
->  {
->  	return !list_empty(&mm->context.iommu_group_mem_list);
-> @@ -101,7 +68,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
->  	unsigned long entry, chunk;
->  
->  	if (dev_hpa == MM_IOMMU_TABLE_INVALID_HPA) {
-> -		ret = mm_iommu_adjust_locked_vm(mm, entries, true);
-> +		ret = account_locked_vm(mm, entries, true);
->  		if (ret)
->  			return ret;
->  
-> @@ -216,7 +183,7 @@ static long mm_iommu_do_alloc(struct mm_struct *mm, unsigned long ua,
->  	kfree(mem);
->  
->  unlock_exit:
-> -	mm_iommu_adjust_locked_vm(mm, locked_entries, false);
-> +	account_locked_vm(mm, locked_entries, false);
->  
->  	return ret;
->  }
-> @@ -316,7 +283,7 @@ long mm_iommu_put(struct mm_struct *mm, struct mm_iommu_table_group_mem_t *mem)
->  unlock_exit:
->  	mutex_unlock(&mem_list_mutex);
->  
-> -	mm_iommu_adjust_locked_vm(mm, unlock_entries, false);
-> +	account_locked_vm(mm, unlock_entries, false);
->  
->  	return ret;
->  }
-> diff --git a/drivers/fpga/dfl-afu-dma-region.c b/drivers/fpga/dfl-afu-dma-region.c
-> index c438722bf4e1..0a532c602d8f 100644
-> --- a/drivers/fpga/dfl-afu-dma-region.c
-> +++ b/drivers/fpga/dfl-afu-dma-region.c
-> @@ -12,6 +12,7 @@
->  #include <linux/dma-mapping.h>
->  #include <linux/sched/signal.h>
->  #include <linux/uaccess.h>
-> +#include <linux/mm.h>
->  
->  #include "dfl-afu.h"
->  
-> @@ -31,52 +32,6 @@ void afu_dma_region_init(struct dfl_feature_platform_data *pdata)
->  	afu->dma_regions = RB_ROOT;
->  }
->  
-> -/**
-> - * afu_dma_adjust_locked_vm - adjust locked memory
-> - * @dev: port device
-> - * @npages: number of pages
-> - * @incr: increase or decrease locked memory
-> - *
-> - * Increase or decrease the locked memory size with npages input.
-> - *
-> - * Return 0 on success.
-> - * Return -ENOMEM if locked memory size is over the limit and no CAP_IPC_LOCK.
-> - */
-> -static int afu_dma_adjust_locked_vm(struct device *dev, long npages, bool incr)
-> -{
-> -	unsigned long locked, lock_limit;
-> -	int ret = 0;
-> -
-> -	/* the task is exiting. */
-> -	if (!current->mm)
-> -		return 0;
-> -
-> -	down_write(&current->mm->mmap_sem);
-> -
-> -	if (incr) {
-> -		locked = current->mm->locked_vm + npages;
-> -		lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-> -
-> -		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
-> -			ret = -ENOMEM;
-> -		else
-> -			current->mm->locked_vm += npages;
-> -	} else {
-> -		if (WARN_ON_ONCE(npages > current->mm->locked_vm))
-> -			npages = current->mm->locked_vm;
-> -		current->mm->locked_vm -= npages;
-> -	}
-> -
-> -	dev_dbg(dev, "[%d] RLIMIT_MEMLOCK %c%ld %ld/%ld%s\n", current->pid,
-> -		incr ? '+' : '-', npages << PAGE_SHIFT,
-> -		current->mm->locked_vm << PAGE_SHIFT, rlimit(RLIMIT_MEMLOCK),
-> -		ret ? "- exceeded" : "");
-> -
-> -	up_write(&current->mm->mmap_sem);
-> -
-> -	return ret;
-> -}
-> -
->  /**
->   * afu_dma_pin_pages - pin pages of given dma memory region
->   * @pdata: feature device platform data
-> @@ -92,7 +47,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
->  	struct device *dev = &pdata->dev->dev;
->  	int ret, pinned;
->  
-> -	ret = afu_dma_adjust_locked_vm(dev, npages, true);
-> +	ret = account_locked_vm(current->mm, npages, true);
->  	if (ret)
->  		return ret;
->  
-> @@ -121,7 +76,7 @@ static int afu_dma_pin_pages(struct dfl_feature_platform_data *pdata,
->  free_pages:
->  	kfree(region->pages);
->  unlock_vm:
-> -	afu_dma_adjust_locked_vm(dev, npages, false);
-> +	account_locked_vm(current->mm, npages, false);
->  	return ret;
->  }
->  
-> @@ -141,7 +96,7 @@ static void afu_dma_unpin_pages(struct dfl_feature_platform_data *pdata,
->  
->  	put_all_pages(region->pages, npages);
->  	kfree(region->pages);
-> -	afu_dma_adjust_locked_vm(dev, npages, false);
-> +	account_locked_vm(current->mm, npages, false);
->  
->  	dev_dbg(dev, "%ld pages unpinned\n", npages);
->  }
-> diff --git a/drivers/vfio/vfio_iommu_spapr_tce.c b/drivers/vfio/vfio_iommu_spapr_tce.c
-> index 40ddc0c5f677..d06e8e291924 100644
-> --- a/drivers/vfio/vfio_iommu_spapr_tce.c
-> +++ b/drivers/vfio/vfio_iommu_spapr_tce.c
-> @@ -22,6 +22,7 @@
->  #include <linux/vmalloc.h>
->  #include <linux/sched/mm.h>
->  #include <linux/sched/signal.h>
-> +#include <linux/mm.h>
->  
->  #include <asm/iommu.h>
->  #include <asm/tce.h>
-> @@ -34,51 +35,6 @@
->  static void tce_iommu_detach_group(void *iommu_data,
->  		struct iommu_group *iommu_group);
->  
-> -static long try_increment_locked_vm(struct mm_struct *mm, long npages)
-> -{
-> -	long ret = 0, locked, lock_limit;
-> -
-> -	if (WARN_ON_ONCE(!mm))
-> -		return -EPERM;
-> -
-> -	if (!npages)
-> -		return 0;
-> -
-> -	down_write(&mm->mmap_sem);
-> -	locked = mm->locked_vm + npages;
-> -	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-> -	if (locked > lock_limit && !capable(CAP_IPC_LOCK))
-> -		ret = -ENOMEM;
-> -	else
-> -		mm->locked_vm += npages;
-> -
-> -	pr_debug("[%d] RLIMIT_MEMLOCK +%ld %ld/%ld%s\n", current->pid,
-> -			npages << PAGE_SHIFT,
-> -			mm->locked_vm << PAGE_SHIFT,
-> -			rlimit(RLIMIT_MEMLOCK),
-> -			ret ? " - exceeded" : "");
-> -
-> -	up_write(&mm->mmap_sem);
-> -
-> -	return ret;
-> -}
-> -
-> -static void decrement_locked_vm(struct mm_struct *mm, long npages)
-> -{
-> -	if (!mm || !npages)
-> -		return;
-> -
-> -	down_write(&mm->mmap_sem);
-> -	if (WARN_ON_ONCE(npages > mm->locked_vm))
-> -		npages = mm->locked_vm;
-> -	mm->locked_vm -= npages;
-> -	pr_debug("[%d] RLIMIT_MEMLOCK -%ld %ld/%ld\n", current->pid,
-> -			npages << PAGE_SHIFT,
-> -			mm->locked_vm << PAGE_SHIFT,
-> -			rlimit(RLIMIT_MEMLOCK));
-> -	up_write(&mm->mmap_sem);
-> -}
-> -
->  /*
->   * VFIO IOMMU fd for SPAPR_TCE IOMMU implementation
->   *
-> @@ -336,7 +292,7 @@ static int tce_iommu_enable(struct tce_container *container)
->  		return ret;
->  
->  	locked = table_group->tce32_size >> PAGE_SHIFT;
-> -	ret = try_increment_locked_vm(container->mm, locked);
-> +	ret = account_locked_vm(container->mm, locked, true);
->  	if (ret)
->  		return ret;
->  
-> @@ -355,7 +311,7 @@ static void tce_iommu_disable(struct tce_container *container)
->  	container->enabled = false;
->  
->  	BUG_ON(!container->mm);
-> -	decrement_locked_vm(container->mm, container->locked_pages);
-> +	account_locked_vm(container->mm, container->locked_pages, false);
->  }
->  
->  static void *tce_iommu_open(unsigned long arg)
-> @@ -659,7 +615,7 @@ static long tce_iommu_create_table(struct tce_container *container,
->  	if (!table_size)
->  		return -EINVAL;
->  
-> -	ret = try_increment_locked_vm(container->mm, table_size >> PAGE_SHIFT);
-> +	ret = account_locked_vm(container->mm, table_size >> PAGE_SHIFT, true);
->  	if (ret)
->  		return ret;
->  
-> @@ -678,7 +634,7 @@ static void tce_iommu_free_table(struct tce_container *container,
->  	unsigned long pages = tbl->it_allocated_size >> PAGE_SHIFT;
->  
->  	iommu_tce_table_put(tbl);
-> -	decrement_locked_vm(container->mm, pages);
-> +	account_locked_vm(container->mm, pages, false);
->  }
->  
->  static long tce_iommu_create_window(struct tce_container *container,
-> diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
-> index 3ddc375e7063..bf449ace1676 100644
-> --- a/drivers/vfio/vfio_iommu_type1.c
-> +++ b/drivers/vfio/vfio_iommu_type1.c
-> @@ -275,21 +275,8 @@ static int vfio_lock_acct(struct vfio_dma *dma, long npage, bool async)
->  
->  	ret = down_write_killable(&mm->mmap_sem);
->  	if (!ret) {
-> -		if (npage > 0) {
-> -			if (!dma->lock_cap) {
-> -				unsigned long limit;
-> -
-> -				limit = task_rlimit(dma->task,
-> -						RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-> -
-> -				if (mm->locked_vm + npage > limit)
-> -					ret = -ENOMEM;
-> -			}
-> -		}
-> -
-> -		if (!ret)
-> -			mm->locked_vm += npage;
-> -
-> +		ret = __account_locked_vm(mm, abs(npage), npage > 0, dma->task,
-> +					  dma->lock_cap);
->  		up_write(&mm->mmap_sem);
->  	}
->  
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 0e8834ac32b7..95510f6fad45 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1564,6 +1564,10 @@ long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
->  int get_user_pages_fast(unsigned long start, int nr_pages,
->  			unsigned int gup_flags, struct page **pages);
->  
-> +int account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc);
-> +int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
-> +			struct task_struct *task, bool bypass_rlim);
-> +
->  /* Container for pinned pfns / pages */
->  struct frame_vector {
->  	unsigned int nr_allocated;	/* Number of frames we have space for */
-> diff --git a/mm/util.c b/mm/util.c
-> index 91682a2090ee..cbbcc035b12b 100644
-> --- a/mm/util.c
-> +++ b/mm/util.c
-> @@ -7,6 +7,7 @@
->  #include <linux/err.h>
->  #include <linux/sched.h>
->  #include <linux/sched/mm.h>
-> +#include <linux/sched/signal.h>
->  #include <linux/sched/task_stack.h>
->  #include <linux/security.h>
->  #include <linux/swap.h>
-> @@ -347,6 +348,80 @@ int __weak get_user_pages_fast(unsigned long start,
->  }
->  EXPORT_SYMBOL_GPL(get_user_pages_fast);
->  
-> +/**
-> + * __account_locked_vm - account locked pages to an mm's locked_vm
-> + * @mm:          mm to account against
-> + * @pages:       number of pages to account
-> + * @inc:         %true if @pages should be considered positive, %false if not
-> + * @task:        task used to check RLIMIT_MEMLOCK
-> + * @bypass_rlim: %true if checking RLIMIT_MEMLOCK should be skipped
-> + *
-> + * Assumes @task and @mm are valid (i.e. at least one reference on each), and
-> + * that mmap_sem is held as writer.
-> + *
-> + * Return:
-> + * * 0       on success
-> + * * -ENOMEM if RLIMIT_MEMLOCK would be exceeded.
-> + */
-> +int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
-> +			struct task_struct *task, bool bypass_rlim)
-> +{
-> +	unsigned long locked_vm, limit;
-> +	int ret = 0;
-> +
-> +	lockdep_assert_held_exclusive(&mm->mmap_sem);
-> +
-> +	locked_vm = mm->locked_vm;
-> +	if (inc) {
-> +		if (!bypass_rlim) {
-> +			limit = task_rlimit(task, RLIMIT_MEMLOCK) >> PAGE_SHIFT;
-> +			if (locked_vm + pages > limit)
-> +				ret = -ENOMEM;
-> +		}
-> +		if (!ret)
-> +			mm->locked_vm = locked_vm + pages;
-> +	} else {
-> +		WARN_ON_ONCE(pages > locked_vm);
-> +		mm->locked_vm = locked_vm - pages;
-> +	}
-> +
-> +	pr_debug("%s: [%d] caller %ps %c%lu %lu/%lu%s\n", __func__, task->pid,
-> +		 (void *)_RET_IP_, (inc) ? '+' : '-', pages << PAGE_SHIFT,
-> +		 locked_vm << PAGE_SHIFT, task_rlimit(task, RLIMIT_MEMLOCK),
-> +		 ret ? " - exceeded" : "");
-> +
-> +	return ret;
-> +}
-> +EXPORT_SYMBOL_GPL(__account_locked_vm);
-> +
-> +/**
-> + * account_locked_vm - account locked pages to an mm's locked_vm
-> + * @mm:          mm to account against, may be NULL
-> + * @pages:       number of pages to account
-> + * @inc:         %true if @pages should be considered positive, %false if not
-> + *
-> + * Assumes a non-NULL @mm is valid (i.e. at least one reference on it).
-> + *
-> + * Return:
-> + * * 0       on success, or if mm is NULL
-> + * * -ENOMEM if RLIMIT_MEMLOCK would be exceeded.
-> + */
-> +int account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc)
-> +{
-> +	int ret;
-> +
-> +	if (pages == 0 || !mm)
-> +		return 0;
-> +
-> +	down_write(&mm->mmap_sem);
-> +	ret = __account_locked_vm(mm, pages, inc, current,
-> +				  capable(CAP_IPC_LOCK));
-> +	up_write(&mm->mmap_sem);
-> +
-> +	return ret;
-> +}
-> +EXPORT_SYMBOL_GPL(account_locked_vm);
-> +
->  unsigned long vm_mmap_pgoff(struct file *file, unsigned long addr,
->  	unsigned long len, unsigned long prot,
->  	unsigned long flag, unsigned long pgoff)
-> 
-> base-commit: cd6c84d8f0cdc911df435bb075ba22ce3c605b07
+Thanks,
+Dexuan
 
