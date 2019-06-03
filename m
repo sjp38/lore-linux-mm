@@ -2,282 +2,201 @@ Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 96D95C04AB5
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:11:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 15EAFC04AB5
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:25:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 490B2275D5
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:11:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BF3B5274BA
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 17:25:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=kernelci-org.20150623.gappssmtp.com header.i=@kernelci-org.20150623.gappssmtp.com header.b="ZcmEs7c6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 490B2275D5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kernelci.org
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="2LE6GvdF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF3B5274BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B90CB6B028E; Mon,  3 Jun 2019 13:11:31 -0400 (EDT)
+	id 396A16B026D; Mon,  3 Jun 2019 13:25:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B1A286B0290; Mon,  3 Jun 2019 13:11:31 -0400 (EDT)
+	id 347BF6B026E; Mon,  3 Jun 2019 13:25:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9BAC46B0291; Mon,  3 Jun 2019 13:11:31 -0400 (EDT)
+	id 20EE16B0271; Mon,  3 Jun 2019 13:25:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 491E96B028E
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 13:11:31 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id r16so8802944wrj.13
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 10:11:31 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F265A6B026D
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 13:25:12 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id m1so14435546iop.1
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 10:25:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:date:mime-version
-         :content-transfer-encoding:subject:to:from:cc;
-        bh=HfMZm97BBBVN/Akj4ZX56akpwbWPXy5xSk8GJLfRVB4=;
-        b=JgjcsHCcRM4p13QtON//p5sURZ+6xcUl7hzWKmE7pD9DlqHtlHgwp4PDdxpkd8iSsw
-         Oquq+v2T1DmCKPsshMiB6mnrulWuLJ6YpefVhmne9xKlSr1LPOo70vmcT7X/xi68I3yw
-         4MoYsaXjnlQ11fvm/reT+/P5GfiTthlDigI83Ob6rDoZkrDLV1b5+47LrR8CwvINk9F/
-         PfTX9in28Khiz1P4jAZv3eKC7E7Kxl8B9cZ2eHYYVlSaoHP+YufuEbOGLbicmnVx6AH5
-         7eJ4j+R84ZrscTcHzext+sLOvSotMklwVCY2ViMno/VFGliYvwRfUwbqbvZHSZ7MTo/t
-         e9NQ==
-X-Gm-Message-State: APjAAAX2q7Q0W3m27g4TVHBqVDHzn8fbu1hT5GixX71XtoT0E19Qy/1j
-	ipB586NMkIh0J3xNs0RtjxRQB0WQeWFE5O/L817oSarwvK2OzRgh59ArKlO0oVEnTu+ayFSmYid
-	FHsmY7xcY4PGLVjx1Dfpe1UsiiSyF2EQOd9rdsRd7Vu+GYZco/7DFeGPpe8NudR9+Og==
-X-Received: by 2002:a7b:cb4b:: with SMTP id v11mr14393871wmj.85.1559581890772;
-        Mon, 03 Jun 2019 10:11:30 -0700 (PDT)
-X-Received: by 2002:a7b:cb4b:: with SMTP id v11mr14393800wmj.85.1559581889058;
-        Mon, 03 Jun 2019 10:11:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559581889; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=oT/Qbn3UCsmi4yHa5dCSEdLGPezhKqW3sHyFd1k2UMQ=;
+        b=OY6GEPJNkeuG2tbKyJEmWEKv+guztdTyyaUpeaDsMbknpNIfvLV+3S6m4oQJmyI2c4
+         rcNa+aD8tm8z8lYYl0102+qBADgR+DHtbvE98eiKaBw5wWslRUxiRwb+VAA6bd3hz0du
+         JPMlaT7I2dHwAt9zX37YwXyIyYBejhgtb47jtcyzsH6qFKYm6OSfkUAhxvB4PEz/hoKY
+         UYoQnlz0A4pz3UhBruEsbtIyrsEPKUVBzsjNHZlTYvuEJvplzjx/z1+2kKBspBF5d+1N
+         hvhOxteipJ/jgBhan4ahp9wBthZBarNqm+dnb6esP0jcoWvnv86ATEwbwsvaZtF3twvH
+         JtCA==
+X-Gm-Message-State: APjAAAXEtIACb8AzUB3UtWfLimHAk6zJeLhF2q5GxK0x5gaxY5EGHD5N
+	v2A83kd/lEjkQ/JgcPmacW9DUIIybWz5xQ8RlnzIILCS/aM4gLHHzeoPeWNL/iYcQRrZuSqrDn4
+	pA2PX+7RQjzMElOkpjL5lOoNtpSWAoNY9BRN1OiRHBq2qFdd2vVY9yw0/nOdcECypDg==
+X-Received: by 2002:a5d:9812:: with SMTP id a18mr4106811iol.289.1559582712700;
+        Mon, 03 Jun 2019 10:25:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzOswr+WhFwT15bgHATrXnZCjQWlsnQWf+lo9suKiBH5ttEvglAp7WHpXXscsoCuqpsCinW
+X-Received: by 2002:a5d:9812:: with SMTP id a18mr4106767iol.289.1559582711910;
+        Mon, 03 Jun 2019 10:25:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559582711; cv=none;
         d=google.com; s=arc-20160816;
-        b=oaYFeH+H2iiBboFjrhG0fXdN+zj+1yVxiT7Y09lnd3FFKna3aIYfRgugcIB2H2WN4W
-         3BOM7oxBaKeGGIjmqLiyzSDDSUsJAwh02gFUXRpAJdYAzh+/B3KXKIj7Vy/KOk0KX6e3
-         GdkRf+Z8lY+RPS52iF+1w1PHPaSPCeTUG/HEN1aRPcU5yCnZvnf2b0piO1ht4yEmppXY
-         dG84N963ltzok+GvsUYH2FL7YQ1i1CUsLRrVhnElywgRZHcXrCqdQKK0T0OlTlxk888H
-         VeE9S4R+X6XWPtQmU1tp2ET0JlbhmQxJ+qFge3Y5QJJAdilBKVKin62LVXLfGikuUZ81
-         1QMA==
+        b=CAwuGHWekJb3WPP7M+tfNyV1yU+bXRMQjAnVrzQpprj/26BHCNhlEB1UZD+mX1AzSb
+         bqHTYUgLFWe6iimGKo6BdCt7I9Qth3Hu0x3isnux/5ekXmxSwEqdF9YM4v4LqI1u0gaq
+         dJXooFrxtEkgwcR5dC2fgpEdlwAcesNo6iix8O6WvZPDexha7qjL/ErOQzqvUHTdf1w2
+         S5FtELMGC5Oxo4jN8UMJ66NXzuCLUGDVHATLpMy+OGzSRYMtRwDT/b+G1GHEUxbo15q4
+         ViLaRSnWlfDaFZpDjeBBbC81gOJdjPJhuu8qYwCtthbeaO5Lb5qts/nMBPrKvQ6Ri49h
+         Wt/Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:from:to:subject:content-transfer-encoding:mime-version:date
-         :message-id:dkim-signature;
-        bh=HfMZm97BBBVN/Akj4ZX56akpwbWPXy5xSk8GJLfRVB4=;
-        b=R1jR/MDVDQa940kCNJm448yMalb2HX0B1epJlbaZANSZ5pCpgJdu+OvWI5Pyf7YUcJ
-         oaEatF2Q2mM2spDImmiP+z28yzMkC9ZxXD8qHbo2tBsPqap3Dd6ri/IM6H4vTP1vS2Kt
-         2zWuMCu47VT0y3u4VxyGW0NJWRW9thjtpNa5nxOvyXQbjdRdsQOjI1gyBZpDrt76nAo3
-         CUO/hgzuWFbEPh6HwBLGOwiDHBkjzM4y7EwOOhs8O0Oys0O50+P/KIHXc9MrQUzSgbq4
-         4H7NJVm/9+WZRBg4SiKDplJ7xpyv/UAlJ+KEre+EmYPnffZXH0ham+Y3jKakyRj/Ml4K
-         I33w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=oT/Qbn3UCsmi4yHa5dCSEdLGPezhKqW3sHyFd1k2UMQ=;
+        b=ye2ZKmHNZRvb8fTuai0inwOWtK+ad/ZfOeWz2q306n0OtKcSN1avpugKbSPooJdy9i
+         aE8TKEUYZGW8VKS/vxPUscez6J0xWpgNIcG9n3H1fAMhQdekOxMqDeztHU/v/w4ihcnQ
+         SZMSXM1zsoN94TM82Tt4AVkkYgHrIjs3Iu0S05ufXPdn/ZyBwkoOjGPE++rL4VavuuKL
+         v7hCGbsoWEcoTOsevMK+v92BSyouK8d8nI5bJupgSnEzE4JseRUOqIXE/HyZqNTcWflR
+         999vpwQ5cAnI4EBWhfIhKzM4nXVkiEpoCXlVgkAOZpi0PPzLrRLDo1I9zF3oaSQqFRLH
+         6A1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernelci-org.20150623.gappssmtp.com header.s=20150623 header.b=ZcmEs7c6;
-       spf=pass (google.com: domain of bot@kernelci.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=bot@kernelci.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a15sor1645827wmd.11.2019.06.03.10.11.28
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=2LE6GvdF;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id b5si9304419iok.70.2019.06.03.10.25.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 03 Jun 2019 10:11:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bot@kernelci.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernelci-org.20150623.gappssmtp.com header.s=20150623 header.b=ZcmEs7c6;
-       spf=pass (google.com: domain of bot@kernelci.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=bot@kernelci.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=kernelci-org.20150623.gappssmtp.com; s=20150623;
-        h=message-id:date:mime-version:content-transfer-encoding:subject:to
-         :from:cc;
-        bh=HfMZm97BBBVN/Akj4ZX56akpwbWPXy5xSk8GJLfRVB4=;
-        b=ZcmEs7c6fnfgurJJhQ8swRowMqvfM1d1aToAi1IBQX8PjP+72694Kz5ydGcmeZMrHK
-         vhqBAHnY2+CqzdIxhswFfXzAR7dmqNrph4VMCPGVPQwuMyEaYkjjzCcCKbhyCCcN6DMQ
-         61vvbQg4sbI839hKiJM+jhj9NIXtdqXLRf9RIQv2JBFOR0Iv27Fv3bibpyRJUENHn3YD
-         Z481Tx+4uZ8dpFFJntARJCnzBPwt4uZMfGmjotcVwmHBM/oyMMi/Rbbe0gbgmX3LDUU4
-         Dx4udN6PEWugFLgz0GsVPzFQXuxZGHXkIxJNSpaQVrcma1SjXSHsBRnU6pAAduGCotv7
-         I3gw==
-X-Google-Smtp-Source: APXvYqyeRxdFQwhBL7xhyX75h0tjMNcW0x5MdFT80+6a5BnsE9USodq0FgyWwnPyz+46G0qYXCT2tg==
-X-Received: by 2002:a1c:f416:: with SMTP id z22mr14196739wma.44.1559581888645;
-        Mon, 03 Jun 2019 10:11:28 -0700 (PDT)
-Received: from [148.251.42.114] ([2a01:4f8:201:9271::2])
-        by smtp.gmail.com with ESMTPSA id f20sm11029386wmh.22.2019.06.03.10.11.27
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jun 2019 10:11:27 -0700 (PDT)
-Message-ID: <5cf554bf.1c69fb81.956a8.9d1b@mx.google.com>
-Date: Mon, 03 Jun 2019 10:11:27 -0700 (PDT)
-Content-Type: text/plain; charset="utf-8"
+        Mon, 03 Jun 2019 10:25:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=2LE6GvdF;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x53HJ84U105594;
+	Mon, 3 Jun 2019 17:24:43 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=oT/Qbn3UCsmi4yHa5dCSEdLGPezhKqW3sHyFd1k2UMQ=;
+ b=2LE6GvdF1Spn4zQDJ/S+Y7Lhctbk5tePOYyaCmnqsyOr3uLvhrds+WPbVc6hPXAu9sIP
+ B0Y1nU/oFPg6ixsYXCZSDZnvxtWWQNi0j+MRjf0CBoAknHC52G/m4p1P8MrAI990VZia
+ 8ujGe7kWSRf7xAIGevSgKmBC3Wct5lXwvZ7qokhMwnYkhd63Cundz/Zl5pnAreMOjiWl
+ HWG+ViIH0FjQ4gxddvAi59ghuxHj+MdKKsrJR6n36wSKJyN/Ok8+n4Cy2uvBvd+9a3r5
+ V3Zqu7KeEDVK/adkgGrKlbvS/ddKrXPyTWM+bUnf/xQW/+CSelKEJwh4J3SpjWi5HA+8 Jg== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by userp2130.oracle.com with ESMTP id 2sugst8dvs-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 03 Jun 2019 17:24:42 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x53HO5Kt055049;
+	Mon, 3 Jun 2019 17:24:42 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3030.oracle.com with ESMTP id 2supp77yt1-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 03 Jun 2019 17:24:42 +0000
+Received: from abhmp0013.oracle.com (abhmp0013.oracle.com [141.146.116.19])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x53HOdQw028642;
+	Mon, 3 Jun 2019 17:24:39 GMT
+Received: from [192.168.1.16] (/24.9.64.241)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 03 Jun 2019 10:24:38 -0700
+Subject: Re: [PATCH v16 01/16] uaccess: add untagged_addr definition for other
+ arches
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>,
+        Linux Memory Management List <linux-mm@kvack.org>,
+        LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
+        dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+        linux-media@vger.kernel.org, kvm@vger.kernel.org,
+        "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        Vincenzo Frascino <vincenzo.frascino@arm.com>,
+        Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+        Kees Cook <keescook@chromium.org>, Yishai Hadas <yishaih@mellanox.com>,
+        Felix Kuehling <Felix.Kuehling@amd.com>,
+        Alexander Deucher <Alexander.Deucher@amd.com>,
+        Christian Koenig <Christian.Koenig@amd.com>,
+        Mauro Carvalho Chehab <mchehab@kernel.org>,
+        Jens Wiklander <jens.wiklander@linaro.org>,
+        Alex Williamson <alex.williamson@redhat.com>,
+        Leon Romanovsky <leon@kernel.org>,
+        Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+        Dave Martin <Dave.Martin@arm.com>, enh <enh@google.com>,
+        Jason Gunthorpe <jgg@ziepe.ca>, Christoph Hellwig <hch@infradead.org>,
+        Dmitry Vyukov <dvyukov@google.com>, Kostya Serebryany <kcc@google.com>,
+        Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>,
+        Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+        Jacob Bramley <Jacob.Bramley@arm.com>,
+        Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+        Robin Murphy <robin.murphy@arm.com>,
+        Kevin Brodsky <kevin.brodsky@arm.com>,
+        Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+References: <cover.1559580831.git.andreyknvl@google.com>
+ <097bc300a5c6554ca6fd1886421bb2e0adb03420.1559580831.git.andreyknvl@google.com>
+ <8ff5b0ff-849a-1e0b-18da-ccb5be85dd2b@oracle.com>
+ <CAAeHK+xX2538e674Pz25unkdFPCO_SH0pFwFu=8+DS7RzfYnLQ@mail.gmail.com>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Organization: Oracle Corp
+Message-ID: <f6711d31-e52c-473a-d7ad-b2d63131d7a5@oracle.com>
+Date: Mon, 3 Jun 2019 11:24:35 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
+In-Reply-To: <CAAeHK+xX2538e674Pz25unkdFPCO_SH0pFwFu=8+DS7RzfYnLQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
-X-Kernelci-Report-Type: bisect
-X-Kernelci-Kernel: next-20190603
-X-Kernelci-Branch: master
-X-Kernelci-Lab-Name: lab-mhart
-X-Kernelci-Tree: next
-Subject: next/master boot bisection: next-20190603 on jetson-tk1
-To: Stephen Rothwell <sfr@canb.auug.org.au>, tomeu.vizoso@collabora.com,
- guillaume.tucker@collabora.com, mgalka@collabora.com,
- Uladzislau Rezki (Sony) <urezki@gmail.com>, broonie@kernel.org,
- matthew.hart@linaro.org, Hillf Danton <hdanton@sina.com>, khilman@baylibre.com,
- enric.balletbo@collabora.com, Andrew Morton <akpm@linux-foundation.org>
-From: "kernelci.org bot" <bot@kernelci.org>
-Cc: "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
- Chintan Pandya <cpandya@codeaurora.org>, Mike Rapoport <rppt@linux.ibm.com>,
- Andrey Ryabinin <aryabinin@virtuozzo.com>, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>,
- Roman Penyaev <rpenyaev@suse.de>, Rick Edgecombe <rick.p.edgecombe@intel.com>
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9277 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=800
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1906030120
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9277 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=813 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906030120
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-* This automated bisection report was sent to you on the basis  *
-* that you may be involved with the breaking commit it has      *
-* found.  No manual investigation has been done to verify it,   *
-* and the root cause of the problem may be somewhere else.      *
-* Hope this helps!                                              *
-* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+On 6/3/19 11:06 AM, Andrey Konovalov wrote:
+> On Mon, Jun 3, 2019 at 7:04 PM Khalid Aziz <khalid.aziz@oracle.com> wro=
+te:
+>> Andrey,
+>>
+>> This patch has now become part of the other patch series Chris Hellwig=
 
-next/master boot bisection: next-20190603 on jetson-tk1
+>> has sent out -
+>> <https://lore.kernel.org/lkml/20190601074959.14036-1-hch@lst.de/>. Can=
 
-Summary:
-  Start:      ae3cad8f39cc Add linux-next specific files for 20190603
-  Details:    https://kernelci.org/boot/id/5cf4e76059b514265fd51501
-  Plain log:  https://storage.kernelci.org//next/master/next-20190603/arm/m=
-ulti_v7_defconfig+CONFIG_SMP=3Dn/gcc-8/lab-mhart/boot-tegra124-jetson-tk1.t=
-xt
-  HTML log:   https://storage.kernelci.org//next/master/next-20190603/arm/m=
-ulti_v7_defconfig+CONFIG_SMP=3Dn/gcc-8/lab-mhart/boot-tegra124-jetson-tk1.h=
-tml
-  Result:     728e0fbf263e mm/vmalloc.c: get rid of one single unlink_va() =
-when merge
+>> you coordinate with that patch series?
+>=20
+> Hi!
+>=20
+> Yes, I've seen it. How should I coordinate? Rebase this series on top
+> of that one?
 
-Checks:
-  revert:     PASS
-  verify:     PASS
+That would be one way to do it. Better yet, separate this patch from
+both patch series, make it standalone and then rebase the two patch
+series on top of it.
 
-Parameters:
-  Tree:       next
-  URL:        git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next=
-.git
-  Branch:     master
-  Target:     jetson-tk1
-  CPU arch:   arm
-  Lab:        lab-mhart
-  Compiler:   gcc-8
-  Config:     multi_v7_defconfig+CONFIG_SMP=3Dn
-  Test suite: boot
-
-Breaking commit found:
-
----------------------------------------------------------------------------=
-----
-commit 728e0fbf263e3ed359c10cb13623390564102881
-Author: Uladzislau Rezki (Sony) <urezki@gmail.com>
-Date:   Sat Jun 1 12:20:19 2019 +1000
-
-    mm/vmalloc.c: get rid of one single unlink_va() when merge
-    =
-
-    It does not make sense to try to "unlink" the node that is definitely n=
-ot
-    linked with a list nor tree.  On the first merge step VA just points to
-    the previously disconnected busy area.
-    =
-
-    On the second step, check if the node has been merged and do "unlink" if
-    so, because now it points to an object that must be linked.
-    =
-
-    Link: http://lkml.kernel.org/r/20190527151843.27416-4-urezki@gmail.com
-    Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
-    Acked-by: Hillf Danton <hdanton@sina.com>
-    Cc: Ingo Molnar <mingo@elte.hu>
-    Cc: Joel Fernandes <joelaf@google.com>
-    Cc: Matthew Wilcox <willy@infradead.org>
-    Cc: Michal Hocko <mhocko@suse.com>
-    Cc: Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>
-    Cc: Roman Gushchin <guro@fb.com>
-    Cc: Steven Rostedt <rostedt@goodmis.org>
-    Cc: Tejun Heo <tj@kernel.org>
-    Cc: Thomas Garnier <thgarnie@google.com>
-    Cc: Thomas Gleixner <tglx@linutronix.de>
-    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-    Signed-off-by: Stephen Rothwell <sfr@canb.auug.org.au>
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 899d73a27d13..6a490c35801a 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -719,8 +719,8 @@ merge_or_add_vmap_area(struct vmap_area *va,
- 			/* Check and update the tree if needed. */
- 			augment_tree_propagate_from(sibling);
- =
-
--			/* Remove this VA, it has been merged. */
--			unlink_va(va, root);
-+			if (merged)
-+				unlink_va(va, root);
- =
-
- 			/* Free vmap_area object. */
- 			kmem_cache_free(vmap_area_cachep, va);
-@@ -746,9 +746,6 @@ merge_or_add_vmap_area(struct vmap_area *va,
- 			/* Check and update the tree if needed. */
- 			augment_tree_propagate_from(sibling);
- =
-
--			/* Remove this VA, it has been merged. */
--			unlink_va(va, root);
--
- 			/* Free vmap_area object. */
- 			kmem_cache_free(vmap_area_cachep, va);
----------------------------------------------------------------------------=
-----
-
-
-Git bisection log:
-
----------------------------------------------------------------------------=
-----
-git bisect start
-# good: [f2c7c76c5d0a443053e94adb9f0918fa2fb85c3a] Linux 5.2-rc3
-git bisect good f2c7c76c5d0a443053e94adb9f0918fa2fb85c3a
-# bad: [ae3cad8f39ccf8d31775d9737488bccf0e44d370] Add linux-next specific f=
-iles for 20190603
-git bisect bad ae3cad8f39ccf8d31775d9737488bccf0e44d370
-# good: [8ff6f4c6e067a9d3f3bbacf02c4ea5eb81fe2c6a] Merge remote-tracking br=
-anch 'crypto/master'
-git bisect good 8ff6f4c6e067a9d3f3bbacf02c4ea5eb81fe2c6a
-# good: [6c93755861ce6a6dd904df9cdae9f08671132dbe] Merge remote-tracking br=
-anch 'iommu/next'
-git bisect good 6c93755861ce6a6dd904df9cdae9f08671132dbe
-# good: [1a567956cb3be5754d94ce9380a2151e57e204a7] Merge remote-tracking br=
-anch 'cgroup/for-next'
-git bisect good 1a567956cb3be5754d94ce9380a2151e57e204a7
-# good: [a6878ca73cf30b83efbdfb1ecc443d7cfb2d8193] Merge remote-tracking br=
-anch 'rtc/rtc-next'
-git bisect good a6878ca73cf30b83efbdfb1ecc443d7cfb2d8193
-# bad: [b2b94a9c4f8fc4229cd8b14d8417fc491e5f5d7c] mm, memcg: make memory.em=
-in the baseline for utilisation determination
-git bisect bad b2b94a9c4f8fc4229cd8b14d8417fc491e5f5d7c
-# good: [e824d3a072bd3f93a0c7616dee4bdb3410e0a767] memcg, fsnotify: no oom-=
-kill for remote memcg charging
-git bisect good e824d3a072bd3f93a0c7616dee4bdb3410e0a767
-# good: [83f89893bd05fe97b43cbe7f5c2eacbb0fdc966a] drivers/base/memory: pas=
-s a block_id to init_memory_block()
-git bisect good 83f89893bd05fe97b43cbe7f5c2eacbb0fdc966a
-# bad: [8d388102126d935b8d7294162f6b4ebf6b0494c5] tools/vm/slabinfo: add op=
-tion to sort by partial slabs
-git bisect bad 8d388102126d935b8d7294162f6b4ebf6b0494c5
-# good: [df18a3805de35506cd05da7aceba3704c8ec6962] mm/vmalloc.c: remove "no=
-de" argument
-git bisect good df18a3805de35506cd05da7aceba3704c8ec6962
-# bad: [adc7c46cd31f1a3ca27508cb9435187b3c6539a4] mm: vmscan: remove double=
- slab pressure by inc'ing sc->nr_scanned
-git bisect bad adc7c46cd31f1a3ca27508cb9435187b3c6539a4
-# bad: [728e0fbf263e3ed359c10cb13623390564102881] mm/vmalloc.c: get rid of =
-one single unlink_va() when merge
-git bisect bad 728e0fbf263e3ed359c10cb13623390564102881
-# good: [1ed20f4bc22412db94535d4df384082c98903da9] mm/vmalloc.c: preload a =
-CPU with one object for split purpose
-git bisect good 1ed20f4bc22412db94535d4df384082c98903da9
-# first bad commit: [728e0fbf263e3ed359c10cb13623390564102881] mm/vmalloc.c=
-: get rid of one single unlink_va() when merge
----------------------------------------------------------------------------=
-----
+--
+Khalid
 
