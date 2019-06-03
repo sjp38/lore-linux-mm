@@ -2,347 +2,181 @@ Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0AA71C04AB6
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 04:29:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76903C28CC6
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 04:53:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A24F827B6A
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 04:29:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="LPQlwJrO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A24F827B6A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 37A9E27B84
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 04:53:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37A9E27B84
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4F2096B0279; Mon,  3 Jun 2019 00:29:25 -0400 (EDT)
+	id C33C86B026B; Mon,  3 Jun 2019 00:53:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4A3DD6B027A; Mon,  3 Jun 2019 00:29:25 -0400 (EDT)
+	id BEC5E6B026C; Mon,  3 Jun 2019 00:53:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36A8F6B027B; Mon,  3 Jun 2019 00:29:25 -0400 (EDT)
+	id AAB996B026D; Mon,  3 Jun 2019 00:53:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1547F6B0279
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 00:29:25 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id l11so3414590qtp.22
-        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 21:29:25 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 57B246B026B
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 00:53:21 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id f15so23868269ede.8
+        for <linux-mm@kvack.org>; Sun, 02 Jun 2019 21:53:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=u3v0eiZffY+v2sn8V9SnXJ0gtCWl1JCgJq73oZGa8dI=;
-        b=FceihokTILCqS8kH70aDI+iFr2V0COHl+JEbF4RmN3t3k6ElP+yPV4li8dLZ7J3mqT
-         VEFp7n1dl3ggQVtB2Cb7OaeK4S5sas7Tz2HM/hS/U1o4QCUMWyNAIfdGs5VESS+htQZE
-         8VAynXs0xq0QP/kFgH5rVVtnt0M+gPkV3JUrCG/j/AQcu7WTkVNogpuu6j3JQx3g+HE2
-         UIA7o1YSBpTUSrh0G/T6kbrtSSNfERoyqFsXZDA44Cl77RLwtam3q96Q4DE9vOOGDAGz
-         5I8+Y/u0o/Y2w3gHCZqer/wkkCYkdXKVNt67977JhlCTmZzdZ3zOsNc5wBFv/gO/eCf8
-         J4lA==
-X-Gm-Message-State: APjAAAW+JQnx+Q9Q+BUwXR42+47ocmsPFsTscD1oFdvG+GqhrXig3jr2
-	4ZbVEc5zW62hHSy2lWn+r3punuvqvgSu+lO7v57KTaA2tqjNKerxrKVMt5NbpfGmooX2NPrOJiY
-	0gNLBDt/PDs7Z5PFi7jSJoSXnfrPW4Aq+27EuByBujrVLaAwue6dBLbdsAsMHN1M=
-X-Received: by 2002:ac8:6984:: with SMTP id o4mr21012200qtq.122.1559536164818;
-        Sun, 02 Jun 2019 21:29:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwWtW5A6aIojwDR+Ct0s1cjEsuFB0mmAgkjbTNFn4Kc+DxxOKwlZWspmEZAFUAIUNSeYHbU
-X-Received: by 2002:ac8:6984:: with SMTP id o4mr21012170qtq.122.1559536163998;
-        Sun, 02 Jun 2019 21:29:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559536163; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=bPIWbE2q76g+esVcv8gpMOKvYwWEx38JKPKguY5Y3MQ=;
+        b=rfCL2pZKf8NRu+VGM5NpFZOWodV6Bur7kvVsBPSEsERPD0LKUw0ynEvK/42nRqpVbg
+         VtwwJn9bMtZrVEWLYr/3b9MQT6UN11aEl2DHUnOcjzTEhH0UXnw316JmvXT57/DUaCAi
+         aevQLC+CUeSgMr+8/x9LJ6UGMmgBgy2F6x3eZg1FVCINrgPToFqSEJosh11Iu803soA7
+         aobTA3dG20dtdGrF4BoyTmZ1Hak1fxNgu1NHqRXFDJ7T9IBUC9PReh+ZlDehhw01y0ey
+         eL1s5+/ISI3PFSA7R9K97gYDxwhh5AWuQW4T//RIQvG8s5eCwCoNu76gMeDPT6Z2ganj
+         la3g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAVWWcwT7IS/no0V5BqflgyrEP+VEOlTIPqu5qZPBa0tn+KARkr+
+	Aeah419i9s1QbvRGgPTMQr3jcRIF6paViWVK3YoPNKUs61/A9zVCYLYydFkporqwlJsoIJcFspI
+	+uVJxiSBICyM6ANQ78tEv9gC0nLMemeyIy/AxYT7EpVLuOreYUNbX15IAPUGr/JPwwQ==
+X-Received: by 2002:a17:906:4482:: with SMTP id y2mr21501298ejo.201.1559537600908;
+        Sun, 02 Jun 2019 21:53:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy8Qo0MTH1Wmy/txoNXaVwAaRaBLH8nXAZaTZ3dcu+048jAPyScangDsLeIctUD3uC+MSDA
+X-Received: by 2002:a17:906:4482:: with SMTP id y2mr21501252ejo.201.1559537600024;
+        Sun, 02 Jun 2019 21:53:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559537600; cv=none;
         d=google.com; s=arc-20160816;
-        b=S5v9GTz9/G5CiFsG9P1jM3F5zDQzKrpEcJdbZU6X/44H8G1zgjml9hranQaCrYtGGn
-         RCVh1ncZZ9NE6tuYQ0VzHpHH1+f092oSY/pXYETbfudOW1KsXic9r0DT4NWtplWpfwGQ
-         NUGyuglCvmVKJdquhrc8vIVPiXf1uJRPm+9vCblP2nXrwOiA4vabg1f89VuuljKT/YU/
-         9CVecImO2tbCcLuVJ59Hpe9FN/vcy+7vo44Pk+jnqM/F4RpLeE+Km2YApN/SZbqEsEza
-         1FskFpLzAYwst1X7tpEUlXxSBcXHOo3OvfU1aAqds8aFwLra3UlQJMvp5zJi3BURUgIA
-         4ejw==
+        b=oYDGHpzfabjbJNYjity2JMEJsgCk/B43XXLAAxg4801JZkGQhBknn65RaziR/78wvp
+         lpbynvC+mZb4H8Cp1Kf1x2GSPjR/dgS+v3yPpZmDafnP5vqDEkWm0b70KIqubWzyD4Au
+         ffsTKR+In95dEyniU+nplg/VDiTviT9FtNMW1usV3lnbC/xBt7kHPCJeBDol+aOVJbtt
+         gmDnhbFjLQEUaq4kMXZEBiSBSCb7YSNSB6kwOxOG4LmoD9eOjmn7XzBr8P21kldEDqpM
+         qRWEqQwPS63+u1eaOuTifUiIDdMuTSY842euq8EyMKg2vw6bh2Z9ZWO6hJqTEucUS0lD
+         5uIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=u3v0eiZffY+v2sn8V9SnXJ0gtCWl1JCgJq73oZGa8dI=;
-        b=cmhhfzIrh9tsNY2E3D9lqYp77qpBjlxrQbHYCR2SbsmeAbH6ZNIQ+zwrjAwstcaheQ
-         czAc85iVM9yHY6Sdx+xrH97vXmZ0rG7okMGWY/+Axhdz50RhYnfn/bEKBoKVYee0U4B6
-         U5bKm5in89qBZNr5z8PYaDjXfXtCvbsqIyJx4iE0JfMrZDe8CNFYthYn/9I0gNU4afDc
-         SdRGEaOC5mdprIFypbYboz/C4XdBpFUdvo2rGloUvI2Zq9xuU2zzG8rR9b0KXKAopfTE
-         EgUghwg0+GUFCLQAM9fjCvDMXXnC2LPaLfQsoFmzDB48yCg/tSdKwnpVynMXbz5DxT/a
-         LdmQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=bPIWbE2q76g+esVcv8gpMOKvYwWEx38JKPKguY5Y3MQ=;
+        b=hOvWrjSuEAYPH879bx1jCTSRRMNpRwPYSzXuf45uUB4SUqPOfJD0iYsdqijbRvsgWZ
+         0ZFszbT+hqYlXirV7Hf61jr6EaYdTYHYutswW4FPFlFHJ3dofysQi8DFmmGajCB0bwPU
+         E4AELir9qeGJPZrv2RhriU4G6QKUKho8jTYfEHAQl3bUscl+48RTRDLen/OE9U5Kpdo/
+         NA3qfcFBCqjk2Rt245CQiV/fOIYmQpF16RdNryz7A221vMVSVW8vE3AGkG+IC8MrzCmH
+         nUvCDJeyy6TQEaL7NROJV0T5TmzF7aPi2M/w3ubLWm7hOUbDtNCRPiQcJzM09Ru0oeSV
+         RNrw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=LPQlwJrO;
-       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) smtp.mailfrom=tobin@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from new4-smtp.messagingengine.com (new4-smtp.messagingengine.com. [66.111.4.230])
-        by mx.google.com with ESMTPS id c8si9144229qkl.265.2019.06.02.21.29.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 02 Jun 2019 21:29:23 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) client-ip=66.111.4.230;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id ec18si252386ejb.374.2019.06.02.21.53.19
+        for <linux-mm@kvack.org>;
+        Sun, 02 Jun 2019 21:53:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@messagingengine.com header.s=fm2 header.b=LPQlwJrO;
-       spf=softfail (google.com: domain of transitioning tobin@kernel.org does not designate 66.111.4.230 as permitted sender) smtp.mailfrom=tobin@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from compute3.internal (compute3.nyi.internal [10.202.2.43])
-	by mailnew.nyi.internal (Postfix) with ESMTP id BF63821FB;
-	Mon,  3 Jun 2019 00:29:23 -0400 (EDT)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute3.internal (MEProxy); Mon, 03 Jun 2019 00:29:23 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-transfer-encoding:date:from
-	:in-reply-to:message-id:mime-version:references:subject:to
-	:x-me-proxy:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=
-	fm2; bh=u3v0eiZffY+v2sn8V9SnXJ0gtCWl1JCgJq73oZGa8dI=; b=LPQlwJrO
-	rlkK/aTKLE3ZbR1UfmcfzlAUCyKPw8waLGQpzkYI/A5+0IKEnsjJYFiMUoD8MDkj
-	vrHDs2Ya0zR7ue81LL1ThhvGv8BimaSnUO9o6q1Lwt09kbSu7ZxchL1OQteUlPRR
-	7TuZ+oS/qf3nJ2oT0uqWSGSaPJ0UWQX4UGcbRHdiRq32EQzkgCpOOYZDWaBxbDAm
-	2oIWR+76Jkwz5DjIXVBUpxmSEWbNUMo35tOH7i4WBJgkm4F0MSBJBY9jmNgjC6g4
-	4zsmGirt8UPn1jynaz2Eei9l2/1GU3t43bhb1qgvnFXaPBS5rbUm90UCcp1+u6CA
-	uhWce+zErqC7jQ==
-X-ME-Sender: <xms:I6L0XFEznNRIUkNHx7UbsZfU9uDOw6Pn3cmv7vgfcRGktT7hz75qaw>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduuddrudefiedgkedvucetufdoteggodetrfdotf
-    fvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfqfgfvpdfurfetoffkrfgpnffqhgen
-    uceurghilhhouhhtmecufedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmne
-    cujfgurhephffvufffkffojghfggfgsedtkeertdertddtnecuhfhrohhmpedfvfhosghi
-    nhcuvedrucfjrghrughinhhgfdcuoehtohgsihhnsehkvghrnhgvlhdrohhrgheqnecukf
-    hppeduvdegrddugeelrdduudefrdefieenucfrrghrrghmpehmrghilhhfrhhomhepthho
-    sghinheskhgvrhhnvghlrdhorhhgnecuvehluhhsthgvrhfuihiivgeptd
-X-ME-Proxy: <xmx:I6L0XD6XFsa_C5ICtjyrrqbuwSuHB4fQ37d1hdpdEfYg2uSW9Xc5Yw>
-    <xmx:I6L0XCn8NLLBcNa-_ERRzkHIJbw9gA4n1PciJj_sPM0vmTB55-vVZw>
-    <xmx:I6L0XJx0SX5f1wjC9N1bHp1dsCmOvgZLpMXtQlnbIRYHpl5D5-Ihgg>
-    <xmx:I6L0XGIvyG0fCyoVfFBSyKm10T_BvgTvEyXvbgoULHTtC5W9qnRIUw>
-Received: from eros.localdomain (124-149-113-36.dyn.iinet.net.au [124.149.113.36])
-	by mail.messagingengine.com (Postfix) with ESMTPA id 9CF3C8005B;
-	Mon,  3 Jun 2019 00:29:16 -0400 (EDT)
-From: "Tobin C. Harding" <tobin@kernel.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Tobin C. Harding" <tobin@kernel.org>,
-	Roman Gushchin <guro@fb.com>,
-	Alexander Viro <viro@ftp.linux.org.uk>,
-	Christoph Hellwig <hch@infradead.org>,
-	Pekka Enberg <penberg@cs.helsinki.fi>,
-	David Rientjes <rientjes@google.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-	Christopher Lameter <cl@linux.com>,
-	Miklos Szeredi <mszeredi@redhat.com>,
-	Andreas Dilger <adilger@dilger.ca>,
-	Waiman Long <longman@redhat.com>,
-	Tycho Andersen <tycho@tycho.ws>,
-	Theodore Ts'o <tytso@mit.edu>,
-	Andi Kleen <ak@linux.intel.com>,
-	David Chinner <david@fromorbit.com>,
-	Nick Piggin <npiggin@gmail.com>,
-	Rik van Riel <riel@redhat.com>,
-	Hugh Dickins <hughd@google.com>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Matthew Wilcox <willy@infradead.org>,
-	linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH 15/15] slub: Enable balancing slabs across nodes
-Date: Mon,  3 Jun 2019 14:26:37 +1000
-Message-Id: <20190603042637.2018-16-tobin@kernel.org>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190603042637.2018-1-tobin@kernel.org>
-References: <20190603042637.2018-1-tobin@kernel.org>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id A87D1341;
+	Sun,  2 Jun 2019 21:53:18 -0700 (PDT)
+Received: from [10.162.40.144] (p8cg001049571a15.blr.arm.com [10.162.40.144])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id CC0BB3F5AF;
+	Sun,  2 Jun 2019 21:53:11 -0700 (PDT)
+Subject: Re: [RFC] mm: Generalize notify_page_fault()
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
+ linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+ linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+ Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
+ Mark Rutland <mark.rutland@arm.com>,
+ Christophe Leroy <christophe.leroy@c-s.fr>,
+ Stephen Rothwell <sfr@canb.auug.org.au>,
+ Andrey Konovalov <andreyknvl@google.com>,
+ Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
+ Russell King <linux@armlinux.org.uk>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Tony Luck <tony.luck@intel.com>,
+ Fenghua Yu <fenghua.yu@intel.com>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>,
+ "David S. Miller" <davem@davemloft.net>
+References: <1559195713-6956-1-git-send-email-anshuman.khandual@arm.com>
+ <20190530110639.GC23461@bombadil.infradead.org>
+ <4f9a610d-e856-60f6-4467-09e9c3836771@arm.com>
+ <20190530133954.GA2024@bombadil.infradead.org>
+ <f1995445-d5ab-f292-d26c-809581002184@arm.com>
+ <20190531174854.GA31852@bombadil.infradead.org>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <6338fef8-e097-a76e-5c07-455d0d9b6e24@arm.com>
+Date: Mon, 3 Jun 2019 10:23:26 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190531174854.GA31852@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We have just implemented Slab Movable Objects (SMO).  On NUMA systems
-slabs can become unbalanced i.e. many slabs on one node while other
-nodes have few slabs.  Using SMO we can balance the slabs across all
-the nodes.
 
-The algorithm used is as follows:
 
- 1. Move all objects to node 0 (this has the effect of defragmenting the
-    cache).
+On 05/31/2019 11:18 PM, Matthew Wilcox wrote:
+> On Fri, May 31, 2019 at 02:17:43PM +0530, Anshuman Khandual wrote:
+>> On 05/30/2019 07:09 PM, Matthew Wilcox wrote:
+>>> On Thu, May 30, 2019 at 05:31:15PM +0530, Anshuman Khandual wrote:
+>>>> On 05/30/2019 04:36 PM, Matthew Wilcox wrote:
+>>>>> The two handle preemption differently.  Why is x86 wrong and this one
+>>>>> correct?
+>>>>
+>>>> Here it expects context to be already non-preemptible where as the proposed
+>>>> generic function makes it non-preemptible with a preempt_[disable|enable]()
+>>>> pair for the required code section, irrespective of it's present state. Is
+>>>> not this better ?
+>>>
+>>> git log -p arch/x86/mm/fault.c
+>>>
+>>> search for 'kprobes'.
+>>>
+>>> tell me what you think.
+>>
+>> Are you referring to these following commits
+>>
+>> a980c0ef9f6d ("x86/kprobes: Refactor kprobes_fault() like kprobe_exceptions_notify()")
+>> b506a9d08bae ("x86: code clarification patch to Kprobes arch code")
+>>
+>> In particular the later one (b506a9d08bae). It explains how the invoking context
+>> in itself should be non-preemptible for the kprobes processing context irrespective
+>> of whether kprobe_running() or perhaps smp_processor_id() is safe or not. Hence it
+>> does not make much sense to continue when original invoking context is preemptible.
+>> Instead just bail out earlier. This seems to be making more sense than preempt
+>> disable-enable pair. If there are no concerns about this change from other platforms,
+>> I will change the preemption behavior in proposed generic function next time around.
+> 
+> Exactly.
+> 
+> So, any of the arch maintainers know of a reason they behave differently
+> from x86 in this regard?  Or can Anshuman use the x86 implementation
+> for all the architectures supporting kprobes?
 
- 2. Calculate the desired number of slabs for each node (this is done
-    using the approximation nr_slabs / nr_nodes).
+So the generic notify_page_fault() will be like this.
 
- 3. Loop over the nodes moving the desired number of slabs from node 0
-    to the node.
+int __kprobes notify_page_fault(struct pt_regs *regs, unsigned int trap)
+{
+        int ret = 0;
 
-Feature is conditionally built in with CONFIG_SMO_NODE, this is because
-we need the full list (we enable SLUB_DEBUG to get this).  Future
-version may separate final list out of SLUB_DEBUG.
-
-Expose this functionality to userspace via a sysfs entry.  Add sysfs
-entry:
-
-       /sysfs/kernel/slab/<cache>/balance
-
-Write of '1' to this file triggers balance, no other value accepted.
-
-This feature relies on SMO being enable for the cache, this is done with
-a call to, after the isolate/migrate functions have been defined.
-
-	kmem_cache_setup_mobility(s, isolate, migrate)
-
-Signed-off-by: Tobin C. Harding <tobin@kernel.org>
----
- mm/slub.c | 130 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 130 insertions(+)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 23566e5a712b..70e46c4db757 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -4458,6 +4458,119 @@ static unsigned long kmem_cache_move_to_node(struct kmem_cache *s, int node)
- 
- 	return left;
- }
-+
-+/*
-+ * kmem_cache_move_slabs() - Attempt to move @num slabs to target_node,
-+ * @s: The cache we are working on.
-+ * @node: The node to move objects from.
-+ * @target_node: The node to move objects to.
-+ * @num: The number of slabs to move.
-+ *
-+ * Attempts to move @num slabs from @node to @target_node.  This is done
-+ * by migrating objects from slabs on the full_list.
-+ *
-+ * Return: The number of slabs moved or error code.
-+ */
-+static long kmem_cache_move_slabs(struct kmem_cache *s,
-+				  int node, int target_node, long num)
-+{
-+	struct kmem_cache_node *n = get_node(s, node);
-+	LIST_HEAD(move_list);
-+	struct page *page, *page2;
-+	unsigned long flags;
-+	void **scratch;
-+	long done = 0;
-+
-+	if (!s->migrate) {
-+		pr_warn("%s SMO not enabled, cannot move objects\n", s->name);
-+		goto out;
-+	}
-+
-+	if (node == target_node)
-+		return -EINVAL;
-+
-+	scratch = alloc_scratch(s);
-+	if (!scratch)
-+		return -ENOMEM;
-+
-+	spin_lock_irqsave(&n->list_lock, flags);
-+
-+	list_for_each_entry_safe(page, page2, &n->full, lru) {
-+		if (!slab_trylock(page))
-+			/* Busy slab. Get out of the way */
-+			continue;
-+
-+		list_move(&page->lru, &move_list);
-+		page->frozen = 1;
-+		slab_unlock(page);
-+
-+		if (++done >= num)
-+			break;
-+	}
-+	spin_unlock_irqrestore(&n->list_lock, flags);
-+
-+	list_for_each_entry(page, &move_list, lru) {
-+		if (page->inuse)
-+			move_slab_page(page, scratch, target_node);
-+	}
-+	kfree(scratch);
-+
-+	/* Bail here to save taking the list_lock */
-+	if (list_empty(&move_list))
-+		goto out;
-+
-+	/* Inspect results and dispose of pages */
-+	spin_lock_irqsave(&n->list_lock, flags);
-+	list_for_each_entry_safe(page, page2, &move_list, lru) {
-+		list_del(&page->lru);
-+		slab_lock(page);
-+		page->frozen = 0;
-+
-+		if (page->inuse) {
-+			/*
-+			 * This is best effort only, if slab still has
-+			 * objects just put it back on the partial list.
-+			 */
-+			n->nr_partial++;
-+			list_add_tail(&page->lru, &n->partial);
-+			slab_unlock(page);
-+		} else {
-+			slab_unlock(page);
-+			discard_slab(s, page);
-+		}
-+	}
-+	spin_unlock_irqrestore(&n->list_lock, flags);
-+out:
-+	return done;
-+}
-+
-+/*
-+ * kmem_cache_balance_nodes() - Balance slabs across nodes.
-+ * @s: The cache we are working on.
-+ */
-+static void kmem_cache_balance_nodes(struct kmem_cache *s)
-+{
-+	struct kmem_cache_node *n = get_node(s, 0);
-+	unsigned long desired_nr_slabs_per_node;
-+	unsigned long nr_slabs;
-+	int nr_nodes = 0;
-+	int nid;
-+
-+	(void)kmem_cache_move_to_node(s, 0);
-+
-+	for_each_node_state(nid, N_NORMAL_MEMORY)
-+		nr_nodes++;
-+
-+	nr_slabs = atomic_long_read(&n->nr_slabs);
-+	desired_nr_slabs_per_node = nr_slabs / nr_nodes;
-+
-+	for_each_node_state(nid, N_NORMAL_MEMORY) {
-+		if (nid == 0)
-+			continue;
-+
-+		kmem_cache_move_slabs(s, 0, nid, desired_nr_slabs_per_node);
-+	}
-+}
- #endif	/* CONFIG_SLUB_SMO_NODE */
- 
- /*
-@@ -5836,6 +5949,22 @@ static ssize_t move_store(struct kmem_cache *s, const char *buf, size_t length)
- 	return length;
- }
- SLAB_ATTR(move);
-+
-+static ssize_t balance_show(struct kmem_cache *s, char *buf)
-+{
-+	return 0;
-+}
-+
-+static ssize_t balance_store(struct kmem_cache *s,
-+			     const char *buf, size_t length)
-+{
-+	if (buf[0] == '1')
-+		kmem_cache_balance_nodes(s);
-+	else
-+		return -EINVAL;
-+	return length;
-+}
-+SLAB_ATTR(balance);
- #endif	/* CONFIG_SLUB_SMO_NODE */
- 
- #ifdef CONFIG_NUMA
-@@ -5964,6 +6093,7 @@ static struct attribute *slab_attrs[] = {
- 	&shrink_attr.attr,
- #ifdef CONFIG_SLUB_SMO_NODE
- 	&move_attr.attr,
-+	&balance_attr.attr,
- #endif
- 	&slabs_cpu_partial_attr.attr,
- #ifdef CONFIG_SLUB_DEBUG
--- 
-2.21.0
+        /*
+         * To be potentially processing a kprobe fault and to be allowed
+         * to call kprobe_running(), we have to be non-preemptible.
+         */
+        if (kprobes_built_in() && !preemptible() && !user_mode(regs)) {
+                if (kprobe_running() && kprobe_fault_handler(regs, trap))
+                        ret = 1;
+        }
+        return ret;
+}
 
