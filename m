@@ -1,424 +1,258 @@
 Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Level: *
+X-Spam-Status: No, score=1.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E179C28CC6
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 22:38:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 800FBC282CE
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 23:02:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFE6D26A01
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 22:38:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EF93826B44
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 23:02:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="s9+aMnx6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFE6D26A01
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="EgfyT96f"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EF93826B44
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3BD2E6B0271; Mon,  3 Jun 2019 18:38:40 -0400 (EDT)
+	id 691736B0274; Mon,  3 Jun 2019 19:02:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 36E7A6B0273; Mon,  3 Jun 2019 18:38:40 -0400 (EDT)
+	id 641EA6B0276; Mon,  3 Jun 2019 19:02:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 266456B0274; Mon,  3 Jun 2019 18:38:40 -0400 (EDT)
+	id 50AD46B0277; Mon,  3 Jun 2019 19:02:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 075736B0271
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 18:38:40 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id n8so4293598ioo.21
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 15:38:40 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 14BD56B0274
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 19:02:15 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id m12so12688860pls.10
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 16:02:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=F/ixDeQhQV0jkM+ZLEc/zUFxrkTvZoI9aB593YmsPiA=;
-        b=brMu3tL0ipeMN8xNifevPtJJmufp7GLD6hiu1tmHhuIy5r9LUCPcVSPEUfk+DsDP6z
-         Tv8qLds8kCAv9Mh5joWpLe8m58rqg5g+WAhwv+Az6S72SI6HNttuAWL/fS56M9CkCWBR
-         QRuBjFLp00+3VLlBPNQZ5ghVWxlhqZ5z9n0Az8jTHeSpvbELyUxdWbLSPtrYYyrVor9d
-         o5dkkQ16mrtCoEuiLQxUZuOBXkcTx0w9zFRn2Tnfem0VZgzUj4t1FAxOGddm51mi8yWN
-         Gh0OzfewZo6zvtgJQEIvs+M5UQbwpIny2XdqlmHQsgd/apqhJwFGBQkKCRu4ICPo6hNg
-         +KfQ==
-X-Gm-Message-State: APjAAAUOfglf4nk4T3iBoIXW9lCf946ga1PSYsgBLKCDkfwb2Tv5GwSC
-	COcQi9189brW6BDM4QWC2Nluu1kb8MySSbOgEx+MFS6nc3ElBptM3mHs92ZHxWgjXDmjp+YtXmw
-	3OxarG8ejIrXJKPihc4/P/ZSeFiRBwOkOxf6R0q9MdoO7FOXbMdiEKLb1FRIzJ0T4fw==
-X-Received: by 2002:a02:cb96:: with SMTP id u22mr2456038jap.118.1559601519705;
-        Mon, 03 Jun 2019 15:38:39 -0700 (PDT)
-X-Received: by 2002:a02:cb96:: with SMTP id u22mr2455998jap.118.1559601518650;
-        Mon, 03 Jun 2019 15:38:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559601518; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=yGWgisOzgWfpAsWuWpBW9wv4B2VfU1HINjYPzcFySSo=;
+        b=YXWRFA4JyF2x5Qiaqyhru3PA4UFhwbdZkpDrX2hxdAEwoyiR/ugwxXD2GQeWHohTp9
+         JIzSYwqIPEi77Z1+GN8+iMv4YEgP3NjCp5BBMg9LlIpXx8pFi8hrl20+iB6Dh96tP28B
+         QQw6it8FItRcqiDzzvzeqqWv4Q0UsoV31KyLMls3Rn9oyGrC/YQ0A1V9cVovFxZfvtir
+         G0KFKMa3Ks4+Yss8oB5ZCklpLSk36jJuZsZ//kkC6UE2piDMh4OL6rTO7dJUFlNKJ17u
+         SVlHdk7ptzdehJYNzV+tu6+goz2tYq8obSvLHJOKk/GKTph5dKxP5wtO8ZtHv/zN7Xjb
+         WWnA==
+X-Gm-Message-State: APjAAAWtoQfg0z08vB1neDb6Nqh5lywrOQsl1yxcUqiy+XBNLI5I+wYW
+	HdUpPraE0XaeJdiFUHd4DeZjRh0zgYJw0yaXBHLlNzN6jrL8Waym5mu+VVglw5mrgKxLMtN1TOE
+	qBGdar8RGx8ZNm2WedaesTD/nwt/EDlV2lr62aBAsDWyvH+UZUT/YXaI70ZbDmcs=
+X-Received: by 2002:a17:902:24d:: with SMTP id 71mr33833857plc.166.1559602934627;
+        Mon, 03 Jun 2019 16:02:14 -0700 (PDT)
+X-Received: by 2002:a17:902:24d:: with SMTP id 71mr33833795plc.166.1559602933684;
+        Mon, 03 Jun 2019 16:02:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559602933; cv=none;
         d=google.com; s=arc-20160816;
-        b=xCvDRvzd7oucKtlcT53tZUgn64Qing7AIGOkUHgIiWTv3RuLDxsBdYZkZaeKvNjPeV
-         FQADsV4a9c9iy9wVg62ii2izVchzF7e5pnt/1GWkyT3WfUzJHniQSkBxQZljmNo4N2mV
-         ABSMYuyMpUep6CaPPnTMqyAfHeJIY8oRCdklFWWEn2cG/dC6KTP8Fb/uslIJu5v6ufnx
-         L7MnHME5OC3xCu+Gk/q5XTDrvC8B0k5D9EbReAcODCl9KMO0DhUWJZygo104bzm5gnPd
-         wye+dVmrspbzVbg2RCAzu09tLfuXgZcdn33Prs8+mvnju2X8glmD3MY765VNUaPwNhEZ
-         BdwA==
+        b=tAm/BW871T2I3gxU3Xg3tMI94PX6EE+U53BmlPtgkokZB37NrP+WuHaSRMgvGy3pA6
+         wz8jJWaOrdwOydenkRYmANEBrEq4jmylnXvSOciztW6IfCVslt4BNruEgNQM/63LVryd
+         9ekqALYF4fBKkEYgkVCDvq1xP30d/jRjjZawRlMBJfDvBDs6DQuIZ6zXA/crSoBzTwnM
+         0gn80H5wEYFk24c9fXU5mt77e1KI3YZuBq0+mhwr4leFfJCi1t23sbRmRgegAucrjdZI
+         qZaOltNZ/aQXKaxT5xlrmsouppWlFJeML+2ddEP1A1euEIj74qEYwYwSlwC3nDb4WHWY
+         lqvg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=F/ixDeQhQV0jkM+ZLEc/zUFxrkTvZoI9aB593YmsPiA=;
-        b=hQJEMAGA9MXkNJ8PyJqEXrJper6sAlPOZxJX4BoWOk9B4Rhg8eT1b7+AJtqEYXXnNJ
-         BGSdyjoMjx7mprx+gWjdHK382FDclF0x4ZIeaqSw7N8vLf+8tzWskdCDHBxcLowBbB8I
-         /AAtLQgDSWmk1pFA5darzbjjFY9/ezlrNnFbFUT/c/GWErP+EZwTynIODUb6MDt+9yg8
-         1jtcCPvVfeoDAINKLisIWkpIJParoYSd+Xn8ww1j9EVBjFNcduAmvCC8O/FPC4q7ipLN
-         fqfxJ8s3BPFP6SaAYf8K5lW7WDeUOawdOamxS+bmzoA8k+hl1zaz9HSeyTpn4d+/q9nk
-         u9tw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=yGWgisOzgWfpAsWuWpBW9wv4B2VfU1HINjYPzcFySSo=;
+        b=bIiF8pMhBK7nyjtLLO3YJJs8bgvq0zNdSaUcWWLInvjvRtCvZ9h+mV52/agZsOUTBS
+         Gm2av1Mtgk73MfzKFauSwYGTOmAANW+8OzgIbbw4zC7aB5kTa2qLujnS5ovsEsuSW+Zb
+         eeHLbSisBMK9CdKbBZaPd4gxYNCFnxpTEWc5E5TkutE45JZ9TEdbYxDr3uoVxkYCBA1T
+         X5sa0hDVBydDdsUvojko39y74dst6MAqCzrKpVjJY4CTkm5oV/BKasTa9gIafa+l3aeH
+         2GdxruG6qm9krxr5iUWT4O66rT6ZDzsOc2001fma8AwKSoikvNKz/JuqUhlt/bQVs6NA
+         eteQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=s9+aMnx6;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EgfyT96f;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q35sor7126486jac.12.2019.06.03.15.38.38
+        by mx.google.com with SMTPS id ay3sor18491825plb.20.2019.06.03.16.02.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 03 Jun 2019 15:38:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 03 Jun 2019 16:02:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=s9+aMnx6;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EgfyT96f;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=F/ixDeQhQV0jkM+ZLEc/zUFxrkTvZoI9aB593YmsPiA=;
-        b=s9+aMnx6B3R0hLSkCU1J6r+p1AiMsWy/lS4s0oth8CJJfttuYrqWdaFXKQUggrJ0B/
-         sF3/n1/6QUBSqlLcDes5E5PYyl+oeAsV0DGtwnGzLigTlDdztk1cCIxyrNvQKt9Vo9Zd
-         G7egM7/Mm1B3cChhYLxz7qmiYxEd9ygcusCLtAstLWvOZeX6GzpJLVoa/yyT6fWJ8rEE
-         v4siPNXfVWM79HhrQPBHunnd5GQRrfmWoSQW/tgpbaUz8Bg/S1j4BLFmh01yJEhczXam
-         rtpTOEqIlv8e//gYzQcDQqVG2RBXwnCMbSnSDZ65KAWWS+gZE+UBhQqJQOS+rRCiSn5b
-         YRnQ==
-X-Google-Smtp-Source: APXvYqxE3pqRl68z5nHb341KBeHZIiVFd5DLcpA0OiQW5aDXbSqBg02oNx5KzeRRPXKtMYy6PK+00mxJhVAMM2gxC80=
-X-Received: by 2002:a02:5502:: with SMTP id e2mr18612138jab.87.1559601517930;
- Mon, 03 Jun 2019 15:38:37 -0700 (PDT)
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=yGWgisOzgWfpAsWuWpBW9wv4B2VfU1HINjYPzcFySSo=;
+        b=EgfyT96fk6vvQY5SFnesmZ6DIVFRx6yrNM5JKL31Zn5a0Pf0fQvmbHoY6+R3MGiEyp
+         ocfeJcp7zAGOLX1qUteCkyVf9QkbVMfr5nY6fretb37D7LwJdW+FGtS7acGvamYPx7sn
+         rwrRij92Ohr62F+vVRuJciAP5KP4eMBXEcKrPWawZlnldrd++mIsnoqXjQlbeUKK11xg
+         RHM/QfwH4vYaI3wgmQpkWB/YxQMYFxRHjqj0Lv0XlR4Y56YQK3+Xwc0cvyksjCbAF2Dn
+         RNbCrW/QSU5ONniWnxCAQx41j0YMGSeRi2PE4w/ELrpddUdmOZgzNAuyvXwUnbXB+BsX
+         mMhQ==
+X-Google-Smtp-Source: APXvYqxCkkmPXZHimkozMNVYP9gcbva1AMdrrcMfJLPuejBMXVOEhl4/p8tBtCCcCov7W2EolbjhXA==
+X-Received: by 2002:a17:902:2983:: with SMTP id h3mr33061358plb.267.1559602933011;
+        Mon, 03 Jun 2019 16:02:13 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id d19sm13502849pjs.22.2019.06.03.16.02.07
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 03 Jun 2019 16:02:11 -0700 (PDT)
+Date: Tue, 4 Jun 2019 08:02:05 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org, Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, jannh@google.com,
+	oleg@redhat.com, christian@brauner.io, oleksandr@redhat.com,
+	hdanton@sina.com
+Subject: Re: [RFCv2 1/6] mm: introduce MADV_COLD
+Message-ID: <20190603230205.GA43390@google.com>
+References: <20190531064313.193437-1-minchan@kernel.org>
+ <20190531064313.193437-2-minchan@kernel.org>
+ <20190531084752.GI6896@dhcp22.suse.cz>
+ <20190531133904.GC195463@google.com>
+ <20190531140332.GT6896@dhcp22.suse.cz>
+ <20190531143407.GB216592@google.com>
+ <20190603071607.GB4531@dhcp22.suse.cz>
+ <20190603172717.GA30363@cmpxchg.org>
+ <20190603203230.GB22799@dhcp22.suse.cz>
+ <20190603215059.GA16824@cmpxchg.org>
 MIME-Version: 1.0
-References: <20190603170306.49099-1-nitesh@redhat.com> <20190603170306.49099-3-nitesh@redhat.com>
-In-Reply-To: <20190603170306.49099-3-nitesh@redhat.com>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Mon, 3 Jun 2019 15:38:26 -0700
-Message-ID: <CAKgT0UdtHAvRd++enU3ouxebwV1T4KZbS_JkmyDbJ5jGkA1XaQ@mail.gmail.com>
-Subject: Re: [RFC][Patch v10 2/2] virtio-balloon: page_hinting: reporting to
- the host
-To: Nitesh Narayan Lal <nitesh@redhat.com>
-Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
-	pagupta@redhat.com, wei.w.wang@intel.com, 
-	Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>, 
-	David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
-	Andrea Arcangeli <aarcange@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190603215059.GA16824@cmpxchg.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 3, 2019 at 10:04 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
->
-> Enables the kernel to negotiate VIRTIO_BALLOON_F_HINTING feature with the
-> host. If it is available and page_hinting_flag is set to true, page_hinting
-> is enabled and its callbacks are configured along with the max_pages count
-> which indicates the maximum number of pages that can be isolated and hinted
-> at a time. Currently, only free pages of order >= (MAX_ORDER - 2) are
-> reported. To prevent any false OOM max_pages count is set to 16.
->
-> By default page_hinting feature is enabled and gets loaded as soon
-> as the virtio-balloon driver is loaded. However, it could be disabled
-> by writing the page_hinting_flag which is a virtio-balloon parameter.
->
-> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
-> ---
->  drivers/virtio/virtio_balloon.c     | 112 +++++++++++++++++++++++++++-
->  include/uapi/linux/virtio_balloon.h |  14 ++++
->  2 files changed, 125 insertions(+), 1 deletion(-)
->
-> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> index f19061b585a4..40f09ea31643 100644
-> --- a/drivers/virtio/virtio_balloon.c
-> +++ b/drivers/virtio/virtio_balloon.c
-> @@ -31,6 +31,7 @@
->  #include <linux/mm.h>
->  #include <linux/mount.h>
->  #include <linux/magic.h>
-> +#include <linux/page_hinting.h>
->
->  /*
->   * Balloon device works in 4K page units.  So each page is pointed to by
-> @@ -48,6 +49,7 @@
->  /* The size of a free page block in bytes */
->  #define VIRTIO_BALLOON_FREE_PAGE_SIZE \
->         (1 << (VIRTIO_BALLOON_FREE_PAGE_ORDER + PAGE_SHIFT))
-> +#define VIRTIO_BALLOON_PAGE_HINTING_MAX_PAGES  16
->
->  #ifdef CONFIG_BALLOON_COMPACTION
->  static struct vfsmount *balloon_mnt;
-> @@ -58,6 +60,7 @@ enum virtio_balloon_vq {
->         VIRTIO_BALLOON_VQ_DEFLATE,
->         VIRTIO_BALLOON_VQ_STATS,
->         VIRTIO_BALLOON_VQ_FREE_PAGE,
-> +       VIRTIO_BALLOON_VQ_HINTING,
->         VIRTIO_BALLOON_VQ_MAX
->  };
->
-> @@ -67,7 +70,8 @@ enum virtio_balloon_config_read {
->
->  struct virtio_balloon {
->         struct virtio_device *vdev;
-> -       struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq;
-> +       struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq,
-> +                        *hinting_vq;
->
->         /* Balloon's own wq for cpu-intensive work items */
->         struct workqueue_struct *balloon_wq;
-> @@ -125,6 +129,9 @@ struct virtio_balloon {
->
->         /* To register a shrinker to shrink memory upon memory pressure */
->         struct shrinker shrinker;
-> +
-> +       /* object pointing at the array of isolated pages ready for hinting */
-> +       struct hinting_data *hinting_arr;
+Hi Johannes,
 
-Just make this an array of size VIRTIO_BALLOON_PAGE_HINTING_MAX_PAGES.
-It will save a bunch of complexity later.
+On Mon, Jun 03, 2019 at 05:50:59PM -0400, Johannes Weiner wrote:
+> On Mon, Jun 03, 2019 at 10:32:30PM +0200, Michal Hocko wrote:
+> > On Mon 03-06-19 13:27:17, Johannes Weiner wrote:
+> > > On Mon, Jun 03, 2019 at 09:16:07AM +0200, Michal Hocko wrote:
+> > > > On Fri 31-05-19 23:34:07, Minchan Kim wrote:
+> > > > > On Fri, May 31, 2019 at 04:03:32PM +0200, Michal Hocko wrote:
+> > > > > > On Fri 31-05-19 22:39:04, Minchan Kim wrote:
+> > > > > > > On Fri, May 31, 2019 at 10:47:52AM +0200, Michal Hocko wrote:
+> > > > > > > > On Fri 31-05-19 15:43:08, Minchan Kim wrote:
+> > > > > > > > > When a process expects no accesses to a certain memory range, it could
+> > > > > > > > > give a hint to kernel that the pages can be reclaimed when memory pressure
+> > > > > > > > > happens but data should be preserved for future use.  This could reduce
+> > > > > > > > > workingset eviction so it ends up increasing performance.
+> > > > > > > > > 
+> > > > > > > > > This patch introduces the new MADV_COLD hint to madvise(2) syscall.
+> > > > > > > > > MADV_COLD can be used by a process to mark a memory range as not expected
+> > > > > > > > > to be used in the near future. The hint can help kernel in deciding which
+> > > > > > > > > pages to evict early during memory pressure.
+> > > > > > > > > 
+> > > > > > > > > Internally, it works via deactivating pages from active list to inactive's
+> > > > > > > > > head if the page is private because inactive list could be full of
+> > > > > > > > > used-once pages which are first candidate for the reclaiming and that's a
+> > > > > > > > > reason why MADV_FREE move pages to head of inactive LRU list. Therefore,
+> > > > > > > > > if the memory pressure happens, they will be reclaimed earlier than other
+> > > > > > > > > active pages unless there is no access until the time.
+> > > > > > > > 
+> > > > > > > > [I am intentionally not looking at the implementation because below
+> > > > > > > > points should be clear from the changelog - sorry about nagging ;)]
+> > > > > > > > 
+> > > > > > > > What kind of pages can be deactivated? Anonymous/File backed.
+> > > > > > > > Private/shared? If shared, are there any restrictions?
+> > > > > > > 
+> > > > > > > Both file and private pages could be deactived from each active LRU
+> > > > > > > to each inactive LRU if the page has one map_count. In other words,
+> > > > > > > 
+> > > > > > >     if (page_mapcount(page) <= 1)
+> > > > > > >         deactivate_page(page);
+> > > > > > 
+> > > > > > Why do we restrict to pages that are single mapped?
+> > > > > 
+> > > > > Because page table in one of process shared the page would have access bit
+> > > > > so finally we couldn't reclaim the page. The more process it is shared,
+> > > > > the more fail to reclaim.
+> > > > 
+> > > > So what? In other words why should it be restricted solely based on the
+> > > > map count. I can see a reason to restrict based on the access
+> > > > permissions because we do not want to simplify all sorts of side channel
+> > > > attacks but memory reclaim is capable of reclaiming shared pages and so
+> > > > far I haven't heard any sound argument why madvise should skip those.
+> > > > Again if there are any reasons, then document them in the changelog.
+> > > 
+> > > I think it makes sense. It could be explained, but it also follows
+> > > established madvise semantics, and I'm not sure it's necessarily
+> > > Minchan's job to re-iterate those.
+> > > 
+> > > Sharing isn't exactly transparent to userspace. The kernel does COW,
+> > > ksm etc. When you madvise, you can really only speak for your own
+> > > reference to that memory - "*I* am not using this."
+> > > 
+> > > This is in line with other madvise calls: MADV_DONTNEED clears the
+> > > local page table entries and drops the corresponding references, so
+> > > shared pages won't get freed. MADV_FREE clears the pte dirty bit and
+> > > also has explicit mapcount checks before clearing PG_dirty, so again
+> > > shared pages don't get freed.
+> > 
+> > Right, being consistent with other madvise syscalls is certainly a way
+> > to go. And I am not pushing one way or another, I just want this to be
+> > documented with a reasoning behind. Consistency is certainly an argument
+> > to use.
+> > 
+> > On the other hand these non-destructive madvise operations are quite
+> > different and the shared policy might differ as a result as well. We are
+> > aging objects rather than destroying them after all. Being able to age
+> > a pagecache with a sufficient privileges sounds like a useful usecase to
+> > me. In other words you are able to cause the same effect indirectly
+> > without the madvise operation so it kinda makes sense to allow it in a
+> > more sophisticated way.
+> 
+> Right, I don't think it's about permission - as you say, you can do
+> this indirectly. Page reclaim is all about relative page order, so if
+> we thwarted you from demoting some pages, you could instead promote
+> other pages to cause a similar end result.
+> 
+> I think it's about intent. You're advising the kernel that *you're*
+> not using this memory and would like to have it cleared out based on
+> that knowledge. You could do the same by simply allocating the new
+> pages and have the kernel sort it out. However, if the kernel sorts it
+> out, it *will* look at other users of the page, and it might decide
+> that other pages are actually colder when considering all users.
+> 
+> When you ignore shared state, on the other hand, the pages you advise
+> out could refault right after. And then, not only did you not free up
+> the memory, but you also caused IO that may interfere with bringing in
+> the new data for which you tried to create room in the first place.
+> 
+> So I don't think it ever makes sense to override it.
+> 
+> But it might be better to drop the explicit mapcount check and instead
+> make the local pte young and call shrink_page_list() without the
+                     ^
+                     old?
 
->  };
->
->  static struct virtio_device_id id_table[] = {
-> @@ -132,6 +139,85 @@ static struct virtio_device_id id_table[] = {
->         { 0 },
->  };
->
-> +#ifdef CONFIG_PAGE_HINTING
+> TTU_IGNORE_ACCESS, ignore_references flags - leave it to reclaim code
+> to handle references and shared pages exactly the same way it would if
+> those pages came fresh off the LRU tail, excluding only the reference
+> from the mapping that we're madvising.
 
-Instead of having CONFIG_PAGE_HINTING enable this, maybe we should
-have virtio-balloon enable CONFIG_PAGE_HINTING.
+You are confused from the name change. Here, MADV_COLD is deactivating
+, not pageing out. Therefore, shrink_page_list doesn't matter.
+And madvise_cold_pte_range already makes the local pte *old*(I guess
+your saying was typo).
+I guess that's exactly what Michal wanted: just removing page_mapcount
+check and defers to decision on normal page reclaim policy:
+If I didn't miss your intention, it seems you and Michal are on same page.
+(Please correct me if you want to say something other)
+I could drop the page_mapcount check at next revision.
 
-> +struct virtio_balloon *hvb;
-> +bool page_hinting_flag = true;
-> +module_param(page_hinting_flag, bool, 0444);
-> +MODULE_PARM_DESC(page_hinting_flag, "Enable page hinting");
-> +
-> +static bool virtqueue_kick_sync(struct virtqueue *vq)
-> +{
-> +       u32 len;
-> +
-> +       if (likely(virtqueue_kick(vq))) {
-> +               while (!virtqueue_get_buf(vq, &len) &&
-> +                      !virtqueue_is_broken(vq))
-> +                       cpu_relax();
-> +               return true;
-
-Is this a synchronous setup? It seems kind of wasteful to have a
-thread busy waiting here like this. It might make more sense to just
-make this work like the other balloon queues and have a wait event
-with a wake up in the interrupt handler for the queue.
-
-> +       }
-> +       return false;
-> +}
-> +
-> +static void page_hinting_report(int entries)
-> +{
-> +       struct scatterlist sg;
-> +       struct virtqueue *vq = hvb->hinting_vq;
-> +       int err = 0;
-> +       struct hinting_data *hint_req;
-> +       u64 gpaddr;
-> +
-> +       hint_req = kmalloc(sizeof(*hint_req), GFP_KERNEL);
-> +       if (!hint_req)
-> +               return;
-
-Why do we need another allocation here? Couldn't you just allocate
-hint_req on the stack and then use that? I think we might be doing too
-much here. All this really needs to look like is something along the
-lines of tell_host() minus the wait_event.
-
-> +       gpaddr = virt_to_phys(hvb->hinting_arr);
-> +       hint_req->phys_addr = cpu_to_virtio64(hvb->vdev, gpaddr);
-> +       hint_req->size = cpu_to_virtio32(hvb->vdev, entries);
-> +       sg_init_one(&sg, hint_req, sizeof(*hint_req));
-> +       err = virtqueue_add_outbuf(vq, &sg, 1, hint_req, GFP_KERNEL);
-> +       if (!err)
-> +               virtqueue_kick_sync(hvb->hinting_vq);
-> +
-> +       kfree(hint_req);
-> +}
-> +
-> +int page_hinting_prepare(void)
-> +{
-> +       hvb->hinting_arr = kmalloc_array(VIRTIO_BALLOON_PAGE_HINTING_MAX_PAGES,
-> +                                        sizeof(*hvb->hinting_arr), GFP_KERNEL);
-> +       if (!hvb->hinting_arr)
-> +               return -ENOMEM;
-> +       return 0;
-> +}
-> +
-
-Why make the hinting_arr a dynamic allocation? You should probably
-just make it a static array within the virtio_balloon structure. Then
-you don't have the risk of an allocation failing and messing up the
-hints.
-
-> +void hint_pages(struct list_head *pages)
-> +{
-> +       struct page *page, *next;
-> +       unsigned long pfn;
-> +       int idx = 0, order;
-> +
-> +       list_for_each_entry_safe(page, next, pages, lru) {
-> +               pfn = page_to_pfn(page);
-> +               order = page_private(page);
-> +               hvb->hinting_arr[idx].phys_addr = pfn << PAGE_SHIFT;
-> +               hvb->hinting_arr[idx].size = (1 << order) * PAGE_SIZE;
-> +               idx++;
-> +       }
-> +       page_hinting_report(idx);
-> +}
-> +
-
-Getting back to my suggestion from earlier today. It might make sense
-to not bother with the PAGE_SHIFT or PAGE_SIZE multiplication if you
-just record everything in VIRTIO_BALLOON_PAGES intead of using the
-actual address and size.
-
-> +void page_hinting_cleanup(void)
-> +{
-> +       kfree(hvb->hinting_arr);
-> +}
-> +
-
-Same comment here. Make this array a part of virtio_balloon and you
-don't have to free it.
-
-> +static const struct page_hinting_cb hcb = {
-> +       .prepare = page_hinting_prepare,
-> +       .hint_pages = hint_pages,
-> +       .cleanup = page_hinting_cleanup,
-> +       .max_pages = VIRTIO_BALLOON_PAGE_HINTING_MAX_PAGES,
-> +};
-
-With the above changes prepare and cleanup can be dropped.
-
-> +#endif
-> +
->  static u32 page_to_balloon_pfn(struct page *page)
->  {
->         unsigned long pfn = page_to_pfn(page);
-> @@ -488,6 +574,7 @@ static int init_vqs(struct virtio_balloon *vb)
->         names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
->         names[VIRTIO_BALLOON_VQ_STATS] = NULL;
->         names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
-> +       names[VIRTIO_BALLOON_VQ_HINTING] = NULL;
->
->         if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
->                 names[VIRTIO_BALLOON_VQ_STATS] = "stats";
-> @@ -499,11 +586,18 @@ static int init_vqs(struct virtio_balloon *vb)
->                 callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
->         }
->
-> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {
-> +               names[VIRTIO_BALLOON_VQ_HINTING] = "hinting_vq";
-> +               callbacks[VIRTIO_BALLOON_VQ_HINTING] = NULL;
-> +       }
->         err = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
->                                          vqs, callbacks, names, NULL, NULL);
->         if (err)
->                 return err;
->
-> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
-> +               vb->hinting_vq = vqs[VIRTIO_BALLOON_VQ_HINTING];
-> +
->         vb->inflate_vq = vqs[VIRTIO_BALLOON_VQ_INFLATE];
->         vb->deflate_vq = vqs[VIRTIO_BALLOON_VQ_DEFLATE];
->         if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
-> @@ -942,6 +1036,14 @@ static int virtballoon_probe(struct virtio_device *vdev)
->                 if (err)
->                         goto out_del_balloon_wq;
->         }
-> +
-> +#ifdef CONFIG_PAGE_HINTING
-> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING) &&
-> +           page_hinting_flag) {
-> +               hvb = vb;
-> +               page_hinting_enable(&hcb);
-> +       }
-> +#endif
->         virtio_device_ready(vdev);
->
->         if (towards_target(vb))
-> @@ -989,6 +1091,12 @@ static void virtballoon_remove(struct virtio_device *vdev)
->                 destroy_workqueue(vb->balloon_wq);
->         }
->
-> +#ifdef CONFIG_PAGE_HINTING
-> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {
-> +               hvb = NULL;
-> +               page_hinting_disable();
-> +       }
-> +#endif
->         remove_common(vb);
->  #ifdef CONFIG_BALLOON_COMPACTION
->         if (vb->vb_dev_info.inode)
-> @@ -1043,8 +1151,10 @@ static unsigned int features[] = {
->         VIRTIO_BALLOON_F_MUST_TELL_HOST,
->         VIRTIO_BALLOON_F_STATS_VQ,
->         VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
-> +       VIRTIO_BALLOON_F_HINTING,
->         VIRTIO_BALLOON_F_FREE_PAGE_HINT,
->         VIRTIO_BALLOON_F_PAGE_POISON,
-> +       VIRTIO_BALLOON_F_HINTING,
->  };
->
->  static struct virtio_driver virtio_balloon_driver = {
-> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-> index a1966cd7b677..25e4f817c660 100644
-> --- a/include/uapi/linux/virtio_balloon.h
-> +++ b/include/uapi/linux/virtio_balloon.h
-> @@ -29,6 +29,7 @@
->  #include <linux/virtio_types.h>
->  #include <linux/virtio_ids.h>
->  #include <linux/virtio_config.h>
-> +#include <linux/page_hinting.h>
->
->  /* The feature bitmap for virtio balloon */
->  #define VIRTIO_BALLOON_F_MUST_TELL_HOST        0 /* Tell before reclaiming pages */
-> @@ -36,6 +37,7 @@
->  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM        2 /* Deflate balloon on OOM */
->  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT        3 /* VQ to report free pages */
->  #define VIRTIO_BALLOON_F_PAGE_POISON   4 /* Guest is using page poisoning */
-> +#define VIRTIO_BALLOON_F_HINTING       5 /* Page hinting virtqueue */
->
->  /* Size of a PFN in the balloon interface. */
->  #define VIRTIO_BALLOON_PFN_SHIFT 12
-> @@ -108,4 +110,16 @@ struct virtio_balloon_stat {
->         __virtio64 val;
->  } __attribute__((packed));
->
-> +#ifdef CONFIG_PAGE_HINTING
-> +/*
-> + * struct hinting_data- holds the information associated with hinting.
-> + * @phys_add:  physical address associated with a page or the array holding
-> + *             the array of isolated pages.
-> + * @size:      total size associated with the phys_addr.
-> + */
-> +struct hinting_data {
-> +       __virtio64 phys_addr;
-> +       __virtio32 size;
-> +};
-
-So in order to avoid errors this should either have
-"__attribute__((packed))" added or it should be changed to a pair of
-u32 or u64 values so that it will always be the same size regardless
-of what platform it is built on.
-
-> +#endif
->  #endif /* _LINUX_VIRTIO_BALLOON_H */
-> --
-> 2.21.0
->
+Thanks for the review!
 
