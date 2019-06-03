@@ -2,211 +2,129 @@ Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9FBEC04AB5
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 12:44:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B6491C28CC6
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 13:22:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7FDB427EBE
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 12:44:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="kNNcDuFg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7FDB427EBE
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 64A5725C0B
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 13:22:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64A5725C0B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 10EE46B0008; Mon,  3 Jun 2019 08:44:09 -0400 (EDT)
+	id C15B56B0005; Mon,  3 Jun 2019 09:22:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0C0666B000D; Mon,  3 Jun 2019 08:44:09 -0400 (EDT)
+	id B9F6E6B0008; Mon,  3 Jun 2019 09:22:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F17466B000E; Mon,  3 Jun 2019 08:44:08 -0400 (EDT)
+	id ADBC86B000A; Mon,  3 Jun 2019 09:22:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B79CA6B0008
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 08:44:08 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id i33so11703573pld.15
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 05:44:08 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 62B6F6B0005
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 09:22:05 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c1so27446528edi.20
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 06:22:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=GNP3D276BFtDK39lLo6rJPWpnwlFMjiWsjF1eSRNq9k=;
-        b=MBPtZk2VrL6DIegOLW9J3ti16I1pALAO6DL3wzTVW8U28dTEHl++0Npzs1SoyncTfw
-         CuU+ECwbU4iGyH1pj+MMROb2+/HOERUKK/f3uFv0dA9TBkWAOp7kM7HF+GKUF9XET/7e
-         MYoxPLkk1OD+w9OTiCND3GnzHM9Jd+ysWpfqIKpc1z83dGwv2/hPV5Be/0vJmGodgmzZ
-         Id5WjamShaaPeyLuqd2bAG6CCxEvHrFAxDJYbdmAao+AeyO7jba5X3BnM6WdW9GnNzBM
-         Bzm/tOuJA0duoYQ1FRtY9nyg+KTFCnvy35XijjT8reI5gQ4yWDQEDc443wrWIfL0PL+f
-         r7ew==
-X-Gm-Message-State: APjAAAW9fYp/D3fBwxL7OrcoCoUCl/8F+8fPOVgSfWL+S48rYa9Yn28O
-	GXTx6LsjcZ0ETMmuusaE3/Cns94QHOc7qVjfZrObFJUXDe+ev0ZolE41UkBQGIX3+nQxn2qZBpV
-	GulQ2aBclGk04YYc5YQXQTBiORQH2ld74DYTIH/8Puu6wmNhtu3HL+UpghqdbnfwW2A==
-X-Received: by 2002:a17:90a:240c:: with SMTP id h12mr30120690pje.12.1559565848323;
-        Mon, 03 Jun 2019 05:44:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyrXlvMnnCaUHP393V+EDTXqhI6ryvDJRwvUbyjfX6369mMZRS7WXy3y6ARx+NvgeauCxV4
-X-Received: by 2002:a17:90a:240c:: with SMTP id h12mr30120610pje.12.1559565847436;
-        Mon, 03 Jun 2019 05:44:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559565847; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=y0MbUa+6jYb/gyx/+abYxhbC4pqYY4A3l1fofQ8F/vs=;
+        b=uaBCZ1r8gMFIMcq8ei4HGTkoHW9EC3XjB1g33HMtb89R+NOKlCqOeOTNM5K3EksqO9
+         /jPj8B7bVou/gfeiw19NThQzYqbvpITs5yoX1a+JoktMDWjtevd4tS6AEbmG8IUbT3NB
+         b2tntN6Iiai6hbeXQeg9qg8YsIBfZ7/Z8X22+VHAD9dmLYP4fTQqFD+UzLlpkUhopSQ7
+         1vI5P1yMQek+GYY2F6tknA3nreGlM75PUZbZuVpdHgyujggI4F6it11rHtdRQTpJFsTP
+         vOErupbQyoZ3VvIGf9V37WoVzpy9yUb0lehELwBIeL8zV6/qm8a0ex4LI/4xMMNrT2P0
+         ERPA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAUM3wwZJOmJ8elt/0YK3zq3IJ91iuTIX866E3SdGMA+rd+6kT6b
+	GGHibKWwyYnqV+YYCv2jI2WBki3pBONpeU4zKDlNRgOmPbACRMmwAdwP9OIbV2Oz15BvlBAq2pV
+	sl4an9A4dnKmTNuhGdT8mTbW6KRcoSbnW78jo9tuEMOku55DUuh2RLNnOkC01DYnSAA==
+X-Received: by 2002:a17:906:53c1:: with SMTP id p1mr22986668ejo.241.1559568124776;
+        Mon, 03 Jun 2019 06:22:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyLemC87jGTZRRzClgN2sQr+4Bnn23BoC7bLeKr5Ke4gnLks2eK29aImgJZ5QrGhuppY3tq
+X-Received: by 2002:a17:906:53c1:: with SMTP id p1mr22986570ejo.241.1559568123608;
+        Mon, 03 Jun 2019 06:22:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559568123; cv=none;
         d=google.com; s=arc-20160816;
-        b=xOUrBM4ldkqYIRHEHouIVsuIAq6eaJvjSfCdmrMR0/HL+wyb7xIUEj7/1Pi1iNYOad
-         FmZ8pPfcX9l8oYL9Qb19OWDfdZ3dWoFm18nro3P/ys2zH7YCldDarZqZYqmp/ETt0AcF
-         yqb4DsRBME2ZnjUFL+PLwO5SJf8SelpBu8zxW6KKFItUeCMkACVSW5Vv3sEexN8yPVhc
-         c2LjHHi/NNvmsyc0kjLo8meJ8PvLjTTU2YrG9bqlGPtTczfmwS2ewMEblDElFdrmEc/p
-         Y4a2PwRCnIFtyy+ckDFz1IxD80Dz5TwUBw3JiWLAeALYGvHYCOXzeTjsKR46cSkVX+Cb
-         vOww==
+        b=BofGBEZ6W/MBEB7wWQ2qsCBs1xFZZLoNaH8a0Uys+P5qyamFOZDilDpP4gBoPiIpa9
+         G96ChQyud17lJw1RNnRX9veuOmvkJrblhXtlh2lRG95/dfYMpZZUdAXFxZxIr7uSikXB
+         Lim6aALAHLv7j3L4IJjVRLWCdLniQQvkMjU3BgVraR9pEi55nVqEnqbCsSLy6Tche/2c
+         ob5Zltj2tu+g1xDmGneHfVmP/ZiaNDFy/5mBrfYnQFaYDfjVR+9dTuZSlYig6kelE/77
+         kVfeXgfr7oLNERynyt4ThNq/gGq1tOojngKKS8MZOShkofYZBZZuJ4kIndPBtgOxA7td
+         ydxQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=GNP3D276BFtDK39lLo6rJPWpnwlFMjiWsjF1eSRNq9k=;
-        b=OdmHjEyHR6Mm7ws+33kuPOjRn5k/aA7Xay1VJ57pn2eA2Udz+7Ajj8HBVWQXHlHvbV
-         8tTaGQ30oHDbCCBeZV1foTnXd0fzOybvrwMUQLaVJr4g7Or6cXe6X+twtiEF3d1eLzJa
-         NC0g7r1mhySW0hH1xo0JdmK6oj+eaxYcnkF00wmHeYjCQ4TWK1cHQBktMX056in057Ml
-         PRfu2+TXf9H5qPcDKhKowlP6uV3YRcxzMOwa2nr+qTl5LRDZo+UJo0LznAx254KotE8G
-         KZn5xO9DTVyBsTTqhdcjDDUezz0KbMCn39EQ7/4rFWOY9S2rjYLJf4a/8EIjguVkPO4k
-         Nn6A==
+        h=message-id:date:subject:cc:to:from;
+        bh=y0MbUa+6jYb/gyx/+abYxhbC4pqYY4A3l1fofQ8F/vs=;
+        b=CCPok0biLA7pfZ7ZflKor9jraodnHf+WJeb1qnfMvBFR3aQ39pVsTFDJN7uh9a+sXJ
+         qUcw2FiYRZ9nGCoHBgcPUs/9THnryu7UjBn4KiOzU8BZM3TAa9/f9mLUWrh74vt1OkpB
+         F3muS7S4PBVhviBM7G3ZbUXAmTOV0CFhshIIxbcSNDvfKJtXTEiXju0UWyW6Roh7OOx8
+         9xPBWrJ798fuv2cx8/lXHkqsnmorGoFtc848gp+OWdOhBzqBqmRoefQhsTwwvh6RmHsi
+         G4vrPstEs+skSarK/r0RHxMXjwK4T8EKPjXpMFyWPm+Fe7yeVxEC6DIrHY8TejG10bNi
+         OE9Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=kNNcDuFg;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 198.137.202.133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [198.137.202.133])
-        by mx.google.com with ESMTPS id j1si19436503pld.399.2019.06.03.05.44.07
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b15si2590946eje.113.2019.06.03.06.22.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 03 Jun 2019 05:44:07 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 198.137.202.133 as permitted sender) client-ip=198.137.202.133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 03 Jun 2019 06:22:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=kNNcDuFg;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 198.137.202.133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=GNP3D276BFtDK39lLo6rJPWpnwlFMjiWsjF1eSRNq9k=; b=kNNcDuFgjSY3vB9kQuAo8Ap2W
-	LZjW6ej3axV9mqJfEPOQFrK+BxXkmgewzcyXkXEFQ+hm/CEJTLQGKgVTB5n8CAXGs7hKVoBe6o+pD
-	NVaeCspnEij+mfEOtozvjOHEcxOtjBcWqhpbjaxRfUU87KZ+f0jBRMoRfpzzjfMHRhzDmN5dDbvY5
-	hlb6vN8a82YFI3+tI26fcMhxrMjTfMYk7TH61euKay+ArCHXVntMUgrvk28lZR4AlDs9wrqOPLlyv
-	R4QthQrORiZVlXpb3A5eNEt+oucLFWpIKVIvVP+yiz9BLLHGzskGur/XNFIBDQGswlMoikfSWafKe
-	meD4M2llg==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hXmJn-0004ug-CU; Mon, 03 Jun 2019 12:44:03 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id B738F20274AFF; Mon,  3 Jun 2019 14:44:01 +0200 (CEST)
-Date: Mon, 3 Jun 2019 14:44:01 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, hch@lst.de,
-	oleg@redhat.com, gkohli@codeaurora.org, mingo@redhat.com,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] block: fix a crash in do_task_dead()
-Message-ID: <20190603124401.GB3463@hirez.programming.kicks-ass.net>
-References: <1559161526-618-1-git-send-email-cai@lca.pw>
- <20190530080358.GG2623@hirez.programming.kicks-ass.net>
- <82e88482-1b53-9423-baad-484312957e48@kernel.dk>
- <20190603123705.GB3419@hirez.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190603123705.GB3419@hirez.programming.kicks-ass.net>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id F3037AB91;
+	Mon,  3 Jun 2019 13:22:02 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 4B8571E3C24; Mon,  3 Jun 2019 15:22:00 +0200 (CEST)
+From: Jan Kara <jack@suse.cz>
+To: <linux-ext4@vger.kernel.org>
+Cc: Ted Tso <tytso@mit.edu>,
+	<linux-mm@kvack.org>,
+	<linux-fsdevel@vger.kernel.org>,
+	Amir Goldstein <amir73il@gmail.com>,
+	Jan Kara <jack@suse.cz>
+Subject: [PATCH 0/2] fs: Hole punch vs page cache filling races
+Date: Mon,  3 Jun 2019 15:21:53 +0200
+Message-Id: <20190603132155.20600-1-jack@suse.cz>
+X-Mailer: git-send-email 2.16.4
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 03, 2019 at 02:37:05PM +0200, Peter Zijlstra wrote:
+Hello,
 
-> Anyway, Oleg, do you see anything blatantly buggered with this patch?
-> 
-> (the stats were already dodgy for rq-stats, this patch makes them dodgy
-> for task-stats too)
+Amir has reported a that ext4 has a potential issues when reads can race with
+hole punching possibly exposing stale data from freed blocks or even corrupting
+filesystem when stale mapping data gets used for writeout. The problem is that
+during hole punching, new page cache pages can get instantiated in a punched
+range after truncate_inode_pages() has run but before the filesystem removes
+blocks from the file.  In principle any filesystem implementing hole punching
+thus needs to implement a mechanism to block instantiating page cache pages
+during hole punching to avoid this race. This is further complicated by the
+fact that there are multiple places that can instantiate pages in page cache.
+We can have regular read(2) or page fault doing this but fadvise(2) or
+madvise(2) can also result in reading in page cache pages through
+force_page_cache_readahead().
 
-It now also has concurrency on wakeup; but afaict that's harmless, we'll
-get racing stores of p->state = TASK_RUNNING, much the same as if there
-was a remote wakeup vs a wait-loop terminating early.
+This patch set fixes the problem for ext4 by protecting all page cache filling
+opearation with EXT4_I(inode)->i_mmap_lock. To be able to do that for
+readahead, we introduce new ->readahead file operation and corresponding
+vfs_readahead() helper. Note that e.g. ->readpages() cannot be used for getting
+the appropriate lock - we also need to protect ordinary read path using
+->readpage() and there's no way to distinguish ->readpages() called through
+->read_iter() from ->readpages() called e.g. through fadvise(2).
 
-I suppose the tracepoint consumers might have to deal with some
-artifacts there, but that's their problem.
+Other filesystems (e.g. XFS, F2FS, GFS2, OCFS2, ...) need a similar fix. I can
+write some (e.g. for XFS) once we settle that ->readahead operation is indeed a
+way to fix this.
 
-> ---
->  kernel/sched/core.c | 38 ++++++++++++++++++++++++++++++++------
->  1 file changed, 32 insertions(+), 6 deletions(-)
-> 
-> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> index 102dfcf0a29a..474aa4c8e9d2 100644
-> --- a/kernel/sched/core.c
-> +++ b/kernel/sched/core.c
-> @@ -1990,6 +1990,28 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
->  	unsigned long flags;
->  	int cpu, success = 0;
->  
-> +	if (p == current) {
-> +		/*
-> +		 * We're waking current, this means 'p->on_rq' and 'task_cpu(p)
-> +		 * == smp_processor_id()'. Together this means we can special
-> +		 * case the whole 'p->on_rq && ttwu_remote()' case below
-> +		 * without taking any locks.
-> +		 *
-> +		 * In particular:
-> +		 *  - we rely on Program-Order guarantees for all the ordering,
-> +		 *  - we're serialized against set_special_state() by virtue of
-> +		 *    it disabling IRQs (this allows not taking ->pi_lock).
-> +		 */
-> +		if (!(p->state & state))
-> +			goto out;
-> +
-> +		success = 1;
-> +		trace_sched_waking(p);
-> +		p->state = TASK_RUNNING;
-> +		trace_sched_woken(p);
-> +		goto out;
-> +	}
-> +
->  	/*
->  	 * If we are going to wake up a thread waiting for CONDITION we
->  	 * need to ensure that CONDITION=1 done by the caller can not be
-> @@ -1999,7 +2021,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
->  	raw_spin_lock_irqsave(&p->pi_lock, flags);
->  	smp_mb__after_spinlock();
->  	if (!(p->state & state))
-> -		goto out;
-> +		goto unlock;
->  
->  	trace_sched_waking(p);
->  
-> @@ -2029,7 +2051,7 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
->  	 */
->  	smp_rmb();
->  	if (p->on_rq && ttwu_remote(p, wake_flags))
-> -		goto stat;
-> +		goto unlock;
->  
->  #ifdef CONFIG_SMP
->  	/*
-> @@ -2089,12 +2111,16 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags)
->  #endif /* CONFIG_SMP */
->  
->  	ttwu_queue(p, cpu, wake_flags);
-> -stat:
-> -	ttwu_stat(p, cpu, wake_flags);
-> -out:
-> +unlock:
->  	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
->  
-> -	return success;
-> +out:
-> +	if (success) {
-> +		ttwu_stat(p, cpu, wake_flags);
-> +		return true;
-> +	}
-> +
-> +	return false;
->  }
->  
->  /**
+								Honza
+
+[1] https://lore.kernel.org/linux-fsdevel/CAOQ4uxjQNmxqmtA_VbYW0Su9rKRk2zobJmahcyeaEVOFKVQ5dw@mail.gmail.com/
 
