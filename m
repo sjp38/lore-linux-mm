@@ -2,228 +2,228 @@ Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BFF3C28CC6
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 14:40:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E0395C28CC6
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 14:50:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 57E9B27888
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 14:40:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9AD2826BA1
+	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 14:50:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="tzn4pUMi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57E9B27888
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
+	dkim=pass (2048-bit key) header.d=utc.com header.i=@utc.com header.b="QFhr+rO1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9AD2826BA1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=utc.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 01B6C6B000A; Mon,  3 Jun 2019 10:40:09 -0400 (EDT)
+	id 19A926B0008; Mon,  3 Jun 2019 10:50:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F0E816B000C; Mon,  3 Jun 2019 10:40:08 -0400 (EDT)
+	id 14C486B000A; Mon,  3 Jun 2019 10:50:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DFDE36B000D; Mon,  3 Jun 2019 10:40:08 -0400 (EDT)
+	id 03A906B000C; Mon,  3 Jun 2019 10:50:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A8C606B000A
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 10:40:08 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id u1so8306699pgh.3
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 07:40:08 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C07F16B0008
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 10:50:07 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id j36so10076155pgb.20
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 07:50:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version;
-        bh=hPsNQnidYq+BQl/NNJgUFJGoiM8pu0dcJ/loGylQo0Y=;
-        b=L6zDQpWu2wzv9tWr3YqU2rCDuS8hqzN6zZZ9fMdxolmEJa4OAPOgH/zC4+MY1GUok0
-         pfLQWf6aB7JodSqdeq5kz8pOothBgjiTX68B24F42in9/rzoBlwMKY0I4uE9U9WPTtjj
-         xPGkkFzooFufauFeYyJrYftw9ybpd/RVUcvujjBosrE7kqnyW555zfGMsi3yJcZ3PE3v
-         Ot8tVQVetCQmv803tyI+gTkq2SmZOqkK1XqwLlZ7pfYxks0Sdde0aYCq8Jmgt19XvgUX
-         ibiKS4aCt/krPCXZO3QrDgwqwAw9dE6VKz0VeaRXjLeilqOcCC1+W8YKrj2pJdG0Ncmb
-         UhfA==
-X-Gm-Message-State: APjAAAW5aqUPa/byFngVuJQ6m3S41btLwdF+9PKuBdFXMjyYVGAOT97U
-	2o05CsBxJWmDJpDjsNkidF++5hQiHHwsTVxB2iugVPvam7QGuTTjiWGt5LMU/GaMSKCNrd7hPry
-	1VrEIYsV2dK+O5WeEte2htXBtofkx8zG44bll2dL/PjO229gzyCV/VR2DfVtFPqrDmg==
-X-Received: by 2002:a65:6116:: with SMTP id z22mr28705658pgu.50.1559572808334;
-        Mon, 03 Jun 2019 07:40:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPLZJqfMu/9dB16ulZsOUh/cslbxC90tYNFSO5OLMgO9QTZ1ByWK/RYKswcWqGZ1sZhNV+
-X-Received: by 2002:a65:6116:: with SMTP id z22mr28705549pgu.50.1559572807260;
-        Mon, 03 Jun 2019 07:40:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559572807; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-transfer-encoding:mime-version;
+        bh=FSiJPJPkYdS+osE+iTurtwGkbAGRi9Sce6GJOZsjXPc=;
+        b=pIDw9fLcYQrRcwlQT0HLKIXC+f3XmQTP/E63Q8cAHbnYQOz20lrdc9RfLkDZzfGsam
+         1krNklAMkM0i3xmbFxpooMIYZ/Y7Ui3FRY5cYcFwTxXSaPmG8uUyXblcmBF9mJKv2L2W
+         qIjWUB+Wjh/G7YViu2XGlvyJIxU7OXi+aaa3C8SqjwNx+Zbz65REv1SLkfTRTL70ngEg
+         9Eg8CIA0DlbotY4cX6oL7sKswWzBuEsBPbjhjljROVuq0Z4wRvlOW4TP8uA88h32hxrO
+         GKj/2u49mPJVomcrXQOxAIs+DgPNZPXH1hkbCCSKkkK25tJmtVcbR9k4kc60dsKgTEHp
+         +Wnw==
+X-Gm-Message-State: APjAAAWgR9K5mYHi5tDoXbUw+SSFmAMz9dDzA6t5aUtSFLC/lVmWEErW
+	+SQhSvaP8YqELykpWTwq3Tc/zsmWMrY6NiEFz4eE2m7226ZgrBBvWH7xU0MtcittO8X+rfy3vb4
+	gT/+3L3mnOedcsBiNbN6/dsaf6pyUPTjDbLEK/1q/NYN4ByG0ZGeyVMACUnvot2Nzvg==
+X-Received: by 2002:a63:cc4b:: with SMTP id q11mr28940287pgi.43.1559573407288;
+        Mon, 03 Jun 2019 07:50:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzhLErRyUk4/mVMr7uTZVw/KxCG3EP63bB/kHrD1IKiqjo+cSkUfNkc/m6uUv4Q4yKMGfFc
+X-Received: by 2002:a63:cc4b:: with SMTP id q11mr28940194pgi.43.1559573406328;
+        Mon, 03 Jun 2019 07:50:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559573406; cv=none;
         d=google.com; s=arc-20160816;
-        b=I7+T4zMTW8LTchuqesA9pfRdjYzi9GoR8mmtiHw2tMEAxS3AdYhdezKenLPYToq7KU
-         BKTnRlrstHS443KMzyWD+ZjZSdPMAPLx65AxsdcnKcCpG33rNrcnGta0ejYTe41L/b2J
-         DHnQpgTCL93q8x7f96/QAiRB14xz4/A5ub8wi7ndDaIT1zoJyuoRzsQB/WgjnU4VClfv
-         6OmMqySPgaxjQGO/NXQ04Ua/XLHAcZtAKO2m8Jjn5yYb280vDnHSacMAHxSCnTlb/0bU
-         1rIKxvXyYsBcc49QCIJsm3HKwRIJVrSSwqZ/Yqsgh/o6FgJnrrpsn6t/wsLx3gN1GK8g
-         6/5w==
+        b=ZieS1abOaDZjmNxO9VaSZ2PFBrBzEwfQBMi6vQSIYtivo7fGZ+tH/bDhLiKnR0a7nZ
+         Cw7NAkqGWHy4Bir/VtdM0/swbV9ZROAHK0+AUZrtognZwTvIXNGe49T9TfWhe6l4hGTJ
+         Cu1wf+FzM5h4w1XCPccpZ1vhVh0hVRwXt3k9UYLc0JcFfFn91O1soVvLMXkALwRkH/FF
+         5+qN1ult4u4N0uXy8ItM20SMcwj/ipb/R9/zoIsxOD+DQJ/uO0/4lLV9Vrwx6B8bw+aT
+         +gw/PuZBPnmCOkxtUkDyi+ef3ywuRs9kC3Dr1Mv9Cznqg4HdePmvtjY2FFVsvLvOdOyF
+         zPkQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
-         :date:dkim-signature;
-        bh=hPsNQnidYq+BQl/NNJgUFJGoiM8pu0dcJ/loGylQo0Y=;
-        b=Lakp781IK8jfRQKzouJdbShPBkNDvcMMps6jaQusxdScrnp3j+gf2U+L3sml7xWWsD
-         NXVhLgvcbQ27Ic6H90h7OPxZvnXjLVoK7FXfTDfMIXQ8APa+6MGb62HJ2HeE2mwtnMwJ
-         LbVWID1qIyCviblzIEkh2/Y7AzDK4jS6pCvMwHzQMwP7EYXXALX5WD9SHSZfMzpxOP5E
-         B37qNuxSMpcWlZU6qSAVeVpMdbT0ynRclNCD5f4kCm0yYOpTgtzxHpxQkZlv6xXfoa/K
-         XsE0skynhjXUKpxGB1LUVaLJHF6aBGOqtjulCHR2w9syEalEAO1PGehdirHMrAKcIsv1
-         Xjyg==
+        h=mime-version:content-transfer-encoding:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=FSiJPJPkYdS+osE+iTurtwGkbAGRi9Sce6GJOZsjXPc=;
+        b=BP2FdYUnTkVH6AhK/X30gx1j3ELis/4sWFCJ75VLI/3jovAA205TI83ejOy+iMxIz3
+         1B1C5c/Y+eQDnE0ppNuQ8gSImBzx/kYj7TukPqekzQ21x0Wli8jAnBLXj5ORXVZ5xywJ
+         t9NULPwsESAd7aIa3FbrW23jTAFr3qp4UPuXbPe1E0A7RIuODzhrYFkRcMmQB7cwA3LM
+         X3nDRaG9kq16EY/Q8BUBoWD089IoHKTgxT072nGPPnnd5GHzuLpn9MtRSs8wZLDScNAj
+         Yy7BgjW3WqXCHEfiVlATtuk+DTTSExAyr1nWODieNWv/yuqVyd9rTJvb8uzs54R6126x
+         GB0w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=tzn4pUMi;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id f63si10807839pfb.86.2019.06.03.07.40.06
+       dkim=pass header.i=@utc.com header.s=POD040618 header.b=QFhr+rO1;
+       spf=pass (google.com: domain of amit.nagal@utc.com designates 67.231.144.184 as permitted sender) smtp.mailfrom=Amit.Nagal@utc.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=utc.com
+Received: from mx0a-00105401.pphosted.com (mx0a-00105401.pphosted.com. [67.231.144.184])
+        by mx.google.com with ESMTPS id b19si21517102pfi.23.2019.06.03.07.50.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 03 Jun 2019 07:40:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 03 Jun 2019 07:50:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of amit.nagal@utc.com designates 67.231.144.184 as permitted sender) client-ip=67.231.144.184;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=tzn4pUMi;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 45Hd4f2zbfz9s1c;
-	Tue,  4 Jun 2019 00:40:02 +1000 (AEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
-	s=201702; t=1559572803;
-	bh=FmOgiY6lTWDTCTs9StTg9VBetPqLMyHfqz6jDfrLEw4=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=tzn4pUMiSu0BF5kUDplr3AltOVKC3qEPEVi2vSFc0pduscleqgcb4mQ4knMeVZlQ0
-	 +AI7Tw85ErOshOMcx5omQ2KQEF60D0UUSz9WusycR48ts+ptuMuKFl2BZwhwd8mkv2
-	 PTQ611rzC32q9O40FUmpPaXdPUqHya2oQrM+p1/wx0RebbbFd8sQobSwAZUwmXAnpF
-	 ZGvdvEeclib+ja0S5JzavMHBg+gKnMr922Wo3hiQNmLRS3Ie/PtG94WrT1BP6Pnsc/
-	 JOdL61En/qVH8F7a6x6l9LDibcVMoHu+p4EDM3ksvoE+QnhrrnLae73PwCNC/iXqC1
-	 BbiVcLGaabBjg==
-Date: Tue, 4 Jun 2019 00:40:00 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Krzysztof Kozlowski <krzk@kernel.org>
-Cc: Uladzislau Rezki <urezki@gmail.com>, Andrew Morton
- <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
- linux-mm@kvack.org, Marek Szyprowski <m.szyprowski@samsung.com>,
- "linux-samsung-soc@vger.kernel.org" <linux-samsung-soc@vger.kernel.org>,
- linux-kernel@vger.kernel.org, Hillf Danton <hdanton@sina.com>, Thomas
- Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, Andrei Vagin
- <avagin@gmail.com>
-Subject: Re: [BUG BISECT] bug mm/vmalloc.c:470 (mm/vmalloc.c: get rid of one
- single unlink_va() when merge)
-Message-ID: <20190604004000.0d6356a9@canb.auug.org.au>
-In-Reply-To: <20190604003153.76f33dd2@canb.auug.org.au>
-References: <CAJKOXPcTVpLtSSs=Q0G3fQgXYoVa=kHxWcWXyvS13ie73ByZBw@mail.gmail.com>
-	<20190603135939.e2mb7vkxp64qairr@pc636>
-	<CAJKOXPdczUnsaBeXTuutZXCQ70ejDT68xnVm-e+SSdLZi-vyCA@mail.gmail.com>
-	<20190604003153.76f33dd2@canb.auug.org.au>
+       dkim=pass header.i=@utc.com header.s=POD040618 header.b=QFhr+rO1;
+       spf=pass (google.com: domain of amit.nagal@utc.com designates 67.231.144.184 as permitted sender) smtp.mailfrom=Amit.Nagal@utc.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=utc.com
+Received: from pps.filterd (m0078137.ppops.net [127.0.0.1])
+	by mx0a-00105401.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x53EkeDp042562;
+	Mon, 3 Jun 2019 10:49:58 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=utc.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type :
+ content-transfer-encoding : mime-version; s=POD040618;
+ bh=FSiJPJPkYdS+osE+iTurtwGkbAGRi9Sce6GJOZsjXPc=;
+ b=QFhr+rO17Ip3boWsaBycMcQDqZY2554hxwuIWjCTMmYu2Ei7zA+fAdL/5xV/zcaqp+oY
+ 6Bi57/mboH9f3slANRWa7G7moE/KubPXlD5c1kCGTG40/Y0CtTSbQPGJYuE0n0jUNf2k
+ WSdk2spV9ZEZgstJViUDjcCm8xRBQYKjW6KP8llGdiDloguRei58XiW24HeHpQUlR/cf
+ d0ERDbILqUSqrpg+60J7mESE/kQqp1TdoGFNTtOZ1nVeCnVCWYqSUZww1m7kygOgbVRT
+ 9YgZ6zQs3hbBw3xEC/GoF9H1qMfekZxPVybawBRU8fpxo+AqP4Ug2wCq7srMww8V3Rsi Bw== 
+Received: from xnwpv36.utc.com ([167.17.239.16])
+	by mx0a-00105401.pphosted.com with ESMTP id 2sw4nbsv47-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
+	Mon, 03 Jun 2019 10:49:58 -0400
+Received: from uusmna1r.utc.com (uusmna1r.utc.com [159.82.219.64])
+	by xnwpv36.utc.com (8.16.0.27/8.16.0.27) with ESMTPS id x53Ent7b149578
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 3 Jun 2019 10:49:55 -0400
+Received: from UUSTOE1Q.utcmail.com (UUSTOE1Q.utcmail.com [10.221.3.41])
+	by uusmna1r.utc.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id x53EnsFA003894
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=OK);
+	Mon, 3 Jun 2019 10:49:55 -0400
+Received: from UUSALE1A.utcmail.com (10.220.3.27) by UUSTOE1Q.utcmail.com
+ (10.221.3.41) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 3 Jun
+ 2019 09:49:53 -0500
+Received: from UUSALE1A.utcmail.com ([10.220.5.27]) by UUSALE1A.utcmail.com
+ ([10.220.5.27]) with mapi id 15.00.1473.003; Mon, 3 Jun 2019 10:49:53 -0400
+From: "Nagal, Amit               UTC CCS" <Amit.Nagal@utc.com>
+To: Matthew Wilcox <willy@infradead.org>
+CC: Alexander Duyck <alexander.duyck@gmail.com>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "CHAWLA, RITU              UTC
+ CCS" <RITU.CHAWLA@utc.com>,
+        "Netter, Christian M       UTC CCS"
+	<christian.Netter@fs.UTC.COM>
+Subject: RE: [External] Re: linux kernel page allocation failure and tuning of
+ page cache
+Thread-Topic: [External] Re: linux kernel page allocation failure and tuning
+ of page cache
+Thread-Index: AdUXwJaEVv2cRvqaQPqGQFhwqLYB3QAWIwGAAGydulAAFtsUAAADqGyA
+Date: Mon, 3 Jun 2019 14:49:53 +0000
+Message-ID: <4f5f770de6254adb943854865a3484cd@UUSALE1A.utcmail.com>
+References: <09c5d10e9d6b4c258b22db23e7a17513@UUSALE1A.utcmail.com>
+ <CAKgT0UfoLDxL_8QkF_fuUK-2-6KGFr5y=2_nRZCNc_u+d+LCrg@mail.gmail.com>
+ <6ec47a90f5b047dabe4028ca90bb74ab@UUSALE1A.utcmail.com>
+ <20190603121138.GC23346@bombadil.infradead.org>
+In-Reply-To: <20190603121138.GC23346@bombadil.infradead.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-ms-exchange-transport-fromentityheader: Hosted
+x-originating-ip: [10.220.35.246]
+Content-Type: text/plain; charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/Hhpt4L1s=8zO1hfZdUUFFal"; protocol="application/pgp-signature"
+X-Proofpoint-Spam-Details: rule=outbound_default_notspam policy=outbound_default score=0
+ priorityscore=1501 malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0
+ spamscore=0 clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906030104
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Sig_/Hhpt4L1s=8zO1hfZdUUFFal
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
 
-Hi all,
-
-On Tue, 4 Jun 2019 00:31:53 +1000 Stephen Rothwell <sfr@canb.auug.org.au> w=
-rote:
->
-> Hi Krzysztof,
->=20
-> On Mon, 3 Jun 2019 16:10:40 +0200 Krzysztof Kozlowski <krzk@kernel.org> w=
-rote:
+From: Matthew Wilcox [mailto:willy@infradead.org]=20
+Sent: Monday, June 3, 2019 5:42 PM
+To: Nagal, Amit UTC CCS <Amit.Nagal@utc.com>
+On Mon, Jun 03, 2019 at 05:30:57AM +0000, Nagal, Amit               UTC CCS=
+ wrote:
+> > [  776.174308] Mem-Info:
+> > [  776.176650] active_anon:2037 inactive_anon:23 isolated_anon:0 [=20
+> > 776.176650]  active_file:2636 inactive_file:7391 isolated_file:32 [=20
+> > 776.176650]  unevictable:0 dirty:1366 writeback:1281 unstable:0 [=20
+> > 776.176650]  slab_reclaimable:719 slab_unreclaimable:724 [=20
+> > 776.176650]  mapped:1990 shmem:26 pagetables:159 bounce:0 [=20
+> > 776.176650]  free:373 free_pcp:6 free_cma:0 [  776.209062] Node 0=20
+> > active_anon:8148kB inactive_anon:92kB active_file:10544kB=20
+> > inactive_file:29564kB unevictable:0kB isolated(anon):0kB=20
+> > isolated(file):128kB mapped:7960kB dirty:5464kB writeback:5124kB=20
+> > shmem:104kB writeback_tmp:0kB unstable:0kB pages_scanned:0=20
+> > all_unreclaimable? no [  776.233602] Normal free:1492kB min:964kB=20
+> > low:1204kB high:1444kB active_anon:8148kB inactive_anon:92kB=20
+> > active_file:10544kB inactive_file:29564kB unevictable:0kB=20
+> > writepending:10588kB present:65536kB managed:59304kB mlocked:0kB=20
+> > slab_reclaimable:2876kB slab_unreclaimable:2896kB=20
+> > kernel_stack:1152kB pagetables:636kB bounce:0kB free_pcp:24kB=20
+> > local_pcp:24kB free_cma:0kB [  776.265406] lowmem_reserve[]: 0 0 [ =20
+> > 776.268761] Normal: 7*4kB (H) 5*8kB (H) 7*16kB (H) 5*32kB (H) 6*64kB=20
+> > (H) 2*128kB (H) 2*256kB (H) 0*512kB 0*1024kB 0*2048kB 0*4096kB =3D=20
+> > 1492kB
+> > 10071 total pagecache pages
+> > [  776.284124] 0 pages in swap cache [  776.287446] Swap cache=20
+> > stats: add 0, delete 0, find 0/0 [ 776.292645] Free swap  =3D 0kB [ =20
+> > 776.295532] Total swap =3D 0kB [ 776.298421] 16384 pages RAM [ =20
+> > 776.301224] 0 pages HighMem/MovableOnly [  776.305052] 1558 pages=20
+> > reserved
 > >
-> > Indeed it looks like effect of merge conflict resolution or applying.
-> > When I look at MMOTS, it is the same as yours:
-> > http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/commit/?id=3Db77b8cce67=
-f246109f9d87417a32cd38f0398f2f
-> >=20
-> > However in linux-next it is different.
-> >=20
-> > Stephen, any thoughts? =20
+> > 6) we have certain questions as below :
+> > a) how the kernel memory got exhausted ? at the time of low memory cond=
+itions in kernel , are the kernel page flusher threads , which should have =
+written dirty pages from page cache to flash disk , not > >executing at rig=
+ht time ? is the kernel page reclaim mechanism not executing at right time =
+?
 >=20
-> Have you had a look at today's linux-next?  It looks correct in
-> there.  Andrew updated his patch series over the weekend.
+> >I suspect the pages are likely stuck in a state of buffering. In the cas=
+e of sockets the packets will get queued up until either they can be servic=
+ed or the maximum size of the receive buffer as been exceeded >and they are=
+ dropped.
+>=20
+> My concern here is that why the reclaim procedure has not triggered ?
 
-Actually, this is the patch from mmotm (note 'm'):
+>It has triggered.  1281 pages are under writeback.
+Thanks for the reply .
 
-From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-Subject: mm/vmalloc.c: get rid of one single unlink_va() when merge
+Also , on target , cat /proc/sys/vm/min_free_kbytes =3D 965 .  As per https=
+://www.kernel.org/doc/Documentation/sysctl/vm.txt  ,=20
+the minimum value min_free_kbytes  should be set must be 1024 .=20
+is this min_free_kbytes setting creating the problem ?
 
-It does not make sense to try to "unlink" the node that is definitely not
-linked with a list nor tree.  On the first merge step VA just points to
-the previously disconnected busy area.
+Target is having 64MB memory  , what value is recommended for setting min_f=
+ree_kbytes  ?
 
-On the second step, check if the node has been merged and do "unlink" if
-so, because now it points to an object that must be linked.
+also is this a problem if the process receiving socket data is run at eleva=
+ted priority ( we set it firstly  chrt -r 20 and then changed it later to r=
+enice -n -20)
+I observed lru-add-drain , writeback threads were executing at normal prior=
+ity .
 
-Link: http://lkml.kernel.org/r/20190527151843.27416-4-urezki@gmail.com
-Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
-Acked-by: Hillf Danton <hdanton@sina.com>
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: Joel Fernandes <joelaf@google.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Thomas Garnier <thgarnie@google.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
 
- mm/vmalloc.c |    7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
 
---- a/mm/vmalloc.c~mm-vmap-get-rid-of-one-single-unlink_va-when-merge
-+++ a/mm/vmalloc.c
-@@ -719,8 +719,8 @@ merge_or_add_vmap_area(struct vmap_area
- 			/* Check and update the tree if needed. */
- 			augment_tree_propagate_from(sibling);
-=20
--			/* Remove this VA, it has been merged. */
--			unlink_va(va, root);
-+			if (merged)
-+				unlink_va(va, root);
-=20
- 			/* Free vmap_area object. */
- 			kmem_cache_free(vmap_area_cachep, va);
-@@ -746,9 +746,6 @@ merge_or_add_vmap_area(struct vmap_area
- 			/* Check and update the tree if needed. */
- 			augment_tree_propagate_from(sibling);
-=20
--			/* Remove this VA, it has been merged. */
--			unlink_va(va, root);
--
- 			/* Free vmap_area object. */
- 			kmem_cache_free(vmap_area_cachep, va);
-=20
-_
 
-Do I need to replace that for tomorrow?
---=20
-Cheers,
-Stephen Rothwell
 
---Sig_/Hhpt4L1s=8zO1hfZdUUFFal
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
 
------BEGIN PGP SIGNATURE-----
 
-iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAlz1MUAACgkQAVBC80lX
-0GyODwgAhFRY7MDp6PN5rHGvLRcgcl0R9opYG6WWuR5pAkl9A7RGR/6BDDLm0ZVu
-YvumuExfm9Z4XFQkdAqX3yPw+Zt7Y1fLTyY7G8obyw4D+L5/DbktmCKqWMHMO4OZ
-iVeW4LyAGfY+t/XFu2By/hPZuIUXnjL+zWP5hW3q+bI0Kzy028LnAEcISuuMxSY4
-6ePXcA4eOZZgwAn60poxjWOIgpiu13CTjEsK9/FH/kDbF+bghqvKyI7q09DcBKkm
-BSTTHiXPPXCxAjFve53BBQc418H2ZZ+j0uTWZBfsjRWpOETHafQYnZAXwVl7GHaF
-L7E3xO/wVQbdCMyaKMbdh3Io4lmHZw==
-=/lGE
------END PGP SIGNATURE-----
 
---Sig_/Hhpt4L1s=8zO1hfZdUUFFal--
+
+
 
