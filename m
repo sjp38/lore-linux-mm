@@ -2,209 +2,465 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B63BC282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 11:49:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88868C28CC6
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 11:51:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CAC962133D
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 11:49:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amdcloud.onmicrosoft.com header.i=@amdcloud.onmicrosoft.com header.b="08LvuO6n"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CAC962133D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amd.com
+	by mail.kernel.org (Postfix) with ESMTP id 4136623FF7
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 11:51:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4136623FF7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 760326B0273; Tue,  4 Jun 2019 07:49:56 -0400 (EDT)
+	id CB5B96B0273; Tue,  4 Jun 2019 07:51:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 710C66B0276; Tue,  4 Jun 2019 07:49:56 -0400 (EDT)
+	id C66C16B0276; Tue,  4 Jun 2019 07:51:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 563DA6B0277; Tue,  4 Jun 2019 07:49:56 -0400 (EDT)
+	id B548B6B0277; Tue,  4 Jun 2019 07:51:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 263786B0273
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 07:49:56 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id t196so3349794qke.0
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 04:49:56 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 87C9A6B0273
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 07:51:22 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id b64so7384571otc.3
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 04:51:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:user-agent:content-id:content-transfer-encoding
-         :mime-version;
-        bh=AuvUjLTuUv06KHwWBNifnh3rfmmJqB0eNoQmoWoPShM=;
-        b=aurIG0EOZZl1/MxpIq1l3HI7Txyt+VijEx2lqeE7dnDKm+7fFu7wnFqgzB0VaEFGFU
-         cSVGsamNu/4fJ3vMfDfsnRIvkYY632Jl4SbIjcQPeu7DI4PaegJhNWSNEBmVXqRXTwFc
-         Bjtn615ffyjNaGaMs51RToMJRv33aSuuAsE2c1gk9blb1fgQsmNRrG3e7m/KX9Ymeskb
-         0KUtsHoFuus3/jf7n9vjwZq47iDnEba4iNJKOaHR4Pmg3gqlFfcYTUp0sv2UJ/Tcn1RS
-         yoomUY46UldYjmlmOI4k8P4Qd4AnmVVI7pVOQR/hyjX/UbLSivpfaTNmxTizqJQFbZuK
-         U3vQ==
-X-Gm-Message-State: APjAAAW513RiQYmBqZ4jM7KwAoIpBJeWt9GVBwEtzcSlwnU9ceW5WFiw
-	DDp8hB6TlOlL5U1Oe7iG9iYczI2tkYqx2qUdseFvAlfbdDUs9L5eryGIwcZkQNl0SGaD1inNwWM
-	6tP1DrmoBWhCgr9UjLXG5eBuITl8u1lRWeP5HvKJ6fC+mWlRWHReAUGaPCl7EpH0=
-X-Received: by 2002:a37:8e03:: with SMTP id q3mr27448593qkd.234.1559648995878;
-        Tue, 04 Jun 2019 04:49:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw8v810oW45EsmT50HPYPT8+1Fjnq/TPMKwECv7lndNn5OQcgGdJv/d9Z4aVKBmcaHWFx2N
-X-Received: by 2002:a37:8e03:: with SMTP id q3mr27448554qkd.234.1559648995355;
-        Tue, 04 Jun 2019 04:49:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559648995; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to;
+        bh=qrTcQOwHZRVzK++jhXWVCm51LY0cyGv7Bl96cXbjwlI=;
+        b=QYzg65scc3QmTK48CXK055FGZxaLhjgMJYVxkkyYpGqPxVUNZkr8nlire8YLEPr6DK
+         qNBEcP/vvlxLSjFkYvZpleV+ePuRiAT3qNYPcPreOYKhxrW5kYyJrsEhM6y9gXCubD5c
+         9xMsyudgYyOOGZswZudbYwqQcplyiP+QAfKbQcoZ2ALgDY9SSYagW56no0Cx3SwFv4yO
+         XXoVRqhiags1JPR5kjgwXt3U8lTaDEgPCGHKFA6o2Ng0PmizijRWudDiuOOVSeGWKWN+
+         VVwJJTXxgcScNLRqKn6umksqMhPh8YPVINaou9kBq5/BgzV57PloELmb2G5sUiTJMrj0
+         G+wQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXDbdmDbDJ1xcWmGi+QzBaXMUS+1uIOu5re6OfgNqc6jB5A80Q0
+	SU7n6k3q8vYyMT7jV9y0PyhT5UgGUauZhPhy01zYgkw0TjfhhZpm92VbjyvdaRL/TWf5AwUzLSs
+	/MmJ/Ehzs1WvpjxtvwJ0QkkhiQotmUu5Kg0y161JpiDIiQHgGqldpd71KqlepUWWDow==
+X-Received: by 2002:a9d:62d5:: with SMTP id z21mr4813764otk.202.1559649082227;
+        Tue, 04 Jun 2019 04:51:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzCB9YdVd12kZoajjNk3CONnXJNd3FNxB+wDxH/pKcOXeo6PjmzcvgE7UXsufOGPJY4z8gF
+X-Received: by 2002:a9d:62d5:: with SMTP id z21mr4813729otk.202.1559649081318;
+        Tue, 04 Jun 2019 04:51:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559649081; cv=none;
         d=google.com; s=arc-20160816;
-        b=vDK31mwaXWffmqtLGtNlafF6Cy57TREw/6A8woL1b8DAPMyagkdE3xjnVLo2HWsWmR
-         0lEmRGLOjKMJF6ZoWGIsqavxxAUnifmKszUVOisNpazISwnIb7yJJjsT1OBVlvo2xGuf
-         ter6VampEpUEzUw9iku67QQuKFkJMSx+0pUyXierlTLaJM6a5Z/8YxbFztPWGw7Kv1up
-         UqA8aGqESrlNwvy4nusj6K+VnmfyMHakvmBam7PSAFHrEVgv+pcR+FCB3fTlTZJa69I5
-         ocd3lZS1Ncy9wRqIyfQ8I4QYwTpHiqsH/BZzG+hAXz8P/3B6+1HPq7WuBJfetyruqlbx
-         TCww==
+        b=h4YLlf/KowCk0hvKyKSoR37I6/tZL8MCCL5/K+Acl7151fC9yYzWxHwb9+IDIzc1ZU
+         1BJ9xCGb0gqitrBhQy5nanhxa/YQWB42Deh5qWzhK1aWOlWTLTxCKZNlFGUWnMXQbLPA
+         N3pUqTox9a735Jy5BGDuPgJO90k4mY9fiQ5v06CglazXnLlXLPRSN8OR5tVZm6qIBtCW
+         wD2FWW2TVCMcn9AjBLk3bhYB5uQ7Pl5QxeTfB4/+RlVeHXt48SUj7VCp+Llf53kr9Xez
+         60vagKgMeE1ztN06t1TWQ/1XfM7v+GIfMAXbgSw1wDiJBkvs0L186G2Tqom/yxb2xyiA
+         SfDg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
-        bh=AuvUjLTuUv06KHwWBNifnh3rfmmJqB0eNoQmoWoPShM=;
-        b=JlOWj8ZBjvOlY+kKyJ0ct0q8ozxFElMG7hRo/LzMYpOFul3EIZVpetBULayLVHlkKL
-         KioVRge1FpbyRXj/Hc7epP8s3k3cly7H47wFxYDouOzzAj+E/9OQyDBAOVTnisBgQHqD
-         x4ljXpzzhibrnOG5dHkeDCLvMvB5Lhy0Lvyhr7qdiMpUkSx8tjh0OXymNpz/95Hr66ga
-         cIy93b+IXYWWW1i2bcEi0iERtKPim7lwPBOF2/boooiKXHSKV8vSngcgLtTU9JBx5kl3
-         avAWo/hbYhDWM0c/uUn8eM/A9NEpbTAQpXlDGdgJZFRQCJ6mrcuZOoGs9En/Lla9nGIc
-         LqnA==
+        h=in-reply-to:mime-version:user-agent:date:message-id:organization
+         :autocrypt:openpgp:from:references:cc:to:subject;
+        bh=qrTcQOwHZRVzK++jhXWVCm51LY0cyGv7Bl96cXbjwlI=;
+        b=fbi4xz8PLtedxvROawRrsHeJvIdP7Duyk+qciktsiryLuwY9uAcy6V+N0sBQh0CJKy
+         LMQuxs05wBmPXZnQWK0dERMz2boLLjaAhtLP20lvFaTDdARoWiSjGqBrIIaF/OUStQ+k
+         AP4cby5BX0A24YgHhiIQLW57jyI/DDXWl/IXBR1rodSzgWkWtALbzjS2nOXyFgPesVi3
+         CFVuHzqGU+INbVgTSA4xEGylsb8TjOJjjmLp8EExDaP9fzv4JANK3tDm5Ba2/3O17Hq+
+         //DtATY6SpPtIcWkcymW/gJaL58MV6OzS9CJS1odf94ypvrX20P8Y6OL48LqIdj/txxa
+         mYqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=08LvuO6n;
-       spf=neutral (google.com: 40.107.68.62 is neither permitted nor denied by best guess record for domain of christian.koenig@amd.com) smtp.mailfrom=Christian.Koenig@amd.com
-Received: from NAM04-BN3-obe.outbound.protection.outlook.com (mail-eopbgr680062.outbound.protection.outlook.com. [40.107.68.62])
-        by mx.google.com with ESMTPS id 2si2072737qtc.41.2019.06.04.04.49.55
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m2si4546556oic.8.2019.06.04.04.51.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jun 2019 04:49:55 -0700 (PDT)
-Received-SPF: neutral (google.com: 40.107.68.62 is neither permitted nor denied by best guess record for domain of christian.koenig@amd.com) client-ip=40.107.68.62;
+        Tue, 04 Jun 2019 04:51:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=08LvuO6n;
-       spf=neutral (google.com: 40.107.68.62 is neither permitted nor denied by best guess record for domain of christian.koenig@amd.com) smtp.mailfrom=Christian.Koenig@amd.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=amdcloud.onmicrosoft.com; s=selector1-amdcloud-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=AuvUjLTuUv06KHwWBNifnh3rfmmJqB0eNoQmoWoPShM=;
- b=08LvuO6nLT19eMwPqCH/JHlwPE3DwNgnlsl2k7pTfzleHgzS2iJAnFtTvYg3BL7PVRXdi+G3MFLUWXitq6BDoqKMIYUj58W24YWtmo6PTEAHWvmKrWjA8+rle3r8zIYtKe2W6ZMG8sj2+31r+4jsWGa+vvrpuj69i86DQhZs070=
-Received: from DM5PR12MB1546.namprd12.prod.outlook.com (10.172.36.23) by
- DM5PR12MB1865.namprd12.prod.outlook.com (10.175.87.151) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1943.22; Tue, 4 Jun 2019 11:49:52 +0000
-Received: from DM5PR12MB1546.namprd12.prod.outlook.com
- ([fe80::e1b1:5b6f:b2df:afa5]) by DM5PR12MB1546.namprd12.prod.outlook.com
- ([fe80::e1b1:5b6f:b2df:afa5%7]) with mapi id 15.20.1943.018; Tue, 4 Jun 2019
- 11:49:52 +0000
-From: "Koenig, Christian" <Christian.Koenig@amd.com>
-To: Andrey Konovalov <andreyknvl@google.com>
-CC: Linus Torvalds <torvalds@linux-foundation.org>,
-	"linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>, "sparclinux@vger.kernel.org"
-	<sparclinux@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Catalin
- Marinas <catalin.marinas@arm.com>, Vincenzo Frascino
-	<vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, Mark Rutland
-	<mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, Greg
- Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook
-	<keescook@chromium.org>, Yishai Hadas <yishaih@mellanox.com>, "Kuehling,
- Felix" <Felix.Kuehling@amd.com>, "Deucher, Alexander"
-	<Alexander.Deucher@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Jens
- Wiklander <jens.wiklander@linaro.org>, Alex Williamson
-	<alex.williamson@redhat.com>, Leon Romanovsky <leon@kernel.org>, Luc Van
- Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, Jason Gunthorpe
-	<jgg@ziepe.ca>, Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov
-	<dvyukov@google.com>, Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov
-	<eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, Ramana Radhakrishnan
-	<Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, Ruben
- Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH] uaccess: add noop untagged_addr definition
-Thread-Topic: [PATCH] uaccess: add noop untagged_addr definition
-Thread-Index: AQHVGsrrPMdhu+tmg0GkOarNrJ33baaLYLQAgAAAcYCAAAB0AA==
-Date: Tue, 4 Jun 2019 11:49:52 +0000
-Message-ID: <ff73058a-f57b-526b-af53-c0e30b7b1bc1@amd.com>
-References:
- <8ab5cd1813b0890f8780018e9784838456ace49e.1559648669.git.andreyknvl@google.com>
- <d74b1621-70a2-94a0-e24b-dae32adc457d@amd.com>
- <CAAeHK+w0_9QdxCJXEf=6nMgZpsb8NyrAaMO010Hh86TW75jJvw@mail.gmail.com>
-In-Reply-To:
- <CAAeHK+w0_9QdxCJXEf=6nMgZpsb8NyrAaMO010Hh86TW75jJvw@mail.gmail.com>
-Accept-Language: de-DE, en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-user-agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id A9496A3B72;
+	Tue,  4 Jun 2019 11:51:20 +0000 (UTC)
+Received: from [10.40.205.182] (unknown [10.40.205.182])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 45D6867260;
+	Tue,  4 Jun 2019 11:50:53 +0000 (UTC)
+Subject: Re: [RFC][Patch v10 2/2] virtio-balloon: page_hinting: reporting to
+ the host
+To: David Hildenbrand <david@redhat.com>,
+ Alexander Duyck <alexander.duyck@gmail.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
+ Andrea Arcangeli <aarcange@redhat.com>
+References: <20190603170306.49099-1-nitesh@redhat.com>
+ <20190603170306.49099-3-nitesh@redhat.com>
+ <CAKgT0UdtHAvRd++enU3ouxebwV1T4KZbS_JkmyDbJ5jGkA1XaQ@mail.gmail.com>
+ <604c496d-4df0-dca9-76dd-048917a5d132@redhat.com>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <a0794f3e-cf9c-f30a-5993-229c14fbe662@redhat.com>
+Date: Tue, 4 Jun 2019 07:50:49 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
-x-originating-ip: [2a02:908:1252:fb60:be8a:bd56:1f94:86e7]
-x-clientproxiedby: AM6P195CA0004.EURP195.PROD.OUTLOOK.COM
- (2603:10a6:209:81::17) To DM5PR12MB1546.namprd12.prod.outlook.com
- (2603:10b6:4:8::23)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=Christian.Koenig@amd.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: b797c529-0a71-4368-46eb-08d6e8e2c115
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4618075)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:DM5PR12MB1865;
-x-ms-traffictypediagnostic: DM5PR12MB1865:
-x-microsoft-antispam-prvs:
- <DM5PR12MB1865BD38A6AC9E0DE3677D0283150@DM5PR12MB1865.namprd12.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8273;
-x-forefront-prvs: 0058ABBBC7
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(366004)(346002)(376002)(136003)(396003)(39860400002)(189003)(199004)(6486002)(65806001)(46003)(66446008)(8936002)(65956001)(2616005)(7736002)(476003)(66556008)(71200400001)(71190400001)(52116002)(81166006)(6436002)(7406005)(64756008)(229853002)(6512007)(81156014)(31696002)(14454004)(72206003)(316002)(66476007)(86362001)(4326008)(53936002)(8676002)(478600001)(36756003)(65826007)(99286004)(6506007)(256004)(6116002)(5660300002)(7416002)(54906003)(76176011)(305945005)(186003)(66946007)(73956011)(58126008)(11346002)(64126003)(68736007)(53546011)(31686004)(486006)(386003)(6916009)(102836004)(6246003)(2906002)(25786009)(446003);DIR:OUT;SFP:1101;SCL:1;SRVR:DM5PR12MB1865;H:DM5PR12MB1546.namprd12.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: amd.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- 14omzt9GIzLZUiQb3h6pGr9c5vOsiSoeWiuS9rOVo2NJXEndL9vpilTVBtxnECz0dUf7+DLZcPeXxb58B9jDZb7k5raKDR769KHtEr67sq19O8mDLmNc27LQkKTPWgXH8b76BGLA/XKceBqIJzN0rmhZJKLfj6iiHNNwdZN6ws697P0AfrH+XnOlPo1wSsf0EjJShvO1EiT1x5dkcfQmKZygt+Ug5RqmyrHD0LEH2VxwLynFlKTxnSUPhdvgL5kiztR7R9lCdJZiDYCn190kDIuPUVMcvmOdWG7mnPNxlRvVZkt8aZB54rsMOcUhqxEY9UL/k0NVKLMpTTtwpsyilZf/TMp8FK6wJxSa+DeoPs8FV1QAKVQwmZFyP55LnD3MMr4YmiUF+qyj9IlXhD/6s4xLnUIAX95bW8ZbeQ1/fv8=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <18F83B8CBEA40C4E8B90F01B157267FB@namprd12.prod.outlook.com>
-Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-X-OriginatorOrg: amd.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: b797c529-0a71-4368-46eb-08d6e8e2c115
-X-MS-Exchange-CrossTenant-originalarrivaltime: 04 Jun 2019 11:49:52.4528
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 3dd8961f-e488-4e60-8e11-a82d994e183d
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: ckoenig@amd.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM5PR12MB1865
+In-Reply-To: <604c496d-4df0-dca9-76dd-048917a5d132@redhat.com>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="6NjG9l3ZfUIWqwgW8Rw3j6IdLhDSgrraq"
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Tue, 04 Jun 2019 11:51:20 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-QW0gMDQuMDYuMTkgdW0gMTM6NDggc2NocmllYiBBbmRyZXkgS29ub3ZhbG92Og0KPiBPbiBUdWUs
-IEp1biA0LCAyMDE5IGF0IDE6NDYgUE0gS29lbmlnLCBDaHJpc3RpYW4NCj4gPENocmlzdGlhbi5L
-b2VuaWdAYW1kLmNvbT4gd3JvdGU6DQo+PiBBbSAwNC4wNi4xOSB1bSAxMzo0NCBzY2hyaWViIEFu
-ZHJleSBLb25vdmFsb3Y6DQo+Pj4gQXJjaGl0ZWN0dXJlcyB0aGF0IHN1cHBvcnQgbWVtb3J5IHRh
-Z2dpbmcgaGF2ZSBhIG5lZWQgdG8gcGVyZm9ybSB1bnRhZ2dpbmcNCj4+PiAoc3RyaXBwaW5nIHRo
-ZSB0YWcpIGluIHZhcmlvdXMgcGFydHMgb2YgdGhlIGtlcm5lbC4gVGhpcyBwYXRjaCBhZGRzIGFu
-DQo+Pj4gdW50YWdnZWRfYWRkcigpIG1hY3JvLCB3aGljaCBpcyBkZWZpbmVkIGFzIG5vb3AgZm9y
-IGFyY2hpdGVjdHVyZXMgdGhhdCBkbw0KPj4+IG5vdCBzdXBwb3J0IG1lbW9yeSB0YWdnaW5nLiBU
-aGUgb25jb21pbmcgcGF0Y2ggc2VyaWVzIHdpbGwgZGVmaW5lIGl0IGF0DQo+Pj4gbGVhc3QgZm9y
-IHNwYXJjNjQgYW5kIGFybTY0Lg0KPj4+DQo+Pj4gQWNrZWQtYnk6IENhdGFsaW4gTWFyaW5hcyA8
-Y2F0YWxpbi5tYXJpbmFzQGFybS5jb20+DQo+Pj4gUmV2aWV3ZWQtYnk6IEtoYWxpZCBBeml6IDxr
-aGFsaWQuYXppekBvcmFjbGUuY29tPg0KPj4+IFNpZ25lZC1vZmYtYnk6IEFuZHJleSBLb25vdmFs
-b3YgPGFuZHJleWtudmxAZ29vZ2xlLmNvbT4NCj4+PiAtLS0NCj4+PiAgICBpbmNsdWRlL2xpbnV4
-L21tLmggfCA0ICsrKysNCj4+PiAgICAxIGZpbGUgY2hhbmdlZCwgNCBpbnNlcnRpb25zKCspDQo+
-Pj4NCj4+PiBkaWZmIC0tZ2l0IGEvaW5jbHVkZS9saW51eC9tbS5oIGIvaW5jbHVkZS9saW51eC9t
-bS5oDQo+Pj4gaW5kZXggMGU4ODM0YWMzMmI3Li45NDlkNDNlOWMwYjYgMTAwNjQ0DQo+Pj4gLS0t
-IGEvaW5jbHVkZS9saW51eC9tbS5oDQo+Pj4gKysrIGIvaW5jbHVkZS9saW51eC9tbS5oDQo+Pj4g
-QEAgLTk5LDYgKzk5LDEwIEBAIGV4dGVybiBpbnQgbW1hcF9ybmRfY29tcGF0X2JpdHMgX19yZWFk
-X21vc3RseTsNCj4+PiAgICAjaW5jbHVkZSA8YXNtL3BndGFibGUuaD4NCj4+PiAgICAjaW5jbHVk
-ZSA8YXNtL3Byb2Nlc3Nvci5oPg0KPj4+DQo+Pj4gKyNpZm5kZWYgdW50YWdnZWRfYWRkcg0KPj4+
-ICsjZGVmaW5lIHVudGFnZ2VkX2FkZHIoYWRkcikgKGFkZHIpDQo+Pj4gKyNlbmRpZg0KPj4+ICsN
-Cj4+IE1heWJlIGFkZCBhIGNvbW1lbnQgd2hhdCB0YWdnaW5nIGFjdHVhbGx5IGlzPyBDYXVzZSB0
-aGF0IGlzIG5vdCByZWFsbHkNCj4+IG9idmlvdXMgZnJvbSB0aGUgY29udGV4dC4NCj4gSGksDQo+
-DQo+IERvIHlvdSBtZWFuIGEgY29tbWVudCBpbiB0aGUgY29kZSBvciBhbiBleHBsYW5hdGlvbiBp
-biB0aGUgcGF0Y2ggZGVzY3JpcHRpb24/DQoNClRoZSBjb2RlLCB0aGUgcGF0Y2ggZGVzY3JpcHRp
-b24gYWN0dWFsbHkgc291bmRzIGdvb2QgdG8gbWUuDQoNCkNocmlzdGlhbi4NCg0KPg0KPiBUaGFu
-a3MhDQo+DQo+PiBDaHJpc3RpYW4uDQo+Pg0KPj4+ICAgICNpZm5kZWYgX19wYV9zeW1ib2wNCj4+
-PiAgICAjZGVmaW5lIF9fcGFfc3ltYm9sKHgpICBfX3BhKFJFTE9DX0hJREUoKHVuc2lnbmVkIGxv
-bmcpKHgpLCAwKSkNCj4+PiAgICAjZW5kaWYNCg0K
+This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
+--6NjG9l3ZfUIWqwgW8Rw3j6IdLhDSgrraq
+Content-Type: multipart/mixed; boundary="wbKqH0DBWRbbu6CF4s9EnEBmdNfs4bh6x";
+ protected-headers="v1"
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+To: David Hildenbrand <david@redhat.com>,
+ Alexander Duyck <alexander.duyck@gmail.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
+ Andrea Arcangeli <aarcange@redhat.com>
+Message-ID: <a0794f3e-cf9c-f30a-5993-229c14fbe662@redhat.com>
+Subject: Re: [RFC][Patch v10 2/2] virtio-balloon: page_hinting: reporting to
+ the host
+References: <20190603170306.49099-1-nitesh@redhat.com>
+ <20190603170306.49099-3-nitesh@redhat.com>
+ <CAKgT0UdtHAvRd++enU3ouxebwV1T4KZbS_JkmyDbJ5jGkA1XaQ@mail.gmail.com>
+ <604c496d-4df0-dca9-76dd-048917a5d132@redhat.com>
+In-Reply-To: <604c496d-4df0-dca9-76dd-048917a5d132@redhat.com>
+
+--wbKqH0DBWRbbu6CF4s9EnEBmdNfs4bh6x
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
+
+
+On 6/4/19 3:12 AM, David Hildenbrand wrote:
+> On 04.06.19 00:38, Alexander Duyck wrote:
+>> On Mon, Jun 3, 2019 at 10:04 AM Nitesh Narayan Lal <nitesh@redhat.com>=
+ wrote:
+>>> Enables the kernel to negotiate VIRTIO_BALLOON_F_HINTING feature with=
+ the
+>>> host. If it is available and page_hinting_flag is set to true, page_h=
+inting
+>>> is enabled and its callbacks are configured along with the max_pages =
+count
+>>> which indicates the maximum number of pages that can be isolated and =
+hinted
+>>> at a time. Currently, only free pages of order >=3D (MAX_ORDER - 2) a=
+re
+>>> reported. To prevent any false OOM max_pages count is set to 16.
+>>>
+>>> By default page_hinting feature is enabled and gets loaded as soon
+>>> as the virtio-balloon driver is loaded. However, it could be disabled=
+
+>>> by writing the page_hinting_flag which is a virtio-balloon parameter.=
+
+>>>
+>>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+>>> ---
+>>>  drivers/virtio/virtio_balloon.c     | 112 ++++++++++++++++++++++++++=
++-
+>>>  include/uapi/linux/virtio_balloon.h |  14 ++++
+>>>  2 files changed, 125 insertions(+), 1 deletion(-)
+>>>
+>>> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_=
+balloon.c
+>>> index f19061b585a4..40f09ea31643 100644
+>>> --- a/drivers/virtio/virtio_balloon.c
+>>> +++ b/drivers/virtio/virtio_balloon.c
+>>> @@ -31,6 +31,7 @@
+>>>  #include <linux/mm.h>
+>>>  #include <linux/mount.h>
+>>>  #include <linux/magic.h>
+>>> +#include <linux/page_hinting.h>
+>>>
+>>>  /*
+>>>   * Balloon device works in 4K page units.  So each page is pointed t=
+o by
+>>> @@ -48,6 +49,7 @@
+>>>  /* The size of a free page block in bytes */
+>>>  #define VIRTIO_BALLOON_FREE_PAGE_SIZE \
+>>>         (1 << (VIRTIO_BALLOON_FREE_PAGE_ORDER + PAGE_SHIFT))
+>>> +#define VIRTIO_BALLOON_PAGE_HINTING_MAX_PAGES  16
+>>>
+>>>  #ifdef CONFIG_BALLOON_COMPACTION
+>>>  static struct vfsmount *balloon_mnt;
+>>> @@ -58,6 +60,7 @@ enum virtio_balloon_vq {
+>>>         VIRTIO_BALLOON_VQ_DEFLATE,
+>>>         VIRTIO_BALLOON_VQ_STATS,
+>>>         VIRTIO_BALLOON_VQ_FREE_PAGE,
+>>> +       VIRTIO_BALLOON_VQ_HINTING,
+>>>         VIRTIO_BALLOON_VQ_MAX
+>>>  };
+>>>
+>>> @@ -67,7 +70,8 @@ enum virtio_balloon_config_read {
+>>>
+>>>  struct virtio_balloon {
+>>>         struct virtio_device *vdev;
+>>> -       struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_p=
+age_vq;
+>>> +       struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_p=
+age_vq,
+>>> +                        *hinting_vq;
+>>>
+>>>         /* Balloon's own wq for cpu-intensive work items */
+>>>         struct workqueue_struct *balloon_wq;
+>>> @@ -125,6 +129,9 @@ struct virtio_balloon {
+>>>
+>>>         /* To register a shrinker to shrink memory upon memory pressu=
+re */
+>>>         struct shrinker shrinker;
+>>> +
+>>> +       /* object pointing at the array of isolated pages ready for h=
+inting */
+>>> +       struct hinting_data *hinting_arr;
+>> Just make this an array of size VIRTIO_BALLOON_PAGE_HINTING_MAX_PAGES.=
+
+>> It will save a bunch of complexity later.
+> +1
+>
+> [...]
+>>> +struct virtio_balloon *hvb;
+>>> +bool page_hinting_flag =3D true;
+>>> +module_param(page_hinting_flag, bool, 0444);
+>>> +MODULE_PARM_DESC(page_hinting_flag, "Enable page hinting");
+>>> +
+>>> +static bool virtqueue_kick_sync(struct virtqueue *vq)
+>>> +{
+>>> +       u32 len;
+>>> +
+>>> +       if (likely(virtqueue_kick(vq))) {
+>>> +               while (!virtqueue_get_buf(vq, &len) &&
+>>> +                      !virtqueue_is_broken(vq))
+>>> +                       cpu_relax();
+>>> +               return true;
+>> Is this a synchronous setup? It seems kind of wasteful to have a
+>> thread busy waiting here like this. It might make more sense to just
+>> make this work like the other balloon queues and have a wait event
+>> with a wake up in the interrupt handler for the queue.
+> +1
+>
+> [...]
+>
+>>> +       gpaddr =3D virt_to_phys(hvb->hinting_arr);
+>>> +       hint_req->phys_addr =3D cpu_to_virtio64(hvb->vdev, gpaddr);
+>>> +       hint_req->size =3D cpu_to_virtio32(hvb->vdev, entries);
+>>> +       sg_init_one(&sg, hint_req, sizeof(*hint_req));
+>>> +       err =3D virtqueue_add_outbuf(vq, &sg, 1, hint_req, GFP_KERNEL=
+);
+>>> +       if (!err)
+>>> +               virtqueue_kick_sync(hvb->hinting_vq);
+>>> +
+>>> +       kfree(hint_req);
+>>> +}
+>>> +
+>>> +int page_hinting_prepare(void)
+>>> +{
+>>> +       hvb->hinting_arr =3D kmalloc_array(VIRTIO_BALLOON_PAGE_HINTIN=
+G_MAX_PAGES,
+>>> +                                        sizeof(*hvb->hinting_arr), G=
+FP_KERNEL);
+>>> +       if (!hvb->hinting_arr)
+>>> +               return -ENOMEM;
+>>> +       return 0;
+>>> +}
+>>> +
+>> Why make the hinting_arr a dynamic allocation? You should probably
+>> just make it a static array within the virtio_balloon structure. Then
+>> you don't have the risk of an allocation failing and messing up the
+>> hints.
+> +1
+>
+>>> +void hint_pages(struct list_head *pages)
+>>> +{
+>>> +       struct page *page, *next;
+>>> +       unsigned long pfn;
+>>> +       int idx =3D 0, order;
+>>> +
+>>> +       list_for_each_entry_safe(page, next, pages, lru) {
+>>> +               pfn =3D page_to_pfn(page);
+>>> +               order =3D page_private(page);
+>>> +               hvb->hinting_arr[idx].phys_addr =3D pfn << PAGE_SHIFT=
+;
+>>> +               hvb->hinting_arr[idx].size =3D (1 << order) * PAGE_SI=
+ZE;
+>>> +               idx++;
+>>> +       }
+>>> +       page_hinting_report(idx);
+>>> +}
+>>> +
+>> Getting back to my suggestion from earlier today. It might make sense
+>> to not bother with the PAGE_SHIFT or PAGE_SIZE multiplication if you
+>> just record everything in VIRTIO_BALLOON_PAGES intead of using the
+>> actual address and size.
+> I think I prefer "addr + size".
+>
+>> Same comment here. Make this array a part of virtio_balloon and you
+>> don't have to free it.
+>>
+>>> +static const struct page_hinting_cb hcb =3D {
+>>> +       .prepare =3D page_hinting_prepare,
+>>> +       .hint_pages =3D hint_pages,
+>>> +       .cleanup =3D page_hinting_cleanup,
+>>> +       .max_pages =3D VIRTIO_BALLOON_PAGE_HINTING_MAX_PAGES,
+>>> +};
+>> With the above changes prepare and cleanup can be dropped.
+> +1
+>
+>>> +#endif
+>>> +
+>>>  static u32 page_to_balloon_pfn(struct page *page)
+>>>  {
+>>>         unsigned long pfn =3D page_to_pfn(page);
+>>> @@ -488,6 +574,7 @@ static int init_vqs(struct virtio_balloon *vb)
+>>>         names[VIRTIO_BALLOON_VQ_DEFLATE] =3D "deflate";
+>>>         names[VIRTIO_BALLOON_VQ_STATS] =3D NULL;
+>>>         names[VIRTIO_BALLOON_VQ_FREE_PAGE] =3D NULL;
+>>> +       names[VIRTIO_BALLOON_VQ_HINTING] =3D NULL;
+>>>
+>>>         if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) =
+{
+>>>                 names[VIRTIO_BALLOON_VQ_STATS] =3D "stats";
+>>> @@ -499,11 +586,18 @@ static int init_vqs(struct virtio_balloon *vb)
+>>>                 callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] =3D NULL;
+>>>         }
+>>>
+>>> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {=
+
+>>> +               names[VIRTIO_BALLOON_VQ_HINTING] =3D "hinting_vq";
+>>> +               callbacks[VIRTIO_BALLOON_VQ_HINTING] =3D NULL;
+>>> +       }
+>>>         err =3D vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_V=
+Q_MAX,
+>>>                                          vqs, callbacks, names, NULL,=
+ NULL);
+>>>         if (err)
+>>>                 return err;
+>>>
+>>> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
+>>> +               vb->hinting_vq =3D vqs[VIRTIO_BALLOON_VQ_HINTING];
+>>> +
+>>>         vb->inflate_vq =3D vqs[VIRTIO_BALLOON_VQ_INFLATE];
+>>>         vb->deflate_vq =3D vqs[VIRTIO_BALLOON_VQ_DEFLATE];
+>>>         if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) =
+{
+>>> @@ -942,6 +1036,14 @@ static int virtballoon_probe(struct virtio_devi=
+ce *vdev)
+>>>                 if (err)
+>>>                         goto out_del_balloon_wq;
+>>>         }
+>>> +
+>>> +#ifdef CONFIG_PAGE_HINTING
+>>> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING) &&=
+
+>>> +           page_hinting_flag) {
+>>> +               hvb =3D vb;
+>>> +               page_hinting_enable(&hcb);
+>>> +       }
+>>> +#endif
+>>>         virtio_device_ready(vdev);
+>>>
+>>>         if (towards_target(vb))
+>>> @@ -989,6 +1091,12 @@ static void virtballoon_remove(struct virtio_de=
+vice *vdev)
+>>>                 destroy_workqueue(vb->balloon_wq);
+>>>         }
+>>>
+>>> +#ifdef CONFIG_PAGE_HINTING
+>>> +       if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {=
+
+> Nitesh, you should only disable if you actually enabled it
+> (page_hinting_flag).
++1, thanks.
+>
+>
+--=20
+Regards
+Nitesh
+
+
+--wbKqH0DBWRbbu6CF4s9EnEBmdNfs4bh6x--
+
+--6NjG9l3ZfUIWqwgW8Rw3j6IdLhDSgrraq
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlz2WxkACgkQo4ZA3AYy
+ozm1FQ//XVKSJNgjmz/qdXNXpETt9ez/6slhNIBrFzlSaoU3WUS+dR3ZFQOSBLoA
+G7RqLPYmhgh56fmgTd5hHEOYAtsYvAM76QfLZL2lRGN+4ePaqxO4UN81Ooz6qszr
+yJf39XennhsYuYX33BGlg9bBn4wVSmt81wzTN//f0eto7guAdBtuhNdE6oNA8jOm
+YNN28AmKKTWS/gwsurfxNc/gSv8l+PrrFqkXUH3KLGgYH9JJpHoh1xJvCEhbEbj/
+fkDoLeeCaRGUBCZi8ykl+e+jpxucnP17gxtv+AYu+KuWH7zrz46vUzaTdVxcujHT
+OKhBVI/KdHpVmcoIQf8z3lWgSMQvMVvXTvtxi+l44oeke6ojIR+ZR2VYYPodW1VG
+e7UaDPd+BZtErJTVgOYmjd+tOShCP32j51H14kMvXgnDj/rNBPpUCzpHClSXF3o1
+pKrHdDLNDSY//sk/nL+PVCLKQQDdwCZvFgkni3/uunl4QtlKdNIqTkhEhfLL9Fhv
+su6yHpUEajB/lLllatOU6i1Q3vr/RQFIQUiyVFpRJ/B1YmwQVDkQAEKbBC30g9+T
+ZeLp0cZEB4obElNWc9UGeHLPq1JF4I6LgXjpopGfsyj5tC6u+wZ5TlruM6UM079r
+tPNzZ96Oy5n9zLbVnsGLUmoQlZZMqP/yz8TkKC6UPmvv1kbwEG4=
+=vf8e
+-----END PGP SIGNATURE-----
+
+--6NjG9l3ZfUIWqwgW8Rw3j6IdLhDSgrraq--
 
