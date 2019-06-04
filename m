@@ -2,175 +2,132 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9549C28CC6
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 11:48:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0661AC282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 11:48:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7153024922
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 11:48:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BE5962133D
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 11:48:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="M0DMlRQ1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7153024922
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="tTAUwG4D"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE5962133D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 05CFC6B0272; Tue,  4 Jun 2019 07:48:17 -0400 (EDT)
+	id 64F516B0273; Tue,  4 Jun 2019 07:48:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 00D956B0273; Tue,  4 Jun 2019 07:48:16 -0400 (EDT)
+	id 5D8506B0274; Tue,  4 Jun 2019 07:48:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DF17B6B0274; Tue,  4 Jun 2019 07:48:16 -0400 (EDT)
+	id 47A046B0276; Tue,  4 Jun 2019 07:48:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A48266B0272
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 07:48:16 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id 91so13831508pla.7
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 04:48:16 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BF516B0273
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 07:48:38 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id d7so15927166pfq.15
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 04:48:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=l2lS9VXn0JOV0lrkvQPMmgSCO4r5DeMFb6G5blm/uF4=;
-        b=JEcvVuBk5gl67p65dgZDAJ9DHfEycY8YmRSEu1UXv3iZrZUtE4sXatODmxn+B+++2W
-         cBk+/1/bVi4uDc68Rnru7LtufS6iM5NA9HcwsPzXuWxzI4loI4i20Ml+M2gjVZL7xa2k
-         YEmdm0OUFVxbQxPA/c7eG2Fb98D5+OFqXU/ihQZijP3FDf0y/l6C8S4WV2Hw4AirxAp1
-         uZfkKiKXJR2gmelHlxPTOb8rof1KKHrwiDG6qkMB4TZbj3GdGHKujQpKscx7rGZ7y5t2
-         8Yrg2Ehe0xYnvpS307L31yJIllshgiO8HgMKqJKssF9gLg/m9gwq1k3uSFLCHD6ilH4S
-         frMQ==
-X-Gm-Message-State: APjAAAXhmOerfUVdrx3BjBTgsacuRFd0kNsq/a06hNn0o2bq3fOgjjwW
-	gRi9rcpb189Q7otD4nUn6jBwsdj3l3W/jUnqlNFdUJRMQ4UTmIOQRzLmz81VrW4Od6DTBs5rQ3G
-	1sA4XlG0vXyuk1N52cBNpYJhitItvEWe9YrR6c2Jdi1GPD+Q7QCFSKLUInDW4m/pSzA==
-X-Received: by 2002:aa7:80ce:: with SMTP id a14mr6244503pfn.249.1559648896295;
-        Tue, 04 Jun 2019 04:48:16 -0700 (PDT)
-X-Received: by 2002:aa7:80ce:: with SMTP id a14mr6244445pfn.249.1559648895767;
-        Tue, 04 Jun 2019 04:48:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559648895; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=usxMrtFKFaWUXsgPZoWK8RLJ7ydXAE8gfK7g1BmfbaI=;
+        b=q93cHxgbDZUAR3gET5f2iZUfZhW89xqbPQNksZ2ai6fCdEfGSXa/GyIjhsCSgEpRyh
+         /ErFBwAO9V/m6O/DRXwZ9iBxZ3PpaHBQAWWQCHenlJj7H6NriImfiBz/f59ZT6a+pmtl
+         VlNtNmvK6tsJwdWb7rYHv9lHx2YVEOsz+3A5jK8QJw4H654LTj4CjA9SYDMdwPmFIkDm
+         dezrJxBUYEBp+4R47MNQ2sFm7b8v4xpvyOhfvEYT69js10OzGqyKzutMHw+ZOfb89Vnc
+         eNNnN7H+WJ6FBgw2GV88HQAv8AKIQM5HcckTTCCeGcGocymDgB4xqon41qIKrrK2SueI
+         2h+A==
+X-Gm-Message-State: APjAAAXS6VlgCU7MbvN4phpJbZhVK6Mp6YVS5cRiPXmMaYi/GhL4tg4H
+	m3unxEaT9B76DcPmaZkoxIqmroV21peie61TM8Kl139Sp48aJt8fnVeXGlUDcAWQcqOS4jVn3Bn
+	8NFcq+y8J3jjLjg2TFJ2mlUe2DwspjIsNqN1O0lRdpVPITZ9DpoW0kepI6g14yhm+Vg==
+X-Received: by 2002:a63:ec42:: with SMTP id r2mr35375008pgj.262.1559648917732;
+        Tue, 04 Jun 2019 04:48:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxaDpbR7LpF2tjx/8zB4tVOoS0G3TnGfkhRNqFCIMfET4Z1ixwrJE9GarbMuUmnh3sE+xgE
+X-Received: by 2002:a63:ec42:: with SMTP id r2mr35374928pgj.262.1559648917029;
+        Tue, 04 Jun 2019 04:48:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559648917; cv=none;
         d=google.com; s=arc-20160816;
-        b=w310GRs4WGHeCk2nApSvixc7tlJl0p9fa27utbq+PW3nAUhKVq7bu4PGbEkj68WX9l
-         C8RSsyHFWeL7oh8ZK5b6B4zftoeT4sgNN7pZ3/izvcJoYCbzWasHPcvLYJEPMF7Jw+9p
-         aO3LSux+P0yWDf2pK7fQmW1w6sGIf6B4ks+2gIXdn6faVt70iS8rEEmBEHsJOoBS9Wc8
-         lH2WPbsw8h2jyvCkNUw8PzNnNlpy+zzLrI7wOKHGCOtmEXTWhZuU0KlzdrMZItD2zJGO
-         z8bZ3meQA5yndWM0J+hK88SL2B0fxB6Z7m9Qv14EvCUvaB9TiUGZn94LaARCSL7Pmxny
-         bJiw==
+        b=soAzeEgk1cqeOwoIAeaJw6GHoDlrtzbEs0KMY52hZ5F+eERmxm0f67psdctylSeSnu
+         uBa3eXce0vRnKsezz2WN39nxR3Qcb1GwaO9PExj2dASr6KpxKrpMBYRBWJkOGHztEjqp
+         29fTQj6/h8HI6jPVLwCKjZ/M1XZTzRt7PXTIMS77hmMBC7aIjTJQCAAZhrS/PZAcyh7Z
+         q5OHH28yxFDno/gaxE5FcsmIJm+lXuemlugVx7gwaoJDap8btPQhv3N4y4jJ/wa7sAUR
+         P7FWBWdiJrqK+grrsbDJBbJjEbc45N4+FF3M+C3bypjB0ZyBrv5ZiDOUsnzJecjpe/vL
+         DHmw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=l2lS9VXn0JOV0lrkvQPMmgSCO4r5DeMFb6G5blm/uF4=;
-        b=IUqgvNKWc8o02w7gzePF2x2Ecl4rxwpx2tpjszPw1DFE+cyqaX7mTNFCkFJDkXf+aP
-         HGisPP5l+pxAl46Od1nm9HKhJmKWD3lAKME35hfCsqJuKPJaoxDMlc++a7uWZh8qMl0Q
-         dglsUuS1Px0sBWXZKp02TgK1b+INZOToFFRix1AFYns0zedPjEjSJQ80OJ0Awz19uSSG
-         MD6bKhg/MG0wSDT4oAFbYYZJFwPAHkh2IWuorphQVC/i0bPcqSCp36+/2hlbtp4p3cvX
-         3KulQVz191yawe2lMZgG8OqKFm/wDUIMxC0Pgx3tXTVqAAXqRfEqdc2ughxvg2yTtcGB
-         6kQA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=usxMrtFKFaWUXsgPZoWK8RLJ7ydXAE8gfK7g1BmfbaI=;
+        b=ZrrpEk/Bvt29TR3zmjN4VYkH94fgpTri/pAvLZdP7zXGLgE14KBRQxLmkeg8KvTl2d
+         9XtazJbPwHeXpAApJwH4/bJTUXdgbQpeZK3aqPjKM5r7s2CfeT9HrIZ7SW5NsSiZPbj4
+         rBVQRXo272h1aIYMvDW6YpAfCf6L1+aJDr+5Pnxk8rhla5o8T8f0bo/XV7FrAtu4Jk7g
+         sFYrVPsn/6h5iic8pTt7P+5WDCAej+2Y8B0kRzdQGDdG8H+wZPyEgdWi2Tv2fxUB1eVK
+         IUrsEm8UlNmb+7AZjR9MmO9BTa878tiOGWq3H7dAMIG5sPH6UJsry/EAfWuP94bDH+6k
+         BLtQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=M0DMlRQ1;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g95sor20190034plb.67.2019.06.04.04.48.15
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=tTAUwG4D;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id g11si20775693pgs.201.2019.06.04.04.48.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Jun 2019 04:48:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 04 Jun 2019 04:48:36 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=M0DMlRQ1;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=l2lS9VXn0JOV0lrkvQPMmgSCO4r5DeMFb6G5blm/uF4=;
-        b=M0DMlRQ1HKA6D9NAO0V2sm9/zYZWP+1XOjmn59ytz8n46FHwdaWXM0RmDqecELc0CD
-         TyAtpGjsaLf78y28sMV5XpDdzqWkQFoLrG4JmKyB20v3AEUSZ84vFCfbahAnJbBWXTDe
-         lxvooM2Tt/ajz9LaLc0YFyhDIwwZ9gPW/77cWnoFBFeW1WjBXUTE7GfRa1ThVQOHuo3s
-         shP14wPYTEXFgEfcuub9qa9DcYA4fCTl4CLVznhqf/cR8S79aYCO7GCHb7p1YqEQltrO
-         AQzjJKwTGzxdh+F0Gnq7lZoTrHue4pLf6ckipB1C17pl/cPtDze5tQgEM9+9n2jZCGGY
-         dHSQ==
-X-Google-Smtp-Source: APXvYqx7WlqCkdGPKLutoMBA66Kuwfxftr7iVGYrBeMeyQalyPFL29VhCLInmdVTRNyRVDkjn2/lP008/BVA4p3Szd8=
-X-Received: by 2002:a17:902:bc47:: with SMTP id t7mr24049646plz.336.1559648895074;
- Tue, 04 Jun 2019 04:48:15 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=tTAUwG4D;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=usxMrtFKFaWUXsgPZoWK8RLJ7ydXAE8gfK7g1BmfbaI=; b=tTAUwG4DBF+Vm6mOhLulP4xCD
+	tCTNc/9te81U59DISPa3PoKxbhzi2AITbza3nx3maKQ15CXqzQUH98JH6n6iwdWHQSpnkC687KlIS
+	2MbwTonmdtAniU5NzsslIRarvYArD96eKKf/CT+RgtLB9SD4os/ulsN06qxdPeF5XFZcRvG/NrS6o
+	7Tx7kcPnR1TBVZkbSuqBLKRr9qr5Pufk2+YovH7uhvM8ICVWYPLyfgtLjICdS3unvKIQWO3fzp6Ge
+	4Aj/6cT23Nm1me+oGR6fRA9uJGtjF+B86vu+rXr1Fw7Lp2KOp6vFm7ayIZ7u4SYJwDEvAU3hfp3bD
+	N0A7ZvITA==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hY7vY-0001TK-Gv; Tue, 04 Jun 2019 11:48:28 +0000
+Date: Tue, 4 Jun 2019 04:48:28 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Emmanuel Arias <eamanu@eamanu.com>
+Cc: cl@linux.com, penberg@kernel.org, rientjes@google.com,
+	iamjoonsoo.kim@lge.com, akpm@linux-foundation.org,
+	linux-mm@kvack.org, emmanuelarias30@gmail.com
+Subject: Re: [PATCH] Make more redeable the kmalloc function
+Message-ID: <20190604114828.GE23346@bombadil.infradead.org>
+References: <20190604014454.6652-1-eamanu@eamanu.com>
 MIME-Version: 1.0
-References: <8ab5cd1813b0890f8780018e9784838456ace49e.1559648669.git.andreyknvl@google.com>
- <d74b1621-70a2-94a0-e24b-dae32adc457d@amd.com>
-In-Reply-To: <d74b1621-70a2-94a0-e24b-dae32adc457d@amd.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 4 Jun 2019 13:48:03 +0200
-Message-ID: <CAAeHK+w0_9QdxCJXEf=6nMgZpsb8NyrAaMO010Hh86TW75jJvw@mail.gmail.com>
-Subject: Re: [PATCH] uaccess: add noop untagged_addr definition
-To: "Koenig, Christian" <Christian.Koenig@amd.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, 
-	"linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, 
-	"sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
-	Yishai Hadas <yishaih@mellanox.com>, "Kuehling, Felix" <Felix.Kuehling@amd.com>, 
-	"Deucher, Alexander" <Alexander.Deucher@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
-	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
-	Leon Romanovsky <leon@kernel.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, 
-	Dave Martin <Dave.Martin@arm.com>, Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, 
-	Jason Gunthorpe <jgg@ziepe.ca>, Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190604014454.6652-1-eamanu@eamanu.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 4, 2019 at 1:46 PM Koenig, Christian
-<Christian.Koenig@amd.com> wrote:
->
-> Am 04.06.19 um 13:44 schrieb Andrey Konovalov:
-> > Architectures that support memory tagging have a need to perform untagging
-> > (stripping the tag) in various parts of the kernel. This patch adds an
-> > untagged_addr() macro, which is defined as noop for architectures that do
-> > not support memory tagging. The oncoming patch series will define it at
-> > least for sparc64 and arm64.
-> >
-> > Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-> > Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
-> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> > ---
-> >   include/linux/mm.h | 4 ++++
-> >   1 file changed, 4 insertions(+)
-> >
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index 0e8834ac32b7..949d43e9c0b6 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -99,6 +99,10 @@ extern int mmap_rnd_compat_bits __read_mostly;
-> >   #include <asm/pgtable.h>
-> >   #include <asm/processor.h>
-> >
-> > +#ifndef untagged_addr
-> > +#define untagged_addr(addr) (addr)
-> > +#endif
-> > +
->
-> Maybe add a comment what tagging actually is? Cause that is not really
-> obvious from the context.
+On Mon, Jun 03, 2019 at 10:44:54PM -0300, Emmanuel Arias wrote:
+> The ``if```check of size > KMALLOC_MAX_CACHE_SIZE was between the same
+> preprocessor directive. I join the the directives to be more redeable.
 
-Hi,
+>  static __always_inline void *kmalloc(size_t size, gfp_t flags)
+>  {
+>  	if (__builtin_constant_p(size)) {
+> -#ifndef CONFIG_SLOB
+> -		unsigned int index;
+> -#endif
+>  		if (size > KMALLOC_MAX_CACHE_SIZE)
+>  			return kmalloc_large(size, flags);
+>  #ifndef CONFIG_SLOB
+> +		unsigned int index;
+>  		index = kmalloc_index(size);
 
-Do you mean a comment in the code or an explanation in the patch description?
-
-Thanks!
-
->
-> Christian.
->
-> >   #ifndef __pa_symbol
-> >   #define __pa_symbol(x)  __pa(RELOC_HIDE((unsigned long)(x), 0))
-> >   #endif
->
+You didn't get a new warning from -Wdeclaration-after-statement?
 
