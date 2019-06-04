@@ -2,243 +2,260 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CDCAC46470
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 06:55:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B96DC28CC6
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 06:56:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B9FAC24DFC
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 06:55:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9FAC24DFC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id D3C3924DFC
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 06:56:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3C3924DFC
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6190C6B0266; Tue,  4 Jun 2019 02:55:44 -0400 (EDT)
+	id 79F776B000C; Tue,  4 Jun 2019 02:56:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5C30D6B0269; Tue,  4 Jun 2019 02:55:44 -0400 (EDT)
+	id 750D66B000D; Tue,  4 Jun 2019 02:56:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 492726B026A; Tue,  4 Jun 2019 02:55:44 -0400 (EDT)
+	id 5F12B6B0269; Tue,  4 Jun 2019 02:56:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EF0FB6B0266
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 02:55:43 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id a21so16053420edt.23
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 23:55:43 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 310836B000C
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 02:56:24 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id b64so7073712otc.3
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 23:56:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=kB1owiAwkJzggebCYwkxBdcvv4EURqFgI7XX/RJAY8o=;
-        b=fBz8azeDenGn4gJZSSyj+L4DHdtL3MMRatG4F+DpQMhNzHg5+vQ/1K3WSG83+M/AE5
-         lO0sd0viDzulmR7RD3bDwgPGKmCcmN5XMxgvYHQsH/5WM4WBQ8EY3WeAVBYV9pzA2vmp
-         26QObHdT1FbZSr35wPLE1XW4yYvMuarg/3/52e58w/ETBFePUUWRWADZGLPK1JNTQ7Q5
-         9yJOgBEhzDOLkqXWisl/LUzAFTlUFlGjLJvsnaER9zaZBUkys6j+oTFJTXCcPrviH5oz
-         JlVtQtczw5ETuq6ltUVvB8kwuMV8j50B8BS7JHH9IV80JwXxIu6LTuT47+DCagTeifwW
-         fUoQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUw8wKuqNdK1QzOPShKa2Gu84uoNKRkwHnjNNOwQ7RgU9mFqBuN
-	al/2DJf0zRQ3ZinQKkzrOA1WZMM8q9aC3FetXV4hDLuEwzxGyrlEeOt3yk+HG9ceuMGy8SbOb+y
-	ZtgJTSuTDjnqPOgIpjfCF5VHp+KYjTw1ZQ/a4KfK/SvhP5tzUL33AwMw99V6DCjA=
-X-Received: by 2002:a17:906:b786:: with SMTP id dt6mr27659910ejb.307.1559631343506;
-        Mon, 03 Jun 2019 23:55:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx7eEmagwig8TaSI37pEKkpLD9GtrC7+q8Izco/XYRildtMMzkx3z/JVwd63Xf8UJSTvKKF
-X-Received: by 2002:a17:906:b786:: with SMTP id dt6mr27659846ejb.307.1559631342338;
-        Mon, 03 Jun 2019 23:55:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559631342; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=P/oTAg5XbIXufBM5LBUlgdxh/oIhL4+gm9j7aKXhAm0=;
+        b=FCRHDqp7D8fvfd45y5uXZWyfhsw7/YXriNkLeG2JhG/DGzZ8f7OpBptrbRrWSTmksS
+         9qH6f4iotuLRe2cVhbL8WUMv5cUxMNIwLRBFoCzUHW+IHRyCrABw3ubdlv5T4PQ8l+mi
+         8TU/XGxX0K/Zrv9Ja8OlfuJpFnQ6rk9jhTyRFw0hd5vSK2+pkCpdx1LTnfCXOc08E3RV
+         HhelJ9r7mtiRcqaQnlG3wvvxRVYH3/ges+1AvfFpFeM048QqNMse503DnyW6CS0NG/PR
+         k2knKWODYqXeq3SWunSDUXKzHHPkVJPOF0MNXYZeo5TNg/awFEHm4j82Hu8RePMK+mgi
+         98hg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXtkcGRXM3iBij90+zVyz3SL2Q/Vci7dTihf1ZGtVoEVmfcVgT0
+	KV8VzLeRN0dMAcr1bkf9hA5qy1Q1tMv1Uw/uSvwC5Mk2Lu3004IXQMsl9zlrZS/1xAuOCb1Ejw4
+	s+peeUV7RPTsx7csCOIVlM5rt+s9nOrSFyr8p1FbBee382jw/hm3Y1PbnG5J+S6FFrQ==
+X-Received: by 2002:a05:6830:1293:: with SMTP id z19mr2920816otp.25.1559631383919;
+        Mon, 03 Jun 2019 23:56:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqznutPWC2lZugSS1N/zzu42f0rnlP4w2i/Tzs/Ef8vOUiFK7aYBf+uaDhEPemlQ4fcE+b6o
+X-Received: by 2002:a05:6830:1293:: with SMTP id z19mr2920798otp.25.1559631383259;
+        Mon, 03 Jun 2019 23:56:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559631383; cv=none;
         d=google.com; s=arc-20160816;
-        b=EJ0i6znPym++RHUluRfTWcsJ9SbRm56vpoKWRKxeIw33MrsUSOEkiJA6W8/hd8bgKx
-         e7vWq5NMlnkEjqTieGTti3PN7K4PL+dRlN4N4WaYV2+R0b/PwgzEjjue4KPSQ0cWuWDP
-         kRxgQWa/UlReDj7BdhgkaTMW86Tui7LwTKRG5viiOgfBmB3gvVCPQ5/n6EChhKmNlic3
-         Qq1+TFu6hEePHS45Vm8qAjVB7l9KQnuL5Qhr4I/dwR9OYRYN8ib43MiAbJ15Azl7NcT5
-         jS9I+snDOGimm0JCRfJKYDvcwWiqtwAcncB99Vg3LuhKDMb0oPlTZS6mjluhsnc/k9Vc
-         lppw==
+        b=ayXZfB0jP5bGJUMUPBLp6MLlMknhgS6WAHK01QPbQtcvXHFN9QnwAtKen3zNYl3fku
+         +sNUEI6m6ifxMdSvETe0/Dg3IyTGuTWOF5eMMGD41seyhQsYKYuX+FAD9Y9+G0V3cIt1
+         6o0mZm9z14/j4H16pBCsT1mF6aic7sj5OZfXfC5qvuk34AQ3I/qNagQ/gZ2gY3WTTNy7
+         wmUsGkmotjRFNOu7nfbD5lrYNexQHSlBoLANnMeaa7PvEg/Mo8HANDboWPLwLpTnNxpb
+         MHaZ0DuJLTns8WRI42DYbQHtFXm3NFHCbGwmnzIhAvlkmYl7sBJS6CSYJ9FqGiOJc7Ug
+         ZQIg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=kB1owiAwkJzggebCYwkxBdcvv4EURqFgI7XX/RJAY8o=;
-        b=LSKg/kVBjQdl1lzk9HgrEE5qo8ummeSf3DQkW8eaGY+QFhj3QB/9qlZcdq8/iIEKcL
-         fa0J427h1n2a4+1Pq7uA68YCkDEdlzjCIbfwJAMIgw7tXDO3dNOM0dPf2XNUTENx4yMZ
-         UxaS2HDf3gaz9ufZd26hL3uE6jGe5P7rPDNUaGqKlkXtAlznUXvfEXxXa1AznqELipWF
-         6mUPBLDWzjuHdLtbaYqqalIFY6Wq/pvSUxDna4CaEOGuiKcAIUxbKYwpKYJ6i9JuofL6
-         68+6peJhr2FAXP+8BCPkoEWngIwmDs9KkwpxoUGS21qe1vqZjUDLUjcwexnWHFFsZAnS
-         eTSg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=P/oTAg5XbIXufBM5LBUlgdxh/oIhL4+gm9j7aKXhAm0=;
+        b=SbNxfdIGsypWmYWTq86TypJbzQUGI/3bk+1H6OpRh7R5tR9V7vYPFanzhkkA/obsJY
+         0Rz73dd+yw2jImwhe9ehnYJ4JC7t1YnjrYmyYTpHq9bHdg6n20cFpPR3YGkP4oolpiEQ
+         S9FP2PBUQxx3rAOBZLemXV9iNHWTjJgFNUMh88+F29fFCZieZ51PUINIT9l3INePk9qf
+         9F7WnHgU3wBoaYrZh3PNRyn2e2ruwZhXU55H1HxUaQG/KEWoHriI8PneDQMDzwiT6XKq
+         jQjT2nlvY56GTiCjcKw98Qj9o0IW1JAvrughPEWxCXhACsMRX9Wg10+HX7s6vRI9NfsE
+         J+AA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y11si7076153ejb.192.2019.06.03.23.55.42
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id h38si4108836otb.241.2019.06.03.23.56.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jun 2019 23:55:42 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 03 Jun 2019 23:56:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 76144AD51;
-	Tue,  4 Jun 2019 06:55:41 +0000 (UTC)
-Date: Tue, 4 Jun 2019 08:55:39 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Minchan Kim <minchan@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>, jannh@google.com,
-	oleg@redhat.com, christian@brauner.io, oleksandr@redhat.com,
-	hdanton@sina.com
-Subject: Re: [RFCv2 1/6] mm: introduce MADV_COLD
-Message-ID: <20190604065539.GB4669@dhcp22.suse.cz>
-References: <20190531064313.193437-1-minchan@kernel.org>
- <20190531064313.193437-2-minchan@kernel.org>
- <20190531084752.GI6896@dhcp22.suse.cz>
- <20190531133904.GC195463@google.com>
- <20190531140332.GT6896@dhcp22.suse.cz>
- <20190531143407.GB216592@google.com>
- <20190603071607.GB4531@dhcp22.suse.cz>
- <20190603172717.GA30363@cmpxchg.org>
- <20190603203230.GB22799@dhcp22.suse.cz>
- <20190603215059.GA16824@cmpxchg.org>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 7D37F75727;
+	Tue,  4 Jun 2019 06:56:22 +0000 (UTC)
+Received: from [10.36.117.37] (ovpn-117-37.ams2.redhat.com [10.36.117.37])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id A151510013D9;
+	Tue,  4 Jun 2019 06:56:16 +0000 (UTC)
+Subject: Re: [PATCH v3 04/11] arm64/mm: Add temporary arch_remove_memory()
+ implementation
+To: Wei Yang <richard.weiyang@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+ linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+ linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
+ Dan Williams <dan.j.williams@intel.com>, Igor Mammedov
+ <imammedo@redhat.com>, Catalin Marinas <catalin.marinas@arm.com>,
+ Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Chintan Pandya <cpandya@codeaurora.org>, Mike Rapoport <rppt@linux.ibm.com>,
+ Jun Yao <yaojun8558363@gmail.com>, Yu Zhao <yuzhao@google.com>,
+ Robin Murphy <robin.murphy@arm.com>,
+ Anshuman Khandual <anshuman.khandual@arm.com>
+References: <20190527111152.16324-1-david@redhat.com>
+ <20190527111152.16324-5-david@redhat.com>
+ <20190603214139.mercn5hol2yyfl2s@master>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
+ dBrn+lhhOYjjNefFQou6478faXE6o2AhmebqT4KiQoUQFV4R7y1KMEKoSyy8hQaK1umALTdL
+ QZLQMzNE74ap+GDK0wnacPQFpcG1AE9RMq3aeErY5tujekBS32jfC/7AnH7I0v1v1TbbK3Gp
+ XNeiN4QroO+5qaSr0ID2sz5jtBLRb15RMre27E1ImpaIv2Jw8NJgW0k/D1RyKCwaTsgRdwuK
+ Kx/Y91XuSBdz0uOyU/S8kM1+ag0wvsGlpBVxRR/xw/E8M7TEwuCZQArqqTCmkG6HGcXFT0V9
+ PXFNNgV5jXMQRwU0O/ztJIQqsE5LsUomE//bLwzj9IVsaQpKDqW6TAPjcdBDPLHvriq7kGjt
+ WhVhdl0qEYB8lkBEU7V2Yb+SYhmhpDrti9Fq1EsmhiHSkxJcGREoMK/63r9WLZYI3+4W2rAc
+ UucZa4OT27U5ZISjNg3Ev0rxU5UH2/pT4wJCfxwocmqaRr6UYmrtZmND89X0KigoFD/XSeVv
+ jwBRNjPAubK9/k5NoRrYqztM9W6sJqrH8+UWZ1Idd/DdmogJh0gNC0+N42Za9yBRURfIdKSb
+ B3JfpUqcWwE7vUaYrHG1nw54pLUoPG6sAA7Mehl3nd4pZUALHwARAQABzSREYXZpZCBIaWxk
+ ZW5icmFuZCA8ZGF2aWRAcmVkaGF0LmNvbT7CwX4EEwECACgFAljj9eoCGwMFCQlmAYAGCwkI
+ BwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEE3eEPcA/4Na5IIP/3T/FIQMxIfNzZshIq687qgG
+ 8UbspuE/YSUDdv7r5szYTK6KPTlqN8NAcSfheywbuYD9A4ZeSBWD3/NAVUdrCaRP2IvFyELj
+ xoMvfJccbq45BxzgEspg/bVahNbyuBpLBVjVWwRtFCUEXkyazksSv8pdTMAs9IucChvFmmq3
+ jJ2vlaz9lYt/lxN246fIVceckPMiUveimngvXZw21VOAhfQ+/sofXF8JCFv2mFcBDoa7eYob
+ s0FLpmqFaeNRHAlzMWgSsP80qx5nWWEvRLdKWi533N2vC/EyunN3HcBwVrXH4hxRBMco3jvM
+ m8VKLKao9wKj82qSivUnkPIwsAGNPdFoPbgghCQiBjBe6A75Z2xHFrzo7t1jg7nQfIyNC7ez
+ MZBJ59sqA9EDMEJPlLNIeJmqslXPjmMFnE7Mby/+335WJYDulsRybN+W5rLT5aMvhC6x6POK
+ z55fMNKrMASCzBJum2Fwjf/VnuGRYkhKCqqZ8gJ3OvmR50tInDV2jZ1DQgc3i550T5JDpToh
+ dPBxZocIhzg+MBSRDXcJmHOx/7nQm3iQ6iLuwmXsRC6f5FbFefk9EjuTKcLMvBsEx+2DEx0E
+ UnmJ4hVg7u1PQ+2Oy+Lh/opK/BDiqlQ8Pz2jiXv5xkECvr/3Sv59hlOCZMOaiLTTjtOIU7Tq
+ 7ut6OL64oAq+zsFNBFXLn5EBEADn1959INH2cwYJv0tsxf5MUCghCj/CA/lc/LMthqQ773ga
+ uB9mN+F1rE9cyyXb6jyOGn+GUjMbnq1o121Vm0+neKHUCBtHyseBfDXHA6m4B3mUTWo13nid
+ 0e4AM71r0DS8+KYh6zvweLX/LL5kQS9GQeT+QNroXcC1NzWbitts6TZ+IrPOwT1hfB4WNC+X
+ 2n4AzDqp3+ILiVST2DT4VBc11Gz6jijpC/KI5Al8ZDhRwG47LUiuQmt3yqrmN63V9wzaPhC+
+ xbwIsNZlLUvuRnmBPkTJwwrFRZvwu5GPHNndBjVpAfaSTOfppyKBTccu2AXJXWAE1Xjh6GOC
+ 8mlFjZwLxWFqdPHR1n2aPVgoiTLk34LR/bXO+e0GpzFXT7enwyvFFFyAS0Nk1q/7EChPcbRb
+ hJqEBpRNZemxmg55zC3GLvgLKd5A09MOM2BrMea+l0FUR+PuTenh2YmnmLRTro6eZ/qYwWkC
+ u8FFIw4pT0OUDMyLgi+GI1aMpVogTZJ70FgV0pUAlpmrzk/bLbRkF3TwgucpyPtcpmQtTkWS
+ gDS50QG9DR/1As3LLLcNkwJBZzBG6PWbvcOyrwMQUF1nl4SSPV0LLH63+BrrHasfJzxKXzqg
+ rW28CTAE2x8qi7e/6M/+XXhrsMYG+uaViM7n2je3qKe7ofum3s4vq7oFCPsOgwARAQABwsFl
+ BBgBAgAPBQJVy5+RAhsMBQkJZgGAAAoJEE3eEPcA/4NagOsP/jPoIBb/iXVbM+fmSHOjEshl
+ KMwEl/m5iLj3iHnHPVLBUWrXPdS7iQijJA/VLxjnFknhaS60hkUNWexDMxVVP/6lbOrs4bDZ
+ NEWDMktAeqJaFtxackPszlcpRVkAs6Msn9tu8hlvB517pyUgvuD7ZS9gGOMmYwFQDyytpepo
+ YApVV00P0u3AaE0Cj/o71STqGJKZxcVhPaZ+LR+UCBZOyKfEyq+ZN311VpOJZ1IvTExf+S/5
+ lqnciDtbO3I4Wq0ArLX1gs1q1XlXLaVaA3yVqeC8E7kOchDNinD3hJS4OX0e1gdsx/e6COvy
+ qNg5aL5n0Kl4fcVqM0LdIhsubVs4eiNCa5XMSYpXmVi3HAuFyg9dN+x8thSwI836FoMASwOl
+ C7tHsTjnSGufB+D7F7ZBT61BffNBBIm1KdMxcxqLUVXpBQHHlGkbwI+3Ye+nE6HmZH7IwLwV
+ W+Ajl7oYF+jeKaH4DZFtgLYGLtZ1LDwKPjX7VAsa4Yx7S5+EBAaZGxK510MjIx6SGrZWBrrV
+ TEvdV00F2MnQoeXKzD7O4WFbL55hhyGgfWTHwZ457iN9SgYi1JLPqWkZB0JRXIEtjd4JEQcx
+ +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <5059f68d-45d2-784e-0770-ee67060773c7@redhat.com>
+Date: Tue, 4 Jun 2019 08:56:15 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190603215059.GA16824@cmpxchg.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190603214139.mercn5hol2yyfl2s@master>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Tue, 04 Jun 2019 06:56:22 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 03-06-19 17:50:59, Johannes Weiner wrote:
-> On Mon, Jun 03, 2019 at 10:32:30PM +0200, Michal Hocko wrote:
-> > On Mon 03-06-19 13:27:17, Johannes Weiner wrote:
-> > > On Mon, Jun 03, 2019 at 09:16:07AM +0200, Michal Hocko wrote:
-> > > > On Fri 31-05-19 23:34:07, Minchan Kim wrote:
-> > > > > On Fri, May 31, 2019 at 04:03:32PM +0200, Michal Hocko wrote:
-> > > > > > On Fri 31-05-19 22:39:04, Minchan Kim wrote:
-> > > > > > > On Fri, May 31, 2019 at 10:47:52AM +0200, Michal Hocko wrote:
-> > > > > > > > On Fri 31-05-19 15:43:08, Minchan Kim wrote:
-> > > > > > > > > When a process expects no accesses to a certain memory range, it could
-> > > > > > > > > give a hint to kernel that the pages can be reclaimed when memory pressure
-> > > > > > > > > happens but data should be preserved for future use.  This could reduce
-> > > > > > > > > workingset eviction so it ends up increasing performance.
-> > > > > > > > > 
-> > > > > > > > > This patch introduces the new MADV_COLD hint to madvise(2) syscall.
-> > > > > > > > > MADV_COLD can be used by a process to mark a memory range as not expected
-> > > > > > > > > to be used in the near future. The hint can help kernel in deciding which
-> > > > > > > > > pages to evict early during memory pressure.
-> > > > > > > > > 
-> > > > > > > > > Internally, it works via deactivating pages from active list to inactive's
-> > > > > > > > > head if the page is private because inactive list could be full of
-> > > > > > > > > used-once pages which are first candidate for the reclaiming and that's a
-> > > > > > > > > reason why MADV_FREE move pages to head of inactive LRU list. Therefore,
-> > > > > > > > > if the memory pressure happens, they will be reclaimed earlier than other
-> > > > > > > > > active pages unless there is no access until the time.
-> > > > > > > > 
-> > > > > > > > [I am intentionally not looking at the implementation because below
-> > > > > > > > points should be clear from the changelog - sorry about nagging ;)]
-> > > > > > > > 
-> > > > > > > > What kind of pages can be deactivated? Anonymous/File backed.
-> > > > > > > > Private/shared? If shared, are there any restrictions?
-> > > > > > > 
-> > > > > > > Both file and private pages could be deactived from each active LRU
-> > > > > > > to each inactive LRU if the page has one map_count. In other words,
-> > > > > > > 
-> > > > > > >     if (page_mapcount(page) <= 1)
-> > > > > > >         deactivate_page(page);
-> > > > > > 
-> > > > > > Why do we restrict to pages that are single mapped?
-> > > > > 
-> > > > > Because page table in one of process shared the page would have access bit
-> > > > > so finally we couldn't reclaim the page. The more process it is shared,
-> > > > > the more fail to reclaim.
-> > > > 
-> > > > So what? In other words why should it be restricted solely based on the
-> > > > map count. I can see a reason to restrict based on the access
-> > > > permissions because we do not want to simplify all sorts of side channel
-> > > > attacks but memory reclaim is capable of reclaiming shared pages and so
-> > > > far I haven't heard any sound argument why madvise should skip those.
-> > > > Again if there are any reasons, then document them in the changelog.
-> > > 
-> > > I think it makes sense. It could be explained, but it also follows
-> > > established madvise semantics, and I'm not sure it's necessarily
-> > > Minchan's job to re-iterate those.
-> > > 
-> > > Sharing isn't exactly transparent to userspace. The kernel does COW,
-> > > ksm etc. When you madvise, you can really only speak for your own
-> > > reference to that memory - "*I* am not using this."
-> > > 
-> > > This is in line with other madvise calls: MADV_DONTNEED clears the
-> > > local page table entries and drops the corresponding references, so
-> > > shared pages won't get freed. MADV_FREE clears the pte dirty bit and
-> > > also has explicit mapcount checks before clearing PG_dirty, so again
-> > > shared pages don't get freed.
-> > 
-> > Right, being consistent with other madvise syscalls is certainly a way
-> > to go. And I am not pushing one way or another, I just want this to be
-> > documented with a reasoning behind. Consistency is certainly an argument
-> > to use.
-> > 
-> > On the other hand these non-destructive madvise operations are quite
-> > different and the shared policy might differ as a result as well. We are
-> > aging objects rather than destroying them after all. Being able to age
-> > a pagecache with a sufficient privileges sounds like a useful usecase to
-> > me. In other words you are able to cause the same effect indirectly
-> > without the madvise operation so it kinda makes sense to allow it in a
-> > more sophisticated way.
+On 03.06.19 23:41, Wei Yang wrote:
+> On Mon, May 27, 2019 at 01:11:45PM +0200, David Hildenbrand wrote:
+>> A proper arch_remove_memory() implementation is on its way, which also
+>> cleanly removes page tables in arch_add_memory() in case something goes
+>> wrong.
 > 
-> Right, I don't think it's about permission - as you say, you can do
-> this indirectly. Page reclaim is all about relative page order, so if
-> we thwarted you from demoting some pages, you could instead promote
-> other pages to cause a similar end result.
-
-There is one notable difference. If we allow an easy way to demote a
-shared resource _easily_ then we have to think about potential side
-channel attacks. Sure you can generate a memory pressure to cause the
-same but that is much harder and impractical in many cases.
-
-> I think it's about intent. You're advising the kernel that *you're*
-> not using this memory and would like to have it cleared out based on
-> that knowledge. You could do the same by simply allocating the new
-> pages and have the kernel sort it out. However, if the kernel sorts it
-> out, it *will* look at other users of the page, and it might decide
-> that other pages are actually colder when considering all users.
+> Would this be better to understand?
 > 
-> When you ignore shared state, on the other hand, the pages you advise
-> out could refault right after. And then, not only did you not free up
-> the memory, but you also caused IO that may interfere with bringing in
-> the new data for which you tried to create room in the first place.
+>     removes page tables created in arch_add_memory
 
-That is a fair argument and I would tend to agree. On the other hand we
-are talking about potential usecases which tend to _know_ what they are
-doing and removing the possibility completely sounds like they will not
-exploit the existing interface to the maximum. But as already mentioned
-starting simpler and more restricted is usually a better choice when
-the semantic is not carved in stone from the very beginning and
-documented that way.
+That's not what this sentence expresses. Have a look at
+arch_add_memory(), in case  __add_pages() fails, the page tables are not
+removed. This will also be fixed by Anshuman in the same shot.
 
-> So I don't think it ever makes sense to override it.
 > 
-> But it might be better to drop the explicit mapcount check and instead
-> make the local pte young and call shrink_page_list() without the
-> TTU_IGNORE_ACCESS, ignore_references flags - leave it to reclaim code
-> to handle references and shared pages exactly the same way it would if
-> those pages came fresh off the LRU tail, excluding only the reference
-> from the mapping that we're madvising.
+>>
+>> As we want to use arch_remove_memory() in case something goes wrong
+>> during memory hotplug after arch_add_memory() finished, let's add
+>> a temporary hack that is sufficient enough until we get a proper
+>> implementation that cleans up page table entries.
+>>
+>> We will remove CONFIG_MEMORY_HOTREMOVE around this code in follow up
+>> patches.
+>>
+>> Cc: Catalin Marinas <catalin.marinas@arm.com>
+>> Cc: Will Deacon <will.deacon@arm.com>
+>> Cc: Mark Rutland <mark.rutland@arm.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+>> Cc: Chintan Pandya <cpandya@codeaurora.org>
+>> Cc: Mike Rapoport <rppt@linux.ibm.com>
+>> Cc: Jun Yao <yaojun8558363@gmail.com>
+>> Cc: Yu Zhao <yuzhao@google.com>
+>> Cc: Robin Murphy <robin.murphy@arm.com>
+>> Cc: Anshuman Khandual <anshuman.khandual@arm.com>
+>> Signed-off-by: David Hildenbrand <david@redhat.com>
+>> ---
+>> arch/arm64/mm/mmu.c | 19 +++++++++++++++++++
+>> 1 file changed, 19 insertions(+)
+>>
+>> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+>> index a1bfc4413982..e569a543c384 100644
+>> --- a/arch/arm64/mm/mmu.c
+>> +++ b/arch/arm64/mm/mmu.c
+>> @@ -1084,4 +1084,23 @@ int arch_add_memory(int nid, u64 start, u64 size,
+>> 	return __add_pages(nid, start >> PAGE_SHIFT, size >> PAGE_SHIFT,
+>> 			   restrictions);
+>> }
+>> +#ifdef CONFIG_MEMORY_HOTREMOVE
+>> +void arch_remove_memory(int nid, u64 start, u64 size,
+>> +			struct vmem_altmap *altmap)
+>> +{
+>> +	unsigned long start_pfn = start >> PAGE_SHIFT;
+>> +	unsigned long nr_pages = size >> PAGE_SHIFT;
+>> +	struct zone *zone;
+>> +
+>> +	/*
+>> +	 * FIXME: Cleanup page tables (also in arch_add_memory() in case
+>> +	 * adding fails). Until then, this function should only be used
+>> +	 * during memory hotplug (adding memory), not for memory
+>> +	 * unplug. ARCH_ENABLE_MEMORY_HOTREMOVE must not be
+>> +	 * unlocked yet.
+>> +	 */
+>> +	zone = page_zone(pfn_to_page(start_pfn));
+> 
+> Compared with arch_remove_memory in x86. If altmap is not NULL, zone will be
+> retrieved from page related to altmap. Not sure why this is not the same?
 
-Yeah that makes sense to me.
+This is a minimal implementation, sufficient for this use case here. A
+full implementation is in the works. For now, this function will not be
+used with an altmap (ZONE_DEVICE is not esupported for arm64 yet).
+
+Thanks!
+
+> 
+>> +	__remove_pages(zone, start_pfn, nr_pages, altmap);
+>> +}
+>> +#endif
+>> #endif
+>> -- 
+>> 2.20.1
+> 
+
 
 -- 
-Michal Hocko
-SUSE Labs
+
+Thanks,
+
+David / dhildenb
 
