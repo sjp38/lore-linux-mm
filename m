@@ -1,139 +1,150 @@
-Return-Path: <SRS0=ZkFZ=UC=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 50692C28CC6
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 23:55:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84298C04AB5
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 01:45:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 20C84206BB
-	for <linux-mm@archiver.kernel.org>; Mon,  3 Jun 2019 23:55:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 20C84206BB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id C56A5261F5
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 01:45:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (1024-bit key) header.d=eamanu.com header.i=@eamanu.com header.b="tf1RtB1Y"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C56A5261F5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=eamanu.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 643BB6B0274; Mon,  3 Jun 2019 19:55:04 -0400 (EDT)
+	id 3599D6B000A; Mon,  3 Jun 2019 21:45:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5F3936B0276; Mon,  3 Jun 2019 19:55:04 -0400 (EDT)
+	id 309B06B0010; Mon,  3 Jun 2019 21:45:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 509AF6B0277; Mon,  3 Jun 2019 19:55:04 -0400 (EDT)
+	id 1F9186B0266; Mon,  3 Jun 2019 21:45:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1799F6B0274
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 19:55:04 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id j36so11027893pgb.20
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 16:55:04 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E61946B000A
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 21:45:06 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id t11so9325845qtc.9
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 18:45:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=BfrVSN4ODjfVBZQclyBy3XPLkba4Y9mgxbJUUtpjQ4w=;
-        b=YYRUFx5k3ZtC9WUk9DQ/IglRkKcqIxh5sXfZxdA1o35uLIFT/ncaoMNfe8/AlbwFav
-         T9js1vQf+/1pwDorU5iTL08BM0oHJBhwuktdoPhSkK9hTXKmxIU3+ZTkhk6+kHd4nWaE
-         zYrh8BbZVjBlBRGrm6l5EDz9/hneCIkSA/j9pNwhVUo+Q1I3opZLIOlBBdDc9KGMK35k
-         kd5G0/x3fAm6ouqODwEQhLBxgPEyJO/ah8PzhBogBatsEb/RSTgRzxedDTYQ2BfwXAN1
-         HeDnYm2Bz0NyTmaHqmk9cKAgH1dCNmOiw+JHVmAH0kEcnIjhldWUZuD+u4SbJntZBx8S
-         KjGQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUvXd/2NKKhaXvTww/uumKAx7HmkM6OAaJbtTDE3GJqvlwlhMvV
-	dYxFQ7x3eAiaq5S8gpJ32/Zl+3cFFW77KZTF5obbmBkvnOKadBHKKFFjaVJ3FmIhkLfylJfw7wS
-	9CUcUBRys9JaiTxGDosJdsDuzvHrjyTZlRbjfPChkatXjDc4VgY8h3F9MvlaJSTzAaw==
-X-Received: by 2002:a65:63c8:: with SMTP id n8mr30414071pgv.96.1559606103757;
-        Mon, 03 Jun 2019 16:55:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwjRt+et3eFzjpuT+kb8NoznkbINaR0b/kPQ/rUiJd5/dHIZU6JXvIAgFrTqcbfqDQoiYNc
-X-Received: by 2002:a65:63c8:: with SMTP id n8mr30414006pgv.96.1559606102523;
-        Mon, 03 Jun 2019 16:55:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559606102; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=31D7tVoD27MFLLARXKuNb5xPGvmxkuw6aZuF+P8umRs=;
+        b=Ks2flxf0rrAXzVw2FZOVWHUHVFD/NNCfIiRmEXQffZdI9iDoYyZd1Eigpvdy9a1A28
+         3KDlrM39vAY++2HUDbXsKjEeVYcJjXQCcwOKL0qlFxYsUTcC8gUmRQMwTyNOvKaWCNXS
+         TGVnf5HdDhB5md8uSomRVpAuaeUg6V+qDr6iaM4fBGaJM6ZYbYEx8HY2AUS1iLDERCEO
+         rfI5BnQbEwv/vgzg5nvaF3A5wyL/sKyg+ppuxmylDyN55Zwancqb5YZmepu/i6BaUKTx
+         ONejCDvExgUKr+kP+9NgfypylwcsiEiHehTsKmROJJxBE9PVQZrOgik4hkDEi44rryiH
+         KKQQ==
+X-Gm-Message-State: APjAAAWDkFAepxrMFUtSdW1Kcb8LaKzV/+UVVqQlKinrW1mioynM3yex
+	Mgo10OSNvjfv/sgkbqXGQQTde9VhoBtWpoR96gUHkafIR3VTfa7bInmWGh9nrKRmctezJCVwO/y
+	ZgZnu2BRAjcxyUZ4xdcp3o5OpvSXOh5vlWlxgnN7Y7cQtjhzvmit4xnFB5Lqa+Z1HUQ==
+X-Received: by 2002:a0c:984b:: with SMTP id e11mr25071493qvd.174.1559612706486;
+        Mon, 03 Jun 2019 18:45:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwB1ouS91P4eLVRn+ZSbYvvoiTNUX6D5NobVl+CIBfclrqgjqew8aB9DNzCUzCy4Iox12hv
+X-Received: by 2002:a0c:984b:: with SMTP id e11mr25071445qvd.174.1559612705490;
+        Mon, 03 Jun 2019 18:45:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559612705; cv=none;
         d=google.com; s=arc-20160816;
-        b=RyQXNVgSpOCBm4SgwgSHx+25pEn95P2Sw5VqV+CKSsb4N6XEj6/fU0X62SB750ShDc
-         2qsfevgoAOfwz7F60lKGdeR4F9DELZn3yaurvzu93TwgnZnqz+qzg/GE0JUrLkwUSj46
-         dP4cFhzAXO/jytnFayJWFJkWL34K87tJYt6ekzknIGW6T5B0UOYE/sz5acbLwkyvpE6n
-         FkpZ9JpfIA9WurcM8dDBRfDC+bsAT7i6Zu6qIGM3mtD0E+R3hfB31kmqo6ClGY7ZnW8X
-         3vBsutcnxOqnUC4WVVWgKP286rqNhzmRUAylBXXucQR7PuH7DVfS5s9gfws2kY6m+Dp9
-         za1A==
+        b=HkuYSCxGhbqNKU5kbd020SessQYwaakuE+XmO9zjqYWh0O7qCNApvNwzTvnf9cxnlK
+         PY3cES9V1esNCSb++rhEHGfS3EcHPvhl0KeGtfFluswebk+/Z9UsnOAavk6PM/fwuZ2q
+         H8ku9KE0E+jU4/ajPujOadjyuGcIEU+CHMwNyXZOOpvAtt74EH5l/puAbJRLrZW/rp6q
+         qs/SvkkPbrdd9mgOtMzh3AwBXbQ5FZA1Q6vOftKUMk4uep0VFTsPyLF9Y5vYzePWS1yt
+         duVYNfpVp+VTPpmDb0qdAsrtyAWd670xmDtkNzwu2kgPdk5WK0qbV+8/kXWseYnnOtPD
+         qxSQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=BfrVSN4ODjfVBZQclyBy3XPLkba4Y9mgxbJUUtpjQ4w=;
-        b=lg6j2CISHIXT31XqFJlecuF1m0PQKBSQua35ZL0sUQRRdPLEcmWQ7DaHhCU1/8PqCV
-         MPVjZZQx8X0wjRwATGZ0V+bFMRsNaj6LRnKC65VImNBntIpVtMAY1gEnUlbkdYFd3SsE
-         6lS0GFeyLdQNGKKUI/ylX8e7z2hh2W46MbNYfp64l5Xrqs4W+smutQm8ZxCg2UkqRikC
-         +XIcdoEHGkw0YiTihpoTeLKtdSO3AikHTnjBpH2joWw/Bm+p7xGrXrzX14idA4dHqsSw
-         gTHMdbwf/2JkRswCwgonesj7OZxxsp+b54bYHiBqjk2i7cleH2XPEwHyAOWt6XFrw0BM
-         qnBg==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=31D7tVoD27MFLLARXKuNb5xPGvmxkuw6aZuF+P8umRs=;
+        b=oidAG8WohsBrkXSLJMbRU9KtrvX+uWGdS6i2weJaon/RdHfrN4X+CF9gesmO6nYcIX
+         LyOWf2wlQlEu2W7ETO/sQuCnQqr+mYX+zVg0vcgdEi44z86F7B2Ja3dI28qkbLJGzqzr
+         VpzEB40YEvBHMV2ZfqrrS3hi7vXxUKVsF3Al5mnjEqNk1i4gVrxFV4v2zUBDvh8S9VTO
+         oUSTvUIg2UWyOdI4ksVUhqKvXI0Hg4VwD0aHQ738zFuFtjD4mTbxIVOjheg7UBtNtW0F
+         6Pz91rLF3PisKCRDlXGgBhmeOsASAciYgTd49WeTyUC3vulN5pNtBU7tlDlVjT5W1ib+
+         TiuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id w16si20274313plp.185.2019.06.03.16.55.02
+       dkim=pass header.i=@eamanu.com header.s=mail header.b=tf1RtB1Y;
+       spf=pass (google.com: domain of eamanu@eamanu.com designates 200.58.121.119 as permitted sender) smtp.mailfrom=eamanu@eamanu.com
+Received: from smht-121-119.dattaweb.com (smht-121-119.dattaweb.com. [200.58.121.119])
+        by mx.google.com with ESMTPS id s13si2185781qts.59.2019.06.03.18.45.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jun 2019 16:55:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+        Mon, 03 Jun 2019 18:45:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of eamanu@eamanu.com designates 200.58.121.119 as permitted sender) client-ip=200.58.121.119;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 03 Jun 2019 16:55:01 -0700
-X-ExtLoop1: 1
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga006.fm.intel.com with ESMTP; 03 Jun 2019 16:55:01 -0700
-Date: Mon, 3 Jun 2019 16:56:10 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Pingfan Liu <kernelfans@gmail.com>, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Keith Busch <keith.busch@intel.com>, linux-kernel@vger.kernel.org
-Subject: Re: [PATCHv2 1/2] mm/gup: fix omission of check on FOLL_LONGTERM in
- get_user_pages_fast()
-Message-ID: <20190603235610.GB29018@iweiny-DESK2.sc.intel.com>
-References: <1559543653-13185-1-git-send-email-kernelfans@gmail.com>
- <20190603164206.GB29719@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190603164206.GB29719@infradead.org>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+       dkim=pass header.i=@eamanu.com header.s=mail header.b=tf1RtB1Y;
+       spf=pass (google.com: domain of eamanu@eamanu.com designates 200.58.121.119 as permitted sender) smtp.mailfrom=eamanu@eamanu.com
+Received: from c056-dr.dattaweb.com (c056.linux.backend [172.17.110.65])
+	by smarthost01.dattaweb.com (Postfix) with ESMTPS id 97279180007F6
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 22:45:03 -0300 (-03)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed; d=eamanu.com;
+	 s=mail; h=Message-Id:Date:Subject:Cc:To:From:Sender:Reply-To:MIME-Version:
+	Content-Type:Content-Transfer-Encoding:Content-ID:Content-Description:
+	Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:
+	In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:List-Subscribe:
+	List-Post:List-Owner:List-Archive;
+	bh=31D7tVoD27MFLLARXKuNb5xPGvmxkuw6aZuF+P8umRs=; b=tf1RtB1YRBpojfXEtfpXtxpyTW
+	sNuwQF7gRwwB9ncPJGSHrNu1zbEApakg1z9uqSs/gjokpEEYMZK8TUNmdwm8yoEvggeroOBoFst6i
+	zsCSbKWkqRf8EXzuDmcFDyP+/sERrVvKLx8H4+oKhwmlWwvJF3lXm4b7KZPxHYaFZ7mQ=;
+Received: from [200.55.11.99] (helo=debian.conectividad-cordoba.net.ar)
+	by c056-dr.dattaweb.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES128-GCM-SHA256:128)
+	(Exim 4.92)
+	(envelope-from <eamanu@eamanu.com>)
+	id 1hXyVX-0001z7-My; Mon, 03 Jun 2019 22:45:02 -0300
+From: Emmanuel Arias <eamanu@eamanu.com>
+To: cl@linux.com,
+	penberg@kernel.org,
+	rientjes@google.com,
+	iamjoonsoo.kim@lge.com,
+	akpm@linux-foundation.org
+Cc: linux-mm@kvack.org,
+	emmanuelarias30@gmail.com,
+	Emmanuel Arias <eamanu@eamanu.com>
+Subject: [PATCH] Make more redeable the kmalloc function
+Date: Mon,  3 Jun 2019 22:44:54 -0300
+Message-Id: <20190604014454.6652-1-eamanu@eamanu.com>
+X-Mailer: git-send-email 2.11.0
+X-AntiAbuse: This header was added to track abuse, please include it with any abuse report
+X-AntiAbuse: Primary Hostname - c056-dr.dattaweb.com
+X-AntiAbuse: Original Domain - kvack.org
+X-AntiAbuse: Originator/Caller UID/GID - [502 502] / [502 502]
+X-AntiAbuse: Sender Address Domain - eamanu.com
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 03, 2019 at 09:42:06AM -0700, Christoph Hellwig wrote:
-> > +#if defined(CONFIG_CMA)
-> 
-> You can just use #ifdef here.
-> 
-> > +static inline int reject_cma_pages(int nr_pinned, unsigned int gup_flags,
-> > +	struct page **pages)
-> 
-> Please use two instead of one tab to indent the continuing line of
-> a function declaration.
-> 
-> > +{
-> > +	if (unlikely(gup_flags & FOLL_LONGTERM)) {
-> 
-> IMHO it would be a little nicer if we could move this into the caller.
+The ``if```check of size > KMALLOC_MAX_CACHE_SIZE was between the same
+preprocessor directive. I join the the directives to be more redeable.
 
-FWIW we already had this discussion and thought it better to put this here.
+Signed-off-by: Emmanuel Arias <eamanu@eamanu.com>
+---
+ include/linux/slab.h | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
 
-https://lkml.org/lkml/2019/5/30/1565
-
-Ira
-
-[PS John for some reason your responses don't appear in that thread?]
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 11b45f7ae405..90753231c191 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -531,12 +531,10 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
+ static __always_inline void *kmalloc(size_t size, gfp_t flags)
+ {
+ 	if (__builtin_constant_p(size)) {
+-#ifndef CONFIG_SLOB
+-		unsigned int index;
+-#endif
+ 		if (size > KMALLOC_MAX_CACHE_SIZE)
+ 			return kmalloc_large(size, flags);
+ #ifndef CONFIG_SLOB
++		unsigned int index;
+ 		index = kmalloc_index(size);
+ 
+ 		if (!index)
+-- 
+2.11.0
 
