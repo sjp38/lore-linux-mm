@@ -2,215 +2,176 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D14A9C282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 21:47:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B9D87C28CC3
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 21:53:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A5372075B
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 21:47:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7F32C2070B
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 21:53:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="LHVOjJU+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A5372075B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="rEKgem6b"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F32C2070B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 21B986B0271; Tue,  4 Jun 2019 17:47:57 -0400 (EDT)
+	id 154676B0274; Tue,  4 Jun 2019 17:53:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1CD5F6B0273; Tue,  4 Jun 2019 17:47:57 -0400 (EDT)
+	id 10E2D6B0276; Tue,  4 Jun 2019 17:53:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0BD286B0274; Tue,  4 Jun 2019 17:47:57 -0400 (EDT)
+	id F11AC6B0277; Tue,  4 Jun 2019 17:53:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B35776B0271
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 17:47:56 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id r5so2360989edd.21
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 14:47:56 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B62F56B0274
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 17:53:32 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id w31so5715949pgk.23
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 14:53:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=YAOiP57A01Sn4VN1p2tU0pXmqdLPIiJ4XRB9cBH/L60=;
-        b=WvQNzWGtIt1eOj/I4trqV/P1P6iwCwuOVKMgZgvmzvbShnmiYQBO6Z4uMVknJ2Hpus
-         +W3R175O+S7dwWbt/BBb7vphYklMUaQgkFP2QBFg4BvqRYCPIwjDCC4Ho70I9MKGnqQM
-         J8bJ+KUUyqTSZFhjKE/Kdia1QtTwF0f9l2a5P4Qr4po+JEC5vFeEFXjkJR+5IPtFa9LQ
-         oxFMpJwLHvxr0xm42K/DGgYjdseipSHnDPRFPombHCm90L/rt9hADLdbYEcRNRlBCzNA
-         pzUAbBTfSPANWrYmareTXgi4Clh2Is0CDSQLaG+L39tl+rszMupZvaymbsY3Q3ZUiNmH
-         PPAQ==
-X-Gm-Message-State: APjAAAUnsWWXfLnbeMYUJzVSjp5kOSsg4djVj7ZsjjO5ealJWzwJ1ZHM
-	ljsbWWyZwXvD3oSv1UN/P1zqRcLivPc7oXBgdMHpbG63pfOIkPRfKRyy+QDP+JXnKb5CZCdfO3K
-	OJKzA8MlqZ2pteMPCflsEeCkKJIKWWEP1+pTeo/3D9+5kSFFQGsHzC79bDzAOyqu6MQ==
-X-Received: by 2002:a50:ad2c:: with SMTP id y41mr16832413edc.300.1559684876292;
-        Tue, 04 Jun 2019 14:47:56 -0700 (PDT)
-X-Received: by 2002:a50:ad2c:: with SMTP id y41mr16832352edc.300.1559684875584;
-        Tue, 04 Jun 2019 14:47:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559684875; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=ydSEivRYzdSfhn6bVS6O8EZKpwZExH21yzr12h2j8pI=;
+        b=KXYhLSHWy9/I5l82rGgEUK1BL5etAMbPm2ZMaEopGsqu0Lbc25p0S3WpfIvRgKnAKf
+         Xqc+jqoPk89AFmvJyBkzAO6qooWlg4r9Yo+datTiDzaqDbBPOmNziVGmXXAYoj8BHKMd
+         o8oyAKsTdv578reBWSmGj9/ESdXC9sJ+lbVRO5M1R/16NgPRzAfiZ8AiOkUTGAiVmCBn
+         CPZYeF3k651qkT5HS7TRszNSq6tkhrNAWiYCErUhpesYk/BW7VT7YpNxjkc75a9Vn914
+         eMgzKXv37cteyuXFTNCELUlhmk56BSD15UipuHImIJZdNhVSlu50zLH4cyQisc4fiNJ+
+         PlcA==
+X-Gm-Message-State: APjAAAV90ZymtFVw7Rarz7NDRq0v1G35gmsYdj7+Wr5rhXr/3fsQ4nBS
+	hYCrzj6VbKiif4cojY4m6mg+2/LyQv/NsKWDR34md/LMvVwTeuqOomnfGoB4XP3c+rv55KZICDu
+	OJPSGROJh0MLydFFXfJhSskb6wCvrmMD50YUteg9pharRaN6aIRZMz4NA1qwDgH+ldg==
+X-Received: by 2002:a62:2cc2:: with SMTP id s185mr40542223pfs.106.1559685212289;
+        Tue, 04 Jun 2019 14:53:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxSMqNoVoIOWFJMZjfmJgtOP3w9I8Qk7tFkgRkqmi5oJdYriF/+YS+LmqzphDtTaQIEVZEH
+X-Received: by 2002:a62:2cc2:: with SMTP id s185mr40542189pfs.106.1559685211625;
+        Tue, 04 Jun 2019 14:53:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559685211; cv=none;
         d=google.com; s=arc-20160816;
-        b=QHpHl83066yupR4+/lDKxPkGvrsM/8KN6puBfqnDT0+UZCifNy/LpG6VlAFz+7Iywx
-         TWrhIL+3G/N/4aGRqpLqnbfZigfu+s3FNcwSOC2+OAsS0Lyp1RE4M3z5LLJcSFTkUo0d
-         fi3Vaw3n6Yq3ylYyQ/Jv8g7URyNvGqjzlU4AZnoL01QD1CDE8rVOOM8hq6HyFtuwRq+x
-         DNwiGbxwvP7h7HeKaeyzZbZUiNXuroYdiLo+Uj4UYhEyjS9rK6mBAO5MDZJXLQtwWPGA
-         m4A47d30qo0SyeBPbGe+IRW8dtp7EPxB+jqz/29NFVKm+igBN72s0s+neR9/61x7ha0e
-         8rmA==
+        b=dCY8NVL9D7aWGv/GZQmuhmQtsAq7pKDJ4O8gGjf80ObDOq5brIK9vw2QP+jXymEONr
+         CGXm5ZvmAdAJ8OodassDmxr2QB34evOMIXDGQp9CAyrKJudXHM+E/U0pyCWAdx0U7x2M
+         sb/0NGdUefETqMVZ107t+WptcUDzn+jB0IJhkTvYGBJHTX5DCDriK79YOZPHphl9DL/0
+         fGYEadFeKUPM2B/diolvnz1xnvSldHm+23GegKmYJVwSsQUiHRT6d9CB5IP34yYIJHdH
+         CsIT/Hb6uwJcR1fOAa2yWk05MK7eVtpA0hRStpjF2WvlqPITJOYC9ADzrRI7fJ7Yxfm1
+         qYtA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
-        bh=YAOiP57A01Sn4VN1p2tU0pXmqdLPIiJ4XRB9cBH/L60=;
-        b=CeK5wwKy3LOTqaKwHpoZISlJ7tzFsjObJ0Geu71tsZeyeM0d5rPbxuSrPuDKv+Ycqr
-         mMFuHRZwjdiZjcrADQb8sqTuQNraz9SuoPA7F/gZSlu8wOFH+y6rUGEziHm+tXGRe54b
-         8zbSbgXJEdhwBSXedcnKVZ07V1SZ4HaH7McIG89smYSCgz2X/HKnoU0/zRfcDIHreSbR
-         P/hLgCCxPX4eWcw42ZVAvulG57+CR3WP20ej4xh4/XwykAIcgyxbKvcRjzcE2twBK6mI
-         2/6TxeAxOBobEOQ2/2L+b3MVAE9lzx4lepurrjGx6Mef74WMWTBP5+Er+0fJ5CIxCPFJ
-         kqmQ==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ydSEivRYzdSfhn6bVS6O8EZKpwZExH21yzr12h2j8pI=;
+        b=pjo1JhU/Af4XYmYlBUdI5xBuZC1+jk7WTVQgT2hsJ7Hc4O6MdgKAdI+2EVlnE5e2S8
+         8AxEvX6PcHYC2EK6QM76xeKyGe0YIHbfuZpgnh9HM27qV2iVvmxhPMtdNB43/GUOf+vf
+         nDQ6sW7qHfBuiu28ZkWHX14N2+SVTmXVnh84IN5G3UA6ThUy6fsdFeiWCMZZjIfQPOK6
+         MQOu2qAC6+yos+P+x7DM4whrGkE0rlsCCXh7+n7HMlSSI4PpWuf+YWp5hKt+7Fr2/MFN
+         RyAspUaHOZ9CoQuCGIWaWXqp5iR9Nbj9BifK7a2fm5dwexKTofiwEjQSMnB2LbgRymSQ
+         GqmQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=LHVOjJU+;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b51sor946986ede.8.2019.06.04.14.47.55
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=rEKgem6b;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id c9si22366545pgp.39.2019.06.04.14.53.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Jun 2019 14:47:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=LHVOjJU+;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=YAOiP57A01Sn4VN1p2tU0pXmqdLPIiJ4XRB9cBH/L60=;
-        b=LHVOjJU+PrWUKjw2La9VE1vPKl5KearF9vd1gx+fMOah0NIYnTCpk/hLPywmGuD7Qx
-         ubKVoOSXllgIIOtqhu2gVJ3x9B0/bsgZ7dOqAY3y5Ayi0qhLPf1tZQD8IUflfR/bo3b1
-         F4TaQlhPSFK4tf44OdTct45QOW1HbhpVKmRS1UPgsRmJ8ykiC6IB1kc0IjzAbHbpYgcW
-         XocfR253q6JmXmpbPH+wSLE5nYqYTiHdUq2ypGGmgfgczCsKHTbAbfTkEuh649zZZ9c/
-         Obhuc+H39gsisfGYj1xrWFrX2Lyh1bRdUjq62tExuKhoIe4zwnBrI2RwiYnmhdgPNIGz
-         bDHA==
-X-Google-Smtp-Source: APXvYqwDVoxJj2tIOxzLuK3nYNHPwTJ67OHC1d3ag5SDYh0bPqzR5f57ZgPalm+F2A4DDOJ5mfMHNQ==
-X-Received: by 2002:a50:bb24:: with SMTP id y33mr38369134ede.116.1559684875305;
-        Tue, 04 Jun 2019 14:47:55 -0700 (PDT)
-Received: from localhost ([185.92.221.13])
-        by smtp.gmail.com with ESMTPSA id n5sm2897404edt.65.2019.06.04.14.47.53
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 04 Jun 2019 14:47:54 -0700 (PDT)
-Date: Tue, 4 Jun 2019 21:47:53 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
-	Dan Williams <dan.j.williams@intel.com>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Igor Mammedov <imammedo@redhat.com>, Michal Hocko <mhocko@suse.com>,
-	Oscar Salvador <osalvador@suse.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Qian Cai <cai@lca.pw>,
-	Arun KS <arunks@codeaurora.org>,
-	Mathieu Malaterre <malat@debian.org>
-Subject: Re: [PATCH v3 08/11] mm/memory_hotplug: Drop MHP_MEMBLOCK_API
-Message-ID: <20190604214753.utbdrjtjavgi7yhf@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20190527111152.16324-1-david@redhat.com>
- <20190527111152.16324-9-david@redhat.com>
+        Tue, 04 Jun 2019 14:53:31 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=rEKgem6b;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=ydSEivRYzdSfhn6bVS6O8EZKpwZExH21yzr12h2j8pI=; b=rEKgem6bNSXbcR15oERakPBEH
+	ZV90o3C30SrvNq9uNtkXAN7m+277Y/z5tw8MfsVh+OcppVdR1OrSQhPJ7gMKDkfsmtPKlMP2PEtTp
+	wv6tOwpzadAj06Ab4UzHL6vbw3yH/tzIQm+5j3XeQz5KVIYcz9L0pJDShL9qVvjab8euWgO6EZ8JP
+	TNhxy7Sgkp4RSAnA1MPHZE/zWBv403ISpTJJHcI/8u60zuTEYjY7G8CoHHn22HZGKwNF8/09OoTDd
+	GPRr5uyABlQYaLblfmmiFmOm5FqS2LZE0QKwwjJbPqtbNzs3E36ZfdB3/mg5ClCHkCkeC6w/QtqFP
+	ZM3Jecpew==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hYHN0-0006qf-6V; Tue, 04 Jun 2019 21:53:26 +0000
+Date: Tue, 4 Jun 2019 14:53:26 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+	x86@kernel.org, Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>, Mark Rutland <mark.rutland@arm.com>,
+	Christophe Leroy <christophe.leroy@c-s.fr>,
+	Stephen Rothwell <sfr@canb.auug.org.au>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	Paul Mackerras <paulus@samba.org>,
+	Russell King <linux@armlinux.org.uk>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>, Tony Luck <tony.luck@intel.com>,
+	Fenghua Yu <fenghua.yu@intel.com>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	"David S. Miller" <davem@davemloft.net>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>,
+	Dave Hansen <dave.hansen@linux.intel.com>
+Subject: Re: [RFC V2] mm: Generalize notify_page_fault()
+Message-ID: <20190604215325.GA2025@bombadil.infradead.org>
+References: <1559630046-12940-1-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190527111152.16324-9-david@redhat.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <1559630046-12940-1-git-send-email-anshuman.khandual@arm.com>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 27, 2019 at 01:11:49PM +0200, David Hildenbrand wrote:
->No longer needed, the callers of arch_add_memory() can handle this
->manually.
->
->Cc: Andrew Morton <akpm@linux-foundation.org>
->Cc: David Hildenbrand <david@redhat.com>
->Cc: Michal Hocko <mhocko@suse.com>
->Cc: Oscar Salvador <osalvador@suse.com>
->Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
->Cc: Wei Yang <richard.weiyang@gmail.com>
->Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->Cc: Qian Cai <cai@lca.pw>
->Cc: Arun KS <arunks@codeaurora.org>
->Cc: Mathieu Malaterre <malat@debian.org>
->Signed-off-by: David Hildenbrand <david@redhat.com>
+On Tue, Jun 04, 2019 at 12:04:06PM +0530, Anshuman Khandual wrote:
+> +++ b/arch/x86/mm/fault.c
+> @@ -46,23 +46,6 @@ kmmio_fault(struct pt_regs *regs, unsigned long addr)
+>  	return 0;
+>  }
+>  
+> -static nokprobe_inline int kprobes_fault(struct pt_regs *regs)
+> -{
+...
+> -}
 
-Reviewed-by: Wei Yang <richardw.yang@linux.intel.com>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 0e8834a..c5a8dcf 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1778,6 +1778,7 @@ static inline int pte_devmap(pte_t pte)
+>  }
+>  #endif
+>  
+> +int notify_page_fault(struct pt_regs *regs, unsigned int trap);
 
->---
-> include/linux/memory_hotplug.h | 8 --------
-> mm/memory_hotplug.c            | 9 +++------
-> 2 files changed, 3 insertions(+), 14 deletions(-)
->
->diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
->index 2d4de313926d..2f1f87e13baa 100644
->--- a/include/linux/memory_hotplug.h
->+++ b/include/linux/memory_hotplug.h
->@@ -128,14 +128,6 @@ extern void arch_remove_memory(int nid, u64 start, u64 size,
-> extern void __remove_pages(struct zone *zone, unsigned long start_pfn,
-> 			   unsigned long nr_pages, struct vmem_altmap *altmap);
-> 
->-/*
->- * Do we want sysfs memblock files created. This will allow userspace to online
->- * and offline memory explicitly. Lack of this bit means that the caller has to
->- * call move_pfn_range_to_zone to finish the initialization.
->- */
->-
->-#define MHP_MEMBLOCK_API               (1<<0)
->-
-> /* reasonably generic interface to expand the physical pages */
-> extern int __add_pages(int nid, unsigned long start_pfn, unsigned long nr_pages,
-> 		       struct mhp_restrictions *restrictions);
->diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->index b1fde90bbf19..9a92549ef23b 100644
->--- a/mm/memory_hotplug.c
->+++ b/mm/memory_hotplug.c
->@@ -251,7 +251,7 @@ void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
-> #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
-> 
-> static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
->-		struct vmem_altmap *altmap, bool want_memblock)
->+				   struct vmem_altmap *altmap)
-> {
-> 	int ret;
-> 
->@@ -294,8 +294,7 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
-> 	}
-> 
-> 	for (i = start_sec; i <= end_sec; i++) {
->-		err = __add_section(nid, section_nr_to_pfn(i), altmap,
->-				restrictions->flags & MHP_MEMBLOCK_API);
->+		err = __add_section(nid, section_nr_to_pfn(i), altmap);
-> 
-> 		/*
-> 		 * EEXIST is finally dealt with by ioresource collision
->@@ -1067,9 +1066,7 @@ static int online_memory_block(struct memory_block *mem, void *arg)
->  */
-> int __ref add_memory_resource(int nid, struct resource *res)
-> {
->-	struct mhp_restrictions restrictions = {
->-		.flags = MHP_MEMBLOCK_API,
->-	};
->+	struct mhp_restrictions restrictions = {};
-> 	u64 start, size;
-> 	bool new_node = false;
-> 	int ret;
->-- 
->2.20.1
+Why is it now out-of-line?  
 
--- 
-Wei Yang
-Help you, Help me
+> +++ b/mm/memory.c
+> +int __kprobes notify_page_fault(struct pt_regs *regs, unsigned int trap)
+> +{
+> +	int ret = 0;
+> +
+> +	/*
+> +	 * To be potentially processing a kprobe fault and to be allowed
+> +	 * to call kprobe_running(), we have to be non-preemptible.
+> +	 */
+> +	if (kprobes_built_in() && !preemptible() && !user_mode(regs)) {
+> +		if (kprobe_running() && kprobe_fault_handler(regs, trap))
+> +			ret = 1;
+> +	}
+> +	return ret;
+> +}
+> +
+
+I would argue this should be in kprobes.h as a static nokprobe_inline.
 
