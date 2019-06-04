@@ -2,158 +2,162 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94BD7C46460
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 08:00:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 41E57C282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 08:12:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 64E5224D40
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 08:00:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64E5224D40
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id E0C2B24D92
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 08:12:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E0C2B24D92
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EEB4E6B0269; Tue,  4 Jun 2019 04:00:45 -0400 (EDT)
+	id 40BDD6B0269; Tue,  4 Jun 2019 04:12:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EC2166B026B; Tue,  4 Jun 2019 04:00:45 -0400 (EDT)
+	id 397E66B026B; Tue,  4 Jun 2019 04:12:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD74B6B026E; Tue,  4 Jun 2019 04:00:45 -0400 (EDT)
+	id 25D366B026E; Tue,  4 Jun 2019 04:12:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AE996B0269
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 04:00:45 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d13so19828054edo.5
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 01:00:45 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C9AE66B0269
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 04:12:08 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id g20so13618931edm.22
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 01:12:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Fyo8267+bPLrlK7ZQG7q+38wvZ2Ccg1SE20pkIFms7Y=;
-        b=sCcxkQC9G4wnWairy2YKkbgav0FNx/Ory2KLqozkP8GI44K/yQ2GNR0OfIIwU7jwQU
-         ZFmvKINWuNQs9JIpkKKqVRdBl3xcKIb/lpyYW7zfUSFMXU4vXDpOCb6TXkpta1K37NPo
-         DpkbC91rYgFYIpkf74cddCr451yxoyvRoANhHK7snhn4ELjr4bahKUTKuSbMmACvAslO
-         Iqblj9VSa4/8YB2S8E4q569L0e89yQuN+DcK0esXSEgxKKV+DktNjTXytRJMqpNT3qLz
-         d9fi8DjFnlgNn8LDXgwk4EstpuRaEi2GgeK4YoaHF/5zNkfCt3qzsiR1rbR8vCbbYNQC
-         6Qug==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAVfX+Z5ULkjNMZL8nVv4p5HTAgxjAvcG0reJjLdXVrBkQ8tP0wE
-	Af7FrexdkL98PLOEBHOK37qekN7Ze8xNBT9ucN4sLhhGgj5+CKJKLFEC/MIHwkkjPm3p5IOZ3tq
-	jAo5VUtFzB+1SCyPuiDJhP523DbDpv2gg6bd35QJ5XC49MVs2UNMci9Tgq3JUW/vAyw==
-X-Received: by 2002:a50:b7f8:: with SMTP id i53mr34774107ede.196.1559635245122;
-        Tue, 04 Jun 2019 01:00:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyRVabJtIe38fxlnHMQMZBBnW1UM5fQA10s6eQreHPQUElmY4lpIfbObVj3u99ywYJsglDn
-X-Received: by 2002:a50:b7f8:: with SMTP id i53mr34774022ede.196.1559635244321;
-        Tue, 04 Jun 2019 01:00:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559635244; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=1Tp2X+/2c/kNX/R10W4vqzWN3wemjAwqYi2N88qBeqU=;
+        b=IMBCj+KLlzAvMRmKS12TK+6Lwo5yyOBHy0RfVxRWK2B77fbgV3PpbjosyvPKfTeV+F
+         ZsZ9MclO8ImPSinfLYXkbw06Dl2uRkeZIJqrNaTkL1ZyMZ01ldpBVpU1V5aLiie0Vg7Z
+         hGTFJIpioA4h4L73KRrxZrFmh2r6TOeoMGmHgPsi0Az7CtPD40L0Oyq1bfi0lWG825F3
+         hYpU1VP6wsxGTNlGm+s/vhbEpY+QxXM4qA+uSw0miU2v29CFuUXZl0zgg0r4YjCdCfbs
+         U+2K20NL88QNBkBJqfiq/SianpORWeq90Su+2AIlmsjbdYQJk8uOr53MABa60STS1sEk
+         wDcQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAUGa7wpLeT1z0t6mr502tZM1jf+aFIo/XZGBD6jpxnvCV0P4ZOy
+	rUpJ99Yp1oS8xuLHxNR2eoEudy99HwwDfrAJL2pnwDOdEyhO5sNttZhO6WPN+pqnlKeo+ylid0Y
+	nhDm/KmqxWkcwMJjhP3+DbJKY5iIYJgsT4Wu/8M8zxYHmQkUSVXSnr6mOEyOtcz9HPg==
+X-Received: by 2002:a17:906:e11a:: with SMTP id gj26mr12968977ejb.95.1559635928401;
+        Tue, 04 Jun 2019 01:12:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzaamBzSQ02lW0x+H+M86MP4E82Rurv9w3CizoatS42ec6qMTChQBT85VIICpu+3yHqBv/R
+X-Received: by 2002:a17:906:e11a:: with SMTP id gj26mr12968922ejb.95.1559635927622;
+        Tue, 04 Jun 2019 01:12:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559635927; cv=none;
         d=google.com; s=arc-20160816;
-        b=oRrIbk7y2VJSGCu9RVfrc1ylNU792+dvDq0wkUGyOaClZ3CIx3qDWJWsTnumS1oSPk
-         joBR3Zn0W1w3tPhWPresLThynSnxNJDe2MSdsLpB5rbin/CZPk8qmHJINYYT0StAH88x
-         XI66n5/C9NXcvenI0zg0kY2o/iNLCmSpczySfTwB1R/uejky5z6XIO5C3a/iL8zG+zqF
-         EylA+lTRP0fdoP+Oa9t05K9UhnDB9Ml769078zEkM2XWteJkiG4aF/06WS+KvD/vffpT
-         wY2ieHTHLsk85MbzU63Sgbz8I7IbXqYTljhLr0aUgo6ynAGoUj05onbgarqa6ainj2wi
-         RHtA==
+        b=m7a3u4LDUDrOteFz7mgGvanbNivHU1hhTG/dGfcEfmxh02gMmYNK0pqPSWhj4UVbvB
+         cSseuspRVjmnHVanBQoalPZgtdUiPmK6RHVuRx6TEzLjkFXRL6VxI2w51ngYA4v1WB4s
+         fJhm9DzWf/peIyyj8MwcY7kd5ydu4a4A5SSMQDX9h4QUI4mSowCVLtToRtESl9Ft1lVW
+         xliCp7HRrVvRG9FWd58u+NR2nFX3vHttJW4QouA8T23Mz+rrthE8g6pbtMB84t1BOQ7i
+         yYBPVHJbhuZ01uSvTeVdvIfTNp3QDqak5OW84Stu0jahBdJFM2+4SLxkiUSZQlByE/Nl
+         A1lQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Fyo8267+bPLrlK7ZQG7q+38wvZ2Ccg1SE20pkIFms7Y=;
-        b=tgpGNbbH0FP4HWtq+JTQBVKkprsXTH3HlGdn63umrBwM7FyyqZTEqak1TNiV0yHU2g
-         8rOYEIqn5/slPvh68sqz8toz6LDsC6sPHPbSqBl83uH7O2wDs/mOpX6Mq6qWdeVt7j+G
-         GdXOCBTN7GUrqxbWXQAFMomyvfL2hBXax7xB7nvCbs4lfVyFMVFf0Utp/9ejb64XDx++
-         riUgUzKwFQzdviByg9YtUri3/Twrl/RGwKYerWeJXaCa6FRuMSc32qX9+wxDIGzVSaOC
-         TvREgZyEaScyEkwDpMW1yaEckhkvAjOaHc2ZO7WlIk0T7gdpVIuTVBr0CQ13+ShglseG
-         sH9A==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=1Tp2X+/2c/kNX/R10W4vqzWN3wemjAwqYi2N88qBeqU=;
+        b=ntkWmvuaJdktjGfysozJ3wbjumHkxhVkkgL2igLDrqF05GLiqDJAlJWYduiYIaE9Yi
+         nWbtDMzA3oU0uK6EfDrx66mRa/Tcl73MX6lL6TkakLLVvORDZd+Z0gBTDlXXgN+aisYr
+         yKaDUNAFB7NKs8VEjhDS5C1JSHtDfs6bFqKXQnGh/b8QLWovHhKp61quxFL+AwHVv8/p
+         Wd3XmVLQo4BvC2DFxbUZZZZ9GbFwc6OBWtyye+1QQZNA4z04BOl6uWNFDMpw4DWiVpL3
+         38lFfHm1qsObteTzLrj55Lo2bxUF1TSUhqzUC5L1pDMu+8QhBn3gtrNcLpyuaBfoV7k9
+         m5yA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f58si800816edf.135.2019.06.04.01.00.44
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jun 2019 01:00:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f25si3465542ede.206.2019.06.04.01.12.07
+        for <linux-mm@kvack.org>;
+        Tue, 04 Jun 2019 01:12:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D685AAEB5;
-	Tue,  4 Jun 2019 08:00:43 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 76BD51E3C24; Tue,  4 Jun 2019 10:00:43 +0200 (CEST)
-Date: Tue, 4 Jun 2019 10:00:43 +0200
-From: Jan Kara <jack@suse.cz>
-To: Amir Goldstein <amir73il@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, Ext4 <linux-ext4@vger.kernel.org>,
-	Ted Tso <tytso@mit.edu>, Linux MM <linux-mm@kvack.org>,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-	stable <stable@vger.kernel.org>, Miklos Szeredi <miklos@szeredi.hu>
-Subject: Re: [PATCH 1/2] mm: Add readahead file operation
-Message-ID: <20190604080043.GL27933@quack2.suse.cz>
-References: <20190603132155.20600-1-jack@suse.cz>
- <20190603132155.20600-2-jack@suse.cz>
- <CAOQ4uxibr6_k2T_0BeC7XAOnuX1PHmEmBjFwfzkVJVh17YAqrw@mail.gmail.com>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 22F87A78;
+	Tue,  4 Jun 2019 01:12:06 -0700 (PDT)
+Received: from [10.162.40.144] (p8cg001049571a15.blr.arm.com [10.162.40.144])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 82BA43F246;
+	Tue,  4 Jun 2019 01:11:55 -0700 (PDT)
+Subject: Re: [RFC V2] mm: Generalize notify_page_fault()
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
+ linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+ linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org,
+ Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
+ Matthew Wilcox <willy@infradead.org>, Mark Rutland <mark.rutland@arm.com>,
+ Christophe Leroy <christophe.leroy@c-s.fr>,
+ Stephen Rothwell <sfr@canb.auug.org.au>,
+ Andrey Konovalov <andreyknvl@google.com>,
+ Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
+ Russell King <linux@armlinux.org.uk>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Tony Luck <tony.luck@intel.com>,
+ Fenghua Yu <fenghua.yu@intel.com>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>,
+ "David S. Miller" <davem@davemloft.net>, Thomas Gleixner
+ <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>
+References: <1559630046-12940-1-git-send-email-anshuman.khandual@arm.com>
+ <20190604065401.GE3402@hirez.programming.kicks-ass.net>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <afe886e5-8420-0c33-ed2f-159cd3d55882@arm.com>
+Date: Tue, 4 Jun 2019 13:42:10 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOQ4uxibr6_k2T_0BeC7XAOnuX1PHmEmBjFwfzkVJVh17YAqrw@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190604065401.GE3402@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 03-06-19 19:16:59, Amir Goldstein wrote:
-> On Mon, Jun 3, 2019 at 4:22 PM Jan Kara <jack@suse.cz> wrote:
-> >
-> > Some filesystems need to acquire locks before pages are read into page
-> > cache to protect from races with hole punching. The lock generally
-> > cannot be acquired within readpage as it ranks above page lock so we are
-> > left with acquiring the lock within filesystem's ->read_iter
-> > implementation for normal reads and ->fault implementation during page
-> > faults. That however does not cover all paths how pages can be
-> > instantiated within page cache - namely explicitely requested readahead.
-> > Add new ->readahead file operation which filesystem can use for this.
-> >
-> > CC: stable@vger.kernel.org # Needed by following ext4 fix
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> > ---
-> >  include/linux/fs.h |  5 +++++
-> >  include/linux/mm.h |  3 ---
-> >  mm/fadvise.c       | 12 +-----------
-> >  mm/madvise.c       |  3 ++-
-> >  mm/readahead.c     | 26 ++++++++++++++++++++++++--
-> >  5 files changed, 32 insertions(+), 17 deletions(-)
-> >
-> > diff --git a/include/linux/fs.h b/include/linux/fs.h
-> > index f7fdfe93e25d..9968abcd06ea 100644
-> > --- a/include/linux/fs.h
-> > +++ b/include/linux/fs.h
-> > @@ -1828,6 +1828,7 @@ struct file_operations {
-> >                                    struct file *file_out, loff_t pos_out,
-> >                                    loff_t len, unsigned int remap_flags);
-> >         int (*fadvise)(struct file *, loff_t, loff_t, int);
-> > +       int (*readahead)(struct file *, loff_t, loff_t);
+
+
+On 06/04/2019 12:24 PM, Peter Zijlstra wrote:
+> On Tue, Jun 04, 2019 at 12:04:06PM +0530, Anshuman Khandual wrote:
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index ddf20bd..b6bae8f 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -52,6 +52,7 @@
+>>  #include <linux/pagemap.h>
+>>  #include <linux/memremap.h>
+>>  #include <linux/ksm.h>
+>> +#include <linux/kprobes.h>
+>>  #include <linux/rmap.h>
+>>  #include <linux/export.h>
+>>  #include <linux/delayacct.h>
+>> @@ -141,6 +142,21 @@ static int __init init_zero_pfn(void)
+>>  core_initcall(init_zero_pfn);
+>>  
+>>  
+>> +int __kprobes notify_page_fault(struct pt_regs *regs, unsigned int trap)
+>> +{
+>> +	int ret = 0;
+>> +
+>> +	/*
+>> +	 * To be potentially processing a kprobe fault and to be allowed
+>> +	 * to call kprobe_running(), we have to be non-preemptible.
+>> +	 */
+>> +	if (kprobes_built_in() && !preemptible() && !user_mode(regs)) {
+>> +		if (kprobe_running() && kprobe_fault_handler(regs, trap))
+>> +			ret = 1;
+>> +	}
+>> +	return ret;
+>> +}
 > 
-> The new method is redundant, because it is a subset of fadvise.
-> When overlayfs needed to implement both methods, Miklos
-> suggested that we unite them into one, hence:
-> 3d8f7615319b vfs: implement readahead(2) using POSIX_FADV_WILLNEED
+> That thing should be called kprobe_page_fault() or something,
+> notify_page_fault() is a horribly crap name for this function.
 
-Yes, I've noticed this.
-
-> So you can accomplish the ext4 fix without the new method.
-> All you need extra is implementing madvise_willneed() with vfs_fadvise().
-
-Ah, that's an interesting idea. I'll try that out. It will require some
-dance in madvise() to drop mmap_sem but we already do that for
-madvise_free() so I can just duplicate that.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Agreed. kprobe_page_fault() sounds good.
 
