@@ -2,306 +2,123 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4743C28CC6
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 07:26:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 564CCC282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 07:26:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5FB5824AF4
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 07:26:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Y3GVvJag"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5FB5824AF4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 25E8524AF3
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 07:26:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25E8524AF3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F03DC6B026D; Tue,  4 Jun 2019 03:26:24 -0400 (EDT)
+	id B33696B0270; Tue,  4 Jun 2019 03:26:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EB4A26B026E; Tue,  4 Jun 2019 03:26:24 -0400 (EDT)
+	id AE3A56B0273; Tue,  4 Jun 2019 03:26:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D2F8F6B0270; Tue,  4 Jun 2019 03:26:24 -0400 (EDT)
+	id 9AB3F6B0274; Tue,  4 Jun 2019 03:26:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A5DA6B026D
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 03:26:24 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id c4so11788598pgm.21
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 00:26:24 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F5376B0270
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 03:26:37 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id u2so6605861wrr.3
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 00:26:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=f6lqyr2BfengWxFqHdlTowTllezFlrs3heXkz9HMYTU=;
-        b=VfmmNwAnjbZjRg72Yc7lw3uDv/ilRcqeJ+L4EWq0je9KHw+DULeIozhUZJCXxQikO+
-         1h/OovyVsGe8rY0PoUsDn/hgVwrn9yLjIQqLy6ZYJq56c2fRX/xaHsDFNjWhUKb/UQVt
-         C6TjxbUGiIoR9rQGtQ6HngzccWBG06Wb2919boN8QgQ8PfeWOh6D3mDAGberjIE++fDA
-         p+DlNVuHAUqMfz5Bbqwqaw7N7ektMPFS2ounulkUPlZhql8Nz9aJYxcUchVvFpVgUANt
-         potMzbQcbIlE2i3onxHbpLx+JJsP05HlfhrKyfE+bT+VOXpYpCaCw6G3Iv50Zf8vnRnm
-         bUYA==
-X-Gm-Message-State: APjAAAVTkX6Lpwx3UmISc8Ta0h0WLv6Kbro4z58rZ55EXl0hO7pV1ePE
-	ZSBYoqztN+czVbgMJy9Xmrj3B7hoyYIkE+K88Fpe0A//Z4v8/JZ0XTkrq6Pm6wBCxZfudXSdJ16
-	hc+ofOu9zwJAy/d7KNrb8u0JTPBtOuEd3Wt3o7+g+IjJ6Bf1XPWJwoJFWBmaOdgj4bw==
-X-Received: by 2002:a63:c750:: with SMTP id v16mr33250635pgg.409.1559633184082;
-        Tue, 04 Jun 2019 00:26:24 -0700 (PDT)
-X-Received: by 2002:a63:c750:: with SMTP id v16mr33250597pgg.409.1559633183123;
-        Tue, 04 Jun 2019 00:26:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559633183; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=LhtWa/W6MWsc83ZFA/wV3MjdIk5QMFvtMTN+/TqTIAA=;
+        b=d1uSGAWdffP0GL8ME4XPw756uROebaLI0bRxck656JZR9eT1NKtP16f1JX5gP9g82L
+         PXQ27fkxJd5dIppCZLpWMk8/e7ZS0t3Cz9Kpq+NYIak888OWU/HVladbelNgFDDE+B7W
+         ldpJirJRcW2VxZiAeCVEVn3fM9VNIk3G0bvuLLJGQGVhW/eLJNamlZeSkQDtTWAPq9jB
+         3M+MXHLbxZclehz6i/oCCuvHQHaT7fDEj357yvCXWpHQM5BNWkDrdRYIFUZpZJUNtqCm
+         cijqzAEDRVNuep97Cbw3XMgZ+x7QSc102/Y8wJKn6mvUUUPGjIecI+cHSHGQUyA8Cphl
+         +arg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAVU4sH0hy6mOIunOajGH8Wr/Y3zk3ItTatDsyFI3ZZR1FvpojJp
+	IcH0iuOjuAPH7K+LGfICn4lQlFgbgzQGX2KI1HDXtgsBJB0UdSIsH8Qw6VE91qAkvAsT7lXnfTu
+	NOO4dtRPnfGaZP8tonfRzu1tAc1NDzSnbk48CNJU1eCIVIUCaz71eZC2jmAChC1aw/g==
+X-Received: by 2002:adf:ce11:: with SMTP id p17mr19206356wrn.58.1559633196915;
+        Tue, 04 Jun 2019 00:26:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyHwjMf37Ot2e4GMc2d15ZOd40Hq5ow6QTuYmI4vzP3N59ljjke93bgMNHOyst3gk7qCIxz
+X-Received: by 2002:adf:ce11:: with SMTP id p17mr19206310wrn.58.1559633196230;
+        Tue, 04 Jun 2019 00:26:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559633196; cv=none;
         d=google.com; s=arc-20160816;
-        b=xbSGI3us/8NVmrm75q/H5IFcKxD9xfXQnJ6PO4NB8NT8LCau75SO/boHYzfsnxyPsc
-         31P2EsCtyXTjm79whsDbMv2QoRsDvin32P97waVe39EvyciOmXA8rDCbUbd3aAgXJCYx
-         BNqep1SHLMfmFp85IzaZMjsy72VE/VruYZF/G6Q57KD3cG2LCMQYgDsOOpVveHy0WfIq
-         m43yi9OxiJ3DEYSYN6mBzp5D8nEfF07BlYsK2Mq1w3Sf2yMTQIfd1ANi1FRunDJlFZ8/
-         zbKouKRgtnJPAWe/15WuvcrZ6D50EMv0hc7+qAD3CSS7s0o9bgrvvxHApkdqYAho5zFp
-         cojQ==
+        b=BCjyUo3AvBbJLeArZZsJKMmNajnJ+XotZxE0C8+0z9wO8V/5uXUeRlGm+oGjNM8ozz
+         lJ+2wFVSjW8eTjRdr/n8HgcgSg0HKt25Pxgrl2AFXRVG2FU6SRQhyp8cMw5xRv3Mhv4A
+         NSuqa0y9cpjydys4YcYEEeqrqUweO3muAb/1raJTCOMXzzJ2XpmlWpNSTe1VZaAfuKHP
+         oHTPy2y5tWbk6G0L7e15rOJe/pDKn4sZNG43dsknpsySNPWlkvzp3UESnfmWq4mIP3QE
+         fmshY2AGsAi/Q4hJ/VE8YI/SZMCgL4aSCzWhkTVWAgzqAa7OHs/xolr21LyaDvDPyzuJ
+         NzVQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=f6lqyr2BfengWxFqHdlTowTllezFlrs3heXkz9HMYTU=;
-        b=bAUoy/OKy+3OVkgMZJqEsBiYiawIn342Tlv4T8vv4gKZBjOIBvIiqyL5Yzp2Z8y7e7
-         grv7nONnHRlaqcAzrrhg35OAJqmczA9FWCWwPatfyx/a7PGHMpBw/tPY4/K1IpwtP+rK
-         VcDlt02g9ST3nenI7DAeGhjtZ/k4vZAaUlnkTGBpkzHHQjASaPptNfLRF+n4A2mu12Yi
-         xsIlQQo/6WH6fc0rIETaKd/gaOqIkS0/E6dwatnK6j21OaSKoF8IHwO/PWJ2MVWm0hI6
-         9VVdyRZ9WaS18pNqsZV+XYscrxbWQoqUhrUONOs9WeL+L+mXeg+zPu6IwVxoAnW/5M9B
-         M8xA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=LhtWa/W6MWsc83ZFA/wV3MjdIk5QMFvtMTN+/TqTIAA=;
+        b=TS00i+SH02OnUZATowPxGDa/NXfeDa9S4EdPrqCGMoLxzA+8W00JkanDcPXYrpiylL
+         jxT0XUUV5ZszPNmyMhCdIOF+QMx8fY23QYV853t0CaMkS5rxkwBxu+G2XiiJCkzGKg6k
+         HUMZ50u7EVXkzSU7d7nTz2Iu0pOudDrJaevfE7lABk+Tf8vxFOXhHwwZ4wK3YfhoATSU
+         Cap0jLL9veIXdmnKxMu0+FOIetMoQpyLdkQg0QObxeXv+ODdft2OUtzdCsbzy4f+6jWb
+         3ICqezVChOwY530lrXiDcDeVoEsE3A3iZ7i1Ggrwg1Yqd2yuHqCGvlthYrsOxYWyraSF
+         bvPA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Y3GVvJag;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o8sor20123181plk.18.2019.06.04.00.26.23
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id 188si2433864wmd.156.2019.06.04.00.26.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Jun 2019 00:26:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Y3GVvJag;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=f6lqyr2BfengWxFqHdlTowTllezFlrs3heXkz9HMYTU=;
-        b=Y3GVvJagUgHx3WtvpI5wZzCkScGOTP8c2Nerrvzl4t/n5Dz1P3nmPGl+PV7wJklq1c
-         V1xA7pFvEErx/7xHdNbouUEUqqPV/hu3CVLHobmhxoaxGRn2AB9U7zCxGk9mJi79VdBx
-         GfF5MhXPSXWHl8g6DQPQ+uOOFdqctuhJlefhLkETVKWtwZVe/0VF+mi6otJLc6bho2Mg
-         aErjdSMnuBy1O2NzrVwlChx99ecc6xNXIKSucHlDawiL7t/+5cUlToaDeX9VQtbZmxHz
-         4hxW97y7dPSenJJxJndkqHorMn/zL0v87NxXt/v0OyoU7S//2mdIhiRWIY9Tk00ganOt
-         VosQ==
-X-Google-Smtp-Source: APXvYqzqFwkFw17oWfgcJRnP/Byrcg8l33w6SlO+CnZNXQp16bR9IEbAVSoS/WbBu98ZS5c2itf2gA==
-X-Received: by 2002:a17:902:22e:: with SMTP id 43mr33612048plc.272.1559633182666;
-        Tue, 04 Jun 2019 00:26:22 -0700 (PDT)
-Received: from mylaptop.redhat.com ([209.132.188.80])
-        by smtp.gmail.com with ESMTPSA id q17sm25748582pfq.74.2019.06.04.00.26.17
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jun 2019 00:26:22 -0700 (PDT)
-From: Pingfan Liu <kernelfans@gmail.com>
-To: linux-mm@kvack.org
-Cc: Pingfan Liu <kernelfans@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Ira Weiny <ira.weiny@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	John Hubbard <jhubbard@nvidia.com>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Keith Busch <keith.busch@intel.com>,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] mm/gup: remove unnecessary check against CMA in __gup_longterm_locked()
-Date: Tue,  4 Jun 2019 15:26:00 +0800
-Message-Id: <1559633160-14809-1-git-send-email-kernelfans@gmail.com>
-X-Mailer: git-send-email 2.7.5
+        Tue, 04 Jun 2019 00:26:36 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id 89A2368B02; Tue,  4 Jun 2019 09:26:10 +0200 (CEST)
+Date: Tue, 4 Jun 2019 09:26:10 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Christoph Hellwig <hch@lst.de>, Paul Burton <paul.burton@mips.com>,
+	James Hogan <jhogan@kernel.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>, linux-mips@vger.kernel.org,
+	Linux-sh list <linux-sh@vger.kernel.org>,
+	sparclinux@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
+	Linux-MM <linux-mm@kvack.org>,
+	the arch/x86 maintainers <x86@kernel.org>,
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 03/16] mm: simplify gup_fast_permitted
+Message-ID: <20190604072610.GE15680@lst.de>
+References: <20190601074959.14036-1-hch@lst.de> <20190601074959.14036-4-hch@lst.de> <CAHk-=whusWKhS=SYoC9f9HjVmPvR5uP51Mq=ZCtktqTBT2qiBw@mail.gmail.com> <20190603074121.GA22920@lst.de> <CAHk-=wg5mww3StP8HqPN4d5eij3KmEayM743v-nDKAMgRe2J6g@mail.gmail.com> <CAHk-=wjU3ycY2FvhKmYmOTi95L0qSi9Hj+yrzWTAWepW-zdBOA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHk-=wjU3ycY2FvhKmYmOTi95L0qSi9Hj+yrzWTAWepW-zdBOA@mail.gmail.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The PF_MEMALLOC_NOCMA is set by memalloc_nocma_save(), which is finally
-cast to ~_GFP_MOVABLE.  So __get_user_pages_locked() will get pages from
-non CMA area and pin them.  There is no need to
-check_and_migrate_cma_pages().
+On Mon, Jun 03, 2019 at 10:02:10AM -0700, Linus Torvalds wrote:
+> On Mon, Jun 3, 2019 at 9:08 AM Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+> >
+> > The new code has no test at all for "nr_pages == 0", afaik.
+> 
+> Note that it really is important to check for that, because right now we do
 
-Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Ira Weiny <ira.weiny@intel.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Cc: Keith Busch <keith.busch@intel.com>
-Cc: linux-kernel@vger.kernel.org
----
- mm/gup.c | 146 ---------------------------------------------------------------
- 1 file changed, 146 deletions(-)
-
-diff --git a/mm/gup.c b/mm/gup.c
-index f173fcb..9d931d1 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1275,149 +1275,6 @@ static bool check_dax_vmas(struct vm_area_struct **vmas, long nr_pages)
- 	return false;
- }
- 
--#ifdef CONFIG_CMA
--static struct page *new_non_cma_page(struct page *page, unsigned long private)
--{
--	/*
--	 * We want to make sure we allocate the new page from the same node
--	 * as the source page.
--	 */
--	int nid = page_to_nid(page);
--	/*
--	 * Trying to allocate a page for migration. Ignore allocation
--	 * failure warnings. We don't force __GFP_THISNODE here because
--	 * this node here is the node where we have CMA reservation and
--	 * in some case these nodes will have really less non movable
--	 * allocation memory.
--	 */
--	gfp_t gfp_mask = GFP_USER | __GFP_NOWARN;
--
--	if (PageHighMem(page))
--		gfp_mask |= __GFP_HIGHMEM;
--
--#ifdef CONFIG_HUGETLB_PAGE
--	if (PageHuge(page)) {
--		struct hstate *h = page_hstate(page);
--		/*
--		 * We don't want to dequeue from the pool because pool pages will
--		 * mostly be from the CMA region.
--		 */
--		return alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
--	}
--#endif
--	if (PageTransHuge(page)) {
--		struct page *thp;
--		/*
--		 * ignore allocation failure warnings
--		 */
--		gfp_t thp_gfpmask = GFP_TRANSHUGE | __GFP_NOWARN;
--
--		/*
--		 * Remove the movable mask so that we don't allocate from
--		 * CMA area again.
--		 */
--		thp_gfpmask &= ~__GFP_MOVABLE;
--		thp = __alloc_pages_node(nid, thp_gfpmask, HPAGE_PMD_ORDER);
--		if (!thp)
--			return NULL;
--		prep_transhuge_page(thp);
--		return thp;
--	}
--
--	return __alloc_pages_node(nid, gfp_mask, 0);
--}
--
--static long check_and_migrate_cma_pages(struct task_struct *tsk,
--					struct mm_struct *mm,
--					unsigned long start,
--					unsigned long nr_pages,
--					struct page **pages,
--					struct vm_area_struct **vmas,
--					unsigned int gup_flags)
--{
--	long i;
--	bool drain_allow = true;
--	bool migrate_allow = true;
--	LIST_HEAD(cma_page_list);
--
--check_again:
--	for (i = 0; i < nr_pages; i++) {
--		/*
--		 * If we get a page from the CMA zone, since we are going to
--		 * be pinning these entries, we might as well move them out
--		 * of the CMA zone if possible.
--		 */
--		if (is_migrate_cma_page(pages[i])) {
--
--			struct page *head = compound_head(pages[i]);
--
--			if (PageHuge(head)) {
--				isolate_huge_page(head, &cma_page_list);
--			} else {
--				if (!PageLRU(head) && drain_allow) {
--					lru_add_drain_all();
--					drain_allow = false;
--				}
--
--				if (!isolate_lru_page(head)) {
--					list_add_tail(&head->lru, &cma_page_list);
--					mod_node_page_state(page_pgdat(head),
--							    NR_ISOLATED_ANON +
--							    page_is_file_cache(head),
--							    hpage_nr_pages(head));
--				}
--			}
--		}
--	}
--
--	if (!list_empty(&cma_page_list)) {
--		/*
--		 * drop the above get_user_pages reference.
--		 */
--		for (i = 0; i < nr_pages; i++)
--			put_page(pages[i]);
--
--		if (migrate_pages(&cma_page_list, new_non_cma_page,
--				  NULL, 0, MIGRATE_SYNC, MR_CONTIG_RANGE)) {
--			/*
--			 * some of the pages failed migration. Do get_user_pages
--			 * without migration.
--			 */
--			migrate_allow = false;
--
--			if (!list_empty(&cma_page_list))
--				putback_movable_pages(&cma_page_list);
--		}
--		/*
--		 * We did migrate all the pages, Try to get the page references
--		 * again migrating any new CMA pages which we failed to isolate
--		 * earlier.
--		 */
--		nr_pages = __get_user_pages_locked(tsk, mm, start, nr_pages,
--						   pages, vmas, NULL,
--						   gup_flags);
--
--		if ((nr_pages > 0) && migrate_allow) {
--			drain_allow = true;
--			goto check_again;
--		}
--	}
--
--	return nr_pages;
--}
--#else
--static long check_and_migrate_cma_pages(struct task_struct *tsk,
--					struct mm_struct *mm,
--					unsigned long start,
--					unsigned long nr_pages,
--					struct page **pages,
--					struct vm_area_struct **vmas,
--					unsigned int gup_flags)
--{
--	return nr_pages;
--}
--#endif
--
- /*
-  * __gup_longterm_locked() is a wrapper for __get_user_pages_locked which
-  * allows us to process the FOLL_LONGTERM flag.
-@@ -1462,9 +1319,6 @@ static long __gup_longterm_locked(struct task_struct *tsk,
- 			rc = -EOPNOTSUPP;
- 			goto out;
- 		}
--
--		rc = check_and_migrate_cma_pages(tsk, mm, start, rc, pages,
--						 vmas_tmp, gup_flags);
- 	}
- 
- out:
--- 
-2.7.5
+True.  The 0 check got lost.  I'll make sure we do the right thing for
+the next version.
 
