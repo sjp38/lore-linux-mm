@@ -2,375 +2,158 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B2565C282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 09:50:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F2E3EC282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 10:29:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 556582499B
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 09:50:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 556582499B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 96D0A24537
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 10:29:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="gZ2toIQ0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96D0A24537
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DD4F36B026B; Tue,  4 Jun 2019 05:50:23 -0400 (EDT)
+	id EC8B46B026B; Tue,  4 Jun 2019 06:29:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D85586B026C; Tue,  4 Jun 2019 05:50:23 -0400 (EDT)
+	id E51E36B026C; Tue,  4 Jun 2019 06:29:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C736C6B026E; Tue,  4 Jun 2019 05:50:23 -0400 (EDT)
+	id CCB296B026E; Tue,  4 Jun 2019 06:29:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 758D86B026B
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 05:50:23 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id s18so5648266wru.16
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 02:50:23 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 913B56B026B
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 06:29:26 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id j36so12091600pgb.20
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 03:29:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=XGNv0OSnomtJgkMDSycA6r4cSqqSMDzWgJ1t4jYNTbw=;
-        b=YsQpT7WrfrrdIrStTvjHT3BhLi2p0nYvX5gVNfS8wn5eYByjJVWngrtY6JsfoV9Mt9
-         qe7pd7/Z/hJPTLtiuNNUfMyJiG53TFcoSeiXS8eFeQu0Wj0dEgyXyM+/fU5VXn3j1O9H
-         bKzb6nvd5lJ9MOaJSkgkJazpii5GbZg+y7mwtwvD191o60skQLkEWtQJeNJyW12wsZg9
-         Vd8j0c4XKqsJ1Hc5mnM702KUweMi9TtSnlonuqU/XeU7tHZMu8WbuX4f6NcSb+NBHeHC
-         +Qk0yBeODIZmjz5hR/BM1C7ynsnXHT20LnEpq4dfXd3eayua5RFKp4SOJz6OIrVXXkaK
-         gT1A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUw0aQJbvC2Y5c5Op+BOy+FFvqkC6kNFOFxOS2+sILjeVo6FyP0
-	2WqHPgTbwZyeAR92cMcNnAmZ5pAiN3u4NE9z8W25o2+lQUToBb0zbAhrwkMiGT+woVx4cr9/aNd
-	2LWOLDcYuI8nkyWcHp18ByepibMoXSf0vvUiojakYHVcCovjchU99M0XOyCQaxIE=
-X-Received: by 2002:a1c:2907:: with SMTP id p7mr17293355wmp.100.1559641822911;
-        Tue, 04 Jun 2019 02:50:22 -0700 (PDT)
-X-Received: by 2002:a1c:2907:: with SMTP id p7mr17293273wmp.100.1559641821432;
-        Tue, 04 Jun 2019 02:50:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559641821; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version;
+        bh=WIejSqOqVWArGUwS80dnLpzCIBBF7ejgcfIQE3A3wCQ=;
+        b=BNKO+VeTt4it0SvduU6wr+0df0S3YdxZkEpXqoiHdhX2hj4cQMWkiNNpbA1HXD3c6D
+         14d9qvyXHqy01v9ur7uPu4qpr4T+G2HUvw5UEpm27Dv3MWA29kmFy8h86D85lj4icG8X
+         h/vD1yedinlbS7GSKlq62spY6oKvO8LaK0KNJGWmIgFWbOCFZD8Uq1uVy9yXXjwiEkVx
+         nySwEZjl+SLrzcnUHskYwk14As5f77qes896tzyyF7JZwP6dP0B8Q4T9aMpHovNO40JW
+         eShXfAXLu1ekqABNkM8rdI4bJb+5n+IL6VehteIoqLMg0NxNpUtHUU3idi4zczv5531n
+         p0zQ==
+X-Gm-Message-State: APjAAAUPo3RqXKwM4VJSzVfbOS21BSjrDdxl74x91RVAB5CCa6LwZteZ
+	GJ44UUuU8swy6ivnT8Pjale+dvs8hOA8ZvRbhHQAm9TlblZCnM3pVHFVzI5VNWvlpQUajBxCZX8
+	ntTv9iQMV+uVw38Uw3tM454f79u5WCulH32/0TnI/GByG9xGPigwq3wzN8UjUv9KJ6A==
+X-Received: by 2002:a63:1657:: with SMTP id 23mr32281134pgw.98.1559644166125;
+        Tue, 04 Jun 2019 03:29:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxJhD7G6f0A5w7W4DbSSDLTNbiHNyzWZwUx0PY5ZRLABEcOSIKFhXNbCxLae806dz3xVNKx
+X-Received: by 2002:a63:1657:: with SMTP id 23mr32281011pgw.98.1559644164856;
+        Tue, 04 Jun 2019 03:29:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559644164; cv=none;
         d=google.com; s=arc-20160816;
-        b=ymEbJX+lh6ESBuLyPWYmbwxDj50+OTGpoUlai3NxoR3RsiTSY+rKKSkWVT856nfyFj
-         hilBnCve5AAObxKRatHDpx25VYolcEhJP60HPocCmrzNI1wIPfXMdyeRUZrotK+Expvy
-         mgBTDw6EA6Nd9qucyAfP4fXYPEjD7gycnkgTx4obTg5i2MntYZ3ANix47Z5JjruBKJl0
-         49sUCSUIFbrZuTU5EU91vfMV7DUkKg0KSDlOkrl26+PPerYysA6nTgWSUAxChftPnHxy
-         OuPFNo5rdE7vwdhB5+/KXmxHhtTBQah3XjLd3wIYvA0g8l1pfCTlqCP7Vjj2B6u/Wd8H
-         BpDA==
+        b=aYmb51XNcCuplUuuO82BvgMiF6Oy1sxBBScI9j/cf/9fxYPUwPWAkCtKijUxPb+kXA
+         BGbbKv/5WM/yewCRZvY1MY9nBccC//5S0RFQgBd9aPT6Qy0BjMghFcNUf3quOplBPc2q
+         z0Qzb0gS0lcmd7w0YSCbncRwgjcPcu3J06jsGpUNo1jipJ8P6RtAyVBUlrtb+RKmqn/O
+         PrZxrUu3vTjgUg8omilgsf2gTdZKbsA6kfLjoOiOFspydOYAU5bFvpr8WhiQk0aV3y+s
+         g3HEniR3OydKZkA9AjVXqcescTOWl29S4H5rmtPFkSx0fflC8QFUvvBF7lb++b0fqeR1
+         44cw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=XGNv0OSnomtJgkMDSycA6r4cSqqSMDzWgJ1t4jYNTbw=;
-        b=eVv64fhgPQ0BJuNwAIjZInZXHG/q8cM9I3HneBe52/R2UMXZTvEQYgkaLvkLcHN8AW
-         Th4Ry635VKpx06DtsPjBV9BA9vdRavD+kTtfW6B8FWX0K0yKFVRKNxqI2AS8/Aeajd2H
-         TKiJYApqUksoPSnODMT/KfFuE/L/1KuvjDL4E40Nr9jJT2K8wEPFTaZ3a7kBabfKDXH/
-         3V0u4QMsdiIPn0ByoVaZqJRb33hAZjCGaCABhJMnm6GMOvWaxCTdKX/k9/TxO4ORyddW
-         dfZ+3t2b+ggYJmKa58AgqJvb9rpXtRTXpIne3cF7A/EkVh3rcysRa9MZshhVzMPsFniN
-         BnUg==
+        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
+         :date:dkim-signature;
+        bh=WIejSqOqVWArGUwS80dnLpzCIBBF7ejgcfIQE3A3wCQ=;
+        b=m1aj2pqv3xMDqbQAqXndr6nMkA+OikH9snTVYn8y/Zfdiy5uvxp/Kph2HPE6d8A1q9
+         XfidbhxPdIo8Elb8qHO1S6aR8/4+9HQRvIzRYEG/I/agc1LkX53Ao4nZj7Np6D6CMDSt
+         7IcLFjpaiYWItUU8UUjOA+V8EmyUK7Oa7Gogpaff8b1Bmlev95A70Tn8l5vDHXoPmkrV
+         UY0u5YZ3PGdRjfCjL1H+B9KeVjfrdKo78pYHxk7+hXU2zuEae9urdKYbONdHYyerlR3o
+         U/MotBUqVZdEBP/d8xY58tNsHgPE2O7xymXacqVyEfv44geVNm4Iy864qsvQb0ciG/74
+         44KA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 9sor8057255wmk.16.2019.06.04.02.50.21
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=gZ2toIQ0;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from ozlabs.org (bilbo.ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id h34si24147627pld.187.2019.06.04.03.29.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Jun 2019 02:50:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 04 Jun 2019 03:29:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mstsxfx@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mstsxfx@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: APXvYqx8c1t9iWf88iRpzzASYshZ+t070LyNHU/jb8WuYE3oIPg/yFwLY/qHKXXK36mrZP1Y2LLn+Q==
-X-Received: by 2002:a1c:c003:: with SMTP id q3mr17505639wmf.42.1559641820952;
-        Tue, 04 Jun 2019 02:50:20 -0700 (PDT)
-Received: from tiehlicka.suse.cz (ip-37-188-163-245.eurotel.cz. [37.188.163.245])
-        by smtp.gmail.com with ESMTPSA id k66sm6020531wmb.34.2019.06.04.02.50.18
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 04 Jun 2019 02:50:19 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-To: Stable tree <stable@vger.kernel.org>
-Cc: Greg KH <gregkh@linuxfoundation.org>,
-	<linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Jann Horn <jannh@google.com>,
-	Oleg Nesterov <oleg@redhat.com>,
-	Peter Xu <peterx@redhat.com>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Joel Fernandes <joel@joelfernandes.org>
-Subject: [RFC PATCH stable-4.4] coredump: fix race condition between mmget_not_zero()/get_task_mm() and core dumping
-Date: Tue,  4 Jun 2019 11:49:53 +0200
-Message-Id: <20190604094953.26688-1-mhocko@kernel.org>
-X-Mailer: git-send-email 2.20.1
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=gZ2toIQ0;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 45J7Sx4Bx3z9s3Z;
+	Tue,  4 Jun 2019 20:29:21 +1000 (AEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
+	s=201702; t=1559644162;
+	bh=WIejSqOqVWArGUwS80dnLpzCIBBF7ejgcfIQE3A3wCQ=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=gZ2toIQ0UxbHR2sJ10+sYJ3SvpmBB8I1fSgYFk5s+1NZdNGar/HAcbyHm5IeGMFnH
+	 mIiH8YPx44nfKkr/q/hDb3RwgsTD7mHa1pIO9HBM+5s7yUuv4QAGknaIx13Gi/8gfh
+	 uLt9OYtw0QMul/6N0CtaibZsOIxxjoju2iQDgG6kU+NxG+Bhhd0TO7ifDJ+Al3Kqny
+	 nicJfwpClEdmH/2G2HMmhS68zeaBoDK65fE0Pw2hSKXCpaTnMO4TbkaygK5k/rP9ZQ
+	 phjpn1em8KVoDSvmML+aNpDeGayvraC72jiEM4KaLulnjWkRMKl56VhAokuXcJSF9H
+	 VjhbSUfU8DQOw==
+Date: Tue, 4 Jun 2019 20:29:18 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Sachin Sant <sachinp@linux.vnet.ibm.com>
+Cc: linuxppc-dev@lists.ozlabs.org, linux-next@vger.kernel.org,
+ linux-mm@kvack.org, "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
+ linux-kernel@vger.kernel.org
+Subject: Re: [POWERPC][next-20190603] Boot failure : Kernel BUG at
+ mm/vmalloc.c:470
+Message-ID: <20190604202918.17a1e466@canb.auug.org.au>
+In-Reply-To: <9F9C0085-F8A4-4B66-802B-382119E34DF5@linux.vnet.ibm.com>
+References: <9F9C0085-F8A4-4B66-802B-382119E34DF5@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/n.aGLPJk/wsZDAk8OiMeL=b"; protocol="application/pgp-signature"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Andrea Arcangeli <aarcange@redhat.com>
+--Sig_/n.aGLPJk/wsZDAk8OiMeL=b
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-Upstream 04f5866e41fb70690e28397487d8bd8eea7d712a commit.
+Hi Sachin,
 
-The core dumping code has always run without holding the mmap_sem for
-writing, despite that is the only way to ensure that the entire vma
-layout will not change from under it.  Only using some signal
-serialization on the processes belonging to the mm is not nearly enough.
-This was pointed out earlier.  For example in Hugh's post from Jul 2017:
+On Tue, 4 Jun 2019 14:45:43 +0530 Sachin Sant <sachinp@linux.vnet.ibm.com> =
+wrote:
+>
+> While booting linux-next [next-20190603] on a POWER9 LPAR following
+> BUG is encountered and the boot fails.
+>=20
+> If I revert the following 2 patches I no longer see this BUG message
+>=20
+> 07031d37b2f9 ( mm/vmalloc.c: switch to WARN_ON() and move it under unlink=
+_va() )
+> 728e0fbf263e ( mm/vmalloc.c: get rid of one single unlink_va() when merge=
+ )
 
-  https://lkml.kernel.org/r/alpine.LSU.2.11.1707191716030.2055@eggly.anvils
+This latter patch has been fixed in today's linux-next ...
 
-  "Not strictly relevant here, but a related note: I was very surprised
-   to discover, only quite recently, how handle_mm_fault() may be called
-   without down_read(mmap_sem) - when core dumping. That seems a
-   misguided optimization to me, which would also be nice to correct"
+--=20
+Cheers,
+Stephen Rothwell
 
-In particular because the growsdown and growsup can move the
-vm_start/vm_end the various loops the core dump does around the vma will
-not be consistent if page faults can happen concurrently.
+--Sig_/n.aGLPJk/wsZDAk8OiMeL=b
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
 
-Pretty much all users calling mmget_not_zero()/get_task_mm() and then
-taking the mmap_sem had the potential to introduce unexpected side
-effects in the core dumping code.
+-----BEGIN PGP SIGNATURE-----
 
-Adding mmap_sem for writing around the ->core_dump invocation is a
-viable long term fix, but it requires removing all copy user and page
-faults and to replace them with get_dump_page() for all binary formats
-which is not suitable as a short term fix.
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAlz2R/4ACgkQAVBC80lX
+0GxNXwf/fJ0Go1oz1h68yR3tc7OY90gu/bZ5Klbs+GSN973ZKndwaWH4q79zzjie
+LYHNzKdPpxDLckq08NQSFajRzh6gIvzI+qeaLHjss93qbxpOhzLRjI7UQsD+isR2
+S2HsUU7Tn1hAsVZhbZp3McmIOPIRet/p6jA0K43BH+eeXrcT7R6TOTNkiIV1X1/o
+AGsvFmJ80rVbJ/q4mCeC4q5Dz0BrTnCRKhHXChocYDPqSRvjSrwfnI+Uqk9ywHuD
+TIMSsoc1JR/xDGmxnoR8hW91OkQkQ5q8N4OSQSxEqS42HSQkLShxyyHiCBQDQa3N
+8jYQuik/cymkDKNlptMJG/Ft6lrldA==
+=JezC
+-----END PGP SIGNATURE-----
 
-For the time being this solution manually covers the places that can
-confuse the core dump either by altering the vma layout or the vma flags
-while it runs.  Once ->core_dump runs under mmap_sem for writing the
-function mmget_still_valid() can be dropped.
-
-Allowing mmap_sem protected sections to run in parallel with the
-coredump provides some minor parallelism advantage to the swapoff code
-(which seems to be safe enough by never mangling any vma field and can
-keep doing swapins in parallel to the core dumping) and to some other
-corner case.
-
-In order to facilitate the backporting I added "Fixes: 86039bd3b4e6"
-however the side effect of this same race condition in /proc/pid/mem
-should be reproducible since before 2.6.12-rc2 so I couldn't add any
-other "Fixes:" because there's no hash beyond the git genesis commit.
-
-Because find_extend_vma() is the only location outside of the process
-context that could modify the "mm" structures under mmap_sem for
-reading, by adding the mmget_still_valid() check to it, all other cases
-that take the mmap_sem for reading don't need the new check after
-mmget_not_zero()/get_task_mm().  The expand_stack() in page fault
-context also doesn't need the new check, because all tasks under core
-dumping are frozen.
-
-Link: http://lkml.kernel.org/r/20190325224949.11068-1-aarcange@redhat.com
-Fixes: 86039bd3b4e6 ("userfaultfd: add new syscall to provide memory externalization")
-Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
-Reported-by: Jann Horn <jannh@google.com>
-Suggested-by: Oleg Nesterov <oleg@redhat.com>
-Acked-by: Peter Xu <peterx@redhat.com>
-Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
-Reviewed-by: Oleg Nesterov <oleg@redhat.com>
-Reviewed-by: Jann Horn <jannh@google.com>
-Acked-by: Jason Gunthorpe <jgg@mellanox.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Joel Fernandes (Google) <joel@joelfernandes.org>
-[mhocko@suse.com: stable 4.4 backport
- - drop infiniband part because of missing 5f9794dc94f59
- - drop userfaultfd_event_wait_completion hunk because of
-   missing 9cd75c3cd4c3d]
- - handle binder_update_page_range because of missing 720c241924046
- - add check to collapse_huge_page
-]
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi,
-this is based on the backport I have done for out 4.4 based distribution
-kernel. Please double check that I haven't missed anything before
-applying to the stable tree. I have also CCed Joel for the binder part
-which is not in the current upstream anymore but I believe it needs the
-check as well.
-
-Review feedback welcome.
-
- drivers/android/binder.c |  6 ++++++
- fs/proc/task_mmu.c       | 18 ++++++++++++++++++
- fs/userfaultfd.c         | 10 ++++++++--
- include/linux/mm.h       | 21 +++++++++++++++++++++
- mm/huge_memory.c         |  2 +-
- mm/mmap.c                |  7 ++++++-
- 6 files changed, 60 insertions(+), 4 deletions(-)
-
-diff --git a/drivers/android/binder.c b/drivers/android/binder.c
-index 260ce0e60187..1fb1cddbd19a 100644
---- a/drivers/android/binder.c
-+++ b/drivers/android/binder.c
-@@ -570,6 +570,12 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
- 
- 	if (mm) {
- 		down_write(&mm->mmap_sem);
-+		if (!mmget_still_valid(mm)) {
-+			if (allocate == 0)
-+				goto free_range;
-+			goto err_no_vma;
-+		}
-+
- 		vma = proc->vma;
- 		if (vma && mm != proc->vma_vm_mm) {
- 			pr_err("%d: vma mm and task mm mismatch\n",
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index 75691a20313c..ad1ccdcef74e 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -947,6 +947,24 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 					continue;
- 				up_read(&mm->mmap_sem);
- 				down_write(&mm->mmap_sem);
-+				/*
-+				 * Avoid to modify vma->vm_flags
-+				 * without locked ops while the
-+				 * coredump reads the vm_flags.
-+				 */
-+				if (!mmget_still_valid(mm)) {
-+					/*
-+					 * Silently return "count"
-+					 * like if get_task_mm()
-+					 * failed. FIXME: should this
-+					 * function have returned
-+					 * -ESRCH if get_task_mm()
-+					 * failed like if
-+					 * get_proc_task() fails?
-+					 */
-+					up_write(&mm->mmap_sem);
-+					goto out_mm;
-+				}
- 				for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 					vma->vm_flags &= ~VM_SOFTDIRTY;
- 					vma_set_page_prot(vma);
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 59d58bdad7d3..4053de7b7064 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -443,6 +443,8 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
- 	 * taking the mmap_sem for writing.
- 	 */
- 	down_write(&mm->mmap_sem);
-+	if (!mmget_still_valid(mm))
-+		goto skip_mm;
- 	prev = NULL;
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 		cond_resched();
-@@ -465,6 +467,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
- 		vma->vm_flags = new_flags;
- 		vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
- 	}
-+skip_mm:
- 	up_write(&mm->mmap_sem);
- 
- 	/*
-@@ -761,9 +764,10 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
- 	end = start + uffdio_register.range.len;
- 
- 	down_write(&mm->mmap_sem);
--	vma = find_vma_prev(mm, start, &prev);
--
- 	ret = -ENOMEM;
-+	if (!mmget_still_valid(mm))
-+		goto out_unlock;
-+	vma = find_vma_prev(mm, start, &prev);
- 	if (!vma)
- 		goto out_unlock;
- 
-@@ -903,6 +907,8 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
- 	end = start + uffdio_unregister.len;
- 
- 	down_write(&mm->mmap_sem);
-+	if (!mmget_still_valid(mm))
-+		goto out_unlock;
- 	vma = find_vma_prev(mm, start, &prev);
- 
- 	ret = -ENOMEM;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 251adf4d8a71..ed653ba47c46 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1098,6 +1098,27 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long address,
- void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
- 		unsigned long start, unsigned long end);
- 
-+/*
-+ * This has to be called after a get_task_mm()/mmget_not_zero()
-+ * followed by taking the mmap_sem for writing before modifying the
-+ * vmas or anything the coredump pretends not to change from under it.
-+ *
-+ * NOTE: find_extend_vma() called from GUP context is the only place
-+ * that can modify the "mm" (notably the vm_start/end) under mmap_sem
-+ * for reading and outside the context of the process, so it is also
-+ * the only case that holds the mmap_sem for reading that must call
-+ * this function. Generally if the mmap_sem is hold for reading
-+ * there's no need of this check after get_task_mm()/mmget_not_zero().
-+ *
-+ * This function can be obsoleted and the check can be removed, after
-+ * the coredump code will hold the mmap_sem for writing before
-+ * invoking the ->core_dump methods.
-+ */
-+static inline bool mmget_still_valid(struct mm_struct *mm)
-+{
-+	return likely(!mm->core_state);
-+}
-+
- /**
-  * mm_walk - callbacks for walk_page_range
-  * @pmd_entry: if set, called for each non-empty PMD (3rd-level) entry
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 465786cd6490..281fde7b62d2 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2587,7 +2587,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 * handled by the anon_vma lock + PG_lock.
- 	 */
- 	down_write(&mm->mmap_sem);
--	if (unlikely(khugepaged_test_exit(mm)))
-+	if (unlikely(khugepaged_test_exit(mm) || mmget_still_valid(mm)))
- 		goto out;
- 
- 	vma = find_vma(mm, address);
-diff --git a/mm/mmap.c b/mm/mmap.c
-index baa4c1280bff..a24e42477001 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -42,6 +42,7 @@
- #include <linux/memory.h>
- #include <linux/printk.h>
- #include <linux/userfaultfd_k.h>
-+#include <linux/mm.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -2398,7 +2399,8 @@ find_extend_vma(struct mm_struct *mm, unsigned long addr)
- 	vma = find_vma_prev(mm, addr, &prev);
- 	if (vma && (vma->vm_start <= addr))
- 		return vma;
--	if (!prev || expand_stack(prev, addr))
-+	/* don't alter vm_end if the coredump is running */
-+	if (!prev || !mmget_still_valid(mm) || expand_stack(prev, addr))
- 		return NULL;
- 	if (prev->vm_flags & VM_LOCKED)
- 		populate_vma_page_range(prev, addr, prev->vm_end, NULL);
-@@ -2424,6 +2426,9 @@ find_extend_vma(struct mm_struct *mm, unsigned long addr)
- 		return vma;
- 	if (!(vma->vm_flags & VM_GROWSDOWN))
- 		return NULL;
-+	/* don't alter vm_start if the coredump is running */
-+	if (!mmget_still_valid(mm))
-+		return NULL;
- 	start = vma->vm_start;
- 	if (expand_stack(vma, addr))
- 		return NULL;
--- 
-2.20.1
+--Sig_/n.aGLPJk/wsZDAk8OiMeL=b--
 
