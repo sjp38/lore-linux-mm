@@ -7,101 +7,100 @@ X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A7269C28CC6
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 16:33:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CA14C282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 16:42:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6383323CBA
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 16:33:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E7D2C23CE7
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 16:42:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="cx9qF2Xo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6383323CBA
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UwpWwJdg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E7D2C23CE7
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F15376B026B; Tue,  4 Jun 2019 12:33:41 -0400 (EDT)
+	id 7CB396B026E; Tue,  4 Jun 2019 12:42:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EC5906B026C; Tue,  4 Jun 2019 12:33:41 -0400 (EDT)
+	id 7BB056B0271; Tue,  4 Jun 2019 12:42:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DDBC86B026E; Tue,  4 Jun 2019 12:33:41 -0400 (EDT)
+	id 65BA06B0270; Tue,  4 Jun 2019 12:42:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BB5726B026B
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 12:33:41 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id v187so16833358ioe.9
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 09:33:41 -0700 (PDT)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 474AB6B026E
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 12:42:09 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id u10so488136itb.5
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 09:42:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=NFDCs9ixPwmop20pIDVV+hNZcExzVIIYIAvpTPqNIqM=;
-        b=Vo7Bfaft7MeUkY+7DLznrGBaS2gIf5qEl+E6vdKOB5Ehg8U5p98sadNz70LOernc/e
-         GKYDFD1NgNVphex/9nL8+PPWSMzsGRkCpHbTI3ki/GGk/alSy7WKKU2hpvXd31FEcYJP
-         2coFjeR2U9MKyJX5dRlcHLaauY/ry21giaqmE/EacEnGpnS8myjb87GyX8dxcscBFLp6
-         AogH6sOosKuG22Fdlzh/siRN4XVc9U0IZKmicYi5tZE6NiKFXZhVg63CUnWT0tUyiL3Y
-         Rlwmp4Xjna4JhUgM/kpDJyqUl+dhoAGUQlZbNLBNPyq+zsy1UwBdWk13TMPqwVV0ykLv
-         o/vQ==
-X-Gm-Message-State: APjAAAVt3EzNnRdvvn8N1h1fKWFXTu4fQH6OmAe9JGoZHbBOylbfcwsU
-	jDNT0dPt98k+1UtO37Edw+bLh1oH0AzyKHDX8W/HLN0coDK10TRVBu4EbHf0rVyYSVUfmF6BIz2
-	Mm8G0N1KeXALMJN9N8iGXrWgT7PXySQ5Ifd/5EeTKnO4WWmhE2yJgRrJH4WkIMf4uYA==
-X-Received: by 2002:a6b:b256:: with SMTP id b83mr20994239iof.48.1559666021498;
-        Tue, 04 Jun 2019 09:33:41 -0700 (PDT)
-X-Received: by 2002:a6b:b256:: with SMTP id b83mr20994156iof.48.1559666020169;
-        Tue, 04 Jun 2019 09:33:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559666020; cv=none;
+        bh=3JDY6OHGY+NE0N4DeZuVbYe18iFYfWNpGGDsycjMC2g=;
+        b=eBolizSLTkJqykIV8x1aCv2QZ6sviAp+eFKyYp/BLRAq5nXSuoaCGgvbLQjUwnefwG
+         NB82NCxQCFeR1CaZY8sjr2/+t6oVf584vkQPrd+FWpyWpljRpXswjzKDNHp3pTKreXZB
+         X/V0+YdqTEInCKYzCt4Z0A0FuqsScYTMPI7sXeWUKZ2JjJIITHb2pEUQdVX5TidIy1kD
+         862BOj9vKOzrw/SSlztU0zWduNqK7/5tP1RmHM5FfwwY2E+EJT4uGhu5H8cntkUYjscW
+         SxHpBp8IiAGY9bMYxSutnmUCIbUZ2Up/0jUDjDr2Bc/lAnzHkd9LGQLAQCUp1VoiNeIx
+         uPrw==
+X-Gm-Message-State: APjAAAVWDxMwzI4NOex3iBJQRRvfpoURoroIL14rtxNpJTrawE/3dez4
+	shdCdo2FOgZDRuEaC9QCe/98yJ5sHpxmlGPREucIu42R/6956Le8xMMtMGV7UJHTO4eJS5+DQkk
+	Zd6kkBth+XoxpCA/+fIJ7Ah6xDvRNBcIL06aHwaTFkd4nLVjs1ioxOQO0WE1rYQlKZA==
+X-Received: by 2002:a5d:8702:: with SMTP id u2mr15943271iom.228.1559666529071;
+        Tue, 04 Jun 2019 09:42:09 -0700 (PDT)
+X-Received: by 2002:a5d:8702:: with SMTP id u2mr15943226iom.228.1559666528360;
+        Tue, 04 Jun 2019 09:42:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559666528; cv=none;
         d=google.com; s=arc-20160816;
-        b=Wc3HRRr+XkJL3HoTQAzfwxzgTiKjrwOcSdEXKQy6izhWdvwp/VYBX5wqj6z2cTtIIm
-         /dKfQWxAjx3gLAqxBeLuW0gVCfsVD5yIzXYAOWMQWCL5DrN/e+3sFt/EcDEICXpXw0KV
-         PC3tIrp/gtjmVbDmA+L1l9Qt4ShqGtOMbZjpDNzm2e3C6afoXoJOiVXwbYMMPfmYqX6D
-         hACTckHgkOLJOb1PFeHxXG54B4DHEvKuqlyA4jtTMvOcLW3UvLYRAE6Kem+TWArmG0VQ
-         FJVZhvS8kXUj59Jf91DhZuzG1FjW44X20227nFWikFOLds4EU+gEDjQeQj5uQa3G0hCW
-         fW/w==
+        b=ms45yXWaecZZs4rX6MrhJel4e4PLpGF/m/upYZa7Kpd1e3FT09496dgvwe9qpvQfSX
+         FqaA6eDJZmMhdH5sAj5iIxd9JB5Mtuse9JrU4+31kqrZ8VUyxQOt0C9zhejydtvJWGzp
+         SbpImmweuFRcO+eStMQOXcc37Me51zbYXc1m5JWEyzui6ShU9Q93jJmE6Qpxt8kt91qx
+         mRXnvY85IvwSD4hEVMnwavY3E9pSlUO8oMDPd3VEDZAQAoovnQrsUsqvdvyYrwxQljwD
+         njh039i87638hYNH9qWJznLsPIFHcPPpJXiSDhit5vhUL0iR2JWTzpvs/IAAkpRFW7eg
+         63GA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=NFDCs9ixPwmop20pIDVV+hNZcExzVIIYIAvpTPqNIqM=;
-        b=dcue8UJm44srSgKV9U8UtuoH8wdBaCUl67FmkiKos6tNAweZd1JsPvlP1kC5guiP1e
-         TIvPE3h39rhcTIOa9+1oAvR4DcoUZpblv4d7GMvgVKPycjQfpyjZeqSXS5Aei6wtk9cE
-         RJIWjaValOo/CM8NN+uzSgNnpM3PFI+r4WQc5s18rsWCJSkjcNI+pjyw6dgoY2X47vH6
-         uV3hrIi04sK63zBTYnX+pRoqxeKcH0WvpKlkiS2+24ueHFFZTVTzBACFzm9MX6zw7boW
-         o8PVT1C/zrDT2aqGPsGop2hmQXotMKhuxRWaGyRF3YA64qtME5xsMsMrPR2CHJNiHZQu
-         BkHA==
+        bh=3JDY6OHGY+NE0N4DeZuVbYe18iFYfWNpGGDsycjMC2g=;
+        b=lPzCJu9QlyJzi+RJcgFbWTqbB7EglHoj5775MtTeDAfmKBKHD+XTReJXq42IJEv6Kg
+         vq7vXLa+FWbtpxXl4h5I+x+LY3fMSP8MjdAz5OT09boThRckAsB1eO8wEz5z054u4hUR
+         B59s6P9/M1q3TSp1ild1qgaammBz8kRfyXPz3XE9T4c0DoSFFywrZ3ToqO4fgIjs98cv
+         P7XpuNQ8zHS8cwUJ2s6giFxuVunbKSGoAAjAKaF4ONgjjG5LDs8oknD49VwpVIUn09yP
+         N9/oID8Y/NkqvHB04q4vTWul+SfYACvfvAA9+lIOckEnUIDZWYkHRvhaHoaLThJIawfF
+         /fIw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cx9qF2Xo;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UwpWwJdg;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d18sor2974431ion.88.2019.06.04.09.33.40
+        by mx.google.com with SMTPS id j184sor2941480iof.140.2019.06.04.09.42.08
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 04 Jun 2019 09:33:40 -0700 (PDT)
+        Tue, 04 Jun 2019 09:42:08 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cx9qF2Xo;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=UwpWwJdg;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=NFDCs9ixPwmop20pIDVV+hNZcExzVIIYIAvpTPqNIqM=;
-        b=cx9qF2XoM0ItvPLKYrfQK/oiAqbik/wsSMBvAMrHL8fu8Fx/K523FWLP62Taq5dCW+
-         GeVE1uM0MXw54dG4FfQpsBSSfIqJt+BeDwEtP+TaTJsYOGWnVZaxK6WHMMZEiIQCr7c1
-         29YRdE5YPlokMDEIYL8ZBSnQ9QFPiJckpS2Wm8iIFdCBR0HfTI2T0TOimv6v4CP1imSF
-         sOro/P3hwPspStkLZljA33Ma0X+9ae5JeNqKCeX5SHWY6K1oJDWZaC3n5E0+gY6UeDRI
-         PFhuNkiD8tQcLaUt1Hocggi8IY4A2cYLgXOSolXgPJu2RHVtQPEIXlj/1p468yO7GvqA
-         grtg==
-X-Google-Smtp-Source: APXvYqwJ2HUxS4FKK1XU93wJyd+x/7qURmSpYcNyYnkbHrNeudxQf8vE6jo+0sLFKE/Co6I3WhWb6ZA1CNw3cpjacA4=
-X-Received: by 2002:a6b:901:: with SMTP id t1mr14703305ioi.42.1559666019686;
- Tue, 04 Jun 2019 09:33:39 -0700 (PDT)
+        bh=3JDY6OHGY+NE0N4DeZuVbYe18iFYfWNpGGDsycjMC2g=;
+        b=UwpWwJdg390UZHtTns/rfTWthrTcGew4Fy9tGkbLx8KjLIFbnCG9jwC8uKqME2sGrF
+         bxK/yRBAq3MGq7d1fhd/UrFby6JZmilGdyMximDEXCMVeehCUbNaUOm8LQT8kJu7s9jl
+         1WBXFxHNJq+D35c04YNdcAxDDW5UA3m+yRtaJmCoJDarasrjCIw/srfNIg3AIrVVX2Q+
+         jmxRZDxLSIQDXFYJQPRuRboIHhDGSkMXfmW6qRkdZuUFkpAhHgKYEsT5Gqa/rmEtt2/a
+         Laf/J7G/1bnGOtKjkGb2owo6yrha7zJpq3OuHs7INOAiXZycoThXwcx5v4X1AIukhP+B
+         z5Aw==
+X-Google-Smtp-Source: APXvYqzcpmp0gznwMtOQmK24TPSREyjaVEIx3jTVWsSszTjRWj0MU/DJg3bP7iAb59r6WIoIIpPgJaT3Hvtj1qgxSog=
+X-Received: by 2002:a5d:8f86:: with SMTP id l6mr16490098iol.97.1559666527982;
+ Tue, 04 Jun 2019 09:42:07 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190603170306.49099-1-nitesh@redhat.com> <20190603170306.49099-3-nitesh@redhat.com>
-In-Reply-To: <20190603170306.49099-3-nitesh@redhat.com>
+References: <20190603170306.49099-1-nitesh@redhat.com> <20190603170432.1195-1-nitesh@redhat.com>
+In-Reply-To: <20190603170432.1195-1-nitesh@redhat.com>
 From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Tue, 4 Jun 2019 09:33:28 -0700
-Message-ID: <CAKgT0UeRkG0FyESjjQQWeOs3x2O=BUzFYZAdDkjjLyXRiJMnCQ@mail.gmail.com>
-Subject: Re: [RFC][Patch v10 2/2] virtio-balloon: page_hinting: reporting to
- the host
+Date: Tue, 4 Jun 2019 09:41:56 -0700
+Message-ID: <CAKgT0UeRzF24WeVkTN2WW41iKSUpXpZbpD55-g=MBHf814RV+A@mail.gmail.com>
+Subject: Re: [QEMU PATCH] KVM: Support for page hinting
 To: Nitesh Narayan Lal <nitesh@redhat.com>
 Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
 	linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com, 
@@ -119,67 +118,60 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, Jun 3, 2019 at 10:04 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
 >
-> Enables the kernel to negotiate VIRTIO_BALLOON_F_HINTING feature with the
-> host. If it is available and page_hinting_flag is set to true, page_hinting
-> is enabled and its callbacks are configured along with the max_pages count
-> which indicates the maximum number of pages that can be isolated and hinted
-> at a time. Currently, only free pages of order >= (MAX_ORDER - 2) are
-> reported. To prevent any false OOM max_pages count is set to 16.
->
-> By default page_hinting feature is enabled and gets loaded as soon
-> as the virtio-balloon driver is loaded. However, it could be disabled
-> by writing the page_hinting_flag which is a virtio-balloon parameter.
+> Enables QEMU to call madvise on the pages which are reported
+> by the guest kernel.
 >
 > Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
 > ---
->  drivers/virtio/virtio_balloon.c     | 112 +++++++++++++++++++++++++++-
->  include/uapi/linux/virtio_balloon.h |  14 ++++
->  2 files changed, 125 insertions(+), 1 deletion(-)
+>  hw/virtio/trace-events                        |  1 +
+>  hw/virtio/virtio-balloon.c                    | 85 +++++++++++++++++++
+>  include/hw/virtio/virtio-balloon.h            |  2 +-
+>  include/qemu/osdep.h                          |  7 ++
+>  .../standard-headers/linux/virtio_balloon.h   |  1 +
+>  5 files changed, 95 insertions(+), 1 deletion(-)
 
 <snip>
 
-> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-> index a1966cd7b677..25e4f817c660 100644
-> --- a/include/uapi/linux/virtio_balloon.h
-> +++ b/include/uapi/linux/virtio_balloon.h
-> @@ -29,6 +29,7 @@
->  #include <linux/virtio_types.h>
->  #include <linux/virtio_ids.h>
->  #include <linux/virtio_config.h>
-> +#include <linux/page_hinting.h>
-
-So this include breaks the build and from what I can tell it isn't
-really needed. I deleted it in order to be able to build without
-warnings about the file not being included in UAPI.
-
->  /* The feature bitmap for virtio balloon */
->  #define VIRTIO_BALLOON_F_MUST_TELL_HOST        0 /* Tell before reclaiming pages */
-> @@ -36,6 +37,7 @@
->  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM        2 /* Deflate balloon on OOM */
->  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT        3 /* VQ to report free pages */
->  #define VIRTIO_BALLOON_F_PAGE_POISON   4 /* Guest is using page poisoning */
-> +#define VIRTIO_BALLOON_F_HINTING       5 /* Page hinting virtqueue */
->
->  /* Size of a PFN in the balloon interface. */
->  #define VIRTIO_BALLOON_PFN_SHIFT 12
-> @@ -108,4 +110,16 @@ struct virtio_balloon_stat {
->         __virtio64 val;
->  } __attribute__((packed));
->
-> +#ifdef CONFIG_PAGE_HINTING
-> +/*
-> + * struct hinting_data- holds the information associated with hinting.
-> + * @phys_add:  physical address associated with a page or the array holding
-> + *             the array of isolated pages.
-> + * @size:      total size associated with the phys_addr.
-> + */
-> +struct hinting_data {
-> +       __virtio64 phys_addr;
-> +       __virtio32 size;
-> +};
+> diff --git a/include/qemu/osdep.h b/include/qemu/osdep.h
+> index 840af09cb0..4d632933a9 100644
+> --- a/include/qemu/osdep.h
+> +++ b/include/qemu/osdep.h
+> @@ -360,6 +360,11 @@ void qemu_anon_ram_free(void *ptr, size_t size);
+>  #else
+>  #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
+>  #endif
+> +#ifdef MADV_FREE
+> +#define QEMU_MADV_FREE MADV_FREE
+> +#else
+> +#define QEMU_MADV_FREE QEMU_MADV_INVALID
 > +#endif
->  #endif /* _LINUX_VIRTIO_BALLOON_H */
-> --
-> 2.21.0
+
+Is there a specific reason for making this default to INVALID instead
+of just using DONTNEED? I ran into some issues as my host kernel
+didn't have support for MADV_FREE in the exported kernel headers
+apparently so I was getting no effect. It seems like it would be
+better to fall back to doing DONTNEED instead of just disabling the
+functionality all together.
+
+>  #elif defined(CONFIG_POSIX_MADVISE)
+>
+> @@ -373,6 +378,7 @@ void qemu_anon_ram_free(void *ptr, size_t size);
+>  #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
+>  #define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
+>  #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
+> +#define QEMU_MADV_FREE QEMU_MADV_INVALID
+
+Same here. If you already have MADV_DONTNEED you could just use that
+instead of disabling the functionality.
+
+>  #else /* no-op */
+>
+> @@ -386,6 +392,7 @@ void qemu_anon_ram_free(void *ptr, size_t size);
+>  #define QEMU_MADV_HUGEPAGE  QEMU_MADV_INVALID
+>  #define QEMU_MADV_NOHUGEPAGE  QEMU_MADV_INVALID
+>  #define QEMU_MADV_REMOVE QEMU_MADV_INVALID
+> +#define QEMU_MADV_FREE QEMU_MADV_INVALID
+>
+>  #endif
 >
 
