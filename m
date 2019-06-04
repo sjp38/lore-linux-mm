@@ -4,313 +4,184 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94E62C282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 18:23:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1EAA1C28CC6
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 19:29:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2A9BD2070B
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 18:23:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CF79A2075B
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 19:29:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="mHItUOpf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A9BD2070B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="rQWBsgW5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF79A2075B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B19D86B0271; Tue,  4 Jun 2019 14:23:18 -0400 (EDT)
+	id 6536F6B0271; Tue,  4 Jun 2019 15:29:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ACBD56B0273; Tue,  4 Jun 2019 14:23:18 -0400 (EDT)
+	id 604CC6B0273; Tue,  4 Jun 2019 15:29:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B9806B0274; Tue,  4 Jun 2019 14:23:18 -0400 (EDT)
+	id 4CCBC6B0274; Tue,  4 Jun 2019 15:29:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 78FD56B0271
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 14:23:18 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id 49so11342392qtn.23
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 11:23:18 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3138F6B0271
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 15:29:55 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id d6so17886739ybj.16
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 12:29:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=Jb8E0zRWzDz5mP2HT2SM1R8JfImveq9IDZt2heqrKcA=;
-        b=m+fEGLX/LPojMFGono0/gSUH14UirsvbD8lJjpd1c2Y8Fn4/eMTw+yxoGVWom3Xzpo
-         PGfrj6d9+oZr777zqwNPMDufSbrgL/N4GskQE2e2BgFwIWge4NQe6FJiGCsU67RzQLgz
-         oV5fG5RmSTBYvSTcVmzG2bqnfpI4T8V4U5pNeix6F2meEbVw4Zhh0ifYCPbY7CHE6bhY
-         eNI9ZYSOEdc6eq9VU10cSglQ5iKJlTLgjoZJ7kFrNcjvtwg/nmBtAFhxEVE4P4GcRb9J
-         Yd6O2Ll5dFbbJzXurAUa+9VnDkpG5oYVtw3gEWg4pAbU+2smIYndbL9kTfFYt+MrJQcv
-         32+A==
-X-Gm-Message-State: APjAAAX6JDfAQ9OZEr7UljEcpnkVkQMsL6iHdBByHiTO7QmqGSZcucUk
-	60y5hW3HOHj9b8rfvJJcPIHx1IURTXgCI+941ELszgHtsPIoH6J5cdqZqa7F1bPDq27WrnMPQeS
-	ddf/1V/splSXkAkkGPRaABqEvFKUUCn2YZ5nxcAvowfNthnuEwbF2MuRyu4dxRqHSoQ==
-X-Received: by 2002:a37:a3c5:: with SMTP id m188mr9664842qke.223.1559672598114;
-        Tue, 04 Jun 2019 11:23:18 -0700 (PDT)
-X-Received: by 2002:a37:a3c5:: with SMTP id m188mr9664808qke.223.1559672597045;
-        Tue, 04 Jun 2019 11:23:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559672597; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=L5ssfsr4CdbgOzijHbr9sPxMKKvikmBYGkIxWSlzZPI=;
+        b=bvVl/1Be92uYxJ97l16CWlImSxfQ8MEbzP9DBHwpy7R+6n7kxx//FgK3arLFlo418r
+         Vb1UiOFS6ROyB79q/ZkQi1X+asOblRGIVPPv4w3TrsDlczfaPS8dPIf+eqagPg/n27dQ
+         0XN8hBM0CZaZ5ijxeG5qW8eCjI6mz8gq6sE9X9TYq1vmyLLGOhPP8Y3K/sTh14oa+aH7
+         cPBrlFnTd7JTjckuqDwYroioSZpPvnIpFnC+3eozx2jt4zjw60V11UNjmNsG15BRdLP3
+         ps/NYMn6s4fFJfBnMcI2QnK/yeCeQkNuuCw7kgrt8Emac7SLZy+z88Rp8adGNVqnkMCK
+         zCcw==
+X-Gm-Message-State: APjAAAUU+uocqccxXw4UH6ROcVsZXQicXbuDq8oUxLKSRf/ylWMouqQ7
+	/O7Tep7HSXWUxkK0eAfUg8ds9f8YUDGa8mbykYAXW/bQUtk6G1/isKMwsbFePn/9sCQ6vQAmMFq
+	QSIbV5Gny9c2JHSDj0A3sZ2mQQgaG32PC+J1EvVA3R6Wzqh7iOphBaD6eeSo8WMbSNg==
+X-Received: by 2002:a25:b848:: with SMTP id b8mr9371063ybm.387.1559676594876;
+        Tue, 04 Jun 2019 12:29:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzUAUn5XbNKfTyJYEGYujVcd+7t1fxpBlMFLHxlBtw3F7DedLN0IwmfoCoS3/pGceDWd2jD
+X-Received: by 2002:a25:b848:: with SMTP id b8mr9371020ybm.387.1559676593771;
+        Tue, 04 Jun 2019 12:29:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559676593; cv=none;
         d=google.com; s=arc-20160816;
-        b=JwMF0LHMkEmTKkRLguj/wIRACMG+d5UZ7Hfjp/B78K4hf4vsMOpQmLi87ZgAukaXNi
-         EuokFx7MLJOKZddWpnKZOhAES1oKI/S2RUECswbF+TA4nkzy1IHuIySKrgVxv9HdVU3M
-         MUmlho7pfjlmoy2xUnWHbIxXNRZPiQ8kN8jD63R2vQ/e0gEDmjhKPoxZhaIY9sgfAPYN
-         8O3rfLupfM8/YnRbKRbGotYrRJVYz06QX/eDv6bCO4UmAEP8+6mzDp2AkQlpGLS6vyDB
-         jZ1YNydqABmPwiMwj/BXJERrURbkCErYaAD53Cha7Q+2S4idqNBTD8yC4Lncdh6EJqXn
-         5FRg==
+        b=y9ESvvxhTZFUkQAqLlDlvFghXsYkB9jVPw+j1w72ZqkzRFP6j3w5kHYVqZFF6psvFy
+         /6RdJyVNzvtbrl34scnzDQMrFMiTt1bT6s7R+P3fGZ04/XowoBXyA3XmGtnmYsMxyV3H
+         0NzpFSMT/DxzyAdC3Cch3Hv+pQsnfpGdYaSn6OubhCURm/9erRD3AZFHCxTHZ3xgBQ4c
+         uCjkvW7R9VxwIqkc6+XnnJi5q1Z3jb5SFvX02tlzmCAw09xWCEI2tf2cSBbWMM6Dzx6I
+         VfghEGjpnsoKie0pfayuqq9eA8p3Lu76fAd7I405VC1g5VhJsxhwcp4HJhN4twvyT+KL
+         4ffA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=Jb8E0zRWzDz5mP2HT2SM1R8JfImveq9IDZt2heqrKcA=;
-        b=DBs3Sd7cNHqpu+J5dj1g5MiTKOAUrp0Xa94V/N+cIPLQwcblk5pCeKuDLBfMsFMjL3
-         oHzM3iITveXH5fAzwHqhroQKaxSobzpTQZ92azKvvSl29U4aP0Xna88OE7vcz6K0W4ss
-         BKlcr1jUSQHzQdCok/t8cz6mgDELztjzHhIq5wHeu/a3O/oJd5YbjsriRPIYzQvFP6sM
-         3Wq4Oap/1pTnjjmjkkDbylt/m46qw9KoI+wAu2eI1ZzhIHaklMof/wxP7Dfoe6AGuXI4
-         kWS0YK9N790kKikylLEDeIQhmnPCd17ETX+t4ZKftGuqibUebwfFZeIod4plCqokb+sg
-         cf3g==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=L5ssfsr4CdbgOzijHbr9sPxMKKvikmBYGkIxWSlzZPI=;
+        b=jIhU9G6cLxhmtgTRfdHsiRJuvEPcnOxAxywr6EIhLiB3KMC1xiSkPLiL2WQRAzm58w
+         QVuAR0mOnbeFvvZbg7avuoHo7zJ9Hbx15Ln3PoSPWHUzflReWYgbJRTJQvND+w61gGa/
+         HjNc3Y9YwUKW7bSvz83XU1m2/z9nHMjZwRC5D3TP/Qq4a3/ezcfaZxKjtiuHGZOC6wf9
+         dF6AbYQzEXkohOhrohpuxu9xBr5WGL0ZvgRbmWBX4EmaThLwJx/cULc97L05aPR3ZeV4
+         qB0yCbloNEhJJkrrTSlwu/wCyi5krvG/vIAGv6eqE8oWb3MPv/EEcq8npcZstF9dK9nv
+         i2Fg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=mHItUOpf;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t15sor7039456qth.2.2019.06.04.11.23.16
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=rQWBsgW5;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id o130si5075621yba.114.2019.06.04.12.29.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Jun 2019 11:23:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=mHItUOpf;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=Jb8E0zRWzDz5mP2HT2SM1R8JfImveq9IDZt2heqrKcA=;
-        b=mHItUOpfM1nKsjNPeLR83NXWYLWiISuHCoDIk4fZeSzyC5U20NLDDxDedimDg2h0SI
-         Fql9b7v6mgUDRFRbiBdCAs7eO7CZtXoNB5FdiTRa8rH9Zg/i5Yq3kq6cLUeaowNZR8Ez
-         g8h9d6Qv8QATjNYW16jB9Q7oDJ75vnYsFX7OcbBmLRVZGT93izUO6i57kJhU9RR1y1DA
-         IZT7VVPJ5CDqUZS69TL7MsnbZuSQS49Jqu5gG/Ju7iJbl04FEvdsGTXGDQ7pIvt7qz27
-         O2t1IwQoWww86z/9+DbrVp67eQDktYyyJkhAMnXGvXMBbw81iBDdAkKWyadUBF3ThEi8
-         0ONg==
-X-Google-Smtp-Source: APXvYqxQUip8xiPpnVJVRlSxpDjpNKJdYplJFtKoxZAo91spj9GzuNR1WFYDSMTYJHA/TJUW2G7Jhw==
-X-Received: by 2002:ac8:2544:: with SMTP id 4mr28980649qtn.211.1559672596543;
-        Tue, 04 Jun 2019 11:23:16 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id x7sm11551568qth.37.2019.06.04.11.23.14
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jun 2019 11:23:15 -0700 (PDT)
-Message-ID: <1559672593.6132.44.camel@lca.pw>
-Subject: Re: "lib: rework bitmap_parse()" triggers invalid access errors
-From: Qian Cai <cai@lca.pw>
-To: Yury Norov <ynorov@marvell.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>, linux-kernel@vger.kernel.org, 
- Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Andrew Morton
- <akpm@linux-foundation.org>,  "linux-mm@kvack.org" <linux-mm@kvack.org>
-Date: Tue, 04 Jun 2019 14:23:13 -0400
-In-Reply-To: <1559242868.6132.35.camel@lca.pw>
-References: <1559242868.6132.35.camel@lca.pw>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Tue, 04 Jun 2019 12:29:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=rQWBsgW5;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5cf6c6ae0000>; Tue, 04 Jun 2019 12:29:51 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Tue, 04 Jun 2019 12:29:52 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Tue, 04 Jun 2019 12:29:52 -0700
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 4 Jun
+ 2019 19:29:52 +0000
+Subject: Re: [PATCHv2 1/2] mm/gup: fix omission of check on FOLL_LONGTERM in
+ get_user_pages_fast()
+To: Ira Weiny <ira.weiny@intel.com>, Christoph Hellwig <hch@infradead.org>
+CC: Pingfan Liu <kernelfans@gmail.com>, <linux-mm@kvack.org>, Andrew Morton
+	<akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.ibm.com>, Dan Williams
+	<dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, "Aneesh
+ Kumar K.V" <aneesh.kumar@linux.ibm.com>, Keith Busch <keith.busch@intel.com>,
+	<linux-kernel@vger.kernel.org>, Sanket Murti <smurti@nvidia.com>, "Ralph
+ Pattinson" <rpattinson@nvidia.com>
+References: <1559543653-13185-1-git-send-email-kernelfans@gmail.com>
+ <20190603164206.GB29719@infradead.org>
+ <20190603235610.GB29018@iweiny-DESK2.sc.intel.com>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <4b448fa6-dd85-ca45-5cb8-d2c950bddf37@nvidia.com>
+Date: Tue, 4 Jun 2019 12:29:51 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
+MIME-Version: 1.0
+In-Reply-To: <20190603235610.GB29018@iweiny-DESK2.sc.intel.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1559676591; bh=L5ssfsr4CdbgOzijHbr9sPxMKKvikmBYGkIxWSlzZPI=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=rQWBsgW5BRDGBf1MYzgpB3Q35yRaA45Lx6vyonOmAVTZnpSbwf2zHeSvs8Yh0CtyO
+	 yhGbnjVHZsxQ5JRJtlCOI63vBIro0O+7q/ZqJChiGfgFQ7rX9uXSFWZNlqbwRei6tx
+	 Wppl46/8Xx/ObqeQ/f5M8qolzh+OKE4Qj2NM666ELlnpWDyKZgOEtM35jz1Nn8qOit
+	 VEDsbi7C6JAONUUIsKyZHjIMJ3mR9A0K80wih6aJYiEEMsA3vIynzzmfbveBjY0N6T
+	 4gtxYjsCF2R7ZgYG9suvbq7rEE/CjgnJkNMDF+eAh9df3xa4fJ2Pof2ndbE7KfBelY
+	 YtdL+BuoLdNBg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-BTW, this problem below is still reproducible after applied the series [1] on
-the top of today's linux-next tree "next-20190604" which has already included
-the patch for the "Bad swap file entry" issue.
+On 6/3/19 4:56 PM, Ira Weiny wrote:
+> On Mon, Jun 03, 2019 at 09:42:06AM -0700, Christoph Hellwig wrote:
+>>> +#if defined(CONFIG_CMA)
+>>
+>> You can just use #ifdef here.
+>>
+>>> +static inline int reject_cma_pages(int nr_pinned, unsigned int gup_flags,
+>>> +	struct page **pages)
+>>
+>> Please use two instead of one tab to indent the continuing line of
+>> a function declaration.
+>>
+>>> +{
+>>> +	if (unlikely(gup_flags & FOLL_LONGTERM)) {
+>>
+>> IMHO it would be a little nicer if we could move this into the caller.
+> 
+> FWIW we already had this discussion and thought it better to put this here.
+> 
+> https://lkml.org/lkml/2019/5/30/1565
+> 
+> Ira
+> 
+> [PS John for some reason your responses don't appear in that thread?]
 
-[1] https://lore.kernel.org/lkml/20190501010636.30595-1-ynorov@marvell.com/
 
-On Thu, 2019-05-30 at 15:01 -0400, Qian Cai wrote:
-> The linux-next commit "lib: rework bitmap_parse" triggers errors below during
-> boot on both arm64 and powerpc with KASAN_SW_TAGS or SLUB_DEBUG enabled.
-> 
-> Reverted the commit and its dependency (lib: opencode in_str()) fixed the
-> issue.
-> 
-> [   67.056867][ T3737] BUG kmalloc-16 (Tainted: G    B            ): Redzone
-> overwritten
-> [   67.056905][ T3737] -------------------------------------------------------
-> ----------------------
-> [   67.056905][ T3737] 
-> [   67.056946][ T3737] INFO: 0x00000000bd269811-0x0000000039a2fb86. First byte
-> 0x0 instead of 0xcc
-> [   67.056989][ T3737] INFO: Allocated in alloc_cpumask_var_node+0x38/0x80
-> age=0
-> cpu=62 pid=3737
-> [   67.057029][ T3737] 	__slab_alloc+0x34/0x60
-> [   67.057052][ T3737] 	__kmalloc_node+0x1a8/0x860
-> [   67.057086][ T3737] 	alloc_cpumask_var_node+0x38/0x80
-> [   67.057133][ T3737] 	write_irq_affinity.isra.0+0x84/0x1e0
-> [   67.057178][ T3737] 	proc_reg_write+0x90/0x130
-> [   67.057224][ T3737] 	__vfs_write+0x3c/0x70
-> [   67.057261][ T3737] 	vfs_write+0xd8/0x210
-> [   67.057292][ T3737] 	ksys_write+0x7c/0x140
-> [   67.057325][ T3737] 	system_call+0x5c/0x70
-> [   67.057355][ T3737] INFO: Freed in free_cpumask_var+0x18/0x30 age=0 cpu=62
-> pid=3737
-> [   67.057392][ T3737] 	free_cpumask_var+0x18/0x30
-> [   67.057427][ T3737] 	write_irq_affinity.isra.0+0x130/0x1e0
-> [   67.057464][ T3737] 	proc_reg_write+0x90/0x130
-> [   67.057525][ T3737] 	__vfs_write+0x3c/0x70
-> [   67.057558][ T3737] 	vfs_write+0xd8/0x210
-> [   67.057607][ T3737] 	ksys_write+0x7c/0x140
-> [   67.057643][ T3737] 	system_call+0x5c/0x70
-> [   67.057692][ T3737] INFO: Slab 0x00000000786814bb objects=186 used=49
-> fp=0x0000000019431596 flags=0x3fffc000000201
-> [   67.057810][ T3737] INFO: Object 0x000000005c0b6a3a @offset=25352
-> fp=0x00000000a42ffc35
-> [   67.057810][ T3737] 
-> [   67.057922][ T3737] Redzone 00000000d929958b: cc cc cc cc cc cc cc
-> cc                          ........
-> [   67.058024][ T3737] Object 000000005c0b6a3a: 00 00 00 00 00 00 00 04 00 00
-> 00
-> 00 00 00 00 00  ................
-> [   67.058171][ T3737] Redzone 00000000bd269811: 00 00 00 00 00 00 00
-> 00                          ........
-> [   67.058283][ T3737] Padding 00000000b327be67: 5a 5a 5a 5a 5a 5a 5a
-> 5a                          ZZZZZZZZ
-> [   67.058383][ T3737] CPU: 62 PID: 3737 Comm: irqbalance Tainted:
-> G    B             5.2.0-rc2-next-20190530 #13
-> [   67.058508][ T3737] Call Trace:
-> [   67.058531][ T3737] [c000001c4738f930] [c00000000089045c]
-> dump_stack+0xb0/0xf4 (unreliable)
-> [   67.058653][ T3737] [c000001c4738f970] [c0000000003dd368]
-> print_trailer+0x23c/0x264
-> [   67.058751][ T3737] [c000001c4738fa00] [c0000000003cd7d8]
-> check_bytes_and_report+0x138/0x160
-> [   67.058846][ T3737] [c000001c4738faa0] [c0000000003cfb9c]
-> check_object+0x2ac/0x3e0
-> [   67.058914][ T3737] [c000001c4738fb10] [c0000000003d646c]
-> free_debug_processing+0x1ec/0x680
-> [   67.059009][ T3737] [c000001c4738fc00] [c0000000003d6c54]
-> __slab_free+0x354/0x6d0
-> [   67.059113][ T3737] [c000001c4738fcc0] [c00000000088fda8]
-> free_cpumask_var+0x18/0x30
-> [   67.059205][ T3737] [c000001c4738fce0] [c0000000001c3fc0]
-> write_irq_affinity.isra.0+0x130/0x1e0
-> [   67.059324][ T3737] [c000001c4738fd30] [c00000000050c6b0]
-> proc_reg_write+0x90/0x130
-> [   67.059415][ T3737] [c000001c4738fd60] [c0000000004475ac]
-> __vfs_write+0x3c/0x70
-> [   67.059498][ T3737] [c000001c4738fd80] [c00000000044b0a8]
-> vfs_write+0xd8/0x210
-> [   67.059581][ T3737] [c000001c4738fdd0] [c00000000044b44c]
-> ksys_write+0x7c/0x140
-> [   67.059692][ T3737] [c000001c4738fe20] [c00000000000b108]
-> system_call+0x5c/0x70
-> [   67.059781][ T3737] FIX kmalloc-16: Restoring 0x00000000bd269811-
-> 0x0000000039a2fb86=0xcc
-> [   67.059781][ T3737] 
-> [   67.059922][ T3737] FIX kmalloc-16: Object at 0x000000005c0b6a3a not freed
-> 
-> 
->   185.039693][ T3647] BUG: KASAN: invalid-access in bitmap_parse+0x20c/0x2d8
-> [  185.039701][ T3647] Write of size 8 at addr 33ff809501263f20 by task
-> irqbalance/3647
-> [  185.039710][ T3647] Pointer tag: [33], memory tag: [fe]
-> [  185.056475][ T3647] 
-> [  185.056486][ T3647] CPU: 218 PID: 3647 Comm: irqbalance Tainted:
-> G        W         5.2.0-rc2-next-20190530+ #5
-> [  185.056491][ T3647] Hardware name: HPE Apollo
-> 70             /C01_APACHE_MB         , BIOS L50_5.13_1.0.9 03/01/2019
-> [  185.056498][ T3647] Call trace:
-> [  185.079885][ T3647]  dump_backtrace+0x0/0x268
-> [  185.079896][ T3647]  show_stack+0x20/0x2c
-> [  185.092149][ T3647]  dump_stack+0xb4/0x108
-> [  185.092162][ T3647]  print_address_description+0x7c/0x330
-> [  185.092172][ T3647]  __kasan_report+0x194/0x1dc
-> [  185.116236][ T3647]  kasan_report+0x10/0x18
-> [  185.116243][ T3647]  __hwasan_store8_noabort+0x74/0x7c
-> [  185.116248][ T3647]  bitmap_parse+0x20c/0x2d8
-> [  185.116254][ T3647]  bitmap_parse_user+0x40/0x64
-> [  185.116268][ T3647]  write_irq_affinity+0x118/0x1a8
-> [  185.135032][ T3647]  irq_affinity_proc_write+0x34/0x44
-> [  185.135040][ T3647]  proc_reg_write+0xf4/0x130
-> [  185.135057][ T3647]  __vfs_write+0x88/0x33c
-> [  185.135067][ T3647]  vfs_write+0x118/0x208
-> [  185.144546][ T3647]  ksys_write+0xa0/0x110
-> [  185.158794][ T3647]  __arm64_sys_write+0x54/0x88
-> [  185.158811][ T3647]  el0_svc_handler+0x198/0x260
-> [  185.158820][ T3647]  el0_svc+0x8/0xc
-> [  185.172464][ T3647] 
-> [  185.172469][ T3647] Allocated by task 3647:
-> [  185.172476][ T3647]  __kasan_kmalloc+0x114/0x1d0
-> [  185.172481][ T3647]  kasan_kmalloc+0x10/0x18
-> [  185.172499][ T3647]  __kmalloc_node+0x1e0/0x7cc
-> [  185.192389][ T3647]  alloc_cpumask_var_node+0x48/0x94
-> [  185.192395][ T3647]  alloc_cpumask_var+0x10/0x1c
-> [  185.192400][ T3647]  write_irq_affinity+0xa8/0x1a8
-> [  185.192406][ T3647]  irq_affinity_proc_write+0x34/0x44
-> [  185.192415][ T3647]  proc_reg_write+0xf4/0x130
-> [  185.224744][ T3647]  __vfs_write+0x88/0x33c
-> [  185.224750][ T3647]  vfs_write+0x118/0x208
-> [  185.224756][ T3647]  ksys_write+0xa0/0x110
-> [  185.224766][ T3647]  __arm64_sys_write+0x54/0x88
-> [  185.258392][ T3647]  el0_svc_handler+0x198/0x260
-> [  185.258398][ T3647]  el0_svc+0x8/0xc
-> [  185.258401][ T3647] 
-> [  185.258405][ T3647] Freed by task 3647:
-> [  185.258411][ T3647]  __kasan_slab_free+0x154/0x228
-> [  185.258417][ T3647]  kasan_slab_free+0xc/0x18
-> [  185.258422][ T3647]  kfree+0x268/0xb70
-> [  185.258428][ T3647]  free_cpumask_var+0xc/0x14
-> [  185.258446][ T3647]  write_irq_affinity+0x19c/0x1a8
-> [  185.273666][ T3647]  irq_affinity_proc_write+0x34/0x44
-> [  185.273675][ T3647]  proc_reg_write+0xf4/0x130
-> [  185.288620][ T3647]  __vfs_write+0x88/0x33c
-> [  185.288626][ T3647]  vfs_write+0x118/0x208
-> [  185.288632][ T3647]  ksys_write+0xa0/0x110
-> [  185.288645][ T3647]  __arm64_sys_write+0x54/0x88
-> [  185.303075][ T3647]  el0_svc_handler+0x198/0x260
-> [  185.303081][ T3647]  el0_svc+0x8/0xc
-> [  185.303084][ T3647] 
-> [  185.303091][ T3647] The buggy address belongs to the object at
-> ffff809501263f00
-> [  185.303091][ T3647]  which belongs to the cache kmalloc-128 of size 128
-> [  185.303103][ T3647] The buggy address is located 32 bytes inside of
-> [  185.303103][ T3647]  128-byte region [ffff809501263f00, ffff809501263f80)
-> [  185.331347][ T3647] The buggy address belongs to the page:
-> [  185.331356][ T3647] page:ffff7fe025404980 refcount:1 mapcount:0
-> mapping:7fff800800010480 index:0xaff809501267d80
-> [  185.331365][ T3647] flags: 0x17ffffffc000200(slab)
-> [  185.331377][ T3647] raw: 017ffffffc000200 ffff7fe025997308 e5ff808b7d00fd40
-> 7fff800800010480
-> [  185.350500][ T3647] raw: 19ff80950126aa80 0000000000660059 00000001ffffffff
-> 0000000000000000
-> [  185.350505][ T3647] page dumped because: kasan: bad access detected
-> [  185.350514][ T3647] page allocated via order 0, migratetype Unmovable,
-> gfp_mask 0x12cc0(GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY)
-> [  185.350535][ T3647]  prep_new_page+0x2ec/0x388
-> [  185.364704][ T3647]  get_page_from_freelist+0x2530/0x27fc
-> [  185.364711][ T3647]  __alloc_pages_nodemask+0x360/0x1c60
-> [  185.364719][ T3647]  new_slab+0x108/0x9d4
-> [  185.364725][ T3647]  ___slab_alloc+0x57c/0x9e4
-> [  185.364735][ T3647]  __kmalloc_node+0x734/0x7cc
-> [  185.382050][ T3647]  alloc_rt_sched_group+0x17c/0x258
-> [  185.382070][ T3647]  sched_create_group+0x54/0x9c
-> [  185.382090][ T3647]  sched_autogroup_create_attach+0x40/0x1f0
-> [  185.494511][ T3647]  ksys_setsid+0x158/0x15c
-> [  185.494517][ T3647]  __arm64_sys_setsid+0x10/0x1c
-> [  185.494524][ T3647]  el0_svc_handler+0x198/0x260
-> [  185.494529][ T3647]  el0_svc+0x8/0xc
-> [  185.494532][ T3647] 
-> [  185.494536][ T3647] Memory state around the buggy address:
-> [  185.494549][ T3647]  ffff809501263d00: fe fe fe fe fe fe fe fe fe fe fe fe
-> fe
-> fe fe fe
-> [  185.514973][ T3647]  ffff809501263e00: fe fe fe fe fe fe fe fe fe fe fe fe
-> fe
-> fe fe fe
-> [  185.514979][ T3647] >ffff809501263f00: 33 33 fe fe fe fe fe fe fe fe fe fe
-> fe
-> fe fe fe
-> [  185.514982][ T3647]                          ^
-> [  185.514988][ T3647]  ffff809501264000: fe fe fe fe fe fe fe fe fe fe fe fe
-> fe
-> fe fe fe
-> [  185.514997][ T3647]  ffff809501264100: fe fe fe fe fe fe fe fe 36 36 36 36
-> 36
-> 36 36 36
-> 
+Thanks for pointing out the email glitches! It looks like it's making it over to
+lore.kernel.org/linux-mm, but not to lkml.org, nor to the lore.kernel.org/lkml 
+section either:
+
+    https://lore.kernel.org/linux-mm/e389551e-32c3-c9f2-2861-1a8819dc7cc9@nvidia.com/
+
+...and I've already checked the DKIM signatures, they're all good. So I think this
+is getting narrowed down to, messages from nvidia.com (or at least from me) are not
+making it onto the lkml list server.  I'm told that this can actually happen *because*
+of DKIM domains: list servers may try to avoid retransmitting from DKIM domains. sigh.
+
+Any hints are welcome, otherwise I'll try to locate the lkml admins and see what can
+be done.
+
+(+Sanket, Ralph from our email team)
+
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
+ 
 
