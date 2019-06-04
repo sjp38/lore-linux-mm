@@ -6,127 +6,127 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 402E1C28CC3
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 09:14:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF4F7C282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 09:14:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0049522CF8
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 09:14:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0049522CF8
+	by mail.kernel.org (Postfix) with ESMTP id 9773921976
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 09:14:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9773921976
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 53DCA6B0274; Tue,  4 Jun 2019 05:14:23 -0400 (EDT)
+	id 2A6CA6B0276; Tue,  4 Jun 2019 05:14:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4ED616B0276; Tue,  4 Jun 2019 05:14:23 -0400 (EDT)
+	id 20C976B0277; Tue,  4 Jun 2019 05:14:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 38F066B0277; Tue,  4 Jun 2019 05:14:23 -0400 (EDT)
+	id 0338E6B0278; Tue,  4 Jun 2019 05:14:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F0B636B0276
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 05:14:22 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 140so15672154pfa.23
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 02:14:22 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D5CAE6B0276
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 05:14:26 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id t141so19085162ywe.23
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 02:14:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:in-reply-to:references:mime-version
          :content-transfer-encoding:message-id;
-        bh=kpoWseBFGA49tbcWqQaBX836YqFXpglIUaPpy4tHJyE=;
-        b=LdgC0yA50HsHf1O5j9+27kF//2bPmJ3UZyi1/PelHY2Ya836lPDcuB7yO3FfEmq82Y
-         pwJUgfpDAI0fJoECcSVm8lMoWLn5p49iRcw79ttZFeam8btjtJt+LKjLB7s24223YLVx
-         vQh62OTgxHLKxPOjXspTa0Fou1JUhcEKifIXv/rYmcUKrkwoJLqvMGLn8zbMFZZNRH3h
-         JYk3MHUXUzGQ51dCeCl62O9KfYV56iWoj/R5f9l/Zm3zA2TbTgPqEvpyPxLKjV0yvg53
-         a8eLGD/ckBKyEMPm0FGu2a5giQS88PAwIz6CPzFzN4I77IArYDcg3liKIBUIRkiJVD9X
-         6/rQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWFskMZ9XzDyBCZDbZhueF65vAWcoUUh7RLYWJNclxDLHzXng7K
-	oawlAimfTrEJWS1zVfX2E3+lKrbt82+x5Sr+h75/+A1L43VfUkwJMsL6dzCMO+jYKfpwv45es4k
-	GodL4yWhy6D2sTkI+SYUH0jw3S8w73p+ZBxztgeb2sMN4Skz6aBLXGqK/F+59os11Yg==
-X-Received: by 2002:a17:902:860c:: with SMTP id f12mr35451975plo.127.1559639662472;
-        Tue, 04 Jun 2019 02:14:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwfREJZboJPr5xgriPKHFChu+jgMmQKl4wq1XjFaYIu3mCILYLbu/X8bBsPXsyWWUzzG0IQ
-X-Received: by 2002:a17:902:860c:: with SMTP id f12mr35451892plo.127.1559639660933;
-        Tue, 04 Jun 2019 02:14:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559639660; cv=none;
+        bh=jU7nJGZqz3W+OPqACHi+vSvZlVzpNc8/McjlBMHYsnE=;
+        b=lI7jWWMbKGOtV0IQVSWBVi252/Sijtg+tIHLgHi0EratrryqaTWzz30s60J1y3IZD2
+         acMhu4G/R/plLSDwi5tMn3r61hPB4iH2PByO4clwAFvpJO8/QA9JyPEZA05dXpDOeWXY
+         EGk/555V87Cw89y/KaPG+xGmtIGg0MBrI7WuKWi9qH4u+MNSkzG6caXRNzNRZ22v5+h5
+         /nFzGkztbWoHKN9LKMUPBuiQG9Hf0FdFRfb6ffVmWxmYc99MTFGdbU0vWgXbZOCIG7b7
+         iq09o32evbnCtVhtXEVto9NH4yITKtU3Dh5tUytoFNEEqS9Qx3gA32dbc3ljH2tQs9iL
+         dVYw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUXfJuQqKF8hlR0lWiLfDYGwQ6YkOFp/wgLrIu+MCY1ddHpQaui
+	IVEfoPXqPlTzCrCWg1f+pxDAwbGoZNuS8lyjEU+3ZErqPoTyk1lBUkq0Hic6CmVQgGAe9BzX57r
+	ejuRbZ/3J9GWslQBuAiKKJp2HP0/anfaa63Gay8taVhjNeLtNdqHPQBpB4U+Xs5sKng==
+X-Received: by 2002:a25:7712:: with SMTP id s18mr14242406ybc.263.1559639666562;
+        Tue, 04 Jun 2019 02:14:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyzaPo8kCnZxOPcr2GMgJgUPLiDEhFthaym2zpQ21SfDg0BbjneYWM01B043eosn17Z3x/q
+X-Received: by 2002:a25:7712:: with SMTP id s18mr14242372ybc.263.1559639665457;
+        Tue, 04 Jun 2019 02:14:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559639665; cv=none;
         d=google.com; s=arc-20160816;
-        b=EFfZMu4atNbg1lz1rDSUtWGe5kJlQq81SM1A67mOL2OEU+B43VYiSipMfguBlvbhBA
-         1cv/8IE3czIReZADF1ae7YyNu751BiXSu/7br3X4HL24W2O+uDNdgDjaav2U2DMtyrq0
-         zMnx+pYsMMqqXqJZ1tzmp/z3jVNlnqIpTkg98liktAPcY9bvOeIYfZu/S0kMYvS8goAm
-         2UNoi9h5VIv1qBigiLWfAbkYmc4I8hGUHDbRkrxrbaurDW4VEL1KH3PcCHAqBF1MUOHD
-         q/smf1gM0HWDl/AYBEIZ1nZjm25ycnaeMZH3JpmOv9ARwFZoDvdS7Pd3SOw24x8p2Nd9
-         3TDA==
+        b=unCjTB+WcqAPsp/hG3HAyqYxvWcCro6G1+PLottulVOKg1heNocxBghkhNL1XD3IG6
+         LXnjj6teVtJrPM4OAtvC1FZ67t5gMl8T0N1F+MMznfJ4EvgFu1sWz8d29HOcp5T3qi5t
+         8qidq40ceHUjkTPHQpsDmLAo/U3TjnRoM5orol7EhxVr4CEaDif9qcl/iUUjMHAL5VqD
+         S+j6L8qm6J7O0p+c6mAFTepbCovHPxO2FpgYcJXwgMfhmGXj6kaTaYIfoUwig/Tp1G8Q
+         rn1VW/ChJFsgf8chSvVyHPaL8A2KMPRzuJQ8/UOEl61VR5b3FQxv3stqgV528NnIUZxj
+         tYgw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:content-transfer-encoding:mime-version:references
          :in-reply-to:date:subject:cc:to:from;
-        bh=kpoWseBFGA49tbcWqQaBX836YqFXpglIUaPpy4tHJyE=;
-        b=ENsmiuToh0C3I+kFDmwrW0VbLmTVfMx1iaLPpXSp+ndIJ6jhlQ5QjTaaY6iZDWCkXX
-         aiQGBIIznyrM4fRB1WcFK8QENeda7qAM1HZ25FuuX5gDajd7Sbdl8JFu/j1y4oLrpNtz
-         QE+4xfuAy+WcSG+gM7+7G89R0SMkAQ7z9nEgNU1DnHwY4CurIXuGZRJKcMjuQ4iGb1xk
-         MjWAh4u9PlS//cqJ8ESmy50aacUnDNZHRxredpz8/iMonPN9ETOFFNjO39qbHdQ8mW9h
-         vlR5bxpcu0Baf83qBq7WjlkoXWswI5krNCoqRUJpEpeRhN1rJIIUBQGGsQTF8I0W9keU
-         XhNg==
+        bh=jU7nJGZqz3W+OPqACHi+vSvZlVzpNc8/McjlBMHYsnE=;
+        b=gJks0iZ6hOf1O8VY6TL26QPUD05djq917yeaEG+6L1Vm4XTDx4/E7CLS6qvXdHuv9l
+         a1qMIqgsxkFbqGVc0E0ZytS4VNr3B5QSK9wrTC0bcGaRpFupng/u2EjBjZ+isRG36YG9
+         BRmwVYenI/3O6AGR8Qdy920gcylT/70HWHwOkBKw8zUszJBlAfDPMrSTJXT1gwkTYR9W
+         ZCmjWXjkelHXchm0GuHIxhiAkKkW7AXQITEORdnIA2YtkP4RUgHytMmP90fe1DyD6wSP
+         y/m07VjosXvztEqye+J3Y3AvuJfunVMoE79j3UO5MACAJQ+UC1bPG06Mozc5l2kl4Qoh
+         MHWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f11si19924961plr.405.2019.06.04.02.14.20
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 127si4835519ybu.373.2019.06.04.02.14.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jun 2019 02:14:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Tue, 04 Jun 2019 02:14:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5497dvp025070
-	for <linux-mm@kvack.org>; Tue, 4 Jun 2019 05:14:20 -0400
-Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2swkpaxdun-1
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5497Zka072920
+	for <linux-mm@kvack.org>; Tue, 4 Jun 2019 05:14:25 -0400
+Received: from e12.ny.us.ibm.com (e12.ny.us.ibm.com [129.33.205.202])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2swjwvqxqg-1
 	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 04 Jun 2019 05:14:20 -0400
+	for <linux-mm@kvack.org>; Tue, 04 Jun 2019 05:14:24 -0400
 Received: from localhost
-	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e12.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
-	Tue, 4 Jun 2019 10:14:19 +0100
-Received: from b01cxnp22033.gho.pok.ibm.com (9.57.198.23)
-	by e14.ny.us.ibm.com (146.89.104.201) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	Tue, 4 Jun 2019 10:14:24 +0100
+Received: from b01cxnp23034.gho.pok.ibm.com (9.57.198.29)
+	by e12.ny.us.ibm.com (146.89.104.199) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
 	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 4 Jun 2019 10:14:15 +0100
+	Tue, 4 Jun 2019 10:14:20 +0100
 Received: from b01ledav006.gho.pok.ibm.com (b01ledav006.gho.pok.ibm.com [9.57.199.111])
-	by b01cxnp22033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x549EEnU15007958
+	by b01cxnp23034.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x549EKjY34603294
 	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 4 Jun 2019 09:14:14 GMT
+	Tue, 4 Jun 2019 09:14:20 GMT
 Received: from b01ledav006.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 528DCAC05F;
-	Tue,  4 Jun 2019 09:14:14 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id E614AAC05B;
+	Tue,  4 Jun 2019 09:14:19 +0000 (GMT)
 Received: from b01ledav006.gho.pok.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id D6809AC060;
-	Tue,  4 Jun 2019 09:14:12 +0000 (GMT)
+	by IMSVA (Postfix) with ESMTP id 7647CAC068;
+	Tue,  4 Jun 2019 09:14:18 +0000 (GMT)
 Received: from skywalker.in.ibm.com (unknown [9.124.35.234])
 	by b01ledav006.gho.pok.ibm.com (Postfix) with ESMTP;
-	Tue,  4 Jun 2019 09:14:12 +0000 (GMT)
+	Tue,  4 Jun 2019 09:14:18 +0000 (GMT)
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
 To: dan.j.williams@intel.com
 Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
         linuxppc-dev@lists.ozlabs.org,
         "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH v3 2/6] mm/nvdimm: Add PFN_MIN_VERSION support
-Date: Tue,  4 Jun 2019 14:43:53 +0530
+Subject: [PATCH v3 5/6] mm/nvdimm: Pick the right alignment default when creating dax devices
+Date: Tue,  4 Jun 2019 14:43:56 +0530
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190604091357.32213-1-aneesh.kumar@linux.ibm.com>
 References: <20190604091357.32213-1-aneesh.kumar@linux.ibm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-TM-AS-GCONF: 00
-x-cbid: 19060409-0052-0000-0000-000003CB0714
+x-cbid: 19060409-0060-0000-0000-0000034BD866
 X-IBM-SpamModules-Scores: 
 X-IBM-SpamModules-Versions: BY=3.00011212; HX=3.00000242; KW=3.00000007;
- PH=3.00000004; SC=3.00000286; SDB=6.01213037; UDB=6.00637527; IPR=6.00994104;
- MB=3.00027178; MTD=3.00000008; XFM=3.00000015; UTC=2019-06-04 09:14:17
+ PH=3.00000004; SC=3.00000286; SDB=6.01213037; UDB=6.00637528; IPR=6.00994104;
+ MB=3.00027178; MTD=3.00000008; XFM=3.00000015; UTC=2019-06-04 09:14:22
 X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19060409-0053-0000-0000-0000612A42D4
-Message-Id: <20190604091357.32213-2-aneesh.kumar@linux.ibm.com>
+x-cbparentid: 19060409-0061-0000-0000-0000499E0C1C
+Message-Id: <20190604091357.32213-5-aneesh.kumar@linux.ibm.com>
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-04_07:,,
  signatures=0
 X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
@@ -140,135 +140,286 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This allows us to make changes in a backward incompatible way. I have
-kept the PFN_MIN_VERSION in this patch '0' because we are not introducing
-any incompatible changes in this patch. We also may want to backport this
-to older kernels.
+Allow arch to provide the supported alignments and use hugepage alignment only
+if we support hugepage. Right now we depend on compile time configs whereas this
+patch switch this to runtime discovery.
 
-The error looks like
+Architectures like ppc64 can have THP enabled in code, but then can have
+hugepage size disabled by the hypervisor. This allows us to create dax devices
+with PAGE_SIZE alignment in this case.
 
-  dax0.1: init failed, superblock min version 1, kernel support version 0
+Existing dax namespace with alignment larger than PAGE_SIZE will fail to
+initialize in this specific case. We still allow fsdax namespace initialization.
 
-and the namespace is marked disabled
+With respect to identifying whether to enable hugepage fault for a dax device,
+if THP is enabled during compile, we default to taking hugepage fault and in dax
+fault handler if we find the fault size > alignment we retry with PAGE_SIZE
+fault size.
 
-$ndctl list -Ni
+This also addresses the below failure scenario on ppc64
+
+ndctl create-namespace --mode=devdax  | grep align
+ "align":16777216,
+ "align":16777216
+
+cat /sys/devices/ndbus0/region0/dax0.0/supported_alignments
+ 65536 16777216
+
+daxio.static-debug  -z -o /dev/dax0.0
+  Bus error (core dumped)
+
+  $ dmesg | tail
+   lpar: Failed hash pte insert with error -4
+   hash-mmu: mm: Hashing failure ! EA=0x7fff17000000 access=0x8000000000000006 current=daxio
+   hash-mmu:     trap=0x300 vsid=0x22cb7a3 ssize=1 base psize=2 psize 10 pte=0xc000000501002b86
+   daxio[3860]: bus error (7) at 7fff17000000 nip 7fff973c007c lr 7fff973bff34 code 2 in libpmem.so.1.0.0[7fff973b0000+20000]
+   daxio[3860]: code: 792945e4 7d494b78 e95f0098 7d494b78 f93f00a0 4800012c e93f0088 f93f0120
+   daxio[3860]: code: e93f00a0 f93f0128 e93f0120 e95f0128 <f9490000> e93f0088 39290008 f93f0110
+
+The failure was due to guest kernel using wrong page size.
+
+The namespaces created with 16M alignment will appear as below on a config with
+16M page size disabled.
+
+$ ndctl list -Ni
 [
   {
-    "dev":"namespace0.0",
+    "dev":"namespace0.1",
     "mode":"fsdax",
+    "map":"dev",
+    "size":5351931904,
+    "uuid":"fc6e9667-461a-4718-82b4-69b24570bddb",
+    "align":16777216,
+    "blockdev":"pmem0.1",
+    "supported_alignments":[
+      65536
+    ]
+  },
+  {
+    "dev":"namespace0.0",
+    "mode":"fsdax",    <==== devdax 16M alignment marked disabled.
     "map":"mem",
-    "size":10737418240,
-    "uuid":"9605de6d-cefa-4a87-99cd-dec28b02cffe",
+    "size":5368709120,
+    "uuid":"a4bdf81a-f2ee-4bc6-91db-7b87eddd0484",
     "state":"disabled"
   }
 ]
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
 ---
- drivers/nvdimm/pfn.h      |  9 ++++++++-
- drivers/nvdimm/pfn_devs.c |  9 +++++++++
- drivers/nvdimm/pmem.c     | 26 ++++++++++++++++++++++----
- 3 files changed, 39 insertions(+), 5 deletions(-)
+ arch/powerpc/include/asm/libnvdimm.h |  9 ++++++++
+ arch/powerpc/mm/Makefile             |  1 +
+ arch/powerpc/mm/nvdimm.c             | 34 ++++++++++++++++++++++++++++
+ arch/x86/include/asm/libnvdimm.h     | 19 ++++++++++++++++
+ drivers/nvdimm/nd.h                  |  6 -----
+ drivers/nvdimm/pfn_devs.c            | 32 +++++++++++++++++++++++++-
+ include/linux/huge_mm.h              |  7 +++++-
+ 7 files changed, 100 insertions(+), 8 deletions(-)
+ create mode 100644 arch/powerpc/include/asm/libnvdimm.h
+ create mode 100644 arch/powerpc/mm/nvdimm.c
+ create mode 100644 arch/x86/include/asm/libnvdimm.h
 
-diff --git a/drivers/nvdimm/pfn.h b/drivers/nvdimm/pfn.h
-index dde9853453d3..5fd29242745a 100644
---- a/drivers/nvdimm/pfn.h
-+++ b/drivers/nvdimm/pfn.h
-@@ -20,6 +20,12 @@
- #define PFN_SIG_LEN 16
- #define PFN_SIG "NVDIMM_PFN_INFO\0"
- #define DAX_SIG "NVDIMM_DAX_INFO\0"
-+/*
-+ * increment this when we are making changes such that older
-+ * kernel should fail to initialize that namespace.
-+ */
+diff --git a/arch/powerpc/include/asm/libnvdimm.h b/arch/powerpc/include/asm/libnvdimm.h
+new file mode 100644
+index 000000000000..d35fd7f48603
+--- /dev/null
++++ b/arch/powerpc/include/asm/libnvdimm.h
+@@ -0,0 +1,9 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _ASM_POWERPC_LIBNVDIMM_H
++#define _ASM_POWERPC_LIBNVDIMM_H
 +
-+#define PFN_MIN_VERSION 0
++#define nd_pfn_supported_alignments nd_pfn_supported_alignments
++extern unsigned long *nd_pfn_supported_alignments(void);
++extern unsigned long nd_pfn_default_alignment(void);
++
++#endif
+diff --git a/arch/powerpc/mm/Makefile b/arch/powerpc/mm/Makefile
+index 0f499db315d6..42e4a399ba5d 100644
+--- a/arch/powerpc/mm/Makefile
++++ b/arch/powerpc/mm/Makefile
+@@ -20,3 +20,4 @@ obj-$(CONFIG_HIGHMEM)		+= highmem.o
+ obj-$(CONFIG_PPC_COPRO_BASE)	+= copro_fault.o
+ obj-$(CONFIG_PPC_PTDUMP)	+= ptdump/
+ obj-$(CONFIG_KASAN)		+= kasan/
++obj-$(CONFIG_NVDIMM_PFN)		+= nvdimm.o
+diff --git a/arch/powerpc/mm/nvdimm.c b/arch/powerpc/mm/nvdimm.c
+new file mode 100644
+index 000000000000..a29a4510715e
+--- /dev/null
++++ b/arch/powerpc/mm/nvdimm.c
+@@ -0,0 +1,34 @@
++// SPDX-License-Identifier: GPL-2.0
++
++#include <asm/pgtable.h>
++#include <asm/page.h>
++
++#include <linux/mm.h>
++/*
++ * We support only pte and pmd mappings for now.
++ */
++const unsigned long *nd_pfn_supported_alignments(void)
++{
++	static unsigned long supported_alignments[3];
++
++	supported_alignments[0] = PAGE_SIZE;
++
++	if (has_transparent_hugepage())
++		supported_alignments[1] = HPAGE_PMD_SIZE;
++	else
++		supported_alignments[1] = 0;
++
++	supported_alignments[2] = 0;
++	return supported_alignments;
++}
++
++/*
++ * Use pmd mapping if supported as default alignment
++ */
++unsigned long nd_pfn_default_alignment(void)
++{
++
++	if (has_transparent_hugepage())
++		return HPAGE_PMD_SIZE;
++	return PAGE_SIZE;
++}
+diff --git a/arch/x86/include/asm/libnvdimm.h b/arch/x86/include/asm/libnvdimm.h
+new file mode 100644
+index 000000000000..3d5361db9164
+--- /dev/null
++++ b/arch/x86/include/asm/libnvdimm.h
+@@ -0,0 +1,19 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _ASM_X86_LIBNVDIMM_H
++#define _ASM_X86_LIBNVDIMM_H
++
++static inline unsigned long nd_pfn_default_alignment(void)
++{
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++	return HPAGE_PMD_SIZE;
++#else
++	return PAGE_SIZE;
++#endif
++}
++
++static inline unsigned long nd_altmap_align_size(unsigned long nd_align)
++{
++	return PMD_SIZE;
++}
++
++#endif
+diff --git a/drivers/nvdimm/nd.h b/drivers/nvdimm/nd.h
+index 191d62af0e51..524be92c1cd0 100644
+--- a/drivers/nvdimm/nd.h
++++ b/drivers/nvdimm/nd.h
+@@ -296,12 +296,6 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
+ struct nd_pfn *to_nd_pfn(struct device *dev);
+ #if IS_ENABLED(CONFIG_NVDIMM_PFN)
  
- struct nd_pfn_sb {
- 	u8 signature[PFN_SIG_LEN];
-@@ -36,7 +42,8 @@ struct nd_pfn_sb {
- 	__le32 end_trunc;
- 	/* minor-version-2 record the base alignment of the mapping */
- 	__le32 align;
--	u8 padding[4000];
-+	__le16 min_version;
-+	u8 padding[3998];
- 	__le64 checksum;
- };
- 
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-#define PFN_DEFAULT_ALIGNMENT HPAGE_PMD_SIZE
+-#else
+-#define PFN_DEFAULT_ALIGNMENT PAGE_SIZE
+-#endif
+-
+ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns);
+ bool is_nd_pfn(struct device *dev);
+ struct device *nd_pfn_create(struct nd_region *nd_region);
 diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index 01f40672507f..00c57805cad3 100644
+index d137f52f46ee..9855357c9040 100644
 --- a/drivers/nvdimm/pfn_devs.c
 +++ b/drivers/nvdimm/pfn_devs.c
-@@ -439,6 +439,14 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
- 	if (nvdimm_read_bytes(ndns, SZ_4K, pfn_sb, sizeof(*pfn_sb), 0))
- 		return -ENXIO;
+@@ -18,6 +18,7 @@
+ #include <linux/slab.h>
+ #include <linux/fs.h>
+ #include <linux/mm.h>
++#include <asm/libnvdimm.h>
+ #include "nd-core.h"
+ #include "pfn.h"
+ #include "nd.h"
+@@ -111,6 +112,8 @@ static ssize_t align_show(struct device *dev,
+ 	return sprintf(buf, "%ld\n", nd_pfn->align);
+ }
  
-+	if (le16_to_cpu(pfn_sb->min_version) > PFN_MIN_VERSION) {
-+		dev_err(&nd_pfn->dev,
-+			"init failed, superblock min version %d kernel"
-+			" support version %d\n",
-+			le16_to_cpu(pfn_sb->min_version), PFN_MIN_VERSION);
++#ifndef nd_pfn_supported_alignments
++#define nd_pfn_supported_alignments nd_pfn_supported_alignments
+ static const unsigned long *nd_pfn_supported_alignments(void)
+ {
+ 	/*
+@@ -133,6 +136,7 @@ static const unsigned long *nd_pfn_supported_alignments(void)
+ 
+ 	return data;
+ }
++#endif
+ 
+ static ssize_t align_store(struct device *dev,
+ 		struct device_attribute *attr, const char *buf, size_t len)
+@@ -310,7 +314,7 @@ struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
+ 		return NULL;
+ 
+ 	nd_pfn->mode = PFN_MODE_NONE;
+-	nd_pfn->align = PFN_DEFAULT_ALIGNMENT;
++	nd_pfn->align = nd_pfn_default_alignment();
+ 	dev = &nd_pfn->dev;
+ 	device_initialize(&nd_pfn->dev);
+ 	if (ndns && !__nd_attach_ndns(&nd_pfn->dev, ndns, &nd_pfn->ndns)) {
+@@ -420,6 +424,20 @@ static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
+ 	return 0;
+ }
+ 
++static bool nd_supported_alignment(unsigned long align)
++{
++	int i;
++	const unsigned long *supported = nd_pfn_supported_alignments();
++
++	if (align == 0)
++		return false;
++
++	for (i = 0; supported[i]; i++)
++		if (align == supported[i])
++			return true;
++	return false;
++}
++
+ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
+ {
+ 	u64 checksum, offset;
+@@ -505,6 +523,18 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
+ 		return -EOPNOTSUPP;
+ 	}
+ 
++	/*
++	 * Check whether the we support the alignment. For Dax if the
++	 * superblock alignment is not matching, we won't initialize
++	 * the device.
++	 */
++	if (!nd_supported_alignment(align) &&
++	    !memcmp(pfn_sb->signature, DAX_SIG, PFN_SIG_LEN)) {
++		dev_err(&nd_pfn->dev, "init failed, alignment mismatch: "
++			"%lx:%lx\n", nd_pfn->align, align);
 +		return -EOPNOTSUPP;
 +	}
 +
- 	if (memcmp(pfn_sb->signature, sig, PFN_SIG_LEN) != 0)
- 		return -ENODEV;
+ 	if (!nd_pfn->uuid) {
+ 		/*
+ 		 * When probing a namepace via nd_pfn_probe() the uuid
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+index 7cd5c150c21d..64d16794bb27 100644
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -108,7 +108,12 @@ static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)
  
-@@ -769,6 +777,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 	memcpy(pfn_sb->parent_uuid, nd_dev_to_uuid(&ndns->dev), 16);
- 	pfn_sb->version_major = cpu_to_le16(1);
- 	pfn_sb->version_minor = cpu_to_le16(2);
-+	pfn_sb->min_version = cpu_to_le16(PFN_MIN_VERSION);
- 	pfn_sb->start_pad = cpu_to_le32(start_pad);
- 	pfn_sb->end_trunc = cpu_to_le32(end_trunc);
- 	pfn_sb->align = cpu_to_le32(nd_pfn->align);
-diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index d9d845077b8b..eddc28e8c357 100644
---- a/drivers/nvdimm/pmem.c
-+++ b/drivers/nvdimm/pmem.c
-@@ -496,6 +496,7 @@ static int pmem_attach_disk(struct device *dev,
- 
- static int nd_pmem_probe(struct device *dev)
- {
-+	int ret;
- 	struct nd_namespace_common *ndns;
- 
- 	ndns = nvdimm_namespace_common_probe(dev);
-@@ -511,12 +512,29 @@ static int nd_pmem_probe(struct device *dev)
- 	if (is_nd_pfn(dev))
- 		return pmem_attach_disk(dev, ndns);
- 
--	/* if we find a valid info-block we'll come back as that personality */
--	if (nd_btt_probe(dev, ndns) == 0 || nd_pfn_probe(dev, ndns) == 0
--			|| nd_dax_probe(dev, ndns) == 0)
-+	ret = nd_btt_probe(dev, ndns);
-+	if (ret == 0)
- 		return -ENXIO;
-+	else if (ret == -EOPNOTSUPP)
-+		return ret;
- 
--	/* ...otherwise we're just a raw pmem device */
-+	ret = nd_pfn_probe(dev, ndns);
-+	if (ret == 0)
-+		return -ENXIO;
-+	else if (ret == -EOPNOTSUPP)
-+		return ret;
-+
-+	ret = nd_dax_probe(dev, ndns);
-+	if (ret == 0)
-+		return -ENXIO;
-+	else if (ret == -EOPNOTSUPP)
-+		return ret;
+ 	if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
+ 		return true;
+-
 +	/*
-+	 * We have two failure conditions here, there is no
-+	 * info reserver block or we found a valid info reserve block
-+	 * but failed to initialize the pfn superblock.
-+	 * Don't create a raw pmem disk for the second case.
++	 * For dax let's try to do hugepage fault always. If we don't support
++	 * hugepages we will not have enabled namespaces with hugepage alignment.
++	 * This also means we try to handle hugepage fault on device with
++	 * smaller alignment. But for then we will return with VM_FAULT_FALLBACK
 +	 */
- 	return pmem_attach_disk(dev, ndns);
- }
+ 	if (vma_is_dax(vma))
+ 		return true;
  
 -- 
 2.21.0
