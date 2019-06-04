@@ -2,167 +2,382 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DAF5BC282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 23:31:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 71E0FC28CC3
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 23:34:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 756DF206B8
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 23:31:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 203A120851
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 23:34:38 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="hI8t2IGi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 756DF206B8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="M2GiZzI7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 203A120851
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BE0ED6B026F; Tue,  4 Jun 2019 19:30:59 -0400 (EDT)
+	id AF4896B0273; Tue,  4 Jun 2019 19:34:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B917D6B0270; Tue,  4 Jun 2019 19:30:59 -0400 (EDT)
+	id A7D8C6B0276; Tue,  4 Jun 2019 19:34:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AA7D16B0273; Tue,  4 Jun 2019 19:30:59 -0400 (EDT)
+	id 8F7076B0277; Tue,  4 Jun 2019 19:34:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 749036B026F
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 19:30:59 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id i3so14920508plb.8
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 16:30:59 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 500A96B0273
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 19:34:37 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 21so13463671pgl.5
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 16:34:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:to:cc:from:subject:message-id
-         :date:user-agent:mime-version:content-language
-         :content-transfer-encoding;
-        bh=PYnlYwcrqismRpkktUNEE7wpHvUCY2x+J4QeRuh9P6A=;
-        b=drO6JljlOqfPQx6S9S1uVyc8AYzK/pWAlKGsB6kkilVEZ/KsII3Wh716hHZ4eSK4Tj
-         It5wVL4Uf+OgfzZvcx0WHFHC5Xs2M6FmpNC9JOhcocw9VdWWygpzBtFI+dxoNbI6W8ca
-         rvsuNJZljSVnzwf9oAKGJQhPm1wlU5P7YEBYuoFHN5WYwzF10/6s4fbJ5EuD1mJkBtl7
-         EiMh1gj2SYDG4EDmtAqggQaOgmq27XDHRkPxY+WsSxBsQ7uYg67Su5Fy9rWvVfeaTzv+
-         Bg3DbO8jb50sry9St4VsZVzwrRCZn8JanozvS+2qlJpm0NuZ+zL2IRdPuhoA0Tb7/Vg0
-         U9DQ==
-X-Gm-Message-State: APjAAAXr/Z8KGufvVFdblYHL9GJhzYyEJbBet/bgpoar/G5lVLThIpF6
-	AmwkNFkFf6T1Ol6CvQfllg93pYny39EnFLKUvi/rJrzGYOOPUP7YclaQzvmdU78M+dnpdvxbHAV
-	4h/mWaDpVHEJVfQ5gZyntjIWndCOcRn3Fy6Q+RTLgFtN60iLMy6LKaWlwIhmUZw6LQA==
-X-Received: by 2002:a17:902:860c:: with SMTP id f12mr39826556plo.127.1559691058764;
-        Tue, 04 Jun 2019 16:30:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxmG6iLqZS/yZENSYdeZuJLk0NSntYF3BfPE9YGYXjKbUTUfG3Y3npV0GvNMUjAYyVyS/JN
-X-Received: by 2002:a17:902:860c:: with SMTP id f12mr39826494plo.127.1559691057739;
-        Tue, 04 Jun 2019 16:30:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559691057; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:subject:message-id
+         :user-agent;
+        bh=xwSGJXrAE3WNGzf9R6GnZpgZR1siysT5shOZnqBOxos=;
+        b=bHvSYuhgE+tvjr3RemzF48Kkyav2tesltoNP1IUEnt+afmsW6dJsUHwFp/aEJXLLso
+         +UrEIOhnIJs1GzhjZ58KW+sFdaFI+3/mrWFiUaAuFnJiwK7M3FtSYjx970B3DEBsr1nn
+         iAYKna3K75hv9zdKhVJR24IXu6PBLnTdDLitSKfMWoE+znb6j/yNAhuILRnJvc5z57E1
+         cOMWgJkDTClOcX8+vwS6Im6Vt5Nc0jsy1JeQm9DgDaY3wtXlYTu/NQ+g8iGW2OZvARvd
+         BMvbcd65Zpr3SXly9TLq2CEIRcLomOQsJimMiU3SNFGtt1zj1y/ndSwiX29ZQmbUb6TO
+         rmtw==
+X-Gm-Message-State: APjAAAU8rsa6FpxBAV6LMJHchecF/6f3UvpfSilZNZ4ScwhxaKGsmMqh
+	gVyvHPB/wgE81wA+FpVZcicfCJWj/jgKHnImo0eoTcw1MgQjJZcyKrNyXysaNF2ul/fpgk5GU72
+	u6PI9zH+1wAPXxrLLSBwl9c7iEbkrB9Z5n98u1RpJTWi4vieZhVgL2RBaJPtziMFaqg==
+X-Received: by 2002:a63:1d05:: with SMTP id d5mr377473pgd.157.1559691276666;
+        Tue, 04 Jun 2019 16:34:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz/FWCxV9W8QzgD2pGA1ax0VNPBoMvWZskvcU0Fyn+llbrSZdSXxUlw/7czOLkdp7BdxpTZ
+X-Received: by 2002:a63:1d05:: with SMTP id d5mr377404pgd.157.1559691275265;
+        Tue, 04 Jun 2019 16:34:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559691275; cv=none;
         d=google.com; s=arc-20160816;
-        b=H4rC8p35N0buO3iFRDY8UYJpYbBYi2Slw2DErVjztn6mN6712XUwFXAkwyQs2lv+ZZ
-         4chmcCzd+EY+0l1/EwDIF0t+1USOIVCcN/yfx9qX1b5jldjmeqHMBPEfDxSGug1k2a4U
-         atC4KYAuGf5QxVhtBX9xzERJ8W9Xx89PUp4X+80QVMiUF60+P2U1wwjFGp7U3ol1XXPd
-         L3nC6sfW6UMvUvQqJGH16+CrK4+pgbbUXJf0a+tMLyaDQq37ITifhmxc/5EdPB16yb1f
-         pQSf5CUp4y0NWp8YIEHAC6nuH2MKGY6pZiexV7o3gclm3qb7ALa3tOK6ZsE6yAgCFo9S
-         ZxSQ==
+        b=PdILgSSOKjx2SQFTV6fFi23WkPx/vLX9f7N+gfTCqhca+AjCy6B9MmWJn3kkQw2skC
+         XWbcfXMNXH42Cm54CCIhojgWP6wqh6gjd8OgUN64W92MNMM5372mfYZeIUIvll207r40
+         ro27wYx01INtPSpkUey1DJVbTD2991+84f0yv1mwaRxEFjjWHu9WPFbkB/qA00c5H65C
+         Y5ykFTbwgC7mTcaSUsC83b/sYbq935LscAXS+PZNeYjC9t/7yuYbarf/c2H6fqZCKSKl
+         ET+n6PnTpB3zRMZxhQZF1r29NGqZUlAahoGWO/o+w3SsMDqrLw9t0x6tFzResyhaKY+e
+         p6WA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:mime-version:user-agent
-         :date:message-id:subject:from:cc:to:dkim-signature;
-        bh=PYnlYwcrqismRpkktUNEE7wpHvUCY2x+J4QeRuh9P6A=;
-        b=FIPxOtvG59GDMF61QiKf2g8hRc6KiVJrU+UBXetIIE7sFBjhb5qCMBrDOTdsZEtcZG
-         pchM/LoxiEGQjUXkINrUP4mSTvXWVEvtIAqS8i4H5o0tHK7TUIsDIXJuWiUCKdZmhJXK
-         S+KCX5F1exX20EDWOl2fPqM1U4p98/KiWy9Q2VkjHeSTyYU4/CMI4uL41WGsnDd6hrbN
-         AJgFvm5ftLVlI/SKJGdygvYx8wha7G0xrwapLpuCw8jMwk348nbVHYKGJFdMsvIq3EFm
-         +kHF3OhOR/zKagPEPm8JzYjPgWJgHDsf9M+9Qh+lYZwkxgqF8JPLdI1S6mpEOR/mlaxr
-         XrFw==
+        h=user-agent:message-id:subject:to:from:date:dkim-signature;
+        bh=xwSGJXrAE3WNGzf9R6GnZpgZR1siysT5shOZnqBOxos=;
+        b=jnXkTIRZRxAH08nVs+3tWKonUn3020Om3j41TD9snnQm0w7jqM5tvm+l/4tFJ0yjv2
+         wLdZJxtH9vQwzIJZDqVRolGlNVeQPKVL72NI7neJlBnqs6i2C2cDVoxmZKDsiVv975BO
+         8k3LFdWA3ecmKNVLHwHQWrLEYp3hi/EY6B3FrOEVLt4czF3c+9mLQSuhWF2A6LVXRTZQ
+         hp52po6HNNOQiy7nklvEXqh5nEJbR8dJcDKANYcoLI/GoqMQujyPWLKjOya+WXuypf7U
+         CtC9+LK7uPZj4hspYuozYhhBVyWSpRpac/WtBqH3t1Kkh6CEPmUzGcAbSV86L5KpKZ49
+         vtfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=hI8t2IGi;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id a4si23839262pls.189.2019.06.04.16.30.56
+       dkim=pass header.i=@kernel.org header.s=default header.b=M2GiZzI7;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id m11si24114442pjr.100.2019.06.04.16.34.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jun 2019 16:30:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Tue, 04 Jun 2019 16:34:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=hI8t2IGi;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x54NSfYV119967;
-	Tue, 4 Jun 2019 23:30:52 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=to : cc : from :
- subject : message-id : date : mime-version : content-type :
- content-transfer-encoding; s=corp-2018-07-02;
- bh=PYnlYwcrqismRpkktUNEE7wpHvUCY2x+J4QeRuh9P6A=;
- b=hI8t2IGipGArSITl/hZ8ilGOQA3SwfM5OFN5CTLViC6D7NnOh8xBuFffelsP3dEI+RMH
- Hdb/7hAU/AjL4ogfjWmXKJ5wJKtn4x7jxQK8G0NAZQKLUlQdM128/bGuyEVtgB3xZ/De
- G6zPw1OrSFKlAVP7XoMFbXi0hBeSswBSWOaAuuSHbFz9yLoTnKRKnJ/3muZD8rT8Vfxa
- jOtDdPEnrPKmhjWQnjVzxw2c7BoSqKr8zeCUpyyZ3onUtqGKnTrNfKmWpYRvS0tR34mK
- LsDzzKYDR3xGHuLMvbF1ag5wQAJ1biwk+nU2UxHV8MemR0+UxtjsYEYF8nA6YJDSSon6 yQ== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2130.oracle.com with ESMTP id 2sugstfy9q-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 04 Jun 2019 23:30:52 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x54NUbbL004697;
-	Tue, 4 Jun 2019 23:30:51 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserp3030.oracle.com with ESMTP id 2swnhbvg30-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 04 Jun 2019 23:30:51 +0000
-Received: from abhmp0022.oracle.com (abhmp0022.oracle.com [141.146.116.28])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x54NUm5x010464;
-	Tue, 4 Jun 2019 23:30:48 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 04 Jun 2019 16:30:48 -0700
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        linux-kernel <linux-kernel@vger.kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: question: should_compact_retry limit
-Message-ID: <6377c199-2b9e-e30d-a068-c304d8a3f706@oracle.com>
-Date: Tue, 4 Jun 2019 16:30:47 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9278 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1906040149
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9278 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906040149
+       dkim=pass header.i=@kernel.org header.s=default header.b=M2GiZzI7;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-231-172-41.hsd1.ca.comcast.net [73.231.172.41])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 9AA37206B8;
+	Tue,  4 Jun 2019 23:34:34 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1559691274;
+	bh=RWMi5h7dv4n1xgqh5D0g3KDmy/co9oL02rzbKP01qDo=;
+	h=Date:From:To:Subject:From;
+	b=M2GiZzI7YZGmJkLNcwnXEk0ADLvRp+CYVPE9p3JQKJhz09kElBAQHpD5M359TZqwJ
+	 9muiPHYU+rivCYktvztu83oPux1NQdZC1mZHrFV3XnrWDowrFy6Bf4pWtYBcHtHuya
+	 BsfeOWnisgRq1c/16BtoXaYEzPR7U+weaOWzCK/o=
+Date: Tue, 04 Jun 2019 16:34:34 -0700
+From: akpm@linux-foundation.org
+To: broonie@kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org,
+ sfr@canb.auug.org.au
+Subject:  mmotm 2019-06-04-16-33 uploaded
+Message-ID: <20190604233434.nx5tXmlsH%akpm@linux-foundation.org>
+User-Agent: s-nail v14.8.16
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-While looking at some really long hugetlb page allocation times, I noticed
-instances where should_compact_retry() was returning true more often that
-I expected.  In one allocation attempt, it returned true 765668 times in a
-row.  To me, this was unexpected because of the following:
+The mm-of-the-moment snapshot 2019-06-04-16-33 has been uploaded to
 
-#define MAX_COMPACT_RETRIES 16
-int max_retries = MAX_COMPACT_RETRIES;
+   http://www.ozlabs.org/~akpm/mmotm/
 
-However, if should_compact_retry() returns true via the following path we
-do not increase the retry count.
+mmotm-readme.txt says
 
-	/*
-	 * make sure the compaction wasn't deferred or didn't bail out early
-	 * due to locks contention before we declare that we should give up.
-	 * But do not retry if the given zonelist is not suitable for
-	 * compaction.
-	 */
-	if (compaction_withdrawn(compact_result)) {
-		ret = compaction_zonelist_suitable(ac, order, alloc_flags);
-		goto out;
-	}
+README for mm-of-the-moment:
 
-Just curious, is this intentional?
--- 
-Mike Kravetz
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (5.x
+or 5.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 5.2-rc3:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* convert-struct-pid-count-to-refcount_t.patch
+* mm-memcontrol-dont-batch-updates-of-local-vm-stats-and-events.patch
+* list_lru-fix-memory-leak-in-__memcg_init_list_lru_node.patch
+* scripts-decode_stacktracesh-prefix-addr2line-with-cross_compile.patch
+* mm-mlockall-error-for-flag-mcl_onfault.patch
+* mm-fix-recent_rotated-history.patch
+* fs-ocfs2-fix-race-in-ocfs2_dentry_attach_lock.patch
+* mm-mmu_gather-remove-__tlb_reset_range-for-force-flush.patch
+* mm-mmu_gather-remove-__tlb_reset_range-for-force-flush-checkpatch-fixes.patch
+* mm-dev_pfn-exclude-memory_device_private-while-computing-virtual-address.patch
+* fs-proc-allow-reporting-eip-esp-for-all-coredumping-threads.patch
+* mm-mempolicy-fix-an-incorrect-rebind-node-in-mpol_rebind_nodemask.patch
+* binfmt_flat-make-load_flat_shared_library-work.patch
+* mm-fix-trying-to-reclaim-unevicable-lru-page.patch
+* zstd-pass-pointer-rathen-than-structure-to-functions.patch
+* zstd-pass-pointer-rathen-than-structure-to-functions-fix.patch
+* zstd-use-u16-data-type-for-rankpos.patch
+* zstd-move-params-structure-to-global-variable-to-reduce-stack-usage.patch
+* zstd-change-structure-variable-from-int-to-char.patch
+* mm-change-count_mm_mlocked_page_nr-return-type.patch
+* signal-remove-the-wrong-signal_pending-check-in-restore_user_sigmask.patch
+* iommu-replace-single-char-identifiers-in-macros.patch
+* scripts-decode_stacktrace-match-basepath-using-shell-prefix-operator-not-regex.patch
+* scripts-decode_stacktrace-look-for-modules-with-kodebug-extension.patch
+* scripts-decode_stacktrace-look-for-modules-with-kodebug-extension-v2.patch
+* scripts-spellingtxt-drop-sepc-from-the-misspelling-list.patch
+* scripts-spellingtxt-drop-sepc-from-the-misspelling-list-fix.patch
+* scripts-spellingtxt-add-spelling-fix-for-prohibited.patch
+* scripts-decode_stacktrace-accept-dash-underscore-in-modules.patch
+* scripts-checkstackpl-fix-arm64-wrong-or-unknown-architecture.patch
+* sh-configs-remove-config_logfs-from-defconfig.patch
+* sh-config-remove-left-over-backlight_lcd_support.patch
+* debugobjects-move-printk-out-of-db-lock-critical-sections.patch
+* ocfs2-add-last-unlock-times-in-locking_state.patch
+* ocfs2-add-locking-filter-debugfs-file.patch
+* fs-ocfs-fix-spelling-mistake-hearbeating-heartbeat.patch
+* ocfs2-clear-zero-in-unaligned-direct-io.patch
+* ocfs2-clear-zero-in-unaligned-direct-io-checkpatch-fixes.patch
+* ocfs2-wait-for-recovering-done-after-direct-unlock-request.patch
+* ocfs2-checkpoint-appending-truncate-log-transaction-before-flushing.patch
+* ramfs-support-o_tmpfile.patch
+  mm.patch
+* mm-slab-validate-cache-membership-under-freelist-hardening.patch
+* mm-slab-sanity-check-page-type-when-looking-up-cache.patch
+* lkdtm-heap-add-tests-for-freelist-hardening.patch
+* mm-slub-avoid-double-string-traverse-in-kmem_cache_flags.patch
+* kmemleak-fix-check-for-softirq-context.patch
+* mm-kasan-print-frame-description-for-stack-bugs.patch
+* device-dax-fix-memory-and-resource-leak-if-hotplug-fails.patch
+* mm-hotplug-make-remove_memory-interface-useable.patch
+* device-dax-hotremove-persistent-memory-that-is-used-like-normal-ram.patch
+* mm-move-map_sync-to-asm-generic-mman-commonh.patch
+* include-linux-pfn_th-remove-pfn_t_to_virt.patch
+* arm-remove-arch_select_memory_model.patch
+* s390-remove-arch_select_memory_model.patch
+* sparc-remove-arch_select_memory_model.patch
+* mm-gupc-make-follow_page_mask-static.patch
+* mm-migrate-remove-unused-mode-argument.patch
+* mm-trivial-clean-up-in-insert_page.patch
+* mm-make-config_huge_page-wrappers-into-static-inlines.patch
+* swap-ifdef-struct-vm_area_struct-swap_readahead_info.patch
+* mm-failslab-by-default-do-not-fail-allocations-with-direct-reclaim-only.patch
+* mm-debug_pagelloc-use-static-keys-to-enable-debugging.patch
+* mm-page_alloc-more-extensive-free-page-checking-with-debug_pagealloc.patch
+* mm-debug_pagealloc-use-a-page-type-instead-of-page_ext-flag.patch
+* mm-fix-an-overly-long-line-in-read_cache_page.patch
+* mm-dont-cast-readpage-to-filler_t-for-do_read_cache_page.patch
+* jffs2-pass-the-correct-prototype-to-read_cache_page.patch
+* 9p-pass-the-correct-prototype-to-read_cache_page.patch
+* mm-filemap-correct-the-comment-about-vm_fault_retry.patch
+* mm-swap-fix-race-between-swapoff-and-some-swap-operations.patch
+* mm-swap-simplify-total_swapcache_pages-with-get_swap_device.patch
+* mm-swap-simplify-total_swapcache_pages-with-get_swap_device-fix.patch
+* mm-swap-use-rbtree-for-swap_extent.patch
+* mm-swap-use-rbtree-for-swap_extent-fix.patch
+* memcg-oom-no-oom-kill-for-__gfp_retry_mayfail.patch
+* memcg-fsnotify-no-oom-kill-for-remote-memcg-charging.patch
+* mm-vmscan-expose-cgroup_ino-for-memcg-reclaim-tracepoints.patch
+* mm-memcg-introduce-memoryeventslocal.patch
+* mm-memcontrol-dump-memorystat-during-cgroup-oom.patch
+* mm-mmap-fix-the-adjusted-length-error.patch
+* asm-generic-x86-introduce-generic-pte_allocfree_one.patch
+* alpha-switch-to-generic-version-of-pte-allocation.patch
+* arm-switch-to-generic-version-of-pte-allocation.patch
+* arm64-switch-to-generic-version-of-pte-allocation.patch
+* csky-switch-to-generic-version-of-pte-allocation.patch
+* m68k-sun3-switch-to-generic-version-of-pte-allocation.patch
+* mips-switch-to-generic-version-of-pte-allocation.patch
+* nds32-switch-to-generic-version-of-pte-allocation.patch
+* nios2-switch-to-generic-version-of-pte-allocation.patch
+* parisc-switch-to-generic-version-of-pte-allocation.patch
+* riscv-switch-to-generic-version-of-pte-allocation.patch
+* um-switch-to-generic-version-of-pte-allocation.patch
+* unicore32-switch-to-generic-version-of-pte-allocation.patch
+* mm-memremap-rename-and-consolidate-section_size.patch
+* mm-clean-up-is_device__page-definitions.patch
+* mm-introduce-arch_has_pte_devmap.patch
+* arm64-mm-implement-pte_devmap-support.patch
+* arm64-mm-implement-pte_devmap-support-fix.patch
+* mm-pgtable-drop-pgtable_t-variable-from-pte_fn_t-functions.patch
+* mm-fail-when-offset-==-num-in-first-check-of-vm_map_pages_zero.patch
+* mm-mmap-move-common-defines-to-mman-commonh.patch
+* mm-swap-fix-release_pages-when-releasing-devmap-pages.patch
+* mm-swap-fix-release_pages-when-releasing-devmap-pages-v2.patch
+* mm-swap-fix-release_pages-when-releasing-devmap-pages-v3.patch
+* mm-mmu_notifier-use-hlist_add_head_rcu.patch
+* mm-add-account_locked_vm-utility-function.patch
+* mm-add-account_locked_vm-utility-function-v3.patch
+* mm-memory_hotplug-simplify-and-fix-check_hotplug_memory_range.patch
+* s390x-mm-fail-when-an-altmap-is-used-for-arch_add_memory.patch
+* s390x-mm-implement-arch_remove_memory.patch
+* arm64-mm-add-temporary-arch_remove_memory-implementation.patch
+* drivers-base-memory-pass-a-block_id-to-init_memory_block.patch
+* drivers-base-memory-pass-a-block_id-to-init_memory_block-fix.patch
+* mm-memory_hotplug-allow-arch_remove_pages-without-config_memory_hotremove.patch
+* mm-memory_hotplug-create-memory-block-devices-after-arch_add_memory.patch
+* mm-memory_hotplug-drop-mhp_memblock_api.patch
+* mm-memory_hotplug-remove-memory-block-devices-before-arch_remove_memory.patch
+* mm-memory_hotplug-make-unregister_memory_block_under_nodes-never-fail.patch
+* mm-memory_hotplug-remove-zone-parameter-from-sparse_remove_one_section.patch
+* mm-vmscan-remove-double-slab-pressure-by-incing-sc-nr_scanned.patch
+* mm-vmscan-correct-some-vmscan-counters-for-thp-swapout.patch
+* tools-vm-slabinfo-order-command-line-options.patch
+* tools-vm-slabinfo-add-partial-slab-listing-to-x.patch
+* tools-vm-slabinfo-add-option-to-sort-by-partial-slabs.patch
+* tools-vm-slabinfo-add-sorting-info-to-help-menu.patch
+* drivers-base-devres-introduce-devm_release_action.patch
+* mm-devm_memremap_pages-introduce-devm_memunmap_pages.patch
+* pci-p2pdma-fix-the-gen_pool_add_virt-failure-path.patch
+* lib-genalloc-introduce-chunk-owners.patch
+* pci-p2pdma-track-pgmap-references-per-resource-not-globally.patch
+* mm-devm_memremap_pages-fix-final-page-put-race.patch
+* mm-hmm-support-automatic-numa-balancing.patch
+* mm-hmm-only-set-fault_flag_allow_retry-for-non-blocking.patch
+* z3fold-add-inter-page-compaction.patch
+* z3fold-add-inter-page-compaction-fix.patch
+* z3fold-add-inter-page-compaction-fix-2.patch
+* mm-memory-failure-clarify-error-message.patch
+* x86-numa-always-initialize-all-possible-nodes.patch
+* mm-be-more-verbose-about-zonelist-initialization.patch
+* mm-proportional-memorylowmin-reclaim.patch
+* mm-make-memoryemin-the-baseline-for-utilisation-determination.patch
+* mm-make-memoryemin-the-baseline-for-utilisation-determination-fix.patch
+* mm-vmscan-remove-unused-lru_pages-argument.patch
+* mm-dont-expose-page-to-fast-gup-before-its-ready.patch
+* info-task-hung-in-generic_file_write_iter.patch
+* info-task-hung-in-generic_file_write-fix.patch
+* kernel-hung_taskc-monitor-killed-tasks.patch
+* proc-sysctl-add-shared-variables-for-range-check.patch
+* proc-sysctl-add-shared-variables-for-range-check-fix.patch
+* proc-sysctl-add-shared-variables-for-range-check-fix-2.patch
+* proc-hide-segfault-at-ffffffffff600000-dmesg-spam.patch
+* vmcore-add-a-kernel-parameter-novmcoredd.patch
+* vmcore-add-a-kernel-parameter-novmcoredd-fix.patch
+* vmcore-add-a-kernel-parameter-novmcoredd-fix-fix.patch
+* add-typeof_member-macro.patch
+* proc-use-typeof_member-macro.patch
+* kernel-fix-typos-and-some-coding-style-in-comments.patch
+* byteorder-sanity-check-toolchain-vs-kernel-endianess.patch
+* byteorder-sanity-check-toolchain-vs-kernel-endianess-checkpatch-fixes.patch
+* lib-genallocc-export-symbol-addr_in_gen_pool.patch
+* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr.patch
+* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr-fix.patch
+* lib-fix-possible-incorrect-result-from-rational-fractions-helper.patch
+* tweak-list_poison2-for-better-code-generation-on-x86_64.patch
+* lib-string-allow-searching-for-nul-with-strnchr.patch
+* lib-test_string-avoid-masking-memset16-32-64-failures.patch
+* lib-test_string-add-some-testcases-for-strchr-and-strnchr.patch
+* lib-test_overflow-avoid-tainting-the-kernel-and-fix-wrap-size.patch
+* lib-introduce-test_meminit-module.patch
+* checkpatchpl-warn-on-duplicate-sysctl-local-variable.patch
+* checkpatch-dont-interpret-stack-dumps-as-commit-ids.patch
+* checkpatch-fix-something.patch
+* binfmt_flat-remove-set-but-not-used-variable-inode.patch
+* elf-delete-stale-comment.patch
+* mm-kconfig-fix-neighboring-typos.patch
+* coda-pass-the-host-file-in-vma-vm_file-on-mmap.patch
+* uapi-linux-codah-use-__kernel_pid_t-for-userspace.patch
+* uapi-linux-coda_psdevh-move-upc_req-definition-from-uapi-to-kernel-side-headers.patch
+* coda-add-error-handling-for-fget.patch
+* coda-potential-buffer-overflow-in-coda_psdev_write.patch
+* coda-fix-build-using-bare-metal-toolchain.patch
+* coda-dont-try-to-print-names-that-were-considered-too-long.patch
+* uapi-linux-coda_psdevh-move-coda_req_-from-uapi-to-kernel-side-headers.patch
+* coda-clean-up-indentation-replace-spaces-with-tab.patch
+* coda-stop-using-struct-timespec-in-user-api.patch
+* coda-change-codas-user-api-to-use-64-bit-time_t-in-timespec.patch
+* coda-get-rid-of-coda_alloc.patch
+* coda-get-rid-of-coda_free.patch
+* coda-bump-module-version.patch
+* coda-move-internal-defs-out-of-include-linux.patch
+* coda-remove-uapi-linux-coda_psdevh.patch
+* coda-destroy-mutex-in-put_super.patch
+* coda-use-size-for-stat.patch
+* coda-add-__init-to-init_coda_psdev.patch
+* coda-remove-sysctl-object-from-module-when-unused.patch
+* coda-remove-sb-test-in-coda_fid_to_inode.patch
+* coda-ftoc-validity-check-integration.patch
+* hfsplus-replace-strncpy-with-memcpy.patch
+* ufs-remove-set-but-not-used-variable-usb3.patch
+* nds32-fix-asm-syscallh.patch
+* hexagon-define-syscall_get_error-and-syscall_get_return_value.patch
+* mips-define-syscall_get_error.patch
+* parisc-define-syscall_get_error.patch
+* powerpc-define-syscall_get_error.patch
+* ptrace-add-ptrace_get_syscall_info-request.patch
+* selftests-ptrace-add-a-test-case-for-ptrace_get_syscall_info.patch
+* selftests-ptrace-add-a-test-case-for-ptrace_get_syscall_info-checkpatch-fixes.patch
+* signal-reorder-struct-sighand_struct.patch
+* coredump-split-pipe-command-whitespace-before-expanding-template.patch
+* rapidio-mport_cdev-nul-terminate-some-strings.patch
+* lz4-fix-spelling-and-copy-paste-errors-in-documentation.patch
+  linux-next.patch
+  linux-next-rejects.patch
+* pinctrl-fix-pxa2xxc-build-warnings.patch
+* hmm-suppress-compilation-warnings-when-config_hugetlb_page-is-not-set.patch
+* fix-read-buffer-overflow-in-delta-ipc.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  mutex-subsystem-synchro-test-module.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  workaround-for-a-pci-restoring-bug.patch
 
