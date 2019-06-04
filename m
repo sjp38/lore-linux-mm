@@ -2,696 +2,169 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 79B39C28CC3
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 13:16:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1861AC282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 13:39:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 24CC32484F
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 13:16:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24CC32484F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id B33B724B0A
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 13:39:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B33B724B0A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.vnet.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B63F36B0010; Tue,  4 Jun 2019 09:16:45 -0400 (EDT)
+	id 13FD86B0269; Tue,  4 Jun 2019 09:39:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B137D6B026B; Tue,  4 Jun 2019 09:16:45 -0400 (EDT)
+	id 0F1AF6B026B; Tue,  4 Jun 2019 09:39:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B5646B026C; Tue,  4 Jun 2019 09:16:45 -0400 (EDT)
+	id F22E06B026C; Tue,  4 Jun 2019 09:39:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 630806B0010
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 09:16:45 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id v4so1892499oia.13
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 06:16:45 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BE1726B0269
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 09:39:39 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id 14so12417771pgo.14
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 06:39:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:organization:message-id:date:user-agent
-         :mime-version:in-reply-to;
-        bh=7TGVeDBtvYHOwGzNLDOD60JXnfc15cSfy7orKJmBVsQ=;
-        b=pST+Y9dmVOvSuzNYQOCzbHsGHD/Hw+4RTwEMyeCXfsIHi4OO+RMXJ/AYgpUTey0Eq2
-         mjvR1MgUDYHurOeTwz+TNAv9gzR4/4/jN00PhjuhnSIMWoRG0nNP7IbGcvXnRIuABoyp
-         2xn3D3ltZmTHGv6HR2ZujBS5EoJReNrFBw8tO7+iC5i+FtUBYndDeeGz9KJRuK32gVHQ
-         whbLiyOPBCBJ6n0NJBPBy9EoXrTU3olEBtOX2b3I2HnjXq+nDdI/wv3be4OmoINAZMgJ
-         hxnSBSM3jgIk5bauHdwYHjvfD+DJiKMq/1V6+pIn3qZGsP/j7GA/9A+XtjhO3YgYibN7
-         v5Zg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUzBw9TYG84BpWRIVRJ9meq5to97TOIfl6OzrSIMlltXJJsH0yR
-	HOuGujNmpapAepYez/TAsZDbELonLXbcK2ukx9Kt9IOoaua9253wCTdi7ncKHD9vUaUzoTHzNgP
-	UUhWDTn7EBBcjSG7n8Zb8FbGPKgCmk9YAKL4sfZGRLcfiUtcyItzXwyfwqEVsOE1+4A==
-X-Received: by 2002:a9d:3c5:: with SMTP id f63mr3748139otf.210.1559654205068;
-        Tue, 04 Jun 2019 06:16:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyhUX4SXsheFFK6yELbHij4UmtiGpjwoJi1fKQDkf16IflGsS7nlhCAaH3qtenG+9J23OE5
-X-Received: by 2002:a9d:3c5:: with SMTP id f63mr3748046otf.210.1559654203405;
-        Tue, 04 Jun 2019 06:16:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559654203; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :subject:from:in-reply-to:date:cc:content-transfer-encoding
+         :references:to:message-id;
+        bh=y3gYFTyfftk/Ecmlo+AW97S+gHW1XBHjcEWP5Sqb1FM=;
+        b=MJHYgsyaz4KFWoh1XlcVSHvTN7ALMVKsk0WgSASG8VM9zOiI9yptb5zE3cqdNQKBMb
+         a0sY3uhE4R2ZgJQFToCskrMm049rGJVVFJPbRT+Y8kHaVfBorRLtz6NBf56+6ofklOt0
+         Vhb3jIjtYwK166y2Og6l97eE0tAp1NL8rbOMrfZRhdI5mFjGwkH5DA+57abLUDVcy7xk
+         3Edtcv52z+PJNbpCzoGSFzygN/xzT5TcbKnBOWBXJe0KWa5AlEulzZp/O8fLmbap9x8U
+         68KFLZmHmHe9wVli15vundnWFQaUnI7PrC579dksoqdkRrFl0cx1iuu5z6CQxKggf5Vr
+         zNPw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of sachinp@linux.vnet.ibm.com) smtp.mailfrom=sachinp@linux.vnet.ibm.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWsl6ltr9oFRUio0JAZ4eNb9hWSeXx/ekWm5Isrrb2uTyryacFh
+	NuMGholxIPfI7UmrLWgRah0EhhcRFDlW0m6DJNLu9cFs/OIHRfFqlnkL13tQfYcb/s61M/anHqS
+	CTp14sOgftY2gtwSJVxoFjRoq8V03/LqGqrYXOiVsEJRy17BmOwk9Pl9HBD4F4As=
+X-Received: by 2002:a17:902:aa0a:: with SMTP id be10mr35829977plb.293.1559655579456;
+        Tue, 04 Jun 2019 06:39:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz+6yZr1rh8Tk6VihjrDe4d9JTCZ3HDJAxONZgJ1F58mTusVGGLGiyIPkFnyIhnezfj+yzz
+X-Received: by 2002:a17:902:aa0a:: with SMTP id be10mr35829929plb.293.1559655578699;
+        Tue, 04 Jun 2019 06:39:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559655578; cv=none;
         d=google.com; s=arc-20160816;
-        b=Pu3Qoik6lCpQU9l+pD8l8+H+JUkvHBxzwNcE1PYutDHwiwqaLfVsqxsIL3Tn0fnHTY
-         /1FGWYulbqrzFRHcDZPyh+EUJcEBlgeKGkSbQTmWPW+bJmKrSdk29st1mzyskfnmV4Xj
-         +Q/MGTlPkZXPcfMhjVBqSyHXnbG+HtOtkpbJ66afWYf7Yztnm1ICLwfs+AIoyXHzKFRE
-         GSZORUH7GQFD5chmRRRpunyt+aCFGfDaV5mLWqpDe6vwezDerjDLdZJ2nE8B5Ol2vjxf
-         QNlG2wKSDMNYRhjxocb/zBJDzq2eAfkIDqEH5XNvmuMqaxQmsh6FlT7RGNrMnU91fZ26
-         raJw==
+        b=jMh3ZOInbbhhtsmDTqtqSNXOqAEps7kQJSwwIOUvzAv27uOsCSuIiYNb5IN7fhLOG8
+         kUhhfTn5uIaU+b0jxI7z2KCBEmYO2Q90uALRQWn+/FkMrigdqVE7+l6QxbYL2BsmUH7W
+         0JeFZAIZ5+0tq0XnLod9enfLBjyzJvzU90X1hn3TOeBqGGvLRe5mEJe/xMB5D61qNbuO
+         oec2Gq7N+9zkg669YGCXxDUql8QVO9+pJlbFu6AwqoaMwW6rt4G6ck6vsMJbVlivz30p
+         oDMXOkWKdzRN58UGIfLcqoiFp/J+3LP20g7Cat7lNdqcfadWrToDKAXGCcEjumOjY1ll
+         uzrg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:mime-version:user-agent:date:message-id:organization
-         :references:subject:cc:to:from;
-        bh=7TGVeDBtvYHOwGzNLDOD60JXnfc15cSfy7orKJmBVsQ=;
-        b=dogFZJcd3iUOQfbmKkyi9xN+dpYTfsAhcxzu0KtxeO3p2LMcIHFJ3m1zEVZ6/vsDcV
-         66MuW0ARUqN10HXP1mLs10z/dcqpLUui5Dle8p1aig2XEuhiyNlox/I80iaGxnYHLFsl
-         Shxv72bkgZVW0HLi9Foc4yWlPMTgkDl9XmOt2l6gNoYatC9SSWgoPCNZZBWkWr4B1j+B
-         j0bypaf/zRHpqGqwBWvH2KgymvIdCE3tyZGSX4/mAz3dmh5+2caitwDE6vZaFW0wK9BK
-         8NvSFSpUVBdN+XCHXpvSVcs9/jkEoKtVKDDx/+nGUV07pX2pZDuzD3MYZDnftTq3zLzV
-         9rsA==
+        h=message-id:to:references:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version;
+        bh=y3gYFTyfftk/Ecmlo+AW97S+gHW1XBHjcEWP5Sqb1FM=;
+        b=yfjOGdzLxFjNBGCuUH/CHj2P6NjU+4HqLVELkrZ0rIctbvBT+aHVA6NZ4JS+v0SfQk
+         isgaOkfutJLE8+u0AknsG3k57DMPqG0ehrHkMgK3DrYFWOEmEyVmQQiXA1FlSJ2pLWsg
+         sQiPCl5cXi1N9QXbzLYQ/VHy2/8P4rJf3ouyKtpqWhJYKLyVKWMT2QMTa1yGMhrh7Lzm
+         M8hq0KaVPaXvHcO6/JO+Kf/aCfN/0CCasqi6vh06lGlw+V7zB72Ri0Yp50K/HKmQc868
+         IbaP07eOUm2ELD80kYPn9MVGav35hC2dcfS1bueDT/ISSEqSUfYPJdZ6IMudR55X7HK4
+         ImbA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m6si2321162otc.76.2019.06.04.06.16.43
+       spf=neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of sachinp@linux.vnet.ibm.com) smtp.mailfrom=sachinp@linux.vnet.ibm.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id c8si24252096pfn.208.2019.06.04.06.39.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jun 2019 06:16:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 04 Jun 2019 06:39:38 -0700 (PDT)
+Received-SPF: neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of sachinp@linux.vnet.ibm.com) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id B656543AA3;
-	Tue,  4 Jun 2019 13:16:42 +0000 (UTC)
-Received: from [10.40.205.182] (unknown [10.40.205.182])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 651675D9D2;
-	Tue,  4 Jun 2019 13:16:19 +0000 (UTC)
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
- wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
- mst@redhat.com, dodgen@google.com, konrad.wilk@oracle.com,
- dhildenb@redhat.com, aarcange@redhat.com, alexander.duyck@gmail.com
-Subject: Re: [RFC][Patch v10 1/2] mm: page_hinting: core infrastructure
-References: <20190603170306.49099-1-nitesh@redhat.com>
- <20190603170306.49099-2-nitesh@redhat.com>
- <c5aa99d5-8cd0-44cf-9d61-75c8d3b019aa@redhat.com>
-Organization: Red Hat Inc,
-Message-ID: <ca39c36e-2646-d04c-e5ae-5fd2896f1279@redhat.com>
-Date: Tue, 4 Jun 2019 09:16:15 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
-MIME-Version: 1.0
-In-Reply-To: <c5aa99d5-8cd0-44cf-9d61-75c8d3b019aa@redhat.com>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="hun85KKfyjW7Qo3FnHVFXjLAU0BGPerX8"
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Tue, 04 Jun 2019 13:16:42 +0000 (UTC)
+       spf=neutral (google.com: 148.163.156.1 is neither permitted nor denied by best guess record for domain of sachinp@linux.vnet.ibm.com) smtp.mailfrom=sachinp@linux.vnet.ibm.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x54DYPdM122474
+	for <linux-mm@kvack.org>; Tue, 4 Jun 2019 09:39:37 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2swq74evyn-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 04 Jun 2019 09:39:36 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <sachinp@linux.vnet.ibm.com>;
+	Tue, 4 Jun 2019 14:39:33 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 4 Jun 2019 14:39:29 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x54DdS7J50987256
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 4 Jun 2019 13:39:28 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id AF048AE04D;
+	Tue,  4 Jun 2019 13:39:28 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 69768AE056;
+	Tue,  4 Jun 2019 13:39:27 +0000 (GMT)
+Received: from [9.102.21.242] (unknown [9.102.21.242])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Tue,  4 Jun 2019 13:39:27 +0000 (GMT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
+Subject: Re: [POWERPC][next-20190603] Boot failure : Kernel BUG at
+ mm/vmalloc.c:470
+From: Sachin Sant <sachinp@linux.vnet.ibm.com>
+In-Reply-To: <20190604202918.17a1e466@canb.auug.org.au>
+Date: Tue, 4 Jun 2019 19:09:26 +0530
+Cc: linuxppc-dev@lists.ozlabs.org, linux-next@vger.kernel.org,
+        linux-mm@kvack.org, "Uladzislau Rezki (Sony)" <urezki@gmail.com>,
+        linux-kernel@vger.kernel.org
+Content-Transfer-Encoding: quoted-printable
+References: <9F9C0085-F8A4-4B66-802B-382119E34DF5@linux.vnet.ibm.com>
+ <20190604202918.17a1e466@canb.auug.org.au>
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+X-Mailer: Apple Mail (2.3445.104.11)
+X-TM-AS-GCONF: 00
+x-cbid: 19060413-4275-0000-0000-0000033C9377
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19060413-4276-0000-0000-0000384CA27D
+Message-Id: <88ADCAAE-4F1A-49FE-A454-BBAB12A88C70@linux.vnet.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-04_09:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=854 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906040092
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---hun85KKfyjW7Qo3FnHVFXjLAU0BGPerX8
-Content-Type: multipart/mixed; boundary="vnK5kVg8UEY0Uit0GfVEPGNN08aRZ9XVd";
- protected-headers="v1"
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
- wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
- mst@redhat.com, dodgen@google.com, konrad.wilk@oracle.com,
- dhildenb@redhat.com, aarcange@redhat.com, alexander.duyck@gmail.com
-Message-ID: <ca39c36e-2646-d04c-e5ae-5fd2896f1279@redhat.com>
-Subject: Re: [RFC][Patch v10 1/2] mm: page_hinting: core infrastructure
-
---vnK5kVg8UEY0Uit0GfVEPGNN08aRZ9XVd
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-On 6/3/19 3:57 PM, David Hildenbrand wrote:
-> On 03.06.19 19:03, Nitesh Narayan Lal wrote:
->> This patch introduces the core infrastructure for free page hinting in=
-
->> virtual environments. It enables the kernel to track the free pages wh=
-ich
->> can be reported to its hypervisor so that the hypervisor could
->> free and reuse that memory as per its requirement.
->>
->> While the pages are getting processed in the hypervisor (e.g.,
->> via MADV_FREE), the guest must not use them, otherwise, data loss
->> would be possible. To avoid such a situation, these pages are
->> temporarily removed from the buddy. The amount of pages removed
->> temporarily from the buddy is governed by the backend(virtio-balloon
->> in our case).
->>
->> To efficiently identify free pages that can to be hinted to the
->> hypervisor, bitmaps in a coarse granularity are used. Only fairly big
->> chunks are reported to the hypervisor - especially, to not break up TH=
-P
->> in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The bit=
-s
->> in the bitmap are an indication whether a page *might* be free, not a
->> guarantee. A new hook after buddy merging sets the bits.
->>
->> Bitmaps are stored per zone, protected by the zone lock. A workqueue
->> asynchronously processes the bitmaps, trying to isolate and report pag=
-es
->> that are still free. The backend (virtio-balloon) is responsible for
->> reporting these batched pages to the host synchronously. Once reportin=
-g/
->> freeing is complete, isolated pages are returned back to the buddy.
->>
->> There are still various things to look into (e.g., memory hotplug, mor=
-e
->> efficient locking, possible races when disabling).
->>
->> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
->> ---
->>  drivers/virtio/Kconfig       |   1 +
->>  include/linux/page_hinting.h |  46 +++++++
->>  mm/Kconfig                   |   6 +
->>  mm/Makefile                  |   2 +
->>  mm/page_alloc.c              |  17 +--
->>  mm/page_hinting.c            | 236 ++++++++++++++++++++++++++++++++++=
-+
->>  6 files changed, 301 insertions(+), 7 deletions(-)
->>  create mode 100644 include/linux/page_hinting.h
->>  create mode 100644 mm/page_hinting.c
->>
->> diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
->> index 35897649c24f..5a96b7a2ed1e 100644
->> --- a/drivers/virtio/Kconfig
->> +++ b/drivers/virtio/Kconfig
->> @@ -46,6 +46,7 @@ config VIRTIO_BALLOON
->>  	tristate "Virtio balloon driver"
->>  	depends on VIRTIO
->>  	select MEMORY_BALLOON
->> +	select PAGE_HINTING
->>  	---help---
->>  	 This driver supports increasing and decreasing the amount
->>  	 of memory within a KVM guest.
->> diff --git a/include/linux/page_hinting.h b/include/linux/page_hinting=
-=2Eh
->> new file mode 100644
->> index 000000000000..e65188fe1e6b
->> --- /dev/null
->> +++ b/include/linux/page_hinting.h
->> @@ -0,0 +1,46 @@
->> +/* SPDX-License-Identifier: GPL-2.0 */
->> +#ifndef _LINUX_PAGE_HINTING_H
->> +#define _LINUX_PAGE_HINTING_H
->> +
->> +/*
->> + * Minimum page order required for a page to be hinted to the host.
->> + */
->> +#define PAGE_HINTING_MIN_ORDER		(MAX_ORDER - 2)
->> +
->> +/*
->> + * struct page_hinting_cb: holds the callbacks to store, report and c=
-leanup
->> + * isolated pages.
->> + * @prepare:		Callback responsible for allocating an array to hold
->> + *			the isolated pages.
->> + * @hint_pages:		Callback which reports the isolated pages synchornou=
-sly
->> + *			to the host.
->> + * @cleanup:		Callback to free the the array used for reporting the
->> + *			isolated pages.
->> + * @max_pages:		Maxmimum pages that are going to be hinted to the hos=
-t
->> + *			at a time of granularity >=3D PAGE_HINTING_MIN_ORDER.
->> + */
->> +struct page_hinting_cb {
->> +	int (*prepare)(void);
->> +	void (*hint_pages)(struct list_head *list);
->> +	void (*cleanup)(void);
->> +	int max_pages;
-> If we allocate the array in virtio-balloon differently (e.g. similar to=
-
-> bulk inflation/deflation of pfn's right now), we can most probably get
-> rid of prepare() and cleanup(), simplifying the code further.
-Yeap, as Alexander suggested. I will go for static allocation and remove
-this prepare() and cleanup().
->> +};
->> +
->> +#ifdef CONFIG_PAGE_HINTING
->> +void page_hinting_enqueue(struct page *page, int order);
->> +void page_hinting_enable(const struct page_hinting_cb *cb);
->> +void page_hinting_disable(void);
->> +#else
->> +static inline void page_hinting_enqueue(struct page *page, int order)=
-
->> +{
->> +}
->> +
->> +static inline void page_hinting_enable(struct page_hinting_cb *cb)
->> +{
->> +}
->> +
->> +static inline void page_hinting_disable(void)
->> +{
->> +}
->> +#endif
->> +#endif /* _LINUX_PAGE_HINTING_H */
->> diff --git a/mm/Kconfig b/mm/Kconfig
->> index ee8d1f311858..177d858de758 100644
->> --- a/mm/Kconfig
->> +++ b/mm/Kconfig
->> @@ -764,4 +764,10 @@ config GUP_BENCHMARK
->>  config ARCH_HAS_PTE_SPECIAL
->>  	bool
->> =20
->> +# PAGE_HINTING will allow the guest to report the free pages to the
->> +# host in regular interval of time.
->> +config PAGE_HINTING
->> +       bool
->> +       def_bool n
->> +       depends on X86_64
->>  endmenu
->> diff --git a/mm/Makefile b/mm/Makefile
->> index ac5e5ba78874..bec456dfee34 100644
->> --- a/mm/Makefile
->> +++ b/mm/Makefile
->> @@ -41,6 +41,7 @@ obj-y			:=3D filemap.o mempool.o oom_kill.o fadvise.=
-o \
->>  			   interval_tree.o list_lru.o workingset.o \
->>  			   debug.o $(mmu-y)
->> =20
->> +
->>  # Give 'page_alloc' its own module-parameter namespace
->>  page-alloc-y :=3D page_alloc.o
->>  page-alloc-$(CONFIG_SHUFFLE_PAGE_ALLOCATOR) +=3D shuffle.o
->> @@ -94,6 +95,7 @@ obj-$(CONFIG_Z3FOLD)	+=3D z3fold.o
->>  obj-$(CONFIG_GENERIC_EARLY_IOREMAP) +=3D early_ioremap.o
->>  obj-$(CONFIG_CMA)	+=3D cma.o
->>  obj-$(CONFIG_MEMORY_BALLOON) +=3D balloon_compaction.o
->> +obj-$(CONFIG_PAGE_HINTING) +=3D page_hinting.o
->>  obj-$(CONFIG_PAGE_EXTENSION) +=3D page_ext.o
->>  obj-$(CONFIG_CMA_DEBUGFS) +=3D cma_debug.o
->>  obj-$(CONFIG_USERFAULTFD) +=3D userfaultfd.o
->> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> index 3b13d3914176..d12f69e0e402 100644
->> --- a/mm/page_alloc.c
->> +++ b/mm/page_alloc.c
->> @@ -68,6 +68,7 @@
->>  #include <linux/lockdep.h>
->>  #include <linux/nmi.h>
->>  #include <linux/psi.h>
->> +#include <linux/page_hinting.h>
->> =20
->>  #include <asm/sections.h>
->>  #include <asm/tlbflush.h>
->> @@ -873,10 +874,10 @@ compaction_capture(struct capture_control *capc,=
- struct page *page,
->>   * -- nyc
->>   */
->> =20
->> -static inline void __free_one_page(struct page *page,
->> +inline void __free_one_page(struct page *page,
->>  		unsigned long pfn,
->>  		struct zone *zone, unsigned int order,
->> -		int migratetype)
->> +		int migratetype, bool hint)
->>  {
->>  	unsigned long combined_pfn;
->>  	unsigned long uninitialized_var(buddy_pfn);
->> @@ -951,6 +952,8 @@ static inline void __free_one_page(struct page *pa=
-ge,
->>  done_merging:
->>  	set_page_order(page, order);
->> =20
->> +	if (hint)
->> +		page_hinting_enqueue(page, order);
->>  	/*
->>  	 * If this is not the largest possible page, check if the buddy
->>  	 * of the next-highest order is free. If it is, it's possible
->> @@ -1262,7 +1265,7 @@ static void free_pcppages_bulk(struct zone *zone=
-, int count,
->>  		if (unlikely(isolated_pageblocks))
->>  			mt =3D get_pageblock_migratetype(page);
->> =20
->> -		__free_one_page(page, page_to_pfn(page), zone, 0, mt);
->> +		__free_one_page(page, page_to_pfn(page), zone, 0, mt, true);
->>  		trace_mm_page_pcpu_drain(page, 0, mt);
->>  	}
->>  	spin_unlock(&zone->lock);
->> @@ -1271,14 +1274,14 @@ static void free_pcppages_bulk(struct zone *zo=
-ne, int count,
->>  static void free_one_page(struct zone *zone,
->>  				struct page *page, unsigned long pfn,
->>  				unsigned int order,
->> -				int migratetype)
->> +				int migratetype, bool hint)
->>  {
->>  	spin_lock(&zone->lock);
->>  	if (unlikely(has_isolate_pageblock(zone) ||
->>  		is_migrate_isolate(migratetype))) {
->>  		migratetype =3D get_pfnblock_migratetype(page, pfn);
->>  	}
->> -	__free_one_page(page, pfn, zone, order, migratetype);
->> +	__free_one_page(page, pfn, zone, order, migratetype, hint);
->>  	spin_unlock(&zone->lock);
->>  }
->> =20
->> @@ -1368,7 +1371,7 @@ static void __free_pages_ok(struct page *page, u=
-nsigned int order)
->>  	migratetype =3D get_pfnblock_migratetype(page, pfn);
->>  	local_irq_save(flags);
->>  	__count_vm_events(PGFREE, 1 << order);
->> -	free_one_page(page_zone(page), page, pfn, order, migratetype);
->> +	free_one_page(page_zone(page), page, pfn, order, migratetype, true);=
-
->>  	local_irq_restore(flags);
->>  }
->> =20
->> @@ -2968,7 +2971,7 @@ static void free_unref_page_commit(struct page *=
-page, unsigned long pfn)
->>  	 */
->>  	if (migratetype >=3D MIGRATE_PCPTYPES) {
->>  		if (unlikely(is_migrate_isolate(migratetype))) {
->> -			free_one_page(zone, page, pfn, 0, migratetype);
->> +			free_one_page(zone, page, pfn, 0, migratetype, true);
->>  			return;
->>  		}
->>  		migratetype =3D MIGRATE_MOVABLE;
->> diff --git a/mm/page_hinting.c b/mm/page_hinting.c
->> new file mode 100644
->> index 000000000000..7341c6462de2
->> --- /dev/null
->> +++ b/mm/page_hinting.c
->> @@ -0,0 +1,236 @@
->> +// SPDX-License-Identifier: GPL-2.0
->> +/*
->> + * Page hinting support to enable a VM to report the freed pages back=
-
->> + * to the host.
->> + *
->> + * Copyright Red Hat, Inc. 2019
->> + *
->> + * Author(s): Nitesh Narayan Lal <nitesh@redhat.com>
->> + */
->> +
->> +#include <linux/mm.h>
->> +#include <linux/slab.h>
->> +#include <linux/page_hinting.h>
->> +#include <linux/kvm_host.h>
->> +
->> +/*
->> + * struct hinting_bitmap: holds the bitmap pointer which tracks the f=
-reed PFNs
->> + * and other required parameters which could help in retrieving the o=
-riginal
->> + * PFN value using the bitmap.
->> + * @bitmap:		Pointer to the bitmap of free PFN.
->> + * @base_pfn:		Starting PFN value for the zone whose bitmap is stored=
-=2E
->> + * @free_pages:		Tracks the number of free pages of granularity
->> + *			PAGE_HINTING_MIN_ORDER.
->> + * @nbits:		Indicates the total size of the bitmap in bits allocated
->> + *			at the time of initialization.
->> + */
->> +struct hinting_bitmap {
->> +	unsigned long *bitmap;
->> +	unsigned long base_pfn;
->> +	atomic_t free_pages;
->> +	unsigned long nbits;
->> +} bm_zone[MAX_NR_ZONES];
->> +
->> +static void init_hinting_wq(struct work_struct *work);
->> +extern int __isolate_free_page(struct page *page, unsigned int order)=
-;
->> +extern void __free_one_page(struct page *page, unsigned long pfn,
->> +			    struct zone *zone, unsigned int order,
->> +			    int migratetype, bool hint);
->> +const struct page_hinting_cb *hcb;
->> +struct work_struct hinting_work;
->> +
->> +static unsigned long find_bitmap_size(struct zone *zone)
->> +{
->> +	unsigned long nbits =3D ALIGN(zone->spanned_pages,
->> +			    PAGE_HINTING_MIN_ORDER);
->> +
->> +	nbits =3D nbits >> PAGE_HINTING_MIN_ORDER;
->> +	return nbits;
-> I think we can simplify this to
->
-> return (zone->spanned_pages >> PAGE_HINTING_MIN_ORDER) + 1;
->
-I will check this.
->> +}
->> +
->> +void page_hinting_enable(const struct page_hinting_cb *callback)
->> +{
->> +	struct zone *zone;
->> +	int idx =3D 0;
->> +	unsigned long bitmap_size =3D 0;
-> You should probably protect enabling via a mutex and return -EINVAL or
-> similar if we already have a callback set (if we ever have different
-> drivers). But this has very little priority :)
-I will have to look into this.
->> +
->> +	for_each_populated_zone(zone) {
->> +		spin_lock(&zone->lock);
->> +		bitmap_size =3D find_bitmap_size(zone);
->> +		bm_zone[idx].bitmap =3D bitmap_zalloc(bitmap_size, GFP_KERNEL);
->> +		if (!bm_zone[idx].bitmap)
->> +			return;
->> +		bm_zone[idx].nbits =3D bitmap_size;
->> +		bm_zone[idx].base_pfn =3D zone->zone_start_pfn;
->> +		spin_unlock(&zone->lock);
->> +		idx++;
->> +	}
->> +	hcb =3D callback;
->> +	INIT_WORK(&hinting_work, init_hinting_wq);
-> There are also possible races when enabling, you will have to take care=
-
-> of at one point.
-No page will be enqueued until hcb is not set.
-I can probably move it below INIT_WORK.
->> +}
->> +EXPORT_SYMBOL_GPL(page_hinting_enable);
->> +
->> +void page_hinting_disable(void)
->> +{
->> +	struct zone *zone;
->> +	int idx =3D 0;
->> +
->> +	cancel_work_sync(&hinting_work);
->> +	hcb =3D NULL;
->> +	for_each_populated_zone(zone) {
->> +		spin_lock(&zone->lock);
->> +		bitmap_free(bm_zone[idx].bitmap);
->> +		bm_zone[idx].base_pfn =3D 0;
->> +		bm_zone[idx].nbits =3D 0;
->> +		atomic_set(&bm_zone[idx].free_pages, 0);
->> +		spin_unlock(&zone->lock);
->> +		idx++;
->> +	}
->> +}
->> +EXPORT_SYMBOL_GPL(page_hinting_disable);
->> +
->> +static unsigned long pfn_to_bit(struct page *page, int zonenum)
->> +{
->> +	unsigned long bitnr;
->> +
->> +	bitnr =3D (page_to_pfn(page) - bm_zone[zonenum].base_pfn)
->> +			 >> PAGE_HINTING_MIN_ORDER;
->> +	return bitnr;
->> +}
->> +
->> +static void release_buddy_pages(struct list_head *pages)
-> maybe "release_isolated_pages", not sure.
->
->> +{
->> +	int mt =3D 0, zonenum, order;
->> +	struct page *page, *next;
->> +	struct zone *zone;
->> +	unsigned long bitnr;
->> +
->> +	list_for_each_entry_safe(page, next, pages, lru) {
->> +		zonenum =3D page_zonenum(page);
->> +		zone =3D page_zone(page);
->> +		bitnr =3D pfn_to_bit(page, zonenum);
->> +		spin_lock(&zone->lock);
->> +		list_del(&page->lru);
->> +		order =3D page_private(page);
->> +		set_page_private(page, 0);
->> +		mt =3D get_pageblock_migratetype(page);
->> +		__free_one_page(page, page_to_pfn(page), zone,
->> +				order, mt, false);
->> +		spin_unlock(&zone->lock);
->> +	}
->> +}
->> +
->> +static void bm_set_pfn(struct page *page)
->> +{
->> +	unsigned long bitnr =3D 0;
->> +	int zonenum =3D page_zonenum(page);
->> +	struct zone *zone =3D page_zone(page);
->> +
->> +	lockdep_assert_held(&zone->lock);
->> +	bitnr =3D pfn_to_bit(page, zonenum);
->> +	if (bm_zone[zonenum].bitmap &&
->> +	    bitnr < bm_zone[zonenum].nbits &&
->> +	    !test_and_set_bit(bitnr, bm_zone[zonenum].bitmap))
->> +		atomic_inc(&bm_zone[zonenum].free_pages);
->> +}
->> +
->> +static void scan_hinting_bitmap(int zonenum, int free_pages)
->> +{
->> +	unsigned long set_bit, start =3D 0;
->> +	struct page *page;
->> +	struct zone *zone;
->> +	int scanned_pages =3D 0, ret =3D 0, order, isolated_cnt =3D 0;
->> +	LIST_HEAD(isolated_pages);
->> +
->> +	ret =3D hcb->prepare();
->> +	if (ret < 0)
->> +		return;
->> +	for (;;) {
->> +		ret =3D 0;
->> +		set_bit =3D find_next_bit(bm_zone[zonenum].bitmap,
->> +					bm_zone[zonenum].nbits, start);
->> +		if (set_bit >=3D bm_zone[zonenum].nbits)
->> +			break;
->> +		page =3D pfn_to_online_page((set_bit << PAGE_HINTING_MIN_ORDER) +
->> +				bm_zone[zonenum].base_pfn);
->> +		if (!page)
->> +			continue;
-> You are not clearing the bit / decrementing the counter.
->
->> +		zone =3D page_zone(page);
->> +		spin_lock(&zone->lock);
->> +
->> +		if (PageBuddy(page) && page_private(page) >=3D
->> +		    PAGE_HINTING_MIN_ORDER) {
->> +			order =3D page_private(page);
->> +			ret =3D __isolate_free_page(page, order);
->> +		}
->> +		clear_bit(set_bit, bm_zone[zonenum].bitmap);
->> +		spin_unlock(&zone->lock);
->> +		if (ret) {
->> +			/*
->> +			 * restoring page order to use it while releasing
->> +			 * the pages back to the buddy.
->> +			 */
->> +			set_page_private(page, order);
->> +			list_add_tail(&page->lru, &isolated_pages);
->> +			isolated_cnt++;
->> +			if (isolated_cnt =3D=3D hcb->max_pages) {
->> +				hcb->hint_pages(&isolated_pages);
->> +				release_buddy_pages(&isolated_pages);
->> +				isolated_cnt =3D 0;
->> +			}
->> +		}
->> +		start =3D set_bit + 1;
->> +		scanned_pages++;
->> +	}
->> +	if (isolated_cnt) {
->> +		hcb->hint_pages(&isolated_pages);
->> +		release_buddy_pages(&isolated_pages);
->> +	}
->> +	hcb->cleanup();
->> +	if (scanned_pages > free_pages)
->> +		atomic_sub((scanned_pages - free_pages),
->> +			   &bm_zone[zonenum].free_pages);
-> This looks overly complicated. Can't we somehow simply decrement when
-> clearing a bit?
->
->> +}
->> +
->> +static bool check_hinting_threshold(void)
->> +{
->> +	int zonenum =3D 0;
->> +
->> +	for (; zonenum < MAX_NR_ZONES; zonenum++) {
->> +		if (atomic_read(&bm_zone[zonenum].free_pages) >=3D
->> +				hcb->max_pages)
->> +			return true;
->> +	}
->> +	return false;
->> +}
->> +
->> +static void init_hinting_wq(struct work_struct *work)
->> +{
->> +	int zonenum =3D 0, free_pages =3D 0;
->> +
->> +	for (; zonenum < MAX_NR_ZONES; zonenum++) {
->> +		free_pages =3D atomic_read(&bm_zone[zonenum].free_pages);
->> +		if (free_pages >=3D hcb->max_pages) {
->> +			/* Find a better way to synchronize per zone
->> +			 * free_pages.
->> +			 */
->> +			atomic_sub(free_pages,
->> +				   &bm_zone[zonenum].free_pages);
-> I can't follow yet why we need that information.=20
-We don't want to enqueue multiple jobs just because we are delaying the
-decrementing of free_pages.
-I agree, even I am not convinced with the approach which I have right now=
-=2E
-I will try to come up with a better way.
-> Wouldn't it be enough
-> to just track the number of set bits in the bitmap and start hinting
-> depending on that count? (there are false positives, but do we really c=
-are?)
-In an attempt to minimize the false positives, I might have overly
-complicated this part.
-I will try to simplify this in the next posting.
->
-
->> +			scan_hinting_bitmap(zonenum, free_pages);
->> +		}
->> +	}
->> +}
->> +
->> +void page_hinting_enqueue(struct page *page, int order)
->> +{
->> +	if (hcb && order >=3D PAGE_HINTING_MIN_ORDER)
->> +		bm_set_pfn(page);
->> +	else
->> +		return;
->> +
->> +	if (check_hinting_threshold()) {
->> +		int cpu =3D smp_processor_id();
->> +
->> +		queue_work_on(cpu, system_wq, &hinting_work);
->> +	}
->> +}
->>
->
---=20
-Regards
-Nitesh
 
 
---vnK5kVg8UEY0Uit0GfVEPGNN08aRZ9XVd--
+> On 04-Jun-2019, at 3:59 PM, Stephen Rothwell <sfr@canb.auug.org.au> =
+wrote:
+>=20
+> Hi Sachin,
+>=20
+> On Tue, 4 Jun 2019 14:45:43 +0530 Sachin Sant =
+<sachinp@linux.vnet.ibm.com> wrote:
+>>=20
+>> While booting linux-next [next-20190603] on a POWER9 LPAR following
+>> BUG is encountered and the boot fails.
+>>=20
+>> If I revert the following 2 patches I no longer see this BUG message
+>>=20
+>> 07031d37b2f9 ( mm/vmalloc.c: switch to WARN_ON() and move it under =
+unlink_va() )
+>> 728e0fbf263e ( mm/vmalloc.c: get rid of one single unlink_va() when =
+merge )
+>=20
+> This latter patch has been fixed in today's linux-next =E2=80=A6
 
---hun85KKfyjW7Qo3FnHVFXjLAU0BGPerX8
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+Thanks Stephen.=20
+With today=E2=80=99s next (20190604) I no longer see this issue.
 
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlz2bx8ACgkQo4ZA3AYy
-ozk+5Q//UpfP9IuIrdtP35s53eyDylrQjhQhU0BYDcW2QGkdGVoTDfnLeMCMZr1y
-CIiWtliyZ0EjsI1Z1C+Pib0cYsxbpKIhWaftfJXe2sCidPxE4RfmkJ2InXLxK09V
-mrCqWInVNFzk7WB8HrY8iXlxKP+OrOtVBZiIjFpOwp30tPrNwkAy1vmPBgogBdQP
-0UDED2iIUF2t5n1JifDTUsBemelfnYUp1JhnlhYyEzNYmZrlZbXFRfxoPpPsATfx
-hhK3l4WTkRyyf4Yj2SJ2RST66Bkj7cCu+c7VT0kURaxrvYe/XbJRMKA+guFwIJW3
-QLpIz2BHkV8mNfrFTM+LYTax9oeOE3gi0qFPtOlYXb/yK3jma3r53+4XfsIS9Sbo
-Xosnh7K0JiZ38e9al29RzWqWRgO4UeHs78uew6dCp2gEy01WdrDAN7fkDl7nBoJP
-cJgEI+TCa1fKfUY/pSShw9fxO5mxoszv2wp1TFbyb1hPiQtwaBEMWHEU5I2pGkyn
-kDfphuracrSlRn66nS8OHmQkLy1sT54YK34DaPWXLvtScgPztDZuaUA2wnqT8wR9
-xnQJZ2gDiEYFSur+lENHLnAaBU/2UxUsziN46szMBA5nyu1iiED9FZSOKyQow8yI
-HAqqwykS6hVw910E4RjJmoRKQL93cO/3MIsajcV7SafpaYX4MRc=
-=23/B
------END PGP SIGNATURE-----
-
---hun85KKfyjW7Qo3FnHVFXjLAU0BGPerX8--
+Thanks
+-Sachin=
 
