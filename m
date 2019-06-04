@@ -2,218 +2,230 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 68F04C282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 09:01:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 75A7EC46470
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 09:10:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2DE412404B
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 09:01:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2DE412404B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3981024CB3
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 09:10:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3981024CB3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B3B9D6B026B; Tue,  4 Jun 2019 05:01:43 -0400 (EDT)
+	id C46586B026E; Tue,  4 Jun 2019 05:10:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B11906B026C; Tue,  4 Jun 2019 05:01:43 -0400 (EDT)
+	id BF7C86B0270; Tue,  4 Jun 2019 05:10:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A01F46B026E; Tue,  4 Jun 2019 05:01:43 -0400 (EDT)
+	id ABF906B0271; Tue,  4 Jun 2019 05:10:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7471B6B026B
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 05:01:43 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id e3so10307108otk.1
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 02:01:43 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7673C6B026E
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 05:10:06 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id y187so3949185pgd.1
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 02:10:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=vsUxTRvMENYnFCPWd9g9kJbiuv/ljM8VKrMPBO+s5Mc=;
-        b=aKyW5Wzqwlo2O+MlK/1Kt00zZXaauvncYW+rE8VwUTAd7eesngeRoTOkBrzPasHYmL
-         Php7jpIZvqVpPSNW1a3vCp1hSdIjxKHeZHbbOzRZS0dBI2uGVEKKZGkmhJpLpIlqLJeE
-         rJeuhjYZEHKo8sIz79pIMz9enpBKDtpY3eDCl3VlAtjHbUCDVExDq1xdeSoSrqZQ4p3T
-         +gLvXRvq4G4edW+Ih8iggaZ4ifsGcKvfiDHzTKygNGXFO9GGyC5dFcqHjkfFK01H11gG
-         pEAXgXSwdReje1yq6e8//GduyZJxk6FCfw6E1CJnOeoZ7TqwLzXOfzDr6ckWwYHzwZoe
-         cXag==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUUeEa4X6bykg29KB8b5010dtpEH7UW+KV18HaV2DZGwAT//0wl
-	tBQuQPDq1pEh1Ug3zrI96ltr7+Un6O+bSAQ26J+/4fnqc9ULxUPL83IXDdX8WOyt6nVS+PsWc7j
-	gPVuyAQ53v4Rn8+qeGcRJYzT5w6ZWn9wIQpps7gIgQTaPedUbENcMApRPCWOZkiRwXQ==
-X-Received: by 2002:a9d:3eb4:: with SMTP id b49mr4554433otc.67.1559638903216;
-        Tue, 04 Jun 2019 02:01:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyf+92erbgMv47djsy0FmM5gD0BLq8uc7lA3BFW303PEhNCiesFUB0E1xOV6l3I6V0MFstg
-X-Received: by 2002:a9d:3eb4:: with SMTP id b49mr4554391otc.67.1559638902467;
-        Tue, 04 Jun 2019 02:01:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559638902; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:mime-version:content-transfer-encoding:message-id;
+        bh=xKD4B/wUTgbX/IFNTtuaqzHVVErLFk3FXESQOTJ+yao=;
+        b=Q0UHOfA9vb0NBrO1VOvOksE2JpK2ycQuordNQhQWSNo4nE+uRj3skcdziWjthiIICW
+         dtgl1OTKkced/EMjvBOqnM9eV5JiHbQVCH13psXVj8O2D6pS2BvvzabitF+hn59kq/HQ
+         KfsU31JhdLoFasDynbrqDwOeuX4JOFZHUXwXxF7/LBBOHa3CKquwo2vwt2xw/N5wWW6u
+         qJShlZv2Sh+gAOoLv2e6Y/kOfcs46993iGUW0c4wBSC72LmohuPGlYx5mH66tc5CqtPN
+         3Xduj/wsOGNuQK1NgZymXMaSwktnyfdfIu7Fg1Mx8E2Zi5x2cJGZn/IodbYo27GHvx4a
+         uTUQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWd+31BWgci6ENkOkcl2SQYwtS7uKHmn98BFrAgvHW4YENd0lVZ
+	bE5MTtk1TzrxBH1csCRnijewnbP7avslJqe+LWyFYkHcRWD/o/PeFwYhwhmupabP+8dNA6bq6dV
+	0sDlLaaKHGE9yYhKy/RvwK3OOyCJScUU8AVeHL4LOx+7UnqC3mW00LpdbYgFL0KQBEA==
+X-Received: by 2002:a65:450b:: with SMTP id n11mr33022908pgq.174.1559639405898;
+        Tue, 04 Jun 2019 02:10:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwmVM3NRSTO5ds/oexiAJ1Q708BzCvXVsKnTutjmbxjFIMPyNqZt3YhE2JpqGved48VWeC7
+X-Received: by 2002:a65:450b:: with SMTP id n11mr33022783pgq.174.1559639404122;
+        Tue, 04 Jun 2019 02:10:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559639404; cv=none;
         d=google.com; s=arc-20160816;
-        b=WZ+gKK8+5w8Gbs4D0a6DNnDf6r8ZN9EjIqKIyz118dORD3Or+LjT7h4eF/Zne+93v+
-         bFJLOG4zVdYgu1d1Xv/sW23Sj446yyKSVlPlOgchBs9T1FrNrIsBXhhPdw3wyZiDUQiK
-         EpzZz2Mx2AAn030lEQbDbBvdhRwbjZF810sMZIgEPe2XwG3ATsL4OvAx6h95lhU/Yeug
-         bQqFDXKd5Ys/59UCTVIIz1CrpOYGBTZt8VeasbBYX/cPPxsYezvNyycCEhnW4/71FhD9
-         IykySHqKdxsjDqH5CoACpcbiHn4WpjdBubckNLZFmWf9K+WWUL82Ifp99S2XeKTBepHe
-         kz4Q==
+        b=kCGfvRIaOWY9UtNzfxCyuOgvJBsd+Y+uRDYpYF4sdCkipdhYj2LLDgABhPANIfoGd6
+         zNORRenXUMv8mdTaby6q0BPigAficiq5uc8CFEMR96vcg6LDB7RQc8a8yiHYCWIrM6r5
+         UCfjdfBdk8U9QqVFsMZY4KyubJYImOTf2NUoU6EjyKORSQOQE2iZyxXJM+REnqluK1Iy
+         F8mirrIVKAwYmIKJX4LyIeCTibqSMpiIKivP44vm3CJ5Ps0xnhCUCXB0pxyZNz3Y9aGF
+         uL4x2p/XpxhhCslOfLYHkwXXYpkPzawcs940QLi5eiymMj4EI235eFxrwB28ms8+XUmy
+         BOpQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=vsUxTRvMENYnFCPWd9g9kJbiuv/ljM8VKrMPBO+s5Mc=;
-        b=xNQzm+D29a9kXWUpT9DsGQZAznbE/dJooqxjsSbo0u9zyskJvk1VKhNXYZwVTGYRQF
-         HwK5g0hV5JbI1Vv4zRWEnRZiKtdDltDfWEVfJFnSxRh2hDvxv8gDFvm5hmhgeFs4RM8U
-         n6FYtsnKZcCJoHZFUZRXU+w+QZBRzvd39K2kso4+k0eaOE6KajhPQk6c7MPhRBawpaaj
-         ttRQcLxeB8YttdkR7g824b5WNNgSMcPKR+YX2h/rZJm4IIGCBcn8iORPwtqqRmONRuxm
-         6D6+BTizsr1yiVhP3LkoO/Jl1r0gxBi5DWxEOHBC7In/YoDfAIeuwqauObj7Sn5mDBz1
-         cqYw==
+        h=message-id:content-transfer-encoding:mime-version:date:subject:cc
+         :to:from;
+        bh=xKD4B/wUTgbX/IFNTtuaqzHVVErLFk3FXESQOTJ+yao=;
+        b=ecpsyOUJmXWXNDu5g6cOf1S9Pti+/pnxkZ2xOb3hvkjGIghfcQngGM8h4RBrOG4dJV
+         F+KQE6aXSpeIdVCvHmzkzuosfhaPgVMeHPaPaVn8VFmUejOPF85f74/7CUc1fyeTAbiO
+         CyRrdlsmm9EOFDdcTlmKD4Nc/Kc/HdTh00OZE4HVOvPvivLTmGDjcihIp7YAYchTL/TZ
+         jwMmiYs2rQa2AQc6DzmupouDvg/nhn4MwCy2HnRzJQqAkRrM8E/z/I1eLFskSQN1HiAF
+         jeC0uSEMHMnPb9jUnCyEEiHHamyHPsnmmvAPNJVbNMbDv9qXm3BKcfw0UZSRruKTlqWW
+         h0MA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b25si8873037oic.18.2019.06.04.02.01.42
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id q10si20819236plr.412.2019.06.04.02.10.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jun 2019 02:01:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 04 Jun 2019 02:10:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 8F4F12ED2D0;
-	Tue,  4 Jun 2019 09:01:03 +0000 (UTC)
-Received: from [10.36.117.61] (ovpn-117-61.ams2.redhat.com [10.36.117.61])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id DDBC661350;
-	Tue,  4 Jun 2019 09:00:34 +0000 (UTC)
-Subject: Re: [PATCH v3 06/11] mm/memory_hotplug: Allow arch_remove_pages()
- without CONFIG_MEMORY_HOTREMOVE
-To: Wei Yang <richardw.yang@linux.intel.com>
-Cc: Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- akpm@linux-foundation.org, Dan Williams <dan.j.williams@intel.com>,
- Igor Mammedov <imammedo@redhat.com>, Tony Luck <tony.luck@intel.com>,
- Fenghua Yu <fenghua.yu@intel.com>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>,
- Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
- Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski
- <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- "Rafael J. Wysocki" <rafael@kernel.org>, Michal Hocko <mhocko@suse.com>,
- Mike Rapoport <rppt@linux.ibm.com>, Oscar Salvador <osalvador@suse.com>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- Alex Deucher <alexander.deucher@amd.com>,
- "David S. Miller" <davem@davemloft.net>, Mark Brown <broonie@kernel.org>,
- Chris Wilson <chris@chris-wilson.co.uk>,
- Christophe Leroy <christophe.leroy@c-s.fr>,
- Nicholas Piggin <npiggin@gmail.com>, Vasily Gorbik <gor@linux.ibm.com>,
- Rob Herring <robh@kernel.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- "mike.travis@hpe.com" <mike.travis@hpe.com>,
- Andrew Banman <andrew.banman@hpe.com>,
- Pavel Tatashin <pasha.tatashin@soleen.com>, Arun KS <arunks@codeaurora.org>,
- Qian Cai <cai@lca.pw>, Mathieu Malaterre <malat@debian.org>,
- Baoquan He <bhe@redhat.com>, Logan Gunthorpe <logang@deltatee.com>,
- Anshuman Khandual <anshuman.khandual@arm.com>
-References: <20190527111152.16324-1-david@redhat.com>
- <20190527111152.16324-7-david@redhat.com>
- <20190603221540.bvhuvltlwuirm5sl@master>
- <2ba74d1d-643e-7e22-acff-2b04c579b4f8@redhat.com>
- <20190604083148.GA28403@richard>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <5208fb80-8062-3757-082b-1ac4e9ca0e94@redhat.com>
-Date: Tue, 4 Jun 2019 11:00:34 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5497WrB004726
+	for <linux-mm@kvack.org>; Tue, 4 Jun 2019 05:10:03 -0400
+Received: from e13.ny.us.ibm.com (e13.ny.us.ibm.com [129.33.205.203])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2swnd5s1hf-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 04 Jun 2019 05:10:03 -0400
+Received: from localhost
+	by e13.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Tue, 4 Jun 2019 10:10:02 +0100
+Received: from b01cxnp22033.gho.pok.ibm.com (9.57.198.23)
+	by e13.ny.us.ibm.com (146.89.104.200) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 4 Jun 2019 10:09:58 +0100
+Received: from b01ledav005.gho.pok.ibm.com (b01ledav005.gho.pok.ibm.com [9.57.199.110])
+	by b01cxnp22033.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5499vQ015728696
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 4 Jun 2019 09:09:57 GMT
+Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 65482AE06D;
+	Tue,  4 Jun 2019 09:09:56 +0000 (GMT)
+Received: from b01ledav005.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id BC025AE063;
+	Tue,  4 Jun 2019 09:09:54 +0000 (GMT)
+Received: from skywalker.in.ibm.com (unknown [9.124.35.234])
+	by b01ledav005.gho.pok.ibm.com (Postfix) with ESMTP;
+	Tue,  4 Jun 2019 09:09:54 +0000 (GMT)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        linuxppc-dev@lists.ozlabs.org, sparclinux@vger.kernel.org,
+        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [PATCH] mm/mmap: Move common defines to mman-common.h
+Date: Tue,  4 Jun 2019 14:39:50 +0530
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-In-Reply-To: <20190604083148.GA28403@richard>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Tue, 04 Jun 2019 09:01:32 +0000 (UTC)
+Content-Transfer-Encoding: 8bit
+X-TM-AS-GCONF: 00
+x-cbid: 19060409-0064-0000-0000-000003E974B8
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011212; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000286; SDB=6.01213036; UDB=6.00637527; IPR=6.00994103;
+ MB=3.00027178; MTD=3.00000008; XFM=3.00000015; UTC=2019-06-04 09:10:00
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19060409-0065-0000-0000-00003DBBE0F9
+Message-Id: <20190604090950.31417-1-aneesh.kumar@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-04_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=394 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906040061
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04.06.19 10:31, Wei Yang wrote:
-> On Tue, Jun 04, 2019 at 08:59:43AM +0200, David Hildenbrand wrote:
->> On 04.06.19 00:15, Wei Yang wrote:
->>> Allow arch_remove_pages() or arch_remove_memory()?
->>
->> Looks like I merged __remove_pages() and arch_remove_memory().
->>
->> @Andrew, can you fix this up to
->>
->> "mm/memory_hotplug: Allow arch_remove_memory() without
->> CONFIG_MEMORY_HOTREMOVE"
->>
->> ? Thanks!
->>
-> 
-> Already merged?
+Two architecture that use arch specific MMAP flags are powerpc and sparc.
+We still have few flag values common across them and other architectures.
+Consolidate this in mman-common.h.
 
-Andrew picked it up, but it's not in linus' tree yet.
+Also update the comment to indicate where to find HugeTLB specific reserved
+values
 
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+ arch/powerpc/include/uapi/asm/mman.h   | 6 +-----
+ arch/sparc/include/uapi/asm/mman.h     | 6 ------
+ include/uapi/asm-generic/mman-common.h | 6 +++++-
+ include/uapi/asm-generic/mman.h        | 9 ++++-----
+ 4 files changed, 10 insertions(+), 17 deletions(-)
+
+diff --git a/arch/powerpc/include/uapi/asm/mman.h b/arch/powerpc/include/uapi/asm/mman.h
+index 65065ce32814..c0c737215b00 100644
+--- a/arch/powerpc/include/uapi/asm/mman.h
++++ b/arch/powerpc/include/uapi/asm/mman.h
+@@ -21,15 +21,11 @@
+ #define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+ #define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+ 
++
+ #define MCL_CURRENT     0x2000          /* lock all currently mapped pages */
+ #define MCL_FUTURE      0x4000          /* lock all additions to address space */
+ #define MCL_ONFAULT	0x8000		/* lock all pages that are faulted in */
+ 
+-#define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+ /* Override any generic PKEY permission defines */
+ #define PKEY_DISABLE_EXECUTE   0x4
+ #undef PKEY_ACCESS_MASK
+diff --git a/arch/sparc/include/uapi/asm/mman.h b/arch/sparc/include/uapi/asm/mman.h
+index f6f99ec65bb3..cec9f4109687 100644
+--- a/arch/sparc/include/uapi/asm/mman.h
++++ b/arch/sparc/include/uapi/asm/mman.h
+@@ -22,10 +22,4 @@
+ #define MCL_FUTURE      0x4000          /* lock all additions to address space */
+ #define MCL_ONFAULT	0x8000		/* lock all pages that are faulted in */
+ 
+-#define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+-
+-
+ #endif /* _UAPI__SPARC_MMAN_H__ */
+diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
+index bea0278f65ab..ef4623f03156 100644
+--- a/include/uapi/asm-generic/mman-common.h
++++ b/include/uapi/asm-generic/mman-common.h
+@@ -25,7 +25,11 @@
+ # define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
+ #endif
+ 
+-/* 0x0100 - 0x40000 flags are defined in asm-generic/mman.h */
++/* 0x0100 - 0x4000 flags are defined in asm-generic/mman.h */
++#define MAP_POPULATE		0x008000	/* populate (prefault) pagetables */
++#define MAP_NONBLOCK		0x010000	/* do not block on IO */
++#define MAP_STACK		0x020000	/* give out an address that is best suited for process/thread stacks */
++#define MAP_HUGETLB		0x040000	/* create a huge page mapping */
+ #define MAP_SYNC		0x080000 /* perform synchronous page faults for the mapping */
+ #define MAP_FIXED_NOREPLACE	0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
+ 
+diff --git a/include/uapi/asm-generic/mman.h b/include/uapi/asm-generic/mman.h
+index 2dffcbf705b3..57e8195d0b53 100644
+--- a/include/uapi/asm-generic/mman.h
++++ b/include/uapi/asm-generic/mman.h
+@@ -9,12 +9,11 @@
+ #define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+ #define MAP_LOCKED	0x2000		/* pages are locked */
+ #define MAP_NORESERVE	0x4000		/* don't check for reservations */
+-#define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+-#define MAP_NONBLOCK	0x10000		/* do not block on IO */
+-#define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+-#define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+ 
+-/* Bits [26:31] are reserved, see mman-common.h for MAP_HUGETLB usage */
++/*
++ * Bits [26:31] are reserved, see asm-generic/hugetlb_encode.h
++ * for MAP_HUGETLB usage
++ */
+ 
+ #define MCL_CURRENT	1		/* lock all current mappings */
+ #define MCL_FUTURE	2		/* lock all future mappings */
 -- 
-
-Thanks,
-
-David / dhildenb
+2.21.0
 
