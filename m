@@ -2,160 +2,147 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EE3DC28CC3
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:01:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 812CDC28CC6
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:18:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DC2832463D
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:01:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 499EF2473C
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:18:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="FjD0vS90"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC2832463D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="fi4odz0C"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 499EF2473C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BB7A96B0270; Tue,  4 Jun 2019 10:01:09 -0400 (EDT)
+	id D321F6B0269; Tue,  4 Jun 2019 10:18:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B693B6B0271; Tue,  4 Jun 2019 10:01:09 -0400 (EDT)
+	id CE2FB6B026B; Tue,  4 Jun 2019 10:18:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A56C86B0272; Tue,  4 Jun 2019 10:01:09 -0400 (EDT)
+	id BD13B6B026C; Tue,  4 Jun 2019 10:18:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 813866B0270
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 10:01:09 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id h198so3678621qke.1
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 07:01:09 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 83FD96B0269
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 10:18:07 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id s195so12496866pgs.13
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 07:18:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=HA9nmzXQ1v1EpP1te6eSn7ZdKChVSouT7677WSi9nIU=;
-        b=UuP4xtNU89sMPCj8IfT8r2MpvKm876lo4vDMkolCUChm0NGjCds3sMG0TjY6No3A48
-         XrvH5yrN6kvZ59SRaEQYAJQQxw4XclXPSR/HG4gc8DdssKAwxK+rMGVXAkm78Eb4YzjO
-         SVA/SIKeV6Qm5XFcQhu/NvS6j/AZTqmsBReHXGWUaMzjFtS2zNK2CqCMQVyGOCCirAIJ
-         knoc092jk9utdVmVVP80vAMcOOJTGrBJyA7RJZZiuNtsThng+pjp4no5aGGwiewryOud
-         ICw6ScE8QGjL6j7NcjW1x7ZvfE/4YxH5tfuFQllcrqOLmiUmUTbEqlNBl0qXL3g7nAnc
-         0u2w==
-X-Gm-Message-State: APjAAAVdCRqlwCWy100vhFtQaPS6Y06XdJPqvWSwG2JElgbuVP+apLCx
-	PV0V08+Yf1mg0aL5SRKzfJ7arWUpopxkORwxo3yzg1jm8qhhfMWfbh+V3kp2mJrjz4fDs6pXyFl
-	GW6LRfdkaBTDGtRy+o6V+nMqUW28s1so4JO+ZGLo0SUsVIlK1BsftgsKeMS+JjREcaQ==
-X-Received: by 2002:a0c:9305:: with SMTP id d5mr11591577qvd.83.1559656869097;
-        Tue, 04 Jun 2019 07:01:09 -0700 (PDT)
-X-Received: by 2002:a0c:9305:: with SMTP id d5mr11591468qvd.83.1559656868039;
-        Tue, 04 Jun 2019 07:01:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559656868; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding:sender;
+        bh=49OX8NmvmI055r/OXImGhv4c7c/FNWltAI84LJFVh/A=;
+        b=KjS9DuPIlRuqRBONX1pDsWB14O5RVr9umIPs5o6qhYxkMIA1pjt0CqSUp+ZxjiQhHq
+         vaqP5lglGwV4ZCgsWwELK8b0etkLWo1xzTclQcizgmjAXYxYCARQM5fNpg0l+h9bMUn7
+         NfkLjyLeIgWsFUopGLZ0OGMdbjleOlCpKRhYlKWvYF0S7wRiuwf730WElveMHnNnkERX
+         aQqG57cB8520yEEXdvonLKyL4LMHTD1mxzTQ/LKgEC85Qq0HEnHnyH3ZgJNIOm4TxZ+i
+         n+vzbrrHviEXux2X14gjEjc1PiOXKJfHh8IOstID/Blya/NIGpnrHoBrqfyeuPyreBYp
+         yB5Q==
+X-Gm-Message-State: APjAAAW8QC9kgb8PS6wVGdwCFjVL8oDqj9OMP+BnTyTS8K/zKnNUexZV
+	odLqegarsTAHzOz7YHjAfjlJN+UahE5ECuzexCDi7LxtF+DiGbUPaeH+v7wUPpap9NeXrIYImU2
+	Mt3KB+3mnT/L1L2GpHqCu7kK86HZrjxWODX7VHePEOvYNtQaHpIyXPcFgSKQHFwQ=
+X-Received: by 2002:a17:902:4a:: with SMTP id 68mr37174702pla.235.1559657886864;
+        Tue, 04 Jun 2019 07:18:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzgJAlQePsawHWaWcrkL6Fw4IzDpDHMVIPMqc3Se7DjVD5o70FW+EI2MJugVUzWACOXwt3k
+X-Received: by 2002:a17:902:4a:: with SMTP id 68mr37174562pla.235.1559657885628;
+        Tue, 04 Jun 2019 07:18:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559657885; cv=none;
         d=google.com; s=arc-20160816;
-        b=hZmYwDJTL+dyIbvt/Salwk1ldIOF6MlFek9gZnleivrNM0U4PqGpvrR+WZ30DLpK0H
-         rvbaAobuJOhbhePACUAOHW8rMuMVOYV9RwpNIgtYFoM6TEGhyV7TBMLC6JbW6iGSuGA4
-         ARDBCY8G38CbBT19J4p9a12/+A4MWJuglMi4B597khhPAs220I0Adkmz8/NcOiP1TFwh
-         Vm80p2A4Ij4ItQ6cM4ws5R0f0X8JIOsxuPqVJx7Lg9TJ0+qy43DXqXEuvJRAT65DC08Y
-         u74gxiTibb6+MAEsJsYdTelBWXyjhTzGO/g8IZVb3eYorZGt+vPk1erWXNbU5iJVa5k5
-         DSVA==
+        b=czsNNr6/s1GeWkHvJ42kA0rb2zIHBzrcwOroyRJMMf7f85Xa7EVZq8t2AnAq2+nsgw
+         o/BrNSvKymjiqBFaucUYe0dgb8ifnoqog+773ocVwVktK9T1W8otlwXrvHzQiX1wcV+z
+         yyctPvypJjXHn/j+B9RLLctCT9j9UkVJYQ+VgReF1L2YEmFi5F4mB0Shqpv5pPyjyGIs
+         6CLD5d4lJVLSp+T+A1pmXAm6uSRNk6/jfwWmuWoo/9tkFg85y02VyxoOJ7xGMFcZdvZT
+         ONyxMn80YaI1T/DrUSwxSodbZ27u+OLc1bk4ouTvpo0dzro5pl+KCVVvpDt9uuvzOedt
+         a8MA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=HA9nmzXQ1v1EpP1te6eSn7ZdKChVSouT7677WSi9nIU=;
-        b=YsVMgwPpi23hZ3HVZUXJjvTwFHv8kyivSXWBL/qyagLTvURbwJk61f3+2OfaMiDLpP
-         6NLtIkfurqF3iqnqLPQ61Y0vEqvu8fia3wCiCI4UQWW0/YiwbQKEBbS8hHmz6wskXjum
-         S9X/0rRFiBnkzPbMRd/mojtjVHMoUajfB8sD8nHpeO0vbBTftygFsM90gDn5D2XF4OXV
-         q5uJxyWDM18V0JgGzH01r4SC9qoe3EoB+eGUEz0Q0C/gZ4dZhgey213tr/iTN72ldO0j
-         FvTWhtxhp/zSN7q0JuoPJMU9/1pngugYZahAc8XYo+BDoauUeDTMCq51UwdX5LPAnmpY
-         jyiw==
+        h=sender:content-transfer-encoding:mime-version:references
+         :in-reply-to:message-id:date:subject:cc:to:from:dkim-signature;
+        bh=49OX8NmvmI055r/OXImGhv4c7c/FNWltAI84LJFVh/A=;
+        b=KTFVK3x7LCHbda7bfBFNMgkeCTrkkguNgfD+Y13WV29E0cg6wIG2qTcQbN20lKCcDH
+         RMsHc1uMLF6sRY7WdUymQsETTWVvLq5q33fycW7KcuyiZIBS/3zyIPF8/D4pX/rP45mq
+         kKxi54SXaws9Ue1VDdlizutMv2CJWLzBabFGP1TyQCiy/JM7rfEw2SN+GIEf8IX2dP64
+         YP38uou3GHBDud3MWUZwLoQDS0mzlDePtSCPRq5VSSfVxw6jomD/z3/uChptJQoWP2lj
+         y3CqJh2USjCAviiOpmZqxV494Wtf4sTMtUUasBWXULcgLz1s4tlX+tXggz8Ys5fTCto4
+         itJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=FjD0vS90;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d11sor3765644qvs.33.2019.06.04.07.01.07
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=fi4odz0C;
+       spf=pass (google.com: best guess record for domain of mchehab@bombadil.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=mchehab@bombadil.infradead.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id r2si4271544pfh.85.2019.06.04.07.18.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Jun 2019 07:01:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 04 Jun 2019 07:18:05 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of mchehab@bombadil.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=FjD0vS90;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=HA9nmzXQ1v1EpP1te6eSn7ZdKChVSouT7677WSi9nIU=;
-        b=FjD0vS909bew//7s7kZ4U68BxVAcYNK5lIoo28VJ0iR1cKCHo5uwPCWhKdZwvb5R3h
-         l+JLi7kgdhHQ1mXfsVZvplZ78xwVC8/ftBcb4Y1CP7AfT7ECrvsLzhzJmhjoXKQ+9YfW
-         jkK1KfkjNxpW1xSRKQnYK4mvUMqCOfcP73zC3WHA+ooGIl+psI9Q4jqvA7bBCK7mH9Ef
-         w3/bC3nfoSs3iDZfv8dHX2070J87acrVGFg6U4tChzCNpv8wZEvISzXrFjF4d2cH+dQg
-         CW65qtmF/xSV9/UwnhEaWAjNq9r1a+ZARBE5OytTmcBx9/3tgsvUzYwtXDaZM5w9ZTBz
-         LD/w==
-X-Google-Smtp-Source: APXvYqyaYFcOVCNNE4EgaFXVtcyiuzl8/nFtl+bPshTs3JbBCrjCSlVZ/oa+7ymTOAx0gJHRKZE4qg==
-X-Received: by 2002:a0c:be87:: with SMTP id n7mr8195030qvi.65.1559656867510;
-        Tue, 04 Jun 2019 07:01:07 -0700 (PDT)
-Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id f189sm2340295qkj.13.2019.06.04.07.01.05
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jun 2019 07:01:06 -0700 (PDT)
-From: Qian Cai <cai@lca.pw>
-To: akpm@linux-foundation.org
-Cc: rppt@linux.ibm.com,
-	will.deacon@arm.com,
-	catalin.marinas@arm.com,
-	linux-arm-kernel@lists.infradead.org,
-	hannes@cmpxchg.org,
-	mhocko@kernel.org,
-	vdavydov.dev@gmail.com,
-	cgroups@vger.kernel.org,
-	linux-mm@kvack.org,
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=fi4odz0C;
+       spf=pass (google.com: best guess record for domain of mchehab@bombadil.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=mchehab@bombadil.infradead.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Sender:Content-Transfer-Encoding:
+	MIME-Version:References:In-Reply-To:Message-Id:Date:Subject:Cc:To:From:
+	Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=49OX8NmvmI055r/OXImGhv4c7c/FNWltAI84LJFVh/A=; b=fi4odz0CcZkQgAroB59pt3fkKR
+	YOlYGx+2Khehitc5h84rSj9HrV2itUypVSSnL0uVn0lCrA38rF20ogqiYo0uFOahLKxVfV3SMmFay
+	cekZdnv4H+I7N8o19U5SycWaX3OXQBpcGPcteYjhKgQ6GKDLkkOtNukpXOwZvh0akIww516rMyTFF
+	MXbe0H8KPm9VyDKITothwl7CfjI0702MUTdANFBs5mZH/F36mrL0GVJbJOKBWSJV4y1Bdn3yMecQt
+	9XlqQQUz8K2XWPm7ylvRXE0MAviOkDshVO2E9ntL35ZnSZK8sLKIrjEEJex2o+jKDpIDYSeT9wY4n
+	iP/ANkTQ==;
+Received: from [179.182.172.34] (helo=bombadil.infradead.org)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hYAGH-0001Ri-UA; Tue, 04 Jun 2019 14:18:01 +0000
+Received: from mchehab by bombadil.infradead.org with local (Exim 4.92)
+	(envelope-from <mchehab@bombadil.infradead.org>)
+	id 1hYAGE-0002lF-OP; Tue, 04 Jun 2019 11:17:58 -0300
+From: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
+To: Linux Doc Mailing List <linux-doc@vger.kernel.org>
+Cc: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>,
+	Mauro Carvalho Chehab <mchehab@infradead.org>,
 	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
-Date: Tue,  4 Jun 2019 10:00:36 -0400
-Message-Id: <1559656836-24940-1-git-send-email-cai@lca.pw>
-X-Mailer: git-send-email 1.8.3.1
+	Jonathan Corbet <corbet@lwn.net>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	linux-mm@kvack.org
+Subject: [PATCH v2 10/22] docs: vm: hmm.rst: fix some warnings
+Date: Tue,  4 Jun 2019 11:17:44 -0300
+Message-Id: <ee4ae1fd9119e1a69b80ccea8ed642b18e3d0eb2.1559656538.git.mchehab+samsung@kernel.org>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <cover.1559656538.git.mchehab+samsung@kernel.org>
+References: <cover.1559656538.git.mchehab+samsung@kernel.org>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The commit "arm64: switch to generic version of pte allocation"
-introduced endless failures during boot like,
+    Documentation/vm/hmm.rst:292: WARNING: Unexpected indentation.
+    Documentation/vm/hmm.rst:300: WARNING: Unexpected indentation.
 
-kobject_add_internal failed for pgd_cache(285:chronyd.service) (error:
--2 parent: cgroup)
-
-It turns out __GFP_ACCOUNT is passed to kernel page table allocations
-and then later memcg finds out those don't belong to any cgroup.
-
-backtrace:
-  kobject_add_internal
-  kobject_init_and_add
-  sysfs_slab_add+0x1a8
-  __kmem_cache_create
-  create_cache
-  memcg_create_kmem_cache
-  memcg_kmem_cache_create_func
-  process_one_work
-  worker_thread
-  kthread
-
-Signed-off-by: Qian Cai <cai@lca.pw>
+Signed-off-by: Mauro Carvalho Chehab <mchehab+samsung@kernel.org>
 ---
- arch/arm64/mm/pgd.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ Documentation/vm/hmm.rst | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
-index 769516cb6677..53c48f5c8765 100644
---- a/arch/arm64/mm/pgd.c
-+++ b/arch/arm64/mm/pgd.c
-@@ -38,7 +38,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
- 	if (PGD_SIZE == PAGE_SIZE)
- 		return (pgd_t *)__get_free_page(gfp);
- 	else
--		return kmem_cache_alloc(pgd_cache, gfp);
-+		return kmem_cache_alloc(pgd_cache, GFP_PGTABLE_KERNEL);
- }
+diff --git a/Documentation/vm/hmm.rst b/Documentation/vm/hmm.rst
+index 7cdf7282e022..f22bb5fb5eec 100644
+--- a/Documentation/vm/hmm.rst
++++ b/Documentation/vm/hmm.rst
+@@ -283,7 +283,8 @@ The hmm_range struct has 2 fields default_flags and pfn_flags_mask that allows
+ to set fault or snapshot policy for a whole range instead of having to set them
+ for each entries in the range.
  
- void pgd_free(struct mm_struct *mm, pgd_t *pgd)
+-For instance if the device flags for device entries are:
++For instance if the device flags for device entries are::
++
+     VALID (1 << 63)
+     WRITE (1 << 62)
+ 
 -- 
-1.8.3.1
+2.21.0
 
