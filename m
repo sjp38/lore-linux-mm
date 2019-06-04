@@ -4,156 +4,159 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41A09C282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:23:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 682B3C282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:24:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 113C0243F6
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:23:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 113C0243F6
+	by mail.kernel.org (Postfix) with ESMTP id 2AB82243F6
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:24:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AB82243F6
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9D2BB6B026C; Tue,  4 Jun 2019 10:23:45 -0400 (EDT)
+	id C6AE26B026E; Tue,  4 Jun 2019 10:24:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9834F6B026E; Tue,  4 Jun 2019 10:23:45 -0400 (EDT)
+	id BF4726B0272; Tue,  4 Jun 2019 10:24:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8992E6B0272; Tue,  4 Jun 2019 10:23:45 -0400 (EDT)
+	id B32B06B0273; Tue,  4 Jun 2019 10:24:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D8266B026C
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 10:23:45 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id a21so615607edt.23
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 07:23:45 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 684776B026E
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 10:24:12 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id a21so617383edt.23
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 07:24:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=vc7rfhl9mcfSYNUSIEYNBXnL4l/81GoOn3cs7pdaQ8s=;
-        b=Bs59bPElqGApgwYzM35unJNHFaF8UhUwC16b8GrypbNFmm/P84qnCUIhd6JQ9fnUNG
-         TO6Uy/7rbaJpTD6Y0LSfNodSm+Rq0WcjevJfp1y2Un1iRgABCp4PD/deFMe9ChjtbRDV
-         bNkssUJgNDyZKfpEM1tnxJTqOLioPngkx3tesTwi1bx8TwsmLohsJxmp8LBvWQm8IIoc
-         Jnv5iSvMvdGZqkeP4auo2Gy6zFXXkbZJiyUqa7xONQZ7Jyh9snB9II7cBm3tGWupuS7a
-         pqB4MqkObfq/alfR9QPkEvXsASrq7kHlXNPV6iX5YIhk07Om16GdqTNWBcXLymOAgClK
-         PLnA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAWss4CkUbcGOJ8yykLCMJM9HFCeMJHYvLGXsZngvyol6BnbbpkD
-	WZLjQ7kkV2U7YHgOBrYDV8TXJN/jWLTdi9kkkvIAjw9zPkZIzyCMIprBnVqxDwcZfhXdKnde8uS
-	afibcI+bbqTwOlOdD+ztEbvcBKA/mryaNekBkuGt1SYP/zg98Glikhum5KB8UXNK1PA==
-X-Received: by 2002:a50:fa4b:: with SMTP id c11mr35969315edq.154.1559658224815;
-        Tue, 04 Jun 2019 07:23:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyNTXZTZv2qClKwPmqa/qWjaC+chbp9s5+Wg4hsk4IjBoRcAsNGuSPI2p8E/RQ96Pog1PBw
-X-Received: by 2002:a50:fa4b:: with SMTP id c11mr35969235edq.154.1559658224125;
-        Tue, 04 Jun 2019 07:23:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559658224; cv=none;
+        bh=iDk9z3L/CsleVCxclXZO9/f/ibDqaeIztcQvZUQ5c9o=;
+        b=DXABFPaXE1qTauRUpkhO45Oe1qdMr52lS2o2Eb7RcIXlOo1S/Z6vKoKiX+maG+sMYP
+         aokV1sF/hOmGtP52BtdG/bAo9yRkr/tXULz3DtGYtvFcNJG70kg6PaLlo23U9rNI7bqO
+         SYCuG7aZeBV+KgIb1RXsqOhtkvvPl4C7/pk7fHnLxy50ClvXogb8V+Ojn9ttgX4RagwD
+         ByOVbaxrQ3AkTK4eGLt2djuCeIBLvDbBZuHhyQB9S9uoNP6/kwmbPhrRlL4Tr5ICq42J
+         R1TAvvFSha4qcv4H3E3e5ZREKXh211weT8iX4FaU2WMMO+7R39yjkta2RuNamJQSBo+7
+         pW1A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAU6N4MZDvRnYCHbfSA+k3TSOh3ls61yUjeCn/WooJ37YsyY4dm4
+	MjhmIU0nwaF8dDRa9tZKeedl2IdQFAXgtouqRZ5DQM5qVjxjBYvatzTKHSEGVFYmU++yGZ7K5uM
+	fRxJdX6HX0dobB3T0EiZTidNucqHNgN0v/4Tkubw1FAFTPgn1fjDpdoj7oZio8q0k5A==
+X-Received: by 2002:a17:906:c06:: with SMTP id s6mr16601402ejf.242.1559658251985;
+        Tue, 04 Jun 2019 07:24:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzvKSIdu9TV7q6CCmdIi7UwOSw9wlfhInZEH5Q+7qHS05TT3KztAkJwEGW81kh4k/fewGab
+X-Received: by 2002:a17:906:c06:: with SMTP id s6mr16601325ejf.242.1559658251088;
+        Tue, 04 Jun 2019 07:24:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559658251; cv=none;
         d=google.com; s=arc-20160816;
-        b=M2IOopxmk4ncQOgn+6h32O4wcIOYOzGz1ttrJvFFNiot2JqcFhHqXVKNrnly20DLGi
-         YQsOR3WSw6Nj5tyYh10vXpDc6AXJ81618WKlInYOn8dbah/up5/feqsNNV6CjBL0aBId
-         54KwuGEEKJB/wsoyp2UyYg4eoUbhTRm+guOlzHRHfPdAsmWI2dr3tIFOO+Pi1/tlQnYr
-         ABmN2UoJuWd+HryggY/NJotvGdfQ4eWWCPXhlecxHuqtGDmtl91FeC8K4gAo1CiP5CZN
-         jBc/+iNAcKe+0b+WsYih9exxJqMKUkVdZL1MRQ3uD2X839soYFe9+DwIOCDdqVFSFc/3
-         GSPQ==
+        b=CDJii/4DwnJxuuxgctQpATEv19fMdCWw1MQoSi0AC5iQyrTkaZBM28jtjLvDJ7/cDR
+         zwUVnkbjRuR89Yh1yOp3H7l9USVWfM56kisQGsFo/t1dbbVBvaynmnZKduJB1Fj4GPfe
+         qd9X1C9O/fKcCTRrSUGgyu8GCVvocNUZ3HvS5lnAlBKP7fKE3ZJGrWldXzehbvQI6V3d
+         DJxAEOoRciZ2B4tbcUjzWbecLpvZu+jEDIm4vhdLEY1NGwbu49fx33DWBf41Aeb/v7hc
+         IEYbisccdG5I0ippCvohjTuwBoQydjh7g9dL7CLumhAY8Ju13cLOygW3gbTeLGZjhPh0
+         h/2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=vc7rfhl9mcfSYNUSIEYNBXnL4l/81GoOn3cs7pdaQ8s=;
-        b=WHjcKOMDw01oZ7rBmNKXWuIt//TIA7+DASl03f6NiiaDvnHgjSL3F21o1X/HSTX0EC
-         1fbxf546wJiPFOOIVNhbxDdOFy6JXGTwBzxOZ36yTt0s9u4EdWdvE3ujetA1oKGx1xrt
-         GLEJ32g67936jkEmz4wyRNZfqLOaFsHVUgFrdc4ERaEfN1M12Lx6rsdd1YU0HeaHHGXn
-         mPgfe8mboPwayZFoufbwPRG4j8iCa9q07zm1WvnMX48TqLd8IQZH1yCiUgFp81qRv2hz
-         DtGqv8lhegKfEVVqS9QjfA7vcKmM3kFXc1NlPQdIaPoKikULoLTySZhYCEgu7gGCA721
-         nBCQ==
+        bh=iDk9z3L/CsleVCxclXZO9/f/ibDqaeIztcQvZUQ5c9o=;
+        b=F/+LmwfoGmldiHwUzsc5z2NaZw+jvKdgILOpeACfF8154bSgKO4G83/mdp0fpxD0Zs
+         3s65ciMX8UCwmBoQqJEMwv2DSKDsK4syYsUArBT9NTRwMlZkQO1kZAb0109twHCMxFvY
+         dSKrj3/oV7HSWtdrh/EPISFEBN3GMF33m8XE0x/lN6xk2lHOqFdnNySFVYq82qViqSAY
+         /i3rJxz2CYFGKOZy+X33ASM9RXXqCEIhdi3WEpUTGpGm6ETwYMBRDhwv9XG0XWZLQIzJ
+         yUV3wc432uhveBRbMoPIrfHFzmcuAaDKap2IPAdUMwrwtumatw8S7FhZ9qgC4xjnFfwS
+         x5dA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c1si10902417ejf.45.2019.06.04.07.23.43
+        by mx.google.com with ESMTP id u25si4210247ejt.173.2019.06.04.07.24.10
         for <linux-mm@kvack.org>;
-        Tue, 04 Jun 2019 07:23:44 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+        Tue, 04 Jun 2019 07:24:11 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0E423341;
-	Tue,  4 Jun 2019 07:23:43 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id EDBD23F690;
-	Tue,  4 Jun 2019 07:23:40 -0700 (PDT)
-Date: Tue, 4 Jun 2019 15:23:38 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Qian Cai <cai@lca.pw>, rppt@linux.ibm.com
-Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, will.deacon@arm.com,
-	linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org,
-	vdavydov.dev@gmail.com, hannes@cmpxchg.org, cgroups@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org
-Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
-Message-ID: <20190604142338.GC24467@lakrids.cambridge.arm.com>
-References: <1559656836-24940-1-git-send-email-cai@lca.pw>
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1A289341;
+	Tue,  4 Jun 2019 07:24:10 -0700 (PDT)
+Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B86483F690;
+	Tue,  4 Jun 2019 07:24:08 -0700 (PDT)
+Date: Tue, 4 Jun 2019 15:24:06 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	James Morse <james.morse@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>
+Subject: Re: [PATCH V3 2/2] arm64/mm: Change offset base address in
+ [pud|pmd]_free_[pmd|pte]_page()
+Message-ID: <20190604142405.GI6610@arrakis.emea.arm.com>
+References: <1557377177-20695-1-git-send-email-anshuman.khandual@arm.com>
+ <1557377177-20695-3-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1559656836-24940-1-git-send-email-cai@lca.pw>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+In-Reply-To: <1557377177-20695-3-git-send-email-anshuman.khandual@arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 04, 2019 at 10:00:36AM -0400, Qian Cai wrote:
-> The commit "arm64: switch to generic version of pte allocation"
-> introduced endless failures during boot like,
+On Thu, May 09, 2019 at 10:16:17AM +0530, Anshuman Khandual wrote:
+> Pgtable page address can be fetched with [pmd|pte]_offset_[kernel] if input
+> address is PMD_SIZE or PTE_SIZE aligned. Input address is now guaranteed to
+> be aligned, hence fetched pgtable page address is always correct. But using
+> 0UL as offset base address has been a standard practice across platforms.
+> It also makes more sense as it isolates pgtable page address computation
+> from input virtual address alignment. This does not change functionality.
 > 
-> kobject_add_internal failed for pgd_cache(285:chronyd.service) (error:
-> -2 parent: cgroup)
-> 
-> It turns out __GFP_ACCOUNT is passed to kernel page table allocations
-> and then later memcg finds out those don't belong to any cgroup.
-
-Mike, I understood from [1] that this wasn't expected to be a problem,
-as the accounting should bypass kernel threads.
-
-Was that assumption wrong, or is something different happening here?
-
-> 
-> backtrace:
->   kobject_add_internal
->   kobject_init_and_add
->   sysfs_slab_add+0x1a8
->   __kmem_cache_create
->   create_cache
->   memcg_create_kmem_cache
->   memcg_kmem_cache_create_func
->   process_one_work
->   worker_thread
->   kthread
-> 
-> Signed-off-by: Qian Cai <cai@lca.pw>
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Mark Rutland <mark.rutland@arm.com>
+> Cc: James Morse <james.morse@arm.com>
+> Cc: Robin Murphy <robin.murphy@arm.com>
 > ---
->  arch/arm64/mm/pgd.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+>  arch/arm64/mm/mmu.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
 > 
-> diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
-> index 769516cb6677..53c48f5c8765 100644
-> --- a/arch/arm64/mm/pgd.c
-> +++ b/arch/arm64/mm/pgd.c
-> @@ -38,7 +38,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
->  	if (PGD_SIZE == PAGE_SIZE)
->  		return (pgd_t *)__get_free_page(gfp);
->  	else
-> -		return kmem_cache_alloc(pgd_cache, gfp);
-> +		return kmem_cache_alloc(pgd_cache, GFP_PGTABLE_KERNEL);
+> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+> index e97f018ff740..71bcb783aace 100644
+> --- a/arch/arm64/mm/mmu.c
+> +++ b/arch/arm64/mm/mmu.c
+> @@ -1005,7 +1005,7 @@ int pmd_free_pte_page(pmd_t *pmdp, unsigned long addr)
+>  		return 1;
+>  	}
+>  
+> -	table = pte_offset_kernel(pmdp, addr);
+> +	table = pte_offset_kernel(pmdp, 0UL);
+>  	pmd_clear(pmdp);
+>  	__flush_tlb_kernel_pgtable(addr);
+>  	pte_free_kernel(NULL, table);
+> @@ -1026,8 +1026,8 @@ int pud_free_pmd_page(pud_t *pudp, unsigned long addr)
+>  		return 1;
+>  	}
+>  
+> -	table = pmd_offset(pudp, addr);
+> -	pmdp = table;
+> +	table = pmd_offset(pudp, 0UL);
+> +	pmdp = pmd_offset(pudp, addr);
+>  	next = addr;
+>  	end = addr + PUD_SIZE;
+>  	do {
 
-This is used to allocate PGDs for both user and kernel pagetables (e.g.
-for the efi runtime services), so while this may fix the regression, I'm
-not sure it's the right fix.
+I have the same comment as last time:
 
-Do we need a separate pgd_alloc_kernel()?
+https://lore.kernel.org/linux-arm-kernel/20190430161759.GI29799@arrakis.emea.arm.com/
 
-Thanks,
-Mark.
+I don't see why pmdp needs to be different from table. We get the
+pointer to a pmd page and we want to iterate over it to free the pte
+entries it contains. You can add a VM_WARN on addr alignment as in the
+previous version of the patch but pmdp is just an iterator over table.
 
-[1] https://lkml.kernel.org/r/20190505061956.GE15755@rapoport-lnx
+-- 
+Catalin
 
