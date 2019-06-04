@@ -3,186 +3,136 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ACAE2C28CC6
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 06:01:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 44977C282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 06:20:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4EF0924484
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 06:01:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4EF0924484
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kaiwantech.com
+	by mail.kernel.org (Postfix) with ESMTP id 0C5E324B72
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 06:20:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C5E324B72
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A60976B000D; Tue,  4 Jun 2019 02:01:50 -0400 (EDT)
+	id 9B6896B000D; Tue,  4 Jun 2019 02:20:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A10D16B0010; Tue,  4 Jun 2019 02:01:50 -0400 (EDT)
+	id 967266B0010; Tue,  4 Jun 2019 02:20:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 900246B0266; Tue,  4 Jun 2019 02:01:50 -0400 (EDT)
+	id 82DFE6B0266; Tue,  4 Jun 2019 02:20:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 55C136B000D
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 02:01:50 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id w14so13321241plp.4
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 23:01:50 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 364E16B000D
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 02:20:47 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id d27so203146eda.9
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 23:20:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=GCQmtv7FhlouA8M5jSS3Ut+JA2Yr+XuxOxirrogHYP4=;
-        b=rYyvbrucrImjsc9KdL/HkigGtXwFdAQ6XNJ/DgxICm+M3Q+ZjN+fwIk+XDE4IVnnFF
-         1lmWqkldsHLVgFvKSf4dBWJgTR2QrxkbfzV/BFoGTRwx/3vpDb9FK+LkRAjq1Kq2YQuZ
-         dm8hp9fvSv7VveuY/3UjS4nH7QNfoQ0+57XbqxaJH68+yvAjmMXAUNiozLz8RFGfjMG0
-         fIk9SCURGNYEYXCDAQ17hUNjUikVTK1WtlUV+SIPjWe4VlAtz7Oyvq91252eFtEkomoh
-         qF/F96T4sYuSnBmdxyU8asyAJn+ZSuAzt31ewwbpTkF+kqmmlpCqh3w9woKuUzD7Oq7q
-         tA7A==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 182.50.145.5 is neither permitted nor denied by best guess record for domain of kaiwan@kaiwantech.com) smtp.mailfrom=kaiwan@kaiwantech.com
-X-Gm-Message-State: APjAAAWhovf5pvkwkjB49OcmjPcs5KiSN4PCIRMCBB67lfkzU3tFRB6q
-	TxI6kGmFFKozfS2YAG33FCDqaDmHD3Tt8ggcJSlNIZy9dNIw9+ycblFx50YMFf8eUbf7YXYXO7Z
-	d2UeB6+w8eBxi0B8rvfC8KFrp573iJIpKVBd0rqEE4Rsc3lPY5GT3YewWoNp3f8k=
-X-Received: by 2002:a65:4c4c:: with SMTP id l12mr24189920pgr.404.1559628109880;
-        Mon, 03 Jun 2019 23:01:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzSBGGX2V2OzNZSY0lyGqVJ28P5q8C1gTGpyeN42LZoEvsZlz2LIOjmo2JDrw97zdgauDQA
-X-Received: by 2002:a65:4c4c:: with SMTP id l12mr24189868pgr.404.1559628108940;
-        Mon, 03 Jun 2019 23:01:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559628108; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=eHyQiJSise48agNV3lIMDqHOs424fUmklxkPGM5JfwU=;
+        b=dBVW7oFvhKLmoIsvQXgPgz3KNP1YLcUW36Sfwx2lO24DqH/zkqsZ72OUdhHGBqvszh
+         PaA8DORkRvLCgRBO6GmhJH+GlpwJwAol5s1UitzYmnKwnngCp/HDaOn8RzvF7UNkSn9e
+         ctw21No8qRhB03M1Om5j5ZCVOZrArKybVzCVqhj4z3RbErkDUmfLoi8mPw8CE4D/gXTV
+         q2dExgJCLDMkGqnqBhw+3w/YPiRYoGGYf3Pg5e5L1/KVrrq2PTr1z+u8Tm1FHw6f3FmA
+         835/6rAIwPs1qlTElNElRhKJwHvROtg42EHFgzAq/7Nv7aPOha5L+OkTkZfMdPe0CNBI
+         Ou/Q==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAXd9005pjEvVfZ563gfUiSI9pvSrvn0RDWjh1M2OrHZZIfVzHB9
+	0QDPpUluLHZcUix0LzI/92gd/7qBotukunfniApcUmwNm5e3nh8vLoVVxlmrz7YdDMsTRu9FTZo
+	LCSf2DlufI7mCLXxrvkaIOLm2DL0Xr3yx05bbAHc9iyXCuUmK2/GYsj36wenavxI=
+X-Received: by 2002:a50:fb01:: with SMTP id d1mr33347535edq.267.1559629246793;
+        Mon, 03 Jun 2019 23:20:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwia1axN+ADY7NVkPPo112BinLbEhpRmL6LZTHLB+K+G272NRaNWbfbrGGmX/KqlHQ7zBIc
+X-Received: by 2002:a50:fb01:: with SMTP id d1mr33347464edq.267.1559629245951;
+        Mon, 03 Jun 2019 23:20:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559629245; cv=none;
         d=google.com; s=arc-20160816;
-        b=eDdfXWPdRWZhy7RPiGDGh43Y8xo089trR2zkBdSIpL0JiqJA9SixhHRpw25580vaNa
-         RwPVzsu/mkiWQhf7QmzITCouF/IOp6mGzBGOd7FKsPUDZhCvL0CB+Gn3tJGg00M+SSbj
-         EFWuDK8Ydj9OPUNWgLj+w85jWoilv6HbpjUiCGyHWi6j7o5qhfsheIR8Db9p5XVx7Z0a
-         6DkbL4LbkFAVLMmt1H2FHoLd3DUSiAYuYJajASWG1fMw210ZQOeeb0vIwk9c0ftBDwSH
-         3pzpeiDWy77b/W4AW5o2hswNHeFu0WjwS+0c0vq+rBuvxkD8dv/HDP0ObLK25/Q2Us+7
-         IrzA==
+        b=WKkuKecko+9dLtdONwVXW/8BJ8zzOahhIojfKJSFA+Bkc9MCG0oFoBZLt6khWfajWC
+         T/Cen0iznf+CVEoB2+vr4AfR/4yrnnTH9u5ApwY4mNuJnysPHuS17z7oWz5gncRC3mJH
+         w7+JKeREIGC16E98NhfULHU266CegCagN0z5VxcsI3JnvtWSrhvgPDq/LTJe9hyD5Tnv
+         1j0dh9yta83DVY2iMjSxK6M0ZsWDJ+OLh6CrNZU1O7J2n4zm1aKN5f5afZ0o9fKnu63W
+         bofzhUhrbSyjB2HK/zJwyM2BrknNJnT+IcZ4ETS2r3tUQr3D8hLE5W8jmtUqRGhd1X1e
+         EoVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version;
-        bh=GCQmtv7FhlouA8M5jSS3Ut+JA2Yr+XuxOxirrogHYP4=;
-        b=S1rM24lQb8HkWvu/WX/Yc8MwLCBblFB29i+ROoipFb2y/kyI591WWzDDfpN/iQg2h+
-         U29T3UbQuOi7hk8fI2KmFdHzIG4bkTOA6Iv2V9WnWLKv/wYzeQ71dtkP7NDA/tK3hJXu
-         M3l+fIx6AxrNcTlMEcAet0paw7086kt7rpIvo5edg9F9GSj5LCSUr71ARV9Q+ftgYhpk
-         VeUj6cpxKxJB7Z+pYKUwP2q5LT7dkUJWwoCpH/44wyZXEj0VJbvJipgcaI2d+dbFmlEw
-         5PZl9AUvw6/Yo88bPa/gWZ0ogdREAugG65Kkq0CUTWULmbh+WHmxnwsW65GamvetAV5T
-         8yxQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=eHyQiJSise48agNV3lIMDqHOs424fUmklxkPGM5JfwU=;
+        b=as7moBWAy05AJKQSCEXVOU7NUkSOSam5mIkopoFnx/cmSE+cNcFLGOceulsi+/VL/3
+         TfRDlGZiV6UTtoajtyPbVznXepfvJkFzi9h4HNyVKiqm8PjuL3z7Q9Nm/K3MtF9C3Ade
+         oajF7UNe63rcW/NJ7LWqHLUUFh/8evX8yXw2p5DBZMvECD64TMLKav8HjIrvTrMmhPF0
+         cqms85wZxokTNwujNfhB1+xQxdaagh2t/q0oIoWfsPz9Ttv1DThs9CnG8GWPmIWz/hqC
+         wGBYvnVn4Qj/mdPfXYC8oRkuTpT4HwsWzkfGeykivOMl/mFfjFrFHzeh7FtsegzKeFoC
+         Fs/g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 182.50.145.5 is neither permitted nor denied by best guess record for domain of kaiwan@kaiwantech.com) smtp.mailfrom=kaiwan@kaiwantech.com
-Received: from sg2plout10-02.prod.sin2.secureserver.net (sg2plout10-02.prod.sin2.secureserver.net. [182.50.145.5])
-        by mx.google.com with ESMTPS id g1si1300579pfi.249.2019.06.03.23.01.48
+       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay5-d.mail.gandi.net (relay5-d.mail.gandi.net. [217.70.183.197])
+        by mx.google.com with ESMTPS id 39si6401214edr.449.2019.06.03.23.20.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jun 2019 23:01:48 -0700 (PDT)
-Received-SPF: neutral (google.com: 182.50.145.5 is neither permitted nor denied by best guess record for domain of kaiwan@kaiwantech.com) client-ip=182.50.145.5;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 03 Jun 2019 23:20:45 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.197;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 182.50.145.5 is neither permitted nor denied by best guess record for domain of kaiwan@kaiwantech.com) smtp.mailfrom=kaiwan@kaiwantech.com
-Received: from mail-qk1-f171.google.com ([209.85.222.171])
-	by :SMTPAUTH: with ESMTPSA
-	id Y2VzhZHJDitkDY2W2hhnfc; Mon, 03 Jun 2019 23:01:47 -0700
-Received: by mail-qk1-f171.google.com with SMTP id d15so2081326qkl.4
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 23:01:46 -0700 (PDT)
-X-Received: by 2002:a37:7786:: with SMTP id s128mr25455055qkc.63.1559628103055;
- Mon, 03 Jun 2019 23:01:43 -0700 (PDT)
+       spf=neutral (google.com: 217.70.183.197 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 79.86.19.127
+Received: from [192.168.0.12] (127.19.86.79.rev.sfr.net [79.86.19.127])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay5-d.mail.gandi.net (Postfix) with ESMTPSA id 49FAD1C0009;
+	Tue,  4 Jun 2019 06:20:38 +0000 (UTC)
+Subject: Re: [PATCH v4 05/14] arm64, mm: Make randomization selected by
+ generic topdown mmap layout
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Albert Ou <aou@eecs.berkeley.edu>, Kees Cook <keescook@chromium.org>,
+ James Hogan <jhogan@kernel.org>, Palmer Dabbelt <palmer@sifive.com>,
+ Will Deacon <will.deacon@arm.com>, Russell King <linux@armlinux.org.uk>,
+ Ralf Baechle <ralf@linux-mips.org>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, Paul Burton <paul.burton@mips.com>,
+ linux-riscv@lists.infradead.org, Alexander Viro <viro@zeniv.linux.org.uk>,
+ linux-fsdevel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
+ linux-mips@vger.kernel.org, Christoph Hellwig <hch@lst.de>,
+ linux-arm-kernel@lists.infradead.org, Luis Chamberlain <mcgrof@kernel.org>
+References: <20190526134746.9315-1-alex@ghiti.fr>
+ <20190526134746.9315-6-alex@ghiti.fr>
+ <20190603174001.GL63283@arrakis.emea.arm.com>
+From: Alex Ghiti <alex@ghiti.fr>
+Message-ID: <e8dab94d-679e-8898-033e-3b5dbf0cc044@ghiti.fr>
+Date: Tue, 4 Jun 2019 02:20:38 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
 MIME-Version: 1.0
-References: <20190529123812.43089-1-glider@google.com> <20190529123812.43089-3-glider@google.com>
- <20190531181832.e7c3888870ce9e50db9f69e6@linux-foundation.org>
- <CAG_fn=XBq-ipvZng3hEiGwyQH2rRNFbN_Cj0r+5VoJqou0vovA@mail.gmail.com> <201906032010.8E630B7@keescook>
-In-Reply-To: <201906032010.8E630B7@keescook>
-From: Kaiwan N Billimoria <kaiwan@kaiwantech.com>
-Date: Tue, 4 Jun 2019 11:31:26 +0530
-X-Gmail-Original-Message-ID: <CAPDLWs-JqUx+_sDtsER=keDu9o2NKYQ3mvZVXLY8deXOMZoH=g@mail.gmail.com>
-Message-ID: <CAPDLWs-JqUx+_sDtsER=keDu9o2NKYQ3mvZVXLY8deXOMZoH=g@mail.gmail.com>
-Subject: Re: [PATCH v5 2/3] mm: init: report memory auto-initialization
- features at boot time
-To: Kees Cook <keescook@chromium.org>
-Cc: Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Christoph Lameter <cl@linux.com>, Dmitry Vyukov <dvyukov@google.com>, James Morris <jmorris@namei.org>, 
-	Jann Horn <jannh@google.com>, Kostya Serebryany <kcc@google.com>, Laura Abbott <labbott@redhat.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, 
-	Matthew Wilcox <willy@infradead.org>, Nick Desaulniers <ndesaulniers@google.com>, 
-	Randy Dunlap <rdunlap@infradead.org>, Sandeep Patil <sspatil@android.com>, 
-	"Serge E. Hallyn" <serge@hallyn.com>, Souptick Joarder <jrdr.linux@gmail.com>, Marco Elver <elver@google.com>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>, 
-	Linux Memory Management List <linux-mm@kvack.org>, 
-	linux-security-module <linux-security-module@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-X-CMAE-Envelope: MS4wfKuwuYVUPi1IRrogxfgSztB3pc9BnAIzWlK+L+hi0J88PuKrUf46Y0iKrl9TviHNkHPCXp8b7VDi9WJ3Hkpaz0NE0IfAd1MNDDB/8x2kIfihGUJvV9XR
- 44hvgIhDlqgpZUFXKTyyoeEtXb6XWx2BF3PVM66q7COExRrFMNPL+Dv5iVmWbcC4d9RYsZZCXyfjgQ==
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <20190603174001.GL63283@arrakis.emea.arm.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: sv-FI
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000004, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 4, 2019 at 8:44 AM Kees Cook <keescook@chromium.org> wrote:
+On 6/3/19 1:40 PM, Catalin Marinas wrote:
+> On Sun, May 26, 2019 at 09:47:37AM -0400, Alexandre Ghiti wrote:
+>> This commits selects ARCH_HAS_ELF_RANDOMIZE when an arch uses the generic
+>> topdown mmap layout functions so that this security feature is on by
+>> default.
+>> Note that this commit also removes the possibility for arm64 to have elf
+>> randomization and no MMU: without MMU, the security added by randomization
+>> is worth nothing.
+> Not planning on this anytime soon ;).
+
+
+Great :) Thanks for your time,
+
+Alex
+
+
 >
-> On Mon, Jun 03, 2019 at 11:24:49AM +0200, Alexander Potapenko wrote:
-> > On Sat, Jun 1, 2019 at 3:18 AM Andrew Morton <akpm@linux-foundation.org> wrote:
-> > >
-> > > On Wed, 29 May 2019 14:38:11 +0200 Alexander Potapenko <glider@google.com> wrote:
-> > >
-> > > > Print the currently enabled stack and heap initialization modes.
-> > > >
-> > > > The possible options for stack are:
-> > > >  - "all" for CONFIG_INIT_STACK_ALL;
-> > > >  - "byref_all" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL;
-> > > >  - "byref" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF;
-> > > >  - "__user" for CONFIG_GCC_PLUGIN_STRUCTLEAK_USER;
-> > > >  - "off" otherwise.
-> > > >
-> > > > Depending on the values of init_on_alloc and init_on_free boottime
-> > > > options we also report "heap alloc" and "heap free" as "on"/"off".
-> > >
-> > > Why?
-> > >
-> > > Please fully describe the benefit to users so that others can judge the
-> > > desirability of the patch.  And so they can review it effectively, etc.
-> > I'm going to update the description with the following passage:
-> >
-> >     Print the currently enabled stack and heap initialization modes.
-> >
-> >     Stack initialization is enabled by a config flag, while heap
-> >     initialization is configured at boot time with defaults being set
-> >     in the config. It's more convenient for the user to have all information
-> >     about these hardening measures in one place.
-> >
-> > Does this make sense?
-> > > Always!
-> > >
-> > > > In the init_on_free mode initializing pages at boot time may take some
-> > > > time, so print a notice about that as well.
-> > >
-> > > How much time?
-> > I've seen pauses up to 1 second, not actually sure they're worth a
-> > separate line in the log.
-> > Kees, how long were the delays in your case?
+> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 >
-> I didn't measure it, but I think it was something like 0.5 second per GB.
-> I noticed because normally boot flashes by. With init_on_free it pauses
-> for no apparent reason, which is why I suggested the note. (I mean *I*
-> knew why it was pausing, but it might surprise someone who sets
-> init_on_free=1 without really thinking about what's about to happen at
-> boot.)
-
-(Pardon the gmail client)
-How about:
-- if (want_init_on_free())
--               pr_info("Clearing system memory may take some time...\n");
-+  if (want_init_on_free())
-+              pr_info("meminit: clearing system memory may take some
-time...\n");
-
-or even
-
-+ if (want_init_on_free())
-+                pr_info("meminit (init_on_free == 1): clearing system
-memory may take some time...\n");
-
-or some combo thereof?
-
---
-Kaiwan
->
-> --
-> Kees Cook
->
+> _______________________________________________
+> linux-riscv mailing list
+> linux-riscv@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-riscv
 
