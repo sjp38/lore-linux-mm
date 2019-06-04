@@ -7,82 +7,82 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90BC4C04AB5
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 01:58:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 20835C04AB5
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 01:58:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5109826400
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 01:58:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5109826400
+	by mail.kernel.org (Postfix) with ESMTP id D727626341
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 01:58:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D727626341
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DD7A56B0269; Mon,  3 Jun 2019 21:58:34 -0400 (EDT)
+	id 8315F6B026A; Mon,  3 Jun 2019 21:58:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DAD186B026A; Mon,  3 Jun 2019 21:58:34 -0400 (EDT)
+	id 7E2026B026B; Mon,  3 Jun 2019 21:58:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C9D406B026B; Mon,  3 Jun 2019 21:58:34 -0400 (EDT)
+	id 6F7AD6B026D; Mon,  3 Jun 2019 21:58:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 913F86B0269
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 21:58:34 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id m12so12960086pls.10
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 18:58:34 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 39ED86B026A
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 21:58:43 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id d7so11278532pgc.8
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 18:58:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=ktGf/cQzKJ4MjI4oBxcYqq/43d2V0RTD+hrirgwIQ4Y=;
-        b=uIQlLTqF8Mf70IM5lxHmeJ+80cCiJGuvtoes3NzwiGTBaEPl7IuetbCIWvOs0jovrM
-         SYCJzjHFzHt+Zw5V8LifqkHJvZ0Sw18lX1OOoDoh4gZxKgD32ByG+lKLQswygXrEH4bG
-         PQI+glwnjB9S15v1RZq6Zu4+JEa05UfY62LaWQSp+WPe5kqh/20DBHMWSwDbfGj9RSWV
-         Vs0GY2OtUKJnppC7yOPt1cohM0mgNmfGIkuRo6gLNGLWSTP32l1op6P+5IHP9sUOjuA5
-         rn5EDseeDQJplNVABjTN0460gPVbBrGEihEmTaM5+oJZSzUc9NvgVs5CI+miiBgpAwku
-         DqlA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUIpybFVaZflZZWjnB25rVZqqGjol0El+rQGpB+X+cSofwzsmfW
-	49pIBeeT5FdJZZEQOj7G4Bo8V1z4Kd4nNoZsqWdi9HfkxfXRCYAbDwz/obAZ/0Q2Sf7KgZlTWtA
-	OnXzk70jXTk4MH/+AcegHK7YmmBlYaYyoNbIgTg6ZrWb+FAO4BDkKiYdUvvtlDgkvZQ==
-X-Received: by 2002:aa7:9a8c:: with SMTP id w12mr34891649pfi.187.1559613514267;
-        Mon, 03 Jun 2019 18:58:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy/uJ2pUjfchX6cWl5IqAuYzetD5UvyjvSvLA99BYjDSrHkev51sVpFDBtw5RuUCUsTHwyU
-X-Received: by 2002:aa7:9a8c:: with SMTP id w12mr34891532pfi.187.1559613513022;
-        Mon, 03 Jun 2019 18:58:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559613513; cv=none;
+        bh=on4qaNQS+1if1412TWdtwWGg4zWyVqKU95StefIcbeo=;
+        b=KFpV5UTuzRNtUpo1be2kdQOVzyF01ihxJx2raFeufbEiGzEDACggtD2T2zdHrRRd3z
+         HzProdnn2W7VIhjVC0VWUnX0HcWum/F/7qJoTzLL74AGbVFtZxFw4zSVi2wa42asBszJ
+         kim63e9Pt27ysYFu9vAGkYZFSL85TZDiDgeeQPPAUmbtwqcw2b4sRgTrEcTPQ/W0DkiM
+         9dvpKbbVeZumUEolj+pbQszbtfN/M70rf/2/FzNPmwKQoGKWFYwfqlYS88mzQMpR5aDz
+         t+bcEAmCsNzyaS0+dhzkI0Q7so/5kTjS6vS14bpTncPBRIxA9v8zDJOKtqJFMiKfMRTm
+         5ulQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUYxwZ5Rk3n7jeoeMNlVf3Gt39RFQ2gMdFLOmXtOxXibZ3GB60i
+	utHrx8wjm6Z6rmfY9Y5DOJOLQe9Cpl6wvOvfVBVoZfI3usgzwYAhJuo7aVC2+Me+QH4clLc8dCN
+	+DbPVJ23VLy5DAsfO2Xm1a2mOAmx8xvHUmDHh1tS2ybfn6Fi+5xC2s1z9VYRNDh2FDA==
+X-Received: by 2002:a63:2c4a:: with SMTP id s71mr32682483pgs.343.1559613522922;
+        Mon, 03 Jun 2019 18:58:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyfTQbEomQya2EOWjdBVf52jSc7oQCelAs5rLU3EHSgb9mEdGP/d7KyajFf8/e1v8PbDBCD
+X-Received: by 2002:a63:2c4a:: with SMTP id s71mr32682362pgs.343.1559613521698;
+        Mon, 03 Jun 2019 18:58:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559613521; cv=none;
         d=google.com; s=arc-20160816;
-        b=JEDLvLFgrkbLby4jH75+RhAdc8FeBxbyxN0Htkfd7YiAoDHeFyNuc8ii2sQauSC3t8
-         TpBsS4b3PQ/K++uShE4FrIjplQpGqoTbkpSvzDE71gecBl0EIOLc3gce+PCyerfjnN0m
-         6JlPv0chScSGJGvvLkm9VkM0gJLUDUBsYV58pY4PaGtnEkNy6EWqORlpoU9323hkA4GQ
-         HF5cC3t8JiHylAEeGnaf7FUS4IfwFBcw+oruraco1TBay3CbpQ/2UV7j3Q9MYMcVdNri
-         UFnmaG0W9c2dHNYbPP411gk9EzvVB/l4QyWnOqa+COWJQ7A/4xcYNETwQWM7L6nStgek
-         cKgw==
+        b=gf7mUCzWN/2Ftu8dF+nCMdAJ1VnVAedIK2YnxvqR+P+/EJ3uUvkjyz2IkxgIXpM/TI
+         lJ9/Ra7kliH6zeHhnA6TqQWrKjd7pJ8seKlnMCY1k/GejLPr9xyolaNC+XI38F9wUOyt
+         HLbXNGhRbTW5sjMzKSNVKNT4B6watQOauaYQltqVRryoG/GSBaK33epysakKFrlXVCHm
+         9EG1zzMVHlZaEFXabJR+CHuUbPEDEfCv5qOfvkjyQzmr4Cl46IlKr4Zqmthe0gRKUhL6
+         qjJcYAzlmlOV+yX2IjshfmzXlhpemcly6lVfc8aunWru9RnHTg7lL5ehoeVWPz3F94Kw
+         xusw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=ktGf/cQzKJ4MjI4oBxcYqq/43d2V0RTD+hrirgwIQ4Y=;
-        b=m1lDocjfIPV8aUeHb3DMn+W1HiPt7N38lHwxDLx1u0YOXEwfJlPbPDQgxOVJCLp6qK
-         TH0gvay+qpdXwwzbfLjo4P5zN6L4DxOQZDm9XoeSZun7HtcFnm5xMbXMZBc7ziyW+FAl
-         Ae3P3r17HFSUMDZvkDY7/XSo1YuhEvWizcaGdKdKCLR/T2EDr/Erd9RMSqP0byDPI50k
-         cBKxgM2T9ST7SycP5NwgLrKdyyFn6WwKTf2CaBKesRF48uM5ljDV434DK9wRfMheE5OQ
-         1WECQlMIf8BcZRhfaCAvpV7rAQ4cj0/gk5wKffyX49KrwxJeuOCpwr1OTos7yf4b1Dul
-         wuuw==
+        bh=on4qaNQS+1if1412TWdtwWGg4zWyVqKU95StefIcbeo=;
+        b=0lfB5zfXc6MpLd9UxXBrJu0NpxfoaxtN7KGI/zKvxIAy/Xw3IThjfTiPy2MSxDvvK7
+         ECHOMzDwrlZT+EGTkJA6mXIb/13yhnHd0DdBKWQujA28UYSGBiwxHC06/W+3CYhweyCo
+         oePF2SiJZrkTG21Z9r8uJUTIet1vS3YQY+9FrlVI/8DMkXTi6WM7+HWOxPPjqpSw7R+B
+         dZUEKZRVLvoM1alfIU3yvwnxNc2fwRjGTJjmf2hr85WX7yw7/tCXUxEeEgn91o+niux6
+         X/zDAz+pzZLWKv2nPgsADb+n3cAks3LsHpFtivmSvoBidbmJOXp8TSJOg+QOf8rsSPYZ
+         gngA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
+       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-42.freemail.mail.aliyun.com (out30-42.freemail.mail.aliyun.com. [115.124.30.42])
-        by mx.google.com with ESMTPS id 11si6222623pfx.243.2019.06.03.18.58.32
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id d15si8761544pfn.56.2019.06.03.18.58.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jun 2019 18:58:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.42 as permitted sender) client-ip=115.124.30.42;
+        Mon, 03 Jun 2019 18:58:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joseph.qi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
+       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R441e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=joseph.qi@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TTNnVvj_1559613510;
-Received: from localhost(mailfrom:joseph.qi@linux.alibaba.com fp:SMTPD_---0TTNnVvj_1559613510)
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R181e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=joseph.qi@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TTN908l_1559613506;
+Received: from localhost(mailfrom:joseph.qi@linux.alibaba.com fp:SMTPD_---0TTN908l_1559613506)
           by smtp.aliyun-inc.com(127.0.0.1);
-          Tue, 04 Jun 2019 09:58:30 +0800
+          Tue, 04 Jun 2019 09:58:27 +0800
 From: Joseph Qi <joseph.qi@linux.alibaba.com>
 To: linux-mm@kvack.org,
 	cgroups@vger.kernel.org
@@ -92,9 +92,9 @@ Cc: Johannes Weiner <hannes@cmpxchg.org>,
 	Jiufei Xue <jiufei.xue@linux.alibaba.com>,
 	Caspar Zhang <caspar@linux.alibaba.com>,
 	Joseph Qi <joseph.qi@linux.alibaba.com>
-Subject: [RFC PATCH 2/3] psi: cgroup v1 support
-Date: Tue,  4 Jun 2019 09:57:44 +0800
-Message-Id: <20190604015745.78972-3-joseph.qi@linux.alibaba.com>
+Subject: [RFC PATCH 1/3] psi: make cgroup psi helpers public
+Date: Tue,  4 Jun 2019 09:57:43 +0800
+Message-Id: <20190604015745.78972-2-joseph.qi@linux.alibaba.com>
 X-Mailer: git-send-email 2.19.1.856.g8858448bb
 In-Reply-To: <20190604015745.78972-1-joseph.qi@linux.alibaba.com>
 References: <20190604015745.78972-1-joseph.qi@linux.alibaba.com>
@@ -106,111 +106,125 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Implements pressure stall tracking for cgroup v1.
+Make cgroup psi helpers public for later cgroup v1 support.
 
 Signed-off-by: Joseph Qi <joseph.qi@linux.alibaba.com>
 ---
- kernel/sched/psi.c | 65 +++++++++++++++++++++++++++++++++++++++-------
- 1 file changed, 56 insertions(+), 9 deletions(-)
+ include/linux/cgroup.h | 21 +++++++++++++++++++++
+ kernel/cgroup/cgroup.c | 33 ++++++++++++++++++---------------
+ 2 files changed, 39 insertions(+), 15 deletions(-)
 
-diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
-index 7acc632c3b82..909083c828d5 100644
---- a/kernel/sched/psi.c
-+++ b/kernel/sched/psi.c
-@@ -719,13 +719,30 @@ static u32 psi_group_change(struct psi_group *group, int cpu,
- 	return state_mask;
+diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
+index c0077adeea83..a5adb98490c9 100644
+--- a/include/linux/cgroup.h
++++ b/include/linux/cgroup.h
+@@ -682,6 +682,27 @@ static inline union kernfs_node_id *cgroup_get_kernfs_id(struct cgroup *cgrp)
+ 
+ void cgroup_path_from_kernfs_id(const union kernfs_node_id *id,
+ 					char *buf, size_t buflen);
++
++#ifdef CONFIG_PSI
++int cgroup_io_pressure_show(struct seq_file *seq, void *v);
++int cgroup_memory_pressure_show(struct seq_file *seq, void *v);
++int cgroup_cpu_pressure_show(struct seq_file *seq, void *v);
++
++ssize_t cgroup_io_pressure_write(struct kernfs_open_file *of,
++				 char *buf, size_t nbytes,
++				 loff_t off);
++ssize_t cgroup_memory_pressure_write(struct kernfs_open_file *of,
++				     char *buf, size_t nbytes,
++				     loff_t off);
++ssize_t cgroup_cpu_pressure_write(struct kernfs_open_file *of,
++				  char *buf, size_t nbytes,
++				  loff_t off);
++
++__poll_t cgroup_pressure_poll(struct kernfs_open_file *of,
++			      struct poll_table_struct *pt);
++void cgroup_pressure_release(struct kernfs_open_file *of);
++#endif /* CONFIG_PSI */
++
+ #else /* !CONFIG_CGROUPS */
+ 
+ struct cgroup_subsys_state;
+diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
+index 426a0026225c..cd3207454f8c 100644
+--- a/kernel/cgroup/cgroup.c
++++ b/kernel/cgroup/cgroup.c
+@@ -3550,21 +3550,23 @@ static int cpu_stat_show(struct seq_file *seq, void *v)
  }
  
--static struct psi_group *iterate_groups(struct task_struct *task, void **iter)
-+static struct cgroup *psi_task_cgroup(struct task_struct *task, enum psi_res res)
-+{
-+	switch (res) {
-+	case NR_PSI_RESOURCES:
-+		return task_dfl_cgroup(task);
-+	case PSI_IO:
-+		return task_cgroup(task, io_cgrp_subsys.id);
-+	case PSI_MEM:
-+		return task_cgroup(task, memory_cgrp_subsys.id);
-+	case PSI_CPU:
-+		return task_cgroup(task, cpu_cgrp_subsys.id);
-+	default:  /* won't reach here */
-+		return NULL;
-+	}
-+}
-+
-+static struct psi_group *iterate_groups(struct task_struct *task, void **iter,
-+					enum psi_res res)
+ #ifdef CONFIG_PSI
+-static int cgroup_io_pressure_show(struct seq_file *seq, void *v)
++int cgroup_io_pressure_show(struct seq_file *seq, void *v)
  {
- #ifdef CONFIG_CGROUPS
- 	struct cgroup *cgroup = NULL;
+ 	struct cgroup *cgroup = seq_css(seq)->cgroup;
+ 	struct psi_group *psi = cgroup->id == 1 ? &psi_system : &cgroup->psi;
  
- 	if (!*iter)
--		cgroup = task->cgroups->dfl_cgrp;
-+		cgroup = psi_task_cgroup(task, res);
- 	else if (*iter == &psi_system)
- 		return NULL;
- 	else
-@@ -776,15 +793,45 @@ void psi_task_change(struct task_struct *task, int clear, int set)
- 		     wq_worker_last_func(task) == psi_avgs_work))
- 		wake_clock = false;
+ 	return psi_show(seq, psi, PSI_IO);
+ }
+-static int cgroup_memory_pressure_show(struct seq_file *seq, void *v)
++
++int cgroup_memory_pressure_show(struct seq_file *seq, void *v)
+ {
+ 	struct cgroup *cgroup = seq_css(seq)->cgroup;
+ 	struct psi_group *psi = cgroup->id == 1 ? &psi_system : &cgroup->psi;
  
--	while ((group = iterate_groups(task, &iter))) {
--		u32 state_mask = psi_group_change(group, cpu, clear, set);
-+	if (cgroup_subsys_on_dfl(cpu_cgrp_subsys) ||
-+	    cgroup_subsys_on_dfl(memory_cgrp_subsys) ||
-+	    cgroup_subsys_on_dfl(io_cgrp_subsys)) {
-+		while ((group = iterate_groups(task, &iter, NR_PSI_RESOURCES))) {
-+			u32 state_mask = psi_group_change(group, cpu, clear, set);
- 
--		if (state_mask & group->poll_states)
--			psi_schedule_poll_work(group, 1);
-+			if (state_mask & group->poll_states)
-+				psi_schedule_poll_work(group, 1);
- 
--		if (wake_clock && !delayed_work_pending(&group->avgs_work))
--			schedule_delayed_work(&group->avgs_work, PSI_FREQ);
-+			if (wake_clock && !delayed_work_pending(&group->avgs_work))
-+				schedule_delayed_work(&group->avgs_work, PSI_FREQ);
-+		}
-+	} else {
-+		enum psi_task_count i;
-+		enum psi_res res;
-+		int psi_flags = clear | set;
+ 	return psi_show(seq, psi, PSI_MEM);
+ }
+-static int cgroup_cpu_pressure_show(struct seq_file *seq, void *v)
 +
-+		for (i = NR_IOWAIT; i < NR_PSI_TASK_COUNTS; i++) {
-+			if ((i == NR_IOWAIT) && (psi_flags & TSK_IOWAIT))
-+				res = PSI_IO;
-+			else if ((i == NR_MEMSTALL) && (psi_flags & TSK_MEMSTALL))
-+				res = PSI_MEM;
-+			else if ((i == NR_RUNNING) && (psi_flags & TSK_RUNNING))
-+				res = PSI_CPU;
-+			else
-+				continue;
-+
-+			while ((group = iterate_groups(task, &iter, res))) {
-+				u32 state_mask = psi_group_change(group, cpu, clear, set);
-+
-+				if (state_mask & group->poll_states)
-+					psi_schedule_poll_work(group, 1);
-+
-+				if (wake_clock && !delayed_work_pending(&group->avgs_work))
-+					schedule_delayed_work(&group->avgs_work, PSI_FREQ);
-+			}
-+		}
- 	}
-+
++int cgroup_cpu_pressure_show(struct seq_file *seq, void *v)
+ {
+ 	struct cgroup *cgroup = seq_css(seq)->cgroup;
+ 	struct psi_group *psi = cgroup->id == 1 ? &psi_system : &cgroup->psi;
+@@ -3598,34 +3600,35 @@ static ssize_t cgroup_pressure_write(struct kernfs_open_file *of, char *buf,
+ 	return nbytes;
  }
  
- void psi_memstall_tick(struct task_struct *task, int cpu)
-@@ -792,7 +839,7 @@ void psi_memstall_tick(struct task_struct *task, int cpu)
- 	struct psi_group *group;
- 	void *iter = NULL;
+-static ssize_t cgroup_io_pressure_write(struct kernfs_open_file *of,
+-					  char *buf, size_t nbytes,
+-					  loff_t off)
++ssize_t cgroup_io_pressure_write(struct kernfs_open_file *of,
++				 char *buf, size_t nbytes,
++				 loff_t off)
+ {
+ 	return cgroup_pressure_write(of, buf, nbytes, PSI_IO);
+ }
  
--	while ((group = iterate_groups(task, &iter))) {
-+	while ((group = iterate_groups(task, &iter, PSI_MEM))) {
- 		struct psi_group_cpu *groupc;
+-static ssize_t cgroup_memory_pressure_write(struct kernfs_open_file *of,
+-					  char *buf, size_t nbytes,
+-					  loff_t off)
++ssize_t cgroup_memory_pressure_write(struct kernfs_open_file *of,
++				     char *buf, size_t nbytes,
++				     loff_t off)
+ {
+ 	return cgroup_pressure_write(of, buf, nbytes, PSI_MEM);
+ }
  
- 		groupc = per_cpu_ptr(group->pcpu, cpu);
+-static ssize_t cgroup_cpu_pressure_write(struct kernfs_open_file *of,
+-					  char *buf, size_t nbytes,
+-					  loff_t off)
++ssize_t cgroup_cpu_pressure_write(struct kernfs_open_file *of,
++				  char *buf, size_t nbytes,
++				  loff_t off)
+ {
+ 	return cgroup_pressure_write(of, buf, nbytes, PSI_CPU);
+ }
+ 
+-static __poll_t cgroup_pressure_poll(struct kernfs_open_file *of,
+-					  poll_table *pt)
++struct poll_table_struct;
++__poll_t cgroup_pressure_poll(struct kernfs_open_file *of,
++			      struct poll_table_struct *pt)
+ {
+ 	return psi_trigger_poll(&of->priv, of->file, pt);
+ }
+ 
+-static void cgroup_pressure_release(struct kernfs_open_file *of)
++void cgroup_pressure_release(struct kernfs_open_file *of)
+ {
+ 	psi_trigger_replace(&of->priv, NULL);
+ }
 -- 
 2.19.1.856.g8858448bb
 
