@@ -2,85 +2,87 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 311EFC28CC6
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 01:58:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90BC4C04AB5
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 01:58:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 03048263F6
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 01:58:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03048263F6
+	by mail.kernel.org (Postfix) with ESMTP id 5109826400
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 01:58:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5109826400
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 809A56B0266; Mon,  3 Jun 2019 21:58:28 -0400 (EDT)
+	id DD7A56B0269; Mon,  3 Jun 2019 21:58:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BB426B0269; Mon,  3 Jun 2019 21:58:28 -0400 (EDT)
+	id DAD186B026A; Mon,  3 Jun 2019 21:58:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6A8256B026A; Mon,  3 Jun 2019 21:58:28 -0400 (EDT)
+	id C9D406B026B; Mon,  3 Jun 2019 21:58:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 50AEA6B0266
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 21:58:28 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id s83so15304422iod.13
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 18:58:28 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 913F86B0269
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 21:58:34 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id m12so12960086pls.10
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 18:58:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=6Wo9ulrqd7q+3K7sRh3lbOdyz9EMsKshF5q7A5MI86E=;
-        b=a8bTWteAYvCizWuiiJuv3GW04M4HGEgA14UQSEZlnTo2x62Vsc1pNKpDsqdSkibpD9
-         th9s/D9SseHMP/+KxinYwtQno1Nqjkx7WC3fthO2ArZjPj4BA3GaQOgaLvLm352xXeUd
-         4ZTUA3GJapOGg2qcdysc6javUEpwXBlD/7mrlyJKSHh0cFzEHMQ7E2rcQo3RTnJZYJFA
-         6K2AJXCsOTnKNMzL6/fUYkw0gjxa0zE5eJ/rlxOk1Hu8hMHuAyEx1kKTh678CtZeA9RL
-         u/6P0RsdFMEwUKyeyH2aNG/FJcticngz6LieurYdKMBJ2z7tbnxz35L1yFMj9jEE1k83
-         pEKA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAVbmxD0bqL6ryHW6inUIOsW8Usxa5HxKkyBf3nAOGVXKcTNEiXA
-	7qvA2h8DUCM3hZ1EFcwgPWNfMFAjOTdQtSw16KHRWTEmABm6tplNpDpH9/C1rNeCdQ46iRIpknE
-	nLyaJWQdvV5pYP+Wj7YePH9SrK6Sj1QxVxQqs4qRfls7rjFm12UBdRWBVGuyvXl8AGA==
-X-Received: by 2002:a5d:9d90:: with SMTP id 16mr1153617ion.132.1559613508102;
-        Mon, 03 Jun 2019 18:58:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyyp3HKsF8d4oE0nEZA/6ebASujIpvi4NAwRud5pDpG0hwdcaa2se6VRholxnWYukLDFvZq
-X-Received: by 2002:a5d:9d90:: with SMTP id 16mr1153590ion.132.1559613507391;
-        Mon, 03 Jun 2019 18:58:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559613507; cv=none;
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=ktGf/cQzKJ4MjI4oBxcYqq/43d2V0RTD+hrirgwIQ4Y=;
+        b=uIQlLTqF8Mf70IM5lxHmeJ+80cCiJGuvtoes3NzwiGTBaEPl7IuetbCIWvOs0jovrM
+         SYCJzjHFzHt+Zw5V8LifqkHJvZ0Sw18lX1OOoDoh4gZxKgD32ByG+lKLQswygXrEH4bG
+         PQI+glwnjB9S15v1RZq6Zu4+JEa05UfY62LaWQSp+WPe5kqh/20DBHMWSwDbfGj9RSWV
+         Vs0GY2OtUKJnppC7yOPt1cohM0mgNmfGIkuRo6gLNGLWSTP32l1op6P+5IHP9sUOjuA5
+         rn5EDseeDQJplNVABjTN0460gPVbBrGEihEmTaM5+oJZSzUc9NvgVs5CI+miiBgpAwku
+         DqlA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUIpybFVaZflZZWjnB25rVZqqGjol0El+rQGpB+X+cSofwzsmfW
+	49pIBeeT5FdJZZEQOj7G4Bo8V1z4Kd4nNoZsqWdi9HfkxfXRCYAbDwz/obAZ/0Q2Sf7KgZlTWtA
+	OnXzk70jXTk4MH/+AcegHK7YmmBlYaYyoNbIgTg6ZrWb+FAO4BDkKiYdUvvtlDgkvZQ==
+X-Received: by 2002:aa7:9a8c:: with SMTP id w12mr34891649pfi.187.1559613514267;
+        Mon, 03 Jun 2019 18:58:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy/uJ2pUjfchX6cWl5IqAuYzetD5UvyjvSvLA99BYjDSrHkev51sVpFDBtw5RuUCUsTHwyU
+X-Received: by 2002:aa7:9a8c:: with SMTP id w12mr34891532pfi.187.1559613513022;
+        Mon, 03 Jun 2019 18:58:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559613513; cv=none;
         d=google.com; s=arc-20160816;
-        b=pWMG5T5Ake8OR1ZeA3WPDVjhusTUYRRzAx7GQGNe/d6B5kGMQyD/SKvn+JLpTHD22s
-         rPM5wwFxF7ThN6lt0p4FKqS2Tuig1xG3TMaxrEKanAg/1PgFsTa/ECJJsgKBkLAubkJ0
-         +RQ7rf6YvkFZtqIUf6qalNj8n6ApCqX2esWX+NjxFb/KofUrN1P55cAWEwgrDt/mbDGw
-         SkhBY8P4xQyCx6V85UGUWiJFxTUXYUn5RESu+XBfgb0XHjhUNpeOF2iP252dPIsD0MeV
-         6sD4RhxP1G/ZyikXgg4/2xR2kg3vv4Oz+zu1JRFNXFKh/sdnTVDEV/8sQv6Yk9ckMtCp
-         wN9w==
+        b=JEDLvLFgrkbLby4jH75+RhAdc8FeBxbyxN0Htkfd7YiAoDHeFyNuc8ii2sQauSC3t8
+         TpBsS4b3PQ/K++uShE4FrIjplQpGqoTbkpSvzDE71gecBl0EIOLc3gce+PCyerfjnN0m
+         6JlPv0chScSGJGvvLkm9VkM0gJLUDUBsYV58pY4PaGtnEkNy6EWqORlpoU9323hkA4GQ
+         HF5cC3t8JiHylAEeGnaf7FUS4IfwFBcw+oruraco1TBay3CbpQ/2UV7j3Q9MYMcVdNri
+         UFnmaG0W9c2dHNYbPP411gk9EzvVB/l4QyWnOqa+COWJQ7A/4xcYNETwQWM7L6nStgek
+         cKgw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=6Wo9ulrqd7q+3K7sRh3lbOdyz9EMsKshF5q7A5MI86E=;
-        b=oj2AtDVx668wAwVTVzbZQZKU4ld2n+3uJf8ANw6md5b04K4qEeIxd6ebWpc5FdSQ9Z
-         LIdNyW3tyuvy+Co2l7Q+ekE1qw1tNHNTgXKlu16unq1EaHVwum49TlqOOFnNdWvHpkhb
-         cSxwx0nN7Q0dJiBaMQCIhvFkUvtqueSDqLyEa4y0EvTV6VANwZ+1BdDg7jezQIQrQE0y
-         D6HSheeja6gQ7h3fuJm/8lp2NITEhzIGvRlILF16w+CFg9CTSnI4/zCY8sXa0lXTbo+9
-         x02tZPQbUZpZsuT/u0LMk3LfX8LmpND1ZykPAVK8Wp5M1K2CiybK1a7KVd0Aqn8FU5u9
-         TNgg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=ktGf/cQzKJ4MjI4oBxcYqq/43d2V0RTD+hrirgwIQ4Y=;
+        b=m1lDocjfIPV8aUeHb3DMn+W1HiPt7N38lHwxDLx1u0YOXEwfJlPbPDQgxOVJCLp6qK
+         TH0gvay+qpdXwwzbfLjo4P5zN6L4DxOQZDm9XoeSZun7HtcFnm5xMbXMZBc7ziyW+FAl
+         Ae3P3r17HFSUMDZvkDY7/XSo1YuhEvWizcaGdKdKCLR/T2EDr/Erd9RMSqP0byDPI50k
+         cBKxgM2T9ST7SycP5NwgLrKdyyFn6WwKTf2CaBKesRF48uM5ljDV434DK9wRfMheE5OQ
+         1WECQlMIf8BcZRhfaCAvpV7rAQ4cj0/gk5wKffyX49KrwxJeuOCpwr1OTos7yf4b1Dul
+         wuuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
+       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-54.freemail.mail.aliyun.com (out30-54.freemail.mail.aliyun.com. [115.124.30.54])
-        by mx.google.com with ESMTPS id l7si10034233iof.39.2019.06.03.18.58.26
+Received: from out30-42.freemail.mail.aliyun.com (out30-42.freemail.mail.aliyun.com. [115.124.30.42])
+        by mx.google.com with ESMTPS id 11si6222623pfx.243.2019.06.03.18.58.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 03 Jun 2019 18:58:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.54 as permitted sender) client-ip=115.124.30.54;
+        Mon, 03 Jun 2019 18:58:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.42 as permitted sender) client-ip=115.124.30.42;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
+       spf=pass (google.com: domain of joseph.qi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=joseph.qi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=joseph.qi@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TTN906a_1559613491;
-Received: from localhost(mailfrom:joseph.qi@linux.alibaba.com fp:SMTPD_---0TTN906a_1559613491)
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R441e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04423;MF=joseph.qi@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TTNnVvj_1559613510;
+Received: from localhost(mailfrom:joseph.qi@linux.alibaba.com fp:SMTPD_---0TTNnVvj_1559613510)
           by smtp.aliyun-inc.com(127.0.0.1);
-          Tue, 04 Jun 2019 09:58:11 +0800
+          Tue, 04 Jun 2019 09:58:30 +0800
 From: Joseph Qi <joseph.qi@linux.alibaba.com>
 To: linux-mm@kvack.org,
 	cgroups@vger.kernel.org
@@ -90,10 +92,12 @@ Cc: Johannes Weiner <hannes@cmpxchg.org>,
 	Jiufei Xue <jiufei.xue@linux.alibaba.com>,
 	Caspar Zhang <caspar@linux.alibaba.com>,
 	Joseph Qi <joseph.qi@linux.alibaba.com>
-Subject: [RFC PATCH 0/3] psi: support cgroup v1
-Date: Tue,  4 Jun 2019 09:57:42 +0800
-Message-Id: <20190604015745.78972-1-joseph.qi@linux.alibaba.com>
+Subject: [RFC PATCH 2/3] psi: cgroup v1 support
+Date: Tue,  4 Jun 2019 09:57:44 +0800
+Message-Id: <20190604015745.78972-3-joseph.qi@linux.alibaba.com>
 X-Mailer: git-send-email 2.19.1.856.g8858448bb
+In-Reply-To: <20190604015745.78972-1-joseph.qi@linux.alibaba.com>
+References: <20190604015745.78972-1-joseph.qi@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -102,23 +106,111 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently psi supports system-wide as well as cgroup2. Since most use
-cases are still on cgroup v1, this patchset is trying to do such
-support.
+Implements pressure stall tracking for cgroup v1.
 
-Joseph Qi (3):
-  psi: make cgroup psi helpers public
-  psi: cgroup v1 support
-  psi: add cgroup v1 interfaces
+Signed-off-by: Joseph Qi <joseph.qi@linux.alibaba.com>
+---
+ kernel/sched/psi.c | 65 +++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 56 insertions(+), 9 deletions(-)
 
- block/blk-throttle.c   | 10 +++++++
- include/linux/cgroup.h | 21 ++++++++++++++
- kernel/cgroup/cgroup.c | 33 +++++++++++----------
- kernel/sched/cpuacct.c | 10 +++++++
- kernel/sched/psi.c     | 65 ++++++++++++++++++++++++++++++++++++------
- mm/memcontrol.c        | 10 +++++++
- 6 files changed, 125 insertions(+), 24 deletions(-)
-
+diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
+index 7acc632c3b82..909083c828d5 100644
+--- a/kernel/sched/psi.c
++++ b/kernel/sched/psi.c
+@@ -719,13 +719,30 @@ static u32 psi_group_change(struct psi_group *group, int cpu,
+ 	return state_mask;
+ }
+ 
+-static struct psi_group *iterate_groups(struct task_struct *task, void **iter)
++static struct cgroup *psi_task_cgroup(struct task_struct *task, enum psi_res res)
++{
++	switch (res) {
++	case NR_PSI_RESOURCES:
++		return task_dfl_cgroup(task);
++	case PSI_IO:
++		return task_cgroup(task, io_cgrp_subsys.id);
++	case PSI_MEM:
++		return task_cgroup(task, memory_cgrp_subsys.id);
++	case PSI_CPU:
++		return task_cgroup(task, cpu_cgrp_subsys.id);
++	default:  /* won't reach here */
++		return NULL;
++	}
++}
++
++static struct psi_group *iterate_groups(struct task_struct *task, void **iter,
++					enum psi_res res)
+ {
+ #ifdef CONFIG_CGROUPS
+ 	struct cgroup *cgroup = NULL;
+ 
+ 	if (!*iter)
+-		cgroup = task->cgroups->dfl_cgrp;
++		cgroup = psi_task_cgroup(task, res);
+ 	else if (*iter == &psi_system)
+ 		return NULL;
+ 	else
+@@ -776,15 +793,45 @@ void psi_task_change(struct task_struct *task, int clear, int set)
+ 		     wq_worker_last_func(task) == psi_avgs_work))
+ 		wake_clock = false;
+ 
+-	while ((group = iterate_groups(task, &iter))) {
+-		u32 state_mask = psi_group_change(group, cpu, clear, set);
++	if (cgroup_subsys_on_dfl(cpu_cgrp_subsys) ||
++	    cgroup_subsys_on_dfl(memory_cgrp_subsys) ||
++	    cgroup_subsys_on_dfl(io_cgrp_subsys)) {
++		while ((group = iterate_groups(task, &iter, NR_PSI_RESOURCES))) {
++			u32 state_mask = psi_group_change(group, cpu, clear, set);
+ 
+-		if (state_mask & group->poll_states)
+-			psi_schedule_poll_work(group, 1);
++			if (state_mask & group->poll_states)
++				psi_schedule_poll_work(group, 1);
+ 
+-		if (wake_clock && !delayed_work_pending(&group->avgs_work))
+-			schedule_delayed_work(&group->avgs_work, PSI_FREQ);
++			if (wake_clock && !delayed_work_pending(&group->avgs_work))
++				schedule_delayed_work(&group->avgs_work, PSI_FREQ);
++		}
++	} else {
++		enum psi_task_count i;
++		enum psi_res res;
++		int psi_flags = clear | set;
++
++		for (i = NR_IOWAIT; i < NR_PSI_TASK_COUNTS; i++) {
++			if ((i == NR_IOWAIT) && (psi_flags & TSK_IOWAIT))
++				res = PSI_IO;
++			else if ((i == NR_MEMSTALL) && (psi_flags & TSK_MEMSTALL))
++				res = PSI_MEM;
++			else if ((i == NR_RUNNING) && (psi_flags & TSK_RUNNING))
++				res = PSI_CPU;
++			else
++				continue;
++
++			while ((group = iterate_groups(task, &iter, res))) {
++				u32 state_mask = psi_group_change(group, cpu, clear, set);
++
++				if (state_mask & group->poll_states)
++					psi_schedule_poll_work(group, 1);
++
++				if (wake_clock && !delayed_work_pending(&group->avgs_work))
++					schedule_delayed_work(&group->avgs_work, PSI_FREQ);
++			}
++		}
+ 	}
++
+ }
+ 
+ void psi_memstall_tick(struct task_struct *task, int cpu)
+@@ -792,7 +839,7 @@ void psi_memstall_tick(struct task_struct *task, int cpu)
+ 	struct psi_group *group;
+ 	void *iter = NULL;
+ 
+-	while ((group = iterate_groups(task, &iter))) {
++	while ((group = iterate_groups(task, &iter, PSI_MEM))) {
+ 		struct psi_group_cpu *groupc;
+ 
+ 		groupc = per_cpu_ptr(group->pcpu, cpu);
 -- 
 2.19.1.856.g8858448bb
 
