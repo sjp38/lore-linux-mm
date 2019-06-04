@@ -4,99 +4,136 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A5CE5C282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:30:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7400FC282CE
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:54:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 752272498E
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:30:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 752272498E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 33DCD23426
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:54:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33DCD23426
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 057ED6B026C; Tue,  4 Jun 2019 10:30:28 -0400 (EDT)
+	id 9BAC36B0010; Tue,  4 Jun 2019 10:54:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 02F8D6B026E; Tue,  4 Jun 2019 10:30:27 -0400 (EDT)
+	id 96C486B0269; Tue,  4 Jun 2019 10:54:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E88E46B0270; Tue,  4 Jun 2019 10:30:27 -0400 (EDT)
+	id 80D0F6B026B; Tue,  4 Jun 2019 10:54:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CB496B026C
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 10:30:27 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id d27so696737eda.9
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 07:30:27 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 65BEB6B0010
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 10:54:38 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id g203so19727030ywe.21
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 07:54:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=4wAAPBQ4+NpeEXU4lSsSOtb7EcBJAM7FyxCTvNmq6gs=;
-        b=dfL+uBSgpa17FxCl21ykQRAcDU3HL1wMwzG/U/6QTQrKILGjw6ZRClSci/U1q6sk6m
-         lsmGLJ7AeqgWrUw+sKSvUSWbgq0cN4hwv5/aOs2IXj3ft9wEZcWBglMqlHFnOSzzKhsY
-         hrflNnMvAcxmcaZjVcAeo1aj2qSPbMrE4fgTkcR7hBPMc6pKUO9drnH5G9iVFbgpQvog
-         Zp2CPBpNb1yPUnLcI5H6FXGNHGhAntOzOQWrSzTi7mK9dlry3ln63iSV9zOmZBju/i8O
-         wnOxcaRsnJROcyzg2C0pfRyhMxJ9LWG/i9rK1RKX8HNIgyC9AUemeIWOdPqmqgvZEBtW
-         EJqg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAV2UtaxRg00TqjrjX5zCoSuM2PA89QIFiaOlD1YHKTXN5gAg5MT
-	2/gMoakCHolD/tmO1bXFSyKcN0qpiWd9UmDZSOZYstYZ67ofv7py1bqRDKcr/RUZovajhrEcY03
-	i9SzEglx50Ri9EqrbHO2LxHBW7k+YigeT9YnMoRpPJNNLr5mZjWuH1fx38XFBzI1ZkQ==
-X-Received: by 2002:a17:906:d549:: with SMTP id gk9mr14023107ejb.268.1559658627213;
-        Tue, 04 Jun 2019 07:30:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxlMejgtc7ngyw7AA/tX4MJw5O6ADmBb8/M80NxWkQ6BPa2OcmhTleIRo2PlcJtmMWoWb/L
-X-Received: by 2002:a17:906:d549:: with SMTP id gk9mr14023002ejb.268.1559658626314;
-        Tue, 04 Jun 2019 07:30:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559658626; cv=none;
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=xDbVH/hVzZYVarLEZ+hSN1ZKRVgwKyT8PP8peuYVMfI=;
+        b=tOqP6WWso1tDBnJDrcKpJTRP0y8+iyFHRMZmP5DjG/CRhDI0TqWhbNlANfvDBh+565
+         Ece2fdbl8v2kz98/M46KMsoWmdiMhrW2ED3xCphOQbUPVq8Xmr9qSvfmpXsjCTsZYZG4
+         WoTt956yBOMF5tHiT9FUDCglhuEK7hIE6w/MXH7lT5u9725Ahz40ebL/xWUMUh8OjBbG
+         6rhMu7UlrI2tjFMngdzKpJF8iJ299aT+WNMrZHc6QkM6bUVLIILQzcL73qEG25fiJ6iZ
+         Qa3Uf29BhxeGGGA6vuJPdUUou1fyaS4WHT+aw5THVR6m4O4eyWQP8WTNi8nnyunGWzJP
+         UPsg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVNDloSfxTIoJO59y4+Cj/ZeFCDSWimSGH5jbbnk1qQokcZsgaD
+	rti4Fp2a6mQ1nrHBD0yvaxtjN/xw0P9gH9BuHn6AGESNtIkwbMF1UZ6w+dxXVKZixiBu8veT3lv
+	tI+wdAdSqoJCZzmPTRzqN5M1YVNPyFQ99MbIwu5mQrzArI9+0zjR7qdJcBKzaJ9+gNw==
+X-Received: by 2002:a25:dac8:: with SMTP id n191mr15244261ybf.425.1559660073964;
+        Tue, 04 Jun 2019 07:54:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz3+9A1IvL4aXenwIsKZmnLR07B4A0oSPd9Ey5PmM1mwW7W69nkSTLS7Q8Xn9eBlS5PVXIw
+X-Received: by 2002:a25:dac8:: with SMTP id n191mr15244233ybf.425.1559660073245;
+        Tue, 04 Jun 2019 07:54:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559660073; cv=none;
         d=google.com; s=arc-20160816;
-        b=LpUlrvelkhGZVhY3lQQNACNAY8FRYyH5eMgYzVCWjBpEP9cJ/xxR0GWixmd/+o+EZG
-         ZHnmMTP1BlFmWa1TQwIBt4eeXbYG5fiEl0eJPuwsYREOWZKxo/D4jJ+QRpZD1R+eVlK+
-         hlS5kclg5XbVfgWXoejwfnfkuvaUTfkv5Msm5L6QS1zgrJlzmMvloZH2+1eKAyiB4xJt
-         WKSvcyCCs3FuVBZmA0s0dwGM+PjBPJMSwCbJCafUyScwtaDOFXMOEy8wtqhrQlCXP+/j
-         0dgT5/uPLXjVUhf054aaHusNfBO29NZOp75b6qL//3yVMZkCLQe83QZlHxspgk01yFJn
-         Z/sg==
+        b=o+qlmor9+jA/G87pX9L7fvwgLfdR3rYFX6hbHY729QkdUOA2/4eqGhfSFckQ11YN58
+         +VvaV0Id/BM6WCBq04180cFcSaC4UPPzehEXrxPL/jFlzfkrpV3PA2o3muJIvSjn5B3U
+         lW0JUpGai1xvqLrz/lUh2DSySPipEfkrsS9V2iX37YtukNArDPXaMD3snHarXInv0pOz
+         2Aztr+yThU7UzNgzKZbpOQ461e330WG9yIEZ8Ww7MrXHSeOku4fQTNh6c8bqgJ5ri6g/
+         +aV8ksdOJi5oxizfRGvcW3t5kgUcnnIzBMDk+XRTZXwj378HPo9D5mgO64WFwSVI3dp4
+         XPZQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=4wAAPBQ4+NpeEXU4lSsSOtb7EcBJAM7FyxCTvNmq6gs=;
-        b=Ql+f3bRTfANFCPmhKxJxsw5tGBvP7o6R6di0noKjWXkaUyPQXdyA8pR5cjm5s8ZYWk
-         x1A4hxM1of+qvjohW/V5YjoRCBeRUONYOCup9M2XyWg39s89H6bTkZZWIu0ZSnnoDwQY
-         F1XMPjtnyh5XpWs84XJgHxqEDiSdObmc3TsYEdqObKI6STKvidXTfuBK/UrWskSmpNxO
-         3bc7A1dbkBG9bogfUhKZn3HPfyxuHABS9GPSTbdVMw8JU5sXDHLFlhJhWdEzWQbvPjsK
-         D2cDYGSPZtt8B8ZV5JfxgkgdkR2IPQ7UyiqQeFxZcR4oZ+9BIn3qL26xP8D6XY37+PZF
-         NWQQ==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=xDbVH/hVzZYVarLEZ+hSN1ZKRVgwKyT8PP8peuYVMfI=;
+        b=IsvsIZafOPjwH17MYmZsnEOfD5m1raAgDuEtVkqdgUWfVwN21LgmjI/IobuZ0Se0bC
+         Q5+h2kUgbnDByGPDgXnfSxFam2UaFwbNUJqptoSChU7oVyojqIzzxg5+aYIR4fyFh+8N
+         oFKS5xudp0ohWFm9Rx38FlehaoPlVoPONILdImjttUBt07M/sKGzfM5buKkVT8+aHZSg
+         quFGJCpI7v5mbSGhRnlt5Ja2dBgVG746jU+P+5BxF7sMjQRs2XdTcjhyCTbFtc5vaF33
+         Kssr+6JFEuIALiALchiwAsUHkbVTxinPWUgugcJ50itTJKyCUGXeh7718KuPHAfQyXB7
+         HTHw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w15si4010809eji.394.2019.06.04.07.30.26
-        for <linux-mm@kvack.org>;
-        Tue, 04 Jun 2019 07:30:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id s8si1148467ybo.446.2019.06.04.07.54.32
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Jun 2019 07:54:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 41343341;
-	Tue,  4 Jun 2019 07:30:25 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.72.51.249])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 2C5B83F690;
-	Tue,  4 Jun 2019 07:30:23 -0700 (PDT)
-Date: Tue, 4 Jun 2019 15:30:20 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Qian Cai <cai@lca.pw>, rppt@linux.ibm.com
-Cc: akpm@linux-foundation.org, catalin.marinas@arm.com, will.deacon@arm.com,
-	linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org,
-	vdavydov.dev@gmail.com, hannes@cmpxchg.org, cgroups@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x54EdNna025645
+	for <linux-mm@kvack.org>; Tue, 4 Jun 2019 10:54:32 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2swrv869k3-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 04 Jun 2019 10:54:32 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 4 Jun 2019 15:54:30 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 4 Jun 2019 15:54:26 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x54EsPk160882980
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 4 Jun 2019 14:54:25 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id A5A23AE045;
+	Tue,  4 Jun 2019 14:54:25 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id A6587AE055;
+	Tue,  4 Jun 2019 14:54:24 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.53])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Tue,  4 Jun 2019 14:54:24 +0000 (GMT)
+Date: Tue, 4 Jun 2019 17:54:22 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, catalin.marinas@arm.com,
+        will.deacon@arm.com, linux-kernel@vger.kernel.org, mhocko@kernel.org,
+        linux-mm@kvack.org, vdavydov.dev@gmail.com, hannes@cmpxchg.org,
+        guro@fb.com, cgroups@vger.kernel.org,
+        linux-arm-kernel@lists.infradead.org
 Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
-Message-ID: <20190604143020.GD24467@lakrids.cambridge.arm.com>
 References: <1559656836-24940-1-git-send-email-cai@lca.pw>
  <20190604142338.GC24467@lakrids.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 In-Reply-To: <20190604142338.GC24467@lakrids.cambridge.arm.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19060414-4275-0000-0000-0000033CA09A
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19060414-4276-0000-0000-0000384CB014
+Message-Id: <20190604145422.GG8417@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-04_10:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=7 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906040097
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -118,7 +155,13 @@ On Tue, Jun 04, 2019 at 03:23:38PM +0100, Mark Rutland wrote:
 > as the accounting should bypass kernel threads.
 > 
 > Was that assumption wrong, or is something different happening here?
-> 
+
+I was under impression that all allocations are going through
+__memcg_kmem_charge() which does the bypass.
+
+Apparently, it's not the case :(
+
+> > 
 > > backtrace:
 > >   kobject_add_internal
 > >   kobject_init_and_add
@@ -151,15 +194,22 @@ On Tue, Jun 04, 2019 at 03:23:38PM +0100, Mark Rutland wrote:
 > for the efi runtime services), so while this may fix the regression, I'm
 > not sure it's the right fix.
 
-I see that since [1], pgd_alloc() was updated to special-case the
-init_mm, which is not sufficient for cases like:
+Me neither.
+ 
+> Do we need a separate pgd_alloc_kernel()?
+ 
+I'd like to take a closer look at memcg paths once again before adding
+pgd_alloc_kernel().
 
-	efi_mm.pgd = pgd_alloc(&efi_mm)
+Johannes, Roman, can you please advise anything?
 
-... which occurs in a kthread.
+> Thanks,
+> Mark.
+> 
+> [1] https://lkml.kernel.org/r/20190505061956.GE15755@rapoport-lnx
+> 
 
-So let's have a pgd_alloc_kernel() to make that explicit.
-
-Thanks,
-Mark.
+-- 
+Sincerely yours,
+Mike.
 
