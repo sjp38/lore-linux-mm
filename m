@@ -2,214 +2,231 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7400FC282CE
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:54:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 22D37C28CC6
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 15:06:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 33DCD23426
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 14:54:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33DCD23426
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id AE56520717
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 15:06:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="kUgOTHyi"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE56520717
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9BAC36B0010; Tue,  4 Jun 2019 10:54:38 -0400 (EDT)
+	id 1C3226B0010; Tue,  4 Jun 2019 11:06:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 96C486B0269; Tue,  4 Jun 2019 10:54:38 -0400 (EDT)
+	id 1741E6B0269; Tue,  4 Jun 2019 11:06:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 80D0F6B026B; Tue,  4 Jun 2019 10:54:38 -0400 (EDT)
+	id 03BFF6B026B; Tue,  4 Jun 2019 11:06:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 65BEB6B0010
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 10:54:38 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id g203so19727030ywe.21
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 07:54:38 -0700 (PDT)
+Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D51BD6B0010
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 11:06:52 -0400 (EDT)
+Received: by mail-vs1-f71.google.com with SMTP id 184so5873875vsm.21
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 08:06:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=xDbVH/hVzZYVarLEZ+hSN1ZKRVgwKyT8PP8peuYVMfI=;
-        b=tOqP6WWso1tDBnJDrcKpJTRP0y8+iyFHRMZmP5DjG/CRhDI0TqWhbNlANfvDBh+565
-         Ece2fdbl8v2kz98/M46KMsoWmdiMhrW2ED3xCphOQbUPVq8Xmr9qSvfmpXsjCTsZYZG4
-         WoTt956yBOMF5tHiT9FUDCglhuEK7hIE6w/MXH7lT5u9725Ahz40ebL/xWUMUh8OjBbG
-         6rhMu7UlrI2tjFMngdzKpJF8iJ299aT+WNMrZHc6QkM6bUVLIILQzcL73qEG25fiJ6iZ
-         Qa3Uf29BhxeGGGA6vuJPdUUou1fyaS4WHT+aw5THVR6m4O4eyWQP8WTNi8nnyunGWzJP
-         UPsg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVNDloSfxTIoJO59y4+Cj/ZeFCDSWimSGH5jbbnk1qQokcZsgaD
-	rti4Fp2a6mQ1nrHBD0yvaxtjN/xw0P9gH9BuHn6AGESNtIkwbMF1UZ6w+dxXVKZixiBu8veT3lv
-	tI+wdAdSqoJCZzmPTRzqN5M1YVNPyFQ99MbIwu5mQrzArI9+0zjR7qdJcBKzaJ9+gNw==
-X-Received: by 2002:a25:dac8:: with SMTP id n191mr15244261ybf.425.1559660073964;
-        Tue, 04 Jun 2019 07:54:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz3+9A1IvL4aXenwIsKZmnLR07B4A0oSPd9Ey5PmM1mwW7W69nkSTLS7Q8Xn9eBlS5PVXIw
-X-Received: by 2002:a25:dac8:: with SMTP id n191mr15244233ybf.425.1559660073245;
-        Tue, 04 Jun 2019 07:54:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559660073; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=W49hJTPyGHTeCq1eaPKrKSt8wWOXsDB44kzR8MDEcNQ=;
+        b=Ighl+Zsm8HaEAhqsEbfOkWfpow4TQHIQdfsZ62nIA67H+RfNEQ/MO7Z143tA6fHtQc
+         WtygtUaUzBNTyYgdirXoHOovFCfVbwgVdx5yazEN9GCo+5fT1AzqmUeU67wilYaoTaI6
+         roriUKFdPQd3m/xAqbwW5w3FZc2mRyv76nJkvvZuYZjnFRQiLB7cRC8iFoFoyNOrnedw
+         rswKyxePLKJIdgCTVeBuMLgAWTKki+hPzieftxDphoNqTQSyZVANcnQN3BpBJeYAgVn5
+         dP/onMwFAa253SV7IN2JWTaEAf7tleHimFAle/XbfWDLYs9kzWhOVDgxmd3fgvP8Si3h
+         gnrw==
+X-Gm-Message-State: APjAAAVCAym+tLnKv6jd/MmJUoM6Vitav4E7ewbWOlqvSr6t+vAmd0IW
+	zDzVG7na2ASriDvMHIJ9IiUHjjttd0zGeR7gGkd9Afb8ClPZFT+nz9FU1bt88UW/xMXsmvRGbvP
+	mEJgrGGP31bK+0wDS8OBMbskVrjID6JAe8H2L+5rD247A7KGZUz8BCtm1Teb1hThLRg==
+X-Received: by 2002:a67:e905:: with SMTP id c5mr15868247vso.97.1559660812523;
+        Tue, 04 Jun 2019 08:06:52 -0700 (PDT)
+X-Received: by 2002:a67:e905:: with SMTP id c5mr15868186vso.97.1559660811430;
+        Tue, 04 Jun 2019 08:06:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559660811; cv=none;
         d=google.com; s=arc-20160816;
-        b=o+qlmor9+jA/G87pX9L7fvwgLfdR3rYFX6hbHY729QkdUOA2/4eqGhfSFckQ11YN58
-         +VvaV0Id/BM6WCBq04180cFcSaC4UPPzehEXrxPL/jFlzfkrpV3PA2o3muJIvSjn5B3U
-         lW0JUpGai1xvqLrz/lUh2DSySPipEfkrsS9V2iX37YtukNArDPXaMD3snHarXInv0pOz
-         2Aztr+yThU7UzNgzKZbpOQ461e330WG9yIEZ8Ww7MrXHSeOku4fQTNh6c8bqgJ5ri6g/
-         +aV8ksdOJi5oxizfRGvcW3t5kgUcnnIzBMDk+XRTZXwj378HPo9D5mgO64WFwSVI3dp4
-         XPZQ==
+        b=S4BUQ78EGSk+e7FtTab3dK4kguuRRqUv3s9T0RHwszJDlLHRWqGQN6z1TNq/0Qgsod
+         B4GN4tGxB/TsxASqTlvfi3YGctGlnD392nz4QW4smPkyt7NSe+rWOOmBXKbowPje1SB3
+         gpKJAnPfs5s1RT5ZiaxqR11fsZII54t1xq3PaEKpYWGmCaHX7/kSYO8HJk2BXGtrRJxx
+         1zEiTIjPhHoebu6pC7PW+GmHWop22xRAJ8hT5s+s9RR0LiRZalPSxaYXHs1k08ti6m6e
+         4PDpPkbgeDaoNvHoyz9NLFrk1zDUfJJ5P5/2tEMyPk3EIL62jls6C6oI6HgmHB7G+s/L
+         Wmuw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=xDbVH/hVzZYVarLEZ+hSN1ZKRVgwKyT8PP8peuYVMfI=;
-        b=IsvsIZafOPjwH17MYmZsnEOfD5m1raAgDuEtVkqdgUWfVwN21LgmjI/IobuZ0Se0bC
-         Q5+h2kUgbnDByGPDgXnfSxFam2UaFwbNUJqptoSChU7oVyojqIzzxg5+aYIR4fyFh+8N
-         oFKS5xudp0ohWFm9Rx38FlehaoPlVoPONILdImjttUBt07M/sKGzfM5buKkVT8+aHZSg
-         quFGJCpI7v5mbSGhRnlt5Ja2dBgVG746jU+P+5BxF7sMjQRs2XdTcjhyCTbFtc5vaF33
-         Kssr+6JFEuIALiALchiwAsUHkbVTxinPWUgugcJ50itTJKyCUGXeh7718KuPHAfQyXB7
-         HTHw==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=W49hJTPyGHTeCq1eaPKrKSt8wWOXsDB44kzR8MDEcNQ=;
+        b=aiboBT83tFMTSj9oJiT4uO7PmMJAZNsSMasxjMyrIo65zbyezT2xMeFSXqaoX5A3B8
+         XnaSd7lcsbY5J/LXy06QSyKjJSX6MBRCaRG4eC6hTqfeW/M+iRyitrh+sGuJDAbWKvht
+         QEOEXOGNSdj2yR1CjslU0ZtSB9vQtaj7beHlT1+zPzMVUzEWx69kdnv59xj1jjUtng7p
+         VKZ5vzyF89jy2Og0sERWZCUiAwDKcMkSWz8LcRH4QtsY4Hvq7lDFhUqr3+YSeULIdYMO
+         nzZfCXgsrKkzfAgD+v6CzifrL/rcNnzJXUWl5WAsA0W1Yldki2fHREum25Ctm4jPN7R3
+         zXSw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id s8si1148467ybo.446.2019.06.04.07.54.32
+       dkim=pass header.i=@google.com header.s=20161025 header.b=kUgOTHyi;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f5sor2574882vsq.43.2019.06.04.08.06.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jun 2019 07:54:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        (Google Transport Security);
+        Tue, 04 Jun 2019 08:06:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x54EdNna025645
-	for <linux-mm@kvack.org>; Tue, 4 Jun 2019 10:54:32 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2swrv869k3-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 04 Jun 2019 10:54:32 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 4 Jun 2019 15:54:30 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 4 Jun 2019 15:54:26 +0100
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x54EsPk160882980
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 4 Jun 2019 14:54:25 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A5A23AE045;
-	Tue,  4 Jun 2019 14:54:25 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A6587AE055;
-	Tue,  4 Jun 2019 14:54:24 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.53])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Tue,  4 Jun 2019 14:54:24 +0000 (GMT)
-Date: Tue, 4 Jun 2019 17:54:22 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, catalin.marinas@arm.com,
-        will.deacon@arm.com, linux-kernel@vger.kernel.org, mhocko@kernel.org,
-        linux-mm@kvack.org, vdavydov.dev@gmail.com, hannes@cmpxchg.org,
-        guro@fb.com, cgroups@vger.kernel.org,
-        linux-arm-kernel@lists.infradead.org
-Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
-References: <1559656836-24940-1-git-send-email-cai@lca.pw>
- <20190604142338.GC24467@lakrids.cambridge.arm.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=kUgOTHyi;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=W49hJTPyGHTeCq1eaPKrKSt8wWOXsDB44kzR8MDEcNQ=;
+        b=kUgOTHyiy4gjZrqjJd6XCiluIRCTk1Ty+Lu9WMWtf6nWiXvg7Gl2wZEMyDWXBXnWVJ
+         EXijX6fvjXfPgxbIX1H/0d63FLBK6Vu6/jMcQwCHS+kGn255u3FNrSAkBtjdgi77VeMT
+         75RbP/MxlLHCTrlWiQVVNp9bagAKrSFm14QyTkBmxXnI2D+A28XXDgdY0wIbrU2YrNPc
+         yiZw0Vr2Vze2Q097L2N6agpIg2MekCTKjzfXkSGUSZsh2/k3cPgiUBIeG31VVGeUlwd/
+         7qU2B0ya0GDmxgCfNNr4vaG/AE8OhAI28Zsr4UyW/dcaeJouMareTr8dWZS14jhNtuYL
+         2Osw==
+X-Google-Smtp-Source: APXvYqylaMBXgwiEMx6a3mBJoNMZNivsGG6/K2ImcC6RkV4tmp4KahfoqMGHmAsWa2Lj7YNjdkJ7hMGMgsAwTdzOkEI=
+X-Received: by 2002:a67:1bc6:: with SMTP id b189mr267198vsb.39.1559660810775;
+ Tue, 04 Jun 2019 08:06:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190604142338.GC24467@lakrids.cambridge.arm.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19060414-4275-0000-0000-0000033CA09A
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19060414-4276-0000-0000-0000384CB014
-Message-Id: <20190604145422.GG8417@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-04_10:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=7 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906040097
+References: <20190529123812.43089-1-glider@google.com> <20190529123812.43089-3-glider@google.com>
+ <20190531181832.e7c3888870ce9e50db9f69e6@linux-foundation.org>
+ <CAG_fn=XBq-ipvZng3hEiGwyQH2rRNFbN_Cj0r+5VoJqou0vovA@mail.gmail.com>
+ <201906032010.8E630B7@keescook> <CAPDLWs-JqUx+_sDtsER=keDu9o2NKYQ3mvZVXLY8deXOMZoH=g@mail.gmail.com>
+In-Reply-To: <CAPDLWs-JqUx+_sDtsER=keDu9o2NKYQ3mvZVXLY8deXOMZoH=g@mail.gmail.com>
+From: Alexander Potapenko <glider@google.com>
+Date: Tue, 4 Jun 2019 17:06:39 +0200
+Message-ID: <CAG_fn=UxfaFVZbtnO0VefKhi3iZUYn5ybe_Nvo0rCOxxA2nn-Q@mail.gmail.com>
+Subject: Re: [PATCH v5 2/3] mm: init: report memory auto-initialization
+ features at boot time
+To: Kaiwan N Billimoria <kaiwan@kaiwantech.com>
+Cc: Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Christoph Lameter <cl@linux.com>, Dmitry Vyukov <dvyukov@google.com>, James Morris <jmorris@namei.org>, 
+	Jann Horn <jannh@google.com>, Kostya Serebryany <kcc@google.com>, Laura Abbott <labbott@redhat.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, 
+	Matthew Wilcox <willy@infradead.org>, Nick Desaulniers <ndesaulniers@google.com>, 
+	Randy Dunlap <rdunlap@infradead.org>, Sandeep Patil <sspatil@android.com>, 
+	"Serge E. Hallyn" <serge@hallyn.com>, Souptick Joarder <jrdr.linux@gmail.com>, Marco Elver <elver@google.com>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>, 
+	Linux Memory Management List <linux-mm@kvack.org>, 
+	linux-security-module <linux-security-module@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 04, 2019 at 03:23:38PM +0100, Mark Rutland wrote:
-> On Tue, Jun 04, 2019 at 10:00:36AM -0400, Qian Cai wrote:
-> > The commit "arm64: switch to generic version of pte allocation"
-> > introduced endless failures during boot like,
-> > 
-> > kobject_add_internal failed for pgd_cache(285:chronyd.service) (error:
-> > -2 parent: cgroup)
-> > 
-> > It turns out __GFP_ACCOUNT is passed to kernel page table allocations
-> > and then later memcg finds out those don't belong to any cgroup.
-> 
-> Mike, I understood from [1] that this wasn't expected to be a problem,
-> as the accounting should bypass kernel threads.
-> 
-> Was that assumption wrong, or is something different happening here?
+On Tue, Jun 4, 2019 at 8:01 AM Kaiwan N Billimoria
+<kaiwan@kaiwantech.com> wrote:
+>
+> On Tue, Jun 4, 2019 at 8:44 AM Kees Cook <keescook@chromium.org> wrote:
+> >
+> > On Mon, Jun 03, 2019 at 11:24:49AM +0200, Alexander Potapenko wrote:
+> > > On Sat, Jun 1, 2019 at 3:18 AM Andrew Morton <akpm@linux-foundation.o=
+rg> wrote:
+> > > >
+> > > > On Wed, 29 May 2019 14:38:11 +0200 Alexander Potapenko <glider@goog=
+le.com> wrote:
+> > > >
+> > > > > Print the currently enabled stack and heap initialization modes.
+> > > > >
+> > > > > The possible options for stack are:
+> > > > >  - "all" for CONFIG_INIT_STACK_ALL;
+> > > > >  - "byref_all" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL;
+> > > > >  - "byref" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF;
+> > > > >  - "__user" for CONFIG_GCC_PLUGIN_STRUCTLEAK_USER;
+> > > > >  - "off" otherwise.
+> > > > >
+> > > > > Depending on the values of init_on_alloc and init_on_free boottim=
+e
+> > > > > options we also report "heap alloc" and "heap free" as "on"/"off"=
+.
+> > > >
+> > > > Why?
+> > > >
+> > > > Please fully describe the benefit to users so that others can judge=
+ the
+> > > > desirability of the patch.  And so they can review it effectively, =
+etc.
+> > > I'm going to update the description with the following passage:
+> > >
+> > >     Print the currently enabled stack and heap initialization modes.
+> > >
+> > >     Stack initialization is enabled by a config flag, while heap
+> > >     initialization is configured at boot time with defaults being set
+> > >     in the config. It's more convenient for the user to have all info=
+rmation
+> > >     about these hardening measures in one place.
+> > >
+> > > Does this make sense?
+> > > > Always!
+> > > >
+> > > > > In the init_on_free mode initializing pages at boot time may take=
+ some
+> > > > > time, so print a notice about that as well.
+> > > >
+> > > > How much time?
+> > > I've seen pauses up to 1 second, not actually sure they're worth a
+> > > separate line in the log.
+> > > Kees, how long were the delays in your case?
+> >
+> > I didn't measure it, but I think it was something like 0.5 second per G=
+B.
+> > I noticed because normally boot flashes by. With init_on_free it pauses
+> > for no apparent reason, which is why I suggested the note. (I mean *I*
+> > knew why it was pausing, but it might surprise someone who sets
+> > init_on_free=3D1 without really thinking about what's about to happen a=
+t
+> > boot.)
+>
+> (Pardon the gmail client)
+> How about:
+> - if (want_init_on_free())
+> -               pr_info("Clearing system memory may take some time...\n")=
+;
+> +  if (want_init_on_free())
+> +              pr_info("meminit: clearing system memory may take some
+> time...\n");
+Yes, adding a prefix may give the users better understanding of who's
+clearing the memory.
+We should stick to the same prefix as before though, i.e. "mem auto-init"
+>
+> or even
+>
+> + if (want_init_on_free())
+> +                pr_info("meminit (init_on_free =3D=3D 1): clearing syste=
+m
+> memory may take some time...\n");
+>
+> or some combo thereof?
+>
+> --
+> Kaiwan
+> >
+> > --
+> > Kees Cook
+> >
 
-I was under impression that all allocations are going through
-__memcg_kmem_charge() which does the bypass.
 
-Apparently, it's not the case :(
 
-> > 
-> > backtrace:
-> >   kobject_add_internal
-> >   kobject_init_and_add
-> >   sysfs_slab_add+0x1a8
-> >   __kmem_cache_create
-> >   create_cache
-> >   memcg_create_kmem_cache
-> >   memcg_kmem_cache_create_func
-> >   process_one_work
-> >   worker_thread
-> >   kthread
-> > 
-> > Signed-off-by: Qian Cai <cai@lca.pw>
-> > ---
-> >  arch/arm64/mm/pgd.c | 2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
-> > index 769516cb6677..53c48f5c8765 100644
-> > --- a/arch/arm64/mm/pgd.c
-> > +++ b/arch/arm64/mm/pgd.c
-> > @@ -38,7 +38,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
-> >  	if (PGD_SIZE == PAGE_SIZE)
-> >  		return (pgd_t *)__get_free_page(gfp);
-> >  	else
-> > -		return kmem_cache_alloc(pgd_cache, gfp);
-> > +		return kmem_cache_alloc(pgd_cache, GFP_PGTABLE_KERNEL);
-> 
-> This is used to allocate PGDs for both user and kernel pagetables (e.g.
-> for the efi runtime services), so while this may fix the regression, I'm
-> not sure it's the right fix.
+--=20
+Alexander Potapenko
+Software Engineer
 
-Me neither.
- 
-> Do we need a separate pgd_alloc_kernel()?
- 
-I'd like to take a closer look at memcg paths once again before adding
-pgd_alloc_kernel().
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
 
-Johannes, Roman, can you please advise anything?
-
-> Thanks,
-> Mark.
-> 
-> [1] https://lkml.kernel.org/r/20190505061956.GE15755@rapoport-lnx
-> 
-
--- 
-Sincerely yours,
-Mike.
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
