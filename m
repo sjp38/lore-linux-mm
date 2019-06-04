@@ -2,185 +2,399 @@ Return-Path: <SRS0=7ZCb=UD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-4.4 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8432CC04AB5
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 03:14:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC3ECC28CC6
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 03:56:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2EA442425F
-	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 03:14:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7723E24B55
+	for <linux-mm@archiver.kernel.org>; Tue,  4 Jun 2019 03:56:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="O7cjrefY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2EA442425F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="SfeQ+je0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7723E24B55
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 75BE26B000D; Mon,  3 Jun 2019 23:14:11 -0400 (EDT)
+	id 0857D6B000D; Mon,  3 Jun 2019 23:56:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E4E86B0010; Mon,  3 Jun 2019 23:14:11 -0400 (EDT)
+	id 0369C6B0010; Mon,  3 Jun 2019 23:56:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5AC616B0266; Mon,  3 Jun 2019 23:14:11 -0400 (EDT)
+	id E68026B0266; Mon,  3 Jun 2019 23:56:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2108F6B000D
-	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 23:14:11 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id 93so13071782plf.14
-        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 20:14:11 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AD7006B000D
+	for <linux-mm@kvack.org>; Mon,  3 Jun 2019 23:56:07 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id 5so15175919pff.11
+        for <linux-mm@kvack.org>; Mon, 03 Jun 2019 20:56:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=c5HP5Me6K1D1zdUUO0f7kzVFOIQyYSbiNswjCmfwwdM=;
-        b=Bje2p6dAtatOyFD7v5T1urXe6Ce42zMbMx3vtUZplYaZPOCtZ1GK99dJRKiA46g7wC
-         8PXQwEsaaFeeilzZYMJaFyfja+LfnqUMELgNYpRfo1YQOxTKhOJzdoi31/HIH+vRIAeL
-         1t79RNwQytYEjokHRCMWR47vgmupDv7nAkq94korUrnYwj2gEICHSP2g8WyovwT6r0GZ
-         iU6/z8uVUEWylP42Jjr+iMs2/+brq6wc6MKXnJtf4jdFsyaYlfLlqL6oxOuISP7FZl0l
-         JT35SFRyFJUJSXln8PFDCR3vwN0gx22kCMkfwcJDwd9UmBQcHbzK9NDA/wC9wQ10lJNG
-         h2hA==
-X-Gm-Message-State: APjAAAU+yMXABSGaytg9bT63KA8V7Jtr3siats1ihUZ4FwBIWFVRa57i
-	MvlVNf3TMdrhsWQRV13ZGQJqeQyu/mBTKNkg1DA15jn+9RkzQWHyABIDdFJcp3BxFyDBayq6oh3
-	xIs9BWLtJfvtPD0XyarC/rC5Y+Xqt9kOdgYzxMxC1XQMbJaM0zT6V9i3W5Mh2zhsPhQ==
-X-Received: by 2002:a62:b40a:: with SMTP id h10mr36065307pfn.216.1559618050612;
-        Mon, 03 Jun 2019 20:14:10 -0700 (PDT)
-X-Received: by 2002:a62:b40a:: with SMTP id h10mr36065243pfn.216.1559618049403;
-        Mon, 03 Jun 2019 20:14:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559618049; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=I0891g/UIJ3D/usui4eXZlqiDzsJsQmtk1L4I5UEHyg=;
+        b=g4Br8kpPjALFFnx1Pu9/ujvR5rn6X85bUmHCehYgT6Oe13KdEY5mvxft0reDvWylXa
+         R/HEsQHxEDmKSGDG+Q+t/UceYdz+63i77luHwD/aUxHVgAT/zdeA8y/bPuHHtjgoiSwG
+         kL5IAzs2OytXrjBc6eJOEj4EvXVgEJZqBqMUrIBdOjkDZPz8LUw0BcQjUjLqTBsKMuET
+         XFyuR5tgXsLzC8PkB30ws1ewUndDeimEXzO+YALTjtoKQ4toQVokVbATN7uR2LB4PTk5
+         1vNDqgG/3KX9syPCUljcWeM5G262G6B44lDINlMH4baJ+6ysJTP3LLbSvtAalun5cPXv
+         Y0pA==
+X-Gm-Message-State: APjAAAWEskJQqlwRbpHZiwb4Nux+nUhEwt8T9dHvQX2WVTopEwuN4pnd
+	3m2PtsFH+H7IIByU0e9N+Yvn0KN0Gl2OA0FCttiPuFSSTXaelXlLXJSJB5fVc25CPGgibkN+lzH
+	mglL07CgJtJW3O+r/Z8kwq4qDLwUXXt2sYVYnOD4HDI60jfIzY6X1Ex2oPHVcCRo=
+X-Received: by 2002:a17:90a:c711:: with SMTP id o17mr8788345pjt.57.1559620567220;
+        Mon, 03 Jun 2019 20:56:07 -0700 (PDT)
+X-Received: by 2002:a17:90a:c711:: with SMTP id o17mr8788293pjt.57.1559620566104;
+        Mon, 03 Jun 2019 20:56:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559620566; cv=none;
         d=google.com; s=arc-20160816;
-        b=dCxSkubabDWGTxNxt5nId8Z7j0MxRR+N/merYOpOKK+xcPASZTINGFDkv3J1m0U/VZ
-         ajmUGC0lHcthSqFysqyBDFgfYveNjpA5AKGlZVM8KCwgvnPs0+/Rvcwd6nqgnolWAgqZ
-         3NKIITpLpjToZC4ogcQbeWs7+opg2tF7kyV6VAgoQVneykCL8vGrO/iwgJd93w5vdar0
-         nmYr4TbHthEP7O0EaIWZLwEIiYvJ5aGfyock0E6ZmtoKelGhA6VzdD88KWa0kHIC4hyS
-         0a2/6QGdW7KSODaRljI/kG/V58SCjbSmpNILc8qKMaP/6xdDGsSY9P1tCNwMszLCfHM8
-         uh8g==
+        b=gZ8QNmuk74iqhUnP7HW2EJMcIk2Tl7YWofy5/qARpNZ9p8YaOK9xvULTYndVQGh5nN
+         FyuXTJ62sBjdI5jq97DSYxPqrES/ox0FzNHJfSiwVrfNewNEq7dW4xPESLofMQ4om77V
+         phnIPk0T7MBWSbQVehZIIr4Q/oW95Ya63eGfUaVD77o0JgsE51c48WIIhSj+6hsmcJWk
+         g7t3TlbSi5CMhkuksW5L9NSkYpr5e8GlVnFM85AuR2isaiOeEBdHS5f3JbCWrbAvbyvJ
+         GEHTbIqYeJEsGFnGfUbL+eRG0LlPL4x3kHOmK5BKSuMDBYFP1jwM9oq+rPYe3bcHOcsU
+         oRLg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=c5HP5Me6K1D1zdUUO0f7kzVFOIQyYSbiNswjCmfwwdM=;
-        b=rkhG/3jHIdmS90cP3yIo+eSH2mC41OxIsGT1SWahzTBfwst2T2n0D1YFev8fkFyJvb
-         tjHnraWSbJpNV4eg7qu96u2WV3Ow1Y2WFVu/U/G204QyLIMbCrNuAXSI0+oixnlYD5V+
-         nVDolkySYos8MCx9UOkYjfz7YiHcYTRtLKGeJkK4ejA2lL/dgZCH14DxXU5qpz4bCYFR
-         gi4Z68o/6YCAQ+3+txPc1ZiVRv+aURqH/LPUUVL8DXFH3ZbEYdPPDg6dz+30m+tctRae
-         ZQ00XzpVSWt5Ur6ME6sAg2QhgI8t0nKKCEznFlViCkGhSP4fowJ0w17RDTLHrm6njqMC
-         W2fw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=I0891g/UIJ3D/usui4eXZlqiDzsJsQmtk1L4I5UEHyg=;
+        b=G6RSkpjPQpdcnHoOJjG+nWqbqTo3JA0vHwpaXfMeubM4pik553t3sYCvro4bnBUc+J
+         PSL1Qbl4N0hNwcwjdy8pOMAPeTyVCeMSp4ozjzXrUF6knWd6WuV41+JLqqG+oxOv9UQv
+         cJ9zbl8lJCYNCP/gy52+njjXwCEhk2FJQKDZ+7YgSJEnFTMYD01RJBbtFf1FPCJ7se1O
+         KtJYMud1PDSOli3AnkPE44JPZV906tBAHZD3WMH8qhFBR+euqkGRsgKizbCFh80G3Pws
+         lRMXjib2nf+ftLKAPiVbSDD2PQxtkCGEntm4ARiydlmQG8t7RQ6562aRRTjmvMyOQls8
+         4eLA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=O7cjrefY;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SfeQ+je0;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q6sor19069425pjp.1.2019.06.03.20.14.09
+        by mx.google.com with SMTPS id m17sor4354843pge.11.2019.06.03.20.56.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 03 Jun 2019 20:14:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Mon, 03 Jun 2019 20:56:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=O7cjrefY;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SfeQ+je0;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=c5HP5Me6K1D1zdUUO0f7kzVFOIQyYSbiNswjCmfwwdM=;
-        b=O7cjrefYDb8qdY6xHlr7GQJ9p1Q5FyScv3e2w+vscGV9dmLj3ZLW9f5Pf+78Vl8cuW
-         0jy0uX2DCPP14kq0gZIICMmiy5PCkk1FdQ8qsJt5mI6MDzj6VECvJfWif7Wo3c2QjgSS
-         u7igduXfvXL5/BBTot/FruOSt3YvXQO0ax1VM=
-X-Google-Smtp-Source: APXvYqyr65yqSMgjUZyLKXrBeCQLIR7WRh1PgCOxNwDSym495N0oGFV/Y355onNEh2hWQW9f50Nt2g==
-X-Received: by 2002:a17:90a:35c:: with SMTP id 28mr33030091pjf.110.1559618048938;
-        Mon, 03 Jun 2019 20:14:08 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id v4sm3118023pfb.14.2019.06.03.20.14.07
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 03 Jun 2019 20:14:07 -0700 (PDT)
-Date: Mon, 3 Jun 2019 20:14:06 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Alexander Potapenko <glider@google.com>
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=I0891g/UIJ3D/usui4eXZlqiDzsJsQmtk1L4I5UEHyg=;
+        b=SfeQ+je0nhOtpr5G0aiWIc6hFSwXurVVCzFb3iye0AIOMXOXafzvbvEbId0KvLt2ra
+         p5kItznyKamZIJOknAZqYuZZC1OaUgabv/wl9U3gASdaPzls9H8HyJNdne6xTjqYY9HS
+         IzPw5PLLFGxLq93+XDH9SvcuzpKng7FO/bXe6oY57Gf53BGUgNwZY06SJPgOgeIf5kwS
+         Tr4hMowgKfQNX2gdco1FEZXV/JgCetyEG97lG0uUtq99Xvl81QqNrhQ9NU0sN5RMRNi7
+         wCXlSlmoHFdhwd6PzPdnO+ylslldjps4kYyPFyX4nwn/mXfmvn11TwOS4xnF6TTSMnah
+         iw/Q==
+X-Google-Smtp-Source: APXvYqz6XjTttydiE9L9gCK9EiRYZNaF1Tnq9i1D3XIXbK69H5Vqr45dLh4zr7R44YLXJQG/tSzolg==
+X-Received: by 2002:a63:4c54:: with SMTP id m20mr32962270pgl.316.1559620565476;
+        Mon, 03 Jun 2019 20:56:05 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id v9sm15271169pfm.34.2019.06.03.20.55.59
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 03 Jun 2019 20:56:04 -0700 (PDT)
+Date: Tue, 4 Jun 2019 12:55:57 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	James Morris <jmorris@namei.org>, Jann Horn <jannh@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Laura Abbott <labbott@redhat.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Sandeep Patil <sspatil@android.com>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	Marco Elver <elver@google.com>,
-	Kernel Hardening <kernel-hardening@lists.openwall.com>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	linux-security-module <linux-security-module@vger.kernel.org>
-Subject: Re: [PATCH v5 2/3] mm: init: report memory auto-initialization
- features at boot time
-Message-ID: <201906032010.8E630B7@keescook>
-References: <20190529123812.43089-1-glider@google.com>
- <20190529123812.43089-3-glider@google.com>
- <20190531181832.e7c3888870ce9e50db9f69e6@linux-foundation.org>
- <CAG_fn=XBq-ipvZng3hEiGwyQH2rRNFbN_Cj0r+5VoJqou0vovA@mail.gmail.com>
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, jannh@google.com,
+	oleg@redhat.com, christian@brauner.io, oleksandr@redhat.com,
+	hdanton@sina.com
+Subject: Re: [PATCH v1 4/4] mm: introduce MADV_PAGEOUT
+Message-ID: <20190604035557.GB43390@google.com>
+References: <20190603053655.127730-1-minchan@kernel.org>
+ <20190603053655.127730-5-minchan@kernel.org>
+ <20190603203911.GA14953@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAG_fn=XBq-ipvZng3hEiGwyQH2rRNFbN_Cj0r+5VoJqou0vovA@mail.gmail.com>
+In-Reply-To: <20190603203911.GA14953@cmpxchg.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 03, 2019 at 11:24:49AM +0200, Alexander Potapenko wrote:
-> On Sat, Jun 1, 2019 at 3:18 AM Andrew Morton <akpm@linux-foundation.org> wrote:
-> >
-> > On Wed, 29 May 2019 14:38:11 +0200 Alexander Potapenko <glider@google.com> wrote:
-> >
-> > > Print the currently enabled stack and heap initialization modes.
-> > >
-> > > The possible options for stack are:
-> > >  - "all" for CONFIG_INIT_STACK_ALL;
-> > >  - "byref_all" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL;
-> > >  - "byref" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF;
-> > >  - "__user" for CONFIG_GCC_PLUGIN_STRUCTLEAK_USER;
-> > >  - "off" otherwise.
-> > >
-> > > Depending on the values of init_on_alloc and init_on_free boottime
-> > > options we also report "heap alloc" and "heap free" as "on"/"off".
-> >
-> > Why?
-> >
-> > Please fully describe the benefit to users so that others can judge the
-> > desirability of the patch.  And so they can review it effectively, etc.
-> I'm going to update the description with the following passage:
+On Mon, Jun 03, 2019 at 04:39:11PM -0400, Johannes Weiner wrote:
+> On Mon, Jun 03, 2019 at 02:36:55PM +0900, Minchan Kim wrote:
+> > When a process expects no accesses to a certain memory range
+> > for a long time, it could hint kernel that the pages can be
+> > reclaimed instantly but data should be preserved for future use.
+> > This could reduce workingset eviction so it ends up increasing
+> > performance.
+> > 
+> > This patch introduces the new MADV_PAGEOUT hint to madvise(2)
+> > syscall. MADV_PAGEOUT can be used by a process to mark a memory
+> > range as not expected to be used for a long time so that kernel
+> > reclaims *any LRU* pages instantly. The hint can help kernel in deciding
+> > which pages to evict proactively.
+> > 
+> > All of error rule is same with MADV_DONTNEED.
+> > 
+> > Note:
+> >     This hint works with only private pages(IOW, page_mapcount(page) < 2)
+> >     because shared page could have more chance to be accessed from other
+> >     processes sharing the page so that it could cause major fault soon,
+> >     which is inefficient.
+> > 
+> > * RFC v2
+> >  * make reclaim_pages simple via factoring out isolate logic - hannes
+> > 
+> > * RFCv1
+> >  * rename from MADV_COLD to MADV_PAGEOUT - hannes
+> >  * bail out if process is being killed - Hillf
+> >  * fix reclaim_pages bugs - Hillf
+> > 
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  include/linux/swap.h                   |   1 +
+> >  include/uapi/asm-generic/mman-common.h |   1 +
+> >  mm/madvise.c                           | 126 +++++++++++++++++++++++++
+> >  mm/vmscan.c                            |  34 +++++++
+> >  4 files changed, 162 insertions(+)
+> > 
+> > diff --git a/include/linux/swap.h b/include/linux/swap.h
+> > index 0ce997edb8bb..063c0c1e112b 100644
+> > --- a/include/linux/swap.h
+> > +++ b/include/linux/swap.h
+> > @@ -365,6 +365,7 @@ extern int vm_swappiness;
+> >  extern int remove_mapping(struct address_space *mapping, struct page *page);
+> >  extern unsigned long vm_total_pages;
+> >  
+> > +extern unsigned long reclaim_pages(struct list_head *page_list);
+> >  #ifdef CONFIG_NUMA
+> >  extern int node_reclaim_mode;
+> >  extern int sysctl_min_unmapped_ratio;
+> > diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
+> > index 1190f4e7f7b9..92e347a89ddc 100644
+> > --- a/include/uapi/asm-generic/mman-common.h
+> > +++ b/include/uapi/asm-generic/mman-common.h
+> > @@ -44,6 +44,7 @@
+> >  #define MADV_WILLNEED	3		/* will need these pages */
+> >  #define MADV_DONTNEED	4		/* don't need these pages */
+> >  #define MADV_COLD	5		/* deactivatie these pages */
+> > +#define MADV_PAGEOUT	6		/* reclaim these pages */
+> >  
+> >  /* common parameters: try to keep these consistent across architectures */
+> >  #define MADV_FREE	8		/* free pages only if memory pressure */
+> > diff --git a/mm/madvise.c b/mm/madvise.c
+> > index ab158766858a..b010249cb8b6 100644
+> > --- a/mm/madvise.c
+> > +++ b/mm/madvise.c
+> > @@ -41,6 +41,7 @@ static int madvise_need_mmap_write(int behavior)
+> >  	case MADV_WILLNEED:
+> >  	case MADV_DONTNEED:
+> >  	case MADV_COLD:
+> > +	case MADV_PAGEOUT:
+> >  	case MADV_FREE:
+> >  		return 0;
+> >  	default:
+> > @@ -415,6 +416,128 @@ static long madvise_cold(struct vm_area_struct *vma,
+> >  	return 0;
+> >  }
+> >  
+> > +static int madvise_pageout_pte_range(pmd_t *pmd, unsigned long addr,
+> > +				unsigned long end, struct mm_walk *walk)
+> > +{
+> > +	pte_t *orig_pte, *pte, ptent;
+> > +	spinlock_t *ptl;
+> > +	LIST_HEAD(page_list);
+> > +	struct page *page;
+> > +	int isolated = 0;
+> > +	struct vm_area_struct *vma = walk->vma;
+> > +	unsigned long next;
+> > +
+> > +	if (fatal_signal_pending(current))
+> > +		return -EINTR;
+> > +
+> > +	next = pmd_addr_end(addr, end);
+> > +	if (pmd_trans_huge(*pmd)) {
+> > +		ptl = pmd_trans_huge_lock(pmd, vma);
+> > +		if (!ptl)
+> > +			return 0;
+> > +
+> > +		if (is_huge_zero_pmd(*pmd))
+> > +			goto huge_unlock;
+> > +
+> > +		page = pmd_page(*pmd);
+> > +		if (page_mapcount(page) > 1)
+> > +			goto huge_unlock;
+> > +
+> > +		if (next - addr != HPAGE_PMD_SIZE) {
+> > +			int err;
+> > +
+> > +			get_page(page);
+> > +			spin_unlock(ptl);
+> > +			lock_page(page);
+> > +			err = split_huge_page(page);
+> > +			unlock_page(page);
+> > +			put_page(page);
+> > +			if (!err)
+> > +				goto regular_page;
+> > +			return 0;
+> > +		}
+> > +
+> > +		if (isolate_lru_page(page))
+> > +			goto huge_unlock;
+> > +
+> > +		list_add(&page->lru, &page_list);
+> > +huge_unlock:
+> > +		spin_unlock(ptl);
+> > +		reclaim_pages(&page_list);
+> > +		return 0;
+> > +	}
+> > +
+> > +	if (pmd_trans_unstable(pmd))
+> > +		return 0;
+> > +regular_page:
+> > +	orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> > +	for (pte = orig_pte; addr < end; pte++, addr += PAGE_SIZE) {
+> > +		ptent = *pte;
+> > +		if (!pte_present(ptent))
+> > +			continue;
+> > +
+> > +		page = vm_normal_page(vma, addr, ptent);
+> > +		if (!page)
+> > +			continue;
+> > +
+> > +		if (page_mapcount(page) > 1)
+> > +			continue;
+> > +
+> > +		if (isolate_lru_page(page))
+> > +			continue;
+> > +
+> > +		isolated++;
+> > +		list_add(&page->lru, &page_list);
+> > +		if (isolated >= SWAP_CLUSTER_MAX) {
+> > +			pte_unmap_unlock(orig_pte, ptl);
+> > +			reclaim_pages(&page_list);
+> > +			isolated = 0;
+> > +			pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> > +			orig_pte = pte;
+> > +		}
+> > +	}
+> > +
+> > +	pte_unmap_unlock(orig_pte, ptl);
+> > +	reclaim_pages(&page_list);
+> > +	cond_resched();
+> > +
+> > +	return 0;
+> > +}
+> > +
+> > +static void madvise_pageout_page_range(struct mmu_gather *tlb,
+> > +			     struct vm_area_struct *vma,
+> > +			     unsigned long addr, unsigned long end)
+> > +{
+> > +	struct mm_walk warm_walk = {
+> > +		.pmd_entry = madvise_pageout_pte_range,
+> > +		.mm = vma->vm_mm,
+> > +	};
+> > +
+> > +	tlb_start_vma(tlb, vma);
+> > +	walk_page_range(addr, end, &warm_walk);
+> > +	tlb_end_vma(tlb, vma);
+> > +}
+> > +
+> > +
+> > +static long madvise_pageout(struct vm_area_struct *vma,
+> > +			struct vm_area_struct **prev,
+> > +			unsigned long start_addr, unsigned long end_addr)
+> > +{
+> > +	struct mm_struct *mm = vma->vm_mm;
+> > +	struct mmu_gather tlb;
+> > +
+> > +	*prev = vma;
+> > +	if (!can_madv_lru_vma(vma))
+> > +		return -EINVAL;
+> > +
+> > +	lru_add_drain();
+> > +	tlb_gather_mmu(&tlb, mm, start_addr, end_addr);
+> > +	madvise_pageout_page_range(&tlb, vma, start_addr, end_addr);
+> > +	tlb_finish_mmu(&tlb, start_addr, end_addr);
+> > +
+> > +	return 0;
+> > +}
+> > +
+> >  static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
+> >  				unsigned long end, struct mm_walk *walk)
+> >  
+> > @@ -805,6 +928,8 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+> >  		return madvise_willneed(vma, prev, start, end);
+> >  	case MADV_COLD:
+> >  		return madvise_cold(vma, prev, start, end);
+> > +	case MADV_PAGEOUT:
+> > +		return madvise_pageout(vma, prev, start, end);
+> >  	case MADV_FREE:
+> >  	case MADV_DONTNEED:
+> >  		return madvise_dontneed_free(vma, prev, start, end, behavior);
+> > @@ -827,6 +952,7 @@ madvise_behavior_valid(int behavior)
+> >  	case MADV_DONTNEED:
+> >  	case MADV_FREE:
+> >  	case MADV_COLD:
+> > +	case MADV_PAGEOUT:
+> >  #ifdef CONFIG_KSM
+> >  	case MADV_MERGEABLE:
+> >  	case MADV_UNMERGEABLE:
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 56df55e8afcd..2c2cf442db58 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2136,6 +2136,40 @@ static void shrink_active_list(unsigned long nr_to_scan,
+> >  			nr_deactivate, nr_rotated, sc->priority, file);
+> >  }
+> >  
+> > +unsigned long reclaim_pages(struct list_head *page_list)
+> > +{
+> > +	unsigned long nr_reclaimed = 0;
+> > +	LIST_HEAD(node_page_list);
+> > +	struct reclaim_stat dummy_stat;
+> > +	struct scan_control sc = {
+> > +		.gfp_mask = GFP_KERNEL,
+> > +		.priority = DEF_PRIORITY,
+> > +		.may_writepage = 1,
+> > +		.may_unmap = 1,
+> > +		.may_swap = 1,
+> > +	};
+> > +
+> > +	while (!list_empty(page_list)) {
+> > +		struct page *page;
+> > +
+> > +		page = lru_to_page(page_list);
+> > +		list_move(&page->lru, &node_page_list);
+> > +		nr_reclaimed += shrink_page_list(&node_page_list,
+> > +						page_pgdat(page),
+> > +						&sc, TTU_IGNORE_ACCESS,
+> > +						&dummy_stat, true);
+> > +		if (!list_empty(&node_page_list)) {
+> > +			struct page *page = lru_to_page(&node_page_list);
+> > +
+> > +			list_del(&page->lru);
+> > +			putback_lru_page(page);
+> > +
+> > +		}
+> > +	}
 > 
->     Print the currently enabled stack and heap initialization modes.
+> Awesome, this is way more readable now. Thanks for the cleanup!
 > 
->     Stack initialization is enabled by a config flag, while heap
->     initialization is configured at boot time with defaults being set
->     in the config. It's more convenient for the user to have all information
->     about these hardening measures in one place.
-> 
-> Does this make sense?
-> > Always!
-> >
-> > > In the init_on_free mode initializing pages at boot time may take some
-> > > time, so print a notice about that as well.
-> >
-> > How much time?
-> I've seen pauses up to 1 second, not actually sure they're worth a
-> separate line in the log.
-> Kees, how long were the delays in your case?
+> Regarding the loop, for the vast majority of instances, pages on
+> page_list will actually be from the same node. It would make sense to
+> do batching here and collect pages until last_pgdat != pgdat. That
+> should reduce the number of tlb flushes and memcg uncharge flushes in
+> shrink_page_list().
 
-I didn't measure it, but I think it was something like 0.5 second per GB.
-I noticed because normally boot flashes by. With init_on_free it pauses
-for no apparent reason, which is why I suggested the note. (I mean *I*
-knew why it was pausing, but it might surprise someone who sets
-init_on_free=1 without really thinking about what's about to happen at
-boot.)
-
--- 
-Kees Cook
+Sure, Thanks!
 
