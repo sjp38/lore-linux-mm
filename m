@@ -2,109 +2,108 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4D78C28CC5
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 19:56:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CCF6C46470
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 20:07:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6EA7D206C3
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 19:56:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 122D2206BB
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 20:07:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ONPOG0cr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6EA7D206C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Y6/CTKw2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 122D2206BB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0CFDC6B0266; Wed,  5 Jun 2019 15:56:49 -0400 (EDT)
+	id B28296B0266; Wed,  5 Jun 2019 16:07:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 059A86B0269; Wed,  5 Jun 2019 15:56:49 -0400 (EDT)
+	id AD9376B0269; Wed,  5 Jun 2019 16:07:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E89A46B026A; Wed,  5 Jun 2019 15:56:48 -0400 (EDT)
+	id 9EE3A6B026A; Wed,  5 Jun 2019 16:07:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C2BE36B0266
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 15:56:48 -0400 (EDT)
-Received: by mail-yb1-f199.google.com with SMTP id l184so84706ybl.3
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 12:56:48 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8581C6B0266
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 16:07:45 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id u25so13576571iol.23
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 13:07:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=9q4+At4yxP0TO9XKtv623886ZmeIrCw2KxtQ8rIVE+c=;
-        b=H1h8g/4J3XrZPSX52i/yy2furBfbltd6ooJPPpmzieIbnmNi/EXQkf/mjhyBNdutQB
-         hqPKEyj1VX+i9xic7IRlvYSzk0fwlaYRPN0mvzuRkV5J3N/rPnk4txbQoZlaiYGvVt5c
-         h70vJnNZwEY3jTH0FylRiptT7ZTcDDKyx86h4U8d+8+igxVKyx9hy4iHe+IrAQoXgimN
-         oeK10bIlrfFW9A3aLa5wc2wbUsnP/qk5mNMAn8W4pIS1ISsLc8e6pgm/DXlkN0x0mIhq
-         kk2wYoZ5k3Hr4JTNeGdwLdFyVPfkbC7GpxGN6qJDSFAnO2Rfvj2TZAdFMXBypKLwuxfb
-         hh2Q==
-X-Gm-Message-State: APjAAAVRtNFJZjpWiZXylIXUOy0Wqh9mDxh8v+y4o4A1qeK6CrB6Ke/S
-	qMiJ9huObRAozew6kg3yoprlIYK9YdOxEcxnJFVVVrK3fKy/k9MUfwL8QAvobR0LXPNCvHMdnz4
-	2ZCls/qPfybC/lF398NRPB3F/fwvfbYMIhtYo5QCI3HAl/uytWNUFjlxxFrEBJ7QROw==
-X-Received: by 2002:a25:55d7:: with SMTP id j206mr21355950ybb.234.1559764608517;
-        Wed, 05 Jun 2019 12:56:48 -0700 (PDT)
-X-Received: by 2002:a25:55d7:: with SMTP id j206mr21355926ybb.234.1559764607878;
-        Wed, 05 Jun 2019 12:56:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559764607; cv=none;
+        bh=YWPCkjiDpsVKRA3zAFLVPrJDaYwckwujcOqte+GF4Qs=;
+        b=gaLQXphbMxjgCqxAo+1dj3Fwl4KtbprghtWSoR8CvL9dT6pAvyHGQQ6tMqGNaO8UTm
+         nANS3pQZ53WTD3lJlVT101YqnCa54p3sdr9oTZj29XGnOnk/3T9yCnn3Nx+khQrQljwH
+         zI90ESbSdiuR3rBnw37OSwUV106oDG9Lu1SU56gAblNQBX7rnaUzuXjrUKPW2FZFt5ut
+         WGpKIsgktbXHvNODtLd+1iAzjt73TX5U5YgEvsgE3BMY722uJL8FwAnSRAlBTxUm8a86
+         l/GOHL9dj12aYOfhT1w313WyOw0IgYGzogiYc6CWECFIGu4AfVdqXjKn4lEdrgsUKn3O
+         uzPg==
+X-Gm-Message-State: APjAAAWeK/VT1l0/PCwRWKCfaW81fp8KWABTevhuHcUa8PZvzdiL2sGp
+	2k1mMN/PQ9eulmiJGXSyo1ONUEP7WHk20bUHA48GXBkYm3yv2h6PT7mqBWWcfUUaxvqNcvS3b6h
+	gqsRyUJQLbfrTKuGnGMLbmPZQ4WdIrUw2iBTNJBP0ApudAxxCifL3YY8XFWu8RxK8Cg==
+X-Received: by 2002:a24:2149:: with SMTP id e70mr4698912ita.2.1559765265310;
+        Wed, 05 Jun 2019 13:07:45 -0700 (PDT)
+X-Received: by 2002:a24:2149:: with SMTP id e70mr4698849ita.2.1559765264299;
+        Wed, 05 Jun 2019 13:07:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559765264; cv=none;
         d=google.com; s=arc-20160816;
-        b=Iy4zEb2NKV4tChlKviJZXKF6v3YxuDbkhITfk3gb/t0+i/l7RJYhjYWsWeHa4BwYCU
-         Thi+iANP1m13M21adk74X24HqgxUmqTbiC7u7UDo2JTdVui/FbONK3uV/IUBcgwKuXI0
-         3HaMiSGHFZ9vczuRSaWqj/PU3JatnYwVwCEKkcceKSZOzf+3XrGe4DlYZdx3rJ19ewds
-         pwGBhe2JNKgUa0MAizbWiZRB3opJnjutKOuEMpFighHoIa7foX3PjGALeTZsXvm675VR
-         RNr7ofFKo3LTIbnC6BV3iEIDKSCUeS6NK+YlNZUb5MHb1zNVhR1v7Fv/zG3O29nSDfVp
-         lWjQ==
+        b=Zi9Fz+kXhgXmD5/U3AnmAhKzgf4Fc78uvZckKr2l1V/8LqL+q8/G4As8V+W0BzMr2x
+         SiO0D6VI495JYwhX3+ZzfuHSX0aqQcUisSqfMH19fV9aV7YpIBxArMyXeEVYndKtKhfC
+         0Pnq9VhwnQU/SJFe1cxX09OsP34uaLLbANvfbk4pWF6Q9WswsTpVD8/0b5LD6b1RDPKf
+         4pAB92NFePMT22r3e8gxfCHCCPq0pZD/NzHwuYm7Cycml9s1tKlVak0RMzSkFyxnNxPk
+         lfocBsZbe45v4Sb+58JxbKNehvkOfJHDr+CpEMdDMyL2lbBl+mhhwoFoT3zRpaWQCbz4
+         yqvQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=9q4+At4yxP0TO9XKtv623886ZmeIrCw2KxtQ8rIVE+c=;
-        b=fEU3xNH3pneZ1w3mvgVqK7XNeHFgi517aU/PZo9SdICyM1Ko83yDcH1tRupvgq9+u/
-         EXyv+3D1+qKHJx9w8JHaAz1eHkQcoUu45biEwT8ro4qZT67rg9B31ADi98+8iMkUjzbM
-         RTYzijjPQAUKHK3fHjg5UUJXvRe7e5Gs+aHVwcajva88cNqF9PLIxvLcP5FCyrd6fcwC
-         sVX4nMMaN3JOuyCAhmgc0PkWw2Zpeq5xs81x/T8RDxyR1fLUZY97d4AZXYjKJ46afFy1
-         7SBHsizir3BEz2igHEEox7z8w64WbI2tDfPAQ6rV6UWHavb8XwkFKovjpFDdVnX2VSBl
-         3WIg==
+        bh=YWPCkjiDpsVKRA3zAFLVPrJDaYwckwujcOqte+GF4Qs=;
+        b=qdc5gqIpyc62Rx3gP8SDNboTfkmRNh921b8cvefb0O+smbGBZqk0DsrHUL83UiImR2
+         RjJfYadfqF/1q2jm292egk588vNH6+/FOsIQ2wnQS7xW/VHQg1AqaNn31vNW39ASuRw6
+         Ya9fM/hvjYuagikIi/v8MtNZa6giHeb9xcm3xo8/kPsopA1Co2xE+S9u73mcoLa1SAMv
+         14Wwyxa2cwX57RIq4LzGpKARQgCQMN5kKhS4vAGp1QdHCYzD+XA2zEOzCY2GzCl5DOOB
+         yaA28oG63vvCvOfU9eTVhtKoIx2/VWdQlgYsxJV4oc6pB4vnowD9N7+aHQnSWr1zKN5C
+         Wv7g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ONPOG0cr;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f64sor10387706ywa.28.2019.06.05.12.56.47
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Y6/CTKw2";
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l1sor4750553ioc.63.2019.06.05.13.07.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 05 Jun 2019 12:56:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 05 Jun 2019 13:07:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ONPOG0cr;
-       spf=pass (google.com: domain of shakeelb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=shakeelb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Y6/CTKw2";
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
+        d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=9q4+At4yxP0TO9XKtv623886ZmeIrCw2KxtQ8rIVE+c=;
-        b=ONPOG0criwRaERkMrKHfVu+FHkSVoaWJAe/3Qcz/W7LCrH5/GIScT4HA/6GrL0+9r8
-         o6co8aqwlNSEl7NCQ5sS9tePoeHt4h9GPb68IhajREN/xrsWKcvK3qyMit8mTn0Syc/A
-         7iA0JHtcd+FIK9ODp7RhnjbF13bEpwhQGYCei3mrBE/QI6K5gsvChkA/hORMbZ9/NFwj
-         fOz5k6FisPTLo3cnO2KlMHYBKGSLayATbBhmtiVl0hlN7FVFEeyjwZxp9QJDFViYJ9Fr
-         /8tGYfzZZKKv+lqP9TGaDdXxFpWTov0D05vVZG6KZ2JgmhFAjsoiImnW6hbJ2aiQ0DFz
-         doOw==
-X-Google-Smtp-Source: APXvYqyT6u3oJyZE6NCw9GM4C6IEV7j7fkZPEOKpEM78DGOX/BwgTrn0eHFIXgvbs4TMZ9Ae/bo4AwJhPu/gx1keGo4=
-X-Received: by 2002:a81:a6d5:: with SMTP id d204mr22361086ywh.205.1559764607325;
- Wed, 05 Jun 2019 12:56:47 -0700 (PDT)
+        bh=YWPCkjiDpsVKRA3zAFLVPrJDaYwckwujcOqte+GF4Qs=;
+        b=Y6/CTKw2HpfFzRV8cVp90r2srB2SmP6at0zd+tEXm7XFl50kmu/Y3nIEEWGg3Kzk/B
+         l3D3Qr4UiAJUphHXpmvTqTi4wbNRjrImrlG7ZnCCJKH8FdZqjq4BvR9hjClj79ZJXtpo
+         wJwy3Sz8MDxzQjIUSDal0FQ4e3ED/l4WprxHOQB1SqDvdINs5Z2Iqe466nxFxl7DIM25
+         bdtQ+7JbvDnxmhTWFmbnWKhDxV3HeUg0fR3ZqWqUeprL7yqliCoe6qJGgY9soYeL2+c4
+         g5KyxxMf4S0cwbsB+gEsHrj/UZW1Nk7qSFO7PfGWDWJQGbArg1y384v4TeP+oCHceLWr
+         6KCQ==
+X-Google-Smtp-Source: APXvYqzGleq5vDpqLVlVafId0CX+B2A32E7+JeJwJXNMpga7x9yP1fKCekdulEwyHbBdx18n2S7Lth9ehJe4hSJLcVk=
+X-Received: by 2002:a5d:9d8a:: with SMTP id 10mr9444816ion.179.1559765263703;
+ Wed, 05 Jun 2019 13:07:43 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190605100630.13293-1-teawaterz@linux.alibaba.com>
-In-Reply-To: <20190605100630.13293-1-teawaterz@linux.alibaba.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Wed, 5 Jun 2019 12:56:36 -0700
-Message-ID: <CALvZod7Ya=mPKryiCxKVguGV-hPEjXD_6gBOFs9zJWc_NQMMBQ@mail.gmail.com>
-Subject: Re: [PATCH V3 1/2] zpool: Add malloc_support_movable to zpool_driver
-To: Hui Zhu <teawaterz@linux.alibaba.com>
-Cc: Dan Streetman <ddstreet@ieee.org>, Minchan Kim <minchan@kernel.org>, ngupta@vflare.org, 
-	sergey.senozhatsky.work@gmail.com, Seth Jennings <sjenning@redhat.com>, 
-	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
+ <CABXGCsNq4xTFeeLeUXBj7vXBz55aVu31W9q74r+pGM83DrPjfA@mail.gmail.com> <20190529180931.GI18589@dhcp22.suse.cz>
+In-Reply-To: <20190529180931.GI18589@dhcp22.suse.cz>
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Thu, 6 Jun 2019 01:07:32 +0500
+Message-ID: <CABXGCsNTjHhpK4OoGxo+rcp60F0pAc377KpdsrgWptyFjfLLog@mail.gmail.com>
+Subject: Re: kernel BUG at mm/swap_state.c:170!
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -112,108 +111,15 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 5, 2019 at 3:06 AM Hui Zhu <teawaterz@linux.alibaba.com> wrote:
+On Wed, 29 May 2019 at 23:09, Michal Hocko <mhocko@kernel.org> wrote:
 >
-> As a zpool_driver, zsmalloc can allocate movable memory because it
-> support migate pages.
-> But zbud and z3fold cannot allocate movable memory.
->
-> This commit adds malloc_support_movable to zpool_driver.
-> If a zpool_driver support allocate movable memory, set it to true.
-> And add zpool_malloc_support_movable check malloc_support_movable
-> to make sure if a zpool support allocate movable memory.
->
-> Signed-off-by: Hui Zhu <teawaterz@linux.alibaba.com>
+> Do you see the same with 5.2-rc1 resp. 5.1?
 
-Reviewed-by: Shakeel Butt <shakeelb@google.com>
+The problem still occurs at 5.2-rc3.
+Unfortunately hard reproducible does not allow to make bisect.
+Any ideas what is wrong?
 
-IMHO no need to block this series on z3fold query.
-
-> ---
->  include/linux/zpool.h |  3 +++
->  mm/zpool.c            | 16 ++++++++++++++++
->  mm/zsmalloc.c         | 19 ++++++++++---------
->  3 files changed, 29 insertions(+), 9 deletions(-)
->
-> diff --git a/include/linux/zpool.h b/include/linux/zpool.h
-> index 7238865e75b0..51bf43076165 100644
-> --- a/include/linux/zpool.h
-> +++ b/include/linux/zpool.h
-> @@ -46,6 +46,8 @@ const char *zpool_get_type(struct zpool *pool);
->
->  void zpool_destroy_pool(struct zpool *pool);
->
-> +bool zpool_malloc_support_movable(struct zpool *pool);
-> +
->  int zpool_malloc(struct zpool *pool, size_t size, gfp_t gfp,
->                         unsigned long *handle);
->
-> @@ -90,6 +92,7 @@ struct zpool_driver {
->                         struct zpool *zpool);
->         void (*destroy)(void *pool);
->
-> +       bool malloc_support_movable;
->         int (*malloc)(void *pool, size_t size, gfp_t gfp,
->                                 unsigned long *handle);
->         void (*free)(void *pool, unsigned long handle);
-> diff --git a/mm/zpool.c b/mm/zpool.c
-> index a2dd9107857d..863669212070 100644
-> --- a/mm/zpool.c
-> +++ b/mm/zpool.c
-> @@ -238,6 +238,22 @@ const char *zpool_get_type(struct zpool *zpool)
->         return zpool->driver->type;
->  }
->
-> +/**
-> + * zpool_malloc_support_movable() - Check if the zpool support
-> + * allocate movable memory
-> + * @zpool:     The zpool to check
-> + *
-> + * This returns if the zpool support allocate movable memory.
-> + *
-> + * Implementations must guarantee this to be thread-safe.
-> + *
-> + * Returns: true if if the zpool support allocate movable memory, false if not
-> + */
-> +bool zpool_malloc_support_movable(struct zpool *zpool)
-> +{
-> +       return zpool->driver->malloc_support_movable;
-> +}
-> +
->  /**
->   * zpool_malloc() - Allocate memory
->   * @zpool:     The zpool to allocate from.
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 0787d33b80d8..8f3d9a4d46f4 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -437,15 +437,16 @@ static u64 zs_zpool_total_size(void *pool)
->  }
->
->  static struct zpool_driver zs_zpool_driver = {
-> -       .type =         "zsmalloc",
-> -       .owner =        THIS_MODULE,
-> -       .create =       zs_zpool_create,
-> -       .destroy =      zs_zpool_destroy,
-> -       .malloc =       zs_zpool_malloc,
-> -       .free =         zs_zpool_free,
-> -       .map =          zs_zpool_map,
-> -       .unmap =        zs_zpool_unmap,
-> -       .total_size =   zs_zpool_total_size,
-> +       .type =                   "zsmalloc",
-> +       .owner =                  THIS_MODULE,
-> +       .create =                 zs_zpool_create,
-> +       .destroy =                zs_zpool_destroy,
-> +       .malloc_support_movable = true,
-> +       .malloc =                 zs_zpool_malloc,
-> +       .free =                   zs_zpool_free,
-> +       .map =                    zs_zpool_map,
-> +       .unmap =                  zs_zpool_unmap,
-> +       .total_size =             zs_zpool_total_size,
->  };
->
->  MODULE_ALIAS("zpool-zsmalloc");
-> --
-> 2.21.0 (Apple Git-120)
->
+--
+Best Regards,
+Mike Gavrilov.
 
