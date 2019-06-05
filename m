@@ -7,110 +7,110 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 14ABDC28CC5
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:37:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 94142C28CC6
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:37:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C0C7420665
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:37:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4265620665
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:37:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="04/ccSPI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C0C7420665
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="JTf9y2n/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4265620665
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3D0226B000D; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
+	id 6F82E6B000E; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 34A696B0010; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
+	id 6CDE86B0010; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 212E16B0266; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
+	id 482866B0269; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DEFE16B000D
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 09:37:25 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id bb9so16109394plb.2
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 06:37:25 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 098BE6B000E
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id u7so18698116pfh.17
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 06:37:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=u+zLCba4ifvorqHECxdb8NWOVORyLACPhu1rUxGfaiU=;
-        b=rxe5VMWcMy19dFb3wP26/SLnLLsZa3F21WV+Tk5b9CZeE1xN8k69ZWhFbGZfSqusAD
-         NitApGESxZS1YyUZXHu3LoUDfwNzdsJVzHS7t6tktejAulWiYrMtLQ3QfZu6sZ2oIwbV
-         Qw0CUCBleVyQ/npHC7ZADzs7hSLu/1JInPpKilAiGbqZm1/nXiItYQyOwhJrbaiasigd
-         gxd6qZ5A1f+nVdlAov08C+B4gGJYb1YyWv23r4XUufeRYok0ke5lFDeG7cJnfEXzD5Dx
-         NoOyyj2THDYrygy8PJf4fGJt8IglKNFcCb3itgYMkZEdvbenA5JGGf5OsQASyT75FDns
-         E0rA==
-X-Gm-Message-State: APjAAAXsLn2F8zI1jSBvNRf0k4V658bUBOZZUuW7L9VF4fGy2wJnmzqN
-	jp3tK3JBt4VIgjBxk1QH+rG6tmKQukicpzdo/+SrSI/Nkm0GcaN42aI301QfzuY1C08j91ZUbaq
-	Wyc3ppvj2KYRqeb3W6kaUxNPUDXYuSfDBQ81kw4XpwMPTu1kJ0MYC2aF9AUZn2CXlnA==
-X-Received: by 2002:a63:4f07:: with SMTP id d7mr4424133pgb.77.1559741845358;
+        bh=Ww3UO2Y64LsDIspP9nYZfcD+xc5topDBTlHYu02FoZk=;
+        b=Ob3QTY53GIy5VXZfLMxJaD4QXdink1iASljBkcyEhwXlnY0lZnOtSWewf+DFzenMZf
+         EvB9nFFZFwOmSVWG+Ze0B33HPV/brawpzYUqz8/yZ2f082dEB/PrdMQj9xeydftbdJEr
+         QOT4fxTbZ+SmMbP9lylsqWZWPIV03mGhTaACOO7OfSY2l9ZExBm4lfmGNU4UYtdr0wRn
+         FAYT1QSi4REkIfONNj/a7zs9xCYxU/88etWf5cWT9+7u233PtwD2OK+TboswGrSbFbsc
+         9+FsFrs/pJJgtn0w3g1bhvp+/FojUOq9yANPrwIAVo4hwXVKDND4jNv+rLBhmnIqcnAE
+         5Qrw==
+X-Gm-Message-State: APjAAAUI7FneuOfbHm0Qizs3JcxXcOCQlKhoIZv3VlXaVv0lJd0Tpt1g
+	25p68CGz1+Ujof8+mbWpA1WVHYKaPIHtNCx715tMldpf6E6PO06UOe/PsghxGoHRr2w9jGH2ull
+	i7wASTosw4b38cIcY/jCKf2qNz4SwTTggMvcWx+J78nfv2GYz2e5Ale6yDW4ZuL2ppA==
+X-Received: by 2002:a62:bd0e:: with SMTP id a14mr46169465pff.44.1559741845452;
         Wed, 05 Jun 2019 06:37:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz4bB9YQuA8v/7AJsIX9aMv8pP0blcsKKtvRUA39dmpOIXD26diG0JHIMribfsdhotQSrVp
-X-Received: by 2002:a63:4f07:: with SMTP id d7mr4424047pgb.77.1559741844462;
+X-Google-Smtp-Source: APXvYqx7N9hh69DkPkj+XRvTfgWed7MT2a+lj/BlwOanm4NjK3mS746Dx9sh5rWcucZiYbi436na
+X-Received: by 2002:a62:bd0e:: with SMTP id a14mr46169364pff.44.1559741844578;
         Wed, 05 Jun 2019 06:37:24 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1559741844; cv=none;
         d=google.com; s=arc-20160816;
-        b=sOjJicTt6i4H39+FDZBfgtXTKoUvMW4GU+ssb9nx/jWe0I97lbMjSzQmt07IcyB7JD
-         vrAOG3IyGQCOTp3/pWElQwK1BhVqSbPOD4Y9nRxslBJ9NWyGDwFFfBucG9Yt5t1bVp7Y
-         UGWzsdWw70XnW1igYKOjXbgbES8Z1ygtUxNvCKnm937N4dcFEG5iwzkaAORSphC46xI1
-         5V6B6W6AXEHFPXhgZjCsOyefoD2jGSFQRtqJTGdon60xyWiHfsF3X+Myr4pCXUy2eY0U
-         r0eHNpuZKLbI4+ZuJCbOcBoDv9bRvNkGVW+dw+Lxu9dFYMjZCPfUAaCyvpbhVtR/T3bX
-         I5Ag==
+        b=aHArLHJg6rPOfG8PS3ucBPZhdlBS2EIGHp0Tc49dbgkcFHkm0GsUCRvLuWI8NBFC+Z
+         1RHj9syRvdIXhgX39YpEtPMfaHmoal1Azc08ASRsNZ4z6G9xQqqX+8Mi9go8I+Pi84cq
+         PADdv4pomg3QWhgOcxtfzHbF3Xiw3TS5SW/fgkMEi/U0BihCfHFSanvlEsah+JmX/HQ5
+         1L09UZ5/D/YoE7qBVheRuX5+AXxEwVt38TBbptolyBM+EEX5DdtJV+HIl3wUBKr21Acu
+         I0HLwYWQeP8unORmT5dksjdOs3eRPAJbPIeKQMj1YOzVt829QfZf6WIA8NQNf6s9QrLr
+         nYnA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=u+zLCba4ifvorqHECxdb8NWOVORyLACPhu1rUxGfaiU=;
-        b=YQJZxUO1902D89tiavA2LqAWRBtI/+SaYC1XL2tZcA9EwA6kn862fZM6f5nHaeCvTu
-         BO+LIjy3j2oExMFiZEoRzf5cYK3OvZeYsbi1xcTN1kyTEpq4vQODg+ZyudUpLpJTGhd8
-         T9MCuvVpbMirbOidkO66gzufzoHN8YQNfudU5xw9F+AgffIBDXQsoE/wsQ4WgtAGHw5g
-         SD9/y4NOZ9KE0v/kh9s2OOEPfWUvTqX6za8s+PByaV+bBzS1jPykHTSKVVruRJBMYT1a
-         8F1YnivAgHaUtKtlG3iuwMXMBaMMKBsPjaHov08PBcMfSBLFvHCWJoTNLk/2nfD3IqZg
-         oEjw==
+        bh=Ww3UO2Y64LsDIspP9nYZfcD+xc5topDBTlHYu02FoZk=;
+        b=RpERhASg0kuvGHF37V5I0v7MUL1xNZSrVV20aKGnL6aOxpp931YxzVewH8KknIc/Vu
+         JlvVkG23A8xvICLCg2lmOhHG1chzmzjrhNmzYDOH0eRSSafC7pkL0k4POJGAZDcgvoEd
+         /hlB9JGWRUmzhBx7mttU38LQkHGhU8bickmq8JX2sf5txAvYkOF1hZNyigOd4kIw9vtH
+         VFLE1JyAyRexhSKVMlXQGIpttVHgaZfbJh87o43NC8cCHPFGnmcIyux6BpRpMXyTw6qk
+         TM+MYkcbIpXv4rTWVUpkOSRaLeC5yheU4473VbmZVU9A3saBKaLqyTlEClG3fQ9oX5OQ
+         rfTQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="04/ccSPI";
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="JTf9y2n/";
        spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id d10si26040888plr.307.2019.06.05.06.37.24
+        by mx.google.com with ESMTPS id c32si26999882pje.0.2019.06.05.06.37.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 05 Jun 2019 06:37:24 -0700 (PDT)
 Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="04/ccSPI";
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="JTf9y2n/";
        spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55DTE1i119488;
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55DTRP0119591;
 	Wed, 5 Jun 2019 13:37:09 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references : mime-version :
  content-transfer-encoding; s=corp-2018-07-02;
- bh=u+zLCba4ifvorqHECxdb8NWOVORyLACPhu1rUxGfaiU=;
- b=04/ccSPIDB9rw0yaqtcHi0KxfYmVhroln6GrxIIJzj+KGMwFDFX7hLTbB5o3fTLxBF89
- f6L2rcGShr+HLDMtx402CIThkjTlkqOfuo5U4Vd+MJrso7BezPsVTOmqkth7JJQ+RTEc
- kb14qh1piCluKWghlyGA2hLFa4230l30Vnc3+2m6xnNZIVg07MSAiWxocE7bA/4j0m0+
- TK9uMGn+1S+nIxB5mvY6N/WRTOKYBwl3FYzT/tWQhVUECUikgTVXITWKP/BEzEeEU74+
- 6ZJYd4KTUVHwSCKtYk7FLDVi+4/BwJsFLksq3zUNl7MKDZf0qHnUIp/9vO+eJvVWqjYF RA== 
+ bh=Ww3UO2Y64LsDIspP9nYZfcD+xc5topDBTlHYu02FoZk=;
+ b=JTf9y2n/Sjoe4pCzMh/uy2QTChLH80qdYMT4tF5HvvdqnddEB6F4E7F4ln19olEOst+P
+ s1d70dD4bMVQKxP4Wu+TyCMvlVbnlNw1Av/XCyGAad3Kwj35hUXdccR6qBwRPSim9lCU
+ 7Rb092NiSatD4WL50ijDmD/UXKm3bjtZxCByZFaqV88vG2iSAbuTpL79Hr6kx3DNUG60
+ AllDwHwTDfclIdN9dy8zeJbbxLGmOLYPfZcfR/ES2Mtuqu9X1mGhxP5+Spi6RjmpSb8q
+ nMtE1DTLPDzZD13aqefL2bhadYVaee21oqJeziL5s7NwKS9ai+fBjUFarxilJfvPWhIH gA== 
 Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2130.oracle.com with ESMTP id 2sugstjn49-1
+	by userp2130.oracle.com with ESMTP id 2sugstjn48-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
 	Wed, 05 Jun 2019 13:37:09 +0000
 Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55DZsPL069366;
-	Wed, 5 Jun 2019 13:37:09 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserp3020.oracle.com with ESMTP id 2swnghw2j9-1
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55DZsGf069290;
+	Wed, 5 Jun 2019 13:37:08 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by aserp3020.oracle.com with ESMTP id 2swnghw2j7-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
 	Wed, 05 Jun 2019 13:37:08 +0000
 Received: from abhmp0001.oracle.com (abhmp0001.oracle.com [141.146.116.7])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x55Db0GP027121;
-	Wed, 5 Jun 2019 13:37:01 GMT
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x55Db4vD022901;
+	Wed, 5 Jun 2019 13:37:04 GMT
 Received: from localhost.localdomain (/73.60.114.248)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 05 Jun 2019 06:37:00 -0700
+	with ESMTP ; Wed, 05 Jun 2019 06:37:04 -0700
 From: Daniel Jordan <daniel.m.jordan@oracle.com>
 To: hannes@cmpxchg.org, jiangshanlai@gmail.com, lizefan@huawei.com,
         tj@kernel.org
@@ -120,9 +120,9 @@ Cc: bsd@redhat.com, dan.j.williams@intel.com, daniel.m.jordan@oracle.com,
         tom.hromatka@oracle.com, vdavydov.dev@gmail.com,
         cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
         linux-mm@kvack.org
-Subject: [RFC v2 1/5] cgroup: add cgroup v2 interfaces to migrate kernel threads
-Date: Wed,  5 Jun 2019 09:36:46 -0400
-Message-Id: <20190605133650.28545-2-daniel.m.jordan@oracle.com>
+Subject: [RFC v2 3/5] workqueue, memcontrol: make memcg throttle workqueue workers
+Date: Wed,  5 Jun 2019 09:36:48 -0400
+Message-Id: <20190605133650.28545-4-daniel.m.jordan@oracle.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190605133650.28545-1-daniel.m.jordan@oracle.com>
 References: <20190605133650.28545-1-daniel.m.jordan@oracle.com>
@@ -130,13 +130,13 @@ MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9278 signatures=668687
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=870
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
  adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
  engine=8.0.1-1810050000 definitions=main-1906050087
 X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9278 signatures=668687
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
  suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=902 adultscore=0
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
  definitions=main-1906050087
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -145,111 +145,137 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Prepare for cgroup aware workqueues by introducing cgroup_attach_kthread
-and a helper cgroup_attach_kthread_to_dfl_root.
+Attaching a worker to a css_set isn't enough for all controllers to
+throttle it.  In particular, the memory controller currently bypasses
+accounting for kernel threads.
 
-A workqueue worker will always migrate itself, so for now use @current
-in the interfaces to avoid handling task references.
+Support memcg accounting for cgroup-aware workqueue workers so that
+they're appropriately throttled.
+
+Another, probably better way to do this is to have kernel threads, or
+even specifically cgroup-aware workqueue workers, call
+memalloc_use_memcg and memalloc_unuse_memcg during cgroup migration
+(memcg attach callback maybe).
 
 Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- include/linux/cgroup.h |  6 ++++++
- kernel/cgroup/cgroup.c | 48 +++++++++++++++++++++++++++++++++++++-----
- 2 files changed, 49 insertions(+), 5 deletions(-)
+ kernel/workqueue.c          | 26 ++++++++++++++++++++++++++
+ kernel/workqueue_internal.h |  5 +++++
+ mm/memcontrol.c             | 26 ++++++++++++++++++++++++--
+ 3 files changed, 55 insertions(+), 2 deletions(-)
 
-diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index 81f58b4a5418..ad78784e3692 100644
---- a/include/linux/cgroup.h
-+++ b/include/linux/cgroup.h
-@@ -103,6 +103,7 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
- struct cgroup *cgroup_get_from_path(const char *path);
- struct cgroup *cgroup_get_from_fd(int fd);
+diff --git a/kernel/workqueue.c b/kernel/workqueue.c
+index 89b90899bc09..c8cc69e296c0 100644
+--- a/kernel/workqueue.c
++++ b/kernel/workqueue.c
+@@ -50,6 +50,8 @@
+ #include <linux/sched/isolation.h>
+ #include <linux/nmi.h>
+ #include <linux/cgroup.h>
++#include <linux/memcontrol.h>
++#include <linux/sched/mm.h>
  
-+int cgroup_attach_kthread(struct cgroup *dst_cgrp);
- int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
- int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
+ #include "workqueue_internal.h"
  
-@@ -530,6 +531,11 @@ static inline struct cgroup *task_dfl_cgroup(struct task_struct *task)
- 	return task_css_set(task)->dfl_cgrp;
+@@ -1829,6 +1831,28 @@ static inline bool worker_in_child_cgroup(struct worker *worker)
+ 	return (worker->flags & WORKER_CGROUP) && cgroup_parent(worker->cgroup);
  }
  
-+static inline int cgroup_attach_kthread_to_dfl_root(void)
++/* XXX Put this in the memory controller's attach callback. */
++#ifdef CONFIG_MEMCG
++static void worker_unuse_memcg(struct worker *worker)
 +{
-+	return cgroup_attach_kthread(&cgrp_dfl_root.cgrp);
++	if (worker->task->active_memcg) {
++		struct mem_cgroup *memcg = worker->task->active_memcg;
++
++		memalloc_unuse_memcg();
++		css_put(&memcg->css);
++	}
 +}
 +
- static inline struct cgroup *cgroup_parent(struct cgroup *cgrp)
++static void worker_use_memcg(struct worker *worker)
++{
++	struct mem_cgroup *memcg;
++
++	worker_unuse_memcg(worker);
++	memcg = mem_cgroup_from_css(task_get_css(worker->task, memory_cgrp_id));
++	memalloc_use_memcg(memcg);
++}
++#endif /* CONFIG_MEMCG */
++
+ static void attach_worker_to_dfl_root(struct worker *worker)
  {
- 	struct cgroup_subsys_state *parent_css = cgrp->self.parent;
-diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
-index 3f2b4bde0f9c..bc8d6a2e529f 100644
---- a/kernel/cgroup/cgroup.c
-+++ b/kernel/cgroup/cgroup.c
-@@ -2771,21 +2771,59 @@ struct task_struct *cgroup_procs_write_start(char *buf, bool threadgroup)
- 	return tsk;
+ 	int ret;
+@@ -1841,6 +1865,7 @@ static void attach_worker_to_dfl_root(struct worker *worker)
+ 		rcu_read_lock();
+ 		worker->cgroup = task_dfl_cgroup(worker->task);
+ 		rcu_read_unlock();
++		worker_unuse_memcg(worker);
+ 	} else {
+ 		/*
+ 		 * TODO Modify the cgroup migration path to guarantee that a
+@@ -1880,6 +1905,7 @@ static void attach_worker_to_cgroup(struct worker *worker,
+ 
+ 	if (cgroup_attach_kthread(cgroup) == 0) {
+ 		worker->cgroup = cgroup;
++		worker_use_memcg(worker);
+ 	} else {
+ 		/*
+ 		 * Attach failed, so attach to the default root so the
+diff --git a/kernel/workqueue_internal.h b/kernel/workqueue_internal.h
+index 3ad5861258ca..f254b93edc2c 100644
+--- a/kernel/workqueue_internal.h
++++ b/kernel/workqueue_internal.h
+@@ -79,6 +79,11 @@ work_func_t wq_worker_last_func(struct task_struct *task);
+ 
+ #ifdef CONFIG_CGROUPS
+ 
++#ifndef CONFIG_MEMCG
++static inline void worker_use_memcg(struct worker *worker) {}
++static inline void worker_unuse_memcg(struct worker *worker) {}
++#endif /* CONFIG_MEMCG */
++
+ /*
+  * A barrier work running in a cgroup-aware worker pool needs to specify a
+  * cgroup.  For simplicity, WQ_BARRIER_CGROUP makes the worker stay in its
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 81a0d3914ec9..1a80931b124a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2513,9 +2513,31 @@ static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
+ 
+ static inline bool memcg_kmem_bypass(void)
+ {
+-	if (in_interrupt() || !current->mm || (current->flags & PF_KTHREAD))
++	if (in_interrupt())
+ 		return true;
+-	return false;
++
++	if (unlikely(current->flags & PF_WQ_WORKER)) {
++		struct cgroup *parent;
++
++		/*
++		 * memcg should throttle cgroup-aware workers.  Infer the
++		 * worker is cgroup-aware by its presence in a non-root cgroup.
++		 *
++		 * This test won't detect a cgroup-aware worker attached to the
++		 * default root, but in that case memcg doesn't need to
++		 * throttle it anyway.
++		 *
++		 * XXX One alternative to this awkward block is adding a
++		 * cgroup-aware-worker bit to task_struct.
++		 */
++		rcu_read_lock();
++		parent = cgroup_parent(task_dfl_cgroup(current));
++		rcu_read_unlock();
++
++		return !parent;
++	}
++
++	return !current->mm || (current->flags & PF_KTHREAD);
  }
  
--void cgroup_procs_write_finish(struct task_struct *task)
--	__releases(&cgroup_threadgroup_rwsem)
-+static void __cgroup_procs_write_finish(struct task_struct *task)
- {
- 	struct cgroup_subsys *ss;
- 	int ssid;
- 
--	/* release reference from cgroup_procs_write_start() */
--	put_task_struct(task);
-+	lockdep_assert_held(&cgroup_mutex);
- 
--	percpu_up_write(&cgroup_threadgroup_rwsem);
- 	for_each_subsys(ss, ssid)
- 		if (ss->post_attach)
- 			ss->post_attach();
- }
- 
-+void cgroup_procs_write_finish(struct task_struct *task)
-+	__releases(&cgroup_threadgroup_rwsem)
-+{
-+	lockdep_assert_held(&cgroup_mutex);
-+
-+	/* release reference from cgroup_procs_write_start() */
-+	put_task_struct(task);
-+
-+	percpu_up_write(&cgroup_threadgroup_rwsem);
-+	__cgroup_procs_write_finish(task);
-+}
-+
-+/**
-+ * cgroup_attach_kthread - attach the current kernel thread to a cgroup
-+ * @dst_cgrp: the cgroup to attach to
-+ *
-+ * The caller is responsible for ensuring @dst_cgrp is valid until this
-+ * function returns.
-+ *
-+ * Return: 0 on success or negative error code.
-+ */
-+int cgroup_attach_kthread(struct cgroup *dst_cgrp)
-+{
-+	int ret;
-+
-+	if (WARN_ON_ONCE(!(current->flags & PF_KTHREAD)))
-+		return -EINVAL;
-+
-+	mutex_lock(&cgroup_mutex);
-+
-+	percpu_down_write(&cgroup_threadgroup_rwsem);
-+	ret = cgroup_attach_task(dst_cgrp, current, false);
-+	percpu_up_write(&cgroup_threadgroup_rwsem);
-+
-+	__cgroup_procs_write_finish(current);
-+
-+	mutex_unlock(&cgroup_mutex);
-+
-+	return ret;
-+}
-+
- static void cgroup_print_ss_mask(struct seq_file *seq, u16 ss_mask)
- {
- 	struct cgroup_subsys *ss;
+ /**
 -- 
 2.21.0
 
