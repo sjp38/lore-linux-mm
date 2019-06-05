@@ -3,102 +3,162 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DFC84C28CC6
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 16:32:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CDF8C28CC5
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 16:37:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A6391206C3
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 16:32:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6391206C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 08EB02083E
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 16:37:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08EB02083E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 429CD6B026D; Wed,  5 Jun 2019 12:32:11 -0400 (EDT)
+	id 97BE46B0266; Wed,  5 Jun 2019 12:37:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3FF6B6B026E; Wed,  5 Jun 2019 12:32:11 -0400 (EDT)
+	id 936756B0269; Wed,  5 Jun 2019 12:37:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2EF1F6B026F; Wed,  5 Jun 2019 12:32:11 -0400 (EDT)
+	id 7F3F76B026C; Wed,  5 Jun 2019 12:37:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D6FBC6B026D
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 12:32:10 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f17so4626950eda.11
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 09:32:10 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BAF96B0266
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 12:37:16 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id d27so6532963eda.9
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 09:37:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=fFcZ4SkDo55jbz9mzlNDhFKxa1lrOZkRCiSJNaSqEM8=;
-        b=jNPbRGLI+ShB5JGWKy3dv6KRYAYQZoQcaaq5LnVAcsf90lHz66OgeTz7YxbT6Ay0Z5
-         gpC4RCpN/lwh/u1NlRh/ec3b5Re8B/nZCMZXgp1Z8dpFgazKW+ni9DBG1yzhVBQZ2bVw
-         1vqAuqmzsDnDl6tDRwQJRAbZ/8wdSobCDkg+cNDhoAPrwCADy1UhE730xvCtw8CV6E+y
-         HwkKNPYDzpzGtLncuXmwselO3UsOMqSRiRBK8w+y0W2FvokDSZEPgtEluS2LYN1uR+7q
-         qxRK1T/IoHWL+cjhhZQR5DSuv7Avzhxe+2KNhdIWmmnhTCV0OeS71BCfwQLu4OwzjlTh
-         8EVg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
-X-Gm-Message-State: APjAAAUxiGP709TOUCx0KMza7gzMEVS8EOWaZbQAZH5ELa/fX4/fnHP1
-	ySid6IxFjwjAOnUFVdGH31tzlWz9JIRNT7abImtnJ47GdDCvmAkLfco9XZv2YqKne9xmEskwawa
-	7hh5fd6hiwyHPFQfPUnlReTVw++NmcPI93Apiyfw3F9y02mGH1I+XE1H7HH8sa5teSA==
-X-Received: by 2002:a17:907:2114:: with SMTP id qn20mr18886679ejb.138.1559752330419;
-        Wed, 05 Jun 2019 09:32:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqypwZRzZ4Q4mVYk7sxMUR1YIdW4A2rzHvqCCEB67/zWVMXOH7qahLfThE6k6W+ygeXuwYT0
-X-Received: by 2002:a17:907:2114:: with SMTP id qn20mr18886607ejb.138.1559752329608;
-        Wed, 05 Jun 2019 09:32:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559752329; cv=none;
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=dGTUYJwzUls7B7MGpV96GRVo17jVhRQrnrpUUa/+5zA=;
+        b=sZqdpaS79PyqZS07pMgrQE+1HreY6JrVlAPYQ0Vnq4aqi1TuxG5NiTET2va8DAo3yl
+         0klKXy9aKuicsd4GvJ+Z2xrNHjqLu290KTGpdhVl2NBvOlXuvAeorlj07RaniGoeRYNt
+         9qEb8x/ZG8uhEXQXksImfmeY0ydTdWRhG3Ol9LpUbc08IxRW3yew6zfLzmsZUE+xKyXl
+         cofWewuIG4BFdVs9+fTpmUQH6cNACf4JH9DunA6u5RLK3qZlbhySlvyxgmS1nPd32IdO
+         uscRppc7VfKsHu1PhZ9leTHfn7WY0pFLsfHMx5arz96yAHAPyF2gKRWDKgh74fZJZOel
+         YeKQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAWRHJ7OwXF0IqEPPuqdKffcwv5QwSCITTdQjWHZMw1ZacYcz90t
+	Pj+X7Q2livaCzvFJx0mTu1bHAEV9Gbt32F0ThQHQQDCbD2eQu+7gjbZ5g9iGo7NUPmNB+F2JkwM
+	yvLYXo6Jg/32FXglUhX4r+zl5orzN8Zb9w2yNKBYa1Do3UNV3g/SZOdvqfk5kpFvFXg==
+X-Received: by 2002:a17:906:951:: with SMTP id j17mr10927275ejd.174.1559752635763;
+        Wed, 05 Jun 2019 09:37:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxW8DGAHoqvjnRNsR5+re1oHkJuJuPmjC4dZa3huuxx+GzxpolASgKWM0SyLOGYhnr1be9u
+X-Received: by 2002:a17:906:951:: with SMTP id j17mr10927208ejd.174.1559752634905;
+        Wed, 05 Jun 2019 09:37:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559752634; cv=none;
         d=google.com; s=arc-20160816;
-        b=tdqWG1s6jw1da9h7dIPLu4c8Z/BhgMvLk/a8kZEzbFVZ1U1Dr94syUHBTJiGWfBVCg
-         YOCPvppXBk66os3huMusma1uEjBik1xMxvl9odGyof/VMxap5dPVOVCQJEmoNKiNSDWQ
-         9Cck60bFfqWAc2ZPZ2A5FH9t5n9aiDu2iGzOvL7y86RFJCgdxvHVSkdSkaVH1ZLUQioh
-         hnKQLBw4fE89tjhSiU4KZuE7htFAgWx426KwCysNs3sxLkl/cQ4G9b2UNOaXJLZCDpIr
-         EWuy0WGDs+lmtBlTKq2glQUGie1gjgkkC0Wz/+lNncQPBS+QF1CqrNFZLgLPeZhP0XjR
-         YM7w==
+        b=Wv8PCLtZPL5StsooLKPqMhc7ACGqaPqJWP+TyRRAuoZ7zxYGnCV3SJ65YisNRAaiQl
+         58+zjw4qvra8N9+1hjNfzbSBVKNkKim0idf6zk+EA2X+yx3y1SC93cXtaSM/Fm4TFuBA
+         ON6PLfUNFamHN3rDjd9k6xgmudAO8RGUUWnwJlC6HLlEdBplOd9P/KhP9FQtSvZmmXJK
+         F6D2qiTlvX34RQvadFczwkg4hb1+CoHkzlX/J9udrm2Cx5pcYSjZe/HZVT6qBqEydyDb
+         MxYLlwaaLkqV+Ru1mLH6Y9a0HChEcUAwg5RIVt//eg8vyxHrddnGQWl6NGyJssrN9OTn
+         Zu3g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=fFcZ4SkDo55jbz9mzlNDhFKxa1lrOZkRCiSJNaSqEM8=;
-        b=G1iraqE7A3OgoY4qYoYSiFKS26OKOtvCrctCyzMnPB07tJ349HYOjYmMYX627lLTUO
-         pd4RIqccT37RZAxd7vhKljmmoFjZ65dzV3gzrBhgL0T9gYgcSaz6bC87ageldOoMWP6+
-         umC7chWzJBwqZMYeXZUAyB2+t+p6dvEX5fojKTIHdD9YMDFhmvD1/8fxv32Aix0LagPQ
-         5D3RzeTB1o0wwiLuHRCFgz2LKR44kjC9x/pMpXFnjBPF3ruLvLN/TUj1xV0PJWEe3k+L
-         5jm6od449xu3iFcAyOu+NJHXVeFdv5EpA4NiDYay91qfKTWfUzNhcxgTQIl1p1MwB6rr
-         llxQ==
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=dGTUYJwzUls7B7MGpV96GRVo17jVhRQrnrpUUa/+5zA=;
+        b=1C+VFuo9lO83m/1NCCFsLaFv3FAAj3nDctbqrirYq1/QObmXC4FMC7xqaCnDd4bHTc
+         AqSV3cuV2rBMT+qLYtr93Q75YpNZSUQsiG21uofXwgvFcNnrfjJLloQNqKxIbIDSMJXf
+         l+JLo236JI7oWAXB5bR/AUUafegQCQ2/gvWsBZuHEs6rSYYtS94rAQkxNoHSDJ38gheC
+         4eYjzLMEFYQlP0opOwXmaWpgCMrftEAGglUgFrwNCE74edxWSvjv65rbigkXj2GvVS7z
+         glSrFxxULSzhq/1LEjLyAXQeh1GgfIxrI3/guwGLQaNCiLYfT7LSTug22EWcOq25ckEu
+         yiHQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id g9si1932375ejj.245.2019.06.05.09.32.09
-        for <linux-mm@kvack.org>;
-        Wed, 05 Jun 2019 09:32:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w41si3571135edw.268.2019.06.05.09.37.14
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Jun 2019 09:37:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8EA8A374;
-	Wed,  5 Jun 2019 09:32:08 -0700 (PDT)
-Received: from [10.1.196.105] (eglon.cambridge.arm.com [10.1.196.105])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B9ED53F5AF;
-	Wed,  5 Jun 2019 09:32:05 -0700 (PDT)
-Subject: Re: [PATCH 0/4] support reserving crashkernel above 4G on arm64 kdump
-To: Chen Zhou <chenzhou10@huawei.com>
-Cc: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org,
- ard.biesheuvel@linaro.org, rppt@linux.ibm.com, tglx@linutronix.de,
- mingo@redhat.com, bp@alien8.de, ebiederm@xmission.com, horms@verge.net.au,
- takahiro.akashi@linaro.org, linux-arm-kernel@lists.infradead.org,
- linux-kernel@vger.kernel.org, kexec@lists.infradead.org, linux-mm@kvack.org,
- wangkefeng.wang@huawei.com
-References: <20190507035058.63992-1-chenzhou10@huawei.com>
-From: James Morse <james.morse@arm.com>
-Message-ID: <51995efd-8469-7c15-0d5e-935b63fe2d9f@arm.com>
-Date: Wed, 5 Jun 2019 17:32:04 +0100
-User-Agent: Mozilla/5.0 (X11; Linux aarch64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 80392AC3F;
+	Wed,  5 Jun 2019 16:37:14 +0000 (UTC)
+Subject: Re: question: should_compact_retry limit
+To: Mike Kravetz <mike.kravetz@oracle.com>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+References: <6377c199-2b9e-e30d-a068-c304d8a3f706@oracle.com>
+ <908c1454-6ae5-87ca-c6a5-e542fbafa866@suse.cz>
+ <3bc00340-1e81-4f08-37f8-28388b7fba3b@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <2ab55bf9-96f0-9616-555a-b7e3a399522b@suse.cz>
+Date: Wed, 5 Jun 2019 18:33:45 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190507035058.63992-1-chenzhou10@huawei.com>
+In-Reply-To: <3bc00340-1e81-4f08-37f8-28388b7fba3b@oracle.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -106,59 +166,27 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+On 6/5/19 6:05 PM, Mike Kravetz wrote:
+> On 6/5/19 12:58 AM, Vlastimil Babka wrote:
+>> On 6/5/19 1:30 AM, Mike Kravetz wrote:
+>> Hmm I guess we didn't expect compaction_withdrawn() to be so
+>> consistently returned. Do you know what value of compact_result is there
+>> in your test?
+> 
+> Added some instrumentation to record values and ran test,
+> 
+> 557904 Total
+> 
+> 549186 COMPACT_DEFERRED
 
-On 07/05/2019 04:50, Chen Zhou wrote:
-> We use crashkernel=X to reserve crashkernel below 4G, which will fail
-> when there is no enough memory. Currently, crashkernel=Y@X can be used
-> to reserve crashkernel above 4G, in this case, if swiotlb or DMA buffers
-> are requierd, capture kernel will boot failure because of no low memory.
+Retrying mindlessly with compaction deferred sounds definitely wrong,
+I'll try to look at it. Thanks.
 
-> When crashkernel is reserved above 4G in memory, kernel should reserve
-> some amount of low memory for swiotlb and some DMA buffers. So there may
-> be two crash kernel regions, one is below 4G, the other is above 4G.
-
-This is a good argument for supporting the 'crashkernel=...,low' version.
-What is the 'crashkernel=...,high' version for?
-
-Wouldn't it be simpler to relax the ARCH_LOW_ADDRESS_LIMIT if we see 'crashkernel=...,low'
-in the kernel cmdline?
-
-I don't see what the 'crashkernel=...,high' variant is giving us, it just complicates the
-flow of reserve_crashkernel().
-
-If we called reserve_crashkernel_low() at the beginning of reserve_crashkernel() we could
-use crashk_low_res.end to change some limit variable from ARCH_LOW_ADDRESS_LIMIT to
-memblock_end_of_DRAM().
-I think this is a simpler change that gives you what you want.
-
-
-> Then
-> Crash dump kernel reads more than one crash kernel regions via a dtb
-> property under node /chosen,
-> linux,usable-memory-range = <BASE1 SIZE1 [BASE2 SIZE2]>.
-
-Won't this break if your kdump kernel doesn't know what the extra parameters are?
-Or if it expects two ranges, but only gets one? These DT properties should be treated as
-ABI between kernel versions, we can't really change it like this.
-
-I think the 'low' region is an optional-extra, that is never mapped by the first kernel. I
-think the simplest thing to do is to add an 'linux,low-memory-range' that we
-memblock_add() after memblock_cap_memory_range() has been called.
-If its missing, or the new kernel doesn't know what its for, everything keeps working.
-
-
-> Besides, we need to modify kexec-tools:
->   arm64: support more than one crash kernel regions(see [1])
-
-> I post this patch series about one month ago. The previous changes and
-> discussions can be retrived from:
-
-Ah, this wasn't obvious as you've stopped numbering the series. Please label the next one
-'v6' so that we can describe this as 'v5'. (duplicate numbering would be even more confusing!)
-
-
-Thanks,
-
-James
+>   8718 COMPACT_PARTIAL_SKIPPED
+> 
+> Do note that this is not my biggest problem with these allocations.  That is
+> should_continue_reclaim returning true more often that in should.  Still
+> trying to get more info on that.  This was just something curious I also
+> discovered.
+> 
 
