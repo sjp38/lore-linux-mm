@@ -2,141 +2,346 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A6BAAC28CC5
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 17:21:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B4EBC28CC5
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 17:33:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 48C532075B
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 17:21:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48C532075B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 473A720866
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 17:33:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="kto5V4C/";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="trQfGH8Y"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 473A720866
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CDCC16B0266; Wed,  5 Jun 2019 13:21:41 -0400 (EDT)
+	id B9BB16B0266; Wed,  5 Jun 2019 13:33:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C8D076B0269; Wed,  5 Jun 2019 13:21:41 -0400 (EDT)
+	id B4B9F6B0269; Wed,  5 Jun 2019 13:33:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B7CE76B026A; Wed,  5 Jun 2019 13:21:41 -0400 (EDT)
+	id A13B26B026A; Wed,  5 Jun 2019 13:33:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CB186B0266
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 13:21:41 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id a21so6632477edt.23
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 10:21:41 -0700 (PDT)
+Received: from mail-it1-f200.google.com (mail-it1-f200.google.com [209.85.166.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E9936B0266
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 13:33:25 -0400 (EDT)
+Received: by mail-it1-f200.google.com with SMTP id i195so73643ite.1
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 10:33:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=wmhLTsjSokkqh5+/OTvpKw/9iaYRU4mTxJw/7I1542I=;
-        b=gvdh9T59f2inTetFADodbJNUvQn09n2jwyMML51rcjMfA8JQOUp6Lo9J4xqkuuBcy6
-         31GLxAhxVNvSRFsKAVlK9OKjj8GyC93ckPcAL+Bn50mE0jW7zNRTxHGYf2fu1C4W7Puv
-         ij64uuTtQ23ehXV3axqJt+i6Rao4GXBxPLtihtbN6K7php47RMh9CCxrHjfuacs84LNh
-         BtNjoj8gQJA/CksggZw1szvDImrRwdiFb79A/17Pp2IKTJP9Hn5eBVV4dg3SF9jTdWOW
-         9EWSufcBvwwH/opvHm/Yr1aM3LZIEG3dQOMd7NxWAcl3rC8nDxaoSkb5GviyvWlexZ2i
-         BGPw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAUJbavBT893OqMqIM45dfo7Mh+DKy+z7kGTq6xvzSpg24OvS77n
-	aBw+IVzpdxk92BD71phEJVVdUt6UCCzkaeJ2XGyNKoY7nTou9bR1X+rarlyXxKu9nFLC2HZiWU8
-	8rDOqyKGB0oXG6yhUitC5lFZg3kWDawS+hu3seRdGUPn3kBuylMBnrC4Hghc9hmP/ng==
-X-Received: by 2002:a17:907:384:: with SMTP id ss4mr19204921ejb.166.1559755300895;
-        Wed, 05 Jun 2019 10:21:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxafcV+iwpOMbbQku5FXrdsdg1zwBI9AA7iZl9cYBh0vtQ5f1LZIcqm5MFhe3guyKhSm8Y/
-X-Received: by 2002:a17:907:384:: with SMTP id ss4mr19204799ejb.166.1559755299220;
-        Wed, 05 Jun 2019 10:21:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559755299; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=NQd/ZrI7OHysa9+zywBc0NoPVivbuTiA3s8wT2Jxq4Y=;
+        b=iDyYLFA+dgDPOhvX8mUD/grJvQ7oqpPfMYfiISWv5TrRfI0Qfwpz8Z8oH2AJxjDhYM
+         ziWBkOZEvJAULOb8BQKub+v6NNAi0V3vhbQKhYQ0VsiJu6SHK8HKYJu3HrQYMgbDXPIN
+         iJbPioODUggvM9XPeckaHYgTcCxoGFAWYC6b363AeaABSfwmJ+yEJaYJ2u9CvLOY0g41
+         6jM1x2Q2NdOCBVJEtzI3O193ydGsYwnLu1Fm5r1N5AT0oVVX4Zic2ndv83gAgPYxxjqX
+         eNh0rXZYqdDiRxAtCUWVKOjYfFN3jtVGHmrBwJeS0HUchuwdW1O43DDzkEIAdmr5hNC9
+         lSBA==
+X-Gm-Message-State: APjAAAXMhiQp6I2OjbvwFQJ2yq6YxHGfc2J+OxpnZR+7azyVuosHERY7
+	6gArHtCdy/GOUJmdY89GWDwU9yDfKaqdPkmGm54S/QJFc5/Kz4Aip8MqVtVnVpwIUnLWd6oK+tK
+	GfFhCjVBlltIRhXUP+ORLnLeMxFQNTlYdB2n6HFg0/aWDn1WMEPuxIbF9feSC8iYepQ==
+X-Received: by 2002:a24:a348:: with SMTP id p69mr11203868ite.34.1559756005183;
+        Wed, 05 Jun 2019 10:33:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxBUbc1XeefUwqmbglSkezq8nP3ciaSmCwcesapq3Qye78Rc/cbkeXJRu0wdLMhFXwh3Jca
+X-Received: by 2002:a24:a348:: with SMTP id p69mr11203802ite.34.1559756003934;
+        Wed, 05 Jun 2019 10:33:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559756003; cv=none;
         d=google.com; s=arc-20160816;
-        b=T4uKX/Yw/17zn9nZEHtxJfFToQ6KqczZHHKUkxik7Ro69Q1q+M/tv0FDy7V9NGAjOW
-         o5Cjim1FQT8bK4qNpfDlOQ5bMYODAKvDfXM9G4dZcpqfWf0nkpSwxv9RxC98YotnxRCF
-         sC458KiQnVrdLf3Ic6b7H9+qYzJITFihxH7P6oDLx3luQPRCcknT1AQ3+oZ9FH1oA1Jb
-         dnvUyUcKmsBvb9Ixl86JkoK1e4U/xcjP+c8V0I7J8eur5XE/B1Ro/PCNx8d4W4Xdzj0h
-         yeloVzoPrdPEdY2Y2kM2Vmu+heQ2dgicv17Vkbds7/3rkccRLswW5TCnTmWAysFTEv2U
-         m2hg==
+        b=I0nWeoqL3iDMJKbQMkg3gWq/mqMGhB+CFhLGWwkv2zxwhljkDM8T5NS6ds9Ndoy8zO
+         C/PxlqgVc4LuBfdAoVCj+0u03bqT7SVVk0xS6AhKOSEWEsmtQJMtxJoum5TWLGSiytdd
+         6loG29kdM1LcBvcLeUDXMd7TklfbGpnDE6sydcD3yHFr2O/hPtqOmY/LpQEuytEnoQem
+         8KWLp6KDc/h1NMB3oNqq1ErYEhfSrYBmK8x+rinOPjWops+iLT7GUhFZVpqvFv5t9vho
+         b256W+7W4byXtMLBb7zeEXWL9d2ZElwTrjJFN/9o0JcbtQuoDi3c1rOg+AbUoORqtMXv
+         Y9mA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=wmhLTsjSokkqh5+/OTvpKw/9iaYRU4mTxJw/7I1542I=;
-        b=I16Dzux4rdvsZtXcNkWhEfBDsEQrxIx59WtZ7y7qiruqK1TYhWMAc1paFIJHX5RcEV
-         +u5D7izGJpmcUvz/dVxKS2zOd/Yk9vB8H6xOw/TwF9BD2QC0Dwxr3K1m9WTBxH4WeQRb
-         a8pq8mSQMmAqdDiPmxDDzSVvfmNLaQplkd+tKeYVKpKP2Fp3s/K1V0NdK9Qyo7UNimuy
-         LIisUa88ot9m7T0w6iZmtoOj8Uc30GzulHH0SVRfX0vEPF4iPCY16fViHcaBpt23YakO
-         8XL3fxarvQqPUZTJvYzMAzp5OoKBFw7toma10o09Njk2Neo6fcnmWGy87WZVbo3stf5R
-         4euA==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=NQd/ZrI7OHysa9+zywBc0NoPVivbuTiA3s8wT2Jxq4Y=;
+        b=gUoh6gw+kt3edtGowLUwmMyC5jz/UYkANhQ9GLrKzwehlhzf5Piqw445pCaCdJd5kC
+         5R6MM8fxz7cpuH/PCR33pXIOJ+oqWIU6EAIy2T+hSuBxMFlUBRgQPO0gXeGh86FsPKgu
+         94RBS7KlO0Qf2mYgSoMeqEPW9SHaxOoAVN++kpi+8l89OK67g4pMwkWEmVwMlTT/+y12
+         KI53nCt8H23YFg/ZU9ldRudm5fZ6f4xXLzWLZdCdkDyYg8hGObLz382WCLDEzXU0HX73
+         mdcs/EjN5emoNDjtf5M/WTMhIxQpnbZJ8Z5uIfX4tZfTZCkRfyTin3SyN+WhacFgfYrg
+         YG2Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
-        by mx.google.com with ESMTPS id hh12si6394247ejb.189.2019.06.05.10.21.38
+       dkim=pass header.i=@fb.com header.s=facebook header.b="kto5V4C/";
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=trQfGH8Y;
+       spf=pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=10599ee021=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id f73si1646520itc.109.2019.06.05.10.33.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 10:21:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) client-ip=46.22.139.233;
+        Wed, 05 Jun 2019 10:33:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.233 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id 5F16B1C2F8D
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 18:21:38 +0100 (IST)
-Received: (qmail 11740 invoked from network); 5 Jun 2019 17:21:37 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 5 Jun 2019 17:21:37 -0000
-Date: Wed, 5 Jun 2019 18:21:36 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-To: balducci@units.it
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org,
-	akpm@linux-foundation.org
-Subject: Re: [Bug 203715] New: BUG: unable to handle kernel NULL pointer
- dereference under stress (possibly related to
- https://lkml.org/lkml/2019/5/24/292 ?)
-Message-ID: <20190605172136.GC4626@techsingularity.net>
-References: <20190604110510.GA4626@techsingularity.net>
- <11510.1559738359@dschgrazlin2.units.it>
+       dkim=pass header.i=@fb.com header.s=facebook header.b="kto5V4C/";
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=trQfGH8Y;
+       spf=pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=10599ee021=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109334.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x55HXDjD020842;
+	Wed, 5 Jun 2019 10:33:17 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=NQd/ZrI7OHysa9+zywBc0NoPVivbuTiA3s8wT2Jxq4Y=;
+ b=kto5V4C/V0elVdD6dHMAsm4VhDwt1TTtQhq/8JrkNr241iFgZXjd3ETWvpyrON+dCvOK
+ MJOsoQNi32z3FiPzEK9Fb2kZMPtcVNw76Iqsq62yCdxms0uMPhyNfdgjB8J0LUpiZBBx
+ pcHPF65WKmJoKx05ersvDvWp0Ak3Hi/etZA= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2sxeckgwwe-11
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
+	Wed, 05 Jun 2019 10:33:17 -0700
+Received: from ash-exhub204.TheFacebook.com (2620:10d:c0a8:83::4) by
+ ash-exhub104.TheFacebook.com (2620:10d:c0a8:82::d) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Wed, 5 Jun 2019 10:33:02 -0700
+Received: from NAM03-CO1-obe.outbound.protection.outlook.com (100.104.31.183)
+ by o365-in.thefacebook.com (100.104.36.100) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
+ via Frontend Transport; Wed, 5 Jun 2019 10:33:02 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=NQd/ZrI7OHysa9+zywBc0NoPVivbuTiA3s8wT2Jxq4Y=;
+ b=trQfGH8YOa4LmX/6mzBHPf+6imT05ZbzrLQ2ldxSP+NEK/17MfHSZ8Kv9Mc7Lo8NzUmd2Qhz+ESIclMPUGXp3qqj2UNyExZyCvNb5zfoOhd4OPW/5CMzczVU9DETQFoS+0YVssjlYeW0O8uCzrMlIhJivWu1caRRTv19aEZ63fg=
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com (20.179.156.24) by
+ BYAPR15MB3446.namprd15.prod.outlook.com (20.179.59.206) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1943.22; Wed, 5 Jun 2019 17:33:00 +0000
+Received: from BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::d4f6:b485:69ee:fd9a]) by BYAPR15MB2631.namprd15.prod.outlook.com
+ ([fe80::d4f6:b485:69ee:fd9a%7]) with mapi id 15.20.1943.018; Wed, 5 Jun 2019
+ 17:33:00 +0000
+From: Roman Gushchin <guro@fb.com>
+To: Greg Thelen <gthelen@google.com>
+CC: Andrew Morton <akpm@linux-foundation.org>,
+        Shakeel Butt
+	<shakeelb@google.com>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        Kernel Team
+	<Kernel-team@fb.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        Michal Hocko
+	<mhocko@kernel.org>, Rik van Riel <riel@surriel.com>,
+        Christoph Lameter
+	<cl@linux.com>,
+        Vladimir Davydov <vdavydov.dev@gmail.com>,
+        "cgroups@vger.kernel.org" <cgroups@vger.kernel.org>
+Subject: Re: [PATCH v4 0/7] mm: reparent slab memory on cgroup removal
+Thread-Topic: [PATCH v4 0/7] mm: reparent slab memory on cgroup removal
+Thread-Index: AQHVCp5GUxFizIu5r06SwCXM6qQb7qaMzloAgACl1QA=
+Date: Wed, 5 Jun 2019 17:33:00 +0000
+Message-ID: <20190605173256.GB10098@tower.DHCP.thefacebook.com>
+References: <20190514213940.2405198-1-guro@fb.com>
+ <xr93ef48v5ub.fsf@gthelen.svl.corp.google.com>
+In-Reply-To: <xr93ef48v5ub.fsf@gthelen.svl.corp.google.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: MWHPR11CA0044.namprd11.prod.outlook.com
+ (2603:10b6:300:115::30) To BYAPR15MB2631.namprd15.prod.outlook.com
+ (2603:10b6:a03:152::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:200::2:a19a]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: c1ff0bcd-3d27-4853-ef35-08d6e9dbdad9
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BYAPR15MB3446;
+x-ms-traffictypediagnostic: BYAPR15MB3446:
+x-ms-exchange-purlcount: 1
+x-microsoft-antispam-prvs: <BYAPR15MB34465D5762F9393F14C4EF7BBE160@BYAPR15MB3446.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:1775;
+x-forefront-prvs: 00594E8DBA
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(366004)(136003)(346002)(396003)(376002)(189003)(199004)(81156014)(81166006)(66946007)(256004)(8676002)(66446008)(73956011)(86362001)(53936002)(66476007)(68736007)(6436002)(52116002)(64756008)(478600001)(186003)(14444005)(229853002)(25786009)(966005)(8936002)(6116002)(46003)(76176011)(33656002)(102836004)(6506007)(99286004)(386003)(11346002)(446003)(54906003)(66556008)(486006)(6246003)(6916009)(4326008)(1076003)(6486002)(476003)(5660300002)(2906002)(316002)(6512007)(71190400001)(14454004)(7416002)(6306002)(305945005)(7736002)(71200400001)(9686003);DIR:OUT;SFP:1102;SCL:1;SRVR:BYAPR15MB3446;H:BYAPR15MB2631.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: MpgG27Y6kdDTPSAJt5vL3fnkZRp0HUPz1+RSu9SsDAqZSqgsIHK7nkyY1DgdAB3FGgma3tqAe07QytjlaV3zm0fr2IRlmqJPWxBhfk8rGoQeQ8BO1YLBzG5yieOzB/YeOZD8w/t+2TgALDByZPYCNiN92PzkVy8kyYIrMab1Vw85GC6hFQDascNz1pQvFTbKtQhO9PUe7xb4xmco/mVZrieIVcK14u3ey+d3KURCYmtj/T94rewlrqNfhpOKzTOvj5KKUGRKGisjU/giNRzlLmvk1muUZkI8XvmdyCGbiT6KEANJHbuC9YfH9vtJVbFc2ps/cg2KVZjMulbaRLvXu0c+kRGFMfZGUve0I/4X6NHkhDW2LFOG+Z48T+vvrZQ/W34juXnAUO49IFcUBPTVmak61DXor5zc+uLwDntOY1U=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <4827968C6C11134CB78F7FF0C1B2FBD3@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <11510.1559738359@dschgrazlin2.units.it>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-MS-Exchange-CrossTenant-Network-Message-Id: c1ff0bcd-3d27-4853-ef35-08d6e9dbdad9
+X-MS-Exchange-CrossTenant-originalarrivaltime: 05 Jun 2019 17:33:00.1077
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: guro@fb.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BYAPR15MB3446
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-05_10:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906050110
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 05, 2019 at 02:38:55PM +0200, balducci@units.it wrote:
-> hello
-> 
-> > Sorry, I was on holidays and only playing catchup now. Does this happen
-> > to trigger with 5.2-rc3? I ask because there were other fixes in there
-> > with stable cc'd that have not been picked up yet. They are a poor match
-> > for this particular bug but it would be nice to confirm.
-> 
-> I have built v5.2-rc3 from git (stable/linux-stable.git) and tested it
-> against firefox-67.0.1 build: no joy. 
-> 
-> I'm going to upload the kernel log and the config I used for v5.2-rc3
-> (there were a couple of new opts) to bugzilla, if that can help
-> 
+On Wed, Jun 05, 2019 at 12:39:24AM -0700, Greg Thelen wrote:
+> Roman Gushchin <guro@fb.com> wrote:
+>=20
+> > # Why do we need this?
+> >
+> > We've noticed that the number of dying cgroups is steadily growing on m=
+ost
+> > of our hosts in production. The following investigation revealed an iss=
+ue
+> > in userspace memory reclaim code [1], accounting of kernel stacks [2],
+> > and also the mainreason: slab objects.
+> >
+> > The underlying problem is quite simple: any page charged
+> > to a cgroup holds a reference to it, so the cgroup can't be reclaimed u=
+nless
+> > all charged pages are gone. If a slab object is actively used by other =
+cgroups,
+> > it won't be reclaimed, and will prevent the origin cgroup from being re=
+claimed.
+> >
+> > Slab objects, and first of all vfs cache, is shared between cgroups, wh=
+ich are
+> > using the same underlying fs, and what's even more important, it's shar=
+ed
+> > between multiple generations of the same workload. So if something is r=
+unning
+> > periodically every time in a new cgroup (like how systemd works), we do
+> > accumulate multiple dying cgroups.
+> >
+> > Strictly speaking pagecache isn't different here, but there is a key di=
+fference:
+> > we disable protection and apply some extra pressure on LRUs of dying cg=
+roups,
+> > and these LRUs contain all charged pages.
+> > My experiments show that with the disabled kernel memory accounting the=
+ number
+> > of dying cgroups stabilizes at a relatively small number (~100, depends=
+ on
+> > memory pressure and cgroup creation rate), and with kernel memory accou=
+nting
+> > it grows pretty steadily up to several thousands.
+> >
+> > Memory cgroups are quite complex and big objects (mostly due to percpu =
+stats),
+> > so it leads to noticeable memory losses. Memory occupied by dying cgrou=
+ps
+> > is measured in hundreds of megabytes. I've even seen a host with more t=
+han 100Gb
+> > of memory wasted for dying cgroups. It leads to a degradation of perfor=
+mance
+> > with the uptime, and generally limits the usage of cgroups.
+> >
+> > My previous attempt [3] to fix the problem by applying extra pressure o=
+n slab
+> > shrinker lists caused a regressions with xfs and ext4, and has been rev=
+erted [4].
+> > The following attempts to find the right balance [5, 6] were not succes=
+sful.
+> >
+> > So instead of trying to find a maybe non-existing balance, let's do rep=
+arent
+> > the accounted slabs to the parent cgroup on cgroup removal.
+> >
+> >
+> > # Implementation approach
+> >
+> > There is however a significant problem with reparenting of slab memory:
+> > there is no list of charged pages. Some of them are in shrinker lists,
+> > but not all. Introducing of a new list is really not an option.
+> >
+> > But fortunately there is a way forward: every slab page has a stable po=
+inter
+> > to the corresponding kmem_cache. So the idea is to reparent kmem_caches
+> > instead of slab pages.
+> >
+> > It's actually simpler and cheaper, but requires some underlying changes=
+:
+> > 1) Make kmem_caches to hold a single reference to the memory cgroup,
+> >    instead of a separate reference per every slab page.
+> > 2) Stop setting page->mem_cgroup pointer for memcg slab pages and use
+> >    page->kmem_cache->memcg indirection instead. It's used only on
+> >    slab page release, so it shouldn't be a big issue.
+> > 3) Introduce a refcounter for non-root slab caches. It's required to
+> >    be able to destroy kmem_caches when they become empty and release
+> >    the associated memory cgroup.
+> >
+> > There is a bonus: currently we do release empty kmem_caches on cgroup
+> > removal, however all other are waiting for the releasing of the memory =
+cgroup.
+> > These refactorings allow kmem_caches to be released as soon as they
+> > become inactive and free.
+> >
+> > Some additional implementation details are provided in corresponding
+> > commit messages.
+> >
+> > # Results
+> >
+> > Below is the average number of dying cgroups on two groups of our produ=
+ction
+> > hosts. They do run some sort of web frontend workload, the memory press=
+ure
+> > is moderate. As we can see, with the kernel memory reparenting the numb=
+er
+> > stabilizes in 60s range; however with the original version it grows alm=
+ost
+> > linearly and doesn't show any signs of plateauing. The difference in sl=
+ab
+> > and percpu usage between patched and unpatched versions also grows line=
+arly.
+> > In 7 days it exceeded 200Mb.
+> >
+> > day           0    1    2    3    4    5    6    7
+> > original     56  362  628  752 1070 1250 1490 1560
+> > patched      23   46   51   55   60   57   67   69
+> > mem diff(Mb) 22   74  123  152  164  182  214  241
+>=20
+> No objection to the idea, but a question...
 
-Can you try the following compile-tested only patch please?
+Hi Greg!
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 9e1b9acb116b..b3f18084866c 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -277,8 +277,7 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
- 	}
- 
- 	/* Ensure the end of the pageblock or zone is online and valid */
--	block_pfn += pageblock_nr_pages;
--	block_pfn = min(block_pfn, zone_end_pfn(zone) - 1);
-+	block_pfn = min(pageblock_end_pfn(block_pfn), zone_end_pfn(zone) - 1);
- 	end_page = pfn_to_online_page(block_pfn);
- 	if (!end_page)
- 		return false;
+> In patched kernel, does slabinfo (or similar) show the list reparented
+> slab caches?  A pile of zombie kmem_caches is certainly better than a
+> pile of zombie mem_cgroup.  But it still seems like it'll might cause
+> degradation - does cache_reap() walk an ever growing set of zombie
+> caches?
 
--- 
-Mel Gorman
-SUSE Labs
+It's not a pile of zombie kmem_caches vs a pile of zombie mem_cgroups.
+It's a smaller pile of zombie kmem_caches vs a larger pile of zombie kmem_c=
+aches
+*and* a pile of zombie mem_cgroups. The patchset makes the number of zombie
+kmem_caches lower, not bigger.
+
+Re slabinfo and other debug interfaces: I do not change anything here.
+
+>=20
+> We've found it useful to add a slabinfo_full file which includes zombie
+> kmem_cache with their memcg_name.  This can help hunt down zombies.
+
+I'm not sure we need to add a permanent debug interface, because something =
+like
+drgn ( https://github.com/osandov/drgn ) can be used instead.
+
+If you think that we lack some necessary debug interfaces, I'm totally open
+here, but it's not a part of this patchset. Let's talk about them separatel=
+y.
+
+Thank you for looking into it!
+
+Roman
 
