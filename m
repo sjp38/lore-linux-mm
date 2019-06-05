@@ -2,172 +2,162 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DA6EC28D18
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 11:19:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB07AC28CC6
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 11:23:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3CFFB2075B
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 11:19:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CFFB2075B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
+	by mail.kernel.org (Postfix) with ESMTP id 910F620717
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 11:23:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ZxNl0qOQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 910F620717
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C66926B000E; Wed,  5 Jun 2019 07:19:31 -0400 (EDT)
+	id 2A0716B000E; Wed,  5 Jun 2019 07:23:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C3FDF6B0010; Wed,  5 Jun 2019 07:19:31 -0400 (EDT)
+	id 24FEA6B0010; Wed,  5 Jun 2019 07:23:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B53F86B0266; Wed,  5 Jun 2019 07:19:31 -0400 (EDT)
+	id 118526B0266; Wed,  5 Jun 2019 07:23:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 802D56B000E
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 07:19:31 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 14so14569886pgo.14
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 04:19:31 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id CBCB06B000E
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 07:23:36 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id f8so14603989pgp.9
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 04:23:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:message-id:mime-version;
-        bh=Wqm76YMczlqB0UEhlA+7k1eDT0ZHfNZ4UD767P7sevQ=;
-        b=h0y8PP87FSnaQAqeeTEFsXWIM59+c+Op7g+nOI5SmUeHNkjPEgotqWtr4nRm7QvU4+
-         /93/X+JIBLLqdH3KG7Wf3Miw7duEmSyOCH3ks7wO921xWdilV2pEl0r92wdUhT0XfUjd
-         V03hUg9/6XXbtL1MM/cS2fAXuD/BjU8lIEc8wMYxJFgDjKp4/WNjreIe+o+qpORsK3jN
-         tC+sytpIyiUnvR76gH1qeYxdJPGCbgWUzwIQUkC6TFI4+sRTnPn4onFvNWYgARNAhq2A
-         MyxgoRcUkprYp2/2gAdY2NeFWgIhb9F4ob4uMm6kxlPmBdFAwjpICWwRGRYZXz2uzNui
-         6Wug==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: APjAAAUWGr4S35Qte+xSScg7P0N8JNs8hOadLj0X3MPiN5/MbdOVMH/G
-	8NwWXRovEFOtncvD7yqjY/al5EsgidZ/2NdzCq8ozT+y0OzVVIzF9W7NNtafZWHeiwcbra/EXWs
-	AJOjEoQ3cz3aarGy03qDn+cm8E9YuRbn26vPdO0BvQUYAAjEE+KmxS1EyjIVZJ5E=
-X-Received: by 2002:a17:902:b944:: with SMTP id h4mr41103269pls.179.1559733571111;
-        Wed, 05 Jun 2019 04:19:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyX8gfvx8G32+OuwBkWCsF2+GnSWLgs4imKh1o35oieMwkAx4Z0rxUXp8vTR2D8P0HIX1Vy
-X-Received: by 2002:a17:902:b944:: with SMTP id h4mr41103218pls.179.1559733570207;
-        Wed, 05 Jun 2019 04:19:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559733570; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=sVN3EHsvpO4JEKTL1zRRHRBKbHxUnSg7DWieN951vaQ=;
+        b=PV8jrqoMZ+8t+BPhnYh30Du0G25Dfwp0NsErsZADpKNxMvjn5A7Q0f1qlogtglcClb
+         aZslVZTEYc+NuCTDD8Vdo5r91FU3DEVuhDisPeDLlOG7f5TNm4X5erzBgmGntXsg7lXH
+         UjQWnU6BngM5Oa0SquZh1GEF65dJhvjeGWy1RrL4w9lzH1oETVPjcq+CbP8jukrvACti
+         c2CmDdGcB7ONrG1t0uxiO0iXQQoe2yx+JYp0z+GZMDLDyAMo0VjYlNas2veIlfwkmUen
+         uzfFhw9LrnPzCA8I7WLcBysQazGyxqYwlc5hKwwLBit2GXNIW5rRRw3MZYPaddbScgis
+         VtHg==
+X-Gm-Message-State: APjAAAWG4Ndm8/P3vn1lvoKyjjlAK8oeY4SJtgudAVq6E0fNXB7BKxY0
+	0xQjfDrP5lcKXvY67o4UxRCocnXsDnVPGQ0dB288srTVQFmt2aRlCZYch5h1luKYpPT5qNP/9Pj
+	ituxT54ANw33/VhZXN6muNdMGRi03PU1cQzxHpbCNac2+FQOlWqfvFCuLnK5xHmgWHg==
+X-Received: by 2002:a63:fd50:: with SMTP id m16mr3601990pgj.192.1559733816379;
+        Wed, 05 Jun 2019 04:23:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx9Voc4hY42cbYwvmkWeWgDgC+yJ69+YrElTdyZ1mmU56bsTcZSelsU+VlZ7kOpcm+5EFXm
+X-Received: by 2002:a63:fd50:: with SMTP id m16mr3601946pgj.192.1559733815844;
+        Wed, 05 Jun 2019 04:23:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559733815; cv=none;
         d=google.com; s=arc-20160816;
-        b=rckiygknYx1iQPbQUUhDVYaSaMoccUQTuGz6A6Ne8lssB8Dlou8rq4CUOJAGnq8Vvg
-         AksN2s2OoKCWg7Exne7Xe+3CkUkwrDEvzVsrvFMu2BYdwn+lPaMYSA/M+gTzmB93SWA3
-         9tgL5RSH1b48aS7Xw2syQmiA8AeefMk2XWplpWRB4RYime23s2PPvob1arlIXlRo4eGn
-         SyQ9ny4PdnQB5ei3E9UVUKQXkKFGS5INeeOZGUkx1EPkKTvRF34NmV5On+K7RMYS1RNg
-         iduGLjEP9fJ2tdGo87hJ2U4wYAy//Jdmy3xiMKiNXOuFIRi9rruECVxtXp1nXUGhuMrh
-         STPA==
+        b=kcUqH5Q4JFSR1mf44TlvHT1Dn1l4Y00TlkgDpY203C+eH4c6JwHlIuUHk4oQQ+fdsi
+         DxIlIYwEODSlRz/YgJHR3cGR/77Lqv/nljTTuI6oC1g5sFVC7vjrrmHi50AfsIrWRVwF
+         KGtF+YUtkNw8tsjPX0ByuN4FfE6aMPSLQDE82PpGkBBFlZxjAOeLxKs0l3Tpd4OKc1uL
+         qy3zlkCgCWrysBK5A0DmTKqMSd8pf7oPe2tu7hdqC3F7qMOStzWFOtdZy0fH5pMKSb8z
+         xa9WS7vCRAWRg9DbRVFb+RNocrfLzbdX1/R1QlJJ9JFAPlo8FBxBpE+DRiLWEZIMHA8J
+         ynhg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=Wqm76YMczlqB0UEhlA+7k1eDT0ZHfNZ4UD767P7sevQ=;
-        b=gLUcZY/t1beaIe5+I1/9JyveZvQMy3zeIXxBq6Lv82feVb7OZ9ed9s+JI64Mgfc1IL
-         DjCj3RIA4oMCBLeCYVt5ZkvxLPByOF8T9oLYBvGmf7J38Rp2cq5Xs7S+QR9UMJGn9GTT
-         BWp/Q3sKHofBKs1LbKl11ERbnPDqeOC74BgrMKDyJCNWihL1PgjTuqxxKk/+bTO/NnoP
-         EddRcgu1eomVrc5dV6qgbI5GlWaOSkPrnRIVc2FuSzZLc528qhTU9VGYF8Z7z7uD8GT3
-         NKB81ERCfM8sIxfQEv0p9rzc/cwfyFuNyPvn34QK56mY90G0FGG/iSxO2WJt9zFbNVIm
-         pKQw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=sVN3EHsvpO4JEKTL1zRRHRBKbHxUnSg7DWieN951vaQ=;
+        b=XwdUm1sM+1bhqQaJqaREG81eMiQe2FADDS1TxumE+jMYInLY5QFeMJMxI2QH8to6GI
+         pp1Eh02sJ6r37XTBMyhKrWSJFLwIAGYZtam0lHDek+A2Qo5pQxiuGhdqhEzvHyHkEcK6
+         7UgwLNGFMfR826Jj+VhPEqXrQ17M/ojvitJHqUOFZUzIpr3oIg9ugFO/PDbNX2Zntv52
+         Wz1KoutAQ/8pAihE3FKuIRGOq/uJlUFafuqRopB1mSMvxPiedN16QNdMb1PIXitfALxY
+         5pY7KODIL4bRG4GJMSba+DHVrzI+cZtWcZtAdCckAtGJZC+TAk5MRjKlRw1oh7CypFgJ
+         7cYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from ozlabs.org (bilbo.ozlabs.org. [203.11.71.1])
-        by mx.google.com with ESMTPS id x1si27510806pfx.152.2019.06.05.04.19.29
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ZxNl0qOQ;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id y1si24573906pjr.109.2019.06.05.04.23.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 05 Jun 2019 04:19:29 -0700 (PDT)
-Received-SPF: neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) client-ip=203.11.71.1;
+        Wed, 05 Jun 2019 04:23:35 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 203.11.71.1 is neither permitted nor denied by best guess record for domain of mpe@ellerman.id.au) smtp.mailfrom=mpe@ellerman.id.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 45JmXD0rHVz9sN6;
-	Wed,  5 Jun 2019 21:19:23 +1000 (AEST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ZxNl0qOQ;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=sVN3EHsvpO4JEKTL1zRRHRBKbHxUnSg7DWieN951vaQ=; b=ZxNl0qOQMb2nfXeNThDfWARnO
+	IjMcoH4MbKtQUU/nYGjzXO/SzWGoG4bwvM6cBsqxqnboCmwXwdmrZT6ztabNtnUgigfRmXDx8fQga
+	0rKqTEt4/6uc2AluHwNMT79+xCxIagqOb/We+wKGSyrnU5U0zj89HIUQ91CjDb3ocZFKE34NA73Xt
+	ht21jsc6XZzCEdyBsoxDu/s7ytcLxb6tZ+TqSKkA+jPRHteOcwa78zZTOL6egPiRNwQtvKPfLFnxB
+	43TAXA7rZyGVZ8LyRQz4qMmoOohTstIupqEoWtffXXODQJqZlI73n1KFz6tSlAtnVI5oGHg9JPstG
+	ajfQGCbTw==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hYU0u-0005Bg-TM; Wed, 05 Jun 2019 11:23:28 +0000
+Date: Wed, 5 Jun 2019 04:23:28 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Michael Ellerman <mpe@ellerman.id.au>
 Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
- linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org,
- Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
- Matthew Wilcox <willy@infradead.org>, Mark Rutland <mark.rutland@arm.com>,
- Christophe Leroy <christophe.leroy@c-s.fr>, Stephen Rothwell
- <sfr@canb.auug.org.au>, Andrey Konovalov <andreyknvl@google.com>, Paul
- Mackerras <paulus@samba.org>, Russell King <linux@armlinux.org.uk>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Tony Luck <tony.luck@intel.com>, Fenghua Yu
- <fenghua.yu@intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko
- Carstens <heiko.carstens@de.ibm.com>, Yoshinori Sato
- <ysato@users.sourceforge.jp>, "David S. Miller" <davem@davemloft.net>,
- Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra
- <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Andy Lutomirski
- <luto@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+	x86@kernel.org, Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>, Mark Rutland <mark.rutland@arm.com>,
+	Christophe Leroy <christophe.leroy@c-s.fr>,
+	Stephen Rothwell <sfr@canb.auug.org.au>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Paul Mackerras <paulus@samba.org>,
+	Russell King <linux@armlinux.org.uk>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>, Tony Luck <tony.luck@intel.com>,
+	Fenghua Yu <fenghua.yu@intel.com>,
+	Martin Schwidefsky <schwidefsky@de.ibm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	"David S. Miller" <davem@davemloft.net>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>,
+	Dave Hansen <dave.hansen@linux.intel.com>
 Subject: Re: [RFC V2] mm: Generalize notify_page_fault()
-In-Reply-To: <1559630046-12940-1-git-send-email-anshuman.khandual@arm.com>
+Message-ID: <20190605112328.GB2025@bombadil.infradead.org>
 References: <1559630046-12940-1-git-send-email-anshuman.khandual@arm.com>
-Date: Wed, 05 Jun 2019 21:19:22 +1000
-Message-ID: <87sgsomg91.fsf@concordia.ellerman.id.au>
+ <87sgsomg91.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87sgsomg91.fsf@concordia.ellerman.id.au>
+User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Anshuman Khandual <anshuman.khandual@arm.com> writes:
-> Similar notify_page_fault() definitions are being used by architectures
-> duplicating much of the same code. This attempts to unify them into a
-> single implementation, generalize it and then move it to a common place.
-> kprobes_built_in() can detect CONFIG_KPROBES, hence notify_page_fault()
-> need not be wrapped again within CONFIG_KPROBES. Trap number argument can
-> now contain upto an 'unsigned int' accommodating all possible platforms.
-...
-> diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
-> index 58f69fa..1bc3b18 100644
-> --- a/arch/arm/mm/fault.c
-> +++ b/arch/arm/mm/fault.c
-> @@ -30,28 +30,6 @@
->  
->  #ifdef CONFIG_MMU
->  
-> -#ifdef CONFIG_KPROBES
-> -static inline int notify_page_fault(struct pt_regs *regs, unsigned int fsr)
-> -{
-> -	int ret = 0;
-> -
-> -	if (!user_mode(regs)) {
-> -		/* kprobe_running() needs smp_processor_id() */
-> -		preempt_disable();
-> -		if (kprobe_running() && kprobe_fault_handler(regs, fsr))
-> -			ret = 1;
-> -		preempt_enable();
-> -	}
-> -
-> -	return ret;
-> -}
-> -#else
+On Wed, Jun 05, 2019 at 09:19:22PM +1000, Michael Ellerman wrote:
+> Anshuman Khandual <anshuman.khandual@arm.com> writes:
+> > Similar notify_page_fault() definitions are being used by architectures
+> > duplicating much of the same code. This attempts to unify them into a
+> > single implementation, generalize it and then move it to a common place.
+> > kprobes_built_in() can detect CONFIG_KPROBES, hence notify_page_fault()
+> > need not be wrapped again within CONFIG_KPROBES. Trap number argument can
+> > now contain upto an 'unsigned int' accommodating all possible platforms.
+> ...
+> 
+> You've changed several of the architectures from something like above,
+> where it disables preemption around the call into the below:
+> 
+> 
+> Which skips everything if we're preemptible. Is that an equivalent
+> change? If so can you please explain why in more detail.
 
-You've changed several of the architectures from something like above,
-where it disables preemption around the call into the below:
+See the discussion in v1 of this patch, which you were cc'd on.
 
-> +int __kprobes notify_page_fault(struct pt_regs *regs, unsigned int trap)
-> +{
-> +	int ret = 0;
-> +
-> +	/*
-> +	 * To be potentially processing a kprobe fault and to be allowed
-> +	 * to call kprobe_running(), we have to be non-preemptible.
-> +	 */
-> +	if (kprobes_built_in() && !preemptible() && !user_mode(regs)) {
-> +		if (kprobe_running() && kprobe_fault_handler(regs, trap))
-> +			ret = 1;
-> +	}
-> +	return ret;
-> +}
+I agree the description here completely fails to mention why the change.
+It should mention commit a980c0ef9f6d8c.
 
-Which skips everything if we're preemptible. Is that an equivalent
-change? If so can you please explain why in more detail.
-
-Also why not have it return bool?
-
-cheers
+> Also why not have it return bool?
+> 
+> cheers
+> 
 
