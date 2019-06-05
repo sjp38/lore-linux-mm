@@ -4,104 +4,104 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6176EC28CC3
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 02:45:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B58C9C28CC3
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 02:45:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B60920851
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 02:45:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6D05D20851
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 02:45:29 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="dWZpvwBN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B60920851
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="rGwlcvcn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D05D20851
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 905626B0274; Tue,  4 Jun 2019 22:45:06 -0400 (EDT)
+	id BC7C66B0276; Tue,  4 Jun 2019 22:45:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B88A6B0276; Tue,  4 Jun 2019 22:45:06 -0400 (EDT)
+	id B4F406B0277; Tue,  4 Jun 2019 22:45:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6E6EC6B0278; Tue,  4 Jun 2019 22:45:06 -0400 (EDT)
+	id A405F6B0278; Tue,  4 Jun 2019 22:45:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 297F26B0276
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 22:45:06 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id y187so5758560pgd.1
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 19:45:06 -0700 (PDT)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C6836B0276
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 22:45:10 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id w127so21464926ywe.6
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 19:45:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
          :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
          :message-id:in-reply-to:references:mime-version;
-        bh=n7BlWccP5e9E4x6aVqJtrHQl4d1EpfzcQz8Ne0PToZU=;
-        b=hviQcPf1f8hdHk3Lwl0SLQrgA5eFVhcjDOqozsqesLUjPRjnhMMNpIfyWv+QQPTUPg
-         SK6N/KoFXN+fEu/pECtcQgp9yWfecewIuBiLDd08q+mgS/6P2NPoSTsXLlTMT5hhWKs4
-         s0NSDQ7zlwfcpLHZg7oXr+Q7BjSksXSmhhPQH3q5EE/SqXhbzRNkVgKsUmTQajIPIsKe
-         sTDPGW11Ogen3SZ6WRPkFUbGQsmXE5q9azJ+aLEwZFsyYhTbn0mqKZBXT3oT0U5MKp20
-         4uZgPD94LkSlVvd32uBVB/8yaEEaJZfCoZEA8atosgz6Bb1x1wAwNMuL3J8udygnTHWq
-         v3Eg==
-X-Gm-Message-State: APjAAAUjWvZE4W86GIBnM7EtL9BQ6QOKvunf4eLWiqCVcjbWyWT0gzPg
-	oHqAWVBEl9xnypatsQ7zSlxuwtnqeN/E3+azhXD+jixuZRun24hezlWkaOZwnCKkxChvKhmd7hh
-	XhOTNo5sWPeS+fASrGhFe/3lxr/5dgoWeifDe1jz5EimtyeQNeYy3iO00UKA0bQv8Mg==
-X-Received: by 2002:a17:90a:b78b:: with SMTP id m11mr41027743pjr.106.1559702705655;
-        Tue, 04 Jun 2019 19:45:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyEy+juNHCN4laE4+nhy0qaddeKfNYCcdyzv5yKAAHcBW4tCMpf7PM+CEyjEmsC/eZ10iSK
-X-Received: by 2002:a17:90a:b78b:: with SMTP id m11mr41027683pjr.106.1559702704558;
-        Tue, 04 Jun 2019 19:45:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559702704; cv=none;
+        bh=F5q0Ous8JMckUZTK0P//WSX11GdeHQH8mlJbfSlHdWk=;
+        b=sOPrx0y1t2UkRaFkO8GDMmFXOVzd8J7vSPHuAj6lOVciAItas3pXYEnA0KA2ZIMRUD
+         eM/KsWCBevvDtQ5FzrQ7+qVfL2ySHGwbgEgZfTZHmG+xzqSigEU2fn3BGqsrVHc/8QRv
+         3usjDZOpSrr/zym422CTeWtGEg3Dtw8TIAItlN+xc4Rti3HtStiVig+2sEHvv5cXkZjL
+         8gOWXoa9bunF/T2ezkltLi5zefaI5wNvu2tTuGPI3PaxxJBZxnpFvRuKAjuNvDz9Fbpd
+         ZTNjzC5sZCE4lgFyqygCT86dCP1AMN4m7Y6bdL9voBCaSe3mpWRLBx0Gvn2ac6URdEom
+         cY8w==
+X-Gm-Message-State: APjAAAVldtCM+iL/wcLlamFVWsksYeg3myrEr+qINpFLAI1WyeL6hzLa
+	92ktvFLyExLWGmySMbBxbfqDKVHrd+jnPxpxPezz3HJ8otwhxvCdsJaQsPi8Gb8v4kb8G4epNh3
+	IkrgjBnH6n0Civ3j9ulw3zuAG3+MqbUdbm/x8aDsByNYFBZkT/fKdzYvh6dMmPz6vww==
+X-Received: by 2002:a81:195:: with SMTP id 143mr3001040ywb.147.1559702710183;
+        Tue, 04 Jun 2019 19:45:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwYljq+4AdaxqZA6y/1sabcbDQdD9x8cA22hMKMG8hZnypL5xCeXsRqFbMrC8SzcF2F+SMB
+X-Received: by 2002:a81:195:: with SMTP id 143mr3000798ywb.147.1559702701793;
+        Tue, 04 Jun 2019 19:45:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559702701; cv=none;
         d=google.com; s=arc-20160816;
-        b=wt0y+BwYgz7ZpaqQEWpG9El3ExbLLerlkfib8qREASVeJur1OuuarQNn/TI/fNoJI/
-         fU6jaF9IgkqQsR0VsZsUJ9dHDlpOd8FUVxZ5YsEKvstajill03ObGHthM6KFS637g8W/
-         EEm2PwPU4kk/oEF7g0ubA2AQnt7Brqo3aadGMaPV7nsAhaoSukJdU/EIN76WCTUkKi1+
-         uRt+Wbe3s3SnpmhRt3trzlNKuH6IYFHWU+tEQdhwyoYBDAOjdm3IoDHcsNO+4qLUsBJD
-         npFjePke5W/HTah2ssALKjb4FnaIYaCNOOGsSPAbohq8w8cfoBVTzffN7U1vxLGTN4+D
-         C0LA==
+        b=xNjcOF1ShBT7ffVx3n8wHN2LMmbQFSUYawOwFKrCfeDpr0MolCjtOy0XsFJ8l48mPA
+         0kTrswGzKf1/HeCJz7hYfGd4AIWFQQcxG90mh5Tte4z0T3hFFrz+RMPGoY7nBtJWDH+v
+         7I15M+cwDhsDcRRQ0+1deR7EtOAVE+AzDL0w2QfNrNco3DHPKC3d4BcV7xmE/9fKBCA6
+         NrmV10EPAVvifzyG5E2hqL2epXwGCZ+481olWtGhHhdCqo4xzJERVuYdfPmLK3gxKpwZ
+         2VHQFEurhgHD95Dq4VrmsPZe2NIdBU13Dpw+/e0zzGOv/0xvQCzEmJwZIWBdZI23gWKc
+         jS7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject
          :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
          :smtp-origin-hostprefix:dkim-signature;
-        bh=n7BlWccP5e9E4x6aVqJtrHQl4d1EpfzcQz8Ne0PToZU=;
-        b=kL6feF26boUYMxd8M0E1WPoJ5IaMNV5ewtW4OcKmNy8B8ljVMucXSqlQCDzj++egWN
-         02i7g+mRFef51yUODq1UwCe+KpSvCKRBBS1NOgAHkjrtO2KehgJqJD+BXgLNI2WDhKAm
-         2qlegDgOiAkm0Z4C2cEZcklkNa7qeJ+Tehu8u37rVV4TlG+nFzsBWjVbK0bBCd/8lUQt
-         wkylIwtz0Kgw1C6P09UCsMa60t+W9cEbM8rSKfx5u72wKgibedd3h7gO24JkUa+isLic
-         RlBI5C1Nylro22geNs7ihMBzSQfbxlK9eU7sLfVmsowQeONJRgNCH30h7DWjtIMQWDrN
-         DuIw==
+        bh=F5q0Ous8JMckUZTK0P//WSX11GdeHQH8mlJbfSlHdWk=;
+        b=Rm0064ydAI8MBZnwh91nUTcoypYf4llHV7sOOfNtrSDf76+azA6LeL5Xa6NoGkrJA/
+         P4BddJQFNJOCsEz3I1aXDMaLi0utpv0Be09SzpAUBh3j+DxS1Lq8OGwNmV3d867zl/si
+         QK0QLh4AYEgu8Z9F1tsBptKcQ0znw8ouqPwthCYC/QU17wxkVchu9zhWFY9sEN/tWJzb
+         1ImK4em9D4X9l63Ibk4gZeCpsXIzb05iUjSZlwnGcy45t28WQhvPvK1eo6dIcwx7FCi4
+         29w0xoorWGbCHJvuRoUwXQvUAEQiPVnT8PiPZtdGX+5KlnnlbQkqkeEP46hfGRwPjynG
+         mYqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=dWZpvwBN;
-       spf=pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=10599ee021=guro@fb.com";
+       dkim=pass header.i=@fb.com header.s=facebook header.b=rGwlcvcn;
+       spf=pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=10599ee021=guro@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id x3si23317213pgr.22.2019.06.04.19.45.04
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id q186si5644616ybq.473.2019.06.04.19.45.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Jun 2019 19:45:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        Tue, 04 Jun 2019 19:45:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=dWZpvwBN;
-       spf=pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=10599ee021=guro@fb.com";
+       dkim=pass header.i=@fb.com header.s=facebook header.b=rGwlcvcn;
+       spf=pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=10599ee021=guro@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044012.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x552j05E031912
-	for <linux-mm@kvack.org>; Tue, 4 Jun 2019 19:45:04 -0700
+Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x552hZuX009253
+	for <linux-mm@kvack.org>; Tue, 4 Jun 2019 19:45:01 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
  : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=n7BlWccP5e9E4x6aVqJtrHQl4d1EpfzcQz8Ne0PToZU=;
- b=dWZpvwBNdjJhXRH3Co8LeCEWmYGp7BZyMm2pKcsTPXZ7X75DWj9ViSkotXNM+IPfy9EN
- E08ucVEDNX1WHNtbEmUyeZHGzxktgV503nSgovL0VXK0aEQ4AKV2zb3dsNweZOs2U1Qk
- 6Z6nJ4UH6C4g0rBSbllLSze0zk4ewsf7hnQ= 
+ content-type; s=facebook; bh=F5q0Ous8JMckUZTK0P//WSX11GdeHQH8mlJbfSlHdWk=;
+ b=rGwlcvcnL/0ke9glhflkD/OtcJdh+z/2LjCHptAG7F8zR31PfCGh0rUOenA1vqf1cWBS
+ 8M9UDjRc+tWJqZUSzyZU29ji1mlBYCu7A4DKB0wTNDS+9HHBMnOGksYaLVfq4nJpmkx2
+ 70iuLK1pb9QrdvTjyUSoLU9r4H5GH2KYWBg= 
 Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2swx191ck2-6
+	by mx0a-00082601.pphosted.com with ESMTP id 2sx0j78sds-3
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 04 Jun 2019 19:45:03 -0700
+	for <linux-mm@kvack.org>; Tue, 04 Jun 2019 19:45:01 -0700
 Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
- mail.thefacebook.com (2620:10d:c0a8:83::6) with Microsoft SMTP Server
+ mail.thefacebook.com (2620:10d:c0a8:82::c) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Tue, 4 Jun 2019 19:45:00 -0700
+ 15.1.1713.5; Tue, 4 Jun 2019 19:44:59 -0700
 Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
-	id 986C112C7FDD2; Tue,  4 Jun 2019 19:44:58 -0700 (PDT)
+	id 7FB4112C7FDC6; Tue,  4 Jun 2019 19:44:58 -0700 (PDT)
 Smtp-Origin-Hostprefix: devvm
 From: Roman Gushchin <guro@fb.com>
 Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
@@ -114,9 +114,9 @@ CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
         Waiman Long
 	<longman@redhat.com>, Roman Gushchin <guro@fb.com>
 Smtp-Origin-Cluster: prn2c23
-Subject: [PATCH v6 09/10] mm: stop setting page->mem_cgroup pointer for slab pages
-Date: Tue, 4 Jun 2019 19:44:53 -0700
-Message-ID: <20190605024454.1393507-10-guro@fb.com>
+Subject: [PATCH v6 03/10] mm: rename slab delayed deactivation functions and fields
+Date: Tue, 4 Jun 2019 19:44:47 -0700
+Message-ID: <20190605024454.1393507-4-guro@fb.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190605024454.1393507-1-guro@fb.com>
 References: <20190605024454.1393507-1-guro@fb.com>
@@ -128,7 +128,7 @@ X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019
 X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
  malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=626 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1906050015
 X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -137,214 +137,146 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Every slab page charged to a non-root memory cgroup has a pointer
-to the memory cgroup and holds a reference to it, which protects
-a non-empty memory cgroup from being released. At the same time
-the page has a pointer to the corresponding kmem_cache, and also
-hold a reference to the kmem_cache. And kmem_cache by itself
-holds a reference to the cgroup.
+The delayed work/rcu deactivation infrastructure of non-root
+kmem_caches can be also used for asynchronous release of these
+objects. Let's get rid of the word "deactivation" in corresponding
+names to make the code look better after generalization.
 
-So there is clearly some redundancy, which allows to stop setting
-the page->mem_cgroup pointer and rely on getting memcg pointer
-indirectly via kmem_cache. Further it will allow to change this
-pointer easier, without a need to go over all charged pages.
+It's easier to make the renaming first, so that the generalized
+code will look consistent from scratch.
 
-So let's stop setting page->mem_cgroup pointer for slab pages,
-and stop using the css refcounter directly for protecting
-the memory cgroup from going away. Instead rely on kmem_cache
-as an intermediate object.
+Let's rename struct memcg_cache_params fields:
+  deact_fn -> work_fn
+  deact_rcu_head -> rcu_head
+  deact_work -> work
 
-Make sure that vmstats and shrinker lists are working as previously,
-as well as /proc/kpagecgroup interface.
+And RCU/delayed work callbacks in slab common code:
+  kmemcg_deactivate_rcufn -> kmemcg_rcufn
+  kmemcg_deactivate_workfn -> kmemcg_workfn
+
+This patch contains no functional changes, only renamings.
 
 Signed-off-by: Roman Gushchin <guro@fb.com>
 ---
- mm/list_lru.c   |  3 +-
- mm/memcontrol.c | 12 ++++----
- mm/slab.h       | 74 ++++++++++++++++++++++++++++++++++++++++---------
- 3 files changed, 70 insertions(+), 19 deletions(-)
+ include/linux/slab.h |  6 +++---
+ mm/slab.h            |  2 +-
+ mm/slab_common.c     | 30 +++++++++++++++---------------
+ 3 files changed, 19 insertions(+), 19 deletions(-)
 
-diff --git a/mm/list_lru.c b/mm/list_lru.c
-index 927d85be32f6..0f1f6b06b7f3 100644
---- a/mm/list_lru.c
-+++ b/mm/list_lru.c
-@@ -12,6 +12,7 @@
- #include <linux/slab.h>
- #include <linux/mutex.h>
- #include <linux/memcontrol.h>
-+#include "slab.h"
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 9449b19c5f10..47923c173f30 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -642,10 +642,10 @@ struct memcg_cache_params {
+ 			struct list_head children_node;
+ 			struct list_head kmem_caches_node;
  
- #ifdef CONFIG_MEMCG_KMEM
- static LIST_HEAD(list_lrus);
-@@ -63,7 +64,7 @@ static __always_inline struct mem_cgroup *mem_cgroup_from_kmem(void *ptr)
- 	if (!memcg_kmem_enabled())
- 		return NULL;
- 	page = virt_to_head_page(ptr);
--	return page->mem_cgroup;
-+	return memcg_from_slab_page(page);
- }
- 
- static inline struct list_lru_one *
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 49084e2d81ff..c097b1fc74ec 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -485,7 +485,10 @@ ino_t page_cgroup_ino(struct page *page)
- 	unsigned long ino = 0;
- 
- 	rcu_read_lock();
--	memcg = READ_ONCE(page->mem_cgroup);
-+	if (PageHead(page) && PageSlab(page))
-+		memcg = memcg_from_slab_page(page);
-+	else
-+		memcg = READ_ONCE(page->mem_cgroup);
- 	while (memcg && !(memcg->css.flags & CSS_ONLINE))
- 		memcg = parent_mem_cgroup(memcg);
- 	if (memcg)
-@@ -2727,9 +2730,6 @@ int __memcg_kmem_charge_memcg(struct page *page, gfp_t gfp, int order,
- 		cancel_charge(memcg, nr_pages);
- 		return -ENOMEM;
- 	}
--
--	page->mem_cgroup = memcg;
--
- 	return 0;
- }
- 
-@@ -2752,8 +2752,10 @@ int __memcg_kmem_charge(struct page *page, gfp_t gfp, int order)
- 	memcg = get_mem_cgroup_from_current();
- 	if (!mem_cgroup_is_root(memcg)) {
- 		ret = __memcg_kmem_charge_memcg(page, gfp, order, memcg);
--		if (!ret)
-+		if (!ret) {
-+			page->mem_cgroup = memcg;
- 			__SetPageKmemcg(page);
-+		}
- 	}
- 	css_put(&memcg->css);
- 	return ret;
+-			void (*deact_fn)(struct kmem_cache *);
++			void (*work_fn)(struct kmem_cache *);
+ 			union {
+-				struct rcu_head deact_rcu_head;
+-				struct work_struct deact_work;
++				struct rcu_head rcu_head;
++				struct work_struct work;
+ 			};
+ 		};
+ 	};
 diff --git a/mm/slab.h b/mm/slab.h
-index 5d2b8511e6fb..7ead47cb9338 100644
+index c16e5af0fb59..8ff90f42548a 100644
 --- a/mm/slab.h
 +++ b/mm/slab.h
-@@ -255,30 +255,67 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
- 	return s->memcg_params.root_cache;
- }
- 
-+/*
-+ * Expects a pointer to a slab page. Please note, that PageSlab() check
-+ * isn't sufficient, as it returns true also for tail compound slab pages,
-+ * which do not have slab_cache pointer set.
-+ * So this function assumes that the page can pass PageHead() and PageSlab()
-+ * checks.
-+ */
-+static inline struct mem_cgroup *memcg_from_slab_page(struct page *page)
-+{
-+	struct kmem_cache *s;
-+
-+	s = READ_ONCE(page->slab_cache);
-+	if (s && !is_root_cache(s))
-+		return s->memcg_params.memcg;
-+
-+	return NULL;
-+}
-+
-+/*
-+ * Charge the slab page belonging to the non-root kmem_cache.
-+ * Can be called for non-root kmem_caches only.
-+ */
- static __always_inline int memcg_charge_slab(struct page *page,
- 					     gfp_t gfp, int order,
- 					     struct kmem_cache *s)
- {
-+	struct mem_cgroup *memcg;
-+	struct lruvec *lruvec;
- 	int ret;
- 
--	if (is_root_cache(s))
--		return 0;
--
--	ret = memcg_kmem_charge_memcg(page, gfp, order, s->memcg_params.memcg);
-+	memcg = s->memcg_params.memcg;
-+	ret = memcg_kmem_charge_memcg(page, gfp, order, memcg);
- 	if (ret)
- 		return ret;
- 
-+	lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
-+	mod_lruvec_state(lruvec, cache_vmstat_idx(s), 1 << order);
-+
-+	/* transer try_charge() page references to kmem_cache */
- 	percpu_ref_get_many(&s->memcg_params.refcnt, 1 << order);
-+	css_put_many(&memcg->css, 1 << order);
- 
- 	return 0;
- }
- 
-+/*
-+ * Uncharge a slab page belonging to a non-root kmem_cache.
-+ * Can be called for non-root kmem_caches only.
-+ */
- static __always_inline void memcg_uncharge_slab(struct page *page, int order,
- 						struct kmem_cache *s)
- {
--	if (!is_root_cache(s))
--		percpu_ref_put_many(&s->memcg_params.refcnt, 1 << order);
--	memcg_kmem_uncharge(page, order);
-+	struct mem_cgroup *memcg;
-+	struct lruvec *lruvec;
-+
-+	memcg = s->memcg_params.memcg;
-+	lruvec = mem_cgroup_lruvec(page_pgdat(page), memcg);
-+	mod_lruvec_state(lruvec, cache_vmstat_idx(s), -(1 << order));
-+	memcg_kmem_uncharge_memcg(page, order, memcg);
-+
-+	percpu_ref_put_many(&s->memcg_params.refcnt, 1 << order);
- }
- 
+@@ -292,7 +292,7 @@ static __always_inline void memcg_uncharge_slab(struct page *page, int order,
  extern void slab_init_memcg_params(struct kmem_cache *);
-@@ -314,6 +351,11 @@ static inline struct kmem_cache *memcg_root_cache(struct kmem_cache *s)
- 	return s;
+ extern void memcg_link_cache(struct kmem_cache *s, struct mem_cgroup *memcg);
+ extern void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
+-				void (*deact_fn)(struct kmem_cache *));
++				void (*work_fn)(struct kmem_cache *));
+ 
+ #else /* CONFIG_MEMCG_KMEM */
+ 
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 77df6029de8e..d019ee66bdc4 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -692,17 +692,17 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
+ 	put_online_cpus();
  }
  
-+static inline struct mem_cgroup *memcg_from_slab_page(struct page *page)
-+{
-+	return NULL;
-+}
-+
- static inline int memcg_charge_slab(struct page *page, gfp_t gfp, int order,
- 				    struct kmem_cache *s)
+-static void kmemcg_deactivate_workfn(struct work_struct *work)
++static void kmemcg_workfn(struct work_struct *work)
  {
-@@ -351,18 +393,24 @@ static __always_inline int charge_slab_page(struct page *page,
- 					    gfp_t gfp, int order,
- 					    struct kmem_cache *s)
- {
--	int ret = memcg_charge_slab(page, gfp, order, s);
--
--	if (!ret)
--		mod_lruvec_page_state(page, cache_vmstat_idx(s), 1 << order);
-+	if (is_root_cache(s)) {
-+		mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
-+				    1 << order);
-+		return 0;
-+	}
+ 	struct kmem_cache *s = container_of(work, struct kmem_cache,
+-					    memcg_params.deact_work);
++					    memcg_params.work);
  
--	return ret;
-+	return memcg_charge_slab(page, gfp, order, s);
+ 	get_online_cpus();
+ 	get_online_mems();
+ 
+ 	mutex_lock(&slab_mutex);
+ 
+-	s->memcg_params.deact_fn(s);
++	s->memcg_params.work_fn(s);
+ 
+ 	mutex_unlock(&slab_mutex);
+ 
+@@ -713,36 +713,36 @@ static void kmemcg_deactivate_workfn(struct work_struct *work)
+ 	css_put(&s->memcg_params.memcg->css);
  }
  
- static __always_inline void uncharge_slab_page(struct page *page, int order,
- 					       struct kmem_cache *s)
+-static void kmemcg_deactivate_rcufn(struct rcu_head *head)
++static void kmemcg_rcufn(struct rcu_head *head)
  {
--	mod_lruvec_page_state(page, cache_vmstat_idx(s), -(1 << order));
-+	if (is_root_cache(s)) {
-+		mod_node_page_state(page_pgdat(page), cache_vmstat_idx(s),
-+				    -(1 << order));
-+		return;
-+	}
-+
- 	memcg_uncharge_slab(page, order, s);
+ 	struct kmem_cache *s = container_of(head, struct kmem_cache,
+-					    memcg_params.deact_rcu_head);
++					    memcg_params.rcu_head);
+ 
+ 	/*
+-	 * We need to grab blocking locks.  Bounce to ->deact_work.  The
++	 * We need to grab blocking locks.  Bounce to ->work.  The
+ 	 * work item shares the space with the RCU head and can't be
+ 	 * initialized eariler.
+ 	 */
+-	INIT_WORK(&s->memcg_params.deact_work, kmemcg_deactivate_workfn);
+-	queue_work(memcg_kmem_cache_wq, &s->memcg_params.deact_work);
++	INIT_WORK(&s->memcg_params.work, kmemcg_workfn);
++	queue_work(memcg_kmem_cache_wq, &s->memcg_params.work);
  }
  
+ /**
+  * slab_deactivate_memcg_cache_rcu_sched - schedule deactivation after a
+  *					   sched RCU grace period
+  * @s: target kmem_cache
+- * @deact_fn: deactivation function to call
++ * @work_fn: deactivation function to call
+  *
+- * Schedule @deact_fn to be invoked with online cpus, mems and slab_mutex
++ * Schedule @work_fn to be invoked with online cpus, mems and slab_mutex
+  * held after a sched RCU grace period.  The slab is guaranteed to stay
+- * alive until @deact_fn is finished.  This is to be used from
++ * alive until @work_fn is finished.  This is to be used from
+  * __kmemcg_cache_deactivate().
+  */
+ void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
+-					   void (*deact_fn)(struct kmem_cache *))
++					   void (*work_fn)(struct kmem_cache *))
+ {
+ 	if (WARN_ON_ONCE(is_root_cache(s)) ||
+-	    WARN_ON_ONCE(s->memcg_params.deact_fn))
++	    WARN_ON_ONCE(s->memcg_params.work_fn))
+ 		return;
+ 
+ 	if (s->memcg_params.root_cache->memcg_params.dying)
+@@ -751,8 +751,8 @@ void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
+ 	/* pin memcg so that @s doesn't get destroyed in the middle */
+ 	css_get(&s->memcg_params.memcg->css);
+ 
+-	s->memcg_params.deact_fn = deact_fn;
+-	call_rcu(&s->memcg_params.deact_rcu_head, kmemcg_deactivate_rcufn);
++	s->memcg_params.work_fn = work_fn;
++	call_rcu(&s->memcg_params.rcu_head, kmemcg_rcufn);
+ }
+ 
+ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
 -- 
 2.20.1
 
