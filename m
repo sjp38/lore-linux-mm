@@ -2,188 +2,257 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 506CCC28D19
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:22:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ECAD2C28CC5
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:22:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0DCFF2075C
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:22:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8EE5920652
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:22:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="YTPX8cvx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DCFF2075C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="eLDsRwOh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EE5920652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AA2506B026C; Wed,  5 Jun 2019 17:22:11 -0400 (EDT)
+	id 3C3276B026D; Wed,  5 Jun 2019 17:22:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A531F6B026D; Wed,  5 Jun 2019 17:22:11 -0400 (EDT)
+	id 373C86B026E; Wed,  5 Jun 2019 17:22:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 941BF6B026E; Wed,  5 Jun 2019 17:22:11 -0400 (EDT)
+	id 28ABD6B026F; Wed,  5 Jun 2019 17:22:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CB566B026C
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 17:22:11 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id w31so4543pgk.23
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 14:22:11 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D24176B026D
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 17:22:51 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id d13so364058edo.5
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 14:22:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=gwSLJCAdvNTLNlkyY//PKwOh+mq4K72QRa5S83R8fqU=;
-        b=uRb5T688hwuQBCItH49P40oV8qFWpKWQX5VFRtqYvnuCC/F69X6DAtln4hzS+o02+I
-         +uea8sVwEadQOwXbB8HoOnfcZM3IF/t+iqPDZS/gck3/gwj5QABjdmV63Hz5uDYkCevU
-         3wds1iNuqa6ASMsNtEZVYe4h5DWx7u1n9AnUZBwPzzCyn3rFrvzuGH0b3kvRr6hzCzOg
-         VKT0G5jdRjp6G12xdl0ES9Fs44nBp3DzL/rorO+2gakicVkwPf8nogMWxBoOxxdyZ6+i
-         hh88nCdSPHBL2v8O/LZCz7QhL/LCbDk8ZTgMc5+u8Gd8NpVWmPCINC76iHCKKdqA4xHw
-         vZPQ==
-X-Gm-Message-State: APjAAAU3ihT3RE2LNG/iCdOJyZnm0bzF0dP/W6wpcWfSGjmOpH9nXEpw
-	oadsEcrSS5fjvtzIcCgySxll5d8I5rHJc7TjO0OP3OKBqB3QkQAXJdPoTzOmvhJ14QipHzFwQn/
-	6XTwEBuWa0Nmx/kyfYbSMURDZAK/ERDuiUEtVJs6j2OsS3YKksNbEkGUvqaYLZROzLw==
-X-Received: by 2002:a17:902:ba82:: with SMTP id k2mr37781653pls.323.1559769731019;
-        Wed, 05 Jun 2019 14:22:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwAqRmS0T7+VdP24wPKo5FTU0wfuXoL6OFY+xJ9jgKkb4ig84TjZifpc/BZj+moKOTYjGB1
-X-Received: by 2002:a17:902:ba82:: with SMTP id k2mr37781606pls.323.1559769730276;
-        Wed, 05 Jun 2019 14:22:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559769730; cv=none;
+         :message-id:reply-to:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=XYR0qJWfd1D1ufm9G1S7XwxRI+/pUaRAjNUa1IxBLC8=;
+        b=tkBUTqKWDf8yC72iKC7w9sTD1RJB9Bp1vCZ8ODnJ8qPJNtdh2Iq2bUzUCNqfF4eUWM
+         p62xTjHaW6jNhu3Xx1QNai82CF5ZacLC2b0VrvnTOcG7xJ+CtgGnDdr8JgWAjEZbc+75
+         bF7v04qcfqP37tqsCOtX3sKXEuRdtIwE7vtt4vfLxxlBRtsJ7hS09mEWzfrBSpGLXEpR
+         qvWQif3KhNIdKxjMiin2hT94wO7CBD0P1GUAC7d9ibKecZB2iWWN2ziZSs9Wac/9E3+S
+         DexArJryGlGEDq9jqhTZtgXTnmGsO5VwUsteo1aSV3ZwGv+xavXl2z6bNRzC9xgsiuNS
+         7p7w==
+X-Gm-Message-State: APjAAAVHJE8Usl7LpaB5wT/LZS0CQas1VZUVZaXN1V1sXw8ld4AMM/vg
+	kTrhkjK/cypmB8V6WmNYaxZz8Q4tiYABH26P8UNiC+Lv7tR4CoYI1yjsRyzAzWhfsdytMVe4OPW
+	ZtRR3s+e/Nf/XMJ3t2c5pRu/nbhznMxiTkW5zONWwfaAVrO3UkE3QzBJCSyJnL43b3g==
+X-Received: by 2002:a50:8be8:: with SMTP id n37mr24342498edn.216.1559769771432;
+        Wed, 05 Jun 2019 14:22:51 -0700 (PDT)
+X-Received: by 2002:a50:8be8:: with SMTP id n37mr24342461edn.216.1559769770801;
+        Wed, 05 Jun 2019 14:22:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559769770; cv=none;
         d=google.com; s=arc-20160816;
-        b=JEHs9r12BkXzgkLdvEajd3shO0rEU8XuoQAiPFURBr84UHnm2KppCqAVO9BEK68e1f
-         yxokvHmgV7PwU0g9rBVjR0sm6mBrTj6br/66gAqHgOnZDz8EfZfPkyEfg0HU6PCIQ3tU
-         GSCLam15TmHlUnnkFu1QU08l/L/BTaMwy3ONFYCSkQ4zg9r6QrkldAD4yUiJyxEkUSDe
-         XqXSSFrHxBKD+u9iwhP55v7YlS8t2MxfW4lyLBDFOjW/mry2mVE+yT1yEZ6ai7WmFEEw
-         OGa1sci37y7Lnsos0ElnJOa1o0JD5UlKfUrOoAJy38SjAKs7R+owWERV8k4eFJIodNGt
-         HQmw==
+        b=0mif+gYutvOBGTlfee1ErNE9srCAtIY9n6BhJTuGNQ9JnkNFAeciXTE+/UqXaGQ8ui
+         1WTbpgi/Y8NvAtLpwd4Ge3LkDOH1rq6uVAXqD6o3A9itnJA8GlagvMF/ajkvUuyRCc4t
+         cFtPWY7rDGoOwnxBjguasX31hTleebuwJeKYdql3SVFYoPF3tuwLGGnfXvdRjnNwLMlW
+         /t7aXE2XLDCu0axQnAOSXOzerOCfYBmIooR3g/iuhM7282E5BvVKSJf8/UvoCaG3n9Fl
+         RNz0+wwgpLY8hX1zqhXr6tP/4BzmEyqSmZW+wzwrzw+oBARaF34oa6wtcsSySQOuy36Y
+         TDdw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=gwSLJCAdvNTLNlkyY//PKwOh+mq4K72QRa5S83R8fqU=;
-        b=InUsvAtkJPGb1q+BaIEFFXuGqV2pSXkX51jo4KsENNoUZ/gWjLvl7i28J0qHMoP0Kk
-         mXN7ca9rkyL93N0ki7yiRAFQOsmN3eD/Gfk1Rheh8bslWiitG+4Sc2o6XIKXU46dufZ1
-         pPJI4XZy+n54zqLUpD40L384doe5yhjLOHqiAbnKYWCaRoqaYJWH5HDcevA+YTfRGO84
-         6fP58D9UPtAl8h4CEHYXDXtmifXwfz7NNpdl1lj/Pcw4HjD6Qv1ULD3qxsN1xuadKdJT
-         nOLsgjcVhi3+WF7RegWlubuPM/vcn//yhXCOLW1VLCQiEccxXFzntqHDkpJx4a5OTNg3
-         KPww==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
+        bh=XYR0qJWfd1D1ufm9G1S7XwxRI+/pUaRAjNUa1IxBLC8=;
+        b=oAF4MYWbO49QgY08KnCUkJX5XafLyLZfgJKXdfsQCVg0ykFaLp9aRCTK0U4ujzzmNL
+         Db76m3Jb9Wn2GebdXD8rDdq7iRUcxb7D32zgyLkANZQn5CtdwxygX4DFbXO2RTlXDYy1
+         lVmj+NoUekPjed2qJyQZaS5V5CEAyAD3qc5nsizWw34g1/Mr+lnqeTuJ2R5ag0XfkH2Z
+         WyVGfOdlE6TrcswVjMcmejeRM3iyWMJsRD9/6fbiCDM7oXjmHtwj+SVdtWVI5dCt+B3F
+         YD46pzWVycV62GjPt8H5MBYspa8Ml1FW6PepjicPUzIPsmFmTVItXWFocXHcgMxzs8qM
+         QRSA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=YTPX8cvx;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id s201si18343pgs.522.2019.06.05.14.22.10
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=eLDsRwOh;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b51sor1444132eda.2.2019.06.05.14.22.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 14:22:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Wed, 05 Jun 2019 14:22:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=YTPX8cvx;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C0D082075B;
-	Wed,  5 Jun 2019 21:22:09 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559769729;
-	bh=luabeSBI+NDeNNs1bPDzPXdc1KFEqX8vdPe4qbBqNw4=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=YTPX8cvxxCwoAex7vw0g8JtLmES94g7PgiPnJqkHt+xe1ONHDWZQSrXJ0FrCk8JrB
-	 ClmBf9NGKwpyxdLDZUg2It7G8FXCiHmxhwgASh6NXp9Ta8kOt2xt5cTpTObU4Nyc04
-	 aB1mUL1Kw6LQuqVep2fbOKyNKktXJB+HYgP0zcJw=
-Date: Wed, 5 Jun 2019 14:22:09 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds
- <torvalds@linux-foundation.org>
-Subject: Re: [PATCH 1/2] mm/large system hash: use vmalloc for size >
- MAX_ORDER when !hashdist
-Message-Id: <20190605142209.eb30cd883551a5bd81b09f00@linux-foundation.org>
-In-Reply-To: <20190605144814.29319-1-npiggin@gmail.com>
-References: <20190605144814.29319-1-npiggin@gmail.com>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=eLDsRwOh;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=XYR0qJWfd1D1ufm9G1S7XwxRI+/pUaRAjNUa1IxBLC8=;
+        b=eLDsRwOhaZ0avYP5JbU/qyfKGB5DOL//jHeF0QIsj1xnkLpW3HfER5+1gHsFmyizdC
+         TuPwJNXIJpeJwU2upcFzFr2gEM64wh1+94uumBqpRcHFkWQutwdt26Yv9sREHRvruvlk
+         znKdHE2O7dSxq57NCvmgeA8foqkPAvf6tdKk+a+LkY6ICiZeCziK45J+jM2lAsYvL8tU
+         +Q8RJK0GedIjFeQ+8FmqES5ccIjWGHSdcUNJ5Cq529NwrtvIRUY0YNg79G4IDKPEHmSd
+         H8/CXuU0qTWRFEgsEUaYHo7abpCchUSLqryQVVOJdl4FKhHRIozaUGG29SyMvtoYQjn2
+         iqLQ==
+X-Google-Smtp-Source: APXvYqzyKS0phZCywdwPXToHaq30FkGf9zmLn9+DGARhqy7Cp0rjLbRZrzlUzgkPZspLLdcqpnQe5Q==
+X-Received: by 2002:a50:927d:: with SMTP id j58mr11330969eda.230.1559769770516;
+        Wed, 05 Jun 2019 14:22:50 -0700 (PDT)
+Received: from localhost ([185.92.221.13])
+        by smtp.gmail.com with ESMTPSA id c7sm3853751ejz.71.2019.06.05.14.22.49
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 05 Jun 2019 14:22:49 -0700 (PDT)
+Date: Wed, 5 Jun 2019 21:22:49 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+To: David Hildenbrand <david@redhat.com>
+Cc: Wei Yang <richard.weiyang@gmail.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+	linux-sh@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
+	akpm@linux-foundation.org, Dan Williams <dan.j.williams@intel.com>,
+	Igor Mammedov <imammedo@redhat.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	"Rafael J. Wysocki" <rafael@kernel.org>,
+	"mike.travis@hpe.com" <mike.travis@hpe.com>,
+	Ingo Molnar <mingo@kernel.org>,
+	Andrew Banman <andrew.banman@hpe.com>,
+	Oscar Salvador <osalvador@suse.de>, Michal Hocko <mhocko@suse.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>, Qian Cai <cai@lca.pw>,
+	Arun KS <arunks@codeaurora.org>,
+	Mathieu Malaterre <malat@debian.org>
+Subject: Re: [PATCH v3 07/11] mm/memory_hotplug: Create memory block devices
+ after arch_add_memory()
+Message-ID: <20190605212249.s7knac6vimealdmx@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20190527111152.16324-1-david@redhat.com>
+ <20190527111152.16324-8-david@redhat.com>
+ <20190604214234.ltwtkcdoju2gxisx@master>
+ <f6523d67-cac9-1189-884a-67b6829320ba@redhat.com>
+ <9a1d282f-8dd9-a48b-cc96-f9afaa435c62@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <9a1d282f-8dd9-a48b-cc96-f9afaa435c62@redhat.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu,  6 Jun 2019 00:48:13 +1000 Nicholas Piggin <npiggin@gmail.com> wrote:
-
-> The kernel currently clamps large system hashes to MAX_ORDER when
-> hashdist is not set, which is rather arbitrary.
-> 
-> vmalloc space is limited on 32-bit machines, but this shouldn't
-> result in much more used because of small physical memory limiting
-> system hash sizes.
-> 
-> Include "vmalloc" or "linear" in the kernel log message.
-> 
-> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
-> ---
-> 
-> This is a better solution than the previous one for the case of !NUMA
-> systems running on CONFIG_NUMA kernels, we can clear the default
-> hashdist early and have everything allocated out of the linear map.
-> 
-> The hugepage vmap series I will post later, but it's quite
-> independent from this improvement.
-> 
-> ...
+On Wed, Jun 05, 2019 at 12:58:46PM +0200, David Hildenbrand wrote:
+>On 05.06.19 10:58, David Hildenbrand wrote:
+>>>> /*
+>>>>  * For now, we have a linear search to go find the appropriate
+>>>>  * memory_block corresponding to a particular phys_index. If
+>>>> @@ -658,6 +670,11 @@ static int init_memory_block(struct memory_block **memory, int block_id,
+>>>> 	unsigned long start_pfn;
+>>>> 	int ret = 0;
+>>>>
+>>>> +	mem = find_memory_block_by_id(block_id, NULL);
+>>>> +	if (mem) {
+>>>> +		put_device(&mem->dev);
+>>>> +		return -EEXIST;
+>>>> +	}
+>>>
+>>> find_memory_block_by_id() is not that close to the main idea in this patch.
+>>> Would it be better to split this part?
+>> 
+>> I played with that but didn't like the temporary results (e.g. having to
+>> export find_memory_block_by_id()). I'll stick to this for now.
+>> 
+>>>
+>>>> 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
+>>>> 	if (!mem)
+>>>> 		return -ENOMEM;
+>>>> @@ -699,44 +716,53 @@ static int add_memory_block(int base_section_nr)
+>>>> 	return 0;
+>>>> }
+>>>>
+>>>> +static void unregister_memory(struct memory_block *memory)
+>>>> +{
+>>>> +	if (WARN_ON_ONCE(memory->dev.bus != &memory_subsys))
+>>>> +		return;
+>>>> +
+>>>> +	/* drop the ref. we got via find_memory_block() */
+>>>> +	put_device(&memory->dev);
+>>>> +	device_unregister(&memory->dev);
+>>>> +}
+>>>> +
+>>>> /*
+>>>> - * need an interface for the VM to add new memory regions,
+>>>> - * but without onlining it.
+>>>> + * Create memory block devices for the given memory area. Start and size
+>>>> + * have to be aligned to memory block granularity. Memory block devices
+>>>> + * will be initialized as offline.
+>>>>  */
+>>>> -int hotplug_memory_register(int nid, struct mem_section *section)
+>>>> +int create_memory_block_devices(unsigned long start, unsigned long size)
+>>>> {
+>>>> -	int block_id = base_memory_block_id(__section_nr(section));
+>>>> -	int ret = 0;
+>>>> +	const int start_block_id = pfn_to_block_id(PFN_DOWN(start));
+>>>> +	int end_block_id = pfn_to_block_id(PFN_DOWN(start + size));
+>>>> 	struct memory_block *mem;
+>>>> +	unsigned long block_id;
+>>>> +	int ret = 0;
+>>>>
+>>>> -	mutex_lock(&mem_sysfs_mutex);
+>>>> +	if (WARN_ON_ONCE(!IS_ALIGNED(start, memory_block_size_bytes()) ||
+>>>> +			 !IS_ALIGNED(size, memory_block_size_bytes())))
+>>>> +		return -EINVAL;
+>>>>
+>>>> -	mem = find_memory_block(section);
+>>>> -	if (mem) {
+>>>> -		mem->section_count++;
+>>>> -		put_device(&mem->dev);
+>>>> -	} else {
+>>>> +	mutex_lock(&mem_sysfs_mutex);
+>>>> +	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
+>>>> 		ret = init_memory_block(&mem, block_id, MEM_OFFLINE);
+>>>> 		if (ret)
+>>>> -			goto out;
+>>>> -		mem->section_count++;
+>>>> +			break;
+>>>> +		mem->section_count = sections_per_block;
+>>>> +	}
+>>>> +	if (ret) {
+>>>> +		end_block_id = block_id;
+>>>> +		for (block_id = start_block_id; block_id != end_block_id;
+>>>> +		     block_id++) {
+>>>> +			mem = find_memory_block_by_id(block_id, NULL);
+>>>> +			mem->section_count = 0;
+>>>> +			unregister_memory(mem);
+>>>> +		}
+>>>> 	}
+>>>
+>>> Would it be better to do this in reverse order?
+>>>
+>>> And unregister_memory() would free mem, so it is still necessary to set
+>>> section_count to 0?
+>> 
+>> 1. I kept the existing behavior (setting it to 0) for now. I am planning
+>> to eventually remove the section count completely (it could be
+>> beneficial to detect removing of partially populated memory blocks).
 >
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -7966,6 +7966,7 @@ void *__init alloc_large_system_hash(const char *tablename,
->  	unsigned long log2qty, size;
->  	void *table = NULL;
->  	gfp_t gfp_flags;
-> +	bool virt;
->  
->  	/* allow the kernel cmdline to have a say */
->  	if (!numentries) {
-> @@ -8022,6 +8023,7 @@ void *__init alloc_large_system_hash(const char *tablename,
->  
->  	gfp_flags = (flags & HASH_ZERO) ? GFP_ATOMIC | __GFP_ZERO : GFP_ATOMIC;
->  	do {
-> +		virt = false;
->  		size = bucketsize << log2qty;
->  		if (flags & HASH_EARLY) {
->  			if (flags & HASH_ZERO)
-> @@ -8029,26 +8031,26 @@ void *__init alloc_large_system_hash(const char *tablename,
->  			else
->  				table = memblock_alloc_raw(size,
->  							   SMP_CACHE_BYTES);
-> -		} else if (hashdist) {
-> +		} else if (get_order(size) >= MAX_ORDER || hashdist) {
->  			table = __vmalloc(size, gfp_flags, PAGE_KERNEL);
-> +			virt = true;
->  		} else {
->  			/*
->  			 * If bucketsize is not a power-of-two, we may free
->  			 * some pages at the end of hash table which
->  			 * alloc_pages_exact() automatically does
->  			 */
-> -			if (get_order(size) < MAX_ORDER) {
-> -				table = alloc_pages_exact(size, gfp_flags);
-> -				kmemleak_alloc(table, size, 1, gfp_flags);
-> -			}
-> +			table = alloc_pages_exact(size, gfp_flags);
-> +			kmemleak_alloc(table, size, 1, gfp_flags);
->  		}
->  	} while (!table && size > PAGE_SIZE && --log2qty);
->  
->  	if (!table)
->  		panic("Failed to allocate %s hash table\n", tablename);
->  
-> -	pr_info("%s hash table entries: %ld (order: %d, %lu bytes)\n",
-> -		tablename, 1UL << log2qty, ilog2(size) - PAGE_SHIFT, size);
-> +	pr_info("%s hash table entries: %ld (order: %d, %lu bytes, %s)\n",
-> +		tablename, 1UL << log2qty, ilog2(size) - PAGE_SHIFT, size,
-> +		virt ? "vmalloc" : "linear");
+>Correction: We already use it to block offlining of partially populated
+>memory blocks \o/
 
-Could remove `bool virt' and use is_vmalloc_addr() in the printk?
+Would you mind letting me know where we leverage this?
+
+>
+>> 
+>> 2. Reverse order: We would have to start with "block_id - 1", I don't
+>> like that better.
+>> 
+>> Thanks for having a look!
+>> 
+>
+>
+>-- 
+>
+>Thanks,
+>
+>David / dhildenb
+
+-- 
+Wei Yang
+Help you, Help me
 
