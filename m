@@ -2,162 +2,361 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90F55C282CE
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 01:25:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 874F4C28D18
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 02:33:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4AADB206DF
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 01:25:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4AADB206DF
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 12C8520828
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 02:33:44 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XaCH/Dvd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12C8520828
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DAD8E6B000D; Tue,  4 Jun 2019 21:25:58 -0400 (EDT)
+	id 69D986B000A; Tue,  4 Jun 2019 22:33:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D5E156B0269; Tue,  4 Jun 2019 21:25:58 -0400 (EDT)
+	id 64DCB6B000D; Tue,  4 Jun 2019 22:33:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C4C636B026A; Tue,  4 Jun 2019 21:25:58 -0400 (EDT)
+	id 562B96B0010; Tue,  4 Jun 2019 22:33:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B95B6B000D
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 21:25:58 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id e16so13658798pga.4
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 18:25:58 -0700 (PDT)
+Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 349576B000A
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 22:33:44 -0400 (EDT)
+Received: by mail-it1-f197.google.com with SMTP id 188so706104ith.4
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 19:33:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=4XZ0pVa+tNLhyWAYscx6UnjPvPRJi3sa+oh9MIWMGY4=;
-        b=dKL2U6fhE+KcX5+ztC0vd5DdacUf72rwmUiF0XZkTNQ+t/yVInm9dhE/RiTgrnukuo
-         9wLcLihngLrU/r3+GiAZrvtU5EySJDb7UwHfjmMsYGPCu5CWoNF4ZvQulPKGUImlCrp+
-         s7owC/9cqUuhuK81xX6n86LDtIy9LcFllJRLncxkvlMNJTpvNV0G4SknXTJ+RasjHYeG
-         TwX5anFkwqt4AHEYWHQvBPxlrSQY2S6A/1fEpxgrNjpcIAiLW0mnxuM7tkkpV5IaVsD2
-         yCsLOKYq+6ihJrHt47Em4YNwVhJP+o0JaKCaTOhT8qDT4D+YFD36CaBw9qLo81aoTKu3
-         4Jyw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAWtdmbVmzco+Ft3CAop2jRDB80QxUQ+1gtmtRQnDo/s/KTYCXmO
-	b11GWY7tJIsV2NAwGt1R/mAjkDK8lalKAUqBiwCWomZlzfhlKoHUyzC9rusQGQXOSQ/2DGqQlto
-	uNWXbjePpCyaVaxGikWQ3SSXmrcjstflwXscqACzlx6Q0cMoVkByK5V7zmLpohao=
-X-Received: by 2002:a62:6d47:: with SMTP id i68mr42421411pfc.189.1559697958238;
-        Tue, 04 Jun 2019 18:25:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxIzXtpVtzJYMABRR4cbeWmgN1G++IPvjuaKkHNH1uxHhwsJkj7BAmWJOr7DPbT7C1eIcyO
-X-Received: by 2002:a62:6d47:: with SMTP id i68mr42421357pfc.189.1559697957398;
-        Tue, 04 Jun 2019 18:25:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559697957; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=xIsyZFQQsGq7W0W6okN60t5FpnPQJ7npRyxNhSfdoEw=;
+        b=T3gTjh/5wz7/8PEYfbdVkrao6FA3F/qG/fB4Xv40PxK9KXmt7HsEaUxba0MeTrvV1v
+         0WaYcGBL8EXJiMwtD0tVfYuHq7ktjs5zsRr/icSKmXtgtYfSJ5BTXVfRK10x7Up7+sWJ
+         e05I9waaRWjdtfACC/fwnSjVtKv41R3ebRff2H1lFNMElZCrvsEfUlZF4jDB5LNsKRf3
+         AgcZOcAPlDxBOXoebuJlAwMrEAplepSIFbGgVOdBcp5jomZe3J79AnHeBSGti4JsUT4J
+         W8OqtHc5QgGMPQio6biO1qzp0NhI5p6rSXKU3EC4O7Cdn26FjBwZv7mLJwkNkl4h64j1
+         hjtA==
+X-Gm-Message-State: APjAAAW4rVOwoHEgg8vuWFMGd2lka00z7O0wD4lynU+x8hDN3G/U5RNt
+	wo9+16BL9B49vTt7g68LIaPUXCL9YUGQBJN5bEq6Vk6GamBmhLWHqZ3tYQvF/DBfsBV1j2CkftG
+	8Pn+/sy3qMIkYVm1r3D0CTqgL2EsxWd2uBb9odR4iFE9LT9EuqX55F/HbVdpdy5R6xg==
+X-Received: by 2002:a5e:9241:: with SMTP id z1mr9481164iop.39.1559702023863;
+        Tue, 04 Jun 2019 19:33:43 -0700 (PDT)
+X-Received: by 2002:a5e:9241:: with SMTP id z1mr9481132iop.39.1559702022766;
+        Tue, 04 Jun 2019 19:33:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559702022; cv=none;
         d=google.com; s=arc-20160816;
-        b=f9rm9p/4zM9ilqCrQFHEtIVauqoHnuOdEg59Ixwc5/4/WtQUFL2n4RnAkdMsxKN19g
-         EKasunpQN3kXCbQ8U8/WSJChC60HpAigl74Qvq/ZneSBafO66uanY68HUX3Opff7yQbu
-         k1nV2SKyrEf3Qr0rU3DxfWGTbjH2kJFaqdDAtsce3XiCde1RlBsukQ4h6IuvDPaiOaoW
-         XrE5t8LnQWcqWBrZ0hG9u1RJDysqtfYnw+42le6MH9ROtirmC67rsoxYiOqqJXNuV9Dq
-         Xl0JeXc4S48Y64es3KN7CwgQPCcGvswx5bj1HEqZWlE9E1mVbET3vckX/ia6E4BcNOXb
-         c6DA==
+        b=FY0V6ef80JjP0nmm3vqDgthYEvCWyFl+5SnKiUWREKelfMKjjVbu8/HO00mS67mAc1
+         W01TggzWDeqC5aBNU07pltSPAo8UCkWoZQci7dkkADsbtjft0IhziCfnAOwVLquNLFC8
+         Woa7opXivP4nKPaikB0Wq0CXaAeSZZeBcNgTKB3zzE2l5Me7veaY/gPVgoG1sh4CbbDg
+         x2bZO7TzoerClCiWN4N3/vRB5J/NnbyXm/HgARKsMmcVpaGTVOj8IAiung8gBv/raxTn
+         pEWY4CEfX0lAMqST0Vu2wRCds/ezLt6GNu//xpeFpN7n7JzY3p9aeB8CPSAcx4aOJ9OR
+         sPRw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=4XZ0pVa+tNLhyWAYscx6UnjPvPRJi3sa+oh9MIWMGY4=;
-        b=qrd5TnCv7c1Logqzqk1sffNpzFNK/CfMRkfhC5wp0omzK1xt2L2OSBeIU0v3KnKVeA
-         fAl1gl8bBXygeHp1YSBl87BPNLCe+fC+TuqsyrQL1EWCsUgnKUOs+/dA9KGxexRR0yTh
-         2ukNoxe3TprVciX3SZtRl/jsBaSNP6/iJlPjmvvcFDXH7Ua6NkEgDlwyybWENROQB3T9
-         agKwrWoogcv26Nt3vWQXeyNYNdwfWEkUWrzdKRxQX9eqoZTfauS1tZWcOl0oDwmKwUO8
-         ED2P+GNx76VvMPh3jetDDBTmz4jfIrt/Zqf3DOz1X+pwsrw6VneQEZcUn5NkLO7OjLNi
-         KfuA==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=xIsyZFQQsGq7W0W6okN60t5FpnPQJ7npRyxNhSfdoEw=;
+        b=i4NF2BqU+qJZyBTgigcauciO2HGbhiIDMPY8BJsyE8uih6YdiLLOviEm/fHd6H9Zun
+         Y1iLASInu7JixroWefJAE810P3/u4OGvk7yC4Mi+Io/C0Yk+gH+0YItFxq1z95Px3IhI
+         6BgZ7g+000dt4qqFAtxtTcAgaqkZQHcQEBTz8XSP0200uydnBmLX5iyOh3ED0FR0zOGh
+         kFHaQ9+9LUgCOXSATA5dZJ5gLGbU79hf8OYJfuos8IaYi6niMp2NOp1EOg/ceM/QguK2
+         g7aWltK96y6Pw32F5wOMnZBtAbUsSOtEBbIkrm06hfM+femRNlTn9Fd+CQQ8uLduX1LB
+         kdHg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail106.syd.optusnet.com.au (mail106.syd.optusnet.com.au. [211.29.132.42])
-        by mx.google.com with ESMTP id f7si23422552pgd.155.2019.06.04.18.25.57
-        for <linux-mm@kvack.org>;
-        Tue, 04 Jun 2019 18:25:57 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.42;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="XaCH/Dvd";
+       spf=pass (google.com: domain of teawater@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=teawater@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 203sor9184265itl.24.2019.06.04.19.33.42
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 04 Jun 2019 19:33:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of teawater@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from dread.disaster.area (pa49-180-144-61.pa.nsw.optusnet.com.au [49.180.144.61])
-	by mail106.syd.optusnet.com.au (Postfix) with ESMTPS id 5D1B53DC6C3;
-	Wed,  5 Jun 2019 11:25:54 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1hYKgZ-0003fG-MR; Wed, 05 Jun 2019 11:25:51 +1000
-Date: Wed, 5 Jun 2019 11:25:51 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Jan Kara <jack@suse.cz>
-Cc: linux-ext4@vger.kernel.org, Ted Tso <tytso@mit.edu>, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, Amir Goldstein <amir73il@gmail.com>,
-	stable@vger.kernel.org
-Subject: Re: [PATCH 2/2] ext4: Fix stale data exposure when read races with
- hole punch
-Message-ID: <20190605012551.GJ16786@dread.disaster.area>
-References: <20190603132155.20600-1-jack@suse.cz>
- <20190603132155.20600-3-jack@suse.cz>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="XaCH/Dvd";
+       spf=pass (google.com: domain of teawater@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=teawater@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=xIsyZFQQsGq7W0W6okN60t5FpnPQJ7npRyxNhSfdoEw=;
+        b=XaCH/DvdV5q+8alkB1RVT/031pYdLmM7R8qrP6ujiLnLmW5O1y0gMv19tXHGiHOt5S
+         dguGV0XTX7jB+Gl14o7FyKkfg6CSrvxXhSb0WturgSGh0o8qcGd6QpYfUfv6fyZ8P52E
+         EbTyx95y/+ytds2haifPpk6FJiOJcb13dV4MdIxeeTURYEtBgCO36/dMx5wFKwvppkfF
+         DT4JHE0NpldhEOOkxTlTv1VU8ADfeLJYN4UsXSdOa7nuaW0lrb/Bs8xUHwAvzgcXSQPk
+         w7YCaFJRenDjnI6tWWUYF3gqvY2OThIfyrHgK07YxHib8vXHNoDeoPCiV8Ml2ncDUszq
+         1wFA==
+X-Google-Smtp-Source: APXvYqzERY5Il5izEpw+YW2XjEZnTeK7zVOC6brycGSRPyTiw4nuCk2qh4+BVP0zby3xESS212f4gdQYyFzUx7lsEQo=
+X-Received: by 2002:a24:7f14:: with SMTP id r20mr22717066itc.8.1559702022237;
+ Tue, 04 Jun 2019 19:33:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190603132155.20600-3-jack@suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=D+Q3ErZj c=1 sm=1 tr=0 cx=a_idp_d
-	a=8RU0RCro9O0HS2ezTvitPg==:117 a=8RU0RCro9O0HS2ezTvitPg==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=dq6fvYVFJ5YA:10
-	a=VwQbUJbxAAAA:8 a=pGLkceISAAAA:8 a=7-415B0cAAAA:8 a=dBuVX4ejtxO155pZRcAA:9
-	a=CjuIK1q_8ugA:10 a=AjGcO6oz07-iQ99wixmX:22 a=biEYGPWJfzWAr4FL6Ov7:22
+References: <20190602094607.41840-1-teawaterz@linux.alibaba.com>
+ <20190602094607.41840-2-teawaterz@linux.alibaba.com> <CALvZod7WX0_Eu8eDLSwze=Kf07d6ysAM5DdSqqtkscVikPpSWQ@mail.gmail.com>
+In-Reply-To: <CALvZod7WX0_Eu8eDLSwze=Kf07d6ysAM5DdSqqtkscVikPpSWQ@mail.gmail.com>
+From: Hui Zhu <teawater@gmail.com>
+Date: Wed, 5 Jun 2019 10:33:05 +0800
+Message-ID: <CANFwon2-1uhuMKTdHb8F8DpdXsARM8Ng5DkK_Ss_e_TCEx9Q7Q@mail.gmail.com>
+Subject: Re: [PATCH V2 2/2] zswap: Add module parameter malloc_movable_if_support
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Hui Zhu <teawaterz@linux.alibaba.com>, Dan Streetman <ddstreet@ieee.org>, 
+	Minchan Kim <minchan@kernel.org>, "ngupta@vflare.org" <ngupta@vflare.org>, 
+	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Seth Jennings <sjenning@redhat.com>, 
+	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 03, 2019 at 03:21:55PM +0200, Jan Kara wrote:
-> Hole puching currently evicts pages from page cache and then goes on to
-> remove blocks from the inode. This happens under both i_mmap_sem and
-> i_rwsem held exclusively which provides appropriate serialization with
-> racing page faults. However there is currently nothing that prevents
-> ordinary read(2) from racing with the hole punch and instantiating page
-> cache page after hole punching has evicted page cache but before it has
-> removed blocks from the inode. This page cache page will be mapping soon
-> to be freed block and that can lead to returning stale data to userspace
-> or even filesystem corruption.
-> 
-> Fix the problem by protecting reads as well as readahead requests with
-> i_mmap_sem.
-> 
-> CC: stable@vger.kernel.org
-> Reported-by: Amir Goldstein <amir73il@gmail.com>
-> Signed-off-by: Jan Kara <jack@suse.cz>
-> ---
->  fs/ext4/file.c | 35 +++++++++++++++++++++++++++++++----
->  1 file changed, 31 insertions(+), 4 deletions(-)
-> 
-> diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-> index 2c5baa5e8291..a21fa9f8fb5d 100644
-> --- a/fs/ext4/file.c
-> +++ b/fs/ext4/file.c
-> @@ -34,6 +34,17 @@
->  #include "xattr.h"
->  #include "acl.h"
->  
-> +static ssize_t ext4_file_buffered_read(struct kiocb *iocb, struct iov_iter *to)
-> +{
-> +	ssize_t ret;
-> +	struct inode *inode = file_inode(iocb->ki_filp);
-> +
-> +	down_read(&EXT4_I(inode)->i_mmap_sem);
-> +	ret = generic_file_read_iter(iocb, to);
-> +	up_read(&EXT4_I(inode)->i_mmap_sem);
-> +	return ret;
+Shakeel Butt <shakeelb@google.com> =E4=BA=8E2019=E5=B9=B46=E6=9C=885=E6=97=
+=A5=E5=91=A8=E4=B8=89 =E4=B8=8A=E5=8D=881:12=E5=86=99=E9=81=93=EF=BC=9A
+>
+> On Sun, Jun 2, 2019 at 2:47 AM Hui Zhu <teawaterz@linux.alibaba.com> wrot=
+e:
+> >
+> > This is the second version that was updated according to the comments
+> > from Sergey Senozhatsky in https://lkml.org/lkml/2019/5/29/73
+> >
+> > zswap compresses swap pages into a dynamically allocated RAM-based
+> > memory pool.  The memory pool should be zbud, z3fold or zsmalloc.
+> > All of them will allocate unmovable pages.  It will increase the
+> > number of unmovable page blocks that will bad for anti-fragment.
+> >
+> > zsmalloc support page migration if request movable page:
+> >         handle =3D zs_malloc(zram->mem_pool, comp_len,
+> >                 GFP_NOIO | __GFP_HIGHMEM |
+> >                 __GFP_MOVABLE);
+> >
+> > And commit "zpool: Add malloc_support_movable to zpool_driver" add
+> > zpool_malloc_support_movable check malloc_support_movable to make
+> > sure if a zpool support allocate movable memory.
+> >
+> > This commit adds module parameter malloc_movable_if_support to enable
+> > or disable zpool allocate block with gfp __GFP_HIGHMEM | __GFP_MOVABLE
+> > if it support allocate movable memory (disabled by default).
+> >
+> > Following part is test log in a pc that has 8G memory and 2G swap.
+> >
+> > When it disabled:
+> >  echo lz4 > /sys/module/zswap/parameters/compressor
+> >  echo zsmalloc > /sys/module/zswap/parameters/zpool
+> >  echo 1 > /sys/module/zswap/parameters/enabled
+> >  swapon /swapfile
+> >  cd /home/teawater/kernel/vm-scalability/
+> > /home/teawater/kernel/vm-scalability# export unit_size=3D$((9 * 1024 * =
+1024 * 1024))
+> > /home/teawater/kernel/vm-scalability# ./case-anon-w-seq
+> > 2717908992 bytes / 3977932 usecs =3D 667233 KB/s
+> > 2717908992 bytes / 4160702 usecs =3D 637923 KB/s
+> > 2717908992 bytes / 4354611 usecs =3D 609516 KB/s
+> > 293359 usecs to free memory
+> > 340304 usecs to free memory
+> > 205781 usecs to free memory
+> > 2717908992 bytes / 5588016 usecs =3D 474982 KB/s
+> > 166124 usecs to free memory
+> > /home/teawater/kernel/vm-scalability# cat /proc/pagetypeinfo
+> > Page block order: 9
+> > Pages per block:  512
+> >
+> > Free pages count per migrate type at order       0      1      2      3=
+      4      5      6      7      8      9     10
+> > Node    0, zone      DMA, type    Unmovable      1      1      1      0=
+      2      1      1      0      1      0      0
+> > Node    0, zone      DMA, type      Movable      0      0      0      0=
+      0      0      0      0      0      1      3
+> > Node    0, zone      DMA, type  Reclaimable      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone      DMA, type   HighAtomic      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone      DMA, type          CMA      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone      DMA, type      Isolate      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone    DMA32, type    Unmovable      5     10      9      8=
+      8      5      1      2      3      0      0
+> > Node    0, zone    DMA32, type      Movable     15     16     14     12=
+     14     10      9      6      6      5    776
+> > Node    0, zone    DMA32, type  Reclaimable      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone    DMA32, type   HighAtomic      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone    DMA32, type          CMA      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone    DMA32, type      Isolate      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone   Normal, type    Unmovable   7097   6914   6473   5642=
+   4373   2664   1220    319     78      4      0
+> > Node    0, zone   Normal, type      Movable   2092   3216   2820   2266=
+   1585    946    559    359    237    258    378
+> > Node    0, zone   Normal, type  Reclaimable     47     88    122     80=
+     34      9      5      4      2      1      2
+> > Node    0, zone   Normal, type   HighAtomic      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone   Normal, type          CMA      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone   Normal, type      Isolate      0      0      0      0=
+      0      0      0      0      0      0      0
+> >
+> > Number of blocks type     Unmovable      Movable  Reclaimable   HighAto=
+mic          CMA      Isolate
+> > Node 0, zone      DMA            1            7            0           =
+ 0            0            0
+> > Node 0, zone    DMA32            4         1652            0           =
+ 0            0            0
+> > Node 0, zone   Normal          834         1572           25           =
+ 0            0            0
+> >
+> > When it enabled:
+> >  echo lz4 > /sys/module/zswap/parameters/compressor
+> >  echo zsmalloc > /sys/module/zswap/parameters/zpool
+> >  echo 1 > /sys/module/zswap/parameters/enabled
+> >  echo 1 > /sys/module/zswap/parameters/malloc_movable_if_support
+> >  swapon /swapfile
+> >  cd /home/teawater/kernel/vm-scalability/
+> > /home/teawater/kernel/vm-scalability# export unit_size=3D$((9 * 1024 * =
+1024 * 1024))
+> > /home/teawater/kernel/vm-scalability# ./case-anon-w-seq
+> > 2717908992 bytes / 4721401 usecs =3D 562165 KB/s
+> > 2717908992 bytes / 4783167 usecs =3D 554905 KB/s
+> > 2717908992 bytes / 4802125 usecs =3D 552715 KB/s
+> > 2717908992 bytes / 4866579 usecs =3D 545395 KB/s
+> > 323605 usecs to free memory
+> > 414817 usecs to free memory
+> > 458576 usecs to free memory
+> > 355827 usecs to free memory
+> > /home/teawater/kernel/vm-scalability# cat /proc/pagetypeinfo
+> > Page block order: 9
+> > Pages per block:  512
+> >
+> > Free pages count per migrate type at order       0      1      2      3=
+      4      5      6      7      8      9     10
+> > Node    0, zone      DMA, type    Unmovable      1      1      1      0=
+      2      1      1      0      1      0      0
+> > Node    0, zone      DMA, type      Movable      0      0      0      0=
+      0      0      0      0      0      1      3
+> > Node    0, zone      DMA, type  Reclaimable      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone      DMA, type   HighAtomic      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone      DMA, type          CMA      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone      DMA, type      Isolate      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone    DMA32, type    Unmovable      8     10      8      7=
+      7      6      5      3      2      0      0
+> > Node    0, zone    DMA32, type      Movable     23     21     18     15=
+     13     14     14     10     11      6    766
+> > Node    0, zone    DMA32, type  Reclaimable      0      0      0      0=
+      0      0      0      0      0      0      1
+> > Node    0, zone    DMA32, type   HighAtomic      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone    DMA32, type          CMA      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone    DMA32, type      Isolate      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone   Normal, type    Unmovable   2660   1295    460    102=
+     11      5      3     11      2      4      0
+> > Node    0, zone   Normal, type      Movable   4178   5760   5045   4137=
+   3324   2306   1482    930    497    254    460
+> > Node    0, zone   Normal, type  Reclaimable     50     83    114     93=
+     28     12     10      6      3      3      0
+> > Node    0, zone   Normal, type   HighAtomic      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone   Normal, type          CMA      0      0      0      0=
+      0      0      0      0      0      0      0
+> > Node    0, zone   Normal, type      Isolate      0      0      0      0=
+      0      0      0      0      0      0      0
+> >
+> > Number of blocks type     Unmovable      Movable  Reclaimable   HighAto=
+mic          CMA      Isolate
+> > Node 0, zone      DMA            1            7            0           =
+ 0            0            0
+> > Node 0, zone    DMA32            4         1650            2           =
+ 0            0            0
+> > Node 0, zone   Normal           81         2325           25           =
+ 0            0            0
+> >
+> > You can see that the number of unmovable page blocks is decreased
+> > when malloc_movable_if_support is enabled.
+> >
+> > Signed-off-by: Hui Zhu <teawaterz@linux.alibaba.com>
+> > ---
+> >  mm/zswap.c | 16 +++++++++++++---
+> >  1 file changed, 13 insertions(+), 3 deletions(-)
+> >
+> > diff --git a/mm/zswap.c b/mm/zswap.c
+> > index a4e4d36ec085..2fc45de92383 100644
+> > --- a/mm/zswap.c
+> > +++ b/mm/zswap.c
+> > @@ -123,6 +123,13 @@ static bool zswap_same_filled_pages_enabled =3D tr=
+ue;
+> >  module_param_named(same_filled_pages_enabled, zswap_same_filled_pages_=
+enabled,
+> >                    bool, 0644);
+> >
+> > +/* Enable/disable zpool allocate block with gfp __GFP_HIGHMEM | __GFP_=
+MOVABLE
+> > + * if it support allocate movable memory (disabled by default).
+> > + */
+> > +static bool __read_mostly zswap_malloc_movable_if_support;
+> > +module_param_cb(malloc_movable_if_support, &param_ops_bool,
+> > +               &zswap_malloc_movable_if_support, 0644);
+> > +
+>
+> Any reason for the above tunable? Do we ever want to disable movable
+> for zswap+zsmalloc?
 
-Isn't i_mmap_sem taken in the page fault path? What makes it safe
-to take here both outside and inside the mmap_sem at the same time?
-I mean, the whole reason for i_mmap_sem existing is that the inode
-i_rwsem can't be taken both outside and inside the i_mmap_sem at the
-same time, so what makes the i_mmap_sem different?
+Thanks for your remind.  I will post a new version that remove this
+module_param later.
 
-Cheers,
+Best,
+Hui
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+>
+> >  /*********************************
+> >  * data structures
+> >  **********************************/
+> > @@ -1006,6 +1013,7 @@ static int zswap_frontswap_store(unsigned type, p=
+goff_t offset,
+> >         char *buf;
+> >         u8 *src, *dst;
+> >         struct zswap_header zhdr =3D { .swpentry =3D swp_entry(type, of=
+fset) };
+> > +       gfp_t gfp =3D __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLA=
+IM;
+> >
+> >         /* THP isn't supported */
+> >         if (PageTransHuge(page)) {
+> > @@ -1079,9 +1087,11 @@ static int zswap_frontswap_store(unsigned type, =
+pgoff_t offset,
+> >
+> >         /* store */
+> >         hlen =3D zpool_evictable(entry->pool->zpool) ? sizeof(zhdr) : 0=
+;
+> > -       ret =3D zpool_malloc(entry->pool->zpool, hlen + dlen,
+> > -                          __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_=
+RECLAIM,
+> > -                          &handle);
+> > +       if (zswap_malloc_movable_if_support &&
+> > +               zpool_malloc_support_movable(entry->pool->zpool)) {
+> > +               gfp |=3D __GFP_HIGHMEM | __GFP_MOVABLE;
+> > +       }
+> > +       ret =3D zpool_malloc(entry->pool->zpool, hlen + dlen, gfp, &han=
+dle);
+> >         if (ret =3D=3D -ENOSPC) {
+> >                 zswap_reject_compress_poor++;
+> >                 goto put_dstmem;
+> > --
+> > 2.20.1 (Apple Git-117)
+> >
+>
 
