@@ -2,155 +2,202 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 179AFC282DE
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 10:02:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 572D2C282DE
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 10:06:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D8FC0206B8
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 10:02:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8FC0206B8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 17859206B8
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 10:06:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17859206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6D4406B000E; Wed,  5 Jun 2019 06:02:28 -0400 (EDT)
+	id AC8646B000E; Wed,  5 Jun 2019 06:06:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 684946B0010; Wed,  5 Jun 2019 06:02:28 -0400 (EDT)
+	id A79326B0010; Wed,  5 Jun 2019 06:06:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 54B6D6B0266; Wed,  5 Jun 2019 06:02:28 -0400 (EDT)
+	id 98E596B0266; Wed,  5 Jun 2019 06:06:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 344C06B000E
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 06:02:28 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id l185so6083068qkd.14
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 03:02:28 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F75B6B000E
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 06:06:57 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 21so14481181pgl.5
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 03:06:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=D7S6+lYBQy9QVF6C+5yrZZENacqLJTvOXQbJ52CRC/U=;
-        b=Qou7ZP+BaoSMK7rNk8kn77f62jyWV97bCYgPut397nzGAPIFQbCPxRbCExyzcu5kqR
-         zpQ8Z16tMgXmAAqQcQhIizbBF1UlTTGtmT6VKBy9ysRVtMOsBF/mCRyBhNM9lBoiZczy
-         3nh6QZFgYsVsvVIPmQDxJcMWkjOTqnt+ZWRohO1nRdR5+ukKlbGMz6jKBvCTQtNa98Xo
-         B81mVLoLf88Si762InIgBE3ZUCRcr37nCW3YOtoKKp4URiXz42nOOKnypm67ZIN6y9ye
-         9zTiNJKVG85IcHlxTgfQhAAaFDpFaF5FYQgIKtsjvYXJOyyL2n9hrqeldk25QjJ93dB7
-         HBhw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX5PjYKqIzg8SCdbe5uW1UTptLZ6lcIX23iYwMRquL3mMYaux2j
-	oXa6M423wO/DI7Om8yYYSvVGChaTBUz+Pn2KZhySDA6BqoF0cORMT131Tdd+wXi0I+ewZCcgHc8
-	zkWZwsby5pGp9ke1kudVdrBQ4FCeduvP+zzMPvj7DFxE3AZPkGE0V5k9/A4co48GMCw==
-X-Received: by 2002:a0c:bd9a:: with SMTP id n26mr601544qvg.25.1559728947973;
-        Wed, 05 Jun 2019 03:02:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxm5p9NDrxUjpoIBi/s9NP4HRRsEOXSm7x8LuKRNEtpzyV5eZevVtqkYpb/3046NJb+Ub29
-X-Received: by 2002:a0c:bd9a:: with SMTP id n26mr601474qvg.25.1559728947222;
-        Wed, 05 Jun 2019 03:02:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559728947; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=gw1AnGYklzxJGBp1a1bdOMb9i8YZ42P936XCNomCzqk=;
+        b=ZqbhvaNUMPsT9YZ47kkypkv7G1pMqC2SQ/FI/AtOdU/Qw5wbBwLUbNq88ONmCQceUE
+         3a2FYN9+0qubqDFwgvMAi6mS19XvGDKO/wpPtVB0xoOi68actQJdgfbc+75pqH7MHxEE
+         igqP/wAvy9DhIjknZGEB2aS3EgXoCJdaGIxZYnxqUTK644dKKT/K5BZxeZrPC8GQw916
+         AN8wh+bwLZSaO0SYAQBzn3cCxVk9WN7Q0L1eP0YmiAnwTAB3YlKCnG8pWYQEFC6kXyyV
+         RLOLvazO39+9PsaVEmuezA+2hVXok9rSSzlKUfm5qZlOxzD6Xl1ZwkQ/ztb+yKViVZ6J
+         fWHQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of teawaterz@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=teawaterz@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWciNd255diCZhnPApzykT9NpGm3zozpzDKgrRI9UTBPDE6tMMD
+	TTE6u7a7htU5a1QJDWUk6TfRGaFgnD+CKcoVXzqhRqmLzVPpVXR5Rqf3DbUvZyyyBpMa73tHHk6
+	N7rgvyzybDNHKV2Pvdtco5v2vb5yRD948AIddIGCm89m0PHqtzx6USSpixj2ftiv6Yw==
+X-Received: by 2002:a62:ea04:: with SMTP id t4mr43389759pfh.47.1559729216770;
+        Wed, 05 Jun 2019 03:06:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxtJf0ze1jGvAuOCIruC0y7BVOU+RFYLNuqfgTKDnYLNeM8QkjsnSM0ranHT18/V0qzQVpf
+X-Received: by 2002:a62:ea04:: with SMTP id t4mr43389613pfh.47.1559729215070;
+        Wed, 05 Jun 2019 03:06:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559729215; cv=none;
         d=google.com; s=arc-20160816;
-        b=gpV8tPN9Ppz0WJovJ9WWURnpcVfjbLYiA4W3IuyNTb9+XTihDsDzeybsd2PQOO4txU
-         INItHIUYk8Kn4DXT7+3lO8R9dj5KTPFyNBCPyJm35qAR2FEUGQ1n2MxVy14cfItEDmht
-         FJKhqAl9yUC6R2fz54ceUfuZ9HTbIFCNxt0zMw9KBJBqlWXjSz2AdV43PoOkaUxKQQ+h
-         NlfaL7So6eIRqoXSS2DdklPces76p/cSi+Xoh+69vTwfRi5QtUnPgNUyC2NqZU2iBl+V
-         TP4ibNnONZqw6ggcBS/hb/m/FuOn9N1R+/9VF0ldN1Hc4ZEbIb9LXTe1pvfiMKC3pfMo
-         F8uQ==
+        b=FPOpjcUv40sSkM+qpCCyI2sLxelTDjg25PqqC/O3BPKSB3SityI138+bs2IewOwINg
+         9IWWHyeSC2oX+EpdkJ7MhvfZpaGIt29cR/uN9SOaOb1aomabz6xryfYsPJ6y+vTt4zd9
+         RGSdwxkvyy3bb7zUlNMzKGA/+XqA6VZtJRnYkb4YrzQSvQepZ8NYF1rkjw0EVjfN4Q1E
+         DwC3mx+hX92oZvkly6TJr4IPiHU4poJofgGJhjXJW1Bppz15e/mtJX9ARjS4nh66ctat
+         eEiqUpuibYKXqh1RCJDvvDfLRN0MtYuJ+rU8XvwdkLJEqKz8yWz0ba6+rYiy1132Lzb8
+         60tg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=D7S6+lYBQy9QVF6C+5yrZZENacqLJTvOXQbJ52CRC/U=;
-        b=t8zM6ngR7MrcpFO124DKlaFhNmg0Ht6k2R7yVfFs45//Gy5RQ231Z9aSeOSykLYzJe
-         NEPpl82pyvx1VxUfffHz8kTHEVpklpP6I11+x/QDhG4v4zSIaWHiqSrYxzyq5b5o4fO/
-         8UI+yZ75c52GdGkx3A/WJ/xEzeCt58YG0Wc2ZTsNs4eePkMP9p2ZSUmemLaijpIGhPxc
-         cTGuaO74mz2VXF3n5yfuhWzJ0cOekSg2IZr24mL3rJWWyHoF7G4Iy6Z8aqJNb82r5hbe
-         cxgu5gSa1z80mAwDExRrKhn24SqCUv151LjVnA7WmmmQtiYoj9o8XdImC9klv1g5Fw36
-         tjZg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=gw1AnGYklzxJGBp1a1bdOMb9i8YZ42P936XCNomCzqk=;
+        b=CBdLwyrZEGG7+XSDhAnRosCC5tdShUPlpHrELiT8iurf5qDhAfrp50sIZW1li4yCcT
+         2zA9ReAsuS5Q104WfDJfIhG1pcsHGE63za1MT3f/b2wrv8w/R0/ALiULCbD4XvCaYY1V
+         MpxuZw1E1GFoeVcCn+Kn4R9cLbk9qNreiq0/kEjDLPpcANiaXP2bFsb0u19QU5bNeauw
+         3RFltR4rn6ATIeJ+hwqEqf34JcBGHbyRMWzSY4RvYDSNvh749AhJRFPB/2fT0OnEGXz8
+         K9hRVWaCxhyFi4n/kDE49+aZf2ZoTwADwCE0UgU1lu5Qp3O2ZQg9JC27cs3HanoZ8KUs
+         w2SA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z20si6162898qvg.220.2019.06.05.03.02.26
+       spf=pass (google.com: domain of teawaterz@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=teawaterz@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
+        by mx.google.com with ESMTPS id b9si22215925pls.303.2019.06.05.03.06.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 03:02:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 05 Jun 2019 03:06:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of teawaterz@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 50645307D90D;
-	Wed,  5 Jun 2019 10:02:12 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.159])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 6E49A5C225;
-	Wed,  5 Jun 2019 10:02:09 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Wed,  5 Jun 2019 12:02:11 +0200 (CEST)
-Date: Wed, 5 Jun 2019 12:02:07 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Song Liu <songliubraving@fb.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org,
-	rostedt@goodmis.org, mhiramat@kernel.org,
-	kirill.shutemov@linux.intel.com, kernel-team@fb.com,
-	william.kucharski@oracle.com
-Subject: Re: [PATCH uprobe, thp v2 2/5] uprobe: use original page when all
- uprobes are removed
-Message-ID: <20190605100207.GD32406@redhat.com>
-References: <20190604165138.1520916-1-songliubraving@fb.com>
- <20190604165138.1520916-3-songliubraving@fb.com>
+       spf=pass (google.com: domain of teawaterz@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=teawaterz@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R121e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04446;MF=teawaterz@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TTUHvst_1559729194;
+Received: from localhost(mailfrom:teawaterz@linux.alibaba.com fp:SMTPD_---0TTUHvst_1559729194)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Wed, 05 Jun 2019 18:06:39 +0800
+From: Hui Zhu <teawaterz@linux.alibaba.com>
+To: ddstreet@ieee.org,
+	minchan@kernel.org,
+	ngupta@vflare.org,
+	sergey.senozhatsky.work@gmail.com,
+	sjenning@redhat.com,
+	shakeelb@google.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: Hui Zhu <teawaterz@linux.alibaba.com>
+Subject: [PATCH V3 1/2] zpool: Add malloc_support_movable to zpool_driver
+Date: Wed,  5 Jun 2019 18:06:29 +0800
+Message-Id: <20190605100630.13293-1-teawaterz@linux.alibaba.com>
+X-Mailer: git-send-email 2.21.0 (Apple Git-120)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190604165138.1520916-3-songliubraving@fb.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Wed, 05 Jun 2019 10:02:16 +0000 (UTC)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06/04, Song Liu wrote:
->
-> Currently, uprobe swaps the target page with a anonymous page in both
-> install_breakpoint() and remove_breakpoint(). When all uprobes on a page
-> are removed, the given mm is still using an anonymous page (not the
-> original page).
+As a zpool_driver, zsmalloc can allocate movable memory because it
+support migate pages.
+But zbud and z3fold cannot allocate movable memory.
 
-Agreed, it would be nice to avoid this,
+This commit adds malloc_support_movable to zpool_driver.
+If a zpool_driver support allocate movable memory, set it to true.
+And add zpool_malloc_support_movable check malloc_support_movable
+to make sure if a zpool support allocate movable memory.
 
-> @@ -461,9 +471,10 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
->  			unsigned long vaddr, uprobe_opcode_t opcode)
->  {
->  	struct uprobe *uprobe;
-> -	struct page *old_page, *new_page;
-> +	struct page *old_page, *new_page, *orig_page = NULL;
->  	struct vm_area_struct *vma;
->  	int ret, is_register, ref_ctr_updated = 0;
-> +	pgoff_t index;
->  
->  	is_register = is_swbp_insn(&opcode);
->  	uprobe = container_of(auprobe, struct uprobe, arch);
-> @@ -501,6 +512,19 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
->  	copy_highpage(new_page, old_page);
->  	copy_to_page(new_page, vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
->  
-> +	index = vaddr_to_offset(vma, vaddr & PAGE_MASK) >> PAGE_SHIFT;
-> +	orig_page = find_get_page(vma->vm_file->f_inode->i_mapping, index);
+Signed-off-by: Hui Zhu <teawaterz@linux.alibaba.com>
+---
+ include/linux/zpool.h |  3 +++
+ mm/zpool.c            | 16 ++++++++++++++++
+ mm/zsmalloc.c         | 19 ++++++++++---------
+ 3 files changed, 29 insertions(+), 9 deletions(-)
 
-I think you should take is_register into account, if it is true we are going
-to install the breakpoint so we can avoid find_get_page/pages_identical.
-
-> +	if (orig_page) {
-> +		if (pages_identical(new_page, orig_page)) {
-> +			/* if new_page matches orig_page, use orig_page */
-> +			put_page(new_page);
-> +			new_page = orig_page;
-
-Hmm. can't we simply unmap the page in this case?
-
-Oleg.
+diff --git a/include/linux/zpool.h b/include/linux/zpool.h
+index 7238865e75b0..51bf43076165 100644
+--- a/include/linux/zpool.h
++++ b/include/linux/zpool.h
+@@ -46,6 +46,8 @@ const char *zpool_get_type(struct zpool *pool);
+ 
+ void zpool_destroy_pool(struct zpool *pool);
+ 
++bool zpool_malloc_support_movable(struct zpool *pool);
++
+ int zpool_malloc(struct zpool *pool, size_t size, gfp_t gfp,
+ 			unsigned long *handle);
+ 
+@@ -90,6 +92,7 @@ struct zpool_driver {
+ 			struct zpool *zpool);
+ 	void (*destroy)(void *pool);
+ 
++	bool malloc_support_movable;
+ 	int (*malloc)(void *pool, size_t size, gfp_t gfp,
+ 				unsigned long *handle);
+ 	void (*free)(void *pool, unsigned long handle);
+diff --git a/mm/zpool.c b/mm/zpool.c
+index a2dd9107857d..863669212070 100644
+--- a/mm/zpool.c
++++ b/mm/zpool.c
+@@ -238,6 +238,22 @@ const char *zpool_get_type(struct zpool *zpool)
+ 	return zpool->driver->type;
+ }
+ 
++/**
++ * zpool_malloc_support_movable() - Check if the zpool support
++ * allocate movable memory
++ * @zpool:	The zpool to check
++ *
++ * This returns if the zpool support allocate movable memory.
++ *
++ * Implementations must guarantee this to be thread-safe.
++ *
++ * Returns: true if if the zpool support allocate movable memory, false if not
++ */
++bool zpool_malloc_support_movable(struct zpool *zpool)
++{
++	return zpool->driver->malloc_support_movable;
++}
++
+ /**
+  * zpool_malloc() - Allocate memory
+  * @zpool:	The zpool to allocate from.
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 0787d33b80d8..8f3d9a4d46f4 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -437,15 +437,16 @@ static u64 zs_zpool_total_size(void *pool)
+ }
+ 
+ static struct zpool_driver zs_zpool_driver = {
+-	.type =		"zsmalloc",
+-	.owner =	THIS_MODULE,
+-	.create =	zs_zpool_create,
+-	.destroy =	zs_zpool_destroy,
+-	.malloc =	zs_zpool_malloc,
+-	.free =		zs_zpool_free,
+-	.map =		zs_zpool_map,
+-	.unmap =	zs_zpool_unmap,
+-	.total_size =	zs_zpool_total_size,
++	.type =			  "zsmalloc",
++	.owner =		  THIS_MODULE,
++	.create =		  zs_zpool_create,
++	.destroy =		  zs_zpool_destroy,
++	.malloc_support_movable = true,
++	.malloc =		  zs_zpool_malloc,
++	.free =			  zs_zpool_free,
++	.map =			  zs_zpool_map,
++	.unmap =		  zs_zpool_unmap,
++	.total_size =		  zs_zpool_total_size,
+ };
+ 
+ MODULE_ALIAS("zpool-zsmalloc");
+-- 
+2.21.0 (Apple Git-120)
 
