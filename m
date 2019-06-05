@@ -2,214 +2,188 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD52DC28D18
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:33:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 66D25C28CC6
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:48:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A145A20874
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:33:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A145A20874
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 2A02F2067C
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:48:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A02F2067C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3E34E6B026C; Wed,  5 Jun 2019 17:33:55 -0400 (EDT)
+	id B78E66B026C; Wed,  5 Jun 2019 17:48:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 36BA96B026F; Wed,  5 Jun 2019 17:33:55 -0400 (EDT)
+	id B29F56B026F; Wed,  5 Jun 2019 17:48:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E6526B0270; Wed,  5 Jun 2019 17:33:55 -0400 (EDT)
+	id A17DF6B0270; Wed,  5 Jun 2019 17:48:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D83F46B026C
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 17:33:54 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id e69so61909pgc.7
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 14:33:54 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D4C26B026C
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 17:48:16 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id q2so139904plr.19
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 14:48:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=azmacorJAvog4j2bVWZyOWJK+eLY7Yz8Mt/agm7rg8E=;
-        b=IJXPiU7xOL3bsLl72+4EhDucNOxykeyUs54IWBqcKq8H6WH0SyCRJ+7969m1ZJ5fZn
-         ClcyiHAVb99DDa3CJNv5fUKwCVVhiTWS643DPDLjUA6CsjIOBBMoxtkqXqJnuig3jJRX
-         0sNru2hX3z4miokPkqvQvvYoaDCHBGblYsj2CMrzREIgYL4nY1MHRamDis2kxBfzdB1X
-         8KgIQECTtsb/o3EFQPGZPlxBayjSDn6bKKqMOtyslGaDok+7/Lq1kKDyXHsAwkx1SuZZ
-         N3rnYerMs1EGazX5ht3C4bKMSgpD7zGY0PkY1HguBGpx1Cubw2Ji5k6OkblzM0PeqN79
-         u8YA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAW+L8KkpJeT8a/Bbogsu7PRxUC8lmCPZZOfSgV5ExC3i/+qU3Oa
-	Bd6CAOKNMBbhx9EI1p1QbaI3QASwGtFia1W3Ei+6xA9d+GfaLgGzRLlYMtYAWf3C8wj0S/qIraL
-	c+RWiJcngy4p+okdyVoNfD6THe37MgT27AUT/a3uMtgsOgrth7wtyzCNmw8AX0e+9Dw==
-X-Received: by 2002:a17:902:ba82:: with SMTP id k2mr37826811pls.323.1559770434525;
-        Wed, 05 Jun 2019 14:33:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw/9h3rcHLDel5JrdSBx00sNkGcmCC+6vm+c/V87GZZ+wXfcMz78EUgWzIVjvnySWSaABiT
-X-Received: by 2002:a17:902:ba82:: with SMTP id k2mr37826762pls.323.1559770433785;
-        Wed, 05 Jun 2019 14:33:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559770433; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=t/zBI68Op3lCQqBzvXOYSWLgNzoopSUj9ETQdNbQEqI=;
+        b=CCxUYf/SYjNzIuXirNm99OwVAi53DROK5rDnArng2rv6QdK5Pgvs/jJcAd94Bcxuks
+         oAOxTeffKI4fIkEqCb/pvxHdkmow9cwcoQ83TyB9WKPQeicwyKnJOfIyU6xed77nt2q+
+         tbT2B4ZKOuUbt9tMH/SbrsdoILP205RzGk5Eh+hzriDsJ8qrk5EHuwn9KgLqtuUSmegC
+         Pdj2hPwXeAPCUnqog/QbYqlepuwDE8li5mYNAt5C7uoB6uH8kIQoDDcjvXFzLAqjASbP
+         SwB8pAod0zkO1udBng2SUYPVLvWhiCOdDFfxnfuzSG8UII4MEOtGTqRjzrKpP81odr2O
+         1t0g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXSysS2V1gWZIhOgTS7rzDwP9XTqDR/TBDyeXWWGjeKiMBdsP64
+	V7IOscnTfxiqKC9UUHdwj4Yz0i80IVB9/B5uKlApQjYuJlMIat+ZbEHDbDvL+A4GnJkP0cFmaAE
+	dWsoASpGSrZmGEZVfjqkPwZDXeX+PdV/MbmhVZo1i3C2YvrTUQZFswzkc+EMPB62TCg==
+X-Received: by 2002:a17:902:9a82:: with SMTP id w2mr28668794plp.291.1559771296080;
+        Wed, 05 Jun 2019 14:48:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxb6YgHJPTvwojX5kN11SPFuJnb02prSUccNF1egryJZX2Lqb7fhK3R5yqUPPa4ewU+iuMX
+X-Received: by 2002:a17:902:9a82:: with SMTP id w2mr28668738plp.291.1559771295028;
+        Wed, 05 Jun 2019 14:48:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559771295; cv=none;
         d=google.com; s=arc-20160816;
-        b=kdj8tMRGEjvg6CVgwvoIDRVo/MFVeC0hYAzvON7oe8P3Y6wYTMFabxAK5l1BsIGf1h
-         4UPHIISkRXPxMYwO601SMYEu8h3FZ5ldreuHwRVJjm1ai3M7uqVVM0YpnzSKA0IzfiNJ
-         2OAow+IUeX3C2eEXrG2FYuTKKD26F0SVosFswH7EZ5bKt+zU0gTlbrdV6QHMFeBojWle
-         Aa32i8RLy4XtOrQxZtk75V7AS31oPsh8cyCoFsCuI2tDvEEGle0eMIQEVRiHaoEgw9iI
-         aU+7HgiK0Sj+ZVPop2DD7XDPK1fMlYu8lPJScF12HWBpzpIEOQgN9EYO1YyRUWnXsugl
-         vrGw==
+        b=ylmvqKcj1cC3CCbAZr0jfRRrv0YocPFAad5muW72mGE1R6w3nAn8oxmR3XTwsuIbKl
+         WOqs0cHEzS3wfhJtSGIa2psAfer7A4+yVdkBcYJPN7UBMmeY5VFNcAHM95GVyj00QWjV
+         khOe8xxlSvvnUzhQMwybq6A+zgzyZr2+qpdes34J4JK1bUWwqL8PXoZN3j9xRpk4Z/ip
+         uml22NTgCstxMB5vSnlmvkxxNK9D3wLS13rc4EOO8UFf7xq42KcGc8rMvREvbh5/X7Qc
+         zwKxXxYjyyDkxHxSj27aN5Tbhcl/OmVdiSt5TPXnP3f+IZT9iAs0xjBd0EWAZuWbNLYM
+         GyvQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=azmacorJAvog4j2bVWZyOWJK+eLY7Yz8Mt/agm7rg8E=;
-        b=0dSXeSRheRzj9xK7J14/MTBTbqzUiRLKy4rb1frV/Lat5dix/QIDciQtIU59PjZj6O
-         AY3ntyMCcKIEEIeYzY8da0f0PQYnePzzkz7YOVhuA/iNVEz/wA1QdRoKU1Mf+oVEkBrX
-         urpDMIw9rb228JMi0eeOQQ1VAhS0Xo4KNr2wnRqKdQtKSZ3MEO/secaweHHqRB1iO3og
-         4+BiFAEN1/GNJ9UnrBy/XPQ7dFgkPmFuYOqQ4PfBjvAcnRQF3xXO42NIGcz2S8egsUZ6
-         BxAB5sgLVI3cjg6g4EOkmHHooVncaQrYj0s+YxGKO6lpPyhgLoq2Y3TdiNDH4auqmp1Y
-         YN+Q==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=t/zBI68Op3lCQqBzvXOYSWLgNzoopSUj9ETQdNbQEqI=;
+        b=lE24upPva7WOXWWZjKJTZ3lLOmw26TakgAjk1gqHmiWQZz5G589apfQqUHTuLO5bIr
+         7mcgHO6HSfvowAbjYmEQrXknggi60bSR5mT52FBBCzw9BFQ7ceANuA6K+9Iwy18dj54h
+         H4SkCcuSqBg5Vs5RvlJ+Q5kN3cd+olkNZEDfJb5aqpj1leE4D0oJ9M6Y4cwGRPLjEpVq
+         pjS38EDr53V9PdNDc/nJG0qv4/8FxJvOwtEquYlo+7fRuNyYXlLvu8nbITVQp8JCPIAL
+         4Z3VXKIKEMnMieKW94qFGL7bIskUh9UZ140lEQkLcyfW3C8mut9Nosfj8bwx2/F6RbMk
+         uuNA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id e4si8747pjj.34.2019.06.05.14.33.53
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id w4si28205868plz.27.2019.06.05.14.48.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 14:33:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Wed, 05 Jun 2019 14:48:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x55LWDhZ067823
-	for <linux-mm@kvack.org>; Wed, 5 Jun 2019 17:33:53 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2sxhne2s7k-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 05 Jun 2019 17:33:52 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 5 Jun 2019 22:33:50 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 5 Jun 2019 22:33:46 +0100
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x55LXjbm54984766
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 5 Jun 2019 21:33:45 GMT
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id ABD83A405F;
-	Wed,  5 Jun 2019 21:33:45 +0000 (GMT)
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 80203A4054;
-	Wed,  5 Jun 2019 21:33:44 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.207.19])
-	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed,  5 Jun 2019 21:33:44 +0000 (GMT)
-Date: Thu, 6 Jun 2019 00:33:42 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, catalin.marinas@arm.com,
-        will.deacon@arm.com, linux-kernel@vger.kernel.org, mhocko@kernel.org,
-        linux-mm@kvack.org, vdavydov.dev@gmail.com, hannes@cmpxchg.org,
-        cgroups@vger.kernel.org, linux-arm-kernel@lists.infradead.org
-Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
-References: <1559656836-24940-1-git-send-email-cai@lca.pw>
- <20190604142338.GC24467@lakrids.cambridge.arm.com>
- <20190604143020.GD24467@lakrids.cambridge.arm.com>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Jun 2019 14:48:14 -0700
+X-ExtLoop1: 1
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga007.jf.intel.com with ESMTP; 05 Jun 2019 14:48:13 -0700
+From: ira.weiny@intel.com
+To: Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	John Hubbard <jhubbard@nvidia.com>,
+	Ira Weiny <ira.weiny@intel.com>
+Subject: [PATCH v4] mm/swap: Fix release_pages() when releasing devmap pages
+Date: Wed,  5 Jun 2019 14:49:22 -0700
+Message-Id: <20190605214922.17684-1-ira.weiny@intel.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190604143020.GD24467@lakrids.cambridge.arm.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19060521-0020-0000-0000-000003469105
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19060521-0021-0000-0000-00002199A1F4
-Message-Id: <20190605213342.GA7023@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-05_13:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=60 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906050136
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 04, 2019 at 03:30:20PM +0100, Mark Rutland wrote:
-> On Tue, Jun 04, 2019 at 03:23:38PM +0100, Mark Rutland wrote:
-> > On Tue, Jun 04, 2019 at 10:00:36AM -0400, Qian Cai wrote:
-> > > The commit "arm64: switch to generic version of pte allocation"
-> > > introduced endless failures during boot like,
-> > > 
-> > > kobject_add_internal failed for pgd_cache(285:chronyd.service) (error:
-> > > -2 parent: cgroup)
-> > > 
-> > > It turns out __GFP_ACCOUNT is passed to kernel page table allocations
-> > > and then later memcg finds out those don't belong to any cgroup.
-> > 
-> > Mike, I understood from [1] that this wasn't expected to be a problem,
-> > as the accounting should bypass kernel threads.
-> > 
-> > Was that assumption wrong, or is something different happening here?
-> > 
-> > > backtrace:
-> > >   kobject_add_internal
-> > >   kobject_init_and_add
-> > >   sysfs_slab_add+0x1a8
-> > >   __kmem_cache_create
-> > >   create_cache
-> > >   memcg_create_kmem_cache
-> > >   memcg_kmem_cache_create_func
-> > >   process_one_work
-> > >   worker_thread
-> > >   kthread
-> > > 
-> > > Signed-off-by: Qian Cai <cai@lca.pw>
-> > > ---
-> > >  arch/arm64/mm/pgd.c | 2 +-
-> > >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > > 
-> > > diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
-> > > index 769516cb6677..53c48f5c8765 100644
-> > > --- a/arch/arm64/mm/pgd.c
-> > > +++ b/arch/arm64/mm/pgd.c
-> > > @@ -38,7 +38,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
-> > >  	if (PGD_SIZE == PAGE_SIZE)
-> > >  		return (pgd_t *)__get_free_page(gfp);
-> > >  	else
-> > > -		return kmem_cache_alloc(pgd_cache, gfp);
-> > > +		return kmem_cache_alloc(pgd_cache, GFP_PGTABLE_KERNEL);
-> > 
-> > This is used to allocate PGDs for both user and kernel pagetables (e.g.
-> > for the efi runtime services), so while this may fix the regression, I'm
-> > not sure it's the right fix.
-> 
-> I see that since [1], pgd_alloc() was updated to special-case the
-> init_mm, which is not sufficient for cases like:
-> 
-> 	efi_mm.pgd = pgd_alloc(&efi_mm)
-> 
-> ... which occurs in a kthread.
-> 
-> So let's have a pgd_alloc_kernel() to make that explicit.
+From: Ira Weiny <ira.weiny@intel.com>
 
-I've hit "send" before seeing this one :)
+release_pages() is an optimized version of a loop around put_page().
+Unfortunately for devmap pages the logic is not entirely correct in
+release_pages().  This is because device pages can be more than type
+MEMORY_DEVICE_PUBLIC.  There are in fact 4 types, private, public, FS
+DAX, and PCI P2PDMA.  Some of these have specific needs to "put" the
+page while others do not.
 
-Well, to be completely on the safe side an explicit pgd_alloc_kernel()
-sounds right. Then it won't be subject to future changes in memcg and will
-always "Do The Right Thing".
+This logic to handle any special needs is contained in
+put_devmap_managed_page().  Therefore all devmap pages should be
+processed by this function where we can contain the correct logic for a
+page put.
+
+Handle all device type pages within release_pages() by calling
+put_devmap_managed_page() on all devmap pages.  If
+put_devmap_managed_page() returns true the page has been put and we
+continue with the next page.  A false return of
+put_devmap_managed_page() means the page did not require special
+processing and should fall to "normal" processing.
+
+This was found via code inspection while determining if release_pages()
+and the new put_user_pages() could be interchangeable.[1]
+
+[1] https://lore.kernel.org/lkml/20190523172852.GA27175@iweiny-DESK2.sc.intel.com/
+
+Cc: Jérôme Glisse <jglisse@redhat.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+Signed-off-by: Ira Weiny <ira.weiny@intel.com>
+
+---
+Changes from V3:
+	Update comment to the one provided by John
+
+Changes from V2:
+	Update changelog for more clarity as requested by Michal
+	Update comment WRT "failing" of put_devmap_managed_page()
+
+Changes from V1:
+	Add comment clarifying that put_devmap_managed_page() can still
+	fail.
+	Add Reviewed-by tags.
+
+ mm/swap.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/mm/swap.c b/mm/swap.c
+index 7ede3eddc12a..607c48229a1d 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -740,15 +740,20 @@ void release_pages(struct page **pages, int nr)
+ 		if (is_huge_zero_page(page))
+ 			continue;
  
-> Thanks,
-> Mark.
-> 
-
+-		/* Device public page can not be huge page */
+-		if (is_device_public_page(page)) {
++		if (is_zone_device_page(page)) {
+ 			if (locked_pgdat) {
+ 				spin_unlock_irqrestore(&locked_pgdat->lru_lock,
+ 						       flags);
+ 				locked_pgdat = NULL;
+ 			}
+-			put_devmap_managed_page(page);
+-			continue;
++			/*
++			 * ZONE_DEVICE pages that return 'false' from
++			 * put_devmap_managed_page() do not require special
++			 * processing, and instead, expect a call to
++			 * put_page_testzero().
++			 */
++			if (put_devmap_managed_page(page))
++				continue;
+ 		}
+ 
+ 		page = compound_head(page);
 -- 
-Sincerely yours,
-Mike.
+2.20.1
 
