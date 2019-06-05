@@ -2,250 +2,256 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AF897C28CC6
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 16:11:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E4312C28CC6
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 16:29:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6AB992075C
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 16:11:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="zjoAxtmU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6AB992075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id AA287206C3
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 16:29:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA287206C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F33D56B026A; Wed,  5 Jun 2019 12:11:40 -0400 (EDT)
+	id 33FF06B026A; Wed,  5 Jun 2019 12:29:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EE48C6B026B; Wed,  5 Jun 2019 12:11:40 -0400 (EDT)
+	id 2F1DF6B026B; Wed,  5 Jun 2019 12:29:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DAE6B6B026C; Wed,  5 Jun 2019 12:11:40 -0400 (EDT)
+	id 1B8ED6B026C; Wed,  5 Jun 2019 12:29:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F6406B026A
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 12:11:40 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 91so16368703pla.7
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 09:11:40 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BFCF66B026A
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 12:29:28 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k15so6509147eda.6
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 09:29:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=KwGTPhlO4F01V7ggP/cBc9JouzklE/A9aHOmDIgUHBk=;
-        b=QEo0h03H85r5Vd48xN7RHjdUGZ2iyXDYtT4L0tOt3QZeoLo0ZaCHHC/Afmmztu9KDp
-         cOvXFCMjoYsKKVXhs2QEXEhmBYOjuzcZh7JYCANFrzb2ovg0b0CV/X3t2UbpucKc8pKV
-         yTBUUxpS0Mni0tR2LcX799fRza5QHJZDkjebRMYwdvjI37pS3jpVLCOWaPgTdb17zp8K
-         3zz4pRLAQcfmJ+JEsxa+GOx9P1VkI8T+rQXPJGbauzYcPD4VDBQvSOM705aIf8+xL5KZ
-         rS70RB7hVkNcYSrkxh2mv0ji4aY0BoB/uQ68QUjevJr1cQID7zv7nW7JkPQT29MrsNUb
-         YlJA==
-X-Gm-Message-State: APjAAAVD7KgLJbYhBi6dBLHX9nIQ5iwmvOMlfKiAJYp2h/r1vafWDG0M
-	m8rkAHIy6Yaqi7labb+CCymNSlzYl/9/dL4vKXBCDLTgNPyNvF+uD76xY24xdB52ZoAJsrL5jxb
-	7Lc0Wa5qw5q2si5CrUQ3Mv+p+6AVi0LeJGfQ6trFF4mk/OgkLJA1OUhDeUyOK6mKIWw==
-X-Received: by 2002:a17:902:d695:: with SMTP id v21mr31306739ply.342.1559751100147;
-        Wed, 05 Jun 2019 09:11:40 -0700 (PDT)
-X-Received: by 2002:a17:902:d695:: with SMTP id v21mr31306619ply.342.1559751098996;
-        Wed, 05 Jun 2019 09:11:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559751098; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=KWiykMrJ0Wehpl9rCCmYj+0S3O6qYbz3gWC70Yyu9FI=;
+        b=AHb5FhMcXqPhogI1O1Olz25aWR92zxL7a90jG6n5ydxW7dYjVBd+58iXVUBQ26MITu
+         IfAwK/uEYm0X3y11kozD8hMeweZG9OLc4pwQUhZkYVYCdQTUOUYynftaTUveBmfSGuii
+         eSjhfarbxm9kJrGgxqpXdaSFAMma79PWLJi75NZdp1WaVVlxuIQeynOsYoKh9/eWk2jO
+         Z6AWj6WiJ8s4ScVjQaW0ROKfIA7BkgO7NgQLS6oyvXLcbSLqeO8yo7/YL68/WF9KsZ38
+         TZkkk/hYfQHuSntYHUaHOZLtwbSr0Dejnu4ezZ8gf1x0i9D843PtOG6kQPPABUfQacq7
+         lzqA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
+X-Gm-Message-State: APjAAAVuiwl7cPTmzmgPyLimlqvtvhYBPsvWFWkesbxVAB65ztuY9Jrz
+	lawvLlPUsYJe+4u1wb/CMNqLqHeulgRGLQnR/Y45DMWXukjCZHciGBQgHCNCMMdUJcV9duUYMXr
+	GR5wSQpYQGvC7QbREe606NfXmnkbzXFnMZmEUZb2kFd6XBq6CV36sqOdjijL0GBDewg==
+X-Received: by 2002:a17:906:2650:: with SMTP id i16mr9678464ejc.40.1559752168321;
+        Wed, 05 Jun 2019 09:29:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxKKOzIKXEUWn9YrDGWddv6FJmnmYBQdW6SIMjuZpUJlNniQPPzVJxOyYVHdFbty2dyjRhE
+X-Received: by 2002:a17:906:2650:: with SMTP id i16mr9678387ejc.40.1559752167305;
+        Wed, 05 Jun 2019 09:29:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559752167; cv=none;
         d=google.com; s=arc-20160816;
-        b=yo6MfgRz8jvpBtOB/3eXbGbuKhTjtk1jDR3hQUWsBexzBviQUZ6V9ooS1coe2k80K/
-         a2ryTe5sjNH+pKvuQhDU0zhgzrvlplZW+Ho6W2XpY5pQfoc8ptGAwmE10pWAo2aGNATY
-         8O0eqUFkdcWVpHctGh+7KYm1MCngoUd1wao2Z80LoUm/NUjDvBK3ZtN+lxf0CegLDbIG
-         BtIBImyCrJg87zq5deHPPKdMiLejVF15rXTiWt1Ms5zb7qK/7ufpOH/oEZkiLCS8n+gp
-         RA1sAwEv5mjr9UF5u8vpzmuqJvYAEfx4cd7AaxxefYARox4aM72iInW6lkj4nR3MXXf/
-         02aQ==
+        b=bvw6B9LaxjltSSeQiaEEBpJuUsvrfEHv6ZZP88w0GuMhMg1rfO+GE5giFFJYpFO6Ga
+         InRUkq+QkXXzOGlSA4Y15gywISeHQWJHPxWG9gPx0bbxBOk3O0n/aHLlUBDLzxmz6/SI
+         WiaIW+4HoMz9hhWUA066UePxAw4H8QjcbkG1mB5NZlW0txzU5UypLKELzH9NSp5XpQUr
+         LT0k7Lsgsu16OodBrwSEIwyc1kXT4byhNFPUrHPwdrrjp4cUfYoxTBsvsBwO5CrGDcOy
+         jXD5grPtkFHIRTVeAqfNJG2hAgnKYvpWK/o0vpTW9oJhmy/2KghhIXDSpLT9gZDGPTiy
+         7SPA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=KwGTPhlO4F01V7ggP/cBc9JouzklE/A9aHOmDIgUHBk=;
-        b=jN09cEYRSB3Akian2xh9/Ium5+lkkcc+sBn6RAiOJjqJ9YyAlZHoTC+1bWsP8EOz2B
-         NT5pHDXU0sAOIpDytPkizlMroQolqVbYalhwdf7KZH4ZR8dsEOnspPZqPM52BfM4/z9P
-         4vXEJiEDWI38kyfvmpwO4isSGjzbaHYuZEAMKxZbffhDbM61yxmIwYG2O1Ryav1OpUUB
-         D6WvMZE5VWim+hvfjnfjVYAzgfdohShBEErgGcUXgyW84geUNpFZo7/RsAHHntc4wLp7
-         15D15z1I6r3nzaynh+sJBuSBP0LPt0M6zYQ0k7at64bM7V+Zd2WVE2hy/Mey4/5BJw17
-         NgwQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=KWiykMrJ0Wehpl9rCCmYj+0S3O6qYbz3gWC70Yyu9FI=;
+        b=I61X25ApFjY70p/fZKS9iSa1UVEC/5cYoQ09LgVME+lvW6xFDQRgzBpZNnjSRAtrx8
+         CoDsQW1Y7OWiNoRHIpfFLfDjc0yEhbXlqPWOcwFlkpcFuBsV5GPrlFqBUCnRVCU1ZXL9
+         /5Idp/toWxZYCNV36/yGRE9T0GjC9lBA3S7xWvk09qFACwnO4MkTkyTUWTscWgY1wJdh
+         LzREOhtnHvEMh7kWB9t/+pKGga843uaZ1Rf49LcwNuFo28StKdq7iqn/akDvEq09I4bt
+         E4wl8qF8/WnGqtIcrJSobKxnixfuEqv863GkJNj5rgQZY/vmqOIMEIVdAofU4p5qQ4Bq
+         Y9BA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=zjoAxtmU;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h90sor5344443plb.26.2019.06.05.09.11.36
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 05 Jun 2019 09:11:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id f3si7268013ejb.138.2019.06.05.09.29.26
+        for <linux-mm@kvack.org>;
+        Wed, 05 Jun 2019 09:29:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=zjoAxtmU;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=KwGTPhlO4F01V7ggP/cBc9JouzklE/A9aHOmDIgUHBk=;
-        b=zjoAxtmU+7WyTYQ00sJFDH6OJqtCjZpplgs9SVN+RWNg6guyKEzFqHxWvkeWD5xfQx
-         3viyeJVCAPj+8k0LO4Z+bc2QpTkfCW9m8xZE9z6fUdeDh7YFKe1UZZyi0rL238e8zESs
-         MYs+yNFzM+DRnW6HrIeF6FbVmC7ddiFnlLH2M9Lor+6Q+h9+zxEHT4bocMkRdEW4SE1O
-         tCd8Z2lNM9FmEhZvR0Aq+vQRXZxxJ1ZRDemdOvmtML38bbyLZbowaKM5F0TdIWZ+tBA3
-         yyUMzaBENQiqhfUXhFhSk3/uadr0bUA4xkuQeThSRBjkw90iT+SCdxg/HHsZwmrIAtTf
-         UMfQ==
-X-Google-Smtp-Source: APXvYqzRcWHUDNkdKFYTdIkL15U3HOaNWIkBFbGPcJrWTqB/LeooYydW5MnjfgZx/KAQu0s/mvfszA==
-X-Received: by 2002:a17:902:b402:: with SMTP id x2mr45364816plr.128.1559751096018;
-        Wed, 05 Jun 2019 09:11:36 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::2:9bd9])
-        by smtp.gmail.com with ESMTPSA id k14sm43340134pga.5.2019.06.05.09.11.34
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 05 Jun 2019 09:11:34 -0700 (PDT)
-Date: Wed, 5 Jun 2019 12:11:33 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com
-Subject: Re: [PATCH] mm: memcontrol: dump memory.stat during cgroup OOM
-Message-ID: <20190605161133.GA12453@cmpxchg.org>
-References: <20190604210509.9744-1-hannes@cmpxchg.org>
- <20190605120837.GE15685@dhcp22.suse.cz>
+       spf=pass (google.com: domain of james.morse@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=james.morse@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1DFE2374;
+	Wed,  5 Jun 2019 09:29:26 -0700 (PDT)
+Received: from [10.1.196.105] (eglon.cambridge.arm.com [10.1.196.105])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0FBED3F5AF;
+	Wed,  5 Jun 2019 09:29:22 -0700 (PDT)
+Subject: Re: [PATCH 1/4] x86: kdump: move reserve_crashkernel_low() into
+ kexec_core.c
+To: Chen Zhou <chenzhou10@huawei.com>
+Cc: catalin.marinas@arm.com, will.deacon@arm.com, akpm@linux-foundation.org,
+ ard.biesheuvel@linaro.org, rppt@linux.ibm.com, tglx@linutronix.de,
+ mingo@redhat.com, bp@alien8.de, ebiederm@xmission.com, horms@verge.net.au,
+ takahiro.akashi@linaro.org, linux-arm-kernel@lists.infradead.org,
+ linux-kernel@vger.kernel.org, kexec@lists.infradead.org, linux-mm@kvack.org,
+ wangkefeng.wang@huawei.com
+References: <20190507035058.63992-1-chenzhou10@huawei.com>
+ <20190507035058.63992-2-chenzhou10@huawei.com>
+From: James Morse <james.morse@arm.com>
+Message-ID: <6585f047-063c-6d6c-4967-1d8a472f30f4@arm.com>
+Date: Wed, 5 Jun 2019 17:29:21 +0100
+User-Agent: Mozilla/5.0 (X11; Linux aarch64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190605120837.GE15685@dhcp22.suse.cz>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190507035058.63992-2-chenzhou10@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 05, 2019 at 02:08:37PM +0200, Michal Hocko wrote:
-> On Tue 04-06-19 17:05:09, Johannes Weiner wrote:
-> > The current cgroup OOM memory info dump doesn't include all the memory
-> > we are tracking, nor does it give insight into what the VM tried to do
-> > leading up to the OOM. All that useful info is in memory.stat.
-> 
-> I agree that other memcg counters can provide a useful insight for the OOM
-> situation.
-> 
-> > Furthermore, the recursive printing for every child cgroup can
-> > generate absurd amounts of data on the console for larger cgroup
-> > trees, and it's not like we provide a per-cgroup breakdown during
-> > global OOM kills.
-> 
-> The idea was that this information might help to identify which subgroup
-> is the major contributor to the OOM at a higher level. I have to confess
-> that I have never really used that information myself though.
+Hello,
 
-Yeah, same. The thing is that sometimes we have tens or even hundreds
-of subgroups, and when an OOM triggers at the top-level the console
-will be printing for a while. But often when you have that big of a
-shared domain it's because you just run a lot of parallel instances of
-the same job, and when the oom triggers it's because you ran too many
-jobs rather than one job acting up. In more hybrid setups, we tend to
-also configure the limits more locally.
+On 07/05/2019 04:50, Chen Zhou wrote:
+> In preparation for supporting reserving crashkernel above 4G
+> in arm64 as x86_64 does, move reserve_crashkernel_low() into
+> kexec/kexec_core.c.
 
-> > When an OOM kill is triggered, print one set of recursive memory.stat
-> > items at the level whose limit triggered the OOM condition.
-> > 
-> > Example output:
-> > 
-> [...]
-> > memory: usage 1024kB, limit 1024kB, failcnt 75131
-> > swap: usage 0kB, limit 9007199254740988kB, failcnt 0
-> > Memory cgroup stats for /foo:
-> > anon 0
-> > file 0
-> > kernel_stack 36864
-> > slab 274432
-> > sock 0
-> > shmem 0
-> > file_mapped 0
-> > file_dirty 0
-> > file_writeback 0
-> > anon_thp 0
-> > inactive_anon 126976
-> > active_anon 0
-> > inactive_file 0
-> > active_file 0
-> > unevictable 0
-> > slab_reclaimable 0
-> > slab_unreclaimable 274432
-> > pgfault 59466
-> > pgmajfault 1617
-> > workingset_refault 2145
-> > workingset_activate 0
-> > workingset_nodereclaim 0
-> > pgrefill 98952
-> > pgscan 200060
-> > pgsteal 59340
-> > pgactivate 40095
-> > pgdeactivate 96787
-> > pglazyfree 0
-> > pglazyfreed 0
-> > thp_fault_alloc 0
-> > thp_collapse_alloc 0
-> 
-> I am not entirely happy with that many lines in the oom report though. I
-> do see that you are trying to reduce code duplication which is fine but
-> would it be possible to squeeze all of these counters on a single line?
-> The same way we do for the global OOM report?
 
-TBH I really hate those in the global reports because I always
-struggle to find what I'm looking for. And smoking guns don't stand
-out visually either. I'd rather have newlines there as well.
+> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+> index 905dae8..9ee33b6 100644
+> --- a/arch/x86/kernel/setup.c
+> +++ b/arch/x86/kernel/setup.c
+> @@ -463,59 +460,6 @@ static void __init memblock_x86_reserve_range_setup_data(void)
+>  # define CRASH_ADDR_HIGH_MAX	MAXMEM
+>  #endif
+>  
+> -static int __init reserve_crashkernel_low(void)
+> -{
+> -#ifdef CONFIG_X86_64
 
-> > +	seq_buf_init(&s, kvmalloc(PAGE_SIZE, GFP_KERNEL), PAGE_SIZE);
-> 
-> What is the reason to use kvmalloc here? It doesn't make much sense to
-> me to use it for the page size allocation TBH.
+The behaviour of this #ifdef has disappeared, won't 32bit x86 now try and reserve a chunk
+of unnecessary 'low' memory?
 
-Oh, good spot. I first did something similar to seq_file.c with an
-auto-resizing buffer in case we print too much data. Then decided
-that's silly since everything that will print into the buffer is right
-there, and it's obvious that it'll fit, so I did the fixed allocation
-and the WARN_ON instead.
+[...]
 
-How about a simple kmalloc?. I know it's a page sized buffer, but the
-gfp interface seems a bit too low-level and has weird kinks that
-kmalloc nicely abstracts into a sane memory allocation interface, with
-kmemleak support and so forth...
 
-Thanks for your review.
+> @@ -579,9 +523,13 @@ static void __init reserve_crashkernel(void)
+>  		return;
+>  	}
+>  
+> -	if (crash_base >= (1ULL << 32) && reserve_crashkernel_low()) {
+> -		memblock_free(crash_base, crash_size);
+> -		return;
+> +	if (crash_base >= (1ULL << 32)) {
+> +		if (reserve_crashkernel_low()) {
+> +			memblock_free(crash_base, crash_size);
+> +			return;
+> +		}
+> +
+> +		insert_resource(&iomem_resource, &crashk_low_res);
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 0907a96ceddf..b0e0e840705d 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1371,7 +1371,7 @@ static char *memory_stat_format(struct mem_cgroup *memcg)
- 	struct seq_buf s;
- 	int i;
- 
--	seq_buf_init(&s, kvmalloc(PAGE_SIZE, GFP_KERNEL), PAGE_SIZE);
-+	seq_buf_init(&s, kmalloc(PAGE_SIZE, GFP_KERNEL), PAGE_SIZE);
- 	if (!s.buffer)
- 		return NULL;
- 
-@@ -1533,7 +1533,7 @@ void mem_cgroup_print_oom_meminfo(struct mem_cgroup *memcg)
- 	if (!buf)
- 		return;
- 	pr_info("%s", buf);
--	kvfree(buf);
-+	kfree(buf);
- }
- 
- /*
-@@ -5775,7 +5775,7 @@ static int memory_stat_show(struct seq_file *m, void *v)
- 	if (!buf)
- 		return -ENOMEM;
- 	seq_puts(m, buf);
--	kvfree(buf);
-+	kfree(buf);
- 	return 0;
- }
- 
+Previously reserve_crashkernel_low() was #ifdefed to do nothing if !CONFIG_X86_64, I don't
+see how 32bit is skipping this reservation...
+
+
+>  	}
+>  
+>  	pr_info("Reserving %ldMB of memory at %ldMB for crashkernel (System RAM: %ldMB)\n",
+> diff --git a/include/linux/kexec.h b/include/linux/kexec.h
+> index b9b1bc5..096ad63 100644
+> --- a/include/linux/kexec.h
+> +++ b/include/linux/kexec.h
+> @@ -63,6 +63,10 @@
+>  
+>  #define KEXEC_CORE_NOTE_NAME	CRASH_CORE_NOTE_NAME
+>  
+> +#ifndef CRASH_ALIGN
+> +#define CRASH_ALIGN SZ_128M
+> +#endif
+
+Why 128M? Wouldn't we rather each architecture tells us its minimum alignment?
+
+
+> diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+> index d714044..3492abd 100644
+> --- a/kernel/kexec_core.c
+> +++ b/kernel/kexec_core.c
+> @@ -39,6 +39,8 @@
+>  #include <linux/compiler.h>
+>  #include <linux/hugetlb.h>
+>  #include <linux/frame.h>
+> +#include <linux/memblock.h>
+> +#include <linux/swiotlb.h>
+>  
+>  #include <asm/page.h>
+>  #include <asm/sections.h>
+> @@ -96,6 +98,60 @@ int kexec_crash_loaded(void)
+>  }
+>  EXPORT_SYMBOL_GPL(kexec_crash_loaded);
+>  
+> +int __init reserve_crashkernel_low(void)
+> +{
+> +	unsigned long long base, low_base = 0, low_size = 0;
+> +	unsigned long total_low_mem;
+> +	int ret;
+> +
+> +	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
+> +
+> +	/* crashkernel=Y,low */
+> +	ret = parse_crashkernel_low(boot_command_line, total_low_mem,
+> +			&low_size, &base);
+> +	if (ret) {
+> +		/*
+> +		 * two parts from lib/swiotlb.c:
+> +		 * -swiotlb size: user-specified with swiotlb= or default.
+> +		 *
+> +		 * -swiotlb overflow buffer: now hardcoded to 32k. We round it
+> +		 * to 8M for other buffers that may need to stay low too. Also
+> +		 * make sure we allocate enough extra low memory so that we
+> +		 * don't run out of DMA buffers for 32-bit devices.
+> +		 */
+> +		low_size = max(swiotlb_size_or_default() + (8UL << 20),
+
+SZ_8M?
+
+> +				256UL << 20);
+
+SZ_256M?
+
+
+> +	} else {
+> +		/* passed with crashkernel=0,low ? */
+> +		if (!low_size)
+> +			return 0;
+> +	}
+> +
+> +	low_base = memblock_find_in_range(0, 1ULL << 32, low_size, CRASH_ALIGN);
+> +	if (!low_base) {
+> +		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
+> +		       (unsigned long)(low_size >> 20));
+> +		return -ENOMEM;
+> +	}
+> +
+> +	ret = memblock_reserve(low_base, low_size);
+> +	if (ret) {
+> +		pr_err("%s: Error reserving crashkernel low memblock.\n",
+> +				__func__);
+> +		return ret;
+> +	}
+> +
+> +	pr_info("Reserving %ldMB of low memory at %ldMB for crashkernel (System low RAM: %ldMB)\n",
+> +		(unsigned long)(low_size >> 20),
+> +		(unsigned long)(low_base >> 20),
+> +		(unsigned long)(total_low_mem >> 20));
+> +
+> +	crashk_low_res.start = low_base;
+> +	crashk_low_res.end   = low_base + low_size - 1;
+> +
+> +	return 0;
+> +}
+
+
+Thanks,
+
+James
 
