@@ -2,148 +2,268 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_MED,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65D4FC28CC5
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 07:03:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9DD0CC28CC6
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 07:39:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1CF34206BA
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 07:03:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1CF34206BA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 4B19A206BA
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 07:39:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="GvDUXyVv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B19A206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7813C6B000C; Wed,  5 Jun 2019 03:03:16 -0400 (EDT)
+	id C215C6B0007; Wed,  5 Jun 2019 03:39:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 732F76B000D; Wed,  5 Jun 2019 03:03:16 -0400 (EDT)
+	id BD2256B000A; Wed,  5 Jun 2019 03:39:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6208C6B000E; Wed,  5 Jun 2019 03:03:16 -0400 (EDT)
+	id AC24A6B000C; Wed,  5 Jun 2019 03:39:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1409E6B000C
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 03:03:16 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id d27so4286453eda.9
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 00:03:16 -0700 (PDT)
+Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 87A0D6B0007
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 03:39:29 -0400 (EDT)
+Received: by mail-vk1-f199.google.com with SMTP id l186so1390175vke.19
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 00:39:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=lOKRg+b53UEoqXjg6WzbI+0KlkzCni9JGDcVfpiMNCM=;
-        b=ZKm9/67ZrptpBBnFmefeOaMY3QeSYjBxeIYfMMegakxoAmBtbUoTCb8I3MHe+UJCRm
-         KZWbcHnNsb+pDDpjO62gKfdv74YdKbMelzBPQ0OXxaPBKCbVwX7rf4qOFRmbHFpMHZbY
-         +c+PTNbBtX3hkvioPmNx4l7BYzulrkHIxDTEUiC0zOWGD2LpzA1uLm/uEuSVmUTjefQG
-         lLNJeQ6zXfb5/nlUAJj1JkqWQHJBKIug+mZFO+Lyu9PsRCCGOVba8GjuJk/+DBRAodpW
-         tcRVBe2L3gKk+FW5COcgN6THxyTTVW4/NGmnL6EuzO8tRwtTScZTHdereNbLb45OPE5h
-         zEow==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAX/9CstGlCivmK7CuS1zAILVyUN8EALY3nEo/hN66eFaMX/lZJh
-	REC9XZPFMPuJDByD8Ik/yKJt6wp3Gns7f9eqEgOAeY01X9cDio5U7UnUDMB1AZbAhPaXYM/4fxI
-	Hu8jbSaw6gi7cAnU9zLZCWukSP3fLlqhpOJ9Zi/Y3vV8A+u32S87pTsCivBMMgBE=
-X-Received: by 2002:a50:ba83:: with SMTP id x3mr41089763ede.266.1559718195592;
-        Wed, 05 Jun 2019 00:03:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqybW3mvi6rLu6S/i/srN354h3gzsqfHUgfZcckVrX1UEWCx2niKYv/sdWcTx0KtHyWxLtI0
-X-Received: by 2002:a50:ba83:: with SMTP id x3mr41089679ede.266.1559718194661;
-        Wed, 05 Jun 2019 00:03:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559718194; cv=none;
+        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
+         :mime-version:references:subject:from:to:cc;
+        bh=EDTxCxcNHL556kqhPzcTfA1xZzULf1Gez0maK4Ox1iQ=;
+        b=PUREJzXNHWFhNebYVgwLzHytYVaTJu4qoZGXqaJZ67nTrUIJ+XOQeoqOq4bSmkP96H
+         cPyPtAvz2nzbmm9MlGzmd+1duWvNG2dU9pKyWUEXPM2k9bSftImrcUV7NZWFdrA1peO8
+         noxtz4Wvxb1Y2li++imLn6fEpb8xbTGOQZXmFEUDjweuLwFr1QwR8KskcYunWwCXCAZM
+         8jQ5KJmyowxunApneW+WEy1gGELL1OP9jEXa83tbkrmVA2J1PMDopNDLcwm6Ka5GkTD8
+         ceIE8ln9cC0wf6Lq/39j3+Me6pEdD3XvNqpQVZrr3KMYFyOlrzjf+rHW7C3oIY0o3Mx9
+         o0Kg==
+X-Gm-Message-State: APjAAAXNBMNNDqmjgStKAQIr0silc40l6/3KXtsPISbSBSJ1WJtDIvXW
+	Qz7LlX+pL0ATzK3YYjxwe90LNBA/aope1j2y3fmessWM1FuL9hbE0Pt9jKVYnVsBz2346egIPHt
+	cbjmDLKS2M/oDFyQW/O/CzxmFyi+30fQYg5jQnJYwwDCiy8CFfl8i+cmSzAnnpkT0TQ==
+X-Received: by 2002:ab0:3406:: with SMTP id z6mr12355725uap.102.1559720369169;
+        Wed, 05 Jun 2019 00:39:29 -0700 (PDT)
+X-Received: by 2002:ab0:3406:: with SMTP id z6mr12355659uap.102.1559720367576;
+        Wed, 05 Jun 2019 00:39:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559720367; cv=none;
         d=google.com; s=arc-20160816;
-        b=BEVJ9n88dH5nP86VqCnC5aKWs5nTfqJv0t9m0y0yFneozXOPXmLbHdLErOttcySbwM
-         UlffZ9NBlz/d/WwDcBzBh7i/w1V0TncqgeGwSUIjD5EYdA7QGoatAgaATu5nkiwKp/Zu
-         nbijCS1KeIhODwnCF3y5QbwlueySwiAOazuL/LNJ2Pi8D6qm5F2wzh43/m5vK1uVPU1I
-         63ThYJPLbODOhKE8wNGOyCaWFNjL7cx1z9+sGTouGCgerytSulBV+854tLHwGnAUtXOd
-         nyJSqm4jqH2gfonV3ckvsVnamkXKfG2E3AGm7+tYf6IOP8QtlYF0ekiiz7j6+ZN3By1y
-         9H6w==
+        b=VCy0qvbWHj4zgLmluoH1k/XEr3i6ncZGk1PiLBtkiUEnc7OKMks93fyATBkcomu3GY
+         ZSoAHy8REcwP4QE03nC1u6hcY7mULiskDae80etQ2bmoMETdsv+i57KeSa2fDqwDNXTA
+         H6ljpzemFK90ChHfNzHwxpZ6JtmSlEWeufP0M/aO6x3UWRvNfjy5kAFqfsfsOevYdZJz
+         vAgG7s8L3r5G9XYgYl9sjHPgslfH0/us1jyTt7mYQ7Rh10EgCRdvNZHYf6EDuyd/zH5r
+         l/t+JZVhyg8vs2dIPdGgo2nLQzhD2Aqd1z7FUXr0ecuWM09SpmLdpAuqlXngqXJ6lzyw
+         6siQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=lOKRg+b53UEoqXjg6WzbI+0KlkzCni9JGDcVfpiMNCM=;
-        b=xQbrCNhcqu5AotJ9tPO2hh2qPM6TFlJUnoa7w63p0NfKVATCyVGfgRhTmD0RU/PgGP
-         Z2SLeNSizdt8SyEJdLfLwyibLSzr2urW7xowLiWO0vtohZbfnAFmVPLP10uM8tiFH9/J
-         d1iHBGjttpP3rwsG2o9oiafztQhQJgerdeI+EQeSmsdaxMCO4zAzJnlxrbjChuIW4qTE
-         mhM8rNZMVK6aIw1iYyjgcxQ7u9OlMweN64j60BjgpdwpISk48dnZk1Tym1ltHseSFdEy
-         nMU4rL7q3jVTzjgSx8q2HsZ697vO8TOG19I7rW2I9tvArHc6mOKmgGsxMG5r+AxRANDn
-         4npA==
+        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
+         :date:dkim-signature;
+        bh=EDTxCxcNHL556kqhPzcTfA1xZzULf1Gez0maK4Ox1iQ=;
+        b=h0Bcll806aIS+7mMgQ2jnTwhoO7gLXs9s6xSl8rEutyt5zFXps59VoHtaXlu3bTP2D
+         GCEl9nQAxCEE/lLIu9FhVfCfmS7yf2F/7rqoAgprrNbe14RY26TuPQfZrSxu/IHo8cl0
+         vyCK7UUMgVbCHlVvGSHgWW3yyxU1AbgAOTB0INGsj83vogi1LlaVxcgXYaTcOmNZ4TMy
+         L/G5tYaCvGCaE7Bt2a8ZL9zmRscqwPHdbdiUnp51gfwMquJe+Rh2pUKqzNlcNYZPGuxh
+         aBHRzRNv44ZTUXZz+QW9dPTjX0tZRaoY/Z+xvRUsG06ennXVg9OsXOnPP/TDArvdF6yG
+         mE7g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q36si6240672edd.119.2019.06.05.00.03.14
+       dkim=pass header.i=@google.com header.s=20161025 header.b=GvDUXyVv;
+       spf=pass (google.com: domain of 3r3h3xackcf4cpdahajckkcha.8kihejqt-iigr68g.knc@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3r3H3XAcKCF4CPDAHAJCKKCHA.8KIHEJQT-IIGR68G.KNC@flex--gthelen.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
+        by mx.google.com with SMTPS id g11sor166730uak.70.2019.06.05.00.39.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 00:03:14 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 05 Jun 2019 00:39:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3r3h3xackcf4cpdahajckkcha.8kihejqt-iigr68g.knc@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0D4C8ADE0;
-	Wed,  5 Jun 2019 07:03:14 +0000 (UTC)
-Date: Wed, 5 Jun 2019 09:03:12 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Bharath Vedartham <linux.bhar@gmail.com>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com,
-	khalid.aziz@oracle.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: Remove VM_BUG_ON in __alloc_pages_node
-Message-ID: <20190605070312.GB15685@dhcp22.suse.cz>
-References: <20190605060229.GA9468@bharath12345-Inspiron-5559>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190605060229.GA9468@bharath12345-Inspiron-5559>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       dkim=pass header.i=@google.com header.s=20161025 header.b=GvDUXyVv;
+       spf=pass (google.com: domain of 3r3h3xackcf4cpdahajckkcha.8kihejqt-iigr68g.knc@flex--gthelen.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3r3H3XAcKCF4CPDAHAJCKKCHA.8KIHEJQT-IIGR68G.KNC@flex--gthelen.bounces.google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
+         :cc;
+        bh=EDTxCxcNHL556kqhPzcTfA1xZzULf1Gez0maK4Ox1iQ=;
+        b=GvDUXyVvyxLCvV/+addi6w1Q4z3X2ywCTF++ZtLGrCnS35NqwNKaEoKggI1CuaorgB
+         MQvfCkOJaobkMcHaGlSaoT0eLU8rzhhp6LxZvwdhQf880jxkj7M9ol5tok2ga3mnSTt3
+         4hfcCTAxJfNh8eqFJbyLGoNcs6TUpWL1nE+NTRpF2arLgPQ3P6PmbtnRKyfi4zfvC/u3
+         KI/rA/orx+IPk0qA9xZpK3jh2mCgApEAXZ8ElZvuxn4k/thGOWFVw71XwhCkJz52Rtt2
+         YUJNZMHHeSGnU+UObziZhOF7qFByOUmtWQH22TS2OeVKtfvORrB9uWQg7FHLf4O7QZe+
+         WGZw==
+X-Google-Smtp-Source: APXvYqwFLzP0xkrD7H7S1pBpntPPuM18KVu0pgkuD4DgNePlzTUoNOZzKkaZ7yuykXKVZk60Sdd0jPCa7AvG
+X-Received: by 2002:ab0:2395:: with SMTP id b21mr18693223uan.108.1559720367134;
+ Wed, 05 Jun 2019 00:39:27 -0700 (PDT)
+Date: Wed, 05 Jun 2019 00:39:24 -0700
+In-Reply-To: <20190514213940.2405198-1-guro@fb.com>
+Message-Id: <xr93ef48v5ub.fsf@gthelen.svl.corp.google.com>
+Mime-Version: 1.0
+References: <20190514213940.2405198-1-guro@fb.com>
+Subject: Re: [PATCH v4 0/7] mm: reparent slab memory on cgroup removal
+From: Greg Thelen <gthelen@google.com>
+To: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Shakeel Butt <shakeelb@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com, 
+	Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Rik van Riel <riel@surriel.com>, 
+	Christoph Lameter <cl@linux.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, 
+	Roman Gushchin <guro@fb.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 05-06-19 11:32:29, Bharath Vedartham wrote:
-> In __alloc_pages_node, there is a VM_BUG_ON on the condition (nid < 0 ||
-> nid >= MAX_NUMNODES). Remove this VM_BUG_ON and add a VM_WARN_ON, if the
-> condition fails and fail the allocation if an invalid NUMA node id is
-> passed to __alloc_pages_node.
+Roman Gushchin <guro@fb.com> wrote:
 
-What is the motivation of the patch? VM_BUG_ON is not enabled by default
-and your patch adds a branch to a really hot path. Why is this an
-improvement for something that shouldn't happen in the first place?
+> # Why do we need this?
+>
+> We've noticed that the number of dying cgroups is steadily growing on most
+> of our hosts in production. The following investigation revealed an issue
+> in userspace memory reclaim code [1], accounting of kernel stacks [2],
+> and also the mainreason: slab objects.
+>
+> The underlying problem is quite simple: any page charged
+> to a cgroup holds a reference to it, so the cgroup can't be reclaimed unless
+> all charged pages are gone. If a slab object is actively used by other cgroups,
+> it won't be reclaimed, and will prevent the origin cgroup from being reclaimed.
+>
+> Slab objects, and first of all vfs cache, is shared between cgroups, which are
+> using the same underlying fs, and what's even more important, it's shared
+> between multiple generations of the same workload. So if something is running
+> periodically every time in a new cgroup (like how systemd works), we do
+> accumulate multiple dying cgroups.
+>
+> Strictly speaking pagecache isn't different here, but there is a key difference:
+> we disable protection and apply some extra pressure on LRUs of dying cgroups,
+> and these LRUs contain all charged pages.
+> My experiments show that with the disabled kernel memory accounting the number
+> of dying cgroups stabilizes at a relatively small number (~100, depends on
+> memory pressure and cgroup creation rate), and with kernel memory accounting
+> it grows pretty steadily up to several thousands.
+>
+> Memory cgroups are quite complex and big objects (mostly due to percpu stats),
+> so it leads to noticeable memory losses. Memory occupied by dying cgroups
+> is measured in hundreds of megabytes. I've even seen a host with more than 100Gb
+> of memory wasted for dying cgroups. It leads to a degradation of performance
+> with the uptime, and generally limits the usage of cgroups.
+>
+> My previous attempt [3] to fix the problem by applying extra pressure on slab
+> shrinker lists caused a regressions with xfs and ext4, and has been reverted [4].
+> The following attempts to find the right balance [5, 6] were not successful.
+>
+> So instead of trying to find a maybe non-existing balance, let's do reparent
+> the accounted slabs to the parent cgroup on cgroup removal.
+>
+>
+> # Implementation approach
+>
+> There is however a significant problem with reparenting of slab memory:
+> there is no list of charged pages. Some of them are in shrinker lists,
+> but not all. Introducing of a new list is really not an option.
+>
+> But fortunately there is a way forward: every slab page has a stable pointer
+> to the corresponding kmem_cache. So the idea is to reparent kmem_caches
+> instead of slab pages.
+>
+> It's actually simpler and cheaper, but requires some underlying changes:
+> 1) Make kmem_caches to hold a single reference to the memory cgroup,
+>    instead of a separate reference per every slab page.
+> 2) Stop setting page->mem_cgroup pointer for memcg slab pages and use
+>    page->kmem_cache->memcg indirection instead. It's used only on
+>    slab page release, so it shouldn't be a big issue.
+> 3) Introduce a refcounter for non-root slab caches. It's required to
+>    be able to destroy kmem_caches when they become empty and release
+>    the associated memory cgroup.
+>
+> There is a bonus: currently we do release empty kmem_caches on cgroup
+> removal, however all other are waiting for the releasing of the memory cgroup.
+> These refactorings allow kmem_caches to be released as soon as they
+> become inactive and free.
+>
+> Some additional implementation details are provided in corresponding
+> commit messages.
+>
+> # Results
+>
+> Below is the average number of dying cgroups on two groups of our production
+> hosts. They do run some sort of web frontend workload, the memory pressure
+> is moderate. As we can see, with the kernel memory reparenting the number
+> stabilizes in 60s range; however with the original version it grows almost
+> linearly and doesn't show any signs of plateauing. The difference in slab
+> and percpu usage between patched and unpatched versions also grows linearly.
+> In 7 days it exceeded 200Mb.
+>
+> day           0    1    2    3    4    5    6    7
+> original     56  362  628  752 1070 1250 1490 1560
+> patched      23   46   51   55   60   57   67   69
+> mem diff(Mb) 22   74  123  152  164  182  214  241
 
-> 
-> The check (nid < 0 || nid >= MAX_NUMNODES) also considers NUMA_NO_NODE
-> as an invalid nid, but the caller of __alloc_pages_node is assumed to
-> have checked for the case where nid == NUMA_NO_NODE.
-> 
-> Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
-> ---
->  include/linux/gfp.h | 6 +++++-
->  1 file changed, 5 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 5f5e25f..075bdaf 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -480,7 +480,11 @@ __alloc_pages(gfp_t gfp_mask, unsigned int order, int preferred_nid)
->  static inline struct page *
->  __alloc_pages_node(int nid, gfp_t gfp_mask, unsigned int order)
->  {
-> -	VM_BUG_ON(nid < 0 || nid >= MAX_NUMNODES);
-> +	if (nid < 0 || nid >= MAX_NUMNODES) {
-> +		VM_WARN_ON(nid < 0 || nid >= MAX_NUMNODES);
-> +		return NULL; 
-> +	}
-> +
->  	VM_WARN_ON((gfp_mask & __GFP_THISNODE) && !node_online(nid));
->  
->  	return __alloc_pages(gfp_mask, order, nid);
-> -- 
-> 2.7.4
-> 
+No objection to the idea, but a question...
 
--- 
-Michal Hocko
-SUSE Labs
+In patched kernel, does slabinfo (or similar) show the list reparented
+slab caches?  A pile of zombie kmem_caches is certainly better than a
+pile of zombie mem_cgroup.  But it still seems like it'll might cause
+degradation - does cache_reap() walk an ever growing set of zombie
+caches?
+
+We've found it useful to add a slabinfo_full file which includes zombie
+kmem_cache with their memcg_name.  This can help hunt down zombies.
+
+> # History
+>
+> v4:
+>   1) removed excessive memcg != parent check in memcg_deactivate_kmem_caches()
+>   2) fixed rcu_read_lock() usage in memcg_charge_slab()
+>   3) fixed synchronization around dying flag in kmemcg_queue_cache_shutdown()
+>   4) refreshed test results data
+>   5) reworked PageTail() checks in memcg_from_slab_page()
+>   6) added some comments in multiple places
+>
+> v3:
+>   1) reworked memcg kmem_cache search on allocation path
+>   2) fixed /proc/kpagecgroup interface
+>
+> v2:
+>   1) switched to percpu kmem_cache refcounter
+>   2) a reference to kmem_cache is held during the allocation
+>   3) slabs stats are fixed for !MEMCG case (and the refactoring
+>      is separated into a standalone patch)
+>   4) kmem_cache reparenting is performed from deactivatation context
+>
+> v1:
+>   https://lkml.org/lkml/2019/4/17/1095
+>
+>
+> # Links
+>
+> [1]: commit 68600f623d69 ("mm: don't miss the last page because of
+> round-off error")
+> [2]: commit 9b6f7e163cd0 ("mm: rework memcg kernel stack accounting")
+> [3]: commit 172b06c32b94 ("mm: slowly shrink slabs with a relatively
+> small number of objects")
+> [4]: commit a9a238e83fbb ("Revert "mm: slowly shrink slabs
+> with a relatively small number of objects")
+> [5]: https://lkml.org/lkml/2019/1/28/1865
+> [6]: https://marc.info/?l=linux-mm&m=155064763626437&w=2
+>
+>
+> Roman Gushchin (7):
+>   mm: postpone kmem_cache memcg pointer initialization to
+>     memcg_link_cache()
+>   mm: generalize postponed non-root kmem_cache deactivation
+>   mm: introduce __memcg_kmem_uncharge_memcg()
+>   mm: unify SLAB and SLUB page accounting
+>   mm: rework non-root kmem_cache lifecycle management
+>   mm: reparent slab memory on cgroup removal
+>   mm: fix /proc/kpagecgroup interface for slab pages
+>
+>  include/linux/memcontrol.h |  10 +++
+>  include/linux/slab.h       |  13 +--
+>  mm/memcontrol.c            | 101 ++++++++++++++++-------
+>  mm/slab.c                  |  25 ++----
+>  mm/slab.h                  | 137 ++++++++++++++++++++++++-------
+>  mm/slab_common.c           | 162 +++++++++++++++++++++----------------
+>  mm/slub.c                  |  36 ++-------
+>  7 files changed, 299 insertions(+), 185 deletions(-)
 
