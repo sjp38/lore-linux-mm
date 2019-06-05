@@ -2,192 +2,188 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C32D3C28CC5
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:21:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 506CCC28D19
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:22:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 35C882075B
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:21:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0DCFF2075C
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 21:22:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="HtLdXNwl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35C882075B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="YTPX8cvx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DCFF2075C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D3B066B026A; Wed,  5 Jun 2019 17:21:28 -0400 (EDT)
+	id AA2506B026C; Wed,  5 Jun 2019 17:22:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CEC586B026B; Wed,  5 Jun 2019 17:21:28 -0400 (EDT)
+	id A531F6B026D; Wed,  5 Jun 2019 17:22:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C01AA6B026C; Wed,  5 Jun 2019 17:21:28 -0400 (EDT)
+	id 941BF6B026E; Wed,  5 Jun 2019 17:22:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 70FFB6B026A
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 17:21:28 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id a21so290708edt.23
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 14:21:28 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CB566B026C
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 17:22:11 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id w31so4543pgk.23
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 14:22:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=jmqIL302FliKztrku23iEbel/vN8Om9KZr4KoJVUQBs=;
-        b=dMiw4hc2XWW7cjxOIkkxP9u8CJppeoFbgCi4euscwTq1aowRw/Ea42iQViB4/a3+i+
-         HjgxaCcgBvxYtaB5iULbDmP7aU0sdLawkNkEbMHJoBL1P+R6MnMLVbCIm2x5ON/f7/u9
-         +QppgX5WqGyR+z8nJ9D0DkAjK3YRzaRpuEmnP/yvPHpmGbnB9pcpQYWyBFOXIsQMrzFT
-         c/d7kQu3lar9FyxzInA8JEjvDPlGL9MTFmvX5dfr9jD4MP5UxO3Nl1UsUWcB2G+Ijdvm
-         ihvNmNaUiBKI3romCKqBaGvFbcH79fbS/9/btJ1HrbPtz99ifcyJqyNVxhDaW5L07W6v
-         z8ag==
-X-Gm-Message-State: APjAAAUdMuHfhqcNGtp9wG67Dq4RmDy+h1y5DCN6ACBO9tY7uz2gi+zi
-	4CpvrYWGHZEzXdm3oDfMOhkTxxskeWILUBrpkO4Z8HSaEYGGwAE1ksgAsmjcada22JYEftzdM0i
-	2iDZxvJoeYqUZ6tYmVeQvIuhwlnZUk/qzVE1k8lPcVJ3dAoRhPhshF7+379dFbK+3AQ==
-X-Received: by 2002:a17:906:4cc3:: with SMTP id q3mr13075177ejt.27.1559769688036;
-        Wed, 05 Jun 2019 14:21:28 -0700 (PDT)
-X-Received: by 2002:a17:906:4cc3:: with SMTP id q3mr13075153ejt.27.1559769687337;
-        Wed, 05 Jun 2019 14:21:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559769687; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=gwSLJCAdvNTLNlkyY//PKwOh+mq4K72QRa5S83R8fqU=;
+        b=uRb5T688hwuQBCItH49P40oV8qFWpKWQX5VFRtqYvnuCC/F69X6DAtln4hzS+o02+I
+         +uea8sVwEadQOwXbB8HoOnfcZM3IF/t+iqPDZS/gck3/gwj5QABjdmV63Hz5uDYkCevU
+         3wds1iNuqa6ASMsNtEZVYe4h5DWx7u1n9AnUZBwPzzCyn3rFrvzuGH0b3kvRr6hzCzOg
+         VKT0G5jdRjp6G12xdl0ES9Fs44nBp3DzL/rorO+2gakicVkwPf8nogMWxBoOxxdyZ6+i
+         hh88nCdSPHBL2v8O/LZCz7QhL/LCbDk8ZTgMc5+u8Gd8NpVWmPCINC76iHCKKdqA4xHw
+         vZPQ==
+X-Gm-Message-State: APjAAAU3ihT3RE2LNG/iCdOJyZnm0bzF0dP/W6wpcWfSGjmOpH9nXEpw
+	oadsEcrSS5fjvtzIcCgySxll5d8I5rHJc7TjO0OP3OKBqB3QkQAXJdPoTzOmvhJ14QipHzFwQn/
+	6XTwEBuWa0Nmx/kyfYbSMURDZAK/ERDuiUEtVJs6j2OsS3YKksNbEkGUvqaYLZROzLw==
+X-Received: by 2002:a17:902:ba82:: with SMTP id k2mr37781653pls.323.1559769731019;
+        Wed, 05 Jun 2019 14:22:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwAqRmS0T7+VdP24wPKo5FTU0wfuXoL6OFY+xJ9jgKkb4ig84TjZifpc/BZj+moKOTYjGB1
+X-Received: by 2002:a17:902:ba82:: with SMTP id k2mr37781606pls.323.1559769730276;
+        Wed, 05 Jun 2019 14:22:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559769730; cv=none;
         d=google.com; s=arc-20160816;
-        b=mfIQJtyWLdDHyRRdMJ/MlBFGpuvu3Zdbh7e5RlqWvWfvaeFdIUAVQRp8OGMMydVlrz
-         H7Q+oEn/vPee+1YiCBAdohSgAM+ULHezJx3knrdb0HWtq88B5SrRfNRrkSZQ8TGkyB+V
-         UCcQtbKRYWAtjmdWJ6nYsYdpxB/RNRJDDm1FGtuiEHQXRMpuK3MG4EexJd5Xk9fKGdAo
-         vjbDoFD5jxBssJQYdherdUI2Pd7J9VXqFOU6IvVOg4bS1ucvGnx6ajbRyikOXt/fgNKC
-         xH+HKL6GJd3hZ0fncFMW/u2wRc3u2eAkRFzGyTp4u+WfHTPoSA3aMuUd0dIusuxKDYVS
-         ocZA==
+        b=JEHs9r12BkXzgkLdvEajd3shO0rEU8XuoQAiPFURBr84UHnm2KppCqAVO9BEK68e1f
+         yxokvHmgV7PwU0g9rBVjR0sm6mBrTj6br/66gAqHgOnZDz8EfZfPkyEfg0HU6PCIQ3tU
+         GSCLam15TmHlUnnkFu1QU08l/L/BTaMwy3ONFYCSkQ4zg9r6QrkldAD4yUiJyxEkUSDe
+         XqXSSFrHxBKD+u9iwhP55v7YlS8t2MxfW4lyLBDFOjW/mry2mVE+yT1yEZ6ai7WmFEEw
+         OGa1sci37y7Lnsos0ElnJOa1o0JD5UlKfUrOoAJy38SjAKs7R+owWERV8k4eFJIodNGt
+         HQmw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
-        bh=jmqIL302FliKztrku23iEbel/vN8Om9KZr4KoJVUQBs=;
-        b=h+Na/IE/6rNjt/NIrXByXRdq8qjZpEbCmcspmzMnk6Kt8F9UaK2kUBZX3duBttta5B
-         rWLWyy2OdT160Zp8xbUVctlu2HBm6OPrwE3wrq/7iIltpMUewndMF6XYJn1ViNUOzFDy
-         eUqhwH4Ez5sEsDIQ20lqm4D96WZZVpf2zU3hSapuzPBXKqvZ5X3tjCg+AyrJoCaOCSbz
-         owa8vjmbMuz9bP65rJu8aXLcoF97w7vrUbjJTNvXndxo9yrme9PM8YE7Pro9v56TAhWZ
-         b3uWerTx49D3dckWX9X5Ldq52KXwxOhnMafiLQ9l04c7TkuDomfdgzKV33KNHfN7TUtX
-         wqiA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=gwSLJCAdvNTLNlkyY//PKwOh+mq4K72QRa5S83R8fqU=;
+        b=InUsvAtkJPGb1q+BaIEFFXuGqV2pSXkX51jo4KsENNoUZ/gWjLvl7i28J0qHMoP0Kk
+         mXN7ca9rkyL93N0ki7yiRAFQOsmN3eD/Gfk1Rheh8bslWiitG+4Sc2o6XIKXU46dufZ1
+         pPJI4XZy+n54zqLUpD40L384doe5yhjLOHqiAbnKYWCaRoqaYJWH5HDcevA+YTfRGO84
+         6fP58D9UPtAl8h4CEHYXDXtmifXwfz7NNpdl1lj/Pcw4HjD6Qv1ULD3qxsN1xuadKdJT
+         nOLsgjcVhi3+WF7RegWlubuPM/vcn//yhXCOLW1VLCQiEccxXFzntqHDkpJx4a5OTNg3
+         KPww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HtLdXNwl;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l22sor1455059eda.1.2019.06.05.14.21.27
+       dkim=pass header.i=@kernel.org header.s=default header.b=YTPX8cvx;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id s201si18343pgs.522.2019.06.05.14.22.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 05 Jun 2019 14:21:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Jun 2019 14:22:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HtLdXNwl;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=jmqIL302FliKztrku23iEbel/vN8Om9KZr4KoJVUQBs=;
-        b=HtLdXNwlPpU1RFxmpHZq/rH78NiFyUbMRNR4XLHGl5DFaciTYXzczF+YOEaOthAltb
-         LzfrkniAfXeG9XfS8k8l9WWdWJTCb5t0Qydwrx9HDSWfQxVverG9o6eBxNShll611+Xk
-         D8MDiZNeQ9S8YaEkKYI92ohNxvxiKGjBgdANYmGfcUxcUcAmDq0kOuCUWCUGDd+d7T8p
-         u6tdGt0M3uFblUt67ApuYvpm2psLcK1H66EYwESimtXZEx5o8tKBJ+DBxrVlRNPstQNp
-         2xk+bEsv5+yigah3/6Lj+npsGt7LKO/9d2Bkh2IRQhSgPxae7KCEIl0WkMOEkno6k2FP
-         1Lng==
-X-Google-Smtp-Source: APXvYqxldygk3PkHMpihOlAqhwTjzhXRQF4Z9tCxVu286QjlehnozfaHCkEEtI5NYMQPFpu5SuYeWg==
-X-Received: by 2002:a50:ca48:: with SMTP id e8mr45737760edi.101.1559769687081;
-        Wed, 05 Jun 2019 14:21:27 -0700 (PDT)
-Received: from localhost ([185.92.221.13])
-        by smtp.gmail.com with ESMTPSA id e19sm3550413edy.36.2019.06.05.14.21.26
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 05 Jun 2019 14:21:26 -0700 (PDT)
-Date: Wed, 5 Jun 2019 21:21:25 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
-	Dan Williams <dan.j.williams@intel.com>,
-	Wei Yang <richard.weiyang@gmail.com>,
-	Igor Mammedov <imammedo@redhat.com>
-Subject: Re: [PATCH v3 11/11] mm/memory_hotplug: Remove "zone" parameter from
- sparse_remove_one_section
-Message-ID: <20190605212125.gwmvjjicylhp3wcz@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20190527111152.16324-1-david@redhat.com>
- <20190527111152.16324-12-david@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190527111152.16324-12-david@redhat.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+       dkim=pass header.i=@kernel.org header.s=default header.b=YTPX8cvx;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id C0D082075B;
+	Wed,  5 Jun 2019 21:22:09 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1559769729;
+	bh=luabeSBI+NDeNNs1bPDzPXdc1KFEqX8vdPe4qbBqNw4=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=YTPX8cvxxCwoAex7vw0g8JtLmES94g7PgiPnJqkHt+xe1ONHDWZQSrXJ0FrCk8JrB
+	 ClmBf9NGKwpyxdLDZUg2It7G8FXCiHmxhwgASh6NXp9Ta8kOt2xt5cTpTObU4Nyc04
+	 aB1mUL1Kw6LQuqVep2fbOKyNKktXJB+HYgP0zcJw=
+Date: Wed, 5 Jun 2019 14:22:09 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Linus Torvalds
+ <torvalds@linux-foundation.org>
+Subject: Re: [PATCH 1/2] mm/large system hash: use vmalloc for size >
+ MAX_ORDER when !hashdist
+Message-Id: <20190605142209.eb30cd883551a5bd81b09f00@linux-foundation.org>
+In-Reply-To: <20190605144814.29319-1-npiggin@gmail.com>
+References: <20190605144814.29319-1-npiggin@gmail.com>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 27, 2019 at 01:11:52PM +0200, David Hildenbrand wrote:
->The parameter is unused, so let's drop it. Memory removal paths should
->never care about zones. This is the job of memory offlining and will
->require more refactorings.
+On Thu,  6 Jun 2019 00:48:13 +1000 Nicholas Piggin <npiggin@gmail.com> wrote:
+
+> The kernel currently clamps large system hashes to MAX_ORDER when
+> hashdist is not set, which is rather arbitrary.
+> 
+> vmalloc space is limited on 32-bit machines, but this shouldn't
+> result in much more used because of small physical memory limiting
+> system hash sizes.
+> 
+> Include "vmalloc" or "linear" in the kernel log message.
+> 
+> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+> ---
+> 
+> This is a better solution than the previous one for the case of !NUMA
+> systems running on CONFIG_NUMA kernels, we can clear the default
+> hashdist early and have everything allocated out of the linear map.
+> 
+> The hugepage vmap series I will post later, but it's quite
+> independent from this improvement.
+> 
+> ...
 >
->Reviewed-by: Dan Williams <dan.j.williams@intel.com>
->Signed-off-by: David Hildenbrand <david@redhat.com>
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7966,6 +7966,7 @@ void *__init alloc_large_system_hash(const char *tablename,
+>  	unsigned long log2qty, size;
+>  	void *table = NULL;
+>  	gfp_t gfp_flags;
+> +	bool virt;
+>  
+>  	/* allow the kernel cmdline to have a say */
+>  	if (!numentries) {
+> @@ -8022,6 +8023,7 @@ void *__init alloc_large_system_hash(const char *tablename,
+>  
+>  	gfp_flags = (flags & HASH_ZERO) ? GFP_ATOMIC | __GFP_ZERO : GFP_ATOMIC;
+>  	do {
+> +		virt = false;
+>  		size = bucketsize << log2qty;
+>  		if (flags & HASH_EARLY) {
+>  			if (flags & HASH_ZERO)
+> @@ -8029,26 +8031,26 @@ void *__init alloc_large_system_hash(const char *tablename,
+>  			else
+>  				table = memblock_alloc_raw(size,
+>  							   SMP_CACHE_BYTES);
+> -		} else if (hashdist) {
+> +		} else if (get_order(size) >= MAX_ORDER || hashdist) {
+>  			table = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+> +			virt = true;
+>  		} else {
+>  			/*
+>  			 * If bucketsize is not a power-of-two, we may free
+>  			 * some pages at the end of hash table which
+>  			 * alloc_pages_exact() automatically does
+>  			 */
+> -			if (get_order(size) < MAX_ORDER) {
+> -				table = alloc_pages_exact(size, gfp_flags);
+> -				kmemleak_alloc(table, size, 1, gfp_flags);
+> -			}
+> +			table = alloc_pages_exact(size, gfp_flags);
+> +			kmemleak_alloc(table, size, 1, gfp_flags);
+>  		}
+>  	} while (!table && size > PAGE_SIZE && --log2qty);
+>  
+>  	if (!table)
+>  		panic("Failed to allocate %s hash table\n", tablename);
+>  
+> -	pr_info("%s hash table entries: %ld (order: %d, %lu bytes)\n",
+> -		tablename, 1UL << log2qty, ilog2(size) - PAGE_SHIFT, size);
+> +	pr_info("%s hash table entries: %ld (order: %d, %lu bytes, %s)\n",
+> +		tablename, 1UL << log2qty, ilog2(size) - PAGE_SHIFT, size,
+> +		virt ? "vmalloc" : "linear");
 
-Reviewed-by: Wei Yang <richardw.yang@linux.intel.com>
-
->---
-> include/linux/memory_hotplug.h | 2 +-
-> mm/memory_hotplug.c            | 2 +-
-> mm/sparse.c                    | 4 ++--
-> 3 files changed, 4 insertions(+), 4 deletions(-)
->
->diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
->index 2f1f87e13baa..1a4257c5f74c 100644
->--- a/include/linux/memory_hotplug.h
->+++ b/include/linux/memory_hotplug.h
->@@ -346,7 +346,7 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
-> extern bool is_memblock_offlined(struct memory_block *mem);
-> extern int sparse_add_one_section(int nid, unsigned long start_pfn,
-> 				  struct vmem_altmap *altmap);
->-extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
->+extern void sparse_remove_one_section(struct mem_section *ms,
-> 		unsigned long map_offset, struct vmem_altmap *altmap);
-> extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
-> 					  unsigned long pnum);
->diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->index 82136c5b4c5f..e48ec7b9dee2 100644
->--- a/mm/memory_hotplug.c
->+++ b/mm/memory_hotplug.c
->@@ -524,7 +524,7 @@ static void __remove_section(struct zone *zone, struct mem_section *ms,
-> 	start_pfn = section_nr_to_pfn((unsigned long)scn_nr);
-> 	__remove_zone(zone, start_pfn);
-> 
->-	sparse_remove_one_section(zone, ms, map_offset, altmap);
->+	sparse_remove_one_section(ms, map_offset, altmap);
-> }
-> 
-> /**
->diff --git a/mm/sparse.c b/mm/sparse.c
->index d1d5e05f5b8d..1552c855d62a 100644
->--- a/mm/sparse.c
->+++ b/mm/sparse.c
->@@ -800,8 +800,8 @@ static void free_section_usemap(struct page *memmap, unsigned long *usemap,
-> 		free_map_bootmem(memmap);
-> }
-> 
->-void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
->-		unsigned long map_offset, struct vmem_altmap *altmap)
->+void sparse_remove_one_section(struct mem_section *ms, unsigned long map_offset,
->+			       struct vmem_altmap *altmap)
-> {
-> 	struct page *memmap = NULL;
-> 	unsigned long *usemap = NULL;
->-- 
->2.20.1
-
--- 
-Wei Yang
-Help you, Help me
+Could remove `bool virt' and use is_vmalloc_addr() in the printk?
 
