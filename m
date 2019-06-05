@@ -2,202 +2,163 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CDE51C28D18
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 14:49:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 73426C46460
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 15:04:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F552206B8
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 14:49:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 392A1206C3
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 15:04:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="J2IZunxC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F552206B8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=kernel-dk.20150623.gappssmtp.com header.i=@kernel-dk.20150623.gappssmtp.com header.b="oERv5R43"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 392A1206C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.dk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F0646B0007; Wed,  5 Jun 2019 10:49:25 -0400 (EDT)
+	id C32C86B000E; Wed,  5 Jun 2019 11:04:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 29F396B000A; Wed,  5 Jun 2019 10:49:25 -0400 (EDT)
+	id BE3306B0010; Wed,  5 Jun 2019 11:04:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 18EEE6B000D; Wed,  5 Jun 2019 10:49:25 -0400 (EDT)
+	id AF9366B0266; Wed,  5 Jun 2019 11:04:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D6C3F6B0007
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 10:49:24 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id a5so16247099pla.3
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 07:49:24 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 784276B000E
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 11:04:12 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id 145so5671294pfv.18
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 08:04:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=uokpXhUGAbY6p5XmmfFzDRpYAOfHcWN+Kl+0vKMAotA=;
-        b=WmXmu1DusMhn+t/r6aO7AEnBN42Ag/w33+OvG2CV9l+R2dw+VHQXhxMyR7Ec2MmsyV
-         lw5qwRaZJJlEvsD5m1FzPpcgBNJWj0dovO1YZV415eQX9zmzYrDJ9jWAD1Z6PGO7ETYC
-         qUSgByaOSLBxTOk3eHQV3O/nsJqVpEOXlEdsPMRUlvmLqdOT5MGFSGVszqJ5BDnaOt93
-         LjqbNXP9Sqbu05hh91CKTg5SukTXg1Npor8AGViXlHwlqe6GhM6BkUBKddPg1DWKeMn0
-         1O6hLGfzTaBAVRxIiPPiEaeyUzPVt3v75gfylbFLhRLMGxgha8blDm+AzrHFQxdx/KHw
-         c+BQ==
-X-Gm-Message-State: APjAAAVbCtdY7ZDAfBUR+mmgLeaV7AUMkJzSBdL4GogNzlK5Jx+zm38E
-	2tRkw7rZ0I5SpK2OPQL5sbFlI4+aLk2xpbYiV60ZPmN1o6BRhKXcmBGl4BGWXiEx4GN3p2McsI9
-	HqJReEkvWf1ogdwoqhlCfzIzFAA+UI3iAFrbTV1kd74Fpj5MIh70+2Dm+whmiEhEUpA==
-X-Received: by 2002:a17:902:42d:: with SMTP id 42mr42463485ple.228.1559746164355;
-        Wed, 05 Jun 2019 07:49:24 -0700 (PDT)
-X-Received: by 2002:a17:902:42d:: with SMTP id 42mr42463328ple.228.1559746163009;
-        Wed, 05 Jun 2019 07:49:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559746163; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=4r0N0/cqZQsQLzB9riNWHtGeoqNPwixp4EIavL99nJ8=;
+        b=rXb5e/2EusCCPLqyPxF8DXSkNq8n9cFEMYC30JNBUbM9sRG4KGKbdsv0l/PpaGzwUp
+         sBhFB8kxo1paA+ePb5itLz8+2V3AZWVdJxmdUUB2I5ZvPrGX8uMYSwuSHx/8KrKYZ2Fa
+         2S8xAEKMqMt51Rta9QT6SRJ1UUGJgEvRBT8M9+9EaYzfHXT9dxrvoGhtn7ApVHjlcVNy
+         liBJoogWBXf/plEdL+FNE2pwLFGRVQDvLs9zUjC0AGJimnarHSMwQ2BFBhdxMympviGp
+         zf031wt/kSYUTtefx4CUvpUyklzvxcvn5OrQytl6iFDWl1cUsUQmaAAYuzG5ja54g77k
+         Zt7g==
+X-Gm-Message-State: APjAAAWVfTUm9FShaRahDTodRLmmj/NNBbXq/3DSTakwtyYrhDEpbf5o
+	VOKcTwxquH7Crejg6rEl6EY2AK2ONQLBATKJ7SZqkMZI6qmczEfcTvA0t9nJIlJEDV/2Aiw13pO
+	GCsAagByU5+AsuxwLwEmEDhq4lnvhkW7qdM6basJymQRdlZocxx7q5Iu9/J8s5IvfmA==
+X-Received: by 2002:a17:902:b18c:: with SMTP id s12mr42695921plr.181.1559747052136;
+        Wed, 05 Jun 2019 08:04:12 -0700 (PDT)
+X-Received: by 2002:a17:902:b18c:: with SMTP id s12mr42695806plr.181.1559747051242;
+        Wed, 05 Jun 2019 08:04:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559747051; cv=none;
         d=google.com; s=arc-20160816;
-        b=a5KMQ379CU/Wv/MqVQPN5zn7RInSVMoZ6Z+XG4mChHFHodvtl/1KV8kdlmbrd9dBBv
-         lz5QheovgOzAlRWJTNJydoyPTgJ/pf7eInG3Ao04bjlD4esZfBsSJYUf4bnqzTN0zknf
-         EPNmwmPVFkctkdb9SwsyC/AekpE41JNkq4z69c55QsQDlPq2bRNST8YfBjl2xV+DgMJA
-         LFTblGJuZxOrwuzAZHvWnJqKg/vCaKrKVD5/e++SC3zyLKOyAPgDuK+yG5a1EtKL15fr
-         ALdUNr54IPwCKHYjwt5MCWQauvB6aQmuCaFyp8maEpJvfFKZYhE2sBxClwDbYNRiFBfP
-         T3gg==
+        b=NfTYorTDMH4TsJGx2MID2OoFqPzfffJWBapXTJsucpmnc6KN9PuQAVDYbW9awWEfzS
+         nrVSCX6dPYbx1nlaAfXXUwL/splQhFclIt8H+SxbchyGBZvl8O4syt7bwVh/ENbgBbuQ
+         Piyb7P+UU5u5RJLezf5ZVfwdZR7m3KXWKZBu65crHAWPOUivocdOiFUAMsBZ8/q9vnpI
+         yzN4IybmmxLhDQXQoEfKIptcyHG+r46rbzq4pjUKeSxiPJsN+Y3czFz/Nc6k7txmzs9m
+         4R1HK8zWA4fYzo8Dswc7aS7X0ZoiNaZ50d4ydHKz5AgC/Lacd1oEKFglAnRqJwWjg+zP
+         GKnA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=uokpXhUGAbY6p5XmmfFzDRpYAOfHcWN+Kl+0vKMAotA=;
-        b=RKha9UCEqbgM7TzB1T49nF/xaFU9BzKk3UyWQecyokn6wfW+U+R3VO4r2oonSEdqaH
-         QTHZHI8grlgiksn6g26PI4H8m5yuIpgjkJqJdhJLV8H+uumWu0Hi8hvXxlejQO5kLMQn
-         oasTNF+bl+yM1erweX0aRnMCaIZ5weypsv72cKqxzMOQ+KDeKId+UtuhCO913dhIcEPy
-         0jp6cWwjvQIJrjbCESIXUTEYvcIiEcQBZ0j26o7Jhr0J20XyvbspXQ0oHW1TYnHgTiRK
-         NicG5puFkpwqrz5O9Qk/hMHQ/d4RbI8QCDGmOu/CMtF95SF4dHq1suXSqxgaVwc/awgQ
-         UI0w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=4r0N0/cqZQsQLzB9riNWHtGeoqNPwixp4EIavL99nJ8=;
+        b=NLSpwADtJGCYSOMWtPA7X+wEYLrlCikpHNlqfa8waASEzLwqZNUKTvuH0L5eUXBPGf
+         i0ZCEz6kUNNNZN6vyL8wPT1UR9TF3gn8I1Kuf7XEznMRWl9SpmD8zlCTPRU85tTRjLmH
+         XLnSZDtnujOOhXoDIxbJQX4Pe2FCi7HJ/wDybdTzL1Ga6qqEPt7iwgXpDTYa8F3+ilb7
+         U39Xc5qshl04wvpFyAujTOAI3Lrvaa/2/79VOTAlQY1q2vhFVLArSLhhv4vkrI93Gq8c
+         Ay+yI4JATXTz54YpeF/E6R9mJJVCZVdAaE16P5mjI6sqS9JDP0bdMQqf6RUk4E65N6dr
+         nEzw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=J2IZunxC;
-       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=oERv5R43;
+       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q16sor24358175pls.29.2019.06.05.07.49.22
+        by mx.google.com with SMTPS id v2sor24321822plo.32.2019.06.05.08.04.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 05 Jun 2019 07:49:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 05 Jun 2019 08:04:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=J2IZunxC;
-       spf=pass (google.com: domain of npiggin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=npiggin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@kernel-dk.20150623.gappssmtp.com header.s=20150623 header.b=oERv5R43;
+       spf=pass (google.com: domain of axboe@kernel.dk designates 209.85.220.65 as permitted sender) smtp.mailfrom=axboe@kernel.dk
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=uokpXhUGAbY6p5XmmfFzDRpYAOfHcWN+Kl+0vKMAotA=;
-        b=J2IZunxCvI+d08sLrBzSc3RRPxO2OwlM39JK3Wfz7NHVngOBAtWqR8LmRGyHdMML4H
-         xJ2memtPxZu00hLPKDBQq3Kxz797fYuSHyz5MjFeuGvOGgdFli2RaOk5+fCl8K4RUByH
-         zTyfexL/KNSXqkjKSBxsg1gZsKpQTyVhwUrXQjXGO4pG0TSYNyDeCjnb/skVPGUmy0mf
-         ILTmQLnxJ+gq9qzMJv6iRgnIiHoZZNuXwF0++xu1MmCaYxdA47zGacG7Tnhqr/6kHJ0Y
-         8L7tgd4Zfm/GQ1ySDh3QfXdINL81pLmMoedb74dlImuilFm4D8it+aDUxKka7xcx2ezR
-         kYeQ==
-X-Google-Smtp-Source: APXvYqzclwzYKdfqEnZ6+MDN2VJ6wxc2CPFyVlmBhB2yRZPhVC1P4kxcpKFPMHk9z1/c/77J1YvRaQ==
-X-Received: by 2002:a17:902:e306:: with SMTP id cg6mr15878349plb.341.1559746162576;
-        Wed, 05 Jun 2019 07:49:22 -0700 (PDT)
-Received: from bobo.local0.net ([203.220.89.252])
-        by smtp.gmail.com with ESMTPSA id m19sm13375840pff.153.2019.06.05.07.49.19
+        d=kernel-dk.20150623.gappssmtp.com; s=20150623;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=4r0N0/cqZQsQLzB9riNWHtGeoqNPwixp4EIavL99nJ8=;
+        b=oERv5R43tdTVogKDqW2pbdEh9X3kPQEt8rkO9i+PyA1hnJj546cBlYXzqcNAnkeH2o
+         xDmAZeAaD3jnQjr0VGd/3yJeW9/U0/CoKmRqtd40ETtm22bSXsBnOuB32EKuu31MPb91
+         ZSIW51BWmFZMHfkABF4+vmPS6bIFLD3LSrnjCSMx6330KEtzZiRV2rAVVXuuu5u6ZNF3
+         54Qq+ZfFN/F7mWNAP2jok++5M9n9LfGsg48fbCOmIs1bUlM0G9Lx/jcF9KRHn8EseCjE
+         5m7W7V2GXw5p0rXmC+VRWhzHmSy5HHyIgphZ1oqomuWKlWHVxlDyDSRiGqUbPO44zi0Z
+         IlWw==
+X-Google-Smtp-Source: APXvYqzBM2bZj69n7MfkaSXw8zh+DTZMgfwk0BMgMehP81PBePSCTHmM2EpXvogAFZyH4IQcEXIAvw==
+X-Received: by 2002:a17:902:b905:: with SMTP id bf5mr44544164plb.155.1559747050554;
+        Wed, 05 Jun 2019 08:04:10 -0700 (PDT)
+Received: from [192.168.1.158] ([65.144.74.34])
+        by smtp.gmail.com with ESMTPSA id k1sm4864237pjp.2.2019.06.05.08.04.03
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 07:49:22 -0700 (PDT)
-From: Nicholas Piggin <npiggin@gmail.com>
-To: linux-mm@kvack.org
-Cc: Nicholas Piggin <npiggin@gmail.com>,
-	linux-kernel@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>
-Subject: [PATCH 2/2] mm/large system hash: clear hashdist when only one node with memory is booted
-Date: Thu,  6 Jun 2019 00:48:14 +1000
-Message-Id: <20190605144814.29319-2-npiggin@gmail.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190605144814.29319-1-npiggin@gmail.com>
-References: <20190605144814.29319-1-npiggin@gmail.com>
+        Wed, 05 Jun 2019 08:04:03 -0700 (PDT)
+Subject: Re: [PATCH] block: fix a crash in do_task_dead()
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, hch@lst.de,
+ oleg@redhat.com, gkohli@codeaurora.org, mingo@redhat.com,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1559161526-618-1-git-send-email-cai@lca.pw>
+ <20190530080358.GG2623@hirez.programming.kicks-ass.net>
+ <82e88482-1b53-9423-baad-484312957e48@kernel.dk>
+ <20190603123705.GB3419@hirez.programming.kicks-ass.net>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <ddf9ee34-cd97-a62b-6e91-6b4511586339@kernel.dk>
+Date: Wed, 5 Jun 2019 09:04:02 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190603123705.GB3419@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-CONFIG_NUMA on 64-bit CPUs currently enables hashdist unconditionally
-even when booting on single node machines. This causes the large system
-hashes to be allocated with vmalloc, and mapped with small pages.
+On 6/3/19 6:37 AM, Peter Zijlstra wrote:
+> On Fri, May 31, 2019 at 03:12:13PM -0600, Jens Axboe wrote:
+>> On 5/30/19 2:03 AM, Peter Zijlstra wrote:
+> 
+>>> What is the purpose of that patch ?! The Changelog doesn't mention any
+>>> benefit or performance gain. So why not revert that?
+>>
+>> Yeah that is actually pretty weak. There are substantial performance
+>> gains for small IOs using this trick, the changelog should have
+>> included those. I guess that was left on the list...
+> 
+> OK. I've looked at the try_to_wake_up() path for these exact
+> conditions and we're certainly sub-optimal there, and I think we can put
+> much of this special case in there. Please see below.
+> 
+>> I know it's not super kosher, your patch, but I don't think it's that
+>> bad hidden in a generic helper.
+> 
+> How about the thing that Oleg proposed? That is, not set a waiter when
+> we know the loop is polling? That would avoid the need for this
+> alltogether, it would also avoid any set_current_state() on the wait
+> side of things.
+> 
+> Anyway, Oleg, do you see anything blatantly buggered with this patch?
+> 
+> (the stats were already dodgy for rq-stats, this patch makes them dodgy
+> for task-stats too)
 
-This change clears hashdist if only one node has come up with memory.
+Tested this patch, looks good to me. Made the trace change to make it
+compile, and also moved the cpu = task_cpu() assignment earlier to
+avoid uninitialized use of that variable.
 
-This results in the important large inode and dentry hashes using
-memblock allocations. All others are within 4MB size up to about 128GB
-of RAM, which allows them to be allocated from the linear map on most
-non-NUMA images.
+How about the following plan - if folks are happy with this sched patch,
+we can queue it up for 5.3. Once that is in, I'll kill the block change
+that special cases the polled task wakeup. For 5.2, we go with Oleg's
+patch for the swap case.
 
-Other big hashes like futex and TCP should eventually be moved over to
-the same style of allocation as those vfs caches that use HASH_EARLY if
-!hashdist, so they don't exceed MAX_ORDER on very large non-NUMA images.
-
-This brings dTLB misses for linux kernel tree `git diff` from ~45,000 to
-~8,000 on a Kaby Lake KVM guest with 8MB dentry hash and mitigations=off
-(performance is in the noise, under 1% difference, page tables are
-likely to be well cached for this workload).
-
-Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
----
- mm/page_alloc.c | 31 ++++++++++++++++++-------------
- 1 file changed, 18 insertions(+), 13 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 15f46be7d210..cd944f48be9a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7519,10 +7519,28 @@ static int page_alloc_cpu_dead(unsigned int cpu)
- 	return 0;
- }
- 
-+#ifdef CONFIG_NUMA
-+int hashdist = HASHDIST_DEFAULT;
-+
-+static int __init set_hashdist(char *str)
-+{
-+	if (!str)
-+		return 0;
-+	hashdist = simple_strtoul(str, &str, 0);
-+	return 1;
-+}
-+__setup("hashdist=", set_hashdist);
-+#endif
-+
- void __init page_alloc_init(void)
- {
- 	int ret;
- 
-+#ifdef CONFIG_NUMA
-+	if (num_node_state(N_MEMORY) == 1)
-+		hashdist = 0;
-+#endif
-+
- 	ret = cpuhp_setup_state_nocalls(CPUHP_PAGE_ALLOC_DEAD,
- 					"mm/page_alloc:dead", NULL,
- 					page_alloc_cpu_dead);
-@@ -7907,19 +7925,6 @@ int percpu_pagelist_fraction_sysctl_handler(struct ctl_table *table, int write,
- 	return ret;
- }
- 
--#ifdef CONFIG_NUMA
--int hashdist = HASHDIST_DEFAULT;
--
--static int __init set_hashdist(char *str)
--{
--	if (!str)
--		return 0;
--	hashdist = simple_strtoul(str, &str, 0);
--	return 1;
--}
--__setup("hashdist=", set_hashdist);
--#endif
--
- #ifndef __HAVE_ARCH_RESERVED_KERNEL_PAGES
- /*
-  * Returns the number of pages that arch has reserved but
 -- 
-2.20.1
+Jens Axboe
 
