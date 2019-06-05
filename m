@@ -2,124 +2,172 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CCF6C46470
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 20:07:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F4065C46460
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 20:27:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 122D2206BB
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 20:07:46 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Y6/CTKw2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 122D2206BB
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id B7B172075B
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 20:27:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B7B172075B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B28296B0266; Wed,  5 Jun 2019 16:07:45 -0400 (EDT)
+	id 54D596B026A; Wed,  5 Jun 2019 16:27:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AD9376B0269; Wed,  5 Jun 2019 16:07:45 -0400 (EDT)
+	id 4FD906B026B; Wed,  5 Jun 2019 16:27:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9EE3A6B026A; Wed,  5 Jun 2019 16:07:45 -0400 (EDT)
+	id 3C51A6B026C; Wed,  5 Jun 2019 16:27:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8581C6B0266
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 16:07:45 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id u25so13576571iol.23
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 13:07:45 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B8F96B026A
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 16:27:23 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id g14so26637qta.12
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 13:27:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=YWPCkjiDpsVKRA3zAFLVPrJDaYwckwujcOqte+GF4Qs=;
-        b=gaLQXphbMxjgCqxAo+1dj3Fwl4KtbprghtWSoR8CvL9dT6pAvyHGQQ6tMqGNaO8UTm
-         nANS3pQZ53WTD3lJlVT101YqnCa54p3sdr9oTZj29XGnOnk/3T9yCnn3Nx+khQrQljwH
-         zI90ESbSdiuR3rBnw37OSwUV106oDG9Lu1SU56gAblNQBX7rnaUzuXjrUKPW2FZFt5ut
-         WGpKIsgktbXHvNODtLd+1iAzjt73TX5U5YgEvsgE3BMY722uJL8FwAnSRAlBTxUm8a86
-         l/GOHL9dj12aYOfhT1w313WyOw0IgYGzogiYc6CWECFIGu4AfVdqXjKn4lEdrgsUKn3O
-         uzPg==
-X-Gm-Message-State: APjAAAWeK/VT1l0/PCwRWKCfaW81fp8KWABTevhuHcUa8PZvzdiL2sGp
-	2k1mMN/PQ9eulmiJGXSyo1ONUEP7WHk20bUHA48GXBkYm3yv2h6PT7mqBWWcfUUaxvqNcvS3b6h
-	gqsRyUJQLbfrTKuGnGMLbmPZQ4WdIrUw2iBTNJBP0ApudAxxCifL3YY8XFWu8RxK8Cg==
-X-Received: by 2002:a24:2149:: with SMTP id e70mr4698912ita.2.1559765265310;
-        Wed, 05 Jun 2019 13:07:45 -0700 (PDT)
-X-Received: by 2002:a24:2149:: with SMTP id e70mr4698849ita.2.1559765264299;
-        Wed, 05 Jun 2019 13:07:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559765264; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=wGxHiQlWFn1uiPqF46GhGASLxDFDSqAuue1nQQO+VCs=;
+        b=rKGY/WzM3ApInfSGrk8mSlp4Qfg7zYlHJnt1LErGI31x6YkNV+ALC5DjwA/6G+Mwmj
+         29eIWJc3yXiBDF6e+seNn4qk9e9NLXS0dy7UqGGPLpvQbhw7xtrq/uHFSWvGTYzbfCpf
+         EbXN74mlz5QeVtHcc/nLClcaSlYoNr+RdGwjhD9BLxcKer0buFuxEbKn9ZicFvNVsD5F
+         ntyleRX58i309me0WrxSH3ztG9t7tEtOYjSsfGb9bXLV0Gz9MWiIeLv6rODUAiPG2jc9
+         pOmAguya9cocIBL4yTkTxiAviZcL2oiapB0cTNu2CV/+nI9KAEHj6kWEaGCNgBPiskjy
+         Gnjg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWltOVigPaXOZDLvZ4S/BRs1KdsXw8UD0sv65e3uB1O/OaUbBop
+	C9OChUTwQujRFqn0O2pNpOqloYbYms+jSPZHRYPIoX79TGcrEXQmy6sRZoLTiQRtvp+bPtBydwH
+	Sky1PwOjasCzAyaZxtDK48t8ueGFq1xTMhbXAfn+gDnB4M5OTplFhCw/a1WaRI25GCA==
+X-Received: by 2002:ac8:877:: with SMTP id x52mr36682691qth.328.1559766442850;
+        Wed, 05 Jun 2019 13:27:22 -0700 (PDT)
+X-Received: by 2002:ac8:877:: with SMTP id x52mr36682643qth.328.1559766442156;
+        Wed, 05 Jun 2019 13:27:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559766442; cv=none;
         d=google.com; s=arc-20160816;
-        b=Zi9Fz+kXhgXmD5/U3AnmAhKzgf4Fc78uvZckKr2l1V/8LqL+q8/G4As8V+W0BzMr2x
-         SiO0D6VI495JYwhX3+ZzfuHSX0aqQcUisSqfMH19fV9aV7YpIBxArMyXeEVYndKtKhfC
-         0Pnq9VhwnQU/SJFe1cxX09OsP34uaLLbANvfbk4pWF6Q9WswsTpVD8/0b5LD6b1RDPKf
-         4pAB92NFePMT22r3e8gxfCHCCPq0pZD/NzHwuYm7Cycml9s1tKlVak0RMzSkFyxnNxPk
-         lfocBsZbe45v4Sb+58JxbKNehvkOfJHDr+CpEMdDMyL2lbBl+mhhwoFoT3zRpaWQCbz4
-         yqvQ==
+        b=Px3if55GBjIr0TJeSfQoJFYfl77WJ2JJPJ4lMEKdtYxoC33rMAi8eMIXbt4DV1wNJz
+         teokDA8Oj8RrYUQ5fBRG7z4HqZ9dM7dffmoNbPAFRwIw6nrFYbvbtE/RslfSMhTcvuFt
+         HX4vTy94aYSZB2AWSbLVi3BKZDbB8zy9V9cWn+AuAAHGUKoDqHYj+sxvk46FlOronPSs
+         NfimyZ9utluXlmu6EScm16HIcEsdqR9Y7/KO7Kelz1k3BColyB/aM59l8zobYQEr6mN+
+         0T6msCxjl9up3Fwk8N81+9ESiyWpozvO8Xby/7PgW/M0xHBMXjU7keaKJxWbF/S3XDlG
+         AExA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=YWPCkjiDpsVKRA3zAFLVPrJDaYwckwujcOqte+GF4Qs=;
-        b=qdc5gqIpyc62Rx3gP8SDNboTfkmRNh921b8cvefb0O+smbGBZqk0DsrHUL83UiImR2
-         RjJfYadfqF/1q2jm292egk588vNH6+/FOsIQ2wnQS7xW/VHQg1AqaNn31vNW39ASuRw6
-         Ya9fM/hvjYuagikIi/v8MtNZa6giHeb9xcm3xo8/kPsopA1Co2xE+S9u73mcoLa1SAMv
-         14Wwyxa2cwX57RIq4LzGpKARQgCQMN5kKhS4vAGp1QdHCYzD+XA2zEOzCY2GzCl5DOOB
-         yaA28oG63vvCvOfU9eTVhtKoIx2/VWdQlgYsxJV4oc6pB4vnowD9N7+aHQnSWr1zKN5C
-         Wv7g==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=wGxHiQlWFn1uiPqF46GhGASLxDFDSqAuue1nQQO+VCs=;
+        b=gTh5LBjRcdL2mIxIzKWR75QCLI/H89VXrQxbQKxXsh221advE7OXgk8o+0c3Br2dQ1
+         hMIallRAJB2lPDSCObFueNKGRJwIFwMwRFVuLexyTWjTFTS3lih7XKiIFUNailb11Y4l
+         YWNW4Qiw2O8dJC4svzojjxBH4xWZROM6pNo93ZDGKlkUqsLMvvCgPYCX7zFCMqVheDeX
+         TqoNQvzTL2F/OXNDI/0y1jiYlbaYqbWmJ1NETlu8bwAN7acGspk1Wsz5hooxZuRhFtW/
+         NBIdA4LIqwCDpHL4Q4uRpyUMjDOiyTEkad58c2ObXl+GVB8WBjkufYLCv+aXf0u1UOBA
+         tIIA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Y6/CTKw2";
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l1sor4750553ioc.63.2019.06.05.13.07.44
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z10sor11213549qtq.67.2019.06.05.13.27.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 05 Jun 2019 13:07:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        Wed, 05 Jun 2019 13:27:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Y6/CTKw2";
-       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=YWPCkjiDpsVKRA3zAFLVPrJDaYwckwujcOqte+GF4Qs=;
-        b=Y6/CTKw2HpfFzRV8cVp90r2srB2SmP6at0zd+tEXm7XFl50kmu/Y3nIEEWGg3Kzk/B
-         l3D3Qr4UiAJUphHXpmvTqTi4wbNRjrImrlG7ZnCCJKH8FdZqjq4BvR9hjClj79ZJXtpo
-         wJwy3Sz8MDxzQjIUSDal0FQ4e3ED/l4WprxHOQB1SqDvdINs5Z2Iqe466nxFxl7DIM25
-         bdtQ+7JbvDnxmhTWFmbnWKhDxV3HeUg0fR3ZqWqUeprL7yqliCoe6qJGgY9soYeL2+c4
-         g5KyxxMf4S0cwbsB+gEsHrj/UZW1Nk7qSFO7PfGWDWJQGbArg1y384v4TeP+oCHceLWr
-         6KCQ==
-X-Google-Smtp-Source: APXvYqzGleq5vDpqLVlVafId0CX+B2A32E7+JeJwJXNMpga7x9yP1fKCekdulEwyHbBdx18n2S7Lth9ehJe4hSJLcVk=
-X-Received: by 2002:a5d:9d8a:: with SMTP id 10mr9444816ion.179.1559765263703;
- Wed, 05 Jun 2019 13:07:43 -0700 (PDT)
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqyNZwCNllCffk9CW8iJVZnNw6kyLj1Wao5YfIYT6vXREYUpwAyvBsDlsGb5oilKvNDw7Zk3hw==
+X-Received: by 2002:aed:254c:: with SMTP id w12mr37738167qtc.127.1559766441824;
+        Wed, 05 Jun 2019 13:27:21 -0700 (PDT)
+Received: from redhat.com (pool-100-0-197-103.bstnma.fios.verizon.net. [100.0.197.103])
+        by smtp.gmail.com with ESMTPSA id z20sm14611825qtz.34.2019.06.05.13.27.19
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 05 Jun 2019 13:27:20 -0700 (PDT)
+Date: Wed, 5 Jun 2019 16:27:18 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
+	peterx@redhat.com, James.Bottomley@hansenpartnership.com,
+	hch@infradead.org, davem@davemloft.net, jglisse@redhat.com,
+	linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org,
+	linux-parisc@vger.kernel.org, christophe.de.dinechin@gmail.com,
+	jrdr.linux@gmail.com
+Subject: Re: [PATCH net-next 0/6] vhost: accelerate metadata access
+Message-ID: <20190605162631-mutt-send-email-mst@kernel.org>
+References: <20190524081218.2502-1-jasowang@redhat.com>
 MIME-Version: 1.0
-References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
- <CABXGCsNq4xTFeeLeUXBj7vXBz55aVu31W9q74r+pGM83DrPjfA@mail.gmail.com> <20190529180931.GI18589@dhcp22.suse.cz>
-In-Reply-To: <20190529180931.GI18589@dhcp22.suse.cz>
-From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Date: Thu, 6 Jun 2019 01:07:32 +0500
-Message-ID: <CABXGCsNTjHhpK4OoGxo+rcp60F0pAc377KpdsrgWptyFjfLLog@mail.gmail.com>
-Subject: Re: kernel BUG at mm/swap_state.c:170!
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190524081218.2502-1-jasowang@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 29 May 2019 at 23:09, Michal Hocko <mhocko@kernel.org> wrote:
->
-> Do you see the same with 5.2-rc1 resp. 5.1?
+On Fri, May 24, 2019 at 04:12:12AM -0400, Jason Wang wrote:
+> Hi:
+> 
+> This series tries to access virtqueue metadata through kernel virtual
+> address instead of copy_user() friends since they had too much
+> overheads like checks, spec barriers or even hardware feature
+> toggling like SMAP. This is done through setup kernel address through
+> direct mapping and co-opreate VM management with MMU notifiers.
+> 
+> Test shows about 23% improvement on TX PPS. TCP_STREAM doesn't see
+> obvious improvement.
+> 
+> Thanks
 
-The problem still occurs at 5.2-rc3.
-Unfortunately hard reproducible does not allow to make bisect.
-Any ideas what is wrong?
 
---
-Best Regards,
-Mike Gavrilov.
+Thanks this is queued for next.
+
+Did you want to rebase and repost packed ring support on top?
+IIUC it's on par with split ring with these patches.
+
+
+> Changes from RFC V3:
+> - rebase to net-next
+> - Tweak on the comments
+> Changes from RFC V2:
+> - switch to use direct mapping instead of vmap()
+> - switch to use spinlock + RCU to synchronize MMU notifier and vhost
+>   data/control path
+> - set dirty pages in the invalidation callbacks
+> - always use copy_to/from_users() friends for the archs that may need
+>   flush_dcache_pages()
+> - various minor fixes
+> Changes from V4:
+> - use invalidate_range() instead of invalidate_range_start()
+> - track dirty pages
+> Changes from V3:
+> - don't try to use vmap for file backed pages
+> - rebase to master
+> Changes from V2:
+> - fix buggy range overlapping check
+> - tear down MMU notifier during vhost ioctl to make sure
+>   invalidation request can read metadata userspace address and vq size
+>   without holding vq mutex.
+> Changes from V1:
+> - instead of pinning pages, use MMU notifier to invalidate vmaps
+>   and remap duing metadata prefetch
+> - fix build warning on MIPS
+> 
+> Jason Wang (6):
+>   vhost: generalize adding used elem
+>   vhost: fine grain userspace memory accessors
+>   vhost: rename vq_iotlb_prefetch() to vq_meta_prefetch()
+>   vhost: introduce helpers to get the size of metadata area
+>   vhost: factor out setting vring addr and num
+>   vhost: access vq metadata through kernel virtual address
+> 
+>  drivers/vhost/net.c   |   4 +-
+>  drivers/vhost/vhost.c | 850 ++++++++++++++++++++++++++++++++++++------
+>  drivers/vhost/vhost.h |  38 +-
+>  3 files changed, 766 insertions(+), 126 deletions(-)
+> 
+> -- 
+> 2.18.1
 
