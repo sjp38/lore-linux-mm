@@ -2,197 +2,254 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6970FC28CC5
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:27:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 14ABDC28CC5
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:37:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 35C2F2086A
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:27:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35C2F2086A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C0C7420665
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:37:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="04/ccSPI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C0C7420665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B433D6B000D; Wed,  5 Jun 2019 09:27:32 -0400 (EDT)
+	id 3D0226B000D; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AF3896B000E; Wed,  5 Jun 2019 09:27:32 -0400 (EDT)
+	id 34A696B0010; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9E23B6B0010; Wed,  5 Jun 2019 09:27:32 -0400 (EDT)
+	id 212E16B0266; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 527E16B000D
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 09:27:32 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id w4so9680507wrv.11
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 06:27:32 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DEFE16B000D
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 09:37:25 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id bb9so16109394plb.2
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 06:37:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=8UF6IKh1oi+AJKntkp2Avzsj99+2nJ602b//xWwwYMo=;
-        b=BYLg+RREw+0Mw+fygKhI/xawE04EPwrQRKElYf9jxiKWg88WtftytFuoD5GzuEAYNm
-         J6cc9RE2u9jwhsLfsaAuXSLsZCiHjL17LyyvVXAKVxW3kyH2T5jbgl9tfNni8RyhUBwb
-         GtQKByG7HxtjEFj/6I93xZeRX4h4i7HPOPn29fkhajz5ZFDMNXjN4t4EPEvHzWVoJyUu
-         sqMel0ARuDdK6eRiVNyyQEF5iIkojzv5SDyPWWwLdZR8ue2IBe0QtQZynwW+rZw3R79h
-         +w3OMSR42O38j+xhPtZ5nns4GamT/JEVpVMr61FvgraKzR+kO2KD1WUJ/7XX2fBvxX1o
-         iRtw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXkUKBTtET+vGPx2dLSbSXcwAWxG0EV0iPrMiX/N+65SJ/JZX2N
-	sNWXiwF8t86h1kdrkVYdqtf/55xbIKOzfaKsvrmlhmpt0ijpSQIVSMTN73QKP1LOWoRyFNirUQ3
-	Bmhz1MTMvWHEASEIwU6DwDSZlhHxTFyaZbGeZib79yWifGGpyRNldtiPI3u20b/alKw==
-X-Received: by 2002:adf:8385:: with SMTP id 5mr11038283wre.194.1559741251864;
-        Wed, 05 Jun 2019 06:27:31 -0700 (PDT)
-X-Received: by 2002:adf:8385:: with SMTP id 5mr11038221wre.194.1559741250788;
-        Wed, 05 Jun 2019 06:27:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559741250; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=u+zLCba4ifvorqHECxdb8NWOVORyLACPhu1rUxGfaiU=;
+        b=rxe5VMWcMy19dFb3wP26/SLnLLsZa3F21WV+Tk5b9CZeE1xN8k69ZWhFbGZfSqusAD
+         NitApGESxZS1YyUZXHu3LoUDfwNzdsJVzHS7t6tktejAulWiYrMtLQ3QfZu6sZ2oIwbV
+         Qw0CUCBleVyQ/npHC7ZADzs7hSLu/1JInPpKilAiGbqZm1/nXiItYQyOwhJrbaiasigd
+         gxd6qZ5A1f+nVdlAov08C+B4gGJYb1YyWv23r4XUufeRYok0ke5lFDeG7cJnfEXzD5Dx
+         NoOyyj2THDYrygy8PJf4fGJt8IglKNFcCb3itgYMkZEdvbenA5JGGf5OsQASyT75FDns
+         E0rA==
+X-Gm-Message-State: APjAAAXsLn2F8zI1jSBvNRf0k4V658bUBOZZUuW7L9VF4fGy2wJnmzqN
+	jp3tK3JBt4VIgjBxk1QH+rG6tmKQukicpzdo/+SrSI/Nkm0GcaN42aI301QfzuY1C08j91ZUbaq
+	Wyc3ppvj2KYRqeb3W6kaUxNPUDXYuSfDBQ81kw4XpwMPTu1kJ0MYC2aF9AUZn2CXlnA==
+X-Received: by 2002:a63:4f07:: with SMTP id d7mr4424133pgb.77.1559741845358;
+        Wed, 05 Jun 2019 06:37:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz4bB9YQuA8v/7AJsIX9aMv8pP0blcsKKtvRUA39dmpOIXD26diG0JHIMribfsdhotQSrVp
+X-Received: by 2002:a63:4f07:: with SMTP id d7mr4424047pgb.77.1559741844462;
+        Wed, 05 Jun 2019 06:37:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559741844; cv=none;
         d=google.com; s=arc-20160816;
-        b=ENEg3e1+1qnzUx7lxoU+PaN6NlGAZpTgBTsUOchV4apuYQLT0ed6ivFjoDLG6P2ZUZ
-         3RNp8vxPxPWmuVqXy5/VP+SmilZx82uOWSPaTaYREX7AaRFI7rMv1XKsmqy5N1fbzhd0
-         I1yoFJJ4dnbir9fyiftpRUjE9jckLDzqjmLnezRBmtuX/MarxyzJiqQR915Y/j8WK9Gg
-         Pr497KhqtBjggGI84V+1fJUnGHXe/M4tNoys/elFpxeSB4eFotFaLLb4hUELHAQwMCGs
-         IdFiDFMXCKcLWQaVX+0W//y30kfeBCtjvvF2JfxMOZ8RlHn82UDde6HejZP5rve3Og9U
-         xkUw==
+        b=sOjJicTt6i4H39+FDZBfgtXTKoUvMW4GU+ssb9nx/jWe0I97lbMjSzQmt07IcyB7JD
+         vrAOG3IyGQCOTp3/pWElQwK1BhVqSbPOD4Y9nRxslBJ9NWyGDwFFfBucG9Yt5t1bVp7Y
+         UGWzsdWw70XnW1igYKOjXbgbES8Z1ygtUxNvCKnm937N4dcFEG5iwzkaAORSphC46xI1
+         5V6B6W6AXEHFPXhgZjCsOyefoD2jGSFQRtqJTGdon60xyWiHfsF3X+Myr4pCXUy2eY0U
+         r0eHNpuZKLbI4+ZuJCbOcBoDv9bRvNkGVW+dw+Lxu9dFYMjZCPfUAaCyvpbhVtR/T3bX
+         I5Ag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=8UF6IKh1oi+AJKntkp2Avzsj99+2nJ602b//xWwwYMo=;
-        b=qiJwSfJiQq6sCmBX1nC9LZfazHLo3o2Yg9/RG9e2VoKDrzzg9GWujla5+r5eP+7Xlp
-         Tpl1knIQJLNBA9YVQ8A3BXMqIib5UXlB6Cu0/lOPFmslyuf6JCJvP8GT+bxL07FGw74P
-         BtgHZ5r3SDxOAnZBdDyy5aAeF9/046sMVnlEy0W4Eln3sXIzKFEaz76ZpBsVu2N/Eral
-         sELE6vWxT74OLscR0o2MOjzBqWNRkYHz3jemRe/fHkHBebRaEhHUP55yGXb3xW4Zcm5o
-         eKHqf2srQBrrcXFINiH2MovVqbPUOP+UElRKjfEX6CCcS6RQrLwQq7C3Ao4mLBiq6KOu
-         2w7A==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=u+zLCba4ifvorqHECxdb8NWOVORyLACPhu1rUxGfaiU=;
+        b=YQJZxUO1902D89tiavA2LqAWRBtI/+SaYC1XL2tZcA9EwA6kn862fZM6f5nHaeCvTu
+         BO+LIjy3j2oExMFiZEoRzf5cYK3OvZeYsbi1xcTN1kyTEpq4vQODg+ZyudUpLpJTGhd8
+         T9MCuvVpbMirbOidkO66gzufzoHN8YQNfudU5xw9F+AgffIBDXQsoE/wsQ4WgtAGHw5g
+         SD9/y4NOZ9KE0v/kh9s2OOEPfWUvTqX6za8s+PByaV+bBzS1jPykHTSKVVruRJBMYT1a
+         8F1YnivAgHaUtKtlG3iuwMXMBaMMKBsPjaHov08PBcMfSBLFvHCWJoTNLk/2nfD3IqZg
+         oEjw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p19sor3623630wre.45.2019.06.05.06.27.30
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="04/ccSPI";
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id d10si26040888plr.307.2019.06.05.06.37.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 05 Jun 2019 06:27:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Jun 2019 06:37:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqzO7CgrYTcvyVtelP3nLeZ+Ekw3IsfgEuQ6as9WNjO7Znl9iRR9QfVOYT+MaOhBlZ3QYIBaSg==
-X-Received: by 2002:adf:e4d2:: with SMTP id v18mr10605225wrm.189.1559741250343;
-        Wed, 05 Jun 2019 06:27:30 -0700 (PDT)
-Received: from localhost (nat-pool-brq-t.redhat.com. [213.175.37.10])
-        by smtp.gmail.com with ESMTPSA id u205sm24193031wmu.47.2019.06.05.06.27.29
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 05 Jun 2019 06:27:29 -0700 (PDT)
-Date: Wed, 5 Jun 2019 15:27:28 +0200
-From: Oleksandr Natalenko <oleksandr@redhat.com>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>, jannh@google.com,
-	oleg@redhat.com, christian@brauner.io, hdanton@sina.com
-Subject: Re: [RFCv2 4/6] mm: factor out madvise's core functionality
-Message-ID: <20190605132728.mihzzw7galqjf5uz@butterfly.localdomain>
-References: <20190531064313.193437-1-minchan@kernel.org>
- <20190531064313.193437-5-minchan@kernel.org>
- <20190531070420.m7sxybbzzayig44o@butterfly.localdomain>
- <20190531131226.GA195463@google.com>
- <20190531143545.jwmgzaigd4rbw2wy@butterfly.localdomain>
- <20190531232959.GC248371@google.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="04/ccSPI";
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55DTE1i119488;
+	Wed, 5 Jun 2019 13:37:09 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
+ subject : date : message-id : in-reply-to : references : mime-version :
+ content-transfer-encoding; s=corp-2018-07-02;
+ bh=u+zLCba4ifvorqHECxdb8NWOVORyLACPhu1rUxGfaiU=;
+ b=04/ccSPIDB9rw0yaqtcHi0KxfYmVhroln6GrxIIJzj+KGMwFDFX7hLTbB5o3fTLxBF89
+ f6L2rcGShr+HLDMtx402CIThkjTlkqOfuo5U4Vd+MJrso7BezPsVTOmqkth7JJQ+RTEc
+ kb14qh1piCluKWghlyGA2hLFa4230l30Vnc3+2m6xnNZIVg07MSAiWxocE7bA/4j0m0+
+ TK9uMGn+1S+nIxB5mvY6N/WRTOKYBwl3FYzT/tWQhVUECUikgTVXITWKP/BEzEeEU74+
+ 6ZJYd4KTUVHwSCKtYk7FLDVi+4/BwJsFLksq3zUNl7MKDZf0qHnUIp/9vO+eJvVWqjYF RA== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by userp2130.oracle.com with ESMTP id 2sugstjn49-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 05 Jun 2019 13:37:09 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55DZsPL069366;
+	Wed, 5 Jun 2019 13:37:09 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3020.oracle.com with ESMTP id 2swnghw2j9-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 05 Jun 2019 13:37:08 +0000
+Received: from abhmp0001.oracle.com (abhmp0001.oracle.com [141.146.116.7])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x55Db0GP027121;
+	Wed, 5 Jun 2019 13:37:01 GMT
+Received: from localhost.localdomain (/73.60.114.248)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 05 Jun 2019 06:37:00 -0700
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+To: hannes@cmpxchg.org, jiangshanlai@gmail.com, lizefan@huawei.com,
+        tj@kernel.org
+Cc: bsd@redhat.com, dan.j.williams@intel.com, daniel.m.jordan@oracle.com,
+        dave.hansen@intel.com, juri.lelli@redhat.com, mhocko@kernel.org,
+        peterz@infradead.org, steven.sistare@oracle.com, tglx@linutronix.de,
+        tom.hromatka@oracle.com, vdavydov.dev@gmail.com,
+        cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
+        linux-mm@kvack.org
+Subject: [RFC v2 1/5] cgroup: add cgroup v2 interfaces to migrate kernel threads
+Date: Wed,  5 Jun 2019 09:36:46 -0400
+Message-Id: <20190605133650.28545-2-daniel.m.jordan@oracle.com>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190605133650.28545-1-daniel.m.jordan@oracle.com>
+References: <20190605133650.28545-1-daniel.m.jordan@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190531232959.GC248371@google.com>
-User-Agent: NeoMutt/20180716
+Content-Transfer-Encoding: 8bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9278 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=870
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1906050087
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9278 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=902 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906050087
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+Prepare for cgroup aware workqueues by introducing cgroup_attach_kthread
+and a helper cgroup_attach_kthread_to_dfl_root.
 
-On Sat, Jun 01, 2019 at 08:29:59AM +0900, Minchan Kim wrote:
-> > > > > /* snip a lot */
-> > > > >
-> > > > >  #ifdef CONFIG_MEMORY_FAILURE
-> > > > >  	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
-> > > > > -		return madvise_inject_error(behavior, start, start + len_in);
-> > > > > +		return madvise_inject_error(behavior,
-> > > > > +					start, start + len_in);
-> > > > 
-> > > > Not sure what this change is about except changing the line length.
-> > > > Note, madvise_inject_error() still operates on "current" through
-> > > > get_user_pages_fast() and gup_pgd_range(), but that was not changed
-> > > > here. I Know you've filtered out this hint later, so technically this
-> > > > is not an issue, but, maybe, this needs some attention too since we've
-> > > > already spotted it?
-> > > 
-> > > It is leftover I had done. I actually modified it to handle remote
-> > > task but changed my mind not to fix it because process_madvise
-> > > will not support it at this moment. I'm not sure it's a good idea
-> > > to change it for *might-be-done-in-future* at this moment even though
-> > > we have spotted.
-> > 
-> > I'd expect to have at least some comments in code on why other hints
-> > are disabled, so if we already know some shortcomings, this information
-> > would not be lost.
-> 
-> Okay, I will add some comment but do not want to fix code piece until
-> someone want to expose the poisoning to external process.
+A workqueue worker will always migrate itself, so for now use @current
+in the interfaces to avoid handling task references.
 
-Fair enough.
+Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+---
+ include/linux/cgroup.h |  6 ++++++
+ kernel/cgroup/cgroup.c | 48 +++++++++++++++++++++++++++++++++++++-----
+ 2 files changed, 49 insertions(+), 5 deletions(-)
 
-> > > > >  	write = madvise_need_mmap_write(behavior);
-> > > > >  	if (write) {
-> > > > > -		if (down_write_killable(&current->mm->mmap_sem))
-> > > > > +		if (down_write_killable(&mm->mmap_sem))
-> > > > >  			return -EINTR;
-> > > > 
-> > > > Do you still need that trick with mmget_still_valid() here?
-> > > > Something like:
-> > > 
-> > > Since MADV_COLD|PAGEOUT doesn't change address space layout or
-> > > vma->vm_flags, technically, we don't need it if I understand
-> > > correctly. Right?
-> > 
-> > I'd expect so, yes. But.
-> > 
-> > Since we want this interface to be universal and to be able to cover
-> > various needs, and since my initial intention with working in this
-> > direction involved KSM, I'd ask you to enable KSM hints too, and once
-> > (and if) that happens, the work there is done under write lock, and
-> > you'll need this trick to be applied.
-> > 
-> > Of course, I can do that myself later in a subsequent patch series once
-> > (and, again, if) your series is merged, but, maybe, we can cover this
-> > already especially given the fact that KSM hinting is a relatively easy
-> > task in this pile. I did some preliminary tests with it, and so far no
-> > dragons have started to roar.
-> 
-> Then, do you mind sending a patch based upon this series to expose
-> MADV_MERGEABLE to process_madvise? It will have the right description
-> why you want to have such feature which I couldn't provide since I don't
-> have enough material to write the motivation. And the patch also could
-> include the logic to prevent coredump race, which is more proper since
-> finally we need to hold mmap_sem write-side lock, finally.
-> I will pick it up and will rebase since then.
-
-Sure, I can. Would you really like to have it being based on this exact
-revision, or I should wait till you deal with MADV_COLD & Co and re-iterate
-this part again?
-
-Thanks.
-
+diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
+index 81f58b4a5418..ad78784e3692 100644
+--- a/include/linux/cgroup.h
++++ b/include/linux/cgroup.h
+@@ -103,6 +103,7 @@ struct cgroup_subsys_state *css_tryget_online_from_dir(struct dentry *dentry,
+ struct cgroup *cgroup_get_from_path(const char *path);
+ struct cgroup *cgroup_get_from_fd(int fd);
+ 
++int cgroup_attach_kthread(struct cgroup *dst_cgrp);
+ int cgroup_attach_task_all(struct task_struct *from, struct task_struct *);
+ int cgroup_transfer_tasks(struct cgroup *to, struct cgroup *from);
+ 
+@@ -530,6 +531,11 @@ static inline struct cgroup *task_dfl_cgroup(struct task_struct *task)
+ 	return task_css_set(task)->dfl_cgrp;
+ }
+ 
++static inline int cgroup_attach_kthread_to_dfl_root(void)
++{
++	return cgroup_attach_kthread(&cgrp_dfl_root.cgrp);
++}
++
+ static inline struct cgroup *cgroup_parent(struct cgroup *cgrp)
+ {
+ 	struct cgroup_subsys_state *parent_css = cgrp->self.parent;
+diff --git a/kernel/cgroup/cgroup.c b/kernel/cgroup/cgroup.c
+index 3f2b4bde0f9c..bc8d6a2e529f 100644
+--- a/kernel/cgroup/cgroup.c
++++ b/kernel/cgroup/cgroup.c
+@@ -2771,21 +2771,59 @@ struct task_struct *cgroup_procs_write_start(char *buf, bool threadgroup)
+ 	return tsk;
+ }
+ 
+-void cgroup_procs_write_finish(struct task_struct *task)
+-	__releases(&cgroup_threadgroup_rwsem)
++static void __cgroup_procs_write_finish(struct task_struct *task)
+ {
+ 	struct cgroup_subsys *ss;
+ 	int ssid;
+ 
+-	/* release reference from cgroup_procs_write_start() */
+-	put_task_struct(task);
++	lockdep_assert_held(&cgroup_mutex);
+ 
+-	percpu_up_write(&cgroup_threadgroup_rwsem);
+ 	for_each_subsys(ss, ssid)
+ 		if (ss->post_attach)
+ 			ss->post_attach();
+ }
+ 
++void cgroup_procs_write_finish(struct task_struct *task)
++	__releases(&cgroup_threadgroup_rwsem)
++{
++	lockdep_assert_held(&cgroup_mutex);
++
++	/* release reference from cgroup_procs_write_start() */
++	put_task_struct(task);
++
++	percpu_up_write(&cgroup_threadgroup_rwsem);
++	__cgroup_procs_write_finish(task);
++}
++
++/**
++ * cgroup_attach_kthread - attach the current kernel thread to a cgroup
++ * @dst_cgrp: the cgroup to attach to
++ *
++ * The caller is responsible for ensuring @dst_cgrp is valid until this
++ * function returns.
++ *
++ * Return: 0 on success or negative error code.
++ */
++int cgroup_attach_kthread(struct cgroup *dst_cgrp)
++{
++	int ret;
++
++	if (WARN_ON_ONCE(!(current->flags & PF_KTHREAD)))
++		return -EINVAL;
++
++	mutex_lock(&cgroup_mutex);
++
++	percpu_down_write(&cgroup_threadgroup_rwsem);
++	ret = cgroup_attach_task(dst_cgrp, current, false);
++	percpu_up_write(&cgroup_threadgroup_rwsem);
++
++	__cgroup_procs_write_finish(current);
++
++	mutex_unlock(&cgroup_mutex);
++
++	return ret;
++}
++
+ static void cgroup_print_ss_mask(struct seq_file *seq, u16 ss_mask)
+ {
+ 	struct cgroup_subsys *ss;
 -- 
-  Best regards,
-    Oleksandr Natalenko (post-factum)
-    Senior Software Maintenance Engineer
+2.21.0
 
