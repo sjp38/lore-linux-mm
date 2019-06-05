@@ -2,129 +2,191 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA104C28CC5
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 15:55:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F76AC28CC5
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 16:05:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8E903206C3
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 15:55:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 02BF5206C3
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 16:05:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="HDBAVMTy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E903206C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="RwobizMb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02BF5206C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E07B46B000E; Wed,  5 Jun 2019 11:55:15 -0400 (EDT)
+	id 65E756B0266; Wed,  5 Jun 2019 12:05:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DB9266B0010; Wed,  5 Jun 2019 11:55:15 -0400 (EDT)
+	id 610146B0269; Wed,  5 Jun 2019 12:05:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA6DD6B0266; Wed,  5 Jun 2019 11:55:15 -0400 (EDT)
+	id 4D6FC6B026A; Wed,  5 Jun 2019 12:05:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DB896B000E
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 11:55:15 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id f9so19025711pfn.6
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 08:55:15 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 16EEF6B0266
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 12:05:31 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id d7so18990134pfq.15
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 09:05:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=2DfKoTbUkHhuP2+XX+gOP/GXMo98uk4f8Hq+Sd8x/uU=;
-        b=kL9ZQJZkM7/XF5QnU1oNvqqwvYSo/e5ACvBJnjkm64ASaY2Ks7BsEupZUc6lg+D235
-         N6Xnco2f/3J2WJY0mGJSUZFupQXErF1OVLNIOHfiwNreic/689+cz6Tf6/UucHJXc5P9
-         IdF/P6mgzvUbGbHRHijQ+KoHVZlwEPFmO8gW9IFyi2IIFii0FxC4D9ceQpsEux6GGTO/
-         f4sD8b+Sg0FCyLbntIm1aeEiyqhBe/TE6VMGZ2oIolAkF7Vge5uHTgUBTWdiOrKos7NI
-         4x+puLwcFAqqPQ3E9iAYe3Ewyu1VIVLAqFG5NlBD1dGMnebkEp8VFdjMOTr6mQeacnJz
-         jwbA==
-X-Gm-Message-State: APjAAAWrp799xFAPPFKIDGEMT81yWhws9oehdWbrV/FnlEYx8hdcOkMy
-	bsFkWqHfBZXhpDXPpbB8rcwswQDJFMLSqPktx/msUrSjZ5Nld3kl4FnxGV+A5k8KCOiNE6winDl
-	5kNXg/ewM8TUvYFm/pIIiAZ63VpRHAHgWNr73ZLAYPSSVA2ND1csQ/2J07OkYtW1oVQ==
-X-Received: by 2002:a65:5004:: with SMTP id f4mr5555972pgo.268.1559750115101;
-        Wed, 05 Jun 2019 08:55:15 -0700 (PDT)
-X-Received: by 2002:a65:5004:: with SMTP id f4mr5555848pgo.268.1559750113945;
-        Wed, 05 Jun 2019 08:55:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559750113; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=1vdDqwlpsmUpFZr2sH68Dl3KCcVcT+dZOWpsdlqCuuk=;
+        b=GYyhKxIX9K0a34JbsmfE1jm70vWLKTXIKgGobIbZmTA9CDDgFX3T1W7BYwFxqcdtT1
+         JFu51jJuqxtR1893gi+NVpI7B7xvcb/JGDxPtF3gTx9F9okFt4CscGqk0WS0qDapVEqK
+         Hbjr9k6OliNbovm3ejovkijdsNjcFxtAwudXXPg5UoGFNs8H7W2aORiiTV99zQ7vX9tW
+         Bvx+gqoxWDCIeB4DOU149kRASCgwAPTWzqX1LnQKAYW1avO8Hbn8x/73HhEFcY8Ae/iV
+         XOuRkaiLdacLntaN+FByKutw6ywFLBFFAaCpB4FgGmxLq2aWlNdtnnw1kXABa+H5GojX
+         gSGw==
+X-Gm-Message-State: APjAAAXQGhbHakN+561DnADr9zBej56nH8DCjjNx8/dLX6JZqDeOPMOs
+	SIyPBXabMKjCJ7Z9odvLuhXUQxy8o+8GmbxH28tdd6Onh0Hl2YLRDTNDJ9+JLvkU3dCF12BVGzH
+	V6U5nD7hKWPX5MLpJphDlhQaDKM8Sixtk/Qo1fwUgFKI5bInCcaf4p0j39kaWnZzA1g==
+X-Received: by 2002:aa7:942f:: with SMTP id y15mr48118748pfo.121.1559750730728;
+        Wed, 05 Jun 2019 09:05:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxBQWpwu021JP5FjZpvBZBNaeZf/cZzPCd7E5jv7IQIf2Mj3GT9bXCoXzig8dybbJ91DTwM
+X-Received: by 2002:aa7:942f:: with SMTP id y15mr48118645pfo.121.1559750729944;
+        Wed, 05 Jun 2019 09:05:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559750729; cv=none;
         d=google.com; s=arc-20160816;
-        b=066+J1bHPfeOwZE8XfcWLl12Keip7eywufPev9ElxIkNB8JiVQsM9alyVgwUYWp2yQ
-         3m7AVLZ62huUFVgTGyCcLZaYhTi8tndbrWAP9UcFZ+laOz9nMhT+ZUbM8pBmqxNzQSX/
-         834lKBsyP5Th8e6+8nzQQ8TvMSVjOTOmJsnrq3p+7Gfsz0ixgTI185qYkkfwr40Itrr/
-         KGPbLFv+AR+ayMdFjOM+2qcfln2fvDvYLDj6UL+7S/1C7uT3TM5SfEwpWf6WZtKC004H
-         l8osIhZYbHL1aFfO4BUYos/JG5B91fIFTY7wIZHHnbEmdDLEmqcCJJCFmEE+F8mKobHr
-         mVmg==
+        b=AsH5hj8DpBopS/CNdyB8m8roRQUklt/C+OQa3w107Mu69A2CXe7duPmI15ex72nxF3
+         EkutnOm2A1AAVevLPW2tx9WnFrcy3hNkuZ61mW1mjAUq0PXEQZkQkP/BL+3Y4wpH6zzH
+         +IeLb3GEOSHWZk/mErwlhiUfSUdYUEZzOZ2Uo8JzbbHIs0+03akLaKVk1p7q57KeWg0m
+         MPCgikgRtfrGazv8tiFhj3EI7XgCP8A1RIXiSHF1+KJNGPDxTjiBMWYVhoOcs4sUI10j
+         ZUwY/HgqDz+Wz0aKzef/VtkdlJ3Hhki7pNZHwKSNngQY4SFGZAKDSiAXwYa7ZYK4+Tpl
+         IU/g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=2DfKoTbUkHhuP2+XX+gOP/GXMo98uk4f8Hq+Sd8x/uU=;
-        b=DiC+2ecqEuUdmbsp8MbcASCXYdnZqj0AuMf95pwnfwnUyRY37OeGRksy3cZPjyHF3r
-         75lr58yVi85aeY2GlXsc0CjkRb34DvyZA4Pensi7qKMSHCfPvgB9MyDkPfF0Qehri+Bz
-         k+fIaCWF6EBiT/XqjyOIz95IWj80L3EKAzKJ829T3FIa7Blx7LxEXEY99Gr1JslI4ByZ
-         3ibBf2kl96PDzbyxQE2Cl9gN+wOm9Vc3HlFanLJTJZVTfEN9kz/uf0qwoJo1vCkGRfne
-         4ACLxBMbukyPvNz2LM9sFE4W6hr5RvBUUKh/d897wj0FTfeF81iDdqaUifpOfdMTRCou
-         /F/w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=1vdDqwlpsmUpFZr2sH68Dl3KCcVcT+dZOWpsdlqCuuk=;
+        b=cHEuMEJPKJXuKNza8G5iYrT9m3pwpvYyPMsux4QDfxtOlo5bNth0WWxnzKrfthAefk
+         bEhYcXAVe1ZxlWh1J3q1e9ZqX9OmIH/A7BXppcrARsUxJamgMDL3btQ8gRyl73U3KlZK
+         sQ/YcgTQGxJ1781Q0kg4l69CvBWWeOsbQ/X9LR8oIb/XKu8oNoJsMq55QbTf2r0FNgiO
+         4hFu3xidIByWnYmpmpfuhiw1VcZD9jhAwI2TAVgOXrL83lM3KQyR1T3i2TqtViz3SuRW
+         bBfQT35AW4j27qioUJKL+X8oA4jkxI1dYVmpK7YymzT7wKCo68eLcG3so8Cd7iFHcMaT
+         Rdew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HDBAVMTy;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id x9sor25321303pjt.18.2019.06.05.08.55.13
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=RwobizMb;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id r25si22600121pga.294.2019.06.05.09.05.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 05 Jun 2019 08:55:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=HDBAVMTy;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=2DfKoTbUkHhuP2+XX+gOP/GXMo98uk4f8Hq+Sd8x/uU=;
-        b=HDBAVMTypXAZfR0duFmc4K1/93WlRwCVC+qISQ4GY2eJDWVecH5SDn/57rnesLcZRd
-         Kqg4hHsMQ3VWgqL7eKCXp1f6Akskuui4UhGUmL9tRGFdrc25dsbksl+JTm2B9lOesyAZ
-         mc0UmHCtbrTRjiGsHNbLd7G04dYKCZ0VfBxdUcUjAeDB4WxhGWhvdxdF2shqaZSXZ/B6
-         T3+GcnMHZvdxzpXxVR330vE5tpbSk4bNXFlPssK/g+tlmA1+itYttxcOQVxVPk4NOEXh
-         PQF8Auo4KoPHyHQFTNRt840Hu6I6IhGjHYNzi53ce+MZPmvKE94Vt0mIYhDwBQUdbw3V
-         0UWg==
-X-Google-Smtp-Source: APXvYqxpR5cEgDtmltAvYZ9AqYKidTDaDzzZM1TzdDM3zyq2rPE0LI3y59r5zJCpopq1OyFELGS5xw==
-X-Received: by 2002:a17:90a:338e:: with SMTP id n14mr43932679pjb.35.1559750113484;
-        Wed, 05 Jun 2019 08:55:13 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([2401:4900:2714:c5a9:f4d2:57f9:5d08:5667])
-        by smtp.gmail.com with ESMTPSA id 26sm4625351pfi.147.2019.06.05.08.55.08
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 08:55:12 -0700 (PDT)
-Date: Wed, 5 Jun 2019 21:25:01 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com,
-	khalid.aziz@oracle.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm: Remove VM_BUG_ON in __alloc_pages_node
-Message-ID: <20190605155501.GA5786@bharath12345-Inspiron-5559>
-References: <20190605060229.GA9468@bharath12345-Inspiron-5559>
- <20190605070312.GB15685@dhcp22.suse.cz>
- <20190605130727.GA25529@bharath12345-Inspiron-5559>
- <20190605142246.GH15685@dhcp22.suse.cz>
+        Wed, 05 Jun 2019 09:05:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=RwobizMb;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55FxDiW087274;
+	Wed, 5 Jun 2019 16:05:25 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=1vdDqwlpsmUpFZr2sH68Dl3KCcVcT+dZOWpsdlqCuuk=;
+ b=RwobizMb+qO6Ig04WCxpayxl+qZzJtAGKgx+NxYcyWIUmpDmSWlDwyar655Jr4coh3/N
+ hy1cFArG3e41Hst86GQWrpoAqTGLpd8oQYf3MjOxh4OE9E/M+3wY1cLgyLavvAMonD/K
+ MTVZQsWsJ8Xud7KaYm3ycIibo/9e6o83Jo0RR/rkGAZWq72oGeRTdvKzbBdox4tzuoyN
+ SPRlD8dODPNEgLldfmZYbOsVOpjtDzxWW7hZWCVNxG6AgdEzfQQ+sbK/r7cbAc89120B
+ B8iiLZQtk1GD5DhfgF/sgHtZgoTxaXAwLrm8QEl2gjFVxad/y4O760iuoZzrkLc1X1XP Ag== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by aserp2130.oracle.com with ESMTP id 2suevdkwdc-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 05 Jun 2019 16:05:24 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55G52pL055753;
+	Wed, 5 Jun 2019 16:05:24 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by userp3030.oracle.com with ESMTP id 2swngm15yj-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 05 Jun 2019 16:05:24 +0000
+Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x55G5MMO007220;
+	Wed, 5 Jun 2019 16:05:22 GMT
+Received: from [192.168.1.222] (/71.63.128.209)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 05 Jun 2019 09:05:22 -0700
+Subject: Re: question: should_compact_retry limit
+To: Vlastimil Babka <vbabka@suse.cz>,
+        "linux-mm@kvack.org"
+ <linux-mm@kvack.org>,
+        linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+References: <6377c199-2b9e-e30d-a068-c304d8a3f706@oracle.com>
+ <908c1454-6ae5-87ca-c6a5-e542fbafa866@suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <3bc00340-1e81-4f08-37f8-28388b7fba3b@oracle.com>
+Date: Wed, 5 Jun 2019 09:05:21 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190605142246.GH15685@dhcp22.suse.cz>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <908c1454-6ae5-87ca-c6a5-e542fbafa866@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9279 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1906050100
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9279 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906050100
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-IMO the reason why a lot of failures must not have occured in the past
-might be because the programs which use it use stuff like cpu_to_node or
-have checks for nid.
-If one day we do get a program which passes an invalid node id without
-VM_BUG_ON enabled, it might get weird.
+On 6/5/19 12:58 AM, Vlastimil Babka wrote:
+> On 6/5/19 1:30 AM, Mike Kravetz wrote:
+>> While looking at some really long hugetlb page allocation times, I noticed
+>> instances where should_compact_retry() was returning true more often that
+>> I expected.  In one allocation attempt, it returned true 765668 times in a
+>> row.  To me, this was unexpected because of the following:
+>>
+>> #define MAX_COMPACT_RETRIES 16
+>> int max_retries = MAX_COMPACT_RETRIES;
+>>
+>> However, if should_compact_retry() returns true via the following path we
+>> do not increase the retry count.
+>>
+>> 	/*
+>> 	 * make sure the compaction wasn't deferred or didn't bail out early
+>> 	 * due to locks contention before we declare that we should give up.
+>> 	 * But do not retry if the given zonelist is not suitable for
+>> 	 * compaction.
+>> 	 */
+>> 	if (compaction_withdrawn(compact_result)) {
+>> 		ret = compaction_zonelist_suitable(ac, order, alloc_flags);
+>> 		goto out;
+>> 	}
+>>
+>> Just curious, is this intentional?
+> 
+> Hmm I guess we didn't expect compaction_withdrawn() to be so
+> consistently returned. Do you know what value of compact_result is there
+> in your test?
+
+Added some instrumentation to record values and ran test,
+
+557904 Total
+
+549186 COMPACT_DEFERRED
+  8718 COMPACT_PARTIAL_SKIPPED
+
+Do note that this is not my biggest problem with these allocations.  That is
+should_continue_reclaim returning true more often that in should.  Still
+trying to get more info on that.  This was just something curious I also
+discovered.
+-- 
+Mike Kravetz
 
