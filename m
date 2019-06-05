@@ -2,94 +2,94 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 97CDEC28CC5
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 08:58:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3254FC282DE
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 09:01:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 50B2E2075C
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 08:58:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50B2E2075C
+	by mail.kernel.org (Postfix) with ESMTP id E1FC32075C
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 09:01:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1FC32075C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DE2326B0008; Wed,  5 Jun 2019 04:58:52 -0400 (EDT)
+	id 7288D6B0008; Wed,  5 Jun 2019 05:01:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D92DB6B000A; Wed,  5 Jun 2019 04:58:52 -0400 (EDT)
+	id 6D9A96B000A; Wed,  5 Jun 2019 05:01:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C59AE6B000C; Wed,  5 Jun 2019 04:58:52 -0400 (EDT)
+	id 5A2F26B000C; Wed,  5 Jun 2019 05:01:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A575B6B0008
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 04:58:52 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id q13so9328750qtj.15
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 01:58:52 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 38D7B6B0008
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 05:01:04 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id w184so5960549qka.15
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 02:01:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=cLIZ/ljclXWMpVGqRisKX6seLgSUGyAJbPYt6glwvHk=;
-        b=mc197g2dS8f0OMIoTniXxlx2Jvh4+NnXGYwSNmvRKUPNG5sdzyKwWIus7AWXIH2WCq
-         eoN1/5eAKr5ZbhI3Ja5unFkpRvqUS3qhPKn4AMVtfar85v/4DspAd1HEXKd8Ye0EbRJS
-         2sNBqlzxa6DxSDPxoiqQrLJYN/SRtw7GxoktKHfjQBewF6cYMyma6UaqElWBRe837jAf
-         4GX/QxwP2vH+8HTC63QwFP6WgSWJPT8dw7lDgBidOyvvWlJy/PIjeXmuqo+9BUErLOqV
-         brgvVLJ6FAuL795PmKV/Nwx+WgJx8wDlfZrUEkSGhxTIqZaFK6VxwEiEuXxz8Yd5Lswc
-         oj6w==
+        bh=1S3h02Wt9Ql/6FcYF2YgKT0Aqb2sOu0OOilZ8jc3BV4=;
+        b=B6AEO64XJrfCIfIVBVXT8lufhZqDyZOxU9nanKG7kXa/EN+VR5NXt5j9a2n3VAdYce
+         6SOa3JZtKQnFjI0MwJ4HlUoZNIcxChKtUT2R/HX9LeiYdwB4VAo8x40OJKLYxN1HJaHH
+         GFPWGACMw7LQ+sHwCT/5SPNzMMqLyh2yH3kviNZEHAzo1XkkYx1gm5p4hmIIulYb4TlA
+         SYOGHL826Fy1NWPX3Q9ZHjszECE8AyPXud0p1tXjKDcy+n2CkPOdsu/bsJa0Q5URkS9G
+         aYkCJFLw2GdSxkzdg7M6VTKdRUun+sUpOtwwZKv2P7VKm9l3Wc7X9btLSbod8AHcruv9
+         9h4A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW/Vv2T4Xshv4ppb+uJvWWW0SvDsqon4Kz3auHScMyVUeWfCxO1
-	rPmjLbBs72VgoLBC3mD/ln1v6XviBjRL6RUrbgFWFBgeIv3vV1xAPIvFjkI2aQKIZjjLL78vG3I
-	Q/FQqSwrQucmSqDfh8bKN8VR2efG1AefOjmZ/F68UZlghiM7rYV/kY+lFKr3BKZOKbw==
-X-Received: by 2002:aed:3bb5:: with SMTP id r50mr31722682qte.89.1559725132388;
-        Wed, 05 Jun 2019 01:58:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzy+HlyiaHcwYPUn0kS8C4QDbTNU5brRwvhE0b48lf5B2O4c24xuNzmPen/trNTz7SkAr+P
-X-Received: by 2002:aed:3bb5:: with SMTP id r50mr31722628qte.89.1559725131482;
-        Wed, 05 Jun 2019 01:58:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559725131; cv=none;
+X-Gm-Message-State: APjAAAUvKEXqJzrsVYL2CDKCmGBXdQH9v6QYBKl++Q1ipS+qUyrQ+91Y
+	DMkRN7yydPGisXoaSLyIEH1ocUXA4BtMiZeh1veLngYqAM5wE/PT9R091T6JsFXlR2tmD/ixei8
+	vzZq9T2I8bQ+GiQN0Ag3zlZREkKnvIv2H5xbDPlz5sAclY06+PByaSfR2yVO9tnnp9Q==
+X-Received: by 2002:ac8:88e:: with SMTP id v14mr32200087qth.214.1559725263996;
+        Wed, 05 Jun 2019 02:01:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzJISWHWPPK8HdCd5IEP7eTteU+TlD/3/WhL51iaKp0VpABdAHv15KggS6Zr0V1xaIrdwuD
+X-Received: by 2002:ac8:88e:: with SMTP id v14mr32200023qth.214.1559725263375;
+        Wed, 05 Jun 2019 02:01:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559725263; cv=none;
         d=google.com; s=arc-20160816;
-        b=gL/kIj8WeFMfn55wELedO1NVkI0KLf/eG0hnNI7HJgDGvGDe7x+589GUusvmFvD+Iy
-         HiaifHUJMX5TQbBEiaDMVeKqyi/o0HehJWAyRnCBZgmQTziCEcsPWLAI+dcOG7YLVc8W
-         MVAu0G/SXW7w/OVl59zbVus7xd4cMZYPdrTeAl4ZTrQSVps5yhb50HU1uncGHGQoIGWM
-         +tcpfSFQRL12TtQunWiUh8DB35MRGISmmTeh8/XfQ7ul5GJJUBcclkjlZocdCpD6ZH13
-         y98pTM/kg6cf8t32IWTm9ZIV2JnOdFeGw4VFQrBMpZb//q1a5LAZJuEBEuwLBCdnintE
-         wDwg==
+        b=c+1/+aLhDHNwt17MMkMLD9d0ZO0VZ6ZKFwjjui+E3igOtI8rvviC3YwNxje6ofwebk
+         BB3dtpKtnETKKihYTTT7Brk7nrmlKT6/wxd4kSzXmBOUXiPBwxH6t6b2WfR7Sezjj+AT
+         6wsf2mp5XPk2zaBd1hidrjn6DkhlTlUPh5lp+giKKJhNRT9g6yOQx9ha6YwgaljpL4XP
+         TGv5+bCoG4kou3EBUtk08SDg31ASPNYucQtqSaaM/hGHzl8w7XQDvsBjJYUsxkFd8pmm
+         FDVfO0q/DNuFY9IEtYqX3YahPfI3NwtBUa7PivFqcrs35MCgRtic22Rl6dwBJntqncT3
+         yv8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=cLIZ/ljclXWMpVGqRisKX6seLgSUGyAJbPYt6glwvHk=;
-        b=S8enVt4F/SHodsz15LtZFX9KAiCQ38MUPbkE6VZ2+FXj5cISx4DxwDdSBPkRblPBg5
-         fL7qKdB0/PBzUIVNaR53eAgXChaABgdF0TqxntqxBXvwWqsz0m4Ufyewq/KycwbAWueG
-         kGtOFDtVxwtRg/yc9K9lcFSc0zz0V2PHvw+2g7ml+uDLVjQT1iyA8zQlbX2ZptVHqskI
-         jhh99ZKNQDXAUNvLQAyPXZLXoMFk+HJBlAwmE9uTVg9Th5uJReVwxeEc1O3nzDUZmUkO
-         6mNfiIkabf0I6L1yGeSnAEMGJDOYBa8cJ8PojLL/8ejxXXpk/Vp4CR8rI10zygz72yKt
-         AAPQ==
+        bh=1S3h02Wt9Ql/6FcYF2YgKT0Aqb2sOu0OOilZ8jc3BV4=;
+        b=PHeL5OR0d8au+aeu4kCvf1TF9HFl7dypz9gf+HISaswQDyo0+uByi8iIWPgbQj52YC
+         N+2IIJ7eCA7WWgdvClFJ3qm5SJ4P0osCswgGo0woqNR4wrUlIKeYbWlVgUq3arVfNNd3
+         8/4t9nPLNz8tV4jxfJ/HN/CYObOBA4i0SbLnMo0JwxHp9HBus1HvTrsNj4lLCDulYcco
+         +Ex9CIMM8+gX+7JEkIqSh62inehSLKVegN5xGurd3XvV5vecgnlW/1OSx/dF5Zq0mWaZ
+         88Jh0UEKLzJMNepjT/f/W+kkCVWZzv6yburbFGBxR4eHBN17iEyNeCs/87dpTV5bcTxd
+         WE/g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c9si2682666qve.116.2019.06.05.01.58.51
+        by mx.google.com with ESMTPS id n48si6960754qtc.312.2019.06.05.02.01.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 01:58:51 -0700 (PDT)
+        Wed, 05 Jun 2019 02:01:03 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9D2A8B0CCB;
-	Wed,  5 Jun 2019 08:58:36 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id E0E3030C0DD6;
+	Wed,  5 Jun 2019 09:00:36 +0000 (UTC)
 Received: from [10.36.118.48] (unknown [10.36.118.48])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 0A8321001E80;
-	Wed,  5 Jun 2019 08:58:26 +0000 (UTC)
-Subject: Re: [PATCH v3 07/11] mm/memory_hotplug: Create memory block devices
- after arch_add_memory()
+	by smtp.corp.redhat.com (Postfix) with ESMTP id C8C0E5C225;
+	Wed,  5 Jun 2019 09:00:29 +0000 (UTC)
+Subject: Re: [PATCH v3 09/11] mm/memory_hotplug: Remove memory block devices
+ before arch_remove_memory()
 To: Wei Yang <richard.weiyang@gmail.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
  linux-ia64@vger.kernel.org, linuxppc-dev@lists.ozlabs.org,
@@ -98,14 +98,18 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
  Dan Williams <dan.j.williams@intel.com>, Igor Mammedov
  <imammedo@redhat.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
  "Rafael J. Wysocki" <rafael@kernel.org>,
- "mike.travis@hpe.com" <mike.travis@hpe.com>, Ingo Molnar <mingo@kernel.org>,
- Andrew Banman <andrew.banman@hpe.com>, Oscar Salvador <osalvador@suse.de>,
- Michal Hocko <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@soleen.com>,
- Qian Cai <cai@lca.pw>, Arun KS <arunks@codeaurora.org>,
+ "mike.travis@hpe.com" <mike.travis@hpe.com>,
+ Andrew Banman <andrew.banman@hpe.com>, Ingo Molnar <mingo@kernel.org>,
+ Alex Deucher <alexander.deucher@amd.com>,
+ "David S. Miller" <davem@davemloft.net>, Mark Brown <broonie@kernel.org>,
+ Chris Wilson <chris@chris-wilson.co.uk>, Oscar Salvador <osalvador@suse.de>,
+ Jonathan Cameron <Jonathan.Cameron@huawei.com>,
+ Michal Hocko <mhocko@suse.com>, Pavel Tatashin
+ <pavel.tatashin@microsoft.com>, Arun KS <arunks@codeaurora.org>,
  Mathieu Malaterre <malat@debian.org>
 References: <20190527111152.16324-1-david@redhat.com>
- <20190527111152.16324-8-david@redhat.com>
- <20190604214234.ltwtkcdoju2gxisx@master>
+ <20190527111152.16324-10-david@redhat.com>
+ <20190604220715.d4d2ctwjk25vd5sq@master>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -152,120 +156,111 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <f6523d67-cac9-1189-884a-67b6829320ba@redhat.com>
-Date: Wed, 5 Jun 2019 10:58:26 +0200
+Message-ID: <38b8b004-9a26-e4ba-d8e3-a41c8fcc51c1@redhat.com>
+Date: Wed, 5 Jun 2019 11:00:28 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190604214234.ltwtkcdoju2gxisx@master>
+In-Reply-To: <20190604220715.d4d2ctwjk25vd5sq@master>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Wed, 05 Jun 2019 08:58:50 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Wed, 05 Jun 2019 09:00:47 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> /*
->>  * For now, we have a linear search to go find the appropriate
->>  * memory_block corresponding to a particular phys_index. If
->> @@ -658,6 +670,11 @@ static int init_memory_block(struct memory_block **memory, int block_id,
->> 	unsigned long start_pfn;
->> 	int ret = 0;
+On 05.06.19 00:07, Wei Yang wrote:
+> On Mon, May 27, 2019 at 01:11:50PM +0200, David Hildenbrand wrote:
+>> Let's factor out removing of memory block devices, which is only
+>> necessary for memory added via add_memory() and friends that created
+>> memory block devices. Remove the devices before calling
+>> arch_remove_memory().
 >>
->> +	mem = find_memory_block_by_id(block_id, NULL);
->> +	if (mem) {
->> +		put_device(&mem->dev);
->> +		return -EEXIST;
->> +	}
-> 
-> find_memory_block_by_id() is not that close to the main idea in this patch.
-> Would it be better to split this part?
-
-I played with that but didn't like the temporary results (e.g. having to
-export find_memory_block_by_id()). I'll stick to this for now.
-
-> 
->> 	mem = kzalloc(sizeof(*mem), GFP_KERNEL);
->> 	if (!mem)
->> 		return -ENOMEM;
->> @@ -699,44 +716,53 @@ static int add_memory_block(int base_section_nr)
->> 	return 0;
+>> This finishes factoring out memory block device handling from
+>> arch_add_memory() and arch_remove_memory().
+>>
+>> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+>> Cc: "Rafael J. Wysocki" <rafael@kernel.org>
+>> Cc: David Hildenbrand <david@redhat.com>
+>> Cc: "mike.travis@hpe.com" <mike.travis@hpe.com>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Andrew Banman <andrew.banman@hpe.com>
+>> Cc: Ingo Molnar <mingo@kernel.org>
+>> Cc: Alex Deucher <alexander.deucher@amd.com>
+>> Cc: "David S. Miller" <davem@davemloft.net>
+>> Cc: Mark Brown <broonie@kernel.org>
+>> Cc: Chris Wilson <chris@chris-wilson.co.uk>
+>> Cc: Oscar Salvador <osalvador@suse.de>
+>> Cc: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> Cc: Pavel Tatashin <pavel.tatashin@microsoft.com>
+>> Cc: Arun KS <arunks@codeaurora.org>
+>> Cc: Mathieu Malaterre <malat@debian.org>
+>> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+>> Signed-off-by: David Hildenbrand <david@redhat.com>
+>> ---
+>> drivers/base/memory.c  | 37 ++++++++++++++++++-------------------
+>> drivers/base/node.c    | 11 ++++++-----
+>> include/linux/memory.h |  2 +-
+>> include/linux/node.h   |  6 ++----
+>> mm/memory_hotplug.c    |  5 +++--
+>> 5 files changed, 30 insertions(+), 31 deletions(-)
+>>
+>> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+>> index 5a0370f0c506..f28efb0bf5c7 100644
+>> --- a/drivers/base/memory.c
+>> +++ b/drivers/base/memory.c
+>> @@ -763,32 +763,31 @@ int create_memory_block_devices(unsigned long start, unsigned long size)
+>> 	return ret;
 >> }
 >>
->> +static void unregister_memory(struct memory_block *memory)
->> +{
->> +	if (WARN_ON_ONCE(memory->dev.bus != &memory_subsys))
->> +		return;
->> +
->> +	/* drop the ref. we got via find_memory_block() */
->> +	put_device(&memory->dev);
->> +	device_unregister(&memory->dev);
->> +}
->> +
->> /*
->> - * need an interface for the VM to add new memory regions,
->> - * but without onlining it.
->> + * Create memory block devices for the given memory area. Start and size
+>> -void unregister_memory_section(struct mem_section *section)
+>> +/*
+>> + * Remove memory block devices for the given memory area. Start and size
 >> + * have to be aligned to memory block granularity. Memory block devices
->> + * will be initialized as offline.
->>  */
->> -int hotplug_memory_register(int nid, struct mem_section *section)
->> +int create_memory_block_devices(unsigned long start, unsigned long size)
+>> + * have to be offline.
+>> + */
+>> +void remove_memory_block_devices(unsigned long start, unsigned long size)
 >> {
->> -	int block_id = base_memory_block_id(__section_nr(section));
->> -	int ret = 0;
 >> +	const int start_block_id = pfn_to_block_id(PFN_DOWN(start));
->> +	int end_block_id = pfn_to_block_id(PFN_DOWN(start + size));
+>> +	const int end_block_id = pfn_to_block_id(PFN_DOWN(start + size));
 >> 	struct memory_block *mem;
->> +	unsigned long block_id;
->> +	int ret = 0;
+>> +	int block_id;
 >>
->> -	mutex_lock(&mem_sysfs_mutex);
+>> -	if (WARN_ON_ONCE(!present_section(section)))
 >> +	if (WARN_ON_ONCE(!IS_ALIGNED(start, memory_block_size_bytes()) ||
 >> +			 !IS_ALIGNED(size, memory_block_size_bytes())))
->> +		return -EINVAL;
+>> 		return;
 >>
+>> 	mutex_lock(&mem_sysfs_mutex);
+>> -
+>> -	/*
+>> -	 * Some users of the memory hotplug do not want/need memblock to
+>> -	 * track all sections. Skip over those.
+>> -	 */
 >> -	mem = find_memory_block(section);
->> -	if (mem) {
->> -		mem->section_count++;
->> -		put_device(&mem->dev);
->> -	} else {
->> +	mutex_lock(&mem_sysfs_mutex);
+>> -	if (!mem)
+>> -		goto out_unlock;
+>> -
+>> -	unregister_mem_sect_under_nodes(mem, __section_nr(section));
+>> -
+>> -	mem->section_count--;
+>> -	if (mem->section_count == 0)
 >> +	for (block_id = start_block_id; block_id != end_block_id; block_id++) {
->> 		ret = init_memory_block(&mem, block_id, MEM_OFFLINE);
->> 		if (ret)
->> -			goto out;
->> -		mem->section_count++;
->> +			break;
->> +		mem->section_count = sections_per_block;
->> +	}
->> +	if (ret) {
->> +		end_block_id = block_id;
->> +		for (block_id = start_block_id; block_id != end_block_id;
->> +		     block_id++) {
->> +			mem = find_memory_block_by_id(block_id, NULL);
->> +			mem->section_count = 0;
->> +			unregister_memory(mem);
->> +		}
->> 	}
+>> +		mem = find_memory_block_by_id(block_id, NULL);
+>> +		if (WARN_ON_ONCE(!mem))
+>> +			continue;
+>> +		mem->section_count = 0;
 > 
-> Would it be better to do this in reverse order?
-> 
-> And unregister_memory() would free mem, so it is still necessary to set
-> section_count to 0?
+> Is this step necessary?
 
-1. I kept the existing behavior (setting it to 0) for now. I am planning
-to eventually remove the section count completely (it could be
-beneficial to detect removing of partially populated memory blocks).
-
-2. Reverse order: We would have to start with "block_id - 1", I don't
-like that better.
-
-Thanks for having a look!
+It's what the previous code does, it might not be - I'll leave it like
+that for now. As mentioned in another reply, I might remove the
+section_count completely, eventually.
 
 -- 
 
