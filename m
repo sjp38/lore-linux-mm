@@ -2,156 +2,153 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 02F5AC28CC5
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:51:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54270C28CC5
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:53:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6670F20866
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:51:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 13C7D20870
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:53:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="1kvyh/lh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6670F20866
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="O84ji0lX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13C7D20870
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 00D036B0003; Wed,  5 Jun 2019 09:51:43 -0400 (EDT)
+	id B2F5C6B000D; Wed,  5 Jun 2019 09:53:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EFFED6B000D; Wed,  5 Jun 2019 09:51:42 -0400 (EDT)
+	id AEAD26B000E; Wed,  5 Jun 2019 09:53:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E15746B000E; Wed,  5 Jun 2019 09:51:42 -0400 (EDT)
+	id 9CD4A6B0010; Wed,  5 Jun 2019 09:53:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 795BE6B0003
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 09:51:42 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id m4so4102706lji.5
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 06:51:42 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 784B16B000D
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 09:53:23 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id 18so6579314qkl.13
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 06:53:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:subject:to:message-id:date
-         :user-agent:mime-version:content-language:content-transfer-encoding;
-        bh=IrflhE8QTVLvAUZbNa4CJKo6kCQj/0hU43yCa3MGsqM=;
-        b=gGTruHZef4juD8ZNzOs2zfUqut9ALR5tNX7pCOTEgjz3Y6bgmzE7sAYzw1HcWOOd7c
-         OZtv56Gmo45qrMfBvBw2a3HHHZwbQdi4EJy1P8ixeGHZPMM/oe80hCFCOBZXN0jFUlFB
-         22xMEuy6X9Zd7plKxp5Md3vxcFtK6GAgCe4I9tlBEuZyHNruqd/LEgU/WyZ0zYL17MY6
-         sgu+4ASs3obqmfhqFgxPyi9ro76/BCEYFuYMScJOoJq8DekJSnVmsvgr/RrNpghK1TXg
-         6gc1aFq+KFZCzHUebxquMevkAkZw+/sw16JNnFCjEMtgB3anAERL6buuG5vrIljthnt5
-         2k/Q==
-X-Gm-Message-State: APjAAAXYeyA+gruf8vSy2DvwncsT0wsamUWkB9T55A/OxV30qKiJhETs
-	hh5eW5XmG8ySudxvxLdWGcuTepTXkqtiZR6V5TGUCIFYT2IGCMP47kUxiRgVSz9KXai9V9rWJqF
-	z703LLSq/A3EL6yjrsERGaoHgvSGc6D0qpc6aJ2GSjPxTfGpOR1jtMI3l7figIiPFoQ==
-X-Received: by 2002:a2e:9e07:: with SMTP id e7mr3265994ljk.55.1559742701580;
-        Wed, 05 Jun 2019 06:51:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzZ+FdTajRNp5NQE+IXuz3u4AflMUBRi7qCc2az7pbjYvqklL+znlaQ9yCVVVejglk2p2K9
-X-Received: by 2002:a2e:9e07:: with SMTP id e7mr3265941ljk.55.1559742700712;
-        Wed, 05 Jun 2019 06:51:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559742700; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=FETSS3J4eD7K515d8ScmcKfF1wyotHso7dwlnNKYVC8=;
+        b=aorF+kVJhEwn+UXKIHNkrmXATlp0urflipmdp0KrnQgk73F1rnAU78bNNWneAoqErd
+         5VAL3yjiTY/YGnILfuneLVy78cLr0yfI+tJounOd1bF77ruT2lKMU5QpeBmaKR5T/bqR
+         lMeLb4+Iy2EWOtNz7os3Cy5bcPywTh1yFKr8myjb5Hg5u4wXUJmmXNYfQ13bAXpsfumq
+         H0ZKNJBQ/44v9a4i/3ZWlBz6efE50Ci1uhm9S3GwpcAzSQ8uk4Wb2/VDJu57HcIQxVIC
+         pNYGtBG81lr571NkqnhxAn0sEu4IXKvoWtVgzAqbvaZdMGIpp1tm8/hK2IgSc+pjrOIv
+         hKig==
+X-Gm-Message-State: APjAAAVw261NWpQtzvaedorYHw7ohvm7GUwjGM7QhRwk3Ktq2yP4dDNf
+	0nglZY97GGFGof/Cwr0VfQiIsUuqiU1u7R9r2DTX3qiWiEWWJoQvTa94j5giXBW2I17XfSrRXO2
+	Qjib7INnn4G9HYMJWbXjgo1gp4IU6Nga/gr+XqYZnzZzcVUVEbBtAg1wVC0j6fLE=
+X-Received: by 2002:a37:9207:: with SMTP id u7mr34138190qkd.357.1559742803223;
+        Wed, 05 Jun 2019 06:53:23 -0700 (PDT)
+X-Received: by 2002:a37:9207:: with SMTP id u7mr34138157qkd.357.1559742802652;
+        Wed, 05 Jun 2019 06:53:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559742802; cv=none;
         d=google.com; s=arc-20160816;
-        b=Roryt0UwRXxliYlNsPQCs7IXY/KZoqb9ReF5RJ4wrnLx7AeZYIKcCgahD8NkHVBaWH
-         KBp3fk0brhoMvIVBbdiIR148E9WwKSqg2zpk9HGL93eHPDh03WDEaro7Qu2jTj7urgLq
-         +Bg7LOchle1Mj8GmT0ds9XA0ku2rw9/Yb5ZNx/ZynYPhtIVGbj5nQrvk1qg1iVT+/a3Z
-         vaZlstUCHLuxt26kVn0ROJUpAgSPifT0ttbzfs1eRrWlrPWkfHfHFDQ+vmwYYHFrG9oq
-         ktGGWTZLUJLcJSgOkJXUcmyHQHtJJ7eonUfJGJy4ybXV6JBxlCJBL/Mz67UlVqUjnFAv
-         8paw==
+        b=ws/zxXz47RC5/atOd7CO+UcXaGrt6FqJhGuubnBhI/I5Ly7Nje61bhYlLLVpNUMIuM
+         7NRicewJcc+Ru5fNeKsLbQFHoo4TBlgeQyiGZhc4OCE3ujhKV1chm41Uv8/EHT+HmOej
+         9NG801v3AXrwJL9r3ERWYw1POvRCkGALtC+DwaBXOmSukJQWIS+fP63jrZqgmnhswCce
+         iSPqxgLXejk4JkZGu+tQu4vEO2rMt0PgpmAkvNlXrcIaL00UT4aHWhlV+CoOhD5hGual
+         cyFmb+MyEdjBP+VZLZo/xWFqYEdr8+lT3RelL1NiBimVk5ZYgWCdjBuqahMKM5Buf52O
+         eutA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:mime-version:user-agent
-         :date:message-id:to:subject:from:dkim-signature;
-        bh=IrflhE8QTVLvAUZbNa4CJKo6kCQj/0hU43yCa3MGsqM=;
-        b=GFrkCoKMZp8S04ImRsgwFlyCV06ws+SEmHpzPmx5g77OMV1g5R31MPnL949eFtbMA5
-         HPf6ouLh5rK80SocP3+O3bp44KXGFlYrKOSgki9nePWZsP17qUG47W2LYUfI9PD6A99q
-         vzdnOspDR69PF3TmbJkOws9jRD8efazkrYIgINDZYIGi3mqvezwu6EhHHmxwz6mrgWau
-         Udnzj3sz4NAMAwT6n+ZN7Mh3zAONYuSVHo6tdDc/yQvmPkZYQ5PLvxQ99KXMjylAKQGo
-         qQnEdM+d1ua9QR8BPLmTHEstK0kwCWFjkAeR5qI4HMyCiQmAotehTFjD73Hf98KHcRZu
-         bonQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=FETSS3J4eD7K515d8ScmcKfF1wyotHso7dwlnNKYVC8=;
+        b=UyxDqruxU6+mMNSJiTRsYyr77HQFRKBh6YPk/jFI3iMfEbxJH4/t68UrABD5ReU9hh
+         1GsKnIUh2O4T5cGeD5+VeyBq0M1J82/APNPW/oJnAnROoWjyj4MRkBDDcHrJOZq5myZu
+         /evRXDQPcwKAMZPrSQxPEzQP6vaTxaEucHb8WejqSPdoF6tG2gG1/wpF2TC3cPZWsmXs
+         SlJQ/RwjcIe1Y5j6MDEV0E1XoZ0pmhrF7s9AddpZDk8hoAjSH1nSBpQ9G8y5Kua8iZhp
+         yZXZ1UFtMlex+TdxW+StoeZAh/55V0NF4aCEKMX17lMn2e0j2/JjqCC+iiupjI7OfLrc
+         H4dw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b="1kvyh/lh";
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1j.mail.yandex.net (forwardcorp1j.mail.yandex.net. [2a02:6b8:0:1619::183])
-        by mx.google.com with ESMTPS id q3si6858965lfp.138.2019.06.05.06.51.40
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=O84ji0lX;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z19sor4573378qki.42.2019.06.05.06.53.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 06:51:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) client-ip=2a02:6b8:0:1619::183;
+        (Google Transport Security);
+        Wed, 05 Jun 2019 06:53:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b="1kvyh/lh";
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp1g.mail.yandex.net (mxbackcorp1g.mail.yandex.net [IPv6:2a02:6b8:0:1402::301])
-	by forwardcorp1j.mail.yandex.net (Yandex) with ESMTP id C8A582E14BE;
-	Wed,  5 Jun 2019 16:51:39 +0300 (MSK)
-Received: from smtpcorp1j.mail.yandex.net (smtpcorp1j.mail.yandex.net [2a02:6b8:0:1619::137])
-	by mxbackcorp1g.mail.yandex.net (nwsmtp/Yandex) with ESMTP id MwaVXp0t7H-pdl8LjvU;
-	Wed, 05 Jun 2019 16:51:39 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1559742699; bh=IrflhE8QTVLvAUZbNa4CJKo6kCQj/0hU43yCa3MGsqM=;
-	h=Date:Message-ID:Subject:From:To;
-	b=1kvyh/lhpIH0gxPMrRkJpnhWUOwZBiojX8U+j69t+cCp3UXkowDoCB+3Yi7BTZR/K
-	 hKRewCaT53bZ5JJnNKzVBI3Ur4nI1X7KYbNo9PNZtq0ETBxEu9QRf5LSPB642Qy9g1
-	 Wt4od409KQVY9xVTJaIq6WiIyV02Pb6cbibgD2yY=
-Authentication-Results: mxbackcorp1g.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:b19a:10ab:8629:85d9])
-	by smtpcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id YZ0kbb9Zza-pde0J8Sd;
-	Wed, 05 Jun 2019 16:51:39 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-X-Mozilla-News-Host: news://news.gmane.org:119
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Subject: [BUG?] without memory pressure negative dentries overpopulate dcache
-To: linux-kernel <linux-kernel@vger.kernel.org>,
- Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm <linux-mm@kvack.org>
-Message-ID: <ff0993a2-9825-304c-6a5b-2e9d4b940032@yandex-team.ru>
-Date: Wed, 5 Jun 2019 16:51:38 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=O84ji0lX;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=FETSS3J4eD7K515d8ScmcKfF1wyotHso7dwlnNKYVC8=;
+        b=O84ji0lXN+RqkutIEaEyEEqQXcFVzeG64E5D+IGzwBJcDRXFIhtWb80kt89787ERae
+         SVgqIrHUOdqzFOWmqqrmY63CyKPgJHTijErg98dUmfPqYT4f200Pa3v2DHmAPP/DgulF
+         7nlCPUR8C5qMCx8d5XN1RqshszE7/VRzXBHkrkM8ioHtBsYqvXGLKiUWOF8TgpJfByAC
+         WxpTcx4EhwfLIK2ozup8V4g1ahyLKPG66YNnH3iOR2HOqHPyAVljLcZGRtEvSJDYYBBK
+         ph5a0gf262q4Ydh7OMHdU6YtIKKeID7muJi8gChJSfg446PN8vB787GwyVShso3Jk9H1
+         cbxQ==
+X-Google-Smtp-Source: APXvYqzgbDsZ1PJ/Ceon86CDXM/qpmDYa498SwcV19QGw1THKkkoAkdv6IOc/u1X7CTxkAGOqabeTg==
+X-Received: by 2002:a37:9ece:: with SMTP id h197mr14387983qke.50.1559742802150;
+        Wed, 05 Jun 2019 06:53:22 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::1:c027])
+        by smtp.gmail.com with ESMTPSA id l3sm10177469qkd.49.2019.06.05.06.53.21
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Jun 2019 06:53:21 -0700 (PDT)
+Date: Wed, 5 Jun 2019 06:53:19 -0700
+From: Tejun Heo <tj@kernel.org>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: hannes@cmpxchg.org, jiangshanlai@gmail.com, lizefan@huawei.com,
+	bsd@redhat.com, dan.j.williams@intel.com, dave.hansen@intel.com,
+	juri.lelli@redhat.com, mhocko@kernel.org, peterz@infradead.org,
+	steven.sistare@oracle.com, tglx@linutronix.de,
+	tom.hromatka@oracle.com, vdavydov.dev@gmail.com,
+	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC v2 0/5] cgroup-aware unbound workqueues
+Message-ID: <20190605135319.GK374014@devbig004.ftw2.facebook.com>
+References: <20190605133650.28545-1-daniel.m.jordan@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190605133650.28545-1-daniel.m.jordan@oracle.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I've seen problem on large server where horde of negative dentries
-slowed down all lookups significantly:
+Hello, Daniel.
 
-watchdog: BUG: soft lockup - CPU#25 stuck for 22s! [atop:968884] at __d_lookup_rcu+0x6f/0x190
+On Wed, Jun 05, 2019 at 09:36:45AM -0400, Daniel Jordan wrote:
+> My use case for this work is kernel multithreading, the series formerly known
+> as ktask[2] that I'm now trying to combine with padata according to feedback
+> from the last post.  Helper threads in a multithreaded job may consume lots of
+> resources that aren't properly accounted to the cgroup of the task that started
+> the job.
 
-slabtop:
+Can you please go into more details on the use cases?
 
-   OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME
-85118166 85116916   0%    0.19K 2026623       42  16212984K dentry
-16577106 16371723   0%    0.10K 425054       39   1700216K buffer_head
-935850 934379   0%    1.05K  31195       30    998240K ext4_inode_cache
-663740 654967   0%    0.57K  23705       28    379280K radix_tree_node
-399987 380055   0%    0.65K   8163       49    261216K proc_inode_cache
-226380 168813   0%    0.19K   5390       42     43120K cred_jar
-  70345  65721   0%    0.58K   1279       55     40928K inode_cache
-105927  43314   0%    0.31K   2077       51     33232K filp
-630972 601503   0%    0.04K   6186      102     24744K ext4_extent_status
-   5848   4269   0%    3.56K    731        8     23392K task_struct
-  16224  11531   0%    1.00K    507       32     16224K kmalloc-1024
-   6752   5833   0%    2.00K    422       16     13504K kmalloc-2048
-199680 158086   0%    0.06K   3120       64     12480K anon_vma_chain
-156128 154751   0%    0.07K   2788       56     11152K Acpi-Operand
+For memory and io, we're generally going for remote charging, where a
+kthread explicitly says who the specific io or allocation is for,
+combined with selective back-charging, where the resource is charged
+and consumed unconditionally even if that would put the usage above
+the current limits temporarily.  From what I've been seeing recently,
+combination of the two give us really good control quality without
+being too invasive across the stack.
 
-Total RAM is 256 GB
+CPU doesn't have a backcharging mechanism yet and depending on the use
+case, we *might* need to put kthreads in different cgroups.  However,
+such use cases might not be that abundant and there may be gotaches
+which require them to be force-executed and back-charged (e.g. fs
+compression from global reclaim).
 
-These dentries came from temporary files created and deleted by postgres.
-But this could be easily reproduced by lookup of non-existent files.
+Thanks.
 
-Of course, memory pressure easily washes them away.
-
-Similar problem happened before around proc sysctl entries:
-https://lkml.org/lkml/2017/2/10/47
-
-This one does not concentrate in one bucket and needs much more memory.
-
-Looks like dcache needs some kind of background shrinker started
-when dcache size or fraction of negative dentries exceeds some threshold.
+-- 
+tejun
 
