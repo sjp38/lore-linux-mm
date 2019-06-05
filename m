@@ -7,110 +7,110 @@ X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 94142C28CC6
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:37:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6533DC28CC5
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:37:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4265620665
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:37:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1359A20665
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:37:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="JTf9y2n/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4265620665
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="KgjE/QqS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1359A20665
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6F82E6B000E; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
+	id 855936B0010; Wed,  5 Jun 2019 09:37:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6CDE86B0010; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
+	id 807786B0266; Wed,  5 Jun 2019 09:37:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 482866B0269; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
+	id 6586E6B0269; Wed,  5 Jun 2019 09:37:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 098BE6B000E
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 09:37:26 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id u7so18698116pfh.17
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 06:37:26 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B7496B0010
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 09:37:28 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id g11so16073548plt.23
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 06:37:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Ww3UO2Y64LsDIspP9nYZfcD+xc5topDBTlHYu02FoZk=;
-        b=Ob3QTY53GIy5VXZfLMxJaD4QXdink1iASljBkcyEhwXlnY0lZnOtSWewf+DFzenMZf
-         EvB9nFFZFwOmSVWG+Ze0B33HPV/brawpzYUqz8/yZ2f082dEB/PrdMQj9xeydftbdJEr
-         QOT4fxTbZ+SmMbP9lylsqWZWPIV03mGhTaACOO7OfSY2l9ZExBm4lfmGNU4UYtdr0wRn
-         FAYT1QSi4REkIfONNj/a7zs9xCYxU/88etWf5cWT9+7u233PtwD2OK+TboswGrSbFbsc
-         9+FsFrs/pJJgtn0w3g1bhvp+/FojUOq9yANPrwIAVo4hwXVKDND4jNv+rLBhmnIqcnAE
-         5Qrw==
-X-Gm-Message-State: APjAAAUI7FneuOfbHm0Qizs3JcxXcOCQlKhoIZv3VlXaVv0lJd0Tpt1g
-	25p68CGz1+Ujof8+mbWpA1WVHYKaPIHtNCx715tMldpf6E6PO06UOe/PsghxGoHRr2w9jGH2ull
-	i7wASTosw4b38cIcY/jCKf2qNz4SwTTggMvcWx+J78nfv2GYz2e5Ale6yDW4ZuL2ppA==
-X-Received: by 2002:a62:bd0e:: with SMTP id a14mr46169465pff.44.1559741845452;
-        Wed, 05 Jun 2019 06:37:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx7N9hh69DkPkj+XRvTfgWed7MT2a+lj/BlwOanm4NjK3mS746Dx9sh5rWcucZiYbi436na
-X-Received: by 2002:a62:bd0e:: with SMTP id a14mr46169364pff.44.1559741844578;
-        Wed, 05 Jun 2019 06:37:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559741844; cv=none;
+        bh=8yYACzlvtHpZ4BGD0wo6T7cr3uUD8GGsT+k2KVWRDBw=;
+        b=nJU2dlyNNp7AbO1ToPwjvL/v2ZubIFUHOOxdEbwhG8npBH+cuSgBMP/oX3O4jNAD2N
+         MRzT6+uSB6apSoza7oIBEmpt4BNqGruErXycLEXHYkZZ24Rp0n+M6McHLxzDF7d3J6jT
+         psqNiMZUsDUylfVE7DwXcTRdvhcTgrItD/sWgjxJNvUlH025RxoOuv0NwEbYhV1Y4cc5
+         sCRQ2gGOZdAnLiB3CfBsGBZoVXrFGIUZfnc6SCCgBK8EHnO1ER2FRhR9GQp6z30+EZhF
+         wjebjrRV3Z7XZ2bkj95aWaxkOi7T0zA4UaDQ4SSrWCbjBsy45ZNgy2nbVlNzhgTK4gHY
+         bqRw==
+X-Gm-Message-State: APjAAAUeJ/hBS8vxEjStx61OgCDjgLCVb1/IM1L6h2Bxibel2ZkAkx2y
+	tATRrSBPrZSLgGAknc6LF/6qwTw1N8gsvopu1rMyWU+0FOH/9z6j21WMJJDiBHu77mouPwvx3yr
+	nciJOJ1uG4WuD8qL4HwS+OaL2OyI1ZqycKu3KKgrIfAaLuvKpoHU5OUqFDKIiHhuTcg==
+X-Received: by 2002:a17:902:b110:: with SMTP id q16mr35850777plr.218.1559741847608;
+        Wed, 05 Jun 2019 06:37:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw5gCYTfGgYFo5tLpXeoAazFfeq66l0xGR60sisrHVoMjDQ2/Q3hPKeccN3zCZ6LZDCyoHd
+X-Received: by 2002:a17:902:b110:: with SMTP id q16mr35850674plr.218.1559741846647;
+        Wed, 05 Jun 2019 06:37:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559741846; cv=none;
         d=google.com; s=arc-20160816;
-        b=aHArLHJg6rPOfG8PS3ucBPZhdlBS2EIGHp0Tc49dbgkcFHkm0GsUCRvLuWI8NBFC+Z
-         1RHj9syRvdIXhgX39YpEtPMfaHmoal1Azc08ASRsNZ4z6G9xQqqX+8Mi9go8I+Pi84cq
-         PADdv4pomg3QWhgOcxtfzHbF3Xiw3TS5SW/fgkMEi/U0BihCfHFSanvlEsah+JmX/HQ5
-         1L09UZ5/D/YoE7qBVheRuX5+AXxEwVt38TBbptolyBM+EEX5DdtJV+HIl3wUBKr21Acu
-         I0HLwYWQeP8unORmT5dksjdOs3eRPAJbPIeKQMj1YOzVt829QfZf6WIA8NQNf6s9QrLr
-         nYnA==
+        b=INKn3rsGy/XhBPa++mJNVstp0w/QPbiV6yNgVZgf+6oqpGYVjme28en8c6iPWl4a9C
+         731xdEWLDheVk+TRlNcjQ/Y0lJebqjOCPu1mn9FsRl6+YdPCs0bb78sbv23Txn8sJlOy
+         mCu80wcfa3AnK26r+rlP2lcamEdxNDzhI0pCp/c2BtFm1b9jQjr+DaTttTaDOsMMSGb+
+         MDddBZ05Xp3xSQ5+vzTSbugfCcp5+NgsKrMR+JR3pvwVhy8vGFFFCpaKdfr3lHkVfDIT
+         SxEntnWWmW7X4ZUYDuCZNWquRD6nJhMyVJanKdKUmFFxsszW9i1TFmOoHK2PwdqChmGW
+         JJ/g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Ww3UO2Y64LsDIspP9nYZfcD+xc5topDBTlHYu02FoZk=;
-        b=RpERhASg0kuvGHF37V5I0v7MUL1xNZSrVV20aKGnL6aOxpp931YxzVewH8KknIc/Vu
-         JlvVkG23A8xvICLCg2lmOhHG1chzmzjrhNmzYDOH0eRSSafC7pkL0k4POJGAZDcgvoEd
-         /hlB9JGWRUmzhBx7mttU38LQkHGhU8bickmq8JX2sf5txAvYkOF1hZNyigOd4kIw9vtH
-         VFLE1JyAyRexhSKVMlXQGIpttVHgaZfbJh87o43NC8cCHPFGnmcIyux6BpRpMXyTw6qk
-         TM+MYkcbIpXv4rTWVUpkOSRaLeC5yheU4473VbmZVU9A3saBKaLqyTlEClG3fQ9oX5OQ
-         rfTQ==
+        bh=8yYACzlvtHpZ4BGD0wo6T7cr3uUD8GGsT+k2KVWRDBw=;
+        b=AiI24NpgjHbNv++jP58zMxCA28d0IkplOwl52/nlJM5J8YHbXMtESBhXDt0E4WuYHf
+         aVsatQEkCLqsDuan1nh3QE3b6bWnVvJcxHoOtjShy+6fPzXqymOwKtyMAO/XuVinooy6
+         a1iRkmHQRgTaiOPtXhMzaJ8u4n7sowMeWWJlhuS53KlVsLonnbY1Jft9sgwuT9TXg4C3
+         PuF4eFSHM74yiskLk8qE7Ro0YpTltKHHkV1G1Z9UExhMPyX1XQ6hPdrwYg0Z4lYOVI7R
+         MYXLELRwSfHIMGLB2GgvrNsAm1LHHNnWLZxsSGokC+KaTh/GpMr0htRODnEbqZWa4gnt
+         T3RQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="JTf9y2n/";
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="KgjE/QqS";
        spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id c32si26999882pje.0.2019.06.05.06.37.24
+        by mx.google.com with ESMTPS id k8si26495552pgi.123.2019.06.05.06.37.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 06:37:24 -0700 (PDT)
+        Wed, 05 Jun 2019 06:37:26 -0700 (PDT)
 Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="JTf9y2n/";
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="KgjE/QqS";
        spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55DTRP0119591;
-	Wed, 5 Jun 2019 13:37:09 GMT
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55DTIKT119560;
+	Wed, 5 Jun 2019 13:37:10 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references : mime-version :
  content-transfer-encoding; s=corp-2018-07-02;
- bh=Ww3UO2Y64LsDIspP9nYZfcD+xc5topDBTlHYu02FoZk=;
- b=JTf9y2n/Sjoe4pCzMh/uy2QTChLH80qdYMT4tF5HvvdqnddEB6F4E7F4ln19olEOst+P
- s1d70dD4bMVQKxP4Wu+TyCMvlVbnlNw1Av/XCyGAad3Kwj35hUXdccR6qBwRPSim9lCU
- 7Rb092NiSatD4WL50ijDmD/UXKm3bjtZxCByZFaqV88vG2iSAbuTpL79Hr6kx3DNUG60
- AllDwHwTDfclIdN9dy8zeJbbxLGmOLYPfZcfR/ES2Mtuqu9X1mGhxP5+Spi6RjmpSb8q
- nMtE1DTLPDzZD13aqefL2bhadYVaee21oqJeziL5s7NwKS9ai+fBjUFarxilJfvPWhIH gA== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2130.oracle.com with ESMTP id 2sugstjn48-1
+ bh=8yYACzlvtHpZ4BGD0wo6T7cr3uUD8GGsT+k2KVWRDBw=;
+ b=KgjE/QqSvEaVhxjmUZSwxl3HJ81jm0KfBRa6GrQqRCsxSbtGJII3Vn0krmhid9ln8mxl
+ /IAuycz4jC5dI7ZQ+BbIdfgrUIddnOrjMaUlQBmSmAjx7jbhhKxVHO0tmRvnjBa6T652
+ 1mOFsUnAF0jSPfRCh+xnFIDivnRf2yGS/XbnthP+tMOotD5MgJmBMZacmbItiC7n9UY8
+ xouolCSMtTywmiU/Bp/x438/4Fs3wutxNVFHbbgMiC/WVKzta3VvayOSXeVvQmIe2eSu
+ WNjobOq+HhQiFUAGXPjGTblcavUC3T9/ef9esBe90wb/Cr5yjigYZ00ZXYJUirGpd8z4 7w== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by userp2130.oracle.com with ESMTP id 2sugstjn4c-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 05 Jun 2019 13:37:10 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55Db1Z1002510;
+	Wed, 5 Jun 2019 13:37:10 GMT
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by userp3030.oracle.com with ESMTP id 2swngkw19a-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
 	Wed, 05 Jun 2019 13:37:09 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x55DZsGf069290;
-	Wed, 5 Jun 2019 13:37:08 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3020.oracle.com with ESMTP id 2swnghw2j7-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 05 Jun 2019 13:37:08 +0000
 Received: from abhmp0001.oracle.com (abhmp0001.oracle.com [141.146.116.7])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x55Db4vD022901;
-	Wed, 5 Jun 2019 13:37:04 GMT
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x55Db9LB022921;
+	Wed, 5 Jun 2019 13:37:09 GMT
 Received: from localhost.localdomain (/73.60.114.248)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 05 Jun 2019 06:37:04 -0700
+	with ESMTP ; Wed, 05 Jun 2019 06:37:08 -0700
 From: Daniel Jordan <daniel.m.jordan@oracle.com>
 To: hannes@cmpxchg.org, jiangshanlai@gmail.com, lizefan@huawei.com,
         tj@kernel.org
@@ -120,9 +120,9 @@ Cc: bsd@redhat.com, dan.j.williams@intel.com, daniel.m.jordan@oracle.com,
         tom.hromatka@oracle.com, vdavydov.dev@gmail.com,
         cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
         linux-mm@kvack.org
-Subject: [RFC v2 3/5] workqueue, memcontrol: make memcg throttle workqueue workers
-Date: Wed,  5 Jun 2019 09:36:48 -0400
-Message-Id: <20190605133650.28545-4-daniel.m.jordan@oracle.com>
+Subject: [RFC v2 5/5] ktask, cgroup: attach helper threads to the master thread's cgroup
+Date: Wed,  5 Jun 2019 09:36:50 -0400
+Message-Id: <20190605133650.28545-6-daniel.m.jordan@oracle.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190605133650.28545-1-daniel.m.jordan@oracle.com>
 References: <20190605133650.28545-1-daniel.m.jordan@oracle.com>
@@ -145,137 +145,191 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Attaching a worker to a css_set isn't enough for all controllers to
-throttle it.  In particular, the memory controller currently bypasses
-accounting for kernel threads.
+ktask tasks are expensive, and helper threads are not currently
+throttled by the master's cgroup, so helpers' resource usage is
+unbounded.
 
-Support memcg accounting for cgroup-aware workqueue workers so that
-they're appropriately throttled.
+Attach helper threads to the master thread's cgroup to ensure helpers
+get this throttling.
 
-Another, probably better way to do this is to have kernel threads, or
-even specifically cgroup-aware workqueue workers, call
-memalloc_use_memcg and memalloc_unuse_memcg during cgroup migration
-(memcg attach callback maybe).
+It's possible for the master to be migrated to a new cgroup before the
+task is finished.  In that case, to keep it simple, the helpers continue
+executing in the original cgroup.
 
 Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
 ---
- kernel/workqueue.c          | 26 ++++++++++++++++++++++++++
- kernel/workqueue_internal.h |  5 +++++
- mm/memcontrol.c             | 26 ++++++++++++++++++++++++--
- 3 files changed, 55 insertions(+), 2 deletions(-)
+ include/linux/cgroup.h | 26 ++++++++++++++++++++++++++
+ kernel/ktask.c         | 32 ++++++++++++++++++++------------
+ 2 files changed, 46 insertions(+), 12 deletions(-)
 
-diff --git a/kernel/workqueue.c b/kernel/workqueue.c
-index 89b90899bc09..c8cc69e296c0 100644
---- a/kernel/workqueue.c
-+++ b/kernel/workqueue.c
-@@ -50,6 +50,8 @@
- #include <linux/sched/isolation.h>
- #include <linux/nmi.h>
- #include <linux/cgroup.h>
-+#include <linux/memcontrol.h>
-+#include <linux/sched/mm.h>
- 
- #include "workqueue_internal.h"
- 
-@@ -1829,6 +1831,28 @@ static inline bool worker_in_child_cgroup(struct worker *worker)
- 	return (worker->flags & WORKER_CGROUP) && cgroup_parent(worker->cgroup);
+diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
+index de578e29077b..67b2c469f17f 100644
+--- a/include/linux/cgroup.h
++++ b/include/linux/cgroup.h
+@@ -532,6 +532,28 @@ static inline struct cgroup *task_dfl_cgroup(struct task_struct *task)
+ 	return task_css_set(task)->dfl_cgrp;
  }
  
-+/* XXX Put this in the memory controller's attach callback. */
-+#ifdef CONFIG_MEMCG
-+static void worker_unuse_memcg(struct worker *worker)
++/**
++ * task_get_dfl_cgroup - find and get the default hierarchy cgroup for task
++ * @task: the target task
++ *
++ * Find the default hierarchy cgroup for @task, take a reference on it, and
++ * return it.  Guaranteed to return a valid cgroup.
++ */
++static inline struct cgroup *task_get_dfl_cgroup(struct task_struct *task)
 +{
-+	if (worker->task->active_memcg) {
-+		struct mem_cgroup *memcg = worker->task->active_memcg;
++	struct cgroup *cgroup;
 +
-+		memalloc_unuse_memcg();
-+		css_put(&memcg->css);
++	rcu_read_lock();
++	while (true) {
++		cgroup = task_dfl_cgroup(task);
++		if (likely(css_tryget_online(&cgroup->self)))
++			break;
++		cpu_relax();
 +	}
++	rcu_read_unlock();
++	return cgroup;
 +}
 +
-+static void worker_use_memcg(struct worker *worker)
+ static inline struct cgroup *cgroup_dfl_root(void)
+ {
+ 	return &cgrp_dfl_root.cgrp;
+@@ -705,6 +727,10 @@ static inline struct cgroup *task_dfl_cgroup(struct task_struct *task)
+ {
+ 	return NULL;
+ }
++static inline struct cgroup *task_get_dfl_cgroup(struct task_struct *task)
 +{
-+	struct mem_cgroup *memcg;
-+
-+	worker_unuse_memcg(worker);
-+	memcg = mem_cgroup_from_css(task_get_css(worker->task, memory_cgrp_id));
-+	memalloc_use_memcg(memcg);
++	return NULL;
 +}
-+#endif /* CONFIG_MEMCG */
-+
- static void attach_worker_to_dfl_root(struct worker *worker)
+ static inline int cgroup_attach_task_all(struct task_struct *from,
+ 					 struct task_struct *t) { return 0; }
+ static inline int cgroupstats_build(struct cgroupstats *stats,
+diff --git a/kernel/ktask.c b/kernel/ktask.c
+index 15d62ed7c67e..b047f30f77fa 100644
+--- a/kernel/ktask.c
++++ b/kernel/ktask.c
+@@ -14,6 +14,7 @@
+ 
+ #ifdef CONFIG_KTASK
+ 
++#include <linux/cgroup.h>
+ #include <linux/cpu.h>
+ #include <linux/cpumask.h>
+ #include <linux/init.h>
+@@ -49,7 +50,7 @@ enum ktask_work_flags {
+ 
+ /* Used to pass ktask data to the workqueue API. */
+ struct ktask_work {
+-	struct work_struct	kw_work;
++	struct cgroup_work	kw_work;
+ 	struct ktask_task	*kw_task;
+ 	int			kw_ktask_node_i;
+ 	int			kw_queue_nid;
+@@ -76,6 +77,7 @@ struct ktask_task {
+ 	size_t			kt_nr_nodes;
+ 	size_t			kt_nr_nodes_left;
+ 	int			kt_error; /* first error from thread_func */
++	struct cgroup		*kt_cgroup;
+ #ifdef CONFIG_LOCKDEP
+ 	struct lockdep_map	kt_lockdep_map;
+ #endif
+@@ -103,16 +105,16 @@ static void ktask_init_work(struct ktask_work *kw, struct ktask_task *kt,
  {
- 	int ret;
-@@ -1841,6 +1865,7 @@ static void attach_worker_to_dfl_root(struct worker *worker)
- 		rcu_read_lock();
- 		worker->cgroup = task_dfl_cgroup(worker->task);
- 		rcu_read_unlock();
-+		worker_unuse_memcg(worker);
- 	} else {
- 		/*
- 		 * TODO Modify the cgroup migration path to guarantee that a
-@@ -1880,6 +1905,7 @@ static void attach_worker_to_cgroup(struct worker *worker,
- 
- 	if (cgroup_attach_kthread(cgroup) == 0) {
- 		worker->cgroup = cgroup;
-+		worker_use_memcg(worker);
- 	} else {
- 		/*
- 		 * Attach failed, so attach to the default root so the
-diff --git a/kernel/workqueue_internal.h b/kernel/workqueue_internal.h
-index 3ad5861258ca..f254b93edc2c 100644
---- a/kernel/workqueue_internal.h
-+++ b/kernel/workqueue_internal.h
-@@ -79,6 +79,11 @@ work_func_t wq_worker_last_func(struct task_struct *task);
- 
- #ifdef CONFIG_CGROUPS
- 
-+#ifndef CONFIG_MEMCG
-+static inline void worker_use_memcg(struct worker *worker) {}
-+static inline void worker_unuse_memcg(struct worker *worker) {}
-+#endif /* CONFIG_MEMCG */
-+
- /*
-  * A barrier work running in a cgroup-aware worker pool needs to specify a
-  * cgroup.  For simplicity, WQ_BARRIER_CGROUP makes the worker stay in its
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 81a0d3914ec9..1a80931b124a 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2513,9 +2513,31 @@ static void memcg_schedule_kmem_cache_create(struct mem_cgroup *memcg,
- 
- static inline bool memcg_kmem_bypass(void)
- {
--	if (in_interrupt() || !current->mm || (current->flags & PF_KTHREAD))
-+	if (in_interrupt())
- 		return true;
--	return false;
-+
-+	if (unlikely(current->flags & PF_WQ_WORKER)) {
-+		struct cgroup *parent;
-+
-+		/*
-+		 * memcg should throttle cgroup-aware workers.  Infer the
-+		 * worker is cgroup-aware by its presence in a non-root cgroup.
-+		 *
-+		 * This test won't detect a cgroup-aware worker attached to the
-+		 * default root, but in that case memcg doesn't need to
-+		 * throttle it anyway.
-+		 *
-+		 * XXX One alternative to this awkward block is adding a
-+		 * cgroup-aware-worker bit to task_struct.
-+		 */
-+		rcu_read_lock();
-+		parent = cgroup_parent(task_dfl_cgroup(current));
-+		rcu_read_unlock();
-+
-+		return !parent;
-+	}
-+
-+	return !current->mm || (current->flags & PF_KTHREAD);
+ 	/* The master's work is always on the stack--in __ktask_run_numa. */
+ 	if (flags & KTASK_WORK_MASTER)
+-		INIT_WORK_ONSTACK(&kw->kw_work, ktask_thread);
++		INIT_CGROUP_WORK_ONSTACK(&kw->kw_work, ktask_thread);
+ 	else
+-		INIT_WORK(&kw->kw_work, ktask_thread);
++		INIT_CGROUP_WORK(&kw->kw_work, ktask_thread);
+ 	kw->kw_task = kt;
+ 	kw->kw_ktask_node_i = ktask_node_i;
+ 	kw->kw_queue_nid = queue_nid;
+ 	kw->kw_flags = flags;
  }
  
- /**
+-static void ktask_queue_work(struct ktask_work *kw)
++static void ktask_queue_work(struct ktask_work *kw, struct cgroup *cgroup)
+ {
+ 	struct workqueue_struct *wq;
+ 
+@@ -128,7 +130,8 @@ static void ktask_queue_work(struct ktask_work *kw)
+ 	}
+ 
+ 	WARN_ON(!wq);
+-	WARN_ON(!queue_work_node(kw->kw_queue_nid, wq, &kw->kw_work));
++	WARN_ON(!queue_cgroup_work_node(kw->kw_queue_nid, wq, &kw->kw_work,
++		cgroup));
+ }
+ 
+ /* Returns true if we're migrating this part of the task to another node. */
+@@ -163,14 +166,15 @@ static bool ktask_node_migrate(struct ktask_node *old_kn, struct ktask_node *kn,
+ 
+ 	WARN_ON(kw->kw_flags & (KTASK_WORK_FINISHED | KTASK_WORK_UNDO));
+ 	ktask_init_work(kw, kt, ktask_node_i, new_queue_nid, kw->kw_flags);
+-	ktask_queue_work(kw);
++	ktask_queue_work(kw, kt->kt_cgroup);
+ 
+ 	return true;
+ }
+ 
+ static void ktask_thread(struct work_struct *work)
+ {
+-	struct ktask_work  *kw = container_of(work, struct ktask_work, kw_work);
++	struct cgroup_work *cw = container_of(work, struct cgroup_work, work);
++	struct ktask_work  *kw = container_of(cw, struct ktask_work, kw_work);
+ 	struct ktask_task  *kt = kw->kw_task;
+ 	struct ktask_ctl   *kc = &kt->kt_ctl;
+ 	struct ktask_node  *kn = &kt->kt_nodes[kw->kw_ktask_node_i];
+@@ -455,7 +459,7 @@ static void __ktask_wait_for_completion(struct ktask_task *kt,
+ 		while (!(READ_ONCE(work->kw_flags) & KTASK_WORK_FINISHED))
+ 			cpu_relax();
+ 	} else {
+-		flush_work_at_nice(&work->kw_work, task_nice(current));
++		flush_work_at_nice(&work->kw_work.work, task_nice(current));
+ 	}
+ }
+ 
+@@ -530,15 +534,18 @@ int __ktask_run_numa(struct ktask_node *nodes, size_t nr_nodes,
+ 	kt.kt_chunk_size = ktask_chunk_size(kt.kt_total_size,
+ 					    ctl->kc_min_chunk_size, nr_works);
+ 
++	/* Ensure the master's cgroup throttles helper threads. */
++	kt.kt_cgroup = task_get_dfl_cgroup(current);
+ 	list_for_each_entry(work, &unfinished_works, kw_list)
+-		ktask_queue_work(work);
++		ktask_queue_work(work, kt.kt_cgroup);
+ 
+ 	/* Use the current thread, which saves starting a workqueue worker. */
+ 	ktask_init_work(&kw, &kt, 0, nodes[0].kn_nid, KTASK_WORK_MASTER);
+ 	INIT_LIST_HEAD(&kw.kw_list);
+-	ktask_thread(&kw.kw_work);
++	ktask_thread(&kw.kw_work.work);
+ 
+ 	ktask_wait_for_completion(&kt, &unfinished_works, &finished_works);
++	cgroup_put(kt.kt_cgroup);
+ 
+ 	if (kt.kt_error != KTASK_RETURN_SUCCESS && ctl->kc_undo_func)
+ 		ktask_undo(nodes, nr_nodes, ctl, &finished_works, &kw);
+@@ -611,13 +618,14 @@ void __init ktask_init(void)
+ 	if (!ktask_rlim_init())
+ 		goto out;
+ 
+-	ktask_wq = alloc_workqueue("ktask_wq", WQ_UNBOUND, 0);
++	ktask_wq = alloc_workqueue("ktask_wq", WQ_UNBOUND | WQ_CGROUP, 0);
+ 	if (!ktask_wq) {
+ 		pr_warn("disabled (failed to alloc ktask_wq)");
+ 		goto out;
+ 	}
+ 
+-	ktask_nonuma_wq = alloc_workqueue("ktask_nonuma_wq", WQ_UNBOUND, 0);
++	ktask_nonuma_wq = alloc_workqueue("ktask_nonuma_wq",
++					  WQ_UNBOUND | WQ_CGROUP, 0);
+ 	if (!ktask_nonuma_wq) {
+ 		pr_warn("disabled (failed to alloc ktask_nonuma_wq)");
+ 		goto alloc_fail;
 -- 
 2.21.0
 
