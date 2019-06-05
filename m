@@ -2,361 +2,298 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 874F4C28D18
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 02:33:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EBE60C28CC3
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 02:45:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 12C8520828
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 02:33:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3CA932070D
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 02:45:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XaCH/Dvd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 12C8520828
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="EpwO8+np"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CA932070D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 69D986B000A; Tue,  4 Jun 2019 22:33:44 -0400 (EDT)
+	id C3E1E6B026A; Tue,  4 Jun 2019 22:45:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 64DCB6B000D; Tue,  4 Jun 2019 22:33:44 -0400 (EDT)
+	id B26EB6B0269; Tue,  4 Jun 2019 22:45:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 562B96B0010; Tue,  4 Jun 2019 22:33:44 -0400 (EDT)
+	id 97AD16B026C; Tue,  4 Jun 2019 22:45:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 349576B000A
-	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 22:33:44 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id 188so706104ith.4
-        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 19:33:44 -0700 (PDT)
+Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 764946B0269
+	for <linux-mm@kvack.org>; Tue,  4 Jun 2019 22:45:02 -0400 (EDT)
+Received: by mail-yw1-f71.google.com with SMTP id p123so21541384ywg.3
+        for <linux-mm@kvack.org>; Tue, 04 Jun 2019 19:45:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=xIsyZFQQsGq7W0W6okN60t5FpnPQJ7npRyxNhSfdoEw=;
-        b=T3gTjh/5wz7/8PEYfbdVkrao6FA3F/qG/fB4Xv40PxK9KXmt7HsEaUxba0MeTrvV1v
-         0WaYcGBL8EXJiMwtD0tVfYuHq7ktjs5zsRr/icSKmXtgtYfSJ5BTXVfRK10x7Up7+sWJ
-         e05I9waaRWjdtfACC/fwnSjVtKv41R3ebRff2H1lFNMElZCrvsEfUlZF4jDB5LNsKRf3
-         AgcZOcAPlDxBOXoebuJlAwMrEAplepSIFbGgVOdBcp5jomZe3J79AnHeBSGti4JsUT4J
-         W8OqtHc5QgGMPQio6biO1qzp0NhI5p6rSXKU3EC4O7Cdn26FjBwZv7mLJwkNkl4h64j1
-         hjtA==
-X-Gm-Message-State: APjAAAW4rVOwoHEgg8vuWFMGd2lka00z7O0wD4lynU+x8hDN3G/U5RNt
-	wo9+16BL9B49vTt7g68LIaPUXCL9YUGQBJN5bEq6Vk6GamBmhLWHqZ3tYQvF/DBfsBV1j2CkftG
-	8Pn+/sy3qMIkYVm1r3D0CTqgL2EsxWd2uBb9odR4iFE9LT9EuqX55F/HbVdpdy5R6xg==
-X-Received: by 2002:a5e:9241:: with SMTP id z1mr9481164iop.39.1559702023863;
-        Tue, 04 Jun 2019 19:33:43 -0700 (PDT)
-X-Received: by 2002:a5e:9241:: with SMTP id z1mr9481132iop.39.1559702022766;
-        Tue, 04 Jun 2019 19:33:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559702022; cv=none;
+        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
+         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
+         :message-id:mime-version;
+        bh=ll9mjXjyPSTWkjT0RH+ntySWmhqIHqoS/UCssxgxW+8=;
+        b=a0U9pJarxjfQu/mfDsUxL5ftN4r4lRAWsYH2DisTKN3LGP1lquATkrKnlQs4X0/2W/
+         LKF9t4Pm9fJaYx36mS/s0U7wRMh9TxHBIfHBqZoNFcLAThMPhIxITsDI2jCCADgpcoEf
+         AIUTgXqDDjz/dJ0Rwfs2mLWyonfMBGZGtJpc6QSFxJlMqLAtT8SZ9bN8QUg8qemb+oaQ
+         skplGG4PtpFVdyJMEjX8jJmBZVHHQt6eVSZ2+8cO+S9ltHhWPobU4DmhfynhZf/onxpt
+         AfX/54pIqEYdUw06U/6cXXOeaEUJqwKla03LWmL4yRvSrUeRu7ACMT+a5cboyxWR8gh6
+         v2YQ==
+X-Gm-Message-State: APjAAAV/RzBf2me8sq4OzVGhWrwvEOpWk5mXuO0s6CRwJwkHetNVpZFl
+	pBA1c8ZLfEWBO28Y38HwOkZm9YH8wjW/797AWp3WY54gpGf8793ufmWg51cIJdi37V52mZSJJHg
+	zkdOuLzF3bONgfgwXjXtgSL4VJ+oX8c3nWk84bqS5+M0yJAKSLIy70MVVHfZcB0BjTQ==
+X-Received: by 2002:a81:3cf:: with SMTP id 198mr10277440ywd.219.1559702702143;
+        Tue, 04 Jun 2019 19:45:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzqkTllZh0cDBgywhUjhOszze5WhH14WTKznMj6RDci7Nwcn+9e5NUFbSoFP40hx8VpzZXk
+X-Received: by 2002:a81:3cf:: with SMTP id 198mr10277416ywd.219.1559702701223;
+        Tue, 04 Jun 2019 19:45:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559702701; cv=none;
         d=google.com; s=arc-20160816;
-        b=FY0V6ef80JjP0nmm3vqDgthYEvCWyFl+5SnKiUWREKelfMKjjVbu8/HO00mS67mAc1
-         W01TggzWDeqC5aBNU07pltSPAo8UCkWoZQci7dkkADsbtjft0IhziCfnAOwVLquNLFC8
-         Woa7opXivP4nKPaikB0Wq0CXaAeSZZeBcNgTKB3zzE2l5Me7veaY/gPVgoG1sh4CbbDg
-         x2bZO7TzoerClCiWN4N3/vRB5J/NnbyXm/HgARKsMmcVpaGTVOj8IAiung8gBv/raxTn
-         pEWY4CEfX0lAMqST0Vu2wRCds/ezLt6GNu//xpeFpN7n7JzY3p9aeB8CPSAcx4aOJ9OR
-         sPRw==
+        b=W3T/USUMT8TA7043MhqDBgwfstSeovInsU/4n6wPQ3uJL32svNTLJna2NMtl5Zj2Kz
+         6imNJj91zkWyp4g/58XCV4iGAfNOjpqgxmi8lZsC4H3gc0fDsW5QQTtepuy7ZJ3HGX+F
+         wD8uBFpBLfYzOczH/ckzwcSWADcbecuDAoxWsw8OqDcT0cbt7DPOI9w337yzilkRLzmP
+         x2xIqZ0T3MNfhivnW8Qad08XCDykVmIKoSXnkoW6GqmHtFvmqATJGPdI2kkMJxQUpTh6
+         c4kDwgT+RScY1/T147pRx40yQBMVHr18gINCzhf+0PKZy7Je7K4zjaiE7mapXicf4PRZ
+         h+ng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=xIsyZFQQsGq7W0W6okN60t5FpnPQJ7npRyxNhSfdoEw=;
-        b=i4NF2BqU+qJZyBTgigcauciO2HGbhiIDMPY8BJsyE8uih6YdiLLOviEm/fHd6H9Zun
-         Y1iLASInu7JixroWefJAE810P3/u4OGvk7yC4Mi+Io/C0Yk+gH+0YItFxq1z95Px3IhI
-         6BgZ7g+000dt4qqFAtxtTcAgaqkZQHcQEBTz8XSP0200uydnBmLX5iyOh3ED0FR0zOGh
-         kFHaQ9+9LUgCOXSATA5dZJ5gLGbU79hf8OYJfuos8IaYi6niMp2NOp1EOg/ceM/QguK2
-         g7aWltK96y6Pw32F5wOMnZBtAbUsSOtEBbIkrm06hfM+femRNlTn9Fd+CQQ8uLduX1LB
-         kdHg==
+        h=mime-version:message-id:date:subject:smtp-origin-cluster:cc:to
+         :smtp-origin-hostname:from:smtp-origin-hostprefix:dkim-signature;
+        bh=ll9mjXjyPSTWkjT0RH+ntySWmhqIHqoS/UCssxgxW+8=;
+        b=uuqSEXlC19M+qIIunCzIsC7d3NqK82YRZTBaqT0m04oDdvMKfbZY5qt6t0HIOSwfLL
+         QhDP9WPe0Msczok853YW4UcPePjqMSDQr6l7jyM7/0sd3rq5Y8V0JzBMxCI3R8QxvZg/
+         J0EA6jfltyHqN3JQPBMB0AWzlUI2p+EZ+hNkaBq0KQTOBKuc6MjSgLcV++bz6AW6hUQ4
+         G6MRvrvj97NjVETvwCHw2QU60Whruc4lZSDpe+us+Etraf9GZPnRyX4cQhYCRyKAj7LD
+         unsQAuJH+kOGznE4Oeu9nmWz6d835Ec8Xfpg9EVEJOuxowbnsrq335/YBkH80rqfWvHr
+         lxXw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="XaCH/Dvd";
-       spf=pass (google.com: domain of teawater@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=teawater@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 203sor9184265itl.24.2019.06.04.19.33.42
+       dkim=pass header.i=@fb.com header.s=facebook header.b=EpwO8+np;
+       spf=pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=10599ee021=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id k7si6019243ywb.77.2019.06.04.19.45.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 04 Jun 2019 19:33:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of teawater@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Jun 2019 19:45:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="XaCH/Dvd";
-       spf=pass (google.com: domain of teawater@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=teawater@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=xIsyZFQQsGq7W0W6okN60t5FpnPQJ7npRyxNhSfdoEw=;
-        b=XaCH/DvdV5q+8alkB1RVT/031pYdLmM7R8qrP6ujiLnLmW5O1y0gMv19tXHGiHOt5S
-         dguGV0XTX7jB+Gl14o7FyKkfg6CSrvxXhSb0WturgSGh0o8qcGd6QpYfUfv6fyZ8P52E
-         EbTyx95y/+ytds2haifPpk6FJiOJcb13dV4MdIxeeTURYEtBgCO36/dMx5wFKwvppkfF
-         DT4JHE0NpldhEOOkxTlTv1VU8ADfeLJYN4UsXSdOa7nuaW0lrb/Bs8xUHwAvzgcXSQPk
-         w7YCaFJRenDjnI6tWWUYF3gqvY2OThIfyrHgK07YxHib8vXHNoDeoPCiV8Ml2ncDUszq
-         1wFA==
-X-Google-Smtp-Source: APXvYqzERY5Il5izEpw+YW2XjEZnTeK7zVOC6brycGSRPyTiw4nuCk2qh4+BVP0zby3xESS212f4gdQYyFzUx7lsEQo=
-X-Received: by 2002:a24:7f14:: with SMTP id r20mr22717066itc.8.1559702022237;
- Tue, 04 Jun 2019 19:33:42 -0700 (PDT)
+       dkim=pass header.i=@fb.com header.s=facebook header.b=EpwO8+np;
+       spf=pass (google.com: domain of prvs=10599ee021=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=10599ee021=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109332.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x552i3Xr023200
+	for <linux-mm@kvack.org>; Tue, 4 Jun 2019 19:45:00 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : mime-version : content-type; s=facebook;
+ bh=ll9mjXjyPSTWkjT0RH+ntySWmhqIHqoS/UCssxgxW+8=;
+ b=EpwO8+npvLWFpVz9ImQ3NdVfmajkNi3SDHwWx05JWXthxuj3zTXcLU7RLr47MFnKbtxt
+ qQUchegkxA2K4yfE0993zxya7bjou25fNvGbeQvcx4m5oc0xvt6zsIL/+H1hsWhLI+g7
+ PK7uRTPbAfiLYsyzkVRlzQebjdzs6fLAQlQ= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2sx41n84vt-2
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 04 Jun 2019 19:45:00 -0700
+Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
+ mail.thefacebook.com (2620:10d:c0a8:83::7) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Tue, 4 Jun 2019 19:44:59 -0700
+Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
+	id 75D6E12C7FDC1; Tue,  4 Jun 2019 19:44:58 -0700 (PDT)
+Smtp-Origin-Hostprefix: devvm
+From: Roman Gushchin <guro@fb.com>
+Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        Shakeel Butt
+	<shakeelb@google.com>,
+        Vladimir Davydov <vdavydov.dev@gmail.com>,
+        Waiman Long
+	<longman@redhat.com>, Roman Gushchin <guro@fb.com>
+Smtp-Origin-Cluster: prn2c23
+Subject: [PATCH v6 00/10] mm: reparent slab memory on cgroup removal
+Date: Tue, 4 Jun 2019 19:44:44 -0700
+Message-ID: <20190605024454.1393507-1-guro@fb.com>
+X-Mailer: git-send-email 2.17.1
+X-FB-Internal: Safe
 MIME-Version: 1.0
-References: <20190602094607.41840-1-teawaterz@linux.alibaba.com>
- <20190602094607.41840-2-teawaterz@linux.alibaba.com> <CALvZod7WX0_Eu8eDLSwze=Kf07d6ysAM5DdSqqtkscVikPpSWQ@mail.gmail.com>
-In-Reply-To: <CALvZod7WX0_Eu8eDLSwze=Kf07d6ysAM5DdSqqtkscVikPpSWQ@mail.gmail.com>
-From: Hui Zhu <teawater@gmail.com>
-Date: Wed, 5 Jun 2019 10:33:05 +0800
-Message-ID: <CANFwon2-1uhuMKTdHb8F8DpdXsARM8Ng5DkK_Ss_e_TCEx9Q7Q@mail.gmail.com>
-Subject: Re: [PATCH V2 2/2] zswap: Add module parameter malloc_movable_if_support
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Hui Zhu <teawaterz@linux.alibaba.com>, Dan Streetman <ddstreet@ieee.org>, 
-	Minchan Kim <minchan@kernel.org>, "ngupta@vflare.org" <ngupta@vflare.org>, 
-	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Seth Jennings <sjenning@redhat.com>, 
-	Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-05_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906050015
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Shakeel Butt <shakeelb@google.com> =E4=BA=8E2019=E5=B9=B46=E6=9C=885=E6=97=
-=A5=E5=91=A8=E4=B8=89 =E4=B8=8A=E5=8D=881:12=E5=86=99=E9=81=93=EF=BC=9A
->
-> On Sun, Jun 2, 2019 at 2:47 AM Hui Zhu <teawaterz@linux.alibaba.com> wrot=
-e:
-> >
-> > This is the second version that was updated according to the comments
-> > from Sergey Senozhatsky in https://lkml.org/lkml/2019/5/29/73
-> >
-> > zswap compresses swap pages into a dynamically allocated RAM-based
-> > memory pool.  The memory pool should be zbud, z3fold or zsmalloc.
-> > All of them will allocate unmovable pages.  It will increase the
-> > number of unmovable page blocks that will bad for anti-fragment.
-> >
-> > zsmalloc support page migration if request movable page:
-> >         handle =3D zs_malloc(zram->mem_pool, comp_len,
-> >                 GFP_NOIO | __GFP_HIGHMEM |
-> >                 __GFP_MOVABLE);
-> >
-> > And commit "zpool: Add malloc_support_movable to zpool_driver" add
-> > zpool_malloc_support_movable check malloc_support_movable to make
-> > sure if a zpool support allocate movable memory.
-> >
-> > This commit adds module parameter malloc_movable_if_support to enable
-> > or disable zpool allocate block with gfp __GFP_HIGHMEM | __GFP_MOVABLE
-> > if it support allocate movable memory (disabled by default).
-> >
-> > Following part is test log in a pc that has 8G memory and 2G swap.
-> >
-> > When it disabled:
-> >  echo lz4 > /sys/module/zswap/parameters/compressor
-> >  echo zsmalloc > /sys/module/zswap/parameters/zpool
-> >  echo 1 > /sys/module/zswap/parameters/enabled
-> >  swapon /swapfile
-> >  cd /home/teawater/kernel/vm-scalability/
-> > /home/teawater/kernel/vm-scalability# export unit_size=3D$((9 * 1024 * =
-1024 * 1024))
-> > /home/teawater/kernel/vm-scalability# ./case-anon-w-seq
-> > 2717908992 bytes / 3977932 usecs =3D 667233 KB/s
-> > 2717908992 bytes / 4160702 usecs =3D 637923 KB/s
-> > 2717908992 bytes / 4354611 usecs =3D 609516 KB/s
-> > 293359 usecs to free memory
-> > 340304 usecs to free memory
-> > 205781 usecs to free memory
-> > 2717908992 bytes / 5588016 usecs =3D 474982 KB/s
-> > 166124 usecs to free memory
-> > /home/teawater/kernel/vm-scalability# cat /proc/pagetypeinfo
-> > Page block order: 9
-> > Pages per block:  512
-> >
-> > Free pages count per migrate type at order       0      1      2      3=
-      4      5      6      7      8      9     10
-> > Node    0, zone      DMA, type    Unmovable      1      1      1      0=
-      2      1      1      0      1      0      0
-> > Node    0, zone      DMA, type      Movable      0      0      0      0=
-      0      0      0      0      0      1      3
-> > Node    0, zone      DMA, type  Reclaimable      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone      DMA, type   HighAtomic      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone      DMA, type          CMA      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone      DMA, type      Isolate      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone    DMA32, type    Unmovable      5     10      9      8=
-      8      5      1      2      3      0      0
-> > Node    0, zone    DMA32, type      Movable     15     16     14     12=
-     14     10      9      6      6      5    776
-> > Node    0, zone    DMA32, type  Reclaimable      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone    DMA32, type   HighAtomic      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone    DMA32, type          CMA      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone    DMA32, type      Isolate      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone   Normal, type    Unmovable   7097   6914   6473   5642=
-   4373   2664   1220    319     78      4      0
-> > Node    0, zone   Normal, type      Movable   2092   3216   2820   2266=
-   1585    946    559    359    237    258    378
-> > Node    0, zone   Normal, type  Reclaimable     47     88    122     80=
-     34      9      5      4      2      1      2
-> > Node    0, zone   Normal, type   HighAtomic      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone   Normal, type          CMA      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone   Normal, type      Isolate      0      0      0      0=
-      0      0      0      0      0      0      0
-> >
-> > Number of blocks type     Unmovable      Movable  Reclaimable   HighAto=
-mic          CMA      Isolate
-> > Node 0, zone      DMA            1            7            0           =
- 0            0            0
-> > Node 0, zone    DMA32            4         1652            0           =
- 0            0            0
-> > Node 0, zone   Normal          834         1572           25           =
- 0            0            0
-> >
-> > When it enabled:
-> >  echo lz4 > /sys/module/zswap/parameters/compressor
-> >  echo zsmalloc > /sys/module/zswap/parameters/zpool
-> >  echo 1 > /sys/module/zswap/parameters/enabled
-> >  echo 1 > /sys/module/zswap/parameters/malloc_movable_if_support
-> >  swapon /swapfile
-> >  cd /home/teawater/kernel/vm-scalability/
-> > /home/teawater/kernel/vm-scalability# export unit_size=3D$((9 * 1024 * =
-1024 * 1024))
-> > /home/teawater/kernel/vm-scalability# ./case-anon-w-seq
-> > 2717908992 bytes / 4721401 usecs =3D 562165 KB/s
-> > 2717908992 bytes / 4783167 usecs =3D 554905 KB/s
-> > 2717908992 bytes / 4802125 usecs =3D 552715 KB/s
-> > 2717908992 bytes / 4866579 usecs =3D 545395 KB/s
-> > 323605 usecs to free memory
-> > 414817 usecs to free memory
-> > 458576 usecs to free memory
-> > 355827 usecs to free memory
-> > /home/teawater/kernel/vm-scalability# cat /proc/pagetypeinfo
-> > Page block order: 9
-> > Pages per block:  512
-> >
-> > Free pages count per migrate type at order       0      1      2      3=
-      4      5      6      7      8      9     10
-> > Node    0, zone      DMA, type    Unmovable      1      1      1      0=
-      2      1      1      0      1      0      0
-> > Node    0, zone      DMA, type      Movable      0      0      0      0=
-      0      0      0      0      0      1      3
-> > Node    0, zone      DMA, type  Reclaimable      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone      DMA, type   HighAtomic      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone      DMA, type          CMA      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone      DMA, type      Isolate      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone    DMA32, type    Unmovable      8     10      8      7=
-      7      6      5      3      2      0      0
-> > Node    0, zone    DMA32, type      Movable     23     21     18     15=
-     13     14     14     10     11      6    766
-> > Node    0, zone    DMA32, type  Reclaimable      0      0      0      0=
-      0      0      0      0      0      0      1
-> > Node    0, zone    DMA32, type   HighAtomic      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone    DMA32, type          CMA      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone    DMA32, type      Isolate      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone   Normal, type    Unmovable   2660   1295    460    102=
-     11      5      3     11      2      4      0
-> > Node    0, zone   Normal, type      Movable   4178   5760   5045   4137=
-   3324   2306   1482    930    497    254    460
-> > Node    0, zone   Normal, type  Reclaimable     50     83    114     93=
-     28     12     10      6      3      3      0
-> > Node    0, zone   Normal, type   HighAtomic      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone   Normal, type          CMA      0      0      0      0=
-      0      0      0      0      0      0      0
-> > Node    0, zone   Normal, type      Isolate      0      0      0      0=
-      0      0      0      0      0      0      0
-> >
-> > Number of blocks type     Unmovable      Movable  Reclaimable   HighAto=
-mic          CMA      Isolate
-> > Node 0, zone      DMA            1            7            0           =
- 0            0            0
-> > Node 0, zone    DMA32            4         1650            2           =
- 0            0            0
-> > Node 0, zone   Normal           81         2325           25           =
- 0            0            0
-> >
-> > You can see that the number of unmovable page blocks is decreased
-> > when malloc_movable_if_support is enabled.
-> >
-> > Signed-off-by: Hui Zhu <teawaterz@linux.alibaba.com>
-> > ---
-> >  mm/zswap.c | 16 +++++++++++++---
-> >  1 file changed, 13 insertions(+), 3 deletions(-)
-> >
-> > diff --git a/mm/zswap.c b/mm/zswap.c
-> > index a4e4d36ec085..2fc45de92383 100644
-> > --- a/mm/zswap.c
-> > +++ b/mm/zswap.c
-> > @@ -123,6 +123,13 @@ static bool zswap_same_filled_pages_enabled =3D tr=
-ue;
-> >  module_param_named(same_filled_pages_enabled, zswap_same_filled_pages_=
-enabled,
-> >                    bool, 0644);
-> >
-> > +/* Enable/disable zpool allocate block with gfp __GFP_HIGHMEM | __GFP_=
-MOVABLE
-> > + * if it support allocate movable memory (disabled by default).
-> > + */
-> > +static bool __read_mostly zswap_malloc_movable_if_support;
-> > +module_param_cb(malloc_movable_if_support, &param_ops_bool,
-> > +               &zswap_malloc_movable_if_support, 0644);
-> > +
->
-> Any reason for the above tunable? Do we ever want to disable movable
-> for zswap+zsmalloc?
+# Why do we need this?
 
-Thanks for your remind.  I will post a new version that remove this
-module_param later.
+We've noticed that the number of dying cgroups is steadily growing on most
+of our hosts in production. The following investigation revealed an issue
+in userspace memory reclaim code [1], accounting of kernel stacks [2],
+and also the mainreason: slab objects.
 
-Best,
-Hui
+The underlying problem is quite simple: any page charged
+to a cgroup holds a reference to it, so the cgroup can't be reclaimed unless
+all charged pages are gone. If a slab object is actively used by other cgroups,
+it won't be reclaimed, and will prevent the origin cgroup from being reclaimed.
 
->
-> >  /*********************************
-> >  * data structures
-> >  **********************************/
-> > @@ -1006,6 +1013,7 @@ static int zswap_frontswap_store(unsigned type, p=
-goff_t offset,
-> >         char *buf;
-> >         u8 *src, *dst;
-> >         struct zswap_header zhdr =3D { .swpentry =3D swp_entry(type, of=
-fset) };
-> > +       gfp_t gfp =3D __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLA=
-IM;
-> >
-> >         /* THP isn't supported */
-> >         if (PageTransHuge(page)) {
-> > @@ -1079,9 +1087,11 @@ static int zswap_frontswap_store(unsigned type, =
-pgoff_t offset,
-> >
-> >         /* store */
-> >         hlen =3D zpool_evictable(entry->pool->zpool) ? sizeof(zhdr) : 0=
-;
-> > -       ret =3D zpool_malloc(entry->pool->zpool, hlen + dlen,
-> > -                          __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_=
-RECLAIM,
-> > -                          &handle);
-> > +       if (zswap_malloc_movable_if_support &&
-> > +               zpool_malloc_support_movable(entry->pool->zpool)) {
-> > +               gfp |=3D __GFP_HIGHMEM | __GFP_MOVABLE;
-> > +       }
-> > +       ret =3D zpool_malloc(entry->pool->zpool, hlen + dlen, gfp, &han=
-dle);
-> >         if (ret =3D=3D -ENOSPC) {
-> >                 zswap_reject_compress_poor++;
-> >                 goto put_dstmem;
-> > --
-> > 2.20.1 (Apple Git-117)
-> >
->
+Slab objects, and first of all vfs cache, is shared between cgroups, which are
+using the same underlying fs, and what's even more important, it's shared
+between multiple generations of the same workload. So if something is running
+periodically every time in a new cgroup (like how systemd works), we do
+accumulate multiple dying cgroups.
+
+Strictly speaking pagecache isn't different here, but there is a key difference:
+we disable protection and apply some extra pressure on LRUs of dying cgroups,
+and these LRUs contain all charged pages.
+My experiments show that with the disabled kernel memory accounting the number
+of dying cgroups stabilizes at a relatively small number (~100, depends on
+memory pressure and cgroup creation rate), and with kernel memory accounting
+it grows pretty steadily up to several thousands.
+
+Memory cgroups are quite complex and big objects (mostly due to percpu stats),
+so it leads to noticeable memory losses. Memory occupied by dying cgroups
+is measured in hundreds of megabytes. I've even seen a host with more than 100Gb
+of memory wasted for dying cgroups. It leads to a degradation of performance
+with the uptime, and generally limits the usage of cgroups.
+
+My previous attempt [3] to fix the problem by applying extra pressure on slab
+shrinker lists caused a regressions with xfs and ext4, and has been reverted [4].
+The following attempts to find the right balance [5, 6] were not successful.
+
+So instead of trying to find a maybe non-existing balance, let's do reparent
+the accounted slabs to the parent cgroup on cgroup removal.
+
+
+# Implementation approach
+
+There is however a significant problem with reparenting of slab memory:
+there is no list of charged pages. Some of them are in shrinker lists,
+but not all. Introducing of a new list is really not an option.
+
+But fortunately there is a way forward: every slab page has a stable pointer
+to the corresponding kmem_cache. So the idea is to reparent kmem_caches
+instead of slab pages.
+
+It's actually simpler and cheaper, but requires some underlying changes:
+1) Make kmem_caches to hold a single reference to the memory cgroup,
+   instead of a separate reference per every slab page.
+2) Stop setting page->mem_cgroup pointer for memcg slab pages and use
+   page->kmem_cache->memcg indirection instead. It's used only on
+   slab page release, so it shouldn't be a big issue.
+3) Introduce a refcounter for non-root slab caches. It's required to
+   be able to destroy kmem_caches when they become empty and release
+   the associated memory cgroup.
+
+There is a bonus: currently we do release empty kmem_caches on cgroup
+removal, however all other are waiting for the releasing of the memory cgroup.
+These refactorings allow kmem_caches to be released as soon as they
+become inactive and free.
+
+Some additional implementation details are provided in corresponding
+commit messages.
+
+
+# Results
+
+Below is the average number of dying cgroups on two groups of our production
+hosts. They do run some sort of web frontend workload, the memory pressure
+is moderate. As we can see, with the kernel memory reparenting the number
+stabilizes in 60s range; however with the original version it grows almost
+linearly and doesn't show any signs of plateauing. The difference in slab
+and percpu usage between patched and unpatched versions also grows linearly.
+In 7 days it exceeded 200Mb.
+
+day           0    1    2    3    4    5    6    7
+original     56  362  628  752 1070 1250 1490 1560
+patched      23   46   51   55   60   57   67   69
+mem diff(Mb) 22   74  123  152  164  182  214  241
+
+
+# History
+
+v6:
+  1) split biggest patches into parts to make the review easier
+  2) changed synchronization around the dying flag
+  3) sysfs entry removal on deactivation is back
+  4) got rid of redundant rcu wait on kmem_cache release
+  5) fixed getting memcg pointer in mem_cgroup_from_kmem()
+  5) fixed missed smp_rmb()
+  6) removed redundant CONFIG_SLOB
+  7) some renames and cosmetic fixes
+
+v5:
+  1) fixed a compilation warning around missing kmemcg_queue_cache_shutdown()
+  2) s/rcu_read_lock()/rcu_read_unlock() in memcg_kmem_get_cache()
+
+v4:
+  1) removed excessive memcg != parent check in memcg_deactivate_kmem_caches()
+  2) fixed rcu_read_lock() usage in memcg_charge_slab()
+  3) fixed synchronization around dying flag in kmemcg_queue_cache_shutdown()
+  4) refreshed test results data
+  5) reworked PageTail() checks in memcg_from_slab_page()
+  6) added some comments in multiple places
+
+v3:
+  1) reworked memcg kmem_cache search on allocation path
+  2) fixed /proc/kpagecgroup interface
+
+v2:
+  1) switched to percpu kmem_cache refcounter
+  2) a reference to kmem_cache is held during the allocation
+  3) slabs stats are fixed for !MEMCG case (and the refactoring
+     is separated into a standalone patch)
+  4) kmem_cache reparenting is performed from deactivatation context
+
+v1:
+  https://lkml.org/lkml/2019/4/17/1095
+
+
+# Links
+
+[1]: commit 68600f623d69 ("mm: don't miss the last page because of
+round-off error")
+[2]: commit 9b6f7e163cd0 ("mm: rework memcg kernel stack accounting")
+[3]: commit 172b06c32b94 ("mm: slowly shrink slabs with a relatively
+small number of objects")
+[4]: commit a9a238e83fbb ("Revert "mm: slowly shrink slabs
+with a relatively small number of objects")
+[5]: https://lkml.org/lkml/2019/1/28/1865
+[6]: https://marc.info/?l=linux-mm&m=155064763626437&w=2
+
+
+Roman Gushchin (10):
+  mm: add missing smp read barrier on getting memcg kmem_cache pointer
+  mm: postpone kmem_cache memcg pointer initialization to
+    memcg_link_cache()
+  mm: rename slab delayed deactivation functions and fields
+  mm: generalize postponed non-root kmem_cache deactivation
+  mm: introduce __memcg_kmem_uncharge_memcg()
+  mm: unify SLAB and SLUB page accounting
+  mm: synchronize access to kmem_cache dying flag using a spinlock
+  mm: rework non-root kmem_cache lifecycle management
+  mm: stop setting page->mem_cgroup pointer for slab pages
+  mm: reparent slab memory on cgroup removal
+
+ include/linux/memcontrol.h |  10 +++
+ include/linux/slab.h       |  13 +--
+ mm/list_lru.c              |  11 ++-
+ mm/memcontrol.c            | 102 +++++++++++++++-------
+ mm/slab.c                  |  25 ++----
+ mm/slab.h                  | 140 +++++++++++++++++++++---------
+ mm/slab_common.c           | 170 ++++++++++++++++++++++---------------
+ mm/slub.c                  |  24 +-----
+ 8 files changed, 312 insertions(+), 183 deletions(-)
+
+-- 
+2.20.1
 
