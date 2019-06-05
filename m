@@ -2,147 +2,197 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 93482C28CC5
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:26:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6970FC28CC5
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:27:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2CAE52086A
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:26:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="k8/Yhbuf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CAE52086A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 35C2F2086A
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:27:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35C2F2086A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 725186B000D; Wed,  5 Jun 2019 09:26:13 -0400 (EDT)
+	id B433D6B000D; Wed,  5 Jun 2019 09:27:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6D5196B000E; Wed,  5 Jun 2019 09:26:13 -0400 (EDT)
+	id AF3896B000E; Wed,  5 Jun 2019 09:27:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 59CA66B0010; Wed,  5 Jun 2019 09:26:13 -0400 (EDT)
+	id 9E23B6B0010; Wed,  5 Jun 2019 09:27:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 341896B000D
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 09:26:13 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id q26so4514364qtr.3
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 06:26:13 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 527E16B000D
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 09:27:32 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id w4so9680507wrv.11
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 06:27:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=s6/pRA/FRv79XWIPs0xt9Lyo0lf431cIWjT6TfF1xds=;
-        b=E7yzaQup+CikDOasOfIK0yhycpgr4OgblZX0UG4BrCIj/0DbHYLJUZhihRoZ0VKlGb
-         J1EXW0vdI/uKP8jBpI5XrOlUVnevOxhdFMiPivQzfXkfvrVRokSYGwhIik1fuQJ/s9Yb
-         qzHJBf7AwmJAjcohUQVmf3nubaQKtt/h+RWM0IAb8MIgjLylQTx93rb4qWy2LCFId4b8
-         ry8ZRlRJd0yOrPEcpfWngZSVx3WbuWK3ttaSz0fOK75aUuI1R5FLODtbb/yTlRLnK1M7
-         Hwg4GqR60QT6qaVKhy2h1UC8bIf7gwDF9rUgCNI0D0dnYQsrihGCcUDtOJbfApTd5OFw
-         b5fQ==
-X-Gm-Message-State: APjAAAUPetZfRWHMPifHdyqAxS12vKnO1vk5HRcAz2Y351Hgc56wjyLD
-	7e5qP7NUcpZwuhilTZaDGH18nuaG+mkZYqd19lTEAllI4xXciKCJOwRYqXHISUuqJPdQzoNQcEQ
-	1IncqefkgmPJmzeYQWqD3Kn0po3lEgrv6aP5WHAy4bzPDCOMRE7tY5Wn7sxZ04Cc=
-X-Received: by 2002:ac8:156:: with SMTP id f22mr17242436qtg.58.1559741172912;
-        Wed, 05 Jun 2019 06:26:12 -0700 (PDT)
-X-Received: by 2002:ac8:156:: with SMTP id f22mr17242360qtg.58.1559741171886;
-        Wed, 05 Jun 2019 06:26:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559741171; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=8UF6IKh1oi+AJKntkp2Avzsj99+2nJ602b//xWwwYMo=;
+        b=BYLg+RREw+0Mw+fygKhI/xawE04EPwrQRKElYf9jxiKWg88WtftytFuoD5GzuEAYNm
+         J6cc9RE2u9jwhsLfsaAuXSLsZCiHjL17LyyvVXAKVxW3kyH2T5jbgl9tfNni8RyhUBwb
+         GtQKByG7HxtjEFj/6I93xZeRX4h4i7HPOPn29fkhajz5ZFDMNXjN4t4EPEvHzWVoJyUu
+         sqMel0ARuDdK6eRiVNyyQEF5iIkojzv5SDyPWWwLdZR8ue2IBe0QtQZynwW+rZw3R79h
+         +w3OMSR42O38j+xhPtZ5nns4GamT/JEVpVMr61FvgraKzR+kO2KD1WUJ/7XX2fBvxX1o
+         iRtw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXkUKBTtET+vGPx2dLSbSXcwAWxG0EV0iPrMiX/N+65SJ/JZX2N
+	sNWXiwF8t86h1kdrkVYdqtf/55xbIKOzfaKsvrmlhmpt0ijpSQIVSMTN73QKP1LOWoRyFNirUQ3
+	Bmhz1MTMvWHEASEIwU6DwDSZlhHxTFyaZbGeZib79yWifGGpyRNldtiPI3u20b/alKw==
+X-Received: by 2002:adf:8385:: with SMTP id 5mr11038283wre.194.1559741251864;
+        Wed, 05 Jun 2019 06:27:31 -0700 (PDT)
+X-Received: by 2002:adf:8385:: with SMTP id 5mr11038221wre.194.1559741250788;
+        Wed, 05 Jun 2019 06:27:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559741250; cv=none;
         d=google.com; s=arc-20160816;
-        b=TNYMVJDO3qX1QAbhrgo5eZW9ZKaTjWF+3u/VCbjwaCmCzy5VuEmuEPlXK+/+OG09XE
-         9NkC2O0a/c+o77/AwHON9apGYteRUq01QCNZXrSDpOoLfcHWRF49MzDXhsWiXh+a1aJY
-         WIMOsNxfOJ9ioByQgJHXdrv94Y9TT755dM1PoR1PR0jNgNFBi0fkpilQf+Xz+U1+X2pk
-         EpsD4jhzSURgkJbqF6Vo8fBDbSjaM49PyeDcoRqSQlivdXvgGasjSOLCnTV4g/azr7tn
-         0XxMZg3jpboBvCNlciTIw+gtnFDiYXVLLpdfT+HFlH6KDXvXCWSn2ySHbyiusoBq30kV
-         FCqw==
+        b=ENEg3e1+1qnzUx7lxoU+PaN6NlGAZpTgBTsUOchV4apuYQLT0ed6ivFjoDLG6P2ZUZ
+         3RNp8vxPxPWmuVqXy5/VP+SmilZx82uOWSPaTaYREX7AaRFI7rMv1XKsmqy5N1fbzhd0
+         I1yoFJJ4dnbir9fyiftpRUjE9jckLDzqjmLnezRBmtuX/MarxyzJiqQR915Y/j8WK9Gg
+         Pr497KhqtBjggGI84V+1fJUnGHXe/M4tNoys/elFpxeSB4eFotFaLLb4hUELHAQwMCGs
+         IdFiDFMXCKcLWQaVX+0W//y30kfeBCtjvvF2JfxMOZ8RlHn82UDde6HejZP5rve3Og9U
+         xkUw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=s6/pRA/FRv79XWIPs0xt9Lyo0lf431cIWjT6TfF1xds=;
-        b=JsjKD2tNpa+1R5YX+H4QZcFAUvKSZdjikixLEcU2jYer/gN8QUkXvG/9WOR44q0T3H
-         H7ltFKbZc/AtUMxrPv6U7zBOQ+JNHXA/g2GlH30sKAGvxXP3owbTLX7oCQFs/6VNmsXD
-         OkqSb1czk/O3LIDhpEzsh/1SP/lvdX7BRanAH8hgz+CuQH9YjOqxXcUjpicPac2XVwql
-         6w7rtSYIi7NRLzM/YBOOXEIq+YyaAM5IDxoz1LuPNlkiUzaqvLNLQUpM/+lA815oHxcj
-         hke+StaWaJmBblMUTdZi6aV8+8puB8NA/1trf5b1FAIzYwQSolWduxPqWIky3COqAtvi
-         lzmQ==
+         :message-id:subject:cc:to:from:date;
+        bh=8UF6IKh1oi+AJKntkp2Avzsj99+2nJ602b//xWwwYMo=;
+        b=qiJwSfJiQq6sCmBX1nC9LZfazHLo3o2Yg9/RG9e2VoKDrzzg9GWujla5+r5eP+7Xlp
+         Tpl1knIQJLNBA9YVQ8A3BXMqIib5UXlB6Cu0/lOPFmslyuf6JCJvP8GT+bxL07FGw74P
+         BtgHZ5r3SDxOAnZBdDyy5aAeF9/046sMVnlEy0W4Eln3sXIzKFEaz76ZpBsVu2N/Eral
+         sELE6vWxT74OLscR0o2MOjzBqWNRkYHz3jemRe/fHkHBebRaEhHUP55yGXb3xW4Zcm5o
+         eKHqf2srQBrrcXFINiH2MovVqbPUOP+UElRKjfEX6CCcS6RQrLwQq7C3Ao4mLBiq6KOu
+         2w7A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="k8/Yhbuf";
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n202sor4566882qka.66.2019.06.05.06.26.11
+       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p19sor3623630wre.45.2019.06.05.06.27.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 05 Jun 2019 06:26:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 05 Jun 2019 06:27:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="k8/Yhbuf";
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=s6/pRA/FRv79XWIPs0xt9Lyo0lf431cIWjT6TfF1xds=;
-        b=k8/Yhbufqh3DMYmLycwsD4rntibzmwGLFA8f3BJkBHYziNLbAiTWTtNHG8P/LZXG01
-         RQr3TuUc7en2wLHZVCPQyU8oTGqg0hN3O3VhWzUdlsZgq7nvJBBc1wHtWnsIISh87nJl
-         tS4mJTrZk63Xn57xRtEf92yZctuaIVJ9RbJRB40XHVYqSOUn5EPxrnw+KvvV+eojCNNs
-         26TIF/qMy/wLikOWhz0zJ0Z6oQe57wex1ly57qgu8408/ZLDG/a9ZMHgEhxIVSzHjg5G
-         Ah3XhcGeFc/9gT1+wfPOSFQXBxqU9Lm38xTZvkjCj1L7OEGQRoec2kC1w/+rf8Qg82FY
-         b2QQ==
-X-Google-Smtp-Source: APXvYqyn/0YrgqYDxI+pyotnafRB07J91NtPSDC/hCalcKirkzsBwvMmzeYdvlDQDwYgHNmcrRVsuw==
-X-Received: by 2002:a37:50d4:: with SMTP id e203mr31499108qkb.83.1559741171252;
-        Wed, 05 Jun 2019 06:26:11 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::1:c027])
-        by smtp.gmail.com with ESMTPSA id o8sm7701628qtq.18.2019.06.05.06.26.10
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 06:26:10 -0700 (PDT)
-Date: Wed, 5 Jun 2019 06:26:07 -0700
-From: Tejun Heo <tj@kernel.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, kernel-team@fb.com
-Subject: Re: [PATCH for-5.2-fixes] memcg: Don't loop on css_tryget_online()
- failure
-Message-ID: <20190605132607.GI374014@devbig004.ftw2.facebook.com>
-References: <20190529210617.GP374014@devbig004.ftw2.facebook.com>
- <20190605125520.GF15685@dhcp22.suse.cz>
+       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqzO7CgrYTcvyVtelP3nLeZ+Ekw3IsfgEuQ6as9WNjO7Znl9iRR9QfVOYT+MaOhBlZ3QYIBaSg==
+X-Received: by 2002:adf:e4d2:: with SMTP id v18mr10605225wrm.189.1559741250343;
+        Wed, 05 Jun 2019 06:27:30 -0700 (PDT)
+Received: from localhost (nat-pool-brq-t.redhat.com. [213.175.37.10])
+        by smtp.gmail.com with ESMTPSA id u205sm24193031wmu.47.2019.06.05.06.27.29
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 05 Jun 2019 06:27:29 -0700 (PDT)
+Date: Wed, 5 Jun 2019 15:27:28 +0200
+From: Oleksandr Natalenko <oleksandr@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, jannh@google.com,
+	oleg@redhat.com, christian@brauner.io, hdanton@sina.com
+Subject: Re: [RFCv2 4/6] mm: factor out madvise's core functionality
+Message-ID: <20190605132728.mihzzw7galqjf5uz@butterfly.localdomain>
+References: <20190531064313.193437-1-minchan@kernel.org>
+ <20190531064313.193437-5-minchan@kernel.org>
+ <20190531070420.m7sxybbzzayig44o@butterfly.localdomain>
+ <20190531131226.GA195463@google.com>
+ <20190531143545.jwmgzaigd4rbw2wy@butterfly.localdomain>
+ <20190531232959.GC248371@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190605125520.GF15685@dhcp22.suse.cz>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+In-Reply-To: <20190531232959.GC248371@google.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 05, 2019 at 02:55:20PM +0200, Michal Hocko wrote:
-> On Wed 29-05-19 14:06:17, Tejun Heo wrote:
-> > A PF_EXITING task may stay associated with an offline css.
-> > get_mem_cgroup_from_mm() may deadlock if mm->owner is in such state.
-> > All similar logics in memcg are falling back to root memcg on
-> > tryget_online failure and get_mem_cgroup_from_mm() can do the same.
-> >
-> > A similar failure existed for task_get_css() and could be triggered
-> > through BSD process accounting racing against memcg offlining.  See
-> > 18fa84a2db0e ("cgroup: Use css_tryget() instead of css_tryget_online()
-> > in task_get_css()") for details.
-> > 
-> > Signed-off-by: Tejun Heo <tj@kernel.org>
-> 
-> Do we need to mark this patch for stable or this is too unlikely to
-> happen?
+Hi.
 
-This one's a lot less likely than the one in task_get_css() which
-already is pretty low frequency.  I don't think it warrants -stable
-tagging.
+On Sat, Jun 01, 2019 at 08:29:59AM +0900, Minchan Kim wrote:
+> > > > > /* snip a lot */
+> > > > >
+> > > > >  #ifdef CONFIG_MEMORY_FAILURE
+> > > > >  	if (behavior == MADV_HWPOISON || behavior == MADV_SOFT_OFFLINE)
+> > > > > -		return madvise_inject_error(behavior, start, start + len_in);
+> > > > > +		return madvise_inject_error(behavior,
+> > > > > +					start, start + len_in);
+> > > > 
+> > > > Not sure what this change is about except changing the line length.
+> > > > Note, madvise_inject_error() still operates on "current" through
+> > > > get_user_pages_fast() and gup_pgd_range(), but that was not changed
+> > > > here. I Know you've filtered out this hint later, so technically this
+> > > > is not an issue, but, maybe, this needs some attention too since we've
+> > > > already spotted it?
+> > > 
+> > > It is leftover I had done. I actually modified it to handle remote
+> > > task but changed my mind not to fix it because process_madvise
+> > > will not support it at this moment. I'm not sure it's a good idea
+> > > to change it for *might-be-done-in-future* at this moment even though
+> > > we have spotted.
+> > 
+> > I'd expect to have at least some comments in code on why other hints
+> > are disabled, so if we already know some shortcomings, this information
+> > would not be lost.
+> 
+> Okay, I will add some comment but do not want to fix code piece until
+> someone want to expose the poisoning to external process.
+
+Fair enough.
+
+> > > > >  	write = madvise_need_mmap_write(behavior);
+> > > > >  	if (write) {
+> > > > > -		if (down_write_killable(&current->mm->mmap_sem))
+> > > > > +		if (down_write_killable(&mm->mmap_sem))
+> > > > >  			return -EINTR;
+> > > > 
+> > > > Do you still need that trick with mmget_still_valid() here?
+> > > > Something like:
+> > > 
+> > > Since MADV_COLD|PAGEOUT doesn't change address space layout or
+> > > vma->vm_flags, technically, we don't need it if I understand
+> > > correctly. Right?
+> > 
+> > I'd expect so, yes. But.
+> > 
+> > Since we want this interface to be universal and to be able to cover
+> > various needs, and since my initial intention with working in this
+> > direction involved KSM, I'd ask you to enable KSM hints too, and once
+> > (and if) that happens, the work there is done under write lock, and
+> > you'll need this trick to be applied.
+> > 
+> > Of course, I can do that myself later in a subsequent patch series once
+> > (and, again, if) your series is merged, but, maybe, we can cover this
+> > already especially given the fact that KSM hinting is a relatively easy
+> > task in this pile. I did some preliminary tests with it, and so far no
+> > dragons have started to roar.
+> 
+> Then, do you mind sending a patch based upon this series to expose
+> MADV_MERGEABLE to process_madvise? It will have the right description
+> why you want to have such feature which I couldn't provide since I don't
+> have enough material to write the motivation. And the patch also could
+> include the logic to prevent coredump race, which is more proper since
+> finally we need to hold mmap_sem write-side lock, finally.
+> I will pick it up and will rebase since then.
+
+Sure, I can. Would you really like to have it being based on this exact
+revision, or I should wait till you deal with MADV_COLD & Co and re-iterate
+this part again?
 
 Thanks.
 
 -- 
-tejun
+  Best regards,
+    Oleksandr Natalenko (post-factum)
+    Senior Software Maintenance Engineer
 
