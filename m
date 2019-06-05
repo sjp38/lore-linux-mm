@@ -2,120 +2,134 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B131C28D18
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 18:26:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E79DC28CC5
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 18:37:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AA7BE2075C
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 18:26:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1D30320866
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 18:37:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="PlkGjGUX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA7BE2075C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="HzbQMt6u"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D30320866
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C5826B0266; Wed,  5 Jun 2019 14:26:17 -0400 (EDT)
+	id 921DD6B026A; Wed,  5 Jun 2019 14:37:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 076D16B0269; Wed,  5 Jun 2019 14:26:17 -0400 (EDT)
+	id 8D27A6B026B; Wed,  5 Jun 2019 14:37:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EF63E6B026A; Wed,  5 Jun 2019 14:26:16 -0400 (EDT)
+	id 7E9496B026C; Wed,  5 Jun 2019 14:37:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D3A9D6B0266
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 14:26:16 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id g142so2513389ita.6
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 11:26:16 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CBCD6B026A
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 14:37:10 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id z2so19334339pfb.12
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 11:37:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=CuKsTBPsIQTq7kaBkBZ4doP5Ts93RaiB5cwtxxnYeKo=;
-        b=N7pAHn1knWEJXQ0Z9NDa/eEkWM/DfUg+BpqYS/8+/ybJeQPGisiBrNahDuJagsMr3z
-         AyUXdz9GZjVEr4F+KZ8hg1LcJdqDytntRV1oZMLv0senQvEgjyuD+4ROTNbMdzDA5JIM
-         w5JFKoFhDKhM5qYKYtF5KWmByotfcOD+qf5ONZkYYKuGLgEN4sdJqol4lJZ5SgZVAqzs
-         X8NXb304IdOGpKbcSWIgarg8y6IYJr5x9uD4m+SUFhWN0un4Vc1CegjMUY0Fpn6hWrxt
-         q7+I/8bG1FRlxSJtOa2TJIgrb2/awCRESDOtbfDnH5eYUn6kK4L9SoqTB+JKYZeMesdi
-         6L3g==
-X-Gm-Message-State: APjAAAW2CqhbhHLQo9M57NUmgma9jXbVKyUnrQRX5oYTA22Eado9cz50
-	MkpZZnZoPuwGruGYqjQW8D7SbWam/wr/HiquT5LHcQ4a2Khm+vibeWr/Km6n7Whk4qQSiwK3GWc
-	ib5lYjzz0Ed+UXr8nkXiVF4/3J8fAXvnUhU4W5wEL7fgX6ags1UyqylDul4Rh7fesXQ==
-X-Received: by 2002:a24:ee47:: with SMTP id b68mr827446iti.36.1559759176595;
-        Wed, 05 Jun 2019 11:26:16 -0700 (PDT)
-X-Received: by 2002:a24:ee47:: with SMTP id b68mr827410iti.36.1559759175876;
-        Wed, 05 Jun 2019 11:26:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559759175; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=lX9wuvmvvhsbv7JT6JNhJ0QWl+hp9xHwxNjKJqmN6U8=;
+        b=Q35LcJdZrqhpLpDieA+JsrmVuiNlVWtrrlSF4/6QAT0hzx8NeeGVzHkeLhb+RYTRDr
+         o+JDFK/pnOtzqo9PwFa2dnzpNkLApsPZiiUxKDnapl1TLZgNhxApkWcdwr8GzApAzAuP
+         zVV22N2BYlpNMnKWzgky5c6ZhRRTP6l9lz+d8p0hgE2G8TJ0Jzi+B2lYbQOWINwY6PIs
+         QByvE/1rVw+iJY+Z8eaCDXW+lk7yCIzISF06msGOTQT2W6ZwiOuIw4GyeTY06XqaerOF
+         9YIwocQWUaVD5EYTdvNOral4/oMEjfbH9T7bAIjvKhzJO53MMFdEe3zKDSHJSKAc1VkZ
+         ZFKw==
+X-Gm-Message-State: APjAAAWaVpxJBDa8xtEuu0JYiOfNhqhqMhqgFlFNd2Pq8B/7qf5Cp+ah
+	ZnpM/cPxHCjo3tfkNgzuLGi7yLHHQlLKscLuq+YS36iyEr+ICAB98AE8Ab7AZvyMQrauClfoMw5
+	uwrrWZxU+9uHg1G0XyaGza5aVqXwQXdWGg9owq2JIos/ZM61ta8s1yinmj4DBFcs=
+X-Received: by 2002:a65:51c7:: with SMTP id i7mr105841pgq.211.1559759829683;
+        Wed, 05 Jun 2019 11:37:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwRYDVwdzh4GYof8RnkPr/Gmq0B6Gejd5RNFKgL/HCNFAAPf2P7cGF77JbfbNGg8JaxDU4W
+X-Received: by 2002:a65:51c7:: with SMTP id i7mr105734pgq.211.1559759828606;
+        Wed, 05 Jun 2019 11:37:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559759828; cv=none;
         d=google.com; s=arc-20160816;
-        b=tNQbaxCZWQNpm4783BJgPQVBCECpbtveoscc2TS+8ZoA0CET0Ow6mOoGO6L8gDhlae
-         IMhyScBcwVfbjNUk6QTSvxObfsbu/5+BRRdqeQtcJ0QtWdoEiAd4we7bKdJY/jUDA6+x
-         LWIvYRYZK/IFyIn23rFa/o8oVdzDDoyVTv/CM76R0gHFw9IGEtG9wJrub9w102G8uHR2
-         d7vC+jOFLcTNwb8LzauINNIdFO15F27vAY21Y7SSY9vb/QvVz4U9H3oOTBnwvYgf/jVz
-         UH3cZUVnpHgaLmr+orPVpmaDaxXr2DmPd8sU8rqYNqT24ZhdMbCh35KXNonB8wOCqtEN
-         Jxqw==
+        b=AMitZSdZNhpVrMlCnJ/GXRU0Y3MRfxueh1JhUR9MXGLw/Mp+UhZq5a7X4RMW2hv6M/
+         /KZGekMyQghLWemPOOxPx7SXO/5atfqHEssA3oGoG32JeM0j4RRD6ksORKFvslZXHKvq
+         UPqE/2l1rHe+VnftBnFi8XHearVpO4iUrz+zW2E1ccJeGcMVC338n8WGZHOEsYKdh9Gw
+         ocYFz+bDTFtDG+76V/GtR+Gd45iFylIWozmJK+DC4EXPA1xfqfCeVsZ7FRyR+RcJpRi0
+         fLUpfdTeI3gxN+1vAr6Ym9EeE3fx3E4OaMzXIz2/hfgeuj+TV18MfRNCuaO989R7t/yQ
+         +sXw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=CuKsTBPsIQTq7kaBkBZ4doP5Ts93RaiB5cwtxxnYeKo=;
-        b=CwpleRbsXDJ650w5ZvelRuvQK1zGbQn+BbHxGj6z5+umF2ZypCRHQs7Xx/iXxL1GBo
-         OLGzD0zR/WAf1d1AQSqugrahlgnT56y6YUUwjqIDbQAX0XiNgKn/iPogSQuiVdP+8Vn1
-         QJBdL1dAD1gZ50TJphYobO/6MC1+pmKGYgwXRJmk5K4lwdlIBXd8jk4IGKKEiojIzSth
-         KMlsgpJVBFl6O3S+WoaGXsFHqKLLnDLOlvbKzxUM0xAEJy3kg48xE5r2kIrjDNPvHuiK
-         s/6nbHeHEISkgaEz+HUZZVcRGJ/npg8CvFIqVmbuZBryDB0vKnCW70HUvfMEvnB9g7zG
-         ThUQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=lX9wuvmvvhsbv7JT6JNhJ0QWl+hp9xHwxNjKJqmN6U8=;
+        b=vvIgifYgFXB1xfJlEm2YtTQowMWjyMSwjyKUsjazZ2fHgBzd5En4GINc8WIEvD6Kii
+         aBwXFzo8V/1ko9fuox98XFlMq7P6LUzMcJCSprm6omGSkNkOkkBTHGRLGrKcUM9Zirld
+         pM0bMikWt7HOoY5r9Nc7bk0kngrVhwKHcvKZnSQ0kY4zBnQQzF24Ku5U+lzfBCfwqjf5
+         LIGOuNQgG9KE26HNctiGO9Tz6d4en6o3/5zb4G/8N2mMLlpI8JgpeaQtlAxc2w4WL0OF
+         NXxUDvbDSTXKHViFDQOTvIYLQQwUW8Yvq6gE7HXX5+LXwl0WcUD1MqYRdpy71kfdYCtE
+         4ipA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=PlkGjGUX;
-       spf=pass (google.com: domain of matthewgarrett@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=matthewgarrett@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 185sor11633229itu.16.2019.06.05.11.26.15
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=HzbQMt6u;
+       spf=pass (google.com: best guess record for domain of batv+b63b843e11fda23eacb1+5764+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+b63b843e11fda23eacb1+5764+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id k19si26682346pgh.143.2019.06.05.11.37.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 05 Jun 2019 11:26:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of matthewgarrett@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 05 Jun 2019 11:37:06 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+b63b843e11fda23eacb1+5764+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=PlkGjGUX;
-       spf=pass (google.com: domain of matthewgarrett@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=matthewgarrett@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=CuKsTBPsIQTq7kaBkBZ4doP5Ts93RaiB5cwtxxnYeKo=;
-        b=PlkGjGUXwzj17TBdlmfkM3QAvf/E4BNtOY6z86bVQd4magMo+EcHQNSjIFIMHSv9ep
-         Hvn0TJUbPu1jT6y+TjRG17nCAMo2zeTFBjnwLXvyDDHdIs/phhSJ5FGcELiuZ3qi4qb4
-         8r2u0QNafuNOyyE9n3i5EJIFPbKUN09gquhoJ1Jq5l847nWhl3wXZXG+e0tX2A09B2Ea
-         t4L1U4es8Xu93CiBgt7golQhzRx1HiABCzolmi+9lkEYx/cOhkMz8PX2Q17JQViNF8KR
-         kPmbzLqAvRGc8MlXh9si9eN7nJ94ifGV8+0AQezoJE43EQfRV4SMR1Ea1rT4lxoRcBoK
-         um3g==
-X-Google-Smtp-Source: APXvYqzg2Q8FD5mu9akBujndKp639v+Wwjk+fWqAAHLrXjNUx9Ab4kGUMVzGf0NiOxZjZs7NT3ykGTBqnEr/028Fy/w=
-X-Received: by 2002:a24:bd4:: with SMTP id 203mr26657993itd.119.1559759174805;
- Wed, 05 Jun 2019 11:26:14 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=HzbQMt6u;
+       spf=pass (google.com: best guess record for domain of batv+b63b843e11fda23eacb1+5764+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+b63b843e11fda23eacb1+5764+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	MIME-Version:Message-Id:Date:Subject:Cc:To:From:Sender:Reply-To:Content-Type:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=lX9wuvmvvhsbv7JT6JNhJ0QWl+hp9xHwxNjKJqmN6U8=; b=HzbQMt6u3IGHt8A5V6WGQ6OAl
+	2re5rNst4ZCF6GkrbfG1vYAOpRPE0DUodARm6IgqoR3L7r5gwlxQpIxjJqu2RNd/qzz5dJ4uy1rnR
+	BhILGbOO2N17VaqJ3lL1UBCrXMZv6SJOITF0aYeQDfEB6rcKg7hAe6gA0Ez92T3RniP8fQlhwakd3
+	+XWBIYvBfxeC4jGs+EPd1XvDWL4hqF5OpcYzZIuGIlMpNBNrJNNrAE6HY/Yphscf7R8RVsEInxcVV
+	DTo/AUl6VYJt2Qh8JxPgn2X85wdi+DXsdq6EWmvyEiPrKgmHO+ob0pXJ7BN996WYq2ctC8yjCVal2
+	DmmZcgE+A==;
+Received: from 089144193064.atnat0002.highway.a1.net ([89.144.193.64] helo=localhost)
+	by bombadil.infradead.org with esmtpsa (Exim 4.90_1 #2 (Red Hat Linux))
+	id 1hYamX-0003ZO-4t; Wed, 05 Jun 2019 18:37:05 +0000
+From: Christoph Hellwig <hch@lst.de>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
+Subject: [PATCH] mm: remove the account_page_dirtied export
+Date: Wed,  5 Jun 2019 20:37:02 +0200
+Message-Id: <20190605183702.30572-1-hch@lst.de>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-References: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
- <20190429193631.119828-1-matthewgarrett@google.com>
-In-Reply-To: <20190429193631.119828-1-matthewgarrett@google.com>
-From: Matthew Garrett <mjg59@google.com>
-Date: Wed, 5 Jun 2019 11:26:03 -0700
-Message-ID: <CACdnJuvJcJ4Rkp7gBTwZ_r_9wKtu34Yko+E3yo07cwc53QrGGA@mail.gmail.com>
-Subject: Re: [PATCH V4] mm: Allow userland to request that the kernel clear
- memory on release
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 29, 2019 at 12:36 PM Matthew Garrett
-<matthewgarrett@google.com> wrote:
+account_page_dirtied is only used by our set_page_dirty helpers
+and should not be used anywhere else.
 
-(snip)
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ mm/page-writeback.c | 1 -
+ 1 file changed, 1 deletion(-)
 
-Any further feedback on this? Does it seem conceptually useful?
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index bdbe8b6b1225..1804f64ff43c 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2429,7 +2429,6 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+ 		this_cpu_inc(bdp_ratelimits);
+ 	}
+ }
+-EXPORT_SYMBOL(account_page_dirtied);
+ 
+ /*
+  * Helper function for deaccounting dirty page without writeback.
+-- 
+2.20.1
 
