@@ -2,153 +2,138 @@ Return-Path: <SRS0=9Pd6=UE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54270C28CC5
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:53:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E2F8AC28CC6
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 14:22:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 13C7D20870
-	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 13:53:24 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="O84ji0lX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13C7D20870
+	by mail.kernel.org (Postfix) with ESMTP id B616020684
+	for <linux-mm@archiver.kernel.org>; Wed,  5 Jun 2019 14:22:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B616020684
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B2F5C6B000D; Wed,  5 Jun 2019 09:53:23 -0400 (EDT)
+	id 303576B0006; Wed,  5 Jun 2019 10:22:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AEAD26B000E; Wed,  5 Jun 2019 09:53:23 -0400 (EDT)
+	id 2D9CA6B0007; Wed,  5 Jun 2019 10:22:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9CD4A6B0010; Wed,  5 Jun 2019 09:53:23 -0400 (EDT)
+	id 217A36B000A; Wed,  5 Jun 2019 10:22:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 784B16B000D
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 09:53:23 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id 18so6579314qkl.13
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 06:53:23 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CBAF66B0006
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 10:22:49 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id g20so5931621edm.22
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 07:22:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=FETSS3J4eD7K515d8ScmcKfF1wyotHso7dwlnNKYVC8=;
-        b=aorF+kVJhEwn+UXKIHNkrmXATlp0urflipmdp0KrnQgk73F1rnAU78bNNWneAoqErd
-         5VAL3yjiTY/YGnILfuneLVy78cLr0yfI+tJounOd1bF77ruT2lKMU5QpeBmaKR5T/bqR
-         lMeLb4+Iy2EWOtNz7os3Cy5bcPywTh1yFKr8myjb5Hg5u4wXUJmmXNYfQ13bAXpsfumq
-         H0ZKNJBQ/44v9a4i/3ZWlBz6efE50Ci1uhm9S3GwpcAzSQ8uk4Wb2/VDJu57HcIQxVIC
-         pNYGtBG81lr571NkqnhxAn0sEu4IXKvoWtVgzAqbvaZdMGIpp1tm8/hK2IgSc+pjrOIv
-         hKig==
-X-Gm-Message-State: APjAAAVw261NWpQtzvaedorYHw7ohvm7GUwjGM7QhRwk3Ktq2yP4dDNf
-	0nglZY97GGFGof/Cwr0VfQiIsUuqiU1u7R9r2DTX3qiWiEWWJoQvTa94j5giXBW2I17XfSrRXO2
-	Qjib7INnn4G9HYMJWbXjgo1gp4IU6Nga/gr+XqYZnzZzcVUVEbBtAg1wVC0j6fLE=
-X-Received: by 2002:a37:9207:: with SMTP id u7mr34138190qkd.357.1559742803223;
-        Wed, 05 Jun 2019 06:53:23 -0700 (PDT)
-X-Received: by 2002:a37:9207:: with SMTP id u7mr34138157qkd.357.1559742802652;
-        Wed, 05 Jun 2019 06:53:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559742802; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=m0CXrBO5lAniM9Fm8sKB+KtZsWCDEb/L6Wki2GLjN/8=;
+        b=kBeaA1AxAN2qOdVk+0I2Cg+twXEGjJWcbfTzp0bSLvYUBV38r9EwLkfFgc3BfPaKsP
+         xSJLSRIPPDDCI2mbTQt8USNJ93PUvQjqmS1jhmAW8r/5PdhRh6Wl1eXTVJoRZOe+r6J7
+         2QxipbK4bZfsCJ2GzLYs6zEBaXYJkg/1TFlneIMWaHQfKYJCWy4BdBZqCvUHOQoWjP9s
+         do2JLdCyYR/WbpHYRA+GLvnnRBVoBo1Y/G1wntSF+QqO/plZS/+TPcBcWgDLt2ZvZDop
+         hvzYa+KJYnWAg2Y7Tr6gBI0jkx1aDrDoj9uICLJpMwGsEy9ySRanU5kIa5VrdPCerEnO
+         hQXA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXD7vwknb9/CVhG4sRFcp0pt7durc2DqbRDVTg9qC711ijh5Tgy
+	BT73IkfB4UBCp+xzkjFRfcNccrlEpZtosohFJw4eOcGvkhh74e2gNtyEnO5tTT7ynfMEzk5nGWP
+	mPVbmqGAtCs8R2NeUnu9huNcXCfw6YSoEilJsWObW1pT7hJ/vXAEkxCcimUPApgg=
+X-Received: by 2002:aa7:da97:: with SMTP id q23mr17436794eds.194.1559744569329;
+        Wed, 05 Jun 2019 07:22:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwJw3R2/rZaXhy8aALlSp5NBL5aevmxmB0IXnP+7OtpDPPNXub1zvlUvciSgicZMTxCB6qV
+X-Received: by 2002:aa7:da97:: with SMTP id q23mr17436700eds.194.1559744568377;
+        Wed, 05 Jun 2019 07:22:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559744568; cv=none;
         d=google.com; s=arc-20160816;
-        b=ws/zxXz47RC5/atOd7CO+UcXaGrt6FqJhGuubnBhI/I5Ly7Nje61bhYlLLVpNUMIuM
-         7NRicewJcc+Ru5fNeKsLbQFHoo4TBlgeQyiGZhc4OCE3ujhKV1chm41Uv8/EHT+HmOej
-         9NG801v3AXrwJL9r3ERWYw1POvRCkGALtC+DwaBXOmSukJQWIS+fP63jrZqgmnhswCce
-         iSPqxgLXejk4JkZGu+tQu4vEO2rMt0PgpmAkvNlXrcIaL00UT4aHWhlV+CoOhD5hGual
-         cyFmb+MyEdjBP+VZLZo/xWFqYEdr8+lT3RelL1NiBimVk5ZYgWCdjBuqahMKM5Buf52O
-         eutA==
+        b=unP6mVkTereqwEeeYL5wmm5LOfiqguEdCilaDzMBAMU5eAiN2tXGE8HbBpcKi1SWc5
+         b4J8Fd8MZ1GxVIhtC9NLsVlAHaNjDCb+GgVI8KlZwak1o+zFkkeo3+PTNMZD/2g1F8zv
+         B2smX46HWmb+vUZfl8CaWa7PDjYY22cjcUERDvyTLU45xIWmqc3pEWr4fHttLDPylNp1
+         9azAcF67p+JoG2vRMxO9BNhCXNzY8XkOuu7PdbPeWS3xt96UvVwWICvawNP9DtxdIqb6
+         BRWVH4q7z8oq7ENKN4kUiM5klab97hBLqQR9jlCuxsCkvFzmtAM6pP7RvxSfXtpALfWi
+         KFCA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=FETSS3J4eD7K515d8ScmcKfF1wyotHso7dwlnNKYVC8=;
-        b=UyxDqruxU6+mMNSJiTRsYyr77HQFRKBh6YPk/jFI3iMfEbxJH4/t68UrABD5ReU9hh
-         1GsKnIUh2O4T5cGeD5+VeyBq0M1J82/APNPW/oJnAnROoWjyj4MRkBDDcHrJOZq5myZu
-         /evRXDQPcwKAMZPrSQxPEzQP6vaTxaEucHb8WejqSPdoF6tG2gG1/wpF2TC3cPZWsmXs
-         SlJQ/RwjcIe1Y5j6MDEV0E1XoZ0pmhrF7s9AddpZDk8hoAjSH1nSBpQ9G8y5Kua8iZhp
-         yZXZ1UFtMlex+TdxW+StoeZAh/55V0NF4aCEKMX17lMn2e0j2/JjqCC+iiupjI7OfLrc
-         H4dw==
+         :message-id:subject:cc:to:from:date;
+        bh=m0CXrBO5lAniM9Fm8sKB+KtZsWCDEb/L6Wki2GLjN/8=;
+        b=uR53reMfAn1Viqvgnc+9M41EfbfZ8ZX5547nzPltBRt0YSN0EMoguZv1itIhzFu1Dx
+         UcuUjm8yOec7d5yZEJb2VaE8mysrFJGISvCBXQCo3t3Iz5hQjqhtaKkRAwgUAFls0NQk
+         M+yMYn1qcEs7nDwLTI9J3RpPpvPQlFwlk1Qg3v/+aCJJcGuUFU3ghClIZfHP2L6D9RMG
+         DP+kbh1w1FkvPstcQEtLcX2TpwvXqEQKApPlmrX98KcDBp72BDvLd5kRvgrDaLzCB1FO
+         Z5VojVS2zorhz+PxnyD9DmK9zTv6TT0ybL5FejVpGLBpk32EZqHa46WZd1SKsdkjOxxV
+         PRAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=O84ji0lX;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z19sor4573378qki.42.2019.06.05.06.53.22
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h12si1167247ede.48.2019.06.05.07.22.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 05 Jun 2019 06:53:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=O84ji0lX;
-       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=htejun@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=FETSS3J4eD7K515d8ScmcKfF1wyotHso7dwlnNKYVC8=;
-        b=O84ji0lXN+RqkutIEaEyEEqQXcFVzeG64E5D+IGzwBJcDRXFIhtWb80kt89787ERae
-         SVgqIrHUOdqzFOWmqqrmY63CyKPgJHTijErg98dUmfPqYT4f200Pa3v2DHmAPP/DgulF
-         7nlCPUR8C5qMCx8d5XN1RqshszE7/VRzXBHkrkM8ioHtBsYqvXGLKiUWOF8TgpJfByAC
-         WxpTcx4EhwfLIK2ozup8V4g1ahyLKPG66YNnH3iOR2HOqHPyAVljLcZGRtEvSJDYYBBK
-         ph5a0gf262q4Ydh7OMHdU6YtIKKeID7muJi8gChJSfg446PN8vB787GwyVShso3Jk9H1
-         cbxQ==
-X-Google-Smtp-Source: APXvYqzgbDsZ1PJ/Ceon86CDXM/qpmDYa498SwcV19QGw1THKkkoAkdv6IOc/u1X7CTxkAGOqabeTg==
-X-Received: by 2002:a37:9ece:: with SMTP id h197mr14387983qke.50.1559742802150;
-        Wed, 05 Jun 2019 06:53:22 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::1:c027])
-        by smtp.gmail.com with ESMTPSA id l3sm10177469qkd.49.2019.06.05.06.53.21
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 06:53:21 -0700 (PDT)
-Date: Wed, 5 Jun 2019 06:53:19 -0700
-From: Tejun Heo <tj@kernel.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: hannes@cmpxchg.org, jiangshanlai@gmail.com, lizefan@huawei.com,
-	bsd@redhat.com, dan.j.williams@intel.com, dave.hansen@intel.com,
-	juri.lelli@redhat.com, mhocko@kernel.org, peterz@infradead.org,
-	steven.sistare@oracle.com, tglx@linutronix.de,
-	tom.hromatka@oracle.com, vdavydov.dev@gmail.com,
-	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [RFC v2 0/5] cgroup-aware unbound workqueues
-Message-ID: <20190605135319.GK374014@devbig004.ftw2.facebook.com>
-References: <20190605133650.28545-1-daniel.m.jordan@oracle.com>
+        Wed, 05 Jun 2019 07:22:48 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+Authentication-Results: mx.google.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B6684AFC7;
+	Wed,  5 Jun 2019 14:22:47 +0000 (UTC)
+Date: Wed, 5 Jun 2019 16:22:46 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Bharath Vedartham <linux.bhar@gmail.com>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, rientjes@google.com,
+	khalid.aziz@oracle.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm: Remove VM_BUG_ON in __alloc_pages_node
+Message-ID: <20190605142246.GH15685@dhcp22.suse.cz>
+References: <20190605060229.GA9468@bharath12345-Inspiron-5559>
+ <20190605070312.GB15685@dhcp22.suse.cz>
+ <20190605130727.GA25529@bharath12345-Inspiron-5559>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190605133650.28545-1-daniel.m.jordan@oracle.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+In-Reply-To: <20190605130727.GA25529@bharath12345-Inspiron-5559>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello, Daniel.
+On Wed 05-06-19 18:37:28, Bharath Vedartham wrote:
+> [Not replying inline as my mail is bouncing back]
+> 
+> This patch is based on reading the code rather than a kernel crash. My
+> thought process was that if an invalid node id was passed to
+> __alloc_pages_node, it would be better to add a VM_WARN_ON and fail the
+> allocation rather than crashing the kernel. 
 
-On Wed, Jun 05, 2019 at 09:36:45AM -0400, Daniel Jordan wrote:
-> My use case for this work is kernel multithreading, the series formerly known
-> as ktask[2] that I'm now trying to combine with padata according to feedback
-> from the last post.  Helper threads in a multithreaded job may consume lots of
-> resources that aren't properly accounted to the cgroup of the task that started
-> the job.
+This makes some sense to me because BUG_ONs are usually a wrong way to
+handle wrong usage of the API. On the other hand VM_BUG_ON is special in
+the way that production although some distributions enable it by default
+IIRC.
 
-Can you please go into more details on the use cases?
+> I feel it would be better to fail the allocation early in the hot path
+> if an invalid node id is passed. This is irrespective of whether the
+> VM_[BUG|WARN]_*s are enabled or not. I do not see any checks in the hot
+> path for the node id, which in turn may cause NODE_DATA(nid) to fail to
+> get the pglist_data pointer for the node id. 
+> We can optimise the branch by wrapping it around in unlikely(), if
+> performance is the issue?
 
-For memory and io, we're generally going for remote charging, where a
-kthread explicitly says who the specific io or allocation is for,
-combined with selective back-charging, where the resource is charged
-and consumed unconditionally even if that would put the usage above
-the current limits temporarily.  From what I've been seeing recently,
-combination of the two give us really good control quality without
-being too invasive across the stack.
+unlikely will just move the return NULL ouside of the main code flow.
+The check will still be done.
 
-CPU doesn't have a backcharging mechanism yet and depending on the use
-case, we *might* need to put kthreads in different cgroups.  However,
-such use cases might not be that abundant and there may be gotaches
-which require them to be force-executed and back-charged (e.g. fs
-compression from global reclaim).
+> What are your thoughts on this? 
 
-Thanks.
-
+I don't know. I would leave the code as it is now or remove the
+VM_BUG_ON. I do not remember this would be catching any real issues in
+the past.
 -- 
-tejun
+Michal Hocko
+SUSE Labs
 
