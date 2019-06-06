@@ -2,229 +2,204 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48393C28EB4
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:53:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84F22C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:54:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 09374206BB
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:53:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 45DB3206BB
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:54:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="BjNv3BPo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 09374206BB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="MmNiLITB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45DB3206BB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 85BD06B0281; Thu,  6 Jun 2019 15:53:54 -0400 (EDT)
+	id DD7DA6B0285; Thu,  6 Jun 2019 15:54:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 80AEA6B0282; Thu,  6 Jun 2019 15:53:54 -0400 (EDT)
+	id D888A6B0286; Thu,  6 Jun 2019 15:54:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6FA636B0285; Thu,  6 Jun 2019 15:53:54 -0400 (EDT)
+	id C77436B0287; Thu,  6 Jun 2019 15:54:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 391666B0281
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 15:53:54 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id y7so2562499pfy.9
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 12:53:54 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A7B786B0285
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 15:54:06 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id s9so3034575qtn.14
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 12:54:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version;
-        bh=UHAEe52WTylPEzWcunVQrncUjHHUAGZSuxAqUybT63Y=;
-        b=AW17pVhmVzBNP6fU6JUnwFzGX5sz4sn8/caVVlS69vUlquQSW82v3Hclh7Nabz0gSn
-         AWEFnnY3DLWbtQZvnUp4olkAwT1SUG5+X4jkd4v00ADWDzqCNxs8xoNDoWK7zdH9UsTL
-         dorJUDCSoKiUFke8Lr+8H6oGXXvxl4eU5CfA67nUq6qc1e7Pv/45LFZVIsXLM0l5Sk1X
-         L+DKPCTLByNKVe4Ncsj792nhBGEewD+n/NzPNa4QURqyot1R5Nr4d5VS7H/LqZlCBeO6
-         N9BBsXd92lFHUJojhLvZU82ZhuzbRwpiW1PMk7d2ppS/5Q3dLBx/74lhBM8R9JHVXKyz
-         V7LQ==
-X-Gm-Message-State: APjAAAWLLL2yVe+8M4LaJEdbOkc+D9eP4gRZ5I9+tO1v9e8LbmCqwCNk
-	4U+w6QQsv4rBVWMEL77Nxp3oxpMO1ltJ9Ly2FpxHmNj7IDV7L7nQXY+H6387Plhc1UdFTWlL4Ih
-	w4Fkk5Dn7G+i0YPlRU81WuO19fgVZE0GXwsxC7vmvI0G+g+/J9S2ZqhpXkxPmkgx77Q==
-X-Received: by 2002:a17:90a:bc0c:: with SMTP id w12mr1446744pjr.111.1559850833786;
-        Thu, 06 Jun 2019 12:53:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxGRWP6r/JgxICARwQ54q4s0CHuF5iReFE2hfllsZINFDgg7/GDrvGLbLD+6+MMVSMEsz6s
-X-Received: by 2002:a17:90a:bc0c:: with SMTP id w12mr1446685pjr.111.1559850832737;
-        Thu, 06 Jun 2019 12:53:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559850832; cv=none;
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=SSrc7aXqKW0QuJBVKpfuDTODYfdscXoCHgxlwk6+Gs8=;
+        b=ZAhNI0viFnmI07uVrm7WkEJUFhl9BBSZUQfdmkhnIVbKCgW9ZX8I0QfFiH9XCNU9qv
+         sP+YwgOVcrdQOHkYNc1npuSUebRwL6MzW0LimHNTMwxce7jNLWgYVqMcMTlNQUfzQXuN
+         vTRadOOHsFTt4YudpeUQSNmj4k1eX44E27pz7oiBVseUKm9B7rNOh9LycDkcb+7W90C/
+         R5LDB/UcLb+CUHh5FdngzWWygBoZzXnJtGq9CERvM8N8Fp084ovMW/GtE4UuvW9uWs9G
+         la5ggqEu4Ffml5aL3qnbtgyRa248YOgmzNpUybEkYkRsa5p9ZoZ/J4sI1a6jWerF4Ga7
+         zSzw==
+X-Gm-Message-State: APjAAAUmTVjevLuLLCejMVlghlaMmkKzBBYCQOI4S8/OWGwZSM0+GiAX
+	eS4JXIrnwhIBuFVD8sQN56fBcyRnkhfGDF6rNnYN92V/y/pSN5l/eBgIsWQkTW3qgxtqwD4WfBm
+	UR4xgDJR3HSZJNZOVXmFr26P8TGhMkQHJFOZ7uJXvIV5B6vl2BNesqAyOHSX747UTMA==
+X-Received: by 2002:a37:9207:: with SMTP id u7mr41614348qkd.357.1559850846456;
+        Thu, 06 Jun 2019 12:54:06 -0700 (PDT)
+X-Received: by 2002:a37:9207:: with SMTP id u7mr41614299qkd.357.1559850845742;
+        Thu, 06 Jun 2019 12:54:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559850845; cv=none;
         d=google.com; s=arc-20160816;
-        b=DQUtSOh6j3xo6fUHDADY4948clMzitlCcrGTDcN+SUptCvgfFT9Ta3cYp7P5TnvIlI
-         pWi4JQIO1yTVNbEPxsRPqJrjFMKDN9mayHFz+uWGjGXDBmrR5X5sYsomh9RRGksCjNw9
-         JoARxX8SzR2JnkHOTwDVaOpAfOZ78FOiki8s51+65qR40UErReDPMS5969A/ZU+M44Vm
-         PTcDYOLeGR+3iFLv/cRScYRlliaUbiQAh8QrNZ/ZqqFQo6WJB5l09N2flHapGfVYVGvE
-         bioLeU3twSSjrr+nmIOo7PWlvQEmYmr5//sxbTWqXeXJhFgfUrIo9edMsIaWEs2oIX7j
-         fOuw==
+        b=y7CEgCIzx8gdKbAiAwinNfGpkH81AL9VBxdxLKu7Jea3x+RYVsgdYnasGC14tyTIrw
+         4cRnPy0WgQzZzi/nl1QRW1vUCVdv52jbWx2rGcitLlbHuAsA+by3uguTmNvwCMrz+U6T
+         T+Tb075qWRlBFlzu8zyLJ+7eQQM8LFWXVDqmOSt7RR/1LFGuXNH/azkHSFEfNdpp1jir
+         XNAVwc6g4ndMxxiKbIO464HNem+U8wGrNPAwPo6Nvi2sUmdk2zgl4SQRqaPG2TN/lUKh
+         n8AglqA2pci0QGAV/y5lQtc4+t3piDmpq7SfGjEF+FNcCl/UVAY4s3GMBtddreIqaXU7
+         GYXw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
-         :date:dkim-signature;
-        bh=UHAEe52WTylPEzWcunVQrncUjHHUAGZSuxAqUybT63Y=;
-        b=MbMtSTsEB4A4t+7oOYq0Yf+gVr9ez5MFwOWenMUYMiKo2ZR0vqtTHI0/MwHWHK2x7h
-         XdmK/l5vfzh5tHAYWqovwQPA9FzSKLLdXuCKAG5ySSWByppsb3BmMH8U7yYuA2VMrA3m
-         t+A4rELjz+oFs0Iwc3nMESYOWNpUQ+h4nHarlELlw3ft9vqf09QXT3SC7lgLu+dIxi3u
-         5RhGXpPyBQNlZD+9xRFAL6Jw2RM/FDuL4V4++IvJ/wgmvGOLCx1NsRcJVHuJ2s11ij5j
-         KUaEoD7Jdlla6rhf7mnI1qsZ0SoIg7QAdkHRpRujxjf9SDc3oF7oI75BalHRvQpS4Vo6
-         BHZg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=SSrc7aXqKW0QuJBVKpfuDTODYfdscXoCHgxlwk6+Gs8=;
+        b=jl5spWk+Amp0AU5aOvYj7E5/zFP09+KrTBS92cfsTh84likyCFqh8cd1JHvzbFomm8
+         rmduiDdczl930mI+pRDoXkRWpqa7qyUkdp5DdXapTR6GMS8dlWEjlvr1KqOWyoO6+LrD
+         HTGXoAeRzIvLKnQeIoEFDi6bTNVdltV6LSvXqdHtBDvHzFcUhdC27Iuqu9dns7wi9K7W
+         4WW1OgNom+lWdLqa9Wcd4NesDFBRlpSXtI8Na6QphI6gtR/mS94LKGW11bql5C6PkmIF
+         +K2ayJhdT1VfyjvMRCuSJAAYns/QzUhYnBJmzb3Rv9/PtQGXw8uEAUikZs5ZGjJ48MQa
+         l+8Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=BjNv3BPo;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from ozlabs.org (bilbo.ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id p65si2608730pfp.168.2019.06.06.12.53.51
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=MmNiLITB;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a24sor1550925qkl.129.2019.06.06.12.54.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 06 Jun 2019 12:53:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
+        (Google Transport Security);
+        Thu, 06 Jun 2019 12:54:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=BjNv3BPo;
-       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 45KbvF48Xvz9sDX;
-	Fri,  7 Jun 2019 05:53:45 +1000 (AEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
-	s=201702; t=1559850827;
-	bh=d6SJxU0/ScjlRTFzNoaL9FcILbaOOHmHAty3CZ/Vh/M=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=BjNv3BPoFFPjmA7YQV4rHasyQ0759LKCjrVwNHart/HO5uj6qphC7gz5KmZdB56+B
-	 +HwcAvXphavYyjktKp2nK/jcsCuzQMXr5tqUTMfnT+ev0DFZx39i29fZZF8dgmZc/X
-	 +9wCz+J4sHwuFLYcUDhILzckHTzdJn0r+exASPB5apFMQMHzlQXGO7rv4vH9K294gK
-	 DO22P0PGbGBiNs9bXbMEll8eNKCkiScDLyAPZh+OSYddhH9pzQnsx+RyjoatvzPYzs
-	 e6q3RHbjuSYXsBnUkV4GqSVVxHyycbvDTvvdYsR/a32WxXzAqT9enp//v76sEKQZFE
-	 jQf8GDy1+/pRA==
-Date: Fri, 7 Jun 2019 05:53:34 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig
- <hch@infradead.org>, Dave Airlie <airlied@redhat.com>, Linus Torvalds
- <torvalds@linux-foundation.org>, Daniel Vetter <daniel.vetter@ffwll.ch>,
- Jerome Glisse <jglisse@redhat.com>, "linux-kernel@vger.kernel.org"
- <linux-kernel@vger.kernel.org>, "linux-rdma@vger.kernel.org"
- <linux-rdma@vger.kernel.org>, Leon Romanovsky <leonro@mellanox.com>, Doug
- Ledford <dledford@redhat.com>, Artemy Kovalyov <artemyko@mellanox.com>,
- Moni Shoua <monis@mellanox.com>, Mike Marciniszyn
- <mike.marciniszyn@intel.com>, Kaike Wan <kaike.wan@intel.com>, Dennis
- Dalessandro <dennis.dalessandro@intel.com>, "linux-mm@kvack.org"
- <linux-mm@kvack.org>, dri-devel <dri-devel@lists.freedesktop.org>
-Subject: Re: RFC: Run a dedicated hmm.git for 5.3
-Message-ID: <20190607055334.2bdea125@canb.auug.org.au>
-In-Reply-To: <20190606152543.GE17392@mellanox.com>
-References: <20190523155207.GC5104@redhat.com>
-	<20190523163429.GC12159@ziepe.ca>
-	<20190523173302.GD5104@redhat.com>
-	<20190523175546.GE12159@ziepe.ca>
-	<20190523182458.GA3571@redhat.com>
-	<20190523191038.GG12159@ziepe.ca>
-	<20190524064051.GA28855@infradead.org>
-	<20190524124455.GB16845@ziepe.ca>
-	<20190525155210.8a9a66385ac8169d0e144225@linux-foundation.org>
-	<20190527191247.GA12540@ziepe.ca>
-	<20190606152543.GE17392@mellanox.com>
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=MmNiLITB;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=SSrc7aXqKW0QuJBVKpfuDTODYfdscXoCHgxlwk6+Gs8=;
+        b=MmNiLITBmV/0RW1V5YR48nwqAGaNFYMwCPw1DQe438JAseKB+llCAlVsguYT7Ggt/q
+         0CX4JruFxznxbxnMVXJyUo4g1XcS7xrSEZpfqPBYLCuWTlBlLKt4yVO3ZDnbKj9xixVN
+         Y8MKdEPi2ZGinfyw4jHBFTK5a1SWCJ/j5L8sf3tFdJRTJgUsuX90zYINQXtTv1vKaFu5
+         YC2yd3qx1u1xZiwC7O3pk+Dw/7KCkmd/rNjOHme9usOljEUlxy5QNfH/yp4q9aG8Vtr/
+         z9gHlIV3U2bxfYh+nbBiAFG4NtoBUSfk5r7mAG1vjLv+mOHyaKqe0qUvZmULGerz3uGl
+         aQgA==
+X-Google-Smtp-Source: APXvYqwsoCS9r5bDKHGpMtuAyxDpKYq6SgA5/VRty3UuLftef6QXg2MNcHvcoacSdpNSzw7K2lDFVg==
+X-Received: by 2002:a37:4d41:: with SMTP id a62mr37131848qkb.99.1559850845473;
+        Thu, 06 Jun 2019 12:54:05 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id t29sm1077174qtt.42.2019.06.06.12.54.05
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 06 Jun 2019 12:54:05 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hYySa-00082x-K1; Thu, 06 Jun 2019 16:54:04 -0300
+Date: Thu, 6 Jun 2019 16:54:04 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Ralph Campbell <rcampbell@nvidia.com>
+Cc: Felix Kuehling <Felix.Kuehling@amd.com>,
+	Philip Yang <Philip.Yang@amd.com>,
+	Alex Deucher <alexander.deucher@amd.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, John Hubbard <jhubbard@nvidia.com>,
+	Ira Weiny <ira.weiny@intel.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 4/5] mm/hmm: hmm_vma_fault() doesn't always call
+ hmm_range_unregister()
+Message-ID: <20190606195404.GJ17373@ziepe.ca>
+References: <20190506232942.12623-1-rcampbell@nvidia.com>
+ <20190506232942.12623-5-rcampbell@nvidia.com>
+ <20190606145018.GA3658@ziepe.ca>
+ <45c7f8ae-36b2-60cc-7d1d-d13ddd402d4b@nvidia.com>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/l+KwJlP++eQB4BpW/9k.220"; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <45c7f8ae-36b2-60cc-7d1d-d13ddd402d4b@nvidia.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Sig_/l+KwJlP++eQB4BpW/9k.220
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Thu, Jun 06, 2019 at 12:44:36PM -0700, Ralph Campbell wrote:
+> 
+> On 6/6/19 7:50 AM, Jason Gunthorpe wrote:
+> > On Mon, May 06, 2019 at 04:29:41PM -0700, rcampbell@nvidia.com wrote:
+> > > From: Ralph Campbell <rcampbell@nvidia.com>
+> > > 
+> > > The helper function hmm_vma_fault() calls hmm_range_register() but is
+> > > missing a call to hmm_range_unregister() in one of the error paths.
+> > > This leads to a reference count leak and ultimately a memory leak on
+> > > struct hmm.
+> > > 
+> > > Always call hmm_range_unregister() if hmm_range_register() succeeded.
+> > > 
+> > > Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+> > > Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
+> > > Cc: John Hubbard <jhubbard@nvidia.com>
+> > > Cc: Ira Weiny <ira.weiny@intel.com>
+> > > Cc: Dan Williams <dan.j.williams@intel.com>
+> > > Cc: Arnd Bergmann <arnd@arndb.de>
+> > > Cc: Balbir Singh <bsingharora@gmail.com>
+> > > Cc: Dan Carpenter <dan.carpenter@oracle.com>
+> > > Cc: Matthew Wilcox <willy@infradead.org>
+> > > Cc: Souptick Joarder <jrdr.linux@gmail.com>
+> > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > >   include/linux/hmm.h | 3 ++-
+> > >   1 file changed, 2 insertions(+), 1 deletion(-)
+> > 
+> > > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> > > index 35a429621e1e..fa0671d67269 100644
+> > > +++ b/include/linux/hmm.h
+> > > @@ -559,6 +559,7 @@ static inline int hmm_vma_fault(struct hmm_range *range, bool block)
+> > >   		return (int)ret;
+> > >   	if (!hmm_range_wait_until_valid(range, HMM_RANGE_DEFAULT_TIMEOUT)) {
+> > > +		hmm_range_unregister(range);
+> > >   		/*
+> > >   		 * The mmap_sem was taken by driver we release it here and
+> > >   		 * returns -EAGAIN which correspond to mmap_sem have been
+> > > @@ -570,13 +571,13 @@ static inline int hmm_vma_fault(struct hmm_range *range, bool block)
+> > >   	ret = hmm_range_fault(range, block);
+> > >   	if (ret <= 0) {
+> > > +		hmm_range_unregister(range);
+> > 
+> > While this seems to be a clear improvement, it seems there is still a
+> > bug in nouveau_svm.c around here as I see it calls hmm_vma_fault() but
+> > never calls hmm_range_unregister() for its on stack range - and
+> > hmm_vma_fault() still returns with the range registered.
+> > 
+> > As hmm_vma_fault() is only used by nouveau and is marked as
+> > deprecated, I think we need to fix nouveau, either by dropping
+> > hmm_range_fault(), or by adding the missing unregister to nouveau in
+> > this patch.
+> 
+> I will send a patch for nouveau to use hmm_range_register() and
+> hmm_range_fault() and do some testing with OpenCL.
 
-Hi Jason,
+wow, thanks, I'd like to also really like to send such a thing through
+hmm.git - do you know who the nouveau maintainers are so we can
+collaborate on patch planning this?
 
-On Thu, 6 Jun 2019 15:25:49 +0000 Jason Gunthorpe <jgg@mellanox.com> wrote:
->
-> On Mon, May 27, 2019 at 04:12:47PM -0300, Jason Gunthorpe wrote:
-> > On Sat, May 25, 2019 at 03:52:10PM -0700, Andrew Morton wrote: =20
-> > > On Fri, 24 May 2019 09:44:55 -0300 Jason Gunthorpe <jgg@ziepe.ca> wro=
-te:
-> > >  =20
-> > > > Now that -mm merged the basic hmm API skeleton I think running like
-> > > > this would get us quickly to the place we all want: comprehensive i=
-n tree
-> > > > users of hmm.
-> > > >=20
-> > > > Andrew, would this be acceptable to you? =20
-> > >=20
-> > > Sure.  Please take care not to permit this to reduce the amount of
-> > > exposure and review which the core HMM pieces get. =20
-> >=20
-> > Certainly, thanks all
-> >=20
-> > Jerome: I started a HMM branch on v5.2-rc2 in the rdma.git here:
-> >=20
-> > git://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git
-> > https://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git/log/?h=3D=
-hmm =20
->=20
-> I did a first round of collecting patches for hmm.git
->=20
-> Andrew, I'm checking linux-next and to stay co-ordinated, I see the
-> patches below are in your tree and now also in hmm.git. Can you please
-> drop them from your tree?=20
->=20
-> 5b693741de2ace mm/hmm.c: suppress compilation warnings when CONFIG_HUGETL=
-B_PAGE is not set
-> b2870fb882599a mm/hmm.c: only set FAULT_FLAG_ALLOW_RETRY for non-blocking
-> dff7babf8ae9f1 mm/hmm.c: support automatic NUMA balancing
->=20
-> I checked that the other two patches in -next also touching hmm.c are
-> best suited to go through your tree:
->=20
-> a76b9b318a7180 mm/devm_memremap_pages: fix final page put race
-> fc64c058d01b98 mm/memremap: rename and consolidate SECTION_SIZE
->=20
-> StephenR: Can you pick up the hmm branch from rdma.git for linux-next for
-> this cycle? As above we are moving the patches from -mm to hmm.git, so
-> there will be a conflict in -next until Andrew adjusts his tree,
-> thanks!
+> I can also send a separate patch to then remove hmm_vma_fault()
+> but I guess that should be after AMD's changes.
 
-I have added the hmm branch from today with currently just you as the
-contact.  I also removed the three commits above from Andrew's tree.
+Let us wait to hear back from AMD how they can consume hmm.git - I'd
+very much like to get everything done in one kernel cycle!
 
-Thanks for adding your subsystem tree as a participant of linux-next.  As
-you may know, this is not a judgement of your code.  The purpose of
-linux-next is for integration testing and to lower the impact of
-conflicts between subsystems in the next merge window.=20
-
-You will need to ensure that the patches/commits in your tree/series have
-been:
-     * submitted under GPL v2 (or later) and include the Contributor's
-        Signed-off-by,
-     * posted to the relevant mailing list,
-     * reviewed by you (or another maintainer of your subsystem tree),
-     * successfully unit tested, and=20
-     * destined for the current or next Linux merge window.
-
-Basically, this should be just what you would send to Linus (or ask him
-to fetch).  It is allowed to be rebased if you deem it necessary.
-
---=20
-Cheers,
-Stephen Rothwell=20
-sfr@canb.auug.org.au
-
---Sig_/l+KwJlP++eQB4BpW/9k.220
-Content-Type: application/pgp-signature
-Content-Description: OpenPGP digital signature
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAlz5bz4ACgkQAVBC80lX
-0Gz42ggAjd2XdELh29gxYaa3AGGZx68tH5E3qcBVYvxP3IEAfi0bUSvxNXFhstk6
-YaxWX9oxbApTS2Uj3++jezF4Xjj2Y73HGUjGLQ3Otw3Mnqcf6jXCMx8Z++gM7yyC
-VCZzpR+3xAuAY21M7Ov9ZplyOO2h0UgAm8zaMi5hxEyGVAKjncUBDg4Y0qrh0UAl
-AnZKxV4zQyp4/PvVuYFQa+g8igqB+cGfBLY36wP0k2p3f7btC0m1JSgADRiqg0lA
-reZ+53oVo8c90IhdJp2lysklnxwDvfGMcl5S93eBGYfT0TdJ0XWriIgIy+uwt6mx
-VsgPHJUvyidpJbGyRC/m2LJnhvk19w==
-=dJb7
------END PGP SIGNATURE-----
-
---Sig_/l+KwJlP++eQB4BpW/9k.220--
+Regards,
+Jason
 
