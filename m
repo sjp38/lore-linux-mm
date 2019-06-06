@@ -2,214 +2,200 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-10.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 23DC3C28EB3
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 15:35:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 10582C46470
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 15:41:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D288820684
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 15:35:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C2F19206BB
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 15:41:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="QHJOC2ZZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D288820684
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="fcpRnCrY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C2F19206BB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6D2B46B0279; Thu,  6 Jun 2019 11:35:57 -0400 (EDT)
+	id 594F06B027A; Thu,  6 Jun 2019 11:41:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 682326B027A; Thu,  6 Jun 2019 11:35:57 -0400 (EDT)
+	id 545996B027C; Thu,  6 Jun 2019 11:41:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 54A126B027D; Thu,  6 Jun 2019 11:35:57 -0400 (EDT)
+	id 43D346B027D; Thu,  6 Jun 2019 11:41:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 28D4D6B0279
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 11:35:57 -0400 (EDT)
-Received: by mail-oi1-f200.google.com with SMTP id u8so745246oie.5
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 08:35:57 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 203286B027A
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 11:41:32 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id b7so2297608qkk.3
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 08:41:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=1uRCmoXjULyV6kNTp2XKoB1qQmxkPSNDXYL9A3FHXFA=;
-        b=qEQjKMJRmrcWcm1OilpotBqbPHJTzpIOXlB9SD03f0Pgk6SvmdVDdyZcBF9FguPdNn
-         loEYebRpAiwQxgGCUS02EH5GwHAiIX/+i1axVwrrY1B84wuQ9773TBM619wForQFQ7BZ
-         Sx7KgqUWbw3IQKqtMEn7SYX7L4w7SxGkctMwJsw0qPypZTFBCKfmSkpGtOS/AIZsuRn/
-         NR/s4duQ/WQGiiXtZhrRkCGkCYiIKGhzXfrHhcgKuKpUzye5VU5W7l1DpDnsbzz9X7VD
-         /cF2N/H2nn47ppQkaipt/zfMKLQ2dAjRtQTWyGszc9lPsRFaD9bittEOAu1Wvm0IpEUy
-         CQeQ==
-X-Gm-Message-State: APjAAAWTE6DT1A9twOeecnbhEZbN/bcAGsIvhB9yeRYLb7wY4mKxJs5/
-	t+y1tT6FHEyqCygKbeIv1JbBRRsOy5BT+mzHK4zt23uPgTtZ6WGx7UxYaoqtgOiwG3I0ytDbXLI
-	aTCQ/97IsuSvkEK0f7JhiXAIX1rpegdnTEGfjZJmruFS+D/F4GQ6HJaa7TB3w6ONHTw==
-X-Received: by 2002:aca:4404:: with SMTP id r4mr448460oia.130.1559835356718;
-        Thu, 06 Jun 2019 08:35:56 -0700 (PDT)
-X-Received: by 2002:aca:4404:: with SMTP id r4mr448397oia.130.1559835355644;
-        Thu, 06 Jun 2019 08:35:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559835355; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=0i1aFTdOJpXWn0n3eufS+vd8tfTLEg4kM4eYWLAkurQ=;
+        b=pV+bijNbGo3rlAZ3A7KWkbGpYmA16GkbAyWLaZLG/Ag47z3kk08NVEfzg9hI7xDbva
+         iCv21K13Rhgvu0uhax1oOSEAjtZQ+ATpUyxl+I9IusC6cIHB4T9MyEWmspF36qVwkOSX
+         hihWFwPf+UMiMYM17QChVvNHbBdyHZsuynCjFcvEFrFOsoVbaJQSSbY1jy/KFBuUUXtB
+         eMJ4si0DDscFmQ06g1sa09HnrI/TBKGb0duwirtPPdwoaNJNUawq9ZipLNy7ydD9YO9X
+         fWcQaUDI1hLWQC+K4rRpUtYhoaSooQLNTiUc4g3AWx+JqXJ992J5OK4+YkWStDAUZuXF
+         6bsg==
+X-Gm-Message-State: APjAAAX5c9xpBCkJMWY63TczHKqrBzoczkb4MzNNGsR2ZEW3KXL+XdaQ
+	8fdCOF3HFfLP4UzuoMquIstA6PkYT6bHhYwocUu5OCUmUtBlaPGfO5bUcgJaztvEzfiGJimNmzm
+	n06FEnXyhOREL3ro/rGqHtGuy4UuDrRB126Q9pWTwAPbA01Qk7gEn3Y45Z6qk9WLhiw==
+X-Received: by 2002:a37:783:: with SMTP id 125mr39081667qkh.0.1559835691821;
+        Thu, 06 Jun 2019 08:41:31 -0700 (PDT)
+X-Received: by 2002:a37:783:: with SMTP id 125mr39081606qkh.0.1559835691102;
+        Thu, 06 Jun 2019 08:41:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559835691; cv=none;
         d=google.com; s=arc-20160816;
-        b=SQ8+lQa6oOuvJqvSBz1aOFNema7pYYYp28WK729EWMVI4rDWXpPrzGI36tdNX9zmq+
-         Tj1j3hXt/Elu7ivIM29/6qwUMdIbFbB8M5mzft/nv+cfnT0yb/RcZZ3orodS1cyKgwaW
-         fG1oaT01QDRy2qcUsCyoE1xMarpI9HVsGOAyGmSdxqyFUKX/yMob3q06x3jCiuTGGUyA
-         MN/5ZvDXN9Dl9x2MFMGd1d89kh50hYBf9TtfKI19HTIiVyv/iU69vswau23tDiuU9Baa
-         iyvx1pRFgoaxP42yV7wRfaFHvOc+IGTXVQwGx2FwJoTyfZDF9d0Er+IiTZM6c8SPyPuO
-         lK0Q==
+        b=ScYtG/Ubr/vcc7T1dvDI4oJaUEBIUdSsKk0Px7JXRFRDCblhfz/zkdL+EZFG2cvZuW
+         AINIs1l9nEQuNH5r6tgHXFY4r1XWz8pbOH+aMEIo98gVpQ1ZwPL3aZpgJ67wPOcxRLDa
+         bIKFptzTILsgegfvVUcQwhJK3vP7IOinJIppy+fK5sNkrNCQ+idPXBiSx9WPXPGOWTp5
+         4AAbL5V5W7bfjN2VvlUlFnly1jAfX4GEtkoQhZeG7eztybdD369RfTHr/8lCY1CIdoGI
+         c+afRaL5CMrgqThMSNF8Y+tsKgwFWmEuvqHwrKZr++qhUfRmZhE3C2ljUx3pWz/XfVLH
+         Wxww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=1uRCmoXjULyV6kNTp2XKoB1qQmxkPSNDXYL9A3FHXFA=;
-        b=cQZ7NcqW/0IaWZM/Lw5NMu/0EjZdxiA273iMj/aGVgXYpIvY4lSz/En1rSeE/dYbUw
-         HcPCKaUnwXqD0IHZPqCkTyKdimRLzfjTuaX210G8uIhzWogVL7w75ByREdF2gPAudG9I
-         PzUaEQeLHb5of6R7F/ASJOG7tB9J017ayDZXgoc+AdO4E7xhpR0x2wlas5AdbYxqu7A6
-         /8P0+LxMOGID9gvgpPnFO/M+v5dlJii3mt+7XNgNTNf0ykjVoEBgRxQaqLPPst0H4iBb
-         BjtKkhiYbqzFEbwWjAKIKQz6BW8X+tIlQS+Oxcvz+CQ7R7Agw/NZD4WVImQYtA24ceKk
-         QDSA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=0i1aFTdOJpXWn0n3eufS+vd8tfTLEg4kM4eYWLAkurQ=;
+        b=YXtRRDyHYxE3R/h1u6P1B+XltCTpuD8rQtSDiVX6jMWirVlFRgbUBDVde7qSTtC1Ub
+         4fUzC5XXl38zYZ9lWZIqwWU5RvT6kpGEuTLyfEcFQg/gTZOiEYNyqCASKFcGTfnFnWM0
+         XOytiiF2JkG/q9+9Vt8K7iKnqcJqeI69lWLB1kKGU+boLFnNhZ/j6dOzTFCGlnpkVy99
+         7YRpNx7yaTAf/a6kVRUi7WVSzOUxdm/oRPR1RphSF7/Z0LTD/tufwcT1SozDLe/79qni
+         Wo71NLBX4+8p9LHSM5q17wEsP+imT36iqA8xAjlt3uNPPhC40dGAB3BxCWTghv6Jr6Cq
+         jQ0g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=QHJOC2ZZ;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=fcpRnCrY;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b21sor814455oic.139.2019.06.06.08.35.55
+        by mx.google.com with SMTPS id w45sor1711338qvc.66.2019.06.06.08.41.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 06 Jun 2019 08:35:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 06 Jun 2019 08:41:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=QHJOC2ZZ;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=fcpRnCrY;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=1uRCmoXjULyV6kNTp2XKoB1qQmxkPSNDXYL9A3FHXFA=;
-        b=QHJOC2ZZhCoDsF3kkt0jD8pflX+D1g9wOGO30jisMp6VkS20cZbHhajfwYZJVXdiNh
-         JvAq7go3CRc5C+qomPxstLKznxkYPvd1O8ef7VHSAdG1rMnaPbbiOm9MuPNkCt7QxXaR
-         tW2MckCN4CHKIL8N13EVae4FrQAMJth8VAaKv/3gRwubZltnT7kNI3PWIXvq1c0vgZdi
-         L4XQGyBb2kkKpfIMhfb2YWP8o3M95HB+am83dkZODoLq1I1UWGrX6Sp8tjJSrVa2UG3+
-         kN4AXQu3lycB826+fr4/pUl5FixrZTURACJPQlnP2NuCi+p38m+p145UkX/P89XlKLdK
-         QHrQ==
-X-Google-Smtp-Source: APXvYqwQgzrGrWeJ2qr6zRt1Kh72wsL96qCKSVk7C2TBZflDvhLK6wlI/C4trmZ0QEDDo8Q9KA4CrwRdXYqf7oGmgHc=
-X-Received: by 2002:aca:bbc5:: with SMTP id l188mr410988oif.73.1559835355090;
- Thu, 06 Jun 2019 08:35:55 -0700 (PDT)
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=0i1aFTdOJpXWn0n3eufS+vd8tfTLEg4kM4eYWLAkurQ=;
+        b=fcpRnCrYaBVTFoUsjFrU4nfFBb5bqplCkC1v+c+D+pV0u1F72fEYtbFQkVqkMLANoR
+         Xbid6lttcAVxdlkC1UhtQl1RJNCsagZXAkTV3No06Pv8HZe4owh3VDE2oSNncB3ekVgJ
+         hHc8cy42aOo0ECE5s/A/Z4wD5MXIO1h0JxBIUqaXWUTWUcicwJ6jaxn81OaEHTX/MMPf
+         XMy6H4vMSPJb6D0NjTzfYeMH/4oWbOGosoVrBwo7TELk60D8sRMgtGEP0hU5ruSxkWqM
+         B+Ia/sasVC+CPLVbK47UrIXmeD0tFqa7rI7904J9fhlTmBN/A/2JqzEv7VLhJqDSm5OX
+         oIiw==
+X-Google-Smtp-Source: APXvYqxMF4qP1KcCMGw1eGVyz6lzlbQ3BfQnSWCE38FzzUEbJVC/lu9fEaga/Qnkbc8B94TR70yFiQ==
+X-Received: by 2002:a0c:ed4b:: with SMTP id v11mr38368417qvq.126.1559835690779;
+        Thu, 06 Jun 2019 08:41:30 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id y129sm1077882qkc.63.2019.06.06.08.41.30
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 06 Jun 2019 08:41:30 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hYuW9-0003PU-VS; Thu, 06 Jun 2019 12:41:29 -0300
+Date: Thu, 6 Jun 2019 12:41:29 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Jerome Glisse <jglisse@redhat.com>
+Cc: rcampbell@nvidia.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/5] mm/hmm: Clean up some coding style and comments
+Message-ID: <20190606154129.GB17373@ziepe.ca>
+References: <20190506232942.12623-1-rcampbell@nvidia.com>
+ <20190506232942.12623-3-rcampbell@nvidia.com>
+ <20190606141644.GA2876@ziepe.ca>
+ <20190606142743.GA8053@redhat.com>
 MIME-Version: 1.0
-References: <20190606014544.8339-1-ira.weiny@intel.com> <20190606104203.GF7433@quack2.suse.cz>
-In-Reply-To: <20190606104203.GF7433@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 6 Jun 2019 08:35:42 -0700
-Message-ID: <CAPcyv4h-k_5T39fDY+SVrLXG_XETmgz-6N3NjQUteYG7g9NdDQ@mail.gmail.com>
-Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
-To: Jan Kara <jack@suse.cz>
-Cc: "Weiny, Ira" <ira.weiny@intel.com>, "Theodore Ts'o" <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>, 
-	Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>, 
-	linux-xfs <linux-xfs@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, 
-	John Hubbard <jhubbard@nvidia.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	linux-ext4 <linux-ext4@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190606142743.GA8053@redhat.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 6, 2019 at 3:42 AM Jan Kara <jack@suse.cz> wrote:
->
-> On Wed 05-06-19 18:45:33, ira.weiny@intel.com wrote:
-> > From: Ira Weiny <ira.weiny@intel.com>
-> >
-> > ... V1,000,000   ;-)
-> >
-> > Pre-requisites:
-> >       John Hubbard's put_user_pages() patch series.[1]
-> >       Jan Kara's ext4_break_layouts() fixes[2]
-> >
-> > Based on the feedback from LSFmm and the LWN article which resulted.  I've
-> > decided to take a slightly different tack on this problem.
-> >
-> > The real issue is that there is no use case for a user to have RDMA pinn'ed
-> > memory which is then truncated.  So really any solution we present which:
-> >
-> > A) Prevents file system corruption or data leaks
-> > ...and...
-> > B) Informs the user that they did something wrong
-> >
-> > Should be an acceptable solution.
-> >
-> > Because this is slightly new behavior.  And because this is gonig to be
-> > specific to DAX (because of the lack of a page cache) we have made the user
-> > "opt in" to this behavior.
-> >
-> > The following patches implement the following solution.
-> >
-> > 1) The user has to opt in to allowing GUP pins on a file with a layout lease
-> >    (now made visible).
-> > 2) GUP will fail (EPERM) if a layout lease is not taken
-> > 3) Any truncate or hole punch operation on a GUP'ed DAX page will fail.
-> > 4) The user has the option of holding the layout lease to receive a SIGIO for
-> >    notification to the original thread that another thread has tried to delete
-> >    their data.  Furthermore this indicates that if the user needs to GUP the
-> >    file again they will need to retake the Layout lease before doing so.
-> >
-> >
-> > NOTE: If the user releases the layout lease or if it has been broken by
-> > another operation further GUP operations on the file will fail without
-> > re-taking the lease.  This means that if a user would like to register
-> > pieces of a file and continue to register other pieces later they would
-> > be advised to keep the layout lease, get a SIGIO notification, and retake
-> > the lease.
-> >
-> > NOTE2: Truncation of pages which are not actively pinned will succeed.
-> > Similar to accessing an mmap to this area GUP pins of that memory may
-> > fail.
->
-> So after some through I'm willing accept the fact that pinned DAX pages
-> will just make truncate / hole punch fail and shove it into a same bucket
-> of situations like "user can open a file and unlink won't delete it" or
-> "ETXTBUSY when user is executing a file being truncated".  The problem I
-> have with this proposal is a lack of visibility from sysadmin POV. For
-> ETXTBUSY or "unlinked but open file" sysadmin can just do lsof, find the
-> problematic process and kill it. There's nothing like that with your
-> proposal since currently once you hold page reference, you can unmap the
-> file, drop layout lease, close the file, and there's no trace that you're
-> responsible for the pinned page anymore.
->
-> So I'd like to actually mandate that you *must* hold the file lease until
-> you unpin all pages in the given range (not just that you have an option to
-> hold a lease). And I believe the kernel should actually enforce this. That
-> way we maintain a sane state that if someone uses a physical location of
-> logical file offset on disk, he has a layout lease. Also once this is done,
-> sysadmin has a reasonably easy way to discover run-away RDMA application
-> and kill it if he wishes so.
+On Thu, Jun 06, 2019 at 10:27:43AM -0400, Jerome Glisse wrote:
+> On Thu, Jun 06, 2019 at 11:16:44AM -0300, Jason Gunthorpe wrote:
+> > On Mon, May 06, 2019 at 04:29:39PM -0700, rcampbell@nvidia.com wrote:
+> > > From: Ralph Campbell <rcampbell@nvidia.com>
+> > > 
+> > > There are no functional changes, just some coding style clean ups and
+> > > minor comment changes.
+> > > 
+> > > Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+> > > Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+> > > Cc: John Hubbard <jhubbard@nvidia.com>
+> > > Cc: Ira Weiny <ira.weiny@intel.com>
+> > > Cc: Dan Williams <dan.j.williams@intel.com>
+> > > Cc: Arnd Bergmann <arnd@arndb.de>
+> > > Cc: Balbir Singh <bsingharora@gmail.com>
+> > > Cc: Dan Carpenter <dan.carpenter@oracle.com>
+> > > Cc: Matthew Wilcox <willy@infradead.org>
+> > > Cc: Souptick Joarder <jrdr.linux@gmail.com>
+> > > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > >  include/linux/hmm.h | 71 +++++++++++++++++++++++----------------------
+> > >  mm/hmm.c            | 51 ++++++++++++++++----------------
+> > >  2 files changed, 62 insertions(+), 60 deletions(-)
+> > 
+> > Applied to hmm.git, thanks
+> 
+> Can you hold off, i was already collecting patches and we will
+> be stepping on each other toe ... for instance i had
 
-Yes, this satisfies the primary concern that made me oppose failing
-truncate. If the administrator determines that reclaiming capacity is
-more important than maintaining active RDMA mappings "lsof + kill" is
-a reasonable way to recover. I'd go so far as to say that anything
-less is an abdication of the kernel's responsibility as an arbiter of
-platform resources.
+I'd really rather not, I have a lot of work to do for this cycle and
+this part needs to start to move forward now. I can't do everything
+last minute, sorry.
 
-> The question is on how to exactly enforce that lease is taken until all
-> pages are unpinned. I belive it could be done by tracking number of
-> long-term pinned pages within a lease. Gup_longterm could easily increment
-> the count when verifying the lease exists, gup_longterm users will somehow
-> need to propagate corresponding 'filp' (struct file pointer) to
-> put_user_pages_longterm() callsites so that they can look up appropriate
-> lease to drop reference - probably I'd just transition all gup_longterm()
-> users to a saner API similar to the one we have in mm/frame_vector.c where
-> we don't hand out page pointers but an encapsulating structure that does
-> all the necessary tracking. Removing a lease would need to block until all
-> pins are released - this is probably the most hairy part since we need to
-> handle a case if application just closes the file descriptor which would
-> release the lease but OTOH we need to make sure task exit does not deadlock.
-> Maybe we could block only on explicit lease unlock and just drop the layout
-> lease on file close and if there are still pinned pages, send SIGKILL to an
-> application as a reminder it did something stupid...
->
-> What do people think about this?
+The patches I picked up all look very safe to move ahead.
 
-SIGKILL on close() without explicit unlock and wait-on-last-pin with
-explicit unlock sounds reasonable to me.
+> https://cgit.freedesktop.org/~glisse/linux/log/?h=hmm-5.3
+
+I'm aware, and am referring to this tree. You can trivially rebase it
+on top of hmm.git..
+
+BTW, what were you planning to do with this git branch anyhow?
+
+As we'd already agreed I will send the hmm patches to Linus on a clean
+git branch so we can properly collaborate between the various involved
+trees.
+
+As a tree-runner I very much prefer to take patches directly from the
+mailing list where everything is public. This is the standard kernel
+workflow.
+
+> But i have been working on more collection.
+
+We haven't talked on process, but for me, please follow the standard
+kernel development process and respond to patches on the list with
+comments, ack/review them, etc. I may not have seen every patch, so
+I'd appreciate it if you cc me on stuff that needs to be picked up,
+thanks.
+
+I am sorting out the changes you made off-list in your .git right now,
+but this is very time consuming.. Please try to keep comments &
+changes on list.
+
+I don't want to take any thing into hmm.git that is not deemed ready -
+so please feel free to continue to use your freedesktop git to
+co-ordinate testing.
+
+Thanks,
+Jason
 
