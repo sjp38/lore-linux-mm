@@ -6,69 +6,69 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54E31C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:17:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9669C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:17:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4FE24208CA
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:17:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4FE24208CA
+	by mail.kernel.org (Postfix) with ESMTP id 8C18F208C3
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:17:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C18F208C3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DA4C36B02CF; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
+	id 4699C6B02CB; Thu,  6 Jun 2019 16:17:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D03F76B02CD; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
+	id 3B67D6B02D1; Thu,  6 Jun 2019 16:17:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BA1EE6B02CE; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
+	id DA2C76B02C7; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EB606B02C7
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 982476B02C9
 	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id j21so2068510pff.12
+Received: by mail-pg1-f199.google.com with SMTP id f8so2314304pgp.9
         for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:17:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=yK5r0u+SDfqgRVohMfxwhJpS11WNf7HKHOdyvywJNCw=;
-        b=K+Asb0TEjmToubXtSVKQ9pZWhyh3+l8hfNsikQ3CFOmkoPeNgoxT1IG5SmWNmPwYRP
-         dUGIVsV5fJcRwt+h8Bw/owfBfrmkBix94EOLj9MLUit6lJc4UvppIzS2znOJMcRE+xmf
-         UNZ5/JSUsKqP8zE1XQcYv3ynbhxMNZGZVGc+BztEPtRl5CY5UA/8bunh/rLtm5UCjD29
-         47uEYN++fFfD+lwEa9uaSEvDyKHZpzZemtIB1BHGrbkBVMkH+VKV7MtN0Inv4k9KFgCf
-         iJZoO+eYAXyAA+QMacaDrJ77NSfxk0waSDGNLdobAA69LPAv33fhshFrA9qRwhOlc2EJ
-         MezQ==
+        bh=4kJRqRgXrial8LUJDTZmTD0cX51XairXteK5iqWUgFw=;
+        b=NzUTX88SYz0SYsGffgzze0+uiaISqnEnNFWJ/aXFwQKBoBDQDcr9KGqXEoi3VdgmhU
+         vMhZSUyhBAQPebUpNqPIx66hCSbWLcOCRM6UtHo4MaxUPWze5SJmdDvke9TUdOKR0DdX
+         G7PupuaVfIHSKLjlqnqC4HIwx5z2BzDUtma9Ps5iQ8IrMA5WXaBM7X+pegLY9Eybou7S
+         CyXDnUBtlHtIQmwyLcIJ97GVHhLsOZEekj6R5tCdRuyt88uWR4gtKurFzOqIRps5LHSw
+         Uzvb9gh0/eX0rfMTgil0una6HdJN9wIxGs0SANAdqA/YAzqHMphaIEiHVx1NfBk0eAjv
+         mm9g==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVn2Qta51kq2j6oTJzpE5D4eFsaUt9ZljVbwXOF6hBCoz2G+yvO
-	JY+OaUYWPuEJNzIuGjgyv86dtKe6Ehi0vM62h9v/bMo5rvLNYE7araVrZuPluo/TGJAHsoZAXqm
-	p1a7UlXH2jbcSVsuHoqRNTz4/LploDE3Xw7lvNRMD7CjxvlXAhx+OO5HIKYKSOB/rmA==
-X-Received: by 2002:aa7:8049:: with SMTP id y9mr870038pfm.195.1559852253202;
+X-Gm-Message-State: APjAAAX+ru/f4QierASwQ32n/0hqPgHeAnVs178QDZgP3OlLuVTlq0ON
+	T3miYrG1ET0YS1FwDCjMNpKXNG34V9qjrRfuQtGlFrTKqiWgsm/xC4i8HhZ5wObR6sZtDwsUPJi
+	AV6bOLb0YrHtmXxJnoW/7raVeSgbKkuec6rCUEUfuZi1V8UzFRpesswyB4cUSAjnwcA==
+X-Received: by 2002:a17:90a:62c6:: with SMTP id k6mr1624968pjs.7.1559852253303;
         Thu, 06 Jun 2019 13:17:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwN58vCvdTwN3f/43A2KDd3g6PcS5o9Yxy2BwfGbcBpwRcOiips3o3tu38LhzYbnroKajVc
-X-Received: by 2002:aa7:8049:: with SMTP id y9mr869958pfm.195.1559852252106;
+X-Google-Smtp-Source: APXvYqxTnr083k7lH49BavJ2/Ee7QuOWUyN9y13Azj6o8BJoE1qSMfcUAF9Vlo0w2fCB3UQ4lN00
+X-Received: by 2002:a17:90a:62c6:: with SMTP id k6mr1624914pjs.7.1559852252342;
         Thu, 06 Jun 2019 13:17:32 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1559852252; cv=none;
         d=google.com; s=arc-20160816;
-        b=OaF+ZLn0eOLlFwgJWxznsVhcBIwLRthJ/SklFlt1cTnUADWSiL0L8JzrF6zXxiOHU7
-         eRf9VtAG7LnoEN2DfoceUWLq2E88a3VtWHqBzol4sI62noYFgrmSqUnBCcN1WFR4bN5X
-         8V6pF+nYFZdih0qvTjhRehkxzNAkBsIHH1Rgy1NuknPpVB347HajV1o4MIHTju4p94WT
-         4npZwst9L3YB9zAFB8E/IEfOIWosZzvHSbxYvk8psiMpW84ymERs/dQ+7sVSVZyJ8/vl
-         LsyXKnFux7uEvYAqqeoDF9/9J4kfCgQfWf6lwAp6TQHfle9FAlMyyqGLFqIpMXUr/InZ
-         SrFA==
+        b=vPT1tpTj3Wl2xg9j57APKfjjcLgm1RFNxfQBtpf93Z1O2ym2+8LaGvKBWd9qtQg/JW
+         4B6gagrR8JqgVWjLbsUmw1vpYHuq7PdGga3iN3e6z3AUnSO+AdSHrIjzgHMvecbGuR50
+         Xy0VqeX1GRAUAqoHwbO5mQpFygJg+Ac6Bv9dZHxicVxJ/bAQbeOuS62bTuF4AeAIZX8Q
+         1Ir4F1rVuMzdsMqYxZJUvSDN/6twqCnByX0DCA6xhAVypswOJ6nXdWJrgFPz3BNHXp/E
+         htCuih6efXgWTcChHWe68M1JCi9hD81QYIv7pLdB+kFivtuV1GfHXyiO1r/8mPdWj8h6
+         BAog==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=yK5r0u+SDfqgRVohMfxwhJpS11WNf7HKHOdyvywJNCw=;
-        b=LeBTsQwY+G2Lwtywzp6thz+VQ++2iaof8OUM3AGAs05autWO62sZBmmgDfRezbku58
-         i22WzJVb1QVDBxZtU7WtsySBXKRvzuzMKS1XtgsDVP0TzqHenmMZ+iN1WMaCW0yz8zzq
-         UtWaJ/l4Rv6zO1NR70UOn1vOzRfCoJKLAujD1JOAUuF+SxyIuyNqO7+fgTEXRw5O9RJf
-         Q9+aTWJJannTlAyHNLha45T1xKU1ougX+Z/YdCUPMsXLkuVc95KeNBUHp9D/yR0PLcsu
-         03yTBucySFifff00/1eo5ZfzNS108EFcrsxiNLhsv/A9unqHo5pvo6sFUbC9ySSbxZ1n
-         Mtlg==
+        bh=4kJRqRgXrial8LUJDTZmTD0cX51XairXteK5iqWUgFw=;
+        b=GMDE+2tiuYcNkyaxKZMKeR8X0dIdwTTC+/asVxdn0K5wOslw+mqxKJHa1TEuMH0Fcc
+         nRgMFfBmLMnLMc+d6buViT4o8M7p2MUj/qIH+MfjCbFjnHTJTrD4eIXOVMM6FHU785lo
+         +LGfqdaJfYGZq1EVZV9/4JrknfosVAvhgebP+1qrl5SZBUIGdvNk/A5tg96e1b8rSg/S
+         fHtovC3Y/WWiffwolcOhxs5eNmGbmW3hj6LcAPo+nCwCoyq75SNe8EK0/FIXyioJyPKJ
+         hjM5euk3RKMT+GMMZJ1VVjQRNVVXkhmdwn/0Rc4/un+xvUK3eUsmILeCTrdX+zJCJgxN
+         nMsA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id e29si45752pgb.428.2019.06.06.13.17.31
+        by mx.google.com with ESMTPS id t11si66755plr.23.2019.06.06.13.17.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 06 Jun 2019 13:17:32 -0700 (PDT)
@@ -115,9 +115,9 @@ To: x86@kernel.org,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v7 05/14] mm/mmap: Add IBT bitmap size to address space limit check
-Date: Thu,  6 Jun 2019 13:09:17 -0700
-Message-Id: <20190606200926.4029-6-yu-cheng.yu@intel.com>
+Subject: [PATCH v7 06/14] x86/cet/ibt: ELF header parsing for IBT
+Date: Thu,  6 Jun 2019 13:09:18 -0700
+Message-Id: <20190606200926.4029-7-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190606200926.4029-1-yu-cheng.yu@intel.com>
 References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
@@ -127,74 +127,31 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The indirect branch tracking legacy bitmap takes a large address
-space.  This causes may_expand_vm() failure on the address limit
-check.  For a IBT-enabled task, add the bitmap size to the
-address limit.
+Look in .note.gnu.property of an ELF file and check if Indirect
+Branch Tracking needs to be enabled for the task.
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/include/asm/mmu_context.h | 10 ++++++++++
- mm/mmap.c                          | 19 ++++++++++++++++++-
- 2 files changed, 28 insertions(+), 1 deletion(-)
+ arch/x86/kernel/process_64.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index a9a768529540..2499f6490428 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -360,6 +360,16 @@ static inline unsigned long __get_current_cr3_fast(void)
- 	return cr3;
+diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
+index 5fa0d9ab18f1..16dae646f633 100644
+--- a/arch/x86/kernel/process_64.c
++++ b/arch/x86/kernel/process_64.c
+@@ -856,6 +856,12 @@ int arch_setup_property(void *ehdr, void *phdr, struct file *f, bool inter)
+ 		if (r < 0)
+ 			return r;
+ 	}
++
++	if (cpu_feature_enabled(X86_FEATURE_IBT)) {
++		if (property & GNU_PROPERTY_X86_FEATURE_1_IBT)
++			r = cet_setup_ibt();
++	}
++
+ 	return r;
  }
- 
-+#ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
-+static inline unsigned long arch_as_limit(void)
-+{
-+	if (current->thread.cet.ibt_enabled)
-+		return current->thread.cet.ibt_bitmap_size;
-+	else
-+		return 0;
-+}
-+#endif
-+
- typedef struct {
- 	struct mm_struct *mm;
- } temp_mm_state_t;
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 3b643ace2c49..a0d6fb559518 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3283,13 +3283,30 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
- 	return NULL;
- }
- 
-+#ifndef CONFIG_ARCH_HAS_AS_LIMIT
-+static inline unsigned long arch_as_limit(void)
-+{
-+	return 0;
-+}
-+#endif
-+
- /*
-  * Return true if the calling process may expand its vm space by the passed
-  * number of pages
-  */
- bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
- {
--	if (mm->total_vm + npages > rlimit(RLIMIT_AS) >> PAGE_SHIFT)
-+	unsigned long as_limit = rlimit(RLIMIT_AS);
-+	unsigned long as_limit_plus = as_limit + arch_as_limit();
-+
-+	/* as_limit_plus overflowed */
-+	if (as_limit_plus < as_limit)
-+		as_limit_plus = RLIM_INFINITY;
-+
-+	if (as_limit_plus > as_limit)
-+		as_limit = as_limit_plus;
-+
-+	if (mm->total_vm + npages > as_limit >> PAGE_SHIFT)
- 		return false;
- 
- 	if (is_data_mapping(flags) &&
+ #endif
 -- 
 2.17.1
 
