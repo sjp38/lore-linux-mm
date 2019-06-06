@@ -2,189 +2,132 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E01AC04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:44:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 22615C28EB4
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:51:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F0AD2067C
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:44:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F0AD2067C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id E9A4F2070B
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:51:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9A4F2070B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D65E56B0277; Thu,  6 Jun 2019 09:44:04 -0400 (EDT)
+	id 5E6726B0277; Thu,  6 Jun 2019 09:51:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D16C46B0278; Thu,  6 Jun 2019 09:44:04 -0400 (EDT)
+	id 596CD6B0278; Thu,  6 Jun 2019 09:51:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C2E7D6B0279; Thu,  6 Jun 2019 09:44:04 -0400 (EDT)
+	id 45F2E6B0279; Thu,  6 Jun 2019 09:51:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 56B296B0277
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 09:44:04 -0400 (EDT)
-Received: by mail-lf1-f69.google.com with SMTP id x8so14987lff.15
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 06:44:04 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E7DB26B0277
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 09:51:12 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y24so3889808edb.1
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 06:51:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=vm4btAOsyOUR0oYjzNf92pqRfluADuwslifIy4VqXiM=;
-        b=lFWHU8qExxmqAJxsFRbBYkLwR2oGApIdzpNqpoF5wwgQ38j8J/G7ioA7LVSFLZOuYI
-         Cc5XCOUtdGSOXqW4pmOM/AF9VNw9bV2FsVKJo+YMRMEDJyZza+fXTedZoEXmd2ufQvyn
-         8jIDiZqMQesxjJRK11GU8j0HIOjZh93WFW47JoIeNeQsqHDsQCzjttFIfcc5X2XK87cx
-         BeOlsBm2k7Ytr9KBijcSIMLL/hDNF37gU+BxnzKm89HaZDrCaGU8RZxnTrMIJYbGc2M5
-         vM8GzYm8wqQ5h+7PDXlQvuseW0lqd0ft+Vpl9TUomXenYq2B8+0agar6qZcbDLJN6ULU
-         vPVg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAVtdv8LhKDGMRKaxqqkd532+Iat9hWvOmPgmP/hgMRCU/FA85/o
-	QVmG/FWCyPSBH/qE0sFxUG8gTkxUYU2tmj7XxRTzH4+Ernbl3Bpc/wgfJkMJyWnrsxyF5pmZm8B
-	DWt1zQW7rW60SuXr7Dqohnv1Czb9iBUlrJMxlAZWMcFfCOAiDpVvThzf2rtqxxE0giA==
-X-Received: by 2002:a2e:9284:: with SMTP id d4mr25094466ljh.26.1559828643717;
-        Thu, 06 Jun 2019 06:44:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz9hUiyfylo5G750/1PbXMSyDzOhJ1DnWZYPPcrVRUTvmBhHqGhSGU4S6WQmenO7YjfsoBn
-X-Received: by 2002:a2e:9284:: with SMTP id d4mr25094393ljh.26.1559828642261;
-        Thu, 06 Jun 2019 06:44:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559828642; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=YTXcHfuxfFCwnytrNH3j9F0V2Hxj5nbQz1TReCN7thc=;
+        b=XwGiCWuBxuktQa/zz9+J/aCTsMDY5/48TINzpdyCJ8Qj2X4ziW4EODMRNkUyzhy2Sz
+         cunTn5nMZVtAN2KG0gcANqu1BYJJ9LmS7BkKYDQ2atBIMgE6Yqf8kgWQvpxZtf+Lka8G
+         1rPmFkIi9SFkDqW+5dMY2kyf1NJoIWnrV4A39dNDSXiX8NM1D6gPFXdXTxHc/e2Y80vk
+         +sjRkSmiY6N2zZrSmVgFc0DRO4y1duMg6L86ToVni5raN7JP1LvQgt4SshRFM86zJBDB
+         dlB27pZHkHlj22WZzklwL+C7kWUO/WZwOwMk1H/D/GfdNU/glSw4phtXW8DaiynA7v2G
+         egMw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAVYE7k6nhWuzRHX1cMDdDJpiqlggkvsYlqPKesHTnQq+cdU0h5Y
+	9gYXNwoNXhWjCV42k3SiRayRSG+2D9qr6dauGxFD/l+fZ0C/0FYkNAH95xeLu2156t6QA1/6dki
+	Y/l1u+ceBQdl62DkhrUKZo7nzsIto5iJxzIxzdY2V41sYyJ5RLGIfAkqWVMDE8OU/cw==
+X-Received: by 2002:a17:906:d053:: with SMTP id bo19mr40493589ejb.86.1559829072367;
+        Thu, 06 Jun 2019 06:51:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyIvNeRbBEskVprtWQHLPdj6mUJScSbQ8sEvZTsoQOYNZH2FBt8gZwN4vTmnKiGOIfh8yNx
+X-Received: by 2002:a17:906:d053:: with SMTP id bo19mr40493519ejb.86.1559829071543;
+        Thu, 06 Jun 2019 06:51:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559829071; cv=none;
         d=google.com; s=arc-20160816;
-        b=pyR43zFBf8uReO7+GG0kEYnZG7/73KY9yL4vvkUUdDvtVpoX2YHaCpQ3qJnkBtG6FG
-         O7M02hlhaq9mPYyNDglezrIV5Y5p264D6XwIzLJgNzHTVIu3QOYZx0Cc0MNBJpclFiH8
-         TM4nnSjVhoRK9gohCHPvijXSCYlIk+KbyFpNQjhAP33c4tcOpm42h4PEia1zzyswqb68
-         +jwYwMKosl0W60lPntaCziCpFm5OTPkHosgNGUJTF/VBUEavFlvayZh0gDCYQ1Je/Om4
-         Xc5mNIg8iIkBweCLy6a/dCY5pyU/jjX5KlwGbrjlXECLQsYne9vf/aJ8NhXwBO0X85br
-         y6EA==
+        b=uhQNt4anNYVDj8r7mYfBFNi5GIp9b31qsIsdfar1oSIq8x0l5FlWbGpcKYLkUZOP0x
+         8Et1fplHiyqZKuwMtHNjWEoRBJMGIsUjYt/IbCXEmsFA2idsPMDM+UJsN+wckS319bgw
+         S3g0I/BuXyc430+2Hv3L1Nem+U9vpmldBOGndk5327K4H8JnaokGY5ZyGoxlzsey44bu
+         PlSIVeUjnNLYFf9KaJdDmFs+g6PiuYM3S7fChMcX+vcOGw1IjgqxICDkqcTuQZ7NGgHC
+         8Wh4+d8s/vH2284LaK9iBQlOraDv8fAU1ZtjzbBTNaj/sTW80m3qTfilRmtj7MIRRfPY
+         Gz2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=vm4btAOsyOUR0oYjzNf92pqRfluADuwslifIy4VqXiM=;
-        b=lcDBWgNQglDpXhIE51TBWFhx4kPOz6NDx8J9VSscKF3oN0H8tLmMs3rJ1Icjfr+IJV
-         B5qKL2ktz/NMqp9KsFprz+5Kefj4CVGvbUbALJfKyQhY6n4UwB4SqYl6RNKJHCNLFb1c
-         e9FzqIKQB/eNgH+GBRo8RqJ0DpXKcggeYydPtpyw0vSbJ3Xc4ykElXcaV73Wg50dRYBh
-         +0Oqn7p1/opPlRMdiDAcF6yXgRXUD3gtjUMESMSLvI7r11ymDc7i8dXCoEiAikDYyOma
-         sLzMp25678WlWOYAH6vEuckYp5Da90Yy8kiO3+bXzk7f47b+D83PcIVkdqhgZoypNHYR
-         mt/A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=YTXcHfuxfFCwnytrNH3j9F0V2Hxj5nbQz1TReCN7thc=;
+        b=AV7rI2dTZjbHzllJd+tvWeVRg6B4MvnH5AoMoe75dqrlqR3wS+DoPD9n2dfdOf3Zhk
+         lBJ3yLjLIKUTVP/j9uscypDG7+aFsEFKBnxFGWJHMv1x+inILrbY4WAMa9UN60U7Uu9W
+         AH/Md2rDuEMz7cTGmW9oeo2GxkC6tkOmOtutKLrFWOxZZ/mSPaDVAqG04DRo63/trQTT
+         amcSXlcFhY3KoodHqofQSMJ6JXdqNsQgCphdqfvYKU3o59c68QvxBwrvWkW3KV6dUlvx
+         3g+kxAfG39QBdoypnFb9S614rs60Pt5LkoU7c5A9yka9uNV2JXtzXCnoHgB4F8NnXsDa
+         XuRg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id j24si2161614ljg.57.2019.06.06.06.44.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 06:44:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id g34si1823545edb.182.2019.06.06.06.51.11
+        for <linux-mm@kvack.org>;
+        Thu, 06 Jun 2019 06:51:11 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.169]
-	by relay.sw.ru with esmtp (Exim 4.91)
-	(envelope-from <ktkhai@virtuozzo.com>)
-	id 1hYsgC-0008Uh-Hh; Thu, 06 Jun 2019 16:43:44 +0300
-Subject: Re: KASAN: use-after-free Read in unregister_shrinker
-To: "J. Bruce Fields" <bfields@fieldses.org>
-Cc: syzbot <syzbot+83a43746cebef3508b49@syzkaller.appspotmail.com>,
- akpm@linux-foundation.org, bfields@redhat.com, chris@chrisdown.name,
- daniel.m.jordan@oracle.com, guro@fb.com, hannes@cmpxchg.org,
- jlayton@kernel.org, laoar.shao@gmail.com, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, linux-nfs@vger.kernel.org, mgorman@techsingularity.net,
- mhocko@suse.com, sfr@canb.auug.org.au, syzkaller-bugs@googlegroups.com,
- yang.shi@linux.alibaba.com
-References: <0000000000005a4b99058a97f42e@google.com>
- <b67a0f5d-c508-48a7-7643-b4251c749985@virtuozzo.com>
- <20190606131334.GA24822@fieldses.org>
-From: Kirill Tkhai <ktkhai@virtuozzo.com>
-Message-ID: <275f77ad-1962-6a60-e60b-6b8845f12c34@virtuozzo.com>
-Date: Thu, 6 Jun 2019 16:43:44 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 68F47374;
+	Thu,  6 Jun 2019 06:51:10 -0700 (PDT)
+Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E2D753F5AF;
+	Thu,  6 Jun 2019 06:51:08 -0700 (PDT)
+Date: Thu, 6 Jun 2019 14:51:06 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	Toshi Kani <toshi.kani@hpe.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Will Deacon <will.deacon@arm.com>,
+	Chintan Pandya <cpandya@codeaurora.org>,
+	Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH V4] mm/ioremap: Check virtual address alignment while
+ creating huge mappings
+Message-ID: <20190606135106.GE56860@arrakis.emea.arm.com>
+References: <a893db51-c89a-b061-d308-2a3a1f6cc0eb@arm.com>
+ <1557887716-17918-1-git-send-email-anshuman.khandual@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20190606131334.GA24822@fieldses.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1557887716-17918-1-git-send-email-anshuman.khandual@arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 06.06.2019 16:13, J. Bruce Fields wrote:
-> On Thu, Jun 06, 2019 at 10:47:43AM +0300, Kirill Tkhai wrote:
->> This may be connected with that shrinker unregistering is forgotten on error path.
+On Wed, May 15, 2019 at 08:05:16AM +0530, Anshuman Khandual wrote:
+> Virtual address alignment is essential in ensuring correct clearing for all
+> intermediate level pgtable entries and freeing associated pgtable pages. An
+> unaligned address can end up randomly freeing pgtable page that potentially
+> still contains valid mappings. Hence also check it's alignment along with
+> existing phys_addr check.
 > 
-> I was wondering about that too.  Seems like it would be hard to hit
-> reproduceably though: one of the later allocations would have to fail,
-> then later you'd have to create another namespace and this time have a
-> later module's init fail.
+> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> Cc: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Chintan Pandya <cpandya@codeaurora.org>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
 
-Yes, it's had to bump into this in real life.
+Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
 
-AFAIU, syzbot triggers such the problem by using fault-injections
-on allocation places should_failslab()->should_fail(). It's possible
-to configure a specific slab, so the allocations will fail with
-requested probability.
- 
-> This is the patch I have, which also fixes a (probably less important)
-> failure to free the slab cache.
-> 
-> --b.
-> 
-> commit 17c869b35dc9
-> Author: J. Bruce Fields <bfields@redhat.com>
-> Date:   Wed Jun 5 18:03:52 2019 -0400
-> 
->     nfsd: fix cleanup of nfsd_reply_cache_init on failure
->     
->     Make sure everything is cleaned up on failure.
->     
->     Especially important for the shrinker, which will otherwise eventually
->     be freed while still referred to by global data structures.
->     
->     Signed-off-by: J. Bruce Fields <bfields@redhat.com>
-> 
-> diff --git a/fs/nfsd/nfscache.c b/fs/nfsd/nfscache.c
-> index ea39497205f0..3dcac164e010 100644
-> --- a/fs/nfsd/nfscache.c
-> +++ b/fs/nfsd/nfscache.c
-> @@ -157,12 +157,12 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
->  	nn->nfsd_reply_cache_shrinker.seeks = 1;
->  	status = register_shrinker(&nn->nfsd_reply_cache_shrinker);
->  	if (status)
-> -		return status;
-> +		goto out_nomem;
->  
->  	nn->drc_slab = kmem_cache_create("nfsd_drc",
->  				sizeof(struct svc_cacherep), 0, 0, NULL);
->  	if (!nn->drc_slab)
-> -		goto out_nomem;
-> +		goto out_shrinker;
->  
->  	nn->drc_hashtbl = kcalloc(hashsize,
->  				sizeof(*nn->drc_hashtbl), GFP_KERNEL);
-> @@ -170,7 +170,7 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
->  		nn->drc_hashtbl = vzalloc(array_size(hashsize,
->  						 sizeof(*nn->drc_hashtbl)));
->  		if (!nn->drc_hashtbl)
-> -			goto out_nomem;
-> +			goto out_slab;
->  	}
->  
->  	for (i = 0; i < hashsize; i++) {
-> @@ -180,6 +180,10 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
->  	nn->drc_hashsize = hashsize;
->  
->  	return 0;
-> +out_slab:
-> +	kmem_cache_destroy(nn->drc_slab);
-> +out_shrinker:
-> +	unregister_shrinker(&nn->nfsd_reply_cache_shrinker);
->  out_nomem:
->  	printk(KERN_ERR "nfsd: failed to allocate reply cache\n");
->  	return -ENOMEM;
+I guess Andrew can pick this up, otherwise I can queue it through arm64
+(there are no arm64 dependencies on this).
 
-Looks OK for me. Feel free to add my reviewed-by if you want.
+Thanks.
 
-Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+-- 
+Catalin
 
