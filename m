@@ -2,312 +2,264 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 86E2BC28CC5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 01:00:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 85D66C28CC5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 01:45:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 083972070B
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 01:00:15 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="WZ0CNxMh";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="p1R13CVD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 083972070B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id 1B01D20866
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 01:45:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B01D20866
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8035C6B026A; Wed,  5 Jun 2019 21:00:15 -0400 (EDT)
+	id 60CF56B026E; Wed,  5 Jun 2019 21:45:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7B2E86B026C; Wed,  5 Jun 2019 21:00:15 -0400 (EDT)
+	id 56F1D6B026F; Wed,  5 Jun 2019 21:45:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 67C726B026E; Wed,  5 Jun 2019 21:00:15 -0400 (EDT)
+	id 3C1BC6B0270; Wed,  5 Jun 2019 21:45:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 472EF6B026A
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 21:00:15 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id 6so743296ybh.2
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 18:00:15 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EFDA16B026E
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 21:45:10 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id o12so492515pll.17
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 18:45:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=138NEH48588OSwGvM6l/KKObI1wh0TVGwJvr5k/w5pA=;
-        b=HgS4KNuThVbvGC2ly1Uf4hOVmRbfPwEBKRVRu/Ht+BTif2Us88V6mNGbq5h4zlyuaE
-         evFPk/3GLnuQ3U+uIG8FcT5FFQ/VF7mzm1zgJCaEVWfy+1ccbnEtP5m54gkQPRB2PkWz
-         htuO2HWSKr70ZJhiyfX5NnfMyzfAgfSxFjIrtuSwZK11PeqWl+EE8beHxiruHaKf7E4e
-         jNGYODoWS1TFS/TzIDvgxeXoQMnyAk0gJcKHv+zpTtkb4NyBBwIg4Yayu6PzPGf4gM2K
-         D/mA4I8jcICMqm7lEajyrogDuq5tR8F88oMgcNDjVOa7pQnWiVSPfFyOYU/Ej82pUOCk
-         4x3A==
-X-Gm-Message-State: APjAAAXYjEyDNkpfI16ecVioYD81Ok6T9/Y1XPwBephAyPUFNm6lGmBD
-	vUWwWKuZAbjm9xXNBbqp/OZqtaYViX6fq6PXcbNfEQPx590hJXRArlIJ2r4tdP10CqvF/d8IxHg
-	5pr06UMKHP81xgCeHQDqXc5eTDVymCfKjzJc/QWBxUBSXE+Sjg0dNmwJ1Sg8Rxp80SA==
-X-Received: by 2002:a25:a081:: with SMTP id y1mr20750026ybh.428.1559782814960;
-        Wed, 05 Jun 2019 18:00:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxvbnLyhrpInEuXY3ApbRRFaluWuMSbxznIJKi9C38p8K84p7Rou0y1L/Sc8ZdrgMLN6e+L
-X-Received: by 2002:a25:a081:: with SMTP id y1mr20749965ybh.428.1559782813707;
-        Wed, 05 Jun 2019 18:00:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559782813; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=SiVuCCtbEhK11erFASlOXyacFc4syf2JNqRU0DHNw+A=;
+        b=k870URFiCMI6hXvwyOFvdbD4c+QqPZh42Ac4V8Si0iQKyD1Nk/0xzjfxx3+Gl1aM6m
+         cP53d96KCMWNnWb2BQslQFZgneDjVZs8Xeym5QawBVQxA8W4HMCyNIxKZ+rqh39m0kOs
+         lZhUoLoHMiSYDEt7OaIJm8RkgBX4CpV9oAVbgcAJq+aL58LMhDlAu+a6fX5qFaCxgTI6
+         zE1EJYBvnQfUy5e6/7skoaW3t1Wr3kigbRsSKWJUMgwBZ7ppONUT4DfSl3/MgJ+CVwfB
+         RsYgnXlDMHnhjah4Irr9hNuQOBpv/4v+4p2SOJQBAAbHNWAkPjsLXLx4WMhaNwMn4Eu0
+         uaIw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUYNDAzEjyLpcabNQVhj4CRGpu7vtf+F2F7iXlduBRYEeitFV8Z
+	/86gfe/rlFWwQpjDdmd270gQudCin7cb3e+Qvxe3+oSTcVo5q/u6zmgAwvAXSzSO5CdvHYlYH1B
+	+IrGuuvgVk+i7kWsBNt/xCBNobRumXh9KsgSmKXwie/VFFCqgjvs6mUWJb3I1I2xCGw==
+X-Received: by 2002:a63:f813:: with SMTP id n19mr789985pgh.273.1559785510546;
+        Wed, 05 Jun 2019 18:45:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqydaWFJjG4fpe55byX2jIe4sSnd7IThyPzC04iYMvKY010D47HYUdcjCQGYDlm9byDwWJmp
+X-Received: by 2002:a63:f813:: with SMTP id n19mr789911pgh.273.1559785509288;
+        Wed, 05 Jun 2019 18:45:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559785509; cv=none;
         d=google.com; s=arc-20160816;
-        b=rruRO1X93R0gVtyVUjinmSZjGmupzy9g6T/LAi4gHtdFE5sT8YhDwc/0xPUerOnwCt
-         qZh8EaCiYNy3eSurQJxPmiM80A0hqBgCpevvm7iBspC6yG5JeQudR6rqkJ4Er2y0JMJg
-         KJ59AInixfmhKictUYes6IPN4Tx+dCsL5tcnX/oPOqptH2ekFTX7UZfsShWAbvBbWfwW
-         uo4SNKghGHFMA4T5v69FUUr6WOL56XiIPP9p8EtW9FyiBcLQeK9yE+wRWKDUUWRUta4d
-         YfXyw0N8P3lYFzAiUKeqHQPGz+8DfPiGR6UOhPOiysjuyVA6JWEOWsUP2zgsCCgNEXFW
-         sU8g==
+        b=khTr19gqf3NG9kSQMcleUP+NeBorXWp0IWdQt3bwI8SHI/C88SaZaagVjtbBaIhUWf
+         d5okYTbuFgq8Ffb0EQpMVfKw2gcZ6TJdqAuez1cB3g8qechzzgi/rZTwNNyoS6aa5BB+
+         px2dQFQ/xLdU2e2RD+4pN+7bWF3Ta4XORTTJOWbocIJiUjiAowYGVrBljYj+4RHnFRZN
+         /sXt7V0godmX3dc10Fvz2TH4J8RiJ2U5UwIWUVmokpbnoqg8jzYz/nWVPAh5jp6WbMkY
+         g3sCYn6Efp0+7Tj+198GeCkSY3KjTNJcs1IzZeSKExy73TvrXc1sykcgn/Esle7Xjh/q
+         r0gw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=138NEH48588OSwGvM6l/KKObI1wh0TVGwJvr5k/w5pA=;
-        b=kCLIyp+OBaR2cxaMVSg20GHnddT/P39NHND9NuCa1zJCFdwskPH9sS6Rib7TeMR9L8
-         5jU0JZpPsoNKfZQxumWLrodAlYvxe8WJQcbf+rXdRMWwC3i2Jqa3c146SkcntudWAoaX
-         MimsJpClRwL+HL/El/CMYjpANVqSXB8WnIuCm4nwmkUQynYljyAy+2qj2sYytOkKqG8d
-         tPvZ9tXBJHUDQ9cyenxXumE4llnxIovUangqnznDOr0gJpaZ/nrSNQZhMsvFknizkoXd
-         iFCl+TSZy4TMU0Ovfwbxh21UYQpY+eUzFQaKoM8+F9UABqswaLSQnUWfXXFyN10/Eu5F
-         xcJg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=SiVuCCtbEhK11erFASlOXyacFc4syf2JNqRU0DHNw+A=;
+        b=jpu5dCPOT3oprXI1t0I083gLSMI9+ICdyKQ3GwvBoTBZhk9qeof9Um+U1dNGmGL0kc
+         Yhv2Di+BFWsFEdsRKZPbvu9WbzTpyBVLu/cg68n49I0pJJPUi49JYNtYP9vguAc08YN5
+         dovmjvu8UlvWqIwtwk8nSMrTt8tR50Vk4LFB5jQZd/G53f7nytnjgbnWrugrsMgLkcbK
+         32xxicKji7p/xN66zGZ6ZZIBQuEQk1F5KEv2wJfzuJuHf4EPyw44IQZ0c+196t5b8NB2
+         ZKK5x0kxO5WMQBtPpgDq7CAT/Z+sZyiC8F4RKacyOICGkAkwC2SrwvrtDjmSB9m9RVCV
+         x06g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=WZ0CNxMh;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=p1R13CVD;
-       spf=pass (google.com: domain of prvs=10601ba4eb=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=10601ba4eb=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id c15si121447ywk.21.2019.06.05.18.00.13
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id k18si276921pfk.103.2019.06.05.18.45.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 18:00:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=10601ba4eb=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        Wed, 05 Jun 2019 18:45:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=WZ0CNxMh;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=p1R13CVD;
-       spf=pass (google.com: domain of prvs=10601ba4eb=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=10601ba4eb=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109332.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x560mLNV009614;
-	Wed, 5 Jun 2019 17:48:21 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=138NEH48588OSwGvM6l/KKObI1wh0TVGwJvr5k/w5pA=;
- b=WZ0CNxMhsTqlas5Zjp/HjU4Znuson66wluCzjhguLVoUdx39mK8HdUodDg7Kz+Y2eg9q
- nlhED7DVZi5u0W43Ag+d0jfiXLqGdjv9KshRVQHS4qPR0zKp7kIzs7ZY7/3lzVkhGlAy
- xgb4RudDluZZShyyRlK12QChXi6xSupQm0g= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2sxkae94pq-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Wed, 05 Jun 2019 17:48:21 -0700
-Received: from prn-mbx05.TheFacebook.com (2620:10d:c081:6::19) by
- prn-hub01.TheFacebook.com (2620:10d:c081:35::125) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 5 Jun 2019 17:48:18 -0700
-Received: from prn-hub03.TheFacebook.com (2620:10d:c081:35::127) by
- prn-mbx05.TheFacebook.com (2620:10d:c081:6::19) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Wed, 5 Jun 2019 17:48:18 -0700
-Received: from NAM02-SN1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.27) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Wed, 5 Jun 2019 17:48:18 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=138NEH48588OSwGvM6l/KKObI1wh0TVGwJvr5k/w5pA=;
- b=p1R13CVDngnoG0Kctn27JCtFTJl9RrxSuWF9Xe57a6Ir0dckvbZjqdNKe9eG2g3n0jwvxhOqozcag4tE5wLCPqhMeiP1TFJcRf8GWdVFJVMV1TV/pgd+KP9111/4uDqZz1lU8ChOt9li+Rc4qxeWR2MqER5SCijoDgA+8S6mASc=
-Received: from BN8PR15MB2626.namprd15.prod.outlook.com (20.179.137.220) by
- BN8PR15MB3284.namprd15.prod.outlook.com (20.179.74.81) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1943.22; Thu, 6 Jun 2019 00:48:13 +0000
-Received: from BN8PR15MB2626.namprd15.prod.outlook.com
- ([fe80::251b:ff54:1c67:4e5f]) by BN8PR15MB2626.namprd15.prod.outlook.com
- ([fe80::251b:ff54:1c67:4e5f%7]) with mapi id 15.20.1943.018; Thu, 6 Jun 2019
- 00:48:12 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Johannes Weiner <hannes@cmpxchg.org>
-CC: Andrew Morton <akpm@linux-foundation.org>,
-        "linux-mm@kvack.org"
-	<linux-mm@kvack.org>,
-        "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>,
-        Kernel Team <Kernel-team@fb.com>,
-        "Shakeel
- Butt" <shakeelb@google.com>,
-        Vladimir Davydov <vdavydov.dev@gmail.com>,
-        Waiman Long <longman@redhat.com>
-Subject: Re: [PATCH v6 07/10] mm: synchronize access to kmem_cache dying flag
- using a spinlock
-Thread-Topic: [PATCH v6 07/10] mm: synchronize access to kmem_cache dying flag
- using a spinlock
-Thread-Index: AQHVG0i1Wx1jT2Odq02KGn1J823cf6aNSJwA///gFoCAAKPAAA==
-Date: Thu, 6 Jun 2019 00:48:12 +0000
-Message-ID: <20190606004807.GA11599@tower.DHCP.thefacebook.com>
-References: <20190605024454.1393507-1-guro@fb.com>
- <20190605024454.1393507-8-guro@fb.com> <20190605165615.GC12453@cmpxchg.org>
- <20190605220201.GA16188@tower.DHCP.thefacebook.com>
-In-Reply-To: <20190605220201.GA16188@tower.DHCP.thefacebook.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MWHPR2201CA0056.namprd22.prod.outlook.com
- (2603:10b6:301:16::30) To BN8PR15MB2626.namprd15.prod.outlook.com
- (2603:10b6:408:c7::28)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::83cb]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: d3c1d354-483d-4afe-db3c-08d6ea18a729
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BN8PR15MB3284;
-x-ms-traffictypediagnostic: BN8PR15MB3284:
-x-microsoft-antispam-prvs: <BN8PR15MB32844AFED5E9047D1C9227AFBE170@BN8PR15MB3284.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:5516;
-x-forefront-prvs: 00603B7EEF
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(136003)(366004)(346002)(396003)(39860400002)(189003)(199004)(102836004)(46003)(478600001)(486006)(229853002)(54906003)(186003)(76176011)(14444005)(8936002)(476003)(6246003)(7736002)(316002)(81166006)(6436002)(256004)(386003)(1076003)(5660300002)(52116002)(6506007)(6916009)(33656002)(99286004)(81156014)(9686003)(2906002)(11346002)(305945005)(8676002)(86362001)(71200400001)(14454004)(66476007)(66946007)(73956011)(64756008)(66556008)(68736007)(71190400001)(66446008)(446003)(4326008)(6486002)(6116002)(25786009)(6512007)(53936002);DIR:OUT;SFP:1102;SCL:1;SRVR:BN8PR15MB3284;H:BN8PR15MB2626.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: qrf4pzwdmI24+4NbWpHwuS10QxbETjHDC0Cc7r3db6bmMPW8eKO5DGs7LZDQerSxBwHcRg4R54NELb8KLkqfs//HRF0pdYBwTYxgDOF0SqMqPgTRkFtU8zGUXe8sgw14sydqfNIYZGSe+NslaGrZgRpOOKX+9BBlFShcGNO9451izBv31Dg01Nf9FDTn+dDD1KxeCayQI54BkQ225JGqE/UZwmBouxRcEJf6PVEN6aAiJy8MJL8t6qKe3FtXoJXkGThDVaR4nXaB3arxG2lFkuCwoFQXGUGtMayqJMHsa8ebrqGTqsf2wjia4z7N0iEbC0lFUSx52jn9b69+4mfGdNGgIIyUTVNU8E9kksiETkR+2xQuq3cLsCg29eM9BgiNuR+sXDQr3fALHkgKO2+ZtrNjHFtxzskn346j5yAElUQ=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <83F86F943DBA35469FA89D3DD319AE51@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Jun 2019 18:45:08 -0700
+X-ExtLoop1: 1
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga002.jf.intel.com with ESMTP; 05 Jun 2019 18:45:06 -0700
+From: ira.weiny@intel.com
+To: Dan Williams <dan.j.williams@intel.com>,
+	Jan Kara <jack@suse.cz>,
+	"Theodore Ts'o" <tytso@mit.edu>,
+	Jeff Layton <jlayton@kernel.org>,
+	Dave Chinner <david@fromorbit.com>
+Cc: Ira Weiny <ira.weiny@intel.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	linux-xfs@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	linux-fsdevel@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	linux-nvdimm@lists.01.org,
+	linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Date: Wed,  5 Jun 2019 18:45:33 -0700
+Message-Id: <20190606014544.8339-1-ira.weiny@intel.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: d3c1d354-483d-4afe-db3c-08d6ea18a729
-X-MS-Exchange-CrossTenant-originalarrivaltime: 06 Jun 2019 00:48:12.8134
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: guro@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: BN8PR15MB3284
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-05_16:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906060004
-X-FB-Internal: deliver
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 05, 2019 at 03:02:03PM -0700, Roman Gushchin wrote:
-> On Wed, Jun 05, 2019 at 12:56:16PM -0400, Johannes Weiner wrote:
-> > On Tue, Jun 04, 2019 at 07:44:51PM -0700, Roman Gushchin wrote:
-> > > Currently the memcg_params.dying flag and the corresponding
-> > > workqueue used for the asynchronous deactivation of kmem_caches
-> > > is synchronized using the slab_mutex.
-> > >=20
-> > > It makes impossible to check this flag from the irq context,
-> > > which will be required in order to implement asynchronous release
-> > > of kmem_caches.
-> > >=20
-> > > So let's switch over to the irq-save flavor of the spinlock-based
-> > > synchronization.
-> > >=20
-> > > Signed-off-by: Roman Gushchin <guro@fb.com>
-> > > ---
-> > >  mm/slab_common.c | 19 +++++++++++++++----
-> > >  1 file changed, 15 insertions(+), 4 deletions(-)
-> > >=20
-> > > diff --git a/mm/slab_common.c b/mm/slab_common.c
-> > > index 09b26673b63f..2914a8f0aa85 100644
-> > > --- a/mm/slab_common.c
-> > > +++ b/mm/slab_common.c
-> > > @@ -130,6 +130,7 @@ int __kmem_cache_alloc_bulk(struct kmem_cache *s,=
- gfp_t flags, size_t nr,
-> > >  #ifdef CONFIG_MEMCG_KMEM
-> > > =20
-> > >  LIST_HEAD(slab_root_caches);
-> > > +static DEFINE_SPINLOCK(memcg_kmem_wq_lock);
-> > > =20
-> > >  void slab_init_memcg_params(struct kmem_cache *s)
-> > >  {
-> > > @@ -629,6 +630,7 @@ void memcg_create_kmem_cache(struct mem_cgroup *m=
-emcg,
-> > >  	struct memcg_cache_array *arr;
-> > >  	struct kmem_cache *s =3D NULL;
-> > >  	char *cache_name;
-> > > +	bool dying;
-> > >  	int idx;
-> > > =20
-> > >  	get_online_cpus();
-> > > @@ -640,7 +642,13 @@ void memcg_create_kmem_cache(struct mem_cgroup *=
-memcg,
-> > >  	 * The memory cgroup could have been offlined while the cache
-> > >  	 * creation work was pending.
-> > >  	 */
-> > > -	if (memcg->kmem_state !=3D KMEM_ONLINE || root_cache->memcg_params.=
-dying)
-> > > +	if (memcg->kmem_state !=3D KMEM_ONLINE)
-> > > +		goto out_unlock;
-> > > +
-> > > +	spin_lock_irq(&memcg_kmem_wq_lock);
-> > > +	dying =3D root_cache->memcg_params.dying;
-> > > +	spin_unlock_irq(&memcg_kmem_wq_lock);
-> > > +	if (dying)
-> > >  		goto out_unlock;
-> >=20
-> > What does this lock protect? The dying flag could get set right after
-> > the unlock.
-> >
->=20
-> Hi Johannes!
->=20
-> Here is my logic:
->=20
-> 1) flush_memcg_workqueue() must guarantee that no new memcg kmem_caches
-> will be created, and there are no works queued, which will touch
-> the root kmem_cache, so it can be released
-> 2) so it sets the dying flag, waits for an rcu grace period and flushes
-> the workqueue (that means for all in-flight works)
-> 3) dying flag in checked in kmemcg_cache_shutdown() and
-> kmemcg_cache_deactivate(), so that if it set, no new works/rcu tasks
-> will be queued. corresponding queue_work()/call_rcu() are all under
-> memcg_kmem_wq_lock lock.
-> 4) memcg_schedule_kmem_cache_create() doesn't check the dying flag
-> (probably to avoid taking locks on a hot path), but it does
-> memcg_create_kmem_cache(), which is part of the scheduled work.
-> And it does it at the very beginning, so even if new kmem_caches
-> are scheduled to be created, the root kmem_cache won't be touched.
->=20
-> Previously the flag was checked under slab_mutex, but now we set it
-> under memcg_kmem_wq_lock lock. So I'm not sure we can read it without
-> taking this lock.
->=20
-> If the flag will be set after unlock, it's fine. It means that the
-> work has already been scheduled, and flush_workqueue() in
-> flush_memcg_workqueue() will wait for it. The only problem is if we
-> don't see the flag after flush_workqueue() is called, but I don't
-> see how it's possible.
->=20
-> Does it makes sense? I'm sure there are ways to make it more obvious.
-> Please, let me know if you've any ideas.
+From: Ira Weiny <ira.weiny@intel.com>
 
-Hm, after some thoughts, I've found that the problem is that we check
-the dying flag of the root cache. But it's the same in the existing code.
+... V1,000,000   ;-)
 
-So currently (without my patches):
-1) we do set the dying flag under slab_mutex
-2) waiting for the workqueue to flush
-3) grabbing the slab_mutex and going to release the root kmem_cache
+Pre-requisites:
+	John Hubbard's put_user_pages() patch series.[1]
+	Jan Kara's ext4_break_layouts() fixes[2]
 
-a concurrent memcg_kmem_cache_create_func() can be scheduled after 2),
-grab the slab_mutex after 3) and check the kmem_cache->memcg_params.dying
-flag of already released kmem_cache.
+Based on the feedback from LSFmm and the LWN article which resulted.  I've
+decided to take a slightly different tack on this problem.
 
-The reason why it's not a real problem is that it's expected from a user
-that kmem_cache will not be used for new allocations after calling
-kmem_cache_destroy(). It means no new memcg kmem_cache creation will be
-scheduled, and we can avoid checking the dying flag at all.
+The real issue is that there is no use case for a user to have RDMA pinn'ed
+memory which is then truncated.  So really any solution we present which:
 
-Does this makes sense?
+A) Prevents file system corruption or data leaks
+...and...
+B) Informs the user that they did something wrong
 
-Thanks!
+Should be an acceptable solution.
+
+Because this is slightly new behavior.  And because this is gonig to be
+specific to DAX (because of the lack of a page cache) we have made the user
+"opt in" to this behavior.
+
+The following patches implement the following solution.
+
+1) The user has to opt in to allowing GUP pins on a file with a layout lease
+   (now made visible).
+2) GUP will fail (EPERM) if a layout lease is not taken
+3) Any truncate or hole punch operation on a GUP'ed DAX page will fail.
+4) The user has the option of holding the layout lease to receive a SIGIO for
+   notification to the original thread that another thread has tried to delete
+   their data.  Furthermore this indicates that if the user needs to GUP the
+   file again they will need to retake the Layout lease before doing so.
+
+
+NOTE: If the user releases the layout lease or if it has been broken by another
+operation further GUP operations on the file will fail without re-taking the
+lease.  This means that if a user would like to register pieces of a file and
+continue to register other pieces later they would be advised to keep the
+layout lease, get a SIGIO notification, and retake the lease.
+
+NOTE2: Truncation of pages which are not actively pinned will succeed.  Similar
+to accessing an mmap to this area GUP pins of that memory may fail.
+
+
+A general overview follows for background.
+
+It should be noted that one solution for this problem is to use RDMA's On
+Demand Paging (ODP).  There are 2 big reasons this may not work.
+
+	1) The hardware being used for RDMA may not support ODP
+	2) ODP may be detrimental to the over all network (cluster or cloud)
+	   performance
+
+Therefore, in order to support RDMA to File system pages without On Demand
+Paging (ODP) a number of things need to be done.
+
+1) GUP "longterm" users need to inform the other subsystems that they have
+   taken a pin on a page which may remain pinned for a very "long time".[3]
+
+2) Any page which is "controlled" by a file system needs to have special
+   handling.  The details of the handling depends on if the page is page cache
+   fronted or not.
+
+   2a) A page cache fronted page which has been pinned by GUP long term can use a
+   bounce buffer to allow the file system to write back snap shots of the page.
+   This is handled by the FS recognizing the GUP long term pin and making a copy
+   of the page to be written back.
+	NOTE: this patch set does not address this path.
+
+   2b) A FS "controlled" page which is not page cache fronted is either easier
+   to deal with or harder depending on the operation the filesystem is trying
+   to do.
+
+	2ba) [Hard case] If the FS operation _is_ a truncate or hole punch the
+	FS can no longer use the pages in question until the pin has been
+	removed.  This patch set presents a solution to this by introducing
+	some reasonable restrictions on user space applications.
+
+	2bb) [Easy case] If the FS operation is _not_ a truncate or hole punch
+	then there is nothing which need be done.  Data is Read or Written
+	directly to the page.  This is an easy case which would currently work
+	if not for GUP long term pins being disabled.  Therefore this patch set
+	need not change access to the file data but does allow for GUP pins
+	after 2ba above is dealt with.
+
+
+This patch series and presents a solution for problem 2ba)
+
+[1] https://github.com/johnhubbard/linux/tree/gup_dma_core
+
+[2] ext4/dev branch:
+
+- https://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git/log/?h=dev
+
+	Specific patches:
+
+	[2a] ext4: wait for outstanding dio during truncate in nojournal mode
+
+	- https://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git/commit/?h=dev&id=82a25b027ca48d7ef197295846b352345853dfa8
+
+	[2b] ext4: do not delete unlinked inode from orphan list on failed truncate
+
+	- https://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git/commit/?h=dev&id=ee0ed02ca93ef1ecf8963ad96638795d55af2c14
+
+	[2c] ext4: gracefully handle ext4_break_layouts() failure during truncate
+
+	- https://git.kernel.org/pub/scm/linux/kernel/git/tytso/ext4.git/commit/?h=dev&id=b9c1c26739ec2d4b4fb70207a0a9ad6747e43f4c
+
+[3] The definition of long time is debatable but it has been established
+that RDMAs use of pages, minutes or hours after the pin is the extreme case
+which makes this problem most severe.
+
+
+Ira Weiny (10):
+  fs/locks: Add trace_leases_conflict
+  fs/locks: Export F_LAYOUT lease to user space
+  mm/gup: Pass flags down to __gup_device_huge* calls
+  mm/gup: Ensure F_LAYOUT lease is held prior to GUP'ing pages
+  fs/ext4: Teach ext4 to break layout leases
+  fs/ext4: Teach dax_layout_busy_page() to operate on a sub-range
+  fs/ext4: Fail truncate if pages are GUP pinned
+  fs/xfs: Teach xfs to use new dax_layout_busy_page()
+  fs/xfs: Fail truncate if pages are GUP pinned
+  mm/gup: Remove FOLL_LONGTERM DAX exclusion
+
+ fs/Kconfig                       |   1 +
+ fs/dax.c                         |  38 ++++++---
+ fs/ext4/ext4.h                   |   2 +-
+ fs/ext4/extents.c                |   6 +-
+ fs/ext4/inode.c                  |  26 +++++--
+ fs/locks.c                       |  97 ++++++++++++++++++++---
+ fs/xfs/xfs_file.c                |  24 ++++--
+ fs/xfs/xfs_inode.h               |   5 +-
+ fs/xfs/xfs_ioctl.c               |  15 +++-
+ fs/xfs/xfs_iops.c                |  14 +++-
+ fs/xfs/xfs_pnfs.c                |  14 ++--
+ include/linux/dax.h              |   9 ++-
+ include/linux/fs.h               |   2 +-
+ include/linux/mm.h               |   2 +
+ include/trace/events/filelock.h  |  35 +++++++++
+ include/uapi/asm-generic/fcntl.h |   3 +
+ mm/gup.c                         | 129 ++++++++++++-------------------
+ mm/huge_memory.c                 |  12 +++
+ 18 files changed, 299 insertions(+), 135 deletions(-)
+
+-- 
+2.20.1
 
