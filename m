@@ -2,165 +2,261 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 79D09C46460
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:55:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EDA9AC28EB3
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4E315208C0
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:55:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E315208C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id A5859208CB
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A5859208CB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 01C326B0287; Thu,  6 Jun 2019 15:55:14 -0400 (EDT)
+	id 27D4D6B0289; Thu,  6 Jun 2019 16:15:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F0E836B0288; Thu,  6 Jun 2019 15:55:13 -0400 (EDT)
+	id 2066B6B028A; Thu,  6 Jun 2019 16:15:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E24BD6B0289; Thu,  6 Jun 2019 15:55:13 -0400 (EDT)
+	id 0A8176B028B; Thu,  6 Jun 2019 16:15:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 96C836B0287
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 15:55:13 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id y24so5298814edb.1
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 12:55:13 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BF1B46B0289
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:15:10 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id d2so2143993pla.18
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:15:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=5CgWskb2VbYRiF6wwP1HFZ1ljOYTY784fqcWj3a/820=;
-        b=PGzK6O3VG5RzcwTxKU5GIylZ79vH75x7oATPEFARTETUHV5v8TwcWuHKHONDtKC7R+
-         PVGMwhQbGckZZ22Hac4cGTwjPdzk564A9hjDuIj2TytJwmV6jG6a2bc+kYY1jKZn0ZbR
-         SKe5dtIFMuWvGRaSF62TGpRA7Du5NDsxlapPV5RKJKoQ4WtlwbxcycgO7i4s+VTAL2fJ
-         JrlyOojhpPJsjPTGF1etWE+GCdgV0yQxYyKUKU3Y17aD379YKyD/6whB1Solmj67xpUr
-         9+e9EKmtzGLYifsly8Y3HM+MFgzmdVr6uBKfwjuEIR1xHxTkU8TzFoLVexxtk9bssNE4
-         Lnrg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWxZ6Vxf4tAoPpy1hQHSQDyZBSxXQWHw9s6iyeJtlW1pCVwnhrB
-	W2gVK8jMbFGsgU4SgD2nEHCPBodDa0KhDUb/Mhi5iM6dGrskWh+NeVWkdLQ2Hm3dAhYp9DJUPOR
-	Udj/dMMvR/C7qYux1u1Hg7wUGtEIuR8M6aNK/wQhKklGDlN1oH+UV1TQTT6sZBHU=
-X-Received: by 2002:a50:9822:: with SMTP id g31mr25024983edb.175.1559850913205;
-        Thu, 06 Jun 2019 12:55:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw7pHriYAvTsQ1d21shSU66QeBJdWNkoPO7vk23iljoYsWPFhOtU3I1hwXOg87bhN3Gtt/s
-X-Received: by 2002:a50:9822:: with SMTP id g31mr25024916edb.175.1559850912534;
-        Thu, 06 Jun 2019 12:55:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559850912; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=+VurCs2I0Kzj8qIVIOFRuvYCEeJMF4BKScjxXkUuoDo=;
+        b=hvGCjHorJ3JYvYKsCsQnANYfSmirKUMRa+QQRJ/n7oOUGez4AnwM54rmqSNQ89Tt8b
+         loOZPjrzjoqLpnKwghDA5tg9d20ZD8yPl9S02WcKBD75bx860LKnv31iBuFSuY620JTj
+         tiVeqZembvtyupM4ZnZ1ZE81j+gEVmB0UOYUIIWikhSAmpujqVi3Fz6vwEvWl8KFKknT
+         VHrPeW9t+Guot/wfKYUmH+FIQh7QmB3m4BAqsaMtBzmj7woxjfkurh4sbIfE1AwlFIEk
+         3R+CZpnHgZMr8buKAHwhl8mqibOuQUshzlVRFS4NJS9wiWuktXAjEg/cvB+rQSWlZ0OI
+         3tCg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVKXeB+NKqDU/yxvJlzMIf+p45Py+rGIRszRQC4M09xznpnnizb
+	Lrcqy+yjc6oC3JECxHSK0io3CfxYHqiWIPfiRpmsjc0Vd5Bgax6Z82AnWtqTU/V9afE+3JHPv/7
+	8LRHDfUOSLV0X2xubN/NbdidmiZdj3mq33idMgwubE4MTxloWn6eM67VL6MGYRDKJ3w==
+X-Received: by 2002:a17:90a:37c8:: with SMTP id v66mr1677310pjb.33.1559852110423;
+        Thu, 06 Jun 2019 13:15:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztx1WNLi+d/pV63uP5+tS2ntwpVsK+nqwiOAPRcuzwtJmkBQl4iC4MMqF2z7AfUtOtZRmj
+X-Received: by 2002:a17:90a:37c8:: with SMTP id v66mr1677235pjb.33.1559852109373;
+        Thu, 06 Jun 2019 13:15:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559852109; cv=none;
         d=google.com; s=arc-20160816;
-        b=XSLSc+ALfr35D1OSkFyrT/PhNUzimzDYk/AstzsSilgwRe3XKKT5/N/6pCKrMA8/UZ
-         Zt256Pmzb2NB3w3iPW7F63OgqnsO/necfQY3L3y7AdZsMeIyRArdc7XIiGibJa70a8uz
-         IRkTXzWvBqFTa50XgWmGzZTEhVErogXY9hc7M1PEZWETK8jOzYlAvWvm7LZWxTl1a8Of
-         71ZJE7RSv7M6RkmbOgzo70jwYf5qTt+Tfqiz0QymTcRpJmw0uKEuCqYzMzLPJf3XZgLI
-         R0zDXirsfZYCs0bQPsNK3d9QUEoz/Tw5VCtwVDdj/srl5M+iQ1KLnVtv9Keyn8A14PFi
-         koTQ==
+        b=kcsTjWXkFmrDrwZi6eNzWeaM/v4FPOW2hl+OgTtuyoKoIOfxxCXbRvP9+M87pnfv+o
+         HSMxXGPFpPceZPEO52Sxhh+YXa8Nbwe53HB589/AoQv2G4b8PCoOTOaF3xpkunf+mQoV
+         sMQowyDlWhxKVY47Z/ttZ5j5gQ4Uj1GT5vlBUY4UtoaCTGFYIX+wlr/IgYRvegLYRh+y
+         OfYYm2vYWQdjicHoaYIpfRvc0ZHadTD8EliFh3McO0WSc4cmMU4hDEYOpopcTr0HgZw7
+         3etHGCVlRZnCf6gga4jNFowI8h9Dju5wQYuIB6ez9HQlS/4JWVhNI7tRD51yE0q36EuD
+         D0kw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=5CgWskb2VbYRiF6wwP1HFZ1ljOYTY784fqcWj3a/820=;
-        b=N+ScLLg58y82a7UI3+0wGhVAOTcRzu9uXPNgKg+zgQIfrV7hFdP74bUMmbqJsk0S5e
-         olM9AsLD0je/rFBkObQKwDhoQfdsyGS0ESkNAZF1kxwq9KkpwENhLPLh+/tau4aF0lll
-         aAdAVAYQ+PR41mcSFgbTbhUfp79St7q651x2hDb0+Ogq7lGHSSqaz7AoKMY5NFL2xZUH
-         Kt7Y/han+MNHkr5c3TdZZMes4VtHrMEKUKtf62J8NEKoqMP3vQMO5aD8QK22DG/HOcZv
-         y4CJgFumBVvkf/W3MfA/eKctUV4Hn60VeAOgJOeTSFR/spMuNqBEef49z63bCRtZG0Hm
-         X5Yg==
+        h=message-id:date:subject:cc:to:from;
+        bh=+VurCs2I0Kzj8qIVIOFRuvYCEeJMF4BKScjxXkUuoDo=;
+        b=B0xyWWvDPq49VZxIJpVBOwHg+tM2ODMMfZ06VdZFgI2Ouu+kWJ3FeL4czTVaiqUv0C
+         vGWw6VkybLTNB4dfOSze2jWwK4mBiChC/+wxLDUpJL6heQwuua8cSua8WQaQXihfLzUn
+         uvRW2ZRikZolFKSMYyPEdGzeRu/wgThuW9ZdMD9KkKoJ7iovkInrCJjOdAmZftPjDmxM
+         UvXd2vLgYV5zLjM/Qrid+OtIvSGCVYgws0GfMozboWz557rKaA13fiTmjN5ly2U03Gvw
+         8lbP8R2U8m7Idyccv067uEshs8vUhNYeqEgBeSPgFkUh/NtcPo/0csG2+bbLOsbTPI7w
+         vyaQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y20si2359967edd.115.2019.06.06.12.55.12
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id 91si31377plh.398.2019.06.06.13.15.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 12:55:12 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 06 Jun 2019 13:15:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id DACD6AD8A;
-	Thu,  6 Jun 2019 19:55:11 +0000 (UTC)
-Date: Thu, 6 Jun 2019 21:55:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Ajay Kaher <akaher@vmware.com>
-Cc: Stable tree <stable@vger.kernel.org>,
-	Greg KH <gregkh@linuxfoundation.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Jann Horn <jannh@google.com>, Oleg Nesterov <oleg@redhat.com>,
-	Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Srivatsa Bhat <srivatsab@vmware.com>
-Subject: Re: [RFC PATCH stable-4.4] coredump: fix race condition between
- mmget_not_zero()/get_task_mm() and core dumping
-Message-ID: <20190606195505.GA7047@dhcp22.suse.cz>
-References: <5756B041-C0A8-4178-9F5B-7CBF7A554E31@vmware.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5756B041-C0A8-4178-9F5B-7CBF7A554E31@vmware.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:15:08 -0700
+X-ExtLoop1: 1
+Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
+  by orsmga002.jf.intel.com with ESMTP; 06 Jun 2019 13:15:07 -0700
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+To: x86@kernel.org,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>,
+	linux-kernel@vger.kernel.org,
+	linux-doc@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-arch@vger.kernel.org,
+	linux-api@vger.kernel.org,
+	Arnd Bergmann <arnd@arndb.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Cyrill Gorcunov <gorcunov@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Eugene Syromiatnikov <esyr@redhat.com>,
+	Florian Weimer <fweimer@redhat.com>,
+	"H.J. Lu" <hjl.tools@gmail.com>,
+	Jann Horn <jannh@google.com>,
+	Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Nadav Amit <nadav.amit@gmail.com>,
+	Oleg Nesterov <oleg@redhat.com>,
+	Pavel Machek <pavel@ucw.cz>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+	Dave Martin <Dave.Martin@arm.com>
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Subject: [PATCH v7 00/27] Control-flow Enforcement: Shadow Stack
+Date: Thu,  6 Jun 2019 13:06:19 -0700
+Message-Id: <20190606200646.3951-1-yu-cheng.yu@intel.com>
+X-Mailer: git-send-email 2.17.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 06-06-19 19:42:20, Ajay Kaher wrote:
-> 
-> > From: Andrea Arcangeli <aarcange@redhat.com>
-> >
-> > Upstream 04f5866e41fb70690e28397487d8bd8eea7d712a commit.
-> >
-> >
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> > ---
-> > Hi,
-> > this is based on the backport I have done for out 4.4 based distribution
-> > kernel. Please double check that I haven't missed anything before
-> > applying to the stable tree. I have also CCed Joel for the binder part
-> > which is not in the current upstream anymore but I believe it needs the
-> > check as well.
-> >
-> > Review feedback welcome.
-> >
-> > drivers/android/binder.c |  6 ++++++
-> > fs/proc/task_mmu.c       | 18 ++++++++++++++++++
-> > fs/userfaultfd.c         | 10 ++++++++--
-> > include/linux/mm.h       | 21 +++++++++++++++++++++
-> > mm/huge_memory.c         |  2 +-
-> > mm/mmap.c                |  7 ++++++-
-> > 6 files changed, 60 insertions(+), 4 deletions(-)
-> >
-> > diff --git a/drivers/android/binder.c b/drivers/android/binder.c
-> > index 260ce0e60187..1fb1cddbd19a 100644
-> > --- a/drivers/android/binder.c
-> > +++ b/drivers/android/binder.c
-> > @@ -570,6 +570,12 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
-> > 
-> > 	if (mm) {
-> > 		down_write(&mm->mmap_sem);
-> > +		if (!mmget_still_valid(mm)) {
-> > +			if (allocate == 0)
-> > +				goto free_range;
-> 
-> Please cross check, free_range: should not end-up with modifications in vma.
+Intel has published Control-flow Enforcement (CET) in the Architecture
+Instruction Set Extensions Programming Reference:
 
-A review from a binder expert is definitely due but this function
-clearly modifies the vma. Maybe the mapping is not really that important
-because the coredump would simply not see the new mapping and therefore
-"only" generate an incomplete/corrupted dump rather than leak an
-information. I went with a "just to be sure" approach and add the check
-to all locations which might be operating on a remote mm and modify the
-address space.
+  https://software.intel.com/en-us/download/intel-architecture-instruction-set-
+  extensions-programming-reference
+
+The previous version (v6) of CET Shadow Stack patches is here:
+
+  https://lkml.org/lkml/2018/11/20/225
+
+Summary of changes from v6:
+
+  Rebase to v5.2-rc3.
+
+  Adapt XSAVES system state changes to the recent FPU changes:
+    - Add modify_fpu_regs_begin(), modify_fpu_regs_end() to protect
+      CET MSR changes.
+    - Update signal handling.
+
+  Move ELF header-parsing out of x86.
+
+  Other small fixes in response to comments.
+
+This version passed GLIBC built-in tests.
+
+Hi Maintainers,
+
+What else is needed before this series can be merged?
+
+Thanks,
+Yu-cheng
+
+
+Yu-cheng Yu (27):
+  Documentation/x86: Add CET description
+  x86/cpufeatures: Add CET CPU feature flags for Control-flow
+    Enforcement Technology (CET)
+  x86/fpu/xstate: Change names to separate XSAVES system and user states
+  x86/fpu/xstate: Introduce XSAVES system states
+  x86/fpu/xstate: Add XSAVES system states for shadow stack
+  x86/cet: Add control protection exception handler
+  x86/cet/shstk: Add Kconfig option for user-mode shadow stack
+  mm: Introduce VM_SHSTK for shadow stack memory
+  mm/mmap: Prevent Shadow Stack VMA merges
+  x86/mm: Change _PAGE_DIRTY to _PAGE_DIRTY_HW
+  x86/mm: Introduce _PAGE_DIRTY_SW
+  drm/i915/gvt: Update _PAGE_DIRTY to _PAGE_DIRTY_BITS
+  x86/mm: Modify ptep_set_wrprotect and pmdp_set_wrprotect for
+    _PAGE_DIRTY_SW
+  x86/mm: Shadow stack page fault error checking
+  mm: Handle shadow stack page fault
+  mm: Handle THP/HugeTLB shadow stack page fault
+  mm: Update can_follow_write_pte/pmd for shadow stack
+  mm: Introduce do_mmap_locked()
+  x86/cet/shstk: User-mode shadow stack support
+  x86/cet/shstk: Introduce WRUSS instruction
+  x86/cet/shstk: Handle signals for shadow stack
+  binfmt_elf: Extract .note.gnu.property from an ELF file
+  x86/cet/shstk: ELF header parsing of Shadow Stack
+  x86/cet/shstk: Handle thread shadow stack
+  mm/mmap: Add Shadow stack pages to memory accounting
+  x86/cet/shstk: Add arch_prctl functions for Shadow Stack
+  x86/cet/shstk: Add Shadow Stack instructions to opcode map
+
+ .../admin-guide/kernel-parameters.txt         |   6 +
+ Documentation/x86/index.rst                   |   1 +
+ Documentation/x86/intel_cet.rst               | 268 +++++++++++++
+ arch/x86/Kconfig                              |  26 ++
+ arch/x86/Makefile                             |   7 +
+ arch/x86/entry/entry_64.S                     |   2 +-
+ arch/x86/ia32/ia32_signal.c                   |   8 +
+ arch/x86/include/asm/cet.h                    |  48 +++
+ arch/x86/include/asm/cpufeatures.h            |   2 +
+ arch/x86/include/asm/disabled-features.h      |   8 +-
+ arch/x86/include/asm/fpu/internal.h           |  25 +-
+ arch/x86/include/asm/fpu/signal.h             |   2 +
+ arch/x86/include/asm/fpu/types.h              |  22 ++
+ arch/x86/include/asm/fpu/xstate.h             |  26 +-
+ arch/x86/include/asm/mmu_context.h            |   3 +
+ arch/x86/include/asm/msr-index.h              |  18 +
+ arch/x86/include/asm/pgtable.h                | 191 ++++++++--
+ arch/x86/include/asm/pgtable_types.h          |  38 +-
+ arch/x86/include/asm/processor.h              |   5 +
+ arch/x86/include/asm/special_insns.h          |  32 ++
+ arch/x86/include/asm/traps.h                  |   5 +
+ arch/x86/include/uapi/asm/prctl.h             |   5 +
+ arch/x86/include/uapi/asm/processor-flags.h   |   2 +
+ arch/x86/include/uapi/asm/sigcontext.h        |  15 +
+ arch/x86/kernel/Makefile                      |   2 +
+ arch/x86/kernel/cet.c                         | 327 ++++++++++++++++
+ arch/x86/kernel/cet_prctl.c                   |  85 +++++
+ arch/x86/kernel/cpu/common.c                  |  25 ++
+ arch/x86/kernel/cpu/cpuid-deps.c              |   2 +
+ arch/x86/kernel/fpu/core.c                    |  26 +-
+ arch/x86/kernel/fpu/init.c                    |  10 -
+ arch/x86/kernel/fpu/signal.c                  |  81 +++-
+ arch/x86/kernel/fpu/xstate.c                  | 156 +++++---
+ arch/x86/kernel/idt.c                         |   4 +
+ arch/x86/kernel/process.c                     |   8 +-
+ arch/x86/kernel/process_64.c                  |  31 ++
+ arch/x86/kernel/relocate_kernel_64.S          |   2 +-
+ arch/x86/kernel/signal.c                      |  10 +-
+ arch/x86/kernel/signal_compat.c               |   2 +-
+ arch/x86/kernel/traps.c                       |  57 +++
+ arch/x86/kvm/vmx/vmx.c                        |   2 +-
+ arch/x86/lib/x86-opcode-map.txt               |  26 +-
+ arch/x86/mm/fault.c                           |  18 +
+ arch/x86/mm/pgtable.c                         |  41 ++
+ drivers/gpu/drm/i915/gvt/gtt.c                |   2 +-
+ fs/Kconfig.binfmt                             |   3 +
+ fs/Makefile                                   |   1 +
+ fs/binfmt_elf.c                               |  13 +
+ fs/gnu_property.c                             | 351 ++++++++++++++++++
+ fs/proc/task_mmu.c                            |   3 +
+ include/asm-generic/pgtable.h                 |  14 +
+ include/linux/elf.h                           |  12 +
+ include/linux/mm.h                            |  26 ++
+ include/uapi/asm-generic/siginfo.h            |   3 +-
+ include/uapi/linux/elf.h                      |  14 +
+ mm/gup.c                                      |   8 +-
+ mm/huge_memory.c                              |  12 +-
+ mm/memory.c                                   |   7 +-
+ mm/mmap.c                                     |  11 +
+ .../arch/x86/include/asm/disabled-features.h  |   8 +-
+ tools/objtool/arch/x86/lib/x86-opcode-map.txt |  26 +-
+ 61 files changed, 2029 insertions(+), 165 deletions(-)
+ create mode 100644 Documentation/x86/intel_cet.rst
+ create mode 100644 arch/x86/include/asm/cet.h
+ create mode 100644 arch/x86/kernel/cet.c
+ create mode 100644 arch/x86/kernel/cet_prctl.c
+ create mode 100644 fs/gnu_property.c
 
 -- 
-Michal Hocko
-SUSE Labs
+2.17.1
 
