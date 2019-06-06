@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 61E5AC04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:16:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 22B41C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:16:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2790B208CA
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:16:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2790B208CA
+	by mail.kernel.org (Postfix) with ESMTP id D6BD0208CA
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:16:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D6BD0208CA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C42056B02B7; Thu,  6 Jun 2019 16:15:40 -0400 (EDT)
+	id CDED16B02BB; Thu,  6 Jun 2019 16:15:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BCF786B02B9; Thu,  6 Jun 2019 16:15:40 -0400 (EDT)
+	id C695E6B02BD; Thu,  6 Jun 2019 16:15:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A930F6B02BA; Thu,  6 Jun 2019 16:15:40 -0400 (EDT)
+	id B09376B02BC; Thu,  6 Jun 2019 16:15:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CA306B02B7
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:15:40 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id j21so2064641pff.12
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:15:40 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B0366B02B9
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:15:42 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id d2so2144957pla.18
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:15:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=3rc5WSC9lu5I3YPet9/X+BLe3GdVT7Iar3wD/bHVsGQ=;
-        b=fq4MS7uaQZuJNPGO4vlBbDVvMjH9EKyCjLxA2VoCC4GmkgaiOgC604orWCoIIhSVn4
-         SuMtJcs+/27G6aGb7Se2yGFK9hb9aa8uucmIxuBfgiW4mOSSbUgqWGpVp+aYx+tASgA8
-         RXDeCmU5jljo/3rbWBiFGLbLMwYBg7TzHJ0qYdNKAcDI2C8LGE5fwjsuwQwHSW4gVUqm
-         VbWaIqQ56bXO38jl1F8K+4FYQdos5MRf4SiNGTuDz2uHwAq/JzRcpAGex5mNG8fgaf57
-         kFUf3bQqysOLTlN9mEKMGg2oo9a0XbGFp93DLPcLqnTQyTw9xpfLzSsZRQYvGRXk/Yg5
-         UA1w==
+        bh=93Gwv6XnAt1YbfZeHX2fnzvAW5eh83qpiHtLTKRMHGE=;
+        b=m27vzOtDtOFADDuuy52108UxlQfykoxtaSN6/TLD3B0h/plAXeVCzP8QxReeGa287D
+         BOnA/+b6NpGNpolXUdB5p7IxibvdqT9/w49J+/deICgN38JzV1ibEdTYAPyLlef80f0s
+         FvShX108JNlt4nwwF3BZJ2mcjxgK6mFW2LHRLzplcovO+bL+3464ntb3clEpTJ0w5Kfl
+         5IDXjExFLgIb1HyWplvxiyHiFfZNCSWbtDjdkKH76LsQJPvzh10iyRIOnrDPK8QqWv0F
+         EHk5jIbjS7+0D8SM/93uYPSj6pUhjS2naHA8/ghPXpYR4ue2jRD2I4ARFJNeikxavEVw
+         3m3A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAULCqqvMiWoQTnKNfJCzTqBsxRVYDWypjg5RxInZ9FcsAmx6Abk
-	LUkvfwI4wMjQaFoyNV9Td+H5CsQJDOa7ffbe5O0BsinIeYd1O6oB4SVsC2icarWQxe5eOPz4TId
-	mO0BsAtW67xdVu43BQBWegXEWvcxHIQV+7bJJ30hOEKazSqcJGThdZWut9wBOQZG88A==
-X-Received: by 2002:aa7:8dcd:: with SMTP id j13mr53474952pfr.107.1559852140112;
+X-Gm-Message-State: APjAAAWFq2tCC62JYKAkazX121L3NRZ7zgwzNbdEQNwDHy9wN3bOLmaX
+	J7HrC28JF6FPhWkRqjxbSoLTzVUiQHXDtw3Y84cp7PQFP3N7l67+2w/A+B09CKgaJBM2EMQbQdN
+	ZHJNYS1ppzMyU3yiQrFw39QkqygiBrDbckULQ05FnLnADRtcdawgR157PqVpTG3o0BQ==
+X-Received: by 2002:a62:7552:: with SMTP id q79mr34939971pfc.71.1559852142032;
+        Thu, 06 Jun 2019 13:15:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyyfMgMUsp/XTMX9yjOEsC6l0q8LVvYp1H9+muASRZvqVaRIIhtMePigwDYJLA1jXNGjB1z
+X-Received: by 2002:a62:7552:: with SMTP id q79mr34939866pfc.71.1559852140520;
         Thu, 06 Jun 2019 13:15:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyfKyIQKg6elaj5Q+zcn3QyzweClOISOYzY5CgYjtSUBoCmghpk3Vnx1bwur2IQyTkJUEej
-X-Received: by 2002:aa7:8dcd:: with SMTP id j13mr53474889pfr.107.1559852139136;
-        Thu, 06 Jun 2019 13:15:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559852139; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1559852140; cv=none;
         d=google.com; s=arc-20160816;
-        b=YE6gbmQ4MgB1r4yzwpb+3T3bJLMxPwUEa9gzFjPzN2D2abXZaeYFCN849LYA95+bdo
-         TjJHYeic0/pVr7VT7zf7+Eqr2pqKUFUv9UZg122okvdmjSwiW49Vb10BYMG5QSJGCYA+
-         M74NCW2MKPEuP+Or+HMLrkxGvDxzhNZC4VHh04PbqVY8MdeFg9wG08vYE7hQ9vH4lxEI
-         hjUNnnq3s63DhNS4IkNHiMRKW3DJLzlbPdH2aFXdMYi85865+amL+kMScDDIKMGO6Qnr
-         qm6uR6HrYZ/1sSwaF8A9TncDAwn3LekLPeFkbNzJVr5FMq8mvnq1IWVttinoUwQuDdxu
-         UZLA==
+        b=MhX1xgA8CQ3cjmnE6q66f6D8fWe+n6Ia8UlOaETtNM433FLRvV60OXUx5GB0hxXKMO
+         t03M8eiet0sRV2Ac6WMrI4ZMI1hjHlgz1dzpvVKkAhI027EAHfaQRCZtPZWmVyQqj0fT
+         Fc4HyKlK0ltlEytFxbuaT+OPPC0XoJGnTWL84ut5Pb80HKfkn399vqdpwfkI9UaZOum3
+         /oZJQBQmtghVUhWWxFnDNLa0FVLm9jp7BCMQjNJXCL7KPL6AearL+xGMGjggyzOe+6vi
+         5yssJ+zeHJSWXWfusXn9rkba6XUFsSu1nMyt6Qd3oztkwN2msKPT/p6S8JfxBFju/O66
+         MoMQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=3rc5WSC9lu5I3YPet9/X+BLe3GdVT7Iar3wD/bHVsGQ=;
-        b=PFHZp2oLQoSCZx0x/MeWvt9p3xJzjLXuE8I5eLVPTVwMsBz3LRMfcpzQ66R86Dyvit
-         FTOj8FR/Ax3z/TqIdCUrhFGVU9YVEWbEpmWn08w5f0jfJ70tUuD3zwsJ91oQuJFixMYr
-         80CtGgubuA75Xov7M5qVg2bP1pe+mSuu1JqnIpC+JinapaCp4Q6oocO+fJPs6pUSGvfH
-         Q/AgrU++16nXbwHp/lyP/fSHyfPn9Mr+8GTVykIrFd0YcKovNUAtltS5SNO1vSNST25U
-         cYIRofZXeNQgkQRk6NcAGUv/gyPfZLqv5e1irS0q+fTb5d1KxQ83V0QiT0yC2u8tOFYU
-         Y8Xw==
+        bh=93Gwv6XnAt1YbfZeHX2fnzvAW5eh83qpiHtLTKRMHGE=;
+        b=myralCXL5KVr/PInZewvNq4VM07tGLI8226E60M8uRY0Dd1s+jer8ywvXVxHamCo8i
+         tmz7aNc4LVymEqKcYruqv/jv53AhqgSXDDHY5vRUFIPFaK+B1EY/1IiLjwrzcVimsHdK
+         +bU2fPu6K0eBoKYq8A/B0uV+JK96ek43s8mGP4DPJaaJhGkX646QOAM8RO0IZQFS/vFz
+         OsM0N1vJcm88EPvkMaFvvUChmZSNZA8Jd5oMxSDJYOci4Z1Ue4dGiUG0xi4O7lHj0ke7
+         Mxsy1xcjurXORexND+NgyTPuUXQcIlQBBGw7E9taXhPWS4ZTYA8W+qSGMTZjdeGpg/cA
+         QkNg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id r142si2785300pfc.219.2019.06.06.13.15.38
+        by mx.google.com with ESMTPS id r142si2785300pfc.219.2019.06.06.13.15.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 13:15:39 -0700 (PDT)
+        Thu, 06 Jun 2019 13:15:40 -0700 (PDT)
 Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
@@ -79,10 +79,10 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:15:38 -0700
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:15:40 -0700
 X-ExtLoop1: 1
 Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by orsmga002.jf.intel.com with ESMTP; 06 Jun 2019 13:15:37 -0700
+  by orsmga002.jf.intel.com with ESMTP; 06 Jun 2019 13:15:38 -0700
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
 To: x86@kernel.org,
 	"H. Peter Anvin" <hpa@zytor.com>,
@@ -115,9 +115,9 @@ To: x86@kernel.org,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v7 23/27] x86/cet/shstk: ELF header parsing of Shadow Stack
-Date: Thu,  6 Jun 2019 13:06:42 -0700
-Message-Id: <20190606200646.3951-24-yu-cheng.yu@intel.com>
+Subject: [PATCH v7 24/27] x86/cet/shstk: Handle thread shadow stack
+Date: Thu,  6 Jun 2019 13:06:43 -0700
+Message-Id: <20190606200646.3951-25-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190606200646.3951-1-yu-cheng.yu@intel.com>
 References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
@@ -127,60 +127,163 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Look in .note.gnu.property of an ELF file and check if Shadow Stack needs
-to be enabled for the task.
+The shadow stack for clone/fork is handled as the following:
 
-Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
+(1) If ((clone_flags & (CLONE_VFORK | CLONE_VM)) == CLONE_VM),
+    the kernel allocates (and frees on thread exit) a new SHSTK
+    for the child.
+
+    It is possible for the kernel to complete the clone syscall
+    and set the child's SHSTK pointer to NULL and let the child
+    thread allocate a SHSTK for itself.  There are two issues
+    in this approach: It is not compatible with existing code
+    that does inline syscall and it cannot handle signals before
+    the child can successfully allocate a SHSTK.
+
+(2) For (clone_flags & CLONE_VFORK), the child uses the existing
+    SHSTK.
+
+(3) For all other cases, the SHSTK is copied/reused whenever the
+    parent or the child does a call/ret.
+
+This patch handles cases (1) & (2).  Case (3) is handled in the
+SHSTK page fault patches.
+
+A 64-bit SHSTK has a fixed size of RLIMIT_STACK. A compat-mode
+thread SHSTK has a fixed size of 1/4 RLIMIT_STACK.  This allows
+more threads to share a 32-bit address space.
+
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/Kconfig             |  1 +
- arch/x86/kernel/process_64.c | 24 ++++++++++++++++++++++++
- 2 files changed, 25 insertions(+)
+ arch/x86/include/asm/cet.h         |  2 ++
+ arch/x86/include/asm/mmu_context.h |  3 +++
+ arch/x86/kernel/cet.c              | 41 ++++++++++++++++++++++++++++++
+ arch/x86/kernel/process.c          |  1 +
+ arch/x86/kernel/process_64.c       |  7 +++++
+ 5 files changed, 54 insertions(+)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 1664918c2c1c..df8b57de75b2 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -1928,6 +1928,7 @@ config X86_INTEL_SHADOW_STACK_USER
- 	select ARCH_USES_HIGH_VMA_FLAGS
- 	select X86_INTEL_CET
- 	select ARCH_HAS_SHSTK
-+	select ARCH_USE_GNU_PROPERTY
- 	---help---
- 	  Shadow stack provides hardware protection against program stack
- 	  corruption.  Only when all the following are true will an application
+diff --git a/arch/x86/include/asm/cet.h b/arch/x86/include/asm/cet.h
+index 422ccb8adbb7..52c506a68848 100644
+--- a/arch/x86/include/asm/cet.h
++++ b/arch/x86/include/asm/cet.h
+@@ -19,12 +19,14 @@ struct cet_status {
+ 
+ #ifdef CONFIG_X86_INTEL_CET
+ int cet_setup_shstk(void);
++int cet_setup_thread_shstk(struct task_struct *p);
+ void cet_disable_shstk(void);
+ void cet_disable_free_shstk(struct task_struct *p);
+ int cet_restore_signal(bool ia32, struct sc_ext *sc);
+ int cet_setup_signal(bool ia32, unsigned long rstor, struct sc_ext *sc);
+ #else
+ static inline int cet_setup_shstk(void) { return -EINVAL; }
++static inline int cet_setup_thread_shstk(struct task_struct *p) { return 0; }
+ static inline void cet_disable_shstk(void) {}
+ static inline void cet_disable_free_shstk(struct task_struct *p) {}
+ static inline int cet_restore_signal(bool ia32, struct sc_ext *sc) { return -EINVAL; }
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index 9024236693d2..a9a768529540 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -13,6 +13,7 @@
+ #include <asm/tlbflush.h>
+ #include <asm/paravirt.h>
+ #include <asm/mpx.h>
++#include <asm/cet.h>
+ #include <asm/debugreg.h>
+ 
+ extern atomic64_t last_mm_ctx_id;
+@@ -228,6 +229,8 @@ do {						\
+ #else
+ #define deactivate_mm(tsk, mm)			\
+ do {						\
++	if (!tsk->vfork_done)			\
++		cet_disable_free_shstk(tsk);	\
+ 	load_gs_index(0);			\
+ 	loadsegment(fs, 0);			\
+ } while (0)
+diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
+index b247cd15c1e2..9ef1af617d38 100644
+--- a/arch/x86/kernel/cet.c
++++ b/arch/x86/kernel/cet.c
+@@ -151,6 +151,47 @@ int cet_setup_shstk(void)
+ 	return 0;
+ }
+ 
++int cet_setup_thread_shstk(struct task_struct *tsk)
++{
++	unsigned long addr, size;
++	struct cet_user_state *state;
++
++	if (!current->thread.cet.shstk_enabled)
++		return 0;
++
++	state = get_xsave_addr(&tsk->thread.fpu.state.xsave,
++			       XFEATURE_CET_USER);
++
++	if (!state)
++		return -EINVAL;
++
++	size = rlimit(RLIMIT_STACK);
++
++	/*
++	 * Compat-mode pthreads share a limited address space.
++	 * If each function call takes an average of four slots
++	 * stack space, we need 1/4 of stack size for shadow stack.
++	 */
++	if (in_compat_syscall())
++		size /= 4;
++
++	addr = do_mmap_locked(0, size, PROT_READ,
++			      MAP_ANONYMOUS | MAP_PRIVATE, VM_SHSTK);
++
++	if (addr >= TASK_SIZE_MAX) {
++		tsk->thread.cet.shstk_base = 0;
++		tsk->thread.cet.shstk_size = 0;
++		tsk->thread.cet.shstk_enabled = 0;
++		return -ENOMEM;
++	}
++
++	fpu__prepare_write(&tsk->thread.fpu);
++	state->user_ssp = (u64)(addr + size - sizeof(u64));
++	tsk->thread.cet.shstk_base = addr;
++	tsk->thread.cet.shstk_size = size;
++	return 0;
++}
++
+ void cet_disable_shstk(void)
+ {
+ 	u64 r;
+diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
+index a4deb79b1089..58b1c52b38b5 100644
+--- a/arch/x86/kernel/process.c
++++ b/arch/x86/kernel/process.c
+@@ -130,6 +130,7 @@ void exit_thread(struct task_struct *tsk)
+ 
+ 	free_vm86(t);
+ 
++	cet_disable_free_shstk(tsk);
+ 	fpu__drop(fpu);
+ }
+ 
 diff --git a/arch/x86/kernel/process_64.c b/arch/x86/kernel/process_64.c
-index 250e4c4ac6d9..c51df5b4e116 100644
+index c51df5b4e116..5fa0d9ab18f1 100644
 --- a/arch/x86/kernel/process_64.c
 +++ b/arch/x86/kernel/process_64.c
-@@ -828,3 +828,27 @@ unsigned long KSTK_ESP(struct task_struct *task)
- {
- 	return task_pt_regs(task)->sp;
- }
-+
-+#ifdef CONFIG_ARCH_USE_GNU_PROPERTY
-+int arch_setup_property(void *ehdr, void *phdr, struct file *f, bool inter)
-+{
-+	int r;
-+	uint32_t property;
-+
-+	r = get_gnu_property(ehdr, phdr, f, GNU_PROPERTY_X86_FEATURE_1_AND,
-+			     &property);
-+
-+	memset(&current->thread.cet, 0, sizeof(struct cet_status));
-+
-+	if (r)
-+		return r;
-+
-+	if (cpu_feature_enabled(X86_FEATURE_SHSTK)) {
-+		if (property & GNU_PROPERTY_X86_FEATURE_1_SHSTK)
-+			r = cet_setup_shstk();
-+		if (r < 0)
-+			return r;
+@@ -421,6 +421,13 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long sp,
+ 	if (sp)
+ 		childregs->sp = sp;
+ 
++	/* Allocate a new shadow stack for pthread */
++	if ((clone_flags & (CLONE_VFORK | CLONE_VM)) == CLONE_VM) {
++		err = cet_setup_thread_shstk(p);
++		if (err)
++			goto out;
 +	}
-+	return r;
-+}
-+#endif
++
+ 	err = -ENOMEM;
+ 	if (unlikely(test_tsk_thread_flag(me, TIF_IO_BITMAP))) {
+ 		p->thread.io_bitmap_ptr = kmemdup(me->thread.io_bitmap_ptr,
 -- 
 2.17.1
 
