@@ -4,75 +4,74 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E528C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2014DC28EB7
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 22EEF208E4
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22EEF208E4
+	by mail.kernel.org (Postfix) with ESMTP id CA52D208C3
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA52D208C3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 31B3E6B0292; Thu,  6 Jun 2019 16:15:19 -0400 (EDT)
+	id A955F6B0293; Thu,  6 Jun 2019 16:15:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2AA266B0293; Thu,  6 Jun 2019 16:15:19 -0400 (EDT)
+	id A45A46B0294; Thu,  6 Jun 2019 16:15:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 05E5B6B0294; Thu,  6 Jun 2019 16:15:18 -0400 (EDT)
+	id 848B06B0295; Thu,  6 Jun 2019 16:15:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B6ACF6B0292
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:15:18 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id d125so2614589pfd.3
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:15:18 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F6BE6B0294
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:15:19 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id k23so2304055pgh.10
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:15:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=Agqu7L2UI0Tkjxyheb61lr04vYuCi6Sfe41rIBPXzL4=;
-        b=pHvhlTrpHJmDTbV5rwKC413NPnr3V+OMnQDSnth7CcGknNC2Z678R879YjtngWLkV/
-         BcS8O8NBru5Qkx13niwNugQKDOM58B1nbvq7Eimn8owmhFc/NdJbCBwqDk945WKOUNyK
-         HNWEP4HofzlRP+rt+QI57OnYx75n+XOgZucIWc5dGBkCsreMzr05egn8GOCiqmi4TSNv
-         lHrAsXeeT+anzlg1cjRiqRxtF1CrDgZaZNUobrdNK3b3XDF3LtUtPLqxdRAv26C4KtvD
-         Yc5gYRavk9yZ7da0Hc39HrV9gCzGesJFzlbH707QQnHZYdQEXPhw4/bI/7Owvk6LXBqD
-         wOnQ==
+        bh=cYY5bIPKktAYkfjxzWANjKvdbOk+wrI8+3g36JZ+4qg=;
+        b=WMwgqmrrEuDweb3afoR1/w/ndV4PJYgTEhgkfhknapwhJvEbDAYm5zE3TlHsAmf66f
+         M6Do4eEUJhvm/7vKSCZCwB4L3Xtae+K/fDdzetZSIt/ghng4Bj6QzOLmXWBvNqsEIBqM
+         e3kE4ZLPo6ek6SsGZr82FKf0Cug64OoGc+Pr6VCnr3sFCy2zYcSETqXRVh5qYeMPpsXs
+         mhwFfXw3+0rxl7Eo1aLBUdIIufc7mPuyj9T+M4IN0QfhS0LJJpmi5uYZumhViZIt6fC9
+         qNOsZHdXSL5R4CFrL4X0khabg+EnOzdLastltFKLz8JiHy0UhBADbQnCbOEGI7Oo7EmA
+         vITg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXETrSscTdJFJUfv0tPu+AQTyAABwa0RIHbvgSngF0B03prs/80
-	4ore+i3BAIU6St7pA+d45+itY80MGh7WFRxQNG9B7XSGJx0lUo+TJBdHN5v7wOUOEDSdQwMJ70B
-	e71lT7fzRV6dZzz09hb25B25RUp951yCsmVESERuW1XKKOt9fDomiq9tSZmtBQ+gMNw==
-X-Received: by 2002:a65:56c2:: with SMTP id w2mr299367pgs.49.1559852118208;
+X-Gm-Message-State: APjAAAXIW9legGAANOJgVaIsMcq/brHi0Gh8aVqxDbypMTLnTFSOphXA
+	zih8w9+g8UI6gODAwU/Hs1OYZvbBZY+m1IbMzH9ze+WxYUzYOBnjj1ZJuE0aFne4zmlirqXjXIq
+	tcusyX47PUqVITZyfJHofNbUO6W3ulWRLBFVYwNo+3ylsyZQ+jjcUE1wYioPpK9i1/Q==
+X-Received: by 2002:a17:902:2d:: with SMTP id 42mr52128747pla.34.1559852118879;
         Thu, 06 Jun 2019 13:15:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz5PEfxW/FfsqdztvOtU1XbBxaGUN2sQ7bRZdnRgp73AjDaGCTpuZfpUBcFwTtMAfeuhA3L
-X-Received: by 2002:a65:56c2:: with SMTP id w2mr299276pgs.49.1559852116842;
-        Thu, 06 Jun 2019 13:15:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559852116; cv=none;
+X-Google-Smtp-Source: APXvYqyLFuL/U3j9wKvX+cK2AzMVI/wcM7cVF2CIoEZPPjr17/pGzklrvUUXNMaWxObo34nCiUyl
+X-Received: by 2002:a17:902:2d:: with SMTP id 42mr52128685pla.34.1559852118005;
+        Thu, 06 Jun 2019 13:15:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559852118; cv=none;
         d=google.com; s=arc-20160816;
-        b=u08zvOlJwxLcfwTPs/W54byvtzsIq4Ov5F6kTksH9JHz0UcNJWUByblucbwEsS88if
-         7lho/mkXd99x2ourDYQ9JUAPGWmASLi4g/I3laJtfzxgW3ubeZ2AemK8D5wcOVP9eHa9
-         RjdFK3+bpWsiB8ySXJ2SsEj1dRqxcAUjuFS/4ehvqqzNAraVrO6mEmCFvgkBxicDYsjH
-         x38RjGPWq+nouU2R6uNFFBogc7nXfaRowup1Cd8UiOBksx7KybltZ17TSZquJsA+DjWK
-         p9qhXECP28HFylcrkO58EKVs4OZE9T5ONv9eCvxdlsZbT6HAutCkcZVfUrAhbToG2kMB
-         MjBA==
+        b=FireMYU9wXa3KyNDa36uLa7TbUcQB03LxKzP11AHoapxJHDqbHXISsgsXpl66+w6Ty
+         ZIBmslfstlMac4plTZYlSgw8oMa/h8bEvrmeMOeb60DO121gXWgwHQEHSRT/tGjETUmN
+         /cNNrurxZ1MMf/AOroITZTZa8GoZULQgQ2Y693IOh7s7d3GKy/osYVqBZ3Jxsvd277PR
+         fed9o5RGrhqRExgvIHW3w4UCicuOIeDEn5SrPqf1iLNv65KAs/AFj8lSnBoGWVmxebQo
+         4qi3GUGAVhRHQlD1mNDdu1VhMTeiRx6jb8VBOF2Qlz1ibAax1MFuG5TAGYTxgoci9W7M
+         4MCA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=Agqu7L2UI0Tkjxyheb61lr04vYuCi6Sfe41rIBPXzL4=;
-        b=reaQrn2HxDGKDfJj2IObEsYII3VLHbxYsw26g/Vt4D4JEBExiYfZ4uZyL1nVARvd1C
-         S674YFQuPbQjhBXNA5wWd3OsOGUp8dcvG0Ns8ArvbV5p2jVGO+EHtrDkJCA/zTzfppuP
-         0PW1Y7XARCn6GCku3Dvdy93pwGzHSCv9ewFfA1YR0kZsOG0tT32K6FqPZdDk4ZXhbFka
-         XW/kwrYOLMqy57CrgRSPGkDgm/6aFzvqnLtYpt2wogaKNeCbUZ4ScX5TJysA+Ek8jeK2
-         JprTedp+TmXY2Ny2jVlsg/WkSd1EgqfMFz3FpZcHgaTrvyTQ4NFqzgpIrLcKbjOx9wWd
-         YRgw==
+        bh=cYY5bIPKktAYkfjxzWANjKvdbOk+wrI8+3g36JZ+4qg=;
+        b=ioX8A1rKg3OMYaf914swmvxflFJ5rZbCZEApX15Flh1+lMJDeMCK5LwsTrltRp+oYt
+         VHTIve/3rNHVnwYXK1pN2TCfEVCuxJtKGaDI+gu7WUU9lSB4jeyYPAn+seAgz1Fr9MP8
+         zd9hjJ9f8KARugDGaY8hk3i2OhYAk2tV4jtzMyj65Z1AN7GMAv/LjnDTWychzKglpDXy
+         vGrUdwRD7td+wKF7ZTDGA3vYpuYLmMUR12seZK7ULeE0h1uDYABvvRavYOngqxgluYx+
+         KIfWlBmblwnf1u9tIqwESzRTivuIpFP5AL4uWoC8ClzKs3nMroyijFsl8v1YjPgqaQ4o
+         DwGA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id 91si31377plh.398.2019.06.06.13.15.16
+        by mx.google.com with ESMTPS id 91si31377plh.398.2019.06.06.13.15.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 13:15:16 -0700 (PDT)
+        Thu, 06 Jun 2019 13:15:17 -0700 (PDT)
 Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
@@ -80,10 +79,10 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:15:16 -0700
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:15:17 -0700
 X-ExtLoop1: 1
 Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by orsmga002.jf.intel.com with ESMTP; 06 Jun 2019 13:15:15 -0700
+  by orsmga002.jf.intel.com with ESMTP; 06 Jun 2019 13:15:16 -0700
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
 To: x86@kernel.org,
 	"H. Peter Anvin" <hpa@zytor.com>,
@@ -116,9 +115,9 @@ To: x86@kernel.org,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v7 06/27] x86/cet: Add control protection exception handler
-Date: Thu,  6 Jun 2019 13:06:25 -0700
-Message-Id: <20190606200646.3951-7-yu-cheng.yu@intel.com>
+Subject: [PATCH v7 07/27] x86/cet/shstk: Add Kconfig option for user-mode shadow stack
+Date: Thu,  6 Jun 2019 13:06:26 -0700
+Message-Id: <20190606200646.3951-8-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190606200646.3951-1-yu-cheng.yu@intel.com>
 References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
@@ -128,176 +127,86 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-A control protection exception is triggered when a control flow transfer
-attempt violated shadow stack or indirect branch tracking constraints.
-For example, the return address for a RET instruction differs from the
-safe copy on the shadow stack; or a JMP instruction arrives at a non-
-ENDBR instruction.
+Introduce Kconfig option X86_INTEL_SHADOW_STACK_USER.
 
-The control protection exception handler works in a similar way as the
-general protection fault handler.
+An application has shadow stack protection when all the following are
+true:
+
+  (1) The kernel has X86_INTEL_SHADOW_STACK_USER enabled,
+  (2) The running processor supports the shadow stack,
+  (3) The application is built with shadow stack enabled tools & libs
+      and, and at runtime, all dependent shared libs can support
+      shadow stack.
+
+If this kernel config option is enabled, but (2) or (3) above is not
+true, the application runs without the shadow stack protection.
+Existing legacy applications will continue to work without the shadow
+stack protection.
+
+The user-mode shadow stack protection is only implemented for the
+64-bit kernel.  Thirty-two bit applications are supported under the
+compatibility mode.
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/entry/entry_64.S          |  2 +-
- arch/x86/include/asm/traps.h       |  3 ++
- arch/x86/kernel/idt.c              |  4 +++
- arch/x86/kernel/signal_compat.c    |  2 +-
- arch/x86/kernel/traps.c            | 57 ++++++++++++++++++++++++++++++
- include/uapi/asm-generic/siginfo.h |  3 +-
- 6 files changed, 68 insertions(+), 3 deletions(-)
+ arch/x86/Kconfig  | 25 +++++++++++++++++++++++++
+ arch/x86/Makefile |  7 +++++++
+ 2 files changed, 32 insertions(+)
 
-diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
-index 11aa3b2afa4d..595c2efbb893 100644
---- a/arch/x86/entry/entry_64.S
-+++ b/arch/x86/entry/entry_64.S
-@@ -993,7 +993,7 @@ idtentry spurious_interrupt_bug		do_spurious_interrupt_bug	has_error_code=0
- idtentry coprocessor_error		do_coprocessor_error		has_error_code=0
- idtentry alignment_check		do_alignment_check		has_error_code=1
- idtentry simd_coprocessor_error		do_simd_coprocessor_error	has_error_code=0
--
-+idtentry control_protection		do_control_protection		has_error_code=1
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 2bbbd4d1ba31..1664918c2c1c 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1915,6 +1915,31 @@ config X86_INTEL_MEMORY_PROTECTION_KEYS
  
- 	/*
- 	 * Reload gs selector with exception handling
-diff --git a/arch/x86/include/asm/traps.h b/arch/x86/include/asm/traps.h
-index 7d6f3f3fad78..5906a22796b6 100644
---- a/arch/x86/include/asm/traps.h
-+++ b/arch/x86/include/asm/traps.h
-@@ -26,6 +26,7 @@ asmlinkage void invalid_TSS(void);
- asmlinkage void segment_not_present(void);
- asmlinkage void stack_segment(void);
- asmlinkage void general_protection(void);
-+asmlinkage void control_protection(void);
- asmlinkage void page_fault(void);
- asmlinkage void async_page_fault(void);
- asmlinkage void spurious_interrupt_bug(void);
-@@ -81,6 +82,7 @@ struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s);
- void __init trap_init(void);
- #endif
- dotraplinkage void do_general_protection(struct pt_regs *regs, long error_code);
-+dotraplinkage void do_control_protection(struct pt_regs *regs, long error_code);
- dotraplinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code);
- dotraplinkage void do_spurious_interrupt_bug(struct pt_regs *regs, long error_code);
- dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code);
-@@ -151,6 +153,7 @@ enum {
- 	X86_TRAP_AC,		/* 17, Alignment Check */
- 	X86_TRAP_MC,		/* 18, Machine Check */
- 	X86_TRAP_XF,		/* 19, SIMD Floating-Point Exception */
-+	X86_TRAP_CP = 21,	/* 21 Control Protection Fault */
- 	X86_TRAP_IRET = 32,	/* 32, IRET Exception */
- };
+ 	  If unsure, say y.
  
-diff --git a/arch/x86/kernel/idt.c b/arch/x86/kernel/idt.c
-index 6d8917875f44..588848d00fff 100644
---- a/arch/x86/kernel/idt.c
-+++ b/arch/x86/kernel/idt.c
-@@ -103,6 +103,10 @@ static const __initconst struct idt_data def_idts[] = {
- #elif defined(CONFIG_X86_32)
- 	SYSG(IA32_SYSCALL_VECTOR,	entry_INT80_32),
- #endif
++config X86_INTEL_CET
++	def_bool n
 +
-+#ifdef CONFIG_X86_64
-+	INTG(X86_TRAP_CP,		control_protection),
-+#endif
- };
++config ARCH_HAS_SHSTK
++	def_bool n
++
++config X86_INTEL_SHADOW_STACK_USER
++	prompt "Intel Shadow Stack for user-mode"
++	def_bool n
++	depends on CPU_SUP_INTEL && X86_64
++	select ARCH_USES_HIGH_VMA_FLAGS
++	select X86_INTEL_CET
++	select ARCH_HAS_SHSTK
++	---help---
++	  Shadow stack provides hardware protection against program stack
++	  corruption.  Only when all the following are true will an application
++	  have the shadow stack protection: the kernel supports it (i.e. this
++	  feature is enabled), the application is compiled and linked with
++	  shadow stack enabled, and the processor supports this feature.
++	  When the kernel has this configuration enabled, existing non shadow
++	  stack applications will continue to work, but without shadow stack
++	  protection.
++
++	  If unsure, say y.
++
+ config EFI
+ 	bool "EFI runtime service support"
+ 	depends on ACPI
+diff --git a/arch/x86/Makefile b/arch/x86/Makefile
+index 56e748a7679f..0b2e9df48907 100644
+--- a/arch/x86/Makefile
++++ b/arch/x86/Makefile
+@@ -148,6 +148,13 @@ ifdef CONFIG_X86_X32
+ endif
+ export CONFIG_X86_X32_ABI
  
- /*
-diff --git a/arch/x86/kernel/signal_compat.c b/arch/x86/kernel/signal_compat.c
-index 9ccbf0576cd0..c572a3de1037 100644
---- a/arch/x86/kernel/signal_compat.c
-+++ b/arch/x86/kernel/signal_compat.c
-@@ -27,7 +27,7 @@ static inline void signal_compat_build_tests(void)
- 	 */
- 	BUILD_BUG_ON(NSIGILL  != 11);
- 	BUILD_BUG_ON(NSIGFPE  != 15);
--	BUILD_BUG_ON(NSIGSEGV != 7);
-+	BUILD_BUG_ON(NSIGSEGV != 8);
- 	BUILD_BUG_ON(NSIGBUS  != 5);
- 	BUILD_BUG_ON(NSIGTRAP != 5);
- 	BUILD_BUG_ON(NSIGCHLD != 6);
-diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
-index 8b6d03e55d2f..db143d447bba 100644
---- a/arch/x86/kernel/traps.c
-+++ b/arch/x86/kernel/traps.c
-@@ -570,6 +570,63 @@ do_general_protection(struct pt_regs *regs, long error_code)
- }
- NOKPROBE_SYMBOL(do_general_protection);
- 
-+static const char *control_protection_err[] = {
-+	"unknown",
-+	"near-ret",
-+	"far-ret/iret",
-+	"endbranch",
-+	"rstorssp",
-+	"setssbsy",
-+};
++# Check assembler shadow stack suppot
++ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
++  ifeq ($(call as-instr, saveprevssp, y),)
++      $(error CONFIG_X86_INTEL_SHADOW_STACK_USER not supported by the assembler)
++  endif
++endif
 +
-+/*
-+ * When a control protection exception occurs, send a signal
-+ * to the responsible application.  Currently, control
-+ * protection is only enabled for the user mode.  This
-+ * exception should not come from the kernel mode.
-+ */
-+dotraplinkage void
-+do_control_protection(struct pt_regs *regs, long error_code)
-+{
-+	struct task_struct *tsk;
-+
-+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
-+	if (notify_die(DIE_TRAP, "control protection fault", regs,
-+		       error_code, X86_TRAP_CP, SIGSEGV) == NOTIFY_STOP)
-+		return;
-+	cond_local_irq_enable(regs);
-+
-+	if (!user_mode(regs))
-+		die("kernel control protection fault", regs, error_code);
-+
-+	if (!static_cpu_has(X86_FEATURE_SHSTK) &&
-+	    !static_cpu_has(X86_FEATURE_IBT))
-+		WARN_ONCE(1, "CET is disabled but got control protection fault\n");
-+
-+	tsk = current;
-+	tsk->thread.error_code = error_code;
-+	tsk->thread.trap_nr = X86_TRAP_CP;
-+
-+	if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
-+	    printk_ratelimit()) {
-+		unsigned int max_err;
-+
-+		max_err = ARRAY_SIZE(control_protection_err) - 1;
-+		if ((error_code < 0) || (error_code > max_err))
-+			error_code = 0;
-+		pr_info("%s[%d] control protection ip:%lx sp:%lx error:%lx(%s)",
-+			tsk->comm, task_pid_nr(tsk),
-+			regs->ip, regs->sp, error_code,
-+			control_protection_err[error_code]);
-+		print_vma_addr(KERN_CONT " in ", regs->ip);
-+		pr_cont("\n");
-+	}
-+
-+	force_sig_fault(SIGSEGV, SEGV_CPERR,
-+			(void __user *)uprobe_get_trap_addr(regs), tsk);
-+}
-+NOKPROBE_SYMBOL(do_control_protection);
-+
- dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
- {
- #ifdef CONFIG_DYNAMIC_FTRACE
-diff --git a/include/uapi/asm-generic/siginfo.h b/include/uapi/asm-generic/siginfo.h
-index cb3d6c267181..693071dbe641 100644
---- a/include/uapi/asm-generic/siginfo.h
-+++ b/include/uapi/asm-generic/siginfo.h
-@@ -229,7 +229,8 @@ typedef struct siginfo {
- #define SEGV_ACCADI	5	/* ADI not enabled for mapped object */
- #define SEGV_ADIDERR	6	/* Disrupting MCD error */
- #define SEGV_ADIPERR	7	/* Precise MCD exception */
--#define NSIGSEGV	7
-+#define SEGV_CPERR	8
-+#define NSIGSEGV	8
- 
- /*
-  * SIGBUS si_codes
+ #
+ # If the function graph tracer is used with mcount instead of fentry,
+ # '-maccumulate-outgoing-args' is needed to prevent a GCC bug
 -- 
 2.17.1
 
