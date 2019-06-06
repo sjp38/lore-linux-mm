@@ -2,170 +2,132 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9825C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:13:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F1DBC04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:21:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8C66E20684
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:13:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C66E20684
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fieldses.org
+	by mail.kernel.org (Postfix) with ESMTP id 8E1882070B
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:21:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E1882070B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=units.it
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0D3166B0277; Thu,  6 Jun 2019 09:13:37 -0400 (EDT)
+	id 2C8CE6B0279; Thu,  6 Jun 2019 09:21:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 083EB6B0278; Thu,  6 Jun 2019 09:13:37 -0400 (EDT)
+	id 279506B027A; Thu,  6 Jun 2019 09:21:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EB4166B0279; Thu,  6 Jun 2019 09:13:36 -0400 (EDT)
+	id 18F236B027B; Thu,  6 Jun 2019 09:21:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C2BB86B0277
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 09:13:36 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id v1so1020854otj.23
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 06:13:36 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AAD926B0279
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 09:21:18 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id v23so536398ljj.1
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 06:21:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=JAErcRwTm4Fxv7hc/ipsQuGC8OwztSmhtOobDqFAvak=;
-        b=XWuyNpKyTjkl7XrEZMqbfrHo5soH+/zScP8SlQbjiZlnCGjIjNOFIxT34jbZ9R2fxg
-         0iXPgVKGXQf2mnQcNTEtKQpS8loLzAAAmKHiW3vtRJns4e1gHuL2tqkxXfedJW/v86sj
-         O8Ur2hjhAkgdTjtxum633hr4QlYajajfNfpJaRnnwlRidkoUrmhtord1X1Msbm1KTd5B
-         8y4cWc4Ece4z4717AVey4IcyzkfMYAi43qz/HuWxqB9LR0uw2YP/s0+zQLEKuVjPqkNL
-         U8Vgqfoc9iKZ5WW603uwnuUVLPtyJ+k+L6AAFpgpd+01jAF6mI/yUGft8ZObCeSISzay
-         Dc8Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bfields@fieldses.org designates 173.255.197.46 as permitted sender) smtp.mailfrom=bfields@fieldses.org
-X-Gm-Message-State: APjAAAXRenUU9y+aMOQL/b/sulwKYCvR4ttPnmrI/C3iGVdUvxRzmR1B
-	nbNTE5qXS0Gm7wGzqbWgvGWwZ/wQTQIFO8QOfJGyAQGpj/y62aOZ1yrHj0h9ia5WimSMe1IveqB
-	Wf4aDV5hvXbAd5iZuE7CG6g4/SDW4B4+mRzRtlh8K6pCSsSRStN4EUYJqY3l2xJ0Qrg==
-X-Received: by 2002:a9d:4b0b:: with SMTP id q11mr14774130otf.69.1559826816462;
-        Thu, 06 Jun 2019 06:13:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyfiJIi/cla7AD5h+CHESIxyg5HLlL0axpBwZnuQJRr2bSegKlXU3gQX/KFH9vRWCvgB1qR
-X-Received: by 2002:a9d:4b0b:: with SMTP id q11mr14774036otf.69.1559826815243;
-        Thu, 06 Jun 2019 06:13:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559826815; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:to:from:cc
+         :subject:in-reply-to:mime-version:content-id
+         :content-transfer-encoding:date:message-id;
+        bh=IgrIHGGlJn6M+tzBuCMGggHkGRPdqDfZ6Lf3LtzQ2oQ=;
+        b=VIUO/dtn3aoFTrhV8LiCc1YzDGfWNgdVOOmBHM3ihTvIsOLN6CFTeYqnX0SoQxt1kd
+         1V5F+uR28eInzzda46gEUBSxdYFkdvHFOHHH1RIJDNHuyCe9LCW90Gd7rfb8d4DVI19A
+         kIy1nFEAWwzqx3syyr1HeoIXSnoQn9Mpz+1Wl47QeN9zcSmrFqEIVOooxWviyfWsDNmK
+         b/8BOZt0HLtzT7Wxj1ohr3qOKPzUp/eoyPJbijMQlSgNLqcOWpsu6rgCCMajzj96Bwi/
+         0rl9PqifirJF8J96g1BTCwFokAhII5RgLYBOD0ezIsjyfYoiVhsAlMGB3WKbjEYMYVIp
+         FMdA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
+X-Gm-Message-State: APjAAAXxK6mnSdr2c7Yo2RRWQA/KtdVfMIX5R1suEOr+BOM16X+JdnyE
+	8KoR/OM2q9CNfmASFNzuLBK5OVj1dkjwuGNGn07h7wiJeAYA671QTgnP2w3g9qkK7BBbfROFD0C
+	1DxQMYKGcQsNSjtK6byaBwdmMHiwzx1hXa+kMO1FolEAEZ6IQqmqN8rGlEk5eBLcoCQ==
+X-Received: by 2002:a19:e34e:: with SMTP id c14mr23464058lfk.47.1559827277996;
+        Thu, 06 Jun 2019 06:21:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz8tTcyUFlmTW3SrUHgjhEtmTDZ2OZ+WOYJguhQN7d4KDMHJjh2HOWiNqSw3PnCBtXT5kZg
+X-Received: by 2002:a19:e34e:: with SMTP id c14mr23464019lfk.47.1559827277083;
+        Thu, 06 Jun 2019 06:21:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559827277; cv=none;
         d=google.com; s=arc-20160816;
-        b=hT3EGm4QCk3iAQT3Csrjpln1zU5tlmVUN9IS5O3fkZ8rvvULomC2XseTE2ZjCl/oeh
-         EdzuKwmzfmqYXFWgUxNnoaKdc3zh26ReWFgaLfXj68hOzLq5pM27ZAkzJY6wOfdGZjmx
-         uZ5bYePqLeBc+5vOKmjLKF31OK1+otUicVXuxFqVDyBvxtPyfT3GitsJvHMukrwhk5AQ
-         MNhy1tWnlVFpHZl2nRbVh8Opq2fC+ddsF42j8sInfCSND7Vj3/PsFAMckRngAPl6pd/L
-         RBeLhoKrFSfc2rd6squBVSYCUaNGK69JUCOnX9yb1wovJGkdZ+5FAwZ9j9pkxQvpSyBA
-         yFeQ==
+        b=GrV6i2V3KTY9DEBGLXKbBSw8CSanD1b/g+dx3HrWy5lp0anbkDqwLhZjwXC3OtJvJf
+         TyA3zEteO3XlIsykPhRiZ8otYkQZIOogfI2XFNCO9fbjdXtbS42JlcvTA00TjS4Pj4t6
+         gh5SjngmoTwHxxmvS/a34u7RtoGKhzcXuydnKNSEismwdm+RYzv0qtZFHnebzcJzBINW
+         Jbix6APRmzGYAxesv/KPumV6h4qh/qET/kgLhAnk8Um5UfyzBxywSYl2sgNnQcoSzHKa
+         1G+10SyDktlOhGt2iazOdT+V8aYHlC9limIVevPOP2Wfm4Y/9vi2HFyqIImRnkbxaA3p
+         8Uxg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=JAErcRwTm4Fxv7hc/ipsQuGC8OwztSmhtOobDqFAvak=;
-        b=B6XC0h0oGZbwG/IpVJPnJSWuYUnWRcIagNLA9nJozPDAk2yoV5vxb1t/hYJBnlT/oc
-         zJhvE/H2xVXcUoCgc+PM4blNqmPiEpNSEdkBp2pY3xsUq1xKWmSMps+m6Qnfh9/zzXqz
-         lW0YBN8gprlcXMMS3eG7YXP7HlNRn/CYGo2R4o1lMISQrYbYywETC6kbvn5ERX/1Xe2n
-         3O7g56B38FHf1W0HN3vXooj1rGUwYfrxv4GrlPGf1PsfONhkRZuLnPm7HNwwELuQDX+W
-         ZGOn4jOs5s0gqXD1jabELE5vNTu4dNiLZ8JHPW0+pJLW7bcdjmUyRRDO680nF/qcmiLe
-         900g==
+        h=message-id:date:content-transfer-encoding:content-id:mime-version
+         :in-reply-to:subject:cc:from:to;
+        bh=IgrIHGGlJn6M+tzBuCMGggHkGRPdqDfZ6Lf3LtzQ2oQ=;
+        b=ts5nc4LUYQ7lBA4kHAQkXcsanwFvYMEDJQryjO6GLdu+KvdzEGIckbC1NNuid+yP7y
+         RDx4j9t4LmulKkSSCnohIaxheaHKbYOqwC9tfsu5XmourLOa61M0v9T3tuiCLBa8z+6W
+         jJ29npdXmoN2qUwbHuDY0fKdNb8V1/Dk/u5WPpk+jj75giXU3Vd4Tel2RxyYdaBb9LTI
+         bblkrm6LxCL1xHjy+r2l6+GHl63+31pxe2GP6wCmkpjICrdYw8Lk1pTTnKjcmoq+3x07
+         Esd+IEni1qz++OIdRQ+VNshJDbed1SQ5lxNpKKpk7O8n0Y994xQgn/AGR5XGILWK9G3A
+         bOxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bfields@fieldses.org designates 173.255.197.46 as permitted sender) smtp.mailfrom=bfields@fieldses.org
-Received: from fieldses.org (fieldses.org. [173.255.197.46])
-        by mx.google.com with ESMTP id u124si1424668oif.125.2019.06.06.06.13.34
+       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
+Received: from dschgrazlin2.units.it (dschgrazlin2.univ.trieste.it. [140.105.55.81])
+        by mx.google.com with ESMTP id n6si2050837lji.196.2019.06.06.06.21.16
         for <linux-mm@kvack.org>;
-        Thu, 06 Jun 2019 06:13:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bfields@fieldses.org designates 173.255.197.46 as permitted sender) client-ip=173.255.197.46;
+        Thu, 06 Jun 2019 06:21:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) client-ip=140.105.55.81;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bfields@fieldses.org designates 173.255.197.46 as permitted sender) smtp.mailfrom=bfields@fieldses.org
-Received: by fieldses.org (Postfix, from userid 2815)
-	id 8384214DB; Thu,  6 Jun 2019 09:13:34 -0400 (EDT)
-Date: Thu, 6 Jun 2019 09:13:34 -0400
-From: "J. Bruce Fields" <bfields@fieldses.org>
-To: Kirill Tkhai <ktkhai@virtuozzo.com>
-Cc: syzbot <syzbot+83a43746cebef3508b49@syzkaller.appspotmail.com>,
-	akpm@linux-foundation.org, bfields@redhat.com, chris@chrisdown.name,
-	daniel.m.jordan@oracle.com, guro@fb.com, hannes@cmpxchg.org,
-	jlayton@kernel.org, laoar.shao@gmail.com,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-nfs@vger.kernel.org, mgorman@techsingularity.net,
-	mhocko@suse.com, sfr@canb.auug.org.au,
-	syzkaller-bugs@googlegroups.com, yang.shi@linux.alibaba.com
-Subject: Re: KASAN: use-after-free Read in unregister_shrinker
-Message-ID: <20190606131334.GA24822@fieldses.org>
-References: <0000000000005a4b99058a97f42e@google.com>
- <b67a0f5d-c508-48a7-7643-b4251c749985@virtuozzo.com>
+       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
+Received: from dschgrazlin2.units.it (loopback [127.0.0.1])
+	by dschgrazlin2.units.it (8.15.2/8.15.2) with ESMTP id x56DKn0R027680;
+	Thu, 6 Jun 2019 15:20:49 +0200
+To: Mel Gorman <mgorman@techsingularity.net>
+From: balducci@units.it
+CC: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org,
+        akpm@linux-foundation.org
+Subject: Re: [Bug 203715] New: BUG: unable to handle kernel NULL pointer dereference under stress (possibly related to https://lkml.org/lkml/2019/5/24/292 ?)
+In-reply-to: Your message of "Wed, 05 Jun 2019 18:21:36 +0100."
+             <20190605172136.GC4626@techsingularity.net>
+X-Mailer: MH-E 8.6+git; nmh 1.7.1; GNU Emacs 26.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b67a0f5d-c508-48a7-7643-b4251c749985@virtuozzo.com>
-User-Agent: Mutt/1.5.21 (2010-09-15)
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <27678.1559827273.1@dschgrazlin2.units.it>
+Content-Transfer-Encoding: quoted-printable
+Date: Thu, 06 Jun 2019 15:20:49 +0200
+Message-ID: <27679.1559827273@dschgrazlin2.units.it>
+X-Greylist: inspected by milter-greylist-4.6.2 (dschgrazlin2.units.it [0.0.0.0]); Thu, 06 Jun 2019 15:20:49 +0200 (CEST) for IP:'127.0.0.1' DOMAIN:'loopback' HELO:'dschgrazlin2.units.it' FROM:'balducci@units.it' RCPT:''
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (dschgrazlin2.units.it [0.0.0.0]); Thu, 06 Jun 2019 15:20:49 +0200 (CEST)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 06, 2019 at 10:47:43AM +0300, Kirill Tkhai wrote:
-> This may be connected with that shrinker unregistering is forgotten on error path.
+> Can you try the following compile-tested only patch please?
+>
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 9e1b9acb116b..b3f18084866c 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -277,8 +277,7 @@ __reset_isolation_pfn(struct zone *zone, unsigned lo=
+ng pf
+> n, bool check_source,
+>  	}
+>  =
 
-I was wondering about that too.  Seems like it would be hard to hit
-reproduceably though: one of the later allocations would have to fail,
-then later you'd have to create another namespace and this time have a
-later module's init fail.
+>  	/* Ensure the end of the pageblock or zone is online and valid */
+> -	block_pfn +=3D pageblock_nr_pages;
+> -	block_pfn =3D min(block_pfn, zone_end_pfn(zone) - 1);
+> +	block_pfn =3D min(pageblock_end_pfn(block_pfn), zone_end_pfn(zone) - 1=
+);
+>  	end_page =3D pfn_to_online_page(block_pfn);
+>  	if (!end_page)
+>  		return false;
+>
 
-This is the patch I have, which also fixes a (probably less important)
-failure to free the slab cache.
+Unfortunately it doesn't help: the test firefox build very soon crashed
+as before; this time the machine froze completely (had to hardware
+reboot) and I couldn't find any kernel log in the log files (however the
+screen of the frozen console looked pretty the same as the previous
+times)
 
---b.
-
-commit 17c869b35dc9
-Author: J. Bruce Fields <bfields@redhat.com>
-Date:   Wed Jun 5 18:03:52 2019 -0400
-
-    nfsd: fix cleanup of nfsd_reply_cache_init on failure
-    
-    Make sure everything is cleaned up on failure.
-    
-    Especially important for the shrinker, which will otherwise eventually
-    be freed while still referred to by global data structures.
-    
-    Signed-off-by: J. Bruce Fields <bfields@redhat.com>
-
-diff --git a/fs/nfsd/nfscache.c b/fs/nfsd/nfscache.c
-index ea39497205f0..3dcac164e010 100644
---- a/fs/nfsd/nfscache.c
-+++ b/fs/nfsd/nfscache.c
-@@ -157,12 +157,12 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
- 	nn->nfsd_reply_cache_shrinker.seeks = 1;
- 	status = register_shrinker(&nn->nfsd_reply_cache_shrinker);
- 	if (status)
--		return status;
-+		goto out_nomem;
- 
- 	nn->drc_slab = kmem_cache_create("nfsd_drc",
- 				sizeof(struct svc_cacherep), 0, 0, NULL);
- 	if (!nn->drc_slab)
--		goto out_nomem;
-+		goto out_shrinker;
- 
- 	nn->drc_hashtbl = kcalloc(hashsize,
- 				sizeof(*nn->drc_hashtbl), GFP_KERNEL);
-@@ -170,7 +170,7 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
- 		nn->drc_hashtbl = vzalloc(array_size(hashsize,
- 						 sizeof(*nn->drc_hashtbl)));
- 		if (!nn->drc_hashtbl)
--			goto out_nomem;
-+			goto out_slab;
- 	}
- 
- 	for (i = 0; i < hashsize; i++) {
-@@ -180,6 +180,10 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
- 	nn->drc_hashsize = hashsize;
- 
- 	return 0;
-+out_slab:
-+	kmem_cache_destroy(nn->drc_slab);
-+out_shrinker:
-+	unregister_shrinker(&nn->nfsd_reply_cache_shrinker);
- out_nomem:
- 	printk(KERN_ERR "nfsd: failed to allocate reply cache\n");
- 	return -ENOMEM;
+(I applied the patch on top of e577c8b64d58fe307ea4d5149d31615df2d90861,
+right?)
 
