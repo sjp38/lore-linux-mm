@@ -2,227 +2,151 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CBBE2C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 17:25:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48D8DC28EB3
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 17:34:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7ABAA2083D
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 17:25:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=zytor.com header.i=@zytor.com header.b="lE5PJjM0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7ABAA2083D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=zytor.com
+	by mail.kernel.org (Postfix) with ESMTP id 1D42A2083D
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 17:34:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D42A2083D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 016F06B027D; Thu,  6 Jun 2019 13:25:36 -0400 (EDT)
+	id 89AC76B027A; Thu,  6 Jun 2019 13:34:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F09AB6B027E; Thu,  6 Jun 2019 13:25:35 -0400 (EDT)
+	id 84CA96B027C; Thu,  6 Jun 2019 13:34:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD0916B027F; Thu,  6 Jun 2019 13:25:35 -0400 (EDT)
+	id 761E26B027D; Thu,  6 Jun 2019 13:34:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A62E76B027D
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 13:25:35 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id s195so2019878pgs.13
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 10:25:35 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 276D46B027A
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 13:34:26 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l53so4743381edc.7
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 10:34:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-filter:dkim-signature:date:sender:from
-         :message-id:cc:reply-to:in-reply-to:references:to:subject
-         :git-commit-id:robot-id:robot-unsubscribe:mime-version
-         :content-transfer-encoding:content-disposition:precedence;
-        bh=m4AlyVwXpZA6r6w7UbdCGAzUMcLMnUoq15ImttvhGn8=;
-        b=GFUvuLcGiVGV9I2vTSlmowC4HUkMqZEacUUueJ/MXumV1kqViiLPhEWRZf04exWPV3
-         952ARLuAx4jlQ79qRGcE7nQFVNxcQkvvF2zej15qNr5fFfGguBbQfHTxCzGrAjieIFVT
-         A5t+OcBo8kWRmOFWF2sMSFrHm5h5X/tBYZu0cbRGDmO7YRD5HUR+Gd1pzhOWLirCmlsT
-         bEXARCGvwlXGTXuAn3Y43/ysixjWMOidFPOnGIFhTmABJuVgr9q8KOte/oefNuilxcIN
-         bHrXnG458ugvAJiHnUBmjIg+CYKMNMfrH6S+f2Qh/ttrNU+FdGRQ98+pkRMRfqV+ikFP
-         LNEg==
-X-Gm-Message-State: APjAAAU7U/7fruP+iYcivXvpQ2KMqkC1IUGcrjfu+s+asC1ORM3ihVf6
-	zdCCXNYBi3McQVd/qAKWshMczHkg9IRneznkHBSlmTB6BncFlVVDSTxLV3aGbLs3MFWVNQ0+lBc
-	D4qfwucmoUcd0jwhY40GP/6Ug50XceeQaxvum1OXDhQZnWChdbEH9QNink94hGMj6zw==
-X-Received: by 2002:a17:90a:7343:: with SMTP id j3mr911903pjs.84.1559841935282;
-        Thu, 06 Jun 2019 10:25:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxQ2BCGG9LjPAT42y47jnT9NUTTpiSLa77zOzqDeFG84xNyijBkQvRDKzESizwiStqGbCUl
-X-Received: by 2002:a17:90a:7343:: with SMTP id j3mr911810pjs.84.1559841934057;
-        Thu, 06 Jun 2019 10:25:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559841934; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=cTbjYsgfPkBw+OSP89oA34euB64GQm4IFp6zD1ZV1KE=;
+        b=KBCTFs0EAKzIbHzcOynQSsaLr83hDJkpY0F3HTZG1IlH4Db+b2n8KeR2iK02ddPfed
+         8g5Y23JJ3MW6O2WyhB2TR+bpYGgPkpXYZiaC8EtMAVHe0b0G1zywCn5WEY4F9MRjOSV3
+         g7X1BApA3/hv4/oS/j168wDcXZ88zbNdsG9DSbaGCePlEm/DSmjwwE99nZR2+nbhalDr
+         lgjS0bEIO5GQiNhHslm31zwLOK7wA0RC9sGIXSJ6arI3EW14uPBmc/QThiEAAJmHnsOG
+         l+psFWlUfEHHNTkskswtCNODG9ISqtibx+esf2D+xOQrS+N3FTGwjvp/RCEJrmbJzzKp
+         1UtQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAVkO4iOPAaHHsJ9aTbasT8FLSy0BuWPKpBckSBfGRGVFNba+l3+
+	25wQf9+/6XVPYpadRMR7waBDCNkZnkDEM3QA7XatH00LYrAsHeKxUwbVokrTyVWRe+QSQp8jjvi
+	OtXNEtiqy7Bf3e2IAaecqa/9yuv6i5XNtTPIsH+y9CeijhMJP7661Vk4OJEgYr7PqrQ==
+X-Received: by 2002:a50:95ed:: with SMTP id x42mr7561925eda.279.1559842465738;
+        Thu, 06 Jun 2019 10:34:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqypZwZfjPOY/Ocu3oTzUnrNDMI8OlTQ3HULTiQAbtPckDaTzSyT6bo5/89EGOcE3vrpRe6c
+X-Received: by 2002:a50:95ed:: with SMTP id x42mr7561862eda.279.1559842464989;
+        Thu, 06 Jun 2019 10:34:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559842464; cv=none;
         d=google.com; s=arc-20160816;
-        b=dzUxmhNIpkftzIIUTz+08csNpNSSuTKyrW7LVpC46o2cMtBHMCx6Oqq83/In2BEqlF
-         QF8thg3OcPc82Sm4BtBv2cKyi8y2PJiPRJj8abVUt/EXdsL91OCLfxLvTSzoloCO/Dk0
-         ItcoFooJk1LHEGEM6eR1P23cvWpHaq/qlHbHH2TQsLAeULk5r1FtgzpRu/6HlDEP32lP
-         YyXyUpnrt9E9m2zUEMLg9zfr42FXlZ7e/RCr9GH8PXKZgLPNwAlw2rGBF1Rgf4Y6s7jB
-         1Uh+65bB88h5JLTWBMThGgY7vQ3UGIMZfm2bP5vOqegadaZ/C+ojQvIR9NW6qNZ/ckqR
-         DPrQ==
+        b=wqbVMBtOYW9gHKVOSM6hPLBfXEdZkrZuPkgm8iUooNyvvgQ1mEG2QZYZumNrl45+zI
+         HHZFxFB5j8Db+3Et1q3983A05mGxWkiRnF/Bpr2gCxQW6uA2BDkxGmND155YwbhXJ3jT
+         o4HOhCBwGVrDmbwraJvAtapuDRbi6h4aUoSGm6/AUj8ABoQhUs5jPsgoj0IcJ3xvX+wI
+         OsMCFP8RzCpmVem0vSXL/888yJNYcL9easGHoFGX9SXbML72LkM4mYtw/ieS8W1aoMoO
+         pZend96ebadRvjmCt3CPTRfGnmnnqRAcI9haLMORyl26ajlI6eagRrRMb62QiQqgWscz
+         Mt4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=precedence:content-disposition:content-transfer-encoding
-         :mime-version:robot-unsubscribe:robot-id:git-commit-id:subject:to
-         :references:in-reply-to:reply-to:cc:message-id:from:sender:date
-         :dkim-signature:dkim-filter;
-        bh=m4AlyVwXpZA6r6w7UbdCGAzUMcLMnUoq15ImttvhGn8=;
-        b=C5/AypIrMwgpG2B0WLuAzGNxsfg+p+dku4+IxOPspqDkfUp4nMp/6AL1xctPn2iObi
-         vziikQMjwO9lOW3UmB29F9pqRoIjHW26OMN4cOqEwGIldtEYKsVR1tkNVa5SQdi7b7S7
-         paxppKKuY59vj2NkX7GzMimJNehiYmIn02rwkuj474/4aGOpR5SZsRmmHR6dbxSx82dW
-         NKyxZJz4aTcj3Bg/JheCVkLFOTJzELrsIIavaJYPj7nuzJCsswtkAUY/H11y44GAk+yr
-         PQASg+GL7M5K6ed6Q3wQzKES1J+5HiwA5nkowqk0yaHaPHI7d7/ijiLtiFGzCz9Q7wO+
-         riPg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=cTbjYsgfPkBw+OSP89oA34euB64GQm4IFp6zD1ZV1KE=;
+        b=sWqwwwVS9N/S29uKFa8jf6s1+xeXrJ7xnehW6oY/pgq9SrNYR26hKQVS3dsB4eta57
+         Sa3vmCznv5+T/8TlkU2QspGIoYhxqjc64J4nhuhZL2ajW8dZUrA4lDRsDcuSRrMnY4Ti
+         9a2Wb+7f0XoQwBvWqUSyb+HxaReXHOckaJ/gH9fLBTpIy753F8vLP8l3Ke/qB1T+qXxH
+         vH8kjGliq9arac/TEZ2FoANncP3A3QJbyzE/56JC8ajR70KJS/plKqAB9ezUQlPKrV6Q
+         E7VsIC5YmfBAispvJWbjB7T7NPNT9My++nV6ObAKiAUnHEJCrDV7nrnBNoqGAdu02MlN
+         WHrw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@zytor.com header.s=2019051801 header.b=lE5PJjM0;
-       spf=pass (google.com: domain of tipbot@zytor.com designates 198.137.202.136 as permitted sender) smtp.mailfrom=tipbot@zytor.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=zytor.com
-Received: from terminus.zytor.com (terminus.zytor.com. [198.137.202.136])
-        by mx.google.com with ESMTPS id g5si2286706pjt.58.2019.06.06.10.25.33
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g17si1930207ejj.292.2019.06.06.10.34.24
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 06 Jun 2019 10:25:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of tipbot@zytor.com designates 198.137.202.136 as permitted sender) client-ip=198.137.202.136;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Jun 2019 10:34:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@zytor.com header.s=2019051801 header.b=lE5PJjM0;
-       spf=pass (google.com: domain of tipbot@zytor.com designates 198.137.202.136 as permitted sender) smtp.mailfrom=tipbot@zytor.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=zytor.com
-Received: from terminus.zytor.com (localhost [127.0.0.1])
-	by terminus.zytor.com (8.15.2/8.15.2) with ESMTPS id x56HPK5g2066843
-	(version=TLSv1.3 cipher=TLS_AES_256_GCM_SHA384 bits=256 verify=NO);
-	Thu, 6 Jun 2019 10:25:20 -0700
-DKIM-Filter: OpenDKIM Filter v2.11.0 terminus.zytor.com x56HPK5g2066843
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=zytor.com;
-	s=2019051801; t=1559841921;
-	bh=m4AlyVwXpZA6r6w7UbdCGAzUMcLMnUoq15ImttvhGn8=;
-	h=Date:From:Cc:Reply-To:In-Reply-To:References:To:Subject:From;
-	b=lE5PJjM03xymRMzb4SFs9dmPHVkLeLDwE8aU2fwwzRIRovPRyqCcriJesZ8sJEsPs
-	 QLNoteQwH1Oqj3o7hebpAnA3PqZlO3iyvsCiGarHCZx31hdvv59JghyVIYw+OsqHY+
-	 dfbtCRm16POpRwZyHLw/nqkxzExkhLZ8/XQnh9k55P/5iqh1g/wwtCgaROYqvk1xQ9
-	 wObSupDEoL6bpJfkkOmHCvNF6XObZ3eDm0bMPF5vzB9tX9upaXgS9NhU3K/sdGnn3W
-	 sQGMp5dBlDB/QRW59jfQblAdj6HFFFlKniwwqUND12hdAcGViBGVlgJvjfFBVruwQ+
-	 3dofqJyVe0kHg==
-Received: (from tipbot@localhost)
-	by terminus.zytor.com (8.15.2/8.15.2/Submit) id x56HPI5t2066840;
-	Thu, 6 Jun 2019 10:25:18 -0700
-Date: Thu, 6 Jun 2019 10:25:18 -0700
-X-Authentication-Warning: terminus.zytor.com: tipbot set sender to tipbot@zytor.com using -f
-From: tip-bot for Hugh Dickins <tipbot@zytor.com>
-Message-ID: <tip-b81ff1013eb8eef2934ca7e8cf53d553c1029e84@git.kernel.org>
-Cc: akpm@linux-foundation.org, pavel@ucw.cz, jannh@google.com,
-        hughd@google.com, dave.hansen@linux.intel.com, x86@kernel.org,
-        mingo@redhat.com, rppt@linux.ibm.com, tglx@linutronix.de,
-        linux-mm@kvack.org, bp@suse.de, mingo@kernel.org,
-        chris@chris-wilson.co.uk, linux-kernel@vger.kernel.org,
-        riel@surriel.com, hpa@zytor.com, bigeasy@linutronix.de,
-        aarcange@redhat.com
-Reply-To: hughd@google.com, jannh@google.com, pavel@ucw.cz,
-        akpm@linux-foundation.org, mingo@redhat.com,
-        dave.hansen@linux.intel.com, x86@kernel.org, chris@chris-wilson.co.uk,
-        mingo@kernel.org, bp@suse.de, tglx@linutronix.de, rppt@linux.ibm.com,
-        linux-mm@kvack.org, bigeasy@linutronix.de, aarcange@redhat.com,
-        hpa@zytor.com, riel@surriel.com, linux-kernel@vger.kernel.org
-In-Reply-To: <1557844195-18882-1-git-send-email-rppt@linux.ibm.com>
-References: <20190529072540.g46j4kfeae37a3iu@linutronix.de>
-	<1557844195-18882-1-git-send-email-rppt@linux.ibm.com>
-To: linux-tip-commits@vger.kernel.org
-Subject: [tip:x86/urgent] x86/fpu: Use fault_in_pages_writeable() for
- pre-faulting
-Git-Commit-ID: b81ff1013eb8eef2934ca7e8cf53d553c1029e84
-X-Mailer: tip-git-log-daemon
-Robot-ID: <tip-bot.git.kernel.org>
-Robot-Unsubscribe: Contact <mailto:hpa@kernel.org> to get blacklisted from
- these emails
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 5384EAE4D;
+	Thu,  6 Jun 2019 17:34:24 +0000 (UTC)
+Date: Thu, 6 Jun 2019 19:34:21 +0200
+From: Oscar Salvador <osalvador@suse.de>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Logan Gunthorpe <logang@deltatee.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org,
+	linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v9 01/12] mm/sparsemem: Introduce struct mem_section_usage
+Message-ID: <20190606173421.GD31194@linux>
+References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155977187407.2443951.16503493275720588454.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <155977187407.2443951.16503493275720588454.stgit@dwillia2-desk3.amr.corp.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Commit-ID:  b81ff1013eb8eef2934ca7e8cf53d553c1029e84
-Gitweb:     https://git.kernel.org/tip/b81ff1013eb8eef2934ca7e8cf53d553c1029e84
-Author:     Hugh Dickins <hughd@google.com>
-AuthorDate: Wed, 29 May 2019 09:25:40 +0200
-Committer:  Borislav Petkov <bp@suse.de>
-CommitDate: Thu, 6 Jun 2019 19:15:17 +0200
+On Wed, Jun 05, 2019 at 02:57:54PM -0700, Dan Williams wrote:
+> Towards enabling memory hotplug to track partial population of a
+> section, introduce 'struct mem_section_usage'.
+> 
+> A pointer to a 'struct mem_section_usage' instance replaces the existing
+> pointer to a 'pageblock_flags' bitmap. Effectively it adds one more
+> 'unsigned long' beyond the 'pageblock_flags' (usemap) allocation to
+> house a new 'subsection_map' bitmap.  The new bitmap enables the memory
+> hot{plug,remove} implementation to act on incremental sub-divisions of a
+> section.
+> 
+> The default SUBSECTION_SHIFT is chosen to keep the 'subsection_map' no
+> larger than a single 'unsigned long' on the major architectures.
+> Alternatively an architecture can define ARCH_SUBSECTION_SHIFT to
+> override the default PMD_SHIFT. Note that PowerPC needs to use
+> ARCH_SUBSECTION_SHIFT to workaround PMD_SHIFT being a non-constant
+> expression on PowerPC.
+> 
+> The primary motivation for this functionality is to support platforms
+> that mix "System RAM" and "Persistent Memory" within a single section,
+> or multiple PMEM ranges with different mapping lifetimes within a single
+> section. The section restriction for hotplug has caused an ongoing saga
+> of hacks and bugs for devm_memremap_pages() users.
+> 
+> Beyond the fixups to teach existing paths how to retrieve the 'usemap'
+> from a section, and updates to usemap allocation path, there are no
+> expected behavior changes.
+> 
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Logan Gunthorpe <logang@deltatee.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Paul Mackerras <paulus@samba.org>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-x86/fpu: Use fault_in_pages_writeable() for pre-faulting
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
 
-Since commit
-
-   d9c9ce34ed5c8 ("x86/fpu: Fault-in user stack if copy_fpstate_to_sigframe() fails")
-
-get_user_pages_unlocked() pre-faults user's memory if a write generates
-a page fault while the handler is disabled.
-
-This works in general and uncovered a bug as reported by Mike
-Rapoport¹. It has been pointed out that this function may be fragile
-and a simple pre-fault as in fault_in_pages_writeable() would be a
-better solution. Better as in taste and simplicity: that write (as
-performed by the alternative function) performs exactly the same
-faulting of memory as before. This was suggested by Hugh Dickins and
-Andrew Morton.
-
-Use fault_in_pages_writeable() for pre-faulting user's stack.
-
-  [ bigeasy: Write commit message. ]
-  [ bp: Massage some. ]
-
-¹ https://lkml.kernel.org/r/1557844195-18882-1-git-send-email-rppt@linux.ibm.com
-
-Fixes: d9c9ce34ed5c8 ("x86/fpu: Fault-in user stack if copy_fpstate_to_sigframe() fails")
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Signed-off-by: Borislav Petkov <bp@suse.de>
-Tested-by: Chris Wilson <chris@chris-wilson.co.uk>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Jann Horn <jannh@google.com>
-Cc: linux-mm <linux-mm@kvack.org>
-Cc: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Pavel Machek <pavel@ucw.cz>
-Cc: Rik van Riel <riel@surriel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: x86-ml <x86@kernel.org>
-Link: https://lkml.kernel.org/r/20190529072540.g46j4kfeae37a3iu@linutronix.de
-Link: https://lkml.kernel.org/r/1557844195-18882-1-git-send-email-rppt@linux.ibm.com
----
- arch/x86/kernel/fpu/signal.c | 11 ++---------
- 1 file changed, 2 insertions(+), 9 deletions(-)
-
-diff --git a/arch/x86/kernel/fpu/signal.c b/arch/x86/kernel/fpu/signal.c
-index 5a8d118bc423..060d6188b453 100644
---- a/arch/x86/kernel/fpu/signal.c
-+++ b/arch/x86/kernel/fpu/signal.c
-@@ -5,6 +5,7 @@
- 
- #include <linux/compat.h>
- #include <linux/cpu.h>
-+#include <linux/pagemap.h>
- 
- #include <asm/fpu/internal.h>
- #include <asm/fpu/signal.h>
-@@ -189,15 +190,7 @@ retry:
- 	fpregs_unlock();
- 
- 	if (ret) {
--		int aligned_size;
--		int nr_pages;
--
--		aligned_size = offset_in_page(buf_fx) + fpu_user_xstate_size;
--		nr_pages = DIV_ROUND_UP(aligned_size, PAGE_SIZE);
--
--		ret = get_user_pages_unlocked((unsigned long)buf_fx, nr_pages,
--					      NULL, FOLL_WRITE);
--		if (ret == nr_pages)
-+		if (!fault_in_pages_writeable(buf_fx, fpu_user_xstate_size))
- 			goto retry;
- 		return -EFAULT;
- 	}
+-- 
+Oscar Salvador
+SUSE L3
 
