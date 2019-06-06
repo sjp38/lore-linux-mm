@@ -4,82 +4,82 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AEFDBC04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:18:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C5315C46470
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:18:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 769362083E
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:18:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 769362083E
+	by mail.kernel.org (Postfix) with ESMTP id 96E132083E
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:18:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96E132083E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ED74C6B02CE; Thu,  6 Jun 2019 16:17:35 -0400 (EDT)
+	id 2E81B6B02D3; Thu,  6 Jun 2019 16:17:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A93446B02D3; Thu,  6 Jun 2019 16:17:35 -0400 (EDT)
+	id D7B0B6B02DB; Thu,  6 Jun 2019 16:17:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 20BB66B02D0; Thu,  6 Jun 2019 16:17:35 -0400 (EDT)
+	id 3BCB06B02CE; Thu,  6 Jun 2019 16:17:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C9E36B02C7
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7094D6B02D4
 	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:17:34 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 5so2605586pff.11
+Received: by mail-pg1-f199.google.com with SMTP id 14so2295838pgo.14
         for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:17:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+        h=x-original-authentication-results:x-gm-message-state:from:to
          :subject:date:message-id:in-reply-to:references;
-        bh=4ZtYRpnqNhDo6MmNFKhTgiJMhZHkWCIMCZl+C3rG6/A=;
-        b=POLpfxrZofcrSNutoJwuKb9XW662Vpm4IiwuXt60zW1DiZjijyrdIWH86LqaChc4n5
-         EUdaVRCbTe7Tg1P9hCh0d/2KZ/2369XkP5mGWeXdEDR3+L07HHG6vhnixxpaxorRiWQW
-         Sl3XJ+lBgalryHeOmYUsW9JgmOduYa3tBsHrXuKZw/WywYfRiyCQni4AJ26Nl/sMrxJb
-         pq/U7dkWaTL3Bk7DbWOnWETuepPK5UtCOBd8CGjMBoOoW4Bj5Rg6gRKcD0w7QsfDb2Un
-         wmI/4FDbgMJ1jk+e7yXhgbibtGC1/IKynwm0C02lNRqve4XKMZcrXDcnjr9qByz+tE5X
-         T6rg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWf6xIhiSu4R8qsTNCwhY3Pjvj/FcjZrEqU8dbx1zxTbfR7qM8D
-	YHxT4tPGMO51FmyMFAIQaVElChhDJepx7A8FUg08/RrqhYlLR15gZf8G7pNYAMwW8ch0Jv+OlUs
-	9XcvM607MyoLdLTo94hUKZ6Do5adw3fUyUFaQDFarkDJIaM9ijrNeHIyML13vCuCcNw==
-X-Received: by 2002:a17:90a:2430:: with SMTP id h45mr1749540pje.14.1559852254285;
+        bh=7GnSNHKy6rHzD6GKuLujsef/M80H1Rf5lfqmK/S0wEQ=;
+        b=Swc2J7jVzA80AUt4kLi5PNeTxbE2NgB4LAxCpx1tgbYGZhjyEit6BlszB9d3FFsJHA
+         UaEodFYkJqiT8phT6venULve4HX64CK1gowAGpntFmA3oaBeN0z9I1XcQ9CX0yHkJxuJ
+         ULoZCb/7tN0xJLOEVGgNuSmT0zactfld56Fdrhm4sHau5K91D2bCw6L9F1cl6LT4SfKY
+         gUKbC0bz5Jx5PW+d6mFoq+5ZHw+VPbYlzzbK+bFasEJ1gCWT+pEEG+h+LZ1vPEfL9FyU
+         UWCe23y8alVGp57FRpQiLFXUrHMMBn7w+bBTXTpBIUHlFSsfAungy0+PmsPs8Ixe0fil
+         HvyQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVYQy6DDga9INZm5/rgAvSQXpWii+dotZdN8cG8+YXZ8qyPO7F9
+	RiSoyTAwaIYszugmwAWBZ6DUpvvuYj8GNQi+HASg1XTZ3/3O5TTLPFWJxqvxXF8ewaLAugWiAdS
+	fmsJSF3Nu5iYivQD3PmMERgkdLv2EQnGeikGmR52OdrGlsEyl8DK8TlBSyd+4U4mDeQ==
+X-Received: by 2002:a17:902:ba82:: with SMTP id k2mr43333762pls.323.1559852254129;
         Thu, 06 Jun 2019 13:17:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzSyK9qrNM4mbWLjeJSeKQ8ZwgW9CWtsbeQZsw/hj+DgEZVcQgtAKW727pHvkrNDmzuh91l
-X-Received: by 2002:a17:90a:2430:: with SMTP id h45mr1749464pje.14.1559852253262;
+X-Google-Smtp-Source: APXvYqwQS3qd97pO8QZkZeqhEUX/JFUK6bqZI3SIrPHmOpj0yaXVzifFPTDfUODufkKgMG5sqWh5
+X-Received: by 2002:a17:902:ba82:: with SMTP id k2mr43333694pls.323.1559852253042;
         Thu, 06 Jun 2019 13:17:33 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1559852253; cv=none;
         d=google.com; s=arc-20160816;
-        b=fmja2xFjELa3kSq4NtoY4gUGaOzYEDx6SQUB7v92ZcG3z9FgaVCM3f/lTaLgyfT8bp
-         fw5Q/OP1Nc72F1yMaZn4szg/M1O69wAUQPc/aTw6LCiv2zYXbdqmQ/nubGdpAZWeJti7
-         zQvHE2H3FqjQIMi9UvHhxnedJfIM/aDprCPEmvB4TnRMqVmTrJ01fulERxWDqBPFcI94
-         sbY9kpBvgQInswjSnT/vAsrXuP2J4X4V2cveK3IuFt1Q72tVWPfXN+E0QRmWZLLYjVoO
-         KQ1c6BhwKTvaGI5GkHXASGZweitO6JQoKnUPmT+FPzOvUN6bOhpRyeGkZyiiJx+lCCKH
-         jZSg==
+        b=sj+0WQAK/zjc8MFFC2HEDKdGw5aVJXeI6nTHP9L/zRkgEGDurCR0NyRtBVbulQxk1i
+         C4xfyqq5UMnefI9mfLF6g68OdLObWdljNUeUAQtKUACpkDIv5fvXF1EIm0XZ7x6CyaM3
+         qvsWEC9u8UfRxPxsspV4Hj8Kh3ujHJl7gXNKwPcC76/+dBF/rxoxQLNpOdxi20xqhhCu
+         gfPgyEb6nztAQjXA5JCwWiE0Zv6KFek+W9cPyDMpn7QvE8q6b3DRERWYmvhqpsiqU0Kb
+         N4lupWxaDoy047fqlU/q9We1qgF7clYN31z5r3MPIlVUNrdxK81o4yDuiYYrB230UL8E
+         CfHA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=4ZtYRpnqNhDo6MmNFKhTgiJMhZHkWCIMCZl+C3rG6/A=;
-        b=0Eztzi2JylmWsDKz1QA0lMs0EqPRgZMx5jiM3DfpAm0A2NbK1X5l/sh5gJSKbG7JKd
-         IzmfcTdSaVTJFNAzChJRj45tHjkAv+NEDImmBR6vF/izkX/5bpuBS7CQW3AZtAZpSHCL
-         6U7vyHQDx+SKw48USCpCMX0C+8gyG9GPBisGtVkGz4FktxDFQMfk8DaoDtHjsQsNptFs
-         BvCTnfuzOUddbHogUuQlH/FK4mAzBnrKSPJ+z3u1NMOzwVNRqB6rsa67Ez3sJvKyMCQT
-         qyh+utinXtXB4EJb0Iigqt1ZEqr4e8UhRe7F96YCuj1EUbQ+NRg6zIRCP6E2fAP20VWt
-         KeoQ==
+        h=references:in-reply-to:message-id:date:subject:to:from;
+        bh=7GnSNHKy6rHzD6GKuLujsef/M80H1Rf5lfqmK/S0wEQ=;
+        b=CaeeGqoDgn7QI31RpKptB6cFiWmnm46+Hpj16KAAZy/pWwhP/GbSAVK4XkCnLSSbct
+         2OlUo1pLJxILPSXyxE9aAeD/XOjONwqEm8HhT34Lr/ZcducpiTBO3nYUcKtzKK4v5x+l
+         hsc/hBB3SxkuLKeVweQ4SU2b9C8pS7Ca7kdflcFsmUR+aMkM7KCHYVwFjn94yzJhAhnQ
+         /xFIWqHUP4MXRl3HeVFZlxGi0KdhR6+WRTCNBsVAOsK+rf4mbx8aEdf7D6r/Zv/0L30j
+         9Nvvgsspf2n1PJyvWfQQ6ncBd9SE5W4Eg4jUzKHlLiNMXoFw4SCSDmUfjgIo6t77h/In
+         Y46w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id j18si33385pgm.561.2019.06.06.13.17.33
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id a3si59797plc.132.2019.06.06.13.17.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 06 Jun 2019 13:17:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:17:32 -0700
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:17:32 -0700
 X-ExtLoop1: 1
 Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
   by fmsmga001.fm.intel.com with ESMTP; 06 Jun 2019 13:17:32 -0700
@@ -114,10 +114,9 @@ To: x86@kernel.org,
 	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v7 12/14] x86/vsyscall/64: Fixup shadow stack and branch tracking for vsyscall
-Date: Thu,  6 Jun 2019 13:09:24 -0700
-Message-Id: <20190606200926.4029-13-yu-cheng.yu@intel.com>
+Subject: [PATCH v7 11/14] x86/vsyscall/64: Add ENDBR64 to vsyscall entry points
+Date: Thu,  6 Jun 2019 13:09:23 -0700
+Message-Id: <20190606200926.4029-12-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190606200926.4029-1-yu-cheng.yu@intel.com>
 References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
@@ -127,67 +126,46 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When emulating a RET, also unwind the task's shadow stack and cancel
-the current branch tracking status.
+From: "H.J. Lu" <hjl.tools@gmail.com>
 
-Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Add ENDBR64 to vsyscall entry points.
+
+Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
+Acked-by: Andy Lutomirski <luto@kernel.org>
 ---
- arch/x86/entry/vsyscall/vsyscall_64.c | 28 +++++++++++++++++++++++++++
- 1 file changed, 28 insertions(+)
+ arch/x86/entry/vsyscall/vsyscall_emu_64.S | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-diff --git a/arch/x86/entry/vsyscall/vsyscall_64.c b/arch/x86/entry/vsyscall/vsyscall_64.c
-index d9d81ad7a400..6869ef9d1e8b 100644
---- a/arch/x86/entry/vsyscall/vsyscall_64.c
-+++ b/arch/x86/entry/vsyscall/vsyscall_64.c
-@@ -38,6 +38,8 @@
- #include <asm/fixmap.h>
- #include <asm/traps.h>
- #include <asm/paravirt.h>
-+#include <asm/fpu/xstate.h>
-+#include <asm/fpu/types.h>
+diff --git a/arch/x86/entry/vsyscall/vsyscall_emu_64.S b/arch/x86/entry/vsyscall/vsyscall_emu_64.S
+index 2e203f3a25a7..040696333457 100644
+--- a/arch/x86/entry/vsyscall/vsyscall_emu_64.S
++++ b/arch/x86/entry/vsyscall/vsyscall_emu_64.S
+@@ -17,16 +17,25 @@ __PAGE_ALIGNED_DATA
+ 	.type __vsyscall_page, @object
+ __vsyscall_page:
  
- #define CREATE_TRACE_POINTS
- #include "vsyscall_trace.h"
-@@ -92,6 +94,30 @@ static int addr_to_vsyscall_nr(unsigned long addr)
- 	return nr;
- }
- 
-+void fixup_shstk(void)
-+{
-+#ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
-+	u64 r;
-+
-+	if (current->thread.cet.shstk_enabled) {
-+		rdmsrl(MSR_IA32_PL3_SSP, r);
-+		wrmsrl(MSR_IA32_PL3_SSP, r + 8);
-+	}
-+#endif
-+}
-+
-+void fixup_ibt(void)
-+{
 +#ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
-+	u64 r;
-+
-+	if (current->thread.cet.ibt_enabled) {
-+		rdmsrl(MSR_IA32_U_CET, r);
-+		wrmsrl(MSR_IA32_U_CET, r & ~MSR_IA32_CET_WAIT_ENDBR);
-+	}
++	endbr64
 +#endif
-+}
-+
- static bool write_ok_or_segv(unsigned long ptr, size_t size)
- {
- 	/*
-@@ -265,6 +291,8 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
- 	/* Emulate a ret instruction. */
- 	regs->ip = caller;
- 	regs->sp += 8;
-+	fixup_shstk();
-+	fixup_ibt();
- 	return true;
+ 	mov $__NR_gettimeofday, %rax
+ 	syscall
+ 	ret
  
- sigsegv:
+ 	.balign 1024, 0xcc
++#ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
++	endbr64
++#endif
+ 	mov $__NR_time, %rax
+ 	syscall
+ 	ret
+ 
+ 	.balign 1024, 0xcc
++#ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
++	endbr64
++#endif
+ 	mov $__NR_getcpu, %rax
+ 	syscall
+ 	ret
 -- 
 2.17.1
 
