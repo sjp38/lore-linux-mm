@@ -2,140 +2,184 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41659C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:32:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E4B7C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:42:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 04ADF2053B
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:32:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9904D206BB
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:42:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="Cj6EGJBe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 04ADF2053B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (1024-bit key) header.d=vmware.com header.i=@vmware.com header.b="ZRmSoUY4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9904D206BB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=vmware.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 584206B027B; Thu,  6 Jun 2019 15:32:34 -0400 (EDT)
+	id 359D36B027D; Thu,  6 Jun 2019 15:42:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 534986B027C; Thu,  6 Jun 2019 15:32:34 -0400 (EDT)
+	id 309B86B027E; Thu,  6 Jun 2019 15:42:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 422426B027D; Thu,  6 Jun 2019 15:32:34 -0400 (EDT)
+	id 1D2066B027F; Thu,  6 Jun 2019 15:42:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 214476B027B
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 15:32:34 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id n190so2910379qkd.5
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 12:32:34 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F0D416B027D
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 15:42:25 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id f22so928968ioj.9
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 12:42:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ReUr/Ku4fFDe5ZS2T9E9QBdlSpBszMAhDsjnGAK3/wQ=;
-        b=R5sqAEKdemUWYmHBQjsnfoj12nKo2pnZFg5HkDiN3MkDy9Mpk20zHuF6ByF4r9DRob
-         KBVZhu9t1KmRRmfFcV+N7nxh9tNLFpNqxQq5KfFgbBUpZ5Q5N2dEF2h7PLr/cSh0VN/b
-         Pkrn4jNWA68VpVKfP/6wbLo61ltYhxbTW03ag56DXHBckIbJ86xrNLF3JFWRAZL/v/pE
-         Y5I7U1H2/FE/ZxyVNOS9tnsagJawM7DvVh2nZY/EsfPKkMIkh6VouE2qKppLMk2hDcYL
-         CqJYGJSaa0A5Xc7sQN5k0aZTZeURII+svuWQQB5tCcGvPKknD2vlTdWsRZXRwVXFpW2T
-         0G5w==
-X-Gm-Message-State: APjAAAWI/iOrtQy0MUsOcBSo/N/Ci67mSem5HJRVs79dMqtGxTcl48Sq
-	mU8+D9cCfMmzmVyH3UR8lKxdAHGHkuTxblpDJwz3/8NNykEdBuJQiatUQcMUTk7K/w3jveBvBGe
-	2L/sHr3M8nOt8zK1XALD0V22s6cApdGtsjv/o6i7prIEBx3jbUvuxYXwJvNaMCinGig==
-X-Received: by 2002:a37:4bc9:: with SMTP id y192mr40599591qka.178.1559849553894;
-        Thu, 06 Jun 2019 12:32:33 -0700 (PDT)
-X-Received: by 2002:a37:4bc9:: with SMTP id y192mr40599555qka.178.1559849553448;
-        Thu, 06 Jun 2019 12:32:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559849553; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:accept-language:content-language
+         :content-id:content-transfer-encoding:mime-version;
+        bh=ptGQkAb4bWbtSN8BP3oURGNkwJaEs2OAxlwtlFfplkQ=;
+        b=iYCzaapPkguM2dtOjsWnN5bwa5JUebu+cDKEyIE7uz8fCpRDpaBW7NJDOnXSPFsaT0
+         iUVOA0V0N3ir8r8JJ6kwT03WXKlVNQG2Dkprg26cJJ7ULNJHWi7tBMplaHggn2NFKDb2
+         e8ZbAmVseGQA2hIUXAF7rv7ogeEcjIdgKRluVLv8UpmYPiRyMslqcL/eIDNeEFmG4Eg3
+         zgXSLxKrx9M5nfkalCdVnvOsJOHnTR1Og4QUbMld8S8jjhrX6ylfHMwQcKobmK83GeyD
+         SvLa2+snmF409BPHcwxL2swU0r15Li9fuoygq/d4/0/igp8jDfRw5MkDch+k8LGyjwGF
+         xQOA==
+X-Gm-Message-State: APjAAAWfc9/V5S55H/I/8pIsfWpOUehVzleQY7hNBIbF+0dbMiN+0IM+
+	iQIX9w/G+YREYLDo6SqywSoCc9sHSCC3AyCYo1wH2rl0W/jy/P1+3Np1RGXW7Ew6yz/dA/2vcOx
+	AYRB750z3VUSNhd/uBbiBU9VVP69F2CF1EKgnU8JuZbTDXn0ldL8oKV6i1KGZHBosJg==
+X-Received: by 2002:a24:ac60:: with SMTP id m32mr1435925iti.40.1559850145540;
+        Thu, 06 Jun 2019 12:42:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwB/rPNvFeCbYxWpPJ1/ztsipb/vdbxBxSw1WrQyuc4hUnocY+68L9Fkfc8SjR0mYxisl3A
+X-Received: by 2002:a24:ac60:: with SMTP id m32mr1435874iti.40.1559850144700;
+        Thu, 06 Jun 2019 12:42:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559850144; cv=none;
         d=google.com; s=arc-20160816;
-        b=MEErZAxr7/apcbSaM0qFQJyb7xG9a6nLvzBZoxIYFtlK+ThlDNHa254GXBfFdDRD9b
-         xJ+IEgFlNj3MmQWVRs1nCI9VXFF6x0Dw7JlROJhalUZujvO7ltTUdfIi0/vAvnxnIDYc
-         gpEWQScCKx0/lPtv9E1cD2ckSX+IOYkmJOPyZGylgOrm2448e+rMyDR7D+Dg5zAE414A
-         NvTUFY4iPaLRr14oD/e73/UHfMx1lQcpqlluQGgKLdx1u4igo/HOZd3EXiHgdpjZzpyW
-         +8zaAqItTjUftOsdaGgS06tdm8JUfSfDn4J35LcH9ejVijVDti7P2L/Fz6Z+uRfU8FrR
-         uesQ==
+        b=TiVLfjlQrfJ9jTkCTjBrnmn0/q0J9rrGuEBvsIZiRFlS97Ze/xRcd1rAvDGMXFTnlv
+         iVhjAJh9C+S0xsJkSn5quuhGRC1gPEVS5s1StdJ2l55QwQf6x9ob3HRvOtpsveqwLO5i
+         S39mwmZuflquf6w1AAXYGf+Mm8DAqEnxRFlEAT1m+3YHpTA66lw7ZiP15bnVFOxzUL9v
+         aqEJ3ZPLxanJi+PP3NOBh+RtWAyxoEEzzn3Rzfhr3czUalmi842FfB83Y2DxGPEJ/VmX
+         7wZw1q/3ck1BRxT5gMfzSbcOr70KXYgOciF+NWXi+FRgMwIFyHjEwD5sIfu361lMwGVA
+         HLzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ReUr/Ku4fFDe5ZS2T9E9QBdlSpBszMAhDsjnGAK3/wQ=;
-        b=uWPl26JAiXYpYgrDqJabu0E0zX+2bEUTp537pKQSGJ2k6T9lpzs5jX4B5oHrNpNdoc
-         9aVW+ESOsdAYXYOG7gYqQnVCJA8IheNBaNIz+adZ5uZT7+qiflt3OOndXqpxYjYXeBcp
-         5srIrmCAAikwT+WaQZeaaJF84wxNQpdRngc8f7tGLqzTkARW2w19uUR/Fd09BqSYHKEY
-         MZLH5F38h25ObMh4S9E+mB0Xdn3/60YNIqeE2iA45KD+qKGd1XiSUEUWluvURkM3wjMM
-         E5YkLe92/fwHZfzUBVaqfVMFJVcKFuPhNUPzRoad4IxFgUe7gEdC/cYy9oDd4LnQvW7P
-         /Abg==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:message-id:date:thread-index:thread-topic:subject
+         :cc:to:from:dkim-signature;
+        bh=ptGQkAb4bWbtSN8BP3oURGNkwJaEs2OAxlwtlFfplkQ=;
+        b=adW7vJFAiwrvNHsUtA1U9fZ6qHhO8MBGaX6OmIS4ceh1KnPQ4SksBLTm6vWxa04SM8
+         PMPk9simtOzc0IPE2V4neBkRuowFFoM9CNMkK5SuTKQsYpGuji0JJ6/u2vhH7aOE197G
+         aB3QFuKMDr3+1MARPIKWtmADxWs1UvprYcNGzR2yokPkFKqqv+cNYlIkOOHykRkszIcy
+         URGZLg7uyPwO5FgElGxed31yCjhN2ow3g67ZGgMfA2J/+uW9mFGoWdn7vQ0EihT0Gevp
+         cpBny7jeL5lyfRTS41M8vOR5l3XBOjx7Col36032pllM5UB76NjUAm40K4wKPkf0ID4i
+         yg8g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Cj6EGJBe;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x14sor1516368qkf.137.2019.06.06.12.32.33
+       dkim=pass header.i=@vmware.com header.s=selector2 header.b=ZRmSoUY4;
+       spf=pass (google.com: domain of akaher@vmware.com designates 40.107.71.50 as permitted sender) smtp.mailfrom=akaher@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+Received: from NAM05-BY2-obe.outbound.protection.outlook.com (mail-eopbgr710050.outbound.protection.outlook.com. [40.107.71.50])
+        by mx.google.com with ESMTPS id w143si2329922itb.50.2019.06.06.12.42.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Jun 2019 12:32:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 06 Jun 2019 12:42:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akaher@vmware.com designates 40.107.71.50 as permitted sender) client-ip=40.107.71.50;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Cj6EGJBe;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=ReUr/Ku4fFDe5ZS2T9E9QBdlSpBszMAhDsjnGAK3/wQ=;
-        b=Cj6EGJBe/zmvkukObl2zSGVLq3S3tTaTPWaZ+Sywbvhq92MZz4ML0y38mXzUeTR23/
-         t4yPrDLmNbgUewFAGXp6T5P0woF0ZWn9fOSzbizSJOMGmE+qUeXcmRiqM+z2lb4ZCkCi
-         31Hiwd8nVObYBpqL1W/0OyvbXZyiVllJFQpXzQ7dnCL4plxyaAq59zyWrvkSTtBqagwO
-         WXCbtaEQikmMDKheY3qe8epJmKwbKYjKbjQbBgT5gmfffhj2ooME6lxTLPOsC/RUtQUf
-         ZAT0Tf6srv9sdqsxoZmtaxk6jl1ORa+N5QMua3t6i7cD2ev8cPC/Cpmil+zbuW2AM/mI
-         HjYA==
-X-Google-Smtp-Source: APXvYqxslyBL8NRCNrjjqXklGNp+xKIpW25Hd3ru2Bjoc/pn1jUdGOEWQpM2BD662L/L4lP51oy5EA==
-X-Received: by 2002:ae9:d601:: with SMTP id r1mr40812490qkk.231.1559849553201;
-        Thu, 06 Jun 2019 12:32:33 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id f6sm1381433qkk.79.2019.06.06.12.32.32
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 06 Jun 2019 12:32:32 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hYy7k-0000Ve-9j; Thu, 06 Jun 2019 16:32:32 -0300
-Date: Thu, 6 Jun 2019 16:32:32 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>,
-	Dan Carpenter <dan.carpenter@oracle.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 1/5] mm/hmm: Update HMM documentation
-Message-ID: <20190606193232.GH17373@ziepe.ca>
-References: <20190506232942.12623-1-rcampbell@nvidia.com>
- <20190506232942.12623-2-rcampbell@nvidia.com>
- <20190606140239.GA21778@ziepe.ca>
- <e1fad454-ac9b-4069-1bc8-8149c72655ca@nvidia.com>
+       dkim=pass header.i=@vmware.com header.s=selector2 header.b=ZRmSoUY4;
+       spf=pass (google.com: domain of akaher@vmware.com designates 40.107.71.50 as permitted sender) smtp.mailfrom=akaher@vmware.com;
+       dmarc=pass (p=QUARANTINE sp=NONE dis=NONE) header.from=vmware.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=vmware.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=ptGQkAb4bWbtSN8BP3oURGNkwJaEs2OAxlwtlFfplkQ=;
+ b=ZRmSoUY4mz8+F9AD8oQX0pYiQ75tRI5doVUDsD256Uy0wm/Z8au91iuie1vdZ07f5wXmBD4D7Y1hPtbqkWCdCPPYZ1xenLM/WkW4QFybzWOALBqnjhdmL0lhMIBhEAGvtnTpCWlUcWbD6HpGzB6FJbtyop9AJJj+y03Z+GRFAos=
+Received: from MN2PR05MB6208.namprd05.prod.outlook.com (20.178.241.91) by
+ MN2PR05MB6703.namprd05.prod.outlook.com (20.178.249.91) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1965.12; Thu, 6 Jun 2019 19:42:21 +0000
+Received: from MN2PR05MB6208.namprd05.prod.outlook.com
+ ([fe80::fc2c:24b8:4047:a9a0]) by MN2PR05MB6208.namprd05.prod.outlook.com
+ ([fe80::fc2c:24b8:4047:a9a0%2]) with mapi id 15.20.1965.011; Thu, 6 Jun 2019
+ 19:42:21 +0000
+From: Ajay Kaher <akaher@vmware.com>
+To: Michal Hocko <mhocko@kernel.org>
+CC: Stable tree <stable@vger.kernel.org>, Greg KH
+	<gregkh@linuxfoundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML
+	<linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Jann
+ Horn <jannh@google.com>, Oleg Nesterov <oleg@redhat.com>, Peter Xu
+	<peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>, Jason Gunthorpe
+	<jgg@mellanox.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton
+	<akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>,
+	Joel Fernandes <joel@joelfernandes.org>, Srivatsa Bhat <srivatsab@vmware.com>
+Subject: Re: [RFC PATCH stable-4.4] coredump: fix race condition between
+ mmget_not_zero()/get_task_mm() and core dumping
+Thread-Topic: [RFC PATCH stable-4.4] coredump: fix race condition between
+ mmget_not_zero()/get_task_mm() and core dumping
+Thread-Index: AQHVHJ/0ITirHCq2DkaXsMkoZ1TuYw==
+Date: Thu, 6 Jun 2019 19:42:20 +0000
+Message-ID: <5756B041-C0A8-4178-9F5B-7CBF7A554E31@vmware.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=akaher@vmware.com; 
+x-originating-ip: [2401:4900:3311:e32e:40b3:dd71:b60:71c9]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 11c9e4b0-efc3-4dea-e448-08d6eab7174f
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MN2PR05MB6703;
+x-ms-traffictypediagnostic: MN2PR05MB6703:
+x-microsoft-antispam-prvs:
+ <MN2PR05MB6703BA1F73E6460BFB7E2FCFBB170@MN2PR05MB6703.namprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:2887;
+x-forefront-prvs: 00603B7EEF
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(376002)(346002)(396003)(136003)(366004)(39860400002)(199004)(189003)(478600001)(486006)(4326008)(66946007)(46003)(316002)(476003)(186003)(14444005)(6116002)(6916009)(102836004)(53936002)(256004)(14454004)(25786009)(86362001)(83716004)(2906002)(6506007)(7416002)(54906003)(71200400001)(71190400001)(81156014)(33656002)(99286004)(2616005)(6512007)(68736007)(8676002)(73956011)(64756008)(76116006)(66446008)(305945005)(36756003)(66556008)(7736002)(5660300002)(66476007)(229853002)(107886003)(6486002)(82746002)(6246003)(81166006)(8936002)(6436002)(91956017);DIR:OUT;SFP:1101;SCL:1;SRVR:MN2PR05MB6703;H:MN2PR05MB6208.namprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: vmware.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ SosFWyNtuQTqWPRcXv+U7rmCfdaX8rqjjuLPoH0J/CCHP5RZMh5ge8QQYtCbsAe2tgZtqFRDXE+Izpce0GxgWKuM/BWn7GP/3Yj04cL5LiUxbfcO65t3SG/b0/k8wv1q0j7yMiwawHTIYiBksgQWe2jap5JazchZMin3Txs1fYYU215Tn8k6i3d1ZiSXSGznD2GI9I46zmycIO3o9h1n+dJ/0jl+Eh0c7vsrpVDE+ZzXYjJKU6BHR5Cu39RNip/EqvjPCHmQIscdFHyZ7yh6hib2X27MfL6IDeQbdb2QDB/iLn35pvGBaRG6Lis2meTIfimNJQxtM7QSfHsMd9yDeBQJF+XLi9ZGa5hR4Ds/QGyDWXrfavFNykR0dUd6mtSsqr5s3hM5JHEWR+Ai1O/VzxQd1tH5MtZohIDK2GEIQ3A=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <D37DEB9F3DAB484E8D5A6904E695BC12@namprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e1fad454-ac9b-4069-1bc8-8149c72655ca@nvidia.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+X-OriginatorOrg: vmware.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 11c9e4b0-efc3-4dea-e448-08d6eab7174f
+X-MS-Exchange-CrossTenant-originalarrivaltime: 06 Jun 2019 19:42:20.9101
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: b39138ca-3cee-4b4a-a4d6-cd83d9dd62f0
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: akaher@vmware.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MN2PR05MB6703
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 06, 2019 at 11:50:15AM -0700, Ralph Campbell wrote:
-> Yes, I agree this is better.
-> 
-> Also, I noticed the sample code for hmm_range_register() is wrong.
-> If you could merge this minor change into this patch, that
-> would be appreciated.
-
-Sure, done thanks
-
-Jason
+DQo+IEZyb206IEFuZHJlYSBBcmNhbmdlbGkgPGFhcmNhbmdlQHJlZGhhdC5jb20+DQo+DQo+IFVw
+c3RyZWFtIDA0ZjU4NjZlNDFmYjcwNjkwZTI4Mzk3NDg3ZDhiZDhlZWE3ZDcxMmEgY29tbWl0Lg0K
+Pg0KPg0KPiBTaWduZWQtb2ZmLWJ5OiBNaWNoYWwgSG9ja28gPG1ob2Nrb0BzdXNlLmNvbT4NCj4g
+LS0tDQo+IEhpLA0KPiB0aGlzIGlzIGJhc2VkIG9uIHRoZSBiYWNrcG9ydCBJIGhhdmUgZG9uZSBm
+b3Igb3V0IDQuNCBiYXNlZCBkaXN0cmlidXRpb24NCj4ga2VybmVsLiBQbGVhc2UgZG91YmxlIGNo
+ZWNrIHRoYXQgSSBoYXZlbid0IG1pc3NlZCBhbnl0aGluZyBiZWZvcmUNCj4gYXBwbHlpbmcgdG8g
+dGhlIHN0YWJsZSB0cmVlLiBJIGhhdmUgYWxzbyBDQ2VkIEpvZWwgZm9yIHRoZSBiaW5kZXIgcGFy
+dA0KPiB3aGljaCBpcyBub3QgaW4gdGhlIGN1cnJlbnQgdXBzdHJlYW0gYW55bW9yZSBidXQgSSBi
+ZWxpZXZlIGl0IG5lZWRzIHRoZQ0KPiBjaGVjayBhcyB3ZWxsLg0KPg0KPiBSZXZpZXcgZmVlZGJh
+Y2sgd2VsY29tZS4NCj4NCj4gZHJpdmVycy9hbmRyb2lkL2JpbmRlci5jIHwgIDYgKysrKysrDQo+
+IGZzL3Byb2MvdGFza19tbXUuYyAgICAgICB8IDE4ICsrKysrKysrKysrKysrKysrKw0KPiBmcy91
+c2VyZmF1bHRmZC5jICAgICAgICAgfCAxMCArKysrKysrKy0tDQo+IGluY2x1ZGUvbGludXgvbW0u
+aCAgICAgICB8IDIxICsrKysrKysrKysrKysrKysrKysrKw0KPiBtbS9odWdlX21lbW9yeS5jICAg
+ICAgICAgfCAgMiArLQ0KPiBtbS9tbWFwLmMgICAgICAgICAgICAgICAgfCAgNyArKysrKystDQo+
+IDYgZmlsZXMgY2hhbmdlZCwgNjAgaW5zZXJ0aW9ucygrKSwgNCBkZWxldGlvbnMoLSkNCj4NCj4g
+ZGlmZiAtLWdpdCBhL2RyaXZlcnMvYW5kcm9pZC9iaW5kZXIuYyBiL2RyaXZlcnMvYW5kcm9pZC9i
+aW5kZXIuYw0KPiBpbmRleCAyNjBjZTBlNjAxODcuLjFmYjFjZGRiZDE5YSAxMDA2NDQNCj4gLS0t
+IGEvZHJpdmVycy9hbmRyb2lkL2JpbmRlci5jDQo+ICsrKyBiL2RyaXZlcnMvYW5kcm9pZC9iaW5k
+ZXIuYw0KPiBAQCAtNTcwLDYgKzU3MCwxMiBAQCBzdGF0aWMgaW50IGJpbmRlcl91cGRhdGVfcGFn
+ZV9yYW5nZShzdHJ1Y3QgYmluZGVyX3Byb2MgKnByb2MsIGludCBhbGxvY2F0ZSwNCj4gDQo+IAlp
+ZiAobW0pIHsNCj4gCQlkb3duX3dyaXRlKCZtbS0+bW1hcF9zZW0pOw0KPiArCQlpZiAoIW1tZ2V0
+X3N0aWxsX3ZhbGlkKG1tKSkgew0KPiArCQkJaWYgKGFsbG9jYXRlID09IDApDQo+ICsJCQkJZ290
+byBmcmVlX3JhbmdlOw0KDQpQbGVhc2UgY3Jvc3MgY2hlY2ssIGZyZWVfcmFuZ2U6IHNob3VsZCBu
+b3QgZW5kLXVwIHdpdGggbW9kaWZpY2F0aW9ucyBpbiB2bWEuDQogDQo+ICsJCQlnb3RvIGVycl9u
+b192bWE7DQo+ICsJCX0NCj4gKw0KPiAJCXZtYSA9IHByb2MtPnZtYTsNCj4gCQlpZiAodm1hICYm
+IG1tICE9IHByb2MtPnZtYV92bV9tbSkgew0KPiAJCQlwcl9lcnIoIiVkOiB2bWEgbW0gYW5kIHRh
+c2sgbW0gbWlzbWF0Y2hcbiIsDQoNCg0K
 
