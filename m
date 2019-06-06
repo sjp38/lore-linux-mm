@@ -2,145 +2,213 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.7 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-13.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 66A24C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:52:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D18D0C28EB4
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 14:02:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 361A920693
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:52:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 361A920693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 732D5207E0
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 14:02:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="Z4mSKHb6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 732D5207E0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C9CEF6B0278; Thu,  6 Jun 2019 09:52:12 -0400 (EDT)
+	id F05C36B0277; Thu,  6 Jun 2019 10:02:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C4D1B6B0279; Thu,  6 Jun 2019 09:52:12 -0400 (EDT)
+	id EB6D96B0278; Thu,  6 Jun 2019 10:02:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B3BC26B027A; Thu,  6 Jun 2019 09:52:12 -0400 (EDT)
+	id DA5D56B0279; Thu,  6 Jun 2019 10:02:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 912736B0278
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 09:52:12 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id m1so214408iop.1
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 06:52:12 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B5A3D6B0277
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 10:02:42 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id b7so2029298qkk.3
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 07:02:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:message-id:subject:from:to;
-        bh=yRMkhc7yuKfa2dw31vxobwmwLPW+9z7XoM/maofKdPk=;
-        b=TVXncaVIQWonQi8/sN/1qVWKNAB6XSvRTeJ344yCqacHD8HzWCVx9qgbH37gwuJi84
-         gsGOFxmA0qLYAVXmDjA95lZ0WoNPtHGo94iqfAXCydfjMxGpswd6ofFdZS8uS4/3Mxng
-         WzQOY1axEWYi2rvrcTllaOswhoR4kH34mTDnPcQ9R2QMvozkJR6Ww0M4kDC2H/QGS6q5
-         HnjKyrWICTjohDihiov0kI0PgqgIitARzcQ1pOzTtnM2gVvEmYTgAGbrhAN4DlzA9rCj
-         kMhXDhqUn/11nSEP+6/A1e3r5Pk4jHftliaYDK4LtBN+LdpCxvswOx+IIGhLHaT5OLfL
-         JhLg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3ixr5xakbajiekl6w770dwbb4z.2aa270ge0dya9f09f.ya8@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3ixr5XAkbAJIEKL6w770DwBB4z.2AA270GE0DyA9F09F.yA8@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: APjAAAXI3GkO2zAWLx251H+gjE9lzsYl++3LzKieikapGTSGANKJI4yh
-	oojMSAghNb59EvdvzPV9KxKfMH9jpN33IONHg839pg8ClI/gNRYJVc0PuGjQcsItFxLOSiiWToG
-	r9arZKHmTQQTS5jqQ3eNJLTYKu8CSVy4luDAGO5mcaxut2A/ysxQ3+rKHj6lMqR4=
-X-Received: by 2002:a24:1a81:: with SMTP id 123mr109906iti.46.1559829132340;
-        Thu, 06 Jun 2019 06:52:12 -0700 (PDT)
-X-Received: by 2002:a24:1a81:: with SMTP id 123mr109870iti.46.1559829131646;
-        Thu, 06 Jun 2019 06:52:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559829131; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=QdQp9sTpwMz8UO4D5YUcHQREajmmZNXe+7QIFqHQYOg=;
+        b=LTIwBjfQBkRHyUfz3vgoxLYX7KPEQTJogzXuUc0LWnw0eZLUXmJZdTFUtolOwSqsYX
+         FpqJj+5Q6riRtdmVYbarzw98sk6a3GS/VjhPnxk4LD0dDfwwNeMwEAsBRuUPULd1sOxc
+         PvOFA20nit2vdabZTxGhIjL9BFYYWOuVsybAz7TC2C+rrN5OTHTKhlNavYahdHFluseo
+         DwXlDFBxiWvrBqoAlWXStVxkE7TY60jMW6qxJkkd/6c5Vnzr0iIOE3Dotq1+9gmjT6rn
+         AN6PFWlovdlzzNhMufV0FbNJ5ekZbry0AxiOf+f6TEKyun8LCuyzAmq0KQvgd1VAaq6q
+         pV6g==
+X-Gm-Message-State: APjAAAWGOUvxGtWx2uAVLa5lMWEb9I+jvfv00VFd3rU4/RHp0Vli7UKI
+	0amkWEpQtFPt06IDSyS41myLhyRbkRIn5OKwofv2wdOBYE1sCdcRMBkQ4cYYmt7uDdswRG+j+au
+	vPIxIDTpnUqj/D+sD0J5+EkpbSru9/tym7lmbml17tUYrFxmOVIY8xtQv9Pc7WPU1TQ==
+X-Received: by 2002:a37:b501:: with SMTP id e1mr19610084qkf.271.1559829762459;
+        Thu, 06 Jun 2019 07:02:42 -0700 (PDT)
+X-Received: by 2002:a37:b501:: with SMTP id e1mr19609984qkf.271.1559829761620;
+        Thu, 06 Jun 2019 07:02:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559829761; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZIm7Cdr4Flird6uGBuLMo+i1VhLV6VFs8jdPxD8GrLUr/0qvlVL5K/pXFzPbPwmoAD
-         dTU3G2O6Ysv21RT/CWaRY58M3sbI/aX7hfn1joZXmwxjvpe3GPaLkSi2d7SMMPOWZcpN
-         GosyoqKN130XwjreRvmtqgSHpkKN4YuqDFzZUbWx0UQ1oyTu5f40gKf4SpmpiHXstzRX
-         XH4qTDvDvEWtHxoyWfrb3Py/hyaYkLVT7vYk0jDaRE6g7i1Pw10m55mVS2o8ZvzV2gnR
-         YmAw2ceUS9FBWoAFMulqeLfPyeJyWL2XzdvULqlM4OavBE8+hUebaTMdt21/x5eCEkME
-         f2YA==
+        b=MO6Vf/k/BDTcJEpfqAqNAY4hVA2tCIoPJQXocgdxdLBQUjj6FmJVurrM6JCYUSNuBR
+         2ZWt54QN5NCwKlrlnYHUE/ZJPJpXq8UavqyrsZptSqa10/i+p6ZxylFGpF7oDGfFhnLW
+         0t9kBxewC5tTU9MYQaD2FOpA0tMUQDIAjXBc41eeBwzCzC9u/fiK5Jg7j96OYGA4FPDh
+         vSC+3ARepqqShGDMiKRBK+FP9ftGjme8mPk/McyCW5VLJ1AEqF1eH7xfuIjG9k2mJJ5o
+         x3vJ7D8S0vNt2Jteg3f5vqiOQb5qco+36gs7H+MVT7ngBAdkGYXAvLqREyZnoqNy1IPf
+         cn0w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:date:mime-version;
-        bh=yRMkhc7yuKfa2dw31vxobwmwLPW+9z7XoM/maofKdPk=;
-        b=CpCOyZgVEYG4B6gCWGhiNraxw+jR7SGPKAkeNuxmAbeb5OqQxFDbtHCHliXwRydDuO
-         h8N7mN2itkauBQYuV3egz1j94ENwSLBk5V+AHSkKOyVLPI8HDf1+APCVzC2y/CqaQ2Jd
-         98eRynS2CxB/QSKQMG9An7oYrCx+Le2J1pDT1VaAopSlXcV8P82J1sFboeLNKitUQry4
-         vsZZjyxUGxaWalg1ZaE6+CK3UtmE/EgIsJVvAOJD7yvGBL3GfTPRm39T6skMLvzZS+8w
-         u84goXdnp3+eL/gCxSeB0gzeoucEODxgH03gGYIyrtDCNj3ayOeKCVzTJ0uufilWN18k
-         4CuQ==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=QdQp9sTpwMz8UO4D5YUcHQREajmmZNXe+7QIFqHQYOg=;
+        b=SLQVLYelorvafDJ+8w7C3qPTGBHarQI9ylEvoVjfnb96jqhBzdVMAkntFBWggVOqUD
+         mX3iW73F7qAVv1O17A9tw1FTg7xpji9OKhAPvJ8YB4c9jsLSVaGcJe7hQmwD4RFS++Cq
+         s3vYyy+8FKDd7O+W2tGbTOUww6WnfHsKli500L+ZfiNXRLoiKzRO1b7IDxfyajd6MUDp
+         M6IgSwQwIhNCIx9ESXjkfttaLLB4o0dtwrP2Atds5p5ShyIp322RIfofTop4/U6kneOe
+         yPRqnjzUYY5s8Ct1cEznbADr1vwK+7fyq1AvTF3IMVxZw3UOsCjm0zyzYwOVtbfWS05O
+         /48g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3ixr5xakbajiekl6w770dwbb4z.2aa270ge0dya9f09f.ya8@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3ixr5XAkbAJIEKL6w770DwBB4z.2AA270GE0DyA9F09F.yA8@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id i133sor1064853iof.39.2019.06.06.06.52.11
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=Z4mSKHb6;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 187sor1038820qkl.121.2019.06.06.07.02.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 06 Jun 2019 06:52:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3ixr5xakbajiekl6w770dwbb4z.2aa270ge0dya9f09f.ya8@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        Thu, 06 Jun 2019 07:02:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3ixr5xakbajiekl6w770dwbb4z.2aa270ge0dya9f09f.ya8@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3ixr5XAkbAJIEKL6w770DwBB4z.2AA270GE0DyA9F09F.yA8@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: APXvYqxsOSemHsUbujSph9lEzIDYC7+nk5LCzhefqqwo192xfbCeFrUgqyeODNjVlpcURg4PEu+WR9j7lfp6hBZjNe0whweIPjv3
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=Z4mSKHb6;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=QdQp9sTpwMz8UO4D5YUcHQREajmmZNXe+7QIFqHQYOg=;
+        b=Z4mSKHb689Oa8wMsTSv8toDWQrSLWCOp4zbPJwy4y9UoJFEXs7wpQZQ5rgvYg6mVHS
+         Sm2B76oIRwgW9aLuwMNaWMyoADojdaTXc0ddXyBvRk86gopNn2GBLOgznkPpOHCCSmms
+         1iH1JG0gDtz9WjybUoTKMqUOZ2sf5t5ouiIdwcHV41TM4ejRF9TkPhxUUkhOCGDBB4qD
+         C9Nmvye3UQy2AlTqrndiuN31xF+Xg60atJPHCrBOnYvKtqEKJabPNGI2YqKh8zQ0SWxl
+         FU5XasPYs56HDr2kTd7khg1Bmstq3VQz1HzKPTywPoL03FdeUFixpUyX0I/AV0XKW+GW
+         yyrA==
+X-Google-Smtp-Source: APXvYqzLlrOQZWugqyrKN41ULF1+5YeDLgwvVvKDI1/jQhTQ3jxca7MdYURwWl7+Wfew8EdBwCR0Cg==
+X-Received: by 2002:ae9:e20c:: with SMTP id c12mr38555647qkc.210.1559829761101;
+        Thu, 06 Jun 2019 07:02:41 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id l3sm902129qkd.49.2019.06.06.07.02.40
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 06 Jun 2019 07:02:40 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hYsyV-00064G-JQ; Thu, 06 Jun 2019 11:02:39 -0300
+Date: Thu, 6 Jun 2019 11:02:39 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: rcampbell@nvidia.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>,
+	Dan Carpenter <dan.carpenter@oracle.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>
+Subject: Re: [PATCH 1/5] mm/hmm: Update HMM documentation
+Message-ID: <20190606140239.GA21778@ziepe.ca>
+References: <20190506232942.12623-1-rcampbell@nvidia.com>
+ <20190506232942.12623-2-rcampbell@nvidia.com>
 MIME-Version: 1.0
-X-Received: by 2002:a6b:4f14:: with SMTP id d20mr14000242iob.219.1559829131378;
- Thu, 06 Jun 2019 06:52:11 -0700 (PDT)
-Date: Thu, 06 Jun 2019 06:52:11 -0700
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <0000000000004945f1058aa80556@google.com>
-Subject: KASAN: slab-out-of-bounds Read in corrupted (2)
-From: syzbot <syzbot+9a901acbc447313bfe3e@syzkaller.appspotmail.com>
-To: akpm@linux-foundation.org, cai@lca.pw, crecklin@redhat.com, 
-	keescook@chromium.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-	syzkaller-bugs@googlegroups.com
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190506232942.12623-2-rcampbell@nvidia.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Mon, May 06, 2019 at 04:29:38PM -0700, rcampbell@nvidia.com wrote:
+> From: Ralph Campbell <rcampbell@nvidia.com>
+> 
+> Update the HMM documentation to reflect the latest API and make a few minor
+> wording changes.
+> 
+> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+> Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
+> Cc: John Hubbard <jhubbard@nvidia.com>
+> Cc: Ira Weiny <ira.weiny@intel.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: Balbir Singh <bsingharora@gmail.com>
+> Cc: Dan Carpenter <dan.carpenter@oracle.com>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Souptick Joarder <jrdr.linux@gmail.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+>  Documentation/vm/hmm.rst | 139 ++++++++++++++++++++-------------------
+>  1 file changed, 73 insertions(+), 66 deletions(-)
 
-syzbot found the following crash on:
+Okay, lets start picking up hmm patches in to the new shared hmm.git,
+as promised I will take responsibility to send these to Linus. The
+tree is here:
 
-HEAD commit:    156c0591 Merge tag 'linux-kselftest-5.2-rc4' of git://git...
-git tree:       upstream
-console output: https://syzkaller.appspot.com/x/log.txt?x=13512d51a00000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=60564cb52ab29d5b
-dashboard link: https://syzkaller.appspot.com/bug?extid=9a901acbc447313bfe3e
-compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=11a4b01ea00000
+https://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git/log/?h=hmm
 
-IMPORTANT: if you fix the bug, please add the following tag to the commit:
-Reported-by: syzbot+9a901acbc447313bfe3e@syzkaller.appspotmail.com
+This looks fine to me with one minor comment:
 
-==================================================================
-BUG: KASAN: slab-out-of-bounds in vsnprintf+0x1727/0x19a0  
-lib/vsprintf.c:2503
-Read of size 8 at addr ffff8880a91c7d00 by task syz-executor.0/9821
+> diff --git a/Documentation/vm/hmm.rst b/Documentation/vm/hmm.rst
+> index ec1efa32af3c..7c1e929931a0 100644
+> +++ b/Documentation/vm/hmm.rst
+>  
+> @@ -151,21 +151,27 @@ registration of an hmm_mirror struct::
+>  
+>   int hmm_mirror_register(struct hmm_mirror *mirror,
+>                           struct mm_struct *mm);
+> - int hmm_mirror_register_locked(struct hmm_mirror *mirror,
+> -                                struct mm_struct *mm);
+>  
+> -
+> -The locked variant is to be used when the driver is already holding mmap_sem
+> -of the mm in write mode. The mirror struct has a set of callbacks that are used
+> +The mirror struct has a set of callbacks that are used
+>  to propagate CPU page tables::
+>  
+>   struct hmm_mirror_ops {
+> +     /* release() - release hmm_mirror
+> +      *
+> +      * @mirror: pointer to struct hmm_mirror
+> +      *
+> +      * This is called when the mm_struct is being released.
+> +      * The callback should make sure no references to the mirror occur
+> +      * after the callback returns.
+> +      */
 
-CPU: 0 PID: 9821 Comm: syz-executor.0 Not tainted 5.2.0-rc3+ #13
-Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS  
-Google 01/01/2011
-Call Trace:
+This is not quite accurate (at least, as the other series I sent
+intends), the struct hmm_mirror is valid up until
+hmm_mirror_unregister() is called - specifically it remains valid
+after the release() callback.
 
-Allocated by task 1024:
-(stack is not available)
+I will revise it (and the hmm.h comment it came from) to read the
+below. Please let me know if you'd like something else:
 
-Freed by task 2310999008:
-------------[ cut here ]------------
-Bad or missing usercopy whitelist? Kernel memory overwrite attempt detected  
-to SLAB object 'skbuff_head_cache' (offset 24, size 1)!
-WARNING: CPU: 0 PID: 9821 at mm/usercopy.c:78 usercopy_warn+0xeb/0x110  
-mm/usercopy.c:78
-Kernel panic - not syncing: panic_on_warn set ...
-Shutting down cpus with NMI
-Kernel Offset: disabled
+	/* release() - release hmm_mirror
+	 *
+	 * @mirror: pointer to struct hmm_mirror
+	 *
+	 * This is called when the mm_struct is being released.  The callback
+	 * must ensure that all access to any pages obtained from this mirror
+	 * is halted before the callback returns. All future access should
+	 * fault.
+	 */
 
+The key task for release is to fence off all device access to any
+related pages as the mm is about to recycle them and the device must
+not cause a use-after-free.
 
----
-This bug is generated by a bot. It may contain errors.
-See https://goo.gl/tpsmEJ for more information about syzbot.
-syzbot engineers can be reached at syzkaller@googlegroups.com.
+I applied it to hmm.git
 
-syzbot will keep track of this bug report. See:
-https://goo.gl/tpsmEJ#status for how to communicate with syzbot.
-syzbot can test patches for this bug, for details see:
-https://goo.gl/tpsmEJ#testing-patches
+Thanks,
+Jason
 
