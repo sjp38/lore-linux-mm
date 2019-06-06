@@ -4,77 +4,76 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76605C28CC5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 01:45:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1BCA9C28CC5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 01:45:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 39BD820866
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 01:45:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39BD820866
+	by mail.kernel.org (Postfix) with ESMTP id D49C620874
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 01:45:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D49C620874
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DB2A76B0272; Wed,  5 Jun 2019 21:45:17 -0400 (EDT)
+	id 4D9256B0273; Wed,  5 Jun 2019 21:45:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C76B96B0273; Wed,  5 Jun 2019 21:45:17 -0400 (EDT)
+	id 39D696B0274; Wed,  5 Jun 2019 21:45:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC7CF6B0274; Wed,  5 Jun 2019 21:45:17 -0400 (EDT)
+	id 1A0596B0276; Wed,  5 Jun 2019 21:45:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E51F6B0272
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 21:45:17 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id f9so665733pfn.6
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 18:45:17 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D3CC56B0273
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 21:45:18 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id x9so650804pfm.16
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 18:45:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=cJXDXTe4LEXK71E9x18N/OOUKaBMgZQnZxMV1+LS/IU=;
-        b=RSuV3lr+BaVeq39vFiyIKky8dHcwrS7fGoUWscfxrkN0R5VJF+CcJf5TrmqcUhzlBE
-         u86bqOae6/4b9VmG8k3Leu0W2u0xoFZteAwPr4EpajO0s8EztX7yR+Gmn5uDeK72Exex
-         K9ywE4TbAZE4qWe/WB5sZV6+E2Tmr+QHO450vCN4br3utMSw4ZLziKWQds9O4CYKXRhZ
-         WakloIeLJZKbwlgfPBWWN4FwTIwOjQeffwtssmVjgPgq4e8XKaCkz3pvrMW7zPg1Q8V1
-         GIXO5ywiqJ7KY+OTWsIvwgshWbGcXmFGPp5Em3wGej92h1+kPwVyyoMwak2hHi4xDBkx
-         x5oQ==
+        bh=IdcCczW9Vt2bMohG/KgLyShIIfT/XdZU8+3ISgkl6NY=;
+        b=RfFJ11XlLYuN0ntNu3R5jFLVJOGVu2hRYkgvzKbG2XTRZuPL8XyiZQJZoBY5onHD4u
+         vYmlclh6GMLdZdrbWjVZL5iGSWjodzKEePGucOqTDEk4u1NPvE9uCpurCh3SieaSuJx7
+         1MhObx5CzttOkYUuQqkl1lWLN3cHymcPdIdxxQwC1PIYKDgLv2pz3NhEVgfnREtBRyX0
+         sRmvLm4sk+OJ9nm+TEjPQxPsddYbHKdpJnggYCnuMtxxz+cz55bNyGPG2UohSdADHYtX
+         Zle9nJH5KMBUsUil95ORzYxLVpe/lXpLOxmjEMViHXts84YRT39PTtPw4ujyz2Q+TxhR
+         P9aA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVHFOkUBH4bPiT1WKM0TJ8t0wWXsOs2Cgiyj0y0M31gRe1m7+Cm
-	1Ii5hHIsdqHYfJExqfSDmw0t0EWSuDYms/7ZAdT4UNbmxuh8yD+5xsc5LesajK2aYxtXTkKSu4V
-	FYNzyIEJ2ROfxr5c0quWVQyUJf8BKnGESxN2quEMdb4PplZq6qwqU9O5xCnf+O3JoRw==
-X-Received: by 2002:a17:902:8204:: with SMTP id x4mr46743227pln.226.1559785517099;
+X-Gm-Message-State: APjAAAUhaUBJ1cfMDvJg+RNXm9hLToq+UnwLfvmgzoMHRm74EBqkHsKP
+	zQ+MZZ4q36Ccm4kLLW/HglPmgOICCKGqoVXgi9IJlq2AhEducF7SdactZnJeH8QBt04VcdPvjlY
+	ZorEelqtOO6ZKd6qiJzKni6F1xdYG3LtsVmNXfXYtL9ce0Q7/lnhc3L0nrB/OIT2j7Q==
+X-Received: by 2002:a17:902:8f87:: with SMTP id z7mr21748412plo.65.1559785518523;
+        Wed, 05 Jun 2019 18:45:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxq9OdwaMU2iDqfAgeDYWh/GwEHN1vHeBhUKLPpC0kQj051TE3JrplKTbWQHsQ2AIMN+Njy
+X-Received: by 2002:a17:902:8f87:: with SMTP id z7mr21748359plo.65.1559785517742;
         Wed, 05 Jun 2019 18:45:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwlmJY/+zxKrcOAYHA6KYwkysTMN4s2A+2XhAKCrj857SJWE73cnBoAEUiatwJYa013TDtL
-X-Received: by 2002:a17:902:8204:: with SMTP id x4mr46743148pln.226.1559785515851;
-        Wed, 05 Jun 2019 18:45:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559785515; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1559785517; cv=none;
         d=google.com; s=arc-20160816;
-        b=gjuqaXdqY5KguU4yncsjNYOyAJC8a2xpudOMW1j5efplBYCNADpI5j4ztqICsKAwen
-         9fbw15VMAzq13ZXOs42gdZd2lJx31vznutxH1VTLgOcdx/3BjxwBVbEY873RGvBQ0I/U
-         +GUtuge3Xgv3MbKOcfp1o0gdB6fPj9QgRap+gIE/Uhxyz+f1cFiXLXXOzJuAYcysGvWK
-         7ewtKTES27r4oyTcqwvYa9XG3cWLIoRLdsTWIEH45emx5g58Mw/cfaoeFyprt26f4/HM
-         +aO1c5pOixbp7xioKFjY5mYf5HvqRm4MnYLVjAO3uMRgQV5GikYgbDHCj6a/vt92Wypj
-         wvSA==
+        b=Zu32PpuJ0+Rc7ov5aYK+9szwESVq/+4hlGz9216XWFPfagqXwxqnI9ewteVdsgfCKv
+         8Qr1HkRfI9Lo2AyVDDo/xphuwgLReeGcSTCHrdJbtU7BjxZMegjWGsvy7kUBvly7vSO+
+         3FZuVp8fe58LGAL3TJ7ZH1yRMPtPGmFFYpfREM4mOzs9mindwjy1skf7WevKGUxftwQ2
+         3p3OUFcGQZMGl7aVqpL9Xvdkig8SoRJqgvENGHNtt1g9HdKfx2dY97aq/SrszZx+Jz7B
+         JKRuqY1qF0vHLrY69LYcdwAPxVgHBzLfGd3nyIekSaYRPUmp3qMrlwtfhGzuTBMMopC/
+         ryZQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=cJXDXTe4LEXK71E9x18N/OOUKaBMgZQnZxMV1+LS/IU=;
-        b=hXd4Jc31K9ct+gdK8HmrqLjmJxZt2LQ0lycd3ig4L83iWu8oeenrhqwY3OICYMx+35
-         Hf0LINIUg/UGCVw23fKBYSKhbvWR7MrCMLJHDUm+3HKeef1GqTRewHYd0malioWmqYQv
-         owz6urIJV+OnVhCICWpq7iN6KsV652KCFndWv7AWIgJiLBG61LIe1FqG9o3MjK6E4shv
-         xwa5oSUlsagUiDik+POAQvM6BzLPCjiNsRqidxaRkV7R+cszGrvUwNPMeBqFDYXp7yaq
-         1FRQj/GvoDkNJqtoQ8OSD3+2vuwZJMNq8wTjmL0X5FYXsDtCoK/Q6uR7a04ls9iD3CMi
-         llFw==
+        bh=IdcCczW9Vt2bMohG/KgLyShIIfT/XdZU8+3ISgkl6NY=;
+        b=ZwDP93zJQZ9ernMfxf4yeaDlXwdfzoZpyrkV/vr3OGJZVaoixYtxx+I4QJdw5mwajr
+         dCiAdnAJF55CBSL6kt8qZ5O+VKFn6hilpleZzkGChPkZ2UY5MfY/pEKV/owzxxP4wc/8
+         sp/VGEDZLhsXC80XwYpyjqYuV6qy9O/J+bVN3mcrMnQ2WSsaQ+0hDZhqVcvvwWLKV3D3
+         6rIGUj14gd2OiKde1eCwTm0UrcEqKHGfJbySgNTU2gl//xwQQPSj+rI4yLgbTcCo/jvU
+         3LQcXH32cI1l3fIJJjHUgQbu5rtgp5841oG958juj6MAQ1YZKn+UrQtVJjQT18Y/owyT
+         9T7w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id k18si276921pfk.103.2019.06.05.18.45.15
+        by mx.google.com with ESMTPS id k18si276921pfk.103.2019.06.05.18.45.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Jun 2019 18:45:15 -0700 (PDT)
+        Wed, 05 Jun 2019 18:45:17 -0700 (PDT)
 Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
@@ -82,10 +81,10 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Jun 2019 18:45:15 -0700
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Jun 2019 18:45:17 -0700
 X-ExtLoop1: 1
 Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga002.jf.intel.com with ESMTP; 05 Jun 2019 18:45:14 -0700
+  by orsmga002.jf.intel.com with ESMTP; 05 Jun 2019 18:45:16 -0700
 From: ira.weiny@intel.com
 To: Dan Williams <dan.j.williams@intel.com>,
 	Jan Kara <jack@suse.cz>,
@@ -103,9 +102,9 @@ Cc: Ira Weiny <ira.weiny@intel.com>,
 	linux-nvdimm@lists.01.org,
 	linux-ext4@vger.kernel.org,
 	linux-mm@kvack.org
-Subject: [PATCH RFC 04/10] mm/gup: Ensure F_LAYOUT lease is held prior to GUP'ing pages
-Date: Wed,  5 Jun 2019 18:45:37 -0700
-Message-Id: <20190606014544.8339-5-ira.weiny@intel.com>
+Subject: [PATCH RFC 05/10] fs/ext4: Teach ext4 to break layout leases
+Date: Wed,  5 Jun 2019 18:45:38 -0700
+Message-Id: <20190606014544.8339-6-ira.weiny@intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190606014544.8339-1-ira.weiny@intel.com>
 References: <20190606014544.8339-1-ira.weiny@intel.com>
@@ -119,163 +118,101 @@ List-ID: <linux-mm.kvack.org>
 
 From: Ira Weiny <ira.weiny@intel.com>
 
-On FS DAX files users must inform the file system they intend to take
-long term GUP pins on the file pages.  Failure to do so should result in
-an error.
+ext4 needs to break a layout lease if it is held to inform a user
+holding a layout lease that a truncate is about to happen.  This allows
+the user knowledge of, and choice in how to handle, some other thread
+attempting to modify a file they are actively using.
 
-Ensure that a F_LAYOUT lease exists at the time the GUP call is made.
-If not return EPERM.
+Split out the logic to determine if a mapping is DAX, export it, and then
+break layout leases if a mapping is DAX.
 
 Signed-off-by: Ira Weiny <ira.weiny@intel.com>
 ---
- fs/locks.c         | 41 +++++++++++++++++++++++++++++++++++++++++
- include/linux/mm.h |  2 ++
- mm/gup.c           | 25 +++++++++++++++++++++++++
- mm/huge_memory.c   | 12 ++++++++++++
- 4 files changed, 80 insertions(+)
+ fs/dax.c            | 23 ++++++++++++++++-------
+ fs/ext4/inode.c     |  4 ++++
+ include/linux/dax.h |  6 ++++++
+ 3 files changed, 26 insertions(+), 7 deletions(-)
 
-diff --git a/fs/locks.c b/fs/locks.c
-index de9761c068de..43f5dc97652c 100644
---- a/fs/locks.c
-+++ b/fs/locks.c
-@@ -2945,3 +2945,44 @@ static int __init filelock_init(void)
- 	return 0;
+diff --git a/fs/dax.c b/fs/dax.c
+index f74386293632..29ff3b683657 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -552,6 +552,21 @@ static void *grab_mapping_entry(struct xa_state *xas,
+ 	return xa_mk_internal(VM_FAULT_FALLBACK);
  }
- core_initcall(filelock_init);
-+
-+/**
-+ * mapping_inode_has_layout()
-+ * @page page we are trying to GUP
-+ *
-+ * This should only be called on DAX pages.  DAX pages which are mapped through
-+ * FS DAX do not use the page cache.  As a result they require the user to take
-+ * a LAYOUT lease on them prior to be able to pin them for longterm use.
-+ * This allows the user to opt-into the fact that truncation operations will
-+ * fail for the duration of the pin.
-+ *
-+ * @Return true if the page has a LAYOUT lease associated with it's file.
-+ */
-+bool mapping_inode_has_layout(struct page *page)
+ 
++bool dax_mapping_is_dax(struct address_space *mapping)
 +{
-+	bool ret = false;
-+	struct inode *inode;
-+	struct file_lock *fl;
-+	struct file_lock_context *ctx;
-+
-+	if (WARN_ON(PageAnon(page)) ||
-+	    WARN_ON(!page) ||
-+	    WARN_ON(!page->mapping) ||
-+	    WARN_ON(!page->mapping->host))
++	/*
++	 * In the 'limited' case get_user_pages() for dax is disabled.
++	 */
++	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
 +		return false;
 +
-+	inode = page->mapping->host;
++	if (!dax_mapping(mapping) || !mapping_mapped(mapping))
++		return false;
 +
-+	ctx = locks_get_lock_context(inode, F_RDLCK);
-+	spin_lock(&ctx->flc_lock);
-+	list_for_each_entry(fl, &ctx->flc_lease, fl_list) {
-+		if (fl->fl_flags & FL_LAYOUT) {
-+			ret = true;
-+			break;
-+		}
-+	}
-+	spin_unlock(&ctx->flc_lock);
-+
-+	return ret;
++	return true;
 +}
-+EXPORT_SYMBOL_GPL(mapping_inode_has_layout);
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index bc373a9b69fc..432b004b920c 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1630,6 +1630,8 @@ long get_user_pages_unlocked(unsigned long start, unsigned long nr_pages,
- int get_user_pages_fast(unsigned long start, int nr_pages,
- 			unsigned int gup_flags, struct page **pages);
++EXPORT_SYMBOL_GPL(dax_mapping_is_dax);
++
+ /**
+  * dax_layout_busy_page - find first pinned page in @mapping
+  * @mapping: address space to scan for a page with ref count > 1
+@@ -574,13 +589,7 @@ struct page *dax_layout_busy_page(struct address_space *mapping)
+ 	unsigned int scanned = 0;
+ 	struct page *page = NULL;
  
-+bool mapping_inode_has_layout(struct page *page);
-+
- /* Container for pinned pfns / pages */
- struct frame_vector {
- 	unsigned int nr_allocated;	/* Number of frames we have space for */
-diff --git a/mm/gup.c b/mm/gup.c
-index 26a7a3a3a657..d06cc5b14c0b 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -361,6 +361,13 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
- 			page = pte_page(pte);
- 		else
- 			goto no_page;
-+
-+		if (unlikely(flags & FOLL_LONGTERM) &&
-+		    (*pgmap)->type == MEMORY_DEVICE_FS_DAX &&
-+		    !mapping_inode_has_layout(page)) {
-+			page = ERR_PTR(-EPERM);
-+			goto out;
-+		}
- 	} else if (unlikely(!page)) {
- 		if (flags & FOLL_DUMP) {
- 			/* Avoid special (like zero) pages in core dumps */
-@@ -1905,6 +1912,16 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+-	/*
+-	 * In the 'limited' case get_user_pages() for dax is disabled.
+-	 */
+-	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
+-		return NULL;
+-
+-	if (!dax_mapping(mapping) || !mapping_mapped(mapping))
++	if (!dax_mapping_is_dax(mapping))
+ 		return NULL;
  
- 		VM_BUG_ON_PAGE(compound_head(page) != head, page);
+ 	/*
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index c16071547c9c..c7c99f51961f 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -4241,6 +4241,10 @@ int ext4_break_layouts(struct inode *inode)
+ 	if (WARN_ON_ONCE(!rwsem_is_locked(&ei->i_mmap_sem)))
+ 		return -EINVAL;
  
-+		if (pte_devmap(pte) &&
-+		    unlikely(flags & FOLL_LONGTERM) &&
-+		    pgmap->type == MEMORY_DEVICE_FS_DAX &&
-+		    !mapping_inode_has_layout(head)) {
-+			mod_node_page_state(page_pgdat(head),
-+					    NR_GUP_FAST_PAGE_BACKOFFS, 1);
-+			put_user_page(head);
-+			goto pte_unmap;
-+		}
++	/* Break layout leases if active */
++	if (dax_mapping_is_dax(inode->i_mapping))
++		break_layout(inode, true);
 +
- 		SetPageReferenced(page);
- 		pages[*nr] = page;
- 		(*nr)++;
-@@ -1955,6 +1972,14 @@ static int __gup_device_huge(unsigned long pfn, unsigned long addr,
- 		}
- 		SetPageReferenced(page);
- 		pages[*nr] = page;
+ 	do {
+ 		page = dax_layout_busy_page(inode->i_mapping);
+ 		if (!page)
+diff --git a/include/linux/dax.h b/include/linux/dax.h
+index becaea5f4488..ee6cbd56ddc4 100644
+--- a/include/linux/dax.h
++++ b/include/linux/dax.h
+@@ -106,6 +106,7 @@ struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev);
+ int dax_writeback_mapping_range(struct address_space *mapping,
+ 		struct block_device *bdev, struct writeback_control *wbc);
+ 
++bool dax_mapping_is_dax(struct address_space *mapping);
+ struct page *dax_layout_busy_page(struct address_space *mapping);
+ dax_entry_t dax_lock_page(struct page *page);
+ void dax_unlock_page(struct page *page, dax_entry_t cookie);
+@@ -137,6 +138,11 @@ static inline struct dax_device *fs_dax_get_by_bdev(struct block_device *bdev)
+ 	return NULL;
+ }
+ 
++bool dax_mapping_is_dax(struct address_space *mapping)
++{
++	return false;
++}
 +
-+		if (unlikely(flags & FOLL_LONGTERM) &&
-+		    pgmap->type == MEMORY_DEVICE_FS_DAX &&
-+		    !mapping_inode_has_layout(page)) {
-+			undo_dev_pagemap(nr, nr_start, pages);
-+			return 0;
-+		}
-+
- 		if (try_get_gup_pin_page(page, NR_GUP_FAST_PAGES_REQUESTED)) {
- 			undo_dev_pagemap(nr, nr_start, pages);
- 			return 0;
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index bb7fd7fa6f77..cdc213e50902 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -950,6 +950,12 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
- 	if (!*pgmap)
- 		return ERR_PTR(-EFAULT);
- 	page = pfn_to_page(pfn);
-+
-+	if (unlikely(flags & FOLL_LONGTERM) &&
-+	    (*pgmap)->type == MEMORY_DEVICE_FS_DAX &&
-+	    !mapping_inode_has_layout(page))
-+		return ERR_PTR(-EPERM);
-+
- 	if (unlikely(!try_get_gup_pin_page(page,
- 					   NR_GUP_SLOW_PAGES_REQUESTED)))
- 		page = ERR_PTR(-ENOMEM);
-@@ -1092,6 +1098,12 @@ struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
- 	if (!*pgmap)
- 		return ERR_PTR(-EFAULT);
- 	page = pfn_to_page(pfn);
-+
-+	if (unlikely(flags & FOLL_LONGTERM) &&
-+	    (*pgmap)->type == MEMORY_DEVICE_FS_DAX &&
-+	    !mapping_inode_has_layout(page))
-+		return ERR_PTR(-EPERM);
-+
- 	if (unlikely(!try_get_gup_pin_page(page,
- 					   NR_GUP_SLOW_PAGES_REQUESTED)))
- 		page = ERR_PTR(-ENOMEM);
+ static inline struct page *dax_layout_busy_page(struct address_space *mapping)
+ {
+ 	return NULL;
 -- 
 2.20.1
 
