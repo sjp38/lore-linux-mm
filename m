@@ -2,221 +2,218 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 18F32C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 18:54:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 59179C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 18:59:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4B6A2083D
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 18:54:37 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="DfY0Q040"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4B6A2083D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id B30192089E
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 18:59:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B30192089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 700476B027C; Thu,  6 Jun 2019 14:54:37 -0400 (EDT)
+	id 3A08E6B027E; Thu,  6 Jun 2019 14:59:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6B0B66B027E; Thu,  6 Jun 2019 14:54:37 -0400 (EDT)
+	id 3514C6B0283; Thu,  6 Jun 2019 14:59:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5C4B06B027F; Thu,  6 Jun 2019 14:54:37 -0400 (EDT)
+	id 23F216B028D; Thu,  6 Jun 2019 14:59:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AE9B6B027C
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 14:54:37 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id v58so2916860qta.2
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 11:54:37 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0407F6B027E
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 14:59:44 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id m1so858631iop.1
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 11:59:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=vyj+6CVYT6/SclKU5U5COjT2Okh3PlJFjv+2ILDUOlk=;
-        b=fGanQNVsjPYHcTeyNEWzX44A+CBqpnmUuQmrh5znn6uhTYsJl4H+gZSD3OlDHqvkoD
-         N94rJ2HNMrRzbrtjr6PM/8wSTCYnB9rHtFMeQMLJsPrwtKu+kplCOA996D1w8w7Okbv4
-         Iy8WMswjbrhy6nofsfsqL1yVhVBvemtZhhJXkNzQtiME6jv4gAzyUWqKh2D26agh6ZJk
-         tbSd8+C19PMQySSNI5Iz/qvSHxptqZa2WbgSxUzu3lupWAREh9y+K7uQsTSnDjr+haqn
-         IN0JmHIShSTmL+7aiTVrV3iKW2Fy4P1YWoRwZXcJMPAjfQNtPI8Ag8bHyEd6C0PGHAjV
-         /Kdg==
-X-Gm-Message-State: APjAAAUL2kS6AgsxEBWLHpjoMBF4aMiqDTlyAtW9BgsVFwajtMJfYcz0
-	pdFS4S6lKLUmAtjwgP0sm5Q7LpW33RFaEoFZGY5dcnxjpiruFfwbp/zW9FIANbutgDA847pziVG
-	n0xCUwui9TdEt5sA/2G6cpJNMTRbJ91HKsbeW+ARY2fqtLM4X2IUfVwC5x3K/4hRJTg==
-X-Received: by 2002:a05:620a:16a6:: with SMTP id s6mr41060330qkj.39.1559847276950;
-        Thu, 06 Jun 2019 11:54:36 -0700 (PDT)
-X-Received: by 2002:a05:620a:16a6:: with SMTP id s6mr41060302qkj.39.1559847276381;
-        Thu, 06 Jun 2019 11:54:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559847276; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-transfer-encoding:content-language;
+        bh=o0kYLjdhrExUrOoW4LG9f3sFa4hNcrSWOLxQkVeQOEg=;
+        b=TRp2sEJoZqou+yxigMEcdx+leMSrtc3+7BMWjLUKUZ6UwccR02ELagGGCGZib5Edds
+         Axmf6j2+lHLvsO3970qDAMKL43PDH4GwYDzfTmJ41hKznU9CgoSa4ObPSCgleMTeVt9E
+         Yqn4EtuNLukAm1DpAW3Y+Bh9hrn1GRsJDehTt/HJz6sx0cRmHAlRh7GxQqz4yoCqG+Pw
+         xZZ+r2X4HBDGBRmxx8VfHFdNjxFhI3mFe1OoIyybxEIR8SY4sAvfufgo2GyIUl3zY2Fj
+         TDH4AzXvVwpuDqC/Ckr3aPejk4rHf9uwlGbesYBTyy6YE28jwTjSoGWGPVTsHTR9+24e
+         BhfQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUy1I5H+gJh/ocmfN3xIJ60aNAgL8RXEEHor87eQ7KVfsfL26Il
+	VBW8ONOcnASQWCpPI3hyBV00EjAv7RZF4SqzJ6MnoV9iyFpkLQliMxjn7R/OT+DGlJ6qFDmxtUd
+	zPtmI7DgN8o1BV+aqagyYWKX99j2u+Nal343Vr3aT1dDwPS92kK360uv9QvJ/sChXKw==
+X-Received: by 2002:a02:c80d:: with SMTP id p13mr6402882jao.59.1559847583682;
+        Thu, 06 Jun 2019 11:59:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw8zL2pU5vy09G8/pj8YzZD4TgjZQk/TMktFXGrkpCWa4ClHkXJx7EXj7Zz7RK3n28V8BEJ
+X-Received: by 2002:a02:c80d:: with SMTP id p13mr6402827jao.59.1559847582542;
+        Thu, 06 Jun 2019 11:59:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559847582; cv=none;
         d=google.com; s=arc-20160816;
-        b=Qdp2PcROTTPeS7aiCdsYU4gEUbl+C7ZAkle4YuwQjSDSis0GvZGQ46qs3TW69gEVj3
-         EdXgquHX4YrGRfXImwwaq+JuBfEPaAatoXIG+aMoifIjPztkFRIiYJ4LShVLqL8X5xSj
-         nSwNCuT0lfbsX0HLGUhJkNuDKRrpWjn98iARw4WBkVGMOfDb9FOHmreW7ExO9FIA19G3
-         ZZua7jC2zvF+RFJUHJqL9ys1mzn/1OG2pNggGc6lDJpJhgc2eXWKRftXy3QvvDnmM8US
-         qVSPTtLFfLwR554CgCi7H0d0CZSCssw/wIphdbechtuQ/4ha2CZ/9EhCSKD5YRrIgzHm
-         lf1g==
+        b=pWJet1sFBeRLNXvcJQR7+1LWXT4i2KtNPI42VljqoF21xfa4h0ihP7PhF8/RE2XEck
+         hqHR/xY6OshRvQgVXMw0aEc6QhSWNWuMX9M3/Lidi+vZ3ykrT47Azab5MhLxDAQBqhqA
+         i0pPY+J+oO6/nEMb9l9R/Ghq+6cGGS5hFyD63I3RvQkmgNPKlioZ06RRge/K0Vk0nbCF
+         23G6hIzbdAss/y1IZjhFdhbXiGz7xAYV6K2pKqwBTqlxqRdz3Ty0rAS7k13b91lGxCYK
+         8+we2h6Q7VVohehvYPAi9wPqfCzfWypX2P0l4GUPVyK7cmEJ5DlH5z8fe8r4PbFT7z6Z
+         54Rw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=vyj+6CVYT6/SclKU5U5COjT2Okh3PlJFjv+2ILDUOlk=;
-        b=0GGeGAuM6uSUhWgt9+z+uMgp51CQHwZvafMOa6PSp/ryP1axI6n8gSq3H0Ag1ltOSe
-         NQB8oWwc4yWUNDOevbrs8NRVel4ql8+vUBPgIg3HSPOyN3CBoGQCuYt8uT2UoGQy/t3g
-         dIJ6oAyBKTyQfRkqTsDm/JwpBKFMfQzKE7EWTWVuGkI7OQ7n9WyOOs7IIEvoz8thc383
-         mO2TRE9Yw80+sds+JcWYaVCOsHMM9O+mHgqGwRhG1DhQwwHv/9SFUyn+8TTNlc8Yukn9
-         faz1isci4c0wyNWLpow1ccyqfinFbGzR5bXbf5QqeAPcaq945rkuYaKGG0rXEBwIVXQO
-         XMew==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject;
+        bh=o0kYLjdhrExUrOoW4LG9f3sFa4hNcrSWOLxQkVeQOEg=;
+        b=jzAhLWRFn3yXrHweFoFkkqQ74XrPUSGJdyuS6TThA9ISI4wyKTS486vck6siX73npd
+         5E8+pz5HFuVHb51/f80ovBwwjdJ0Vb2Z77ngnXoqQWX7QjDezdiFDP3LnE4Z/3zLC74L
+         urTT8UddPdu/WV3eZaFPM/QeORh6TLj1ys8ISNhQCQ8c9NerEVMPmXcI2hMqreSMDKt6
+         jDRxl012YRxyqlHYW17lDgLYdNV13AXHV22kqzAboWTWeqXtI73V+cDyEDPEDyiwY8xK
+         Ak/PYKzD9fzbPay2otVLgGJ9mSbBb4sv7qw8H1+XY5jCQs2wOlwQy1EbQzxLHv5wSrjM
+         ztJQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=DfY0Q040;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r23sor2076957qvc.62.2019.06.06.11.54.36
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
+        by mx.google.com with ESMTPS id c26si2306337jaa.104.2019.06.06.11.59.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Jun 2019 11:54:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Jun 2019 11:59:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) client-ip=115.124.30.133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=DfY0Q040;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=vyj+6CVYT6/SclKU5U5COjT2Okh3PlJFjv+2ILDUOlk=;
-        b=DfY0Q040f6zs3YRa631XXmcuTGF55hxDFVU9TX5ARAqwLQq/3wgV4InukzkKOQsiJD
-         e00JNuL2N1GKGqgUZsRFhjvJmYhg067swzJXzPnrrulT9O7ZC+VY/yEUDG4Gcz1CDSse
-         XibMzl1dCihxY+cXKOJlBlUYBUZqfc6aEEWkTBGMAkbRi0Bx79aqUZd2ynN8QALKcChv
-         5tiGwYdoc7zbsXyaHBojClL6aMNCEiZ+iWBcKw8Mjnqh/Dw7dGNUCamZzXT+aNfNcuTS
-         enS+EFqGMlluJLQff6oyqnCrYG8AFObLci2Mt4hw4aRhmwOW0CRlKAkVRKjhpOGlbBHd
-         KALw==
-X-Google-Smtp-Source: APXvYqx+vVETo47tgK43mzzCTdpyn7vjag/ZaU5oAM9JQ6aHmzaMykBxyQ4w64rpkOSnLhOHAqMRRQ==
-X-Received: by 2002:a0c:d4eb:: with SMTP id y40mr21179717qvh.30.1559847275858;
-        Thu, 06 Jun 2019 11:54:35 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id t80sm1241863qka.87.2019.06.06.11.54.35
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 06 Jun 2019 11:54:35 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hYxX1-0008Mq-1o; Thu, 06 Jun 2019 15:54:35 -0300
-Date: Thu, 6 Jun 2019 15:54:35 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: rcampbell@nvidia.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>,
-	Dan Carpenter <dan.carpenter@oracle.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/5] mm/hmm: Clean up some coding style and comments
-Message-ID: <20190606185435.GC17373@ziepe.ca>
-References: <20190506232942.12623-1-rcampbell@nvidia.com>
- <20190506232942.12623-3-rcampbell@nvidia.com>
- <20190606141644.GA2876@ziepe.ca>
- <20190606142743.GA8053@redhat.com>
- <20190606154129.GB17373@ziepe.ca>
- <20190606155213.GB8053@redhat.com>
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R111e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04407;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TTau0rq_1559847565;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TTau0rq_1559847565)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 07 Jun 2019 02:59:28 +0800
+Subject: Re: [v2 PATCH] mm: thp: fix false negative of shmem vma's THP
+ eligibility
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz,
+ rientjes@google.com, kirill@shutemov.name, akpm@linux-foundation.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Hugh Dickins <hughd@google.com>
+References: <1556037781-57869-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190423175252.GP25106@dhcp22.suse.cz>
+ <5a571d64-bfce-aa04-312a-8e3547e0459a@linux.alibaba.com>
+ <859fec1f-4b66-8c2c-98ee-2aee9358a81a@linux.alibaba.com>
+ <20190507104709.GP31017@dhcp22.suse.cz>
+ <ec8a65c7-9b0b-9342-4854-46c732c99390@linux.alibaba.com>
+Message-ID: <217fc290-5800-31de-7d46-aa5c0f7b1c75@linux.alibaba.com>
+Date: Thu, 6 Jun 2019 11:59:21 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+In-Reply-To: <ec8a65c7-9b0b-9342-4854-46c732c99390@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190606155213.GB8053@redhat.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 06, 2019 at 11:52:13AM -0400, Jerome Glisse wrote:
-> On Thu, Jun 06, 2019 at 12:41:29PM -0300, Jason Gunthorpe wrote:
-> > On Thu, Jun 06, 2019 at 10:27:43AM -0400, Jerome Glisse wrote:
-> > > On Thu, Jun 06, 2019 at 11:16:44AM -0300, Jason Gunthorpe wrote:
-> > > > On Mon, May 06, 2019 at 04:29:39PM -0700, rcampbell@nvidia.com wrote:
-> > > > > From: Ralph Campbell <rcampbell@nvidia.com>
-> > > > > 
-> > > > > There are no functional changes, just some coding style clean ups and
-> > > > > minor comment changes.
-> > > > > 
-> > > > > Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-> > > > > Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
-> > > > > Cc: John Hubbard <jhubbard@nvidia.com>
-> > > > > Cc: Ira Weiny <ira.weiny@intel.com>
-> > > > > Cc: Dan Williams <dan.j.williams@intel.com>
-> > > > > Cc: Arnd Bergmann <arnd@arndb.de>
-> > > > > Cc: Balbir Singh <bsingharora@gmail.com>
-> > > > > Cc: Dan Carpenter <dan.carpenter@oracle.com>
-> > > > > Cc: Matthew Wilcox <willy@infradead.org>
-> > > > > Cc: Souptick Joarder <jrdr.linux@gmail.com>
-> > > > > Cc: Andrew Morton <akpm@linux-foundation.org>
-> > > > >  include/linux/hmm.h | 71 +++++++++++++++++++++++----------------------
-> > > > >  mm/hmm.c            | 51 ++++++++++++++++----------------
-> > > > >  2 files changed, 62 insertions(+), 60 deletions(-)
-> > > > 
-> > > > Applied to hmm.git, thanks
-> > > 
-> > > Can you hold off, i was already collecting patches and we will
-> > > be stepping on each other toe ... for instance i had
-> > 
-> > I'd really rather not, I have a lot of work to do for this cycle and
-> > this part needs to start to move forward now. I can't do everything
-> > last minute, sorry.
-> > 
-> > The patches I picked up all look very safe to move ahead.
-> 
-> I want to post all the patch you need to apply soon, it is really
-> painful because they are lot of different branches
 
-I've already handled everything in your hmm-5.3, so I don't think
-there is anything for you to do in that regard. Please double check
-though!
 
-If you have new patches please post them against something sensible
-(and put them in a git branch) and I can usually sort out 'git am'
-conflicts pretty quickly.
+On 5/7/19 10:10 AM, Yang Shi wrote:
+>
+>
+> On 5/7/19 3:47 AM, Michal Hocko wrote:
+>> [Hmm, I thought, Hugh was CCed]
+>>
+>> On Mon 06-05-19 16:37:42, Yang Shi wrote:
+>>>
+>>> On 4/28/19 12:13 PM, Yang Shi wrote:
+>>>>
+>>>> On 4/23/19 10:52 AM, Michal Hocko wrote:
+>>>>> On Wed 24-04-19 00:43:01, Yang Shi wrote:
+>>>>>> The commit 7635d9cbe832 ("mm, thp, proc: report THP eligibility
+>>>>>> for each
+>>>>>> vma") introduced THPeligible bit for processes' smaps. But, when
+>>>>>> checking
+>>>>>> the eligibility for shmem vma, __transparent_hugepage_enabled() is
+>>>>>> called to override the result from shmem_huge_enabled().  It may 
+>>>>>> result
+>>>>>> in the anonymous vma's THP flag override shmem's.  For example,
+>>>>>> running a
+>>>>>> simple test which create THP for shmem, but with anonymous THP
+>>>>>> disabled,
+>>>>>> when reading the process's smaps, it may show:
+>>>>>>
+>>>>>> 7fc92ec00000-7fc92f000000 rw-s 00000000 00:14 27764 /dev/shm/test
+>>>>>> Size:               4096 kB
+>>>>>> ...
+>>>>>> [snip]
+>>>>>> ...
+>>>>>> ShmemPmdMapped:     4096 kB
+>>>>>> ...
+>>>>>> [snip]
+>>>>>> ...
+>>>>>> THPeligible:    0
+>>>>>>
+>>>>>> And, /proc/meminfo does show THP allocated and PMD mapped too:
+>>>>>>
+>>>>>> ShmemHugePages:     4096 kB
+>>>>>> ShmemPmdMapped:     4096 kB
+>>>>>>
+>>>>>> This doesn't make too much sense.  The anonymous THP flag should not
+>>>>>> intervene shmem THP.  Calling shmem_huge_enabled() with checking
+>>>>>> MMF_DISABLE_THP sounds good enough.  And, we could skip stack and
+>>>>>> dax vma check since we already checked if the vma is shmem already.
+>>>>> Kirill, can we get a confirmation that this is really intended 
+>>>>> behavior
+>>>>> rather than an omission please? Is this documented? What is a global
+>>>>> knob to simply disable THP system wise?
+>>>> Hi Kirill,
+>>>>
+>>>> Ping. Any comment?
+>>> Talked with Kirill at LSFMM, it sounds this is kind of intended 
+>>> behavior
+>>> according to him. But, we all agree it looks inconsistent.
+>>>
+>>> So, we may have two options:
+>>>      - Just fix the false negative issue as what the patch does
+>>>      - Change the behavior to make it more consistent
+>>>
+>>> I'm not sure whether anyone relies on the behavior explicitly or 
+>>> implicitly
+>>> or not.
+>> Well, I would be certainly more happy with a more consistent behavior.
+>> Talked to Hugh at LSFMM about this and he finds treating shmem objects
+>> separately from the anonymous memory. And that is already the case
+>> partially when each mount point might have its own setup. So the primary
+>> question is whether we need a one global knob to controll all THP
+>> allocations. One argument to have that is that it might be helpful to
+>> for an admin to simply disable source of THP at a single place rather
+>> than crawling over all shmem mount points and remount them. Especially
+>> in environments where shmem points are mounted in a container by a
+>> non-root. Why would somebody wanted something like that? One example
+>> would be to temporarily workaround high order allocations issues which
+>> we have seen non trivial amount of in the past and we are likely not at
+>> the end of the tunel.
+>
+> Shmem has a global control for such use. Setting shmem_enabled to 
+> "force" or "deny" would enable or disable THP for shmem globally, 
+> including non-fs objects, i.e. memfd, SYS V shmem, etc.
+>
+>>
+>> That being said I would be in favor of treating the global sysfs knob to
+>> be global for all THP allocations. I will not push back on that if there
+>> is a general consensus that shmem and fs in general are a different
+>> class of objects and a single global control is not desirable for
+>> whatever reasons.
+>
+> OK, we need more inputs from Kirill, Hugh and other folks.
 
-> If you hold of i will be posting all the patches in one big set so
-> that you can apply all of them in one go and it will be a _lot_
-> easier for me that way.
+[Forgot cc to mailing lists]
 
-You don't need to repost my patches, I can do that myself, but thanks
-for all the help getting them ready! Please respond to my v2 with more
-review's/ack's/changes/etc so the series can move toward being
-applied.
+Hi guys,
 
-> On process thing it would be easier if we ask Dave/Daniel to merge
-> hmm within drm this cycle. 
+How should we move forward for this one? Make the sysfs knob 
+(/sys/kernel/mm/transparent_hugepage/enabled) to be global for both 
+anonymous and tmpfs? Or just treat shmem objects separately from anon 
+memory then fix the false-negative of THP eligibility by this patch?
 
-Yes, I expect we will do this - probably also to the AMD tree judging
-on things in -next. This is the entire point of running a shared tree.
-
-> Merging with Linus will break drm drivers and it seems easier to me
-> to fix all this within the drm tree.
-
-This is the normal process with a shared tree, we merge the tree
-*everywhere it is required* so all trees can run concurrently.
-
-I will *also* send it to Linus early so that Linus reviews the hmm
-patches in the HMM pull request, not in the DRM or RDMA pull
-request. This is best-practice when working across trees like this.
-
-Please just keep me up to date when things conflicting arise and we
-will work out the best solution.
-
-Reminder, I still need patches from you for:
- - Fix all the kconfig stuff for randconfig failures/etc
- - Enable ARM64
- - Remove deprecated APIs from hmm.h
-
-Please send them ASAP so it can be tested.
-
-There shouldn't be any patches held back for 5.4 - send them all now.
-
-Thanks,
-Jason
+>
+>>
+>> Kirill, Hugh othe folks?
+>
 
