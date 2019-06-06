@@ -2,136 +2,220 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 97747C28EB3
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:28:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BBACC04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 21:08:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5E9CB214DA
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:28:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 59D13208C0
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 21:08:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="t2yJVjGS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E9CB214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="YMIH7Umh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 59D13208C0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E0CB36B02E4; Thu,  6 Jun 2019 16:28:43 -0400 (EDT)
+	id CDE306B02DE; Thu,  6 Jun 2019 17:08:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DBCC26B02E6; Thu,  6 Jun 2019 16:28:43 -0400 (EDT)
+	id C8E1A6B02DF; Thu,  6 Jun 2019 17:08:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CAC426B02E7; Thu,  6 Jun 2019 16:28:43 -0400 (EDT)
+	id B2F186B02E1; Thu,  6 Jun 2019 17:08:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 92F4F6B02E4
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:28:43 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id f9so2632007pfn.6
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:28:43 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 898716B02DE
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 17:08:17 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id y81so1120739oig.19
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 14:08:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=PJA60M0ShvGgAGdvUFVxM+gy8jPoTTfj2EhMnX7Rw2Q=;
-        b=pNAAAloxHLEz7gwjpY3tp3un/R9RQXmraks9nBukHPkVY4ow4lg5AuhRR4noJgLMry
-         Wrgltf3bxXte+4oIwTAHBur4y4K5NtWrbAyUiiKXOhKi+86YPHka4B1GVAgTec0PytA9
-         XZqvFXCmuLqbbYFxjJ5Jn8CI/DpghkJO4lpAKCieOgDXDZJZ5pDajZ1gH7YZt4DJm/+1
-         160SEk7nWKsLVKXIdXHdYIQ7RflWmAQPDSJLiwNMSfqg/1nToAs2tyHi3GG2XRiS8n12
-         LHk5MHd9HsFUOfguKOjz3PerMszsyPGAZHx6EGVj/G0PdXavSXr4a3b4tEx1oftY9gtR
-         tmWw==
-X-Gm-Message-State: APjAAAXMp8Hi9I+WfA1Duc6x4PMmN6MLw/ZRfk053LFcOUBPpPt6itTC
-	lFum/Wu2yO/VEuo0wj/KsIAogy1pos9OfITAv1pDawueXxaDaAJo5C9YhB+hrsVcoKTWippcdpA
-	PF05rBlNZ1tOBtngQXuVysSiHM2hA8Wke4uYYGsc1BeqVmr7Dh65JDrA4wwe94CUrpg==
-X-Received: by 2002:a17:90a:216c:: with SMTP id a99mr1630645pje.3.1559852923293;
-        Thu, 06 Jun 2019 13:28:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwOihV7cgd1ponoD+v4Bhxpwu7laFT6UGdqq1vjIzUwpBNCexStTD/vGHYunb8MXDPwB6T/
-X-Received: by 2002:a17:90a:216c:: with SMTP id a99mr1630598pje.3.1559852922680;
-        Thu, 06 Jun 2019 13:28:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559852922; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=Y4XntF7b7G4DQ81sR0y/Jn2xedJWjLJRstkFUo/OuT8=;
+        b=E8egNhr7DB1IXIqkIOyq+IfOyS0QABTtA+YRt0Xt1JsFdV9vBuHufmBMQ216qGBGvN
+         p8u/DXYI/Lh4sQSCR57p7CE+L3hOIKgyNfB8T/Oq6lpBbXDjMWsD2KKXhtnwoBS054RX
+         RpRnIiYiHOLK0On4vOyjhFlRQ8o7QFY7zl1ugr55Dm/7RveC9Kmf2lpH3va6bFIgCufv
+         ym55R6LML+uA/orzVu8urAkNrbtP34VJ97pOPwBgkErcpDusL3YPnWyBiNfVYocY1saW
+         qayly5mwsNkrjBjd3ogPWmdmVizYQFIG9JatMQit4RuT+sDHkgNpv5d+sGO3R5cJ7kOC
+         zViQ==
+X-Gm-Message-State: APjAAAXo2nkSE+u4LLTx3YTyAozShSQBDKJr+FgapPxSt/pFDQtsVPJy
+	6vn8/eogJDHrnNvnfFHP6FynI23VeFkxlSNG0iUjyePcsSgN0QJwqKSmAfVRO9wbvKSWoSq+XBd
+	2nC43vX22Q5Jku9HSU8kBrf4L593uUCnS3t1uV4FHILQxbd50OMJJr2v5r6CQLsUs7w==
+X-Received: by 2002:aca:37d6:: with SMTP id e205mr1447229oia.165.1559855297118;
+        Thu, 06 Jun 2019 14:08:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxcRfOHZ/LUp0YW2DhZ/NmgzpF3LtRcSosTVb3lbJrkTNKgCZV5nfjodPmMlPhXJmSSYxW5
+X-Received: by 2002:aca:37d6:: with SMTP id e205mr1447177oia.165.1559855296082;
+        Thu, 06 Jun 2019 14:08:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559855296; cv=none;
         d=google.com; s=arc-20160816;
-        b=gtaGsM0aQAEHEZ3MgXRoB5bDQlS2WDGntzcirbD0Jw3iZx7pZe/s5NnSVIZDQ4Eg2L
-         cMRMdbBiidhPhO4Mrf06qtsgJHyjPgipRevAnlJrrpajlkWI7Oy75uKtoVPfdKkWF4gv
-         BDnM0++T8AbteT7juNOOez5XTP0CRSg+INk0dOghcVA9unCQSS70zf6Pr+I57li27aFB
-         aqDJ0ky/DCZYpiugB6tBkrc2+bDtqXfUYPmKevwVM6/okD8WJMf+zgV/bV4gzLZ8FR//
-         56BNaaGd22gYlY7SnCYK3vUpOmJDLxc3vP5qWPN0Q0lBYizFMFdeK8NB7nnleiYsD6UA
-         mrqg==
+        b=gM3wQwaDAF8bTD0hdkff9KkUGwneh2ZLl56/3T2a3nHU0s4tod1/geVDpGENXgjzD+
+         jpCBExjWcd6zdYlUD6W/BQ5zbMTuFLxXMzh2GiqkVIxaVWtrzN5qURKv126i7L13l+Lo
+         DTKP7G1jMSOfE7SXzOO93yJSGlQkCEiIg5EeRShyh16bh3FUhyPK7LOI4eQem4Eautvh
+         B/daw8Nbs2BmriwKOrQALQN0w28i4wEwtjgFiX8PjRbvwdQkzg4HDSE2rYAjUHd53QGR
+         +lFxiYhRIlUpVI3ZsCMUk09emQtu/RydvggzpCCm13jZsumNAjlwQJNr2+Nz4h92slpZ
+         toXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=PJA60M0ShvGgAGdvUFVxM+gy8jPoTTfj2EhMnX7Rw2Q=;
-        b=WSEzEzUXQlHBUvg1pWjv6+1olC1m7W8Xo16di7Ro4m4LWBFPlNdRqAX4wWCyCeCwFk
-         O4/x/mim5YSc9LpiOfpsAOqlsr2G8IFfdd5nQTFZcBJPkDHgG8ZcBaUQJomIdLJcEb1z
-         BRCXUOSHy6X4UWRU1HMgcLDbhBnk/ohdI/MCZB4hUCReLNE2rUsyfa0XRp2awLXe2akM
-         Shfvhv6BZnyiPbfrQjR3yGufNaW/voNVWAKWenFkVl7Nh02CMndf8Ndx8sTVkTHeyTDC
-         jeOVVZwolmc/bAZwDgyLI2HWq+PZ/bC3IgZGEDgEAQjwwZxgBITsZ94BkkLnTh9P7rdd
-         ebLA==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=Y4XntF7b7G4DQ81sR0y/Jn2xedJWjLJRstkFUo/OuT8=;
+        b=R4nuaZU2Yb+px15DR2zqmiXceWEfEHRQeDD8A2ulqogG9BdMbkKkVwZ7bqAfLrpKlT
+         oFdvJtuytZqHOtbFwkZ8Hbz+H0720KCGoTO4AKkU0Tq2eN4wbNRiQ//sEZEOYZy1e/gj
+         s/cR6blrz8cT+Toev7dddQ9R+VQ6gOCy2Sxp04IyRL3VsuhBE39/IvW5NQtt+eVUdliY
+         tcXtl72szRd/F/ecpKmDSfGP2zyb6PDgUPolBWMDVXq735tnF0NVFA17emUqf+nzqV76
+         /KfNa1EKDDnPxDTgc4Cy+G+AvQT6rBI4HTVnr6Y4UkNSzwiTOXtY+At1/xCBQDxv407w
+         xPog==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=t2yJVjGS;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id o20si25872pjp.48.2019.06.06.13.28.42
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=YMIH7Umh;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id n66si192980oig.38.2019.06.06.14.08.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 13:28:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 06 Jun 2019 14:08:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=t2yJVjGS;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wr1-f51.google.com (mail-wr1-f51.google.com [209.85.221.51])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 255F720B7C
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 20:28:42 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559852922;
-	bh=7dtJJy+tpf1euG0sliaeXpcZWtPy4t0cTCPj40HG3Gc=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=t2yJVjGScNVAceTq64NgeNXeja0FCFjw2J41UevfqpsJ6YUmmYc3K+axFdZgrqoNG
-	 C2AFooBLHsfBQPFkZFLDhZOpkV8pWCqBrBk+Gm5E0fJSf8nVZ02y7HDywrc4PNgA0e
-	 TOjlgx5CqdRDt/Fp31naUp8cvXov8xmEnxZSVXlM=
-Received: by mail-wr1-f51.google.com with SMTP id x4so3747717wrt.6
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:28:42 -0700 (PDT)
-X-Received: by 2002:adf:f2c8:: with SMTP id d8mr4520549wrp.221.1559852920790;
- Thu, 06 Jun 2019 13:28:40 -0700 (PDT)
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=YMIH7Umh;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5cf980b00000>; Thu, 06 Jun 2019 14:08:00 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 06 Jun 2019 14:08:15 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 06 Jun 2019 14:08:15 -0700
+Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 6 Jun
+ 2019 21:08:15 +0000
+Subject: Re: [PATCH 4/5] mm/hmm: hmm_vma_fault() doesn't always call
+ hmm_range_unregister()
+To: Jason Gunthorpe <jgg@ziepe.ca>
+CC: Felix Kuehling <Felix.Kuehling@amd.com>, Philip Yang
+	<Philip.Yang@amd.com>, Alex Deucher <alexander.deucher@amd.com>,
+	<linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, John Hubbard
+	<jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>, Dan Williams
+	<dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh
+	<bsingharora@gmail.com>, Dan Carpenter <dan.carpenter@oracle.com>, "Matthew
+ Wilcox" <willy@infradead.org>, Souptick Joarder <jrdr.linux@gmail.com>,
+	"Andrew Morton" <akpm@linux-foundation.org>
+References: <20190506232942.12623-1-rcampbell@nvidia.com>
+ <20190506232942.12623-5-rcampbell@nvidia.com>
+ <20190606145018.GA3658@ziepe.ca>
+ <45c7f8ae-36b2-60cc-7d1d-d13ddd402d4b@nvidia.com>
+ <20190606195404.GJ17373@ziepe.ca>
+X-Nvconfidentiality: public
+From: Ralph Campbell <rcampbell@nvidia.com>
+Message-ID: <716383df-9985-03b4-bd0c-93de87bffa90@nvidia.com>
+Date: Thu, 6 Jun 2019 14:08:14 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.0
 MIME-Version: 1.0
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com> <20190606200926.4029-12-yu-cheng.yu@intel.com>
-In-Reply-To: <20190606200926.4029-12-yu-cheng.yu@intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 6 Jun 2019 13:28:29 -0700
-X-Gmail-Original-Message-ID: <CALCETrXWehe=s4i+VkjxJBLh2AVWRioybpY0nbEWXZjvY_rFeQ@mail.gmail.com>
-Message-ID: <CALCETrXWehe=s4i+VkjxJBLh2AVWRioybpY0nbEWXZjvY_rFeQ@mail.gmail.com>
-Subject: Re: [PATCH v7 11/14] x86/vsyscall/64: Add ENDBR64 to vsyscall entry points
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, 
-	Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, 
-	"open list:DOCUMENTATION" <linux-doc@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
-	linux-arch <linux-arch@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, 
-	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>, 
-	Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, 
-	Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, 
-	Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, 
-	Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, 
-	Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, 
-	Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
-	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, Dave Martin <Dave.Martin@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190606195404.GJ17373@ziepe.ca>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1559855280; bh=Y4XntF7b7G4DQ81sR0y/Jn2xedJWjLJRstkFUo/OuT8=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=YMIH7Umhi4BIMhgVQhYRmUeQw1+kXYUpAhobvb7PiW1Vf+rDjc0Hn9H3i5vjlY58R
+	 Ki+k06AVcac5VD5x4cnYgL6j4SSyhmQqpp7FmMoBYSBdHn1utQ8MWkrdRYI4L5qWf2
+	 CsX6cpb+rH3mzDRwHkEPm8MqtFvTDP3V7TjDq54dSuVRPQ0YIRMIGmAioXkwEnMSKY
+	 TYHX1WxoxUPWQx1T/Xog6YC/Y4acWP0UuaeT68p1n3EFgjEIl9gREBcBvj4dI6wj0L
+	 5WNge292oaRHVcYfEP9Jl1UAbp69ACRJKuVUQfYbkY5SV99iyL9EXbwtFHPWupfdnO
+	 KQ25V6EZu+cJg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 6, 2019 at 1:17 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
->
-> From: "H.J. Lu" <hjl.tools@gmail.com>
->
-> Add ENDBR64 to vsyscall entry points.
 
-I'm still okay with this patch, but this is rather silly.  If anyone
-actually executes this code, they're doing it wrong.
+On 6/6/19 12:54 PM, Jason Gunthorpe wrote:
+> On Thu, Jun 06, 2019 at 12:44:36PM -0700, Ralph Campbell wrote:
+>>
+>> On 6/6/19 7:50 AM, Jason Gunthorpe wrote:
+>>> On Mon, May 06, 2019 at 04:29:41PM -0700, rcampbell@nvidia.com wrote:
+>>>> From: Ralph Campbell <rcampbell@nvidia.com>
+>>>>
+>>>> The helper function hmm_vma_fault() calls hmm_range_register() but is
+>>>> missing a call to hmm_range_unregister() in one of the error paths.
+>>>> This leads to a reference count leak and ultimately a memory leak on
+>>>> struct hmm.
+>>>>
+>>>> Always call hmm_range_unregister() if hmm_range_register() succeeded.
+>>>>
+>>>> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+>>>> Signed-off-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+>>>> Cc: John Hubbard <jhubbard@nvidia.com>
+>>>> Cc: Ira Weiny <ira.weiny@intel.com>
+>>>> Cc: Dan Williams <dan.j.williams@intel.com>
+>>>> Cc: Arnd Bergmann <arnd@arndb.de>
+>>>> Cc: Balbir Singh <bsingharora@gmail.com>
+>>>> Cc: Dan Carpenter <dan.carpenter@oracle.com>
+>>>> Cc: Matthew Wilcox <willy@infradead.org>
+>>>> Cc: Souptick Joarder <jrdr.linux@gmail.com>
+>>>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>>>>    include/linux/hmm.h | 3 ++-
+>>>>    1 file changed, 2 insertions(+), 1 deletion(-)
+>>>
+>>>> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+>>>> index 35a429621e1e..fa0671d67269 100644
+>>>> +++ b/include/linux/hmm.h
+>>>> @@ -559,6 +559,7 @@ static inline int hmm_vma_fault(struct hmm_range *=
+range, bool block)
+>>>>    		return (int)ret;
+>>>>    	if (!hmm_range_wait_until_valid(range, HMM_RANGE_DEFAULT_TIMEOUT))=
+ {
+>>>> +		hmm_range_unregister(range);
+>>>>    		/*
+>>>>    		 * The mmap_sem was taken by driver we release it here and
+>>>>    		 * returns -EAGAIN which correspond to mmap_sem have been
+>>>> @@ -570,13 +571,13 @@ static inline int hmm_vma_fault(struct hmm_range=
+ *range, bool block)
+>>>>    	ret =3D hmm_range_fault(range, block);
+>>>>    	if (ret <=3D 0) {
+>>>> +		hmm_range_unregister(range);
+>>>
+>>> While this seems to be a clear improvement, it seems there is still a
+>>> bug in nouveau_svm.c around here as I see it calls hmm_vma_fault() but
+>>> never calls hmm_range_unregister() for its on stack range - and
+>>> hmm_vma_fault() still returns with the range registered.
+>>>
+>>> As hmm_vma_fault() is only used by nouveau and is marked as
+>>> deprecated, I think we need to fix nouveau, either by dropping
+>>> hmm_range_fault(), or by adding the missing unregister to nouveau in
+>>> this patch.
+>>
+>> I will send a patch for nouveau to use hmm_range_register() and
+>> hmm_range_fault() and do some testing with OpenCL.
+>=20
+> wow, thanks, I'd like to also really like to send such a thing through
+> hmm.git - do you know who the nouveau maintainers are so we can
+> collaborate on patch planning this?
 
---Andy
+Ben Skeggs <bskeggs@redhat.com> is the maintainer and
+nouveau@lists.freedesktop.org is the mailing list for changes.
+I'll be sure to CC them for the patch.
+
+>> I can also send a separate patch to then remove hmm_vma_fault()
+>> but I guess that should be after AMD's changes.
+>=20
+> Let us wait to hear back from AMD how they can consume hmm.git - I'd
+> very much like to get everything done in one kernel cycle!
+>=20
+> Regards,
+> Jason
+>=20
 
