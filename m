@@ -2,77 +2,77 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNWANTED_LANGUAGE_BODY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D42EC46460
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E528C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 52ACC20B1F
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 52ACC20B1F
+	by mail.kernel.org (Postfix) with ESMTP id 22EEF208E4
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22EEF208E4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9FA4F6B028F; Thu,  6 Jun 2019 16:15:17 -0400 (EDT)
+	id 31B3E6B0292; Thu,  6 Jun 2019 16:15:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9357A6B0292; Thu,  6 Jun 2019 16:15:17 -0400 (EDT)
+	id 2AA266B0293; Thu,  6 Jun 2019 16:15:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7598A6B0293; Thu,  6 Jun 2019 16:15:17 -0400 (EDT)
+	id 05E5B6B0294; Thu,  6 Jun 2019 16:15:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 291D06B028F
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:15:17 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id z10so2291664pgf.15
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:15:17 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B6ACF6B0292
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:15:18 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id d125so2614589pfd.3
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:15:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=xNZB2zLiZ21eOdSBBflS3RlJecfHCk2sycG3I8os74o=;
-        b=HOJ4jwvVW24JE6BAR7jlTC+g6hNy+eiYMpOi0Kt1U6WOEWqwOO8OZCFcdSf5zBL2fY
-         62WBZLpnfHV2HkRzHRVS5UoM9fVCO2jTjZAA64ZGDhVRBWpyyE1XI3h99emUht1dsSAy
-         IqExd0gg4QDXGbNaShBYjKucKlPDVzA4KayoReRAY3auhRlGP4SdVrYX8fV5+pvcePZw
-         sODRZJrDffEukjcn+lj1pXiow7FLBuQ4zFxCPgQ4UcqOMl3CEzBDboK8f4rjGGYzhcfl
-         rwDZYa/z+ZENGsAiiz/zHp8jb/nPtfTxW893QFL7t52Y2huNZhAth4GYY7SPPfsmGWz0
-         VB8A==
+        bh=Agqu7L2UI0Tkjxyheb61lr04vYuCi6Sfe41rIBPXzL4=;
+        b=pHvhlTrpHJmDTbV5rwKC413NPnr3V+OMnQDSnth7CcGknNC2Z678R879YjtngWLkV/
+         BcS8O8NBru5Qkx13niwNugQKDOM58B1nbvq7Eimn8owmhFc/NdJbCBwqDk945WKOUNyK
+         HNWEP4HofzlRP+rt+QI57OnYx75n+XOgZucIWc5dGBkCsreMzr05egn8GOCiqmi4TSNv
+         lHrAsXeeT+anzlg1cjRiqRxtF1CrDgZaZNUobrdNK3b3XDF3LtUtPLqxdRAv26C4KtvD
+         Yc5gYRavk9yZ7da0Hc39HrV9gCzGesJFzlbH707QQnHZYdQEXPhw4/bI/7Owvk6LXBqD
+         wOnQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXmIWEFYR6csMWSuqxjGm7+kWmzUw268GLkBFXtHPMm+C6782wo
-	y6jSj+0tWtfWe1yUPhL/bb0XCUOXBlDRg0cFL7fGR2RMJZgGLYzVdqoi+2L8BokINE8KMZGuIf6
-	hZoC8+YQsYELW3puvgq0dNa2/DduhFH2U/enXUM7IvFGtU6sbf323O0Ca6rEqVvOocQ==
-X-Received: by 2002:a17:90a:2561:: with SMTP id j88mr1637636pje.121.1559852116818;
+X-Gm-Message-State: APjAAAXETrSscTdJFJUfv0tPu+AQTyAABwa0RIHbvgSngF0B03prs/80
+	4ore+i3BAIU6St7pA+d45+itY80MGh7WFRxQNG9B7XSGJx0lUo+TJBdHN5v7wOUOEDSdQwMJ70B
+	e71lT7fzRV6dZzz09hb25B25RUp951yCsmVESERuW1XKKOt9fDomiq9tSZmtBQ+gMNw==
+X-Received: by 2002:a65:56c2:: with SMTP id w2mr299367pgs.49.1559852118208;
+        Thu, 06 Jun 2019 13:15:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz5PEfxW/FfsqdztvOtU1XbBxaGUN2sQ7bRZdnRgp73AjDaGCTpuZfpUBcFwTtMAfeuhA3L
+X-Received: by 2002:a65:56c2:: with SMTP id w2mr299276pgs.49.1559852116842;
         Thu, 06 Jun 2019 13:15:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwvNs7rsDrIikOlkllqgy4G0quYo3NlNkdkB+r+ixYDlm8vYT3fGV2I5PLwnHzxCb6l5w0u
-X-Received: by 2002:a17:90a:2561:: with SMTP id j88mr1637529pje.121.1559852115423;
-        Thu, 06 Jun 2019 13:15:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559852115; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1559852116; cv=none;
         d=google.com; s=arc-20160816;
-        b=HsVtDua7yqQhCBWS/TckusnnNpuHULlswjmd0tS9YnkQFq8rsjCKShVcpLFRwnXeCE
-         HMtFWjscADuvV2m/dLKACA5hhYYLGytP/lbcTNbO6CTulm+xxuagnglZUfclAcBKTWpz
-         Zm5L7Yz7g3cPrV42gxuCzNDG4STJ/pSOQy/yincaga7ajskUf6Sq1akSwhkR4Zx+nhr1
-         rDofmAn9F6CbYaHJaP3Hqho6UEpb6lrpYG8BQcmNUu0G5jWfY/114J61YbTDASzoQ+sY
-         eT/z908/YRb1c5BYjV1oPd/XIhGcJoqUPQ1w/c/Y5yUQufjFldVl9xl+p6x7sTnaIpvI
-         rR1w==
+        b=u08zvOlJwxLcfwTPs/W54byvtzsIq4Ov5F6kTksH9JHz0UcNJWUByblucbwEsS88if
+         7lho/mkXd99x2ourDYQ9JUAPGWmASLi4g/I3laJtfzxgW3ubeZ2AemK8D5wcOVP9eHa9
+         RjdFK3+bpWsiB8ySXJ2SsEj1dRqxcAUjuFS/4ehvqqzNAraVrO6mEmCFvgkBxicDYsjH
+         x38RjGPWq+nouU2R6uNFFBogc7nXfaRowup1Cd8UiOBksx7KybltZ17TSZquJsA+DjWK
+         p9qhXECP28HFylcrkO58EKVs4OZE9T5ONv9eCvxdlsZbT6HAutCkcZVfUrAhbToG2kMB
+         MjBA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=xNZB2zLiZ21eOdSBBflS3RlJecfHCk2sycG3I8os74o=;
-        b=xJVAhvtTZ/VikvIb5mmr33znv++UjnmG3JElCIBZxX0UyBw9A3zfyPRqJrwhaYm+tx
-         5/atSeGNfl0HUoZjoYRxIB2fVK1euPkRerHbNycHFbngiQUbHXD+yb9Ils3NWxkpriu/
-         A6oZcz/oz+hZlOcSbtgPmRCjvAzZnVboom81TKPgyojBjdqy7HW9/VHQKqCfQbXH3DZh
-         Hj4HORkWMy25hDwn7RxLrNtUQYlRrAzdls0zOtMrXodJeranX6U6gz8aOYzONECIYne2
-         1k+8X/bH+vyWvxfP823WHrV2m0ki0R+/LvgXmKFKYO7TaxW004HHSPokrzvEF67jafY2
-         Gs2w==
+        bh=Agqu7L2UI0Tkjxyheb61lr04vYuCi6Sfe41rIBPXzL4=;
+        b=reaQrn2HxDGKDfJj2IObEsYII3VLHbxYsw26g/Vt4D4JEBExiYfZ4uZyL1nVARvd1C
+         S674YFQuPbQjhBXNA5wWd3OsOGUp8dcvG0Ns8ArvbV5p2jVGO+EHtrDkJCA/zTzfppuP
+         0PW1Y7XARCn6GCku3Dvdy93pwGzHSCv9ewFfA1YR0kZsOG0tT32K6FqPZdDk4ZXhbFka
+         XW/kwrYOLMqy57CrgRSPGkDgm/6aFzvqnLtYpt2wogaKNeCbUZ4ScX5TJysA+Ek8jeK2
+         JprTedp+TmXY2Ny2jVlsg/WkSd1EgqfMFz3FpZcHgaTrvyTQ4NFqzgpIrLcKbjOx9wWd
+         YRgw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id 91si31377plh.398.2019.06.06.13.15.15
+        by mx.google.com with ESMTPS id 91si31377plh.398.2019.06.06.13.15.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 13:15:15 -0700 (PDT)
+        Thu, 06 Jun 2019 13:15:16 -0700 (PDT)
 Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
@@ -80,10 +80,10 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:15:14 -0700
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:15:16 -0700
 X-ExtLoop1: 1
 Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by orsmga002.jf.intel.com with ESMTP; 06 Jun 2019 13:15:13 -0700
+  by orsmga002.jf.intel.com with ESMTP; 06 Jun 2019 13:15:15 -0700
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
 To: x86@kernel.org,
 	"H. Peter Anvin" <hpa@zytor.com>,
@@ -116,9 +116,9 @@ To: x86@kernel.org,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v7 05/27] x86/fpu/xstate: Add XSAVES system states for shadow stack
-Date: Thu,  6 Jun 2019 13:06:24 -0700
-Message-Id: <20190606200646.3951-6-yu-cheng.yu@intel.com>
+Subject: [PATCH v7 06/27] x86/cet: Add control protection exception handler
+Date: Thu,  6 Jun 2019 13:06:25 -0700
+Message-Id: <20190606200646.3951-7-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190606200646.3951-1-yu-cheng.yu@intel.com>
 References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
@@ -128,142 +128,176 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Intel Control-flow Enforcement Technology (CET) introduces the
-following MSRs.
+A control protection exception is triggered when a control flow transfer
+attempt violated shadow stack or indirect branch tracking constraints.
+For example, the return address for a RET instruction differs from the
+safe copy on the shadow stack; or a JMP instruction arrives at a non-
+ENDBR instruction.
 
-    MSR_IA32_U_CET (user-mode CET settings),
-    MSR_IA32_PL3_SSP (user-mode shadow stack),
-    MSR_IA32_PL0_SSP (kernel-mode shadow stack),
-    MSR_IA32_PL1_SSP (Privilege Level 1 shadow stack),
-    MSR_IA32_PL2_SSP (Privilege Level 2 shadow stack).
-
-Introduce them into XSAVES system states.
+The control protection exception handler works in a similar way as the
+general protection fault handler.
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/include/asm/fpu/types.h            | 22 +++++++++++++++++++++
- arch/x86/include/asm/fpu/xstate.h           |  4 +++-
- arch/x86/include/uapi/asm/processor-flags.h |  2 ++
- arch/x86/kernel/fpu/xstate.c                | 10 ++++++++++
- 4 files changed, 37 insertions(+), 1 deletion(-)
+ arch/x86/entry/entry_64.S          |  2 +-
+ arch/x86/include/asm/traps.h       |  3 ++
+ arch/x86/kernel/idt.c              |  4 +++
+ arch/x86/kernel/signal_compat.c    |  2 +-
+ arch/x86/kernel/traps.c            | 57 ++++++++++++++++++++++++++++++
+ include/uapi/asm-generic/siginfo.h |  3 +-
+ 6 files changed, 68 insertions(+), 3 deletions(-)
 
-diff --git a/arch/x86/include/asm/fpu/types.h b/arch/x86/include/asm/fpu/types.h
-index f098f6cab94b..d7ef4d9c7ad5 100644
---- a/arch/x86/include/asm/fpu/types.h
-+++ b/arch/x86/include/asm/fpu/types.h
-@@ -114,6 +114,9 @@ enum xfeature {
- 	XFEATURE_Hi16_ZMM,
- 	XFEATURE_PT_UNIMPLEMENTED_SO_FAR,
- 	XFEATURE_PKRU,
-+	XFEATURE_RESERVED,
-+	XFEATURE_CET_USER,
-+	XFEATURE_CET_KERNEL,
- 
- 	XFEATURE_MAX,
- };
-@@ -128,6 +131,8 @@ enum xfeature {
- #define XFEATURE_MASK_Hi16_ZMM		(1 << XFEATURE_Hi16_ZMM)
- #define XFEATURE_MASK_PT		(1 << XFEATURE_PT_UNIMPLEMENTED_SO_FAR)
- #define XFEATURE_MASK_PKRU		(1 << XFEATURE_PKRU)
-+#define XFEATURE_MASK_CET_USER		(1 << XFEATURE_CET_USER)
-+#define XFEATURE_MASK_CET_KERNEL	(1 << XFEATURE_CET_KERNEL)
- 
- #define XFEATURE_MASK_FPSSE		(XFEATURE_MASK_FP | XFEATURE_MASK_SSE)
- #define XFEATURE_MASK_AVX512		(XFEATURE_MASK_OPMASK \
-@@ -229,6 +234,23 @@ struct pkru_state {
- 	u32				pad;
- } __packed;
- 
-+/*
-+ * State component 11 is Control-flow Enforcement user states
-+ */
-+struct cet_user_state {
-+	u64 user_cet;			/* user control-flow settings */
-+	u64 user_ssp;			/* user shadow stack pointer */
-+};
-+
-+/*
-+ * State component 12 is Control-flow Enforcement kernel states
-+ */
-+struct cet_kernel_state {
-+	u64 kernel_ssp;			/* kernel shadow stack */
-+	u64 pl1_ssp;			/* privilege level 1 shadow stack */
-+	u64 pl2_ssp;			/* privilege level 2 shadow stack */
-+};
-+
- struct xstate_header {
- 	u64				xfeatures;
- 	u64				xcomp_bv;
-diff --git a/arch/x86/include/asm/fpu/xstate.h b/arch/x86/include/asm/fpu/xstate.h
-index 2ec19415c58e..9ac8a81e851d 100644
---- a/arch/x86/include/asm/fpu/xstate.h
-+++ b/arch/x86/include/asm/fpu/xstate.h
-@@ -30,7 +30,9 @@
- 				  XFEATURE_MASK_Hi16_ZMM | \
- 				  XFEATURE_MASK_PKRU | \
- 				  XFEATURE_MASK_BNDREGS | \
--				  XFEATURE_MASK_BNDCSR)
-+				  XFEATURE_MASK_BNDCSR | \
-+				  XFEATURE_MASK_CET_USER | \
-+				  XFEATURE_MASK_CET_KERNEL)
- 
- #ifdef CONFIG_X86_64
- #define REX_PREFIX	"0x48, "
-diff --git a/arch/x86/include/uapi/asm/processor-flags.h b/arch/x86/include/uapi/asm/processor-flags.h
-index bcba3c643e63..a8df907e8017 100644
---- a/arch/x86/include/uapi/asm/processor-flags.h
-+++ b/arch/x86/include/uapi/asm/processor-flags.h
-@@ -130,6 +130,8 @@
- #define X86_CR4_SMAP		_BITUL(X86_CR4_SMAP_BIT)
- #define X86_CR4_PKE_BIT		22 /* enable Protection Keys support */
- #define X86_CR4_PKE		_BITUL(X86_CR4_PKE_BIT)
-+#define X86_CR4_CET_BIT		23 /* enable Control-flow Enforcement */
-+#define X86_CR4_CET		_BITUL(X86_CR4_CET_BIT)
- 
- /*
-  * x86-64 Task Priority Register, CR8
-diff --git a/arch/x86/kernel/fpu/xstate.c b/arch/x86/kernel/fpu/xstate.c
-index 6b453455a4f0..7f99878111d7 100644
---- a/arch/x86/kernel/fpu/xstate.c
-+++ b/arch/x86/kernel/fpu/xstate.c
-@@ -36,6 +36,9 @@ static const char *xfeature_names[] =
- 	"Processor Trace (unused)"	,
- 	"Protection Keys User registers",
- 	"unknown xstate feature"	,
-+	"Control-flow User registers"	,
-+	"Control-flow Kernel registers"	,
-+	"unknown xstate feature"	,
- };
- 
- static short xsave_cpuid_features[] __initdata = {
-@@ -49,6 +52,9 @@ static short xsave_cpuid_features[] __initdata = {
- 	X86_FEATURE_AVX512F,
- 	X86_FEATURE_INTEL_PT,
- 	X86_FEATURE_PKU,
-+	0,		   /* Unused */
-+	X86_FEATURE_SHSTK, /* XFEATURE_CET_USER */
-+	X86_FEATURE_SHSTK, /* XFEATURE_CET_KERNEL */
- };
- 
- /*
-@@ -320,6 +326,8 @@ static void __init print_xstate_features(void)
- 	print_xstate_feature(XFEATURE_MASK_ZMM_Hi256);
- 	print_xstate_feature(XFEATURE_MASK_Hi16_ZMM);
- 	print_xstate_feature(XFEATURE_MASK_PKRU);
-+	print_xstate_feature(XFEATURE_MASK_CET_USER);
-+	print_xstate_feature(XFEATURE_MASK_CET_KERNEL);
- }
- 
- /*
-@@ -566,6 +574,8 @@ static void check_xstate_against_struct(int nr)
- 	XCHECK_SZ(sz, nr, XFEATURE_ZMM_Hi256, struct avx_512_zmm_uppers_state);
- 	XCHECK_SZ(sz, nr, XFEATURE_Hi16_ZMM,  struct avx_512_hi16_state);
- 	XCHECK_SZ(sz, nr, XFEATURE_PKRU,      struct pkru_state);
-+	XCHECK_SZ(sz, nr, XFEATURE_CET_USER,   struct cet_user_state);
-+	XCHECK_SZ(sz, nr, XFEATURE_CET_KERNEL, struct cet_kernel_state);
+diff --git a/arch/x86/entry/entry_64.S b/arch/x86/entry/entry_64.S
+index 11aa3b2afa4d..595c2efbb893 100644
+--- a/arch/x86/entry/entry_64.S
++++ b/arch/x86/entry/entry_64.S
+@@ -993,7 +993,7 @@ idtentry spurious_interrupt_bug		do_spurious_interrupt_bug	has_error_code=0
+ idtentry coprocessor_error		do_coprocessor_error		has_error_code=0
+ idtentry alignment_check		do_alignment_check		has_error_code=1
+ idtentry simd_coprocessor_error		do_simd_coprocessor_error	has_error_code=0
+-
++idtentry control_protection		do_control_protection		has_error_code=1
  
  	/*
- 	 * Make *SURE* to add any feature numbers in below if
+ 	 * Reload gs selector with exception handling
+diff --git a/arch/x86/include/asm/traps.h b/arch/x86/include/asm/traps.h
+index 7d6f3f3fad78..5906a22796b6 100644
+--- a/arch/x86/include/asm/traps.h
++++ b/arch/x86/include/asm/traps.h
+@@ -26,6 +26,7 @@ asmlinkage void invalid_TSS(void);
+ asmlinkage void segment_not_present(void);
+ asmlinkage void stack_segment(void);
+ asmlinkage void general_protection(void);
++asmlinkage void control_protection(void);
+ asmlinkage void page_fault(void);
+ asmlinkage void async_page_fault(void);
+ asmlinkage void spurious_interrupt_bug(void);
+@@ -81,6 +82,7 @@ struct bad_iret_stack *fixup_bad_iret(struct bad_iret_stack *s);
+ void __init trap_init(void);
+ #endif
+ dotraplinkage void do_general_protection(struct pt_regs *regs, long error_code);
++dotraplinkage void do_control_protection(struct pt_regs *regs, long error_code);
+ dotraplinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code);
+ dotraplinkage void do_spurious_interrupt_bug(struct pt_regs *regs, long error_code);
+ dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code);
+@@ -151,6 +153,7 @@ enum {
+ 	X86_TRAP_AC,		/* 17, Alignment Check */
+ 	X86_TRAP_MC,		/* 18, Machine Check */
+ 	X86_TRAP_XF,		/* 19, SIMD Floating-Point Exception */
++	X86_TRAP_CP = 21,	/* 21 Control Protection Fault */
+ 	X86_TRAP_IRET = 32,	/* 32, IRET Exception */
+ };
+ 
+diff --git a/arch/x86/kernel/idt.c b/arch/x86/kernel/idt.c
+index 6d8917875f44..588848d00fff 100644
+--- a/arch/x86/kernel/idt.c
++++ b/arch/x86/kernel/idt.c
+@@ -103,6 +103,10 @@ static const __initconst struct idt_data def_idts[] = {
+ #elif defined(CONFIG_X86_32)
+ 	SYSG(IA32_SYSCALL_VECTOR,	entry_INT80_32),
+ #endif
++
++#ifdef CONFIG_X86_64
++	INTG(X86_TRAP_CP,		control_protection),
++#endif
+ };
+ 
+ /*
+diff --git a/arch/x86/kernel/signal_compat.c b/arch/x86/kernel/signal_compat.c
+index 9ccbf0576cd0..c572a3de1037 100644
+--- a/arch/x86/kernel/signal_compat.c
++++ b/arch/x86/kernel/signal_compat.c
+@@ -27,7 +27,7 @@ static inline void signal_compat_build_tests(void)
+ 	 */
+ 	BUILD_BUG_ON(NSIGILL  != 11);
+ 	BUILD_BUG_ON(NSIGFPE  != 15);
+-	BUILD_BUG_ON(NSIGSEGV != 7);
++	BUILD_BUG_ON(NSIGSEGV != 8);
+ 	BUILD_BUG_ON(NSIGBUS  != 5);
+ 	BUILD_BUG_ON(NSIGTRAP != 5);
+ 	BUILD_BUG_ON(NSIGCHLD != 6);
+diff --git a/arch/x86/kernel/traps.c b/arch/x86/kernel/traps.c
+index 8b6d03e55d2f..db143d447bba 100644
+--- a/arch/x86/kernel/traps.c
++++ b/arch/x86/kernel/traps.c
+@@ -570,6 +570,63 @@ do_general_protection(struct pt_regs *regs, long error_code)
+ }
+ NOKPROBE_SYMBOL(do_general_protection);
+ 
++static const char *control_protection_err[] = {
++	"unknown",
++	"near-ret",
++	"far-ret/iret",
++	"endbranch",
++	"rstorssp",
++	"setssbsy",
++};
++
++/*
++ * When a control protection exception occurs, send a signal
++ * to the responsible application.  Currently, control
++ * protection is only enabled for the user mode.  This
++ * exception should not come from the kernel mode.
++ */
++dotraplinkage void
++do_control_protection(struct pt_regs *regs, long error_code)
++{
++	struct task_struct *tsk;
++
++	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
++	if (notify_die(DIE_TRAP, "control protection fault", regs,
++		       error_code, X86_TRAP_CP, SIGSEGV) == NOTIFY_STOP)
++		return;
++	cond_local_irq_enable(regs);
++
++	if (!user_mode(regs))
++		die("kernel control protection fault", regs, error_code);
++
++	if (!static_cpu_has(X86_FEATURE_SHSTK) &&
++	    !static_cpu_has(X86_FEATURE_IBT))
++		WARN_ONCE(1, "CET is disabled but got control protection fault\n");
++
++	tsk = current;
++	tsk->thread.error_code = error_code;
++	tsk->thread.trap_nr = X86_TRAP_CP;
++
++	if (show_unhandled_signals && unhandled_signal(tsk, SIGSEGV) &&
++	    printk_ratelimit()) {
++		unsigned int max_err;
++
++		max_err = ARRAY_SIZE(control_protection_err) - 1;
++		if ((error_code < 0) || (error_code > max_err))
++			error_code = 0;
++		pr_info("%s[%d] control protection ip:%lx sp:%lx error:%lx(%s)",
++			tsk->comm, task_pid_nr(tsk),
++			regs->ip, regs->sp, error_code,
++			control_protection_err[error_code]);
++		print_vma_addr(KERN_CONT " in ", regs->ip);
++		pr_cont("\n");
++	}
++
++	force_sig_fault(SIGSEGV, SEGV_CPERR,
++			(void __user *)uprobe_get_trap_addr(regs), tsk);
++}
++NOKPROBE_SYMBOL(do_control_protection);
++
+ dotraplinkage void notrace do_int3(struct pt_regs *regs, long error_code)
+ {
+ #ifdef CONFIG_DYNAMIC_FTRACE
+diff --git a/include/uapi/asm-generic/siginfo.h b/include/uapi/asm-generic/siginfo.h
+index cb3d6c267181..693071dbe641 100644
+--- a/include/uapi/asm-generic/siginfo.h
++++ b/include/uapi/asm-generic/siginfo.h
+@@ -229,7 +229,8 @@ typedef struct siginfo {
+ #define SEGV_ACCADI	5	/* ADI not enabled for mapped object */
+ #define SEGV_ADIDERR	6	/* Disrupting MCD error */
+ #define SEGV_ADIPERR	7	/* Precise MCD exception */
+-#define NSIGSEGV	7
++#define SEGV_CPERR	8
++#define NSIGSEGV	8
+ 
+ /*
+  * SIGBUS si_codes
 -- 
 2.17.1
 
