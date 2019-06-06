@@ -2,169 +2,135 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CFB1C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 22:29:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9FB2C46470
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 22:45:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D06CC20673
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 22:29:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D06CC20673
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 9C6D320868
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 22:45:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="SIE+1nvW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C6D320868
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6D3F66B02FA; Thu,  6 Jun 2019 18:29:57 -0400 (EDT)
+	id 36DB46B02FC; Thu,  6 Jun 2019 18:45:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 683EF6B02FC; Thu,  6 Jun 2019 18:29:57 -0400 (EDT)
+	id 31DF76B02FE; Thu,  6 Jun 2019 18:45:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5742E6B02FD; Thu,  6 Jun 2019 18:29:57 -0400 (EDT)
+	id 20C9F6B02FF; Thu,  6 Jun 2019 18:45:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F0D06B02FA
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 18:29:57 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id f8so5275pgp.9
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 15:29:57 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DD5636B02FC
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 18:45:11 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id b24so89621plz.20
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 15:45:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=EKF3cH2R6zucIsmZACfatbZP8jLIeENi91OyvJpLtNQ=;
-        b=dqmzdBC/5gJAaK/BHB3FGrvKe3/wsF0BfurcHi8hwLJP+An1eXv7O4NgO/ZrcU0iUW
-         /Ay1nSAddKV1zheFOyZrQXReR1yddQhubpwqq4Vu8froDib60WgN42QTtREpfGDnKoZ8
-         3I6RnLCI8JTZnx+Nk7M21HYq9GbAOukPaO66FRar466slSuIqVpuIwbLBju2C2zqDunO
-         wJHLtWYzAtQDRElQVY9J0kyfmw/2/OkjX6yVE/gOHEkm+7+O95bEF6YuTDYugliQVUuF
-         z+UFEgclbuOwf+/YCE7YcoT8PwUe5NyRjtWzV1l0qlWjnO2xOZPBAvNotI3Lt0I17DGb
-         tODg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAWK52Nwm5GTCpRJR/tU2X59KdOC3Rb14ogsZH3894j7NpXql+se
-	ZaG9SIcBXCO5TFssMAPkKHBN4Wif01pnm7RhP5Stzifno9WLuA+hl0pzIDmCQHYWyR5g01SdsFB
-	TzTlLmj1K0A/nhU21g3iYTfTx40V7r5CyhSIN/G7vULqj9Eb7W7pDSarWRHNx2UM=
-X-Received: by 2002:a63:445b:: with SMTP id t27mr120029pgk.56.1559860196679;
-        Thu, 06 Jun 2019 15:29:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxMwyYd5Nl2u5Rldil4eWVKNhRcndt+2yp8UencAwi5JRinHLkRjeKByKYX6YR0KauzHTMP
-X-Received: by 2002:a63:445b:: with SMTP id t27mr119986pgk.56.1559860195787;
-        Thu, 06 Jun 2019 15:29:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559860195; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=HACnMQtPYnOPzs/mDwm4zputQD0bQTBQV8IWL1Bp2bk=;
+        b=S8avD38jP9EmTB7YbAVRf4DqHYGum/QFntPt5DDdnLMPv401HnA9uceLBWZb/Qt6PX
+         PPG14O0EpkwcpdRKZuamUT9N4lRLhDSSH1psni38NdGahqqT0hxIDaf1w9ZW1c3YcO6t
+         5YVPa+azxxT/NTmrYtDG/5wjJhxrkbtOpdA7+kbF4I/xEKxN09nXxi4YdqLBFz7/LWIL
+         CHNSoy3aRBSv3mIOMOvBuFEdfdan5jWRnQPfunV2LYB7+TDQkoEyqOxyp16VKkNRWe6p
+         GWgPbtMrxEPQlk46JfY6MPu0sTyjrg7WFb1p+5b7FX9s8+jkRIPm6vlCtznuDtLDvYDN
+         t+PQ==
+X-Gm-Message-State: APjAAAXICrtTQrxLM4mfs+CAlvLsb2SlfmPVxf97ScVKJPWcUQS621Y/
+	CN4cE8ee7foK4a/bYncAYJcbFnJw8ZkpBsb1ifIzM1jKGO8X42QXatStAMZKiXZvpwjwexTT6IV
+	o6bsL37hYVj1DSMvAFcooMN4dcM0sKaTarqu4Jx2Nobznkrw/MAurzfFyqe8Mtk3UaQ==
+X-Received: by 2002:aa7:9aaf:: with SMTP id x15mr3229291pfi.214.1559861111327;
+        Thu, 06 Jun 2019 15:45:11 -0700 (PDT)
+X-Received: by 2002:aa7:9aaf:: with SMTP id x15mr3229240pfi.214.1559861110684;
+        Thu, 06 Jun 2019 15:45:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559861110; cv=none;
         d=google.com; s=arc-20160816;
-        b=J+RkuMwJsvYV8fKrx/c+ORnuC5CbzNGEwc9EWCH6vu2doh/mvXrF1S2yZIEDHJeNn4
-         bu0mdrPFf5hh8ESOvoSy2pyVt9EdVGTWj+QWBT4ugYQvmkhSedTHMBlgy8/SnLxjGM40
-         TQvhGgwmiaOfEsP1sSsXUC1jtZHyoMkNi9o5w3Vie0fveZvov/x3Ksb40W81IktmqROe
-         R3ekkQWJ1UrsGRH/51TUMvippZrflJmafCU0Fnv+AKgO/PsL2blDi/VJ+eTkJ5REQi95
-         WjaqPhqdhUlUwq3o7SqX8XPRXmzSNcWeKD1p6yzEKkhVFORSPaarg5CbHd8Vqz741otd
-         qHbQ==
+        b=NgJuGleH9LomK6IjeHRAahbjtEj2qtLCeSz/nxKxsMeUFVYtHY+DwwrGBFFkRIG6+t
+         TXvn3dgXngVcFjJLzhjNof3bbOlWHWlq5CW8n7dtzDRcvU8jcwov+wiW4bCBQzmtIATD
+         2P1xeXq1dx9uzD5k6EhqH3G48og/DFbkIp6wZvNH+IC+a8dlc1Y7Lzwmq22oHe/90/b0
+         LyQlxHCIAFLmgfoqS4Aks8QcaXFuFehbqfdOrbygTFTLNXAQCDO4MYrvXnZkE3yCtMa3
+         j1DmhbWK3Q+lyLeTo52q8nxGOfsqsTzpXUC6cwK08rV4O6h9XHcAT+JykUJkZVjcFAwx
+         Eeaw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=EKF3cH2R6zucIsmZACfatbZP8jLIeENi91OyvJpLtNQ=;
-        b=QqTpTH5LNNXR5cQMhlZKiNdEf1uj9B5xa2IoMejCyyRtZUgv2QKT/sj71CSTem6ZDh
-         AEnFuvuNme/lfXkvFLFiyxIzK5s1nmTf4YXmuGFtz1PvZky6ldfKojuz/xvc2Q3ZJAdd
-         zFL1lyku43IXIbFCt1C5FMgimSC3F4BJpvAX8c97OXeH2Qi3jCYbSk9YoeZJlLdiNW/6
-         mCUxwCzWiNq1Q2UGDeVuK54dz7MVTrqv4BnMkIJZxMBw5upH/j6KeNlShMpu+VpMcgyy
-         /Oe4TXazEGmm8+mWEPuhxD+MmGAXzFBSrzKbdUjOKy0qc3DOB349QKkHhKW98dIPDs+e
-         LKEA==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=HACnMQtPYnOPzs/mDwm4zputQD0bQTBQV8IWL1Bp2bk=;
+        b=nUkPuJmF4VjrPGo3pNHSAHwXQo39HvfqgaxWO0N+tRBIykl23sGklZBFJ9d3lRyeNN
+         6C1++7qgRi0fl9RuVvj7d5jM6W3ZnHXgv71J+ZqvgTHg992OaPzLOsTaAg55On4aAcnB
+         qg82ygt1KDGzvcoPtpy3p+wHy0t3OM1EFXMKRouX/cwLoQxHzep6nLhbY3T9AILxZNqR
+         arsWtyAGJGpnC5B0WznxjHAkrz3P60IMk8NFead1DnNZIuthaVDyBF0qHUN3Nqdr5Q15
+         akbXgZgpWi64gEV2ZV+fRWyi2nw107u+Pr6orZjW3U/KASI/YNYw3Ks0Zh/FRap/G0Po
+         ZHTw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail106.syd.optusnet.com.au (mail106.syd.optusnet.com.au. [211.29.132.42])
-        by mx.google.com with ESMTP id i12si260289plt.287.2019.06.06.15.29.55
-        for <linux-mm@kvack.org>;
-        Thu, 06 Jun 2019 15:29:55 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.42;
+       dkim=pass header.i=@chromium.org header.s=google header.b=SIE+1nvW;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m13sor330571pff.45.2019.06.06.15.45.10
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 06 Jun 2019 15:45:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from dread.disaster.area (pa49-195-189-25.pa.nsw.optusnet.com.au [49.195.189.25])
-	by mail106.syd.optusnet.com.au (Postfix) with ESMTPS id 868484EA85D;
-	Fri,  7 Jun 2019 08:29:50 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1hZ0sP-0000g2-35; Fri, 07 Jun 2019 08:28:53 +1000
-Date: Fri, 7 Jun 2019 08:28:53 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>,
-	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
-	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org, Jason Gunthorpe <jgg@ziepe.ca>,
-	linux-rdma@vger.kernel.org
-Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
-Message-ID: <20190606222853.GD14308@dread.disaster.area>
-References: <20190606014544.8339-1-ira.weiny@intel.com>
- <20190606104203.GF7433@quack2.suse.cz>
- <20190606220329.GA11698@iweiny-DESK2.sc.intel.com>
+       dkim=pass header.i=@chromium.org header.s=google header.b=SIE+1nvW;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=HACnMQtPYnOPzs/mDwm4zputQD0bQTBQV8IWL1Bp2bk=;
+        b=SIE+1nvWpCuuB8LQr4c2J5pdl9aN9TrZOuogqp0LuJdSCuJ7s3L/mwrQsN757QZwkL
+         31MRdfiC4VlGxER8Nbk3eoehRYG45TPv0X47fAaLSi8NckGV2eY2Jwrt8KamFonbvefW
+         JQuAMfCV3DzEvIW2EBETktFuUGqPf+Hg1Rip0=
+X-Google-Smtp-Source: APXvYqzogBbs8NWhvAy6+K9bKGJowUgCD2OgwqNEA9Uv5xkcveaCMWVLXrYham6bjQifkgDDCXFp3w==
+X-Received: by 2002:a62:6143:: with SMTP id v64mr18839097pfb.42.1559861110305;
+        Thu, 06 Jun 2019 15:45:10 -0700 (PDT)
+Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
+        by smtp.gmail.com with ESMTPSA id v9sm184849pfm.34.2019.06.06.15.45.09
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 06 Jun 2019 15:45:09 -0700 (PDT)
+Date: Thu, 6 Jun 2019 15:45:08 -0700
+From: Kees Cook <keescook@chromium.org>
+To: Matthew Garrett <mjg59@google.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Matthew Wilcox <willy@infradead.org>,
+	Alexander Potapenko <glider@google.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH V4] mm: Allow userland to request that the kernel clear
+ memory on release
+Message-ID: <201906061543.10940C6@keescook>
+References: <CACdnJuup-y1xAO93wr+nr6ARacxJ9YXgaceQK9TLktE7shab1w@mail.gmail.com>
+ <20190429193631.119828-1-matthewgarrett@google.com>
+ <CACdnJuvJcJ4Rkp7gBTwZ_r_9wKtu34Yko+E3yo07cwc53QrGGA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190606220329.GA11698@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=D+Q3ErZj c=1 sm=1 tr=0 cx=a_idp_d
-	a=K5LJ/TdJMXINHCwnwvH1bQ==:117 a=K5LJ/TdJMXINHCwnwvH1bQ==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=dq6fvYVFJ5YA:10
-	a=QyXUC8HyAAAA:8 a=7-415B0cAAAA:8 a=-fIxr7oOWDDygYgkAT8A:9
-	a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
+In-Reply-To: <CACdnJuvJcJ4Rkp7gBTwZ_r_9wKtu34Yko+E3yo07cwc53QrGGA@mail.gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 06, 2019 at 03:03:30PM -0700, Ira Weiny wrote:
-> On Thu, Jun 06, 2019 at 12:42:03PM +0200, Jan Kara wrote:
-> > On Wed 05-06-19 18:45:33, ira.weiny@intel.com wrote:
-> > So I'd like to actually mandate that you *must* hold the file lease until
-> > you unpin all pages in the given range (not just that you have an option to
-> > hold a lease). And I believe the kernel should actually enforce this. That
-> > way we maintain a sane state that if someone uses a physical location of
-> > logical file offset on disk, he has a layout lease. Also once this is done,
-> > sysadmin has a reasonably easy way to discover run-away RDMA application
-> > and kill it if he wishes so.
-> 
-> Fair enough.
-> 
-> I was kind of heading that direction but had not thought this far forward.  I
-> was exploring how to have a lease remain on the file even after a "lease
-> break".  But that is incompatible with the current semantics of a "layout"
-> lease (as currently defined in the kernel).  [In the end I wanted to get an RFC
-> out to see what people think of this idea so I did not look at keeping the
-> lease.]
-> 
-> Also hitch is that currently a lease is forcefully broken after
-> <sysfs>/lease-break-time.  To do what you suggest I think we would need a new
-> lease type with the semantics you describe.
+On Wed, Jun 05, 2019 at 11:26:03AM -0700, Matthew Garrett wrote:
+> Any further feedback on this? Does it seem conceptually useful?
 
-That just requires a flag when gaining the layout lease to say it is
-an "unbreakable layout lease". That gives the kernel the information
-needed to determine whether it should attempt to break the lease on
-truncate or just return ETXTBSY....
+Hi!
 
-i.e. it allows gup-pinning applications that want to behave nicely
-with other users to drop their gup pins and release the lease when
-something else wants to truncate/hole punch the file rather than
-have truncate return an error. e.g. to allow apps to cleanly interop
-with other breakable layout leases (e.g. pNFS) on the same
-filesystem.
+I love this patch, and I think it can nicely combine with Alexander's
+init_on_alloc/free series[1].
 
-FWIW, I'd also like to see the "truncate fails when unbreakable
-layout lease is held" behaviour to be common across all
-filesystem/storage types, not be confined to DAX only. i.e. truncate
-should return ETXTBSY when an unbreakable layout lease is held
-by an application, not just when "DAX+gup-pinned" is triggered....
+One thing I'd like to see changed is that the DONTWIPE call should
+wipe the memory. That way, there is no need to "trust" child behavior.
+The only way out of the WIPE flag is that the memory gets wiped.
 
-Whatever we decide, the behaviour of truncate et al needs to be
-predictable, consistent and easily discoverable...
+[1] https://patchwork.kernel.org/patch/10967023/
 
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Kees Cook
 
