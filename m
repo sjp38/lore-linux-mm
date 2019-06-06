@@ -4,74 +4,74 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 92A62C28EB3
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A1B44C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 590B4214C6
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 590B4214C6
+	by mail.kernel.org (Postfix) with ESMTP id 674E6208CA
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:15:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 674E6208CA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5DA0E6B02A6; Thu,  6 Jun 2019 16:15:30 -0400 (EDT)
+	id 84AE36B02A8; Thu,  6 Jun 2019 16:15:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 58ACD6B02A8; Thu,  6 Jun 2019 16:15:30 -0400 (EDT)
+	id 7D6C76B02AB; Thu,  6 Jun 2019 16:15:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 409516B02A9; Thu,  6 Jun 2019 16:15:30 -0400 (EDT)
+	id 6768B6B02A8; Thu,  6 Jun 2019 16:15:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ED9326B02A6
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:15:29 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 30so2292985pgk.16
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:15:29 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FB896B02A8
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:15:31 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id d19so2184353pls.1
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:15:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=kOQHRtvRp7Krjq9aXSeGB8Dyu2+i8rD/nMOsAT9UzjM=;
-        b=ZYFSVgVA1D0C1yG242aoElI9zhCvpzYxEtyKbUmr7E3sI1+AzUCvXP4LIP6NW7Di8e
-         7eMp89KZhJaqUwX3mgJ6iQah5SKnQvGzpBT/1GT1grK/hWng0pukd4SzRKlsJHhOvYhl
-         P1oobPBllZel9d3QpSAaYIwGn3WHwnC/UYn8sg2P0JyxnSMHgmSWzCvEa2mTTn7zaTcj
-         ldSL/6t3alCdD2x1oqZi+ojJpnqE/q4btq1pW2dE0+SDvcTD/O7O62W3szM/tcGUamgg
-         muYXOGAUFFmext4c6KH/odxQja+p/nbjC3BsJNszEv2WMYYuQ6y27ilGnUc1q5eCL9c1
-         Qi5w==
+        bh=wTis/tBUSVnfnxqsMN3VsGqgVPF5X8eJdrNigljA9pg=;
+        b=AApvlGjcpSK5lEgGaBgUtYIHv2U1zaGY+LvU3suRTb9Tw2KJRpGSeJK7qQEIep/kkk
+         oD0Ur6UwWrr0P5zkLzbwDf11XoKDqjT0dmPh3V+GlcbeIrHKnhl2ICH1/GvWbbxc1Yoo
+         G0JZu4nQxPASpTpVjV195o8G5DSnWLMlxn5URXj87TVTYB+0SnFqR7ktJWmo4BCdKOzK
+         Jfi0Ud5KtHVcsgukSOCrDgYQhxcDvEYyGTAco7/aQac6BWi4grv8GiAmvV/p2VRwGQ+O
+         VuH9S8u3oWW0CcCEJstr49WKxNmFIH1IcgX4cOsSHRBKuVkSY3ZbwTZJaCSHGOntDTzD
+         6Hfw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAU63hLsijliF1XMHPHvdQNdJTX1E/WzYKMxhHQQtrEkpsQGd++O
-	LlMwyv8XzXiLC98insjmlwZ7qSxQfbKCzDOX6Hx909vIz+8Rl+SkaQe6U1SGvwE1jHHlCZ9i509
-	eWPAvgRPaa69TZQa/9TTRNEvPlzczBvKxLUZWoVnSkWI+jK56tqaWEWAA4F7+RWb3MA==
-X-Received: by 2002:a63:c5:: with SMTP id 188mr328991pga.108.1559852129530;
-        Thu, 06 Jun 2019 13:15:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzn6wdatoq9PlympjMiikedR1JRfe7OPuEOUR2TdIBblSclMa1aeN92znOPllW2uLZp076S
-X-Received: by 2002:a63:c5:: with SMTP id 188mr328944pga.108.1559852128707;
-        Thu, 06 Jun 2019 13:15:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559852128; cv=none;
+X-Gm-Message-State: APjAAAUVvD7Jj3Gi9IeQvTicKXwVGd+68ooZNzy9v1C2duAjy1Uu9oV9
+	lmyoPoONhCt289MjrAgLiyFIn3wMj31ewDLYVr8bUHikdvlmUp0ZwYnL7oTn/gRg9uMfmkGaFNZ
+	OsDcyIXdWzVYv8Cu6ArB/9FIqAHlDZ4jGhwFbDeytjGcquJpyBv60+eCar69N7scPUQ==
+X-Received: by 2002:a17:90a:a608:: with SMTP id c8mr1569319pjq.37.1559852130730;
+        Thu, 06 Jun 2019 13:15:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwhMY+wvibVgWXRC6e7tqsqNZQ7xxK4HNEaGIKx+5AFRqJP3Kuu6EdDlLLnMlp0APQ2808T
+X-Received: by 2002:a17:90a:a608:: with SMTP id c8mr1569260pjq.37.1559852130000;
+        Thu, 06 Jun 2019 13:15:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559852129; cv=none;
         d=google.com; s=arc-20160816;
-        b=0MNsDImkkdaKM4LNs5JYm3uiZDoYaLk77FCwaoeKFZOW+xFj5rGfa4tVG+B862yVXf
-         QROVocazay8xmJal7MqbrIhYnuTJQbpkBmiHROQDAhVolieUsRkbucEUDWB7KAMgi/YX
-         eR/SNLa6zn+oWTbmp8TiCj8rzMJMSW1oWD4ERsgkIKHi+uxsInOw4rHl3fbvY2Qaa5rk
-         W2etnCn9MyvX55vSpDy9UWODFinoZsPCcQm4VY6c6dNPiApNsZi1IeBizOUPEnNTEwx+
-         92lDekz0qrTFQ+/jtNG5J2ALgn2cGAhpQIRykojvjoZz1Yne9B2/aDduADQSZfcrH6zF
-         OEiQ==
+        b=GXoATEyjA7eE0T8Mo9c5kZj1g2DXSmNIG2GT2mKOlvWlFS4ta7PtrFBw91CvyRT9vP
+         47DWim1k/x9PG5qr+LMG+DOI7ZxpRztii8FVm1ezPjCzEJD3hfdyqRjYqChEtFK9Vd5V
+         oX/Sr0JGrsP2ns3nW/VOSwcRCNcit5ARKYKRvBesqRHPtONyipTKHIomhkwgYNbcFNZM
+         eu+JXM626DioFlg7sb3tPrGcK5uznxV5CslwNlwD9gLQlMu6OwC6f4QK3d7HBDTh0seg
+         CLBaFrOi6edfyT/5MuNXek731jnvv8S4Y6p4/hLjMRft6cbaNg/mPWaXSgaIZH+QQBRm
+         pueg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=kOQHRtvRp7Krjq9aXSeGB8Dyu2+i8rD/nMOsAT9UzjM=;
-        b=j4pbYfpeKuWMB8LvGaqfWgHw9GqQqSD4Vdbkiz6bBxTEMeOEJrC4rGHVdcUJypgyou
-         7Pkdrot0Kqsyb2pgCkSS7gXVv9x8dl5w2rD76gIKhW/Kq3QFwug02lpx6JRW718Y5E7W
-         b5TZJ6NzNpn7CQZ7kDuZzpDAR5qkLCrfG6vgkiVNL4tBtdxAAxZ7x+hnuwt69260d56o
-         9/fNHPhdYsm9S9mOAZajKedSymMA6wyhFoEh1xnpCgMJYVrHHmCevMxMhg/6grOGKO8H
-         nd8wPRSX7tCyZpSi9tx37mu5WEl+NS4nW8au+06Ce2SrSpq7MTG67zm7UfaKfsP3zNf0
-         VQ+w==
+        bh=wTis/tBUSVnfnxqsMN3VsGqgVPF5X8eJdrNigljA9pg=;
+        b=N9jErH1ezpIm63pgkS8GrAqPK8bhJtQtw4YXtXiRax0FuSD3yseruQ53eGQgCT6xMn
+         dKNcdDCKt6+7rY6WyU/tkezCXLTJG35RmtgYcUGnh03b447/UFWWp/K8CYI2YiWMuCM2
+         AdnG8giojqlBJbfvUXRbfujcQo2NekVCZKe8RyrgKMpKiGEUa5+GkmBTLgWUke6LZzNY
+         TgTX+PvDMSyg2RdzKMWLIKXJ7AZggBlGqz0lYDMoo5IFiPKf26RgTsXqR/oL0wyb9oKN
+         ZlfjaUKXpcs6FXT1aUu7eIjboxEzIZ0BfM8SU1v3yHThCx0JzQ6xIiapiwpYHMe0lKZr
+         v/Kg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id r142si2785300pfc.219.2019.06.06.13.15.28
+        by mx.google.com with ESMTPS id r142si2785300pfc.219.2019.06.06.13.15.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 13:15:28 -0700 (PDT)
+        Thu, 06 Jun 2019 13:15:29 -0700 (PDT)
 Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
@@ -79,10 +79,10 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:15:28 -0700
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:15:29 -0700
 X-ExtLoop1: 1
 Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by orsmga002.jf.intel.com with ESMTP; 06 Jun 2019 13:15:27 -0700
+  by orsmga002.jf.intel.com with ESMTP; 06 Jun 2019 13:15:28 -0700
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
 To: x86@kernel.org,
 	"H. Peter Anvin" <hpa@zytor.com>,
@@ -115,9 +115,9 @@ To: x86@kernel.org,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v7 15/27] mm: Handle shadow stack page fault
-Date: Thu,  6 Jun 2019 13:06:34 -0700
-Message-Id: <20190606200646.3951-16-yu-cheng.yu@intel.com>
+Subject: [PATCH v7 16/27] mm: Handle THP/HugeTLB shadow stack page fault
+Date: Thu,  6 Jun 2019 13:06:35 -0700
+Message-Id: <20190606200646.3951-17-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190606200646.3951-1-yu-cheng.yu@intel.com>
 References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
@@ -127,108 +127,91 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a task does fork(), its shadow stack (SHSTK) must be duplicated
-for the child.  This patch implements a flow similar to copy-on-write
-of an anonymous page, but for SHSTK.
+This patch implements THP shadow stack (SHSTK) copying in the same
+way as in the previous patch for regular PTE.
 
-A SHSTK PTE must be RO and dirty.  This dirty bit requirement is used
-to effect the copying.  In copy_one_pte(), clear the dirty bit from a
-SHSTK PTE to cause a page fault upon the next SHSTK access.  At that
-time, fix the PTE and copy/re-use the page.
+In copy_huge_pmd(), clear the dirty bit from the PMD to cause a page
+fault upon the next SHSTK access to the PMD.  At that time, fix the
+PMD and copy/re-use the page.
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/mm/pgtable.c         | 15 +++++++++++++++
- include/asm-generic/pgtable.h |  8 ++++++++
- mm/memory.c                   |  7 ++++++-
- 3 files changed, 29 insertions(+), 1 deletion(-)
+ arch/x86/mm/pgtable.c         | 8 ++++++++
+ include/asm-generic/pgtable.h | 2 ++
+ mm/huge_memory.c              | 4 ++++
+ 3 files changed, 14 insertions(+)
 
 diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 1f67b1e15bf6..c2d754a780b3 100644
+index c2d754a780b3..8ff54bd978f3 100644
 --- a/arch/x86/mm/pgtable.c
 +++ b/arch/x86/mm/pgtable.c
-@@ -891,3 +891,18 @@ int pmd_free_pte_page(pmd_t *pmd, unsigned long addr)
+@@ -901,6 +901,14 @@ inline pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma)
+ 		return pte;
+ }
  
- #endif /* CONFIG_X86_64 */
- #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
-+
-+#ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
-+inline pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma)
++inline pmd_t pmd_set_vma_features(pmd_t pmd, struct vm_area_struct *vma)
 +{
 +	if (vma->vm_flags & VM_SHSTK)
-+		return pte_mkdirty_shstk(pte);
++		return pmd_mkdirty_shstk(pmd);
 +	else
-+		return pte;
++		return pmd;
 +}
 +
-+inline bool arch_copy_pte_mapping(vm_flags_t vm_flags)
-+{
-+	return (vm_flags & VM_SHSTK);
-+}
-+#endif /* CONFIG_X86_INTEL_SHADOW_STACK_USER */
+ inline bool arch_copy_pte_mapping(vm_flags_t vm_flags)
+ {
+ 	return (vm_flags & VM_SHSTK);
 diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 75d9d68a6de7..ffcc0be7cadc 100644
+index ffcc0be7cadc..4940411b8e1c 100644
 --- a/include/asm-generic/pgtable.h
 +++ b/include/asm-generic/pgtable.h
-@@ -1188,4 +1188,12 @@ static inline bool arch_has_pfn_modify_check(void)
- #define mm_pmd_folded(mm)	__is_defined(__PAGETABLE_PMD_FOLDED)
+@@ -1190,9 +1190,11 @@ static inline bool arch_has_pfn_modify_check(void)
+ 
+ #ifndef CONFIG_ARCH_HAS_SHSTK
+ #define pte_set_vma_features(pte, vma) pte
++#define pmd_set_vma_features(pmd, vma) pmd
+ #define arch_copy_pte_mapping(vma_flags) false
+ #else
+ pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma);
++pmd_t pmd_set_vma_features(pmd_t pmd, struct vm_area_struct *vma);
+ bool arch_copy_pte_mapping(vm_flags_t vm_flags);
  #endif
  
-+#ifndef CONFIG_ARCH_HAS_SHSTK
-+#define pte_set_vma_features(pte, vma) pte
-+#define arch_copy_pte_mapping(vma_flags) false
-+#else
-+pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma);
-+bool arch_copy_pte_mapping(vm_flags_t vm_flags);
-+#endif
-+
- #endif /* _ASM_GENERIC_PGTABLE_H */
-diff --git a/mm/memory.c b/mm/memory.c
-index ddf20bd0c317..51c97294f00f 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -777,7 +777,8 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
- 	 * If it's a COW mapping, write protect it both
- 	 * in the parent and the child
- 	 */
--	if (is_cow_mapping(vm_flags) && pte_write(pte)) {
-+	if ((is_cow_mapping(vm_flags) && pte_write(pte)) ||
-+	    arch_copy_pte_mapping(vm_flags)) {
- 		ptep_set_wrprotect(src_mm, addr, src_pte);
- 		pte = pte_wrprotect(pte);
- 	}
-@@ -2312,6 +2313,7 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
- 	flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
- 	entry = pte_mkyoung(vmf->orig_pte);
- 	entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+	entry = pte_set_vma_features(entry, vma);
- 	if (ptep_set_access_flags(vma, vmf->address, vmf->pte, entry, 1))
- 		update_mmu_cache(vma, vmf->address, vmf->pte);
- 	pte_unmap_unlock(vmf->pte, vmf->ptl);
-@@ -2387,6 +2389,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
- 		flush_cache_page(vma, vmf->address, pte_pfn(vmf->orig_pte));
- 		entry = mk_pte(new_page, vma->vm_page_prot);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 9f8bce9a6b32..eac1ee2f8985 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -608,6 +608,7 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
+ 
+ 		entry = mk_huge_pmd(page, vma->vm_page_prot);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++		entry = pmd_set_vma_features(entry, vma);
+ 		page_add_new_anon_rmap(page, vma, haddr, true);
+ 		mem_cgroup_commit_charge(page, memcg, false, true);
+ 		lru_cache_add_active_or_unevictable(page, vma);
+@@ -1250,6 +1251,7 @@ static vm_fault_t do_huge_pmd_wp_page_fallback(struct vm_fault *vmf,
+ 		pte_t entry;
+ 		entry = mk_pte(pages[i], vma->vm_page_prot);
  		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 +		entry = pte_set_vma_features(entry, vma);
- 		/*
- 		 * Clear the pte entry and flush it first, before updating the
- 		 * pte with the new entry. This will avoid a race condition
-@@ -2910,6 +2913,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
- 	pte = mk_pte(page, vma->vm_page_prot);
- 	if ((vmf->flags & FAULT_FLAG_WRITE) && reuse_swap_page(page, NULL)) {
- 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-+		pte = pte_set_vma_features(pte, vma);
- 		vmf->flags &= ~FAULT_FLAG_WRITE;
+ 		memcg = (void *)page_private(pages[i]);
+ 		set_page_private(pages[i], 0);
+ 		page_add_new_anon_rmap(pages[i], vmf->vma, haddr, false);
+@@ -1332,6 +1334,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+ 		pmd_t entry;
+ 		entry = pmd_mkyoung(orig_pmd);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++		entry = pmd_set_vma_features(entry, vma);
+ 		if (pmdp_set_access_flags(vma, haddr, vmf->pmd, entry,  1))
+ 			update_mmu_cache_pmd(vma, vmf->address, vmf->pmd);
  		ret |= VM_FAULT_WRITE;
- 		exclusive = RMAP_EXCLUSIVE;
-@@ -3052,6 +3056,7 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
- 	entry = mk_pte(page, vma->vm_page_prot);
- 	if (vma->vm_flags & VM_WRITE)
- 		entry = pte_mkwrite(pte_mkdirty(entry));
-+	entry = pte_set_vma_features(entry, vma);
- 
- 	vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd, vmf->address,
- 			&vmf->ptl);
+@@ -1404,6 +1407,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
+ 		pmd_t entry;
+ 		entry = mk_huge_pmd(new_page, vma->vm_page_prot);
+ 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
++		entry = pmd_set_vma_features(entry, vma);
+ 		pmdp_huge_clear_flush_notify(vma, haddr, vmf->pmd);
+ 		page_add_new_anon_rmap(new_page, vma, haddr, true);
+ 		mem_cgroup_commit_charge(new_page, memcg, false, true);
 -- 
 2.17.1
 
