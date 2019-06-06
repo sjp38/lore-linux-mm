@@ -7,72 +7,72 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 21022C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:16:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F346C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:16:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C9117208CA
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:16:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C9117208CA
+	by mail.kernel.org (Postfix) with ESMTP id 46E8F208C3
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:16:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 46E8F208C3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 479246B02BD; Thu,  6 Jun 2019 16:15:45 -0400 (EDT)
+	id 42DF56B02BF; Thu,  6 Jun 2019 16:15:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 42D556B02BF; Thu,  6 Jun 2019 16:15:45 -0400 (EDT)
+	id 3B5066B02C1; Thu,  6 Jun 2019 16:15:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 207F46B02C0; Thu,  6 Jun 2019 16:15:45 -0400 (EDT)
+	id 258B26B02C2; Thu,  6 Jun 2019 16:15:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D6A606B02BD
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:15:44 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 145so2592131pfv.18
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:15:44 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CED0C6B02BF
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:15:45 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id bc12so2182171plb.0
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:15:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=aXgEkBRX3/eV+3WwLvh+MpC5kBqOIXoZ+F2d27hK+18=;
-        b=jPOe2n/al4JSOR/RpWhP3K2xbHlsRgAre7050qRpc42TUclrpBOyyYL5kLX83Eiz19
-         qRzB1iso7O3YezXV0wso+zj1xBQVolAA6JIn8vLLIUjV7Fmz2Xq/ZN06dk14EF55xlw9
-         rLiqITSj0HT1sy+ye6s/4PPLGzITrvp3A/Rhmli31AA7nhbFyZFvIFkPJ5xfbKUlRJNZ
-         J38rfaYPZn+mpMZU3tJP+aT9caYg3off1KIARxBmxb1Jwn/+56nC0meDjgOLbujBjucT
-         HGRsip6swC8KrXeCb/X1QifR9xRXyrHfohG615vBaR1Dl8Zrj5xbXw8zI+khT+JyOAPF
-         569A==
+        bh=OQ5kV+Ft3hkRBLg3gYwc7poXPXYMd+Ka9Q+KpVCdFWE=;
+        b=d3zi1pPwT2xl7ig4a9Cv4Tbt+P/hcGeGhr6wvfa2F+O9o3iFzvJdAKz2NfDzeYhRNF
+         MkrtrsWtq2ZH4begfkCvHPB+WbFkhvMHj6LUGN/aAHhmU6f8qGVZvY19fnvxnopQa8Lk
+         DluXdINzhDI4JPgDQ47JM0fM8NerEeI3qoOQX6aY/NyzjjdXN3f2Zn2eROuTIXivJU4E
+         aJMXiT0wgn864Ma8pqTDXpPkVzJ/1KeTaZhUtjfZLQSD+Ic4Oe6lSEUNvr3ARMeWuSZ2
+         8LTsxOy0iGlOsSo/FrxSNm7X5BOwjCfGhekEdkVIfoVeRFnCGC01qmAItehi1J3KxMfh
+         Oc0Q==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAW8qTiIa2gOuSwmD5ANsxc5+eddqR4E3+7Go5ZwGPr4/4XYZEhG
-	U12cRQwbUUIKN873E5AEseL5L9rw7/meJIIF8tVAVFQgMeiOrHe0cnJY+9Vlv70U0yBC5rUC6e7
-	wjUPR7W0trDbjKpbSIQAswdIJ2V2MeScxZBsxTABzSHuFNRreuieGsGILacC52aCz/g==
-X-Received: by 2002:a62:7656:: with SMTP id r83mr30872202pfc.56.1559852144536;
+X-Gm-Message-State: APjAAAX0C+gzOiLj5yCZL3KXDXs+t3mHYci7nSOQr5Dd2GE0tZomLS+e
+	I3ce9pVw53xZUO1s0ZLQBXCkmmlcKBplllqNvQzgpZx8Txz/B7M0h+GjO1F/QHLjxIxDvAnAZck
+	6Z8zHMsl9+Idj4Gm8OOcaoFzp63HZLhaZ/fkEsjheFoP7t+yBSCSkVzVoWh9XWdDivQ==
+X-Received: by 2002:aa7:825a:: with SMTP id e26mr55750904pfn.255.1559852145485;
+        Thu, 06 Jun 2019 13:15:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqywDnhjwWERP2Qxl78eWfQTqlt9azNRDSqnH+MfOJsI7fm8oSad3iqb53xFKHN/FJtjXohd
+X-Received: by 2002:aa7:825a:: with SMTP id e26mr55750827pfn.255.1559852144393;
         Thu, 06 Jun 2019 13:15:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzTYPOqMoCHOsty0W6NEZxRvEGAh7g7oS2zlBDbLbnq7Kvye+unQVydObwW00dgMGbet1zT
-X-Received: by 2002:a62:7656:: with SMTP id r83mr30872102pfc.56.1559852143118;
-        Thu, 06 Jun 2019 13:15:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559852143; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1559852144; cv=none;
         d=google.com; s=arc-20160816;
-        b=R8sU+lDaZcczuy+zpoWu2sFAYw3LC+0rOW7pK87/Fz0YFKgJw/tBzoT3l+v573sHAs
-         0iqI2hRqS5EqmwTri5PvWvUpspUlqpRE30NH/BGlPbWF55jRV8aQXVRWDnBpEOuS4k11
-         7edrJAiDdJ0uMVh7dCoNEyUYJBbOKLh61tOeLd2xI+rI7LwoQ/G+M9yJN9N3Qy8VVlJn
-         z+utTCkw0L1FseuNRAlxwjV0OCtwK+/tB4IkXepYSNP9wgcGgqjLkZzi9UR62AOVC1TM
-         Jc+nyIfdtuQZkPpPPhQkoasyx82v+kLASTb+ICMLYQaxzacxIXPAbrrsFzIMbbip1yKF
-         UHPg==
+        b=zJaHs5jSPRukiP87rNKIJJdw7dkY9vSKXpLzo49DGasSKaZynA4Op6+5CIh5KAwtVg
+         AOY6yiBTlcp9hAxNmC6vRPILQV0OcO1OAfxzipLtESaeAaijdziwqD+D2KYS/fR3E2PQ
+         PAmPvsmBRUtEr2wXCE8sGSjm//XxeOpX5rFCoUyv1YgCcv35qC8VjVGqrEkAvsPLkeUa
+         uOC5RAzNnltdfsbBHWVTTQM9iQy2Qj57Dv48Odu8kZXPMf+J8/2jtl7/px8QBeFwklcf
+         Bz0ZiH7QFD2WmpLczzHAX2JHx/iB0/5ncS2gWgz409TctT5oWmWUChPAoQR8BeDBs9+R
+         VcRw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=aXgEkBRX3/eV+3WwLvh+MpC5kBqOIXoZ+F2d27hK+18=;
-        b=MZkkK8kMl8ELGe96hXzBhYoH5ucFZ2DVa07KfNb+cNVvoZjJVbYgHonlqbG6ONidHB
-         sYOxxyVIMs851OmVmnJYpb52NHK5iKETys+Kv7ZfHF0Oe38KhTGGC2oRIvMhSrZjgGrX
-         /k07EvYdYLC4L5A7XQKHkMpyds3ms8aYzbBA+g71MH5BpKn8uox6fltvtBiZZqQ6FUhq
-         JxmqzBVtITmKJCIrtkqDl/2WFOvqFMuDKR4Yb+K3xts//7Ti0QGiiuEq+bXsfhirUvvl
-         uCao4i0RBp2y/EmZPoKDM3JkaHue8SJJGJTY+MdSKPDKuZY9tr9LK3hMYLjSBvELP5xz
-         OwZw==
+        bh=OQ5kV+Ft3hkRBLg3gYwc7poXPXYMd+Ka9Q+KpVCdFWE=;
+        b=0rO0Ix3cS0s2YspOCLi61vWmj6rb1+FtZvsX4Eoo8Mu1908vOZNNzql+Hi0OH+q9wJ
+         OFWJWvrE/7kYBf6F4p0SCCyVjATxBl8t0hnVZX+7ZdLyuvUHlPJvErwPFN1MDZnWNLge
+         yTcRE6OYGZZclXRUG8rklEG+arDG11Z3aMZ0xkLXPrpDvFHeKOHCZ3+xGl7stpGEiRVq
+         hJBoy1q6gtgPpAt6r8NVYXPHPg9/UJVJ5MN/1o2ZwrfRfMMdki1y6fK4eQDDC0HXRSog
+         euplOc/YprWxjyvxNTH0Y0CyDRY0RrVs9Gn79rKk3Vmdk9cZAi3mjxrK08HrfnvaMMI9
+         Ze5g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id r142si2785300pfc.219.2019.06.06.13.15.42
+        by mx.google.com with ESMTPS id r142si2785300pfc.219.2019.06.06.13.15.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 13:15:43 -0700 (PDT)
+        Thu, 06 Jun 2019 13:15:44 -0700 (PDT)
 Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
@@ -80,10 +80,10 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:15:42 -0700
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:15:43 -0700
 X-ExtLoop1: 1
 Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by orsmga002.jf.intel.com with ESMTP; 06 Jun 2019 13:15:41 -0700
+  by orsmga002.jf.intel.com with ESMTP; 06 Jun 2019 13:15:42 -0700
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
 To: x86@kernel.org,
 	"H. Peter Anvin" <hpa@zytor.com>,
@@ -116,9 +116,9 @@ To: x86@kernel.org,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v7 26/27] x86/cet/shstk: Add arch_prctl functions for Shadow Stack
-Date: Thu,  6 Jun 2019 13:06:45 -0700
-Message-Id: <20190606200646.3951-27-yu-cheng.yu@intel.com>
+Subject: [PATCH v7 27/27] x86/cet/shstk: Add Shadow Stack instructions to opcode map
+Date: Thu,  6 Jun 2019 13:06:46 -0700
+Message-Id: <20190606200646.3951-28-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190606200646.3951-1-yu-cheng.yu@intel.com>
 References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
@@ -128,250 +128,178 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-arch_prctl(ARCH_X86_CET_STATUS, unsigned long *addr)
-    Return CET feature status.
+Add the following shadow stack management instructions.
 
-    The parameter 'addr' is a pointer to a user buffer.
-    On returning to the caller, the kernel fills the following
-    information:
+INCSSP:
+    Increment shadow stack pointer by the steps specified.
 
-    *addr = SHSTK/IBT status
-    *(addr + 1) = SHSTK base address
-    *(addr + 2) = SHSTK size
+RDSSP:
+    Read SSP register into a GPR.
 
-arch_prctl(ARCH_X86_CET_DISABLE, unsigned long features)
-    Disable CET features specified in 'features'.  Return
-    -EPERM if CET is locked.
+SAVEPREVSSP:
+    Use "prev ssp" token at top of current shadow stack to
+    create a "restore token" on previous shadow stack.
 
-arch_prctl(ARCH_X86_CET_LOCK)
-    Lock in CET feature.
+RSTORSSP:
+    Restore from a "restore token" pointed by a GPR to SSP.
 
-arch_prctl(ARCH_X86_CET_ALLOC_SHSTK, unsigned long *addr)
-    Allocate a new SHSTK.
+WRSS:
+    Write to kernel-mode shadow stack (kernel-mode instruction).
 
-    The parameter 'addr' is a pointer to a user buffer and indicates
-    the desired SHSTK size to allocate.  On returning to the caller
-    the buffer contains the address of the new SHSTK.
+WRUSS:
+    Write to user-mode shadow stack (kernel-mode instruction).
 
-There is no CET enabling arch_prctl function.  By design, CET is
-enabled automatically if the binary and the system can support it.
+SETSSBSY:
+    Verify the "supervisor token" pointed by IA32_PL0_SSP MSR,
+    if valid, set the token to busy, and set SSP to the value
+    of IA32_PL0_SSP MSR.
 
-The parameters passed are always unsigned 64-bit.  When an ia32
-application passing pointers, it should only use the lower 32 bits.
+CLRSSBSY:
+    Verify the "supervisor token" pointed by a GPR, if valid,
+    clear the busy bit from the token.
 
-Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/include/asm/cet.h        |  5 ++
- arch/x86/include/uapi/asm/prctl.h |  5 ++
- arch/x86/kernel/Makefile          |  2 +-
- arch/x86/kernel/cet.c             | 29 +++++++++++
- arch/x86/kernel/cet_prctl.c       | 85 +++++++++++++++++++++++++++++++
- arch/x86/kernel/process.c         |  4 +-
- 6 files changed, 127 insertions(+), 3 deletions(-)
- create mode 100644 arch/x86/kernel/cet_prctl.c
+ arch/x86/lib/x86-opcode-map.txt               | 26 +++++++++++++------
+ tools/objtool/arch/x86/lib/x86-opcode-map.txt | 26 +++++++++++++------
+ 2 files changed, 36 insertions(+), 16 deletions(-)
 
-diff --git a/arch/x86/include/asm/cet.h b/arch/x86/include/asm/cet.h
-index 52c506a68848..2df357dffd24 100644
---- a/arch/x86/include/asm/cet.h
-+++ b/arch/x86/include/asm/cet.h
-@@ -14,19 +14,24 @@ struct sc_ext;
- struct cet_status {
- 	unsigned long	shstk_base;
- 	unsigned long	shstk_size;
-+	unsigned int	locked:1;
- 	unsigned int	shstk_enabled:1;
- };
+diff --git a/arch/x86/lib/x86-opcode-map.txt b/arch/x86/lib/x86-opcode-map.txt
+index e0b85930dd77..c5e825d44766 100644
+--- a/arch/x86/lib/x86-opcode-map.txt
++++ b/arch/x86/lib/x86-opcode-map.txt
+@@ -366,7 +366,7 @@ AVXcode: 1
+ 1b: BNDCN Gv,Ev (F2) | BNDMOV Ev,Gv (66) | BNDMK Gv,Ev (F3) | BNDSTX Ev,Gv
+ 1c:
+ 1d:
+-1e:
++1e: RDSSP Rd (F3),REX.W
+ 1f: NOP Ev
+ # 0x0f 0x20-0x2f
+ 20: MOV Rd,Cd
+@@ -610,7 +610,17 @@ fe: paddd Pq,Qq | vpaddd Vx,Hx,Wx (66),(v1)
+ ff: UD0
+ EndTable
  
- #ifdef CONFIG_X86_INTEL_CET
-+int prctl_cet(int option, unsigned long arg2);
- int cet_setup_shstk(void);
- int cet_setup_thread_shstk(struct task_struct *p);
-+int cet_alloc_shstk(unsigned long *arg);
- void cet_disable_shstk(void);
- void cet_disable_free_shstk(struct task_struct *p);
- int cet_restore_signal(bool ia32, struct sc_ext *sc);
- int cet_setup_signal(bool ia32, unsigned long rstor, struct sc_ext *sc);
- #else
-+static inline int prctl_cet(int option, unsigned long arg2) { return -EINVAL; }
- static inline int cet_setup_shstk(void) { return -EINVAL; }
- static inline int cet_setup_thread_shstk(struct task_struct *p) { return 0; }
-+static inline int cet_alloc_shstk(unsigned long *arg) { return -EINVAL; }
- static inline void cet_disable_shstk(void) {}
- static inline void cet_disable_free_shstk(struct task_struct *p) {}
- static inline int cet_restore_signal(bool ia32, struct sc_ext *sc) { return -EINVAL; }
-diff --git a/arch/x86/include/uapi/asm/prctl.h b/arch/x86/include/uapi/asm/prctl.h
-index 5a6aac9fa41f..d962f0ec9ccf 100644
---- a/arch/x86/include/uapi/asm/prctl.h
-+++ b/arch/x86/include/uapi/asm/prctl.h
-@@ -14,4 +14,9 @@
- #define ARCH_MAP_VDSO_32	0x2002
- #define ARCH_MAP_VDSO_64	0x2003
+-Table: 3-byte opcode 1 (0x0f 0x38)
++Table: 3-byte opcode 1 (0x0f 0x01)
++Referrer:
++AVXcode:
++# Skip 0x00-0xe7
++e8: SETSSBSY (f3)
++e9:
++ea: SAVEPREVSSP (f3)
++# Skip 0xeb-0xff
++EndTable
++
++Table: 3-byte opcode 2 (0x0f 0x38)
+ Referrer: 3-byte escape 1
+ AVXcode: 2
+ # 0x0f 0x38 0x00-0x0f
+@@ -789,12 +799,12 @@ f0: MOVBE Gy,My | MOVBE Gw,Mw (66) | CRC32 Gd,Eb (F2) | CRC32 Gd,Eb (66&F2)
+ f1: MOVBE My,Gy | MOVBE Mw,Gw (66) | CRC32 Gd,Ey (F2) | CRC32 Gd,Ew (66&F2)
+ f2: ANDN Gy,By,Ey (v)
+ f3: Grp17 (1A)
+-f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v)
+-f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v)
++f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v) | WRUSS Pq,Qq (66),REX.W
++f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v) | WRSS Pq,Qq (66),REX.W
+ f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
+ EndTable
  
-+#define ARCH_X86_CET_STATUS		0x3001
-+#define ARCH_X86_CET_DISABLE		0x3002
-+#define ARCH_X86_CET_LOCK		0x3003
-+#define ARCH_X86_CET_ALLOC_SHSTK	0x3004
-+
- #endif /* _ASM_X86_PRCTL_H */
-diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-index 584ed7e9a599..d908c95306fc 100644
---- a/arch/x86/kernel/Makefile
-+++ b/arch/x86/kernel/Makefile
-@@ -140,7 +140,7 @@ obj-$(CONFIG_UNWINDER_ORC)		+= unwind_orc.o
- obj-$(CONFIG_UNWINDER_FRAME_POINTER)	+= unwind_frame.o
- obj-$(CONFIG_UNWINDER_GUESS)		+= unwind_guess.o
+-Table: 3-byte opcode 2 (0x0f 0x3a)
++Table: 3-byte opcode 3 (0x0f 0x3a)
+ Referrer: 3-byte escape 2
+ AVXcode: 3
+ # 0x0f 0x3a 0x00-0xff
+@@ -948,7 +958,7 @@ GrpTable: Grp7
+ 2: LGDT Ms | XGETBV (000),(11B) | XSETBV (001),(11B) | VMFUNC (100),(11B) | XEND (101)(11B) | XTEST (110)(11B)
+ 3: LIDT Ms
+ 4: SMSW Mw/Rv
+-5: rdpkru (110),(11B) | wrpkru (111),(11B)
++5: rdpkru (110),(11B) | wrpkru (111),(11B) | RSTORSSP Mq (F3)
+ 6: LMSW Ew
+ 7: INVLPG Mb | SWAPGS (o64),(000),(11B) | RDTSCP (001),(11B)
+ EndTable
+@@ -1019,8 +1029,8 @@ GrpTable: Grp15
+ 2: vldmxcsr Md (v1) | WRFSBASE Ry (F3),(11B)
+ 3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
+ 4: XSAVE | ptwrite Ey (F3),(11B)
+-5: XRSTOR | lfence (11B)
+-6: XSAVEOPT | clwb (66) | mfence (11B)
++5: XRSTOR | lfence (11B) | INCSSP Rd (F3),REX.W
++6: XSAVEOPT | clwb (66) | mfence (11B) | CLRSSBSY Mq (F3)
+ 7: clflush | clflushopt (66) | sfence (11B)
+ EndTable
  
--obj-$(CONFIG_X86_INTEL_CET)		+= cet.o
-+obj-$(CONFIG_X86_INTEL_CET)		+= cet.o cet_prctl.o
+diff --git a/tools/objtool/arch/x86/lib/x86-opcode-map.txt b/tools/objtool/arch/x86/lib/x86-opcode-map.txt
+index e0b85930dd77..c5e825d44766 100644
+--- a/tools/objtool/arch/x86/lib/x86-opcode-map.txt
++++ b/tools/objtool/arch/x86/lib/x86-opcode-map.txt
+@@ -366,7 +366,7 @@ AVXcode: 1
+ 1b: BNDCN Gv,Ev (F2) | BNDMOV Ev,Gv (66) | BNDMK Gv,Ev (F3) | BNDSTX Ev,Gv
+ 1c:
+ 1d:
+-1e:
++1e: RDSSP Rd (F3),REX.W
+ 1f: NOP Ev
+ # 0x0f 0x20-0x2f
+ 20: MOV Rd,Cd
+@@ -610,7 +610,17 @@ fe: paddd Pq,Qq | vpaddd Vx,Hx,Wx (66),(v1)
+ ff: UD0
+ EndTable
  
- ###
- # 64 bit specific files
-diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
-index 9ef1af617d38..0004333f8373 100644
---- a/arch/x86/kernel/cet.c
-+++ b/arch/x86/kernel/cet.c
-@@ -127,6 +127,35 @@ static int create_rstor_token(bool ia32, unsigned long ssp,
- 	return 0;
- }
+-Table: 3-byte opcode 1 (0x0f 0x38)
++Table: 3-byte opcode 1 (0x0f 0x01)
++Referrer:
++AVXcode:
++# Skip 0x00-0xe7
++e8: SETSSBSY (f3)
++e9:
++ea: SAVEPREVSSP (f3)
++# Skip 0xeb-0xff
++EndTable
++
++Table: 3-byte opcode 2 (0x0f 0x38)
+ Referrer: 3-byte escape 1
+ AVXcode: 2
+ # 0x0f 0x38 0x00-0x0f
+@@ -789,12 +799,12 @@ f0: MOVBE Gy,My | MOVBE Gw,Mw (66) | CRC32 Gd,Eb (F2) | CRC32 Gd,Eb (66&F2)
+ f1: MOVBE My,Gy | MOVBE Mw,Gw (66) | CRC32 Gd,Ey (F2) | CRC32 Gd,Ew (66&F2)
+ f2: ANDN Gy,By,Ey (v)
+ f3: Grp17 (1A)
+-f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v)
+-f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v)
++f5: BZHI Gy,Ey,By (v) | PEXT Gy,By,Ey (F3),(v) | PDEP Gy,By,Ey (F2),(v) | WRUSS Pq,Qq (66),REX.W
++f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v) | WRSS Pq,Qq (66),REX.W
+ f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
+ EndTable
  
-+int cet_alloc_shstk(unsigned long *arg)
-+{
-+	unsigned long len = *arg;
-+	unsigned long addr;
-+	unsigned long token;
-+	unsigned long ssp;
-+
-+	addr = do_mmap_locked(0, len, PROT_READ,
-+			      MAP_ANONYMOUS | MAP_PRIVATE, VM_SHSTK);
-+	if (addr >= TASK_SIZE_MAX)
-+		return -ENOMEM;
-+
-+	/* Restore token is 8 bytes and aligned to 8 bytes */
-+	ssp = addr + len;
-+	token = ssp;
-+
-+	if (!in_ia32_syscall())
-+		token |= TOKEN_MODE_64;
-+	ssp -= 8;
-+
-+	if (write_user_shstk_64(ssp, token)) {
-+		vm_munmap(addr, len);
-+		return -EINVAL;
-+	}
-+
-+	*arg = addr;
-+	return 0;
-+}
-+
- int cet_setup_shstk(void)
- {
- 	unsigned long addr, size;
-diff --git a/arch/x86/kernel/cet_prctl.c b/arch/x86/kernel/cet_prctl.c
-new file mode 100644
-index 000000000000..9c9d4262b07e
---- /dev/null
-+++ b/arch/x86/kernel/cet_prctl.c
-@@ -0,0 +1,85 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+
-+#include <linux/errno.h>
-+#include <linux/uaccess.h>
-+#include <linux/prctl.h>
-+#include <linux/compat.h>
-+#include <linux/mman.h>
-+#include <linux/elfcore.h>
-+#include <asm/processor.h>
-+#include <asm/prctl.h>
-+#include <asm/cet.h>
-+
-+/* See Documentation/x86/intel_cet.rst. */
-+
-+static int handle_get_status(unsigned long arg2)
-+{
-+	unsigned int features = 0;
-+	unsigned long shstk_base, shstk_size;
-+	unsigned long buf[3];
-+
-+	if (current->thread.cet.shstk_enabled)
-+		features |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
-+
-+	shstk_base = current->thread.cet.shstk_base;
-+	shstk_size = current->thread.cet.shstk_size;
-+
-+	buf[0] = (unsigned long)features;
-+	buf[1] = shstk_base;
-+	buf[2] = shstk_size;
-+	return copy_to_user((unsigned long __user *)arg2, buf,
-+			    sizeof(buf));
-+}
-+
-+static int handle_alloc_shstk(unsigned long arg2)
-+{
-+	int err = 0;
-+	unsigned long arg;
-+	unsigned long addr = 0;
-+	unsigned long size = 0;
-+
-+	if (get_user(arg, (unsigned long __user *)arg2))
-+		return -EFAULT;
-+
-+	size = arg;
-+	err = cet_alloc_shstk(&arg);
-+	if (err)
-+		return err;
-+
-+	addr = arg;
-+	if (put_user(addr, (unsigned long __user *)arg2)) {
-+		vm_munmap(addr, size);
-+		return -EFAULT;
-+	}
-+
-+	return 0;
-+}
-+
-+int prctl_cet(int option, unsigned long arg2)
-+{
-+	if (!cpu_x86_cet_enabled())
-+		return -EINVAL;
-+
-+	switch (option) {
-+	case ARCH_X86_CET_STATUS:
-+		return handle_get_status(arg2);
-+
-+	case ARCH_X86_CET_DISABLE:
-+		if (current->thread.cet.locked)
-+			return -EPERM;
-+		if (arg2 & GNU_PROPERTY_X86_FEATURE_1_SHSTK)
-+			cet_disable_free_shstk(current);
-+
-+		return 0;
-+
-+	case ARCH_X86_CET_LOCK:
-+		current->thread.cet.locked = 1;
-+		return 0;
-+
-+	case ARCH_X86_CET_ALLOC_SHSTK:
-+		return handle_alloc_shstk(arg2);
-+
-+	default:
-+		return -EINVAL;
-+	}
-+}
-diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
-index 58b1c52b38b5..e0090f2790df 100644
---- a/arch/x86/kernel/process.c
-+++ b/arch/x86/kernel/process.c
-@@ -873,7 +873,7 @@ long do_arch_prctl_common(struct task_struct *task, int option,
- 		return get_cpuid_mode();
- 	case ARCH_SET_CPUID:
- 		return set_cpuid_mode(task, cpuid_enabled);
-+	default:
-+		return prctl_cet(option, cpuid_enabled);
- 	}
--
--	return -EINVAL;
- }
+-Table: 3-byte opcode 2 (0x0f 0x3a)
++Table: 3-byte opcode 3 (0x0f 0x3a)
+ Referrer: 3-byte escape 2
+ AVXcode: 3
+ # 0x0f 0x3a 0x00-0xff
+@@ -948,7 +958,7 @@ GrpTable: Grp7
+ 2: LGDT Ms | XGETBV (000),(11B) | XSETBV (001),(11B) | VMFUNC (100),(11B) | XEND (101)(11B) | XTEST (110)(11B)
+ 3: LIDT Ms
+ 4: SMSW Mw/Rv
+-5: rdpkru (110),(11B) | wrpkru (111),(11B)
++5: rdpkru (110),(11B) | wrpkru (111),(11B) | RSTORSSP Mq (F3)
+ 6: LMSW Ew
+ 7: INVLPG Mb | SWAPGS (o64),(000),(11B) | RDTSCP (001),(11B)
+ EndTable
+@@ -1019,8 +1029,8 @@ GrpTable: Grp15
+ 2: vldmxcsr Md (v1) | WRFSBASE Ry (F3),(11B)
+ 3: vstmxcsr Md (v1) | WRGSBASE Ry (F3),(11B)
+ 4: XSAVE | ptwrite Ey (F3),(11B)
+-5: XRSTOR | lfence (11B)
+-6: XSAVEOPT | clwb (66) | mfence (11B)
++5: XRSTOR | lfence (11B) | INCSSP Rd (F3),REX.W
++6: XSAVEOPT | clwb (66) | mfence (11B) | CLRSSBSY Mq (F3)
+ 7: clflush | clflushopt (66) | sfence (11B)
+ EndTable
+ 
 -- 
 2.17.1
 
