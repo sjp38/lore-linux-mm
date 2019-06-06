@@ -2,177 +2,188 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 53032C28EB8
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 22:19:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 632D6C28EB7
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 22:21:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E4673206BB
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 22:18:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4673206BB
+	by mail.kernel.org (Postfix) with ESMTP id 32B212083E
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 22:21:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32B212083E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5F1BC6B02F5; Thu,  6 Jun 2019 18:18:59 -0400 (EDT)
+	id C09FD6B02F6; Thu,  6 Jun 2019 18:21:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5A2C36B02F6; Thu,  6 Jun 2019 18:18:59 -0400 (EDT)
+	id BBC3D6B02F8; Thu,  6 Jun 2019 18:21:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 491EA6B02F7; Thu,  6 Jun 2019 18:18:59 -0400 (EDT)
+	id AA9036B02F9; Thu,  6 Jun 2019 18:21:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D34F6B02F5
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 18:18:59 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 5so2821547pff.11
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 15:18:59 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 745236B02F6
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 18:21:18 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id d125so12324pfd.3
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 15:21:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=XJNu7sen3MKt/5bh7xDkzC+qT4zLIA/t3Gj09QiyowI=;
-        b=O3CLPJmqYbDZQ7apBgeZvBB7gBm9uJS8JU5vt7kwqyZg+8lKXpLRIiLSLGGL+fEwv6
-         xQKZ2ZvLuqLWGwFkgF70nxP2P/p3wF1KL3I11ROdl6mcqS3gwgU3I7VjmtdCjN2t5vbE
-         koB2kqpQqmyqWehMLL07Y3JmV3DrXZBJW/SuTda+5CuwH3eni33qAy8RXZpc6I0ZT/Lc
-         n0adrK0mkXt4mF8kbP5388t2IQfZhUf7xamyDgFH7cCJrNIexxtcqn58B4DP5PPSkU93
-         Srp2Gxg8An1M5dzO4gzExDxS7jCPJlCsO9xK8OCR6LHGpVPNjTUdcnfjUjLFOCpJnkdG
-         C0Vw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUO2mFR9oWdEcaX6WEUcmqofyXC+Z9RlWTtwyctvBQWmzGuZCaJ
-	OqiTmp8sWIV47LYO9N0Xfb5pl4Zy7KMrGP+C67AfWSo4akpOl4N2v7ALUd/oIJ+ptkYQNGfuKfv
-	Dx8f9NV2PfKkD5e32akTS9j8KHod5Q3IgG0zbxVc0c5zZK3aOGN4fzkIQS1HDTVoDgw==
-X-Received: by 2002:a63:91c4:: with SMTP id l187mr56182pge.95.1559859538623;
-        Thu, 06 Jun 2019 15:18:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwrfrR5E1yhB0Dsth30RYkNWxefuiNciNIAc0YTIZsHQU6wjsK8UJN83FMBXvSrfCeaGL02
-X-Received: by 2002:a63:91c4:: with SMTP id l187mr56142pge.95.1559859537869;
-        Thu, 06 Jun 2019 15:18:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559859537; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=+pK7fGhrD1AruNZFiTjkgjjNqn2cpwdAwygAzVGmzHc=;
+        b=CoF45zPeC8KiNZPl3TJon6DESi3oGw13YYdvgyYEKK/OSHrHIh7/Dr7LJNB3N12f/g
+         pwfH6Kq/VvCfSLA0PC3KSpeRnEhVznhmF9QE8qH/lGkhuchhPDdE+ApixBXeIT+1P1J8
+         Jh87EjdW77bM14UuIJnk9F9wIBrJNPh59y/YTk5D2EwjHdytvl/Llo3e4QB8rIPi6IZ2
+         dvgShxhOZxJiuyX8iR/OMHzF7sRhTkiBRHC3rq/RA7o9V7TvmEwZOraZNL11bcEM6Is3
+         gn/8NGBt949pW9NeYe16QXcfiSrUVnOZyDMFZFKadBNY1xhWqOU4hXlrLmTxX8ZamG+z
+         t1Yg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXA4kw2RC4nNPNg8yYkb+eyaFGLFU0QrrTuIdPx7pMMReakKdMH
+	y806ybhQH9++bj+HPMGF4y+0iVf3l3O/HF3tKJcUVFO0VgOgjYWtDziADaR02t8pDMU+sMmt0qt
+	aGYkJELk1rh2E964BiN3mcQ/ybCKoHomrhCZJ82JcyAZE5S7CpF83lQIMilg+lE9gdQ==
+X-Received: by 2002:a63:5457:: with SMTP id e23mr53350pgm.307.1559859678059;
+        Thu, 06 Jun 2019 15:21:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw2ZYhpL6hHoREU5Lo6xUmvRZ86FaqbdK0XvecDOFg1pSXecAQLYRcuIBPT8vIgLOP/L48s
+X-Received: by 2002:a63:5457:: with SMTP id e23mr53296pgm.307.1559859677079;
+        Thu, 06 Jun 2019 15:21:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559859677; cv=none;
         d=google.com; s=arc-20160816;
-        b=a70Lwdyj56Zwz4ONxJM0Noq6PHW9DIF0OnDCxb17XAnOf+BSgjcG1XLEkWee5PbEPX
-         LWK4bnyeNGnrRkFsWsvlBSbrYAxcBugpvU9bJDFqOJ4sfiOdeZKEePi4rOlBaHk+kryJ
-         RBP8ronz0/gvQB5tBGnhgUxxRFdAupplRLD0qdUpoSJlA+aySnBjBiXLM8tIpqRp2rLA
-         bMy2H+QkSh6KQhDJ+HNJQp0GXpw+fmWhL1L+rCvDtRPuiPhHUzWhLQ4PtEWuTCsYzl4D
-         8hWvWfXWcEVD1U8JQOJBcZUuIZWqV9BcCzdLLkzDOcC2Jhjqs3kYBs/zq4bKseYKsyq9
-         jh6Q==
+        b=PyzsWPksBOmMTYUVaSSnb5vpKZ0OymQRJnb6mMo6Ng0WxzWSSyKblduRnycjxE3t7T
+         jFm5GjrQiilh9POqy8oMzSIlrJdUJUcPWeKbs2BucwrX4kNRzuk4j5q+ZvK1leM1gzYy
+         0kTGZY83+AmREo0iOXEses0yUq7GyubhlIVViMMQC1EE2MDDV/QQHJWDHfC+4TgbZQ5b
+         c+1G2poKWANh8m1RMNK/O0ka4/MiA1zD8/aiVZIr0D4bsqzlJUr1CfQUMMhQkYl/g+Pt
+         zZRKlx6IYQB+5ot9D5Tjb2irpJgiWNHnmHHbVLitt5+sCDqIeiv7Tx7tLR54MLnBdjp3
+         oNfw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=XJNu7sen3MKt/5bh7xDkzC+qT4zLIA/t3Gj09QiyowI=;
-        b=VyZpNqir8lC3Lb3g8PWKeWD18WGX9NPzr0VrOFD0o0hrtVBYEmfnsP3JAOd98Dva+z
-         GbnY3XX/UpPNegXrPBKvqYxR2K6BMv3MqAo4Uyjom8e17IrQ66eFcDcDQgJ4yLCWe0ot
-         4nToNn8zfnZzwdeYd77XxDTWY8Sm9UC8ImsvN3836lzVtG1D+725O0uhsm7xx/6Ihtwc
-         E7Hb/9+WCeEEPxGCTfxcgHCGiy26aB/mOE3h0k2lRHuuwtZX02sd+BdMu9EkPH7XbY0y
-         ONyQGkYlA36Lnk6JgabITICBUsvFZoRqECGGknUN9JoddT4SJbvffPlQxhPCkp1qJvsq
-         10Lg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=+pK7fGhrD1AruNZFiTjkgjjNqn2cpwdAwygAzVGmzHc=;
+        b=odOjK4a4Q9d2hl5L9+PNGsy2R7jeNHvncUQqdTnwHznN+eqIPCrBMoA7urL6y3YOol
+         sBE+GmidfY3s9chhdrhfwfkdd1q2qg1mUazwhKym97mfLgZj+51M1vqJlSgXJgkVEnXw
+         MODnOm678GhUVD7lHOjT03WwKPMljDgLk4YfPZLz/JRd84CMjH6e35DP06De4mztYQA7
+         pz7LH80LkuobZTW7KB2TEkt08UyBysw4Ks/Mrit9SdpB5FPbiPkDzmSYlq/QNjQMnKQM
+         zkQVrIIAuWadb3lfiSIJRS50DKlIWXAtj3LfGgqVBlvS/kOATQKhoa6U9Bg2kRmNDdhx
+         EBXg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id b36si243569pla.353.2019.06.06.15.18.57
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id u188si149416pfu.228.2019.06.06.15.21.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 15:18:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Thu, 06 Jun 2019 15:21:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
 X-Amp-File-Uploaded: False
-Received: from orsmga004.jf.intel.com ([10.7.209.38])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 15:18:57 -0700
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 15:21:16 -0700
 X-ExtLoop1: 1
-Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by orsmga004.jf.intel.com with ESMTP; 06 Jun 2019 15:18:56 -0700
-Message-ID: <93ee5b103b8261d2b50de89f8658d133639a9af5.camel@intel.com>
-Subject: Re: [PATCH v7 04/27] x86/fpu/xstate: Introduce XSAVES system states
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski
- <luto@amacapital.net>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
- <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
- linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
- linux-mm@kvack.org,  linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
- Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>,
- Borislav Petkov <bp@alien8.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave
- Hansen <dave.hansen@linux.intel.com>, Eugene Syromiatnikov
- <esyr@redhat.com>,  Florian Weimer <fweimer@redhat.com>, "H.J. Lu"
- <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet
- <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
- <mike.kravetz@oracle.com>,  Nadav Amit <nadav.amit@gmail.com>, Oleg
- Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra
- <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V.
- Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue
- <vedvyas.shanbhogue@intel.com>,  Dave Martin <Dave.Martin@arm.com>
-Date: Thu, 06 Jun 2019 15:10:55 -0700
-In-Reply-To: <4effb749-0cdc-6a49-6352-7b2d4aa7d866@intel.com>
-References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
-	 <20190606200646.3951-5-yu-cheng.yu@intel.com>
-	 <0a2f8b9b-b96b-06c8-bae0-b78b2ca3b727@intel.com>
-	 <5EE146A8-6C8C-4C5D-B7C0-AB8AD1012F1E@amacapital.net>
-	 <4effb749-0cdc-6a49-6352-7b2d4aa7d866@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.1-2 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+X-IronPort-AV: E=Sophos;i="5.63,560,1557212400"; 
+   d="scan'208";a="182472132"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga002.fm.intel.com with ESMTP; 06 Jun 2019 15:21:16 -0700
+Date: Thu, 6 Jun 2019 15:22:28 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>,
+	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
+	Dave Chinner <david@fromorbit.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190606222228.GB11698@iweiny-DESK2.sc.intel.com>
+References: <20190606014544.8339-1-ira.weiny@intel.com>
+ <20190606104203.GF7433@quack2.suse.cz>
+ <20190606195114.GA30714@ziepe.ca>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190606195114.GA30714@ziepe.ca>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-06-06 at 15:08 -0700, Dave Hansen wrote:
+On Thu, Jun 06, 2019 at 04:51:15PM -0300, Jason Gunthorpe wrote:
+> On Thu, Jun 06, 2019 at 12:42:03PM +0200, Jan Kara wrote:
 > 
-> On 6/6/19 3:04 PM, Andy Lutomirski wrote:
-> > > But, that seems broken.  If we have supervisor state, we can't 
-> > > always defer the load until return to userspace, so we'll never?? 
-> > > have TIF_NEED_FPU_LOAD.  That would certainly be true for 
-> > > cet_kernel_state.
+> > So I'd like to actually mandate that you *must* hold the file lease until
+> > you unpin all pages in the given range (not just that you have an option to
+> > hold a lease). And I believe the kernel should actually enforce this. That
+> > way we maintain a sane state that if someone uses a physical location of
+> > logical file offset on disk, he has a layout lease. Also once this is done,
+> > sysadmin has a reasonably easy way to discover run-away RDMA application
+> > and kill it if he wishes so.
 > > 
-> > Ugh. I was sort of imagining that we would treat supervisor state
+> > The question is on how to exactly enforce that lease is taken until all
+> > pages are unpinned. I belive it could be done by tracking number of
+> > long-term pinned pages within a lease. Gup_longterm could easily increment
+> > the count when verifying the lease exists, gup_longterm users will somehow
+> > need to propagate corresponding 'filp' (struct file pointer) to
+> > put_user_pages_longterm() callsites so that they can look up appropriate
+> > lease to drop reference - probably I'd just transition all gup_longterm()
+> > users to a saner API similar to the one we have in mm/frame_vector.c where
+> > we don't hand out page pointers but an encapsulating structure that does
+> > all the necessary tracking. Removing a lease would need to block until all
+> > pins are released - this is probably the most hairy part since we need to
+> > handle a case if application just closes the file descriptor which
+> > would
 > 
->  completely separately from user state.  But can you maybe give
-> examples of exactly what you mean?
-> > 
-> > > It seems like we actually need three classes of XSAVE states: 1. 
-> > > User state
-> > 
-> > This is FPU, XMM, etc, right?
-> 
-> Yep.
-> 
-> > > 2. Supervisor state that affects user mode
-> > 
-> > User CET?
-> 
-> Yep.
-> 
-> > > 3. Supervisor state that affects kernel mode
-> > 
-> > Like supervisor CET?  If we start doing supervisor shadow stack, the 
-> > context switches will be real fun.  We may need to handle this in 
-> > asm.
-> 
-> Yeah, that's what I was thinking.
-> 
-> I have the feeling Yu-cheng's patches don't comprehend this since
-> Sebastian's patches went in after he started working on shadow stacks.
-> 
-> > Where does PKRU fit in?  Maybe we can treat it as #3?
-> 
-> I thought Sebastian added specific PKRU handling to make it always
-> eager.  It's actually user state that affect kernel mode. :)
+> I think if you are going to do this then the 'struct filp' that
+> represents the lease should be held in the kernel (ie inside the RDMA
+> umem) until the kernel is done with it.
 
-For CET user states, we need to restore before making changes.  If they are not
-being changed (i.e. signal handling and syscalls), then they are restored only
-before going back to user-mode.
+Yea there seems merit to this.  I'm still not resolving how this helps track
+who has the pin across a fork.
 
-For CET kernel states, we only need to make small changes in the way similar to
-the PKRU handling, right?  We'll address it when sending CET kernel-mode
-patches.
+> 
+> Actually does someone have a pointer to this userspace lease API, I'm
+> not at all familiar with it, thanks
 
-I will put in more comments as suggested by Dave in earlier emails.
+man fcntl
+	search for SETLEASE
 
-Yu-cheng
+But I had to add the F_LAYOUT lease type.  (Personally I'm for calling it
+F_LONGTERM at this point.  I don't think LAYOUT is compatible with what we are
+proposing here.)
+
+Anyway, yea would be a libc change at lease for man page etc...  But again I
+want to get some buy in before going through all that.
+
+> 
+> And yes, a better output format from GUP would be great..
+> 
+> > Maybe we could block only on explicit lease unlock and just drop the layout
+> > lease on file close and if there are still pinned pages, send SIGKILL to an
+> > application as a reminder it did something stupid...
+> 
+> Which process would you SIGKILL? At least for the rdma case a FD is
+> holding the GUP, so to do the put_user_pages() the kernel needs to
+> close the FD. I guess it would have to kill every process that has the
+> FD open? Seems complicated...
+
+Tending to agree...  But I'm still not opposed to killing bad actors...  ;-)
+
+NOTE: Jason I think you need to be more clear about the FD you are speaking of.
+I believe you mean the FD which refers to the RMDA context.  That is what I
+called it in my other email.
+
+Ira
+
+> 
+> Regards,
+> Jason
 
