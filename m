@@ -2,126 +2,243 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 973D1C28EB4
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 17:02:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 79323C28EB3
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 17:10:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 69B7020693
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 17:02:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69B7020693
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 3E7BC20652
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 17:10:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3E7BC20652
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 027896B027D; Thu,  6 Jun 2019 13:02:45 -0400 (EDT)
+	id CA4696B027D; Thu,  6 Jun 2019 13:10:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EF3696B027E; Thu,  6 Jun 2019 13:02:44 -0400 (EDT)
+	id C2DFA6B027E; Thu,  6 Jun 2019 13:10:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DBA8A6B027F; Thu,  6 Jun 2019 13:02:44 -0400 (EDT)
+	id ACE8C6B027F; Thu,  6 Jun 2019 13:10:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D70E6B027D
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 13:02:44 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id d27so4615420eda.9
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 10:02:44 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FCAD6B027D
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 13:10:49 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id x9so2264104pfm.16
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 10:10:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=DrPMSDJ9GctNXFYDOwxTZlKQ8HNcUk73mNu2VAHmVj8=;
-        b=S7tDwtSJJTsMDDliPw8gZJAnMERBHY3bUUBQP3dkbcYrAm/RQFsS9Vgf5XWLjZrOru
-         2XRnCGZ8hKFG5zersDtyu+ovft/So8F61v7O9Sm10y0zTbGc3fXpYj3DVzEFxiCt3vSN
-         LbIyGrAXpCzu/QPUG+GFW94v2xmbphEX52Uns4+mr1YrRurv0WP8Ba6PthFemT5Rr0Dt
-         wnldLXvTiz3NHmrbuMqKbZtBCaNtACatu3H35V2zNRlpczyQL+1YDLEPq6ZnOX9kVcax
-         RVmoSIJNvCgO1E+17i/q33BDxqrl4wXTSYdbtMEVOtiCCBZBISexKBWAGwk6eCTzdGoj
-         NShg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAXW7qPLsi3txblOWwBngtoIrWodXuS50BQ/UV/lhe609+Rlzw6q
-	oexbqCj1teNLVGFQr0Tq0nK4gcBkoUNM7FGpgjR5dFh2j0nzwpepYiLRZ7VsnjInOh8YCOXU8pB
-	7m5L+gF8vWBsGFwGFwYfeDztRko8Yx0hu5wn4qAv85AmuKrQ3YjUeFSSb0j8oEKoPEA==
-X-Received: by 2002:a17:906:5007:: with SMTP id s7mr2884070ejj.81.1559840564023;
-        Thu, 06 Jun 2019 10:02:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxTimHAWuqx7skOpNVdIMEwOS13FWBR/IPJCnCSipqnMyQNuVXLKBnPSoEt1xPSxHWanIr2
-X-Received: by 2002:a17:906:5007:: with SMTP id s7mr2884002ejj.81.1559840563334;
-        Thu, 06 Jun 2019 10:02:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559840563; cv=none;
+        bh=ggTLVveymZ6k5JJQu8goyY+mqB40FFa3/1gta8vGH5k=;
+        b=V+8aeoUh+arP7Y8ZyigVYECRR6+NjtLBBEaPrHMORpQxumdL3LN16MGMMZ2NDQb2HU
+         kOzxDmewBCsF305abzJUgA9RbvHBUV55zotILxDNwth5pVDdjKPa3rVLlnYzDE3Gtd/0
+         7Wka1fn4vfS8rggGBnpiXToTaEuJkkunEZFcaO1TXFXB0gkHx+rYksXdUo6DiQB5Okip
+         7Xn9cb4wJeSAlMB4w2yi+Pgm6odXflLgHlSwaYSQiXPydl5dXyGAjZMYNojqSEL4BfiC
+         1Pj9k/c1Mq2eOVcqQIfFlf9pi8AMfz4KtdhwR4jNbxS1DEBsaA4B5MskG1m1ilQ69Vnz
+         4nwA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUDLbpYMUch5V2Q+Y9yZ3SFURDJ7J6S+ehZ9QvBAy4dAeK/23Qg
+	HKuxXcAnnJTmRmyAWOscPJtPZvF/P6Xd407uwwE/1VB3lPLjphqdzEvIgnNSn4a57YJdGIr6Ca7
+	m1Nxlg0TyjgnUIXlBjogLhm0RhJPdI4KEOP4kPTlJZFBkta8/JfFAwYyW1IpTuXzH2w==
+X-Received: by 2002:a65:4307:: with SMTP id j7mr4252394pgq.91.1559841049049;
+        Thu, 06 Jun 2019 10:10:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyLY69ddX3aEu+Kt+zlSTQXDLIrS/k2cuBXJAazBApuhBjO3OkrAsn16xSiwQ99N6f1qPs/
+X-Received: by 2002:a65:4307:: with SMTP id j7mr4252322pgq.91.1559841048081;
+        Thu, 06 Jun 2019 10:10:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559841048; cv=none;
         d=google.com; s=arc-20160816;
-        b=Wwe96DNu1aCJcwYJ5uUNlNBO0empmcKE4T23ubOFUrgEuHBmwFJdcQtVfD/b1J15s0
-         BF0srUhK+S88v1W6oxcX27Kzwokhd5k3FwrfTArcozzvtOT5ALB9SOZgR6DuGBwPXOAo
-         C/BOSN8OLhG9A+TbtPNnPQQkwmloGdop3Tqr08WOaqQEyn1TxnkMV9zpn1SMH9VGxSHU
-         MG3a62PNeM3q6s+VfS7Qo7NJu68DoRNiAdc7rMzmmBL5UAk3BVQ3o/JgQg6yFjNMzwda
-         ydRXx2oY0veFliJ+MpcdBvl8aBdmPH4l+YMkol5TWCf5GPr+ORKl9Syk7K6EX/Fz9iYc
-         pbBA==
+        b=hJjjZcE6bd9s+bZptcjBn1gz+IRGcfSEznAZij2LTPc+uqxAMoDw46595XMiLdjcqa
+         c8wRIkQmsXKJMvFUo41m1rBZiphVTADJowRJnnvBnX/uBmy5Su9lf01r/TYO1F3Gf3pU
+         eqt/4hSaF/CZGY/YMFf3Kj7IBmpf5BT9zIcNvzAq77UIhJR+KUV3QQfb204Klhxml4SI
+         EQZiUMQjDysddXBofCP3HJ6hGsHypXTd1Rt1EkVRQA6zthINhVvy97tBSyEFnJIgeMtm
+         q+htRDWefKfqRhvdYpSSljIfxKerjTTr8hy61ob2krim9/UJ8xKqD5lPOW28sR1d+Haq
+         tL4A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=DrPMSDJ9GctNXFYDOwxTZlKQ8HNcUk73mNu2VAHmVj8=;
-        b=mVtPPQG5cqkLdgANzHLeVwh3bjAKkE7a4IY2t197AQkQIuOvCxdIaWBVyJQ0O6dtkb
-         1dKUT3DNRTtposTLNSsgK77n1H1LbV0gx1JKNX13kLM2ciL/D0JpFibVCKQ1dZOH1Goz
-         j8jBQMZsbfJuYVFX3/7zl0/4Dwaa6ldZdwDtAHC02/sqKOFm6WV6uX5MtJ/K4AczEeTS
-         B4ozs6+sYeCi67Vdy5etUXkqLTnAA+Yluw8LEH3cvjjCu/GsPxZYBp9K/cRhJLzhsmzL
-         ktOjwagnunusovtIkLFiHt36qVPXJ+9xpJmKduIgeDBr2JqSvmg0jk1TpE+iW9hCXxou
-         Bn/g==
+        bh=ggTLVveymZ6k5JJQu8goyY+mqB40FFa3/1gta8vGH5k=;
+        b=GHAbeAn7vhGSPvNIS0KPpyy90hx608TltenTQezk7q3HTN49j38t2HS+DPkb/mXUqd
+         1hr55prEZ+gQT/cbVRIBZ6g86+S+YQ9eWBnD4Vjm6cZZZQn8keR59ZevQrubI2jHYLAi
+         6p4r2QKeShWBfNCNEvsS6CCnI4G8DJPdk+oW483ma8V8PU/aVE+l2rE1RXO96hewmZwP
+         0XRLgLCV0APPHWM01fqNtc7EBL8e1qOlLOrtUQxMfTdwUM7KDGMBxssFC/TkBpJNnwwu
+         b119SrG3cT0zrt40z/5yw3tED6PqggskzKqwCDqOV4fdZ/3NDUHXdCCDYMcJecj/XidG
+         rCrQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i22si572531edx.122.2019.06.06.10.02.43
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id go19si2144080plb.424.2019.06.06.10.10.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 10:02:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 06 Jun 2019 10:10:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 853E7AD1D;
-	Thu,  6 Jun 2019 17:02:42 +0000 (UTC)
-Date: Thu, 6 Jun 2019 19:02:39 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>,
-	David Hildenbrand <david@redhat.com>,
-	Logan Gunthorpe <logang@deltatee.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>, linux-mm@kvack.org,
-	linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v9 04/12] mm/sparsemem: Convert kmalloc_section_memmap()
- to populate_section_memmap()
-Message-ID: <20190606170239.GB31194@linux>
-References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155977189139.2443951.460884430946346998.stgit@dwillia2-desk3.amr.corp.intel.com>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 10:10:47 -0700
+X-ExtLoop1: 1
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga001.jf.intel.com with ESMTP; 06 Jun 2019 10:10:46 -0700
+Date: Thu, 6 Jun 2019 10:11:58 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>,
+	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
+	Dave Chinner <david@fromorbit.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org, Jason Gunthorpe <jgg@ziepe.ca>,
+	linux-rdma@vger.kernel.org
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190606171158.GB11374@iweiny-DESK2.sc.intel.com>
+References: <20190606014544.8339-1-ira.weiny@intel.com>
+ <c559c2ce-50dc-d143-5741-fe3d21d0305c@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <155977189139.2443951.460884430946346998.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <c559c2ce-50dc-d143-5741-fe3d21d0305c@nvidia.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 05, 2019 at 02:58:21PM -0700, Dan Williams wrote:
-> Allow sub-section sized ranges to be added to the memmap.
-> populate_section_memmap() takes an explict pfn range rather than
-> assuming a full section, and those parameters are plumbed all the way
-> through to vmmemap_populate(). There should be no sub-section usage in
-> current deployments. New warnings are added to clarify which memmap
-> allocation paths are sub-section capable.
+On Wed, Jun 05, 2019 at 10:52:12PM -0700, John Hubbard wrote:
+> On 6/5/19 6:45 PM, ira.weiny@intel.com wrote:
+> > From: Ira Weiny <ira.weiny@intel.com>
+> > 
+> > ... V1,000,000   ;-)
+> > 
+> > Pre-requisites:
+> > 	John Hubbard's put_user_pages() patch series.[1]
+> > 	Jan Kara's ext4_break_layouts() fixes[2]
+> > 
+> > Based on the feedback from LSFmm and the LWN article which resulted.  I've
+> > decided to take a slightly different tack on this problem.
+> > 
+> > The real issue is that there is no use case for a user to have RDMA pinn'ed
+> > memory which is then truncated.  So really any solution we present which:
+> > 
+> > A) Prevents file system corruption or data leaks
+> > ...and...
+> > B) Informs the user that they did something wrong
+> > 
+> > Should be an acceptable solution.
+> > 
+> > Because this is slightly new behavior.  And because this is gonig to be
+> > specific to DAX (because of the lack of a page cache) we have made the user
+> > "opt in" to this behavior.
+> > 
+> > The following patches implement the following solution.
+> > 
+> > 1) The user has to opt in to allowing GUP pins on a file with a layout lease
+> >    (now made visible).
+> > 2) GUP will fail (EPERM) if a layout lease is not taken
+> > 3) Any truncate or hole punch operation on a GUP'ed DAX page will fail.
+> > 4) The user has the option of holding the layout lease to receive a SIGIO for
+> >    notification to the original thread that another thread has tried to delete
+> >    their data.  Furthermore this indicates that if the user needs to GUP the
+> >    file again they will need to retake the Layout lease before doing so.
+> > 
+> > 
+> > NOTE: If the user releases the layout lease or if it has been broken by another
+> > operation further GUP operations on the file will fail without re-taking the
+> > lease.  This means that if a user would like to register pieces of a file and
+> > continue to register other pieces later they would be advised to keep the
+> > layout lease, get a SIGIO notification, and retake the lease.
+> > 
+> > NOTE2: Truncation of pages which are not actively pinned will succeed.  Similar
+> > to accessing an mmap to this area GUP pins of that memory may fail.
+> > 
 > 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> Hi Ira,
+> 
+> Wow, great to see this. This looks like basically the right behavior, IMHO.
+> 
+> 1. We'll need man page additions, to explain it. In fact, even after a quick first
+> pass through, I'm vague on two points:
 
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Of course.  But I was not going to go through and attempt to write man pages
+and other docs without some agreement on the final mechanisms.  This works
+which was the basic requirement I had to send an RFC.  :-D  But yes man pages
+and updates to headers etc all have to be done.
 
--- 
-Oscar Salvador
-SUSE L3
+> 
+> a) I'm not sure how this actually provides "opt-in to new behavior", because I 
+> don't see any CONFIG_* or boot time choices, and it looks like the new behavior 
+> just is there. That is, if user space doesn't set F_LAYOUT on a range, 
+> GUP FOLL_LONGTERM will now fail, which is new behavior. (Did I get that right?)
+
+The opt in is at run time.  Currently GUP FOLL_LONGTERM is _not_ _allowed_ on
+the FS DAX pages at all.  So the default behavior is the same, GUP fails.  (Or
+specifically ibv_reg_mr() fails.  This fails as before, not change there.
+
+The Opt in is that if a user knows what is involved they can take the lease and
+the GUP will not fail.  This comes with the price of knowing that other
+processes can't truncate those pages in use.
+
+> 
+> b) Truncate and hole punch behavior, with and without user space having a SIGIO
+> handler. (I'm sure this is obvious after another look through, but it might go
+> nicely in a man page.)
+
+Sorry this was not clear.  There are 2 points for this patch set which requires
+the use of catching SIGIO.
+
+1) If an application _actually_ does (somehow, somewhere, in some unforseen use
+   case) want to allow a truncate to happen.  They can catch the SIGIO, finish
+   their use of the pages, and release them.  As long as they can do this within
+   the <sysfs>/lease-time-break time they are ok and the truncate can proceed.
+
+2) This is a bit more subtle and something I almost delayed sending these out
+   for.  Currently the implementation of a lease break actually removes the
+   lease from the file.  I did not want this to happen and I was thinking of
+   delaying this patch set to implement something which keeps the lease around
+   but I figured I should get something out for comments.  Jan has proposed
+   something along these lines and I agree with him so I'm going to ask you to
+   read my response to him about the details.
+
+   Anyway so the key here is that currently an app needs the SIGIO to retake
+   the lease if they want to map the file again or in parts based on usage.
+   For example, they may only want to map some of the file for when they are
+   using it and then map another part later.  Without the SIGIO they would lose
+   their lease or would have to just take the lease for each GUP pin (which
+   adds overhead).  Like I said I did not like this but I left it to get
+   something which works out.
+
+> 
+> 2. It *seems* like ext4, xfs are taken care of here, not just for the DAX case,
+> but for general RDMA on them? Or is there more that must be done?
+
+This is limited to DAX.  All the functionality is limited to *_devmap or "is
+DAX" cases.  I'm still thinking that page cache backed files can have a better
+solution for the user.
+
+> 
+> 3. Christophe Hellwig's unified gup patchset wreaks havoc in gup.c, and will
+> conflict violently, as I'm sure you noticed. :)
+
+Yep...  But I needed to get the conversation started on this idea.
+
+Thanks for the feedback!
+Ira
+
+> 
+> 
+> thanks,
+> -- 
+> John Hubbard
+> NVIDIA
+> 
 
