@@ -2,139 +2,123 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 71698C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 06:18:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 527EBC04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 06:20:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3351420874
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 06:18:33 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="hh3vfV36"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3351420874
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 178502083D
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 06:20:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 178502083D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C1D816B026D; Thu,  6 Jun 2019 02:18:32 -0400 (EDT)
+	id BA7736B026D; Thu,  6 Jun 2019 02:20:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BCE806B026F; Thu,  6 Jun 2019 02:18:32 -0400 (EDT)
+	id B7E6B6B026F; Thu,  6 Jun 2019 02:20:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A96066B0270; Thu,  6 Jun 2019 02:18:32 -0400 (EDT)
+	id A46E86B0270; Thu,  6 Jun 2019 02:20:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 705EA6B026D
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 02:18:32 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id l4so1133598pff.5
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 23:18:32 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FD366B026D
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 02:20:48 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id u17so119745wmd.6
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 23:20:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=U8rF1uP19dnET207DcY9H/fsoaYvyqbT8DVHn5K5oRM=;
-        b=gCrVj59Unva3Bny85FGG2o9d+oerNUYJ+KNvyZvmGr/vl/rxbqozaOhI0hmA6Q0pnw
-         D6UViLpUR5qVQOZhDmUy6z/uAsKRZzVyZAcLUAvqvgfT4yM5PMsdqGFKCH9BKvj61bLU
-         mj2wk8UWYe6mAuXZ5QaPJ9YYYw/dNVytund2koNrXzF2IR+MjWv7wmiXpoTe3mIMtRNm
-         TE+PRrizSp+b8Qd2T8lGDgLIzcvWLUrDLQ9CnfMXZ3oF9O7NW6GtegOniRCol2q6S8Rr
-         xmMhO/49aj/rtwYNhVFQtMGAgzmvJv673mys78B12WPVYTsARUmHv+JK7uGKK/W14DdA
-         56Rw==
-X-Gm-Message-State: APjAAAU+Ea3OY9xikfgrBOtJ5uWDaKueYVd6DeguJe9O+2aPW14XhzLm
-	zzOkmmA9rU+li1OR4f3GomwR5Dz+3dR2l8jiecleBbfVAj20x7xHPWxGbzC9uLoMUTcKQQpUrsW
-	Ye6eTtbOtTVgQ9icjnTAByqSz4cAAE3f7LaHcx51KYMeQGl8Nru7oxOp8nafZScpqIA==
-X-Received: by 2002:a62:6145:: with SMTP id v66mr51061194pfb.144.1559801912010;
-        Wed, 05 Jun 2019 23:18:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwFKbeTTkfKedtnDKHM96wo9+jFNnxnclj/BBPY7N59R8UIvjBNJ2Z6eGbDZ7ISB2SDII9W
-X-Received: by 2002:a62:6145:: with SMTP id v66mr51061158pfb.144.1559801911406;
-        Wed, 05 Jun 2019 23:18:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559801911; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=8gBGMllioW85+iMPaDMrXv4D/gv+I70GRpfge5BJ/no=;
+        b=s026fkSxPiiQOx3YN6jk03ipKhLMTdicCyJaOQeScnp5TsT26vGjhOIaLbzDrBIKJh
+         KiApIIFKdqyosrpu2DO0ut5zEeguw3LbtB+OhyRbYwzmjJGSwICz3rYlOLROV8bzxOJt
+         Gowwu4yWBN68pivBW6ivJChWRF5wGSMgltEU4duwTCkitaQcYeNKyXdieNOWkDNTVqjb
+         ITG1zqp1Su0HrVHq/l9JERCv5kR9SCn/ssGvsN+j1qchfDFvUEQLseXhieL7s20HmYkN
+         6KNFCgydGKi99VNsc9fk4bkEuMGkA5wWc5/GSuv7/eQ6z0WZgXJCA62cvRhU+PehfV0A
+         Q7uA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAVjLCyNgbPCoRKSpUuLCW2NyoOq+ajCVPae0dNjVhxBVwmG2s2E
+	FUTqx14LVvc1LIxJ+QRbudt4FAxCnTdVamvwoKE1ZuSaQ0G4J3MS+qVx5GC2loLLSQCAh8uvpo3
+	eyL9utpItErU/5lvUgiWyJCDs1Bc/UZbifcM6X0NFzdWdGirWkc1OBPx9RKCV9zlIFw==
+X-Received: by 2002:a1c:c2d5:: with SMTP id s204mr25544997wmf.174.1559802048012;
+        Wed, 05 Jun 2019 23:20:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwYR01DwcNQq/TNZQb3CmYjvQbgK/cWyVlh1VlMRqM2kn90Gd/U1auWZGRroCfeRZLzpyp3
+X-Received: by 2002:a1c:c2d5:: with SMTP id s204mr25544961wmf.174.1559802047365;
+        Wed, 05 Jun 2019 23:20:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559802047; cv=none;
         d=google.com; s=arc-20160816;
-        b=h7QawASkQL2n4sYBH9vzPR062QnURfaLOFVmmivahySan4i8Ugl7oY3fuFlXtfMd8J
-         mPbum/gA+xro4yRMbuGsN9eLyZ+U74KxVS0rHaVkf2o05d4XBI4OV6EIcb7c5P0ZJgsF
-         UF7Zonv1vwjOZQ5hZ/BUzpjTHmo7YqCRlgNuQAcMHep76GEvnXmzsh3a7IFPT5tBI6/M
-         nPl4KDvQskxXrlmTa4qRy+gpZtW7NxYvhL5KqTiitzUApSA7fTDsFGGNGtkkKQQFtGPn
-         ewj8cz3F1pGTpu3smviDCAgggxUrIUXyx+W+d0CZwRMoDKt7A6LVnqOH+J88Bsuk/qff
-         FPrw==
+        b=D/Arn2I8hfmgATiLEmr0i8buV+liUkac9xjYCohoTvb8oZKgbCBxk9TzcwHEvAR/Wk
+         vUT4yjY7KLuOR+CqX5PX706YZyYDIZVt+72lVT8s6R2c9wYPMj7v08NDE884kdLFwkEP
+         hY8qBlD3HCghF3DevsUShDgt6TYdfYJ7FFNXpaKM6WH7Z0M/TG/zrYvEtr9Q54elYTPM
+         TpCmHQgYaGibhWGBvF+OeI/48jljmmKZhQRDGFkMidFZMsg9ZEeJQNQK6EsBWP9leDnF
+         oMpY8/SyGbHuUGKAGUIH9vresxymtxSpZ6PggdIv/967/ZYD0gvsNXaYpe1Z1bMRK6lV
+         bUjg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=U8rF1uP19dnET207DcY9H/fsoaYvyqbT8DVHn5K5oRM=;
-        b=vur1rBTH8FyNEt2s9Cj2nY+96DSJHIaw9lIrUuFJzfAl0W5n2kvvPd596Rp8EHP+F3
-         fkO4sdrQ9riXv8o0o7QxHivB8AHFyUpeFv3jN3Fk4cQZHDUclN+dsFATClprqRAsxdr0
-         9IPVLZNlCDh3SpLO0aaXaWAdEXmWGYEtXpBwwAqi4XA4ydBCS3mxC4Renq5tTDwaCoTD
-         dAZu9H+IQbazfXshmdXQcW1MKuyDQW+Hhr4G8HIYDoIvu4H/xgToNCMqW3DRIECtz1wm
-         ZYo9NUf3xHA+4SFaxsTKaau4WFK+H1uup4hT3rMSyaxlMCd5+UcCFH3WfrA0l7YSZT26
-         Gbuw==
+         :message-id:subject:cc:to:from:date;
+        bh=8gBGMllioW85+iMPaDMrXv4D/gv+I70GRpfge5BJ/no=;
+        b=OTv91Ae/VHa7xDrHj1LnsaRKxYJgNfM+TB3IZ8okvccfB2irt5wz6N4ULhexHvR0UH
+         +JOsG61I67s91ZBTKHSUjmgWwVfbiQifwzX99B5apLFwq1Qbwu/t7baR00NNLIVoCpOd
+         ekjv6iQhs+kS/7iSNGHqfk3bUpe442Yi7bVQ2EkgUQidgA9rGKvwW0Vt+09JsbhgO70p
+         bxwdCS04LhcFv/UxNNs85NVY8atEYh3VynLQ5Qwjq9NRkLwyfYFA/eJdgeOoY/ar84g1
+         CcahcYqcuOOSnqkNVbqelBzs2xTbtjVGesRPJgbJsUkXvcRkscwkk+XJEZfhjx//TOgY
+         O+2w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=hh3vfV36;
-       spf=pass (google.com: best guess record for domain of batv+2a9871a3a082cf6dc382+5765+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+2a9871a3a082cf6dc382+5765+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c8si992462pfn.208.2019.06.05.23.18.31
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id l6si612990wmc.104.2019.06.05.23.20.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 05 Jun 2019 23:18:31 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+2a9871a3a082cf6dc382+5765+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Jun 2019 23:20:47 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=hh3vfV36;
-       spf=pass (google.com: best guess record for domain of batv+2a9871a3a082cf6dc382+5765+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+2a9871a3a082cf6dc382+5765+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=U8rF1uP19dnET207DcY9H/fsoaYvyqbT8DVHn5K5oRM=; b=hh3vfV36YrLiF3AZvb2T4/Qsm
-	ZGpgeScpxKnNf0aS2baD3ki47trw/uHctB3wKBpv6V6SbCMpk2PfbKUk/5XgM8HNDjclepJ9Zdbz6
-	2GcqhtFfRtwgOlRsLz0gTHbH/QD8c0RD1Nwv73lkSzrx4ZW4CsWVtPnTSaYKb7q2DM4NJWtdmuwyk
-	Ib935aW8MHP3OauCGnonYIxkH5L3VSyJFRXG0U2YAfTuXHF11OiwL/C6RfAmS9J4JPPN67De362rW
-	nJke29YpqUQ+h0Q/HmV6zGVwwZQCpJPnOD1sInPHpqtie3EXgVS+P5THX1FahoL367+4HTT4+qz1H
-	qcJ4t2xpQ==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.90_1 #2 (Red Hat Linux))
-	id 1hYljA-0005QG-0s; Thu, 06 Jun 2019 06:18:20 +0000
-Date: Wed, 5 Jun 2019 23:18:19 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: ira.weiny@intel.com
-Cc: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>,
-	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
-	Dave Chinner <david@fromorbit.com>,
-	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH RFC 03/10] mm/gup: Pass flags down to __gup_device_huge*
- calls
-Message-ID: <20190606061819.GA20520@infradead.org>
-References: <20190606014544.8339-1-ira.weiny@intel.com>
- <20190606014544.8339-4-ira.weiny@intel.com>
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id 55AF468B05; Thu,  6 Jun 2019 08:20:19 +0200 (CEST)
+Date: Thu, 6 Jun 2019 08:20:18 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Christoph Hellwig <hch@lst.de>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Nicholas Piggin <npiggin@gmail.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>, linux-mips@vger.kernel.org,
+	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 12/16] mm: consolidate the get_user_pages*
+ implementations
+Message-ID: <20190606062018.GA26745@lst.de>
+References: <20190601074959.14036-1-hch@lst.de> <20190601074959.14036-13-hch@lst.de> <b0b73eae-6d79-b621-ce4e-997ccfbf4446@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190606014544.8339-4-ira.weiny@intel.com>
-User-Agent: Mutt/1.9.2 (2017-12-15)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <b0b73eae-6d79-b621-ce4e-997ccfbf4446@nvidia.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 05, 2019 at 06:45:36PM -0700, ira.weiny@intel.com wrote:
-> From: Ira Weiny <ira.weiny@intel.com>
-> 
-> In order to support checking for a layout lease on a FS DAX inode these
-> calls need to know if FOLL_LONGTERM was specified.
-> 
-> Prepare for this with this patch.
+On Wed, Jun 05, 2019 at 11:01:17PM -0700, John Hubbard wrote:
+> I started reviewing this one patch, and it's kind of messy figuring out 
+> if the code motion preserves everything because of
+> all the consolidation from other places, plus having to move things in
+> and out of the ifdef blocks.  So I figured I'd check and see if this is
+> going to make it past RFC status soon, and if it's going before or after
+> Ira's recent RFC ("RDMA/FS DAX truncate proposal").
 
-The GUP fast argument passing is a mess.  That is why I've come up
-with this as part of the (not ready) get_user_pages_fast_bvec
-implementation:
-
-http://git.infradead.org/users/hch/misc.git/commitdiff/c3d019802dbde5a4cc4160e7ec8ccba479b19f97
+I don't like the huge moves either, but I can't really think of any
+better way to do it.  Proposals welcome, though.
 
