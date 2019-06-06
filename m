@@ -2,178 +2,170 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_MED,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 77A08C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 15:11:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D4F5BC28EB4
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 15:18:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1C9FB20673
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 15:11:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 90D7C20673
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 15:18:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="m6czQJ5P"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1C9FB20673
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="g9cYwVye"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90D7C20673
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AB3B86B027D; Thu,  6 Jun 2019 11:11:51 -0400 (EDT)
+	id 1127C6B027D; Thu,  6 Jun 2019 11:18:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A64D56B027E; Thu,  6 Jun 2019 11:11:51 -0400 (EDT)
+	id 09CBA6B027E; Thu,  6 Jun 2019 11:18:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 92C286B027F; Thu,  6 Jun 2019 11:11:51 -0400 (EDT)
+	id EA5326B027F; Thu,  6 Jun 2019 11:18:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7666F6B027D
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 11:11:51 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id g30so2292904qtm.17
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 08:11:51 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CABDD6B027D
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 11:18:31 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id z19so369428ioi.15
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 08:18:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=nICKSnPmhBfa22i4P79WKNgPDXW8CuF04HSSgn2bQQY=;
-        b=fC4r6bBpWHk1Xi2HfukmZexO6nQCr7BcwQW8WEMapEFKK9yrzChC2h/Lh/gBNeljoc
-         hDvMlFWr7sY2xvpg/enGctEAx0S8xE00J6sqo8rsDQbybNG84+XvjlCGLieUdKcjbvoX
-         2AKO6DFatDxc2zUWDH1rLTnccMgIIvybIQSg8NlQGcH3zKuk2w3C01zqpF5qeYcwlzrR
-         yHH05b7bzLKkvC+qpah+UQbVk/Oh4BQHPTCqt1KE0we3IW+aNGLLClL6LA0R865VSky3
-         4RJfx0ANmEe3zxrELBgJ+xJiEv6KQnpa2AL6IMO42Q7xvxlBnA+4Zfjoc1z7TIiXX66Z
-         jwYg==
-X-Gm-Message-State: APjAAAX8cgO94v0quICgeKdY/erCMcGrSy6cYkHIUQllXFnfrIbLVR/z
-	T31JDa2nag58oyJQNBo7p1qjB8xfufLR1un0uGNVPUaOdoIVdZ3TAwo/uURlXVsidToGj9udq95
-	+xOUWfgEYLlxMALumHuUkqnKK3f+BH2BbqSABvxxSrCzhE98lEgvBW1YkQP06V1SHkw==
-X-Received: by 2002:ac8:2e6a:: with SMTP id s39mr39521007qta.201.1559833911224;
-        Thu, 06 Jun 2019 08:11:51 -0700 (PDT)
-X-Received: by 2002:ac8:2e6a:: with SMTP id s39mr39520936qta.201.1559833910385;
-        Thu, 06 Jun 2019 08:11:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559833910; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=+Czz2YJ7892NSsTQIUl/eIZo5zHlJk+9baf2OTNB6U0=;
+        b=YvEFh3Xt4vb8pQPJkD+/iYWzwEYTUb/NHS61e5GTM4UsMNVxUkBWWo353YMdpem4Wu
+         DacTYJaj6qc7c6JZiPhFGLeTv50kzYWFV6oL86VUpaNhIaaTEXfZc6Zk6zWVqKwYen/s
+         El2L74omrV3B1C9tzHhl50aSTuVBMvpGU6077r5MdNfp87D1L4Dzf/qNHRrnkKwAX1aR
+         vMu9mWqfAKxRczQtu1nAEIjIMYzJAiEAU7JImc5TOjLpeM4EU9mkG01pvLIwFvVrRzWG
+         0dKkd+v5fUiuJim7567On8laG8k5reSWNyQ1feQnk0aDRhk5xtR/HOKG4m+MA/uYvcQK
+         Oniw==
+X-Gm-Message-State: APjAAAWWwUfEfcoCpjZ2OghY58usvi+UDXzQc2lTcwOZtQ717N2AaCrR
+	6eTK+UhHF3KllTecrQVqkfazqEDdF8kMDOFblIzvdld+69ssgX6bEN8M8r5l5fAVgmgxRbf8CX5
+	XrX6Gps8dgaLm8YA4UyxtZ/O/Yh8q54BADZNHguj8EkjScIO12UqiX8AEujUxeGvrjA==
+X-Received: by 2002:a02:862b:: with SMTP id e40mr2299426jai.7.1559834311545;
+        Thu, 06 Jun 2019 08:18:31 -0700 (PDT)
+X-Received: by 2002:a02:862b:: with SMTP id e40mr2299377jai.7.1559834310891;
+        Thu, 06 Jun 2019 08:18:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559834310; cv=none;
         d=google.com; s=arc-20160816;
-        b=isvKVOiLAhdg5UYv4htn+g7MVRzUg7YKjEH8LJaK/zyoP54YPXB39rFWzS87dKdXok
-         6UJ/yLeVOLdEZecddqBY7DYtaOiHNiymaBO/YFTT66iW3maChhEAxq2BXU491CinOFkB
-         rlZJr5VPStftDaPbJPG1B3XFPf1DtyB2utLB/xCYMda58NZkhB4fKieulET4dfq4VRiT
-         zNchhZds4NiHJwXVA0u1zTbFilSCQvbwhdwBcJ67C/V+tnC0oTXLbti6t8xiic2y4L2r
-         H4DzgDWHESbUPe3YuYJEqlGZDYHcYeCpq2Tsu8s+9/kpzcExRImHS5kpC6bibna0wKFg
-         H+ZQ==
+        b=GnnozTL4/BxolvJ5s0P0O5W7QLcqCvMsbpYS7qVvYfS0BxLoyhhOG1oNKL/OoLb2a+
+         9jt44xHCHRNTZtJcMZwluYgMogrJe+9MkiaOx3UoNgiM1o59WNw6XUL3UpUK/PLfivHo
+         yqYp831UIHLH58ER+ju0zGwwd+GRMJ/+WmiaUO0fKlxdsX6W56PbBjn1pbrsWXiqiKIf
+         uNkHBqXmCegHJzdFej6qxOeQkeKjHbe/DEJ3C/yEhUtwehxyp5+VOd7eR+0/nToP6nzG
+         F0v3jUSVQR7Xio+ULw0FgFAPyAi1ztbAn/spkmEPq7K3zCllhzmLWKek62QdyWGM7C2D
+         zfsg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=nICKSnPmhBfa22i4P79WKNgPDXW8CuF04HSSgn2bQQY=;
-        b=Lcp8c5uwXCwqeE8YWtnXipSZMR96RoIj8EkKmeZTlOT4M4VKyhNNIRs4V/XHxHw02p
-         oyRoGxKot4SAyD+Ge1VqsbX2s4TqUYzDUu6GLribgfbYlsvmidQ6NwItoiJH/xQWW4tR
-         s4BRn2QmsqyqxOWGLwmTm7ol0ls20t1DcQRma33Vr10cqIJdlzrKyFtQvL7uxrJeVmSj
-         H56Q/DPx9/tRlG712l9buXiKC0PyO8ahRUAiWB+xId/bnfHmDm6yvGuYn4E70tEHzLaW
-         miHHWOk2fNyyjorZHaW32vxP85nGfz3oWK6BH0rAwEMUgIUurgH1c496qSkZAEQbUweH
-         fXRA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=+Czz2YJ7892NSsTQIUl/eIZo5zHlJk+9baf2OTNB6U0=;
+        b=ikoyKUkbS5vC96N4AW7yn1fJ6GlZHNb7o7Ss9LjyPH3ZITy9+V9XN37n7HIObSHMZy
+         T9iDDIZfvUayFEUVebL2lgtQ1QG5+LbZeLoDOUy32LXYgFZu6rjvz8BVqgeWu78PhmEB
+         Rb+4IC+EAp3j4LhtjQ5/wblhpRrMRjXrlqliY3LThUGBYTd39GvhXYQ3HlwxWtlhFiVq
+         ScqeMJ6ZcEO2rBXmybeZJuWcaqdgHbTCeA+b3dJPbvL2BYWbxhZ1bINo9Qz7RchFe3mQ
+         ZbpoVzQHUF+lsygnFiYDevBTfuhOQcqQbfmVamIk5lIbDQGCuw6A1tavfnxmUa8aZckH
+         19DA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=m6czQJ5P;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@google.com header.s=20161025 header.b=g9cYwVye;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q127sor1118249qkf.13.2019.06.06.08.11.50
+        by mx.google.com with SMTPS id v129sor3163907itb.4.2019.06.06.08.18.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 06 Jun 2019 08:11:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 06 Jun 2019 08:18:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=m6czQJ5P;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@google.com header.s=20161025 header.b=g9cYwVye;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=nICKSnPmhBfa22i4P79WKNgPDXW8CuF04HSSgn2bQQY=;
-        b=m6czQJ5PAH844WTRtxLEbxKdvBRpUyjJ0AXdDvZR7cSPSTSfR0mirorSbQ39kRU0M0
-         dlTKVWQZJRKyKr3r9nSGUcX3MxNMl6r5VZklgbN6Mweyj1EtjYhkSrkr4JxFftGsZpNt
-         3ZDbavY5Cs+QqUVJs3M5I+3Lhk0eA9yqm1rccZxh9/BIkQewigTSmoqX1o76zpcZKscf
-         KAibnHC/hYQptEH+0I8AS+ZBjoop1mlii54zOfw6YJU/mAfvM08P/0KgEivUYH1Py7hB
-         xR+V0om86kGyfHe84fNb6bLkzqCvdC5NAHSrbbH0UaqJbJN6jnwXBXFdjVUXcwOC/QXo
-         VNcA==
-X-Google-Smtp-Source: APXvYqy5ivrotzxuZe8QOGBrIM3TV0bm3INrqHp1amDu/ICmE/db2M65ncX/se2X7oSEYpSC21pIxQ==
-X-Received: by 2002:a05:620a:142:: with SMTP id e2mr22505206qkn.191.1559833910114;
-        Thu, 06 Jun 2019 08:11:50 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id 39sm1244005qtx.71.2019.06.06.08.11.49
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 06 Jun 2019 08:11:49 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hYu3R-0003Bi-8D; Thu, 06 Jun 2019 12:11:49 -0300
-Date: Thu, 6 Jun 2019 12:11:49 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
-Cc: "jglisse@redhat.com" <jglisse@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"alex.deucher@amd.com" <alex.deucher@amd.com>,
-	"airlied@gmail.com" <airlied@gmail.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>
-Subject: Re: [PATCH 0/2] Two bug-fixes for HMM
-Message-ID: <20190606151149.GA5506@ziepe.ca>
-References: <20190510195258.9930-1-Felix.Kuehling@amd.com>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=+Czz2YJ7892NSsTQIUl/eIZo5zHlJk+9baf2OTNB6U0=;
+        b=g9cYwVyeaSTJ4J3DPXQfg7qNzmOZHt86bELF+Z9EwhydQbsHg68LqzYVRluTpmW4hn
+         lcSV0N7uV+jNQm0/Cbc12coiRdBCPFmmwPh9MUw7M5DX/C37GJ9bF7olW7lMtzvQ7MqD
+         4DnOx8YLETBZePvU2bW7nAHhb6VeAuQz7Som64e2OWsA/heLTuuxzjH0l3PweWblnAUo
+         1u4mts1yPfrl9NdEsx6qEa5iohK0qPO3/9k+s0VtMNXX0lhHer5/LtJwmJcs1OtBhyly
+         lCta6YwqJnjE/LxvVBHppNI3SnOAQhi5EyKs0SyY7tQPnKFhC+pXb5/YsGwzmEjDrcmM
+         qc1w==
+X-Google-Smtp-Source: APXvYqwD2/luGyw6rZrr4tRLwqYRE9SKSMYafHefhObPoppO7e8fH0bBzADF2n3XhHPwe3aohkyZGQ4yMO925zAA7W0=
+X-Received: by 2002:a02:1384:: with SMTP id 126mr29101248jaz.72.1559834310297;
+ Thu, 06 Jun 2019 08:18:30 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190510195258.9930-1-Felix.Kuehling@amd.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+References: <0000000000005a4b99058a97f42e@google.com> <b67a0f5d-c508-48a7-7643-b4251c749985@virtuozzo.com>
+ <20190606131334.GA24822@fieldses.org> <275f77ad-1962-6a60-e60b-6b8845f12c34@virtuozzo.com>
+ <CACT4Y+aJQ6J5WdviD+cOmDoHt2Dj=Q4uZ4vHbCfHe+_TCEY6-Q@mail.gmail.com> <00ec828a-0dcb-ca70-e938-ca26a6a8b675@virtuozzo.com>
+In-Reply-To: <00ec828a-0dcb-ca70-e938-ca26a6a8b675@virtuozzo.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Thu, 6 Jun 2019 17:18:19 +0200
+Message-ID: <CACT4Y+aZNxZyhJEjZjxYqh34BKz+VnfZPpZO9rDn0B_9Z_gZcw@mail.gmail.com>
+Subject: Re: KASAN: use-after-free Read in unregister_shrinker
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: "J. Bruce Fields" <bfields@fieldses.org>, 
+	syzbot <syzbot+83a43746cebef3508b49@syzkaller.appspotmail.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, bfields@redhat.com, 
+	Chris Down <chris@chrisdown.name>, Daniel Jordan <daniel.m.jordan@oracle.com>, guro@fb.com, 
+	Johannes Weiner <hannes@cmpxchg.org>, Jeff Layton <jlayton@kernel.org>, laoar.shao@gmail.com, 
+	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, 
+	linux-nfs@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, 
+	Michal Hocko <mhocko@suse.com>, Stephen Rothwell <sfr@canb.auug.org.au>, 
+	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, yang.shi@linux.alibaba.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 10, 2019 at 07:53:21PM +0000, Kuehling, Felix wrote:
-> These problems were found in AMD-internal testing as we're working on
-> adopting HMM. They are rebased against glisse/hmm-5.2-v3. We'd like to get
-> them applied to a mainline Linux kernel as well as drm-next and
-> amd-staging-drm-next sooner rather than later.
-> 
-> Currently the HMM in amd-staging-drm-next is quite far behind hmm-5.2-v3,
-> but the driver changes for HMM are expected to land in 5.2 and will need to
-> be rebased on those HMM changes.
+On Thu, Jun 6, 2019 at 4:54 PM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
 >
-> I'd like to work out a flow between Jerome, Dave, Alex and myself that
-> allows us to test the latest version of HMM on amd-staging-drm-next so
-> that ideally everything comes together in master without much need for
-> rebasing and retesting.
+> On 06.06.2019 17:40, Dmitry Vyukov wrote:
+> > On Thu, Jun 6, 2019 at 3:43 PM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+> >>
+> >> On 06.06.2019 16:13, J. Bruce Fields wrote:
+> >>> On Thu, Jun 06, 2019 at 10:47:43AM +0300, Kirill Tkhai wrote:
+> >>>> This may be connected with that shrinker unregistering is forgotten on error path.
+> >>>
+> >>> I was wondering about that too.  Seems like it would be hard to hit
+> >>> reproduceably though: one of the later allocations would have to fail,
+> >>> then later you'd have to create another namespace and this time have a
+> >>> later module's init fail.
+> >>
+> >> Yes, it's had to bump into this in real life.
+> >>
+> >> AFAIU, syzbot triggers such the problem by using fault-injections
+> >> on allocation places should_failslab()->should_fail(). It's possible
+> >> to configure a specific slab, so the allocations will fail with
+> >> requested probability.
+> >
+> > No fault injection was involved in triggering of this bug.
+> > Fault injection is clearly visible in console log as "INJECTING
+> > FAILURE at this stack track" splats and also for bugs with repros it
+> > would be noted in the syzkaller repro as "fault_call": N. So somehow
+> > this bug was triggered as is.
+> >
+> > But overall syzkaller can do better then the old probabilistic
+> > injection. The probabilistic injection tend to both under-test what we
+> > want to test and also crash some system services. syzkaller uses the
+> > new "systematic fault injection" that allows to test specifically each
+> > failure site separately in each syscall separately.
+>
+> Oho! Interesting.
 
-I think we have that now, I'm running a hmm.git that is clean and can
-be used for merging into DRM related trees (and RDMA). I've commited
-to send this tree to Linus at the start of the merge window.
-
-See here:
-
- https://lore.kernel.org/lkml/20190524124455.GB16845@ziepe.ca/
-
-The tree is here:
-
- https://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git/log/?h=hmm
-
-However please consult with me before making a merge commit to be
-co-ordinated. Thanks
-
-I see in this thread that AMDGPU missed 5.2 beacause of the
-co-ordination problems this tree is intended to solve, so I'm very
-hopeful this will help your work move into 5.3!
-
-> Maybe having Jerome's latest HMM changes in drm-next. However, that may
-> create dependencies where Jerome and Dave need to coordinate their pull-
-> requests for master.
-> 
-> Felix Kuehling (1):
->   mm/hmm: Only set FAULT_FLAG_ALLOW_RETRY for non-blocking
-> 
-> Philip Yang (1):
->   mm/hmm: support automatic NUMA balancing
-
-I've applied both of these patches with Jerome's Reviewed-by to
-hmm.git and added the missed Signed-off-by
-
-If you test and confirm I think this branch would be ready for merging
-toward the AMD tree.
-
-Regards,
-Jason
+If you are interested. You write N into /proc/thread-self/fail-nth
+(say, 5) then it will cause failure of the N-th (5-th) failure site in
+the next syscall in this task only. And by reading it back after the
+syscall you can figure out if the failure was indeed injected or not
+(or the syscall had less than 5 failure sites).
+Then, for each syscall in a test (or only for one syscall of
+interest), we start by writing "1" into /proc/thread-self/fail-nth; if
+the failure was injected, write "2" and restart the test; if the
+failure was injected, write "3" and restart the test; and so on, until
+the failure wasn't injected (tested all failure sites).
+This guarantees systematic testing of each error path with minimal
+number of runs. This has obvious extensions to "each pair of failure
+sites" (to test failures on error paths), but it's not supported atm.
 
