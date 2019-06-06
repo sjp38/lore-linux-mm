@@ -6,72 +6,72 @@ X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5021DC04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:17:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54E31C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:17:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1210C208C3
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:17:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1210C208C3
+	by mail.kernel.org (Postfix) with ESMTP id 4FE24208CA
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:17:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4FE24208CA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6EED66B02C3; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
+	id DA4C36B02CF; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5FE3B6B02C5; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
+	id D03F76B02CD; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4C53E6B02C7; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
+	id BA1EE6B02CE; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EED706B02C5
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:17:32 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id s195so2301394pgs.13
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:17:32 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7EB606B02C7
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:17:33 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id j21so2068510pff.12
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:17:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=JTPqqzl61LcXZknOh3vX8Y4ZIjcvIm2PCMu/cmAquKI=;
-        b=JObXQSnJQEXJ+LCkkmT4zLxxVXf28Dcgpe7PkwzM2xLV3iFf8dgNBBfEMZKylAN7zr
-         V4wSdo0qSmWSyhFR+/owvv7bi+UuSqK5vySdcVWqBrW7fRkppY440Zec+Y4zi9YoZb+J
-         GeOkIkfpltc03dNtzFDonueAFxwLeajOuR6/grHL/6woFfdiNophKIuocmFSWKYe5Gr1
-         cq92Ctjej88Zsgm8sOLayHEUShvx+JOpYFDqm4nFcJEvEoK1ITJOBcL1oxP8RyiCtV6F
-         pBF84R0pNrsQb4Rd6iCB2EfvAz4JLxCfhHgQKodh1LvbbyYXHi8SvciOOmMepcf9da9/
-         zD/A==
+        bh=yK5r0u+SDfqgRVohMfxwhJpS11WNf7HKHOdyvywJNCw=;
+        b=K+Asb0TEjmToubXtSVKQ9pZWhyh3+l8hfNsikQ3CFOmkoPeNgoxT1IG5SmWNmPwYRP
+         dUGIVsV5fJcRwt+h8Bw/owfBfrmkBix94EOLj9MLUit6lJc4UvppIzS2znOJMcRE+xmf
+         UNZ5/JSUsKqP8zE1XQcYv3ynbhxMNZGZVGc+BztEPtRl5CY5UA/8bunh/rLtm5UCjD29
+         47uEYN++fFfD+lwEa9uaSEvDyKHZpzZemtIB1BHGrbkBVMkH+VKV7MtN0Inv4k9KFgCf
+         iJZoO+eYAXyAA+QMacaDrJ77NSfxk0waSDGNLdobAA69LPAv33fhshFrA9qRwhOlc2EJ
+         MezQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWb39LIzTAmyFCz9Co6PNRaC6MP7TE1zuL9/E0d3N1MMhuI7H7c
-	UeRWii7CAoLGOPXYr2zFifrE98DdPEQqoCItipUPz3TSE8XibfcArBh3MBSb12rtmDxpte+GsPL
-	LS9h9RmQ0cecayqDnv79q8GuQ9A44YTMKkVrSdtBgH1o3l6mB5tjBtJ+nBlX3fCejVw==
-X-Received: by 2002:a17:90a:8985:: with SMTP id v5mr1627207pjn.136.1559852252631;
+X-Gm-Message-State: APjAAAVn2Qta51kq2j6oTJzpE5D4eFsaUt9ZljVbwXOF6hBCoz2G+yvO
+	JY+OaUYWPuEJNzIuGjgyv86dtKe6Ehi0vM62h9v/bMo5rvLNYE7araVrZuPluo/TGJAHsoZAXqm
+	p1a7UlXH2jbcSVsuHoqRNTz4/LploDE3Xw7lvNRMD7CjxvlXAhx+OO5HIKYKSOB/rmA==
+X-Received: by 2002:aa7:8049:: with SMTP id y9mr870038pfm.195.1559852253202;
+        Thu, 06 Jun 2019 13:17:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwN58vCvdTwN3f/43A2KDd3g6PcS5o9Yxy2BwfGbcBpwRcOiips3o3tu38LhzYbnroKajVc
+X-Received: by 2002:aa7:8049:: with SMTP id y9mr869958pfm.195.1559852252106;
         Thu, 06 Jun 2019 13:17:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxk3jRXGFd/l+4rH06hT5Ff+WCpWQp0y19bdpDqSPc6tQ3O1G9Id06WKiAvlp5RExu5MmXz
-X-Received: by 2002:a17:90a:8985:: with SMTP id v5mr1627167pjn.136.1559852251844;
-        Thu, 06 Jun 2019 13:17:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559852251; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1559852252; cv=none;
         d=google.com; s=arc-20160816;
-        b=vaS7vOPSz2p4LeA8QoO6n2eXbtPH38MTn/hzO7DN57AFxQNUOEyEIMgytOvkXiQLj0
-         1fMd8mhS3X/g7s82+HABL++r9Fo+IkTdEVQixyjy04+t8VW+qhWdtP7AiPpsTJiX9hjJ
-         LC2HCQLfh2ARGeVqZWoxqg5QSaGAoG3dDzMSk236ie1R5Lj7nhcLFvInbe3XlD+UxFTg
-         tQY0zz+6gN0HGQVo3evxLjtF9XqKzQN/Df4jvAPlzik/Z/3ISnuYGK6BKWe9MdoCUgl2
-         HICekpPPG66M1eQxBRrUQXJ84zTqjrVjQB4oQbtt2I91YGxbD4QGMPO082tqFSgmZbmA
-         sGVg==
+        b=OaF+ZLn0eOLlFwgJWxznsVhcBIwLRthJ/SklFlt1cTnUADWSiL0L8JzrF6zXxiOHU7
+         eRf9VtAG7LnoEN2DfoceUWLq2E88a3VtWHqBzol4sI62noYFgrmSqUnBCcN1WFR4bN5X
+         8V6pF+nYFZdih0qvTjhRehkxzNAkBsIHH1Rgy1NuknPpVB347HajV1o4MIHTju4p94WT
+         4npZwst9L3YB9zAFB8E/IEfOIWosZzvHSbxYvk8psiMpW84ymERs/dQ+7sVSVZyJ8/vl
+         LsyXKnFux7uEvYAqqeoDF9/9J4kfCgQfWf6lwAp6TQHfle9FAlMyyqGLFqIpMXUr/InZ
+         SrFA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=JTPqqzl61LcXZknOh3vX8Y4ZIjcvIm2PCMu/cmAquKI=;
-        b=z0Mg4DmwTu9HRLDaaAR489cHZ6TumfiG4WEHKd8fmMl7Y+X4vXIQ3W39nsZJNGOxln
-         kwk4Md+JCbiqK3ZqNTLbvSTeKU9SDszhoz/bj/rAOEz7X5C5sLAme8ZTCKNzAfbrEMRQ
-         0uxVpQNLSDI+YGirVdAK3f3v3RRQOE0Rj/z66x62+quPByA9jCVQCvVGMqlF6+R+d/Nr
-         J1ETQRKrjFQ10uqQ1Zvd/pQ9Gbwk70ukphcyduckpgFA6lpP0yZZYZhH7yLpkExtKxsY
-         MhXk0EXz/6YQIbZzd13ArlWmHdJyYFGKq3/FxStQ2ckVIfwgJuUVvPXB39mS9GJdeeFB
-         kQPA==
+        bh=yK5r0u+SDfqgRVohMfxwhJpS11WNf7HKHOdyvywJNCw=;
+        b=LeBTsQwY+G2Lwtywzp6thz+VQ++2iaof8OUM3AGAs05autWO62sZBmmgDfRezbku58
+         i22WzJVb1QVDBxZtU7WtsySBXKRvzuzMKS1XtgsDVP0TzqHenmMZ+iN1WMaCW0yz8zzq
+         UtWaJ/l4Rv6zO1NR70UOn1vOzRfCoJKLAujD1JOAUuF+SxyIuyNqO7+fgTEXRw5O9RJf
+         Q9+aTWJJannTlAyHNLha45T1xKU1ougX+Z/YdCUPMsXLkuVc95KeNBUHp9D/yR0PLcsu
+         03yTBucySFifff00/1eo5ZfzNS108EFcrsxiNLhsv/A9unqHo5pvo6sFUbC9ySSbxZ1n
+         Mtlg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id t11si66755plr.23.2019.06.06.13.17.31
+        by mx.google.com with ESMTPS id e29si45752pgb.428.2019.06.06.13.17.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 13:17:31 -0700 (PDT)
+        Thu, 06 Jun 2019 13:17:32 -0700 (PDT)
 Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
@@ -82,7 +82,7 @@ Received: from fmsmga001.fm.intel.com ([10.253.24.23])
   by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:17:31 -0700
 X-ExtLoop1: 1
 Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by fmsmga001.fm.intel.com with ESMTP; 06 Jun 2019 13:17:30 -0700
+  by fmsmga001.fm.intel.com with ESMTP; 06 Jun 2019 13:17:31 -0700
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
 To: x86@kernel.org,
 	"H. Peter Anvin" <hpa@zytor.com>,
@@ -115,9 +115,9 @@ To: x86@kernel.org,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup function
-Date: Thu,  6 Jun 2019 13:09:15 -0700
-Message-Id: <20190606200926.4029-4-yu-cheng.yu@intel.com>
+Subject: [PATCH v7 05/14] mm/mmap: Add IBT bitmap size to address space limit check
+Date: Thu,  6 Jun 2019 13:09:17 -0700
+Message-Id: <20190606200926.4029-6-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190606200926.4029-1-yu-cheng.yu@intel.com>
 References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
@@ -127,72 +127,74 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Indirect Branch Tracking (IBT) provides an optional legacy code bitmap
-that allows execution of legacy, non-IBT compatible library by an
-IBT-enabled application.  When set, each bit in the bitmap indicates
-one page of legacy code.
-
-The bitmap is allocated and setup from the application.
+The indirect branch tracking legacy bitmap takes a large address
+space.  This causes may_expand_vm() failure on the address limit
+check.  For a IBT-enabled task, add the bitmap size to the
+address limit.
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/include/asm/cet.h |  1 +
- arch/x86/kernel/cet.c      | 26 ++++++++++++++++++++++++++
- 2 files changed, 27 insertions(+)
+ arch/x86/include/asm/mmu_context.h | 10 ++++++++++
+ mm/mmap.c                          | 19 ++++++++++++++++++-
+ 2 files changed, 28 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/include/asm/cet.h b/arch/x86/include/asm/cet.h
-index 89330e4159a9..9e613a6598c9 100644
---- a/arch/x86/include/asm/cet.h
-+++ b/arch/x86/include/asm/cet.h
-@@ -31,6 +31,7 @@ void cet_disable_free_shstk(struct task_struct *p);
- int cet_restore_signal(bool ia32, struct sc_ext *sc);
- int cet_setup_signal(bool ia32, unsigned long rstor, struct sc_ext *sc);
- int cet_setup_ibt(void);
-+int cet_setup_ibt_bitmap(unsigned long bitmap, unsigned long size);
- void cet_disable_ibt(void);
- #else
- static inline int prctl_cet(int option, unsigned long arg2) { return -EINVAL; }
-diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
-index 14ad25b8ff21..e0ef996d3148 100644
---- a/arch/x86/kernel/cet.c
-+++ b/arch/x86/kernel/cet.c
-@@ -22,6 +22,7 @@
- #include <asm/fpu/types.h>
- #include <asm/cet.h>
- #include <asm/special_insns.h>
-+#include <asm/elf.h>
- #include <uapi/asm/sigcontext.h>
- 
- static int set_shstk_ptr(unsigned long addr)
-@@ -361,3 +362,28 @@ void cet_disable_ibt(void)
- 
- 	current->thread.cet.ibt_enabled = 0;
+diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
+index a9a768529540..2499f6490428 100644
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -360,6 +360,16 @@ static inline unsigned long __get_current_cr3_fast(void)
+ 	return cr3;
  }
-+
-+int cet_setup_ibt_bitmap(unsigned long bitmap, unsigned long size)
+ 
++#ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
++static inline unsigned long arch_as_limit(void)
 +{
-+	u64 r;
++	if (current->thread.cet.ibt_enabled)
++		return current->thread.cet.ibt_bitmap_size;
++	else
++		return 0;
++}
++#endif
 +
-+	if (!current->thread.cet.ibt_enabled)
-+		return -EINVAL;
-+
-+	if (!PAGE_ALIGNED(bitmap) || (size > TASK_SIZE_MAX))
-+		return -EINVAL;
-+
-+	current->thread.cet.ibt_bitmap_addr = bitmap;
-+	current->thread.cet.ibt_bitmap_size = size;
-+
-+	/*
-+	 * Turn on IBT legacy bitmap.
-+	 */
-+	modify_fpu_regs_begin();
-+	rdmsrl(MSR_IA32_U_CET, r);
-+	r |= (MSR_IA32_CET_LEG_IW_EN | bitmap);
-+	wrmsrl(MSR_IA32_U_CET, r);
-+	modify_fpu_regs_end();
-+
+ typedef struct {
+ 	struct mm_struct *mm;
+ } temp_mm_state_t;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 3b643ace2c49..a0d6fb559518 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3283,13 +3283,30 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 	return NULL;
+ }
+ 
++#ifndef CONFIG_ARCH_HAS_AS_LIMIT
++static inline unsigned long arch_as_limit(void)
++{
 +	return 0;
 +}
++#endif
++
+ /*
+  * Return true if the calling process may expand its vm space by the passed
+  * number of pages
+  */
+ bool may_expand_vm(struct mm_struct *mm, vm_flags_t flags, unsigned long npages)
+ {
+-	if (mm->total_vm + npages > rlimit(RLIMIT_AS) >> PAGE_SHIFT)
++	unsigned long as_limit = rlimit(RLIMIT_AS);
++	unsigned long as_limit_plus = as_limit + arch_as_limit();
++
++	/* as_limit_plus overflowed */
++	if (as_limit_plus < as_limit)
++		as_limit_plus = RLIM_INFINITY;
++
++	if (as_limit_plus > as_limit)
++		as_limit = as_limit_plus;
++
++	if (mm->total_vm + npages > as_limit >> PAGE_SHIFT)
+ 		return false;
+ 
+ 	if (is_data_mapping(flags) &&
 -- 
 2.17.1
 
