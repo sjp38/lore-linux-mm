@@ -2,151 +2,234 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 48D8DC28EB3
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 17:34:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5AEFCC28EB4
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 18:16:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1D42A2083D
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 17:34:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D42A2083D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 008A520868
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 18:16:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="Gz7G1JiJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 008A520868
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89AC76B027A; Thu,  6 Jun 2019 13:34:26 -0400 (EDT)
+	id 596166B0275; Thu,  6 Jun 2019 14:16:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 84CA96B027C; Thu,  6 Jun 2019 13:34:26 -0400 (EDT)
+	id 56D1C6B027C; Thu,  6 Jun 2019 14:16:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 761E26B027D; Thu,  6 Jun 2019 13:34:26 -0400 (EDT)
+	id 45C106B027D; Thu,  6 Jun 2019 14:16:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 276D46B027A
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 13:34:26 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l53so4743381edc.7
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 10:34:26 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D51D6B0275
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 14:16:45 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id h12so1406811otn.18
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 11:16:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=cTbjYsgfPkBw+OSP89oA34euB64GQm4IFp6zD1ZV1KE=;
-        b=KBCTFs0EAKzIbHzcOynQSsaLr83hDJkpY0F3HTZG1IlH4Db+b2n8KeR2iK02ddPfed
-         8g5Y23JJ3MW6O2WyhB2TR+bpYGgPkpXYZiaC8EtMAVHe0b0G1zywCn5WEY4F9MRjOSV3
-         g7X1BApA3/hv4/oS/j168wDcXZ88zbNdsG9DSbaGCePlEm/DSmjwwE99nZR2+nbhalDr
-         lgjS0bEIO5GQiNhHslm31zwLOK7wA0RC9sGIXSJ6arI3EW14uPBmc/QThiEAAJmHnsOG
-         l+psFWlUfEHHNTkskswtCNODG9ISqtibx+esf2D+xOQrS+N3FTGwjvp/RCEJrmbJzzKp
-         1UtQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAVkO4iOPAaHHsJ9aTbasT8FLSy0BuWPKpBckSBfGRGVFNba+l3+
-	25wQf9+/6XVPYpadRMR7waBDCNkZnkDEM3QA7XatH00LYrAsHeKxUwbVokrTyVWRe+QSQp8jjvi
-	OtXNEtiqy7Bf3e2IAaecqa/9yuv6i5XNtTPIsH+y9CeijhMJP7661Vk4OJEgYr7PqrQ==
-X-Received: by 2002:a50:95ed:: with SMTP id x42mr7561925eda.279.1559842465738;
-        Thu, 06 Jun 2019 10:34:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqypZwZfjPOY/Ocu3oTzUnrNDMI8OlTQ3HULTiQAbtPckDaTzSyT6bo5/89EGOcE3vrpRe6c
-X-Received: by 2002:a50:95ed:: with SMTP id x42mr7561862eda.279.1559842464989;
-        Thu, 06 Jun 2019 10:34:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559842464; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=IFTusPVhpfiYDlM0cF7USTGMzoOymuyGD1PoRmf3vY4=;
+        b=nnMsoGdh2Wyrh8sTQmcWtwfYFlaPzDQAppw1u66Rq3WdYxZlNPoe4PekWg77q5VcjE
+         Hvo5WzjqMOzr4wFVa3Vd+zWag9HYufuJJ9EX6OY4YA8w5RR7ug/kVW9DJU7LRBt8MKPm
+         baXwJw+e7BoH0dfwti+RVGRGPmfA+V4dw7MUBkSam7NJ3JR5rJ+UpIu1ZwqM9rJiIR2E
+         8aktAu2Xc3QhNPW4fz50OZwD6TKNREmfBFNrsuuL138jbDi2H6ftf1VJn3UnUNidYYkT
+         AomprSFoGmmQO6qXlSB/A+XAZuvTP7jLFxjNm7lIbsk5AYJkBLyOyWDwlp/jtbWvJJTh
+         0igA==
+X-Gm-Message-State: APjAAAWud14bjcm6/pt7HvY+SvcG0B+9W1LAbCCUeTOUF3iD40VtA7NW
+	3F+Rfty3mFKd9KiFGrEodDUN+fJ1ZNvlhw4THLRko5p3a2PIi+KJFLNdrro5ko0ytsipsNMLi0j
+	7ZMsTIEFVWtMJEiInvRWpUSEVuZZOoB1gRyjBF2ctdf5XI1yxOXjhDJt7sBwWPLfiTQ==
+X-Received: by 2002:a9d:7e88:: with SMTP id m8mr13674427otp.177.1559845004684;
+        Thu, 06 Jun 2019 11:16:44 -0700 (PDT)
+X-Received: by 2002:a9d:7e88:: with SMTP id m8mr13674364otp.177.1559845003662;
+        Thu, 06 Jun 2019 11:16:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559845003; cv=none;
         d=google.com; s=arc-20160816;
-        b=wqbVMBtOYW9gHKVOSM6hPLBfXEdZkrZuPkgm8iUooNyvvgQ1mEG2QZYZumNrl45+zI
-         HHZFxFB5j8Db+3Et1q3983A05mGxWkiRnF/Bpr2gCxQW6uA2BDkxGmND155YwbhXJ3jT
-         o4HOhCBwGVrDmbwraJvAtapuDRbi6h4aUoSGm6/AUj8ABoQhUs5jPsgoj0IcJ3xvX+wI
-         OsMCFP8RzCpmVem0vSXL/888yJNYcL9easGHoFGX9SXbML72LkM4mYtw/ieS8W1aoMoO
-         pZend96ebadRvjmCt3CPTRfGnmnnqRAcI9haLMORyl26ajlI6eagRrRMb62QiQqgWscz
-         Mt4g==
+        b=mj2LNWXe57TIpC3nHMu36ILeHQZyOOBhc/mVk+ITGlU/HmEJuO8fI/WVa0zMPGkKNX
+         hsd50NywUQItO01CgNxQUJ8SO2X97IanPg1xWIG1LL2yhXX6o3UWBbkG/eS65CKsIrSY
+         yj4Q0mBrJw5qEcRSuwW2E1VNUygJIqET2odj4uEoMpp7E/rUgWdtSYLfO69oPxxmhNwS
+         oPPQl+rGcZJ4HQYyuvmbhiyNAdoLaMWKoFgUKNgDLY33r8Qg0jfvFupF0rHq5fk8rZw8
+         6Tn2NcUWORVE2zBtfdHnIIBTXwevP7zCthgqzfkWhni216lvUhjaKgQDa5v530jWx8OT
+         3pfg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=cTbjYsgfPkBw+OSP89oA34euB64GQm4IFp6zD1ZV1KE=;
-        b=sWqwwwVS9N/S29uKFa8jf6s1+xeXrJ7xnehW6oY/pgq9SrNYR26hKQVS3dsB4eta57
-         Sa3vmCznv5+T/8TlkU2QspGIoYhxqjc64J4nhuhZL2ajW8dZUrA4lDRsDcuSRrMnY4Ti
-         9a2Wb+7f0XoQwBvWqUSyb+HxaReXHOckaJ/gH9fLBTpIy753F8vLP8l3Ke/qB1T+qXxH
-         vH8kjGliq9arac/TEZ2FoANncP3A3QJbyzE/56JC8ajR70KJS/plKqAB9ezUQlPKrV6Q
-         E7VsIC5YmfBAispvJWbjB7T7NPNT9My++nV6ObAKiAUnHEJCrDV7nrnBNoqGAdu02MlN
-         WHrw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=IFTusPVhpfiYDlM0cF7USTGMzoOymuyGD1PoRmf3vY4=;
+        b=k/Vq2tGWwQflPBrHgVWlrE14lEzIOfJsDcDrbT9ssfnJSnu4ktBM3cRhQc0XsMoDkt
+         Uvdfm/35fzCXucgQafIWutV2qtuZJgkKicjVkIR3AMQNBsQvyC+G3cDs+qZ3zBtSfSf2
+         cx4C8UpaMhCpVXLbFVlFYEukCpq+5+kz4KgoWEQ2l29dhlTzQDJf539VmQeNdjnLY2eI
+         OmQjDLt5gsYnp1Vy3ft4QYfwI96hKaz3nz+HxAq+CaZ2G6FhJIDKOpLMANTEQAmrPKdQ
+         ZMNeAjegnO1hKp/nkfIJBYswTCD26tsAbhLoyphpqvBTim6ZkT1pltykoertk6K4OILs
+         vF+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g17si1930207ejj.292.2019.06.06.10.34.24
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Gz7G1JiJ;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w7sor1236606otm.188.2019.06.06.11.16.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 10:34:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Thu, 06 Jun 2019 11:16:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 5384EAE4D;
-	Thu,  6 Jun 2019 17:34:24 +0000 (UTC)
-Date: Thu, 6 Jun 2019 19:34:21 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Logan Gunthorpe <logang@deltatee.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org,
-	linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v9 01/12] mm/sparsemem: Introduce struct mem_section_usage
-Message-ID: <20190606173421.GD31194@linux>
-References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155977187407.2443951.16503493275720588454.stgit@dwillia2-desk3.amr.corp.intel.com>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=Gz7G1JiJ;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=IFTusPVhpfiYDlM0cF7USTGMzoOymuyGD1PoRmf3vY4=;
+        b=Gz7G1JiJnLX/6xII/oyzd8Mk94n6nVLGrgbdbhDqr4Dis4ST4qcabAQL+i/iKj5gyq
+         ErzL+a3p6d1VkNlfwAuwWnGsTu2M/ET/by+e8dWL05Gt4vg3jMlOAufnxyapEzib6TlN
+         hLONYh8TIEvqZ+KQGcAQXHcbapftgGvXItMjTZMux1pD5Ov1cFWfZ63uGBq4Tyd4+ZmC
+         HQPYUSTgJUBHOcDcyazfWZv0D5dVEFX5zu5JI8Z1d4Ho3rsHvETHnmo5LcaG4TYaaIkq
+         xFz16zm3QydA/VBCMGuYmQZkMstuNeFMgfwP+tPC8uUdiMD+iSJdw1LZm/ClHFq0HxDe
+         fNgg==
+X-Google-Smtp-Source: APXvYqzq12PqN/4fGA6npNZeNZT1mnGgPW8x4nWGby/gAe0sYyFomK8fvZ89O7QQ/4vBEBBt6v4K/FhuFrg/EXjx2EA=
+X-Received: by 2002:a9d:6e96:: with SMTP id a22mr15628006otr.207.1559845003058;
+ Thu, 06 Jun 2019 11:16:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <155977187407.2443951.16503493275720588454.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155977191770.2443951.1506588644989416699.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20190606172110.GC31194@linux>
+In-Reply-To: <20190606172110.GC31194@linux>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 6 Jun 2019 11:16:31 -0700
+Message-ID: <CAPcyv4jy-TN9xzWd_tJW0ezbZoXJCQozWwcQcTfJwzTcy2BGMQ@mail.gmail.com>
+Subject: Re: [PATCH v9 07/12] mm/sparsemem: Prepare for sub-section ranges
+To: Oscar Salvador <osalvador@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Logan Gunthorpe <logang@deltatee.com>, 
+	Pavel Tatashin <pasha.tatashin@soleen.com>, Linux MM <linux-mm@kvack.org>, 
+	linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 05, 2019 at 02:57:54PM -0700, Dan Williams wrote:
-> Towards enabling memory hotplug to track partial population of a
-> section, introduce 'struct mem_section_usage'.
-> 
-> A pointer to a 'struct mem_section_usage' instance replaces the existing
-> pointer to a 'pageblock_flags' bitmap. Effectively it adds one more
-> 'unsigned long' beyond the 'pageblock_flags' (usemap) allocation to
-> house a new 'subsection_map' bitmap.  The new bitmap enables the memory
-> hot{plug,remove} implementation to act on incremental sub-divisions of a
-> section.
-> 
-> The default SUBSECTION_SHIFT is chosen to keep the 'subsection_map' no
-> larger than a single 'unsigned long' on the major architectures.
-> Alternatively an architecture can define ARCH_SUBSECTION_SHIFT to
-> override the default PMD_SHIFT. Note that PowerPC needs to use
-> ARCH_SUBSECTION_SHIFT to workaround PMD_SHIFT being a non-constant
-> expression on PowerPC.
-> 
-> The primary motivation for this functionality is to support platforms
-> that mix "System RAM" and "Persistent Memory" within a single section,
-> or multiple PMEM ranges with different mapping lifetimes within a single
-> section. The section restriction for hotplug has caused an ongoing saga
-> of hacks and bugs for devm_memremap_pages() users.
-> 
-> Beyond the fixups to teach existing paths how to retrieve the 'usemap'
-> from a section, and updates to usemap allocation path, there are no
-> expected behavior changes.
-> 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Michael Ellerman <mpe@ellerman.id.au>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+On Thu, Jun 6, 2019 at 10:21 AM Oscar Salvador <osalvador@suse.de> wrote:
+>
+> On Wed, Jun 05, 2019 at 02:58:37PM -0700, Dan Williams wrote:
+> > Prepare the memory hot-{add,remove} paths for handling sub-section
+> > ranges by plumbing the starting page frame and number of pages being
+> > handled through arch_{add,remove}_memory() to
+> > sparse_{add,remove}_one_section().
+> >
+> > This is simply plumbing, small cleanups, and some identifier renames. No
+> > intended functional changes.
+> >
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Vlastimil Babka <vbabka@suse.cz>
+> > Cc: Logan Gunthorpe <logang@deltatee.com>
+> > Cc: Oscar Salvador <osalvador@suse.de>
+> > Reviewed-by: Pavel Tatashin <pasha.tatashin@soleen.com>
+> > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> > ---
+> >  include/linux/memory_hotplug.h |    5 +-
+> >  mm/memory_hotplug.c            |  114 +++++++++++++++++++++++++---------------
+> >  mm/sparse.c                    |   15 ++---
+> >  3 files changed, 81 insertions(+), 53 deletions(-)
+> >
+> > diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> > index 79e0add6a597..3ab0282b4fe5 100644
+> > --- a/include/linux/memory_hotplug.h
+> > +++ b/include/linux/memory_hotplug.h
+> > @@ -348,9 +348,10 @@ extern int add_memory_resource(int nid, struct resource *resource);
+> >  extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+> >               unsigned long nr_pages, struct vmem_altmap *altmap);
+> >  extern bool is_memblock_offlined(struct memory_block *mem);
+> > -extern int sparse_add_one_section(int nid, unsigned long start_pfn,
+> > -                               struct vmem_altmap *altmap);
+> > +extern int sparse_add_section(int nid, unsigned long pfn,
+> > +             unsigned long nr_pages, struct vmem_altmap *altmap);
+> >  extern void sparse_remove_one_section(struct mem_section *ms,
+> > +             unsigned long pfn, unsigned long nr_pages,
+> >               unsigned long map_offset, struct vmem_altmap *altmap);
+> >  extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
+> >                                         unsigned long pnum);
+> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > index 4b882c57781a..399bf78bccc5 100644
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -252,51 +252,84 @@ void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
+> >  }
+> >  #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
+> >
+> > -static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
+> > -                                struct vmem_altmap *altmap)
+> > +static int __meminit __add_section(int nid, unsigned long pfn,
+> > +             unsigned long nr_pages, struct vmem_altmap *altmap)
+> >  {
+> >       int ret;
+> >
+> > -     if (pfn_valid(phys_start_pfn))
+> > +     if (pfn_valid(pfn))
+> >               return -EEXIST;
+> >
+> > -     ret = sparse_add_one_section(nid, phys_start_pfn, altmap);
+> > +     ret = sparse_add_section(nid, pfn, nr_pages, altmap);
+> >       return ret < 0 ? ret : 0;
+> >  }
+> >
+> > +static int check_pfn_span(unsigned long pfn, unsigned long nr_pages,
+> > +             const char *reason)
+> > +{
+> > +     /*
+> > +      * Disallow all operations smaller than a sub-section and only
+> > +      * allow operations smaller than a section for
+> > +      * SPARSEMEM_VMEMMAP. Note that check_hotplug_memory_range()
+> > +      * enforces a larger memory_block_size_bytes() granularity for
+> > +      * memory that will be marked online, so this check should only
+> > +      * fire for direct arch_{add,remove}_memory() users outside of
+> > +      * add_memory_resource().
+> > +      */
+> > +     unsigned long min_align;
+> > +
+> > +     if (IS_ENABLED(CONFIG_SPARSEMEM_VMEMMAP))
+> > +             min_align = PAGES_PER_SUBSECTION;
+> > +     else
+> > +             min_align = PAGES_PER_SECTION;
+> > +     if (!IS_ALIGNED(pfn, min_align)
+> > +                     || !IS_ALIGNED(nr_pages, min_align)) {
+> > +             WARN(1, "Misaligned __%s_pages start: %#lx end: #%lx\n",
+> > +                             reason, pfn, pfn + nr_pages - 1);
+> > +             return -EINVAL;
+> > +     }
+> > +     return 0;
+> > +}
+>
+>
+> This caught my eye.
+> Back in patch#4 "Convert kmalloc_section_memmap() to populate_section_memmap()",
+> you placed a mis-usage check for !CONFIG_SPARSEMEM_VMEMMAP in
+> populate_section_memmap().
+>
+> populate_section_memmap() gets called from sparse_add_one_section(), which means
+> that we should have passed this check, otherwise we cannot go further and call
+> __add_section().
+>
+> So, unless I am missing something it seems to me that the check from patch#4 could go?
+> And I think the same applies to depopulate_section_memmap()?
 
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Yes, good catch, I can kill those extra checks in favor of this one.
 
--- 
-Oscar Salvador
-SUSE L3
+> Besides that, it looks good to me:
+
+Thanks Oscar!
+
+>
+> Reviewed-by: Oscar Salvador <osalvador@suse.de>
+>
+> --
+> Oscar Salvador
+> SUSE L3
 
