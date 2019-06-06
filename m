@@ -2,101 +2,99 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 80E0FC04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 14:44:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 331A6C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 14:44:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1B1BC20866
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 14:44:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B1BC20866
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 0282120866
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 14:44:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0282120866
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8CBD86B0277; Thu,  6 Jun 2019 10:44:30 -0400 (EDT)
+	id 7E1566B027A; Thu,  6 Jun 2019 10:44:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 87CB66B027A; Thu,  6 Jun 2019 10:44:30 -0400 (EDT)
+	id 792136B027B; Thu,  6 Jun 2019 10:44:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 76C996B027B; Thu,  6 Jun 2019 10:44:30 -0400 (EDT)
+	id 65A9B6B027C; Thu,  6 Jun 2019 10:44:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BACD6B0277
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 10:44:30 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id i44so4107609eda.3
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 07:44:30 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CD326B027A
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 10:44:46 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l26so4103306eda.2
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 07:44:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=J8FfACnsD6mOR5LZtSAhtTgqUeQWv0+Eb13GbfG1rdc=;
-        b=IIVdK8lnpxrBC+1x7eeWyGzUpPsY/q2efmed6IJ8yNX1jhQHBHxe05vk4z9hFwGeEj
-         CD0lmq4EuFXzSC3OCKfPsDyNBwkfpEDK1rjYixX5BuePHsqvy5CNnqS2YyOGliOPvVBR
-         IIWgWHMPuV08dCnG1VN4KzIlx3Km6LI6SPuidJOUlnLmpmiQHmOHbklVCIfeNj0GYJ9L
-         nP29ZTQU+U5t/1DJY42eRdHNFK/6MJOz9QrK5ai1WIDv3GBGgmoT1ZLxwDGAp23lnMYo
-         3OcOH8cbOxiGgoer/2sHy9HF7QTOwS/r++U+CkpXcw7fEuS+vzjWkr4OwYks0zRGe/wc
-         g7Tg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.234 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAVmrp98bIzaTTgyDl7B1XxIc37o6hKjnk6vjr4PPxF4ihyM4mtW
-	d2NN6YXzN1JYorjRK2scQ/Dt9JI7mBaHZr96GSLqxp5VMSFIlc5Ob3DLdBDyC2pxr6NlZHpn8Mq
-	yJ7+kxy2jyJ7/lIao7nWeTymrMmzP15UthaP49/6egeFIece/Gvi/ARgJaLCWbtqngA==
-X-Received: by 2002:aa7:c2d0:: with SMTP id m16mr11931061edp.94.1559832269756;
-        Thu, 06 Jun 2019 07:44:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyjfZNuirbVN7zjsFcVxvWfv/1KVXdvDYDqmtx0qhmkloBusd73p5c1OrMYQRIq/7i5OMr2
-X-Received: by 2002:aa7:c2d0:: with SMTP id m16mr11930980edp.94.1559832268973;
-        Thu, 06 Jun 2019 07:44:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559832268; cv=none;
+        bh=F4AQuU80v3h56DcfEO8zh5yjwJHkOCG34P/wimYaosI=;
+        b=kjvJE4OGl5DOYOT+hPWZgHj6e2MAD+bA1IhLi+ZrK55vPSU8eMOeC39pjnimrCDGGQ
+         y+OybT5oWDTy7guMp9QrDV+wg/kA3z16qZivvOKVKvCS5Mdolj9Kh/eXp4/OanvtMqil
+         +y84HdMOpBtD8IOrIZYgs0kTuWeeueLL8xxXKVQ67mHqF4wxD/M2O5qqu3deVxSgooIQ
+         RakB1wR/Cn4aiiHKZekuhnYEsqr2ln1Svgqpn2OcYyiyrofMzpEppAP5V57VeKdpAi6g
+         PvU1+npd1SmBNJMXhFI/nLszeoR5a5TtuJTGA9pudYqXZul2GIznFfFtp3THgmDWL5Ra
+         pp3A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Gm-Message-State: APjAAAX33Tv0JP874HorCSADFqGEVO+o6jurnddQvWoB7ZiRBLC6A5HR
+	HfEBc0clZFDbPjEjbsZsrz9ziYThd0QCGeU6mJbaq7E9+NV8fy2Akn0azMZfK/uTB9menbOzpPN
+	az0od5hQWiD166y/DcUj1XSuA7BvkmzmD5+H/D8xTo7v/Ld49/0QAzEzNgb2zT7HvmQ==
+X-Received: by 2002:a17:906:9410:: with SMTP id q16mr6367650ejx.90.1559832285620;
+        Thu, 06 Jun 2019 07:44:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw4tdf2zfv2bKOcJInoaqrnlJCLKFZOLi9in1c8ZCnM+SAK53EH950CAoVxzoA8geXt7F6h
+X-Received: by 2002:a17:906:9410:: with SMTP id q16mr6367580ejx.90.1559832284654;
+        Thu, 06 Jun 2019 07:44:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559832284; cv=none;
         d=google.com; s=arc-20160816;
-        b=shA6Fm2mLqkUolJDcZ+fTFoWcraFGXHKuChLFVCii/+ao5tyjhleuhLveNVXCZjBlw
-         qMJZrZMXGqp5hq7rJL6p30dHVCw8o6AL9sfWe6dxgWpDHvF0yaQyIn57sLSi+FrAdW4w
-         VYnv9T/yoowKbYUA8ItDU5dF2cuAIC2ddYYDXo3yQ9ZLN9dP40OtRn6YHyuCqeBSwo+8
-         ibJDsbFZ5AXUrdbVVaVGtXVJbzv2IPiQMScbuVJ/0wUvZyDkYOFLgvg4uQ/1WVi8CuuK
-         odzWxJgSj0b8OIhi6mzocJnWMLd5hoAOEmk1GKK9qP48BBgqdadB46inumNb4husbUdK
-         lH/A==
+        b=eMdvZCFig0DT7gjkclogoBYVQQ8hDnquLpjQm50LLYBpuUkkJVj+Wmf8tHd+l+0Ys8
+         qLx1oI0+akJk2Cw83tysXlynCl3+oD86/DVhnxRNOgeQoy5MMM8UrwjoMRVHDrhhEbTT
+         d2/K28MAe0InxNRHSX20EVswbYpKXfrWO9eLrRxMQ2LvgOXp+KvMVxQtF0hQMtMNvXDj
+         Nt7R7bHqiDUKUL1hIYKe6nGl0AFsVaCXS+FbDGp/jQsZoBo0/EyV6deneIHOE5LxP1iu
+         OVKfQh7jGOBCsMJIGv7nZoebT58vrCxs1q0+BxIbheKdsFfoQvFlIWxnFsTDmpgnSm2b
+         eTrA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=J8FfACnsD6mOR5LZtSAhtTgqUeQWv0+Eb13GbfG1rdc=;
-        b=fUZc45z34NwBQE/JBOQtuFQmQDbreQZs0nV0tdgiDeRNC8DCWjQRgUe/sTmvdDa+cJ
-         kAqRSf+BhgbG9f34cDj6/rheNgVKSL4537zcFnc+utHX2MhaHjaqjyExTip1rVea1+UM
-         ZNJ2Q/Tm655E10IJFx7OM5j18tr7bc0IzVxMx3aBReL7d4n7WSIw3bP6vskh9IRBZvRw
-         IQWYoXyXFVmG/JLMMMcsKv538IwiI26ACKa9EqcAI4dp+WsT7yI7dlzefsQvqSbig6Vs
-         zgg+L68G5tkLPkvqiIKBEiY6HqP3gJQYCE6OPtM0lPNneXVdgM/cCDw70KT6ONLP8ZEA
-         taUQ==
+        bh=F4AQuU80v3h56DcfEO8zh5yjwJHkOCG34P/wimYaosI=;
+        b=tdwFF+k45/W2XzHitZtQKiVhn/0GcWym5tJ7A2DyEqvP5zR6/LUIsZKcSqcpp8eNo6
+         ykiTjys/czrTTRyD3kHRIVJmPSih0/hCK9ps9Y0vwQ/odjyt7NMOrGn1uBXuJ1kqsLgF
+         zDEJg4XZvanPfHBplLcbSl7xXRK6gXnG29eL6wcDqH0f176BHTf2yne5T4OMSWluA5LC
+         FRXrA3EVBUIRJv3USk2kCLgjFQIO9NnGEnptUhtGjKWDFJb/07q0eM6yEaaar6ZjCnrR
+         3Myj4JxBAPORgEtWhBXHSI55IFoAFyg/2pLy2TrjKVERLdDuUzHTkFGyKatGnMrAHG65
+         rElA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.234 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp17.blacknight.com (outbound-smtp17.blacknight.com. [46.22.139.234])
-        by mx.google.com with ESMTPS id p19si1655972ejj.62.2019.06.06.07.44.28
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p14si1701069eda.200.2019.06.06.07.44.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 07:44:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.234 as permitted sender) client-ip=46.22.139.234;
+        Thu, 06 Jun 2019 07:44:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.234 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
-	by outbound-smtp17.blacknight.com (Postfix) with ESMTPS id 89C741C18CB
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 15:44:28 +0100 (IST)
-Received: (qmail 2793 invoked from network); 6 Jun 2019 14:44:28 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[37.228.225.79])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 6 Jun 2019 14:44:28 -0000
-Date: Thu, 6 Jun 2019 15:44:24 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-To: balducci@units.it
-Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org,
-	akpm@linux-foundation.org
-Subject: Re: [Bug 203715] New: BUG: unable to handle kernel NULL pointer
- dereference under stress (possibly related to
- https://lkml.org/lkml/2019/5/24/292 ?)
-Message-ID: <20190606142600.GA2782@techsingularity.net>
-References: <20190605172136.GC4626@techsingularity.net>
- <27679.1559827273@dschgrazlin2.units.it>
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 41D40AF1C;
+	Thu,  6 Jun 2019 14:44:44 +0000 (UTC)
+Date: Thu, 6 Jun 2019 16:44:39 +0200
+From: Michal Hocko <mhocko@suse.com>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Bharath Vedartham <linux.bhar@gmail.com>,
+	Linux MM <linux-mm@kvack.org>, shaoyafang@didiglobal.com
+Subject: Re: [PATCH v4 0/3] mm: improvements in shrink slab
+Message-ID: <20190606144439.GA12311@dhcp22.suse.cz>
+References: <1559816080-26405-1-git-send-email-laoar.shao@gmail.com>
+ <20190606111755.GB15779@dhcp22.suse.cz>
+ <CALOAHbDYKL2kSfaf9Z_E=TyNQtGaAUfxG8MkSXb1g0VSkcYzNA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <27679.1559827273@dschgrazlin2.units.it>
+In-Reply-To: <CALOAHbDYKL2kSfaf9Z_E=TyNQtGaAUfxG8MkSXb1g0VSkcYzNA@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -104,61 +102,32 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 06, 2019 at 03:20:49PM +0200, balducci@units.it wrote:
-> > Can you try the following compile-tested only patch please?
-> >
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 9e1b9acb116b..b3f18084866c 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -277,8 +277,7 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pf
-> > n, bool check_source,
-> >  	}
-> >  
-> >  	/* Ensure the end of the pageblock or zone is online and valid */
-> > -	block_pfn += pageblock_nr_pages;
-> > -	block_pfn = min(block_pfn, zone_end_pfn(zone) - 1);
-> > +	block_pfn = min(pageblock_end_pfn(block_pfn), zone_end_pfn(zone) - 1);
-> >  	end_page = pfn_to_online_page(block_pfn);
-> >  	if (!end_page)
-> >  		return false;
-> >
-> 
-> Unfortunately it doesn't help: the test firefox build very soon crashed
-> as before; this time the machine froze completely (had to hardware
-> reboot) and I couldn't find any kernel log in the log files (however the
-> screen of the frozen console looked pretty the same as the previous
-> times)
-> 
+On Thu 06-06-19 22:18:41, Yafang Shao wrote:
+[...]
+> Well, seems when we introduce new feature for page relciam, we always
+> ignore the node reclaim path.
 
-Thanks.
+Yes, node reclaim is quite weird and I am not really sure whether we
+still have many users these days. It used to be mostly driven by
+artificial benchmarks which highly benefit from the local node access.
+We have turned off its automatic enabling when there are nodes with
+higher access latency quite some time ago without anybody noticing
+actually.
 
-> (I applied the patch on top of e577c8b64d58fe307ea4d5149d31615df2d90861,
-> right?)
+> Regarding node reclaim path, we always turn it off on our servers,
+> because we really found some latency spike caused by node reclaim
+> (the reason why node reclaim is turned on is not clear).
 
-Please try the following on top of 5.2-rc3
+Yes, that was the case and the reason it is not enabled by default.
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 9e1b9acb116b..69f4ddfddfa4 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -277,8 +277,7 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
- 	}
- 
- 	/* Ensure the end of the pageblock or zone is online and valid */
--	block_pfn += pageblock_nr_pages;
--	block_pfn = min(block_pfn, zone_end_pfn(zone) - 1);
-+	block_pfn = min(pageblock_end_pfn(block_pfn), zone_end_pfn(zone) - 1);
- 	end_page = pfn_to_online_page(block_pfn);
- 	if (!end_page)
- 		return false;
-@@ -289,7 +288,7 @@ __reset_isolation_pfn(struct zone *zone, unsigned long pfn, bool check_source,
- 	 * is necessary for the block to be a migration source/target.
- 	 */
- 	do {
--		if (pfn_valid_within(pfn)) {
-+		if (pfn_valid(pfn)) {
- 			if (check_source && PageLRU(page)) {
- 				clear_pageblock_skip(page);
- 				return true;
+> The reason I expose node reclaim details to userspace is because the user
+> can set node reclaim details now.
+
+Well, just because somebody _can_ enable it doesn't sound like a
+sufficient justification to expose even more implementation details of
+this feature. I am not really sure there is a strong reason to touch the
+code without a real usecase behind.
+-- 
+Michal Hocko
+SUSE Labs
 
