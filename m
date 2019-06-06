@@ -2,110 +2,108 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 02A78C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:27:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97747C28EB3
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:28:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A71BA214C6
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:27:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5E9CB214DA
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:28:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Ci44e+1H"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A71BA214C6
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="t2yJVjGS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E9CB214DA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3AD686B02E2; Thu,  6 Jun 2019 16:27:58 -0400 (EDT)
+	id E0CB36B02E4; Thu,  6 Jun 2019 16:28:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 35CD36B02E4; Thu,  6 Jun 2019 16:27:58 -0400 (EDT)
+	id DBCC26B02E6; Thu,  6 Jun 2019 16:28:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 24C226B02E5; Thu,  6 Jun 2019 16:27:58 -0400 (EDT)
+	id CAC426B02E7; Thu,  6 Jun 2019 16:28:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DE7A46B02E2
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:27:57 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i26so2603450pfo.22
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:27:57 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 92F4F6B02E4
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:28:43 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id f9so2632007pfn.6
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:28:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=0DYMguRNb0DXh2PZ+B5ve/T0J1sOvSO1bJ8hlceCD9w=;
-        b=JyMw2mIjcrNhfu8mrC2gslOwkF7HD7IIk9myyOMFShu6ead4b43H3EoBZL32NgBo6G
-         D7UR56fa64309a1Jrc4bT/PU75i3BpK8Q0pAj7Ijvtav7QjTCNjtKcx3KwCkdcEu9evm
-         0b9EYgMeoF4Zjt+5BGtRXUPplpEq0vt2BL7OiQEqgFj0Ya7VU51Z+9yCaSPN5gEv0wbz
-         kbIzV/x6J4QL04i9KTAjjrD7bMTeeFk6aNk+0sp5YTTyjPDvRtz2bnvacbTeG5pB7oGh
-         4AY1NWT6pkv15liGVm0xtD2egQmFyY/w0mYCpXDzlx8ak2FcYhej69UJVm+uG6TAj3HU
-         MHZw==
-X-Gm-Message-State: APjAAAUVIiX7yP64E2BtRLM2BWn0KpTArQF99zcFVZjtNxVBH8jXtbr2
-	e4rZ2ZByzHQ4otFL5k7dnLwpAsAdQdg9xV9AnDuIaUMe8gTSc5qEuDXsYAgqzr8u8HHsrD54yNK
-	vzt39h7TVU2xpUuEzmKM3WIjO6TFx7qwet3OA267X6RTQz5giz8zPY1ecFgt8vHUuUw==
-X-Received: by 2002:a17:902:ba82:: with SMTP id k2mr43372963pls.323.1559852877587;
-        Thu, 06 Jun 2019 13:27:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzyPRd291oDVb4L0b5QgNc7jAK+FmY7gdvk3gc/fhEu7b/A9e9j3gtqWiFCnMjnAiOJs17K
-X-Received: by 2002:a17:902:ba82:: with SMTP id k2mr43372923pls.323.1559852876979;
-        Thu, 06 Jun 2019 13:27:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559852876; cv=none;
+        bh=PJA60M0ShvGgAGdvUFVxM+gy8jPoTTfj2EhMnX7Rw2Q=;
+        b=pNAAAloxHLEz7gwjpY3tp3un/R9RQXmraks9nBukHPkVY4ow4lg5AuhRR4noJgLMry
+         Wrgltf3bxXte+4oIwTAHBur4y4K5NtWrbAyUiiKXOhKi+86YPHka4B1GVAgTec0PytA9
+         XZqvFXCmuLqbbYFxjJ5Jn8CI/DpghkJO4lpAKCieOgDXDZJZ5pDajZ1gH7YZt4DJm/+1
+         160SEk7nWKsLVKXIdXHdYIQ7RflWmAQPDSJLiwNMSfqg/1nToAs2tyHi3GG2XRiS8n12
+         LHk5MHd9HsFUOfguKOjz3PerMszsyPGAZHx6EGVj/G0PdXavSXr4a3b4tEx1oftY9gtR
+         tmWw==
+X-Gm-Message-State: APjAAAXMp8Hi9I+WfA1Duc6x4PMmN6MLw/ZRfk053LFcOUBPpPt6itTC
+	lFum/Wu2yO/VEuo0wj/KsIAogy1pos9OfITAv1pDawueXxaDaAJo5C9YhB+hrsVcoKTWippcdpA
+	PF05rBlNZ1tOBtngQXuVysSiHM2hA8Wke4uYYGsc1BeqVmr7Dh65JDrA4wwe94CUrpg==
+X-Received: by 2002:a17:90a:216c:: with SMTP id a99mr1630645pje.3.1559852923293;
+        Thu, 06 Jun 2019 13:28:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwOihV7cgd1ponoD+v4Bhxpwu7laFT6UGdqq1vjIzUwpBNCexStTD/vGHYunb8MXDPwB6T/
+X-Received: by 2002:a17:90a:216c:: with SMTP id a99mr1630598pje.3.1559852922680;
+        Thu, 06 Jun 2019 13:28:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559852922; cv=none;
         d=google.com; s=arc-20160816;
-        b=hD8uLv26j+EgtRci/etxXrs+8W8BvpE45xGjuY9F4sfLxxU3tn+Pfc6sx4pJBaQ/yX
-         LDmlGYEFmcxLWXE3xcrow0XVuHUc4eBopvoonkSGgA5D9MAim5LHEnW41biNyB50ljD/
-         RX3cy9ulMTTa44Aja/xPw1IH3YWAO7Wrz9Rk54wPZ6kTgsuqprnBoTqlZtq8ZkBCkVu1
-         HBQ+6o1SNV46oKZfcZ+jgyzbE5t0L9aGwyjEJn6CYuNMPAEHWtpaufCDClkNo1J7E5p1
-         IM3GmtAz8sYg7QBeP+7bUy4fIzLP7JD6f8xbrdFRBVppYZUXSK2qGyvS6HDY2DEcBrsu
-         ZsMA==
+        b=gtaGsM0aQAEHEZ3MgXRoB5bDQlS2WDGntzcirbD0Jw3iZx7pZe/s5NnSVIZDQ4Eg2L
+         cMRMdbBiidhPhO4Mrf06qtsgJHyjPgipRevAnlJrrpajlkWI7Oy75uKtoVPfdKkWF4gv
+         BDnM0++T8AbteT7juNOOez5XTP0CRSg+INk0dOghcVA9unCQSS70zf6Pr+I57li27aFB
+         aqDJ0ky/DCZYpiugB6tBkrc2+bDtqXfUYPmKevwVM6/okD8WJMf+zgV/bV4gzLZ8FR//
+         56BNaaGd22gYlY7SnCYK3vUpOmJDLxc3vP5qWPN0Q0lBYizFMFdeK8NB7nnleiYsD6UA
+         mrqg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=0DYMguRNb0DXh2PZ+B5ve/T0J1sOvSO1bJ8hlceCD9w=;
-        b=zopzdVVUV1HYWNG1xksFzDiYG9m3xM5/kMplvXV0RCinbobI0ZvBDHI56ofNXMYfM1
-         lKAf6ZYFaqT3UNK+Qx6MDYoRWM8cY8GXsUPaeMed9zhrYpCPoMKtz8FS1q+uUiJqGaL/
-         rosjN3PweB+D2hS68zt/9WyN1oJ8IPYQuQJi1p8Z7hyvgdtGUnSPRaojIa4jMf0TH14c
-         BxzTCu858bm3RMdazvasHaddI/Bo18wNr8BCY28qKyGwitgEr1VP1ZGFYksiiAGXB1vP
-         f2MOs3j2EMzgd7l5hWM1hMMB7Gvh7oo3nidhCWEymM0qSY07Chwu/1sVUjKwAsOqPkPV
-         ooRg==
+        bh=PJA60M0ShvGgAGdvUFVxM+gy8jPoTTfj2EhMnX7Rw2Q=;
+        b=WSEzEzUXQlHBUvg1pWjv6+1olC1m7W8Xo16di7Ro4m4LWBFPlNdRqAX4wWCyCeCwFk
+         O4/x/mim5YSc9LpiOfpsAOqlsr2G8IFfdd5nQTFZcBJPkDHgG8ZcBaUQJomIdLJcEb1z
+         BRCXUOSHy6X4UWRU1HMgcLDbhBnk/ohdI/MCZB4hUCReLNE2rUsyfa0XRp2awLXe2akM
+         Shfvhv6BZnyiPbfrQjR3yGufNaW/voNVWAKWenFkVl7Nh02CMndf8Ndx8sTVkTHeyTDC
+         jeOVVZwolmc/bAZwDgyLI2HWq+PZ/bC3IgZGEDgEAQjwwZxgBITsZ94BkkLnTh9P7rdd
+         ebLA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Ci44e+1H;
+       dkim=pass header.i=@kernel.org header.s=default header.b=t2yJVjGS;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u2si36793pjn.13.2019.06.06.13.27.56
+        by mx.google.com with ESMTPS id o20si25872pjp.48.2019.06.06.13.28.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 13:27:56 -0700 (PDT)
+        Thu, 06 Jun 2019 13:28:42 -0700 (PDT)
 Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Ci44e+1H;
+       dkim=pass header.i=@kernel.org header.s=default header.b=t2yJVjGS;
        spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f43.google.com (mail-wm1-f43.google.com [209.85.128.43])
+Received: from mail-wr1-f51.google.com (mail-wr1-f51.google.com [209.85.221.51])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 5EA1320B1F
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 20:27:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 255F720B7C
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 20:28:42 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1559852876;
-	bh=V7Uq2AYQOlpquEHSKTkBWDviou8MRCFEnqb/lAamoAk=;
+	s=default; t=1559852922;
+	bh=7dtJJy+tpf1euG0sliaeXpcZWtPy4t0cTCPj40HG3Gc=;
 	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=Ci44e+1HjYkBXHk1NXaSKaCK1CuA9I7JHv13wyv1lEnO/sidJI4tB6xS6yrL8RyS4
-	 u1c38WXLlfjZOrTvgSqTEJ1fe0gBzGjB9GSQBqk9RYWMj7SGnOV8OTBZSJy9XfJr6z
-	 mc+nJ+Htrap+uCUHep75lsy4tzge8nmCXsv3MFek=
-Received: by mail-wm1-f43.google.com with SMTP id g135so1191144wme.4
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:27:56 -0700 (PDT)
-X-Received: by 2002:a7b:cd84:: with SMTP id y4mr1192848wmj.79.1559852874993;
- Thu, 06 Jun 2019 13:27:54 -0700 (PDT)
+	b=t2yJVjGScNVAceTq64NgeNXeja0FCFjw2J41UevfqpsJ6YUmmYc3K+axFdZgrqoNG
+	 C2AFooBLHsfBQPFkZFLDhZOpkV8pWCqBrBk+Gm5E0fJSf8nVZ02y7HDywrc4PNgA0e
+	 TOjlgx5CqdRDt/Fp31naUp8cvXov8xmEnxZSVXlM=
+Received: by mail-wr1-f51.google.com with SMTP id x4so3747717wrt.6
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:28:42 -0700 (PDT)
+X-Received: by 2002:adf:f2c8:: with SMTP id d8mr4520549wrp.221.1559852920790;
+ Thu, 06 Jun 2019 13:28:40 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com> <20190606200926.4029-13-yu-cheng.yu@intel.com>
-In-Reply-To: <20190606200926.4029-13-yu-cheng.yu@intel.com>
+References: <20190606200926.4029-1-yu-cheng.yu@intel.com> <20190606200926.4029-12-yu-cheng.yu@intel.com>
+In-Reply-To: <20190606200926.4029-12-yu-cheng.yu@intel.com>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 6 Jun 2019 13:27:43 -0700
-X-Gmail-Original-Message-ID: <CALCETrXfBCFKB2SwhEngABPCkAfgmb+YkRL3Xx3-=haN9H+V_g@mail.gmail.com>
-Message-ID: <CALCETrXfBCFKB2SwhEngABPCkAfgmb+YkRL3Xx3-=haN9H+V_g@mail.gmail.com>
-Subject: Re: [PATCH v7 12/14] x86/vsyscall/64: Fixup shadow stack and branch
- tracking for vsyscall
+Date: Thu, 6 Jun 2019 13:28:29 -0700
+X-Gmail-Original-Message-ID: <CALCETrXWehe=s4i+VkjxJBLh2AVWRioybpY0nbEWXZjvY_rFeQ@mail.gmail.com>
+Message-ID: <CALCETrXWehe=s4i+VkjxJBLh2AVWRioybpY0nbEWXZjvY_rFeQ@mail.gmail.com>
+Subject: Re: [PATCH v7 11/14] x86/vsyscall/64: Add ENDBR64 to vsyscall entry points
 To: Yu-cheng Yu <yu-cheng.yu@intel.com>
 Cc: X86 ML <x86@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, 
 	Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, 
@@ -128,59 +126,12 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, Jun 6, 2019 at 1:17 PM Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
 >
-> When emulating a RET, also unwind the task's shadow stack and cancel
-> the current branch tracking status.
+> From: "H.J. Lu" <hjl.tools@gmail.com>
 >
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> ---
->  arch/x86/entry/vsyscall/vsyscall_64.c | 28 +++++++++++++++++++++++++++
->  1 file changed, 28 insertions(+)
->
-> diff --git a/arch/x86/entry/vsyscall/vsyscall_64.c b/arch/x86/entry/vsyscall/vsyscall_64.c
-> index d9d81ad7a400..6869ef9d1e8b 100644
-> --- a/arch/x86/entry/vsyscall/vsyscall_64.c
-> +++ b/arch/x86/entry/vsyscall/vsyscall_64.c
-> @@ -38,6 +38,8 @@
->  #include <asm/fixmap.h>
->  #include <asm/traps.h>
->  #include <asm/paravirt.h>
-> +#include <asm/fpu/xstate.h>
-> +#include <asm/fpu/types.h>
->
->  #define CREATE_TRACE_POINTS
->  #include "vsyscall_trace.h"
-> @@ -92,6 +94,30 @@ static int addr_to_vsyscall_nr(unsigned long addr)
->         return nr;
->  }
->
-> +void fixup_shstk(void)
-> +{
-> +#ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
-> +       u64 r;
-> +
-> +       if (current->thread.cet.shstk_enabled) {
-> +               rdmsrl(MSR_IA32_PL3_SSP, r);
-> +               wrmsrl(MSR_IA32_PL3_SSP, r + 8);
-> +       }
-> +#endif
-> +}
-> +
-> +void fixup_ibt(void)
-> +{
-> +#ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
-> +       u64 r;
-> +
-> +       if (current->thread.cet.ibt_enabled) {
-> +               rdmsrl(MSR_IA32_U_CET, r);
-> +               wrmsrl(MSR_IA32_U_CET, r & ~MSR_IA32_CET_WAIT_ENDBR);
-> +       }
-> +#endif
-> +}
+> Add ENDBR64 to vsyscall entry points.
 
-These should be static.
-
-But please just inline them directly in their one call site.  The code
-will be a lot easier to understand.
+I'm still okay with this patch, but this is rather silly.  If anyone
+actually executes this code, they're doing it wrong.
 
 --Andy
 
