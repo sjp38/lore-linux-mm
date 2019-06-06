@@ -2,173 +2,229 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2468EC04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:51:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48393C28EB4
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:53:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D5844208C3
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:51:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 09374206BB
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:53:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="JK8En4/C"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D5844208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=canb.auug.org.au header.i=@canb.auug.org.au header.b="BjNv3BPo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 09374206BB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=canb.auug.org.au
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 80E6E6B0279; Thu,  6 Jun 2019 15:51:17 -0400 (EDT)
+	id 85BD06B0281; Thu,  6 Jun 2019 15:53:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BFBB6B027A; Thu,  6 Jun 2019 15:51:17 -0400 (EDT)
+	id 80AEA6B0282; Thu,  6 Jun 2019 15:53:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6AEF66B0281; Thu,  6 Jun 2019 15:51:17 -0400 (EDT)
+	id 6FA636B0285; Thu,  6 Jun 2019 15:53:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BC9C6B0279
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 15:51:17 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id r58so3056281qtb.5
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 12:51:17 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 391666B0281
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 15:53:54 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id y7so2562499pfy.9
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 12:53:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=fVbv7ZkCU0XRJ9jD+fxd4ieH6waXD3NIwch6tKZrfLk=;
-        b=Yvd5wv2ae30T+A9ssdeTk3kOVq4ywNAcWbaTikbh+AfT3EaXNieJXxz9CWT5w1yLv7
-         tIxCab1Y3ucctChVR83x2BAkGQmiZ7Xf+QWhcVRnSI+X1n9H1WnVR0SUkHrqRBC/K5CL
-         e6L8UU63IlnxJsYqLKWFsTw6FJB3xPUBCuObMtbuOQUJGI6Z6pozpscTNl3wwcmxzxfc
-         BHqfQEISh40FGtpDKh9TqS2nSUvGA/HYuik0XDNY4HEc7Iof5fgk3N2KNmaWMlxYv11D
-         ZBNVwfJ30nHhj+TzTSmCrn69mjrwtm9io1LcCy3RfyNtVz+np+1cUlosIAYVPIvjCLv7
-         4M7Q==
-X-Gm-Message-State: APjAAAXpc+V6ZN05dbPGhRKxc0LmyWUwb9Vqd7bStDXbinM3t/J82+mT
-	1DlKoxED9c/HBhvkHbTgkzNuDiJ1S8zXBpeuSbHC2BWe5ZKAYYwKX1EU7SbRHNl/Cfnw7Cf+gO2
-	rSakrKmVPU3xEfgY0BYamL0FSyIxuHPTDjrcNdmlupQZiF9uGiqrJjNkVbU0QxPiKSA==
-X-Received: by 2002:ac8:1a8d:: with SMTP id x13mr42798498qtj.114.1559850677023;
-        Thu, 06 Jun 2019 12:51:17 -0700 (PDT)
-X-Received: by 2002:ac8:1a8d:: with SMTP id x13mr42798456qtj.114.1559850676406;
-        Thu, 06 Jun 2019 12:51:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559850676; cv=none;
+         :message-id:in-reply-to:references:mime-version;
+        bh=UHAEe52WTylPEzWcunVQrncUjHHUAGZSuxAqUybT63Y=;
+        b=AW17pVhmVzBNP6fU6JUnwFzGX5sz4sn8/caVVlS69vUlquQSW82v3Hclh7Nabz0gSn
+         AWEFnnY3DLWbtQZvnUp4olkAwT1SUG5+X4jkd4v00ADWDzqCNxs8xoNDoWK7zdH9UsTL
+         dorJUDCSoKiUFke8Lr+8H6oGXXvxl4eU5CfA67nUq6qc1e7Pv/45LFZVIsXLM0l5Sk1X
+         L+DKPCTLByNKVe4Ncsj792nhBGEewD+n/NzPNa4QURqyot1R5Nr4d5VS7H/LqZlCBeO6
+         N9BBsXd92lFHUJojhLvZU82ZhuzbRwpiW1PMk7d2ppS/5Q3dLBx/74lhBM8R9JHVXKyz
+         V7LQ==
+X-Gm-Message-State: APjAAAWLLL2yVe+8M4LaJEdbOkc+D9eP4gRZ5I9+tO1v9e8LbmCqwCNk
+	4U+w6QQsv4rBVWMEL77Nxp3oxpMO1ltJ9Ly2FpxHmNj7IDV7L7nQXY+H6387Plhc1UdFTWlL4Ih
+	w4Fkk5Dn7G+i0YPlRU81WuO19fgVZE0GXwsxC7vmvI0G+g+/J9S2ZqhpXkxPmkgx77Q==
+X-Received: by 2002:a17:90a:bc0c:: with SMTP id w12mr1446744pjr.111.1559850833786;
+        Thu, 06 Jun 2019 12:53:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxGRWP6r/JgxICARwQ54q4s0CHuF5iReFE2hfllsZINFDgg7/GDrvGLbLD+6+MMVSMEsz6s
+X-Received: by 2002:a17:90a:bc0c:: with SMTP id w12mr1446685pjr.111.1559850832737;
+        Thu, 06 Jun 2019 12:53:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559850832; cv=none;
         d=google.com; s=arc-20160816;
-        b=T6GWZ4imDNYxX+Hg2tMIY61+3DN6btxPxek71hFyrhaiFkh2zvLZOqdPZlSDiNs9XA
-         ozWHa9HeyjnVapNd//w0rvTAvGAUTlhT3yhnL2yFB0rM5IEhz2bXfe+nHOBC1Apo7twi
-         FTls+y77By8ULSwDXRYdcxiqhU18J8H0/3l3VBrM1du1fQjtawAl84Rujjmy3pExI1A4
-         dC7IGGhuKm/+OF0FSyLy2u3LQU6GeVv0ANApSkAtO0GHRSuxFunSwc9Y5hKf/PW4dAvk
-         tV+BdB5i2YBSbF1EjIzkhlRjjWr9QjvV2AWkObK/AD5Pzj3T5RIsUaqMJfqChyepz1hu
-         dNPQ==
+        b=DQUtSOh6j3xo6fUHDADY4948clMzitlCcrGTDcN+SUptCvgfFT9Ta3cYp7P5TnvIlI
+         pWi4JQIO1yTVNbEPxsRPqJrjFMKDN9mayHFz+uWGjGXDBmrR5X5sYsomh9RRGksCjNw9
+         JoARxX8SzR2JnkHOTwDVaOpAfOZ78FOiki8s51+65qR40UErReDPMS5969A/ZU+M44Vm
+         PTcDYOLeGR+3iFLv/cRScYRlliaUbiQAh8QrNZ/ZqqFQo6WJB5l09N2flHapGfVYVGvE
+         bioLeU3twSSjrr+nmIOo7PWlvQEmYmr5//sxbTWqXeXJhFgfUrIo9edMsIaWEs2oIX7j
+         fOuw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=fVbv7ZkCU0XRJ9jD+fxd4ieH6waXD3NIwch6tKZrfLk=;
-        b=xrVZM8MT/AVDbygH07ftE3afqVejjUyWxJSSC39jxYifPQvm0aH09d+3JIJr6tPeMy
-         eZ/HPROpt0fZg/z8sQ8eBlNXe2qAVJvG4w9r4Tif6rOyHTlXZMz8nG3pELtqN3LeUfoq
-         X4z+8vyPg7nX9dbA0jjsEI1azvH0C4bOQJdx+AEOFV+P3aFdFMNtMwoDt7RICXAZO+GF
-         WWgqc/9Ctlmx0ouDztOW3q8OoRQqqIyRNDd3TGV7m76RipEWyLJJ09gs+7A1BJc8ctrX
-         4tL9x4fcsC6+5bQn+UWQ6raC0FwiUvUgPFyl/ir/aJrRWHriYaFtygiysiBTH4QV89Wu
-         /Cxg==
+        h=mime-version:references:in-reply-to:message-id:subject:cc:to:from
+         :date:dkim-signature;
+        bh=UHAEe52WTylPEzWcunVQrncUjHHUAGZSuxAqUybT63Y=;
+        b=MbMtSTsEB4A4t+7oOYq0Yf+gVr9ez5MFwOWenMUYMiKo2ZR0vqtTHI0/MwHWHK2x7h
+         XdmK/l5vfzh5tHAYWqovwQPA9FzSKLLdXuCKAG5ySSWByppsb3BmMH8U7yYuA2VMrA3m
+         t+A4rELjz+oFs0Iwc3nMESYOWNpUQ+h4nHarlELlw3ft9vqf09QXT3SC7lgLu+dIxi3u
+         5RhGXpPyBQNlZD+9xRFAL6Jw2RM/FDuL4V4++IvJ/wgmvGOLCx1NsRcJVHuJ2s11ij5j
+         KUaEoD7Jdlla6rhf7mnI1qsZ0SoIg7QAdkHRpRujxjf9SDc3oF7oI75BalHRvQpS4Vo6
+         BHZg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b="JK8En4/C";
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i6sor1553626qkc.47.2019.06.06.12.51.16
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=BjNv3BPo;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from ozlabs.org (bilbo.ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id p65si2608730pfp.168.2019.06.06.12.53.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Jun 2019 12:51:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b="JK8En4/C";
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=fVbv7ZkCU0XRJ9jD+fxd4ieH6waXD3NIwch6tKZrfLk=;
-        b=JK8En4/CLh0QaNpMzjO2iMeOMpfrAAx/gr5SgNV/sb4SY2gHe/v8MOPkfC/9wPWIZ9
-         ZL8QsvlzUZu3/QV2sR8DriCxzBeBuTLKUUPKPgdfpcAKVXgCaQb7rGQ3TRW8g1PxMby9
-         +wxeHaZK6IN3egjgnP9IJZ+w011avGG0F3y8TTnoGrINoPzy0TddWA78C+1Q+KMGIdzz
-         92AxUAVNZWhAkEVYstL8INWhYQ829J/YpWO2ZbVyA8ZS8ksWZ7LFyB1R04yWWmr5UAZu
-         N8V2QVFH6XXSPdpk/99Edhk0JJ7bEpSx2FL6IQyeiD+YQVzMZEgvotOVmE8xHx4nh57Z
-         Aq3A==
-X-Google-Smtp-Source: APXvYqzyssiuyqvk956epvDv1OTyC6TvGNp+K2MqufTjNzhdzVN0pIMcZor/PXhzGoG5BWQnFWZbfw==
-X-Received: by 2002:a37:a9c3:: with SMTP id s186mr41012233qke.190.1559850676118;
-        Thu, 06 Jun 2019 12:51:16 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id t197sm1415555qke.2.2019.06.06.12.51.15
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 06 Jun 2019 12:51:15 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hYyPr-00081O-0q; Thu, 06 Jun 2019 16:51:15 -0300
-Date: Thu, 6 Jun 2019 16:51:15 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jan Kara <jack@suse.cz>
-Cc: ira.weiny@intel.com, Dan Williams <dan.j.williams@intel.com>,
-	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
-	Dave Chinner <david@fromorbit.com>,
-	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
-Message-ID: <20190606195114.GA30714@ziepe.ca>
-References: <20190606014544.8339-1-ira.weiny@intel.com>
- <20190606104203.GF7433@quack2.suse.cz>
+        Thu, 06 Jun 2019 12:53:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@canb.auug.org.au header.s=201702 header.b=BjNv3BPo;
+       spf=pass (google.com: domain of sfr@canb.auug.org.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=sfr@canb.auug.org.au
+Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
+	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
+	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
+	(No client certificate requested)
+	by mail.ozlabs.org (Postfix) with ESMTPSA id 45KbvF48Xvz9sDX;
+	Fri,  7 Jun 2019 05:53:45 +1000 (AEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=canb.auug.org.au;
+	s=201702; t=1559850827;
+	bh=d6SJxU0/ScjlRTFzNoaL9FcILbaOOHmHAty3CZ/Vh/M=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=BjNv3BPoFFPjmA7YQV4rHasyQ0759LKCjrVwNHart/HO5uj6qphC7gz5KmZdB56+B
+	 +HwcAvXphavYyjktKp2nK/jcsCuzQMXr5tqUTMfnT+ev0DFZx39i29fZZF8dgmZc/X
+	 +9wCz+J4sHwuFLYcUDhILzckHTzdJn0r+exASPB5apFMQMHzlQXGO7rv4vH9K294gK
+	 DO22P0PGbGBiNs9bXbMEll8eNKCkiScDLyAPZh+OSYddhH9pzQnsx+RyjoatvzPYzs
+	 e6q3RHbjuSYXsBnUkV4GqSVVxHyycbvDTvvdYsR/a32WxXzAqT9enp//v76sEKQZFE
+	 jQf8GDy1+/pRA==
+Date: Fri, 7 Jun 2019 05:53:34 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+To: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig
+ <hch@infradead.org>, Dave Airlie <airlied@redhat.com>, Linus Torvalds
+ <torvalds@linux-foundation.org>, Daniel Vetter <daniel.vetter@ffwll.ch>,
+ Jerome Glisse <jglisse@redhat.com>, "linux-kernel@vger.kernel.org"
+ <linux-kernel@vger.kernel.org>, "linux-rdma@vger.kernel.org"
+ <linux-rdma@vger.kernel.org>, Leon Romanovsky <leonro@mellanox.com>, Doug
+ Ledford <dledford@redhat.com>, Artemy Kovalyov <artemyko@mellanox.com>,
+ Moni Shoua <monis@mellanox.com>, Mike Marciniszyn
+ <mike.marciniszyn@intel.com>, Kaike Wan <kaike.wan@intel.com>, Dennis
+ Dalessandro <dennis.dalessandro@intel.com>, "linux-mm@kvack.org"
+ <linux-mm@kvack.org>, dri-devel <dri-devel@lists.freedesktop.org>
+Subject: Re: RFC: Run a dedicated hmm.git for 5.3
+Message-ID: <20190607055334.2bdea125@canb.auug.org.au>
+In-Reply-To: <20190606152543.GE17392@mellanox.com>
+References: <20190523155207.GC5104@redhat.com>
+	<20190523163429.GC12159@ziepe.ca>
+	<20190523173302.GD5104@redhat.com>
+	<20190523175546.GE12159@ziepe.ca>
+	<20190523182458.GA3571@redhat.com>
+	<20190523191038.GG12159@ziepe.ca>
+	<20190524064051.GA28855@infradead.org>
+	<20190524124455.GB16845@ziepe.ca>
+	<20190525155210.8a9a66385ac8169d0e144225@linux-foundation.org>
+	<20190527191247.GA12540@ziepe.ca>
+	<20190606152543.GE17392@mellanox.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190606104203.GF7433@quack2.suse.cz>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ boundary="Sig_/l+KwJlP++eQB4BpW/9k.220"; protocol="application/pgp-signature"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 06, 2019 at 12:42:03PM +0200, Jan Kara wrote:
+--Sig_/l+KwJlP++eQB4BpW/9k.220
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-> So I'd like to actually mandate that you *must* hold the file lease until
-> you unpin all pages in the given range (not just that you have an option to
-> hold a lease). And I believe the kernel should actually enforce this. That
-> way we maintain a sane state that if someone uses a physical location of
-> logical file offset on disk, he has a layout lease. Also once this is done,
-> sysadmin has a reasonably easy way to discover run-away RDMA application
-> and kill it if he wishes so.
-> 
-> The question is on how to exactly enforce that lease is taken until all
-> pages are unpinned. I belive it could be done by tracking number of
-> long-term pinned pages within a lease. Gup_longterm could easily increment
-> the count when verifying the lease exists, gup_longterm users will somehow
-> need to propagate corresponding 'filp' (struct file pointer) to
-> put_user_pages_longterm() callsites so that they can look up appropriate
-> lease to drop reference - probably I'd just transition all gup_longterm()
-> users to a saner API similar to the one we have in mm/frame_vector.c where
-> we don't hand out page pointers but an encapsulating structure that does
-> all the necessary tracking. Removing a lease would need to block until all
-> pins are released - this is probably the most hairy part since we need to
-> handle a case if application just closes the file descriptor which
-> would
+Hi Jason,
 
-I think if you are going to do this then the 'struct filp' that
-represents the lease should be held in the kernel (ie inside the RDMA
-umem) until the kernel is done with it.
+On Thu, 6 Jun 2019 15:25:49 +0000 Jason Gunthorpe <jgg@mellanox.com> wrote:
+>
+> On Mon, May 27, 2019 at 04:12:47PM -0300, Jason Gunthorpe wrote:
+> > On Sat, May 25, 2019 at 03:52:10PM -0700, Andrew Morton wrote: =20
+> > > On Fri, 24 May 2019 09:44:55 -0300 Jason Gunthorpe <jgg@ziepe.ca> wro=
+te:
+> > >  =20
+> > > > Now that -mm merged the basic hmm API skeleton I think running like
+> > > > this would get us quickly to the place we all want: comprehensive i=
+n tree
+> > > > users of hmm.
+> > > >=20
+> > > > Andrew, would this be acceptable to you? =20
+> > >=20
+> > > Sure.  Please take care not to permit this to reduce the amount of
+> > > exposure and review which the core HMM pieces get. =20
+> >=20
+> > Certainly, thanks all
+> >=20
+> > Jerome: I started a HMM branch on v5.2-rc2 in the rdma.git here:
+> >=20
+> > git://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git
+> > https://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git/log/?h=3D=
+hmm =20
+>=20
+> I did a first round of collecting patches for hmm.git
+>=20
+> Andrew, I'm checking linux-next and to stay co-ordinated, I see the
+> patches below are in your tree and now also in hmm.git. Can you please
+> drop them from your tree?=20
+>=20
+> 5b693741de2ace mm/hmm.c: suppress compilation warnings when CONFIG_HUGETL=
+B_PAGE is not set
+> b2870fb882599a mm/hmm.c: only set FAULT_FLAG_ALLOW_RETRY for non-blocking
+> dff7babf8ae9f1 mm/hmm.c: support automatic NUMA balancing
+>=20
+> I checked that the other two patches in -next also touching hmm.c are
+> best suited to go through your tree:
+>=20
+> a76b9b318a7180 mm/devm_memremap_pages: fix final page put race
+> fc64c058d01b98 mm/memremap: rename and consolidate SECTION_SIZE
+>=20
+> StephenR: Can you pick up the hmm branch from rdma.git for linux-next for
+> this cycle? As above we are moving the patches from -mm to hmm.git, so
+> there will be a conflict in -next until Andrew adjusts his tree,
+> thanks!
 
-Actually does someone have a pointer to this userspace lease API, I'm
-not at all familiar with it, thanks
+I have added the hmm branch from today with currently just you as the
+contact.  I also removed the three commits above from Andrew's tree.
 
-And yes, a better output format from GUP would be great..
+Thanks for adding your subsystem tree as a participant of linux-next.  As
+you may know, this is not a judgement of your code.  The purpose of
+linux-next is for integration testing and to lower the impact of
+conflicts between subsystems in the next merge window.=20
 
-> Maybe we could block only on explicit lease unlock and just drop the layout
-> lease on file close and if there are still pinned pages, send SIGKILL to an
-> application as a reminder it did something stupid...
+You will need to ensure that the patches/commits in your tree/series have
+been:
+     * submitted under GPL v2 (or later) and include the Contributor's
+        Signed-off-by,
+     * posted to the relevant mailing list,
+     * reviewed by you (or another maintainer of your subsystem tree),
+     * successfully unit tested, and=20
+     * destined for the current or next Linux merge window.
 
-Which process would you SIGKILL? At least for the rdma case a FD is
-holding the GUP, so to do the put_user_pages() the kernel needs to
-close the FD. I guess it would have to kill every process that has the
-FD open? Seems complicated...
+Basically, this should be just what you would send to Linus (or ask him
+to fetch).  It is allowed to be rebased if you deem it necessary.
 
-Regards,
-Jason
+--=20
+Cheers,
+Stephen Rothwell=20
+sfr@canb.auug.org.au
+
+--Sig_/l+KwJlP++eQB4BpW/9k.220
+Content-Type: application/pgp-signature
+Content-Description: OpenPGP digital signature
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEENIC96giZ81tWdLgKAVBC80lX0GwFAlz5bz4ACgkQAVBC80lX
+0Gz42ggAjd2XdELh29gxYaa3AGGZx68tH5E3qcBVYvxP3IEAfi0bUSvxNXFhstk6
+YaxWX9oxbApTS2Uj3++jezF4Xjj2Y73HGUjGLQ3Otw3Mnqcf6jXCMx8Z++gM7yyC
+VCZzpR+3xAuAY21M7Ov9ZplyOO2h0UgAm8zaMi5hxEyGVAKjncUBDg4Y0qrh0UAl
+AnZKxV4zQyp4/PvVuYFQa+g8igqB+cGfBLY36wP0k2p3f7btC0m1JSgADRiqg0lA
+reZ+53oVo8c90IhdJp2lysklnxwDvfGMcl5S93eBGYfT0TdJ0XWriIgIy+uwt6mx
+VsgPHJUvyidpJbGyRC/m2LJnhvk19w==
+=dJb7
+-----END PGP SIGNATURE-----
+
+--Sig_/l+KwJlP++eQB4BpW/9k.220--
 
