@@ -2,153 +2,152 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 343F3C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 14:53:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2A77BC28EB4
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 14:54:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DF3552083D
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 14:53:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="YyM3d9F8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF3552083D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id C23A32083E
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 14:54:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C23A32083E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 878786B0279; Thu,  6 Jun 2019 10:53:05 -0400 (EDT)
+	id 6A1E26B027B; Thu,  6 Jun 2019 10:54:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 828FB6B027A; Thu,  6 Jun 2019 10:53:05 -0400 (EDT)
+	id 652946B027C; Thu,  6 Jun 2019 10:54:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 718126B027B; Thu,  6 Jun 2019 10:53:05 -0400 (EDT)
+	id 542676B027D; Thu,  6 Jun 2019 10:54:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E6DA6B0279
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 10:53:05 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id z16so2260458qto.10
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 07:53:05 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E275F6B027B
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 10:54:41 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id l10so600479ljj.18
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 07:54:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=Rwk3g2mjO7u8AyfAS8Q2YGcDDqcuXwzQCBazZp8dMOI=;
-        b=mgvlFYSSWP/1PQAko2KMksrlOL/4W5DaLXh6A38vZ23lRBXn5zvqB6c/4kvBllZCNh
-         sGClxDtnoNquCwO/sGsjQntFKPmYR6DSCcVF66P9Ybfyibw+UISzn0Q+REFIg2LGYifN
-         dK14QRLxn/KZxYc+1ovx7FybRYjPJlUP8JVC2ynpzATXbOMHdAD4qehcro1mWsjeD4HL
-         PkujbxiLG9GbfQa+HxEPgg3BIXme9+Dk9OUQhRBgSWRRZEhEebZethupxhNGL8M409oT
-         vOx6VwuKhRF+kPbzeFt4BNAfU3F+UP1ikuv7OzApRFwYtsLXQW1k9Wnu6h+u/+owHIWT
-         6SdQ==
-X-Gm-Message-State: APjAAAVBk808yYrYIE9qAfkgIulLxgRvVdJuO9bZTmEzatI74gjgc7KJ
-	sjVh8yNhOEnSLUM8tvIpfNxGnu7ceKYCiVBZ5FwkhsRhK/ONrhjTFhTo6QFlnJ9frU0Dl8tBmVC
-	3KTIkTHoUCw4O0PE6CPD+xFsnWAS4VVpdgxZbnrukq7MDNHTyCjdMZ4zYGHsRqd+NbQ==
-X-Received: by 2002:a05:620a:12ef:: with SMTP id f15mr20505299qkl.340.1559832785107;
-        Thu, 06 Jun 2019 07:53:05 -0700 (PDT)
-X-Received: by 2002:a05:620a:12ef:: with SMTP id f15mr20505256qkl.340.1559832784603;
-        Thu, 06 Jun 2019 07:53:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559832784; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=dD702thkJa4xRC9FL35mAEmbp02pQamPCZ6/vuPpoAQ=;
+        b=bR3mUEuenEoa4PrfkSaMS0NkIjFa3i4M1xaR4+GE0wVgMwqom+9LRvNFAuH9jkZvwM
+         50bYIHViAjYRokVtFvLPvOPSB4pYouTO+1VP3h2lKianHMZqhJYvakjeECDykm7aYeX3
+         WGz5XBeWD+xoDwrEDJgSIIrs3OOS/xCmpmyxDNl2AjTkLEZU/c4Jrhc2S5S64Awsowa3
+         SxcyvmyH4BRef23h9Wk+a2VqOxgWk2immJOCcnLHIOGCHXEqXFABPJWm5rvFCeztRgjK
+         deFZLZ1dqi3kZbv254YVR88u1BuchfsIy39hRL7oeuscLzXgo/cyQovryK83bm8+Soz2
+         ENkQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAVR/rKKt3diMj0CJSO1WjU8szS6i4Dwo7N2qnxeO9lhrMvXdyM9
+	oerFyl0YU9P1I4X6qd7ry5Dgo0j5vnmFjxmuZ/li4tUjNoa5L7VNpJLlCvzuHU5liYYnBQ+xGl2
+	PNcAFzFOI1TSUsnNCN/459Jc0AKsXSkDHqXhYQnXgCF8J1YJMBuwxtmkWbZoIdgypxQ==
+X-Received: by 2002:a2e:9a9a:: with SMTP id p26mr11373172lji.64.1559832881238;
+        Thu, 06 Jun 2019 07:54:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyTiA56XA5sdLlo49cLz/7wkVLi55Gbv+gc8OQJOPwEwt6EQ+/xsbesBpllhSN841UqQ4qQ
+X-Received: by 2002:a2e:9a9a:: with SMTP id p26mr11373142lji.64.1559832880426;
+        Thu, 06 Jun 2019 07:54:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559832880; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ls3+8sppp55od+vb0lXthrVX1d9joagMI1sRK26Ne6Ty6+IHNgbIdAl2B/ylqCdpQb
-         MPpii7zAlydin3TJzluw4mT3jM345/eJWnkP6NxgtPgJImEgF4PIyinOW4WQWMEWydzX
-         9CW3dflV07zro5kyhHEchPBUqz7OAfhUn7UOwkSjS3DReqsZIWmDidJGVR0FFhW60Y8m
-         wZmSzMQYctyUorv8YSO4SjpF8hlAwBFGd8jfvFmvduQ8oU9y5dt68HEGwsgk+pR0bKnv
-         PQDSsFGFwzh+OxwRD79uvB2Hbb2IdLhH8ErneWY6Gjtnx63R3CD2aHO1lfAlwSI49kBp
-         TvGA==
+        b=FJ7pCFMcLDuLCd3DFTBgQixTGHUlFoPgHNfhDUQX5g/k6eseDdRCjNWC76koyrbAco
+         7skV9JhQeeCkyV6dkMevevUmu7QfTtx1CsOOUSEhekR9n6xU1FqvOr/w56U37M0c11/V
+         jzfd2ufiq+kVUJil0waAP62y3pfSQVML0hfVVKkiZbZ8L6OrYC2XBrRJvceMnj3Ylk3H
+         eWhutsgxUkzx6vJb9p55OL8//IYUDnqAA5mi7aw1JAFGE99WW1tlfHrzp/IItMPq+0co
+         UJuHWkivJOMg/Kqr0VNdL47L4B/cySWLPZLAVkZ8L1x9rv2o3BnjzIF8kR74dru6DY2s
+         Knfw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Rwk3g2mjO7u8AyfAS8Q2YGcDDqcuXwzQCBazZp8dMOI=;
-        b=m6qcIFbghTcpST40yinut98kufQXaaqugjg/hyuNLAlOWsb40CoKE8vAlgPYxOHPs8
-         9EV7xOKhfScXGs94hfTUYqxP0UxIZ98zpg59vpHbYd/OApmAzymyGR3fGTHiJ7QhUmPZ
-         xeCUqSAXfXjE90Gme9fRYEYm2//iY6q0iLe2/6NjEwCocE6GDE+LeE29Xu6+wPpqzNHW
-         mgqx5np05PbBYzajgJst8hdBHW+etHHb/ZoJR310TEluZ7IzYVdDV4lzjX2/f6t8ndNp
-         fdZVaN2DVhldK7uasApq0QV7QB0iQkfrEkfpmPk85bSNRGPDqRjk/Bz5Cd9WPX8m7ERn
-         iWGw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=dD702thkJa4xRC9FL35mAEmbp02pQamPCZ6/vuPpoAQ=;
+        b=oT39dtic+gz8LI6vyQjHP4kCtgAPcNj4n3DhniGdYmAmXxgQwTdYws0T4NsI4myeIO
+         nVxTKYsCzpp0F3B5PDArPE8JPbuUmMF3MRVEaTmq+9tfRDz/DTBHbnpLW95sOTzR4rf/
+         2kp01jXhHd2qJXVv0R8T0p7pdwqJZjRbppapCdkKE/YuFhG04pCloo6+EJ0XfsBXY6Nh
+         5IRzBXfilZuqmM7TxtfhSJYmvO7pG2FDuYnbSMXxnZwpVWR9xuemY7Hwwa6QbLWxh7nj
+         0/IIoOPaGh3t6eRlqRGFTvad46JmjaHOjHyHmlEf7gTwCkxLoGcg9EzlWmH+JBlifHut
+         wkFg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=YyM3d9F8;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l51sor1601797qvc.55.2019.06.06.07.53.04
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id s7si2223877ljg.50.2019.06.06.07.54.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Jun 2019 07:53:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Jun 2019 07:54:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=YyM3d9F8;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=Rwk3g2mjO7u8AyfAS8Q2YGcDDqcuXwzQCBazZp8dMOI=;
-        b=YyM3d9F8NpTGqs+6Oz/bFIAwDIb6AMR9dQjZvcG7jugaKFVOss+SFYSKHn5pCRSCYr
-         atqIMgKwQaeWpTsRFv4ZG8QNCX4WZuJuViyRchCJBxcIp5ccRTDkx5hpCWxB+no+ettb
-         KgTLHgA7tq73Brk3UOcybhh2F+vU4epOsvBPlwyl5be3TDs1XrHC8J1Ot6ESqzM7ONv+
-         /ZxelDbLEzGRibnzXWb4cDMn6rSHPXhvSIif/dA92YR0yWnsJ0ZANAG3qcMzVniUszzE
-         rBTQlSurX9TXV5LG5nwdaZUud6L9MPFKhCLVTA4AbEMLQYYGEAuJ9eqFxJDXQDgwHxED
-         7T/w==
-X-Google-Smtp-Source: APXvYqzogf8+qz/m25zpvUSWX8ZermCY/xWYAkBSXOmj0SwgnGPv1iHRExXEqe+teTmO50fXGzbJuQ==
-X-Received: by 2002:ad4:53c2:: with SMTP id k2mr37787769qvv.15.1559832784348;
-        Thu, 06 Jun 2019 07:53:04 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id t30sm795128qkm.39.2019.06.06.07.53.03
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 06 Jun 2019 07:53:04 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hYtlH-0001FD-GL; Thu, 06 Jun 2019 11:53:03 -0300
-Date: Thu, 6 Jun 2019 11:53:03 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: rcampbell@nvidia.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Arnd Bergmann <arnd@arndb.de>, Balbir Singh <bsingharora@gmail.com>,
-	Dan Carpenter <dan.carpenter@oracle.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/5] mm/hmm: HMM documentation updates and code fixes
-Message-ID: <20190606145303.GA4698@ziepe.ca>
-References: <20190506232942.12623-1-rcampbell@nvidia.com>
+       spf=pass (google.com: domain of ktkhai@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=ktkhai@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.169]
+	by relay.sw.ru with esmtp (Exim 4.91)
+	(envelope-from <ktkhai@virtuozzo.com>)
+	id 1hYtmX-0000ch-5P; Thu, 06 Jun 2019 17:54:21 +0300
+Subject: Re: KASAN: use-after-free Read in unregister_shrinker
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: "J. Bruce Fields" <bfields@fieldses.org>,
+ syzbot <syzbot+83a43746cebef3508b49@syzkaller.appspotmail.com>,
+ Andrew Morton <akpm@linux-foundation.org>, bfields@redhat.com,
+ chris@chrisdown.name, Daniel Jordan <daniel.m.jordan@oracle.com>,
+ guro@fb.com, Johannes Weiner <hannes@cmpxchg.org>,
+ Jeff Layton <jlayton@kernel.org>, laoar.shao@gmail.com,
+ LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+ linux-nfs@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>,
+ Michal Hocko <mhocko@suse.com>, Stephen Rothwell <sfr@canb.auug.org.au>,
+ syzkaller-bugs <syzkaller-bugs@googlegroups.com>, yang.shi@linux.alibaba.com
+References: <0000000000005a4b99058a97f42e@google.com>
+ <b67a0f5d-c508-48a7-7643-b4251c749985@virtuozzo.com>
+ <20190606131334.GA24822@fieldses.org>
+ <275f77ad-1962-6a60-e60b-6b8845f12c34@virtuozzo.com>
+ <CACT4Y+aJQ6J5WdviD+cOmDoHt2Dj=Q4uZ4vHbCfHe+_TCEY6-Q@mail.gmail.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <00ec828a-0dcb-ca70-e938-ca26a6a8b675@virtuozzo.com>
+Date: Thu, 6 Jun 2019 17:54:19 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190506232942.12623-1-rcampbell@nvidia.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <CACT4Y+aJQ6J5WdviD+cOmDoHt2Dj=Q4uZ4vHbCfHe+_TCEY6-Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 06, 2019 at 04:29:37PM -0700, rcampbell@nvidia.com wrote:
-> From: Ralph Campbell <rcampbell@nvidia.com>
+On 06.06.2019 17:40, Dmitry Vyukov wrote:
+> On Thu, Jun 6, 2019 at 3:43 PM Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>>
+>> On 06.06.2019 16:13, J. Bruce Fields wrote:
+>>> On Thu, Jun 06, 2019 at 10:47:43AM +0300, Kirill Tkhai wrote:
+>>>> This may be connected with that shrinker unregistering is forgotten on error path.
+>>>
+>>> I was wondering about that too.  Seems like it would be hard to hit
+>>> reproduceably though: one of the later allocations would have to fail,
+>>> then later you'd have to create another namespace and this time have a
+>>> later module's init fail.
+>>
+>> Yes, it's had to bump into this in real life.
+>>
+>> AFAIU, syzbot triggers such the problem by using fault-injections
+>> on allocation places should_failslab()->should_fail(). It's possible
+>> to configure a specific slab, so the allocations will fail with
+>> requested probability.
 > 
-> I hit a use after free bug in hmm_free() with KASAN and then couldn't
-> stop myself from cleaning up a bunch of documentation and coding style
-> changes. So the first two patches are clean ups, the last three are
-> the fixes.
+> No fault injection was involved in triggering of this bug.
+> Fault injection is clearly visible in console log as "INJECTING
+> FAILURE at this stack track" splats and also for bugs with repros it
+> would be noted in the syzkaller repro as "fault_call": N. So somehow
+> this bug was triggered as is.
 > 
-> Ralph Campbell (5):
->   mm/hmm: Update HMM documentation
->   mm/hmm: Clean up some coding style and comments
+> But overall syzkaller can do better then the old probabilistic
+> injection. The probabilistic injection tend to both under-test what we
+> want to test and also crash some system services. syzkaller uses the
+> new "systematic fault injection" that allows to test specifically each
+> failure site separately in each syscall separately.
 
-I applied these two to hmm.git
+Oho! Interesting.
 
->   mm/hmm: hmm_vma_fault() doesn't always call hmm_range_unregister()
-
-This one needs revision
-
->   mm/hmm: Use mm_get_hmm() in hmm_range_register()
->   mm/hmm: Fix mm stale reference use in hmm_free()
-
-I belive we all agreed that the approach in the RFC series I sent is
-preferred, so these are superseded by that series.
-
-Thanks,
-Jason
+> All kernel testing systems should use it. Also in couple with KASAN,
+> KMEMLEAK, LOCKDEP. It's indispensable in finding kernel bugs.
 
