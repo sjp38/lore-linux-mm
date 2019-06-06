@@ -2,218 +2,211 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 59179C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 18:59:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 38889C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:04:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B30192089E
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 18:59:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B30192089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id DB0F62083D
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 19:04:49 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amdcloud.onmicrosoft.com header.i=@amdcloud.onmicrosoft.com header.b="cTqWQ84I"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB0F62083D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amd.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3A08E6B027E; Thu,  6 Jun 2019 14:59:44 -0400 (EDT)
+	id 76D506B0283; Thu,  6 Jun 2019 15:04:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3514C6B0283; Thu,  6 Jun 2019 14:59:44 -0400 (EDT)
+	id 6F8306B028E; Thu,  6 Jun 2019 15:04:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 23F216B028D; Thu,  6 Jun 2019 14:59:44 -0400 (EDT)
+	id 599596B028F; Thu,  6 Jun 2019 15:04:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0407F6B027E
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 14:59:44 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id m1so858631iop.1
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 11:59:43 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 3AF106B0283
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 15:04:49 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id i133so849998ioa.11
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 12:04:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding:content-language;
-        bh=o0kYLjdhrExUrOoW4LG9f3sFa4hNcrSWOLxQkVeQOEg=;
-        b=TRp2sEJoZqou+yxigMEcdx+leMSrtc3+7BMWjLUKUZ6UwccR02ELagGGCGZib5Edds
-         Axmf6j2+lHLvsO3970qDAMKL43PDH4GwYDzfTmJ41hKznU9CgoSa4ObPSCgleMTeVt9E
-         Yqn4EtuNLukAm1DpAW3Y+Bh9hrn1GRsJDehTt/HJz6sx0cRmHAlRh7GxQqz4yoCqG+Pw
-         xZZ+r2X4HBDGBRmxx8VfHFdNjxFhI3mFe1OoIyybxEIR8SY4sAvfufgo2GyIUl3zY2Fj
-         TDH4AzXvVwpuDqC/Ckr3aPejk4rHf9uwlGbesYBTyy6YE28jwTjSoGWGPVTsHTR9+24e
-         BhfQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUy1I5H+gJh/ocmfN3xIJ60aNAgL8RXEEHor87eQ7KVfsfL26Il
-	VBW8ONOcnASQWCpPI3hyBV00EjAv7RZF4SqzJ6MnoV9iyFpkLQliMxjn7R/OT+DGlJ6qFDmxtUd
-	zPtmI7DgN8o1BV+aqagyYWKX99j2u+Nal343Vr3aT1dDwPS92kK360uv9QvJ/sChXKw==
-X-Received: by 2002:a02:c80d:: with SMTP id p13mr6402882jao.59.1559847583682;
-        Thu, 06 Jun 2019 11:59:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw8zL2pU5vy09G8/pj8YzZD4TgjZQk/TMktFXGrkpCWa4ClHkXJx7EXj7Zz7RK3n28V8BEJ
-X-Received: by 2002:a02:c80d:: with SMTP id p13mr6402827jao.59.1559847582542;
-        Thu, 06 Jun 2019 11:59:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559847582; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:user-agent:content-id:content-transfer-encoding
+         :mime-version;
+        bh=0g+JTSGE0pIRFDErc0S3c8ZNl+vjtjP0b4hWE61WNZY=;
+        b=bpcBUMoqPMXauhL2NGbGqfUFNRiASdmAiAXTYewcDyanBZwlXNM9OIJH60pJQJznEN
+         inAuNGlmU7q6n9NBer59KU1t03a4Ar/Qjsz58xZOkTCEUN7+zPJTqAearwGkr29DV2w1
+         nbjPYOBEWWOE5W4LVBKkLyHkGN7ed9j+Acg1UQUOAYLFgAFnlkcyAnMlYrSqkB8tjIMV
+         9JOKaWbQZMDCauec74oiss+GtJrTTLytDnX1h+6jI0wHAMXf0UlfLdFTAhD4KNccRNQE
+         D1A1Wf/aP0rRflHuQc2VEQVe3kYot3KyQMMcP38KG0XJwfTMRKL8ICpAIdZIzHp7eNKJ
+         tnng==
+X-Gm-Message-State: APjAAAXWbm7OBuy1meWb05ygYA9EVfUDPG7YugnELBWU1MydX4rj10X+
+	3qY//JJP1pt9aP0PMUbACuDiYCUOa8bhQsjqJunxgunBqpzgv5sVJ0Ux+97EV2394K2TjX/xiWj
+	exyh9yemsB4+HCsrB7HdLQvugikZazTqEFMGd2mwGzqYK4sFnSOMwO+IiTIUYfiY=
+X-Received: by 2002:a24:2b0f:: with SMTP id h15mr1029400ita.99.1559847888973;
+        Thu, 06 Jun 2019 12:04:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwKD2BmFTWbmjaihZXUCiVwV3yM4alE+8z0ayRKlA90jjdkf28oEh1xISlVmqcH0oGoD+1F
+X-Received: by 2002:a24:2b0f:: with SMTP id h15mr1029342ita.99.1559847887958;
+        Thu, 06 Jun 2019 12:04:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559847887; cv=none;
         d=google.com; s=arc-20160816;
-        b=pWJet1sFBeRLNXvcJQR7+1LWXT4i2KtNPI42VljqoF21xfa4h0ihP7PhF8/RE2XEck
-         hqHR/xY6OshRvQgVXMw0aEc6QhSWNWuMX9M3/Lidi+vZ3ykrT47Azab5MhLxDAQBqhqA
-         i0pPY+J+oO6/nEMb9l9R/Ghq+6cGGS5hFyD63I3RvQkmgNPKlioZ06RRge/K0Vk0nbCF
-         23G6hIzbdAss/y1IZjhFdhbXiGz7xAYV6K2pKqwBTqlxqRdz3Ty0rAS7k13b91lGxCYK
-         8+we2h6Q7VVohehvYPAi9wPqfCzfWypX2P0l4GUPVyK7cmEJ5DlH5z8fe8r4PbFT7z6Z
-         54Rw==
+        b=mR9ipLt2YxiGsgtVIi3g+G7iaAm2DvcXBW6ZHqx7M4X7e0wiR7sM2D/Aq5KtWdJjuR
+         PM+K4oQ8GoZD+W7H0efcaG3y7ebbSNsv+Pii5/n2G2Nnl3qa8SnKVywxxiBUZC2uOa20
+         y81hvxdd2O/mZuICGm5SF1bqDdE+aO5VSr1oOni2Mcj2TpdYiaSj5Nln8kTAqtUMRC5G
+         9/uRnQLouJVXfLgufI8qS/OrrNz8/OnYpfDTghJklKBwoBUA+HXZITaferjPpubmjPWJ
+         HTx8TACxRljmZTUDfA9/KFiv8BSKEfiNlALtHo+BtK9ujnE0SN20fCUYgVuv3/1nJWys
+         6Lcw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject;
-        bh=o0kYLjdhrExUrOoW4LG9f3sFa4hNcrSWOLxQkVeQOEg=;
-        b=jzAhLWRFn3yXrHweFoFkkqQ74XrPUSGJdyuS6TThA9ISI4wyKTS486vck6siX73npd
-         5E8+pz5HFuVHb51/f80ovBwwjdJ0Vb2Z77ngnXoqQWX7QjDezdiFDP3LnE4Z/3zLC74L
-         urTT8UddPdu/WV3eZaFPM/QeORh6TLj1ys8ISNhQCQ8c9NerEVMPmXcI2hMqreSMDKt6
-         jDRxl012YRxyqlHYW17lDgLYdNV13AXHV22kqzAboWTWeqXtI73V+cDyEDPEDyiwY8xK
-         Ak/PYKzD9fzbPay2otVLgGJ9mSbBb4sv7qw8H1+XY5jCQs2wOlwQy1EbQzxLHv5wSrjM
-         ztJQ==
+        h=mime-version:content-transfer-encoding:content-id:user-agent
+         :content-language:accept-language:in-reply-to:references:message-id
+         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
+        bh=0g+JTSGE0pIRFDErc0S3c8ZNl+vjtjP0b4hWE61WNZY=;
+        b=PR9RRG7/aSiaeafaok4ixmDf5C0XfZBR1AnyowjWqTp16k+hW0cnA4rUtGfJcYsdkh
+         39WpdJ8L1Iq7285JvsDBqkOjFca4j5LYslnHiLZHstY8urUbu+ALbtpPKkbAyOGVYDAY
+         JThXI/PfYW8tXDQNWsx//YiCEqBp66eEFjXD/IGetq8NBNTGzPWxaMVy8ikDGt+MaNMP
+         TZ0y3xrQaf3X3Tj9K3FD/f9ff+LkO6EKFGucv8G5unndK+GpXPOPVMqu6c5+LSt48l7I
+         JgHPpGcam2OInqLM5givXoEkyyOgkRHKMcxB+iNITtVdRqXiVA3I3Pvm1umV+K5VwV4N
+         r6hw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-133.freemail.mail.aliyun.com (out30-133.freemail.mail.aliyun.com. [115.124.30.133])
-        by mx.google.com with ESMTPS id c26si2306337jaa.104.2019.06.06.11.59.41
+       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=cTqWQ84I;
+       spf=neutral (google.com: 40.107.71.64 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
+Received: from NAM05-BY2-obe.outbound.protection.outlook.com (mail-eopbgr710064.outbound.protection.outlook.com. [40.107.71.64])
+        by mx.google.com with ESMTPS id t199si2264302ita.116.2019.06.06.12.04.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 11:59:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) client-ip=115.124.30.133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 06 Jun 2019 12:04:47 -0700 (PDT)
+Received-SPF: neutral (google.com: 40.107.71.64 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) client-ip=40.107.71.64;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.133 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R111e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04407;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TTau0rq_1559847565;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TTau0rq_1559847565)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 07 Jun 2019 02:59:28 +0800
-Subject: Re: [v2 PATCH] mm: thp: fix false negative of shmem vma's THP
- eligibility
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, vbabka@suse.cz,
- rientjes@google.com, kirill@shutemov.name, akpm@linux-foundation.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Hugh Dickins <hughd@google.com>
-References: <1556037781-57869-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190423175252.GP25106@dhcp22.suse.cz>
- <5a571d64-bfce-aa04-312a-8e3547e0459a@linux.alibaba.com>
- <859fec1f-4b66-8c2c-98ee-2aee9358a81a@linux.alibaba.com>
- <20190507104709.GP31017@dhcp22.suse.cz>
- <ec8a65c7-9b0b-9342-4854-46c732c99390@linux.alibaba.com>
-Message-ID: <217fc290-5800-31de-7d46-aa5c0f7b1c75@linux.alibaba.com>
-Date: Thu, 6 Jun 2019 11:59:21 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
-MIME-Version: 1.0
-In-Reply-To: <ec8a65c7-9b0b-9342-4854-46c732c99390@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=cTqWQ84I;
+       spf=neutral (google.com: 40.107.71.64 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=amdcloud.onmicrosoft.com; s=selector1-amdcloud-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=0g+JTSGE0pIRFDErc0S3c8ZNl+vjtjP0b4hWE61WNZY=;
+ b=cTqWQ84IB6kjz0wuK/T7Oz++uMzhRnymkZPynngA/QJjUUd2xlghooNdPTM9jL0dMXy+h41EopqHpPwVCm79Jkcr7txndjfqo+Sozbsvpd7zTr64zQgYNfz0skkq3Sy9y/UMsH0XWEGJUCXX6KgD18U4BEDlrb+4XvauHHbyLZQ=
+Received: from DM6PR12MB3947.namprd12.prod.outlook.com (10.255.174.156) by
+ DM6PR12MB3691.namprd12.prod.outlook.com (10.255.76.96) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1943.22; Thu, 6 Jun 2019 19:04:46 +0000
+Received: from DM6PR12MB3947.namprd12.prod.outlook.com
+ ([fe80::5964:8c3c:1b5b:c480]) by DM6PR12MB3947.namprd12.prod.outlook.com
+ ([fe80::5964:8c3c:1b5b:c480%2]) with mapi id 15.20.1965.011; Thu, 6 Jun 2019
+ 19:04:46 +0000
+From: "Kuehling, Felix" <Felix.Kuehling@amd.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>, "alex.deucher@amd.com"
+	<alex.deucher@amd.com>, "airlied@gmail.com" <airlied@gmail.com>
+CC: "jglisse@redhat.com" <jglisse@redhat.com>, Andrew Morton
+	<akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>
+Subject: Re: [PATCH 0/2] Two bug-fixes for HMM
+Thread-Topic: [PATCH 0/2] Two bug-fixes for HMM
+Thread-Index: AQHVB2oFymYy9x0alkiQIwO1y+NKl6aO5X+AgABBFAA=
+Date: Thu, 6 Jun 2019 19:04:46 +0000
+Message-ID: <1d309300-41d8-eb31-38c2-c6c9dd5c0ba8@amd.com>
+References: <20190510195258.9930-1-Felix.Kuehling@amd.com>
+ <20190606151149.GA5506@ziepe.ca>
+In-Reply-To: <20190606151149.GA5506@ziepe.ca>
+Accept-Language: en-US
 Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [165.204.55.251]
+user-agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
+x-clientproxiedby: YTOPR0101CA0048.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:b00:14::25) To DM6PR12MB3947.namprd12.prod.outlook.com
+ (2603:10b6:5:1cb::28)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=Felix.Kuehling@amd.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 6b05933f-e207-4e8c-7ec0-08d6eab1d74c
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:DM6PR12MB3691;
+x-ms-traffictypediagnostic: DM6PR12MB3691:
+x-ms-exchange-purlcount: 3
+x-microsoft-antispam-prvs:
+ <DM6PR12MB3691AE0B95B19787670F74D192170@DM6PR12MB3691.namprd12.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:10000;
+x-forefront-prvs: 00603B7EEF
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(136003)(376002)(396003)(366004)(346002)(39850400004)(199004)(189003)(486006)(8676002)(6436002)(2201001)(256004)(31696002)(186003)(14454004)(14444005)(316002)(65826007)(2616005)(52116002)(3846002)(86362001)(8936002)(81166006)(81156014)(2906002)(11346002)(53546011)(478600001)(76176011)(99286004)(36756003)(26005)(72206003)(6116002)(386003)(966005)(102836004)(6306002)(6506007)(305945005)(7736002)(6512007)(2501003)(446003)(53936002)(65806001)(476003)(66476007)(229853002)(6486002)(66066001)(54906003)(4326008)(64756008)(5660300002)(64126003)(58126008)(31686004)(110136005)(6246003)(25786009)(73956011)(68736007)(66556008)(66946007)(71200400001)(66446008)(65956001)(71190400001);DIR:OUT;SFP:1101;SCL:1;SRVR:DM6PR12MB3691;H:DM6PR12MB3947.namprd12.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: amd.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ 0YXCf2xHTOFkj2YuyWtiF5Rxd9vPDMHPMdiwI/wl47DvMYU8CFRq4wv1b4/Z+MaRbNUHNaG3M3zvuOqB2BwmWOpO00hsC8t/vkLV40rurjAOVXmqNXW+gRY1QKAEQgCoiGV1dTkgp+MhXCVA/LXjXeoknpoVW04v32yJcKWo0HgvxXSuyVRHHec6jyv6W3iGgPXlIk4BI0Bnr2zfgsRKyhPYeTO571U+7/tduypDqctGnt+016mlKDFqt4mzCbH6UD1571As0SW0v75CRIeyNHcTdlqCP7TX1iB2qy+000KeS+otZMus9WuQhx4nHKpLucdwdWdCO7+3hmAtikV1PswpO/8ynzDssbHdTLaG0q4s5rmp3N0L2ok31At98lXKFIRWe2o/R7UsYKuiupaPlytZKam+oAszeSRnuvVJYz0=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <C02A2BA0FA0B124EAD2EC5D85B54BD99@namprd12.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
+X-OriginatorOrg: amd.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 6b05933f-e207-4e8c-7ec0-08d6eab1d74c
+X-MS-Exchange-CrossTenant-originalarrivaltime: 06 Jun 2019 19:04:46.4218
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 3dd8961f-e488-4e60-8e11-a82d994e183d
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: fkuehlin@amd.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR12MB3691
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 5/7/19 10:10 AM, Yang Shi wrote:
->
->
-> On 5/7/19 3:47 AM, Michal Hocko wrote:
->> [Hmm, I thought, Hugh was CCed]
->>
->> On Mon 06-05-19 16:37:42, Yang Shi wrote:
->>>
->>> On 4/28/19 12:13 PM, Yang Shi wrote:
->>>>
->>>> On 4/23/19 10:52 AM, Michal Hocko wrote:
->>>>> On Wed 24-04-19 00:43:01, Yang Shi wrote:
->>>>>> The commit 7635d9cbe832 ("mm, thp, proc: report THP eligibility
->>>>>> for each
->>>>>> vma") introduced THPeligible bit for processes' smaps. But, when
->>>>>> checking
->>>>>> the eligibility for shmem vma, __transparent_hugepage_enabled() is
->>>>>> called to override the result from shmem_huge_enabled().  It may 
->>>>>> result
->>>>>> in the anonymous vma's THP flag override shmem's.  For example,
->>>>>> running a
->>>>>> simple test which create THP for shmem, but with anonymous THP
->>>>>> disabled,
->>>>>> when reading the process's smaps, it may show:
->>>>>>
->>>>>> 7fc92ec00000-7fc92f000000 rw-s 00000000 00:14 27764 /dev/shm/test
->>>>>> Size:               4096 kB
->>>>>> ...
->>>>>> [snip]
->>>>>> ...
->>>>>> ShmemPmdMapped:     4096 kB
->>>>>> ...
->>>>>> [snip]
->>>>>> ...
->>>>>> THPeligible:    0
->>>>>>
->>>>>> And, /proc/meminfo does show THP allocated and PMD mapped too:
->>>>>>
->>>>>> ShmemHugePages:     4096 kB
->>>>>> ShmemPmdMapped:     4096 kB
->>>>>>
->>>>>> This doesn't make too much sense.  The anonymous THP flag should not
->>>>>> intervene shmem THP.  Calling shmem_huge_enabled() with checking
->>>>>> MMF_DISABLE_THP sounds good enough.  And, we could skip stack and
->>>>>> dax vma check since we already checked if the vma is shmem already.
->>>>> Kirill, can we get a confirmation that this is really intended 
->>>>> behavior
->>>>> rather than an omission please? Is this documented? What is a global
->>>>> knob to simply disable THP system wise?
->>>> Hi Kirill,
->>>>
->>>> Ping. Any comment?
->>> Talked with Kirill at LSFMM, it sounds this is kind of intended 
->>> behavior
->>> according to him. But, we all agree it looks inconsistent.
->>>
->>> So, we may have two options:
->>>      - Just fix the false negative issue as what the patch does
->>>      - Change the behavior to make it more consistent
->>>
->>> I'm not sure whether anyone relies on the behavior explicitly or 
->>> implicitly
->>> or not.
->> Well, I would be certainly more happy with a more consistent behavior.
->> Talked to Hugh at LSFMM about this and he finds treating shmem objects
->> separately from the anonymous memory. And that is already the case
->> partially when each mount point might have its own setup. So the primary
->> question is whether we need a one global knob to controll all THP
->> allocations. One argument to have that is that it might be helpful to
->> for an admin to simply disable source of THP at a single place rather
->> than crawling over all shmem mount points and remount them. Especially
->> in environments where shmem points are mounted in a container by a
->> non-root. Why would somebody wanted something like that? One example
->> would be to temporarily workaround high order allocations issues which
->> we have seen non trivial amount of in the past and we are likely not at
->> the end of the tunel.
->
-> Shmem has a global control for such use. Setting shmem_enabled to 
-> "force" or "deny" would enable or disable THP for shmem globally, 
-> including non-fs objects, i.e. memfd, SYS V shmem, etc.
->
->>
->> That being said I would be in favor of treating the global sysfs knob to
->> be global for all THP allocations. I will not push back on that if there
->> is a general consensus that shmem and fs in general are a different
->> class of objects and a single global control is not desirable for
->> whatever reasons.
->
-> OK, we need more inputs from Kirill, Hugh and other folks.
-
-[Forgot cc to mailing lists]
-
-Hi guys,
-
-How should we move forward for this one? Make the sysfs knob 
-(/sys/kernel/mm/transparent_hugepage/enabled) to be global for both 
-anonymous and tmpfs? Or just treat shmem objects separately from anon 
-memory then fix the false-negative of THP eligibility by this patch?
-
->
->>
->> Kirill, Hugh othe folks?
->
+T24gMjAxOS0wNi0wNiAxMToxMSBhLm0uLCBKYXNvbiBHdW50aG9ycGUgd3JvdGU6DQo+IE9uIEZy
+aSwgTWF5IDEwLCAyMDE5IGF0IDA3OjUzOjIxUE0gKzAwMDAsIEt1ZWhsaW5nLCBGZWxpeCB3cm90
+ZToNCj4+IFRoZXNlIHByb2JsZW1zIHdlcmUgZm91bmQgaW4gQU1ELWludGVybmFsIHRlc3Rpbmcg
+YXMgd2UncmUgd29ya2luZyBvbg0KPj4gYWRvcHRpbmcgSE1NLiBUaGV5IGFyZSByZWJhc2VkIGFn
+YWluc3QgZ2xpc3NlL2htbS01LjItdjMuIFdlJ2QgbGlrZSB0byBnZXQNCj4+IHRoZW0gYXBwbGll
+ZCB0byBhIG1haW5saW5lIExpbnV4IGtlcm5lbCBhcyB3ZWxsIGFzIGRybS1uZXh0IGFuZA0KPj4g
+YW1kLXN0YWdpbmctZHJtLW5leHQgc29vbmVyIHJhdGhlciB0aGFuIGxhdGVyLg0KPj4NCj4+IEN1
+cnJlbnRseSB0aGUgSE1NIGluIGFtZC1zdGFnaW5nLWRybS1uZXh0IGlzIHF1aXRlIGZhciBiZWhp
+bmQgaG1tLTUuMi12MywNCj4+IGJ1dCB0aGUgZHJpdmVyIGNoYW5nZXMgZm9yIEhNTSBhcmUgZXhw
+ZWN0ZWQgdG8gbGFuZCBpbiA1LjIgYW5kIHdpbGwgbmVlZCB0bw0KPj4gYmUgcmViYXNlZCBvbiB0
+aG9zZSBITU0gY2hhbmdlcy4NCj4+DQo+PiBJJ2QgbGlrZSB0byB3b3JrIG91dCBhIGZsb3cgYmV0
+d2VlbiBKZXJvbWUsIERhdmUsIEFsZXggYW5kIG15c2VsZiB0aGF0DQo+PiBhbGxvd3MgdXMgdG8g
+dGVzdCB0aGUgbGF0ZXN0IHZlcnNpb24gb2YgSE1NIG9uIGFtZC1zdGFnaW5nLWRybS1uZXh0IHNv
+DQo+PiB0aGF0IGlkZWFsbHkgZXZlcnl0aGluZyBjb21lcyB0b2dldGhlciBpbiBtYXN0ZXIgd2l0
+aG91dCBtdWNoIG5lZWQgZm9yDQo+PiByZWJhc2luZyBhbmQgcmV0ZXN0aW5nLg0KPiBJIHRoaW5r
+IHdlIGhhdmUgdGhhdCBub3csIEknbSBydW5uaW5nIGEgaG1tLmdpdCB0aGF0IGlzIGNsZWFuIGFu
+ZCBjYW4NCj4gYmUgdXNlZCBmb3IgbWVyZ2luZyBpbnRvIERSTSByZWxhdGVkIHRyZWVzIChhbmQg
+UkRNQSkuIEkndmUgY29tbWl0ZWQNCj4gdG8gc2VuZCB0aGlzIHRyZWUgdG8gTGludXMgYXQgdGhl
+IHN0YXJ0IG9mIHRoZSBtZXJnZSB3aW5kb3cuDQo+DQo+IFNlZSBoZXJlOg0KPg0KPiAgIGh0dHBz
+Oi8vbG9yZS5rZXJuZWwub3JnL2xrbWwvMjAxOTA1MjQxMjQ0NTUuR0IxNjg0NUB6aWVwZS5jYS8N
+Cj4NCj4gVGhlIHRyZWUgaXMgaGVyZToNCj4NCj4gICBodHRwczovL2dpdC5rZXJuZWwub3JnL3B1
+Yi9zY20vbGludXgva2VybmVsL2dpdC9yZG1hL3JkbWEuZ2l0L2xvZy8/aD1obW0NCj4NCj4gSG93
+ZXZlciBwbGVhc2UgY29uc3VsdCB3aXRoIG1lIGJlZm9yZSBtYWtpbmcgYSBtZXJnZSBjb21taXQg
+dG8gYmUNCj4gY28tb3JkaW5hdGVkLiBUaGFua3MNCj4NCj4gSSBzZWUgaW4gdGhpcyB0aHJlYWQg
+dGhhdCBBTURHUFUgbWlzc2VkIDUuMiBiZWFjYXVzZSBvZiB0aGUNCj4gY28tb3JkaW5hdGlvbiBw
+cm9ibGVtcyB0aGlzIHRyZWUgaXMgaW50ZW5kZWQgdG8gc29sdmUsIHNvIEknbSB2ZXJ5DQo+IGhv
+cGVmdWwgdGhpcyB3aWxsIGhlbHAgeW91ciB3b3JrIG1vdmUgaW50byA1LjMhDQoNClRoYW5rcyBK
+YXNvbi4gT3VyIHR3byBwYXRjaGVzIGJlbG93IHdlcmUgYWxyZWFkeSBpbmNsdWRlZCBpbiB0aGUg
+TU0gdHJlZSANCihodHRwczovL296bGFicy5vcmcvfmFrcG0vbW1vdHMvYnJva2VuLW91dC8pLiBX
+aXRoIHlvdXIgbmV3IGhtbS5naXQsIA0KZG9lcyB0aGF0IG1lYW4gSE1NIGZpeGVzIGFuZCBjaGFu
+Z2VzIHdpbGwgbm8gbG9uZ2VyIGdvIHRocm91Z2ggQW5kcmV3IA0KTW9ydG9uIGJ1dCBkaXJlY3Rs
+eSB0aHJvdWdoIHlvdXIgdHJlZSB0byBMaW51cz8NCg0KV2UgaGF2ZSBhbHNvIGFwcGxpZWQgdGhl
+IHR3byBwYXRjaGVzIHRvIG91ciBpbnRlcm5hbCB0cmVlIHdoaWNoIGlzIA0KY3VycmVudGx5IGJh
+c2VkIG9uIDUuMi1yYzEgc28gd2UgY2FuIG1ha2UgcHJvZ3Jlc3MuDQoNCkFsZXgsIEkgdGhpbmsg
+bWVyZ2luZyBobW0gd291bGQgYmUgYW4gZXh0cmEgc3RlcCBldmVyeSB0aW1lIHlvdSByZWJhc2Ug
+DQphbWQtc3RhZ2luZy1kcm0tbmV4dC4gV2UgY291bGQgcHJvYmFibHkgYWxzbyBtZXJnZSBobW0g
+YXQgb3RoZXIgdGltZXMgYXMgDQpuZWVkZWQuIERvIHlvdSB0aGluayB0aGlzIHdvdWxkIGNhdXNl
+IHRyb3VibGUgb3IgY29uZnVzaW9uIGZvciANCnVwc3RyZWFtaW5nIHRocm91Z2ggZHJtLW5leHQ/
+DQoNClJlZ2FyZHMsDQogwqAgRmVsaXgNCg0KDQo+DQo+PiBNYXliZSBoYXZpbmcgSmVyb21lJ3Mg
+bGF0ZXN0IEhNTSBjaGFuZ2VzIGluIGRybS1uZXh0LiBIb3dldmVyLCB0aGF0IG1heQ0KPj4gY3Jl
+YXRlIGRlcGVuZGVuY2llcyB3aGVyZSBKZXJvbWUgYW5kIERhdmUgbmVlZCB0byBjb29yZGluYXRl
+IHRoZWlyIHB1bGwtDQo+PiByZXF1ZXN0cyBmb3IgbWFzdGVyLg0KPj4NCj4+IEZlbGl4IEt1ZWhs
+aW5nICgxKToNCj4+ICAgIG1tL2htbTogT25seSBzZXQgRkFVTFRfRkxBR19BTExPV19SRVRSWSBm
+b3Igbm9uLWJsb2NraW5nDQo+Pg0KPj4gUGhpbGlwIFlhbmcgKDEpOg0KPj4gICAgbW0vaG1tOiBz
+dXBwb3J0IGF1dG9tYXRpYyBOVU1BIGJhbGFuY2luZw0KPiBJJ3ZlIGFwcGxpZWQgYm90aCBvZiB0
+aGVzZSBwYXRjaGVzIHdpdGggSmVyb21lJ3MgUmV2aWV3ZWQtYnkgdG8NCj4gaG1tLmdpdCBhbmQg
+YWRkZWQgdGhlIG1pc3NlZCBTaWduZWQtb2ZmLWJ5DQo+DQo+IElmIHlvdSB0ZXN0IGFuZCBjb25m
+aXJtIEkgdGhpbmsgdGhpcyBicmFuY2ggd291bGQgYmUgcmVhZHkgZm9yIG1lcmdpbmcNCj4gdG93
+YXJkIHRoZSBBTUQgdHJlZS4NCj4gUmVnYXJkcywNCj4gSmFzb24NCg==
 
