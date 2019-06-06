@@ -2,100 +2,102 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54559C28D1E
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 10:15:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D7ED7C28EB2
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 10:15:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DEDC520866
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 10:15:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9B36D20866
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 10:15:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="bIH+aH+V"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DEDC520866
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="gMZWUftQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B36D20866
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 465C66B0006; Thu,  6 Jun 2019 06:15:14 -0400 (EDT)
+	id 32DAB6B0010; Thu,  6 Jun 2019 06:15:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 416A56B000E; Thu,  6 Jun 2019 06:15:14 -0400 (EDT)
+	id 2DDD66B0266; Thu,  6 Jun 2019 06:15:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2B8D06B0010; Thu,  6 Jun 2019 06:15:14 -0400 (EDT)
+	id 1F5A56B0269; Thu,  6 Jun 2019 06:15:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E6C646B0006
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 06:15:13 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id o184so1533516pfg.1
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 03:15:13 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id DC4C76B0010
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 06:15:19 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id f25so289292pfk.14
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 03:15:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=iNB/HCcaK/QRlIufduytfBFGZHFQaC2XGb/nKoC9fBo=;
-        b=MfR3l3aQOeeo072VdDXMKq8zYzmLILnq8Qkl3xT72syqkDUluSEcQpme1vk1Jllq/e
-         0JRUaBluadZEVPQLU1Z7yw2nSOSPilUwTNxi0Ip0Dr4yClWwLqpcgUlvbBJh2TulghDJ
-         TBi+3cITR/RhuC2oIL7CPj6NfYEL2EMLz9AXo9Hz0jV5Os9P22Fz2UJTmugKfbcvjUHx
-         y0Rf3XiJjkdnarEGKJdf1rsBpceP0VN9myMjTCQUHLXApLMxJMI+qQXxevpZPhCkPO64
-         l74yQCy9fDcIEacsQLd9jUwF5sM+h+JVv741HsW4tmo9ssHpq+r/Jg/v68dNk41YkLM1
-         AZKA==
-X-Gm-Message-State: APjAAAXze3cCfFGnLPom+jZ+qhzk567skHkGgOpnUgAqbiO0TxzvNk0l
-	XLoKZwCen+eSgwkncf2nLb8sM4ZEdqASqjf2c/uMIjAvey1N3tx5WMk17IRfwF8EsZv95Gha5o/
-	iadIXqXe8lGKI39l5HFhdndRvYaF2xjVgCO3RQsgOXgovK35/vf5HsPMmdmwPfj119g==
-X-Received: by 2002:aa7:8dd6:: with SMTP id j22mr54014827pfr.192.1559816113239;
-        Thu, 06 Jun 2019 03:15:13 -0700 (PDT)
-X-Received: by 2002:aa7:8dd6:: with SMTP id j22mr54014707pfr.192.1559816111966;
-        Thu, 06 Jun 2019 03:15:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559816111; cv=none;
+         :message-id:in-reply-to:references;
+        bh=iC7IvtN4NDCekairGwv/3Djq2q1362Qy2AwvFRN/5YY=;
+        b=icTzxff4PhwlkRP/WKEKTIV5ixEcSQa8r8PYrHNUj2EWvUEZpY0PkCwGMCRnhMVFs0
+         tYvr79tcR2lELmPwQflU8XRwKgJUrlll9H/zUtTSGwjGq1dTt5H1G9Ju9WlGMIicl5ry
+         SFShfm65pGehJbPDdUPUbiHNv6b8QgeQYFU3KIvaIaj7+0CsaW1UPwNO+vVZiFZ0ahZu
+         ceqmaxC3PRubZ6Ip9+Qx+cSv2Jx3HBg8yQ66A1cKzDa8aKH/vSVsqDZ4nsVV2X62K338
+         jRx3rJuAflOX3Dqj0jez9WDYs3xYpyg7NNFIYVcKcWhwNQgfYmGDNJKs6zhEOda6wC35
+         qbZg==
+X-Gm-Message-State: APjAAAVfjGJyH49MBITVADY5awvKSJUG10Eu/ydNQHUtrJWANsP7mLR5
+	iv3Ygdste5kI1F60rxEK3ihlsCY26PVrLF23UvO0WVKd/E/mYwOPQ81WFm6x45MNtDUtQr0lKPN
+	eTDfzaUZKMF3scSsxcWh7TTAzPJfL3xx8z2AMB8hhcbSQygqS6jKzjY42uGFdlfLFOw==
+X-Received: by 2002:a65:5304:: with SMTP id m4mr2655001pgq.126.1559816119185;
+        Thu, 06 Jun 2019 03:15:19 -0700 (PDT)
+X-Received: by 2002:a65:5304:: with SMTP id m4mr2654903pgq.126.1559816118015;
+        Thu, 06 Jun 2019 03:15:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559816118; cv=none;
         d=google.com; s=arc-20160816;
-        b=sCE++AJKMGjxrKbglkO0Nxzq9ew/bhgOk7/jjuv1s8M/S6eqNLpss0ESvtiBVJWCEa
-         usmwrw5CJvO2QTUjGYay6EIvu3fIZmtDdYBVRp8dyZK4rhsSJqmGHY5vxeqWU/S2gy/6
-         8s8V1lPeOu0/b9rlQBhSpZH/meefE+g2tpotqW7g3wcbxjt+8v+sWQrWlnHxqO32BM7y
-         WQBAneOMQkB3TZ8k1yM+/pDzWb7o8Yd6XM+2rLg+67jrO+WQ+8pnrOoXmjLfG4Ux9WVr
-         aSuiijo6JdU00oM57RZJlgB/NDAdBz2gR1eajbBwM56YlXfnbfzD2TZVsIwcZw4R+jr8
-         rp3w==
+        b=EAAQvzXKoJHPXXSJVWU4QNlWzrXHIr+f/NTDjLncMsXr7WZcmG6KnW3OddbYoaOokD
+         16hk5htP73s6473IezBDjqT4euTJbV4JeibqbRBhiJiafylRQthI9MZYl617YpK2OkVL
+         XM8LDLoyoRNDSNyj6xOFK6aKFDXG8vpvfnXjqwW4ZfNvaEGr9aus8aOI/ers9tT6bpoY
+         ohwTD7zVUHeLTi/1FH8s7mQAuJpDVvlgWZslsWJPFQTEvz9iHLNZ+qDwY7n31KVJ2k9N
+         i89SrMZfTkMK9w8p2FkgdIUS+kuINYUg7w/nFmHMtGFRdsw6Mqs58R5NsH7KNgZ4LQ2s
+         AhYA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=iNB/HCcaK/QRlIufduytfBFGZHFQaC2XGb/nKoC9fBo=;
-        b=zJsTjnW42j5UrqamUIu5XO860wBHTY92zk5TmzEbIZ5RL8h6aYFrOgkKaQx/HPu/0q
-         FlwoG5Xxib+t37D7II6va9/0mPzndIb5hzfF1r8Pc2vQ4iQw2Q77qDsHokj8em19MW/P
-         9Xq/j7iuRgbw01CkzyB+0QIdtpGV5yiy/2LzHxCmr8R3eXZMiCRr5lVJqJsF52gKlwdY
-         v163M3uNwZjOCxmxhwZ0TLDGcPcFb7wcj0j9+HVv8NiNo2MijxV/rcHOfLjLmdh5V3aH
-         ddxEnn1KPqZXf+tFjRJyctQ2VPoRY6pyY8nDDnrkidjMgJ3hoN6cSmFHZo+h85YCfoYt
-         ECwg==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from
+         :dkim-signature;
+        bh=iC7IvtN4NDCekairGwv/3Djq2q1362Qy2AwvFRN/5YY=;
+        b=g+XQ9LMNN94WEzx91TcBJ62IfPHXMKEhZQbWpx0dUatCHB0D5nVgiBmikQkAQ39ekP
+         24AiOQvzP1J+2AXdVCKAz5U+MDglDP4zJAhxQNB5Xzmn04EOVWdhfDM0a74wViPJkwqD
+         z9/IXyxQA73JpoN155bDWSfy3qLf2gpNfahEE5wUhcgLT8cXQMHMre6lPe8Rqr6wwqhG
+         Wj4sCqxEibMn82IBXfmtVUW+UXZrAEmbLw0vvO6+y3cs5r203RhArITyTKUsOAdtp0Ag
+         GKFqIdE36YwGA+kYrfPWw5LKb/7JUfGEa803jRhxv5ULrxxch94NbhFRHNAPE86mZUsg
+         Gtig==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bIH+aH+V;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gMZWUftQ;
        spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m4sor1225214pgs.14.2019.06.06.03.15.11
+        by mx.google.com with SMTPS id l10sor1409720plt.10.2019.06.06.03.15.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 06 Jun 2019 03:15:11 -0700 (PDT)
+        Thu, 06 Jun 2019 03:15:18 -0700 (PDT)
 Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bIH+aH+V;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gMZWUftQ;
        spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=iNB/HCcaK/QRlIufduytfBFGZHFQaC2XGb/nKoC9fBo=;
-        b=bIH+aH+VFCR22GiSmRRpw4RBZQcF7w3FKsJBBruhJJY/I+fF23genmo89PI6EG2Zkx
-         d1RtkzUs5DahBzkK9nbGhfyXV1CzbYFOsU/WN48Ft+jBpr5cxM+LtLJYYCZNgdxpbH1l
-         Pm65jbs4yIv5pxNuGGvFTG6FrUOEXcqJXP0F2o15L3/M+dOtRxk6wwOF3QW+Bzeeys0h
-         pqV9H9zVWla31UyIu2ViYVaJO89bA7QM3yldafH0aA7UeVAyUjCzmOzwLqYpvId1Z8//
-         58jsy02cUSgj9+CZz09gyWyGxhUbe4crP2E511ymDOzwBi11HD0+5WX83wmE+Rojo4O2
-         xhEA==
-X-Google-Smtp-Source: APXvYqyb1r4K726OPMfPWYxOJrSJ8VKM7YBay4BitGQ2BiXxuGVdzww5IwZspkRQjHns0N5phAqL6g==
-X-Received: by 2002:a65:5003:: with SMTP id f3mr2631613pgo.336.1559816111409;
-        Thu, 06 Jun 2019 03:15:11 -0700 (PDT)
+        h=from:to:cc:subject:date:message-id:in-reply-to:references;
+        bh=iC7IvtN4NDCekairGwv/3Djq2q1362Qy2AwvFRN/5YY=;
+        b=gMZWUftQlfmpgzqStlcNNCulcRTf8QMFFt20jXwOLapLbmxkUrSmDWNSPVC7Amf7ni
+         3V+gjJ5tAEXTmkmvpyw63wliVPYrRZ3Ky8YyhPCrKlzAdJVFrCrF/uUCXyHuDeX5ScOF
+         RuBp32EY6fq1CCye1kKTqf2hHOmd61Oxq4eibffL/nCuLcfqlDUsdZOvVO2oQaFgnbhm
+         OXUOaeYl0ArW+9GtHpwCQGeqdX5YpIKNSO6yx6XHG7MpPJgt1BD8z5XLqTtv0d1L9t0T
+         bZF8uYWtpK7+IpSa+CvWasIDyKyC54Dx9pJB69wOJ1HH5cQL20UyDNcTxhkHWKmUDyoz
+         ry3g==
+X-Google-Smtp-Source: APXvYqzPQuNQCuseJiQ7kbmP2jXJ70zcwJGhguUmqchqJI3A3dfuByA/3XsAq2oLJkAOg1x/6RrJwA==
+X-Received: by 2002:a17:902:e85:: with SMTP id 5mr10506374plx.202.1559816117788;
+        Thu, 06 Jun 2019 03:15:17 -0700 (PDT)
 Received: from localhost.localdomain ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id z68sm1895829pfb.37.2019.06.06.03.15.08
+        by smtp.gmail.com with ESMTPSA id z68sm1895829pfb.37.2019.06.06.03.15.15
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 03:15:10 -0700 (PDT)
+        Thu, 06 Jun 2019 03:15:17 -0700 (PDT)
 From: Yafang Shao <laoar.shao@gmail.com>
 To: akpm@linux-foundation.org,
 	mhocko@suse.com,
@@ -103,44 +105,53 @@ To: akpm@linux-foundation.org,
 Cc: linux-mm@kvack.org,
 	shaoyafang@didiglobal.com,
 	Yafang Shao <laoar.shao@gmail.com>
-Subject: [PATCH v4 0/3] mm: improvements in shrink slab
-Date: Thu,  6 Jun 2019 18:14:37 +0800
-Message-Id: <1559816080-26405-1-git-send-email-laoar.shao@gmail.com>
+Subject: [PATCH v4 1/3] mm/vmstat: expose min_slab_pages in /proc/zoneinfo
+Date: Thu,  6 Jun 2019 18:14:38 +0800
+Message-Id: <1559816080-26405-2-git-send-email-laoar.shao@gmail.com>
 X-Mailer: git-send-email 1.8.3.1
+In-Reply-To: <1559816080-26405-1-git-send-email-laoar.shao@gmail.com>
+References: <1559816080-26405-1-git-send-email-laoar.shao@gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In the past few days, I found an issue in shrink slab.
-We I was trying to fix it, I find there are something in shrink slab need
-to be improved.
+On one of our servers, we find the dentry is continuously growing
+without shrinking. We're not sure whether that is because reclaimable
+slab is still less than min_slab_pages.
+So if we expose min_slab_pages, it would be easy to compare.
 
-- #1 is to expose the min_slab_pages to help us analyze shrink slab.
+As we can set min_slab_ratio with sysctl, we should expose the effective
+in_slab_pages to user as well.
 
-- #2 is an code improvement.
+That is same with min_unmapped_pages.
 
-- #3 is a fix to a issue. This issue is very easy to produce.
-In the zone reclaim mode.
-First you continuously cat a random non-exist file to produce
-more and more dentry, then you read big file to produce page cache.
-Finally you will find that the denty will never be shrunk.
-In order to fix this issue, a new bitmask no_pagecache is introduce,
-which is 0 by defalt.
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+---
+ mm/vmstat.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-Changes since v3:
-A new bitmask no_pagecache is introduced in struct scan_control.
-
-Yafang Shao (3):
-  mm/vmstat: expose min_slab_pages in /proc/zoneinfo
-  mm/vmscan: change return type of shrink_node() to void
-  mm/vmscan: shrink slab in node reclaim
-
- mm/vmscan.c | 33 +++++++++++++++++++++++++++++----
- mm/vmstat.c |  8 ++++++++
- 2 files changed, 37 insertions(+), 4 deletions(-)
-
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index fd7e16c..2e1c608 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1550,7 +1550,15 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+ 				NR_VM_NUMA_STAT_ITEMS],
+ 				node_page_state(pgdat, i));
+ 		}
++
++#ifdef CONFIG_NUMA
++		seq_printf(m, "\n      %-12s %lu", "min_slab",
++			   pgdat->min_slab_pages);
++		seq_printf(m, "\n      %-12s %lu", "min_unmapped",
++			   pgdat->min_unmapped_pages);
++#endif
+ 	}
++
+ 	seq_printf(m,
+ 		   "\n  pages free     %lu"
+ 		   "\n        min      %lu"
 -- 
 1.8.3.1
 
