@@ -2,176 +2,201 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1875EC28CC5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 02:03:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CCF4DC28CC5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 02:19:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DE88A2083E
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 02:03:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE88A2083E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 7E4582075B
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 02:19:51 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kmgXYItR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E4582075B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 673656B026A; Wed,  5 Jun 2019 22:03:49 -0400 (EDT)
+	id 1AD086B026A; Wed,  5 Jun 2019 22:19:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5FCF26B026C; Wed,  5 Jun 2019 22:03:49 -0400 (EDT)
+	id 15E1B6B026C; Wed,  5 Jun 2019 22:19:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 49E976B026E; Wed,  5 Jun 2019 22:03:49 -0400 (EDT)
+	id 023E36B026E; Wed,  5 Jun 2019 22:19:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EF6816B026A
-	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 22:03:48 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d27so1309370eda.9
-        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 19:03:48 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D891D6B026A
+	for <linux-mm@kvack.org>; Wed,  5 Jun 2019 22:19:50 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id y5so485065ioj.10
+        for <linux-mm@kvack.org>; Wed, 05 Jun 2019 19:19:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=gMYf1BADO0azQfvDWuzTpComdizhTslV+toCWOdGezI=;
-        b=mJdBRkCCTJl4iLvGPYRBShn7QmkRpE2ykgwxQio/QiH11SbGH9lts+35h16D6mOfvP
-         UZcG2i8Hpvy+OwgBo56wzdNvhU6L8CuuGFIZWy9BKCnGq36l4h9pmt1Yi0luQfChfLxZ
-         rN2/yK/sq66NTPOKqJ9UWuUwie3HI1nkfqEJIBxq/FCPkUxgxPzibRnjdGdd2XToPRwB
-         /vUB+ycQZr0PCrLO0uHMUer6Vrq/1B9zwp6wvoaSxPHYMBrKE8VJl4b0Le8OeCpUCdCZ
-         9nGY6x42YvFRyaMkGG7rlqDokZ0McqU3jrEHzevILy1NMHw5iliP1XWMravyXdemLz8f
-         wAkA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVvXRxpQ2D6tjx5DDWyKNxCMlDjNASzXAahZR2fnLcFbePyHEHG
-	GpkRix01re7XIeiuPYAV7mc0VQqK5K4IUEj5yb+rMvn9cJ/phs0BeFnYWRWGNi7Gkg8Do3LY8P+
-	bmCokDIVmrw+DlXlKU9axwD4JnpZyj2GRGpmlry0uGOQVZ9hylEHWv0itCtfHw1f3Yw==
-X-Received: by 2002:a17:906:2650:: with SMTP id i16mr11682393ejc.40.1559786628533;
-        Wed, 05 Jun 2019 19:03:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqztX9jJnGayZkpQc6SFUMRE2cRmjNlAHS9FcNzAAWRC9XLu78hk9K1dS+9mmssiic7Vay4K
-X-Received: by 2002:a17:906:2650:: with SMTP id i16mr11682340ejc.40.1559786627716;
-        Wed, 05 Jun 2019 19:03:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559786627; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=DTWH24yA/1C8wqtT9jqxaOXK4VdWlElUekSQr6wCUNk=;
+        b=K7F8dLda7GAsrl2PsVoR1+0F8ypV3D/FSfc2z4nCyfNubea4BUJ0OrmAIZHyImFjkH
+         jEmd237xCIPwOaw/Lpfru/JtS9bRyFZyyDlgomeQxqblz715CbNsLgz2E5IA5tNUUpdI
+         2OXnbqjqTyYdG+MTp7/oVbvs7kYqiI4FmB9X7UYaPSSNtUQcL6qMIe72URgS0Xv5jvd7
+         BKhdgfUOudZGLJXui/B9SSvFTp+cLNR3e9HQwMiTy2jsQmFK4yZQOnOCdmpdl2CulN3+
+         R+cr72hb4WkbdVOIMyhLx1UFPyYyWYvvAPhAOOu8d5PVOCYcNyR+06y3g2Ez5nEUN/l1
+         qKKw==
+X-Gm-Message-State: APjAAAUvMzmW1CMS+YxYzKb0rQ2NKfGgj+Zyf3KgJIaq+qkUun/PUQfJ
+	moIOuzl87pB+7x4J9aeyJxoVnEEgwEQU0QPTsBOHGXhmeDBZaQLSmKJgd9xaiVPuBYJN72Gt8jr
+	79+AcZ8c3Njp6ORgHKbyqcEajL0WMU/llkQJUxh9/DI0ztk3J5B6U3MaSd62j2P8iwA==
+X-Received: by 2002:a02:2e52:: with SMTP id u18mr15349887jae.84.1559787590644;
+        Wed, 05 Jun 2019 19:19:50 -0700 (PDT)
+X-Received: by 2002:a02:2e52:: with SMTP id u18mr15349851jae.84.1559787589997;
+        Wed, 05 Jun 2019 19:19:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559787589; cv=none;
         d=google.com; s=arc-20160816;
-        b=G2GgREqfjR0y3CQEotoN0OwdkJcjg+igxkxHrVdirwm4E1d89BfKXibt0lJw1PiQgl
-         v9LXlHFglhDw4lx6Il6bnYyNuBgU0sJ+XvdFZe89AOJH0CSYqa3BBB7DP/1ZaHLadfWc
-         ys2wvvFQHpSQFcvKQjGyHta9kYq/+lbR4SLKjJEa2L1L2s3xDp+dFsbj85bPSDoLkigc
-         8+ZdCeg/VLHZDl/al2leTh0EBAy5vutDpHlwgJctGdJ5ykZm6q+JjuDuRlDuT7GJY/w1
-         eWC1dSzOZEO4+w2CZOxqLVd6+teVNcY6cJsZjrKSsKzRLk7g/ZBgNQ/+rD6m4/9xKaTX
-         ZK+g==
+        b=Sj0bZA5MKtj6ArP7iaHK6DDWQVpO0CDRwXAgvcML1BiybXSSvqA9TcLuHaZI+epjuf
+         Hz8m4LW+LT4QB1aSGWkUN0LSJqQ6fV0iLG6qIBM5uKEj/sOdOo5rUY5ZQgZLeKbErpkb
+         jhscrFDMbtAOJIqmFFQLALZnTKv7zdq1xhETBG1eHDmRAYqSSpZGfHm9leBdN981LYbG
+         eGfCsGpGu0NllRIW6fGYZdTSsoAXEWsuV22T3MI/NUZYdOboh2j6swvosUN23jZg5KgY
+         uxBh8tptJMzXbbBcpjhPyM18PmVSb1199e5rq1hUVUyNo2G9sdzto85YHQ4fBopmwwBx
+         EjDQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=gMYf1BADO0azQfvDWuzTpComdizhTslV+toCWOdGezI=;
-        b=fVDLCo26Qe372UplT9vodLf+FKTHCubcwoVAi1oqUC2x37XU4sDILFpkxKx23PzGve
-         9aQW55ONMgs/KJQrt+t5ADsF2aRrBaJUhwQV1nWoJz/HclTKXha2VNpOnY6lfwFoGgNc
-         2hxBtlcrXo4VbB6rlnpzt6Kew5h969F7d3khgs+mUmp85hKVO677tBqISrpC/6wjIv71
-         pVRE63BKy4Oj66qUO3fJuDoDkE8C7HHyefPcqd0jM6VsxTUkI7y+PBHpkiUIM16bD/nf
-         wbRWc0dv12zlB4uO1tesG4EAnN5IZ7s7vK7Di7+hWAgQiwn7hZjSwzZEr/3SLGUCD4hs
-         WZ5Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=DTWH24yA/1C8wqtT9jqxaOXK4VdWlElUekSQr6wCUNk=;
+        b=X9NspZkeYVye6DOlR0y8SVxNXh4ZQrfB36cdJZlk+/lHQPW0FdgLMD9ty3JJHKMVJi
+         XHeoOJnrTTJsTicqMl4agG+Vvdu/BlK1u+k0jeF6RJkJNmoXpIhCtO5Vvne0C+XqiB2v
+         XDBO+bKZmj9KOZJCVaqrP/D0Zy+n7AnlumNMm7P2N947781lDEO7KyEe5/QtQJv4l5Cq
+         UHZOJyJQ2esSDxPJ/Z8+ByuyIS0IKcI/lg9OXwUKozyqkwe3VLQANU8xTZa4rXmhFiX1
+         RAgzqpDCVIA634gtN1eK1dyKv+XK78kXi3vrNF48GX95BVih8bSGcYGU3y+ZToVhGA+b
+         2aMQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id y9si280234edb.262.2019.06.05.19.03.47
-        for <linux-mm@kvack.org>;
-        Wed, 05 Jun 2019 19:03:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) client-ip=217.140.101.70;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kmgXYItR;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s13sor291799ioj.120.2019.06.05.19.19.49
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 05 Jun 2019 19:19:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.101.70 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.72.51.249])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id F1A9D80D;
-	Wed,  5 Jun 2019 19:03:45 -0700 (PDT)
-Received: from [10.162.43.122] (p8cg001049571a15.blr.arm.com [10.162.43.122])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 519F83F246;
-	Wed,  5 Jun 2019 19:03:37 -0700 (PDT)
-Subject: Re: [RFC V2] mm: Generalize notify_page_fault()
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org,
- Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
- Mark Rutland <mark.rutland@arm.com>,
- Christophe Leroy <christophe.leroy@c-s.fr>,
- Stephen Rothwell <sfr@canb.auug.org.au>,
- Andrey Konovalov <andreyknvl@google.com>,
- Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
- Russell King <linux@armlinux.org.uk>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Tony Luck <tony.luck@intel.com>,
- Fenghua Yu <fenghua.yu@intel.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Yoshinori Sato <ysato@users.sourceforge.jp>,
- "David S. Miller" <davem@davemloft.net>, Thomas Gleixner
- <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>,
- Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>,
- Dave Hansen <dave.hansen@linux.intel.com>
-References: <1559630046-12940-1-git-send-email-anshuman.khandual@arm.com>
- <20190604215325.GA2025@bombadil.infradead.org>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <016a4808-527d-7164-b8a0-3173a4ecfa25@arm.com>
-Date: Thu, 6 Jun 2019 07:33:52 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kmgXYItR;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=DTWH24yA/1C8wqtT9jqxaOXK4VdWlElUekSQr6wCUNk=;
+        b=kmgXYItRTWz7KU83m4f4kQdWt8EQlqNIcHOHwnh10wNa68tCz1p6bokonrDgngqEr+
+         FRMLMaIy/lj5RAYS2Z0jJjnURXbh17DPBk341t6COKHH3QlsLfEvtoqXP1NllVRwEicd
+         1SsU9xldKIqlRNVu1j1kw49OJgqIolMCZuxAzit5j6NdewERw7I9rjzHfEFc8Lk8ntwd
+         XI1GCa7jtok3tNC+8zLVW7bL2tYjpPP1Md3foyuun58BQ32SuG+j0DtX8LC5sVbYHAdL
+         p4VPKF4pCtFpj9AQ8swn3mpHQ2Ka0oQpGEeWUHC4RfvzPbvsg7Hioj3HcfIul55kE4sU
+         XWTg==
+X-Google-Smtp-Source: APXvYqx6tx6RmC3nwgq5oU/5SMi9/vNBFMonltoudZNJjPfSzLhIZd2vSB8s2xPe4+DAhUve/ybsToT4hpYWtZchLEw=
+X-Received: by 2002:a6b:5106:: with SMTP id f6mr15331128iob.15.1559787589673;
+ Wed, 05 Jun 2019 19:19:49 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190604215325.GA2025@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <1559725820-26138-1-git-send-email-kernelfans@gmail.com> <20190605144912.f0059d4bd13c563ddb37877e@linux-foundation.org>
+In-Reply-To: <20190605144912.f0059d4bd13c563ddb37877e@linux-foundation.org>
+From: Pingfan Liu <kernelfans@gmail.com>
+Date: Thu, 6 Jun 2019 10:19:38 +0800
+Message-ID: <CAFgQCTur5ReVHm6NHdbD3wWM5WOiAzhfEXdLnBGRdZtf7q1HFw@mail.gmail.com>
+Subject: Re: [PATCHv3 1/2] mm/gup: fix omission of check on FOLL_LONGTERM in get_user_pages_fast()
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Ira Weiny <ira.weiny@intel.com>, 
+	Mike Rapoport <rppt@linux.ibm.com>, Dan Williams <dan.j.williams@intel.com>, 
+	Matthew Wilcox <willy@infradead.org>, John Hubbard <jhubbard@nvidia.com>, 
+	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Keith Busch <keith.busch@intel.com>, 
+	Christoph Hellwig <hch@infradead.org>, LKML <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Jun 6, 2019 at 5:49 AM Andrew Morton <akpm@linux-foundation.org> wrote:
+>
+> On Wed,  5 Jun 2019 17:10:19 +0800 Pingfan Liu <kernelfans@gmail.com> wrote:
+>
+> > As for FOLL_LONGTERM, it is checked in the slow path
+> > __gup_longterm_unlocked(). But it is not checked in the fast path, which
+> > means a possible leak of CMA page to longterm pinned requirement through
+> > this crack.
+> >
+> > Place a check in the fast path.
+>
+> I'm not actually seeing a description (in either the existing code or
+> this changelog or patch) an explanation of *why* we wish to exclude CMA
+> pages from longterm pinning.
+>
+What about a short description like this:
+FOLL_LONGTERM suggests a pin which is going to be given to hardware
+and can't move. It would truncate CMA permanently and should be
+excluded.
 
+> > --- a/mm/gup.c
+> > +++ b/mm/gup.c
+> > @@ -2196,6 +2196,26 @@ static int __gup_longterm_unlocked(unsigned long start, int nr_pages,
+> >       return ret;
+> >  }
+> >
+> > +#ifdef CONFIG_CMA
+> > +static inline int reject_cma_pages(int nr_pinned, struct page **pages)
+> > +{
+> > +     int i;
+> > +
+> > +     for (i = 0; i < nr_pinned; i++)
+> > +             if (is_migrate_cma_page(pages[i])) {
+> > +                     put_user_pages(pages + i, nr_pinned - i);
+> > +                     return i;
+> > +             }
+> > +
+> > +     return nr_pinned;
+> > +}
+>
+> There's no point in inlining this.
+OK, will drop it in V4.
 
-On 06/05/2019 03:23 AM, Matthew Wilcox wrote:
-> On Tue, Jun 04, 2019 at 12:04:06PM +0530, Anshuman Khandual wrote:
->> +++ b/arch/x86/mm/fault.c
->> @@ -46,23 +46,6 @@ kmmio_fault(struct pt_regs *regs, unsigned long addr)
->>  	return 0;
->>  }
->>  
->> -static nokprobe_inline int kprobes_fault(struct pt_regs *regs)
->> -{
-> ...
->> -}
-> 
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index 0e8834a..c5a8dcf 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -1778,6 +1778,7 @@ static inline int pte_devmap(pte_t pte)
->>  }
->>  #endif
->>  
->> +int notify_page_fault(struct pt_regs *regs, unsigned int trap);
-> 
-> Why is it now out-of-line?  
+>
+> The code seems inefficient.  If it encounters a single CMA page it can
+> end up discarding a possibly significant number of non-CMA pages.  I
+The trick is the page is not be discarded, in fact, they are still be
+referrenced by pte. We just leave the slow path to pick up the non-CMA
+pages again.
 
-Did not get it. AFAICS it is the same from last version and does not cross
-80 characters limit on that line.
+> guess that doesn't matter much, as get_user_pages(FOLL_LONGTERM) is
+> rare.  But could we avoid this (and the second pass across pages[]) by
+> checking for a CMA page within gup_pte_range()?
+It will spread the same logic to hugetlb pte and normal pte. And no
+improvement in performance due to slow path. So I think maybe it is
+not worth.
 
-> 
->> +++ b/mm/memory.c
->> +int __kprobes notify_page_fault(struct pt_regs *regs, unsigned int trap)
->> +{
->> +	int ret = 0;
->> +
->> +	/*
->> +	 * To be potentially processing a kprobe fault and to be allowed
->> +	 * to call kprobe_running(), we have to be non-preemptible.
->> +	 */
->> +	if (kprobes_built_in() && !preemptible() && !user_mode(regs)) {
->> +		if (kprobe_running() && kprobe_fault_handler(regs, trap))
->> +			ret = 1;
->> +	}
->> +	return ret;
->> +}
->> +
-> 
-> I would argue this should be in kprobes.h as a static nokprobe_inline.
+>
+> > +#else
+> > +static inline int reject_cma_pages(int nr_pinned, struct page **pages)
+> > +{
+> > +     return nr_pinned;
+> > +}
+> > +#endif
+> > +
+> >  /**
+> >   * get_user_pages_fast() - pin user pages in memory
+> >   * @start:   starting user address
+> > @@ -2236,6 +2256,9 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
+> >               ret = nr;
+> >       }
+> >
+> > +     if (unlikely(gup_flags & FOLL_LONGTERM) && nr)
+> > +             nr = reject_cma_pages(nr, pages);
+> > +
+>
+> This would be a suitable place to add a comment explaining why we're
+> doing this...
+Would add one comment "FOLL_LONGTERM suggests a pin given to hardware
+and rarely returned."
 
-We can do that. Though it will be a stand alone (not inside #ifdef) as it
-already takes care of CONFIG_KPROBES via kprobes_built_in(). Will change
-it and in which case the above declaration in mm.h would not be required.
+Thanks for your kind review.
+
+Regards,
+  Pingfan
 
