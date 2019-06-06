@@ -2,208 +2,199 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 99866C04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 21:17:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A6EAC04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 21:18:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4CBDE208C0
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 21:17:31 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="eWiauVwq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4CBDE208C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 0D5AD208C0
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 21:18:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D5AD208C0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BC53B6B02E1; Thu,  6 Jun 2019 17:17:30 -0400 (EDT)
+	id 7F3946B02E3; Thu,  6 Jun 2019 17:18:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B76596B02E3; Thu,  6 Jun 2019 17:17:30 -0400 (EDT)
+	id 7A42D6B02E6; Thu,  6 Jun 2019 17:18:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A167A6B02E5; Thu,  6 Jun 2019 17:17:30 -0400 (EDT)
+	id 645046B02E7; Thu,  6 Jun 2019 17:18:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 759406B02E1
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 17:17:30 -0400 (EDT)
-Received: by mail-oi1-f200.google.com with SMTP id w5so1133695oig.18
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 14:17:30 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 29FCE6B02E3
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 17:18:34 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id u10so2240475plq.21
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 14:18:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=i4pH9SKagiR96nYXZvFJhe68v+83LBSdVRAblgIAYAQ=;
-        b=UYYnENJHdo66OwZUIVNUVfiU7ZOBVcWmdEldgWBnkGC+1jvlgY1bsPJFdbpm/kFgM2
-         fBZ0H2L/Ipy/E/zA3J6scmWawD1234bFC/Np62WJt8sRU6jo5C1XfgoP4gmqtxUSeYUr
-         h+zFu5zeB16nFAInhK/7kN2GcUuJjhE0a2H4J5ajmJHZRmJDng4UtYCkxbsx2+T4TNr0
-         5Ch44iRsZ4Pjg4bVG+yyPwoswGjytGq682/LQU2KrOAo726idsZdp6cC/D6uRYu6PKGy
-         U0/FxmM0cvLJ6ICOkkKnIxXy2VnCrbQr7LRUllwfsDAI/U7NMDYEnCLG/MbGebbrsSM5
-         b6XA==
-X-Gm-Message-State: APjAAAVYNRSKYZcFRtkVjXXWjTICDPtrevz3SZFkbcP7iOsSPVDEIoNL
-	SseQl7zGjqhAvlMg8GsyMpSO3PtlL0wG+1odieXe0uElLwjVkOP67zzEd3wVAAnMC2uU2omzaiY
-	3N9T/h8hSWWzS/4l1NGOHCr5yeA+XsGprSPwPy4edoZB66notZE8SO8X3mcNOs26s9Q==
-X-Received: by 2002:aca:4343:: with SMTP id q64mr1548413oia.82.1559855850088;
-        Thu, 06 Jun 2019 14:17:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwy41OHCzUX2IptKUv8mys+VlymkBwup9UTRSNcui7om+k9YtWLqjzQokc67fMlKqYLQbS6
-X-Received: by 2002:aca:4343:: with SMTP id q64mr1548364oia.82.1559855849168;
-        Thu, 06 Jun 2019 14:17:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559855849; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=OIQh0N5WLWRkH+p7IIRxmDJLUQQd+yA9TcYobwrYvSk=;
+        b=YGtqIn3i8MUsVB0WQZ5B93ST0JgZsCxU+Ha7+E+UknUmdmm6EXa3UJiG9uLrOHBH5h
+         ed8TIns3Efwcrpu+HJBrp2TCjDOvpRQ8GLHA0CtP3wTL6QnGcNT6cjGv4siFAml2b2vT
+         Ks0nFdWybt2uM97RR5ycMirRmPme0H0KiaDcLUfjAOYnYw56FrLV7CTa60jwskifr89R
+         FIw810VCfw4le86l4V1owYcf4gJkhbYF00Hvo6DApbzNw/PWoPmFGFtuUAJdtvokH9zK
+         Ghxy4G9Yyu9xVqUp8+sA/MTSm+PQpZmnuFd+WFt0DsWAfTnSmD9XSL1R8iTIzbn9bXQO
+         UyaA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVkqFPUZHbHjS58Fd1118PM+mbOgkR+EjN6jmxMUq7yw3IgdUVY
+	KsiHWxcyACiNqUf9FQw32teIq6X9lXClw2U9/vLukYkBfPAvEvit1sFeKLemw3vUhD/jAOPk61e
+	+9Ftyx0qJi/thUZRvH6DbQ86PjzdhcN8T+vV349CB+WssSC0ap9yswNJ8Db+wLxHnRg==
+X-Received: by 2002:a17:902:8d92:: with SMTP id v18mr29021282plo.211.1559855913812;
+        Thu, 06 Jun 2019 14:18:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqysedJbeME+OyJmptywqbJl4BYvSCQPORkEuUxWBIxwXQOLZQfzz9jbqp/JRmhznWE2GtHd
+X-Received: by 2002:a17:902:8d92:: with SMTP id v18mr29021219plo.211.1559855913084;
+        Thu, 06 Jun 2019 14:18:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559855913; cv=none;
         d=google.com; s=arc-20160816;
-        b=bU5QSotho4WG378kRGE1DN+JLmvyTWs3v8X74gmMkUmAgSs16r5PFY9PxBWW2zruN5
-         SwUZGtKU69j5jOg03IoOAz1mb3GPayAJEgHNn7I6tobtJK4JSwudbdJYPNl0XCm4oLVI
-         bBSt7nKOArau+beBPLlUZej5oebbyTcWH1f880eXp++BhR2C7JXgaw6WgTS1ZlsYwQTF
-         5AbH3vL7AblBZ1uahY4mr9LFdJla2NGKi6mcQirgY8Gm5CKuaEcv2Z5E9V1bTWTLI6RI
-         4kCZXnjDVJcx4adg0oiwKPwGTfr/TUyrHe8NUleXMDLMe3MXgmrrBrpGxnfRR4jDjkFp
-         RfdQ==
+        b=i/X+d0yi6aSR6n/CnNOcnyafE/xFFGOwRhCitUMTx7q7JzQxbU8MCSuxmhY/n6hkhR
+         k62EKG55YOjCGXhY2gO0Pfb/1CdGOUoPE1198WwgPdg8F5/qX18C++d/sabNyoZ9P5TY
+         BLmRWYfCcyLJgt0eULxc1UbsCICi2i2NKJEhuqJhjJI2kUQQ12gtVSxxP9MTssrivc7f
+         C1r+AavY+YOmHIdy3ijsEvSOZs7MUhf2Edgh3RajC7o2CFQQhdmdtxRSqjbPFmjvEhDW
+         0z6+WQxSWrpm+BBNZAxF1XsJ/oQYF07lG4tsROszbaqjOWaHOAeMxcT4Ja/JkQdH4tHj
+         yGAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=i4pH9SKagiR96nYXZvFJhe68v+83LBSdVRAblgIAYAQ=;
-        b=mY8TFdBomUOaIbtvz4IfTY4K98r438B1zYMlDbo0JDJtnnyKxAOl/d61W66I1N3Oux
-         tUBj1ZvM4EDtv0H0Od6vEXrSkT5h3TMLknkkbiTzDY8GJGjDRez74zH8CH1An2DKvxOM
-         5w+VW8RFN3+q0tUi0Fh36FLVRSjWwq0UuIf4M+iSkdgi6BvHkyyXY8f2uvH7xZS8rBcI
-         1n1v4oWOS2su4QINtQL5OqxJxTXJFG7wgD5lrDT1rJlEhiN/WBGiLEiwd7a4Z9+6HA52
-         6yNXGgISVovY+eMDxPWyOhl86KPjX7iAR4Qn126ctyjGg8uQDYezGbM4HOgT3Ws2S3Be
-         hGUg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
+         :subject;
+        bh=OIQh0N5WLWRkH+p7IIRxmDJLUQQd+yA9TcYobwrYvSk=;
+        b=rH5si2HdngpDD+xYVGtGE19PccHWlB2ooP73qdHdM88Hj45YasW2b5ehnyJGgk3Psz
+         JUlp/3b/fFmU+9uzV7A45buySni+RB0VVsBI2lAquoa87AZKkn2lqc0U9Sz+0Mdrq3z4
+         ilIm1WANr0psI1vbkfOFrUjmGOvwBOJtONBnegi95u43kdu7EGXTZTEaZH5RrwOMyO1J
+         dz4rInU0OOrF0ma/dGIVfzgDDiPz+sAR18t4X3ewLXyqhXz051/yGUTGrd0iUz0tfM+l
+         fzXF9vZSoUC9KI8fyvQVhxZG5QhM5bOq/k/7APwVGABWF9Cdg91WOtoKhq0P60BWSL9v
+         M2Ww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=eWiauVwq;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id n68si5343ota.269.2019.06.06.14.17.28
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id x9si154478plv.182.2019.06.06.14.18.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 14:17:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Thu, 06 Jun 2019 14:18:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=eWiauVwq;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5cf982d90000>; Thu, 06 Jun 2019 14:17:13 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 06 Jun 2019 14:17:28 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 06 Jun 2019 14:17:28 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 6 Jun
- 2019 21:17:28 +0000
-Subject: Re: [PATCHv3 1/2] mm/gup: fix omission of check on FOLL_LONGTERM in
- get_user_pages_fast()
-To: Pingfan Liu <kernelfans@gmail.com>, Andrew Morton
-	<akpm@linux-foundation.org>
-CC: <linux-mm@kvack.org>, Ira Weiny <ira.weiny@intel.com>, Mike Rapoport
-	<rppt@linux.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox
-	<willy@infradead.org>, Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>, Keith
- Busch <keith.busch@intel.com>, Christoph Hellwig <hch@infradead.org>, LKML
-	<linux-kernel@vger.kernel.org>
-References: <1559725820-26138-1-git-send-email-kernelfans@gmail.com>
- <20190605144912.f0059d4bd13c563ddb37877e@linux-foundation.org>
- <CAFgQCTur5ReVHm6NHdbD3wWM5WOiAzhfEXdLnBGRdZtf7q1HFw@mail.gmail.com>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <2b0a65ec-4fb0-430e-3e6a-b713fb5bb28f@nvidia.com>
-Date: Thu, 6 Jun 2019 14:17:27 -0700
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 14:18:32 -0700
+X-ExtLoop1: 1
+Received: from ray.jf.intel.com (HELO [10.7.198.156]) ([10.7.198.156])
+  by orsmga006.jf.intel.com with ESMTP; 06 Jun 2019 14:18:31 -0700
+Subject: Re: [PATCH v7 04/27] x86/fpu/xstate: Introduce XSAVES system states
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org,
+ "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
+ Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>,
+ Borislav Petkov <bp@alien8.de>, Cyrill Gorcunov <gorcunov@gmail.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>,
+ "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+ Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+ Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>,
+ Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>,
+ Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>,
+ "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+ Dave Martin <Dave.Martin@arm.com>
+References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
+ <20190606200646.3951-5-yu-cheng.yu@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <0a2f8b9b-b96b-06c8-bae0-b78b2ca3b727@intel.com>
+Date: Thu, 6 Jun 2019 14:18:29 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <CAFgQCTur5ReVHm6NHdbD3wWM5WOiAzhfEXdLnBGRdZtf7q1HFw@mail.gmail.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL108.nvidia.com (172.18.146.13) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20190606200646.3951-5-yu-cheng.yu@intel.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1559855833; bh=i4pH9SKagiR96nYXZvFJhe68v+83LBSdVRAblgIAYAQ=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=eWiauVwq0cMfiC+QWs/85Nu4AYyu9WBcaT9+nM7L4eJTcuQRIGndhJQ42mqfms1/9
-	 jCEjjS5YttMJxXs+7oRKyxg9pb5S9QKIWK1fRhRcH91ElVE5j4eZ//HwuJcLuXy6+p
-	 FlUOTA6w8i52KHohYHxouBe+st8Cl8DZHopYTyqGBVv9EwhBGYW5lWHyhiOVVtjT9Q
-	 Ojrf8iZNwwtIBVr4SJ2WIwOVwv9aW/ra5hC1CIG3Ok1r7jPewYoEvnNW0oDnLyeUXA
-	 T+9vkZY2Yb6ho1Lmsh4QCLUEDe+W0MaPWHL8+U2o3/GD7HpbV/d7sCNU9ZbBQKA2Ia
-	 6u6h4TX4pSUwQ==
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/5/19 7:19 PM, Pingfan Liu wrote:
-> On Thu, Jun 6, 2019 at 5:49 AM Andrew Morton <akpm@linux-foundation.org> wrote:
-...
->>> --- a/mm/gup.c
->>> +++ b/mm/gup.c
->>> @@ -2196,6 +2196,26 @@ static int __gup_longterm_unlocked(unsigned long start, int nr_pages,
->>>       return ret;
->>>  }
->>>
->>> +#ifdef CONFIG_CMA
->>> +static inline int reject_cma_pages(int nr_pinned, struct page **pages)
->>> +{
->>> +     int i;
->>> +
->>> +     for (i = 0; i < nr_pinned; i++)
->>> +             if (is_migrate_cma_page(pages[i])) {
->>> +                     put_user_pages(pages + i, nr_pinned - i);
->>> +                     return i;
->>> +             }
->>> +
->>> +     return nr_pinned;
->>> +}
->>
->> There's no point in inlining this.
-> OK, will drop it in V4.
-> 
->>
->> The code seems inefficient.  If it encounters a single CMA page it can
->> end up discarding a possibly significant number of non-CMA pages.  I
-> The trick is the page is not be discarded, in fact, they are still be
-> referrenced by pte. We just leave the slow path to pick up the non-CMA
-> pages again.
-> 
->> guess that doesn't matter much, as get_user_pages(FOLL_LONGTERM) is
->> rare.  But could we avoid this (and the second pass across pages[]) by
->> checking for a CMA page within gup_pte_range()?
-> It will spread the same logic to hugetlb pte and normal pte. And no
-> improvement in performance due to slow path. So I think maybe it is
-> not worth.
-> 
->>
+> +/*
+> + * Helpers for changing XSAVES system states.
+> + */
+> +static inline void modify_fpu_regs_begin(void)
+> +{
+> +	fpregs_lock();
+> +	if (test_thread_flag(TIF_NEED_FPU_LOAD))
+> +		__fpregs_load_activate();
+> +}
+> +
+> +static inline void modify_fpu_regs_end(void)
+> +{
+> +	fpregs_unlock();
+> +}
 
-I think the concern is: for the successful gup_fast case with no CMA
-pages, this patch is adding another complete loop through all the 
-pages. In the fast case.
+These are massively under-commented and under-changelogged.  This looks
+like it's intended to ensure that we have supervisor FPU state for this
+task loaded before we go and run the MSRs that might be modifying it.
 
-If the check were instead done as part of the gup_pte_range(), then
-it would be a little more efficient for that case.
+But, that seems broken.  If we have supervisor state, we can't always
+defer the load until return to userspace, so we'll never?? have
+TIF_NEED_FPU_LOAD.  That would certainly be true for cet_kernel_state.
 
-As for whether it's worth it, *probably* this is too small an effect to measure. 
-But in order to attempt a measurement: running fio (https://github.com/axboe/fio)
-with O_DIRECT on an NVMe drive, might shed some light. Here's an fio.conf file 
-that Jan Kara and Tom Talpey helped me come up with, for related testing:
+It seems like we actually need three classes of XSAVE states:
+1. User state
+2. Supervisor state that affects user mode
+3. Supervisor state that affects kernel mode
 
-[reader]
-direct=1
-ioengine=libaio
-blocksize=4096
-size=1g
-numjobs=1
-rw=read
-iodepth=64
+We can delay the load of 1 and 2, but not 3.
 
-
-
-thanks,
--- 
-John Hubbard
-NVIDIA
+But I don't see any infrastructure for this.
 
