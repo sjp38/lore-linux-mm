@@ -4,67 +4,66 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC99DC04AB5
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:18:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6802FC04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:18:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A1E392083E
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:18:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1E392083E
+	by mail.kernel.org (Postfix) with ESMTP id 28D962083E
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 20:18:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28D962083E
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 693AB6B02DB; Thu,  6 Jun 2019 16:17:36 -0400 (EDT)
+	id 978036B02D5; Thu,  6 Jun 2019 16:17:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0849C6B02D5; Thu,  6 Jun 2019 16:17:36 -0400 (EDT)
+	id 1BB9A6B02D4; Thu,  6 Jun 2019 16:17:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A48D36B02DC; Thu,  6 Jun 2019 16:17:35 -0400 (EDT)
+	id DED2B6B02D2; Thu,  6 Jun 2019 16:17:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 446EB6B02DB
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 42DBC6B02DA
 	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 16:17:35 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id e69so2314464pgc.7
+Received: by mail-pg1-f199.google.com with SMTP id k23so2308469pgh.10
         for <linux-mm@kvack.org>; Thu, 06 Jun 2019 13:17:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+        h=x-original-authentication-results:x-gm-message-state:from:to
          :subject:date:message-id:in-reply-to:references;
-        bh=5sD/VtOBJS3fd61Qzp6JVoTL0uRDWIHB9WqS2y24rXE=;
-        b=C/lXQMputiarYgn2bRPMbL7uX+FJTIqtvCiP1xKgdD+EDZkI4aC6qQHBZWCevr3x3O
-         BbP336cV1GLcyFrQj+MjvuAOiXzA/KRKBBeX3uJfy2HxUbBbTwDTi/J36IXdMq5SBl7P
-         7UVM6hMuLfHWpX9aS8e2GZ96XqZcqoklGkXAStLcHvYO8PUiJaU/4ajWjRrCPwIbDnL9
-         /X0qw4wIegYmRMWChE0MptQwQHSO3mgOb0o01sjqsFAfbLmFaeOwtln3owYACOSksiyJ
-         ZK52h2NYGsu0AIKz/O6vWzC/Y71mlzg9cS91KYaMVWUJLQC4pFiOaNVHXfAdnhlB6ijP
-         nzcw==
+        bh=ac1NjIrOfI9u6KZaE2BsaLSoNPaau6R6WCIYehau9Jc=;
+        b=ivBStedFqW/3WMLGGroYMB4VQfkEYTID7SFHLKQOLZGoSikcU79CINbM4bV+PZYlFx
+         YDOG8cV9CUNk9RF49jP6K20iMahM1AthHr+dOLfJ3DxI5EXDth0dwrN2odJsyZz6hCt3
+         MJwrpLcj3IRzDA2mI6aI/HFhQJ33iR+fMORCPstUV+47yFeDGnpHj93h2dYrA3mGyNZ2
+         EI6J1ft8Ba8P+ZzvWmjY/HhTo6S2iHb/hmUaJW273md5CxqrFolxmTiLTO9UFKELp6aI
+         l5hn9NwHlK1ZIM+xxY/DWjmeg0bXztSawTgePMZPJmQXHFtfRh78ow1V6/tGhaFeEi44
+         xhPw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWZcNjegnPBzj0SWvPxON/1UdsaiboYaEinvAexFIimrWCzs9VK
-	arwmvL5ZgDVbYLTWQjcPD3a7xrBpEgRSo36grIK3hPiZ1eSF5opeyeCxPAhPxMe5HzYCrhW5qWT
-	6MjenGzcHhKsUCEF4C8++Zd2du2nWWlqxnhzy5O8Y52Y+C3Y8nQBxCR8LYUDSR3Hjog==
-X-Received: by 2002:a17:90a:5d09:: with SMTP id s9mr1615564pji.120.1559852254917;
+X-Gm-Message-State: APjAAAUMFOtZX+7XPWrJxNv1uHZuPAiOnUYZq/MXib2xgf6FO3CbVkCZ
+	k3J480oa/7q5512SBQ7rdSigswpQquacRm1AH/+lVoGGVQJ7GvyuiPu2HsOVNKvi0nHnECGM5lb
+	T3j5YIZe7dqybEVf8Z/nknTOlMYs83VJQuYR56RQJymT40R6PrOpGlBjcGeGZJZVDyg==
+X-Received: by 2002:a17:90a:d58d:: with SMTP id v13mr1668852pju.1.1559852254943;
         Thu, 06 Jun 2019 13:17:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwg+oJwtNI3sE8wx4ntVhiRfSe0QRUp+pKKzEzm5918TFvhVInycce3dyK540J0u/iNAwKn
-X-Received: by 2002:a17:90a:5d09:: with SMTP id s9mr1615473pji.120.1559852253613;
+X-Google-Smtp-Source: APXvYqxojzvmT20K+xD8d3MCdjN+pHZigxBCBFeQEeajkgU2YDB8w0aOKZlOUDrn45+KPOqyge26
+X-Received: by 2002:a17:90a:d58d:: with SMTP id v13mr1668771pju.1.1559852253930;
         Thu, 06 Jun 2019 13:17:33 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1559852253; cv=none;
         d=google.com; s=arc-20160816;
-        b=0LPphXBUBtqQIfmTi+HKznfYDFYLR3S8El5xtc61qXdWN+wjwYnr9118y5mygO0heU
-         +Cu5+AFWBetF/pTOkejroIjwXygIuNXbgSQT/1balr+2jvXg2uVibB/rS8IUJYAkqRVU
-         PuI+IYb4srqeT/1TGRAlzUK+fd3s1+2X9Lc505iWXN7pDbZPEPV3z4ENJGNREzRtXHX/
-         8Xc+riJityF3Q6XKsEx/dSxZfNNMpZa354u1W0q4UHP7tDUyt3e9k+jz7J/LzLzSPoZl
-         Ur2nZRNKFzpk74GgZ75Yu+HgALYTSwe1qj/rb4dVYpfVYqDzia/CZC7t5uxNhv+9mG8C
-         LHwg==
+        b=pXLQTgwJVflTGLlLIOsR/2u1dV0hfn+l+08mljKw5uggf9SfdmUP3CC3CPyknbE+lA
+         BZd4xJnytVkilRLekQV9hg60hhRAaFqY49WgS5SNI26I2+aVnJhW8zNN0NKfxG2eWK2n
+         jLJAWHZ7ZAijfBYkzHjeRUJSOsJMXIu3Dvp9NMaZreHJZOe7pGKBI2UvB3H8ER0DR3Ii
+         rH8341nbtvsrjP+3LLi564naDlfyKz1LUdQsUgmcKqC2r9cpOdXE81iHqoLc5P0QsNSX
+         jMCx+C8afBTPN9xhNXGqzisA3rsy9pMdmDcjRbQbhUpSm13rDLJt/nJDGnyoTIcbvZsj
+         jtxg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=5sD/VtOBJS3fd61Qzp6JVoTL0uRDWIHB9WqS2y24rXE=;
-        b=xVx7LvW1we1RiVBebE+EoNiaocxbG96xsghAG0HIrx2LwYTbP0+e7bY4vqI+056c17
-         DV9LsrXIRaliPxr/osf8PhCzoaSZCek0lkwEchhI7chEzL5XJ/aVAYAIju4L14EnPfTg
-         QMHnxvo4/kE4OfdbnlWnd8Z0FelUQufCxh2qFCC9wgk25MY4SWPm2TA63OGU1Lm+4fVH
-         BClqz1AgV7pdJ5CA5pYxxyxXKXDSTJVlDh6/FAmTiiDBsZkU6T/z2xtAmoyLIzD/QbMn
-         /TqirNtzwLsURMsUAucdhEOZmggLOhXHLC9sJcM55sypN0ssvkBfOpreGhEnDV+QdwL5
-         lvQw==
+        h=references:in-reply-to:message-id:date:subject:to:from;
+        bh=ac1NjIrOfI9u6KZaE2BsaLSoNPaau6R6WCIYehau9Jc=;
+        b=JgXl+FjwYwtaWbPXnf4z2ZAQn5saCO2kCvdETsoYbXO0bn6fiFYUh5lbKCaYVnmgDv
+         4UxwVZI5m4nYdW8bOnA0WcJ83rxemAvt57YAI8hBbqpGr5mknmqJ8c4/DkKAhIti+Z18
+         X3UVR5jF7ryJkv2//JiyywVg+jneVVRwNe8avZWzqCVCawqf8b4ISDjdVLoy9khLVw3d
+         3j0dbo4dEC5pgaEZ53bZ9oP/GmmCaig0a9M+2bQ5T/iYh9hmjhbE8YiLEY4zteYSE4Rx
+         UO9AksxpJZP2qfxtSmaCMzNourN01kbWxaJHrRcUwohqgs9N67A/6DNsH+XU8P2SAS9W
+         uxUg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
@@ -80,10 +79,10 @@ Authentication-Results: mx.google.com;
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:17:32 -0700
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Jun 2019 13:17:33 -0700
 X-ExtLoop1: 1
 Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by fmsmga001.fm.intel.com with ESMTP; 06 Jun 2019 13:17:32 -0700
+  by fmsmga001.fm.intel.com with ESMTP; 06 Jun 2019 13:17:33 -0700
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
 To: x86@kernel.org,
 	"H. Peter Anvin" <hpa@zytor.com>,
@@ -115,10 +114,9 @@ To: x86@kernel.org,
 	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v7 13/14] x86/cet: Add PTRACE interface for CET
-Date: Thu,  6 Jun 2019 13:09:25 -0700
-Message-Id: <20190606200926.4029-14-yu-cheng.yu@intel.com>
+Subject: [PATCH v7 14/14] x86: Discard .note.gnu.property sections
+Date: Thu,  6 Jun 2019 13:09:26 -0700
+Message-Id: <20190606200926.4029-15-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190606200926.4029-1-yu-cheng.yu@intel.com>
 References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
@@ -128,145 +126,74 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add REGSET_CET64/REGSET_CET32 to get/set CET MSRs:
+From: "H.J. Lu" <hjl.tools@gmail.com>
 
-    IA32_U_CET (user-mode CET settings) and
-    IA32_PL3_SSP (user-mode shadow stack)
+With the command-line option, -mx86-used-note=yes, the x86 assembler
+in binutils 2.32 and above generates a program property note in a note
+section, .note.gnu.property, to encode used x86 ISAs and features.
+To exclude .note.gnu.property sections from NOTE segment in x86 kernel
+linker script:
 
-Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
----
- arch/x86/include/asm/fpu/regset.h |  7 +++---
- arch/x86/kernel/fpu/regset.c      | 41 +++++++++++++++++++++++++++++++
- arch/x86/kernel/ptrace.c          | 16 ++++++++++++
- include/uapi/linux/elf.h          |  1 +
- 4 files changed, 62 insertions(+), 3 deletions(-)
+PHDRS {
+ text PT_LOAD FLAGS(5);
+ data PT_LOAD FLAGS(6);
+ percpu PT_LOAD FLAGS(6);
+ init PT_LOAD FLAGS(7);
+ note PT_NOTE FLAGS(0);
+}
+SECTIONS
+{
+...
+ .notes : AT(ADDR(.notes) - 0xffffffff80000000) { __start_notes = .; KEEP(*(.not
+e.*)) __stop_notes = .; } :text :note
+...
+}
 
-diff --git a/arch/x86/include/asm/fpu/regset.h b/arch/x86/include/asm/fpu/regset.h
-index d5bdffb9d27f..edad0d889084 100644
---- a/arch/x86/include/asm/fpu/regset.h
-+++ b/arch/x86/include/asm/fpu/regset.h
-@@ -7,11 +7,12 @@
- 
- #include <linux/regset.h>
- 
--extern user_regset_active_fn regset_fpregs_active, regset_xregset_fpregs_active;
-+extern user_regset_active_fn regset_fpregs_active, regset_xregset_fpregs_active,
-+				cetregs_active;
- extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get,
--				xstateregs_get;
-+				xstateregs_get, cetregs_get;
- extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set,
--				 xstateregs_set;
-+				 xstateregs_set, cetregs_set;
- 
- /*
-  * xstateregs_active == regset_fpregs_active. Please refer to the comment
-diff --git a/arch/x86/kernel/fpu/regset.c b/arch/x86/kernel/fpu/regset.c
-index d652b939ccfb..2937ec9d9215 100644
---- a/arch/x86/kernel/fpu/regset.c
-+++ b/arch/x86/kernel/fpu/regset.c
-@@ -156,6 +156,47 @@ int xstateregs_set(struct task_struct *target, const struct user_regset *regset,
- 	return ret;
+this patch discards .note.gnu.property sections in kernel linker script
+by adding
+
+ /DISCARD/ : {
+  *(.note.gnu.property)
  }
+
+before .notes sections.  Since .exit.text and .exit.data sections are
+discarded at runtime, it undefines EXIT_TEXT and EXIT_DATA to exclude
+.exit.text and .exit.data sections from default discarded sections.
+
+Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
+---
+ arch/x86/kernel/vmlinux.lds.S | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/arch/x86/kernel/vmlinux.lds.S b/arch/x86/kernel/vmlinux.lds.S
+index 0850b5149345..d2594b482c09 100644
+--- a/arch/x86/kernel/vmlinux.lds.S
++++ b/arch/x86/kernel/vmlinux.lds.S
+@@ -146,6 +146,10 @@ SECTIONS
+ 	/* End of text section */
+ 	_etext = .;
  
-+int cetregs_active(struct task_struct *target, const struct user_regset *regset)
-+{
-+#ifdef CONFIG_X86_INTEL_CET
-+	if (target->thread.cet.shstk_enabled || target->thread.cet.ibt_enabled)
-+		return regset->n;
-+#endif
-+	return 0;
-+}
-+
-+int cetregs_get(struct task_struct *target, const struct user_regset *regset,
-+		unsigned int pos, unsigned int count,
-+		void *kbuf, void __user *ubuf)
-+{
-+	struct fpu *fpu = &target->thread.fpu;
-+	struct cet_user_state *cetregs;
-+
-+	if (!boot_cpu_has(X86_FEATURE_SHSTK))
-+		return -ENODEV;
-+
-+	cetregs = get_xsave_addr(&fpu->state.xsave, XFEATURE_CET_USER);
-+
-+	fpu__prepare_read(fpu);
-+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, cetregs, 0, -1);
-+}
-+
-+int cetregs_set(struct task_struct *target, const struct user_regset *regset,
-+		  unsigned int pos, unsigned int count,
-+		  const void *kbuf, const void __user *ubuf)
-+{
-+	struct fpu *fpu = &target->thread.fpu;
-+	struct cet_user_state *cetregs;
-+
-+	if (!boot_cpu_has(X86_FEATURE_SHSTK))
-+		return -ENODEV;
-+
-+	cetregs = get_xsave_addr(&fpu->state.xsave, XFEATURE_CET_USER);
-+
-+	fpu__prepare_write(fpu);
-+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf, cetregs, 0, -1);
-+}
-+
- #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
++	/* .note.gnu.property sections should be discarded */
++	/DISCARD/ : {
++		*(.note.gnu.property)
++	}
+ 	NOTES :text :note
  
- /*
-diff --git a/arch/x86/kernel/ptrace.c b/arch/x86/kernel/ptrace.c
-index a166c960bc9e..db902ed9b353 100644
---- a/arch/x86/kernel/ptrace.c
-+++ b/arch/x86/kernel/ptrace.c
-@@ -51,7 +51,9 @@ enum x86_regset {
- 	REGSET_IOPERM64 = REGSET_XFP,
- 	REGSET_XSTATE,
- 	REGSET_TLS,
-+	REGSET_CET64 = REGSET_TLS,
- 	REGSET_IOPERM32,
-+	REGSET_CET32,
- };
+ 	EXCEPTION_TABLE(16) :text = 0x9090
+@@ -382,7 +386,12 @@ SECTIONS
+ 	STABS_DEBUG
+ 	DWARF_DEBUG
  
- struct pt_regs_offset {
-@@ -1268,6 +1270,13 @@ static struct user_regset x86_64_regsets[] __ro_after_init = {
- 		.size = sizeof(long), .align = sizeof(long),
- 		.active = ioperm_active, .get = ioperm_get
- 	},
-+	[REGSET_CET64] = {
-+		.core_note_type = NT_X86_CET,
-+		.n = sizeof(struct cet_user_state) / sizeof(u64),
-+		.size = sizeof(u64), .align = sizeof(u64),
-+		.active = cetregs_active, .get = cetregs_get,
-+		.set = cetregs_set
-+	},
- };
- 
- static const struct user_regset_view user_x86_64_view = {
-@@ -1323,6 +1332,13 @@ static struct user_regset x86_32_regsets[] __ro_after_init = {
- 		.size = sizeof(u32), .align = sizeof(u32),
- 		.active = ioperm_active, .get = ioperm_get
- 	},
-+	[REGSET_CET32] = {
-+		.core_note_type = NT_X86_CET,
-+		.n = sizeof(struct cet_user_state) / sizeof(u64),
-+		.size = sizeof(u64), .align = sizeof(u64),
-+		.active = cetregs_active, .get = cetregs_get,
-+		.set = cetregs_set
-+	},
- };
- 
- static const struct user_regset_view user_x86_32_view = {
-diff --git a/include/uapi/linux/elf.h b/include/uapi/linux/elf.h
-index 316177ce9e76..4f320d96d538 100644
---- a/include/uapi/linux/elf.h
-+++ b/include/uapi/linux/elf.h
-@@ -401,6 +401,7 @@ typedef struct elf64_shdr {
- #define NT_386_TLS	0x200		/* i386 TLS slots (struct user_desc) */
- #define NT_386_IOPERM	0x201		/* x86 io permission bitmap (1=deny) */
- #define NT_X86_XSTATE	0x202		/* x86 extended state using xsave */
-+#define NT_X86_CET	0x203		/* x86 cet state */
- #define NT_S390_HIGH_GPRS	0x300	/* s390 upper register halves */
- #define NT_S390_TIMER	0x301		/* s390 timer register */
- #define NT_S390_TODCMP	0x302		/* s390 TOD clock comparator register */
+-	/* Sections to be discarded */
++	/* Sections to be discarded.  EXIT_TEXT and EXIT_DATA discard at runtime.
++	 * not link time.  */
++#undef EXIT_TEXT
++#define EXIT_TEXT
++#undef EXIT_DATA
++#define EXIT_DATA
+ 	DISCARDS
+ 	/DISCARD/ : {
+ 		*(.eh_frame)
 -- 
 2.17.1
 
