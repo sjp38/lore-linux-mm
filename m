@@ -2,178 +2,170 @@ Return-Path: <SRS0=utKX=UF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CEC18C28D1D
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 12:04:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B9825C04AB5
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:13:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 986532089E
-	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 12:04:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="bQT4WuDl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 986532089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 8C66E20684
+	for <linux-mm@archiver.kernel.org>; Thu,  6 Jun 2019 13:13:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C66E20684
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fieldses.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 770086B0270; Thu,  6 Jun 2019 08:04:31 -0400 (EDT)
+	id 0D3166B0277; Thu,  6 Jun 2019 09:13:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 723636B0272; Thu,  6 Jun 2019 08:04:31 -0400 (EDT)
+	id 083EB6B0278; Thu,  6 Jun 2019 09:13:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 54CE66B0273; Thu,  6 Jun 2019 08:04:31 -0400 (EDT)
+	id EB4166B0279; Thu,  6 Jun 2019 09:13:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DC9016B0270
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 08:04:30 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id l10so471034ljj.18
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 05:04:30 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C2BB86B0277
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 09:13:36 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id v1so1020854otj.23
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 06:13:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=XWWrktLRhmH5onjl7ijfGHY6CQGMEsILV3xHR3Mmnn8=;
-        b=r1ZFiScx/7v2qyMP+rbsjFnEYDvNhnK9UpU46UW3v4br5FreTaTe1m+RK9cb8y/Nmj
-         1ul+HDoPiOC+iwCj/n7oEoUvJQVlqycMzVK3K+slvyyxhdfjW3ky6Axpa57aMOf4pJpD
-         pH8jxBZq8UtzhoIZ0g8Z11FPRW3QZDBgCLhtQ9J8DcqQ6x/GgG8vTAwP1dloDB7uA9qG
-         bzTgwXH8RD2YQw7Yqn0eJWxWQfVOCcXAJ7im8q3Bh9ssEzLUtlarJIybGYfsWTUDj3FS
-         dLF7w1+UVV21vExhejdsfV9h9m8wkCfF2kuyLVseEvKZb0jfhDkYcD20SCsUuBP2lImz
-         J5OQ==
-X-Gm-Message-State: APjAAAUR4ZGUhK0lhTO5g2mYe9ddFnsaAY9ltU+R5kqNFiupIKjCoEX3
-	kWLgOQVCnwjxe/P1qDaEspcQSvqy0X5aWXT3UeJn7lQHJemIxKD8Qe+3cLrDE3YPD64fb597Ahq
-	GyGbqNbm+Vy12UQGSLOuYl+hxfrdhS34Ak3D7fg518W+9ToJe2Qn9E5ZMa5Ka9hqzoQ==
-X-Received: by 2002:a2e:1510:: with SMTP id s16mr15830274ljd.19.1559822670288;
-        Thu, 06 Jun 2019 05:04:30 -0700 (PDT)
-X-Received: by 2002:a2e:1510:: with SMTP id s16mr15830187ljd.19.1559822668897;
-        Thu, 06 Jun 2019 05:04:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559822668; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=JAErcRwTm4Fxv7hc/ipsQuGC8OwztSmhtOobDqFAvak=;
+        b=XWuyNpKyTjkl7XrEZMqbfrHo5soH+/zScP8SlQbjiZlnCGjIjNOFIxT34jbZ9R2fxg
+         0iXPgVKGXQf2mnQcNTEtKQpS8loLzAAAmKHiW3vtRJns4e1gHuL2tqkxXfedJW/v86sj
+         O8Ur2hjhAkgdTjtxum633hr4QlYajajfNfpJaRnnwlRidkoUrmhtord1X1Msbm1KTd5B
+         8y4cWc4Ece4z4717AVey4IcyzkfMYAi43qz/HuWxqB9LR0uw2YP/s0+zQLEKuVjPqkNL
+         U8Vgqfoc9iKZ5WW603uwnuUVLPtyJ+k+L6AAFpgpd+01jAF6mI/yUGft8ZObCeSISzay
+         Dc8Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bfields@fieldses.org designates 173.255.197.46 as permitted sender) smtp.mailfrom=bfields@fieldses.org
+X-Gm-Message-State: APjAAAXRenUU9y+aMOQL/b/sulwKYCvR4ttPnmrI/C3iGVdUvxRzmR1B
+	nbNTE5qXS0Gm7wGzqbWgvGWwZ/wQTQIFO8QOfJGyAQGpj/y62aOZ1yrHj0h9ia5WimSMe1IveqB
+	Wf4aDV5hvXbAd5iZuE7CG6g4/SDW4B4+mRzRtlh8K6pCSsSRStN4EUYJqY3l2xJ0Qrg==
+X-Received: by 2002:a9d:4b0b:: with SMTP id q11mr14774130otf.69.1559826816462;
+        Thu, 06 Jun 2019 06:13:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyfiJIi/cla7AD5h+CHESIxyg5HLlL0axpBwZnuQJRr2bSegKlXU3gQX/KFH9vRWCvgB1qR
+X-Received: by 2002:a9d:4b0b:: with SMTP id q11mr14774036otf.69.1559826815243;
+        Thu, 06 Jun 2019 06:13:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559826815; cv=none;
         d=google.com; s=arc-20160816;
-        b=ObKOuGsq13cakYgpOyHVk51NXkKLwJwE//rP+it54S6PQA7QOe4aG+e9SgMJXXmngc
-         9rM4SkgaylRtEPGRuu4PcFr8NU/XP/aWVJXQF+gxfOCpVhzO50fveGSCrN3w/jiamh6y
-         zpJyamYDZvxvVfOCyWh6d8TJoeCl/4UTdoPSUnNaVoDb40slLLQb1884B/A1rz4NszUL
-         FhbbKovPXXYqOvU2p9svT+AjPpX/DlVGpXR/MEfS4dacTE5M3D7SkSU5PPeu4EpBbJqj
-         EIfNv6truxKv7UoAMr/MscA9a+pmeYo7KjK9v7K/2kaJQ3LOh3Nte1USFrnHo35wiGdJ
-         wr/Q==
+        b=hT3EGm4QCk3iAQT3Csrjpln1zU5tlmVUN9IS5O3fkZ8rvvULomC2XseTE2ZjCl/oeh
+         EdzuKwmzfmqYXFWgUxNnoaKdc3zh26ReWFgaLfXj68hOzLq5pM27ZAkzJY6wOfdGZjmx
+         uZ5bYePqLeBc+5vOKmjLKF31OK1+otUicVXuxFqVDyBvxtPyfT3GitsJvHMukrwhk5AQ
+         MNhy1tWnlVFpHZl2nRbVh8Opq2fC+ddsF42j8sInfCSND7Vj3/PsFAMckRngAPl6pd/L
+         RBeLhoKrFSfc2rd6squBVSYCUaNGK69JUCOnX9yb1wovJGkdZ+5FAwZ9j9pkxQvpSyBA
+         yFeQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=XWWrktLRhmH5onjl7ijfGHY6CQGMEsILV3xHR3Mmnn8=;
-        b=zd8gtsMjZf6Fmfsujx14Ze6yCWwj0ieqXJypwVKVdpnkQRdmJRT9AKDR58qkcsrl3e
-         7/l1ZZXTHxeU944p6AZKduSYa+vHhtj6RaatCcklU9mBhPapP+/0d1pfJd3mBLIfZFmL
-         pOAhDLrLcslaD6HrmC/+hDDSO3dpNbfUPqESoOwuEvQ5v1zhBBJKuuFCiQdEYp7iZsoY
-         LzVEcFiuCHObVYn6PMzvTPi2UTLOY2+aVh9fFjXJDHEbxagbVx1fMnX5rxLPwyt9GvfH
-         Az6iEv/j2uH8Sju22hyLIZDkOFw9gs5j3FtDY2R2pJZtr+x7Xop9Ptx/BUL/7TRzKu9a
-         btIQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=JAErcRwTm4Fxv7hc/ipsQuGC8OwztSmhtOobDqFAvak=;
+        b=B6XC0h0oGZbwG/IpVJPnJSWuYUnWRcIagNLA9nJozPDAk2yoV5vxb1t/hYJBnlT/oc
+         zJhvE/H2xVXcUoCgc+PM4blNqmPiEpNSEdkBp2pY3xsUq1xKWmSMps+m6Qnfh9/zzXqz
+         lW0YBN8gprlcXMMS3eG7YXP7HlNRn/CYGo2R4o1lMISQrYbYywETC6kbvn5ERX/1Xe2n
+         3O7g56B38FHf1W0HN3vXooj1rGUwYfrxv4GrlPGf1PsfONhkRZuLnPm7HNwwELuQDX+W
+         ZGOn4jOs5s0gqXD1jabELE5vNTu4dNiLZ8JHPW0+pJLW7bcdjmUyRRDO680nF/qcmiLe
+         900g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bQT4WuDl;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v12sor483111lfg.41.2019.06.06.05.04.28
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Jun 2019 05:04:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of bfields@fieldses.org designates 173.255.197.46 as permitted sender) smtp.mailfrom=bfields@fieldses.org
+Received: from fieldses.org (fieldses.org. [173.255.197.46])
+        by mx.google.com with ESMTP id u124si1424668oif.125.2019.06.06.06.13.34
+        for <linux-mm@kvack.org>;
+        Thu, 06 Jun 2019 06:13:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bfields@fieldses.org designates 173.255.197.46 as permitted sender) client-ip=173.255.197.46;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bQT4WuDl;
-       spf=pass (google.com: domain of urezki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=urezki@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=XWWrktLRhmH5onjl7ijfGHY6CQGMEsILV3xHR3Mmnn8=;
-        b=bQT4WuDlx82yqPLzBi5aH828d7S/PWpupBCEa50SzGE4GRNiWoaeUegTs9DH/63Db+
-         3Aaceh4MKlRNKmnSBRcbq4N5pjyoQjI0cNRy1dlxpn0LT5QTI5rBrfNOYURNJY9SqBct
-         C5fdXevDbg8BmUSSzYcbWvuqKqxSCMXcAjmfm7gAoDLiOogur2nPbI0mhUaI8A/PyAJE
-         e8g1GhnyMYhcDPjxxzFXahQssbL/mtsQWUtHFzUr3xm01uFdPsjuxXi2PS81JPyeL1ez
-         5Ux8SmXB2+DrXu2KWm5NNzyiDOu2tMnVCZgIaZL6GHhIex3BFzixO59045Go+8FTuI0m
-         wB2A==
-X-Google-Smtp-Source: APXvYqwmXYlkVxNNMJGX5neeMTOxEpgrpeKu/vrN2TjjhK9CMP3mWnApcrZQjx9lDDGfsysi0/QCkg==
-X-Received: by 2002:a19:9156:: with SMTP id y22mr9854544lfj.43.1559822668509;
-        Thu, 06 Jun 2019 05:04:28 -0700 (PDT)
-Received: from pc636.lan (h5ef52e31.seluork.dyn.perspektivbredband.net. [94.245.46.49])
-        by smtp.gmail.com with ESMTPSA id l18sm309036lja.94.2019.06.06.05.04.27
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 05:04:27 -0700 (PDT)
-From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	Roman Gushchin <guro@fb.com>,
-	Uladzislau Rezki <urezki@gmail.com>,
-	Hillf Danton <hdanton@sina.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
-	Steven Rostedt <rostedt@goodmis.org>
-Subject: [PATCH v5 4/4] mm/vmalloc.c: switch to WARN_ON() and move it under unlink_va()
-Date: Thu,  6 Jun 2019 14:04:11 +0200
-Message-Id: <20190606120411.8298-5-urezki@gmail.com>
-X-Mailer: git-send-email 2.11.0
-In-Reply-To: <20190606120411.8298-1-urezki@gmail.com>
-References: <20190606120411.8298-1-urezki@gmail.com>
+       spf=pass (google.com: domain of bfields@fieldses.org designates 173.255.197.46 as permitted sender) smtp.mailfrom=bfields@fieldses.org
+Received: by fieldses.org (Postfix, from userid 2815)
+	id 8384214DB; Thu,  6 Jun 2019 09:13:34 -0400 (EDT)
+Date: Thu, 6 Jun 2019 09:13:34 -0400
+From: "J. Bruce Fields" <bfields@fieldses.org>
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: syzbot <syzbot+83a43746cebef3508b49@syzkaller.appspotmail.com>,
+	akpm@linux-foundation.org, bfields@redhat.com, chris@chrisdown.name,
+	daniel.m.jordan@oracle.com, guro@fb.com, hannes@cmpxchg.org,
+	jlayton@kernel.org, laoar.shao@gmail.com,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-nfs@vger.kernel.org, mgorman@techsingularity.net,
+	mhocko@suse.com, sfr@canb.auug.org.au,
+	syzkaller-bugs@googlegroups.com, yang.shi@linux.alibaba.com
+Subject: Re: KASAN: use-after-free Read in unregister_shrinker
+Message-ID: <20190606131334.GA24822@fieldses.org>
+References: <0000000000005a4b99058a97f42e@google.com>
+ <b67a0f5d-c508-48a7-7643-b4251c749985@virtuozzo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b67a0f5d-c508-48a7-7643-b4251c749985@virtuozzo.com>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Trigger a warning if an object that is about to be freed is detached.
-We used to have a BUG_ON(), but even though it is considered as faulty
-behaviour that is not a good reason to break a system.
+On Thu, Jun 06, 2019 at 10:47:43AM +0300, Kirill Tkhai wrote:
+> This may be connected with that shrinker unregistering is forgotten on error path.
 
-Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
----
- mm/vmalloc.c | 25 ++++++++++---------------
- 1 file changed, 10 insertions(+), 15 deletions(-)
+I was wondering about that too.  Seems like it would be hard to hit
+reproduceably though: one of the later allocations would have to fail,
+then later you'd have to create another namespace and this time have a
+later module's init fail.
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index a4bdf5fc3512..899a250e4eb6 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -534,20 +534,17 @@ link_va(struct vmap_area *va, struct rb_root *root,
- static __always_inline void
- unlink_va(struct vmap_area *va, struct rb_root *root)
- {
--	/*
--	 * During merging a VA node can be empty, therefore
--	 * not linked with the tree nor list. Just check it.
--	 */
--	if (!RB_EMPTY_NODE(&va->rb_node)) {
--		if (root == &free_vmap_area_root)
--			rb_erase_augmented(&va->rb_node,
--				root, &free_vmap_area_rb_augment_cb);
--		else
--			rb_erase(&va->rb_node, root);
-+	if (WARN_ON(RB_EMPTY_NODE(&va->rb_node)))
-+		return;
+This is the patch I have, which also fixes a (probably less important)
+failure to free the slab cache.
+
+--b.
+
+commit 17c869b35dc9
+Author: J. Bruce Fields <bfields@redhat.com>
+Date:   Wed Jun 5 18:03:52 2019 -0400
+
+    nfsd: fix cleanup of nfsd_reply_cache_init on failure
+    
+    Make sure everything is cleaned up on failure.
+    
+    Especially important for the shrinker, which will otherwise eventually
+    be freed while still referred to by global data structures.
+    
+    Signed-off-by: J. Bruce Fields <bfields@redhat.com>
+
+diff --git a/fs/nfsd/nfscache.c b/fs/nfsd/nfscache.c
+index ea39497205f0..3dcac164e010 100644
+--- a/fs/nfsd/nfscache.c
++++ b/fs/nfsd/nfscache.c
+@@ -157,12 +157,12 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
+ 	nn->nfsd_reply_cache_shrinker.seeks = 1;
+ 	status = register_shrinker(&nn->nfsd_reply_cache_shrinker);
+ 	if (status)
+-		return status;
++		goto out_nomem;
  
--		list_del(&va->list);
--		RB_CLEAR_NODE(&va->rb_node);
--	}
-+	if (root == &free_vmap_area_root)
-+		rb_erase_augmented(&va->rb_node,
-+			root, &free_vmap_area_rb_augment_cb);
-+	else
-+		rb_erase(&va->rb_node, root);
-+
-+	list_del(&va->list);
-+	RB_CLEAR_NODE(&va->rb_node);
- }
+ 	nn->drc_slab = kmem_cache_create("nfsd_drc",
+ 				sizeof(struct svc_cacherep), 0, 0, NULL);
+ 	if (!nn->drc_slab)
+-		goto out_nomem;
++		goto out_shrinker;
  
- #if DEBUG_AUGMENT_PROPAGATE_CHECK
-@@ -1162,8 +1159,6 @@ EXPORT_SYMBOL_GPL(unregister_vmap_purge_notifier);
+ 	nn->drc_hashtbl = kcalloc(hashsize,
+ 				sizeof(*nn->drc_hashtbl), GFP_KERNEL);
+@@ -170,7 +170,7 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
+ 		nn->drc_hashtbl = vzalloc(array_size(hashsize,
+ 						 sizeof(*nn->drc_hashtbl)));
+ 		if (!nn->drc_hashtbl)
+-			goto out_nomem;
++			goto out_slab;
+ 	}
  
- static void __free_vmap_area(struct vmap_area *va)
- {
--	BUG_ON(RB_EMPTY_NODE(&va->rb_node));
--
- 	/*
- 	 * Remove from the busy tree/list.
- 	 */
--- 
-2.11.0
+ 	for (i = 0; i < hashsize; i++) {
+@@ -180,6 +180,10 @@ int nfsd_reply_cache_init(struct nfsd_net *nn)
+ 	nn->drc_hashsize = hashsize;
+ 
+ 	return 0;
++out_slab:
++	kmem_cache_destroy(nn->drc_slab);
++out_shrinker:
++	unregister_shrinker(&nn->nfsd_reply_cache_shrinker);
+ out_nomem:
+ 	printk(KERN_ERR "nfsd: failed to allocate reply cache\n");
+ 	return -ENOMEM;
 
