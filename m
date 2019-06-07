@@ -2,176 +2,131 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 10637C2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 13:31:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EE346C2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 13:35:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AB57020B7C
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 13:31:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B353620B7C
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 13:35:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="XgOcttxF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB57020B7C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="E234jJcA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B353620B7C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4A4A66B000C; Fri,  7 Jun 2019 09:31:10 -0400 (EDT)
+	id 4C85C6B000C; Fri,  7 Jun 2019 09:35:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4562C6B000E; Fri,  7 Jun 2019 09:31:10 -0400 (EDT)
+	id 478C56B000E; Fri,  7 Jun 2019 09:35:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 343A06B0266; Fri,  7 Jun 2019 09:31:10 -0400 (EDT)
+	id 367596B0266; Fri,  7 Jun 2019 09:35:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A2486B000C
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 09:31:10 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id r58so1851797qtb.5
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 06:31:10 -0700 (PDT)
+Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 145F56B000C
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 09:35:57 -0400 (EDT)
+Received: by mail-it1-f199.google.com with SMTP id p19so1943135itm.3
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 06:35:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=zyyI11Z3twoMqyf467AVpMwpHxurGKneH7RYfifhIWc=;
-        b=lidyLE2AZf057JjKOm3uC34JPEjJp9e5UL2sjfdVDb4DOrR1oxjdi0RU3mxEjRqy7/
-         GPcvU0+IAUqAsyCikavg/feyl0C9MXyqxc4JE1oLGijsaMfIDCbWUdAcYb8lYwnDBi6t
-         IgN8/++9bUBrzuar402MzSfWbfuTLHsZDO1fj6OfoljIBqLwle5gqlX/C+eBfx3Iqpas
-         l5xOxOx27qOA5Ay3WJcAd5ozS2noUtGt7oSAZqH1CmcyHoybBH4KzN9JAoOjXX8F0Hlx
-         IJufRej//uyBOxKF/Hsdmorf2a4/pf1nLtEs2B8WHtCBL8Ei6d8YMY54JoFm8odFs7eq
-         3Uhw==
-X-Gm-Message-State: APjAAAXu8po0QR9sM3Od7e9ZbYKgtm3d746s9oe2xLd4TkVHrhZxA1DR
-	4nA9j/c4N8GG0tafAhgQYsb8f6ALp0PHJhrkwWuC8Qhynoa5oA7iMuW9SPDCOVIuUTM8tpYzOcN
-	C6o8SKVMANGh7m2+8jVuKOZNlYrLR8nqEZU1nFEcYPObqHsnxf86emu/fKgdnfrXmJA==
-X-Received: by 2002:a0c:99d5:: with SMTP id y21mr43824354qve.106.1559914269823;
-        Fri, 07 Jun 2019 06:31:09 -0700 (PDT)
-X-Received: by 2002:a0c:99d5:: with SMTP id y21mr43824262qve.106.1559914268752;
-        Fri, 07 Jun 2019 06:31:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559914268; cv=none;
+        bh=lVEgFqucFox4g1IviFAgPH+wq2tolwksp9dr8CFQhYQ=;
+        b=PFgIS+F0Iufz41tjnva3xi6MBfV4tMT9FXi/RIbdP1mN4HszixBT6PDB5FrTF/EO28
+         1bFfcvt27K0om9qPX64UOg+8nSykt6FKcZbYora05V3U7K7ix1syHzbiZBnSM9dj6MiO
+         4KHsWdypLmWYSVdHeZ0XAwmnXxjst/bBdOxJXPZeMyaj6rXtvlSb/s/UPOYiAKzbhvrE
+         lxiaFKXCV36GoYyxbmG/Z1rKka5zraUMeSYQlLAkTnqzYwYBbFy8sDLjBSh2exHMRa/s
+         +7/wPZiVjL5oZ+uGK4kkQCbYrnE8tewPXvIMOu9mn80PR0JtP82FoV5wL/lRbiFz4l+w
+         tCcg==
+X-Gm-Message-State: APjAAAVhE4C9n6f/rSm22QBLzkmoUMVv0kengUk0MNe5BxRf7LyDOBLX
+	r9cYHRKG31blt+vgrIHeCMtW2RMqGukFX8usBuQfK588WOLulVW0dsZawSki2f7dKlYfhflpbaR
+	KFNTYX9tIn8VKCK4gFHVLXR/fzXBROQr/Sp8waEgNlm6NYYNlqjFJ+LUFBCJJeUYvdg==
+X-Received: by 2002:a5e:c00a:: with SMTP id u10mr25020163iol.24.1559914556861;
+        Fri, 07 Jun 2019 06:35:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx3AA6Ir9glM8J2SPO6cET+IGC8+VV0e8+F4kIz2asRMzbueVytgwmbjonXtebGhB+U/ju2
+X-Received: by 2002:a5e:c00a:: with SMTP id u10mr25020127iol.24.1559914556249;
+        Fri, 07 Jun 2019 06:35:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559914556; cv=none;
         d=google.com; s=arc-20160816;
-        b=LFUr3cukBSiLORYTyaL7ChMp0rF55bIutweGsVUebWGdJC/T5rxz0i0DkDb770Tv/k
-         p+DhD3eDjVKf7hPFZhQrqCsCT5TtDdsgYRVxNXvTdQzOzDEq0Tn6T4FsmHHuUAPWEd5L
-         dkSnwZ3p3rV2TMYGirRKNXpCi2nY8gCMvCbRlSRfvlnIMIE1aj7jbRMYC2WWPJ1lo42S
-         zYVLlYdShxVTE4uqEdANlRHDX26hRbWMivIBLX9SBp8UTneL4TOT9XdV3Wqf31E6air6
-         9cu6iQm++Anj3p+MeoeduivQTSpgU/h18eCxbnrh460c9O5QpmGTAa8mYySKYaO4vNqc
-         opJg==
+        b=ootPIoDBx0oTE30xHbaFShEhqYiLzELhYyNp9AFwpo/I1fz8KvM5aDA8Oz+xGajfuT
+         qYqatEDk5kI+caMw2PEv0pgcI6Rq+jnj1ZULQ00dR5A7l+YhUfj169lJDBD2mtUOU+M4
+         TvkWHveSUWVPdeF7Shf9ztRMRQeSfuPIPXiZ7UBmuZZoDUk7S2m43lD9ooGMBBkpDA7z
+         3TTpSbCYNs5m0Ws+G98FG+c+zNVLph713MT5kxeJHseZSM/kD/8r+6zyk8OkVGqutUi5
+         tw/g+XFYPGHSL5ds2ZP/Kc8+HaO6Facp2PkvkAcu33sZmIywMHego0/Kqq7TaI0uUizh
+         BFWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=zyyI11Z3twoMqyf467AVpMwpHxurGKneH7RYfifhIWc=;
-        b=jNUajf5B2mk7rLsgfNmr9fMwe4AUFFl4G6+00NX9XliBNe6uWFtc7GQCmk13Rn29Um
-         js3VyRGzs5z09SwZcq+/o+uEwfIFTOO7DMqaZtXEkj/A4Y3guhV+UDHj+fOITBG1pjAW
-         eOwhqIut2IZYCWeozjVvS3KVEJvdSSm/rvHUZvj4cANWJYhp7CGhPNz0wuueZXlnJFAZ
-         FRyH/EiNkN6o3uA/FaIJ0nUrx2sgmATYn8Xitr46/xjTEUYwGZPGW/kkbl0Z9wA9FLc0
-         xoc+uenJB9lOcpz8HYKjihQXh1J6t6uQqwA6kQma6imaTrCA3s537Hw4fq/gMQDWfMPP
-         lRJQ==
+        bh=lVEgFqucFox4g1IviFAgPH+wq2tolwksp9dr8CFQhYQ=;
+        b=x1U9RPpqn7+QEguI2126U5cRlTBNI/9sV69jBIGW1czLf22+e5wB52nGaFjp4skuFS
+         EIuunwDpO1FHJXedYgoMupf4MQN96sAklzhD4bFTYugy0TbRa9T0BLV/BS+WiE19hRHl
+         HLAsw3p/pG/Ly1pEzaKAwKecVaqGKNdApu2CtU8peN4Rfx/sQAHH2JSlyJbXxVgYxRvP
+         ncE7DT8aSmWevK9Inl7vMlbgzNm3nvB/Z6i8wd2DRJhrxfeFyiN7N7j69uRG8OhIA7Pk
+         DVA1I9qoqHnN6JRsS0PgJgVi70ZiRMbU/SkXarVmg+H5qFkVrLl7FGeXmi4VJwjb7rXE
+         Knfw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=XgOcttxF;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q127sor1088502qkf.13.2019.06.07.06.31.08
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=E234jJcA;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id z187si1333482jab.56.2019.06.07.06.35.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 07 Jun 2019 06:31:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 07 Jun 2019 06:35:56 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=XgOcttxF;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=zyyI11Z3twoMqyf467AVpMwpHxurGKneH7RYfifhIWc=;
-        b=XgOcttxFtSt4H5m5uTCUVVYtTNFhZHmzuEIcILLOVnJTu+kol297oc8jfVHnMOgYN9
-         KVEhxjN9bHA5zi86oSYRpPBOLol1xW6VGzKyzKOv70gX/o8vASgRfjhKpeATGGiqi8p2
-         XV9oIhpp7n0dBZ+VcT3Ff1tVvGN74BzHYOdaSZZrBG0ZxI7UWy4T5qOcP/C4WH3Ycm4Y
-         lP9tn3aHO6VWRdFJP59ZySBW8Q29pZmHb8PDxgcfNSvjw/TLR1TF/3PqNNu/lSeFsfDM
-         CdiCDVyFP6EYfwN3gNesdEq1ky1h+HmPF/DKvbPP6G+zZ68XUx8LDhlgAyCmkYu0Z+ko
-         Ll/w==
-X-Google-Smtp-Source: APXvYqxiNRSOLULUOOVL1v/Vkw7sprKOSUyk24LlCfBwSCfz+nugTDkDj+dcDkV3fQgXrssqVlWltA==
-X-Received: by 2002:a37:5d44:: with SMTP id r65mr36792567qkb.73.1559914268352;
-        Fri, 07 Jun 2019 06:31:08 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id z12sm920156qkf.20.2019.06.07.06.31.07
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 07 Jun 2019 06:31:07 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hZExX-0007wK-Fu; Fri, 07 Jun 2019 10:31:07 -0300
-Date: Fri, 7 Jun 2019 10:31:07 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Jerome Glisse <jglisse@redhat.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, Felix.Kuehling@amd.com,
-	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
-Subject: [PATCH v3 hmm 05/11] mm/hmm: Remove duplicate condition test before
- wait_event_timeout
-Message-ID: <20190607133107.GF14802@ziepe.ca>
-References: <20190606184438.31646-1-jgg@ziepe.ca>
- <20190606184438.31646-6-jgg@ziepe.ca>
- <86962e22-88b1-c1bf-d704-d5a5053fa100@nvidia.com>
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=E234jJcA;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=lVEgFqucFox4g1IviFAgPH+wq2tolwksp9dr8CFQhYQ=; b=E234jJcArQlGrReDPRTDlQHQw
+	/51XA81tWbNBlNGxjegBAG8xYGT10JhKdGURd6yq4uCPjy6al62Aq3+i5MqZmTBQWE2Jxd9aEgq/b
+	wJN1kFrziNof1cTWsCOA+Kro46LMQL8l0tTMmo20PPlvS2PC9TbtRQUqklSoDNjY5uEhSQLS9nXow
+	R0foGNit83P0n3Jp6w76ssk7IkHaJl4axBNuofWSbBG9wzs4ALgYpEcy6+azMIrtkFq5rBdT76H7y
+	IVGo9zhzexKE60uh1YvVJPfp2JQ2kTZPq0+6O6pfvn828eCNoKFIUwfGg9DdWWPruXIHZExArLGYS
+	XtVrEgXIg==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hZF22-0001XU-1L; Fri, 07 Jun 2019 13:35:46 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id E5C8D20216EFA; Fri,  7 Jun 2019 15:35:41 +0200 (CEST)
+Date: Fri, 7 Jun 2019 15:35:41 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, hch@lst.de,
+	oleg@redhat.com, gkohli@codeaurora.org, mingo@redhat.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] block: fix a crash in do_task_dead()
+Message-ID: <20190607133541.GJ3436@hirez.programming.kicks-ass.net>
+References: <1559161526-618-1-git-send-email-cai@lca.pw>
+ <20190530080358.GG2623@hirez.programming.kicks-ass.net>
+ <82e88482-1b53-9423-baad-484312957e48@kernel.dk>
+ <20190603123705.GB3419@hirez.programming.kicks-ass.net>
+ <ddf9ee34-cd97-a62b-6e91-6b4511586339@kernel.dk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <86962e22-88b1-c1bf-d704-d5a5053fa100@nvidia.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <ddf9ee34-cd97-a62b-6e91-6b4511586339@kernel.dk>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The wait_event_timeout macro already tests the condition as its first
-action, so there is no reason to open code another version of this, all
-that does is skip the might_sleep() debugging in common cases, which is
-not helpful.
+On Wed, Jun 05, 2019 at 09:04:02AM -0600, Jens Axboe wrote:
+> How about the following plan - if folks are happy with this sched patch,
+> we can queue it up for 5.3. Once that is in, I'll kill the block change
+> that special cases the polled task wakeup. For 5.2, we go with Oleg's
+> patch for the swap case.
 
-Further, based on prior patches, we can now simplify the required condition
-test:
- - If range is valid memory then so is range->hmm
- - If hmm_release() has run then range->valid is set to false
-   at the same time as dead, so no reason to check both.
- - A valid hmm has a valid hmm->mm.
+OK, works for me. I'll go write a proper patch.
 
-Allowing the return value of wait_event_timeout() (along with its internal
-barriers) to compute the result of the function.
-
-Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
----
-v3
-- Simplify the wait_event_timeout to not check valid
----
- include/linux/hmm.h | 13 ++-----------
- 1 file changed, 2 insertions(+), 11 deletions(-)
-
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 1d97b6d62c5bcf..26e7c477490c4e 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -209,17 +209,8 @@ static inline unsigned long hmm_range_page_size(const struct hmm_range *range)
- static inline bool hmm_range_wait_until_valid(struct hmm_range *range,
- 					      unsigned long timeout)
- {
--	/* Check if mm is dead ? */
--	if (range->hmm == NULL || range->hmm->dead || range->hmm->mm == NULL) {
--		range->valid = false;
--		return false;
--	}
--	if (range->valid)
--		return true;
--	wait_event_timeout(range->hmm->wq, range->valid || range->hmm->dead,
--			   msecs_to_jiffies(timeout));
--	/* Return current valid status just in case we get lucky */
--	return range->valid;
-+	return wait_event_timeout(range->hmm->wq, range->valid,
-+				  msecs_to_jiffies(timeout)) != 0;
- }
- 
- /*
--- 
-2.21.0
+Thanks!
 
