@@ -2,134 +2,130 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DB834C2BA1D
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 00:44:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C1FDC2BA1D
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 01:55:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 913A820840
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 00:44:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D91A920868
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 01:55:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="YFPe9L12"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 913A820840
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="S00yQNLR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D91A920868
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 18D386B0302; Thu,  6 Jun 2019 20:44:19 -0400 (EDT)
+	id 48B586B0305; Thu,  6 Jun 2019 21:55:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 117586B0304; Thu,  6 Jun 2019 20:44:19 -0400 (EDT)
+	id 415536B0306; Thu,  6 Jun 2019 21:55:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EF88E6B0305; Thu,  6 Jun 2019 20:44:18 -0400 (EDT)
+	id 2B5BC6B0307; Thu,  6 Jun 2019 21:55:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C43666B0302
-	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 20:44:18 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id d13so163509oth.20
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 17:44:18 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E1CFE6B0305
+	for <linux-mm@kvack.org>; Thu,  6 Jun 2019 21:55:01 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id z1so374671pfb.7
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 18:55:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=+Mit/5a+rC2Wlxiu6u6imSr0LN6DP+ltnocf5OY9+X8=;
-        b=HMHNb9ZEGV3Zk4etdNl8m44FEjMt74hVvq6d7KfG+ICE8/JCVEyP/cqkrvXY425Nnc
-         AWx8QT2xAGWpk6EgcazCa6ItDtq/bjmGOCvidf4n80N9wQVw3e8c606gq0bUi9R/iDof
-         1DfbMWl0cDSnEBcDjSI1F0sLRtlN4n+IEHxky9k0YqvQcTgD+9rUI7y1KLGOX9kW1iHZ
-         JVYVGzvKuAvQhUaael0h86uFmYqPLRxtaa0+ZOLy+G7Xo47Wdyd5DkGN7yS7B5V0S3FV
-         G208gpUicREK8j/MyhYtw4LH1fV7oVP3CByWPk0TyhkOPtP0jQYiteARWnjYqxZKXRXq
-         2UpQ==
-X-Gm-Message-State: APjAAAXW1Ip3xyxF1/3t/ROSWS1w4lmYGW+2cN4DK11HCkmhDclvu7KN
-	SqZ4Lb2atJXjlh5iFcewtvRaFfPI4so+PbiWH04JH9vuMi7JStgh9qhgBu1MdzyNe94YyS2TPle
-	UsKc1MGTOTZjq8V8uUe2VsNg492o7/lRin2Y52KlXuVEtaZ2bNN8Qbu3GtYqhnv0V0g==
-X-Received: by 2002:a9d:7c8b:: with SMTP id q11mr9867834otn.161.1559868258361;
-        Thu, 06 Jun 2019 17:44:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzHDF6a4gVw/RoFZ4123zbtZqRpmJW3K2VLPuRnyXEvuWszqfghw3NAGch1kjC88fo8/hah
-X-Received: by 2002:a9d:7c8b:: with SMTP id q11mr9867801otn.161.1559868257646;
-        Thu, 06 Jun 2019 17:44:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559868257; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=/XNZ/gn51wIkX7j4GJydFoEsiDY7sJR4sMnUtxZM9Ww=;
+        b=SlmHPXiuJquwktLMjqQYVVf8PeCEfc/3itfjl0ncjNO6skhOSghG7LyiTfR70OFhk2
+         /CBoFWWAoo3agZpO1sCmlOX6gPUbk/IYtDe+X+iUnAYLd/FMtLHAlzYHY642XHdtE4Bp
+         +H0m7e9cRr1C9hGG5Np7efVoNgoqp6EpD/Lonk8vpbymEplxsJgjLojPZMOQp+zRx3iN
+         HbSVbRITI3FDlB724PCAAYNsmVeEHWcIkc/PDOrU29wqeLE/LD6ZYshFgTI3VGZS10Ai
+         BcqVNpD7tb5+tdzg9pEvNJ3/AfYwyqdgCDpXLJL1sCLuiXm658TPayK8R5Ln2Ws9LEmS
+         JDvA==
+X-Gm-Message-State: APjAAAV+/trSJwhyrVzUFtFDmA2xpI0MYxuecld6neh5tWvk+bxxToVo
+	YEuz4LXfRO73k4FbZa/wAaeO1BXcleM81fYwjH2lRztDWuKedVab9vaW0bEVJ07ewfLML9FFHXk
+	YEP/fqB3PM4nSdojEoUeXhSJB8JhPhyo4guSLp4hjRMRszxncyyOdQgUQqmFjgdx4Kg==
+X-Received: by 2002:a17:90a:cb12:: with SMTP id z18mr2758473pjt.82.1559872501351;
+        Thu, 06 Jun 2019 18:55:01 -0700 (PDT)
+X-Received: by 2002:a17:90a:cb12:: with SMTP id z18mr2758419pjt.82.1559872500229;
+        Thu, 06 Jun 2019 18:55:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559872500; cv=none;
         d=google.com; s=arc-20160816;
-        b=aXA422Zy9rt73I8D5VYZhSbAApRNMW2xg0EcCdwo6cNdrVUQqp75KMjfYD6DFi++wn
-         ORWCzALoES1YwNCw4J+UyeiEJwr6WnwFLgAZybXAS5/84ol2JWatZIMV5g/8Vs/wekvD
-         Ey5LQ3lOFPa6HZBwfjtHnH0A6qKpm6tCkyh+uGsxU/jxal4KMoXCWa4uY1770EH0mkHX
-         83MmVtO7XDSvtEd0RnOmWO0RpBk7DTWKqtYkwfAtvG/10kkztrdlL121iORGdvEbMKCa
-         WxWcvUf2iBevSrjM60KlUgpqk9KXUxT0AHRdySq6GVFlsyPJjnl25v6jz8BXYLjLnDlz
-         fCtw==
+        b=GfT0xdkyn3lwLZmPeHpW0yWs1hHnlREk37QPiYp8yN37QYf5z7MAxA7fmpUCneYaNh
+         fkdgJ6CzBTThclP3qnLjP5eW3nLDdLxZKLk08q5ZTSfDnnK1eBLTpSYy6TOG+bdpHg5v
+         hdDWpDNGEvwD1bvlHzhDOP3diYjEQJq76nglzZZtpVBixk8CZ9589S83FJ1L2xcGrgnL
+         8HXwTuvSelzs06MCcJtE6s8KuJoKwIJOaaB73BxKIJ4+t+DpBEUzUxeHngM/OeSxO3GJ
+         KKf6LoTKvtUZ+Ftjnsp+s24pj7sWcxuL847hXrjPRqkJt7/HBVzM4AwxJ/yt/OUjy/Kr
+         0tWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=+Mit/5a+rC2Wlxiu6u6imSr0LN6DP+ltnocf5OY9+X8=;
-        b=P8LTfkaGFzDinWlLlpsZnXwkyry6WbJ0NkFyENrLmTsd/td0knHEfeBw641zQRz2yj
-         AYVzsR7NQ1g50IN1xJffjZrs4ejO9d4N1UuOk91dTLI/5GNsoYwr5zV/HY8aNgWX1UTv
-         xtAm6CBErx3O3GdyOTXkqE3+to/DeWpU3mBROsIZlmzRJD6lJabe9uUho89fMuiAw05h
-         nuUAEn8zfY+LZshYNURC7t/bVIn9ERYR2W3wMFyZQvLZyzmLmQi9z7y6mGC4MjkywOs1
-         m0jHHbnpSs/BA9kSy7v4cxxD7h6r+NF44b8zJ9EQ7uwKKREqV/c7YgH+cQqNx17gt42L
-         yPGA==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=/XNZ/gn51wIkX7j4GJydFoEsiDY7sJR4sMnUtxZM9Ww=;
+        b=ZjLwWsWxbDjbI8uWKnNn/RIzxkL7B6jC0oQ25B4hSMOfkyZMPpp1E5kR1g8A0r7gjB
+         9I43+O824b+SIfbRwYlJb1lsEAbdPkk9tGZnb9Ap93HCouxtvs8Q2E9eFN9lYWlxQlMD
+         HcrgVZuN6yu2YWpf8Vp1GOM3VT/WVBL1YVFyvd5voxf4kkC5mjSfXDST97m3sRg0uIzv
+         hkDb3R5Cm8c428beITP8ZZbL2MToVGsnEu+2v+QlVdxZJ+eIMBLV4QRsxQOFfZPIEq58
+         BVPx5CGMMUAFzLFjnqxg7tx+iyeqvi5fXZo6VxQvDd+Y4Vf6+QqSBttaq6mvcMy7rfGO
+         QzQQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=YFPe9L12;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id c90si313814otb.198.2019.06.06.17.44.17
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=S00yQNLR;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l10sor446683pgg.80.2019.06.06.18.55.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Jun 2019 17:44:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        (Google Transport Security);
+        Thu, 06 Jun 2019 18:55:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=YFPe9L12;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5cf9b35e0000>; Thu, 06 Jun 2019 17:44:14 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 06 Jun 2019 17:44:16 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 06 Jun 2019 17:44:16 -0700
-Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 7 Jun
- 2019 00:44:16 +0000
-Subject: Re: [PATCH 2/5] mm/hmm: Clean up some coding style and comments
-To: Jason Gunthorpe <jgg@ziepe.ca>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, John Hubbard
-	<jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>, Dan Williams
-	<dan.j.williams@intel.com>, Arnd Bergmann <arnd@arndb.de>, Balbir Singh
-	<bsingharora@gmail.com>, Dan Carpenter <dan.carpenter@oracle.com>, "Matthew
- Wilcox" <willy@infradead.org>, Souptick Joarder <jrdr.linux@gmail.com>,
-	"Andrew Morton" <akpm@linux-foundation.org>
-References: <20190506232942.12623-1-rcampbell@nvidia.com>
- <20190506232942.12623-3-rcampbell@nvidia.com>
- <20190606155719.GA8896@ziepe.ca>
-X-Nvconfidentiality: public
-From: Ralph Campbell <rcampbell@nvidia.com>
-Message-ID: <3a91e9a7-e533-863b-ee5f-c34f1e10433c@nvidia.com>
-Date: Thu, 6 Jun 2019 17:44:15 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.0
-MIME-Version: 1.0
-In-Reply-To: <20190606155719.GA8896@ziepe.ca>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1559868254; bh=+Mit/5a+rC2Wlxiu6u6imSr0LN6DP+ltnocf5OY9+X8=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=YFPe9L12IwlVFW/uqZXMuLBzFKRY4kU3BNWs7W76LnhmesrNFPJru/HQ0xy/VzFq7
-	 iFqW/b8g6EGJGXC3ipAcfMEEgdVqJ+2B5Qrod5NcuYzHnGO2makj85RecVap7Qahsq
-	 BGrWOKjjUAkZ9dSKp0uN3V8bf9uCsZsafyvSRsDFxFbttruxdRiTJU0P0vlCIES0Jy
-	 UoY9M63J7l2A0EenhMJegmbfcEg45stvVce39dcwAUUokWhazrFOCWYNSymbJwfZMD
-	 dh2Q/lRs3T5Mp7NDJS/TJOPEhmq8AGBKL4clWVFq1oVY9AUEPnTAWftTnLu646cdCo
-	 uu6whBYo7fVGg==
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=S00yQNLR;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=/XNZ/gn51wIkX7j4GJydFoEsiDY7sJR4sMnUtxZM9Ww=;
+        b=S00yQNLRvIJQua4YR2yQ8RVqPpjOLFHnBiFwSeuMasOSY6c6h0vWJcYdiY0Z5PM7YO
+         UipjM0ZF3UJgTbpzpruGqkllwmSh27VqFfBLmFFRQi48/y8vwP9lfsfd1fCr5GrWmx5U
+         +mrmTnh77qX/LJSmeUNVANIViSYH3SG9JLjQyxwvqhhXs4F5aW2xz3ZH+yMIfMncHUn7
+         BZCifuSpPT/N5rehXs3PF3WLzPimeqB/ooyW1/Bai8dhKtLnZ1mXZqIsmM2S1UwixE+q
+         zrtDne+gd7Z1LmEC/CuXvREAfd8SGdoCJ9NGUyq3IAdCLPX1ELUdL2u8V6EHYI+JY9jt
+         x5FA==
+X-Google-Smtp-Source: APXvYqxx9s4fm3uOOHPSgMwgRlcgiy2DYwvEjaAWxVGCEthCLU5MAxClyI51h2SMQiGI5Wkj9aU4lw==
+X-Received: by 2002:a65:508b:: with SMTP id r11mr631484pgp.387.1559872499664;
+        Thu, 06 Jun 2019 18:54:59 -0700 (PDT)
+Received: from ?IPv6:2600:1010:b02c:95e1:658b:ab88:7a44:1879? ([2600:1010:b02c:95e1:658b:ab88:7a44:1879])
+        by smtp.gmail.com with ESMTPSA id w190sm391940pgw.51.2019.06.06.18.54.57
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Jun 2019 18:54:58 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (1.0)
+Subject: Re: [PATCH v7 04/27] x86/fpu/xstate: Introduce XSAVES system states
+From: Andy Lutomirski <luto@amacapital.net>
+X-Mailer: iPhone Mail (16F203)
+In-Reply-To: <4effb749-0cdc-6a49-6352-7b2d4aa7d866@intel.com>
+Date: Thu, 6 Jun 2019 18:54:56 -0700
+Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org,
+ "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
+ Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
+ Cyrill Gorcunov <gorcunov@gmail.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Eugene Syromiatnikov <esyr@redhat.com>,
+ Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>,
+ Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>,
+ Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>,
+ Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
+ Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>,
+ Randy Dunlap <rdunlap@infradead.org>,
+ "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+ Dave Martin <Dave.Martin@arm.com>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <2F0417F1-DA1E-4632-AFA2-757C09B3C4B4@amacapital.net>
+References: <20190606200646.3951-1-yu-cheng.yu@intel.com> <20190606200646.3951-5-yu-cheng.yu@intel.com> <0a2f8b9b-b96b-06c8-bae0-b78b2ca3b727@intel.com> <5EE146A8-6C8C-4C5D-B7C0-AB8AD1012F1E@amacapital.net> <4effb749-0cdc-6a49-6352-7b2d4aa7d866@intel.com>
+To: Dave Hansen <dave.hansen@intel.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -137,65 +133,81 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On 6/6/19 8:57 AM, Jason Gunthorpe wrote:
-> On Mon, May 06, 2019 at 04:29:39PM -0700, rcampbell@nvidia.com wrote:
->> @@ -924,6 +922,7 @@ int hmm_range_register(struct hmm_range *range,
->>   		       unsigned page_shift)
->>   {
->>   	unsigned long mask = ((1UL << page_shift) - 1UL);
->> +	struct hmm *hmm;
->>   
->>   	range->valid = false;
->>   	range->hmm = NULL;
-> 
-> I was finishing these patches off and noticed that 'hmm' above is
-> never initialized.
-> 
-> I added the below to this patch:
-> 
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 678873eb21930a..8e7403f081f44a 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -932,19 +932,20 @@ int hmm_range_register(struct hmm_range *range,
->   	range->start = start;
->   	range->end = end;
->   
-> -	range->hmm = hmm_get_or_create(mm);
-> -	if (!range->hmm)
-> +	hmm = hmm_get_or_create(mm);
-> +	if (!hmm)
->   		return -EFAULT;
->   
->   	/* Check if hmm_mm_destroy() was call. */
-> -	if (range->hmm->mm == NULL || range->hmm->dead) {
-> -		hmm_put(range->hmm);
-> +	if (hmm->mm == NULL || hmm->dead) {
-> +		hmm_put(hmm);
->   		return -EFAULT;
->   	}
->   
->   	/* Initialize range to track CPU page table updates. */
-> -	mutex_lock(&range->hmm->lock);
-> +	mutex_lock(&hmm->lock);
->   
-> +	range->hmm = hmm;
->   	list_add_rcu(&range->list, &hmm->ranges);
->   
->   	/*
-> 
-> Which I think was the intent of adding the 'struct hmm *'. I prefer
-> this arrangement as it does not set an leave an invalid hmm pointer in
-> the range if there is a failure..
-> 
-> Most probably the later patches fixed this up?
-> 
-> Please confirm, thanks
-> 
-> Regards,
-> Jason
-> 
 
-Yes, you understand correctly. That was the intended clean up.
-I must have split my original patch set incorrectly.
+> On Jun 6, 2019, at 3:08 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+>=20
+>=20
+>=20
+> On 6/6/19 3:04 PM, Andy Lutomirski wrote:
+>>> But, that seems broken.  If we have supervisor state, we can't=20
+>>> always defer the load until return to userspace, so we'll never??=20
+>>> have TIF_NEED_FPU_LOAD.  That would certainly be true for=20
+>>> cet_kernel_state.
+>>=20
+>> Ugh. I was sort of imagining that we would treat supervisor state
+> completely separately from user state.  But can you maybe give
+> examples of exactly what you mean?
+
+I was imagining a completely separate area in memory for supervisor states. =
+ I guess this might defeat the modified optimization and is probably a bad i=
+dea.
+
+>>=20
+>>> It seems like we actually need three classes of XSAVE states: 1.=20
+>>> User state
+>>=20
+>> This is FPU, XMM, etc, right?
+>=20
+> Yep.
+>=20
+>>> 2. Supervisor state that affects user mode
+>>=20
+>> User CET?
+>=20
+> Yep.
+>=20
+>>> 3. Supervisor state that affects kernel mode
+>>=20
+>> Like supervisor CET?  If we start doing supervisor shadow stack, the=20
+>> context switches will be real fun.  We may need to handle this in=20
+>> asm.
+>=20
+> Yeah, that's what I was thinking.
+>=20
+> I have the feeling Yu-cheng's patches don't comprehend this since
+> Sebastian's patches went in after he started working on shadow stacks.
+
+Do we need to have TIF_LOAD_FPU mean =E2=80=9Cwe need to load *some* of the x=
+save state=E2=80=9D?  If so, maybe a bunch of the accessors should have thei=
+r interfaces reviewed to make sure they=E2=80=99re sill sensible.
+
+>=20
+>> Where does PKRU fit in?  Maybe we can treat it as #3?
+>=20
+> I thought Sebastian added specific PKRU handling to make it always
+> eager.  It's actually user state that affect kernel mode. :)
+
+Indeed.  But, if we document a taxonomy of states, we should make sure it fi=
+ts in. I guess it=E2=80=99s like supervisor CET except that user code can ca=
+n also read and write it.
+
+We should probably have self tests that make sure that the correct states, a=
+nd nothing else, show up in ptrace and signal states, and that trying to wri=
+te supervisor CET via ptrace and sigreturn is properly rejected.
+
+Just to double check my mental model: it=E2=80=99s okay to XSAVES twice to t=
+he same buffer with disjoint RFBM as long as we do something intelligent wit=
+h XSTATE_BV afterwards, right?  Because, unless we split up the buffers, I t=
+hink we will have to do this when we context switch while TIF_LOAD_FPU is se=
+t.
+
+Are there performance numbers for how the time needed to XRSTORS everything v=
+ersus the time to XRSTORS supervisor CET and then separately XRSTORS the FPU=
+?  This may affect whether we want context switches to have the new task eag=
+erly or lazily restored.
+
+Hmm. I wonder if we need some way for a selftest to reliably trigger TIF_LOA=
+D_FPU.
+
+=E2=80=94Andy=
 
