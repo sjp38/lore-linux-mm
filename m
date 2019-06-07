@@ -2,164 +2,242 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ACA40C2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 05:33:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2BE21C28CC3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 06:08:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 454A6212F5
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 05:33:52 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=linaro.org header.i=@linaro.org header.b="k/GR7joJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 454A6212F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
+	by mail.kernel.org (Postfix) with ESMTP id E0571208C3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 06:08:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E0571208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 98D766B000C; Fri,  7 Jun 2019 01:33:51 -0400 (EDT)
+	id 6672C6B0269; Fri,  7 Jun 2019 02:08:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 917CC6B000E; Fri,  7 Jun 2019 01:33:51 -0400 (EDT)
+	id 5F0F36B026B; Fri,  7 Jun 2019 02:08:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7B8946B0266; Fri,  7 Jun 2019 01:33:51 -0400 (EDT)
+	id 492056B0271; Fri,  7 Jun 2019 02:08:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f199.google.com (mail-it1-f199.google.com [209.85.166.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AF326B000C
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 01:33:51 -0400 (EDT)
-Received: by mail-it1-f199.google.com with SMTP id h18so941633itl.8
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 22:33:51 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EBD66B0269
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 02:08:26 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id n19so481557ota.14
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 23:08:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=I1Ohgac363EioDxzXpyXf7UN1ZgVyShBjggu94kceQ8=;
-        b=IqRXL4FPzSZJo7DiucCDYnh9tw6yZu8RMZxkgGyNz/A+efIcrSFVKfidITWil3U1Ry
-         IzXXhYKeGM0NFMUG0M8GGUzM8PVhR+m6FVNsCoVQSQ4/cXvP+ZOSLuhF8P4nazFunzJ1
-         Or4c4wUxGDsuUNabLqWpmjpJEzXphirDWAEqqNgc1J6bhnvRilO4k5arCnUxSEj1PFP1
-         migpNyy2NzbatynbCgN4HPva8toMWaGF/D1xa8jFMPZYbkfO1Z1wYY4HiZRtUMauaAXG
-         ASp+LxsPflNY5zpqpnLUzoiNDhzX2YD9dH31a8pFQ3HvT7zslxYk+FTleehyAz/Uud3E
-         pqgg==
-X-Gm-Message-State: APjAAAWdH5UpBY/f4Bqozh3abyMs3Db8tzrbQK1spAVz7JP9gToQ2wY+
-	oNB1nDpe7AgvA7F+u7uNi0F/mFg/S9tyFWpCNB9+PYTeyW8IS9DVcNmAeYZgIdAgFzLFvqyIJbB
-	Ak4CWX3ug8JEADJ14tm9c6uyOuqUDH8lUr03BocYXd5jC40X3KmqoyaMiH7ec6j+gjw==
-X-Received: by 2002:a24:e53:: with SMTP id 80mr2829529ite.45.1559885631122;
-        Thu, 06 Jun 2019 22:33:51 -0700 (PDT)
-X-Received: by 2002:a24:e53:: with SMTP id 80mr2829499ite.45.1559885630156;
-        Thu, 06 Jun 2019 22:33:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559885630; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references;
+        bh=OSZbGRf8RBV4JTgqy0gdidlw7WRQWqllwVVjoDAu5fQ=;
+        b=e22Kr1VijA+ybxC9uTwzVv5yUzby/7QvjrmLf3d6IvmTih/WnelxxiJFMSQTZR18JZ
+         +a0Ya3txUcBvVTbt2R17sONeqxEwHCtiT3geMIrx2+vUqJBcGdtV+HjZOAsPja0M4FnW
+         Gg4686BbmcCG+WBs38Byl9oYopfT6NL/t1jtOtrqG3FBGnwxCIVij2zbHdZKMRi+UHag
+         RZB/ET7R8qy1GXqpc/OjvkcIjKsyUWUUL1t9BFQIph8VJsVg5fjMkY9HViJPzPNOls44
+         +Nmva9cY6RAAqVH2EcKNdW3q43TtNW4z6RxkR36beWWlKEvo5uJhDGFl9IeCx/4+v7pI
+         2xyQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUnrBsK6frCt2mAZ6FiI8Q96yyu54X0EbLfhNcLGfHWKyMf5rDL
+	PgId1eg/C5rt9p+jUET0f/CDTTrgPbgLYpyx8+uqaXtw2bfXgg2ZoN9gdR/KnlNV460Vv8a6g1R
+	4hnoQZkZp9iHEmw5A4I/uFpGVijsKksGkd8sFJVxr1WbxEAgYvQVk/GRdbr9Rl5mzzw==
+X-Received: by 2002:a05:6830:1597:: with SMTP id i23mr12288499otr.281.1559887705689;
+        Thu, 06 Jun 2019 23:08:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyN1DbOUSfBqBJH5333PHe2mxQIdDmdZsUTCI1QFb5FxJKmA1nIzYX7K3m9oVFryV1jR5WV
+X-Received: by 2002:a05:6830:1597:: with SMTP id i23mr12288442otr.281.1559887704411;
+        Thu, 06 Jun 2019 23:08:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559887704; cv=none;
         d=google.com; s=arc-20160816;
-        b=vWzNZiDYwS2Pyn0bpfZbqbairG6di7BHJPPoHWVn1G02vFb38t/K7KITrxrPgKyNbA
-         Pqekij/f9pH1CYWkB6Uzs30AQpQO7B9+q4j7jVtF2D5e1NbivgYq/2Nzj2xfNekeWA17
-         hfT70vXK231UQ8OtyfTHxmXvE3geT5mlVmF3iAyT6FKIbWYO8ybKLLfWnv2RGNLpT7cZ
-         lIImGS3XOt1fFbDN52/cRm8EwiPxfjsmQS6s9dA7HVnHTFlrBVFKmmlqThEpnldCka/a
-         g63noAEJylEwpJPnHm6nlQPzQ4f1T7hPAgO6MKQFnZ9LoptRcQlZrh6g3dfzkXDs+Iu9
-         DNqQ==
+        b=OOf05wQNh3iwMEsnjfRPjjAx9n9uj/w5pvGqEMzUqjzJkbA3poeN6juLI8v2o4JUjs
+         JvxX0Z+dzMdyBRLtBb7h9j1WXJoi+S4FuR+pqviC7WX1zuDTYe13fI39gY/Q54p9M6rg
+         9sbpNCyXg+JUStzVaCrKEcQ+Iv7GRUDIDk6DfGDpAhD6fIT1/txrDi1qUOsrqc/AWwQ3
+         kknnZnn7mtrfHAoYTfM3th5zPp3vvOt9hJ8EkKqkbY1NzU7htL7A+FZCkQtWtbmmqKa+
+         z6f1Fa3WDdJQI7v/F7Vm1g30ISSnV+OxAnvQmie4i0IS7hW1HCfgTffCucNlLvEg1upe
+         4fsw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=I1Ohgac363EioDxzXpyXf7UN1ZgVyShBjggu94kceQ8=;
-        b=QLo5Q8KzTLx8HvbECMf39xPv9bDtPbL/XMdFJkxfBcnk/mOhjn7I/yw6iyBjQsUmYj
-         A7OJDYljxbqHVS6a7PLUAASYfddImsc4X+R8mShGXfnlOjSUw3VieyIUjfECExDQs0BR
-         zq8o/qFq93f5e2Gs2WMuLC79lYGY5KoN3bvUsRVdLNEFEhibENBxzm62hDYcf4rPTyaI
-         Igg5+6yMJa3MAQ5KLHW547yp1KlQpqpNydcgy6tDW5M5rD68vO5bvoNkl/59GAn2iWed
-         RiPDu5yzEq/2147w1EJ40lPgfS3cdacUrISeHFXbnIoHPfH0khUmdKk78+9xUk2vSbQQ
-         1NVA==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=OSZbGRf8RBV4JTgqy0gdidlw7WRQWqllwVVjoDAu5fQ=;
+        b=Muhr6PeBq9MPj4+ZJW60c68/sf34EiXVvh/Z2mT0PIplQZuMtaDglj8pFZBat4aHLA
+         +khoMYY6zHbkPybQH1b9ZayI2gPV8h8U1bkQ9NGG0p1XUceI/jQ96v8d/1NED0V4sMst
+         F3rQktw/4UWQ5jhwfDiGloqBQzA0c1KoNP9zRSUIZjZIjUzgDHk8gmZH11MlAoKnJLVe
+         FV+6n+xTG5uNj/Lou8wemafhVgY7qusT3Z1W7uez2zuYbQ5Ekmeisc6E8iVY6m7RBSmw
+         4y501/GhupsZERO2ks/4+NnWEP1LSXkATpYhP5fCiD3gcQ/fHrbs3ulTxPvLnqekTshm
+         SHKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b="k/GR7joJ";
-       spf=pass (google.com: domain of jens.wiklander@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=jens.wiklander@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 203sor1081104itl.24.2019.06.06.22.33.49
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-44.freemail.mail.aliyun.com (out30-44.freemail.mail.aliyun.com. [115.124.30.44])
+        by mx.google.com with ESMTPS id k83si796892oia.270.2019.06.06.23.08.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 06 Jun 2019 22:33:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jens.wiklander@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Jun 2019 23:08:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) client-ip=115.124.30.44;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b="k/GR7joJ";
-       spf=pass (google.com: domain of jens.wiklander@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=jens.wiklander@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linaro.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=I1Ohgac363EioDxzXpyXf7UN1ZgVyShBjggu94kceQ8=;
-        b=k/GR7joJNJJ6Ve9R/aFsDJRsptZAid18wqkAKiXzRB6NlE5r0KsuMRDWBQiDjQE71p
-         daD8j4DSrVfI6HVAkD5vCpZj39PQaq9fApbZACjRC0RDDKZIBpn7/PLmAhGU1uSNjV36
-         ZPpnk1tioX9M+1EYWJoeTvWylBd+vbf5sKkC6jEafyQKFEFkOanMnEF7whEz4Nqwt4hG
-         bE4l9bBTG0ogocOQzuioUmmPSF5w+Ho92/o1cceuVe444tHP69yQxu8DSewMXHLCqg4l
-         Ja6TZAP9vQDDI+y+jUJx9i8y337VPVjbLYX5aoIkmB6O4W9ByhkvQ0wvmaFU4t1VIu/d
-         h8DQ==
-X-Google-Smtp-Source: APXvYqzO76FNbL4lc2mT5nAI8664+vPAEC2qxggUSScGxp/b2eT89TkEwyH+hzeEqr8qRCV6LZQ9VkHcX6jY2/9nElY=
-X-Received: by 2002:a05:660c:752:: with SMTP id a18mr2789419itl.63.1559885629583;
- Thu, 06 Jun 2019 22:33:49 -0700 (PDT)
-MIME-Version: 1.0
-References: <cover.1559580831.git.andreyknvl@google.com> <dc3f3092abbc0d48e51b2e2a2ca8f4c4f69fa0f4.1559580831.git.andreyknvl@google.com>
-In-Reply-To: <dc3f3092abbc0d48e51b2e2a2ca8f4c4f69fa0f4.1559580831.git.andreyknvl@google.com>
-From: Jens Wiklander <jens.wiklander@linaro.org>
-Date: Fri, 7 Jun 2019 07:33:38 +0200
-Message-ID: <CAHUa44E+g3YTcja+7qgx+iABVd48DbrMMOm0sbyMwf0U6F5NPw@mail.gmail.com>
-Subject: Re: [PATCH v16 14/16] tee, arm64: untag user pointers in tee_shm_register
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, linux-mm@kvack.org, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org, 
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org, 
-	linux-media@vger.kernel.org, kvm@vger.kernel.org, 
-	linux-kselftest@vger.kernel.org, Catalin Marinas <catalin.marinas@arm.com>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
-	Yishai Hadas <yishaih@mellanox.com>, Felix Kuehling <Felix.Kuehling@amd.com>, 
-	Alexander Deucher <Alexander.Deucher@amd.com>, Christian Koenig <Christian.Koenig@amd.com>, 
-	Mauro Carvalho Chehab <mchehab@kernel.org>, Alex Williamson <alex.williamson@redhat.com>, 
-	Leon Romanovsky <leon@kernel.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, 
-	Dave Martin <Dave.Martin@arm.com>, Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, 
-	Jason Gunthorpe <jgg@ziepe.ca>, Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.44 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R751e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07417;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TTcZLUN_1559887677;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TTcZLUN_1559887677)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 07 Jun 2019 14:08:11 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: ktkhai@virtuozzo.com,
+	kirill.shutemov@linux.intel.com,
+	hannes@cmpxchg.org,
+	mhocko@suse.com,
+	hughd@google.com,
+	shakeelb@google.com,
+	rientjes@google.com,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 4/4] mm: shrinker: make shrinker not depend on memcg kmem
+Date: Fri,  7 Jun 2019 14:07:39 +0800
+Message-Id: <1559887659-23121-5-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
+In-Reply-To: <1559887659-23121-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1559887659-23121-1-git-send-email-yang.shi@linux.alibaba.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 3, 2019 at 6:56 PM Andrey Konovalov <andreyknvl@google.com> wrote:
->
-> This patch is a part of a series that extends arm64 kernel ABI to allow to
-> pass tagged user pointers (with the top byte set to something else other
-> than 0x00) as syscall arguments.
->
-> tee_shm_register()->optee_shm_unregister()->check_mem_type() uses provided
-> user pointers for vma lookups (via __check_mem_type()), which can only by
-> done with untagged pointers.
->
-> Untag user pointers in this function.
->
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Currently shrinker is just allocated and can work when memcg kmem is
+enabled.  But, THP deferred split shrinker is not slab shrinker, it
+doesn't make too much sense to have such shrinker depend on memcg kmem.
+It should be able to reclaim THP even though memcg kmem is disabled.
 
-Acked-by: Jens Wiklander <jens.wiklander@linaro.org>
+Introduce a new shrinker flag, SHRINKER_NONSLAB, for non-slab shrinker,
+i.e. THP deferred split shrinker.  When memcg kmem is disabled, just
+such shrinkers can be called in shrinking memcg slab.
 
-> ---
->  drivers/tee/tee_shm.c | 1 +
->  1 file changed, 1 insertion(+)
->
-> diff --git a/drivers/tee/tee_shm.c b/drivers/tee/tee_shm.c
-> index 49fd7312e2aa..96945f4cefb8 100644
-> --- a/drivers/tee/tee_shm.c
-> +++ b/drivers/tee/tee_shm.c
-> @@ -263,6 +263,7 @@ struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
->         shm->teedev = teedev;
->         shm->ctx = ctx;
->         shm->id = -1;
-> +       addr = untagged_addr(addr);
->         start = rounddown(addr, PAGE_SIZE);
->         shm->offset = addr - start;
->         shm->size = length;
-> --
-> 2.22.0.rc1.311.g5d7573a151-goog
->
+Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Shakeel Butt <shakeelb@google.com>
+Cc: David Rientjes <rientjes@google.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ include/linux/shrinker.h |  3 +--
+ mm/huge_memory.c         |  3 ++-
+ mm/vmscan.c              | 27 ++++++---------------------
+ 3 files changed, 9 insertions(+), 24 deletions(-)
+
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index 9443caf..e14f68e 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -69,10 +69,8 @@ struct shrinker {
+ 
+ 	/* These are for internal use */
+ 	struct list_head list;
+-#ifdef CONFIG_MEMCG_KMEM
+ 	/* ID in shrinker_idr */
+ 	int id;
+-#endif
+ 	/* objs pending delete, per node */
+ 	atomic_long_t *nr_deferred;
+ };
+@@ -81,6 +79,7 @@ struct shrinker {
+ /* Flags */
+ #define SHRINKER_NUMA_AWARE	(1 << 0)
+ #define SHRINKER_MEMCG_AWARE	(1 << 1)
++#define SHRINKER_NONSLAB	(1 << 2)
+ 
+ extern int prealloc_shrinker(struct shrinker *shrinker);
+ extern void register_shrinker_prepared(struct shrinker *shrinker);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 50f4720..e77a9fc 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2913,7 +2913,8 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
+ 	.count_objects = deferred_split_count,
+ 	.scan_objects = deferred_split_scan,
+ 	.seeks = DEFAULT_SEEKS,
+-	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE,
++	.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE |
++		 SHRINKER_NONSLAB,
+ };
+ 
+ #ifdef CONFIG_DEBUG_FS
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7acd0af..62000ae 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -174,8 +174,6 @@ struct scan_control {
+ static LIST_HEAD(shrinker_list);
+ static DECLARE_RWSEM(shrinker_rwsem);
+ 
+-#ifdef CONFIG_MEMCG_KMEM
+-
+ /*
+  * We allow subsystems to populate their shrinker-related
+  * LRU lists before register_shrinker_prepared() is called
+@@ -227,16 +225,6 @@ static void unregister_memcg_shrinker(struct shrinker *shrinker)
+ 	idr_remove(&shrinker_idr, id);
+ 	up_write(&shrinker_rwsem);
+ }
+-#else /* CONFIG_MEMCG_KMEM */
+-static int prealloc_memcg_shrinker(struct shrinker *shrinker)
+-{
+-	return 0;
+-}
+-
+-static void unregister_memcg_shrinker(struct shrinker *shrinker)
+-{
+-}
+-#endif /* CONFIG_MEMCG_KMEM */
+ 
+ #ifdef CONFIG_MEMCG
+ static bool global_reclaim(struct scan_control *sc)
+@@ -579,7 +567,6 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	return freed;
+ }
+ 
+-#ifdef CONFIG_MEMCG_KMEM
+ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 			struct mem_cgroup *memcg, int priority)
+ {
+@@ -587,7 +574,7 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 	unsigned long ret, freed = 0;
+ 	int i;
+ 
+-	if (!memcg_kmem_enabled() || !mem_cgroup_online(memcg))
++	if (!mem_cgroup_online(memcg))
+ 		return 0;
+ 
+ 	if (!down_read_trylock(&shrinker_rwsem))
+@@ -613,6 +600,11 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 			continue;
+ 		}
+ 
++		/* Call non-slab shrinkers even though kmem is disabled */
++		if (!memcg_kmem_enabled() &&
++		    !(shrinker->flags & SHRINKER_NONSLAB))
++			continue;
++
+ 		ret = do_shrink_slab(&sc, shrinker, priority);
+ 		if (ret == SHRINK_EMPTY) {
+ 			clear_bit(i, map->map);
+@@ -649,13 +641,6 @@ static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+ 	up_read(&shrinker_rwsem);
+ 	return freed;
+ }
+-#else /* CONFIG_MEMCG_KMEM */
+-static unsigned long shrink_slab_memcg(gfp_t gfp_mask, int nid,
+-			struct mem_cgroup *memcg, int priority)
+-{
+-	return 0;
+-}
+-#endif /* CONFIG_MEMCG_KMEM */
+ 
+ /**
+  * shrink_slab - shrink slab caches
+-- 
+1.8.3.1
 
