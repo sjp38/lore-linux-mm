@@ -2,768 +2,266 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 663C9C468BC
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:01:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B83CC2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:12:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 174F7208C0
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:01:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 174F7208C0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id E8C1A20868
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:12:19 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="GwkD8xsC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8C1A20868
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A904E6B000A; Fri,  7 Jun 2019 14:01:27 -0400 (EDT)
+	id 866D96B000A; Fri,  7 Jun 2019 14:12:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A41956B000C; Fri,  7 Jun 2019 14:01:27 -0400 (EDT)
+	id 7EFD36B000C; Fri,  7 Jun 2019 14:12:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 909F86B000E; Fri,  7 Jun 2019 14:01:27 -0400 (EDT)
+	id 68F1D6B000E; Fri,  7 Jun 2019 14:12:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 301B36B000A
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 14:01:27 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id i3so4242702edr.12
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 11:01:27 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 444006B000A
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 14:12:19 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id t141so2771361ywe.23
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 11:12:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=dyOS8xZ6XA7sdK++Tw2tQ4XvePnZq7SfGni0Rb0R7ZM=;
-        b=ujbZrVfFMARmdTUl8w+90F0do0dmuCkcEtNlR596czzVmo7np9l9+mNvpEo878PsYd
-         EWcFl6RnTZtsMU0WfyGFqeLKpp/DsfjUwgXeA8h5CeBz+RRoDahw7RkuQffkrVjdlRbF
-         RIl/KVoYud/4BC9qjIaIyZoJWzgnn4q/QF1Qm69a0x4QjN7XuUTTFJTQQHyaX3JdZ6Vy
-         vDY5QRrRB+lOzwR8L8QTprvSkq0Z35pngMFxHpm3W9Wc/0UzHueQge+74xhQ9/3U9REx
-         QrUCIHReYBkoRhWGu3bd3uzt3fzOKQa8zjaa4AsJtuTJID0KG0SXaJNIsCBqHE5blJnA
-         /WcQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-X-Gm-Message-State: APjAAAXHZSBFOtPxfAExjZKoIjU1onqgnwu5nRDZHwyo60kQo1vfiZGx
-	Ag7ZT/KLcsyQgGH9TnVjkSgEWtQZYnnkEwtWyCSjjpdA7TXe0j7rCiXMX/1n1f19mjZiriTjztI
-	IAJfbWOm8BopAHwQfOWezuo71tEYyDDKOp0+SW7BGCZB+hOKBO2Z14a/DwnNCZabIFQ==
-X-Received: by 2002:a50:bdc5:: with SMTP id z5mr42294770edh.61.1559930486663;
-        Fri, 07 Jun 2019 11:01:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqygdHvBZ4sdDGIdFNRZksswI+hQB2GS7XRpDzaC6iyh62O2o4sZHoNvpfAu02CvAuwEDGAp
-X-Received: by 2002:a50:bdc5:: with SMTP id z5mr42294595edh.61.1559930485228;
-        Fri, 07 Jun 2019 11:01:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559930485; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=yvViGcleFu6fAY5Z1ueRI2Sd+W1uzOgNJahahekeWt4=;
+        b=AeNUpdWdAJxTLEWdOEVWrsNyHiM7NQEQqePqwhPvBUQ+5xvK2oEBSFSpmrDogIxbTV
+         uYvwj4Cvh1jcdZKkcGy1UfE0cksGLyRsLOCGgyZKxD6xUEJWlQ1zGe+uHbNzADVam7wR
+         ENdwy3kjy/uMo9Ja54/kVV5pnwjSkChyrY52ej0Ex/a5E9soJfWjyGEA88a+1nKody0v
+         4RkGN5nQhFNHs2DsKbq9QshDV1qemqyDA1SLHzlh3buwyHBBfeAyOsV+crExw/k57OnY
+         t2F7OAwTMuww5Bofke4eXDM1zAwsosdCXmNfdsT/FLxCJ1xjtbYp3eSKF771otd4C3Bw
+         LWzg==
+X-Gm-Message-State: APjAAAWJWf9wWtlMbsaKlD+6fAwKWZ4gpk2Nz8EWz0XwsGsorSR9bzIU
+	RCXytM6peSVmXhW8NbvdMaL6xrQ2ZmGPhHUJIQ8DIvQSidRMaGAH0dUoVVT4P1CTb4tUENINzmg
+	/VyPf9e0BUerGabppzFHQbrahkeB7V45V9iuK3OplquMFYz81yukRSx9St0Zc2BnT+Q==
+X-Received: by 2002:a81:6987:: with SMTP id e129mr24474186ywc.283.1559931139036;
+        Fri, 07 Jun 2019 11:12:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyzc5E5o8LBOsh03L4I2WFG7Vt5UYAHTBmp0Xge4eF0Wdrv1mUkWGn0IZFy5M+zmJ/DXGnd
+X-Received: by 2002:a81:6987:: with SMTP id e129mr24474145ywc.283.1559931138271;
+        Fri, 07 Jun 2019 11:12:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559931138; cv=none;
         d=google.com; s=arc-20160816;
-        b=J/gfLFWfGR3Zq911/Oax7SNLMjpW8R/G2Nd/9CE2domlSHDLUnQP/R0IfuuNqvhfxu
-         dADCIk+3P1/BK7YGJ4rtdDr+1kuhA4S/GsPiA74cIo7Z1bRnvHzc3Pjfg6iQvs2pVc/+
-         bLP1mrTpdVCLufCy9Fnl2b8SbzlC/h1CVMkxfC1GhlyaQkT7phz9dXNXSjEFXlVEIqNC
-         wAuEfD3JRS06e4w7/zbBJkl88gqneDVhBc/t6WlJ1Ii0AYXtkyRCg1MQHl99I10yuBu9
-         LZ/eLu6AuIDf/yOL4JEPKBalsgu/1InXo7MOKA2EhvO1vrUAvUyXVRZI+ALmQCIR02kS
-         y44w==
+        b=lbme1Kn21nqsnx06fX0eFARm5YE7GYXTgjE2eLSQrTS4kF45E3HylWd22XUl3kCCHt
+         j7AjGXDRKO/6SrKN96siNDGOAK4xxkpDyTHZGj9vI8PITrp3UYyxgWJW1xpAmw2//tRK
+         +mW2lfiAiw75ei0KjRznK8EZwg6iyLbeZH/aumyGyTpL7wWOfTpDVK7cG9TB4WKHwItD
+         eBYlh1PwFhv++sYetJFNdzCRZ5qDOAxdbGTneNL3I9FIAFPGCIlvM0Kbutqv1yinAD0+
+         AqY481YyhPsO1x57MjRYGxNg+1VIa/57hgNe2mdl6DA3KwAnz16aJaAmEVnMiJ9EYOp3
+         c9iQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=dyOS8xZ6XA7sdK++Tw2tQ4XvePnZq7SfGni0Rb0R7ZM=;
-        b=whYcYV2zzh73s+lMcR3+Pj6YEd+eU3RiU1UbCo/hOKEbb6dqxc2OLg5KBInz/sp+Jl
-         Wg3bIOMf2umY3GulZs9yj/oQHiZeZFAyMDesFdVbGlO2nctlMJmNYimdiKPYpKbk9u/P
-         JOZwLvicm+tdHd6EogbvQOKB2UHNKX+gaHRfiGLCE0SHHRsTPWvEzLRVQXbCzILTa0Wj
-         EjV6z088JievUGhGXPxBKerYjAz+oFGu+uxU3oEscMrMSKQCw1lOdNfW1Lr14iUlKLH/
-         wRd0YWTv0kJ8gnT1phbq6MUqY942IHa8mjWjjVze9yG8tNNJnYBha1Fb4Aod31NbFAMy
-         yxRA==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=yvViGcleFu6fAY5Z1ueRI2Sd+W1uzOgNJahahekeWt4=;
+        b=nM+kQ+w/Jgz6lAP+zTJW+y+afR4DuGk/ntkdn+FXR77z6BuRp48gyxlju/dO8d5KeI
+         GfagqURBIYQwy4i/18I+UCTJG8Rwvkn9f609Y3UDZviKDd73ssbvaL2tLnfe4kq/9lR5
+         mKutUJxZOHvV96z5czPbi+YKI8bfYovfzDiM5xR+h7aow5T99PyVNWVXYvUmtnyG1ptF
+         c5Wo0nOawNAAQH/jwpePWEOh7oAQ39zq4/YbTlhopAYJiAxah/PCNWrUIMzeLSQYnTi5
+         jwY+Lelqv34gmBoAukE7ZmbV+5tQsR9L1/E5G6vT1a0E4HDkTCr0no24Wh3IbBDMfcIo
+         p+cg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id i12si1672452ejd.28.2019.06.07.11.01.24
-        for <linux-mm@kvack.org>;
-        Fri, 07 Jun 2019 11:01:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=GwkD8xsC;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id v2si976132ywg.387.2019.06.07.11.12.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Jun 2019 11:12:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0CC49337;
-	Fri,  7 Jun 2019 11:01:24 -0700 (PDT)
-Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5A0B63F718;
-	Fri,  7 Jun 2019 11:01:20 -0700 (PDT)
-Date: Fri, 7 Jun 2019 19:01:18 +0100
-From: Dave Martin <Dave.Martin@arm.com>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
-	linux-doc@vger.kernel.org, linux-mm@kvack.org,
-	linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
-	Arnd Bergmann <arnd@arndb.de>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Balbir Singh <bsingharora@gmail.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Cyrill Gorcunov <gorcunov@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Eugene Syromiatnikov <esyr@redhat.com>,
-	Florian Weimer <fweimer@redhat.com>,
-	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
-	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
-	Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
-	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>
-Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an
- ELF file
-Message-ID: <20190607180115.GJ28398@e103592.cambridge.arm.com>
-References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
- <20190606200646.3951-23-yu-cheng.yu@intel.com>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=GwkD8xsC;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5cfaa8f10000>; Fri, 07 Jun 2019 11:12:02 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Fri, 07 Jun 2019 11:12:17 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Fri, 07 Jun 2019 11:12:17 -0700
+Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 7 Jun
+ 2019 18:12:14 +0000
+Subject: Re: [PATCH v2 hmm 01/11] mm/hmm: fix use after free with struct hmm
+ in the mmu notifiers
+To: Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, "John
+ Hubbard" <jhubbard@nvidia.com>, <Felix.Kuehling@amd.com>
+CC: <linux-rdma@vger.kernel.org>, <linux-mm@kvack.org>, Andrea Arcangeli
+	<aarcange@redhat.com>, <dri-devel@lists.freedesktop.org>,
+	<amd-gfx@lists.freedesktop.org>, Jason Gunthorpe <jgg@mellanox.com>
+References: <20190606184438.31646-1-jgg@ziepe.ca>
+ <20190606184438.31646-2-jgg@ziepe.ca>
+X-Nvconfidentiality: public
+From: Ralph Campbell <rcampbell@nvidia.com>
+Message-ID: <377cadfa-180e-9a6a-49df-0c2c27ae6fb3@nvidia.com>
+Date: Fri, 7 Jun 2019 11:12:14 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190606200646.3951-23-yu-cheng.yu@intel.com>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+In-Reply-To: <20190606184438.31646-2-jgg@ziepe.ca>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1559931122; bh=yvViGcleFu6fAY5Z1ueRI2Sd+W1uzOgNJahahekeWt4=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=GwkD8xsCGHW0KQ7XDbv8wawHd+SJN+lRqrAQpT/q6IxU90uItm8+7KTvX+8unVVF7
+	 Vz00qV1V8aOiQueD3BHPHHGFZQnANCqbwbnRRbBFwh3oJhF3aWr4/aVmfy0TkhKL+W
+	 lmrPKNeaNFVPyriJVct/0VeUfyZ1MufFzoGvniQz+6lRXlnYRx5V3xeqPhkXlq2I54
+	 ZO79+tNGlAT4Ihs91XWeiX8VLNCv226zJTLdk0nY1y9xEBj/6xZQqrOC13Y2hVUrI/
+	 ZBcxJUBuG8iMwDX7QBnuTnYytNPULKEzM6tmkNK9OnPziujs0OLxsvUVUEuBUQVLdA
+	 TOS8OF+mbpUPw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 06, 2019 at 01:06:41PM -0700, Yu-cheng Yu wrote:
-> An ELF file's .note.gnu.property indicates features the executable file
-> can support.  For example, the property GNU_PROPERTY_X86_FEATURE_1_AND
-> indicates the file supports GNU_PROPERTY_X86_FEATURE_1_IBT and/or
-> GNU_PROPERTY_X86_FEATURE_1_SHSTK.
+
+
+On 6/6/19 11:44 AM, Jason Gunthorpe wrote:
+> From: Jason Gunthorpe <jgg@mellanox.com>
 > 
-> With this patch, if an arch needs to setup features from ELF properties,
-> it needs CONFIG_ARCH_USE_GNU_PROPERTY to be set, and a specific
-> arch_setup_property().
+> mmu_notifier_unregister_no_release() is not a fence and the mmu_notifier
+> system will continue to reference hmm->mn until the srcu grace period
+> expires.
 > 
-> For example, for X86_64:
+> Resulting in use after free races like this:
 > 
-> int arch_setup_property(void *ehdr, void *phdr, struct file *f, bool inter)
-> {
-> 	int r;
-> 	uint32_t property;
+>           CPU0                                     CPU1
+>                                                 __mmu_notifier_invalidate_range_start()
+>                                                   srcu_read_lock
+>                                                   hlist_for_each ()
+>                                                     // mn == hmm->mn
+> hmm_mirror_unregister()
+>    hmm_put()
+>      hmm_free()
+>        mmu_notifier_unregister_no_release()
+>           hlist_del_init_rcu(hmm-mn->list)
+> 			                           mn->ops->invalidate_range_start(mn, range);
+> 					             mm_get_hmm()
+>        mm->hmm = NULL;
+>        kfree(hmm)
+>                                                       mutex_lock(&hmm->lock);
 > 
-> 	r = get_gnu_property(ehdr, phdr, f, GNU_PROPERTY_X86_FEATURE_1_AND,
-> 			     &property);
-> 	...
-> }
-
-Although this code works for the simple case, I have some concerns about
-some aspects of the implementation here.  There appear to be some bounds
-checking / buffer overrun issues, and the code seems quite complex.
-
-Maybe this patch tries too hard to be compatible with toolchains that do
-silly things such as embedding huge notes in an executable, or mixing
-NT_GNU_PROPERTY_TYPE_0 in a single PT_NOTE with a load of junk not
-relevant to the loader.  I wonder whether Linux can dictate what
-interpretation(s) of the ELF specs it is prepared to support, rather than
-trying to support absolutely anything.
-
-
-I've commented on some potential issues below, but my review isn't
-exhaustive -- I may also have simply not understood the code in some
-cases, so I apologise in advance for that!
-
-I've also marked a few coding style nits that make the code harder to
-read than necessary (but this is partly a matter of taste).
-
-Comments below.
-
-Cheers
----Dave
-
+> Use SRCU to kfree the hmm memory so that the notifiers can rely on hmm
+> existing. Get the now-safe hmm struct through container_of and directly
+> check kref_get_unless_zero to lock it against free.
 > 
-> Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
-> Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+
+You can add
+Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+
 > ---
->  fs/Kconfig.binfmt        |   3 +
->  fs/Makefile              |   1 +
->  fs/binfmt_elf.c          |  13 ++
->  fs/gnu_property.c        | 351 +++++++++++++++++++++++++++++++++++++++
->  include/linux/elf.h      |  12 ++
->  include/uapi/linux/elf.h |  14 ++
->  6 files changed, 394 insertions(+)
->  create mode 100644 fs/gnu_property.c
+> v2:
+> - Spell 'free' properly (Jerome/Ralph)
+> ---
+>   include/linux/hmm.h |  1 +
+>   mm/hmm.c            | 25 +++++++++++++++++++------
+>   2 files changed, 20 insertions(+), 6 deletions(-)
 > 
-> diff --git a/fs/Kconfig.binfmt b/fs/Kconfig.binfmt
-> index f87ddd1b6d72..397138ab305b 100644
-> --- a/fs/Kconfig.binfmt
-> +++ b/fs/Kconfig.binfmt
-> @@ -36,6 +36,9 @@ config COMPAT_BINFMT_ELF
->  config ARCH_BINFMT_ELF_STATE
->  	bool
->  
-> +config ARCH_USE_GNU_PROPERTY
-> +	bool
-> +
->  config BINFMT_ELF_FDPIC
->  	bool "Kernel support for FDPIC ELF binaries"
->  	default y if !BINFMT_ELF
-> diff --git a/fs/Makefile b/fs/Makefile
-> index c9aea23aba56..b69f18c14e09 100644
-> --- a/fs/Makefile
-> +++ b/fs/Makefile
-> @@ -44,6 +44,7 @@ obj-$(CONFIG_BINFMT_ELF)	+= binfmt_elf.o
->  obj-$(CONFIG_COMPAT_BINFMT_ELF)	+= compat_binfmt_elf.o
->  obj-$(CONFIG_BINFMT_ELF_FDPIC)	+= binfmt_elf_fdpic.o
->  obj-$(CONFIG_BINFMT_FLAT)	+= binfmt_flat.o
-> +obj-$(CONFIG_ARCH_USE_GNU_PROPERTY) += gnu_property.o
->  
->  obj-$(CONFIG_FS_MBCACHE)	+= mbcache.o
->  obj-$(CONFIG_FS_POSIX_ACL)	+= posix_acl.o
-> diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-> index 8264b468f283..c3ea73787e93 100644
-> --- a/fs/binfmt_elf.c
-> +++ b/fs/binfmt_elf.c
-> @@ -1080,6 +1080,19 @@ static int load_elf_binary(struct linux_binprm *bprm)
->  		goto out_free_dentry;
->  	}
->  
-> +	if (interpreter) {
-> +		retval = arch_setup_property(&loc->interp_elf_ex,
-> +					     interp_elf_phdata,
-> +					     interpreter, true);
-> +	} else {
-> +		retval = arch_setup_property(&loc->elf_ex,
-> +					     elf_phdata,
-> +					     bprm->file, false);
-> +	}
-> +
-> +	if (retval < 0)
-> +		goto out_free_dentry;
-> +
->  	if (interpreter) {
->  		unsigned long interp_map_addr = 0;
->  
-> diff --git a/fs/gnu_property.c b/fs/gnu_property.c
-> new file mode 100644
-> index 000000000000..9c4d1d5ebf00
-> --- /dev/null
-> +++ b/fs/gnu_property.c
-> @@ -0,0 +1,351 @@
-> +/* SPDX-License-Identifier: GPL-2.0-only */
-> +/*
-> + * Extract an ELF file's .note.gnu.property.
-> + *
-> + * The path from the ELF header to the note section is the following:
-> + * elfhdr->elf_phdr->elf_note->property[].
-> + */
-> +
-> +#include <uapi/linux/elf-em.h>
-> +#include <linux/processor.h>
-> +#include <linux/binfmts.h>
-> +#include <linux/elf.h>
-> +#include <linux/slab.h>
-> +#include <linux/fs.h>
-> +#include <linux/uaccess.h>
-> +#include <linux/string.h>
-> +#include <linux/compat.h>
-> +
-> +/*
-> + * The .note.gnu.property layout:
-> + *
-> + *	struct elf_note {
-> + *		u32 n_namesz; --> sizeof(n_name[]); always (4)
-> + *		u32 n_ndescsz;--> sizeof(property[])
-> + *		u32 n_type;   --> always NT_GNU_PROPERTY_TYPE_0
-> + *	};
-> + *	char n_name[4]; --> always 'GNU\0'
-> + *
-> + *	struct {
-> + *		struct gnu_property {
-> + *			u32 pr_type;
-> + *			u32 pr_datasz;
-> + *		};
-> + *		u8 pr_data[pr_datasz];
-> + *	}[];
-> + */
-> +
-> +#define BUF_SIZE (PAGE_SIZE / 4)
-
-Nit: magic number in disguise.  What does the size of ELF notes have
-to do with the page size?
-
-> +
-> +typedef bool (test_item_fn)(void *buf, u32 *arg, u32 type);
-> +typedef void *(next_item_fn)(void *buf, u32 *arg, u32 type);
-> +
-> +static inline bool test_note_type(void *buf, u32 *align, u32 note_type)
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index 092f0234bfe917..688c5ca7068795 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -102,6 +102,7 @@ struct hmm {
+>   	struct mmu_notifier	mmu_notifier;
+>   	struct rw_semaphore	mirrors_sem;
+>   	wait_queue_head_t	wq;
+> +	struct rcu_head		rcu;
+>   	long			notifiers;
+>   	bool			dead;
+>   };
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 8e7403f081f44a..547002f56a163d 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -113,6 +113,11 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
+>   	return NULL;
+>   }
+>   
+> +static void hmm_free_rcu(struct rcu_head *rcu)
 > +{
-> +	struct elf_note *n = buf;
-> +
-> +	return ((n->n_type == note_type) && (n->n_namesz == 4) &&
-> +		(memcmp(n + 1, "GNU", 4) == 0));
+> +	kfree(container_of(rcu, struct hmm, rcu));
 > +}
 > +
-> +static inline void *next_note(void *buf, u32 *align, u32 note_type)
-> +{
-> +	struct elf_note *n = buf;
-> +	u64 size;
+>   static void hmm_free(struct kref *kref)
+>   {
+>   	struct hmm *hmm = container_of(kref, struct hmm, kref);
+> @@ -125,7 +130,7 @@ static void hmm_free(struct kref *kref)
+>   		mm->hmm = NULL;
+>   	spin_unlock(&mm->page_table_lock);
+>   
+> -	kfree(hmm);
+> +	mmu_notifier_call_srcu(&hmm->rcu, hmm_free_rcu);
+>   }
+>   
+>   static inline void hmm_put(struct hmm *hmm)
+> @@ -153,10 +158,14 @@ void hmm_mm_destroy(struct mm_struct *mm)
+>   
+>   static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+>   {
+> -	struct hmm *hmm = mm_get_hmm(mm);
+> +	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+>   	struct hmm_mirror *mirror;
+>   	struct hmm_range *range;
+>   
+> +	/* hmm is in progress to free */
+> +	if (!kref_get_unless_zero(&hmm->kref))
+> +		return;
 > +
-> +	if (check_add_overflow((u64)sizeof(*n), (u64)n->n_namesz, &size))
-> +		return NULL;
-
-sizeof(*n) is a small integer under our control, and n->n_namesz is a
-u32.
-
-So, I'm not sure how we would overflow 64 bits here, although if we can
-get arbitrarily close to ~(u64)0 then:
-
-> +
-> +	size = round_up(size, *align);
-
-this can overflow too.
-
-> +
-> +	if (check_add_overflow(size, (u64)n->n_descsz, &size))
-> +		return NULL;
-> +
-> +	size = round_up(size, *align);
-
-Similarly here.
-
-> +
-> +	if (buf + size < buf)
-
-Isn't this undefined behaviour of it overflows?  If so, the compiler can
-probably delete the check entirely, making it useless.  Does UBSAN warn
-about it?
-
-> +		return NULL;
-> +	else
-> +		return (buf + size);
-
-Nit: Unnecessary ()  (There are surplus () all over this patch; I won't
-comment on them all.)
-
-> +}
-> +
-> +static inline bool test_property(void *buf, u32 *max_type, u32 pr_type)
-> +{
-> +	struct gnu_property *pr = buf;
-> +
-> +	/*
-> +	 * Property types must be in ascending order.
-> +	 * Keep track of the max when testing each.
-> +	 */
-> +	if (pr->pr_type > *max_type)
-> +		*max_type = pr->pr_type;
-
-Is this worthwhile?  In general we don't try very hard to check that the
-ELF file is well-formed.
-
-Ideally we could search by binary chop, but the property size is
-variable, so the sortedness is useless to us (yay).
-
-> +
-> +	return (pr->pr_type == pr_type);
-> +}
-> +
-> +static inline void *next_property(void *buf, u32 *max_type, u32 pr_type)
-
-Nit: does this need to be inline?  The compiler's guess is usually good
-enough...
-
-> +{
-> +	struct gnu_property *pr = buf;
-> +
-> +	if ((buf + sizeof(*pr) +  pr->pr_datasz < buf) ||
-
-Nit: random extra space, redundant (), etc.
-
-> +	    (pr->pr_type > pr_type) ||
-> +	    (pr->pr_type > *max_type))
-> +		return NULL;
-> +	else
-> +		return (buf + sizeof(*pr) + pr->pr_datasz);
-
-We can exceed the underlying buffer bounds here, which is technically
-undefined behaviour.
-
-I suspect we may be relying on similar tricks all over the kernel, but
-IT MAy be best avoided anyway.
-
-
-If we always pass in the buffer base pointer and the size of the buffer, say
-
-	static int next_property(void *buf, size_t *offset,
-						size_t bufsz, ...)
-
-then we may be able to use direct comparisons that can't overflow
-rather than relying on potentially undefined behaviour.  For example:
-
-	size_t o = *offset;
-
-	if (o > bufsz || sizeof (*pr) > bufsz - o)
-		return -1;
-
-	pr = buf + o;
-	if (pr->pr_type > pr_type || pr->pr_type > *max_type)
-		return -1;
-
-	if (pr->pr_datasz > bufsz - o - sizeof (*pr))
-		return -1;
-
-	*offset = o + sizeof (*pr) + pr->pr_datasz;
-	return 0;
-
-(There may be neater ways to do this.)
-
-> +}
-> +
-> +/*
-> + * Scan 'buf' for a pattern; return true if found.
-> + * *pos is the distance from the beginning of buf to where
-> + * the searched item or the next item is located.
-> + */
-> +static int scan(u8 *buf, u32 buf_size, int item_size, test_item_fn test_item,
-> +		next_item_fn next_item, u32 *arg, u32 type, u32 *pos)
-> +{
-> +	int found = 0;
-> +	u8 *p, *max;
-> +
-> +	max = buf + buf_size;
-> +	if (max < buf)
-
-See comment about undefined behaviour above.
-
-Also, I'm not sure this check adds anything.  We know buf_size is
-<= BUF_SIZE (though we could stick a WARN_ON() here and bail out if we
-want to make absolutely sure).
-
-If buf is always the base pointer returned by kmalloc(BUF_SIZE), then
-I think buf_size can never go outside its bounds?
-
+>   	/* Report this HMM as dying. */
+>   	hmm->dead = true;
+>   
+> @@ -194,13 +203,15 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+>   static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+>   			const struct mmu_notifier_range *nrange)
+>   {
+> -	struct hmm *hmm = mm_get_hmm(nrange->mm);
+> +	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+>   	struct hmm_mirror *mirror;
+>   	struct hmm_update update;
+>   	struct hmm_range *range;
+>   	int ret = 0;
+>   
+> -	VM_BUG_ON(!hmm);
+> +	/* hmm is in progress to free */
+> +	if (!kref_get_unless_zero(&hmm->kref))
 > +		return 0;
-> +
-> +	p = buf;
-> +
-> +	while ((p + item_size < max) && (p + item_size > buf)) {
-
-                           ^ <= ?                   ^ undefined behaviour?
-
-> +		if (test_item(p, arg, type)) {
-> +			found = 1;
-> +			break;
-> +		}
-> +
-> +		p = next_item(p, arg, type);
-> +	}
-> +
-> +	*pos = (p + item_size <= buf) ? 0 : (u32)(p - buf);
-
-Can this be written more simply, say:
-
-	if (p + item_size > buf)
-		*pos += p - buf;
-
-Also, since next_property() adds pr_datasz onto buf, could we get
-unlucky and wrap past (void *)~0UL?  Then (u32)(p - buf) may be giant.
-Not sure whether this breaks code elsewhere.
-
-> +	return found;
-> +}
-> +
-> +/*
-> + * Search an NT_GNU_PROPERTY_TYPE_0 for the property of 'pr_type'.
-> + */
-> +static int find_property(struct file *file, unsigned long desc_size,
-> +			 loff_t file_offset, u8 *buf,
-> +			 u32 pr_type, u32 *property)
-> +{
-> +	u32 buf_pos;
-> +	unsigned long read_size;
-> +	unsigned long done;
-> +	int found = 0;
-> +	int ret = 0;
-> +	u32 last_pr = 0;
-> +
-> +	*property = 0;
-> +	buf_pos = 0;
-> +
-> +	for (done = 0; done < desc_size; done += buf_pos) {
-> +		read_size = desc_size - done;
-> +		if (read_size > BUF_SIZE)
-> +			read_size = BUF_SIZE;
-> +
-> +		ret = kernel_read(file, buf, read_size, &file_offset);
-> +
-> +		if (ret != read_size)
-> +			return (ret < 0) ? ret : -EIO;
-> +
-> +		ret = 0;
-> +		found = scan(buf, read_size, sizeof(struct gnu_property),
-> +			     test_property, next_property,
-> +			     &last_pr, pr_type, &buf_pos);
-> +
-> +		if ((!buf_pos) || found)
-> +			break;
-> +
-> +		file_offset += buf_pos - read_size;
-> +	}
-> +
-> +	if (found) {
-> +		struct gnu_property *pr =
-> +			(struct gnu_property *)(buf + buf_pos);
-> +
-> +		if (pr->pr_datasz == 4) {
-> +			u32 *max =  (u32 *)(buf + read_size);
-> +			u32 *data = (u32 *)((u8 *)pr + sizeof(*pr));
-> +
-> +			if (data + 1 <= max) {
-> +				*property = *data;
-> +			} else {
-> +				file_offset += buf_pos - read_size;
-> +				file_offset += sizeof(*pr);
-> +				ret = kernel_read(file, property, 4,
-> +						  &file_offset);
-> +			}
-> +		}
-> +	}
-> +
-> +	return ret;
-> +}
-> +
-> +/*
-> + * Search a PT_NOTE segment for NT_GNU_PROPERTY_TYPE_0.
-> + */
-> +static int find_note_type_0(struct file *file, loff_t file_offset,
-> +			    unsigned long note_size, u32 align,
-> +			    u32 pr_type, u32 *property)
-> +{
-> +	u8 *buf;
-> +	u32 buf_pos;
-> +	unsigned long read_size;
-> +	unsigned long done;
-> +	int found = 0;
-> +	int ret = 0;
-> +
-> +	buf = kmalloc(BUF_SIZE, GFP_KERNEL);
-> +	if (!buf)
-> +		return -ENOMEM;
-
-Do we really need to alloc/free this once per note?
-
-> +
-> +	*property = 0;
-> +	buf_pos = 0;
-> +
-> +	for (done = 0; done < note_size; done += buf_pos) {
-> +		read_size = note_size - done;
-> +		if (read_size > BUF_SIZE)
-> +			read_size = BUF_SIZE;
-> +
-> +		ret = kernel_read(file, buf, read_size, &file_offset);
-> +
-> +		if (ret != read_size) {
-> +			ret = (ret < 0) ? ret : -EIO;
-> +			kfree(buf);
-> +			return ret;
-> +		}
-> +
-> +		/*
-> +		 * item_size = sizeof(struct elf_note) + elf_note.n_namesz.
-> +		 * n_namesz is 4 for the note type we look for.
-> +		 */
-> +		ret = scan(buf, read_size, sizeof(struct elf_note) + 4,
-> +			      test_note_type, next_note,
-> +			      &align, NT_GNU_PROPERTY_TYPE_0, &buf_pos);
-> +
-> +		file_offset += buf_pos - read_size;
-> +
-> +		if (ret && !found) {
-> +			struct elf_note *n =
-> +				(struct elf_note *)(buf + buf_pos);
-> +			u64 start = round_up(sizeof(*n) + n->n_namesz, align);
-> +			u64 total = 0;
-> +
-> +			if (check_add_overflow(start, (u64)n->n_descsz, &total)) {
-> +				ret = -EINVAL;
-> +				break;
-> +			}
-> +			total = round_up(total, align);
-> +
-> +			ret = find_property(file, n->n_descsz,
-> +					    file_offset + start,
-> +					    buf, pr_type, property);
-> +			found++;
-> +			file_offset += total;
-> +			buf_pos += total;
-> +		} else if (!buf_pos || ret) {
-> +			ret = 0;
-> +			*property = 0;
-> +			break;
-> +		}
-> +	}
-
-Do we really need this complexity?  How big are the notes realistically
-going to be?
-
-Since a file with bloated notes is going to be inefficient to exec
-anyway if we have to scan all the way through them, would it be better
-just to choke on it and force the toolchain to do something more
-sensible?
-
-This in one reason why it would be good for the kernel to require
-PT_GNU_PROPERTY if possible, so we know the precise offset and size
-without having to search...
-
-> +
-> +	kfree(buf);
-> +	return ret;
-> +}
-> +
-> +/*
-> + * Look at an ELF file's PT_NOTE segments, then NT_GNU_PROPERTY_TYPE_0, then
-> + * the property of pr_type.
-> + *
-> + * Input:
-> + *	file: the file to search;
-> + *	phdr: the file's elf header;
-> + *	phnum: number of entries in phdr;
-> + *	pr_type: the property type.
-> + *
-> + * Output:
-> + *	The property found.
-> + *
-> + * Return:
-> + *	Zero or error.
-> + */
-> +static int scan_segments_64(struct file *file, struct elf64_phdr *phdr,
-> +			    int phnum, u32 pr_type, u32 *property)
-> +{
-> +	int i;
-> +	int err = 0;
-> +
-> +	for (i = 0; i < phnum; i++, phdr++) {
-> +		if ((phdr->p_type != PT_NOTE) || (phdr->p_align != 8))
-> +			continue;
-> +
-> +		/*
-> +		 * Search the PT_NOTE segment for NT_GNU_PROPERTY_TYPE_0.
-> +		 */
-> +		err = find_note_type_0(file, phdr->p_offset, phdr->p_filesz,
-> +				       phdr->p_align, pr_type, property);
-> +		if (err)
-> +			return err;
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +static int scan_segments_32(struct file *file, struct elf32_phdr *phdr,
-> +			    int phnum, u32 pr_type, u32 *property)
-> +{
-> +	int i;
-> +	int err = 0;
-> +
-> +	for (i = 0; i < phnum; i++, phdr++) {
-> +		if ((phdr->p_type != PT_NOTE) || (phdr->p_align != 4))
-> +			continue;
-> +
-> +		/*
-> +		 * Search the PT_NOTE segment for NT_GNU_PROPERTY_TYPE_0.
-> +		 */
-> +		err = find_note_type_0(file, phdr->p_offset, phdr->p_filesz,
-> +				       phdr->p_align, pr_type, property);
-> +		if (err)
-> +			return err;
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +int get_gnu_property(void *ehdr_p, void *phdr_p, struct file *f,
-> +		     u32 pr_type, u32 *property)
-> +{
-> +	struct elf64_hdr *ehdr64 = ehdr_p;
-> +	int err = 0;
-> +
-> +	*property = 0;
-> +
-> +	if (ehdr64->e_ident[EI_CLASS] == ELFCLASS64) {
-> +		struct elf64_phdr *phdr64 = phdr_p;
-> +
-> +		err = scan_segments_64(f, phdr64, ehdr64->e_phnum,
-> +				       pr_type, property);
-> +		if (err < 0)
-> +			goto out;
-> +	} else {
-> +		struct elf32_hdr *ehdr32 = ehdr_p;
-> +
-> +		if (ehdr32->e_ident[EI_CLASS] == ELFCLASS32) {
-> +			struct elf32_phdr *phdr32 = phdr_p;
-> +
-> +			err = scan_segments_32(f, phdr32, ehdr32->e_phnum,
-> +					       pr_type, property);
-> +			if (err < 0)
-> +				goto out;
-> +		}
-> +	}
-> +
-> +out:
-> +	return err;
-> +}
-> diff --git a/include/linux/elf.h b/include/linux/elf.h
-> index e3649b3e970e..c15febebe7f2 100644
-> --- a/include/linux/elf.h
-> +++ b/include/linux/elf.h
-> @@ -56,4 +56,16 @@ static inline int elf_coredump_extra_notes_write(struct coredump_params *cprm) {
->  extern int elf_coredump_extra_notes_size(void);
->  extern int elf_coredump_extra_notes_write(struct coredump_params *cprm);
->  #endif
-> +
-> +#ifdef CONFIG_ARCH_USE_GNU_PROPERTY
-> +extern int arch_setup_property(void *ehdr, void *phdr, struct file *f,
-> +			       bool interp);
-> +extern int get_gnu_property(void *ehdr_p, void *phdr_p, struct file *f,
-> +			    u32 pr_type, u32 *feature);
-> +#else
-> +static inline int arch_setup_property(void *ehdr, void *phdr, struct file *f,
-> +				      bool interp) { return 0; }
-> +static inline int get_gnu_property(void *ehdr_p, void *phdr_p, struct file *f,
-> +				   u32 pr_type, u32 *feature) { return 0; }
-> +#endif
->  #endif /* _LINUX_ELF_H */
-> diff --git a/include/uapi/linux/elf.h b/include/uapi/linux/elf.h
-> index 34c02e4290fe..316177ce9e76 100644
-> --- a/include/uapi/linux/elf.h
-> +++ b/include/uapi/linux/elf.h
-> @@ -372,6 +372,7 @@ typedef struct elf64_shdr {
->  #define NT_PRFPREG	2
->  #define NT_PRPSINFO	3
->  #define NT_TASKSTRUCT	4
-> +#define NT_GNU_PROPERTY_TYPE_0 5
-
-Should this be in a separate block.  This required n_name = "GNU",
-whereas the rest are "LINUX" notes AFAIK: it's really a separate
-namespace.
-
-I think the gap between 4 and 6 may be just coincidence: glibc's elf.h
-already has NT_PLATFORM here (whatever that is).
-
->  #define NT_AUXV		6
->  /*
->   * Note to userspace developers: size of NT_SIGINFO note may increase
-> @@ -443,4 +444,17 @@ typedef struct elf64_note {
->    Elf64_Word n_type;	/* Content type */
->  } Elf64_Nhdr;
->  
-> +/* NT_GNU_PROPERTY_TYPE_0 header */
-> +struct gnu_property {
-> +  __u32 pr_type;
-> +  __u32 pr_datasz;
-> +};
-> +
-> +/* .note.gnu.property types */
-> +#define GNU_PROPERTY_X86_FEATURE_1_AND		(0xc0000002)
-> +
-> +/* Bits of GNU_PROPERTY_X86_FEATURE_1_AND */
-> +#define GNU_PROPERTY_X86_FEATURE_1_IBT		(0x00000001)
-> +#define GNU_PROPERTY_X86_FEATURE_1_SHSTK	(0x00000002)
-> +
-
-Redundant ().  The rest of the file doesn't have them; can we conform to
-the prevailing style there?
-
->  #endif /* _UAPI_LINUX_ELF_H */
-> -- 
-> 2.17.1
+>   
+>   	update.start = nrange->start;
+>   	update.end = nrange->end;
+> @@ -245,9 +256,11 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+>   static void hmm_invalidate_range_end(struct mmu_notifier *mn,
+>   			const struct mmu_notifier_range *nrange)
+>   {
+> -	struct hmm *hmm = mm_get_hmm(nrange->mm);
+> +	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+>   
+> -	VM_BUG_ON(!hmm);
+> +	/* hmm is in progress to free */
+> +	if (!kref_get_unless_zero(&hmm->kref))
+> +		return;
+>   
+>   	mutex_lock(&hmm->lock);
+>   	hmm->notifiers--;
 > 
 
