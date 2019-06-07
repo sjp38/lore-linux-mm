@@ -2,212 +2,224 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DFCDC2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:40:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 40AA1C2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:44:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1A7C7208C3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:40:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D1E3A208C3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:44:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="xrvdgiwg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1A7C7208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="X0GGyDmY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D1E3A208C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A676D6B026E; Fri,  7 Jun 2019 16:40:10 -0400 (EDT)
+	id 61D316B026E; Fri,  7 Jun 2019 16:44:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A17106B026F; Fri,  7 Jun 2019 16:40:10 -0400 (EDT)
+	id 5CE316B026F; Fri,  7 Jun 2019 16:44:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8B9726B0270; Fri,  7 Jun 2019 16:40:10 -0400 (EDT)
+	id 4BC656B0270; Fri,  7 Jun 2019 16:44:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FB606B026E
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 16:40:10 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id s195so2164229pgs.13
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 13:40:10 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 298DD6B026E
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 16:44:30 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id w184so2616698qka.15
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 13:44:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=/zXZ0PAO7hrTuftMmJADCccAFJNVvLuJoT5zW483dm4=;
-        b=X3mN2kW1Vxjm4pJyh1VG5uQQbIVeljuOdl4+YODWWDCgcHAtGPydBCYRF9tVQIKrRu
-         ODjYA7m9ZDgNzJSU3IV9nyLVoxcVIXnSHNSJ+ovjeLFFPb1c1bXCBn1kVmJ68NuYZJ2J
-         vdMu3EoKu/LZ/d40D43KPmdE9W6Z7pcG4XmvCGrG9o2QbXkJUD3UhACUsyX1zpxZoAu5
-         D7p8NV79v7W/aLLNjmlOIdzfa1d9xgdEak/9FGP/YUuhmvfhvsg55nfXLZUzOaNHNnVW
-         uEDSbeXpwYfa45pGigiqlWYQCpjrd8bPZb0VOizTcSBXiVcDRihLSgQoaX/m/GzdkoCk
-         ZR4Q==
-X-Gm-Message-State: APjAAAUk45yatOfygM2wj7AwhVjMFlk9wxLa1lc4Ff94SupDvFxWrNB7
-	EyadKs9mIPUZaW8sg/91cMxUBFa7Y9Vqn9dj8agFYSFHtNkDQrEBq8zatiBieTfjSoclpBkdCDj
-	5ig5PYY/0dP/6UVO6LuK+lzBij4FclOkoKILzDuwFH3m53ey0IKaaDndC7bXtWMzsBg==
-X-Received: by 2002:a17:902:a70a:: with SMTP id w10mr55391503plq.250.1559940009915;
-        Fri, 07 Jun 2019 13:40:09 -0700 (PDT)
-X-Received: by 2002:a17:902:a70a:: with SMTP id w10mr55391464plq.250.1559940009156;
-        Fri, 07 Jun 2019 13:40:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559940009; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=WewlwoMSKKpuUVFlw9dKTixdONarEXfImL/UTTPP7B8=;
+        b=mTNhz3IQyt+/LovSbYWvfzNyAZ5vwcohlvaCWOpN/mDzQIhW/pmCN8NHKMAKCzrFlv
+         9e4ymYVjZi6PqDgppK7mdYRpoySnjUFRXxTxUFTPM1kS7Z7lY/d1J0DMVGr3Dcon9hDl
+         eH6uVgl/gaBZ7FAgL+mQULWnbFilB+Puefw0c2jcgN23tXw9HU+hiAjC7W56DE6HjHd1
+         kT1VZvHX+UfMUc7H8itxNZr/IHz5nU8mbCqDCUArXiuXosx6L1/bOAoyL+0i+W2FkuPW
+         AAk75DOdrnS2bXbgT4V8NDLs0LqwrL8vOi6nKgvBBD3R5WRBy3xfBrq/jXaBGRWJPikN
+         uCpA==
+X-Gm-Message-State: APjAAAWnNpSITL0L0imvF3vZqaN/8jrp4bxiIQwTvc8B7IyMYqccPoQX
+	+zOQkNAYmiJyrkm0TV457VX9uf1PvcJaK9yxN7DYrpi/PAAXPjlcHQ7d46s0SqujsRuwjjutCd8
+	5Q4n5+nskkhVXQXBT5EMMzRZVnAb3nJwy2/BS7juGIvCz5UbTglKdhlqozrLhhMivdA==
+X-Received: by 2002:ac8:70cf:: with SMTP id g15mr45043961qtp.254.1559940269843;
+        Fri, 07 Jun 2019 13:44:29 -0700 (PDT)
+X-Received: by 2002:ac8:70cf:: with SMTP id g15mr45043924qtp.254.1559940269072;
+        Fri, 07 Jun 2019 13:44:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559940269; cv=none;
         d=google.com; s=arc-20160816;
-        b=xxcpVG0USvUC1ncr76VjMtFtBP80wSOP7oYAZrIOd/WEjNmMxGrbXYkR9Uob3AjnCM
-         n0aqZCTNBhxFCo3TpY1gzQ+4HyqLG/cv7CHTIxDMEwy6FsT6pfT4RCaaiLJLzv6xgQGP
-         GytmnXAe8BP5pPpG8JIPrk28xOFgnuSEeTSpADvqtEBseZvBIQbTyUh1FIl5Z0R+5dBR
-         GN6RpaVNYPZEIJVliNH9hNcviZ8AJD7iqYTseNrtp9HaPcn98g6GNNu7HR55O6fLuyx0
-         /EASOfrNy9L1V++FeOu73PC2Vp2hIQl0gJ9OwVv41yzLH1JQdC2CNuvEmVUWWrgSSuwU
-         jckA==
+        b=Xfvo5o0vEPKTdD4ZclIKwDhlsQZMrARnyWBS3iFu27BcOpkFDx/z4nCySqtjK14q95
+         Cj0k5m+5WwhgNocxk1+nJO3JPOMASZNHwM7sryQFtaPiAeGa3ZDvonBqOfN+YVAtCIty
+         5m5g4M5pTjAQkT/+xkLfhI6CkTmHrbW8qF84oDbzvVZZPD/VDc8w7HJIRjlbmbj6qrRP
+         Q2DEBZXoQZeaiPWv/d4rEMmE9Qp08BfxAIMu81+fnizusPF4+05Es9E+rJMYNwijs+WI
+         ZdV2/IFZUEoxKm5qnXTz6rzPa465w7meVYTolqNfWAJoa9XKtuSxna07ya8kRIWz4Ic7
+         SJaA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=/zXZ0PAO7hrTuftMmJADCccAFJNVvLuJoT5zW483dm4=;
-        b=o/TJJlcy377IzjltJUFFgAlZ0LnxR0plLhxPXz1WzvQy5y8POe9Sqm+eZsHCOfg6+n
-         vdBshpvCH2wAa1re7XITqoSEq3goKXvX+cLxA+sJ5lxUYtJg4H70pIA9cQ8gTvC6wFTG
-         lCPQtNVJrmWnAI3V8no32ONN1TPusi4o281e4WdKq9xiWAOuhu/3zV9QZ4dQgSrh1EJy
-         26rC9I6b6bxBjKMgRwryXZJkoRVDYZmafFN1WjlLdNUv8V/LcuJn7LCnHfqSIHtsGaGo
-         OzxB+Ee2TQkT3XyRA7/cYD3c7bILzRnTsSzdNNtoe/usRBVdl0jFvhaORcDjAcNbZ22X
-         pkbA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=WewlwoMSKKpuUVFlw9dKTixdONarEXfImL/UTTPP7B8=;
+        b=ZwlxUSzOGoHs1IZUjYH7+CsUC3OpqveIVr4Zx3eqIpPDbdoxMfUcRmD1WYosfkrXKF
+         Ab6q7l8dr7q7AnSC1ZwHguqPr4HReWukZBosZsYvuRLXyM7Q366BSQsq2SHv96PjRCa6
+         dWVsHtR668vJQg6QxFWIIZBZmh42FfjyWUkkF+U8X2XOTbejcle1T/6Kg2NmgHQQl1Xy
+         G/yjeq4JQCSKA33SbZuwniUHszJzL9YJw8AWA+xdolU5bvrlN9R6xz2bGFemtd1xbPuk
+         PWWxjSkVWKPTeRnEAl8dLLke+PsX/ZbfdPbvLHI1j5x5sr4u+nqMZlgVRn36vuqIH7nx
+         8QAQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=xrvdgiwg;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=X0GGyDmY;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y5sor2956044pgs.32.2019.06.07.13.40.08
+        by mx.google.com with SMTPS id t7sor1804777qkd.63.2019.06.07.13.44.29
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 07 Jun 2019 13:40:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 07 Jun 2019 13:44:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=xrvdgiwg;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=X0GGyDmY;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=/zXZ0PAO7hrTuftMmJADCccAFJNVvLuJoT5zW483dm4=;
-        b=xrvdgiwgMy+n6sUxDDjF6GbcFmqZ9IbL4LqbaOlUjeE8uqFUu4xLwLCn5TySJGkcHl
-         fXPiABlcfNSCw9bl0NwfmBnfApC4fAM1xXXJDZ27D9KyYVvW3Pd4X+nasECUMC2LBZEJ
-         fKA5BQIw1BcsTounoXppfOwxaeXfpEVX0HyHm3x1KFjINzS4PCb6c6IaljqNaSCBm7Od
-         drrmRGWCxY710x1mQlxy/KRBEo0C1hie/MUbVm5jM/+AlavFNb6N+fUr8V+MNbUOPbuC
-         xC4rbQBCWUzb43kM79GQ/pk24o4zNJi31I1dPZeQMzNZkLkM+wXFQ8x1bMx3nK65vvQb
-         mnNQ==
-X-Google-Smtp-Source: APXvYqw9CMgTx+uPCBp2eShznieLWxzWHpVNj71rqNoWul6wN77odT5+ocrO71ob0NcUvASo3obsmg==
-X-Received: by 2002:a63:490a:: with SMTP id w10mr4721938pga.6.1559940008694;
-        Fri, 07 Jun 2019 13:40:08 -0700 (PDT)
-Received: from ?IPv6:2600:1012:b044:6f30:60ea:7662:8055:2cca? ([2600:1012:b044:6f30:60ea:7662:8055:2cca])
-        by smtp.gmail.com with ESMTPSA id 128sm3433146pff.16.2019.06.07.13.40.07
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 13:40:07 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup function
-From: Andy Lutomirski <luto@amacapital.net>
-X-Mailer: iPhone Mail (16F203)
-In-Reply-To: <352e6172-938d-f8e4-c195-9fd1b881bdee@intel.com>
-Date: Fri, 7 Jun 2019 13:40:06 -0700
-Cc: Peter Zijlstra <peterz@infradead.org>,
- Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org,
- "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
- Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
- Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
- Cyrill Gorcunov <gorcunov@gmail.com>,
- Dave Hansen <dave.hansen@linux.intel.com>,
- Eugene Syromiatnikov <esyr@redhat.com>,
- Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>,
- Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>,
- Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>,
- Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
- Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>,
- "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
- Dave Martin <Dave.Martin@arm.com>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <D10B5B59-1BE7-44DC-8E91-C8E4292DC6FB@amacapital.net>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com> <20190606200926.4029-4-yu-cheng.yu@intel.com> <20190607080832.GT3419@hirez.programming.kicks-ass.net> <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com> <20190607174336.GM3436@hirez.programming.kicks-ass.net> <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com> <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net> <352e6172-938d-f8e4-c195-9fd1b881bdee@intel.com>
-To: Dave Hansen <dave.hansen@intel.com>
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=WewlwoMSKKpuUVFlw9dKTixdONarEXfImL/UTTPP7B8=;
+        b=X0GGyDmYUIAZHt6qiBEP8KPAY6d75AVDJMz+L5eUnnWz9vTyYpreN8jlE7M6wtP1lF
+         IDIcHQxP26GyfWw+o3noCioNyR5xkWWs1gKA+rdMJlD2sUOGdd0MrpRDRqNydQ9e7LcD
+         8vcAXaxGgIGxeb1czpxE2GAaLGoDzu6No3mD6tMxqFJ2qHHOgRXfkUd9CrtNwOLuLCap
+         Nn/nkrny4hyodmxLuC94m/gBMHcrLlsFK4MLipaiLGAjy6FjV+gCOnjwovaawgrcFS4J
+         qwpJwBquFgb8t/8P6oJTqd4lG3V4ZQcEgxb1hEV9C51LFb7t5ZHp/uRuPMVrTa+QGz/o
+         /lKg==
+X-Google-Smtp-Source: APXvYqxD7hqThTbaMz7g+9dYXpp8HEemZOxyQw6X/LVcsbVXF36bw89VVAJrstOqneJu+6WWHcc1+Q==
+X-Received: by 2002:a37:f50f:: with SMTP id l15mr27246401qkk.343.1559940268771;
+        Fri, 07 Jun 2019 13:44:28 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id e4sm1836237qtc.3.2019.06.07.13.44.28
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 07 Jun 2019 13:44:28 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hZLit-0001Nv-PI; Fri, 07 Jun 2019 17:44:27 -0300
+Date: Fri, 7 Jun 2019 17:44:27 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Ralph Campbell <rcampbell@nvidia.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>,
+	Felix.Kuehling@amd.com, linux-rdma@vger.kernel.org,
+	linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>,
+	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
+Subject: Re: [PATCH v2 hmm 05/11] mm/hmm: Remove duplicate condition test
+ before wait_event_timeout
+Message-ID: <20190607204427.GU14802@ziepe.ca>
+References: <20190606184438.31646-1-jgg@ziepe.ca>
+ <20190606184438.31646-6-jgg@ziepe.ca>
+ <6833be96-12a3-1a1c-1514-c148ba2dd87b@nvidia.com>
+ <20190607191302.GR14802@ziepe.ca>
+ <e17aa8c5-790c-d977-2eb8-c18cdaa4cbb3@nvidia.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e17aa8c5-790c-d977-2eb8-c18cdaa4cbb3@nvidia.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Jun 07, 2019 at 01:21:12PM -0700, Ralph Campbell wrote:
 
+> > What I want to get to is a pattern like this:
+> > 
+> > pagefault():
+> > 
+> >     hmm_range_register(&range);
+> > again:
+> >     /* On the slow path, if we appear to be live locked then we get
+> >        the write side of mmap_sem which will break the live lock,
+> >        otherwise this gets the read lock */
+> >     if (hmm_range_start_and_lock(&range))
+> >           goto err;
+> > 
+> >     lockdep_assert_held(range->mm->mmap_sem);
+> > 
+> >     // Optional: Avoid useless expensive work
+> >     if (hmm_range_needs_retry(&range))
+> >        goto again;
+> >     hmm_range_(touch vmas)
+> > 
+> >     take_lock(driver->update);
+> >     if (hmm_range_end(&range) {
+> >         release_lock(driver->update);
+> >         goto again;
+> >     }
+> >     // Finish driver updates
+> >     release_lock(driver->update);
+> > 
+> >     // Releases mmap_sem
+> >     hmm_range_unregister_and_unlock(&range);
+> > 
+> > What do you think?
+> > 
+> > Is it clear?
+> > 
+> > Jason
+> > 
+> 
+> Are you talking about acquiring mmap_sem in hmm_range_start_and_lock()?
+> Usually, the fault code has to lock mmap_sem for read in order to
+> call find_vma() so it can set range.vma.
 
-> On Jun 7, 2019, at 11:58 AM, Dave Hansen <dave.hansen@intel.com> wrote:
->=20
-> On 6/7/19 11:29 AM, Andy Lutomirski wrote:
-> ...
->>> I think this new MSR probably needs to get included in oops output when
->>> CET is enabled.
->>=20
->> This shouldn=E2=80=99t be able to OOPS because it only happens at CPL 3,
->> right?  We should put it into core dumps, though.
->=20
-> Good point.
->=20
-> Yu-cheng, can you just confirm that the bitmap can't be referenced in
-> ring-0, no matter what?  We should also make sure that no funny business
-> happens if we put an address in the bitmap that faults, or is
-> non-canonical.  Do we have any self-tests for that?
->=20
-> Let's say userspace gets a fault on this.  Do they have the
-> introspection capability to figure out why they faulted, say in their
-> signal handler?
+> If HMM drops mmap_sem - which I don't think it should, just return an
+> error to tell the caller to drop mmap_sem and retry - the find_vma()
+> will need to be repeated as well.
 
-We need to stick the tracker state in the sigcontext somewhere.
+Overall I don't think it makes a lot of sense to sleep for retry in
+hmm_range_start_and_lock() while holding mmap_sem. It would be better
+to drop that lock, sleep, then re-acquire it as part of the hmm logic.
 
-Did we end up defining a signal frame shadow stack token?
+The find_vma should be done inside the critical section created by
+hmm_range_start_and_lock(), not before it. If we are retrying then we
+already slept and the additional CPU cost to repeat the find_vma is
+immaterial, IMHO?
 
->=20
->>> Why don't we require that a VMA be in place for the entire bitmap?
->>> Don't we need a "get" prctl function too in case something like a JIT is=
+Do you see a reason why the find_vma() ever needs to be before the
+'again' in my above example? range.vma does not need to be set for
+range_register.
 
->>> running and needs to find the location of this bitmap to set bits itself=
-?
->>>=20
->>> Or, do we just go whole-hog and have the kernel manage the bitmap
->>> itself. Our interface here could be:
->>>=20
->>>   prctl(PR_MARK_CODE_AS_LEGACY, start, size);
->>>=20
->>> and then have the kernel allocate and set the bitmap for those code
->>> locations.
->>=20
->> Given that the format depends on the VA size, this might be a good
->> idea.
->=20
-> Yeah, making userspace know how large the address space is or could be
-> is rather nasty, especially if we ever get any fancy CPU features that
-> eat up address bits (a la ARM top-byte-ignore or SPARC ADI).
+> I'm also not sure about acquiring the mmap_sem for write as way to
+> mitigate thrashing. It seems to me that if a device and a CPU are
+> both faulting on the same page,
 
-That gets extra bad if we ever grow user code that uses it but is unaware. I=
-t could poke the wrong part of the bitmap.
+One of the reasons to prefer this approach is that it means we don't
+need to keep track of which ranges we are faulting, and if there is a
+lot of *unrelated* fault activity (unlikely?) we can resolve it using
+mmap sem instead of this elaborate ranges scheme and related
+locking. 
 
->=20
->> Hmm.  Can we be creative and skip populating it with zeros?  The CPU
-> should only ever touch a page if we miss an ENDBR on it, so, in normal
-> operation, we don=E2=80=99t need anything to be there.  We could try to pr=
-event
-> anyone from *reading* it outside of ENDBR tracking if we want to avoid
-> people accidentally wasting lots of memory by forcing it to be fully
-> populated when the read it.
->=20
-> Won't reads on a big, contiguous private mapping get the huge zero page
-> anyway?
+This would reduce the overall work in the page fault and
+invalidate_start/end paths for the common uncontended cases.
 
-The zero pages may be free, but the page tables could be decently large.  Do=
-es the core mm code use huge, immense, etc huge zero pages?  Or can it synth=
-esize them by reusing page table pages that map zeros?
+> some sort of backoff delay is needed to let one side or the other
+> make some progress.
 
->=20
->> The one downside is this forces it to be per-mm, but that seems like
->> a generally reasonable model anyway.
->=20
-> Yeah, practically, you could only make it shared if you shared the
-> layout of all code in the address space.  I'm sure the big database(s)
-> do that cross-process, but I bet nobody else does.  User ASLR
-> practically guarantees that nobody can do this.
+What the write side of the mmap_sem would do is force the CPU and
+device to cleanly take turns. Once the device pages are registered
+under the write side the CPU will have to wait in invalidate_start for
+the driver to complete a shootdown, then the whole thing starts all
+over again. 
 
-I meant per-mm instead of per-task.
+It is certainly imaginable something could have a 'min life' timer for
+a device mapping and hold mm invalidate_start, and device pagefault
+for that min time to promote better sharing.
+
+But, if we don't use the mmap_sem then we can livelock and the device
+will see an unrecoverable error from the timeout which means we have
+risk that under load the system will simply obscurely fail. This seems
+unacceptable to me..
+
+Particularly since for the ODP use case the issue is not trashing
+migration as a GPU might have, but simple system stability under swap
+load. We do not want the ODP pagefault to permanently fail due to
+timeout if the VMA is still valid..
+
+Jason
 
