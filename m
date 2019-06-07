@@ -2,266 +2,224 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B83CC2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:12:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EEBEC468BC
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:24:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E8C1A20868
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:12:19 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="GwkD8xsC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8C1A20868
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 0634D208C3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:24:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0634D208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 866D96B000A; Fri,  7 Jun 2019 14:12:19 -0400 (EDT)
+	id 725096B000A; Fri,  7 Jun 2019 14:24:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7EFD36B000C; Fri,  7 Jun 2019 14:12:19 -0400 (EDT)
+	id 6D5B16B000C; Fri,  7 Jun 2019 14:24:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 68F1D6B000E; Fri,  7 Jun 2019 14:12:19 -0400 (EDT)
+	id 59D736B000E; Fri,  7 Jun 2019 14:24:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 444006B000A
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 14:12:19 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id t141so2771361ywe.23
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 11:12:19 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 223226B000A
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 14:24:25 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id a125so2056183pfa.13
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 11:24:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=yvViGcleFu6fAY5Z1ueRI2Sd+W1uzOgNJahahekeWt4=;
-        b=AeNUpdWdAJxTLEWdOEVWrsNyHiM7NQEQqePqwhPvBUQ+5xvK2oEBSFSpmrDogIxbTV
-         uYvwj4Cvh1jcdZKkcGy1UfE0cksGLyRsLOCGgyZKxD6xUEJWlQ1zGe+uHbNzADVam7wR
-         ENdwy3kjy/uMo9Ja54/kVV5pnwjSkChyrY52ej0Ex/a5E9soJfWjyGEA88a+1nKody0v
-         4RkGN5nQhFNHs2DsKbq9QshDV1qemqyDA1SLHzlh3buwyHBBfeAyOsV+crExw/k57OnY
-         t2F7OAwTMuww5Bofke4eXDM1zAwsosdCXmNfdsT/FLxCJ1xjtbYp3eSKF771otd4C3Bw
-         LWzg==
-X-Gm-Message-State: APjAAAWJWf9wWtlMbsaKlD+6fAwKWZ4gpk2Nz8EWz0XwsGsorSR9bzIU
-	RCXytM6peSVmXhW8NbvdMaL6xrQ2ZmGPhHUJIQ8DIvQSidRMaGAH0dUoVVT4P1CTb4tUENINzmg
-	/VyPf9e0BUerGabppzFHQbrahkeB7V45V9iuK3OplquMFYz81yukRSx9St0Zc2BnT+Q==
-X-Received: by 2002:a81:6987:: with SMTP id e129mr24474186ywc.283.1559931139036;
-        Fri, 07 Jun 2019 11:12:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyzc5E5o8LBOsh03L4I2WFG7Vt5UYAHTBmp0Xge4eF0Wdrv1mUkWGn0IZFy5M+zmJ/DXGnd
-X-Received: by 2002:a81:6987:: with SMTP id e129mr24474145ywc.283.1559931138271;
-        Fri, 07 Jun 2019 11:12:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559931138; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=AuU/VNKf1YtvmXoEFYggZ1/lCpWn/lWad8fS25D+J4M=;
+        b=rI5/+SvZwK95C4gEv0Hk2t44gJzmnSNRAKraowpbDF10e70IcpTu5PwpYB+V1Zeb9J
+         B6TLftVrwFd+4jXqhSCqGqgtqm87ZNZxI2KicA9mBpRmfzgTwIhw1a7G6xucROmzl2nn
+         5P4Z4S42EUySTIzvM+ubEXyXT5ffimoAz2qQgrzgKYS7sK/Gl/YRZ/60vpkGlTsZTG03
+         MORRHwFcb4Cig/vNCsyZNWmiAP+TW3mga41LNs5KrjbtahE1ARZUeubKP4u/wA3PBXer
+         W6D8Epelvqe2EEWGSdzLZq4yoAQCswpoGdKP1VcTssEMNsPUmkFg5VKJQNmYsS/6uIso
+         gNbg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUNcPp54EkgWIs64Chmj7fsCdgI5At5ZHVFLjM7FinL15C31bmP
+	PCDegp2AqM2N4VYFlUbGhL5pTV4+I6PV1/KiY9dsuZlgVUYI+aCf6VF5AWl6SyLv/kDzITuDG/w
+	TIXbgvxus4FluIkjnfg0GQjkOBRHkcnvTKcf295EV5voTM0K2vlLYVZ8tm3l0VDOrsQ==
+X-Received: by 2002:a63:1642:: with SMTP id 2mr4228819pgw.230.1559931864653;
+        Fri, 07 Jun 2019 11:24:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxcx9laXtw3pjvICw/hhHD09cxOko+hQtmrioswgQyylopy8NMDQuhwlOAO1lMpjW9YEEgT
+X-Received: by 2002:a63:1642:: with SMTP id 2mr4228672pgw.230.1559931862965;
+        Fri, 07 Jun 2019 11:24:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559931862; cv=none;
         d=google.com; s=arc-20160816;
-        b=lbme1Kn21nqsnx06fX0eFARm5YE7GYXTgjE2eLSQrTS4kF45E3HylWd22XUl3kCCHt
-         j7AjGXDRKO/6SrKN96siNDGOAK4xxkpDyTHZGj9vI8PITrp3UYyxgWJW1xpAmw2//tRK
-         +mW2lfiAiw75ei0KjRznK8EZwg6iyLbeZH/aumyGyTpL7wWOfTpDVK7cG9TB4WKHwItD
-         eBYlh1PwFhv++sYetJFNdzCRZ5qDOAxdbGTneNL3I9FIAFPGCIlvM0Kbutqv1yinAD0+
-         AqY481YyhPsO1x57MjRYGxNg+1VIa/57hgNe2mdl6DA3KwAnz16aJaAmEVnMiJ9EYOp3
-         c9iQ==
+        b=gxnCLdxu/jPPybXlrFa8nnc9/hkUHDEovuUvV0YaTAgmgafXUmCguln5qsUwmUwE8F
+         xn5uzuMOf8CBc9mjfY2ebQg5bDP+PA3jqWarY8G3BhYpEAO9ygLh2ipBs9syR1pADCKK
+         Pt4ROfxBwrRxRx7FUrBFgoUce0TKD0hkoEPFYiCW7Nqdgjn4HLA49kAjAjA/z/3VOwMd
+         bwToBjSo/SzWSgU8EOudBOOdS6Nn+PzWntcf5AX2kZj8pb5pN8CHaJOlTOILMXcSPtF6
+         00N1SOU2Eje0UrirgrvlvVeBqFUICjszCeDv6qC0uY1GOrUpG26MA1BuBj6BD2HtQQfv
+         yBMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=yvViGcleFu6fAY5Z1ueRI2Sd+W1uzOgNJahahekeWt4=;
-        b=nM+kQ+w/Jgz6lAP+zTJW+y+afR4DuGk/ntkdn+FXR77z6BuRp48gyxlju/dO8d5KeI
-         GfagqURBIYQwy4i/18I+UCTJG8Rwvkn9f609Y3UDZviKDd73ssbvaL2tLnfe4kq/9lR5
-         mKutUJxZOHvV96z5czPbi+YKI8bfYovfzDiM5xR+h7aow5T99PyVNWVXYvUmtnyG1ptF
-         c5Wo0nOawNAAQH/jwpePWEOh7oAQ39zq4/YbTlhopAYJiAxah/PCNWrUIMzeLSQYnTi5
-         jwY+Lelqv34gmBoAukE7ZmbV+5tQsR9L1/E5G6vT1a0E4HDkTCr0no24Wh3IbBDMfcIo
-         p+cg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=AuU/VNKf1YtvmXoEFYggZ1/lCpWn/lWad8fS25D+J4M=;
+        b=tixIZ5pGfzD951RvEI5OY4J7+T5v1bkn+3OExZKP0TyKXKue5GXuRo5xTYTamSAeyz
+         9SYBj2/bSVXCQpq1YCQZenFQmOI4eOhn9qhi4WhclT8dQ9MRenGADGrAmISVHguL0gVW
+         ftlep+BftX+ZIi+FaBv0BxC3mKTUckT2XGVXswpMb1OMq+uRYiCVKTQaSW4nDpaZjFdS
+         pNX5om8jc0e4hTFDp/JNIYctQ4A4cUBsqzHFmbrXxe/CNWZovJn5UdOyTM8e1frHbHAV
+         AlC8wzNQPJghkHIMzIrmULxfkBT+rdiUoVf1Z5FhlnfSZrty5xuQvDiiH0ZhGvEdIIjT
+         fy/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=GwkD8xsC;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id v2si976132ywg.387.2019.06.07.11.12.17
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id h9si2653999plt.8.2019.06.07.11.24.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 11:12:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Fri, 07 Jun 2019 11:24:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=GwkD8xsC;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5cfaa8f10000>; Fri, 07 Jun 2019 11:12:02 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Fri, 07 Jun 2019 11:12:17 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Fri, 07 Jun 2019 11:12:17 -0700
-Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 7 Jun
- 2019 18:12:14 +0000
-Subject: Re: [PATCH v2 hmm 01/11] mm/hmm: fix use after free with struct hmm
- in the mmu notifiers
-To: Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, "John
- Hubbard" <jhubbard@nvidia.com>, <Felix.Kuehling@amd.com>
-CC: <linux-rdma@vger.kernel.org>, <linux-mm@kvack.org>, Andrea Arcangeli
-	<aarcange@redhat.com>, <dri-devel@lists.freedesktop.org>,
-	<amd-gfx@lists.freedesktop.org>, Jason Gunthorpe <jgg@mellanox.com>
-References: <20190606184438.31646-1-jgg@ziepe.ca>
- <20190606184438.31646-2-jgg@ziepe.ca>
-X-Nvconfidentiality: public
-From: Ralph Campbell <rcampbell@nvidia.com>
-Message-ID: <377cadfa-180e-9a6a-49df-0c2c27ae6fb3@nvidia.com>
-Date: Fri, 7 Jun 2019 11:12:14 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.0
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga001.fm.intel.com ([10.253.24.23])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 11:24:21 -0700
+X-ExtLoop1: 1
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga001.fm.intel.com with ESMTP; 07 Jun 2019 11:24:21 -0700
+Date: Fri, 7 Jun 2019 11:25:35 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Dan Williams <dan.j.williams@intel.com>, Theodore Ts'o <tytso@mit.edu>,
+	Jeff Layton <jlayton@kernel.org>,
+	Dave Chinner <david@fromorbit.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org, Jason Gunthorpe <jgg@ziepe.ca>,
+	linux-rdma@vger.kernel.org
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190607182534.GC14559@iweiny-DESK2.sc.intel.com>
+References: <20190606014544.8339-1-ira.weiny@intel.com>
+ <20190606104203.GF7433@quack2.suse.cz>
+ <20190606220329.GA11698@iweiny-DESK2.sc.intel.com>
+ <20190607110426.GB12765@quack2.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20190606184438.31646-2-jgg@ziepe.ca>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1559931122; bh=yvViGcleFu6fAY5Z1ueRI2Sd+W1uzOgNJahahekeWt4=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=GwkD8xsCGHW0KQ7XDbv8wawHd+SJN+lRqrAQpT/q6IxU90uItm8+7KTvX+8unVVF7
-	 Vz00qV1V8aOiQueD3BHPHHGFZQnANCqbwbnRRbBFwh3oJhF3aWr4/aVmfy0TkhKL+W
-	 lmrPKNeaNFVPyriJVct/0VeUfyZ1MufFzoGvniQz+6lRXlnYRx5V3xeqPhkXlq2I54
-	 ZO79+tNGlAT4Ihs91XWeiX8VLNCv226zJTLdk0nY1y9xEBj/6xZQqrOC13Y2hVUrI/
-	 ZBcxJUBuG8iMwDX7QBnuTnYytNPULKEzM6tmkNK9OnPziujs0OLxsvUVUEuBUQVLdA
-	 TOS8OF+mbpUPw==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190607110426.GB12765@quack2.suse.cz>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Jun 07, 2019 at 01:04:26PM +0200, Jan Kara wrote:
+> On Thu 06-06-19 15:03:30, Ira Weiny wrote:
+> > On Thu, Jun 06, 2019 at 12:42:03PM +0200, Jan Kara wrote:
+> > > On Wed 05-06-19 18:45:33, ira.weiny@intel.com wrote:
+> > > > From: Ira Weiny <ira.weiny@intel.com>
+> > > 
+> > > So I'd like to actually mandate that you *must* hold the file lease until
+> > > you unpin all pages in the given range (not just that you have an option to
+> > > hold a lease). And I believe the kernel should actually enforce this. That
+> > > way we maintain a sane state that if someone uses a physical location of
+> > > logical file offset on disk, he has a layout lease. Also once this is done,
+> > > sysadmin has a reasonably easy way to discover run-away RDMA application
+> > > and kill it if he wishes so.
+> > 
+> > Fair enough.
+> > 
+> > I was kind of heading that direction but had not thought this far forward.  I
+> > was exploring how to have a lease remain on the file even after a "lease
+> > break".  But that is incompatible with the current semantics of a "layout"
+> > lease (as currently defined in the kernel).  [In the end I wanted to get an RFC
+> > out to see what people think of this idea so I did not look at keeping the
+> > lease.]
+> > 
+> > Also hitch is that currently a lease is forcefully broken after
+> > <sysfs>/lease-break-time.  To do what you suggest I think we would need a new
+> > lease type with the semantics you describe.
+> 
+> I'd do what Dave suggested - add flag to mark lease as unbreakable by
+> truncate and teach file locking core to handle that. There actually is
+> support for locks that are not broken after given timeout so there
+> shouldn't be too many changes need.
+>  
+> > Previously I had thought this would be a good idea (for other reasons).  But
+> > what does everyone think about using a "longterm lease" similar to [1] which
+> > has the semantics you proppose?  In [1] I was not sure "longterm" was a good
+> > name but with your proposal I think it makes more sense.
+> 
+> As I wrote elsewhere in this thread I think FL_LAYOUT name still makes
+> sense and I'd add there FL_UNBREAKABLE to mark unusal behavior with
+> truncate.
 
+Ok I want to make sure I understand what you and Dave are suggesting.
 
-On 6/6/19 11:44 AM, Jason Gunthorpe wrote:
-> From: Jason Gunthorpe <jgg@mellanox.com>
-> 
-> mmu_notifier_unregister_no_release() is not a fence and the mmu_notifier
-> system will continue to reference hmm->mn until the srcu grace period
-> expires.
-> 
-> Resulting in use after free races like this:
-> 
->           CPU0                                     CPU1
->                                                 __mmu_notifier_invalidate_range_start()
->                                                   srcu_read_lock
->                                                   hlist_for_each ()
->                                                     // mn == hmm->mn
-> hmm_mirror_unregister()
->    hmm_put()
->      hmm_free()
->        mmu_notifier_unregister_no_release()
->           hlist_del_init_rcu(hmm-mn->list)
-> 			                           mn->ops->invalidate_range_start(mn, range);
-> 					             mm_get_hmm()
->        mm->hmm = NULL;
->        kfree(hmm)
->                                                       mutex_lock(&hmm->lock);
-> 
-> Use SRCU to kfree the hmm memory so that the notifiers can rely on hmm
-> existing. Get the now-safe hmm struct through container_of and directly
-> check kref_get_unless_zero to lock it against free.
-> 
-> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+Are you suggesting that we have something like this from user space?
 
-You can add
-Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+	fcntl(fd, F_SETLEASE, F_LAYOUT | F_UNBREAKABLE);
 
-> ---
-> v2:
-> - Spell 'free' properly (Jerome/Ralph)
-> ---
->   include/linux/hmm.h |  1 +
->   mm/hmm.c            | 25 +++++++++++++++++++------
->   2 files changed, 20 insertions(+), 6 deletions(-)
 > 
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index 092f0234bfe917..688c5ca7068795 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -102,6 +102,7 @@ struct hmm {
->   	struct mmu_notifier	mmu_notifier;
->   	struct rw_semaphore	mirrors_sem;
->   	wait_queue_head_t	wq;
-> +	struct rcu_head		rcu;
->   	long			notifiers;
->   	bool			dead;
->   };
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 8e7403f081f44a..547002f56a163d 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -113,6 +113,11 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
->   	return NULL;
->   }
->   
-> +static void hmm_free_rcu(struct rcu_head *rcu)
-> +{
-> +	kfree(container_of(rcu, struct hmm, rcu));
-> +}
-> +
->   static void hmm_free(struct kref *kref)
->   {
->   	struct hmm *hmm = container_of(kref, struct hmm, kref);
-> @@ -125,7 +130,7 @@ static void hmm_free(struct kref *kref)
->   		mm->hmm = NULL;
->   	spin_unlock(&mm->page_table_lock);
->   
-> -	kfree(hmm);
-> +	mmu_notifier_call_srcu(&hmm->rcu, hmm_free_rcu);
->   }
->   
->   static inline void hmm_put(struct hmm *hmm)
-> @@ -153,10 +158,14 @@ void hmm_mm_destroy(struct mm_struct *mm)
->   
->   static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
->   {
-> -	struct hmm *hmm = mm_get_hmm(mm);
-> +	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
->   	struct hmm_mirror *mirror;
->   	struct hmm_range *range;
->   
-> +	/* hmm is in progress to free */
-> +	if (!kref_get_unless_zero(&hmm->kref))
-> +		return;
-> +
->   	/* Report this HMM as dying. */
->   	hmm->dead = true;
->   
-> @@ -194,13 +203,15 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
->   static int hmm_invalidate_range_start(struct mmu_notifier *mn,
->   			const struct mmu_notifier_range *nrange)
->   {
-> -	struct hmm *hmm = mm_get_hmm(nrange->mm);
-> +	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
->   	struct hmm_mirror *mirror;
->   	struct hmm_update update;
->   	struct hmm_range *range;
->   	int ret = 0;
->   
-> -	VM_BUG_ON(!hmm);
-> +	/* hmm is in progress to free */
-> +	if (!kref_get_unless_zero(&hmm->kref))
-> +		return 0;
->   
->   	update.start = nrange->start;
->   	update.end = nrange->end;
-> @@ -245,9 +256,11 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
->   static void hmm_invalidate_range_end(struct mmu_notifier *mn,
->   			const struct mmu_notifier_range *nrange)
->   {
-> -	struct hmm *hmm = mm_get_hmm(nrange->mm);
-> +	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
->   
-> -	VM_BUG_ON(!hmm);
-> +	/* hmm is in progress to free */
-> +	if (!kref_get_unless_zero(&hmm->kref))
-> +		return;
->   
->   	mutex_lock(&hmm->lock);
->   	hmm->notifiers--;
+> > > - probably I'd just transition all gup_longterm()
+> > > users to a saner API similar to the one we have in mm/frame_vector.c where
+> > > we don't hand out page pointers but an encapsulating structure that does
+> > > all the necessary tracking.
+> > 
+> > I'll take a look at that code.  But that seems like a pretty big change.
 > 
+> I was looking into that yesterday before proposing this and there aren't
+> than many gup_longterm() users and most of them anyway just stick pages
+> array into their tracking structure and then release them once done. So it
+> shouldn't be that complex to convert to a new convention (and you have to
+> touch all gup_longterm() users anyway to teach them track leases etc.).
+
+I think in the direction we are heading this becomes more attractive for sure.
+For me though it will take some time.
+
+Should we convert the frame_vector over to this new mechanism?  (Or more
+accurately perhaps, add to frame_vector and use it?)  It seems bad to have "yet
+another object" returned from the pin pages interface...
+
+And I think this is related to what Christoph Hellwig is doing with bio_vec and
+dma.  Really we want drivers out of the page processing business.
+
+So for now I'm going to move forward with the idea of handing "some object" to
+the GUP callers and figure out the lsof stuff, and let bigger questions like
+this play out a bit more before I try and work with that code.  Fair?
+
+> 
+> > > Removing a lease would need to block until all
+> > > pins are released - this is probably the most hairy part since we need to
+> > > handle a case if application just closes the file descriptor which would
+> > > release the lease but OTOH we need to make sure task exit does not deadlock.
+> > > Maybe we could block only on explicit lease unlock and just drop the layout
+> > > lease on file close and if there are still pinned pages, send SIGKILL to an
+> > > application as a reminder it did something stupid...
+> > 
+> > As presented at LSFmm I'm not opposed to killing a process which does not
+> > "follow the rules".  But I'm concerned about how to handle this across a fork.
+> > 
+> > Limiting the open()/LEASE/GUP/close()/SIGKILL to a specific pid "leak"'s pins
+> > to a child through the RDMA context.  This was the major issue Jason had with
+> > the SIGBUS proposal.
+> > 
+> > Always sending a SIGKILL would prevent an RDMA process from doing something
+> > like system("ls") (would kill the child unnecessarily).  Are we ok with that?
+> 
+> I answered this in another email but system("ls") won't kill anybody.
+> fork(2) just creates new file descriptor for the same file and possibly
+> then closes it but since there is still another file descriptor for the
+> same struct file, the "close" code won't trigger.
+
+Agreed.  I was wrong.  Sorry.
+
+But if we can keep track of who has the pins in lsof can we agree no process
+needs to be SIGKILL'ed?  Admins can do this on their own "killing" if they
+really need to stop the use of these files, right?
+
+Ira
 
