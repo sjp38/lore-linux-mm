@@ -2,288 +2,258 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 12364C2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:39:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57BB8C2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:43:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A3BE20840
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:39:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="JpoOI2cB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A3BE20840
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 0E6AB20840
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:43:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E6AB20840
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1AA866B0276; Fri,  7 Jun 2019 18:39:12 -0400 (EDT)
+	id 947A46B0276; Fri,  7 Jun 2019 18:43:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 15B0E6B0278; Fri,  7 Jun 2019 18:39:12 -0400 (EDT)
+	id 8D1916B0278; Fri,  7 Jun 2019 18:43:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 04A3B6B0279; Fri,  7 Jun 2019 18:39:11 -0400 (EDT)
+	id 7BFDD6B0279; Fri,  7 Jun 2019 18:43:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D90536B0276
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 18:39:11 -0400 (EDT)
-Received: by mail-yb1-f197.google.com with SMTP id k142so3320580ybk.20
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 15:39:11 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 431056B0276
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 18:43:21 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id i3so2231674plb.8
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 15:43:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:from:to:cc:references:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=eTTUWJi61h5qqJA3yxmX9O8Uva/UfogeyAnkiaxrKMg=;
-        b=LrbG3sTMxop380TYmFjhFc0RQ90W2uNW42aY6X10Mm11SXOesWyhuJeswiMintgL9l
-         10AVgivXidI2L38a8OJOUTzxVu+rTSgRjf816/q9//+F9AeOSj0iBEx2JS+8Ns8NBFqS
-         bJkmld6tITuTfdCrR683KrgKejg5XGa/Q4UbwaiLrnLXBkOBcw7WlS9VCnugBZD9V0ac
-         qdRrYKztiC9f07FyOlpHGi6WFoVz9Kl8Z1yPXOP5vH2lU2LPPUfGpeZIxIAHGPQQ0kOH
-         pmmBM7A6fNEt3rf+UxJyaan7SmbtsZNjBoMVAHPY+St6w+Qss4Itfw0RQJzbk1zr/cqv
-         30PQ==
-X-Gm-Message-State: APjAAAUv2+lKebO87AGjIogFF4S9Mt+R+GuH7ghXj0/rTgitZ46MI2yZ
-	7lbvzcGnjZrncFvXha3oqJTBc0/DVValz6pRjnnkOYRn/C7ePu/5Jxsfbmd/LtsKUiSdMwf5jkA
-	Wla1KrmLxbDaKF4jboo3jZ7WdPr7QiPRaSZY+dsJOKQjqfBproAsjwPalvVNIUoTNZw==
-X-Received: by 2002:a81:374c:: with SMTP id e73mr20492156ywa.379.1559947151518;
-        Fri, 07 Jun 2019 15:39:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyYf4HLzw5thuy17BroQv2tPNS7412khvcpiYXW2NWWdaI34NN9zclthy6zcbn+jM6uITlF
-X-Received: by 2002:a81:374c:: with SMTP id e73mr20492133ywa.379.1559947150887;
-        Fri, 07 Jun 2019 15:39:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559947150; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Cw1ZOtFKxtKpnp5wfJTyVdugntcUO5xL68Kaj8AEsJg=;
+        b=HHMWPuazj8fpobew8S3yvqzXU+t0xtQeY+ZXBa/cULK7RQ4qLmT97AJUiskZuQOhod
+         6ybOXIYNEeeKL1SewCG1RfD0F3l77BnXBi9vZDX4XaMXSlzEApeaUN2S1R9ikyEiPIqS
+         m6EemQ7BilVOJ/y8hyhPU1SEZYbM24/PR+Gjw2nrOKHu9jn/M9AT2KLr4GKdlBM4rNtl
+         9cMVYoy0oyLtxixdfs9TQqaRZTa8FOV0IfUzgZgqSh9t4R9g95CBQM3pJCPl4UAGNDAm
+         XNea6iHSqB2InzmpYziTA7F7LFqP2LdalZjvGeobL4t5Bl5zL9OjfA6uwcnvOGlfXUWR
+         c+Vw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUxuzq5+8DxWJbF3xQna+cLUGW13M95UdQAqX9UxSpW0RJm+Bzl
+	5B5KX4NJjEI4aa4iiTDuv/TFwmL4y13t/zb1d0GqwLL6Si68IWnDtbWuGHtJ8uKdQ9zQ9gbFEv0
+	58CVFu0NGV3z1u81Sm07v54+yGYmaVII97zv3hsPOUUPfRasIU+g5pXVZqc6K9Plppw==
+X-Received: by 2002:a63:fa16:: with SMTP id y22mr5143417pgh.15.1559947400843;
+        Fri, 07 Jun 2019 15:43:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxe9vmRGmrPFVosm3GyEVk5tqCw5VEnmRqZd2t37lq0QolX5PmG2mKfMd5t0zzpZ5euMPGk
+X-Received: by 2002:a63:fa16:: with SMTP id y22mr5143380pgh.15.1559947400054;
+        Fri, 07 Jun 2019 15:43:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559947400; cv=none;
         d=google.com; s=arc-20160816;
-        b=aqrH6yOD+DICPlIUfI7YsBM5p5yobO/L3l+T6RDFUDEooBhIJShyqIcFG35CYAA3/9
-         nXmvliUdHUXQFJDKf410kcWPs5vuk6gXJyEFCEhPwtMC7Vlf76sRRdT9JEB1WU/YxJi/
-         VyLZ/wpHf7GQL1DNKqf/ELctTkWxdvn5+W1CTFlfqbhePHiITqf+uHmDwZ+S7/xYt/Na
-         U/Sn6CKiARi0qSl5pcsFg7PUS/Ya0i03GfXtudZ9juUU0WlaA0VJj0lTl5WNE5+DZk2q
-         ogkeWhD5qA0y63ehOdndwWFmikQQaaAG6LY9zGcFjfRuiPEW/HZ8iK6GmGotHEikeKx7
-         HiYQ==
+        b=f61HIDT0h2ANQUjkmbi+WGFI7ylM1HNHCIQRRJ12zuNvZo6eezTn66zEwxqHNCSyHF
+         y2wpgg114jVykLe5zMA6CHJVyGGgTfp23MsOWBZBtZl+N30oH/BavmS8QjN4Hgfeg31e
+         EaYKKHX+/hMPLM7eSSxxy20Elo6U2MF+aa65ZmT+VxeNwROh05TV3383BtnT/RPSsKdQ
+         1gqTPN7E6JHpUZnIWjIXBWNXf0olVIkidCLaWObR7JQf+JsTkC0GK2LNBXSX3NGekY/n
+         7GKuQt4y9mUbY/zEAlvwxTFExsMo2GIT7KAs+4z3oS+J4+VD4NOtvImb4DVjIb37qSmb
+         3ebA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:references:cc
-         :to:from:subject;
-        bh=eTTUWJi61h5qqJA3yxmX9O8Uva/UfogeyAnkiaxrKMg=;
-        b=AD90KOimTZurqUyqAtl1MdY+14hzmn0Mbx568Z3Bl5FXTEjgqsh2JZv4UOyOeTKvLN
-         hSlgdZ+zAdVpwAiJEjDjWBHiQ5zNoXtsXkmvgb9fY0Ct9Bw0nVXIKZzJ6vD0gWlGp6QY
-         1vxWJNIuyVtOMj1nbUSXeALhybGRv4fkM2FhHyDu9qLtqnpAbE1FZi2vDDIoVR2MI8KF
-         meZgyzHo0kBp+Egx3iWhLG14HkOTQkHo5jDmZ8336115p+P7bu4V5FL/LVI4Hp2f4bsf
-         oQnEuZ/JAXwKG8Hv4haNsxOaa/OzY68TOrZw+wfO7eB/Wc9Xa0z4YIvT6mNMoPEEZmPJ
-         w1qA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Cw1ZOtFKxtKpnp5wfJTyVdugntcUO5xL68Kaj8AEsJg=;
+        b=Snm+RG24PkzKEH59aU5TGkl22+jC4lXd22CxVdXJTxnBlgOkFk+YU3U/rdifWlOXZQ
+         RHQ0mYiO7WTJobfKIWQGQ/yfOlkUNUkaLidfqDuleu0mc2t1tvAC9ZGZzGfnGUcqPE9d
+         NjvdwjijZE+jFtCeDlniknosrbQUmb1h2FXQ84op/XeBBZIgTYX0Y8nkOPvT7wyxtInk
+         LB9mYsIloo9esGcJbgowhWJWF07jHZSGo/cEIxbgBIAP0Kd5uVPjVe1KLUvf0/20/mSK
+         ZndHtAEXFt8+A7jjjhDuv65ZPxmgjqv0WNM6NvHiQOj4NUWXUtBGjJsAb03JC/NltvCf
+         BQeQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=JpoOI2cB;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id d82si1112627ywa.103.2019.06.07.15.39.10
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id e64si3353048pfe.178.2019.06.07.15.43.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 15:39:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        Fri, 07 Jun 2019 15:43:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=JpoOI2cB;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5cfae78d0001>; Fri, 07 Jun 2019 15:39:09 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Fri, 07 Jun 2019 15:39:09 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Fri, 07 Jun 2019 15:39:09 -0700
-Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 7 Jun
- 2019 22:39:07 +0000
-Subject: Re: [PATCH v2 hmm 02/11] mm/hmm: Use hmm_mirror not mm as an argument
- for hmm_range_register
-From: Ralph Campbell <rcampbell@nvidia.com>
-To: Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, "John
- Hubbard" <jhubbard@nvidia.com>, <Felix.Kuehling@amd.com>
-CC: <linux-rdma@vger.kernel.org>, <linux-mm@kvack.org>, Andrea Arcangeli
-	<aarcange@redhat.com>, <dri-devel@lists.freedesktop.org>,
-	<amd-gfx@lists.freedesktop.org>, Jason Gunthorpe <jgg@mellanox.com>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from orsmga007.jf.intel.com ([10.7.209.58])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 15:43:19 -0700
+X-ExtLoop1: 1
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga007.jf.intel.com with ESMTP; 07 Jun 2019 15:43:19 -0700
+Date: Fri, 7 Jun 2019 15:44:32 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jerome Glisse <jglisse@redhat.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com,
+	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org,
+	Jason Gunthorpe <jgg@mellanox.com>
+Subject: Re: [PATCH v2 hmm 04/11] mm/hmm: Simplify hmm_get_or_create and make
+ it reliable
+Message-ID: <20190607224432.GF14559@iweiny-DESK2.sc.intel.com>
 References: <20190606184438.31646-1-jgg@ziepe.ca>
- <20190606184438.31646-3-jgg@ziepe.ca>
- <4a391bd4-287c-5f13-3bca-c6a46ff8d08c@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <e460ddf5-9ed3-7f3b-98ce-526c12fdb8b1@nvidia.com>
-Date: Fri, 7 Jun 2019 15:39:06 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.0
+ <20190606184438.31646-5-jgg@ziepe.ca>
 MIME-Version: 1.0
-In-Reply-To: <4a391bd4-287c-5f13-3bca-c6a46ff8d08c@nvidia.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1559947149; bh=eTTUWJi61h5qqJA3yxmX9O8Uva/UfogeyAnkiaxrKMg=;
-	h=X-PGP-Universal:Subject:From:To:CC:References:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=JpoOI2cBmdaAZidTMJPSl0KSbBKE2o4ZRJdWcugT6orV5WnAe0KdsGUXOGpuQQ0LW
-	 m7osQ9wOTTxkmKPKnK09Qt6i7dn5T367HVSBBLDJRoRQ7Kv6a6+9l3TYvyZkc1q+gh
-	 4iqORp/qQZBmwO9Sei+lW8GghFirA8MA1f3bJCPvu7DgLJKRDaPmRAYgVijn5AoCWW
-	 eWmt1e0vAgP9gCIK2Fla2A3qItjGNnCi2Nm61BH0eUNToknBTqap9RPaibIW3jMXVv
-	 6xmNjJCmplZWRUsIbaXUsE5WEblrvAbyzB1lMSir10Ioo7ikCAQ90cZ2QC7TFVg1Su
-	 wkEP7XsQ0osAA==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190606184438.31646-5-jgg@ziepe.ca>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Jun 06, 2019 at 03:44:31PM -0300, Jason Gunthorpe wrote:
+> From: Jason Gunthorpe <jgg@mellanox.com>
+> 
+> As coded this function can false-fail in various racy situations. Make it
+> reliable by running only under the write side of the mmap_sem and avoiding
+> the false-failing compare/exchange pattern.
+> 
+> Also make the locking very easy to understand by only ever reading or
+> writing mm->hmm while holding the write side of the mmap_sem.
+> 
+> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 
-On 6/7/19 11:24 AM, Ralph Campbell wrote:
->=20
-> On 6/6/19 11:44 AM, Jason Gunthorpe wrote:
->> From: Jason Gunthorpe <jgg@mellanox.com>
->>
->> Ralph observes that hmm_range_register() can only be called by a driver
->> while a mirror is registered. Make this clear in the API by passing in=20
->> the
->> mirror structure as a parameter.
->>
->> This also simplifies understanding the lifetime model for struct hmm, as
->> the hmm pointer must be valid as part of a registered mirror so all we
->> need in hmm_register_range() is a simple kref_get.
->>
->> Suggested-by: Ralph Campbell <rcampbell@nvidia.com>
->> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
->=20
-> You might CC Ben for the nouveau part.
-> CC: Ben Skeggs <bskeggs@redhat.com>
->=20
-> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
->=20
->=20
->> ---
->> v2
->> - Include the oneline patch to nouveau_svm.c
->> ---
->> =C2=A0 drivers/gpu/drm/nouveau/nouveau_svm.c |=C2=A0 2 +-
->> =C2=A0 include/linux/hmm.h=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 |=C2=A0 7 +=
-+++---
->> =C2=A0 mm/hmm.c=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 | 15 ++++++---------
->> =C2=A0 3 files changed, 11 insertions(+), 13 deletions(-)
->>
->> diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.c=20
->> b/drivers/gpu/drm/nouveau/nouveau_svm.c
->> index 93ed43c413f0bb..8c92374afcf227 100644
->> --- a/drivers/gpu/drm/nouveau/nouveau_svm.c
->> +++ b/drivers/gpu/drm/nouveau/nouveau_svm.c
->> @@ -649,7 +649,7 @@ nouveau_svm_fault(struct nvif_notify *notify)
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 range.values =3D =
-nouveau_svm_pfn_values;
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 range.pfn_shift =
-=3D NVIF_VMM_PFNMAP_V0_ADDR_SHIFT;
->> =C2=A0 again:
->> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ret =3D hmm_vma_fault(&range=
-, true);
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 ret =3D hmm_vma_fault(&svmm-=
->mirror, &range, true);
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 if (ret =3D=3D 0)=
- {
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 mutex_lock(&svmm->mutex);
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0 if (!hmm_vma_range_done(&range)) {
->> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
->> index 688c5ca7068795..2d519797cb134a 100644
->> --- a/include/linux/hmm.h
->> +++ b/include/linux/hmm.h
->> @@ -505,7 +505,7 @@ static inline bool hmm_mirror_mm_is_alive(struct=20
->> hmm_mirror *mirror)
->> =C2=A0=C2=A0 * Please see Documentation/vm/hmm.rst for how to use the ra=
-nge API.
->> =C2=A0=C2=A0 */
->> =C2=A0 int hmm_range_register(struct hmm_range *range,
->> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0 struct mm_struct *mm,
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0 struct hmm_mirror *mirror,
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 unsigned long start,
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 unsigned long end,
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 unsigned page_shift);
->> @@ -541,7 +541,8 @@ static inline bool hmm_vma_range_done(struct=20
->> hmm_range *range)
->> =C2=A0 }
->> =C2=A0 /* This is a temporary helper to avoid merge conflict between tre=
-es. */
->> -static inline int hmm_vma_fault(struct hmm_range *range, bool block)
->> +static inline int hmm_vma_fault(struct hmm_mirror *mirror,
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0=C2=A0 struct hmm_range *range, bool block)
->> =C2=A0 {
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 long ret;
->> @@ -554,7 +555,7 @@ static inline int hmm_vma_fault(struct hmm_range=20
->> *range, bool block)
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 range->default_flags =3D 0;
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 range->pfn_flags_mask =3D -1UL;
->> -=C2=A0=C2=A0=C2=A0 ret =3D hmm_range_register(range, range->vma->vm_mm,
->> +=C2=A0=C2=A0=C2=A0 ret =3D hmm_range_register(range, mirror,
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 range->start, range->end,
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 PAGE_SHIFT);
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 if (ret)
->> diff --git a/mm/hmm.c b/mm/hmm.c
->> index 547002f56a163d..8796447299023c 100644
->> --- a/mm/hmm.c
->> +++ b/mm/hmm.c
->> @@ -925,13 +925,13 @@ static void hmm_pfns_clear(struct hmm_range *range=
-,
->> =C2=A0=C2=A0 * Track updates to the CPU page table see include/linux/hmm=
-.h
->> =C2=A0=C2=A0 */
->> =C2=A0 int hmm_range_register(struct hmm_range *range,
->> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0 struct mm_struct *mm,
->> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
-=A0=C2=A0=C2=A0 struct hmm_mirror *mirror,
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 unsigned long start,
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 unsigned long end,
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=
-=C2=A0=C2=A0=C2=A0=C2=A0 unsigned page_shift)
->> =C2=A0 {
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 unsigned long mask =3D ((1UL << page_shif=
-t) - 1UL);
->> -=C2=A0=C2=A0=C2=A0 struct hmm *hmm;
->> +=C2=A0=C2=A0=C2=A0 struct hmm *hmm =3D mirror->hmm;
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 range->valid =3D false;
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 range->hmm =3D NULL;
->> @@ -945,15 +945,12 @@ int hmm_range_register(struct hmm_range *range,
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 range->start =3D start;
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 range->end =3D end;
->> -=C2=A0=C2=A0=C2=A0 hmm =3D hmm_get_or_create(mm);
->> -=C2=A0=C2=A0=C2=A0 if (!hmm)
->> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return -EFAULT;
->> -
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 /* Check if hmm_mm_destroy() was call. */
->> -=C2=A0=C2=A0=C2=A0 if (hmm->mm =3D=3D NULL || hmm->dead) {
->> -=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 hmm_put(hmm);
->> +=C2=A0=C2=A0=C2=A0 if (hmm->mm =3D=3D NULL || hmm->dead)
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return -EFAULT;
->> -=C2=A0=C2=A0=C2=A0 }
->> +
->> +=C2=A0=C2=A0=C2=A0 range->hmm =3D hmm;
->> +=C2=A0=C2=A0=C2=A0 kref_get(&hmm->kref);
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 /* Initialize range to track CPU page tab=
-le updates. */
->> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 mutex_lock(&hmm->lock);
->>
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
 
-I forgot to add that I think you can delete the duplicate
-     "range->hmm =3D hmm;"
-here between the mutex_lock/unlock.
+> ---
+> v2:
+> - Fix error unwind of mmgrab (Jerome)
+> - Use hmm local instead of 2nd container_of (Jerome)
+> ---
+>  mm/hmm.c | 80 ++++++++++++++++++++------------------------------------
+>  1 file changed, 29 insertions(+), 51 deletions(-)
+> 
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index cc7c26fda3300e..dc30edad9a8a02 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -40,16 +40,6 @@
+>  #if IS_ENABLED(CONFIG_HMM_MIRROR)
+>  static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
+>  
+> -static inline struct hmm *mm_get_hmm(struct mm_struct *mm)
+> -{
+> -	struct hmm *hmm = READ_ONCE(mm->hmm);
+> -
+> -	if (hmm && kref_get_unless_zero(&hmm->kref))
+> -		return hmm;
+> -
+> -	return NULL;
+> -}
+> -
+>  /**
+>   * hmm_get_or_create - register HMM against an mm (HMM internal)
+>   *
+> @@ -64,11 +54,20 @@ static inline struct hmm *mm_get_hmm(struct mm_struct *mm)
+>   */
+>  static struct hmm *hmm_get_or_create(struct mm_struct *mm)
+>  {
+> -	struct hmm *hmm = mm_get_hmm(mm);
+> -	bool cleanup = false;
+> +	struct hmm *hmm;
+>  
+> -	if (hmm)
+> -		return hmm;
+> +	lockdep_assert_held_exclusive(&mm->mmap_sem);
+> +
+> +	if (mm->hmm) {
+> +		if (kref_get_unless_zero(&mm->hmm->kref))
+> +			return mm->hmm;
+> +		/*
+> +		 * The hmm is being freed by some other CPU and is pending a
+> +		 * RCU grace period, but this CPU can NULL now it since we
+> +		 * have the mmap_sem.
+> +		 */
+> +		mm->hmm = NULL;
+> +	}
+>  
+>  	hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
+>  	if (!hmm)
+> @@ -83,57 +82,36 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
+>  	hmm->notifiers = 0;
+>  	hmm->dead = false;
+>  	hmm->mm = mm;
+> -	mmgrab(hmm->mm);
+> -
+> -	spin_lock(&mm->page_table_lock);
+> -	if (!mm->hmm)
+> -		mm->hmm = hmm;
+> -	else
+> -		cleanup = true;
+> -	spin_unlock(&mm->page_table_lock);
+>  
+> -	if (cleanup)
+> -		goto error;
+> -
+> -	/*
+> -	 * We should only get here if hold the mmap_sem in write mode ie on
+> -	 * registration of first mirror through hmm_mirror_register()
+> -	 */
+>  	hmm->mmu_notifier.ops = &hmm_mmu_notifier_ops;
+> -	if (__mmu_notifier_register(&hmm->mmu_notifier, mm))
+> -		goto error_mm;
+> +	if (__mmu_notifier_register(&hmm->mmu_notifier, mm)) {
+> +		kfree(hmm);
+> +		return NULL;
+> +	}
+>  
+> +	mmgrab(hmm->mm);
+> +	mm->hmm = hmm;
+>  	return hmm;
+> -
+> -error_mm:
+> -	spin_lock(&mm->page_table_lock);
+> -	if (mm->hmm == hmm)
+> -		mm->hmm = NULL;
+> -	spin_unlock(&mm->page_table_lock);
+> -error:
+> -	mmdrop(hmm->mm);
+> -	kfree(hmm);
+> -	return NULL;
+>  }
+>  
+>  static void hmm_free_rcu(struct rcu_head *rcu)
+>  {
+> -	kfree(container_of(rcu, struct hmm, rcu));
+> +	struct hmm *hmm = container_of(rcu, struct hmm, rcu);
+> +
+> +	down_write(&hmm->mm->mmap_sem);
+> +	if (hmm->mm->hmm == hmm)
+> +		hmm->mm->hmm = NULL;
+> +	up_write(&hmm->mm->mmap_sem);
+> +	mmdrop(hmm->mm);
+> +
+> +	kfree(hmm);
+>  }
+>  
+>  static void hmm_free(struct kref *kref)
+>  {
+>  	struct hmm *hmm = container_of(kref, struct hmm, kref);
+> -	struct mm_struct *mm = hmm->mm;
+> -
+> -	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, mm);
+>  
+> -	spin_lock(&mm->page_table_lock);
+> -	if (mm->hmm == hmm)
+> -		mm->hmm = NULL;
+> -	spin_unlock(&mm->page_table_lock);
+> -
+> -	mmdrop(hmm->mm);
+> +	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, hmm->mm);
+>  	mmu_notifier_call_srcu(&hmm->rcu, hmm_free_rcu);
+>  }
+>  
+> -- 
+> 2.21.0
+> 
 
