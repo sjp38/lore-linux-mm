@@ -2,133 +2,112 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A0D22C28CC3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 08:08:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D03D4C46476
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 08:32:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5864F2089E
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 08:08:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="UkJpC7dn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5864F2089E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 8CA542133D
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 08:32:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8CA542133D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C78516B000C; Fri,  7 Jun 2019 04:08:46 -0400 (EDT)
+	id 1419F6B000C; Fri,  7 Jun 2019 04:32:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C27896B000E; Fri,  7 Jun 2019 04:08:46 -0400 (EDT)
+	id 0F1EA6B000E; Fri,  7 Jun 2019 04:32:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B3D6B6B0266; Fri,  7 Jun 2019 04:08:46 -0400 (EDT)
+	id 007DD6B0266; Fri,  7 Jun 2019 04:32:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9366A6B000C
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 04:08:46 -0400 (EDT)
-Received: by mail-it1-f198.google.com with SMTP id g142so1211191ita.6
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 01:08:46 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A6EA76B000C
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 04:32:58 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l26so2081734eda.2
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 01:32:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=T2+J8KOCU8D0FrF3JsY6TcG0OhfOJ0h4LqGgdXA+AZ0=;
-        b=P9BL+aMzZ6OXLlT4IjLQq3qMvmn+Gm1YOrTdX8RqeXIqhg1rOJhPs8SvR8PDBT9xJK
-         uBiO1KJsn4xXI4iZ4EkdjwAEFn0KMR86KqQINOeLGgWx4BZMfPvJY9FLGus/Z0++KuAF
-         3BZAy+X937s95coyr8e+gBL5nd3s/3ASGj5YXCfQPBYf1yndDCaHqLKq87CEwM5llWHg
-         NvjRPT4LYG9sTwi6LbcRQYwAxNzJ6QFarHniPZuO42qPWqARguH3SP4/iyy+o2HcABjx
-         FC6NN5htuvCbDlGjCGHI0gLOBxV4kM/eKE2MWXLrSuR08UYIGp/7tOeZfiKHXCVYLYVQ
-         +Zag==
-X-Gm-Message-State: APjAAAWE+yzHMxC6a9KcPndK0YsrSUGOnQRvO9F3TkYkt54ZGmj45JT3
-	fg+cSEnOynPKQYmF5+Qg+h/YzK4g5LgCf5cOvT+mmJi6mcSuYmUvDhWAseq3yWOaWuEy8sTlq95
-	tLDpQDUadHnekwDpUoS6s6AD6tmXJXarMrNqZsr0/obGFAIvDtk0ojqUhGzDbAhdcUg==
-X-Received: by 2002:a24:db06:: with SMTP id c6mr3632189itg.47.1559894926356;
-        Fri, 07 Jun 2019 01:08:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzGj1DQ8yd7IAhA259MJqZFVenuAwHCx4oFa1fKnBh9qXn5zMepQy1TdgXrq6Fv3JQOrvYG
-X-Received: by 2002:a24:db06:: with SMTP id c6mr3632159itg.47.1559894925792;
-        Fri, 07 Jun 2019 01:08:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559894925; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Nxs9Ay0PD0dAfOtZ+9wjuHA399OHkkaNPhXYu1S+S1s=;
+        b=LeZuiYpWgLD3a3mRNGjGI6oR/B3OM7OrVQeMlMg13e0+nf2ugAwCNCB23QYOamD7zg
+         LxaL26ghGd+rG48MdTrPBPq50HSLbJWmH/suOU3FiAYPLRi9n+BL5VMRZ/Is3eOIhYa7
+         qeyPSOXEudBo8w+eCCYc/qAkpaGzELKBR2oKLbRKGszV3l4UadMRZyZGHlxqxoDXf92m
+         eL/UGL7Sb4SgfpnGlYpbVjgHfR3+Rcs1IoDaVLl1kpxHpLiaOAK8cQGbqoqGyx/Sx2hn
+         lUF4hoJfXXTOIkVc6jolFNHFlE1T0uvyUPTSmiCSNK9Ffh51DUOBOOn0tdWfh9H4lRBS
+         ZyQg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAV449ryLef8rLFq6MugwqLNxVwx0AJd8xGRzhRavSpGhFlIrXsE
+	cXaaOTtKUOm/cNn/pq9PWwBpZt3uCmep1dNF8U/hrw2Zy9VcFBctAH5fOfwOgxfHt/yGGWlw2/a
+	ftVWVgzZOdE3W5rbNO/KKVwCdJNJadXtYDi9uLmvV4kPF8wbmjoFn4PjXYwvLmW0=
+X-Received: by 2002:a17:906:2315:: with SMTP id l21mr38023634eja.54.1559896378226;
+        Fri, 07 Jun 2019 01:32:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwK3jyUMuSFH2J4GwmTAEgm6D2QIGuproKzhyDrbzmnKjQ9Yj4XTrHbxrllPY8sY/ydjM6X
+X-Received: by 2002:a17:906:2315:: with SMTP id l21mr38023567eja.54.1559896377052;
+        Fri, 07 Jun 2019 01:32:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559896377; cv=none;
         d=google.com; s=arc-20160816;
-        b=IwS+LFkE3zxfzdkm/O/I/gvAD7JWD9d17Ghihjk/q5+Dx+qQfZkHtLy2s2lXNWRjPy
-         TYzEowqxNJlQAeVQVLot37285sThmNIKcCqhuV7wugRE2+lAQFSCLnJdShYyaSt2LzDW
-         iT32QLp2UOU+UOEBGAMt50N8YjMdNafsCjLhLl9p/C0KSJUf6EskI69/mJIxfY1PiEBk
-         bDlYzVer+x574q87WQbsMUUTG9r2oyY+aZZfh/X/EA7hmnC8mK2vuMTjZoaU9gCbiGSI
-         NmQ9OGIP6pDIFznP87vGtactYN5CsWEyJ1fiV82ykSFRXmNwtcvxFfUKjFgdjsM/V+76
-         WQEg==
+        b=Ln6vIZCF41TPJxQ4g8EN+5YkX2mnvn99FLZuGp9y8/1OnVZZynnrU0woCRk2XR/RuF
+         jDGQ7EhMBN0DVjsvaIr+J0al/mcL9Zgnv/Y8b2nTezDBPAoGp4xWKxphgGYNr7/90V7x
+         uWtOSNS7yArXsIZ0KMZGKl2wmUfIFBI2lY1YXdQ6wfwMoVC2eIAUMCPK+f1RxipwyMoq
+         CIbmz17pJ6nPaLTYZF0cHGu/zbXhYYniEAcMxvqInhIoWOQ7+Ti9SoTC/LyHIxB427Ry
+         u757tSkFlaWOKuK8k7jfg2Jm+eWs0qGaw67PBmuHNDgTXm8Y4hO3oLWANNaDTITo4Uf1
+         HVGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=T2+J8KOCU8D0FrF3JsY6TcG0OhfOJ0h4LqGgdXA+AZ0=;
-        b=yAs9aGzmDnBRGyq4QpWp3zX1sbsLZte1cW7BQZzp4kE1sQY/L5DU5SG8RqfNQEha2t
-         AHgD2L5SjS0+9WM6HMZ05UMiJdQupuGuKrrUBBRszaIHg9m8y5SIMen0eQCZ1E9nmrWz
-         JaOhVfzBb3ae4Tb7esigKQ1Q3HHOtw6E++C5GiBPigozUONYeVtN5/bqjus6RcnNqkVG
-         L0UbGMcrNi8Q2kCOX/okhrNWk0YjGTj8gWs8Gtq2o6C97MYhaychX6rRFCkKgmUd1pgQ
-         zcS5RzxmU+cq4doVnIUxgZItA8cMMnK/IH4K1iNzM+Ra2vyFI9zpPRXyPZl+vZwP9ZLa
-         mjeQ==
+         :message-id:subject:cc:to:from:date;
+        bh=Nxs9Ay0PD0dAfOtZ+9wjuHA399OHkkaNPhXYu1S+S1s=;
+        b=VVwYyB3ivhwcn7QY9qnVf3DzisRAYZ+54eudB8oECsZ1VQNPdLOs6xHbalVVjPA8YI
+         Fa/oojSJA2a1BRpIOisJVF3NmcW2bO45xJ0hydfBY5R7uVGWsPaBTNi0IqWE3n+OKMbR
+         z9PpzTmhxQG+gNH9hp/aSv41dNytaLP0GgzdTf9Dt11erUUapatQ0LIuQKO0hWtynmX7
+         5sbcLi7+WZMS2JXuFb2FbT73eQC9kHHhT8vTuCeZxYq7m5u27k8rPZqV5uWAeHdiIH/C
+         Zu/5iDGv0USUA0BtJZqqa1vs3X5gXIXqvFTCNtKKsYvB0/IDyhNoqG2PnGlHVOL1q7iw
+         PfiA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=UkJpC7dn;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id k195si773183itb.89.2019.06.07.01.08.45
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c44si848687ede.137.2019.06.07.01.32.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 07 Jun 2019 01:08:45 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Jun 2019 01:32:57 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=UkJpC7dn;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=T2+J8KOCU8D0FrF3JsY6TcG0OhfOJ0h4LqGgdXA+AZ0=; b=UkJpC7dnl6p1BOyZG/oCTfAsK
-	MCq5N2Nkf5FTQ36Pp2TRqbmVMpzuneO72NDYNJpinfN4KhVjvnSMi1SGmTI84SdmvdHpZxj3DpDlS
-	l4oFrtTyTTWpHOt+Byrg8AY5dgn5Qmbsg7JVMYHaxNEm9eICXvy4+QVioPIenEOX5990R58OWw6E9
-	2lwQs5Ub8efcU5WDrtjgCEPFkcvXjXaa/0b1m2HwGBwS+mMml6ETFXG7W9uC0T+hOFNtLMQCLXjLj
-	k5K1dJQurVg95jcGZz8Uj7b4tJk14Th7RH7f6n09w9n57k5QK+4OXn9HCEx2swAN+cRTvcI0oKEpY
-	im/2HQGTg==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hZ9vO-0006Rr-2q; Fri, 07 Jun 2019 08:08:34 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id B1910202CD6B2; Fri,  7 Jun 2019 10:08:32 +0200 (CEST)
-Date: Fri, 7 Jun 2019 10:08:32 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
-	linux-doc@vger.kernel.org, linux-mm@kvack.org,
-	linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
-	Arnd Bergmann <arnd@arndb.de>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Balbir Singh <bsingharora@gmail.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Cyrill Gorcunov <gorcunov@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Eugene Syromiatnikov <esyr@redhat.com>,
-	Florian Weimer <fweimer@redhat.com>,
-	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
-	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
-	Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>,
-	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
-	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
-	Dave Martin <Dave.Martin@arm.com>
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
- function
-Message-ID: <20190607080832.GT3419@hirez.programming.kicks-ass.net>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
- <20190606200926.4029-4-yu-cheng.yu@intel.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id F3AAFAF22;
+	Fri,  7 Jun 2019 08:32:55 +0000 (UTC)
+Date: Fri, 7 Jun 2019 10:32:55 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Zi Yan <zi.yan@cs.rutgers.edu>,
+	Stefan Priebe - Profihost AG <s.priebe@profihost.ag>,
+	"Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 2/2] Revert "mm, thp: restore node-local hugepage
+ allocations"
+Message-ID: <20190607083255.GA18435@dhcp22.suse.cz>
+References: <20190503223146.2312-3-aarcange@redhat.com>
+ <alpine.DEB.2.21.1905151304190.203145@chino.kir.corp.google.com>
+ <20190520153621.GL18914@techsingularity.net>
+ <alpine.DEB.2.21.1905201018480.96074@chino.kir.corp.google.com>
+ <20190523175737.2fb5b997df85b5d117092b5b@linux-foundation.org>
+ <alpine.DEB.2.21.1905281907060.86034@chino.kir.corp.google.com>
+ <20190531092236.GM6896@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1905311430120.92278@chino.kir.corp.google.com>
+ <20190605093257.GC15685@dhcp22.suse.cz>
+ <alpine.DEB.2.21.1906061451001.121338@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190606200926.4029-4-yu-cheng.yu@intel.com>
+In-Reply-To: <alpine.DEB.2.21.1906061451001.121338@chino.kir.corp.google.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -136,40 +115,72 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 06, 2019 at 01:09:15PM -0700, Yu-cheng Yu wrote:
-> Indirect Branch Tracking (IBT) provides an optional legacy code bitmap
-> that allows execution of legacy, non-IBT compatible library by an
-> IBT-enabled application.  When set, each bit in the bitmap indicates
-> one page of legacy code.
+On Thu 06-06-19 15:12:40, David Rientjes wrote:
+> On Wed, 5 Jun 2019, Michal Hocko wrote:
 > 
-> The bitmap is allocated and setup from the application.
+> > > That's fine, but we also must be mindful of users who have used 
+> > > MADV_HUGEPAGE over the past four years based on its hard-coded behavior 
+> > > that would now regress as a result.
+> > 
+> > Absolutely, I am all for helping those usecases. First of all we need to
+> > understand what those usecases are though. So far we have only seen very
+> > vague claims about artificial worst case examples when a remote access
+> > dominates the overall cost but that doesn't seem to be the case in real
+> > life in my experience (e.g. numa balancing will correct things or the
+> > over aggressive node reclaim tends to cause problems elsewhere etc.).
+> > 
+> 
+> The usecase is a remap of a binary's text segment to transparent hugepages 
+> by doing mmap() -> madvise(MADV_HUGEPAGE) -> mremap() and when this 
+> happens on a locally fragmented node.  This happens at startup when we 
+> aren't concerned about allocation latency: we want to compact.  We are 
+> concerned with access latency thereafter as long as the process is 
+> running.
 
-> +int cet_setup_ibt_bitmap(unsigned long bitmap, unsigned long size)
-> +{
-> +	u64 r;
-> +
-> +	if (!current->thread.cet.ibt_enabled)
-> +		return -EINVAL;
-> +
-> +	if (!PAGE_ALIGNED(bitmap) || (size > TASK_SIZE_MAX))
-> +		return -EINVAL;
-> +
-> +	current->thread.cet.ibt_bitmap_addr = bitmap;
-> +	current->thread.cet.ibt_bitmap_size = size;
-> +
-> +	/*
-> +	 * Turn on IBT legacy bitmap.
-> +	 */
-> +	modify_fpu_regs_begin();
-> +	rdmsrl(MSR_IA32_U_CET, r);
-> +	r |= (MSR_IA32_CET_LEG_IW_EN | bitmap);
-> +	wrmsrl(MSR_IA32_U_CET, r);
-> +	modify_fpu_regs_end();
-> +
-> +	return 0;
-> +}
+You have indicated this previously but no call for a stand alone
+reproducer was successful. It is really hard to optimize for such a
+specialized workload without anything to play with. Btw. this is exactly
+a case where I would expect numa balancing to converge to the optimal
+placement. And if numabalancing is not an option than an explicit
+mempolicy (e.g. the one suggested here) would be a good fit.
 
-So you just program a random user supplied address into the hardware.
-What happens if there's not actually anything at that address or the
-user munmap()s the data after doing this?
+[...]
+
+I will defer the compaction related stuff to Vlastimil and Mel who are
+much more familiar with the current code.
+
+> So my proposed change would be:
+>  - give the page allocator a consistent indicator that compaction failed
+>    because we are low on memory (make COMPACT_SKIPPED really mean this),
+>  - if we get this in the page allocator and we are allocating thp, fail,
+>    reclaim is unlikely to help here and is much more likely to be
+>    disruptive
+>      - we could retry compaction if we haven't scanned all memory and
+>        were contended,
+>  - if the hugepage allocation fails, have thp check watermarks for order-0 
+>    pages without any padding,
+>  - if watermarks succeed, fail the thp allocation: we can't allocate
+>    because of fragmentation and it's better to return node local memory,
+
+Doesn't this lead to the same THP low success rate we have seen with one
+of the previous patches though?
+
+Let me remind you of the previous semantic I was proposing
+http://lkml.kernel.org/r/20181206091405.GD1286@dhcp22.suse.cz and that
+didn't get shot down. Linus had some follow up ideas on how exactly
+the fallback order should look like and that is fine. We should just
+measure differences between local node cheep base page vs. remote THP on
+_real_ workloads. Any microbenchmark which just measures a latency is
+inherently misleading.
+
+And really, fundamental problem here is that MADV_HUGEPAGE has gained 
+a NUMA semantic without a due scrutiny leading to a broken interface
+with side effects that are simply making the interface unusable for a
+large part of usecases that the madvise was originaly designed for.
+Until we find an agreement on this point we will be looping in a dead
+end discussion, I am afraid.
+
+-- 
+Michal Hocko
+SUSE Labs
 
