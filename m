@@ -2,255 +2,200 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CD2BDC468BC
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 12:29:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 77C57C2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 12:34:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B565208E3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 12:29:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 23854208E3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 12:34:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=linaro.org header.i=@linaro.org header.b="l4nQx5bF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B565208E3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="cejnsklT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23854208E3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4ABA66B000C; Fri,  7 Jun 2019 08:29:27 -0400 (EDT)
+	id B10586B000C; Fri,  7 Jun 2019 08:34:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 45D9A6B000E; Fri,  7 Jun 2019 08:29:27 -0400 (EDT)
+	id AC1186B000E; Fri,  7 Jun 2019 08:34:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 34B616B0266; Fri,  7 Jun 2019 08:29:27 -0400 (EDT)
+	id 9AF466B0266; Fri,  7 Jun 2019 08:34:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1896A6B000C
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 08:29:27 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id j18so1539978ioj.4
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 05:29:27 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 77B7C6B000C
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 08:34:34 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id a18so1681634qtj.18
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 05:34:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=ZAvCebdzLCcSo6NRDYnZ6+WboqvZJ6BWkvuu4gNcNRU=;
-        b=Ko2+C6atPBeeLidRpyTgy4cEyoT5JZEAUpWk3eQ6n8fEngKYqRqgITSizt8o++/pwM
-         VlFYgBpqTbyuIwK2H+RlMo8jrvuafii0W02oWhY2z81/HPvyi/xZyCef12ioVEvZ0wZ2
-         6ghhaTJlLQS8yz5XgosTGvP3yCMUyH4YAPxHfbExoF6eO12DFO6O9zMhYT9qA7V3oxRf
-         axVK58iqwFKv1S4PwGcCtMuk66/iXh+UjhL49ZwLAnlPgdscJFKhxc9/EzlzNpLDP7qJ
-         V6NoCq2muyaGtzjq+lx8VFIsoxbPxHkUJSQ5V6YFH/jXT0PQlcQSg58n7b1egDXj4pbz
-         7HVA==
-X-Gm-Message-State: APjAAAVVTvK/Vkn64q9CfdL2/Ka1N8M0RogaCSb1tJWhlZP4kJE1rl5G
-	J2xbgimyzlqUkODEtxPge5kNlJtrvWk4zEpxglu/IYiU/uHi4lNgkPYkxib3kXBGgHSAj26UZ5t
-	npf930zr+ZT0Zqbcq0guARpdCTJfyKiCQMFaUttx+sqWfo090UDChEy3XP/QhuVc8GA==
-X-Received: by 2002:a24:c7c7:: with SMTP id t190mr3587353itg.159.1559910566795;
-        Fri, 07 Jun 2019 05:29:26 -0700 (PDT)
-X-Received: by 2002:a24:c7c7:: with SMTP id t190mr3587292itg.159.1559910565758;
-        Fri, 07 Jun 2019 05:29:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559910565; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=A2FbqDaOIm85eFPjOPRRz/esCZO+J4vaz7zIDfIOxvA=;
+        b=HW530Kj8DzDmPHzQQQq+LoIzFvpMwo2uoHW/DTsx/Zk1aBUtFu96sFWeh8mryqJoBv
+         3f6jtRB2YNccBr3iP+ObrsG78ZGmQJ/qHbIIYAv0Jj6FnZkQ9+pqk2m6QraaMZXQuJc+
+         O/FdrOxCtOsd093T0tX/+5oVnp7aGK7INCVehs9Z/s79B93ZLS6ozaTz24yUpSHj3dbh
+         aNvcRaun/BOJ8KsuLcO3tGxpvezBGM0nHe0J/0glM9gZ5/VeHPxqPTL7OpOXWW15Ioxw
+         8RU28jaeIWGSf0j9hzdTPyx4IreZgiZWQCJTGuHiSUVmDhsvrbX0FMulQhePTpT+BOPE
+         hvew==
+X-Gm-Message-State: APjAAAWUpRwk2Q9m8ako8pSw74wFXCQDQ3Nppoc6hohAMvRULWixvLGn
+	JeYYk51n3pWQvGAT1gmqop9Lh7jqdboHHe9xLrmFCLAOvKKwEO3QB2DaLRVwkaRCFM+Facr1A2R
+	szXUKHOk3ybwPq+E0GEnqS8/AXrfuIOUXSxVG2NyiLLYhhirWqAAYi3TKVps2boh6uw==
+X-Received: by 2002:a0c:b79d:: with SMTP id l29mr44085767qve.179.1559910874231;
+        Fri, 07 Jun 2019 05:34:34 -0700 (PDT)
+X-Received: by 2002:a0c:b79d:: with SMTP id l29mr44085707qve.179.1559910873589;
+        Fri, 07 Jun 2019 05:34:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559910873; cv=none;
         d=google.com; s=arc-20160816;
-        b=e7CQkSOHSGawE564MnYnVGSqsWaI9CDjwIewOFMkgoO/xMdxfK4YpiQDM4j0Kw0cq3
-         eI6PYYPP5x/Lc9JlVvLP0SPfdl7DT9tCfkO5avEcoHa/GLPeYu4yQNZ0jb2vhCMSwcqm
-         Hhcn5E1KDCL5MyTqrDXX5QKOhH3z7rhUGU695UrLaz94f1xY4jvkis6vIxWqG/CZWhyE
-         6ouKdjWXVWa+M9RTQ1So/XoomhXysZS36A1Zv8yP4qUtGnHyc9uMxEAieeoMBFTFOLgK
-         w4aBVJBflnWTGo+pcI/YWPAVlB84/A8x4todsOFBvjaaHScl1Co38thq2NQn03iQDUEh
-         ZCSw==
+        b=j3q644jDMAVe+nLolsTsLbu5qI3uLlBoSAKjVV/GJu4ojKTPhXW+cBct9os2tL2HgF
+         BRE6L9rz8sJWwy71ctiClERhz7pXNytgzFZxPdXNItoRc7iHKx6kumUU1yHbBSKpUEhJ
+         +YurjKyFBnJfJs1tYtYjVeyzpEDkGWGBc13VxgPVDPwsa6u1oN6P7Ic6UhQMmh7eT/Ho
+         hMsZ8k+4REEPvBAyntwSVXNQJHZeEyya7126UCgEtOU2DyipuzuH2ooYXBHWyY6Lh2YJ
+         1tlnd1D574YAIcRAzkzTMLOTB5SYsXqOAdy4bE3QE6cR/ZyY/M7AlaF6FqasmCklIhX1
+         sAPg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=ZAvCebdzLCcSo6NRDYnZ6+WboqvZJ6BWkvuu4gNcNRU=;
-        b=kVDoBsDoseX6ztDdh0Dtk2lmfGlMmFEeUtD7jRLEHKAJhtGqOjktA6QDjtvQLoUQOO
-         Vyv00OOucuoXqvOVC4nVb/GalF0cB7TOVdStH1EsYwr9A/XRp6aZmecFnFSS/a/4uCxJ
-         YJ/autrU99Wy/J+3TdfOXjnVJpyZHxMJBOzCZQ36vmlbX4SZhUEfOJ+kfev1ZflnA5VH
-         gZws0gRR6+MP9YH43CkI9qDNE70OwBjbZt0J+/TNltYdvW8yb0iCfZHFXM9DLAK6C1J3
-         cENMDGDfvFg8kD5MR4sC8EBIdmja3F2L3YxLKSq99FWS4D7UKxkOG8ef9TptwPUjS5ZL
-         L8Rg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=A2FbqDaOIm85eFPjOPRRz/esCZO+J4vaz7zIDfIOxvA=;
+        b=USds69xa7rrYjsfN6UHx8wvtn8HXqmNgXfuXF8VdplzY2SzOvVy8QbuWIJv/65qM9b
+         jRsQ3JliVpX92Nvnqrm2cNgr3mmPnRlNtSm3rCsuWBKLPIuMYU3nhSTpURlSOf4zffxD
+         y12gEmQe+1mi4MHlA48O5TBkHoJsHwK7Ln/nAm3lEi/PLyz+F6mCxpw4no1w94WLIpQl
+         NRkLlBsb12++O85Y7goBLizhPakHqsh/ou1sbSCt513FJGvzJvHG5RAWt3QN5Sk91fpE
+         F5MGKAaQSwLUn12PvjEhViwFiVpE7outFScTjhW/3crz+02Q3nWUB/V8u83QpzlpYxKI
+         mDPg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=l4nQx5bF;
-       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=cejnsklT;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v16sor1053885ioj.130.2019.06.07.05.29.25
+        by mx.google.com with SMTPS id x19sor995054qka.111.2019.06.07.05.34.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 07 Jun 2019 05:29:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 07 Jun 2019 05:34:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=l4nQx5bF;
-       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=cejnsklT;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linaro.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=ZAvCebdzLCcSo6NRDYnZ6+WboqvZJ6BWkvuu4gNcNRU=;
-        b=l4nQx5bFXnCKwqIlYU0J3gLgZ0wR2UHkkyD80ob8NWqEzmyQRyDonYA1xejed7SD7I
-         kl8UJmHVctl7fGkgf+4DP5y24neUBNA+zxlxJY3S4HVfsZwYCbLpbC5X/rnEuTmx0XXh
-         TM3xqj2bbhQ5K2+gr7mtqkPtJTeLrCTJIkyzfvXg394Cl7G+Ji9ZKHSnA1ZN2SUSoI8i
-         uwU2sOnfICyeKhaZfC07P/kXjxtmj4uZ0679dcT9GHa3muXEwPVuvI4jtVZZhHeErlrd
-         8nBJksrkmuE8GCa9e4sgJfJqjQV2LI1VOgH3RQx135gNWHZBHKd/iVGw+7oY5dE1Bxte
-         Coew==
-X-Google-Smtp-Source: APXvYqwpgjUncM9YwGMeAEjGhHkH4kygINBHDj2ErQa4lBEYa0dUkEHo5JqszczMdAM7yNXhdyvGEegvK6pJJXoP2q8=
-X-Received: by 2002:a5d:9402:: with SMTP id v2mr15677145ion.128.1559910565141;
- Fri, 07 Jun 2019 05:29:25 -0700 (PDT)
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=A2FbqDaOIm85eFPjOPRRz/esCZO+J4vaz7zIDfIOxvA=;
+        b=cejnsklTN8gSa78nEyihP29Lx9J/VrusPGqXCyf5Rd+9hsmueFkxF1/YWmjS5sZO9/
+         HH7v0sLRxeqlre/3LEQrtuC+ECX1CoDlHi7RjWJwsqX6IeTPRlBpObDM60nJLr+PMIIZ
+         uzHsDgz4cQDDPKWcxBmzLfOKqAFg0G5K+NTmL3XYc/xpH9SNkaui88s0XGcmaj3ydsNz
+         lFmSis1GsZQ0McoTZeDRJxbCFy9jepSrW5xnowcXy9X8ErbPrOuk0a0CsrL2yro8PtIO
+         QOyIHW79VvRsPULJ5mPeQG+Tpqjmic/6xvxDcab8YmZz75UNLwahdhxIcfW61W60/Fm1
+         QZ3w==
+X-Google-Smtp-Source: APXvYqxt6cvXSe1Vnp7yMI6I6KtFfMUDzTi4iQ4hvnAcaJXl648GbcSmQKXBch+Om0G7zfr9TuWsKw==
+X-Received: by 2002:a05:620a:5b0:: with SMTP id q16mr42567473qkq.212.1559910873269;
+        Fri, 07 Jun 2019 05:34:33 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id t29sm1505233qtt.42.2019.06.07.05.34.32
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 07 Jun 2019 05:34:32 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hZE4m-00071G-Dh; Fri, 07 Jun 2019 09:34:32 -0300
+Date: Fri, 7 Jun 2019 09:34:32 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Jerome Glisse <jglisse@redhat.com>,
+	Ralph Campbell <rcampbell@nvidia.com>, Felix.Kuehling@amd.com,
+	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
+Subject: Re: [PATCH v2 hmm 01/11] mm/hmm: fix use after free with struct hmm
+ in the mmu notifiers
+Message-ID: <20190607123432.GB14802@ziepe.ca>
+References: <20190606184438.31646-1-jgg@ziepe.ca>
+ <20190606184438.31646-2-jgg@ziepe.ca>
+ <9c72d18d-2924-cb90-ea44-7cd4b10b5bc2@nvidia.com>
 MIME-Version: 1.0
-References: <155925716254.3775979.16716824941364738117.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155925718351.3775979.13546720620952434175.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAKv+Gu-J3-66V7UhH3=AjN4sX7iydHNF7Fd+SMbezaVNrZQmGQ@mail.gmail.com>
- <CAPcyv4g-GNe2vSYTn0a6ivQYxJdS5khE4AJbcxysoGPsTZwswg@mail.gmail.com>
- <CAKv+Gu83QB6x8=LCaAcR0S65WELC-Y+Voxw6LzaVh4FSV3bxYA@mail.gmail.com> <CAPcyv4hXBJBMrqoUr4qG5A3CUVgWzWK6bfBX29JnLCKDC7CiGA@mail.gmail.com>
-In-Reply-To: <CAPcyv4hXBJBMrqoUr4qG5A3CUVgWzWK6bfBX29JnLCKDC7CiGA@mail.gmail.com>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Date: Fri, 7 Jun 2019 14:29:12 +0200
-Message-ID: <CAKv+Gu_ZYpey0dWYebFgCaziyJ-_x+KbCmOegWqFjwC0U-5QaA@mail.gmail.com>
-Subject: Re: [PATCH v2 4/8] x86, efi: Reserve UEFI 2.8 Specific Purpose Memory
- for dax
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Mike Rapoport <rppt@linux.ibm.com>, linux-efi <linux-efi@vger.kernel.org>, 
-	"the arch/x86 maintainers" <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Ingo Molnar <mingo@redhat.com>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Darren Hart <dvhart@infradead.org>, 
-	Andy Shevchenko <andy@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, 
-	kbuild test robot <lkp@intel.com>, Vishal L Verma <vishal.l.verma@intel.com>, Linux-MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <9c72d18d-2924-cb90-ea44-7cd4b10b5bc2@nvidia.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 1 Jun 2019 at 06:26, Dan Williams <dan.j.williams@intel.com> wrote:
->
-> On Fri, May 31, 2019 at 8:30 AM Ard Biesheuvel
-> <ard.biesheuvel@linaro.org> wrote:
-> >
-> > On Fri, 31 May 2019 at 17:28, Dan Williams <dan.j.williams@intel.com> wrote:
-> > >
-> > > On Fri, May 31, 2019 at 1:30 AM Ard Biesheuvel
-> > > <ard.biesheuvel@linaro.org> wrote:
-> > > >
-> > > > (cc Mike for memblock)
-> > > >
-> > > > On Fri, 31 May 2019 at 01:13, Dan Williams <dan.j.williams@intel.com> wrote:
-> > > > >
-> > > > > UEFI 2.8 defines an EFI_MEMORY_SP attribute bit to augment the
-> > > > > interpretation of the EFI Memory Types as "reserved for a special
-> > > > > purpose".
-> > > > >
-> > > > > The proposed Linux behavior for specific purpose memory is that it is
-> > > > > reserved for direct-access (device-dax) by default and not available for
-> > > > > any kernel usage, not even as an OOM fallback. Later, through udev
-> > > > > scripts or another init mechanism, these device-dax claimed ranges can
-> > > > > be reconfigured and hot-added to the available System-RAM with a unique
-> > > > > node identifier.
-> > > > >
-> > > > > This patch introduces 3 new concepts at once given the entanglement
-> > > > > between early boot enumeration relative to memory that can optionally be
-> > > > > reserved from the kernel page allocator by default. The new concepts
-> > > > > are:
-> > > > >
-> > > > > - E820_TYPE_SPECIFIC: Upon detecting the EFI_MEMORY_SP attribute on
-> > > > >   EFI_CONVENTIONAL memory, update the E820 map with this new type. Only
-> > > > >   perform this classification if the CONFIG_EFI_SPECIFIC_DAX=y policy is
-> > > > >   enabled, otherwise treat it as typical ram.
-> > > > >
-> > > >
-> > > > OK, so now we have 'special purpose', 'specific' and 'app specific'
-> > > > [below]. Do they all mean the same thing?
-> > >
-> > > I struggled with separating the raw-EFI-type name from the name of the
-> > > Linux specific policy. Since the reservation behavior is optional I
-> > > was thinking there should be a distinct Linux kernel name for that
-> > > policy. I did try to go back and change all occurrences of "special"
-> > > to "specific" from the RFC to this v2, but seems I missed one.
-> > >
-> >
-> > OK
->
-> I'll go ahead and use "application reserved" terminology consistently
-> throughout the code to distinguish that Linux translation from the raw
-> "EFI specific purpose" attribute.
->
+On Thu, Jun 06, 2019 at 07:29:08PM -0700, John Hubbard wrote:
+> On 6/6/19 11:44 AM, Jason Gunthorpe wrote:
+> > From: Jason Gunthorpe <jgg@mellanox.com>
+> ...
+> > diff --git a/mm/hmm.c b/mm/hmm.c
+> > index 8e7403f081f44a..547002f56a163d 100644
+> > +++ b/mm/hmm.c
+> ...
+> > @@ -125,7 +130,7 @@ static void hmm_free(struct kref *kref)
+> >  		mm->hmm = NULL;
+> >  	spin_unlock(&mm->page_table_lock);
+> >  
+> > -	kfree(hmm);
+> > +	mmu_notifier_call_srcu(&hmm->rcu, hmm_free_rcu);
+> 
+> 
+> It occurred to me to wonder if it is best to use the MMU notifier's
+> instance of srcu, instead of creating a separate instance for HMM.
 
-OK
+It *has* to be the MMU notifier SRCU because we are synchornizing
+against the read side of that SRU inside the mmu notifier code, ie:
 
-> >
-> > > >
-> > > > > - IORES_DESC_APPLICATION_RESERVED: Add a new I/O resource descriptor for
-> > > > >   a device driver to search iomem resources for application specific
-> > > > >   memory. Teach the iomem code to identify such ranges as "Application
-> > > > >   Reserved".
-> > > > >
-> > > > > - MEMBLOCK_APP_SPECIFIC: Given the memory ranges can fallback to the
-> > > > >   traditional System RAM pool the expectation is that they will have
-> > > > >   typical SRAT entries. In order to support a policy of device-dax by
-> > > > >   default with the option to hotplug later, the numa initialization code
-> > > > >   is taught to avoid marking online MEMBLOCK_APP_SPECIFIC regions.
-> > > > >
-> > > >
-> > > > Can we move the generic memblock changes into a separate patch please?
-> > >
-> > > Yeah, that can move to a lead-in patch.
-> > >
-> > > [..]
-> > > > > diff --git a/include/linux/efi.h b/include/linux/efi.h
-> > > > > index 91368f5ce114..b57b123cbdf9 100644
-> > > > > --- a/include/linux/efi.h
-> > > > > +++ b/include/linux/efi.h
-> > > > > @@ -129,6 +129,19 @@ typedef struct {
-> > > > >         u64 attribute;
-> > > > >  } efi_memory_desc_t;
-> > > > >
-> > > > > +#ifdef CONFIG_EFI_SPECIFIC_DAX
-> > > > > +static inline bool is_efi_dax(efi_memory_desc_t *md)
-> > > > > +{
-> > > > > +       return md->type == EFI_CONVENTIONAL_MEMORY
-> > > > > +               && (md->attribute & EFI_MEMORY_SP);
-> > > > > +}
-> > > > > +#else
-> > > > > +static inline bool is_efi_dax(efi_memory_desc_t *md)
-> > > > > +{
-> > > > > +       return false;
-> > > > > +}
-> > > > > +#endif
-> > > > > +
-> > > > >  typedef struct {
-> > > > >         efi_guid_t guid;
-> > > > >         u32 headersize;
-> > > >
-> > > > I'd prefer it if we could avoid this DAX policy distinction leaking
-> > > > into the EFI layer.
-> > > >
-> > > > IOW, I am fine with having a 'is_efi_sp_memory()' helper here, but
-> > > > whether that is DAX memory or not should be decided in the DAX layer.
-> > >
-> > > Ok, how about is_efi_sp_ram()? Since EFI_MEMORY_SP might be applied to
-> > > things that aren't EFI_CONVENTIONAL_MEMORY.
-> >
-> > Yes, that is fine. As long as the #ifdef lives in the DAX code and not here.
->
-> We still need some ifdef in the efi core because that is the central
-> location to make the policy distinction to identify identify
-> EFI_CONVENTIONAL_MEMORY differently depending on whether EFI_MEMORY_SP
-> is present. I agree with you that "dax" should be dropped from the
-> naming. So how about:
->
-> #ifdef CONFIG_EFI_APPLICATION_RESERVED
-> static inline bool is_efi_application_reserved(efi_memory_desc_t *md)
-> {
->         return md->type == EFI_CONVENTIONAL_MEMORY
->                 && (md->attribute & EFI_MEMORY_SP);
-> }
-> #else
-> static inline bool is_efi_application_reserved(efi_memory_desc_t *md)
-> {
->         return false;
-> }
-> #endif
+int __mmu_notifier_invalidate_range_start(struct mmu_notifier_range *range)
+        id = srcu_read_lock(&srcu);
+        hlist_for_each_entry_rcu(mn, &range->mm->mmu_notifier_mm->list, hlist) {
+                if (mn->ops->invalidate_range_start) {
+                   ^^^^^
 
-I think this policy decision should not live inside the EFI subsystem.
-EFI just gives you the memory map, and mangling that information
-depending on whether you think a certain memory attribute should be
-ignored is the job of the MM subsystem.
+Here 'mn' is really hmm (hmm = container_of(mn, struct hmm,
+mmu_notifier)), so we must protect the memory against free for the mmu
+notifier core.
+
+Thus we have no choice but to use its SRCU.
+
+CH also pointed out a more elegant solution, which is to get the write
+side of the mmap_sem during hmm_mirror_unregister - no notifier
+callback can be running in this case. Then we delete the kref, srcu
+and so forth.
+
+This is much clearer/saner/better, but.. requries the callers of
+hmm_mirror_unregister to be safe to get the mmap_sem write side.
+
+I think this is true, so maybe this patch should be switched, what do
+you think?
+
+> > @@ -153,10 +158,14 @@ void hmm_mm_destroy(struct mm_struct *mm)
+> >  
+> >  static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+> >  {
+> > -	struct hmm *hmm = mm_get_hmm(mm);
+> > +	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+> >  	struct hmm_mirror *mirror;
+> >  	struct hmm_range *range;
+> >  
+> > +	/* hmm is in progress to free */
+> 
+> Well, sometimes, yes. :)
+
+It think it is in all cases actually.. The only way we see a 0 kref
+and still reach this code path is if another thread has alreay setup
+the hmm_free in the call_srcu..
+
+> Maybe this wording is clearer (if we need any comment at all):
+
+I always find this hard.. This is a very standard pattern when working
+with RCU - however in my experience few people actually know the RCU
+patterns, and missing the _unless_zero is a common bug I find when
+looking at code.
+
+This is mm/ so I can drop it, what do you think?
+
+Thanks,
+Jason
 
