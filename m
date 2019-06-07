@@ -6,97 +6,97 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7924FC28CC3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 08:07:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A0D22C28CC3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 08:08:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 393AE2089E
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 08:07:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5864F2089E
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 08:08:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="gUrzDU4W"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 393AE2089E
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="UkJpC7dn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5864F2089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ACB896B026F; Fri,  7 Jun 2019 04:07:15 -0400 (EDT)
+	id C78516B000C; Fri,  7 Jun 2019 04:08:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AA2456B0271; Fri,  7 Jun 2019 04:07:15 -0400 (EDT)
+	id C27896B000E; Fri,  7 Jun 2019 04:08:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B82E6B0272; Fri,  7 Jun 2019 04:07:15 -0400 (EDT)
+	id B3D6B6B0266; Fri,  7 Jun 2019 04:08:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 65BAD6B026F
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 04:07:15 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id l4so979431pff.5
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 01:07:15 -0700 (PDT)
+Received: from mail-it1-f198.google.com (mail-it1-f198.google.com [209.85.166.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9366A6B000C
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 04:08:46 -0400 (EDT)
+Received: by mail-it1-f198.google.com with SMTP id g142so1211191ita.6
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 01:08:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=KMTOjZOt6BKNdwNx8Ebfe50Na45GQkzWalc7XXT6zV4=;
-        b=uW5Lxy2Y/jw82s536P1OZPnNYbVnm3YKUl5lItJYX5JGURJDYXZP8KOpuzvZGDwn4r
-         YTnno99xYrkX6xSulenk75+6miXwB89LDt96Kx4LUdpmtS8tGqDbXjmfZdkrpi/LCCp4
-         jPEphtX/JqaW05bguZOIxj0V/d6q/MOBDjiy3f7OD9c6g6I+xUH17Kq4czkbD6N49PZa
-         0G9YcWXHJ6PZUrk062pVLfEdcPTCfFoikbkCuqYuavAjYAYfVuRL1Rak5l/RGQ7ZmN9X
-         8ePMIl/T3LXTq+Zh1ySk7M2/2ETYrK4Xp2kb0W+KSBJIlliJ04/t2WHY6d3WjY0j0swI
-         VCcQ==
-X-Gm-Message-State: APjAAAWAYQnDvWyxrGxFoZ8T6uW1u862lipHi+ZCrYQZBlyxSI224RzW
-	kjfUw+H70IqYzRQ9mZmjwkOge6zKHQLZ6OYEheVW0MjtZUciDoazsxNVhrU1erX9VgBKIN5sUyS
-	KYQL2IVVK80LJg6sKtM9PQvlQQ+tFg0L953eq/ckVyRWUKc42mw5BaVMJ9DzB7hVQGA==
-X-Received: by 2002:a63:4c1c:: with SMTP id z28mr1657504pga.122.1559894835019;
-        Fri, 07 Jun 2019 01:07:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxe+d8QazcW7HdfdobtgBdE/j+TV1RYKO0IqP8hpBm6B7hN7HCrDEK1T3HG1Zv5JRR1dUoI
-X-Received: by 2002:a63:4c1c:: with SMTP id z28mr1657464pga.122.1559894834297;
-        Fri, 07 Jun 2019 01:07:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559894834; cv=none;
+        bh=T2+J8KOCU8D0FrF3JsY6TcG0OhfOJ0h4LqGgdXA+AZ0=;
+        b=P9BL+aMzZ6OXLlT4IjLQq3qMvmn+Gm1YOrTdX8RqeXIqhg1rOJhPs8SvR8PDBT9xJK
+         uBiO1KJsn4xXI4iZ4EkdjwAEFn0KMR86KqQINOeLGgWx4BZMfPvJY9FLGus/Z0++KuAF
+         3BZAy+X937s95coyr8e+gBL5nd3s/3ASGj5YXCfQPBYf1yndDCaHqLKq87CEwM5llWHg
+         NvjRPT4LYG9sTwi6LbcRQYwAxNzJ6QFarHniPZuO42qPWqARguH3SP4/iyy+o2HcABjx
+         FC6NN5htuvCbDlGjCGHI0gLOBxV4kM/eKE2MWXLrSuR08UYIGp/7tOeZfiKHXCVYLYVQ
+         +Zag==
+X-Gm-Message-State: APjAAAWE+yzHMxC6a9KcPndK0YsrSUGOnQRvO9F3TkYkt54ZGmj45JT3
+	fg+cSEnOynPKQYmF5+Qg+h/YzK4g5LgCf5cOvT+mmJi6mcSuYmUvDhWAseq3yWOaWuEy8sTlq95
+	tLDpQDUadHnekwDpUoS6s6AD6tmXJXarMrNqZsr0/obGFAIvDtk0ojqUhGzDbAhdcUg==
+X-Received: by 2002:a24:db06:: with SMTP id c6mr3632189itg.47.1559894926356;
+        Fri, 07 Jun 2019 01:08:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzGj1DQ8yd7IAhA259MJqZFVenuAwHCx4oFa1fKnBh9qXn5zMepQy1TdgXrq6Fv3JQOrvYG
+X-Received: by 2002:a24:db06:: with SMTP id c6mr3632159itg.47.1559894925792;
+        Fri, 07 Jun 2019 01:08:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559894925; cv=none;
         d=google.com; s=arc-20160816;
-        b=WcPxEh5bwsJLjcZB5SJ7tsjjfi8V4Mft7qUxO8jPCT6WHEPbz53udu7nXY1wko19ww
-         UR4/lEtqy+3YTkneUqFxhdbxNH+d+dgmDPuKJ5I5rC1aLvLJcqcZL+0aIoOp1GUhHTCB
-         3v8DW0/D8tmP4Lh8C2q8PJ6HIo69iZ9t+f6YVSSGXs94DHiLZKcPsnVkQ62qXvmi3d0j
-         fooG1E6k1RNkn3vUDTQytb1AS4SG0XqjmprDg86PEJvTSb5TwtO3AZvCvQiMAuR2p6v1
-         GxzhBEzsxmn+PC+LoLOcEyEIeusg0kucdJLVh0wXQORc/W6P2B+HuSLcHaK/kgRXcUcX
-         dchw==
+        b=IwS+LFkE3zxfzdkm/O/I/gvAD7JWD9d17Ghihjk/q5+Dx+qQfZkHtLy2s2lXNWRjPy
+         TYzEowqxNJlQAeVQVLot37285sThmNIKcCqhuV7wugRE2+lAQFSCLnJdShYyaSt2LzDW
+         iT32QLp2UOU+UOEBGAMt50N8YjMdNafsCjLhLl9p/C0KSJUf6EskI69/mJIxfY1PiEBk
+         bDlYzVer+x574q87WQbsMUUTG9r2oyY+aZZfh/X/EA7hmnC8mK2vuMTjZoaU9gCbiGSI
+         NmQ9OGIP6pDIFznP87vGtactYN5CsWEyJ1fiV82ykSFRXmNwtcvxFfUKjFgdjsM/V+76
+         WQEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=KMTOjZOt6BKNdwNx8Ebfe50Na45GQkzWalc7XXT6zV4=;
-        b=s0vnAXsFkOa4ce0ecC6KdumuLuqgkkgJGlAPw1jGWPyXm/PGxyXKq+4VSRo2E/f7+6
-         egRu3tRn3h5tqaB4l2WC7lPK4WWXLk6h6CekyoxMNb/3cFT82i1o8IZNu2Nkz3DwrIYR
-         RA/XZl1+3gUzuzj6FkDNGoLfTeIGp3xZ47QDutZCARHAUYPxFXYwH5OmSQXk+1erc3Hj
-         PGKlw3ePYnHiVQuWbtq1MAH5KQQSz2WkyyFJYsanLO+iY2pLoXo7NzzTVdbOJI3yPsjG
-         sUpDQiCgXGXNOEoe8kScON8mPMHSlHpDLK7NJGVxr/MQSY0jMbxm1L2g3sqszv/PoNz4
-         sGLg==
+        bh=T2+J8KOCU8D0FrF3JsY6TcG0OhfOJ0h4LqGgdXA+AZ0=;
+        b=yAs9aGzmDnBRGyq4QpWp3zX1sbsLZte1cW7BQZzp4kE1sQY/L5DU5SG8RqfNQEha2t
+         AHgD2L5SjS0+9WM6HMZ05UMiJdQupuGuKrrUBBRszaIHg9m8y5SIMen0eQCZ1E9nmrWz
+         JaOhVfzBb3ae4Tb7esigKQ1Q3HHOtw6E++C5GiBPigozUONYeVtN5/bqjus6RcnNqkVG
+         L0UbGMcrNi8Q2kCOX/okhrNWk0YjGTj8gWs8Gtq2o6C97MYhaychX6rRFCkKgmUd1pgQ
+         zcS5RzxmU+cq4doVnIUxgZItA8cMMnK/IH4K1iNzM+Ra2vyFI9zpPRXyPZl+vZwP9ZLa
+         mjeQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gUrzDU4W;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n5si614100pgj.580.2019.06.07.01.07.14
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=UkJpC7dn;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id k195si773183itb.89.2019.06.07.01.08.45
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 07 Jun 2019 01:07:14 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 07 Jun 2019 01:08:45 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gUrzDU4W;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=UkJpC7dn;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=KMTOjZOt6BKNdwNx8Ebfe50Na45GQkzWalc7XXT6zV4=; b=gUrzDU4WY3ZDbo8lcxgsikvBt
-	Gk/hCRgMJufxg1JP0EiHMgv3rW3FTF5YlIOF5lwojw0Vtmugp/lHlLizM9NRf/e3yKeUqmCd0Zemq
-	zx8uNPPPRNfImn+2IFgekQpgFW1/oQy/S2EESOhkYQM/IXXSqv4E/3YDd8nQU8v05iO7ozzW4EGPN
-	fwb++MbbuniaJF04HclowhKkT/iaHsGrLExCsLo9SQgROaxNItKKT3ETdE49oHREjTn6pPBhFJtEg
-	uAOrOlsb7mWX4fTtopbZirLCbiKs5iuYoa0qGCa8QrZ2hgGEm4z7mb3ANt1nwEQJW5cusG+tB+kxh
-	58BwvwZHg==;
+	 bh=T2+J8KOCU8D0FrF3JsY6TcG0OhfOJ0h4LqGgdXA+AZ0=; b=UkJpC7dnl6p1BOyZG/oCTfAsK
+	MCq5N2Nkf5FTQ36Pp2TRqbmVMpzuneO72NDYNJpinfN4KhVjvnSMi1SGmTI84SdmvdHpZxj3DpDlS
+	l4oFrtTyTTWpHOt+Byrg8AY5dgn5Qmbsg7JVMYHaxNEm9eICXvy4+QVioPIenEOX5990R58OWw6E9
+	2lwQs5Ub8efcU5WDrtjgCEPFkcvXjXaa/0b1m2HwGBwS+mMml6ETFXG7W9uC0T+hOFNtLMQCLXjLj
+	k5K1dJQurVg95jcGZz8Uj7b4tJk14Th7RH7f6n09w9n57k5QK+4OXn9HCEx2swAN+cRTvcI0oKEpY
+	im/2HQGTg==;
 Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hZ9tz-00013c-Mi; Fri, 07 Jun 2019 08:07:08 +0000
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hZ9vO-0006Rr-2q; Fri, 07 Jun 2019 08:08:34 +0000
 Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 387A1202CD6B2; Fri,  7 Jun 2019 10:07:06 +0200 (CEST)
-Date: Fri, 7 Jun 2019 10:07:06 +0200
+	id B1910202CD6B2; Fri,  7 Jun 2019 10:08:32 +0200 (CEST)
+Date: Fri, 7 Jun 2019 10:08:32 +0200
 From: Peter Zijlstra <peterz@infradead.org>
 To: Yu-cheng Yu <yu-cheng.yu@intel.com>
 Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
@@ -120,14 +120,15 @@ Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
 	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
-Subject: Re: [PATCH v7 07/14] x86/cet/ibt: Add arch_prctl functions for IBT
-Message-ID: <20190607080706.GS3419@hirez.programming.kicks-ass.net>
+Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
+ function
+Message-ID: <20190607080832.GT3419@hirez.programming.kicks-ass.net>
 References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
- <20190606200926.4029-8-yu-cheng.yu@intel.com>
+ <20190606200926.4029-4-yu-cheng.yu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190606200926.4029-8-yu-cheng.yu@intel.com>
+In-Reply-To: <20190606200926.4029-4-yu-cheng.yu@intel.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -135,26 +136,40 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 06, 2019 at 01:09:19PM -0700, Yu-cheng Yu wrote:
+On Thu, Jun 06, 2019 at 01:09:15PM -0700, Yu-cheng Yu wrote:
+> Indirect Branch Tracking (IBT) provides an optional legacy code bitmap
+> that allows execution of legacy, non-IBT compatible library by an
+> IBT-enabled application.  When set, each bit in the bitmap indicates
+> one page of legacy code.
+> 
+> The bitmap is allocated and setup from the application.
 
-> +static int handle_bitmap(unsigned long arg2)
+> +int cet_setup_ibt_bitmap(unsigned long bitmap, unsigned long size)
 > +{
-> +	unsigned long addr, size;
+> +	u64 r;
 > +
-> +	if (get_user(addr, (unsigned long __user *)arg2) ||
-> +	    get_user(size, (unsigned long __user *)arg2 + 1))
-> +		return -EFAULT;
+> +	if (!current->thread.cet.ibt_enabled)
+> +		return -EINVAL;
 > +
-> +	return cet_setup_ibt_bitmap(addr, size);
+> +	if (!PAGE_ALIGNED(bitmap) || (size > TASK_SIZE_MAX))
+> +		return -EINVAL;
+> +
+> +	current->thread.cet.ibt_bitmap_addr = bitmap;
+> +	current->thread.cet.ibt_bitmap_size = size;
+> +
+> +	/*
+> +	 * Turn on IBT legacy bitmap.
+> +	 */
+> +	modify_fpu_regs_begin();
+> +	rdmsrl(MSR_IA32_U_CET, r);
+> +	r |= (MSR_IA32_CET_LEG_IW_EN | bitmap);
+> +	wrmsrl(MSR_IA32_U_CET, r);
+> +	modify_fpu_regs_end();
+> +
+> +	return 0;
 > +}
 
-
-> +	/*
-> +	 * Allocate legacy bitmap and return address & size to user.
-> +	 */
-> +	case ARCH_X86_CET_SET_LEGACY_BITMAP:
-> +		return handle_bitmap(arg2);
-
-AFAICT it does exactly the opposite of that comment; it gets the address
-and size from userspace and doesn't allocate anything at all.
+So you just program a random user supplied address into the hardware.
+What happens if there's not actually anything at that address or the
+user munmap()s the data after doing this?
 
