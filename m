@@ -2,139 +2,169 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44EFDC468BC
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:31:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E8779C2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:33:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 187D2212F5
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:31:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 187D2212F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id AC888208C0
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:33:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="WBAeb9Yr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC888208C0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A256C6B000A; Fri,  7 Jun 2019 15:31:51 -0400 (EDT)
+	id 5B6D26B000A; Fri,  7 Jun 2019 15:33:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9D4E86B000C; Fri,  7 Jun 2019 15:31:51 -0400 (EDT)
+	id 53FF06B000C; Fri,  7 Jun 2019 15:33:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C4CF6B000E; Fri,  7 Jun 2019 15:31:51 -0400 (EDT)
+	id 42FA56B000E; Fri,  7 Jun 2019 15:33:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 530606B000A
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 15:31:51 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id i3so1984154plb.8
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 12:31:51 -0700 (PDT)
+Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D31EF6B000A
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 15:33:34 -0400 (EDT)
+Received: by mail-lf1-f72.google.com with SMTP id u26so706112lfq.8
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 12:33:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=n/ovFP11O8q6ZHjiRlA4PMy2pv31Pw4CkyK6Pr4NpCI=;
-        b=HKBhcTlTWAFU2qk5TfIixhiPJy3iK9jTKmyb0OmDuVsZGR/neccKgnmH9/juaDIV5x
-         jNfvac3pRQ+IEncSZJRrpqG9BzFYlkKZY2OGXm0wdnmR9rISIsXGhY0695ST0iFBtkWy
-         FvY2KuVYuPvSSOs2somhKWCNKsnxT+n4HiT6C3cgjO1KrajkaVmHvuqiAIx8tzlJxo8W
-         ujlC1AThyCtbF1+C/EDwXlltzMxqU5rJ7dGcsNJoq8yaWsMdluey38ojktideGhWwUu7
-         99LPoeKpFvsMMR4h2TshzYhKMj7Nyg6PTyxq0xyfc5ejjYfkIip8WBhK+xZ2FLDORWkp
-         MxBQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUgiu51e8sZGqH013JrBgFtmMdArVc4G1j4iHeBCLm7Yd5urYRQ
-	XZvQov2+d6VWU1FdtOCzNVA3Tf+TF2gBQmXOJkMUEsRV+aN9rDDC3BhWgZxS8bhTSu6VvKGbIWw
-	8mywXin0TzIYrmR5/W7wFc7LTieYdJyh9OVw/MC84glqRK1ZHE7g++gJ4NeWLdkiqaA==
-X-Received: by 2002:a63:4d0f:: with SMTP id a15mr4688035pgb.59.1559935910933;
-        Fri, 07 Jun 2019 12:31:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx1ibBscm4RbtYVR92+5mpIfat4KNScElbik7EarcFwT+HrbyhvTZpf0x7txfSU7MzEU40J
-X-Received: by 2002:a63:4d0f:: with SMTP id a15mr4687981pgb.59.1559935910161;
-        Fri, 07 Jun 2019 12:31:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559935910; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=gEQTt/69w62CAMJlx7lidr4JWqQ1JSVOKzZe9wzUYD0=;
+        b=af/sH+CvPy7LgFp8JOALEe0jR3VY1/2wkw4N934FifnSdQfnCu6JojzrzkBCpb7PT6
+         Hxq/vQ4rb2Fi/FDv4iZ/n8FSnSVY+NrlDNbEPm1F7JJqeBdMSl8qwimvpjIMdqxsUEkF
+         mTpW27bWenioUFBVyub7riSHLowJ8Ugp6Rsicc+pIfOzX8404FjSF9renPfEhrtaZcvK
+         2qprdnO5mbEwyBKxfXG7XWj6hLttEGSp6hsI752qMmc5Q+pwomxWRV/8o0vj0mRHwLP0
+         Z/xvKcOdXv+f6S7OEpKwHOEccShgrmvVfdzn5KLHQrgDChBVYXmiDEQYXXBNHEoZiYDT
+         tluA==
+X-Gm-Message-State: APjAAAXNwIAHCrXVEC5mM8iv1ioyRxg/NdSMWuottBw8zy+b2BjawKvB
+	TncXQXyY2oK7Sh5KR+ml3Bjv2sCAhg3xq9jcCI7cl2C6npU3kYVt0jyoJPTRJikYnyfPFxVt9Wm
+	DENDaoM13NBmAyIw2lqUgtZVitDlknBJPLZ8J0jGEeZSAGlQlBJafMmnpsLZkws63gQ==
+X-Received: by 2002:a2e:824c:: with SMTP id j12mr21080250ljh.53.1559936014274;
+        Fri, 07 Jun 2019 12:33:34 -0700 (PDT)
+X-Received: by 2002:a2e:824c:: with SMTP id j12mr21080234ljh.53.1559936013564;
+        Fri, 07 Jun 2019 12:33:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559936013; cv=none;
         d=google.com; s=arc-20160816;
-        b=EOF/aWi03pgjReldKOZRFUv+pAkNAp5MYlRdy7bi96M6+cGpfqLzMjkRXyQ+MpsFor
-         au6eNwz+6kiiXdImlumYDsdJBhlWgbxZQL9gr2Lo/eXTx/i7TMGmxZcV6yPQYujS8C19
-         8+Rh7CDQJ9kaWlVB7lh7svaVuE4xAMQ6warZtcI0t5KAGoORiQwwldXEyPnCvU4QzwbU
-         f8jYxB4MjN90JRDwgAS5b4IJ2E0Jknl9Y01W2l4+GDI00IUvsb8FdFSaDbKgFZbJ2+UP
-         AijWZxWmRvC+6YpWW3MKVC17JQY2Vy+CJdD4PlCCz1kN4ob0MiGRLQbg1DepBxZVSoRI
-         URqg==
+        b=f5I2otokGKv6XOxOglwQZCMljZAPL0WH7fzQDlRdH0sB7dKmSEIxET5mNGgcv2paHv
+         RLWzc5BW3MXNls96slOPrSOhMCwQwsaZsfvqCO0lckPWveZqSQwhQK2uzLEavMXK65dU
+         ZmMZZo6aRFPzabCX5oFdoKQW5w0VXY9JlmiqdFK+rSE5KmH05Pb1cChv5t8lToPLAnXO
+         e3gjge0s32D2MEHz1NrnXgtexXZ24Zzjp9dU9/WbYGmKpKP9tzITD+Lxw/fpvwmGbYY2
+         aMZNK5xVp6FFPEL7zP3PPKqJVJa14T87eUHo5yukEV0Slep9aMX8M9q15gbsNOaJkx7r
+         XX1w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :to:from:subject:message-id;
-        bh=n/ovFP11O8q6ZHjiRlA4PMy2pv31Pw4CkyK6Pr4NpCI=;
-        b=aR5CPOeClH+/nwLb3K46Ec0sFiijjztzFl/z/A6GUK8DOOVdSBVVvrzdhbe+vCa6H6
-         5efRCC+mqU69R9IpYAwOaMeYUpybnUyxW/CjHZR+yTCcxekTZ0V+A5BL4YMpZcWKlFio
-         vJ8cCy+kwCGUOWDGm1AeNsvstR+FDCojupXk3q6A/M1Chvrh1+AsMbcroLa82Skufqaw
-         XNa+0HHBZD9DZAOhwCy9RBnR8Jc8qh7LcUpmSYJQBhmnmRv4fjmGkzFPmELDr6lAEHCJ
-         vmtZCs/ZtlSDZfYmpNGOOKaABLbvYxNivYNgbjB0V1dIczBoRQOAi3e1qgsF8SHE6Mfr
-         Na7Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=gEQTt/69w62CAMJlx7lidr4JWqQ1JSVOKzZe9wzUYD0=;
+        b=AvTJlabqiBKVix40FVMDmvRA/PfDwCKgjNqI3hC5OE5UtJD719S+q9EuZYgg/lAoV3
+         vd4R49yui40yKZPHvqnM2ajtDsWkthGTSR7DutlgnBlSgsRkJ5GNrU70qOwouLrNef4U
+         4ZAx47wnII2mzWdkg+yrrRyI1tDJtrsquDbWMN2GJyfYBB6l5ujXOxTWb+9K01D62Jg3
+         6JV7EMijE0lKC0a5kIpec4u/X8C1qE05WUQZbRcdItklbe7a3MxPilsbxm/9ajiPAVC4
+         1lmMCa5AKrig+pGQFOu3KWlumpcip+1B4gWKWiQniiKtsUx4VNpS74TfeRt0E8rQQdh4
+         RZcA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id v32si3031193plg.3.2019.06.07.12.31.50
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=WBAeb9Yr;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w16sor1857088ljw.32.2019.06.07.12.33.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 12:31:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Fri, 07 Jun 2019 12:33:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 12:31:49 -0700
-X-ExtLoop1: 1
-Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by orsmga005.jf.intel.com with ESMTP; 07 Jun 2019 12:31:48 -0700
-Message-ID: <997ef050c13e3654dee6a862d810cffcafce249b.camel@intel.com>
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
- function
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, "H. Peter Anvin"
- <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar
- <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org,  linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski
- <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>,  Borislav
- Petkov <bp@alien8.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen
- <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>, 
- Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann
- Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook
- <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>,  Nadav
- Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>, Pavel Machek
- <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>, Randy Dunlap
- <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,  Dave Martin
- <Dave.Martin@arm.com>
-Date: Fri, 07 Jun 2019 12:23:46 -0700
-In-Reply-To: <c5c21778-f10f-cef8-c937-1e8ad1e2a7cf@intel.com>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
-	 <20190606200926.4029-4-yu-cheng.yu@intel.com>
-	 <c5c21778-f10f-cef8-c937-1e8ad1e2a7cf@intel.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=WBAeb9Yr;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=gEQTt/69w62CAMJlx7lidr4JWqQ1JSVOKzZe9wzUYD0=;
+        b=WBAeb9YrKbAluVQu4nrMlV3okf6XsP120P+h1v7Rd4vr3vsnkTU4vgCpduY2YM5ezQ
+         ZC8U/tNgH2EZA0xU6gYm6T8EHUBJFtOyB8pCUYpNHE0K2uu7cRS2HajdLzZVPGJNWmLP
+         o5kn20ai9Nk6v1lhHpA15tdkXrTIPHbeu1KGol63jaJ85T1QmQKpgRq8dBfivro5TDq/
+         0VVuFLvOpVZ30wfG4maqWRq7WEpWaiwNYozzr3KF2QYpm6e3SiLKwMCnouJNlEACXYDG
+         /DhWUWfy9Gpre3kK/XzwNxujrgejdBj3ZDHJ4T5DTjCnGMOJBfhZFptCx2FUne4MeKwM
+         KqOA==
+X-Google-Smtp-Source: APXvYqyV5At9/bNoRANbxY42yFL3bcvziWxc6FqbPzzHMOEDWF48b73ld+sfmXEOlH6jYmy6qcg6bXlVtdgv8tNf/9Q=
+X-Received: by 2002:a2e:8696:: with SMTP id l22mr5536229lji.201.1559936013206;
+ Fri, 07 Jun 2019 12:33:33 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190523153436.19102-1-jgg@ziepe.ca> <20190523153436.19102-10-jgg@ziepe.ca>
+In-Reply-To: <20190523153436.19102-10-jgg@ziepe.ca>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Sat, 8 Jun 2019 01:08:37 +0530
+Message-ID: <CAFqt6zarGTZeA+Dw_RT2WXwgoYhnKP28LGfc+CDZqNFRexEXoQ@mail.gmail.com>
+Subject: Re: [RFC PATCH 09/11] mm/hmm: Remove racy protection against double-unregistration
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: linux-rdma@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, 
+	Jerome Glisse <jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>, 
+	John Hubbard <jhubbard@nvidia.com>, Jason Gunthorpe <jgg@mellanox.com>
 Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.1-2 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-06-07 at 12:03 -0700, Dave Hansen wrote:
-> On 6/6/19 1:09 PM, Yu-cheng Yu wrote:
-> > +	modify_fpu_regs_begin();
-> > +	rdmsrl(MSR_IA32_U_CET, r);
-> > +	r |= (MSR_IA32_CET_LEG_IW_EN | bitmap);
-> > +	wrmsrl(MSR_IA32_U_CET, r);
-> > +	modify_fpu_regs_end();
-> 
-> Isn't there a bunch of other stuff in this MSR?  It seems like the
-> bitmap value would allow overwriting lots of bits in the MSR that have
-> nothing to do with the bitmap... in a prctl() that's supposed to only be
-> dealing with the bitmap.
+On Thu, May 23, 2019 at 9:05 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> From: Jason Gunthorpe <jgg@mellanox.com>
+>
+> No other register/unregister kernel API attempts to provide this kind of
+> protection as it is inherently racy, so just drop it.
+>
+> Callers should provide their own protection, it appears nouveau already
+> does, but just in case drop a debugging POISON.
+>
+> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+> ---
+>  mm/hmm.c | 9 ++-------
+>  1 file changed, 2 insertions(+), 7 deletions(-)
+>
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 46872306f922bb..6c3b7398672c29 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -286,18 +286,13 @@ EXPORT_SYMBOL(hmm_mirror_register);
+>   */
+>  void hmm_mirror_unregister(struct hmm_mirror *mirror)
+>  {
+> -       struct hmm *hmm = READ_ONCE(mirror->hmm);
+> -
+> -       if (hmm == NULL)
+> -               return;
+> +       struct hmm *hmm = mirror->hmm;
 
-Yes, the bitmap address should have been masked, although it is checked for page
-alignment (which has the same effect).  I will fix it.
+How about remove struct hmm *hmm and replace the code like below -
 
-Yu-cheng
+down_write(&mirror->hmm->mirrors_sem);
+list_del_init(&mirror->list);
+up_write(&mirror->hmm->mirrors_sem);
+hmm_put(hmm);
+memset(&mirror->hmm, POISON_INUSE, sizeof(mirror->hmm));
+
+Similar to hmm_mirror_register().
+
+
+>         down_write(&hmm->mirrors_sem);
+>         list_del_init(&mirror->list);
+> -       /* To protect us against double unregister ... */
+> -       mirror->hmm = NULL;
+>         up_write(&hmm->mirrors_sem);
+> -
+>         hmm_put(hmm);
+> +       memset(&mirror->hmm, POISON_INUSE, sizeof(mirror->hmm));
+>  }
+>  EXPORT_SYMBOL(hmm_mirror_unregister);
+>
+> --
+> 2.21.0
+>
 
