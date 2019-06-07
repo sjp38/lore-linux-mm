@@ -3,144 +3,210 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BF89DC28CC3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 06:23:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8380EC28CC3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 06:37:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6B302208C0
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 06:23:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B302208C0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=units.it
+	by mail.kernel.org (Postfix) with ESMTP id 092AD2089E
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 06:37:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 092AD2089E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E99446B0269; Fri,  7 Jun 2019 02:23:04 -0400 (EDT)
+	id 1ADB46B000C; Fri,  7 Jun 2019 02:06:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E49FC6B026F; Fri,  7 Jun 2019 02:23:04 -0400 (EDT)
+	id 1105E6B0266; Fri,  7 Jun 2019 02:06:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D60906B0273; Fri,  7 Jun 2019 02:23:04 -0400 (EDT)
+	id F24166B0269; Fri,  7 Jun 2019 02:06:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E8766B0269
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 02:23:04 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id f8so757449pgp.9
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 23:23:04 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A28CE6B000C
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 02:06:48 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id l53so1527305edc.7
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 23:06:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:to:from:cc
-         :subject:in-reply-to:mime-version:content-id
-         :content-transfer-encoding:date:message-id;
-        bh=oQ6rHYlBlNpfA1InKbVIJO2UyqUXtFm41nERPbLrDOE=;
-        b=JSxFl2OnlHOYgkLc8CPBzMgjmweXU4fRkEoJcjjvQNKee0cH03tgU0KqKJizIU1v01
-         qvCyfOKkYiEFLowWdmHxK0pSIvx8udEEa7jbGthRr+nVgt73zsiVgtP49CSCcUfNvBCZ
-         ADgAC3FGg3gRYNyZttZQTlY8sswQL9CbF3zT9Qsf37hIDQ2dVvA7PJAVXtT9pO+o+3QZ
-         K8bkkpRTy73RyFbiT1DspNk+VJ6qTVzfrLSrql/oQ0BxTNm5FM7KNc3KSoFmu2Z2lcQC
-         wg+4vFjJbn5p7PGeAlDdeAF2bCtVOEaZ7L7ab3M4D/HmHSNGoE/inWU8vFbNZwlkc2w+
-         Xj3g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
-X-Gm-Message-State: APjAAAU49crmK9nmLJsEleDRkJuSKeL++EZoq7+B/YKm8f/xDWqXE7DH
-	HDVBC7breJdmdrAtjXlM0rGLvRLcix2G5ANSd81Q6/lp2InyMhaGsja2rIfPqQ04+239NjtsNia
-	NzNSzTvSizIG+t/ewWciSVktN2bDWfHVZG8j6bKmlV/seoxUwX7LQcU4rzVtiDTvBOA==
-X-Received: by 2002:a17:902:b497:: with SMTP id y23mr29840415plr.309.1559888584307;
-        Thu, 06 Jun 2019 23:23:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw7DmY9H1R0AXueabFby/JZtYrzdUNmGCywJQs261qPwzgpmeXqLCu5fcpEHFI3l9fCU/+L
-X-Received: by 2002:a17:902:b497:: with SMTP id y23mr29840374plr.309.1559888583642;
-        Thu, 06 Jun 2019 23:23:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559888583; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=I9QRIUQesoA7PvBni8ercjLBmUfHrHcKYXBNK3H7UGQ=;
+        b=WBYu5wkIm+SebXMccHPlbDw2VDg+Qf2+875ug+8rAdc2P5EGX4IxCM4/R40JUoeThe
+         6Gk4c/w6YEWfttq5KAwfXBKcY+T21dRyy3gol64VzM+6+UXvlihnd2mGo0Dga+0hWnB6
+         qaFnOH5jKp3CeeQi6ApJ4GexRAlFpHW5TRKPVy3/MCvRdwyVrNYfUNIkM+ILKQz4t0fQ
+         L6umF4ZQi+rh1M1uB90vzghP442tdEDM8EmYnqNjdCd4RwqThcVoeuN/Df+tcG57hSPO
+         I8KNFq5rmwKo1zZpAnMeoTnSLYgAKgfWmgIfIHlpaKCeWpTwF9hX7mEBJdLZ6jfcLL4F
+         SCPw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.140.110.172 is neither permitted nor denied by best guess record for domain of anshuman.khandual@arm.com) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAX7lWKoFCDLl4d/W2yQrpAcX7BsQ4i5oUAh18uD4xMz8tSmuOLU
+	Zgml25PC2NdDHLMrKYlI7eDlALAE5GnhYvUL79/v3GccAT3xNPPJdERqjaUeO1WfX15VEXvMroF
+	2u1NGCYzJNczcfVFVkvlw7utbCMc2MCBjdDo9E5Rqh/qX0FYgOAO95swYeHv9rs0=
+X-Received: by 2002:a17:906:d182:: with SMTP id c2mr30851733ejz.311.1559887608136;
+        Thu, 06 Jun 2019 23:06:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzKFbKmjIUfAYvoceOrq5KVVfjq2BqZfX2Iu/GvVBcUcuXU53GLNDsHsPt36DV5hJD7LiyO
+X-Received: by 2002:a17:906:d182:: with SMTP id c2mr30851668ejz.311.1559887606922;
+        Thu, 06 Jun 2019 23:06:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559887606; cv=none;
         d=google.com; s=arc-20160816;
-        b=gu77OOaenecYkArTlFtKwMsqsdzxvgE2FSPMx9CzYdKs8NftnWYt8+i1CX/bMylFfk
-         LwbN5NhrXthnUoaaYSTl8pzHDas2+EfwfAULo7W817TZLy38YSiCXQ7rHpPSXOoXrJsP
-         7i2NZNp5HSw6niZwG2PuAzLKamwc9cQMS+v6+I5etQgMadPIaxowDgtJACueULs008jf
-         6Y+1OfDJTpXxX7IkFCjkwhTZF/UbE49+RmgRaDB+giXp7/6WfbCZMjushALUh/mVTcpA
-         MdyiR6DJPsvG1A55iRWui4jtkvu7UnLvIChRjaiWmckaAc2WePmZvtPNZx2OYm7RxT+E
-         7Cuw==
+        b=LPnAP+Olsi5TmtVzGrfbYT8YeZ/wsNbosqqkEzIpFIrnIb2GXJdzgmLe8lgkd9nCMh
+         LE6Wm7FnlTpFWzKcVQysaqRFQQG8bdRxnNbY8PdQ3lHwkan3Znd86LIrfbYf7oLyYq9l
+         XO6tiqoA5SDGMQBgf7mw4njqPovz1m589ZZ4yVysPGbFe6OL7o25Z2OMYh5lXmctELQ9
+         pVg/iEVRyOsAWb0h1zANhQ3vuhG2PBZRuUoG1OdVlJB/xutgoX/Guozoy53UTYF71unf
+         ni0aRrhR7K3Jth1o1JsuXYFLhVfrL/s6BASPZM7P7gqsMhkYYwMB2DNYfi+0nCbyEIJU
+         7e/w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:content-transfer-encoding:content-id:mime-version
-         :in-reply-to:subject:cc:from:to;
-        bh=oQ6rHYlBlNpfA1InKbVIJO2UyqUXtFm41nERPbLrDOE=;
-        b=F5Xh9nEz+QGL97WfQkQOg1a4YG9WU/Z/SGuzWrKsr+nRInYnH3akQKPt0cdfpnrctT
-         suMeLgFkO9amzT9WR/GfU3lHidFQoKSOSilxz1qfSw4PvjPPqOOloHSonPMYh6ivBNCb
-         uP06ER4mMAfpDZn4RM+T99IjE6tKSYMx9rO3CvYamBO0+bcEGBBxCiqkn4UpJmVam8vK
-         BF0SJNYqf7Gn2m1OvDfpeV76qY6blugWNQLgJVE2HKBSinWp1eq679jJGXVaryOS7MId
-         nFJni2VbSFunbcJ8e8YYs2jaI6wB7J2REDKxmPEkyfuBsKIkI2kkAmDKNcbtN9nLcks5
-         1LIg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=I9QRIUQesoA7PvBni8ercjLBmUfHrHcKYXBNK3H7UGQ=;
+        b=VbPsRMi/7Sqho9d4CtgJox9XOIk8PTGLhTFgcMLGQCEj3xcuJJxhS72NPSryBlJlTE
+         JDYTwWfrlviEKTXhQxc4edfcs9ijX1BNpKPklUzCIXBJ95u3+QajaaVCAYnDBPbW5gZQ
+         Z/zUgtQZHABPB/qyyTgnfKnIndVuBFDleIrvaNlukn79E1S410RWRYP9KWx+ITvZCHaT
+         gdZiHClIM9FCntrvaQnC1TORs+b+kE5/Rhvy8YL1VWNr/V3zxMNDFcYXMpp8rRpaTWb0
+         7qBRF/tm8AHWuB8639ALuawXa7BgeLH0byiz0O3B9h0V4Oa+gayBpenZFdVwiAKED2Cz
+         cTdw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
-Received: from dschgrazlin2.units.it (dschgrazlin2.univ.trieste.it. [140.105.55.81])
-        by mx.google.com with ESMTP id t5si1041641pgj.258.2019.06.06.23.23.02
+       spf=neutral (google.com: 217.140.110.172 is neither permitted nor denied by best guess record for domain of anshuman.khandual@arm.com) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com ([217.140.110.172])
+        by mx.google.com with ESMTP id h20si630026edb.315.2019.06.06.23.06.45
         for <linux-mm@kvack.org>;
-        Thu, 06 Jun 2019 23:23:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) client-ip=140.105.55.81;
+        Thu, 06 Jun 2019 23:06:46 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.140.110.172 is neither permitted nor denied by best guess record for domain of anshuman.khandual@arm.com) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
-Received: from dschgrazlin2.units.it (loopback [127.0.0.1])
-	by dschgrazlin2.units.it (8.15.2/8.15.2) with ESMTP id x576MWHs024423;
-	Fri, 7 Jun 2019 08:22:32 +0200
-To: bugzilla-daemon@bugzilla.kernel.org
-From: balducci@units.it
-CC: linux-mm@kvack.org, akpm@linux-foundation.org
-Subject: Re: [Bug 203715] BUG: unable to handle kernel NULL pointer dereference under stress (possibly related to https://lkml.org/lkml/2019/5/24/292 ?)
-In-reply-to: Your message of "Thu, 06 Jun 2019 14:44:31 -0000."
-             <bug-203715-9581-JKJKlU0qlh@https.bugzilla.kernel.org/>
-X-Mailer: MH-E 8.6+git; nmh 1.7.1; GNU Emacs 26.2
+       spf=neutral (google.com: 217.140.110.172 is neither permitted nor denied by best guess record for domain of anshuman.khandual@arm.com) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E8DA941B5;
+	Thu,  6 Jun 2019 23:06:44 -0700 (PDT)
+Received: from [10.162.42.131] (p8cg001049571a15.blr.arm.com [10.162.42.131])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 520C14029C;
+	Thu,  6 Jun 2019 19:28:26 -0700 (PDT)
+Subject: Re: [PATCH V5 1/3] mm/hotplug: Reorder arch_remove_memory() call in
+ __remove_memory()
+To: Mark Rutland <mark.rutland@arm.com>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
+ catalin.marinas@arm.com, will.deacon@arm.com, mhocko@suse.com,
+ ira.weiny@intel.com, david@redhat.com, cai@lca.pw, logang@deltatee.com,
+ james.morse@arm.com, cpandya@codeaurora.org, arunks@codeaurora.org,
+ dan.j.williams@intel.com, mgorman@techsingularity.net, osalvador@suse.de,
+ ard.biesheuvel@arm.com
+References: <1559121387-674-1-git-send-email-anshuman.khandual@arm.com>
+ <1559121387-674-2-git-send-email-anshuman.khandual@arm.com>
+ <20190530103709.GB56046@lakrids.cambridge.arm.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <7d0538bb-aeef-f5f5-3371-db7b58dcb083@arm.com>
+Date: Fri, 7 Jun 2019 07:58:42 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <24421.1559888576.1@dschgrazlin2.units.it>
-Content-Transfer-Encoding: quoted-printable
-Date: Fri, 07 Jun 2019 08:22:32 +0200
-Message-ID: <24422.1559888576@dschgrazlin2.units.it>
-X-Greylist: inspected by milter-greylist-4.6.2 (dschgrazlin2.units.it [0.0.0.0]); Fri, 07 Jun 2019 08:22:33 +0200 (CEST) for IP:'127.0.0.1' DOMAIN:'loopback' HELO:'dschgrazlin2.units.it' FROM:'balducci@units.it' RCPT:''
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (dschgrazlin2.units.it [0.0.0.0]); Fri, 07 Jun 2019 08:22:33 +0200 (CEST)
+In-Reply-To: <20190530103709.GB56046@lakrids.cambridge.arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Please try the following on top of 5.2-rc3
->
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 9e1b9acb116b..69f4ddfddfa4 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -277,8 +277,7 @@ __reset_isolation_pfn(struct zone *zone, unsigned lo=
-ng pf
-> n,
-> bool check_source,
->         }
->
->         /* Ensure the end of the pageblock or zone is online and valid *=
-/
-> -       block_pfn +=3D pageblock_nr_pages;
-> -       block_pfn =3D min(block_pfn, zone_end_pfn(zone) - 1);
-> +       block_pfn =3D min(pageblock_end_pfn(block_pfn), zone_end_pfn(zon=
-e) - 1)
-> ;
->         end_page =3D pfn_to_online_page(block_pfn);
->         if (!end_page)
->                 return false;
-> @@ -289,7 +288,7 @@ __reset_isolation_pfn(struct zone *zone, unsigned lo=
-ng pf
-> n,
-> bool check_source,
->          * is necessary for the block to be a migration source/target.
->          */
->         do {
-> -               if (pfn_valid_within(pfn)) {
-> +               if (pfn_valid(pfn)) {
->                         if (check_source && PageLRU(page)) {
->                                 clear_pageblock_skip(page);
->                                 return true;
->
 
-no joy; I left the FF build running and found the machine frozen this
-morning; however, firefox build could apparently complete successfully;
-I can't say when exactly the problem happened, as I haven't found any
-message in the logs
 
-thanks
-ciao
--g
+On 05/30/2019 04:07 PM, Mark Rutland wrote:
+> On Wed, May 29, 2019 at 02:46:25PM +0530, Anshuman Khandual wrote:
+>> Memory hot remove uses get_nid_for_pfn() while tearing down linked sysfs
+>> entries between memory block and node. It first checks pfn validity with
+>> pfn_valid_within() before fetching nid. With CONFIG_HOLES_IN_ZONE config
+>> (arm64 has this enabled) pfn_valid_within() calls pfn_valid().
+>>
+>> pfn_valid() is an arch implementation on arm64 (CONFIG_HAVE_ARCH_PFN_VALID)
+>> which scans all mapped memblock regions with memblock_is_map_memory(). This
+>> creates a problem in memory hot remove path which has already removed given
+>> memory range from memory block with memblock_[remove|free] before arriving
+>> at unregister_mem_sect_under_nodes(). Hence get_nid_for_pfn() returns -1
+>> skipping subsequent sysfs_remove_link() calls leaving node <-> memory block
+>> sysfs entries as is. Subsequent memory add operation hits BUG_ON() because
+>> of existing sysfs entries.
+>>
+>> [   62.007176] NUMA: Unknown node for memory at 0x680000000, assuming node 0
+>> [   62.052517] ------------[ cut here ]------------
+>> [   62.053211] kernel BUG at mm/memory_hotplug.c:1143!
+>> [   62.053868] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
+>> [   62.054589] Modules linked in:
+>> [   62.054999] CPU: 19 PID: 3275 Comm: bash Not tainted 5.1.0-rc2-00004-g28cea40b2683 #41
+>> [   62.056274] Hardware name: linux,dummy-virt (DT)
+>> [   62.057166] pstate: 40400005 (nZcv daif +PAN -UAO)
+>> [   62.058083] pc : add_memory_resource+0x1cc/0x1d8
+>> [   62.058961] lr : add_memory_resource+0x10c/0x1d8
+>> [   62.059842] sp : ffff0000168b3ce0
+>> [   62.060477] x29: ffff0000168b3ce0 x28: ffff8005db546c00
+>> [   62.061501] x27: 0000000000000000 x26: 0000000000000000
+>> [   62.062509] x25: ffff0000111ef000 x24: ffff0000111ef5d0
+>> [   62.063520] x23: 0000000000000000 x22: 00000006bfffffff
+>> [   62.064540] x21: 00000000ffffffef x20: 00000000006c0000
+>> [   62.065558] x19: 0000000000680000 x18: 0000000000000024
+>> [   62.066566] x17: 0000000000000000 x16: 0000000000000000
+>> [   62.067579] x15: ffffffffffffffff x14: ffff8005e412e890
+>> [   62.068588] x13: ffff8005d6b105d8 x12: 0000000000000000
+>> [   62.069610] x11: ffff8005d6b10490 x10: 0000000000000040
+>> [   62.070615] x9 : ffff8005e412e898 x8 : ffff8005e412e890
+>> [   62.071631] x7 : ffff8005d6b105d8 x6 : ffff8005db546c00
+>> [   62.072640] x5 : 0000000000000001 x4 : 0000000000000002
+>> [   62.073654] x3 : ffff8005d7049480 x2 : 0000000000000002
+>> [   62.074666] x1 : 0000000000000003 x0 : 00000000ffffffef
+>> [   62.075685] Process bash (pid: 3275, stack limit = 0x00000000d754280f)
+>> [   62.076930] Call trace:
+>> [   62.077411]  add_memory_resource+0x1cc/0x1d8
+>> [   62.078227]  __add_memory+0x70/0xa8
+>> [   62.078901]  probe_store+0xa4/0xc8
+>> [   62.079561]  dev_attr_store+0x18/0x28
+>> [   62.080270]  sysfs_kf_write+0x40/0x58
+>> [   62.080992]  kernfs_fop_write+0xcc/0x1d8
+>> [   62.081744]  __vfs_write+0x18/0x40
+>> [   62.082400]  vfs_write+0xa4/0x1b0
+>> [   62.083037]  ksys_write+0x5c/0xc0
+>> [   62.083681]  __arm64_sys_write+0x18/0x20
+>> [   62.084432]  el0_svc_handler+0x88/0x100
+>> [   62.085177]  el0_svc+0x8/0xc
+>>
+>> Re-ordering arch_remove_memory() with memblock_[free|remove] solves the
+>> problem on arm64 as pfn_valid() behaves correctly and returns positive
+>> as memblock for the address range still exists. arch_remove_memory()
+>> removes applicable memory sections from zone with __remove_pages() and
+>> tears down kernel linear mapping. Removing memblock regions afterwards
+>> is safe because there is no other memblock (bootmem) allocator user that
+>> late. So nobody is going to allocate from the removed range just to blow
+>> up later. Also nobody should be using the bootmem allocated range else
+>> we wouldn't allow to remove it. So reordering is indeed safe.
+>>
+>> Acked-by: Michal Hocko <mhocko@suse.com>
+>> Reviewed-by: David Hildenbrand <david@redhat.com>
+>> Reviewed-by: Oscar Salvador <osalvador@suse.de>
+>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> 
+> Acked-by: Mark Rutland <mark.rutland@arm.com>
+
+Hello Andrew,
+
+Will it be possible for this particular patch of the series to be merged alone.
+I am still reworking arm64 hot-remove parts as per the suggestions from Mark.
+Just wondering if this patch which has been reviewed and acked for a while now
+can be out of our way.
+
+Also because this has some conflict with David's series which can be sorted out
+earlier before arm64 hot-remove V6 series comes in.
+
+From my previous response on this series last week, the following can resolve
+the conflict with David's [v3, 09/11] patch.
+
+C) Rebase (https://patchwork.kernel.org/patch/10962589/) [v3, 09/11]
+
+	- hot-remove series moves arch_remove_memory() before memblock_[free|remove]()
+	- So remove_memory_block_devices() should be moved before arch_remove_memory()
+	  in it's new position   
+
+It will be great if this patch can be merged alone.
+
+- Anshuman
 
