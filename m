@@ -2,158 +2,165 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4562BC468BD
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:04:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 74458C2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:08:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 03CC5208C3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:04:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03CC5208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 31FDE208C0
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:08:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="CI1ZG2by"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 31FDE208C0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 74D686B0269; Fri,  7 Jun 2019 16:04:44 -0400 (EDT)
+	id CC91A6B0269; Fri,  7 Jun 2019 16:08:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E2E46B026A; Fri,  7 Jun 2019 16:04:44 -0400 (EDT)
+	id C79956B026A; Fri,  7 Jun 2019 16:08:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 550BC6B026B; Fri,  7 Jun 2019 16:04:44 -0400 (EDT)
+	id B405F6B026B; Fri,  7 Jun 2019 16:08:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BB616B0269
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 16:04:44 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id q2so2024883plr.19
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 13:04:44 -0700 (PDT)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FA156B0269
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 16:08:10 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id e20so356266ljg.11
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 13:08:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=iJZHaE5MiCsrO1KQclInA0tIHjE0U6f5yWLWeAuFbjM=;
-        b=fWDPWkdVnsN60jhCxOMuM9epyoTPKveqGpHhGaegwRX+xd7oVjN7+QaTiUkS0E7sRU
-         gPmp9kCmDBLUxlBWc/+3mIiclza31c9IWYWbYqa73y/hNxaiXaYDyOgY1lbcokK2hZsm
-         BayVhbVF5nuc/HI7fsKb8c2UrmDDsoO3dOkJSoLJCvMDW4ky72BMkrL6agAvPacBI5qk
-         paAyfJex+LhwubzAbEs4SMCmOuLeAae8Owy40Zt0DSH/+2WX+NUSx+2BGoJCg0NALTpP
-         Ty0Z8tQk65P6N8+/8EfmG22ls6EwzTuOHC9a7mbQLVvxanfW+hobzJItPfon/S8st06r
-         fHvg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVaomoIKiBRboEQau/9F0YiLH17gu0JE7CKtVNfhVPlpkBWo4UD
-	KFWnFlgYcNj10aemlDEqg6TnkBIXJTnmLcxfKur5wSxyu19e2u7quirsIlgulKX/Hzuu4iZ6KE4
-	F22q8mObZBFScijm3jka9ZS0+42gN4PXP5T6OkaWs7TtjBYFbNmSvOUu8F46dsg2SgA==
-X-Received: by 2002:aa7:80d9:: with SMTP id a25mr60483841pfn.50.1559937883778;
-        Fri, 07 Jun 2019 13:04:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzW0Zp0ueJt+yIbiiuXF4Ry70IQy+2KHVydxa0vXtbQQJdKvCT516Vrbg7amcOak92VOCxZ
-X-Received: by 2002:aa7:80d9:: with SMTP id a25mr60483804pfn.50.1559937883222;
-        Fri, 07 Jun 2019 13:04:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559937883; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=QDK3Ccwx6XT9W6QHiKSRwInuQJSgvhMen0AzjEbYCA8=;
+        b=KE3LntD2cnM4f3Ng5Ooa8foPuaFQZkRdRdaxbxI2B7/nxZLXDg2Pm63PRjgt7tVMM1
+         TBgW33W627rjXD4PCPANhElbJabzicWyOCcYtixjEfiu5vQ60GQglzuoT/TcBTfLSgI6
+         6Mq49ZySUKHYgQCkkFwMUjNBpE2N8vsn6+OT3bAtYyF7b4Y7SRQjokjJCchsoh6DNAxQ
+         L3SVUZ5ZUSvy+zSkZZsTXtf7Gj31ndWm+u22gSltmysxMjZduTm5NaBxGqPSi+DG8Dnf
+         H9mf0u9kX/l/IHA0kn/qY2R3VfyuZbLnt+6T/ReeXX4TK49ww9on/ceXBSRcr5rX1dHX
+         /PyQ==
+X-Gm-Message-State: APjAAAVHw7NLzxZFwf2F6fqJ+sOeswFP8MhQZsAjsIWfnn8WSmXL4PdS
+	GI+6Y0jM/dFxeywPp9Buq964mcMF/BPrdltONCs75UtINL28qAet3EAfOsg/bTcrI/1Jb1ehNJW
+	KCHVyw0vRPF9QbwcF6ELBzrtiIRRrMD1pXU8M2PDpLS4eZWp+I/UUndsLgxw4VecDeA==
+X-Received: by 2002:a2e:9a13:: with SMTP id o19mr5228375lji.102.1559938089651;
+        Fri, 07 Jun 2019 13:08:09 -0700 (PDT)
+X-Received: by 2002:a2e:9a13:: with SMTP id o19mr5228337lji.102.1559938088949;
+        Fri, 07 Jun 2019 13:08:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559938088; cv=none;
         d=google.com; s=arc-20160816;
-        b=N2OhWdWOwVY+sLceHBjIW5ZCNCrA4H6cFPmTrwJsjWqXSicpjIKHD9ZQZtjMjWCbhj
-         k9Dv82G7gy2JuRm3YYvub3HRqy+aPzaHPC0EGeBxxfUgBsgWtZOnDdtUazKJuadoD6WM
-         nXdUe67ZfTmJ62Agy7rqX4TMNH7+Gq5WI5u1yiE2T82S5fwgQikjItwPTALgiJkBIFpS
-         fRf3JifLTL0oxDD793k04ti7QYreRsT+RYqrdMmOV1rnRn15CRDjJmxZWRgTfE5FLWZB
-         fzUMZTCaZPAlN61FycVnKsThMCpaQ86pkeYUqRWaiyVYTzfTyDdP221kzHjHthrE3CST
-         ayaQ==
+        b=mzBuU2KZJOQZEaLlSXGooDJS3TAs65pZb24gd6VZn5WkZYoUCV1lbMDGlEAUvcJ0/1
+         YZKkQdeOjyUiXhQlYuMS7JnkrM0582LCoVOse+Xe4rXu2rAOYBPp7NKLZGRKKj77LjkA
+         uwSrRlJReUfxmYPu+vQGMGnhplRQ1q077deDrd9PCPQWhcy2JUmuYHoouyb5VN6O6Wh0
+         fGDeopV3GG72uxSKqphmLalvR/8zI0rkkJlit0cb7mu8fgZKCPwnCYQZqVivjfXaJkw5
+         mhiBujG/NTu7c0RyT354FFaXUfmpQr2jJbDsXrisTIvPo4v44V7mOw/B5q4zi6NS4Nv9
+         eYlw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=iJZHaE5MiCsrO1KQclInA0tIHjE0U6f5yWLWeAuFbjM=;
-        b=R3Xd/GAnkMMNSmne4b52MlJCYlKm6aH59/sfHhrRlN9yj/YiAQm7hHTCJO0xqIBCy6
-         fj/S6jIpP1TIzNRlBh7QqbqmEI9bmL4Z0l2Veqa3zlssUYMivAjiNahg3BdIJ3Nh+qUJ
-         8LNsCFZBALs6CJcaG9Hc/7tXxTWup1alXtQ8Cq/MS+k+m6NlSp8ll6fwvbHJYJEJn4Xj
-         1Hm6zV1rxrMAgPjhigR3QhKZMFKXqf4SvGNm/JFjFR+D1+blrnOw87Y3+gKElZxnnBIc
-         NLWzjN6gqEmUGDkYhez22gG5InGIO6ojyUy9KlRsLtqWQcoYX7MPdTKx9t0SK9dvic3A
-         JDfw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=QDK3Ccwx6XT9W6QHiKSRwInuQJSgvhMen0AzjEbYCA8=;
+        b=N5Bnpbkuot3Khl5ZTLon2hxzeECrrtEFOE5fzodeWglCMzUikq7e+nliF4t4Nr/8X9
+         FxvIxLHO+4zfs2uDrh+/7DAnPmaHN1z5dG6w16wLryRY53jBtzPYusT8l5mDhwerQKcD
+         Odbed5Nnf5OnPCn5Dwf203KNERkWFQqTx6Uv2zbEkopVrLrtzuO4MqgCjPULEg84ffF2
+         qYZKGPem0KN3kwgTv5sku0TwI2Dw5xwOicX9F7WMJ0PR7Hml+XM0cGMP0M+L+DwV9Esf
+         HG+0GUYzBC6mwT8fSAJy5UKO+KChH/dAsUSIJ3KnIxQos0e5qi7PFoRZqKyvKDJTM51f
+         8zeg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id e12si2944344pfd.4.2019.06.07.13.04.43
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=CI1ZG2by;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p25sor1065412lfo.24.2019.06.07.13.08.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 13:04:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        (Google Transport Security);
+        Fri, 07 Jun 2019 13:08:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga002.fm.intel.com ([10.253.24.26])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 13:04:42 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,564,1557212400"; 
-   d="scan'208";a="182781141"
-Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by fmsmga002.fm.intel.com with ESMTP; 07 Jun 2019 13:04:42 -0700
-Message-ID: <9d3cedc83c236ee7a109325113fd1c1f9d849f25.camel@intel.com>
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
- function
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski
- <luto@amacapital.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org, "H. Peter Anvin"
- <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar
- <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org,  linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Balbir Singh
- <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,  Cyrill Gorcunov
- <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene
- Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J.
- Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet
- <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
- <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov
- <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Randy Dunlap
- <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, Dave Martin
- <Dave.Martin@arm.com>
-Date: Fri, 07 Jun 2019 12:56:40 -0700
-In-Reply-To: <352e6172-938d-f8e4-c195-9fd1b881bdee@intel.com>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
-	 <20190606200926.4029-4-yu-cheng.yu@intel.com>
-	 <20190607080832.GT3419@hirez.programming.kicks-ass.net>
-	 <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
-	 <20190607174336.GM3436@hirez.programming.kicks-ass.net>
-	 <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
-	 <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
-	 <352e6172-938d-f8e4-c195-9fd1b881bdee@intel.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=CI1ZG2by;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=QDK3Ccwx6XT9W6QHiKSRwInuQJSgvhMen0AzjEbYCA8=;
+        b=CI1ZG2byPK/1Kx8LZGxmpQVJbJPwAqQiJocZJTlvpGxmCbijp6s/MCkHKaIeulCqHm
+         jkzBrAdWPEJYL7EChVEhSiSL7fH/uls6StJKdkrQ5+Q01AJSmPLrW82w/L+Hn1S73z+Q
+         eyuKALMZREPHrLDajs0j38+UZFCBbs1bFRfrvM40LOT8ZeGSwORrXT3ZIw6l6e+DYtyO
+         WHj3L2BKr8MObeNnmJF4CZwwqvoF+GvIu23HNTC/PhyX1ZAprAr1cMW2llBY8qa9UfbT
+         n0rS9y7xpuoSaMNzM0KoPozltJ5AIo5wBfdosSEzNtv1l1F1knPWA4PyuP18dJYg4v87
+         a46w==
+X-Google-Smtp-Source: APXvYqwqkSPR8EIsmRv7XptKwGZtNlG6WGTa+Aw0Rgt8bmKe6Kk78did3YSh+DNFgKoB7girGDdcu1ECBFa9wEIQIxM=
+X-Received: by 2002:ac2:4ac5:: with SMTP id m5mr4305451lfp.95.1559938088611;
+ Fri, 07 Jun 2019 13:08:08 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190523153436.19102-1-jgg@ziepe.ca> <20190523153436.19102-11-jgg@ziepe.ca>
+In-Reply-To: <20190523153436.19102-11-jgg@ziepe.ca>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Sat, 8 Jun 2019 01:43:12 +0530
+Message-ID: <CAFqt6zatjZdCzd=cg-kZiajsSwF6Jr+d-rL_vQ9kMtHjcDx8uQ@mail.gmail.com>
+Subject: Re: [RFC PATCH 10/11] mm/hmm: Poison hmm_range during unregister
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: linux-rdma@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, 
+	Jerome Glisse <jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>, 
+	John Hubbard <jhubbard@nvidia.com>, Jason Gunthorpe <jgg@mellanox.com>
 Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.1-2 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-06-07 at 11:58 -0700, Dave Hansen wrote:
-> On 6/7/19 11:29 AM, Andy Lutomirski wrote:
-> ...
-> > > I think this new MSR probably needs to get included in oops output when
-> > > CET is enabled.
-> > 
-> > This shouldn’t be able to OOPS because it only happens at CPL 3,
-> > right?  We should put it into core dumps, though.
-> 
-> Good point.
-> 
-> Yu-cheng, can you just confirm that the bitmap can't be referenced in
-> ring-0, no matter what?  We should also make sure that no funny business
-> happens if we put an address in the bitmap that faults, or is
-> non-canonical.  Do we have any self-tests for that?
+On Thu, May 23, 2019 at 9:05 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> From: Jason Gunthorpe <jgg@mellanox.com>
+>
+> Trying to misuse a range outside its lifetime is a kernel bug. Use WARN_ON
+> and poison bytes to detect this condition.
+>
+> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 
-Yes, the bitmap is user memory, but the kernel can still get to it (e.g.
-copy_from_user()).  We can do more check on the address.
+Acked-by: Souptick Joarder <jrdr.linux@gmail.com>
 
-> 
-> Let's say userspace gets a fault on this.  Do they have the
-> introspection capability to figure out why they faulted, say in their
-> signal handler?
+> ---
+>  mm/hmm.c | 11 +++++++----
+>  1 file changed, 7 insertions(+), 4 deletions(-)
+>
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 6c3b7398672c29..02752d3ef2ed92 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -936,8 +936,7 @@ EXPORT_SYMBOL(hmm_range_register);
+>   */
+>  void hmm_range_unregister(struct hmm_range *range)
+>  {
+> -       /* Sanity check this really should not happen. */
+> -       if (range->hmm == NULL || range->end <= range->start)
+> +       if (WARN_ON(range->end <= range->start))
+>                 return;
 
-The bitmap address is kept by the application; the kernel won't provide it again
-to user-space.  In the signal handler, the app can find out from its own record.
-
-[...]
+Does it make any sense to sanity check for range == NULL as well ?
+>
+>         mutex_lock(&range->hmm->lock);
+> @@ -945,9 +944,13 @@ void hmm_range_unregister(struct hmm_range *range)
+>         mutex_unlock(&range->hmm->lock);
+>
+>         /* Drop reference taken by hmm_range_register() */
+> -       range->valid = false;
+>         hmm_put(range->hmm);
+> -       range->hmm = NULL;
+> +
+> +       /* The range is now invalid, leave it poisoned. */
+> +       range->valid = false;
+> +       range->start = ULONG_MAX;
+> +       range->end = 0;
+> +       memset(&range->hmm, POISON_INUSE, sizeof(range->hmm));
+>  }
+>  EXPORT_SYMBOL(hmm_range_unregister);
+>
+> --
+> 2.21.0
+>
 
