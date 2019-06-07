@@ -2,93 +2,94 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 91462C468BC
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:24:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2BC4CC468BC
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:25:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 55D3A20840
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:24:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55D3A20840
+	by mail.kernel.org (Postfix) with ESMTP id E90F8214AE
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:25:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E90F8214AE
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 02AE66B0269; Fri,  7 Jun 2019 12:24:30 -0400 (EDT)
+	id 99FEF6B026B; Fri,  7 Jun 2019 12:25:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F1D6E6B026A; Fri,  7 Jun 2019 12:24:29 -0400 (EDT)
+	id 950A56B026E; Fri,  7 Jun 2019 12:25:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E0E2C6B026B; Fri,  7 Jun 2019 12:24:29 -0400 (EDT)
+	id 841536B026F; Fri,  7 Jun 2019 12:25:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A7EED6B0269
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 12:24:29 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id q6so1672572pll.22
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 09:24:29 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B4FA6B026B
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 12:25:10 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id 145so1808763pfv.18
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 09:25:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :subject:from:to:cc:date:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=khwjtWt+EPNSdS26DemWy8Deo79ZR9ZNMZIN4xypnsQ=;
-        b=rJc5mbJh5uBiqqwIj1proeic3ki79p/ZmOkNlrFqK8zwSUu/9T8qd1icFAgan+vyCw
-         e4Wj5H1hkwx+RyFzPSzLESxHG7MnvZ5DSG6wSlGHdy1eafnB5k2IoEL+ZhposGwFx4RU
-         SYJc+Vr9ANA+u1zcbmuKLA+QyBm+9QKqe9n1Fjq+scYq+de5sQGWAesHScAkAxEgMTYq
-         NeKQ/xO9C3tlhTkYFffZx57oAhVmrhag6yucn0WSkifefPflqiGtxxzQjTR81jgUj3bk
-         1GzInvxIgYFrnUzOz53b9DaVUExesYF3DXpDkXnZ6zEJBFmEl6B2V5hY/KrgVu2F0xx5
-         tQGA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWFjl053+H6s5iR7Rj0ALu+i2rRJlmiIcO2ahewebqssCKTgLPW
-	yFohUVtj+Y0oRkrWWl8W4JN2blGRUH5uwZ1TmNIDVIvpghQglyPWgfBWG0MO1hJHmTqPkHo6QoI
-	vt9exsnOAxqNEJ6YkAGwrAYasRW9MtK5iFeMW9xZliFzC//3o/Yd6R1zGNXXyK5rMAA==
-X-Received: by 2002:a62:6143:: with SMTP id v64mr22967031pfb.42.1559924669354;
-        Fri, 07 Jun 2019 09:24:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz27tTzrAjCvcQ48l9XjaPfrfaV3fQ56jI980cp6l6PgYFtS3hKdq3pxsHDhx1mIcSsNhgS
-X-Received: by 2002:a62:6143:: with SMTP id v64mr22966934pfb.42.1559924668491;
-        Fri, 07 Jun 2019 09:24:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559924668; cv=none;
+        bh=fqZYQrrzFI1K/T5Ovd1jNF/j9A9kDqy2YB6vahLoPIQ=;
+        b=J57mMfDhjLLKTDcLvc+PJ4FJ4BZFElXfjNIqrnMBwcamgzAhyoHPcMYQG9YyCfpAqK
+         b4HPVnjInwDlkoHr7JcBt0M6iYSo2FUKftnrEfb3bWgioisc2/TDscu2fXOPWc5CGlyg
+         EsxIKLDeHxOtEWncBJuhZKsLIdTiCc3MMSnc3iJ10M/2ku1vu3Amy+PUP6Xt0WtjvbQn
+         0vnngPdpx3GtgF/n7EQ4RRj5iOiFKHg84FNZqBztQMiF6LVvu4M2z3jRML3q+6xWUY9I
+         u28lqNECNbx9NbpbN82+P4G77NicklNHOS9WxlFRIh2uQm2XZPgH5QcNwN9vKZqlKLCu
+         Zong==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVI3NX/sPkqyyn3wZBQCE5gpPabedUEhXy30WsRwtsKmQgy1SH5
+	Fag9DKSZIsZ8XyMsqP1QV8m5Fn4cqrHM5EtKnJ+7ULNzVacTzE9i6s7zlNqaxv6N7NKDMhDSIuw
+	f870Zu/BknBunm2nYI1/aBVEY9tB9Z3A57MasiU8pu+x1c5PdVxPFdgDKRVzuLfIamg==
+X-Received: by 2002:a17:902:6ac6:: with SMTP id i6mr42649883plt.233.1559924709995;
+        Fri, 07 Jun 2019 09:25:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzJb3H1f+bfm0JX58uYczdhMD0dbfd33wXukmgsaMP/1tcQCpYmullk5GIQLE4OpTKtuswa
+X-Received: by 2002:a17:902:6ac6:: with SMTP id i6mr42649763plt.233.1559924708982;
+        Fri, 07 Jun 2019 09:25:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559924708; cv=none;
         d=google.com; s=arc-20160816;
-        b=x3o+/bHH3kdInfHDM2LDYuHWuQeYvr2Jvm4WXSwrqCvfrJTGH9qkcBpfBchXKgsGzj
-         g/mtK07cR/VE3Kxj3ZE760XxreUVkpspVdx8KRzaOMxMax8+5dX/kRF+Ox8P+8U+gjNr
-         aVOlhtidZWTy/BwQOEjJQJte6MktNsUEgjC6wY4y/RIUmV1msf946CsLhBtLAiaLOVcI
-         IxX06Wxt9Sf+QBpHE2QhBchiOpHF451vSozxp80hEM0iNzQ/pot8eReEHOKzN06GOFLc
-         zjN0V8y0z/8vnWQi4vymlNUpWb96+KWvtlHmfBwx9yaZlyceFnsLt+nwjojVNeB7d7D/
-         V01Q==
+        b=X9tG/3YIg+Q7BZFPoet7om6qPU3PKOTdxN29mgdUObrep8/5ceMzn7Aj3Cy0n6GdtU
+         DaACOhtIx3hfHS7Y9RnSX5B7GofnwgDzh4EqjRWCHLLSb/Evj1bZljp0NPhO4wL9nDcX
+         5ms8VYafrj96jcfK4VNnjzN9r8mEtrmK92EXcL2Src9teJrTJkWPtyKpkQWd4TGfRkFP
+         6VuPG+e8WitAQccirK7yrf8kia1efnLCN4U48NyjfR4UPllULpFdFjp2fAhVHUlWeXpp
+         qWM4gxs6OnDjr8EOPRjDJTthAtIVoD60hFNXL54nUljWGPbxSbDfmzarMURC27PpwG2+
+         GePw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to:date
          :cc:to:from:subject:message-id;
-        bh=khwjtWt+EPNSdS26DemWy8Deo79ZR9ZNMZIN4xypnsQ=;
-        b=SzEm//mqT6inCMvlLKN/csTvdPFbg8jhTcqxGjRmyce0z+lVHPGxOYMDl0fOxdT5++
-         m2kBiMYWvqQVbJyeQe5AvVZjhmYwx5Irk22F3U0WjFm9AJ3wgefHHWY+qLvZcg0IRBSj
-         IZoA1i4b/jk8z8cCB8Q7UeS8xIIOgRpG5sEG4pvvb+kNN2wHqfYA2RxQ/0NOKJv3JtF2
-         N1W6J92kEHXVzP+T8ge9HNYYEMTMaolTH5O7pH3WXCuE1rIJXqAy9ykoyOe2M9a0qHPF
-         S1Vec6wyxTzkNSrjbo4aKdWwB6Dt428QCOa9rcXT0pQo2S+sGYxFcGX2zFF8yfUrN14e
-         i5hw==
+        bh=fqZYQrrzFI1K/T5Ovd1jNF/j9A9kDqy2YB6vahLoPIQ=;
+        b=GCZbFhRMHhofd1cerp2JcnUQzO2iYC3IJzVOICwJ7ujBXOA8aZcZzvbdvC+4Vuxgx3
+         zRF8227UpnkNQJQ+G673M+SdPLXek/SLuM+g/twxg7G5VjYuRMO03BZWZ7lBIxJ8qQhV
+         sG9yTVbrjt3VHr3thRkzzEZwu05OSb3nLP2KwYQXlUXMWeDD+uqbY+NLjUsGxs1jyMrn
+         uY4teIKHIdyCx5lWDYlBZCpibM5K1klasDZ6a6L/D1R1UK1dkjwebo/+lpEmuHzU6CEv
+         ELruyso5zHynjP460oxXx20q1yG465sSFpB2iGvTxt/DUwNclXSpLVBl1fZ1+F3PZEMM
+         6xqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id b8si2340179pff.119.2019.06.07.09.24.28
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id f17si2190529pjq.18.2019.06.07.09.25.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 09:24:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+        Fri, 07 Jun 2019 09:25:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga002.fm.intel.com ([10.253.24.26])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 09:24:27 -0700
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 09:25:08 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.63,563,1557212400"; 
-   d="scan'208";a="182719826"
+   d="scan'208";a="182720042"
 Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by fmsmga002.fm.intel.com with ESMTP; 07 Jun 2019 09:24:27 -0700
-Message-ID: <ea07ae367f9d130cfe7a3e508d478956c2bf47a7.camel@intel.com>
-Subject: Re: [PATCH v7 18/27] mm: Introduce do_mmap_locked()
+  by fmsmga002.fm.intel.com with ESMTP; 07 Jun 2019 09:25:08 -0700
+Message-ID: <1b5778f8f1336ad7a63f4621f189b7f04a56a9ed.camel@intel.com>
+Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an
+ ELF file
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
 To: Peter Zijlstra <peterz@infradead.org>
 Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
@@ -106,12 +107,11 @@ Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
  <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar"
  <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue
  <vedvyas.shanbhogue@intel.com>,  Dave Martin <Dave.Martin@arm.com>
-Date: Fri, 07 Jun 2019 09:16:26 -0700
-In-Reply-To: <20190607074707.GD3463@hirez.programming.kicks-ass.net>
+Date: Fri, 07 Jun 2019 09:17:06 -0700
+In-Reply-To: <20190607075822.GR3419@hirez.programming.kicks-ass.net>
 References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
-	 <20190606200646.3951-19-yu-cheng.yu@intel.com>
-	 <20190607074322.GP3419@hirez.programming.kicks-ass.net>
-	 <20190607074707.GD3463@hirez.programming.kicks-ass.net>
+	 <20190606200646.3951-23-yu-cheng.yu@intel.com>
+	 <20190607075822.GR3419@hirez.programming.kicks-ass.net>
 Content-Type: text/plain; charset="UTF-8"
 X-Mailer: Evolution 3.28.1-2 
 Mime-Version: 1.0
@@ -122,55 +122,36 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-06-07 at 09:47 +0200, Peter Zijlstra wrote:
-> On Fri, Jun 07, 2019 at 09:43:22AM +0200, Peter Zijlstra wrote:
-> > On Thu, Jun 06, 2019 at 01:06:37PM -0700, Yu-cheng Yu wrote:
-> > > There are a few places that need do_mmap() with mm->mmap_sem held.
-> > > Create an in-line function for that.
-> > > 
-> > > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
-> > > ---
-> > >  include/linux/mm.h | 18 ++++++++++++++++++
-> > >  1 file changed, 18 insertions(+)
-> > > 
-> > > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > > index 398f1e1c35e5..7cf014604848 100644
-> > > --- a/include/linux/mm.h
-> > > +++ b/include/linux/mm.h
-> > > @@ -2411,6 +2411,24 @@ static inline void mm_populate(unsigned long addr,
-> > > unsigned long len)
-> > >  static inline void mm_populate(unsigned long addr, unsigned long len) {}
-> > >  #endif
-> > >  
-> > > +static inline unsigned long do_mmap_locked(unsigned long addr,
-> > > +	unsigned long len, unsigned long prot, unsigned long flags,
-> > > +	vm_flags_t vm_flags)
-> > > +{
-> > > +	struct mm_struct *mm = current->mm;
-> > > +	unsigned long populate;
-> > > +
-> > > +	down_write(&mm->mmap_sem);
-> > > +	addr = do_mmap(NULL, addr, len, prot, flags, vm_flags, 0,
-> > > +		       &populate, NULL);
+On Fri, 2019-06-07 at 09:58 +0200, Peter Zijlstra wrote:
+> On Thu, Jun 06, 2019 at 01:06:41PM -0700, Yu-cheng Yu wrote:
+> > An ELF file's .note.gnu.property indicates features the executable file
+> > can support.  For example, the property GNU_PROPERTY_X86_FEATURE_1_AND
+> > indicates the file supports GNU_PROPERTY_X86_FEATURE_1_IBT and/or
+> > GNU_PROPERTY_X86_FEATURE_1_SHSTK.
 > > 
-> > Funny thing how do_mmap() takes a file pointer as first argument and
-> > this thing explicitly NULLs that. That more or less invalidates the name
-> > do_mmap_locked().
+> > With this patch, if an arch needs to setup features from ELF properties,
+> > it needs CONFIG_ARCH_USE_GNU_PROPERTY to be set, and a specific
+> > arch_setup_property().
 > > 
-> > > +	up_write(&mm->mmap_sem);
-> > > +
-> > > +	if (populate)
-> > > +		mm_populate(addr, populate);
-> > > +
-> > > +	return addr;
-> > > +}
+> > For example, for X86_64:
+> > 
+> > int arch_setup_property(void *ehdr, void *phdr, struct file *f, bool inter)
+> > {
+> > 	int r;
+> > 	uint32_t property;
+> > 
+> > 	r = get_gnu_property(ehdr, phdr, f, GNU_PROPERTY_X86_FEATURE_1_AND,
+> > 			     &property);
+> > 	...
+> > }
+> > 
+> > Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
+> > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 > 
-> You also don't retain that last @uf argument.
-> 
-> I'm thikning you're better off adding a helper to the cet.c file; call
-> it cet_mmap() or whatever.
+> Did HJ write this patch as suggested by that SoB chain? If so, you lost
+> a From: line on top, if not, the SoB thing is invalid.
 
-Ok, I will fix that.
+I will fix that.
 
 Yu-cheng
 
