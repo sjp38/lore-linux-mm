@@ -2,175 +2,156 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+X-Spam-Status: No, score=-12.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C44FDC2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:49:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6350EC2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:57:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 758D9208C3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:49:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 22DB1207E0
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:57:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="XXE969tP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 758D9208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QNjqqGcb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22DB1207E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 35B506B026F; Fri,  7 Jun 2019 16:49:32 -0400 (EDT)
+	id B92316B026E; Fri,  7 Jun 2019 16:57:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2E4576B0270; Fri,  7 Jun 2019 16:49:32 -0400 (EDT)
+	id B1D086B026F; Fri,  7 Jun 2019 16:57:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1ABEE6B0271; Fri,  7 Jun 2019 16:49:32 -0400 (EDT)
+	id 9BC4D6B0270; Fri,  7 Jun 2019 16:57:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EF6FA6B026F
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 16:49:31 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id q13so2901004qtj.15
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 13:49:31 -0700 (PDT)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 319B46B026E
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 16:57:22 -0400 (EDT)
+Received: by mail-lf1-f70.google.com with SMTP id v188so744517lfa.20
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 13:57:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=xpue/yTKTfw/egd/V5x6eR0dUTrWX63mNojFgXXVaNY=;
-        b=NEzJyta6IbUd7w6KoOXPpKRrpmKPKbYC9EK1sWb5o24pRuKzHgxTO2o/RVGV8mKuJF
-         wEs6qs1TKxV9Y8mb0HR5AwJrBqsEWwVxCQCidI4rNjr5eGUx+4JkOdmdu2rSu7oYapj6
-         eXBl5xWvq5qi56gu8oH0EDP+DXG7T1ORVQGAI4yZxBjrjrIEUSTfvB9hCe/cpPgfy537
-         eHBVtdqBgUDcxEDg0D2r8rzLv5aQwErOd+7oYFRndi30VNXSB4L5jdGLbwPfTLjJdO3n
-         q//5wFnJFlF2owtsfl2BMCE4QOmjvlFYBzyplOPhw7ThXS2YBuKgv5DtibB5eVeAu5qj
-         prkA==
-X-Gm-Message-State: APjAAAWjOeA51smr0vitu5XmZKAxOM42HpbnobYlgg2VNqlKYbol3dBL
-	aLOpqsabmzCA2PSGu39G8/uWDprpUCRrX60YeFcwBnSHmYEwEYLgqESt1l1ROix25swKNVNXmL8
-	oB9ToKSNnAjwsu2rioBAm2s4fXLk2d31woaNo4XKsdAu/Hk/rWFAyilYzhq1ZpjQkcg==
-X-Received: by 2002:aed:20c7:: with SMTP id 65mr13233451qtb.392.1559940571760;
-        Fri, 07 Jun 2019 13:49:31 -0700 (PDT)
-X-Received: by 2002:aed:20c7:: with SMTP id 65mr13233427qtb.392.1559940571260;
-        Fri, 07 Jun 2019 13:49:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559940571; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Tny04mc/baghyNAFbwqZ/oFPlAWsvuYVsFUjkQqS22Q=;
+        b=OCtnaYbrCgV+SqiWxkLfFXe7kvpBVAG+YfBE4Pk41ZP7cE5ldFlBIcLQA72SYif/lR
+         famLFZR/HLP9kQNyWbaKQEsuP4y2DH9Z9Cmguc8nm2YH+t1krjElEHLodGLuW1jbmDE2
+         yvomqinkRFP9HaAoVY8oQgO9+PZtEyV94wp+FyR3qoZvUyaqbhRX06vVa73wdjqYoFyn
+         d+4T0TFqxfQp/C1SdfM6VztRZ6Bo/rfxCK06ztAsIVSF2wdIXTjkNTbawCXTHxGJx7mF
+         Ghjy5D6k8kxxokQ3isYA444UmsRtzT/GucYr8dC6a/WsOUbJKySJeorF1u7OlP4MeHry
+         f6lw==
+X-Gm-Message-State: APjAAAVON1BWH/Vp/Cr090Y35tE/8hsLs2AxhyabQlCk5wjzy2HpCxCi
+	2grJIcnAT9aNvMMe5mhmp82hNN+kbvHHnEiv/WGSDU2mvfK7w7EM5FA0/o/FI1eMRWp07xsBsJF
+	ga1T55dcIT6C+8Xprh1Yiem7av+MgYGG3HKHazscWezXT58J588EWKSXLBmC+J0PAYw==
+X-Received: by 2002:ac2:5b0c:: with SMTP id v12mr13924405lfn.184.1559941041414;
+        Fri, 07 Jun 2019 13:57:21 -0700 (PDT)
+X-Received: by 2002:ac2:5b0c:: with SMTP id v12mr13924363lfn.184.1559941040209;
+        Fri, 07 Jun 2019 13:57:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559941040; cv=none;
         d=google.com; s=arc-20160816;
-        b=olD2MKyPYS4IfL3G3MqPhsOpiJQMf4qObvadhtJ0iyLI4fqM+WDx1toph9cV6eUX45
-         adq1RdFkUnKMWHu1e12CqUn4XpggBB7GzPdwQ4+EHVsujtVoCWA5ksaKUkFo9DYYllxt
-         xVb3WnBXo2D0xqFrjSyFRHcQxuRbIO+NTl6xSRgiZ7PiQ3PdKxKvY/qxVlpbRHFo/ZrY
-         uOwMpnPq75hXMiHULKgDqQ9YCq8+TJKyh2DL50C8z0EjTu2pEE+4r4bHUDTXsXmvucX2
-         bQpTze5/WgxUwkpEVH7TELYy4Hhn0t/PDCha6K0lbWvdyc9tHTjqi1uJBhoLiYuT29/y
-         Y3Iw==
+        b=ZI0KRJn9ALQa5noY3QC3MnNDFarK1+tQaTuoOsKW1kfO7r2RFQt/pZ4qGqUOxKzluS
+         EHIWZJudygKfKW3gMyI8oIrR+8Zpxz4khOjk7tqmTpDFvisB3KwJCalTtm8Rk0B79Ie7
+         /fJBZ+4yDpo3j5GxWIIKvMTq62fjCVXVZg6LILle1GdRpC4+/99mGlb7UgBgKqTmqHJr
+         xhz4ZLidf1m98gl6ebxZtxFjUcsqpU66I6zPJxW5fZGaT12IBE1PidLRAhlEfeeq8Vix
+         OliZcAA5E8DQyAcv4aLBvZLf4leYw4UVRlEIgFx9CtwxkrTvZzfeVP7lF8wbDAktO0Df
+         IBSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=xpue/yTKTfw/egd/V5x6eR0dUTrWX63mNojFgXXVaNY=;
-        b=LgNEkoYSOFubzeE62EwmuwahTp8SKxzX0grwivzQJd52IhUrpI3JovOeYDmomBcbft
-         b/czYNWD/dYiDbrih0ZYTwLZqeTOKlfsxaQY5X1JchWqf3AV2RMy7lPJDWxgodmXLeGz
-         JrbRM43iVwarGhCo/sy/qSNuclKUw2ML7kPdJR7iD4PvxrwkR9xCMgutPRMovhl518gu
-         5rUl6P4ZRmR7Cv0W01AgaYDoCpoKTOyK/ZFgRP1yrRCgyTsbw9RlYVFxogpj5doFdtz8
-         9XCuqR/UMHd6jCBlQN4sk3Er2AbS5svrGP8SZD2PC4Zzg/KIup9MRZfiaUFm7/lhrjef
-         LPzA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Tny04mc/baghyNAFbwqZ/oFPlAWsvuYVsFUjkQqS22Q=;
+        b=zkGCCBz7taUcyZp1wuXG9lM0GdDNwF5hBz84Gdd7Y0IKmyd9Fv5AngsP1AGKuhkfRU
+         7NTzuF8piKPBPh6nllFrpUGXqUCO7Rn7oCPU5+GoZaG/77bovWlSe2B4xM0YtGhLq1ZB
+         BnIkFeiL6JFy0TYMNDPgC7yl5K1Pgvt0gSZ77OS0302MMmZPSd0RnJETTRhVfe83Hdlt
+         +bSD4maAsme+6UKrZ1S7gilgRsr8ZJNkv4sp+QG48zv1os2CtDhQWZ92ddB9EUaPzKUC
+         zME+wV0BqQSpG/gBhmZJtd5DIVHesKFPboIu8hzccUsu96a9oGgvSl6j8sbtn8ihqKcQ
+         OiVQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=XXE969tP;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QNjqqGcb;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w23sor3818968qtn.48.2019.06.07.13.49.31
+        by mx.google.com with SMTPS id t20sor214947lfl.17.2019.06.07.13.57.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 07 Jun 2019 13:49:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 07 Jun 2019 13:57:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=XXE969tP;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QNjqqGcb;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=xpue/yTKTfw/egd/V5x6eR0dUTrWX63mNojFgXXVaNY=;
-        b=XXE969tPj//9W51VkE9buoc1JR7bmeVIhDAenkig2qDcQeGQ9MQNdB4210YOgBQ6Ee
-         urj3N09P7L5Mjvi4xbXHFj8HKfPprYKq7M7k/EcjofeMB2GoxEsuqBmDRxsipmPauBqe
-         JJ48ov9QD+JiHQdqD9ykoXBcB6idhYNIBBpzZJ3zljvLxzfdUEHW6WPXsiiOISOg1mj6
-         7DBax0TlpUXdzKzMpIHUKAbPg2PH7L5VNttRwq2gKh2xi8KiWg94GJWmCGzV9d7EA4dS
-         T2I4WYqCFPx5kBGsqWXqkhkJCYicSNB5CNfx8sekAbHUUM1GtLdieXZWKGLrM/mxrLUx
-         C/1Q==
-X-Google-Smtp-Source: APXvYqzPKIbGhJdstJ73Gy3kLdTzS56fHmRoDPMXyiprmrDID4cHA2htBZhMjn4/4PIp+2lgQ2jdNg==
-X-Received: by 2002:ac8:3325:: with SMTP id t34mr44082999qta.172.1559940571006;
-        Fri, 07 Jun 2019 13:49:31 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id b66sm1666176qkd.37.2019.06.07.13.49.30
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 07 Jun 2019 13:49:30 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hZLnm-0001TA-75; Fri, 07 Jun 2019 17:49:30 -0300
-Date: Fri, 7 Jun 2019 17:49:30 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>,
-	Felix.Kuehling@amd.com, linux-rdma@vger.kernel.org,
-	linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>,
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
-Subject: Re: [PATCH v2 hmm 09/11] mm/hmm: Poison hmm_range during unregister
-Message-ID: <20190607204930.GV14802@ziepe.ca>
-References: <20190606184438.31646-1-jgg@ziepe.ca>
- <20190606184438.31646-10-jgg@ziepe.ca>
- <96a2739f-6902-05be-7143-289b41c4304d@nvidia.com>
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Tny04mc/baghyNAFbwqZ/oFPlAWsvuYVsFUjkQqS22Q=;
+        b=QNjqqGcbdGS6ZZ8Py7DrJaDT7cFcTNRm3NFiWdMD9IiJe7FR81nCaS4ldYhjYQaa3x
+         pDZ5dtaQh4VtXRU/M4vMtz6V86TMfvWqfIOv3+xQ1BS3Pi/OO8O34PrdybxezwGLFnCA
+         796+BWV1HccLI+fGw5gqheajIrNxGca1f6Uv38w0SnJb21LsBYtuvkgZh+7P53Wem6Jj
+         v1LkfYLNkunt2AZr9uAea0s8kIG7tfsuyXHc6LOsqr0UjKu/sKW1okPNjSls4KDZ0RxL
+         AyfSU2pULwfpv2onwyxRS9I+M50aNUxdHUI7kSVEx7UEAZ1INmBowgvS78Dnkqo8S+cx
+         zMQw==
+X-Google-Smtp-Source: APXvYqxZe1mVzQxPGczygMJ7Uvjoz9hw+fjkiPEv98As/XW3kebMuog/DbkAruQO2q5Tc4hMSjsxYVTQBupk3BZEUnY=
+X-Received: by 2002:ac2:4ac5:: with SMTP id m5mr4395351lfp.95.1559941039830;
+ Fri, 07 Jun 2019 13:57:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <96a2739f-6902-05be-7143-289b41c4304d@nvidia.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+References: <20190523153436.19102-1-jgg@ziepe.ca> <20190523153436.19102-9-jgg@ziepe.ca>
+ <CAFqt6zakL282X2SMh7E9kHDLnT9nW5ifbN2p1OKTXY4gaU=qkA@mail.gmail.com> <20190607193955.GT14802@ziepe.ca>
+In-Reply-To: <20190607193955.GT14802@ziepe.ca>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Sat, 8 Jun 2019 02:32:23 +0530
+Message-ID: <CAFqt6zZbQmPq=v9xtgHfc5QCy4Vk8pjWgTOY0+TyFgHmEnWTsg@mail.gmail.com>
+Subject: Re: [RFC PATCH 08/11] mm/hmm: Use lockdep instead of comments
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: linux-rdma@vger.kernel.org, Linux-MM <linux-mm@kvack.org>, 
+	Jerome Glisse <jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>, 
+	John Hubbard <jhubbard@nvidia.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 07, 2019 at 01:46:30PM -0700, Ralph Campbell wrote:
-> 
-> On 6/6/19 11:44 AM, Jason Gunthorpe wrote:
-> > From: Jason Gunthorpe <jgg@mellanox.com>
-> > 
-> > Trying to misuse a range outside its lifetime is a kernel bug. Use WARN_ON
-> > and poison bytes to detect this condition.
-> > 
-> > Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
-> > Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
-> 
-> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
-> 
-> > v2
-> > - Keep range start/end valid after unregistration (Jerome)
-> >   mm/hmm.c | 7 +++++--
-> >   1 file changed, 5 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/mm/hmm.c b/mm/hmm.c
-> > index 6802de7080d172..c2fecb3ecb11e1 100644
-> > +++ b/mm/hmm.c
-> > @@ -937,7 +937,7 @@ void hmm_range_unregister(struct hmm_range *range)
-> >   	struct hmm *hmm = range->hmm;
-> >   	/* Sanity check this really should not happen. */
-> > -	if (hmm == NULL || range->end <= range->start)
-> > +	if (WARN_ON(range->end <= range->start))
-> >   		return;
-> 
-> WARN_ON() is definitely better than silent return but I wonder how
-> useful it is since the caller shouldn't be modifying the hmm_range
-> once it is registered. Other fields could be changed too...
+On Sat, Jun 8, 2019 at 1:09 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> On Sat, Jun 08, 2019 at 01:03:48AM +0530, Souptick Joarder wrote:
+> > On Thu, May 23, 2019 at 9:05 PM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> > >
+> > > From: Jason Gunthorpe <jgg@mellanox.com>
+> > >
+> > > So we can check locking at runtime.
+> > >
+> > > Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+> > >  mm/hmm.c | 4 ++--
+> > >  1 file changed, 2 insertions(+), 2 deletions(-)
+> > >
+> > > diff --git a/mm/hmm.c b/mm/hmm.c
+> > > index 2695925c0c5927..46872306f922bb 100644
+> > > +++ b/mm/hmm.c
+> > > @@ -256,11 +256,11 @@ static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
+> > >   *
+> > >   * To start mirroring a process address space, the device driver must register
+> > >   * an HMM mirror struct.
+> > > - *
+> > > - * THE mm->mmap_sem MUST BE HELD IN WRITE MODE !
+> > >   */
+> > >  int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
+> > >  {
+> > > +       lockdep_assert_held_exclusive(mm->mmap_sem);
+> > > +
+> >
+> > Gentle query, does the same required in hmm_mirror_unregister() ?
+>
+> No.. The unregistration path does its actual work in the srcu
+> callback, which is in a different context than this function. So any
+> locking held by the caller of unregister will not apply.
+>
+> The hmm_range_free SRCU callback obtains the write side of mmap_sem to
+> protect the same data that the write side above in register is
+> touching, mostly &mm->hmm.
 
-I deleted the warn on (see the other thread), but I'm confused by your 
-"shouldn't be modified" statement.
-
-The only thing that needs to be set and remain unchanged for register
-is the virtual start/end address. Everything else should be done once
-it is clear to proceed based on the collision-retry locking scheme
-this uses.
-
-Basically the range register only setups a 'detector' for colliding
-invalidations. The other stuff in the struct is just random temporary
-storage for the API.
-
-AFAICS at least..
-
-Jason
+Looking into https://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git/tree/?h=hmm,
+unable trace hmm_range_free(). Am I looking into correct tree ?
 
