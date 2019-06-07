@@ -2,161 +2,247 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F6AAC2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:10:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EB945C2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:13:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CC864207E0
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:10:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9DAD0207E0
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:13:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XuBNVLdg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC864207E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="CWdWEdXP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DAD0207E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5DD236B0272; Fri,  7 Jun 2019 18:10:58 -0400 (EDT)
+	id 20A4C6B0274; Fri,  7 Jun 2019 18:13:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 58C676B0273; Fri,  7 Jun 2019 18:10:58 -0400 (EDT)
+	id 1BC896B0275; Fri,  7 Jun 2019 18:13:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 47C326B0274; Fri,  7 Jun 2019 18:10:58 -0400 (EDT)
+	id 0CFD06B0276; Fri,  7 Jun 2019 18:13:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D60316B0272
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 18:10:57 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id q12so387782ljc.4
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 15:10:57 -0700 (PDT)
+Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DCB616B0274
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 18:13:02 -0400 (EDT)
+Received: by mail-yw1-f72.google.com with SMTP id q79so3384339ywg.13
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 15:13:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=KJ2BLcajVixF67CJRoLG0re1JrYiYqxErMSXYl0tsRw=;
-        b=kPMOCG18nRwtnjX59YNvJNu6ucH4xjdnHwNfICBXtg56/cGf4H4BRtE3UwTDoX7cVQ
-         kiHI7q51sQ6u6rQffWV1CAeLQhYSCpEE/Fe4Ud5ed3zgDd2npvdqG/dyI39/31W4x91B
-         t1SwWJNN0t1PUcshzQnBbE99/OQ/4gQVupHSviL7ZoIseNFdliPk312dmIqSt6O/GEpr
-         phNxJRXs/QqBPe3d1iUWn6pCRgEEpUR9GTUb4dnOgy3if5ZA/UcpgPfVvsyqWXSsok3m
-         9uEFY3WmiZ0m9Rw64spckXzNmrqIC63hC6GEuoIxwm5XKIxElyXlouB5kS/yhA3NYcdX
-         SAtw==
-X-Gm-Message-State: APjAAAWLGNoNh1M7W+g6viruJix9dBs+LOAmDq1g5zOUvzBEDsx62neU
-	2PPBtlCLhXa60sI8vErrRnMTUHjo3aBCGJEkJieHjIffsefgEutKjSQi7gx8wcVU7a6QG8EF7vC
-	Jguhhx0EwOMhc9SlIGnJtoirt4NUDPO3pvMApV2RWTk1tq/utCpxuSC2afp7f3dieQQ==
-X-Received: by 2002:a05:6512:24a:: with SMTP id b10mr25479100lfo.37.1559945457340;
-        Fri, 07 Jun 2019 15:10:57 -0700 (PDT)
-X-Received: by 2002:a05:6512:24a:: with SMTP id b10mr25479077lfo.37.1559945456634;
-        Fri, 07 Jun 2019 15:10:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559945456; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=w3a7b9rytavrVqWAu68ZTBiYbQdXk8HyDqOvXxODynI=;
+        b=Ien5hVtni0P0up++U1ebM8EMRqlm73cI70QR3ddfrC4RfRtGTrlPKHDita1mXryI7b
+         ZJlHX40FIHCAby0IkCWlInjL94gXj9ZWtXQMAWBMCdGQ2H9VKcneax/yKUTvOX0mUXed
+         dlx5HUShPrjpQQeb5uusu/SntW2hjWf8VsWPteTpjd/GkWb8kUZADlOOH/bLZbF8KvzA
+         gyjNsnH0YjZ3Zko+/zIDTiNyCS/6+RIFuZ+w8iKyJALYsvXtVTp7UvKYJlLnbbMbmX5J
+         64Ul1yBK26YdvVBFVzUrEYAosNIpnL4sHdfKPep8SPXf3gFs+LaZ3Nvzj8ngcvKREm30
+         Ri+A==
+X-Gm-Message-State: APjAAAXuQC7CQg2j8IsdIAx+D5ortIhDHfJhki5OkNPvKYeZdSAGLLNt
+	/fWqdRV6XHfRlLSC9e5eqbU8PB+mpgyAO3Ce1A7/yBJHJ6DF+t1dAk8pNTUT6AelzHu7luP8vSv
+	eyJg9Ei7lBL93+T+oDjQ4KSLkGwMMHQxn5BndzhEw10ieVeRqew+LPTsT4GxQWzytNA==
+X-Received: by 2002:a81:1c11:: with SMTP id c17mr30330267ywc.402.1559945582622;
+        Fri, 07 Jun 2019 15:13:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwsbDUJ9k7OgQThG7FC3z3DOwt/A4NzIsSyG0BFhWLdsIYM+7iWqNDmD3Bj9ivcKsRJ03vb
+X-Received: by 2002:a81:1c11:: with SMTP id c17mr30330229ywc.402.1559945581888;
+        Fri, 07 Jun 2019 15:13:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559945581; cv=none;
         d=google.com; s=arc-20160816;
-        b=AI+djxk9Sn7HXCjiVsrvrolvZXpLg6yTsmEFSSBUMVzCXLt1DJM1RMbxFn47TEkCOG
-         drW/wvMCxpmpCPKL1rVUo0hO+RIxODKsg57lZ3C76MsZAnvMuYmToRzLOMRp8eac7nFi
-         WM65Gj4o61rJf0g8OPfXRej3BGX2de9CjGCieqHQtpTzZ8xDz9i7+PiEEqwtXVU3DjQk
-         bB9fX+ud0eLWvzbLmautliivF3bljP27wiwk5njY2M6/kREC3JrcfiSdmfDH+CUWXjFY
-         v264Q2fqrGxsH8BISUvwoJIPkcp6XsXRr4BO6HLoGHYzBtxcjfxU7Mk+mW9H9pmvVIGI
-         qBdw==
+        b=EDMvuUiLnW/ZAwo6EYPSBktbmue8XFlt2ZsRZ+r+sd1GFHICUyfplPqgJEKx+2fZnf
+         jC+3dO58Mv6sxvoFi4+gkm751eueCQos8M+OnpaWOuGrPcmT3cjpV9TRDSZWRjeY0nuW
+         U2+bF7SpuXni7qi2cE6yo9t0FqF02nwkdrVNBhAJKojCyjzuDVAqGSjl2lYZP0efcmES
+         2kABdcLcK02mq0Vy++tHdBqJYN2WMxamCbMKzgewTMqtPb9pIbNPsrrfXZEWLdx45ir3
+         eiGhqcI9Cxgy6zBEVsES/Kig6rcoT1LzMwnZjSxCZqev4eDoyEotp1pZe9kh40AkQ+eS
+         E28w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=KJ2BLcajVixF67CJRoLG0re1JrYiYqxErMSXYl0tsRw=;
-        b=Q0cOnJ/47dS5Gpaz1PPZRymGpFa5aSdEqioK+JMgvmaY6c4g5QRnsOJ+Lcrr1vO+ob
-         6Zetqi+WW8ACyF4HGGYjPIfSh17pxCvGMTAjNxoLAS7dWEezg2793jqmryBUORtp+e3c
-         QaAookX5Dyh4MS2T3CL51UHfrJciz+fwROC/wd2ASOEJ5VJXnd6zCVEIX7aOc8IUa7Va
-         pr6xZ9Cit7raJmiSqvKT7EDwD8Kj+jty/ZoIHyqGggJoD3xs+sWquYRqaAbuOzKZwqO4
-         yj/ZshQjM7qcu5qnLysuUMexzQpICH8ZFc7UIqc9KCXrCGRlqv5pkaGqQyu2uzmOr3tZ
-         0qqg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=w3a7b9rytavrVqWAu68ZTBiYbQdXk8HyDqOvXxODynI=;
+        b=lDqJhf/7IUc7NsagSpJAk2Dv4HeX5r7D1yD5xn+C85gS5QCJPD1TARSiubT50DOGD6
+         mlPHeo8XQlF6zb0MWMygZWLrxtXZtqgBkMuzsspSgwHER4980SCI9GzdplsZlgOvJbcG
+         FVLM7xmgAjAqGW9sSPYaEWGsXmM2tLRxuUesOoGLYaiAkOcI9O7vRFgdfYHWnywdiLze
+         W4/AvENr7plarpd28XVAXZD9d23qw1BVBPfeEAtOxJ0nyxFi11EZLZj2qxxwiRuU+RWZ
+         QnolI2oL8QdTdWvpH1ARMC7VOpA2G1LfpRoHP1wUhbJXXOUX4r/RlwHR7nO3npwyEnDg
+         3yxQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XuBNVLdg;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c20sor1328822ljj.7.2019.06.07.15.10.56
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=CWdWEdXP;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id 129si897609yba.427.2019.06.07.15.13.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 07 Jun 2019 15:10:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Jun 2019 15:13:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XuBNVLdg;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=KJ2BLcajVixF67CJRoLG0re1JrYiYqxErMSXYl0tsRw=;
-        b=XuBNVLdgbcY56Ud4pdH5EXvxmGUKkACohMhQU5klJr5o3160jnTXt0fFBjrUYI8cwP
-         qecWlqIvuoz0yWBNmcfBXRagMuyCN57WmUDAmyLBAoGU/vidUSxhCkBsLMXMAH3gz4EM
-         tWZ1AvPkv98MPJtshU6r4aCzmSJMbti0XAF/zuBjkobX6oY2h/G+vb0ik5Hw5N96rvpl
-         6I3l+tkrVJzURiq0H50JHF2DmIxfH/WItDgvQ/p6+kMn6jvKrdwRXX3GqUJ8EGr+IbP6
-         8uKRI0Z+Ms/ak/i4ugiXOgxFVoAHcF4ZSdzDMKgNGJtjX6zHgettmLUAxF9t1zYsva3u
-         aXCQ==
-X-Google-Smtp-Source: APXvYqziLCb0F1leUAaa1UiZwsg3YnrP4quS0pn+HDEfTbgIMU+w+qLFrO34EBW5m2sppHV711BE8EPBCVYV8kHdz3g=
-X-Received: by 2002:a2e:3912:: with SMTP id g18mr20425063lja.38.1559945456292;
- Fri, 07 Jun 2019 15:10:56 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190606184438.31646-1-jgg@ziepe.ca> <20190606184438.31646-8-jgg@ziepe.ca>
-In-Reply-To: <20190606184438.31646-8-jgg@ziepe.ca>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Sat, 8 Jun 2019 03:46:00 +0530
-Message-ID: <CAFqt6zbPYWiV+2d7-o8EYACKKM2s_M7U=9j3pRux1OWsEqrQAQ@mail.gmail.com>
-Subject: Re: [PATCH v2 hmm 07/11] mm/hmm: Use lockdep instead of comments
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=CWdWEdXP;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5cfae15d0000>; Fri, 07 Jun 2019 15:12:45 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Fri, 07 Jun 2019 15:13:00 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Fri, 07 Jun 2019 15:13:00 -0700
+Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 7 Jun
+ 2019 22:13:00 +0000
+Subject: Re: [PATCH v2 hmm 05/11] mm/hmm: Remove duplicate condition test
+ before wait_event_timeout
 To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Jerome Glisse <jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>, 
-	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com, linux-rdma@vger.kernel.org, 
-	Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, 
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org, 
-	Jason Gunthorpe <jgg@mellanox.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+CC: Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>,
+	<Felix.Kuehling@amd.com>, <linux-rdma@vger.kernel.org>, <linux-mm@kvack.org>,
+	Andrea Arcangeli <aarcange@redhat.com>, <dri-devel@lists.freedesktop.org>,
+	<amd-gfx@lists.freedesktop.org>
+References: <20190606184438.31646-1-jgg@ziepe.ca>
+ <20190606184438.31646-6-jgg@ziepe.ca>
+ <6833be96-12a3-1a1c-1514-c148ba2dd87b@nvidia.com>
+ <20190607191302.GR14802@ziepe.ca>
+ <e17aa8c5-790c-d977-2eb8-c18cdaa4cbb3@nvidia.com>
+ <20190607204427.GU14802@ziepe.ca>
+From: Ralph Campbell <rcampbell@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <ba55e382-c982-8e50-4ee7-7f05c9f7fafa@nvidia.com>
+Date: Fri, 7 Jun 2019 15:13:00 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.0
+MIME-Version: 1.0
+In-Reply-To: <20190607204427.GU14802@ziepe.ca>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1559945565; bh=w3a7b9rytavrVqWAu68ZTBiYbQdXk8HyDqOvXxODynI=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=CWdWEdXPdbaJqJvgBK8un2hHaJjvd5blgVCjnqh9s/ui4hx87u/PJ98EsE3qmq6Qu
+	 1W50vUYw1wY0Qu8QqArvY53uYzlLZ8EkYK+2k62MiFKOdIsVhEE7Gzv4g3wnvDXtD5
+	 8pYFkrEtJoIqZ9LyuyvmlNSpvhmXLsYcW9r73wlDH8OG6Pl1/sKkUaQ2HV6PkV61/Z
+	 efjBqzJjkpXoY7LY2JKKbOGi0PFCKWjp0sHy67fAO92y2bEogWuGzdZmw1y4bzEVGW
+	 tmZOCvZJeqxrnQZ9gAn/6QduMPBBZq+PkRyjmTnXOJhExey4BRW0jLc8st2oDC44/D
+	 qk8qFJQluW+dQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 7, 2019 at 12:15 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
->
-> From: Jason Gunthorpe <jgg@mellanox.com>
->
-> So we can check locking at runtime.
 
-Little more descriptive change log would be helpful.
-Acked-by: Souptick Joarder <jrdr.linux@gmail.com>
+On 6/7/19 1:44 PM, Jason Gunthorpe wrote:
+> On Fri, Jun 07, 2019 at 01:21:12PM -0700, Ralph Campbell wrote:
+> 
+>>> What I want to get to is a pattern like this:
+>>>
+>>> pagefault():
+>>>
+>>>      hmm_range_register(&range);
+>>> again:
+>>>      /* On the slow path, if we appear to be live locked then we get
+>>>         the write side of mmap_sem which will break the live lock,
+>>>         otherwise this gets the read lock */
+>>>      if (hmm_range_start_and_lock(&range))
+>>>            goto err;
+>>>
+>>>      lockdep_assert_held(range->mm->mmap_sem);
+>>>
+>>>      // Optional: Avoid useless expensive work
+>>>      if (hmm_range_needs_retry(&range))
+>>>         goto again;
+>>>      hmm_range_(touch vmas)
+>>>
+>>>      take_lock(driver->update);
+>>>      if (hmm_range_end(&range) {
+>>>          release_lock(driver->update);
+>>>          goto again;
+>>>      }
+>>>      // Finish driver updates
+>>>      release_lock(driver->update);
+>>>
+>>>      // Releases mmap_sem
+>>>      hmm_range_unregister_and_unlock(&range);
+>>>
+>>> What do you think?
+>>>
+>>> Is it clear?
+>>>
+>>> Jason
+>>>
+>>
+>> Are you talking about acquiring mmap_sem in hmm_range_start_and_lock()?
+>> Usually, the fault code has to lock mmap_sem for read in order to
+>> call find_vma() so it can set range.vma.
+> 
+>> If HMM drops mmap_sem - which I don't think it should, just return an
+>> error to tell the caller to drop mmap_sem and retry - the find_vma()
+>> will need to be repeated as well.
+> 
+> Overall I don't think it makes a lot of sense to sleep for retry in
+> hmm_range_start_and_lock() while holding mmap_sem. It would be better
+> to drop that lock, sleep, then re-acquire it as part of the hmm logic.
+> 
+> The find_vma should be done inside the critical section created by
+> hmm_range_start_and_lock(), not before it. If we are retrying then we
+> already slept and the additional CPU cost to repeat the find_vma is
+> immaterial, IMHO?
+> 
+> Do you see a reason why the find_vma() ever needs to be before the
+> 'again' in my above example? range.vma does not need to be set for
+> range_register.
 
->
-> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
-> Reviewed-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-> ---
-> v2
-> - Fix missing & in lockdeps (Jason)
-> ---
->  mm/hmm.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index f67ba32983d9f1..c702cd72651b53 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -254,11 +254,11 @@ static const struct mmu_notifier_ops hmm_mmu_notifi=
-er_ops =3D {
->   *
->   * To start mirroring a process address space, the device driver must re=
-gister
->   * an HMM mirror struct.
-> - *
-> - * THE mm->mmap_sem MUST BE HELD IN WRITE MODE !
->   */
->  int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
->  {
-> +       lockdep_assert_held_exclusive(&mm->mmap_sem);
-> +
->         /* Sanity check */
->         if (!mm || !mirror || !mirror->ops)
->                 return -EINVAL;
-> --
-> 2.21.0
->
+Yes, for the GPU case, there can be many faults in an event queue
+and the goal is to try to handle more than one page at a time.
+The vma is needed to limit the amount of coalescing and checking
+for pages that could be speculatively migrated or mapped.
+
+>> I'm also not sure about acquiring the mmap_sem for write as way to
+>> mitigate thrashing. It seems to me that if a device and a CPU are
+>> both faulting on the same page,
+> 
+> One of the reasons to prefer this approach is that it means we don't
+> need to keep track of which ranges we are faulting, and if there is a
+> lot of *unrelated* fault activity (unlikely?) we can resolve it using
+> mmap sem instead of this elaborate ranges scheme and related
+> locking.
+> 
+> This would reduce the overall work in the page fault and
+> invalidate_start/end paths for the common uncontended cases.
+> 
+>> some sort of backoff delay is needed to let one side or the other
+>> make some progress.
+> 
+> What the write side of the mmap_sem would do is force the CPU and
+> device to cleanly take turns. Once the device pages are registered
+> under the write side the CPU will have to wait in invalidate_start for
+> the driver to complete a shootdown, then the whole thing starts all
+> over again.
+> 
+> It is certainly imaginable something could have a 'min life' timer for
+> a device mapping and hold mm invalidate_start, and device pagefault
+> for that min time to promote better sharing.
+> 
+> But, if we don't use the mmap_sem then we can livelock and the device
+> will see an unrecoverable error from the timeout which means we have
+> risk that under load the system will simply obscurely fail. This seems
+> unacceptable to me..
+> 
+> Particularly since for the ODP use case the issue is not trashing
+> migration as a GPU might have, but simple system stability under swap
+> load. We do not want the ODP pagefault to permanently fail due to
+> timeout if the VMA is still valid..
+> 
+> Jason
+> 
+
+OK, I understand.
+If you come up with a set of changes, I can try testing them.
 
