@@ -5,103 +5,104 @@ X-Spam-Level:
 X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 12189C2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:06:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F6AAC2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:10:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C24E420868
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:06:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CC864207E0
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:10:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="IXRXXYLj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C24E420868
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XuBNVLdg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC864207E0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 459A06B0270; Fri,  7 Jun 2019 18:06:25 -0400 (EDT)
+	id 5DD236B0272; Fri,  7 Jun 2019 18:10:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 430B46B0271; Fri,  7 Jun 2019 18:06:25 -0400 (EDT)
+	id 58C676B0273; Fri,  7 Jun 2019 18:10:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36D5F6B0272; Fri,  7 Jun 2019 18:06:25 -0400 (EDT)
+	id 47C326B0274; Fri,  7 Jun 2019 18:10:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CB0056B0270
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 18:06:24 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id 9so379458ljv.14
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 15:06:24 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D60316B0272
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 18:10:57 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id q12so387782ljc.4
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 15:10:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc
          :content-transfer-encoding;
-        bh=7UWYaKzZEtXuaxJwJzSC3OWehwEB/n9ql+PmX3iEbFc=;
-        b=kzRiIn8aFeLTum5spLIQWYHKa291fvu4OOLeHZFordXyQLJjBR1lZFPnsJmXHsicNv
-         2zB3aG6MFnp7mWc36lS3nxGfZisp4Nc9YDeT64M+DntajT2VsJfHGfhv3OanlorrI4tq
-         /jHxfNPOEH4AkGgo4oJvqLpJVXSY5ZE73NdKIylPte2feWXoNW8vKzX8e9+3JnzTNqRg
-         AigismHwatb61XI5u8WnQPTOEZHiC3IB6+QTmo6tGBpwLwGpW8TP3PYsxlNcD4I5syBi
-         ialQUpqwQd5SITZhSFVVj3EuUk63ZXd4SQomJBEVh1Yls2+aHKHKMI8p8vfqBX9MGUTJ
-         L66g==
-X-Gm-Message-State: APjAAAUkIFKx6PdMbhRt4Cl7i7SBDIkNLFudLX+P7jV5lUrxVnzkvpvY
-	a1iOiwemmspavmVNl7ihZd6sUcvLZXpexbYym0uG/ZmKJSpqirSYjq3vK1oCTu+0wTZZ77LG2V0
-	XREGvLa8wj/PGEtd6y5MlOSXnwLd/nsSKo0CNawKe7VoKxk8ihmrvjniOjiX9390D3g==
-X-Received: by 2002:ac2:4286:: with SMTP id m6mr29021908lfh.150.1559945184306;
-        Fri, 07 Jun 2019 15:06:24 -0700 (PDT)
-X-Received: by 2002:ac2:4286:: with SMTP id m6mr29021882lfh.150.1559945183338;
-        Fri, 07 Jun 2019 15:06:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559945183; cv=none;
+        bh=KJ2BLcajVixF67CJRoLG0re1JrYiYqxErMSXYl0tsRw=;
+        b=kPMOCG18nRwtnjX59YNvJNu6ucH4xjdnHwNfICBXtg56/cGf4H4BRtE3UwTDoX7cVQ
+         kiHI7q51sQ6u6rQffWV1CAeLQhYSCpEE/Fe4Ud5ed3zgDd2npvdqG/dyI39/31W4x91B
+         t1SwWJNN0t1PUcshzQnBbE99/OQ/4gQVupHSviL7ZoIseNFdliPk312dmIqSt6O/GEpr
+         phNxJRXs/QqBPe3d1iUWn6pCRgEEpUR9GTUb4dnOgy3if5ZA/UcpgPfVvsyqWXSsok3m
+         9uEFY3WmiZ0m9Rw64spckXzNmrqIC63hC6GEuoIxwm5XKIxElyXlouB5kS/yhA3NYcdX
+         SAtw==
+X-Gm-Message-State: APjAAAWLGNoNh1M7W+g6viruJix9dBs+LOAmDq1g5zOUvzBEDsx62neU
+	2PPBtlCLhXa60sI8vErrRnMTUHjo3aBCGJEkJieHjIffsefgEutKjSQi7gx8wcVU7a6QG8EF7vC
+	Jguhhx0EwOMhc9SlIGnJtoirt4NUDPO3pvMApV2RWTk1tq/utCpxuSC2afp7f3dieQQ==
+X-Received: by 2002:a05:6512:24a:: with SMTP id b10mr25479100lfo.37.1559945457340;
+        Fri, 07 Jun 2019 15:10:57 -0700 (PDT)
+X-Received: by 2002:a05:6512:24a:: with SMTP id b10mr25479077lfo.37.1559945456634;
+        Fri, 07 Jun 2019 15:10:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559945456; cv=none;
         d=google.com; s=arc-20160816;
-        b=hs3I5sDh3no8SLHDxwsxccB/H3NUWNRsAfrtivVGGKXDA8cWbP6ekTmQ1hnSCaHbNt
-         wGrZkQGROPXCNYv2yVXvmVrZfCI3HF3I1uz6g3SiXx3JRqRY38Pu+yiFEMCqYBwiAH6u
-         Gs9awaBYHuxz62+nw7Hz/bwdGrX+aEPNFUn3Y3dnEAm4ivc3jQW3hG1Gi2V/E22VQhWt
-         Ntu7pQRT2Ga8iNpzyeSssGYy5GYr/0cuQ4DYJspkgVU57ZDZDGWAZVRBKZictaKr7AeU
-         Torx6eHjHKsQJ4Au4kROpzEuR4xbDqGXLjI9EUE/Akjg/v3s0KlsdR5XOZHTajYCGRg7
-         8sDw==
+        b=AI+djxk9Sn7HXCjiVsrvrolvZXpLg6yTsmEFSSBUMVzCXLt1DJM1RMbxFn47TEkCOG
+         drW/wvMCxpmpCPKL1rVUo0hO+RIxODKsg57lZ3C76MsZAnvMuYmToRzLOMRp8eac7nFi
+         WM65Gj4o61rJf0g8OPfXRej3BGX2de9CjGCieqHQtpTzZ8xDz9i7+PiEEqwtXVU3DjQk
+         bB9fX+ud0eLWvzbLmautliivF3bljP27wiwk5njY2M6/kREC3JrcfiSdmfDH+CUWXjFY
+         v264Q2fqrGxsH8BISUvwoJIPkcp6XsXRr4BO6HLoGHYzBtxcjfxU7Mk+mW9H9pmvVIGI
+         qBdw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:cc:to:subject:message-id:date:from
          :in-reply-to:references:mime-version:dkim-signature;
-        bh=7UWYaKzZEtXuaxJwJzSC3OWehwEB/n9ql+PmX3iEbFc=;
-        b=MgC31E+HBAaykVoz8S9UiMlCqOmJ0UVwlcW7ggy8epdPgN7t5HTgE5kRxD0IX91JZB
-         +GnyQwBdfOlBizNAECV7EG8YpLdgYpQCz/mACZtNo6MSf56O29Qtk1rUnJ6wxn3jDO4s
-         DjNM740JB2JWZ9eVBAK8poE7jNmvPCcQ6nljvu/TS+Luy3HXkeCTgFyxnhP3M57Na3AT
-         kGYBiAvsKxtZf2I893pEY++detHU+VPa/KzE23SM7pdzQgdWr0sVjQ9k4aDupwtcRcSu
-         /HlY5nopUXiw8E9b+3uzB8O1qkCjFAcPPupEGpHCOA6cC1/AvS4Wss1uoUf70O5M4e+Q
-         /dZw==
+        bh=KJ2BLcajVixF67CJRoLG0re1JrYiYqxErMSXYl0tsRw=;
+        b=Q0cOnJ/47dS5Gpaz1PPZRymGpFa5aSdEqioK+JMgvmaY6c4g5QRnsOJ+Lcrr1vO+ob
+         6Zetqi+WW8ACyF4HGGYjPIfSh17pxCvGMTAjNxoLAS7dWEezg2793jqmryBUORtp+e3c
+         QaAookX5Dyh4MS2T3CL51UHfrJciz+fwROC/wd2ASOEJ5VJXnd6zCVEIX7aOc8IUa7Va
+         pr6xZ9Cit7raJmiSqvKT7EDwD8Kj+jty/ZoIHyqGggJoD3xs+sWquYRqaAbuOzKZwqO4
+         yj/ZshQjM7qcu5qnLysuUMexzQpICH8ZFc7UIqc9KCXrCGRlqv5pkaGqQyu2uzmOr3tZ
+         0qqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IXRXXYLj;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XuBNVLdg;
        spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p7sor2050170ljj.40.2019.06.07.15.06.22
+        by mx.google.com with SMTPS id c20sor1328822ljj.7.2019.06.07.15.10.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 07 Jun 2019 15:06:23 -0700 (PDT)
+        Fri, 07 Jun 2019 15:10:56 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IXRXXYLj;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XuBNVLdg;
        spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc:content-transfer-encoding;
-        bh=7UWYaKzZEtXuaxJwJzSC3OWehwEB/n9ql+PmX3iEbFc=;
-        b=IXRXXYLjlXhkS7yvhzoYrp+YIYuNj8w+FKvrC2tbRiW0c/0o8dRW8aDCyUkwFWzE/z
-         /YJtG4/7E6x8p7aeeTjHwUD+oOzcin26LtKwS/wxd0ElDf+AxtFBCcpbr3rFGlqL2QkO
-         annY8RhMfQ/yEquJ2BJvQFemzB095m8iLIKkDZUB0xq71t8R9eVEu667+JgcYBTdImY+
-         ubTPhYaxG8U+XvWiy1VeaxHA/JGMBDnE7er/xvmG9dGaM3hCKLub403mntSllA90kI0K
-         yE/wisp+efrCTrhv8ade8ujVMfWOTLSWJqv6ftXcXNCZyqKsNqtBiWB4mj7QGdKBqH3H
-         yZTQ==
-X-Google-Smtp-Source: APXvYqwBeEPN7kLgMnERE0EV7XcHl9B9PjKXKhgkNCm9ydhdQJSENk3Qi8H9gBVf130eoY4SU8M3FQfw0DAJrGoOB1o=
-X-Received: by 2002:a2e:a311:: with SMTP id l17mr8533284lje.214.1559945182726;
- Fri, 07 Jun 2019 15:06:22 -0700 (PDT)
+        bh=KJ2BLcajVixF67CJRoLG0re1JrYiYqxErMSXYl0tsRw=;
+        b=XuBNVLdgbcY56Ud4pdH5EXvxmGUKkACohMhQU5klJr5o3160jnTXt0fFBjrUYI8cwP
+         qecWlqIvuoz0yWBNmcfBXRagMuyCN57WmUDAmyLBAoGU/vidUSxhCkBsLMXMAH3gz4EM
+         tWZ1AvPkv98MPJtshU6r4aCzmSJMbti0XAF/zuBjkobX6oY2h/G+vb0ik5Hw5N96rvpl
+         6I3l+tkrVJzURiq0H50JHF2DmIxfH/WItDgvQ/p6+kMn6jvKrdwRXX3GqUJ8EGr+IbP6
+         8uKRI0Z+Ms/ak/i4ugiXOgxFVoAHcF4ZSdzDMKgNGJtjX6zHgettmLUAxF9t1zYsva3u
+         aXCQ==
+X-Google-Smtp-Source: APXvYqziLCb0F1leUAaa1UiZwsg3YnrP4quS0pn+HDEfTbgIMU+w+qLFrO34EBW5m2sppHV711BE8EPBCVYV8kHdz3g=
+X-Received: by 2002:a2e:3912:: with SMTP id g18mr20425063lja.38.1559945456292;
+ Fri, 07 Jun 2019 15:10:56 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190606184438.31646-1-jgg@ziepe.ca> <20190606184438.31646-11-jgg@ziepe.ca>
-In-Reply-To: <20190606184438.31646-11-jgg@ziepe.ca>
+References: <20190606184438.31646-1-jgg@ziepe.ca> <20190606184438.31646-8-jgg@ziepe.ca>
+In-Reply-To: <20190606184438.31646-8-jgg@ziepe.ca>
 From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Sat, 8 Jun 2019 03:41:27 +0530
-Message-ID: <CAFqt6zafAR3fqvKCTCLmGNVfbSP80KqqR8cT0bUj4CW4scgxpQ@mail.gmail.com>
-Subject: Re: [PATCH v2 hmm 10/11] mm/hmm: Do not use list*_rcu() for hmm->ranges
+Date: Sat, 8 Jun 2019 03:46:00 +0530
+Message-ID: <CAFqt6zbPYWiV+2d7-o8EYACKKM2s_M7U=9j3pRux1OWsEqrQAQ@mail.gmail.com>
+Subject: Re: [PATCH v2 hmm 07/11] mm/hmm: Use lockdep instead of comments
 To: Jason Gunthorpe <jgg@ziepe.ca>
 Cc: Jerome Glisse <jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>, 
 	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com, linux-rdma@vger.kernel.org, 
@@ -120,41 +121,41 @@ On Fri, Jun 7, 2019 at 12:15 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
 >
 > From: Jason Gunthorpe <jgg@mellanox.com>
 >
-> This list is always read and written while holding hmm->lock so there is
-> no need for the confusing _rcu annotations.
+> So we can check locking at runtime.
+
+Little more descriptive change log would be helpful.
+Acked-by: Souptick Joarder <jrdr.linux@gmail.com>
+
 >
 > Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 > Reviewed-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
-
-Acked-by: Souptick Joarder <jrdr.linux@gmail.com>
-
+> ---
+> v2
+> - Fix missing & in lockdeps (Jason)
 > ---
 >  mm/hmm.c | 4 ++--
 >  1 file changed, 2 insertions(+), 2 deletions(-)
 >
 > diff --git a/mm/hmm.c b/mm/hmm.c
-> index c2fecb3ecb11e1..709d138dd49027 100644
+> index f67ba32983d9f1..c702cd72651b53 100644
 > --- a/mm/hmm.c
 > +++ b/mm/hmm.c
-> @@ -911,7 +911,7 @@ int hmm_range_register(struct hmm_range *range,
->         mutex_lock(&hmm->lock);
->
->         range->hmm =3D hmm;
-> -       list_add_rcu(&range->list, &hmm->ranges);
-> +       list_add(&range->list, &hmm->ranges);
->
->         /*
->          * If there are any concurrent notifiers we have to wait for them=
- for
-> @@ -941,7 +941,7 @@ void hmm_range_unregister(struct hmm_range *range)
->                 return;
->
->         mutex_lock(&hmm->lock);
-> -       list_del_rcu(&range->list);
-> +       list_del(&range->list);
->         mutex_unlock(&hmm->lock);
->
->         /* Drop reference taken by hmm_range_register() */
+> @@ -254,11 +254,11 @@ static const struct mmu_notifier_ops hmm_mmu_notifi=
+er_ops =3D {
+>   *
+>   * To start mirroring a process address space, the device driver must re=
+gister
+>   * an HMM mirror struct.
+> - *
+> - * THE mm->mmap_sem MUST BE HELD IN WRITE MODE !
+>   */
+>  int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
+>  {
+> +       lockdep_assert_held_exclusive(&mm->mmap_sem);
+> +
+>         /* Sanity check */
+>         if (!mm || !mirror || !mirror->ops)
+>                 return -EINVAL;
 > --
 > 2.21.0
 >
