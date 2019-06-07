@@ -2,136 +2,170 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A1B5C2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 14:25:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CC8DC2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 14:51:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2C9F520657
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 14:25:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C9F520657
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id ED7162083D
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 14:51:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED7162083D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C1E8E6B000C; Fri,  7 Jun 2019 10:25:39 -0400 (EDT)
+	id 57C586B0007; Fri,  7 Jun 2019 10:51:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA7F46B000E; Fri,  7 Jun 2019 10:25:39 -0400 (EDT)
+	id 523966B000C; Fri,  7 Jun 2019 10:51:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A96346B0266; Fri,  7 Jun 2019 10:25:39 -0400 (EDT)
+	id 380A16B000E; Fri,  7 Jun 2019 10:51:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5799B6B000C
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 10:25:39 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f15so3414016ede.8
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 07:25:39 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EEBB26B0007
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 10:51:02 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id j7so1636828pfn.10
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 07:51:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=IQrpfQ+m1NZt4S5yJ9zkkEMPXPEj51lrA5OK0uHFPuM=;
-        b=GhCSL1A091eE6FjHERykLAdiQiU//+btJylqKl5QtKa7mB1t5aNyXMgKwzXbiOVaAj
-         AgT7ZCq0DfeM7U1lZrq44W4OV1zohDweaEULe5ZKDtMKliShS+0JXNu2+2WpUiYbC1gi
-         q90QM2Xb8Qi/YNaFki6XdXiA4BamA3AgKj1KaiDdA8x0B8wBDhY5Ncl46ijZQUn90sQR
-         i5R0wj3JCKWZoIUDT5pTxqX8i+53UY2YQKAY5g5vTslrr03SERgGBejKKnwIWeUFKbBl
-         bT9OFoZJjSsKA8Ywmym3vl5CR0V7zrruz1cfPVTmG19aXfVbmvvwGX6Q+56WkAO0XPWy
-         puMw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWXhv+3SRabnFnVqxdUJItpFd0afVZf+PKgWLr1NWwnPGX6/j8v
-	Ydl0vccDxgkB0t59ZsZ5wTqhuXtOqBqrQYh4ea2G6Clxh/nqD8kCI+qY1YrDkgHBRGg+Aa9jWzo
-	MgvMRQnsjPXR2KciERtuBIiU+OKmkytng0rGHLPp7XIGqM/uGbevmjLUVfjDqiek=
-X-Received: by 2002:a50:b48f:: with SMTP id w15mr9526235edd.260.1559917538924;
-        Fri, 07 Jun 2019 07:25:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzN60MO5/r/z4eKE45Y0fjb5cTvCyAL4jdzlzaN9IXZSqVMWIRYDmjsCQZlcdg5BUCvCTi2
-X-Received: by 2002:a50:b48f:: with SMTP id w15mr9526075edd.260.1559917537421;
-        Fri, 07 Jun 2019 07:25:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559917537; cv=none;
+        bh=ONrEX0pLSNG7X0Q/0w97Q79cpcqRNXaRPFhLlTP43jc=;
+        b=PMwOfIC4Hb0XLlGK25yLoAWhbSUQsptlgp55DAOMGFwsF5B+4oVdHnoHtuxp0SxXDW
+         5dvfTC1Q7h3nD3uZqb3kDLS+KsNmLEy+3jwInDFQiBxBjBJ/iHBkFBRlRieSaQQgeIhZ
+         alFymcZfVwnelpLvzvQ3BFWT7S6YhMPk+/aDjJFpFvtsUAw4bV4WM04KAnE12kAoqOv9
+         yw/Mm946ij2fq9Uevzpu5BG/K0rHtdYAvVDK8tnDg1i9Ql9mNYPuXB+eJQJuE24VNb8x
+         v8wNl5SEaTIwHn0tPJZiT0dM2EjLtNCSErsg0AUeRux5aOPNPnPR+7jjQdEuZBdwjcSS
+         azYA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVvR3JjTNA9gyvbuzMhy9ikJ0JWoEh3mdnM3dGnQtpaaAuygDJS
+	OsRKM13WECN5lf67qCVA2t2fWe1VsYdptYI1Du3W0wlAcmuQULc1hvqlFusXlISwhDnshp86+2o
+	MmZORMRtqe+8zwvW/jLl+HQkt00QU2s9kIpj30EBZ9TlysLH1UwD4cpuNon23eC1zFA==
+X-Received: by 2002:a63:5462:: with SMTP id e34mr2876578pgm.400.1559919062548;
+        Fri, 07 Jun 2019 07:51:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy6EKC/3bqNM0suszUSbqUohmtAATpt3IoWogWCThxkOZLfqH/V5OJR5m8E7OkkgASkGt0+
+X-Received: by 2002:a63:5462:: with SMTP id e34mr2876457pgm.400.1559919061070;
+        Fri, 07 Jun 2019 07:51:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559919061; cv=none;
         d=google.com; s=arc-20160816;
-        b=tJOkR1wAhS2MtopDHFafUd/Tq3IOhf0tSXzbNItnu/AU7Q8ERuj1qGJx1QK6Im4dw/
-         Byxvaj4Wg9lV7J/Y/yhQWis7i5JGkz8/1D3rHAwCbVgYUmiCR3hPnbHD8W4O7TiUzE0X
-         SvGgMeveQ1pH/9h9z0L6J7Cg19cjeMtNdjbuPioG4x9uO4RFO5bW6KG9EOOi/1FOAPmg
-         dhk4pNxX2+upeMOEZJflvHYP6p3w9ADMmDS7MAcc5AGqA3gasU8W1sF7VNiFELW20CXs
-         2pt9T2CRykwXsguf1YURNpTB2PRx7WqkWnPrcFqdvY0c0lyMiohW0+Uf6xKyXcP8xxwd
-         iUfw==
+        b=sCBrzmXgqSTy07anAwGxfuzTIwnRYSSwx/LGsAVp2wjqqDtNYexNm58KaxAsU+usQb
+         iFnOL4cXtcmVs/yvtfi1QWrQdt71jzwHbgSfrfSaR/Q8ANJgBw9B8zqOeD9pjRpLEUP6
+         /HtNL46wmFRv+CqxU9TcXdrkwPwJlgYmb/hsUOaPaODI+z7tGRKu0MkEsOuZbGyC3esg
+         QNsfHvLm/UJD9Iclr3qSrJ4Q6vKrqGhIgE+ZcjyuOvhC1BQLmUlBmSbdrI5qKlgOXYn2
+         sb6GILt7OTjni/01pI/9JEJBSVOjDp5QHQH4XopD3Y15DN3JlUXisdWsbDF41KMF+lMh
+         Eu5w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=IQrpfQ+m1NZt4S5yJ9zkkEMPXPEj51lrA5OK0uHFPuM=;
-        b=R27NbupM4UaYksncQ2fxv6SCprgcdnppl7aInIrxE2GC/M99PB09+HNgcJqxALvWop
-         z5GZ7l6E3I7cuO+DViUGH2g7ed/WSnp1RJNdTr/W0rbI3pbNOUjah5LtFWtUxzyojCBH
-         +7E3o+Q4a2tSLIYhXyNN+9p7dqIpGaVMD9zU/GT9nnARt5pExtNBp9E+vfm3hJNkul13
-         nf7x19tSr5GJIv+ln/Y/1831Hw3Tbf8ik8jP7/VRKPKIfoOroGeTbCPnS1Ng7gsB+sMm
-         JUhACobQb7PguSP6/bmcdo9y6jWxkjdu4E1BGA1FRbtpSPopvzwfA0oqDoJWN3qCgEYY
-         NWnw==
+        bh=ONrEX0pLSNG7X0Q/0w97Q79cpcqRNXaRPFhLlTP43jc=;
+        b=ZiGTN8rMd+IgBtkbnXQBQuJTX9Z75PJw5HgMYG1r47ZIvd+enavM9lh3jWnt4b8oef
+         pLXucvfZ+cMxqxccZ9wmMX58TeSc3YW8gYh7T5sVgasvIsVsHh5HcvxDbwGS7Cm6/yBk
+         oBuu1pN4sBUFAk93HydBC955HZ2f/geIbuDVB/YZtAYKKUeDhDVaKvn/CxVqmfaN5BAa
+         /4arSkIsy7ud0kHV5/u3neVzUKRe1aq+8/gZknMBWjX8+jJpqI4hwUSqPP6vrxV3GHOP
+         TjaZxWCfnOdBmquXCyVb/1zq494xcJ+pCJ2H0M5+frLj0xJDYR2Phuc+WxvyE8yg0nJI
+         mMJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x23si1454062edb.431.2019.06.07.07.25.37
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id m1si1815345pjr.47.2019.06.07.07.51.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 07:25:37 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 07 Jun 2019 07:51:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 94217AF05;
-	Fri,  7 Jun 2019 14:25:36 +0000 (UTC)
-Date: Fri, 7 Jun 2019 16:25:25 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	vbabka@suse.cz, rientjes@google.com, kirill@shutemov.name,
-	akpm@linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [v2 PATCH] mm: thp: fix false negative of shmem vma's THP
- eligibility
-Message-ID: <20190607142525.GH18435@dhcp22.suse.cz>
-References: <1556037781-57869-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190423175252.GP25106@dhcp22.suse.cz>
- <5a571d64-bfce-aa04-312a-8e3547e0459a@linux.alibaba.com>
- <859fec1f-4b66-8c2c-98ee-2aee9358a81a@linux.alibaba.com>
- <20190507104709.GP31017@dhcp22.suse.cz>
- <ec8a65c7-9b0b-9342-4854-46c732c99390@linux.alibaba.com>
- <217fc290-5800-31de-7d46-aa5c0f7b1c75@linux.alibaba.com>
- <alpine.LSU.2.11.1906070314001.1938@eggly.anvils>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 07:51:00 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.63,563,1557212400"; 
+   d="scan'208";a="182683628"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga002.fm.intel.com with ESMTP; 07 Jun 2019 07:51:00 -0700
+Date: Fri, 7 Jun 2019 07:52:13 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>,
+	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
+	Dave Chinner <david@fromorbit.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190607145213.GB14559@iweiny-DESK2.sc.intel.com>
+References: <20190606014544.8339-1-ira.weiny@intel.com>
+ <20190606104203.GF7433@quack2.suse.cz>
+ <20190606195114.GA30714@ziepe.ca>
+ <20190606222228.GB11698@iweiny-DESK2.sc.intel.com>
+ <20190607103636.GA12765@quack2.suse.cz>
+ <20190607121729.GA14802@ziepe.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1906070314001.1938@eggly.anvils>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190607121729.GA14802@ziepe.ca>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 07-06-19 03:57:18, Hugh Dickins wrote:
-[...]
-> The addition of "THPeligible" without an "Anon" in its name was
-> unfortunate. I suppose we're two releases too late to change that.
+On Fri, Jun 07, 2019 at 09:17:29AM -0300, Jason Gunthorpe wrote:
+> On Fri, Jun 07, 2019 at 12:36:36PM +0200, Jan Kara wrote:
+> 
+> > Because the pins would be invisible to sysadmin from that point on. 
+> 
+> It is not invisible, it just shows up in a rdma specific kernel
+> interface. You have to use rdma netlink to see the kernel object
+> holding this pin.
+> 
+> If this visibility is the main sticking point I suggest just enhancing
+> the existing MR reporting to include the file info for current GUP
+> pins and teaching lsof to collect information from there as well so it
+> is easy to use.
+> 
+> If the ownership of the lease transfers to the MR, and we report that
+> ownership to userspace in a way lsof can find, then I think all the
+> concerns that have been raised are met, right?
 
-Well, I do not really see any reason why THPeligible should be Anon
-specific at all. Even if ...
+I was contemplating some new lsof feature yesterday.  But what I don't think we
+want is sysadmins to have multiple tools for multiple subsystems.  Or even have
+to teach lsof something new for every potential new subsystem user of GUP pins.
 
-> Applying process (PR_SET_THP_DISABLE) and mm (MADV_*HUGEPAGE)
-> limitations to shared filesystem objects doesn't work all that well.
+I was thinking more along the lines of reporting files which have GUP pins on
+them directly somewhere (dare I say procfs?) and teaching lsof to report that
+information.  That would cover any subsystem which does a longterm pin.
 
-... this is what we are going with then it is really important to have a
-single place to query the eligibility IMHO.
+> 
+> > ugly to live so we have to come up with something better. The best I can
+> > currently come up with is to have a method associated with the lease that
+> > would invalidate the RDMA context that holds the pins in the same way that
+> > a file close would do it.
+> 
+> This is back to requiring all RDMA HW to have some new behavior they
+> currently don't have..
+> 
+> The main objection to the current ODP & DAX solution is that very
+> little HW can actually implement it, having the alternative still
+> require HW support doesn't seem like progress.
+> 
+> I think we will eventually start seein some HW be able to do this
+> invalidation, but it won't be universal, and I'd rather leave it
+> optional, for recovery from truely catastrophic errors (ie my DAX is
+> on fire, I need to unplug it).
 
-> I recommend that you continue to treat shmem objects separately from
-> anon memory, and just make the smaps "THPeligible" more often accurate.
+Agreed.  I think software wise there is not much some of the devices can do
+with such an "invalidate".
 
-Agreed on this.
-
--- 
-Michal Hocko
-SUSE Labs
+Ira
 
