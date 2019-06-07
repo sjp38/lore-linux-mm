@@ -2,223 +2,167 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_NEOMUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2AE2C2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:13:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61FABC2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:13:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 74159208C3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:13:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="bHsPjAAR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74159208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 227DA208C3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:13:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 227DA208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EA1BD6B0005; Fri,  7 Jun 2019 15:13:04 -0400 (EDT)
+	id C7D1E6B0006; Fri,  7 Jun 2019 15:13:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E29C26B0006; Fri,  7 Jun 2019 15:13:04 -0400 (EDT)
+	id C2DE76B000A; Fri,  7 Jun 2019 15:13:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA3EF6B000A; Fri,  7 Jun 2019 15:13:04 -0400 (EDT)
+	id ACE906B000C; Fri,  7 Jun 2019 15:13:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A44246B0005
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 15:13:04 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id z16so2689944qto.10
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 12:13:04 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7579E6B0006
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 15:13:56 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id z10so2024981pgf.15
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 12:13:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=L5u/Ewjt5chLxfL8rJhTxjnnE9xyDskU5p/CRtJxiWk=;
-        b=DdiI99i/Wh5IWbEy5qN78rWPlfbyxqfauTkciAfU4EmM74xFSOA9fZKL4JLOFL/gq5
-         8hne1nwK2P8se3QPwxbVwlCCzEoalxHRXLktN/5c7q2w5Cw8iEdzqVJ4I+JlMQYch893
-         bLjDB03oEAmrc4lGR/UDSPVd/s+PMGzz3AuJHQzsRRzfSleGj0azAaSlnZXhANj+rnQ/
-         pK+LR1DGdE/tmOnC13xhZMdwfits1YINiMJ6ab4toYOdImADf78OE+0q13Mf3ivuY4za
-         87oMgkqxuMyWLQbUbeUSB61HENPNQPpNZkB1fa0GQlttKIFu3pA2zY+umaAyKJvszX8g
-         JeJg==
-X-Gm-Message-State: APjAAAU7iYcW+eCwJdcokSDidXfzFFCVF/zWy+TDhvGP0ROZZc3vnrB/
-	ggGP+Tkg37ZSWPQfsTcZsD6B61z49Jyh0I6GLqReDMfZ3k3TkxqKDiH81KHsZ+eRZVgIKtsu3Vc
-	88ohVkkvBywLBiC0niZMsWCX3lgJotfiFQCzZRtezrKevTdw7EiubK46radgouw4mDQ==
-X-Received: by 2002:aed:3e1d:: with SMTP id l29mr34747254qtf.175.1559934784379;
-        Fri, 07 Jun 2019 12:13:04 -0700 (PDT)
-X-Received: by 2002:aed:3e1d:: with SMTP id l29mr34747218qtf.175.1559934783849;
-        Fri, 07 Jun 2019 12:13:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559934783; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=CtpnRA6Qzz0WbpuB8gLNio4h0HrmWyKurRoUjYFKT2E=;
+        b=E3bG/DoqEKLhSX3OtXJiNwXuWlysttbCKoKI4DzRLn4kDQfiFyDf60ThTNh79URL9a
+         bDfGaF/HTYmtfMa9AXi+Xi+Ul2rni7fhsJ/XAcy8mgE4phMjsoLJXZFPAADnhbEIQEqh
+         3XMVkWqC8WjTtlc4q1olWUOjCwVqO2TQgOf84L1M+OJctM12O2E3NT46l34UwxU+Yp8b
+         0FJX6kMORFEOO4ZMCsKrWKVTUhiSsa8qzc+fl8ngVCoOOTddXcZuQ24tCuIChYLM7eLR
+         tLUv/q8feMRJSyjo/uUHpGJ1v1BQHlRG6cjpEJ/dhWcALnmd2htlUQxX1KY2cYbSazvw
+         7VNw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAViJkIEnoEKTiQBF14x1k4XFCR/nI8OtIIUnpwCRJT8CoXMu4p2
+	NdLKT2yLZipdp4MckHWFDS2FM8ABJN40VoklkjDyhWV5okybpk/krEfyDy8gu4rxHj7WYm4RM1d
+	Mn4euZUHMtwsPXCd4hEQGE6Vvi+7ClpWaCjEl2J5PB4mOXFj1L5ToL9E8ZQPEQ8C8tw==
+X-Received: by 2002:a63:231c:: with SMTP id j28mr4410834pgj.430.1559934836072;
+        Fri, 07 Jun 2019 12:13:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzsZE4c8wjHAy8gr0eWaYDzv0EO9O1uNVgX0H4yK04LMnJ5A/Y+inXCqwcpl9UcIBD6Xx7D
+X-Received: by 2002:a63:231c:: with SMTP id j28mr4410791pgj.430.1559934835316;
+        Fri, 07 Jun 2019 12:13:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559934835; cv=none;
         d=google.com; s=arc-20160816;
-        b=pgklJJSubWgP4E/gE1jsRaTBSVA5mTHivhCo3v2HZ4UXOoSCsKx59hoKf/OkalkBIA
-         SYbAtEr2ShfdSoJ84ONhzcQZFVF+lHlYYDoGZxsTY70P58Si277dA/1SxhWmnpHVfeI9
-         Uhlqp/lmpN0mJH9za+giau0pEiVNQFl6rvNyxp8XG/7cFkXlcSJwQUh7c7ysf7fKRase
-         I9fVVgXxlsEgF6BkjTywvJVZHdZl0zwERSUW3lLSPMp38/qCu5obhcY1F/mtwQ3PsTBV
-         MDEwiiXMLMw11FYfakFuUuGQ6ZtsOlqKEsLQ4IQy1ttfEq2PKkPgCEghrpvdtK/5QA8p
-         EH6g==
+        b=y3ofZs2i+NVa5fHAxdbUENux1GFulnlZAE4EWlkTAgnsLIMCRFhWUqP1St4gxgGNl7
+         Zs2vngaWCLSkB1+gLFC1iR/gm6S0HFXhjvuER8f1UftHw9JGGGuU7Y/Ay/AfFJBu2ITq
+         2TKDsmqZ+cCHYmc6RxtgLhWpIpjArKj8XTXNBolJxTapXcS0Dn3E9ydQ4vlLdqO1Rbjr
+         yZH5DczhW9H7C6EFERap2PQE9xyC2zX8X40PeMFgXjJuAzqkCFxyrWz0OWY1tB6BiRDF
+         pik4BFGEll0MJoKPawEd0qspQpGkJgNljNr3EL4/GttweRuaZHlXRF0yXd9HfAO75XmN
+         MjqQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=L5u/Ewjt5chLxfL8rJhTxjnnE9xyDskU5p/CRtJxiWk=;
-        b=fy+mmeia5L3SvtysAhMFAfJfTk1o/p5Q7DZCrAIGPTbdR+tQH+vyOuDynrBUkA6468
-         EWpXYJK9PjoIz9ACipc7zAiIAZAbbNXa4kU6Pqrr6dfaeSitbKm/ixR4xgFdOQxMQdCQ
-         mxekGmxtxG3BEeVxVNIwflUgx+PI6L9aP2cJpq/qL09Ft2UMQD+bUrVRhzKF3IntIdfJ
-         z61pBcLJNnqZj0NkGrnNRmKja5HykXuG7sCr6jsVA0G/++t4VMIgwkmxmrFVkE0HbleC
-         lxpGEr21L42F8UT4EXIR+a2Ybjog10kMOEM1LET1kteOwqDbGYJkbwPyFIQAFd19P1Qv
-         2dQw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=CtpnRA6Qzz0WbpuB8gLNio4h0HrmWyKurRoUjYFKT2E=;
+        b=kc6gW3b1dq39ck/+zWJ1vrLxr8AO7LrmwPm67ZWloVZaIqk6dh2ZITvdJv4xejVeDV
+         BK/X4mbk0cFdQj4uXhyFnKF/dHstV9WE6z6tTueS4lpJ3BALC5tpU2jppifgViTGfWOi
+         aBJGrSwa+R1BgkYTiZW/eCmAyTbAsRNT8qOb6U1idAfTJJlwzalanEf6QTDGsj8FZ5Xh
+         RWwS00kEB3uzBWf714WEMZq68hcQy+0+Zg3xAzXG8Xc9MG3BFE5ou7+V8FtOco/fvrX9
+         VbkLQjvwOWa0jEhXH5VY1yFBRCdiQXqiI5xqCOAG2EhlIR3OslV/A34oiQlHwq+2+LOT
+         Jlcg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=bHsPjAAR;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c8sor2497653qvj.32.2019.06.07.12.13.03
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id q2si2739793pgh.177.2019.06.07.12.13.55
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 07 Jun 2019 12:13:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Jun 2019 12:13:55 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=bHsPjAAR;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=L5u/Ewjt5chLxfL8rJhTxjnnE9xyDskU5p/CRtJxiWk=;
-        b=bHsPjAAReITKwgXncrDQTUnXH5Uijp2yxwi54oFK0Oz03jgNQyFhk7SQWR25Vf57lG
-         5J6WB8BhgQr2brS9p/HxVjcz/IKspC8ZZGgXxTb89hyDw6XGOwJRJa3HYjZxUQMfLrqP
-         uVoeOGU1e0jF8iYlcy/d4lLIPcQqPtxjbX9ZItpPRa/lHVfSdg9gmJmTyxiQtHKaPV1U
-         J1ylkbGKkx6WHJknF7MIDM9blwCpIDf4aCW/jrUX4cc6/SZAxImLy9wuCFni5MukTp9f
-         vwPYJF+o6d56Yg60VxHr2pAlIWg0aH5DsbA7nYwEO21TQ5DiUxGjo1TsMsh9ne7w/s2v
-         6l3w==
-X-Google-Smtp-Source: APXvYqypnlbRh0P3THtdFA6tT1uB3/DaS37Mw0g1zWi372Eeo4eJbdLfgNtonmEZ+OErUzAT0EDkAg==
-X-Received: by 2002:a0c:88c3:: with SMTP id 3mr26437457qvo.21.1559934783538;
-        Fri, 07 Jun 2019 12:13:03 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id k40sm2014808qta.50.2019.06.07.12.13.03
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 07 Jun 2019 12:13:03 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hZKIQ-0000kC-MD; Fri, 07 Jun 2019 16:13:02 -0300
-Date: Fri, 7 Jun 2019 16:13:02 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>,
-	Felix.Kuehling@amd.com, linux-rdma@vger.kernel.org,
-	linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>,
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
-Subject: Re: [PATCH v2 hmm 05/11] mm/hmm: Remove duplicate condition test
- before wait_event_timeout
-Message-ID: <20190607191302.GR14802@ziepe.ca>
-References: <20190606184438.31646-1-jgg@ziepe.ca>
- <20190606184438.31646-6-jgg@ziepe.ca>
- <6833be96-12a3-1a1c-1514-c148ba2dd87b@nvidia.com>
+       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga006.fm.intel.com ([10.253.24.20])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 12:13:54 -0700
+X-ExtLoop1: 1
+Received: from black.fi.intel.com ([10.237.72.28])
+  by fmsmga006.fm.intel.com with ESMTP; 07 Jun 2019 12:13:52 -0700
+Received: by black.fi.intel.com (Postfix, from userid 1000)
+	id 0BAED526; Fri,  7 Jun 2019 22:13:49 +0300 (EEST)
+Date: Fri, 7 Jun 2019 22:13:49 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, Oleg Nesterov <oleg@redhat.com>,
+	Jann Horn <jannh@google.com>, Hugh Dickins <hughd@google.com>,
+	Mike Rapoport <rppt@linux.vnet.ibm.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Peter Xu <peterx@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>,
+	Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH 1/1] coredump: fix race condition between
+ collapse_huge_page() and core dumping
+Message-ID: <20190607191349.wvhhnnsd63vrz7xo@black.fi.intel.com>
+References:<20190607161558.32104-1-aarcange@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <6833be96-12a3-1a1c-1514-c148ba2dd87b@nvidia.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To:<20190607161558.32104-1-aarcange@redhat.com>
+User-Agent: NeoMutt/20170714-126-deb55f (1.8.3)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 07, 2019 at 12:01:45PM -0700, Ralph Campbell wrote:
+On Fri, Jun 07, 2019 at 04:15:58PM +0000, Andrea Arcangeli wrote:
+> When fixing the race conditions between the coredump and the mmap_sem
+> holders outside the context of the process, we focused on
+> mmget_not_zero()/get_task_mm() callers in commit
+> 04f5866e41fb70690e28397487d8bd8eea7d712a, but those aren't the only
+> cases where the mmap_sem can be taken outside of the context of the
+> process as Michal Hocko noticed while backporting that commit to
+> older -stable kernels.
 > 
-> On 6/6/19 11:44 AM, Jason Gunthorpe wrote:
-> > From: Jason Gunthorpe <jgg@mellanox.com>
-> > 
-> > The wait_event_timeout macro already tests the condition as its first
-> > action, so there is no reason to open code another version of this, all
-> > that does is skip the might_sleep() debugging in common cases, which is
-> > not helpful.
-> > 
-> > Further, based on prior patches, we can no simplify the required condition
-> > test:
-> >   - If range is valid memory then so is range->hmm
-> >   - If hmm_release() has run then range->valid is set to false
-> >     at the same time as dead, so no reason to check both.
-> >   - A valid hmm has a valid hmm->mm.
-> > 
-> > Also, add the READ_ONCE for range->valid as there is no lock held here.
-> > 
-> > Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
-> > Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
-> >   include/linux/hmm.h | 12 ++----------
-> >   1 file changed, 2 insertions(+), 10 deletions(-)
-> > 
-> > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> > index 4ee3acabe5ed22..2ab35b40992b24 100644
-> > +++ b/include/linux/hmm.h
-> > @@ -218,17 +218,9 @@ static inline unsigned long hmm_range_page_size(const struct hmm_range *range)
-> >   static inline bool hmm_range_wait_until_valid(struct hmm_range *range,
-> >   					      unsigned long timeout)
-> >   {
-> > -	/* Check if mm is dead ? */
-> > -	if (range->hmm == NULL || range->hmm->dead || range->hmm->mm == NULL) {
-> > -		range->valid = false;
-> > -		return false;
-> > -	}
-> > -	if (range->valid)
-> > -		return true;
-> > -	wait_event_timeout(range->hmm->wq, range->valid || range->hmm->dead,
-> > +	wait_event_timeout(range->hmm->wq, range->valid,
-> >   			   msecs_to_jiffies(timeout));
-> > -	/* Return current valid status just in case we get lucky */
-> > -	return range->valid;
-> > +	return READ_ONCE(range->valid);
-> >   }
-> >   /*
-> > 
+> If mmgrab() is called in the context of the process, but then the
+> mm_count reference is transferred outside the context of the process,
+> that can also be a problem if the mmap_sem has to be taken for writing
+> through that mm_count reference.
 > 
-> Since we are simplifying things, perhaps we should consider merging
-> hmm_range_wait_until_valid() info hmm_range_register() and
-> removing hmm_range_wait_until_valid() since the pattern
-> is to always call the two together.
+> khugepaged registration calls mmgrab() in the context of the process,
+> but the mmap_sem for writing is taken later in the context of the
+> khugepaged kernel thread.
+> 
+> collapse_huge_page() after taking the mmap_sem for writing doesn't
+> modify any vma, so it's not obvious that it could cause a problem to
+> the coredump, but it happens to modify the pmd in a way that breaks an
+> invariant that pmd_trans_huge_lock() relies upon. collapse_huge_page()
+> needs the mmap_sem for writing just to block concurrent page faults
+> that call pmd_trans_huge_lock().
+> 
+> Specifically the invariant that "!pmd_trans_huge()" cannot become
+> a "pmd_trans_huge()" doesn't hold while collapse_huge_page() runs.
+> 
+> The coredump will call __get_user_pages() without mmap_sem for
+> reading, which eventually can invoke a lockless page fault which will
+> need a functional pmd_trans_huge_lock().
+> 
+> So collapse_huge_page() needs to use mmget_still_valid() to check it's
+> not running concurrently with the coredump... as long as the coredump
+> can invoke page faults without holding the mmap_sem for reading.
+> 
+> This has "Fixes: khugepaged" to facilitate backporting, but in my view
+> it's more a bug in the coredump code that will eventually have to be
+> rewritten to stop invoking page faults without the mmap_sem for
+> reading. So the long term plan is still to drop all
+> mmget_still_valid().
+> 
+> Cc: <stable@vger.kernel.org>
+> Fixes: ba76149f47d8 ("thp: khugepaged")
+> Reported-by: Michal Hocko <mhocko@suse.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
 
-? the hmm.rst shows the hmm_range_wait_until_valid being called in the
-(ret == -EAGAIN) path. It is confusing because it should really just
-have the again label moved up above hmm_range_wait_until_valid() as
-even if we get the driver lock it could still be a long wait for the
-colliding invalidation to clear.
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-What I want to get to is a pattern like this:
-
-pagefault():
-
-   hmm_range_register(&range);
-again:
-   /* On the slow path, if we appear to be live locked then we get
-      the write side of mmap_sem which will break the live lock,
-      otherwise this gets the read lock */
-   if (hmm_range_start_and_lock(&range))
-         goto err;
-
-   lockdep_assert_held(range->mm->mmap_sem);
-
-   // Optional: Avoid useless expensive work
-   if (hmm_range_needs_retry(&range))
-      goto again;
-   hmm_range_(touch vmas)
-
-   take_lock(driver->update);
-   if (hmm_range_end(&range) {
-       release_lock(driver->update);
-       goto again;
-   }
-   // Finish driver updates
-   release_lock(driver->update);
-
-   // Releases mmap_sem
-   hmm_range_unregister_and_unlock(&range);
-
-What do you think? 
-
-Is it clear?
-
-Jason
+-- 
+ Kirill A. Shutemov
 
