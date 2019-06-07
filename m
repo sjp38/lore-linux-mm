@@ -2,156 +2,185 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 39A1CC2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 17:34:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 074EEC2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 17:43:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC4C720868
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 17:34:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B6502208C3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 17:43:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="TiqYN4ZI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC4C720868
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="uUV0Qg4R"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6502208C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 945956B0006; Fri,  7 Jun 2019 13:34:50 -0400 (EDT)
+	id 45D196B0005; Fri,  7 Jun 2019 13:43:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8F6706B0007; Fri,  7 Jun 2019 13:34:50 -0400 (EDT)
+	id 40E5F6B0006; Fri,  7 Jun 2019 13:43:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7BD3F6B000C; Fri,  7 Jun 2019 13:34:50 -0400 (EDT)
+	id 2FD226B0007; Fri,  7 Jun 2019 13:43:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 510816B0006
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 13:34:50 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id y81so822364oig.19
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 10:34:50 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EB86D6B0005
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 13:43:48 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id g38so1862195pgl.22
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 10:43:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=PQDn4Bg8QjtLfMA6U30U1R3x+u2Sc8pJdpkvrhwxItg=;
-        b=J3BXJhDmJs9yTAkQ1QP7+gjBvIenDCpmXL8gOsbswpLZSX8ZFuFCEOiiO0YYwqlLfa
-         RHk7ZsKOmSy2tlKqBFLM7wbsT0RZ4hONfRcnixB9PaGS2h5q5aaD1fGrHLgSLAQ/wwGI
-         sYzl5oSHxG5PX4dBO1GFxXOHQwNzqW6euatkSPVWjqj8aaoNf0s5mkFdD3pkUpBshMH+
-         GOM1T0P4OIiL/ysny9V2udaa+sGZRnYZZIRd9l+C5dDQoWfgy7akcshgQ26XejwGe9JS
-         UOT8FPM3+gYUy8rhzvlftlc8RIqpfiYo3RrbkjCv4gioF4A9xSFmFWSSUcsk1waHUA6t
-         aeRQ==
-X-Gm-Message-State: APjAAAUTU3C6z+wTMuiBhINsTSL3CuQP8gcBFfZhS+H5XbtsNYO+vPG3
-	FtmH0sYEODFCioK9lO7P3LHrPI/76Y/ueELYsyrO6G7cJe9/GUByRWB6Dg0cyD50Rfzf7BFKBVe
-	xo9n/bKuvi12NFaxLy1r1iMKVEIUcNYshL/QdXnfYJUBd8Gd0QDOyYfVrgdpGCSG6CA==
-X-Received: by 2002:aca:1004:: with SMTP id 4mr4243817oiq.14.1559928889915;
-        Fri, 07 Jun 2019 10:34:49 -0700 (PDT)
-X-Received: by 2002:aca:1004:: with SMTP id 4mr4243761oiq.14.1559928888485;
-        Fri, 07 Jun 2019 10:34:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559928888; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Ib5xcjylzZJYs4tQEX10bx6Iy6PiZBk7Yfn6HEJa6+k=;
+        b=JuV0aIPt3F6WgCyvZdp5FXG7BPj60XoPxhIpdKGjYoLRI/j9ZDkMPPDA/tx6mvydbW
+         hXx95Asim5jESJOtn4RwtPmSNqyCAFZpIhG1kfiHHp9OveUC9ZVJhbON2CqrcuQxTAo5
+         SPLReL+M01fFkILUC8GtNiBMmPnXm13f9mMaBXZzyHoMhj7LXL1M1ZIKfVuZL2KqqYeC
+         8aheYPLoPiBvXAiMOdpK8/CyDDzyk3frTOveOcbRmlFcxYfK6cqVmszpsSIFvtEDgkPs
+         wP9O/6n53MGNR6fJfyAuY5tqqwoPUU0VzL29vBHWetFmGhhzncJDSOdGOQ1JXc4vvASX
+         epkQ==
+X-Gm-Message-State: APjAAAUwJnsjHfUu2Hz+wFZVGoJgHO4kBIFsQGzV+ALDX3ixv27mF+Tg
+	od1TGRVA264vAel/M5xnZA6ANskPwI2dolqT5btKmtPsoIZ6Ak4l4OGr2DoRAbK0PMY8zpcQc20
+	OMrYlykqhsVNXNahSUgUL2yHIojr0RSLCmHJ9E7EspzqxigTNsMgTgu/beNDLF5wIqg==
+X-Received: by 2002:a63:7e43:: with SMTP id o3mr4147079pgn.450.1559929428323;
+        Fri, 07 Jun 2019 10:43:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyqEPy2h2h0BXxzj2SL79nzoTGSMQn5Z6jUYPH8sZTw/cPA8wbrm4JXtZdqWX4kZIgYzzy9
+X-Received: by 2002:a63:7e43:: with SMTP id o3mr4146939pgn.450.1559929426807;
+        Fri, 07 Jun 2019 10:43:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559929426; cv=none;
         d=google.com; s=arc-20160816;
-        b=UdSabCTO5xuFQPcFfKSsmXJEoV554ZdkxXEpkBCTCI3hZC6w/zin/nKB1155lC/hA6
-         DMwJDIMkrlnqBPY/WXKIEM+w+s5ZeJ+K5IPzVentSxQAtoiz+Apy43GnAehqmYzh4Dng
-         n8hyeRgwkD2VFF2y7fN9uTlVtfEU9cGzAVQyEtvjlS39BmG8m1rwgRWyHz/a93nsJMvI
-         8X2+VHCl7XWqNMG72UmqcsHOXS9wGL+jHGiAeUjJ4IwCi+ddRIgJazzACyL5wIkPosyI
-         1SVQe9hKrQ4leqQUm73eqeBuvUcNEJc1bjRYI7sS5rt3KC+ZEjlRHFDP77FIy3kl/gld
-         xO1A==
+        b=sovBQtFyXZfe559YU+tprsnRa+d39lsK/RUjXxadT/8s6WnTy+4nacyE6inOdZ/X1l
+         J8Uk5Z+wH3BL7gNfDF/j6yWF6Y4f7kd3Vkaf0hfR4r286BJH+le7dkgA4e7lCrMCBSvN
+         pvvbiUlVriaC5ubd4Ho2AYWQAEONwqnV1HcgVStDN7b0OCV9eINgIaYjaER4MFIUsZbj
+         oxnRMcl8eeyNZVXW4Zg1xL53jV91TPJDzkfVHY9cXVVCITbLoCykYf3IMxvRDFciEeS2
+         UwkTMW7AdnnQTsNE9o8TfFBiUjJdrO2hBk3XjzrOiTax78MB/AcI5lnrHoF/F6aa8mqO
+         7Fhg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=PQDn4Bg8QjtLfMA6U30U1R3x+u2Sc8pJdpkvrhwxItg=;
-        b=b4BKyG1g4JVYUbjCFX/bvC05ARr0vl13AbNrji19NpKm4M/sUkx7urON9RoahyRkey
-         da0g8dC7hn7bemJCkZDdLFbwwlWqNrzRyTcrJ83XBDn7jvbegrzpv5o+aZnf5cmIkQ9Q
-         hj2MgveF7D36GgdANiMtKz25mfNYl5PgtIisz2tKgqDIIK+RrL7l2K+xYnue7fFiDoeM
-         PhsHAtbHOpj+PFP/9kOCSiGccVTRbLstmydH6RRsKkTJ0FCLngQTKOKhBuqp/x9Aed+l
-         rBiFUxVNjkP9salnruH/8s023agzZBTIGC0hhfMvD8302tujUvZgrf6CgkWYdXEcbD8i
-         a3pQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Ib5xcjylzZJYs4tQEX10bx6Iy6PiZBk7Yfn6HEJa6+k=;
+        b=pOqCUy3dSanhzY3gWwMynHrBUnWj6RSJ6CMGsCvZlGqHSt3nNsFtHXSmVTlgfVFvCB
+         bKXj3U93gAUJAKYDDiiOtgPU7B75gCf4pXGkPhR8aXL5u7SQ/P8yy/mY1bykkTLlNjum
+         Z0G+aih/irTdzvJUtgxNoEeuNJsMec3zl9Sp7b/N2Jxf6VPZtnsi8Gm5TGi8w4btI+rK
+         OM0DwbwohyQX6z8ptTcN+JYNVQRbOUPCEWE2u8THAeJeoThVr2R0LETprXrS8lM5vbov
+         +mc56DWFiSOIcL8cln3TBi3wxvjHoVVTkfN8kxfN4cQRbTtogA6Gufa9wJaYVP/3bwij
+         SRrg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=TiqYN4ZI;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j66sor993873oia.126.2019.06.07.10.34.48
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=uUV0Qg4R;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id e12si2572391pfd.4.2019.06.07.10.43.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 07 Jun 2019 10:34:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 07 Jun 2019 10:43:46 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=TiqYN4ZI;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=PQDn4Bg8QjtLfMA6U30U1R3x+u2Sc8pJdpkvrhwxItg=;
-        b=TiqYN4ZIeJIcZdyH76CPw/HVLGladFFX1TaVyA8d+bt91TPBoOj+Wl/qYIgyST2If0
-         5Q53pA2tQdlIrIXAbCxchjf9ns3sci6CtmdDvUYrvO+YD3Ve5aaBvSMa9VMxmPhN4j3W
-         Tn6nVuiG9Y78xQgJXKnl+5bg5ke1pBLB1GlQupAgv6HIX0F0U/aM7XPLV9VOXad4g4Lf
-         LMgAgdHX6fzBlIhsSuKFqXCYO1qbZHMxYrPREEUVIDtZdlVAsMCCpwK3xKS/Lk71Awcd
-         0pVr2y0nBr1ueHaxoR1TDFfUyDNALDL/sX3kpjnRhqFMhc9LDiPs7+I3miDoeZpWxW9D
-         0NOg==
-X-Google-Smtp-Source: APXvYqwxRH9b7zfmNokXa/MJtvxICynfiQZqc9XkLddgj7G1h1cazph56bWLcewkRjUHU4E05igOxqptPTcARwRwv5E=
-X-Received: by 2002:aca:ec82:: with SMTP id k124mr1785826oih.73.1559928887822;
- Fri, 07 Jun 2019 10:34:47 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=uUV0Qg4R;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=Ib5xcjylzZJYs4tQEX10bx6Iy6PiZBk7Yfn6HEJa6+k=; b=uUV0Qg4RLvuFztCksJatP1vun
+	caXXdhBCXJ1/Zff5BaFrpqzvOtmY792iqKlflcEH7L4Ds+nzOZdE00i9/+A2QdpjUZaw8FTm5C0Di
+	6a0ESgkewptbth56+PriX5BaJhJVXnuImAz3+GhDF6apj0C5KkbXzhVOPvgP9z/JpZvioXldA2ZyH
+	zuy1FnNgL5zmKuiuFAWNNtxXbReWZY/rsPt+VJwglRFELnGzRDXjgtIXTDTsSXd0TqgtRtMjweOwZ
+	c+Gb5zmZMbrHo49WAIM2sc6JhZRZ7FubJesd/SG9HdwisS9G3VLMjnBNop6B3+O0rZ9//FQS4z8+R
+	sYPvGd5CA==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hZItt-0006lL-Ul; Fri, 07 Jun 2019 17:43:38 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 6C02B20216A2F; Fri,  7 Jun 2019 19:43:36 +0200 (CEST)
+Date: Fri, 7 Jun 2019 19:43:36 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+	linux-doc@vger.kernel.org, linux-mm@kvack.org,
+	linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
+	Arnd Bergmann <arnd@arndb.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	Balbir Singh <bsingharora@gmail.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Cyrill Gorcunov <gorcunov@gmail.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Eugene Syromiatnikov <esyr@redhat.com>,
+	Florian Weimer <fweimer@redhat.com>,
+	"H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
+	Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>,
+	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+	Dave Martin <Dave.Martin@arm.com>
+Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
+ function
+Message-ID: <20190607174336.GM3436@hirez.programming.kicks-ass.net>
+References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
+ <20190606200926.4029-4-yu-cheng.yu@intel.com>
+ <20190607080832.GT3419@hirez.programming.kicks-ass.net>
+ <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
 MIME-Version: 1.0
-References: <155925716254.3775979.16716824941364738117.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155925718351.3775979.13546720620952434175.stgit@dwillia2-desk3.amr.corp.intel.com>
- <CAKv+Gu-J3-66V7UhH3=AjN4sX7iydHNF7Fd+SMbezaVNrZQmGQ@mail.gmail.com>
- <CAPcyv4g-GNe2vSYTn0a6ivQYxJdS5khE4AJbcxysoGPsTZwswg@mail.gmail.com>
- <CAKv+Gu83QB6x8=LCaAcR0S65WELC-Y+Voxw6LzaVh4FSV3bxYA@mail.gmail.com>
- <CAPcyv4hXBJBMrqoUr4qG5A3CUVgWzWK6bfBX29JnLCKDC7CiGA@mail.gmail.com>
- <CAKv+Gu_ZYpey0dWYebFgCaziyJ-_x+KbCmOegWqFjwC0U-5QaA@mail.gmail.com> <CAPcyv4jO5WhRJ-=Nz70Jc0mCHYBJ6NsHjJNk6AerwQXH43oemw@mail.gmail.com>
-In-Reply-To: <CAPcyv4jO5WhRJ-=Nz70Jc0mCHYBJ6NsHjJNk6AerwQXH43oemw@mail.gmail.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 7 Jun 2019 10:34:36 -0700
-Message-ID: <CAPcyv4gzhr57xa2MbR1Jk8EDFw-WLdcw3mJnEX9PeAFwVEZbDA@mail.gmail.com>
-Subject: Re: [PATCH v2 4/8] x86, efi: Reserve UEFI 2.8 Specific Purpose Memory
- for dax
-To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Cc: Mike Rapoport <rppt@linux.ibm.com>, linux-efi <linux-efi@vger.kernel.org>, 
-	"the arch/x86 maintainers" <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Ingo Molnar <mingo@redhat.com>, 
-	"H. Peter Anvin" <hpa@zytor.com>, Darren Hart <dvhart@infradead.org>, 
-	Andy Shevchenko <andy@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, 
-	kbuild test robot <lkp@intel.com>, Vishal L Verma <vishal.l.verma@intel.com>, Linux-MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 7, 2019 at 8:23 AM Dan Williams <dan.j.williams@intel.com> wrote:
->
-> On Fri, Jun 7, 2019 at 5:29 AM Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
-[..]
-> > > #ifdef CONFIG_EFI_APPLICATION_RESERVED
-> > > static inline bool is_efi_application_reserved(efi_memory_desc_t *md)
-> > > {
-> > >         return md->type == EFI_CONVENTIONAL_MEMORY
-> > >                 && (md->attribute & EFI_MEMORY_SP);
-> > > }
-> > > #else
-> > > static inline bool is_efi_application_reserved(efi_memory_desc_t *md)
-> > > {
-> > >         return false;
-> > > }
-> > > #endif
-> >
-> > I think this policy decision should not live inside the EFI subsystem.
-> > EFI just gives you the memory map, and mangling that information
-> > depending on whether you think a certain memory attribute should be
-> > ignored is the job of the MM subsystem.
->
-> The problem is that we don't have an mm subsystem at the time a
-> decision needs to be made. The reservation policy needs to be deployed
-> before even memblock has been initialized in order to keep kernel
-> allocations out of the reservation. I agree with the sentiment I just
-> don't see how to practically achieve an optional "System RAM" vs
-> "Application Reserved" routing decision without an early (before
-> e820__memblock_setup()) conditional branch.
+On Fri, Jun 07, 2019 at 09:23:43AM -0700, Yu-cheng Yu wrote:
+> On Fri, 2019-06-07 at 10:08 +0200, Peter Zijlstra wrote:
+> > On Thu, Jun 06, 2019 at 01:09:15PM -0700, Yu-cheng Yu wrote:
+> > > Indirect Branch Tracking (IBT) provides an optional legacy code bitmap
+> > > that allows execution of legacy, non-IBT compatible library by an
+> > > IBT-enabled application.  When set, each bit in the bitmap indicates
+> > > one page of legacy code.
+> > > 
+> > > The bitmap is allocated and setup from the application.
+> > > +int cet_setup_ibt_bitmap(unsigned long bitmap, unsigned long size)
+> > > +{
+> > > +	u64 r;
+> > > +
+> > > +	if (!current->thread.cet.ibt_enabled)
+> > > +		return -EINVAL;
+> > > +
+> > > +	if (!PAGE_ALIGNED(bitmap) || (size > TASK_SIZE_MAX))
+> > > +		return -EINVAL;
+> > > +
+> > > +	current->thread.cet.ibt_bitmap_addr = bitmap;
+> > > +	current->thread.cet.ibt_bitmap_size = size;
+> > > +
+> > > +	/*
+> > > +	 * Turn on IBT legacy bitmap.
+> > > +	 */
+> > > +	modify_fpu_regs_begin();
+> > > +	rdmsrl(MSR_IA32_U_CET, r);
+> > > +	r |= (MSR_IA32_CET_LEG_IW_EN | bitmap);
+> > > +	wrmsrl(MSR_IA32_U_CET, r);
+> > > +	modify_fpu_regs_end();
+> > > +
+> > > +	return 0;
+> > > +}
+> > 
+> > So you just program a random user supplied address into the hardware.
+> > What happens if there's not actually anything at that address or the
+> > user munmap()s the data after doing this?
+> 
+> This function checks the bitmap's alignment and size, and anything else is the
+> app's responsibility.  What else do you think the kernel should check?
 
-I can at least move it out of include/linux/efi.h and move it to
-arch/x86/include/asm/efi.h since it is an x86 specific policy decision
-/ implementation for now.
+I've no idea what the kernel should do; since you failed to answer the
+question what happens when you point this to garbage.
+
+Does it then fault or what?
 
