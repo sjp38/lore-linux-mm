@@ -3,188 +3,157 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E18BC468BC
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:00:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4562BC468BD
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:04:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00FB1208C3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:00:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00FB1208C3
+	by mail.kernel.org (Postfix) with ESMTP id 03CC5208C3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 20:04:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03CC5208C3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 888ED6B0269; Fri,  7 Jun 2019 16:00:04 -0400 (EDT)
+	id 74D686B0269; Fri,  7 Jun 2019 16:04:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8394B6B026A; Fri,  7 Jun 2019 16:00:04 -0400 (EDT)
+	id 6E2E46B026A; Fri,  7 Jun 2019 16:04:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 702AC6B026B; Fri,  7 Jun 2019 16:00:04 -0400 (EDT)
+	id 550BC6B026B; Fri,  7 Jun 2019 16:04:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 370B16B0269
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 16:00:04 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id e16so2111424pga.4
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 13:00:04 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BB616B0269
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 16:04:44 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id q2so2024883plr.19
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 13:04:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=/TUbXCqAlbAlBZxual18zZslCV/zQSMjVDvTS0xEnN4=;
-        b=p/RE2Qzfi2moBQysQVjwGK0UhjQ/dCNgRxY9niF6uQyKNuip7wg6H5iMv7O0ABZ4KD
-         G4XlbrANZ3aqiXKkI7ltO9QWuowt5NvLDbSHrL7rvlUBw9q3Ga7VOQxUyBwV952Oji84
-         g/5zAFdNzoOlgdVvFIWxne1OdbL/PPoz40DfN+SFWe+j88YtC1F8OzPbOyjXmIjQmz+s
-         6mqe74011WV1UCSRG2PFRmBYBmB5GhxULQOt0rg21J7Ul0qT9y7G5kAAinc8LnTcY8fF
-         hASAxS+vMcT5tCxAXCIPmTh5j+tVAKvKPQEoCZnTysgM+mIY8bJyz5LKO+l9boI5iR0K
-         fNow==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXUDRYb6rJdLG3kDO557n3ssxP/Ad1+aeYCzoxj/PMp6TJlfjYx
-	vRrRkoSp+UBOGWczWQ4ooxKsrmEn/BMyNpj2/YzYcwf1WbX9BKqFCiXn1+sulLSopvHN/7E+jiS
-	iPb8oWyoo8dEWuQ1jfImDsusAz+0ckTPufmcCkY4hDbGWWaQG2DJF3TaDciUOeovhOQ==
-X-Received: by 2002:a17:902:760f:: with SMTP id k15mr32838439pll.125.1559937603863;
-        Fri, 07 Jun 2019 13:00:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwO/NA7av9M64oZck65IQo/kZI8YOwmu6cfOSG1EKtcDEANtBKbmGDaNEMReN4Mv8b7EYfE
-X-Received: by 2002:a17:902:760f:: with SMTP id k15mr32838391pll.125.1559937603092;
-        Fri, 07 Jun 2019 13:00:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559937603; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=iJZHaE5MiCsrO1KQclInA0tIHjE0U6f5yWLWeAuFbjM=;
+        b=fWDPWkdVnsN60jhCxOMuM9epyoTPKveqGpHhGaegwRX+xd7oVjN7+QaTiUkS0E7sRU
+         gPmp9kCmDBLUxlBWc/+3mIiclza31c9IWYWbYqa73y/hNxaiXaYDyOgY1lbcokK2hZsm
+         BayVhbVF5nuc/HI7fsKb8c2UrmDDsoO3dOkJSoLJCvMDW4ky72BMkrL6agAvPacBI5qk
+         paAyfJex+LhwubzAbEs4SMCmOuLeAae8Owy40Zt0DSH/+2WX+NUSx+2BGoJCg0NALTpP
+         Ty0Z8tQk65P6N8+/8EfmG22ls6EwzTuOHC9a7mbQLVvxanfW+hobzJItPfon/S8st06r
+         fHvg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVaomoIKiBRboEQau/9F0YiLH17gu0JE7CKtVNfhVPlpkBWo4UD
+	KFWnFlgYcNj10aemlDEqg6TnkBIXJTnmLcxfKur5wSxyu19e2u7quirsIlgulKX/Hzuu4iZ6KE4
+	F22q8mObZBFScijm3jka9ZS0+42gN4PXP5T6OkaWs7TtjBYFbNmSvOUu8F46dsg2SgA==
+X-Received: by 2002:aa7:80d9:: with SMTP id a25mr60483841pfn.50.1559937883778;
+        Fri, 07 Jun 2019 13:04:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzW0Zp0ueJt+yIbiiuXF4Ry70IQy+2KHVydxa0vXtbQQJdKvCT516Vrbg7amcOak92VOCxZ
+X-Received: by 2002:aa7:80d9:: with SMTP id a25mr60483804pfn.50.1559937883222;
+        Fri, 07 Jun 2019 13:04:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559937883; cv=none;
         d=google.com; s=arc-20160816;
-        b=avaEWjU5V0Brbm2yHBNQxSd3C8BYxSok9Lg6nlXPUcKYPyKU4D5t8smThLJlMUA+gv
-         3tT3DFClvIhLCIOB0euNjDmk9E4sgcwqjsR8Pfbf4NwcjGMfRRibVL4Nt1RLWqH1rgV9
-         D6pnMoWpavmnN6AqbhQh4OMLtHcCsk1IR0X69XMeWFIz/WpzxYgJYkYt1xYCKFTzIZzm
-         nNKoRsvjaPdQq2w7j3KgAgM2i6cFJ1AzVC2wXyLRtGXT8LDJNfFvN7lwmYzervV5v+XO
-         Rb3mbL9NYPNxMwL5bZ1Ul5QSz+1r0VrMSojqrTr4E5cJDm/6BLsYOx24ptTixO7y4i87
-         gjbg==
+        b=N2OhWdWOwVY+sLceHBjIW5ZCNCrA4H6cFPmTrwJsjWqXSicpjIKHD9ZQZtjMjWCbhj
+         k9Dv82G7gy2JuRm3YYvub3HRqy+aPzaHPC0EGeBxxfUgBsgWtZOnDdtUazKJuadoD6WM
+         nXdUe67ZfTmJ62Agy7rqX4TMNH7+Gq5WI5u1yiE2T82S5fwgQikjItwPTALgiJkBIFpS
+         fRf3JifLTL0oxDD793k04ti7QYreRsT+RYqrdMmOV1rnRn15CRDjJmxZWRgTfE5FLWZB
+         fzUMZTCaZPAlN61FycVnKsThMCpaQ86pkeYUqRWaiyVYTzfTyDdP221kzHjHthrE3CST
+         ayaQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=/TUbXCqAlbAlBZxual18zZslCV/zQSMjVDvTS0xEnN4=;
-        b=akHBQaxvn1Gw58GFCSnBqgccnLTEkEZPwdR9j10BzYRXeUfuVNj1RRsGiCjthdFTOh
-         zyf/wGGmACLCJQlor9KZQfz7qDcNqowQbskK4XjRCcmydC6PSDE7Fm4Pp38gecrcMz/m
-         MBZEaCzRAAWbwvE5rBP4bhaCd+uflVFoRziweD+piW4B6rCPXKks+iUknREyEvDbnVg2
-         mztY+KraP5m+339j/0IwRfbYlSej5QUoprlgwGZNmhw+Tt0hJJ3UKlUs1aSWj13tNJjz
-         CCwvkEQSDlYpFJ14G9nMzejgJKOUYfYsMBoTjoKPUBRw2/kFxckXnM4sarkquhLbnhWg
-         rMWg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=iJZHaE5MiCsrO1KQclInA0tIHjE0U6f5yWLWeAuFbjM=;
+        b=R3Xd/GAnkMMNSmne4b52MlJCYlKm6aH59/sfHhrRlN9yj/YiAQm7hHTCJO0xqIBCy6
+         fj/S6jIpP1TIzNRlBh7QqbqmEI9bmL4Z0l2Veqa3zlssUYMivAjiNahg3BdIJ3Nh+qUJ
+         8LNsCFZBALs6CJcaG9Hc/7tXxTWup1alXtQ8Cq/MS+k+m6NlSp8ll6fwvbHJYJEJn4Xj
+         1Hm6zV1rxrMAgPjhigR3QhKZMFKXqf4SvGNm/JFjFR+D1+blrnOw87Y3+gKElZxnnBIc
+         NLWzjN6gqEmUGDkYhez22gG5InGIO6ojyUy9KlRsLtqWQcoYX7MPdTKx9t0SK9dvic3A
+         JDfw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id l67si3401761plb.370.2019.06.07.13.00.02
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id e12si2944344pfd.4.2019.06.07.13.04.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 13:00:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        Fri, 07 Jun 2019 13:04:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 13:00:02 -0700
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 13:04:42 -0700
 X-ExtLoop1: 1
-Received: from ray.jf.intel.com (HELO [10.7.198.156]) ([10.7.198.156])
-  by orsmga005.jf.intel.com with ESMTP; 07 Jun 2019 13:00:01 -0700
+X-IronPort-AV: E=Sophos;i="5.63,564,1557212400"; 
+   d="scan'208";a="182781141"
+Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
+  by fmsmga002.fm.intel.com with ESMTP; 07 Jun 2019 13:04:42 -0700
+Message-ID: <9d3cedc83c236ee7a109325113fd1c1f9d849f25.camel@intel.com>
 Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
  function
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, Andy Lutomirski <luto@amacapital.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
- "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
- Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
- Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
- Cyrill Gorcunov <gorcunov@gmail.com>,
- Dave Hansen <dave.hansen@linux.intel.com>,
- Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>,
- "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
- Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
- Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>,
- Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>,
- Randy Dunlap <rdunlap@infradead.org>,
- "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
- Dave Martin <Dave.Martin@arm.com>
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+To: Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski
+ <luto@amacapital.net>
+Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org, "H. Peter Anvin"
+ <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar
+ <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-doc@vger.kernel.org,  linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Balbir Singh
+ <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,  Cyrill Gorcunov
+ <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene
+ Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J.
+ Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet
+ <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
+ <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov
+ <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Randy Dunlap
+ <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, Dave Martin
+ <Dave.Martin@arm.com>
+Date: Fri, 07 Jun 2019 12:56:40 -0700
+In-Reply-To: <352e6172-938d-f8e4-c195-9fd1b881bdee@intel.com>
 References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
- <20190606200926.4029-4-yu-cheng.yu@intel.com>
- <20190607080832.GT3419@hirez.programming.kicks-ass.net>
- <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
- <20190607174336.GM3436@hirez.programming.kicks-ass.net>
- <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
- <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
- <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <4b448cde-ee4e-1c95-0f7f-4fe694be7db6@intel.com>
-Date: Fri, 7 Jun 2019 13:00:01 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
-MIME-Version: 1.0
-In-Reply-To: <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+	 <20190606200926.4029-4-yu-cheng.yu@intel.com>
+	 <20190607080832.GT3419@hirez.programming.kicks-ass.net>
+	 <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
+	 <20190607174336.GM3436@hirez.programming.kicks-ass.net>
+	 <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
+	 <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
+	 <352e6172-938d-f8e4-c195-9fd1b881bdee@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.1-2 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/7/19 12:49 PM, Yu-cheng Yu wrote:
->>
->> This also gives us an excellent opportunity to make it read-only as seen from
->> userspace to prevent exploits from just poking it full of ones before
->> redirecting execution.
-> GLIBC sets bits only for legacy code, and then makes the bitmap read-only.  That
-> avoids most issues:
+On Fri, 2019-06-07 at 11:58 -0700, Dave Hansen wrote:
+> On 6/7/19 11:29 AM, Andy Lutomirski wrote:
+> ...
+> > > I think this new MSR probably needs to get included in oops output when
+> > > CET is enabled.
+> > 
+> > This shouldn’t be able to OOPS because it only happens at CPL 3,
+> > right?  We should put it into core dumps, though.
 > 
->   To populate bitmap pages, mprotect() is required.
->   Reading zero bitmap pages would not waste more physical memory, right?
+> Good point.
+> 
+> Yu-cheng, can you just confirm that the bitmap can't be referenced in
+> ring-0, no matter what?  We should also make sure that no funny business
+> happens if we put an address in the bitmap that faults, or is
+> non-canonical.  Do we have any self-tests for that?
 
-Huh, how does glibc know about all possible past and future legacy code
-in the application?
+Yes, the bitmap is user memory, but the kernel can still get to it (e.g.
+copy_from_user()).  We can do more check on the address.
+
+> 
+> Let's say userspace gets a fault on this.  Do they have the
+> introspection capability to figure out why they faulted, say in their
+> signal handler?
+
+The bitmap address is kept by the application; the kernel won't provide it again
+to user-space.  In the signal handler, the app can find out from its own record.
+
+[...]
 
