@@ -2,562 +2,207 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85F6AC468BC
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 10:35:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D5B3DC2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 10:46:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B8412133D
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 10:35:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B8412133D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 99832212F5
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 10:46:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99832212F5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C2DE86B000C; Fri,  7 Jun 2019 06:35:56 -0400 (EDT)
+	id 4353E6B0266; Fri,  7 Jun 2019 06:46:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C03C16B000E; Fri,  7 Jun 2019 06:35:56 -0400 (EDT)
+	id 3C0096B0269; Fri,  7 Jun 2019 06:46:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ACCD96B0266; Fri,  7 Jun 2019 06:35:56 -0400 (EDT)
+	id 262BA6B026A; Fri,  7 Jun 2019 06:46:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A5B46B000C
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 06:35:56 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f15so2520100ede.8
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 03:35:56 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C928F6B0266
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 06:46:38 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id f15so2558622ede.8
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 03:46:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=Qqpd2Z2wPqsVkWz1lkRf/UvN+0HhCxMkHwwfd+fumSo=;
-        b=huVTR39lvIGCyFlwDM4zr23lX2mPSxqIDLU6TvUlJxa6aFCUsik4xwXRSTu/AwZvfo
-         RsamM7pTAsqt+X6pCimsFgaioJUDOturx4AgzHtoqsnVjV1IWWJ0eXr6BRXzpgdqyaL+
-         VltupAnmPEiuTFRYpFudVAWucz/4RUMAPuaCMQsGN+lj8px9g9uToj7g43V/dYL+kwFY
-         q+zNLUOaEl/SRlVyoT1xpLCn6rrY4WGpBC6LRrVaLyNVG+OqPQPDQYhnz3YH95V5pCaH
-         dlpVB10Of4Nw1oF9YM2Mo8wYUsL/0SOjbaRPB8PTshUSuesoFeynlw6UfVt3Jv059fse
-         Tarw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAWF5sEY9a+rG9YlvAPoF5EewCGdyv/ikUPaRwSTYmMvQN+WKt/6
-	btPLcyXyLXuHKvBfkTVH7zh2UlNTR+G7g2f1KJTWr9KbvyrSqNGIlKOWL8RF8fj5mxyRJwB29lA
-	x2rDrGprgawSjkbzJKu+Am2zgu+AjXyFA1GhzlwTQF9CVWGIxV/SMdk4OJrsgAMdFtA==
-X-Received: by 2002:a50:b664:: with SMTP id c33mr17531915ede.104.1559903755829;
-        Fri, 07 Jun 2019 03:35:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyqLqV2LAGgtaRPx2UUlVKfHCI5M6/uFGDzbf7mY9mghDrEWC8uqJsBpRaQPUcmVRYijrEt
-X-Received: by 2002:a50:b664:: with SMTP id c33mr17531815ede.104.1559903754609;
-        Fri, 07 Jun 2019 03:35:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559903754; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=RECYSjvI9ZfDczF+NT4WqhV0GfP/e9d47hPtBnGHBTk=;
+        b=C2ZAGRPBKtO8fTcJI6znQRMRax3EpiyjVjzktjTEEFScmrFqsZT/RS1LfqkTf7G64s
+         BBXrch9hrgqp6RnSQB3ZM7Tf0wNLZQ2GoHWPa6WO8Mb12+pPn2iCO9+59fmmp9BECJU4
+         TnNK8iS53IbByOEEJQP+/MabaHC/qiqmLZsKhbIs4XsZihRyAd12QGOsNE0xT27au5bM
+         B1mVx1ZUz0uQwVF1ouClDa4Q3px1W16peotQYDBw6yf/7JrKpL9XeQVj1PqU1a90VrW6
+         OoWEdseZIE6Px1eQ69397rS4819ASSi0wnM66oOBnp6AI2XGh3fvDNLSbQ3cpctyEe+u
+         Dscg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAV7p4g5rgkhZ1sY433Kh7FhaUQU+0kbVk/UhfFTIuReckSkicKZ
+	hBEbJXuthPOSoikf4WXUMPq3/7GoTFg3KBNg2fJvBtOjTnk1F1CxNOGyiWHDhzX5g3/jn0ZsAet
+	RWCJCPjd4t45LMmi7TiaLpyccXpnUPG/Tk2ad0b0mn02ZitkELzVFPnZipwv1zAWTDw==
+X-Received: by 2002:a17:906:60c7:: with SMTP id f7mr46056675ejk.107.1559904398353;
+        Fri, 07 Jun 2019 03:46:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy9ZYMbiwYthKtwsDU4pW1bdillM+ORqffLuJeVqeJDO9P+ygP3TAPH58tN3c8Tj7vI3yDt
+X-Received: by 2002:a17:906:60c7:: with SMTP id f7mr46056614ejk.107.1559904397108;
+        Fri, 07 Jun 2019 03:46:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559904397; cv=none;
         d=google.com; s=arc-20160816;
-        b=rH5XsMpbkMGIMwsXvFYXARpjoURputOl3sUi6U1Owpt79uXeF/mhIbbWYj3/kid4t9
-         H5frB0gtP01N+DstX6ytXBj7ju1dtqYW7HGhbV3v39GY61X4z0T9EYb0QeNMec+gq2KQ
-         17JXDCGU4xZnRehRl9H49SzTnZ+u/7ubhSw9NQM8WvjyAicjfcyaawpkb4Gs1jAdym+u
-         0MlEX/dxYwkI6nY5mm2gUq+jh6zhkqI52byO7YzO2I2gpo5S5sv6hiTO/Vynsc2wh56D
-         HYmLCWWKN5L++iFzoKz56sIJ57JTIIoLhywggJRc2oOlQfCaJPejAXVNKN4/kR6cxc9X
-         jrhA==
+        b=OF8PWBcT2XxvKqnmzaDHAC9xQ5nhN4iJ0N/25HcDrriOdYs270aoj1+PG/+0pNLmAr
+         JNtVKw+3DvBycuL0p8ODvD7nOwSNkCUAaXBxiqs3NP4Qmw77o2w+d+b8ZanW/5007N/e
+         kEenEZMm+yr2zPs/Auav7/sV6lozaPI3iRaXkz8KDTjI1PZVDKfMTLo0ahWx0ZLUagVu
+         ChnQoKoCufWv1PtAjZSbeJckkgUCwvn6Qi4zvRDu40NRmXJVbn7pAHJeglspDSc7nApA
+         iSfFzfga8OQP7YOIB9cnYguPhzOPwWPhziop7ckyS2UJIQBhgEsSjMSlhFqSIN0DWP77
+         NdgA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=Qqpd2Z2wPqsVkWz1lkRf/UvN+0HhCxMkHwwfd+fumSo=;
-        b=a2g86pIDpTUI1UMTqRyTEAA1fe1ntmvK86/OTHuvFgAIuARG/XPEbpNnia9nNXM/mF
-         b7mNd1mzIqJhdy0mJXh0aMOfB6WLOnXGpxLGsoYTJkR0Rgv8M2PaeFLgXNnMui/WNmh4
-         Jfl0BZjTBwn0Sm++MqMi16xqmrZzY1C6ng0m13R7T4AzOnbn9UgexpVGmjcQfVjY0kzh
-         rWkSzPIwvKb0sZ1BLKbXls9NbXGFTFwwaz9R7fZw+81k4TE+1YMfjyiVarbilqxuj/rI
-         rAozbAOTs3RLnrU8H2LCdH2PdSJfn7YuigS6e/8M/LvtgfVfpMBlCVmy7E8yY4kApODy
-         US4w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=RECYSjvI9ZfDczF+NT4WqhV0GfP/e9d47hPtBnGHBTk=;
+        b=eL9OTfjJopKOR85bgLqfMMfDwIBgffc1z6Z/BHg9AsCSvqoABKZ97DNvGOkSnns1U3
+         70onsZUaeNF0hAsojyFm1nJ2uh4OnVEUSKuWk4upXNEAavKwNpyr8zgHZHAEBSBMf36R
+         gevTEGvufc0KheE+xF+8UOkSMzraFrTMFjB1vOeUMX/PsXWJbmm46KXIEahG1dCSAnSS
+         vhSiUVCyRnIOihW6fIMJKCJEg/g9m3J6QJeHqN0K8VAvW05NzLpXQvq84dDZ3qwozkW5
+         rsXaBuKwzZtASDb0XZjLUq0kxrgrbKQpBOQ0lK8SDhiHxb/Vcwtx0VTAb8ixPfMEgo22
+         V9LA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id b49si1092318edb.204.2019.06.07.03.35.54
-        for <linux-mm@kvack.org>;
-        Fri, 07 Jun 2019 03:35:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q9si154831ejm.144.2019.06.07.03.46.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Jun 2019 03:46:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 91C3C707;
-	Fri,  7 Jun 2019 03:35:53 -0700 (PDT)
-Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.42.131])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id D70673F246;
-	Fri,  7 Jun 2019 03:37:24 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-To: linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
-	linux-arm-kernel@lists.infradead.org,
-	linux-ia64@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org,
-	sparclinux@vger.kernel.org,
-	x86@kernel.org,
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 471C9AF0A;
+	Fri,  7 Jun 2019 10:46:36 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id DDD771E3FCA; Fri,  7 Jun 2019 12:36:36 +0200 (CEST)
+Date: Fri, 7 Jun 2019 12:36:36 +0200
+From: Jan Kara <jack@suse.cz>
+To: Ira Weiny <ira.weiny@intel.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, Jan Kara <jack@suse.cz>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
+	Dave Chinner <david@fromorbit.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Christophe Leroy <christophe.leroy@c-s.fr>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Paul Mackerras <paulus@samba.org>,
-	Russell King <linux@armlinux.org.uk>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Tony Luck <tony.luck@intel.com>,
-	Fenghua Yu <fenghua.yu@intel.com>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	"David S. Miller" <davem@davemloft.net>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Dave Hansen <dave.hansen@linux.intel.com>
-Subject: [RFC V3] mm: Generalize and rename notify_page_fault() as kprobe_page_fault()
-Date: Fri,  7 Jun 2019 16:04:15 +0530
-Message-Id: <1559903655-5609-1-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: git-send-email 2.7.4
+	John Hubbard <jhubbard@nvidia.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190607103636.GA12765@quack2.suse.cz>
+References: <20190606014544.8339-1-ira.weiny@intel.com>
+ <20190606104203.GF7433@quack2.suse.cz>
+ <20190606195114.GA30714@ziepe.ca>
+ <20190606222228.GB11698@iweiny-DESK2.sc.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190606222228.GB11698@iweiny-DESK2.sc.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Very similar definitions for notify_page_fault() are being used by multiple
-architectures duplicating much of the same code. This attempts to unify all
-of them into a generic implementation, rename it as kprobe_page_fault() and
-then move it to a common header.
+On Thu 06-06-19 15:22:28, Ira Weiny wrote:
+> On Thu, Jun 06, 2019 at 04:51:15PM -0300, Jason Gunthorpe wrote:
+> > On Thu, Jun 06, 2019 at 12:42:03PM +0200, Jan Kara wrote:
+> > 
+> > > So I'd like to actually mandate that you *must* hold the file lease until
+> > > you unpin all pages in the given range (not just that you have an option to
+> > > hold a lease). And I believe the kernel should actually enforce this. That
+> > > way we maintain a sane state that if someone uses a physical location of
+> > > logical file offset on disk, he has a layout lease. Also once this is done,
+> > > sysadmin has a reasonably easy way to discover run-away RDMA application
+> > > and kill it if he wishes so.
+> > > 
+> > > The question is on how to exactly enforce that lease is taken until all
+> > > pages are unpinned. I belive it could be done by tracking number of
+> > > long-term pinned pages within a lease. Gup_longterm could easily increment
+> > > the count when verifying the lease exists, gup_longterm users will somehow
+> > > need to propagate corresponding 'filp' (struct file pointer) to
+> > > put_user_pages_longterm() callsites so that they can look up appropriate
+> > > lease to drop reference - probably I'd just transition all gup_longterm()
+> > > users to a saner API similar to the one we have in mm/frame_vector.c where
+> > > we don't hand out page pointers but an encapsulating structure that does
+> > > all the necessary tracking. Removing a lease would need to block until all
+> > > pins are released - this is probably the most hairy part since we need to
+> > > handle a case if application just closes the file descriptor which
+> > > would
+> > 
+> > I think if you are going to do this then the 'struct filp' that
+> > represents the lease should be held in the kernel (ie inside the RDMA
+> > umem) until the kernel is done with it.
+> 
+> Yea there seems merit to this.  I'm still not resolving how this helps track
+> who has the pin across a fork.
 
-kprobes_built_in() can detect CONFIG_KPROBES, hence new kprobe_page_fault()
-need not be wrapped again within CONFIG_KPROBES. Trap number argument can
-now contain upto an 'unsigned int' accommodating all possible platforms.
+Yes, my thought was that gup_longterm() would return a structure that would
+be tracking filp (or whatever is needed) and that would be embedded inside
+RDMA umem.
 
-kprobe_page_fault() goes the x86 way while dealing with preemption context.
-As explained in these following commits the invoking context in itself must
-be non-preemptible for kprobes processing context irrespective of whether
-kprobe_running() or perhaps smp_processor_id() is safe or not. It does not
-make much sense to continue when original context is preemptible. Instead
-just bail out earlier.
+> > Actually does someone have a pointer to this userspace lease API, I'm
+> > not at all familiar with it, thanks
+> 
+> man fcntl
+> 	search for SETLEASE
+> 
+> But I had to add the F_LAYOUT lease type.  (Personally I'm for calling it
+> F_LONGTERM at this point.  I don't think LAYOUT is compatible with what we are
+> proposing here.)
 
-commit a980c0ef9f6d
-("x86/kprobes: Refactor kprobes_fault() like kprobe_exceptions_notify()")
+I think F_LAYOUT still expresses it pretty well. The lease is pinning
+logical->physical file offset mapping, i.e. the file layout.
 
-commit b506a9d08bae ("x86: code clarification patch to Kprobes arch code")
+> > 
+> > And yes, a better output format from GUP would be great..
+> > 
+> > > Maybe we could block only on explicit lease unlock and just drop the layout
+> > > lease on file close and if there are still pinned pages, send SIGKILL to an
+> > > application as a reminder it did something stupid...
+> > 
+> > Which process would you SIGKILL? At least for the rdma case a FD is
+> > holding the GUP, so to do the put_user_pages() the kernel needs to
+> > close the FD. I guess it would have to kill every process that has the
+> > FD open? Seems complicated...
+> 
+> Tending to agree...  But I'm still not opposed to killing bad actors...  ;-)
+> 
+> NOTE: Jason I think you need to be more clear about the FD you are speaking of.
+> I believe you mean the FD which refers to the RMDA context.  That is what I
+> called it in my other email.
 
-Cc: linux-arm-kernel@lists.infradead.org
-Cc: linux-ia64@vger.kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: linux-s390@vger.kernel.org
-Cc: linux-sh@vger.kernel.org
-Cc: sparclinux@vger.kernel.org
-Cc: x86@kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Andrey Konovalov <andreyknvl@google.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Russell King <linux@armlinux.org.uk>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Tony Luck <tony.luck@intel.com>
-Cc: Fenghua Yu <fenghua.yu@intel.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
+I keep forgetting that the file with RDMA context may be held by multiple
+processes so thanks for correcting me. My proposal with SIGKILL was jumping
+to conclusion too quickly :) We have two struct files here: A file with RDMA
+context that effectively is the owner of the page pins (let's call it
+"context file") and a file which is mapped and on which we hold the lease and
+whose blocks (pages) we are pinning (let's call it "buffer file"). Now once
+buffer file is closed (and this means that all file descriptors pointing to
+this struct file are closed - so just one child closing the file descriptor
+won't trigger this) we need to release the lease and I want to have a way
+of safely releasing remaining pins associated with this lease as well.
+Because the pins would be invisible to sysadmin from that point on. Now if
+the context file would be open only by the process closing the buffer file,
+SIGKILL would work as that would close the buffer file as a side effect.
+But as you properly pointed out, that's not necessarily the case. Walking
+processes that have the context file open is technically complex and too
+ugly to live so we have to come up with something better. The best I can
+currently come up with is to have a method associated with the lease that
+would invalidate the RDMA context that holds the pins in the same way that
+a file close would do it.
 
-Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
----
-Testing:
-
-- Build and boot tested on arm64 and x86
-- Build tested on some other archs (arm, sparc64, alpha, powerpc etc)
-
-Changes in RFC V3:
-
-- Updated the commit message with an explaination for new preemption behaviour
-- Moved notify_page_fault() to kprobes.h with 'static nokprobe_inline' per Matthew
-- Changed notify_page_fault() return type from int to bool per Michael Ellerman
-- Renamed notify_page_fault() as kprobe_page_fault() per Peterz
-
-Changes in RFC V2: (https://patchwork.kernel.org/patch/10974221/)
-
-- Changed generic notify_page_fault() per Mathew Wilcox
-- Changed x86 to use new generic notify_page_fault()
-- s/must not/need not/ in commit message per Matthew Wilcox
-
-Changes in RFC V1: (https://patchwork.kernel.org/patch/10968273/)
-
- arch/arm/mm/fault.c      | 24 +-----------------------
- arch/arm64/mm/fault.c    | 24 +-----------------------
- arch/ia64/mm/fault.c     | 24 +-----------------------
- arch/powerpc/mm/fault.c  | 23 ++---------------------
- arch/s390/mm/fault.c     | 16 +---------------
- arch/sh/mm/fault.c       | 18 ++----------------
- arch/sparc/mm/fault_64.c | 16 +---------------
- arch/x86/mm/fault.c      | 21 ++-------------------
- include/linux/kprobes.h  | 16 ++++++++++++++++
- 9 files changed, 27 insertions(+), 155 deletions(-)
-
-diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
-index 58f69fa..94a97a4 100644
---- a/arch/arm/mm/fault.c
-+++ b/arch/arm/mm/fault.c
-@@ -30,28 +30,6 @@
- 
- #ifdef CONFIG_MMU
- 
--#ifdef CONFIG_KPROBES
--static inline int notify_page_fault(struct pt_regs *regs, unsigned int fsr)
--{
--	int ret = 0;
--
--	if (!user_mode(regs)) {
--		/* kprobe_running() needs smp_processor_id() */
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, fsr))
--			ret = 1;
--		preempt_enable();
--	}
--
--	return ret;
--}
--#else
--static inline int notify_page_fault(struct pt_regs *regs, unsigned int fsr)
--{
--	return 0;
--}
--#endif
--
- /*
-  * This is useful to dump out the page tables associated with
-  * 'addr' in mm 'mm'.
-@@ -266,7 +244,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
- 	vm_fault_t fault;
- 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
- 
--	if (notify_page_fault(regs, fsr))
-+	if (kprobe_page_fault(regs, fsr))
- 		return 0;
- 
- 	tsk = current;
-diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index a30818e..8fe4bbc 100644
---- a/arch/arm64/mm/fault.c
-+++ b/arch/arm64/mm/fault.c
-@@ -70,28 +70,6 @@ static inline const struct fault_info *esr_to_debug_fault_info(unsigned int esr)
- 	return debug_fault_info + DBG_ESR_EVT(esr);
- }
- 
--#ifdef CONFIG_KPROBES
--static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
--{
--	int ret = 0;
--
--	/* kprobe_running() needs smp_processor_id() */
--	if (!user_mode(regs)) {
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, esr))
--			ret = 1;
--		preempt_enable();
--	}
--
--	return ret;
--}
--#else
--static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
--{
--	return 0;
--}
--#endif
--
- static void data_abort_decode(unsigned int esr)
- {
- 	pr_alert("Data abort info:\n");
-@@ -446,7 +424,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
- 	unsigned long vm_flags = VM_READ | VM_WRITE;
- 	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
- 
--	if (notify_page_fault(regs, esr))
-+	if (kprobe_page_fault(regs, esr))
- 		return 0;
- 
- 	tsk = current;
-diff --git a/arch/ia64/mm/fault.c b/arch/ia64/mm/fault.c
-index 5baeb02..22582f8 100644
---- a/arch/ia64/mm/fault.c
-+++ b/arch/ia64/mm/fault.c
-@@ -21,28 +21,6 @@
- 
- extern int die(char *, struct pt_regs *, long);
- 
--#ifdef CONFIG_KPROBES
--static inline int notify_page_fault(struct pt_regs *regs, int trap)
--{
--	int ret = 0;
--
--	if (!user_mode(regs)) {
--		/* kprobe_running() needs smp_processor_id() */
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, trap))
--			ret = 1;
--		preempt_enable();
--	}
--
--	return ret;
--}
--#else
--static inline int notify_page_fault(struct pt_regs *regs, int trap)
--{
--	return 0;
--}
--#endif
--
- /*
-  * Return TRUE if ADDRESS points at a page in the kernel's mapped segment
-  * (inside region 5, on ia64) and that page is present.
-@@ -116,7 +94,7 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
- 	/*
- 	 * This is to handle the kprobes on user space access instructions
- 	 */
--	if (notify_page_fault(regs, TRAP_BRKPT))
-+	if (kprobe_page_fault(regs, TRAP_BRKPT))
- 		return;
- 
- 	if (user_mode(regs))
-diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
-index ec6b7ad..f20ee668 100644
---- a/arch/powerpc/mm/fault.c
-+++ b/arch/powerpc/mm/fault.c
-@@ -42,26 +42,6 @@
- #include <asm/debug.h>
- #include <asm/kup.h>
- 
--static inline bool notify_page_fault(struct pt_regs *regs)
--{
--	bool ret = false;
--
--#ifdef CONFIG_KPROBES
--	/* kprobe_running() needs smp_processor_id() */
--	if (!user_mode(regs)) {
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, 11))
--			ret = true;
--		preempt_enable();
--	}
--#endif /* CONFIG_KPROBES */
--
--	if (unlikely(debugger_fault_handler(regs)))
--		ret = true;
--
--	return ret;
--}
--
- /*
-  * Check whether the instruction inst is a store using
-  * an update addressing form which will update r1.
-@@ -462,8 +442,9 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
- 	int is_write = page_fault_is_write(error_code);
- 	vm_fault_t fault, major = 0;
- 	bool must_retry = false;
-+	int kprobe_fault = kprobe_page_fault(regs, 11);
- 
--	if (notify_page_fault(regs))
-+	if (unlikely(debugger_fault_handler(regs) || kprobe_fault))
- 		return 0;
- 
- 	if (unlikely(page_fault_is_bad(error_code))) {
-diff --git a/arch/s390/mm/fault.c b/arch/s390/mm/fault.c
-index 91ce03f..bb77a2c 100644
---- a/arch/s390/mm/fault.c
-+++ b/arch/s390/mm/fault.c
-@@ -67,20 +67,6 @@ static int __init fault_init(void)
- }
- early_initcall(fault_init);
- 
--static inline int notify_page_fault(struct pt_regs *regs)
--{
--	int ret = 0;
--
--	/* kprobe_running() needs smp_processor_id() */
--	if (kprobes_built_in() && !user_mode(regs)) {
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, 14))
--			ret = 1;
--		preempt_enable();
--	}
--	return ret;
--}
--
- /*
-  * Find out which address space caused the exception.
-  * Access register mode is impossible, ignore space == 3.
-@@ -411,7 +397,7 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
- 	 */
- 	clear_pt_regs_flag(regs, PIF_PER_TRAP);
- 
--	if (notify_page_fault(regs))
-+	if (kprobe_page_fault(regs, 14))
- 		return 0;
- 
- 	mm = tsk->mm;
-diff --git a/arch/sh/mm/fault.c b/arch/sh/mm/fault.c
-index 6defd2c6..74cd4ac 100644
---- a/arch/sh/mm/fault.c
-+++ b/arch/sh/mm/fault.c
-@@ -24,20 +24,6 @@
- #include <asm/tlbflush.h>
- #include <asm/traps.h>
- 
--static inline int notify_page_fault(struct pt_regs *regs, int trap)
--{
--	int ret = 0;
--
--	if (kprobes_built_in() && !user_mode(regs)) {
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, trap))
--			ret = 1;
--		preempt_enable();
--	}
--
--	return ret;
--}
--
- static void
- force_sig_info_fault(int si_signo, int si_code, unsigned long address,
- 		     struct task_struct *tsk)
-@@ -415,14 +401,14 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
- 	if (unlikely(fault_in_kernel_space(address))) {
- 		if (vmalloc_fault(address) >= 0)
- 			return;
--		if (notify_page_fault(regs, vec))
-+		if (kprobe_page_fault(regs, vec))
- 			return;
- 
- 		bad_area_nosemaphore(regs, error_code, address);
- 		return;
- 	}
- 
--	if (unlikely(notify_page_fault(regs, vec)))
-+	if (unlikely(kprobe_page_fault(regs, vec)))
- 		return;
- 
- 	/* Only enable interrupts if they were on before the fault */
-diff --git a/arch/sparc/mm/fault_64.c b/arch/sparc/mm/fault_64.c
-index 8f8a604..6865f9c 100644
---- a/arch/sparc/mm/fault_64.c
-+++ b/arch/sparc/mm/fault_64.c
-@@ -38,20 +38,6 @@
- 
- int show_unhandled_signals = 1;
- 
--static inline __kprobes int notify_page_fault(struct pt_regs *regs)
--{
--	int ret = 0;
--
--	/* kprobe_running() needs smp_processor_id() */
--	if (kprobes_built_in() && !user_mode(regs)) {
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, 0))
--			ret = 1;
--		preempt_enable();
--	}
--	return ret;
--}
--
- static void __kprobes unhandled_fault(unsigned long address,
- 				      struct task_struct *tsk,
- 				      struct pt_regs *regs)
-@@ -285,7 +271,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
- 
- 	fault_code = get_thread_fault_code();
- 
--	if (notify_page_fault(regs))
-+	if (kprobe_page_fault(regs, 0))
- 		goto exit_exception;
- 
- 	si_code = SEGV_MAPERR;
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 46df4c6..5400f4e 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -46,23 +46,6 @@ kmmio_fault(struct pt_regs *regs, unsigned long addr)
- 	return 0;
- }
- 
--static nokprobe_inline int kprobes_fault(struct pt_regs *regs)
--{
--	if (!kprobes_built_in())
--		return 0;
--	if (user_mode(regs))
--		return 0;
--	/*
--	 * To be potentially processing a kprobe fault and to be allowed to call
--	 * kprobe_running(), we have to be non-preemptible.
--	 */
--	if (preemptible())
--		return 0;
--	if (!kprobe_running())
--		return 0;
--	return kprobe_fault_handler(regs, X86_TRAP_PF);
--}
--
- /*
-  * Prefetch quirks:
-  *
-@@ -1280,7 +1263,7 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
- 		return;
- 
- 	/* kprobes don't want to hook the spurious faults: */
--	if (kprobes_fault(regs))
-+	if (kprobe_page_fault(regs, X86_TRAP_PF))
- 		return;
- 
- 	/*
-@@ -1311,7 +1294,7 @@ void do_user_addr_fault(struct pt_regs *regs,
- 	mm = tsk->mm;
- 
- 	/* kprobes don't want to hook the spurious faults: */
--	if (unlikely(kprobes_fault(regs)))
-+	if (unlikely(kprobe_page_fault(regs, X86_TRAP_PF)))
- 		return;
- 
- 	/*
-diff --git a/include/linux/kprobes.h b/include/linux/kprobes.h
-index 443d980..064dd15 100644
---- a/include/linux/kprobes.h
-+++ b/include/linux/kprobes.h
-@@ -458,4 +458,20 @@ static inline bool is_kprobe_optinsn_slot(unsigned long addr)
- }
- #endif
- 
-+static nokprobe_inline bool kprobe_page_fault(struct pt_regs *regs,
-+					      unsigned int trap)
-+{
-+	int ret = 0;
-+
-+	/*
-+	 * To be potentially processing a kprobe fault and to be allowed
-+	 * to call kprobe_running(), we have to be non-preemptible.
-+	 */
-+	if (kprobes_built_in() && !preemptible() && !user_mode(regs)) {
-+		if (kprobe_running() && kprobe_fault_handler(regs, trap))
-+			ret = 1;
-+	}
-+	return ret;
-+}
-+
- #endif /* _LINUX_KPROBES_H */
+								Honza
 -- 
-2.7.4
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
