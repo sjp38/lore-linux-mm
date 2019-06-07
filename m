@@ -2,165 +2,184 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 96DEDC468BD
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:31:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EF94C468BD
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:35:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 590E22133D
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:31:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 590E22133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 5A76320825
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:35:32 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="Z1ujcUSO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A76320825
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E09906B026B; Fri,  7 Jun 2019 12:31:46 -0400 (EDT)
+	id 022F86B026F; Fri,  7 Jun 2019 12:35:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DB98B6B026E; Fri,  7 Jun 2019 12:31:46 -0400 (EDT)
+	id EEE296B0270; Fri,  7 Jun 2019 12:35:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA9436B026F; Fri,  7 Jun 2019 12:31:46 -0400 (EDT)
+	id D68E56B0271; Fri,  7 Jun 2019 12:35:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 94DE46B026B
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 12:31:46 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id j7so1838210pfn.10
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 09:31:46 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9871C6B026F
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 12:35:31 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id g11so1686968plt.23
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 09:35:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=i6gPtKa21V7fgo0pFXUO7mMvi7LOZQA2rvkWN6EKcuQ=;
-        b=QYufdNTwHEUsWKmEVqffIem4XfPNs0iCRD6cfOcGRH4U3/scdf3vcPw1uIJnrtu66R
-         R0+OvnWXh/kZNhSP5a9X/zVwFIhgvkk2Gtr+7UUItkgP8DlYqIVN9txCPpRpucH31IYD
-         lfakfsHnqug7UitTEugNS/K0RYzrOBtDRUkZ5zQKa2wTYMKsIgsGctVEsed77aeAWssc
-         Mgc2RFomf7q6P9Kk7FlE7k+WSt12mkaFi0Fb3ewoBQJbl+d3sSABsfZGNM8lWzW3dCMX
-         XMey4pnjdpofELuij7YmfSiJL73IBLo9tO+f0d8MmVShN7kTB2tQM78NtumT2s4rGJBG
-         Gyag==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAViQWbmtf16hdVrSCOv0tXSZ62a/iVWb2qorwFUoX1Ehx6J9sEm
-	yN1c56BUY33bdw2VrkECKtoBXvra+LmvkZzoZbcOblNsP6HaPUdlBLf55sbQalZioMpJ8goWnNh
-	xOMWReMv/ooBoqQ4r7VcTcnYoRF/lFEFnXSokw5Wwmi594eEQYxsNWYE7LddlBez26A==
-X-Received: by 2002:a65:4786:: with SMTP id e6mr3626050pgs.85.1559925106172;
-        Fri, 07 Jun 2019 09:31:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwXsCT8qTdhzFioIYiHhG4Fg19sG9G0Tb6ihso4yGyLgKjjAI0JpMHs1kw37fownoDfRcoz
-X-Received: by 2002:a65:4786:: with SMTP id e6mr3625973pgs.85.1559925105482;
-        Fri, 07 Jun 2019 09:31:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559925105; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=0wvMqjnLfHeibHfnd5Vo60J3T+kOUBskArwKAN9PGMQ=;
+        b=FMXIUfPEGEPeX7GOwIWCKB+vsTRJUYogjcYIZSu6MB9E4Rh4BiL8R32FDn0Y69vIfb
+         SejCFWIwSK4PC7QABniT0zysGbePhHdghvz9OTWv5JQMFOWwZaOnE6BxfpKYhYNNAcWD
+         vXt711CobgzA0C2U2kYDfN0oCKZ9/6sm0m6iFPE21lZif1JoGQS0OHYLcRVaGQDt4bv6
+         Li4VP5PENau1mtme2NdkP4oGr4ZPwN+TDBiNY9kFuOWHs+MSbvPF82xLfVQZEuiIK1RX
+         zGbeJ+7gOGs969sxwcauIVP8BdigbWd+GqbPURWFtv+0R0HkeiVsfMwUcabNgxqJtrer
+         UXgA==
+X-Gm-Message-State: APjAAAVwWQU2tNfshsvBay1RRF3HMqCANx7TJ9D6OY+DD9B1MH5qSbjE
+	DM1xljV9mMgHOpdGJyArFJDCLB9WGlYXJRShg+jEpbUE7JSUPau6yCUFzeHLmtPDhX9pGclD9hz
+	NuhqGXNpI2oPm908ngOgmoflSCUsFs7i2qNIfr/7wHt4Quen0STOqvbbR1tldy2qCHQ==
+X-Received: by 2002:a63:c744:: with SMTP id v4mr3653866pgg.370.1559925331140;
+        Fri, 07 Jun 2019 09:35:31 -0700 (PDT)
+X-Received: by 2002:a63:c744:: with SMTP id v4mr3653795pgg.370.1559925330465;
+        Fri, 07 Jun 2019 09:35:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559925330; cv=none;
         d=google.com; s=arc-20160816;
-        b=gEWxF+tyZePxu7UhisiJ0OTGFZwlU5bWbNefp3fnUQeelWzS5rzUWdYLmraQhzm9uI
-         CTg4zr2XzfaN/8AmShe0DLk2zf2OwLkHFybHsHwShjMuGNq6HCICjIewRePVQfFhe9nr
-         wdF+HbqCqDTWxR+DzpPwpRa7n+kBPt2KKl9FuYQFpY6CbbZHxcNMqBf9GXfmd46dCDjs
-         /sF4mBCXZ0JZagmmzkzDRFhd/eXNowi/LArFLy/zIBrv6Gr3JSV7Nxqk7KBLVxeCj0Kl
-         joj0vHPUm3zE6rggsjP77AY1ZLe21QWjUbfbKbK7XtWRVhBzUfkskXVyiNCX4kyPnqN+
-         V7Kg==
+        b=dAJpDDoLhHQTxhv7irMefjtmHhd3hwMnv+wpkAg4wqbnzcrjuHzkKdHcMLSk+yp5Td
+         UgWD76xZRYdSaSjGFav9HwHdN5wNYApq2vK2YqBVKKJKj6pcFDlKETySrpQ0sL5a/UWM
+         kM6ynTY56SdlZI7u70dlbOyAYM2cE2DThKF/PZdFlIRdUX+6boCLmFDOJDztdsHhdoMl
+         fFwSOzuB+8XcA4hRqo4OnhJ7ooASqasknhkSwL3QtzsFrHed8t7ywku9IIMrQD6nXh7/
+         QhXFjKylEEWRhYu9hXI3nc6XL5E1IRtyKuJl5VGXwBwoxEZqgFvz2hh8Ie2XCroESQEm
+         v/qQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=i6gPtKa21V7fgo0pFXUO7mMvi7LOZQA2rvkWN6EKcuQ=;
-        b=M3a3kvZ2Q7JfR17FsWVzaeON8gHohjvOUuKVLEvtX0SfVakzB+EaTlDx/QIymfRrto
-         IuZokFNm5RXvXYpXFxyg8A7M9Pk8nV3D/ObOoSaNEn/EV0PaJkLA+buqCg7+xTuoUZ+J
-         enWr1+KdyxOoUTThPQh1N3DIpdeeyHy5u7f/4N6W7eHXRPHB/iZQsp/o6m55kIxUJy2J
-         Xq/dq106nw9+SizggM/XXU6Uiu97NMA6NxMQVuQ1LC6QiSScEvuo5p4nusr5e1NxEFgu
-         yw/diIPPUfwT4aL4smnuhK4n8mRhxrN2txuRcFCyYctdeIxloEVGkTgnS81J7rU6aMHT
-         sDQA==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=0wvMqjnLfHeibHfnd5Vo60J3T+kOUBskArwKAN9PGMQ=;
+        b=kp1cc+8kMINkQ9nFl/FyUGP6J6uhKJxApgsPWXVHGltDDP8NJNF5BAhoe+MVyVEQih
+         OMCYCtXmwOj2ROqD2DGcrL3AJOX1zku/bvArVnt6kdBsrAesTfyC7jb5TlVRzrad83WW
+         LueTfxBOFFIZkXD6sXH71WYgsaUkIQwbWw8b5xJK9dXUEsMwAcmDZ82DpYXZI6VCKhV/
+         xj4Q0pPO1ZeaPuNb0vxILodXcyyLiPiQKhBXqFIZCWyhZ4JtQAh2vCKd4DS4inPqWK59
+         Xm0PMlqDqqKFVM/YfQRxrIRI3pUmjMG0F7f40/aVzXUd0FZvcf+PqH1sASQZkIln8sHM
+         MHfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id h1si2266261pgv.67.2019.06.07.09.31.45
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=Z1ujcUSO;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t22sor3160552plr.42.2019.06.07.09.35.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 09:31:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
+        (Google Transport Security);
+        Fri, 07 Jun 2019 09:35:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga002.fm.intel.com ([10.253.24.26])
-  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 09:31:44 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.63,563,1557212400"; 
-   d="scan'208";a="182722617"
-Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by fmsmga002.fm.intel.com with ESMTP; 07 Jun 2019 09:31:44 -0700
-Message-ID: <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
- function
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
- <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
- linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
- linux-mm@kvack.org,  linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
- Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>,
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=Z1ujcUSO;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=0wvMqjnLfHeibHfnd5Vo60J3T+kOUBskArwKAN9PGMQ=;
+        b=Z1ujcUSObY84r0pQw1gBEgavn3UDkEJ73l7OoeuHJ7dTxxtAWA5cFzGd2tv+bDLXFZ
+         ZUSH8lkopmuRZXxnqwLbFKFylazXfmK1Yd06ZaFH3sphoqD6YxdLCXKJjTeZ/46olgLw
+         cLkrGYT/rNrgSGRUpMNUrvuX5u7UwSAvEWwn4hAgbhrWtbQEXPMkYf5cSf3rXHCCI2yO
+         oxKvbLtHVB4ymsJqzauKbObHwXVJGq0nRHyzLloNX1EQW9P9evaYW8zYcNjTEP4aI/WM
+         V69MI12MFr6S0MbwLenZ5QYptjGPavTIFQ1xi2XagjAAyleNVcloUFwKXdfWiK7WVJUO
+         LbUg==
+X-Google-Smtp-Source: APXvYqxYfU9YVziUJO0vNHvuNseZrHbxK2V0LHuxNzSafUXNPN+YeoYV3SImF7zgnh5F5HqBc8Gomg==
+X-Received: by 2002:a17:902:7e0f:: with SMTP id b15mr48583188plm.237.1559925330160;
+        Fri, 07 Jun 2019 09:35:30 -0700 (PDT)
+Received: from ?IPv6:2600:1012:b044:6f30:60ea:7662:8055:2cca? ([2600:1012:b044:6f30:60ea:7662:8055:2cca])
+        by smtp.gmail.com with ESMTPSA id f2sm2240019pgs.83.2019.06.07.09.35.28
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Jun 2019 09:35:29 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (1.0)
+Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup function
+From: Andy Lutomirski <luto@amacapital.net>
+X-Mailer: iPhone Mail (16F203)
+In-Reply-To: <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
+Date: Fri, 7 Jun 2019 09:35:27 -0700
+Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
+ "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
  Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
- Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen
- <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>,
- Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>, Jann
- Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook
- <keescook@chromium.org>,  Mike Kravetz <mike.kravetz@oracle.com>, Nadav
- Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,  Pavel Machek
- <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar"
- <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue
- <vedvyas.shanbhogue@intel.com>,  Dave Martin <Dave.Martin@arm.com>
-Date: Fri, 07 Jun 2019 09:23:43 -0700
-In-Reply-To: <20190607080832.GT3419@hirez.programming.kicks-ass.net>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
-	 <20190606200926.4029-4-yu-cheng.yu@intel.com>
-	 <20190607080832.GT3419@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.1-2 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ Cyrill Gorcunov <gorcunov@gmail.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Eugene Syromiatnikov <esyr@redhat.com>,
+ Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>,
+ Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>,
+ Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>,
+ Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
+ Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>,
+ "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+ Dave Martin <Dave.Martin@arm.com>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <76B7B1AE-3AEA-4162-B539-990EF3CCE2C2@amacapital.net>
+References: <20190606200926.4029-1-yu-cheng.yu@intel.com> <20190606200926.4029-4-yu-cheng.yu@intel.com> <20190607080832.GT3419@hirez.programming.kicks-ass.net> <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-06-07 at 10:08 +0200, Peter Zijlstra wrote:
-> On Thu, Jun 06, 2019 at 01:09:15PM -0700, Yu-cheng Yu wrote:
-> > Indirect Branch Tracking (IBT) provides an optional legacy code bitmap
-> > that allows execution of legacy, non-IBT compatible library by an
-> > IBT-enabled application.  When set, each bit in the bitmap indicates
-> > one page of legacy code.
-> > 
-> > The bitmap is allocated and setup from the application.
-> > +int cet_setup_ibt_bitmap(unsigned long bitmap, unsigned long size)
-> > +{
-> > +	u64 r;
-> > +
-> > +	if (!current->thread.cet.ibt_enabled)
-> > +		return -EINVAL;
-> > +
-> > +	if (!PAGE_ALIGNED(bitmap) || (size > TASK_SIZE_MAX))
-> > +		return -EINVAL;
-> > +
-> > +	current->thread.cet.ibt_bitmap_addr = bitmap;
-> > +	current->thread.cet.ibt_bitmap_size = size;
-> > +
-> > +	/*
-> > +	 * Turn on IBT legacy bitmap.
-> > +	 */
-> > +	modify_fpu_regs_begin();
-> > +	rdmsrl(MSR_IA32_U_CET, r);
-> > +	r |= (MSR_IA32_CET_LEG_IW_EN | bitmap);
-> > +	wrmsrl(MSR_IA32_U_CET, r);
-> > +	modify_fpu_regs_end();
-> > +
-> > +	return 0;
-> > +}
-> 
-> So you just program a random user supplied address into the hardware.
-> What happens if there's not actually anything at that address or the
-> user munmap()s the data after doing this?
 
-This function checks the bitmap's alignment and size, and anything else is the
-app's responsibility.  What else do you think the kernel should check?
 
-Yu-cheng
+> On Jun 7, 2019, at 9:23 AM, Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
+>=20
+>> On Fri, 2019-06-07 at 10:08 +0200, Peter Zijlstra wrote:
+>>> On Thu, Jun 06, 2019 at 01:09:15PM -0700, Yu-cheng Yu wrote:
+>>> Indirect Branch Tracking (IBT) provides an optional legacy code bitmap
+>>> that allows execution of legacy, non-IBT compatible library by an
+>>> IBT-enabled application.  When set, each bit in the bitmap indicates
+>>> one page of legacy code.
+>>>=20
+>>> The bitmap is allocated and setup from the application.
+>>> +int cet_setup_ibt_bitmap(unsigned long bitmap, unsigned long size)
+>>> +{
+>>> +    u64 r;
+>>> +
+>>> +    if (!current->thread.cet.ibt_enabled)
+>>> +        return -EINVAL;
+>>> +
+>>> +    if (!PAGE_ALIGNED(bitmap) || (size > TASK_SIZE_MAX))
+>>> +        return -EINVAL;
+>>> +
+>>> +    current->thread.cet.ibt_bitmap_addr =3D bitmap;
+>>> +    current->thread.cet.ibt_bitmap_size =3D size;
+>>> +
+>>> +    /*
+>>> +     * Turn on IBT legacy bitmap.
+>>> +     */
+>>> +    modify_fpu_regs_begin();
+>>> +    rdmsrl(MSR_IA32_U_CET, r);
+>>> +    r |=3D (MSR_IA32_CET_LEG_IW_EN | bitmap);
+>>> +    wrmsrl(MSR_IA32_U_CET, r);
+>>> +    modify_fpu_regs_end();
+>>> +
+>>> +    return 0;
+>>> +}
+>>=20
+>> So you just program a random user supplied address into the hardware.
+>> What happens if there's not actually anything at that address or the
+>> user munmap()s the data after doing this?
+>=20
+> This function checks the bitmap's alignment and size, and anything else is=
+ the
+> app's responsibility.  What else do you think the kernel should check?
+>=20
+
+One might reasonably wonder why this state is privileged in the first place a=
+nd, given that, why we=E2=80=99re allowing it to be written like this.
+
+Arguably we should have another prctl to lock these values (until exec) as a=
+ gardening measure.=
 
