@@ -2,94 +2,94 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2BC4CC468BC
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:25:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96DEDC468BD
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:31:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E90F8214AE
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:25:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E90F8214AE
+	by mail.kernel.org (Postfix) with ESMTP id 590E22133D
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:31:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 590E22133D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 99FEF6B026B; Fri,  7 Jun 2019 12:25:10 -0400 (EDT)
+	id E09906B026B; Fri,  7 Jun 2019 12:31:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 950A56B026E; Fri,  7 Jun 2019 12:25:10 -0400 (EDT)
+	id DB98B6B026E; Fri,  7 Jun 2019 12:31:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 841536B026F; Fri,  7 Jun 2019 12:25:10 -0400 (EDT)
+	id CA9436B026F; Fri,  7 Jun 2019 12:31:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B4FA6B026B
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 12:25:10 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 145so1808763pfv.18
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 09:25:10 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 94DE46B026B
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 12:31:46 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id j7so1838210pfn.10
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 09:31:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:message-id
          :subject:from:to:cc:date:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=fqZYQrrzFI1K/T5Ovd1jNF/j9A9kDqy2YB6vahLoPIQ=;
-        b=J57mMfDhjLLKTDcLvc+PJ4FJ4BZFElXfjNIqrnMBwcamgzAhyoHPcMYQG9YyCfpAqK
-         b4HPVnjInwDlkoHr7JcBt0M6iYSo2FUKftnrEfb3bWgioisc2/TDscu2fXOPWc5CGlyg
-         EsxIKLDeHxOtEWncBJuhZKsLIdTiCc3MMSnc3iJ10M/2ku1vu3Amy+PUP6Xt0WtjvbQn
-         0vnngPdpx3GtgF/n7EQ4RRj5iOiFKHg84FNZqBztQMiF6LVvu4M2z3jRML3q+6xWUY9I
-         u28lqNECNbx9NbpbN82+P4G77NicklNHOS9WxlFRIh2uQm2XZPgH5QcNwN9vKZqlKLCu
-         Zong==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVI3NX/sPkqyyn3wZBQCE5gpPabedUEhXy30WsRwtsKmQgy1SH5
-	Fag9DKSZIsZ8XyMsqP1QV8m5Fn4cqrHM5EtKnJ+7ULNzVacTzE9i6s7zlNqaxv6N7NKDMhDSIuw
-	f870Zu/BknBunm2nYI1/aBVEY9tB9Z3A57MasiU8pu+x1c5PdVxPFdgDKRVzuLfIamg==
-X-Received: by 2002:a17:902:6ac6:: with SMTP id i6mr42649883plt.233.1559924709995;
-        Fri, 07 Jun 2019 09:25:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzJb3H1f+bfm0JX58uYczdhMD0dbfd33wXukmgsaMP/1tcQCpYmullk5GIQLE4OpTKtuswa
-X-Received: by 2002:a17:902:6ac6:: with SMTP id i6mr42649763plt.233.1559924708982;
-        Fri, 07 Jun 2019 09:25:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559924708; cv=none;
+        bh=i6gPtKa21V7fgo0pFXUO7mMvi7LOZQA2rvkWN6EKcuQ=;
+        b=QYufdNTwHEUsWKmEVqffIem4XfPNs0iCRD6cfOcGRH4U3/scdf3vcPw1uIJnrtu66R
+         R0+OvnWXh/kZNhSP5a9X/zVwFIhgvkk2Gtr+7UUItkgP8DlYqIVN9txCPpRpucH31IYD
+         lfakfsHnqug7UitTEugNS/K0RYzrOBtDRUkZ5zQKa2wTYMKsIgsGctVEsed77aeAWssc
+         Mgc2RFomf7q6P9Kk7FlE7k+WSt12mkaFi0Fb3ewoBQJbl+d3sSABsfZGNM8lWzW3dCMX
+         XMey4pnjdpofELuij7YmfSiJL73IBLo9tO+f0d8MmVShN7kTB2tQM78NtumT2s4rGJBG
+         Gyag==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAViQWbmtf16hdVrSCOv0tXSZ62a/iVWb2qorwFUoX1Ehx6J9sEm
+	yN1c56BUY33bdw2VrkECKtoBXvra+LmvkZzoZbcOblNsP6HaPUdlBLf55sbQalZioMpJ8goWnNh
+	xOMWReMv/ooBoqQ4r7VcTcnYoRF/lFEFnXSokw5Wwmi594eEQYxsNWYE7LddlBez26A==
+X-Received: by 2002:a65:4786:: with SMTP id e6mr3626050pgs.85.1559925106172;
+        Fri, 07 Jun 2019 09:31:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwXsCT8qTdhzFioIYiHhG4Fg19sG9G0Tb6ihso4yGyLgKjjAI0JpMHs1kw37fownoDfRcoz
+X-Received: by 2002:a65:4786:: with SMTP id e6mr3625973pgs.85.1559925105482;
+        Fri, 07 Jun 2019 09:31:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559925105; cv=none;
         d=google.com; s=arc-20160816;
-        b=X9tG/3YIg+Q7BZFPoet7om6qPU3PKOTdxN29mgdUObrep8/5ceMzn7Aj3Cy0n6GdtU
-         DaACOhtIx3hfHS7Y9RnSX5B7GofnwgDzh4EqjRWCHLLSb/Evj1bZljp0NPhO4wL9nDcX
-         5ms8VYafrj96jcfK4VNnjzN9r8mEtrmK92EXcL2Src9teJrTJkWPtyKpkQWd4TGfRkFP
-         6VuPG+e8WitAQccirK7yrf8kia1efnLCN4U48NyjfR4UPllULpFdFjp2fAhVHUlWeXpp
-         qWM4gxs6OnDjr8EOPRjDJTthAtIVoD60hFNXL54nUljWGPbxSbDfmzarMURC27PpwG2+
-         GePw==
+        b=gEWxF+tyZePxu7UhisiJ0OTGFZwlU5bWbNefp3fnUQeelWzS5rzUWdYLmraQhzm9uI
+         CTg4zr2XzfaN/8AmShe0DLk2zf2OwLkHFybHsHwShjMuGNq6HCICjIewRePVQfFhe9nr
+         wdF+HbqCqDTWxR+DzpPwpRa7n+kBPt2KKl9FuYQFpY6CbbZHxcNMqBf9GXfmd46dCDjs
+         /sF4mBCXZ0JZagmmzkzDRFhd/eXNowi/LArFLy/zIBrv6Gr3JSV7Nxqk7KBLVxeCj0Kl
+         joj0vHPUm3zE6rggsjP77AY1ZLe21QWjUbfbKbK7XtWRVhBzUfkskXVyiNCX4kyPnqN+
+         V7Kg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to:date
          :cc:to:from:subject:message-id;
-        bh=fqZYQrrzFI1K/T5Ovd1jNF/j9A9kDqy2YB6vahLoPIQ=;
-        b=GCZbFhRMHhofd1cerp2JcnUQzO2iYC3IJzVOICwJ7ujBXOA8aZcZzvbdvC+4Vuxgx3
-         zRF8227UpnkNQJQ+G673M+SdPLXek/SLuM+g/twxg7G5VjYuRMO03BZWZ7lBIxJ8qQhV
-         sG9yTVbrjt3VHr3thRkzzEZwu05OSb3nLP2KwYQXlUXMWeDD+uqbY+NLjUsGxs1jyMrn
-         uY4teIKHIdyCx5lWDYlBZCpibM5K1klasDZ6a6L/D1R1UK1dkjwebo/+lpEmuHzU6CEv
-         ELruyso5zHynjP460oxXx20q1yG465sSFpB2iGvTxt/DUwNclXSpLVBl1fZ1+F3PZEMM
-         6xqg==
+        bh=i6gPtKa21V7fgo0pFXUO7mMvi7LOZQA2rvkWN6EKcuQ=;
+        b=M3a3kvZ2Q7JfR17FsWVzaeON8gHohjvOUuKVLEvtX0SfVakzB+EaTlDx/QIymfRrto
+         IuZokFNm5RXvXYpXFxyg8A7M9Pk8nV3D/ObOoSaNEn/EV0PaJkLA+buqCg7+xTuoUZ+J
+         enWr1+KdyxOoUTThPQh1N3DIpdeeyHy5u7f/4N6W7eHXRPHB/iZQsp/o6m55kIxUJy2J
+         Xq/dq106nw9+SizggM/XXU6Uiu97NMA6NxMQVuQ1LC6QiSScEvuo5p4nusr5e1NxEFgu
+         yw/diIPPUfwT4aL4smnuhK4n8mRhxrN2txuRcFCyYctdeIxloEVGkTgnS81J7rU6aMHT
+         sDQA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id f17si2190529pjq.18.2019.06.07.09.25.08
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id h1si2266261pgv.67.2019.06.07.09.31.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 09:25:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Fri, 07 Jun 2019 09:31:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga002.fm.intel.com ([10.253.24.26])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 09:25:08 -0700
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 09:31:44 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.63,563,1557212400"; 
-   d="scan'208";a="182720042"
+   d="scan'208";a="182722617"
 Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by fmsmga002.fm.intel.com with ESMTP; 07 Jun 2019 09:25:08 -0700
-Message-ID: <1b5778f8f1336ad7a63f4621f189b7f04a56a9ed.camel@intel.com>
-Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an
- ELF file
+  by fmsmga002.fm.intel.com with ESMTP; 07 Jun 2019 09:31:44 -0700
+Message-ID: <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
+Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
+ function
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
 To: Peter Zijlstra <peterz@infradead.org>
 Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
@@ -107,11 +107,11 @@ Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
  <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V. Shankar"
  <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue
  <vedvyas.shanbhogue@intel.com>,  Dave Martin <Dave.Martin@arm.com>
-Date: Fri, 07 Jun 2019 09:17:06 -0700
-In-Reply-To: <20190607075822.GR3419@hirez.programming.kicks-ass.net>
-References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
-	 <20190606200646.3951-23-yu-cheng.yu@intel.com>
-	 <20190607075822.GR3419@hirez.programming.kicks-ass.net>
+Date: Fri, 07 Jun 2019 09:23:43 -0700
+In-Reply-To: <20190607080832.GT3419@hirez.programming.kicks-ass.net>
+References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
+	 <20190606200926.4029-4-yu-cheng.yu@intel.com>
+	 <20190607080832.GT3419@hirez.programming.kicks-ass.net>
 Content-Type: text/plain; charset="UTF-8"
 X-Mailer: Evolution 3.28.1-2 
 Mime-Version: 1.0
@@ -122,36 +122,45 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-06-07 at 09:58 +0200, Peter Zijlstra wrote:
-> On Thu, Jun 06, 2019 at 01:06:41PM -0700, Yu-cheng Yu wrote:
-> > An ELF file's .note.gnu.property indicates features the executable file
-> > can support.  For example, the property GNU_PROPERTY_X86_FEATURE_1_AND
-> > indicates the file supports GNU_PROPERTY_X86_FEATURE_1_IBT and/or
-> > GNU_PROPERTY_X86_FEATURE_1_SHSTK.
+On Fri, 2019-06-07 at 10:08 +0200, Peter Zijlstra wrote:
+> On Thu, Jun 06, 2019 at 01:09:15PM -0700, Yu-cheng Yu wrote:
+> > Indirect Branch Tracking (IBT) provides an optional legacy code bitmap
+> > that allows execution of legacy, non-IBT compatible library by an
+> > IBT-enabled application.  When set, each bit in the bitmap indicates
+> > one page of legacy code.
 > > 
-> > With this patch, if an arch needs to setup features from ELF properties,
-> > it needs CONFIG_ARCH_USE_GNU_PROPERTY to be set, and a specific
-> > arch_setup_property().
-> > 
-> > For example, for X86_64:
-> > 
-> > int arch_setup_property(void *ehdr, void *phdr, struct file *f, bool inter)
-> > {
-> > 	int r;
-> > 	uint32_t property;
-> > 
-> > 	r = get_gnu_property(ehdr, phdr, f, GNU_PROPERTY_X86_FEATURE_1_AND,
-> > 			     &property);
-> > 	...
-> > }
-> > 
-> > Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
-> > Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+> > The bitmap is allocated and setup from the application.
+> > +int cet_setup_ibt_bitmap(unsigned long bitmap, unsigned long size)
+> > +{
+> > +	u64 r;
+> > +
+> > +	if (!current->thread.cet.ibt_enabled)
+> > +		return -EINVAL;
+> > +
+> > +	if (!PAGE_ALIGNED(bitmap) || (size > TASK_SIZE_MAX))
+> > +		return -EINVAL;
+> > +
+> > +	current->thread.cet.ibt_bitmap_addr = bitmap;
+> > +	current->thread.cet.ibt_bitmap_size = size;
+> > +
+> > +	/*
+> > +	 * Turn on IBT legacy bitmap.
+> > +	 */
+> > +	modify_fpu_regs_begin();
+> > +	rdmsrl(MSR_IA32_U_CET, r);
+> > +	r |= (MSR_IA32_CET_LEG_IW_EN | bitmap);
+> > +	wrmsrl(MSR_IA32_U_CET, r);
+> > +	modify_fpu_regs_end();
+> > +
+> > +	return 0;
+> > +}
 > 
-> Did HJ write this patch as suggested by that SoB chain? If so, you lost
-> a From: line on top, if not, the SoB thing is invalid.
+> So you just program a random user supplied address into the hardware.
+> What happens if there's not actually anything at that address or the
+> user munmap()s the data after doing this?
 
-I will fix that.
+This function checks the bitmap's alignment and size, and anything else is the
+app's responsibility.  What else do you think the kernel should check?
 
 Yu-cheng
 
