@@ -2,130 +2,131 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 297EDC468BC
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:29:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C544C2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:41:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DA860208C3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:29:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 07646208C0
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 18:41:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="lg7aoPtq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA860208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Wkrw1snf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 07646208C0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 859096B000A; Fri,  7 Jun 2019 14:29:55 -0400 (EDT)
+	id A4BD56B0005; Fri,  7 Jun 2019 14:41:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E2646B000C; Fri,  7 Jun 2019 14:29:55 -0400 (EDT)
+	id 9FC8D6B0006; Fri,  7 Jun 2019 14:41:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 65B916B000E; Fri,  7 Jun 2019 14:29:55 -0400 (EDT)
+	id 8C4E06B000A; Fri,  7 Jun 2019 14:41:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B5AA6B000A
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 14:29:55 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id v62so1974396pgb.0
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 11:29:55 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EC666B0005
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 14:41:24 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id l184so2799971ybl.3
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 11:41:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=iPuLGydOavIYd0+wELWGKM4fGfit4THzqki57BPPV4U=;
-        b=O//Odod3YIyg+SorkyLujOPlgHNnebXSa8befGJQnKcy1yNwnSN3tkdIusq5AwMBrN
-         vaQ3Gobc8ko0zVdICFCNHF7f1SF7NzimqBDS9Am5WCZ8DeqJEpFoPBm/LKuwlvJViEG3
-         7rrSn0OkyGL6dIT5GCURxGA2toNdc/3GZ2jTuhL1y1vSL4HyK/0fdg/OcP2cChY4KJt2
-         ScTJ6Yo4b1/tFkXFkSCTjj0nIKfsSKIXAzxANYYkqqLVNatw0gOx85oXSKHhTQnVWqe8
-         yiYu5ooNk5J21t9Yh2+7G7ea7xseQXmXxlDfDRSSaY4LObX4x7axNLVJDM6ePJ2IM5by
-         BeMg==
-X-Gm-Message-State: APjAAAUa+KljtIP0jGCj7RKBOBjiwp+gX1T3gKLjxkKIejlrBRWo56pj
-	ZDlzTafzojMceXVzHKIy1JzpbSr7peFvqxd0kmoFukzqIDSo3/0tp5KP+EE04wqCY3VhqSrEgTi
-	1zyrRP8A5E61nDzpRePS+jNg5TPDUvHrrXK1QYLkuqxF28iDSOOJ01yzP3EbVO7aRgg==
-X-Received: by 2002:a17:902:42e2:: with SMTP id h89mr55632332pld.271.1559932194764;
-        Fri, 07 Jun 2019 11:29:54 -0700 (PDT)
-X-Received: by 2002:a17:902:42e2:: with SMTP id h89mr55632256pld.271.1559932194046;
-        Fri, 07 Jun 2019 11:29:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559932194; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=BXL7/wF1685JXXTrRB3MzSSsbcW5afztk5Rzsz/BPwQ=;
+        b=Lcs0dxZiheatEgSRwuJeTL/hBTd50CLsefLX/vUW7bmEvKP/PHaGl7AdAS2CTUcwpu
+         I/dMbwVajpPHGphlJvvjRB9SI75K2kKqAL2VMQhBwoGQrv/mrbPsLChy11pSMLvt+j4v
+         VYohfltFLhSJJGPsatEikHBqMD1ZKpV/Fh2rrMdEmxyMO/yiGgg2zojWktP62iA07YOR
+         KVai3mXv6FahHECtBhi1MT2k23BcaO2J0mzCunh1aSZ8yw46uBGMNYHwMY39E4pV28Qj
+         jRdJKCv0pUr7RNvWm986bJLiyeyxburXPiXpJmcT0mxMDwPu9pjXuA48Rfa/wxVSl+el
+         3PsQ==
+X-Gm-Message-State: APjAAAUatn9AOwBA3jkezlnr7bWayRRzO+HVyVCZJn/HTxv8/RNYI7fK
+	dWp/3h61V427FS31iNwgM30ez7xctfwHmC84u37eVsr9R68/JRAe4zs6nI6y4PDwDnoFUOVLPy2
+	EyAbxIRFIBACZp+REukcJApCfx0GwnWoufqvHUL6oBPYjrFk+GyW7ZSN1PkUFHUwoWA==
+X-Received: by 2002:a25:8703:: with SMTP id a3mr24183105ybl.231.1559932884166;
+        Fri, 07 Jun 2019 11:41:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyVjblxao9UQAeMbjHy6126AHMS7M+a6+WZFTBrZ/qj7Rp9OqQgUZDv1Ucd/X1l3tpqSoaE
+X-Received: by 2002:a25:8703:: with SMTP id a3mr24183087ybl.231.1559932883497;
+        Fri, 07 Jun 2019 11:41:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559932883; cv=none;
         d=google.com; s=arc-20160816;
-        b=vKHHH6Q+hOF9lFxRkYIcwnzu9wja3UUTiubibTtfLV9AM0fjrJpKG6jh2nXnvllfDH
-         EJIROKHZVPAEa73B3bCJlEZNTM2EblAowfkoo8FP0pACu8+fsjlMwlyAmEWnC2KqAaY6
-         XCCp6dc1Qy/VJhSkc4YuBt0Zkhgw5BYP5gCep6EkThs0RkOtQDyLtNaL8q6/yUPw99DF
-         FzJdanpqe3Wph1VzytxVXY7Lmt7BTwcglCjy/OJ6pUDzHE0jd16wZg23zM9YmsgsolVr
-         Il7TpVJHrCkpFi1uqUW5oIowAuVrHGTbS3ywGRHTEWYpqrTLng4tVH95MhK74SSKGTTX
-         6uNg==
+        b=wxQmxwpg/1rnzQgMpZymW5KLh1vmN75H3BxlMvxC0E+WOMIziK5/lSn9hG8QUPFIwA
+         HQiGZDb1yvZL3Ejrs2M7/QdecwPYzkarLcagxYbnzwDAhTLN0OgWNnhO193pwzPSkFJE
+         rBC1qLnvx2lGToWTB+K32ZFKp//LQ/pT3ExSNDyi0dDPX6w6PvDvGo6IC8EK4KzhbrDb
+         Xy4REsrYnKSkynoEg8Ep6F2IHEiNIhvHJMKnY4YyD/0acAL5EL4XUIRIizKYf/fzR3VS
+         yku6Dmn7Gi8NneMzNuSm29XeOIBhfSWybA95rM/1GmnlaTntvz0sVzVFPwjEcg8PiDIH
+         yUXw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=iPuLGydOavIYd0+wELWGKM4fGfit4THzqki57BPPV4U=;
-        b=E9ki5JqKKMShL3gxxJZj0/Api6Ypk9lLoxjnOhByU5OMGXDThfWv1MsGC1vXYhmWKC
-         lGJln6zCT7ZN7Q7LAI5SybfnI3ktHyahF998Rr2Hd6WFxK7TjrzKkEVrXaKhxoX/YuOx
-         a3br834jccdU7VOKi0XJtqBGULYJSNWtx2j4aTk/XPamwVIFEKzoREeVEl+Fw+1u6jlg
-         ymoysH4tzd68/lqTz85CIWQf4G8hZHkGTTu2gzT1OmMHcaVLl/i+P1/eZ2TROzAg67JO
-         QU/dTmDHcG1WLdd/jFJEcqsJZEsbme/SwAie7bfa8xzmLHLjHzPD8djBahGD7cDOs7Er
-         W3tQ==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=BXL7/wF1685JXXTrRB3MzSSsbcW5afztk5Rzsz/BPwQ=;
+        b=NwozhYGnugUPKIfgDGqLquXwnlWfhz9AARfz4nk5dfBDr45875bznMiu2JbK5eLLrq
+         io4siV+ITKPg5VDTEuV9cAKUaLlLVCSY/kav78Y15qlEi3Fqs+QjrO2GJR8XlnXTIBlD
+         RaQ9nFiy7ku2KNZvEJiI9l3vhJL+0JHHXEzw0rLDPSOq+bHmdRmbmOoIjAjLOPC5kTdr
+         6Fde7Ex2BrPJKVOs3FQ/AccyKqRo9+9DDO8MPZ+WvwHDsns1jJHakFGGbus+seC6iRIR
+         WZ3SSBerNUNlu0V0F/lAbLO458weC5O/oiINrIRfG4NOslP7d6499MhMXn76qKfNwUIe
+         JPjQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=lg7aoPtq;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f38sor3474800pjg.13.2019.06.07.11.29.53
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Wkrw1snf;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id 84si764740ybz.117.2019.06.07.11.41.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 07 Jun 2019 11:29:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=lg7aoPtq;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=iPuLGydOavIYd0+wELWGKM4fGfit4THzqki57BPPV4U=;
-        b=lg7aoPtqp9Hb92R8oH6RAUOmupz6mJN7bNCFgiizfRjRxEHrih+BHeECksF/ofFo+d
-         Gca1+QdVmTh/8SL4feJ1/2529qt+bY7R4DNbVPsSnXMwFEHbMKCAJeDfe5oyP784L847
-         zI5icl4CBjsxAnmXBxZOgOJkC67xHD5guteumdR+SzGRAqs+zcoxpcGYvNXrcj0Kg/KR
-         t0RpPZcx8kewURUpcoeCa6Q9p/SCpI/AeBa72cgZYDOsIbMIEQuIVI08rJY/7o80AFHB
-         IEXTdyNxMrTM0/BtMGFhILWDJk6/oALcRhTA/U9DE1OnXw5xwpv1vVb7lzhXy22LvO+I
-         cMvw==
-X-Google-Smtp-Source: APXvYqzvhAzsKyCtFsLkEsrBKKf0SyVY50xd6UzRSykGMq36ETMdxZgn9Qk9tfswhyyV5VdxrKxgCg==
-X-Received: by 2002:a17:90a:cb0a:: with SMTP id z10mr7463663pjt.101.1559932193640;
-        Fri, 07 Jun 2019 11:29:53 -0700 (PDT)
-Received: from ?IPv6:2600:1012:b044:6f30:60ea:7662:8055:2cca? ([2600:1012:b044:6f30:60ea:7662:8055:2cca])
-        by smtp.gmail.com with ESMTPSA id 139sm3061757pfw.152.2019.06.07.11.29.52
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 11:29:52 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup function
-From: Andy Lutomirski <luto@amacapital.net>
-X-Mailer: iPhone Mail (16F203)
-In-Reply-To: <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
-Date: Fri, 7 Jun 2019 11:29:50 -0700
-Cc: Peter Zijlstra <peterz@infradead.org>,
- Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org,
- "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
- Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
- Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
- Cyrill Gorcunov <gorcunov@gmail.com>,
- Dave Hansen <dave.hansen@linux.intel.com>,
- Eugene Syromiatnikov <esyr@redhat.com>,
- Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>,
- Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>,
- Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>,
- Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
- Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>,
- "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
- Dave Martin <Dave.Martin@arm.com>
+        Fri, 07 Jun 2019 11:41:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Wkrw1snf;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5cfaafd20001>; Fri, 07 Jun 2019 11:41:22 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Fri, 07 Jun 2019 11:41:22 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Fri, 07 Jun 2019 11:41:22 -0700
+Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 7 Jun
+ 2019 18:41:21 +0000
+Subject: Re: [PATCH v2 hmm 03/11] mm/hmm: Hold a mmgrab from hmm to mm
+To: Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, "John
+ Hubbard" <jhubbard@nvidia.com>, <Felix.Kuehling@amd.com>
+CC: <linux-rdma@vger.kernel.org>, <linux-mm@kvack.org>, Andrea Arcangeli
+	<aarcange@redhat.com>, <dri-devel@lists.freedesktop.org>,
+	<amd-gfx@lists.freedesktop.org>, Jason Gunthorpe <jgg@mellanox.com>
+References: <20190606184438.31646-1-jgg@ziepe.ca>
+ <20190606184438.31646-4-jgg@ziepe.ca>
+From: Ralph Campbell <rcampbell@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <605172dc-5c66-123f-61a3-8e6880678aef@nvidia.com>
+Date: Fri, 7 Jun 2019 11:41:20 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.0
+MIME-Version: 1.0
+In-Reply-To: <20190606184438.31646-4-jgg@ziepe.ca>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com> <20190606200926.4029-4-yu-cheng.yu@intel.com> <20190607080832.GT3419@hirez.programming.kicks-ass.net> <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com> <20190607174336.GM3436@hirez.programming.kicks-ass.net> <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
-To: Dave Hansen <dave.hansen@intel.com>
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1559932882; bh=BXL7/wF1685JXXTrRB3MzSSsbcW5afztk5Rzsz/BPwQ=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=Wkrw1snfHAMLfoxwtDrAaK5NrPSHE8tbm/7LuFI2XQAtYTox/3q2xrehM2lJJL18q
+	 P/lK/orwO3+mod6CKV0QZm78jJRxIKuvbNOsQZhdd+1yRIPKKDJpL5YWOhc9vnhKch
+	 UWKavQ8B/OXpV8YxtD2Qxuz8CaPCy8NIu1DMnM0y/udqNHlRe/2PVTqjEHpPLOTT8Z
+	 m2SvCKaGpDUPdJbPo5rTpLyBiA5MJ07nzuPSxth9C5xwlF0gz+O9RKbQZjerlG99CH
+	 yhyMU5sdcUbqnd3nDCzFo4CZyHozRpUrUPNHp9dYtOryQgA8jcqcd5zND+0Xlcs0Xq
+	 ulL1B4XzCIYwA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -133,56 +134,129 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-
-> On Jun 7, 2019, at 10:59 AM, Dave Hansen <dave.hansen@intel.com> wrote:
+On 6/6/19 11:44 AM, Jason Gunthorpe wrote:
+> From: Jason Gunthorpe <jgg@mellanox.com>
 >=20
->> On 6/7/19 10:43 AM, Peter Zijlstra wrote:
->> I've no idea what the kernel should do; since you failed to answer the
->> question what happens when you point this to garbage.
->>=20
->> Does it then fault or what?
->=20
-> Yeah, I think you'll fault with a rather mysterious CR2 value since
-> you'll go look at the instruction that faulted and not see any
-> references to the CR2 value.
->=20
-> I think this new MSR probably needs to get included in oops output when
-> CET is enabled.
+> So long a a struct hmm pointer exists, so should the struct mm it is
 
-This shouldn=E2=80=99t be able to OOPS because it only happens at CPL 3, rig=
-ht?  We should put it into core dumps, though.
+s/a a/as a/
 
+> linked too. Hold the mmgrab() as soon as a hmm is created, and mmdrop() i=
+t
+> once the hmm refcount goes to zero.
 >=20
-> Why don't we require that a VMA be in place for the entire bitmap?
-> Don't we need a "get" prctl function too in case something like a JIT is
-> running and needs to find the location of this bitmap to set bits itself?
+> Since mmdrop() (ie a 0 kref on struct mm) is now impossible with a !NULL
+> mm->hmm delete the hmm_hmm_destroy().
 >=20
-> Or, do we just go whole-hog and have the kernel manage the bitmap
-> itself. Our interface here could be:
+> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+> Reviewed-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
+
+Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+
+> ---
+> v2:
+>   - Fix error unwind paths in hmm_get_or_create (Jerome/Jason)
+> ---
+>   include/linux/hmm.h |  3 ---
+>   kernel/fork.c       |  1 -
+>   mm/hmm.c            | 22 ++++------------------
+>   3 files changed, 4 insertions(+), 22 deletions(-)
 >=20
->    prctl(PR_MARK_CODE_AS_LEGACY, start, size);
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index 2d519797cb134a..4ee3acabe5ed22 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -586,14 +586,11 @@ static inline int hmm_vma_fault(struct hmm_mirror *=
+mirror,
+>   }
+>  =20
+>   /* Below are for HMM internal use only! Not to be used by device driver=
+! */
+> -void hmm_mm_destroy(struct mm_struct *mm);
+> -
+>   static inline void hmm_mm_init(struct mm_struct *mm)
+>   {
+>   	mm->hmm =3D NULL;
+>   }
+>   #else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+> -static inline void hmm_mm_destroy(struct mm_struct *mm) {}
+>   static inline void hmm_mm_init(struct mm_struct *mm) {}
+>   #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+>  =20
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index b2b87d450b80b5..588c768ae72451 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -673,7 +673,6 @@ void __mmdrop(struct mm_struct *mm)
+>   	WARN_ON_ONCE(mm =3D=3D current->active_mm);
+>   	mm_free_pgd(mm);
+>   	destroy_context(mm);
+> -	hmm_mm_destroy(mm);
+>   	mmu_notifier_mm_destroy(mm);
+>   	check_mm(mm);
+>   	put_user_ns(mm->user_ns);
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 8796447299023c..cc7c26fda3300e 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -29,6 +29,7 @@
+>   #include <linux/swapops.h>
+>   #include <linux/hugetlb.h>
+>   #include <linux/memremap.h>
+> +#include <linux/sched/mm.h>
+>   #include <linux/jump_label.h>
+>   #include <linux/dma-mapping.h>
+>   #include <linux/mmu_notifier.h>
+> @@ -82,6 +83,7 @@ static struct hmm *hmm_get_or_create(struct mm_struct *=
+mm)
+>   	hmm->notifiers =3D 0;
+>   	hmm->dead =3D false;
+>   	hmm->mm =3D mm;
+> +	mmgrab(hmm->mm);
+>  =20
+>   	spin_lock(&mm->page_table_lock);
+>   	if (!mm->hmm)
+> @@ -109,6 +111,7 @@ static struct hmm *hmm_get_or_create(struct mm_struct=
+ *mm)
+>   		mm->hmm =3D NULL;
+>   	spin_unlock(&mm->page_table_lock);
+>   error:
+> +	mmdrop(hmm->mm);
+>   	kfree(hmm);
+>   	return NULL;
+>   }
+> @@ -130,6 +133,7 @@ static void hmm_free(struct kref *kref)
+>   		mm->hmm =3D NULL;
+>   	spin_unlock(&mm->page_table_lock);
+>  =20
+> +	mmdrop(hmm->mm);
+>   	mmu_notifier_call_srcu(&hmm->rcu, hmm_free_rcu);
+>   }
+>  =20
+> @@ -138,24 +142,6 @@ static inline void hmm_put(struct hmm *hmm)
+>   	kref_put(&hmm->kref, hmm_free);
+>   }
+>  =20
+> -void hmm_mm_destroy(struct mm_struct *mm)
+> -{
+> -	struct hmm *hmm;
+> -
+> -	spin_lock(&mm->page_table_lock);
+> -	hmm =3D mm_get_hmm(mm);
+> -	mm->hmm =3D NULL;
+> -	if (hmm) {
+> -		hmm->mm =3D NULL;
+> -		hmm->dead =3D true;
+> -		spin_unlock(&mm->page_table_lock);
+> -		hmm_put(hmm);
+> -		return;
+> -	}
+> -
+> -	spin_unlock(&mm->page_table_lock);
+> -}
+> -
+>   static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+>   {
+>   	struct hmm *hmm =3D container_of(mn, struct hmm, mmu_notifier);
 >=20
-> and then have the kernel allocate and set the bitmap for those code
-> locations.
-
-Given that the format depends on the VA size, this might be a good idea.  I b=
-et we can reuse the special mapping infrastructure for this =E2=80=94 the VM=
-A could
-be a MAP_PRIVATE special mapping named [cet_legacy_bitmap] or similar, and w=
-e can even make special rules to core dump it intelligently if needed.  And w=
-e can make mremap() on it work correctly if anyone (CRIU?) cares.
-
-Hmm.  Can we be creative and skip populating it with zeros?  The CPU should o=
-nly ever touch a page if we miss an ENDBR on it, so, in normal operation, we=
- don=E2=80=99t need anything to be there.  We could try to prevent anyone fr=
-om *reading* it outside of ENDBR tracking if we want to avoid people acciden=
-tally wasting lots of memory by forcing it to be fully populated when the re=
-ad it.
-
-The one downside is this forces it to be per-mm, but that seems like a gener=
-ally reasonable model anyway.
-
-This also gives us an excellent opportunity to make it read-only as seen fro=
-m userspace to prevent exploits from just poking it full of ones before redi=
-recting execution.=
 
