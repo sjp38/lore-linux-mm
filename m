@@ -2,131 +2,145 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 805A0C2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 08:56:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 17FFFC28CC3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 09:52:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4F3512089E
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 08:56:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F3512089E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id D9FBB212F5
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 09:52:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D9FBB212F5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DFFFE6B0269; Fri,  7 Jun 2019 04:56:29 -0400 (EDT)
+	id 7448C6B000C; Fri,  7 Jun 2019 05:52:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DB1336B026A; Fri,  7 Jun 2019 04:56:29 -0400 (EDT)
+	id 6F5866B000E; Fri,  7 Jun 2019 05:52:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C79E06B026B; Fri,  7 Jun 2019 04:56:29 -0400 (EDT)
+	id 5E3CD6B0266; Fri,  7 Jun 2019 05:52:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D7526B0269
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 04:56:29 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c13so2134674edx.16
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 01:56:29 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 34FE16B000C
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 05:52:51 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id n19so695174ota.14
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 02:52:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=0v9HsiHh93IM1pVklIufn9k/hFTDIbu7kcYAPOOtNvc=;
-        b=QaBW09kTn6v0KXMVeRjYSvxPCMEPUaNq3+nCEMQ0U6dlLXPPzDkr7leTFWiHtJMNjN
-         D91X2m+apEE0A7YdeUv8fIT/k9PvKk88G6xUZBSeKwzz7q3mz/hhiEZgMctf+LQYxhoe
-         /CPfwq8M8HtFywIga5lBnJNxStgBSRuInse44jmtxbadtlYgiVbB4d+4lqlW1iNRnR5l
-         Tjq7BV0FtcvugTmoGADXZsnRK87V8sHkN8bl47kN3LDSXs1fJBFZ9a+fJiXGdr1As0Eo
-         Si5PNSQxHwg5GFy8PvY82LQlMFcLxYjwzJGawKEirPE+aanjsN75hbwI9ylVWG3PcB2F
-         E/oA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAWkx04mRK93a4MZLDQWIbpyhoOZQ8w9buJ0rxGzX4swFu3jIgCM
-	r+RGCv0Oit1uvUYe0qo4dOe+ehIbKsPGY2rsrAiSAo1RkQsi3QJV/+4HkNNrs1anhf8+A0kREMT
-	SIvmhcTNsBxAsFLmJoxwX2rAICiVawMZ+vXgW30OrTLqnvUOgMyo5iOjsKovgZDq9cw==
-X-Received: by 2002:a17:906:3452:: with SMTP id d18mr26279526ejb.24.1559897789146;
-        Fri, 07 Jun 2019 01:56:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxA62PNEp3k6q4QTJa3XZRy4jcdLsiGaaBPYF02p97pVwJDtit33i/ZOhUtXNvI0YdPyNOI
-X-Received: by 2002:a17:906:3452:: with SMTP id d18mr26279481ejb.24.1559897788246;
-        Fri, 07 Jun 2019 01:56:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559897788; cv=none;
+         :subject:message-id:organization:mime-version
+         :content-transfer-encoding;
+        bh=J7I8vNvRONFgt6TD4SUSkCmxN3IiEdrWLERnhR8nnCM=;
+        b=P4S1XOD7vpwfSK2eTcjQJLyFOVjCekcKPsCm2QnTMg4J6J4wAu/nzPrJ/TELs6QAjx
+         S/CYaQYa30R9peKT41h5sG8Nihkaf6pDoFlQq9xWBqxdhZyex26whpgGxzsLfE6CX6Dq
+         VwipwYqRiH+8ERY8GCZuDlFlvKXtBIcX4uLQvsszZ7ah81QWPFp6Xp8UuOQQ6pHe1W/F
+         ZaUuLxsdrOueeEI+oLD0R14RJOgfjqPgrbvWyJ6zlSZOxP5OCqvH5KhI2/94DdVV2r1w
+         EdYRDSs8vrkY4xharGbgpN/IEqJOazgCfaF3474AqQxHhDgZHn5Ek9FCyks5gN+3P5qT
+         oXKQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+X-Gm-Message-State: APjAAAWSfWqxSdBANOveiWuyMTbUuvAO5dxXVUyXrHW4OHfePIIuEcIP
+	9XbFavMKlOKKXVIioKaDSUeo2vFog17jXgwlDqawCgDjx1q/1UhGaP1f0XC8TvYUgm0SBuWrEN7
+	SQkPHfUpkWmq1kCIgcFU8EMWS1A8bu2NbsIN+vuu6Hhtr2kef1+lHhB89ubxyqZKtYA==
+X-Received: by 2002:aca:4a97:: with SMTP id x145mr3033892oia.120.1559901170735;
+        Fri, 07 Jun 2019 02:52:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx0uzbAIDBkkjmc8/N9WcvXhhGhugv0p8P5KuVv1InXEvwsd/bZNDAVH9dY0dYAi0DMnLbd
+X-Received: by 2002:aca:4a97:: with SMTP id x145mr3033870oia.120.1559901169793;
+        Fri, 07 Jun 2019 02:52:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559901169; cv=none;
         d=google.com; s=arc-20160816;
-        b=LEpEkT1p5kYWAFSPgGwgvEua1O9EJkvYOqiYA+YzWYEA+Zuo2CtWalssUIOc4ySI3Z
-         G7l2t9+ybiIbtzTOa2HhiZpt55no2at47H/7kkwokRB9zrLLObf/4yTpJFQ4qBG6CMXK
-         LqdxVfCiIcS+ciTAEk80BKP0rDvNeogjv6Yso1RanKExO8XB0kUPYFKRTRqcco6lmNjr
-         FOjntoFo+DvyF14LV4+0vu3xYWyhdJMdsYaYgHGpnTK1cZoEZvcjDSns6GN1+lV50Pi8
-         XPYxl/Gh8sjoDDu/xBHkAHuOOZfUgdT213SsMWtYWybej9v8vFMuBTsBbZVnlgkwN70j
-         rzDw==
+        b=InmAjPrzmGTLCPA5TD/kyTSiZPosKd+DsEMjxLfVHxb+S2fv6Q/4IEK/3HvZ5lDUd5
+         aY2OL+NiExrY9oJSp3Z4cpj90TH1yVfR4lnMB8Uh3hAEtbQgKGfW6raslSu19MUnq9Xn
+         xlb8rxahWRVfDtROWU+rzcoTVKLzMYCDdPxSoavefbXOp38EgpjBeFoIy/CdYKWYv1VE
+         pN1jVHxp/0fZI4jVXQ5uqF1Q2KHIiIzqenZxEX/ooP47v1YQglUHAMRQBSuGPbLh0g8R
+         tduUumAWPCj9TbtHO7euv6XcrrllciPfCHOm5Oo8JQmzIf3deMNV6SjUNZVdLBTiG++Z
+         WvKA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=0v9HsiHh93IM1pVklIufn9k/hFTDIbu7kcYAPOOtNvc=;
-        b=DCiK88NwocN8ji2Kqc0bPydBhn1taHl4dNlr/SSm9FWD27rYPurVF2Q2VQh/j0ha2A
-         c1BH6L+cKgaDZRlmuWvw+44Kc9BM/tX4optjT5lsLW6uvP/dBmt8b0igAIGWSZ83pox3
-         Z3C3S0lpT4CM1fmxKtmHX/BotIdj741BMgAmVLdc63uUlL8Zxl6ELsZjR581e0Cy4SZJ
-         oY9N99FO1F46q6R8RsUDvteILm4D2zNGMIdwJNwiprAN/Oh+WCJHwZzMMVHOYokMx+/x
-         +J1ua4ts6avjRhthwVkiZxotH214BoAx02PCsUdqefAl8D1k+sxVVRt4VBUQn6CsafQk
-         i3Gg==
+        h=content-transfer-encoding:mime-version:organization:message-id
+         :subject:to:from:date;
+        bh=J7I8vNvRONFgt6TD4SUSkCmxN3IiEdrWLERnhR8nnCM=;
+        b=ntUr9jENeGfCvq5/O85nIQ3AVCmMKPEp8QXYQ+SxGDkjW2M8SEF1/wNLGnx8fAorlq
+         +ujfyvnkHKU6dOy5gCVF+2eiLQq/BbSTU7aUYES+gmj17/1kuaaGz+7bD7hXffS7g3Ts
+         x1AJApVP06BEPGYAi+ISIrkne9Ad+ccJ6ZBp1LxQrZODiLQYks0EwK+LN5OeXQ8CMF4n
+         rP4p7GQaZFYK7evMEj4CnXh457+g9zve3luf0O5KePgea/dL2ge82EF3FlRsWNmH9OHX
+         ywWzGbdsJl8PS4SdQhtOefXdibfQVY3OQEtVVMZcWAAlmlxB1l5ulhsMhn3ulvMjviW8
+         StgQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d9si867737edz.195.2019.06.07.01.56.28
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id i20si920525ota.97.2019.06.07.02.52.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 01:56:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 07 Jun 2019 02:52:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 69A33ABB1;
-	Fri,  7 Jun 2019 08:56:27 +0000 (UTC)
-Date: Fri, 7 Jun 2019 10:56:24 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Michal Hocko <mhocko@suse.com>,
-	Toshi Kani <toshi.kani@hpe.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Logan Gunthorpe <logang@deltatee.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>, linux-mm@kvack.org,
-	linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v9 10/12] mm/devm_memremap_pages: Enable sub-section remap
-Message-ID: <20190607085612.GA5803@linux>
-References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com>
- <155977193326.2443951.14201009973429527491.stgit@dwillia2-desk3.amr.corp.intel.com>
+       spf=pass (google.com: domain of jonathan.cameron@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=jonathan.cameron@huawei.com
+Received: from DGGEMS408-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id AC461D2F7002C7D59082;
+	Fri,  7 Jun 2019 17:52:39 +0800 (CST)
+Received: from localhost (10.202.226.61) by DGGEMS408-HUB.china.huawei.com
+ (10.3.19.208) with Microsoft SMTP Server id 14.3.439.0; Fri, 7 Jun 2019
+ 17:52:28 +0800
+Date: Fri, 7 Jun 2019 10:52:20 +0100
+From: Jonathan Cameron <jonathan.cameron@huawei.com>
+To: <linux-acpi@vger.kernel.org>, <linux-mm@kvack.org>,
+	<linux-kernel@vger.kernel.org>, <linux-doc@vger.kernel.org>,
+	<linuxarm@huawei.com>
+Subject: [RFC] NUMA Description Under ACPI 6.3 White Paper (v0.93)
+Message-ID: <20190607105220.0000134e@huawei.com>
+Organization: Huawei
+X-Mailer: Claws Mail 3.17.3 (GTK+ 2.24.32; i686-w64-mingw32)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <155977193326.2443951.14201009973429527491.stgit@dwillia2-desk3.amr.corp.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.202.226.61]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 05, 2019 at 02:58:53PM -0700, Dan Williams wrote:
-> Teach devm_memremap_pages() about the new sub-section capabilities of
-> arch_{add,remove}_memory(). Effectively, just replace all usage of
-> align_start, align_end, and align_size with res->start, res->end, and
-> resource_size(res). The existing sanity check will still make sure that
-> the two separate remap attempts do not collide within a sub-section (2MB
-> on x86).
-> 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Toshi Kani <toshi.kani@hpe.com>
-> Cc: Jérôme Glisse <jglisse@redhat.com>
-> Cc: Logan Gunthorpe <logang@deltatee.com>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+Hi all,
 
-Looks good to me:
+This is a request for comment / review on a white paper, intended to
+provide an example lead guide on how to describe NUMA systems in ACPI 6.3.
 
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
+https://github.com/hisilicon/acpi-numa-whitepaper
+https://github.com/hisilicon/acpi-numa-whitepaper/releases/download/v0.93/NUMA_Description_Under_ACPI_6.3_v0.93.pdf
 
--- 
-Oscar Salvador
-SUSE L3
+It was prepared in conjunction with the Heterogeneous Memory Sub Team (HMST) of
+the UEFI forum which has a mix of firmware and OS people (Linux and others). 
+
+The original motivation for this was that we were writing some docs for a
+more specific project (to appear shortly) and realized that only reason
+some sections were necessary was because we couldn't find anything
+bridging the gap between the ACPI specification and docs like those in
+the kernel tree.  Hence this document targeting that hole which is hopefully
+of more general use.
+
+Exactly how this will be officially 'released' is yet to be resolved, but 
+however that happens we will be maintaining a public source repository,
+hopefully allowing this to be a living document, tracking future specs
+and also being updated to account for how OS usage of the provided information
+changes.
+
+The document is under Creative Commons Attribution 4.0 International License.
+It is a Sphinx document. Only output to pdf has been tested and
+the build scripts are a bit of a mess.
+
+Thanks to all those who have already given feedback on earlier drafts!
+Additional thanks to the members of HMST for some very interesting discussions,
+clarifying both my understanding and highlighting areas to focus on in this
+guide.
+
+I'm looking for all types of feedback including suggestions for
+missing content (as a patch is ideal of course - I'm more than happy
+to have some coauthors on this).
+
+Jonathan
+
+p.s. Please share with anyone you think may be interested!
+
 
