@@ -2,108 +2,93 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EF94C468BD
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:35:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 19B56C2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:39:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5A76320825
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:35:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="Z1ujcUSO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A76320825
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
+	by mail.kernel.org (Postfix) with ESMTP id DB23F2067C
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 16:39:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB23F2067C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 022F86B026F; Fri,  7 Jun 2019 12:35:32 -0400 (EDT)
+	id 724576B0007; Fri,  7 Jun 2019 12:39:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EEE296B0270; Fri,  7 Jun 2019 12:35:31 -0400 (EDT)
+	id 6D5C46B000C; Fri,  7 Jun 2019 12:39:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D68E56B0271; Fri,  7 Jun 2019 12:35:31 -0400 (EDT)
+	id 59D346B0271; Fri,  7 Jun 2019 12:39:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9871C6B026F
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 12:35:31 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id g11so1686968plt.23
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 09:35:31 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1DA6B0007
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 12:39:46 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id j21so1848000pff.12
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 09:39:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=0wvMqjnLfHeibHfnd5Vo60J3T+kOUBskArwKAN9PGMQ=;
-        b=FMXIUfPEGEPeX7GOwIWCKB+vsTRJUYogjcYIZSu6MB9E4Rh4BiL8R32FDn0Y69vIfb
-         SejCFWIwSK4PC7QABniT0zysGbePhHdghvz9OTWv5JQMFOWwZaOnE6BxfpKYhYNNAcWD
-         vXt711CobgzA0C2U2kYDfN0oCKZ9/6sm0m6iFPE21lZif1JoGQS0OHYLcRVaGQDt4bv6
-         Li4VP5PENau1mtme2NdkP4oGr4ZPwN+TDBiNY9kFuOWHs+MSbvPF82xLfVQZEuiIK1RX
-         zGbeJ+7gOGs969sxwcauIVP8BdigbWd+GqbPURWFtv+0R0HkeiVsfMwUcabNgxqJtrer
-         UXgA==
-X-Gm-Message-State: APjAAAVwWQU2tNfshsvBay1RRF3HMqCANx7TJ9D6OY+DD9B1MH5qSbjE
-	DM1xljV9mMgHOpdGJyArFJDCLB9WGlYXJRShg+jEpbUE7JSUPau6yCUFzeHLmtPDhX9pGclD9hz
-	NuhqGXNpI2oPm908ngOgmoflSCUsFs7i2qNIfr/7wHt4Quen0STOqvbbR1tldy2qCHQ==
-X-Received: by 2002:a63:c744:: with SMTP id v4mr3653866pgg.370.1559925331140;
-        Fri, 07 Jun 2019 09:35:31 -0700 (PDT)
-X-Received: by 2002:a63:c744:: with SMTP id v4mr3653795pgg.370.1559925330465;
-        Fri, 07 Jun 2019 09:35:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559925330; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=AuurSrnF6IKsePTIlXuc0m65kFJC67LwiWc26/aDSlA=;
+        b=FU92bulYP2DU1lb6p+WjJ1n9fuRDc1BrqdZ+HoR8NfddFZ15I5+3Dg5moDnJc05nGl
+         yjbudVysErhVIB+qlRMqr7WizNBmwXUwU/utW/izD67bcgb2erCmzVbXov4dYyMaP6t6
+         pWCx3PvN246S3TlXc/C1Kde1QmYqXIpOyCXzEyaKjiIftrWWgGb+ibc0Gj6sN90BJOBg
+         zAWMvfUn32c3ptpkK5oM1ib5MKCe+85oWA8RvFJyXfdcKmT1DCC2aE/7GN98Holr7DFK
+         akbbrs/p5ZU50hMKxTnzP9nJlHm9Ppkx1MYfGzl0DRSsT9kvx5ab1gcNqe2P0LCqtCJF
+         cmNQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVV5xjhpGpoFFyfBaSwYo7eRm68RTObmFkn04gBPbCYaFkjs8k6
+	cJW4pixSflzs4pUzvdZGH8r0nyVkTi+JQFH7Ilwqzert9W6zTK76gtcmsSvA6tlROBhkZRcaS2p
+	7M4JynL+PwnBho1kOmdVkheeff5LZY8U8wU4K1Y5tWLFHjoCJKxwMyDSffw9U0SZdXA==
+X-Received: by 2002:a17:902:7004:: with SMTP id y4mr10811931plk.31.1559925585783;
+        Fri, 07 Jun 2019 09:39:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyjves4aexRdeiFxCk6SVSUatvpCWqOwL6UqTWxqztrLEq6hwH0HV1/EUgLSn1BSGbeI4uz
+X-Received: by 2002:a17:902:7004:: with SMTP id y4mr10811875plk.31.1559925585201;
+        Fri, 07 Jun 2019 09:39:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559925585; cv=none;
         d=google.com; s=arc-20160816;
-        b=dAJpDDoLhHQTxhv7irMefjtmHhd3hwMnv+wpkAg4wqbnzcrjuHzkKdHcMLSk+yp5Td
-         UgWD76xZRYdSaSjGFav9HwHdN5wNYApq2vK2YqBVKKJKj6pcFDlKETySrpQ0sL5a/UWM
-         kM6ynTY56SdlZI7u70dlbOyAYM2cE2DThKF/PZdFlIRdUX+6boCLmFDOJDztdsHhdoMl
-         fFwSOzuB+8XcA4hRqo4OnhJ7ooASqasknhkSwL3QtzsFrHed8t7ywku9IIMrQD6nXh7/
-         QhXFjKylEEWRhYu9hXI3nc6XL5E1IRtyKuJl5VGXwBwoxEZqgFvz2hh8Ie2XCroESQEm
-         v/qQ==
+        b=mnUb3mMPed903J1rVNTRB/SuWOwYkC9HiZbm6WwOOpN1mWTBXD4jH644LULDWScoQV
+         UhixYhDnYe4WymRSTnac5cMYUYFJcFmfJhde6rYQK+yl93uozIP4aENcRjn9BxjVB/1W
+         VpqKDki8ImbRZY9cISAQF0e1h/ld77eZG102UaTeWNk5VqoDxtYl3DIk3g2rE5pphmHd
+         uHh5uiBpBZbk3AF185AaYG1CNJTgkIUvvamWtahX4BPdx+jQwlbUozCMPrRCP9EFaTqK
+         /DXgV7Lh6TUPXgBw8t3EfpMEuvjbiUDDD4QQ7hE+rCMWQC7NYRFJZTJmln9hfke1INWu
+         gCTg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=0wvMqjnLfHeibHfnd5Vo60J3T+kOUBskArwKAN9PGMQ=;
-        b=kp1cc+8kMINkQ9nFl/FyUGP6J6uhKJxApgsPWXVHGltDDP8NJNF5BAhoe+MVyVEQih
-         OMCYCtXmwOj2ROqD2DGcrL3AJOX1zku/bvArVnt6kdBsrAesTfyC7jb5TlVRzrad83WW
-         LueTfxBOFFIZkXD6sXH71WYgsaUkIQwbWw8b5xJK9dXUEsMwAcmDZ82DpYXZI6VCKhV/
-         xj4Q0pPO1ZeaPuNb0vxILodXcyyLiPiQKhBXqFIZCWyhZ4JtQAh2vCKd4DS4inPqWK59
-         Xm0PMlqDqqKFVM/YfQRxrIRI3pUmjMG0F7f40/aVzXUd0FZvcf+PqH1sASQZkIln8sHM
-         MHfQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=AuurSrnF6IKsePTIlXuc0m65kFJC67LwiWc26/aDSlA=;
+        b=FiPGwSix5lbYh+kjzowm9hhGc+UYhhpwid4bHF/piUUTGQOE9QsLF/K0jYPe2/LAQN
+         TRUq2hXZ9Zv+3JRogj7SU0Pm16f5Uo0Njp2lEnBMnpQQOq0KW2TBr5N1XLYY3t4N8yLN
+         pX8i7XwmOD64wD2UooW44c3VyHxIX2yZoElq+TjnkzViNx2kYps6Gm07guzRa6SVY5jG
+         BOTXtIGUq3O4YUrCaPXqViQ83e8IqgR0+UHCW9aOwVeJpkcA+Is2DZ6D9icAeuktWfxr
+         6JEIEnQaKNrlwoRLSX0vrxqHBfRi+lq9zOsAyRbm3quQyTdNknQnkDKMVEfkDH19kxJU
+         cQRQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=Z1ujcUSO;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t22sor3160552plr.42.2019.06.07.09.35.30
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id c21si2287581plo.308.2019.06.07.09.39.44
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 07 Jun 2019 09:35:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=Z1ujcUSO;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=0wvMqjnLfHeibHfnd5Vo60J3T+kOUBskArwKAN9PGMQ=;
-        b=Z1ujcUSObY84r0pQw1gBEgavn3UDkEJ73l7OoeuHJ7dTxxtAWA5cFzGd2tv+bDLXFZ
-         ZUSH8lkopmuRZXxnqwLbFKFylazXfmK1Yd06ZaFH3sphoqD6YxdLCXKJjTeZ/46olgLw
-         cLkrGYT/rNrgSGRUpMNUrvuX5u7UwSAvEWwn4hAgbhrWtbQEXPMkYf5cSf3rXHCCI2yO
-         oxKvbLtHVB4ymsJqzauKbObHwXVJGq0nRHyzLloNX1EQW9P9evaYW8zYcNjTEP4aI/WM
-         V69MI12MFr6S0MbwLenZ5QYptjGPavTIFQ1xi2XagjAAyleNVcloUFwKXdfWiK7WVJUO
-         LbUg==
-X-Google-Smtp-Source: APXvYqxYfU9YVziUJO0vNHvuNseZrHbxK2V0LHuxNzSafUXNPN+YeoYV3SImF7zgnh5F5HqBc8Gomg==
-X-Received: by 2002:a17:902:7e0f:: with SMTP id b15mr48583188plm.237.1559925330160;
-        Fri, 07 Jun 2019 09:35:30 -0700 (PDT)
-Received: from ?IPv6:2600:1012:b044:6f30:60ea:7662:8055:2cca? ([2600:1012:b044:6f30:60ea:7662:8055:2cca])
-        by smtp.gmail.com with ESMTPSA id f2sm2240019pgs.83.2019.06.07.09.35.28
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 09:35:29 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup function
-From: Andy Lutomirski <luto@amacapital.net>
-X-Mailer: iPhone Mail (16F203)
-In-Reply-To: <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
-Date: Fri, 7 Jun 2019 09:35:27 -0700
+        Fri, 07 Jun 2019 09:39:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Jun 2019 09:39:44 -0700
+X-ExtLoop1: 1
+Received: from ray.jf.intel.com (HELO [10.7.198.156]) ([10.7.198.156])
+  by orsmga002.jf.intel.com with ESMTP; 07 Jun 2019 09:39:42 -0700
+Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
+ function
+To: Andy Lutomirski <luto@amacapital.net>, Yu-cheng Yu <yu-cheng.yu@intel.com>
 Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
  "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
  Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
@@ -112,74 +97,87 @@ Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
  Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
  Cyrill Gorcunov <gorcunov@gmail.com>,
  Dave Hansen <dave.hansen@linux.intel.com>,
- Eugene Syromiatnikov <esyr@redhat.com>,
- Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>,
- Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>,
- Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>,
- Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
- Pavel Machek <pavel@ucw.cz>, Randy Dunlap <rdunlap@infradead.org>,
+ Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>,
+ "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+ Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+ Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>,
+ Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>,
+ Randy Dunlap <rdunlap@infradead.org>,
  "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
  Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
  Dave Martin <Dave.Martin@arm.com>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <76B7B1AE-3AEA-4162-B539-990EF3CCE2C2@amacapital.net>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com> <20190606200926.4029-4-yu-cheng.yu@intel.com> <20190607080832.GT3419@hirez.programming.kicks-ass.net> <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
+References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
+ <20190606200926.4029-4-yu-cheng.yu@intel.com>
+ <20190607080832.GT3419@hirez.programming.kicks-ass.net>
+ <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
+ <76B7B1AE-3AEA-4162-B539-990EF3CCE2C2@amacapital.net>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <00421c4e-c64b-57cf-882e-aa7b9a007661@intel.com>
+Date: Fri, 7 Jun 2019 09:39:41 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
+MIME-Version: 1.0
+In-Reply-To: <76B7B1AE-3AEA-4162-B539-990EF3CCE2C2@amacapital.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 6/7/19 9:35 AM, Andy Lutomirski wrote:
+> One might reasonably wonder why this state is privileged in the first
+> place and, given that, why we’re allowing it to be written like
+> this.
 
-
-> On Jun 7, 2019, at 9:23 AM, Yu-cheng Yu <yu-cheng.yu@intel.com> wrote:
->=20
->> On Fri, 2019-06-07 at 10:08 +0200, Peter Zijlstra wrote:
->>> On Thu, Jun 06, 2019 at 01:09:15PM -0700, Yu-cheng Yu wrote:
->>> Indirect Branch Tracking (IBT) provides an optional legacy code bitmap
->>> that allows execution of legacy, non-IBT compatible library by an
->>> IBT-enabled application.  When set, each bit in the bitmap indicates
->>> one page of legacy code.
->>>=20
->>> The bitmap is allocated and setup from the application.
->>> +int cet_setup_ibt_bitmap(unsigned long bitmap, unsigned long size)
->>> +{
->>> +    u64 r;
->>> +
->>> +    if (!current->thread.cet.ibt_enabled)
->>> +        return -EINVAL;
->>> +
->>> +    if (!PAGE_ALIGNED(bitmap) || (size > TASK_SIZE_MAX))
->>> +        return -EINVAL;
->>> +
->>> +    current->thread.cet.ibt_bitmap_addr =3D bitmap;
->>> +    current->thread.cet.ibt_bitmap_size =3D size;
->>> +
->>> +    /*
->>> +     * Turn on IBT legacy bitmap.
->>> +     */
->>> +    modify_fpu_regs_begin();
->>> +    rdmsrl(MSR_IA32_U_CET, r);
->>> +    r |=3D (MSR_IA32_CET_LEG_IW_EN | bitmap);
->>> +    wrmsrl(MSR_IA32_U_CET, r);
->>> +    modify_fpu_regs_end();
->>> +
->>> +    return 0;
->>> +}
->>=20
->> So you just program a random user supplied address into the hardware.
->> What happens if there's not actually anything at that address or the
->> user munmap()s the data after doing this?
->=20
-> This function checks the bitmap's alignment and size, and anything else is=
- the
-> app's responsibility.  What else do you think the kernel should check?
->=20
-
-One might reasonably wonder why this state is privileged in the first place a=
-nd, given that, why we=E2=80=99re allowing it to be written like this.
-
-Arguably we should have another prctl to lock these values (until exec) as a=
- gardening measure.=
+I think it's generally a good architectural practice to make things like
+this privileged.  They're infrequent so can survive the cost of a trip
+in/out of the kernel and are a great choke point to make sure the OS is
+involved.  I wish we had the same for MPX or pkeys per-task "setup".
 
