@@ -2,211 +2,204 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8380EC28CC3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 06:37:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BC7FC28CC3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 06:47:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 092AD2089E
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 06:37:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 092AD2089E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 09CEC207E0
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 06:47:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 09CEC207E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1ADB46B000C; Fri,  7 Jun 2019 02:06:49 -0400 (EDT)
+	id 649A36B0266; Fri,  7 Jun 2019 02:47:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1105E6B0266; Fri,  7 Jun 2019 02:06:49 -0400 (EDT)
+	id 5FA3E6B0269; Fri,  7 Jun 2019 02:47:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F24166B0269; Fri,  7 Jun 2019 02:06:48 -0400 (EDT)
+	id 511776B026B; Fri,  7 Jun 2019 02:47:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A28CE6B000C
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 02:06:48 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id l53so1527305edc.7
-        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 23:06:48 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FC456B0266
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 02:47:48 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id h143so1096165ybg.6
+        for <linux-mm@kvack.org>; Thu, 06 Jun 2019 23:47:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=I9QRIUQesoA7PvBni8ercjLBmUfHrHcKYXBNK3H7UGQ=;
-        b=WBYu5wkIm+SebXMccHPlbDw2VDg+Qf2+875ug+8rAdc2P5EGX4IxCM4/R40JUoeThe
-         6Gk4c/w6YEWfttq5KAwfXBKcY+T21dRyy3gol64VzM+6+UXvlihnd2mGo0Dga+0hWnB6
-         qaFnOH5jKp3CeeQi6ApJ4GexRAlFpHW5TRKPVy3/MCvRdwyVrNYfUNIkM+ILKQz4t0fQ
-         L6umF4ZQi+rh1M1uB90vzghP442tdEDM8EmYnqNjdCd4RwqThcVoeuN/Df+tcG57hSPO
-         I8KNFq5rmwKo1zZpAnMeoTnSLYgAKgfWmgIfIHlpaKCeWpTwF9hX7mEBJdLZ6jfcLL4F
-         SCPw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.140.110.172 is neither permitted nor denied by best guess record for domain of anshuman.khandual@arm.com) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAX7lWKoFCDLl4d/W2yQrpAcX7BsQ4i5oUAh18uD4xMz8tSmuOLU
-	Zgml25PC2NdDHLMrKYlI7eDlALAE5GnhYvUL79/v3GccAT3xNPPJdERqjaUeO1WfX15VEXvMroF
-	2u1NGCYzJNczcfVFVkvlw7utbCMc2MCBjdDo9E5Rqh/qX0FYgOAO95swYeHv9rs0=
-X-Received: by 2002:a17:906:d182:: with SMTP id c2mr30851733ejz.311.1559887608136;
-        Thu, 06 Jun 2019 23:06:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzKFbKmjIUfAYvoceOrq5KVVfjq2BqZfX2Iu/GvVBcUcuXU53GLNDsHsPt36DV5hJD7LiyO
-X-Received: by 2002:a17:906:d182:: with SMTP id c2mr30851668ejz.311.1559887606922;
-        Thu, 06 Jun 2019 23:06:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559887606; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:mime-version:content-transfer-encoding:message-id;
+        bh=FPpiJon3CxkvkrPxqW3LlksAfc6qYLNPiD04iowBvXQ=;
+        b=dOmVdMobJgF1w8RW+j2iotGG6rbWskGH40IgBgUHxKSU72XXb9bRIVjjfy/XAqDMae
+         FONCHFl2hqMfYOZbIztCICw57r1pKFcBMM2TNeS3CizU38gE/q7A4ageHeoLCdzsR9s6
+         dd3prrFfT9/spCeHd/zk+TI5p0tCWQ9OyFo5AB29BQoRIKwjyEFrousFeqNXHLm6l+sX
+         wLQvyaOjSLBmp2nzQSxbTVkVTlWcFVs2WkWgHPqpMWom8dRsFRyYUTsCkG4oIokwBapU
+         z8SH0/qUHYQbBPietuwh/2LltHGpCknaJejgqJnRShmWIFe9+R9C+Zdjje8HCtnZ7Jev
+         aHfw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAWabnfWV06vdWt2D2bp/IAy4n3sfVRgm9oCbbtpg/OJywkN2yCk
+	VdjC44ZKKBoHNJaqRL0GiF7K3topbWx+FrgmK/nww+0PB8eqz2aLcw/gloaIfC6ctLBs2TTBB6a
+	+lf7VvGnN7/mHOwxP3Uf+iNbMPlcTiKh1mlM57rOb40bRrUB2PHz+QTtYuiuUrjMsxA==
+X-Received: by 2002:a81:4f0f:: with SMTP id d15mr27377903ywb.363.1559890067882;
+        Thu, 06 Jun 2019 23:47:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyb2SBBR6Uo9QRBuUBtei6ykCoF1Nin9DeyCEFPObFGkU4kps/7EB1/4nETi1fehFHtfjYK
+X-Received: by 2002:a81:4f0f:: with SMTP id d15mr27377869ywb.363.1559890066337;
+        Thu, 06 Jun 2019 23:47:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559890066; cv=none;
         d=google.com; s=arc-20160816;
-        b=LPnAP+Olsi5TmtVzGrfbYT8YeZ/wsNbosqqkEzIpFIrnIb2GXJdzgmLe8lgkd9nCMh
-         LE6Wm7FnlTpFWzKcVQysaqRFQQG8bdRxnNbY8PdQ3lHwkan3Znd86LIrfbYf7oLyYq9l
-         XO6tiqoA5SDGMQBgf7mw4njqPovz1m589ZZ4yVysPGbFe6OL7o25Z2OMYh5lXmctELQ9
-         pVg/iEVRyOsAWb0h1zANhQ3vuhG2PBZRuUoG1OdVlJB/xutgoX/Guozoy53UTYF71unf
-         ni0aRrhR7K3Jth1o1JsuXYFLhVfrL/s6BASPZM7P7gqsMhkYYwMB2DNYfi+0nCbyEIJU
-         7e/w==
+        b=aVF0/+nxCFrVYK6G3Ro93NHbOZ9ukO82G93bY5TJb8ZkllUSWd6mo0TgRmD4+cypyy
+         pxqPI4H6iVR46cpIHNTFRv2yYcAb4h9vtX+7hJjhydUcdYP3MYG0SUzduHyzRLOfhecr
+         KvbgajNIZCR8TYpb7LC2DFpstCvU81A5aROj+7qFYBqJktilCwge2o1F2pjChwVVDHWq
+         WmicAl/RHO7muuGStIDCdCXYWnTHm4xuDZwZ4l7M6gO0xq/+/Ts5nXzPVRShGCVHIpAq
+         Kpgyu6TrGbn2QoDnYPlaARYOLzNmh3WNbSY5TKogsbHMGf9c9OtlFOoDrPBnW+mZZBKb
+         nGlA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=I9QRIUQesoA7PvBni8ercjLBmUfHrHcKYXBNK3H7UGQ=;
-        b=VbPsRMi/7Sqho9d4CtgJox9XOIk8PTGLhTFgcMLGQCEj3xcuJJxhS72NPSryBlJlTE
-         JDYTwWfrlviEKTXhQxc4edfcs9ijX1BNpKPklUzCIXBJ95u3+QajaaVCAYnDBPbW5gZQ
-         Z/zUgtQZHABPB/qyyTgnfKnIndVuBFDleIrvaNlukn79E1S410RWRYP9KWx+ITvZCHaT
-         gdZiHClIM9FCntrvaQnC1TORs+b+kE5/Rhvy8YL1VWNr/V3zxMNDFcYXMpp8rRpaTWb0
-         7qBRF/tm8AHWuB8639ALuawXa7BgeLH0byiz0O3B9h0V4Oa+gayBpenZFdVwiAKED2Cz
-         cTdw==
+        h=message-id:content-transfer-encoding:mime-version:date:subject:cc
+         :to:from;
+        bh=FPpiJon3CxkvkrPxqW3LlksAfc6qYLNPiD04iowBvXQ=;
+        b=c75UGOgQJfXSZJVQoIW9Co37y4YojlJ3YdD2cS1Q23/f7NC8IRWN0+whBaA/+SRZqT
+         gGM9ljQEwoICCOujeoxMMeDB/Ac0YSoNu8TLPy9by5Jgaw8XvUpDSM6r7oZG3oTCZMSe
+         Dbexc13H4MK4OtGzjF2xVyLveXcuvizwCO/DOyuvuii64XjTXAPC1oHL8FK5PKPwKMLE
+         Xx8Xzca4IvTOlzDICrhm+gmM0sol47nsR9L7uKGaTxkr2TMqR/W39a6EtFlwSbovwk6o
+         3RGPTnfJFVMWv5UbZM35OtMyoW7LBYjR0e4tmwkj+S/uB09I73JcPrm/9NB641LeHDdG
+         rA/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.140.110.172 is neither permitted nor denied by best guess record for domain of anshuman.khandual@arm.com) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com ([217.140.110.172])
-        by mx.google.com with ESMTP id h20si630026edb.315.2019.06.06.23.06.45
-        for <linux-mm@kvack.org>;
-        Thu, 06 Jun 2019 23:06:46 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.140.110.172 is neither permitted nor denied by best guess record for domain of anshuman.khandual@arm.com) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id x67si291873yba.433.2019.06.06.23.47.46
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Jun 2019 23:47:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.140.110.172 is neither permitted nor denied by best guess record for domain of anshuman.khandual@arm.com) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E8DA941B5;
-	Thu,  6 Jun 2019 23:06:44 -0700 (PDT)
-Received: from [10.162.42.131] (p8cg001049571a15.blr.arm.com [10.162.42.131])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 520C14029C;
-	Thu,  6 Jun 2019 19:28:26 -0700 (PDT)
-Subject: Re: [PATCH V5 1/3] mm/hotplug: Reorder arch_remove_memory() call in
- __remove_memory()
-To: Mark Rutland <mark.rutland@arm.com>,
- Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
- catalin.marinas@arm.com, will.deacon@arm.com, mhocko@suse.com,
- ira.weiny@intel.com, david@redhat.com, cai@lca.pw, logang@deltatee.com,
- james.morse@arm.com, cpandya@codeaurora.org, arunks@codeaurora.org,
- dan.j.williams@intel.com, mgorman@techsingularity.net, osalvador@suse.de,
- ard.biesheuvel@arm.com
-References: <1559121387-674-1-git-send-email-anshuman.khandual@arm.com>
- <1559121387-674-2-git-send-email-anshuman.khandual@arm.com>
- <20190530103709.GB56046@lakrids.cambridge.arm.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <7d0538bb-aeef-f5f5-3371-db7b58dcb083@arm.com>
-Date: Fri, 7 Jun 2019 07:58:42 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x576l3ut017078
+	for <linux-mm@kvack.org>; Fri, 7 Jun 2019 02:47:46 -0400
+Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2syhtttyba-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 07 Jun 2019 02:47:45 -0400
+Received: from localhost
+	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Fri, 7 Jun 2019 07:47:45 +0100
+Received: from b01cxnp22035.gho.pok.ibm.com (9.57.198.25)
+	by e14.ny.us.ibm.com (146.89.104.201) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Fri, 7 Jun 2019 07:47:41 +0100
+Received: from b01ledav003.gho.pok.ibm.com (b01ledav003.gho.pok.ibm.com [9.57.199.108])
+	by b01cxnp22035.gho.pok.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x576le5c19202352
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 7 Jun 2019 06:47:40 GMT
+Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id B6EB8B2064;
+	Fri,  7 Jun 2019 06:47:40 +0000 (GMT)
+Received: from b01ledav003.gho.pok.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 4726EB2067;
+	Fri,  7 Jun 2019 06:47:39 +0000 (GMT)
+Received: from skywalker.in.ibm.com (unknown [9.124.35.207])
+	by b01ledav003.gho.pok.ibm.com (Postfix) with ESMTP;
+	Fri,  7 Jun 2019 06:47:39 +0000 (GMT)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: dan.j.williams@intel.com
+Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
+        linuxppc-dev@lists.ozlabs.org,
+        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Subject: [PATCH] =?UTF-8?q?mm/nvdimm:=20Fix=20endian=20conversion=20issues?= =?UTF-8?q?=C2=A0?=
+Date: Fri,  7 Jun 2019 12:17:32 +0530
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-In-Reply-To: <20190530103709.GB56046@lakrids.cambridge.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+X-TM-AS-GCONF: 00
+x-cbid: 19060706-0052-0000-0000-000003CCAA7E
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011227; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000286; SDB=6.01214407; UDB=6.00638362; IPR=6.00995493;
+ MB=3.00027216; MTD=3.00000008; XFM=3.00000015; UTC=2019-06-07 06:47:43
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19060706-0053-0000-0000-00006138181D
+Message-Id: <20190607064732.30384-1-aneesh.kumar@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-07_03:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906070048
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+nd_label->dpa issue was observed when trying to enable the namespace created
+with little-endian kernel on a big-endian kernel. That made me run
+`sparse` on the rest of the code and other changes are the result of that.
 
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
+---
+ drivers/nvdimm/btt.c            | 8 ++++----
+ drivers/nvdimm/namespace_devs.c | 7 ++++---
+ 2 files changed, 8 insertions(+), 7 deletions(-)
 
-On 05/30/2019 04:07 PM, Mark Rutland wrote:
-> On Wed, May 29, 2019 at 02:46:25PM +0530, Anshuman Khandual wrote:
->> Memory hot remove uses get_nid_for_pfn() while tearing down linked sysfs
->> entries between memory block and node. It first checks pfn validity with
->> pfn_valid_within() before fetching nid. With CONFIG_HOLES_IN_ZONE config
->> (arm64 has this enabled) pfn_valid_within() calls pfn_valid().
->>
->> pfn_valid() is an arch implementation on arm64 (CONFIG_HAVE_ARCH_PFN_VALID)
->> which scans all mapped memblock regions with memblock_is_map_memory(). This
->> creates a problem in memory hot remove path which has already removed given
->> memory range from memory block with memblock_[remove|free] before arriving
->> at unregister_mem_sect_under_nodes(). Hence get_nid_for_pfn() returns -1
->> skipping subsequent sysfs_remove_link() calls leaving node <-> memory block
->> sysfs entries as is. Subsequent memory add operation hits BUG_ON() because
->> of existing sysfs entries.
->>
->> [   62.007176] NUMA: Unknown node for memory at 0x680000000, assuming node 0
->> [   62.052517] ------------[ cut here ]------------
->> [   62.053211] kernel BUG at mm/memory_hotplug.c:1143!
->> [   62.053868] Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
->> [   62.054589] Modules linked in:
->> [   62.054999] CPU: 19 PID: 3275 Comm: bash Not tainted 5.1.0-rc2-00004-g28cea40b2683 #41
->> [   62.056274] Hardware name: linux,dummy-virt (DT)
->> [   62.057166] pstate: 40400005 (nZcv daif +PAN -UAO)
->> [   62.058083] pc : add_memory_resource+0x1cc/0x1d8
->> [   62.058961] lr : add_memory_resource+0x10c/0x1d8
->> [   62.059842] sp : ffff0000168b3ce0
->> [   62.060477] x29: ffff0000168b3ce0 x28: ffff8005db546c00
->> [   62.061501] x27: 0000000000000000 x26: 0000000000000000
->> [   62.062509] x25: ffff0000111ef000 x24: ffff0000111ef5d0
->> [   62.063520] x23: 0000000000000000 x22: 00000006bfffffff
->> [   62.064540] x21: 00000000ffffffef x20: 00000000006c0000
->> [   62.065558] x19: 0000000000680000 x18: 0000000000000024
->> [   62.066566] x17: 0000000000000000 x16: 0000000000000000
->> [   62.067579] x15: ffffffffffffffff x14: ffff8005e412e890
->> [   62.068588] x13: ffff8005d6b105d8 x12: 0000000000000000
->> [   62.069610] x11: ffff8005d6b10490 x10: 0000000000000040
->> [   62.070615] x9 : ffff8005e412e898 x8 : ffff8005e412e890
->> [   62.071631] x7 : ffff8005d6b105d8 x6 : ffff8005db546c00
->> [   62.072640] x5 : 0000000000000001 x4 : 0000000000000002
->> [   62.073654] x3 : ffff8005d7049480 x2 : 0000000000000002
->> [   62.074666] x1 : 0000000000000003 x0 : 00000000ffffffef
->> [   62.075685] Process bash (pid: 3275, stack limit = 0x00000000d754280f)
->> [   62.076930] Call trace:
->> [   62.077411]  add_memory_resource+0x1cc/0x1d8
->> [   62.078227]  __add_memory+0x70/0xa8
->> [   62.078901]  probe_store+0xa4/0xc8
->> [   62.079561]  dev_attr_store+0x18/0x28
->> [   62.080270]  sysfs_kf_write+0x40/0x58
->> [   62.080992]  kernfs_fop_write+0xcc/0x1d8
->> [   62.081744]  __vfs_write+0x18/0x40
->> [   62.082400]  vfs_write+0xa4/0x1b0
->> [   62.083037]  ksys_write+0x5c/0xc0
->> [   62.083681]  __arm64_sys_write+0x18/0x20
->> [   62.084432]  el0_svc_handler+0x88/0x100
->> [   62.085177]  el0_svc+0x8/0xc
->>
->> Re-ordering arch_remove_memory() with memblock_[free|remove] solves the
->> problem on arm64 as pfn_valid() behaves correctly and returns positive
->> as memblock for the address range still exists. arch_remove_memory()
->> removes applicable memory sections from zone with __remove_pages() and
->> tears down kernel linear mapping. Removing memblock regions afterwards
->> is safe because there is no other memblock (bootmem) allocator user that
->> late. So nobody is going to allocate from the removed range just to blow
->> up later. Also nobody should be using the bootmem allocated range else
->> we wouldn't allow to remove it. So reordering is indeed safe.
->>
->> Acked-by: Michal Hocko <mhocko@suse.com>
->> Reviewed-by: David Hildenbrand <david@redhat.com>
->> Reviewed-by: Oscar Salvador <osalvador@suse.de>
->> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> 
-> Acked-by: Mark Rutland <mark.rutland@arm.com>
-
-Hello Andrew,
-
-Will it be possible for this particular patch of the series to be merged alone.
-I am still reworking arm64 hot-remove parts as per the suggestions from Mark.
-Just wondering if this patch which has been reviewed and acked for a while now
-can be out of our way.
-
-Also because this has some conflict with David's series which can be sorted out
-earlier before arm64 hot-remove V6 series comes in.
-
-From my previous response on this series last week, the following can resolve
-the conflict with David's [v3, 09/11] patch.
-
-C) Rebase (https://patchwork.kernel.org/patch/10962589/) [v3, 09/11]
-
-	- hot-remove series moves arch_remove_memory() before memblock_[free|remove]()
-	- So remove_memory_block_devices() should be moved before arch_remove_memory()
-	  in it's new position   
-
-It will be great if this patch can be merged alone.
-
-- Anshuman
+diff --git a/drivers/nvdimm/btt.c b/drivers/nvdimm/btt.c
+index 4671776f5623..4ac0f5dde467 100644
+--- a/drivers/nvdimm/btt.c
++++ b/drivers/nvdimm/btt.c
+@@ -400,9 +400,9 @@ static int btt_flog_write(struct arena_info *arena, u32 lane, u32 sub,
+ 	arena->freelist[lane].sub = 1 - arena->freelist[lane].sub;
+ 	if (++(arena->freelist[lane].seq) == 4)
+ 		arena->freelist[lane].seq = 1;
+-	if (ent_e_flag(ent->old_map))
++	if (ent_e_flag(le32_to_cpu(ent->old_map)))
+ 		arena->freelist[lane].has_err = 1;
+-	arena->freelist[lane].block = le32_to_cpu(ent_lba(ent->old_map));
++	arena->freelist[lane].block = ent_lba(le32_to_cpu(ent->old_map));
+ 
+ 	return ret;
+ }
+@@ -568,8 +568,8 @@ static int btt_freelist_init(struct arena_info *arena)
+ 		 * FIXME: if error clearing fails during init, we want to make
+ 		 * the BTT read-only
+ 		 */
+-		if (ent_e_flag(log_new.old_map) &&
+-				!ent_normal(log_new.old_map)) {
++		if (ent_e_flag(le32_to_cpu(log_new.old_map)) &&
++		    !ent_normal(le32_to_cpu(log_new.old_map))) {
+ 			arena->freelist[i].has_err = 1;
+ 			ret = arena_clear_freelist_error(arena, i);
+ 			if (ret)
+diff --git a/drivers/nvdimm/namespace_devs.c b/drivers/nvdimm/namespace_devs.c
+index c4c5a191b1d6..500c37db496a 100644
+--- a/drivers/nvdimm/namespace_devs.c
++++ b/drivers/nvdimm/namespace_devs.c
+@@ -1995,7 +1995,7 @@ static struct device *create_namespace_pmem(struct nd_region *nd_region,
+ 		nd_mapping = &nd_region->mapping[i];
+ 		label_ent = list_first_entry_or_null(&nd_mapping->labels,
+ 				typeof(*label_ent), list);
+-		label0 = label_ent ? label_ent->label : 0;
++		label0 = label_ent ? label_ent->label : NULL;
+ 
+ 		if (!label0) {
+ 			WARN_ON(1);
+@@ -2330,8 +2330,9 @@ static struct device **scan_labels(struct nd_region *nd_region)
+ 			continue;
+ 
+ 		/* skip labels that describe extents outside of the region */
+-		if (nd_label->dpa < nd_mapping->start || nd_label->dpa > map_end)
+-			continue;
++		if (__le64_to_cpu(nd_label->dpa) < nd_mapping->start ||
++		    __le64_to_cpu(nd_label->dpa) > map_end)
++				continue;
+ 
+ 		i = add_namespace_resource(nd_region, nd_label, devs, count);
+ 		if (i < 0)
+-- 
+2.21.0
 
