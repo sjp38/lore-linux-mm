@@ -7,102 +7,102 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9927C2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 13:57:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5CD1EC2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 14:03:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7FF09208E3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 13:57:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1E6C2206C3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 14:03:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="I+46Zffw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7FF09208E3
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="HEjJDRLT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E6C2206C3
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0237E6B000C; Fri,  7 Jun 2019 09:57:56 -0400 (EDT)
+	id AA6E66B000C; Fri,  7 Jun 2019 10:03:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EEFC06B000E; Fri,  7 Jun 2019 09:57:55 -0400 (EDT)
+	id A57AE6B000E; Fri,  7 Jun 2019 10:03:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB7FF6B0266; Fri,  7 Jun 2019 09:57:55 -0400 (EDT)
+	id 945856B0266; Fri,  7 Jun 2019 10:03:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BFA8F6B000C
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 09:57:55 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id l16so1633602qkk.9
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 06:57:55 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 740336B000C
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 10:03:16 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id s9so1901408qtn.14
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 07:03:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition
          :content-transfer-encoding:in-reply-to:user-agent;
-        bh=17gadSvJGp+uvcoNC+FfcmshKqVGv1ZUwiPdnI82lOI=;
-        b=UubGNozTnr5CaQph2Eix6d6qoOgoDqTy1JRmRQURCWiJNIZuxR5COQkWIha/bKlvpb
-         eQrRgENURLkpWXDoYDghffPiQIbj7x97DtlMoStkCRDREQlKw5T7WS83o4Of5z6ddvHH
-         KZlbZ0thCRbaEto6ePLya097brt4rRXOuzGdpYxll0Gs2uASAyHWFUPMHTX+czwFsQDA
-         dtia/re9o9VT/A14EeMWpdtF1HE6fLb/SfU+XomGnd58QZ+sg3UNdOb+fodvqLLJ8igi
-         jIO8fX0XJFRyTtUtMXOZMHXXvdN8r+xbmky4gimXwYCfcMAfqRif51gYWmhV/CxUlyDh
-         Qx/A==
-X-Gm-Message-State: APjAAAXpibUeXhVxh4TTomVlTHl0yrLIbaoWPJ/qKZQkzbqq0hHqAwUt
-	trhf8pQHKWQycfzYTJLak01ZpS6L0Kmm2ZubNpZ6HSSULXxS0EO+muRU7OTfCtMwTlK7gUfx4q+
-	oEyrwr2gKLp0TZnvexmV3C7d/dfkaIp4yw8Us9gkCl1aFqzQg+Qo9FgMYOzmv3o/jAQ==
-X-Received: by 2002:a0c:baa7:: with SMTP id x39mr25270116qvf.100.1559915875496;
-        Fri, 07 Jun 2019 06:57:55 -0700 (PDT)
-X-Received: by 2002:a0c:baa7:: with SMTP id x39mr25270079qvf.100.1559915874899;
-        Fri, 07 Jun 2019 06:57:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559915874; cv=none;
+        bh=P7GoCE6Vzl1X5NohwcLhAV/U9MsA/FhXn4++zB5+WQw=;
+        b=Q1lnYTRQmEgV4Nwh3j/ptrRvVyqR/i2zoQ7unqSDt/5AUW2Y0rIwIqm6NJ4LS0FpdB
+         /1DfCIfPFY3UsWmHWpbZZM6TxSciZ9NIb9pvVjEaf0bJK1WYzLab7OXvwnVy3IJPq1jQ
+         z+EPpeCj77S0ofT+HtAgMY9WEWiOX72xNJk9Zv8X91b31tpxIL1eS9R7JyHYRhXS1Knz
+         VTL9vOGcWeK4A2NbStry0TX6N4rXatdOsdIOg0Fn74d8hQaNuktqLy1HV++vUu6JAAYk
+         +zQDY38zOF2uX4VMHQ67oPw0vI5EQ7xu5MigVKUb0pZPT/OZiZwf5ixpRexpxwbRVtAT
+         hXgg==
+X-Gm-Message-State: APjAAAWvO68q8FLJJEdEmRG/rMCR0DJB4kmf42HgZZ6LfZ++IaQarsia
+	17gMKip9WMbBgSaBVLN7kL88xAuZpCYDkeDtaWu/xzdJtzjKEWsvWUvqe6QZpNdt19KSLltsQ3z
+	4cbhUL2lSE1vxOOcFugou5ovg/3yBEkPj/+8Xv4yBSlwT7Xj0P5tKSBgYTdcyp/87+A==
+X-Received: by 2002:a0c:8af0:: with SMTP id 45mr21938032qvw.111.1559916196227;
+        Fri, 07 Jun 2019 07:03:16 -0700 (PDT)
+X-Received: by 2002:a0c:8af0:: with SMTP id 45mr21937975qvw.111.1559916195669;
+        Fri, 07 Jun 2019 07:03:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559916195; cv=none;
         d=google.com; s=arc-20160816;
-        b=XIH1Kksmc4pfDjNyRxx/D88BvllT8AGEHoY1JJCyNs//DXLBpbt8T5GfOlsVlPL1R1
-         TN6gWGYzaV0jmpbcY+KHNC9/hq7WZZ9OVjBEQo3DK31ulYvXOAzE0dxmrdSSESNbRy0U
-         8ECgPkcCxfWn0zGs35zgBx2h9T4BZcroQJEFLJnenyluLNNjPlU1kQFXTlUGL1+NLemq
-         c/QeVtg74ex1VPGuQpCIPuXVJdOqjPhu/3+sEDfIpU3ZRgsOdolmxWUqpajtyR6TKyuN
-         +sUNM+sCEO5Q5UeoqEy9DPqrcISLz1uQmT/t2KR/Jk4QmI0CwGM9e9NNWCOFVXCtvL0B
-         aQjw==
+        b=C8GhxE/GFTmj/U5ODuv+FhTk65+yv/D77jLLHFxVBIB9ziExX1v30+RIfBfpmGcaKI
+         sF7DougF5rbC5i+6YThC/LdArg4anva37xBz0XwF06RE+NMu09DC5tAjGDNteEctkrRb
+         2KDK1JH0y5DRjVU9700dJLLwFIxnDPDEjPJ+9YWu5U6f4j7i8aC8kvVMlm2kZ5J4abpV
+         3lCbs/+IVdarUCGpjz1jdbmWQ0fPztm8YLq4rimmhlDuXs0LErNnZ7ug82Bug9NHOnF3
+         UxuhNNgN1QsQ2Osm6wlYXczIUMca25pw/4e1w9ErJUjQhPrSJRk6xU7EzPsbGf5VeaCO
+         RRJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-transfer-encoding
          :content-disposition:mime-version:references:message-id:subject:cc
          :to:from:date:dkim-signature;
-        bh=17gadSvJGp+uvcoNC+FfcmshKqVGv1ZUwiPdnI82lOI=;
-        b=UXgxm9Z2kYrYD/lmhcWVOBv95NsaUkuCLUwtRQ8jeGLXt9UQGbTvDCK50dpJk6+SVM
-         aoslfKz483OKrZsbFtCwrf8sbi4Rz1QWLgG9HWyS8IaImIHhlxwkF29Sukvh81IsXgkW
-         3hg+Om4ksDmLJmfJYO+1QhiB/Bc13fBW4gf8LGjMp6+LBpYBvI7dZqLMbFY6e85XvObT
-         IYpac9vDoY5i0h2oLSoLSjLvKSRtXg6JEwt1tY3pe/n52HZylJNOpkyAE7E5jEKz572M
-         bhaVpk0sY8mLSQQFmek/QLb0DWP2bCpz1wm2bn/I+j6wFIi+pgJe7YEJjyKkVuqSCCUd
-         Ki9Q==
+        bh=P7GoCE6Vzl1X5NohwcLhAV/U9MsA/FhXn4++zB5+WQw=;
+        b=fStFbWadTdcTaNqT//0Qsz8hjQ/whohPIxhoC4YBgracLrbtMX/abSTP4j/ufmNYIF
+         iA+8382jle+hDiDXaxZVm5SxBeMSULEZIxDwVCMRi1CAo7kWZBUCy+rR2jdr9C/z6WpN
+         S5RLh+d+NNrZ+4E8rQEAycJu5WXPMItMXH0zt6OeFb7nT59eXQZOdywVDJaMLd49bGK2
+         KmzGoFFur8LHWqrubJLcRARQ4TUWSQBR994jeZQk023Gd6tSFCadWnwvtjO5ozoYTVEj
+         FKx7PPRXyUwgnroV0SLkxjVLr/S3XeT7kLH1fX0JyO4j5TzG/I1739r8CWS7Sbc5nyQM
+         YGmg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=I+46Zffw;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=HEjJDRLT;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l17sor1154938qkk.144.2019.06.07.06.57.54
+        by mx.google.com with SMTPS id f14sor2456603qtk.36.2019.06.07.07.03.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 07 Jun 2019 06:57:54 -0700 (PDT)
+        Fri, 07 Jun 2019 07:03:15 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=I+46Zffw;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=HEjJDRLT;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:content-transfer-encoding:in-reply-to
          :user-agent;
-        bh=17gadSvJGp+uvcoNC+FfcmshKqVGv1ZUwiPdnI82lOI=;
-        b=I+46Zffwelv3FY2kYKGzdobJ6uMmX8zCgsnvKiDTSkfI3HJBa+htk88VkGWM7NSZpi
-         /0JCHDpAA7Hsoa4omW1wx1J85SCrH7dgr6RV0StdZtsaWrex1ZOuSIm+Zka617XPTGpN
-         X1fcgiH+n0lyWRW1QagWvryyhg9XGrmKSd/F4IVorle0OcarTMiFrJd0Z3r6ZGdD+cmy
-         VAiy5ECKzDJ4NQLEc4bwJAM+qICcpqA6QdhJ28xs1+NDe0kplypSuDdQRy0yFtY9sLB3
-         MnA8Gv2LBIO0rwR5UIbYCFViG3FrLuek4drM6k3G4h9h5StmR/AX6O3RMQT8pEjmMpLr
-         Yz8Q==
-X-Google-Smtp-Source: APXvYqyXb3YGPBh3lIclsi3PYfUGbJ2uvWrtfDWhG41E8l5j7j4vV139lmCRlFT78OmA7F3xtrX4pg==
-X-Received: by 2002:a37:bc03:: with SMTP id m3mr24773704qkf.199.1559915874559;
-        Fri, 07 Jun 2019 06:57:54 -0700 (PDT)
+        bh=P7GoCE6Vzl1X5NohwcLhAV/U9MsA/FhXn4++zB5+WQw=;
+        b=HEjJDRLT1/QrA6H/XpWwtPycyetApCN4CInuydPmEmSGPRRJv+Cn/jI64AeZu0N/bC
+         PXklr3+VSClv6Qje5a8q/NaHAeR2RO96W4pxfd9tEXkAS8YQuSd8rdwNTzvHpyEhvlzB
+         R6bFoF/NlWFv03tX7XWcM8xVuEbzIMN2maEqxblaz42nopqucXcsniwmuN3bycCbynMh
+         +mIYN90GQZsDgAFyAZaFZK4r64NsWLjFXc9zviD8/t0b3KHPgkMMdG5HQuqfhvA8fR/p
+         GWBn+WTOku/tkXz7yhlu+QqUseN0G5TjKCGMeF2EOBa1naQKJUB7b4ZX8y76Hd3jGLEM
+         PHaQ==
+X-Google-Smtp-Source: APXvYqz2/915uO4AoJkylfCxPwtwvf01ilYy48xf4ydSxLalVse+hWheTEibI1VzArzBO6/jyTi2Rg==
+X-Received: by 2002:ac8:7342:: with SMTP id q2mr5402914qtp.134.1559916195107;
+        Fri, 07 Jun 2019 07:03:15 -0700 (PDT)
 Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id w30sm1247493qtb.28.2019.06.07.06.57.53
+        by smtp.gmail.com with ESMTPSA id d123sm1160617qkb.94.2019.06.07.07.03.13
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 07 Jun 2019 06:57:54 -0700 (PDT)
+        Fri, 07 Jun 2019 07:03:13 -0700 (PDT)
 Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hZFNR-0001xU-JJ; Fri, 07 Jun 2019 10:57:53 -0300
-Date: Fri, 7 Jun 2019 10:57:53 -0300
+	id 1hZFSb-0003fn-4v; Fri, 07 Jun 2019 11:03:13 -0300
+Date: Fri, 7 Jun 2019 11:03:13 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
 To: John Hubbard <jhubbard@nvidia.com>
 Cc: Jerome Glisse <jglisse@redhat.com>,
@@ -110,17 +110,16 @@ Cc: Jerome Glisse <jglisse@redhat.com>,
 	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
 	Andrea Arcangeli <aarcange@redhat.com>,
 	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
-Subject: Re: [PATCH v2 hmm 08/11] mm/hmm: Remove racy protection against
- double-unregistration
-Message-ID: <20190607135753.GH14802@ziepe.ca>
+Subject: Re: [PATCH v2 hmm 09/11] mm/hmm: Poison hmm_range during unregister
+Message-ID: <20190607140313.GI14802@ziepe.ca>
 References: <20190606184438.31646-1-jgg@ziepe.ca>
- <20190606184438.31646-9-jgg@ziepe.ca>
- <88400de9-e1ae-509b-718f-c6b0f726b14c@nvidia.com>
+ <20190606184438.31646-10-jgg@ziepe.ca>
+ <c00da0f2-b4b8-813b-0441-a50d4de9d8be@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <88400de9-e1ae-509b-718f-c6b0f726b14c@nvidia.com>
+In-Reply-To: <c00da0f2-b4b8-813b-0441-a50d4de9d8be@nvidia.com>
 User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -128,59 +127,66 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 06, 2019 at 08:29:10PM -0700, John Hubbard wrote:
+On Thu, Jun 06, 2019 at 08:37:42PM -0700, John Hubbard wrote:
 > On 6/6/19 11:44 AM, Jason Gunthorpe wrote:
 > > From: Jason Gunthorpe <jgg@mellanox.com>
 > > 
-> > No other register/unregister kernel API attempts to provide this kind of
-> > protection as it is inherently racy, so just drop it.
-> > 
-> > Callers should provide their own protection, it appears nouveau already
-> > does, but just in case drop a debugging POISON.
+> > Trying to misuse a range outside its lifetime is a kernel bug. Use WARN_ON
+> > and poison bytes to detect this condition.
 > > 
 > > Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 > > Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
-> >  mm/hmm.c | 9 ++-------
-> >  1 file changed, 2 insertions(+), 7 deletions(-)
+> > v2
+> > - Keep range start/end valid after unregistration (Jerome)
+> >  mm/hmm.c | 7 +++++--
+> >  1 file changed, 5 insertions(+), 2 deletions(-)
 > > 
 > > diff --git a/mm/hmm.c b/mm/hmm.c
-> > index c702cd72651b53..6802de7080d172 100644
+> > index 6802de7080d172..c2fecb3ecb11e1 100644
 > > +++ b/mm/hmm.c
-> > @@ -284,18 +284,13 @@ EXPORT_SYMBOL(hmm_mirror_register);
-> >   */
-> >  void hmm_mirror_unregister(struct hmm_mirror *mirror)
-> >  {
-> > -	struct hmm *hmm = READ_ONCE(mirror->hmm);
-> > -
-> > -	if (hmm == NULL)
-> > -		return;
-> > +	struct hmm *hmm = mirror->hmm;
+> > @@ -937,7 +937,7 @@ void hmm_range_unregister(struct hmm_range *range)
+> >  	struct hmm *hmm = range->hmm;
 > >  
-> >  	down_write(&hmm->mirrors_sem);
-> >  	list_del_init(&mirror->list);
-> > -	/* To protect us against double unregister ... */
-> > -	mirror->hmm = NULL;
-> >  	up_write(&hmm->mirrors_sem);
-> > -
+> >  	/* Sanity check this really should not happen. */
+> 
+> That comment can also be deleted, as it has the same meaning as
+> the WARN_ON() that you just added.
+> 
+> > -	if (hmm == NULL || range->end <= range->start)
+> > +	if (WARN_ON(range->end <= range->start))
+> >  		return;
+> >  
+> >  	mutex_lock(&hmm->lock);
+> > @@ -948,7 +948,10 @@ void hmm_range_unregister(struct hmm_range *range)
+> >  	range->valid = false;
+> >  	mmput(hmm->mm);
 > >  	hmm_put(hmm);
-> > +	memset(&mirror->hmm, POISON_INUSE, sizeof(mirror->hmm));
+> > -	range->hmm = NULL;
+> > +
+> > +	/* The range is now invalid, leave it poisoned. */
 > 
-> I hadn't thought of POISON_* for these types of cases, it's a 
-> good technique to remember.
+> To be precise, we are poisoning the range's back pointer to it's
+> owning hmm instance.  Maybe this is clearer:
 > 
-> I noticed that this is now done outside of the lock, but that
-> follows directly from your commit description, so that all looks 
-> correct.
+> 	/*
+> 	 * The range is now invalid, so poison it's hmm pointer. 
+> 	 * Leave other range-> fields in place, for the caller's use.
+> 	 */
+> 
+> ...or something like that?
+> 
+> > +	range->valid = false;
+> > +	memset(&range->hmm, POISON_INUSE, sizeof(range->hmm));
+> >  }
+> >  EXPORT_SYMBOL(hmm_range_unregister);
+> >  
+> > 
+> 
+> The above are very minor documentation points, so:
+> 
+>     Reviewed-by: John Hubbard <jhubbard@nvidia.com>
 
-Yes, the thing about POISON is that if you ever read it then you have
-found a use after free bug - thus we should never need to write it
-under a lock (just after a serializing lock)
+done thanks
 
-Normally I wouldn't bother as kfree does poison as well, but since we
-can't easily audit the patches yet to be submitted this seems safer
-and will reliably cause those patches to explode with an oops in
-testing.
-
-Thanks,
 Jason
 
