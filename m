@@ -2,231 +2,267 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8A004C2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 14:17:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D0C7CC2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 14:23:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 332AE20673
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 14:17:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8BB3F20657
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 14:23:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="nCu10o7P"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 332AE20673
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="IfJh/Lv7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BB3F20657
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B61756B000C; Fri,  7 Jun 2019 10:17:22 -0400 (EDT)
+	id 25BD46B000C; Fri,  7 Jun 2019 10:23:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AEB3E6B000E; Fri,  7 Jun 2019 10:17:22 -0400 (EDT)
+	id 20D496B000E; Fri,  7 Jun 2019 10:23:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 98CB46B0266; Fri,  7 Jun 2019 10:17:22 -0400 (EDT)
+	id 0D4656B0266; Fri,  7 Jun 2019 10:23:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 49E1F6B000C
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 10:17:22 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f15so3382439ede.8
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 07:17:22 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E35816B000C
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 10:23:40 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id r27so1741418iob.14
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 07:23:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=498yq0m+SHUwWSq8e+SHH+wyGc7fgwEQ3BhNsZt4ya8=;
-        b=IC64Pk5foZb/iuOArgEUrvhMpmd9O7PVDviwgpC4Mg4kP7MThEpdt76V8pfc4EeEls
-         4AurIPOwHTyEVqCHugk39+88itoMgfNJlLfN7r820C6mdd0YpmR+Wsr+EWdXeQyOz72W
-         M3jzy3sbGb9SpQaWF0DF/pcSqLjaR25+bCNU0lnndIe5Rt7Wuu4RhhOpQAf9SENQm2QR
-         x6LAaANE1YeyOVZl/yDsiWMpo1WOJI+Pk7r1o0d8CZt1Fbt0mfTTOg8/QlNdcROWD80a
-         j6VLrx52uxQ5Xh/6pKQIM4KxoCCadVNwmUdOs6MW+0hxM/wspZyEOhjgrduRRlQK7zzk
-         kQGQ==
-X-Gm-Message-State: APjAAAXzfJab5+c+TCeI4vqRW+rCHPxq9nUYG0irjr9BWU5Dfgr5BuK7
-	hJ6R9h+O7Zh+uIsOIE9/A5XthkCc8+Fn0Qh3y71FvbOlPt8G0I5GF+mM5nhixCqbIqX01GkQZQj
-	DNCUif8zFiR2ePOf4ygHR+psT90bWaBo3RY7ZTNI+VIDYCf4Jwq4VFmDIUXtH1qqWkA==
-X-Received: by 2002:a17:906:9a9:: with SMTP id q9mr46565479eje.125.1559917041849;
-        Fri, 07 Jun 2019 07:17:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxXHIcw6exG8qLgPIzkjk7l6rDGA6CP2kQndO3kyPTA94t8nvxb9xdN5AwUTiSvqO3PK73a
-X-Received: by 2002:a17:906:9a9:: with SMTP id q9mr46565333eje.125.1559917040149;
-        Fri, 07 Jun 2019 07:17:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559917040; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=8BZurWN5noKI/9IXnmPT/gb9mEzJQ8dX7lvEoO1HhTU=;
+        b=sw1YOEwzRd+9Fgc/gvJMrXL0g8kseK2s6oTUOBkSU61HMSH59iu9ewiz/UTuV/iO5r
+         JOmrevBAsIdCz6OVY0f0v+7jrFs+8Z4apW73K0hwK1gg4O/VY74qJ/duTwRX5ZD1sR9+
+         /nW7f37ltRjzVQ8IQnla1iGTnO0iYa8i6BXRJIdA/jM6NdkWQnkg+hegmBF1DAAtkp3E
+         4t/Fdip6YwM5ycP3cDGsYFb1Y30K8aJYhor6pSNLKszz3WFD20xmrQzrH1dv/FDjcY14
+         6SK8Yyj2eEgX9tp+LiINecdIDM3MLxYV1m6+PN2fE5eGirtHjXdnNlZPyC/sq6dqpOtc
+         iumg==
+X-Gm-Message-State: APjAAAVLibZxoaL1maou0bmI4STRWXOSpHHn+6huRgbjxB7lYOo+8ll0
+	g5PEXQ8gGnb6LxP+LcAGIl0/KDvOq9FH0Tt8ZzbXpS1iYLckHBO1pl4ZHBCeL1D2TvT5OSMeF4h
+	aHprCha6FYQpmUs0L+sJ01AScwOOIpwUWMfLVhJfPP5pPVz+OcAG3DQRngFB36jSo9Q==
+X-Received: by 2002:a5d:97d8:: with SMTP id k24mr6598918ios.84.1559917420617;
+        Fri, 07 Jun 2019 07:23:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwZS3kXy2PyGhvGMlUteTbcD599MRdbqR0I/RQDnbb7Y8nIK2SiG/sS8pzFgHF/erJaFRoU
+X-Received: by 2002:a5d:97d8:: with SMTP id k24mr6598774ios.84.1559917418094;
+        Fri, 07 Jun 2019 07:23:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559917418; cv=none;
         d=google.com; s=arc-20160816;
-        b=lVakbNsfZNZULjhB6CZXJktebLkV70i/OLpjJkvDcPVIl5mmS+JQ4Ul5cbU4YwO6ZO
-         gR5tYnMHHom3g9+uuhJLPwFILP3u3DS5ujmNB/MtqzVmumZI2bQv74cqUTnc4ppUzhLc
-         A8jISLTMKJTlbuLq+ihVEruj5I/02V//cg8dLG2A4nkCRo63UB/2EsDp3ndDQhGORuEA
-         qPmIy20iOmV2q6M8/XDQy6KEhQQcqyub4JiPX77buiaIVlmbU/7frJo2mJYK3nBnQXxm
-         uhED3pITWsUm1l1PRlM77wnRH5D1dzcHDQrGNaae+fKXL+MLYxpSn4gvI8vGvM3t1Jsm
-         oi0Q==
+        b=GpuDjqi30modwJadB+GcjuNGfup6EIX7d4fTwn80B5JL60lDQ0UdZuxPQuJQrcmIfV
+         CHfS7EY6fJwMlqb05wwQSNCXyOkTu+Gik3K7pu8riwLPnDsnvwQYEPhlExhLvV8xmedE
+         WpT8eeIRDxYbWUs3l3XFuaTqsVaJvNU1CE6PRa6o5uGmNBdPfr2QOjD12fUfj0GMOZxu
+         K23v/kdh47v4dYVHG2sY+nu13jTMc/31/xqjURHRRQViFES7ni4CWr3p40Mvqd4Xkwdc
+         FuuU3ew1YTbfE4XbvvMWV8k0fSRepxo2lCfV18wUjQqw6N2Mg4kGOhRN42EhA+MfM/Av
+         6KJQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=498yq0m+SHUwWSq8e+SHH+wyGc7fgwEQ3BhNsZt4ya8=;
-        b=mBY8ABG3amI9kuLB0f6Ks2XOXns49ODB9TdxLmWFxLyQouQiLBfDytneWcePGnY6tg
-         ehufn+1nomKP1MMVeI4yz2sumw4A0c3zOJUhNHVxjVWWw5WNhB8oW68oFJMa49/KQ4I0
-         uu64iw+q1ED2OOJaD7obpdaI6/kBzL77Co6rEWDMQ2vDfvmOS7KBNzM/owDaudO7GhJq
-         yvkTEDsxdf5zu7hPdu5+mqOGSR8NF6lEMF1EJK86U7RSCFsrFUzjSODUBBNDx+VEiMng
-         tRmGZvwfqLxES13e00kdLNVk6HVNT+1L0mRyWwLueCBQxrvR4B7im1HKlLNkSIuEcD/U
-         z0KQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=8BZurWN5noKI/9IXnmPT/gb9mEzJQ8dX7lvEoO1HhTU=;
+        b=q3pB/yIuPbO6YIWNnz/1mWGKYH3rCF2qXhfIv/VQ5xrGarOfwWCbfszY/wc9ofWwuP
+         svuK5fdxzznRcyZXF68Y+ow/EsdotuV1xxHUgUJnh92vSBAp0yfQCO0wXRaQbT8VqtsH
+         e1w6f7KVsc2WcnzChLRq9GqqZRepWdKADXY3u3cUhtETyCXwj+APgHIItFc7rH5bswlA
+         sqDneayp780pldEazV15DTBKCVGg6Fv/EyrQGvbVN63N8k42bTv7yZUD68yyEsGY01P9
+         4UlDoU/Ln7z0n0af8/WaTAtJbzTfFJI3KZ2pFr0nvfxOG5P/YfZX/1RR5sp95+g2+0xU
+         ixlg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=nCu10o7P;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.3.74 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30074.outbound.protection.outlook.com. [40.107.3.74])
-        by mx.google.com with ESMTPS id m38si1566695edd.215.2019.06.07.07.17.19
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b="IfJh/Lv7";
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id f142si1165888itf.106.2019.06.07.07.23.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 07:17:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.3.74 as permitted sender) client-ip=40.107.3.74;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 07 Jun 2019 07:23:37 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=nCu10o7P;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.3.74 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=498yq0m+SHUwWSq8e+SHH+wyGc7fgwEQ3BhNsZt4ya8=;
- b=nCu10o7PN1wZvzjF7TNJjd0UUDugqJ19ulToaLF8odHHGA9oHxig6WG2PdRmMHJXNWqcohu5Qv24qA2qborFMAxHjPHdRXpbiqaZnQfFImRf6njhisUxgwSer3X398ioLV/U43D1PFo1ADiFQOQqXkC411NLqCk2qP7W4JqPLPc=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB6141.eurprd05.prod.outlook.com (20.178.205.87) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1965.12; Fri, 7 Jun 2019 14:17:18 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::c16d:129:4a40:9ba1]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::c16d:129:4a40:9ba1%6]) with mapi id 15.20.1965.011; Fri, 7 Jun 2019
- 14:17:18 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Ira Weiny <ira.weiny@intel.com>
-CC: "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, Jerome Glisse
-	<jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>, John Hubbard
-	<jhubbard@nvidia.com>
-Subject: Re: [RFC PATCH 01/11] mm/hmm: Fix use after free with struct hmm in
- the mmu notifiers
-Thread-Topic: [RFC PATCH 01/11] mm/hmm: Fix use after free with struct hmm in
- the mmu notifiers
-Thread-Index: AQHVEX0K7JKRenZ5i0yE9OOqwFE+2qaPY2+AgADxAIA=
-Date: Fri, 7 Jun 2019 14:17:18 +0000
-Message-ID: <20190607141715.GC14771@mellanox.com>
-References: <20190523153436.19102-1-jgg@ziepe.ca>
- <20190523153436.19102-2-jgg@ziepe.ca>
- <20190606235440.GA13674@iweiny-DESK2.sc.intel.com>
-In-Reply-To: <20190606235440.GA13674@iweiny-DESK2.sc.intel.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: BL0PR1501CA0012.namprd15.prod.outlook.com
- (2603:10b6:207:17::25) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 26aff798-13f4-4096-10c3-08d6eb52d91c
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6141;
-x-ms-traffictypediagnostic: VI1PR05MB6141:
-x-microsoft-antispam-prvs:
- <VI1PR05MB61416E67D450A9870407A720CF100@VI1PR05MB6141.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:2201;
-x-forefront-prvs: 0061C35778
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(396003)(366004)(39850400004)(346002)(136003)(376002)(199004)(189003)(256004)(6506007)(102836004)(71200400001)(71190400001)(6246003)(76176011)(53936002)(52116002)(386003)(14444005)(14454004)(229853002)(486006)(6916009)(25786009)(4326008)(36756003)(3846002)(2906002)(478600001)(54906003)(68736007)(6116002)(99286004)(6436002)(66946007)(66476007)(66556008)(64756008)(66446008)(476003)(6486002)(5660300002)(66066001)(86362001)(73956011)(6512007)(1076003)(8936002)(26005)(316002)(446003)(11346002)(2616005)(33656002)(81166006)(81156014)(305945005)(186003)(7736002)(8676002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6141;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- S9PkCY1ICVuPK3MQ2qDYV4gAFsv+fn80mXAjICfCHo2KGasdWny+Vn09vRRJtHO2rGbYW+fan7RvqUwlcnx3ZJTkCWb3apHioR8fTrPHUmxtyolq/dHDheIlVBPzJHTF4/qLNS1M94NzSpph+mtXp3uZftDYCDKBVDDopMBiCp9NE/TiTYglPRzFTldzSKY81PRejIVZSkY4EMB1nTcaMmU4u6s5mStcDXQpNELVqEZo1S30McBwWRN6k6x7x05qrqyFhLjxFSc2prs+Y82vSAnBB0289Hsf7L4qEibNFYNGK53wLzpIm1jI2M9MRABuZCJgNM9lyz970ZRrFmHoFJ+pG93hnlcqrcUOSIR7r0TmawxWy+H8G56jwyWvOqfwT4lLFGoPYEB9tEAASxBDpCgnW0EPbY5l6SYXcrzxuUQ=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <1E7B450F71F8AF44AD1259D6AFA5DCC3@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b="IfJh/Lv7";
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=8BZurWN5noKI/9IXnmPT/gb9mEzJQ8dX7lvEoO1HhTU=; b=IfJh/Lv7pwWNCCj3t156wPCtZ
+	R4u9ktCYkNG0VPE3JJ0oCDWm6cZbGx6qAT/S5KDdFRg42oxtgcubdJ6UXAh6qJBsgA6WYf+2vYDqi
+	A6g6E8rhYByaq2+SiJTPJSEgGYx5jAHaCmliTYMk9wC2JdjxEycTezJ6pydHOXKGMSweMpP7KWW0R
+	hfDmdIv7Xa0+V0riPI+Xi7q7eb0GGaqE7DRdYndXS8lF9AbJ5TqDBage5UXo21RZef5RIdU4YmJ5o
+	yOaa/SsjedwPYhfSUwF3/wVMAs8C0XMNHDmlUKaf8IzslU8alOFHtsq2IS0E7CGm6jwR8fiecNIKT
+	K13hDQNtw==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hZFmI-0001mu-M0; Fri, 07 Jun 2019 14:23:35 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 03295202CD6B2; Fri,  7 Jun 2019 16:23:32 +0200 (CEST)
+Date: Fri, 7 Jun 2019 16:23:32 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, hch@lst.de,
+	oleg@redhat.com, gkohli@codeaurora.org, mingo@redhat.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] block: fix a crash in do_task_dead()
+Message-ID: <20190607142332.GF3463@hirez.programming.kicks-ass.net>
+References: <1559161526-618-1-git-send-email-cai@lca.pw>
+ <20190530080358.GG2623@hirez.programming.kicks-ass.net>
+ <82e88482-1b53-9423-baad-484312957e48@kernel.dk>
+ <20190603123705.GB3419@hirez.programming.kicks-ass.net>
+ <ddf9ee34-cd97-a62b-6e91-6b4511586339@kernel.dk>
+ <20190607133541.GJ3436@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 26aff798-13f4-4096-10c3-08d6eb52d91c
-X-MS-Exchange-CrossTenant-originalarrivaltime: 07 Jun 2019 14:17:18.7971
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6141
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190607133541.GJ3436@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 06, 2019 at 04:54:41PM -0700, Ira Weiny wrote:
-> On Thu, May 23, 2019 at 12:34:26PM -0300, Jason Gunthorpe wrote:
-> > From: Jason Gunthorpe <jgg@mellanox.com>
-> >=20
-> > mmu_notifier_unregister_no_release() is not a fence and the mmu_notifie=
-r
-> > system will continue to reference hmm->mn until the srcu grace period
-> > expires.
-> >=20
-> > Resulting in use after free races like this:
-> >=20
-> >          CPU0                                     CPU1
-> >                                                __mmu_notifier_invalidat=
-e_range_start()
-> >                                                  srcu_read_lock
-> >                                                  hlist_for_each ()
-> >                                                    // mn =3D=3D hmm->mn
-> > hmm_mirror_unregister()
-> >   hmm_put()
-> >     hmm_free()
-> >       mmu_notifier_unregister_no_release()
-> >          hlist_del_init_rcu(hmm-mn->list)
-> > 			                           mn->ops->invalidate_range_start(mn, range=
-);
-> > 					             mm_get_hmm()
-> >       mm->hmm =3D NULL;
-> >       kfree(hmm)
-> >                                                      mutex_lock(&hmm->l=
-ock);
-> >=20
-> > Use SRCU to kfree the hmm memory so that the notifiers can rely on hmm
-> > existing. Get the now-safe hmm struct through container_of and directly
-> > check kref_get_unless_zero to lock it against free.
-> >=20
-> > Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
-> >  include/linux/hmm.h |  1 +
-> >  mm/hmm.c            | 25 +++++++++++++++++++------
-> >  2 files changed, 20 insertions(+), 6 deletions(-)
-> >=20
-> > diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> > index 51ec27a8466816..8b91c90d3b88cb 100644
-> > +++ b/include/linux/hmm.h
-> > @@ -102,6 +102,7 @@ struct hmm {
-> >  	struct mmu_notifier	mmu_notifier;
-> >  	struct rw_semaphore	mirrors_sem;
-> >  	wait_queue_head_t	wq;
-> > +	struct rcu_head		rcu;
-> >  	long			notifiers;
-> >  	bool			dead;
-> >  };
-> > diff --git a/mm/hmm.c b/mm/hmm.c
-> > index 816c2356f2449f..824e7e160d8167 100644
-> > +++ b/mm/hmm.c
-> > @@ -113,6 +113,11 @@ static struct hmm *hmm_get_or_create(struct mm_str=
-uct *mm)
-> >  	return NULL;
-> >  }
-> > =20
-> > +static void hmm_fee_rcu(struct rcu_head *rcu)
->=20
-> NIT: "free"
->=20
-> Other than that looks good.
->=20
-> Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+On Fri, Jun 07, 2019 at 03:35:41PM +0200, Peter Zijlstra wrote:
+> On Wed, Jun 05, 2019 at 09:04:02AM -0600, Jens Axboe wrote:
+> > How about the following plan - if folks are happy with this sched patch,
+> > we can queue it up for 5.3. Once that is in, I'll kill the block change
+> > that special cases the polled task wakeup. For 5.2, we go with Oleg's
+> > patch for the swap case.
+> 
+> OK, works for me. I'll go write a proper patch.
 
-Fixed in v2, thanks
+I now have the below; I'll queue that after the long weekend and let
+0-day chew on it for a while and then push it out to tip or something.
 
-Jason
+
+---
+Subject: sched: Optimize try_to_wake_up() for local wakeups
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Fri Jun 7 15:39:49 CEST 2019
+
+Jens reported that significant performance can be had on some block
+workloads (XXX numbers?) by special casing local wakeups. That is,
+wakeups on the current task before it schedules out. Given something
+like the normal wait pattern:
+
+	for (;;) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+
+		if (cond)
+			break;
+
+		schedule();
+	}
+	__set_current_state(TASK_RUNNING);
+
+Any wakeup (on this CPU) after set_current_state() and before
+schedule() would benefit from this.
+
+Normal wakeups take p->pi_lock, which serializes wakeups to the same
+task. By eliding that we gain concurrency on:
+
+ - ttwu_stat(); we already had concurrency on rq stats, this now also
+   brings it to task stats. -ENOCARE
+
+ - tracepoints; it is now possible to get multiple instances of
+   trace_sched_waking() (and possibly trace_sched_wakeup()) for the
+   same task. Tracers will have to learn to cope.
+
+Furthermore, p->pi_lock is used by set_special_state(), to order
+against TASK_RUNNING stores from other CPUs. But since this is
+strictly CPU local, we don't need the lock, and set_special_state()'s
+disabling of IRQs is sufficient.
+
+After the normal wakeup takes p->pi_lock it issues
+smp_mb__after_spinlock(), in order to ensure the woken task must
+observe prior stores before we observe the p->state. If this is CPU
+local, this will be satisfied with a compiler barrier, and we rely on
+try_to_wake_up() being a funcation call, which implies such.
+
+Since, when 'p == current', 'p->on_rq' must be true, the normal wakeup
+would continue into the ttwu_remote() branch, which normally is
+concerned with exactly this wakeup scenario, except from a remote CPU.
+IOW we're waking a task that is still running. In this case, we can
+trivially avoid taking rq->lock, all that's left from this is to set
+p->state.
+
+This then yields an extremely simple and fast path for 'p == current'.
+
+Cc: Qian Cai <cai@lca.pw>
+Cc: mingo@redhat.com
+Cc: akpm@linux-foundation.org
+Cc: hch@lst.de
+Cc: gkohli@codeaurora.org
+Cc: oleg@redhat.com
+Reported-by: Jens Axboe <axboe@kernel.dk>
+Tested-by: Jens Axboe <axboe@kernel.dk>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+---
+ kernel/sched/core.c |   33 ++++++++++++++++++++++++++++-----
+ 1 file changed, 28 insertions(+), 5 deletions(-)
+
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -1991,6 +1991,28 @@ try_to_wake_up(struct task_struct *p, un
+ 	unsigned long flags;
+ 	int cpu, success = 0;
+ 
++	if (p == current) {
++		/*
++		 * We're waking current, this means 'p->on_rq' and 'task_cpu(p)
++		 * == smp_processor_id()'. Together this means we can special
++		 * case the whole 'p->on_rq && ttwu_remote()' case below
++		 * without taking any locks.
++		 *
++		 * In particular:
++		 *  - we rely on Program-Order guarantees for all the ordering,
++		 *  - we're serialized against set_special_state() by virtue of
++		 *    it disabling IRQs (this allows not taking ->pi_lock).
++		 */
++		if (!(p->state & state))
++			return false;
++
++		success = 1;
++		trace_sched_waking(p);
++		p->state = TASK_RUNNING;
++		trace_sched_wakeup(p);
++		goto out;
++	}
++
+ 	/*
+ 	 * If we are going to wake up a thread waiting for CONDITION we
+ 	 * need to ensure that CONDITION=1 done by the caller can not be
+@@ -2000,7 +2022,7 @@ try_to_wake_up(struct task_struct *p, un
+ 	raw_spin_lock_irqsave(&p->pi_lock, flags);
+ 	smp_mb__after_spinlock();
+ 	if (!(p->state & state))
+-		goto out;
++		goto unlock;
+ 
+ 	trace_sched_waking(p);
+ 
+@@ -2030,7 +2052,7 @@ try_to_wake_up(struct task_struct *p, un
+ 	 */
+ 	smp_rmb();
+ 	if (p->on_rq && ttwu_remote(p, wake_flags))
+-		goto stat;
++		goto unlock;
+ 
+ #ifdef CONFIG_SMP
+ 	/*
+@@ -2090,10 +2112,11 @@ try_to_wake_up(struct task_struct *p, un
+ #endif /* CONFIG_SMP */
+ 
+ 	ttwu_queue(p, cpu, wake_flags);
+-stat:
+-	ttwu_stat(p, cpu, wake_flags);
+-out:
++unlock:
+ 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
++out:
++	if (success)
++		ttwu_stat(p, cpu, wake_flags);
+ 
+ 	return success;
+ }
 
