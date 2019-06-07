@@ -2,140 +2,160 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 235B9C468BC
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 21:41:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12189C2BCA1
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:06:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DE73E2083D
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 21:41:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE73E2083D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id C24E420868
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 22:06:25 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="IXRXXYLj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C24E420868
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 816766B0270; Fri,  7 Jun 2019 17:41:31 -0400 (EDT)
+	id 459A06B0270; Fri,  7 Jun 2019 18:06:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7C5EA6B0271; Fri,  7 Jun 2019 17:41:31 -0400 (EDT)
+	id 430B46B0271; Fri,  7 Jun 2019 18:06:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6B5C86B0272; Fri,  7 Jun 2019 17:41:31 -0400 (EDT)
+	id 36D5F6B0272; Fri,  7 Jun 2019 18:06:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 17ACD6B0270
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 17:41:31 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id i3so5043624edr.12
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 14:41:31 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CB0056B0270
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 18:06:24 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id 9so379458ljv.14
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 15:06:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
          :content-transfer-encoding;
-        bh=OVtIURD1TiJyiciouFgxnPzvqEltpMSaTRKbY9x6PTc=;
-        b=Syv3MgOaE9B03LghyH07E0qXQp2fJcw2Ec3j0TcXI7x/3Bzj3bBXK6LPxvId9Ft5m+
-         DMH+HQwCoDUXNfCUGoX3iR0NOfrE+ZEFw7rjp8nBJLXvdlsHykHaP/R0XTq5ytjhhGhm
-         t4kn6lkLj7zm67LT1F8kJ+JTOMdhbnK0Vy9W8eor/A+VFxAoIYPTdo9pMT8jJuSBkLf0
-         7sW7//KW50o9L9U7NjR7Bqmzr97ADUzte3fbjiHaX57x+ZceWHRyT4KojWg4DvL6nRu6
-         6OFVRcDccB1l7wADy097oaow/wQsVJJNV82Uaw8GIK6pztnzXceCC7AO9mo7Y68XDk9+
-         hltA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAVI4liTaLskne6jEqWtv4RaCfiV+1NQu4cRerLjU9YEev3/CTr8
-	D8pc/eo0PidDYXpQEui5MHbHga+qiVyi/kbdqrGYLEYFgkQkM6HN7DZgfJvUG8dhlYDyWq8kql/
-	Uw1a9l8hozUwi+xvEQ+Fxq1UEVkNRnptTcdHcEobUbY+lJI64atKVTPrwe+oJIn+wbQ==
-X-Received: by 2002:a17:906:5284:: with SMTP id c4mr9001631ejm.184.1559943690669;
-        Fri, 07 Jun 2019 14:41:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxjgHvgd3rm50TvkHwtSRKWylNVSDWltR6E8FJhMG0PNpO1PMJZltBX3mZa9YgCcPJt25n3
-X-Received: by 2002:a17:906:5284:: with SMTP id c4mr9001600ejm.184.1559943689942;
-        Fri, 07 Jun 2019 14:41:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559943689; cv=none;
+        bh=7UWYaKzZEtXuaxJwJzSC3OWehwEB/n9ql+PmX3iEbFc=;
+        b=kzRiIn8aFeLTum5spLIQWYHKa291fvu4OOLeHZFordXyQLJjBR1lZFPnsJmXHsicNv
+         2zB3aG6MFnp7mWc36lS3nxGfZisp4Nc9YDeT64M+DntajT2VsJfHGfhv3OanlorrI4tq
+         /jHxfNPOEH4AkGgo4oJvqLpJVXSY5ZE73NdKIylPte2feWXoNW8vKzX8e9+3JnzTNqRg
+         AigismHwatb61XI5u8WnQPTOEZHiC3IB6+QTmo6tGBpwLwGpW8TP3PYsxlNcD4I5syBi
+         ialQUpqwQd5SITZhSFVVj3EuUk63ZXd4SQomJBEVh1Yls2+aHKHKMI8p8vfqBX9MGUTJ
+         L66g==
+X-Gm-Message-State: APjAAAUkIFKx6PdMbhRt4Cl7i7SBDIkNLFudLX+P7jV5lUrxVnzkvpvY
+	a1iOiwemmspavmVNl7ihZd6sUcvLZXpexbYym0uG/ZmKJSpqirSYjq3vK1oCTu+0wTZZ77LG2V0
+	XREGvLa8wj/PGEtd6y5MlOSXnwLd/nsSKo0CNawKe7VoKxk8ihmrvjniOjiX9390D3g==
+X-Received: by 2002:ac2:4286:: with SMTP id m6mr29021908lfh.150.1559945184306;
+        Fri, 07 Jun 2019 15:06:24 -0700 (PDT)
+X-Received: by 2002:ac2:4286:: with SMTP id m6mr29021882lfh.150.1559945183338;
+        Fri, 07 Jun 2019 15:06:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559945183; cv=none;
         d=google.com; s=arc-20160816;
-        b=p3PktKTa00aGP0JCSLfbOvwBF7UxigdCTL9227P1XE0Mz8GrV2XgDzB4qX1O2fGROJ
-         zDhiyRDn8spZwvXSboZN8On1GTHGdHmF3D7pYQSoPfwzDgBf3Q75RkoLaX66UTMBT5DY
-         IlM9Td9awLJFJAGoINYqQSu3wx63G5Pt37GHeBwBf1uqK2zshpDm8iCaTTVdLb/DCEo6
-         zfkpwCbxV5nFd5sAojd2+yPP4xEgb4PaBOI+A9ACvsOcOop9xi+oQlgg7GAxgy0Epham
-         +BgJSL009bmMeVJp4VkFfoI8vUH4aEp37ySbYVZXQNww/CHwuVx04sAEqn50sAHZJOwQ
-         NTnQ==
+        b=hs3I5sDh3no8SLHDxwsxccB/H3NUWNRsAfrtivVGGKXDA8cWbP6ekTmQ1hnSCaHbNt
+         wGrZkQGROPXCNYv2yVXvmVrZfCI3HF3I1uz6g3SiXx3JRqRY38Pu+yiFEMCqYBwiAH6u
+         Gs9awaBYHuxz62+nw7Hz/bwdGrX+aEPNFUn3Y3dnEAm4ivc3jQW3hG1Gi2V/E22VQhWt
+         Ntu7pQRT2Ga8iNpzyeSssGYy5GYr/0cuQ4DYJspkgVU57ZDZDGWAZVRBKZictaKr7AeU
+         Torx6eHjHKsQJ4Au4kROpzEuR4xbDqGXLjI9EUE/Akjg/v3s0KlsdR5XOZHTajYCGRg7
+         8sDw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=OVtIURD1TiJyiciouFgxnPzvqEltpMSaTRKbY9x6PTc=;
-        b=gHDCsx9Ro15NhOfeBUxfABlaN3e1ZtZ/Lhn4SMyQYFs8w29joF7D8ydFeF7hr0jgSg
-         56l8D4gYPXRKtxFO2vqrKWIgVXXwInWR66dmerjg59gKoWaQDMn2h/a0A7q0Zy0S6i+M
-         8dkB8Jj2y9yR3BRypt4PWuqJgmM0osMFCNuQEb3wcgc0ewgC3IhSWwjD64VgL8TISqKZ
-         nSdw4vfiiIMqcjst0UYDdYZGLztwroj/nW1h10cy1pyM06jpyxCvCLsy+pWdrvQaMGlz
-         4X9Ednuo7lIeoB4uAU7xMKlRk75zRLY9EslouGUnRrWYaNoWNEN4/Q9OUgETU1jz+mBy
-         By5Q==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=7UWYaKzZEtXuaxJwJzSC3OWehwEB/n9ql+PmX3iEbFc=;
+        b=MgC31E+HBAaykVoz8S9UiMlCqOmJ0UVwlcW7ggy8epdPgN7t5HTgE5kRxD0IX91JZB
+         +GnyQwBdfOlBizNAECV7EG8YpLdgYpQCz/mACZtNo6MSf56O29Qtk1rUnJ6wxn3jDO4s
+         DjNM740JB2JWZ9eVBAK8poE7jNmvPCcQ6nljvu/TS+Luy3HXkeCTgFyxnhP3M57Na3AT
+         kGYBiAvsKxtZf2I893pEY++detHU+VPa/KzE23SM7pdzQgdWr0sVjQ9k4aDupwtcRcSu
+         /HlY5nopUXiw8E9b+3uzB8O1qkCjFAcPPupEGpHCOA6cC1/AvS4Wss1uoUf70O5M4e+Q
+         /dZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f10si1392972edb.74.2019.06.07.14.41.29
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IXRXXYLj;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p7sor2050170ljj.40.2019.06.07.15.06.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 14:41:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 07 Jun 2019 15:06:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 56294ABE9;
-	Fri,  7 Jun 2019 21:41:29 +0000 (UTC)
-Message-ID: <1559943687.3141.8.camel@suse.de>
-Subject: Re: [PATCH v9 08/12] mm/sparsemem: Support sub-section hotplug
-From: Oscar Salvador <osalvador@suse.de>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko
- <mhocko@suse.com>,  Vlastimil Babka <vbabka@suse.cz>, Logan Gunthorpe
- <logang@deltatee.com>, Pavel Tatashin <pasha.tatashin@soleen.com>, Linux MM
- <linux-mm@kvack.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, Linux
- Kernel Mailing List <linux-kernel@vger.kernel.org>
-Date: Fri, 07 Jun 2019 23:41:27 +0200
-In-Reply-To: <CAPcyv4hgmjUvA0+uMWYJibmgSWtoLw7zM-jFuP7eRdU2xyVxOw@mail.gmail.com>
-References: 
-	<155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com>
-	 <155977192280.2443951.13941265207662462739.stgit@dwillia2-desk3.amr.corp.intel.com>
-	 <20190607083351.GA5342@linux>
-	 <CAPcyv4hgmjUvA0+uMWYJibmgSWtoLw7zM-jFuP7eRdU2xyVxOw@mail.gmail.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=IXRXXYLj;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=7UWYaKzZEtXuaxJwJzSC3OWehwEB/n9ql+PmX3iEbFc=;
+        b=IXRXXYLjlXhkS7yvhzoYrp+YIYuNj8w+FKvrC2tbRiW0c/0o8dRW8aDCyUkwFWzE/z
+         /YJtG4/7E6x8p7aeeTjHwUD+oOzcin26LtKwS/wxd0ElDf+AxtFBCcpbr3rFGlqL2QkO
+         annY8RhMfQ/yEquJ2BJvQFemzB095m8iLIKkDZUB0xq71t8R9eVEu667+JgcYBTdImY+
+         ubTPhYaxG8U+XvWiy1VeaxHA/JGMBDnE7er/xvmG9dGaM3hCKLub403mntSllA90kI0K
+         yE/wisp+efrCTrhv8ade8ujVMfWOTLSWJqv6ftXcXNCZyqKsNqtBiWB4mj7QGdKBqH3H
+         yZTQ==
+X-Google-Smtp-Source: APXvYqwBeEPN7kLgMnERE0EV7XcHl9B9PjKXKhgkNCm9ydhdQJSENk3Qi8H9gBVf130eoY4SU8M3FQfw0DAJrGoOB1o=
+X-Received: by 2002:a2e:a311:: with SMTP id l17mr8533284lje.214.1559945182726;
+ Fri, 07 Jun 2019 15:06:22 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190606184438.31646-1-jgg@ziepe.ca> <20190606184438.31646-11-jgg@ziepe.ca>
+In-Reply-To: <20190606184438.31646-11-jgg@ziepe.ca>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Sat, 8 Jun 2019 03:41:27 +0530
+Message-ID: <CAFqt6zafAR3fqvKCTCLmGNVfbSP80KqqR8cT0bUj4CW4scgxpQ@mail.gmail.com>
+Subject: Re: [PATCH v2 hmm 10/11] mm/hmm: Do not use list*_rcu() for hmm->ranges
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jerome Glisse <jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>, 
+	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com, linux-rdma@vger.kernel.org, 
+	Linux-MM <linux-mm@kvack.org>, Andrea Arcangeli <aarcange@redhat.com>, 
+	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org, 
+	Jason Gunthorpe <jgg@mellanox.com>
 Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.26.1 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-06-07 at 08:38 -0700, Dan Williams wrote:
-> I don't know, but I can't imagine it would because it's much easier
-> to
-> do mem_map relative translations by simple PAGE_OFFSET arithmetic.
+On Fri, Jun 7, 2019 at 12:15 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+>
+> From: Jason Gunthorpe <jgg@mellanox.com>
+>
+> This list is always read and written while holding hmm->lock so there is
+> no need for the confusing _rcu annotations.
+>
+> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+> Reviewed-by: J=C3=A9r=C3=B4me Glisse <jglisse@redhat.com>
 
-Yeah, I guess so.
+Acked-by: Souptick Joarder <jrdr.linux@gmail.com>
 
-> No worries, its a valid question. The bitmap dance is still valid it
-> will just happen on section boundaries instead of subsection. If
-> anything breaks that's beneficial additional testing that we got from
-> the SPARSEMEM sub-case for the SPARSEMEM_VMEMMAP superset-case.
-> That's
-> the gain for keeping them unified, what's the practical gain from
-> hiding this bit manipulation from the SPARSEMEM case?
-
-It is just that I thought that we might benefit from not doing extra
-work if not needed (bitmap dance) in SPARSEMEM case.
-But given that 1) hot-add/hot-remove paths are not hot paths, it does
-not really matter 2) and that having all cases unified in one function
-make sense too, spreading the work in more functions might be sub-
-optimal.
-I guess I could justfiy it in case both activate/deactive functions
-would look convulated, but it is not the case here.
-
-I just took another look to check that I did not miss anything.
-It looks quite nice and compact IMO:
-
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
-
--- 
-Oscar Salvador
-SUSE L3
+> ---
+>  mm/hmm.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index c2fecb3ecb11e1..709d138dd49027 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -911,7 +911,7 @@ int hmm_range_register(struct hmm_range *range,
+>         mutex_lock(&hmm->lock);
+>
+>         range->hmm =3D hmm;
+> -       list_add_rcu(&range->list, &hmm->ranges);
+> +       list_add(&range->list, &hmm->ranges);
+>
+>         /*
+>          * If there are any concurrent notifiers we have to wait for them=
+ for
+> @@ -941,7 +941,7 @@ void hmm_range_unregister(struct hmm_range *range)
+>                 return;
+>
+>         mutex_lock(&hmm->lock);
+> -       list_del_rcu(&range->list);
+> +       list_del(&range->list);
+>         mutex_unlock(&hmm->lock);
+>
+>         /* Drop reference taken by hmm_range_register() */
+> --
+> 2.21.0
+>
 
