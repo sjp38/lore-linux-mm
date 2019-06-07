@@ -2,381 +2,159 @@ Return-Path: <SRS0=5PTg=UG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E5A95C468BC
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:52:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 17030C468BD
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:54:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8EB6C208C3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:52:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D11C6208E3
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 19:54:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="w3CaDR2O"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8EB6C208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="TANt56tM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D11C6208E3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 276D76B026B; Fri,  7 Jun 2019 15:52:47 -0400 (EDT)
+	id 7F1266B0269; Fri,  7 Jun 2019 15:54:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 203456B026C; Fri,  7 Jun 2019 15:52:47 -0400 (EDT)
+	id 7A19C6B026A; Fri,  7 Jun 2019 15:54:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E5B756B026E; Fri,  7 Jun 2019 15:52:46 -0400 (EDT)
+	id 6906A6B026B; Fri,  7 Jun 2019 15:54:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id ADCB96B026B
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 15:52:46 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 21so2098575pgl.5
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 12:52:46 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 32F616B0269
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 15:54:32 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id g11so1999832plt.23
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 12:54:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references;
-        bh=azHW+cQaxRO87i10SYgPO4FUpLCfSWASegXloVuy3VQ=;
-        b=ADrCHM0yFkji0SnLCrWuOqN5FF2iT0RL3ftVdniyVzZ232PKvNCckW5aHCM2wlDmTm
-         OHX8HG/yaeIiB3DJjjBdD5jYScg3BUkILQs1YjXY+6JwaCq4ImHKIFf1+SaVEuUAyEe+
-         rQnrjY05894psEyw/dquE9uj9iMji/BsUScTm1zq6sMlVyOIY7lp9UJVDsG5adxp+Otr
-         qn27+cIA2B2PeV+DQEJdpMIFm6UpadLdp1o5e2L9tfLI7p0/N1XnFuW3LBVQbZfuCA0V
-         Cbq8hW0rpLcnAkDQF0nbukDAW8VbJrqAn5o5aCmrKnKeo3dYkg+wg7O2pJvaeD+jvAO0
-         pR5g==
-X-Gm-Message-State: APjAAAWCyllJRBcBkOnymwLkgVETw4AZXT1j61eFhp49GtsSR2cIwQvP
-	1qtg+gee7H9mMRWFFiSd4lUqdSJ3xsSucYId6US4fG8erGbMKd1RmBX9r4xnABcDELwvq9CAcvT
-	NCQsltMplfoBfTdOw0TJBDPCTq373+waSkx4a8hAzKS17Ujr2CGQhrp69+qrqefiAeA==
-X-Received: by 2002:a63:6c87:: with SMTP id h129mr4678572pgc.427.1559937166184;
-        Fri, 07 Jun 2019 12:52:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyl8iOkDHaogGB0JC9HVD6QvXb7i6fw5OcM1WdrhZKZ3LOBXBK09soaixAQ34I8bK1mTLrM
-X-Received: by 2002:a63:6c87:: with SMTP id h129mr4678532pgc.427.1559937165180;
-        Fri, 07 Jun 2019 12:52:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559937165; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=bzTsWpyXdxWrZ6A+rscRPiBAkVoVkKQsxuRyeipwKaw=;
+        b=s1KnM02bfCjOPc4Xg6WFtnWaf2cUcBLepg0sNnIB1zVPH3RXRjMWOt81NFhCOhvW+M
+         Uggf4+z159g9QyI6uzY/Kq+PEb72lUCMcvcVCWASAZCUdWI9qS7fccbOmr73eQpvx/Gr
+         309WNL/eku3Gl+iIewbniSMZXVNWJoNntRGAGeTYR7xnBanjnEZjJ8wsA9091YfhcXGJ
+         LwFjH8CXBPD7555K0PhXuwKyeQO4p2JRLVOi69zLpogGxopAAQyGEGcE5cOHHoztjOZl
+         p8O5n3fGnB1KB966R6pQlGMvyTf2zH8LR1F47Ou313iQc/fgy6xhxzq1Ec1e01azsKec
+         1tBQ==
+X-Gm-Message-State: APjAAAXt26xhC3O99Nxt1/O1BhNt/nN4XEoecpchIKbZ5OV4NYeQ//Bc
+	v5WIkJ/xqXsWlbKFfZNuDH7ckpD3q8DBgHJfNQXle0gbYAMf0//pFVBFTfx1jnG1CvLwu7+hsEr
+	Z3usR2DhficOdY4xQu7S/5om7s04ljjDXGum7ZoxJmPfvZs6ekGlYn1WkjLB4rYD8ig==
+X-Received: by 2002:aa7:90ca:: with SMTP id k10mr60697005pfk.20.1559937271795;
+        Fri, 07 Jun 2019 12:54:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxy4W+6+UkBVq4K0e7F8dZcWbftDX+38ze2v0avOD8Fwq4Ui6DnX30YfPrg8Ufsxg3/td18
+X-Received: by 2002:aa7:90ca:: with SMTP id k10mr60696960pfk.20.1559937271112;
+        Fri, 07 Jun 2019 12:54:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559937271; cv=none;
         d=google.com; s=arc-20160816;
-        b=D+q5Ft2JDHwZbYm3LO8uKeVu3uhplqLD/wuW2p/i0EofBV00iSY6gOLaVgyZH/aCJA
-         9MrbePxBopbrv+JTo7WTKkE4E0RQZY8JTBa2NOElSJmEkpX3pPzlrN2riaM9jY8rYeAU
-         zI7OPfRDpHEE40nzng6fTLjdPwdQtCJpQWWn7QUcn/u97bCrPbY+ISsiVLpePMXDvgJ1
-         gpZXvt00TwbPgdjqD3YVDqGg9RsEQE3R74LcAIxJ06FxClfRe6s9+rOp7uzDJKoENlR6
-         nwPLu3Q/xgKqyzfqvpwr5geGTQru3uqGaOa+0V04xwGZcNMC5eutX9TkhNVyBGkizD96
-         PV2Q==
+        b=uJZs9uVl0vNswicrA5P5xDEdHDRbn6dC8mjLW9k4Fc+gTTyrkiHly+yI8txTHV6eXi
+         +z2vnC/P+4PD3gGwvw66eU337f8Nef2cm5JxeScH34CncTuo/vjOmv14CvPzBfNjlh7Z
+         XwcoCOLpKFf0FVzJCiek8slZ9HTNCC1h17Z4P41nzA/apq2iKUwZF7toNIkxyYIkrcEi
+         f0UPeZJbHYO8+7JWjhQbMjk21rnVEMUyxheqoDsJllOqr7lqbCDAbytowGCJPQkjs+Vh
+         5DEx8n0CiOhawZtn+WWWQd3nw8WYWJnF9tjRO0P05OvzGUNAnIJo1nrVtiafyVuPsNgE
+         oDXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from
-         :dkim-signature;
-        bh=azHW+cQaxRO87i10SYgPO4FUpLCfSWASegXloVuy3VQ=;
-        b=JkxmBWin4Uex0lU4tvTyXOGRZL9BAQCVp6gZbbtWPlNVUsY7SaVysdAWUUm4NeURmi
-         AOpZdGQ5Q4sBVstb8mEFfqxIVDFzg5pdiPYgFqAhqyuChlXEINPQLJusv6DKxbFerv+I
-         fTFPCxo8dnzEiDSfaPVrJjraWWxDfcdB7YWj695J2WrgGpQUu/cvl/kKQQAkd6Lp95O1
-         BXE/f4lScq7QfS2gRvT2Lq63kQJMajNEGhOYlairlm9pX2j2AfF+IYejYW2lOQ7D9kpd
-         UTReZ2BoOKrBlP1W3v7LCMGzrYFkfqR7/TsFmux8l63i949wEe09V10bPRVVao8jK2Pr
-         vuyw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=bzTsWpyXdxWrZ6A+rscRPiBAkVoVkKQsxuRyeipwKaw=;
+        b=RVQ7UfbZYbKD5y7Bi2MNZCRSneMNNMaRQJCfgufflz8XwKo6r2NN/CTrXYdhrnAvCn
+         SBHVdxRniuZrUY0efX6pQkvgGxlqB3X18c71H+4+1+B0N1u2orjXEH/AOm8ppQqe8tjx
+         tbQZBm/cSNPaq+VKzRyw2YwOG16SQ1CJaaDBqjiYrgNoPmxRTlUOCOrReGwzuez3yfX2
+         ngy1GncPXQenLjl0pnWl6yiqRKZuRWooS/oOdd75nHAevgHyJ2dGWTXKVBdzPgjc0Gvv
+         s9Bs/MgVaSVnP0uPvE34fajRPHsSMzT0lOypewOL/zGIB40l2Z33ar9i3wDIvHoqduVt
+         RfiA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=w3CaDR2O;
-       spf=pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=larry.bassel@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id g18si2776919plq.104.2019.06.07.12.52.44
+       dkim=pass header.i=@kernel.org header.s=default header.b=TANt56tM;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id s3si2805108pji.94.2019.06.07.12.54.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 12:52:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Fri, 07 Jun 2019 12:54:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=w3CaDR2O;
-       spf=pass (google.com: domain of larry.bassel@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=larry.bassel@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x57Ji74w098344;
-	Fri, 7 Jun 2019 19:52:33 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
- subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
- bh=azHW+cQaxRO87i10SYgPO4FUpLCfSWASegXloVuy3VQ=;
- b=w3CaDR2O4INbPMzrHAC8aguIcoYcO5oSuWcxoIEYHztSXXbVVYZJg5+WE+14EIzCE0C1
- TVMTE2n4O7EDEytsuoc1n2hm/zTNBIcaUeDeFuoprpMxzxgNn7gn76RyTjO8IWmUlRVZ
- ZUjUWxxde/bBSNq/xwUhJJb1vpb3w3mfVrRWLbt0ybhL4KtoTPpBWfeXukHVNQ+G4VlT
- WS3KA2XBp3fi0dLpDJL4iARVbhFdld/fvWVI6fDmF4ad38jxcL3MdsC8VbsknLBn6PKe
- wt23+RHL4aBmnFtEZLSzTmWknxdbTaYmUeWlteDmG2JZxIBskT7SF31VlhAwBrxSemdF 5Q== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2120.oracle.com with ESMTP id 2suj0r05yw-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 07 Jun 2019 19:52:33 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x57Jq2W2024665;
-	Fri, 7 Jun 2019 19:52:32 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserp3020.oracle.com with ESMTP id 2swngk6psb-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 07 Jun 2019 19:52:32 +0000
-Received: from abhmp0015.oracle.com (abhmp0015.oracle.com [141.146.116.21])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x57JqThx012151;
-	Fri, 7 Jun 2019 19:52:29 GMT
-Received: from oracle.com (/75.80.107.76)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 07 Jun 2019 12:52:29 -0700
-From: Larry Bassel <larry.bassel@oracle.com>
-To: mike.kravetz@oracle.com, willy@infradead.org, dan.j.williams@intel.com,
-        linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        linux-nvdimm@lists.01.org
-Cc: Larry Bassel <larry.bassel@oracle.com>
-Subject: [RFC PATCH v2 2/2] Implement sharing/unsharing of PMDs for FS/DAX
-Date: Fri,  7 Jun 2019 12:51:03 -0700
-Message-Id: <1559937063-8323-3-git-send-email-larry.bassel@oracle.com>
-X-Mailer: git-send-email 1.8.3.1
-In-Reply-To: <1559937063-8323-1-git-send-email-larry.bassel@oracle.com>
-References: <1559937063-8323-1-git-send-email-larry.bassel@oracle.com>
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9281 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1906070132
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9281 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906070132
+       dkim=pass header.i=@kernel.org header.s=default header.b=TANt56tM;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-231-172-41.hsd1.ca.comcast.net [73.231.172.41])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 81E7D208C3;
+	Fri,  7 Jun 2019 19:54:30 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1559937270;
+	bh=8psQmUHD9luxI22nFWbQOgpTZfWDCb9IM6SP1Gb6RuE=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=TANt56tMnGHGSeTHxg2W5Nga6u0fq8FsdWYmLcrlsCGA2NGsA2mQH36A8hsYaUQl7
+	 PvF+FiSUc0fahikKKGkO11OQ4+xLKsQjmAxNlLOFaGKdbVX69LqoznlxnaXcFMOm0G
+	 NPbdjRpokmMR23+zPVRWYusaOBotEgcPCbhlQMLI=
+Date: Fri, 7 Jun 2019 12:54:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: stable <stable@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
+ linux-nvdimm <linux-nvdimm@lists.01.org>, Linux Kernel Mailing List
+ <linux-kernel@vger.kernel.org>, Oscar Salvador <osalvador@suse.de>, Michal
+ Hocko <mhocko@suse.com>
+Subject: Re: [PATCH v9 11/12] libnvdimm/pfn: Fix fsdax-mode namespace
+ info-block zero-fields
+Message-Id: <20190607125430.81e63cd56590ab3fea37a635@linux-foundation.org>
+In-Reply-To: <CAPcyv4hHs75hYs+Ye+NHHiU31C6CnBqCFdo=2c5seN7kvxKOrw@mail.gmail.com>
+References: <155977186863.2443951.9036044808311959913.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<155977193862.2443951.10284714500308539570.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<20190606144643.4f3363db9499ebbf8f76e62e@linux-foundation.org>
+	<CAPcyv4hHs75hYs+Ye+NHHiU31C6CnBqCFdo=2c5seN7kvxKOrw@mail.gmail.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is based on (but somewhat different from) what hugetlbfs
-does to share/unshare page tables.
+On Thu, 6 Jun 2019 15:06:26 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
 
-Signed-off-by: Larry Bassel <larry.bassel@oracle.com>
----
- include/linux/hugetlb.h |   4 ++
- mm/huge_memory.c        |  37 +++++++++++++++++
- mm/hugetlb.c            |   8 ++--
- mm/memory.c             | 108 +++++++++++++++++++++++++++++++++++++++++++++++-
- 4 files changed, 152 insertions(+), 5 deletions(-)
+> On Thu, Jun 6, 2019 at 2:46 PM Andrew Morton <akpm@linux-foundation.org> wrote:
+> >
+> > On Wed, 05 Jun 2019 14:58:58 -0700 Dan Williams <dan.j.williams@intel.com> wrote:
+> >
+> > > At namespace creation time there is the potential for the "expected to
+> > > be zero" fields of a 'pfn' info-block to be filled with indeterminate
+> > > data. While the kernel buffer is zeroed on allocation it is immediately
+> > > overwritten by nd_pfn_validate() filling it with the current contents of
+> > > the on-media info-block location. For fields like, 'flags' and the
+> > > 'padding' it potentially means that future implementations can not rely
+> > > on those fields being zero.
+> > >
+> > > In preparation to stop using the 'start_pad' and 'end_trunc' fields for
+> > > section alignment, arrange for fields that are not explicitly
+> > > initialized to be guaranteed zero. Bump the minor version to indicate it
+> > > is safe to assume the 'padding' and 'flags' are zero. Otherwise, this
+> > > corruption is expected to benign since all other critical fields are
+> > > explicitly initialized.
+> > >
+> > > Fixes: 32ab0a3f5170 ("libnvdimm, pmem: 'struct page' for pmem")
+> > > Cc: <stable@vger.kernel.org>
+> > > Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> >
+> > The cc:stable in [11/12] seems odd.  Is this independent of the other
+> > patches?  If so, shouldn't it be a standalone thing which can be
+> > prioritized?
+> >
+> 
+> The cc: stable is about spreading this new policy to as many kernels
+> as possible not fixing an issue in those kernels. It's not until patch
+> 12 "libnvdimm/pfn: Stop padding pmem namespaces to section alignment"
+> as all previous kernel do initialize all fields.
+> 
+> I'd be ok to drop that cc: stable, my concern is distros that somehow
+> pickup and backport patch 12 and miss patch 11.
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index edf476c..debff55 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -140,6 +140,10 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
- int huge_pmd_unshare(struct mm_struct *mm, unsigned long *addr, pte_t *ptep);
- void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
- 				unsigned long *start, unsigned long *end);
-+unsigned long page_table_shareable(struct vm_area_struct *svma,
-+				   struct vm_area_struct *vma,
-+				   unsigned long addr, pgoff_t idx);
-+bool vma_shareable(struct vm_area_struct *vma, unsigned long addr);
- struct page *follow_huge_addr(struct mm_struct *mm, unsigned long address,
- 			      int write);
- struct page *follow_huge_pd(struct vm_area_struct *vma,
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 9f8bce9..935874c 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1751,6 +1751,33 @@ static inline void zap_deposited_table(struct mm_struct *mm, pmd_t *pmd)
- 	mm_dec_nr_ptes(mm);
- }
- 
-+#ifdef CONFIG_ARCH_HAS_HUGE_PMD_SHARE
-+static int unshare_huge_pmd(struct mm_struct *mm, unsigned long addr,
-+			    pmd_t *pmdp)
-+{
-+	pgd_t *pgd = pgd_offset(mm, addr);
-+	p4d_t *p4d = p4d_offset(pgd, addr);
-+	pud_t *pud = pud_offset(p4d, addr);
-+
-+	WARN_ON(page_count(virt_to_page(pmdp)) == 0);
-+	if (page_count(virt_to_page(pmdp)) == 1)
-+		return 0;
-+
-+	pud_clear(pud);
-+	put_page(virt_to_page(pmdp));
-+	mm_dec_nr_pmds(mm);
-+	return 1;
-+}
-+
-+#else
-+static int unshare_huge_pmd(struct mm_struct *mm, unsigned long addr,
-+			    pmd_t *pmdp)
-+{
-+	return 0;
-+}
-+
-+#endif
-+
- int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 		 pmd_t *pmd, unsigned long addr)
- {
-@@ -1768,6 +1795,11 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 	 * pgtable_trans_huge_withdraw after finishing pmdp related
- 	 * operations.
- 	 */
-+	if (unshare_huge_pmd(vma->vm_mm, addr, pmd)) {
-+		spin_unlock(ptl);
-+		return 1;
-+	}
-+
- 	orig_pmd = pmdp_huge_get_and_clear_full(tlb->mm, addr, pmd,
- 			tlb->fullmm);
- 	tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-@@ -1915,6 +1947,11 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
- 	if (!ptl)
- 		return 0;
- 
-+	if (unshare_huge_pmd(mm, addr, pmd)) {
-+		spin_unlock(ptl);
-+		return HPAGE_PMD_NR;
-+	}
-+
- 	preserve_write = prot_numa && pmd_write(*pmd);
- 	ret = 1;
- 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 3a54c9d..1c1ed4e 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4653,9 +4653,9 @@ long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
- }
- 
- #ifdef CONFIG_ARCH_HAS_HUGE_PMD_SHARE
--static unsigned long page_table_shareable(struct vm_area_struct *svma,
--				struct vm_area_struct *vma,
--				unsigned long addr, pgoff_t idx)
-+unsigned long page_table_shareable(struct vm_area_struct *svma,
-+				   struct vm_area_struct *vma,
-+				   unsigned long addr, pgoff_t idx)
- {
- 	unsigned long saddr = ((idx - svma->vm_pgoff) << PAGE_SHIFT) +
- 				svma->vm_start;
-@@ -4678,7 +4678,7 @@ static unsigned long page_table_shareable(struct vm_area_struct *svma,
- 	return saddr;
- }
- 
--static bool vma_shareable(struct vm_area_struct *vma, unsigned long addr)
-+bool vma_shareable(struct vm_area_struct *vma, unsigned long addr)
- {
- 	unsigned long base = addr & PUD_MASK;
- 	unsigned long end = base + PUD_SIZE;
-diff --git a/mm/memory.c b/mm/memory.c
-index ddf20bd..1ca8f75 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3932,6 +3932,109 @@ static vm_fault_t handle_pte_fault(struct vm_fault *vmf)
- 	return 0;
- }
- 
-+#ifdef CONFIG_ARCH_HAS_HUGE_PMD_SHARE
-+static pmd_t *huge_pmd_offset(struct mm_struct *mm,
-+			      unsigned long addr, unsigned long sz)
-+{
-+	pgd_t *pgd;
-+	p4d_t *p4d;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+
-+	pgd = pgd_offset(mm, addr);
-+	if (!pgd_present(*pgd))
-+		return NULL;
-+	p4d = p4d_offset(pgd, addr);
-+	if (!p4d_present(*p4d))
-+		return NULL;
-+
-+	pud = pud_offset(p4d, addr);
-+	if (sz != PUD_SIZE && pud_none(*pud))
-+		return NULL;
-+	/* hugepage or swap? */
-+	if (pud_huge(*pud) || !pud_present(*pud))
-+		return (pmd_t *)pud;
-+
-+	pmd = pmd_offset(pud, addr);
-+	if (sz != PMD_SIZE && pmd_none(*pmd))
-+		return NULL;
-+	/* hugepage or swap? */
-+	if (pmd_huge(*pmd) || !pmd_present(*pmd))
-+		return pmd;
-+
-+	return NULL;
-+}
-+
-+static pmd_t *pmd_share(struct mm_struct *mm, pud_t *pud, unsigned long addr)
-+{
-+	struct vm_area_struct *vma = find_vma(mm, addr);
-+	struct address_space *mapping = vma->vm_file->f_mapping;
-+	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
-+			vma->vm_pgoff;
-+	struct vm_area_struct *svma;
-+	unsigned long saddr;
-+	pmd_t *spmd = NULL;
-+	pmd_t *pmd;
-+	spinlock_t *ptl;
-+
-+	if (!vma_shareable(vma, addr))
-+		return pmd_alloc(mm, pud, addr);
-+
-+	i_mmap_lock_write(mapping);
-+
-+	vma_interval_tree_foreach(svma, &mapping->i_mmap, idx, idx) {
-+		if (svma == vma)
-+			continue;
-+
-+		saddr = page_table_shareable(svma, vma, addr, idx);
-+		if (saddr) {
-+			spmd = huge_pmd_offset(svma->vm_mm, saddr,
-+					       vma_mmu_pagesize(svma));
-+			if (spmd) {
-+				get_page(virt_to_page(spmd));
-+				break;
-+			}
-+		}
-+	}
-+
-+	if (!spmd)
-+		goto out;
-+
-+	ptl = pmd_lockptr(mm, spmd);
-+	spin_lock(ptl);
-+
-+	if (pud_none(*pud)) {
-+		pud_populate(mm, pud,
-+			     (pmd_t *)((unsigned long)spmd & PAGE_MASK));
-+		mm_inc_nr_pmds(mm);
-+	} else {
-+		put_page(virt_to_page(spmd));
-+	}
-+	spin_unlock(ptl);
-+out:
-+	pmd = pmd_alloc(mm, pud, addr);
-+	i_mmap_unlock_write(mapping);
-+	return pmd;
-+}
-+
-+static bool may_share_pmd(struct vm_area_struct *vma)
-+{
-+	if (vma_is_fsdax(vma))
-+		return true;
-+	return false;
-+}
-+#else
-+static pmd_t *pmd_share(struct mm_struct *mm, pud_t *pud, unsigned long addr)
-+{
-+	return pmd_alloc(mm, pud, addr);
-+}
-+
-+static bool may_share_pmd(struct vm_area_struct *vma)
-+{
-+	return false;
-+}
-+#endif
-+
- /*
-  * By the time we get here, we already hold the mm semaphore
-  *
-@@ -3985,7 +4088,10 @@ static vm_fault_t __handle_mm_fault(struct vm_area_struct *vma,
- 		}
- 	}
- 
--	vmf.pmd = pmd_alloc(mm, vmf.pud, address);
-+	if (unlikely(may_share_pmd(vma)))
-+		vmf.pmd = pmd_share(mm, vmf.pud, address);
-+	else
-+		vmf.pmd = pmd_alloc(mm, vmf.pud, address);
- 	if (!vmf.pmd)
- 		return VM_FAULT_OOM;
- 	if (pmd_none(*vmf.pmd) && __transparent_hugepage_enabled(vma)) {
--- 
-1.8.3.1
+Could you please propose a changelog paragraph which explains all this
+to those who will be considering this patch for backports?
 
