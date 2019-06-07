@@ -4,282 +4,257 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 121A4C2BCA1
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 15:31:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 86D2AC468BC
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 15:34:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ABE10208C3
-	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 15:31:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4F9AC2089E
+	for <linux-mm@archiver.kernel.org>; Fri,  7 Jun 2019 15:34:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="eGVfNun4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABE10208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="GJB5bsI3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4F9AC2089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3145F6B000E; Fri,  7 Jun 2019 11:31:05 -0400 (EDT)
+	id CFB4B6B000E; Fri,  7 Jun 2019 11:34:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2EA736B0266; Fri,  7 Jun 2019 11:31:05 -0400 (EDT)
+	id CAAAF6B0266; Fri,  7 Jun 2019 11:34:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1D9576B0269; Fri,  7 Jun 2019 11:31:05 -0400 (EDT)
+	id AFD176B0269; Fri,  7 Jun 2019 11:34:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C47C16B000E
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 11:31:04 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id i11so1013183wrm.21
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 08:31:04 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7262D6B000E
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 11:34:58 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id d19so1616626pls.1
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 08:34:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=VmfDdFiLX51Z+4KXelOTCLHxqnwbZKmMb30NnGggSrg=;
-        b=P7+EI3yLpjt0occCrQkyD4NybFlZ8xbTI98TSds73LVYZdObYyt+xoKy+DZ6L/MUeX
-         1dBoj5ODnov5/y5JM0L8G2m2rckoIUpkLnIuK4/6AixvlCbKTIUQwy+odVEJ3HLLmXPP
-         ybBmdVptKqT/JiWVaO09RAQBwz3OunBOfp26m4LHDB8SbGL3YJOv4Bcdz46NLrCUtznY
-         3BGUUXMtzlECu+tgtv2YbPCqGET6E8z+5+WcDPcSexQOnBOMoCMthPq7/cU0ql1BtJeT
-         XLnyQrQwvbyrxKKh4WKInUHx+3Ug04lXl4QWxsj8l31WD4+2ETmbZ0abIlaoH1ROye/V
-         orRA==
-X-Gm-Message-State: APjAAAXLq7tKz2gWcDn6EVglyAx6y7BAmPYfD7EvummgPRvtLDoJKtNe
-	Lyc2G5md535XfdBLmv5LWD4400/fVKxbcJKOfidPPWHilKQFNmbnUJz6AF7Lj4KwP1CeHbUfSmS
-	eQH4SUpDihkfqz55zd3YtHksioUEyl6kyDSFUlJt/whmg0UZ67wdbKcwr3w5TNJEKaA==
-X-Received: by 2002:adf:de8e:: with SMTP id w14mr6650238wrl.130.1559921464331;
-        Fri, 07 Jun 2019 08:31:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxu2B3+5wV7tXieFkgqeg0bNOkZ8UGqXwyfjHAoH/Opq0N3yrIw4EAEAiUd735gZ50oLA2o
-X-Received: by 2002:adf:de8e:: with SMTP id w14mr6650186wrl.130.1559921463473;
-        Fri, 07 Jun 2019 08:31:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559921463; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=KfsubRPhiyKBXFr1tZvtiO/czPIi+jUPbPm10i13Y5g=;
+        b=haGDsd8VqqN+PhJrO5x0p5viQ387OiPK85S24ZqzD1E5p6lZDxx50fi3/aNLoj/knA
+         9RBTKcUcYn+ePcqnQVX2kpKybusIBguihCKYk5uIiLXIpLHks14zsyS+4Hz0twUV+x8h
+         L/TYxwxfUa1NGMomfOEYkAUo7ItiwWhi7M+FpD68d1SNRwy/thfsSlkIsytrn9YtqM4x
+         jxOWi3aqPYIzaGzkWMA8UvyUVDUdhWpz7PkmmRpAxM16abFL6pHw1DQkb3MDXWHewNxI
+         1lmNWNDEUxWfNN2jGavOyRQzSBn9nNfXg0iV6ogFar+ZP5CLV5RUo++sdEIOzBVDSvFA
+         Hp5A==
+X-Gm-Message-State: APjAAAUCzFAfs9ztqpuKDCtmNBdLDWDn8O7VYPD4r3TBraCJ6clXULRF
+	UylZapzCMVFppIf2tnMbsZ2cTIt45qS8KeCf4xYaR7vL02hbFGdnjnMi3wdIAJ4H+CidGHJSz/9
+	CG/p4wo4q4wO4Xayj+scTPsSiCs0lBiYJ1N3VHQU0DBxz8icKItVaS+tfWOPUOQUe/g==
+X-Received: by 2002:a63:5024:: with SMTP id e36mr3461996pgb.220.1559921698000;
+        Fri, 07 Jun 2019 08:34:58 -0700 (PDT)
+X-Received: by 2002:a63:5024:: with SMTP id e36mr3461887pgb.220.1559921697008;
+        Fri, 07 Jun 2019 08:34:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559921697; cv=none;
         d=google.com; s=arc-20160816;
-        b=SO0ILidYca0hT5q4qY8mg4NaSN3FrG7OIc5upDZ+Xa1Fdyo+CWr8JNHlPqopx3sD8J
-         FFcwW0vJPYNrtn00sc0wNIjo5rZqGy7fBLUeEM8Ko+gzj4l64U/1u97g3uxi0XtiXd1A
-         s7EyplXFc8GYaLXGQrPJV7uGs6GEsaEKlljXr8rGpyQGQKjVXOakfe/uP8ozS5u8dNcU
-         NO15/HkAXgh/X7xQaAa+OCF4+qwPxMKtqnvoZi2emH/DqNQX5el/itETJFvrFATfjSFr
-         RordvbOVlsS9IjogWmTwCm0uknzS7RjYXhPaCLrS2726cL8b+sWEas7AHGR6zy4rWRmX
-         bwiA==
+        b=sv56QHd96JLZdOK65uE/i2yeF0vJYToODWmLZnDtNwf8zMUtUJ0WoYSC0HotH6TXp6
+         i/2ISzPcF8P0QW3QBpMJ6srKsngQwRyfOd8c1TlOyFnPlOnBH6brDtPj3ngY8lX81ROY
+         QKJn74OVqkC7g2GRDZ6iSTrxXRwOHxVmzappfEBVP1r0j87B5a+xR48unYT8DCDC+Ev8
+         +KGvS3J2sfqjvTRXynN+1xxDi6fqGgqzWiVqPvuG5ytMP5e4299IiUYp433rkvxQHotr
+         1z0AiRnDC8za/zaNeJrngy0ojd8yuoqP1qOuRyDjepjSq3TtjgoOu7n0qelVEqgm7wgZ
+         W8jg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=VmfDdFiLX51Z+4KXelOTCLHxqnwbZKmMb30NnGggSrg=;
-        b=EnRzz0yjMuy0x4SAFbjy2SKKgYkxh2nmmKWFvG9cYQDrGG/W3XkB/78TCS0yXoB0H5
-         Tnh8Cx6MRqlXoY7cXqhYEbJsecPo2Oiq/v1d1G4osnDpwA2ZbvmQhoZF1QGS2Q9wI48i
-         Bv5sHTj3er4/rU8vHvKZE4QMCdVPkEahp6BgI9rKVwruSZUEBtTiyCCmCRcjLQVk/SxZ
-         Q2i34TlfHDECX9YJO9CYVon0565lLzOF+klnd2h6ta/78XLCfiKqfYggIozGY9Ea4GUJ
-         ZmKdiUYJkQaq2fgdPhoOJ3zI/6FG1BIWwBOaqHY7b4f+AFNLjBr0EnS3UDX6M0Eas11S
-         7Iug==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=KfsubRPhiyKBXFr1tZvtiO/czPIi+jUPbPm10i13Y5g=;
+        b=SEQ3HDcSP84rCKG61mMNsTbOvnfSCTk1LfpWRzOnUjQAHCeGse/0Hwx58pQot97QHo
+         Ore7/KItSje7FSq6ni8wT5+jFkBmAheJAiH4Q7ZXDfaVDu9tE0wE2Z/90DRZ5DMfvJlP
+         JCiSyTB1zrcGtaCGwrqla2GJ/BVPipKZs7FUE+uooAM5P2dD0UQHIxrl26iLTNgh/nsU
+         8phcbqHo2nT2J+c2feks1G7dsvB4kKfZShNrLsha219P2c4SG08aqkLjJVyZzoHNTNl6
+         YKb4dVmXyBsAQSgfj4UsZoyEHo2IoVKXys3sG9obpGqUaLEE0VJeDjW6e4iQ7cefdm+g
+         yJIg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=eGVfNun4;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id q22si1513829wmc.123.2019.06.07.08.31.03
+       dkim=pass header.i=@chromium.org header.s=google header.b=GJB5bsI3;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y5sor2173321pgs.32.2019.06.07.08.34.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 07 Jun 2019 08:31:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
+        (Google Transport Security);
+        Fri, 07 Jun 2019 08:34:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=eGVfNun4;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 45L61d14g1zB09ZC;
-	Fri,  7 Jun 2019 17:31:01 +0200 (CEST)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=eGVfNun4; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id x89FBxEH0k-2; Fri,  7 Jun 2019 17:31:01 +0200 (CEST)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 45L61c6w95z9vDcN;
-	Fri,  7 Jun 2019 17:31:00 +0200 (CEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1559921461; bh=VmfDdFiLX51Z+4KXelOTCLHxqnwbZKmMb30NnGggSrg=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=eGVfNun43ICAVfa8ZTRLt9LZB+Sw+rVDTnJQrQQzRDQR1yqPQrK5CRYJQxf8p+Ipa
-	 R1OpmRuRWrOPBIlhZSprzwJ/3NLXR8zDak3Nj1wnhzpk5JfCcrrPY7EoJV7dnEmkz3
-	 YFKZL+PWpjANAl87vTbWY/TcYYwKl4VV2B3J7fwk=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 831ED8B8BE;
-	Fri,  7 Jun 2019 17:31:02 +0200 (CEST)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id s9MhfGu4umRg; Fri,  7 Jun 2019 17:31:02 +0200 (CEST)
-Received: from PO15451 (po15451.idsi0.si.c-s.fr [172.25.230.100])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 0A6BD8B8BA;
-	Fri,  7 Jun 2019 17:31:02 +0200 (CEST)
-Subject: Re: [RFC V3] mm: Generalize and rename notify_page_fault() as
- kprobe_page_fault()
-To: Anshuman Khandual <anshuman.khandual@arm.com>,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org,
- Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
- Matthew Wilcox <willy@infradead.org>, Mark Rutland <mark.rutland@arm.com>,
- Stephen Rothwell <sfr@canb.auug.org.au>,
- Andrey Konovalov <andreyknvl@google.com>,
- Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
- Russell King <linux@armlinux.org.uk>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Tony Luck <tony.luck@intel.com>,
- Fenghua Yu <fenghua.yu@intel.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Yoshinori Sato <ysato@users.sourceforge.jp>,
- "David S. Miller" <davem@davemloft.net>, Thomas Gleixner
- <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>,
- Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>,
- Dave Hansen <dave.hansen@linux.intel.com>
-References: <1559903655-5609-1-git-send-email-anshuman.khandual@arm.com>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Message-ID: <ec764ff4-f68a-fce5-ac1e-a4664e1123c7@c-s.fr>
-Date: Fri, 7 Jun 2019 17:31:01 +0200
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       dkim=pass header.i=@chromium.org header.s=google header.b=GJB5bsI3;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=KfsubRPhiyKBXFr1tZvtiO/czPIi+jUPbPm10i13Y5g=;
+        b=GJB5bsI3qmo9VsdAbqA/U+U5Ba57SSzH5rgLLx9qAGERoHL+KwRa0xOm2zhZbkPdwE
+         Rs5IiU+m+yotBhVrT/8BxUFHdukj0LELAt2c4gm9wycVNeo72sTiQ+EBRHAfP/UvL1h7
+         Xkq2rZTAhzCRADZtQaiZ2neu2LGMv+agKeapY=
+X-Google-Smtp-Source: APXvYqwMPVOr9kcYblLhVYRdwJwRq6N4UsAMHzOFfp9A95scFiuSqPvBYn3TQCVYvQqEcz8eubkISA==
+X-Received: by 2002:a63:2109:: with SMTP id h9mr3320579pgh.51.1559921696599;
+        Fri, 07 Jun 2019 08:34:56 -0700 (PDT)
+Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
+        by smtp.gmail.com with ESMTPSA id r77sm3215811pgr.93.2019.06.07.08.34.55
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 07 Jun 2019 08:34:55 -0700 (PDT)
+Date: Fri, 7 Jun 2019 08:34:54 -0700
+From: Kees Cook <keescook@chromium.org>
+To: Alexander Potapenko <glider@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Lameter <cl@linux.com>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	James Morris <jmorris@namei.org>, Jann Horn <jannh@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Laura Abbott <labbott@redhat.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Nick Desaulniers <ndesaulniers@google.com>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Sandeep Patil <sspatil@android.com>,
+	"Serge E. Hallyn" <serge@hallyn.com>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
+	Marco Elver <elver@google.com>,
+	Kaiwan N Billimoria <kaiwan@kaiwantech.com>,
+	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
+	linux-security-module@vger.kernel.org
+Subject: Re: [PATCH v6 2/3] mm: init: report memory auto-initialization
+ features at boot time
+Message-ID: <201906070822.CEF77C844E@keescook>
+References: <20190606164845.179427-1-glider@google.com>
+ <20190606164845.179427-3-glider@google.com>
 MIME-Version: 1.0
-In-Reply-To: <1559903655-5609-1-git-send-email-anshuman.khandual@arm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190606164845.179427-3-glider@google.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Jun 06, 2019 at 06:48:44PM +0200, Alexander Potapenko wrote:
+> Print the currently enabled stack and heap initialization modes.
+> 
+> Stack initialization is enabled by a config flag, while heap
+> initialization is configured at boot time with defaults being set
+> in the config. It's more convenient for the user to have all information
+> about these hardening measures in one place.
+
+Perhaps for clarity, add this to the end of the sentence:
+
+"... at boot, so the user can reason about the expected behavior of
+the running system."
+
+> The possible options for stack are:
+>  - "all" for CONFIG_INIT_STACK_ALL;
+>  - "byref_all" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL;
+>  - "byref" for CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF;
+>  - "__user" for CONFIG_GCC_PLUGIN_STRUCTLEAK_USER;
+>  - "off" otherwise.
+> 
+> Depending on the values of init_on_alloc and init_on_free boottime
+> options we also report "heap alloc" and "heap free" as "on"/"off".
+> 
+> In the init_on_free mode initializing pages at boot time may take some
+> time, so print a notice about that as well.
+
+Perhaps give an example too:
 
 
-Le 07/06/2019 à 12:34, Anshuman Khandual a écrit :
-> Very similar definitions for notify_page_fault() are being used by multiple
-> architectures duplicating much of the same code. This attempts to unify all
-> of them into a generic implementation, rename it as kprobe_page_fault() and
-> then move it to a common header.
+This depends on how much memory is installed, the memory bandwidth, etc.
+On a relatively modern x86 system, it takes about 0.75s/GB to wipe all
+memory:
+
+[    0.418722] mem auto-init: stack:byref_all, heap alloc:off, heap free:on
+[    0.419765] mem auto-init: clearing system memory may take some time...
+[   12.376605] Memory: 16408564K/16776672K available (14339K kernel code, 1397K rwdata, 3756K rodata, 1636K init, 11460K bss, 368108K reserved, 0K cma-reserved)
+
+
+
+More notes below...
+
 > 
-> kprobes_built_in() can detect CONFIG_KPROBES, hence new kprobe_page_fault()
-> need not be wrapped again within CONFIG_KPROBES. Trap number argument can
-> now contain upto an 'unsigned int' accommodating all possible platforms.
-> 
-> kprobe_page_fault() goes the x86 way while dealing with preemption context.
-> As explained in these following commits the invoking context in itself must
-> be non-preemptible for kprobes processing context irrespective of whether
-> kprobe_running() or perhaps smp_processor_id() is safe or not. It does not
-> make much sense to continue when original context is preemptible. Instead
-> just bail out earlier.
-> 
-> commit a980c0ef9f6d
-> ("x86/kprobes: Refactor kprobes_fault() like kprobe_exceptions_notify()")
-> 
-> commit b506a9d08bae ("x86: code clarification patch to Kprobes arch code")
-> 
-> Cc: linux-arm-kernel@lists.infradead.org
-> Cc: linux-ia64@vger.kernel.org
-> Cc: linuxppc-dev@lists.ozlabs.org
-> Cc: linux-s390@vger.kernel.org
-> Cc: linux-sh@vger.kernel.org
-> Cc: sparclinux@vger.kernel.org
-> Cc: x86@kernel.org
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Matthew Wilcox <willy@infradead.org>
+> Signed-off-by: Alexander Potapenko <glider@google.com>
+> Suggested-by: Kees Cook <keescook@chromium.org>
+> To: Andrew Morton <akpm@linux-foundation.org>
+> To: Christoph Lameter <cl@linux.com>
+> Cc: Dmitry Vyukov <dvyukov@google.com>
+> Cc: James Morris <jmorris@namei.org>
+> Cc: Jann Horn <jannh@google.com>
+> Cc: Kostya Serebryany <kcc@google.com>
+> Cc: Laura Abbott <labbott@redhat.com>
 > Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Christophe Leroy <christophe.leroy@c-s.fr>
-> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-> Cc: Andrey Konovalov <andreyknvl@google.com>
-> Cc: Michael Ellerman <mpe@ellerman.id.au>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Russell King <linux@armlinux.org.uk>
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Tony Luck <tony.luck@intel.com>
-> Cc: Fenghua Yu <fenghua.yu@intel.com>
-> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+> Cc: Masahiro Yamada <yamada.masahiro@socionext.com>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Nick Desaulniers <ndesaulniers@google.com>
+> Cc: Randy Dunlap <rdunlap@infradead.org>
+> Cc: Sandeep Patil <sspatil@android.com>
+> Cc: "Serge E. Hallyn" <serge@hallyn.com>
+> Cc: Souptick Joarder <jrdr.linux@gmail.com>
+> Cc: Marco Elver <elver@google.com>
+> Cc: Kaiwan N Billimoria <kaiwan@kaiwantech.com>
+> Cc: kernel-hardening@lists.openwall.com
+> Cc: linux-mm@kvack.org
+> Cc: linux-security-module@vger.kernel.org
 > ---
-> Testing:
+>  v6:
+>  - update patch description, fixed message about clearing memory
+> ---
+>  init/main.c | 24 ++++++++++++++++++++++++
+>  1 file changed, 24 insertions(+)
 > 
-> - Build and boot tested on arm64 and x86
-> - Build tested on some other archs (arm, sparc64, alpha, powerpc etc)
-> 
-> Changes in RFC V3:
-> 
-> - Updated the commit message with an explaination for new preemption behaviour
-> - Moved notify_page_fault() to kprobes.h with 'static nokprobe_inline' per Matthew
-> - Changed notify_page_fault() return type from int to bool per Michael Ellerman
-> - Renamed notify_page_fault() as kprobe_page_fault() per Peterz
-> 
-> Changes in RFC V2: (https://patchwork.kernel.org/patch/10974221/)
-> 
-> - Changed generic notify_page_fault() per Mathew Wilcox
-> - Changed x86 to use new generic notify_page_fault()
-> - s/must not/need not/ in commit message per Matthew Wilcox
-> 
-> Changes in RFC V1: (https://patchwork.kernel.org/patch/10968273/)
-> 
->   arch/arm/mm/fault.c      | 24 +-----------------------
->   arch/arm64/mm/fault.c    | 24 +-----------------------
->   arch/ia64/mm/fault.c     | 24 +-----------------------
->   arch/powerpc/mm/fault.c  | 23 ++---------------------
->   arch/s390/mm/fault.c     | 16 +---------------
->   arch/sh/mm/fault.c       | 18 ++----------------
->   arch/sparc/mm/fault_64.c | 16 +---------------
->   arch/x86/mm/fault.c      | 21 ++-------------------
->   include/linux/kprobes.h  | 16 ++++++++++++++++
->   9 files changed, 27 insertions(+), 155 deletions(-)
-> 
+> diff --git a/init/main.c b/init/main.c
+> index 66a196c5e4c3..e68ef1f181f9 100644
+> --- a/init/main.c
+> +++ b/init/main.c
+> @@ -520,6 +520,29 @@ static inline void initcall_debug_enable(void)
+>  }
+>  #endif
+>  
+> +/* Report memory auto-initialization states for this boot. */
+> +void __init report_meminit(void)
 
-[...]
+Sorry I missed this before: it should be a static function.
 
-> diff --git a/include/linux/kprobes.h b/include/linux/kprobes.h
-> index 443d980..064dd15 100644
-> --- a/include/linux/kprobes.h
-> +++ b/include/linux/kprobes.h
-> @@ -458,4 +458,20 @@ static inline bool is_kprobe_optinsn_slot(unsigned long addr)
->   }
->   #endif
->   
-> +static nokprobe_inline bool kprobe_page_fault(struct pt_regs *regs,
-> +					      unsigned int trap)
 > +{
-> +	int ret = 0;
-
-ret is pointless.
-
+> +	const char *stack;
 > +
-> +	/*
-> +	 * To be potentially processing a kprobe fault and to be allowed
-> +	 * to call kprobe_running(), we have to be non-preemptible.
-> +	 */
-> +	if (kprobes_built_in() && !preemptible() && !user_mode(regs)) {
-> +		if (kprobe_running() && kprobe_fault_handler(regs, trap))
-
-don't need an 'if A if B', can do 'if A && B'
-
-> +			ret = 1;
-
-can do 'return true;' directly here
-
-> +	}
-> +	return ret;
-
-And 'return false' here.
-
-Christophe
-
+> +	if (IS_ENABLED(CONFIG_INIT_STACK_ALL))
+> +		stack = "all";
+> +	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL))
+> +		stack = "byref_all";
+> +	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF))
+> +		stack = "byref";
+> +	else if (IS_ENABLED(CONFIG_GCC_PLUGIN_STRUCTLEAK_USER))
+> +		stack = "__user";
+> +	else
+> +		stack = "off";
+> +
+> +	pr_info("mem auto-init: stack:%s, heap alloc:%s, heap free:%s\n",
+> +		stack, want_init_on_alloc(GFP_KERNEL) ? "on" : "off",
+> +		want_init_on_free() ? "on" : "off");
+> +	if (want_init_on_free())
+> +		pr_info("mem auto-init: clearing system memory may take some time...\n");
 > +}
 > +
->   #endif /* _LINUX_KPROBES_H */
+>  /*
+>   * Set up kernel memory allocators
+>   */
+> @@ -530,6 +553,7 @@ static void __init mm_init(void)
+>  	 * bigger than MAX_ORDER unless SPARSEMEM.
+>  	 */
+>  	page_ext_init_flatmem();
+> +	report_meminit();
+>  	mem_init();
+>  	kmem_cache_init();
+>  	pgtable_init();
+> -- 
+> 2.22.0.rc1.311.g5d7573a151-goog
 > 
+
+But other than that:
+
+Acked-by: Kees Cook <keescook@chromium.org>
+
+-- 
+Kees Cook
 
