@@ -2,191 +2,180 @@ Return-Path: <SRS0=+Baj=UH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.0 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 71258C468BD
-	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 11:50:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3DEF3C468BE
+	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 14:54:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2BB7121537
-	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 11:50:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C81E320840
+	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 14:54:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="qo1Xa4Sb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2BB7121537
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="c7Pg+1Vu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C81E320840
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 91D756B026D; Sat,  8 Jun 2019 07:50:21 -0400 (EDT)
+	id 276D56B000D; Sat,  8 Jun 2019 10:54:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8CE366B026F; Sat,  8 Jun 2019 07:50:21 -0400 (EDT)
+	id 2278D6B0010; Sat,  8 Jun 2019 10:54:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7958F6B0271; Sat,  8 Jun 2019 07:50:21 -0400 (EDT)
+	id 116746B0266; Sat,  8 Jun 2019 10:54:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 27A5D6B026D
-	for <linux-mm@kvack.org>; Sat,  8 Jun 2019 07:50:21 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y22so6667946eds.14
-        for <linux-mm@kvack.org>; Sat, 08 Jun 2019 04:50:21 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D955B6B000D
+	for <linux-mm@kvack.org>; Sat,  8 Jun 2019 10:54:01 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id b25so2466928otp.12
+        for <linux-mm@kvack.org>; Sat, 08 Jun 2019 07:54:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=/FIZowsz6D/XhCq6y6QUaZfZqiox1Wi8qIhgTH/IWz8=;
-        b=do7FIrbYgnYneQIuis6R9dzttZ32cJOb1I2zOoCk8OSjOUtbluiGQYGUfzdd2udD8Z
-         ZrEjYamHsIukT4Jrkf9Oa0Vt/msT6MtHB2+dsz5swoOf/Tzo/iqYlVK7ryTcZCrIaRa1
-         WIDz9G97IPtPgiNal874cviQKoZDRX044P6i1vkWcgXpEHNB7F1rx3NCfMyj+I+uhGxa
-         ndoYv0El5P/Ch7ksfvzDlba3TkJVBXHyKWf40U2FVACo1Mu7zUEYghPAQXt0RFUiRlbH
-         a/vSdLSlPQtdZ+eXX1AgBydyJVPEj73sDXQ7PvXEjhWTbLIzTpiizjCqd/u07sN9+WGc
-         k6hg==
-X-Gm-Message-State: APjAAAXCckEDHouhn4wJd092IwGei0/tf7fqLqG2xlKOrf5yb9A7v7z4
-	ahovI+VSdRIsWJudjoK/WoH2qY5gvfwmZYF5ryOi/MJ8cAzcrqufx6gXbkvlUwsMsMi7+4rqLCU
-	P8W09fPBNOmo1vlapXJhzZjxXo40dAVPbDTlZtddV2IhZia1tGG2UekMlCO/y6hX3hg==
-X-Received: by 2002:a50:9762:: with SMTP id d31mr24433386edb.114.1559994620669;
-        Sat, 08 Jun 2019 04:50:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzEK8vQnfLNt+qAc4LN8vKGsi5UKC7u5UcAc80vlbPvfCeVcCxdjzIyY8m3ZBrUbZsu27TT
-X-Received: by 2002:a50:9762:: with SMTP id d31mr24433359edb.114.1559994620080;
-        Sat, 08 Jun 2019 04:50:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559994620; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Dk+u3XgaNOqXLaO68gyf05VnI7PTjpPeX2V5LZFBkJU=;
+        b=Q7EHBrwWjNkxd73XVF1Blq8whP5hTUlMui5PmauIakSJmyVI5PB2zvCSiWqT/wP69Z
+         p+pJGDAYiEsVnFyE/8aRwbamC9bkYlY4C5TaXGBt+SBURVNHkuK1wly2sXDIrIyuqWaP
+         NQ7SuLAAbMTAHYmV/pNPyPLREGQnVlzs8aS+e0hbtCIlrDe1hg8WNyQPWeTjX5uDxhLq
+         DsTuKF4V3pLOq9N6gTSXDVvBMalljzfpAU/iorYDY2/zkod9RHkkg5QVeK29gxobqAXF
+         A1TMGxxBt9zIg1i5ggFObEBB/Rd2t05CkPh7IUodl9L9BNaRtvTdwceDaD0HDnFag6Qv
+         GUNQ==
+X-Gm-Message-State: APjAAAVdx550aCNw36PoD9v3Jm+fMU050mGL0LCqLj0l74UVK0qu25yu
+	SZf+XvRi6A/wZlxYkGwmZ/7GFh73XBgd+7sa6T75h0DkQ1p88e4k+3IVtQgflbfyab2HGackHYG
+	CTOxNeRaUXlf6AAVVD8xTMpoT9t/Z15Ve6RC3PuJnNJbq5nx0WZMsTUko1odisW9pnw==
+X-Received: by 2002:a9d:5907:: with SMTP id t7mr7875296oth.163.1560005641477;
+        Sat, 08 Jun 2019 07:54:01 -0700 (PDT)
+X-Received: by 2002:a9d:5907:: with SMTP id t7mr7875258oth.163.1560005640672;
+        Sat, 08 Jun 2019 07:54:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560005640; cv=none;
         d=google.com; s=arc-20160816;
-        b=AKdxLYFeo3Xg726bzFMMYMh3cSAkJ+EiS3oWU6XYiGLszgbDu3xj2m9/f1fvxa5bjL
-         8Xa7pCh20FhngYC4l41B7vdFkoIDx8oTmDFTl8kbke5VtITuO0M5VTBN0+uPAHfo67CU
-         Qa+4nSU0duNjlRNEdIkEkpbGdkcCoxNUJ6BMYvpzZ3xZ6OnGaqPZBe/aT3IphcPlVqwu
-         vuvCZxHmOgSAHqQphQ5sZi5KKSWQbTrZJQ1rf6vTTfBzrHmN91plA5erHKehR9f4g8fb
-         QrxOa92DLrsM17GoLnw7oRMeB14ApALL6bLa0sdtXS+lKAYPGr9H7JkkFexYBgU6F6XF
-         4BNA==
+        b=i4jS+yAGggYnzBAxNNgYWSLRBXL5oh27sY7rQTKE7mJDx8eAZmUJFgEXqIoLdpspss
+         jO9sorjfBkqYH/joeY5KlUrUFEW/qmY7YWqanhiEEYzGJNdh9I99Bgka/5zcR6yYIeVW
+         Ck9y3DrKCHu3JBsof1c1q7n7b+OCGfpfQcwTzrhHTorBRjXQ8PWPLJM5FIBsFTjBn58R
+         bcpuVfzvnVD+raSaCY8AJgdmwowuJ5B4QwzmeGxCkp+7QGIUZDbOXmx7ohNxmO/6PNnE
+         B4qGsYfruaYJHEQV6ZKtCkRfF39CO6ry/71wAHmJpZcRYutjz9anIlaLICmRzJo09EVy
+         ae9g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=/FIZowsz6D/XhCq6y6QUaZfZqiox1Wi8qIhgTH/IWz8=;
-        b=HAHlD9TzEGCgAWtLP7kAe/dGHTUYEzGcNP3NljZuzHQdhBGqUmOkQ8mgpwG0YJAVXf
-         V9gAM7nj+/lxilljpOW5UefFPY5j59bXDLY8FPqjamhYKs80zVFOcvhGeUnO66igMGDW
-         w//ivjEvUygFhraQ6mIS+mAQBOTcpHCk1mGd03Kb97Ay5sUXSazhotj8nkbeGhvHuJ0d
-         budTiKYMCBHNkpBdktr9Hg8MECrvuoh0RdewRv6oGFgEKpVDTDgH/Hm+87Krx3bh9X6U
-         Wrq9yhiU5SXDAu2iGl01JSLo3YO/j/hzLuE5h8rr4hpWhMFxUuCvsEbhAQLFDo7xz7qS
-         O1Tw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Dk+u3XgaNOqXLaO68gyf05VnI7PTjpPeX2V5LZFBkJU=;
+        b=Z9q5nq7USj9nxqmXlWB7lr1b4Kfwjj6NzYiloboOIabS346aQFXeu55Kx+x+vhnlaI
+         EUTptLQus9oKqFIKJdT0xZx8WLQYF9gb1U98wbTKGlBn9yqBNK4IMt9yGm6E4Qdy5ZH6
+         r8wiqhVzpug1s+5tFVNK6+BjJ3aOQTkT762H2CONlygt0y/9tGVcpbYv/7+mJ9vyaWb3
+         mW6X62zDmJglBER3npz1sqfYK/MR09nQCFtVCTKgOkI2TxPzMnHXcxLztHBo3H2M6ZYC
+         Q6/OAStx4m/hOs/keW2WF3y3v84Y/lmmKm/ra2EaCV3spw3NFjobRydbG0crZko1AYAK
+         MGNg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=qo1Xa4Sb;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.13.40 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-eopbgr130040.outbound.protection.outlook.com. [40.107.13.40])
-        by mx.google.com with ESMTPS id e4si2863977ejj.37.2019.06.08.04.50.19
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=c7Pg+1Vu;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m7sor2375692otf.158.2019.06.08.07.54.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sat, 08 Jun 2019 04:50:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.13.40 as permitted sender) client-ip=40.107.13.40;
+        (Google Transport Security);
+        Sat, 08 Jun 2019 07:54:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=qo1Xa4Sb;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.13.40 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=/FIZowsz6D/XhCq6y6QUaZfZqiox1Wi8qIhgTH/IWz8=;
- b=qo1Xa4SbtqdIDnb8uGBzY0sK3lMcd8McYgqlAZyQLVmp3wEaURKAxgatSJ3ScriFrwwV1WxLdUaoHMN8BJ/NaHGi+VTTWxrfW99yyNc6H0zh94KTVnqo9cvQ4Jp6JK8vNc3OIskl5hx5cFrz/Kd0zwZ0qfW33j1bo2fNvByFL4o=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB4640.eurprd05.prod.outlook.com (20.176.3.149) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1965.12; Sat, 8 Jun 2019 11:50:16 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::c16d:129:4a40:9ba1]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::c16d:129:4a40:9ba1%6]) with mapi id 15.20.1965.017; Sat, 8 Jun 2019
- 11:50:16 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Ralph Campbell <rcampbell@nvidia.com>
-CC: Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>,
-	"Felix.Kuehling@amd.com" <Felix.Kuehling@amd.com>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli
-	<aarcange@redhat.com>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org"
-	<amd-gfx@lists.freedesktop.org>
-Subject: Re: [RFC] mm/hmm: pass mmu_notifier_range to
- sync_cpu_device_pagetables
-Thread-Topic: [RFC] mm/hmm: pass mmu_notifier_range to
- sync_cpu_device_pagetables
-Thread-Index: AQHVHY87cnj6rYaF00uB6DOqwK5J5aaRpYiA
-Date: Sat, 8 Jun 2019 11:50:16 +0000
-Message-ID: <20190608115011.GB14873@mellanox.com>
-References: <20190608001452.7922-1-rcampbell@nvidia.com>
-In-Reply-To: <20190608001452.7922-1-rcampbell@nvidia.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: MN2PR05CA0031.namprd05.prod.outlook.com
- (2603:10b6:208:c0::44) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: edc48025-f763-4577-de12-08d6ec07794d
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4640;
-x-ms-traffictypediagnostic: VI1PR05MB4640:
-x-microsoft-antispam-prvs:
- <VI1PR05MB4640E6E5C556BD7AC7C67023CF110@VI1PR05MB4640.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 0062BDD52C
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(376002)(366004)(346002)(396003)(136003)(39850400004)(189003)(199004)(54906003)(8936002)(14444005)(256004)(4326008)(81166006)(33656002)(81156014)(8676002)(66476007)(66556008)(64756008)(66446008)(66946007)(14454004)(53936002)(478600001)(73956011)(68736007)(71190400001)(71200400001)(305945005)(1076003)(5660300002)(7736002)(6246003)(6916009)(6486002)(26005)(102836004)(86362001)(6506007)(486006)(386003)(6436002)(476003)(66066001)(2906002)(76176011)(6116002)(316002)(36756003)(446003)(3846002)(2616005)(186003)(99286004)(25786009)(6512007)(11346002)(52116002)(229853002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4640;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- +VwPesywDgHRN0jdIeuczqBIXBOd/OVuRFCqrqEpoCSMFT+51CERrYGw/Z9+8904LsVFQ8qZXMju0Ks+gcnYjDu6YtXebt8hfL44RSKkP/BZvaFUxq2E2EhHz5pVmYjk4SSGNhBEXw+cJJa6N9C9hLYmlgTsPN7outySzS3RvouRPaB1H3XhV5Z6ssO3Cqx+ips+EVtP+ha86ldjHbpVojFMWlelATanBNEN40qPWivu34aCYmgHNbH141IlOciv5Z78ek6HIABubWiNN618yhnb5rbcK4BtT+KXak7+l6ogfjLCWWoVanrU8UHa6n9sG0XLqN/R0ZdYIULjZv55qJ7ShLucOn73fqSb0ZqBJr8ZCB2c4ZHbHp+whIDa7TTolGX0CJ0UjZIqmf138994PeTmJOUR8hYzB08wkmvSJSk=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <FFF05C274A0A8E44B62AD3BAF4C55A80@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=c7Pg+1Vu;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Dk+u3XgaNOqXLaO68gyf05VnI7PTjpPeX2V5LZFBkJU=;
+        b=c7Pg+1Vu+CFzwWjTCMqA/7ILEjKHUJlK9K7TIBu56QFBG34LHWLdVkM7tbREx2Ey9p
+         TjCdQdfntrBDULEZ7N1HSxQg0s3DwVikz29ifn2VjQqccdLcAJ1KkySuifbxWyME5a7W
+         x4fOaxhygkWdkKYvJVh0JgypnwprJM5FHpdLFWTbR4b8W25GIpRqLlOkF/ugyfihZC+8
+         c7LrVjq4p2Hw1E72Dp2p511CMIYJdbrwSfhhEtnq2nr9rqDPBQg5MRZOyX6pvij6xYTr
+         nGmNhnS25l7cTno9P3Fo7izT+xPDuhI3LIcqoKUC7iNIdx3UljQ5OPalTto1Tp8OepSr
+         0zOw==
+X-Google-Smtp-Source: APXvYqypLm2j/J6SB8ZKAlfeHzcCYKwyThpmhhnmxpvXXR1jOg6wN0waBPRAcYcxiyvBbMj8vJDm0b8GB8DJsrFdTLI=
+X-Received: by 2002:a9d:470d:: with SMTP id a13mr8130580otf.126.1560005639908;
+ Sat, 08 Jun 2019 07:53:59 -0700 (PDT)
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: edc48025-f763-4577-de12-08d6ec07794d
-X-MS-Exchange-CrossTenant-originalarrivaltime: 08 Jun 2019 11:50:16.6934
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4640
+References: <155925716254.3775979.16716824941364738117.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <155925718351.3775979.13546720620952434175.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <CAKv+Gu-J3-66V7UhH3=AjN4sX7iydHNF7Fd+SMbezaVNrZQmGQ@mail.gmail.com>
+ <CAPcyv4g-GNe2vSYTn0a6ivQYxJdS5khE4AJbcxysoGPsTZwswg@mail.gmail.com>
+ <CAKv+Gu83QB6x8=LCaAcR0S65WELC-Y+Voxw6LzaVh4FSV3bxYA@mail.gmail.com>
+ <CAPcyv4hXBJBMrqoUr4qG5A3CUVgWzWK6bfBX29JnLCKDC7CiGA@mail.gmail.com>
+ <CAKv+Gu_ZYpey0dWYebFgCaziyJ-_x+KbCmOegWqFjwC0U-5QaA@mail.gmail.com>
+ <CAPcyv4jO5WhRJ-=Nz70Jc0mCHYBJ6NsHjJNk6AerwQXH43oemw@mail.gmail.com>
+ <CAPcyv4gzhr57xa2MbR1Jk8EDFw-WLdcw3mJnEX9PeAFwVEZbDA@mail.gmail.com> <CAKv+Gu_OcsWi5DqxOk-j6ovc0CMAZV37Od7zA5Bs4Ng5ATQxAA@mail.gmail.com>
+In-Reply-To: <CAKv+Gu_OcsWi5DqxOk-j6ovc0CMAZV37Od7zA5Bs4Ng5ATQxAA@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sat, 8 Jun 2019 07:53:49 -0700
+Message-ID: <CAPcyv4i_ZaKKT2dHQTuHCWT9HhqCOm4kpy2YdK952GubwqbJDQ@mail.gmail.com>
+Subject: Re: [PATCH v2 4/8] x86, efi: Reserve UEFI 2.8 Specific Purpose Memory
+ for dax
+To: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Cc: Mike Rapoport <rppt@linux.ibm.com>, linux-efi <linux-efi@vger.kernel.org>, 
+	"the arch/x86 maintainers" <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Ingo Molnar <mingo@redhat.com>, 
+	"H. Peter Anvin" <hpa@zytor.com>, Darren Hart <dvhart@infradead.org>, 
+	Andy Shevchenko <andy@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, 
+	kbuild test robot <lkp@intel.com>, Vishal L Verma <vishal.l.verma@intel.com>, Linux-MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 07, 2019 at 05:14:52PM -0700, Ralph Campbell wrote:
-> HMM defines its own struct hmm_update which is passed to the
-> sync_cpu_device_pagetables() callback function. This is
-> sufficient when the only action is to invalidate. However,
-> a device may want to know the reason for the invalidation and
-> be able to see the new permissions on a range, update device access
-> rights or range statistics. Since sync_cpu_device_pagetables()
-> can be called from try_to_unmap(), the mmap_sem may not be held
-> and find_vma() is not safe to be called.
-> Pass the struct mmu_notifier_range to sync_cpu_device_pagetables()
-> to allow the full invalidation information to be used.
->=20
-> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-> ---
->=20
-> I'm sending this out now since we are updating many of the HMM APIs
-> and I think it will be useful.
+On Sat, Jun 8, 2019 at 12:20 AM Ard Biesheuvel
+<ard.biesheuvel@linaro.org> wrote:
+>
+> On Fri, 7 Jun 2019 at 19:34, Dan Williams <dan.j.williams@intel.com> wrote:
+> >
+> > On Fri, Jun 7, 2019 at 8:23 AM Dan Williams <dan.j.williams@intel.com> wrote:
+> > >
+> > > On Fri, Jun 7, 2019 at 5:29 AM Ard Biesheuvel <ard.biesheuvel@linaro.org> wrote:
+> > [..]
+> > > > > #ifdef CONFIG_EFI_APPLICATION_RESERVED
+> > > > > static inline bool is_efi_application_reserved(efi_memory_desc_t *md)
+> > > > > {
+> > > > >         return md->type == EFI_CONVENTIONAL_MEMORY
+> > > > >                 && (md->attribute & EFI_MEMORY_SP);
+> > > > > }
+> > > > > #else
+> > > > > static inline bool is_efi_application_reserved(efi_memory_desc_t *md)
+> > > > > {
+> > > > >         return false;
+> > > > > }
+> > > > > #endif
+> > > >
+> > > > I think this policy decision should not live inside the EFI subsystem.
+> > > > EFI just gives you the memory map, and mangling that information
+> > > > depending on whether you think a certain memory attribute should be
+> > > > ignored is the job of the MM subsystem.
+> > >
+> > > The problem is that we don't have an mm subsystem at the time a
+> > > decision needs to be made. The reservation policy needs to be deployed
+> > > before even memblock has been initialized in order to keep kernel
+> > > allocations out of the reservation. I agree with the sentiment I just
+> > > don't see how to practically achieve an optional "System RAM" vs
+> > > "Application Reserved" routing decision without an early (before
+> > > e820__memblock_setup()) conditional branch.
+> >
+> > I can at least move it out of include/linux/efi.h and move it to
+> > arch/x86/include/asm/efi.h since it is an x86 specific policy decision
+> > / implementation for now.
+>
+> No, that doesn't make sense to me. If it must live in the EFI
+> subsystem, I'd prefer it to be in the core code, not in x86 specific
+> code, since there is nothing x86 specific about it.
 
-I agree with CH that struct hmm_update seems particularly pointless
-and we really should just use mmu_notifier_range directly.
+Ok, but it's still not clear to me where you would accept an early
+detection of EFI_CONVENTIONAL_MEMORY + EFI_MEMORY_SP and route it away
+from the "System RAM" default. Please just recommend a place to land a
+conditional branch that translates between the base EFI type +
+attribute and E820_RAM and E820_APPLICATION_RESERVED.
 
-We need to find out from the DRM folks if we can merge this kind of
-stuff through hmm.git and then resolve any conflicts that might arise
-in DRM tree or in nouveau tree?
+> Perhaps a efi=xxx command line option would be in order to influence
+> the builtin default, but it can be a followup patch independent of
+> this series.
 
-But I would like to see this patch go in this cycle, thanks
-
-Jason
+Sure, but I expect the default polarity of the branch is a compile
+time option with an efi= override.
 
