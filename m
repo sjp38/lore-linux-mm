@@ -2,202 +2,187 @@ Return-Path: <SRS0=+Baj=UH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4EC46C2BCA1
-	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 01:35:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76CECC2BCA1
+	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 01:37:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F1BB2208C3
-	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 01:35:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 13D82204FD
+	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 01:37:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="CdkBfA/6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1BB2208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="FjXO3DJQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13D82204FD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89D876B0271; Fri,  7 Jun 2019 21:35:32 -0400 (EDT)
+	id 9D6766B0271; Fri,  7 Jun 2019 21:37:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 84EBD6B0273; Fri,  7 Jun 2019 21:35:32 -0400 (EDT)
+	id 95F216B0273; Fri,  7 Jun 2019 21:37:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 764276B0276; Fri,  7 Jun 2019 21:35:32 -0400 (EDT)
+	id 7FF3F6B0276; Fri,  7 Jun 2019 21:37:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5654B6B0271
-	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 21:35:32 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id v4so3144796qkj.10
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 18:35:32 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A9706B0271
+	for <linux-mm@kvack.org>; Fri,  7 Jun 2019 21:37:24 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id y205so3682717ywy.19
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 18:37:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=UGOATcTaOKAluhrvGNEt0YBuzCUm7BqI1RnepYlBC8A=;
-        b=Qv1SzcEW9QPZiCuCby73ck0xCxPWRWy286UGlPSeDVzA05vLw/RZPJl2VlW+cRs5g2
-         p8EMH8rKccZspwLezREOAqd/Bd5JgXlMPaIS2VjiaKl8JGI5ziNZcUHACY0nTLFjt8C5
-         Yyp/OsBr+ZHVmMJexWjqnYSWNFHcDUi8AZiMnzd3lFWo5kc6sM7sO5QxpzvZENZMgl/G
-         ldU4chALVNGm/xmrmGk2hycr0fQowtQoZzXa8qU3AbiO7zEM2RLrrTcQSftyGlRtKwo4
-         neWDyd5ELsGxSHpt+Ppen+veMf0aIxlGi556GRVVXvhSnOM3B7so/Ymdh/kqtaqVuG8w
-         8chw==
-X-Gm-Message-State: APjAAAXRhKdVeKIIuBRBTEB/d0LmrJUJCruvn7KdPaouOy8d+p1lpOlA
-	WVfDjAgdj9rP+MD/dgcIpbto60HpKur4NOLL5kk91Es0/IGRfkxwms4LCTInr5QYqbs8GvNjPEJ
-	mP6NptAwA64Ru0CZi8FVfbeQKDTd+Bv3XcnrFVHBcMHpmHLRFSVplyOe71nsAKPfynw==
-X-Received: by 2002:a0c:b786:: with SMTP id l6mr21782374qve.148.1559957732090;
-        Fri, 07 Jun 2019 18:35:32 -0700 (PDT)
-X-Received: by 2002:a0c:b786:: with SMTP id l6mr21782342qve.148.1559957731543;
-        Fri, 07 Jun 2019 18:35:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559957731; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=M2sIXUfHOY4caJ1/GSTT6zN+FY4XjAfM+4N4CfP5+0w=;
+        b=pU8pRVitl2ypiFKUx+a5mQ+5umwg8GqAaFewT4z4cY1FemjfkmF+atVQg4jFb4RJbc
+         jESEkJMFe7hCKKfhJrJ26NwLqxPaMJhub3fyht/8bGJ4Epzzs6PZidrDYseu/LwwO512
+         XOOzxWElxp3D1dQwebvgPxvujbxIfATfjd5DG57rdxxXmkhSo229XLEzn7oANl5Zt8c6
+         I445UVAbiT8pVvMaLE4REdaEfYkajYro+el8YV+jFhtVD89BtDaMoNNVGrId1mV2yN9i
+         hdkBCOadBOvuz51I7XHKJVId6Fi3j1LwjyQWVBe+uB/10vb+ihnP6zXpbEm4Fpqurdgx
+         Dh4A==
+X-Gm-Message-State: APjAAAV82MWtwxjTaLTpOXIxDIGsULgXoQq8JlIC7lnFJ9C7Vc2kU8qM
+	nFS9n3jKWKnTcL2jTlum7Bkp0tHrCbkYOFFKca5NRpmnwgehmE0HDL2tZWrb/+IPwilMsyLu1sm
+	e0n8bcl1tfJjG3GwQb5vB2BZjYIYe577NQuugphEhan30BuF9NjsVbVxcRLX6rQQwvA==
+X-Received: by 2002:a81:2343:: with SMTP id j64mr29700353ywj.224.1559957844152;
+        Fri, 07 Jun 2019 18:37:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzIhOAppQdYU/8XEG93tnIPUFffhEiT0c9tSZYYbFhuD007NVxGfV4DtcHJ3QOh64OVtS0W
+X-Received: by 2002:a81:2343:: with SMTP id j64mr29700341ywj.224.1559957843599;
+        Fri, 07 Jun 2019 18:37:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559957843; cv=none;
         d=google.com; s=arc-20160816;
-        b=RROsJqnc4A7iUTllMYAbTZ9soUGOi0obomgMmrY4en7ydRYUkT9VDLxFwSfV+7ak2z
-         eFZI7p8nFdJOcbsaic7/SX/iqiN058YqsUPdQSa82g8uMFsuuhnSTHJsmxfvKECliZET
-         Hn+XEg/MUHjSUwQDRTUvSeGAow+3PL+zqq/A0P3RqBp4CeN0SboK38irktEg3fuxvx1H
-         PiQHUBR6GxJtDuyyF6f6CrOqUanQMqIPuhzGa6Wz/A+UpmV0jRfc3lxSIjpGRUeI9fhR
-         dNrhNrSbsPJzK2oHpkaL01WTfISoFcxUgw/N5phMzx1rMMXcQEL/ewhqFf3JlpyVXAfu
-         lwfQ==
+        b=OohAomXRLVcFsha5cuKMZlwD4GEP9x7XNd1MuvPv5dEHK2mBZMu2XfC7hfzvlb4uX+
+         5Zhqds/H177zeztgw1n+Uc5YPPKvbWNjpRRLshuF681IOYlfaVJFl8iIP1E4+BP2DxGV
+         k/SOqlMBAro8/rEDMXPzDynyJzv3mDmIDXLS14ZeTao/Sup91wpUcYJ/yml0xNU0oyIy
+         W9E2c+yy9M1iwz4xVfWyrEK1vBrMRU4uGw6jlXFzDX+du1aLxkc+esTiOxeMBThcuze9
+         aFya4nLlBWoX0p2RoHvouXpQtXIEO/KEVP7NRlmUYRDFhO07PJcWupaMqHBvXuPaEWYi
+         /2vg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=UGOATcTaOKAluhrvGNEt0YBuzCUm7BqI1RnepYlBC8A=;
-        b=oADjhqJZoDBBCIjfApL2MZQjSn8LvzfLdU6wLfeh2yZCUj2qEVAab94P+kqTuIiSKY
-         RGl4zUR7KXUx1a5Lg1qt4gCjgduJPwNopCAN0ibZzg2WgUBTU0qTfNjUNs2cUjY5Ixor
-         d5Ov2wQjN9oclcNvb4cc7evtlrWhsMaBzIHgxZrXtSXpWIifvhMlFLqzvKaMkT68isMD
-         lqp5vBDf832l6eqswgVMBS7sdCBNONu6uk4sgTSS9rxsUXDSH2of3e0uMIV0qKZ0hQVO
-         s5/OdNXtdHPYN6pvbjJv5/h7b9br0Qea4HZcu7KHtCxj93UZoYAB6LgcDlr/HnCOPVhe
-         RYVA==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=M2sIXUfHOY4caJ1/GSTT6zN+FY4XjAfM+4N4CfP5+0w=;
+        b=zdgaXCIeR0w7nYcb5wYRTQrYvVQPNzMWzBvQM17dhN1P7tAqbT5Zd5DmXycl+R8wYu
+         TmA9SBCNmzGUSHd22w06Wnyi/7CNytk1PR5OHbKfne0JwsgBg8LLSUWcsylb7rKdd5sA
+         bOBEwTFKZvIwHBo7VmEFIodGXliH0nARu1L7Zat4BXBsQInwmuXlAIvAbNKqLQc/mjO6
+         TSKnAdskpmQdT4YYSOutgk9FZy/kUxTkmDMgBxYhvUF0sZjfOQaSPGZ975bvL2gNyh0n
+         fM7KpJXwlYn9WZpwThVGjoAKH5marOxnxUqlF+Ti0cdUuRDXQJ4/bYi48H2Lr6UduE47
+         hUKg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b="CdkBfA/6";
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u39sor4579188qte.45.2019.06.07.18.35.31
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=FjXO3DJQ;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id d9si1065886ybb.4.2019.06.07.18.37.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 07 Jun 2019 18:35:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Jun 2019 18:37:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b="CdkBfA/6";
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=UGOATcTaOKAluhrvGNEt0YBuzCUm7BqI1RnepYlBC8A=;
-        b=CdkBfA/6OXeGxOQDEpRrnGbh+YU1WVUIiGmE6ObF1BdvREX2rE28bzeff0LPskY6K4
-         gH8oEUMS2jzBTG9XsYBCIU0vO1Ux0uZft+Dls2FU0cg84J1T5cWuvC3xVzcnYykyxzb2
-         9Sn1gVGHLQLuaEUN/pivXD8Iv84MG+tX2OGN7ZFtplU058T10fMBEfPmBpaRj27D/szU
-         6bOagpwU7gtPX7gLQVwEwO3C+KMvBhxC228Opejk20nbMWBEmUpgwzYLo64TfpaORJxD
-         zwMpYHDMyYQ27YdaZMzdhHhTd5Jjv2muJmE75OMWYHj+iRrQByu7sYb/LL1vDmWqUmv6
-         tinw==
-X-Google-Smtp-Source: APXvYqz4alB0pyXNzkKNUcsple2Jn80UBKfD2EM61r0Pq/XpSZdlSRxzdhI0YfjDFU7DVO4hGnKzdw==
-X-Received: by 2002:ac8:644:: with SMTP id e4mr41209859qth.173.1559957731168;
-        Fri, 07 Jun 2019 18:35:31 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id i55sm2718956qtc.21.2019.06.07.18.35.30
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 07 Jun 2019 18:35:30 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hZQGY-0002CD-9G; Fri, 07 Jun 2019 22:35:30 -0300
-Date: Fri, 7 Jun 2019 22:35:30 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>,
-	Felix.Kuehling@amd.com, linux-rdma@vger.kernel.org,
-	linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>,
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
-Subject: Re: [PATCH v2 12/11] mm/hmm: Fix error flows in
- hmm_invalidate_range_start
-Message-ID: <20190608013530.GB7844@ziepe.ca>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=FjXO3DJQ;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5cfb11520000>; Fri, 07 Jun 2019 18:37:22 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Fri, 07 Jun 2019 18:37:22 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Fri, 07 Jun 2019 18:37:22 -0700
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Sat, 8 Jun
+ 2019 01:37:22 +0000
+Subject: Re: [PATCH v2 hmm 01/11] mm/hmm: fix use after free with struct hmm
+ in the mmu notifiers
+To: Jason Gunthorpe <jgg@ziepe.ca>
+CC: Jerome Glisse <jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>,
+	<Felix.Kuehling@amd.com>, <linux-rdma@vger.kernel.org>, <linux-mm@kvack.org>,
+	Andrea Arcangeli <aarcange@redhat.com>, <dri-devel@lists.freedesktop.org>,
+	<amd-gfx@lists.freedesktop.org>
 References: <20190606184438.31646-1-jgg@ziepe.ca>
- <20190607160557.GA335@ziepe.ca>
- <439b5731-0b7e-b25b-ce1a-74b34e1f9bf5@nvidia.com>
+ <20190606184438.31646-2-jgg@ziepe.ca>
+ <9c72d18d-2924-cb90-ea44-7cd4b10b5bc2@nvidia.com>
+ <20190607123432.GB14802@ziepe.ca>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <771c9b7b-983a-934b-a507-76aa0e8aceaf@nvidia.com>
+Date: Fri, 7 Jun 2019 18:37:22 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <439b5731-0b7e-b25b-ce1a-74b34e1f9bf5@nvidia.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190607123432.GB14802@ziepe.ca>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL103.nvidia.com (172.20.187.11) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1559957842; bh=M2sIXUfHOY4caJ1/GSTT6zN+FY4XjAfM+4N4CfP5+0w=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=FjXO3DJQC3v99wu3gjrQndwbgGxJGQ3SEeqG6TFvKt1w8r53KkjAm5XGISySd7/Dm
+	 KLix8M+qphUJiEIxz8Y3hQB0oYZaiIAeoBkX9pa0tzwdBg2beA71/hN66V58sKJ/Gl
+	 GsBt0SeJWOAr27yT3YO0qWzVqE+qm57g4x2hJ0tPPIcDxmY0MVfpMNRJpBiNZRA5+O
+	 Hlr8TVddXcJqFVeZwSJrflfkrUQ/oDXy6uzdvHLmWUjJrkAsi7dR/wNzUdJdnlq0ll
+	 D7efeHpKaM+iJpMEls+jYjF7AMwgFUPpMleyuHXmzsG1896UdCqXNxclh3QfcubGCq
+	 PE9i3yKPcaVHQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 07, 2019 at 04:52:58PM -0700, Ralph Campbell wrote:
-> > @@ -141,6 +142,23 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
-> >   	hmm_put(hmm);
-> >   }
-> > +static void notifiers_decrement(struct hmm *hmm)
-> > +{
-> > +	lockdep_assert_held(&hmm->ranges_lock);
-> > +
-> > +	hmm->notifiers--;
-> > +	if (!hmm->notifiers) {
-> > +		struct hmm_range *range;
-> > +
-> > +		list_for_each_entry(range, &hmm->ranges, list) {
-> > +			if (range->valid)
-> > +				continue;
-> > +			range->valid = true;
-> > +		}
+On 6/7/19 5:34 AM, Jason Gunthorpe wrote:
+> On Thu, Jun 06, 2019 at 07:29:08PM -0700, John Hubbard wrote:
+>> On 6/6/19 11:44 AM, Jason Gunthorpe wrote:
+>>> From: Jason Gunthorpe <jgg@mellanox.com>
+>> ...
+>>> @@ -153,10 +158,14 @@ void hmm_mm_destroy(struct mm_struct *mm)
+>>>  
+>>>  static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+>>>  {
+>>> -	struct hmm *hmm = mm_get_hmm(mm);
+>>> +	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+>>>  	struct hmm_mirror *mirror;
+>>>  	struct hmm_range *range;
+>>>  
+>>> +	/* hmm is in progress to free */
+>>
+>> Well, sometimes, yes. :)
 > 
-> This just effectively sets all ranges to valid.
-> I'm not sure that is best.
+> It think it is in all cases actually.. The only way we see a 0 kref
+> and still reach this code path is if another thread has alreay setup
+> the hmm_free in the call_srcu..
+> 
+>> Maybe this wording is clearer (if we need any comment at all):
+> 
+> I always find this hard.. This is a very standard pattern when working
+> with RCU - however in my experience few people actually know the RCU
+> patterns, and missing the _unless_zero is a common bug I find when
+> looking at code.
+> 
+> This is mm/ so I can drop it, what do you think?
+> 
 
-This is a trade off, it would be much more expensive to have a precise
-'valid = true' - instead this algorithm is precise about 'valid =
-false' and lazy about 'valid = true' which is much less costly to
-calculate.
+I forgot to respond to this section, so catching up now:
 
-> Shouldn't hmm_range_register() start with range.valid = true and
-> then hmm_invalidate_range_start() set affected ranges to false?
+I think we're talking about slightly different things. I was just
+noting that the comment above the "if" statement was only accurate
+if the branch is taken, which is why I recommended this combination
+of comment and code:
 
-It kind of does, expect when it doesn't, right? :)
+	/* Bail out if hmm is in the process of being freed */
+	if (!kref_get_unless_zero(&hmm->kref))
+		return;
 
-> Then this becomes just wake_up_all() if --notifiers == 0 and
-> hmm_range_wait_until_valid() should wait for notifiers == 0.
+As for the actual _unless_zero part, I think that's good to have.
+And it's a good reminder if nothing else, even in mm/ code.
 
-Almost.. but it is more tricky than that.
-
-This scheme is a collision-retry algorithm. The pagefault side runs to
-completion if no parallel invalidate start/end happens.
-
-If a parallel invalidation happens then the pagefault retries.
-
-Seeing notifiers == 0 means there is absolutely no current parallel
-invalidation.
-
-Seeing range->valid == true (under the device lock)
-means this range doesn't intersect with a parallel invalidate.
-
-So.. hmm_range_wait_until_valid() checks the per-range valid because
-it doesn't want to sleep if *this range* is not involved in a parallel
-invalidation - but once it becomes involved, then yes, valid == true
-implies notifiers == 0.
-
-It is easier/safer to use unlocked variable reads if there is only one
-variable, thus the weird construction.
-
-It is unclear to me if this micro optimization is really
-worthwhile. It is very expensive to manage all this tracking, and no
-other mmu notifier implementation really does something like
-this. Eliminating the per-range tracking and using the notifier count
-as a global lock would be much simpler...
-
-> Otherwise, range.valid doesn't really mean it's valid.
-
-Right, it doesn't really mean 'valid'
-
-It is tracking possible colliding invalidates such that valid == true
-(under the device lock) means that there was no colliding invalidate.
-
-I still think this implementation doesn't quite work, as I described
-here:
-
-https://lore.kernel.org/linux-mm/20190527195829.GB18019@mellanox.com/
-
-But the idea is basically sound and matches what other mmu notifier
-users do, just using a seqcount like scheme, not a boolean.
-
-Jason
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
