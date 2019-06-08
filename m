@@ -2,190 +2,228 @@ Return-Path: <SRS0=+Baj=UH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA534C468BD
-	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 04:05:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D3800C468C0
+	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 04:22:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 75C04208C0
-	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 04:05:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="FihBxmn2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75C04208C0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	by mail.kernel.org (Postfix) with ESMTP id 6AC29205ED
+	for <linux-mm@archiver.kernel.org>; Sat,  8 Jun 2019 04:22:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6AC29205ED
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 12D136B027C; Sat,  8 Jun 2019 00:05:06 -0400 (EDT)
+	id EB4D86B026F; Sat,  8 Jun 2019 00:22:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0B59B6B027D; Sat,  8 Jun 2019 00:05:06 -0400 (EDT)
+	id E3E7A6B0271; Sat,  8 Jun 2019 00:22:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E98386B027E; Sat,  8 Jun 2019 00:05:05 -0400 (EDT)
+	id CDE8E6B0273; Sat,  8 Jun 2019 00:22:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ADE5E6B027C
-	for <linux-mm@kvack.org>; Sat,  8 Jun 2019 00:05:05 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id w31so2682390pgk.23
-        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 21:05:05 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CE2D6B026F
+	for <linux-mm@kvack.org>; Sat,  8 Jun 2019 00:22:28 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id z1so1919089oth.8
+        for <linux-mm@kvack.org>; Fri, 07 Jun 2019 21:22:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=7MRDr4KJ8a0CcLFRNA6a6rBwJKdO40+h9uyHwhos1XY=;
-        b=VRo6pXEaUV8GxBUKpksr+4wueiwaoLu+Y9k0SvjT+qBtizXLB8NcHfHAxjGk7nNw0G
-         UQYBYNKHn1a9V8zGYSpuGwS+tyj3t5X7c+8kn8GEpt6eexoHs7tOqNhRrVVmSIaDyHjP
-         XeBlSxB3wj5XppyRI+UTt1jw+9AClKklDTSg24qs53gofHHRAJVRp4Z/+fW8EJnIMVPQ
-         W1PNflwW+WqV3Q42eSnHRgF7xq37WFu5UtVcAGqD6ITvibJK41h1TzyWv4Ks2WxAy7UC
-         1YUJNWiTc/XhF5E478/SskslfPNKQKET+TzIjx6z57/8hhuWE/kRzVNx4qm/5mTni5Hj
-         P2lw==
-X-Gm-Message-State: APjAAAXBEh8AVITUYMhfWPFVlaDI8zhg+Job++/rcVr8reLoc4/cdweZ
-	yV6KFTUWEZMvRlVUHBn5nWTMbFWJ4BubkSIGAV8flSvXPnvZRiXJle/CF+DOkz+yvnV6CqUmB87
-	g1lmZmr1IIdxoLSGNTnyhDgKaViz7cFOIdTsTHQzmV1LRFPZx62ql3IJOyg7D212kTA==
-X-Received: by 2002:a62:ac1a:: with SMTP id v26mr40367168pfe.184.1559966705362;
-        Fri, 07 Jun 2019 21:05:05 -0700 (PDT)
-X-Received: by 2002:a62:ac1a:: with SMTP id v26mr40367133pfe.184.1559966704788;
-        Fri, 07 Jun 2019 21:05:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1559966704; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=eeJY4hMhnpVgYhyzYdeQDYFsV639t8qyRowllY4LtdU=;
+        b=QlWe/B3+SY3nYc+TTr3xRH87T7v/7dfz0BBSAYxlYFlxRZVSIOjHZls1Bnr728/4te
+         vqhUtHNOBGtGPc+njFWFwMMNG5JujgmXKb0ik6Y/NbXZDMHfWTR6AEAG9cu5s2Ek1AA2
+         P57RTxt9TPQXnTiUJG9GKplZJSu//ZZG+DBZwzQcca2Gnh+BC+aXHFNaPCbZs4m1aLQe
+         TbHhzmgXTXJe34aOygMsKy2L1Tt7xEl9c9DLuTohHsMrCwxLr4VdTStUaUZx69D/6JmU
+         E6e/vPkxj3yOcmcVXV/27lmTK4DbDDcQigI9x7F9AV/HCioZo1c7MZm/ZyBSRUj+8fxF
+         gn3w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of guohanjun@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=guohanjun@huawei.com
+X-Gm-Message-State: APjAAAXl74uV1pHfwO/0VjOi7P+QptXQN+OGNS7y5k47EjXe1K5OSR3z
+	KMp1+Ytav+8z5ltZOexei2WcJo+zeubu1sKBb0HYp6R11WZeaqHAldsahakHcgLALFiIMFOFT3T
+	u+ZfDqLFm68r33na6iNhnTFtkhMhOuc84Xvnbc0PPa8dGNEUFShjBbqCQ5/ZWY2jaBg==
+X-Received: by 2002:aca:588a:: with SMTP id m132mr6050871oib.106.1559967748076;
+        Fri, 07 Jun 2019 21:22:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqypjKMudQHCXkbvbwWCsGyjLPwq49T2mZv1D/W1iStXJJunqytKIN6l8OIZ8mp0QTWgrwvZ
+X-Received: by 2002:aca:588a:: with SMTP id m132mr6050840oib.106.1559967747219;
+        Fri, 07 Jun 2019 21:22:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1559967747; cv=none;
         d=google.com; s=arc-20160816;
-        b=L66TqFPP0Z95olu9plq+Ku6a1NTOb1jns2Qo0zIA+brmeXp2YPuV7XvgW1e68v0oF4
-         /cTlC9zuiCRgtyoxwORakWCaMy8Og3XNj4WrE9n3lyeyuMawTk9zS6py6Xkm79gNnZfz
-         ipShODklE0t8TfJMhhfYdJU7JjQcrpfOdf9RX1n4sz934rLTURBanwRk3nYK2xe9/BUt
-         jxCgtoycAlN/azipEcgls7CxdCrVeHZ9S6M56xjfkcIRoo3ZBfgFnrwA1i8+XgssopNT
-         ui3A+cnksQNhFDKDKF0lvUlVDV2fQn5/Tg3rX8pjR14Vi9YeCHCcn+Qml3Wq9Cz/jkLq
-         DsdA==
+        b=YWIfuLcuiP6j+ZARgo31LNkWXoAe7GoM+ecqrLsd9saOlaUs9aOh7Q6qYv82oeZk+2
+         tshMTE9qLHGzJy3Hzy2uXpsVrfHn+L8BaNVO7UW3/e+8svs/TC4mFDNi3u2KZFVMaprn
+         1rAH33i1e6ZeF8qpkZhscDgpOuIH5gUTAGcOSq0CBGH+oyRpZOL18Ccp0iuUVEDQECcF
+         s2W6uhKRIJl7eAIrpKdDBIr5OYSGfQbUA4gwOOVAtMmO4uSJ4akAlCDz7tmcGRPn9lNF
+         mcx5lPRb6O2U4Cs0/HYKqEyDSaJnzPROKivCNR17YvP2k9flYiHUE5dj3s9HDZprR+T+
+         zr1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=7MRDr4KJ8a0CcLFRNA6a6rBwJKdO40+h9uyHwhos1XY=;
-        b=gjajtU73NqxiL3SxWqRhXIj37WDKHnURVaZRY3wrFZ1PnnTbUjISuqS78lMf+PFoZ1
-         MkfSXrgFvP1PVQxDb2t59rrm2cC3xUHk32AAjL3Qv/5WFJaeCoI4LBrVlC6p1y3bPtid
-         2pCr2n5pjjnI6uwOh0JhSdr0YdECerVnSoDSEzMpvj4dVaA8E7K9hGClCxorIl10K+eN
-         jjWutQk0ruDiBiZwaImHD6Sfr+WnJMUyzUjOw4SP6+CqlXsYps0T4ml/6Ywfv/95fbar
-         6qDS2oQ9j012kLFjZEtUaKWa44RPjeJIopPXuePMXapefzGNwTyDLSyAZ7HMX/F+RfNX
-         ylgA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=eeJY4hMhnpVgYhyzYdeQDYFsV639t8qyRowllY4LtdU=;
+        b=YLBY4teKPGW8ZGqnNjS4mDpFk+C24VFDbmfJODehEADxhi5iGyZhvHHBqwXBwWCCx7
+         l1AkfDVRFDuaEsz9b0nuCwhS9uHAWGhnhwxj7gCgePO1LZx4Iu05fOZcTA//aao7Ix1k
+         3KlvDVyhdz29hH+GBJb+CdjSUGzYtjV5MTdOYA+r7Y7XFAKVwlItPWWiJ3m0NzroRXwg
+         3q6lQlmz72/PjML7cRaaIZ8Xedkn2QVkT5EruCQHMN0Vr5V92/qNXEoVlp/cWmkJRhla
+         StLiZjG/7ccn/G+HFYZCbbm9jthoAZqrT1q2+ixo+MFNFmMaci3kkPj+n3OlZX2Cc/ui
+         Nd0g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=FihBxmn2;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p23sor2200334pgj.54.2019.06.07.21.05.04
+       spf=pass (google.com: domain of guohanjun@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=guohanjun@huawei.com
+Received: from huawei.com (szxga07-in.huawei.com. [45.249.212.35])
+        by mx.google.com with ESMTPS id i7si2140153oih.171.2019.06.07.21.22.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 07 Jun 2019 21:05:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 07 Jun 2019 21:22:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of guohanjun@huawei.com designates 45.249.212.35 as permitted sender) client-ip=45.249.212.35;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=FihBxmn2;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=7MRDr4KJ8a0CcLFRNA6a6rBwJKdO40+h9uyHwhos1XY=;
-        b=FihBxmn2dVJ6Rw2WItUxtjZpswcNWCrx4UusJNMmjDUeSXGlPeke41oTHXObrS9v9s
-         auz9bPPxx2drUDHwQFTWyjmSfE251zoGthyYFhJV5WSoJ0SYpqwBy7GNBhwklPOXO6Qg
-         gWZEmprLR6lDNUGcv9V07ySSkX/PEr3KR97+4=
-X-Google-Smtp-Source: APXvYqwInYsY/wUHZ9P1C1XrBfyqppKEaGOwIlzHhH7Qkl6+K82Iixjx8HiJ+/il/stbMYBMbkFxfA==
-X-Received: by 2002:a63:4045:: with SMTP id n66mr5882121pga.386.1559966704443;
-        Fri, 07 Jun 2019 21:05:04 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id z14sm3301959pgs.79.2019.06.07.21.05.03
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 07 Jun 2019 21:05:03 -0700 (PDT)
-Date: Fri, 7 Jun 2019 21:05:02 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v16 14/16] tee, arm64: untag user pointers in
- tee_shm_register
-Message-ID: <201906072104.B6A89D8CB@keescook>
-References: <cover.1559580831.git.andreyknvl@google.com>
- <dc3f3092abbc0d48e51b2e2a2ca8f4c4f69fa0f4.1559580831.git.andreyknvl@google.com>
+       spf=pass (google.com: domain of guohanjun@huawei.com designates 45.249.212.35 as permitted sender) smtp.mailfrom=guohanjun@huawei.com
+Received: from DGGEMS401-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id A743C53F4D0FF13F8075;
+	Sat,  8 Jun 2019 12:22:23 +0800 (CST)
+Received: from [127.0.0.1] (10.177.223.23) by DGGEMS401-HUB.china.huawei.com
+ (10.3.19.201) with Microsoft SMTP Server id 14.3.439.0; Sat, 8 Jun 2019
+ 12:22:22 +0800
+Subject: Re: [PATCH v11 0/3] remain and optimize memblock_next_valid_pfn on
+ arm and arm64
+To: Will Deacon <will.deacon@arm.com>, Ard Biesheuvel <ard.biesheuvel@arm.com>
+CC: Mark Rutland <mark.rutland@arm.com>, Michal Hocko <mhocko@suse.com>,
+	Catalin Marinas <catalin.marinas@arm.com>, Wei Yang
+	<richard.weiyang@gmail.com>, Linux-MM <linux-mm@kvack.org>, Jia He
+	<hejianet@gmail.com>, Eugeniu Rosca <erosca@de.adit-jv.com>, Petr Tesarik
+	<ptesarik@suse.com>, Nikolay Borisov <nborisov@suse.com>, Russell King
+	<linux@armlinux.org.uk>, Daniel Jordan <daniel.m.jordan@oracle.com>, "AKASHI
+ Takahiro" <takahiro.akashi@linaro.org>, Gioh Kim
+	<gi-oh.kim@profitbricks.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>,
+	Laura Abbott <labbott@redhat.com>, Daniel Vacek <neelx@redhat.com>, Mel
+ Gorman <mgorman@suse.de>, "Vladimir Murzin" <vladimir.murzin@arm.com>, Kees
+ Cook <keescook@chromium.org>, "Philip Derrin" <philip@cog.systems>, YASUAKI
+ ISHIMATSU <yasu.isimatu@gmail.com>, "Jia He" <jia.he@hxt-semitech.com>, Kemi
+ Wang <kemi.wang@intel.com>, "Vlastimil Babka" <vbabka@suse.cz>,
+	linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Steve Capper
+	<steve.capper@arm.com>, Linux Kernel Mailing List
+	<linux-kernel@vger.kernel.org>, James Morse <james.morse@arm.com>, Johannes
+ Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+References: <1534907237-2982-1-git-send-email-jia.he@hxt-semitech.com>
+ <CAKv+Gu9u8RcrzSHdgXiqHS9HK1aSrjbPxVUSCP0DT4erAhx0pw@mail.gmail.com>
+ <20180907144447.GD12788@arm.com>
+From: Hanjun Guo <guohanjun@huawei.com>
+Message-ID: <84b8e874-2a52-274c-4806-968470e66a08@huawei.com>
+Date: Sat, 8 Jun 2019 12:22:13 +0800
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:52.0) Gecko/20100101
+ Thunderbird/52.5.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <dc3f3092abbc0d48e51b2e2a2ca8f4c4f69fa0f4.1559580831.git.andreyknvl@google.com>
+In-Reply-To: <20180907144447.GD12788@arm.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.177.223.23]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 03, 2019 at 06:55:16PM +0200, Andrey Konovalov wrote:
-> This patch is a part of a series that extends arm64 kernel ABI to allow to
-> pass tagged user pointers (with the top byte set to something else other
-> than 0x00) as syscall arguments.
-> 
-> tee_shm_register()->optee_shm_unregister()->check_mem_type() uses provided
-> user pointers for vma lookups (via __check_mem_type()), which can only by
-> done with untagged pointers.
-> 
-> Untag user pointers in this function.
-> 
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Hi Ard, Will,
 
-"tee: shm: untag user pointers in tee_shm_register"
+This week we were trying to debug an issue of time consuming in mem_init(),
+and leading to this similar solution form Jia He, so I would like to bring this
+thread back, please see my detail test result below.
 
-Reviewed-by: Kees Cook <keescook@chromium.org>
+On 2018/9/7 22:44, Will Deacon wrote:
+> On Thu, Sep 06, 2018 at 01:24:22PM +0200, Ard Biesheuvel wrote:
+>> On 22 August 2018 at 05:07, Jia He <hejianet@gmail.com> wrote:
+>>> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
+>>> where possible") optimized the loop in memmap_init_zone(). But it causes
+>>> possible panic bug. So Daniel Vacek reverted it later.
+>>>
+>>> But as suggested by Daniel Vacek, it is fine to using memblock to skip
+>>> gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
+>>>
+>>> More from what Daniel said:
+>>> "On arm and arm64, memblock is used by default. But generic version of
+>>> pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
+>>> not always return the next valid one but skips more resulting in some
+>>> valid frames to be skipped (as if they were invalid). And that's why
+>>> kernel was eventually crashing on some !arm machines."
+>>>
+>>> About the performance consideration:
+>>> As said by James in b92df1de5,
+>>> "I have tested this patch on a virtual model of a Samurai CPU with a
+>>> sparse memory map.  The kernel boot time drops from 109 to 62 seconds."
+>>> Thus it would be better if we remain memblock_next_valid_pfn on arm/arm64.
+>>>
+>>> Besides we can remain memblock_next_valid_pfn, there is still some room
+>>> for improvement. After this set, I can see the time overhead of memmap_init
+>>> is reduced from 27956us to 13537us in my armv8a server(QDF2400 with 96G
+>>> memory, pagesize 64k). I believe arm server will benefit more if memory is
+>>> larger than TBs
+>>>
+>>
+>> OK so we can summarize the benefits of this series as follows:
+>> - boot time on a virtual model of a Samurai CPU drops from 109 to 62 seconds
+>> - boot time on a QDF2400 arm64 server with 96 GB of RAM drops by ~15
+>> *milliseconds*
+>>
+>> Google was not very helpful in figuring out what a Samurai CPU is and
+>> why we should care about the boot time of Linux running on a virtual
+>> model of it, and the 15 ms speedup is not that compelling either.
 
--Kees
+Testing this patch set on top of Kunpeng 920 based ARM64 server, with
+384G memory in total, we got the time consuming below
 
-> ---
->  drivers/tee/tee_shm.c | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/drivers/tee/tee_shm.c b/drivers/tee/tee_shm.c
-> index 49fd7312e2aa..96945f4cefb8 100644
-> --- a/drivers/tee/tee_shm.c
-> +++ b/drivers/tee/tee_shm.c
-> @@ -263,6 +263,7 @@ struct tee_shm *tee_shm_register(struct tee_context *ctx, unsigned long addr,
->  	shm->teedev = teedev;
->  	shm->ctx = ctx;
->  	shm->id = -1;
-> +	addr = untagged_addr(addr);
->  	start = rounddown(addr, PAGE_SIZE);
->  	shm->offset = addr - start;
->  	shm->size = length;
-> -- 
-> 2.22.0.rc1.311.g5d7573a151-goog
-> 
+             without this patch set      with this patch set
+mem_init()        13310ms                      1415ms
 
--- 
-Kees Cook
+So we got about 8x speedup on this machine, which is very impressive.
+
+The time consuming is related the memory DIMM size and where to locate those
+memory DIMMs in the slots. In above case, we are using 16G memory DIMM.
+We also tested 1T memory with 64G size for each memory DIMM on another ARM64
+machine, the time consuming reduced from 20s to 2s (I think it's related to
+firmware implementations).
+
+>>
+>> Apologies to Jia that it took 11 revisions to reach this conclusion,
+>> but in /my/ opinion, tweaking the fragile memblock/pfn handling code
+>> for this reason is totally unjustified, and we're better off
+>> disregarding these patches.
+
+Indeed this patch set has a bug, For exampe, if we have 3 regions which
+is [a, b] [c, d] [e, f] if address of pfn is bigger than the end address of
+last region, we will increase early_region_idx to count of region, which is
+out of bound of the regions. Fixed by patch below,
+
+ mm/memblock.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 8279295..8283bf0 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1252,13 +1252,17 @@ unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn)
+ 		if (pfn >= start_pfn && pfn < end_pfn)
+ 			return pfn;
+
+-		early_region_idx++;
++		/* try slow path */
++		if (++early_region_idx == type->cnt)
++			goto slow_path;
++
+ 		next_start_pfn = PFN_DOWN(regions[early_region_idx].base);
+
+ 		if (pfn >= end_pfn && pfn <= next_start_pfn)
+ 			return next_start_pfn;
+ 	}
+
++slow_path:
+ 	/* slow path, do the binary searching */
+ 	do {
+ 		mid = (right + left) / 2;
+
+As the really impressive speedup on our ARM64 server system, could you reconsider
+this patch set for merge? if you want more data I'm willing to clarify and give
+more test.
+
+Thanks
+Hanjun
 
