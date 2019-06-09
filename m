@@ -7,98 +7,98 @@ X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
 	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3DE28C28EBD
-	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 12:13:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 55B6EC28EBD
+	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 12:23:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F37662070B
-	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 12:13:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0DD89208E4
+	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 12:23:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="pMj0t7O5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F37662070B
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="CR31kyMK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DD89208E4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8C9AF6B0007; Sun,  9 Jun 2019 08:13:33 -0400 (EDT)
+	id 9AD0C6B000A; Sun,  9 Jun 2019 08:23:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 852BC6B0008; Sun,  9 Jun 2019 08:13:33 -0400 (EDT)
+	id 9357C6B000C; Sun,  9 Jun 2019 08:23:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 71DAF6B000A; Sun,  9 Jun 2019 08:13:33 -0400 (EDT)
+	id 824566B000D; Sun,  9 Jun 2019 08:23:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0880C6B0007
-	for <linux-mm@kvack.org>; Sun,  9 Jun 2019 08:13:33 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id b13so1342356lfa.3
-        for <linux-mm@kvack.org>; Sun, 09 Jun 2019 05:13:32 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B9FB6B000A
+	for <linux-mm@kvack.org>; Sun,  9 Jun 2019 08:23:40 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id 9so761566ljv.14
+        for <linux-mm@kvack.org>; Sun, 09 Jun 2019 05:23:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=dSKWqv48YjvTpHMzJ6cEr/B8IpdYkbZ87Fgmm26rJBw=;
-        b=Zr9oPOMZ2oS0nFoapnkb64nMvlXHQ5evFBD9/aBnc+Tbqm9G9F3xcm7rv0bse9fOZ3
-         4qvVUNTDTu/rPsf8P797n78Y8dCl1uXOOtT20xzYZuTWltMSGm14Mj2Lp29LQC2DX5MC
-         eaRWZkIxVqlQhdL+0QbIErCuYlQq9dIOZpWVVHeUfmVX5MMj6Q0bSijuULnxqDrt7Y9J
-         FvLaFN/mpYH6GQEeSrG9FFTe4Gvw5XrPUpmAKrgDUEkAW39+xf4AaM4utYkrwKtzVjm2
-         9IHA2mf9P9fwULFmbK3nwhDk847eskJzfbMaCsb7MXM/tTk3aaMAoa4h/F0+8FO8aIwN
-         ew4Q==
-X-Gm-Message-State: APjAAAWlAWElgyVbFpJWbLhB8KRMVeNZlM5O3nyjdNkXppGcVb/6G9j2
-	JnJZCAB2uW7mTdtCLFLSylCgAgB2+OFHuu4Nzb5yV4NTqT9JX4HCZuAagmpe7oUNYwRO92fEJav
-	6rKknbFKZhdrsyxA8L56PlFXoux3rmzjG69UkGYo8uFOGTteI+4qVMSJiGZFlhl2ykw==
-X-Received: by 2002:a2e:4e09:: with SMTP id c9mr20692702ljb.30.1560082412527;
-        Sun, 09 Jun 2019 05:13:32 -0700 (PDT)
-X-Received: by 2002:a2e:4e09:: with SMTP id c9mr20692673ljb.30.1560082411589;
-        Sun, 09 Jun 2019 05:13:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560082411; cv=none;
+        bh=iFbsAteAWCOB8EYWVkTmBCNQWQgWWukwnbyxrLkrB0g=;
+        b=quAogtFi0BNlEEnd3UtxuH7WncGgnFm/k+HrClxn87EaXQ6+BJaY+JmF3d5BRXglqo
+         dDyTffrSC66m+zMCitkBdpMSjZJxRLim35faFPHvLXUvHUGY0MQsK6FA/WlGZqfiheAy
+         /iplawT6sPGJAOjIoPrBbAFUfOxC6ZGRQek7ZnBzlv9Q9nn/kKaggHl3wSVOXMl42w9T
+         VMg5l7jWo9iR2xS5F2635SbMtW5fnR85/C49cg8Bjn3in7NyZ8koTUUrz2dNgegSfryV
+         Xe9Ij6uzilPgG29m4+FXJ7DhaV2kklD63kEDpW28oHR6LbvpiKFrvoHRKN4gRWBGWIDV
+         9ZQg==
+X-Gm-Message-State: APjAAAUh0joFMMqS0gq6YkWXLtgR+6MJvVR7Bzz0ixXDV6R8AXO+5c18
+	rsMyf7FDgwKLHPnILbfp/GEPvJTUbGXrWgFy21bP36x2xtbbrRG1gJfM1J/RIzdT/WKtHoQr8tu
+	mqT1+3mqQJg1i1bCvsRu0hSXssFI+I9a2eVCI04FEsTzEkN9ZRtjISb+Aa/leg0ArNA==
+X-Received: by 2002:ac2:4c84:: with SMTP id d4mr31325946lfl.1.1560083019378;
+        Sun, 09 Jun 2019 05:23:39 -0700 (PDT)
+X-Received: by 2002:ac2:4c84:: with SMTP id d4mr31325927lfl.1.1560083018612;
+        Sun, 09 Jun 2019 05:23:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560083018; cv=none;
         d=google.com; s=arc-20160816;
-        b=kojV4o77mPvUurjhwP+6wxVyE+SQdZ8ZXXz8C+sNj4Z5mY+VFu6eQRpk0qpxOGk5ds
-         85BaEKA3fgjw7FQqNvIodrlSz4ZhKXVVYIRMscGcmYzmFxIqF7FnVgkemKov9Q2ebeXY
-         Pv70UIJa2vTKbNzN+NLZgzVTpGPsaEj/qk1Q09WNB2BSKvihPsBe7yhVs97VEVhHgq5c
-         80X2tPcDg7mQhD/yuxl5m/aguvVE2m4k0iX5+50Thd7SaaO+5gYqQHlppRx2wi5dwBZF
-         EwTFWrYDBg1/DvHlPw/Mv4wKwi1WPnUUN9pmIKBytgimFEGwBDpIISU4IWwcef7FmRLF
-         ilVQ==
+        b=0L09c215jxzmMLI8OwyiZNZp4KHM2x7XhXoxccDtO2Wkbj4BybBssNqJBoECjxdJDH
+         wWAvi9XNufABrBv0zCK0xlVMl8WeeB4+tP1T8/xhzf2m+tKs7Wcg7gPyJ7jJ0jXnvkMT
+         wRvC+IoF6WYA95lErsLzZHiik/sYqK6Wk5f8fXkULV3C30upkE6Hv/ZGqFvwIJmTv1ul
+         3CWOqNk5XoZIPjYeC/rgpXFyjuChC3Gy2I3RUi5LZP2IDy0MZXo0q2pDNEJ009bTIzj1
+         AHkfVPJYGjFYkHbQv07Guq1NJxkuQWqbbgErPFA1UBPrvYQ5qI6MJiMT6lHpl5AS78bN
+         545A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=in-reply-to:content-disposition:mime-version:references:message-id
          :subject:cc:to:from:date:dkim-signature;
-        bh=dSKWqv48YjvTpHMzJ6cEr/B8IpdYkbZ87Fgmm26rJBw=;
-        b=id0/jlyJ+s93f2Vun2Cx3ptGJAV25Y56cbQBgLe744s+i/FzwenaAlrX38OgE7PO4T
-         /QqnNaZ6E3p2Oa1A3gaQNiD804tUzGB7lDSxytu4AYwRnLAWwaKc/E0i7UHiWpRhWo92
-         gC1DO6QShSLvglnVfs8EVlKSoHV52XCbYyLo4vRWtuXVqd5r5LrHe+M6BGZ1ryA0B+ou
-         eHj8WcqzmGTfM1xciCGJtscYIESaNhftKQU/2PMAnXhaMrj56F4P8NfplkNodZ2q4dW6
-         b2zXavblWoJa9DTxs73LU7juQTH3HDlKCyBtefxbjPuUqMg92ifxwPXl/L9coK2bmGSj
-         sLSA==
+        bh=iFbsAteAWCOB8EYWVkTmBCNQWQgWWukwnbyxrLkrB0g=;
+        b=WR4q2f6fHXqeW9cRU6zLMop1l9uyF0Thj+UMKOqOPmbs0TyThN5M1csvCypOoJ11FS
+         gMQNCO3gMXQNVjnJadK52lJ/LRWF9X8nf6oV7+ndv88PvSL0TmHspLuhkWJBcw4bHR1/
+         PkZMKeJaXHNh5OcWDRjjdFneZr9y2W0W5wV7KFLc1mX1gHtI4O46eyLWio2mRbI/IXBG
+         +ktiob8O68gT7svTn/DFdmkMQl3ItZWJkb3PPIU95cgk6Pbj2HnsIf6+u0aEXjGsHan1
+         rhtmhKtHXVz5drf8qqn/F1uxZMsY1ZbNAj2kevpDitjmxH6eKNh3tv8/a3vB+ai9Nwuf
+         IDpg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pMj0t7O5;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=CR31kyMK;
        spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x7sor3550114ljh.26.2019.06.09.05.13.31
+        by mx.google.com with SMTPS id g5sor712393lja.9.2019.06.09.05.23.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 09 Jun 2019 05:13:31 -0700 (PDT)
+        Sun, 09 Jun 2019 05:23:38 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pMj0t7O5;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=CR31kyMK;
        spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to;
-        bh=dSKWqv48YjvTpHMzJ6cEr/B8IpdYkbZ87Fgmm26rJBw=;
-        b=pMj0t7O5EHRJlyEPeUXPVlEG+b9z/hIeBC5taQwe/qsd6JhvdJUyNGAyqEywm28mwV
-         FSyOR5XxKyOL9TfhhQgPIXUu0xpjNy41S0bda15ykJzaAbBRAobLofPaf3yti3xoi8ih
-         DIbHxtN4r85xSSPukC+eEDm7hzuauH7nnxUP57Ujcta5b+Ha1u/7saPIJroEdVJtxKqq
-         h2Ry9LQ6OcBuTv+XdrUpYPdi+LGB5MgSvOhMkuudsx/c4qQGQ6L7wu/6ZJQOmHNmiWgF
-         KqkvkML11VzMonJCNns7Xu2wp9XkhQCK3/crnjdKAtvXyEXOTZcI4oD2wVlifWZ/FnQq
-         YtIw==
-X-Google-Smtp-Source: APXvYqxYVrtnkOtcvtFEQ4emA5XTieW5HptukAIlK1bqxcK9dnvnWv3PlSpIjg8LSFhV9jh6AL+PIQ==
-X-Received: by 2002:a2e:2411:: with SMTP id k17mr4072256ljk.136.1560082411340;
-        Sun, 09 Jun 2019 05:13:31 -0700 (PDT)
+        bh=iFbsAteAWCOB8EYWVkTmBCNQWQgWWukwnbyxrLkrB0g=;
+        b=CR31kyMKqJssQbVi1JNiJC/mpUqUbB9GeHhEnWXxUYEm/NFvtyAwx+ibkWn73vB8s1
+         ijmN8IVbIB6z7z2Xw7lOxf+6NAJ94vILodRFkmRNak6nbqnti1w7Vec83AbVODQti+Kg
+         7iZr/mfEAgiffcNh//LPD7cgzTHZYJwM9cu/zGu5dgHfwIT/9Yo8YMZFtBELx50wYa0F
+         rbPp54YHrqXeg1OAS9y5SI2EhI+hVbTYKJJdL1LP54ucpmGb/21rizHKTKR6QAjKJzsX
+         SYmGj1j3ACblLdnWniEQFA6KCwJKI0YxvpBvj6O7nu3fu2xWUvqQV5NL2r+mOCMSZlEB
+         WSNg==
+X-Google-Smtp-Source: APXvYqy8PsCjFxIJXLZEqVIOqouGGmLPoWA0WKXKYrav3RxdCeb2sgrOXhs44ORw1QLgIMf7oUBMtA==
+X-Received: by 2002:a2e:b0d0:: with SMTP id g16mr21038731ljl.161.1560083018160;
+        Sun, 09 Jun 2019 05:23:38 -0700 (PDT)
 Received: from esperanza ([176.120.239.149])
-        by smtp.gmail.com with ESMTPSA id p15sm1359619lji.80.2019.06.09.05.13.30
+        by smtp.gmail.com with ESMTPSA id c8sm1354240ljk.77.2019.06.09.05.23.36
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 09 Jun 2019 05:13:30 -0700 (PDT)
-Date: Sun, 9 Jun 2019 15:13:28 +0300
+        Sun, 09 Jun 2019 05:23:37 -0700 (PDT)
+Date: Sun, 9 Jun 2019 15:23:35 +0300
 From: Vladimir Davydov <vdavydov.dev@gmail.com>
 To: Roman Gushchin <guro@fb.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
@@ -106,42 +106,51 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
 	Johannes Weiner <hannes@cmpxchg.org>,
 	Shakeel Butt <shakeelb@google.com>,
 	Waiman Long <longman@redhat.com>
-Subject: Re: [PATCH v6 03/10] mm: rename slab delayed deactivation functions
- and fields
-Message-ID: <20190609121328.xaumeyhu7an6qpru@esperanza>
+Subject: Re: [PATCH v6 04/10] mm: generalize postponed non-root kmem_cache
+ deactivation
+Message-ID: <20190609122334.6jbpiwgrdzs4xill@esperanza>
 References: <20190605024454.1393507-1-guro@fb.com>
- <20190605024454.1393507-4-guro@fb.com>
+ <20190605024454.1393507-5-guro@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190605024454.1393507-4-guro@fb.com>
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000373, version=1.2.4
+In-Reply-To: <20190605024454.1393507-5-guro@fb.com>
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 04, 2019 at 07:44:47PM -0700, Roman Gushchin wrote:
-> The delayed work/rcu deactivation infrastructure of non-root
-> kmem_caches can be also used for asynchronous release of these
-> objects. Let's get rid of the word "deactivation" in corresponding
-> names to make the code look better after generalization.
+On Tue, Jun 04, 2019 at 07:44:48PM -0700, Roman Gushchin wrote:
+> Currently SLUB uses a work scheduled after an RCU grace period
+> to deactivate a non-root kmem_cache. This mechanism can be reused
+> for kmem_caches release, but requires generalization for SLAB
+> case.
 > 
-> It's easier to make the renaming first, so that the generalized
-> code will look consistent from scratch.
+> Introduce kmemcg_cache_deactivate() function, which calls
+> allocator-specific __kmem_cache_deactivate() and schedules
+> execution of __kmem_cache_deactivate_after_rcu() with all
+> necessary locks in a worker context after an rcu grace period.
 > 
-> Let's rename struct memcg_cache_params fields:
->   deact_fn -> work_fn
->   deact_rcu_head -> rcu_head
->   deact_work -> work
+> Here is the new calling scheme:
+>   kmemcg_cache_deactivate()
+>     __kmemcg_cache_deactivate()                  SLAB/SLUB-specific
+>     kmemcg_rcufn()                               rcu
+>       kmemcg_workfn()                            work
+>         __kmemcg_cache_deactivate_after_rcu()    SLAB/SLUB-specific
 > 
-> And RCU/delayed work callbacks in slab common code:
->   kmemcg_deactivate_rcufn -> kmemcg_rcufn
->   kmemcg_deactivate_workfn -> kmemcg_workfn
+> instead of:
+>   __kmemcg_cache_deactivate()                    SLAB/SLUB-specific
+>     slab_deactivate_memcg_cache_rcu_sched()      SLUB-only
+>       kmemcg_rcufn()                             rcu
+>         kmemcg_workfn()                          work
+>           kmemcg_cache_deact_after_rcu()         SLUB-only
 > 
-> This patch contains no functional changes, only renamings.
+> For consistency, all allocator-specific functions start with "__".
 > 
 > Signed-off-by: Roman Gushchin <guro@fb.com>
+
+Much easier to review after extracting renaming, thanks.
 
 Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 
