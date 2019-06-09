@@ -7,95 +7,95 @@ X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_PASS,T_DKIMWL_WL_HIGH autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08968C468BD
-	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 12:52:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BA275C2BCA1
+	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 13:00:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B6F3D20840
-	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 12:52:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 66F34208C0
+	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 13:00:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Fb0/d1TP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6F3D20840
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="lvFMTFuV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66F34208C0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2E0726B0266; Sun,  9 Jun 2019 08:52:28 -0400 (EDT)
+	id E24916B0266; Sun,  9 Jun 2019 09:00:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 293266B0269; Sun,  9 Jun 2019 08:52:28 -0400 (EDT)
+	id DD5576B0269; Sun,  9 Jun 2019 09:00:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 17F9C6B026A; Sun,  9 Jun 2019 08:52:28 -0400 (EDT)
+	id CC4546B026A; Sun,  9 Jun 2019 09:00:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D41C76B0266
-	for <linux-mm@kvack.org>; Sun,  9 Jun 2019 08:52:27 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id t2so151126plo.10
-        for <linux-mm@kvack.org>; Sun, 09 Jun 2019 05:52:27 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 90A126B0266
+	for <linux-mm@kvack.org>; Sun,  9 Jun 2019 09:00:31 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id k23so4859137pgh.10
+        for <linux-mm@kvack.org>; Sun, 09 Jun 2019 06:00:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
          :date:in-reply-to:references:user-agent:mime-version
          :content-transfer-encoding;
-        bh=nVSIzUxvD1RqXxPMm3DPulW0LemDfOUCgD8NaU75XxU=;
-        b=lhXjKJndTQB5LzDPMftD1apoSiVZRg4iwwv66Kjy7n/hIPhLKI38bGDJyR95mGAlTO
-         ZuWaQwJk0yVmCVVvV4ZCVD7i0WhDQRN97hlAn1WTEgxKrKa17ory7W6BXGFq4XSAxeun
-         nqU9gWaQ3Qp7MT3abAYE/nhIzhZbM5iQzefzXFX0pRRRi/vBk26kQ8zF/jDlsxp2fN/R
-         9FPQ/6NUkV3Zwa7u89O8+U51exqjl2q1AA6hyIaLLfUJl01Spa2+xhetkS6D6cQ5j6Nj
-         KfZcgyyI+5VAnuIgX1/6k8tLEfNZS+nQVxz6sXiiLiL4aHya4uw7NclL24ot9zARTZDi
-         vErA==
-X-Gm-Message-State: APjAAAXEbjIrNuVZW6suZIiU3FFGbkIZ7Lw7gv5nlkfZYQP9iPps2Xb9
-	IbHX7gXkHQZPDhQbJegzQ0ttoAenHaO6VE+HaNg3rCS0rmVXKWhhKgAE0Ncl7IZY9IfVFvUG8vJ
-	g2een13UACgeCv0CjVCCL9MWAwyYR8rohzgueA9eXl9OpzSP0xHE+plkg+0zMMuFftA==
-X-Received: by 2002:a17:90a:a404:: with SMTP id y4mr4790952pjp.58.1560084747509;
-        Sun, 09 Jun 2019 05:52:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwEhcC3x0WjBHNBEhPe5TWEuATin+6BYr1+gFmE02IJa8Ppq4Aq8bqFcENKFWv0WwFVXxNL
-X-Received: by 2002:a17:90a:a404:: with SMTP id y4mr4790916pjp.58.1560084746763;
-        Sun, 09 Jun 2019 05:52:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560084746; cv=none;
+        bh=NQudY9FFsAW79M5c5385NSMdE/hIO+weB7ZIwQN1QBA=;
+        b=X40d7ChBYnBN59bmvB8TZOPitk4m3k0tdeh0SpNJaQ5EKdWL6xkqa2cex/a5G43vnY
+         LndosMt0t2GRfOU0R406eo3tEQwtrOn7LlYUbUL+xSYwD6mNczDBi+a8Dez5Eik009TM
+         6XkjsF6vHr33PETdRBuXPKtyXhTrrATQCmjwYVTwFeKEz2GpCSrf4OokKHpaL7IOrm89
+         Wpily7psA/SSe1GLciRAEe4FaWv/f02nSvncB0HQiJ9UTCCdONWUZmRH6B5MrXCd7yKL
+         OtMVzBgVJ62t+IIrvx1RH4UT2V9wnsXASZ1fKGf1vssW6Qf6Hl/TvfCexJaaT09BOudn
+         lmjQ==
+X-Gm-Message-State: APjAAAUW0lFiUIoungfQzjxtsMCBUXmiar8pja4rg7qmWfx4T6rgNTEX
+	4rv7hExqK/fQZQG4i+PeQEnYveyiDwD681DyMSFucCI16dFVL6VhHl+NvVyohfIxUBSWg4afJWf
+	7l++taJhArPIhZ/WMXfUgCHj4AGlD9f1UTEDL9vjRzbVjfdYoITxK70HeIildPKTEiw==
+X-Received: by 2002:a63:18e:: with SMTP id 136mr11340322pgb.277.1560085230892;
+        Sun, 09 Jun 2019 06:00:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyIX0a6SGs2dAaIVvt2LWnHWqC9Hde5bvmxZoJbclUlZB0Jejc/Cnf1KZ19ogdOhZwmjoYv
+X-Received: by 2002:a63:18e:: with SMTP id 136mr11340260pgb.277.1560085229875;
+        Sun, 09 Jun 2019 06:00:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560085229; cv=none;
         d=google.com; s=arc-20160816;
-        b=kWwhZedPF1znfVxAm6cMZdYYtrO7aIwucEEmN7CH1OuWUn05oiTp2joPzWZ+pRGsHO
-         7dd/4aqDz03OVNVrKINx0YkA27Hl5sfuWxtnc6WarLsWlneO22FTDhNTcRO/LdFjuN1Y
-         2S/Oj4yK/B6SYqTemj88X09wnLwExnDN6qLAKyXwzlqeOM2QO2LddPR664V2vNfTIzx5
-         CdwcBtjhAIQ/IJFKFC5C7X5iD4nQ7rg1QoeX/x8ZwxaofJSCphsocyZVzn+Tfx6giBeC
-         UFjWweA/b1q7uoYTy98ag+SQE+zqsPUY3rPJ5xBjMUj75/CXCXEPRtHe4sXPJXttQ7tM
-         Z+AQ==
+        b=ZCWTxTIXGNi5PT7kkDb588/0NotEqH3DCPqg6MG1C2yVhrVjndjqr5/c1nmqKJ93ij
+         ha5obTxngn+5L/RvwklqhYa+Yqe6i/KRMwxtAOiFaUh45QVt73jfCTf3UGdn2DUfuVBc
+         NIXdUXXGcGe5DgjcMPHjEYOJ9PUuU46xk56zS+OnY1CW6qEqRW+MHR9fFgomNYqu/ww+
+         ync42zJQwzddnS9adRKJSJJY5CV3QOI+xnDCVz4fIBMuoCvumkstHko2iyAhIprpyNwl
+         G+EvhaodnZwsg5eWD4EgeT4Ka9yB5Y3Bu/Ec2/GrVyMj0WTpl7Ub/6O/ppVVFvry5vAM
+         SLWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:date:cc:to:from:subject:message-id:dkim-signature;
-        bh=nVSIzUxvD1RqXxPMm3DPulW0LemDfOUCgD8NaU75XxU=;
-        b=cgw2P9t0Try9CTWayhUhn9jr4P943eV5RDnlhttdN3yjNkQzzeg4TsQ2OsKeZ8YA2V
-         d08ksfz/nNxq4WIxzxGzUED5AOfwh5Ns8NoB218Hr16jmyUMQ5JkYwrxU6Sdm7hfo3h0
-         Fxdtm7k+PHnRLty3rm/YDPVmGMj4vMJUXUv9dmTkYspq8AvvatqHEHUHv6wzQTyPgWOp
-         xJE6LriZHs3W3sykeP0TKI6MuMlW1P1mmFF9CfUP+B0CDctZhtDntte95Qdk5p5s4WLN
-         Yq28yOKDgodtbzYqvRArzWROLxcowuTJU2rkW0UrvCIH0mruZ6uYmypYLxCPDroXsV3e
-         DGWw==
+        bh=NQudY9FFsAW79M5c5385NSMdE/hIO+weB7ZIwQN1QBA=;
+        b=YtE30sHlnz2LJ95B62XdITuU4bDzHu5hrxDmK1zRORFMb/qhL8l14vNZufQiajj3Rj
+         awewyv2yFkgsg7MoYQlHh706KQVGTE3AoYQ5mLfYPz52XTKn0uJsPbnc1aahONV0twXa
+         HQ+gDSXqGFcqqDYXkc2BbUEpKrvs2t9nRCIkqlYl0avTewOhu+gUt12EaY7/YZ3SKk4X
+         KwhQiOzPSFhScWMVidteOuxFG6rHcMWOwc8nTwamwli9ygktiLNT2znq4JtL1NYrC2No
+         OAPy7/sEiJ1vHmJrHU1k7Ss6BxQoHYDIkyi9wKpiUK5U4l9ycLO9iBxAvukKwi3e5nea
+         bAyg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="Fb0/d1TP";
+       dkim=pass header.i=@kernel.org header.s=default header.b=lvFMTFuV;
        spf=pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jlayton@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 74si6958437pga.291.2019.06.09.05.52.26
+        by mx.google.com with ESMTPS id s17si7334255pjp.26.2019.06.09.06.00.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 09 Jun 2019 05:52:26 -0700 (PDT)
+        Sun, 09 Jun 2019 06:00:29 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="Fb0/d1TP";
+       dkim=pass header.i=@kernel.org header.s=default header.b=lvFMTFuV;
        spf=pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jlayton@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from vulcan (047-135-017-034.res.spectrum.com [47.135.17.34])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 0543520644;
-	Sun,  9 Jun 2019 12:52:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 9FCDF20868;
+	Sun,  9 Jun 2019 13:00:26 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1560084746;
-	bh=Jp7kr5DJqAmzvLis1iU/kH5HcxTG0RVYIAF+Rpsd6qw=;
+	s=default; t=1560085229;
+	bh=L0yNfd1FSvmAPkTQHTncEd561Zv88fasReuSNoRcSdw=;
 	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
-	b=Fb0/d1TPF/IYByoPE3/h+/h5Nml1u3pYuNxucYdi3Pa7jHKQWf5ff6iC0gdj4ClyR
-	 1+mbW/akKAyRuHM4gDoX0wazMyWkrtb2zYBHWqsFXVnAUf4YOmYBHdBPzbKX96kB2U
-	 oP2KgGTk8o+FmZtKSAhFyGm8i96fdLia2YEod7hM=
-Message-ID: <dbc19013b6f2a654541980edd1a00b72331645f9.camel@kernel.org>
-Subject: Re: [PATCH RFC 01/10] fs/locks: Add trace_leases_conflict
+	b=lvFMTFuVGn0xl1kfRqKAez4aHevZIYYINphCjUN2Y3kNxo7awfqz8Id4dnn3IO+F7
+	 WH0wPcq4HaJWuCD2v9oC8sDF2z/9TRL7O8VR5rzCGVdWP7vtIYJILJDWGT+7uOAvIq
+	 25x4b+dR6F/ecGxQ5APky5IMNsDLyOjVHNrAph1E=
+Message-ID: <4e5eb31a41b91a28fbc83c65195a2c75a59cfa24.camel@kernel.org>
+Subject: Re: [PATCH RFC 02/10] fs/locks: Export F_LAYOUT lease to user space
 From: Jeff Layton <jlayton@kernel.org>
 To: ira.weiny@intel.com, Dan Williams <dan.j.williams@intel.com>, Jan Kara
  <jack@suse.cz>, Theodore Ts'o <tytso@mit.edu>, Dave Chinner
@@ -106,10 +106,10 @@ Cc: Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org, Andrew
 	 <jglisse@redhat.com>, linux-fsdevel@vger.kernel.org, 
 	linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org, 
 	linux-ext4@vger.kernel.org, linux-mm@kvack.org
-Date: Sun, 09 Jun 2019 08:52:20 -0400
-In-Reply-To: <20190606014544.8339-2-ira.weiny@intel.com>
+Date: Sun, 09 Jun 2019 09:00:24 -0400
+In-Reply-To: <20190606014544.8339-3-ira.weiny@intel.com>
 References: <20190606014544.8339-1-ira.weiny@intel.com>
-	 <20190606014544.8339-2-ira.weiny@intel.com>
+	 <20190606014544.8339-3-ira.weiny@intel.com>
 Content-Type: text/plain; charset="UTF-8"
 User-Agent: Evolution 3.32.2 (3.32.2-1.fc30) 
 MIME-Version: 1.0
@@ -123,92 +123,211 @@ List-ID: <linux-mm.kvack.org>
 On Wed, 2019-06-05 at 18:45 -0700, ira.weiny@intel.com wrote:
 > From: Ira Weiny <ira.weiny@intel.com>
 > 
+> GUP longterm pins of non-pagecache file system pages (eg FS DAX) are
+> currently disallowed because they are unsafe.
+> 
+> The danger for pinning these pages comes from the fact that hole punch
+> and/or truncate of those files results in the pages being mapped and
+> pinned by a user space process while DAX has potentially allocated those
+> pages to other processes.
+> 
+> Most (All) users who are mapping FS DAX pages for long term pin purposes
+> (such as RDMA) are not going to want to deallocate these pages while
+> those pages are in use.  To do so would mean the application would lose
+> data.  So the use case for allowing truncate operations of such pages
+> is limited.
+> 
+> However, the kernel must protect itself and users from potential
+> mistakes and/or malicious user space code.  Rather than disabling long
+> term pins as is done now.   Allow for users who know they are going to
+> be pinning this memory to alert the file system of this intention.
+> Furthermore, allow users to be alerted such that they can react if a
+> truncate operation occurs for some reason.
+> 
+> Example user space pseudocode for a user using RDMA and wanting to allow
+> a truncate would look like this:
+> 
+> lease_break_sigio_handler() {
+> ...
+> 	if (sigio.fd == rdma_fd) {
+> 		complete_rdma_operations(...);
+> 		ibv_dereg_mr(mr);
+> 		close(rdma_fd);
+> 		fcntl(rdma_fd, F_SETLEASE, F_UNLCK);
+> 	}
+> }
+> 
+> setup_rdma_to_dax_file() {
+> ...
+> 	rdma_fd = open(...)
+> 	fcntl(rdma_fd, F_SETLEASE, F_LAYOUT);
+
+I'm not crazy about this interface. F_LAYOUT doesn't seem to be in the
+same category as F_RDLCK/F_WRLCK/F_UNLCK.
+
+Maybe instead of F_SETLEASE, this should use new
+F_SETLAYOUT/F_GETLAYOUT cmd values? There is nothing that would prevent
+you from setting both a lease and a layout on a file, and indeed knfsd
+can set both.
+
+This interface seems to conflate the two.
+
+> 	sigaction(SIGIO, ...  lease_break ...);
+> 	ptr = mmap(rdma_fd, ...);
+> 	mr = ibv_reg_mr(ptr, ...);
+> 	do_rdma_stuff(...);
+> }
+> 
+> Follow on patches implement the notification of the lease holder on
+> truncate as well as failing the truncate if the GUP pin is not released.
+> 
+> This first patch exports the F_LAYOUT lease type and allows the user to set
+> and get it.
+> 
+> After the complete series:
+> 
+> 1) Failure to obtain a F_LAYOUT lease on an open FS DAX file will result
+>    in a failure to GUP pin any pages in that file.  An example of a call
+>    which results in GUP pin is ibv_reg_mr().
+> 2) While the GUP pin is in place (eg MR is in use) truncates of the
+>    affected pages will fail.
+> 3) If the user registers a sigaction they will be notified of the
+>    truncate so they can react.  Failure to react will result in the
+>    lease being revoked after <sysfs>/lease-break-time seconds.  After
+>    this time new GUP pins will fail without a new lease being taken.
+> 4) A truncate will work if the pages being truncated are not actively
+>    pinned at the time of truncate.  Attempts to pin these pages after
+>    will result in a failure.
+> 
 > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
 > ---
->  fs/locks.c                      | 20 ++++++++++++++-----
->  include/trace/events/filelock.h | 35 +++++++++++++++++++++++++++++++++
->  2 files changed, 50 insertions(+), 5 deletions(-)
+>  fs/locks.c                       | 36 +++++++++++++++++++++++++++-----
+>  include/linux/fs.h               |  2 +-
+>  include/uapi/asm-generic/fcntl.h |  3 +++
+>  3 files changed, 35 insertions(+), 6 deletions(-)
 > 
 > diff --git a/fs/locks.c b/fs/locks.c
-> index ec1e4a5df629..0cc2b9f30e22 100644
+> index 0cc2b9f30e22..de9761c068de 100644
 > --- a/fs/locks.c
 > +++ b/fs/locks.c
-> @@ -1534,11 +1534,21 @@ static void time_out_leases(struct inode *inode, struct list_head *dispose)
->  
->  static bool leases_conflict(struct file_lock *lease, struct file_lock *breaker)
->  {
-> -	if ((breaker->fl_flags & FL_LAYOUT) != (lease->fl_flags & FL_LAYOUT))
-> -		return false;
-> -	if ((breaker->fl_flags & FL_DELEG) && (lease->fl_flags & FL_LEASE))
-> -		return false;
-> -	return locks_conflict(breaker, lease);
-> +	bool rc;
-> +
-> +	if ((breaker->fl_flags & FL_LAYOUT) != (lease->fl_flags & FL_LAYOUT)) {
-> +		rc = false;
-> +		goto trace;
-> +	}
-> +	if ((breaker->fl_flags & FL_DELEG) && (lease->fl_flags & FL_LEASE)) {
-> +		rc = false;
-> +		goto trace;
-> +	}
-> +
-> +	rc = locks_conflict(breaker, lease);
-> +trace:
-> +	trace_leases_conflict(rc, lease, breaker);
-> +	return rc;
+> @@ -191,6 +191,8 @@ static int target_leasetype(struct file_lock *fl)
+>  		return F_UNLCK;
+>  	if (fl->fl_flags & FL_DOWNGRADE_PENDING)
+>  		return F_RDLCK;
+> +	if (fl->fl_flags & FL_LAYOUT)
+> +		return F_LAYOUT;
+>  	return fl->fl_type;
 >  }
 >  
->  static bool
-> diff --git a/include/trace/events/filelock.h b/include/trace/events/filelock.h
-> index fad7befa612d..4b735923f2ff 100644
-> --- a/include/trace/events/filelock.h
-> +++ b/include/trace/events/filelock.h
-> @@ -203,6 +203,41 @@ TRACE_EVENT(generic_add_lease,
->  		show_fl_type(__entry->fl_type))
->  );
+> @@ -611,7 +613,8 @@ static const struct lock_manager_operations lease_manager_ops = {
+>  /*
+>   * Initialize a lease, use the default lock manager operations
+>   */
+> -static int lease_init(struct file *filp, long type, struct file_lock *fl)
+> +static int lease_init(struct file *filp, long type, unsigned int flags,
+> +		      struct file_lock *fl)
+>  {
+>  	if (assign_type(fl, type) != 0)
+>  		return -EINVAL;
+> @@ -621,6 +624,8 @@ static int lease_init(struct file *filp, long type, struct file_lock *fl)
 >  
-> +TRACE_EVENT(leases_conflict,
-> +	TP_PROTO(bool conflict, struct file_lock *lease, struct file_lock *breaker),
-> +
-> +	TP_ARGS(conflict, lease, breaker),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(void *, lease)
-> +		__field(void *, breaker)
-> +		__field(unsigned int, l_fl_flags)
-> +		__field(unsigned int, b_fl_flags)
-> +		__field(unsigned char, l_fl_type)
-> +		__field(unsigned char, b_fl_type)
-> +		__field(bool, conflict)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->lease = lease;
-> +		__entry->l_fl_flags = lease->fl_flags;
-> +		__entry->l_fl_type = lease->fl_type;
-> +		__entry->breaker = breaker;
-> +		__entry->b_fl_flags = breaker->fl_flags;
-> +		__entry->b_fl_type = breaker->fl_type;
-> +		__entry->conflict = conflict;
-> +	),
-> +
-> +	TP_printk("conflict %d: lease=0x%p fl_flags=%s fl_type=%s; breaker=0x%p fl_flags=%s fl_type=%s",
-> +		__entry->conflict,
-> +		__entry->lease,
-> +		show_fl_flags(__entry->l_fl_flags),
-> +		show_fl_type(__entry->l_fl_type),
-> +		__entry->breaker,
-> +		show_fl_flags(__entry->b_fl_flags),
-> +		show_fl_type(__entry->b_fl_type))
-> +);
-> +
->  #endif /* _TRACE_FILELOCK_H */
+>  	fl->fl_file = filp;
+>  	fl->fl_flags = FL_LEASE;
+> +	if (flags & FL_LAYOUT)
+> +		fl->fl_flags |= FL_LAYOUT;
+>  	fl->fl_start = 0;
+>  	fl->fl_end = OFFSET_MAX;
+>  	fl->fl_ops = NULL;
+> @@ -629,7 +634,8 @@ static int lease_init(struct file *filp, long type, struct file_lock *fl)
+>  }
 >  
->  /* This part must be outside protection */
-
-This looks useful. I'll plan to merge this one for v5.3 unless there
-are objections.
-
-Reviewed-by: Jeff Layton <jlayton@kernel.org>
+>  /* Allocate a file_lock initialised to this type of lease */
+> -static struct file_lock *lease_alloc(struct file *filp, long type)
+> +static struct file_lock *lease_alloc(struct file *filp, long type,
+> +				     unsigned int flags)
+>  {
+>  	struct file_lock *fl = locks_alloc_lock();
+>  	int error = -ENOMEM;
+> @@ -637,7 +643,7 @@ static struct file_lock *lease_alloc(struct file *filp, long type)
+>  	if (fl == NULL)
+>  		return ERR_PTR(error);
+>  
+> -	error = lease_init(filp, type, fl);
+> +	error = lease_init(filp, type, flags, fl);
+>  	if (error) {
+>  		locks_free_lock(fl);
+>  		return ERR_PTR(error);
+> @@ -1588,7 +1594,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
+>  	int want_write = (mode & O_ACCMODE) != O_RDONLY;
+>  	LIST_HEAD(dispose);
+>  
+> -	new_fl = lease_alloc(NULL, want_write ? F_WRLCK : F_RDLCK);
+> +	new_fl = lease_alloc(NULL, want_write ? F_WRLCK : F_RDLCK, 0);
+>  	if (IS_ERR(new_fl))
+>  		return PTR_ERR(new_fl);
+>  	new_fl->fl_flags = type;
+> @@ -1725,6 +1731,8 @@ EXPORT_SYMBOL(lease_get_mtime);
+>   *
+>   *	%F_UNLCK to indicate no lease is held.
+>   *
+> + *	%F_LAYOUT to indicate a layout lease is held.
+> + *
+>   *	(if a lease break is pending):
+>   *
+>   *	%F_RDLCK to indicate an exclusive lease needs to be
+> @@ -2015,8 +2023,26 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
+>  	struct file_lock *fl;
+>  	struct fasync_struct *new;
+>  	int error;
+> +	unsigned int flags = 0;
+> +
+> +	/*
+> +	 * NOTE on F_LAYOUT lease
+> +	 *
+> +	 * LAYOUT lease types are taken on files which the user knows that
+> +	 * they will be pinning in memory for some indeterminate amount of
+> +	 * time.  Such as for use with RDMA.  While we don't know what user
+> +	 * space is going to do with the file we still use a F_RDLOCK level of
+> +	 * lease.  This ensures that there are no conflicts between
+> +	 * 2 users.  The conflict should only come from the File system wanting
+> +	 * to revoke the lease in break_layout()  And this is done by using
+> +	 * F_WRLCK in the break code.
+> +	 */
+> +	if (arg == F_LAYOUT) {
+> +		arg = F_RDLCK;
+> +		flags = FL_LAYOUT;
+> +	}
+>  
+> -	fl = lease_alloc(filp, arg);
+> +	fl = lease_alloc(filp, arg, flags);
+>  	if (IS_ERR(fl))
+>  		return PTR_ERR(fl);
+>  
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index f7fdfe93e25d..9e9d8d35ee93 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -998,7 +998,7 @@ static inline struct file *get_file(struct file *f)
+>  #define FL_DOWNGRADE_PENDING	256 /* Lease is being downgraded */
+>  #define FL_UNLOCK_PENDING	512 /* Lease is being broken */
+>  #define FL_OFDLCK	1024	/* lock is "owned" by struct file */
+> -#define FL_LAYOUT	2048	/* outstanding pNFS layout */
+> +#define FL_LAYOUT	2048	/* outstanding pNFS layout or user held pin */
+>  
+>  #define FL_CLOSE_POSIX (FL_POSIX | FL_CLOSE)
+>  
+> diff --git a/include/uapi/asm-generic/fcntl.h b/include/uapi/asm-generic/fcntl.h
+> index 9dc0bf0c5a6e..baddd54f3031 100644
+> --- a/include/uapi/asm-generic/fcntl.h
+> +++ b/include/uapi/asm-generic/fcntl.h
+> @@ -174,6 +174,9 @@ struct f_owner_ex {
+>  #define F_SHLCK		8	/* or 4 */
+>  #endif
+>  
+> +#define F_LAYOUT	16      /* layout lease to allow longterm pins such as
+> +				   RDMA */
+> +
+>  /* operations for bsd flock(), also used by the kernel implementation */
+>  #define LOCK_SH		1	/* shared lock */
+>  #define LOCK_EX		2	/* exclusive lock */
 
