@@ -2,283 +2,258 @@ Return-Path: <SRS0=K2XS=UI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A2F1C2BCA1
-	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 17:18:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 421E1C28EBD
+	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 19:45:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 15D7B20652
-	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 17:18:37 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nD6vUOey"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15D7B20652
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id C892D206BB
+	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 19:45:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C892D206BB
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A57936B026E; Sun,  9 Jun 2019 13:18:36 -0400 (EDT)
+	id 3CED26B0266; Sun,  9 Jun 2019 15:45:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9E07A6B026F; Sun,  9 Jun 2019 13:18:36 -0400 (EDT)
+	id 37E6A6B0269; Sun,  9 Jun 2019 15:45:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 85B996B0270; Sun,  9 Jun 2019 13:18:36 -0400 (EDT)
+	id 295726B026D; Sun,  9 Jun 2019 15:45:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 192AA6B026E
-	for <linux-mm@kvack.org>; Sun,  9 Jun 2019 13:18:36 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id f23so390675lja.9
-        for <linux-mm@kvack.org>; Sun, 09 Jun 2019 10:18:36 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E5A326B0266
+	for <linux-mm@kvack.org>; Sun,  9 Jun 2019 15:45:18 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id u21so2483569pfn.15
+        for <linux-mm@kvack.org>; Sun, 09 Jun 2019 12:45:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=ACJ30A/Mvxipzw9s6ZSrzImQxdOVyc9S1cfXlCbiESk=;
-        b=ruEt6kZ0kS4Y8cHu8vnHDGA8ut5ghGKVF2xhUrwf62XhRbcDdMDBaOJ/P75lsYR6Ul
-         5XSfgTweQPwZ8/Wi3E6zZVocLJ/KU+u5yF+1e4fNGm8WVRcKPJGx02alXV4MLzy03UU5
-         nWkZQOeiTZGVs8pt79R4cCQ6KkF+8DxWdggkeWeNNGdJTU9kL8gJgDlD2gASdIWzp9i7
-         NMfw2tRung23haO/Bcue1VRGuPlkre2HKnYYYC6EweL56y8dHwAHvzH35ec6cY4QVva2
-         i6htEJIzepapxAX9GTtqIMjlQyi496d4HMDB2VMAFTsycYg+KbcYPkPlCGnoejNrEofU
-         vFow==
-X-Gm-Message-State: APjAAAUQm6XPzcQtL14PI9XiGcjI+ayd5B/njgOr2EqBJ6CQvC8JFGtz
-	e2omr3a3zCadPkGg8+mrZG40xad6491YaEFhPGcX2hveVL9TVdxRy+IDuM//W9WfhS4l6Lx5guj
-	bmjrosMaZBikY/CzM9mvlWtFuS1xUma1X3wktNQIKBgpMQh5ZVdtlgJN+l42wZAOlEw==
-X-Received: by 2002:ac2:51ab:: with SMTP id f11mr6742422lfk.55.1560100715536;
-        Sun, 09 Jun 2019 10:18:35 -0700 (PDT)
-X-Received: by 2002:ac2:51ab:: with SMTP id f11mr6742392lfk.55.1560100714495;
-        Sun, 09 Jun 2019 10:18:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560100714; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=bh9ZnrZBjcqHp55Fbr34HGe2zjkIzfrP4x/GwijvMIs=;
+        b=Tnin0k4CD+EJAV0aUpLODbh2p99/hsilgrQlhB8vDlMisDOZrW8LkbRz9FBXg+pddH
+         eU69l2z1XJgH88Rn03GHDmQL7B3JZV4u/1wsChlOWa5TMQ57BwnTMk+0L3xo7kCI1pa1
+         9D/sWin8Dp0sytA+x6xN8KIzig9bCcSpfi+0OT7rQqmQKc9V4Mpiwga606aJ3PUWCjRX
+         gdlbbTk1AsuSi4829OzDjC1M3FLXOBZQkFU8/5zEmdcYJ9YZ8tK9E6bBDQIbMKJBAre9
+         nWn6rj3SdMg6QoFIpPoznWeqETwouBsVbbL/fDWPo9VaFOoyXs7rafbFwT/KsrYz3vLq
+         TxRg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXfOhJcNy3JXU9HRCF01KvxXDBS7nfa6vPcKzucX93GK5P972+Y
+	rKW+BJUpGJlQuM8D4FOCFEzWVJsL1g+eeHYvNi204XFKHkLlVZeJr6JrUWZk0D+kB2eW7wJCGAr
+	9ss8KgodN/0tp7ZmeZPqWyWzPFP14onvEXkpt8nbWKdRRKO/c1h1kecN8ekF/WxI9vg==
+X-Received: by 2002:a63:649:: with SMTP id 70mr12728558pgg.445.1560109518409;
+        Sun, 09 Jun 2019 12:45:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzSJ/8D++ZYnAThZMfK6GT3uB/oKZV5lfxzmne2U48gT+Oy2BnoczxDqUiM5x1C397EA9AD
+X-Received: by 2002:a63:649:: with SMTP id 70mr12728502pgg.445.1560109517359;
+        Sun, 09 Jun 2019 12:45:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560109517; cv=none;
         d=google.com; s=arc-20160816;
-        b=Vynn+roGDskZp1Je/OTcBJWa6sEji4IdAlNy0UWwR+NG1ROy5itzutS+1QkrcFOaof
-         1W6H/OyTygcFS0x1fwEC6I9gGWXg1pLkD0l16aJ9qcz6in8wcwvntInqrErwxs8pvntu
-         vJ894iho+LjEHGbz2O5HHLzj+iqJDlUjnWGxMkKpibGBbKUNzsPjXkFV+RQVChybuV6c
-         RWOk/X+vr5fbw7xFl4zaiDAnQUWsvbdSzdX9FIHhEvMY+drsLNqLaNpvaB89RafvMwjW
-         yqT4NImCDTZ+/0ecLSoQzMMwvkm27UJxFISw8Z/f+X1hifwOPkacTDKLeGYRXENHxzZv
-         Bg5Q==
+        b=GcDcagIqVaHxvEd7XyDy0+FkXNOVjW5c+qyEfukzrdQxLcKpIEpCsblav5JxTBM4jm
+         /3DMXZ8oXdIwcKkzQDFFNYkhvx04Xhe7FsxY4MuclMgFgwENrXF4FTqDzqlQGHLK9P5s
+         MUIT0zwKjJbZ99kU5gZfLfg8nChT13piwSQEzfC9oYOAlo84ywN1SA0a1BiaJnZydus3
+         YryP4dvEFsesLXfIYqzXU0Oxx4mOZ20nt9ibs6RvfKMSJ/SfPQYJta98Zcjl03TKV2TC
+         xxs1D8NdUCzBq8hvEUwZX5cfb0R5w9duEQxQQ4J4BywxpUF7kMNSQn0w6ezD9hNA53BW
+         hKiA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=ACJ30A/Mvxipzw9s6ZSrzImQxdOVyc9S1cfXlCbiESk=;
-        b=x/7no61g87o6CAmUC9jpZ63EyinYntckCaVlG4an2dNnFnMI2znGtUm9jXabaEFY75
-         VbJ+3IawyCm7YZKcFwki/qA1CHVMoEUynBR1UqObXhdFt1dYwwbzqQJftjbigib+U5fA
-         +TNKJLcRBri8IK/4fJyQTxGY/KNjIfPIlSdV2O+RHo7D/8r/tKZSd9HLVBc1yFc7X3lG
-         TX/jdQE6lnttkV0IB275DWcuFCaxC1FldI7YrDmMwxf+3binHbJr2bZJvtQ+6kYzJR1y
-         jvjZBuRm0R116rfXxaKTY3Jf9yfZuMn5bFuQA1J8hbDIuq58aFudva06+nmugYOFaCl+
-         L7mw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=bh9ZnrZBjcqHp55Fbr34HGe2zjkIzfrP4x/GwijvMIs=;
+        b=JfQ0mymNw5Ku6SMs+iyx6RxSops99n4eO9FR/pHD6n3KoIYWBUTp34qPdcEoAbrYCf
+         GS6Hz0VsKt74To3z8CQHWAHS4F3ub8qZtlvsOCT36wF6mYn1fZNRbp1yiY+Wn+vZAKNo
+         rgrvOLrXcX1mbfL8MPg7p1PzmAsvM9nkPFeAb6sf+j9iL4NFxHRbf5Xjxtkh4l0F09LX
+         Ke/+YbpSa+MPKGByqqk0fjQaF/J2o6SY1Vm3Epy0GrMtSQ4/UvFjE3v61LKp9V1bGHKz
+         tgxXGSurKDuyPG7xKVkS8XqGyw1OSx3/xI+Cj1fforRD72I8RAJy8Vha1LL/Fkrb+0ks
+         l9tQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nD6vUOey;
-       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j9sor3706599ljc.8.2019.06.09.10.18.34
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id f4si8069323pgo.216.2019.06.09.12.45.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 09 Jun 2019 10:18:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 09 Jun 2019 12:45:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nD6vUOey;
-       spf=pass (google.com: domain of vdavydov.dev@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=vdavydov.dev@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=ACJ30A/Mvxipzw9s6ZSrzImQxdOVyc9S1cfXlCbiESk=;
-        b=nD6vUOeyAeSqCFxG3FLOQ9sFcOVhkFlKok1Jbq9mtVpnkNftXLLZC4JimBJFEnBCBi
-         dtN3r5gTyxfQ7zSuT4H26gAZkPn6N2UmG6/qQy134Tuqy+jc2cI1wHSB0K79P+GHsLP/
-         MeIEquWhKYto4c5dDtF8Wduuzob3Nugv9F31IxmDUn9zfZCsNp6I/mG7ZaUWbQG5DZpk
-         yN4ECnumY7bmL6uNLh1eVBW6NAujJQd38azs2LUaFypv30RvmTTkZutdQvBEhcM0GEM/
-         C4O9z64oiUcm6ve/3WoqLC+cCd4Sbya5dfeqHKSPe/uZcdQXEO3uUB+slMCvagy4r3Bp
-         UwkA==
-X-Google-Smtp-Source: APXvYqwHJgO8n/Blo45Dnzb9QlBUFOUwnxND/C+LAJb8RiNCNuRGyssMmUxAvrOkQSc4+GXV8eXY7A==
-X-Received: by 2002:a2e:9654:: with SMTP id z20mr7213303ljh.52.1560100714163;
-        Sun, 09 Jun 2019 10:18:34 -0700 (PDT)
-Received: from esperanza ([176.120.239.149])
-        by smtp.gmail.com with ESMTPSA id c8sm1473675ljk.77.2019.06.09.10.18.33
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sun, 09 Jun 2019 10:18:33 -0700 (PDT)
-Date: Sun, 9 Jun 2019 20:18:31 +0300
-From: Vladimir Davydov <vdavydov.dev@gmail.com>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, kernel-team@fb.com,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Shakeel Butt <shakeelb@google.com>,
-	Waiman Long <longman@redhat.com>
-Subject: Re: [PATCH v6 10/10] mm: reparent slab memory on cgroup removal
-Message-ID: <20190609171831.er3wdlmnkhwptqzr@esperanza>
-References: <20190605024454.1393507-1-guro@fb.com>
- <20190605024454.1393507-11-guro@fb.com>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Jun 2019 12:45:16 -0700
+X-ExtLoop1: 1
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga006.jf.intel.com with ESMTP; 09 Jun 2019 12:45:16 -0700
+Date: Sun, 9 Jun 2019 12:46:32 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Ralph Campbell <rcampbell@nvidia.com>
+Cc: Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>,
+	Felix.Kuehling@amd.com, Jason Gunthorpe <jgg@mellanox.com>,
+	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
+Subject: Re: [RFC] mm/hmm: pass mmu_notifier_range to
+ sync_cpu_device_pagetables
+Message-ID: <20190609194632.GB19825@iweiny-DESK2.sc.intel.com>
+References: <20190608001452.7922-1-rcampbell@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190605024454.1393507-11-guro@fb.com>
+In-Reply-To: <20190608001452.7922-1-rcampbell@nvidia.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 04, 2019 at 07:44:54PM -0700, Roman Gushchin wrote:
-> Let's reparent memcg slab memory on memcg offlining. This allows us
-> to release the memory cgroup without waiting for the last outstanding
-> kernel object (e.g. dentry used by another application).
+On Fri, Jun 07, 2019 at 05:14:52PM -0700, Ralph Campbell wrote:
+> HMM defines its own struct hmm_update which is passed to the
+> sync_cpu_device_pagetables() callback function. This is
+> sufficient when the only action is to invalidate. However,
+> a device may want to know the reason for the invalidation and
+> be able to see the new permissions on a range, update device access
+> rights or range statistics. Since sync_cpu_device_pagetables()
+> can be called from try_to_unmap(), the mmap_sem may not be held
+> and find_vma() is not safe to be called.
+> Pass the struct mmu_notifier_range to sync_cpu_device_pagetables()
+> to allow the full invalidation information to be used.
 > 
-> So instead of reparenting all accounted slab pages, let's do reparent
-> a relatively small amount of kmem_caches. Reparenting is performed as
-> a part of the deactivation process.
-> 
-> Since the parent cgroup is already charged, everything we need to do
-> is to splice the list of kmem_caches to the parent's kmem_caches list,
-> swap the memcg pointer and drop the css refcounter for each kmem_cache
-> and adjust the parent's css refcounter. Quite simple.
-> 
-> Please, note that kmem_cache->memcg_params.memcg isn't a stable
-> pointer anymore. It's safe to read it under rcu_read_lock() or
-> with slab_mutex held.
-> 
-> We can race with the slab allocation and deallocation paths. It's not
-> a big problem: parent's charge and slab global stats are always
-> correct, and we don't care anymore about the child usage and global
-> stats. The child cgroup is already offline, so we don't use or show it
-> anywhere.
-> 
-> Local slab stats (NR_SLAB_RECLAIMABLE and NR_SLAB_UNRECLAIMABLE)
-> aren't used anywhere except count_shadow_nodes(). But even there it
-> won't break anything: after reparenting "nodes" will be 0 on child
-> level (because we're already reparenting shrinker lists), and on
-> parent level page stats always were 0, and this patch won't change
-> anything.
-> 
-> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+
+I don't disagree with Christoph or Jason but since I've been trying to sort out
+where hmm does and does not fit any chance to remove a custom structure is a
+good simplification IMO.  So...
+
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+
 > ---
->  include/linux/slab.h |  4 ++--
->  mm/list_lru.c        |  8 +++++++-
->  mm/memcontrol.c      | 14 ++++++++------
->  mm/slab.h            | 23 +++++++++++++++++------
->  mm/slab_common.c     | 22 +++++++++++++++++++---
->  5 files changed, 53 insertions(+), 18 deletions(-)
 > 
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 1b54e5f83342..109cab2ad9b4 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -152,7 +152,7 @@ void kmem_cache_destroy(struct kmem_cache *);
->  int kmem_cache_shrink(struct kmem_cache *);
+> I'm sending this out now since we are updating many of the HMM APIs
+> and I think it will be useful.
+> 
+> 
+>  drivers/gpu/drm/nouveau/nouveau_svm.c |  4 ++--
+>  include/linux/hmm.h                   | 27 ++-------------------------
+>  mm/hmm.c                              | 13 ++++---------
+>  3 files changed, 8 insertions(+), 36 deletions(-)
+> 
+> diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.c b/drivers/gpu/drm/nouveau/nouveau_svm.c
+> index 8c92374afcf2..c34b98fafe2f 100644
+> --- a/drivers/gpu/drm/nouveau/nouveau_svm.c
+> +++ b/drivers/gpu/drm/nouveau/nouveau_svm.c
+> @@ -252,13 +252,13 @@ nouveau_svmm_invalidate(struct nouveau_svmm *svmm, u64 start, u64 limit)
 >  
->  void memcg_create_kmem_cache(struct mem_cgroup *, struct kmem_cache *);
-> -void memcg_deactivate_kmem_caches(struct mem_cgroup *);
-> +void memcg_deactivate_kmem_caches(struct mem_cgroup *, struct mem_cgroup *);
+>  static int
+>  nouveau_svmm_sync_cpu_device_pagetables(struct hmm_mirror *mirror,
+> -					const struct hmm_update *update)
+> +					const struct mmu_notifier_range *update)
+>  {
+>  	struct nouveau_svmm *svmm = container_of(mirror, typeof(*svmm), mirror);
+>  	unsigned long start = update->start;
+>  	unsigned long limit = update->end;
+>  
+> -	if (!update->blockable)
+> +	if (!mmu_notifier_range_blockable(update))
+>  		return -EAGAIN;
+>  
+>  	SVMM_DBG(svmm, "invalidate %016lx-%016lx", start, limit);
+> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+> index 0fa8ea34ccef..07a2d38fde34 100644
+> --- a/include/linux/hmm.h
+> +++ b/include/linux/hmm.h
+> @@ -377,29 +377,6 @@ static inline uint64_t hmm_pfn_from_pfn(const struct hmm_range *range,
+>  
+>  struct hmm_mirror;
+>  
+> -/*
+> - * enum hmm_update_event - type of update
+> - * @HMM_UPDATE_INVALIDATE: invalidate range (no indication as to why)
+> - */
+> -enum hmm_update_event {
+> -	HMM_UPDATE_INVALIDATE,
+> -};
+> -
+> -/*
+> - * struct hmm_update - HMM update information for callback
+> - *
+> - * @start: virtual start address of the range to update
+> - * @end: virtual end address of the range to update
+> - * @event: event triggering the update (what is happening)
+> - * @blockable: can the callback block/sleep ?
+> - */
+> -struct hmm_update {
+> -	unsigned long start;
+> -	unsigned long end;
+> -	enum hmm_update_event event;
+> -	bool blockable;
+> -};
+> -
+>  /*
+>   * struct hmm_mirror_ops - HMM mirror device operations callback
+>   *
+> @@ -420,7 +397,7 @@ struct hmm_mirror_ops {
+>  	/* sync_cpu_device_pagetables() - synchronize page tables
+>  	 *
+>  	 * @mirror: pointer to struct hmm_mirror
+> -	 * @update: update information (see struct hmm_update)
+> +	 * @update: update information (see struct mmu_notifier_range)
+>  	 * Return: -EAGAIN if update.blockable false and callback need to
+>  	 *          block, 0 otherwise.
+>  	 *
+> @@ -434,7 +411,7 @@ struct hmm_mirror_ops {
+>  	 * synchronous call.
+>  	 */
+>  	int (*sync_cpu_device_pagetables)(struct hmm_mirror *mirror,
+> -					  const struct hmm_update *update);
+> +				const struct mmu_notifier_range *update);
+>  };
 >  
 >  /*
->   * Please use this macro to create slab caches. Simply specify the
-> @@ -638,7 +638,7 @@ struct memcg_cache_params {
->  			bool dying;
->  		};
->  		struct {
-> -			struct mem_cgroup *memcg;
-> +			struct mem_cgroup __rcu *memcg;
->  			struct list_head children_node;
->  			struct list_head kmem_caches_node;
->  			struct percpu_ref refcnt;
-> diff --git a/mm/list_lru.c b/mm/list_lru.c
-> index 0f1f6b06b7f3..0b2319897e86 100644
-> --- a/mm/list_lru.c
-> +++ b/mm/list_lru.c
-> @@ -77,11 +77,15 @@ list_lru_from_kmem(struct list_lru_node *nlru, void *ptr,
->  	if (!nlru->memcg_lrus)
->  		goto out;
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 9aad3550f2bb..b49a43712554 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -164,7 +164,6 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+>  {
+>  	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+>  	struct hmm_mirror *mirror;
+> -	struct hmm_update update;
+>  	struct hmm_range *range;
+>  	unsigned long flags;
+>  	int ret = 0;
+> @@ -173,15 +172,10 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+>  	if (!kref_get_unless_zero(&hmm->kref))
+>  		return 0;
 >  
-> +	rcu_read_lock();
->  	memcg = mem_cgroup_from_kmem(ptr);
-> -	if (!memcg)
-> +	if (!memcg) {
-> +		rcu_read_unlock();
->  		goto out;
-> +	}
->  
->  	l = list_lru_from_memcg_idx(nlru, memcg_cache_id(memcg));
-> +	rcu_read_unlock();
->  out:
->  	if (memcg_ptr)
->  		*memcg_ptr = memcg;
-> @@ -131,12 +135,14 @@ bool list_lru_add(struct list_lru *lru, struct list_head *item)
->  
->  	spin_lock(&nlru->lock);
->  	if (list_empty(item)) {
-> +		rcu_read_lock();
->  		l = list_lru_from_kmem(nlru, item, &memcg);
->  		list_add_tail(item, &l->list);
->  		/* Set shrinker bit if the first element was added */
->  		if (!l->nr_items++)
->  			memcg_set_shrinker_bit(memcg, nid,
->  					       lru_shrinker_id(lru));
-> +		rcu_read_unlock();
-
-AFAICS we don't need rcu_read_lock here, because holding nlru->lock
-guarantees that the cgroup doesn't get freed. If that's correct,
-I think we better remove __rcu mark and use READ_ONCE for accessing
-memcg_params.memcg, thus making it the caller's responsibility to
-ensure the cgroup lifetime.
-
->  		nlru->nr_items++;
->  		spin_unlock(&nlru->lock);
->  		return true;
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index c097b1fc74ec..0f64a2c06803 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3209,15 +3209,15 @@ static void memcg_offline_kmem(struct mem_cgroup *memcg)
->  	 */
->  	memcg->kmem_state = KMEM_ALLOCATED;
->  
-> -	memcg_deactivate_kmem_caches(memcg);
+> -	update.start = nrange->start;
+> -	update.end = nrange->end;
+> -	update.event = HMM_UPDATE_INVALIDATE;
+> -	update.blockable = mmu_notifier_range_blockable(nrange);
 > -
-> -	kmemcg_id = memcg->kmemcg_id;
-> -	BUG_ON(kmemcg_id < 0);
-> -
->  	parent = parent_mem_cgroup(memcg);
->  	if (!parent)
->  		parent = root_mem_cgroup;
+>  	spin_lock_irqsave(&hmm->ranges_lock, flags);
+>  	hmm->notifiers++;
+>  	list_for_each_entry(range, &hmm->ranges, list) {
+> -		if (update.end < range->start || update.start >= range->end)
+> +		if (nrange->end < range->start || nrange->start >= range->end)
+>  			continue;
 >  
-> +	memcg_deactivate_kmem_caches(memcg, parent);
-> +
-> +	kmemcg_id = memcg->kmemcg_id;
-> +	BUG_ON(kmemcg_id < 0);
-> +
->  	/*
->  	 * Change kmemcg_id of this cgroup and all its descendants to the
->  	 * parent's id, and then move all entries from this cgroup's list_lrus
-> @@ -3250,7 +3250,6 @@ static void memcg_free_kmem(struct mem_cgroup *memcg)
->  	if (memcg->kmem_state == KMEM_ALLOCATED) {
->  		WARN_ON(!list_empty(&memcg->kmem_caches));
->  		static_branch_dec(&memcg_kmem_enabled_key);
-> -		WARN_ON(page_counter_read(&memcg->kmem));
->  	}
->  }
->  #else
-> @@ -4675,6 +4674,9 @@ mem_cgroup_css_alloc(struct cgroup_subsys_state *parent_css)
+>  		range->valid = false;
+> @@ -198,9 +192,10 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+>  	list_for_each_entry(mirror, &hmm->mirrors, list) {
+>  		int rc;
 >  
->  	/* The following stuff does not apply to the root */
->  	if (!parent) {
-> +#ifdef CONFIG_MEMCG_KMEM
-> +		INIT_LIST_HEAD(&memcg->kmem_caches);
-> +#endif
->  		root_mem_cgroup = memcg;
->  		return &memcg->css;
->  	}
-> diff --git a/mm/slab.h b/mm/slab.h
-> index 7ead47cb9338..34bf92382ecd 100644
-> --- a/mm/slab.h
-> +++ b/mm/slab.h
-> @@ -268,7 +268,7 @@ static inline struct mem_cgroup *memcg_from_slab_page(struct page *page)
->  
->  	s = READ_ONCE(page->slab_cache);
->  	if (s && !is_root_cache(s))
-> -		return s->memcg_params.memcg;
-> +		return rcu_dereference(s->memcg_params.memcg);
-
-I guess it's worth updating the comment with a few words re cgroup
-lifetime.
+> -		rc = mirror->ops->sync_cpu_device_pagetables(mirror, &update);
+> +		rc = mirror->ops->sync_cpu_device_pagetables(mirror, nrange);
+>  		if (rc) {
+> -			if (WARN_ON(update.blockable || rc != -EAGAIN))
+> +			if (WARN_ON(mmu_notifier_range_blockable(nrange) ||
+> +				    rc != -EAGAIN))
+>  				continue;
+>  			ret = -EAGAIN;
+>  			break;
+> -- 
+> 2.20.1
+> 
 
