@@ -2,180 +2,132 @@ Return-Path: <SRS0=K2XS=UI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B96D7C28EBD
-	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 09:07:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6EF7DC28EBD
+	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 09:16:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5F46220868
-	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 09:07:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="0jVhzKzl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F46220868
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	by mail.kernel.org (Postfix) with ESMTP id 0315920868
+	for <linux-mm@archiver.kernel.org>; Sun,  9 Jun 2019 09:16:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0315920868
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 907626B0005; Sun,  9 Jun 2019 05:07:40 -0400 (EDT)
+	id 88B506B0005; Sun,  9 Jun 2019 05:16:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B9396B0006; Sun,  9 Jun 2019 05:07:40 -0400 (EDT)
+	id 83CD86B0006; Sun,  9 Jun 2019 05:16:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7A6B06B0007; Sun,  9 Jun 2019 05:07:40 -0400 (EDT)
+	id 72AC36B0007; Sun,  9 Jun 2019 05:16:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 181716B0005
-	for <linux-mm@kvack.org>; Sun,  9 Jun 2019 05:07:40 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id v23so724594ljj.1
-        for <linux-mm@kvack.org>; Sun, 09 Jun 2019 02:07:40 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 556136B0005
+	for <linux-mm@kvack.org>; Sun,  9 Jun 2019 05:16:23 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id c64so1741789oia.22
+        for <linux-mm@kvack.org>; Sun, 09 Jun 2019 02:16:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=41wRH7O1RjuIycZL3bPObSY6mj/mQBPhNsOrunGAB0I=;
-        b=fZ3Ke/3RhE0fnyHdVYQlZUQNKXSOlrxdjw2WhVXaSkDun+2QfrnHWauAYKYQIJu930
-         rvMGMkJFBao2PEqeJqYUFNuWMKwagSqSG0TCsKFUzqDsxyFFDTIehm6oBglFwpJAczcr
-         Srg5QRVfBLfZ1pqceINbyDNqDXdQj0FHPvwCOJlbe9RVwkS3ZWbtLUkpBijeylBasTWS
-         rdXkukl87nU5i6kvjodoJzeAnSfjKDFmuH3aFhkeeWyMyjflAvII36ToYrW9a/0r1R5d
-         +Kbf+xbqRrGoZs4gSPSo2BtSRlyhoVJK74IUwDAMewd9pIwI4/RN3Eln+MFZaSvD5EVv
-         DmaA==
-X-Gm-Message-State: APjAAAXHzs1S4NGKKRQfa8avaoHeJVaF884MbDx3/3akGYnrCdxpc56j
-	cV9oTeIHmSKtsIWmjmHcJ3RzdXahpjljwrpevwy+0ClSCZAunLPnYdVkbEBQLfwmK/6S7OQ1Evx
-	kG0BCsF457+5pvw9BIZcdMkJ+gS0DiQqMEArhN/orDvuC/n0wVkELVBnasgsfHWa3kQ==
-X-Received: by 2002:a2e:b0c4:: with SMTP id g4mr5927287ljl.155.1560071259254;
-        Sun, 09 Jun 2019 02:07:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyGStZY7uGCFBBZGQ3meCx2Wa5eJstIkDUMZYQ5TP+jstmnhFAki9G7Qjma/Ud5pELChm/9
-X-Received: by 2002:a2e:b0c4:: with SMTP id g4mr5927251ljl.155.1560071258217;
-        Sun, 09 Jun 2019 02:07:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560071258; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version;
+        bh=a6ykraZL2w3qugLF8FyjtO6T7aloAveG26BZNEMnWFY=;
+        b=M4vtMkOgGOmYUp9P1e5sG80o+vDHF2Ip4NuD4ALGM311Bz51AeMEqHThbADyRoLkTZ
+         pcL9uWzBqnr3HPpFwBEivvaVEfGsM4vxXP3Xl1mClOTrDNyhjMyokMFFnOEVAflA9moh
+         l5rakRTHFOZS+qOHn/WwAtSgQveyy8hpOVX0FEIi38cax+cnkcqtQ5Hr4ZKwKNfj0Wpu
+         G7DOfAd/I0UWZ4wAfFA6riSSbR2+XiclImbQfbppckrM6Bb1T7UNsjqlYIN087MR+AuV
+         bE583YamEJIilgCndpkvbHty6sjpuuDBnE4m0r8pStpyzVRyk3UVpPej91vOhVTTTMBH
+         KX5Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of cg.chen@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=cg.chen@huawei.com
+X-Gm-Message-State: APjAAAWa+fzb4Jn4eZtyA31U98Lpdb+WYX5VnRUskrz0DLCgfsasw2di
+	0L9wP0FhWQBNsGI7tZZqXxL/PWoGOEPetYm6sB95bsYe2MQ9HaKp3+XyHKnM4e7i8Gm/zdvzSuN
+	jiqo1BZ5NckhGrPSTyY0UOT57o2MNyJKicrh0c3M7EAIP8CPXOhyzQnEAIQwDi5xJPw==
+X-Received: by 2002:aca:d846:: with SMTP id p67mr8937893oig.6.1560071782935;
+        Sun, 09 Jun 2019 02:16:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzH0f90hMiq64tuDv/f9NFdV4iOKCzRS/b2nmGU/a/Uau+TqI5RpPOz52NGI2N7H6ZDawhx
+X-Received: by 2002:aca:d846:: with SMTP id p67mr8937884oig.6.1560071782284;
+        Sun, 09 Jun 2019 02:16:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560071782; cv=none;
         d=google.com; s=arc-20160816;
-        b=Pqqg1tqfqMFa7y5tvVLuSyaEsf+EI1Zqdl9THKreWh1ZWnZTTLrwI9izfJ+LcwTqGr
-         qhpwY7LUkpghRH8e9aTjy5YZI0D3xFPol2ZqYHD3TkK9jABbrMJEHc/E1UVmL1UVtXHA
-         uD/O86p8tiXMcex7xAEOpNcPfjIBc3GabaHuOhELwu9Cyr9SdWp1Cp2AvFQ57TmjHPpG
-         HOvSTKZtljkqukDy/CSDkz+3XSrQdJbtMLmE2I3vOv2UumysTxAoj1pKAFeKWquqC89f
-         zVB18gNC2H5KiuPLwtRAsL1kr5redLExuTm4peTBNqctAceh7As5lEHMlv+HQpYWYb6/
-         CUmQ==
+        b=0FnTVjgcZoUgctDfitwSya1mYFgHCBLU9gy8muHMFSyoK1GaeVUlvjaF5Ehk/XmN+Y
+         q8qwNIQwCn7sMn0DwNcRf6MkHcB3V6dO7PtP/qRRZxEq1VYgCMAk/l+1dGJi07VJMy8+
+         VkCDn+4iqehLkKekgj2fEUwxvRyhwn1J6pGtJOGrf6OIPvcul3TRpddq0nYnr6gzg2Es
+         oNmRZElfhS4SeGnW+Rz9/AjMDni731rQKS7tGaAZVliuth/XOlMPzWxPuVjHKziR8/oX
+         IA6z42eYQqi+Vu67BsY3uGNFl1kwp3BFPZ01bhw4s3E9PBnxKObNEO6Jk3yqdFPPmIkb
+         znWA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=41wRH7O1RjuIycZL3bPObSY6mj/mQBPhNsOrunGAB0I=;
-        b=PnyuMevePMvIt3XOxmHOz+zsCr8ODFeim2OQD6y7YcZslK0LhkFEclPsdW3CO1YeYm
-         DweeDZ2hu+b72gPB479tGBOeBSnHd7PmpzxNMiQhYJTyv6WGsNyATDc2hUvQut+fBdaS
-         g9yJ0s1GoFyy4I/5ckcvL1wUXNb+eMkwSxftmvkS/3Dl62+O7Qy3VUzF/2DLrdhcEwPM
-         XJqtn0iy+gfEc8SBJpmBaODVWF2WhsOvCuuUdZra2EwhloY/iNHgODpphZ18/Q3ODsxM
-         Ei4qRO2IJN92itZ3JXFfiJWzWW33RV6rrDrETZeoWFwpdWlJ0Dtp/qyTrEstBsWqzMMj
-         kIGg==
+        h=mime-version:message-id:date:subject:cc:to:from;
+        bh=a6ykraZL2w3qugLF8FyjtO6T7aloAveG26BZNEMnWFY=;
+        b=dIc+GgDADhRVzXltGAEwHbPfRD4OcYHfmHmzCVCFj8fTbmRSiXMcaiet3MTt92bMOf
+         qXi+oW1Gzr7qeFUeVG87DtItqf1ITbbfsbw3H3WdauxnHH3xbgaYBjRGRE9Yx7nUY4/3
+         bG8WmaSsrP+rlHRDCU2FXxmObM5yVUDTM00TshCvKa23ZiWbZfRpjZHZEFPWO3kpq+Qp
+         nJt2j7FzsoIiElGujj6jg+5298QjMgahk1sj3fPOtucrcvrHvPyJVqfuExyLYrmE/YlL
+         odMnQEBXl93LlZKPpAxPHJ/OL8f1ztmHl6CqjjOulsc4O8TQ2ui2APAIBK9dxDB3FymV
+         g6mg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=0jVhzKzl;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1o.mail.yandex.net (forwardcorp1o.mail.yandex.net. [2a02:6b8:0:1a2d::193])
-        by mx.google.com with ESMTPS id y18si5995821lfh.18.2019.06.09.02.07.37
+       spf=pass (google.com: domain of cg.chen@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=cg.chen@huawei.com
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id i125si4283898oib.57.2019.06.09.02.16.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 09 Jun 2019 02:07:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) client-ip=2a02:6b8:0:1a2d::193;
+        Sun, 09 Jun 2019 02:16:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cg.chen@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=0jVhzKzl;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp1j.mail.yandex.net (mxbackcorp1j.mail.yandex.net [IPv6:2a02:6b8:0:1619::162])
-	by forwardcorp1o.mail.yandex.net (Yandex) with ESMTP id 521032E124D;
-	Sun,  9 Jun 2019 12:07:37 +0300 (MSK)
-Received: from smtpcorp1j.mail.yandex.net (smtpcorp1j.mail.yandex.net [2a02:6b8:0:1619::137])
-	by mxbackcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id BaPFd0wpux-7aOmKXh4;
-	Sun, 09 Jun 2019 12:07:37 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1560071257; bh=41wRH7O1RjuIycZL3bPObSY6mj/mQBPhNsOrunGAB0I=;
-	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
-	b=0jVhzKzlm7ekF4gqCcSRHE3zB0d1+MmxgUtbU/fZQ52gJg7IzdFK1aIjhwNxQnUux
-	 2sha+8LU3Ip2YddsJOh0RTALXTtaKQBSjaxzbtoQgwIS/qk8wb600Nuaghzruo9WfZ
-	 WuH8FrXwUzjYH8knG4DqeBrfK+Z8L2zfxeb1lA2Y=
-Authentication-Results: mxbackcorp1j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:3d25:9e27:4f75:a150])
-	by smtpcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id F3GBYaKJYR-7aemMl4x;
-	Sun, 09 Jun 2019 12:07:36 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-Subject: Re: [PATCH 2/5] proc: use down_read_killable for
- /proc/pid/smaps_rollup
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
- linux-kernel@vger.kernel.org, Cyrill Gorcunov <gorcunov@gmail.com>,
- Kirill Tkhai <ktkhai@virtuozzo.com>, Al Viro <viro@zeniv.linux.org.uk>
-References: <155790967258.1319.11531787078240675602.stgit@buzz>
- <155790967469.1319.14744588086607025680.stgit@buzz>
- <20190517124555.GB1825@dhcp22.suse.cz>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <bda80d9c-7594-94c9-db2c-37b8bc3b58c8@yandex-team.ru>
-Date: Sun, 9 Jun 2019 12:07:36 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: domain of cg.chen@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=cg.chen@huawei.com
+Received: from DGGEMS402-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id 714EED491E95A3D71315;
+	Sun,  9 Jun 2019 17:16:18 +0800 (CST)
+Received: from use12-sp2.huawei.com (10.67.188.190) by
+ DGGEMS402-HUB.china.huawei.com (10.3.19.202) with Microsoft SMTP Server id
+ 14.3.439.0; Sun, 9 Jun 2019 17:16:08 +0800
+From: ChenGang <cg.chen@huawei.com>
+To: <akpm@linux-foundation.org>, <mhocko@suse.com>, <vbabka@suse.cz>,
+	<osalvador@suse.de>, <pavel.tatashin@microsoft.com>
+CC: <mgorman@techsingularity.net>, <rppt@linux.ibm.com>,
+	<richard.weiyang@gmail.com>, <alexander.h.duyck@linux.intel.com>,
+	<linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>, ChenGang
+	<cg.chen@huawei.com>
+Subject: [PATCH] mm: align up min_free_kbytes to multipy of 4
+Date: Sun, 9 Jun 2019 17:10:28 +0800
+Message-ID: <1560071428-24267-1-git-send-email-cg.chen@huawei.com>
+X-Mailer: git-send-email 1.8.5.6
 MIME-Version: 1.0
-In-Reply-To: <20190517124555.GB1825@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+X-Originating-IP: [10.67.188.190]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Usually the value of min_free_kbytes is multiply of 4,
+and in this case ,the right shift is ok.
+But if it's not, the right-shifting operation will lose the low 2 bits,
+and this cause kernel don't reserve enough memory.
+So it's necessary to align the value of min_free_kbytes to multiply of 4.
+For example, if min_free_kbytes is 64, then should keep 16 pages,
+but if min_free_kbytes is 65 or 66, then should keep 17 pages.
 
+Signed-off-by: ChenGang <cg.chen@huawei.com>
+---
+ mm/page_alloc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-On 17.05.2019 15:45, Michal Hocko wrote:
-> On Wed 15-05-19 11:41:14, Konstantin Khlebnikov wrote:
->> Ditto.
-> 
-> Proper changelog or simply squash those patches into a single patch if
-> you do not feel like copy&paste is fun
-> 
->>
->> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
->> ---
->>   fs/proc/task_mmu.c |    8 ++++++--
->>   1 file changed, 6 insertions(+), 2 deletions(-)
->>
->> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
->> index 2bf210229daf..781879a91e3b 100644
->> --- a/fs/proc/task_mmu.c
->> +++ b/fs/proc/task_mmu.c
->> @@ -832,7 +832,10 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
->>   
->>   	memset(&mss, 0, sizeof(mss));
->>   
->> -	down_read(&mm->mmap_sem);
->> +	ret = down_read_killable(&mm->mmap_sem);
->> +	if (ret)
->> +		goto out_put_mm;
-> 
-> Why not ret = -EINTR. The seq_file code seems to be handling all errors
-> AFAICS.
-> 
-
-I've missed your comment. Sorry.
-
-down_read_killable returns 0 for success and exactly -EINTR for failure.
-
->> +
->>   	hold_task_mempolicy(priv);
->>   
->>   	for (vma = priv->mm->mmap; vma; vma = vma->vm_next) {
->> @@ -849,8 +852,9 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
->>   
->>   	release_task_mempolicy(priv);
->>   	up_read(&mm->mmap_sem);
->> -	mmput(mm);
->>   
->> +out_put_mm:
->> +	mmput(mm);
->>   out_put_task:
->>   	put_task_struct(priv->task);
->>   	priv->task = NULL;
-> 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index d66bc8a..1baeeba 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7611,7 +7611,8 @@ static void setup_per_zone_lowmem_reserve(void)
+ 
+ static void __setup_per_zone_wmarks(void)
+ {
+-	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
++	unsigned long pages_min =
++		(PAGE_ALIGN(min_free_kbytes * 1024) / 1024) >> (PAGE_SHIFT - 10);
+ 	unsigned long lowmem_pages = 0;
+ 	struct zone *zone;
+ 	unsigned long flags;
+-- 
+1.8.5.6
 
