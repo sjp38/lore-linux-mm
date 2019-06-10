@@ -2,182 +2,189 @@ Return-Path: <SRS0=JJ+4=UJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 21CF2C4321A
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:00:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6404FC4321B
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:02:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DAC1B207E0
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:00:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DAC1B207E0
+	by mail.kernel.org (Postfix) with ESMTP id 2D544207E0
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:02:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D544207E0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6E91C6B026B; Mon, 10 Jun 2019 14:00:46 -0400 (EDT)
+	id D02DE6B026A; Mon, 10 Jun 2019 14:02:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 699D06B026C; Mon, 10 Jun 2019 14:00:46 -0400 (EDT)
+	id C8D586B026B; Mon, 10 Jun 2019 14:02:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5B0236B026D; Mon, 10 Jun 2019 14:00:46 -0400 (EDT)
+	id ADEA36B026C; Mon, 10 Jun 2019 14:02:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 24B676B026B
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 14:00:46 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id q2so6158982plr.19
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 11:00:46 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 73A686B026A
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 14:02:47 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 30so7354270pgk.16
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 11:02:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:user-agent:content-id
-         :content-transfer-encoding:mime-version;
-        bh=GUizFaAbRtGn58sPkPJQSI8JiHY6LbxuekU4vIduCrE=;
-        b=uTZOR2YDaIdMaCYvTX+w3KDRd7fL22fkOt2o4QUlrLF9lrdcnDkCscDLpWBTFCRL82
-         9vBv8ewfjXD+nNP36GWU90WElPUDQaN5QjFkS6wwAL14k0vlLY+COf+eQGWB19pmudzk
-         hp6WYkzSGCPchuT+LMPqPWsX40e21l5dsJn6N39COdwIsObwzVPtGIrClj/NJMyCECfW
-         i4gaxheaayS2ttfzjrRwB6O5PoDkqE7BgSAXTz7f/y7wPdKFq2gYGSlqqPTTSE1UGXj1
-         H/mBmpC7zQ6SCqMQo8VOfZdCYXLRMJjxulxFRzT1rUdoSw/Vf5zp8ffIJiIJQw5MyEu2
-         Bftw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vishal.l.verma@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=vishal.l.verma@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVkbjcSoa8Ll7+TIwyRIRXv4NvaI1DjOMzQIbcIUGY185NZNNAv
-	GowGU1MU7VLdke8moi9nQq/t1IjNi57K7qoz/VNmlZN04mkF0qZQWyGEMmPiN3zIQ6c8y9SK0R2
-	NV+QNDNZJSTXzVRktyYZrv6MgLpdiWvJSQvdfEFDxUa47kyS0PKqXwvE80bGroQzmUQ==
-X-Received: by 2002:a63:6b08:: with SMTP id g8mr17412425pgc.106.1560189645747;
-        Mon, 10 Jun 2019 11:00:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzXYg3LA2o/CEtqXFu6cV2PHNTeEnEAR44iwHZdvspfVnf/dwFPPdwYwFgvBK857CIL5R6u
-X-Received: by 2002:a63:6b08:: with SMTP id g8mr17412309pgc.106.1560189644216;
-        Mon, 10 Jun 2019 11:00:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560189644; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=fhXh5Y2Gn1FBxX1t32qRuiILdpwsyoAKJcw9b9fXb8E=;
+        b=GcQdkqFjYe1Qy+bm6iR9Z5AE7/LnyCUPmkBzq5H6JcN4rahLrW02IntJKayfhr5VOP
+         5CGmPxN+B/i2vQyLmP7k8qmWHuM8ot23cprrYIhrGfuUszG9jPs73EpkhfsSGjAULWOj
+         Gh0T+uA/33bJrCichV0v43N89CBu59/tCiR+6SIIkv0CzaSb+WdT1GPTRnbJMvI9J8Ih
+         GrUCXSj5U5ybufkrIjKVAU3EkPddrK8zp46vPZeyuVCDBrGGZrg3evdbJbP6zLfpVIMR
+         EQUfhEhiruXAmbpt5Pi4onuM9WjBCy40uLvJHyiWF9VmfxUTV/92oXADda72ZuCqtIM2
+         /HVg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVX8uf/wg9GSGdX/w01+5rR80CGBthBe7MancuiKb6zU2e9YMNE
+	GDm67jJUDtuzx+QHbYqwuWQxqMMwuMde9cgzYEGY9EPCeilM2b0cYCpdm7/gqbPAldPWSG8Mnct
+	BcCQD4wpuE5OUD7T+nclQR0wLmGs6O2z4G8ASvz2RzWujMJEL7FW+DMqbyu+U14Flnw==
+X-Received: by 2002:a17:902:76c6:: with SMTP id j6mr46807588plt.263.1560189767141;
+        Mon, 10 Jun 2019 11:02:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwBJEGfanqICA3EjutsLxAFzJsFifA0ba9s0x8wCs24hMNkTg5+9MSzsAEOt29PraJAFLtW
+X-Received: by 2002:a17:902:76c6:: with SMTP id j6mr46807532plt.263.1560189766422;
+        Mon, 10 Jun 2019 11:02:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560189766; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZQV0VWYX9nh1xRc2sQvA3dyX03UPTSFnXJEfs2/gi4cx4TqqN+0cUF/pMfOpOOd4Kw
-         n7NA1rEheoyomesP/vNKHOpMlQYM2zQB9vpOexk6kXkrkOVScLr1h/MZope2QZbnNCXB
-         Pqix4rhhhYF3fcLx06YnaBvwqcfBjo69H3jHFfKQDCpwd5s6eYewCTWBz00gUZCws6MC
-         sOgkU7Tqd7nhUWAsYK7/xs37hyv3RVDZBatiOdzpLaxYVVNGojtHMHQMKk8LQ8ghxsT6
-         jSaDThXhoMr+rMifOe1OfMaW9wMBmGEl00l3dhaiU51eFstpLFDA0UdcRXY7TheZMZeD
-         elcA==
+        b=P4i+tSN23ocDPu0omswJJoOma7Pxk69AnRWjORLVa9SpJzgulJYYMjGQBwsSUYYQuY
+         5COPaKPk+jM3/5g+nzFcrsMakMpi3OK0jBS5xSJEq6RrufSKpXxPmX7Gc3/M7qcnWyrg
+         3VOZlZdQBEhZ0dFmSr2fgrtjr7bEDBSecOrEAsqcOst8oruui/dhfEi+bYXQcyEU9gVD
+         1SewP0U8C+vWX7PoPl1YcEMEozbWn6dVgwsJstzSn894VazuNLZ5q4Ncw3UWMhLrJEz7
+         0FWxWer7Q+884KU2evinr7V46nDQA69l7diWEkB9J0UprG9a4zEOVdAtobVMpuHmixf9
+         qB7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from;
-        bh=GUizFaAbRtGn58sPkPJQSI8JiHY6LbxuekU4vIduCrE=;
-        b=l9kLXcyfrWBteG8q+rhJ1f7Qc+gEKPU0pGOTTMV0wzcCY2T8C/Q2vkAhp6DIVhh98F
-         Slzr3CnhnShEd8yodAqYLRbWBPnzKU377y/Dx9sdk0AJHs+/WM5bEWSmVEP8N7Mf3DVO
-         lmBcquAt/NvM+b3KYsSGU4QK+nBFJKgpYSEkyRCIf1xFdJeYT2bNtROzg+DPT8h6psZF
-         RtkUCrETIc9mfAEYEkKwXHcnejkpcsn0Oq1COhK8adA3YkAh84VS08Qhzq8HXxAcBXg/
-         orNiXpWs3c1OfWCtKm+HaolVzVFbxkNI61jhji6rhZ5GBI5eiaEmz0zW3t/O5vT1RYKW
-         ZNYg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=fhXh5Y2Gn1FBxX1t32qRuiILdpwsyoAKJcw9b9fXb8E=;
+        b=ZVRTZCgCNWMoDaqURJGlHAE2tX5Pnv2clU10WL0J5WgY/fSvRq2dqbh6ix6Fo4o7Vh
+         uxInweSGzmtzmoxtaWaoT3wpmncUdSqCj2U7QvI2n6NVOZEY649YkRenQ4bFvH5baZ/C
+         28DgojXjOKDkpS3nPbR228TPD8Db/QNS6L+vItlH25E4Sh5fP8mqDHF6TA8dt9QuTSeN
+         ARQAIoCgv6rpQfx7taayc2pMOessLcdf9UN4iFZ+Qtdp7a8Za0D5wdbxHLNmpvpz8rda
+         trrV07bZDOxr9ejfHfc1hG6NMrvUCJ6mvz/kySnpcU0LnI1z5RKiuJ9QcECWcr0417Ud
+         rEbQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vishal.l.verma@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=vishal.l.verma@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id o3si10685951pld.102.2019.06.10.11.00.44
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id g18si6859355pgk.477.2019.06.10.11.02.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jun 2019 11:00:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vishal.l.verma@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        Mon, 10 Jun 2019 11:02:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vishal.l.verma@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=vishal.l.verma@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga003.fm.intel.com ([10.253.24.29])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jun 2019 11:00:43 -0700
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jun 2019 11:02:45 -0700
 X-ExtLoop1: 1
-Received: from fmsmsx103.amr.corp.intel.com ([10.18.124.201])
-  by FMSMGA003.fm.intel.com with ESMTP; 10 Jun 2019 11:00:43 -0700
-Received: from fmsmsx153.amr.corp.intel.com (10.18.125.6) by
- FMSMSX103.amr.corp.intel.com (10.18.124.201) with Microsoft SMTP Server (TLS)
- id 14.3.408.0; Mon, 10 Jun 2019 11:00:43 -0700
-Received: from fmsmsx113.amr.corp.intel.com ([169.254.13.221]) by
- FMSMSX153.amr.corp.intel.com ([169.254.9.44]) with mapi id 14.03.0415.000;
- Mon, 10 Jun 2019 11:00:42 -0700
-From: "Verma, Vishal L" <vishal.l.verma@intel.com>
-To: "aneesh.kumar@linux.ibm.com" <aneesh.kumar@linux.ibm.com>, "Williams, Dan
- J" <dan.j.williams@intel.com>
-CC: "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
-	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>
-Subject: =?utf-8?B?UmU6IFtQQVRDSF0gbW0vbnZkaW1tOiBGaXggZW5kaWFuIGNvbnZlcnNpb24g?=
- =?utf-8?B?aXNzdWVzwqA=?=
-Thread-Topic: =?utf-8?B?W1BBVENIXSBtbS9udmRpbW06IEZpeCBlbmRpYW4gY29udmVyc2lvbiBpc3N1?=
- =?utf-8?B?ZXPCoA==?=
-Thread-Index: AQHVHPzvNVRBYBN6b0uXWFFw88SJnqaVqDUA
-Date: Mon, 10 Jun 2019 18:00:42 +0000
-Message-ID: <1ec64d511af872df7b0597895622eb196ac4dbc9.camel@intel.com>
-References: <20190607064732.30384-1-aneesh.kumar@linux.ibm.com>
-In-Reply-To: <20190607064732.30384-1-aneesh.kumar@linux.ibm.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-user-agent: Evolution 3.30.5 (3.30.5-1.fc29) 
-x-originating-ip: [10.232.112.185]
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <41D4EB0C81964E4BB929D8F7CE095E4A@intel.com>
-Content-Transfer-Encoding: base64
+Received: from ray.jf.intel.com (HELO [10.7.198.156]) ([10.7.198.156])
+  by orsmga002.jf.intel.com with ESMTP; 10 Jun 2019 11:02:45 -0700
+Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
+ function
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, Andy Lutomirski <luto@amacapital.net>
+Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
+ "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
+ Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
+ Cyrill Gorcunov <gorcunov@gmail.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>,
+ "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+ Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+ Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>,
+ Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>,
+ Randy Dunlap <rdunlap@infradead.org>,
+ "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+ Dave Martin <Dave.Martin@arm.com>
+References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
+ <20190606200926.4029-4-yu-cheng.yu@intel.com>
+ <20190607080832.GT3419@hirez.programming.kicks-ass.net>
+ <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
+ <20190607174336.GM3436@hirez.programming.kicks-ass.net>
+ <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
+ <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
+ <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
+ <25281DB3-FCE4-40C2-BADB-B3B05C5F8DD3@amacapital.net>
+ <e26f7d09376740a5f7e8360fac4805488b2c0a4f.camel@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <3f19582d-78b1-5849-ffd0-53e8ca747c0d@intel.com>
+Date: Mon, 10 Jun 2019 11:02:45 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
+In-Reply-To: <e26f7d09376740a5f7e8360fac4805488b2c0a4f.camel@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gRnJpLCAyMDE5LTA2LTA3IGF0IDEyOjE3ICswNTMwLCBBbmVlc2ggS3VtYXIgSy5WIHdyb3Rl
-Og0KPiBuZF9sYWJlbC0+ZHBhIGlzc3VlIHdhcyBvYnNlcnZlZCB3aGVuIHRyeWluZyB0byBlbmFi
-bGUgdGhlIG5hbWVzcGFjZSBjcmVhdGVkDQo+IHdpdGggbGl0dGxlLWVuZGlhbiBrZXJuZWwgb24g
-YSBiaWctZW5kaWFuIGtlcm5lbC4gVGhhdCBtYWRlIG1lIHJ1bg0KPiBgc3BhcnNlYCBvbiB0aGUg
-cmVzdCBvZiB0aGUgY29kZSBhbmQgb3RoZXIgY2hhbmdlcyBhcmUgdGhlIHJlc3VsdCBvZiB0aGF0
-Lg0KPiANCj4gU2lnbmVkLW9mZi1ieTogQW5lZXNoIEt1bWFyIEsuViA8YW5lZXNoLmt1bWFyQGxp
-bnV4LmlibS5jb20+DQo+IC0tLQ0KPiAgZHJpdmVycy9udmRpbW0vYnR0LmMgICAgICAgICAgICB8
-IDggKysrKy0tLS0NCj4gIGRyaXZlcnMvbnZkaW1tL25hbWVzcGFjZV9kZXZzLmMgfCA3ICsrKyst
-LS0NCj4gIDIgZmlsZXMgY2hhbmdlZCwgOCBpbnNlcnRpb25zKCspLCA3IGRlbGV0aW9ucygtKQ0K
-DQpUaGUgdHdvIEJUVCBmaXhlcyBzZWVtIGxpa2UgdGhleSBtYXkgYXBwbHkgdG8gc3RhYmxlIGFz
-IHdlbGwsIHRoZQ0KcHJvYmxlbWF0aWMgY29kZSB3YXMgaW50cm9kdWNlZCBpbiByZWxhdGl2ZWx5
-IHJlY2VudCByZXdvcmtzL2ZpeGVzLg0KUGVyaGFwcyAtDQoNCkZpeGVzOiBkOWI4M2M3NTY5NTMg
-KCJsaWJudmRpbW0sIGJ0dDogcmV3b3JrIGVycm9yIGNsZWFyaW5nIikNCkZpeGVzOiA5ZGVkYzcz
-YTQ2NTggKCJsaWJudmRpbW0vYnR0OiBGaXggTEJBIG1hc2tpbmcgZHVyaW5nICdmcmVlIGxpc3Qn
-IHBvcHVsYXRpb24iKQ0KDQpPdGhlciB0aGFuIHRoYXQsIHRoZXNlIGxvb2sgZ29vZCB0byBtZS4N
-ClJldmlld2VkLWJ5OiBWaXNoYWwgVmVybWEgPHZpc2hhbC5sLnZlcm1hQGludGVsLmNvbT4NCg0K
-PiANCj4gZGlmZiAtLWdpdCBhL2RyaXZlcnMvbnZkaW1tL2J0dC5jIGIvZHJpdmVycy9udmRpbW0v
-YnR0LmMNCj4gaW5kZXggNDY3MTc3NmY1NjIzLi40YWMwZjVkZGU0NjcgMTAwNjQ0DQo+IC0tLSBh
-L2RyaXZlcnMvbnZkaW1tL2J0dC5jDQo+ICsrKyBiL2RyaXZlcnMvbnZkaW1tL2J0dC5jDQo+IEBA
-IC00MDAsOSArNDAwLDkgQEAgc3RhdGljIGludCBidHRfZmxvZ193cml0ZShzdHJ1Y3QgYXJlbmFf
-aW5mbyAqYXJlbmEsIHUzMiBsYW5lLCB1MzIgc3ViLA0KPiAgCWFyZW5hLT5mcmVlbGlzdFtsYW5l
-XS5zdWIgPSAxIC0gYXJlbmEtPmZyZWVsaXN0W2xhbmVdLnN1YjsNCj4gIAlpZiAoKysoYXJlbmEt
-PmZyZWVsaXN0W2xhbmVdLnNlcSkgPT0gNCkNCj4gIAkJYXJlbmEtPmZyZWVsaXN0W2xhbmVdLnNl
-cSA9IDE7DQo+IC0JaWYgKGVudF9lX2ZsYWcoZW50LT5vbGRfbWFwKSkNCj4gKwlpZiAoZW50X2Vf
-ZmxhZyhsZTMyX3RvX2NwdShlbnQtPm9sZF9tYXApKSkNCj4gIAkJYXJlbmEtPmZyZWVsaXN0W2xh
-bmVdLmhhc19lcnIgPSAxOw0KPiAtCWFyZW5hLT5mcmVlbGlzdFtsYW5lXS5ibG9jayA9IGxlMzJf
-dG9fY3B1KGVudF9sYmEoZW50LT5vbGRfbWFwKSk7DQo+ICsJYXJlbmEtPmZyZWVsaXN0W2xhbmVd
-LmJsb2NrID0gZW50X2xiYShsZTMyX3RvX2NwdShlbnQtPm9sZF9tYXApKTsNCj4gIA0KPiAgCXJl
-dHVybiByZXQ7DQo+ICB9DQo+IEBAIC01NjgsOCArNTY4LDggQEAgc3RhdGljIGludCBidHRfZnJl
-ZWxpc3RfaW5pdChzdHJ1Y3QgYXJlbmFfaW5mbyAqYXJlbmEpDQo+ICAJCSAqIEZJWE1FOiBpZiBl
-cnJvciBjbGVhcmluZyBmYWlscyBkdXJpbmcgaW5pdCwgd2Ugd2FudCB0byBtYWtlDQo+ICAJCSAq
-IHRoZSBCVFQgcmVhZC1vbmx5DQo+ICAJCSAqLw0KPiAtCQlpZiAoZW50X2VfZmxhZyhsb2dfbmV3
-Lm9sZF9tYXApICYmDQo+IC0JCQkJIWVudF9ub3JtYWwobG9nX25ldy5vbGRfbWFwKSkgew0KPiAr
-CQlpZiAoZW50X2VfZmxhZyhsZTMyX3RvX2NwdShsb2dfbmV3Lm9sZF9tYXApKSAmJg0KPiArCQkg
-ICAgIWVudF9ub3JtYWwobGUzMl90b19jcHUobG9nX25ldy5vbGRfbWFwKSkpIHsNCj4gIAkJCWFy
-ZW5hLT5mcmVlbGlzdFtpXS5oYXNfZXJyID0gMTsNCj4gIAkJCXJldCA9IGFyZW5hX2NsZWFyX2Zy
-ZWVsaXN0X2Vycm9yKGFyZW5hLCBpKTsNCj4gIAkJCWlmIChyZXQpDQo+IGRpZmYgLS1naXQgYS9k
-cml2ZXJzL252ZGltbS9uYW1lc3BhY2VfZGV2cy5jIGIvZHJpdmVycy9udmRpbW0vbmFtZXNwYWNl
-X2RldnMuYw0KPiBpbmRleCBjNGM1YTE5MWIxZDYuLjUwMGMzN2RiNDk2YSAxMDA2NDQNCj4gLS0t
-IGEvZHJpdmVycy9udmRpbW0vbmFtZXNwYWNlX2RldnMuYw0KPiArKysgYi9kcml2ZXJzL252ZGlt
-bS9uYW1lc3BhY2VfZGV2cy5jDQo+IEBAIC0xOTk1LDcgKzE5OTUsNyBAQCBzdGF0aWMgc3RydWN0
-IGRldmljZSAqY3JlYXRlX25hbWVzcGFjZV9wbWVtKHN0cnVjdCBuZF9yZWdpb24gKm5kX3JlZ2lv
-biwNCj4gIAkJbmRfbWFwcGluZyA9ICZuZF9yZWdpb24tPm1hcHBpbmdbaV07DQo+ICAJCWxhYmVs
-X2VudCA9IGxpc3RfZmlyc3RfZW50cnlfb3JfbnVsbCgmbmRfbWFwcGluZy0+bGFiZWxzLA0KPiAg
-CQkJCXR5cGVvZigqbGFiZWxfZW50KSwgbGlzdCk7DQo+IC0JCWxhYmVsMCA9IGxhYmVsX2VudCA/
-IGxhYmVsX2VudC0+bGFiZWwgOiAwOw0KPiArCQlsYWJlbDAgPSBsYWJlbF9lbnQgPyBsYWJlbF9l
-bnQtPmxhYmVsIDogTlVMTDsNCj4gIA0KPiAgCQlpZiAoIWxhYmVsMCkgew0KPiAgCQkJV0FSTl9P
-TigxKTsNCj4gQEAgLTIzMzAsOCArMjMzMCw5IEBAIHN0YXRpYyBzdHJ1Y3QgZGV2aWNlICoqc2Nh
-bl9sYWJlbHMoc3RydWN0IG5kX3JlZ2lvbiAqbmRfcmVnaW9uKQ0KPiAgCQkJY29udGludWU7DQo+
-ICANCj4gIAkJLyogc2tpcCBsYWJlbHMgdGhhdCBkZXNjcmliZSBleHRlbnRzIG91dHNpZGUgb2Yg
-dGhlIHJlZ2lvbiAqLw0KPiAtCQlpZiAobmRfbGFiZWwtPmRwYSA8IG5kX21hcHBpbmctPnN0YXJ0
-IHx8IG5kX2xhYmVsLT5kcGEgPiBtYXBfZW5kKQ0KPiAtCQkJY29udGludWU7DQo+ICsJCWlmIChf
-X2xlNjRfdG9fY3B1KG5kX2xhYmVsLT5kcGEpIDwgbmRfbWFwcGluZy0+c3RhcnQgfHwNCj4gKwkJ
-ICAgIF9fbGU2NF90b19jcHUobmRfbGFiZWwtPmRwYSkgPiBtYXBfZW5kKQ0KPiArCQkJCWNvbnRp
-bnVlOw0KPiAgDQo+ICAJCWkgPSBhZGRfbmFtZXNwYWNlX3Jlc291cmNlKG5kX3JlZ2lvbiwgbmRf
-bGFiZWwsIGRldnMsIGNvdW50KTsNCj4gIAkJaWYgKGkgPCAwKQ0KDQo=
+On 6/10/19 8:22 AM, Yu-cheng Yu wrote:
+>> How does glibc know the linear address space size?  We don’t want LA64 to
+>> break old binaries because the address calculation changed.
+> When an application starts, its highest stack address is determined.
+> It uses that as the maximum the bitmap needs to cover.
+
+Huh, I didn't think we ran code from the stack. ;)
+
+Especially given the way that we implemented the new 5-level-paging
+address space, I don't think that expecting code to be below the stack
+is a good universal expectation.
 
