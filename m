@@ -6,116 +6,99 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6404FC4321B
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:02:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 09BDBC4321B
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:03:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D544207E0
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:02:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D544207E0
+	by mail.kernel.org (Postfix) with ESMTP id C5E6920870
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:03:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5E6920870
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D02DE6B026A; Mon, 10 Jun 2019 14:02:47 -0400 (EDT)
+	id 672F06B026B; Mon, 10 Jun 2019 14:03:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C8D586B026B; Mon, 10 Jun 2019 14:02:47 -0400 (EDT)
+	id 5FC136B026C; Mon, 10 Jun 2019 14:03:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ADEA36B026C; Mon, 10 Jun 2019 14:02:47 -0400 (EDT)
+	id 475C46B026D; Mon, 10 Jun 2019 14:03:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 73A686B026A
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 14:02:47 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id 30so7354270pgk.16
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 11:02:47 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 0BBBD6B026B
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 14:03:02 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id e16so7367754pga.4
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 11:03:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=fhXh5Y2Gn1FBxX1t32qRuiILdpwsyoAKJcw9b9fXb8E=;
-        b=GcQdkqFjYe1Qy+bm6iR9Z5AE7/LnyCUPmkBzq5H6JcN4rahLrW02IntJKayfhr5VOP
-         5CGmPxN+B/i2vQyLmP7k8qmWHuM8ot23cprrYIhrGfuUszG9jPs73EpkhfsSGjAULWOj
-         Gh0T+uA/33bJrCichV0v43N89CBu59/tCiR+6SIIkv0CzaSb+WdT1GPTRnbJMvI9J8Ih
-         GrUCXSj5U5ybufkrIjKVAU3EkPddrK8zp46vPZeyuVCDBrGGZrg3evdbJbP6zLfpVIMR
-         EQUfhEhiruXAmbpt5Pi4onuM9WjBCy40uLvJHyiWF9VmfxUTV/92oXADda72ZuCqtIM2
-         /HVg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVX8uf/wg9GSGdX/w01+5rR80CGBthBe7MancuiKb6zU2e9YMNE
-	GDm67jJUDtuzx+QHbYqwuWQxqMMwuMde9cgzYEGY9EPCeilM2b0cYCpdm7/gqbPAldPWSG8Mnct
-	BcCQD4wpuE5OUD7T+nclQR0wLmGs6O2z4G8ASvz2RzWujMJEL7FW+DMqbyu+U14Flnw==
-X-Received: by 2002:a17:902:76c6:: with SMTP id j6mr46807588plt.263.1560189767141;
-        Mon, 10 Jun 2019 11:02:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwBJEGfanqICA3EjutsLxAFzJsFifA0ba9s0x8wCs24hMNkTg5+9MSzsAEOt29PraJAFLtW
-X-Received: by 2002:a17:902:76c6:: with SMTP id j6mr46807532plt.263.1560189766422;
-        Mon, 10 Jun 2019 11:02:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560189766; cv=none;
+        bh=XeUuZJIqgFh2AOYyDBiTJRoH+VW4wwivg0ytgU9RuL4=;
+        b=EtFp29/tWlpnEhxdxDyrGN+yhFCw7TybAqnR5eSHKptVplCoTWFnFJx2NhpSkoNAY4
+         /1tBuukl+dCpqUpt6TyfIjwur3jwcAhfRw6y9RHaP7gqt0X5MyTlKh0q6y9GWEGneyqb
+         RVcpT9ri5mS+XDvLG2xnnOnV117AGXz2wP5J/5iIy/YS5DeE2uCIMsa5RHAkELHX0O/t
+         N8n3PayjRq+G0Vxr331VwFupo8R7aJfBojALbD0ELBXOiJZFZkv/hYmMrCvOmFcYqHSR
+         zY4QOeHoca1QLtFxoMMgWsZikTbRAubS9pA1RT8UhK0vm7szUhfjSCUWCbTSb/nRy+rW
+         /Iiw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWYv3uquaZ+jtpI7iDyvgeWjcesgX4avAnoP227b93W9/yn7dSc
+	XkybT7vNH94X06dlzaQHUb8zcGTdSKGi6gjQiSUtl/6DYIx8hjtBA1NHOrQGjtH+QEGtsH6e0xT
+	tvXnT+eZVaiydrZF0spxAYfx0GKGqc8382XBYQdO5Zbm7kkGlbFuPnKnnixURVfhEpA==
+X-Received: by 2002:a17:902:165:: with SMTP id 92mr44210077plb.197.1560189781718;
+        Mon, 10 Jun 2019 11:03:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxxe6nE1ZO7dXo7yTuHdmmsESQ9T4N4nQ3ni44s0BQhBNWkXHfwVx47HHm8OoTyzsiyeLBo
+X-Received: by 2002:a17:902:165:: with SMTP id 92mr44210029plb.197.1560189781053;
+        Mon, 10 Jun 2019 11:03:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560189781; cv=none;
         d=google.com; s=arc-20160816;
-        b=P4i+tSN23ocDPu0omswJJoOma7Pxk69AnRWjORLVa9SpJzgulJYYMjGQBwsSUYYQuY
-         5COPaKPk+jM3/5g+nzFcrsMakMpi3OK0jBS5xSJEq6RrufSKpXxPmX7Gc3/M7qcnWyrg
-         3VOZlZdQBEhZ0dFmSr2fgrtjr7bEDBSecOrEAsqcOst8oruui/dhfEi+bYXQcyEU9gVD
-         1SewP0U8C+vWX7PoPl1YcEMEozbWn6dVgwsJstzSn894VazuNLZ5q4Ncw3UWMhLrJEz7
-         0FWxWer7Q+884KU2evinr7V46nDQA69l7diWEkB9J0UprG9a4zEOVdAtobVMpuHmixf9
-         qB7Q==
+        b=VUznwBrX/H83CczpOvWwFEuCLhKVPdghbIhchvT2b/cyWZyMmf97qlndemfnwJ8JF9
+         lR9qS7wMNzplEi1Yp5EQI3Ytryv6LNsU3j/PQIrWWis/eboRaf/VfYnxQAWOWgALCRUd
+         Itl0DVzH6AQPMNe1sTBIc9jHHNerJvdhCGIBScIF6DqF27/FE5QVTJYtPcEzwPFuDKLq
+         t61BzWmvNbrzf2w1TGqvYuf2IzsMbM7oYF4fFRhxgRkzpizfD9i5X1Tach3RmkD+dIYc
+         VZY218ykNqxZucaRwXCaYsVf8BO/NfOk0Gg6oE5dImLMsd98ONYrqcDLYpKQxMzvC2JY
+         vjAQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=fhXh5Y2Gn1FBxX1t32qRuiILdpwsyoAKJcw9b9fXb8E=;
-        b=ZVRTZCgCNWMoDaqURJGlHAE2tX5Pnv2clU10WL0J5WgY/fSvRq2dqbh6ix6Fo4o7Vh
-         uxInweSGzmtzmoxtaWaoT3wpmncUdSqCj2U7QvI2n6NVOZEY649YkRenQ4bFvH5baZ/C
-         28DgojXjOKDkpS3nPbR228TPD8Db/QNS6L+vItlH25E4Sh5fP8mqDHF6TA8dt9QuTSeN
-         ARQAIoCgv6rpQfx7taayc2pMOessLcdf9UN4iFZ+Qtdp7a8Za0D5wdbxHLNmpvpz8rda
-         trrV07bZDOxr9ejfHfc1hG6NMrvUCJ6mvz/kySnpcU0LnI1z5RKiuJ9QcECWcr0417Ud
-         rEbQ==
+        bh=XeUuZJIqgFh2AOYyDBiTJRoH+VW4wwivg0ytgU9RuL4=;
+        b=oAF89brZH1Hdha07dg//u9Yv767h3bnPLqbInrVR60SOtqf0mx7HV0uZgmGZWziuLE
+         LyVSC0rDj6WKpSTcVjw2VJgILd+RK+kltrQsGHR/yP3bHGUj5Xg6jHSslpcsJ4RHTtZz
+         zteCQAHLfRJLSfSmDwuluOhOdgXNIlrLSW+ceuTcGCEG0uDGrj4vVFcc0VqGxdBBrwyG
+         jfuXEBJd3ZRVlEthR4H2L5oBeQLbH+M/W64lyqU4BhKTO+OWplLWbTDFTiUC280KSrX0
+         6VcprT8k9G4bwf66sqlYOy36/ttf+vJoVcOsqMAMqZNPUpoKr5G7bz3WWYKpCHPH1H2K
+         qRdg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id g18si6859355pgk.477.2019.06.10.11.02.46
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id r20si10290815pls.389.2019.06.10.11.03.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jun 2019 11:02:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        Mon, 10 Jun 2019 11:03:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jun 2019 11:02:45 -0700
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jun 2019 11:03:00 -0700
 X-ExtLoop1: 1
 Received: from ray.jf.intel.com (HELO [10.7.198.156]) ([10.7.198.156])
-  by orsmga002.jf.intel.com with ESMTP; 10 Jun 2019 11:02:45 -0700
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
- function
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, Andy Lutomirski <luto@amacapital.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
- "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
- Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
- Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
- Cyrill Gorcunov <gorcunov@gmail.com>,
- Dave Hansen <dave.hansen@linux.intel.com>,
- Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>,
- "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
- Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
- Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>,
- Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>,
- Randy Dunlap <rdunlap@infradead.org>,
- "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
- Dave Martin <Dave.Martin@arm.com>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
- <20190606200926.4029-4-yu-cheng.yu@intel.com>
- <20190607080832.GT3419@hirez.programming.kicks-ass.net>
- <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
- <20190607174336.GM3436@hirez.programming.kicks-ass.net>
- <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
- <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
- <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
- <25281DB3-FCE4-40C2-BADB-B3B05C5F8DD3@amacapital.net>
- <e26f7d09376740a5f7e8360fac4805488b2c0a4f.camel@intel.com>
+  by orsmga002.jf.intel.com with ESMTP; 10 Jun 2019 11:03:00 -0700
+Subject: Re: [PATCH v2 0/5] Introduce MADV_COLD and MADV_PAGEOUT
+To: Minchan Kim <minchan@kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
+ Johannes Weiner <hannes@cmpxchg.org>, Tim Murray <timmurray@google.com>,
+ Joel Fernandes <joel@joelfernandes.org>,
+ Suren Baghdasaryan <surenb@google.com>, Daniel Colascione
+ <dancol@google.com>, Shakeel Butt <shakeelb@google.com>,
+ Sonny Rao <sonnyrao@google.com>, Brian Geffon <bgeffon@google.com>,
+ jannh@google.com, oleg@redhat.com, christian@brauner.io,
+ oleksandr@redhat.com, hdanton@sina.com, lizeb@google.com
+References: <20190610111252.239156-1-minchan@kernel.org>
 From: Dave Hansen <dave.hansen@intel.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=dave.hansen@intel.com; keydata=
@@ -161,12 +144,12 @@ Autocrypt: addr=dave.hansen@intel.com; keydata=
  MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
  hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
  vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
-Message-ID: <3f19582d-78b1-5849-ffd0-53e8ca747c0d@intel.com>
-Date: Mon, 10 Jun 2019 11:02:45 -0700
+Message-ID: <21cf2918-ba0e-aae1-a20e-36ee1ad4f704@intel.com>
+Date: Mon, 10 Jun 2019 11:03:00 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <e26f7d09376740a5f7e8360fac4805488b2c0a4f.camel@intel.com>
+In-Reply-To: <20190610111252.239156-1-minchan@kernel.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -176,15 +159,6 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/10/19 8:22 AM, Yu-cheng Yu wrote:
->> How does glibc know the linear address space size?  We don’t want LA64 to
->> break old binaries because the address calculation changed.
-> When an application starts, its highest stack address is determined.
-> It uses that as the maximum the bitmap needs to cover.
-
-Huh, I didn't think we ran code from the stack. ;)
-
-Especially given the way that we implemented the new 5-level-paging
-address space, I don't think that expecting code to be below the stack
-is a good universal expectation.
+I'd really love to see the manpages for these new flags.  The devil is
+in the details of our promises to userspace.
 
