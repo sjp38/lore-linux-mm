@@ -1,130 +1,105 @@
 Return-Path: <SRS0=JJ+4=UJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.4 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DC3FC28CC7
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 10:12:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 34A76C282DD
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 10:39:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C1CAD20859
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 10:12:58 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="oT3Tgck9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C1CAD20859
+	by mail.kernel.org (Postfix) with ESMTP id E568E206BB
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 10:39:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E568E206BB
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5896D6B0269; Mon, 10 Jun 2019 06:12:58 -0400 (EDT)
+	id 771CA6B0269; Mon, 10 Jun 2019 06:39:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 53AE06B026B; Mon, 10 Jun 2019 06:12:58 -0400 (EDT)
+	id 720E16B026B; Mon, 10 Jun 2019 06:39:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4023D6B026C; Mon, 10 Jun 2019 06:12:58 -0400 (EDT)
+	id 6114A6B026C; Mon, 10 Jun 2019 06:39:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0547D6B0269
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 06:12:58 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id y5so6900380pfb.20
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 03:12:57 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 110296B0269
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 06:39:49 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id s5so14781989eda.10
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 03:39:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=UpQZyxDAIZssxN7CCNuXeFikhiebMI4lHnTfzcrIiyQ=;
-        b=FmABJDukylyDyMMX4GcmmHTbNnNV1Sb9YmN5vR9ulOoTnH3tQ52Hl3uIfq9efkDZGw
-         /SAUQ06mrkn6Cg6daOBmwhTSGaUBrngjIkRJycYk7/SYPlyfLZbIEx9VKoMJvKBD/VNC
-         qEUBVP506ljoVKTmdHTubM/Dt4PeUbLrig6wrblivNTtwFQTT5OHJxfqIUx/4CLnK5LD
-         P+kGEbeywSBu1g8nAmhLJ575MPzM6nBGbVSECs+uXsN2G9cMJB34YcaqV+MeMUIoDdcE
-         pJ/wq3ej5Ut5OhiC1OBU1e/Os93yTDDab1T611CW+wJPy+7qBBlElichU81OB9H8MAO6
-         1BXQ==
-X-Gm-Message-State: APjAAAUqARmKzVrrUoibDwKGn8z5zf1Sy2ngS3fWE8tilSqG+Tr8OvLC
-	4v9mmJgFtwiYUONDc7OSxw4/Mi7RYipxvlYsFLgDVnwaTKuogSumwMAZq5PVTfiT8ZoaWrLAX5s
-	245nDfKc4E/t5u/m+o7gATxnJiXum/rJIdu0gouszThYA8pHI/PMok46QFv6j/qs=
-X-Received: by 2002:a17:90a:8902:: with SMTP id u2mr20160239pjn.96.1560161577563;
-        Mon, 10 Jun 2019 03:12:57 -0700 (PDT)
-X-Received: by 2002:a17:90a:8902:: with SMTP id u2mr20160191pjn.96.1560161576785;
-        Mon, 10 Jun 2019 03:12:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560161576; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=MSVHT84Q0DKfM83aJPcXfzzM+N3D+dAr//0lgcEAk4M=;
+        b=qb0TWPxJw79XngvJkdO8fw/g2KMIWF4poyYYxrbeB+nRJID1Du+n4ayzFn/mT20LQX
+         DKZCh3loF83XGvAkWdBSwebVT9+axs7K/ZnDmevkMub8mpLLrlI5H5b8m2HRrNdZ3L5G
+         B8vHacshPPqNsiLANy4zuE10KuE+yO1YtCLI1IAstIVWPjor6otRSD/NSs4rR1rFRgBL
+         vMkJMZW1vnyMEQOh5hNV0jZp3OiQgqOWbuvtO8xfoe1T6ZZCttoiczoVWE6thGHb28yi
+         KnsvFhDgEt6aUPS/1Xf12RjuCKfG5r5QFJhCQt3/eGCIlMjayXLour3HINnp5D7X2rPd
+         bFrw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAV62LXPvcCkhWQ5eNcnkKgtxcpgavVlqugSUMpeUdaDTGlfdXGb
+	nSMEgHjx1cD7jXJH7OconFPqeAHBt9Fda2OVgve5NQOa2EVzdAlrbd5ulG0nXd+hvl0+SWjT0W7
+	U2Cf3jCr5Jl6Nw61ASnoVqCOYaTD1X+8qgqj4uINAooG9ZBMea1FqsTUIQrhqrp0=
+X-Received: by 2002:a50:9646:: with SMTP id y64mr1267127eda.111.1560163188550;
+        Mon, 10 Jun 2019 03:39:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxDfnUB6cugYuOwqcCS484lWXK04K0c5lldy/RkIuD9NkkaEhNUgMXw3KiF5GV6P/oYZaRm
+X-Received: by 2002:a50:9646:: with SMTP id y64mr1267058eda.111.1560163187581;
+        Mon, 10 Jun 2019 03:39:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560163187; cv=none;
         d=google.com; s=arc-20160816;
-        b=qA0E5jr3ZFsHno3L0CpXucsngztKYB7g5cB3qKmhZ2jtGVjJtICSxg5muxcAf92dGH
-         y3MMWwEYDNwmIZfE7hyU1kuWMEkTgkgp4y3mA7njR4bYPvdW8LGMecW8H/hvuR9CzjD6
-         kVhaEFwA8OB+pHp9fNi1ppkI9SB/UFOih+7qSSh6O6L1FFgHU6mC9XUiUUuYNHMoj/L9
-         w7sJzO/agTz4tIw6FU9ZVQq9cULeLlbnog3nm5rmCpXCglnYC7fY+E0J//OqcB9vn3x2
-         75wDccGibzDFlVIfSP52veRu0tXQE3xOyuq6E6rjYx8nKPz4mrI0bO+NJmKAfy9sFgbg
-         KPbA==
+        b=0ACFwBpSn/sC8PSvmEylVPj0tgkOxgy/8F2D/uUg0NG4b4dFR1bijNZQHW7Z1C9tfv
+         Slzch8y4jsDnjRLtO5PzyHmXnWCqWshU2gwJZS0UDzL03DxZGhE5c6j94gEPEvfI1pWX
+         vHuY3Yrl8M+RaIDbHzJuPLKRTaMa6dDoZD8ciOtgJm3o3t3nipv1YMFEDoFgJbSd+3pX
+         PCxs1T/tF0Le7HVyYXbVUC0eb7AmM/NyHxop7RPY2xeIUra40sv1GV7tIyPD2GCxUW9j
+         IPwEhd1jrBkGOaGToiKVtGRnix7qw5V9iGen30HkZeJxdBcOhiWaXF5svWuUepMK5yVH
+         w3uA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=UpQZyxDAIZssxN7CCNuXeFikhiebMI4lHnTfzcrIiyQ=;
-        b=IkktrrlHEqVn4Sf9zGvQmMgXnzwfrYGjAuIPTEq0fzxlpNEvPnW213kd98X7scDi2N
-         8jaPxaaU5/g4dEV0xRfNlB2J7u5DAQ/oLcMBTgmV7F+4DrD3M0yc/EMXxbQc9JVzD+8E
-         QFE+kAmEydoTxASOK4yKswFwO2/RQxfnqe82xyrLoqDYm7DX9deK0q686/Da2I5e5rEo
-         Nk7pJeZl49Q2W3J1ztFymexgVI0q9Uu+ubZkiGwphcd4T5uKSRAwteQUtFM5Za2inGVc
-         P8mYDMgMAoiShnuqq8X8DFt9SpJ5Srb+6ReD+GNxpEeB5eDGE0hxSwAXSKA78qCXc08l
-         OJQQ==
+         :message-id:subject:cc:to:from:date;
+        bh=MSVHT84Q0DKfM83aJPcXfzzM+N3D+dAr//0lgcEAk4M=;
+        b=VPYbdljQjRqIMLN5Tw7YEPDQ4P2xh5c1VoUEo8Pe9lDvMT0auz3JEWNlrbyoswId0N
+         lWvuAKE/f40WBa7nk11AyGLjWK1YnJj21aXwxUm/KnDcs29JV6d3KJVBVayJVe3fg5oM
+         RUtT5IexzKE3wFf5QnRrQfADlaebds4X490TBiKc69nZqYZROSsj0lN6iMhpb3AvA42+
+         Xqlrtwy5j5/u+0kBhfPHT+q/gbtEdozJ6/uzsc5wlp27LDv+wfy8dzOeElFKY8KQdgbk
+         2D8YEu6HiSyBiF7Vb4j6H/wNQAt75dwW2xw8ng29APZmJb74VSpnr7gD5ba7lSOP2QhM
+         OTXA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=oT3Tgck9;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q62sor5610567pjb.10.2019.06.10.03.12.56
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k58si5303776ede.417.2019.06.10.03.39.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Jun 2019 03:12:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Jun 2019 03:39:47 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=oT3Tgck9;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=UpQZyxDAIZssxN7CCNuXeFikhiebMI4lHnTfzcrIiyQ=;
-        b=oT3Tgck9UOkWtTtrfEsTEc4PpMFYNC/1A+9ozR6V61Qzvmi8PU2PjmGz4nMCuGml3v
-         H+nRmhJEBftdYa/jqjOOUDmFd3EIVk3K904sggw8sHSKT+izqm8D6xXryQtEqRIQwnYd
-         kU6ue4gFnzw7c/7zfEq/nYUufkOUwE5mNFwKPN0SwyZ0Bbo4EwOKD09zGiKkw9lzRU0r
-         8oiPkxnTLIkCVg18tdGUfuEWKg8MvK4yGM9BSlB9tZo15gQMiOojbos6lEuAFQ2aqnVh
-         0TER9J8ovskikTwRLLABwQfJ8LIMQIbDXfzkiMaWGpOOhtsIYly64d/JTpyUpvwp9twe
-         /YWQ==
-X-Google-Smtp-Source: APXvYqzJUiyDWi8zaR4iqoYas4PnR+FTZYDwdV0l9Fr4aNPkQh14eZq3enRj6HzBCVUi/S2a/0C2XQ==
-X-Received: by 2002:a17:90a:3787:: with SMTP id v7mr10962360pjb.33.1560161576370;
-        Mon, 10 Jun 2019 03:12:56 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id l38sm9533673pje.12.2019.06.10.03.12.50
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 10 Jun 2019 03:12:54 -0700 (PDT)
-Date: Mon, 10 Jun 2019 19:12:48 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Oleksandr Natalenko <oleksandr@redhat.com>
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id DA37DAFAB;
+	Mon, 10 Jun 2019 10:39:46 +0000 (UTC)
+Date: Mon, 10 Jun 2019 12:39:46 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
 	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>, jannh@google.com,
-	oleg@redhat.com, christian@brauner.io, hdanton@sina.com
-Subject: Re: [RFCv2 4/6] mm: factor out madvise's core functionality
-Message-ID: <20190610101248.GD55602@google.com>
-References: <20190531064313.193437-1-minchan@kernel.org>
- <20190531064313.193437-5-minchan@kernel.org>
- <20190531070420.m7sxybbzzayig44o@butterfly.localdomain>
- <20190531131226.GA195463@google.com>
- <20190531143545.jwmgzaigd4rbw2wy@butterfly.localdomain>
- <20190531232959.GC248371@google.com>
- <20190605132728.mihzzw7galqjf5uz@butterfly.localdomain>
+	stable@kernel.org, Wu Fangsuo <fangsuowu@asrmicro.com>,
+	Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
+Subject: Re: [PATCH] mm: fix trying to reclaim unevicable LRU page
+Message-ID: <20190610103946.GE30967@dhcp22.suse.cz>
+References: <20190524071114.74202-1-minchan@kernel.org>
+ <20190528151407.GE1658@dhcp22.suse.cz>
+ <20190530024229.GF229459@google.com>
+ <20190604122806.GH4669@dhcp22.suse.cz>
+ <20190610094222.GA55602@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190605132728.mihzzw7galqjf5uz@butterfly.localdomain>
+In-Reply-To: <20190610094222.GA55602@google.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -132,52 +107,73 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Oleksandr,
-
-On Wed, Jun 05, 2019 at 03:27:28PM +0200, Oleksandr Natalenko wrote:
-< snip >
-> > > > > >  	write = madvise_need_mmap_write(behavior);
-> > > > > >  	if (write) {
-> > > > > > -		if (down_write_killable(&current->mm->mmap_sem))
-> > > > > > +		if (down_write_killable(&mm->mmap_sem))
-> > > > > >  			return -EINTR;
-> > > > > 
-> > > > > Do you still need that trick with mmget_still_valid() here?
-> > > > > Something like:
+On Mon 10-06-19 18:42:22, Minchan Kim wrote:
+> On Tue, Jun 04, 2019 at 02:28:06PM +0200, Michal Hocko wrote:
+> > On Thu 30-05-19 11:42:29, Minchan Kim wrote:
+> > > On Tue, May 28, 2019 at 05:14:07PM +0200, Michal Hocko wrote:
+> > > > [Cc Pankaj Suryawanshi who has reported a similar problem
+> > > > http://lkml.kernel.org/r/SG2PR02MB309806967AE91179CAFEC34BE84B0@SG2PR02MB3098.apcprd02.prod.outlook.com]
 > > > > 
-> > > > Since MADV_COLD|PAGEOUT doesn't change address space layout or
-> > > > vma->vm_flags, technically, we don't need it if I understand
-> > > > correctly. Right?
+> > > > On Fri 24-05-19 16:11:14, Minchan Kim wrote:
+> > > > > There was below bugreport from Wu Fangsuo.
+> > > > > 
+> > > > > 7200 [  680.491097] c4 7125 (syz-executor) page:ffffffbf02f33b40 count:86 mapcount:84 mapping:ffffffc08fa7a810 index:0x24
+> > > > > 7201 [  680.531186] c4 7125 (syz-executor) flags: 0x19040c(referenced|uptodate|arch_1|mappedtodisk|unevictable|mlocked)
+> > > > > 7202 [  680.544987] c0 7125 (syz-executor) raw: 000000000019040c ffffffc08fa7a810 0000000000000024 0000005600000053
+> > > > > 7203 [  680.556162] c0 7125 (syz-executor) raw: ffffffc009b05b20 ffffffc009b05b20 0000000000000000 ffffffc09bf3ee80
+> > > > > 7204 [  680.566860] c0 7125 (syz-executor) page dumped because: VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page))
+> > > > > 7205 [  680.578038] c0 7125 (syz-executor) page->mem_cgroup:ffffffc09bf3ee80
+> > > > > 7206 [  680.585467] c0 7125 (syz-executor) ------------[ cut here ]------------
+> > > > > 7207 [  680.592466] c0 7125 (syz-executor) kernel BUG at /home/build/farmland/adroid9.0/kernel/linux/mm/vmscan.c:1350!
+> > > > > 7223 [  680.603663] c0 7125 (syz-executor) Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
+> > > > > 7224 [  680.611436] c0 7125 (syz-executor) Modules linked in:
+> > > > > 7225 [  680.616769] c0 7125 (syz-executor) CPU: 0 PID: 7125 Comm: syz-executor Tainted: G S              4.14.81 #3
+> > > > > 7226 [  680.626826] c0 7125 (syz-executor) Hardware name: ASR AQUILAC EVB (DT)
+> > > > > 7227 [  680.633623] c0 7125 (syz-executor) task: ffffffc00a54cd00 task.stack: ffffffc009b00000
+> > > > > 7228 [  680.641917] c0 7125 (syz-executor) PC is at shrink_page_list+0x1998/0x3240
+> > > > > 7229 [  680.649144] c0 7125 (syz-executor) LR is at shrink_page_list+0x1998/0x3240
+> > > > > 7230 [  680.656303] c0 7125 (syz-executor) pc : [<ffffff90083a2158>] lr : [<ffffff90083a2158>] pstate: 60400045
+> > > > > 7231 [  680.666086] c0 7125 (syz-executor) sp : ffffffc009b05940
+> > > > > ..
+> > > > > 7342 [  681.671308] c0 7125 (syz-executor) [<ffffff90083a2158>] shrink_page_list+0x1998/0x3240
+> > > > > 7343 [  681.679567] c0 7125 (syz-executor) [<ffffff90083a3dc0>] reclaim_clean_pages_from_list+0x3c0/0x4f0
+> > > > > 7344 [  681.688793] c0 7125 (syz-executor) [<ffffff900837ed64>] alloc_contig_range+0x3bc/0x650
+> > > > > 7347 [  681.717421] c0 7125 (syz-executor) [<ffffff90084925cc>] cma_alloc+0x214/0x668
+> > > > > 7348 [  681.724892] c0 7125 (syz-executor) [<ffffff90091e4d78>] ion_cma_allocate+0x98/0x1d8
+> > > > > 7349 [  681.732872] c0 7125 (syz-executor) [<ffffff90091e0b20>] ion_alloc+0x200/0x7e0
+> > > > > 7350 [  681.740302] c0 7125 (syz-executor) [<ffffff90091e154c>] ion_ioctl+0x18c/0x378
+> > > > > 7351 [  681.747738] c0 7125 (syz-executor) [<ffffff90084c6824>] do_vfs_ioctl+0x17c/0x1780
+> > > > > 7352 [  681.755514] c0 7125 (syz-executor) [<ffffff90084c7ed4>] SyS_ioctl+0xac/0xc0
+> > > > > 
+> > > > > Wu found it's due to [1]. Before that, unevictable page goes to cull_mlocked
+> > > > > routine so that it couldn't reach the VM_BUG_ON_PAGE line.
+> > > > > 
+> > > > > To fix the issue, this patch filter out unevictable LRU pages
+> > > > > from the reclaim_clean_pages_from_list in CMA.
+> > > > 
+> > > > The changelog is rather modest on details and I have to confess I have
+> > > > little bit hard time to understand it. E.g. why do not we need to handle
+> > > > the regular reclaim path?
 > > > 
-> > > I'd expect so, yes. But.
-> > > 
-> > > Since we want this interface to be universal and to be able to cover
-> > > various needs, and since my initial intention with working in this
-> > > direction involved KSM, I'd ask you to enable KSM hints too, and once
-> > > (and if) that happens, the work there is done under write lock, and
-> > > you'll need this trick to be applied.
-> > > 
-> > > Of course, I can do that myself later in a subsequent patch series once
-> > > (and, again, if) your series is merged, but, maybe, we can cover this
-> > > already especially given the fact that KSM hinting is a relatively easy
-> > > task in this pile. I did some preliminary tests with it, and so far no
-> > > dragons have started to roar.
+> > > No need to pass unevictable pages into regular reclaim patch if we are
+> > > able to know in advance.
 > > 
-> > Then, do you mind sending a patch based upon this series to expose
-> > MADV_MERGEABLE to process_madvise? It will have the right description
-> > why you want to have such feature which I couldn't provide since I don't
-> > have enough material to write the motivation. And the patch also could
-> > include the logic to prevent coredump race, which is more proper since
-> > finally we need to hold mmap_sem write-side lock, finally.
-> > I will pick it up and will rebase since then.
+> > I am sorry to be dense here. So what is the difference in the CMA path?
+> > Am I right that the pfn walk (CMA) rather than LRU isolation (reclaim)
+> > is the key differentiator?
 > 
-> Sure, I can. Would you really like to have it being based on this exact
-> revision, or I should wait till you deal with MADV_COLD & Co and re-iterate
-> this part again?
+> Yes.
+> We could isolate unevictable LRU pages from the pfn waker to migrate and
+> could discard clean file-backed pages to reduce migration latency in CMA
+> path.
 
-I'm okay you to send your patch against this revision. I'm happy to
-include it when I start a new thread for process_madvise discussion
-after resolving MADV_COLD|PAGEOUT.
+Please be explicit about that in the changelog. The fact that this is
+not possible from the regular reclaim path is really important and not
+obvious from the first glance.
 
-Thanks.
+Thanks!
+
+-- 
+Michal Hocko
+SUSE Labs
 
