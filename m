@@ -2,143 +2,306 @@ Return-Path: <SRS0=JJ+4=UJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C69F2C282DD
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 13:09:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29A2FC468C1
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 13:14:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 561A420679
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 13:09:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C998020862
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 13:14:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="BhIIjcgO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 561A420679
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="K9jH0fpc";
+	dkim=fail reason="key not found in DNS" (0-bit key) header.d=codeaurora.org header.i=@codeaurora.org header.b="LEjAjg0a"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C998020862
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=codeaurora.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 999476B0266; Mon, 10 Jun 2019 09:09:18 -0400 (EDT)
+	id 3F0656B026A; Mon, 10 Jun 2019 09:14:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 949DC6B0269; Mon, 10 Jun 2019 09:09:18 -0400 (EDT)
+	id 37A886B026B; Mon, 10 Jun 2019 09:14:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 838196B026A; Mon, 10 Jun 2019 09:09:18 -0400 (EDT)
+	id 1F4476B026C; Mon, 10 Jun 2019 09:14:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 61C4E6B0266
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 09:09:18 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id g30so8989120qtm.17
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 06:09:18 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D263F6B026A
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 09:13:59 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id x18so7200172pfj.4
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 06:13:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=4F5p4XvqxWD0TPhx038sRdW6UkfS+pQjYQgLxUjnBMI=;
-        b=FxZ86xKAQhBDgn3NfVDdUolF1LhIQiCv8diJQEpamjBkjAIGWRDrXxKxl1qVl7ae0a
-         xKXZ9NMy4T54fHVTNCfqyDBkhGD5TtuEN+q1do1lwTx7Z0rGlfGV9c7AhvuYzVnJijf9
-         aR274IBl3QmNMgdVJa7kkuWBLV4JfcR7R+ME2fl+DVhCYm0y/Ksx6lfiiIYkGZvS2nDT
-         QZwwqM3QS3q83IEYyAXspEcbAMvKig1gUFkT5uwZBnC3i7iJwit1isLYqqzVI4q4egBY
-         J+qEFl30ZIQFeOt/lQ0NWmE98+sKDpvos4JyGn8Sse9zBYdVKJYKMo4cs+WbV6cSmNyK
-         HAmA==
-X-Gm-Message-State: APjAAAVZvJUQz+Z+d+PlrLlGRB+oPMXm9uc1ACYuZw2dn3Mj76Oldfnn
-	jip0NUobjZWM91nf1uQVizJSZQLRO2VsBGpXPy47X5xiAd1lyi1oGaEYb+k/YED6ukz28KXMGBH
-	xX0iIRFNQBcLy1TFqVHs/dYQPbnewVe2jp3ZIyaZTnfBxLAjXHjrwo4KgSAi/+V80Cg==
-X-Received: by 2002:a05:620a:13d9:: with SMTP id g25mr11684719qkl.138.1560172158139;
-        Mon, 10 Jun 2019 06:09:18 -0700 (PDT)
-X-Received: by 2002:a05:620a:13d9:: with SMTP id g25mr11684620qkl.138.1560172157081;
-        Mon, 10 Jun 2019 06:09:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560172157; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:dmarc-filter
+         :subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=8/KcZFh0RuyFdR1AzEwbyxZ31aFonV09fItJZZtbacw=;
+        b=fFtpOIps9bjPt63qk4FasSQjqu3TkD5Hux6R5y46mCXBSp+dYCq8/WIGnXtw1Xc2V3
+         K9O1oMhR5UFHSc5IPcWG98Em5Ahzu1HP3ucmd85ha42vieR3n0A1AYcoV6mpRt6NsQnj
+         tIIb7VJWa7CZ/n+k10+VOpsPYbEDpmPXSj8kw5qrJ5zYQu4Rw4mksAN4wii021+eCIHw
+         Sqer4J4d8UQG3QSg7hABLL04k0PYJBftdMQjiGRLPiFmsGb4yvuutBXVlGqkTphu4WBb
+         3BDWGGUqLhtDX+ZczIvGY4CurTAWTF8tOfguWu8FQAbmUnLJvXovUDH5Cd7vsHX856dG
+         AVoQ==
+X-Gm-Message-State: APjAAAUCHN3F3KptC35H0TVlmyfIOXwC1spggxFTqkL+WIV0HCDbuSxy
+	wGFkBwvWLQcWt8FcjRsCtbfNFNL4FCCKOoeMoEjN/CV0LUBGw3hvLSiPL5gvwPMXRZIhGls5XA4
+	BszY2hDF+G+6apsJcjZ2K60sR5yboYEsTURm/NM+CIi79G4SyN13tjSRoUkvP15KwyA==
+X-Received: by 2002:a17:902:5ac9:: with SMTP id g9mr71015029plm.134.1560172439350;
+        Mon, 10 Jun 2019 06:13:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxdmoz9zReqIwq+tYX+WKDhCqOTU6CT3LCuDhhlz1BZU1mAMYyvxX+x9LyJQCuPqHnTGgNZ
+X-Received: by 2002:a17:902:5ac9:: with SMTP id g9mr71014948plm.134.1560172438390;
+        Mon, 10 Jun 2019 06:13:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560172438; cv=none;
         d=google.com; s=arc-20160816;
-        b=G/8VV+CffmOpwdbbDZ23xXGU9HPjgl/ThWPlAvTSJvxh7UqUdIdzOp4/4fygm/ABeB
-         auJ1UQ7Ez3nQYrOWUMeOS8VpLZM2xORsW9mAgKDVnm3oqYvK2YM3eE00bDZEym0HXVrU
-         ZosaEcEty4CmvJGYKoeLndM6F3VzsWRwKzGlnyPjiNwoYjKM9st+Y6r7FQfWy+KN1gHK
-         WQCkuV4iuAfjzo43dqocF7qgmGndMYxQr9Uzn4F2D6UJYR8LEvN/AOsg/jQtgL7diz5i
-         8LY7TatrCoz8zbPEjPfC7Q8YsWSblu9SCa/agFW/JR13a9yvThJYZHjrzOBevW8UIcVp
-         +F5g==
+        b=pWU6Z89cWt8N+6CiEQzZN0my/hEiii8YrHnoK0425Nqvq03PUiAD3gQfmng6P0fMVb
+         6uE8FvuKxprIKKNdVXkC2lT+iv/KgqcYWlHgWWDJyN1BfOL9dsutwYvsEBweXl3cfsgb
+         AmxpP4/b1Yfx2XMey1gQ3na+fJazmrlAHiD7+yxbGllTjNgncRhwMShDXglV1issnnoa
+         8ONAuMXtQoe5NbAwwHP7JpU2PSEBL98yYctoNhDbtiYB7DUxWcCd/4QrDtqbpZ0SqSJG
+         5f1lXY4YXr0PSNi/FTiVZcS92rUy4bO+QveUbax7MvRlCovv9AdaegAVi1YX1B9tHSsQ
+         ySnQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=4F5p4XvqxWD0TPhx038sRdW6UkfS+pQjYQgLxUjnBMI=;
-        b=PQY8+ZvFRkch0U/jIcS5XsHLqZnQVtCN23shxYdJlsR+ug+RINVSu5gKTdqhNDN7SA
-         SVnu5cvgknIk5JcLiWbTiGLvlyTn8ZQbeRYsRhIS6DXVRhSSAK0BUrcLiBxPsTzp0dkS
-         ffpab9Nkdp90AYUAkPb5VCkDi0+s1ogNJRs4XKN9eLhBMgc1+mls4zJM/3MQEjD1QB87
-         nd2UrY4HOCOIVsDudzB85Bu328X776MdzB6dbFst8qxGEoeOpZtIJw6AV6Q4Ozfwa+Mq
-         k8QtU1mYpHewoZQQmoQCOqoHOMLGH/tU5kYYzc43a/2l003od1S51lu4OcueTQkT+xzh
-         jSmg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dmarc-filter:dkim-signature:dkim-signature;
+        bh=8/KcZFh0RuyFdR1AzEwbyxZ31aFonV09fItJZZtbacw=;
+        b=QMYlctsfTVr3MJ1V7+RVcxmXqpdyycJF6yfUC7/CC6e3BqcpPd/gCHfrCqKADC7soe
+         3vXDBuYDnrnFgCz0zBbNO6i+5sSiBxd5DnSXvGq+kXk8zlnRiuKGVE+899oae/Bizqnh
+         Swr8SBM73I5p1mud9+YDHR9R1UTLDU1y/Y1GJarRMiZMeDnUSsYnPmc/wst/TPB7fLAI
+         7i33iCvrArW+jLn3xoxLN1FhdBwioyEBYrfuFBpu6KZp1jIIx8XAxStqtPoRLH+mLesU
+         UKrGTRBdeD5kUqX/4K7fSCRTu4P0wPERx+GRlKlZGtH8fQoafIOdsp4S93Blv4mRFUuH
+         aP+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=BhIIjcgO;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j34sor12967836qte.42.2019.06.10.06.09.16
+       dkim=pass header.i=@codeaurora.org header.s=default header.b=K9jH0fpc;
+       dkim=pass header.i=@codeaurora.org header.s=default header.b=LEjAjg0a;
+       spf=pass (google.com: domain of gkohli@codeaurora.org designates 198.145.29.96 as permitted sender) smtp.mailfrom=gkohli@codeaurora.org
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id r9si3098185pgv.272.2019.06.10.06.13.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Jun 2019 06:09:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Jun 2019 06:13:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of gkohli@codeaurora.org designates 198.145.29.96 as permitted sender) client-ip=198.145.29.96;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=BhIIjcgO;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=4F5p4XvqxWD0TPhx038sRdW6UkfS+pQjYQgLxUjnBMI=;
-        b=BhIIjcgOeQFdpsXOGxWnmGvjoyeGrIjjevpQNRl/I2/FM8ihdN5hXQobSh95XYjgPy
-         BcVai4r/g1HxBTsXAlAV0qer0KY857kzqTHnHg2h6eEGGmmeCl7I6rNfu1lMP1j2s+65
-         HMCq4j4xGVfZGz9FHAfQJXTacr+yVjc2YESaxykFfinvyANrOti3zkztW1T11pGgbt+m
-         ogx8XVpNVzdJsodX6ozViM6hnDCL71wrSt/am17+Hfd0sGLK4ljxB0UQChBHCVSbWxea
-         5/soEI9XcHDofveKfkWMk8uTfUv0yVeOC28YGBJDNyrnMAdm6q1bApQkogtXbzNnCf+V
-         garw==
-X-Google-Smtp-Source: APXvYqyfdzwD7zPoXm7GvJhg1KqfurFKZJX3W/vApYwm27bMvAhRfi5kk7rnbLbo+akkzc5tVyXK/g==
-X-Received: by 2002:ac8:1af4:: with SMTP id h49mr51085239qtk.183.1560172156644;
-        Mon, 10 Jun 2019 06:09:16 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id v30sm1245889qtk.45.2019.06.10.06.09.16
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 10 Jun 2019 06:09:16 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1haK31-0006cK-Gt; Mon, 10 Jun 2019 10:09:15 -0300
-Date: Mon, 10 Jun 2019 10:09:15 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>,
-	Felix.Kuehling@amd.com, linux-rdma@vger.kernel.org,
-	linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>,
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
-Subject: Re: [PATCH v2 hmm 02/11] mm/hmm: Use hmm_mirror not mm as an
- argument for hmm_range_register
-Message-ID: <20190610130915.GA18468@ziepe.ca>
-References: <20190606184438.31646-1-jgg@ziepe.ca>
- <20190606184438.31646-3-jgg@ziepe.ca>
- <4a391bd4-287c-5f13-3bca-c6a46ff8d08c@nvidia.com>
- <e460ddf5-9ed3-7f3b-98ce-526c12fdb8b1@nvidia.com>
+       dkim=pass header.i=@codeaurora.org header.s=default header.b=K9jH0fpc;
+       dkim=pass header.i=@codeaurora.org header.s=default header.b=LEjAjg0a;
+       spf=pass (google.com: domain of gkohli@codeaurora.org designates 198.145.29.96 as permitted sender) smtp.mailfrom=gkohli@codeaurora.org
+Received: by smtp.codeaurora.org (Postfix, from userid 1000)
+	id 101C860721; Mon, 10 Jun 2019 13:13:58 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
+	s=default; t=1560172438;
+	bh=LwAgGkchs/Fzdy3FLqNUXNaSYeJqLqml87Nmc/rgzcM=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=K9jH0fpc+XRcZ9zuxXDIa339uRa0nRf5EhBK+/kmJVcRugToXwb1UqzFvoJcH4U3K
+	 N5TDkchZacjwtbOwOP6QQu+un0FqniD977J/liGt+8x5TB7DZ01w52gvLQwbHPsWSv
+	 QIa83N0giedoYvQp7sfy3S3/rIGD4cMTq6gnTLh0=
+Received: from [10.204.79.142] (blr-c-bdr-fw-01_globalnat_allzones-outside.qualcomm.com [103.229.19.19])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	(Authenticated sender: gkohli@smtp.codeaurora.org)
+	by smtp.codeaurora.org (Postfix) with ESMTPSA id 46AF260261;
+	Mon, 10 Jun 2019 13:13:54 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=codeaurora.org;
+	s=default; t=1560172436;
+	bh=LwAgGkchs/Fzdy3FLqNUXNaSYeJqLqml87Nmc/rgzcM=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=LEjAjg0aQZqM1UUurRbp+XQjiq2Wm3NTju0vra1LPjDw7qNC3eS7qx//GRxamW0jM
+	 dLtr1FOdSG8Jmk20uzL3WugAw+2j2A5vt144CEowkphY+ICsSveoVghM/7NX4eAXZ1
+	 Io8d0WWgCM04TVwGUA/P0J/OEd+OLYXSNs0GqKxE=
+DMARC-Filter: OpenDMARC Filter v1.3.2 smtp.codeaurora.org 46AF260261
+Authentication-Results: pdx-caf-mail.web.codeaurora.org; dmarc=none (p=none dis=none) header.from=codeaurora.org
+Authentication-Results: pdx-caf-mail.web.codeaurora.org; spf=none smtp.mailfrom=gkohli@codeaurora.org
+Subject: Re: [PATCH] block: fix a crash in do_task_dead()
+To: Peter Zijlstra <peterz@infradead.org>, Jens Axboe <axboe@kernel.dk>
+Cc: Qian Cai <cai@lca.pw>, akpm@linux-foundation.org, hch@lst.de,
+ oleg@redhat.com, mingo@redhat.com, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <1559161526-618-1-git-send-email-cai@lca.pw>
+ <20190530080358.GG2623@hirez.programming.kicks-ass.net>
+ <82e88482-1b53-9423-baad-484312957e48@kernel.dk>
+ <20190603123705.GB3419@hirez.programming.kicks-ass.net>
+ <ddf9ee34-cd97-a62b-6e91-6b4511586339@kernel.dk>
+ <20190607133541.GJ3436@hirez.programming.kicks-ass.net>
+ <20190607142332.GF3463@hirez.programming.kicks-ass.net>
+From: Gaurav Kohli <gkohli@codeaurora.org>
+Message-ID: <16419960-3703-5988-e7ea-9d3a439f8b05@codeaurora.org>
+Date: Mon, 10 Jun 2019 18:43:51 +0530
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <e460ddf5-9ed3-7f3b-98ce-526c12fdb8b1@nvidia.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190607142332.GF3463@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 07, 2019 at 03:39:06PM -0700, Ralph Campbell wrote:
-> > > +    range->hmm = hmm;
-> > > +    kref_get(&hmm->kref);
-> > >       /* Initialize range to track CPU page table updates. */
-> > >       mutex_lock(&hmm->lock);
-> > > 
+
+
+On 6/7/2019 7:53 PM, Peter Zijlstra wrote:
+> On Fri, Jun 07, 2019 at 03:35:41PM +0200, Peter Zijlstra wrote:
+>> On Wed, Jun 05, 2019 at 09:04:02AM -0600, Jens Axboe wrote:
+>>> How about the following plan - if folks are happy with this sched patch,
+>>> we can queue it up for 5.3. Once that is in, I'll kill the block change
+>>> that special cases the polled task wakeup. For 5.2, we go with Oleg's
+>>> patch for the swap case.
+>>
+>> OK, works for me. I'll go write a proper patch.
 > 
-> I forgot to add that I think you can delete the duplicate
->     "range->hmm = hmm;"
-> here between the mutex_lock/unlock.
+> I now have the below; I'll queue that after the long weekend and let
+> 0-day chew on it for a while and then push it out to tip or something.
+> 
+> 
+> ---
+> Subject: sched: Optimize try_to_wake_up() for local wakeups
+> From: Peter Zijlstra <peterz@infradead.org>
+> Date: Fri Jun 7 15:39:49 CEST 2019
+> 
+> Jens reported that significant performance can be had on some block
+> workloads (XXX numbers?) by special casing local wakeups. That is,
+> wakeups on the current task before it schedules out. Given something
+> like the normal wait pattern:
+> 
+> 	for (;;) {
+> 		set_current_state(TASK_UNINTERRUPTIBLE);
+> 
+> 		if (cond)
+> 			break;
+> 
+> 		schedule();
+> 	}
+> 	__set_current_state(TASK_RUNNING);
+> 
+> Any wakeup (on this CPU) after set_current_state() and before
+> schedule() would benefit from this.
+> 
+> Normal wakeups take p->pi_lock, which serializes wakeups to the same
+> task. By eliding that we gain concurrency on:
+> 
+>   - ttwu_stat(); we already had concurrency on rq stats, this now also
+>     brings it to task stats. -ENOCARE
+> 
+>   - tracepoints; it is now possible to get multiple instances of
+>     trace_sched_waking() (and possibly trace_sched_wakeup()) for the
+>     same task. Tracers will have to learn to cope.
+> 
+> Furthermore, p->pi_lock is used by set_special_state(), to order
+> against TASK_RUNNING stores from other CPUs. But since this is
+> strictly CPU local, we don't need the lock, and set_special_state()'s
+> disabling of IRQs is sufficient.
+> 
+> After the normal wakeup takes p->pi_lock it issues
+> smp_mb__after_spinlock(), in order to ensure the woken task must
+> observe prior stores before we observe the p->state. If this is CPU
+> local, this will be satisfied with a compiler barrier, and we rely on
+> try_to_wake_up() being a funcation call, which implies such.
+> 
+> Since, when 'p == current', 'p->on_rq' must be true, the normal wakeup
+> would continue into the ttwu_remote() branch, which normally is
+> concerned with exactly this wakeup scenario, except from a remote CPU.
+> IOW we're waking a task that is still running. In this case, we can
+> trivially avoid taking rq->lock, all that's left from this is to set
+> p->state.
+> 
+> This then yields an extremely simple and fast path for 'p == current'.
+> 
+> Cc: Qian Cai <cai@lca.pw>
+> Cc: mingo@redhat.com
+> Cc: akpm@linux-foundation.org
+> Cc: hch@lst.de
+> Cc: gkohli@codeaurora.org
+> Cc: oleg@redhat.com
+> Reported-by: Jens Axboe <axboe@kernel.dk>
+> Tested-by: Jens Axboe <axboe@kernel.dk>
+> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+> ---
+>   kernel/sched/core.c |   33 ++++++++++++++++++++++++++++-----
+>   1 file changed, 28 insertions(+), 5 deletions(-)
+> 
+> --- a/kernel/sched/core.c
+> +++ b/kernel/sched/core.c
+> @@ -1991,6 +1991,28 @@ try_to_wake_up(struct task_struct *p, un
+>   	unsigned long flags;
+>   	int cpu, success = 0;
+>   
+> +	if (p == current) {
+> +		/*
+> +		 * We're waking current, this means 'p->on_rq' and 'task_cpu(p)
+> +		 * == smp_processor_id()'. Together this means we can special
+> +		 * case the whole 'p->on_rq && ttwu_remote()' case below
+> +		 * without taking any locks.
+> +		 *
+> +		 * In particular:
+> +		 *  - we rely on Program-Order guarantees for all the ordering,
+> +		 *  - we're serialized against set_special_state() by virtue of
+> +		 *    it disabling IRQs (this allows not taking ->pi_lock).
+> +		 */
+> +		if (!(p->state & state))
+> +			return false;
+> +
 
-Done, thanks
+Hi Peter, Jen,
 
-Jason
+As we are not taking pi_lock here , is there possibility of same task 
+dead call comes as this point of time for current thread, bcoz of which 
+we have seen earlier issue after this commit 0619317ff8ba
+[T114538]  do_task_dead+0xf0/0xf8
+[T114538]  do_exit+0xd5c/0x10fc
+[T114538]  do_group_exit+0xf4/0x110
+[T114538]  get_signal+0x280/0xdd8
+[T114538]  do_notify_resume+0x720/0x968
+[T114538]  work_pending+0x8/0x10
+
+Is there a chance of TASK_DEAD set at this point of time?
+
+
+> +		success = 1;
+> +		trace_sched_waking(p);
+> +		p->state = TASK_RUNNING;
+> +		trace_sched_wakeup(p);
+> +		goto out;
+> +	}
+> +
+>   	/*
+>   	 * If we are going to wake up a thread waiting for CONDITION we
+>   	 * need to ensure that CONDITION=1 done by the caller can not be
+> @@ -2000,7 +2022,7 @@ try_to_wake_up(struct task_struct *p, un
+>   	raw_spin_lock_irqsave(&p->pi_lock, flags);
+>   	smp_mb__after_spinlock();
+>   	if (!(p->state & state))
+> -		goto out;
+> +		goto unlock;
+>   
+>   	trace_sched_waking(p);
+>   
+> @@ -2030,7 +2052,7 @@ try_to_wake_up(struct task_struct *p, un
+>   	 */
+>   	smp_rmb();
+>   	if (p->on_rq && ttwu_remote(p, wake_flags))
+> -		goto stat;
+> +		goto unlock;
+>   
+>   #ifdef CONFIG_SMP
+>   	/*
+> @@ -2090,10 +2112,11 @@ try_to_wake_up(struct task_struct *p, un
+>   #endif /* CONFIG_SMP */
+>   
+>   	ttwu_queue(p, cpu, wake_flags);
+> -stat:
+> -	ttwu_stat(p, cpu, wake_flags);
+> -out:
+> +unlock:
+>   	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
+> +out:
+> +	if (success)
+> +		ttwu_stat(p, cpu, wake_flags);
+>   
+>   	return success;
+>   }
+> 
+
+-- 
+Qualcomm India Private Limited, on behalf of Qualcomm Innovation Center,
+Inc. is a member of the Code Aurora Forum,
+a Linux Foundation Collaborative Project.
 
