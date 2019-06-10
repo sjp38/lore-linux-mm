@@ -2,193 +2,155 @@ Return-Path: <SRS0=JJ+4=UJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C81CC31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 16:09:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C15D7C468D8
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 16:11:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 03462206C3
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 16:09:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="z113WwHc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03462206C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 9263620862
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 16:11:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9263620862
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6EE406B026B; Mon, 10 Jun 2019 12:09:40 -0400 (EDT)
+	id 2CDE56B026B; Mon, 10 Jun 2019 12:11:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6786F6B026D; Mon, 10 Jun 2019 12:09:40 -0400 (EDT)
+	id 27FE86B026D; Mon, 10 Jun 2019 12:11:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4F0A06B026E; Mon, 10 Jun 2019 12:09:40 -0400 (EDT)
+	id 1208A6B026E; Mon, 10 Jun 2019 12:11:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 14DBC6B026B
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 12:09:40 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id t64so5442970pgt.8
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 09:09:40 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CFC476B026B
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 12:11:12 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 140so7480404pfa.23
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 09:11:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=q/XqjsUkDq6xevue9zs57YIabmhhkQKl2VGDHiV5jq4=;
-        b=qSGtXoU+EtB/oQbdoE72+Uo/mNmRoquCULdZROegfYtzq8rrst32gV5DXarY0iUHRN
-         ySdldmsPqK2/hgRxwMl0BYgtO738icmpB6DBJwpxn2G+ysv/ZGNo7DCgBK5/1ZVwP2SN
-         MsFYZNY+iQdKZggT8NlYaXN1VdiZHZnmooofs+K9+SXTQfgcKG0KFjNJQWEMCI6D8hUj
-         C0w3kNTeQXqCnd8XW4b1TwwruSfwBT2+pjfwRPIq555Os+DMXBPwyXiqUg60EN5w3Ib4
-         jYUVh5U18tAv/3KlGy+OH3YTefHpEqcUXXxKlbbMdExI7nYiCvtvSNLQyzr22qBGcWOs
-         iOdQ==
-X-Gm-Message-State: APjAAAUe0uPDoHs8OCBLrYTSutJetEsCmpXXZmhCaZggX4CwAf63oY6C
-	+6TyWZkL2X3MJnM6DZjZFoaxO+g9qEsilflMpnMchIjIYspfHJXpRhD0L4Sshqq02q7US8oPgNn
-	wmM76gjXzZ7PWLpXLKr5zW1SiP+hKDgRGG+daCDCyfgcQ2qKU7rhTgPogsZXvp7wBkw==
-X-Received: by 2002:a62:e710:: with SMTP id s16mr40975531pfh.183.1560182979662;
-        Mon, 10 Jun 2019 09:09:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzJFwXjA2Wo1mtMyyUcCiBmrisrwjPrSQubKZVk95CqRx5wqK5A7J/qujWes4A2YK9xOKnS
-X-Received: by 2002:a62:e710:: with SMTP id s16mr40975471pfh.183.1560182978993;
-        Mon, 10 Jun 2019 09:09:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560182978; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=7FynTzfNS8wGbP6wCU8qyDZECZ9kJrnfMNsGD1nf+r8=;
+        b=cnFwNjsDaJzUE6kcbkldC3cmsEKr5pSu6x5TP6IgFLZ1FxR9ysj5cuDEre4C7g1r0z
+         /13xYHvmq6NHtMTB33gnAHiwoGSXbX+/BrLO7UFXpE6ktK7KP2UGijjTVric8aV+eM0F
+         cZJ01LO7pW7iw/GcprNBDzfjJNY+2QyCoP9OXiW4EKozDQYU6kE9H6Y1nimt+I+6xNq0
+         mNpjd30G9F+XS1Ij9TfWCnbRcEdtG9ZFIj4qEfB5BVq7vaM8AjBbVSFKIO4/Xv3v3B5d
+         PrAyyiPKMhrg6XTkAQSAhKYBPye5AJuGruRQZ64aT+Bi0nz4EBZVvJad28EEUVayLvZ6
+         CaKw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXxaxxXILDXUk92d2b1SAaLIBsSM5shxxr+MQw1ZGu31H3VJvXy
+	sHq6OO3f0WKqN4NP7GAbuA2c1+BhLotN9nUL1fn+hDfHUlIK6uEWweILCFKKSvm6QKJu2oJfsND
+	eTnCV/mq33dZh7ibBV1Q6cZgutsW0R8HgbJamaqWVw6ay+8FWwqWVRdVBxn7ItLaBKA==
+X-Received: by 2002:a17:902:2ba7:: with SMTP id l36mr70446019plb.334.1560183072531;
+        Mon, 10 Jun 2019 09:11:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwl9SoLO8zQstBfAkk2Nik5NFj2KW3EsZsB00q2BdoC4ipPUzO/xaLZ+/dPq0fAp4MBX4ZH
+X-Received: by 2002:a17:902:2ba7:: with SMTP id l36mr70445981plb.334.1560183071957;
+        Mon, 10 Jun 2019 09:11:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560183071; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZZIxKJqdFljTBuhWWRsTzaXkODC0omPCy7UX5JJYtrwqpDL7GqQJ5N42p3iNGql1Dl
-         DWZqg521ONsveNjb63c/ZpiWvZf7Xe4xmSKO/zaw6dzjxC6O42Rnm4S4UccNHMpDXXim
-         xNB9tD2vTOPcQtBsc4AwRctYGpKhz+13Q5wBc0MCJby4yAx79pHOvZIMHTmIsmaXKsOg
-         DAbctkZkB/VGx4tJ48zBl05JF68EHxEV3CTGUGtcx7m+J0aR9+E9GopidvsG2M+gZYJb
-         8apLdRQU/WpblKECeN+bzUgbq63MGNduxivFB0aBBQSibXhm1a3Q2vqwKDEw68LO6HD0
-         TafA==
+        b=m/TsoBL9vfrYAig8idN5j1Ain4CPGSebyYgz8O0GWTRX24c3Hxe6eiHP7aJ5ppbEqV
+         Tn9OrJqVt6gl9V6Eix1pQAXwy40Au144AHifQsrm+d1mpB40RZ5TwkOR0wV77FtRGrgT
+         9gryyCnU1Y+PupdTv4sIC5kSp47LnYcCiolKpQdHEMRYslkyZUOtYFVTBRtcDPmmRqR8
+         D9NEeU0fnDwHJYGgxI/bd/9jQrW0Gwrbp2wcPEDLzWVZzQNsGywb/fqn9+cNpnWm7JAm
+         4oLGzA5VIGsHR6kfHxkTFBuX09rvvR/oyQcmYY9aW04lWCnTYiAGT+J08MwRpT1R8VEt
+         ZgjQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=q/XqjsUkDq6xevue9zs57YIabmhhkQKl2VGDHiV5jq4=;
-        b=CSGj1kbTF+n100hDugETyufTSGnPcOdLmCWWgidisjVrSqv6KIDz9euVkl7Hdkahwr
-         FeNvl5157X3+5XmY3hLlgZuSPfGNjAHU4M/9lDpDfvHneKTecGqsOnjq8iV6KqmXQ5Hx
-         WSHPcHChHdGpu68NI/oKoZeE7ftTg6vPeTDtfGZc7S0xL7S8WIqQDBJuruC/MmDGh9jb
-         /I5wa44ma+/m+YWmsKT/xaksGBDP1EVhGb1I/P3Y9BAUeEKUz/cb8LL6vk2F9IvD3iSE
-         Vpm4JEBAu+miwZiJZ2r6vdCiqxMmd0uY3w2tAc1hgV8V+cc69izG21rx4loEP9OjZDnw
-         kd0A==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=7FynTzfNS8wGbP6wCU8qyDZECZ9kJrnfMNsGD1nf+r8=;
+        b=WgaNKuyEkJ03IwAJp21eokhUeOO32JXOKl4lD+tHihT+SiAib6kAokY1IisxMPyG/K
+         E7mTzgv9hI9JiQBjLuts+9Znwe8gb+0efW8L4bzPA7bg5KcNj4gB1Zey4BVMwPLeIQgJ
+         U3JLPGfTaAfHiIBXzQB5KWYgkdiaUrqhxGh6szL7vRIdZdisATDJ/+ZK9wjYAYaACAx5
+         u0Sa8oFa9rOI0sgdlMwMtz5WIYDCef5HkCdVznvDumC10ajKUMOaLTi4pCHUATmpqtNb
+         CpDoSeXFJ2GTDYcXQYYreM4TJ4iVKzJu15iRIJMx9Tyq8/SBKmN4gwWgvi+Dp0uab2eF
+         SSqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=z113WwHc;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id r130si10042465pgr.509.2019.06.10.09.09.38
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id u21si10142899pgm.431.2019.06.10.09.11.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jun 2019 09:09:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Mon, 10 Jun 2019 09:11:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=z113WwHc;
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5AG8dYb186787;
-	Mon, 10 Jun 2019 16:09:38 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=q/XqjsUkDq6xevue9zs57YIabmhhkQKl2VGDHiV5jq4=;
- b=z113WwHcxX3n/yhODGaHV37Y8Y2xpZmcyhxxxXzJA/k/rxOYXjF2MjD/1uhcbfhftRYf
- 5pqMjh5K3CtHPhzszPk3sJvtarblaJBFXn+SMzznHbGaB/24N8rQCO6FIzIJiYWF5Jmy
- 0Ctn3AGwZpPxskUF74cndxv7urz5f3+PcDqCnsdci1pwvBGZZ6ksWHEShe2xXI4W3GG/
- zsFwGRTeohmYJJragnO65tWk+/TgIVgAHp17i7Qzmiy9ZuC84qzcwRNBXZbhGeO1dq1K
- Yw1OMGx7ZEqHS/69RztKNiTCeLKDWlHFChndJrLK17c0MsRVkQQFuAzKKwCH+BVYyVom Lg== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2130.oracle.com with ESMTP id 2t04etfvt2-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 10 Jun 2019 16:09:37 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5AG9TMe154450;
-	Mon, 10 Jun 2019 16:09:37 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userp3030.oracle.com with ESMTP id 2t024twpwf-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 10 Jun 2019 16:09:37 +0000
-Received: from abhmp0006.oracle.com (abhmp0006.oracle.com [141.146.116.12])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x5AG9aDJ022183;
-	Mon, 10 Jun 2019 16:09:36 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 10 Jun 2019 09:09:36 -0700
-Date: Mon, 10 Jun 2019 09:09:34 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: "Theodore Ts'o" <tytso@mit.edu>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-        linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org,
-        linux-mm@kvack.org
-Subject: Re: [PATCH 1/8] mm/fs: don't allow writes to immutable files
-Message-ID: <20190610160934.GH1871505@magnolia>
-References: <155552786671.20411.6442426840435740050.stgit@magnolia>
- <155552787330.20411.11893581890744963309.stgit@magnolia>
- <20190610015145.GB3266@mit.edu>
- <20190610044144.GA1872750@magnolia>
- <20190610131417.GD15963@mit.edu>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190610131417.GD15963@mit.edu>
-User-Agent: Mutt/1.9.4 (2018-02-28)
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9284 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1906100110
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9284 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906100110
+       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga001.fm.intel.com ([10.253.24.23])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jun 2019 09:11:11 -0700
+X-ExtLoop1: 1
+Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
+  by fmsmga001.fm.intel.com with ESMTP; 10 Jun 2019 09:11:11 -0700
+Message-ID: <d699f179b7daefc6269174867a04868c9157ebe4.camel@intel.com>
+Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
+ function
+From: Yu-cheng Yu <yu-cheng.yu@intel.com>
+To: Andy Lutomirski <luto@amacapital.net>, Dave Hansen
+ <dave.hansen@intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org, "H. Peter Anvin"
+ <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar
+ <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-doc@vger.kernel.org,  linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Balbir Singh
+ <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,  Cyrill Gorcunov
+ <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene
+ Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J.
+ Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet
+ <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
+ <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov
+ <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Randy Dunlap
+ <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, Dave Martin
+ <Dave.Martin@arm.com>
+Date: Mon, 10 Jun 2019 09:03:04 -0700
+In-Reply-To: <4F7D0C3C-F239-4B67-BB05-31350F809293@amacapital.net>
+References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
+	 <20190606200926.4029-4-yu-cheng.yu@intel.com>
+	 <20190607080832.GT3419@hirez.programming.kicks-ass.net>
+	 <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
+	 <20190607174336.GM3436@hirez.programming.kicks-ass.net>
+	 <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
+	 <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
+	 <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
+	 <4b448cde-ee4e-1c95-0f7f-4fe694be7db6@intel.com>
+	 <0e505563f7dae3849b57fb327f578f41b760b6f7.camel@intel.com>
+	 <f6de9073-9939-a20d-2196-25fa223cf3fc@intel.com>
+	 <4F7D0C3C-F239-4B67-BB05-31350F809293@amacapital.net>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.28.1-2 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 10, 2019 at 09:14:17AM -0400, Theodore Ts'o wrote:
-> On Sun, Jun 09, 2019 at 09:41:44PM -0700, Darrick J. Wong wrote:
-> > On Sun, Jun 09, 2019 at 09:51:45PM -0400, Theodore Ts'o wrote:
-> > > On Wed, Apr 17, 2019 at 12:04:33PM -0700, Darrick J. Wong wrote:
-> >
-> > > Shouldn't this check be moved before the modification of vmf->flags?
-> > > It looks like do_page_mkwrite() isn't supposed to be returning with
-> > > vmf->flags modified, lest "the caller gets surprised".
+On Fri, 2019-06-07 at 15:27 -0700, Andy Lutomirski wrote:
+> > On Jun 7, 2019, at 2:09 PM, Dave Hansen <dave.hansen@intel.com> wrote:
 > > 
-> > Yeah, I think that was a merge error during a rebase... :(
+> > On 6/7/19 1:06 PM, Yu-cheng Yu wrote:
+> > > > Huh, how does glibc know about all possible past and future legacy code
+> > > > in the application?
+> > > 
+> > > When dlopen() gets a legacy binary and the policy allows that, it will
+> > > manage
+> > > the bitmap:
+> > > 
+> > >  If a bitmap has not been created, create one.
+> > >  Set bits for the legacy code being loaded.
 > > 
-> > Er ... if you're still planning to take this patch through your tree,
-> > can you move it to above the "vmf->flags = FAULT_FLAG_WRITE..." ?
+> > I was thinking about code that doesn't go through GLIBC like JITs.
 > 
-> I was planning on only taking 8/8 through the ext4 tree.  I also added
-> a patch which filtered writes, truncates, and page_mkwrites (but not
-> mmap) for immutable files at the ext4 level.
+> CRIU is another consideration: it would be rather annoying if CET programs
+> can’t migrate between LA57 and normal machines.
 
-*Oh*.  I saw your reply attached to the 1/8 patch and thought that was
-the one you were taking.  I was sort of surprised, tbh. :)
+When a machine migrates, does its applications' addresses change?
+If no, then the bitmap should still work, right?
 
-> I *could* take this patch through the mm/fs tree, but I wasn't sure
-> what your plans were for the rest of the patch series, and it seemed
-> like it hadn't gotten much review/attention from other fs or mm folks
-> (well, I guess Brian Foster weighed in).
-
-> What do you think?
-
-Not sure.  The comments attached to the LWN story were sort of nasty,
-and now that a couple of people said "Oh, well, Debian documented the
-inconsistent behavior so just let it be" I haven't felt like
-resurrecting the series for 5.3.
-
-I do want to clean up the parameter validation for the VFS SETFLAGS and
-FSSETXATTR ioctls though... eh, maybe I'll just send out the series as
-it stands now.  I'm still maintaining it, so all that work might as well
-go somewhere.
-
---D
-
-> 
-> 						- Ted
-> 
-> 
-> 
+Yu-cheng
 
