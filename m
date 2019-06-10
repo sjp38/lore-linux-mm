@@ -2,195 +2,158 @@ Return-Path: <SRS0=JJ+4=UJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 425BCC43218
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 20:36:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 07E15C43218
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 20:41:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F2B7C206E0
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 20:36:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="aypLgRrX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2B7C206E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	by mail.kernel.org (Postfix) with ESMTP id C33EE2082E
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 20:41:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C33EE2082E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mit.edu
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7FCF96B026C; Mon, 10 Jun 2019 16:36:07 -0400 (EDT)
+	id 70C696B026B; Mon, 10 Jun 2019 16:41:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7AD746B026D; Mon, 10 Jun 2019 16:36:07 -0400 (EDT)
+	id 6BD526B026C; Mon, 10 Jun 2019 16:41:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 674866B026E; Mon, 10 Jun 2019 16:36:07 -0400 (EDT)
+	id 5AB816B026D; Mon, 10 Jun 2019 16:41:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 30A2D6B026C
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 16:36:07 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id f25so7938657pfk.14
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 13:36:07 -0700 (PDT)
+Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3313B6B026B
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 16:41:57 -0400 (EDT)
+Received: by mail-vk1-f200.google.com with SMTP id 129so3307575vkh.15
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 13:41:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=QIiaElKbYG7X2iRY6VXsdeM4+31zgx4vPIFfu4hUJug=;
-        b=quTBcBLnbEwXd2HBra2S2TuP3K+6fKp1KhcblqWxbCezCV3SlJ0wQQH4xxUBWZKMz8
-         SL9wUQnHkcImcgmCIVQ1UGx9AjNGC6IID/nQSn+SrwzeX8EOubz2+O0AalGoyovd5bt6
-         us094F7a6RH9/qRzouVRHzjHNnXX4TO0FNUB822NmR0ZCMy/G3LsXVb+YBgk6V4vIhvo
-         aUac+OUBAG/jBjvak91DrChBotzpqlARMrN8pu4AxJGseNMDSIzstDviVrnZX9uK+JkA
-         Tk8O9WSX319m0d9y4cJKtqWu4YDhPs8U8XwjeCZg0p0qzYq3m0tLYCsVRJLmLdURWGHr
-         7AZQ==
-X-Gm-Message-State: APjAAAXZg8CKRUGzfEfDxkuda/t1/81VY8QtNdZkjrUA2SfiIx4qRUDO
-	ZpI3AtleIKXmETG3DNfxH5+CwQw6ZPGGkfG92E/DssnXNcV965jmQY9eHokUYRdaJM5srV8jQ76
-	Z/UU+qTMwPsAMZ+r+Skg7TA04+ehYM3bKI9wT4ofqhXAR5mkHlln9RQhZyti1RCeBjg==
-X-Received: by 2002:a17:902:7295:: with SMTP id d21mr57120598pll.299.1560198966818;
-        Mon, 10 Jun 2019 13:36:06 -0700 (PDT)
-X-Received: by 2002:a17:902:7295:: with SMTP id d21mr57120559pll.299.1560198966141;
-        Mon, 10 Jun 2019 13:36:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560198966; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=ZGkqaqJfwPd+fjM7twQRXkHZqhGbKhROgc44/T3iciA=;
+        b=VAMh3Kle3GYyDVeID9aBFT7b26RoBp+4nf4vitOrI9EvGXj5dLOyrC6TBvwG14//Yy
+         jtmlvAs5V7PRYdmwtEjFh7bvPgSp72U5q42ewBZyJ6vV+TPLxxJwoTzj0iMycxlTChev
+         264QkH7SPlz/prFrMZmm4GvjPg2wWLObnJFvm2nlgb/5JBhkkdHTn2I0aQGu2C0IXYd4
+         d+N8pzI1cAUejaNQtughvSy/Z8HxALghFs6YzGbu7DrCM3uphMLtroddj6wGDUFq91G9
+         +qEglEUYwkIUbu5Cv8BWVLrL8XWjUrF0X8Lr9f3QtS7Tbdrbo/cYZVtI5G1z6knioHHU
+         qvTA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
+X-Gm-Message-State: APjAAAXI1rgSuoMuGYSPkhHfypZQMKkIoNNfangX4lzRv0fdZ3HM0ucC
+	DMIG9rqbLD6BLAikl6PM8Cleh8YBO96IBVVGqOT7QrsmxanucOpJVusxoZahBftJ0uPGYyqsyHf
+	Krh43CA5orJq+ocmzOokvLU/K/jeJ6c8NyFgnE6WW02scwzAyIlF4szE2aYEZOPUxbA==
+X-Received: by 2002:a67:c503:: with SMTP id e3mr28492163vsk.230.1560199316952;
+        Mon, 10 Jun 2019 13:41:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwXGkj1jebNFR0t8MnywdoQkQ9LwMoxysPTYEilPm0jy3sd3sTkzGffKAaCgwF487F6lC+c
+X-Received: by 2002:a67:c503:: with SMTP id e3mr28492085vsk.230.1560199316265;
+        Mon, 10 Jun 2019 13:41:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560199316; cv=none;
         d=google.com; s=arc-20160816;
-        b=K4EZHeLbaqG8G4Fe7pj95TBQVERt54nGOdmoNegndW9QpBNm5Hoi0DjTC/7UCOicI5
-         J42ZHO3HN+VfY57hSbDrqQTv9QJ4TdrtsqDoSsXfoPa+5T3OoX2YYZIV62nP50TqKiAS
-         uzBUm5ADtkiQxtDppd57sJXYvzcEMF5Dcz8tY496HRpJVxA4QOVlU5g26in5uzyILsfc
-         JE2xomWvx8IcwSLrcq8jEwn9ZC3Aan/8YBSvMHUkkwbsBoBUx6sJ0HwmeZuOKcUQOQcy
-         JQW7dUN6tTYVw1J6IlFeV2QS00ZFdJQF4edoQgDaw+rxSgfe3NdJ6V2BVVN70zoacCIP
-         fvGQ==
+        b=1KCcdeUlDk+DJOEX8lIHzxCoZ33oYTAKlp4TtL4H97ivYadH5NMDcBGbOafsu9sf/P
+         I0hrZghz3bYrwyHJPfOOhhWhZzExSOIPpYS3TXc6qZHCnr9hTuHuZeaEIBr2mJQlctxV
+         6sbMo32Z/Emq9wiDnVmpbkxO+QXoHYHcUUuzokqC+qq7x8GnpV3dV+HbRDtckjO37iA7
+         Iky2Y6+llMADAj/6f4NPBrj1PifYdlmmOvvym1BsikdzoRc8t72ncZlgI3qxl1yMDW/l
+         TJHy54fxOLzme/yfW1pdiZsePp9CmW+nfp3YpjWwcUbD/zYl0yoyN7JEx1SegzJpXIgg
+         jgUw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=QIiaElKbYG7X2iRY6VXsdeM4+31zgx4vPIFfu4hUJug=;
-        b=T6HUTRrnjQ72Ps8NIaB/cgs2lbLyfBM1mnb0bDo/xGTCAACh/Auo609/p3+WRivMP4
-         cW6NzOz3xPytBAmzXqdlrZr5OoNvgWY4jy4bQB6kvP7FMzFpBh4Fimyo2mDVB1XKQ6dp
-         0cmqRhATJ40gxN7csgjhYgacYQvOxfnWg3fJzwReZl/HhYNt9f0PhCgE5IIei4cbggfz
-         dUYOXqlcX80sgLJ8tSBy4W+7tjV5iCWAjKsEv3kNRIBRcRXJ77oJZxr6gu5pe5eFqaR1
-         3iej3TX1SEIaVKpI+D0C9aWCygyleJKlvYsGTkQJJpfapvEj3yEp3MyDqjsikP3jytjG
-         7JRg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=ZGkqaqJfwPd+fjM7twQRXkHZqhGbKhROgc44/T3iciA=;
+        b=i3eUojY9HNr1Fv5crta+KIiI49NqXCMbODrc5knMZqY4QrBTjvkUcuqdXY2IdQsZIL
+         4blp2x4FkcXzA37la3FpwWdxTDCWKsQ3tn6GEqSjNfgwZKst/BGt7MVjRUhZuxLwnbn4
+         zMvEwop9z5B8NSttJnUPEZrA/rDY6zlgsUFGYWdlELi9PdcvT6gVOLaoTZpMg8y6cnUL
+         FHu/K+XG2Hdx9QcXdWID1ju/9IS6G8h8JFzgknC/gfhl8fLXLSBIBqn6c52f/n9h8pjU
+         8NtnXm7K2rHGIkMLrtjqZeWRQEadHJ2gQcfDe/S2qNoY0F4XzZ2Z4psdVxYswIZB/4UB
+         5sKg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=aypLgRrX;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v3sor10880505pfb.36.2019.06.10.13.36.06
+       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
+Received: from outgoing.mit.edu (outgoing-auth-1.mit.edu. [18.9.28.11])
+        by mx.google.com with ESMTPS id t16si2842305ual.126.2019.06.10.13.41.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Jun 2019 13:36:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Jun 2019 13:41:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) client-ip=18.9.28.11;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=aypLgRrX;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=QIiaElKbYG7X2iRY6VXsdeM4+31zgx4vPIFfu4hUJug=;
-        b=aypLgRrX0btLwkQ78UmSd30OW9UF0AUZJnAd3r2/5HqpTZB7t9pPjkr79taehwRSBe
-         Uf3LjKJsRGeyWW7niEs4BHLmd/27Tp++YcV8xUIXVrHXkWkhfr39ad2bGk73/2ccXpRd
-         Krrfs143htc/xGI+Ppm9VimNWGnjKhQyxh//k=
-X-Google-Smtp-Source: APXvYqz36v1zCKX0GRWb534Z9an9udGHI/NESxPlvuGqVOMCrwC97gsWY6mXQoFhLwcNndoWLde2ZA==
-X-Received: by 2002:a62:1b85:: with SMTP id b127mr76850297pfb.165.1560198965895;
-        Mon, 10 Jun 2019 13:36:05 -0700 (PDT)
-Received: from www.outflux.net (173-164-112-133-Oregon.hfc.comcastbusiness.net. [173.164.112.133])
-        by smtp.gmail.com with ESMTPSA id k22sm11148457pfk.178.2019.06.10.13.36.04
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 10 Jun 2019 13:36:04 -0700 (PDT)
-Date: Mon, 10 Jun 2019 13:36:04 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>,
-	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v16 02/16] arm64: untag user pointers in access_ok and
- __uaccess_mask_ptr
-Message-ID: <201906101335.DF80D631@keescook>
-References: <cover.1559580831.git.andreyknvl@google.com>
- <4327b260fb17c4776a1e3c844f388e4948cfb747.1559580831.git.andreyknvl@google.com>
- <20190610175326.GC25803@arrakis.emea.arm.com>
- <201906101106.3CA50745E3@keescook>
- <20190610185329.xhjawzfy4uddrkrj@mbp>
+       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
+Received: from callcc.thunk.org (guestnat-104-133-0-109.corp.google.com [104.133.0.109] (may be forged))
+	(authenticated bits=0)
+        (User authenticated as tytso@ATHENA.MIT.EDU)
+	by outgoing.mit.edu (8.14.7/8.12.4) with ESMTP id x5AKfsg3006278
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
+	Mon, 10 Jun 2019 16:41:55 -0400
+Received: by callcc.thunk.org (Postfix, from userid 15806)
+	id 1ADDB420481; Mon, 10 Jun 2019 16:41:54 -0400 (EDT)
+Date: Mon, 10 Jun 2019 16:41:54 -0400
+From: "Theodore Ts'o" <tytso@mit.edu>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+        linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org,
+        linux-mm@kvack.org
+Subject: Re: [PATCH 1/8] mm/fs: don't allow writes to immutable files
+Message-ID: <20190610204154.GA5466@mit.edu>
+References: <155552786671.20411.6442426840435740050.stgit@magnolia>
+ <155552787330.20411.11893581890744963309.stgit@magnolia>
+ <20190610015145.GB3266@mit.edu>
+ <20190610044144.GA1872750@magnolia>
+ <20190610131417.GD15963@mit.edu>
+ <20190610160934.GH1871505@magnolia>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190610185329.xhjawzfy4uddrkrj@mbp>
+In-Reply-To: <20190610160934.GH1871505@magnolia>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 10, 2019 at 07:53:30PM +0100, Catalin Marinas wrote:
-> On Mon, Jun 10, 2019 at 11:07:03AM -0700, Kees Cook wrote:
-> > On Mon, Jun 10, 2019 at 06:53:27PM +0100, Catalin Marinas wrote:
-> > > diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
-> > > index 3767fb21a5b8..fd191c5b92aa 100644
-> > > --- a/arch/arm64/kernel/process.c
-> > > +++ b/arch/arm64/kernel/process.c
-> > > @@ -552,3 +552,18 @@ void arch_setup_new_exec(void)
-> > >  
-> > >  	ptrauth_thread_init_user(current);
-> > >  }
-> > > +
-> > > +/*
-> > > + * Enable the relaxed ABI allowing tagged user addresses into the kernel.
-> > > + */
-> > > +int untagged_uaddr_set_mode(unsigned long arg)
-> > > +{
-> > > +	if (is_compat_task())
-> > > +		return -ENOTSUPP;
-> > > +	if (arg)
-> > > +		return -EINVAL;
-> > > +
-> > > +	set_thread_flag(TIF_UNTAGGED_UADDR);
-> > > +
-> > > +	return 0;
-> > > +}
-> > 
-> > I think this should be paired with a flag clearing in copy_thread(),
-> > yes? (i.e. each binary needs to opt in)
+On Mon, Jun 10, 2019 at 09:09:34AM -0700, Darrick J. Wong wrote:
+> > I was planning on only taking 8/8 through the ext4 tree.  I also added
+> > a patch which filtered writes, truncates, and page_mkwrites (but not
+> > mmap) for immutable files at the ext4 level.
 > 
-> It indeed needs clearing though not in copy_thread() as that's used on
-> clone/fork but rather in flush_thread(), called on the execve() path.
+> *Oh*.  I saw your reply attached to the 1/8 patch and thought that was
+> the one you were taking.  I was sort of surprised, tbh. :)
 
-Ah! Yes, thanks.
+Sorry, my bad.  I mis-replied to the wrong e-mail message  :-)
 
-> And a note to myself: I think PR_UNTAGGED_ADDR (not UADDR) looks better
-> in a uapi header, the user doesn't differentiate between uaddr and
-> kaddr.
+> > I *could* take this patch through the mm/fs tree, but I wasn't sure
+> > what your plans were for the rest of the patch series, and it seemed
+> > like it hadn't gotten much review/attention from other fs or mm folks
+> > (well, I guess Brian Foster weighed in).
+> 
+> > What do you think?
+> 
+> Not sure.  The comments attached to the LWN story were sort of nasty,
+> and now that a couple of people said "Oh, well, Debian documented the
+> inconsistent behavior so just let it be" I haven't felt like
+> resurrecting the series for 5.3.
 
-Good point. I would agree. :)
+Ah, I had missed the LWN article.   <Looks>
 
--- 
-Kees Cook
+Yeah, it's the same set of issues that we had discussed when this
+first came up.  We can go round and round on this one; It's true that
+root can now cause random programs which have a file mmap'ed for
+writing to seg fault, but root has a million ways of killing and
+otherwise harming running application programs, and it's unlikely
+files get marked for immutable all that often.  We just have to pick
+one way of doing things, and let it be same across all the file
+systems.
+
+My understanding was that XFS had chosen to make the inode immutable
+as soon as the flag is set (as opposed to forbidding new fd's to be
+opened which were writeable), and I was OK moving ext4 to that common
+interpretation of the immmutable bit, even though it would be a change
+to ext4.
+
+And then when I saw that Amir had included a patch that would cause
+test failures unless that patch series was applied, it seemed that we
+had all thought that the change was a done deal.  Perhaps we should
+have had a more explicit discussion when the test was sent for review,
+but I had assumed it was exclusively a copy_file_range set of tests,
+so I didn't realize it was going to cause ext4 failures.
+
+     	    	       	   	 - Ted
 
