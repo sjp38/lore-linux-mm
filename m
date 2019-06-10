@@ -2,307 +2,211 @@ Return-Path: <SRS0=JJ+4=UJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F288C4321B
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 17:53:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F0CAC43218
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 17:59:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3513207E0
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 17:53:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3513207E0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id DB85D207E0
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 17:59:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB85D207E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0AD3A6B026A; Mon, 10 Jun 2019 13:53:37 -0400 (EDT)
+	id 6EA036B026A; Mon, 10 Jun 2019 13:59:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 036606B026B; Mon, 10 Jun 2019 13:53:36 -0400 (EDT)
+	id 6CC2A6B026B; Mon, 10 Jun 2019 13:59:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E18AD6B026C; Mon, 10 Jun 2019 13:53:36 -0400 (EDT)
+	id 589D16B026C; Mon, 10 Jun 2019 13:59:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D0906B026A
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 13:53:36 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id k22so16474909ede.0
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 10:53:36 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 239A46B026A
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 13:59:51 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 145so7677487pfv.18
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 10:59:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=a4U0uh9qNh9lGRA4r5YCNDBcRZ+doDHWFDzPO+c39OU=;
-        b=oB76lPqL4hzp810aB/9T6fYAC7pPiAViNchGkGdsIg/7Uv6PEKCN75pmuZuJrtegvp
-         Oay2zAMXiKWK4cHAGW7I63y6LAlAR8ZY1kk5fS3b/uEaHNc+fFS55PRvBbnXJT9vEtiy
-         Ajf7yoWZNqTKMcDMjPKRNHIzZZ2zuG0/AnHuycQTc4rqToqPAU+a2FbQCdAp4yBGm/fZ
-         R5N9ZS69ov9PJk2aeN9p0iEK6PjiTTzYKUTRd014pHmegXQ2aKIGtuq2B8ovsKegB7OY
-         BtKii0FkO9/C+jMIZOGob6nrL/05islG6ltqKjBXeQnMaAMN8QNk7wmO/0s4zeVbU8aO
-         fYIQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAVFh5TtyJy0czQ6CmA3sKmK6XAqzQ5dpSSe3VqnMQCF35yGuApk
-	9+4QIzICE1Gc2lkIRdHr8C5jMo9mPsQmx1gTHa4+Sn9rFyF4vyWuoj4gOQDFS24BnjjLjh/9Ue9
-	JkK4yy4UEqFz0I6yVuXXlvfnaF8S0+gYeEZPmi2bRvYMeE/Y6A8QPQ4I1+vMvI6/Cew==
-X-Received: by 2002:a50:a56b:: with SMTP id z40mr25545803edb.99.1560189216140;
-        Mon, 10 Jun 2019 10:53:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx+rNtVXYwlGWQ5DvOy+2u0hzMcBUUY02BoC1ST2vZgqbrwuIWLUNqmB3J5wm11KeBfK36H
-X-Received: by 2002:a50:a56b:: with SMTP id z40mr25545736edb.99.1560189215121;
-        Mon, 10 Jun 2019 10:53:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560189215; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=sKBl7bnkIQX3qEm3oDzk59hrL0yJy6172AFHnaiL5hs=;
+        b=Yl3/du6wCOFG/1ez+g3R8tfhZ3LAHz3fhsGJ5pPUAJOE4/bsuyR2HxW2Oduzkur/uE
+         2U4MI655MXl6wwmq4+hIdH9oDEMyLjtQmEDKGN9qgVAwwYDY4pq4j7lX0k1PjQ+Pm91v
+         vWUJg1lUNZwYgS2HSDu+jZK1AOVOixg9FkEQFEAfOjlyriOdKeWFRm7vVvfNIGbXgrjz
+         kQDD85q0weehZCP7jbOizFhQ5xpG2jtX1lCrMZ/AulS0Fl9KXAB8hIiMeKozjEi9ZUgr
+         43sLoDAWOQLOB77TlsMvrLcDPrejvUdxbQwPpeZVqwWRR2EAwNVW6U8sg714FLPnj4SD
+         nx1Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXs3Kgq1zmcGgd1dhSDlNedaed51u07IPiuNKOlexJe7nhnNsn4
+	kuflUoIuIoy+6DhLkACCo2qTbzHy7AFhvgLmhnBmpDxzMmLmbfOqYZ6xPXs4Ve/Yjznhl7g/QCv
+	zjqKppU8Yg988osJNHK4/+nblyvU2EruyYfhf52DPOz/OhHmSLO8v/8rAEKoQ91kDRw==
+X-Received: by 2002:a17:902:b947:: with SMTP id h7mr28641365pls.267.1560189590807;
+        Mon, 10 Jun 2019 10:59:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyWW0HkMQ6Vr0c0MaoVtlvX6NpNW+rfa7u5DeSZEy8yCf61xq500X3xsch2DV41P3+qayOn
+X-Received: by 2002:a17:902:b947:: with SMTP id h7mr28641316pls.267.1560189589940;
+        Mon, 10 Jun 2019 10:59:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560189589; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZZVh35IG+AYKG01NBWWklUvvWKvV2l32Ck1aLtoc5H7rtTCM6caF5uGm0JYcBaLDZI
-         lmc090Y7C066yoObK4sch+hTOcujBbBQSwSw2c5g2BTjJw5t7ixQqr5OJb7pKz9j0+qi
-         fAMYe8hKTvPuTZaSOFo7nIJNKRtSER4LVahyZPbBxBA4D/7atuI8siF623Vvpf4HsWnP
-         seZ63Z/ut5nFeBVKnSkNWEUaFlSprtOcrz4yZxfSpZ8Y3uStphxEe0CGg9wYvpVmt8qo
-         no6Wfm5ZM5LAlt22TQ9iVfzJ7wF4Ln/3hdBWM9V/l+APauiUzdHj/2vGBfaEnv7dzoPn
-         IFXw==
+        b=W7z9OT5bGpdYjnvsbcOlG2/1nEEDuuV8iUZSvSdhca3xXLuZyU3tyguUnaM7IyESkC
+         WY/pQ8CkFA9b3U0DfXnzJBLEg/hJraQwA92yIwBlpk0UsblGi3776lKjyB7LzwB0znM0
+         gB6rJAIh/nqVKlWyzfXIHZseXYIs2pMijjSR4inkWsq5Bo+DvXW6TzxfCNhT3AgbcHik
+         kaGfgRFOB0yUNJq4RXjpqQZFToJwFfI9gcJqReXZASh92KvHNl5dCInAMftso5LVbpIO
+         8QaGiDjznKGR4NHVQHAzUs/i1eoxOUupHmlkMdHlq9YOm7msAOIKOaL77mhu6aesWg/U
+         m3Qw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=a4U0uh9qNh9lGRA4r5YCNDBcRZ+doDHWFDzPO+c39OU=;
-        b=vAceETT4v7DnvOOTVU7yLeY6HBMTFLtDn6EG4pWjOlazERusanrK3vyHonAubvxnSR
-         voIW9u3jeBnxoyxoqYqxhbFK+BdlsjJR8qivxusCyV8s726IS+KNy00eyvZ8rzhP6OuP
-         eETjm5wiLpGl02KaSgotkye0txdckA+1ZeGC67M4VZsYQTA0plc/WStXtZfzeh+pPXKX
-         p0x+8S7KWoeqezqQUR7ef+Mh0DvROwow7wSmQCg+lD6YDaHRP1kqUZxjRr54PBjNgoeF
-         4OGIwvdf+xXa4lT6oVRG6z6AW3EsiT2aWxMIN2i9aZELzNkDDrt1jk47wgZjLbKhzJGl
-         +lWg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=sKBl7bnkIQX3qEm3oDzk59hrL0yJy6172AFHnaiL5hs=;
+        b=vX3SfSOyWB1TDHKSuYhKLU/woi1ok7wqLmmCi3iB4dwDJHmnylDIzR38+8iOLwcqgb
+         38YDyO8eUcZnGc0Wx9wxVKBLsvhMIH6zJEV3mDDAOa3Dk6jG7x8gwr3pua+lmY03Ezx4
+         euey711H2DX5KrjrG3aLCy0l8zqAldEISVExHNO+i1APEZZYNSOoxuQ+jMJ22jTwfWfG
+         qPbZfgXTyRC6dQL5+r7j9+hP0/TuDuRJUDmfk8CrbRwKFey5mX1IQNj7bfGUcasnB1il
+         2+R60AfXQ22qIZJl/iO3JmTBlxZBxn7Wr64qB1IGBv86kUk3PNQULno8ZnSWOrI8Z0bH
+         4mWA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id s17si6792083eja.226.2019.06.10.10.53.34
-        for <linux-mm@kvack.org>;
-        Mon, 10 Jun 2019 10:53:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id l9si9850272pgq.534.2019.06.10.10.59.49
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Jun 2019 10:59:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id ED62C337;
-	Mon, 10 Jun 2019 10:53:33 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 4ABC63F246;
-	Mon, 10 Jun 2019 10:53:29 -0700 (PDT)
-Date: Mon, 10 Jun 2019 18:53:27 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Kees Cook <keescook@chromium.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v16 02/16] arm64: untag user pointers in access_ok and
- __uaccess_mask_ptr
-Message-ID: <20190610175326.GC25803@arrakis.emea.arm.com>
-References: <cover.1559580831.git.andreyknvl@google.com>
- <4327b260fb17c4776a1e3c844f388e4948cfb747.1559580831.git.andreyknvl@google.com>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jun 2019 10:59:49 -0700
+X-ExtLoop1: 1
+Received: from ray.jf.intel.com (HELO [10.7.198.156]) ([10.7.198.156])
+  by orsmga002.jf.intel.com with ESMTP; 10 Jun 2019 10:59:48 -0700
+Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
+ function
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, Andy Lutomirski <luto@amacapital.net>
+Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
+ "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
+ Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
+ Cyrill Gorcunov <gorcunov@gmail.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>,
+ "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+ Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+ Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>,
+ Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>,
+ Randy Dunlap <rdunlap@infradead.org>,
+ "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+ Dave Martin <Dave.Martin@arm.com>
+References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
+ <20190606200926.4029-4-yu-cheng.yu@intel.com>
+ <20190607080832.GT3419@hirez.programming.kicks-ass.net>
+ <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
+ <20190607174336.GM3436@hirez.programming.kicks-ass.net>
+ <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
+ <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
+ <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
+ <4b448cde-ee4e-1c95-0f7f-4fe694be7db6@intel.com>
+ <0e505563f7dae3849b57fb327f578f41b760b6f7.camel@intel.com>
+ <f6de9073-9939-a20d-2196-25fa223cf3fc@intel.com>
+ <5dc357f5858f8036cad5847cfe214401bb9138bf.camel@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <0e07f346-89c7-ccf1-9d38-854a8e7d25a1@intel.com>
+Date: Mon, 10 Jun 2019 10:59:48 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4327b260fb17c4776a1e3c844f388e4948cfb747.1559580831.git.andreyknvl@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <5dc357f5858f8036cad5847cfe214401bb9138bf.camel@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 03, 2019 at 06:55:04PM +0200, Andrey Konovalov wrote:
-> diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
-> index e5d5f31c6d36..9164ecb5feca 100644
-> --- a/arch/arm64/include/asm/uaccess.h
-> +++ b/arch/arm64/include/asm/uaccess.h
-> @@ -94,7 +94,7 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
->  	return ret;
->  }
->  
-> -#define access_ok(addr, size)	__range_ok(addr, size)
-> +#define access_ok(addr, size)	__range_ok(untagged_addr(addr), size)
+On 6/10/19 9:05 AM, Yu-cheng Yu wrote:
+> On Fri, 2019-06-07 at 14:09 -0700, Dave Hansen wrote:
+>> On 6/7/19 1:06 PM, Yu-cheng Yu wrote:
+>>>> Huh, how does glibc know about all possible past and future legacy code
+>>>> in the application?
+>>> When dlopen() gets a legacy binary and the policy allows that, it will
+>>> manage
+>>> the bitmap:
+>>>
+>>>   If a bitmap has not been created, create one.
+>>>   Set bits for the legacy code being loaded.
+>> I was thinking about code that doesn't go through GLIBC like JITs.
+> If JIT manages the bitmap, it knows where it is.
+> It can always read the bitmap again, right?
 
-I'm going to propose an opt-in method here (RFC for now). We can't have
-a check in untagged_addr() since this is already used throughout the
-kernel for both user and kernel addresses (khwasan) but we can add one
-in __range_ok(). The same prctl() option will be used for controlling
-the precise/imprecise mode of MTE later on. We can use a TIF_ flag here
-assuming that this will be called early on and any cloned thread will
-inherit this.
+Let's just be clear:
 
-Anyway, it's easier to paste some diff than explain but Vincenzo can
-fold them into his ABI patches that should really go together with
-these. I added a couple of MTE definitions for prctl() as an example,
-not used currently:
+The design proposed here is that all code mappers (anybody wanting to
+get legacy non-CET code into the address space):
 
-------------------8<---------------------------------------------
-diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-index fcd0e691b1ea..2d4cb7e4edab 100644
---- a/arch/arm64/include/asm/processor.h
-+++ b/arch/arm64/include/asm/processor.h
-@@ -307,6 +307,10 @@ extern void __init minsigstksz_setup(void);
- /* PR_PAC_RESET_KEYS prctl */
- #define PAC_RESET_KEYS(tsk, arg)	ptrauth_prctl_reset_keys(tsk, arg)
- 
-+/* PR_UNTAGGED_UADDR prctl */
-+int untagged_uaddr_set_mode(unsigned long arg);
-+#define SET_UNTAGGED_UADDR_MODE(arg)	untagged_uaddr_set_mode(arg)
-+
- /*
-  * For CONFIG_GCC_PLUGIN_STACKLEAK
-  *
-diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include/asm/thread_info.h
-index c285d1ce7186..89ce77773c49 100644
---- a/arch/arm64/include/asm/thread_info.h
-+++ b/arch/arm64/include/asm/thread_info.h
-@@ -101,6 +101,7 @@ void arch_release_task_struct(struct task_struct *tsk);
- #define TIF_SVE			23	/* Scalable Vector Extension in use */
- #define TIF_SVE_VL_INHERIT	24	/* Inherit sve_vl_onexec across exec */
- #define TIF_SSBD		25	/* Wants SSB mitigation */
-+#define TIF_UNTAGGED_UADDR	26
- 
- #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
- #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
-@@ -116,6 +117,7 @@ void arch_release_task_struct(struct task_struct *tsk);
- #define _TIF_FSCHECK		(1 << TIF_FSCHECK)
- #define _TIF_32BIT		(1 << TIF_32BIT)
- #define _TIF_SVE		(1 << TIF_SVE)
-+#define _TIF_UNTAGGED_UADDR	(1 << TIF_UNTAGGED_UADDR)
- 
- #define _TIF_WORK_MASK		(_TIF_NEED_RESCHED | _TIF_SIGPENDING | \
- 				 _TIF_NOTIFY_RESUME | _TIF_FOREIGN_FPSTATE | \
-diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
-index 9164ecb5feca..54f5bbaebbc4 100644
---- a/arch/arm64/include/asm/uaccess.h
-+++ b/arch/arm64/include/asm/uaccess.h
-@@ -73,6 +73,9 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
- {
- 	unsigned long ret, limit = current_thread_info()->addr_limit;
- 
-+	if (test_thread_flag(TIF_UNTAGGED_UADDR))
-+		addr = untagged_addr(addr);
-+
- 	__chk_user_ptr(addr);
- 	asm volatile(
- 	// A + B <= C + 1 for all A,B,C, in four easy steps:
-@@ -94,7 +97,7 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
- 	return ret;
- }
- 
--#define access_ok(addr, size)	__range_ok(untagged_addr(addr), size)
-+#define access_ok(addr, size)	__range_ok(addr, size)
- #define user_addr_max			get_fs
- 
- #define _ASM_EXTABLE(from, to)						\
-diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
-index 3767fb21a5b8..fd191c5b92aa 100644
---- a/arch/arm64/kernel/process.c
-+++ b/arch/arm64/kernel/process.c
-@@ -552,3 +552,18 @@ void arch_setup_new_exec(void)
- 
- 	ptrauth_thread_init_user(current);
- }
-+
-+/*
-+ * Enable the relaxed ABI allowing tagged user addresses into the kernel.
-+ */
-+int untagged_uaddr_set_mode(unsigned long arg)
-+{
-+	if (is_compat_task())
-+		return -ENOTSUPP;
-+	if (arg)
-+		return -EINVAL;
-+
-+	set_thread_flag(TIF_UNTAGGED_UADDR);
-+
-+	return 0;
-+}
-diff --git a/include/uapi/linux/prctl.h b/include/uapi/linux/prctl.h
-index 094bb03b9cc2..4afd5e2980ee 100644
---- a/include/uapi/linux/prctl.h
-+++ b/include/uapi/linux/prctl.h
-@@ -229,4 +229,9 @@ struct prctl_mm_map {
- # define PR_PAC_APDBKEY			(1UL << 3)
- # define PR_PAC_APGAKEY			(1UL << 4)
- 
-+/* Untagged user addresses for arm64 */
-+#define PR_UNTAGGED_UADDR		55
-+# define PR_MTE_IMPRECISE_CHECK		0
-+# define PR_MTE_PRECISE_CHECK		1
-+
- #endif /* _LINUX_PRCTL_H */
-diff --git a/kernel/sys.c b/kernel/sys.c
-index 2969304c29fe..b1f67a8cffc4 100644
---- a/kernel/sys.c
-+++ b/kernel/sys.c
-@@ -124,6 +124,9 @@
- #ifndef PAC_RESET_KEYS
- # define PAC_RESET_KEYS(a, b)	(-EINVAL)
- #endif
-+#ifndef SET_UNTAGGED_UADDR_MODE
-+# define SET_UNTAGGED_UADDR_MODE	(-EINVAL)
-+#endif
- 
- /*
-  * this is where the system-wide overflow UID and GID are defined, for
-@@ -2492,6 +2495,11 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
- 			return -EINVAL;
- 		error = PAC_RESET_KEYS(me, arg2);
- 		break;
-+	case PR_UNTAGGED_UADDR:
-+		if (arg3 || arg4 || arg5)
-+			return -EINVAL;
-+		error = SET_UNTAGGED_UADDR_MODE(arg2);
-+		break;
- 	default:
- 		error = -EINVAL;
- 		break;
-------------------8<---------------------------------------------
+1. Know about CET
+2. Know where the bitmap is, and identify the part that needs to be
+   changed
+3. Be able to mprotect() the bitmap to be writable (undoing glibc's
+   PROT_READ)
+4. Set the bits in the bitmap for the legacy code
+5. mprotect() the bitmap back to PROT_READ
 
-The tag_ptr() function in the test library would become:
-
-static void *tag_ptr(void *ptr)
-{
-	static int tbi_enabled = 0;
-	unsigned long tag = 0;
-
-	if (!tbi_enabled) {
-		if (prctl(PR_UNTAGGED_UADDR, 0, 0, 0, 0) == 0)
-			tbi_enabled = 1;
-	}
-
-	if (!ptr)
-		return ptr;
-	if (tbi_enabled)
-		tag = rand() & 0xff;
-
-	return (void *)((unsigned long)ptr | (tag << TAG_SHIFT));
-}
-
--- 
-Catalin
+Do the non-glibc code mappers have glibc interfaces for this?
+Otherwise, how could a bunch of JITs in a big multi-threaded application
+possibly coordinate the mprotect()s?  Won't they race with each other?
 
