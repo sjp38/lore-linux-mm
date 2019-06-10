@@ -2,209 +2,242 @@ Return-Path: <SRS0=JJ+4=UJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05420C4321A
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 20:43:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 76079C4321A
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 21:05:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A6CD206E0
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 20:43:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A6CD206E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id DC4412089E
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 21:05:25 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="bCfuqfpE";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="t7Vzpesc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC4412089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 44C806B026B; Mon, 10 Jun 2019 16:43:36 -0400 (EDT)
+	id 4DA7F6B026B; Mon, 10 Jun 2019 17:05:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3FDEB6B026C; Mon, 10 Jun 2019 16:43:36 -0400 (EDT)
+	id 48A0B6B026C; Mon, 10 Jun 2019 17:05:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2C5E06B026D; Mon, 10 Jun 2019 16:43:36 -0400 (EDT)
+	id 3040F6B026D; Mon, 10 Jun 2019 17:05:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E58566B026B
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 16:43:35 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id u7so7949046pfh.17
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 13:43:35 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EA2016B026B
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 17:05:24 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id q2so6402295plr.19
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 14:05:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=bQGqavhBr+TsDXTW6iEPfB5kajO/Vz3+qjSmJ8MStvw=;
-        b=laOk0OYFWr2S0eUxiw2U86N9l8SdSkrlL/vxFlHTbe1pmQKJWZMG2DttV2PAzAe7sx
-         TYjPtP9CMbftwy4bMhvZIK80wbiXLeC4j7meBxTitURh8N2JVU7QTUpD72FdpTI1tpqn
-         amMqyhPR1L4Uq+Pjp6XjDUKmS5cpiYjCBA0UxU/08Uxx3NZf58LgzsQ5vu87pd2qhLld
-         mlN5YCAbWZaj9H1lXUW6EySlC4Dm4EQSDHGyx73D2Q+mvseAj5Q3alpA4LfCk+v4kmqw
-         3mKddXh/536908ORwIogYlIQBMPhpq4UZudWk4u/9/rWtMkTBj/CfztFqd1aLMX9iYOm
-         RgPQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXcwlbOQfvm2wLLBP4w0WWjaCzbdrPbzZqQ9kt7HH+s5KsZNp1P
-	q+r4OEehTjdnkY/5uIED3R8doP6t9nth7eECy007hx5dzieyvdU/8u6jK6uaQyjm0rvrZkK910m
-	5YLF5W7Ld9YTKiYYSIXj1xy57LKh6hS8ZeVWnZZscGIsHFEDH25hzy31vgdGuib/Ruw==
-X-Received: by 2002:a17:902:27e6:: with SMTP id i35mr71778363plg.190.1560199415588;
-        Mon, 10 Jun 2019 13:43:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx9nO9P8bpnPjYVFG9Nl+wZPlf994CCN4lHSjm66fvzPxEMvwRtQg6pAudxlJGjKYHuB3+O
-X-Received: by 2002:a17:902:27e6:: with SMTP id i35mr71778312plg.190.1560199414886;
-        Mon, 10 Jun 2019 13:43:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560199414; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=JGOGjmZ/lmwIm39aMbaLlAHbtegJQhM09hnYQ7rrnqE=;
+        b=DzjUkSaE2EMMkEUTduc64cmkRYs0oOdLBYtgl7gqZ1IFbylCYOmifuv28LTVObg/kI
+         6inurAXBt1KJticP7yKrPyQpMn2FTlCuQay3nUP9b41DKGid6iTOSZuwCjtfzeJy87TM
+         hVAOaZliEDwQQNJFQ2K+gzfraOfrbu36OexuaLk0exYMXBkt+C+qV8O6lpMA8CkbkjLu
+         kC8xmtucVFzmo/+dk1fuTUsUOl6/NK2T/PFRswtIIh8PZXEzjijWXxO8uw5jfjyO8X89
+         YgWug5gWk1YWVvZurSq1CWNoR5f3lSGq9UPBMtrmLbN+RzCu3nMtK/HAFzctcP/8i0o8
+         h6oA==
+X-Gm-Message-State: APjAAAUdSNvtjQeyHq7bI+JkM1awqZU0jxqV3LzqW8TcBTFzbqUbwE3d
+	F84804xoseKBBYxHUxuvU2aC869ACUXnKZ+RcWLWUq0/zbx9z8Yh/PBce83xKyC1bnzEpoQ9zww
+	SgIXn4kmh0Uy3/fwMxbxBtRGrn06Ct0EY1+nJ91b9uUpgQIjZxP35i7BvVgOPCXYPJg==
+X-Received: by 2002:a62:6303:: with SMTP id x3mr61193430pfb.261.1560200724527;
+        Mon, 10 Jun 2019 14:05:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyQ9qyhuVDZ4Wvga9qcd3dGOBwz0ryeNMYO97gRn61YF6mtuFjkXE1zNtPs7JHEj3HB7VLN
+X-Received: by 2002:a62:6303:: with SMTP id x3mr61193348pfb.261.1560200723570;
+        Mon, 10 Jun 2019 14:05:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560200723; cv=none;
         d=google.com; s=arc-20160816;
-        b=OP1O3T5HJdSTYPsIaunidE2VPwFp0GmPCjxQJwrzilNi03W7cb1+OPDSGH7RE8ladS
-         u52W0DMzMqRsK6Hv30/ghktC48hd936+CbXlSZKGj5DyRa02rKwMEhP2XkD4wssgNz7U
-         FxAvItCVu6sYf2UKS966CGEMzZw+1SI1qNRqB/bmcITEwci5RicuVBAgw0AMRt+NTFkz
-         0gmVkShbCnTUdr6lnxn1GT4niaNKnAhnfz2M8g0pyKnaYh4tgAhVhBAsow1CgKZ3DM1e
-         610QSwg8otlpdbobPHVEYo+PYN9bML3shKrto6IwxcXpxTSIOVfDVC9WTPE3Wf38qz4w
-         6HQw==
+        b=SJ6l7rdZ1QTSaltQHFd5E1fDEZJfnayz43STlGjNq9MrWf/8iY4rKHMQOYZYIzD1bW
+         bCI4Sa03l5RVE2WwE8KT2D1eu064OZuUd7ngkp/sFduo3yqlPHk06H/4sEs2iZB+i0UR
+         zo1FaitLwjGQQAn4pt538TW5uI2+1cfwIBCiGYe3CpqHKWnGWBl0XSVhbHoxtsYOkk7Q
+         9QZhVb52R2GR2WQfLW7ryndoPt/q+BI+kx+3xl1/59S6bs0zRyLyK0JOgpiRl2fHYRME
+         19xKlWrRhwgyv6FUodyrd2WtyEOCUKEftoDwYXj0IhjMROHHpyeHCg4csIXuE0YxOqon
+         umGw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=bQGqavhBr+TsDXTW6iEPfB5kajO/Vz3+qjSmJ8MStvw=;
-        b=u012GLEcgJ7J6y32GgjwyiGtTDTrh2cNyUMfOuwOvtzKNqHqnhktrPMpy/S0VI1flF
-         WznqUEKNm+c2MK2kd3iGEaf8o/o5sIAhcfZs7CkHu5ktZO3Ky/2p/KJ0eSw486RIOHTO
-         y8kWNtht2fFXBLlKNCjDlz512+gMMU9ndy7X0jyBDHywreiSUvJECbFZaZD0c4wssHf1
-         bHxVda17qsRm+RBxoXi65SD7z/KLgiRdgNCm4B51lx/GJLRfD9tu7TkRnoWCzFgns7ao
-         P/A5WE8ZQMnAZH+b14WGyvDrAS93hgk5fvcusy+KJ6LZpZM8wHsIM94hVx8JvbFdkAXV
-         3rcQ==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=JGOGjmZ/lmwIm39aMbaLlAHbtegJQhM09hnYQ7rrnqE=;
+        b=gX2z8qzr6JA4KvXkJACOoaVtcYyvSFZB1M6Orx62I4uBR3Jn4BYDBEgxm3KjZas2Xs
+         Sy7Tf5MIjZ+tVuPmmf7wOxW6/500H5xzrXDQkNlXvQ3CbP2DaEb821kDBizo+x4eOnxL
+         ZXWUCtTLH/YoqQ38pIKoazNjqsq/IPJnxsytVXIoHYsXwWz1rmDeGaguR9NfKaGotL9v
+         7LzE8by2UdKBwLgTKE2JV4YgEeB/B3KKt/MAQW5iw4NpL3BLG7dNBUW4nNQkfOVIzBo/
+         qGRDrQ+qZeL9pLdhlRjYC5DY4tFCSHS6LN9jPETsmGvXIXCnV/42BCQu+6n8JeZ3LrCC
+         7KdQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id h11si10174058pgq.170.2019.06.10.13.43.34
+       dkim=pass header.i=@fb.com header.s=facebook header.b=bCfuqfpE;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=t7Vzpesc;
+       spf=pass (google.com: domain of prvs=1064574e97=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1064574e97=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id i12si10326470plt.287.2019.06.10.14.05.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jun 2019 13:43:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
+        Mon, 10 Jun 2019 14:05:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=1064574e97=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jun 2019 13:43:34 -0700
-X-ExtLoop1: 1
-Received: from ray.jf.intel.com (HELO [10.7.198.156]) ([10.7.198.156])
-  by orsmga008.jf.intel.com with ESMTP; 10 Jun 2019 13:43:33 -0700
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
- function
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, Andy Lutomirski <luto@amacapital.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
- "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
- Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
- Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
- Cyrill Gorcunov <gorcunov@gmail.com>,
- Dave Hansen <dave.hansen@linux.intel.com>,
- Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>,
- "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
- Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
- Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>,
- Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>,
- Randy Dunlap <rdunlap@infradead.org>,
- "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
- Dave Martin <Dave.Martin@arm.com>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
- <20190606200926.4029-4-yu-cheng.yu@intel.com>
- <20190607080832.GT3419@hirez.programming.kicks-ass.net>
- <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
- <20190607174336.GM3436@hirez.programming.kicks-ass.net>
- <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
- <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
- <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
- <25281DB3-FCE4-40C2-BADB-B3B05C5F8DD3@amacapital.net>
- <e26f7d09376740a5f7e8360fac4805488b2c0a4f.camel@intel.com>
- <3f19582d-78b1-5849-ffd0-53e8ca747c0d@intel.com>
- <5aa98999b1343f34828414b74261201886ec4591.camel@intel.com>
- <0665416d-9999-b394-df17-f2a5e1408130@intel.com>
- <5c8727dde9653402eea97bfdd030c479d1e8dd99.camel@intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- mQINBE6HMP0BEADIMA3XYkQfF3dwHlj58Yjsc4E5y5G67cfbt8dvaUq2fx1lR0K9h1bOI6fC
- oAiUXvGAOxPDsB/P6UEOISPpLl5IuYsSwAeZGkdQ5g6m1xq7AlDJQZddhr/1DC/nMVa/2BoY
- 2UnKuZuSBu7lgOE193+7Uks3416N2hTkyKUSNkduyoZ9F5twiBhxPJwPtn/wnch6n5RsoXsb
- ygOEDxLEsSk/7eyFycjE+btUtAWZtx+HseyaGfqkZK0Z9bT1lsaHecmB203xShwCPT49Blxz
- VOab8668QpaEOdLGhtvrVYVK7x4skyT3nGWcgDCl5/Vp3TWA4K+IofwvXzX2ON/Mj7aQwf5W
- iC+3nWC7q0uxKwwsddJ0Nu+dpA/UORQWa1NiAftEoSpk5+nUUi0WE+5DRm0H+TXKBWMGNCFn
- c6+EKg5zQaa8KqymHcOrSXNPmzJuXvDQ8uj2J8XuzCZfK4uy1+YdIr0yyEMI7mdh4KX50LO1
- pmowEqDh7dLShTOif/7UtQYrzYq9cPnjU2ZW4qd5Qz2joSGTG9eCXLz5PRe5SqHxv6ljk8mb
- ApNuY7bOXO/A7T2j5RwXIlcmssqIjBcxsRRoIbpCwWWGjkYjzYCjgsNFL6rt4OL11OUF37wL
- QcTl7fbCGv53KfKPdYD5hcbguLKi/aCccJK18ZwNjFhqr4MliQARAQABtEVEYXZpZCBDaHJp
- c3RvcGhlciBIYW5zZW4gKEludGVsIFdvcmsgQWRkcmVzcykgPGRhdmUuaGFuc2VuQGludGVs
- LmNvbT6JAjgEEwECACIFAlQ+9J0CGwMGCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEGg1
- lTBwyZKwLZUP/0dnbhDc229u2u6WtK1s1cSd9WsflGXGagkR6liJ4um3XCfYWDHvIdkHYC1t
- MNcVHFBwmQkawxsYvgO8kXT3SaFZe4ISfB4K4CL2qp4JO+nJdlFUbZI7cz/Td9z8nHjMcWYF
- IQuTsWOLs/LBMTs+ANumibtw6UkiGVD3dfHJAOPNApjVr+M0P/lVmTeP8w0uVcd2syiaU5jB
- aht9CYATn+ytFGWZnBEEQFnqcibIaOrmoBLu2b3fKJEd8Jp7NHDSIdrvrMjYynmc6sZKUqH2
- I1qOevaa8jUg7wlLJAWGfIqnu85kkqrVOkbNbk4TPub7VOqA6qG5GCNEIv6ZY7HLYd/vAkVY
- E8Plzq/NwLAuOWxvGrOl7OPuwVeR4hBDfcrNb990MFPpjGgACzAZyjdmYoMu8j3/MAEW4P0z
- F5+EYJAOZ+z212y1pchNNauehORXgjrNKsZwxwKpPY9qb84E3O9KYpwfATsqOoQ6tTgr+1BR
- CCwP712H+E9U5HJ0iibN/CDZFVPL1bRerHziuwuQuvE0qWg0+0SChFe9oq0KAwEkVs6ZDMB2
- P16MieEEQ6StQRlvy2YBv80L1TMl3T90Bo1UUn6ARXEpcbFE0/aORH/jEXcRteb+vuik5UGY
- 5TsyLYdPur3TXm7XDBdmmyQVJjnJKYK9AQxj95KlXLVO38lcuQINBFRjzmoBEACyAxbvUEhd
- GDGNg0JhDdezyTdN8C9BFsdxyTLnSH31NRiyp1QtuxvcqGZjb2trDVuCbIzRrgMZLVgo3upr
- MIOx1CXEgmn23Zhh0EpdVHM8IKx9Z7V0r+rrpRWFE8/wQZngKYVi49PGoZj50ZEifEJ5qn/H
- Nsp2+Y+bTUjDdgWMATg9DiFMyv8fvoqgNsNyrrZTnSgoLzdxr89FGHZCoSoAK8gfgFHuO54B
- lI8QOfPDG9WDPJ66HCodjTlBEr/Cwq6GruxS5i2Y33YVqxvFvDa1tUtl+iJ2SWKS9kCai2DR
- 3BwVONJEYSDQaven/EHMlY1q8Vln3lGPsS11vSUK3QcNJjmrgYxH5KsVsf6PNRj9mp8Z1kIG
- qjRx08+nnyStWC0gZH6NrYyS9rpqH3j+hA2WcI7De51L4Rv9pFwzp161mvtc6eC/GxaiUGuH
- BNAVP0PY0fqvIC68p3rLIAW3f97uv4ce2RSQ7LbsPsimOeCo/5vgS6YQsj83E+AipPr09Caj
- 0hloj+hFoqiticNpmsxdWKoOsV0PftcQvBCCYuhKbZV9s5hjt9qn8CE86A5g5KqDf83Fxqm/
- vXKgHNFHE5zgXGZnrmaf6resQzbvJHO0Fb0CcIohzrpPaL3YepcLDoCCgElGMGQjdCcSQ+Ci
- FCRl0Bvyj1YZUql+ZkptgGjikQARAQABiQIfBBgBAgAJBQJUY85qAhsMAAoJEGg1lTBwyZKw
- l4IQAIKHs/9po4spZDFyfDjunimEhVHqlUt7ggR1Hsl/tkvTSze8pI1P6dGp2XW6AnH1iayn
- yRcoyT0ZJ+Zmm4xAH1zqKjWplzqdb/dO28qk0bPso8+1oPO8oDhLm1+tY+cOvufXkBTm+whm
- +AyNTjaCRt6aSMnA/QHVGSJ8grrTJCoACVNhnXg/R0g90g8iV8Q+IBZyDkG0tBThaDdw1B2l
- asInUTeb9EiVfL/Zjdg5VWiF9LL7iS+9hTeVdR09vThQ/DhVbCNxVk+DtyBHsjOKifrVsYep
- WpRGBIAu3bK8eXtyvrw1igWTNs2wazJ71+0z2jMzbclKAyRHKU9JdN6Hkkgr2nPb561yjcB8
- sIq1pFXKyO+nKy6SZYxOvHxCcjk2fkw6UmPU6/j/nQlj2lfOAgNVKuDLothIxzi8pndB8Jju
- KktE5HJqUUMXePkAYIxEQ0mMc8Po7tuXdejgPMwgP7x65xtfEqI0RuzbUioFltsp1jUaRwQZ
- MTsCeQDdjpgHsj+P2ZDeEKCbma4m6Ez/YWs4+zDm1X8uZDkZcfQlD9NldbKDJEXLIjYWo1PH
- hYepSffIWPyvBMBTW2W5FRjJ4vLRrJSUoEfJuPQ3vW9Y73foyo/qFoURHO48AinGPZ7PC7TF
- vUaNOTjKedrqHkaOcqB185ahG2had0xnFsDPlx5y
-Message-ID: <ac9a20a6-170a-694e-beeb-605a17195034@intel.com>
-Date: Mon, 10 Jun 2019 13:43:33 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
-MIME-Version: 1.0
-In-Reply-To: <5c8727dde9653402eea97bfdd030c479d1e8dd99.camel@intel.com>
-Content-Type: text/plain; charset=utf-8
+       dkim=pass header.i=@fb.com header.s=facebook header.b=bCfuqfpE;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=t7Vzpesc;
+       spf=pass (google.com: domain of prvs=1064574e97=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1064574e97=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5AKX4Kd030263;
+	Mon, 10 Jun 2019 13:38:16 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=JGOGjmZ/lmwIm39aMbaLlAHbtegJQhM09hnYQ7rrnqE=;
+ b=bCfuqfpErmOdyuoVD1zbMMCf8P/9f5/yn5eBDFMj3sHY2JhZuXb1J3pzdFYWe3lDgp3j
+ CHjYkBXLQFjhEoWPaLGv3RTbw7N7QvFozrpB6jCn5Dx5ZRRuXptgl7hrWI7IedEdacj/
+ 6qdx5g2rXUEQGv+dEy0MjccT4hSeUs4oW4Q= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2t1wqbr56e-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
+	Mon, 10 Jun 2019 13:38:16 -0700
+Received: from ash-exopmbx101.TheFacebook.com (2620:10d:c0a8:82::b) by
+ ash-exhub201.TheFacebook.com (2620:10d:c0a8:83::7) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Mon, 10 Jun 2019 13:38:16 -0700
+Received: from ash-exhub102.TheFacebook.com (2620:10d:c0a8:82::f) by
+ ash-exopmbx101.TheFacebook.com (2620:10d:c0a8:82::b) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Mon, 10 Jun 2019 13:38:15 -0700
+Received: from NAM05-BY2-obe.outbound.protection.outlook.com (100.104.31.183)
+ by o365-in.thefacebook.com (100.104.35.172) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id 15.1.1713.5
+ via Frontend Transport; Mon, 10 Jun 2019 13:38:15 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector1-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=JGOGjmZ/lmwIm39aMbaLlAHbtegJQhM09hnYQ7rrnqE=;
+ b=t7VzpescRt0VHHWYheO+bBbEsAZz2pslQ0kjcurnY/YR7AQ2kQndGksihp04xrrxPhHzsKWAbtJEEbhjdzptsMoXVrk59JIQBRdPcqQWeyV7gwNZRnsTY/VTttGi91qQabkJzRXKsq6RfmB7hl1ybtNx4vgTmOHTA31dTJX7EHk=
+Received: from BN8PR15MB2626.namprd15.prod.outlook.com (20.179.137.220) by
+ BN8PR15MB2770.namprd15.prod.outlook.com (20.179.139.212) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1965.15; Mon, 10 Jun 2019 20:38:13 +0000
+Received: from BN8PR15MB2626.namprd15.prod.outlook.com
+ ([fe80::251b:ff54:1c67:4e5f]) by BN8PR15MB2626.namprd15.prod.outlook.com
+ ([fe80::251b:ff54:1c67:4e5f%7]) with mapi id 15.20.1965.017; Mon, 10 Jun 2019
+ 20:38:13 +0000
+From: Roman Gushchin <guro@fb.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+CC: Vladimir Davydov <vdavydov.dev@gmail.com>,
+        Andrew Morton
+	<akpm@linux-foundation.org>,
+        "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        Kernel Team
+	<Kernel-team@fb.com>, Shakeel Butt <shakeelb@google.com>,
+        Waiman Long
+	<longman@redhat.com>
+Subject: Re: [PATCH v6 01/10] mm: add missing smp read barrier on getting
+ memcg kmem_cache pointer
+Thread-Topic: [PATCH v6 01/10] mm: add missing smp read barrier on getting
+ memcg kmem_cache pointer
+Thread-Index: AQHVG0i1Qy6vvrJhnUaeUsu3v8l0raaTQjIAgAIe1ACAAAE7AA==
+Date: Mon, 10 Jun 2019 20:38:13 +0000
+Message-ID: <20190610203805.GA19363@tower.DHCP.thefacebook.com>
+References: <20190605024454.1393507-1-guro@fb.com>
+ <20190605024454.1393507-2-guro@fb.com>
+ <20190609121052.kge3w3hv3t5u5bb3@esperanza>
+ <20190610203344.GA7789@cmpxchg.org>
+In-Reply-To: <20190610203344.GA7789@cmpxchg.org>
+Accept-Language: en-US
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: MWHPR0201CA0090.namprd02.prod.outlook.com
+ (2603:10b6:301:75::31) To BN8PR15MB2626.namprd15.prod.outlook.com
+ (2603:10b6:408:c7::28)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:200::1:2dcb]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 40f27527-8065-440d-03d6-08d6ede38ee0
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:BN8PR15MB2770;
+x-ms-traffictypediagnostic: BN8PR15MB2770:
+x-microsoft-antispam-prvs: <BN8PR15MB277043023CB40148AE1CC58EBE130@BN8PR15MB2770.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:4502;
+x-forefront-prvs: 0064B3273C
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(136003)(396003)(376002)(346002)(39860400002)(366004)(189003)(199004)(6436002)(446003)(53936002)(7736002)(66476007)(229853002)(11346002)(6486002)(8676002)(81156014)(81166006)(66446008)(64756008)(66556008)(6916009)(386003)(66946007)(54906003)(9686003)(76176011)(73956011)(6116002)(316002)(6512007)(2906002)(186003)(25786009)(486006)(102836004)(46003)(99286004)(6246003)(6506007)(52116002)(4326008)(305945005)(33656002)(86362001)(1076003)(68736007)(14454004)(476003)(71190400001)(8936002)(71200400001)(5660300002)(14444005)(256004)(478600001);DIR:OUT;SFP:1102;SCL:1;SRVR:BN8PR15MB2770;H:BN8PR15MB2626.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: 6ydWGPaypb7b6dNXsCuiiJ0fUydLlm+v64FbKZyyMIqxmUWC7lv5B4Jxh88wGF8Zy/2a08pB7She5zlnaB6Z68vevnk9YrHXetgGvvDIl0CboHPI1LVIUrKME3TgEI548HZnhD7s0tOHd+kXqh8qlkeP+50iGk8vi3f/eN1GYKz7Fqc+kvOrJng6Fm/9lwLMqwjLPYiafrCDv7QZlPZe9Gv1f8S+wEju4OHPFOReC8KxBy+GTrtmplDR4lY63QIpAtHDGAt526Mk7I3Kjl1XF3Y6DuBumzQEsQn/a5ksOmPNdjnnYEclYphlCTGHC7TzqpR6F33MLGKdfFlu38np+7DksYlRGtsm7Z1riv8qyyVDzeInsUDNwui0O/957YY5gYBxLLoJmqawxlsnYVBRAtPeN2bnNYo1M7Y8xK2O2xA=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <841AD1E3E71FE04DAB5DE33BB85DF397@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-MS-Exchange-CrossTenant-Network-Message-Id: 40f27527-8065-440d-03d6-08d6ede38ee0
+X-MS-Exchange-CrossTenant-originalarrivaltime: 10 Jun 2019 20:38:13.4326
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: guro@fb.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: BN8PR15MB2770
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-10_09:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906100139
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/10/19 1:27 PM, Yu-cheng Yu wrote:
->>> If the loader cannot allocate a big bitmap to cover all 5-level
->>> address space (the bitmap will be large), it can put all legacy lib's
->>> at lower address.  We cannot do these easily in the kernel.
->> This is actually an argument to do it in the kernel.  The kernel can
->> always allocate the virtual space however it wants, no matter how large.
->>  If we hide the bitmap behind a kernel API then we can put it at high
->> 5-level user addresses because we also don't have to worry about the
->> high bits confusing userspace.
-> We actually tried this.  The kernel needs to reserve the bitmap space in the
-> beginning for every CET-enabled app, regardless of actual needs. 
+On Mon, Jun 10, 2019 at 04:33:44PM -0400, Johannes Weiner wrote:
+> On Sun, Jun 09, 2019 at 03:10:52PM +0300, Vladimir Davydov wrote:
+> > On Tue, Jun 04, 2019 at 07:44:45PM -0700, Roman Gushchin wrote:
+> > > Johannes noticed that reading the memcg kmem_cache pointer in
+> > > cache_from_memcg_idx() is performed using READ_ONCE() macro,
+> > > which doesn't implement a SMP barrier, which is required
+> > > by the logic.
+> > >=20
+> > > Add a proper smp_rmb() to be paired with smp_wmb() in
+> > > memcg_create_kmem_cache().
+> > >=20
+> > > The same applies to memcg_create_kmem_cache() itself,
+> > > which reads the same value without barriers and READ_ONCE().
+> > >=20
+> > > Suggested-by: Johannes Weiner <hannes@cmpxchg.org>
+> > > Signed-off-by: Roman Gushchin <guro@fb.com>
+> > > ---
+> > >  mm/slab.h        | 1 +
+> > >  mm/slab_common.c | 3 ++-
+> > >  2 files changed, 3 insertions(+), 1 deletion(-)
+> > >=20
+> > > diff --git a/mm/slab.h b/mm/slab.h
+> > > index 739099af6cbb..1176b61bb8fc 100644
+> > > --- a/mm/slab.h
+> > > +++ b/mm/slab.h
+> > > @@ -260,6 +260,7 @@ cache_from_memcg_idx(struct kmem_cache *s, int id=
+x)
+> > >  	 * memcg_caches issues a write barrier to match this (see
+> > >  	 * memcg_create_kmem_cache()).
+> > >  	 */
+> > > +	smp_rmb();
+> > >  	cachep =3D READ_ONCE(arr->entries[idx]);
+> >=20
+> > Hmm, we used to have lockless_dereference() here, but it was replaced
+> > with READ_ONCE some time ago. The commit message claims that READ_ONCE
+> > has an implicit read barrier in it.
+>=20
+> Thanks for catching this Vladimir. I wasn't aware of this change to
+> the memory model. Indeed, we don't need to change anything here.
 
-I don't think this is a problem.  In fact, I think reserving the space
-is actually the only sane behavior.  If you don't reserve it, you
-fundamentally limit where future legacy instructions can go.
+Cool, I'm dropping this patch.
 
-One idea is that we always size the bitmap for the 48-bit addressing
-systems.  Legacy code probably doesn't _need_ to go in the new address
-space, and if we do this we don't have to worry about the gigantic
-57-bit address space bitmap.
-
-> On each memory request, the kernel then must consider a percentage of
-> allocated space in its calculation, and on systems with less memory
-> this quickly becomes a problem.
-
-I'm not sure what you're referring to here?  Are you referring to our
-overcommit limits?
+Thanks!
 
