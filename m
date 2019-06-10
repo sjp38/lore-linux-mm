@@ -2,150 +2,179 @@ Return-Path: <SRS0=JJ+4=UJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41A3CC31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 17:25:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B996BC31E40
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 17:26:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 06A4020862
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 17:25:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06A4020862
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 761D720859
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 17:26:20 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="X3Tymq+l"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 761D720859
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AD4A76B026B; Mon, 10 Jun 2019 13:25:23 -0400 (EDT)
+	id 15DFC6B026C; Mon, 10 Jun 2019 13:26:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A5E416B026C; Mon, 10 Jun 2019 13:25:23 -0400 (EDT)
+	id 10E216B026D; Mon, 10 Jun 2019 13:26:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8B0396B026D; Mon, 10 Jun 2019 13:25:23 -0400 (EDT)
+	id F41436B026E; Mon, 10 Jun 2019 13:26:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BD226B026B
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 13:25:23 -0400 (EDT)
-Received: by mail-ua1-f70.google.com with SMTP id u73so810337uau.19
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 10:25:23 -0700 (PDT)
+Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D2DE76B026C
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 13:26:19 -0400 (EDT)
+Received: by mail-vk1-f198.google.com with SMTP id i138so3106081vke.16
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 10:26:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=1VV+xq086UX8c6jCatmwEDXtaJKBj6cnEMKuwv2eIek=;
-        b=LsXYrb5oOh65q5FZXQRdPDOXqDn12WeK596opzYL86oXnyc5R0HFkwn+/BpBeBx7w3
-         jy0g7Q5iO3WM3YYgg9tp6WJnjER4MMCy8ZILcFq6iPKejUY7hguHvR+eiZKcU1i7Gnc2
-         8pKMk3ALOWzJh89vsAvMaI3ZdGy92O9LpVP4KH/+h5d8bv2tTNCOY+v2/KYAfzDWbb0u
-         /CQR9a3bKVhHdzlmHOJ+quLynjHoOQP9ncCz/vPBd3vvxuQFqrswhjHPEgIV/r+wbFTC
-         jiom46oBNc6ryd1oRNfffxLHbimFaFlf9F1hpy+8tDOrWdtkCuKw1ajjpOEYBu60coim
-         upyA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVK+KX7On1ebAgezjtoXXVmzT/+JqRQYGbwcJRVIhcq7mGv6Ql/
-	4Kc3coxu7oXsSKAur98uo4sky6OZbdCjTZ2Rhj4/zMpiVYIJ4/aA3eRXH/OIt2/PkFw9f3AkUs6
-	ZIVsk9wnrPs79pPptZuIY0l5UwR/MJ1wZ/2TMkaN6kM9jAdQPgB1iRBNprRD8gLVIGw==
-X-Received: by 2002:a1f:24c4:: with SMTP id k187mr26541631vkk.26.1560187523157;
-        Mon, 10 Jun 2019 10:25:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxnAYNhoVVMRK5Q3rkCcX7PPdyfUyHn8QKpIBTLUsP/AJ9GJ05xoLS09ItxdVb+LPBPSnmZ
-X-Received: by 2002:a1f:24c4:: with SMTP id k187mr26541556vkk.26.1560187522356;
-        Mon, 10 Jun 2019 10:25:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560187522; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=qSkPLH9vDolbJlk5XvbY4CtX+5a/+fS/moYDl/wZCzc=;
+        b=ZX7en/YIGfQn6Pj3j3dbBdqGyzt1q+69+SjdRkVJDZz7wpxFFpg9Vr+uCf3ROQvmLX
+         du3mAyUqWK4zplINM4Xx7FUiJBpt4Jx9RkNVZUrHEUFom5tf0mNOW13cAO2QkJVQRdTC
+         gWVrd38u4xHhSIPqZiwc8mDrOkMzTN0muut5l6ojL8gmkkT60lH7mwPXhJyl9mAGWTDo
+         vIHNZpd56gP6kP9Vhldx0CL9EkGdxtxOj8rykqHWUm8yN0Uf8wX4GO0xMX8gdZDicQbG
+         i+fV8T4ng1ZIMc7p62FgC6yenrUR1KjqRTJc9HNUqR18DF8FrqCTR89TWxaEKtVOfKK0
+         Yn1g==
+X-Gm-Message-State: APjAAAUqOXOcf/TmY0bwLbWLsK0Kg0D+9kfsPybt8WfNj4cr+szLA4BR
+	dv+wTZOAhwTKKcJ9lYKMhlT06WtVJ/B0ynZuOW0pqXBFkdbQuSSridvfNRIPX4p/9n+nBwVOPfc
+	o/KoojV1/wwsPf+1KDlMH6I4X/urlO6v9s/6eyNlXNIrpdXJdrEu+M9Cao707KoJvaw==
+X-Received: by 2002:ab0:7252:: with SMTP id d18mr7036283uap.23.1560187579559;
+        Mon, 10 Jun 2019 10:26:19 -0700 (PDT)
+X-Received: by 2002:ab0:7252:: with SMTP id d18mr7036205uap.23.1560187578879;
+        Mon, 10 Jun 2019 10:26:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560187578; cv=none;
         d=google.com; s=arc-20160816;
-        b=O7klLt0r9oaBs9drgw5pErkpvXfSWQQoqI7cN30z+D9LiOF6YqE5KONxnsG6+pVERr
-         12vspZHiMBTEd7jILKWTHdJkVEZWHgZv1Nbn0I+IYBdJqWTL2cw0WBwd41D/T4GmGZ2Y
-         XFYjLtvPdyhTgY3FaPb/r71xjsByWXfVVrr+GGWsfkpDLwkyYCIPdKKJHu4e20kIs8CL
-         zILb05r+6/3biQ9ElVy8Emsj95hyJxSk4VBUjSqbJpw33iI32Uwcvu+ERbQNaIrajR0/
-         dnVYEAcElhRr9qBcB1ZxSavNaHKlZSlod4xTQpwjdqBTVY72oOp+wZg+RlnTVGaLj3hT
-         eQVw==
+        b=p3fawBz3iP1Nd3J2tLjaTGjJcXPYKKIhpSrtwARsq9Jqc8+ZbIpF/mI3sdoAXPfTHW
+         x6N1fPxQ/f9t5EJDxGxPTup2657A6bEjr0eulFmtTXQkSioKwNbdifVpiEKMmHkjyyG+
+         CkzdmMtrvxni2qYZnsei+iedkFUaf1FmVfVZjnhH28YZgTi0kzfOgezNz0kMDQDO9MOQ
+         inQ8tmZYn76RSiLBM57N//Mk+cTsm00tf9u+6c1VcAoF0i00RW+baVG8xxI5yXFsx2yl
+         BLykYJ3R5QnoLREqCSh8BuAkvEOGBfDtz/NNGjmq9Hjl5HVhaQilyBtt3Oj5X0nLH2uu
+         oXQQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=1VV+xq086UX8c6jCatmwEDXtaJKBj6cnEMKuwv2eIek=;
-        b=0IrhkF+N6tLAAjWocj9qkXUQ+eBJvmWbUfokiWAA+nojxuq0bgZHDduanmOVZZzM4o
-         enSwA5h15W3Zlv2vD4usM1P9L5OOZM7L55GWk5GOkFT2wXRhuCtKDkYn5gHSiBgnOARn
-         tf31VSNA5UU9y1+916DOrwMclI7qv7IAfAAIO3oItw8uYD94Ec6tOhALIfpYgsw+lzWA
-         8FWEQAzmO6hhQzfgtDd7zHEJD4aS6kPiXEiUJoWva2B93DMM/q/Vzl9PlqDCprnUWx2P
-         0L9UnP4DdzlGsxhLVSxSjw4ArCDoQk9X9GgQStIMplkyKzkiSIoxgoG0O3b4ZTOMCQBq
-         PV8A==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=qSkPLH9vDolbJlk5XvbY4CtX+5a/+fS/moYDl/wZCzc=;
+        b=gjvlA6/NriDOy+6RFaVJY12lII5maLcFyHdXo+k4jhJUPSXSqQDLnP5H6fFbwvtY7a
+         LsM+RRmMt5QzmpIunY65keiI97sZMAoMPAi/crXwS+sZe4CdGM1s/DQGPoE7SULmh4QT
+         EMqhXJ4gijE6QrpE+0ARQV2IJksSwjhxtRh6bri8ItdL6PP3KOI1fmwKBLArA11t/DFc
+         0Up1NZFKMuStZV2PcoxDjBtcnHnp4Z4FnzoWueMTBDYjDlqeiQU8q6+U8HV6xrX9YwGd
+         EmcQqgZNjlJvVVL6ovrXxNbrdB1RYDZny4qRaEoQ4a7M2/6uVQniIBMI65sIoYgrLo2f
+         55yQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n9si143181vsp.16.2019.06.10.10.25.22
+       dkim=pass header.i=@lca.pw header.s=google header.b=X3Tymq+l;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a25sor4661473vsn.97.2019.06.10.10.26.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jun 2019 10:25:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Mon, 10 Jun 2019 10:26:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of fweimer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=fweimer@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 31DE23EDBF;
-	Mon, 10 Jun 2019 17:25:01 +0000 (UTC)
-Received: from oldenburg2.str.redhat.com (ovpn-117-27.ams2.redhat.com [10.36.117.27])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 7AE095B681;
-	Mon, 10 Jun 2019 17:24:45 +0000 (UTC)
-From: Florian Weimer <fweimer@redhat.com>
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Cc: Dave Martin <Dave.Martin@arm.com>,  x86@kernel.org,  "H. Peter Anvin"
- <hpa@zytor.com>,  Thomas Gleixner <tglx@linutronix.de>,  Ingo Molnar
- <mingo@redhat.com>,  linux-kernel@vger.kernel.org,
-  linux-doc@vger.kernel.org,  linux-mm@kvack.org,
-  linux-arch@vger.kernel.org,  linux-api@vger.kernel.org,  Arnd Bergmann
- <arnd@arndb.de>,  Andy Lutomirski <luto@amacapital.net>,  Balbir Singh
- <bsingharora@gmail.com>,  Borislav Petkov <bp@alien8.de>,  Cyrill Gorcunov
- <gorcunov@gmail.com>,  Dave Hansen <dave.hansen@linux.intel.com>,  Eugene
- Syromiatnikov <esyr@redhat.com>,  "H.J. Lu" <hjl.tools@gmail.com>,  Jann
- Horn <jannh@google.com>,  Jonathan Corbet <corbet@lwn.net>,  Kees Cook
- <keescook@chromium.org>,  Mike Kravetz <mike.kravetz@oracle.com>,  Nadav
- Amit <nadav.amit@gmail.com>,  Oleg Nesterov <oleg@redhat.com>,  Pavel
- Machek <pavel@ucw.cz>,  Peter Zijlstra <peterz@infradead.org>,  Randy
- Dunlap <rdunlap@infradead.org>,  "Ravi V. Shankar"
- <ravi.v.shankar@intel.com>,  Vedvyas Shanbhogue
- <vedvyas.shanbhogue@intel.com>
-Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an ELF file
-References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
-	<20190606200646.3951-23-yu-cheng.yu@intel.com>
-	<20190607180115.GJ28398@e103592.cambridge.arm.com>
-	<94b9c55b3b874825fda485af40ab2a6bc3dad171.camel@intel.com>
-Date: Mon, 10 Jun 2019 19:24:43 +0200
-In-Reply-To: <94b9c55b3b874825fda485af40ab2a6bc3dad171.camel@intel.com>
-	(Yu-cheng Yu's message of "Mon, 10 Jun 2019 09:29:04 -0700")
-Message-ID: <87lfy9cq04.fsf@oldenburg2.str.redhat.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.2 (gnu/linux)
-MIME-Version: 1.0
-Content-Type: text/plain
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Mon, 10 Jun 2019 17:25:17 +0000 (UTC)
+       dkim=pass header.i=@lca.pw header.s=google header.b=X3Tymq+l;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=qSkPLH9vDolbJlk5XvbY4CtX+5a/+fS/moYDl/wZCzc=;
+        b=X3Tymq+lxR/tOVHDBtZz1webVwVCP2s2oH0yXtVQRx3F32sM/CMH9jfTJyOBuymJKm
+         AbMh0J4rg6ag0Vr4a6szOR3XFKbXYEsuf2pDjpqlniCE88NG1+QgtA+I4bUYf20y6G5j
+         qbmJ5YPzUYXwPkWRulV6e89Bz7Yi1Tac77kreGT6csAXiPEOiieFiFQIazrLMFSy6nkR
+         os18qdAJHoUPec7y2vIYdi37NRolbTVYeS8VJKE9CK5NgF0+axbk/jMZYOoulIbJ90sY
+         M840savZid7ZE8+ALK7/oDvvu4+jmXF3g66cBYskWNvrubs9qRXg+eJjoCiWfwQz2O5u
+         SlJw==
+X-Google-Smtp-Source: APXvYqzCcBGzDjZnnnKYmBeaeDQFD2Zt4lSSiUrvfHl8DQYI4Et3/NEeN/1OKaheEtva1osez+Nw7w==
+X-Received: by 2002:a67:8712:: with SMTP id j18mr28306727vsd.4.1560187578484;
+        Mon, 10 Jun 2019 10:26:18 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id d78sm4039758vke.41.2019.06.10.10.26.16
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Jun 2019 10:26:17 -0700 (PDT)
+Message-ID: <1560187575.6132.70.camel@lca.pw>
+Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
+From: Qian Cai <cai@lca.pw>
+To: Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>
+Cc: rppt@linux.ibm.com, akpm@linux-foundation.org, catalin.marinas@arm.com, 
+	linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, 
+	vdavydov.dev@gmail.com, hannes@cmpxchg.org, cgroups@vger.kernel.org, 
+	linux-arm-kernel@lists.infradead.org
+Date: Mon, 10 Jun 2019 13:26:15 -0400
+In-Reply-To: <20190610114326.GF15979@fuggles.cambridge.arm.com>
+References: <1559656836-24940-1-git-send-email-cai@lca.pw>
+	 <20190604142338.GC24467@lakrids.cambridge.arm.com>
+	 <20190610114326.GF15979@fuggles.cambridge.arm.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Yu-cheng Yu:
+On Mon, 2019-06-10 at 12:43 +0100, Will Deacon wrote:
+> On Tue, Jun 04, 2019 at 03:23:38PM +0100, Mark Rutland wrote:
+> > On Tue, Jun 04, 2019 at 10:00:36AM -0400, Qian Cai wrote:
+> > > The commit "arm64: switch to generic version of pte allocation"
+> > > introduced endless failures during boot like,
+> > > 
+> > > kobject_add_internal failed for pgd_cache(285:chronyd.service) (error:
+> > > -2 parent: cgroup)
+> > > 
+> > > It turns out __GFP_ACCOUNT is passed to kernel page table allocations
+> > > and then later memcg finds out those don't belong to any cgroup.
+> > 
+> > Mike, I understood from [1] that this wasn't expected to be a problem,
+> > as the accounting should bypass kernel threads.
+> > 
+> > Was that assumption wrong, or is something different happening here?
+> > 
+> > > 
+> > > backtrace:
+> > >   kobject_add_internal
+> > >   kobject_init_and_add
+> > >   sysfs_slab_add+0x1a8
+> > >   __kmem_cache_create
+> > >   create_cache
+> > >   memcg_create_kmem_cache
+> > >   memcg_kmem_cache_create_func
+> > >   process_one_work
+> > >   worker_thread
+> > >   kthread
+> > > 
+> > > Signed-off-by: Qian Cai <cai@lca.pw>
+> > > ---
+> > >  arch/arm64/mm/pgd.c | 2 +-
+> > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > 
+> > > diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
+> > > index 769516cb6677..53c48f5c8765 100644
+> > > --- a/arch/arm64/mm/pgd.c
+> > > +++ b/arch/arm64/mm/pgd.c
+> > > @@ -38,7 +38,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
+> > >  	if (PGD_SIZE == PAGE_SIZE)
+> > >  		return (pgd_t *)__get_free_page(gfp);
+> > >  	else
+> > > -		return kmem_cache_alloc(pgd_cache, gfp);
+> > > +		return kmem_cache_alloc(pgd_cache, GFP_PGTABLE_KERNEL);
+> > 
+> > This is used to allocate PGDs for both user and kernel pagetables (e.g.
+> > for the efi runtime services), so while this may fix the regression, I'm
+> > not sure it's the right fix.
+> > 
+> > Do we need a separate pgd_alloc_kernel()?
+> 
+> So can I take the above for -rc5, or is somebody else working on a different
+> fix to implement pgd_alloc_kernel()?
 
-> To me, looking at PT_GNU_PROPERTY and not trying to support anything is a
-> logical choice.  And it breaks only a limited set of toolchains.
->
-> I will simplify the parser and leave this patch as-is for anyone who wants to
-> back-port.  Are there any objections or concerns?
-
-Red Hat Enterprise Linux 8 does not use PT_GNU_PROPERTY and is probably
-the largest collection of CET-enabled binaries that exists today.
-
-My hope was that we would backport the upstream kernel patches for CET,
-port the glibc dynamic loader to the new kernel interface, and be ready
-to run with CET enabled in principle (except that porting userspace
-libraries such as OpenSSL has not really started upstream, so many
-processes where CET is particularly desirable will still run without
-it).
-
-I'm not sure if it is a good idea to port the legacy support if it's not
-part of the mainline kernel because it comes awfully close to creating
-our own private ABI.
-
-Thanks,
-Florian
+The offensive commit "arm64: switch to generic version of pte allocation" is not
+yet in the mainline, but only in the Andrew's tree and linux-next, and I doubt
+Andrew will push this out any time sooner given it is broken.
 
