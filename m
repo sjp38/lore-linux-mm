@@ -2,188 +2,135 @@ Return-Path: <SRS0=JJ+4=UJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 524EEC43218
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:53:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E0342C43218
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:58:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F0DCC20862
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:53:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0DCC20862
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id B709020859
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 18:58:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B709020859
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5B0ED6B026A; Mon, 10 Jun 2019 14:53:40 -0400 (EDT)
+	id 3D85C6B026A; Mon, 10 Jun 2019 14:58:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5614E6B026B; Mon, 10 Jun 2019 14:53:40 -0400 (EDT)
+	id 388FC6B026B; Mon, 10 Jun 2019 14:58:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 42A536B026C; Mon, 10 Jun 2019 14:53:40 -0400 (EDT)
+	id 279246B026C; Mon, 10 Jun 2019 14:58:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EABE36B026A
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 14:53:39 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f19so11698476edv.16
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 11:53:39 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CCA056B026A
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 14:58:07 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id d27so16700412eda.9
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 11:58:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=f7QJNPySFGeY+lFjbIYw3D9O6qEXybnKvvtV9HtTm4Q=;
-        b=NvMZ6VvRlYVkah63CJIUHqyg9a/OVA5z9xPHrcyhFs60slYJyYFkbNYpeSeg7Dehz/
-         qGhFkrYUxJ+jqXEHqKyRPM7WVZYTmnQcUDbYIoBBly6oFfPkzSJhVJEcPdqGm/SIS2eq
-         IIBCD8tQEPzicFCj3U/a8eOTtBmvoSjhiCf0yOEZLV4I3jsm1+NPPukD86Rtlcd4T2w3
-         8NXGZHlxfKqKOP0nxJJdpHURbZ3p2HMj67IulQYFmWEicAr6wbhVVhoUk8j6M/Q9c6L8
-         jzJzkv6tC8azu6/Qivj21x7OjW7VLjqnCBfCVzc8usmLyITlTBg0rCXz1YZY2q33X15Q
-         V42Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAV3pLWhEubJ8of7fvjfoeXuP1eDAEkufWI+LrRB1hvm/vdeRN3U
-	E2kmNYNDtJxD7d8afxgeOM7JMKsTXJb8P7gaI3cTsSLZU0yWmSKcNychaO8TzydGREqcB6EL8ve
-	yrAIKWGEGGPrMDLAUQbVFbKCEZ0t9oxmTTzeD4L50P7ZzglJBZ+to701D0HX6nI1TNQ==
-X-Received: by 2002:a05:6402:1213:: with SMTP id c19mr50348776edw.63.1560192819546;
-        Mon, 10 Jun 2019 11:53:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzter/gADtOf+tzj83sqYeh0fxpJvEBhf4jmUoZl9TsHT6rTVipSTeDaClqFsQZLC+d9sQc
-X-Received: by 2002:a05:6402:1213:: with SMTP id c19mr50348701edw.63.1560192818682;
-        Mon, 10 Jun 2019 11:53:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560192818; cv=none;
+        bh=RPZGbefbXyaa0DALfZtnqVpFSQmajkOXzntvnw+q3Os=;
+        b=AlSPpROQTMEYD2hbNE8JOL+sECXfUBXgNHj4r+ol/dKzdiZ8NlpJ3RktaeakKQu+RR
+         F953fwqqa424Ysyj7ZVnkluTO7YS6YTb+dLQFhTEyqhy87tTwPOWLCXtZjbsS2VqwwTz
+         9ioN0ihQxn0rZJhyp812FYSs1FeYeensC7XLqJf0hJTNUysEYQuuVaPxW/j8dy8sk9FA
+         AMCRNUma5GsQ7UWO6X+wY00EA8zztp6StB9oT8VB1q/ATOBEjmxzxMkyooiCZnxHVKJz
+         jZx8TtOqGIvWEZRb5nIJfsotdTiFPzSXVYXwOGzFFFxPyXo1uKKFMvo1PWNR9hIJ1ucc
+         dr0Q==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXJd6bjs113QzRc+MrVeoFmpQ+S8TMKMpEi9+9NcTajgjDjwRwu
+	0knw0+8WRaaKiiYFCBmHn7RA6zgDEm3SNqH7cGwxphFAUkr4LEIKFd7wQSiBABPOvurcW5o8Ely
+	Cf2CChrKShMVolNE3qLlSBsuYY9Jc3PdlpfC9f6Xpe47uJQRsITcW/2Drc3qtWcQ=
+X-Received: by 2002:a50:a784:: with SMTP id i4mr6634922edc.3.1560193087435;
+        Mon, 10 Jun 2019 11:58:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzbV+D5zopUBac2O3/ozfTqBD9ia2rfk7iWLWIEUEuVk9dBD4zk1cYMHQFTENyzRhYYmdIx
+X-Received: by 2002:a50:a784:: with SMTP id i4mr6634844edc.3.1560193086465;
+        Mon, 10 Jun 2019 11:58:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560193086; cv=none;
         d=google.com; s=arc-20160816;
-        b=GGHHuXqycLDs7ND9JXXcITQT78Y5W/qHYFvn+75pAgIJuaJLlOvppadjxeNllNGho1
-         jOBOS6CbhaANeiehO5TlT0CgikPUi3qyBGDE1Rd8qNw05sihYFqZI0qrKsAskZEvUDqT
-         eIQbJBTKSFBGJaEH8WsdK9lJg9lG8cP8qQhJP7Pbiriyr2LYYB+v3uZ3bAGUUQBTjm+s
-         9mCrnajBAH1rdVjppB54zVNVtkOyjHfbupjTycmOp2GBFs5Igy2XVS9ms6tMcYQTegYg
-         L2C+XRvin5NgU9MGqa/Jk9NVLxxXGkIA9+QI2aDCzmQqKDdbwXWGPz7B1G037fDU7m/2
-         NvPg==
+        b=e2Ikk41B9rLCF8id3WDLXANbqM/+GZF2c/efcxaDw6/ZSpBjBBwPhjkR+D8aG34QsK
+         r6rp0X1bPHSo9CrKNYVd98nfnY5sxM/b2yhIPXJFd19AEFzmtkQzh/6EeBJ5HI/bANYx
+         Gk4SLmbG2L9K8bgkKn0Vw9XoYIsSsLFH1M8YCbhLwOiN6HW+Nje5uQwEvg3Iu0es/UD5
+         d6ZdfYT2Di0EOL/c0vIhXOBElkd9EwU1ibxlsvLc4q0M9z2uuKocHqeJIE/seDhyHhf6
+         DeAnD31N7DPQDEDGmgY0K+Hm/+hy7pqfyohIpj/KQ7fXCFe07f7CTxRJf+mwcwlNOzwU
+         r0rw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=f7QJNPySFGeY+lFjbIYw3D9O6qEXybnKvvtV9HtTm4Q=;
-        b=C1ckzXOSAo28wLWwvcs7+vykh6ZUU2uCSyL8f8WU/NNbw9ynWkw0698YwK/86K0mWj
-         N9uln1Ccvk1uK05+OAKEpp1pW9zHHD1Wj11zN13ZN4gva5vhnBVnlDol1xPdhSBzqvXd
-         FVk2qRhusX1ofEZxZPoPqmzlu1fS7Gnhw8DOjD+fP7fvdy7OujfaMLRmMRsAmtaTcIrV
-         MjUIErBTMJ8IkXcBDnDiHri9dtFOHGRlBJ1UkpHCIQdZz1mQYVkZOkz96tNyUU2Oxj9z
-         yV1Z5SqohOlc7dcvKVkMFSL9Yd4Cf5USyhsCz5noJS0+goGWwEVhzF4xMjE3Qa/KJaDs
-         cqEw==
+        bh=RPZGbefbXyaa0DALfZtnqVpFSQmajkOXzntvnw+q3Os=;
+        b=QtIIoDHXXpg3h9Bhr/wDTOAgXdgqcFUAIT46F2NSx7zpsSLyqe3uwQX1GliBBT5b8V
+         oO+N+HuP2PW2yCQmzxNMe2uTPyflpxvIbF+u23kJEw6rL9qeBkCJbSDTwxqZlpCj0H9G
+         HeN/XHJaOUt87dkXgfijBV79xL8yDxyVeKAD+qN08k4KweUV8Sek4gdFcjq+LAQPj3/R
+         4bbE+HlcRPbnmSdfT4h/jVc/GtU3tP/+9FJ5rPZmviBX/PNugYXjBPFgHInHzrO0qvW+
+         oHvqDQ3+eZSUB6qX0VdALsCu/ovvJhzpYKm07g4ID36ltgQIzvevPZmoY9W44RJfmJLX
+         1kZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id c55si8756269edc.323.2019.06.10.11.53.38
-        for <linux-mm@kvack.org>;
-        Mon, 10 Jun 2019 11:53:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w4si8070463edd.42.2019.06.10.11.58.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Jun 2019 11:58:06 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 822ED337;
-	Mon, 10 Jun 2019 11:53:37 -0700 (PDT)
-Received: from mbp (unknown [172.31.20.19])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 631F83F246;
-	Mon, 10 Jun 2019 11:53:32 -0700 (PDT)
-Date: Mon, 10 Jun 2019 19:53:30 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Kees Cook <keescook@chromium.org>
-Cc: Andrey Konovalov <andreyknvl@google.com>,
-	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v16 02/16] arm64: untag user pointers in access_ok and
- __uaccess_mask_ptr
-Message-ID: <20190610185329.xhjawzfy4uddrkrj@mbp>
-References: <cover.1559580831.git.andreyknvl@google.com>
- <4327b260fb17c4776a1e3c844f388e4948cfb747.1559580831.git.andreyknvl@google.com>
- <20190610175326.GC25803@arrakis.emea.arm.com>
- <201906101106.3CA50745E3@keescook>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 7B8E2ABC7;
+	Mon, 10 Jun 2019 18:58:05 +0000 (UTC)
+Date: Mon, 10 Jun 2019 20:58:04 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+	linux-kernel@vger.kernel.org, Cyrill Gorcunov <gorcunov@gmail.com>,
+	Kirill Tkhai <ktkhai@virtuozzo.com>,
+	Al Viro <viro@zeniv.linux.org.uk>
+Subject: Re: [PATCH 2/5] proc: use down_read_killable for
+ /proc/pid/smaps_rollup
+Message-ID: <20190610185804.GB2388@dhcp22.suse.cz>
+References: <155790967258.1319.11531787078240675602.stgit@buzz>
+ <155790967469.1319.14744588086607025680.stgit@buzz>
+ <20190517124555.GB1825@dhcp22.suse.cz>
+ <bda80d9c-7594-94c9-db2c-37b8bc3b58c8@yandex-team.ru>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201906101106.3CA50745E3@keescook>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <bda80d9c-7594-94c9-db2c-37b8bc3b58c8@yandex-team.ru>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 10, 2019 at 11:07:03AM -0700, Kees Cook wrote:
-> On Mon, Jun 10, 2019 at 06:53:27PM +0100, Catalin Marinas wrote:
-> > On Mon, Jun 03, 2019 at 06:55:04PM +0200, Andrey Konovalov wrote:
-> > > diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
-> > > index e5d5f31c6d36..9164ecb5feca 100644
-> > > --- a/arch/arm64/include/asm/uaccess.h
-> > > +++ b/arch/arm64/include/asm/uaccess.h
-> > > @@ -94,7 +94,7 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
-> > >  	return ret;
-> > >  }
-> > >  
-> > > -#define access_ok(addr, size)	__range_ok(addr, size)
-> > > +#define access_ok(addr, size)	__range_ok(untagged_addr(addr), size)
+On Sun 09-06-19 12:07:36, Konstantin Khlebnikov wrote:
 [...]
-> > diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
-> > index 3767fb21a5b8..fd191c5b92aa 100644
-> > --- a/arch/arm64/kernel/process.c
-> > +++ b/arch/arm64/kernel/process.c
-> > @@ -552,3 +552,18 @@ void arch_setup_new_exec(void)
-> >  
-> >  	ptrauth_thread_init_user(current);
-> >  }
-> > +
-> > +/*
-> > + * Enable the relaxed ABI allowing tagged user addresses into the kernel.
-> > + */
-> > +int untagged_uaddr_set_mode(unsigned long arg)
-> > +{
-> > +	if (is_compat_task())
-> > +		return -ENOTSUPP;
-> > +	if (arg)
-> > +		return -EINVAL;
-> > +
-> > +	set_thread_flag(TIF_UNTAGGED_UADDR);
-> > +
-> > +	return 0;
-> > +}
+> > > diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> > > index 2bf210229daf..781879a91e3b 100644
+> > > --- a/fs/proc/task_mmu.c
+> > > +++ b/fs/proc/task_mmu.c
+> > > @@ -832,7 +832,10 @@ static int show_smaps_rollup(struct seq_file *m, void *v)
+> > >   	memset(&mss, 0, sizeof(mss));
+> > > -	down_read(&mm->mmap_sem);
+> > > +	ret = down_read_killable(&mm->mmap_sem);
+> > > +	if (ret)
+> > > +		goto out_put_mm;
+> > 
+> > Why not ret = -EINTR. The seq_file code seems to be handling all errors
+> > AFAICS.
+> > 
 > 
-> I think this should be paired with a flag clearing in copy_thread(),
-> yes? (i.e. each binary needs to opt in)
+> I've missed your comment. Sorry.
+> 
+> down_read_killable returns 0 for success and exactly -EINTR for failure.
 
-It indeed needs clearing though not in copy_thread() as that's used on
-clone/fork but rather in flush_thread(), called on the execve() path.
-
-And a note to myself: I think PR_UNTAGGED_ADDR (not UADDR) looks better
-in a uapi header, the user doesn't differentiate between uaddr and
-kaddr.
-
+You are right of course. I must have misread the code at the time. Sorry
+about that.
 -- 
-Catalin
+Michal Hocko
+SUSE Labs
 
