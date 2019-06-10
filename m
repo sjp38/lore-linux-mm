@@ -2,271 +2,163 @@ Return-Path: <SRS0=JJ+4=UJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A532C28D16
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 11:21:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 24840C28D16
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 11:43:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 17A6A2089E
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 11:21:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iEVp+8jM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17A6A2089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id EABA720859
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 11:43:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EABA720859
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A60366B026A; Mon, 10 Jun 2019 07:21:20 -0400 (EDT)
+	id 805B16B026A; Mon, 10 Jun 2019 07:43:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9E93E6B026B; Mon, 10 Jun 2019 07:21:20 -0400 (EDT)
+	id 7B4C86B026B; Mon, 10 Jun 2019 07:43:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8B1046B026C; Mon, 10 Jun 2019 07:21:20 -0400 (EDT)
+	id 67CC56B026C; Mon, 10 Jun 2019 07:43:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C6B76B026A
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 07:21:20 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id q6so5561337pll.22
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 04:21:20 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BE9F6B026A
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 07:43:33 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b12so7700785eds.14
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 04:43:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=TQ3BNHm4HBsU+MK/6HPDmQwS/rOC62UZ81SJs/UsUlo=;
-        b=LEYhchEH+9Si0bMmATs7A2hbwRt6Ukf9bqU+XrgVSxOP+C1vIpkJaObFYCzo04m9BU
-         jIeNrijP+EBG5po4+pb4BVHcm267jlnQcizyZLt2VJz5kkE8DRj0EvlrrPzW4m/SofZm
-         nJiVAj5aXQA0zRZaNPiRzY8MNbf3LRqSuLiiVf8Y+Nd/xLNUPaaNDZ9O4kd8YdQyTwdU
-         bRwp6FfsTTOmDXrWScFD+Uax2Ptp329UmAWspkhryAaYp0mOUZ3eBOucivVzrex8Y21a
-         ZcJF4ZO8Kxci4e6nKbv0loNyru9j8JiHDDuhxTWu5o9a47lcxfChm1HLp/mmNAd620f5
-         gLrg==
-X-Gm-Message-State: APjAAAV77i0g+/AU77yovLI5cIfbB+pJUIuRwLYqs6oRa5abx/0RYOw4
-	nHUj1cIEb68KbbFawpwtpZqaxdPZVEhpKXD0G0sICj2+XD27p3D+NysKRGwklpUw5bUEiXBE1eh
-	5HzVmTOYdz4hX0bxPXWrgrmpxoKqJ/5EnX9yuhrNf31xkkO1jzSIRursvTZiRliE=
-X-Received: by 2002:a17:902:e183:: with SMTP id cd3mr34281502plb.164.1560165679926;
-        Mon, 10 Jun 2019 04:21:19 -0700 (PDT)
-X-Received: by 2002:a17:902:e183:: with SMTP id cd3mr34281437plb.164.1560165678775;
-        Mon, 10 Jun 2019 04:21:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560165678; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=5VIeso6hwJNuty1r//SJjvfOEHsobEFFJKwVeeFiYqM=;
+        b=C3bWI16BHEXyv0kQkoTSN8QOxb08+Ha0lR/gbcXc29JRGZq+PSUV76PpjjbwHstvOa
+         7n/CB70HJpDR4hl/H4aqcGo9KhdWuhcXzXOart3/H5j9izP8BlP0M1fcj6RXCP5M7MGR
+         vxaxbDaVu5ApyEFfTQDd3Pvsc7qzZXOiSpX6fDlTiwvcEAoRT+mWoo8sY8jcuvqYBxDV
+         +EfIYEyUu+akeVQfY23qN4Olik24G2PbaSaM8ID9BNDIxyCOOrzWvEX7G9Mn5a+0F1/C
+         gtxqHEdbCiAoHUGkaPYVYA1sPz3Sf4y+rsVbyImE99miC0+z1bloJIyAGivELCe2IlkJ
+         MCQA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=will.deacon@arm.com
+X-Gm-Message-State: APjAAAUI6KPyR8hF60gKgm3Te+Ab/FxCkveH4Be2DghGW4X9KcI8UoUL
+	RSxQMsoYkYwVZLQas5inGdx0kXoUcdzyTNciz9fjCL4wJNK0Q+Z9bz/ZfU9wSY3Jhl96V9PNKDz
+	/Hdr8xVwCOT0OZnmDuRqND77H0091X3P3sGEZiTKrcgzVLrLb0xiLnNJIuS1ruYk0iQ==
+X-Received: by 2002:a17:906:546:: with SMTP id k6mr54670443eja.53.1560167012558;
+        Mon, 10 Jun 2019 04:43:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxZkYRwI4eJudmoeNhz/mlCdYG+mfyl1J/ZEN8fl0B/rt4fPCXZ+3LRem7xdA+vF8SMIpjL
+X-Received: by 2002:a17:906:546:: with SMTP id k6mr54670380eja.53.1560167011483;
+        Mon, 10 Jun 2019 04:43:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560167011; cv=none;
         d=google.com; s=arc-20160816;
-        b=SuRSNHxreSSzNNRE9QvvS9scAQOzEN5Ee+A3Wmc4Cay/VHqubM4RADzFwjLR9Iqb51
-         wSrZyzXspD34l+Wui1j29QdH20prAw3KHdj0y0oT2ju9JSFHxdX/XBB/eWDkE/c96ljU
-         5bmwaLzrOMHUUdbEYi3ru2PeZsqxwQBpwH6jRtJFDv5B5clZZFh47noC7UlfiwnbuSB3
-         v5ZQpHetW6OvSgGAhZ++aclkuCzv5J/KukHbR2kq0pYm6z6l7XnShrvPsPVL6rlRzuRG
-         hlaOVaG08cxM3hW8qYdTnsnyCdApgwY5t8QHMtMWQSmv7x15MhhbJyz7LiMSW5qb7C7x
-         V0VQ==
+        b=K6Ingq/oLMNewRVA+KT9Tgzd/TKN1g5oLuQ/GW4bJZch0XEjitfwkGLuR9VmkiCT/w
+         YVqQC3DCD0JNvMJfCxQ9FseGqAKrLtcKHPj5KIHWd64G20RE6Ufb+K/5BnVkFAIyB/BH
+         Rjoz4iyxvpho3zTTmlGvOHlujkufJyZqVe7xdskg9xmwcLLyE9TLkp85URXrnmSsKny7
+         EWU21KIhPGAdrKpxgSBke3hYJjzTj807AIN7oIDXb2E9+m+F/6v12RhVjSdjj1f4fobi
+         dMue4vMmjL+v3YbDp67f6SVhlo7NLGJGHviK1+JMp9jiNOVTdzDWHM/H/s9rEuKbDdU2
+         0q8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=TQ3BNHm4HBsU+MK/6HPDmQwS/rOC62UZ81SJs/UsUlo=;
-        b=B86zaqfFOdR4K0pWS2O7ggARPiV0S5zf4zxseQwTYvKZfVKs1QJaS6WN2MatFH1zHj
-         wBbhzz7M1nDnr9nrNF5n1fZUaBa/3U/qTVXTqXZCZcvvRIkjRceD3Nx90ggHBQEPXZw6
-         sfjy8VYdqM5hpeMC/sDV4VaZnphmaJEX7R7eGDMlBZFMWTCjmmcOxEMLlFd+Q7F6dMZQ
-         JQsTeZ4hyLS0WkAu/6f0aWGJ1BeMdUoqv5AWV0xN5BiRF9/7vkFTAwb2f6roigGau7pK
-         abDTZhcoBs1oLbiNxzkUeWTuDrRT7CJfFkXb3itnoRasXhqxHzhlP12DTUxeGO66ccYU
-         iKbw==
+         :message-id:subject:cc:to:from:date;
+        bh=5VIeso6hwJNuty1r//SJjvfOEHsobEFFJKwVeeFiYqM=;
+        b=CqdfUJ7fQFPBGS9lWCNjm+F7lobOzVfddklVGYzV1HeSxjhFomib+ZV9V7NJRwT0Au
+         oZlgzSZwDh2XKiTycE61ZEW9BQoQGUk4IAf1/Fem/OHGkXqJIvREPiEywQVzJuGWZKAT
+         s5jBgVWZpuAtedCJJiDWNs3+D55aZlYuUSctsRxEJgQ4FoVfM5CNDidUY+ENjrLF0s0D
+         SasXgB8ORnt56cwBIEJZ6fbkx/y3ULTPBDc1PrhRur6kJUA3Y3AniqLjZJEILrDmOK/B
+         Zz15HAhpBTIL0iDz3xvGac+c5Knf2RcpXKsgZjKGcearbtUY7IdfK6f9S6v064gdY+33
+         a8DA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iEVp+8jM;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d4sor8784435pgc.35.2019.06.10.04.21.18
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 10 Jun 2019 04:21:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=will.deacon@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id l20si4987401edc.154.2019.06.10.04.43.31
+        for <linux-mm@kvack.org>;
+        Mon, 10 Jun 2019 04:43:31 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iEVp+8jM;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=TQ3BNHm4HBsU+MK/6HPDmQwS/rOC62UZ81SJs/UsUlo=;
-        b=iEVp+8jMVQcIzvPBL4gWGwyNqUvh5BeGA9YqAlxEnD53bAeL0wCTIHc4ESiPtKG2L1
-         6GQMJCf3jZURlwy+R6Dj8KwLjGqWcNK/WtXyBXEhKy5gdnX5joCA7aGNf/3ufJWLnrcg
-         AAm4aAZ/unWNlSxUpySdMfZULC412+aqjz5u7KcBkoMQhob4aN2gtHICrJH+b8Aq3GlL
-         WR90831SaE03RCxkW5qi04QGbbncOO5dvKeYpE4cIXf8umbROITrrDy2/zwy/xufzUSc
-         F1gtIHn85aXQ9N9D9SOtSuVoa0k5zY2+B21MA+0WJ2pwuClwXqxJ+4LfjJNIKUPeQHou
-         5wDg==
-X-Google-Smtp-Source: APXvYqyyMJnnahpyFh9ROPIwRbfBUlK8Ip2WF8TQvFOqWKHUU8dC/k6TuUYAZommSFHhvos8myxRSg==
-X-Received: by 2002:a65:42ca:: with SMTP id l10mr14997477pgp.181.1560165678241;
-        Mon, 10 Jun 2019 04:21:18 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id a11sm10526127pff.128.2019.06.10.04.21.14
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 10 Jun 2019 04:21:16 -0700 (PDT)
-Date: Mon, 10 Jun 2019 20:21:12 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	stable@kernel.org, Wu Fangsuo <fangsuowu@asrmicro.com>,
-	Pankaj Suryawanshi <pankaj.suryawanshi@einfochips.com>
-Subject: Re: [PATCH] mm: fix trying to reclaim unevicable LRU page
-Message-ID: <20190610112112.GE55602@google.com>
-References: <20190524071114.74202-1-minchan@kernel.org>
- <20190528151407.GE1658@dhcp22.suse.cz>
- <20190530024229.GF229459@google.com>
- <20190604122806.GH4669@dhcp22.suse.cz>
- <20190610094222.GA55602@google.com>
- <20190610103946.GE30967@dhcp22.suse.cz>
+       spf=pass (google.com: best guess record for domain of will.deacon@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=will.deacon@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 7FE98337;
+	Mon, 10 Jun 2019 04:43:30 -0700 (PDT)
+Received: from fuggles.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C6AD23F557;
+	Mon, 10 Jun 2019 04:45:10 -0700 (PDT)
+Date: Mon, 10 Jun 2019 12:43:26 +0100
+From: Will Deacon <will.deacon@arm.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Qian Cai <cai@lca.pw>, rppt@linux.ibm.com, akpm@linux-foundation.org,
+	catalin.marinas@arm.com, linux-kernel@vger.kernel.org,
+	mhocko@kernel.org, linux-mm@kvack.org, vdavydov.dev@gmail.com,
+	hannes@cmpxchg.org, cgroups@vger.kernel.org,
+	linux-arm-kernel@lists.infradead.org
+Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
+Message-ID: <20190610114326.GF15979@fuggles.cambridge.arm.com>
+References: <1559656836-24940-1-git-send-email-cai@lca.pw>
+ <20190604142338.GC24467@lakrids.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190610103946.GE30967@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190604142338.GC24467@lakrids.cambridge.arm.com>
+User-Agent: Mutt/1.11.1+86 (6f28e57d73f2) ()
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 10, 2019 at 12:39:46PM +0200, Michal Hocko wrote:
-> On Mon 10-06-19 18:42:22, Minchan Kim wrote:
-> > On Tue, Jun 04, 2019 at 02:28:06PM +0200, Michal Hocko wrote:
-> > > On Thu 30-05-19 11:42:29, Minchan Kim wrote:
-> > > > On Tue, May 28, 2019 at 05:14:07PM +0200, Michal Hocko wrote:
-> > > > > [Cc Pankaj Suryawanshi who has reported a similar problem
-> > > > > http://lkml.kernel.org/r/SG2PR02MB309806967AE91179CAFEC34BE84B0@SG2PR02MB3098.apcprd02.prod.outlook.com]
-> > > > > 
-> > > > > On Fri 24-05-19 16:11:14, Minchan Kim wrote:
-> > > > > > There was below bugreport from Wu Fangsuo.
-> > > > > > 
-> > > > > > 7200 [  680.491097] c4 7125 (syz-executor) page:ffffffbf02f33b40 count:86 mapcount:84 mapping:ffffffc08fa7a810 index:0x24
-> > > > > > 7201 [  680.531186] c4 7125 (syz-executor) flags: 0x19040c(referenced|uptodate|arch_1|mappedtodisk|unevictable|mlocked)
-> > > > > > 7202 [  680.544987] c0 7125 (syz-executor) raw: 000000000019040c ffffffc08fa7a810 0000000000000024 0000005600000053
-> > > > > > 7203 [  680.556162] c0 7125 (syz-executor) raw: ffffffc009b05b20 ffffffc009b05b20 0000000000000000 ffffffc09bf3ee80
-> > > > > > 7204 [  680.566860] c0 7125 (syz-executor) page dumped because: VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page))
-> > > > > > 7205 [  680.578038] c0 7125 (syz-executor) page->mem_cgroup:ffffffc09bf3ee80
-> > > > > > 7206 [  680.585467] c0 7125 (syz-executor) ------------[ cut here ]------------
-> > > > > > 7207 [  680.592466] c0 7125 (syz-executor) kernel BUG at /home/build/farmland/adroid9.0/kernel/linux/mm/vmscan.c:1350!
-> > > > > > 7223 [  680.603663] c0 7125 (syz-executor) Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
-> > > > > > 7224 [  680.611436] c0 7125 (syz-executor) Modules linked in:
-> > > > > > 7225 [  680.616769] c0 7125 (syz-executor) CPU: 0 PID: 7125 Comm: syz-executor Tainted: G S              4.14.81 #3
-> > > > > > 7226 [  680.626826] c0 7125 (syz-executor) Hardware name: ASR AQUILAC EVB (DT)
-> > > > > > 7227 [  680.633623] c0 7125 (syz-executor) task: ffffffc00a54cd00 task.stack: ffffffc009b00000
-> > > > > > 7228 [  680.641917] c0 7125 (syz-executor) PC is at shrink_page_list+0x1998/0x3240
-> > > > > > 7229 [  680.649144] c0 7125 (syz-executor) LR is at shrink_page_list+0x1998/0x3240
-> > > > > > 7230 [  680.656303] c0 7125 (syz-executor) pc : [<ffffff90083a2158>] lr : [<ffffff90083a2158>] pstate: 60400045
-> > > > > > 7231 [  680.666086] c0 7125 (syz-executor) sp : ffffffc009b05940
-> > > > > > ..
-> > > > > > 7342 [  681.671308] c0 7125 (syz-executor) [<ffffff90083a2158>] shrink_page_list+0x1998/0x3240
-> > > > > > 7343 [  681.679567] c0 7125 (syz-executor) [<ffffff90083a3dc0>] reclaim_clean_pages_from_list+0x3c0/0x4f0
-> > > > > > 7344 [  681.688793] c0 7125 (syz-executor) [<ffffff900837ed64>] alloc_contig_range+0x3bc/0x650
-> > > > > > 7347 [  681.717421] c0 7125 (syz-executor) [<ffffff90084925cc>] cma_alloc+0x214/0x668
-> > > > > > 7348 [  681.724892] c0 7125 (syz-executor) [<ffffff90091e4d78>] ion_cma_allocate+0x98/0x1d8
-> > > > > > 7349 [  681.732872] c0 7125 (syz-executor) [<ffffff90091e0b20>] ion_alloc+0x200/0x7e0
-> > > > > > 7350 [  681.740302] c0 7125 (syz-executor) [<ffffff90091e154c>] ion_ioctl+0x18c/0x378
-> > > > > > 7351 [  681.747738] c0 7125 (syz-executor) [<ffffff90084c6824>] do_vfs_ioctl+0x17c/0x1780
-> > > > > > 7352 [  681.755514] c0 7125 (syz-executor) [<ffffff90084c7ed4>] SyS_ioctl+0xac/0xc0
-> > > > > > 
-> > > > > > Wu found it's due to [1]. Before that, unevictable page goes to cull_mlocked
-> > > > > > routine so that it couldn't reach the VM_BUG_ON_PAGE line.
-> > > > > > 
-> > > > > > To fix the issue, this patch filter out unevictable LRU pages
-> > > > > > from the reclaim_clean_pages_from_list in CMA.
-> > > > > 
-> > > > > The changelog is rather modest on details and I have to confess I have
-> > > > > little bit hard time to understand it. E.g. why do not we need to handle
-> > > > > the regular reclaim path?
-> > > > 
-> > > > No need to pass unevictable pages into regular reclaim patch if we are
-> > > > able to know in advance.
-> > > 
-> > > I am sorry to be dense here. So what is the difference in the CMA path?
-> > > Am I right that the pfn walk (CMA) rather than LRU isolation (reclaim)
-> > > is the key differentiator?
+On Tue, Jun 04, 2019 at 03:23:38PM +0100, Mark Rutland wrote:
+> On Tue, Jun 04, 2019 at 10:00:36AM -0400, Qian Cai wrote:
+> > The commit "arm64: switch to generic version of pte allocation"
+> > introduced endless failures during boot like,
 > > 
-> > Yes.
-> > We could isolate unevictable LRU pages from the pfn waker to migrate and
-> > could discard clean file-backed pages to reduce migration latency in CMA
-> > path.
+> > kobject_add_internal failed for pgd_cache(285:chronyd.service) (error:
+> > -2 parent: cgroup)
+> > 
+> > It turns out __GFP_ACCOUNT is passed to kernel page table allocations
+> > and then later memcg finds out those don't belong to any cgroup.
 > 
-> Please be explicit about that in the changelog. The fact that this is
-> not possible from the regular reclaim path is really important and not
-> obvious from the first glance.
+> Mike, I understood from [1] that this wasn't expected to be a problem,
+> as the accounting should bypass kernel threads.
 > 
-> Thanks!
+> Was that assumption wrong, or is something different happening here?
+> 
+> > 
+> > backtrace:
+> >   kobject_add_internal
+> >   kobject_init_and_add
+> >   sysfs_slab_add+0x1a8
+> >   __kmem_cache_create
+> >   create_cache
+> >   memcg_create_kmem_cache
+> >   memcg_kmem_cache_create_func
+> >   process_one_work
+> >   worker_thread
+> >   kthread
+> > 
+> > Signed-off-by: Qian Cai <cai@lca.pw>
+> > ---
+> >  arch/arm64/mm/pgd.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 
+> > diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
+> > index 769516cb6677..53c48f5c8765 100644
+> > --- a/arch/arm64/mm/pgd.c
+> > +++ b/arch/arm64/mm/pgd.c
+> > @@ -38,7 +38,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
+> >  	if (PGD_SIZE == PAGE_SIZE)
+> >  		return (pgd_t *)__get_free_page(gfp);
+> >  	else
+> > -		return kmem_cache_alloc(pgd_cache, gfp);
+> > +		return kmem_cache_alloc(pgd_cache, GFP_PGTABLE_KERNEL);
+> 
+> This is used to allocate PGDs for both user and kernel pagetables (e.g.
+> for the efi runtime services), so while this may fix the regression, I'm
+> not sure it's the right fix.
+> 
+> Do we need a separate pgd_alloc_kernel()?
 
-Here it goes:
+So can I take the above for -rc5, or is somebody else working on a different
+fix to implement pgd_alloc_kernel()?
 
-Andrew, could you replace the patch with the below if Michal doesn't have
-any suggestion?
+/confused
 
-Thanks.
-
-From 5cb8958ea240e2580bd2b331448009e8e1854240 Mon Sep 17 00:00:00 2001
-From: Minchan Kim <minchan@kernel.org>
-Date: Fri, 24 May 2019 15:54:10 +0900
-Subject: [PATCH] mm: fix trying to reclaim unevicable LRU page
-
-There was below bugreport from Wu Fangsuo.
-
-In CMA allocation path, isolate_migratepages_range could isolate unevictable
-LRU pages and reclaim_clean_page_from_list can try to reclaim them if
-they are clean file-backed pages.
-
-7200 [  680.491097] c4 7125 (syz-executor) page:ffffffbf02f33b40 count:86 mapcount:84 mapping:ffffffc08fa7a810 index:0x24
-7201 [  680.531186] c4 7125 (syz-executor) flags: 0x19040c(referenced|uptodate|arch_1|mappedtodisk|unevictable|mlocked)
-7202 [  680.544987] c0 7125 (syz-executor) raw: 000000000019040c ffffffc08fa7a810 0000000000000024 0000005600000053
-7203 [  680.556162] c0 7125 (syz-executor) raw: ffffffc009b05b20 ffffffc009b05b20 0000000000000000 ffffffc09bf3ee80
-7204 [  680.566860] c0 7125 (syz-executor) page dumped because: VM_BUG_ON_PAGE(PageLRU(page) || PageUnevictable(page))
-7205 [  680.578038] c0 7125 (syz-executor) page->mem_cgroup:ffffffc09bf3ee80
-7206 [  680.585467] c0 7125 (syz-executor) ------------[ cut here ]------------
-7207 [  680.592466] c0 7125 (syz-executor) kernel BUG at /home/build/farmland/adroid9.0/kernel/linux/mm/vmscan.c:1350!
-7223 [  680.603663] c0 7125 (syz-executor) Internal error: Oops - BUG: 0 [#1] PREEMPT SMP
-7224 [  680.611436] c0 7125 (syz-executor) Modules linked in:
-7225 [  680.616769] c0 7125 (syz-executor) CPU: 0 PID: 7125 Comm: syz-executor Tainted: G S              4.14.81 #3
-7226 [  680.626826] c0 7125 (syz-executor) Hardware name: ASR AQUILAC EVB (DT)
-7227 [  680.633623] c0 7125 (syz-executor) task: ffffffc00a54cd00 task.stack: ffffffc009b00000
-7228 [  680.641917] c0 7125 (syz-executor) PC is at shrink_page_list+0x1998/0x3240
-7229 [  680.649144] c0 7125 (syz-executor) LR is at shrink_page_list+0x1998/0x3240
-7230 [  680.656303] c0 7125 (syz-executor) pc : [<ffffff90083a2158>] lr : [<ffffff90083a2158>] pstate: 60400045
-7231 [  680.666086] c0 7125 (syz-executor) sp : ffffffc009b05940
-..
-7342 [  681.671308] c0 7125 (syz-executor) [<ffffff90083a2158>] shrink_page_list+0x1998/0x3240
-7343 [  681.679567] c0 7125 (syz-executor) [<ffffff90083a3dc0>] reclaim_clean_pages_from_list+0x3c0/0x4f0
-7344 [  681.688793] c0 7125 (syz-executor) [<ffffff900837ed64>] alloc_contig_range+0x3bc/0x650
-7347 [  681.717421] c0 7125 (syz-executor) [<ffffff90084925cc>] cma_alloc+0x214/0x668
-7348 [  681.724892] c0 7125 (syz-executor) [<ffffff90091e4d78>] ion_cma_allocate+0x98/0x1d8
-7349 [  681.732872] c0 7125 (syz-executor) [<ffffff90091e0b20>] ion_alloc+0x200/0x7e0
-7350 [  681.740302] c0 7125 (syz-executor) [<ffffff90091e154c>] ion_ioctl+0x18c/0x378
-7351 [  681.747738] c0 7125 (syz-executor) [<ffffff90084c6824>] do_vfs_ioctl+0x17c/0x1780
-7352 [  681.755514] c0 7125 (syz-executor) [<ffffff90084c7ed4>] SyS_ioctl+0xac/0xc0
-
-Wu found it's due to [1]. Before that, unevictable page goes to cull_mlocked
-routine so that it couldn't reach the VM_BUG_ON_PAGE line.
-
-To fix the issue, this patch filter out unevictable LRU pages
-from the reclaim_clean_pages_from_list in CMA.
-
-[1] ad6b67041a45, mm: remove SWAP_MLOCK in ttu
-
-Cc: <stable@kernel.org>	[4.12+]
-Reported-debugged-by: Wu Fangsuo <fangsuowu@asrmicro.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/vmscan.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index d9c3e873eca6..7350afae5c3c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1505,7 +1505,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- 
- 	list_for_each_entry_safe(page, next, page_list, lru) {
- 		if (page_is_file_cache(page) && !PageDirty(page) &&
--		    !__PageMovable(page)) {
-+		    !__PageMovable(page) && !PageUnevictable(page)) {
- 			ClearPageActive(page);
- 			list_move(&page->lru, &clean_pages);
- 		}
--- 
-2.22.0.rc2.383.gf4fbbf30c2-goog
-
+Will
 
