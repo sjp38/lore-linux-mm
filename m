@@ -6,157 +6,151 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D8B6C4321A
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:49:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3518C43218
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:52:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E16522089E
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:48:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E16522089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 47AAB2053B
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:52:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 47AAB2053B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 74B1F6B0272; Mon, 10 Jun 2019 18:48:59 -0400 (EDT)
+	id D896B6B0272; Mon, 10 Jun 2019 18:52:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6FC6E6B0273; Mon, 10 Jun 2019 18:48:59 -0400 (EDT)
+	id D39AE6B0273; Mon, 10 Jun 2019 18:52:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5C3146B0276; Mon, 10 Jun 2019 18:48:59 -0400 (EDT)
+	id C29596B0276; Mon, 10 Jun 2019 18:52:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 26B2D6B0272
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 18:48:59 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id c17so8159872pfb.21
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 15:48:59 -0700 (PDT)
+Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 97E996B0272
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 18:52:36 -0400 (EDT)
+Received: by mail-ot1-f72.google.com with SMTP id x27so5545978ote.6
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 15:52:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=1OUwWeLrUq+dlOxulLlkl7WSpPLxR0uc2y6Q8h98sLs=;
-        b=WoYj07LvoR0eMt8kfRAw2MriGAFqF9fhoFZPqhhw0NTTIyZwzfXEf0Ls1Ym5Gj9Vxo
-         1G41LID7x1cAEIWZ82eq74PNng9GbWQSk3ZL8s5PjAKpLq534y/hceNNpZvDfJIGSbTg
-         i4TiK6FhrY61xkKmvacD6SURpCdwlhJuzy/D8C59Uvu5RAZ5SP0x5Dx79hvx0XC4RwrM
-         TqrJf4bQlRDj5m9oCSCDuw/21zGUJsNJwsH/xlJB4iZ1V8K96nm9maKoSHDUL2ZXCHh7
-         XvM31yolEh+tmEU4h1AGyrjRhqy63po/VwAZ9M1JdmwOLp9ZxS+EZ92Hx2VJr0MPD56g
-         yc2A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUeK/39rfNDmwMxB380piBwHf+H4U+MtfYE77/6CxPsvvSRl4lj
-	jCSPn2cBxy6wzbkhl0QUdAJgvRdUlJkRcaE0T3wGfM0bdKm4XyHoA40Cv58n+IMXe6yIzZiXc19
-	WxPaFNPSHWepB5zgSICdqMMpGG1fx1gFbZ3lV42dgpXzX60bPT6Pft9yqWM+QeWbHmg==
-X-Received: by 2002:a17:902:1c9:: with SMTP id b67mr25602108plb.333.1560206938812;
-        Mon, 10 Jun 2019 15:48:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx6V8rB83zaNb6Cr8raVOl7M/rEg1A2j4fwYQCbE2eT1/NctXOONZstlx16n2negZ4NC5QP
-X-Received: by 2002:a17:902:1c9:: with SMTP id b67mr25602058plb.333.1560206937971;
-        Mon, 10 Jun 2019 15:48:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560206937; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=NofsTw7jVbXikjywTcUvOrrzN4+CxtF5jV068k/vPhg=;
+        b=oQ1hYWYgafdLSq/+uHRrt7ib0BiW0E1gdKScKKNzUwM4gxRuWmSSQUn876HwyC60FU
+         Ic0ZWdffsVpj8uIkzY9GFIxZ3ofcBMI6L++Slp0iKWMxhCxMmUbrlPE3YCkjR556SZTF
+         BUEa659tYt7YLsPbYDaIxLOw4BtEfqecZfRwuZNUpKfngu0jaJyLeJ/SFNs/+fKplbn2
+         t5zGVFcxEXNh4+WUMecIcvDTtAG9vj05XnmQoRawDyhsBFoNIyCdb52boUcKloiaFh1D
+         QC1FhlkrrF6osqhTQe7jYskcjEOVT0vgNrsG3zAi02pnOCvPJjBW1J6IU8jCt7nfXGs/
+         /YDQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+X-Gm-Message-State: APjAAAWjunVnN56DY+ZQxrihx40k3rpDVxycPr77JfnrK9rJWzFvywt+
+	dQQ8nzX4u2nLW7dNRtDLJVjuFRp+ib8gp8igPAcaEsO35sdh4iSCIkSXpnpN8nuHQJPuwnE7WBy
+	BDFV1ukSj3MzMPyONJLJKlWm+x+26Jr9hMnY2gz4MvTBnHkgexenAd+WmN/Hs4HW4Lg==
+X-Received: by 2002:a9d:191:: with SMTP id e17mr1545899ote.315.1560207156219;
+        Mon, 10 Jun 2019 15:52:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwiTUzdr6ABiCqnSGF8Fp32s80OLMtq9pltizoJ5PAtGEo0+OVFlPiKGKkHIEwhPVIaENkY
+X-Received: by 2002:a9d:191:: with SMTP id e17mr1545855ote.315.1560207155286;
+        Mon, 10 Jun 2019 15:52:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560207155; cv=none;
         d=google.com; s=arc-20160816;
-        b=ODY0+F+QXkn4DvDNk2Ak5Xb0lhEVdmBVFKs/AKotz2Pu/4Ttu6XyPCTzO11nb/fL+9
-         U8bAIBLpk4N77Z+E+r/nzDoroePL5yJ+j6hBwh3ElYdgfJDChmY8W23G9gEfFs/U84Y7
-         tE3QYckH1yJDyj0Vr3Rbytje4O095KAOtPPK9RAxO10qZpTBLcFTKstuRf5QJELfA27q
-         tlbrB0fgR+9G3QTpQ5e9CHZ3c4Xs6iparGYtids4O/Lat5pe99A1Fyi70/GHQmnHvTUW
-         RGuOt6rCdHZJf2qygk2cWzN3KfpvCVzmIFphwGGXN2DerE3yMdVBveVjuwis5nq8B8ky
-         3uJw==
+        b=eInzS7g9hePC7ig/vuY6/qlmNbB4Vpp4aP/5eAogfHDIxK0zVQUM08gd5QDypma24q
+         ybXnFs3OEo05V381Aut006LUm8wEpdHiQ0ON+JGOr+DggWhzsQm6E2YHhukQlldY61Qi
+         0GkiboUcE2yjr7i4FzoyDHX8omznm5RG11xZ7L4P7DzJ0lL6LkkIYLhVLRgIG9oRfFhb
+         FCfzLN8FDox40vQdXDov5GT5NoborqmTtlWJfsugIh5lSEbZIBpjfmYGx6UZFelD+guO
+         z2geD7bWThsVVvZorgxCKcowllgYgCLdQCnR/r45YgNlxjbod3qcvLXcZB8WSPAlSPTF
+         pwiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=1OUwWeLrUq+dlOxulLlkl7WSpPLxR0uc2y6Q8h98sLs=;
-        b=KvN12vP1ft+G/7exCh4ZU5AxcVeR01NajY4gwQ5xuXOK/od9ZsUJpJvUrU6SWpuuIt
-         ZQ2TuCDjfzPYIN6zzk/qIDL7FMuLmZqRnmR/NKlWg0UITBEjY2mLQjNiQ7hmCWlGgLOU
-         Djc6wbwai/P2IbI3cMFwBwrI7hkTdHBomIq5bYImr96xJMWbfCnnbcSOrMxOXpCEEXos
-         bgETiLreGnS3C2klqlKR4trdHTZXctusP3TssK+YMUvpQyGJ8Ms/EcnmauvL3b6n7Tmt
-         a+nXg98H5nuD0yQ4UWXmFQuIqOXBrHYoepzSGEhmo4enhUouR55pFt41f0S1CAmeyPV4
-         p2gA==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from;
+        bh=NofsTw7jVbXikjywTcUvOrrzN4+CxtF5jV068k/vPhg=;
+        b=rzNtzlVW35FB5s3MHGPLzA89rnVN69v6BZdTY5CFdQ7hPl7azNIxmDDiXxOnclXy9V
+         qLnQ9Sm/NUDbUO5wGVwag4IMQzNipU5cH7EXfygQF6VqmqeRxFMuRsFTATrqqINQ0rFj
+         dlKYW7VQd7somY2kYQ/9yCwClzlITXbamZmAHmTi3estSMdA/sM/1YBNvsmKc36R4Iaz
+         mfedY9l46xZUIdrICcTrGwlgVNDS+Lhkwwj/9ceDeTAUVKAt6P7zYuuuJCdE67OczzyB
+         LZE6nKEd5dgLmgfU3jTQgw7WnQ0LeGDN3I1Wzz76lPsb2KdlNfcwTeLt575Eq4FVrzQn
+         kr3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id z9si673751pjn.2.2019.06.10.15.48.57
+       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id l22si6295627otp.185.2019.06.10.15.52.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jun 2019 15:48:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        Mon, 10 Jun 2019 15:52:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) client-ip=114.179.232.162;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jun 2019 15:48:57 -0700
-X-ExtLoop1: 1
-Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by fmsmga005.fm.intel.com with ESMTP; 10 Jun 2019 15:48:56 -0700
-Message-ID: <1b961c71d30e31ecb22da2c5401b1a81cb802d86.camel@intel.com>
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
- function
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski
- <luto@amacapital.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org, "H. Peter Anvin"
- <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar
- <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org,  linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Balbir Singh
- <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,  Cyrill Gorcunov
- <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene
- Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J.
- Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet
- <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
- <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov
- <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Randy Dunlap
- <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, Dave Martin
- <Dave.Martin@arm.com>
-Date: Mon, 10 Jun 2019 15:40:49 -0700
-In-Reply-To: <92e56b28-0cd4-e3f4-867b-639d9b98b86c@intel.com>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
-	 <20190606200926.4029-4-yu-cheng.yu@intel.com>
-	 <20190607080832.GT3419@hirez.programming.kicks-ass.net>
-	 <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
-	 <20190607174336.GM3436@hirez.programming.kicks-ass.net>
-	 <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
-	 <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
-	 <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
-	 <25281DB3-FCE4-40C2-BADB-B3B05C5F8DD3@amacapital.net>
-	 <e26f7d09376740a5f7e8360fac4805488b2c0a4f.camel@intel.com>
-	 <3f19582d-78b1-5849-ffd0-53e8ca747c0d@intel.com>
-	 <5aa98999b1343f34828414b74261201886ec4591.camel@intel.com>
-	 <0665416d-9999-b394-df17-f2a5e1408130@intel.com>
-	 <5c8727dde9653402eea97bfdd030c479d1e8dd99.camel@intel.com>
-	 <ac9a20a6-170a-694e-beeb-605a17195034@intel.com>
-	 <328275c9b43c06809c9937c83d25126a6e3efcbd.camel@intel.com>
-	 <92e56b28-0cd4-e3f4-867b-639d9b98b86c@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.1-2 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+Received: from mailgate01.nec.co.jp ([114.179.233.122])
+	by tyo162.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x5AMqLnn024430
+	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
+	Tue, 11 Jun 2019 07:52:21 +0900
+Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
+	by mailgate01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x5AMqL6q016179;
+	Tue, 11 Jun 2019 07:52:21 +0900
+Received: from mail02.kamome.nec.co.jp (mail02.kamome.nec.co.jp [10.25.43.5])
+	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x5AMpo63002979;
+	Tue, 11 Jun 2019 07:52:21 +0900
+Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.152] [10.38.151.152]) by mail01b.kamome.nec.co.jp with ESMTP id BT-MMP-5829201; Tue, 11 Jun 2019 07:51:34 +0900
+Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
+ BPXC24GP.gisp.nec.co.jp ([10.38.151.152]) with mapi id 14.03.0319.002; Tue,
+ 11 Jun 2019 07:51:33 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+        Michal Hocko <mhocko@kernel.org>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>,
+        "Chen, Jerry T" <jerry.t.chen@intel.com>,
+        "Zhuo, Qiuxu" <qiuxu.zhuo@intel.com>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH v2 1/2] mm: soft-offline: return -EBUSY if
+ set_hwpoison_free_buddy_page() fails
+Thread-Topic: [PATCH v2 1/2] mm: soft-offline: return -EBUSY if
+ set_hwpoison_free_buddy_page() fails
+Thread-Index: AQHVH2UNBW9Lhf3e5UinMjf59GXrMKaUzwKAgAAZdgA=
+Date: Mon, 10 Jun 2019 22:51:33 +0000
+Message-ID: <20190610225140.GA30991@hori.linux.bs1.fc.nec.co.jp>
+References: <1560154686-18497-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1560154686-18497-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <20190610142033.6096a8ec73d4bf40b2612fb5@linux-foundation.org>
+In-Reply-To: <20190610142033.6096a8ec73d4bf40b2612fb5@linux-foundation.org>
+Accept-Language: en-US, ja-JP
+Content-Language: ja-JP
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.34.125.96]
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <03697C5541B2D04CB700AC95BD5D6F50@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-TM-AS-MML: disable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-06-10 at 15:02 -0700, Dave Hansen wrote:
-> On 6/10/19 1:58 PM, Yu-cheng Yu wrote:
-> > > > On each memory request, the kernel then must consider a percentage of
-> > > > allocated space in its calculation, and on systems with less memory
-> > > > this quickly becomes a problem.
-> > > 
-> > > I'm not sure what you're referring to here?  Are you referring to our
-> > > overcommit limits?
-> > 
-> > Yes.
-> 
-> My assumption has always been that these large, potentially sparse
-> hardware tables *must* be mmap()'d with MAP_NORESERVE specified.  That
-> should keep them from being problematic with respect to overcommit.
+On Mon, Jun 10, 2019 at 02:20:33PM -0700, Andrew Morton wrote:
+> On Mon, 10 Jun 2019 17:18:05 +0900 Naoya Horiguchi <n-horiguchi@ah.jp.nec=
+.com> wrote:
+>=20
+> > The pass/fail of soft offline should be judged by checking whether the
+> > raw error page was finally contained or not (i.e. the result of
+> > set_hwpoison_free_buddy_page()), but current code do not work like that=
+.
+> > So this patch is suggesting to fix it.
+>=20
+> Please describe the user-visible runtime effects of this change?
 
-Ok, we will go back to do_mmap() with MAP_PRIVATE, MAP_NORESERVE and
-VM_DONTDUMP.  The bitmap will cover only 48-bit address space.
+Sorry, could you replace the description as follows (I inserted one sentenc=
+e)?
 
-We then create PR_MARK_CODE_AS_LEGACY.  The kernel will set the bitmap, but it
-is going to be slow.
+    The pass/fail of soft offline should be judged by checking whether the
+    raw error page was finally contained or not (i.e. the result of
+    set_hwpoison_free_buddy_page()), but current code do not work like that=
+.
+    It might lead us to misjudge the test result when
+    set_hwpoison_free_buddy_page() fails.  So this patch is suggesting to
+    fix it.
 
-Perhaps we still let the app fill the bitmap?
-
-Yu-cheng
+Thanks,
+Naoya Horiguchi=
 
