@@ -4,81 +4,81 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0D2E6C4321B
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:16:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 383C2C43218
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:16:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B25A82082E
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:16:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F026F2082E
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:16:47 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="g7MV9hKQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B25A82082E
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="E1yML8b2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F026F2082E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5DEA16B0271; Mon, 10 Jun 2019 18:16:43 -0400 (EDT)
+	id 985886B0272; Mon, 10 Jun 2019 18:16:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 569326B0272; Mon, 10 Jun 2019 18:16:43 -0400 (EDT)
+	id 935B26B0273; Mon, 10 Jun 2019 18:16:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3BB3F6B0273; Mon, 10 Jun 2019 18:16:43 -0400 (EDT)
+	id 7FF176B0274; Mon, 10 Jun 2019 18:16:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EFAC76B0271
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 18:16:42 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 30so7746749pgk.16
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 15:16:42 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 488B36B0272
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 18:16:47 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id d3so4842823pgc.9
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 15:16:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=lVE4VBqJB+KkG+FIxfoQqL75aQVlp7EZak10nik7k0k=;
-        b=cHWLbmPXxCoQoYcRC9GoIh0LAKNaYat/ZbyMeIgvbPloLFFvbTdLSHFzvj0XWSV8zn
-         QM/M17TwRZ9csyaZaHZgzOw2jb1mOVR/WBoBi1pHWRb4MujOheQJQRLhhmfLS0sMFdJh
-         zkoroJvzsGtWAceWXWcVFqbLaJfzf4AQ1pdt3NpphVCGbA767H+9tCdiNeK5hUR+k0ze
-         mr0q6zENW1p50AvKPkCp6XX16VFgTev3wz06LDl8yXX1D6j0nmyptvt/Y6GQh7NdP1y2
-         nLin2CIBli+09o9QY9dn8oWIQWqiiRIjj3QiTvdgUy1X4+KKcUtrjNasixAtCSDfskk0
-         Bjig==
-X-Gm-Message-State: APjAAAUnWu5b3koFy4l7jOdV2B8jkCesiJhjbbRbxNLrA2CWgWcsKU6f
-	qs5idyS4EjYTc7FnQH7PJV3DhlCnLfprn59l7hP9zANk/yIUP+RG74ON+9icIjD3jKDh2Mv04Ld
-	oR+oizb5PO8ZIjlC2TICzey3xo2VEwkoIW3SkAtEOJhuxWEifRcEeXh7zUATni/g=
-X-Received: by 2002:aa7:8e19:: with SMTP id c25mr41419570pfr.238.1560205002639;
-        Mon, 10 Jun 2019 15:16:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwogLp6VhV+1AVBWU2jua0got4zWo8SCDQn/RlEsESmpIDosCxtUufUSZah0dN4rR40myib
-X-Received: by 2002:aa7:8e19:: with SMTP id c25mr41419492pfr.238.1560205001706;
-        Mon, 10 Jun 2019 15:16:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560205001; cv=none;
+        bh=UEy/4Lyls0cszyUScQ4qCl6Em4CB1JokLTZUjPlbm8w=;
+        b=FgYzN3bTt2jdAu4XvDpwQLBENzzuSpm9B9pXOJxipiFCStpi/qsSGhoJvHwdInqNV8
+         DMJstN3lnPFF/lRVqi2m3VU/YkZ8SlGqVSVISbE64U5CGqX07UhhvGUGkU2UtnieuRO1
+         IwnbmyhLnqbPf8JelGEJPylGEr0hrzeNmUPlNkDEdz1zc4u4OopngktDBemPB3/nPMwF
+         Mzvh+6M+phtc2bHmQK2RuHVzfNhFZ/eeKihpSplMzRdVPXGiWj+J2jmkP8FB60SMWax0
+         m+FWDgGVoIYcu2qo3sIUrSPa8bQbP9ECty0J04zCxt4IQlXTW8SJKQeCIAUtjQQUpYYq
+         /rWw==
+X-Gm-Message-State: APjAAAX5N19uXimxBOEDlsBHhF0ovqgY1i9MVNyXCwhaHCyYmx9hY3m0
+	tG71UgUN2eMtK7APY4dr1TAqsYu3jwkGbLnBDPD3WAB+F7CnviqLtYZ0lFerzTcXn1v6itE/kV1
+	mVyA+s/YQOsSy2oTfdnbC8fLaq7pW5Ivd88o1rVdLPGovWTv9JuJJuQvZbUUd3LY=
+X-Received: by 2002:a17:902:a412:: with SMTP id p18mr4394641plq.105.1560205006934;
+        Mon, 10 Jun 2019 15:16:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwSrlnSMqGlmvYRDBMn4uFQfBhHCSSBjxHOSnFLQfxeMU+VOvQYTGPnmIVbASrH5A4qah8m
+X-Received: by 2002:a17:902:a412:: with SMTP id p18mr4394597plq.105.1560205006268;
+        Mon, 10 Jun 2019 15:16:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560205006; cv=none;
         d=google.com; s=arc-20160816;
-        b=Hj7qQDpoOGVYbxX6BVseC1zR5qrjOit85ACNtC03fiBfj/ttYXOeSZwSPt0CQh30jV
-         EW4moVliALaKa/tZMN13daUngvw4fhcb7k547ONfmxs70hDmwJGMuXpJF16Y+BIk6c5Z
-         7IYHDKvOfcVP0e6tGng3+Sw9kw4L6/2Ornga/s88Cb3TwgqLer0QuGI4Brx2KYAjH3wR
-         A4v9RbDNXiUoUIDxzWYJ3YeRQqN4AEotLyDXe7n463FY+IgQlJbIPDKAlzGewTMCRw0Y
-         vljzwysxhxCRRl0CNj3qnAB/LXybp3uZVn+gB8XA1REKEnaUPcWLJQ9RUvv7l93PAxim
-         gMWQ==
+        b=eq+MYYDvYkZKqvrojcYckhDasKtMZULngJhaZWyiZsATqqsnJR8pECDBb8XKdgSqSF
+         pi/ZXUzBKrV4n+d8f2+didLrsW13PVW25XrCu2HHaodLyw23nOj8eQXGUFK6F+H0hxxV
+         QYSE6F+bRIwWw9Dox54h4mxL5siCTpdyB7JtiC8PiBK0uWnRMTtmiQ+j4Gel0/sd2H/S
+         W8cY+W8XNLTFxF7ZCcAldxPB470XDqi/OoTvqMzooRugiB2jub35xloaVsiWfVqFmvu3
+         MP89IXhWguOPe4ecDZiwH0GDXlpP5kdG/FiCdVZPhsKf8OS4+LHssVfljuP900reC0Hi
+         QkYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=lVE4VBqJB+KkG+FIxfoQqL75aQVlp7EZak10nik7k0k=;
-        b=qc57ruFwE7oU244mR90WcKMaRMOXTmTbU28BVUdukVoYqfdWLS45ctff0pdNsYT2Dr
-         DA7GLysS1xZJBOpa2kQujCOc8X0t3pXnZHGFeVtGYqRmfS9zqrg85uIyMw+8/LhoO76e
-         hjdJTDyLS1VuZ55lOxsG3X45x4RX6VFEXwpYjNX/RO9Zo+3PNCaRuY7sii7RkZCfHMlC
-         2hC6FvFQm43JCgLAUCaAGNphpJxr7wrekcwypRV08YPboukvBrul7JXu3Gy+fxCO4+Tq
-         kh/eSV2Lp3y0Uw8a3Jwz4J/Y8xxPGyMj47FId9IVORuhF7IHIIax6vHikn9RY2wvKWLW
-         f+kw==
+        bh=UEy/4Lyls0cszyUScQ4qCl6Em4CB1JokLTZUjPlbm8w=;
+        b=Ax3gNYtxz+ciFf/zzpxdApDGtjZ4W90JcLlLzlf1yTOPyJPt5rgdXiRyTvNEkhDi+a
+         tqvJw23qy20uD98hxY7FaWdKvgW+6Ag7JvweuD5bWxuqiJvY1ntLHLQYk9QB2Qh7nPYG
+         9jCw/6ApwiO7BjGpDTPYrXroJlsou0pdhLRUV9mlLAopvdS/D65EMhTOd6wqnoPfPbuM
+         D9RurHFaGYRgw+dlp+EobFfgm1f5FkQs7fO/hwbZmnz0GpfSLGGnjZUDn0NBOHg417K9
+         NeQoMLo2uJCHgG1bdusntPSwhNgnppvMDirqLhTluYk1YFqc2W99cmNgh7uZzaJhdD/G
+         sb5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=g7MV9hKQ;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=E1yML8b2;
        spf=pass (google.com: best guess record for domain of batv+ba9daad91d8a220a3b0a+5769+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ba9daad91d8a220a3b0a+5769+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 97si11234398ple.161.2019.06.10.15.16.41
+        by mx.google.com with ESMTPS id u17si3359000pfc.210.2019.06.10.15.16.46
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 10 Jun 2019 15:16:41 -0700 (PDT)
+        Mon, 10 Jun 2019 15:16:46 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+ba9daad91d8a220a3b0a+5769+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=g7MV9hKQ;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=E1yML8b2;
        spf=pass (google.com: best guess record for domain of batv+ba9daad91d8a220a3b0a+5769+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ba9daad91d8a220a3b0a+5769+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=lVE4VBqJB+KkG+FIxfoQqL75aQVlp7EZak10nik7k0k=; b=g7MV9hKQoNw5gI26t9jxExxpCz
-	y+RoLH7nrhvOd0+tEwTwrMivkxztKInbGwugrmpiQFPeopqZoRhBHypBsX+F4rKxzss1ujMWclj2L
-	V2ZngcPWW3tXn6sAIx1eV9VUPJfqbjvq8WK5ebICyPboFn5qZ3m95ENz1v70yAAt0F7E7bVo+1Yjv
-	skAqfYXdAeo1RmOxNKqt2FyihTKFOXZubw9xhxq4COqdDGAHX/b2C0oRMvH5jv+ou/cPV7+SlC1LO
-	lWDSUEv7+HmoZ2qD0Ji4RSL9S7vB/ZQg8bfcFXHneu7AvuwKzA4kPDZl+wsCwWQo8U0e+HsYnUBhM
-	3wbqTVdQ==;
+	bh=UEy/4Lyls0cszyUScQ4qCl6Em4CB1JokLTZUjPlbm8w=; b=E1yML8b29i76hIlU7NAyq0k3R9
+	IlsAjrwqtrMV5rSvZIVjbksh4yLw8z9HPXyGXRzvqVeDniIJ/ypaeeTob7ufpi5ztS2cuoIDcH5O4
+	hue0scRmZMTTwKa3+LP12tnFOxCj0/EbSj4GYGsYt2+nUSRmWOxBpfdbWcrn1MuQGX+E6WPn7zEig
+	LItcuSFwwyPGSpjJPAOdMqxKU4o1BpaAt4bC8ZQn90KbVjoIzyixTM5ONrRIeproeDiwJ7HKgFffs
+	e6sOlflVkQqvYHRWQWh7v4w1h5Su+R4f3Mgu34Ovom6EyZOgf6A3uFlETUFbJUBJR+JmUDnM7J0Eo
+	iSptNjGg==;
 Received: from 089144193064.atnat0002.highway.a1.net ([89.144.193.64] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1haSal-000319-AM; Mon, 10 Jun 2019 22:16:39 +0000
+	id 1haSan-00039t-W3; Mon, 10 Jun 2019 22:16:42 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Palmer Dabbelt <palmer@sifive.com>
 Cc: Damien Le Moal <damien.lemoal@wdc.com>,
@@ -102,9 +102,9 @@ Cc: Damien Le Moal <damien.lemoal@wdc.com>,
 	uclinux-dev@uclinux.org,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 06/17] riscv: clear the instruction cache and all registers when booting
-Date: Tue, 11 Jun 2019 00:16:10 +0200
-Message-Id: <20190610221621.10938-7-hch@lst.de>
+Subject: [PATCH 07/17] riscv: refactor the IPI code
+Date: Tue, 11 Jun 2019 00:16:11 +0200
+Message-Id: <20190610221621.10938-8-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190610221621.10938-1-hch@lst.de>
 References: <20190610221621.10938-1-hch@lst.de>
@@ -117,125 +117,114 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When we get booted we want a clear slate without any leaks from previous
-supervisors or the firmware.  Flush the instruction cache and then clear
-all registers to known good values.  This is really important for the
-upcoming nommu support that runs on M-mode, but can't really harm when
-running in S-mode either.  Vaguely based on the concepts from opensbi.
+This prepare for adding native non-SBI IPI code.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/riscv/kernel/head.S | 83 ++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 83 insertions(+)
+ arch/riscv/kernel/smp.c | 55 +++++++++++++++++++++++------------------
+ 1 file changed, 31 insertions(+), 24 deletions(-)
 
-diff --git a/arch/riscv/kernel/head.S b/arch/riscv/kernel/head.S
-index 4e46f31072da..5681179183d4 100644
---- a/arch/riscv/kernel/head.S
-+++ b/arch/riscv/kernel/head.S
-@@ -11,6 +11,7 @@
- #include <asm/thread_info.h>
- #include <asm/page.h>
- #include <asm/csr.h>
-+#include <asm/hwcap.h>
+diff --git a/arch/riscv/kernel/smp.c b/arch/riscv/kernel/smp.c
+index b2537ffa855c..91164204496c 100644
+--- a/arch/riscv/kernel/smp.c
++++ b/arch/riscv/kernel/smp.c
+@@ -89,13 +89,38 @@ static void ipi_stop(void)
+ 		wait_for_interrupt();
+ }
  
- __INIT
- ENTRY(_start)
-@@ -18,6 +19,12 @@ ENTRY(_start)
- 	csrw CSR_SIE, zero
- 	csrw CSR_SIP, zero
++static void send_ipi_mask(const struct cpumask *mask, enum ipi_message_type op)
++{
++	int cpuid, hartid;
++	struct cpumask hartid_mask;
++
++	cpumask_clear(&hartid_mask);
++	mb();
++	for_each_cpu(cpuid, mask) {
++		set_bit(op, &ipi_data[cpuid].bits);
++		hartid = cpuid_to_hartid_map(cpuid);
++		cpumask_set_cpu(hartid, &hartid_mask);
++	}
++	mb();
++	sbi_send_ipi(cpumask_bits(&hartid_mask));
++}
++
++static void send_ipi_single(int cpu, enum ipi_message_type op)
++{
++	send_ipi_mask(cpumask_of(cpu), op);
++}
++
++static inline void clear_ipi(void)
++{
++	csr_clear(CSR_SIP, SIE_SSIE);
++}
++
+ void riscv_software_interrupt(void)
+ {
+ 	unsigned long *pending_ipis = &ipi_data[smp_processor_id()].bits;
+ 	unsigned long *stats = ipi_data[smp_processor_id()].stats;
  
-+	/* flush the instruction cache */
-+	fence.i
-+
-+	/* Reset all registers except ra, a0,a1 */
-+	call reset_regs
-+
- 	/* Load the global pointer */
- .option push
- .option norelax
-@@ -160,6 +167,82 @@ relocate:
- 	j .Lsecondary_park
- END(_start)
+-	/* Clear pending IPI */
+-	csr_clear(CSR_SIP, SIE_SSIE);
++	clear_ipi();
  
-+ENTRY(reset_regs)
-+	li	sp, 0
-+	li	gp, 0
-+	li	tp, 0
-+	li	t0, 0
-+	li	t1, 0
-+	li	t2, 0
-+	li	s0, 0
-+	li	s1, 0
-+	li	a2, 0
-+	li	a3, 0
-+	li	a4, 0
-+	li	a5, 0
-+	li	a6, 0
-+	li	a7, 0
-+	li	s2, 0
-+	li	s3, 0
-+	li	s4, 0
-+	li	s5, 0
-+	li	s6, 0
-+	li	s7, 0
-+	li	s8, 0
-+	li	s9, 0
-+	li	s10, 0
-+	li	s11, 0
-+	li	t3, 0
-+	li	t4, 0
-+	li	t5, 0
-+	li	t6, 0
-+	csrw	sscratch, 0
-+
-+#ifdef CONFIG_FPU
-+	csrr	t0, misa
-+	andi	t0, t0, (COMPAT_HWCAP_ISA_F | COMPAT_HWCAP_ISA_D)
-+	bnez	t0, .Lreset_regs_done
-+
-+	li	t1, SR_FS
-+	csrs	sstatus, t1
-+	fmv.s.x	f0, zero
-+	fmv.s.x	f1, zero
-+	fmv.s.x	f2, zero
-+	fmv.s.x	f3, zero
-+	fmv.s.x	f4, zero
-+	fmv.s.x	f5, zero
-+	fmv.s.x	f6, zero
-+	fmv.s.x	f7, zero
-+	fmv.s.x	f8, zero
-+	fmv.s.x	f9, zero
-+	fmv.s.x	f10, zero
-+	fmv.s.x	f11, zero
-+	fmv.s.x	f12, zero
-+	fmv.s.x	f13, zero
-+	fmv.s.x	f14, zero
-+	fmv.s.x	f15, zero
-+	fmv.s.x	f16, zero
-+	fmv.s.x	f17, zero
-+	fmv.s.x	f18, zero
-+	fmv.s.x	f19, zero
-+	fmv.s.x	f20, zero
-+	fmv.s.x	f21, zero
-+	fmv.s.x	f22, zero
-+	fmv.s.x	f23, zero
-+	fmv.s.x	f24, zero
-+	fmv.s.x	f25, zero
-+	fmv.s.x	f26, zero
-+	fmv.s.x	f27, zero
-+	fmv.s.x	f28, zero
-+	fmv.s.x	f29, zero
-+	fmv.s.x	f30, zero
-+	fmv.s.x	f31, zero
-+	csrw	fcsr, 0
-+#endif /* CONFIG_FPU */
-+.Lreset_regs_done:
-+	ret
-+END(reset_regs)
-+
- __PAGE_ALIGNED_BSS
- 	/* Empty zero page */
- 	.balign PAGE_SIZE
+ 	while (true) {
+ 		unsigned long ops;
+@@ -129,23 +154,6 @@ void riscv_software_interrupt(void)
+ 	}
+ }
+ 
+-static void
+-send_ipi_message(const struct cpumask *to_whom, enum ipi_message_type operation)
+-{
+-	int cpuid, hartid;
+-	struct cpumask hartid_mask;
+-
+-	cpumask_clear(&hartid_mask);
+-	mb();
+-	for_each_cpu(cpuid, to_whom) {
+-		set_bit(operation, &ipi_data[cpuid].bits);
+-		hartid = cpuid_to_hartid_map(cpuid);
+-		cpumask_set_cpu(hartid, &hartid_mask);
+-	}
+-	mb();
+-	sbi_send_ipi(cpumask_bits(&hartid_mask));
+-}
+-
+ static const char * const ipi_names[] = {
+ 	[IPI_RESCHEDULE]	= "Rescheduling interrupts",
+ 	[IPI_CALL_FUNC]		= "Function call interrupts",
+@@ -167,12 +175,12 @@ void show_ipi_stats(struct seq_file *p, int prec)
+ 
+ void arch_send_call_function_ipi_mask(struct cpumask *mask)
+ {
+-	send_ipi_message(mask, IPI_CALL_FUNC);
++	send_ipi_mask(mask, IPI_CALL_FUNC);
+ }
+ 
+ void arch_send_call_function_single_ipi(int cpu)
+ {
+-	send_ipi_message(cpumask_of(cpu), IPI_CALL_FUNC);
++	send_ipi_single(cpu, IPI_CALL_FUNC);
+ }
+ 
+ void smp_send_stop(void)
+@@ -187,7 +195,7 @@ void smp_send_stop(void)
+ 
+ 		if (system_state <= SYSTEM_RUNNING)
+ 			pr_crit("SMP: stopping secondary CPUs\n");
+-		send_ipi_message(&mask, IPI_CPU_STOP);
++		send_ipi_mask(&mask, IPI_CPU_STOP);
+ 	}
+ 
+ 	/* Wait up to one second for other CPUs to stop */
+@@ -202,6 +210,5 @@ void smp_send_stop(void)
+ 
+ void smp_send_reschedule(int cpu)
+ {
+-	send_ipi_message(cpumask_of(cpu), IPI_RESCHEDULE);
++	send_ipi_single(cpu, IPI_RESCHEDULE);
+ }
+-
 -- 
 2.20.1
 
