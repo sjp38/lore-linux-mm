@@ -2,158 +2,209 @@ Return-Path: <SRS0=JJ+4=UJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 07E15C43218
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 20:41:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05420C4321A
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 20:43:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C33EE2082E
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 20:41:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C33EE2082E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mit.edu
+	by mail.kernel.org (Postfix) with ESMTP id 9A6CD206E0
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 20:43:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A6CD206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 70C696B026B; Mon, 10 Jun 2019 16:41:57 -0400 (EDT)
+	id 44C806B026B; Mon, 10 Jun 2019 16:43:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6BD526B026C; Mon, 10 Jun 2019 16:41:57 -0400 (EDT)
+	id 3FDEB6B026C; Mon, 10 Jun 2019 16:43:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5AB816B026D; Mon, 10 Jun 2019 16:41:57 -0400 (EDT)
+	id 2C5E06B026D; Mon, 10 Jun 2019 16:43:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3313B6B026B
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 16:41:57 -0400 (EDT)
-Received: by mail-vk1-f200.google.com with SMTP id 129so3307575vkh.15
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 13:41:57 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E58566B026B
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 16:43:35 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id u7so7949046pfh.17
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 13:43:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ZGkqaqJfwPd+fjM7twQRXkHZqhGbKhROgc44/T3iciA=;
-        b=VAMh3Kle3GYyDVeID9aBFT7b26RoBp+4nf4vitOrI9EvGXj5dLOyrC6TBvwG14//Yy
-         jtmlvAs5V7PRYdmwtEjFh7bvPgSp72U5q42ewBZyJ6vV+TPLxxJwoTzj0iMycxlTChev
-         264QkH7SPlz/prFrMZmm4GvjPg2wWLObnJFvm2nlgb/5JBhkkdHTn2I0aQGu2C0IXYd4
-         d+N8pzI1cAUejaNQtughvSy/Z8HxALghFs6YzGbu7DrCM3uphMLtroddj6wGDUFq91G9
-         +qEglEUYwkIUbu5Cv8BWVLrL8XWjUrF0X8Lr9f3QtS7Tbdrbo/cYZVtI5G1z6knioHHU
-         qvTA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-X-Gm-Message-State: APjAAAXI1rgSuoMuGYSPkhHfypZQMKkIoNNfangX4lzRv0fdZ3HM0ucC
-	DMIG9rqbLD6BLAikl6PM8Cleh8YBO96IBVVGqOT7QrsmxanucOpJVusxoZahBftJ0uPGYyqsyHf
-	Krh43CA5orJq+ocmzOokvLU/K/jeJ6c8NyFgnE6WW02scwzAyIlF4szE2aYEZOPUxbA==
-X-Received: by 2002:a67:c503:: with SMTP id e3mr28492163vsk.230.1560199316952;
-        Mon, 10 Jun 2019 13:41:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwXGkj1jebNFR0t8MnywdoQkQ9LwMoxysPTYEilPm0jy3sd3sTkzGffKAaCgwF487F6lC+c
-X-Received: by 2002:a67:c503:: with SMTP id e3mr28492085vsk.230.1560199316265;
-        Mon, 10 Jun 2019 13:41:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560199316; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=bQGqavhBr+TsDXTW6iEPfB5kajO/Vz3+qjSmJ8MStvw=;
+        b=laOk0OYFWr2S0eUxiw2U86N9l8SdSkrlL/vxFlHTbe1pmQKJWZMG2DttV2PAzAe7sx
+         TYjPtP9CMbftwy4bMhvZIK80wbiXLeC4j7meBxTitURh8N2JVU7QTUpD72FdpTI1tpqn
+         amMqyhPR1L4Uq+Pjp6XjDUKmS5cpiYjCBA0UxU/08Uxx3NZf58LgzsQ5vu87pd2qhLld
+         mlN5YCAbWZaj9H1lXUW6EySlC4Dm4EQSDHGyx73D2Q+mvseAj5Q3alpA4LfCk+v4kmqw
+         3mKddXh/536908ORwIogYlIQBMPhpq4UZudWk4u/9/rWtMkTBj/CfztFqd1aLMX9iYOm
+         RgPQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXcwlbOQfvm2wLLBP4w0WWjaCzbdrPbzZqQ9kt7HH+s5KsZNp1P
+	q+r4OEehTjdnkY/5uIED3R8doP6t9nth7eECy007hx5dzieyvdU/8u6jK6uaQyjm0rvrZkK910m
+	5YLF5W7Ld9YTKiYYSIXj1xy57LKh6hS8ZeVWnZZscGIsHFEDH25hzy31vgdGuib/Ruw==
+X-Received: by 2002:a17:902:27e6:: with SMTP id i35mr71778363plg.190.1560199415588;
+        Mon, 10 Jun 2019 13:43:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx9nO9P8bpnPjYVFG9Nl+wZPlf994CCN4lHSjm66fvzPxEMvwRtQg6pAudxlJGjKYHuB3+O
+X-Received: by 2002:a17:902:27e6:: with SMTP id i35mr71778312plg.190.1560199414886;
+        Mon, 10 Jun 2019 13:43:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560199414; cv=none;
         d=google.com; s=arc-20160816;
-        b=1KCcdeUlDk+DJOEX8lIHzxCoZ33oYTAKlp4TtL4H97ivYadH5NMDcBGbOafsu9sf/P
-         I0hrZghz3bYrwyHJPfOOhhWhZzExSOIPpYS3TXc6qZHCnr9hTuHuZeaEIBr2mJQlctxV
-         6sbMo32Z/Emq9wiDnVmpbkxO+QXoHYHcUUuzokqC+qq7x8GnpV3dV+HbRDtckjO37iA7
-         Iky2Y6+llMADAj/6f4NPBrj1PifYdlmmOvvym1BsikdzoRc8t72ncZlgI3qxl1yMDW/l
-         TJHy54fxOLzme/yfW1pdiZsePp9CmW+nfp3YpjWwcUbD/zYl0yoyN7JEx1SegzJpXIgg
-         jgUw==
+        b=OP1O3T5HJdSTYPsIaunidE2VPwFp0GmPCjxQJwrzilNi03W7cb1+OPDSGH7RE8ladS
+         u52W0DMzMqRsK6Hv30/ghktC48hd936+CbXlSZKGj5DyRa02rKwMEhP2XkD4wssgNz7U
+         FxAvItCVu6sYf2UKS966CGEMzZw+1SI1qNRqB/bmcITEwci5RicuVBAgw0AMRt+NTFkz
+         0gmVkShbCnTUdr6lnxn1GT4niaNKnAhnfz2M8g0pyKnaYh4tgAhVhBAsow1CgKZ3DM1e
+         610QSwg8otlpdbobPHVEYo+PYN9bML3shKrto6IwxcXpxTSIOVfDVC9WTPE3Wf38qz4w
+         6HQw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=ZGkqaqJfwPd+fjM7twQRXkHZqhGbKhROgc44/T3iciA=;
-        b=i3eUojY9HNr1Fv5crta+KIiI49NqXCMbODrc5knMZqY4QrBTjvkUcuqdXY2IdQsZIL
-         4blp2x4FkcXzA37la3FpwWdxTDCWKsQ3tn6GEqSjNfgwZKst/BGt7MVjRUhZuxLwnbn4
-         zMvEwop9z5B8NSttJnUPEZrA/rDY6zlgsUFGYWdlELi9PdcvT6gVOLaoTZpMg8y6cnUL
-         FHu/K+XG2Hdx9QcXdWID1ju/9IS6G8h8JFzgknC/gfhl8fLXLSBIBqn6c52f/n9h8pjU
-         8NtnXm7K2rHGIkMLrtjqZeWRQEadHJ2gQcfDe/S2qNoY0F4XzZ2Z4psdVxYswIZB/4UB
-         5sKg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=bQGqavhBr+TsDXTW6iEPfB5kajO/Vz3+qjSmJ8MStvw=;
+        b=u012GLEcgJ7J6y32GgjwyiGtTDTrh2cNyUMfOuwOvtzKNqHqnhktrPMpy/S0VI1flF
+         WznqUEKNm+c2MK2kd3iGEaf8o/o5sIAhcfZs7CkHu5ktZO3Ky/2p/KJ0eSw486RIOHTO
+         y8kWNtht2fFXBLlKNCjDlz512+gMMU9ndy7X0jyBDHywreiSUvJECbFZaZD0c4wssHf1
+         bHxVda17qsRm+RBxoXi65SD7z/KLgiRdgNCm4B51lx/GJLRfD9tu7TkRnoWCzFgns7ao
+         P/A5WE8ZQMnAZH+b14WGyvDrAS93hgk5fvcusy+KJ6LZpZM8wHsIM94hVx8JvbFdkAXV
+         3rcQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-Received: from outgoing.mit.edu (outgoing-auth-1.mit.edu. [18.9.28.11])
-        by mx.google.com with ESMTPS id t16si2842305ual.126.2019.06.10.13.41.56
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id h11si10174058pgq.170.2019.06.10.13.43.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jun 2019 13:41:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) client-ip=18.9.28.11;
+        Mon, 10 Jun 2019 13:43:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of tytso@mit.edu designates 18.9.28.11 as permitted sender) smtp.mailfrom=tytso@mit.edu
-Received: from callcc.thunk.org (guestnat-104-133-0-109.corp.google.com [104.133.0.109] (may be forged))
-	(authenticated bits=0)
-        (User authenticated as tytso@ATHENA.MIT.EDU)
-	by outgoing.mit.edu (8.14.7/8.12.4) with ESMTP id x5AKfsg3006278
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Mon, 10 Jun 2019 16:41:55 -0400
-Received: by callcc.thunk.org (Postfix, from userid 15806)
-	id 1ADDB420481; Mon, 10 Jun 2019 16:41:54 -0400 (EDT)
-Date: Mon, 10 Jun 2019 16:41:54 -0400
-From: "Theodore Ts'o" <tytso@mit.edu>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-        linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org,
-        linux-mm@kvack.org
-Subject: Re: [PATCH 1/8] mm/fs: don't allow writes to immutable files
-Message-ID: <20190610204154.GA5466@mit.edu>
-References: <155552786671.20411.6442426840435740050.stgit@magnolia>
- <155552787330.20411.11893581890744963309.stgit@magnolia>
- <20190610015145.GB3266@mit.edu>
- <20190610044144.GA1872750@magnolia>
- <20190610131417.GD15963@mit.edu>
- <20190610160934.GH1871505@magnolia>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jun 2019 13:43:34 -0700
+X-ExtLoop1: 1
+Received: from ray.jf.intel.com (HELO [10.7.198.156]) ([10.7.198.156])
+  by orsmga008.jf.intel.com with ESMTP; 10 Jun 2019 13:43:33 -0700
+Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
+ function
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, Andy Lutomirski <luto@amacapital.net>
+Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
+ "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
+ Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
+ Cyrill Gorcunov <gorcunov@gmail.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>,
+ "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+ Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+ Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>,
+ Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>,
+ Randy Dunlap <rdunlap@infradead.org>,
+ "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+ Dave Martin <Dave.Martin@arm.com>
+References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
+ <20190606200926.4029-4-yu-cheng.yu@intel.com>
+ <20190607080832.GT3419@hirez.programming.kicks-ass.net>
+ <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
+ <20190607174336.GM3436@hirez.programming.kicks-ass.net>
+ <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
+ <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
+ <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
+ <25281DB3-FCE4-40C2-BADB-B3B05C5F8DD3@amacapital.net>
+ <e26f7d09376740a5f7e8360fac4805488b2c0a4f.camel@intel.com>
+ <3f19582d-78b1-5849-ffd0-53e8ca747c0d@intel.com>
+ <5aa98999b1343f34828414b74261201886ec4591.camel@intel.com>
+ <0665416d-9999-b394-df17-f2a5e1408130@intel.com>
+ <5c8727dde9653402eea97bfdd030c479d1e8dd99.camel@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <ac9a20a6-170a-694e-beeb-605a17195034@intel.com>
+Date: Mon, 10 Jun 2019 13:43:33 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190610160934.GH1871505@magnolia>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <5c8727dde9653402eea97bfdd030c479d1e8dd99.camel@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 10, 2019 at 09:09:34AM -0700, Darrick J. Wong wrote:
-> > I was planning on only taking 8/8 through the ext4 tree.  I also added
-> > a patch which filtered writes, truncates, and page_mkwrites (but not
-> > mmap) for immutable files at the ext4 level.
-> 
-> *Oh*.  I saw your reply attached to the 1/8 patch and thought that was
-> the one you were taking.  I was sort of surprised, tbh. :)
+On 6/10/19 1:27 PM, Yu-cheng Yu wrote:
+>>> If the loader cannot allocate a big bitmap to cover all 5-level
+>>> address space (the bitmap will be large), it can put all legacy lib's
+>>> at lower address.  We cannot do these easily in the kernel.
+>> This is actually an argument to do it in the kernel.  The kernel can
+>> always allocate the virtual space however it wants, no matter how large.
+>>  If we hide the bitmap behind a kernel API then we can put it at high
+>> 5-level user addresses because we also don't have to worry about the
+>> high bits confusing userspace.
+> We actually tried this.  The kernel needs to reserve the bitmap space in the
+> beginning for every CET-enabled app, regardless of actual needs. 
 
-Sorry, my bad.  I mis-replied to the wrong e-mail message  :-)
+I don't think this is a problem.  In fact, I think reserving the space
+is actually the only sane behavior.  If you don't reserve it, you
+fundamentally limit where future legacy instructions can go.
 
-> > I *could* take this patch through the mm/fs tree, but I wasn't sure
-> > what your plans were for the rest of the patch series, and it seemed
-> > like it hadn't gotten much review/attention from other fs or mm folks
-> > (well, I guess Brian Foster weighed in).
-> 
-> > What do you think?
-> 
-> Not sure.  The comments attached to the LWN story were sort of nasty,
-> and now that a couple of people said "Oh, well, Debian documented the
-> inconsistent behavior so just let it be" I haven't felt like
-> resurrecting the series for 5.3.
+One idea is that we always size the bitmap for the 48-bit addressing
+systems.  Legacy code probably doesn't _need_ to go in the new address
+space, and if we do this we don't have to worry about the gigantic
+57-bit address space bitmap.
 
-Ah, I had missed the LWN article.   <Looks>
+> On each memory request, the kernel then must consider a percentage of
+> allocated space in its calculation, and on systems with less memory
+> this quickly becomes a problem.
 
-Yeah, it's the same set of issues that we had discussed when this
-first came up.  We can go round and round on this one; It's true that
-root can now cause random programs which have a file mmap'ed for
-writing to seg fault, but root has a million ways of killing and
-otherwise harming running application programs, and it's unlikely
-files get marked for immutable all that often.  We just have to pick
-one way of doing things, and let it be same across all the file
-systems.
-
-My understanding was that XFS had chosen to make the inode immutable
-as soon as the flag is set (as opposed to forbidding new fd's to be
-opened which were writeable), and I was OK moving ext4 to that common
-interpretation of the immmutable bit, even though it would be a change
-to ext4.
-
-And then when I saw that Amir had included a patch that would cause
-test failures unless that patch series was applied, it seemed that we
-had all thought that the change was a done deal.  Perhaps we should
-have had a more explicit discussion when the test was sent for review,
-but I had assumed it was exclusively a copy_file_range set of tests,
-so I didn't realize it was going to cause ext4 failures.
-
-     	    	       	   	 - Ted
+I'm not sure what you're referring to here?  Are you referring to our
+overcommit limits?
 
