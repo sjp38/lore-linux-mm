@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 57554C4321B
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:17:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0533EC4321B
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:17:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0F283208E3
-	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:17:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BD6F7212F5
+	for <linux-mm@archiver.kernel.org>; Mon, 10 Jun 2019 22:17:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="DClxskAq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F283208E3
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Zx+/PZhf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD6F7212F5
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D08E66B0279; Mon, 10 Jun 2019 18:17:05 -0400 (EDT)
+	id 148C96B027A; Mon, 10 Jun 2019 18:17:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C91F86B027A; Mon, 10 Jun 2019 18:17:05 -0400 (EDT)
+	id 0AD2C6B027B; Mon, 10 Jun 2019 18:17:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AE3FA6B027B; Mon, 10 Jun 2019 18:17:05 -0400 (EDT)
+	id E8E706B027C; Mon, 10 Jun 2019 18:17:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 734536B0279
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 18:17:05 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id e16so7761041pga.4
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 15:17:05 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AF1B76B027A
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 18:17:07 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id bb9so6517963plb.2
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 15:17:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=4ocWky3c08iK0yepv2gQs0SBg5KjT+xunPaTv4oC5uw=;
-        b=WSgHwLcJk9J7hp1wdfqDzNqjiSIOg2kozrVEMaoGiM5MDYNNtiaYPEzpDcpyXldGct
-         q4ebTWSE1fRSYdBgZR1qei3/tl0NFtq7+Pq8Y5osjF7Tegm9j71n1aLGBgHQJ+sU7Ce+
-         N7xecpyodF6moGpE1fMXos6vga4KFGzT/MtZuf3Svzcoi5xAq59YzK8qZLOtUsukAnq2
-         kpulfDVPA0jKtbjzOA1MCDuBoip/CC0ysUDzRyQ61miXAMzwkLXzik6VdcHz9pbR36uq
-         KK+jYVS7Ge38dup8z71XDHsQU9DniD07w8uE8rR6Ve8B8WNxQrDcKDfkVhJzxgq2qA2m
-         wdDQ==
-X-Gm-Message-State: APjAAAU+4vEljWsNOyf71VB9EvefXTMbWEdoFkff8+DYw00e1k3hux4q
-	LOiLqttouMvJcI1pS8lOppSNAJWPhcb/wiQWyxipdpYOhHfEm8a0musCRugYhyKDW9jkCLL+KnT
-	w+VvDDIGcnmk26B9qGIsHUn2upCwy+lD1uM2I3Bb3mf0PkV52GVyinSDphAoRAL0=
-X-Received: by 2002:a17:902:70cb:: with SMTP id l11mr11774751plt.343.1560205025132;
-        Mon, 10 Jun 2019 15:17:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxZDshoguPlqaVRZn3ETvuHJKO9uLOo53rfWlP7+pyssd7VhHltunMo3s+K7olt1DObb7x2
-X-Received: by 2002:a17:902:70cb:: with SMTP id l11mr11774702plt.343.1560205024559;
-        Mon, 10 Jun 2019 15:17:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560205024; cv=none;
+        bh=UZgDc4NqB64labXbUkmbFOqDnFwUTKKO+bOXvo7uUrA=;
+        b=tmaYcZa9qqYLrugIwSAx+Zi9CWwq5LbOGCc8o+mOI3J0bWgKohmTvV+I1yykBuhwy3
+         2xow8KeRvGlTnSRt94ooKcu9txQZr3+1wdOTuA1/igIjGB3hBUsPLTgcKvrIlltw9uKp
+         4DpJnUduUQhYV0XB7VhlkdQSCa7p4se6FEFnCmm901GOtHxlhBLOMhyU64cA4HZSbvav
+         fLkYC8/i5KvsSXWvzeg/IBvFw+3Fa6DlvMx8oVH3g+NmbLaZaXBvw2KR8Poi+WqbK/d3
+         i8kt6PVOHSmZBgkDXueN5HlBBc7Bpr1ImEfHEwSTeMlrPVede+8iOaE/Za+WjEeLqUGJ
+         Sp+A==
+X-Gm-Message-State: APjAAAVuZkgV12FXVu5pyawzSX7svIGP0XvNBqqscHmpWw61Lqen5qi0
+	x3KOQK2G7bdJBCudrad1ecN/DNAvegfJEHED98VSRv0YlwdEEYN6+s2g/u1UG/fa3Ma/wBTTuKf
+	HM40N7+uBcsbpDzpFY5GSFxaeY470sFZg34naB6XzlN/jHK1emURSGhRAefriEXs=
+X-Received: by 2002:a62:3447:: with SMTP id b68mr20450393pfa.67.1560205027383;
+        Mon, 10 Jun 2019 15:17:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxMESGRU1Luwj2a9izJiQks7qwiJlOm+5a4wX+Khk78QhXNEmgV5eL98rzKGhcMR0si1AHa
+X-Received: by 2002:a62:3447:: with SMTP id b68mr20450346pfa.67.1560205026714;
+        Mon, 10 Jun 2019 15:17:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560205026; cv=none;
         d=google.com; s=arc-20160816;
-        b=TgM9kYdwL2AmW6Bn3kP5AIv/c+eWfr1+fJfZJjMRT+QcYPNM7TrqxADhPKY6nIfFAz
-         6izKWMLqxuljFQm1lQc+BFIqx5wF+9l2RjrD9NhAuAmwZacwpNuBLWC0DBzFJ2bajM7C
-         857mwuxQEyLz0a9nw7dohoiIAwqF0v+Gc7DlvV8JMN5+M6XyC3kF6J3N6cPc+lmICxFg
-         78J/xxf1B8ZgYuAWjAryoplp2X9TkgZedJNsrkx72iEe5Gvc//MLukhmX0omJSletLp2
-         r/tXteC808Em18vTC3Is71p01iTlmnULrwjyeW8Y46ld028JassTLYJoBgXYez1hS44C
-         1z3g==
+        b=NsCTRpl/Z2V8Wt5BN9T2Wa6iubeccGIfEbAWFaVaQs4EZ0ojZ+HpEPHDF+Yknx554z
+         WZpY/YmHIrjcqag0FPdTZhocsvjiCZYD4030QsCahWTHgLKnGuJFWVN/zEFtsrcYlIcM
+         S0XRySzhFiveA/t6ks+KNq75A1t0qb2Lh3AgRK9Dx4vc1DSMK5zqewtIJa6Ge1Eso+M8
+         8z5EN0Rdt1godSCZC509bcVhaas50g3OWTUDljWJW2qZc0HO8NSsfw37/3lWsaNm6sOk
+         QvrtfMYKQVz18EvvvfDhzbglDImT/CO+b4GRIJEQfHISToUoH1/BE1Xxsn4+qRGMVzJc
+         rwVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=4ocWky3c08iK0yepv2gQs0SBg5KjT+xunPaTv4oC5uw=;
-        b=Z1hvPcRqtGt6xrSmamODLtg0NwGFCNyPGnBlckdurhERV3WgrQafH0i/uoFT0/9esM
-         c/HwQHxWYLqIKURZ3P9qbIPk9fGwvHDbRBot8G32HOkNfcmFbZNoHVexMquqGvfhX8pM
-         eX2zQgcsYZUq0TMQqfc3InBfOdoeLvFUm0Mp/lCoXka2cXc1vZ33LTjoX0Dm6eKZEzVF
-         G6F+/0XTG9166Ik/CqiAr9PM6EDvCAkXsIv5h4EyHZ1uN7SpnvvkcJtZCOF9rc5Jpmp5
-         4qY0Il6YsEYkoxSakILF9X9FDArMpvc4/fBRjAfXGo+K20DQFwmpStrVAgkFy8jP0y/G
-         iBVQ==
+        bh=UZgDc4NqB64labXbUkmbFOqDnFwUTKKO+bOXvo7uUrA=;
+        b=Q0fpbGK+KU8noOigb/RM6i3/EP/fNlMyi+tfOC/3qiMqWJ2tNt5kjbr9bbDdkKYuj4
+         PzklLgeU3ldOCNMLq7zXmo5wrDHe5LzxeUUK2ZhopNsGKVw0soMyWiDc5wEPj+NYR/28
+         sDw/javDwV1PcXf7lMxF7hO6I7ZJc01BVtDJfalr0ohh9YcTcmbFUqLDMzLHDpXjXq/5
+         NVvh/qDNMko20fhRcVpu556SSN68uIS9BUWGbA/FBfWnXdDbwWlliiQ7qCMJkfRqc8UK
+         8LezClyjqTfl+B4YSf/Zk7B8oB0SQ7D7cxKViG6U+Fthq52nw5YasSEWbiVM6coWHjXe
+         bwGw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=DClxskAq;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Zx+/PZhf";
        spf=pass (google.com: best guess record for domain of batv+ba9daad91d8a220a3b0a+5769+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ba9daad91d8a220a3b0a+5769+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 32si10879245plc.152.2019.06.10.15.17.04
+        by mx.google.com with ESMTPS id o32si11348490pld.115.2019.06.10.15.17.06
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 10 Jun 2019 15:17:04 -0700 (PDT)
+        Mon, 10 Jun 2019 15:17:06 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+ba9daad91d8a220a3b0a+5769+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=DClxskAq;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="Zx+/PZhf";
        spf=pass (google.com: best guess record for domain of batv+ba9daad91d8a220a3b0a+5769+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ba9daad91d8a220a3b0a+5769+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=4ocWky3c08iK0yepv2gQs0SBg5KjT+xunPaTv4oC5uw=; b=DClxskAqPYBFK2k3TMB5K7R+nZ
-	z9U0LsZbiV3WZgHBzl0PPjdk6qWGeEdJiS1YtZ0SKEHrHuRODqonx6dexyzM7838Hd1RDMSO1GsPI
-	5EP7DM/TJru3t1osBnbbuJ4pgDh64/bYNN/M2AJKc64NE8wqqi5FwaR8miqqNxK1yv+Nr7ZBLmLGY
-	HyrwouU9iQMTFYKtVWSyaDqYnmdvhj3W95zAH6aUxsCJ0wqUzs3dI9TW92uoHJf+tzVaURVvyLntw
-	384Ro2sNdxWU/qybRIdirBfbpimN6YNMOLxWG2AwEV39Emf87QmpodZMzd3x4MOix5y77HeGJdgd4
-	ow+VBniA==;
+	bh=UZgDc4NqB64labXbUkmbFOqDnFwUTKKO+bOXvo7uUrA=; b=Zx+/PZhfBbEfWkc+XH2fIwn4gM
+	7sgLtr4sCHafnRXr+XP2JznmcIlNX248bZCdifub5mH85zuhsxvCQFfLsrnBtM63fMYYp2P1/dRDo
+	7igRKORw8p0LCRWlvpUm0g09bQT3Gxa37R3n9bMHaOoFTL03BkBzS6hC71K/ypgdQ94DKUZx6aRq6
+	4HIYRs8/jlN+25vLIjY/0Q8BksuIehE1hxqYcBmTCMzTh3T2PpgqHkpVS0Mu+bczO7iYXgQWFFrQ/
+	wtx/glJXrELv35+7bMj8/QeYzcozoHW944bedT0rSogiTXrMhrXa9OM0YYC/XlogqbfTe88ICP1uG
+	r+l+FaoA==;
 Received: from 089144193064.atnat0002.highway.a1.net ([89.144.193.64] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1haSb7-0003jm-Gv; Mon, 10 Jun 2019 22:17:01 +0000
+	id 1haSbA-0003og-6Y; Mon, 10 Jun 2019 22:17:04 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Palmer Dabbelt <palmer@sifive.com>
 Cc: Damien Le Moal <damien.lemoal@wdc.com>,
@@ -102,9 +102,9 @@ Cc: Damien Le Moal <damien.lemoal@wdc.com>,
 	uclinux-dev@uclinux.org,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 14/17] riscv: poison SBI calls for M-mode
-Date: Tue, 11 Jun 2019 00:16:18 +0200
-Message-Id: <20190610221621.10938-15-hch@lst.de>
+Subject: [PATCH 15/17] riscv: don't allow selecting SBI-based drivers for M-mode
+Date: Tue, 11 Jun 2019 00:16:19 +0200
+Message-Id: <20190610221621.10938-16-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190610221621.10938-1-hch@lst.de>
 References: <20190610221621.10938-1-hch@lst.de>
@@ -117,33 +117,43 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There is no SBI when we run in M-mode, so fail the compile for any code
-trying to use SBI calls.
+From: Damien Le Moal <damien.lemoal@wdc.com>
 
+Do not allow selecting SBI related options with MMU option not set.
+
+Signed-off-by: Damien Le Moal <damien.lemoal@wdc.com>
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/riscv/include/asm/sbi.h | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+ drivers/tty/hvc/Kconfig    | 2 +-
+ drivers/tty/serial/Kconfig | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/arch/riscv/include/asm/sbi.h b/arch/riscv/include/asm/sbi.h
-index 21134b3ef404..1e17f07eadaf 100644
---- a/arch/riscv/include/asm/sbi.h
-+++ b/arch/riscv/include/asm/sbi.h
-@@ -8,6 +8,7 @@
+diff --git a/drivers/tty/hvc/Kconfig b/drivers/tty/hvc/Kconfig
+index 4d22b911111f..5a1ab6b536ff 100644
+--- a/drivers/tty/hvc/Kconfig
++++ b/drivers/tty/hvc/Kconfig
+@@ -89,7 +89,7 @@ config HVC_DCC
  
- #include <linux/types.h>
+ config HVC_RISCV_SBI
+ 	bool "RISC-V SBI console support"
+-	depends on RISCV
++	depends on RISCV && !M_MODE
+ 	select HVC_DRIVER
+ 	help
+ 	  This enables support for console output via RISC-V SBI calls, which
+diff --git a/drivers/tty/serial/Kconfig b/drivers/tty/serial/Kconfig
+index 0d31251e04cc..59dba9f9e466 100644
+--- a/drivers/tty/serial/Kconfig
++++ b/drivers/tty/serial/Kconfig
+@@ -88,7 +88,7 @@ config SERIAL_EARLYCON_ARM_SEMIHOST
  
-+#ifndef CONFIG_M_MODE
- #define SBI_SET_TIMER 0
- #define SBI_CONSOLE_PUTCHAR 1
- #define SBI_CONSOLE_GETCHAR 2
-@@ -94,4 +95,5 @@ static inline void sbi_remote_sfence_vma_asid(const unsigned long *hart_mask,
- 	SBI_CALL_4(SBI_REMOTE_SFENCE_VMA_ASID, hart_mask, start, size, asid);
- }
- 
--#endif
-+#endif /* CONFIG_M_MODE */
-+#endif /* _ASM_RISCV_SBI_H */
+ config SERIAL_EARLYCON_RISCV_SBI
+ 	bool "Early console using RISC-V SBI"
+-	depends on RISCV
++	depends on RISCV && !M_MODE
+ 	select SERIAL_CORE
+ 	select SERIAL_CORE_CONSOLE
+ 	select SERIAL_EARLYCON
 -- 
 2.20.1
 
