@@ -2,229 +2,868 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B45C9C43218
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:41:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C292C43218
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:44:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5876320896
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:41:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5876320896
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id C822420896
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:44:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C822420896
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B8FC16B000C; Tue, 11 Jun 2019 08:41:31 -0400 (EDT)
+	id 636FE6B000C; Tue, 11 Jun 2019 08:44:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B40B16B0010; Tue, 11 Jun 2019 08:41:31 -0400 (EDT)
+	id 5E61B6B0010; Tue, 11 Jun 2019 08:44:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A07926B0266; Tue, 11 Jun 2019 08:41:31 -0400 (EDT)
+	id 4873C6B0266; Tue, 11 Jun 2019 08:44:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B8396B000C
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:41:31 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id y3so12647626ybg.12
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:41:31 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 20E806B000C
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:44:30 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id i196so10784781qke.20
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:44:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent:message-id;
-        bh=XBBPEEWheebAgmh5bb5/i7dtqZUifBg5osJS/QhGcSc=;
-        b=HPp9Mq3LPDvD5txxS5GZvV3iHklb8+NDMESP51J2mcXzjDSGPIxwUCcKi/TSVkXdvV
-         xDLjjY6JzkPJU0eFb4VdSoIaPblZDldkJH605mTThSYE52hNE/Lla19DV1gHqDVRsccq
-         zaExOCtNAKriXcR/Ohw3Ot5Z5powCUVjBB2UwdbM2TipQEV8+b/t5TX2ikpM8GwRVfnF
-         gKOBNxAygNbNkjvGCVT5avrHMG4Cug9xPzlJgOCgiLOPpEQHlwsAapRk+pYJUs5LWVS8
-         R2xnWwI3S3dKcErSGAF+PvlFfMJWuKv4c5jS1ciLKzCpzdo8W56pWDzR21kC/fzLfVP1
-         9bDQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVpOY62hKXNcSQ7YkEcF/jQfHWq1+LvKtaGHgLEclNp6speT2zJ
-	Za7R8EYk9H07wWsuNZkcrO+1OjPH3uH3eTV5bmLokJ24x8kFEcaDKCm7qOiKWvxmUZI92CuMd2K
-	DKpaVfSF3Uk9T97IvRCXXFKOJzZV8rmWyZJubv6ncd1tUVauDILya5v9ZNnSDviLxMw==
-X-Received: by 2002:a5b:ac1:: with SMTP id a1mr32682955ybr.267.1560256891227;
-        Tue, 11 Jun 2019 05:41:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzgiYZu8TJbAw6c7LBmjBqf79oXR0HP6uJH50rLTu9vlLBgKo2k8od5S1NZVO/lYhDOLsvM
-X-Received: by 2002:a5b:ac1:: with SMTP id a1mr32682929ybr.267.1560256890534;
-        Tue, 11 Jun 2019 05:41:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560256890; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=OkcXYTuxegwiND6dBfCmNCTiZrijlOQDrNMEbIGEY5E=;
+        b=F1FFXIapmWefKPuaPZcHqO6ce6h710ECsUG4+7tf+bctSdFiu3nYx8+IYnN2BSILf5
+         h0dsW0S3IjiiQWXxYeV/YGg6ttOiIoIccRH1wNuyj/HPtbf9cE6yFnX7SO/S9sVJ4qf5
+         0kX8Vl70iqxJUGTgY7FdCE1XFOx8UFZHvs+nRMZS6l7vy5XJjphzgAo/kZc2VUWjwNh3
+         c+p0HXyurjipIb5cBzx+SWKwi0ucMchfWmw9MznewTZNbo3A0SZSTI5BDkyNduKPF9of
+         /rGrq8qo7qaigNVlGV/+QxGgdpDeDw/FMzSizZPEOu2/5Ceawl5NGlz6xfXi3O26HZdC
+         MDvQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAU2V/lyPxYiILRi0lYSrEfWY2xyW2ob52PjRRbF91IrUroUH+SW
+	gNFqDM2I/NcJxgO8Fwg1Lcfv8jFLVRQ34e73DDtRArRbXL4xKaXFG8iZryfkbgdsDq3rID1aGlR
+	afjtoVzUTqtT46WuBG89b+QNDU+0vYnmazxH2gBFdffCmK4HmNEF6Gqxh8hQNXi8WWw==
+X-Received: by 2002:a0c:b50b:: with SMTP id d11mr60080465qve.98.1560257069815;
+        Tue, 11 Jun 2019 05:44:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxQW5/EJPApHN+tMIsgJAz+FoksrAMb8tNDbZ2zFrpom0TtwYxoCFY+ZZZZFUp0FLeCDT+T
+X-Received: by 2002:a0c:b50b:: with SMTP id d11mr60080379qve.98.1560257068722;
+        Tue, 11 Jun 2019 05:44:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560257068; cv=none;
         d=google.com; s=arc-20160816;
-        b=jyaj051cEotUWYuLKsglwbJLXMgo6VrYdgTL1goysn+7RIvfRHXSotWARb3tm9CiR2
-         AHXwGECwlrdEN9F3nh92R9NkM1D9GEP3oohFcoUEldT1H2ab7/CGM67o/9uSpvGduDSW
-         gd45g66DkVl1Ai6jSzueD0A+lcBR+Po2u83jwy9vCClBfvuwMlw46F4ppYDD2y3KdAQQ
-         8angNYgSh3uURxBQ0VcD/Pj8L7Uke73DVF6tVQVFC2X1AEB/UqdTNkocy//oscnYAXOw
-         kg2/KYQb3ZSvBybvA0c1PU5fgrKndkldx0fpt8AWEeFnn3dBBDD/Yy3y/sfzuC0oiLBr
-         nNzQ==
+        b=XlfSbX6b3ckl4kI2kJ/cTB9EXxM9a+Lw8fAHylMB4rfqirYsfi81fxDpxhzoAd17IU
+         fOfotKa/tMi2ay7q392Tv+t0jRh2grZKIlzVJr3yo1XNh+n1/Bku39igKm4C9KAbM/cV
+         Dt5bwrgiDhaEpdnUjJTpgSzRQ3UGLbuC/98luw3C6mvJxrXTqqjZYTFGDa8KhxXkqGy5
+         qJtKnIL+h7aY/iFK+84KG368EkwBjQ+7uuJZO6HS9tseIHcXrJIhEeqyPUBM2kjMHjDM
+         3+8TEUEuJQYjP7iOjR0DlV8aLFRBFjc6C8mi1PUaa02OnfncGVnfVi1d+dCYDs+8chvK
+         zyGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:subject:cc:to:from:date;
-        bh=XBBPEEWheebAgmh5bb5/i7dtqZUifBg5osJS/QhGcSc=;
-        b=tfxAQV9IZvDd4neA9qgummXzd16ZzIXGZTHVKAgP0VeK5JVxA/IgmuPZQxV7IURZ7L
-         eElBR4jnmcdsbwW0jeksS3wB+/pOqsh/Pu20TAen8VQIKX2qhlZHMHzgYjjX2dvd99q8
-         QV7kJ48cxuSd0KdzHEo3T0/pUJVU6WlTs1LbU7uv8rVNF2tEB8+7PvM6MKKJIwAPuA9z
-         acPGp2jzx2ZZ9s3kdOE4cQ8XSMHb9n9Z78ZMQdKU0iBonLQx809BPXpe8kL8wrYtQBPk
-         66o5V4+DUBAa9iuJI3vmzulxGXvIghajyLqRYWe13145chRFov7fM1gLS4dNSz25VNQa
-         Xyhw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=OkcXYTuxegwiND6dBfCmNCTiZrijlOQDrNMEbIGEY5E=;
+        b=dDkPo4oujt9vDnsTnn9KDeOQDIkRWbLtN7eYaEeZGxUE223xuHekMCg3mkBuv7+kKF
+         bxddfyQQEv58shcVyFseC8dMdMI7ncNmGm6DBCdP5uM0oPDGKFe7BLD1bX9iDKyvNmJJ
+         9uOiMLm6sYRUc2EcC9f4CLD2VZJj6B46tO9JoU/4BV2RT9R72cRRGgMBzRVI7vUFJjxq
+         +dKBHedvmhb1X+/iUnnmOK/rdY8I1YylhECRqGd+u/ICYhx+ra474nziKCox4RbQv0Rt
+         ZozNVRV+ZFcfIcAvIbhZqR3CdlUftBlyXGurUhXQJJEGG65NvDIo28tyXaw6SxB1TXBh
+         kyDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id f12si4904479ywi.438.2019.06.11.05.41.30
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i1si5768366qkd.167.2019.06.11.05.44.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jun 2019 05:41:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Tue, 11 Jun 2019 05:44:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5BCVvi5096182
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:41:30 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2t2bkttsjm-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:41:29 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Tue, 11 Jun 2019 13:41:27 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Tue, 11 Jun 2019 13:41:23 +0100
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5BCfM8E56688832
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 11 Jun 2019 12:41:22 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id CC6FB11C052;
-	Tue, 11 Jun 2019 12:41:22 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id A368411C050;
-	Tue, 11 Jun 2019 12:41:21 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.204.69])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Tue, 11 Jun 2019 12:41:21 +0000 (GMT)
-Date: Tue, 11 Jun 2019 15:41:19 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Qian Cai <cai@lca.pw>, Will Deacon <will.deacon@arm.com>,
-        akpm@linux-foundation.org, catalin.marinas@arm.com,
-        linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org,
-        vdavydov.dev@gmail.com, hannes@cmpxchg.org, cgroups@vger.kernel.org,
-        linux-arm-kernel@lists.infradead.org
-Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
-References: <1559656836-24940-1-git-send-email-cai@lca.pw>
- <20190604142338.GC24467@lakrids.cambridge.arm.com>
- <20190610114326.GF15979@fuggles.cambridge.arm.com>
- <1560187575.6132.70.camel@lca.pw>
- <20190611100348.GB26409@lakrids.cambridge.arm.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 3AD9DC05E760;
+	Tue, 11 Jun 2019 12:44:16 +0000 (UTC)
+Received: from [10.36.117.196] (ovpn-117-196.ams2.redhat.com [10.36.117.196])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 4C1A760F86;
+	Tue, 11 Jun 2019 12:44:13 +0000 (UTC)
+Subject: Re: [PATCH 17/17] riscv: add nommu support
+To: Christoph Hellwig <hch@lst.de>, Palmer Dabbelt <palmer@sifive.com>
+Cc: Damien Le Moal <damien.lemoal@wdc.com>, linux-riscv@lists.infradead.org,
+ uclinux-dev@uclinux.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190610221621.10938-1-hch@lst.de>
+ <20190610221621.10938-18-hch@lst.de>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <f2bb19e7-ce7b-78c0-cafc-15d76003c011@redhat.com>
+Date: Tue, 11 Jun 2019 14:44:12 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190611100348.GB26409@lakrids.cambridge.arm.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19061112-0028-0000-0000-000003794EFF
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19061112-0029-0000-0000-000024393D13
-Message-Id: <20190611124118.GA4761@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-11_06:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=60 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906110086
+In-Reply-To: <20190610221621.10938-18-hch@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Tue, 11 Jun 2019 12:44:28 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 11, 2019 at 11:03:49AM +0100, Mark Rutland wrote:
-> On Mon, Jun 10, 2019 at 01:26:15PM -0400, Qian Cai wrote:
-> > On Mon, 2019-06-10 at 12:43 +0100, Will Deacon wrote:
-> > > On Tue, Jun 04, 2019 at 03:23:38PM +0100, Mark Rutland wrote:
-> > > > On Tue, Jun 04, 2019 at 10:00:36AM -0400, Qian Cai wrote:
-> > > > > The commit "arm64: switch to generic version of pte allocation"
-> > > > > introduced endless failures during boot like,
-> > > > > 
-> > > > > kobject_add_internal failed for pgd_cache(285:chronyd.service) (error:
-> > > > > -2 parent: cgroup)
-> > > > > 
-> > > > > It turns out __GFP_ACCOUNT is passed to kernel page table allocations
-> > > > > and then later memcg finds out those don't belong to any cgroup.
-> > > > 
-> > > > Mike, I understood from [1] that this wasn't expected to be a problem,
-> > > > as the accounting should bypass kernel threads.
-> > > > 
-> > > > Was that assumption wrong, or is something different happening here?
-> > > > 
-> > > > > 
-> > > > > backtrace:
-> > > > >   kobject_add_internal
-> > > > >   kobject_init_and_add
-> > > > >   sysfs_slab_add+0x1a8
-> > > > >   __kmem_cache_create
-> > > > >   create_cache
-> > > > >   memcg_create_kmem_cache
-> > > > >   memcg_kmem_cache_create_func
-> > > > >   process_one_work
-> > > > >   worker_thread
-> > > > >   kthread
-> > > > > 
-> > > > > Signed-off-by: Qian Cai <cai@lca.pw>
-> > > > > ---
-> > > > >  arch/arm64/mm/pgd.c | 2 +-
-> > > > >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > > > > 
-> > > > > diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
-> > > > > index 769516cb6677..53c48f5c8765 100644
-> > > > > --- a/arch/arm64/mm/pgd.c
-> > > > > +++ b/arch/arm64/mm/pgd.c
-> > > > > @@ -38,7 +38,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
-> > > > >  	if (PGD_SIZE == PAGE_SIZE)
-> > > > >  		return (pgd_t *)__get_free_page(gfp);
-> > > > >  	else
-> > > > > -		return kmem_cache_alloc(pgd_cache, gfp);
-> > > > > +		return kmem_cache_alloc(pgd_cache, GFP_PGTABLE_KERNEL);
-> > > > 
-> > > > This is used to allocate PGDs for both user and kernel pagetables (e.g.
-> > > > for the efi runtime services), so while this may fix the regression, I'm
-> > > > not sure it's the right fix.
-> > > > 
-> > > > Do we need a separate pgd_alloc_kernel()?
-> > > 
-> > > So can I take the above for -rc5, or is somebody else working on a different
-> > > fix to implement pgd_alloc_kernel()?
-> > 
-> > The offensive commit "arm64: switch to generic version of pte allocation" is not
-> > yet in the mainline, but only in the Andrew's tree and linux-next, and I doubt
-> > Andrew will push this out any time sooner given it is broken.
-> 
-> I'd assumed that Mike would respin these patches to implement and use
-> pgd_alloc_kernel() (or take gfp flags) and the updated patches would
-> replace these in akpm's tree.
-> 
-> Mike, could you confirm what your plan is? I'm happy to review/test
-> updated patches for arm64.
+On 11.06.19 00:16, Christoph Hellwig wrote:
+> The kernel runs in M-mode without using page tables, and thus doesn't
+> can run bare metal without help from additional firmware.
 
-Sorry for the delay, I'm mostly offline these days.
+s/doesn't can/can't/
 
-I wanted to understand first what is the reason for the failure. I've tried
-to reproduce it with qemu, but I failed to find a bootable configuration
-that will have PGD_SIZE != PAGE_SIZE :(
-
-Qian Cai, can you share what is your environment and the kernel config?
- 
-> Thanks,
-> Mark.
 > 
+> Most of the patch is just stubbing out code not needed without page
+> tables, but there is an interesting detail in the signals implementation:
+> 
+>  - The normal RISC-V syscall ABI only implements rt_sigreturn as VDSO
+>    entry point, but the ELF VDSO is not supported for nommu Linux.
+>    We instead copy the code to call the syscall onto the stack.
+
+Interesting read :)
+
+> 
+> In addition to enabling the nommu code a new defconfig for a small
+> kernel image that can run in nommu mode on qemu is also provided, to run
+> a kernel in qemu you can use the following command line:
+> 
+> qemu-system-riscv64 -smp 2 -m 64 -machine virt -nographic \
+> 	-kernel arch/riscv/boot/loader \
+> 	-drive file=rootfs.ext2,format=raw,id=hd0 \
+> 	-device virtio-blk-device,drive=hd0
+> 
+> Contains contributions from Damien Le Moal <Damien.LeMoal@wdc.com>.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  arch/riscv/Kconfig                      | 24 +++++---
+>  arch/riscv/configs/nommu_virt_defconfig | 78 +++++++++++++++++++++++++
+>  arch/riscv/include/asm/elf.h            |  4 +-
+>  arch/riscv/include/asm/futex.h          |  6 ++
+>  arch/riscv/include/asm/io.h             |  4 ++
+>  arch/riscv/include/asm/mmu.h            |  3 +
+>  arch/riscv/include/asm/page.h           | 12 +++-
+>  arch/riscv/include/asm/pgalloc.h        |  2 +
+>  arch/riscv/include/asm/pgtable.h        | 38 ++++++++----
+>  arch/riscv/include/asm/tlbflush.h       |  7 ++-
+>  arch/riscv/include/asm/uaccess.h        |  4 ++
+>  arch/riscv/kernel/Makefile              |  3 +-
+>  arch/riscv/kernel/entry.S               | 11 ++++
+>  arch/riscv/kernel/head.S                |  6 ++
+>  arch/riscv/kernel/signal.c              | 17 +++++-
+>  arch/riscv/lib/Makefile                 |  8 +--
+>  arch/riscv/mm/Makefile                  |  3 +-
+>  arch/riscv/mm/cacheflush.c              |  2 +
+>  arch/riscv/mm/context.c                 |  2 +
+>  arch/riscv/mm/init.c                    |  2 +
+>  20 files changed, 200 insertions(+), 36 deletions(-)
+>  create mode 100644 arch/riscv/configs/nommu_virt_defconfig
+> 
+> diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
+> index 9f2ebd035e80..41edb314ec67 100644
+> --- a/arch/riscv/Kconfig
+> +++ b/arch/riscv/Kconfig
+> @@ -27,13 +27,13 @@ config RISCV
+>  	select GENERIC_IRQ_SHOW
+>  	select GENERIC_PCI_IOMAP
+>  	select GENERIC_SCHED_CLOCK
+> -	select GENERIC_STRNCPY_FROM_USER
+> -	select GENERIC_STRNLEN_USER
+> +	select GENERIC_STRNCPY_FROM_USER if MMU
+> +	select GENERIC_STRNLEN_USER if MMU
+>  	select GENERIC_SMP_IDLE_THREAD
+>  	select GENERIC_ATOMIC64 if !64BIT
+>  	select HAVE_ARCH_AUDITSYSCALL
+>  	select HAVE_MEMBLOCK_NODE_MAP
+> -	select HAVE_DMA_CONTIGUOUS
+> +	select HAVE_DMA_CONTIGUOUS if MMU
+>  	select HAVE_FUTEX_CMPXCHG if FUTEX
+>  	select HAVE_PERF_EVENTS
+>  	select HAVE_SYSCALL_TRACEPOINTS
+> @@ -48,6 +48,7 @@ config RISCV
+>  	select PCI_DOMAINS_GENERIC if PCI
+>  	select PCI_MSI if PCI
+>  	select RISCV_TIMER
+> +	select UACCESS_MEMCPY if !MMU
+>  	select GENERIC_IRQ_MULTI_HANDLER
+>  	select ARCH_HAS_PTE_SPECIAL
+>  	select ARCH_HAS_MMIOWB
+> @@ -56,9 +57,14 @@ config RISCV
+>  # set if we run in machine mode, cleared if we run in supervisor mode
+>  config M_MODE
+>  	bool
+> +	default y if !MMU
+>  
+>  config MMU
+> -	def_bool y
+> +	bool "MMU-based Paged Memory Management Support"
+> +	default y
+> +	help
+> +	  Select if you want MMU-based virtualised addressing space
+> +	  support by paged memory management. If unsure, say 'Y'.
+>  
+>  config ZONE_DMA32
+>  	bool
+> @@ -67,6 +73,7 @@ config ZONE_DMA32
+>  config PAGE_OFFSET
+>  	hex
+>  	default 0xC0000000 if 32BIT && MAXPHYSMEM_2GB
+> +	default 0x80000000 if 64BIT && !MMU
+>  	default 0xffffffff80000000 if 64BIT && MAXPHYSMEM_2GB
+>  	default 0xffffffe000000000 if 64BIT && MAXPHYSMEM_128GB
+>  
+> @@ -94,7 +101,7 @@ config GENERIC_HWEIGHT
+>  	def_bool y
+>  
+>  config FIX_EARLYCON_MEM
+> -	def_bool y
+> +	def_bool CONFIG_MMU
+>  
+>  config PGTABLE_LEVELS
+>  	int
+> @@ -117,6 +124,7 @@ config ARCH_RV32I
+>  	select GENERIC_LIB_ASHRDI3
+>  	select GENERIC_LIB_LSHRDI3
+>  	select GENERIC_LIB_UCMPDI2
+> +	select MMU
+>  
+>  config ARCH_RV64I
+>  	bool "RV64I"
+> @@ -125,9 +133,9 @@ config ARCH_RV64I
+>  	select HAVE_FUNCTION_TRACER
+>  	select HAVE_FUNCTION_GRAPH_TRACER
+>  	select HAVE_FTRACE_MCOUNT_RECORD
+> -	select HAVE_DYNAMIC_FTRACE
+> -	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+> -	select SWIOTLB
+> +	select HAVE_DYNAMIC_FTRACE if MMU
+> +	select HAVE_DYNAMIC_FTRACE_WITH_REGS if HAVE_DYNAMIC_FTRACE
+> +	select SWIOTLB if MMU
+>  
+>  endchoice
+>  
+> diff --git a/arch/riscv/configs/nommu_virt_defconfig b/arch/riscv/configs/nommu_virt_defconfig
+> new file mode 100644
+> index 000000000000..cf74e179bf90
+> --- /dev/null
+> +++ b/arch/riscv/configs/nommu_virt_defconfig
+> @@ -0,0 +1,78 @@
+> +# CONFIG_CPU_ISOLATION is not set
+> +CONFIG_LOG_BUF_SHIFT=16
+> +CONFIG_PRINTK_SAFE_LOG_BUF_SHIFT=12
+> +CONFIG_BLK_DEV_INITRD=y
+> +# CONFIG_RD_BZIP2 is not set
+> +# CONFIG_RD_LZMA is not set
+> +# CONFIG_RD_XZ is not set
+> +# CONFIG_RD_LZO is not set
+> +# CONFIG_RD_LZ4 is not set
+> +CONFIG_CC_OPTIMIZE_FOR_SIZE=y
+> +CONFIG_EXPERT=y
+> +# CONFIG_SYSFS_SYSCALL is not set
+> +# CONFIG_FHANDLE is not set
+> +# CONFIG_BASE_FULL is not set
+> +# CONFIG_EPOLL is not set
+> +# CONFIG_SIGNALFD is not set
+> +# CONFIG_TIMERFD is not set
+> +# CONFIG_EVENTFD is not set
+> +# CONFIG_AIO is not set
+> +# CONFIG_IO_URING is not set
+> +# CONFIG_ADVISE_SYSCALLS is not set
+> +# CONFIG_MEMBARRIER is not set
+> +# CONFIG_KALLSYMS is not set
+> +# CONFIG_VM_EVENT_COUNTERS is not set
+> +# CONFIG_COMPAT_BRK is not set
+> +CONFIG_SLOB=y
+> +# CONFIG_SLAB_MERGE_DEFAULT is not set
+> +# CONFIG_MMU is not set
+> +CONFIG_MAXPHYSMEM_2GB=y
+> +CONFIG_SMP=y
+> +CONFIG_CMDLINE="root=/dev/vda rw earlycon=uart8250,mmio,0x10000000,115200n8 console=ttyS0"
+> +CONFIG_CMDLINE_FORCE=y
+> +# CONFIG_BLK_DEV_BSG is not set
+> +CONFIG_PARTITION_ADVANCED=y
+> +# CONFIG_MSDOS_PARTITION is not set
+> +# CONFIG_EFI_PARTITION is not set
+> +# CONFIG_MQ_IOSCHED_DEADLINE is not set
+> +# CONFIG_MQ_IOSCHED_KYBER is not set
+> +CONFIG_BINFMT_FLAT=y
+> +# CONFIG_COREDUMP is not set
+> +CONFIG_DEVTMPFS=y
+> +CONFIG_DEVTMPFS_MOUNT=y
+> +# CONFIG_FW_LOADER is not set
+> +# CONFIG_ALLOW_DEV_COREDUMP is not set
+> +CONFIG_VIRTIO_BLK=y
+> +# CONFIG_INPUT_KEYBOARD is not set
+> +# CONFIG_INPUT_MOUSE is not set
+> +# CONFIG_SERIO is not set
+> +# CONFIG_LEGACY_PTYS is not set
+> +# CONFIG_LDISC_AUTOLOAD is not set
+> +# CONFIG_DEVMEM is not set
+> +CONFIG_SERIAL_8250=y
+> +# CONFIG_SERIAL_8250_DEPRECATED_OPTIONS is not set
+> +CONFIG_SERIAL_8250_CONSOLE=y
+> +CONFIG_SERIAL_8250_NR_UARTS=1
+> +CONFIG_SERIAL_8250_RUNTIME_UARTS=1
+> +CONFIG_SERIAL_OF_PLATFORM=y
+> +# CONFIG_HW_RANDOM is not set
+> +# CONFIG_HWMON is not set
+> +# CONFIG_LCD_CLASS_DEVICE is not set
+> +# CONFIG_BACKLIGHT_CLASS_DEVICE is not set
+> +# CONFIG_VGA_CONSOLE is not set
+> +# CONFIG_HID is not set
+> +# CONFIG_USB_SUPPORT is not set
+> +CONFIG_VIRTIO_MMIO=y
+> +CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES=y
+> +CONFIG_SIFIVE_PLIC=y
+> +# CONFIG_VALIDATE_FS_PARSER is not set
+> +CONFIG_EXT2_FS=y
+> +# CONFIG_DNOTIFY is not set
+> +# CONFIG_INOTIFY_USER is not set
+> +# CONFIG_MISC_FILESYSTEMS is not set
+> +CONFIG_LSM="[]"
+> +CONFIG_PRINTK_TIME=y
+> +# CONFIG_SCHED_DEBUG is not set
+> +# CONFIG_RCU_TRACE is not set
+> +# CONFIG_FTRACE is not set
+> +# CONFIG_RUNTIME_TESTING_MENU is not set
+> diff --git a/arch/riscv/include/asm/elf.h b/arch/riscv/include/asm/elf.h
+> index ef04084bf0de..d83a4efd052b 100644
+> --- a/arch/riscv/include/asm/elf.h
+> +++ b/arch/riscv/include/asm/elf.h
+> @@ -56,16 +56,16 @@ extern unsigned long elf_hwcap;
+>   */
+>  #define ELF_PLATFORM	(NULL)
+>  
+> +#ifdef CONFIG_MMU
+>  #define ARCH_DLINFO						\
+>  do {								\
+>  	NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
+>  		(elf_addr_t)current->mm->context.vdso);		\
+>  } while (0)
+> -
+> -
+>  #define ARCH_HAS_SETUP_ADDITIONAL_PAGES
+>  struct linux_binprm;
+>  extern int arch_setup_additional_pages(struct linux_binprm *bprm,
+>  	int uses_interp);
+> +#endif /* CONFIG_MMU */
+>  
+>  #endif /* _ASM_RISCV_ELF_H */
+> diff --git a/arch/riscv/include/asm/futex.h b/arch/riscv/include/asm/futex.h
+> index 4ad6409c4647..418564b96dc4 100644
+> --- a/arch/riscv/include/asm/futex.h
+> +++ b/arch/riscv/include/asm/futex.h
+> @@ -12,6 +12,12 @@
+>  #include <linux/errno.h>
+>  #include <asm/asm.h>
+>  
+> +/* We don't even really need the extable code, but for now keep it simple */
+> +#ifndef CONFIG_MMU
+> +#define __enable_user_access()		do { } while (0)
+> +#define __disable_user_access()		do { } while (0)
+> +#endif
+> +
+>  #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)	\
+>  {								\
+>  	uintptr_t tmp;						\
+> diff --git a/arch/riscv/include/asm/io.h b/arch/riscv/include/asm/io.h
+> index fc1189ad3777..d39a8f03e85e 100644
+> --- a/arch/riscv/include/asm/io.h
+> +++ b/arch/riscv/include/asm/io.h
+> @@ -14,6 +14,7 @@
+>  #include <linux/types.h>
+>  #include <asm/mmiowb.h>
+>  
+> +#ifdef CONFIG_MMU
+>  extern void __iomem *ioremap(phys_addr_t offset, unsigned long size);
+>  
+>  /*
+> @@ -26,6 +27,9 @@ extern void __iomem *ioremap(phys_addr_t offset, unsigned long size);
+>  #define ioremap_wt(addr, size) ioremap((addr), (size))
+>  
+>  extern void iounmap(volatile void __iomem *addr);
+> +#else
+> +#define pgprot_noncached(x)	(x)
+> +#endif /* CONFIG_MMU */
+>  
+>  /* Generic IO read/write.  These perform native-endian accesses. */
+>  #define __raw_writeb __raw_writeb
+> diff --git a/arch/riscv/include/asm/mmu.h b/arch/riscv/include/asm/mmu.h
+> index 151476fb58cb..967eacb01ab5 100644
+> --- a/arch/riscv/include/asm/mmu.h
+> +++ b/arch/riscv/include/asm/mmu.h
+> @@ -10,6 +10,9 @@
+>  #ifndef __ASSEMBLY__
+>  
+>  typedef struct {
+> +#ifndef CONFIG_MMU
+> +	unsigned long	end_brk;
+> +#endif
+>  	void *vdso;
+>  #ifdef CONFIG_SMP
+>  	/* A local icache flush is needed before user execution can resume. */
+> diff --git a/arch/riscv/include/asm/page.h b/arch/riscv/include/asm/page.h
+> index 8ddb6c7fedac..df0256a9a965 100644
+> --- a/arch/riscv/include/asm/page.h
+> +++ b/arch/riscv/include/asm/page.h
+> @@ -78,8 +78,14 @@ typedef struct page *pgtable_t;
+>  #define PTE_FMT "%08lx"
+>  #endif
+>  
+> +#ifdef CONFIG_MMU
+>  extern unsigned long va_pa_offset;
+>  extern unsigned long pfn_base;
+> +#define ARCH_PFN_OFFSET		(pfn_base)
+> +#else
+> +#define va_pa_offset		0
+> +#define ARCH_PFN_OFFSET		(PAGE_OFFSET >> PAGE_SHIFT)
+> +#endif /* CONFIG_MMU */
+>  
+>  extern unsigned long max_low_pfn;
+>  extern unsigned long min_low_pfn;
+> @@ -101,9 +107,7 @@ extern unsigned long min_low_pfn;
+>  #define phys_to_page(paddr)	(pfn_to_page(phys_to_pfn(paddr)))
+>  
+>  #define pfn_valid(pfn) \
+> -	(((pfn) >= pfn_base) && (((pfn)-pfn_base) < max_mapnr))
+> -
+> -#define ARCH_PFN_OFFSET		(pfn_base)
+> +	(((pfn) >= ARCH_PFN_OFFSET) && (((pfn) - ARCH_PFN_OFFSET) < max_mapnr))
+>  
+>  #endif /* __ASSEMBLY__ */
+>  
+> @@ -115,8 +119,10 @@ extern unsigned long min_low_pfn;
+>  #include <asm-generic/memory_model.h>
+>  #include <asm-generic/getorder.h>
+>  
+> +#ifdef CONFIG_MMU
+>  /* vDSO support */
+>  /* We do define AT_SYSINFO_EHDR but don't use the gate mechanism */
+>  #define __HAVE_ARCH_GATE_AREA
+> +#endif /* CONFIG_MMU */
+>  
+>  #endif /* _ASM_RISCV_PAGE_H */
+> diff --git a/arch/riscv/include/asm/pgalloc.h b/arch/riscv/include/asm/pgalloc.h
+> index eb8b0195f27f..8d60c862d2f9 100644
+> --- a/arch/riscv/include/asm/pgalloc.h
+> +++ b/arch/riscv/include/asm/pgalloc.h
+> @@ -10,6 +10,7 @@
+>  #include <linux/mm.h>
+>  #include <asm/tlb.h>
+>  
+> +#ifdef CONFIG_MMU
+>  static inline void pmd_populate_kernel(struct mm_struct *mm,
+>  	pmd_t *pmd, pte_t *pte)
+>  {
+> @@ -106,6 +107,7 @@ do {                                    \
+>  	pgtable_page_dtor(pte);         \
+>  	tlb_remove_page((tlb), pte);    \
+>  } while (0)
+> +#endif /* CONFIG_MMU */
+>  
+>  static inline void check_pgt_cache(void)
+>  {
+> diff --git a/arch/riscv/include/asm/pgtable.h b/arch/riscv/include/asm/pgtable.h
+> index f7c3f7de15f2..dd6a63648e4a 100644
+> --- a/arch/riscv/include/asm/pgtable.h
+> +++ b/arch/riscv/include/asm/pgtable.h
+> @@ -24,6 +24,7 @@
+>  #include <asm/pgtable-32.h>
+>  #endif /* CONFIG_64BIT */
+>  
+> +#ifdef CONFIG_MMU
+>  /* Number of entries in the page global directory */
+>  #define PTRS_PER_PGD    (PAGE_SIZE / sizeof(pgd_t))
+>  /* Number of entries in the page table */
+> @@ -31,7 +32,6 @@
+>  
+>  /* Number of PGD entries that a user-mode program can use */
+>  #define USER_PTRS_PER_PGD   (TASK_SIZE / PGDIR_SIZE)
+> -#define FIRST_USER_ADDRESS  0
+>  
+>  /* Page protection bits */
+>  #define _PAGE_BASE	(_PAGE_PRESENT | _PAGE_ACCESSED | _PAGE_USER)
+> @@ -81,13 +81,6 @@ extern pgd_t swapper_pg_dir[];
+>  #define __S110	PAGE_SHARED_EXEC
+>  #define __S111	PAGE_SHARED_EXEC
+>  
+> -/*
+> - * ZERO_PAGE is a global shared page that is always zero,
+> - * used for zero-mapped memory areas, etc.
+> - */
+> -extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
+> -#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
+> -
+>  static inline int pmd_present(pmd_t pmd)
+>  {
+>  	return (pmd_val(pmd) & (_PAGE_PRESENT | _PAGE_PROT_NONE));
+> @@ -392,6 +385,18 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
+>  #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
+>  #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+>  
+> +#define VMALLOC_SIZE		(KERN_VIRT_SIZE >> 1)
+> +#define VMALLOC_END		(PAGE_OFFSET - 1)
+> +#define VMALLOC_START		(PAGE_OFFSET - VMALLOC_SIZE)
+> +
+> +#else /* CONFIG_MMU */
+> +
+> +#define PAGE_KERNEL		__pgprot(0)
+> +#define swapper_pg_dir		NULL
+> +#define VMALLOC_START		0
+> +
+> +#endif /* CONFIG_MMU */
+> +
+>  #ifdef CONFIG_FLATMEM
+>  #define kern_addr_valid(addr)   (1) /* FIXME */
+>  #endif
+> @@ -404,10 +409,7 @@ static inline void pgtable_cache_init(void)
+>  	/* No page table caches to initialize */
+>  }
+>  
+> -#define VMALLOC_SIZE     (KERN_VIRT_SIZE >> 1)
+> -#define VMALLOC_END      (PAGE_OFFSET - 1)
+> -#define VMALLOC_START    (PAGE_OFFSET - VMALLOC_SIZE)
+> -
+> +#ifdef CONFIG_MMU
+>  /*
+>   * Task size is 0x40000000000 for RV64 or 0xb800000 for RV32.
+>   * Note that PGDIR_SIZE must evenly divide TASK_SIZE.
+> @@ -417,6 +419,18 @@ static inline void pgtable_cache_init(void)
+>  #else
+>  #define TASK_SIZE VMALLOC_START
+>  #endif
+> +#else /* CONFIG_MMU */
+> +#define TASK_SIZE 0xffffffffUL
+> +#endif /* !CONFIG_MMU */
+> +
+> +#define FIRST_USER_ADDRESS  0
+> +
+> +/*
+> + * ZERO_PAGE is a global shared page that is always zero,
+> + * used for zero-mapped memory areas, etc.
+> + */
+> +extern unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)];
+> +#define ZERO_PAGE(vaddr) (virt_to_page(empty_zero_page))
+>  
+>  #include <asm-generic/pgtable.h>
+>  
+> diff --git a/arch/riscv/include/asm/tlbflush.h b/arch/riscv/include/asm/tlbflush.h
+> index 687dd19735a7..f127b3d17ec2 100644
+> --- a/arch/riscv/include/asm/tlbflush.h
+> +++ b/arch/riscv/include/asm/tlbflush.h
+> @@ -10,6 +10,7 @@
+>  #include <linux/mm_types.h>
+>  #include <asm/smp.h>
+>  
+> +#ifdef CONFIG_MMU
+>  /*
+>   * Flush entire local TLB.  'sfence.vma' implicitly fences with the instruction
+>   * cache as well, so a 'fence.i' is not necessary.
+> @@ -24,8 +25,12 @@ static inline void local_flush_tlb_page(unsigned long addr)
+>  {
+>  	__asm__ __volatile__ ("sfence.vma %0" : : "r" (addr) : "memory");
+>  }
+> +#else /* CONFIG_MMU */
+> +#define local_flush_tlb_all()			do { } while (0)
+> +#define local_flush_tlb_page(addr)		do { } while (0)
+> +#endif /* CONFIG_MMU */
+>  
+> -#ifndef CONFIG_SMP
+> +#if !defined(CONFIG_SMP) || !defined(CONFIG_MMU)
+>  
+>  #define flush_tlb_all() local_flush_tlb_all()
+>  #define flush_tlb_page(vma, addr) local_flush_tlb_page(addr)
+> diff --git a/arch/riscv/include/asm/uaccess.h b/arch/riscv/include/asm/uaccess.h
+> index e076437cfafe..f462a183a9c2 100644
+> --- a/arch/riscv/include/asm/uaccess.h
+> +++ b/arch/riscv/include/asm/uaccess.h
+> @@ -11,6 +11,7 @@
+>  /*
+>   * User space memory access functions
+>   */
+> +#ifdef CONFIG_MMU
+>  #include <linux/errno.h>
+>  #include <linux/compiler.h>
+>  #include <linux/thread_info.h>
+> @@ -475,4 +476,7 @@ unsigned long __must_check clear_user(void __user *to, unsigned long n)
+>  	__ret;							\
+>  })
+>  
+> +#else /* CONFIG_MMU */
+> +#include <asm-generic/uaccess.h>
+> +#endif /* CONFIG_MMU */
+>  #endif /* _ASM_RISCV_UACCESS_H */
+> diff --git a/arch/riscv/kernel/Makefile b/arch/riscv/kernel/Makefile
+> index f933c04f89db..d720666283d6 100644
+> --- a/arch/riscv/kernel/Makefile
+> +++ b/arch/riscv/kernel/Makefile
+> @@ -25,9 +25,8 @@ obj-y	+= time.o
+>  obj-y	+= traps.o
+>  obj-y	+= riscv_ksyms.o
+>  obj-y	+= stacktrace.o
+> -obj-y	+= vdso.o
+>  obj-y	+= cacheinfo.o
+> -obj-y	+= vdso/
+> +obj-$(CONFIG_MMU) += vdso.o vdso/
+>  
+>  obj-$(CONFIG_M_MODE)		+= clint.o
+>  obj-$(CONFIG_FPU)		+= fpu.o
+> diff --git a/arch/riscv/kernel/entry.S b/arch/riscv/kernel/entry.S
+> index 18eeb1eec9d5..953c64b0b2b9 100644
+> --- a/arch/riscv/kernel/entry.S
+> +++ b/arch/riscv/kernel/entry.S
+> @@ -370,6 +370,10 @@ ENTRY(__switch_to)
+>  	ret
+>  ENDPROC(__switch_to)
+>  
+> +#ifndef CONFIG_MMU
+> +#define do_page_fault do_trap_unknown
+> +#endif
+> +
+>  	.section ".rodata"
+>  	/* Exception vector table */
+>  ENTRY(excp_vect_table)
+> @@ -391,3 +395,10 @@ ENTRY(excp_vect_table)
+>  	RISCV_PTR do_page_fault   /* store page fault */
+>  excp_vect_table_end:
+>  END(excp_vect_table)
+> +
+> +#ifndef CONFIG_MMU
+> +ENTRY(__user_rt_sigreturn)
+> +	li a7, __NR_rt_sigreturn
+> +	scall
+> +END(__user_rt_sigreturn)
+> +#endif
+> diff --git a/arch/riscv/kernel/head.S b/arch/riscv/kernel/head.S
+> index e05379fd8b64..d869cc7c6a12 100644
+> --- a/arch/riscv/kernel/head.S
+> +++ b/arch/riscv/kernel/head.S
+> @@ -68,10 +68,12 @@ clear_bss_done:
+>  	la a2, boot_cpu_hartid
+>  	REG_S a0, (a2)
+>  
+> +#ifdef CONFIG_MMU
+>  	/* Initialize page tables and relocate to virtual addresses */
+>  	la sp, init_thread_union + THREAD_SIZE
+>  	call setup_vm
+>  	call relocate
+> +#endif /* CONFIG_MMU */
+>  
+>  	/* Restore C environment */
+>  	la tp, init_task
+> @@ -83,6 +85,7 @@ clear_bss_done:
+>  	call parse_dtb
+>  	tail start_kernel
+>  
+> +#ifdef CONFIG_MMU
+>  relocate:
+>  	/* Relocate return address */
+>  	li a1, PAGE_OFFSET
+> @@ -134,6 +137,7 @@ relocate:
+>  	sfence.vma
+>  
+>  	ret
+> +#endif /* CONFIG_MMU */
+>  
+>  .Lsecondary_start:
+>  #ifdef CONFIG_SMP
+> @@ -162,8 +166,10 @@ relocate:
+>  	beqz tp, .Lwait_for_cpu_up
+>  	fence
+>  
+> +#ifdef CONFIG_MMU
+>  	/* Enable virtual memory and relocate to virtual address */
+>  	call relocate
+> +#endif
+>  
+>  	tail smp_callin
+>  #endif
+> diff --git a/arch/riscv/kernel/signal.c b/arch/riscv/kernel/signal.c
+> index dfb26b64e17a..7de7e539b25b 100644
+> --- a/arch/riscv/kernel/signal.c
+> +++ b/arch/riscv/kernel/signal.c
+> @@ -17,11 +17,16 @@
+>  #include <asm/switch_to.h>
+>  #include <asm/csr.h>
+>  
+> +extern u32 __user_rt_sigreturn[2];
+> +
+>  #define DEBUG_SIG 0
+>  
+>  struct rt_sigframe {
+>  	struct siginfo info;
+>  	struct ucontext uc;
+> +#ifndef CONFIG_MMU
+> +	u32 sigreturn_code[2];
+> +#endif
+>  };
+>  
+>  #ifdef CONFIG_FPU
+> @@ -166,7 +171,6 @@ static inline void __user *get_sigframe(struct ksignal *ksig,
+>  	return (void __user *)sp;
+>  }
+>  
+> -
+>  static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
+>  	struct pt_regs *regs)
+>  {
+> @@ -189,8 +193,19 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
+>  		return -EFAULT;
+>  
+>  	/* Set up to return from userspace. */
+> +#ifdef CONFIG_MMU
+>  	regs->ra = (unsigned long)VDSO_SYMBOL(
+>  		current->mm->context.vdso, rt_sigreturn);
+> +#else
+> +	/*
+> +	 * For the nommu case we don't have a VDSO.  Instead we push two
+> +	 * instructions to call the rt_sigreturn syscall onto the user stack.
+> +	 */
+> +	if (copy_to_user(&frame->sigreturn_code, __user_rt_sigreturn,
+> +			sizeof(frame->sigreturn_code)))
+> +		return -EFAULT;
+> +	regs->ra = (unsigned long)&frame->sigreturn_code;;
+> +#endif /* CONFIG_MMU */
+>  
+>  	/*
+>  	 * Set up registers for signal handler.
+> diff --git a/arch/riscv/lib/Makefile b/arch/riscv/lib/Makefile
+> index 8e364ebf37de..5382e42d0cba 100644
+> --- a/arch/riscv/lib/Makefile
+> +++ b/arch/riscv/lib/Makefile
+> @@ -2,8 +2,6 @@
+>  lib-y	+= delay.o
+>  lib-y	+= memcpy.o
+>  lib-y	+= memset.o
+> -lib-y	+= uaccess.o
+> -
+> -lib-$(CONFIG_64BIT) += tishift.o
+> -
+> -lib-$(CONFIG_32BIT) += udivdi3.o
+> +lib-$(CONFIG_MMU)	+= uaccess.o
+> +lib-$(CONFIG_64BIT)	+= tishift.o
+> +lib-$(CONFIG_32BIT)	+= udivdi3.o
+> diff --git a/arch/riscv/mm/Makefile b/arch/riscv/mm/Makefile
+> index fc51d3b7876e..8fc2fd148b06 100644
+> --- a/arch/riscv/mm/Makefile
+> +++ b/arch/riscv/mm/Makefile
+> @@ -6,9 +6,8 @@ CFLAGS_REMOVE_init.o = -pg
+>  endif
+>  
+>  obj-y += init.o
+> -obj-y += fault.o
+>  obj-y += extable.o
+> -obj-y += ioremap.o
+> +obj-$(CONFIG_MMU) += fault.o ioremap.o
+>  obj-y += cacheflush.o
+>  obj-y += context.o
+>  obj-y += sifive_l2_cache.o
+> diff --git a/arch/riscv/mm/cacheflush.c b/arch/riscv/mm/cacheflush.c
+> index 10875ea1065e..0fc69eedc921 100644
+> --- a/arch/riscv/mm/cacheflush.c
+> +++ b/arch/riscv/mm/cacheflush.c
+> @@ -90,6 +90,7 @@ void flush_icache_mm(struct mm_struct *mm, bool local)
+>  
+>  #endif /* CONFIG_SMP */
+>  
+> +#ifdef CONFIG_MMU
+>  void flush_icache_pte(pte_t pte)
+>  {
+>  	struct page *page = pte_page(pte);
+> @@ -97,3 +98,4 @@ void flush_icache_pte(pte_t pte)
+>  	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
+>  		flush_icache_all();
+>  }
+> +#endif /* CONFIG_MMU */
+> diff --git a/arch/riscv/mm/context.c b/arch/riscv/mm/context.c
+> index beeb5d7f92ea..073ff12a838a 100644
+> --- a/arch/riscv/mm/context.c
+> +++ b/arch/riscv/mm/context.c
+> @@ -57,8 +57,10 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
+>  	cpumask_clear_cpu(cpu, mm_cpumask(prev));
+>  	cpumask_set_cpu(cpu, mm_cpumask(next));
+>  
+> +#ifdef CONFIG_MMU
+>  	csr_write(CSR_SATP, virt_to_pfn(next->pgd) | SATP_MODE);
+>  	local_flush_tlb_all();
+> +#endif
+>  
+>  	flush_icache_deferred(next);
+>  }
+> diff --git a/arch/riscv/mm/init.c b/arch/riscv/mm/init.c
+> index 84747d7a1e85..782be273e714 100644
+> --- a/arch/riscv/mm/init.c
+> +++ b/arch/riscv/mm/init.c
+> @@ -142,6 +142,7 @@ void __init setup_bootmem(void)
+>  	}
+>  }
+>  
+> +#ifdef CONFIG_MMU
+>  unsigned long va_pa_offset;
+>  EXPORT_SYMBOL(va_pa_offset);
+>  unsigned long pfn_base;
+> @@ -247,3 +248,4 @@ asmlinkage void __init setup_vm(void)
+>  				__pgprot(_PAGE_TABLE));
+>  #endif
+>  }
+> +#endif /* CONFIG_MMU */
+> 
+
 
 -- 
-Sincerely yours,
-Mike.
+
+Thanks,
+
+David / dhildenb
 
