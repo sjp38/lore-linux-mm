@@ -2,160 +2,390 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CBF12C0650E
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 19:39:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C934C4321A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 19:44:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 916902173C
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 19:39:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 916902173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id B78D621734
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 19:44:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="lg2OoIxP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B78D621734
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 32AD96B0008; Tue, 11 Jun 2019 15:39:46 -0400 (EDT)
+	id 60D746B0006; Tue, 11 Jun 2019 15:44:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2B55D6B000A; Tue, 11 Jun 2019 15:39:46 -0400 (EDT)
+	id 5BD9B6B0008; Tue, 11 Jun 2019 15:44:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 12ED26B000C; Tue, 11 Jun 2019 15:39:46 -0400 (EDT)
+	id 45D696B000A; Tue, 11 Jun 2019 15:44:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D00366B0008
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 15:39:45 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id b127so10294411pfb.8
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 12:39:45 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 24E8C6B0006
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 15:44:34 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id q26so12795523qtr.3
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 12:44:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=OPD6t6WRH/wtqQO7lyfv8+60SYjhrw4wFvg76G79SVU=;
-        b=OCuXRb9bjShXeB3JOOQm1gD0Wkp9El+SxYZzoaURijtVoKNqYPYFRds+kGg2urGNgM
-         EnL31eIxQRk7li+hv0UpgcCd597pbq7ZrgqI6sOo718oafIcfcjDJYcfPZUR/uuL/i1y
-         6H7PrCqTpqgKL1mZWUue7xtsaD43hSDALbPwbBxMBNSLUUNPSMmM0XAeqcXV3anVJMg5
-         Gr/mRBWwtXV96HURAbjwFXHPhJzMJf7LRfRIDjnfo5m6Xz7DtNWy0Bee4O9/xILdiIp7
-         E/5D8GdbDac8r3WPrYNubbKx44gXLJpRp/FpP/877OQ31MhoRQihJY/zYwvKEKiRcyu1
-         iF6g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUT1mjg0oZKrkWads15R4LoB+JCrgzAF5CFLWrK0iwWitvmm1Xp
-	CRsTlkND3GkESc77/BGNbKEpWLr2/4Om2LS+3qann3genNsjx2xectKTqXjlsOXh5fEGJLb0zgx
-	dCW601hMPyN+p0xzxagPo6mSL31vLizyHkw2kTFtLFhMpGOeBCPJa7DSm4CKLUrQyLw==
-X-Received: by 2002:a62:e041:: with SMTP id f62mr56808936pfh.128.1560281985507;
-        Tue, 11 Jun 2019 12:39:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz9OLhzg/TbOQUPraPL7OcWGDmvUOzQhavQwO9EI6GLOymB3kjfhgPh5ZGuITaI7yGyVsYb
-X-Received: by 2002:a62:e041:: with SMTP id f62mr56808880pfh.128.1560281984647;
-        Tue, 11 Jun 2019 12:39:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560281984; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=0wVahQWOtZqsHwcjYboXhZ8xmvq6TDZROratpn9jK+o=;
+        b=cOJ7kMKqrTRi69SER7VIny1VQZIjsD+YOZDV0yhECOeG7S2S3dPXJllqj1rG/Cf4Mo
+         YF6oQirnPGWgZ9kSVYxG/RIrS1jcKQLs2YFQVNkTZYNlg+pGm7jF7ukGDrlZN5pJPoMS
+         5+gbJAEr6dIG++FmnFIpnmZquwgRDAy1J13InpK5lILDLG2RYmZUk/29kouQebVrGEvH
+         FzvPF6Yx6OSceOktVAkb1FXVZwEs9yUr98g6zGEo0BP4JOjkMKtKDM6qGFlQ/Mi5rXyY
+         drj55NxRH1M9NnEp7/kgrv2kBQF6fLehHhuBFfcHgf9IkkicQLxk5GXND8P2qyqLqAvT
+         8Xlw==
+X-Gm-Message-State: APjAAAUiQy0FM5uru/1keNwCBSLnu9kTNoPHUK3vHrhll8SukPbHOPVe
+	GIjdGx7XTO0o1eJ9KEkzLXH0hqAy5Y48ZoB0uEcnGs5bU1wdvgyIkF4peyVgn0nqCOMRunk/fcU
+	gCUDCy/k9eeBikDpWwrCsYwMg6K3QB+TAGjw8hV9Cafx8IS+QZjf7fI2I+Ikg/efEHQ==
+X-Received: by 2002:a05:620a:12a2:: with SMTP id x2mr35107073qki.133.1560282273868;
+        Tue, 11 Jun 2019 12:44:33 -0700 (PDT)
+X-Received: by 2002:a05:620a:12a2:: with SMTP id x2mr35107043qki.133.1560282273192;
+        Tue, 11 Jun 2019 12:44:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560282273; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZqduQz/WQB/zOS+HgqFKbqFtRnUJOsUTzbduAuI+ZojeyTebAqQjCVuhAJifrQ0tAE
-         9QarYg1wGetFSqXiofXNufjUeFS6wt8GwBKU6Ob6p7xSqVPR17w+weJ/ALIklWS/5hni
-         ZOQ2Vh0KyiozHdCaq1Wd8CbDwWeD7OLeiWHHzuUPBsgk8ItdMd22f+NQPYH9thnojbIA
-         yv8sQfXfjZ2H2mzMahjkapUTony6l1Sr+BqkQ3ZwVKMOFn83Px47a7he3mr+76sNCQcG
-         Dd+htP2yeT+8ud4m5LN/oEl+ccoENPE36sAgXM+B/HXDP6NLuZgMM8lcLMipzNuLAZUc
-         5bog==
+        b=yWEVw9XlrWaUe29lUs+uSDQ7vZYA5MR95eyOWPwiZpAVL1IiJBiRE8+jZeIxBqkVs3
+         m8OD1cFbTR7CUBVGLdkh+EipItX0O8m+jLm+dso95cECL8Ksa2r6gr51gmCKgJszWiKh
+         soeuAjYMrbC1oV1z87Ayk9cQ8fZuHSXQnWbPC/8kKIevD9BRhtEO/zf3agv4p7DYsgVi
+         elvzLq2muyB8dKlHGLwbzmTOqyWdJxAbepQUV+hlFwbnIgaTeZg0N65h9yMMjChZP25W
+         OOvijx7Xi72CD0aPHLY03KRHpQVA/yUytI7r+e71JSxIZtTz3Ee/Nyq//Q0E175hGz0U
+         5jNg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=OPD6t6WRH/wtqQO7lyfv8+60SYjhrw4wFvg76G79SVU=;
-        b=m5bMzwe0veFkPTkMWp7rZWDJ7uPhC7wb7SMxYmIxMWbDoGxw/p+Oz9FCXu+9tAPGzm
-         j6FoS8JkbEfJPCruT1O7c7EAzxU7HbZ0BqxD1x/bVDtReldMcMaQJJXh6foyA4yMkrC+
-         WjFejq68j0r8pvcnuQ/YctPwKwtFiGbg2ldBNjerGV0I31Slmsaw7HnVriSr9MBDSNLk
-         26HcG6AEiYbrBEPrqR/AAkbHkYT+I2oEARga29XiRFFgpQZvQ4MnTUM99nryf/dyFU1O
-         9oESyxJAzlC/u2YxOCVApTP5p/OTp45DWqZyK6KcmOCGAA4i1fqq9YNq7bEjcdpLnV4u
-         wi7w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=0wVahQWOtZqsHwcjYboXhZ8xmvq6TDZROratpn9jK+o=;
+        b=RRinPGcDFUQN43dJ/eai8rkcEDxepxptZtXdP/Ydl4awPtVYMW4i3BxyfY0FOM8ELh
+         GvlX8aLCBCpeoixddXk7VOWx5NYOAjbSWLnvsl4GdS5B65MizeocdPZGVF+6XVAA188Q
+         Hq7Lahx3aUvz/emZ0RaOwPlJUGEe6y4RUaEg7q5w441r3jsTVtT20cxmPhinYtagFYYU
+         r/FmOiSbmLPA5HO54QPuMHx3T5vyJtSIAYsnf+A6tZkn7pGqzmMRMacRoP1LnxR5Gnw6
+         rHiVg2wAdoCqZB6ADYZmen6cvJEAHsqlGfTcsOwD+Tc8xB2ZxXA+uU4aZT3p/tZRs38E
+         fe5w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id q10si12715582plr.412.2019.06.11.12.39.44
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=lg2OoIxP;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c4sor18536672qtk.65.2019.06.11.12.44.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jun 2019 12:39:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
+        (Google Transport Security);
+        Tue, 11 Jun 2019 12:44:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Jun 2019 12:39:43 -0700
-X-ExtLoop1: 1
-Received: from yyu32-desk1.sc.intel.com ([143.183.136.147])
-  by orsmga007.jf.intel.com with ESMTP; 11 Jun 2019 12:39:42 -0700
-Message-ID: <031bc55d8dcdcf4f031e6ff27c33fd52c61d33a5.camel@intel.com>
-Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an
- ELF file
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: Dave Martin <Dave.Martin@arm.com>, Florian Weimer <fweimer@redhat.com>
-Cc: x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner
- <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, 
- linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org,
- linux-mm@kvack.org,  linux-arch@vger.kernel.org, linux-api@vger.kernel.org,
- Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@amacapital.net>,
- Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
- Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen
- <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>,
- "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan
- Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
- <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov
- <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra
- <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V.
- Shankar" <ravi.v.shankar@intel.com>, Vedvyas Shanbhogue
- <vedvyas.shanbhogue@intel.com>
-Date: Tue, 11 Jun 2019 12:31:34 -0700
-In-Reply-To: <20190611114109.GN28398@e103592.cambridge.arm.com>
-References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
-	 <20190606200646.3951-23-yu-cheng.yu@intel.com>
-	 <20190607180115.GJ28398@e103592.cambridge.arm.com>
-	 <94b9c55b3b874825fda485af40ab2a6bc3dad171.camel@intel.com>
-	 <87lfy9cq04.fsf@oldenburg2.str.redhat.com>
-	 <20190611114109.GN28398@e103592.cambridge.arm.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.1-2 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=lg2OoIxP;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=0wVahQWOtZqsHwcjYboXhZ8xmvq6TDZROratpn9jK+o=;
+        b=lg2OoIxPWMt+YSmGaILIbusgcWDifxTW7e65EX3sxhPnEuWqY6ckfwdIVK6bxYaj4D
+         /Se9H+/UoWB8E+yMPOmrgaYspQrEAAZyUYnQxUu+iqUlSZ1Me2XihuQrIKfgMT8rinY6
+         YIYI4Q3iwlrjTv+fj0zBV+Br3GlIUBY2JhCCOIewMutojUG5+eNPUgQQrVAs+ekBpROY
+         HQE4TKOpYj3dFgp7sSamfF8zqcH+Rfq/54vQXhisztrLw7tHaNKZCI7Nac/f1kKE67PU
+         BtZBqAhXEkoTT4hsun+6H9rzcpJKSh0DE3SM+Cfh1UZgPU0RBSVysGgTWs/dUH2Pz8yj
+         LNfA==
+X-Google-Smtp-Source: APXvYqxN1rsrdbPLpnUSRUIFougVtrUocqVp5o5RzenZEH/EseHKCc1Fa1UBz9VWttmJTii4ojTTrg==
+X-Received: by 2002:ac8:4619:: with SMTP id p25mr33781429qtn.73.1560282272851;
+        Tue, 11 Jun 2019 12:44:32 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id z1sm8154500qth.7.2019.06.11.12.44.32
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 11 Jun 2019 12:44:32 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hamh5-0007DI-P7; Tue, 11 Jun 2019 16:44:31 -0300
+Date: Tue, 11 Jun 2019 16:44:31 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Jerome Glisse <jglisse@redhat.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com,
+	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
+Subject: Re: [PATCH v2 hmm 02/11] mm/hmm: Use hmm_mirror not mm as an
+ argument for hmm_range_register
+Message-ID: <20190611194431.GC29375@ziepe.ca>
+References: <20190606184438.31646-1-jgg@ziepe.ca>
+ <20190606184438.31646-3-jgg@ziepe.ca>
+ <20190608085425.GB32185@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190608085425.GB32185@infradead.org>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2019-06-11 at 12:41 +0100, Dave Martin wrote:
-> On Mon, Jun 10, 2019 at 07:24:43PM +0200, Florian Weimer wrote:
-> > * Yu-cheng Yu:
-> > 
-> > > To me, looking at PT_GNU_PROPERTY and not trying to support anything is a
-> > > logical choice.  And it breaks only a limited set of toolchains.
-> > > 
-> > > I will simplify the parser and leave this patch as-is for anyone who wants
-> > > to
-> > > back-port.  Are there any objections or concerns?
-> > 
-> > Red Hat Enterprise Linux 8 does not use PT_GNU_PROPERTY and is probably
-> > the largest collection of CET-enabled binaries that exists today.
+On Sat, Jun 08, 2019 at 01:54:25AM -0700, Christoph Hellwig wrote:
+> FYI, I very much disagree with the direction this is moving.
 > 
-> For clarity, RHEL is actively parsing these properties today?
-> 
-> > My hope was that we would backport the upstream kernel patches for CET,
-> > port the glibc dynamic loader to the new kernel interface, and be ready
-> > to run with CET enabled in principle (except that porting userspace
-> > libraries such as OpenSSL has not really started upstream, so many
-> > processes where CET is particularly desirable will still run without
-> > it).
-> > 
-> > I'm not sure if it is a good idea to port the legacy support if it's not
-> > part of the mainline kernel because it comes awfully close to creating
-> > our own private ABI.
-> 
-> I guess we can aim to factor things so that PT_NOTE scanning is
-> available as a fallback on arches for which the absence of
-> PT_GNU_PROPERTY is not authoritative.
+> struct hmm_mirror literally is a trivial duplication of the
+> mmu_notifiers.  All these drivers should just use the mmu_notifiers
+> directly for the mirroring part instead of building a thing wrapper
+> that adds nothing but helping to manage the lifetime of struct hmm,
+> which shouldn't exist to start with.
 
-We can probably check PT_GNU_PROPERTY first, and fallback (based on ld-linux
-version?) to PT_NOTE scanning?
+Christoph: What do you think about this sketch below?
 
-Yu-cheng
+It would replace the hmm_range/mirror/etc with a different way to
+build the same locking scheme using some optional helpers linked to
+the mmu notifier?
+
+(just a sketch, still needs a lot more thinking)
+
+Jason
+
+From 5a91d17bc3b8fcaa685abddaaae5c5aea6f82dca Mon Sep 17 00:00:00 2001
+From: Jason Gunthorpe <jgg@mellanox.com>
+Date: Tue, 11 Jun 2019 16:33:33 -0300
+Subject: [PATCH] RFC mm: Provide helpers to implement the common mmu_notifier
+ locking
+
+Many users of mmu_notifiers require a read/write lock that is write locked
+during the invalidate_range_start/end period to protect against a parallel
+thread reading the page tables while another thread is invalidating them.
+
+kvm uses a collision-retry lock built with something like a sequence
+count, and many mmu_notifiers users have copied this approach with various
+levels of success.
+
+Provide a common set of helpers that build a sleepable read side lock
+using a collision retry scheme. The general usage pattern is:
+
+driver pagefault():
+  struct mmu_invlock_state st = MMU_INVLOCK_STATE_INIT;
+
+again:
+  mmu_invlock_write_start_and_lock(&driver->mn, &st)
+
+  /* read vmas and page data under mmap_sem */
+  /* maybe sleep */
+
+  take_lock(&driver->lock);
+  if (mn_invlock_end_write_and_unlock(&driver->mn, &st)) {
+      unlock(&driver->lock);
+      goto again;
+  }
+  /* make data visible to the device */
+  /* does not sleep */
+  unlock(&driver->lock);
+
+The driver is responsible to provide the 'driver->lock', which is the same
+lock it must hold during invalidate_range_start. By holding this lock the
+sequence count is fully locked, and invalidations are prevented, so it is
+safe to make the work visible to the device.
+
+Since it is possible for this to live lock it uses the write side of the
+mmap_sem to create a slow path if there are repeated collisions.
+
+This is based off the design of the hmm_range and the RDMA ODP locking
+scheme, with some additional refinements.
+
+Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+---
+ include/linux/mmu_notifier.h | 83 ++++++++++++++++++++++++++++++++++++
+ mm/mmu_notifier.c            | 71 ++++++++++++++++++++++++++++++
+ 2 files changed, 154 insertions(+)
+
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index b6c004bd9f6ad9..0417f9452f2a09 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -6,6 +6,7 @@
+ #include <linux/spinlock.h>
+ #include <linux/mm_types.h>
+ #include <linux/srcu.h>
++#include <linux/sched.h>
+ 
+ struct mmu_notifier;
+ struct mmu_notifier_ops;
+@@ -227,8 +228,90 @@ struct mmu_notifier_ops {
+ struct mmu_notifier {
+ 	struct hlist_node hlist;
+ 	const struct mmu_notifier_ops *ops;
++
++	/*
++	 * mmu_invlock is a set of helpers to allow the caller to provide a
++	 * read/write lock scheme where the write side of the lock is held
++	 * between invalidate_start -> end, and the read side can be obtained
++	 * on some other thread. This is a common usage pattern for mmu
++	 * notifier users that want to lock against changes to the mmu.
++	 */
++	struct mm_struct *mm;
++	unsigned int active_invalidates;
++	seqcount_t invalidate_seq;
++	wait_queue_head_t wq;
+ };
+ 
++struct mmu_invlock_state
++{
++	unsigned long timeout;
++	unsigned int update_seq;
++	bool write_locked;
++};
++
++#define MMU_INVLOCK_STATE_INIT {.timeout = msecs_to_jiffies(1000)}
++
++// FIXME: needs a seqcount helper
++static inline bool is_locked_seqcount(const seqcount_t *s)
++{
++	return s->sequence & 1;
++}
++
++void mmu_invlock_write_start_and_lock(struct mmu_notifier *mn,
++				      struct mmu_invlock_state *st);
++bool mmu_invlock_write_end(struct mmu_notifier *mn);
++
++/**
++ * mmu_invlock_inv_start - Call during invalidate_range_start
++ * @mn - mmu_notifier
++ * @lock - True if the supplied range is interesting and should cause the
++ *         write side of the lock lock to be held.
++ *
++ * Updates the locking state as part of the invalidate_range_start callback.
++ * This must be called under a user supplied lock, and it must be called for
++ * every invalidate_range_start.
++ */
++static inline void mmu_invlock_inv_start(struct mmu_notifier *mn, bool lock)
++{
++	if (lock && !mn->active_invalidates)
++		write_seqcount_begin(&mn->invalidate_seq);
++	mn->active_invalidates++;
++}
++
++/**
++ * mmu_invlock_inv_start - Call during invalidate_range_start
++ * @mn - mmu_notifier
++ *
++ * Updates the locking state as part of the invalidate_range_start callback.
++ * This must be called under a user supplied lock, and it must be called for
++ * every invalidate_range_end.
++ */
++static inline void mmu_invlock_inv_end(struct mmu_notifier *mn)
++{
++	mn->active_invalidates++;
++	if (!mn->active_invalidates &&
++	    is_locked_seqcount(&mn->invalidate_seq)) {
++		write_seqcount_end(&mn->invalidate_seq);
++		wake_up_all(&mn->wq);
++	}
++}
++
++/**
++ * mmu_invlock_write_needs_retry - Check if the write lock has collided
++ * @mn - mmu_notifier
++ * @st - lock state set by mmu_invlock_write_start_and_lock()
++ *
++ * The nlock uses a collision retry scheme for the fast path. If a parallel
++ * invalidate has collided with the lock then it should be restarted again
++ * from mmu_invlock_write_start_and_lock()
++ */
++static inline bool mmu_invlock_write_needs_retry(struct mmu_notifier *mn,
++						 struct mmu_invlock_state *st)
++{
++	return !st->write_locked &&
++	       read_seqcount_retry(&mn->invalidate_seq, st->update_seq);
++}
++
+ static inline int mm_has_notifiers(struct mm_struct *mm)
+ {
+ 	return unlikely(mm->mmu_notifier_mm);
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index ee36068077b6e5..3db8cdd7211285 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -247,6 +247,11 @@ static int do_mmu_notifier_register(struct mmu_notifier *mn,
+ 
+ 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+ 
++	mn->mm = mm;
++	mn->active_invalidates = 0;
++	seqcount_init(&mn->invalidate_seq);
++	init_waitqueue_head(&mn->wq);
++
+ 	ret = -ENOMEM;
+ 	mmu_notifier_mm = kmalloc(sizeof(struct mmu_notifier_mm), GFP_KERNEL);
+ 	if (unlikely(!mmu_notifier_mm))
+@@ -405,3 +410,69 @@ mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *range)
+ 	return range->vma->vm_flags & VM_READ;
+ }
+ EXPORT_SYMBOL_GPL(mmu_notifier_range_update_to_read_only);
++
++/**
++ * mm_invlock_start_write_and_lock - Start a read critical section
++ * @mn - mmu_notifier
++ * @st - lock state set initialized by MMU_INVLOCK_STATE_INIT
++ *
++ * This should be called with the mmap sem unlocked. It will wait for any
++ * parallel invalidations to complete and return with the mmap_sem locked. The
++ * mmap_sem may be locked for read or write.
++ *
++ * The critical section must always be ended by
++ * mn_invlock_end_write_and_unlock().
++ */
++void mm_invlock_start_write_and_lock(struct mmu_notifier *mn, struct mmu_invlock_state *st)
++{
++	long ret;
++
++	if (st->timeout == 0)
++		goto write_out;
++
++	ret = wait_event_timeout(
++		mn->wq, !is_locked_seqcount(&mn->invalidate_seq), st->timeout);
++	if (ret == 0)
++		goto write_out;
++
++	if (ret == 1)
++		st->timeout = 0;
++	else
++		st->timeout = ret;
++	down_read(&mn->mm->mmap_sem);
++	return;
++
++write_out:
++	/*
++	 * If we ran out of time then fall back to using the mmap_sem write
++	 * side to block concurrent invalidations. The seqcount is an
++	 * optimization to try and avoid this expensive lock.
++	 */
++	down_write(&mn->mm->mmap_sem);
++	st->write_locked = true;
++}
++EXPORT_SYMBOL_GPL(mm_invlock_start_write_and_lock);
++
++/**
++ * mn_invlock_end_write_and_unlock - End a read critical section
++ * @mn - mmu_notifier
++ * @st - lock state set by mmu_invlock_write_start_and_lock()
++ *
++ * This completes the read side critical section. If it returns false the
++ * caller must call mm_invlock_start_write_and_lock again.  Upon success the
++ * mmap_sem is unlocked.
++ *
++ * The caller must hold the same lock that is held while calling
++ * mmu_invlock_inv_start()
++ */
++bool mn_invlock_end_write_and_unlock(struct mmu_notifier *mn,
++				     struct mmu_invlock_state *st)
++{
++	if (st->write_locked) {
++		up_write(&mn->mm->mmap_sem);
++		return true;
++	}
++	up_read(&mn->mm->mmap_sem);
++	return mmu_invlock_write_needs_retry(mn, st);
++}
++EXPORT_SYMBOL_GPL(mn_invlock_end_write_and_unlock);
+-- 
+2.21.0
 
