@@ -2,129 +2,154 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E1016C4321A
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 15:36:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E41BC4321A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 16:15:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF706208E3
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 15:36:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF706208E3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 6CDB520866
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 16:15:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6CDB520866
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F77A6B0269; Tue, 11 Jun 2019 11:36:57 -0400 (EDT)
+	id D12E36B0008; Tue, 11 Jun 2019 12:15:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A7356B026C; Tue, 11 Jun 2019 11:36:57 -0400 (EDT)
+	id CC3096B000A; Tue, 11 Jun 2019 12:15:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 16FBA6B026D; Tue, 11 Jun 2019 11:36:57 -0400 (EDT)
+	id BDA0F6B000C; Tue, 11 Jun 2019 12:15:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CEFA46B0269
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 11:36:56 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d13so21260429edo.5
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:36:56 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A41E6B0008
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 12:15:45 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id f10so4449462plr.17
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 09:15:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=dwa/kDRxm9yYG399dGithN+pZZhBIwPlTDjvi1Cv4NQ=;
-        b=m4bLs0+j/ZnQ5dnDCkMhWGENytldQCkirN6TTrpMElF5CfXN979iBWE3d95u7C7HLQ
-         WtEMNlNYsrskKfbfPamiDng67pcKc/Gx9i6u5qI+hDHYnp4LyJ5d8N54Med0MyNeZ+dy
-         vVZJkOF7PRC+emwVTRVP9mEeh9b/IuFALAW8+UaGGLZ1H+TTemGsV80/fE7W6jrMDwK2
-         Ey44Z5D6xV1ofF8/k45O5yYjvlj3g6VsSKZuVhJUqax/f52tNglZiSSjjybnHU6Es/El
-         TLTwXNfDEWrha7jrxhvBT1sqbwnn6Zty4R25qnLHViyMpL0fx+NpcKky4d/lfgNIK3kC
-         AJpg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=will.deacon@arm.com
-X-Gm-Message-State: APjAAAUqX17R1tl4fIKlnex1Olh2gxpq/+giTspWXrXVYoX++ZEI8jRx
-	p7epOa2NVBg++HvF7/vhbdh6ytgNwc+AGLt5LMfVqj2cHzg5N2ZaZDb7Rod+oKcMgAEtKJ5quuY
-	tWPRpC1EMN3l9jhslBqVQr7nha10xsYPfdYFFTwZh3P/l88nTlnvC2+fDB0LLQK+DLg==
-X-Received: by 2002:a17:906:6dc3:: with SMTP id j3mr17057683ejt.258.1560267416260;
-        Tue, 11 Jun 2019 08:36:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwzlle2k1PuMx3hWDMUpvnyZ9OJ24CMIzQhzqvCJaPrYHxpvaqHUSsbE+HhhLngfw58eyCB
-X-Received: by 2002:a17:906:6dc3:: with SMTP id j3mr17057610ejt.258.1560267415456;
-        Tue, 11 Jun 2019 08:36:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560267415; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:in-reply-to:references:date:mime-version:message-id;
+        bh=Fjx5Evpq6NDo6oeZpzA/p50Z6tbO54kkcvQ/Z7oL3fY=;
+        b=iJ65u6xVrqeTwU7piUOPhNdeK+O4K9czmtSko8oMnNP+317Sq4BDFBy83MqjMQzk1u
+         EGenLomT2H+ScLRHNAMRi6dj3ZgH3zmsG+ltXSvwaoldwKs0kPDlvpHB36DdYyZrnOXA
+         DAXg6Z4FU6CSrKg/YyuMEdDNbJouQKkP8ZHCTDRp3qxINhWovfPTRB5r23yP6IhcToq1
+         QKxxGFnUA2vG8rM9QwK6uDmBpqqB4MTNxu2t2+lM/nXsS9hKfH3nEBxBJqz+1+Q/KX/M
+         7PwYEkiIHSLOfaHT4xE/RUd869nn23SSIREP4BCNsQ+SCLiatxfWriUKZ2Ce6Q3VZQsL
+         7DGg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAUxd277Gska07z7NgWeaWp/Dmxz+YoZ0F2E0FLKmmiDkx3HgprZ
+	hfEkvG50y8ZS2hdtM/FIPTDQ06ULZsq+v/eVWgQQ9UthM92iyToFOaozNdlGa/q47uu2R7dWwuP
+	1EqqEPRZr4lujlVrPtDkmZxGok7vtQA75qg1qvE+GejQ97k7M+EvzGypICyX0uK5kbg==
+X-Received: by 2002:a63:d551:: with SMTP id v17mr10508341pgi.365.1560269745133;
+        Tue, 11 Jun 2019 09:15:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxDbB+X5cvLyJBeaEbSmKp6EzR3O9l19hocRQVRj3n47RAnQF3zFN2ZxhfmLD8W082akros
+X-Received: by 2002:a63:d551:: with SMTP id v17mr10508293pgi.365.1560269744341;
+        Tue, 11 Jun 2019 09:15:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560269744; cv=none;
         d=google.com; s=arc-20160816;
-        b=GsnR/kLvOKWV5qYy2CV/At/1n9tjZxMhGSrDQzlZoz44jtcbIMRaQzcqw9Zz6vy7wf
-         1GVElAsJTgpsig9NenrBf7OI53/K7eNsE7jMS66HBZYgp1e1JQkyW0aSri0hJ61Hg2Ng
-         1rL1re+DgXwOVihmoSqT8u4y8QGhi7zDnhBKVQzJubM6tBMguwdc2SpyPv07R9FNiH4t
-         PcPNn2FexsxMm7ZXSPbUR8p7+D5ngJe3xYiNpPG+pkMU67/mf0daJg7d+wWdXuzm4YgA
-         HEGwKc+q3k0oSHhhOdpZz/Vk07KTsvt2D/ECl55o3vk/xP4avYfxeXcyl0UyynyIGgwO
-         HrEQ==
+        b=jHfTDbW+A8xGJKoXR6NokRgF5DfcWa3U/xSFnRIhMH7B0NG3MzFHkSuSSPf8KBMWYB
+         1uGhNFNODUq72xprT5RADA5mUfhHGGAnymqdobsrkCsY+mFIDJ9x9HhI4Ol//66rN7ya
+         ZvfK6wHf+9W8GnZeF32bSMUKBhDg7rqNJPudXA9jYgzqfh/f5MYsXsT3kfwb5WPt8Hbc
+         aWEmQMbxHMx9IEU7ZT7U7BmaDdQxL/Auq0rvbgBYIv7L8ph0j0TDiD1vyOl0mJJom54G
+         wQ65B4/DYCUx6jnpgvhBkpCNuiVkV83hoONCM1c7qI+JGSvTv75676k1JoJZZ4lVZW/R
+         3/Gg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=dwa/kDRxm9yYG399dGithN+pZZhBIwPlTDjvi1Cv4NQ=;
-        b=ldYs6W0VmCQN39TvkFBFrNsVh74oTYf6Fk6PdPOIvwRh3v8y8wpd0L5fs2konGQs6E
-         sdvp8JG0v6SAr0tyM6eB4pwGDtK+kgkNdnF35uDJTP+6eq3E4xsCxJF33IRg57XUKww+
-         BDUYkXfHbxHDQ+ioNHPnDBtnh7AypOhGYldMfVMxtao9waX9XFL1PJm8W0x+it0EJtqd
-         exXpS4Gx1ivGipiLl0g0WSu9enEqB7rgiYYovrGkNHqifghanFJ2pmu2/iI6r2p5EnbB
-         lEX8wbF/FhDbgk8E1LM3gd9jjZ8AjLnplDzom2O5tnASJg9JFf369z0H+LhjjpZl3tR7
-         FT+g==
+        h=message-id:mime-version:date:references:in-reply-to:subject:cc:to
+         :from;
+        bh=Fjx5Evpq6NDo6oeZpzA/p50Z6tbO54kkcvQ/Z7oL3fY=;
+        b=jIsXj28VaMaUQLLi1Z5gSOWOwXHkfGUgO9TCGtYZsyCsKHHgaqrEF4LIOkYLxsKVc3
+         VeV5dkg9hY7r2Y3tS2mtrc0QNepI5WCZzWg7WLg9i/GgIyti5yyumAVjlFPoE/e3sY9F
+         /JOtc/PFjY1BxkYgkisObee3tPIdDXkFQPyHoWgWn9uuLvB0NBJByf3i8n7LKJgCe6HH
+         nKoR/8J8vgRid2dtQAkhNBV06BLbBeygvE3v00xDVYY9F7iA0FzM0wKjj1YlTTPreK6f
+         pG7rd0cs9NPBf+PDgeXRLIr9axUHQFtUUzVUIOr1Zy7vpeo/62vXYsaAC7TYAgy3JIRf
+         cz4Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=will.deacon@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id m18si3236466ejq.1.2019.06.11.08.36.55
-        for <linux-mm@kvack.org>;
-        Tue, 11 Jun 2019 08:36:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of will.deacon@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id p19si9051848plr.286.2019.06.11.09.15.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jun 2019 09:15:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of will.deacon@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=will.deacon@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9101E337;
-	Tue, 11 Jun 2019 08:36:54 -0700 (PDT)
-Received: from fuggles.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 1F2713F246;
-	Tue, 11 Jun 2019 08:36:52 -0700 (PDT)
-Date: Tue, 11 Jun 2019 16:36:50 +0100
-From: Will Deacon <will.deacon@arm.com>
-To: Steven Price <steven.price@arm.com>
-Cc: linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Ingo Molnar <mingo@redhat.com>, James Morse <james.morse@arm.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Thomas Gleixner <tglx@linutronix.de>, x86@kernel.org,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	Mark Rutland <Mark.Rutland@arm.com>,
-	"Liang, Kan" <kan.liang@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v8 02/20] arm64: mm: Add p?d_large() definitions
-Message-ID: <20190611153650.GB4324@fuggles.cambridge.arm.com>
-References: <20190403141627.11664-1-steven.price@arm.com>
- <20190403141627.11664-3-steven.price@arm.com>
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5BGBTEX120235
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 12:15:43 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2t2eug2vp5-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 12:15:43 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Tue, 11 Jun 2019 17:15:40 +0100
+Received: from b06avi18878370.portsmouth.uk.ibm.com (9.149.26.194)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 11 Jun 2019 17:15:37 +0100
+Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
+	by b06avi18878370.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5BGFaNx24576476
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 11 Jun 2019 16:15:36 GMT
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 0E08C42052;
+	Tue, 11 Jun 2019 16:15:36 +0000 (GMT)
+Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id BE0C842045;
+	Tue, 11 Jun 2019 16:15:33 +0000 (GMT)
+Received: from skywalker.linux.ibm.com (unknown [9.85.73.114])
+	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Tue, 11 Jun 2019 16:15:33 +0000 (GMT)
+X-Mailer: emacs 26.2 (via feedmail 11-beta-1 I)
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+To: Pingfan Liu <kernelfans@gmail.com>, linux-mm@kvack.org
+Cc: Pingfan Liu <kernelfans@gmail.com>, Ira Weiny <ira.weiny@intel.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Mike Rapoport <rppt@linux.ibm.com>,
+        Dan Williams <dan.j.williams@intel.com>,
+        Matthew Wilcox <willy@infradead.org>,
+        John Hubbard <jhubbard@nvidia.com>,
+        Keith Busch <keith.busch@intel.com>,
+        Christoph Hellwig <hch@infradead.org>, linux-kernel@vger.kernel.org
+Subject: Re: [PATCHv3 1/2] mm/gup: fix omission of check on FOLL_LONGTERM in get_user_pages_fast()
+In-Reply-To: <1559725820-26138-1-git-send-email-kernelfans@gmail.com>
+References: <1559725820-26138-1-git-send-email-kernelfans@gmail.com>
+Date: Tue, 11 Jun 2019 21:45:31 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190403141627.11664-3-steven.price@arm.com>
-User-Agent: Mutt/1.11.1+86 (6f28e57d73f2) ()
+Content-Type: text/plain
+X-TM-AS-GCONF: 00
+x-cbid: 19061116-0016-0000-0000-000002882CF6
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19061116-0017-0000-0000-000032E55CB2
+Message-Id: <87tvcwhzdo.fsf@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-11_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=458 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906110104
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 03, 2019 at 03:16:09PM +0100, Steven Price wrote:
-> walk_page_range() is going to be allowed to walk page tables other than
-> those of user space. For this it needs to know when it has reached a
-> 'leaf' entry in the page tables. This information will be provided by the
-> p?d_large() functions/macros.
+Pingfan Liu <kernelfans@gmail.com> writes:
 
-I've have thought p?d_leaf() might match better with your description above,
-but I'm not going to quibble on naming.
+> As for FOLL_LONGTERM, it is checked in the slow path
+> __gup_longterm_unlocked(). But it is not checked in the fast path, which
+> means a possible leak of CMA page to longterm pinned requirement through
+> this crack.
 
-For this patch:
+Shouldn't we disallow FOLL_LONGTERM with get_user_pages fastpath? W.r.t
+dax check we need vma to ensure whether a long term pin is allowed or not.
+If FOLL_LONGTERM is specified we should fallback to slow path.
 
-Acked-by: Will Deacon <will.deacon@arm.com>
-
-Will
+-aneesh
 
