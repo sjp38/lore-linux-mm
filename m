@@ -2,197 +2,213 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 00E51C4321B
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 02:05:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1BF7DC4321A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 03:26:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A75292086D
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 02:05:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A75292086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id A12442086D
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 03:26:13 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="lTw3n6sf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A12442086D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 112F26B000D; Mon, 10 Jun 2019 22:05:30 -0400 (EDT)
+	id 0D5C46B0005; Mon, 10 Jun 2019 23:26:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0C47E6B0266; Mon, 10 Jun 2019 22:05:30 -0400 (EDT)
+	id 0874B6B000D; Mon, 10 Jun 2019 23:26:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F1B8D6B0269; Mon, 10 Jun 2019 22:05:29 -0400 (EDT)
+	id E8FCE6B0010; Mon, 10 Jun 2019 23:26:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BA3656B000D
-	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 22:05:29 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id s3so8096297pgv.12
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 19:05:29 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B19696B0005
+	for <linux-mm@kvack.org>; Mon, 10 Jun 2019 23:26:12 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id b127so8659270pfb.8
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 20:26:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=LG5SlxU8Oc8Q3qAf12aVUVPOQdkgYmY8CA0ELwPZeZ0=;
-        b=ajKQyRgipqu5JQG5AbCfhOtIKPb2PsKxupIX9uL/zP2nTLXlHZiNKMw4QsGUl+Acty
-         jrFYp6d/aRTzCLAoOUX6Ry1+Bya9W6Q4R8er22ihxd2bRM5Kb+HQKqIjUSZVePJ1W+6b
-         lO5jSZ2/nKIBCZprfH0WT2tpEqsDUeBonxQUvkDH/WK1JJNWRMV49Aa+1IXrt1tKVTbx
-         OXc1gVaEVMnm7g7TNgwhqolc/dsOuDMAAZoIgg+niUhcQx5e2UCcYO/CZL1smtd5jyNT
-         PJS8kZbtRRlKUWcYoD6HlnEUUKUflDELgiX063qf92hptStEDtT21DLg8lgFFOjpGx45
-         aaNg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUBvyAhH397V2kKMrd6LcJkoeHlhjn95lylqr53itwmX9vb5E3m
-	wclEGMJI+NpyWxX5bJ8TSATZpKtAe55sGXWfhK/OirqnWaWnHxtwnUjCrFSC1UzfeQzQC7JORB0
-	QJoStPtMVVvMb169Q3lSnyJkOmjp7LM4aeG+lpzz5O9EY1RdG3xjzNbQLocapVinAYA==
-X-Received: by 2002:a17:902:5c5:: with SMTP id f63mr73272300plf.176.1560218729279;
-        Mon, 10 Jun 2019 19:05:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxC2tjQ2Co+diGVnHNWSiHYQYv+pXk7BpTvouIALeOijgojBu71jh3WMruaf0atgVyTuRZ0
-X-Received: by 2002:a17:902:5c5:: with SMTP id f63mr73272224plf.176.1560218728120;
-        Mon, 10 Jun 2019 19:05:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560218728; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=+KMHTpIPHehmYr7PrnoKeQGFw46qVIvlu8jfHMIONJs=;
+        b=Wey2Nmz50bAbbHgcP3D5GBAIwFTGiawVCzbEZP1ma8AJISHcL+lTpYj7haymcU4wkj
+         63IZ7YPovPf6ZJVQ0Vs3Bi3MK2m2JEM8YRwOaBtdUjoqq/uJR9wjbniHpf/ZyefNVKJr
+         WzBFemD81+dyw2mwubQ8rb3Xc4s7TazQj0QFfYHwVsI7YBSkNFSO5kBlssuOnl3GsVrW
+         jFKfnLyVnpoaK324JFt+5Dtysbk/bc/Z2ORsPe75zmiUxr6GUrycdWPdgm5zn0B9opRU
+         BcJkSJpxb05OT4fNg5l4jB0+hlzAFCqOrgP8Y2fGcFJjGToTePYDeHHku7SPYgLWt0qj
+         Bh8Q==
+X-Gm-Message-State: APjAAAUIJ7AkHpQt3R43WO4CHep3Qokngkth/CMpo8J8k0YDdqz51uNJ
+	Vcc6eTeTkdoW2Em5L/9XXDoJhEai7f1uZ9uuiKcgX+3K+Lbeq4PuFRjx2JntONymeSnTVxmKk/U
+	kP/rCYgXJ4GdSiOHsTbbDYuwh9Hq/zDcRkWxdP5z4rLJSUhbdhSSgXZ+odIvZK+Z05Q==
+X-Received: by 2002:a63:445b:: with SMTP id t27mr18334116pgk.56.1560223572004;
+        Mon, 10 Jun 2019 20:26:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyffavA7T0cibQA2qS2Ku/uuso+QN4Ugl5OpMhM11cR5YLtFad1BGKs2j/tVKG98Z2fb+47
+X-Received: by 2002:a63:445b:: with SMTP id t27mr18334068pgk.56.1560223570894;
+        Mon, 10 Jun 2019 20:26:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560223570; cv=none;
         d=google.com; s=arc-20160816;
-        b=vp7ubJEzuo4IQzaqlO07+1AtnRaH3K6mcZo98b4pW2zzFonO9eh3LrEOMaRZ6lnUgS
-         LS+gxY/5MD1ddaJVuYHt4MmV+Y1kjhAa/RwDckobamkhdFVzl5yHo9hCl4XeikwJlxhj
-         aL+tQzMqCrBKwmt5yIdFty7RbNBE2rTJ+jE5A7kUCSAxVoN+QIUjkF4It3vEnuFu23k7
-         pJCVp+TmeWS4VO+R5OcNQSbckixOHlRhbzLr1/nnijvVsnaALyvNcCJnYCVXCTsD5UFc
-         0k6dqqnwR6y21L1C4pKIAaNnRfeJs6Ebt+mtR1MqYQ5Y9QNj7DcC1kv1HSvLu1S5BQAm
-         j1uw==
+        b=UOfTsW208veuA3eAVtdRDB2bJsBNRcbecRTAdHt1UVSjqat80157HslC9NtYjiosIM
+         eyYmw5mxgzs3a8CGB0k+f4jMoztNDIiM50XpyMpoFL32QeHH86bkIOtJekpG1we1K0cD
+         7YxwXkU9fvexQtTfd8xEiGpM4YwXz+ma/gKEGSpux1UGpuduDoVwajfgljDVl7ZJTpaR
+         +YyMOMlUnSIcJ2K6ur4WrurAeB4ZvCAp10saGoG0ZFaJIoPdtNouEWD6huoU7p2ptiyc
+         nooOzRSuIz9vXfX2+8eXkyCZfE4p1zIruq5h4xulxGig2e2n4BBgMj5iumnKwAirg1Z9
+         TwDQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=LG5SlxU8Oc8Q3qAf12aVUVPOQdkgYmY8CA0ELwPZeZ0=;
-        b=zEtQ+E/6bjGssXJiifmSHW7AwtKq+X9F7k52JHTKO5Ry8mWxqV1HTmyo2RaNDx/5iO
-         b9mSlVXm54HCsE0Kd+B0+FsN3T2+bI69DVv+GzaFB0ZMFKGUHy+Jt4C2/UNWXm8TT8D9
-         3c7ykZCfeL+Bbr3XxJbL1HY19ONORE6EjabmW7bflWyOd7tRuFVNnc4gJEU2G9A+LfHl
-         /GZ/ODxExp/leQPKJbbvLcd1EaRSw3JMfrU5KkKX4M44yDUYOkosKL98W8ZZ+sVaEsfd
-         1rT7IQ6L0pl1ZcnAopEsRfw3wsUJCUAcju7dzPoj2IZy/irIzdzsvYeThpfWdAUx03Ui
-         KP8A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=+KMHTpIPHehmYr7PrnoKeQGFw46qVIvlu8jfHMIONJs=;
+        b=lGYKc2JAqkd9zibiyqc7lU9/XmuaXArGEEBxWlSLvtiJ2C/gVhbGyhUaMKCJsFMrQg
+         KZzRxEH0DG1HNu8WJ/QV34k63T7KY5ksfrvD6zgy1P916FwX5VVgsscy1opmex4+QPL3
+         /G800yKXopna2/S09rxRyJQ6zGjYoG9R7qGIfYTAjUNH3G7r3in3sos36C5fiXeh5bpt
+         vW3loFnAt8kJvmXLLOJHgPg6Wg1XO1IBFXOqyBb93EQlJK2XGVaywEID6zRwaSPIsI0K
+         9tWsGsXpZnHGup+MiLIDHLUtiBI44V4tf8Y+ClC4m9v17/2SkbpswcXR44/zmEaYLXXm
+         SC4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id c16si11454293pfr.94.2019.06.10.19.05.27
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=lTw3n6sf;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id a12si11368791pgl.178.2019.06.10.20.26.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jun 2019 19:05:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+        Mon, 10 Jun 2019 20:26:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 10 Jun 2019 19:05:27 -0700
-X-ExtLoop1: 1
-Received: from yhuang-dev.sh.intel.com ([10.239.159.29])
-  by fmsmga001.fm.intel.com with ESMTP; 10 Jun 2019 19:05:23 -0700
-From: "Huang, Ying" <ying.huang@intel.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Huang Ying <ying.huang@intel.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Hugh Dickins <hughd@google.com>,
-	"Paul E . McKenney" <paulmck@linux.vnet.ibm.com>,
-	Minchan Kim <minchan@kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Chen <tim.c.chen@linux.intel.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Yang Shi <yang.shi@linux.alibaba.com>,
-	David Rientjes <rientjes@google.com>,
-	Rik van Riel <riel@redhat.com>,
-	Jan Kara <jack@suse.cz>,
-	Dave Jiang <dave.jiang@intel.com>,
-	Daniel Jordan <daniel.m.jordan@oracle.com>,
-	Andrea Parri <andrea.parri@amarulasolutions.com>
-Subject: [PATCH -mm RESEND] mm: fix race between swapoff and mincore
-Date: Tue, 11 Jun 2019 10:05:10 +0800
-Message-Id: <20190611020510.28251-1-ying.huang@intel.com>
-X-Mailer: git-send-email 2.20.1
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=lTw3n6sf;
+       spf=pass (google.com: domain of darrick.wong@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5B3JYbq122570;
+	Tue, 11 Jun 2019 03:26:09 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=+KMHTpIPHehmYr7PrnoKeQGFw46qVIvlu8jfHMIONJs=;
+ b=lTw3n6sfAuJxerQIcWvvAzMYQN+AqtCPDfst2dOgTcdT2K7l70GXNYMqGHsNnCdk6wWJ
+ c7B8KxtKCiw/HIyg0TzHinvugM77U16TWDIV4RUqydwstE2v/O6WmbklmNTHt9ONL6Hf
+ 8nix+RvdOj4fFnrZWzqEqBGocz0+c/cYECmtDtfNx42zPkkJePXJWXe7Hh7CPw4YOW9s
+ 4yqshFav8Do/yNkdOJCBXL2mI4X3yT493ZlzXH1rdALCUQWxVW53N8gWI7PU+/0hSDva
+ e/vYpQcoD4tQPYop3LFIttJa/6DA6+oherOHnagItEI4/fDKCBn6gnQuy8H0a/HVH5Zq ug== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by aserp2130.oracle.com with ESMTP id 2t02hejhjw-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 11 Jun 2019 03:26:09 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5B3Q8lN021788;
+	Tue, 11 Jun 2019 03:26:09 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by aserp3020.oracle.com with ESMTP id 2t0p9r2a63-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 11 Jun 2019 03:26:08 +0000
+Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5B3Q4J4008815;
+	Tue, 11 Jun 2019 03:26:04 GMT
+Received: from localhost (/67.169.218.210)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 10 Jun 2019 20:26:04 -0700
+Date: Mon, 10 Jun 2019 20:26:03 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+To: "Theodore Ts'o" <tytso@mit.edu>
+Cc: linux-xfs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+        linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org,
+        linux-mm@kvack.org
+Subject: Re: [PATCH 1/8] mm/fs: don't allow writes to immutable files
+Message-ID: <20190611032603.GB1872258@magnolia>
+References: <155552786671.20411.6442426840435740050.stgit@magnolia>
+ <155552787330.20411.11893581890744963309.stgit@magnolia>
+ <20190610015145.GB3266@mit.edu>
+ <20190610044144.GA1872750@magnolia>
+ <20190610131417.GD15963@mit.edu>
+ <20190610160934.GH1871505@magnolia>
+ <20190610204154.GA5466@mit.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190610204154.GA5466@mit.edu>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9284 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1906110021
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9284 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906110021
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Huang Ying <ying.huang@intel.com>
+On Mon, Jun 11, 2019 at 04:41:54PM -0400, Theodore Ts'o wrote:
+> On Mon, Jun 10, 2019 at 09:09:34AM -0700, Darrick J. Wong wrote:
+> > > I was planning on only taking 8/8 through the ext4 tree.  I also added
+> > > a patch which filtered writes, truncates, and page_mkwrites (but not
+> > > mmap) for immutable files at the ext4 level.
+> > 
+> > *Oh*.  I saw your reply attached to the 1/8 patch and thought that was
+> > the one you were taking.  I was sort of surprised, tbh. :)
+> 
+> Sorry, my bad.  I mis-replied to the wrong e-mail message  :-)
+> 
+> > > I *could* take this patch through the mm/fs tree, but I wasn't sure
+> > > what your plans were for the rest of the patch series, and it seemed
+> > > like it hadn't gotten much review/attention from other fs or mm folks
+> > > (well, I guess Brian Foster weighed in).
+> > 
+> > > What do you think?
+> > 
+> > Not sure.  The comments attached to the LWN story were sort of nasty,
+> > and now that a couple of people said "Oh, well, Debian documented the
+> > inconsistent behavior so just let it be" I haven't felt like
+> > resurrecting the series for 5.3.
+> 
+> Ah, I had missed the LWN article.   <Looks>
+> 
+> Yeah, it's the same set of issues that we had discussed when this
+> first came up.  We can go round and round on this one; It's true that
+> root can now cause random programs which have a file mmap'ed for
+> writing to seg fault, but root has a million ways of killing and
+> otherwise harming running application programs, and it's unlikely
+> files get marked for immutable all that often.  We just have to pick
+> one way of doing things, and let it be same across all the file
+> systems.
+> 
+> My understanding was that XFS had chosen to make the inode immutable
+> as soon as the flag is set (as opposed to forbidding new fd's to be
+> opened which were writeable), and I was OK moving ext4 to that common
+> interpretation of the immmutable bit, even though it would be a change
+> to ext4.
 
-Via commit 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB trunks") on,
-after swapoff, the address_space associated with the swap device will be
-freed.  So swap_address_space() users which touch the address_space need
-some kind of mechanism to prevent the address_space from being freed
-during accessing.
+<nod> It started as "just do this to xfs" and has now become a vfs level
+change...
 
-When mincore process unmapped range for swapped shmem pages, it doesn't
-hold the lock to prevent swap device from being swapoff.  So the following
-race is possible,
+> And then when I saw that Amir had included a patch that would cause
+> test failures unless that patch series was applied, it seemed that we
+> had all thought that the change was a done deal.  Perhaps we should
+> have had a more explicit discussion when the test was sent for review,
+> but I had assumed it was exclusively a copy_file_range set of tests,
+> so I didn't realize it was going to cause ext4 failures.
 
-CPU1					CPU2
-do_mincore()				swapoff()
-  walk_page_range()
-    mincore_unmapped_range()
-      __mincore_unmapped_range
-        mincore_page
-	  as = swap_address_space()
-          ...				  exit_swap_address_space()
-          ...				    kvfree(spaces)
-	  find_get_page(as)
+And here we see the inconsistent behavior causing developer confusion. :)
 
-The address space may be accessed after being freed.
+I think Amir's c_f_r tests just check the existing behavior (of just
+c_f_r) that you can't (most of the time) copy into a file that you
+opened for write but that the administrator has since marked immutable.
 
-To fix the race, get_swap_device()/put_swap_device() is used to enclose
-find_get_page() to check whether the swap entry is valid and prevent the
-swap device from being swapoff during accessing.
+/That/ behavior in turn came from the original implementation that would
+try reflink which would fail on the immutable destination check and then
+fail the whole call ... I think?
 
-Fixes: 4b3ef9daa4fc ("mm/swap: split swap cache into 64MB trunks")
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Reviewed-by: Andrew Morton <akpm@linux-foundation.org>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tim Chen <tim.c.chen@linux.intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Jérôme Glisse <jglisse@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Dave Jiang <dave.jiang@intel.com>
-Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Andrea Parri <andrea.parri@amarulasolutions.com>
----
- mm/mincore.c | 12 ++++++++++--
- 1 file changed, 10 insertions(+), 2 deletions(-)
+--D
 
-diff --git a/mm/mincore.c b/mm/mincore.c
-index c3f058bd0faf..4fe91d497436 100644
---- a/mm/mincore.c
-+++ b/mm/mincore.c
-@@ -68,8 +68,16 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
- 		 */
- 		if (xa_is_value(page)) {
- 			swp_entry_t swp = radix_to_swp_entry(page);
--			page = find_get_page(swap_address_space(swp),
--					     swp_offset(swp));
-+			struct swap_info_struct *si;
-+
-+			/* Prevent swap device to being swapoff under us */
-+			si = get_swap_device(swp);
-+			if (si) {
-+				page = find_get_page(swap_address_space(swp),
-+						     swp_offset(swp));
-+				put_swap_device(si);
-+			} else
-+				page = NULL;
- 		}
- 	} else
- 		page = find_get_page(mapping, pgoff);
--- 
-2.20.1
+>      	    	       	   	 - Ted
 
