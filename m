@@ -2,239 +2,401 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BC351C4321A
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:26:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D1DDDC4321B
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:29:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6DF2A20673
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:26:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DF2A20673
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 7B89E20673
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:29:56 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="q44jIWre"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B89E20673
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C5E36B000A; Tue, 11 Jun 2019 08:26:03 -0400 (EDT)
+	id 138FA6B0008; Tue, 11 Jun 2019 08:29:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 078046B000D; Tue, 11 Jun 2019 08:26:03 -0400 (EDT)
+	id 0C2666B000A; Tue, 11 Jun 2019 08:29:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ED0046B0010; Tue, 11 Jun 2019 08:26:02 -0400 (EDT)
+	id E575A6B000C; Tue, 11 Jun 2019 08:29:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B5C866B000A
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:26:02 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id u7so9507960pfh.17
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:26:02 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AA7416B0008
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:29:55 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id i123so9519137pfb.19
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:29:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references
-         :content-transfer-encoding:mime-version;
-        bh=Jyb8YM8lArG+/Y8fk24IqbWjw81Z+P7IptrzCzYSy4Y=;
-        b=LUXLiexdwVOYxDDCp/U2KjPKy61+qd/4TlKdIXFLD942rM2t/meHyCwy4G4I9D5ZUG
-         IUObQnGaGtqcs/fRtl/7uSkEB0D6TYrjmxQtpdDIMjZkpiiDSJ50TqbcOlbWuksef9xF
-         JuP/0p0WfuD5PUciQCRN9cT2ltrKfZKRCWXOVyq4mqgbBOf9or1EBDtUxAQyuHoDws2B
-         XPEXIEsFdMNXiECqMIEz86JZgdIs5zi0lrrYR9EyC+MKc5EMfUGvqQFhsupENoTI93n4
-         8i26Bj6gDWId7B2vdJKSEvDGTUCh8EDbT56Qv1QXQz+KbV2L1Bb/51XeVCHmX8llX2nb
-         c71Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-Gm-Message-State: APjAAAU1XkqczYzYai6ITpqw2BzGQMVwa2g0NAJJ7MDdhN3s2RlOwx2/
-	2F8MSorK3ohNHugJrJvemPJqlPF/o5oPGXXoPAJlCNM+1iBWNsKvcgG31uXR2ndjIse5ApWsOBk
-	4Ww8lpR571CgWf6b+ASj9cnxVVCq3ewISsgqkGytQBQWmiduruuCtSFdWrdBW2p4/ZA==
-X-Received: by 2002:a17:902:9b94:: with SMTP id y20mr60779062plp.260.1560255962338;
-        Tue, 11 Jun 2019 05:26:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz9jp7HccYX4xZdUaVa+0ijLYYgkecO6+8O2hRZsfzkik1WXPBfiHEsLtqvFtxD3lWMps+H
-X-Received: by 2002:a17:902:9b94:: with SMTP id y20mr60779014plp.260.1560255961549;
-        Tue, 11 Jun 2019 05:26:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560255961; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=y7gj05j+fTkifIRrdspgMrrd6G03saWrwNWynfBgS0U=;
+        b=tHd1OvTWBP9kgNOl1CH+t2mcLALwjTcdazguKWDg6Hz7cQ1rFlBilJMIWU8mlhLRR0
+         5k8MYJ8l12IAx/RnnA35N7zIvalOJH6xa3BrlxQrMBftydpSIpK8mf1jic7KEWqZBiT4
+         qg/AgcltQtLtenbyYIDOlNB1odbBpGU3bw+YT5cmsS2Md7RtGTjAnDjzKsxkc4JBuJeI
+         j9FSJov7BgP6RzNVPOMXca3KBc4y76dZZ6SwhtOqje07/X73RHgBeElWowhdl0vtWc2I
+         gM5xdPZpI9Oh1kWhb65yyAEulhpLeKVzCKpwwesAox86zYvWI6buCkXTO4pZxBiL0uV8
+         mwRw==
+X-Gm-Message-State: APjAAAXtLjNuVSnt5ah8pq6Ge5CPOm14Go0qCd9nWBpepLgnv/PIl9ck
+	J3AYrOF7NjUWbdzZh1sBWbiwN/2b+8qqywzve/yOcfj1lvIUZFJLtBYIHRFrDhfzElO/YvaYKpX
+	/GfsEToWWUnU705bhpvLog27v2MYFU/joWHyxNkcSza4U2HuXoQlmbomsmp9BpJkwfQ==
+X-Received: by 2002:a63:b1d:: with SMTP id 29mr20161563pgl.103.1560256195075;
+        Tue, 11 Jun 2019 05:29:55 -0700 (PDT)
+X-Received: by 2002:a63:b1d:: with SMTP id 29mr20161495pgl.103.1560256194033;
+        Tue, 11 Jun 2019 05:29:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560256194; cv=none;
         d=google.com; s=arc-20160816;
-        b=lO+cc30caVTACUIMaEMh/mNmmYu/vfhjPGPNiESZrcKf/PVg03LSeQ7YHeJP8gJxwQ
-         IdvvgAQFUUCuMAT/sHs36E9cFV/8nev2mW6G6biPfzz/BlrJx5LsF3KVG/fTz0eoBxx6
-         iYLi1ZQ7FNLzxCnlIigQqFgHz8aPtDc3T3SnEISL+QGZOvXFdtO3cHRv2qhzyeaGwYlX
-         v+AxkXbi3Mv1JTWCCernHp96igeZO87/uamTkK7/Md5Mgh/J+yeRWmX2sh/E3yUvROLn
-         q5f9ganFDnqwok0EG8aTTlETziJkm53/HXCvMRp05ihFBhI/1a1uYgNL0E/17ElLI2me
-         btdg==
+        b=G39E995ek6m3zwnq/m23eH4qX+RptI6p1ySbUeKMABXJLe0U2qctwi21Gcx5Y/fxDq
+         owo8ujGSFftSGRSGW3Z28uL7yhVKc8KVXYygXAWtGlC5I8dpyxGk5UWHki5C/3uf5WPF
+         19GrZ/cODUE3RaQljfoSgR5W96POsvf2CSfLnGkIfOnv+fz0TDjSY4EgN9X8DfvpccRy
+         38YHALwVcGlvLGeN49tl+786x6OOVUrrO0jW+8+bTZvq6WYYNjJkzQQ7hRRXvFx28RZa
+         EYI2RopW278BOO+MOQQ+tr4++awMRexE+rARlOXdz2S5s+HhmCpUJpbo9unICs/KCZBG
+         EduQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=Jyb8YM8lArG+/Y8fk24IqbWjw81Z+P7IptrzCzYSy4Y=;
-        b=MX8cdusbWc7qByl6sK3WekUobiRtyipl6Tz7wKg+Uk6Cio93USBhqbU9dKcshjpvGN
-         IGaaZZ62QP9tg6rGH8C6mWniP+o1fdwkkqBnyvLDWiFYzGRWcOwhUv375M2sjoThXE6B
-         vD7KZb2n8xeVxBp0QBzab8i7G6qIvJJ9AFeHLnxNZ0K8GxAqVXttHq0ndKEgQrPX8xIW
-         95ZQXkJsNVQfXlxVgSviXOPcr8UGlrAKoD8Kyebqmqzrg00uHODkox3/i55jZnvf38Dj
-         q7yWrxAeJ4lTJvD1fPWzNIOuZjOSw1VfeHtY6W4dle5ZaAkd/vfqKrHSVhcv+Xzi2Y5D
-         xnWg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=y7gj05j+fTkifIRrdspgMrrd6G03saWrwNWynfBgS0U=;
+        b=N4dpytHFS2f1G1WIqr7SAa+wLI4QQ/uITi7Sc/iEN6jntfwB+0FOXGQl2H1HU2p1pt
+         cj5tBh/4GT2Kgdhbbxot73TresvTNyUOf63BL+2dOGFhPkzjwRUpRhgHcbzqEAZajdTC
+         ipmfYlP+eZDT3wWqgPWFC11YnPofoecMMj46OQ0AWmMUXA+WX9gDX2xdFAE86W7SnXGf
+         RFjFCs3DMxT8xtTdJ+9U5FkVhZq2FsWqJo6Lf/Uub18gigwIAC8C0IjN6/SGlV/gg3NS
+         WiiIHMX8tmJDiiYAhJUpTN3GjNd0yD6Qkht0iFXfs9zyO/Y0+Cw79HMrQgSUMKBzG/9g
+         EBWQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTPS id d31si5185002pla.84.2019.06.11.05.26.00
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=q44jIWre;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a19sor12676783pfn.54.2019.06.11.05.29.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jun 2019 05:26:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) client-ip=210.61.82.183;
+        (Google Transport Security);
+        Tue, 11 Jun 2019 05:29:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-UUID: 8fc4afafc8034cc59a92651ab0d17e0e-20190611
-X-UUID: 8fc4afafc8034cc59a92651ab0d17e0e-20190611
-Received: from mtkexhb02.mediatek.inc [(172.21.101.103)] by mailgw01.mediatek.com
-	(envelope-from <walter-zh.wu@mediatek.com>)
-	(mhqrelay.mediatek.com ESMTP with TLS)
-	with ESMTP id 1205233393; Tue, 11 Jun 2019 20:25:56 +0800
-Received: from mtkcas07.mediatek.inc (172.21.101.84) by
- mtkmbs07n1.mediatek.inc (172.21.101.16) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Tue, 11 Jun 2019 20:25:55 +0800
-Received: from [172.21.84.99] (172.21.84.99) by mtkcas07.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Tue, 11 Jun 2019 20:25:55 +0800
-Message-ID: <1560255955.29153.20.camel@mtksdccf07>
-Subject: Re: [PATCH v2] kasan: add memory corruption identification for
- software tag-based mode
-From: Walter Wu <walter-zh.wu@mediatek.com>
-To: Dmitry Vyukov <dvyukov@google.com>
-CC: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko
-	<glider@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg
-	<penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim
-	<iamjoonsoo.kim@lge.com>, Matthias Brugger <matthias.bgg@gmail.com>, "Martin
- Schwidefsky" <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Vasily
- Gorbik" <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>, "Jason
- A. Donenfeld" <Jason@zx2c4.com>, Miles Chen
- =?UTF-8?Q?=28=E9=99=B3=E6=B0=91=E6=A8=BA=29?= <Miles.Chen@mediatek.com>,
-	kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>,
-	Linux-MM <linux-mm@kvack.org>, Linux ARM
-	<linux-arm-kernel@lists.infradead.org>, "linux-mediatek@lists.infradead.org"
-	<linux-mediatek@lists.infradead.org>, wsd_upstream
-	<wsd_upstream@mediatek.com>
-Date: Tue, 11 Jun 2019 20:25:55 +0800
-In-Reply-To: <CACT4Y+aXqjCMaJego3yeSG1eR1+vkJkx5GB+xsy5cpGvAtTnDA@mail.gmail.com>
-References: <1559651172-28989-1-git-send-email-walter-zh.wu@mediatek.com>
-	 <CACT4Y+Y9_85YB8CCwmKerDWc45Z00hMd6Pc-STEbr0cmYSqnoA@mail.gmail.com>
-	 <1560151690.20384.3.camel@mtksdccf07>
-	 <CACT4Y+aetKEM9UkfSoVf8EaDNTD40mEF0xyaRiuw=DPEaGpTkQ@mail.gmail.com>
-	 <1560236742.4832.34.camel@mtksdccf07>
-	 <CACT4Y+YNG0OGT+mCEms+=SYWA=9R3MmBzr8e3QsNNdQvHNt9Fg@mail.gmail.com>
-	 <1560249891.29153.4.camel@mtksdccf07>
-	 <CACT4Y+aXqjCMaJego3yeSG1eR1+vkJkx5GB+xsy5cpGvAtTnDA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=q44jIWre;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=y7gj05j+fTkifIRrdspgMrrd6G03saWrwNWynfBgS0U=;
+        b=q44jIWreO5gdxzKinRevyVBXJSZQf8U+XKtuF2X+lzP726yGNOhXZCwF57PB5EMk2+
+         3glGSCjLduh3nhIIVEzbXq/3LxETJr0vwhLBFpXPg1uM6vpyd9iR6/JFPDsXKB1H0g+W
+         FoBB88T3IZZrFcKKcrwIoYX7D9lToHjdaWGEXFfmd9FxK69PRvptwMSUl3rdYgG+Kvoi
+         O5oZlBdovnhg3TuqK6vS/1QVpw8QUgTpGAFVCutWvhjkRHiRSn8uARrmFM/5opytIhtt
+         IlNBfi0I1q4bDDpZkAMPY1x2fWQzNTPwIKyM+rLYyeZal96gQSvR+viOZ1me5cB6P24F
+         TEGw==
+X-Google-Smtp-Source: APXvYqxZv5u+6uxczWx/QpkRi7je6l/4vwiWO4NDGzDjaiGi1t7F3+s06xKpxFhSxyYobjjdIv03zQ==
+X-Received: by 2002:a62:fb18:: with SMTP id x24mr79552145pfm.76.1560256193724;
+        Tue, 11 Jun 2019 05:29:53 -0700 (PDT)
+Received: from dhcp-128-55.nay.redhat.com ([209.132.188.80])
+        by smtp.gmail.com with ESMTPSA id 24sm13723109pgn.32.2019.06.11.05.29.49
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 11 Jun 2019 05:29:52 -0700 (PDT)
+Date: Tue, 11 Jun 2019 20:29:35 +0800
+From: Pingfan Liu <kernelfans@gmail.com>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Ira Weiny <ira.weiny@intel.com>, Mike Rapoport <rppt@linux.ibm.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+	Keith Busch <keith.busch@intel.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	LKML <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCHv3 1/2] mm/gup: fix omission of check on FOLL_LONGTERM in
+ get_user_pages_fast()
+Message-ID: <20190611122935.GA9919@dhcp-128-55.nay.redhat.com>
+References: <1559725820-26138-1-git-send-email-kernelfans@gmail.com>
+ <20190605144912.f0059d4bd13c563ddb37877e@linux-foundation.org>
+ <CAFgQCTur5ReVHm6NHdbD3wWM5WOiAzhfEXdLnBGRdZtf7q1HFw@mail.gmail.com>
+ <2b0a65ec-4fb0-430e-3e6a-b713fb5bb28f@nvidia.com>
+ <CAFgQCTtS7qOByXBnGzCW-Rm9fiNsVmhQTgqmNU920m77XyAwZQ@mail.gmail.com>
 MIME-Version: 1.0
-X-MTK: N
+Content-Type: multipart/mixed; boundary="W/nzBZO5zC0uMSeA"
+Content-Disposition: inline
+In-Reply-To: <CAFgQCTtS7qOByXBnGzCW-Rm9fiNsVmhQTgqmNU920m77XyAwZQ@mail.gmail.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2019-06-11 at 13:32 +0200, Dmitry Vyukov wrote:
-> On Tue, Jun 11, 2019 at 12:44 PM Walter Wu <walter-zh.wu@mediatek.com> wrote:
+
+--W/nzBZO5zC0uMSeA
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+On Fri, Jun 07, 2019 at 02:10:15PM +0800, Pingfan Liu wrote:
+> On Fri, Jun 7, 2019 at 5:17 AM John Hubbard <jhubbard@nvidia.com> wrote:
 > >
-> > On Tue, 2019-06-11 at 10:47 +0200, Dmitry Vyukov wrote:
-> > > On Tue, Jun 11, 2019 at 9:05 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
-> > > >
-> > > > On Mon, 2019-06-10 at 13:46 +0200, Dmitry Vyukov wrote:
-> > > > > On Mon, Jun 10, 2019 at 9:28 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
-> > > > > >
-> > > > > > On Fri, 2019-06-07 at 21:18 +0800, Dmitry Vyukov wrote:
-> > > > > > > > diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-> > > > > > > > index b40ea104dd36..be0667225b58 100644
-> > > > > > > > --- a/include/linux/kasan.h
-> > > > > > > > +++ b/include/linux/kasan.h
-> > > > > > > > @@ -164,7 +164,11 @@ void kasan_cache_shutdown(struct kmem_cache *cache);
-> > > > > > > >
-> > > > > > > >  #else /* CONFIG_KASAN_GENERIC */
-> > > > > > > >
-> > > > > > > > +#ifdef CONFIG_KASAN_SW_TAGS_IDENTIFY
-> > > > > > > > +void kasan_cache_shrink(struct kmem_cache *cache);
-> > > > > > > > +#else
-> > > > > > >
-> > > > > > > Please restructure the code so that we don't duplicate this function
-> > > > > > > name 3 times in this header.
-> > > > > > >
-> > > > > > We have fixed it, Thank you for your reminder.
-> > > > > >
-> > > > > >
-> > > > > > > >  static inline void kasan_cache_shrink(struct kmem_cache *cache) {}
-> > > > > > > > +#endif
-> > > > > > > >  static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
-> > > > > > > >
-> > > > > > > >  #endif /* CONFIG_KASAN_GENERIC */
-> > > > > > > > diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-> > > > > > > > index 9950b660e62d..17a4952c5eee 100644
-> > > > > > > > --- a/lib/Kconfig.kasan
-> > > > > > > > +++ b/lib/Kconfig.kasan
-> > > > > > > > @@ -134,6 +134,15 @@ config KASAN_S390_4_LEVEL_PAGING
-> > > > > > > >           to 3TB of RAM with KASan enabled). This options allows to force
-> > > > > > > >           4-level paging instead.
-> > > > > > > >
-> > > > > > > > +config KASAN_SW_TAGS_IDENTIFY
-> > > > > > > > +       bool "Enable memory corruption idenitfication"
-> > > > > > >
-> > > > > > > s/idenitfication/identification/
-> > > > > > >
-> > > > > > I should replace my glasses.
-> > > > > >
-> > > > > >
-> > > > > > > > +       depends on KASAN_SW_TAGS
-> > > > > > > > +       help
-> > > > > > > > +         Now tag-based KASAN bug report always shows invalid-access error, This
-> > > > > > > > +         options can identify it whether it is use-after-free or out-of-bound.
-> > > > > > > > +         This will make it easier for programmers to see the memory corruption
-> > > > > > > > +         problem.
-> > > > > > >
-> > > > > > > This description looks like a change description, i.e. it describes
-> > > > > > > the current behavior and how it changes. I think code comments should
-> > > > > > > not have such, they should describe the current state of the things.
-> > > > > > > It should also mention the trade-off, otherwise it raises reasonable
-> > > > > > > questions like "why it's not enabled by default?" and "why do I ever
-> > > > > > > want to not enable it?".
-> > > > > > > I would do something like:
-> > > > > > >
-> > > > > > > This option enables best-effort identification of bug type
-> > > > > > > (use-after-free or out-of-bounds)
-> > > > > > > at the cost of increased memory consumption for object quarantine.
-> > > > > > >
-> > > > > > I totally agree with your comments. Would you think we should try to add the cost?
-> > > > > > It may be that it consumes about 1/128th of available memory at full quarantine usage rate.
-> > > > >
-> > > > > Hi,
-> > > > >
-> > > > > I don't understand the question. We should not add costs if not
-> > > > > necessary. Or you mean why we should add _docs_ regarding the cost? Or
-> > > > > what?
-> > > > >
-> > > > I mean the description of option. Should it add the description for
-> > > > memory costs. I see KASAN_SW_TAGS and KASAN_GENERIC options to show the
-> > > > memory costs. So We originally think it is possible to add the
-> > > > description, if users want to enable it, maybe they want to know its
-> > > > memory costs.
-> > > >
-> > > > If you think it is not necessary, we will not add it.
+> > On 6/5/19 7:19 PM, Pingfan Liu wrote:
+> > > On Thu, Jun 6, 2019 at 5:49 AM Andrew Morton <akpm@linux-foundation.org> wrote:
+> > ...
+> > >>> --- a/mm/gup.c
+> > >>> +++ b/mm/gup.c
+> > >>> @@ -2196,6 +2196,26 @@ static int __gup_longterm_unlocked(unsigned long start, int nr_pages,
+> > >>>       return ret;
+> > >>>  }
+> > >>>
+> > >>> +#ifdef CONFIG_CMA
+> > >>> +static inline int reject_cma_pages(int nr_pinned, struct page **pages)
+> > >>> +{
+> > >>> +     int i;
+> > >>> +
+> > >>> +     for (i = 0; i < nr_pinned; i++)
+> > >>> +             if (is_migrate_cma_page(pages[i])) {
+> > >>> +                     put_user_pages(pages + i, nr_pinned - i);
+> > >>> +                     return i;
+> > >>> +             }
+> > >>> +
+> > >>> +     return nr_pinned;
+> > >>> +}
+> > >>
+> > >> There's no point in inlining this.
+> > > OK, will drop it in V4.
 > > >
-> > > Full description of memory costs for normal KASAN mode and
-> > > KASAN_SW_TAGS should probably go into
-> > > Documentation/dev-tools/kasan.rst rather then into config description
-> > > because it may be too lengthy.
+> > >>
+> > >> The code seems inefficient.  If it encounters a single CMA page it can
+> > >> end up discarding a possibly significant number of non-CMA pages.  I
+> > > The trick is the page is not be discarded, in fact, they are still be
+> > > referrenced by pte. We just leave the slow path to pick up the non-CMA
+> > > pages again.
 > > >
-> > Thanks your reminder.
+> > >> guess that doesn't matter much, as get_user_pages(FOLL_LONGTERM) is
+> > >> rare.  But could we avoid this (and the second pass across pages[]) by
+> > >> checking for a CMA page within gup_pte_range()?
+> > > It will spread the same logic to hugetlb pte and normal pte. And no
+> > > improvement in performance due to slow path. So I think maybe it is
+> > > not worth.
+> > >
+> > >>
 > >
-> > > I mentioned memory costs for this config because otherwise it's
-> > > unclear why would one ever want to _not_ enable this option. If it
-> > > would only have positive effects, then it should be enabled all the
-> > > time and should not be a config option at all.
+> > I think the concern is: for the successful gup_fast case with no CMA
+> > pages, this patch is adding another complete loop through all the
+> > pages. In the fast case.
 > >
-> > Sorry, I don't get your full meaning.
-> > You think not to add the memory costs into the description of config ?
-> > or need to add it? or make it not be a config option(default enabled)?
+> > If the check were instead done as part of the gup_pte_range(), then
+> > it would be a little more efficient for that case.
+> >
+> > As for whether it's worth it, *probably* this is too small an effect to measure.
+> > But in order to attempt a measurement: running fio (https://github.com/axboe/fio)
+> > with O_DIRECT on an NVMe drive, might shed some light. Here's an fio.conf file
+> > that Jan Kara and Tom Talpey helped me come up with, for related testing:
+> >
+> > [reader]
+> > direct=1
+> > ioengine=libaio
+> > blocksize=4096
+> > size=1g
+> > numjobs=1
+> > rw=read
+> > iodepth=64
+> >
+Unable to get a NVME device to have a test. And when testing fio on the
+tranditional disk, I got the error "fio: engine libaio not loadable
+fio: failed to load engine
+fio: file:ioengines.c:89, func=dlopen, error=libaio: cannot open shared object file: No such file or directory"
+
+But I found a test case which can be slightly adjusted to met the aim.
+It is tools/testing/selftests/vm/gup_benchmark.c
+
+Test enviroment:
+  MemTotal:       264079324 kB
+  MemFree:        262306788 kB
+  CmaTotal:              0 kB
+  CmaFree:               0 kB
+  on AMD EPYC 7601
+
+Test command:
+  gup_benchmark -r 100 -n 64
+  gup_benchmark -r 100 -n 64 -l
+where -r stands for repeat times, -n is nr_pages param for
+get_user_pages_fast(), -l is a new option to test FOLL_LONGTERM in fast
+path, see a patch at the tail.
+
+Test result:
+w/o     477.800000
+w/o-l   481.070000
+a       481.800000
+a-l     640.410000
+b       466.240000  (question a: b outperforms w/o ?)
+b-l     529.740000
+
+Where w/o is baseline without any patch using v5.2-rc2, a is this series, b
+does the check in gup_pte_range(). '-l' means FOLL_LONGTERM.
+
+I am suprised that b-l has about 17% improvement than a. (640.41 -529.74)/640.41
+As for "question a: b outperforms w/o ?", I can not figure out why, maybe it can be
+considered as variance.
+
+Based on the above result, I think it is better to do the check inside
+gup_pte_range().
+
+Any comment?
+
+Thanks,
+
+
+> Yeah, agreed. Data is more persuasive. Thanks for your suggestion. I
+> will try to bring out the result.
 > 
-> Yes, I think we need to include mention of additional cost into _this_
-> new config.
+> Thanks,
+>   Pingfan
+> 
 
-Thanks your response.
-We will fix v2 patch into next version.
 
-Thanks.
-Walter
+--W/nzBZO5zC0uMSeA
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="gup_pte_range_check.patch"
 
+---
+Patch to do check inside gup_pte_range()
+
+diff --git a/mm/gup.c b/mm/gup.c
+index 2ce3091..ba213a0 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -1757,6 +1757,10 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+ 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+ 		page = pte_page(pte);
+ 
++		if (unlikely(flags & FOLL_LONGTERM) &&
++			is_migrate_cma_page(page))
++				goto pte_unmap;
++
+ 		head = try_get_compound_head(page, 1);
+ 		if (!head)
+ 			goto pte_unmap;
+@@ -1900,6 +1904,12 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
+ 		refs++;
+ 	} while (addr += PAGE_SIZE, addr != end);
+ 
++	if (unlikely(flags & FOLL_LONGTERM) &&
++		is_migrate_cma_page(page)) {
++		*nr -= refs;
++		return 0;
++	}
++
+ 	head = try_get_compound_head(pmd_page(orig), refs);
+ 	if (!head) {
+ 		*nr -= refs;
+@@ -1941,6 +1951,12 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
+ 		refs++;
+ 	} while (addr += PAGE_SIZE, addr != end);
+ 
++	if (unlikely(flags & FOLL_LONGTERM) &&
++		is_migrate_cma_page(page)) {
++		*nr -= refs;
++		return 0;
++	}
++
+ 	head = try_get_compound_head(pud_page(orig), refs);
+ 	if (!head) {
+ 		*nr -= refs;
+@@ -1978,6 +1994,12 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
+ 		refs++;
+ 	} while (addr += PAGE_SIZE, addr != end);
+ 
++	if (unlikely(flags & FOLL_LONGTERM) &&
++		is_migrate_cma_page(page)) {
++		*nr -= refs;
++		return 0;
++	}
++
+ 	head = try_get_compound_head(pgd_page(orig), refs);
+ 	if (!head) {
+ 		*nr -= refs;
+
+--W/nzBZO5zC0uMSeA
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="mm-gup-introduce-LONGTERM_BENCHMARK-in-fast-path.patch"
+
+---
+Patch for testing
+
+diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
+index 7dd602d..61dec5f 100644
+--- a/mm/gup_benchmark.c
++++ b/mm/gup_benchmark.c
+@@ -6,8 +6,9 @@
+ #include <linux/debugfs.h>
+ 
+ #define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
+-#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
+-#define GUP_BENCHMARK		_IOWR('g', 3, struct gup_benchmark)
++#define GUP_FAST_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
++#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 3, struct gup_benchmark)
++#define GUP_BENCHMARK		_IOWR('g', 4, struct gup_benchmark)
+ 
+ struct gup_benchmark {
+ 	__u64 get_delta_usec;
+@@ -53,6 +54,11 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
+ 			nr = get_user_pages_fast(addr, nr, gup->flags & 1,
+ 						 pages + i);
+ 			break;
++		case GUP_FAST_LONGTERM_BENCHMARK:
++			nr = get_user_pages_fast(addr, nr,
++						 (gup->flags & 1) | FOLL_LONGTERM,
++						 pages + i);
++			break;
+ 		case GUP_LONGTERM_BENCHMARK:
+ 			nr = get_user_pages(addr, nr,
+ 					    (gup->flags & 1) | FOLL_LONGTERM,
+@@ -96,6 +102,7 @@ static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
+ 
+ 	switch (cmd) {
+ 	case GUP_FAST_BENCHMARK:
++	case GUP_FAST_LONGTERM_BENCHMARK:
+ 	case GUP_LONGTERM_BENCHMARK:
+ 	case GUP_BENCHMARK:
+ 		break;
+diff --git a/tools/testing/selftests/vm/gup_benchmark.c b/tools/testing/selftests/vm/gup_benchmark.c
+index c0534e2..ade8acb 100644
+--- a/tools/testing/selftests/vm/gup_benchmark.c
++++ b/tools/testing/selftests/vm/gup_benchmark.c
+@@ -15,8 +15,9 @@
+ #define PAGE_SIZE sysconf(_SC_PAGESIZE)
+ 
+ #define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
+-#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
+-#define GUP_BENCHMARK		_IOWR('g', 3, struct gup_benchmark)
++#define GUP_FAST_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
++#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 3, struct gup_benchmark)
++#define GUP_BENCHMARK		_IOWR('g', 4, struct gup_benchmark)
+ 
+ struct gup_benchmark {
+ 	__u64 get_delta_usec;
+@@ -37,7 +38,7 @@ int main(int argc, char **argv)
+ 	char *file = "/dev/zero";
+ 	char *p;
+ 
+-	while ((opt = getopt(argc, argv, "m:r:n:f:tTLUSH")) != -1) {
++	while ((opt = getopt(argc, argv, "m:r:n:f:tTlLUSH")) != -1) {
+ 		switch (opt) {
+ 		case 'm':
+ 			size = atoi(optarg) * MB;
+@@ -54,6 +55,9 @@ int main(int argc, char **argv)
+ 		case 'T':
+ 			thp = 0;
+ 			break;
++		case 'l':
++			cmd = GUP_FAST_LONGTERM_BENCHMARK;
++			break;
+ 		case 'L':
+ 			cmd = GUP_LONGTERM_BENCHMARK;
+ 			break;
+-- 
+2.7.5
+
+
+--W/nzBZO5zC0uMSeA--
 
