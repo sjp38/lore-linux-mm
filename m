@@ -6,94 +6,94 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 874D7C43218
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 10:15:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 134D7C43218
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 10:19:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5534F2089E
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 10:15:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5534F2089E
+	by mail.kernel.org (Postfix) with ESMTP id CC3FC205F4
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 10:19:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC3FC205F4
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E48986B0005; Tue, 11 Jun 2019 06:15:48 -0400 (EDT)
+	id 67E7B6B0005; Tue, 11 Jun 2019 06:19:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DF9A46B0006; Tue, 11 Jun 2019 06:15:48 -0400 (EDT)
+	id 607B86B0006; Tue, 11 Jun 2019 06:19:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE9576B0007; Tue, 11 Jun 2019 06:15:48 -0400 (EDT)
+	id 4CFB36B0007; Tue, 11 Jun 2019 06:19:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 828406B0005
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 06:15:48 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f19so15009476edv.16
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 03:15:48 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id F2BB66B0005
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 06:19:28 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y3so8591070edm.21
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 03:19:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=iOF1SAPRBnEPEbZ+SxJke6JWECYMQk69+WplrF3r10Q=;
-        b=gLnne1hc1m4iJ1SnVNLisircsU8rnkfzsa+nxVaAalHTKoqgE0kGjHniH9FQXGRqlb
-         pkBorbVk04Zygokjg2Tg43awLrFgmtdDii/8OZbIsRxTERdMjkw88nQ6Ql2PrXhJnn79
-         7mkozmMHFDOJVqT2460W+O4DXcTx5nglttfVB4RJc9ZH92hVKcUE2q3Dehp54Ck8pXJ/
-         VTQHFZXz1eF3SqtTZOHLQ7XucvI12jOJkrd5RWN0bYKQNP0A1yh/Hbjm/BLUIVqU9pdj
-         hoAP3ibG9X9jlSul89QVYRocfIgW9AV45Nymk3IguA0H/8U6p/KiAEOE0J7nMKGWVKL9
-         nzmg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vladimir.murzin@arm.com
-X-Gm-Message-State: APjAAAUh31OZ/a11QH1zp42LgH/iEgJ0uy+YEypv3eryLpa3X7CDl7pQ
-	jPo4Q4M8kwXRoUlMOf1ziCm238notxKEyG/kXeAQQYTbG4FNLnrA929It21kcynCpqkQkE4+Eoa
-	7hBdJ/osBDXmlvFflCytiRKSiudm30gNaTn/ihOMoRm8EtqqHC4CCy87OYzKW6VwiAg==
-X-Received: by 2002:a17:906:c404:: with SMTP id u4mr18910963ejz.123.1560248148095;
-        Tue, 11 Jun 2019 03:15:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzNW7QyHJ32C1xxPhgMqiQ+sQEvXu+dyHhSeC5nd/RXWpKva+UhgFIlQYHL4SH8/6jS5Pz6
-X-Received: by 2002:a17:906:c404:: with SMTP id u4mr18910896ejz.123.1560248147269;
-        Tue, 11 Jun 2019 03:15:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560248147; cv=none;
+        bh=cqgnL/EYzNk8EhINHvBbAgA/qxmIwSRASlgqfrCxBXg=;
+        b=g10RAzPwU1iFA4kCqf1mOagg+ABa7DrJ6tCq0nuh7En54kqOGxJkYg4IXUU0sSqRA7
+         P3kalFU2cG99G6rJ/go+HZZAoLgzT71BuAipbZcjYebTcCIOKUD/b2hEYp3OTAAUjziu
+         nI2h8Z0XvWwcqp1dIHWdTfVQbFQOvgcuttOeAcJxzWwaNDuia6wVJrygPtM61rrh8X7A
+         VXoedBE9djKeGAp+IxNXJbDT/HbxSvvLUjFuysyKqIwC2JfXRZYdwaIsCL2p01yvXPQx
+         0ZK/DxIkImjl58otwYfU73LEB0o3r4vA2+iD7QnxPO0rUMH5yq/TqoX/0pwvP6d4+AHi
+         pBsQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vladimir.murzin@arm.com
+X-Gm-Message-State: APjAAAW8Us2SDPc6/DfJY9nX04B6VrnRaRfIUYfBj7391Yk4WxOwcjyX
+	eJuNCIOU+IoKRP1o7i/id1ImiByZxn6X74IoPxXgb/Jn4L8xQXYTtGeopr9PG4ptWLg3p7084Xd
+	ZriNN9PxTUzaZ+I2+L7ZmqICBTX2kiBhB4g6SqHVAgRt+T83QDPEu3OAEfP3r3/f0ww==
+X-Received: by 2002:a17:906:4948:: with SMTP id f8mr16488340ejt.79.1560248368547;
+        Tue, 11 Jun 2019 03:19:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxyDem/uLNI3hC+IR0meQuU0TDx6Ih5/SbDmWep1xaE2P0tsDn6JUJt2JD0whCjsMjgr69Y
+X-Received: by 2002:a17:906:4948:: with SMTP id f8mr16488298ejt.79.1560248367885;
+        Tue, 11 Jun 2019 03:19:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560248367; cv=none;
         d=google.com; s=arc-20160816;
-        b=nIrlU8sdmBjal1eOOpGxXnP3OcCGx5FXMA0lffa6u6aIKlZSsHLb80tdOvu45rTY0h
-         M3QLoj7CBbkz1CSCXTlswIOYZT3K6xedSVsr4ZIQ06jF+Pw4we/b0Q0RYoRM678HX1f3
-         E+jO1rtvIYwrFdDwb62NmBStkFZW6BWE1vOQDJE1wxo1ipczHV89CwjUbmOmNu3vjKVI
-         xX+uFpQXKdIYj9hbZeF2gUwHXiaFuM8JZyJbqDjsstwHnn+yssB8WMm5StjV7+WVAA+6
-         77yAV+VSI0jVDTNxFoX0ErT2/VgBLzZq8S5KWraSJhMbNLo6bHu9Ynus4oyqR41E7czv
-         iJ7Q==
+        b=oGrv1OwO2D0LaA1ORTmBzaJGcIF/uwIVSvLwdtn3BNjlb35g99ii8YZxRbmLw4YYpn
+         nkEGZp3sbCzTpMA8QwXwujkjiwvLpsZxcQX3DFHvyHAPrGONr74XymufvP7FYKQcmneq
+         rmC7PnAp3lsLFH5jDZAsGOay1XWZMpoUBI8KTjiPIgAwsEXaBXOqkDJU/OTg79MnNl4W
+         20qQpIQys5R+iGuSrxAFI6fKnOK2ruij4eTLT288ucqwsDM6W/wYxs1v4I1h1jbScF1F
+         zPSFdGOkP2Cpa0d0yqVDPym8385Yf4cjgQpSKi+yLOA3xTK1cpyaM7xFSb6PUMYbvnLu
+         fi5Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=iOF1SAPRBnEPEbZ+SxJke6JWECYMQk69+WplrF3r10Q=;
-        b=r6qxmsBU+PeJjP8Etk5mn2YaJhdzmZgPbl/yujE1XfzKnuhKYcF8lBYjqI00p2awpK
-         m/0hEhDIo+okctJUsugddgVKKMjPUHcRCdI4ettq0tPIZc4dml/ZpyZ+4ei1O4zo6TLE
-         hXEQO2ahBnYG2sCH053WrC5GX63EEBgKMgvS9rQ0keIXxbwk6yeGxDP7qQGaykfWnfxa
-         FbOSqAAnx0O93Jf+B+Sp0gnTc7/7EhmR5VUIV1uvuDbfCD+09kPKirU4NdEWtVXc+Uzs
-         TkTAFg/qybZ5pCYat7283OTw7ma6KCnYLXxXM9TEHWh8ZHOPYzqgFq2h5vBQh0Kinnwy
-         lNpg==
+        bh=cqgnL/EYzNk8EhINHvBbAgA/qxmIwSRASlgqfrCxBXg=;
+        b=fEcru1Dvzq1BG1Yvuq/w4ceZQ8zrVkUDleJBCYyc+eJZiMAhOf4yYgyj86M6GbQ/lZ
+         ffoBvF3QaEicd28uUESB+valw+MW31K7VFwACnGHnodQoBlpD6yQjIR91KbEHFRu8hNo
+         7AjH+MiFOujk5NVXKs2uU4IDEMxGvBCAVicuJlXRMTMxzJtZnjp2JkQkjPCCTzI3ifiE
+         WoNdici4uP9X9rFMKKIJET9kSFHmOrsWO27dMtpLXjjaQrFUgADcTdh7aqkMvrmxwxV7
+         yYZFNtXSn38kbmHELrXjMleywCAnqH9e9gopkuizvw2QwESwW3i6Ov2OCpvXcexKpQdw
+         yOeA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vladimir.murzin@arm.com
+       spf=pass (google.com: best guess record for domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vladimir.murzin@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id h24si1237234ejp.115.2019.06.11.03.15.47
+        by mx.google.com with ESMTP id k5si1926024ejc.241.2019.06.11.03.19.27
         for <linux-mm@kvack.org>;
-        Tue, 11 Jun 2019 03:15:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+        Tue, 11 Jun 2019 03:19:27 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vladimir.murzin@arm.com
+       spf=pass (google.com: best guess record for domain of vladimir.murzin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vladimir.murzin@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6714B337;
-	Tue, 11 Jun 2019 03:15:46 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id B8662337;
+	Tue, 11 Jun 2019 03:19:26 -0700 (PDT)
 Received: from [10.1.29.141] (e121487-lin.cambridge.arm.com [10.1.29.141])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C8DCD3F557;
-	Tue, 11 Jun 2019 03:17:27 -0700 (PDT)
-Subject: Re: [PATCH 02/17] mm: stub out all of swapops.h for !CONFIG_MMU
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id AC6DF3F557;
+	Tue, 11 Jun 2019 03:21:07 -0700 (PDT)
+Subject: Re: [PATCH 03/17] mm/nommu: fix the MAP_UNINITIALIZED flag
 To: Christoph Hellwig <hch@lst.de>, Palmer Dabbelt <palmer@sifive.com>
 Cc: Damien Le Moal <damien.lemoal@wdc.com>, linux-riscv@lists.infradead.org,
  uclinux-dev@uclinux.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 References: <20190610221621.10938-1-hch@lst.de>
- <20190610221621.10938-3-hch@lst.de>
+ <20190610221621.10938-4-hch@lst.de>
 From: Vladimir Murzin <vladimir.murzin@arm.com>
-Message-ID: <516c8def-22db-027c-873d-a943454e33af@arm.com>
-Date: Tue, 11 Jun 2019 11:15:44 +0100
+Message-ID: <c902f38f-071d-cc83-801d-04d600f5ec12@arm.com>
+Date: Tue, 11 Jun 2019 11:19:23 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190610221621.10938-3-hch@lst.de>
+In-Reply-To: <20190610221621.10938-4-hch@lst.de>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -104,52 +104,79 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On 6/10/19 11:16 PM, Christoph Hellwig wrote:
-> The whole header file deals with swap entries and PTEs, none of which
-> can exist for nommu builds.
-
-Although I agree with the patch, I'm wondering how you get into it?
-
-Cheers
-Vladimir
-
+> We can't expose UAPI symbols differently based on CONFIG_ symbols, as
+> userspace won't have them available.  Instead always define the flag,
+> but only repsect it based on the config option.
+           ^^^^^^^
+           respect
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->  include/linux/swapops.h | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
+>  arch/xtensa/include/uapi/asm/mman.h    | 6 +-----
+>  include/uapi/asm-generic/mman-common.h | 8 +++-----
+>  mm/nommu.c                             | 4 +++-
+>  3 files changed, 7 insertions(+), 11 deletions(-)
+
+FWIW:
+
+Reviewed-by: Vladimir Murzin <vladimir.murzin@arm.com>
+
 > 
-> diff --git a/include/linux/swapops.h b/include/linux/swapops.h
-> index 4d961668e5fc..b02922556846 100644
-> --- a/include/linux/swapops.h
-> +++ b/include/linux/swapops.h
-> @@ -6,6 +6,8 @@
->  #include <linux/bug.h>
->  #include <linux/mm_types.h>
->  
-> +#ifdef CONFIG_MMU
-> +
->  /*
->   * swapcache pages are stored in the swapper_space radix tree.  We want to
->   * get good packing density in that tree, so the index should be dense in
-> @@ -50,13 +52,11 @@ static inline pgoff_t swp_offset(swp_entry_t entry)
->  	return entry.val & SWP_OFFSET_MASK;
->  }
->  
-> -#ifdef CONFIG_MMU
->  /* check whether a pte points to a swap entry */
->  static inline int is_swap_pte(pte_t pte)
->  {
->  	return !pte_none(pte) && !pte_present(pte);
->  }
+> diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
+> index be726062412b..ebbb48842190 100644
+> --- a/arch/xtensa/include/uapi/asm/mman.h
+> +++ b/arch/xtensa/include/uapi/asm/mman.h
+> @@ -56,12 +56,8 @@
+>  #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
+>  #define MAP_FIXED_NOREPLACE 0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
+> -#ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
+> -# define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be
+> +#define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be
+>  					 * uninitialized */
+> -#else
+> -# define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
 > -#endif
 >  
 >  /*
->   * Convert the arch-dependent pte representation of a swp_entry_t into an
-> @@ -375,4 +375,5 @@ static inline int non_swap_entry(swp_entry_t entry)
->  }
->  #endif
+>   * Flags for msync
+> diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
+> index abd238d0f7a4..cb556b430e71 100644
+> --- a/include/uapi/asm-generic/mman-common.h
+> +++ b/include/uapi/asm-generic/mman-common.h
+> @@ -19,15 +19,13 @@
+>  #define MAP_TYPE	0x0f		/* Mask for type of mapping */
+>  #define MAP_FIXED	0x10		/* Interpret addr exactly */
+>  #define MAP_ANONYMOUS	0x20		/* don't use a file */
+> -#ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
+> -# define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be uninitialized */
+> -#else
+> -# define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
+> -#endif
 >  
-> +#endif /* CONFIG_MMU */
->  #endif /* _LINUX_SWAPOPS_H */
+>  /* 0x0100 - 0x80000 flags are defined in asm-generic/mman.h */
+>  #define MAP_FIXED_NOREPLACE	0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
+>  
+> +#define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be
+> +					 * uninitialized */
+> +
+>  /*
+>   * Flags for mlock
+>   */
+> diff --git a/mm/nommu.c b/mm/nommu.c
+> index d8c02fbe03b5..ec75a0dffd4f 100644
+> --- a/mm/nommu.c
+> +++ b/mm/nommu.c
+> @@ -1349,7 +1349,9 @@ unsigned long do_mmap(struct file *file,
+>  	add_nommu_region(region);
+>  
+>  	/* clear anonymous mappings that don't ask for uninitialized data */
+> -	if (!vma->vm_file && !(flags & MAP_UNINITIALIZED))
+> +	if (!vma->vm_file &&
+> +	    (!IS_ENABLED(CONFIG_MMAP_ALLOW_UNINITIALIZED) ||
+> +	     !(flags & MAP_UNINITIALIZED)))
+>  		memset((void *)region->vm_start, 0,
+>  		       region->vm_end - region->vm_start);
+>  
 > 
 
