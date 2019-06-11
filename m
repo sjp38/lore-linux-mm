@@ -4,81 +4,81 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E2FAC4321B
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:41:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CE1B7C4321B
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:41:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 34A9921734
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:41:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7BDB320896
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:41:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Qsrqx7Gj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 34A9921734
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="ZURuWGVu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BDB320896
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 609836B000A; Tue, 11 Jun 2019 10:41:45 -0400 (EDT)
+	id 2D6226B000C; Tue, 11 Jun 2019 10:41:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5421F6B000C; Tue, 11 Jun 2019 10:41:45 -0400 (EDT)
+	id 21CE16B0266; Tue, 11 Jun 2019 10:41:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 347216B000D; Tue, 11 Jun 2019 10:41:45 -0400 (EDT)
+	id F0A3F6B0010; Tue, 11 Jun 2019 10:41:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 006A16B000A
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 10:41:45 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id s22so3886178plp.5
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 07:41:44 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A680A6B000C
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 10:41:46 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id a21so9240775pgh.11
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 07:41:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=gzNr8cC+RcaEr7a/7B73Y02JTGGTEGr38/f2ngv8wBc=;
-        b=YYGs34TaP1ASBOx8fOMSMq1zO6SYAVJmRc9YbiUIJJXY+M1YwUfgNo4qjxT8r8/jRq
-         QGbKMX6nJ5wW3NmQGj2vcohK0T4ZiD2Lr6HI4diHt6rHQHbV8eaSuxbDs4kPfotIC0UT
-         1dpALyqRjlmUlnAwfYfDYzhCfsQ74/xsPfUfAwCVvkprRqfuHyiA85qDvQaH8T+NAWJf
-         yJtn3vWA+WhqaXQSJfB/7bnSKGw6OiO5bf/923hdMixsbGwe8WaF5nxyJuTML3QD3YlE
-         AMSs3yYqwWd8oTo2h/eJQ2sdrhQJ/j2DKa7ZqG52qeOB1ywjhjP+kr4CbYMWpcxXRqsk
-         W9IQ==
-X-Gm-Message-State: APjAAAX6jYe9FC8UWuz0MkFh1MsyUH45F6tIs3MnctiDVsJHH9g3NL6f
-	rEd1VuxT4zDlGviAMf+9FBCMnR0U7PE/w0YsEVgqR5Ly3HvN+GkTyJSZN4naUf9Sk+CjXJYVOIT
-	W4IOzhHnwvVu8X6duM0l1ixkIdhOviuE7Z/hhZiiReF8/jA5eJ+9/Gk5rMZyLxf4=
-X-Received: by 2002:a17:90a:3a85:: with SMTP id b5mr11138132pjc.84.1560264104572;
+        bh=YdgQvYMgqOUQwEvGH17qBF0YrrxMqW6F+rGIWz8dtc8=;
+        b=fp0zThbMNP5eV88TDHw1ja4/r0GvaGXm2iu/PP2QwQgkO/DGK1fGGGe06MiOhWzbOJ
+         4Ggo9z4GnGy1xiXQgAx3ICqE5YrEmSY2PGLzmNS7RUb7b2loSD6Gj+8V79AzBE86vlkx
+         SnPnovg3a7PCgb4JNGL5S2Jje/qLfMbGns8nF0eabsZWbEJ+RefuwXwrCfnkq8VTbO+f
+         6PdolIPnW1yTRgrEmkvZMn9sm17ZDbyNH1SmDgOGLTSRcFZkWdOP7qbJi8AQwfsAkOcb
+         TKuMBROHHMvK2B3ya7nrSrKwUNd0tlqyapSaAT3pMhSZjYhxGWepO/xzw3+Qef0VHRrS
+         gLpQ==
+X-Gm-Message-State: APjAAAVd8h2wZfhpH7VCqXGMJwkNBvu2EoiLNOKlLxjSobBTl1wBZW7m
+	FariAjMaSStr9H3GECtm7FKBCg/c3gQ5oU/qN/10kP0gkmd0jxl3nwiNijiLMMeFcd8feCit1e9
+	BbX0jfPvj4AG6jrgoytpneQZ1gj/FnsWdCqtWrYaCxvcbRZiegSxwEdZNWAhfjpE=
+X-Received: by 2002:a17:90a:2008:: with SMTP id n8mr26753802pjc.4.1560264106198;
+        Tue, 11 Jun 2019 07:41:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzTb+a+xewxBBrxz6TBVadMIqHPUUqgKXfl1I/S29scmtt604917e91WNPbuE9sGbLmpLJX
+X-Received: by 2002:a17:90a:2008:: with SMTP id n8mr26753723pjc.4.1560264104909;
         Tue, 11 Jun 2019 07:41:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxWhqy27WXAbze9JSwLdNF9RD/psb9O4o89xrlDyrYMgAue1HrsGxJhhKQ2gtq24uy7u5Zo
-X-Received: by 2002:a17:90a:3a85:: with SMTP id b5mr11138066pjc.84.1560264103542;
-        Tue, 11 Jun 2019 07:41:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560264103; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1560264104; cv=none;
         d=google.com; s=arc-20160816;
-        b=PASDsw57eXtM6uJpnNsCW1Va9CtgLE47YRFxi57rJUeyT8ApyckRR/D7oL/Q/BACB1
-         Bf/1zgU2aVJ2TUGiXiIvNvhnXOwawzPOFPlZd0bGlik8x41sYYfP8DSvmqb9bvk01beH
-         znVFL6t3X35DNoKWk1spg59NHnUq3Y9D9NJIKQSi0U6Bu9+UmQ9iZCfoz/vMBuipM/2E
-         nIVF1l3f/RgILhNr/2YfTZwh35GBpLkTTWjgRmSLUPskl7sjK2fvcqlPOj+HnwrO1D9n
-         x4oxqRo5s/vlZxtbKiqYKPJAbubepzEHkmQg69P911W4+g3GXw+yECywe74NchSYarzw
-         lZcQ==
+        b=h5a0fIG4mZWaW6N8HFhJhZ/BhIkvf5FN5psT/LwPAxuF61YNF0jdI19YDwXizeVBRe
+         DCB1KpbUd5DxlG/Zjy4Iug5GenQUK/LvuGhIOq5Nx/bINa+qnKqLm/w8ujQN8zo9TFhJ
+         iw01dFP5ert7i7/kg9iz7bKLgs7ETnGeMCUIAOWHKIjtTkqWMuXxO3Cxh+pJ/BSyJR3d
+         w/wvSEmDFgowU4gQjRxPhXDr+qZ3aRaP7udAFuytVCR8qZM4+/pUDXkPunSDGfjDATJ/
+         cw0rA1XnTq2ruAdQ3qHaec2ONht3JgYAZxkOaXU+Q93G5H2K4pNVvoQg5wfd6V1yyEe0
+         9dXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=gzNr8cC+RcaEr7a/7B73Y02JTGGTEGr38/f2ngv8wBc=;
-        b=VzR8Y/D7qmA8+XzRQIEobpLZWZqGZM9iUbNjT9KIgxtSffDtpkJFR1Xca66xAoqiGe
-         fZEzOlqJ33UMvM9GaBaIKzIQgxOHzhuRMUPVv2v76b3/yNAOkX4kRpn+yjFL4sj9mgAZ
-         bK2d3uXFz9gVmX/jbOoSgxYD5qNlmeRe0pyzKDebhAnQge0KasrxMvppoXlDzrXLPiz9
-         7PtAmntNbJTo/SNetCm0enFHoL+DCugW2ImD1fijaj2y6r8Xod/8wF8P07+F+//i1dv4
-         Ckimxv2CyDWe20uq6RWMqipRw1U3Lbvz+qmatOXUGTmy7oAF5QnQviUpc+tPzA8L8lYX
-         LJsg==
+        bh=YdgQvYMgqOUQwEvGH17qBF0YrrxMqW6F+rGIWz8dtc8=;
+        b=i5MzQdsBEN3scm74Op3yT6pJTTj+VPA+OPYPSQTu4CadWlJ0osWO6pWBCT3SbjsETb
+         U6tTCsuAmxRjhAtCrYQ8eciC2zxCBb9nCorXNR9GpkYx0AWisev38OKix/8pvze+d2HY
+         4J+hsyP39Hnhsxyz8Srd/QUBdm89hmzpHdz2EC8s3mTRh6SBQCiyf2D4MWp3KgJJY9vu
+         z6YRIEPphoA8/Ap6WxtxysYW0ifEXA3ZLvmKUTFa1wYgDDSwPxAILyxnEgdCgtUpLR5g
+         dWy4kzRE7jAdoBj0Ozywtj7xWR/X+LWoddCcYUsX2TxJVRYQWKk5FWpdeubWwzhG3iPy
+         rczQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Qsrqx7Gj;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ZURuWGVu;
        spf=pass (google.com: best guess record for domain of batv+98d4ae9035936dc2f97b+5770+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+98d4ae9035936dc2f97b+5770+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id s2si12667711pgp.566.2019.06.11.07.41.43
+        by mx.google.com with ESMTPS id q23si15011370pfc.179.2019.06.11.07.41.44
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 11 Jun 2019 07:41:43 -0700 (PDT)
+        Tue, 11 Jun 2019 07:41:44 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+98d4ae9035936dc2f97b+5770+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Qsrqx7Gj;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=ZURuWGVu;
        spf=pass (google.com: best guess record for domain of batv+98d4ae9035936dc2f97b+5770+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+98d4ae9035936dc2f97b+5770+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=gzNr8cC+RcaEr7a/7B73Y02JTGGTEGr38/f2ngv8wBc=; b=Qsrqx7Gjl2GC8vf87J1kV0OBS9
-	Tt5zTsC9u5FMT4aBrJhjCtE6a9K5hEj6huEHcTGHIZTp0lPnrD3O3q6Taf6l5zAkrj04NvtpjMFZz
-	QSbVSiRFTFj1K1DWEpoIo8npKLbZp/icZRb4FmghwPVhUl2hQQ3GZ8V/iVwFa0djVedxsNvetvYQ/
-	U8rrAK2RSgtkuzMw1qKgToiMIX3BNteGcXa0JARj45dk/04PT26mlULgR6rFGQSTQUrd9alXQpxPZ
-	v2Ok1HiUy9mTgFSunZi7dGsxAIdFawyIN5trdPG1sAjbfv2nBSw2rK5taBkGiygEsnDU61sdcdRaz
-	phR5Tu6w==;
+	bh=YdgQvYMgqOUQwEvGH17qBF0YrrxMqW6F+rGIWz8dtc8=; b=ZURuWGVuu8robHBBLAFnrfoXA1
+	3nEbA75Eot/QHKe01UAt3GRvyP3MaANX7kIj1156NUNOqzDWHfLifgPOpACTIhxY5zThJ4/Yuo30s
+	SUvmYPVHlXiI8R1SYFNCriL33BKP7fi1zZM0xrz4HRElky5PGOcl56Pw6qviU9ASt5PugN2/So9F1
+	CcUgFtnaC/Zut0sPLBcCZUj1yseVIfmsO8zMpvIcgP9fED1u7pqhk68OQvC4iRR5fvwz/6W8SxrHl
+	gd3K2Kf6WAEZ9pJvBtBj57E0scbQ6tZP8jQmV/Yt5FTYtbjG06xkf+G6FL/jlyNMHgKdKnaCsKcSP
+	dNHuBkew==;
 Received: from mpp-cp1-natpool-1-037.ethz.ch ([82.130.71.37] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hahxZ-0005O7-RH; Tue, 11 Jun 2019 14:41:14 +0000
+	id 1hahxf-0005Pu-L2; Tue, 11 Jun 2019 14:41:20 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Linus Torvalds <torvalds@linux-foundation.org>,
 	Paul Burton <paul.burton@mips.com>,
@@ -115,9 +115,9 @@ Cc: Nicholas Piggin <npiggin@gmail.com>,
 	linux-mm@kvack.org,
 	x86@kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 02/16] mm: simplify gup_fast_permitted
-Date: Tue, 11 Jun 2019 16:40:48 +0200
-Message-Id: <20190611144102.8848-3-hch@lst.de>
+Subject: [PATCH 04/16] MIPS: use the generic get_user_pages_fast code
+Date: Tue, 11 Jun 2019 16:40:50 +0200
+Message-Id: <20190611144102.8848-5-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190611144102.8848-1-hch@lst.de>
 References: <20190611144102.8848-1-hch@lst.de>
@@ -130,111 +130,393 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Pass in the already calculated end value instead of recomputing it, and
-leave the end > start check in the callers instead of duplicating them
-in the arch code.
+The mips code is mostly equivalent to the generic one, minus various
+bugfixes and an arch override for gup_fast_permitted.
+
+Note that this defines ARCH_HAS_PTE_SPECIAL for mips as mips has
+pte_special and pte_mkspecial implemented and used in the existing
+gup code.  They are no-op stubs, though which makes me a little unsure
+if this is really right thing to do.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/s390/include/asm/pgtable.h   |  8 +-------
- arch/x86/include/asm/pgtable_64.h |  8 +-------
- mm/gup.c                          | 17 +++++++----------
- 3 files changed, 9 insertions(+), 24 deletions(-)
+ arch/mips/Kconfig               |   3 +
+ arch/mips/include/asm/pgtable.h |   3 +
+ arch/mips/mm/Makefile           |   1 -
+ arch/mips/mm/gup.c              | 303 --------------------------------
+ 4 files changed, 6 insertions(+), 304 deletions(-)
+ delete mode 100644 arch/mips/mm/gup.c
 
-diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index 9f0195d5fa16..9b274fcaacb6 100644
---- a/arch/s390/include/asm/pgtable.h
-+++ b/arch/s390/include/asm/pgtable.h
-@@ -1270,14 +1270,8 @@ static inline pte_t *pte_offset(pmd_t *pmd, unsigned long address)
- #define pte_offset_map(pmd, address) pte_offset_kernel(pmd, address)
- #define pte_unmap(pte) do { } while (0)
+diff --git a/arch/mips/Kconfig b/arch/mips/Kconfig
+index 70d3200476bf..64108a2a16d4 100644
+--- a/arch/mips/Kconfig
++++ b/arch/mips/Kconfig
+@@ -6,6 +6,7 @@ config MIPS
+ 	select ARCH_BINFMT_ELF_STATE if MIPS_FP_SUPPORT
+ 	select ARCH_CLOCKSOURCE_DATA
+ 	select ARCH_HAS_ELF_RANDOMIZE
++	select ARCH_HAS_PTE_SPECIAL
+ 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
+ 	select ARCH_HAS_UBSAN_SANITIZE_ALL
+ 	select ARCH_SUPPORTS_UPROBES
+@@ -34,6 +35,7 @@ config MIPS
+ 	select GENERIC_SCHED_CLOCK if !CAVIUM_OCTEON_SOC
+ 	select GENERIC_SMP_IDLE_THREAD
+ 	select GENERIC_TIME_VSYSCALL
++	select GUP_GET_PTE_LOW_HIGH if CPU_MIPS32 && PHYS_ADDR_T_64BIT
+ 	select HANDLE_DOMAIN_IRQ
+ 	select HAVE_ARCH_COMPILER_H
+ 	select HAVE_ARCH_JUMP_LABEL
+@@ -55,6 +57,7 @@ config MIPS
+ 	select HAVE_FTRACE_MCOUNT_RECORD
+ 	select HAVE_FUNCTION_GRAPH_TRACER
+ 	select HAVE_FUNCTION_TRACER
++	select HAVE_GENERIC_GUP
+ 	select HAVE_IDE
+ 	select HAVE_IOREMAP_PROT
+ 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
+diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+index 4ccb465ef3f2..7d27194e3b45 100644
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -20,6 +20,7 @@
+ #include <asm/cmpxchg.h>
+ #include <asm/io.h>
+ #include <asm/pgtable-bits.h>
++#include <asm/cpu-features.h>
  
--static inline bool gup_fast_permitted(unsigned long start, int nr_pages)
-+static inline bool gup_fast_permitted(unsigned long start, unsigned long end)
- {
--	unsigned long len, end;
+ struct mm_struct;
+ struct vm_area_struct;
+@@ -626,6 +627,8 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
+ 
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
++#define gup_fast_permitted(start, end)	(!cpu_has_dc_aliases)
++
+ #include <asm-generic/pgtable.h>
+ 
+ /*
+diff --git a/arch/mips/mm/Makefile b/arch/mips/mm/Makefile
+index f34d7ff5eb60..1e8d335025d7 100644
+--- a/arch/mips/mm/Makefile
++++ b/arch/mips/mm/Makefile
+@@ -7,7 +7,6 @@ obj-y				+= cache.o
+ obj-y				+= context.o
+ obj-y				+= extable.o
+ obj-y				+= fault.o
+-obj-y				+= gup.o
+ obj-y				+= init.o
+ obj-y				+= mmap.o
+ obj-y				+= page.o
+diff --git a/arch/mips/mm/gup.c b/arch/mips/mm/gup.c
+deleted file mode 100644
+index 4c2b4483683c..000000000000
+--- a/arch/mips/mm/gup.c
++++ /dev/null
+@@ -1,303 +0,0 @@
+-// SPDX-License-Identifier: GPL-2.0
+-/*
+- * Lockless get_user_pages_fast for MIPS
+- *
+- * Copyright (C) 2008 Nick Piggin
+- * Copyright (C) 2008 Novell Inc.
+- * Copyright (C) 2011 Ralf Baechle
+- */
+-#include <linux/sched.h>
+-#include <linux/mm.h>
+-#include <linux/vmstat.h>
+-#include <linux/highmem.h>
+-#include <linux/swap.h>
+-#include <linux/hugetlb.h>
 -
+-#include <asm/cpu-features.h>
+-#include <asm/pgtable.h>
+-
+-static inline pte_t gup_get_pte(pte_t *ptep)
+-{
+-#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
+-	pte_t pte;
+-
+-retry:
+-	pte.pte_low = ptep->pte_low;
+-	smp_rmb();
+-	pte.pte_high = ptep->pte_high;
+-	smp_rmb();
+-	if (unlikely(pte.pte_low != ptep->pte_low))
+-		goto retry;
+-
+-	return pte;
+-#else
+-	return READ_ONCE(*ptep);
+-#endif
+-}
+-
+-static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
+-			int write, struct page **pages, int *nr)
+-{
+-	pte_t *ptep = pte_offset_map(&pmd, addr);
+-	do {
+-		pte_t pte = gup_get_pte(ptep);
+-		struct page *page;
+-
+-		if (!pte_present(pte) ||
+-		    pte_special(pte) || (write && !pte_write(pte))) {
+-			pte_unmap(ptep);
+-			return 0;
+-		}
+-		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+-		page = pte_page(pte);
+-		get_page(page);
+-		SetPageReferenced(page);
+-		pages[*nr] = page;
+-		(*nr)++;
+-
+-	} while (ptep++, addr += PAGE_SIZE, addr != end);
+-
+-	pte_unmap(ptep - 1);
+-	return 1;
+-}
+-
+-static inline void get_head_page_multiple(struct page *page, int nr)
+-{
+-	VM_BUG_ON(page != compound_head(page));
+-	VM_BUG_ON(page_count(page) == 0);
+-	page_ref_add(page, nr);
+-	SetPageReferenced(page);
+-}
+-
+-static int gup_huge_pmd(pmd_t pmd, unsigned long addr, unsigned long end,
+-			int write, struct page **pages, int *nr)
+-{
+-	pte_t pte = *(pte_t *)&pmd;
+-	struct page *head, *page;
+-	int refs;
+-
+-	if (write && !pte_write(pte))
+-		return 0;
+-	/* hugepages are never "special" */
+-	VM_BUG_ON(pte_special(pte));
+-	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+-
+-	refs = 0;
+-	head = pte_page(pte);
+-	page = head + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
+-	do {
+-		VM_BUG_ON(compound_head(page) != head);
+-		pages[*nr] = page;
+-		(*nr)++;
+-		page++;
+-		refs++;
+-	} while (addr += PAGE_SIZE, addr != end);
+-
+-	get_head_page_multiple(head, refs);
+-	return 1;
+-}
+-
+-static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
+-			int write, struct page **pages, int *nr)
+-{
+-	unsigned long next;
+-	pmd_t *pmdp;
+-
+-	pmdp = pmd_offset(&pud, addr);
+-	do {
+-		pmd_t pmd = *pmdp;
+-
+-		next = pmd_addr_end(addr, end);
+-		if (pmd_none(pmd))
+-			return 0;
+-		if (unlikely(pmd_huge(pmd))) {
+-			if (!gup_huge_pmd(pmd, addr, next, write, pages,nr))
+-				return 0;
+-		} else {
+-			if (!gup_pte_range(pmd, addr, next, write, pages,nr))
+-				return 0;
+-		}
+-	} while (pmdp++, addr = next, addr != end);
+-
+-	return 1;
+-}
+-
+-static int gup_huge_pud(pud_t pud, unsigned long addr, unsigned long end,
+-			int write, struct page **pages, int *nr)
+-{
+-	pte_t pte = *(pte_t *)&pud;
+-	struct page *head, *page;
+-	int refs;
+-
+-	if (write && !pte_write(pte))
+-		return 0;
+-	/* hugepages are never "special" */
+-	VM_BUG_ON(pte_special(pte));
+-	VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
+-
+-	refs = 0;
+-	head = pte_page(pte);
+-	page = head + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
+-	do {
+-		VM_BUG_ON(compound_head(page) != head);
+-		pages[*nr] = page;
+-		(*nr)++;
+-		page++;
+-		refs++;
+-	} while (addr += PAGE_SIZE, addr != end);
+-
+-	get_head_page_multiple(head, refs);
+-	return 1;
+-}
+-
+-static int gup_pud_range(pgd_t pgd, unsigned long addr, unsigned long end,
+-			int write, struct page **pages, int *nr)
+-{
+-	unsigned long next;
+-	pud_t *pudp;
+-
+-	pudp = pud_offset(&pgd, addr);
+-	do {
+-		pud_t pud = *pudp;
+-
+-		next = pud_addr_end(addr, end);
+-		if (pud_none(pud))
+-			return 0;
+-		if (unlikely(pud_huge(pud))) {
+-			if (!gup_huge_pud(pud, addr, next, write, pages,nr))
+-				return 0;
+-		} else {
+-			if (!gup_pmd_range(pud, addr, next, write, pages,nr))
+-				return 0;
+-		}
+-	} while (pudp++, addr = next, addr != end);
+-
+-	return 1;
+-}
+-
+-/*
+- * Like get_user_pages_fast() except its IRQ-safe in that it won't fall
+- * back to the regular GUP.
+- * Note a difference with get_user_pages_fast: this always returns the
+- * number of pages pinned, 0 if no pages were pinned.
+- */
+-int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+-			  struct page **pages)
+-{
+-	struct mm_struct *mm = current->mm;
+-	unsigned long addr, len, end;
+-	unsigned long next;
+-	unsigned long flags;
+-	pgd_t *pgdp;
+-	int nr = 0;
+-
+-	start &= PAGE_MASK;
+-	addr = start;
 -	len = (unsigned long) nr_pages << PAGE_SHIFT;
 -	end = start + len;
--	if (end < start)
--		return false;
- 	return end <= current->mm->context.asce_limit;
- }
- #define gup_fast_permitted gup_fast_permitted
-diff --git a/arch/x86/include/asm/pgtable_64.h b/arch/x86/include/asm/pgtable_64.h
-index 0bb566315621..4990d26dfc73 100644
---- a/arch/x86/include/asm/pgtable_64.h
-+++ b/arch/x86/include/asm/pgtable_64.h
-@@ -259,14 +259,8 @@ extern void init_extra_mapping_uc(unsigned long phys, unsigned long size);
- extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
- 
- #define gup_fast_permitted gup_fast_permitted
--static inline bool gup_fast_permitted(unsigned long start, int nr_pages)
-+static inline bool gup_fast_permitted(unsigned long start, unsigned long end)
- {
--	unsigned long len, end;
+-	if (unlikely(!access_ok((void __user *)start, len)))
+-		return 0;
 -
--	len = (unsigned long)nr_pages << PAGE_SHIFT;
--	end = start + len;
--	if (end < start)
--		return false;
- 	if (end >> __VIRTUAL_MASK_SHIFT)
- 		return false;
- 	return true;
-diff --git a/mm/gup.c b/mm/gup.c
-index 6bb521db67ec..3237f33792e6 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -2123,13 +2123,9 @@ static void gup_pgd_range(unsigned long addr, unsigned long end,
-  * Check if it's allowed to use __get_user_pages_fast() for the range, or
-  * we need to fall back to the slow version:
-  */
--bool gup_fast_permitted(unsigned long start, int nr_pages)
-+static bool gup_fast_permitted(unsigned long start, unsigned long end)
- {
--	unsigned long len, end;
+-	/*
+-	 * XXX: batch / limit 'nr', to avoid large irq off latency
+-	 * needs some instrumenting to determine the common sizes used by
+-	 * important workloads (eg. DB2), and whether limiting the batch
+-	 * size will decrease performance.
+-	 *
+-	 * It seems like we're in the clear for the moment. Direct-IO is
+-	 * the main guy that batches up lots of get_user_pages, and even
+-	 * they are limited to 64-at-a-time which is not so many.
+-	 */
+-	/*
+-	 * This doesn't prevent pagetable teardown, but does prevent
+-	 * the pagetables and pages from being freed.
+-	 *
+-	 * So long as we atomically load page table pointers versus teardown,
+-	 * we can follow the address down to the page and take a ref on it.
+-	 */
+-	local_irq_save(flags);
+-	pgdp = pgd_offset(mm, addr);
+-	do {
+-		pgd_t pgd = *pgdp;
 -
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none(pgd))
+-			break;
+-		if (!gup_pud_range(pgd, addr, next, write, pages, &nr))
+-			break;
+-	} while (pgdp++, addr = next, addr != end);
+-	local_irq_restore(flags);
+-
+-	return nr;
+-}
+-
+-/**
+- * get_user_pages_fast() - pin user pages in memory
+- * @start:	starting user address
+- * @nr_pages:	number of pages from start to pin
+- * @gup_flags:	flags modifying pin behaviour
+- * @pages:	array that receives pointers to the pages pinned.
+- *		Should be at least nr_pages long.
+- *
+- * Attempt to pin user pages in memory without taking mm->mmap_sem.
+- * If not successful, it will fall back to taking the lock and
+- * calling get_user_pages().
+- *
+- * Returns number of pages pinned. This may be fewer than the number
+- * requested. If nr_pages is 0 or negative, returns 0. If no pages
+- * were pinned, returns -errno.
+- */
+-int get_user_pages_fast(unsigned long start, int nr_pages,
+-			unsigned int gup_flags, struct page **pages)
+-{
+-	struct mm_struct *mm = current->mm;
+-	unsigned long addr, len, end;
+-	unsigned long next;
+-	pgd_t *pgdp;
+-	int ret, nr = 0;
+-
+-	start &= PAGE_MASK;
+-	addr = start;
 -	len = (unsigned long) nr_pages << PAGE_SHIFT;
--	end = start + len;
--	return end >= start;
-+	return true;
- }
- #endif
- 
-@@ -2150,6 +2146,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	len = (unsigned long) nr_pages << PAGE_SHIFT;
- 	end = start + len;
- 
-+	if (end <= start)
-+		return 0;
- 	if (unlikely(!access_ok((void __user *)start, len)))
- 		return 0;
- 
-@@ -2165,7 +2163,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
- 	 * block IPIs that come from THPs splitting.
- 	 */
- 
--	if (gup_fast_permitted(start, nr_pages)) {
-+	if (gup_fast_permitted(start, end)) {
- 		local_irq_save(flags);
- 		gup_pgd_range(start, end, write ? FOLL_WRITE : 0, pages, &nr);
- 		local_irq_restore(flags);
-@@ -2224,13 +2222,12 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
- 	len = (unsigned long) nr_pages << PAGE_SHIFT;
- 	end = start + len;
- 
--	if (nr_pages <= 0)
-+	if (end <= start)
- 		return 0;
 -
- 	if (unlikely(!access_ok((void __user *)start, len)))
- 		return -EFAULT;
- 
--	if (gup_fast_permitted(start, nr_pages)) {
-+	if (gup_fast_permitted(start, end)) {
- 		local_irq_disable();
- 		gup_pgd_range(addr, end, gup_flags, pages, &nr);
- 		local_irq_enable();
+-	end = start + len;
+-	if (end < start || cpu_has_dc_aliases)
+-		goto slow_irqon;
+-
+-	/* XXX: batch / limit 'nr' */
+-	local_irq_disable();
+-	pgdp = pgd_offset(mm, addr);
+-	do {
+-		pgd_t pgd = *pgdp;
+-
+-		next = pgd_addr_end(addr, end);
+-		if (pgd_none(pgd))
+-			goto slow;
+-		if (!gup_pud_range(pgd, addr, next, gup_flags & FOLL_WRITE,
+-				   pages, &nr))
+-			goto slow;
+-	} while (pgdp++, addr = next, addr != end);
+-	local_irq_enable();
+-
+-	VM_BUG_ON(nr != (end - start) >> PAGE_SHIFT);
+-	return nr;
+-slow:
+-	local_irq_enable();
+-
+-slow_irqon:
+-	/* Try to get the remaining pages with get_user_pages */
+-	start += nr << PAGE_SHIFT;
+-	pages += nr;
+-
+-	ret = get_user_pages_unlocked(start, (end - start) >> PAGE_SHIFT,
+-				      pages, gup_flags);
+-
+-	/* Have to be a bit careful with return values */
+-	if (nr > 0) {
+-		if (ret < 0)
+-			ret = nr;
+-		else
+-			ret += nr;
+-	}
+-	return ret;
+-}
 -- 
 2.20.1
 
