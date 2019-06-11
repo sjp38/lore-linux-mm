@@ -2,145 +2,203 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B03EC43218
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 09:38:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 774AAC4321A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 09:50:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF633212F5
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 09:38:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF633212F5
+	by mail.kernel.org (Postfix) with ESMTP id 3DBF020679
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 09:50:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DBF020679
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 711766B0007; Tue, 11 Jun 2019 05:38:34 -0400 (EDT)
+	id E35856B0005; Tue, 11 Jun 2019 05:50:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6C2866B0008; Tue, 11 Jun 2019 05:38:34 -0400 (EDT)
+	id DE5776B0006; Tue, 11 Jun 2019 05:50:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D6D06B000A; Tue, 11 Jun 2019 05:38:34 -0400 (EDT)
+	id CAD186B0007; Tue, 11 Jun 2019 05:50:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BB8A6B0007
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:38:34 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id c1so19819910edi.20
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 02:38:33 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D0236B0005
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:50:13 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b3so18885975edd.22
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 02:50:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=6q1R6VkX/s6POxfFRQ2SqAnw9oY8FrCxPQ2D4yeGm1s=;
-        b=uaJM71nfRcPyG9Tfvxiw2sJfu3OIe0XPnPc7bpbe4tTg22cP0VE+zwtl34v6r8JzLX
-         4f2mO44paXn3MPslAjiIy78r1BHFTSCWEMnxEvxw1y7dbl6IR4L/MCNDkPrak+aihaF9
-         dyfXwo3d1JVOWdwh2VXk/qJy8eszneOLg1rG35xT1gTrxpWm8QRftllE712aBMZveJ0f
-         JWa1xP6D/upHcWcdb3kCl++ZJR0RqPAuZCh+T3LOanhp+GtPBacTct+pR9QWrSNtvDzU
-         WMbpl1Z5a44kJG30ZxqgZN/CBe3LkXYsVnxjBg0Ty5S+/+6uZ6JIhCYO597WP7+x+W+J
-         5xTA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAWAYYG4xlkwjna9d62bFEY+SkmyiFAMdNitnTd2khy3LYz3Y9Sx
-	qQQ0MFLUjyIlL+CQy5nj9LX6aIcbaiF7a4wyPDAssFtSYEN2aKnKi2IAAmTGrkRONSgPKLQDKAS
-	KcJ4DzGkRAGJ+8ia8Ah7I6BHaLvwpygWOYERpdLMZSS8MRbrgMYYtFfdcybM+1E67qQ==
-X-Received: by 2002:a50:b062:: with SMTP id i89mr79580630edd.85.1560245913619;
-        Tue, 11 Jun 2019 02:38:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwrayCdc4lk/vSM/gwF+B5KkQzeiZhqQrI1Nk3XjEp8L8EicbegO8nA2QpmHHWL+sJlQnV8
-X-Received: by 2002:a50:b062:: with SMTP id i89mr79580568edd.85.1560245912821;
-        Tue, 11 Jun 2019 02:38:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560245912; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=/o5L4LPCBPqe85Yg/dw7bcLQmzuIzYH92mk85SgWzd0=;
+        b=bDV26mOdpVXSCiXGThzlYv2ZEzWw0uiaB6El4BSXQMvc8xVWby91xanAGPRhnALV64
+         pITBJG4Y2Iw++ay+pPybYpbMgWsKZva+twhOalDtwiSLPA7QmeJ1gn1tyUuVOuK2P5kn
+         SIA8dC3lXJ07WN2ptryZqac1Fs/Z5QLzwhtnBeEmwmBEFXOp4qPiFh/6EvPM6Z9zzjyc
+         HCE6LlmXyXc0bfB8AKq+/WDlZST3pxggddcOW9C1WzmWxmdKgC110VR8oSqcBgjhZp7D
+         6KEZf0065HKLDQIhxmuygqKT9gulDu66uV21NsZC7UudcuqMhnxkoRkgoJCQwMkRjdP/
+         L3tA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAXjb3kq7dBrWmB6IxRIMsqT42BwsZEARmiarXSCTa9+e4f6GaCZ
+	pbWVEXXJEZ7ZLerPvrSPPE/jysR13bC0GgNvcLkf8n89cj3UZ77Zzjr/K05nHew38tq+HFv9BIr
+	eqggCBW1j3HFTiEWKJRPbs3QgNrs3Xbsq3fkmTCF6v2ynMulAZ8B+Br++s/eI25m32g==
+X-Received: by 2002:a50:92fc:: with SMTP id l57mr54937970eda.206.1560246613070;
+        Tue, 11 Jun 2019 02:50:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyudCbaa/VQ7snHOe03l1kUNUctEFimtNALBzxCjqTEsywbGMGrnZ/i1BPOVgW1tbRUrXE9
+X-Received: by 2002:a50:92fc:: with SMTP id l57mr54937889eda.206.1560246612176;
+        Tue, 11 Jun 2019 02:50:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560246612; cv=none;
         d=google.com; s=arc-20160816;
-        b=eFiwrrBdoM4nSZMIuvUhW/zLx3sYaEORr/JYa9orZnkbjpwDA7S+RuvkPUKN3e1P7q
-         MCWmCQ6sEeFITJcRSp/5x/0Vs8/AHY4CUmL4oX+M8yrOlMwSR8l/Ks8O/F136Vkkg5F5
-         16b/rFUVoSZxgR4RpAuBSmGCYyjTkplDRGyLePNm3kr19yrIaQ0hRPU9nlt8/pU5gNkB
-         zhUtBwzqHpiDNh4uP4BK1n5gXaYUB7KZrrSBDfuN8/j4TOeswoJNufklRGUlKWxFbou+
-         +HLPo+dlSQbcO6sKHnKpz88UGLDwTAu+ia3sjvpyQ6RqbEQFxrSCPNpPu2FFXZ185q7P
-         zfmg==
+        b=gZHfw6d7O8IeUO3T3UqtnlZI4w4aDEMDwGhTMpOUT4jPjc6d0TYcDu9qYP3pb59jFk
+         DC4Gbwd+gqeKEGKrhp9/SJbVu2g4PsviPZ9Wwg/x5URCGw0oEYghHcsbRG3M8gvb4eSm
+         /o/5kXq6FFqdwh0lMkyBYqKYofTKVhYavOu5Mw3/LQO4PEgzI7UwzbVAKVvh8NZmqk4i
+         kJsI066JFRnUN5qFzvJRP9RfrAVGy/PXyK/gH8xwl4TYP8aPGyMxIDG4/O1A64sjJxnR
+         qJWQDXZjALrH8F+Y/yaVlRyIEXYMeBMegzptcn9v8JQ6KTmsHItjGfLIIOuTVpr+MY3t
+         8D6w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=6q1R6VkX/s6POxfFRQ2SqAnw9oY8FrCxPQ2D4yeGm1s=;
-        b=FaOMyzMgkicllrYC/sNdhDtko2EqsUZ6xfZDlYO3gNmPW2VigYXF4fZlBTco5Jpfe5
-         eu9UowgkRR/4yMYFb4v9F6bF7RkGWT3qdhjoCo5TWaLgtopbhQPGji36e1HUw2IejZuv
-         ByP47hA084tcBjgHoKWzVH4sw2UPPkogkxfx+d3sHueGkijXuBLOs/0XXASoTL+0wnJ1
-         4N5cQnaD37VbjSXkGbKaafTuLn8lBXwcLQAfULBqjFSMdod7Wv7fcPINU9uJGefW+nE/
-         5/FcTJmARfT3w2sYbKyWi6dNCEggreh7CxhVcYCAnRkwMQqBOxEUVkq7NMjoJutDoWTv
-         ck/Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=/o5L4LPCBPqe85Yg/dw7bcLQmzuIzYH92mk85SgWzd0=;
+        b=NogMKVfCC3xXD+u263J9kov3qtR+NUQA1AbVLVu1Hkmu39rNofEXFq/sEGX35758oh
+         NLIQIFgl76lJ0tvtPhiRc5bJ1xqVGFD+ilUqHT1zecbBDo2++Xfr/6AMQjDq6HjGP8ZZ
+         vpwJof/szphovrXhAe/d9l7iCnN5Wl1gNbLHuT8huPO+N3+3iPEwk+t4Gn/GCJkiyvkS
+         EfsJfMxVhJIR3NGR1h4mAlLxfpGBq244HLZfylxyo101GwOiSmvSAlISTXSECcG9LUxJ
+         ITL3WPm9S9Uyqvq8ygCK/tSfBRlTa1kQyVb2wmQBHjLYcIskjByELXLZPqlUzoZ69Uhr
+         UV1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id l1si7315537ejn.215.2019.06.11.02.38.31
+        by mx.google.com with ESMTP id a9si10138209edn.27.2019.06.11.02.50.11
         for <linux-mm@kvack.org>;
-        Tue, 11 Jun 2019 02:38:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+        Tue, 11 Jun 2019 02:50:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id CD815EBD;
-	Tue, 11 Jun 2019 02:38:30 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id AF8543F77D;
-	Tue, 11 Jun 2019 02:38:29 -0700 (PDT)
-Date: Tue, 11 Jun 2019 10:38:23 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org,
-	Anshuman Khandual <anshuman.khandual@arm.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@suse.com>, Yu Zhao <yuzhao@google.com>,
-	linux-mm@kvack.org, Mike Rapoport <rppt@linux.ibm.com>
-Subject: Re: [PATCH] mm: treewide: Clarify pgtable_page_{ctor,dtor}() naming
-Message-ID: <20190611093822.GA26409@lakrids.cambridge.arm.com>
-References: <20190610163354.24835-1-mark.rutland@arm.com>
- <20190610130511.310e8d2cc8d6b02b2c3e238d@linux-foundation.org>
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 30E24337;
+	Tue, 11 Jun 2019 02:50:11 -0700 (PDT)
+Received: from [10.162.43.135] (p8cg001049571a15.blr.arm.com [10.162.43.135])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BC1593F73C;
+	Tue, 11 Jun 2019 02:51:50 -0700 (PDT)
+Subject: Re: [PATCH v2 2/2] mm: hugetlb: soft-offline:
+ dissolve_free_huge_page() return zero on !PageHuge
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>,
+ xishi.qiuxishi@alibaba-inc.com, "Chen, Jerry T" <jerry.t.chen@intel.com>,
+ "Zhuo, Qiuxu" <qiuxu.zhuo@intel.com>, linux-kernel@vger.kernel.org
+References: <1560154686-18497-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1560154686-18497-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <4a1ea5f4-d35d-f3a6-920c-c35520234aa3@arm.com>
+Date: Tue, 11 Jun 2019 15:20:26 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190610130511.310e8d2cc8d6b02b2c3e238d@linux-foundation.org>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+In-Reply-To: <1560154686-18497-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 10, 2019 at 01:05:11PM -0700, Andrew Morton wrote:
-> On Mon, 10 Jun 2019 17:33:54 +0100 Mark Rutland <mark.rutland@arm.com> wrote:
-> 
-> > The naming of pgtable_page_{ctor,dtor}() seems to have confused a few
-> > people, and until recently arm64 used these erroneously/pointlessly for
-> > other levels of pagetable.
-> > 
-> > To make it incredibly clear that these only apply to the PTE level, and
-> > to align with the naming of pgtable_pmd_page_{ctor,dtor}(), let's rename
-> > them to pgtable_pte_page_{ctor,dtor}().
-> > 
-> > The bulk of this conversion was performed by the below Coccinelle
-> > semantic patch, with manual whitespace fixups applied within macros, and
-> > Documentation updated by hand.
-> 
-> eep.  I get a spectacular number of rejects thanks to Mike's series
-> 
-> asm-generic-x86-introduce-generic-pte_allocfree_one.patch
-> alpha-switch-to-generic-version-of-pte-allocation.patch
-> arm-switch-to-generic-version-of-pte-allocation.patch
-> arm64-switch-to-generic-version-of-pte-allocation.patch
-> csky-switch-to-generic-version-of-pte-allocation.patch
-> m68k-sun3-switch-to-generic-version-of-pte-allocation.patch
-> mips-switch-to-generic-version-of-pte-allocation.patch
-> nds32-switch-to-generic-version-of-pte-allocation.patch
-> nios2-switch-to-generic-version-of-pte-allocation.patch
-> parisc-switch-to-generic-version-of-pte-allocation.patch
-> riscv-switch-to-generic-version-of-pte-allocation.patch
-> um-switch-to-generic-version-of-pte-allocation.patch
-> unicore32-switch-to-generic-version-of-pte-allocation.patch
-> 
-> But at least they will make your patch smaller!
 
-Aha; thanks for the heads-up!
+On 06/10/2019 01:48 PM, Naoya Horiguchi wrote:
+> madvise(MADV_SOFT_OFFLINE) often returns -EBUSY when calling soft offline
+> for hugepages with overcommitting enabled. That was caused by the suboptimal
+> code in current soft-offline code. See the following part:
+> 
+>     ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
+>                             MIGRATE_SYNC, MR_MEMORY_FAILURE);
+>     if (ret) {
+>             ...
+>     } else {
+>             /*
+>              * We set PG_hwpoison only when the migration source hugepage
+>              * was successfully dissolved, because otherwise hwpoisoned
+>              * hugepage remains on free hugepage list, then userspace will
+>              * find it as SIGBUS by allocation failure. That's not expected
+>              * in soft-offlining.
+>              */
+>             ret = dissolve_free_huge_page(page);
+>             if (!ret) {
+>                     if (set_hwpoison_free_buddy_page(page))
+>                             num_poisoned_pages_inc();
+>             }
+>     }
+>     return ret;
+> 
+> Here dissolve_free_huge_page() returns -EBUSY if the migration source page
+> was freed into buddy in migrate_pages(), but even in that case we actually
 
-Given this cleanup isn't urgent, I'll sit on it until the above has
-settled.
+Over committed source pages will be released into buddy and the normal ones
+will not be ? dissolve_free_huge_page() returns -EBUSY because PageHuge()
+return negative on already released pages ? How dissolve_free_huge_page()
+will behave differently with over committed pages. I might be missing some
+recent developments here.
 
-Mark.
+> has a chance that set_hwpoison_free_buddy_page() succeeds. So that means
+> current code gives up offlining too early now.
+
+Hmm. It gives up early as the return value from dissolve_free_huge_page(EBUSY)
+gets back as the return code for soft_offline_huge_page() without attempting
+set_hwpoison_free_buddy_page() which still has a chance to succeed for freed
+normal buddy pages.
+
+> 
+> dissolve_free_huge_page() checks that a given hugepage is suitable for
+> dissolving, where we should return success for !PageHuge() case because
+> the given hugepage is considered as already dissolved.
+
+Right. It should return 0 (as a success) for freed normal buddy pages. Should
+not it then check explicitly for PageBuddy() as well ?
+
+> 
+> This change also affects other callers of dissolve_free_huge_page(),
+> which are cleaned up together.
+> 
+> Reported-by: Chen, Jerry T <jerry.t.chen@intel.com>
+> Tested-by: Chen, Jerry T <jerry.t.chen@intel.com>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Fixes: 6bc9b56433b76 ("mm: fix race on soft-offlining")
+> Cc: <stable@vger.kernel.org> # v4.19+
+> ---
+>  mm/hugetlb.c        | 15 +++++++++------
+>  mm/memory-failure.c |  5 +----
+>  2 files changed, 10 insertions(+), 10 deletions(-)
+> 
+> diff --git v5.2-rc3/mm/hugetlb.c v5.2-rc3_patched/mm/hugetlb.c
+> index ac843d3..048d071 100644
+> --- v5.2-rc3/mm/hugetlb.c
+> +++ v5.2-rc3_patched/mm/hugetlb.c
+> @@ -1519,7 +1519,12 @@ int dissolve_free_huge_page(struct page *page)
+>  	int rc = -EBUSY;
+>  
+>  	spin_lock(&hugetlb_lock);
+> -	if (PageHuge(page) && !page_count(page)) {
+> +	if (!PageHuge(page)) {
+> +		rc = 0;
+> +		goto out;
+> +	}
+
+With this early bail out it maintains the functionality when called from
+soft_offline_free_page() for normal pages. For huge page, it continues
+on the previous path.
+
+> +
+> +	if (!page_count(page)) {
+>  		struct page *head = compound_head(page);
+>  		struct hstate *h = page_hstate(head);
+>  		int nid = page_to_nid(head);
+> @@ -1564,11 +1569,9 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+>  
+>  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order) {
+>  		page = pfn_to_page(pfn);
+> -		if (PageHuge(page) && !page_count(page)) {
+
+Right. These checks are now redundant.
 
