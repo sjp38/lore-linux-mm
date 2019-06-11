@@ -2,346 +2,349 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC034C31E44
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 21:36:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 500BCC31E46
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 21:59:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 92CB120872
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 21:36:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 92CB120872
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 06F4A20866
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 21:59:50 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="LQ6S9B5W"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06F4A20866
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 03C286B0006; Tue, 11 Jun 2019 17:36:57 -0400 (EDT)
+	id 902D36B0006; Tue, 11 Jun 2019 17:59:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F2DB86B000C; Tue, 11 Jun 2019 17:36:56 -0400 (EDT)
+	id 8B4B66B000C; Tue, 11 Jun 2019 17:59:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E1CB56B000D; Tue, 11 Jun 2019 17:36:56 -0400 (EDT)
+	id 77BC16B000D; Tue, 11 Jun 2019 17:59:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A757E6B0006
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 17:36:56 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id f1so10506370pfb.0
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 14:36:56 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 40A2F6B0006
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 17:59:50 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id f10so4927882plr.17
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 14:59:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=5sOm7iYADBJakOPuW1mfr/hU0M6Vm95ot5Q353saeu8=;
-        b=h3Hj4P5Zhp12y978Eb0MeligJwlUYTv27T9DJW6boRm0N8znhJMoPoAstEQ2ijKvxH
-         7k6uH8ut9iD4O78TybIbevlYhliXDNmCB9KZqQVITkpmYDc/laP84A2UjNk/3m7SXSXj
-         ViyWE2uu81Ke/Gx3X+wp1J36JASP/KjqcbUKv04ZX0Q7xoUXdWgrK/lNj144gZYljxGG
-         lQp8PNF1ajIurjTzsK/lTU05Ox9VIQOL07CmJiI0SRQcB5nLqR0VWqDqgiZEudFncpvR
-         UT92+u2cEudazMNCDiofMFWpb6HesyNIa/aaJCZWQ/STMg+uBDgXPTT0d+TLfYLJn3N6
-         fdBw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWSJOoS7bABxwqYPyuvdTMKd9iHscCitOJACZCw19oMkLHhyOjc
-	7KX3UCfw0xoJTPaENGAYINnKf2q2UmtXhsaEG+xOPRTCfVj/5eka9LDtxn0KmnpjcAdy5LRU9Nl
-	t7ObcH4aR1xoa2YtgsJeoVK6qQCUBplSjGhvylkmgGGS/2sain7sG/TSJWJF3HJBlUQ==
-X-Received: by 2002:a65:408d:: with SMTP id t13mr21676187pgp.373.1560289016158;
-        Tue, 11 Jun 2019 14:36:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzFdjHsW5s22XRQ92YFAE3ZCi8ff74SIJFD6JDoYW8mS2tqpswrG2sryFz+lrlt+nMy6lnW
-X-Received: by 2002:a65:408d:: with SMTP id t13mr21676118pgp.373.1560289014858;
-        Tue, 11 Jun 2019 14:36:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560289014; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=VmhJMV0Np4v0eA65Qt+YfIQRgnxKyiiKiYRlh0slvOA=;
+        b=sApoOJz3B/FeUu55wgZHi81tID9BNoZbcI2DivobnSGp96yB5Cqa0Z2HnGg80GEjqT
+         vVS/TfGDi76GaJYE+zkVVy56xPwOqe3ZxXRlEcc7FQBZJvQXVLt4hcUQH7k89OhSqlry
+         q8brWjNjWg9d3C1MNoaUfJasj8PZ7F3PtUTjCUjEURKysTuFas4lNiwjmZpEMYRP0F9u
+         IYB0WNHaCWF5DwKNWgsGU+6cepcKF5OSmjY3yFPfUa+5sB3nmKAfSQvLjF/fxTznaI7M
+         ZJxoRqc1s146WJ0AnN6XUPVvsHh/g5R4bf1MUs0amWfQYaJ49IGVSq2+hxKFIeHhs9R0
+         0cJg==
+X-Gm-Message-State: APjAAAUx1TQfxIpt9jRjwitkK3WwPvBpT1WHFIUBcVsi1+AesIOJmjpK
+	xGuoOYa3nzVAiiuUfji4vvprL1LXVC9qmpjuWzLBZxU9fWyLPs/5dKqWA6SiSe72ZuRR8iihtv7
+	KfYjGvW3CwSZx6GL3+g8H2j5zKFmzd1BmocULmQTd4/b/MjCGgAUQcDCL/yigwPfKZg==
+X-Received: by 2002:a17:90a:db52:: with SMTP id u18mr13209784pjx.107.1560290389765;
+        Tue, 11 Jun 2019 14:59:49 -0700 (PDT)
+X-Received: by 2002:a17:90a:db52:: with SMTP id u18mr13209728pjx.107.1560290388726;
+        Tue, 11 Jun 2019 14:59:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560290388; cv=none;
         d=google.com; s=arc-20160816;
-        b=NOfmaZlyDsbXryueP1YGW5PKS3N6DN+kNIdHmEasTYXPcgxHoh7nGO40wHre9+LAfL
-         YqmAM1p89DrQgJtevLkfyzVAVtShHFX1YL/f8PzrYWzWxlUvwHIZTuiN+gmTaRmp16KO
-         1PO3USpV+ID8UL56LamdN1U/BBtgH75I1qxfnCGXplTtAIkDNaCiewzaC0zVspLxhL2r
-         IrCteS3996p1fBRX16y/GyGq95hNVr7AYMTJ2JqJqaBY+YPdxZWiUkVzaYGk/ckkWZje
-         BMa3UCFiZBKzZpuTKdIKsSUDScEiPdrctI0CZAi1Be0mbeSh4i1W5eEAn6+IBvegnA9v
-         urIQ==
+        b=F4dNgpMvrFqNLOdHlHfnHVGoV2GqwvbQY209lMcZgE1JQG70iD5+54vSQ1iA61BGgN
+         TBxpoMfNjrbzAeSthDNGYoSB27sZfBWvtWqNvwawXtYgHJbEOK9DadTCwWJLNE+PxO1X
+         77xy/jfYMHdNyIvnjE7APVlJE32L+ngX3L3AsxCIjmiKU7k/mcc5QN+/Zuzk1+Sn75Lu
+         3kEUz+3gBHMg3su3A3sps4S1Nk+IYBcpij4jOFwgUY6yXXhPQVobn4UTviSZ1FTJdL0i
+         0X5XQ+c1A9VeDLwMqKIHObW9TIaVVK4IFjqIEr0STT/KE/jfki6mcgNclmamx0q14Ovx
+         MDgQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=5sOm7iYADBJakOPuW1mfr/hU0M6Vm95ot5Q353saeu8=;
-        b=oEL91ZC49R7MUwKjd3LiHpXsWkW4+Ak0SsZkG9EOxc9+hTmpGEKRWycJ9xgBm58Pjp
-         RzB3jO6CWXXnNGtFr4i9VA/wYS3TIf1d+SgjOpBgiD3uZTcrhD+zf2RWyNFB/uEv7jZ6
-         29CbU6PzzMkwTMRXAwtd/Xp2F89IzbVHEAjOqT6JmJ0opO2sRH1ACdVc1vfNWjz2hMsM
-         4QYwVRToVwjqjEObTxFUVrtFxqzrtGZPoQK6V9YRUE49R9v6i/kSpMLSUksvlGiexVJN
-         +qCpRb6r2WKhJyzMOS/35zspdlPRdUMY1tqwRJTINGVzXH5i8CPDEhihAj7LrY50kZFq
-         ZO3Q==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=VmhJMV0Np4v0eA65Qt+YfIQRgnxKyiiKiYRlh0slvOA=;
+        b=H6nALJFMRq0e6X1fcnWMn+s4R2M/FjXH9+5UxTnZ5mYL8jeiu/qRzxOMk52gK9zghD
+         /yr/04P4uUTEOhP3brFg5VFe44HGFRvoIF/LsHLDnje9jJUnPe0gXYTD+hUqtxUNUx/R
+         qlpyh4DiISx5id++IfLNdhX0SCKX79C1ujMEg1NeIJpcQhtrkZG0uLKsYzD/ZEG3GzSt
+         5OFGewBG8eGIq0W7xvu6Vy/4fldSJJT2wW1eu7Vpdvg13gV5fQA/FUxr2khfjYy1aKew
+         LRKX/3bFHllqGwDXEIHXg4FNgqO+ugxJOs+0fJJM9VNOhgt9AozmAa3LwYUgj3sU+hjH
+         f3Gw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id f17si13095394pgv.338.2019.06.11.14.36.54
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=LQ6S9B5W;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u6sor4432386pjn.27.2019.06.11.14.59.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jun 2019 14:36:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        (Google Transport Security);
+        Tue, 11 Jun 2019 14:59:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
-X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 11 Jun 2019 14:36:54 -0700
-X-ExtLoop1: 1
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga007.fm.intel.com with ESMTP; 11 Jun 2019 14:36:53 -0700
-Date: Tue, 11 Jun 2019 14:38:13 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Jeff Layton <jlayton@kernel.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>,
-	Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>,
-	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH RFC 02/10] fs/locks: Export F_LAYOUT lease to user space
-Message-ID: <20190611213812.GC14336@iweiny-DESK2.sc.intel.com>
-References: <20190606014544.8339-1-ira.weiny@intel.com>
- <20190606014544.8339-3-ira.weiny@intel.com>
- <4e5eb31a41b91a28fbc83c65195a2c75a59cfa24.camel@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4e5eb31a41b91a28fbc83c65195a2c75a59cfa24.camel@kernel.org>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=LQ6S9B5W;
+       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=VmhJMV0Np4v0eA65Qt+YfIQRgnxKyiiKiYRlh0slvOA=;
+        b=LQ6S9B5W8JqpcomgYeh69J+lnxPke5hf5Mggah4JJqsLzyVc6eywx1w1mnyIjbJrkV
+         TKJlwj29trBOgapjWXY/CwEJtFnknICLzweQa7POIAWP6MWA6iRtxllMadl1Gg8veM23
+         Hbj1cw5QzMmjQ7W/9yRBBQWK432yOKDidhC6A/HvoAiQXxYfyAq2JRC49eQjH4e4ba3X
+         Go6KzS3gQlxl2DhTC86CX6jOQ0U5qKvVNu/HVnnHwwnoSKMpB/BHP5aE3n+Cu7P2e8ib
+         o9qxEYbwoHwdOJ5U/8PE2Yty+qXnSebVDC0KD2O/wHlwMatBFkXX+090a8PknNaE+RUC
+         sQdg==
+X-Google-Smtp-Source: APXvYqxo1WfiPFreJ8aXf6AXXx2DBZ7B/aFlVO28LFjxDfPf0HVgD71sPtURW2VT3NfPVcJHSDAhDQ==
+X-Received: by 2002:a17:90a:2e87:: with SMTP id r7mr27551960pjd.112.1560290387872;
+        Tue, 11 Jun 2019 14:59:47 -0700 (PDT)
+Received: from [10.2.189.129] ([66.170.99.2])
+        by smtp.gmail.com with ESMTPSA id l2sm11916525pgs.33.2019.06.11.14.59.46
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jun 2019 14:59:46 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
+Subject: Re: [PATCH v4 3/9] mm: Add write-protect and clean utilities for
+ address space ranges
+From: Nadav Amit <nadav.amit@gmail.com>
+In-Reply-To: <f1a936c3-999a-f57e-6017-3315475967ad@vmwopensource.org>
+Date: Tue, 11 Jun 2019 14:59:45 -0700
+Cc: dri-devel@lists.freedesktop.org,
+ linux-graphics-maintainer@vmware.com,
+ "VMware, Inc." <pv-drivers@vmware.com>,
+ LKML <linux-kernel@vger.kernel.org>,
+ Thomas Hellstrom <thellstrom@vmware.com>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Matthew Wilcox <willy@infradead.org>,
+ Will Deacon <will.deacon@arm.com>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Rik van Riel <riel@surriel.com>,
+ Minchan Kim <minchan@kernel.org>,
+ Michal Hocko <mhocko@suse.com>,
+ Huang Ying <ying.huang@intel.com>,
+ Souptick Joarder <jrdr.linux@gmail.com>,
+ =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Linux-MM <linux-mm@kvack.org>,
+ Ralph Campbell <rcampbell@nvidia.com>,
+ Dave Hansen <dave.hansen@intel.com>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <44C26893-5D42-4807-92E9-85D4C1425966@gmail.com>
+References: <20190611122454.3075-1-thellstrom@vmwopensource.org>
+ <20190611122454.3075-4-thellstrom@vmwopensource.org>
+ <1CDAE797-4686-4041-938F-DE0456FFF451@gmail.com>
+ <ac0b0ef5-8f76-5e55-2be2-f1860878841a@vmwopensource.org>
+ <39CC6294-52B5-4ED7-852E-A644132DEA18@gmail.com>
+ <f1a936c3-999a-f57e-6017-3315475967ad@vmwopensource.org>
+To: =?utf-8?Q?=22Thomas_Hellstr=C3=B6m_=28VMware=29=22?= <thellstrom@vmwopensource.org>
+X-Mailer: Apple Mail (2.3445.104.11)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 09, 2019 at 09:00:24AM -0400, Jeff Layton wrote:
-> On Wed, 2019-06-05 at 18:45 -0700, ira.weiny@intel.com wrote:
-> > From: Ira Weiny <ira.weiny@intel.com>
-> > 
-> > GUP longterm pins of non-pagecache file system pages (eg FS DAX) are
-> > currently disallowed because they are unsafe.
-> > 
-> > The danger for pinning these pages comes from the fact that hole punch
-> > and/or truncate of those files results in the pages being mapped and
-> > pinned by a user space process while DAX has potentially allocated those
-> > pages to other processes.
-> > 
-> > Most (All) users who are mapping FS DAX pages for long term pin purposes
-> > (such as RDMA) are not going to want to deallocate these pages while
-> > those pages are in use.  To do so would mean the application would lose
-> > data.  So the use case for allowing truncate operations of such pages
-> > is limited.
-> > 
-> > However, the kernel must protect itself and users from potential
-> > mistakes and/or malicious user space code.  Rather than disabling long
-> > term pins as is done now.   Allow for users who know they are going to
-> > be pinning this memory to alert the file system of this intention.
-> > Furthermore, allow users to be alerted such that they can react if a
-> > truncate operation occurs for some reason.
-> > 
-> > Example user space pseudocode for a user using RDMA and wanting to allow
-> > a truncate would look like this:
-> > 
-> > lease_break_sigio_handler() {
-> > ...
-> > 	if (sigio.fd == rdma_fd) {
-> > 		complete_rdma_operations(...);
-> > 		ibv_dereg_mr(mr);
-> > 		close(rdma_fd);
-> > 		fcntl(rdma_fd, F_SETLEASE, F_UNLCK);
-> > 	}
-> > }
-> > 
-> > setup_rdma_to_dax_file() {
-> > ...
-> > 	rdma_fd = open(...)
-> > 	fcntl(rdma_fd, F_SETLEASE, F_LAYOUT);
-> 
-> I'm not crazy about this interface. F_LAYOUT doesn't seem to be in the
-> same category as F_RDLCK/F_WRLCK/F_UNLCK.
-> 
-> Maybe instead of F_SETLEASE, this should use new
-> F_SETLAYOUT/F_GETLAYOUT cmd values? There is nothing that would prevent
-> you from setting both a lease and a layout on a file, and indeed knfsd
-> can set both.
-> 
-> This interface seems to conflate the two.
+> On Jun 11, 2019, at 2:20 PM, Thomas Hellstr=C3=B6m (VMware) =
+<thellstrom@vmwopensource.org> wrote:
+>=20
+> On 6/11/19 9:10 PM, Nadav Amit wrote:
+>>> On Jun 11, 2019, at 11:26 AM, Thomas Hellstr=C3=B6m (VMware) =
+<thellstrom@vmwopensource.org> wrote:
+>>>=20
+>>> Hi, Nadav,
+>>>=20
+>>> On 6/11/19 7:21 PM, Nadav Amit wrote:
+>>>>> On Jun 11, 2019, at 5:24 AM, Thomas Hellstr=C3=B6m (VMware) =
+<thellstrom@vmwopensource.org> wrote:
+>>>>>=20
+>>>>> From: Thomas Hellstrom <thellstrom@vmware.com>
+>>>> [ snip ]
+>>>>=20
+>>>>> +/**
+>>>>> + * apply_pt_wrprotect - Leaf pte callback to write-protect a pte
+>>>>> + * @pte: Pointer to the pte
+>>>>> + * @token: Page table token, see apply_to_pfn_range()
+>>>>> + * @addr: The virtual page address
+>>>>> + * @closure: Pointer to a struct pfn_range_apply embedded in a
+>>>>> + * struct apply_as
+>>>>> + *
+>>>>> + * The function write-protects a pte and records the range in
+>>>>> + * virtual address space of touched ptes for efficient range TLB =
+flushes.
+>>>>> + *
+>>>>> + * Return: Always zero.
+>>>>> + */
+>>>>> +static int apply_pt_wrprotect(pte_t *pte, pgtable_t token,
+>>>>> +			      unsigned long addr,
+>>>>> +			      struct pfn_range_apply *closure)
+>>>>> +{
+>>>>> +	struct apply_as *aas =3D container_of(closure, typeof(*aas), =
+base);
+>>>>> +	pte_t ptent =3D *pte;
+>>>>> +
+>>>>> +	if (pte_write(ptent)) {
+>>>>> +		pte_t old_pte =3D ptep_modify_prot_start(aas->vma, addr, =
+pte);
+>>>>> +
+>>>>> +		ptent =3D pte_wrprotect(old_pte);
+>>>>> +		ptep_modify_prot_commit(aas->vma, addr, pte, old_pte, =
+ptent);
+>>>>> +		aas->total++;
+>>>>> +		aas->start =3D min(aas->start, addr);
+>>>>> +		aas->end =3D max(aas->end, addr + PAGE_SIZE);
+>>>>> +	}
+>>>>> +
+>>>>> +	return 0;
+>>>>> +}
+>>>>> +
+>>>>> +/**
+>>>>> + * struct apply_as_clean - Closure structure for apply_as_clean
+>>>>> + * @base: struct apply_as we derive from
+>>>>> + * @bitmap_pgoff: Address_space Page offset of the first bit in =
+@bitmap
+>>>>> + * @bitmap: Bitmap with one bit for each page offset in the =
+address_space range
+>>>>> + * covered.
+>>>>> + * @start: Address_space page offset of first modified pte =
+relative
+>>>>> + * to @bitmap_pgoff
+>>>>> + * @end: Address_space page offset of last modified pte relative
+>>>>> + * to @bitmap_pgoff
+>>>>> + */
+>>>>> +struct apply_as_clean {
+>>>>> +	struct apply_as base;
+>>>>> +	pgoff_t bitmap_pgoff;
+>>>>> +	unsigned long *bitmap;
+>>>>> +	pgoff_t start;
+>>>>> +	pgoff_t end;
+>>>>> +};
+>>>>> +
+>>>>> +/**
+>>>>> + * apply_pt_clean - Leaf pte callback to clean a pte
+>>>>> + * @pte: Pointer to the pte
+>>>>> + * @token: Page table token, see apply_to_pfn_range()
+>>>>> + * @addr: The virtual page address
+>>>>> + * @closure: Pointer to a struct pfn_range_apply embedded in a
+>>>>> + * struct apply_as_clean
+>>>>> + *
+>>>>> + * The function cleans a pte and records the range in
+>>>>> + * virtual address space of touched ptes for efficient TLB =
+flushes.
+>>>>> + * It also records dirty ptes in a bitmap representing page =
+offsets
+>>>>> + * in the address_space, as well as the first and last of the =
+bits
+>>>>> + * touched.
+>>>>> + *
+>>>>> + * Return: Always zero.
+>>>>> + */
+>>>>> +static int apply_pt_clean(pte_t *pte, pgtable_t token,
+>>>>> +			  unsigned long addr,
+>>>>> +			  struct pfn_range_apply *closure)
+>>>>> +{
+>>>>> +	struct apply_as *aas =3D container_of(closure, typeof(*aas), =
+base);
+>>>>> +	struct apply_as_clean *clean =3D container_of(aas, =
+typeof(*clean), base);
+>>>>> +	pte_t ptent =3D *pte;
+>>>>> +
+>>>>> +	if (pte_dirty(ptent)) {
+>>>>> +		pgoff_t pgoff =3D ((addr - aas->vma->vm_start) >> =
+PAGE_SHIFT) +
+>>>>> +			aas->vma->vm_pgoff - clean->bitmap_pgoff;
+>>>>> +		pte_t old_pte =3D ptep_modify_prot_start(aas->vma, addr, =
+pte);
+>>>>> +
+>>>>> +		ptent =3D pte_mkclean(old_pte);
+>>>>> +		ptep_modify_prot_commit(aas->vma, addr, pte, old_pte, =
+ptent);
+>>>>> +
+>>>>> +		aas->total++;
+>>>>> +		aas->start =3D min(aas->start, addr);
+>>>>> +		aas->end =3D max(aas->end, addr + PAGE_SIZE);
+>>>>> +
+>>>>> +		__set_bit(pgoff, clean->bitmap);
+>>>>> +		clean->start =3D min(clean->start, pgoff);
+>>>>> +		clean->end =3D max(clean->end, pgoff + 1);
+>>>>> +	}
+>>>>> +
+>>>>> +	return 0;
+>>>> Usually, when a PTE is write-protected, or when a dirty-bit is =
+cleared, the
+>>>> TLB flush must be done while the page-table lock for that specific =
+table is
+>>>> taken (i.e., within apply_pt_clean() and apply_pt_wrprotect() in =
+this case).
+>>>>=20
+>>>> Otherwise, in the case of apply_pt_clean() for example, another =
+core might
+>>>> shortly after (before the TLB flush) write to the same page whose =
+PTE was
+>>>> changed. The dirty-bit in such case might not be set, and the =
+change get
+>>>> lost.
+>>> Hmm. Let's assume that was the case, we have two possible =
+situations:
+>>>=20
+>>> A: pt_clean
+>>>=20
+>>> 1. That core's TLB entry is invalid. It will set the PTE dirty bit =
+and continue. The dirty bit will probably remain set after the TLB =
+flush.
+>> I guess you mean the PTE is not cached in the TLB.
+> Yes.
+>>> 2. That core's TLB entry is valid. It will just continue. The dirty =
+bit will remain clear after the TLB flush.
+>>>=20
+>>> But I fail to see how having the TLB flush within the page table =
+lock would help in this case. Since the writing core will never attempt =
+to take it? In any case, if such a race occurs, the corresponding bit in =
+the bitmap would have been set and we've recorded that the page is =
+dirty.
+>> I don=E2=80=99t understand. What do you mean =E2=80=9Crecorded that =
+the page is dirty=E2=80=9D?
+>> IIUC, the PTE is clear in this case - you mean PG_dirty is set?
+>=20
+> All PTEs we touch and clean are noted in the bitmap.
+>=20
+>> To clarify, this code actually may work correctly on Intel CPUs, =
+based on a
+>> recent discussion with Dave Hansen. Apparently, most Intel CPUs set =
+the
+>> dirty bit in memory atomically when a page is first written.
+>>=20
+>> But this is a generic code and not arch-specific. My concern is that =
+a
+>> certain page might be written to, but would not be marked as dirty in =
+either
+>> the bitmap or the PTE.
+>=20
+> Regardless of arch, we have four cases:
+> 1. Writes occuring before we scan (and possibly modify) the PTE. =
+Should be handled correctly.
+> 2. Writes occurning after the TLB flush. Should be handled correctly, =
+unless after a TLB flush the TLB cached entry and the PTE differs on the =
+dirty bit. Then we could in theory go on writing without marking the PTE =
+dirty. But that would probably be an arch code bug: I mean anything =
+using tlb_gather_mmu() would flush TLB outside of the page table lock, =
+and if, for example, unmap_mapping_range() left the TLB entries and the =
+PTES in an inconsistent state, that wouldn't be good.
+> 3. Writes occuring after the PTE scan, but before the TLB flush =
+without us modifying the PTE: That would be the same as a spurious TLB =
+flush. It should be harmless. The write will not be picked up in the =
+bitmap, but the PTE dirty bit will be set.
+> 4. Writes occuring after us clearing the dirty bit and before the TLB =
+flush: We will detect the write, since the bitmap bit is already set. If =
+the write continues after the TLB flush, we go to 2.
 
-I've been feeling the same way.  This is why I was leaning toward a new lease
-type.  I called it "F_LONGTERM" but the name is not important.
+Thanks for the detailed explanation. It does sound reasonable.
 
-I think the concept of adding "exclusive" to the layout lease can fix this
-because the NFS lease is non-exclusive where the user space one (for the
-purpose of GUP pinning) would need to be.
+> Note, for archs doing software PTE_DIRTY, that would be very similar =
+to softdirty, which is also doing batched TLB flushes=E2=80=A6
 
-FWIW I have not worked out exactly what this new "exclusive" code will look
-like.  Jan said:
+Somewhat similar. But AFAIK, soft-dirty allows you to do only one of two
+things:
 
-	"There actually is support for locks that are not broken after given
-	timeout so there shouldn't be too many changes need."
+- Clear the refs ( using /proc/[pid]/clear_refs ); or
+- Read the refs (using /proc/[pid]/pagemap )
 
-But I'm not seeing that for Lease code.  So I'm working on something for the
-lease code now.
-
-Ira
-
-> 
-> > 	sigaction(SIGIO, ...  lease_break ...);
-> > 	ptr = mmap(rdma_fd, ...);
-> > 	mr = ibv_reg_mr(ptr, ...);
-> > 	do_rdma_stuff(...);
-> > }
-> > 
-> > Follow on patches implement the notification of the lease holder on
-> > truncate as well as failing the truncate if the GUP pin is not released.
-> > 
-> > This first patch exports the F_LAYOUT lease type and allows the user to set
-> > and get it.
-> > 
-> > After the complete series:
-> > 
-> > 1) Failure to obtain a F_LAYOUT lease on an open FS DAX file will result
-> >    in a failure to GUP pin any pages in that file.  An example of a call
-> >    which results in GUP pin is ibv_reg_mr().
-> > 2) While the GUP pin is in place (eg MR is in use) truncates of the
-> >    affected pages will fail.
-> > 3) If the user registers a sigaction they will be notified of the
-> >    truncate so they can react.  Failure to react will result in the
-> >    lease being revoked after <sysfs>/lease-break-time seconds.  After
-> >    this time new GUP pins will fail without a new lease being taken.
-> > 4) A truncate will work if the pages being truncated are not actively
-> >    pinned at the time of truncate.  Attempts to pin these pages after
-> >    will result in a failure.
-> > 
-> > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-> > ---
-> >  fs/locks.c                       | 36 +++++++++++++++++++++++++++-----
-> >  include/linux/fs.h               |  2 +-
-> >  include/uapi/asm-generic/fcntl.h |  3 +++
-> >  3 files changed, 35 insertions(+), 6 deletions(-)
-> > 
-> > diff --git a/fs/locks.c b/fs/locks.c
-> > index 0cc2b9f30e22..de9761c068de 100644
-> > --- a/fs/locks.c
-> > +++ b/fs/locks.c
-> > @@ -191,6 +191,8 @@ static int target_leasetype(struct file_lock *fl)
-> >  		return F_UNLCK;
-> >  	if (fl->fl_flags & FL_DOWNGRADE_PENDING)
-> >  		return F_RDLCK;
-> > +	if (fl->fl_flags & FL_LAYOUT)
-> > +		return F_LAYOUT;
-> >  	return fl->fl_type;
-> >  }
-> >  
-> > @@ -611,7 +613,8 @@ static const struct lock_manager_operations lease_manager_ops = {
-> >  /*
-> >   * Initialize a lease, use the default lock manager operations
-> >   */
-> > -static int lease_init(struct file *filp, long type, struct file_lock *fl)
-> > +static int lease_init(struct file *filp, long type, unsigned int flags,
-> > +		      struct file_lock *fl)
-> >  {
-> >  	if (assign_type(fl, type) != 0)
-> >  		return -EINVAL;
-> > @@ -621,6 +624,8 @@ static int lease_init(struct file *filp, long type, struct file_lock *fl)
-> >  
-> >  	fl->fl_file = filp;
-> >  	fl->fl_flags = FL_LEASE;
-> > +	if (flags & FL_LAYOUT)
-> > +		fl->fl_flags |= FL_LAYOUT;
-> >  	fl->fl_start = 0;
-> >  	fl->fl_end = OFFSET_MAX;
-> >  	fl->fl_ops = NULL;
-> > @@ -629,7 +634,8 @@ static int lease_init(struct file *filp, long type, struct file_lock *fl)
-> >  }
-> >  
-> >  /* Allocate a file_lock initialised to this type of lease */
-> > -static struct file_lock *lease_alloc(struct file *filp, long type)
-> > +static struct file_lock *lease_alloc(struct file *filp, long type,
-> > +				     unsigned int flags)
-> >  {
-> >  	struct file_lock *fl = locks_alloc_lock();
-> >  	int error = -ENOMEM;
-> > @@ -637,7 +643,7 @@ static struct file_lock *lease_alloc(struct file *filp, long type)
-> >  	if (fl == NULL)
-> >  		return ERR_PTR(error);
-> >  
-> > -	error = lease_init(filp, type, fl);
-> > +	error = lease_init(filp, type, flags, fl);
-> >  	if (error) {
-> >  		locks_free_lock(fl);
-> >  		return ERR_PTR(error);
-> > @@ -1588,7 +1594,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
-> >  	int want_write = (mode & O_ACCMODE) != O_RDONLY;
-> >  	LIST_HEAD(dispose);
-> >  
-> > -	new_fl = lease_alloc(NULL, want_write ? F_WRLCK : F_RDLCK);
-> > +	new_fl = lease_alloc(NULL, want_write ? F_WRLCK : F_RDLCK, 0);
-> >  	if (IS_ERR(new_fl))
-> >  		return PTR_ERR(new_fl);
-> >  	new_fl->fl_flags = type;
-> > @@ -1725,6 +1731,8 @@ EXPORT_SYMBOL(lease_get_mtime);
-> >   *
-> >   *	%F_UNLCK to indicate no lease is held.
-> >   *
-> > + *	%F_LAYOUT to indicate a layout lease is held.
-> > + *
-> >   *	(if a lease break is pending):
-> >   *
-> >   *	%F_RDLCK to indicate an exclusive lease needs to be
-> > @@ -2015,8 +2023,26 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
-> >  	struct file_lock *fl;
-> >  	struct fasync_struct *new;
-> >  	int error;
-> > +	unsigned int flags = 0;
-> > +
-> > +	/*
-> > +	 * NOTE on F_LAYOUT lease
-> > +	 *
-> > +	 * LAYOUT lease types are taken on files which the user knows that
-> > +	 * they will be pinning in memory for some indeterminate amount of
-> > +	 * time.  Such as for use with RDMA.  While we don't know what user
-> > +	 * space is going to do with the file we still use a F_RDLOCK level of
-> > +	 * lease.  This ensures that there are no conflicts between
-> > +	 * 2 users.  The conflict should only come from the File system wanting
-> > +	 * to revoke the lease in break_layout()  And this is done by using
-> > +	 * F_WRLCK in the break code.
-> > +	 */
-> > +	if (arg == F_LAYOUT) {
-> > +		arg = F_RDLCK;
-> > +		flags = FL_LAYOUT;
-> > +	}
-> >  
-> > -	fl = lease_alloc(filp, arg);
-> > +	fl = lease_alloc(filp, arg, flags);
-> >  	if (IS_ERR(fl))
-> >  		return PTR_ERR(fl);
-> >  
-> > diff --git a/include/linux/fs.h b/include/linux/fs.h
-> > index f7fdfe93e25d..9e9d8d35ee93 100644
-> > --- a/include/linux/fs.h
-> > +++ b/include/linux/fs.h
-> > @@ -998,7 +998,7 @@ static inline struct file *get_file(struct file *f)
-> >  #define FL_DOWNGRADE_PENDING	256 /* Lease is being downgraded */
-> >  #define FL_UNLOCK_PENDING	512 /* Lease is being broken */
-> >  #define FL_OFDLCK	1024	/* lock is "owned" by struct file */
-> > -#define FL_LAYOUT	2048	/* outstanding pNFS layout */
-> > +#define FL_LAYOUT	2048	/* outstanding pNFS layout or user held pin */
-> >  
-> >  #define FL_CLOSE_POSIX (FL_POSIX | FL_CLOSE)
-> >  
-> > diff --git a/include/uapi/asm-generic/fcntl.h b/include/uapi/asm-generic/fcntl.h
-> > index 9dc0bf0c5a6e..baddd54f3031 100644
-> > --- a/include/uapi/asm-generic/fcntl.h
-> > +++ b/include/uapi/asm-generic/fcntl.h
-> > @@ -174,6 +174,9 @@ struct f_owner_ex {
-> >  #define F_SHLCK		8	/* or 4 */
-> >  #endif
-> >  
-> > +#define F_LAYOUT	16      /* layout lease to allow longterm pins such as
-> > +				   RDMA */
-> > +
-> >  /* operations for bsd flock(), also used by the kernel implementation */
-> >  #define LOCK_SH		1	/* shared lock */
-> >  #define LOCK_EX		2	/* exclusive lock */
-> 
+This interface does not provide any atomicity like the one you try to
+obtain.
 
