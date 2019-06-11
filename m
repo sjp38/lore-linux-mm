@@ -2,544 +2,384 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A13FC4321B
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:43:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3FABAC4321A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:57:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2FA392054F
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:43:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FA392054F
+	by mail.kernel.org (Postfix) with ESMTP id DDB182080A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:57:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDB182080A
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BAB426B027C; Tue, 11 Jun 2019 10:43:50 -0400 (EDT)
+	id 474166B0007; Tue, 11 Jun 2019 10:57:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B81986B027D; Tue, 11 Jun 2019 10:43:50 -0400 (EDT)
+	id 424736B0266; Tue, 11 Jun 2019 10:57:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A4A6E6B027E; Tue, 11 Jun 2019 10:43:50 -0400 (EDT)
+	id 314A56B0270; Tue, 11 Jun 2019 10:57:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 512386B027C
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 10:43:50 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id y3so9612971edm.21
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 07:43:50 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D549C6B0007
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 10:57:29 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id k15so21127973eda.6
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 07:57:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:subject
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=wM9btZqfVnHGhNijl4hK4FkzXZSucXkOKwvA2Z25zyY=;
-        b=I+VJtIdOUMuxvy2ncyIhGeY/688X5u+0X0ULIr2pPOORRnyl+O+3PoahXN1y9+Tbsy
-         Sqe/qN0j7geYGU2nzwl+gdJeZrF83+wdUdqhPj/XjKChzdGkhdr8omsEZSuM0ehM0kPn
-         fu4aC9UUYTebfNZK6ooNY2FtMLf1/4ewch8aRMbNJnkpNVSRAaiYwK7cbZG8K/2OzGYz
-         lM8cv92+u9uoIUrmrp4lOobK+XbkQsz/R9QmuFDmuV9g7mPOTVGUVosGZPUT9cFKKnEG
-         Xt2S+TTM9gd5AQzY8naj8Q7L2CPlA61fzEgXSlCqG99H53hXHDfGvcX9N2lj6SvQt4IU
-         WYiA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVqMhd7y/qyhu/7sts0fFmXLqj+8+MQZittE4TsVVfxC09hEukL
-	2iv4IiYr1Bi0c8Tm28ANzFdhV8ncAWsXtfm1yJ/IrJR3g0EDDJB6nHKo/WKwwPIxi1ij8lbzOBF
-	RCGGUatjFiqGIHzyeLd+ixIQi/fkJf9ejxWpRI7WaYTyJtupLeva/9eK39NdakD8LUw==
-X-Received: by 2002:a17:906:a2d2:: with SMTP id by18mr4474532ejb.245.1560264229828;
-        Tue, 11 Jun 2019 07:43:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy50GBBGoFxhSHHgqgpAvFZGdEjib+KlPEXp9F7EaLi87ZB8kMFQW2MpR+2EFmceNTKdlyi
-X-Received: by 2002:a17:906:a2d2:: with SMTP id by18mr4474417ejb.245.1560264228377;
-        Tue, 11 Jun 2019 07:43:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560264228; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=mc8sVIFZR78L5U07A63jJjrxHEPH7rmqpd+ygU9H19g=;
+        b=FaaZfFNJQprD8g9MDfayAR9y8iZU2azb9iJdAvmOkN+m/cf37j+Be0/G8ZrDHfGDdx
+         FR1jKDqFJIZJAKIH0YZTvFz4oFjm14+KZ+v+gVz4o6fMScXJya64Q7gmFJ1TmTBRNUKk
+         0bPjdD6RlC/TOWHkzN7Eymdx/x2UIJrh90ymjIK2nLGqLDB/qnYugJSPWUUOxX1/dyiq
+         //QjjXtVO009u9jBR9yQ04gKjmDhuDa/rDGWhu+E9FIoQ5eKdQyKwoVFiWjHUlI7wxUe
+         ldm5PS9xGj2TMTaJNHSSNCwfqFm1OeV63K6fj7Hkt9T/T1KStCAd5FfF3tmhB/ee8MdC
+         /Eww==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAUmT0qv/VSVuA3Ihp/C0MS9OfZh1DMFuJTHUGS1LdP3DUIqw8xC
+	ocFKNQgmUpJ5Zu48N+i03tfw4spq5PQAI49iTAWxKfGPpBY0mg+uJ/ZPFGjJAUdw0DxitYi0Bth
+	H8oMBAH0Xl9S0AiSj6Omfd6H2ogkHtmy+Gs3bjvRiJ2EkA05cyebKeufLhBcVakFq2g==
+X-Received: by 2002:a50:c9c2:: with SMTP id c2mr41670695edi.183.1560265049375;
+        Tue, 11 Jun 2019 07:57:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxJMyFOMBMp1fqrxSkLVZVwy6X/E6PsgO0a2YBeJjEspc1h8JKeATZJx4S7bYPcWspns+qU
+X-Received: by 2002:a50:c9c2:: with SMTP id c2mr41670617edi.183.1560265048550;
+        Tue, 11 Jun 2019 07:57:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560265048; cv=none;
         d=google.com; s=arc-20160816;
-        b=urjXvepCXCx8Aqt3xrATu5cw715RX/eUjPtVauZyDctOIvH68qDZU/El4IYqhAkwbS
-         nrWi0Xk5VMF+MZWIIyN7evG8YEMoZrAjN6YkHicn8lGz1zpupGYrPr6xQjsUswLbTcdw
-         bGMLRVSvMPNOYktOCGRooqKq0NPnOz0O9KFQhd9mvVhAy0Tw86MRpS1nbLt8ELBxMKzi
-         oRrgQLfk2LA7HCoMtsTQVyUdtELZB1UXb7vxlf1p8FDQ8XaZO2sPwbc4JdrGQ7wlDkzV
-         op9zoOh91tsS5IA6vOAfb+3nv26p8ib82wtKJpVWLRi4jPkUfluwjQPY3k8sgvObINlF
-         o7dA==
+        b=iTbrJVCF7orDOpIhabNdgEYTOI9HW0NEk7v9c1jL+gr8NFf3xQOF2/451tC2FmlHWo
+         Q1FMBXxMcK8d1+wJhbiAmgMUIIbbAgWryXfYHn8FOz1CejUdjLpNweF7spv/cunWwuCi
+         YKa7oBhgsKe3lhtVnMlCPICJrO7FdK2vf8RcrT1ZMlc4ILgMM1GHXm7PFH4s+rU+suTi
+         S/xkz2mGLqlb6GdmK8Ol4FtBrDUYkzCtcZzrsOVg29KqhFbamFU8cepdC+CP7wDFP+ly
+         mxx8ubGwvScDIXcDlHU9PmXxdmOxWXKYAqGfWbWoSNALeKF6s1RnqazbiTKjyK17FVB+
+         Faxw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:subject:from;
-        bh=wM9btZqfVnHGhNijl4hK4FkzXZSucXkOKwvA2Z25zyY=;
-        b=Syv1H+Z/I3d7cpnPCrOJtY4dMpeSoPWT0ePlyw/UnE5kpK9fIUbscJmSWxPXnfFFct
-         IoffE+UC9du18P8uWHIhtDN7Uakz+Jj+kqjBxIlife1bVF5e4zSfv1jUZHlZNEsvYHCk
-         yExu35OgoVoA9yOJViO//dkAKw9cbvnRJtdHd9GpQSkcdv4rnt3csZ4/XBYLXetwVQnY
-         30KVlYhkjRdyHF+jbZoEqo90Gdi5/Rt1zeJkTsedQrMYLwZiLyZ3xaEfPIm5g0as/Z1k
-         g0boU0zxMXIhaWbmktvkrLv0xVtXD7ZX7KLvlvcpHAP41Ma7nnTv+3h5wrUZkbUnmCWr
-         hyLA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=mc8sVIFZR78L5U07A63jJjrxHEPH7rmqpd+ygU9H19g=;
+        b=DKejTqfXD/apKyTcJTJ/4PlWUofWKQ6k3N+JjFxvvgkDjs/P4ZHqrvh1dh+5AKADWG
+         Bc1Mkxh8NR2dd5f6S46xu6WX20zchu9nYElTPhlOsX1MwhrxVrHfB8iGKOJ2FHzxXyGl
+         pu7xWjN3jGZfnnv3y5FGRdXhILE8DUNw/tFDyyfPIkT/F4qZAFtIBEIyUWpV3cqmbqUp
+         VdujUUO9boKZYKKBLnJWXjJRYA10ToPpQZ/LRc4RDRemXyzshq7R7KJuP2sJ++LKaGSA
+         webvlG67+c8qDE6wIeIWBbF6P9dpacKQYx661k2KF9EzWKrerAeuiwzuX0OT5c6955vJ
+         CsAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id f10si8728639ejq.375.2019.06.11.07.43.47
+        by mx.google.com with ESMTP id z48si61862edc.301.2019.06.11.07.57.28
         for <linux-mm@kvack.org>;
-        Tue, 11 Jun 2019 07:43:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+        Tue, 11 Jun 2019 07:57:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E615A337;
-	Tue, 11 Jun 2019 07:43:46 -0700 (PDT)
-Received: from [10.162.43.135] (p8cg001049571a15.blr.arm.com [10.162.43.135])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 011D43F557;
-	Tue, 11 Jun 2019 07:43:41 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: Re: [PATCH V5 3/3] arm64/mm: Enable memory hot remove
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- linux-arm-kernel@lists.infradead.org, akpm@linux-foundation.org,
- catalin.marinas@arm.com, will.deacon@arm.com, mhocko@suse.com,
- ira.weiny@intel.com, david@redhat.com, cai@lca.pw, logang@deltatee.com,
- james.morse@arm.com, cpandya@codeaurora.org, arunks@codeaurora.org,
- dan.j.williams@intel.com, mgorman@techsingularity.net, osalvador@suse.de,
- ard.biesheuvel@arm.com
-References: <1559121387-674-1-git-send-email-anshuman.khandual@arm.com>
- <1559121387-674-4-git-send-email-anshuman.khandual@arm.com>
- <20190530151227.GD56046@lakrids.cambridge.arm.com>
-Message-ID: <e339a58f-4426-1a37-3ab9-112f5d4cc643@arm.com>
-Date: Tue, 11 Jun 2019 20:13:59 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 89C0E346;
+	Tue, 11 Jun 2019 07:57:27 -0700 (PDT)
+Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id DD04E3F246;
+	Tue, 11 Jun 2019 07:57:22 -0700 (PDT)
+Date: Tue, 11 Jun 2019 15:57:20 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Mark Rutland <mark.rutland@arm.com>, kvm@vger.kernel.org,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
+	Will Deacon <will.deacon@arm.com>, dri-devel@lists.freedesktop.org,
+	linux-mm@kvack.org, Khalid Aziz <khalid.aziz@oracle.com>,
+	linux-kselftest@vger.kernel.org,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Leon Romanovsky <leon@kernel.org>, linux-rdma@vger.kernel.org,
+	amd-gfx@lists.freedesktop.org,
+	Christoph Hellwig <hch@infradead.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Dmitry Vyukov <dvyukov@google.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Evgeniy Stepanov <eugenis@google.com>, linux-media@vger.kernel.org,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Kees Cook <keescook@chromium.org>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	linux-arm-kernel@lists.infradead.org,
+	Kostya Serebryany <kcc@google.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Yishai Hadas <yishaih@mellanox.com>, linux-kernel@vger.kernel.org,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Andrew Morton <akpm@linux-foundation.org>, enh <enh@google.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Subject: Re: [PATCH v16 02/16] arm64: untag user pointers in access_ok and
+ __uaccess_mask_ptr
+Message-ID: <20190611145720.GA63588@arrakis.emea.arm.com>
+References: <cover.1559580831.git.andreyknvl@google.com>
+ <4327b260fb17c4776a1e3c844f388e4948cfb747.1559580831.git.andreyknvl@google.com>
+ <20190610175326.GC25803@arrakis.emea.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20190530151227.GD56046@lakrids.cambridge.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190610175326.GC25803@arrakis.emea.arm.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 05/30/2019 08:42 PM, Mark Rutland wrote:
-> Hi Anshuman,
-
-Hello Mark,
-
+On Mon, Jun 10, 2019 at 06:53:27PM +0100, Catalin Marinas wrote:
+> On Mon, Jun 03, 2019 at 06:55:04PM +0200, Andrey Konovalov wrote:
+> > diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
+> > index e5d5f31c6d36..9164ecb5feca 100644
+> > --- a/arch/arm64/include/asm/uaccess.h
+> > +++ b/arch/arm64/include/asm/uaccess.h
+> > @@ -94,7 +94,7 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
+> >  	return ret;
+> >  }
+> >  
+> > -#define access_ok(addr, size)	__range_ok(addr, size)
+> > +#define access_ok(addr, size)	__range_ok(untagged_addr(addr), size)
 > 
->>From reviwing the below, I can see some major issues that need to be
-> addressed, which I've commented on below.
-> 
-> Andrew, please do not pick up this patch.
+> I'm going to propose an opt-in method here (RFC for now). We can't have
+> a check in untagged_addr() since this is already used throughout the
+> kernel for both user and kernel addresses (khwasan) but we can add one
+> in __range_ok(). The same prctl() option will be used for controlling
+> the precise/imprecise mode of MTE later on. We can use a TIF_ flag here
+> assuming that this will be called early on and any cloned thread will
+> inherit this.
 
-I was reworking this patch series and investigating the vmalloc/vmemmap
-conflict issues. Hence could not respond earlier.
+Updated patch, inlining it below. Once we agreed on the approach, I
+think Andrey can insert in in this series, probably after patch 2. The
+differences from the one I posted yesterday:
 
-> 
-> On Wed, May 29, 2019 at 02:46:27PM +0530, Anshuman Khandual wrote:
->> The arch code for hot-remove must tear down portions of the linear map and
->> vmemmap corresponding to memory being removed. In both cases the page
->> tables mapping these regions must be freed, and when sparse vmemmap is in
->> use the memory backing the vmemmap must also be freed.
->>
->> This patch adds a new remove_pagetable() helper which can be used to tear
->> down either region, and calls it from vmemmap_free() and
->> ___remove_pgd_mapping(). The sparse_vmap argument determines whether the
->> backing memory will be freed.
->>
->> While freeing intermediate level page table pages bail out if any of it's
-> 
-> Nit: s/it's/its/
+- renamed PR_* macros together with get/set variants and the possibility
+  to disable the relaxed ABI
 
-Done.
+- sysctl option - /proc/sys/abi/tagged_addr to disable the ABI globally
+  (just the prctl() opt-in, tasks already using it won't be affected)
 
-> 
->> entries are still valid. This can happen for partially filled kernel page
->> table either from a previously attempted failed memory hot add or while
->> removing an address range which does not span the entire page table page
->> range.
->>
->> The vmemmap region may share levels of table with the vmalloc region. Take
->> the kernel ptl so that we can safely free potentially-shared tables.
-> 
-> AFAICT, this is not sufficient; please see below for details.
+And, of course, it needs more testing.
 
-Sure.
+---------8<----------------
+From 7c624777a4e545522dec1b34e60f0229cb2bd59f Mon Sep 17 00:00:00 2001
+From: Catalin Marinas <catalin.marinas@arm.com>
+Date: Tue, 11 Jun 2019 13:03:38 +0100
+Subject: [PATCH] arm64: Introduce prctl() options to control the tagged user
+ addresses ABI
 
-> 
->> While here update arch_add_memory() to handle __add_pages() failures by
->> just unmapping recently added kernel linear mapping. Now enable memory hot
->> remove on arm64 platforms by default with ARCH_ENABLE_MEMORY_HOTREMOVE.
->>
->> This implementation is overall inspired from kernel page table tear down
->> procedure on X86 architecture.
->>
->> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->> Acked-by: David Hildenbrand <david@redhat.com>
-> 
-> Looking at this some more, I don't think this is quite right, and tI
-> think that structure of the free_*() and remove_*() functions makes this
-> unnecessarily hard to follow. We should aim for this to be obviously
-> correct.
+It is not desirable to relax the ABI to allow tagged user addresses into
+the kernel indiscriminately. This patch introduces a prctl() interface
+for enabling or disabling the tagged ABI with a global sysctl control
+for preventing applications from enabling the relaxed ABI (meant for
+testing user-space prctl() return error checking without reconfiguring
+the kernel). The ABI properties are inherited by threads of the same
+application and fork()'ed children but cleared on execve().
 
-Okay.
+The PR_SET_TAGGED_ADDR_CTRL will be expanded in the future to handle
+MTE-specific settings like imprecise vs precise exceptions.
 
-> 
-> The x86 code is the best template to follow here. As mentioned
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+---
+ arch/arm64/include/asm/processor.h   |  6 +++
+ arch/arm64/include/asm/thread_info.h |  1 +
+ arch/arm64/include/asm/uaccess.h     |  5 ++-
+ arch/arm64/kernel/process.c          | 67 ++++++++++++++++++++++++++++
+ include/uapi/linux/prctl.h           |  5 +++
+ kernel/sys.c                         | 16 +++++++
+ 6 files changed, 99 insertions(+), 1 deletion(-)
 
-Did you mean *not the best* instead.
-
-> previously, I'm fairly certain it's not entirely correct (e.g. due to
-> missing TLB maintenance), and we've already diverged a fair amount in
-> fixing up obvious issues, so we shouldn't aim to mirror it.
-
-Okay.
-
-> 
-> I think that the structure of unmap_region() is closer to what we want
-> here -- do one pass to unmap leaf entries (and freeing the associated
-> memory if unmapping the vmemmap), then do a second pass cleaning up any
-> empty tables.
-
-Done.
-
-> 
-> In general I'm concerned that we don't strictly follow a
-> clear->tlbi->free sequence, and free pages before tearing down their
-> corresponding mapping. It doesn't feel great to leave a cacheable alias
-> around, even transiently. Further, as commented below, the
-> remove_p?d_table() functions leave stale leaf entries in the TLBs when
-> removing section entries.
-
-Fixed these.
-
-> 
->> ---
->>  arch/arm64/Kconfig  |   3 +
->>  arch/arm64/mm/mmu.c | 211 +++++++++++++++++++++++++++++++++++++++++++++++++++-
->>  2 files changed, 212 insertions(+), 2 deletions(-)
->>
->> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
->> index 697ea05..7f917fe 100644
->> --- a/arch/arm64/Kconfig
->> +++ b/arch/arm64/Kconfig
->> @@ -268,6 +268,9 @@ config HAVE_GENERIC_GUP
->>  config ARCH_ENABLE_MEMORY_HOTPLUG
->>  	def_bool y
->>  
->> +config ARCH_ENABLE_MEMORY_HOTREMOVE
->> +	def_bool y
->> +
->>  config SMP
->>  	def_bool y
->>  
->> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
->> index a1bfc44..4803624 100644
->> --- a/arch/arm64/mm/mmu.c
->> +++ b/arch/arm64/mm/mmu.c
->> @@ -733,6 +733,187 @@ int kern_addr_valid(unsigned long addr)
->>  
->>  	return pfn_valid(pte_pfn(pte));
->>  }
->> +
->> +#ifdef CONFIG_MEMORY_HOTPLUG
->> +static void free_hotplug_page_range(struct page *page, ssize_t size)
-> 
-> The size argument should never be negative, so size_t would be best.
-
-Done.
-
-> 
->> +{
->> +	WARN_ON(PageReserved(page));
->> +	free_pages((unsigned long)page_address(page), get_order(size));
->> +}
->> +
->> +static void free_hotplug_pgtable_page(struct page *page)
->> +{
->> +	free_hotplug_page_range(page, PAGE_SIZE);
->> +}
->> +
->> +static void free_pte_table(pte_t *ptep, pmd_t *pmdp, unsigned long addr)
->> +{
->> +	struct page *page;
->> +	int i;
->> +
->> +	for (i = 0; i < PTRS_PER_PTE; i++) {
->> +		if (!pte_none(ptep[i]))
->> +			return;
->> +	}
->> +
->> +	page = pmd_page(READ_ONCE(*pmdp));
->> +	pmd_clear(pmdp);
->> +	__flush_tlb_kernel_pgtable(addr);
->> +	free_hotplug_pgtable_page(page);
->> +}
->> +
->> +static void free_pmd_table(pmd_t *pmdp, pud_t *pudp, unsigned long addr)
->> +{
->> +	struct page *page;
->> +	int i;
->> +
->> +	if (CONFIG_PGTABLE_LEVELS <= 2)
->> +		return;
->> +
->> +	for (i = 0; i < PTRS_PER_PMD; i++) {
->> +		if (!pmd_none(pmdp[i]))
->> +			return;
->> +	}
->> +
->> +	page = pud_page(READ_ONCE(*pudp));
->> +	pud_clear(pudp);
->> +	__flush_tlb_kernel_pgtable(addr);
->> +	free_hotplug_pgtable_page(page);
->> +}
->> +
->> +static void free_pud_table(pud_t *pudp, pgd_t *pgdp, unsigned long addr)
->> +{
->> +	struct page *page;
->> +	int i;
->> +
->> +	if (CONFIG_PGTABLE_LEVELS <= 3)
->> +		return;
->> +
->> +	for (i = 0; i < PTRS_PER_PUD; i++) {
->> +		if (!pud_none(pudp[i]))
->> +			return;
->> +	}
->> +
->> +	page = pgd_page(READ_ONCE(*pgdp));
->> +	pgd_clear(pgdp);
->> +	__flush_tlb_kernel_pgtable(addr);
->> +	free_hotplug_pgtable_page(page);
->> +}
->> +
->> +static void
->> +remove_pte_table(pmd_t *pmdp, unsigned long addr,
-> 
-> Please put this on a single line.
-> 
-> All the existing functions in this file (and the ones you add above)
-> have the return type on the same line as the name, and since this
-> portion of the prototype doesn't encroach 80 columns there's no reason
-> to flow it.
-
-Fixed.
-
-> 
->> +			unsigned long end, bool sparse_vmap)
->> +{
->> +	struct page *page;
->> +	pte_t *ptep, pte;
->> +	unsigned long start = addr;
->> +
->> +	for (; addr < end; addr += PAGE_SIZE) {
->> +		ptep = pte_offset_kernel(pmdp, addr);
->> +		pte = READ_ONCE(*ptep);
->> +
->> +		if (pte_none(pte))
->> +			continue;
->> +
->> +		WARN_ON(!pte_present(pte));
->> +		if (sparse_vmap) {
->> +			page = pte_page(pte);
->> +			free_hotplug_page_range(page, PAGE_SIZE);
->> +		}
->> +		pte_clear(&init_mm, addr, ptep);
->> +	}
->> +	flush_tlb_kernel_range(start, end);
->> +}
-> 
-> For consistency we should use a do { ... } while (..., addr != end) loop
-> to iterate over the page tables. All the other code in our mmu.c does
-> that, and diverging from that doesn't save use anything here but does
-> make review and maintenance harder.
-
-Done.
-
-> 
->> +
->> +static void
->> +remove_pmd_table(pud_t *pudp, unsigned long addr,
-> 
-> Same line please.
-> 
->> +			unsigned long end, bool sparse_vmap)
->> +{
->> +	unsigned long next;
->> +	struct page *page;
->> +	pte_t *ptep_base;
->> +	pmd_t *pmdp, pmd;
->> +
->> +	for (; addr < end; addr = next) {
->> +		next = pmd_addr_end(addr, end);
->> +		pmdp = pmd_offset(pudp, addr);
->> +		pmd = READ_ONCE(*pmdp);
->> +
->> +		if (pmd_none(pmd))
->> +			continue;
->> +
->> +		WARN_ON(!pmd_present(pmd));
->> +		if (pmd_sect(pmd)) {
->> +			if (sparse_vmap) {
->> +				page = pmd_page(pmd);
->> +				free_hotplug_page_range(page, PMD_SIZE);
->> +			}
->> +			pmd_clear(pmdp);
-> 
-> As mentioned above, this has no corresponding TLB maintenance, and I'm
-> concerned that we free the page before clearing the entry. If the page
-> gets re-allocated elsewhere, whoever received the page may not be
-> expecting a cacheable alias to exist other than the linear map.
-
-Fixed.
-
-> 
->> +			continue;
->> +		}
->> +		ptep_base = pte_offset_kernel(pmdp, 0UL);
->> +		remove_pte_table(pmdp, addr, next, sparse_vmap);
->> +		free_pte_table(ptep_base, pmdp, addr);
->> +	}
->> +}
->> +
->> +static void
->> +remove_pud_table(pgd_t *pgdp, unsigned long addr,
-> 
-> Same line please
-
-Fixed.
-
-> 
->> +			unsigned long end, bool sparse_vmap)
->> +{
->> +	unsigned long next;
->> +	struct page *page;
->> +	pmd_t *pmdp_base;
->> +	pud_t *pudp, pud;
->> +
->> +	for (; addr < end; addr = next) {
->> +		next = pud_addr_end(addr, end);
->> +		pudp = pud_offset(pgdp, addr);
->> +		pud = READ_ONCE(*pudp);
->> +
->> +		if (pud_none(pud))
->> +			continue;
->> +
->> +		WARN_ON(!pud_present(pud));
->> +		if (pud_sect(pud)) {
->> +			if (sparse_vmap) {
->> +				page = pud_page(pud);
->> +				free_hotplug_page_range(page, PUD_SIZE);
->> +			}
->> +			pud_clear(pudp);
-> 
-> Same issue as in remove_pmd_table().
-
-Fixed.
-
-
-> 
->> +			continue;
->> +		}
->> +		pmdp_base = pmd_offset(pudp, 0UL);
->> +		remove_pmd_table(pudp, addr, next, sparse_vmap);
->> +		free_pmd_table(pmdp_base, pudp, addr);
->> +	}
->> +}
->> +
->> +static void
->> +remove_pagetable(unsigned long start, unsigned long end, bool sparse_vmap)
-> 
-> Same line please (with the sparse_vmap argument flowed on to the next
-> line as that will encroach 80 characters).
-
-Done.
-
-> 
->> +{
->> +	unsigned long addr, next;
->> +	pud_t *pudp_base;
->> +	pgd_t *pgdp, pgd;
->> +
->> +	spin_lock(&init_mm.page_table_lock);
-> 
-> Please add a comment above this to explain why we need to take the
-> init_mm ptl. Per the cover letter, this should be something like:
-> 
-> 	/*
-> 	 * We may share tables with the vmalloc region, so we must take
-> 	 * the init_mm ptl so that we can safely free any
-> 	 * potentially-shared tables that we have emptied.
-> 	 */
-
-This might not be required any more (see below comments)
-
-> 
-> The vmalloc code doesn't hold the init_mm ptl when walking a table; it
-
-Right.
-
-> only takes the init_mm ptl when populating a none entry in
-> __p??_alloc(), to avoid a race where two threads need to populate the
-> entry.
-
-Right.
-
-> 
-> So AFAICT, taking the init_mm ptl here is not sufficient to make this
-> safe.
-
-I understand that there can be potential conflicts here if vmalloc and
-vmemap mappings share kernel intermediate level page table pages.
-
-For example.
-
-- vmalloc takes an intermediate page table page pointer during walk
-  (without init_mm lock) and proceeds further to create leaf level
-  entries
-
-- memory hot-remove walks the page table, (clear-->--invalidate-->free)
-  leaf level entries and then removes (clear-->--invalidate-->free) an
-  intermediate level page table pages (already emptied) while holding
-  init_mm lock
-
-- vmalloc now holds an invalid page table entry pointer derived from a
-  freed page (potentially being used else where) and proceeds to create
-  an entry on it !
-
-The primary cause which creates this problematic situation is
-
-- vmalloc does not take init_mm.page_table_lock for it's entire duration.
-  Kernel page table walk, page table page insert, creation of leaf level
-  entries etc. This should have prevented memory hot-remove from deleting
-  intermediate page table pages while vmalloc was at it.
-
-So how to solve this problem ?
-
-Broadly there are three options (unless I have missed some more)
-
-Option 1:
-
-Take init_mm ptl for the entire duration of vmalloc() but it will then
-have significant impact on it's performance. vmalloc() works on mutually
-exclusive ranges which can proceed concurrently for their allocation
-except the page table pages which are currently protected. Multiple
-threads doing vmalloc() dont need init_mm ptl for it's entire duration.
-Hence doing so can affect performance.
-
-Option 2:
-
-Take mem_hotplug_lock in read mode through [get|put]_online_mems() for
-the entire duration of vmalloc(). It protects vmalloc() from concurrent
-memory hot remove operation but does not add significant overhead to
-other concurrent vmalloc() threads.
-
-Option 3:
-
-Dont not free page table pages for vmemmap mappings after unmapping the
-hotplug range. The only downside is that some page table pages might
-remain empty and unused till the next hot add operation for the same
-memory range, which should be fine.
-
-IMHO
-
-- Option 1 does not seem to be viable for it's performance impact
-- Option 2 seems to solve the problem in the right way unless we dont
-           want to further the usage of mem_hotplug_lock in core MM
-
-- Option 3 seems like an easy and quick solution on the platform side
-           which avoids the problem for now
-
-Please let me know your thoughts.
-
-- Anshuman
+diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
+index fcd0e691b1ea..fee457456aa8 100644
+--- a/arch/arm64/include/asm/processor.h
++++ b/arch/arm64/include/asm/processor.h
+@@ -307,6 +307,12 @@ extern void __init minsigstksz_setup(void);
+ /* PR_PAC_RESET_KEYS prctl */
+ #define PAC_RESET_KEYS(tsk, arg)	ptrauth_prctl_reset_keys(tsk, arg)
+ 
++/* PR_TAGGED_ADDR prctl */
++long set_tagged_addr_ctrl(unsigned long arg);
++long get_tagged_addr_ctrl(void);
++#define SET_TAGGED_ADDR_CTRL(arg)	set_tagged_addr_ctrl(arg)
++#define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl()
++
+ /*
+  * For CONFIG_GCC_PLUGIN_STACKLEAK
+  *
+diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include/asm/thread_info.h
+index c285d1ce7186..7263d4c973ce 100644
+--- a/arch/arm64/include/asm/thread_info.h
++++ b/arch/arm64/include/asm/thread_info.h
+@@ -101,6 +101,7 @@ void arch_release_task_struct(struct task_struct *tsk);
+ #define TIF_SVE			23	/* Scalable Vector Extension in use */
+ #define TIF_SVE_VL_INHERIT	24	/* Inherit sve_vl_onexec across exec */
+ #define TIF_SSBD		25	/* Wants SSB mitigation */
++#define TIF_TAGGED_ADDR		26
+ 
+ #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
+ #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
+diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
+index 9164ecb5feca..995b9ea11a89 100644
+--- a/arch/arm64/include/asm/uaccess.h
++++ b/arch/arm64/include/asm/uaccess.h
+@@ -73,6 +73,9 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
+ {
+ 	unsigned long ret, limit = current_thread_info()->addr_limit;
+ 
++	if (test_thread_flag(TIF_TAGGED_ADDR))
++		addr = untagged_addr(addr);
++
+ 	__chk_user_ptr(addr);
+ 	asm volatile(
+ 	// A + B <= C + 1 for all A,B,C, in four easy steps:
+@@ -94,7 +97,7 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
+ 	return ret;
+ }
+ 
+-#define access_ok(addr, size)	__range_ok(untagged_addr(addr), size)
++#define access_ok(addr, size)	__range_ok(addr, size)
+ #define user_addr_max			get_fs
+ 
+ #define _ASM_EXTABLE(from, to)						\
+diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
+index 3767fb21a5b8..69d0be1fc708 100644
+--- a/arch/arm64/kernel/process.c
++++ b/arch/arm64/kernel/process.c
+@@ -30,6 +30,7 @@
+ #include <linux/kernel.h>
+ #include <linux/mm.h>
+ #include <linux/stddef.h>
++#include <linux/sysctl.h>
+ #include <linux/unistd.h>
+ #include <linux/user.h>
+ #include <linux/delay.h>
+@@ -323,6 +324,7 @@ void flush_thread(void)
+ 	fpsimd_flush_thread();
+ 	tls_thread_flush();
+ 	flush_ptrace_hw_breakpoint(current);
++	clear_thread_flag(TIF_TAGGED_ADDR);
+ }
+ 
+ void release_thread(struct task_struct *dead_task)
+@@ -552,3 +554,68 @@ void arch_setup_new_exec(void)
+ 
+ 	ptrauth_thread_init_user(current);
+ }
++
++/*
++ * Control the relaxed ABI allowing tagged user addresses into the kernel.
++ */
++static unsigned int tagged_addr_prctl_allowed = 1;
++
++long set_tagged_addr_ctrl(unsigned long arg)
++{
++	if (!tagged_addr_prctl_allowed)
++		return -EINVAL;
++	if (is_compat_task())
++		return -EINVAL;
++	if (arg & ~PR_TAGGED_ADDR_ENABLE)
++		return -EINVAL;
++
++	if (arg & PR_TAGGED_ADDR_ENABLE)
++		set_thread_flag(TIF_TAGGED_ADDR);
++	else
++		clear_thread_flag(TIF_TAGGED_ADDR);
++
++	return 0;
++}
++
++long get_tagged_addr_ctrl(void)
++{
++	if (!tagged_addr_prctl_allowed)
++		return -EINVAL;
++	if (is_compat_task())
++		return -EINVAL;
++
++	if (test_thread_flag(TIF_TAGGED_ADDR))
++		return PR_TAGGED_ADDR_ENABLE;
++
++	return 0;
++}
++
++/*
++ * Global sysctl to disable the tagged user addresses support. This control
++ * only prevents the tagged address ABI enabling via prctl() and does not
++ * disable it for tasks that already opted in to the relaxed ABI.
++ */
++static int zero;
++static int one = 1;
++
++static struct ctl_table tagged_addr_sysctl_table[] = {
++	{
++		.procname	= "tagged_addr",
++		.mode		= 0644,
++		.data		= &tagged_addr_prctl_allowed,
++		.maxlen		= sizeof(int),
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= &zero,
++		.extra2		= &one,
++	},
++	{ }
++};
++
++static int __init tagged_addr_init(void)
++{
++	if (!register_sysctl("abi", tagged_addr_sysctl_table))
++		return -EINVAL;
++	return 0;
++}
++
++core_initcall(tagged_addr_init);
+diff --git a/include/uapi/linux/prctl.h b/include/uapi/linux/prctl.h
+index 094bb03b9cc2..2e927b3e9d6c 100644
+--- a/include/uapi/linux/prctl.h
++++ b/include/uapi/linux/prctl.h
+@@ -229,4 +229,9 @@ struct prctl_mm_map {
+ # define PR_PAC_APDBKEY			(1UL << 3)
+ # define PR_PAC_APGAKEY			(1UL << 4)
+ 
++/* Tagged user address controls for arm64 */
++#define PR_SET_TAGGED_ADDR_CTRL		55
++#define PR_GET_TAGGED_ADDR_CTRL		56
++# define PR_TAGGED_ADDR_ENABLE		(1UL << 0)
++
+ #endif /* _LINUX_PRCTL_H */
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 2969304c29fe..ec48396b4943 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -124,6 +124,12 @@
+ #ifndef PAC_RESET_KEYS
+ # define PAC_RESET_KEYS(a, b)	(-EINVAL)
+ #endif
++#ifndef SET_TAGGED_ADDR_CTRL
++# define SET_TAGGED_ADDR_CTRL(a)	(-EINVAL)
++#endif
++#ifndef GET_TAGGED_ADDR_CTRL
++# define GET_TAGGED_ADDR_CTRL()		(-EINVAL)
++#endif
+ 
+ /*
+  * this is where the system-wide overflow UID and GID are defined, for
+@@ -2492,6 +2498,16 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+ 			return -EINVAL;
+ 		error = PAC_RESET_KEYS(me, arg2);
+ 		break;
++	case PR_SET_TAGGED_ADDR_CTRL:
++		if (arg3 || arg4 || arg5)
++			return -EINVAL;
++		error = SET_TAGGED_ADDR_CTRL(arg2);
++		break;
++	case PR_GET_TAGGED_ADDR_CTRL:
++		if (arg2 || arg3 || arg4 || arg5)
++			return -EINVAL;
++		error = GET_TAGGED_ADDR_CTRL();
++		break;
+ 	default:
+ 		error = -EINVAL;
+ 		break;
 
