@@ -2,140 +2,244 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 31391C4321A
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 17:13:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A01A8C4321A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 17:16:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F3BD22086D
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 17:13:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3BD22086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 5C16B20896
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 17:16:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="TczzrgYM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C16B20896
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 87B9D6B0008; Tue, 11 Jun 2019 13:13:03 -0400 (EDT)
+	id E46DE6B0008; Tue, 11 Jun 2019 13:16:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 82C676B000A; Tue, 11 Jun 2019 13:13:03 -0400 (EDT)
+	id E1E716B000A; Tue, 11 Jun 2019 13:16:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 71A226B000C; Tue, 11 Jun 2019 13:13:03 -0400 (EDT)
+	id CE4566B000C; Tue, 11 Jun 2019 13:16:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A3DB6B0008
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 13:13:03 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id o184so10057379pfg.1
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 10:13:03 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B07026B0008
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 13:16:34 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id k21so10107070ioj.3
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 10:16:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=vuHq9B1aoWOaYBu7ywq8Wc6FcpUAvHQw4AOpcLoWUm8=;
-        b=XOZZkS1EhhvWLgln/z9sYBsmf9j0MrR8oBcgwU5SyOTy8JR4X06Df4fHaIF1Xet3z+
-         7ndXOkgeyJ8ws02SaD4exNDvBImquyKJZjf4sNmi0/TU7urKZU+tW2CxCl+0iroXybg6
-         Fc2OimI9Y2DpW3x9Nc9OYPE7dEnnIpzQMG3T0q18BmxBBr6EeCVaIw++/SeAQBUKU6PY
-         Ix2PnnUE50/I5GEAZT87XsxD8k5ivRa0pBup0ZDPSDfvo2L8Oaem5JSzKMwQEfJI9kwC
-         3kuvAZw/rwuKEDeO5sMTQccFkwgWRN5P0bFzyM7mu2228aNbo8EQCPLEzGTIVxgVtao3
-         FmaA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWZjiXoD3cbpGMDGhh0uwgiDrzn7nQKcmjgyeXD7BuVksARcpZ0
-	5lDtDYeQRqSlkRrqCo5aJArVP7XzRAJL8W/JE1D+O8pW+Ex4bUGs3xAW4B/Xuhn6GsaJ7ttuxv/
-	k/XOndYBtMdXFffwx9TVQJTIFBfhalKtXJp9FzojNqa084iSUDsQsa7ESjBgtElgm6g==
-X-Received: by 2002:a62:b517:: with SMTP id y23mr84250634pfe.182.1560273182756;
-        Tue, 11 Jun 2019 10:13:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxtZWrILL29SXL5heUmZ71lETvmF8axsxLBha1SvrZ/QFEmCErL46RrH+3CeUs8SoB3oAuu
-X-Received: by 2002:a62:b517:: with SMTP id y23mr84250554pfe.182.1560273181945;
-        Tue, 11 Jun 2019 10:13:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560273181; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=FRXVWJIPkmJFeMjoY+ciz/9M1AcGX3oAGMSsEXsUQc4=;
+        b=qbLU6QhQx/QryrUwgnAmQDlwNK1qCYMjq0hhjoSHeoR7e3+JVxMaoNRneTDy3HhbFO
+         OaV0zmd+i/htCZhZGC6inRsMI42DdeCJhqgcwUftVtpRPINtxCY8VylK26oH+jvtHhRC
+         NnayxKzlfKpd0xdbjj0mMGgbzyuhL5JfDDwBdrdsRfwbgxcTOx0VMfA2TeFnLCI9xsY7
+         hEMG4EVVXmHXztUHJ8SxDIedVUE8WZ2lbt7jF9T68C4MEa+G1jlI2TKFRcGSAdkGU4c0
+         A+mkJ0w2Kce56Jooj4xKttly+mzUXJUXOcE5WZjatFit2vbvHr1omCxGQNTXJazsihjn
+         CUAA==
+X-Gm-Message-State: APjAAAVu1/uAUVrWDT3DCi3TFgh0xECXT6LLblyq3D/RdMsHpTBDe7Gy
+	gY6AIH61Fg5apE1tYmzSShtsT/15TerpNlj1Hm1kYk4tzCWZbRtB4/BvoJycw2r5Wb+Saly3MS1
+	CIRnjMM15YIYF16OSjsvHs0JZFJE+n8qoHP2jcKEqfzI28rR1klBBA/zgOU6KFEOy/w==
+X-Received: by 2002:a24:9cc1:: with SMTP id b184mr10685855ite.81.1560273394383;
+        Tue, 11 Jun 2019 10:16:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyEUZDVitURq1Sfh+T9gN7Ft9ccP6DElRGwqD1D7Mjx5RVPmKtfZGk6pmcV3GvDRktl0NOg
+X-Received: by 2002:a24:9cc1:: with SMTP id b184mr10685802ite.81.1560273393523;
+        Tue, 11 Jun 2019 10:16:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560273393; cv=none;
         d=google.com; s=arc-20160816;
-        b=OrJRcHh9eiOohN/8XkGBAxDmlOHuviIQ/VLt3lPbisBbKrVA6pLluALbPfAJWHHKAf
-         n8eZIzajYwV4YpwVar8JiTIQ7J3x1aIVJJGwFUger3RBlXTqs2Z3PEzR36LqSILc9eR8
-         ZxJ6NGIm+lFpUUEfIYnxCwzVEb7gUNFdhP7M3II5BgLhj//IdfV4ptXWq8CQa8YC8nDs
-         s8BLWCFxgvgSxHLrioC43mUK1LuCG6zuGdnCYubKDyzYTbkWmKK+vj8oeD+BADddV4lp
-         vG+wIB2xvgF80CELwZLQGRMxVsHAb5OXhTGJhkKA7wGUSQOuPAWuJiISGHTRSePFlhhA
-         fJeg==
+        b=X/Ec05g+aaaL5m4JZZiPRa6w20i1sGN6sLrVHj7QLgMII1Yl1JsJ/g2z8xDirG4Oit
+         XaD/TuDMBNY7gQ0DIgU++unyty3tgno4O4LgS4/xxdc3bg9rnNMVJxegt6SwdegR5bzA
+         eiIxPw0zzbfsn8qRXRPD8TvFANAr+WnM/cgGPn9m0S4Wu+a+4FrCs55G1JtE8K71lpWX
+         nnxjFQ3ogH+O9kTfWUaBAQs/Q41CAlbquApzVkGPCUJyqsripSXcFA5YPBG3lUD++6VC
+         W009kbWN9BXIPseOg67fYmydv1vLg8dOUku9dEks7B4hr9deuDLuvc8SspC3VBsBMEuV
+         9uzw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=vuHq9B1aoWOaYBu7ywq8Wc6FcpUAvHQw4AOpcLoWUm8=;
-        b=fdqc24vyjvbmKpJDCv7uw9ssSKpxhl/J5BTX+vfeISIe6ac4Wij+QF5rie2UpDYMVY
-         BioTOB5NPm9gXavvB4oyOZApn2Oj2hmLA9MiE5gGnIDwhqv2NKouIWMp69ni3kr7hbFo
-         Nkhsc4sJkRzpdApnsOYwVXsj2DuhsA5+yKLhW35gQgBYbWyIJ/MsTT+/tTWNcPWjVwj/
-         plAJoHp+o4PlPgfRtDnLXl7uBQkWrHEvigbQnVFXsXPx4vBCfTKUW5Hun0SCeTXZYODX
-         oyBgE4E/sWSHWI0eNXEISaRAGG62yFBIvxnSqMGl4hPKfVx3TpPbmc7+ga/q06QLgZpl
-         Mbmw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=FRXVWJIPkmJFeMjoY+ciz/9M1AcGX3oAGMSsEXsUQc4=;
+        b=PUEr/8X4uA9hW9s6P8+NRt+wIMPXn19hxigQbHtJYXimtVGGduw3BeIyudbu2nFfuE
+         9c4zouGnMsu+jWU5o4uo6IzKwODLpjuecvC+Ie+4ukv/J712p39g7XWeJN712/lfBHP7
+         uRjn4/AXpgm4fQm/5BYB8zcvrUkN7RZspGC5JNYxhC/1Cb0wG9jPtQw0uxJAUFKKhSZM
+         xoWE3y6DZFHn6pMyKSpGEMuIJrN2o7+0mATHvUZ50XrKsqJE81NdmYLVRobWVzzdBi1O
+         v9NCj9sx67T6xDVn/od2JzwXKpPQNtoDHcUomuj/4hahYXNAC/+MrCWGIauMMqxgTvBQ
+         v4TA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id b5si2936051pjo.26.2019.06.11.10.13.00
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=TczzrgYM;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id q23si9412703jac.89.2019.06.11.10.16.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jun 2019 10:13:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
+        Tue, 11 Jun 2019 10:16:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07487;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TTwX3IJ_1560273151;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TTwX3IJ_1560273151)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Wed, 12 Jun 2019 01:12:35 +0800
-Subject: Re: [v7 PATCH 1/2] mm: vmscan: remove double slab pressure by inc'ing
- sc->nr_scanned
-To: Oscar Salvador <osalvador@suse.de>, ying.huang@intel.com,
- hannes@cmpxchg.org, mhocko@suse.com, mgorman@techsingularity.net,
- kirill.shutemov@linux.intel.com, josef@toxicpanda.com, hughd@google.com,
- shakeelb@google.com, hdanton@sina.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1559025859-72759-1-git-send-email-yang.shi@linux.alibaba.com>
- <1560202615.3312.6.camel@suse.de>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <d99fbe8f-9c80-d407-e848-0be00e3b8886@linux.alibaba.com>
-Date: Tue, 11 Jun 2019 10:12:25 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=TczzrgYM;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5BHDdFH022687;
+	Tue, 11 Jun 2019 17:16:21 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=FRXVWJIPkmJFeMjoY+ciz/9M1AcGX3oAGMSsEXsUQc4=;
+ b=TczzrgYMbt3/n5gl6dsdWiKXYMRRdAJ/TsGM2YoyeVTLRirZjvoIH55EQDebk9A4vZBo
+ Gq4LZkULh8VT8TmOOrq5+z4VAP7WjGXqWzx9p7J6UB1CEzyAC8DNK9Xts3W7JEdvj1S5
+ FEcGtlf2arGiRuhTj8iBaejwGnmtQ3VXddxzHCST9EC/uBcP4a8BqyOy3P6i16iLWn8b
+ 9Vti0heHbzqC40I65qNuwdJS1kzl0kbooJaQRHO9CnEzXo7ENuNfMEhmKaheJfrrTtQ6
+ x+MdJtd0eRPHIYSpYI2z4yYyuCAhqEDjCOfxfEVtwAk5+D717638fA9LovnemDtSr3DN Bw== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by userp2130.oracle.com with ESMTP id 2t04etpm98-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 11 Jun 2019 17:16:21 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5BHErDd138550;
+	Tue, 11 Jun 2019 17:16:20 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserp3030.oracle.com with ESMTP id 2t04hyfmnw-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 11 Jun 2019 17:16:07 +0000
+Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x5BHG54t024839;
+	Tue, 11 Jun 2019 17:16:05 GMT
+Received: from [192.168.1.222] (/71.63.128.209)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 11 Jun 2019 10:16:04 -0700
+Subject: Re: [PATCH v2 2/2] mm: hugetlb: soft-offline:
+ dissolve_free_huge_page() return zero on !PageHuge
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+        Michal Hocko <mhocko@kernel.org>, xishi.qiuxishi@alibaba-inc.com,
+        "Chen, Jerry T" <jerry.t.chen@intel.com>,
+        "Zhuo, Qiuxu"
+ <qiuxu.zhuo@intel.com>, linux-kernel@vger.kernel.org
+References: <1560154686-18497-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1560154686-18497-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <039dd97d-83f5-f71a-e78f-a451b0064903@oracle.com>
+Date: Tue, 11 Jun 2019 10:16:03 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <1560202615.3312.6.camel@suse.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1560154686-18497-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000043, version=1.2.4
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9284 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1906110110
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9284 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906110110
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 6/10/19 1:18 AM, Naoya Horiguchi wrote:
+> madvise(MADV_SOFT_OFFLINE) often returns -EBUSY when calling soft offline
+> for hugepages with overcommitting enabled. That was caused by the suboptimal
+> code in current soft-offline code. See the following part:
+> 
+>     ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
+>                             MIGRATE_SYNC, MR_MEMORY_FAILURE);
+>     if (ret) {
+>             ...
+>     } else {
+>             /*
+>              * We set PG_hwpoison only when the migration source hugepage
+>              * was successfully dissolved, because otherwise hwpoisoned
+>              * hugepage remains on free hugepage list, then userspace will
+>              * find it as SIGBUS by allocation failure. That's not expected
+>              * in soft-offlining.
+>              */
+>             ret = dissolve_free_huge_page(page);
+>             if (!ret) {
+>                     if (set_hwpoison_free_buddy_page(page))
+>                             num_poisoned_pages_inc();
+>             }
+>     }
+>     return ret;
+> 
+> Here dissolve_free_huge_page() returns -EBUSY if the migration source page
+> was freed into buddy in migrate_pages(), but even in that case we actually
+> has a chance that set_hwpoison_free_buddy_page() succeeds. So that means
+> current code gives up offlining too early now.
+> 
+> dissolve_free_huge_page() checks that a given hugepage is suitable for
+> dissolving, where we should return success for !PageHuge() case because
+> the given hugepage is considered as already dissolved.
+> 
+> This change also affects other callers of dissolve_free_huge_page(),
+> which are cleaned up together.
+> 
+> Reported-by: Chen, Jerry T <jerry.t.chen@intel.com>
+> Tested-by: Chen, Jerry T <jerry.t.chen@intel.com>
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Fixes: 6bc9b56433b76 ("mm: fix race on soft-offlining")
+> Cc: <stable@vger.kernel.org> # v4.19+
+> ---
+>  mm/hugetlb.c        | 15 +++++++++------
+>  mm/memory-failure.c |  5 +----
+>  2 files changed, 10 insertions(+), 10 deletions(-)
+> 
+> diff --git v5.2-rc3/mm/hugetlb.c v5.2-rc3_patched/mm/hugetlb.c
+> index ac843d3..048d071 100644
+> --- v5.2-rc3/mm/hugetlb.c
+> +++ v5.2-rc3_patched/mm/hugetlb.c
+> @@ -1519,7 +1519,12 @@ int dissolve_free_huge_page(struct page *page)
 
+Please update the function description for dissolve_free_huge_page() as
+well.  It currently says, "Returns -EBUSY if the dissolution fails because
+a give page is not a free hugepage" which is no longer true as a result of
+this change.
 
-On 6/10/19 2:36 PM, Oscar Salvador wrote:
-> On Tue, 2019-05-28 at 14:44 +0800, Yang Shi wrote:
->> The commit 9092c71bb724 ("mm: use sc->priority for slab shrink
->> targets")
->> has broken up the relationship between sc->nr_scanned and slab
->> pressure.
->> The sc->nr_scanned can't double slab pressure anymore.  So, it sounds
->> no
->> sense to still keep sc->nr_scanned inc'ed.  Actually, it would
->> prevent
->> from adding pressure on slab shrink since excessive sc->nr_scanned
->> would
->> prevent from scan->priority raise.
-> Hi Yang,
->
-> I might be misunderstanding this, but did you mean "prevent from scan-
-> priority decreasing"?
-> I guess we are talking about balance_pgdat(), and in case
-> kswapd_shrink_node() returns true (it means we have scanned more than
-> we had to reclaim), raise_priority becomes false, and this does not let
-> sc->priority to be decreased, which has the impact that less pages will
->   be reclaimed the next round.
+>  	int rc = -EBUSY;
+>  
+>  	spin_lock(&hugetlb_lock);
+> -	if (PageHuge(page) && !page_count(page)) {
+> +	if (!PageHuge(page)) {
+> +		rc = 0;
+> +		goto out;
+> +	}
+> +
+> +	if (!page_count(page)) {
+>  		struct page *head = compound_head(page);
+>  		struct hstate *h = page_hstate(head);
+>  		int nid = page_to_nid(head);
+> @@ -1564,11 +1569,9 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+>  
+>  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << minimum_order) {
+>  		page = pfn_to_page(pfn);
+> -		if (PageHuge(page) && !page_count(page)) {
+> -			rc = dissolve_free_huge_page(page);
+> -			if (rc)
+> -				break;
+> -		}
 
-Yes, exactly.
+We may want to consider keeping at least the PageHuge(page) check before
+calling dissolve_free_huge_page().  dissolve_free_huge_pages is called as
+part of memory offline processing.  We do not know if the memory to be offlined
+contains huge pages or not.  With your changes, we are taking hugetlb_lock
+on each call to dissolve_free_huge_page just to discover that the page is
+not a huge page.
 
->
-> Sorry for bugging here, I just wanted to see if I got this right.
->
->
+You 'could' add a PageHuge(page) check to dissolve_free_huge_page before
+taking the lock.  However, you would need to check again after taking the
+lock.
+-- 
+Mike Kravetz
 
