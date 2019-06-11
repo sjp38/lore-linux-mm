@@ -2,249 +2,188 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C4FFC43218
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:01:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A910C4321A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:02:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 422DD20896
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:01:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 422DD20896
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 1D8F220896
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:02:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D8F220896
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D0E4D6B0007; Tue, 11 Jun 2019 08:01:36 -0400 (EDT)
+	id C4B636B0008; Tue, 11 Jun 2019 08:02:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CBF516B0008; Tue, 11 Jun 2019 08:01:36 -0400 (EDT)
+	id C22456B000A; Tue, 11 Jun 2019 08:02:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BD7B06B000A; Tue, 11 Jun 2019 08:01:36 -0400 (EDT)
+	id B10AD6B000C; Tue, 11 Jun 2019 08:02:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 83C146B0007
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:01:36 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 140so9445771pfa.23
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:01:36 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EC356B0008
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:02:18 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id o16so11617725qtj.6
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:02:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references
-         :content-transfer-encoding:mime-version;
-        bh=y3qEW99X8qDv4zMEhNnW0MjANT2Pq4iB9vRKhS9RMHA=;
-        b=Se0Yqtmcl6ZvUPNtl1pnTiohFplVh4Y3Slizae5eO0guhb0lYvrnspuyJoLYDIzWMy
-         dQuPbAwIE/vJ1BryRY+IZttoTHsv+XXx6Vhu6PuLoFNjk6SMKHZc4L67HgMhuY8/zpaJ
-         EazeJmpkMPxD7LTu8I0OB3vZpodoKSztDEi0olYFhKpsooFkCVBD/i14OF6OYfjbXKgb
-         kbXiRIxmaAx++prM7OrTrUyJkHX60b3LgQ5fX0Cadv7NsHXdf8v9PQ9hMDFk7ugP1A4D
-         UIv60Rqz1NjrCvnhQFQNNsRE+zq15dSF/55TXiBwEDbkT3b+J1ULXLFuEMZnL2x1Ylqd
-         iUvA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-Gm-Message-State: APjAAAVpIYiXBT8tN/EAjr1wJFmdu5UGEX0KOUPk8lUHt38IWAcX1w8N
-	/0Mpwi9P+0ll3rWvWrauiPG0NuuE0LxsXdhmjBXNoi17vpN68csbrMlhhBf/fDO3umlgZvAf/lC
-	4ap9Nm/k3NeWl9uk6hkmcrzoEk3NW5IYB03+sAhJrOCqnP/SHZjUpsORhatBVnelh2A==
-X-Received: by 2002:a63:2109:: with SMTP id h9mr20189159pgh.51.1560254495148;
-        Tue, 11 Jun 2019 05:01:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwTHlJ1LMV6NwBWQFjLzJLq9ovBZXYwz34EnsJqIeof2uOiqoveOWpIym0cKsJu2WAF9Mwx
-X-Received: by 2002:a63:2109:: with SMTP id h9mr20189086pgh.51.1560254494103;
-        Tue, 11 Jun 2019 05:01:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560254494; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=+MXA3It3NWXsRYxbtFOawzkitDz1Jp5qXJtqUFixH/I=;
+        b=HVa/xH11ENd1Gr6HfBaso2IikTZjAQnEXa9UDJz7fKIbNCMq4F7J83mAqYrkf9Uju7
+         3l93Db78QAzEpE2PQL8U9gtnfxV/Jee7ZynC8KJqSIZr4sGwrOxerMpMe+hbYOV9oXkW
+         en2/l3QT/vcTHQg5taRh3NZMixgNT0uK+amChWmOO7BlMg7KlBjas8bZA5b3vHvsW3V+
+         ohF608nIukOMI744zKGaibdihSH4CCTMFsH5+kuDn3LtJr0+tfxrxvIluXhipVtwwMm0
+         mSEOy/hQiPwZvzwnm5ohj6XXjZYZr03+ve6umBU2QWaFPh0IsJrTWRZxno0LYIdfS9iJ
+         LTRQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUQqHy365UIMhQLT0W3/X6HsNeRQnFdqEAQVUcoGn3EBlEZLNmv
+	mPtmbFrf6rzR/XSlRM09+elnK+bL/5ixitZKybOX3AXWTm4rUlhzJq3TWTc+fmUqEzxa+Bu+QBv
+	riDOC67JgJfBz/Ru4yo7/goG+58cDnygHhYHeuq2rruenEmGCzw92XTVUJGY2gDxrVA==
+X-Received: by 2002:a05:620a:1270:: with SMTP id b16mr38483585qkl.333.1560254538331;
+        Tue, 11 Jun 2019 05:02:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzxr3r8oTQQu+2oCWAflbput4cxuxu46pbKd3z4wxfKYZzdg7KBV7FdF3GL+EiXZDOh24rf
+X-Received: by 2002:a05:620a:1270:: with SMTP id b16mr38483523qkl.333.1560254537541;
+        Tue, 11 Jun 2019 05:02:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560254537; cv=none;
         d=google.com; s=arc-20160816;
-        b=jtmTBDwSNzhZ2+u1tR5xzQJlNb3uE6o3m0gnO4VDGbEohXQvIUReTbM4YsiFvGtyyD
-         P1z1/2IQs9OTg409R1KBDlCTKrYMiaTUQbYk5XgFnT+RTA/4Mm8y7v3s01OlXqFRCpVy
-         cY/J9sHXPqc2y84d54BG33CEHnnQtZ12ZeNEQrVLMlKjAFQDfZtGjmRaHoiF1wn0rfau
-         9+OfUG8VeY7gmahIpvMbhfCywgrDXM5VyYudwlSG61W9wdJQNyEYlDAW3nqUKIyw506Y
-         uamvYX5jiMpAXngjgTmWWoW0gGmjpPRaARnHzLmEdJ2IbCAnFn4Qpm6dDIeEgev7IByo
-         kwlQ==
+        b=GFy9CDCTwQRN5oDZt8ghp7qxG3xksTTvgQ0PXflJVp6eybnx6DzpRo6aFDPnAoXwE0
+         D1ywUT/GxjkkII0EyIO5aIeNjZWIeyPczedJnUr7KVzNxGVBgHXrcklEAHdXdf6zt9g5
+         M0E8mFYtI3XSI36mZF4vu9YP66igJHVOKQ20bFlW3p7M6GjOrb7QZ5Ur5T0SnDGx7nfV
+         mP1Dsuy9aXKm9XMsKmNQ0CVh1nnlxv62RnY73PavmOghJNNzAn3ndvhtuijnWR4sINjz
+         yJIxB51Je+pKk78Y+yhSjuwa+c/RAijvzHen/dL2Q99mO88oLvQCig0i3OQUeI/iLgj1
+         GN8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=y3qEW99X8qDv4zMEhNnW0MjANT2Pq4iB9vRKhS9RMHA=;
-        b=fukz5iavsMwB3L+PgfhHD00DBqmu1QAHMnTMsssXQLGoN2L/LMm7deFasMVnmhym5k
-         Eco+rPlMRXbRKU1ZVjvNsE1CCV2Z6lwAE/ZpRGukYXUvEdJRr4rgeUlLuYRULpNyZX5A
-         L7nCXFVZXxIwV51fyhWpHfDanwOagJwXo9/TeucpFORsNgyFPIlFIgyCy+IMAAS2/5Cl
-         vhsk6VK8nACWaNFq7/eZoNC+M0KEMmGsKGuegP7EAh1CoX3svkAHtH9qx9X+uZypSxeC
-         /AOaoDJzX6hXi8tYHvgQuRmxeT5uxSQy0K95+p77Gv/MtVqJIpAyLBm1FoAwp9H/XHH9
-         6Yqg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=+MXA3It3NWXsRYxbtFOawzkitDz1Jp5qXJtqUFixH/I=;
+        b=mKnZJkWSunTwjA3+DSSoY76LlkknLhnvJ8tuOrL7Ku0eowJeEL7pWtrHk5/PqX/daD
+         Al+JyaV1UW8vgQTSgGUS9somPYEgnJ7/XlNICV0matvL3nRBU4bQoba9fAoygnTfcwVv
+         DnoiyZl7jYc/wZZXTaZoKT4LY0sWuL0vZwhevzJTBlS4yFvlvunyZiR6H511+N+AlrB8
+         eM1jYPC4bz86J/t+wivShwc4oxw3Mub1Q/4PAgJ/PVvJPhiABog9L6IMTTBbq7j685Vd
+         scnxHovZFuFMTSI91Q+6hrFkE9VMkH/57O2S+6NKuEpAdQ8KHak0el9yR+dlUJJK+ww7
+         QssQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-Received: from mailgw02.mediatek.com ([210.61.82.184])
-        by mx.google.com with ESMTPS id a22si12287065plm.343.2019.06.11.05.01.33
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l123si1978180qke.27.2019.06.11.05.02.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jun 2019 05:01:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) client-ip=210.61.82.184;
+        Tue, 11 Jun 2019 05:02:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-UUID: 1f96f75078614a5b9e1f0250f0a67e06-20190611
-X-UUID: 1f96f75078614a5b9e1f0250f0a67e06-20190611
-Received: from mtkcas07.mediatek.inc [(172.21.101.84)] by mailgw02.mediatek.com
-	(envelope-from <walter-zh.wu@mediatek.com>)
-	(mhqrelay.mediatek.com ESMTP with TLS)
-	with ESMTP id 1348057515; Tue, 11 Jun 2019 20:01:15 +0800
-Received: from mtkcas08.mediatek.inc (172.21.101.126) by
- mtkmbs07n1.mediatek.inc (172.21.101.16) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Tue, 11 Jun 2019 20:01:14 +0800
-Received: from [172.21.84.99] (172.21.84.99) by mtkcas08.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Tue, 11 Jun 2019 20:01:14 +0800
-Message-ID: <1560254473.29153.16.camel@mtksdccf07>
-Subject: Re: [PATCH v2] kasan: add memory corruption identification for
- software tag-based mode
-From: Walter Wu <walter-zh.wu@mediatek.com>
-To: Dmitry Vyukov <dvyukov@google.com>
-CC: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko
-	<glider@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg
-	<penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim
-	<iamjoonsoo.kim@lge.com>, Matthias Brugger <matthias.bgg@gmail.com>, "Martin
- Schwidefsky" <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Vasily
- Gorbik" <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>, "Jason
- A. Donenfeld" <Jason@zx2c4.com>, Miles Chen
- =?UTF-8?Q?=28=E9=99=B3=E6=B0=91=E6=A8=BA=29?= <Miles.Chen@mediatek.com>,
-	kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>,
-	Linux-MM <linux-mm@kvack.org>, Linux ARM
-	<linux-arm-kernel@lists.infradead.org>, "linux-mediatek@lists.infradead.org"
-	<linux-mediatek@lists.infradead.org>, wsd_upstream
-	<wsd_upstream@mediatek.com>
-Date: Tue, 11 Jun 2019 20:01:13 +0800
-In-Reply-To: <CACT4Y+bNQCa_h158Hhug_DgF3X-8Uoc6Ar7p5vFvHE7uThQmjg@mail.gmail.com>
-References: <1559651172-28989-1-git-send-email-walter-zh.wu@mediatek.com>
-	 <CACT4Y+Y9_85YB8CCwmKerDWc45Z00hMd6Pc-STEbr0cmYSqnoA@mail.gmail.com>
-	 <1560151690.20384.3.camel@mtksdccf07>
-	 <CACT4Y+aetKEM9UkfSoVf8EaDNTD40mEF0xyaRiuw=DPEaGpTkQ@mail.gmail.com>
-	 <1560236742.4832.34.camel@mtksdccf07>
-	 <CACT4Y+YNG0OGT+mCEms+=SYWA=9R3MmBzr8e3QsNNdQvHNt9Fg@mail.gmail.com>
-	 <1560249891.29153.4.camel@mtksdccf07>
-	 <CACT4Y+aXqjCMaJego3yeSG1eR1+vkJkx5GB+xsy5cpGvAtTnDA@mail.gmail.com>
-	 <CACT4Y+bNQCa_h158Hhug_DgF3X-8Uoc6Ar7p5vFvHE7uThQmjg@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 5694F356CA;
+	Tue, 11 Jun 2019 12:02:11 +0000 (UTC)
+Received: from [10.36.117.196] (ovpn-117-196.ams2.redhat.com [10.36.117.196])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 6C7F2611B3;
+	Tue, 11 Jun 2019 12:02:08 +0000 (UTC)
+Subject: Re: [PATCH trivial] mm/balloon_compaction: Grammar s/the its/its/
+To: Geert Uytterhoeven <geert+renesas@glider.be>,
+ "Michael S . Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>,
+ Jiri Kosina <trivial@kernel.org>
+Cc: virtualization@lists.linux-foundation.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <20190607113559.15115-1-geert+renesas@glider.be>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <7db7ee2f-3b21-282e-164f-60bf3a2cab92@redhat.com>
+Date: Tue, 11 Jun 2019 14:02:07 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-X-MTK: N
+In-Reply-To: <20190607113559.15115-1-geert+renesas@glider.be>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Tue, 11 Jun 2019 12:02:16 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2019-06-11 at 13:39 +0200, Dmitry Vyukov wrote:
-> I should have been asked this earlier, but: what is your use-case?
-We need KASAN to help us to detect memory corruption at mobile phone. It
-is powerful tool.
-
-> Could you use CONFIG_KASAN_GENERIC instead? Why not?
-> CONFIG_KASAN_GENERIC already has quarantine.
+On 07.06.19 13:35, Geert Uytterhoeven wrote:
+> Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+> ---
+>  mm/balloon_compaction.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-We hope to use tag-based KASAN, because it consumes more less
-memory(1/16) than generic KASAN(1/8), but we also hope the tag-based
-KASAN report is easy read and able to identify the use-after-free or
-out-of-bound.
+> diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+> index ba739b76e6c52e55..17ac81d8d26bcb50 100644
+> --- a/mm/balloon_compaction.c
+> +++ b/mm/balloon_compaction.c
+> @@ -60,7 +60,7 @@ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+>  
+>  /*
+>   * balloon_page_dequeue - removes a page from balloon's page list and returns
+> - *			  the its address to allow the driver release the page.
+> + *			  its address to allow the driver to release the page.
+>   * @b_dev_info: balloon device decriptor where we will grab a page from.
+>   *
+>   * Driver must call it to properly de-allocate a previous enlisted balloon page
+> 
 
+Reviewed-by: David Hildenbrand <david@redhat.com>
 
-> On Tue, Jun 11, 2019 at 1:32 PM Dmitry Vyukov <dvyukov@google.com> wrote:
-> >
-> > On Tue, Jun 11, 2019 at 12:44 PM Walter Wu <walter-zh.wu@mediatek.com> wrote:
-> > >
-> > > On Tue, 2019-06-11 at 10:47 +0200, Dmitry Vyukov wrote:
-> > > > On Tue, Jun 11, 2019 at 9:05 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
-> > > > >
-> > > > > On Mon, 2019-06-10 at 13:46 +0200, Dmitry Vyukov wrote:
-> > > > > > On Mon, Jun 10, 2019 at 9:28 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
-> > > > > > >
-> > > > > > > On Fri, 2019-06-07 at 21:18 +0800, Dmitry Vyukov wrote:
-> > > > > > > > > diff --git a/include/linux/kasan.h b/include/linux/kasan.h
-> > > > > > > > > index b40ea104dd36..be0667225b58 100644
-> > > > > > > > > --- a/include/linux/kasan.h
-> > > > > > > > > +++ b/include/linux/kasan.h
-> > > > > > > > > @@ -164,7 +164,11 @@ void kasan_cache_shutdown(struct kmem_cache *cache);
-> > > > > > > > >
-> > > > > > > > >  #else /* CONFIG_KASAN_GENERIC */
-> > > > > > > > >
-> > > > > > > > > +#ifdef CONFIG_KASAN_SW_TAGS_IDENTIFY
-> > > > > > > > > +void kasan_cache_shrink(struct kmem_cache *cache);
-> > > > > > > > > +#else
-> > > > > > > >
-> > > > > > > > Please restructure the code so that we don't duplicate this function
-> > > > > > > > name 3 times in this header.
-> > > > > > > >
-> > > > > > > We have fixed it, Thank you for your reminder.
-> > > > > > >
-> > > > > > >
-> > > > > > > > >  static inline void kasan_cache_shrink(struct kmem_cache *cache) {}
-> > > > > > > > > +#endif
-> > > > > > > > >  static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
-> > > > > > > > >
-> > > > > > > > >  #endif /* CONFIG_KASAN_GENERIC */
-> > > > > > > > > diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-> > > > > > > > > index 9950b660e62d..17a4952c5eee 100644
-> > > > > > > > > --- a/lib/Kconfig.kasan
-> > > > > > > > > +++ b/lib/Kconfig.kasan
-> > > > > > > > > @@ -134,6 +134,15 @@ config KASAN_S390_4_LEVEL_PAGING
-> > > > > > > > >           to 3TB of RAM with KASan enabled). This options allows to force
-> > > > > > > > >           4-level paging instead.
-> > > > > > > > >
-> > > > > > > > > +config KASAN_SW_TAGS_IDENTIFY
-> > > > > > > > > +       bool "Enable memory corruption idenitfication"
-> > > > > > > >
-> > > > > > > > s/idenitfication/identification/
-> > > > > > > >
-> > > > > > > I should replace my glasses.
-> > > > > > >
-> > > > > > >
-> > > > > > > > > +       depends on KASAN_SW_TAGS
-> > > > > > > > > +       help
-> > > > > > > > > +         Now tag-based KASAN bug report always shows invalid-access error, This
-> > > > > > > > > +         options can identify it whether it is use-after-free or out-of-bound.
-> > > > > > > > > +         This will make it easier for programmers to see the memory corruption
-> > > > > > > > > +         problem.
-> > > > > > > >
-> > > > > > > > This description looks like a change description, i.e. it describes
-> > > > > > > > the current behavior and how it changes. I think code comments should
-> > > > > > > > not have such, they should describe the current state of the things.
-> > > > > > > > It should also mention the trade-off, otherwise it raises reasonable
-> > > > > > > > questions like "why it's not enabled by default?" and "why do I ever
-> > > > > > > > want to not enable it?".
-> > > > > > > > I would do something like:
-> > > > > > > >
-> > > > > > > > This option enables best-effort identification of bug type
-> > > > > > > > (use-after-free or out-of-bounds)
-> > > > > > > > at the cost of increased memory consumption for object quarantine.
-> > > > > > > >
-> > > > > > > I totally agree with your comments. Would you think we should try to add the cost?
-> > > > > > > It may be that it consumes about 1/128th of available memory at full quarantine usage rate.
-> > > > > >
-> > > > > > Hi,
-> > > > > >
-> > > > > > I don't understand the question. We should not add costs if not
-> > > > > > necessary. Or you mean why we should add _docs_ regarding the cost? Or
-> > > > > > what?
-> > > > > >
-> > > > > I mean the description of option. Should it add the description for
-> > > > > memory costs. I see KASAN_SW_TAGS and KASAN_GENERIC options to show the
-> > > > > memory costs. So We originally think it is possible to add the
-> > > > > description, if users want to enable it, maybe they want to know its
-> > > > > memory costs.
-> > > > >
-> > > > > If you think it is not necessary, we will not add it.
-> > > >
-> > > > Full description of memory costs for normal KASAN mode and
-> > > > KASAN_SW_TAGS should probably go into
-> > > > Documentation/dev-tools/kasan.rst rather then into config description
-> > > > because it may be too lengthy.
-> > > >
-> > > Thanks your reminder.
-> > >
-> > > > I mentioned memory costs for this config because otherwise it's
-> > > > unclear why would one ever want to _not_ enable this option. If it
-> > > > would only have positive effects, then it should be enabled all the
-> > > > time and should not be a config option at all.
-> > >
-> > > Sorry, I don't get your full meaning.
-> > > You think not to add the memory costs into the description of config ?
-> > > or need to add it? or make it not be a config option(default enabled)?
-> >
-> > Yes, I think we need to include mention of additional cost into _this_
-> > new config.
+-- 
 
+Thanks,
+
+David / dhildenb
 
