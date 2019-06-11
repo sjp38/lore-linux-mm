@@ -2,397 +2,149 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 87267C4321A
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:19:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8FEA9C4321A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:25:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3DFA3207E0
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:19:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DFA3207E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 5013120673
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:25:19 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="AOEMKo6Q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5013120673
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C637B6B0005; Tue, 11 Jun 2019 08:19:35 -0400 (EDT)
+	id E0D296B0005; Tue, 11 Jun 2019 08:25:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C14CC6B0006; Tue, 11 Jun 2019 08:19:35 -0400 (EDT)
+	id DBD876B0006; Tue, 11 Jun 2019 08:25:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ADBB46B0007; Tue, 11 Jun 2019 08:19:35 -0400 (EDT)
+	id C84976B0007; Tue, 11 Jun 2019 08:25:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B2486B0005
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:19:35 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id n190so10765649qkd.5
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:19:35 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A8BD16B0005
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:25:18 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id h3so9820056iob.20
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:25:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to;
-        bh=nsVlVaT+WAm3jXKZp4sMuZz2cs9lGLtDs9/1KLUEtys=;
-        b=oLSyTddl9n+42bzRGf6NlIdiW9iDKUf0Booz8/ZEn4TbDFqBM5bQHc1k6VYbJmglzQ
-         nP7mPA6gjsG/pp5gd0uBpMlDFNpWaTngnIq5orJQtxhHFsuiXVywwfX4SlBx/eOHtf5T
-         Tu+xxERCc/xOb7D/p9z4pHRFYuBVLRpBUGodT1KbFzGU8L8JE+vRF2Q6Yu+at7Uca+iQ
-         ejHrns4530tXUugxNuV83KfsqRJb2S/oFuk6+LREfbX8HBgCcYnuMYgRMGa1Vn5ppn20
-         NVovguPzZAPOnJBOxR7IxHAaFqFcRVWch2TDKZnqgLFIEK0L9CI/R680p5i+QujHdg42
-         renA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWACU/x+By8wksTRdXUvfON34W51B3Ck9VchDtqlmd1h5eDZ5sO
-	4QB4g2Gxd5n6XVtM69UqKfyN+RiYC6/Rkn/L4hpOPs3ABwx08pVcE5ntxeMxJKGPcKnmawRkzD8
-	G8mJOj6YD3uIxWJ2I1wWE5HbXUO7YdUCMOkeioF0L/55lUYRIMAaC6C1SNaKDPXWbpA==
-X-Received: by 2002:a37:97c5:: with SMTP id z188mr21346451qkd.5.1560255575303;
-        Tue, 11 Jun 2019 05:19:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwv+d0tez2iPgL/re+Mz1N6lEC7QarzPTIQORqN+Tjgxs9wc9dhOyg/AI7S+XCo6RZ9ce4J
-X-Received: by 2002:a37:97c5:: with SMTP id z188mr21346381qkd.5.1560255574406;
-        Tue, 11 Jun 2019 05:19:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560255574; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Gq9CRd934/jSE4tc4Cy61VEetGc4bMbhcoAUH9wfjmA=;
+        b=ob8sxrsEFB60frFrkH2HEdjOFOlUsfCu7ZSzNjb3IKke5HS9+kPd64IQaUxK3Abd00
+         y+NK6pFaad+FX5dABBJyH4ZZ2ftwG2TjDwH6PPxGZh2lk2UsN2pa8qmZsHePEqGlJOOh
+         erpFYVCXPo9OhkRiy0I2yfE2wHya2LDcFsmtAb4rbLiioV/9V6CHCgF4DJwLCGnG9+YY
+         FbZafnRVOZAvpxZdctSTyqw9TMTrA8wSJeymxdC+KbpBi2WRn6e0FFRoEmNAAddudm8z
+         pOraMembsqLJfRhgCh3FP662pQ+BDUlvF8+bpwtV85zGWLZT5WC07hoI9pbIEdWaLP0p
+         6nhQ==
+X-Gm-Message-State: APjAAAUNgjUgpt1PR/7NBsvKfrNAa1gN1l0wbMecbobom9+t+dgH4TSO
+	jPEkVsPWYnJnzLNXUUurhHSSRxIsI0gheEgR3lQTMKdoMOnblukuCeWRSOZftZEm4ZaqMhECQJq
+	pj2xBYVktmV3OjBqvgGA7G6YZjSPn1ZP+PuLP+asgmsLkwwjHu4x0Atq++40ANdO5Mw==
+X-Received: by 2002:a24:2f93:: with SMTP id j141mr17243373itj.158.1560255918458;
+        Tue, 11 Jun 2019 05:25:18 -0700 (PDT)
+X-Received: by 2002:a24:2f93:: with SMTP id j141mr17243342itj.158.1560255917757;
+        Tue, 11 Jun 2019 05:25:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560255917; cv=none;
         d=google.com; s=arc-20160816;
-        b=pbAFHihf3yAgRPkrum1vxFMHXaS4Nk/s9CKLGHxkdsF5rQ55nnhBdcoozh1SpJO0Fa
-         vd+x1aO30u0OzrCvidpjgmiaR6MMzChA7meo/5d2TjbM1YnwaAMmJH3l38w1RJB6Ff4e
-         R2XDnlNIh+1sfd19nM1wIAk1iXpQRavi5fnJOYaRF4r4+F5TzwUvsY7vTa9On69P5hZR
-         ljRlI2BwX7dozUY4N1MBQ7DjHsFQgGxqDGGNrK+h9GuumMx5c3vNiluaJXYUsDqFx3Vo
-         8wis5jsrGbX2HJ7JEGstunKskmr/982sj3DH8HGroxYNvCRo4Hbi31NMow0gplaSO1yK
-         0ilA==
+        b=diEaR2CZOO+mslnsAbOi+koDHLhttxteNYkZyKFfYO6Ceel6698WouOUSxifaKkMWZ
+         iidv3arRceSN62RlEj0748U6V2HXXYSRsF2DVAAs5xNTWTvixsQe7V2fdktU/TxghwyC
+         ohC3B4yAV5XfMMaEHWntz9qNXmG9wK0isJem/dOcHlvNupwJLUic0dBCPEpRXEB4tt7h
+         GG4qTkkzSI3pSnNl69N/G5TDyCMOn9+Rx+6NI+kq1vAlWgJy5bs62+qvE1m4cvWPf5hP
+         pl816dyQAh6v5qYVp9vCelck9iPBkFyCqa6mh+LipAIvkOd/6CsZHzz/TJ4RSPWOgZh/
+         FHOw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:mime-version:user-agent:date:message-id:organization
-         :autocrypt:openpgp:from:references:cc:to:subject;
-        bh=nsVlVaT+WAm3jXKZp4sMuZz2cs9lGLtDs9/1KLUEtys=;
-        b=aSepGgyMM6ublvWeqjdAOX8jxyXUJ4KDHnBZ5je9mOO5Wq9YPoIp8n/bAys5+CrrNC
-         XF4zSWpmBtrlpuFYQ6TTSi+FhKRSgtcHrx8Lhg4i4umUfo7qJpob3Q8RzAdHAcvEl/ew
-         jbPf/m+Tpi+WfRVqMgjpsiG1aMXymz9yf+iBPfpnaV4rK7DYihWALh4Brw8unUP2fnA4
-         Qy+rrnA5kEx6HuINfZh6nYWnEe6kO16cTlt5fdXOzJQfQZ4Aw9ifbj6vmYcp2p/kXTXS
-         LXCz58LEoK/3G3nyYTKPhRmBRCTVswYEVmiv/oHDVowINR940RY/A14y5HX+reMZe6Ml
-         JeHw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Gq9CRd934/jSE4tc4Cy61VEetGc4bMbhcoAUH9wfjmA=;
+        b=KqZyPDsBecY2aPxwgY+PnWgimY9qI11Jbvn6fZpwrmP7q0qpltl1j+53zK7Sg3paYY
+         yHrd20bL8PyIdRIP+WtzYAP/21WUpUY3QIFcYIZBAaGTWHWZmVcVX2+FP+XFSsmW+NYu
+         FBEye9eK1ZI+yyvDWdOg4T2d77k3b9CN1Yja0O2qY6rMTSdAeWXnC8cegKxHqtxmDsPF
+         j0sd3u41uUSE9fFmaH+1xZcEwO9zCADquBa31xfSQ+NG9U4GjfcAJmCRQATKqDeUGRfB
+         hKRQ5hJ8CgvX0K4gACkJfAq/B/Bi49fVmyKDVtiffxVRf/oGuEXrIEiar1lBSyx2xot6
+         H2Ew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c35si6891441qvd.163.2019.06.11.05.19.34
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=AOEMKo6Q;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v5sor6533868ioe.13.2019.06.11.05.25.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jun 2019 05:19:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Tue, 11 Jun 2019 05:25:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 76F56552FC;
-	Tue, 11 Jun 2019 12:19:20 +0000 (UTC)
-Received: from [10.40.205.172] (unknown [10.40.205.172])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 273D25DAA0;
-	Tue, 11 Jun 2019 12:19:06 +0000 (UTC)
-Subject: Re: [RFC][Patch v10 0/2] mm: Support for page hinting
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
- wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
- david@redhat.com, dodgen@google.com, konrad.wilk@oracle.com,
- dhildenb@redhat.com, aarcange@redhat.com, alexander.duyck@gmail.com
-References: <20190603170306.49099-1-nitesh@redhat.com>
- <20190603140304-mutt-send-email-mst@kernel.org>
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- VujM7c/b4pps
-Organization: Red Hat Inc,
-Message-ID: <500506fd-7641-c628-533b-7aa178a37f18@redhat.com>
-Date: Tue, 11 Jun 2019 08:19:04 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=AOEMKo6Q;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Gq9CRd934/jSE4tc4Cy61VEetGc4bMbhcoAUH9wfjmA=;
+        b=AOEMKo6QupDfoibyB4JDtla+OGVyHX+uZgoNzqLSKc24MwE2lsliSJhMg8PRNqESaX
+         7kWkB1yg6tR/mppSsW1SMt08NWvRix0xVWcgS/nxAm8qEmxDTagEmG0gQgFRMB8cHCCR
+         oq9G6AEQ9zjyXqeTRYb93Uyka+jdz+TCmscHhubT1ZxtP61M0SZWYWf2mV+FPicJSTV8
+         kpERADiNqR3SD2e9gxMa9fimczW/Od5exGRGdR6iJi8gljtz6XU8c+O9KhUr6/fdtc+1
+         pHbE9YcRCiERLl2oheR8DyUTv4IjqvJHSzFGAJvfAgTPr1Pfcpy2XfomkBqyBoGOEaTU
+         7uYg==
+X-Google-Smtp-Source: APXvYqzjRg84fLgMD3IEc7Ck88dUNwnDYn6PxBDGvSm78jme0lIJnzjQ1xVGoygVFyNdi7KCwTGj+1fKFgJ+OLTQCwU=
+X-Received: by 2002:a6b:8dcf:: with SMTP id p198mr2542052iod.46.1560255917485;
+ Tue, 11 Jun 2019 05:25:17 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190603140304-mutt-send-email-mst@kernel.org>
-Content-Type: multipart/signed; micalg=pgp-sha256;
- protocol="application/pgp-signature";
- boundary="KNAXxfAzkz54vPDzUdLlmQg653PKEo7Xt"
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Tue, 11 Jun 2019 12:19:33 +0000 (UTC)
+References: <1560156147-12314-1-git-send-email-laoar.shao@gmail.com> <20190610141242.382cfefa2c98b618d12057fb@linux-foundation.org>
+In-Reply-To: <20190610141242.382cfefa2c98b618d12057fb@linux-foundation.org>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Tue, 11 Jun 2019 20:24:41 +0800
+Message-ID: <CALOAHbDEWBWWz5qG6xoEMu3mqOom1K895FmFrnwrwND6tWk_ow@mail.gmail.com>
+Subject: Re: [PATCH] mm/vmscan: call vmpressure_prio() in kswapd reclaim path
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Linux MM <linux-mm@kvack.org>, shaoyafang@didiglobal.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---KNAXxfAzkz54vPDzUdLlmQg653PKEo7Xt
-Content-Type: multipart/mixed; boundary="YnBKnQIIjrnveMKSGll1ZbHtvHbelLIlR";
- protected-headers="v1"
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
- wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
- david@redhat.com, dodgen@google.com, konrad.wilk@oracle.com,
- dhildenb@redhat.com, aarcange@redhat.com, alexander.duyck@gmail.com
-Message-ID: <500506fd-7641-c628-533b-7aa178a37f18@redhat.com>
-Subject: Re: [RFC][Patch v10 0/2] mm: Support for page hinting
-References: <20190603170306.49099-1-nitesh@redhat.com>
- <20190603140304-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20190603140304-mutt-send-email-mst@kernel.org>
-
---YnBKnQIIjrnveMKSGll1ZbHtvHbelLIlR
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
-
-
-On 6/3/19 2:04 PM, Michael S. Tsirkin wrote:
-> On Mon, Jun 03, 2019 at 01:03:04PM -0400, Nitesh Narayan Lal wrote:
->> This patch series proposes an efficient mechanism for communicating fr=
-ee memory
->> from a guest to its hypervisor. It especially enables guests with no p=
-age cache
->> (e.g., nvdimm, virtio-pmem) or with small page caches (e.g., ram > dis=
-k) to
->> rapidly hand back free memory to the hypervisor.
->> This approach has a minimal impact on the existing core-mm infrastruct=
-ure.
-> Could you help us compare with Alex's series?
-> What are the main differences?
-Sorry for the late reply, but I haven't been feeling too well during the
-last week.
-
-The main differences are that this series uses a bitmap to track pages
-that should be hinted to the hypervisor, while Alexander's series tracks
-it directly in core-mm. Also in order to prevent duplicate hints
-Alexander's series uses a newly defined page flag whereas I have added
-another argument to __free_one_page.
-For these reasons, Alexander's series is relatively more core-mm
-invasive, while this series is lightweight (e.g., LOC). We'll have to
-see if there are real performance differences.
-
-I'm planning on doing some further investigations/review/testing/...
-once I'm back on track.
+On Tue, Jun 11, 2019 at 5:12 AM Andrew Morton <akpm@linux-foundation.org> wrote:
 >
->> Measurement results (measurement details appended to this email):
->> * With active page hinting, 3 more guests could be launched each of 5 =
-GB(total=20
->> 5 vs. 2) on a 15GB (single NUMA) system without swapping.
->> * With active page hinting, on a system with 15 GB of (single NUMA) me=
-mory and
->> 4GB of swap, the runtime of "memhog 6G" in 3 guests (run sequentially)=
- resulted
->> in the last invocation to only need 37s compared to 3m35s without page=
- hinting.
->>
->> This approach tracks all freed pages of the order MAX_ORDER - 2 in bit=
-maps.
->> A new hook after buddy merging is used to set the bits in the bitmap.
->> Currently, the bits are only cleared when pages are hinted, not when p=
-ages are
->> re-allocated.
->>
->> Bitmaps are stored on a per-zone basis and are protected by the zone l=
-ock. A
->> workqueue asynchronously processes the bitmaps as soon as a pre-define=
-d memory
->> threshold is met, trying to isolate and report pages that are still fr=
-ee.
->>
->> The isolated pages are reported via virtio-balloon, which is responsib=
-le for
->> sending batched pages to the host synchronously. Once the hypervisor p=
-rocessed
->> the hinting request, the isolated pages are returned back to the buddy=
-=2E
->>
->> The key changes made in this series compared to v9[1] are:
->> * Pages only in the chunks of "MAX_ORDER - 2" are reported to the hype=
-rvisor to
->> not break up the THP.
->> * At a time only a set of 16 pages can be isolated and reported to the=
- host to
->> avoids any false OOMs.
->> * page_hinting.c is moved under mm/ from virt/kvm/ as the feature is d=
-ependent
->> on virtio and not on KVM itself. This would enable any other hyperviso=
-r to use
->> this feature by implementing virtio devices.
->> * The sysctl variable is replaced with a virtio-balloon parameter to
->> enable/disable page-hinting.
->>
->> Pending items:
->> * Test device assigned guests to ensure that hinting doesn't break it.=
+> On Mon, 10 Jun 2019 16:42:27 +0800 Yafang Shao <laoar.shao@gmail.com> wrote:
+>
+> > Once the reclaim scanning depth goes too deep, it always mean we are
+> > under memory pressure now.
+> > This behavior should be captured by vmpressure_prio(), which should run
+> > every time when the vmscan's reclaiming priority (scanning depth)
+> > changes.
+> > It's possible the scanning depth goes deep in kswapd reclaim path,
+> > so vmpressure_prio() should be called in this path.
+> >
+> > Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+>
+> What effect does this change have upon userspace?
+>
+> Presumably you observed some behaviour(?) and that behaviour was
+> undesirable(?) and the patch changed that behaviour to something
+> else(?) and this new behaviour is better for some reason(?).
+>
 
->> * Follow up on VIRTIO_BALLOON_F_PAGE_POISON's device side support.
->> * Compare reporting free pages via vring with vhost.
->> * Decide between MADV_DONTNEED and MADV_FREE.
->> * Look into memory hotplug, more efficient locking, possible races whe=
-n
->> disabling.
->> * Come up with proper/traceable error-message/logs.
->> * Minor reworks and simplifications (e.g., virtio protocol).
->>
->> Benefit analysis:
->> 1. Use-case - Number of guests that can be launched without swap usage=
+When there're few free memory,
+the usespace can receive the critical memory pressure event earlier,
+because when we try to do direct reclaim we always wakeup the kswapd first.
+Currently the vmpressure work (vmpressure_work_fn) can only be
+scheduled in direct reclaim path,
+and with this change, the vmpressure work can be scheduled in kswapd
+reclaim path.
 
->> NUMA Nodes =3D 1 with 15 GB memory
->> Guest Memory =3D 5 GB
->> Number of cores in guest =3D 1
->> Workload =3D test allocation program allocates 4GB memory, touches it =
-via memset
->> and exits.
->> Procedure =3D
->> The first guest is launched and once its console is up, the test alloc=
-ation
->> program is executed with 4 GB memory request (Due to this the guest oc=
-cupies
->> almost 4-5 GB of memory in the host in a system without page hinting).=
- Once
->> this program exits at that time another guest is launched in the host =
-and the
->> same process is followed. It is continued until the swap is not used.
->>
->> Results:
->> Without hinting =3D 3, swap usage at the end 1.1GB.
->> With hinting =3D 5, swap usage at the end 0.
->>
->> 2. Use-case - memhog execution time
->> Guest Memory =3D 6GB
->> Number of cores =3D 4
->> NUMA Nodes =3D 1 with 15 GB memory
->> Process: 3 Guests are launched and the =E2=80=98memhog 6G=E2=80=99 exe=
-cution time is monitored
->> one after the other in each of them.
->> Without Hinting - Guest1:47s, Guest2:53s, Guest3:3m35s, End swap usage=
-: 3.5G
->> With Hinting - Guest1:40s, Guest2:44s, Guest3:37s, End swap usage: 0
->>
->> Performance analysis:
->> 1. will-it-scale's page_faul1:
->> Guest Memory =3D 6GB
->> Number of cores =3D 24
->>
->> Without Hinting:
->> tasks,processes,processes_idle,threads,threads_idle,linear
->> 0,0,100,0,100,0
->> 1,315890,95.82,317633,95.83,317633
->> 2,570810,91.67,531147,91.94,635266
->> 3,826491,87.54,713545,88.53,952899
->> 4,1087434,83.40,901215,85.30,1270532
->> 5,1277137,79.26,916442,83.74,1588165
->> 6,1503611,75.12,1113832,79.89,1905798
->> 7,1683750,70.99,1140629,78.33,2223431
->> 8,1893105,66.85,1157028,77.40,2541064
->> 9,2046516,62.50,1179445,76.48,2858697
->> 10,2291171,58.57,1209247,74.99,3176330
->> 11,2486198,54.47,1217265,75.13,3493963
->> 12,2656533,50.36,1193392,74.42,3811596
->> 13,2747951,46.21,1185540,73.45,4129229
->> 14,2965757,42.09,1161862,72.20,4446862
->> 15,3049128,37.97,1185923,72.12,4764495
->> 16,3150692,33.83,1163789,70.70,5082128
->> 17,3206023,29.70,1174217,70.11,5399761
->> 18,3211380,25.62,1179660,69.40,5717394
->> 19,3202031,21.44,1181259,67.28,6035027
->> 20,3218245,17.35,1196367,66.75,6352660
->> 21,3228576,13.26,1129561,66.74,6670293
->> 22,3207452,9.15,1166517,66.47,6987926
->> 23,3153800,5.09,1172877,61.57,7305559
->> 24,3184542,0.99,1186244,58.36,7623192
->>
->> With Hinting:
->> 0,0,100,0,100,0
->> 1,306737,95.82,305130,95.78,306737
->> 2,573207,91.68,530453,91.92,613474
->> 3,810319,87.53,695281,88.58,920211
->> 4,1074116,83.40,880602,85.48,1226948
->> 5,1308283,79.26,1109257,81.23,1533685
->> 6,1501987,75.12,1093661,80.19,1840422
->> 7,1695300,70.99,1104207,79.03,2147159
->> 8,1901523,66.85,1193613,76.90,2453896
->> 9,2051288,62.73,1200913,76.22,2760633
->> 10,2275771,58.60,1192992,75.66,3067370
->> 11,2435016,54.48,1191472,74.66,3374107
->> 12,2623114,50.35,1196911,74.02,3680844
->> 13,2766071,46.22,1178589,73.02,3987581
->> 14,2932163,42.10,1166414,72.96,4294318
->> 15,3000853,37.96,1177177,72.62,4601055
->> 16,3113738,33.85,1165444,70.54,4907792
->> 17,3132135,29.77,1165055,68.51,5214529
->> 18,3175121,25.69,1166969,69.27,5521266
->> 19,3205490,21.61,1159310,65.65,5828003
->> 20,3220855,17.52,1171827,62.04,6134740
->> 21,3182568,13.48,1138918,65.05,6441477
->> 22,3130543,9.30,1128185,60.60,6748214
->> 23,3087426,5.15,1127912,55.36,7054951
->> 24,3099457,1.04,1176100,54.96,7361688
->>
->> [1] https://lkml.org/lkml/2019/3/6/413
->>
---=20
-Regards
-Nitesh
+I think receiving the critical memory pressure event earlier can give
+the userspace more chance to do something to prevent random OOM.
 
+With this change, the vmpressure work will be scheduled more frequent
+than before when the system is under memory pressure.
 
---YnBKnQIIjrnveMKSGll1ZbHtvHbelLIlR--
-
---KNAXxfAzkz54vPDzUdLlmQg653PKEo7Xt
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAEBCAAdFiEEkXcoRVGaqvbHPuAGo4ZA3AYyozkFAlz/nDgACgkQo4ZA3AYy
-ozl5Cw/+NNn+xK6GzSyt7aiJM52Okg+9Gi2lKqQP8p8eYcA+27H1ZsDNQ3KAKQ/8
-NjOxSB6dEmTzULR8DEcovvkhu+RDuHj4pTI9QcH0S3RnZgyjVSks/miQDtpFGWi2
-iBgnrw5YkLQx7xa7BKESposc9wH+oWcVoiqbyIv5xxLwp7pdYJLCQ8hR2iqJ9ikc
-YhEykzH5i9IncoE0ablPh3JDPL+EsbTVXUbc0jJC3LuQOayZ/IAS7SSAEdGq45I1
-Putr2FvMVOaZTxMBjapk3Dy4QWWaKSaIc39XtXD3F0vGlG6YFjMPp2PSGS/Ea3XI
-V0nfCXFDAEvjiktef26EdTRyh1VeD2fDfyLHjO/Cmd/Mz7lwc6NmN3dU1khBAQwN
-ibSBG4jq/fuV1qzKt8ZcrPYD0HBkPCvWmuALelx4ZRKVJrMPSiqSetlJkQ3nN5w6
-PecsV4E1MgGp+2AeHqLNCPjoiTxWyA10+ytCk7HjshnpDC3yLx4RhksDnrEA0JG4
-VNb2x8WID4dPqVci9cykU22qO5GvWyAfaaYIi08nGn52OjIa37AH1xVg+CmEFTDb
-ptzPtsdP5tOH9uxNJkYaVo8orKJpxiX7G3Bh2WOCfaIxZIaMBZIAfK6D0LcrAwOY
-qAauN5L7Bl4mWC8x6uzWI1qz1q8f3fxDEgZRjLQYRCxvnopbz9E=
-=NfmV
------END PGP SIGNATURE-----
-
---KNAXxfAzkz54vPDzUdLlmQg653PKEo7Xt--
+Thanks
+Yafang
 
