@@ -2,401 +2,229 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D1DDDC4321B
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:29:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B45C9C43218
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:41:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7B89E20673
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:29:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="q44jIWre"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B89E20673
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 5876320896
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 12:41:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5876320896
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 138FA6B0008; Tue, 11 Jun 2019 08:29:56 -0400 (EDT)
+	id B8FC16B000C; Tue, 11 Jun 2019 08:41:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0C2666B000A; Tue, 11 Jun 2019 08:29:56 -0400 (EDT)
+	id B40B16B0010; Tue, 11 Jun 2019 08:41:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E575A6B000C; Tue, 11 Jun 2019 08:29:55 -0400 (EDT)
+	id A07926B0266; Tue, 11 Jun 2019 08:41:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AA7416B0008
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:29:55 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i123so9519137pfb.19
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:29:55 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B8396B000C
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:41:31 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id y3so12647626ybg.12
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:41:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=y7gj05j+fTkifIRrdspgMrrd6G03saWrwNWynfBgS0U=;
-        b=tHd1OvTWBP9kgNOl1CH+t2mcLALwjTcdazguKWDg6Hz7cQ1rFlBilJMIWU8mlhLRR0
-         5k8MYJ8l12IAx/RnnA35N7zIvalOJH6xa3BrlxQrMBftydpSIpK8mf1jic7KEWqZBiT4
-         qg/AgcltQtLtenbyYIDOlNB1odbBpGU3bw+YT5cmsS2Md7RtGTjAnDjzKsxkc4JBuJeI
-         j9FSJov7BgP6RzNVPOMXca3KBc4y76dZZ6SwhtOqje07/X73RHgBeElWowhdl0vtWc2I
-         gM5xdPZpI9Oh1kWhb65yyAEulhpLeKVzCKpwwesAox86zYvWI6buCkXTO4pZxBiL0uV8
-         mwRw==
-X-Gm-Message-State: APjAAAXtLjNuVSnt5ah8pq6Ge5CPOm14Go0qCd9nWBpepLgnv/PIl9ck
-	J3AYrOF7NjUWbdzZh1sBWbiwN/2b+8qqywzve/yOcfj1lvIUZFJLtBYIHRFrDhfzElO/YvaYKpX
-	/GfsEToWWUnU705bhpvLog27v2MYFU/joWHyxNkcSza4U2HuXoQlmbomsmp9BpJkwfQ==
-X-Received: by 2002:a63:b1d:: with SMTP id 29mr20161563pgl.103.1560256195075;
-        Tue, 11 Jun 2019 05:29:55 -0700 (PDT)
-X-Received: by 2002:a63:b1d:: with SMTP id 29mr20161495pgl.103.1560256194033;
-        Tue, 11 Jun 2019 05:29:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560256194; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent:message-id;
+        bh=XBBPEEWheebAgmh5bb5/i7dtqZUifBg5osJS/QhGcSc=;
+        b=HPp9Mq3LPDvD5txxS5GZvV3iHklb8+NDMESP51J2mcXzjDSGPIxwUCcKi/TSVkXdvV
+         xDLjjY6JzkPJU0eFb4VdSoIaPblZDldkJH605mTThSYE52hNE/Lla19DV1gHqDVRsccq
+         zaExOCtNAKriXcR/Ohw3Ot5Z5powCUVjBB2UwdbM2TipQEV8+b/t5TX2ikpM8GwRVfnF
+         gKOBNxAygNbNkjvGCVT5avrHMG4Cug9xPzlJgOCgiLOPpEQHlwsAapRk+pYJUs5LWVS8
+         R2xnWwI3S3dKcErSGAF+PvlFfMJWuKv4c5jS1ciLKzCpzdo8W56pWDzR21kC/fzLfVP1
+         9bDQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVpOY62hKXNcSQ7YkEcF/jQfHWq1+LvKtaGHgLEclNp6speT2zJ
+	Za7R8EYk9H07wWsuNZkcrO+1OjPH3uH3eTV5bmLokJ24x8kFEcaDKCm7qOiKWvxmUZI92CuMd2K
+	DKpaVfSF3Uk9T97IvRCXXFKOJzZV8rmWyZJubv6ncd1tUVauDILya5v9ZNnSDviLxMw==
+X-Received: by 2002:a5b:ac1:: with SMTP id a1mr32682955ybr.267.1560256891227;
+        Tue, 11 Jun 2019 05:41:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzgiYZu8TJbAw6c7LBmjBqf79oXR0HP6uJH50rLTu9vlLBgKo2k8od5S1NZVO/lYhDOLsvM
+X-Received: by 2002:a5b:ac1:: with SMTP id a1mr32682929ybr.267.1560256890534;
+        Tue, 11 Jun 2019 05:41:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560256890; cv=none;
         d=google.com; s=arc-20160816;
-        b=G39E995ek6m3zwnq/m23eH4qX+RptI6p1ySbUeKMABXJLe0U2qctwi21Gcx5Y/fxDq
-         owo8ujGSFftSGRSGW3Z28uL7yhVKc8KVXYygXAWtGlC5I8dpyxGk5UWHki5C/3uf5WPF
-         19GrZ/cODUE3RaQljfoSgR5W96POsvf2CSfLnGkIfOnv+fz0TDjSY4EgN9X8DfvpccRy
-         38YHALwVcGlvLGeN49tl+786x6OOVUrrO0jW+8+bTZvq6WYYNjJkzQQ7hRRXvFx28RZa
-         EYI2RopW278BOO+MOQQ+tr4++awMRexE+rARlOXdz2S5s+HhmCpUJpbo9unICs/KCZBG
-         EduQ==
+        b=jyaj051cEotUWYuLKsglwbJLXMgo6VrYdgTL1goysn+7RIvfRHXSotWARb3tm9CiR2
+         AHXwGECwlrdEN9F3nh92R9NkM1D9GEP3oohFcoUEldT1H2ab7/CGM67o/9uSpvGduDSW
+         gd45g66DkVl1Ai6jSzueD0A+lcBR+Po2u83jwy9vCClBfvuwMlw46F4ppYDD2y3KdAQQ
+         8angNYgSh3uURxBQ0VcD/Pj8L7Uke73DVF6tVQVFC2X1AEB/UqdTNkocy//oscnYAXOw
+         kg2/KYQb3ZSvBybvA0c1PU5fgrKndkldx0fpt8AWEeFnn3dBBDD/Yy3y/sfzuC0oiLBr
+         nNzQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=y7gj05j+fTkifIRrdspgMrrd6G03saWrwNWynfBgS0U=;
-        b=N4dpytHFS2f1G1WIqr7SAa+wLI4QQ/uITi7Sc/iEN6jntfwB+0FOXGQl2H1HU2p1pt
-         cj5tBh/4GT2Kgdhbbxot73TresvTNyUOf63BL+2dOGFhPkzjwRUpRhgHcbzqEAZajdTC
-         ipmfYlP+eZDT3wWqgPWFC11YnPofoecMMj46OQ0AWmMUXA+WX9gDX2xdFAE86W7SnXGf
-         RFjFCs3DMxT8xtTdJ+9U5FkVhZq2FsWqJo6Lf/Uub18gigwIAC8C0IjN6/SGlV/gg3NS
-         WiiIHMX8tmJDiiYAhJUpTN3GjNd0yD6Qkht0iFXfs9zyO/Y0+Cw79HMrQgSUMKBzG/9g
-         EBWQ==
+        h=message-id:user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:subject:cc:to:from:date;
+        bh=XBBPEEWheebAgmh5bb5/i7dtqZUifBg5osJS/QhGcSc=;
+        b=tfxAQV9IZvDd4neA9qgummXzd16ZzIXGZTHVKAgP0VeK5JVxA/IgmuPZQxV7IURZ7L
+         eElBR4jnmcdsbwW0jeksS3wB+/pOqsh/Pu20TAen8VQIKX2qhlZHMHzgYjjX2dvd99q8
+         QV7kJ48cxuSd0KdzHEo3T0/pUJVU6WlTs1LbU7uv8rVNF2tEB8+7PvM6MKKJIwAPuA9z
+         acPGp2jzx2ZZ9s3kdOE4cQ8XSMHb9n9Z78ZMQdKU0iBonLQx809BPXpe8kL8wrYtQBPk
+         66o5V4+DUBAa9iuJI3vmzulxGXvIghajyLqRYWe13145chRFov7fM1gLS4dNSz25VNQa
+         Xyhw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=q44jIWre;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a19sor12676783pfn.54.2019.06.11.05.29.53
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id f12si4904479ywi.438.2019.06.11.05.41.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Jun 2019 05:29:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Jun 2019 05:41:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=q44jIWre;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=y7gj05j+fTkifIRrdspgMrrd6G03saWrwNWynfBgS0U=;
-        b=q44jIWreO5gdxzKinRevyVBXJSZQf8U+XKtuF2X+lzP726yGNOhXZCwF57PB5EMk2+
-         3glGSCjLduh3nhIIVEzbXq/3LxETJr0vwhLBFpXPg1uM6vpyd9iR6/JFPDsXKB1H0g+W
-         FoBB88T3IZZrFcKKcrwIoYX7D9lToHjdaWGEXFfmd9FxK69PRvptwMSUl3rdYgG+Kvoi
-         O5oZlBdovnhg3TuqK6vS/1QVpw8QUgTpGAFVCutWvhjkRHiRSn8uARrmFM/5opytIhtt
-         IlNBfi0I1q4bDDpZkAMPY1x2fWQzNTPwIKyM+rLYyeZal96gQSvR+viOZ1me5cB6P24F
-         TEGw==
-X-Google-Smtp-Source: APXvYqxZv5u+6uxczWx/QpkRi7je6l/4vwiWO4NDGzDjaiGi1t7F3+s06xKpxFhSxyYobjjdIv03zQ==
-X-Received: by 2002:a62:fb18:: with SMTP id x24mr79552145pfm.76.1560256193724;
-        Tue, 11 Jun 2019 05:29:53 -0700 (PDT)
-Received: from dhcp-128-55.nay.redhat.com ([209.132.188.80])
-        by smtp.gmail.com with ESMTPSA id 24sm13723109pgn.32.2019.06.11.05.29.49
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 11 Jun 2019 05:29:52 -0700 (PDT)
-Date: Tue, 11 Jun 2019 20:29:35 +0800
-From: Pingfan Liu <kernelfans@gmail.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Ira Weiny <ira.weiny@intel.com>, Mike Rapoport <rppt@linux.ibm.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	Keith Busch <keith.busch@intel.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	LKML <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCHv3 1/2] mm/gup: fix omission of check on FOLL_LONGTERM in
- get_user_pages_fast()
-Message-ID: <20190611122935.GA9919@dhcp-128-55.nay.redhat.com>
-References: <1559725820-26138-1-git-send-email-kernelfans@gmail.com>
- <20190605144912.f0059d4bd13c563ddb37877e@linux-foundation.org>
- <CAFgQCTur5ReVHm6NHdbD3wWM5WOiAzhfEXdLnBGRdZtf7q1HFw@mail.gmail.com>
- <2b0a65ec-4fb0-430e-3e6a-b713fb5bb28f@nvidia.com>
- <CAFgQCTtS7qOByXBnGzCW-Rm9fiNsVmhQTgqmNU920m77XyAwZQ@mail.gmail.com>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5BCVvi5096182
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:41:30 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2t2bkttsjm-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 08:41:29 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Tue, 11 Jun 2019 13:41:27 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Tue, 11 Jun 2019 13:41:23 +0100
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5BCfM8E56688832
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 11 Jun 2019 12:41:22 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id CC6FB11C052;
+	Tue, 11 Jun 2019 12:41:22 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id A368411C050;
+	Tue, 11 Jun 2019 12:41:21 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.204.69])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Tue, 11 Jun 2019 12:41:21 +0000 (GMT)
+Date: Tue, 11 Jun 2019 15:41:19 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: Qian Cai <cai@lca.pw>, Will Deacon <will.deacon@arm.com>,
+        akpm@linux-foundation.org, catalin.marinas@arm.com,
+        linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org,
+        vdavydov.dev@gmail.com, hannes@cmpxchg.org, cgroups@vger.kernel.org,
+        linux-arm-kernel@lists.infradead.org
+Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
+References: <1559656836-24940-1-git-send-email-cai@lca.pw>
+ <20190604142338.GC24467@lakrids.cambridge.arm.com>
+ <20190610114326.GF15979@fuggles.cambridge.arm.com>
+ <1560187575.6132.70.camel@lca.pw>
+ <20190611100348.GB26409@lakrids.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="W/nzBZO5zC0uMSeA"
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <CAFgQCTtS7qOByXBnGzCW-Rm9fiNsVmhQTgqmNU920m77XyAwZQ@mail.gmail.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190611100348.GB26409@lakrids.cambridge.arm.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19061112-0028-0000-0000-000003794EFF
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19061112-0029-0000-0000-000024393D13
+Message-Id: <20190611124118.GA4761@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-11_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=60 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906110086
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
---W/nzBZO5zC0uMSeA
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-
-On Fri, Jun 07, 2019 at 02:10:15PM +0800, Pingfan Liu wrote:
-> On Fri, Jun 7, 2019 at 5:17 AM John Hubbard <jhubbard@nvidia.com> wrote:
-> >
-> > On 6/5/19 7:19 PM, Pingfan Liu wrote:
-> > > On Thu, Jun 6, 2019 at 5:49 AM Andrew Morton <akpm@linux-foundation.org> wrote:
-> > ...
-> > >>> --- a/mm/gup.c
-> > >>> +++ b/mm/gup.c
-> > >>> @@ -2196,6 +2196,26 @@ static int __gup_longterm_unlocked(unsigned long start, int nr_pages,
-> > >>>       return ret;
-> > >>>  }
-> > >>>
-> > >>> +#ifdef CONFIG_CMA
-> > >>> +static inline int reject_cma_pages(int nr_pinned, struct page **pages)
-> > >>> +{
-> > >>> +     int i;
-> > >>> +
-> > >>> +     for (i = 0; i < nr_pinned; i++)
-> > >>> +             if (is_migrate_cma_page(pages[i])) {
-> > >>> +                     put_user_pages(pages + i, nr_pinned - i);
-> > >>> +                     return i;
-> > >>> +             }
-> > >>> +
-> > >>> +     return nr_pinned;
-> > >>> +}
-> > >>
-> > >> There's no point in inlining this.
-> > > OK, will drop it in V4.
-> > >
-> > >>
-> > >> The code seems inefficient.  If it encounters a single CMA page it can
-> > >> end up discarding a possibly significant number of non-CMA pages.  I
-> > > The trick is the page is not be discarded, in fact, they are still be
-> > > referrenced by pte. We just leave the slow path to pick up the non-CMA
-> > > pages again.
-> > >
-> > >> guess that doesn't matter much, as get_user_pages(FOLL_LONGTERM) is
-> > >> rare.  But could we avoid this (and the second pass across pages[]) by
-> > >> checking for a CMA page within gup_pte_range()?
-> > > It will spread the same logic to hugetlb pte and normal pte. And no
-> > > improvement in performance due to slow path. So I think maybe it is
-> > > not worth.
-> > >
-> > >>
-> >
-> > I think the concern is: for the successful gup_fast case with no CMA
-> > pages, this patch is adding another complete loop through all the
-> > pages. In the fast case.
-> >
-> > If the check were instead done as part of the gup_pte_range(), then
-> > it would be a little more efficient for that case.
-> >
-> > As for whether it's worth it, *probably* this is too small an effect to measure.
-> > But in order to attempt a measurement: running fio (https://github.com/axboe/fio)
-> > with O_DIRECT on an NVMe drive, might shed some light. Here's an fio.conf file
-> > that Jan Kara and Tom Talpey helped me come up with, for related testing:
-> >
-> > [reader]
-> > direct=1
-> > ioengine=libaio
-> > blocksize=4096
-> > size=1g
-> > numjobs=1
-> > rw=read
-> > iodepth=64
-> >
-Unable to get a NVME device to have a test. And when testing fio on the
-tranditional disk, I got the error "fio: engine libaio not loadable
-fio: failed to load engine
-fio: file:ioengines.c:89, func=dlopen, error=libaio: cannot open shared object file: No such file or directory"
-
-But I found a test case which can be slightly adjusted to met the aim.
-It is tools/testing/selftests/vm/gup_benchmark.c
-
-Test enviroment:
-  MemTotal:       264079324 kB
-  MemFree:        262306788 kB
-  CmaTotal:              0 kB
-  CmaFree:               0 kB
-  on AMD EPYC 7601
-
-Test command:
-  gup_benchmark -r 100 -n 64
-  gup_benchmark -r 100 -n 64 -l
-where -r stands for repeat times, -n is nr_pages param for
-get_user_pages_fast(), -l is a new option to test FOLL_LONGTERM in fast
-path, see a patch at the tail.
-
-Test result:
-w/o     477.800000
-w/o-l   481.070000
-a       481.800000
-a-l     640.410000
-b       466.240000  (question a: b outperforms w/o ?)
-b-l     529.740000
-
-Where w/o is baseline without any patch using v5.2-rc2, a is this series, b
-does the check in gup_pte_range(). '-l' means FOLL_LONGTERM.
-
-I am suprised that b-l has about 17% improvement than a. (640.41 -529.74)/640.41
-As for "question a: b outperforms w/o ?", I can not figure out why, maybe it can be
-considered as variance.
-
-Based on the above result, I think it is better to do the check inside
-gup_pte_range().
-
-Any comment?
-
-Thanks,
-
-
-> Yeah, agreed. Data is more persuasive. Thanks for your suggestion. I
-> will try to bring out the result.
+On Tue, Jun 11, 2019 at 11:03:49AM +0100, Mark Rutland wrote:
+> On Mon, Jun 10, 2019 at 01:26:15PM -0400, Qian Cai wrote:
+> > On Mon, 2019-06-10 at 12:43 +0100, Will Deacon wrote:
+> > > On Tue, Jun 04, 2019 at 03:23:38PM +0100, Mark Rutland wrote:
+> > > > On Tue, Jun 04, 2019 at 10:00:36AM -0400, Qian Cai wrote:
+> > > > > The commit "arm64: switch to generic version of pte allocation"
+> > > > > introduced endless failures during boot like,
+> > > > > 
+> > > > > kobject_add_internal failed for pgd_cache(285:chronyd.service) (error:
+> > > > > -2 parent: cgroup)
+> > > > > 
+> > > > > It turns out __GFP_ACCOUNT is passed to kernel page table allocations
+> > > > > and then later memcg finds out those don't belong to any cgroup.
+> > > > 
+> > > > Mike, I understood from [1] that this wasn't expected to be a problem,
+> > > > as the accounting should bypass kernel threads.
+> > > > 
+> > > > Was that assumption wrong, or is something different happening here?
+> > > > 
+> > > > > 
+> > > > > backtrace:
+> > > > >   kobject_add_internal
+> > > > >   kobject_init_and_add
+> > > > >   sysfs_slab_add+0x1a8
+> > > > >   __kmem_cache_create
+> > > > >   create_cache
+> > > > >   memcg_create_kmem_cache
+> > > > >   memcg_kmem_cache_create_func
+> > > > >   process_one_work
+> > > > >   worker_thread
+> > > > >   kthread
+> > > > > 
+> > > > > Signed-off-by: Qian Cai <cai@lca.pw>
+> > > > > ---
+> > > > >  arch/arm64/mm/pgd.c | 2 +-
+> > > > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > > > 
+> > > > > diff --git a/arch/arm64/mm/pgd.c b/arch/arm64/mm/pgd.c
+> > > > > index 769516cb6677..53c48f5c8765 100644
+> > > > > --- a/arch/arm64/mm/pgd.c
+> > > > > +++ b/arch/arm64/mm/pgd.c
+> > > > > @@ -38,7 +38,7 @@ pgd_t *pgd_alloc(struct mm_struct *mm)
+> > > > >  	if (PGD_SIZE == PAGE_SIZE)
+> > > > >  		return (pgd_t *)__get_free_page(gfp);
+> > > > >  	else
+> > > > > -		return kmem_cache_alloc(pgd_cache, gfp);
+> > > > > +		return kmem_cache_alloc(pgd_cache, GFP_PGTABLE_KERNEL);
+> > > > 
+> > > > This is used to allocate PGDs for both user and kernel pagetables (e.g.
+> > > > for the efi runtime services), so while this may fix the regression, I'm
+> > > > not sure it's the right fix.
+> > > > 
+> > > > Do we need a separate pgd_alloc_kernel()?
+> > > 
+> > > So can I take the above for -rc5, or is somebody else working on a different
+> > > fix to implement pgd_alloc_kernel()?
+> > 
+> > The offensive commit "arm64: switch to generic version of pte allocation" is not
+> > yet in the mainline, but only in the Andrew's tree and linux-next, and I doubt
+> > Andrew will push this out any time sooner given it is broken.
 > 
+> I'd assumed that Mike would respin these patches to implement and use
+> pgd_alloc_kernel() (or take gfp flags) and the updated patches would
+> replace these in akpm's tree.
+> 
+> Mike, could you confirm what your plan is? I'm happy to review/test
+> updated patches for arm64.
+
+Sorry for the delay, I'm mostly offline these days.
+
+I wanted to understand first what is the reason for the failure. I've tried
+to reproduce it with qemu, but I failed to find a bootable configuration
+that will have PGD_SIZE != PAGE_SIZE :(
+
+Qian Cai, can you share what is your environment and the kernel config?
+ 
 > Thanks,
->   Pingfan
+> Mark.
 > 
 
-
---W/nzBZO5zC0uMSeA
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="gup_pte_range_check.patch"
-
----
-Patch to do check inside gup_pte_range()
-
-diff --git a/mm/gup.c b/mm/gup.c
-index 2ce3091..ba213a0 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -1757,6 +1757,10 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
- 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
- 		page = pte_page(pte);
- 
-+		if (unlikely(flags & FOLL_LONGTERM) &&
-+			is_migrate_cma_page(page))
-+				goto pte_unmap;
-+
- 		head = try_get_compound_head(page, 1);
- 		if (!head)
- 			goto pte_unmap;
-@@ -1900,6 +1904,12 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
- 		refs++;
- 	} while (addr += PAGE_SIZE, addr != end);
- 
-+	if (unlikely(flags & FOLL_LONGTERM) &&
-+		is_migrate_cma_page(page)) {
-+		*nr -= refs;
-+		return 0;
-+	}
-+
- 	head = try_get_compound_head(pmd_page(orig), refs);
- 	if (!head) {
- 		*nr -= refs;
-@@ -1941,6 +1951,12 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
- 		refs++;
- 	} while (addr += PAGE_SIZE, addr != end);
- 
-+	if (unlikely(flags & FOLL_LONGTERM) &&
-+		is_migrate_cma_page(page)) {
-+		*nr -= refs;
-+		return 0;
-+	}
-+
- 	head = try_get_compound_head(pud_page(orig), refs);
- 	if (!head) {
- 		*nr -= refs;
-@@ -1978,6 +1994,12 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
- 		refs++;
- 	} while (addr += PAGE_SIZE, addr != end);
- 
-+	if (unlikely(flags & FOLL_LONGTERM) &&
-+		is_migrate_cma_page(page)) {
-+		*nr -= refs;
-+		return 0;
-+	}
-+
- 	head = try_get_compound_head(pgd_page(orig), refs);
- 	if (!head) {
- 		*nr -= refs;
-
---W/nzBZO5zC0uMSeA
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="mm-gup-introduce-LONGTERM_BENCHMARK-in-fast-path.patch"
-
----
-Patch for testing
-
-diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
-index 7dd602d..61dec5f 100644
---- a/mm/gup_benchmark.c
-+++ b/mm/gup_benchmark.c
-@@ -6,8 +6,9 @@
- #include <linux/debugfs.h>
- 
- #define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
--#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
--#define GUP_BENCHMARK		_IOWR('g', 3, struct gup_benchmark)
-+#define GUP_FAST_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
-+#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 3, struct gup_benchmark)
-+#define GUP_BENCHMARK		_IOWR('g', 4, struct gup_benchmark)
- 
- struct gup_benchmark {
- 	__u64 get_delta_usec;
-@@ -53,6 +54,11 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
- 			nr = get_user_pages_fast(addr, nr, gup->flags & 1,
- 						 pages + i);
- 			break;
-+		case GUP_FAST_LONGTERM_BENCHMARK:
-+			nr = get_user_pages_fast(addr, nr,
-+						 (gup->flags & 1) | FOLL_LONGTERM,
-+						 pages + i);
-+			break;
- 		case GUP_LONGTERM_BENCHMARK:
- 			nr = get_user_pages(addr, nr,
- 					    (gup->flags & 1) | FOLL_LONGTERM,
-@@ -96,6 +102,7 @@ static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
- 
- 	switch (cmd) {
- 	case GUP_FAST_BENCHMARK:
-+	case GUP_FAST_LONGTERM_BENCHMARK:
- 	case GUP_LONGTERM_BENCHMARK:
- 	case GUP_BENCHMARK:
- 		break;
-diff --git a/tools/testing/selftests/vm/gup_benchmark.c b/tools/testing/selftests/vm/gup_benchmark.c
-index c0534e2..ade8acb 100644
---- a/tools/testing/selftests/vm/gup_benchmark.c
-+++ b/tools/testing/selftests/vm/gup_benchmark.c
-@@ -15,8 +15,9 @@
- #define PAGE_SIZE sysconf(_SC_PAGESIZE)
- 
- #define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
--#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
--#define GUP_BENCHMARK		_IOWR('g', 3, struct gup_benchmark)
-+#define GUP_FAST_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
-+#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 3, struct gup_benchmark)
-+#define GUP_BENCHMARK		_IOWR('g', 4, struct gup_benchmark)
- 
- struct gup_benchmark {
- 	__u64 get_delta_usec;
-@@ -37,7 +38,7 @@ int main(int argc, char **argv)
- 	char *file = "/dev/zero";
- 	char *p;
- 
--	while ((opt = getopt(argc, argv, "m:r:n:f:tTLUSH")) != -1) {
-+	while ((opt = getopt(argc, argv, "m:r:n:f:tTlLUSH")) != -1) {
- 		switch (opt) {
- 		case 'm':
- 			size = atoi(optarg) * MB;
-@@ -54,6 +55,9 @@ int main(int argc, char **argv)
- 		case 'T':
- 			thp = 0;
- 			break;
-+		case 'l':
-+			cmd = GUP_FAST_LONGTERM_BENCHMARK;
-+			break;
- 		case 'L':
- 			cmd = GUP_LONGTERM_BENCHMARK;
- 			break;
 -- 
-2.7.5
-
-
---W/nzBZO5zC0uMSeA--
+Sincerely yours,
+Mike.
 
