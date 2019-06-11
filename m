@@ -2,349 +2,201 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2902EC0650E
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 19:10:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A8B0FC4321A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 19:23:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CE2BB2173C
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 19:10:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 61E82206E0
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 19:23:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="NLVh8ndn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE2BB2173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="lyKS8EPY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61E82206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 675646B000A; Tue, 11 Jun 2019 15:10:27 -0400 (EDT)
+	id D99436B0006; Tue, 11 Jun 2019 15:23:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 626CB6B000C; Tue, 11 Jun 2019 15:10:27 -0400 (EDT)
+	id D6F066B0008; Tue, 11 Jun 2019 15:23:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 515976B000D; Tue, 11 Jun 2019 15:10:27 -0400 (EDT)
+	id C5E4C6B000D; Tue, 11 Jun 2019 15:23:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 18FF26B000A
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 15:10:27 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id z10so9697356pgf.15
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 12:10:27 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EA786B0006
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 15:23:03 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id y7so10275141pfy.9
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 12:23:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=ibLXHh9gOCz8UAVU3oGSsVlBsgj7i5ksH7w1IIw8CbE=;
-        b=mDatP7UYDwSQCd1kh5qcpQBOrHab5+ucyuQaige4kTs4hjNJ1TyK56ox2yRZUboeKt
-         wrnYBm2oaI1gUcBdI/Ry0w077V+yFkhBvLDSPaFaiWwjRg3FlpFoMw1o7qSP0P0CCGu/
-         VfZTkpm+dW+k1fJgTECSqqFehGJDski/kM0ZFEr9tL9rv7nZ7ASHPXWNOzgoOTe7en3z
-         uQhxU+OG/tw4Y82HqfYrU9qCn9gDTdAVsak7sT/HtueTR9RmurL9tsmcoCaVxB5yRlRk
-         BO4LiGn8XEZ5TTUvbVWnd7EcXkjmVWK6t9AjDPiYvdnaNJm4Mtpia/Jya+gGO45/r6v3
-         HnyQ==
-X-Gm-Message-State: APjAAAUXZIs+/uvRrNrkHg9BUyIY3ITZ3Tf1ieXN6chCmUCPAXPoWtnZ
-	OQ+wXv6231Pr+m4EPM5wmOBcd8LOHI+GJwdmUF67TWfCcBvs9jJbV6xt9/Xz8FPSdeqxfkD3t14
-	uwUSrWToZ0F2+EGMYvdomsanda0cjQZHGl4N+dti/yoY+AJVdR9KwTlpQHl5uj4aDxA==
-X-Received: by 2002:a65:6104:: with SMTP id z4mr21618682pgu.319.1560280226558;
-        Tue, 11 Jun 2019 12:10:26 -0700 (PDT)
-X-Received: by 2002:a65:6104:: with SMTP id z4mr21618530pgu.319.1560280224080;
-        Tue, 11 Jun 2019 12:10:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560280224; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=w76MFlwvNKhZqtHwJRAkKoCnG/0YMyc0k1SshiGhIFo=;
+        b=gt88qQG2SVVjBlLaojy3bfN4Z5FTT+3zFBbe+ZgZQIg8ORQ3a9SeFZc27zehneBlFa
+         oIw6JpEJZq1i6TToWwhZioc1QGpxb8cNkY8FS3MLMBDyQ5jBY/8LIywjC9ybKFaLiGl4
+         NJdFMHSVAcZOGmmYODVT+bKbKduIU/ZIN1SkgzsT0eACJ7mKQHeUetzPkekqJzZIhZhQ
+         TfDvOQ4PNmhMar+Ko6A0XFk4/ZHsJjwJ0gxWeUkItb9lw9JHiUq1c3FlvSloFDbJ5q3Z
+         UD2nr29qa0IH5fgl4ypluKQwXW4Vg2qkCJmLIUIogtN+OqjY6ofaA0mw08LLfGuIYxlt
+         vtCw==
+X-Gm-Message-State: APjAAAXJzXP08eju5c85u04OBO9AyuVL1VU6RqhpmX+todip/vIq49BP
+	J+qaSBLTSXrZ8Ytsg2s72RQmkw0j2WN+6l54BGSwH8+YqaQJEpbAEJjPVm+zILNJyhKOl9iafc3
+	lN618d5bOjDEaHo7NPotAx9hvoLiUqDpZSzM5xzLUhvEONIh0OLtvDLIZY5sOov7BlA==
+X-Received: by 2002:a17:90a:a00d:: with SMTP id q13mr28136144pjp.80.1560280983158;
+        Tue, 11 Jun 2019 12:23:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwYOYRG9S8k9RV9AKHRLk3dhs1+HVN4N8Dd3/5s86A+G06UJ4chce9YJHu5AEvTtQqFDWYb
+X-Received: by 2002:a17:90a:a00d:: with SMTP id q13mr28136088pjp.80.1560280982446;
+        Tue, 11 Jun 2019 12:23:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560280982; cv=none;
         d=google.com; s=arc-20160816;
-        b=UuoGQs3799OEOQHSjShteJ5J6JGFEHh2Samc3ZGqFDFCJ6GnEiKrnnjaZmSmSAwUod
-         4Tu53w138dQUxRblswd7pvL6dUHweV04a3AB0erQEqckkmwxVWEpIjgh9lJk1zzBnSES
-         24ITxR+mcjwsrpFA2448gs3Y2Zhm+gA1/3w9nEycPjNuBi/owaJFkjkjjd3JO+rRNWlp
-         zyuzZl5a27P/JYoU52ZNyKGRjgBUCCDiw4BOMRlJuFRpYCZzM/YEjhAMxD42whzoFA/7
-         ZBXG+sglbkePI5J/3v9FVYaG4zQCVHQKIJTxXrBl6/Vz8xKGkodZ3HpnxQ07k1mq73Ha
-         rhJw==
+        b=f4/NOuGBgmPRxXeA1xwoL/Fwn5zjn62/so+H1fLdu7RMolZ1Ka7i3u2NnlmhjybQal
+         SGntbEJXSZQ+DPaOcY2ggjTHjtnsIqCO5ptEEswxoSDmTXQmpEEI/4ihNB0lNEX28YRW
+         oP1tPg4BWcLr04RnNS0WbHrZmAPN9BUNETcLpb+s2hkYglqVf2XEvC0JGV/z6ev0oW1O
+         MhT8B6+S4sEKHAnzknEaIohz7uC5PUzkYKZDZjfT3EnhABMX+oKbtgaIo5Y2pp5EtC8B
+         Zx3KypMACe2Do4PkNGrvoAk9mytXtQzGnrAu5/N4sJab6//789xtnxU75lGseTy8rglp
+         K1PA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=ibLXHh9gOCz8UAVU3oGSsVlBsgj7i5ksH7w1IIw8CbE=;
-        b=WQAQ87cj1RZqHWiIqKOsXSQGyJf9pceD8Z/HmKmjp1EwJFPWUFAjcvc0CISd2aXtGp
-         9jSG7CSA1cmiyng60eSKfULOuOIrpnb+ppaTksO5CwhM6njpbcFhEsyaG5sNxYtrd97V
-         iPXsA34E6/jF/ZQal10xqsKbAWHkXJlBe/yV7K9Ve1GXl9Bzhw/XaGCitqXRZfglm0LL
-         ZvHfm4lekNpZgzIvnsvbHDvsjL+Ib/R3S5L18UqZv6iIJfmyOT/F/z4iQbeENrYZsdg3
-         62kt5ybRw2MemXNSqrzm3kY9jrg82aE3T2RdbWgVcJQNo3epw+cKfwX7illY5TMm5cJw
-         /K5A==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=w76MFlwvNKhZqtHwJRAkKoCnG/0YMyc0k1SshiGhIFo=;
+        b=wp4d2kFO3mvOx631Bw1I2OTcNwEYAhALksderuAmTr9A67G5lkcGrcK6leaYrEGcVA
+         S2zqLVD5eD0fiycTvl3AsE8sDWH0BVXou5skke9fBcadLKKF+/Cpcz8LyPqN/kBwEZWz
+         IPMZonKETKIbo+F4+0cAI10lvqmNGXKkcgKnKzF/ODWazFULb3cPzhSnrsR1UGqEQk9+
+         bi4vAfnddgUL9iZjKbUG1ornMYjKsKHXN6207hu/Sc4fz1a3on+AjE/p/rZgK5+/dAfd
+         0MlN+GrhQbdYO4FzCSWvcAIGBvIazR3KdgHCcJTOXR723n1sWXG+7zqTZs+Ih16741Qk
+         KPwQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NLVh8ndn;
-       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r9sor5969042pgh.82.2019.06.11.12.10.23
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=lyKS8EPY;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id y82si14931752pfb.58.2019.06.11.12.23.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Jun 2019 12:10:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=NLVh8ndn;
-       spf=pass (google.com: domain of nadav.amit@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=nadav.amit@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=ibLXHh9gOCz8UAVU3oGSsVlBsgj7i5ksH7w1IIw8CbE=;
-        b=NLVh8ndnIdL25bpkE0OKsp7TSN6a439c7PMwkG1sg0dQCgPfkSF+jeN9GRonwqsTUW
-         I26Nd+lZJrR+1LkVGGFADKmhkUtKnjMzWm+/l5mAlIalWlyYgCgxRSfL4wZdqPqvXW0d
-         m+r6vscFcsAyDAjF9OnLhdvARR3vUD6BdjqQFSaV5pVMDNMVEC5PP+TwGEL+H5Wx2/G7
-         d/kJG2Gh7m9amAjqHqDByapwBeyMpeevCMgoQex2iiF1WW/XVq1a4du+9dALwapqGwCz
-         m0I3jREGbBVA2X5gbU67jxaTxZdzv5ZCSUZdG2fCw/19G2rD5Y5/Mv/skatF8m+m9ta4
-         dBCw==
-X-Google-Smtp-Source: APXvYqw+CTNxM/o3ggVxCO5OrY4rYDo3SJY8NFApEU+IPZmG9vm/KW5addob7bCi3sgpNagiIJDS6w==
-X-Received: by 2002:a63:81c6:: with SMTP id t189mr21196300pgd.293.1560280222945;
-        Tue, 11 Jun 2019 12:10:22 -0700 (PDT)
-Received: from [10.2.189.129] ([66.170.99.2])
-        by smtp.gmail.com with ESMTPSA id j22sm14809198pfh.71.2019.06.11.12.10.21
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jun 2019 12:10:22 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
-Subject: Re: [PATCH v4 3/9] mm: Add write-protect and clean utilities for
- address space ranges
-From: Nadav Amit <nadav.amit@gmail.com>
-In-Reply-To: <ac0b0ef5-8f76-5e55-2be2-f1860878841a@vmwopensource.org>
-Date: Tue, 11 Jun 2019 12:10:20 -0700
-Cc: dri-devel@lists.freedesktop.org,
- linux-graphics-maintainer@vmware.com,
- "VMware, Inc." <pv-drivers@vmware.com>,
- LKML <linux-kernel@vger.kernel.org>,
- Thomas Hellstrom <thellstrom@vmware.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Matthew Wilcox <willy@infradead.org>,
- Will Deacon <will.deacon@arm.com>,
- Peter Zijlstra <peterz@infradead.org>,
- Rik van Riel <riel@surriel.com>,
- Minchan Kim <minchan@kernel.org>,
- Michal Hocko <mhocko@suse.com>,
- Huang Ying <ying.huang@intel.com>,
- Souptick Joarder <jrdr.linux@gmail.com>,
- =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- Linux-MM <linux-mm@kvack.org>,
- Ralph Campbell <rcampbell@nvidia.com>,
- Dave Hansen <dave.hansen@intel.com>
+        Tue, 11 Jun 2019 12:23:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=lyKS8EPY;
+       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
+	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5BJEZF2148131;
+	Tue, 11 Jun 2019 19:22:42 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=w76MFlwvNKhZqtHwJRAkKoCnG/0YMyc0k1SshiGhIFo=;
+ b=lyKS8EPYtHVV69hKRhxbZ6v/wFBGKQdRKMFGV75IF5Ly8f4gx63IiVxb73DDl0+AbJmm
+ CdJvjrw/0ON/ZIZZDVd35XGZGYcOr6YUm+1+c4fVLRIbczJKiRbuQsnnHiPmGT32HeMI
+ yPgGH8BMtCJNcZGgeKqNc9zQymR1ehBB6hPaiWuv6zwujyXlG+0dhRPfn5KJWPXSEiiY
+ 86sDUCAy3UJthE28Vd8oZg8tOUjk962pLYKGbyc4eo09yWsg8uiILcyco70X+7o/NVSy
+ 0l1s88pzby/RchV3V0Lwt3GnLLHzR1ZcAlylaXvzBxfsoWFdW5Th0f/oeh7B7jYF2E0Y MQ== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by aserp2130.oracle.com with ESMTP id 2t02heqdfr-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 11 Jun 2019 19:22:42 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5BJLICV095933;
+	Tue, 11 Jun 2019 19:22:41 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3030.oracle.com with ESMTP id 2t024uk1m7-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 11 Jun 2019 19:22:41 +0000
+Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x5BJMawp024319;
+	Tue, 11 Jun 2019 19:22:36 GMT
+Received: from [10.154.187.61] (/10.154.187.61)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 11 Jun 2019 12:22:36 -0700
+Subject: Re: [PATCH 01/16] mm: use untagged_addr() for get_user_pages_fast
+ addresses
+To: Christoph Hellwig <hch@lst.de>,
+        Linus Torvalds <torvalds@linux-foundation.org>,
+        Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
+        Yoshinori Sato <ysato@users.sourceforge.jp>,
+        Rich Felker <dalias@libc.org>, "David S. Miller" <davem@davemloft.net>
+Cc: Nicholas Piggin <npiggin@gmail.com>,
+        Andrey Konovalov <andreyknvl@google.com>,
+        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+        Paul Mackerras <paulus@samba.org>,
+        Michael Ellerman <mpe@ellerman.id.au>, linux-mips@vger.kernel.org,
+        linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
+        linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org,
+        linux-kernel@vger.kernel.org
+References: <20190611144102.8848-1-hch@lst.de>
+ <20190611144102.8848-2-hch@lst.de>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Organization: Oracle Corp
+Message-ID: <9145f3f9-4e14-df6a-87f5-663ad197e96e@oracle.com>
+Date: Tue, 11 Jun 2019 13:22:33 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
+MIME-Version: 1.0
+In-Reply-To: <20190611144102.8848-2-hch@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <39CC6294-52B5-4ED7-852E-A644132DEA18@gmail.com>
-References: <20190611122454.3075-1-thellstrom@vmwopensource.org>
- <20190611122454.3075-4-thellstrom@vmwopensource.org>
- <1CDAE797-4686-4041-938F-DE0456FFF451@gmail.com>
- <ac0b0ef5-8f76-5e55-2be2-f1860878841a@vmwopensource.org>
-To: =?utf-8?Q?=22Thomas_Hellstr=C3=B6m_=28VMware=29=22?= <thellstrom@vmwopensource.org>
-X-Mailer: Apple Mail (2.3445.104.11)
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9284 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=920
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1906110123
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9284 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=962 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906110123
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Jun 11, 2019, at 11:26 AM, Thomas Hellstr=C3=B6m (VMware) =
-<thellstrom@vmwopensource.org> wrote:
+On 6/11/19 8:40 AM, Christoph Hellwig wrote:
+> This will allow sparc64 to override its ADI tags for
+> get_user_pages and get_user_pages_fast.
 >=20
-> Hi, Nadav,
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+
+Commit message is sparc64 specific but the goal here is to allow any
+architecture with memory tagging to use this. So I would suggest
+rewording the commit log. Other than that:
+
+Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+
+>  mm/gup.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
 >=20
-> On 6/11/19 7:21 PM, Nadav Amit wrote:
->>> On Jun 11, 2019, at 5:24 AM, Thomas Hellstr=C3=B6m (VMware) =
-<thellstrom@vmwopensource.org> wrote:
->>>=20
->>> From: Thomas Hellstrom <thellstrom@vmware.com>
->> [ snip ]
->>=20
->>> +/**
->>> + * apply_pt_wrprotect - Leaf pte callback to write-protect a pte
->>> + * @pte: Pointer to the pte
->>> + * @token: Page table token, see apply_to_pfn_range()
->>> + * @addr: The virtual page address
->>> + * @closure: Pointer to a struct pfn_range_apply embedded in a
->>> + * struct apply_as
->>> + *
->>> + * The function write-protects a pte and records the range in
->>> + * virtual address space of touched ptes for efficient range TLB =
-flushes.
->>> + *
->>> + * Return: Always zero.
->>> + */
->>> +static int apply_pt_wrprotect(pte_t *pte, pgtable_t token,
->>> +			      unsigned long addr,
->>> +			      struct pfn_range_apply *closure)
->>> +{
->>> +	struct apply_as *aas =3D container_of(closure, typeof(*aas), =
-base);
->>> +	pte_t ptent =3D *pte;
->>> +
->>> +	if (pte_write(ptent)) {
->>> +		pte_t old_pte =3D ptep_modify_prot_start(aas->vma, addr, =
-pte);
->>> +
->>> +		ptent =3D pte_wrprotect(old_pte);
->>> +		ptep_modify_prot_commit(aas->vma, addr, pte, old_pte, =
-ptent);
->>> +		aas->total++;
->>> +		aas->start =3D min(aas->start, addr);
->>> +		aas->end =3D max(aas->end, addr + PAGE_SIZE);
->>> +	}
->>> +
->>> +	return 0;
->>> +}
->>> +
->>> +/**
->>> + * struct apply_as_clean - Closure structure for apply_as_clean
->>> + * @base: struct apply_as we derive from
->>> + * @bitmap_pgoff: Address_space Page offset of the first bit in =
-@bitmap
->>> + * @bitmap: Bitmap with one bit for each page offset in the =
-address_space range
->>> + * covered.
->>> + * @start: Address_space page offset of first modified pte relative
->>> + * to @bitmap_pgoff
->>> + * @end: Address_space page offset of last modified pte relative
->>> + * to @bitmap_pgoff
->>> + */
->>> +struct apply_as_clean {
->>> +	struct apply_as base;
->>> +	pgoff_t bitmap_pgoff;
->>> +	unsigned long *bitmap;
->>> +	pgoff_t start;
->>> +	pgoff_t end;
->>> +};
->>> +
->>> +/**
->>> + * apply_pt_clean - Leaf pte callback to clean a pte
->>> + * @pte: Pointer to the pte
->>> + * @token: Page table token, see apply_to_pfn_range()
->>> + * @addr: The virtual page address
->>> + * @closure: Pointer to a struct pfn_range_apply embedded in a
->>> + * struct apply_as_clean
->>> + *
->>> + * The function cleans a pte and records the range in
->>> + * virtual address space of touched ptes for efficient TLB flushes.
->>> + * It also records dirty ptes in a bitmap representing page offsets
->>> + * in the address_space, as well as the first and last of the bits
->>> + * touched.
->>> + *
->>> + * Return: Always zero.
->>> + */
->>> +static int apply_pt_clean(pte_t *pte, pgtable_t token,
->>> +			  unsigned long addr,
->>> +			  struct pfn_range_apply *closure)
->>> +{
->>> +	struct apply_as *aas =3D container_of(closure, typeof(*aas), =
-base);
->>> +	struct apply_as_clean *clean =3D container_of(aas, =
-typeof(*clean), base);
->>> +	pte_t ptent =3D *pte;
->>> +
->>> +	if (pte_dirty(ptent)) {
->>> +		pgoff_t pgoff =3D ((addr - aas->vma->vm_start) >> =
-PAGE_SHIFT) +
->>> +			aas->vma->vm_pgoff - clean->bitmap_pgoff;
->>> +		pte_t old_pte =3D ptep_modify_prot_start(aas->vma, addr, =
-pte);
->>> +
->>> +		ptent =3D pte_mkclean(old_pte);
->>> +		ptep_modify_prot_commit(aas->vma, addr, pte, old_pte, =
-ptent);
->>> +
->>> +		aas->total++;
->>> +		aas->start =3D min(aas->start, addr);
->>> +		aas->end =3D max(aas->end, addr + PAGE_SIZE);
->>> +
->>> +		__set_bit(pgoff, clean->bitmap);
->>> +		clean->start =3D min(clean->start, pgoff);
->>> +		clean->end =3D max(clean->end, pgoff + 1);
->>> +	}
->>> +
->>> +	return 0;
->> Usually, when a PTE is write-protected, or when a dirty-bit is =
-cleared, the
->> TLB flush must be done while the page-table lock for that specific =
-table is
->> taken (i.e., within apply_pt_clean() and apply_pt_wrprotect() in this =
-case).
->>=20
->> Otherwise, in the case of apply_pt_clean() for example, another core =
-might
->> shortly after (before the TLB flush) write to the same page whose PTE =
-was
->> changed. The dirty-bit in such case might not be set, and the change =
-get
->> lost.
+> diff --git a/mm/gup.c b/mm/gup.c
+> index ddde097cf9e4..6bb521db67ec 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -2146,7 +2146,7 @@ int __get_user_pages_fast(unsigned long start, in=
+t nr_pages, int write,
+>  	unsigned long flags;
+>  	int nr =3D 0;
+> =20
+> -	start &=3D PAGE_MASK;
+> +	start =3D untagged_addr(start) & PAGE_MASK;
+>  	len =3D (unsigned long) nr_pages << PAGE_SHIFT;
+>  	end =3D start + len;
+> =20
+> @@ -2219,7 +2219,7 @@ int get_user_pages_fast(unsigned long start, int =
+nr_pages,
+>  	unsigned long addr, len, end;
+>  	int nr =3D 0, ret =3D 0;
+> =20
+> -	start &=3D PAGE_MASK;
+> +	start =3D untagged_addr(start) & PAGE_MASK;
+>  	addr =3D start;
+>  	len =3D (unsigned long) nr_pages << PAGE_SHIFT;
+>  	end =3D start + len;
 >=20
-> Hmm. Let's assume that was the case, we have two possible situations:
->=20
-> A: pt_clean
->=20
-> 1. That core's TLB entry is invalid. It will set the PTE dirty bit and =
-continue. The dirty bit will probably remain set after the TLB flush.
 
-I guess you mean the PTE is not cached in the TLB.
-
-> 2. That core's TLB entry is valid. It will just continue. The dirty =
-bit will remain clear after the TLB flush.
->=20
-> But I fail to see how having the TLB flush within the page table lock =
-would help in this case. Since the writing core will never attempt to =
-take it? In any case, if such a race occurs, the corresponding bit in =
-the bitmap would have been set and we've recorded that the page is =
-dirty.
-
-I don=E2=80=99t understand. What do you mean =E2=80=9Crecorded that the =
-page is dirty=E2=80=9D?
-IIUC, the PTE is clear in this case - you mean PG_dirty is set?
-
-To clarify, this code actually may work correctly on Intel CPUs, based =
-on a
-recent discussion with Dave Hansen. Apparently, most Intel CPUs set the
-dirty bit in memory atomically when a page is first written.=20
-
-But this is a generic code and not arch-specific. My concern is that a
-certain page might be written to, but would not be marked as dirty in =
-either
-the bitmap or the PTE.
-
-The practice of flushing cleaned/write-protected PTEs while hold the
-page-table lock related (sorry for my confusion).
-
-> B: wrprotect situation, the situation is a bit different:
->=20
-> 1. That core's TLB entry is invalid. It will read the PTE, cause a =
-fault and block in mkwrite() on an external address space lock which is =
-held over this operation. (Is it this situation that is your main =
-concern?)
-> 2. That core's TLB entry is valid. It will just continue regardless of =
-any locks.
->=20
-> For both mkwrite() and dirty() if we act on the recorded pages *after* =
-the TLB flush, we're OK. The difference is that just after the TLB flush =
-there should be no write-enabled PTEs in the write-protect case, but =
-there may be dirty PTEs in the pt_clean case. Something that is =
-mentioned in the docs already.
-
-The wrprotect might work correctly, I guess. It does work to mprotect()
-(again, sorry for confusing).
-
->> Does this function regards a certain use-case in which deferring the =
-TLB
->> flushes is fine? If so, assertions and documentation of the related
->> assumption would be useful.
->=20
-> If I understand your comment correctly, the page table lock is =
-sometimes used as the lock in B1, blocking a possible software fault =
-until the TLB flush has happened.  Here we assume an external address =
-space lock taken both around the wrprotect operation and in mkwrite(). =
-Would it be OK if I add comments about the necessity of an external lock =
-to the doc? Ok with a follow-up patch?
-
-I think the patch should explain itself. I think the comment:
-
-> + * WARNING: This function should only be used for address spaces that
-> + * completely own the pages / memory the page table points to. =
-Typically a
-> + * device file.=20
-
-... should be more concrete (define address spaces that completely own
-memory), and possibly backed by an (debug) assertion to ensure that it =
-is
-only used correctly.
 
