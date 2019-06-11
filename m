@@ -2,131 +2,103 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B7B45C43218
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 05:39:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7459AC4321A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 06:17:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2C1B22086D
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 05:39:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="HjcLfeUm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C1B22086D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
+	by mail.kernel.org (Postfix) with ESMTP id 19C3920820
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 06:17:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19C3920820
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9710F6B0008; Tue, 11 Jun 2019 01:39:46 -0400 (EDT)
+	id 9CA516B0008; Tue, 11 Jun 2019 02:17:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 923806B000A; Tue, 11 Jun 2019 01:39:46 -0400 (EDT)
+	id 97AFA6B000A; Tue, 11 Jun 2019 02:17:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7C3BE6B000C; Tue, 11 Jun 2019 01:39:46 -0400 (EDT)
+	id 869BF6B000C; Tue, 11 Jun 2019 02:17:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 28AAA6B0008
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 01:39:46 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id h18so5469153wro.10
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 22:39:46 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 382DA6B0008
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 02:17:24 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id s7so19041985edb.19
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 23:17:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=AcasQ1C3dA4AzkrneaeSDWm00r+6lIIPyCKEa+gH8Hc=;
-        b=J0Dgd9Zi36FwfAO0PA5HCqBwj76lN5+FAxQRJY6aFXd15Cf8b707lWNVD7hpwRaExH
-         F+W67ry3l+rUzecGZEPS2cgdOn0fcC1k1/YdG6+vN0IYpL2b+bKtwKEyvuVVhZLuKFcQ
-         lB/iEApv229MQWwG5vgYqYQu9v/z4yDdwsx58XUjXVyjkN1JaLys4kA0/Z9HcjTV4ydf
-         zaYUAi1BlZ16pl6qAuymm0FFvxJk6/By1DW6zXXNt5Qg4HJYUggDBPUArQjd3JjaJMt5
-         GY6GRf6vraepFptabfDczBXXaIUk+wlwpL28+p1LhyUwUgmYZD93U2iFuzfw+w8ehaZK
-         871Q==
-X-Gm-Message-State: APjAAAURrOlQIf2LPqLypu+Rr2xmjuwLqa+DVgu+TKn5ejgv3+0Le0i9
-	ykvJV6E0Yo6s5VB6iazOqZSCWQTWEpYMZ4nfOCSd/5GUFYImsawHCdu+8moMzQKkvhjVxJdy+lF
-	HNR9+dYwaeg5DTftv1pZV+PtMeczBNRu+eSWBrguxJo+0o/12rEHug40RF5olNkYnqQ==
-X-Received: by 2002:a1c:5f87:: with SMTP id t129mr17256110wmb.150.1560231585625;
-        Mon, 10 Jun 2019 22:39:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzG1yL89Ycnzcey8LcM8hax6Omz25PYLcQjruBjARuAXhGxhXX8OujKHePrwIOlh2iIjeVO
-X-Received: by 2002:a1c:5f87:: with SMTP id t129mr17256052wmb.150.1560231584527;
-        Mon, 10 Jun 2019 22:39:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560231584; cv=none;
+        bh=VMA1V2SYl9MqMA7TCePeyFyZDA4n1fXXCBan9BmdIdM=;
+        b=r/Fg1B+zDEDoxsKBkuke5YA2nKo4ArWXvfUyCRafK8mLBQIwu4dJA7JdKS4GTpYRT4
+         taBuJadtRdKD5HYfZtbgLx1PAzHM7vgHo8esSv0Y5gIFhp1usAQEQizA/oc4R7Q1C5b6
+         E5BNfngOVmO9tVA9b3LeBs3g+xWfITn64fXCH0TBhTprKtILGWlb3WJ4JCjF061sqvRJ
+         G2J6T5CYFX5p/R4mymNItPlnfrjjohQBicWV1RXnd6ZFdhK7a7FsMiM853dwUyNMfxCv
+         l+p0ZhypgzdA+96W/TKCE0zPuheUZNKeKB19f+/cQI5WTYS8CObypf2NzmlDGSZlbOus
+         rgSw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAW/5s4IM5sBR1D2u+4AtDK2KHsB5WW2aBxTd8kIL/IvLH1wbcLL
+	2+JhtZeiOhR8X/+xaFe7VjnqLZb+Q2j0Ge4hUQhubmiJtq4h9QsIffBV/gNCP5Ulq9LeP55zZpM
+	j0Q/TZjSmRf8hCvvIvpSFkSGyDNFpZKkY1RxvjJWBg1RYHZl9Pq2fzgRyoeEVemU8OQ==
+X-Received: by 2002:a50:be42:: with SMTP id b2mr76871015edi.228.1560233843721;
+        Mon, 10 Jun 2019 23:17:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzYq2srj22hLKlHTQTH2CP1PjnwxqCH1c8lZGt4GgS7g63xq//RhQNdeHazgrXC+4vScxFh
+X-Received: by 2002:a50:be42:: with SMTP id b2mr76870954edi.228.1560233843034;
+        Mon, 10 Jun 2019 23:17:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560233843; cv=none;
         d=google.com; s=arc-20160816;
-        b=1A/B6yKTrtj00w3mQP4M1yIZk/r2WzMKnkrGUeDLEbFRY81ry74PD7aSP70rgYkz3h
-         5wq/vMq0gz8cPGJPdlc4qpKz4xaHHyX/tT5alR9mz3U8F7vmb+SxJKvhve458ceH9C7+
-         1G0fCMyDQud41y0t+sLsUCGf3yMGf2OF8b+mdOO1NX0RhB+qCG4n7PptZ2yHwoi1B8mM
-         Ru6KmvQ5jTPjOHtNF7mSbvBRq5Jc4mXaNKoz56xxWaGYCxLrYE4ZOofWe0WahbzLGr7x
-         GJ4ZubuuEjXlKcUHv0PtGkKJjSvFMjbJOM5fUyIrCYc00g9pyAJ1e8fS3fRDrgqc3phc
-         fw6Q==
+        b=Y8G42kYB0MlxYDEwNxd2xw6+bv1cvBdcTTrgF8zXZX61C6vTMbCAZYyFep6FqPzo2h
+         oh4IHLV3vXmHtSoJfSrsVnJJfEg1hurSrtZpEu85djyW8YKgdVH+wqww1TjhPAaHnnTx
+         BGjctVqc5vN9h6RgEaRcNZwEy8+Hx96DALWP+hpFihC8CHJZh+jRXtLPjaCmYsQQYxAe
+         N++u57IADKTvSrUZUIO1ipnJ1nkIU5IrAWJ/byGI/8W8O1dMZtY/B+pYQOoWx+Sxy+DR
+         S5eW94CFi/rcyWkv3DMS82l1JAH/Ufw5senNTcBC/jAZTxSl7Xs3KcqbyGzFQ4s9DX06
+         uueg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=AcasQ1C3dA4AzkrneaeSDWm00r+6lIIPyCKEa+gH8Hc=;
-        b=WLgYGrkZ8vxPlomUnBASXTbx7Fkdhl/Oij8a4pWPoTpV8RJoOG59UACSaGsrCBsUBD
-         HHc5Fs4ITlXBxJyV/tNxi7Y91bQUCnE28V5bTnao3jO6tjRRHA1s7syofEpbEVszqxir
-         YD8pDC5YleUIGGj3/NgeZEy1mzK5anHS9QKqCwhQuDwzEStNOfSgZfboCRa0oLnea1+n
-         CRMp7iOU4mwus7IUWGGJZr8xa/s1VnbeCBIHDnt8MjbCav7+9oskxw4QlwWF9teat7An
-         y2wQykF8O8wcIUwfvGkDstiXLpNv2Wic24G6RreceaNt+jL2OaxNOcWmtjxzyBwN7Arr
-         DkVw==
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=VMA1V2SYl9MqMA7TCePeyFyZDA4n1fXXCBan9BmdIdM=;
+        b=Yejt8it8FbryPRA+5lO7YZyOkHZ6pdUfax5CmTXE+xtpJrYrGF36ywOWKCg7Yci5Bp
+         dVpEkObbluhDcz1mNIkStGDN7iQMu5EcQHHnfZUeOa77/M453oZpS8qjONzCxh+s8WXK
+         +CWl5TX58tw9DXZoNGCOciuEp/j75MVjYuN7rZczoEio3qMUrIxiez/6ePcX1++tGeLr
+         4XQPxm3qbCMiJnd3oV5yqY6rhL2XIyFvrf1JSiDwC2eByE7N08qTVhdlcZ8fyY2267+Z
+         J9FONzFabQOtVDGKikE92tiiqBZXkXdJq/uVwDHRfbiLkzcK9asKhnElV9SdY7DcmpeB
+         ckag==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=HjcLfeUm;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
-        by mx.google.com with ESMTPS id b137si1122100wmd.1.2019.06.10.22.39.44
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jun 2019 22:39:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id b10si2433448ejh.360.2019.06.10.23.17.22
+        for <linux-mm@kvack.org>;
+        Mon, 10 Jun 2019 23:17:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@c-s.fr header.s=mail header.b=HjcLfeUm;
-       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
-Received: from localhost (mailhub1-int [192.168.12.234])
-	by localhost (Postfix) with ESMTP id 45NJjW0Fvbz9tyqp;
-	Tue, 11 Jun 2019 07:39:43 +0200 (CEST)
-Authentication-Results: localhost; dkim=pass
-	reason="1024-bit key; insecure key"
-	header.d=c-s.fr header.i=@c-s.fr header.b=HjcLfeUm; dkim-adsp=pass;
-	dkim-atps=neutral
-X-Virus-Scanned: Debian amavisd-new at c-s.fr
-Received: from pegase1.c-s.fr ([192.168.12.234])
-	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
-	with ESMTP id aib5TBna1xD0; Tue, 11 Jun 2019 07:39:42 +0200 (CEST)
-Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
-	by pegase1.c-s.fr (Postfix) with ESMTP id 45NJjV5lPTz9tyqn;
-	Tue, 11 Jun 2019 07:39:42 +0200 (CEST)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
-	t=1560231582; bh=AcasQ1C3dA4AzkrneaeSDWm00r+6lIIPyCKEa+gH8Hc=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=HjcLfeUm591DKJbT4XFNh33xeQysAkzN9k9klX9HBIaGUqqvR6W3w4b9D0KzZKU98
-	 qw92c4lk+e+Q+fZRgltKfcWO1yvWsJ2v27coTfB7ItNWDEryiHbKnepAb3xYDJrtpJ
-	 pMxEq0Udn1K4Ymwd4ZmvQz3fxUBdmlqCrkmGMR/U=
-Received: from localhost (localhost [127.0.0.1])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id A0EBF8B7D4;
-	Tue, 11 Jun 2019 07:39:43 +0200 (CEST)
-X-Virus-Scanned: amavisd-new at c-s.fr
-Received: from messagerie.si.c-s.fr ([127.0.0.1])
-	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
-	with ESMTP id dWTlxVxs_54c; Tue, 11 Jun 2019 07:39:43 +0200 (CEST)
-Received: from PO15451 (unknown [192.168.4.90])
-	by messagerie.si.c-s.fr (Postfix) with ESMTP id 084DB8B75B;
-	Tue, 11 Jun 2019 07:39:42 +0200 (CEST)
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 04483344;
+	Mon, 10 Jun 2019 23:17:22 -0700 (PDT)
+Received: from [10.162.43.135] (p8cg001049571a15.blr.arm.com [10.162.43.135])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 847F13F73C;
+	Mon, 10 Jun 2019 23:17:20 -0700 (PDT)
 Subject: Re: [PATCH 4/4] mm/vmalloc: Hugepage vmalloc mappings
-To: Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org,
- Russell Currey <ruscur@russell.cc>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org
+To: Nicholas Piggin <npiggin@gmail.com>, Mark Rutland <mark.rutland@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+ linuxppc-dev@lists.ozlabs.org
 References: <20190610043838.27916-1-npiggin@gmail.com>
  <20190610043838.27916-4-npiggin@gmail.com>
-From: Christophe Leroy <christophe.leroy@c-s.fr>
-Message-ID: <b79bf11d-43c7-88c9-8395-239625a1bdcf@c-s.fr>
-Date: Tue, 11 Jun 2019 07:39:42 +0200
-User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+ <20190610141036.GA16989@lakrids.cambridge.arm.com>
+ <1560177786.t6c5cn5hw4.astroid@bobo.none>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <a1747247-f4f6-ea9a-149c-07c7eb9193d8@arm.com>
+Date: Tue, 11 Jun 2019 11:47:39 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-In-Reply-To: <20190610043838.27916-4-npiggin@gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: fr
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <1560177786.t6c5cn5hw4.astroid@bobo.none>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -135,339 +107,32 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-Le 10/06/2019 à 06:38, Nicholas Piggin a écrit :
-> For platforms that define HAVE_ARCH_HUGE_VMAP, have vmap allow vmalloc to
-> allocate huge pages and map them
-
-Will this be compatible with Russell's series 
-https://patchwork.ozlabs.org/patch/1099857/ for the implementation of 
-STRICT_MODULE_RWX ?
-I see that apply_to_page_range() have things like BUG_ON(pud_huge(*pud));
-
-Might also be an issue for arm64 as I think Russell's implementation 
-comes from there.
-
+On 06/10/2019 08:14 PM, Nicholas Piggin wrote:
+> Mark Rutland's on June 11, 2019 12:10 am:
+>> Hi,
+>>
+>> On Mon, Jun 10, 2019 at 02:38:38PM +1000, Nicholas Piggin wrote:
+>>> For platforms that define HAVE_ARCH_HUGE_VMAP, have vmap allow vmalloc to
+>>> allocate huge pages and map them
+>>>
+>>> This brings dTLB misses for linux kernel tree `git diff` from 45,000 to
+>>> 8,000 on a Kaby Lake KVM guest with 8MB dentry hash and mitigations=off
+>>> (performance is in the noise, under 1% difference, page tables are likely
+>>> to be well cached for this workload). Similar numbers are seen on POWER9.
+>>
+>> Do you happen to know which vmalloc mappings these get used for in the
+>> above case? Where do we see vmalloc mappings that large?
 > 
-> This brings dTLB misses for linux kernel tree `git diff` from 45,000 to
-> 8,000 on a Kaby Lake KVM guest with 8MB dentry hash and mitigations=off
-> (performance is in the noise, under 1% difference, page tables are likely
-> to be well cached for this workload). Similar numbers are seen on POWER9.
+> Large module vmalloc could be subject to huge mappings.
 > 
-> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
-> ---
->   include/asm-generic/4level-fixup.h |   1 +
->   include/asm-generic/5level-fixup.h |   1 +
->   include/linux/vmalloc.h            |   1 +
->   mm/vmalloc.c                       | 132 +++++++++++++++++++++++------
->   4 files changed, 107 insertions(+), 28 deletions(-)
+>> I'm worried as to how this would interact with the set_memory_*()
+>> functions, as on arm64 those can only operate on page-granular mappings.
+>> Those may need fixing up to handle huge mappings; certainly if the above
+>> is all for modules.
 > 
-> diff --git a/include/asm-generic/4level-fixup.h b/include/asm-generic/4level-fixup.h
-> index e3667c9a33a5..3cc65a4dd093 100644
-> --- a/include/asm-generic/4level-fixup.h
-> +++ b/include/asm-generic/4level-fixup.h
-> @@ -20,6 +20,7 @@
->   #define pud_none(pud)			0
->   #define pud_bad(pud)			0
->   #define pud_present(pud)		1
-> +#define pud_large(pud)			0
->   #define pud_ERROR(pud)			do { } while (0)
->   #define pud_clear(pud)			pgd_clear(pud)
->   #define pud_val(pud)			pgd_val(pud)
-> diff --git a/include/asm-generic/5level-fixup.h b/include/asm-generic/5level-fixup.h
-> index bb6cb347018c..c4377db09a4f 100644
-> --- a/include/asm-generic/5level-fixup.h
-> +++ b/include/asm-generic/5level-fixup.h
-> @@ -22,6 +22,7 @@
->   #define p4d_none(p4d)			0
->   #define p4d_bad(p4d)			0
->   #define p4d_present(p4d)		1
-> +#define p4d_large(p4d)			0
->   #define p4d_ERROR(p4d)			do { } while (0)
->   #define p4d_clear(p4d)			pgd_clear(p4d)
->   #define p4d_val(p4d)			pgd_val(p4d)
-> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
-> index 812bea5866d6..4c92dc608928 100644
-> --- a/include/linux/vmalloc.h
-> +++ b/include/linux/vmalloc.h
-> @@ -42,6 +42,7 @@ struct vm_struct {
->   	unsigned long		size;
->   	unsigned long		flags;
->   	struct page		**pages;
-> +	unsigned int		page_shift;
->   	unsigned int		nr_pages;
->   	phys_addr_t		phys_addr;
->   	const void		*caller;
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index dd27cfb29b10..0cf8e861caeb 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -36,6 +36,7 @@
->   #include <linux/rbtree_augmented.h>
->   
->   #include <linux/uaccess.h>
-> +#include <asm/pgtable.h>
->   #include <asm/tlbflush.h>
->   #include <asm/shmparam.h>
->   
-> @@ -440,6 +441,41 @@ static int vmap_pages_range(unsigned long start, unsigned long end,
->   	return ret;
->   }
->   
-> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-> +static int vmap_hpages_range(unsigned long start, unsigned long end,
-> +				   pgprot_t prot, struct page **pages,
-> +				   unsigned int page_shift)
-> +{
-> +	unsigned long addr = start;
-> +	unsigned int i, nr = (end - start) >> (PAGE_SHIFT + page_shift);
-> +
-> +	for (i = 0; i < nr; i++) {
-> +		int err;
-> +
-> +		err = vmap_range_noflush(addr,
-> +					addr + (PAGE_SIZE << page_shift),
-> +					__pa(page_address(pages[i])), prot,
-> +					PAGE_SHIFT + page_shift);
-> +		if (err)
-> +			return err;
-> +
-> +		addr += PAGE_SIZE << page_shift;
-> +	}
-> +	flush_cache_vmap(start, end);
-> +
-> +	return nr;
-> +}
-> +#else
-> +static int vmap_hpages_range(unsigned long start, unsigned long end,
-> +			   pgprot_t prot, struct page **pages,
-> +			   unsigned int page_shift)
-> +{
-> +	BUG_ON(page_shift != PAGE_SIZE);
+> Good point, that looks like it would break on arm64 at least. I'll
+> work on it. We may have to make this opt in beyond HUGE_VMAP.
 
-Do we really need a BUG_ON() there ? What happens if this condition is 
-true ?
-
-> +	return vmap_pages_range(start, end, prot, pages);
-> +}
-> +#endif
-> +
-> +
->   int is_vmalloc_or_module_addr(const void *x)
->   {
->   	/*
-> @@ -462,7 +498,7 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
->   {
->   	unsigned long addr = (unsigned long) vmalloc_addr;
->   	struct page *page = NULL;
-> -	pgd_t *pgd = pgd_offset_k(addr);
-> +	pgd_t *pgd;
->   	p4d_t *p4d;
->   	pud_t *pud;
->   	pmd_t *pmd;
-> @@ -474,27 +510,38 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
->   	 */
->   	VIRTUAL_BUG_ON(!is_vmalloc_or_module_addr(vmalloc_addr));
->   
-> +	pgd = pgd_offset_k(addr);
->   	if (pgd_none(*pgd))
->   		return NULL;
-> +
->   	p4d = p4d_offset(pgd, addr);
->   	if (p4d_none(*p4d))
->   		return NULL;
-> -	pud = pud_offset(p4d, addr);
-> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-
-Do we really need that ifdef ? Won't p4d_large() always return 0 when is 
-not set ?
-Otherwise, could we use IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP) instead ?
-
-Same several places below.
-
-> +	if (p4d_large(*p4d))
-> +		return p4d_page(*p4d) + ((addr & ~P4D_MASK) >> PAGE_SHIFT);
-> +#endif
-> +	if (WARN_ON_ONCE(p4d_bad(*p4d)))
-> +		return NULL;
->   
-> -	/*
-> -	 * Don't dereference bad PUD or PMD (below) entries. This will also
-> -	 * identify huge mappings, which we may encounter on architectures
-> -	 * that define CONFIG_HAVE_ARCH_HUGE_VMAP=y. Such regions will be
-> -	 * identified as vmalloc addresses by is_vmalloc_addr(), but are
-> -	 * not [unambiguously] associated with a struct page, so there is
-> -	 * no correct value to return for them.
-> -	 */
-> -	WARN_ON_ONCE(pud_bad(*pud));
-> -	if (pud_none(*pud) || pud_bad(*pud))
-> +	pud = pud_offset(p4d, addr);
-> +	if (pud_none(*pud))
-> +		return NULL;
-> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-> +	if (pud_large(*pud))
-> +		return pud_page(*pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-> +#endif
-> +	if (WARN_ON_ONCE(pud_bad(*pud)))
->   		return NULL;
-> +
->   	pmd = pmd_offset(pud, addr);
-> -	WARN_ON_ONCE(pmd_bad(*pmd));
-> -	if (pmd_none(*pmd) || pmd_bad(*pmd))
-> +	if (pmd_none(*pmd))
-> +		return NULL;
-> +#ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
-> +	if (pmd_large(*pmd))
-> +		return pmd_page(*pmd) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-> +#endif
-> +	if (WARN_ON_ONCE(pmd_bad(*pmd)))
->   		return NULL;
->   
->   	ptep = pte_offset_map(pmd, addr);
-> @@ -502,6 +549,7 @@ struct page *vmalloc_to_page(const void *vmalloc_addr)
->   	if (pte_present(pte))
->   		page = pte_page(pte);
->   	pte_unmap(ptep);
-> +
->   	return page;
->   }
->   EXPORT_SYMBOL(vmalloc_to_page);
-> @@ -2185,8 +2233,9 @@ static struct vm_struct *__get_vm_area_node(unsigned long size,
->   		return NULL;
->   
->   	if (flags & VM_IOREMAP)
-> -		align = 1ul << clamp_t(int, get_count_order_long(size),
-> -				       PAGE_SHIFT, IOREMAP_MAX_ORDER);
-> +		align = max(align,
-> +				1ul << clamp_t(int, get_count_order_long(size),
-> +				       PAGE_SHIFT, IOREMAP_MAX_ORDER));
->   
->   	area = kzalloc_node(sizeof(*area), gfp_mask & GFP_RECLAIM_MASK, node);
->   	if (unlikely(!area))
-> @@ -2398,7 +2447,7 @@ static void __vunmap(const void *addr, int deallocate_pages)
->   			struct page *page = area->pages[i];
->   
->   			BUG_ON(!page);
-> -			__free_pages(page, 0);
-> +			__free_pages(page, area->page_shift);
->   		}
->   
->   		kvfree(area->pages);
-> @@ -2541,14 +2590,17 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
->   				 pgprot_t prot, int node)
->   {
->   	struct page **pages;
-> +	unsigned long addr = (unsigned long)area->addr;
-> +	unsigned long size = get_vm_area_size(area);
-> +	unsigned int page_shift = area->page_shift;
-> +	unsigned int shift = page_shift + PAGE_SHIFT;
->   	unsigned int nr_pages, array_size, i;
->   	const gfp_t nested_gfp = (gfp_mask & GFP_RECLAIM_MASK) | __GFP_ZERO;
->   	const gfp_t alloc_mask = gfp_mask | __GFP_NOWARN;
->   	const gfp_t highmem_mask = (gfp_mask & (GFP_DMA | GFP_DMA32)) ?
-> -					0 :
-> -					__GFP_HIGHMEM;
-> +					0 : __GFP_HIGHMEM;
-
-This patch is already quite big, shouldn't this kind of unrelated 
-cleanups be in another patch ?
-
->   
-> -	nr_pages = get_vm_area_size(area) >> PAGE_SHIFT;
-> +	nr_pages = size >> shift;
->   	array_size = (nr_pages * sizeof(struct page *));
->   
->   	area->nr_pages = nr_pages;
-> @@ -2569,10 +2621,8 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
->   	for (i = 0; i < area->nr_pages; i++) {
->   		struct page *page;
->   
-> -		if (node == NUMA_NO_NODE)
-> -			page = alloc_page(alloc_mask|highmem_mask);
-> -		else
-> -			page = alloc_pages_node(node, alloc_mask|highmem_mask, 0);
-> +		page = alloc_pages_node(node,
-> +				alloc_mask|highmem_mask, page_shift);
-
-This is also nice cleanup, but does it really belong to this patch ?
-
->   
->   		if (unlikely(!page)) {
->   			/* Successfully allocated i pages, free them in __vunmap() */
-> @@ -2584,8 +2634,9 @@ static void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
->   			cond_resched();
->   	}
->   
-> -	if (map_vm_area(area, prot, pages))
-> +	if (vmap_hpages_range(addr, addr + size, prot, pages, page_shift) < 0)
->   		goto fail;
-> +
-
-Cleanup ?
-
->   	return area->addr;
->   
->   fail:
-> @@ -2619,22 +2670,39 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
->   			pgprot_t prot, unsigned long vm_flags, int node,
->   			const void *caller)
->   {
-> -	struct vm_struct *area;
-> +	struct vm_struct *area = NULL;
->   	void *addr;
->   	unsigned long real_size = size;
-> +	unsigned long real_align = align;
-> +	unsigned int shift = PAGE_SHIFT;
->   
->   	size = PAGE_ALIGN(size);
->   	if (!size || (size >> PAGE_SHIFT) > totalram_pages())
->   		goto fail;
->   
-> +	if (IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP)) {
-> +		unsigned long size_per_node;
-> +
-> +		size_per_node = size;
-> +		if (node == NUMA_NO_NODE)
-> +			size_per_node /= num_online_nodes();
-> +		if (size_per_node >= PMD_SIZE)
-> +			shift = PMD_SHIFT;
-> +	}
-> +again:
-> +	align = max(real_align, 1UL << shift);
-> +	size = ALIGN(real_size, align);
-> +
->   	area = __get_vm_area_node(size, align, VM_ALLOC | VM_UNINITIALIZED |
->   				vm_flags, start, end, node, gfp_mask, caller);
->   	if (!area)
->   		goto fail;
->   
-> +	area->page_shift = shift - PAGE_SHIFT;
-> +
->   	addr = __vmalloc_area_node(area, gfp_mask, prot, node);
->   	if (!addr)
-> -		return NULL;
-> +		goto fail;
->   
->   	/*
->   	 * In this function, newly allocated vm_struct has VM_UNINITIALIZED
-> @@ -2648,8 +2716,16 @@ void *__vmalloc_node_range(unsigned long size, unsigned long align,
->   	return addr;
->   
->   fail:
-> -	warn_alloc(gfp_mask, NULL,
-> +	if (shift == PMD_SHIFT) {
-> +		shift = PAGE_SHIFT;
-> +		goto again;
-> +	}
-> +
-> +	if (!area) {
-> +		/* Warn for area allocation, page allocations already warn */
-> +		warn_alloc(gfp_mask, NULL,
->   			  "vmalloc: allocation failure: %lu bytes", real_size);
-> +	}
->   	return NULL;
->   }
->   
-> 
-
-Christophe
+This is another reason we might need to have an arch opt-ins like the one
+I mentioned before.
 
