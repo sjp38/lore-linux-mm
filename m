@@ -2,122 +2,120 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E7F74C43218
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 08:41:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2814AC43218
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 08:47:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 99A91208E3
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 08:41:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D356A2089E
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 08:47:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kzGBZj5q"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99A91208E3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="reminkYh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D356A2089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 36D306B0005; Tue, 11 Jun 2019 04:41:57 -0400 (EDT)
+	id 6E9B56B0007; Tue, 11 Jun 2019 04:47:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31C3E6B0006; Tue, 11 Jun 2019 04:41:57 -0400 (EDT)
+	id 69A416B0008; Tue, 11 Jun 2019 04:47:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E3AC6B0007; Tue, 11 Jun 2019 04:41:57 -0400 (EDT)
+	id 588386B000A; Tue, 11 Jun 2019 04:47:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EACC76B0005
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 04:41:56 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id u200so3766369oia.23
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 01:41:56 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A59C6B0007
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 04:47:40 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id m26so9436034ioh.17
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 01:47:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=v59RXEncklQZD+fQgfPPSwKXWN+Shli8ceMKKuyEhf0=;
-        b=GV5pNiC/x6nb8JFx+NbDB3wt8NiwO7lweu6qllRO/CQw4DK60k3cDjNuLhxPOAopqa
-         zA+NQLHxVSlwcM6vEis/PYEkIBsKIn54BjI6Dx7uY6m4q1T3+8sZTXMfQ6DQBUIpO7LE
-         Lugvp3QfQFLdP2tiV+pBbrGMx3IC/bzSPvxodCSmitrtELZpwTtT0ooSs3ntPsBfimPn
-         xjDdxDsivjzMe/4dgNmX0Ik9M0kHpQ7/FPoaLLJXDgyDtB1npu9WLPVp6OBEHPMnlkT2
-         1kzDPGTwTUiHfhdgxbMqnYc/eL/UogksgVef+JxEb1osSeLcbhhTWUDiGnxsVorJKPb7
-         vcBQ==
-X-Gm-Message-State: APjAAAWLu7l6IFdTOImRuBo9jdre4dOH8duF4F974mCfCxxbBSu6VxI2
-	L7FgBrMBVNctdWRvENzovJ8Iao25yWp5QKIUtWC3e5wSKddxv7q4So2JNtf2jSoBsqtCNULXVLH
-	oT0CtReTDMILEKUV8g7o2kyT9KoF9Pw/K5gsk/TrDfKOBkmxthUnwRTYsu+V8dKUoEg==
-X-Received: by 2002:a05:6830:1250:: with SMTP id s16mr7845947otp.158.1560242516416;
-        Tue, 11 Jun 2019 01:41:56 -0700 (PDT)
-X-Received: by 2002:a05:6830:1250:: with SMTP id s16mr7845918otp.158.1560242515467;
-        Tue, 11 Jun 2019 01:41:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560242515; cv=none;
+        bh=VF1kGVddFpIAC2XDRsCvaPTsWd3oiEHLMIFP7bJNfAA=;
+        b=WTKh6wAlQshQr36ZUqynEV+3t3J4Kd3mbCAJutOLKfdxR+KCh8I8MGyfmm1wCwNstC
+         qFgKlqpepsQYSYhFjdAX7nLMw0gKHSYW42zX10wgEjz35Uh/WTBcGKcbypRgR7WpSi/f
+         hRe8KVy2705jYL7XzB2AvKYqR9yB/pA3BRiIfPGkY5vH+268IfDRoby08ponsbMoqJmE
+         KJTCnkSNkILl3MDAC3EMSrncpUQZAuiQwOd6Z+kJoTgsMQ6yDfuvyyh6xclKOefjTbli
+         NT0rr4xcD5PvtueBxYF0VGm0RVYvv/+u4WF/fypXaa5CCfchMbwa5372ohJUd4nzrGzK
+         Gp8g==
+X-Gm-Message-State: APjAAAVcnSddP11Ca1jVudUB46f/7Zy47yGnayli5pexsihxCKPwhfLu
+	03BcCBpiOYmq/Up06F6JvX4W4snqkyQQpku8oCyAja6cFdX1gqW5zAqWRtdeW2ANEjgr6iAkb//
+	I8JOyOHrTKBzZlJM1sBXsrS27U5iAjKJj5URSWAsB0N2evzOjSXGp/nV703UU6wp2Kg==
+X-Received: by 2002:a24:cf46:: with SMTP id y67mr13619901itf.105.1560242859938;
+        Tue, 11 Jun 2019 01:47:39 -0700 (PDT)
+X-Received: by 2002:a24:cf46:: with SMTP id y67mr13619867itf.105.1560242859123;
+        Tue, 11 Jun 2019 01:47:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560242859; cv=none;
         d=google.com; s=arc-20160816;
-        b=X+SZRuFAeWziX4es1Oy+myOzebE4UlpMnVLb20U7jkQh9a+fSgscpMCEf6m5s8xvbk
-         32kEwdALHplS+VV3+0BrdxGRkRuRquYMJiW1/aEY35SAaChHPRmsexnv7ktwYoN4284u
-         0cKdfhQUcNfDVvd8aXAUNJROdTd0S6rS4qDzDxV/PY8fFJZ9t29e1u4dJEiIzPRh9c/3
-         Phu5MGIxa4EmgxbNRzCHY68zqfE5VFedv3q++wqn0sukVgIkqjit4cEZumaoY5Upr3a5
-         hTXvPsn4Abg8m7yUi0ub4PTT+3yqdy7g1IvTBEnMH0ObqF7mfntyfU6EmCuxcFYa44kK
-         wFHQ==
+        b=Y7/VMWhKna3TMoo6vvwJJ+F8aTNmfz2B+KCGVoJnteWESatp7IquwMksQ565RmNqrF
+         qUcaqUdKIpIf1BeQjaGCWOfwdcDF2/UnO6heDjx5lu0gPI+EhJR2HaJrDuet/wRngcEC
+         GyrYOx0dJ/xYpZOPDHZvzK9jywOUdJvAN8lHUVZ99pCdaqu65jzZ2tWzesOPj6+O7DOa
+         SIUMjE/nIya25CWrWIkmB/SQ8mieE9L3/Cf3CLQyxrZ71b/8eunlT0DPAyKZP6DzGQMg
+         sHaErk2rEh3rlfnMtat3h+MgtE5iweX06C+IN5avpwFaGg23iQ13QKXPjVmVL8MfyNHg
+         iFSw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=v59RXEncklQZD+fQgfPPSwKXWN+Shli8ceMKKuyEhf0=;
-        b=SRKbOEiHPxtsQpuyBbPYhqHJX387+kCjS6Hz7HhTmiUhF0we6fcKctz+1biT8XxFpZ
-         oBfkG/DxS5gBB00uX9H+r1K9sui8WfNtbZwM1LipCn5jTiKvkH1IdXqkmM7O9is0a9PR
-         /4/D4fHtfBtAcpojMwPpix8aFEPie3S2L24fBv9BIyH0l9XhvbAv0rZ6UVFiI0dafKKh
-         q5qqj2XsJ0jt/vDMba4AZdSAQ7Wa5qysfzDZHblkn5PDnks/O1LeYBniomAL/uMeTpy1
-         sFOs8oUbzpQPl3V67iQdCS2026tbVoOlVrDskfdqlXIk0LO/GJGyFZSwYWTddGnuM9pi
-         sBKQ==
+        bh=VF1kGVddFpIAC2XDRsCvaPTsWd3oiEHLMIFP7bJNfAA=;
+        b=h+uNMFUGOM0Rm+EqM4RMUiQ88WVSfxirDBZoy9npdxkkMDmpdHamh6aAAV3U++cMpM
+         YHrRN6fGTqGB/TtjmYq+HHtBQnD6gR0DWrIgRUf0bSC0gB06+y3+1kOAdpjiI68TKKew
+         Pqj2mN292VPhPQV+rhGHm1QFh6oKyoiCh5n9RFUWtEdlwPaiBCbjcZjCYva4VND1amT2
+         aYa0LeGQM1gaQ7PCp2TdgVSR4PnDO2l2WFrIhEUWwss83gApwa1gpKxh1c/WS2PPIyNo
+         uy7Uif5TYf/5zKGvKikjMlt/83tqwty8sWe7Ay3CX+piku2px3FtFxvfYw9Bc4shjyye
+         PzRw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kzGBZj5q;
-       spf=pass (google.com: domain of kernellwp@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernellwp@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=reminkYh;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o9sor4689531oif.125.2019.06.11.01.41.55
+        by mx.google.com with SMTPS id t77sor1960979itb.12.2019.06.11.01.47.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 11 Jun 2019 01:41:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernellwp@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 11 Jun 2019 01:47:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kzGBZj5q;
-       spf=pass (google.com: domain of kernellwp@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernellwp@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@google.com header.s=20161025 header.b=reminkYh;
+       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
+        d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=v59RXEncklQZD+fQgfPPSwKXWN+Shli8ceMKKuyEhf0=;
-        b=kzGBZj5q2XeUUnNn+hZIDQ46zIbc4pi+XhZMT9xquzmAl0mAoe/hTW/h4vI3GliFyD
-         mXnvOXJl3RpDm9VgZWAEm2w4h2wvu0g8FX8kQbFB14i2xbEtTzS3nJtZ+sTfGYQIY7+0
-         fIiRu2bpFatZkFK7tl+5xmNIkNo/0+aWiQUyy2ZQR3G9TgPGLCkyGRfd2GVcmdAQbwoT
-         dIDnLEETDOW7qbBihciICLYyBxd0Jaymx3fytdeRwx3hC4H742XJmZ0riceYpBoyKeEr
-         FYpmZBWZz3MUPy3Acp87PhKrT92mbXGGfNVFAVpX35lGvFuc9uJG/ZKYUADeNkYNr+wB
-         zEXw==
-X-Google-Smtp-Source: APXvYqzxaOZ9KUV/kRDM8l0u6+E8suUMaqGg0qPMAJRT6KRoeygwlTXcCyHIDf4inVwolTl02OcElY+Wfcd/PVxQ3Ig=
-X-Received: by 2002:aca:3305:: with SMTP id z5mr12702145oiz.141.1560242515130;
- Tue, 11 Jun 2019 01:41:55 -0700 (PDT)
+        bh=VF1kGVddFpIAC2XDRsCvaPTsWd3oiEHLMIFP7bJNfAA=;
+        b=reminkYhknpgdw0v9vXBEw95OofOGqApJUgWcHaSh16CgrHXJXS8OtPV36w7Zq70cM
+         EmxlFXFUtrBEtCXunBLiYs8kz3hoHrk8fu9usuDrl4n8gSMZIhzmITSjQt7vL7WNLT9M
+         zcg0hyYUoXdPC+hessziNzI+NZexuBDumxKk1/MV67daWLoVCe117k1Umb5tsjif7rBu
+         0Cqs+UhO1mRfaYY4iANoRoOYkqYLUt5xwIBOI97pT7vweGbyT04VyL0rPXXIV8S6697t
+         eaANouGUse1HFf+IpSbgudkBFPxuTYG4PBtcQlvNDFYNBF+Tuj4RY9HsU8dExhxoBOpj
+         F/EQ==
+X-Google-Smtp-Source: APXvYqwF6zNmNcPE0CVkeRShHOR/TQk7tS5fBa3s4YV+C/yBlnq2caZY5W4qDsUYjoAoh/3qbdw2XofS9YrS5nYofTE=
+X-Received: by 2002:a24:4417:: with SMTP id o23mr18107239ita.88.1560242858490;
+ Tue, 11 Jun 2019 01:47:38 -0700 (PDT)
 MIME-Version: 1.0
-References: <20180130013919.GA19959@hori1.linux.bs1.fc.nec.co.jp>
- <1517284444-18149-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <87inbbjx2w.fsf@e105922-lin.cambridge.arm.com> <20180207011455.GA15214@hori1.linux.bs1.fc.nec.co.jp>
- <87fu6bfytm.fsf@e105922-lin.cambridge.arm.com> <20180208121749.0ac09af2b5a143106f339f55@linux-foundation.org>
- <87wozhvc49.fsf@concordia.ellerman.id.au> <e673f38a-9e5f-21f6-421b-b3cb4ff02e91@oracle.com>
- <CANRm+CxAgWVv5aVzQ0wdP_A7QQgqfy7nN_SxyaactG7Mnqfr2A@mail.gmail.com>
- <f79d828c-b0b4-8a20-c316-a13430cfb13c@oracle.com> <20190610235045.GB30991@hori.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20190610235045.GB30991@hori.linux.bs1.fc.nec.co.jp>
-From: Wanpeng Li <kernellwp@gmail.com>
-Date: Tue, 11 Jun 2019 16:42:39 +0800
-Message-ID: <CANRm+Cy80ca6XC3c1CT0KzX=xi3g3nMEp5GxmhOH-CUZa-jM_g@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: hwpoison: disable memory error handling on 1GB hugepage
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, 
-	Andrew Morton <akpm@linux-foundation.org>, Punit Agrawal <punit.agrawal@arm.com>, 
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, 
-	"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, 
-	Anshuman Khandual <khandual@linux.vnet.ibm.com>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>, 
-	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, kvm <kvm@vger.kernel.org>, 
-	Paolo Bonzini <pbonzini@redhat.com>, Xiao Guangrong <xiaoguangrong@tencent.com>, 
-	"lidongchen@tencent.com" <lidongchen@tencent.com>, "yongkaiwu@tencent.com" <yongkaiwu@tencent.com>
+References: <1559651172-28989-1-git-send-email-walter-zh.wu@mediatek.com>
+ <CACT4Y+Y9_85YB8CCwmKerDWc45Z00hMd6Pc-STEbr0cmYSqnoA@mail.gmail.com>
+ <1560151690.20384.3.camel@mtksdccf07> <CACT4Y+aetKEM9UkfSoVf8EaDNTD40mEF0xyaRiuw=DPEaGpTkQ@mail.gmail.com>
+ <1560236742.4832.34.camel@mtksdccf07>
+In-Reply-To: <1560236742.4832.34.camel@mtksdccf07>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 11 Jun 2019 10:47:27 +0200
+Message-ID: <CACT4Y+YNG0OGT+mCEms+=SYWA=9R3MmBzr8e3QsNNdQvHNt9Fg@mail.gmail.com>
+Subject: Re: [PATCH v2] kasan: add memory corruption identification for
+ software tag-based mode
+To: Walter Wu <walter-zh.wu@mediatek.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
+	Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, 
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>, Matthias Brugger <matthias.bgg@gmail.com>, 
+	Martin Schwidefsky <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>, 
+	Vasily Gorbik <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>, 
+	"Jason A. Donenfeld" <Jason@zx2c4.com>, =?UTF-8?B?TWlsZXMgQ2hlbiAo6Zmz5rCR5qi6KQ==?= <Miles.Chen@mediatek.com>, 
+	kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>, 
+	Linux-MM <linux-mm@kvack.org>, Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	"linux-mediatek@lists.infradead.org" <linux-mediatek@lists.infradead.org>, 
+	wsd_upstream <wsd_upstream@mediatek.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -125,96 +123,94 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Jun 2019 at 07:51, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Tue, Jun 11, 2019 at 9:05 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
 >
-> On Wed, May 29, 2019 at 04:31:01PM -0700, Mike Kravetz wrote:
-> > On 5/28/19 2:49 AM, Wanpeng Li wrote:
-> > > Cc Paolo,
-> > > Hi all,
-> > > On Wed, 14 Feb 2018 at 06:34, Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> > >>
-> > >> On 02/12/2018 06:48 PM, Michael Ellerman wrote:
-> > >>> Andrew Morton <akpm@linux-foundation.org> writes:
-> > >>>
-> > >>>> On Thu, 08 Feb 2018 12:30:45 +0000 Punit Agrawal <punit.agrawal@arm.com> wrote:
-> > >>>>
-> > >>>>>>
-> > >>>>>> So I don't think that the above test result means that errors are properly
-> > >>>>>> handled, and the proposed patch should help for arm64.
-> > >>>>>
-> > >>>>> Although, the deviation of pud_huge() avoids a kernel crash the code
-> > >>>>> would be easier to maintain and reason about if arm64 helpers are
-> > >>>>> consistent with expectations by core code.
-> > >>>>>
-> > >>>>> I'll look to update the arm64 helpers once this patch gets merged. But
-> > >>>>> it would be helpful if there was a clear expression of semantics for
-> > >>>>> pud_huge() for various cases. Is there any version that can be used as
-> > >>>>> reference?
-> > >>>>
-> > >>>> Is that an ack or tested-by?
-> > >>>>
-> > >>>> Mike keeps plaintively asking the powerpc developers to take a look,
-> > >>>> but they remain steadfastly in hiding.
-> > >>>
-> > >>> Cc'ing linuxppc-dev is always a good idea :)
-> > >>>
-> > >>
-> > >> Thanks Michael,
-> > >>
-> > >> I was mostly concerned about use cases for soft/hard offline of huge pages
-> > >> larger than PMD_SIZE on powerpc.  I know that powerpc supports PGD_SIZE
-> > >> huge pages, and soft/hard offline support was specifically added for this.
-> > >> See, 94310cbcaa3c "mm/madvise: enable (soft|hard) offline of HugeTLB pages
-> > >> at PGD level"
-> > >>
-> > >> This patch will disable that functionality.  So, at a minimum this is a
-> > >> 'heads up'.  If there are actual use cases that depend on this, then more
-> > >> work/discussions will need to happen.  From the e-mail thread on PGD_SIZE
-> > >> support, I can not tell if there is a real use case or this is just a
-> > >> 'nice to have'.
+> On Mon, 2019-06-10 at 13:46 +0200, Dmitry Vyukov wrote:
+> > On Mon, Jun 10, 2019 at 9:28 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
 > > >
-> > > 1GB hugetlbfs pages are used by DPDK and VMs in cloud deployment, we
-> > > encounter gup_pud_range() panic several times in product environment.
-> > > Is there any plan to reenable and fix arch codes?
+> > > On Fri, 2019-06-07 at 21:18 +0800, Dmitry Vyukov wrote:
+> > > > > diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+> > > > > index b40ea104dd36..be0667225b58 100644
+> > > > > --- a/include/linux/kasan.h
+> > > > > +++ b/include/linux/kasan.h
+> > > > > @@ -164,7 +164,11 @@ void kasan_cache_shutdown(struct kmem_cache *cache);
+> > > > >
+> > > > >  #else /* CONFIG_KASAN_GENERIC */
+> > > > >
+> > > > > +#ifdef CONFIG_KASAN_SW_TAGS_IDENTIFY
+> > > > > +void kasan_cache_shrink(struct kmem_cache *cache);
+> > > > > +#else
+> > > >
+> > > > Please restructure the code so that we don't duplicate this function
+> > > > name 3 times in this header.
+> > > >
+> > > We have fixed it, Thank you for your reminder.
+> > >
+> > >
+> > > > >  static inline void kasan_cache_shrink(struct kmem_cache *cache) {}
+> > > > > +#endif
+> > > > >  static inline void kasan_cache_shutdown(struct kmem_cache *cache) {}
+> > > > >
+> > > > >  #endif /* CONFIG_KASAN_GENERIC */
+> > > > > diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+> > > > > index 9950b660e62d..17a4952c5eee 100644
+> > > > > --- a/lib/Kconfig.kasan
+> > > > > +++ b/lib/Kconfig.kasan
+> > > > > @@ -134,6 +134,15 @@ config KASAN_S390_4_LEVEL_PAGING
+> > > > >           to 3TB of RAM with KASan enabled). This options allows to force
+> > > > >           4-level paging instead.
+> > > > >
+> > > > > +config KASAN_SW_TAGS_IDENTIFY
+> > > > > +       bool "Enable memory corruption idenitfication"
+> > > >
+> > > > s/idenitfication/identification/
+> > > >
+> > > I should replace my glasses.
+> > >
+> > >
+> > > > > +       depends on KASAN_SW_TAGS
+> > > > > +       help
+> > > > > +         Now tag-based KASAN bug report always shows invalid-access error, This
+> > > > > +         options can identify it whether it is use-after-free or out-of-bound.
+> > > > > +         This will make it easier for programmers to see the memory corruption
+> > > > > +         problem.
+> > > >
+> > > > This description looks like a change description, i.e. it describes
+> > > > the current behavior and how it changes. I think code comments should
+> > > > not have such, they should describe the current state of the things.
+> > > > It should also mention the trade-off, otherwise it raises reasonable
+> > > > questions like "why it's not enabled by default?" and "why do I ever
+> > > > want to not enable it?".
+> > > > I would do something like:
+> > > >
+> > > > This option enables best-effort identification of bug type
+> > > > (use-after-free or out-of-bounds)
+> > > > at the cost of increased memory consumption for object quarantine.
+> > > >
+> > > I totally agree with your comments. Would you think we should try to add the cost?
+> > > It may be that it consumes about 1/128th of available memory at full quarantine usage rate.
 > >
-> > I too am aware of slightly more interest in 1G huge pages.  Suspect that as
-> > Intel MMU capacity increases to handle more TLB entries there will be more
-> > and more interest.
+> > Hi,
 > >
-> > Personally, I am not looking at this issue.  Perhaps Naoya will comment as
-> > he know most about this code.
->
-> Thanks for forwarding this to me, I'm feeling that memory error handling
-> on 1GB hugepage is demanded as real use case.
->
+> > I don't understand the question. We should not add costs if not
+> > necessary. Or you mean why we should add _docs_ regarding the cost? Or
+> > what?
 > >
-> > > In addition, https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/x86/kvm/mmu.c#n3213
-> > > The memory in guest can be 1GB/2MB/4K, though the host-backed memory
-> > > are 1GB hugetlbfs pages, after above PUD panic is fixed,
-> > > try_to_unmap() which is called in MCA recovery path will mark the PUD
-> > > hwpoison entry. The guest will vmexit and retry endlessly when
-> > > accessing any memory in the guest which is backed by this 1GB poisoned
-> > > hugetlbfs page. We have a plan to split this 1GB hugetblfs page by 2MB
-> > > hugetlbfs pages/4KB pages, maybe file remap to a virtual address range
-> > > which is 2MB/4KB page granularity, also split the KVM MMU 1GB SPTE
-> > > into 2MB/4KB and mark the offensive SPTE w/ a hwpoison flag, a sigbus
-> > > will be delivered to VM at page fault next time for the offensive
-> > > SPTE. Is this proposal acceptable?
-> >
-> > I am not sure of the error handling design, but this does sound reasonable.
+> I mean the description of option. Should it add the description for
+> memory costs. I see KASAN_SW_TAGS and KASAN_GENERIC options to show the
+> memory costs. So We originally think it is possible to add the
+> description, if users want to enable it, maybe they want to know its
+> memory costs.
 >
-> I agree that that's better.
->
-> > That block of code which potentially dissolves a huge page on memory error
-> > is hard to understand and I'm not sure if that is even the 'normal'
-> > functionality.  Certainly, we would hate to waste/poison an entire 1G page
-> > for an error on a small subsection.
->
-> Yes, that's not practical, so we need at first establish the code base for
-> 2GB hugetlb splitting and then extending it to 1GB next.
+> If you think it is not necessary, we will not add it.
 
-I'm working on this, thanks for the inputs.
+Full description of memory costs for normal KASAN mode and
+KASAN_SW_TAGS should probably go into
+Documentation/dev-tools/kasan.rst rather then into config description
+because it may be too lengthy.
 
-Regards,
-Wanpeng Li
+I mentioned memory costs for this config because otherwise it's
+unclear why would one ever want to _not_ enable this option. If it
+would only have positive effects, then it should be enabled all the
+time and should not be a config option at all.
 
