@@ -2,126 +2,145 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ECA54C4321A
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 09:31:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B03EC43218
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 09:38:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B46B1208E3
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 09:31:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B46B1208E3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=units.it
+	by mail.kernel.org (Postfix) with ESMTP id CF633212F5
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 09:38:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF633212F5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5429E6B0008; Tue, 11 Jun 2019 05:31:04 -0400 (EDT)
+	id 711766B0007; Tue, 11 Jun 2019 05:38:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4F2BB6B000A; Tue, 11 Jun 2019 05:31:04 -0400 (EDT)
+	id 6C2866B0008; Tue, 11 Jun 2019 05:38:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3E2646B000C; Tue, 11 Jun 2019 05:31:04 -0400 (EDT)
+	id 5D6D06B000A; Tue, 11 Jun 2019 05:38:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1777E6B0008
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:31:04 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id k36so4288953pgl.7
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 02:31:04 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BB8A6B0007
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 05:38:34 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c1so19819910edi.20
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 02:38:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:to:from:cc
-         :subject:in-reply-to:mime-version:content-id:date:message-id;
-        bh=rCgtkbIEeIY97pXZSUXY8tWDaxOP5st28FJb1bNw/YY=;
-        b=GmgnmV6H8TeZkfyf6Psq96afp3jijidOlLyo7Q+arS7R72lJVKSzW3pjxfRQTxdNYi
-         sMdlufJKykUMLfkQ3CeaBxFyJtzjXILp9yPbf1Xx2bQoKN82YEEKRRqu8nnioDpZn4NT
-         2PRx/wtKRybBeYj7+mf2Z+if3UD5xlZDfzdrBpTlYlEdgjj4TQ6nFlJ3dIvQ0V0bR8To
-         XQpHh0cPxTNblHyN8Erhk/ZhG+ZD8vDwVuw+9nwgmF29IneW3/spd76z7cSlHW7L/1CL
-         j9rp/BktSLaPeqLO+Ip1X5blcIcrLpp2LkZsxhiAlH/HQ/qXHIWXJYUGu2alls962B+k
-         jpOg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
-X-Gm-Message-State: APjAAAVUBEgtqwrj5f4d8OGmewHxvZjW9XPUykABVgHKH/D9I0vNGF1Y
-	3GA32tWsgsXkyEmrJFNaxMDLk9z5egguYkWorVkVIuXJe0iW7qPsyZRe02TfBGdLjUPz++VmA9W
-	ZVZt6RkiQinOElTfoBKi+DIlrcsecHlsJn+qZdQ8o6tZO+W87yOsYO6pK1iQT39nuUQ==
-X-Received: by 2002:a17:902:112c:: with SMTP id d41mr73386924pla.33.1560245463647;
-        Tue, 11 Jun 2019 02:31:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyhNIbqIQ391e+MTpST7lKTk5lYpnt+N8b6EKDIwRwd4WnHhZvv6PjMQmAi69bD/XBia961
-X-Received: by 2002:a17:902:112c:: with SMTP id d41mr73386867pla.33.1560245462837;
-        Tue, 11 Jun 2019 02:31:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560245462; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=6q1R6VkX/s6POxfFRQ2SqAnw9oY8FrCxPQ2D4yeGm1s=;
+        b=uaJM71nfRcPyG9Tfvxiw2sJfu3OIe0XPnPc7bpbe4tTg22cP0VE+zwtl34v6r8JzLX
+         4f2mO44paXn3MPslAjiIy78r1BHFTSCWEMnxEvxw1y7dbl6IR4L/MCNDkPrak+aihaF9
+         dyfXwo3d1JVOWdwh2VXk/qJy8eszneOLg1rG35xT1gTrxpWm8QRftllE712aBMZveJ0f
+         JWa1xP6D/upHcWcdb3kCl++ZJR0RqPAuZCh+T3LOanhp+GtPBacTct+pR9QWrSNtvDzU
+         WMbpl1Z5a44kJG30ZxqgZN/CBe3LkXYsVnxjBg0Ty5S+/+6uZ6JIhCYO597WP7+x+W+J
+         5xTA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+X-Gm-Message-State: APjAAAWAYYG4xlkwjna9d62bFEY+SkmyiFAMdNitnTd2khy3LYz3Y9Sx
+	qQQ0MFLUjyIlL+CQy5nj9LX6aIcbaiF7a4wyPDAssFtSYEN2aKnKi2IAAmTGrkRONSgPKLQDKAS
+	KcJ4DzGkRAGJ+8ia8Ah7I6BHaLvwpygWOYERpdLMZSS8MRbrgMYYtFfdcybM+1E67qQ==
+X-Received: by 2002:a50:b062:: with SMTP id i89mr79580630edd.85.1560245913619;
+        Tue, 11 Jun 2019 02:38:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwrayCdc4lk/vSM/gwF+B5KkQzeiZhqQrI1Nk3XjEp8L8EicbegO8nA2QpmHHWL+sJlQnV8
+X-Received: by 2002:a50:b062:: with SMTP id i89mr79580568edd.85.1560245912821;
+        Tue, 11 Jun 2019 02:38:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560245912; cv=none;
         d=google.com; s=arc-20160816;
-        b=qPSJYyRx8qmpQaRE0S2ItsKQh7ya2lXGA/9OcZAXPeO07GdS9GiwFdo5diF6t0JpER
-         kv4krBQYfa093KWrFFZvIvW6zgbsnZgbXYOLGO/OwIAoZuv2VKyzLGK2Ynku9MpY0RGB
-         w4kbSiniHwV603eP+7YsiNJiva9viObzcPvM5lW1dMlV+aVnC7fwHtd+01eKftt35ZUf
-         2roSSIQGtWlP/KTHX/y7NsuVPBN3OfMSuKt55aulDSOPtrDUb1bbcGoJmdlvy2JAaGA9
-         OoQgW2pyztaCfkEmy/iC9pj/bFkPbzNbHW+iV/9EpX2UHXSavQphMd6zxPm4cv7dUX/C
-         HpvQ==
+        b=eFiwrrBdoM4nSZMIuvUhW/zLx3sYaEORr/JYa9orZnkbjpwDA7S+RuvkPUKN3e1P7q
+         MCWmCQ6sEeFITJcRSp/5x/0Vs8/AHY4CUmL4oX+M8yrOlMwSR8l/Ks8O/F136Vkkg5F5
+         16b/rFUVoSZxgR4RpAuBSmGCYyjTkplDRGyLePNm3kr19yrIaQ0hRPU9nlt8/pU5gNkB
+         zhUtBwzqHpiDNh4uP4BK1n5gXaYUB7KZrrSBDfuN8/j4TOeswoJNufklRGUlKWxFbou+
+         +HLPo+dlSQbcO6sKHnKpz88UGLDwTAu+ia3sjvpyQ6RqbEQFxrSCPNpPu2FFXZ185q7P
+         zfmg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:content-id:mime-version:in-reply-to:subject:cc:from
-         :to;
-        bh=rCgtkbIEeIY97pXZSUXY8tWDaxOP5st28FJb1bNw/YY=;
-        b=cpcQ5/uWQSjvs9O6ap1v88RfMF5u4QKc5uPycgKnLHm8RfJxd1A8Mx7VfywSKD2YXx
-         B701forUAhDzyByjDdEA6ezGT3zLpRxvQXXOuPCUA8piifH86DYhIPEnNeB7TlENK/3S
-         rHVgFAIpiO+OyXZCNRh6kvhJd/3PZIcejcjBJu4G9d/tt8Fmybo/yRzob0iFOIrtfl6b
-         3ikDo6hv2rhbP2wUtRZwKM9DqHlk+3lT0aj+IydMBO3ZccWVsJBrRp3Lmt+MprXQGhGW
-         JG3YblhPFichJvHXpxNCBLOItKVxZH+HHpoGRQbp4BJIgRaOKh5yiNtqMo+azzj7aWX1
-         j/DA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=6q1R6VkX/s6POxfFRQ2SqAnw9oY8FrCxPQ2D4yeGm1s=;
+        b=FaOMyzMgkicllrYC/sNdhDtko2EqsUZ6xfZDlYO3gNmPW2VigYXF4fZlBTco5Jpfe5
+         eu9UowgkRR/4yMYFb4v9F6bF7RkGWT3qdhjoCo5TWaLgtopbhQPGji36e1HUw2IejZuv
+         ByP47hA084tcBjgHoKWzVH4sw2UPPkogkxfx+d3sHueGkijXuBLOs/0XXASoTL+0wnJ1
+         4N5cQnaD37VbjSXkGbKaafTuLn8lBXwcLQAfULBqjFSMdod7Wv7fcPINU9uJGefW+nE/
+         5/FcTJmARfT3w2sYbKyWi6dNCEggreh7CxhVcYCAnRkwMQqBOxEUVkq7NMjoJutDoWTv
+         ck/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
-Received: from dschgrazlin2.units.it (dschgrazlin2.univ.trieste.it. [140.105.55.81])
-        by mx.google.com with ESMTP id a18si7896010plm.171.2019.06.11.02.31.01
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id l1si7315537ejn.215.2019.06.11.02.38.31
         for <linux-mm@kvack.org>;
-        Tue, 11 Jun 2019 02:31:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) client-ip=140.105.55.81;
+        Tue, 11 Jun 2019 02:38:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of balducci@units.it designates 140.105.55.81 as permitted sender) smtp.mailfrom=balducci@units.it
-Received: from dschgrazlin2.units.it (loopback [127.0.0.1])
-	by dschgrazlin2.units.it (8.15.2/8.15.2) with ESMTP id x5B9UW4r003046;
-	Tue, 11 Jun 2019 11:30:32 +0200
-To: Mel Gorman <mgorman@techsingularity.net>
-From: balducci@units.it
-CC: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org,
-        akpm@linux-foundation.org
-Subject: Re: [Bug 203715] New: BUG: unable to handle kernel NULL pointer dereference under stress (possibly related to https://lkml.org/lkml/2019/5/24/292 ?)
-In-reply-to: Your message of "Tue, 11 Jun 2019 10:03:45 +0100."
-             <20190611090345.GC28744@techsingularity.net>
-X-Mailer: MH-E 8.6+git; nmh 1.7.1; GNU Emacs 26.2
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id CD815EBD;
+	Tue, 11 Jun 2019 02:38:30 -0700 (PDT)
+Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id AF8543F77D;
+	Tue, 11 Jun 2019 02:38:29 -0700 (PDT)
+Date: Tue, 11 Jun 2019 10:38:23 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org,
+	Anshuman Khandual <anshuman.khandual@arm.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@suse.com>, Yu Zhao <yuzhao@google.com>,
+	linux-mm@kvack.org, Mike Rapoport <rppt@linux.ibm.com>
+Subject: Re: [PATCH] mm: treewide: Clarify pgtable_page_{ctor,dtor}() naming
+Message-ID: <20190611093822.GA26409@lakrids.cambridge.arm.com>
+References: <20190610163354.24835-1-mark.rutland@arm.com>
+ <20190610130511.310e8d2cc8d6b02b2c3e238d@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <3044.1560245456.1@dschgrazlin2.units.it>
-Date: Tue, 11 Jun 2019 11:30:32 +0200
-Message-ID: <3045.1560245456@dschgrazlin2.units.it>
-X-Greylist: inspected by milter-greylist-4.6.2 (dschgrazlin2.units.it [0.0.0.0]); Tue, 11 Jun 2019 11:30:33 +0200 (CEST) for IP:'127.0.0.1' DOMAIN:'loopback' HELO:'dschgrazlin2.units.it' FROM:'balducci@units.it' RCPT:''
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.6.2 (dschgrazlin2.units.it [0.0.0.0]); Tue, 11 Jun 2019 11:30:33 +0200 (CEST)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000007, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190610130511.310e8d2cc8d6b02b2c3e238d@linux-foundation.org>
+User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mel Gorman writes:
->
-> Any news with this patch?
->
+On Mon, Jun 10, 2019 at 01:05:11PM -0700, Andrew Morton wrote:
+> On Mon, 10 Jun 2019 17:33:54 +0100 Mark Rutland <mark.rutland@arm.com> wrote:
+> 
+> > The naming of pgtable_page_{ctor,dtor}() seems to have confused a few
+> > people, and until recently arm64 used these erroneously/pointlessly for
+> > other levels of pagetable.
+> > 
+> > To make it incredibly clear that these only apply to the PTE level, and
+> > to align with the naming of pgtable_pmd_page_{ctor,dtor}(), let's rename
+> > them to pgtable_pte_page_{ctor,dtor}().
+> > 
+> > The bulk of this conversion was performed by the below Coccinelle
+> > semantic patch, with manual whitespace fixups applied within macros, and
+> > Documentation updated by hand.
+> 
+> eep.  I get a spectacular number of rejects thanks to Mike's series
+> 
+> asm-generic-x86-introduce-generic-pte_allocfree_one.patch
+> alpha-switch-to-generic-version-of-pte-allocation.patch
+> arm-switch-to-generic-version-of-pte-allocation.patch
+> arm64-switch-to-generic-version-of-pte-allocation.patch
+> csky-switch-to-generic-version-of-pte-allocation.patch
+> m68k-sun3-switch-to-generic-version-of-pte-allocation.patch
+> mips-switch-to-generic-version-of-pte-allocation.patch
+> nds32-switch-to-generic-version-of-pte-allocation.patch
+> nios2-switch-to-generic-version-of-pte-allocation.patch
+> parisc-switch-to-generic-version-of-pte-allocation.patch
+> riscv-switch-to-generic-version-of-pte-allocation.patch
+> um-switch-to-generic-version-of-pte-allocation.patch
+> unicore32-switch-to-generic-version-of-pte-allocation.patch
+> 
+> But at least they will make your patch smaller!
 
-oops: I run the patch and reported by email (CC'ing to bugzilla): either
-I botched something with the reporting mail or you missed the email...
-(my report is on bugzilla, though, comment 20)
+Aha; thanks for the heads-up!
 
-I reproduce the report here:
+Given this cleanup isn't urgent, I'll sit on it until the above has
+settled.
 
-> no joy; I left the FF build running and found the machine frozen this
-> morning; however, firefox build could apparently complete successfully;
-> I can't say when exactly the problem happened, as I haven't found any
-> message in the logs
-
-I can add that since the last attempt, after rebooting into 5.0.15, I
-have built a lot of software (including FF) without any problem; this
-enforces me in the conviction that there must be some problem for
-kernels >=5.1
-
-Does anybody else reproduce this?
-
-thanks a lot
-ciao
--g
+Mark.
 
