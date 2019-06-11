@@ -2,190 +2,164 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_MED,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49FA3C4321A
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:38:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 82FF6C4321B
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:41:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1141720896
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:38:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 48C2C20896
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 14:41:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="vFVLFZFy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1141720896
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="hksldD9H"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48C2C20896
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9D9CF6B0007; Tue, 11 Jun 2019 10:38:38 -0400 (EDT)
+	id DCF936B0007; Tue, 11 Jun 2019 10:41:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9B20C6B0008; Tue, 11 Jun 2019 10:38:38 -0400 (EDT)
+	id D7EB36B0008; Tue, 11 Jun 2019 10:41:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8AB416B000A; Tue, 11 Jun 2019 10:38:38 -0400 (EDT)
+	id C1FC66B000A; Tue, 11 Jun 2019 10:41:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 52A1F6B0007
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 10:38:38 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id d3so6337932pgc.9
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 07:38:38 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 892FF6B0007
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 10:41:43 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 5so9736714pff.11
+        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 07:41:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=+Bb9evtnnpvJpDG7+k/xfmfwlxE7BAZZaECd7yQ/bgY=;
-        b=Y01ZcUfQYqZ83t3ZfNY44pSvL0nb5795WZNJdIC9k8Xlcp+QD1kpflx5/9gO9qsKNY
-         7YOkpCiJDTEF+6LrlYEtP9CxQvV6NWde2mDwJoIfpIWulcZeFzFmDNMgYKRkE7FkqoZ7
-         HyvEt8xiX/NY/USojMgCnnYKyc1eHvqee7/BEINlm+Yoek4OTnsuMeHNNV1sR6LNkBtp
-         zjw8LYAI/uqJDqxMHgFwibmew2WHemso1VSqy42eFADoswdO8l2EBgyjdm/Sha0eCroj
-         nWh9Z1gedCWpi/BU6YFr6hbVowJu/JFBBNW6ctGNArymSLGOxcCT4t+nwYyIjRORNW2P
-         SGyQ==
-X-Gm-Message-State: APjAAAVS9kZ+h5OBNtIuntwt6JOfUBctUy+cTIE8JaoGQrRSGuDlsbmz
-	xZizPBkTEtJjv9JNhUgP7zK0Cq6VsEuN8bHxAV0XO9J8SbeYpL2V8RyJYx5yjhTY8dfE142IWFF
-	2BoArOCw6KGMbh4UwXOcishC3A6Ld57uJSDB7MWCUVTW0qM45EPuKsugMoGk8ZOeOFg==
-X-Received: by 2002:a63:5462:: with SMTP id e34mr19394181pgm.400.1560263917724;
-        Tue, 11 Jun 2019 07:38:37 -0700 (PDT)
-X-Received: by 2002:a63:5462:: with SMTP id e34mr19394125pgm.400.1560263916624;
-        Tue, 11 Jun 2019 07:38:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560263916; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=pU76vjF549TgrGMDxTP+px3yFTf1TEh0R8Swc6QhucM=;
+        b=XhUM5VkqUnN1VTnthmiMaoFTI5oFyf9dpV2iXTuVVmEt7Sx4iioUMrE54/f9vQc1hm
+         8CXWn9HYnKPYw9zG6sX6lkIt6fIUz30QCNRU9qVyzJT7MHfXEC804WRJxp3c0plTdmYe
+         HO8P6j6dnCaTEUWKCARgaa06RqNihwCRES2jxa4BduNgLidRDeGoyQFKzURxXE1kJ+X9
+         yrcsdlkuRVBNdLwfxnOiJHDdgEjyOFHBrRntUr5kzAHtc2r2J1F1Cm6pKx6qyR68tc9U
+         dKGNFhPyTf+USgKQiQEqIP7MhyX1V1CdVbMxbZlntSqap0O4SH42agwa7iwurI17+FLd
+         me0g==
+X-Gm-Message-State: APjAAAUc8gC7Xa3JVPqLGWGo5gIjRTEfRE9JGkSDPsvk6vrp+NmY8f9P
+	RR66CCOLF1SQGPyKa32LJhyHBi2kS2sZpd71RE8iy8LV3riec+dPFFOzNkkW6sXT3yj1GfNO4Kz
+	RchDZTqBES0KVE4IPxPuHdphiAjCjt8tzyVN4Eq3DvWyWUk/SETJuelYvGG2X37k=
+X-Received: by 2002:a17:90a:1c17:: with SMTP id s23mr18749841pjs.108.1560264103220;
+        Tue, 11 Jun 2019 07:41:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzbI8iYRVP0fBBWnC/Rt5tnvoj++2vzH81qYDM+MKszsgEpcS7M5KgQuPlxV2ditXRqOXZe
+X-Received: by 2002:a17:90a:1c17:: with SMTP id s23mr18749788pjs.108.1560264102278;
+        Tue, 11 Jun 2019 07:41:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560264102; cv=none;
         d=google.com; s=arc-20160816;
-        b=ol/8Tt3NXZVKq65LobenWnBJfJxL5wFFqA2iiN2E8mslCf+iSsBOphIZuvcNUJT5Eb
-         loRd3H6XeX7OqCwplHXb/wAAJbJAWUtKdeYhFvvVcJiJ1DT4d0Y2Hu2cBnjhyO9LmtHE
-         hs9nveIESCT684ZGATuJR/4uMuQfv3Gxi0vtSgmCGC/pkBwYcPLont/lDRBTg8Up7/tf
-         M1aW5is/lkbRoAC8PE3+7Y6Mzm4307cgkVmggrNvWbUamiGdGks8n8csvt17Rj4Cf6lb
-         JRccbPUdmVaLoz07/T8VTAMyNq3QiW9Ai44Ct1vH9jjoU/7tgtBpHh1r2eTvKiNt005z
-         QzMg==
+        b=Jyh5j/Sq7HxZpwZ1SDxIbNbCVx7CYSTADN/I3L22LxGzrw7L1GrNNch3DdxHlNa0uf
+         ESyCluOwsdgobyq9+mUuwEBWhl1VGo98zAx/k3EI5wW6RiO2ho0AihttH8h8FYQugPV5
+         /oKRwdOqnEjmUUN5DuKTvtefvE6RMkU1dZcaCoA5h1nye16tEr+DjzEB3+AqqmyrhAgM
+         b+olm214nbFlVRpCwMYs1piUCXQaf0cZPMb+tzs1d+zVWG3ZuEvKS+gOh1l8Xl7J398r
+         tr8an2fcsNn4r7W4RG5ZtUDOIOfK+pvIqXuioi1hj8OSCQxWFBV2lrIRejxF0I04duTG
+         Npuw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=+Bb9evtnnpvJpDG7+k/xfmfwlxE7BAZZaECd7yQ/bgY=;
-        b=NOE5s5RpzW9zuIRV0SmVgcwSF1RmoCXIheUB8RXvlXgk/jIoKsdljsPL/S/epeN1lP
-         SdsRSA3kPSKGbb5Xo2taTSn80wmeRvVks8USQX2nRXyjYg6oZZAvAFKAxE3nSLskabTx
-         6KyTvwJ7m1cRtHa62Fy1J07QT8HI8NnkXHcH2I1G/yRTNkdkie131SM51yUTsKBIwgLn
-         cEofHWME3SeOEhzhGWPlzczfQOkLvdmrApN4PwDuJYmiX88b8WBASl39cgw+bw2gq3uc
-         mYPdryhC0dv1fnv/av2HMDAUW5/i91CfJNo7z/0XFi8iVucuAEx+E+CKBXadKpbUSoWF
-         xfpA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=pU76vjF549TgrGMDxTP+px3yFTf1TEh0R8Swc6QhucM=;
+        b=CPPg1q/mw5mROQ0ehxnBIoT3L6eUWXnwcchd4eXfKLm4RweZSJpFx5yN985xeL+lxk
+         /1nituZTuXW2iaS2hRXTpNQeINZ9LbKj5lamjV5JNyJOzDAH1wQQAlDU/4XVwVv1HmVk
+         2yI8PLq6pjAP8gyTz7O+jyT4xmPxFmd2tXu86nRFmX2nDjYRCLT2hZWoNsYRLIBlwWt+
+         KORCuO2fGYZdAdFj6PmnesqxZbWKQPsP31C+UiMvXUFNj/9TtCvmrvxT8qBgOD6/bdxd
+         v+nRNI+qdtzsOVMl7fmMJpiGCOp+KEsV3CAauWq/8KAfCfk2bZsjngW9CfnPdIx5i/Eh
+         3M/A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=vFVLFZFy;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m32sor15366925pld.47.2019.06.11.07.38.36
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=hksldD9H;
+       spf=pass (google.com: best guess record for domain of batv+98d4ae9035936dc2f97b+5770+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+98d4ae9035936dc2f97b+5770+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z12si12200049pln.207.2019.06.11.07.41.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 11 Jun 2019 07:38:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 11 Jun 2019 07:41:42 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+98d4ae9035936dc2f97b+5770+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=vFVLFZFy;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=+Bb9evtnnpvJpDG7+k/xfmfwlxE7BAZZaECd7yQ/bgY=;
-        b=vFVLFZFyIF01TbjN+xeeME15qV8KkCRDccJHkbwPJnzYqntxAPPejl4UucLg68kkqb
-         BaObH7iQP83sFpaN8IH2/Yu4t4nwUDbwn3rb15fIHqVU7geywA3LRxp1p4GflSM3qTjJ
-         iWM19kJHA7FmF25W9uFiY1kMJbcO4WOESGJU61YywCA+i6Ylfs/3WF6YNj5xaMoYJ89L
-         XqlvBDrbDKlYUJNKkeiCJcKNhxFQvdK51GyYrA4cNM42eSbHTJc/2qrnnTIYWyQugg14
-         drUy2FSlkxzvJpoh5mj5M9w5F5osUe6J99CThZKFzYA/JvReekTQOE0mCFzBedDfUO6l
-         PqJQ==
-X-Google-Smtp-Source: APXvYqyIzOH5zo/01pYiY/WLl0OLwpsCvaKKuk+vDciT43wSxP3iXzYy6GsWF4y5D8CeYcDREH0+OmLOdYtg4cNrux0=
-X-Received: by 2002:a17:902:1566:: with SMTP id b35mr78131643plh.147.1560263915764;
- Tue, 11 Jun 2019 07:38:35 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=hksldD9H;
+       spf=pass (google.com: best guess record for domain of batv+98d4ae9035936dc2f97b+5770+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+98d4ae9035936dc2f97b+5770+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	MIME-Version:References:In-Reply-To:Message-Id:Date:Subject:Cc:To:From:Sender
+	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
+	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=pU76vjF549TgrGMDxTP+px3yFTf1TEh0R8Swc6QhucM=; b=hksldD9HOj5evI3EEsvNNZserQ
+	9QfL5wF9gT7egY+bR9UULwLlKaDcw+8UV7m2/8Nx0LXz3UkxV9NozCDfZ44qqcS/1MjRrVmQH691W
+	F+pa5IeoK2lMHw7zdweUhqWjsXhgXBNiVCgccTrkGw+N4DTtTTb6rdNpAcyxs2QNryR0hJKmc2s/b
+	YhzCLeQqFaGRjbitn3ZJ5vYl9VFojSvxwCaSFpt+Sy1VKPlpBJYsDKNs5rLGgMg2fBrAGZ19Pbgp0
+	SeqyCW789tSA3PxnOlwKgzjeyFyE2oxk6A62waWOoKoHh27uuHpxZYxoZuPf046XmMbKVyOakaQh1
+	ZCwcvfmw==;
+Received: from mpp-cp1-natpool-1-037.ethz.ch ([82.130.71.37] helo=localhost)
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hahxV-0005Nh-VL; Tue, 11 Jun 2019 14:41:10 +0000
+From: Christoph Hellwig <hch@lst.de>
+To: Linus Torvalds <torvalds@linux-foundation.org>,
+	Paul Burton <paul.burton@mips.com>,
+	James Hogan <jhogan@kernel.org>,
+	Yoshinori Sato <ysato@users.sourceforge.jp>,
+	Rich Felker <dalias@libc.org>,
+	"David S. Miller" <davem@davemloft.net>
+Cc: Nicholas Piggin <npiggin@gmail.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Paul Mackerras <paulus@samba.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	linux-mips@vger.kernel.org,
+	linux-sh@vger.kernel.org,
+	sparclinux@vger.kernel.org,
+	linuxppc-dev@lists.ozlabs.org,
+	linux-mm@kvack.org,
+	x86@kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 01/16] mm: use untagged_addr() for get_user_pages_fast addresses
+Date: Tue, 11 Jun 2019 16:40:47 +0200
+Message-Id: <20190611144102.8848-2-hch@lst.de>
+X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190611144102.8848-1-hch@lst.de>
+References: <20190611144102.8848-1-hch@lst.de>
 MIME-Version: 1.0
-References: <cover.1559580831.git.andreyknvl@google.com> <51f44a12c4e81c9edea8dcd268f820f5d1fad87c.1559580831.git.andreyknvl@google.com>
- <201906072101.58C919E@keescook>
-In-Reply-To: <201906072101.58C919E@keescook>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Tue, 11 Jun 2019 16:38:24 +0200
-Message-ID: <CAAeHK+y8CH4P3vheUDCEnPAuO-2L6mc-sz6wMA_hT=wC1Cy3KQ@mail.gmail.com>
-Subject: Re: [PATCH v16 08/16] fs, arm64: untag user pointers in copy_mount_options
-To: Kees Cook <keescook@chromium.org>
-Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yishai Hadas <yishaih@mellanox.com>, 
-	Felix Kuehling <Felix.Kuehling@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, 
-	Christian Koenig <Christian.Koenig@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
-	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
-	Leon Romanovsky <leon@kernel.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, 
-	Dave Martin <Dave.Martin@arm.com>, Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, 
-	Jason Gunthorpe <jgg@ziepe.ca>, Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jun 8, 2019 at 6:02 AM Kees Cook <keescook@chromium.org> wrote:
->
-> On Mon, Jun 03, 2019 at 06:55:10PM +0200, Andrey Konovalov wrote:
-> > This patch is a part of a series that extends arm64 kernel ABI to allow to
-> > pass tagged user pointers (with the top byte set to something else other
-> > than 0x00) as syscall arguments.
-> >
-> > In copy_mount_options a user address is being subtracted from TASK_SIZE.
-> > If the address is lower than TASK_SIZE, the size is calculated to not
-> > allow the exact_copy_from_user() call to cross TASK_SIZE boundary.
-> > However if the address is tagged, then the size will be calculated
-> > incorrectly.
-> >
-> > Untag the address before subtracting.
-> >
-> > Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-> > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
->
-> One thing I just noticed in the commit titles... "arm64" is in the
-> prefix, but these are arch-indep areas. Should the ", arm64" be left
-> out?
->
-> I would expect, instead:
->
->         fs/namespace: untag user pointers in copy_mount_options
+This will allow sparc64 to override its ADI tags for
+get_user_pages and get_user_pages_fast.
 
-Hm, I've added the arm64 tag in all of the patches because they are
-related to changes in arm64 kernel ABI. I can remove it from all the
-patches that only touch common code if you think that it makes sense.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ mm/gup.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Thanks!
-
->
-> Reviewed-by: Kees Cook <keescook@chromium.org>
->
-> -Kees
->
-> > ---
-> >  fs/namespace.c | 2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> >
-> > diff --git a/fs/namespace.c b/fs/namespace.c
-> > index b26778bdc236..2e85712a19ed 100644
-> > --- a/fs/namespace.c
-> > +++ b/fs/namespace.c
-> > @@ -2993,7 +2993,7 @@ void *copy_mount_options(const void __user * data)
-> >        * the remainder of the page.
-> >        */
-> >       /* copy_from_user cannot cross TASK_SIZE ! */
-> > -     size = TASK_SIZE - (unsigned long)data;
-> > +     size = TASK_SIZE - (unsigned long)untagged_addr(data);
-> >       if (size > PAGE_SIZE)
-> >               size = PAGE_SIZE;
-> >
-> > --
-> > 2.22.0.rc1.311.g5d7573a151-goog
-> >
->
-> --
-> Kees Cook
+diff --git a/mm/gup.c b/mm/gup.c
+index ddde097cf9e4..6bb521db67ec 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -2146,7 +2146,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
+ 	unsigned long flags;
+ 	int nr = 0;
+ 
+-	start &= PAGE_MASK;
++	start = untagged_addr(start) & PAGE_MASK;
+ 	len = (unsigned long) nr_pages << PAGE_SHIFT;
+ 	end = start + len;
+ 
+@@ -2219,7 +2219,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
+ 	unsigned long addr, len, end;
+ 	int nr = 0, ret = 0;
+ 
+-	start &= PAGE_MASK;
++	start = untagged_addr(start) & PAGE_MASK;
+ 	addr = start;
+ 	len = (unsigned long) nr_pages << PAGE_SHIFT;
+ 	end = start + len;
+-- 
+2.20.1
 
