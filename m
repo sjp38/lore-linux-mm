@@ -2,227 +2,153 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,T_DKIMWL_WL_HIGH,UNPARSEABLE_RELAY
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 151BEC43218
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 04:49:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 70A41C43218
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 05:13:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF1682086A
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 04:49:15 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="xr/OkVp9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF1682086A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 401162063F
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 05:13:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 401162063F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6D8C66B0010; Tue, 11 Jun 2019 00:49:15 -0400 (EDT)
+	id A48536B0008; Tue, 11 Jun 2019 01:13:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 662BF6B0266; Tue, 11 Jun 2019 00:49:15 -0400 (EDT)
+	id 9D2536B000A; Tue, 11 Jun 2019 01:13:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 502156B0269; Tue, 11 Jun 2019 00:49:15 -0400 (EDT)
+	id 872776B000C; Tue, 11 Jun 2019 01:13:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 290E06B0010
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 00:49:15 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id f69so11598848ywb.21
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 21:49:15 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 37D416B0008
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 01:13:52 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id s7so18814110edb.19
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 22:13:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
-         :message-id:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=w6B62XWgEySnIWZsve79cF+lTRasJpmyyQueK4g93UE=;
-        b=n/bsu5JslKWp3tlGhFrWjSylp7Z17Z3AaQG0g9+UdlTpvcHK3LJ1hC6nQe1okG7Fw1
-         deD/8zN3joKxXIeTUJZzgIZ5YhoHESXTokga8SyfRDqov4AZC/jLh4OPFxG9P5UlMZKD
-         ZXrfgF+SddRKxAwoOY/HNRluam/2jSXAYu72tz6/rgdbs/LeRBdhhUCqDJ8qgv9MOCsa
-         vjaUtaiR39R8/deuOdcp0F7JO/+1sHZEpl0lJF3ZzA3PiHdZVSlitI/TocWkh041URws
-         U3PWow4OMaVCysY2yCGdt/BXGY4ku5qjOOsStMU+ICv1zjNu3tEbp4LD1GIBN1E6LSlM
-         NWlg==
-X-Gm-Message-State: APjAAAWRPHXjYg6BUPSbcHT1om/YAaPtntC8DhigVCmQw2VuZyYnYhB/
-	uw3vJqCo20Y3dYFbkcJ0R24VfwhY3l7lcFMVn/bp/wD0kgWhwCHcPzgVE/VA7AhazE4w1GjewSI
-	nn3tM4x3HCz5G6Lwmuw7D3xGMS6HuQa3Axv9IwG2qlAiUSqbNjmaHfBJD/AbZ1WNytA==
-X-Received: by 2002:a81:57d6:: with SMTP id l205mr10458545ywb.323.1560228554873;
-        Mon, 10 Jun 2019 21:49:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy5Bix8VhjQO9A/7Ge9lGMX9msWKmg6Pn1RiLxy/lzPCmhnoFEMFUnwA7/t9KRmkcg8cK0Z
-X-Received: by 2002:a81:57d6:: with SMTP id l205mr10458525ywb.323.1560228554289;
-        Mon, 10 Jun 2019 21:49:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560228554; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=DYCngMJLOK/2cJ+86BjE3TjH5m/AAcN6WZ8gmMI5TH8=;
+        b=bI7ePWDWQ4z5qRCJR6M8RTjA9XpL/wVbMsN/OKdV571p2rM7F6WGIirqStmEW1ZIGl
+         KC5D/7S4Z3pp7xEHLrb+MbsKY6dKRWmJUtEz/C7CBdWe2rJwqikfD/JQcw89HQXFz16z
+         WRIDkSPWnCTJjv0ZahxG1S87vLbiQY4zqrpANLT1dvaWyEQ03hbu9CrX1ZYJ9uNATbCa
+         g9GUS0Ce2k6/bgmAd/8sBvPMDrseJS0UErf9MNakYOpTfC0jV8B661MmysOED4slOSl7
+         eXBEJdd/kYyoh3N8u6QQdarHrlzNG85PqIdZkSS9GdLDP7VaGtyoSVhEbqXZ5KXfDnTW
+         nn3g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAXqo3hQY/2rRnwU+qUzIm6Rw/rV8kzq0ZInryURtwhrfIsRmh3T
+	rRJs3ZHhNhPNein7luiwr8XnJ8Pfdgzlar1DJJn1vYHyZFZJMyOPMHnPGAASR3bvZcv/pz13h/x
+	rkygR7cYW6Z/invBvDQeO5ZY2wUXlZwCnCyyuG9sQmS5j/F9wWyKZIA8kzp3mEkfwIw==
+X-Received: by 2002:a17:906:eb93:: with SMTP id mh19mr39718114ejb.42.1560230031744;
+        Mon, 10 Jun 2019 22:13:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqys665I5mbfeEOiC6RxrP/waLBk7wmEd1B3hVtMPr3zMdm8mQJwiRz13KrRqPHymFdYdiI7
+X-Received: by 2002:a17:906:eb93:: with SMTP id mh19mr39718073ejb.42.1560230030963;
+        Mon, 10 Jun 2019 22:13:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560230030; cv=none;
         d=google.com; s=arc-20160816;
-        b=AyjZgT4gRVdtxGMGhWrbZllQ1/+xJ4dILDV3DLstWFiHhpqVodDwxni+FQnNi9VXPh
-         w05sRjX992jEg26Vmgu+AWEUCL2jKfyBhebF96k7+4U+XIuMZDGrqsRMfjYe/O2Aaxbl
-         RpcPjGNnQyAo++xMxV3RgD/Syp9QBNsbj1cJdTH246z42oyovCPa6DAEO1se1ZOTfD0j
-         s5qbF4ffpjNU8N6qgQ85S0dhDiZRHW0rvtuVZdTb4wJVlBJhnMAqqQGTSTJ07u0buC9a
-         E+Ze0JOuQsKa4b2M3z4u58O9Wsnt0SwuPVDl34rqyLvhiNQos+Ll1SHDjB1KxS6po3DU
-         JoJA==
+        b=wJcJJCmlrQxG3/QOvggXhHuIMNhphfa9cW+3MrwyZd/VdF/7/VdZvgqsfEuzUtGEl4
+         iyStQZJny8qaoMBfYfupGE+MFuW7ee/0e+w8uJaos/njoxooe0gk9pP4xde2OMpxM7H/
+         6B73CcaORayJuSOnb2Cmerns1vGmicBaBytb+24QR2iZyA98LECxXxsLerRZIGYzlocM
+         zMVtxQoXG77zfiJs9wvAEpM0VPF7oaEBjgSEBS6M5SdYux8k3a6jAcONEWfw5UZBAio/
+         evPPLpI4QLXvGmdo/gRbJ0ELjmkf8I5MXqgJCHMqV/LfCYoMKUaLlQU4Gk0QpcHOuuWT
+         sQiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
-        bh=w6B62XWgEySnIWZsve79cF+lTRasJpmyyQueK4g93UE=;
-        b=mHEtfZfc1bHaFd5y2fLrcRZgMT/RxsVMVn07c8i3HATbCICjzj34HY9Wi4hGA8gtnJ
-         rzjwzUyJRNXxbEhW7ykxDayBHZbthGbBKysZy7taPGmvjjJVqmsSg9K2Nd9prdW95dJk
-         Nv37eu2leqAiZjEEvD+4rapZeom9IsrC7yNgdYhWNMsIukIwVa2z7K4OsEveb+AIlpHa
-         p7PFMIE8yykUiPdklzuibIDilrqSe1sVC4qfvWIFOKQgai4EMJxP3I/bKuNzQI5H+S0l
-         gXk9dIDw0O8ZT6WClC4k2AOKVjPmDIWg+YOsITbyk7FBXRKjpgvIb+sXr1ooKHfDMCDZ
-         X33Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=DYCngMJLOK/2cJ+86BjE3TjH5m/AAcN6WZ8gmMI5TH8=;
+        b=QJhpDsvdttOPP9jLWITjDRxC8UJk5UTtfawGVbplJFfyX48sMNIGa1uo33k4qHgqWX
+         V2fOrTQCWg0OiIbhw68IWX0npkmvocrRpfStAjN4s95US5IUtbBC+/43tml3JT75E4ba
+         PQ0hHLR2Z5q5mC9C2U350eLc64/TSHSrTTyLsWB0+0R9k7Pe6VEZ5Rv9kE2i2SzSJ/67
+         1Sht3rAR3Jsh1HtCN1ybvFaMKIJfumICeqhMfzdOHkfd9XRWNCdE8A6VEOiZsQ0MEoe0
+         n0Mskgl0iGx2zSGm5rPnDKXVWoA2CRfTNVNtXz9SO6ATA+LMBGhS2W/mGdnAj13ZmJ9B
+         XQ3w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="xr/OkVp9";
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id r204si4189605ywg.461.2019.06.10.21.49.14
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 10 Jun 2019 21:49:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id w4si7674813eji.83.2019.06.10.22.13.50
+        for <linux-mm@kvack.org>;
+        Mon, 10 Jun 2019 22:13:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="xr/OkVp9";
-       spf=pass (google.com: domain of darrick.wong@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=darrick.wong@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5B4hbtt159138;
-	Tue, 11 Jun 2019 04:49:06 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : from : to :
- cc : date : message-id : in-reply-to : references : mime-version :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=w6B62XWgEySnIWZsve79cF+lTRasJpmyyQueK4g93UE=;
- b=xr/OkVp95W9CZa1qjVKbtngLN9J+a0uZavn2r3ArsGbLa3Idt+XiHAevESEnFd2Muawd
- IDeKByu9gQWLom5QvFu9SB6aGdiFJoCp0tz7vKlzNewkahhwnjXvO0YFc7SwTBUu/TXr
- 1JAzKRa/DZxlP4ZZpnIqV/L0X1JujwSoecEOGG343C3b9FaK4zuy1R0cRIGXh59pnwVC
- rgO1+qT0i60g5fCtoX0xlqOK/qTFrDgQsRkvoiZce/aNAuX3Lrp5ll2wDFoSsEQSMY+0
- xO05b6rP2HVkV4MLCu2gbQsaloZCyjVElf52i0un57IO4AUWcCHG2FJLiCzCFi61Ne0u iQ== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2130.oracle.com with ESMTP id 2t04etjm38-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 11 Jun 2019 04:49:06 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5B4jGrX167613;
-	Tue, 11 Jun 2019 04:47:06 GMT
-Received: from pps.reinject (localhost [127.0.0.1])
-	by userp3030.oracle.com with ESMTP id 2t024u6kpg-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Tue, 11 Jun 2019 04:47:06 +0000
-Received: from userp3030.oracle.com (userp3030.oracle.com [127.0.0.1])
-	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x5B4l5Gj171026;
-	Tue, 11 Jun 2019 04:47:06 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3030.oracle.com with ESMTP id 2t024u6kpc-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 11 Jun 2019 04:47:05 +0000
-Received: from abhmp0016.oracle.com (abhmp0016.oracle.com [141.146.116.22])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5B4l4Q5023284;
-	Tue, 11 Jun 2019 04:47:04 GMT
-Received: from localhost (/67.169.218.210)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 10 Jun 2019 21:47:04 -0700
-Subject: [PATCH 6/6] xfs: clean up xfs_merge_ioc_xflags
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-To: matthew.garrett@nebula.com, yuchao0@huawei.com, tytso@mit.edu,
-        darrick.wong@oracle.com, ard.biesheuvel@linaro.org,
-        josef@toxicpanda.com, clm@fb.com, adilger.kernel@dilger.ca,
-        viro@zeniv.linux.org.uk, jack@suse.com, dsterba@suse.com,
-        jaegeuk@kernel.org, jk@ozlabs.org
-Cc: reiserfs-devel@vger.kernel.org, linux-efi@vger.kernel.org,
-        devel@lists.orangefs.org, linux-kernel@vger.kernel.org,
-        linux-f2fs-devel@lists.sourceforge.net, linux-xfs@vger.kernel.org,
-        linux-mm@kvack.org, linux-nilfs@vger.kernel.org,
-        linux-mtd@lists.infradead.org, ocfs2-devel@oss.oracle.com,
-        linux-fsdevel@vger.kernel.org, linux-ext4@vger.kernel.org,
-        linux-btrfs@vger.kernel.org
-Date: Mon, 10 Jun 2019 21:47:01 -0700
-Message-ID: <156022842153.3227213.3285668171167534801.stgit@magnolia>
-In-Reply-To: <156022836912.3227213.13598042497272336695.stgit@magnolia>
-References: <156022836912.3227213.13598042497272336695.stgit@magnolia>
-User-Agent: StGit/0.17.1-dirty
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E9DC9344;
+	Mon, 10 Jun 2019 22:13:49 -0700 (PDT)
+Received: from [10.162.43.135] (p8cg001049571a15.blr.arm.com [10.162.43.135])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id F2A743F73C;
+	Mon, 10 Jun 2019 22:13:41 -0700 (PDT)
+Subject: Re: [RFC V3] mm: Generalize and rename notify_page_fault() as
+ kprobe_page_fault()
+To: Leonardo Bras <leonardo@linux.ibm.com>,
+ Christophe Leroy <christophe.leroy@c-s.fr>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org
+Cc: Mark Rutland <mark.rutland@arm.com>, Michal Hocko <mhocko@suse.com>,
+ linux-ia64@vger.kernel.org, linux-sh@vger.kernel.org,
+ Peter Zijlstra <peterz@infradead.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Heiko Carstens <heiko.carstens@de.ibm.com>, Paul Mackerras
+ <paulus@samba.org>, Matthew Wilcox <willy@infradead.org>,
+ sparclinux@vger.kernel.org, linux-s390@vger.kernel.org,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, x86@kernel.org,
+ Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>,
+ Ingo Molnar <mingo@redhat.com>, Fenghua Yu <fenghua.yu@intel.com>,
+ Stephen Rothwell <sfr@canb.auug.org.au>,
+ Andrey Konovalov <andreyknvl@google.com>, Andy Lutomirski <luto@kernel.org>,
+ Thomas Gleixner <tglx@linutronix.de>, linux-arm-kernel@lists.infradead.org,
+ Tony Luck <tony.luck@intel.com>, Martin Schwidefsky
+ <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>,
+ linuxppc-dev@lists.ozlabs.org, "David S. Miller" <davem@davemloft.net>
+References: <1559903655-5609-1-git-send-email-anshuman.khandual@arm.com>
+ <ec764ff4-f68a-fce5-ac1e-a4664e1123c7@c-s.fr>
+ <97e9c9b3-89c8-d378-4730-841a900e6800@arm.com>
+ <8dd6168592437378ff4a7c204e0f2962d002b44f.camel@linux.ibm.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <7b0a7afd-2776-0d95-19c5-3e15959744eb@arm.com>
+Date: Tue, 11 Jun 2019 10:44:00 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <8dd6168592437378ff4a7c204e0f2962d002b44f.camel@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9284 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=605 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906110033
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Darrick J. Wong <darrick.wong@oracle.com>
-
-Clean up the calling convention since we're editing the fsxattr struct
-anyway.
-
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
----
- fs/xfs/xfs_ioctl.c |   32 ++++++++++++++------------------
- 1 file changed, 14 insertions(+), 18 deletions(-)
 
 
-diff --git a/fs/xfs/xfs_ioctl.c b/fs/xfs/xfs_ioctl.c
-index 7b19ba2956ad..a67bc9afdd0b 100644
---- a/fs/xfs/xfs_ioctl.c
-+++ b/fs/xfs/xfs_ioctl.c
-@@ -829,35 +829,31 @@ xfs_ioc_ag_geometry(
-  * Linux extended inode flags interface.
-  */
- 
--STATIC unsigned int
-+static inline void
- xfs_merge_ioc_xflags(
--	unsigned int	flags,
--	unsigned int	start)
-+	struct fsxattr	*fa,
-+	unsigned int	flags)
- {
--	unsigned int	xflags = start;
--
- 	if (flags & FS_IMMUTABLE_FL)
--		xflags |= FS_XFLAG_IMMUTABLE;
-+		fa->fsx_xflags |= FS_XFLAG_IMMUTABLE;
- 	else
--		xflags &= ~FS_XFLAG_IMMUTABLE;
-+		fa->fsx_xflags &= ~FS_XFLAG_IMMUTABLE;
- 	if (flags & FS_APPEND_FL)
--		xflags |= FS_XFLAG_APPEND;
-+		fa->fsx_xflags |= FS_XFLAG_APPEND;
- 	else
--		xflags &= ~FS_XFLAG_APPEND;
-+		fa->fsx_xflags &= ~FS_XFLAG_APPEND;
- 	if (flags & FS_SYNC_FL)
--		xflags |= FS_XFLAG_SYNC;
-+		fa->fsx_xflags |= FS_XFLAG_SYNC;
- 	else
--		xflags &= ~FS_XFLAG_SYNC;
-+		fa->fsx_xflags &= ~FS_XFLAG_SYNC;
- 	if (flags & FS_NOATIME_FL)
--		xflags |= FS_XFLAG_NOATIME;
-+		fa->fsx_xflags |= FS_XFLAG_NOATIME;
- 	else
--		xflags &= ~FS_XFLAG_NOATIME;
-+		fa->fsx_xflags &= ~FS_XFLAG_NOATIME;
- 	if (flags & FS_NODUMP_FL)
--		xflags |= FS_XFLAG_NODUMP;
-+		fa->fsx_xflags |= FS_XFLAG_NODUMP;
- 	else
--		xflags &= ~FS_XFLAG_NODUMP;
--
--	return xflags;
-+		fa->fsx_xflags &= ~FS_XFLAG_NODUMP;
- }
- 
- STATIC unsigned int
-@@ -1504,7 +1500,7 @@ xfs_ioc_setxflags(
- 		return -EOPNOTSUPP;
- 
- 	__xfs_ioc_fsgetxattr(ip, false, &fa);
--	fa.fsx_xflags = xfs_merge_ioc_xflags(flags, fa.fsx_xflags);
-+	xfs_merge_ioc_xflags(&fa, flags);
- 
- 	error = mnt_want_write_file(filp);
- 	if (error)
+On 06/10/2019 08:57 PM, Leonardo Bras wrote:
+> On Mon, 2019-06-10 at 08:09 +0530, Anshuman Khandual wrote:
+>>>> +    /*
+>>>> +     * To be potentially processing a kprobe fault and to be allowed
+>>>> +     * to call kprobe_running(), we have to be non-preemptible.
+>>>> +     */
+>>>> +    if (kprobes_built_in() && !preemptible() && !user_mode(regs)) {
+>>>> +        if (kprobe_running() && kprobe_fault_handler(regs, trap))
+>>>
+>>> don't need an 'if A if B', can do 'if A && B'
+>>
+>> Which will make it a very lengthy condition check.
+> 
+> Well, is there any problem line-breaking the if condition?
+> 
+> if (A && B && C &&
+>     D && E )
+> 
+> Also, if it's used only to decide the return value, maybe would be fine
+> to do somethink like that:
+> 
+> return (A && B && C &&
+>         D && E ); 
+
+Got it. But as Dave and Matthew had pointed out earlier, the current x86
+implementation has better readability. Hence will probably stick with it.
 
