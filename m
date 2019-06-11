@@ -2,121 +2,128 @@ Return-Path: <SRS0=/KmR=UK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8F74C43218
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 05:15:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F0338C4321A
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 05:24:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6EC562063F
-	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 05:15:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6EC562063F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 8C84020896
+	for <linux-mm@archiver.kernel.org>; Tue, 11 Jun 2019 05:24:21 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=c-s.fr header.i=@c-s.fr header.b="ge66Y4D5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C84020896
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=c-s.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 034846B0008; Tue, 11 Jun 2019 01:15:22 -0400 (EDT)
+	id 13FF96B0008; Tue, 11 Jun 2019 01:24:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F00FA6B000A; Tue, 11 Jun 2019 01:15:21 -0400 (EDT)
+	id 0C9C66B000A; Tue, 11 Jun 2019 01:24:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DA2436B000C; Tue, 11 Jun 2019 01:15:21 -0400 (EDT)
+	id E863D6B000C; Tue, 11 Jun 2019 01:24:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 877A46B0008
-	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 01:15:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id i44so18877574eda.3
-        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 22:15:21 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 84D6D6B0008
+	for <linux-mm@kvack.org>; Tue, 11 Jun 2019 01:24:20 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id r4so4720888wrt.13
+        for <linux-mm@kvack.org>; Mon, 10 Jun 2019 22:24:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=MVYdUVF8TMhqeKNkMhTi4YFI1Gq+UcXcBKyW/cyJe+A=;
-        b=IB3JVfvB10hhh6YcVKaqGZKqHimB3sGu1/oPGMEMa0wd/Ck1SukcSkyJpziYdg7ZMq
-         qJekP6cvlNKaLjQWrdHWWU/JGNAUupVs5SfsrHCbY9zEkvfFS4RWP/uEeVCg6qpuWmW3
-         5EFLs8vem2bnliSl7KxDATRfRgHuC156ve4seoQ2EtKtxPXxE42/9C4qfQ5DHAQolv9M
-         jAS4s/va1zUaCW4DQnJZeLuO5Ehbn9Dg7UB9jmTJYOi/Ms+BQYbsKfW1Fh9m9mXNdUUs
-         ESIs+zEVpjrb9rUxxgHwATj3gKlFtAwj6afTOK+5sSx0b1D17P2fzo/swMuPE+Vqn4oK
-         Wa6Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAU1hwKZ0A8s6hQiiB5S1tx6CwLRGWD2Qba5Jwg7R/i9v1+4g72L
-	VIyBNjZozEEffogPMtqqAi3SZDoqx1+08cTVS3F99n7NGDQhAh6hGKAYPEqad3ArJ26eNlkRWSz
-	YXDZLARGIAwCe8ba6IGtXpmb4UpHI+CI2lseiIbrPBBR9p6tpnISzNFe2GB7EvRp1mg==
-X-Received: by 2002:a17:906:2a98:: with SMTP id l24mr20619990eje.150.1560230121090;
-        Mon, 10 Jun 2019 22:15:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyGPVy1IxKXWp4eiwxbE8mezkdMkIRLx/N9EzLW9RrSVt+/kPzLY16rs1TmyoC4XRjd1u59
-X-Received: by 2002:a17:906:2a98:: with SMTP id l24mr20619953eje.150.1560230120293;
-        Mon, 10 Jun 2019 22:15:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560230120; cv=none;
+        bh=OryAugs7TR5ttspxYLjCji77PWxYn28+eCLlZmxKaSs=;
+        b=cu/rTsMglfyHf5uxXPnHowdf3UCzcEnTAlWe+ngkH9AJ5gx0PZ6IbM5tTzaM1adT/x
+         yW52tO4lkdJAMRlk6C/Lovc+oZNGtJX5z0N/ys6xiyhbN7ZRTIrwBlgdVCc6ZKABOgRH
+         EtA/3Kd65flq35n5yV6FtNH8J8lkVWNnaGJ7JoqVAlaqNahKWjqqtX6Zdza+IZLjYGLX
+         z9ehdziD9yd3T/qnqEiupgmuceiMAmx/jyZ0+x1rkG7+xJldtMXKtNdIvigK19MJU3p5
+         ck7Qkj9s57msHEmNXIidRj5txzSi1R4fY2NSMMoD+mIuqDw0gqLSj1REsYcGxSmNJgHn
+         S78Q==
+X-Gm-Message-State: APjAAAUZl6tTNDV6s9KG0CTM6kCd6GmQvB8y2Agxm8IKwmTUQoy0pJy6
+	QjpioGqom1laQXBaxpMF0gnx1vX0460yJUIk8uSUhMIQySuu1aNXhtA1NXkURsfPzUW0EmVLUPS
+	lEkwPZrripF388wuRfAUsK3sOQ91y9AlOqWdMRCIXs/3OuYUfW/WthJiDunK2MjLGFg==
+X-Received: by 2002:a1c:b707:: with SMTP id h7mr16013469wmf.45.1560230659970;
+        Mon, 10 Jun 2019 22:24:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwxLemBqOtvWtMOyvuoR2f05W/XtXjwaRs4tqYl5ayG84eauxbS1Ofork+mtE7+jpkR6tMj
+X-Received: by 2002:a1c:b707:: with SMTP id h7mr16013414wmf.45.1560230658827;
+        Mon, 10 Jun 2019 22:24:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560230658; cv=none;
         d=google.com; s=arc-20160816;
-        b=BxXw13IReNHA0eoBFgpCXXB0Zupach2F51gG58x2tP3ICpMAUE5Vpg/+8BdgFLgo/1
-         br38wj6TcW4q1trLTb0x5bekP3DkWYvqKH6nA8WXCUEyF7icHK7AlOSZaiSvE5P8OO6w
-         QoLGHBcEgXjZ3B2Lh5qAwxu39rMHtqKpTSTQGIVo5oWiuvrcspGAt3dxHCQqINhQdQ2k
-         B2OOUKw4SEVilWzSK4s2uCQdRrQ1mnor8KQ0uqWOwwE86TcaOnjUqPvDEq6Rg4TBmupS
-         10y0xhhVCCZzK9xb1YA2UGFcc8+9mS/Cf66OPWzQizc0q4ZaW6Tb6ULkkU/LHwOeeswN
-         biUA==
+        b=jKZQqR9/IXMnjOEbV4eeV5RpEbkg7QREGNjrAqt7VVuiKUU9tvwCHg5/p/YWbJjEoR
+         TxGHPJcwuYVQsdGEEaCDow+rubNazfBcr7kWMeL8bJvYT6jFOrVIFkXrUOgJsh3gbRfY
+         pFf6h2mWuIeXtEA/00eV2O4pgpbXWONK1jvl8AvkWxJmoRnbBP8WQ28D6bUGfkG8y2sW
+         iKMOOT3BxIFw2G+g4y0dpsLfNcbcxtnKizOyUZuJxWvghth/wTjBp2Bg5vophT7u8CxT
+         DU4HtznEuXGmEPyNCgpMZQYXj7wOGEiOhBG7VdhvHxj/2WZZ6DMIpdTPtMaQ1D3BhHMP
+         cqgQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=MVYdUVF8TMhqeKNkMhTi4YFI1Gq+UcXcBKyW/cyJe+A=;
-        b=vDYON9jNlbJvAFPgKuf43aNOGaGs9PNdl/viMiP8UElDTNXspe/hpm7FI6JsFBEFJd
-         IPLBN9XYcL7ThVOO7NtLuHDkUG3JwzfIS8R3sZ8V/JttTMiYz45I/N7GnPyo+FQw0Lyw
-         Zkgoy23HZ7P7IBmjpwApKVSHyR2mXrK+D7nXYexxqmAADtNYsEo7MbWTwEQVrz5iTbDO
-         xLr5etoZSvA8FxYLv8fUYuOFVgniBlsxQO914TzMFIAVX9l+q6OM2BkR9V72d5rSSqx+
-         IgpIRzIs7ZqZc6an4sxWzJfdq6DdNUemEOJ+Tv80CfoZMfxcag1q5zMnjDMZzbFPIbw4
-         Vvmg==
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=OryAugs7TR5ttspxYLjCji77PWxYn28+eCLlZmxKaSs=;
+        b=TkkLXqY7PmjEhwnTdgXdbtDTv1K8yU0oiyoxi8pkk289fCoQbw78MPhcY8rH7tuiK6
+         PCXNnxP4v5CdAWM3RJ/51xKdgR+MGyHMhfaF9p2RuGFyrlDcTbiPql9lvYcXrmbjPWxI
+         yV+4MkdcbeWdbVblvmeaGPdOX8vpaAcDMA3L0hF4uTsg5EI1D5RjN/oAG4xxJ0otGniP
+         34i9sx6d33XZgfQ0n03mrpCGlWMLR3YX4/c1wztiIGeQPbFtTr7/xX9j9x/9bDyx5P3t
+         5SCgubGsm0FQjsPs6qi+4eE2gJG7kTsQZMuTV54HCxB/QAAeKhGea6CPxA0hucMZ79j0
+         WP8Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id g9si2566639eje.145.2019.06.10.22.15.19
-        for <linux-mm@kvack.org>;
-        Mon, 10 Jun 2019 22:15:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=ge66Y4D5;
+       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
+Received: from pegase1.c-s.fr (pegase1.c-s.fr. [93.17.236.30])
+        by mx.google.com with ESMTPS id q3si1115531wmq.69.2019.06.10.22.24.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 10 Jun 2019 22:24:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) client-ip=93.17.236.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 55CCB344;
-	Mon, 10 Jun 2019 22:15:19 -0700 (PDT)
-Received: from [10.162.43.135] (p8cg001049571a15.blr.arm.com [10.162.43.135])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 5A7FF3F73C;
-	Mon, 10 Jun 2019 22:15:11 -0700 (PDT)
-Subject: Re: [RFC V3] mm: Generalize and rename notify_page_fault() as
- kprobe_page_fault()
-To: Christophe Leroy <christophe.leroy@c-s.fr>, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org
-Cc: linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org,
- Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
- Matthew Wilcox <willy@infradead.org>, Mark Rutland <mark.rutland@arm.com>,
- Stephen Rothwell <sfr@canb.auug.org.au>,
- Andrey Konovalov <andreyknvl@google.com>,
- Michael Ellerman <mpe@ellerman.id.au>, Paul Mackerras <paulus@samba.org>,
- Russell King <linux@armlinux.org.uk>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Tony Luck <tony.luck@intel.com>,
- Fenghua Yu <fenghua.yu@intel.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>,
- Heiko Carstens <heiko.carstens@de.ibm.com>,
- Yoshinori Sato <ysato@users.sourceforge.jp>,
- "David S. Miller" <davem@davemloft.net>, Thomas Gleixner
- <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>,
- Ingo Molnar <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>,
- Dave Hansen <dave.hansen@linux.intel.com>
-References: <1559903655-5609-1-git-send-email-anshuman.khandual@arm.com>
- <ec764ff4-f68a-fce5-ac1e-a4664e1123c7@c-s.fr>
- <97e9c9b3-89c8-d378-4730-841a900e6800@arm.com>
- <f6d295c8-574d-3e64-79ae-2f7d3ff4c9f0@c-s.fr>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <1875ab7a-204e-4150-c7cc-d282f69da724@arm.com>
-Date: Tue, 11 Jun 2019 10:45:30 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@c-s.fr header.s=mail header.b=ge66Y4D5;
+       spf=pass (google.com: domain of christophe.leroy@c-s.fr designates 93.17.236.30 as permitted sender) smtp.mailfrom=christophe.leroy@c-s.fr
+Received: from localhost (mailhub1-int [192.168.12.234])
+	by localhost (Postfix) with ESMTP id 45NJMj2w3Mz9tyqV;
+	Tue, 11 Jun 2019 07:24:17 +0200 (CEST)
+Authentication-Results: localhost; dkim=pass
+	reason="1024-bit key; insecure key"
+	header.d=c-s.fr header.i=@c-s.fr header.b=ge66Y4D5; dkim-adsp=pass;
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at c-s.fr
+Received: from pegase1.c-s.fr ([192.168.12.234])
+	by localhost (pegase1.c-s.fr [192.168.12.234]) (amavisd-new, port 10024)
+	with ESMTP id fyyoRIc-tH9n; Tue, 11 Jun 2019 07:24:17 +0200 (CEST)
+Received: from messagerie.si.c-s.fr (messagerie.si.c-s.fr [192.168.25.192])
+	by pegase1.c-s.fr (Postfix) with ESMTP id 45NJMj1qNQz9v0p3;
+	Tue, 11 Jun 2019 07:24:17 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=c-s.fr; s=mail;
+	t=1560230657; bh=OryAugs7TR5ttspxYLjCji77PWxYn28+eCLlZmxKaSs=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=ge66Y4D5NeVyJ1VEQFUPgGLiA0P3jcJWqY2opg9SNR+Gi6jCSbFEKId7BcIp99i89
+	 EIu0mGTtgWYmMO1xM/HrXU+JTOvwk17csNdMcyiw3aJG6vDtoQO4uVB9sjnCZ4epop
+	 OMJ3bY9p4GgZfOsdsmRormyDBmzDV+7Ach9IkAFs=
+Received: from localhost (localhost [127.0.0.1])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 0778E8B7D4;
+	Tue, 11 Jun 2019 07:24:18 +0200 (CEST)
+X-Virus-Scanned: amavisd-new at c-s.fr
+Received: from messagerie.si.c-s.fr ([127.0.0.1])
+	by localhost (messagerie.si.c-s.fr [127.0.0.1]) (amavisd-new, port 10023)
+	with ESMTP id A-475R45ce_Y; Tue, 11 Jun 2019 07:24:17 +0200 (CEST)
+Received: from PO15451 (unknown [192.168.4.90])
+	by messagerie.si.c-s.fr (Postfix) with ESMTP id 6DB748B75B;
+	Tue, 11 Jun 2019 07:24:17 +0200 (CEST)
+Subject: Re: [PATCH 1/4] mm: Move ioremap page table mapping function to mm/
+To: Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org
+Cc: linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org
+References: <20190610043838.27916-1-npiggin@gmail.com>
+From: Christophe Leroy <christophe.leroy@c-s.fr>
+Message-ID: <86991f76-2101-8087-37db-d939d5d744fa@c-s.fr>
+Date: Tue, 11 Jun 2019 07:24:17 +0200
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <f6d295c8-574d-3e64-79ae-2f7d3ff4c9f0@c-s.fr>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <20190610043838.27916-1-npiggin@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: fr
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -126,140 +133,597 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 06/11/2019 10:16 AM, Christophe Leroy wrote:
+Le 10/06/2019 à 06:38, Nicholas Piggin a écrit :
+> ioremap_page_range is a generic function to create a kernel virtual
+> mapping, move it to mm/vmalloc.c and rename it vmap_range.
 > 
-> 
-> Le 10/06/2019 à 04:39, Anshuman Khandual a écrit :
->>
->>
->> On 06/07/2019 09:01 PM, Christophe Leroy wrote:
->>>
->>>
->>> Le 07/06/2019 à 12:34, Anshuman Khandual a écrit :
->>>> Very similar definitions for notify_page_fault() are being used by multiple
->>>> architectures duplicating much of the same code. This attempts to unify all
->>>> of them into a generic implementation, rename it as kprobe_page_fault() and
->>>> then move it to a common header.
->>>>
->>>> kprobes_built_in() can detect CONFIG_KPROBES, hence new kprobe_page_fault()
->>>> need not be wrapped again within CONFIG_KPROBES. Trap number argument can
->>>> now contain upto an 'unsigned int' accommodating all possible platforms.
->>>>
->>>> kprobe_page_fault() goes the x86 way while dealing with preemption context.
->>>> As explained in these following commits the invoking context in itself must
->>>> be non-preemptible for kprobes processing context irrespective of whether
->>>> kprobe_running() or perhaps smp_processor_id() is safe or not. It does not
->>>> make much sense to continue when original context is preemptible. Instead
->>>> just bail out earlier.
->>>>
->>>> commit a980c0ef9f6d
->>>> ("x86/kprobes: Refactor kprobes_fault() like kprobe_exceptions_notify()")
->>>>
->>>> commit b506a9d08bae ("x86: code clarification patch to Kprobes arch code")
->>>>
->>>> Cc: linux-arm-kernel@lists.infradead.org
->>>> Cc: linux-ia64@vger.kernel.org
->>>> Cc: linuxppc-dev@lists.ozlabs.org
->>>> Cc: linux-s390@vger.kernel.org
->>>> Cc: linux-sh@vger.kernel.org
->>>> Cc: sparclinux@vger.kernel.org
->>>> Cc: x86@kernel.org
->>>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>>> Cc: Michal Hocko <mhocko@suse.com>
->>>> Cc: Matthew Wilcox <willy@infradead.org>
->>>> Cc: Mark Rutland <mark.rutland@arm.com>
->>>> Cc: Christophe Leroy <christophe.leroy@c-s.fr>
->>>> Cc: Stephen Rothwell <sfr@canb.auug.org.au>
->>>> Cc: Andrey Konovalov <andreyknvl@google.com>
->>>> Cc: Michael Ellerman <mpe@ellerman.id.au>
->>>> Cc: Paul Mackerras <paulus@samba.org>
->>>> Cc: Russell King <linux@armlinux.org.uk>
->>>> Cc: Catalin Marinas <catalin.marinas@arm.com>
->>>> Cc: Will Deacon <will.deacon@arm.com>
->>>> Cc: Tony Luck <tony.luck@intel.com>
->>>> Cc: Fenghua Yu <fenghua.yu@intel.com>
->>>> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
->>>> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
->>>> Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
->>>> Cc: "David S. Miller" <davem@davemloft.net>
->>>> Cc: Thomas Gleixner <tglx@linutronix.de>
->>>> Cc: Peter Zijlstra <peterz@infradead.org>
->>>> Cc: Ingo Molnar <mingo@redhat.com>
->>>> Cc: Andy Lutomirski <luto@kernel.org>
->>>> Cc: Dave Hansen <dave.hansen@linux.intel.com>
->>>>
->>>> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->>>> ---
->>>> Testing:
->>>>
->>>> - Build and boot tested on arm64 and x86
->>>> - Build tested on some other archs (arm, sparc64, alpha, powerpc etc)
->>>>
->>>> Changes in RFC V3:
->>>>
->>>> - Updated the commit message with an explaination for new preemption behaviour
->>>> - Moved notify_page_fault() to kprobes.h with 'static nokprobe_inline' per Matthew
->>>> - Changed notify_page_fault() return type from int to bool per Michael Ellerman
->>>> - Renamed notify_page_fault() as kprobe_page_fault() per Peterz
->>>>
->>>> Changes in RFC V2: (https://patchwork.kernel.org/patch/10974221/)
->>>>
->>>> - Changed generic notify_page_fault() per Mathew Wilcox
->>>> - Changed x86 to use new generic notify_page_fault()
->>>> - s/must not/need not/ in commit message per Matthew Wilcox
->>>>
->>>> Changes in RFC V1: (https://patchwork.kernel.org/patch/10968273/)
->>>>
->>>>    arch/arm/mm/fault.c      | 24 +-----------------------
->>>>    arch/arm64/mm/fault.c    | 24 +-----------------------
->>>>    arch/ia64/mm/fault.c     | 24 +-----------------------
->>>>    arch/powerpc/mm/fault.c  | 23 ++---------------------
->>>>    arch/s390/mm/fault.c     | 16 +---------------
->>>>    arch/sh/mm/fault.c       | 18 ++----------------
->>>>    arch/sparc/mm/fault_64.c | 16 +---------------
->>>>    arch/x86/mm/fault.c      | 21 ++-------------------
->>>>    include/linux/kprobes.h  | 16 ++++++++++++++++
->>>>    9 files changed, 27 insertions(+), 155 deletions(-)
->>>>
->>>
->>> [...]
->>>
->>>> diff --git a/include/linux/kprobes.h b/include/linux/kprobes.h
->>>> index 443d980..064dd15 100644
->>>> --- a/include/linux/kprobes.h
->>>> +++ b/include/linux/kprobes.h
->>>> @@ -458,4 +458,20 @@ static inline bool is_kprobe_optinsn_slot(unsigned long addr)
->>>>    }
->>>>    #endif
->>>>    +static nokprobe_inline bool kprobe_page_fault(struct pt_regs *regs,
->>>> +                          unsigned int trap)
->>>> +{
->>>> +    int ret = 0;
->>>
->>> ret is pointless.
->>>
->>>> +
->>>> +    /*
->>>> +     * To be potentially processing a kprobe fault and to be allowed
->>>> +     * to call kprobe_running(), we have to be non-preemptible.
->>>> +     */
->>>> +    if (kprobes_built_in() && !preemptible() && !user_mode(regs)) {
->>>> +        if (kprobe_running() && kprobe_fault_handler(regs, trap))
->>>
->>> don't need an 'if A if B', can do 'if A && B'
->>
->> Which will make it a very lengthy condition check.
-> 
-> Yes. But is that a problem at all ?
+> For clarity with this move, also:
+> - Rename vunmap_page_range (vmap_range's inverse) to vunmap_range.
+> - Rename vmap_page_range (which takes a page array) to vmap_pages.
 
-Probably not.
+Maybe it would be easier to follow the change if the name change was 
+done in another patch than the move.
 
 > 
-> For me the following would be easier to read.
+> Signed-off-by: Nicholas Piggin <npiggin@gmail.com>
+> ---
 > 
-> if (kprobes_built_in() && !preemptible() && !user_mode(regs) &&
->     kprobe_running() && kprobe_fault_handler(regs, trap))
->     ret = 1;
+> Fixed up the arm64 compile errors, fixed a few bugs, and tidied
+> things up a bit more.
+> 
+> Have tested powerpc and x86 but not arm64, would appreciate a review
+> and test of the arm64 patch if possible.
+> 
+>   include/linux/vmalloc.h |   3 +
+>   lib/ioremap.c           | 173 +++---------------------------
+>   mm/vmalloc.c            | 228 ++++++++++++++++++++++++++++++++++++----
+>   3 files changed, 229 insertions(+), 175 deletions(-)
+> 
+> diff --git a/include/linux/vmalloc.h b/include/linux/vmalloc.h
+> index 51e131245379..812bea5866d6 100644
+> --- a/include/linux/vmalloc.h
+> +++ b/include/linux/vmalloc.h
+> @@ -147,6 +147,9 @@ extern struct vm_struct *find_vm_area(const void *addr);
+>   extern int map_vm_area(struct vm_struct *area, pgprot_t prot,
+>   			struct page **pages);
+>   #ifdef CONFIG_MMU
+> +extern int vmap_range(unsigned long addr,
+> +		       unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
+> +		       unsigned int max_page_shift);
 
-As mentioned before will stick with current x86 implementation. 
+Drop extern keyword here.
+
+As checkpatch tells you, 'CHECK:AVOID_EXTERNS: extern prototypes should 
+be avoided in .h files'
+
+Christophe
+
+>   extern int map_kernel_range_noflush(unsigned long start, unsigned long size,
+>   				    pgprot_t prot, struct page **pages);
+>   extern void unmap_kernel_range_noflush(unsigned long addr, unsigned long size);
+> diff --git a/lib/ioremap.c b/lib/ioremap.c
+> index 063213685563..e13946da8ec3 100644
+> --- a/lib/ioremap.c
+> +++ b/lib/ioremap.c
+> @@ -58,165 +58,24 @@ static inline int ioremap_pud_enabled(void) { return 0; }
+>   static inline int ioremap_pmd_enabled(void) { return 0; }
+>   #endif	/* CONFIG_HAVE_ARCH_HUGE_VMAP */
+>   
+> -static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
+> -		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
+> -{
+> -	pte_t *pte;
+> -	u64 pfn;
+> -
+> -	pfn = phys_addr >> PAGE_SHIFT;
+> -	pte = pte_alloc_kernel(pmd, addr);
+> -	if (!pte)
+> -		return -ENOMEM;
+> -	do {
+> -		BUG_ON(!pte_none(*pte));
+> -		set_pte_at(&init_mm, addr, pte, pfn_pte(pfn, prot));
+> -		pfn++;
+> -	} while (pte++, addr += PAGE_SIZE, addr != end);
+> -	return 0;
+> -}
+> -
+> -static int ioremap_try_huge_pmd(pmd_t *pmd, unsigned long addr,
+> -				unsigned long end, phys_addr_t phys_addr,
+> -				pgprot_t prot)
+> -{
+> -	if (!ioremap_pmd_enabled())
+> -		return 0;
+> -
+> -	if ((end - addr) != PMD_SIZE)
+> -		return 0;
+> -
+> -	if (!IS_ALIGNED(phys_addr, PMD_SIZE))
+> -		return 0;
+> -
+> -	if (pmd_present(*pmd) && !pmd_free_pte_page(pmd, addr))
+> -		return 0;
+> -
+> -	return pmd_set_huge(pmd, phys_addr, prot);
+> -}
+> -
+> -static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
+> -		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
+> -{
+> -	pmd_t *pmd;
+> -	unsigned long next;
+> -
+> -	pmd = pmd_alloc(&init_mm, pud, addr);
+> -	if (!pmd)
+> -		return -ENOMEM;
+> -	do {
+> -		next = pmd_addr_end(addr, end);
+> -
+> -		if (ioremap_try_huge_pmd(pmd, addr, next, phys_addr, prot))
+> -			continue;
+> -
+> -		if (ioremap_pte_range(pmd, addr, next, phys_addr, prot))
+> -			return -ENOMEM;
+> -	} while (pmd++, phys_addr += (next - addr), addr = next, addr != end);
+> -	return 0;
+> -}
+> -
+> -static int ioremap_try_huge_pud(pud_t *pud, unsigned long addr,
+> -				unsigned long end, phys_addr_t phys_addr,
+> -				pgprot_t prot)
+> -{
+> -	if (!ioremap_pud_enabled())
+> -		return 0;
+> -
+> -	if ((end - addr) != PUD_SIZE)
+> -		return 0;
+> -
+> -	if (!IS_ALIGNED(phys_addr, PUD_SIZE))
+> -		return 0;
+> -
+> -	if (pud_present(*pud) && !pud_free_pmd_page(pud, addr))
+> -		return 0;
+> -
+> -	return pud_set_huge(pud, phys_addr, prot);
+> -}
+> -
+> -static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
+> -		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
+> -{
+> -	pud_t *pud;
+> -	unsigned long next;
+> -
+> -	pud = pud_alloc(&init_mm, p4d, addr);
+> -	if (!pud)
+> -		return -ENOMEM;
+> -	do {
+> -		next = pud_addr_end(addr, end);
+> -
+> -		if (ioremap_try_huge_pud(pud, addr, next, phys_addr, prot))
+> -			continue;
+> -
+> -		if (ioremap_pmd_range(pud, addr, next, phys_addr, prot))
+> -			return -ENOMEM;
+> -	} while (pud++, phys_addr += (next - addr), addr = next, addr != end);
+> -	return 0;
+> -}
+> -
+> -static int ioremap_try_huge_p4d(p4d_t *p4d, unsigned long addr,
+> -				unsigned long end, phys_addr_t phys_addr,
+> -				pgprot_t prot)
+> -{
+> -	if (!ioremap_p4d_enabled())
+> -		return 0;
+> -
+> -	if ((end - addr) != P4D_SIZE)
+> -		return 0;
+> -
+> -	if (!IS_ALIGNED(phys_addr, P4D_SIZE))
+> -		return 0;
+> -
+> -	if (p4d_present(*p4d) && !p4d_free_pud_page(p4d, addr))
+> -		return 0;
+> -
+> -	return p4d_set_huge(p4d, phys_addr, prot);
+> -}
+> -
+> -static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
+> -		unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
+> -{
+> -	p4d_t *p4d;
+> -	unsigned long next;
+> -
+> -	p4d = p4d_alloc(&init_mm, pgd, addr);
+> -	if (!p4d)
+> -		return -ENOMEM;
+> -	do {
+> -		next = p4d_addr_end(addr, end);
+> -
+> -		if (ioremap_try_huge_p4d(p4d, addr, next, phys_addr, prot))
+> -			continue;
+> -
+> -		if (ioremap_pud_range(p4d, addr, next, phys_addr, prot))
+> -			return -ENOMEM;
+> -	} while (p4d++, phys_addr += (next - addr), addr = next, addr != end);
+> -	return 0;
+> -}
+> -
+>   int ioremap_page_range(unsigned long addr,
+>   		       unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
+>   {
+> -	pgd_t *pgd;
+> -	unsigned long start;
+> -	unsigned long next;
+> -	int err;
+> -
+> -	might_sleep();
+> -	BUG_ON(addr >= end);
+> -
+> -	start = addr;
+> -	pgd = pgd_offset_k(addr);
+> -	do {
+> -		next = pgd_addr_end(addr, end);
+> -		err = ioremap_p4d_range(pgd, addr, next, phys_addr, prot);
+> -		if (err)
+> -			break;
+> -	} while (pgd++, phys_addr += (next - addr), addr = next, addr != end);
+> -
+> -	flush_cache_vmap(start, end);
+> +	unsigned int max_page_shift = PAGE_SHIFT;
+> +
+> +	/*
+> +	 * Due to the max_page_shift parameter to vmap_range, platforms must
+> +	 * enable all smaller sizes to take advantage of a given size,
+> +	 * otherwise fall back to small pages.
+> +	 */
+> +	if (ioremap_pmd_enabled()) {
+> +		max_page_shift = PMD_SHIFT;
+> +		if (ioremap_pud_enabled()) {
+> +			max_page_shift = PUD_SHIFT;
+> +			if (ioremap_p4d_enabled())
+> +				max_page_shift = P4D_SHIFT;
+> +		}
+> +	}
+>   
+> -	return err;
+> +	return vmap_range(addr, end, phys_addr, prot, max_page_shift);
+>   }
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 233af6936c93..dd27cfb29b10 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -119,7 +119,7 @@ static void vunmap_p4d_range(pgd_t *pgd, unsigned long addr, unsigned long end)
+>   	} while (p4d++, addr = next, addr != end);
+>   }
+>   
+> -static void vunmap_page_range(unsigned long addr, unsigned long end)
+> +static void vunmap_range(unsigned long addr, unsigned long end)
+>   {
+>   	pgd_t *pgd;
+>   	unsigned long next;
+> @@ -135,6 +135,198 @@ static void vunmap_page_range(unsigned long addr, unsigned long end)
+>   }
+>   
+>   static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
+> +			unsigned long end, phys_addr_t phys_addr, pgprot_t prot)
+> +{
+> +	pte_t *pte;
+> +	u64 pfn;
+> +
+> +	pfn = phys_addr >> PAGE_SHIFT;
+> +	pte = pte_alloc_kernel(pmd, addr);
+> +	if (!pte)
+> +		return -ENOMEM;
+> +	do {
+> +		BUG_ON(!pte_none(*pte));
+> +		set_pte_at(&init_mm, addr, pte, pfn_pte(pfn, prot));
+> +		pfn++;
+> +	} while (pte++, addr += PAGE_SIZE, addr != end);
+> +	return 0;
+> +}
+> +
+> +static int vmap_try_huge_pmd(pmd_t *pmd, unsigned long addr,
+> +			unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
+> +			unsigned int max_page_shift)
+> +{
+> +	if (!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP))
+> +		return 0;
+> +
+> +	if (max_page_shift < PMD_SHIFT)
+> +		return 0;
+> +
+> +	if ((end - addr) != PMD_SIZE)
+> +		return 0;
+> +
+> +	if (!IS_ALIGNED(phys_addr, PMD_SIZE))
+> +		return 0;
+> +
+> +	if (pmd_present(*pmd) && !pmd_free_pte_page(pmd, addr))
+> +		return 0;
+> +
+> +	return pmd_set_huge(pmd, phys_addr, prot);
+> +}
+> +
+> +static inline int vmap_pmd_range(pud_t *pud, unsigned long addr,
+> +			unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
+> +			unsigned int max_page_shift)
+> +{
+> +	pmd_t *pmd;
+> +	unsigned long next;
+> +
+> +	pmd = pmd_alloc(&init_mm, pud, addr);
+> +	if (!pmd)
+> +		return -ENOMEM;
+> +	do {
+> +		next = pmd_addr_end(addr, end);
+> +
+> +		if (vmap_try_huge_pmd(pmd, addr, next, phys_addr, prot,
+> +					max_page_shift))
+> +			continue;
+> +
+> +		if (vmap_pte_range(pmd, addr, next, phys_addr, prot))
+> +			return -ENOMEM;
+> +	} while (pmd++, phys_addr += (next - addr), addr = next, addr != end);
+> +	return 0;
+> +}
+> +
+> +static int vmap_try_huge_pud(pud_t *pud, unsigned long addr,
+> +			unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
+> +			unsigned int max_page_shift)
+> +{
+> +	if (!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP))
+> +		return 0;
+> +
+> +	if (max_page_shift < PUD_SHIFT)
+> +		return 0;
+> +
+> +	if ((end - addr) != PUD_SIZE)
+> +		return 0;
+> +
+> +	if (!IS_ALIGNED(phys_addr, PUD_SIZE))
+> +		return 0;
+> +
+> +	if (pud_present(*pud) && !pud_free_pmd_page(pud, addr))
+> +		return 0;
+> +
+> +	return pud_set_huge(pud, phys_addr, prot);
+> +}
+> +
+> +static inline int vmap_pud_range(p4d_t *p4d, unsigned long addr,
+> +			unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
+> +			unsigned int max_page_shift)
+> +{
+> +	pud_t *pud;
+> +	unsigned long next;
+> +
+> +	pud = pud_alloc(&init_mm, p4d, addr);
+> +	if (!pud)
+> +		return -ENOMEM;
+> +	do {
+> +		next = pud_addr_end(addr, end);
+> +
+> +		if (vmap_try_huge_pud(pud, addr, next, phys_addr, prot,
+> +					max_page_shift))
+> +			continue;
+> +
+> +		if (vmap_pmd_range(pud, addr, next, phys_addr, prot,
+> +					max_page_shift))
+> +			return -ENOMEM;
+> +	} while (pud++, phys_addr += (next - addr), addr = next, addr != end);
+> +	return 0;
+> +}
+> +
+> +static int vmap_try_huge_p4d(p4d_t *p4d, unsigned long addr,
+> +			unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
+> +			unsigned int max_page_shift)
+> +{
+> +	if (!IS_ENABLED(CONFIG_HAVE_ARCH_HUGE_VMAP))
+> +		return 0;
+> +
+> +	if (max_page_shift < P4D_SHIFT)
+> +		return 0;
+> +
+> +	if ((end - addr) != P4D_SIZE)
+> +		return 0;
+> +
+> +	if (!IS_ALIGNED(phys_addr, P4D_SIZE))
+> +		return 0;
+> +
+> +	if (p4d_present(*p4d) && !p4d_free_pud_page(p4d, addr))
+> +		return 0;
+> +
+> +	return p4d_set_huge(p4d, phys_addr, prot);
+> +}
+> +
+> +static inline int vmap_p4d_range(pgd_t *pgd, unsigned long addr,
+> +			unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
+> +			unsigned int max_page_shift)
+> +{
+> +	p4d_t *p4d;
+> +	unsigned long next;
+> +
+> +	p4d = p4d_alloc(&init_mm, pgd, addr);
+> +	if (!p4d)
+> +		return -ENOMEM;
+> +	do {
+> +		next = p4d_addr_end(addr, end);
+> +
+> +		if (vmap_try_huge_p4d(p4d, addr, next, phys_addr, prot,
+> +					max_page_shift))
+> +			continue;
+> +
+> +		if (vmap_pud_range(p4d, addr, next, phys_addr, prot,
+> +					max_page_shift))
+> +			return -ENOMEM;
+> +	} while (p4d++, phys_addr += (next - addr), addr = next, addr != end);
+> +	return 0;
+> +}
+> +
+> +static int vmap_range_noflush(unsigned long addr,
+> +			unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
+> +			unsigned int max_page_shift)
+> +{
+> +	pgd_t *pgd;
+> +	unsigned long start;
+> +	unsigned long next;
+> +	int err;
+> +
+> +	might_sleep();
+> +	BUG_ON(addr >= end);
+> +
+> +	start = addr;
+> +	pgd = pgd_offset_k(addr);
+> +	do {
+> +		next = pgd_addr_end(addr, end);
+> +		err = vmap_p4d_range(pgd, addr, next, phys_addr, prot,
+> +					max_page_shift);
+> +		if (err)
+> +			break;
+> +	} while (pgd++, phys_addr += (next - addr), addr = next, addr != end);
+> +
+> +	return err;
+> +}
+> +
+> +int vmap_range(unsigned long addr,
+> +		       unsigned long end, phys_addr_t phys_addr, pgprot_t prot,
+> +		       unsigned int max_page_shift)
+> +{
+> +	int ret;
+> +
+> +	ret = vmap_range_noflush(addr, end, phys_addr, prot, max_page_shift);
+> +	flush_cache_vmap(addr, end);
+> +
+> +	return ret;
+> +}
+> +
+> +static int vmap_pages_pte_range(pmd_t *pmd, unsigned long addr,
+>   		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+>   {
+>   	pte_t *pte;
+> @@ -160,7 +352,7 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
+>   	return 0;
+>   }
+>   
+> -static int vmap_pmd_range(pud_t *pud, unsigned long addr,
+> +static int vmap_pages_pmd_range(pud_t *pud, unsigned long addr,
+>   		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+>   {
+>   	pmd_t *pmd;
+> @@ -171,13 +363,13 @@ static int vmap_pmd_range(pud_t *pud, unsigned long addr,
+>   		return -ENOMEM;
+>   	do {
+>   		next = pmd_addr_end(addr, end);
+> -		if (vmap_pte_range(pmd, addr, next, prot, pages, nr))
+> +		if (vmap_pages_pte_range(pmd, addr, next, prot, pages, nr))
+>   			return -ENOMEM;
+>   	} while (pmd++, addr = next, addr != end);
+>   	return 0;
+>   }
+>   
+> -static int vmap_pud_range(p4d_t *p4d, unsigned long addr,
+> +static int vmap_pages_pud_range(p4d_t *p4d, unsigned long addr,
+>   		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+>   {
+>   	pud_t *pud;
+> @@ -188,13 +380,13 @@ static int vmap_pud_range(p4d_t *p4d, unsigned long addr,
+>   		return -ENOMEM;
+>   	do {
+>   		next = pud_addr_end(addr, end);
+> -		if (vmap_pmd_range(pud, addr, next, prot, pages, nr))
+> +		if (vmap_pages_pmd_range(pud, addr, next, prot, pages, nr))
+>   			return -ENOMEM;
+>   	} while (pud++, addr = next, addr != end);
+>   	return 0;
+>   }
+>   
+> -static int vmap_p4d_range(pgd_t *pgd, unsigned long addr,
+> +static int vmap_pages_p4d_range(pgd_t *pgd, unsigned long addr,
+>   		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
+>   {
+>   	p4d_t *p4d;
+> @@ -205,7 +397,7 @@ static int vmap_p4d_range(pgd_t *pgd, unsigned long addr,
+>   		return -ENOMEM;
+>   	do {
+>   		next = p4d_addr_end(addr, end);
+> -		if (vmap_pud_range(p4d, addr, next, prot, pages, nr))
+> +		if (vmap_pages_pud_range(p4d, addr, next, prot, pages, nr))
+>   			return -ENOMEM;
+>   	} while (p4d++, addr = next, addr != end);
+>   	return 0;
+> @@ -217,7 +409,7 @@ static int vmap_p4d_range(pgd_t *pgd, unsigned long addr,
+>    *
+>    * Ie. pte at addr+N*PAGE_SIZE shall point to pfn corresponding to pages[N]
+>    */
+> -static int vmap_page_range_noflush(unsigned long start, unsigned long end,
+> +static int vmap_pages_range_noflush(unsigned long start, unsigned long end,
+>   				   pgprot_t prot, struct page **pages)
+>   {
+>   	pgd_t *pgd;
+> @@ -230,7 +422,7 @@ static int vmap_page_range_noflush(unsigned long start, unsigned long end,
+>   	pgd = pgd_offset_k(addr);
+>   	do {
+>   		next = pgd_addr_end(addr, end);
+> -		err = vmap_p4d_range(pgd, addr, next, prot, pages, &nr);
+> +		err = vmap_pages_p4d_range(pgd, addr, next, prot, pages, &nr);
+>   		if (err)
+>   			return err;
+>   	} while (pgd++, addr = next, addr != end);
+> @@ -238,12 +430,12 @@ static int vmap_page_range_noflush(unsigned long start, unsigned long end,
+>   	return nr;
+>   }
+>   
+> -static int vmap_page_range(unsigned long start, unsigned long end,
+> +static int vmap_pages_range(unsigned long start, unsigned long end,
+>   			   pgprot_t prot, struct page **pages)
+>   {
+>   	int ret;
+>   
+> -	ret = vmap_page_range_noflush(start, end, prot, pages);
+> +	ret = vmap_pages_range_noflush(start, end, prot, pages);
+>   	flush_cache_vmap(start, end);
+>   	return ret;
+>   }
+> @@ -1148,7 +1340,7 @@ static void free_vmap_area(struct vmap_area *va)
+>    */
+>   static void unmap_vmap_area(struct vmap_area *va)
+>   {
+> -	vunmap_page_range(va->va_start, va->va_end);
+> +	vunmap_range(va->va_start, va->va_end);
+>   }
+>   
+>   /*
+> @@ -1586,7 +1778,7 @@ static void vb_free(const void *addr, unsigned long size)
+>   	rcu_read_unlock();
+>   	BUG_ON(!vb);
+>   
+> -	vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
+> +	vunmap_range((unsigned long)addr, (unsigned long)addr + size);
+>   
+>   	if (debug_pagealloc_enabled())
+>   		flush_tlb_kernel_range((unsigned long)addr,
+> @@ -1736,7 +1928,7 @@ void *vm_map_ram(struct page **pages, unsigned int count, int node, pgprot_t pro
+>   		addr = va->va_start;
+>   		mem = (void *)addr;
+>   	}
+> -	if (vmap_page_range(addr, addr + size, prot, pages) < 0) {
+> +	if (vmap_pages_range(addr, addr + size, prot, pages) < 0) {
+>   		vm_unmap_ram(mem, count);
+>   		return NULL;
+>   	}
+> @@ -1903,7 +2095,7 @@ void __init vmalloc_init(void)
+>   int map_kernel_range_noflush(unsigned long addr, unsigned long size,
+>   			     pgprot_t prot, struct page **pages)
+>   {
+> -	return vmap_page_range_noflush(addr, addr + size, prot, pages);
+> +	return vmap_pages_range_noflush(addr, addr + size, prot, pages);
+>   }
+>   
+>   /**
+> @@ -1922,7 +2114,7 @@ int map_kernel_range_noflush(unsigned long addr, unsigned long size,
+>    */
+>   void unmap_kernel_range_noflush(unsigned long addr, unsigned long size)
+>   {
+> -	vunmap_page_range(addr, addr + size);
+> +	vunmap_range(addr, addr + size);
+>   }
+>   EXPORT_SYMBOL_GPL(unmap_kernel_range_noflush);
+>   
+> @@ -1939,7 +2131,7 @@ void unmap_kernel_range(unsigned long addr, unsigned long size)
+>   	unsigned long end = addr + size;
+>   
+>   	flush_cache_vunmap(addr, end);
+> -	vunmap_page_range(addr, end);
+> +	vunmap_range(addr, end);
+>   	flush_tlb_kernel_range(addr, end);
+>   }
+>   EXPORT_SYMBOL_GPL(unmap_kernel_range);
+> @@ -1950,7 +2142,7 @@ int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page **pages)
+>   	unsigned long end = addr + get_vm_area_size(area);
+>   	int err;
+>   
+> -	err = vmap_page_range(addr, end, prot, pages);
+> +	err = vmap_pages_range(addr, end, prot, pages);
+>   
+>   	return err > 0 ? 0 : err;
+>   }
+> 
 
