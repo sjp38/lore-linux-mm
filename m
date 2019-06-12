@@ -2,192 +2,158 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5894BC31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 09:52:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 081B6C31E47
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 10:09:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2349A20866
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 09:52:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2349A20866
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id B6EEE208C4
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 10:09:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="Tg/uhL+i"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6EEE208C4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 937236B0006; Wed, 12 Jun 2019 05:52:09 -0400 (EDT)
+	id 3D3A86B0006; Wed, 12 Jun 2019 06:09:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8E8EC6B0007; Wed, 12 Jun 2019 05:52:09 -0400 (EDT)
+	id 383A26B0007; Wed, 12 Jun 2019 06:09:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7FF0A6B0008; Wed, 12 Jun 2019 05:52:09 -0400 (EDT)
+	id 24C4A6B0008; Wed, 12 Jun 2019 06:09:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 324296B0006
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 05:52:09 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id i44so25098809eda.3
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 02:52:09 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CA7456B0006
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 06:09:07 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id b3so24140225edd.22
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 03:09:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=yshU0Ks6zyYWz9UCiyn/wuj139FtV00nrtjLmYBPbBk=;
-        b=SoZUWVo2RcKe8t3XTuf4akpdgbusxped5dHf8z7LRwJ4bP0+7R8y4xWTMWG7QVyqFo
-         Z0wENC03YoCciBWka95nV5cegTgl9Ov1OHVbBHnrm7RF8J9n7PEidGNGiFyLPKYJYSYm
-         U4jBKHCdxMQ0TKaKYDWIABZ4pHkadXNgnk2oYKU97Kb4Hpd5r/Y3HvH27oBXbAC8n73Y
-         r60m+jORby3tGab2ZIZaPOCpJC9f/qYJ5KO5d3UARQ3ooT46e/IINmg+5qFcSzhWJ9LU
-         iJxuaTB64bZyM3qHTTR4JvYwWMeGmWLTYumM7BTCBBbUsZmayJuWBOQED7ovZ/YsiwZ7
-         egtg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAUUViIlrzPser8iVhea6pwk0i4nRga1yerpDoViHsh/w7ErZLRg
-	Tv2FYzYSOHQovGiOg/6BYimvQsKiLebfLwFBYO7G2MnGKudG76NmIFJHaWWGb6Ov5OOqqSkj0ZX
-	dkrHzgb6sA7Q/bKM8kRh/W/LCUfTz62ZmvnywjTeIq53OcMxeZ8iMKFlxVUPNjPUZXg==
-X-Received: by 2002:a17:906:d7ab:: with SMTP id pk11mr50469219ejb.216.1560333128724;
-        Wed, 12 Jun 2019 02:52:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwZtlJOCLz74avp6Knu+gqWxZbq5Ef4zrNRQ1tQ9LzCcWGu3CszZbOi6heBQTVbmLVruYbv
-X-Received: by 2002:a17:906:d7ab:: with SMTP id pk11mr50469168ejb.216.1560333127881;
-        Wed, 12 Jun 2019 02:52:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560333127; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=IFDigL4vy3b62qjT1WszXB3PDewotHj2dqglzXL17hc=;
+        b=NsmoWLbr7TSv5FAwMcA8ZX25XsTyrG9BOxzI/f6cBFYXoAKUocuUTy9vSOhypyxzFq
+         NMTYQ5xOKHVSz9hLq0pY3pEa95p2Xm5CwYzVhY8D8QnINtpAJz2MaXxo/FuqLQ41gzMn
+         Gufy3HOVA1Dat1x1te4mbSl5ZR03jHfuEdnrynqIgVr8QEwvGWejHYE5wngmQME25NAO
+         tm1mlm/nXsJz2G6Tv4EVpzDUwyow83f2GWvxffUwNQdiPTjBzZe6bDRrETUDPBOa9rij
+         lb8bI3r+4Vk9XHuqkTuPa1B/VgF5hnUJCU0c6Nsqcit6q8kq33Kn4EF5v8l2q1E/RZch
+         ILDw==
+X-Gm-Message-State: APjAAAVgtGENJSffciR0WHZGcX7byHWA2FhFzBSnZlCj3YBYAyne7POH
+	vpV0qkzmw0ucn3Ynp4SDC791+zfKbUVUfA402Xq95H9cNHLn12Cb/OCxspsIS3b2f9FuF8/yxfh
+	RdMOuKbZNRZHmuuLYCPs6Ewu5eaAgaEg39VMJZ7E3FtT4Zo7jZBgyDNMKTk1drSowAg==
+X-Received: by 2002:a17:906:4987:: with SMTP id p7mr9937627eju.141.1560334147275;
+        Wed, 12 Jun 2019 03:09:07 -0700 (PDT)
+X-Received: by 2002:a17:906:4987:: with SMTP id p7mr9937551eju.141.1560334146213;
+        Wed, 12 Jun 2019 03:09:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560334146; cv=none;
         d=google.com; s=arc-20160816;
-        b=hJqC0z4AeJRA6zgz/CSD2XyeFbTOsJw/LJFJTa7Xa1r+/3ysKoXHkWVL2s6Fnp+9cO
-         RZhNCTamWi8g2I2gB4hqv55l0/6R2Hja8cfxpvlVCyBiTwAN9+vBIvO1jdOGwrscCJDo
-         7cCNrrjcFxEwQxSXd54taktY5JlDCOtXc2YxoYFBsITt//CHxMTtQ9uGne5YGv9GLF4D
-         pRJxcF0sl+RbHVQlR7GWkgk2lNrhQrBheo/AOOG5zODbRgy9B8oRfFFwkQZzx3TFQ9Pm
-         gxHDkkXWRBi7dyXVtZTpUFHPCZpe8NO4luN5EJ32J4rIKnt69xaIwauX4TgVE+mN6KJe
-         MVLA==
+        b=gTqS0DXWLlzvYklopEga+cOglqn6kKLiZvJVdy4o58BKenPrJTb1lifpJ3A+2tebt/
+         CcVHDOqmkahXPtySEpDkaCuHbLlxLaejoyYeFbT0R4usFBX5m+FhjhdrPEWTjpa/NqT4
+         E53MGVsJyVVF7qdi5ssThfxnGV4LcUI1ADFdyZY+1L+b/s6gLiuQ8DfONty/EK5BewYB
+         QxtOCm3REiJZyfzslQbCjv5Z0rK8Ic1d7iMH3mtax9rhacSMtnEESTAP9XWgaos/Ebtp
+         mMlaQYViUgA9oj/R5rVS31RXdct57PWoq6isl+Pqme3l21BmODINlxFEmkHqrmUvHF8T
+         ko2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=yshU0Ks6zyYWz9UCiyn/wuj139FtV00nrtjLmYBPbBk=;
-        b=YKL2CBhERY1aK7M8k5z4NSt7zYInRBjQp/vuPZFshTJeFtRncpeLnAAH8ka1gmB6/H
-         ZYZWtDCVa8q3GvFGPWJkj1jcDSMMBvgnUJiyRv/wH/GVQISpMydCl++ghXg4kcmwz+Jh
-         +XdyGqhPJIu/JBz6Xhf3zFoVnIGTBuC/x7PKgTQgJmXu2mOPt7oCXd+7uBHbaDfJy6ZB
-         oDRSLFyaB+E8XXEsWh2icQDcQaXmQD+H+Ut0/Dl/djpQvOihKPkH/A0Wdes1mCMYJXcI
-         A4VcUbLAMer3/begMf6ot23rS5hayMgz3dWDZybkAGPQMaaEUIvM8j4c0JD9wHvsjwOu
-         SlhA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=IFDigL4vy3b62qjT1WszXB3PDewotHj2dqglzXL17hc=;
+        b=t1D2jbQYLd7cgy7ITbH85PYG+gEVe2/eVOteuZPJR6YgApKwkPt7yjs1gvigXwlHEt
+         kCueuFsbxRSpEoGRTEFIX36i7btbcM+8J/6u/Sh50EQ7Tgsmu9yFIQgaeey+coRAygny
+         9XvqIg6/ABzczMao9k4z5CNQ35Kk2FxVM0pG8h+1BN8x/KfFPupJ18qASxJwCivBhtoN
+         Htbo+FPwNaTLib8mHHeFOs1swJ2KtE/V8sSjlXuEHgsOWvPbQwfK18ya0U0O1geCx35t
+         Cd2bugHXtSnqbSGQOS15fqdGOmDsENBe+SQvp/O8A1mXlnsQKFFuLKOQCf2jaO4DPlHT
+         80Ng==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o3si6653236ejc.57.2019.06.12.02.52.07
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b="Tg/uhL+i";
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t10sor4827372ejt.34.2019.06.12.03.09.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 02:52:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 12 Jun 2019 03:09:06 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id ECAA6AF52;
-	Wed, 12 Jun 2019 09:52:06 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 89C291E4328; Wed, 12 Jun 2019 11:46:34 +0200 (CEST)
-Date: Wed, 12 Jun 2019 11:46:34 +0200
-From: Jan Kara <jack@suse.cz>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Jeff Layton <jlayton@kernel.org>,
-	Dan Williams <dan.j.williams@intel.com>, Jan Kara <jack@suse.cz>,
-	Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>,
-	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH RFC 02/10] fs/locks: Export F_LAYOUT lease to user space
-Message-ID: <20190612094634.GA14578@quack2.suse.cz>
-References: <20190606014544.8339-1-ira.weiny@intel.com>
- <20190606014544.8339-3-ira.weiny@intel.com>
- <4e5eb31a41b91a28fbc83c65195a2c75a59cfa24.camel@kernel.org>
- <20190611213812.GC14336@iweiny-DESK2.sc.intel.com>
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b="Tg/uhL+i";
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=IFDigL4vy3b62qjT1WszXB3PDewotHj2dqglzXL17hc=;
+        b=Tg/uhL+iL9PuNKj7XqCbh3ZlwnLo3Bkb5j6KENo20u6kFaYzi532JwLfbpnW1eZKEn
+         qg/O9uyq8wQk4gj/Lpi0h1MpOw3w9F5BoCTyMcJdkPEwqLRDn/s6v2Metm2m9kCUBo40
+         xGWjB/G5W4hGI6GA+FOM2MkB8IrBmZciapsN0KRQaX3C/Vg3EdL8wOnroO77kkmOlL79
+         mClDpnY4zoMtcRhJr0uE22Wdfo+yAkT8PNyQGB3TEaidmVa2qs5YWFnbdgSrcFEHmPyw
+         yjNiLnvfO8k23ResCBgbXP/gSUZgTBmozNcdxSAYu3Ju0S0ckgmdJ1e9/fCZptLcwZkE
+         WrWg==
+X-Google-Smtp-Source: APXvYqxLR+/UiDQosNM49+jAIr4tIfd9cSPCVBqomYavVwUMuZ0jfVhYTiMeBZXpDB37wwwcRWjQrQ==
+X-Received: by 2002:a17:906:6056:: with SMTP id p22mr7266053ejj.171.1560334145847;
+        Wed, 12 Jun 2019 03:09:05 -0700 (PDT)
+Received: from box.localdomain ([86.57.175.117])
+        by smtp.gmail.com with ESMTPSA id c8sm2674841ejm.55.2019.06.12.03.09.05
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Jun 2019 03:09:05 -0700 (PDT)
+Received: by box.localdomain (Postfix, from userid 1000)
+	id 1914A102306; Wed, 12 Jun 2019 13:09:06 +0300 (+03)
+Date: Wed, 12 Jun 2019 13:09:06 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: ktkhai@virtuozzo.com, kirill.shutemov@linux.intel.com,
+	hannes@cmpxchg.org, mhocko@suse.com, hughd@google.com,
+	shakeelb@google.com, rientjes@google.com, akpm@linux-foundation.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 2/4] mm: thp: make deferred split shrinker memcg aware
+Message-ID: <20190612100906.xllp2bfgmadvbh2q@box>
+References: <1559887659-23121-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1559887659-23121-3-git-send-email-yang.shi@linux.alibaba.com>
+ <20190612024747.f5nsol7ntvubjckq@box>
+ <ace52062-e6be-a3f2-7ef1-d8612f3a76f9@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190611213812.GC14336@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <ace52062-e6be-a3f2-7ef1-d8612f3a76f9@linux.alibaba.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 11-06-19 14:38:13, Ira Weiny wrote:
-> On Sun, Jun 09, 2019 at 09:00:24AM -0400, Jeff Layton wrote:
-> > On Wed, 2019-06-05 at 18:45 -0700, ira.weiny@intel.com wrote:
-> > > From: Ira Weiny <ira.weiny@intel.com>
-> > > 
-> > > GUP longterm pins of non-pagecache file system pages (eg FS DAX) are
-> > > currently disallowed because they are unsafe.
-> > > 
-> > > The danger for pinning these pages comes from the fact that hole punch
-> > > and/or truncate of those files results in the pages being mapped and
-> > > pinned by a user space process while DAX has potentially allocated those
-> > > pages to other processes.
-> > > 
-> > > Most (All) users who are mapping FS DAX pages for long term pin purposes
-> > > (such as RDMA) are not going to want to deallocate these pages while
-> > > those pages are in use.  To do so would mean the application would lose
-> > > data.  So the use case for allowing truncate operations of such pages
-> > > is limited.
-> > > 
-> > > However, the kernel must protect itself and users from potential
-> > > mistakes and/or malicious user space code.  Rather than disabling long
-> > > term pins as is done now.   Allow for users who know they are going to
-> > > be pinning this memory to alert the file system of this intention.
-> > > Furthermore, allow users to be alerted such that they can react if a
-> > > truncate operation occurs for some reason.
-> > > 
-> > > Example user space pseudocode for a user using RDMA and wanting to allow
-> > > a truncate would look like this:
-> > > 
-> > > lease_break_sigio_handler() {
-> > > ...
-> > > 	if (sigio.fd == rdma_fd) {
-> > > 		complete_rdma_operations(...);
-> > > 		ibv_dereg_mr(mr);
-> > > 		close(rdma_fd);
-> > > 		fcntl(rdma_fd, F_SETLEASE, F_UNLCK);
-> > > 	}
-> > > }
-> > > 
-> > > setup_rdma_to_dax_file() {
-> > > ...
-> > > 	rdma_fd = open(...)
-> > > 	fcntl(rdma_fd, F_SETLEASE, F_LAYOUT);
-> > 
-> > I'm not crazy about this interface. F_LAYOUT doesn't seem to be in the
-> > same category as F_RDLCK/F_WRLCK/F_UNLCK.
-> > 
-> > Maybe instead of F_SETLEASE, this should use new
-> > F_SETLAYOUT/F_GETLAYOUT cmd values? There is nothing that would prevent
-> > you from setting both a lease and a layout on a file, and indeed knfsd
-> > can set both.
-> > 
-> > This interface seems to conflate the two.
+On Tue, Jun 11, 2019 at 10:06:36PM -0700, Yang Shi wrote:
 > 
-> I've been feeling the same way.  This is why I was leaning toward a new lease
-> type.  I called it "F_LONGTERM" but the name is not important.
 > 
-> I think the concept of adding "exclusive" to the layout lease can fix this
-> because the NFS lease is non-exclusive where the user space one (for the
-> purpose of GUP pinning) would need to be.
+> On 6/11/19 7:47 PM, Kirill A. Shutemov wrote:
+> > On Fri, Jun 07, 2019 at 02:07:37PM +0800, Yang Shi wrote:
+> > > +	/*
+> > > +	 * The THP may be not on LRU at this point, e.g. the old page of
+> > > +	 * NUMA migration.  And PageTransHuge is not enough to distinguish
+> > > +	 * with other compound page, e.g. skb, THP destructor is not used
+> > > +	 * anymore and will be removed, so the compound order sounds like
+> > > +	 * the only choice here.
+> > > +	 */
+> > > +	if (PageTransHuge(page) && compound_order(page) == HPAGE_PMD_ORDER) {
+> > What happens if the page is the same order as THP is not THP? Why removing
 > 
-> FWIW I have not worked out exactly what this new "exclusive" code will look
-> like.  Jan said:
+> It may corrupt the deferred split queue since it is never added into the
+> list, but deleted here.
 > 
-> 	"There actually is support for locks that are not broken after given
-> 	timeout so there shouldn't be too many changes need."
+> > of destructor is required?
 > 
-> But I'm not seeing that for Lease code.  So I'm working on something for the
-> lease code now.
+> Due to the change to free_transhuge_page() (extracted deferred split queue
+> manipulation and moved before memcg uncharge since page->mem_cgroup is
+> needed), it just calls free_compound_page(). So, it sounds pointless to
+> still keep THP specific destructor.
+> 
+> It looks there is not a good way to tell if the compound page is THP in
+> free_page path or not, we may keep the destructor just for this?
 
-Yeah, sorry for misleading you. Somehow I thought that if lease_break_time
-== 0, we will wait indefinitely but when checking the code again, that
-doesn't seem to be the case.
+Other option would be to move mem_cgroup_uncharge(page); from
+__page_cache_release() to destructors. Destructors will be able to
+call it as it fits.
 
-								Honza
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+ Kirill A. Shutemov
 
