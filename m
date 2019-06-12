@@ -2,236 +2,220 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B0B09C31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 21:49:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C1B81C31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 21:52:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 47BF4208C2
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 21:49:17 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6FD0420B7C
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 21:52:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amdcloud.onmicrosoft.com header.i=@amdcloud.onmicrosoft.com header.b="GKDA3anP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 47BF4208C2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amd.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="t/LtYlXI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6FD0420B7C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DAE836B000D; Wed, 12 Jun 2019 17:49:16 -0400 (EDT)
+	id 19BF36B000D; Wed, 12 Jun 2019 17:52:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D36DD6B000E; Wed, 12 Jun 2019 17:49:16 -0400 (EDT)
+	id 14D1D6B000E; Wed, 12 Jun 2019 17:52:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BFDB96B0010; Wed, 12 Jun 2019 17:49:16 -0400 (EDT)
+	id F2F1D6B0010; Wed, 12 Jun 2019 17:52:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B7416B000D
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 17:49:16 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id x27so8365542ote.6
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 14:49:16 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C8DA86B000D
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 17:52:44 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id d13so8341217oth.20
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 14:52:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=4tCn0nvCVs/qqgrD1PWzL2pqpLnRbATQzNKLTgDiuKQ=;
-        b=PhxpEKgAdx4f61Pro78qMOgCwXAL3D1qCpXKl5QhcbU6T+GPwwRie8nSK4fVHjikxM
-         Pi+m2km2Vo+kF6sdWtt14TNJUaVtje6ZVpExB3H6ErNqjYJuDLobZEPT9xzKmRqipagD
-         X2/CZmJp67EQ/tbQGuXXIu/uATZOpkR3GJkN6Qb3dGogJY3oQNLZUAhW/J2SpCsq4kQd
-         MFg8SzBtXFFzZkubSw4HqVq7vgibGc7exz2duf+eWD35yjnu2eB4uFaXSTbQocwQ6UpY
-         +NaXbPs5hY/CurAbgelGenFQ4Fbk7pfHkbEzArCT4gk+GgZpM11P1mB597DTVY8LUgXC
-         t3aA==
-X-Gm-Message-State: APjAAAXjYVFM1GLUbwA+cDoTq4tAkJHdN4K/i9dd5r2rxqj6fk+BKZYh
-	r0/2vWNnhidjwv2/rynVQ0Coyzql0QUY/JXy74ECgkh4Xds6P/xDLbCZ9NunkV80XIF/rtEL1am
-	/yzCMgBiD6ZV+VgZ81jdwJkT5GV/FwKJV/t1yQXTUiJXhuJFMUkHlAyuGeB6yIZ0=
-X-Received: by 2002:a9d:5614:: with SMTP id e20mr11017897oti.41.1560376156164;
-        Wed, 12 Jun 2019 14:49:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxhKy747LAH+GZSaRHsWEdQtvKoOwIvPgwtID+y9WbphKJ/80vRIMKdO6IAAA17OVAXTx8X
-X-Received: by 2002:a9d:5614:: with SMTP id e20mr11017865oti.41.1560376155335;
-        Wed, 12 Jun 2019 14:49:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560376155; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=6I4UhGxWaA3Gb80VvVkJBFAuR8ADABp6ljN3MbUT8P8=;
+        b=MtknMh+KufKbHFi4f1Pn3DwDJjV67SUa4rdbTFDDzrEVSwBSxR19Tg1lU+/u8/eMFi
+         B8iUIZcKiVGZtc8tGS5aUG1pCpATf6P/NQkfPC7bw9WHZAgD1PYSu/kPFl2gZpY6OJlV
+         8r8DgE4QjZ+kfgTSsQSHvsPaZzV2X0P9B+A/K539ENORlPvd9L8Tn4aIX5oNnVt10HJB
+         hS14pRK2Dwct0c/NND53riJwDHQ3zHXBq2NASGpzCZ77l/DbEIYJks6CsELC1Q1p8bfN
+         plMQ2srDrwZH6nTZIJrcrl1AzjR6cvdgw8utgv0H9lej6dQ/ELvc/7uulnY6z35L4eDr
+         OMzA==
+X-Gm-Message-State: APjAAAXunKX2NTuK9lFoRvZBDWy8DxJZDKzX94HoVaaeK5c203XEF3z1
+	lntxriUTA8JRF3099ta6DlER2JpnDiBH8OLDiawijxCNUTFX/zG82lR9qavRh53dl6LwTmdEuS4
+	gVGPEXyzDMS3ixZEkwaMULExYWmEh3ffXtfEqh2HcfxRh92z624RqFEDBH+XcaeEWdQ==
+X-Received: by 2002:a9d:3ee:: with SMTP id f101mr4485303otf.311.1560376364467;
+        Wed, 12 Jun 2019 14:52:44 -0700 (PDT)
+X-Received: by 2002:a9d:3ee:: with SMTP id f101mr4485254otf.311.1560376363542;
+        Wed, 12 Jun 2019 14:52:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560376363; cv=none;
         d=google.com; s=arc-20160816;
-        b=CyBZUDG4WHXU8nMY5Pl3+mtEKP7qhUG2QRuSUDXFwWM/j7r5h+YvQ0UokfFbb/25Qu
-         96Wta4RQeS5Puxgogt/60mxDw2wwEx/sK8m+LCjqc/hMIXtuUAgcJV5FBDnZD/Pgnwol
-         FWQeRfmCfjuAtkFwaFpJaxRIMwo07jPf1n1ivVMmnHtFuVBvTmKGkm9lUxWqyVNgYgg8
-         eF/EvEBGbBzZ8xnhkLuSeL58jVcYTnPcln4JnrE4h/O4Kqt2zNbfJCtC+9BPZ1qTYjT5
-         7A7Bx5aTGWKDMIX0w5Mfo7+UGFo0Ay6bSw+GvwzglWDYZaseCuZgFPtZ3nkuSbWYKa4p
-         f2nw==
+        b=HtL+OCNVYfWuRUQkCcJO1u/seuiuTf/UNbKMSvbiBtpJciUA1OvYLvkpYwdNppppem
+         mrK45EhlX0fUeW7kg6PZFRAvFZOBIsic7jJf5LqJi810LejSWEHw0PgOlz4x4i6tcXJ3
+         Ra1Mf/DdW8OkZnjBEqznOK/MrdlZBWXKj+s2CWChtaPAIvPHmki+bDvCEtryac1YCl7m
+         ANs9yqihcZ4TLR3LCwdgpkdumztVZQNkfi7544Xvcw5U8ZVwHqaULYQlGdFfo+nbED8y
+         rfnWDErAM12ctPFOSeRx3kmcISqcd0Po75i/k1zCbU8pL9aDBRbUjKxwV2eUR27MuDw+
+         36Jw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=4tCn0nvCVs/qqgrD1PWzL2pqpLnRbATQzNKLTgDiuKQ=;
-        b=BXE0yk9IECvKRMFnNIjVJ5vp5Qaz4H/HYJwX7HWOaGhnWcUB01hNz1oKRVIj2g8Kan
-         7ETPBnW0sxiRtoNvTkAbOxq1T5N6XR/IA570jqbzEHpWGXgvkbemlhEnMYyxlJzGp9hv
-         HMK/+N0FzqDZPEVI7Z/XuYgm0zpdKIEijQ8xD/1inmyON1e1qf4DkeiNulPEYwycy7Lp
-         jsqABisWJmf8KS4HVuLQL0bCKXKlWWSdRawKVs7OPCjxE8CL71h6FCtJD34FvrRuWBkx
-         Ut6q3RdNn27BqbmJWwViYoWDZT6WiPTPij1FfkmqNvxXt5Wa5IQQoOc/sZTNDwyB7dBz
-         YlQQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=6I4UhGxWaA3Gb80VvVkJBFAuR8ADABp6ljN3MbUT8P8=;
+        b=lhpe8FzVDLjaZA159avoV/pAzchHorlhHsE0qMyXXJ2yTKVIe4Of9ORDoYMl2JeMy7
+         lFy7F8yNGYTHmZXGErLtYmuunkXwZ04K2eL2MqhHzT2SVOh3dAwT5jozj3mgYBETBnBF
+         DaD46YSZTmFOtYNpMR920fzEnMAEKSoDHRVZl86ydo37TgxIEpROJkwXtgu/8+IThf+R
+         qiYRV2ELA802WdqVk/HatXHSw1r3yGYW4PaoNzl1byMwD10eZ0PUbJ03A1ZvvTrVW+H5
+         zCmj/WO8NPHlnw1gOmMxNts43/qytL+8JtsUH6BDfdnNL2VdAAxVNKzaKIGXv5rKi2HH
+         PzZA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=GKDA3anP;
-       spf=neutral (google.com: 40.107.80.41 is neither permitted nor denied by best guess record for domain of philip.yang@amd.com) smtp.mailfrom=Philip.Yang@amd.com
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-eopbgr800041.outbound.protection.outlook.com. [40.107.80.41])
-        by mx.google.com with ESMTPS id 139si393012oie.163.2019.06.12.14.49.15
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="t/LtYlXI";
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n2sor575209oif.13.2019.06.12.14.52.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 12 Jun 2019 14:49:15 -0700 (PDT)
-Received-SPF: neutral (google.com: 40.107.80.41 is neither permitted nor denied by best guess record for domain of philip.yang@amd.com) client-ip=40.107.80.41;
+        (Google Transport Security);
+        Wed, 12 Jun 2019 14:52:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=GKDA3anP;
-       spf=neutral (google.com: 40.107.80.41 is neither permitted nor denied by best guess record for domain of philip.yang@amd.com) smtp.mailfrom=Philip.Yang@amd.com
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="t/LtYlXI";
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=amdcloud.onmicrosoft.com; s=selector1-amdcloud-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=4tCn0nvCVs/qqgrD1PWzL2pqpLnRbATQzNKLTgDiuKQ=;
- b=GKDA3anPVYKIYh30ev4dwwlguXq5UxRHpKCVWwI4C6DosSRbYjwt1GUXNzWO1MdVZ25Ge1ArL0wllLLSp4v0ATwzyX8utbOv3TnjHtfkc63b/8A+PArJcaAuqFyAbrjw/iemrJBwfqOqe0Yq8QV+GJR7m+uPcYs8QgRZdUK5L5Y=
-Received: from DM5PR1201MB0155.namprd12.prod.outlook.com (10.174.106.148) by
- DM5PR1201MB0140.namprd12.prod.outlook.com (10.174.107.142) with Microsoft
- SMTP Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1987.12; Wed, 12 Jun 2019 21:49:12 +0000
-Received: from DM5PR1201MB0155.namprd12.prod.outlook.com
- ([fe80::dde4:7ea4:1b9b:45ae]) by DM5PR1201MB0155.namprd12.prod.outlook.com
- ([fe80::dde4:7ea4:1b9b:45ae%9]) with mapi id 15.20.1987.012; Wed, 12 Jun 2019
- 21:49:12 +0000
-From: "Yang, Philip" <Philip.Yang@amd.com>
-To: "Kuehling, Felix" <Felix.Kuehling@amd.com>, Jason Gunthorpe
-	<jgg@ziepe.ca>, "Deucher, Alexander" <Alexander.Deucher@amd.com>
-CC: "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org"
-	<amd-gfx@lists.freedesktop.org>
-Subject: Re: [PATCH v2 hmm 00/11] Various revisions from a locking/code review
-Thread-Topic: [PATCH v2 hmm 00/11] Various revisions from a locking/code
- review
-Thread-Index: AQHVHJhnoBo+dcGjQ0eHiBQsANsbXKaW5DoAgAFyXYCAAEGMgA==
-Date: Wed, 12 Jun 2019 21:49:12 +0000
-Message-ID: <69bb7fe9-98e7-8a49-3e0b-f639010b8991@amd.com>
-References: <20190606184438.31646-1-jgg@ziepe.ca>
- <20190611194858.GA27792@ziepe.ca>
- <5d3b0ae2-3662-cab2-5e6c-82912f32356a@amd.com>
-In-Reply-To: <5d3b0ae2-3662-cab2-5e6c-82912f32356a@amd.com>
-Accept-Language: en-ZA, en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YTXPR0101CA0055.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:b00:1::32) To DM5PR1201MB0155.namprd12.prod.outlook.com
- (2603:10b6:4:55::20)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=Philip.Yang@amd.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [165.204.55.251]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 6044b4c4-96cb-471f-f64a-08d6ef7fce0a
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:DM5PR1201MB0140;
-x-ms-traffictypediagnostic: DM5PR1201MB0140:
-x-ms-exchange-purlcount: 3
-x-microsoft-antispam-prvs:
- <DM5PR1201MB0140B5851F4C13CA53079959E6EC0@DM5PR1201MB0140.namprd12.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:10000;
-x-forefront-prvs: 0066D63CE6
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(376002)(39860400002)(346002)(136003)(396003)(366004)(189003)(199004)(51234002)(72206003)(305945005)(5660300002)(7736002)(81166006)(229853002)(6512007)(6486002)(6436002)(6306002)(81156014)(6636002)(6246003)(8676002)(66066001)(53936002)(478600001)(71190400001)(110136005)(966005)(14454004)(54906003)(316002)(25786009)(3846002)(6116002)(71200400001)(486006)(2906002)(14444005)(256004)(2616005)(446003)(11346002)(386003)(6506007)(4326008)(476003)(186003)(36756003)(8936002)(52116002)(76176011)(99286004)(26005)(53546011)(102836004)(66476007)(64756008)(66946007)(66556008)(68736007)(86362001)(73956011)(66446008)(31696002)(31686004);DIR:OUT;SFP:1101;SCL:1;SRVR:DM5PR1201MB0140;H:DM5PR1201MB0155.namprd12.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: amd.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- IR0CRx6ijWuUWmJPgW0SPeZ04IpMitOZQyqH6v0f9E350bSO6WRG2zMYRBzL8dzAtRqZB6xiX9s3R841gziOuQ7nXs5GJdcNoq8wROi0KWlQmANcstZzezFyUPdCI5JdANKa6z4iTBC6RWOmaim563Lh+DHiT0lgMHsE4o7THMOBfb7l1GXbeAujOkGgYX+/Dyodi6D7rw3zGhkA0CKupzRpwfhwydCQHoqKAYGN0Qe4X+BDxC2mFqnDbfW+fkXVPAC74Rb/GfegR3vGo8XEEkFG8VydqHqGmWb0S32vUx2saWVdz0lCQ120MRespQmKzoYGXMqiY8Rtf/moHWU5LwsjQ2iD4nA9tIzJqK5S7P+B6IWVYofEETB9mQ5dZ0Fen+VMp8oJk+hz+wsxwVI38u7OQqfXugS5ic5xIKKaXYE=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <B9FCFC9950F7E245B5942E8C6AA7BC38@namprd12.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=6I4UhGxWaA3Gb80VvVkJBFAuR8ADABp6ljN3MbUT8P8=;
+        b=t/LtYlXIF46TitPw589p2KKh1+ABnvcq6VWBiOms0xFk5we8MC19HRSnK0mk6paPV3
+         BqWc1gkWt0hb/gtf242TP8yvyc/7QcNroF8CuoIZ5KzhQfcjxjkVHZ7SS5vDr8U7nikg
+         e3I0n54wjzzXtHVEKaYxhV+xnkjXkxiLe2DEKyCQOi4Nww6fZVskUZSWcAlRHQmPF1u8
+         mzVDonp1OWjLbaFYeorKfUuPPXnK2ugKYSPiETzx3FKkCodW8FnFk7Hg1oxst4U/743L
+         B+PxySWCRWdncIfshw2o7NDwsRVaj706fOUZ1AmlKxXzpVHcwQqpG0D/LwWSETA1y+q8
+         Ofxw==
+X-Google-Smtp-Source: APXvYqzoYqA6hvg+G2xozSexw2i/LuPgM2SYC22ou80KIuOhKtfwezG57afnlpkDvjkEHXWsl7UZfNyc19QuHcKKzYM=
+X-Received: by 2002:aca:4208:: with SMTP id p8mr947757oia.105.1560376362796;
+ Wed, 12 Jun 2019 14:52:42 -0700 (PDT)
 MIME-Version: 1.0
-X-OriginatorOrg: amd.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 6044b4c4-96cb-471f-f64a-08d6ef7fce0a
-X-MS-Exchange-CrossTenant-originalarrivaltime: 12 Jun 2019 21:49:12.0437
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 3dd8961f-e488-4e60-8e11-a82d994e183d
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: yangp@amd.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM5PR1201MB0140
+References: <1560366952-10660-1-git-send-email-cai@lca.pw> <CAPcyv4hn0Vz24s5EWKr39roXORtBTevZf7dDutH+jwapgV3oSw@mail.gmail.com>
+ <CAPcyv4iuNYXmF0-EMP8GF5aiPsWF+pOFMYKCnr509WoAQ0VNUA@mail.gmail.com> <1560376072.5154.6.camel@lca.pw>
+In-Reply-To: <1560376072.5154.6.camel@lca.pw>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 12 Jun 2019 14:52:31 -0700
+Message-ID: <CAPcyv4gOhSOwE1DYWdLRkYSo2EL=KFf7LXUZ1w+M=w0xwFpknQ@mail.gmail.com>
+Subject: Re: [PATCH -next] mm/hotplug: skip bad PFNs from pfn_to_online_page()
+To: Qian Cai <cai@lca.pw>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <osalvador@suse.de>, 
+	Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-UmViYXNlIHRvIGh0dHBzOi8vZ2l0aHViLmNvbS9qZ3VudGhvcnBlL2xpbnV4LmdpdCBobW0gYnJh
-bmNoLCBuZWVkIHNvbWUgDQpjaGFuZ2VzIGJlY2F1c2Ugb2YgaW50ZXJmYWNlIGhtbV9yYW5nZV9y
-ZWdpc3RlciBjaGFuZ2UuIFRoZW4gcnVuIGEgcXVpY2sgDQphbWRncHVfdGVzdC4gVGVzdCBpcyBm
-aW5pc2hlZCwgcmVzdWx0IGlzIG9rLiBCdXQgdGhlcmUgaXMgYmVsb3cga2VybmVsIA0KQlVHIG1l
-c3NhZ2UsIHNlZW1zIGhtbV9mcmVlX3JjdSBjYWxscyBkb3duX3dyaXRlLi4uLi4NCg0KWyAxMTcx
-LjkxOTkyMV0gQlVHOiBzbGVlcGluZyBmdW5jdGlvbiBjYWxsZWQgZnJvbSBpbnZhbGlkIGNvbnRl
-eHQgYXQgDQovaG9tZS95YW5ncC9naXQvY29tcHV0ZV9zdGFnaW5nL2tlcm5lbC9rZXJuZWwvbG9j
-a2luZy9yd3NlbS5jOjY1DQpbIDExNzEuOTE5OTMzXSBpbl9hdG9taWMoKTogMSwgaXJxc19kaXNh
-YmxlZCgpOiAwLCBwaWQ6IDUzLCBuYW1lOiANCmt3b3JrZXIvMToxDQpbIDExNzEuOTE5OTM4XSAy
-IGxvY2tzIGhlbGQgYnkga3dvcmtlci8xOjEvNTM6DQpbIDExNzEuOTE5OTQwXSAgIzA6IDAwMDAw
-MDAwMWM3YzE5ZDQgKCh3cV9jb21wbGV0aW9uKXJjdV9ncCl7Ky4rLn0sIGF0OiANCnByb2Nlc3Nf
-b25lX3dvcmsrMHgyMGUvMHg2MzANClsgMTE3MS45MTk5NTFdICAjMTogMDAwMDAwMDA5MjNmMmNm
-YSANCigod29ya19jb21wbGV0aW9uKSgmc2RwLT53b3JrKSl7Ky4rLn0sIGF0OiBwcm9jZXNzX29u
-ZV93b3JrKzB4MjBlLzB4NjMwDQpbIDExNzEuOTE5OTU5XSBDUFU6IDEgUElEOiA1MyBDb21tOiBr
-d29ya2VyLzE6MSBUYWludGVkOiBHICAgICAgICBXIA0KICAgIDUuMi4wLXJjMS1rZmQteWFuZ3Ag
-IzE5Ng0KWyAxMTcxLjkxOTk2MV0gSGFyZHdhcmUgbmFtZTogQVNVUyBBbGwgU2VyaWVzL1o5Ny1Q
-Uk8oV2ktRmkgYWMpL1VTQiAzLjEsIA0KQklPUyA5MDAxIDAzLzA3LzIwMTYNClsgMTE3MS45MTk5
-NjVdIFdvcmtxdWV1ZTogcmN1X2dwIHNyY3VfaW52b2tlX2NhbGxiYWNrcw0KWyAxMTcxLjkxOTk2
-OF0gQ2FsbCBUcmFjZToNClsgMTE3MS45MTk5NzRdICBkdW1wX3N0YWNrKzB4NjcvMHg5Yg0KWyAx
-MTcxLjkxOTk4MF0gIF9fX21pZ2h0X3NsZWVwKzB4MTQ5LzB4MjMwDQpbIDExNzEuOTE5OTg1XSAg
-ZG93bl93cml0ZSsweDFjLzB4NzANClsgMTE3MS45MTk5ODldICBobW1fZnJlZV9yY3UrMHgyNC8w
-eDgwDQpbIDExNzEuOTE5OTkzXSAgc3JjdV9pbnZva2VfY2FsbGJhY2tzKzB4YzkvMHgxNTANClsg
-MTE3MS45MjAwMDBdICBwcm9jZXNzX29uZV93b3JrKzB4MjhlLzB4NjMwDQpbIDExNzEuOTIwMDA4
-XSAgd29ya2VyX3RocmVhZCsweDM5LzB4M2YwDQpbIDExNzEuOTIwMDE0XSAgPyBwcm9jZXNzX29u
-ZV93b3JrKzB4NjMwLzB4NjMwDQpbIDExNzEuOTIwMDE3XSAga3RocmVhZCsweDExYy8weDE0MA0K
-WyAxMTcxLjkyMDAyMV0gID8ga3RocmVhZF9wYXJrKzB4OTAvMHg5MA0KWyAxMTcxLjkyMDAyNl0g
-IHJldF9mcm9tX2ZvcmsrMHgyNC8weDMwDQoNClBoaWxpcA0KDQpPbiAyMDE5LTA2LTEyIDE6NTQg
-cC5tLiwgS3VlaGxpbmcsIEZlbGl4IHdyb3RlOg0KPiBbK1BoaWxpcF0NCj4gDQo+IEhpIEphc29u
-LA0KPiANCj4gSSdtIG91dCBvZiB0aGUgb2ZmaWNlIHRoaXMgd2Vlay4NCj4gDQo+IEhpIFBoaWxp
-cCwgY2FuIHlvdSBnaXZlIHRoaXMgYSBnbz8gTm90IHN1cmUgaG93IG11Y2ggeW91J3ZlIGJlZW4N
-Cj4gZm9sbG93aW5nIHRoaXMgcGF0Y2ggc2VyaWVzIHJldmlldy4gTWVzc2FnZSBvciBjYWxsIG1l
-IG9uIFNreXBlIHRvDQo+IGRpc2N1c3MgYW55IHF1ZXN0aW9ucy4NCj4gDQo+IFRoYW5rcywNCj4g
-ICDCoCBGZWxpeA0KPiANCj4gT24gMjAxOS0wNi0xMSAxMjo0OCwgSmFzb24gR3VudGhvcnBlIHdy
-b3RlOg0KPj4gT24gVGh1LCBKdW4gMDYsIDIwMTkgYXQgMDM6NDQ6MjdQTSAtMDMwMCwgSmFzb24g
-R3VudGhvcnBlIHdyb3RlOg0KPj4+IEZyb206IEphc29uIEd1bnRob3JwZSA8amdnQG1lbGxhbm94
-LmNvbT4NCj4+Pg0KPj4+IEZvciBobW0uZ2l0Og0KPj4+DQo+Pj4gVGhpcyBwYXRjaCBzZXJpZXMg
-YXJpc2VkIG91dCBvZiBkaXNjdXNzaW9ucyB3aXRoIEplcm9tZSB3aGVuIGxvb2tpbmcgYXQgdGhl
-DQo+Pj4gT0RQIGNoYW5nZXMsIHBhcnRpY3VsYXJseSBpbmZvcm1lZCBieSB1c2UgYWZ0ZXIgZnJl
-ZSByYWNlcyB3ZSBoYXZlIGFscmVhZHkNCj4+PiBmb3VuZCBhbmQgZml4ZWQgaW4gdGhlIE9EUCBj
-b2RlICh0aGFua3MgdG8gc3l6a2FsbGVyKSB3b3JraW5nIHdpdGggbW11DQo+Pj4gbm90aWZpZXJz
-LCBhbmQgdGhlIGRpc2N1c3Npb24gd2l0aCBSYWxwaCBvbiBob3cgdG8gcmVzb2x2ZSB0aGUgbGlm
-ZXRpbWUgbW9kZWwuDQo+Pj4NCj4+PiBPdmVyYWxsIHRoaXMgYnJpbmdzIGluIGEgc2ltcGxpZmll
-ZCBsb2NraW5nIHNjaGVtZSBhbmQgZWFzeSB0byBleHBsYWluDQo+Pj4gbGlmZXRpbWUgbW9kZWw6
-DQo+Pj4NCj4+PiAgICBJZiBhIGhtbV9yYW5nZSBpcyB2YWxpZCwgdGhlbiB0aGUgaG1tIGlzIHZh
-bGlkLCBpZiBhIGhtbSBpcyB2YWxpZCB0aGVuIHRoZSBtbQ0KPj4+ICAgIGlzIGFsbG9jYXRlZCBt
-ZW1vcnkuDQo+Pj4NCj4+PiAgICBJZiB0aGUgbW0gbmVlZHMgdG8gc3RpbGwgYmUgYWxpdmUgKGll
-IHRvIGxvY2sgdGhlIG1tYXBfc2VtLCBmaW5kIGEgdm1hLCBldGMpDQo+Pj4gICAgdGhlbiB0aGUg
-bW1nZXQgbXVzdCBiZSBvYnRhaW5lZCB2aWEgbW1nZXRfbm90X3plcm8oKS4NCj4+Pg0KPj4+IExv
-Y2tpbmcgb2YgbW0tPmhtbSBpcyBzaGlmdGVkIHRvIHVzZSB0aGUgbW1hcF9zZW0gY29uc2lzdGVu
-dGx5IGZvciBhbGwNCj4+PiByZWFkL3dyaXRlIGFuZCB1bmxvY2tlZCBhY2Nlc3NlcyBhcmUgcmVt
-b3ZlZC4NCj4+Pg0KPj4+IFRoZSB1c2UgdW5sb2NrZWQgcmVhZHMgb24gJ2htbS0+ZGVhZCcgYXJl
-IGFsc28gZWxpbWluYXRlZCBpbiBmYXZvdXIgb2YgdXNpbmcNCj4+PiBzdGFuZGFyZCBtbWdldCgp
-IGxvY2tpbmcgdG8gcHJldmVudCB0aGUgbW0gZnJvbSBiZWluZyByZWxlYXNlZC4gTWFueSBvZiB0
-aGUNCj4+PiBkZWJ1Z2dpbmcgY2hlY2tzIG9mICFyYW5nZS0+aG1tIGFuZCAhaG1tLT5tbSBhcmUg
-ZHJvcHBlZCBpbiBmYXZvdXIgb2YgcG9pc29uIC0NCj4+PiB3aGljaCBpcyBtdWNoIGNsZWFyZXIg
-YXMgdG8gdGhlIGxpZmV0aW1lIGludGVudC4NCj4+Pg0KPj4+IFRoZSB0cmFpbGluZyBwYXRjaGVz
-IGFyZSBqdXN0IHNvbWUgcmFuZG9tIGNsZWFudXBzIEkgbm90aWNlZCB3aGVuIHJldmlld2luZw0K
-Pj4+IHRoaXMgY29kZS4NCj4+Pg0KPj4+IFRoaXMgdjIgaW5jb3Jwb3JhdGVzIGFsb3Qgb2YgdGhl
-IGdvb2Qgb2ZmIGxpc3QgY2hhbmdlcyAmIGZlZWRiYWNrIEplcm9tZSBoYWQsDQo+Pj4gYW5kIGFs
-bCB0aGUgb24tbGlzdCBjb21tZW50cyB0b28uIEhvd2V2ZXIsIG5vdyB0aGF0IHdlIGhhdmUgdGhl
-IHNoYXJlZCBnaXQgSQ0KPj4+IGhhdmUga2VwdCB0aGUgb25lIGxpbmUgY2hhbmdlIHRvIG5vdXZl
-YXVfc3ZtLmMgcmF0aGVyIHRoYW4gdGhlIGNvbXBhdA0KPj4+IGZ1bnRpb25zLg0KPj4+DQo+Pj4g
-SSBiZWxpZXZlIHdlIGNhbiByZXNvbHZlIHRoaXMgbWVyZ2UgaW4gdGhlIERSTSB0cmVlIG5vdyBh
-bmQga2VlcCB0aGUgY29yZQ0KPj4+IG1tL2htbS5jIGNsZWFuLiBEUk0gbWFpbnRhaW5lcnMsIHBs
-ZWFzZSBjb3JyZWN0IG1lIGlmIEknbSB3cm9uZy4NCj4+Pg0KPj4+IEl0IGlzIG9uIHRvcCBvZiBo
-bW0uZ2l0LCBhbmQgSSBoYXZlIGEgZ2l0IHRyZWUgb2YgdGhpcyBzZXJpZXMgdG8gZWFzZSB0ZXN0
-aW5nDQo+Pj4gaGVyZToNCj4+Pg0KPj4+IGh0dHBzOi8vZ2l0aHViLmNvbS9qZ3VudGhvcnBlL2xp
-bnV4L3RyZWUvaG1tDQo+Pj4NCj4+PiBUaGVyZSBhcmUgc3RpbGwgc29tZSBvcGVuIGxvY2tpbmcg
-aXNzdWVzLCBhcyBJIHRoaW5rIHRoaXMgcmVtYWlucyB1bmFkZHJlc3NlZDoNCj4+Pg0KPj4+IGh0
-dHBzOi8vbG9yZS5rZXJuZWwub3JnL2xpbnV4LW1tLzIwMTkwNTI3MTk1ODI5LkdCMTgwMTlAbWVs
-bGFub3guY29tLw0KPj4+DQo+Pj4gSSdtIGxvb2tpbmcgZm9yIHNvbWUgbW9yZSBhY2tzLCByZXZp
-ZXdzIGFuZCB0ZXN0cyBzbyB0aGlzIGNhbiBtb3ZlIGFoZWFkIHRvDQo+Pj4gaG1tLmdpdC4NCj4+
-IEFNRCBGb2xrcywgdGhpcyBpcyBsb29raW5nIHByZXR0eSBnb29kIG5vdywgY2FuIHlvdSBwbGVh
-c2UgZ2l2ZSBhdA0KPj4gbGVhc3QgYSBUZXN0ZWQtYnkgZm9yIHRoZSBuZXcgZHJpdmVyIGNvZGUg
-dXNpbmcgdGhpcyB0aGF0IEkgc2VlIGluDQo+PiBsaW51eC1uZXh0Pw0KPj4NCj4+IFRoYW5rcywN
-Cj4+IEphc29uDQo=
+On Wed, Jun 12, 2019 at 2:47 PM Qian Cai <cai@lca.pw> wrote:
+>
+> On Wed, 2019-06-12 at 12:38 -0700, Dan Williams wrote:
+> > On Wed, Jun 12, 2019 at 12:37 PM Dan Williams <dan.j.williams@intel.com>
+> > wrote:
+> > >
+> > > On Wed, Jun 12, 2019 at 12:16 PM Qian Cai <cai@lca.pw> wrote:
+> > > >
+> > > > The linux-next commit "mm/sparsemem: Add helpers track active portions
+> > > > of a section at boot" [1] causes a crash below when the first kmemleak
+> > > > scan kthread kicks in. This is because kmemleak_scan() calls
+> > > > pfn_to_online_page(() which calls pfn_valid_within() instead of
+> > > > pfn_valid() on x86 due to CONFIG_HOLES_IN_ZONE=n.
+> > > >
+> > > > The commit [1] did add an additional check of pfn_section_valid() in
+> > > > pfn_valid(), but forgot to add it in the above code path.
+> > > >
+> > > > page:ffffea0002748000 is uninitialized and poisoned
+> > > > raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
+> > > > raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
+> > > > page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+> > > > ------------[ cut here ]------------
+> > > > kernel BUG at include/linux/mm.h:1084!
+> > > > invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
+> > > > CPU: 5 PID: 332 Comm: kmemleak Not tainted 5.2.0-rc4-next-20190612+ #6
+> > > > Hardware name: Lenovo ThinkSystem SR530 -[7X07RCZ000]-/-[7X07RCZ000]-,
+> > > > BIOS -[TEE113T-1.00]- 07/07/2017
+> > > > RIP: 0010:kmemleak_scan+0x6df/0xad0
+> > > > Call Trace:
+> > > >  kmemleak_scan_thread+0x9f/0xc7
+> > > >  kthread+0x1d2/0x1f0
+> > > >  ret_from_fork+0x35/0x4
+> > > >
+> > > > [1] https://patchwork.kernel.org/patch/10977957/
+> > > >
+> > > > Signed-off-by: Qian Cai <cai@lca.pw>
+> > > > ---
+> > > >  include/linux/memory_hotplug.h | 1 +
+> > > >  1 file changed, 1 insertion(+)
+> > > >
+> > > > diff --git a/include/linux/memory_hotplug.h
+> > > > b/include/linux/memory_hotplug.h
+> > > > index 0b8a5e5ef2da..f02be86077e3 100644
+> > > > --- a/include/linux/memory_hotplug.h
+> > > > +++ b/include/linux/memory_hotplug.h
+> > > > @@ -28,6 +28,7 @@
+> > > >         unsigned long ___nr = pfn_to_section_nr(___pfn);           \
+> > > >                                                                    \
+> > > >         if (___nr < NR_MEM_SECTIONS && online_section_nr(___nr) && \
+> > > > +           pfn_section_valid(__nr_to_section(___nr), pfn) &&      \
+> > > >             pfn_valid_within(___pfn))                              \
+> > > >                 ___page = pfn_to_page(___pfn);                     \
+> > > >         ___page;                                                   \
+> > >
+> > > Looks ok to me:
+> > >
+> > > Acked-by: Dan Williams <dan.j.williams@intel.com>
+> > >
+> > > ...but why is pfn_to_online_page() a multi-line macro instead of a
+> > > static inline like all the helper routines it invokes?
+> >
+> > I do need to send out a refreshed version of the sub-section patchset,
+> > so I'll fold this in and give you a Reported-by credit.
+>
+> BTW, not sure if your new version will fix those two problem below due to the
+> same commit.
+>
+> https://patchwork.kernel.org/patch/10977957/
+>
+> 1) offline is busted [1]. It looks like test_pages_in_a_zone() missed the same
+> pfn_section_valid() check.
+>
+> 2) powerpc booting is generating endless warnings [2]. In vmemmap_populated() at
+> arch/powerpc/mm/init_64.c, I tried to change PAGES_PER_SECTION to
+> PAGES_PER_SUBSECTION, but it alone seems not enough.
+
+Yes, I was just sending you another note about this. I don't think
+your proposed fix is sufficient. The original intent of
+pfn_valid_within() was to use it as a cheaper lookup after already
+validating that the first page in a MAX_ORDER_NR_PAGES range satisfied
+pfn_valid(). Quoting commit  14e072984179 "add pfn_valid_within helper
+for sub-MAX_ORDER hole detection":
+
+    Add a pfn_valid_within() helper which should be used when scanning pages
+    within a MAX_ORDER_NR_PAGES block when we have already checked the
+validility
+    of the block normally with pfn_valid().  This can then be
+optimised away when
+    we do not have holes within a MAX_ORDER_NR_PAGES block of pages.
+
+So, with that insight I think the complete fix is this:
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 6dd52d544857..9d15ec793330 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1428,7 +1428,7 @@ void memory_present(int nid, unsigned long
+start, unsigned long end);
+ #ifdef CONFIG_HOLES_IN_ZONE
+ #define pfn_valid_within(pfn) pfn_valid(pfn)
+ #else
+-#define pfn_valid_within(pfn) (1)
++#define pfn_valid_within(pfn) pfn_section_valid(pfn)
+ #endif
+
+ #ifdef CONFIG_ARCH_HAS_HOLES_MEMORYMODEL
 
