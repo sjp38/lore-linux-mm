@@ -2,178 +2,191 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 45270C31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 19:12:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 70C4BC31E48
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 19:14:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0392020B7C
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 19:12:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0392020B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 25F8C215EA
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 19:14:25 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="fKZgzRoQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25F8C215EA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 745896B0010; Wed, 12 Jun 2019 15:12:05 -0400 (EDT)
+	id BD9796B000C; Wed, 12 Jun 2019 15:14:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6F6176B0266; Wed, 12 Jun 2019 15:12:05 -0400 (EDT)
+	id BAFAC6B0266; Wed, 12 Jun 2019 15:14:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5BDE16B0269; Wed, 12 Jun 2019 15:12:05 -0400 (EDT)
+	id A76386B0269; Wed, 12 Jun 2019 15:14:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 24AD86B0010
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 15:12:05 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id i3so10353554plb.8
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 12:12:05 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 868896B000C
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 15:14:24 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id i196so14508163qke.20
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 12:14:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=s00AAfCzMqnvlZ7R2AV8WRUEjG3KLNo+EF1uxi9WrvY=;
-        b=hRDinY/fZQTQ+bh2VH/7nfSsio7K47rGX3WcaQS2m3XbeQA1x9NXU8We0O6g/2D31c
-         GGOItk7s/2EXr95KxvAW6siE598Lj026k0lYOzxzMymhZVkaqNybyRcRpES1wE8lJLmj
-         tVkdk51LsRkH0dKeuA5F0FzefOGYsulhfY6ZKfAWIk+rMuC9LI4iRns0pQm2ncyqsS2B
-         qOnIzDE3Y8/31Zv5ZE78/uizPiMvXWSbu1n6PyNg8qig0NNvIamhbR75G6XNwyzR3F/6
-         CGq/y/fALgEBuj3QDnS5V7HfwE5j54r+tKbFoMAS3ARdAazTVLCXxyvtfZFSSFG+f+6H
-         JN/Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVS1kHhDQQp4ZuT8ObVHJJLtkQ0rdly5akpWGcU9EzP7IoiLRiO
-	fKKVxDXnooyqyJMRDZq3J2PhDN7IiLk5lc/mSAMFfG7HLGbMpBJKyX7G5t09A1qWZiyZbQ5SnCP
-	wfYvYFdA9KK5cJJ3iUGhT4S4VwJa3aiuxODYnfPkf+ew6nYVuWah07QI/GojQalAyfA==
-X-Received: by 2002:a62:fccd:: with SMTP id e196mr15469456pfh.53.1560366724804;
-        Wed, 12 Jun 2019 12:12:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwGJQz/GFbDbIg7KPhUgxbq7WQXIrXkc4TTIukg39EkWGtld2ATjzilfIaWBCEnqMAZXJ6z
-X-Received: by 2002:a62:fccd:: with SMTP id e196mr15469400pfh.53.1560366723977;
-        Wed, 12 Jun 2019 12:12:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560366723; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Q6iGM1TiupqbenVhxjWmtAI5HyN33SMdpalMPy6x5OY=;
+        b=Bt5deyzOVWkvMIecjNLs/9g9iJoiytpH9VWuydGciIHPkH0DBpaUTRPUCnh6cO9ZT6
+         vAnSk5jN3KmRC/Y8C165WKvab14a2pArHVyzxBS9Ne68xKTaVFMtoleN2JRKexCP37YP
+         hQ0M1HnBjehHJ4oGdU/6j1tG/ejVOpHHgEM5OehQg7Y5CJJohaKaCPz1nUqpQDr3YlLn
+         +wRbJZFaEQvBC3esl+8n0pBgiy5A7QonSLsRIFN0zrfwtImN46VyRjUjFzKMF6j6TeSY
+         E2kL3tLd+EScGXYH2eCJ/PTu62WJ8/syexVi3hyZSvSnI2DsqwdSaOWc2GQBIrpOkcNS
+         1naA==
+X-Gm-Message-State: APjAAAUCGJGeciSVkWD0QXIAWwBTp2I3mThLNCYcNrHEfOpDPnJ+mQDs
+	iA0TwkcGyp4CwXPsXe3whO7ddpngGklkBetta3CVvYPNTlZDofAaI85L3Ay38Zo6G/ovNpoAnsG
+	mMSIMxcipgvPPTEEvV7Zisglkfla9/LjjC1lkNcOFx7G7fw7n4v6apU/SNMOu23gxKw==
+X-Received: by 2002:a37:a541:: with SMTP id o62mr11015100qke.90.1560366864234;
+        Wed, 12 Jun 2019 12:14:24 -0700 (PDT)
+X-Received: by 2002:a37:a541:: with SMTP id o62mr11015078qke.90.1560366863657;
+        Wed, 12 Jun 2019 12:14:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560366863; cv=none;
         d=google.com; s=arc-20160816;
-        b=TSZuA3bLxn3N0gwFgKnj90zKcAtiDLo2Mq0oPJWhZF1fRjvGyUGhMJXl33uuGHJ9ub
-         tes+3hnNgOWtaQaT9aLN50C9T/kCMRVLvLODzZEmog7LXnatJDUsHO5px3JRRN/Q4VUU
-         Vu/7RPICAz9lWyUMndDDDHRoSZP4cdrpVnEa01j8AaR/85VYggwoFOQo63U+9subjpau
-         2iXBGh58qem9DANbT3SZlNhBlJWg/AhNYIJTTH578ZqLiqiyRVg8zKFXElTqsX0bg6+Z
-         M1tnD71YYlrVbQKPs2RDPdduqEjbEZcX07tL8Jd7EQeavtumOqDYjQB61aRq1r0mY+mF
-         iu1g==
+        b=t2GO7XXl5dpfEkIeVC0CqDsYZcQtj1zWVJwGrViB3UL06u+M0ipyq4i2Ry29Hd7Zu+
+         JKai/2ZMCWoi/xGzTUVux/kB0KWr47nWjlqZVM7CFGNRrQD1R78BM2yBn1uLkCo3DE/m
+         cRc951k1ECdltGNGdkVJr9fGtj4vEJvQ644VSOcpEs8A0O3tLvhyYKBqT0CfElWkyXU2
+         P+UuNfZuD/kk9FZrZGH2slHRtKh2rNgYPANplI5CE8F1IQ3bXRtroZ3qdWAPrdZzYbst
+         1AFWX0tBIQmHxGjiMYrCM6K2FPQm161jhUNu4rBxLRgVjSgrxwTnTOizjhvpGEXXSTJy
+         mxkA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=s00AAfCzMqnvlZ7R2AV8WRUEjG3KLNo+EF1uxi9WrvY=;
-        b=wM4sgszokagc26nGy4AlXPoHDs1Rs4Cs+Lho7J4faUqka7zOsoXmuuz07afD50cwTw
-         PywfPh/a5wy2a1lMXkoHSPZP25e9wI16MUFrjRxJ9NmWojnM9spHbrnLMVbLy434N8l6
-         LU8BQtqaGaLYmSIDCxwm5/u/PzMAw1uR0vxIucFrnuGDnd72esXSoCFzHpN0b9//gwk7
-         Xx/rG8LbGYnFxo9N3vcnAX7Ln28sQ7O20lbK2ht1djcryYVlmQiS2kKNRonjxYpVulUG
-         WOaAJt+Xs67AXIZDpHI+bjjS0Ouy8Q7oEEGXnScdAOjiKHtrjPk08qkWLviFyS5ZfnfL
-         EXRA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Q6iGM1TiupqbenVhxjWmtAI5HyN33SMdpalMPy6x5OY=;
+        b=ztUW3ms3TKfUcMSb6PvP3UdRIv1ky7N8cljRfP6JjI73JEug+g3uzyA4Z2j6Pexiyw
+         oXsD9jp0pTc0in3AeJSw7ae1p6TStFZNQrfX/JfPPuneoDwPuny7wMbexM+7Aa7KvKTJ
+         ncwDHkZ3wTXQsDoDMf0ZRYcSIPH9PtsA+vKWbJLQETIkd/4vRH+qHKkcDnuvyw088C4n
+         SO5L42azoYh7OqnAQBIRSBRWx31ZoWbgDvqGaoAFf04EZTNBDRZfk/hcsAAjhxWzaMB2
+         0XOsQGwaWoud9sWYpNnWzbiVQp5kSgfdk+SNJ/1rix4L+2MTLCWmX+vRsLy+NTrrgQ/P
+         AEiA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id o3si455677pll.53.2019.06.12.12.12.03
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=fKZgzRoQ;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 49sor1011775qtn.1.2019.06.12.12.14.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 12:12:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Wed, 12 Jun 2019 12:14:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Jun 2019 12:12:03 -0700
-X-ExtLoop1: 1
-Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
-  by orsmga005.jf.intel.com with ESMTP; 12 Jun 2019 12:12:00 -0700
-Message-ID: <b8fb6626a6ae415fac4d5daa86225e4c68d56673.camel@intel.com>
-Subject: Re: [PATCH v7 22/27] binfmt_elf: Extract .note.gnu.property from an
- ELF file
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: Dave Martin <Dave.Martin@arm.com>
-Cc: Florian Weimer <fweimer@redhat.com>, x86@kernel.org, "H. Peter Anvin"
- <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar
- <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org,  linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski
- <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>,  Borislav
- Petkov <bp@alien8.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Dave Hansen
- <dave.hansen@linux.intel.com>, Eugene Syromiatnikov <esyr@redhat.com>,
- "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan
- Corbet <corbet@lwn.net>,  Kees Cook <keescook@chromium.org>, Mike Kravetz
- <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov
- <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Peter Zijlstra
- <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>, "Ravi V.
- Shankar" <ravi.v.shankar@intel.com>,  Vedvyas Shanbhogue
- <vedvyas.shanbhogue@intel.com>
-Date: Wed, 12 Jun 2019 12:04:01 -0700
-In-Reply-To: <20190612093238.GQ28398@e103592.cambridge.arm.com>
-References: <20190606200646.3951-1-yu-cheng.yu@intel.com>
-	 <20190606200646.3951-23-yu-cheng.yu@intel.com>
-	 <20190607180115.GJ28398@e103592.cambridge.arm.com>
-	 <94b9c55b3b874825fda485af40ab2a6bc3dad171.camel@intel.com>
-	 <87lfy9cq04.fsf@oldenburg2.str.redhat.com>
-	 <20190611114109.GN28398@e103592.cambridge.arm.com>
-	 <031bc55d8dcdcf4f031e6ff27c33fd52c61d33a5.camel@intel.com>
-	 <20190612093238.GQ28398@e103592.cambridge.arm.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.1-2 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=fKZgzRoQ;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=Q6iGM1TiupqbenVhxjWmtAI5HyN33SMdpalMPy6x5OY=;
+        b=fKZgzRoQazhx2NyU0bXbVZS8dOqt2ksyWGIauwNWYHJH8kgsCVJI03c4N5lKN0UfbL
+         Bhd0f7dzZ8VYCFXXU+aLJIcr64Q7WMzXQZhTBHMZGz5IhlK3ID/yDJO/l9SrdO5KfgqK
+         Pzqt+w2uTJiIBcYRcbkg+zqo7JEvQt6YgPwzekPufoXbr56qiO4x0n/EncSJ7JDY0Ihx
+         5v476nbYAMqpu7FcZAOCJM9Yr1cgH62Vahq2y1Hbu0KZAQpHI9vvaxHreBBJ1eHnpDXL
+         1X7rLB8DRwb8xJ6R2YIgnjubs6XczMXMrodaik5vqBCeF/b9SQjTHUeI0/OO4EIsnzG3
+         NonA==
+X-Google-Smtp-Source: APXvYqxNVQoMlV0omgFKo75Awgw9qRfhh6FBsXYbr1pvY1QOdw5O302UlF57KTTs2aFOEmTGVw1+7g==
+X-Received: by 2002:aed:3a03:: with SMTP id n3mr38086132qte.85.1560366863270;
+        Wed, 12 Jun 2019 12:14:23 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id e66sm296313qtb.55.2019.06.12.12.14.22
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 12 Jun 2019 12:14:22 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hb8hR-00037z-Na; Wed, 12 Jun 2019 16:14:21 -0300
+Date: Wed, 12 Jun 2019 16:14:21 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Jan Kara <jack@suse.cz>
+Cc: Ira Weiny <ira.weiny@intel.com>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
+	Dave Chinner <david@fromorbit.com>,
+	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190612191421.GM3876@ziepe.ca>
+References: <20190606014544.8339-1-ira.weiny@intel.com>
+ <20190606104203.GF7433@quack2.suse.cz>
+ <20190606195114.GA30714@ziepe.ca>
+ <20190606222228.GB11698@iweiny-DESK2.sc.intel.com>
+ <20190607103636.GA12765@quack2.suse.cz>
+ <20190607121729.GA14802@ziepe.ca>
+ <20190607145213.GB14559@iweiny-DESK2.sc.intel.com>
+ <20190612102917.GB14578@quack2.suse.cz>
+ <20190612114721.GB3876@ziepe.ca>
+ <20190612120907.GC14578@quack2.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190612120907.GC14578@quack2.suse.cz>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-06-12 at 10:32 +0100, Dave Martin wrote:
-> On Tue, Jun 11, 2019 at 12:31:34PM -0700, Yu-cheng Yu wrote:
-> > On Tue, 2019-06-11 at 12:41 +0100, Dave Martin wrote:
-> > > On Mon, Jun 10, 2019 at 07:24:43PM +0200, Florian Weimer wrote:
-> > > > * Yu-cheng Yu:
-> > > > 
-> > > > > To me, looking at PT_GNU_PROPERTY and not trying to support anything
-> > > > > is a
-> > > > > logical choice.  And it breaks only a limited set of toolchains.
-> > > > > 
-> > > > > I will simplify the parser and leave this patch as-is for anyone who
-> > > > > wants
-> > > > > to
-> > > > > back-port.  Are there any objections or concerns?
-> > > > 
-> > > > Red Hat Enterprise Linux 8 does not use PT_GNU_PROPERTY and is probably
-> > > > the largest collection of CET-enabled binaries that exists today.
-> > > 
-> > > For clarity, RHEL is actively parsing these properties today?
-> > > 
-> > > > My hope was that we would backport the upstream kernel patches for CET,
-> > > > port the glibc dynamic loader to the new kernel interface, and be ready
-> > > > to run with CET enabled in principle (except that porting userspace
-> > > > libraries such as OpenSSL has not really started upstream, so many
-> > > > processes where CET is particularly desirable will still run without
-> > > > it).
-> > > > 
-> > > > I'm not sure if it is a good idea to port the legacy support if it's not
-> > > > part of the mainline kernel because it comes awfully close to creating
-> > > > our own private ABI.
-> > > 
-> > > I guess we can aim to factor things so that PT_NOTE scanning is
-> > > available as a fallback on arches for which the absence of
-> > > PT_GNU_PROPERTY is not authoritative.
+On Wed, Jun 12, 2019 at 02:09:07PM +0200, Jan Kara wrote:
+> On Wed 12-06-19 08:47:21, Jason Gunthorpe wrote:
+> > On Wed, Jun 12, 2019 at 12:29:17PM +0200, Jan Kara wrote:
 > > 
-> > We can probably check PT_GNU_PROPERTY first, and fallback (based on ld-linux
-> > version?) to PT_NOTE scanning?
+> > > > > The main objection to the current ODP & DAX solution is that very
+> > > > > little HW can actually implement it, having the alternative still
+> > > > > require HW support doesn't seem like progress.
+> > > > > 
+> > > > > I think we will eventually start seein some HW be able to do this
+> > > > > invalidation, but it won't be universal, and I'd rather leave it
+> > > > > optional, for recovery from truely catastrophic errors (ie my DAX is
+> > > > > on fire, I need to unplug it).
+> > > > 
+> > > > Agreed.  I think software wise there is not much some of the devices can do
+> > > > with such an "invalidate".
+> > > 
+> > > So out of curiosity: What does RDMA driver do when userspace just closes
+> > > the file pointing to RDMA object? It has to handle that somehow by aborting
+> > > everything that's going on... And I wanted similar behavior here.
+> > 
+> > It aborts *everything* connected to that file descriptor. Destroying
+> > everything avoids creating inconsistencies that destroying a subset
+> > would create.
+> > 
+> > What has been talked about for lease break is not destroying anything
+> > but very selectively saying that one memory region linked to the GUP
+> > is no longer functional.
 > 
-> For arm64, we can check for PT_GNU_PROPERTY and then give up
-> unconditionally.
-> 
-> For x86, we would fall back to PT_NOTE scanning, but this will add a bit
-> of cost to binaries that don't have NT_GNU_PROPERTY_TYPE_0.  The ld.so
-> version doesn't tell you what ELF ABI a given executable conforms to.
-> 
-> Since this sounds like it's largely a distro-specific issue, maybe there
-> could be a Kconfig option to turn the fallback PT_NOTE scanning on?
+> OK, so what I had in mind was that if RDMA app doesn't play by the rules
+> and closes the file with existing pins (and thus layout lease) we would
+> force it to abort everything. Yes, it is disruptive but then the app didn't
+> obey the rule that it has to maintain file lease while holding pins. Thus
+> such situation should never happen unless the app is malicious / buggy.
 
-Yes, I will make it a Kconfig option.
+We do have the infrastructure to completely revoke the entire
+*content* of a FD (this is called device disassociate). It is
+basically close without the app doing close. But again it only works
+with some drivers. However, this is more likely something a driver
+could support without a HW change though.
 
-Yu-cheng
+It is quite destructive as it forcibly kills everything RDMA related
+the process(es) are doing, but it is less violent than SIGKILL, and
+there is perhaps a way for the app to recover from this, if it is
+coded for it.
+
+My preference would be to avoid this scenario, but if it is really
+necessary, we could probably build it with some work.
+
+The only case we use it today is forced HW hot unplug, so it is rarely
+used and only for an 'emergency' like use case.
+
+Jason
 
