@@ -4,85 +4,84 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 34EEDC31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:27:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3ABF4C31E48
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:28:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D143C20B1F
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:27:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D143C20B1F
+	by mail.kernel.org (Postfix) with ESMTP id F0731208CA
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:28:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0731208CA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5F80E6B0007; Wed, 12 Jun 2019 10:27:07 -0400 (EDT)
+	id 8DD176B000D; Wed, 12 Jun 2019 10:28:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5A8136B000A; Wed, 12 Jun 2019 10:27:07 -0400 (EDT)
+	id 88CEE6B000E; Wed, 12 Jun 2019 10:28:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 497F06B000D; Wed, 12 Jun 2019 10:27:07 -0400 (EDT)
+	id 756756B0010; Wed, 12 Jun 2019 10:28:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EC9C16B0007
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 10:27:06 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b12so18849427eds.14
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:27:06 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 26B886B000D
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 10:28:24 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b3so25153978edd.22
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:28:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=AAsGbSjrzJNC8UtXNhagwF0qpLPgD5tu0pqmHamUm44=;
-        b=ntYNoimtCRC9racMo5NRVzRpP0zSJbmzeKocnRhC+JUhcLcoQqxId9BSkUkyWqVBSL
-         zJ9VAioWcJOLRGZefD/wVEBY1NDtu5lNzjeLFaSdLpFUaIiomGWSl1iOoX/0uQtxauz7
-         /nwg9B19kL+xPc+qhlbvbcD17VHwPPWMiysJN74TlVk47AB7s62V8hUXxMwu6xM9XpH7
-         YZuEMFIEchkJ6FNfYENNqu1cF2WM8Z9D/l/BN0lZDGeO3pwRt9Zf65zJELu6Z8+l/aUb
-         +I9A+RCCy00rrd43sGgDvZpWAZMOHtN7Rziiy2q/+q02PgrVVkNmOAaTY7+TJgeTYBs2
-         6WyQ==
+        bh=Zqm922sctdNTWPEakgYopTZQEJllsntsHsG0UvCxGtg=;
+        b=O+HCRcT2DeEwdVzWyQF9APAxOb/yJl1uxTHdwZQy74TEycbwmYlQjZH+Ux6vugpEE6
+         ucwoQ8fUvP+d6jemKo9G2yxVFt67NE6/ooDaDsXsXz9JSGw1QoiLdgBLTTeknYtO7Q9E
+         SJAZWVg77ik2zrxfPCJ1b3c0Gb3Ak1yLTxXeSYibi2XI1Dy9ZZrMjeyDPxM/oM+ePZPH
+         dmD1dFbGZTR6MPdmZOyqY4yle2xwtGv+g3EoUTYpTQ8iViAjzHE0JuTLB8yhsCzJ5S90
+         Ta3BjNPckHa/UBNA6zFnpbgvmUSCXD7kvfEinBRiqeZ8iADNJwZCkkOTUfFpm2xYNoLf
+         I07Q==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-X-Gm-Message-State: APjAAAX9OoLCzxwKh0tPcj1SaYgD0NSu5f1innXSCUJXaRpFH57xIN6f
-	QMHFpr3+Iu48ajA20flX1LQ672Awg54X7+JMYYT6xRf2yivF3XW5sLtmtoohdVSzUVoqfjtQjFJ
-	E6iaccEQb2ix8kQrmxNwl/touGiFqsinru1jeD6U8BJROmG+B6EU8DoXq04Tk7mJ4Hg==
-X-Received: by 2002:a17:906:670c:: with SMTP id a12mr25057093ejp.290.1560349626496;
-        Wed, 12 Jun 2019 07:27:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwOzpGRoLkdxhuGC7Gcrc7oelPEFm+IM1Hc3Z9o4n3ZLixlG6BKt+NMkK2OeQOFWslc161o
-X-Received: by 2002:a17:906:670c:: with SMTP id a12mr25057019ejp.290.1560349625694;
-        Wed, 12 Jun 2019 07:27:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560349625; cv=none;
+X-Gm-Message-State: APjAAAXkFpATa+N8QESjES/v+9T4TWWeb8e+g9BZC1lxXR1D4MhL2DZf
+	tFelMySD8P2Hy3pzJd9J/soWbxcHDHHA7wJpuCtBEQscBeGF+TBRVpzYzqmMqb2x67UMkOFcq7T
+	y9k3M0zptEK+dovb6nZQPtQynXJvJRdstWBCyP0ByKjs5l33HOhuuuSpIX4i1jdKfGg==
+X-Received: by 2002:a50:89a2:: with SMTP id g31mr54210062edg.93.1560349703722;
+        Wed, 12 Jun 2019 07:28:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyipuFAXnxhDqAsWqTn+Xn9VujOkr1DOwYj/ijVAakD4HWbJxZMEOaU7OQtWcLt2YzKcJkj
+X-Received: by 2002:a50:89a2:: with SMTP id g31mr54210002edg.93.1560349703068;
+        Wed, 12 Jun 2019 07:28:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560349703; cv=none;
         d=google.com; s=arc-20160816;
-        b=aLRC0+Dv1VZu7XqC64Hw02TXEW/kXHSqw28RO3OKbIvU6TMBgELiEbLjCEaXhaP6r6
-         n673ciNlwHJ0ePkV8YHOt48eJYWwqCidcjofWDTqYX5zDdDLK02fGzOnYEZWtfw1OhBt
-         IqK7uxyiV2NGZRWkI5EQvmuXJTaxbtS5px4B//WS7EsfQP5F2aqEO0eWbLUpioVKszqh
-         7wCgZKc3lsSQf8/GxVd1OKMjA2WDuawEzdEpjUe8Mx3j9ERKHXQkU6Cn9nstLabfvucs
-         ZHr7q0MJaOWtRtUmRC+d+kuiwfgt+oAXAoHusHqMwdkAgXbumg0J0o2JOcCpzay7O1Fz
-         oaTA==
+        b=CZheJY2Xl/4NDiUr94v7273kLXIF+vO/3jKe8wzBSzLuJE9qwfBAW5gj2/TRVtq8AD
+         yFULfvN4buFB6W9NLSygKzsWd1BBBgVPcX/Q/gVATmCkb19wQTeDcNTVEGZtUx0jeN6I
+         Zi2SVxAer2dyavQwHmpWxifiP/FCm2JnA9kKwr2uzcFdFIji2MMaXRc/TkdoI70qT3sm
+         fQou1PUG3k021qVApZj9Gn8krXcBAKkifiw7Jdja+ZFOLOILPZkAs4nUyaUbrkldPyRe
+         Dj2hPHwcvo2gicxJRX5ArwTGbDYzOZZq8IQHm6E9LeijaTxhXMqqDMMyC8gk8BAGptFI
+         iHBQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=AAsGbSjrzJNC8UtXNhagwF0qpLPgD5tu0pqmHamUm44=;
-        b=UEt8V5H0fhLyHSXsemrCtqQOZQcPUCqXwN7BmYuzGCK564kTTv1wkRosCTEsnwjUgV
-         eClSG7rp68DA9I/zcdGXSMCcXrxNLfzrZBludZlcbuCmiPmKrS3DUfJnCwm3u+i5TfDR
-         9z9MdMqdvjgSSaju0TZGvBk9GVp1/5XbMuVCTIgC7ycLtYF9Fmy/UV4iGRLUOe+QolFW
-         en4cltAakcNSIOJed9RWhdHeSTtCuLV9ptL/TLNaBOO6dTMVS74lDr+kjYGDGQmbcaA9
-         iTbhCNWUFiY8XRtzYDqbqvkX29V68h15FgkkjXMZJdxy+ZYlu6aZIYJDc3HujBDl77sM
-         kWug==
+        bh=Zqm922sctdNTWPEakgYopTZQEJllsntsHsG0UvCxGtg=;
+        b=UBEOR+It6FsgbXWHAdfTwha5htI6j7wSu/COnPDRRmavM2kV5ASfxMHmVAaoDUdafR
+         4pCGeNsg3N+axCzDDPTKVG1howvJv/JhzqzM9pcHGg8CRTWw8B0+hOwIh89vBMud9nVK
+         lb3bp1WrNTU7Wuia90J67LdrvrS2pDqJ7UA3GhotPQBP7ZtaMw38ZdmlFDVtz+6jgrY+
+         9WdORIcC+go2BpmiJaB/boT21z0vekmAPZm7RqTn+W41RZ1J7DERVSOe/xdeZ/Gie7Fr
+         ovv7HGHxD3Xp9GhP/k9LFlaUfZvw2PR60XbaYIqVcCKlBokIPdBB6gaeIZ4GK+NJbj8A
+         Qj5A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id g23si8946489edg.314.2019.06.12.07.27.05
+        by mx.google.com with ESMTP id q40si1904701edd.256.2019.06.12.07.28.22
         for <linux-mm@kvack.org>;
-        Wed, 12 Jun 2019 07:27:05 -0700 (PDT)
+        Wed, 12 Jun 2019 07:28:23 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id A1BAA2B;
-	Wed, 12 Jun 2019 07:27:04 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EFE382B;
+	Wed, 12 Jun 2019 07:28:21 -0700 (PDT)
 Received: from [10.1.196.72] (e119884-lin.cambridge.arm.com [10.1.196.72])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 3DCE73F557;
-	Wed, 12 Jun 2019 07:26:59 -0700 (PDT)
-Subject: Re: [PATCH v17 01/15] arm64: untag user pointers in access_ok and
- __uaccess_mask_ptr
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E45733F557;
+	Wed, 12 Jun 2019 07:28:16 -0700 (PDT)
+Subject: Re: [PATCH v17 02/15] lib, arm64: untag user pointers in strn*_user
 To: Andrey Konovalov <andreyknvl@google.com>,
  linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
  linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
@@ -113,14 +112,14 @@ Cc: Catalin Marinas <catalin.marinas@arm.com>,
  Robin Murphy <robin.murphy@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>,
  Szabolcs Nagy <Szabolcs.Nagy@arm.com>
 References: <cover.1560339705.git.andreyknvl@google.com>
- <9ed583c1a3acf014987e3aef12249506c1c69146.1560339705.git.andreyknvl@google.com>
+ <a76c014f9b12a082d31ef1459907cabdab78491e.1560339705.git.andreyknvl@google.com>
 From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Message-ID: <52e93b24-3302-e890-5799-6502042ea5c9@arm.com>
-Date: Wed, 12 Jun 2019 15:26:58 +0100
+Message-ID: <0bbc5f4f-9812-463c-48c1-4929bef801da@arm.com>
+Date: Wed, 12 Jun 2019 15:28:15 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <9ed583c1a3acf014987e3aef12249506c1c69146.1560339705.git.andreyknvl@google.com>
+In-Reply-To: <a76c014f9b12a082d31ef1459907cabdab78491e.1560339705.git.andreyknvl@google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -135,64 +134,69 @@ On 12/06/2019 12:43, Andrey Konovalov wrote:
 > pass tagged user pointers (with the top byte set to something else other
 > than 0x00) as syscall arguments.
 > 
-> copy_from_user (and a few other similar functions) are used to copy data
-> from user memory into the kernel memory or vice versa. Since a user can
-> provided a tagged pointer to one of the syscalls that use copy_from_user,
-> we need to correctly handle such pointers.
+> strncpy_from_user and strnlen_user accept user addresses as arguments, and
+> do not go through the same path as copy_from_user and others, so here we
+> need to handle the case of tagged user addresses separately.
 > 
-> Do this by untagging user pointers in access_ok and in __uaccess_mask_ptr,
-> before performing access validity checks.
+> Untag user pointers passed to these functions.
 > 
-> Note, that this patch only temporarily untags the pointers to perform the
-> checks, but then passes them as is into the kernel internals.
+> Note, that this patch only temporarily untags the pointers to perform
+> validity checks, but then uses them as is to perform user memory accesses.
 > 
-> Reviewed-by: Kees Cook <keescook@chromium.org>
+> Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+> Acked-by: Kees Cook <keescook@chromium.org>
 > Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
 > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 
 Reviewed-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
 
 > ---
->  arch/arm64/include/asm/uaccess.h | 10 +++++++---
->  1 file changed, 7 insertions(+), 3 deletions(-)
+>  lib/strncpy_from_user.c | 3 ++-
+>  lib/strnlen_user.c      | 3 ++-
+>  2 files changed, 4 insertions(+), 2 deletions(-)
 > 
-> diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
-> index e5d5f31c6d36..df729afca0ba 100644
-> --- a/arch/arm64/include/asm/uaccess.h
-> +++ b/arch/arm64/include/asm/uaccess.h
-> @@ -73,6 +73,8 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
->  {
->  	unsigned long ret, limit = current_thread_info()->addr_limit;
+> diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
+> index 023ba9f3b99f..dccb95af6003 100644
+> --- a/lib/strncpy_from_user.c
+> +++ b/lib/strncpy_from_user.c
+> @@ -6,6 +6,7 @@
+>  #include <linux/uaccess.h>
+>  #include <linux/kernel.h>
+>  #include <linux/errno.h>
+> +#include <linux/mm.h>
 >  
-> +	addr = untagged_addr(addr);
-> +
->  	__chk_user_ptr(addr);
->  	asm volatile(
->  	// A + B <= C + 1 for all A,B,C, in four easy steps:
-> @@ -226,7 +228,8 @@ static inline void uaccess_enable_not_uao(void)
+>  #include <asm/byteorder.h>
+>  #include <asm/word-at-a-time.h>
+> @@ -108,7 +109,7 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
+>  		return 0;
 >  
->  /*
->   * Sanitise a uaccess pointer such that it becomes NULL if above the
-> - * current addr_limit.
-> + * current addr_limit. In case the pointer is tagged (has the top byte set),
-> + * untag the pointer before checking.
->   */
->  #define uaccess_mask_ptr(ptr) (__typeof__(ptr))__uaccess_mask_ptr(ptr)
->  static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
-> @@ -234,10 +237,11 @@ static inline void __user *__uaccess_mask_ptr(const void __user *ptr)
->  	void __user *safe_ptr;
+>  	max_addr = user_addr_max();
+> -	src_addr = (unsigned long)src;
+> +	src_addr = (unsigned long)untagged_addr(src);
+>  	if (likely(src_addr < max_addr)) {
+>  		unsigned long max = max_addr - src_addr;
+>  		long retval;
+> diff --git a/lib/strnlen_user.c b/lib/strnlen_user.c
+> index 7f2db3fe311f..28ff554a1be8 100644
+> --- a/lib/strnlen_user.c
+> +++ b/lib/strnlen_user.c
+> @@ -2,6 +2,7 @@
+>  #include <linux/kernel.h>
+>  #include <linux/export.h>
+>  #include <linux/uaccess.h>
+> +#include <linux/mm.h>
 >  
->  	asm volatile(
-> -	"	bics	xzr, %1, %2\n"
-> +	"	bics	xzr, %3, %2\n"
->  	"	csel	%0, %1, xzr, eq\n"
->  	: "=&r" (safe_ptr)
-> -	: "r" (ptr), "r" (current_thread_info()->addr_limit)
-> +	: "r" (ptr), "r" (current_thread_info()->addr_limit),
-> +	  "r" (untagged_addr(ptr))
->  	: "cc");
+>  #include <asm/word-at-a-time.h>
 >  
->  	csdb();
+> @@ -109,7 +110,7 @@ long strnlen_user(const char __user *str, long count)
+>  		return 0;
+>  
+>  	max_addr = user_addr_max();
+> -	src_addr = (unsigned long)str;
+> +	src_addr = (unsigned long)untagged_addr(str);
+>  	if (likely(src_addr < max_addr)) {
+>  		unsigned long max = max_addr - src_addr;
+>  		long retval;
 > 
 
 -- 
