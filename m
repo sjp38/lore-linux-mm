@@ -2,183 +2,146 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8249DC31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:19:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A6719C31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:24:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3A89220896
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:19:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A89220896
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 5E7FD2082C
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:24:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="pu7FtOXG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E7FD2082C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D8AD16B0006; Wed, 12 Jun 2019 07:19:24 -0400 (EDT)
+	id F33F16B0006; Wed, 12 Jun 2019 07:24:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D3AE86B0007; Wed, 12 Jun 2019 07:19:24 -0400 (EDT)
+	id EE5066B0007; Wed, 12 Jun 2019 07:24:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C02A96B0008; Wed, 12 Jun 2019 07:19:24 -0400 (EDT)
+	id DD3956B0008; Wed, 12 Jun 2019 07:24:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7727D6B0006
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:19:24 -0400 (EDT)
-Received: by mail-wm1-f70.google.com with SMTP id v15so1054553wmh.1
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 04:19:24 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A23246B0006
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:24:17 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id j21so11803510pff.12
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 04:24:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=2DY9BNuwvWwHmPyKTH7LGXdzKvzCIaqNI7kWqlmuhvc=;
-        b=qeGcWvlZMfkk5cF6xL1gnqxPJz8ZB03HE2Tj3l99FikPSp8gkmigXKWyDUZ5mZ4pja
-         3G0E80Adtksti+AMAiWq9f/r3whRUufIArbs3pYj800CYeexAuDK6QQqmS99Zzb3EMqj
-         0OcyI6mB/cndz/iZyqAnTEfxkGvxFx7/myvXYeR/QC2zRhOuGlNtLqTaY8xiCW03hUSh
-         Qv1UwBInTCzhPKY70fUTu/JZIeavUVKXaoIpl5u3eq/V3a5ufAVRYAPfsZZhhmvQHCjw
-         NmW8v3PraGX9nx7Ow9EY3E6DDPop1KoVCMRvbh+pwhJ07ayPbuhf58k3ng+OnKhXq0Ln
-         zPgQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWhoxIgFcmGBl65WfOceBuz1TiYsT7l4BE51Jz+zqGeiHP9+j4q
-	KGRjyIVz8v2D5UBcyNxG9pC/W+1Ebvfd2CQ/JrIDr/lSBBajr6iH6c/Ffa1hNsVahJ9gKqTs3QV
-	6Snn6FEZ4hEV2ZVoe5INdC8zgfgCmQSFr+NEzslYnC4MiKrP9BviuwRrngL7QIl2O0g==
-X-Received: by 2002:a1c:480a:: with SMTP id v10mr21618114wma.120.1560338363932;
-        Wed, 12 Jun 2019 04:19:23 -0700 (PDT)
-X-Received: by 2002:a1c:480a:: with SMTP id v10mr21618048wma.120.1560338362847;
-        Wed, 12 Jun 2019 04:19:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560338362; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=KJAXvYM0DI4vnD/0tu+larrshBV1A0aACdJmWI9kxzw=;
+        b=JU64LmtUPLKsCPn4aBRUdxViAmPjNSMqsnNoqAOY/cKZiT+e9ihkCA0F0H7p2Ffblb
+         oqhHmAgRm9VVKnVNErRfExinOF2Q8aINA3Fe7zFTNBBOPWLt4hu0epPksETZ3jn7qN4i
+         cA0k4UWLzUHsnrvFPsccT4WiWxna+4qozi+bqaq0lPFEx3NPA03t7NCYTxF5aHDGVGO3
+         S4JKgrm8+wgzW4fbzK+faGbg4L/aHJF8IBToMlsI9t+R1ZNgjHVsQ15pjb2aUHTX4WY4
+         NtKS5chhGQOLFthmAqwIOeqsZ1aiLNxYzr5rEIYbnNBjChvnmUGIoKYx39wnaWosU3mC
+         Wefg==
+X-Gm-Message-State: APjAAAUEKfzTEYZwaOnfAmiSslgcZEMobmP91eX3l5YklLPvX9whwLjY
+	yoSErJ1QL90IQp3yZnalZLdS2rCCG+ZN2rT2TCVvdd4v0zG7jUdKtRjHS6xjd0qb/raG5jINmIS
+	ok7fHXlHAFHOGImgPKmcANZRaLKhciKSHJ1clQPOSjwdzWxlBV6v1VmLz5tD0ZyG4iw==
+X-Received: by 2002:a17:902:70c4:: with SMTP id l4mr64468031plt.185.1560338657323;
+        Wed, 12 Jun 2019 04:24:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzlc6uV2vVs+ZOXSAyBsET/NkbkhhbzC/j/RBMpIptVgNFaaoYm9TX5Cmm0wqMQqKgInsta
+X-Received: by 2002:a17:902:70c4:: with SMTP id l4mr64467999plt.185.1560338656624;
+        Wed, 12 Jun 2019 04:24:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560338656; cv=none;
         d=google.com; s=arc-20160816;
-        b=iLZy1rZwJaHcVt4aNQ0PzW2dZF079pWrklLXMv6KiNwAgQN+O9r9jXhWwh8pnAJIby
-         027WXmPyHvBXeHS08NH3OmmSeUP46tHhpto/6nYbJf2DXDu5vxlJEAtSy/23Svr3pPhY
-         7/MuICRUNdZlZNnYEf2WOkJ/wGfCiCtX4Q+rGhDrR9zuSWL9vyBvpvelaUy2Yczp3cNf
-         jlH0ayfqH1M6NFukc4DTIC4ul2eDa9VCmO10QEsevWBqDpZSkEXi9MQK5FrbWktWuA2j
-         UZYxyAynsg982Hp5kdGb81tSWWdgdmsR5JuWnaHXp5wN0RTrJ7+Em/i45qf29RtjgiKa
-         FbyQ==
+        b=xdc3VSghMPa4QAx/ts8CLLJCuW4giTI7Us8ejcnibfBrtyvdUfxwxIGiV5dv6tz+d/
+         tVLm25+bxvzCgAhhhvQjep/qLHTPSmyZdlwkPX9RWd1qCb8kfMh5eYBWkF5E1bD7yd43
+         moVF6zpbUZ9jPtkPsE3fkG9adcvrBI1cXM2zVxkwhuH2yqFolEufVjeqV3ZAeSyvJC2V
+         0bpqPCTuoPVBp1v97ngnhG2PMspbGv4nCQV8BMZLyhUEbFTpRMsowNIxtprT6gRL9viy
+         LMOkEz1JVGltugSOCp7oZBkeVLz7psnYcrKjZblz4/MJI2eXrizBtcYlo76BUYiLOoss
+         1jfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=2DY9BNuwvWwHmPyKTH7LGXdzKvzCIaqNI7kWqlmuhvc=;
-        b=wLauI5UfzPgvnmB3bDq4saVKCGvFIP3N/sybVBEwZH1lGDrFVzl78DLsTy8d3pex0k
-         sbz85YnOJYZ9L4nribouBumqPGh3ehy1HwPB9CzQRX1yg1pvWgfFvtjXUGvDDvMbtzoh
-         tlRAnJOXHlNPw0cGZqdk7VcMvb1MjbVNvLJ1ilsjUp1sMVRrG0BoYkwa9RQqKK1Z7I4A
-         aw+rcNzAsSFAtfsXgPF7MjPdew9pj7lp1t9x2TR1xrxYCNpZ9VF+uIc3SKN//VOAG8Ja
-         EjMbIDhoR1gARQ1DoGFnhSewoDi+fPPAVMlI79lhSDMdH0cq7ZJ3qVrmrxSzmKzVVkiK
-         Qizg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=KJAXvYM0DI4vnD/0tu+larrshBV1A0aACdJmWI9kxzw=;
+        b=kkcl2nivOF2QdZ25g6BCUTauG458kH7MFDqvCFrx3MDKfqUWfRY/qD2AglXGskkVFT
+         54ImwEtLtHZOv2h+yc8blcHj9VuKxIwLwGC/OwcMtc3gKbM28foAB0aNkvc9zd2ssIA9
+         FVRlH729tl8glZYZJITWI5kHW3zC7NRoyvaSNT39MD53+QqtqtOliWQv/4pAOnLeItoL
+         mFmkGx2xV/0r+dg8uHvm6zPcq1oYX8vlneY7362+o/je+W7NB0V955xYF7DpK3irH+7T
+         bZc/XI17tlZzBVPgZFeuCYAonUFEoSWsSjUt11IgW1EpeP8Gw7R9JjO60hEdgMlmwdjs
+         AsVQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t6sor364947wrq.30.2019.06.12.04.19.22
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pu7FtOXG;
+       spf=pass (google.com: best guess record for domain of batv+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id q4si16238615pfb.272.2019.06.12.04.24.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Jun 2019 04:19:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqy/37Y6CvQfxqtHse3Rk+em+nImH5GtIIV1i2YZ9vY5x/E8azVs6GhTTo5OHfW1RpK9PFD6Ig==
-X-Received: by 2002:a5d:488b:: with SMTP id g11mr42236505wrq.72.1560338362423;
-        Wed, 12 Jun 2019 04:19:22 -0700 (PDT)
-Received: from localhost (nat-pool-brq-t.redhat.com. [213.175.37.10])
-        by smtp.gmail.com with ESMTPSA id m21sm4710436wmc.1.2019.06.12.04.19.21
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 12 Jun 2019 04:19:21 -0700 (PDT)
-Date: Wed, 12 Jun 2019 13:19:20 +0200
-From: Oleksandr Natalenko <oleksandr@redhat.com>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Minchan Kim <minchan@kernel.org>,
+        Wed, 12 Jun 2019 04:24:16 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pu7FtOXG;
+       spf=pass (google.com: best guess record for domain of batv+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
+	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
+	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=KJAXvYM0DI4vnD/0tu+larrshBV1A0aACdJmWI9kxzw=; b=pu7FtOXG6wwPz8NJqGleP0ENqZ
+	mWOWq7bfIS7I5pJndBO7Iorv4+OVLhztJH0MIESlmLmmGgHrX5hLbLEBOu5/+LynDGtoTdbcUkwHz
+	m+0nmPp8W2Zntos4QTutZ9PdRPfjOaERnezAPGG3G6HwOydPr0nIyh6ofXteGyBhSrbeCM90amEhl
+	OvRad6uKCL5pbwCDcWfUThMqxLI35Q+Iv2FUvjxoK6yPof3pP/uGWUbgh7SyFzGn2D06ZiXnMuLmo
+	FR8QqLtcf0RpwhAoW7YZQpMmHjkcYzS44RCzNLkzUQGIM1bRdNtGmin0BBuQtePw75gHO3CRPmO21
+	BHvzeyqQ==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hb1M6-0005io-1P; Wed, 12 Jun 2019 11:23:50 +0000
+Date: Wed, 12 Jun 2019 04:23:50 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Thomas =?iso-8859-1?Q?Hellstr=F6m_=28VMware=29?= <thellstrom@vmwopensource.org>
+Cc: dri-devel@lists.freedesktop.org, linux-graphics-maintainer@vmware.com,
+	pv-drivers@vmware.com, linux-kernel@vger.kernel.org,
+	nadav.amit@gmail.com, Thomas Hellstrom <thellstrom@vmware.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	Brian Geffon <bgeffon@google.com>, jannh@google.com,
-	oleg@redhat.com, christian@brauner.io, hdanton@sina.com,
-	lizeb@google.com
-Subject: Re: [PATCH v2 0/5] Introduce MADV_COLD and MADV_PAGEOUT
-Message-ID: <20190612111920.evedpmre63ivnxkz@butterfly.localdomain>
-References: <20190610111252.239156-1-minchan@kernel.org>
- <20190612105945.GA16442@amd>
+	Matthew Wilcox <willy@infradead.org>,
+	Will Deacon <will.deacon@arm.com>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Rik van Riel <riel@surriel.com>, Minchan Kim <minchan@kernel.org>,
+	Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>,
+	Souptick Joarder <jrdr.linux@gmail.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>
+Subject: Re: [PATCH v5 3/9] mm: Add write-protect and clean utilities for
+ address space ranges
+Message-ID: <20190612112349.GA20226@infradead.org>
+References: <20190612064243.55340-1-thellstrom@vmwopensource.org>
+ <20190612064243.55340-4-thellstrom@vmwopensource.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20190612105945.GA16442@amd>
-User-Agent: NeoMutt/20180716
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190612064243.55340-4-thellstrom@vmwopensource.org>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 12, 2019 at 12:59:45PM +0200, Pavel Machek wrote:
-> > - Problem
-> > 
-> > Naturally, cached apps were dominant consumers of memory on the system.
-> > However, they were not significant consumers of swap even though they are
-> > good candidate for swap. Under investigation, swapping out only begins
-> > once the low zone watermark is hit and kswapd wakes up, but the overall
-> > allocation rate in the system might trip lmkd thresholds and cause a cached
-> > process to be killed(we measured performance swapping out vs. zapping the
-> > memory by killing a process. Unsurprisingly, zapping is 10x times faster
-> > even though we use zram which is much faster than real storage) so kill
-> > from lmkd will often satisfy the high zone watermark, resulting in very
-> > few pages actually being moved to swap.
+On Wed, Jun 12, 2019 at 08:42:37AM +0200, Thomas Hellström (VMware) wrote:
+> From: Thomas Hellstrom <thellstrom@vmware.com>
 > 
-> Is it still faster to swap-in the application than to restart it?
+> Add two utilities to a) write-protect and b) clean all ptes pointing into
+> a range of an address space.
+> The utilities are intended to aid in tracking dirty pages (either
+> driver-allocated system memory or pci device memory).
+> The write-protect utility should be used in conjunction with
+> page_mkwrite() and pfn_mkwrite() to trigger write page-faults on page
+> accesses. Typically one would want to use this on sparse accesses into
+> large memory regions. The clean utility should be used to utilize
+> hardware dirtying functionality and avoid the overhead of page-faults,
+> typically on large accesses into small memory regions.
 
-It's the same type of question I was addressing earlier in the remote
-KSM discussion: making applications aware of all the memory management stuff
-or delegate the decision to some supervising task.
-
-In this case, we cannot rewrite all the application to handle imaginary
-SIGRESTART (or whatever you invent to handle restarts gracefully). SIGTERM
-may require more memory to finish stuff to not lose your data (and I guess
-you don't want to lose your data, right?), and SIGKILL is pretty much
-destructive.
-
-Offloading proactive memory management to a process that knows how to do
-it allows to handle not only throwaway containers/microservices, but also
-usual desktop/mobile workflow.
-
-> > This approach is similar in spirit to madvise(MADV_WONTNEED), but the
-> > information required to make the reclaim decision is not known to the app.
-> > Instead, it is known to a centralized userspace daemon, and that daemon
-> > must be able to initiate reclaim on its own without any app involvement.
-> > To solve the concern, this patch introduces new syscall -
-> > 
-> >     struct pr_madvise_param {
-> >             int size;               /* the size of this structure */
-> >             int cookie;             /* reserved to support atomicity */
-> >             int nr_elem;            /* count of below arrary fields */
-> >             int __user *hints;      /* hints for each range */
-> >             /* to store result of each operation */
-> >             const struct iovec __user *results;
-> >             /* input address ranges */
-> >             const struct iovec __user *ranges;
-> >     };
-> >     
-> >     int process_madvise(int pidfd, struct pr_madvise_param *u_param,
-> >                             unsigned long flags);
-> 
-> That's quite a complex interface.
-> 
-> Could we simply have feel_free_to_swap_out(int pid) syscall? :-).
-
-I wonder for how long we'll go on with adding new syscalls each time we need
-some amendment to existing interfaces. Yes, clone6(), I'm looking at
-you :(.
-
-In case of process_madvise() keep in mind it will be focused not only on
-MADV_COLD, but also, potentially, on other MADV_ flags as well. I can
-hardly imagine we'll add one syscall per each flag.
-
--- 
-  Best regards,
-    Oleksandr Natalenko (post-factum)
-    Senior Software Maintenance Engineer
+Please use EXPORT_SYMBOL_GPL, just like for apply_to_page_range and
+friends.  Also in general new core functionality like this should go
+along with the actual user, we don't need to repeat the hmm disaster.
 
