@@ -2,146 +2,149 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CC05C31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:04:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BA106C31E47
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:25:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BEFA92080A
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:04:19 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Z/GOFRJX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEFA92080A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 79B7E20896
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:25:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79B7E20896
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 729046B000D; Wed, 12 Jun 2019 14:04:19 -0400 (EDT)
+	id 0155B6B0010; Wed, 12 Jun 2019 14:25:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6DACE6B000E; Wed, 12 Jun 2019 14:04:19 -0400 (EDT)
+	id F07296B0266; Wed, 12 Jun 2019 14:25:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A2476B0010; Wed, 12 Jun 2019 14:04:19 -0400 (EDT)
+	id DF6A76B0269; Wed, 12 Jun 2019 14:25:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E3F8C6B000D
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 14:04:18 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id 77so956187ljf.0
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 11:04:18 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A7BFB6B0010
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 14:25:52 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id w31so11880682pgk.23
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 11:25:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=HA7VYYB6HYTnwOsfSZ6IJMiRwVIheU8PeAUQ4SUxsDE=;
-        b=r/lIn/XmQIiEdakspgsXzNICLKP+dP76z0Uj8XyXy6PGEl6cE0r5Jtt6J471+/qIjM
-         p1C6o12xXEdH/gTU2P1kpG4om/OReglRQ5SPFWEtSoHgG2/rsNEHWlSWWE95PV6ek/AA
-         bCPzC2G42eXokFetsyl2i5junH4SUH3pLj9ukohfJeg2di/AallhyTvxSB5oTYRtLo+z
-         iFLRurLpAAMLL688DvF2bVKye7/V8hMfXZl66SuMk5ruVUTqgHc5iNoJkc9P1SXq2+sn
-         ao0Np1b91qJxfw6mP5iMKVgt6tZSGNfRf5aimTmQniLwqhLivyFqo0luvbFn+6ODeswG
-         LEHA==
-X-Gm-Message-State: APjAAAWoGxNVUM3eLuthJ0DLLjDEkceyVAdE/QQHzeCvE61mrTZCfDhS
-	lBYIZtMS5wNPaTXvQuzZ0qn4N1T5NGDV+hziByZ0gSmeTjsLv5xEUhLTgAtxulSU+kOB9rwnL5l
-	Dl82zrN5f0nxC+Wh0Q6j0vMGfCJYi0ziezZkcF/zeaSfYAGNG/aQgOFMo2ddtVADLnQ==
-X-Received: by 2002:a2e:9857:: with SMTP id e23mr10824548ljj.217.1560362658408;
-        Wed, 12 Jun 2019 11:04:18 -0700 (PDT)
-X-Received: by 2002:a2e:9857:: with SMTP id e23mr10824505ljj.217.1560362657666;
-        Wed, 12 Jun 2019 11:04:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560362657; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=8+ft67gLSM1rrDdnljBHIb0dGMGD+iFhA8XvcJRi9W8=;
+        b=lZ5+xXydPlzPKuprGSrJaBAIzv9rNKRMB/HLLzMZY05Eo9xkVpplRSFV97ap3QeNGh
+         12wQnqAGLbgwQ6yofxLSXJZ9IOigk2HyOABt2BicA6JQEc3whYf9xGEtEvBia82zHpQ2
+         OdCUq0nwQtRtMdQ/XMFpOpu/Q9MpH5MrM/ehXK2ij5OqyCGP9y7acMbYPr31Y2FvOupE
+         /COEKB1OpBu8wcvNKfLcs+iofMyt+t6OWshEy3LolHezV3uPxoMgWlsSgBAo9H4a/noc
+         26HP1iHMedWFgycU0Lkn4kOcioJTGyZjuGRU+Xb4ufi6Bsii+xHGarhwCY5tykKJ9uXg
+         CbOQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXyiLoncPRqX0/NzOjyNWJe1fBgZW7fJ5DA4fjoh8xulUjcjKUb
+	tIP/2HFSx2gjpUUJdghxa6MGtJQtfjAwSqyrF6vW2cDL4f0fH7+BusFJSN2NK7GVBfy7ETb7ZW/
+	cUIKyHAGFaM1TIAt4K8IAdN/Git5TJnvy04MJJoqklfP1xW65oxyvG/l1DIpnDo8qRg==
+X-Received: by 2002:a17:902:7c04:: with SMTP id x4mr24004946pll.70.1560363952322;
+        Wed, 12 Jun 2019 11:25:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyrJjRg836t1v++hYjpHLhPf0CyKYlRdMY9TEfdo1jzduQ7hPlkjqAwNfS+xPK8hbIpLCTf
+X-Received: by 2002:a17:902:7c04:: with SMTP id x4mr24004905pll.70.1560363951552;
+        Wed, 12 Jun 2019 11:25:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560363951; cv=none;
         d=google.com; s=arc-20160816;
-        b=LYdhfOVROlpvox+n9fXV7fnBGt1B+BZqiMG0yDlaVQBLYntTq4/oofrCQCLkA2gbME
-         Jhk/Dc/biXd+c2NziMnUCr3G1iat3qlHfanaED9kmFvRBJObs1YTOVlNHh2XDW9dBfoy
-         1L8xRHNI+vz6YVTxNRrSAoNbcP7aAQWNpbcQRKKIku4D6JmN5KOqT2Z8F+2cQpB+9zgO
-         QnhByW71PYKfwLnHOuIJuv2k4bxtL7BPko8Xt8RRdu7YwXIJJOvPgyOPwJqJv9SLtULs
-         kMPyfFNbsw5iCDIxJmGr32bmoJUqSEvfIaxz0qTwhYyh/qbyHxIWJte2ZYRAWO0Jj59i
-         xbaw==
+        b=nvnQscGR7PEddNSq464PWBg65BII5j9PBIHGNFarSgNe5ZVXJxGbN4KAC8Us4smaJa
+         D7m5ZDtMTIQA1Csz375dhXkyVmisyu4xP5322OCzpNFh1I5KsF/qVbHZujCbPPj3bAIS
+         5YwnAN8EbCabQ1TlUR6uQrqUYz6bCVFpj65aeKKA8c8lEVou4aWWNDxB4La4zTiYxJBH
+         xmJbalCl1y6+0epaHLr80/22PWdJAburJxk2ztI4Pc4u5aGfd6bmG7fyIyJE7OVv8HSI
+         OyfJ3fN8pCsYv96aL4fuSAxVQH93bFGwA7OjNVnsEVxp+JNqZzKFF4L+YF20WJqtSg92
+         5ZyQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=HA7VYYB6HYTnwOsfSZ6IJMiRwVIheU8PeAUQ4SUxsDE=;
-        b=rETOG5VH3jbyVsMPdDTdrX73vHv85XXR2YEds7J/4qZowmeLgx59tBf3oPSQLXP+k8
-         CgnvjRGHrAhYQQIvm0zkVipA/AJ7pA167kva7D21GqyPGy2O5CLXhsHEPlxTY592pchK
-         IhS8YwAfqHag1YIjXZZVaJfkkYjhWcL8/CU7AnVkvxMKhi6WyqhDrfX+r8hhJwkTa6Jr
-         Nakgfiq87s2I9z2y5araNRluZzilQxY+P98+aefr5LrBtYrqMy/Cr2zWS8nxd8f3hbtH
-         K6+tZIgj8lBffYPG6fuiKdPxZkHj+ixJirkVqVUgn6/fZVJ9mVpNGRo191h5aJdWIzy5
-         l1iA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=8+ft67gLSM1rrDdnljBHIb0dGMGD+iFhA8XvcJRi9W8=;
+        b=fO1bBwsR8i7GAMTiF/b6LZfHSdAH+FS0WTfdt43LdhbRA5HhC5GVyx3aoMjkaoEgGs
+         PqsxDSyiNjzcDMcJvIyW5HV/RN8Lg3eAQSWXR95tu3TEG4l7QJi8QlhvLdTqLBDdhrQx
+         v+iotnhC4mwnrgSZ1oBPhsCctGdobVjCnvr4REZocBXILKb3jMlkTfPaWo9+mc7r7fEy
+         fD/tzmFTrX2qG4Eg39BM/zJ+JkKw8QzlLUy46bySIbCEmCPAlfNwUr4RFNNufh2UEjjA
+         5M9C6d9RO2lEWUWXZ7lcy/9Ok4dc7ByugfTIrsnPzPcBDDudyi4J4xqZHUNCFZMtRXXX
+         uW9g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Z/GOFRJX";
-       spf=pass (google.com: domain of gorcunov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=gorcunov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v9sor310213ljh.19.2019.06.12.11.04.17
+       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id 129si484333pfy.160.2019.06.12.11.25.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Jun 2019 11:04:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of gorcunov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Jun 2019 11:25:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Z/GOFRJX";
-       spf=pass (google.com: domain of gorcunov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=gorcunov@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=HA7VYYB6HYTnwOsfSZ6IJMiRwVIheU8PeAUQ4SUxsDE=;
-        b=Z/GOFRJXw0yo2NclXm9o0hxO/gUmaXJp5lNg1hcuR0tF6112X2HthCJzh8CXxy/QSX
-         Casq6IhYPWFHSOoYCLPqB5YZn+lGzUwQDR1WTAPmX/8rdQITptlPHe92KHb2/yaoL1Qt
-         OGcdLSSG0ZNjV51rjf3jHYjCGK90xs/bev2fp5W1lR0cxH4M1DMEqcSVFwkMuNOQm5xw
-         6YU/glgO1ALD0evMQ/dDqytfrdWiSyB7glDGSG68T2gHvfxZHd4tJisB95h9lQor2gZu
-         cbJMtpKGYitBwg44ruAKeGOHc2XkjHf/HsoByLHJvjodM4T3nwRt15ULmQgxdTiwyLJ3
-         C2PQ==
-X-Google-Smtp-Source: APXvYqzotGrbJI9s/KdrG87kqY2e2cD44RcIacKKFE4JrKA3iuS7uYtR1JSgUbX5wF56fdmAE1QXjA==
-X-Received: by 2002:a2e:890a:: with SMTP id d10mr1641465lji.145.1560362657186;
-        Wed, 12 Jun 2019 11:04:17 -0700 (PDT)
-Received: from uranus.localdomain ([5.18.102.224])
-        by smtp.gmail.com with ESMTPSA id w205sm96813lff.92.2019.06.12.11.04.15
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 12 Jun 2019 11:04:16 -0700 (PDT)
-Received: by uranus.localdomain (Postfix, from userid 1000)
-	id 90A854605BC; Wed, 12 Jun 2019 21:04:15 +0300 (MSK)
-Date: Wed, 12 Jun 2019 21:04:15 +0300
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Michal =?iso-8859-1?Q?Koutn=FD?= <mkoutny@suse.com>, linux-mm@kvack.org,
-	Laurent Dufour <ldufour@linux.ibm.com>,
-	linux-kernel@vger.kernel.org, Kirill Tkhai <ktkhai@virtuozzo.com>
-Subject: Re: [RFC PATCH] binfmt_elf: Protect mm_struct access with mmap_sem
-Message-ID: <20190612180415.GE23535@uranus.lan>
-References: <20190612142811.24894-1-mkoutny@suse.com>
- <20190612170034.GE32656@bombadil.infradead.org>
- <20190612172914.GC9638@blackbody.suse.cz>
- <20190612175159.GF32656@bombadil.infradead.org>
+       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Jun 2019 11:25:50 -0700
+X-ExtLoop1: 1
+Received: from sjchrist-coffee.jf.intel.com (HELO linux.intel.com) ([10.54.74.36])
+  by fmsmga007.fm.intel.com with ESMTP; 12 Jun 2019 11:25:50 -0700
+Date: Wed, 12 Jun 2019 11:25:50 -0700
+From: Sean Christopherson <sean.j.christopherson@intel.com>
+To: Marius Hillenbrand <mhillenb@amazon.de>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-hardening@lists.openwall.com, linux-mm@kvack.org,
+	Alexander Graf <graf@amazon.de>,
+	David Woodhouse <dwmw@amazon.co.uk>
+Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
+ secrets
+Message-ID: <20190612182550.GI20308@linux.intel.com>
+References: <20190612170834.14855-1-mhillenb@amazon.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190612175159.GF32656@bombadil.infradead.org>
-User-Agent: Mutt/1.11.3 (2019-02-01)
+In-Reply-To: <20190612170834.14855-1-mhillenb@amazon.de>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 12, 2019 at 10:51:59AM -0700, Matthew Wilcox wrote:
-> On Wed, Jun 12, 2019 at 07:29:15PM +0200, Michal Koutný wrote:
-> > On Wed, Jun 12, 2019 at 10:00:34AM -0700, Matthew Wilcox <willy@infradead.org> wrote:
-> > > On Wed, Jun 12, 2019 at 04:28:11PM +0200, Michal Koutný wrote:
-> > > > -	/* N.B. passed_fileno might not be initialized? */
-> > > > +
-> > > 
-> > > Why did you delete this comment?
-> > The variable got removed in
-> >     d20894a23708 ("Remove a.out interpreter support in ELF loader")
-> > so it is not relevant anymore.
+On Wed, Jun 12, 2019 at 07:08:24PM +0200, Marius Hillenbrand wrote:
+> The Linux kernel has a global address space that is the same for any
+> kernel code. This address space becomes a liability in a world with
+> processor information leak vulnerabilities, such as L1TF. With the right
+> cache load gadget, an attacker-controlled hyperthread pair can leak
+> arbitrary data via L1TF. Disabling hyperthreading is one recommended
+> mitigation, but it comes with a large performance hit for a wide range
+> of workloads.
 > 
-> Better put that in the changelog for v2 then.  or even make it a
-> separate patch.
+> An alternative mitigation is to not make certain data in the kernel
+> globally visible, but only when the kernel executes in the context of
+> the process where this data belongs to.
+>
+> This patch series proposes to introduce a region for what we call
+> process-local memory into the kernel's virtual address space. Page
+> tables and mappings in that region will be exclusive to one address
+> space, instead of implicitly shared between all kernel address spaces.
+> Any data placed in that region will be out of reach of cache load
+> gadgets that execute in different address spaces. To implement
+> process-local memory, we introduce a new interface kmalloc_proclocal() /
+> kfree_proclocal() that allocates and maps pages exclusively into the
+> current kernel address space. As a first use case, we move architectural
+> state of guest CPUs in KVM out of reach of other kernel address spaces.
 
-Just updated changelog should be fine, I guess. A separate commit
-just to remove an obsolete comment is too much.
+Can you briefly describe what types of attacks this is intended to
+mitigate?  E.g. guest-guest, userspace-guest, etc...  I don't want to
+make comments based on my potentially bad assumptions.
+ 
+> The patch set is a prototype for x86-64 that we have developed on top of
+> kernel 4.20.17 (with cherry-picked commit d253ca0c3865 "x86/mm/cpa: Add
+> set_direct_map_*() functions"). I am aware that the integration with KVM
+> will see some changes while rebasing to 5.x. Patches 7 and 8, in
+
+Ha, "some" :-)
+
+> particular, help make patch 9 more readable, but will be dropped in
+> rebasing. We have tested the code on both Intel and AMDs, launching VMs
+> in a loop. So far, we have not done in-depth performance evaluation.
+> Impact on starting VMs was within measurement noise.
 
