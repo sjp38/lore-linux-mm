@@ -2,161 +2,183 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=unavailable
+X-Spam-Status: No, score=-2.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_NEOMUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C386C31E47
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:14:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8249DC31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:19:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 37AA8208C2
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:14:44 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="QkhZMvI8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37AA8208C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 3A89220896
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:19:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A89220896
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BE0296B0007; Wed, 12 Jun 2019 07:14:43 -0400 (EDT)
+	id D8AD16B0006; Wed, 12 Jun 2019 07:19:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B90D26B0008; Wed, 12 Jun 2019 07:14:43 -0400 (EDT)
+	id D3AE86B0007; Wed, 12 Jun 2019 07:19:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AA7AF6B000A; Wed, 12 Jun 2019 07:14:43 -0400 (EDT)
+	id C02A96B0008; Wed, 12 Jun 2019 07:19:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 709CE6B0007
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:14:43 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id y5so11773887pfb.20
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 04:14:43 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7727D6B0006
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:19:24 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id v15so1054553wmh.1
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 04:19:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=ICAcqmNM80YqXGU9u0yKcUq/onm/SsQo2SDs/l3f+hY=;
-        b=KjnAOQMyMJEw5unIyyzO47yYCNtE4Y7Mhoj18fFa+ZfpLUUwLdQDWDWwgey1WCxfgj
-         xkOk856MaECs8gQARLr+qGprqNsSpJPITduZOvrrv8wugPflYj47/lu/z4f3jCO6eyDh
-         LjYVPnTOJPKkgBuoUeFVnqJlh2gJhk+8l7nQgHHXk6VtEYS6x8JBGOz9YIlEeXOJSKD1
-         DGFKsuR0ANl+1ARxjCs22B8W4UUSdv32qLQLNJMm1N4QHZ3IN0rpOpqC54QS2U5JtapN
-         fDcLLrIbJqiNDa0p0g0WwApAphjWH7Es2QOQVUq3jKRJX+b0vDKY5Z6BsNgd4ZIEp/Yp
-         EvnQ==
-X-Gm-Message-State: APjAAAUQZ4CD4HdtjPqJN7bbVmt358cunJFIMZSFwqDKQArv0pR+tMoO
-	TFe4/R3/Q4uWKP7CdjNn03sVecBTCGMxUYNfWkEC4SwgmV3jizALK2DgvJCvumt2bAVsfXWz+ql
-	MLzB5X19mwQ5BjcOKfMkqIvyzHRYwSgNBklPZ5P+arfatE9sgn6k9qVd0nSWuLC/pLw==
-X-Received: by 2002:a17:90a:9dc5:: with SMTP id x5mr30876634pjv.110.1560338083105;
-        Wed, 12 Jun 2019 04:14:43 -0700 (PDT)
-X-Received: by 2002:a17:90a:9dc5:: with SMTP id x5mr30876581pjv.110.1560338082363;
-        Wed, 12 Jun 2019 04:14:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560338082; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=2DY9BNuwvWwHmPyKTH7LGXdzKvzCIaqNI7kWqlmuhvc=;
+        b=qeGcWvlZMfkk5cF6xL1gnqxPJz8ZB03HE2Tj3l99FikPSp8gkmigXKWyDUZ5mZ4pja
+         3G0E80Adtksti+AMAiWq9f/r3whRUufIArbs3pYj800CYeexAuDK6QQqmS99Zzb3EMqj
+         0OcyI6mB/cndz/iZyqAnTEfxkGvxFx7/myvXYeR/QC2zRhOuGlNtLqTaY8xiCW03hUSh
+         Qv1UwBInTCzhPKY70fUTu/JZIeavUVKXaoIpl5u3eq/V3a5ufAVRYAPfsZZhhmvQHCjw
+         NmW8v3PraGX9nx7Ow9EY3E6DDPop1KoVCMRvbh+pwhJ07ayPbuhf58k3ng+OnKhXq0Ln
+         zPgQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWhoxIgFcmGBl65WfOceBuz1TiYsT7l4BE51Jz+zqGeiHP9+j4q
+	KGRjyIVz8v2D5UBcyNxG9pC/W+1Ebvfd2CQ/JrIDr/lSBBajr6iH6c/Ffa1hNsVahJ9gKqTs3QV
+	6Snn6FEZ4hEV2ZVoe5INdC8zgfgCmQSFr+NEzslYnC4MiKrP9BviuwRrngL7QIl2O0g==
+X-Received: by 2002:a1c:480a:: with SMTP id v10mr21618114wma.120.1560338363932;
+        Wed, 12 Jun 2019 04:19:23 -0700 (PDT)
+X-Received: by 2002:a1c:480a:: with SMTP id v10mr21618048wma.120.1560338362847;
+        Wed, 12 Jun 2019 04:19:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560338362; cv=none;
         d=google.com; s=arc-20160816;
-        b=ySJYZtQg9CfPG8MvgcBFGh3eCisRIpp8uN5hxk2VkWPDtzfCy76Qy3eZY5vMfXweBM
-         PTHhQowI19hQpHco+L8TNIIL3SamxXPpRkIZlqcjORq5c4rgl2prfw7jhWU/1YGaYrB2
-         4F/nS2vzq536jYRGVIKOBtBt91Ui+0M3g853td0nCDGSyu0lR8Ql5nvHVpcuiPtHfrDo
-         78av5P0QlG4f0F4Uiy8BFT0mRhAonpN00IbBK9ZBn4bDU3rS8L0R7isxArbhu21riXYt
-         krNZj9cX/bp6xIw9kn5RgiMJKkv0a4ciqRKTb+4Pxm2vVHOOxp+kvfoNONpTm3+fK4sK
-         N9Qg==
+        b=iLZy1rZwJaHcVt4aNQ0PzW2dZF079pWrklLXMv6KiNwAgQN+O9r9jXhWwh8pnAJIby
+         027WXmPyHvBXeHS08NH3OmmSeUP46tHhpto/6nYbJf2DXDu5vxlJEAtSy/23Svr3pPhY
+         7/MuICRUNdZlZNnYEf2WOkJ/wGfCiCtX4Q+rGhDrR9zuSWL9vyBvpvelaUy2Yczp3cNf
+         jlH0ayfqH1M6NFukc4DTIC4ul2eDa9VCmO10QEsevWBqDpZSkEXi9MQK5FrbWktWuA2j
+         UZYxyAynsg982Hp5kdGb81tSWWdgdmsR5JuWnaHXp5wN0RTrJ7+Em/i45qf29RtjgiKa
+         FbyQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=ICAcqmNM80YqXGU9u0yKcUq/onm/SsQo2SDs/l3f+hY=;
-        b=TiEidZL5mW+LqSFaYbCuMh5ymlYYU2VywNdtSh9ZjHSOHlTK0+79AxzI1REC6PNieP
-         MbRwjZNmcyK04kvjt4ph2GT3sQkAT6Y3viiZHhyYLlpwk9wBDWu42GDn75LL/mGT28q8
-         vQ5fdp7fHSwHq0d6iNF5CPhttgfvRTATMtpVcalWKc0aUZRCArmpoVEr3akDbEvQtirQ
-         C4/79UajoeSztBjqSLu0DYwRoFMebR9Hww4ihZsGcsNT4V+vyfZCWPFxXIa7N7G0S/sj
-         A1H96bpJrEF/dQaLLDDjNlHO+QZVF71yfrzcltUAPKPW3btr5c5xzP7uFUVJUI6FA681
-         0gtA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=2DY9BNuwvWwHmPyKTH7LGXdzKvzCIaqNI7kWqlmuhvc=;
+        b=wLauI5UfzPgvnmB3bDq4saVKCGvFIP3N/sybVBEwZH1lGDrFVzl78DLsTy8d3pex0k
+         sbz85YnOJYZ9L4nribouBumqPGh3ehy1HwPB9CzQRX1yg1pvWgfFvtjXUGvDDvMbtzoh
+         tlRAnJOXHlNPw0cGZqdk7VcMvb1MjbVNvLJ1ilsjUp1sMVRrG0BoYkwa9RQqKK1Z7I4A
+         aw+rcNzAsSFAtfsXgPF7MjPdew9pj7lp1t9x2TR1xrxYCNpZ9VF+uIc3SKN//VOAG8Ja
+         EjMbIDhoR1gARQ1DoGFnhSewoDi+fPPAVMlI79lhSDMdH0cq7ZJ3qVrmrxSzmKzVVkiK
+         Qizg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=QkhZMvI8;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c15sor9875342pls.61.2019.06.12.04.14.42
+        by mx.google.com with SMTPS id t6sor364947wrq.30.2019.06.12.04.19.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 12 Jun 2019 04:14:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 12 Jun 2019 04:19:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=QkhZMvI8;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=ICAcqmNM80YqXGU9u0yKcUq/onm/SsQo2SDs/l3f+hY=;
-        b=QkhZMvI8xgho9eMFZ7w6J/3duhWcdGLEkVVUAU2qSaxNfXU+GXLc+PdiUdCpUn61iY
-         0xCUxQ9wiA1Jj7ZnvEwSzmljdVe71a10tK0t/VIk6vJ6KuoIESh9plrNP00oJ9EUV9CE
-         7ZXKJL/NmCDrLh5D1fRV3U/5XcSqnaFIYrJ7IhnmnWDC1y2ZQhZMwMFDrVZ4wkPjj2PR
-         KjnNxVxOeNHsZ1yb6hgnM2H6TbZTzWPz9Cffq6e0f9rEpBuiI2bynmdfsgpQFhae4y5r
-         LLRsk0MnIrY8OwbkGOOGkhYBEu+P7mFEBBswTcH9Mhn9r0qq9AEF/SsRyiNTxER5NtY3
-         eTUQ==
-X-Google-Smtp-Source: APXvYqygEZ27HGfNqszCpdSgojAf7S6ru14/DaT8Or0Syv3FL9sWDfZ+9LXBU0/5Hxbzx8tkSmaHaZjTcL+f/jghf7s=
-X-Received: by 2002:a17:902:8609:: with SMTP id f9mr75570344plo.252.1560338081704;
- Wed, 12 Jun 2019 04:14:41 -0700 (PDT)
+       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqy/37Y6CvQfxqtHse3Rk+em+nImH5GtIIV1i2YZ9vY5x/E8azVs6GhTTo5OHfW1RpK9PFD6Ig==
+X-Received: by 2002:a5d:488b:: with SMTP id g11mr42236505wrq.72.1560338362423;
+        Wed, 12 Jun 2019 04:19:22 -0700 (PDT)
+Received: from localhost (nat-pool-brq-t.redhat.com. [213.175.37.10])
+        by smtp.gmail.com with ESMTPSA id m21sm4710436wmc.1.2019.06.12.04.19.21
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 12 Jun 2019 04:19:21 -0700 (PDT)
+Date: Wed, 12 Jun 2019 13:19:20 +0200
+From: Oleksandr Natalenko <oleksandr@redhat.com>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Minchan Kim <minchan@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Tim Murray <timmurray@google.com>,
+	Joel Fernandes <joel@joelfernandes.org>,
+	Suren Baghdasaryan <surenb@google.com>,
+	Daniel Colascione <dancol@google.com>,
+	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
+	Brian Geffon <bgeffon@google.com>, jannh@google.com,
+	oleg@redhat.com, christian@brauner.io, hdanton@sina.com,
+	lizeb@google.com
+Subject: Re: [PATCH v2 0/5] Introduce MADV_COLD and MADV_PAGEOUT
+Message-ID: <20190612111920.evedpmre63ivnxkz@butterfly.localdomain>
+References: <20190610111252.239156-1-minchan@kernel.org>
+ <20190612105945.GA16442@amd>
 MIME-Version: 1.0
-References: <cover.1559580831.git.andreyknvl@google.com> <9e1b5998a28f82b16076fc85ab4f88af5381cf74.1559580831.git.andreyknvl@google.com>
- <20190611150122.GB63588@arrakis.emea.arm.com> <CAAeHK+wZrVXxAnDXBjoUy8JK9iG553G2Bp8uPWQ0u1u5gts0vQ@mail.gmail.com>
- <20190611175037.pflr6q6ob67zjj25@mbp>
-In-Reply-To: <20190611175037.pflr6q6ob67zjj25@mbp>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Wed, 12 Jun 2019 13:14:30 +0200
-Message-ID: <CAAeHK+x4sHKfQx31uQ9zSO48oRs3XLATfymY=vgEHQ1FLNmeig@mail.gmail.com>
-Subject: Re: [PATCH v16 16/16] selftests, arm64: add a selftest for passing
- tagged pointers to kernel
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
-	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, 
-	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
-	Yishai Hadas <yishaih@mellanox.com>, Felix Kuehling <Felix.Kuehling@amd.com>, 
-	Alexander Deucher <Alexander.Deucher@amd.com>, Christian Koenig <Christian.Koenig@amd.com>, 
-	Mauro Carvalho Chehab <mchehab@kernel.org>, Jens Wiklander <jens.wiklander@linaro.org>, 
-	Alex Williamson <alex.williamson@redhat.com>, Leon Romanovsky <leon@kernel.org>, 
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, Dave Martin <Dave.Martin@arm.com>, 
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, Jason Gunthorpe <jgg@ziepe.ca>, 
-	Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190612105945.GA16442@amd>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 11, 2019 at 7:50 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
->
-> On Tue, Jun 11, 2019 at 07:18:04PM +0200, Andrey Konovalov wrote:
-> > On Tue, Jun 11, 2019 at 5:01 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
-> > > static void *tag_ptr(void *ptr)
-> > > {
-> > >         static int tagged_addr_err = 1;
-> > >         unsigned long tag = 0;
-> > >
-> > >         if (tagged_addr_err == 1)
-> > >                 tagged_addr_err = prctl(PR_SET_TAGGED_ADDR_CTRL,
-> > >                                         PR_TAGGED_ADDR_ENABLE, 0, 0, 0);
-> >
-> > I think this requires atomics. malloc() can be called from multiple threads.
->
-> It's slightly racy but I assume in a real libc it can be initialised
-> earlier than the hook calls while still in single-threaded mode (I had
-> a quick attempt with __attribute__((constructor)) but didn't get far).
->
-> Even with the race, under normal circumstances calling the prctl() twice
-> is not a problem. I think the risk here is that someone disables the ABI
-> via sysctl and the ABI is enabled for some of the threads only.
+On Wed, Jun 12, 2019 at 12:59:45PM +0200, Pavel Machek wrote:
+> > - Problem
+> > 
+> > Naturally, cached apps were dominant consumers of memory on the system.
+> > However, they were not significant consumers of swap even though they are
+> > good candidate for swap. Under investigation, swapping out only begins
+> > once the low zone watermark is hit and kswapd wakes up, but the overall
+> > allocation rate in the system might trip lmkd thresholds and cause a cached
+> > process to be killed(we measured performance swapping out vs. zapping the
+> > memory by killing a process. Unsurprisingly, zapping is 10x times faster
+> > even though we use zram which is much faster than real storage) so kill
+> > from lmkd will often satisfy the high zone watermark, resulting in very
+> > few pages actually being moved to swap.
+> 
+> Is it still faster to swap-in the application than to restart it?
 
-OK, I'll keep the code racy, but add a comment pointing it out. Thanks!
+It's the same type of question I was addressing earlier in the remote
+KSM discussion: making applications aware of all the memory management stuff
+or delegate the decision to some supervising task.
 
->
-> --
-> Catalin
+In this case, we cannot rewrite all the application to handle imaginary
+SIGRESTART (or whatever you invent to handle restarts gracefully). SIGTERM
+may require more memory to finish stuff to not lose your data (and I guess
+you don't want to lose your data, right?), and SIGKILL is pretty much
+destructive.
+
+Offloading proactive memory management to a process that knows how to do
+it allows to handle not only throwaway containers/microservices, but also
+usual desktop/mobile workflow.
+
+> > This approach is similar in spirit to madvise(MADV_WONTNEED), but the
+> > information required to make the reclaim decision is not known to the app.
+> > Instead, it is known to a centralized userspace daemon, and that daemon
+> > must be able to initiate reclaim on its own without any app involvement.
+> > To solve the concern, this patch introduces new syscall -
+> > 
+> >     struct pr_madvise_param {
+> >             int size;               /* the size of this structure */
+> >             int cookie;             /* reserved to support atomicity */
+> >             int nr_elem;            /* count of below arrary fields */
+> >             int __user *hints;      /* hints for each range */
+> >             /* to store result of each operation */
+> >             const struct iovec __user *results;
+> >             /* input address ranges */
+> >             const struct iovec __user *ranges;
+> >     };
+> >     
+> >     int process_madvise(int pidfd, struct pr_madvise_param *u_param,
+> >                             unsigned long flags);
+> 
+> That's quite a complex interface.
+> 
+> Could we simply have feel_free_to_swap_out(int pid) syscall? :-).
+
+I wonder for how long we'll go on with adding new syscalls each time we need
+some amendment to existing interfaces. Yes, clone6(), I'm looking at
+you :(.
+
+In case of process_madvise() keep in mind it will be focused not only on
+MADV_COLD, but also, potentially, on other MADV_ flags as well. I can
+hardly imagine we'll add one syscall per each flag.
+
+-- 
+  Best regards,
+    Oleksandr Natalenko (post-factum)
+    Senior Software Maintenance Engineer
 
