@@ -2,228 +2,175 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,FSL_HELO_FAKE,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CC82C31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 23:14:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F982C31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 23:29:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 041F3208C2
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 23:14:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="EswV1nGC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 041F3208C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id F3F3520B7C
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 23:29:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3F3520B7C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7C7146B000A; Wed, 12 Jun 2019 19:14:32 -0400 (EDT)
+	id 76E406B0008; Wed, 12 Jun 2019 19:29:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 778976B000D; Wed, 12 Jun 2019 19:14:32 -0400 (EDT)
+	id 71EAA6B000E; Wed, 12 Jun 2019 19:29:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6689E6B000E; Wed, 12 Jun 2019 19:14:32 -0400 (EDT)
+	id 60DAC6B0010; Wed, 12 Jun 2019 19:29:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 30C636B000A
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 19:14:32 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i123so13055909pfb.19
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 16:14:32 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DD566B0008
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 19:29:06 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id z10so12411277pgf.15
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 16:29:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=zENyOoOSgI8QfaggquPMfPbLKw7a6eUv2Qjm9NWJtcQ=;
-        b=E/sMEI7Qf9GMUjrz0FJvxZiBwyKbB5vRlOum+2ADEi6I0GzWrDfkCNJW14gc118j/b
-         Aa9Nh5i6gWKkiODj1AkBy0rI8ojnWwd2N82cZ8VgI6r2XELDrM/PFmerkFftMgRHxeRt
-         RCXt6tc8nbjlHCC+GkXsSkvvrTLcj3QyakhlYvk7uHRzpDWCwNxJu5iTqegQYur/9z8S
-         idEWtymubjrmJpF9Ti8wWZRPq1m8YSxCh0G6j6EfWw7guGVprf4aCukvZNbt+hfktOt8
-         XUVj8CxbeIp7Wgb3GfZ6kr9vqL07D5POb8mNxjTtZD23AmkRAIoe+j8gC4JrL3tXQqRF
-         qd9Q==
-X-Gm-Message-State: APjAAAXrL5KzeEiMzcQ/aR5USwu/EdztO9+FNZ3jiyTjCj0PX3oJfZ+w
-	/lrtgDR+/0OdMbugfGZuL5zF8fyx8mZyF5Z/bw//2RLzLKvZ2A3TgA1G/DolrDgQz0DDbtO69zI
-	96lVDl8DwKLAqil8zcx63IihFgaE4rR+tu2qztb8Vdhw2Klm+N7fVCQ5p/EemoDsdmA==
-X-Received: by 2002:a17:90a:de08:: with SMTP id m8mr1622895pjv.50.1560381271661;
-        Wed, 12 Jun 2019 16:14:31 -0700 (PDT)
-X-Received: by 2002:a17:90a:de08:: with SMTP id m8mr1622846pjv.50.1560381270909;
-        Wed, 12 Jun 2019 16:14:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560381270; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=V6zGvrMDnzilhUeIz1VJFNtcRt5mHGENylPYXUDNJmc=;
+        b=CA2DcX9cRsoJ/Mf/k8W2R6AP9trKo5ViyjAPsEmKz+RJkg7cTVWaf7ja98C5SwrDkj
+         zoIo1s4tDqvDR1J/mqaebGyP7p66ML8RC2fbzO3/imlpLwMA/NXGuQAV3UWi0zolnDrl
+         4mMGohPycsfLDhl8w1hXenqHTi7jdxgSZSe3G5g9TMHJOLshPjR+/v+cXl67YIp1bba8
+         xIFGTJaBZ8geevoLyq0IkZtJ/yV6df/2uDygsrEq6vzlO4cNtLvS1vvpu7XXbaWZ0bEv
+         zV4bZcBR60mYjEP8t9GKkmILZGMSedbqDeIWc5PEw0eScdOh4Q3Vet5rJbZHjX1kM0/8
+         Je8g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAU+jWxmZzF6nDHoJ1fk5YMy+VKzd/YEhUwydKaNwaf9cF5LTSBt
+	+oJK9tW0k4VoOzvndFyDDHytqs7v96KqleVIh97aZ2oPVCUiUvLJ0WQkTdW9Sdc5ukcY5nn9f+d
+	E6ofOxlWfk3U12oq3mNQqh3R7aAvLyX2IzQQVgVblF3ZYHfz6RFLmKZ6VBD8nIu1+mQ==
+X-Received: by 2002:a17:90a:a00d:: with SMTP id q13mr1662563pjp.80.1560382145806;
+        Wed, 12 Jun 2019 16:29:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyim7tFqouiNTrHAUt914Pe84FhbuOXs9pTQ/UHAvMcohMwPKFt1dmPGeAERBCkA4TZOG5K
+X-Received: by 2002:a17:90a:a00d:: with SMTP id q13mr1662510pjp.80.1560382144927;
+        Wed, 12 Jun 2019 16:29:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560382144; cv=none;
         d=google.com; s=arc-20160816;
-        b=HRVjQdZqHx81moLHudynYqFEXsS2LgLVa5kpXZgF/nqNPeCxYFXv9RnA8j7eD34TPp
-         9q+uq5MPrEeWQC5A+JZY9dBYnobukCD9OK6KNFZptV9fBO5e3QSJecqQPI5o5OSR79Nw
-         lmu/LLQu07SFUZtLuWQ1dOPRZvsYltETbN3tRBpvqdFt3UP0+r2onwy7AdjTJC2P5ByF
-         8KAZoF+VuHrcclIWvI0SbuTTOfz1xJk4izaFRm6XVhghtYfpaugQNr5dG9CnMgnv2S1T
-         fYfxpTDKCVlOn9sJmaNrxSOW9vFjkoC7q8UAo5h7wwhYLI2lJ6g9XqeCTj6Pi5HJSS7x
-         uVEg==
+        b=I2KNPwny15y2YF5qclsQZ7Y545WcKbNZJ3W0gOo99SYIIFPQq8iiHPcZSSv8zf480t
+         ukkcjg6akhdJgljln1I2JnUOCXCCfvXsh2VWm8glFAP0kROKAAmXcSenYzQ3RLdAbtnk
+         BBxVMkKP/dSJwonBULCj4hqz14H6eGy95iH0YNxGZJOL5yRAwSwEK52/3ExaQWUBfITp
+         RvIle5VDVVtYMhxRcN7DhASAxAA6LXYJPzjvoDmiXzDT3OQ0nB16XrEwG33cJB4pKue3
+         iSFxCsl4esZ2Ft/YpX4RFqxUR2Il3XWcBnVF8C2ZmTgkeVwU6HdB2R1VC5cVgNRjZUuU
+         AOng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=zENyOoOSgI8QfaggquPMfPbLKw7a6eUv2Qjm9NWJtcQ=;
-        b=OsY1jb0rsabhWLfDTExDoYvnHMUy/mut8K+wQ3copMTha8VtQuUD8adxa3OV6ju1M4
-         lr75Y8c43yIzKki2Yc/t6dXfFfAQn2KLE9LogqPXgWZwE3CpntdqXiw7ahnmr126mW7a
-         1J4hmPq5o7SMKhdSydZAnVhUnmg9+TmpsrZJLP2AvxiE1/AiB5GBY8rVO1/itdvcKjoL
-         darjWcvFbNdNG1vm5H4lVxqDYKDmvwqN89pBTHSxVCPhTOMUOoObzJl1Sb/WTDRKcTXY
-         PqpGNSDVz8CEGf1AxcWtUlQWGobtIaK1sCGwXT6LQltBg2GA01t2hxXrCG0VkHzpLgu0
-         ntdg==
+         :message-id:subject:cc:to:from:date;
+        bh=V6zGvrMDnzilhUeIz1VJFNtcRt5mHGENylPYXUDNJmc=;
+        b=N5mZnIBF3/22ja37W9mv081WnCliCmcUqKRxqP+c/yVlN07nA5gLJFsDyZlJMCiENt
+         xOKMqv0fRNPNoJu/AYDEuRFPApCuzRNPzsEU9dAnhAnr9MMEfQOR/8LbemMWlzaWbsGS
+         xAQEOgj+c/6Xc5h0H4O5ts67MK934H3jsvHmxtqoh9NREkCEXLnFeP+zN7z/NMJEV+sw
+         uvSW65G4gjbYKbAsX3XvUwU4mN3gYvLJH3jOCrGtfNdsQPYSDPY/IJlAIAVB58rg7CnC
+         4osizwKTCPh/zmQF9Ug7f0UzQ3HKLCHKwtdqSzsFgroGAsfGUHYMhiZVVBkHUwr/e3zp
+         SP6g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EswV1nGC;
-       spf=pass (google.com: domain of avagin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=avagin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j39sor1121600plb.22.2019.06.12.16.14.30
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id 11si1008453pgk.422.2019.06.12.16.29.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Jun 2019 16:14:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of avagin@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Jun 2019 16:29:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=EswV1nGC;
-       spf=pass (google.com: domain of avagin@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=avagin@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=zENyOoOSgI8QfaggquPMfPbLKw7a6eUv2Qjm9NWJtcQ=;
-        b=EswV1nGCdvSMNN+Ssd1h7rS3RXzjTfEdTIdOLjAh5nTRd36k1bdXI6zWruRLqObK0d
-         gsC+6WcEPSp6FesMM+ciJCWrwUt+f3/TlPdj8OHr1gJIlaqypHatFu/fEtZyZqtTgxf/
-         7MmVJ24TsNjxF3L2qzae4mJRJIWKsdAgvTDM41obh31wU5DHCFOSTfiDeRVan1EyTWT2
-         FA4K03WJSZqhv2G4TPC4wR1Lyw2YYsUsmJ5/O926cAuclRrP4DGVaFyTWu7dvlXrp9UC
-         rWkAggs99lIDtQwUic825l/5MOVIb6hlsoo+MGQWZsaaKUU00iAbkzb0AD/J2zMhHB2K
-         je/Q==
-X-Google-Smtp-Source: APXvYqynFN1ludII3XFLYMfIONiHIRT3DEjMebyu/w5SXt66rSlQbatTCpNAcnVu5y6nlAVVC7h8BQ==
-X-Received: by 2002:a17:902:b70f:: with SMTP id d15mr3048117pls.318.1560381270418;
-        Wed, 12 Jun 2019 16:14:30 -0700 (PDT)
-Received: from gmail.com ([2a00:79e1:abc:1e04:de9a:68c:c1e8:7e8f])
-        by smtp.gmail.com with ESMTPSA id o26sm491338pgv.47.2019.06.12.16.14.29
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 12 Jun 2019 16:14:29 -0700 (PDT)
-Date: Wed, 12 Jun 2019 16:14:28 -0700
-From: Andrei Vagin <avagin@gmail.com>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Cyrill Gorcunov <gorcunov@gmail.com>,
-	Kirill Tkhai <ktkhai@virtuozzo.com>,
-	Michal =?utf-8?Q?Koutn=C3=BD?= <mkoutny@suse.com>,
-	Al Viro <viro@zeniv.linux.org.uk>, Roman Gushchin <guro@fb.com>,
-	Dmitry Safonov <dima@arista.com>
-Subject: Re: [PATCH v2 5/6] proc: use down_read_killable mmap_sem for
- /proc/pid/map_files
-Message-ID: <20190612231426.GA3639@gmail.com>
-References: <156007465229.3335.10259979070641486905.stgit@buzz>
- <156007493995.3335.9595044802115356911.stgit@buzz>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga001.fm.intel.com ([10.253.24.23])
+  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Jun 2019 16:29:04 -0700
+X-ExtLoop1: 1
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga001.fm.intel.com with ESMTP; 12 Jun 2019 16:29:03 -0700
+Date: Wed, 12 Jun 2019 16:30:24 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
+	linux-xfs@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org, Jason Gunthorpe <jgg@ziepe.ca>,
+	linux-rdma@vger.kernel.org
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190612233024.GD14336@iweiny-DESK2.sc.intel.com>
+References: <20190606014544.8339-1-ira.weiny@intel.com>
+ <20190606104203.GF7433@quack2.suse.cz>
+ <20190606220329.GA11698@iweiny-DESK2.sc.intel.com>
+ <20190607110426.GB12765@quack2.suse.cz>
+ <20190607182534.GC14559@iweiny-DESK2.sc.intel.com>
+ <20190608001036.GF14308@dread.disaster.area>
+ <20190612123751.GD32656@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=koi8-r
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <156007493995.3335.9595044802115356911.stgit@buzz>
-User-Agent: Mutt/1.11.3 (2019-02-01)
+In-Reply-To: <20190612123751.GD32656@bombadil.infradead.org>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 09, 2019 at 01:09:00PM +0300, Konstantin Khlebnikov wrote:
-> Do not stuck forever if something wrong.
-> Killable lock allows to cleanup stuck tasks and simplifies investigation.
-
-This patch breaks the CRIU project, because stat() returns EINTR instead
-of ENOENT:
-
-[root@fc24 criu]# stat /proc/self/map_files/0-0
-stat: cannot stat '/proc/self/map_files/0-0': Interrupted system call
-
-Here is one inline comment with the fix for this issue.
-
+On Wed, Jun 12, 2019 at 05:37:53AM -0700, Matthew Wilcox wrote:
+> On Sat, Jun 08, 2019 at 10:10:36AM +1000, Dave Chinner wrote:
+> > On Fri, Jun 07, 2019 at 11:25:35AM -0700, Ira Weiny wrote:
+> > > Are you suggesting that we have something like this from user space?
+> > > 
+> > > 	fcntl(fd, F_SETLEASE, F_LAYOUT | F_UNBREAKABLE);
+> > 
+> > Rather than "unbreakable", perhaps a clearer description of the
+> > policy it entails is "exclusive"?
+> > 
+> > i.e. what we are talking about here is an exclusive lease that
+> > prevents other processes from changing the layout. i.e. the
+> > mechanism used to guarantee a lease is exclusive is that the layout
+> > becomes "unbreakable" at the filesystem level, but the policy we are
+> > actually presenting to uses is "exclusive access"...
 > 
-> It seems ->d_revalidate() could return any error (except ECHILD) to
-> abort validation and pass error as result of lookup sequence.
+> That's rather different from the normal meaning of 'exclusive' in the
+> context of locks, which is "only one user can have access to this at
+> a time".  As I understand it, this is rather more like a 'shared' or
+> 'read' lock.  The filesystem would be the one which wants an exclusive
+> lock, so it can modify the mapping of logical to physical blocks.
 > 
-> Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-> Reviewed-by: Roman Gushchin <guro@fb.com>
-> Reviewed-by: Cyrill Gorcunov <gorcunov@gmail.com>
-> Reviewed-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+> The complication being that by default the filesystem has an exclusive
+> lock on the mapping, and what we're trying to add is the ability for
+> readers to ask the filesystem to give up its exclusive lock.
 
-It was nice to see all four of you in one place :).
+This is an interesting view...
 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> ---
->  fs/proc/base.c |   27 +++++++++++++++++++++------
->  1 file changed, 21 insertions(+), 6 deletions(-)
-> 
-> diff --git a/fs/proc/base.c b/fs/proc/base.c
-> index 9c8ca6cd3ce4..515ab29c2adf 100644
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -1962,9 +1962,12 @@ static int map_files_d_revalidate(struct dentry *dentry, unsigned int flags)
->  		goto out;
->  
->  	if (!dname_to_vma_addr(dentry, &vm_start, &vm_end)) {
-> -		down_read(&mm->mmap_sem);
-> -		exact_vma_exists = !!find_exact_vma(mm, vm_start, vm_end);
-> -		up_read(&mm->mmap_sem);
-> +		status = down_read_killable(&mm->mmap_sem);
-> +		if (!status) {
-> +			exact_vma_exists = !!find_exact_vma(mm, vm_start,
-> +							    vm_end);
-> +			up_read(&mm->mmap_sem);
-> +		}
->  	}
->  
->  	mmput(mm);
-> @@ -2010,8 +2013,11 @@ static int map_files_get_link(struct dentry *dentry, struct path *path)
->  	if (rc)
->  		goto out_mmput;
->  
-> +	rc = down_read_killable(&mm->mmap_sem);
-> +	if (rc)
-> +		goto out_mmput;
-> +
->  	rc = -ENOENT;
-> -	down_read(&mm->mmap_sem);
->  	vma = find_exact_vma(mm, vm_start, vm_end);
->  	if (vma && vma->vm_file) {
->  		*path = vma->vm_file->f_path;
-> @@ -2107,7 +2113,10 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
->  	if (!mm)
->  		goto out_put_task;
->  
-> -	down_read(&mm->mmap_sem);
-> +	result = ERR_PTR(-EINTR);
-> +	if (down_read_killable(&mm->mmap_sem))
-> +		goto out_put_mm;
-> +
+And after some more thought, exclusive does not seem like a good name for this
+because technically F_WRLCK _is_ an exclusive lease...
 
-	result = ERR_PTR(-ENOENT);
+In addition, the user does not need to take the "exclusive" write lease to be
+notified of (broken by) an unexpected truncate.  A "read" lease is broken by
+truncate.  (And "write" leases really don't do anything different WRT the
+interaction of the FS and the user app.  Write leases control "exclusive"
+access between other file descriptors.)
 
->  	vma = find_exact_vma(mm, vm_start, vm_end);
->  	if (!vma)
->  		goto out_no_vma;
-> @@ -2118,6 +2127,7 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
->  
->  out_no_vma:
->  	up_read(&mm->mmap_sem);
-> +out_put_mm:
->  	mmput(mm);
->  out_put_task:
->  	put_task_struct(task);
-> @@ -2160,7 +2170,12 @@ proc_map_files_readdir(struct file *file, struct dir_context *ctx)
->  	mm = get_task_mm(task);
->  	if (!mm)
->  		goto out_put_task;
-> -	down_read(&mm->mmap_sem);
-> +
-> +	ret = down_read_killable(&mm->mmap_sem);
-> +	if (ret) {
-> +		mmput(mm);
-> +		goto out_put_task;
-> +	}
->  
->  	nr_files = 0;
->  
+Another thing to consider is that this patch set _allows_ a truncate/hole punch
+to proceed _if_ the pages being affected are not actually pinned.  So the
+unbreakable/exclusive nature of the lease is not absolute.
+
+Personally I like this functionality.  I'm not quite sure I can make it work
+with what Jan is suggesting.  But I like it.
+
+Given the muddied water of "exclusive" and "write" lease I'm now feeling like
+Jeff has a point WRT the conflation of F_RDLCK/F_WRLCK/F_UNLCK and this new
+functionality.
+
+Should we use his suggested F_SETLAYOUT/F_GETLAYOUT cmd type?[1]
+
+Ira
+
+[1] https://lkml.org/lkml/2019/6/9/117
 
