@@ -2,204 +2,149 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB17CC31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 06:57:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C06C1C31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 07:12:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9AE20205ED
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 06:57:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9AE20205ED
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 80F28205ED
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 07:12:41 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="LZFWfvDw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80F28205ED
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 378FB6B0003; Wed, 12 Jun 2019 02:57:48 -0400 (EDT)
+	id 198E26B0003; Wed, 12 Jun 2019 03:12:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 329C66B0005; Wed, 12 Jun 2019 02:57:48 -0400 (EDT)
+	id 14A766B0005; Wed, 12 Jun 2019 03:12:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1CA9A6B0006; Wed, 12 Jun 2019 02:57:48 -0400 (EDT)
+	id 038636B0006; Wed, 12 Jun 2019 03:12:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F2A766B0003
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 02:57:47 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id y205so16268277ywy.19
-        for <linux-mm@kvack.org>; Tue, 11 Jun 2019 23:57:47 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C0F276B0003
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 03:12:40 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id d19so9309423pls.1
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 00:12:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=bQ5ElHMquZ98Jikuuxx8wmOU76TOnQjkjV8/eth7ojA=;
-        b=MrUPH7qw2Tka9gzuBRBcnx69chLFJrBt2JWNH+DlpTkUdYYxh6p8a6FQfViLIYeHvL
-         KanWYDXNhaVozVvtnpDq3uNDpxS9r1dlz1oP8a+RMPlaXcZhNHUCZD2NLGcL6oGkb140
-         9OpWWHqgcSQD82Zcwbc7qno/ZsGUWOrxYXa3Ppw4IbebzTirYmz+vDO5Vb7ajfrdRq36
-         nRLaY62pO6FGE9jGbzMpiRjRAWVf7C6JxSUHVO+hbbTDaMCjZmilsbHdqE0alD+LJCqR
-         8x6vHraFrlsDAO0Wma+TqMnRdTeqEIAQMpQlc4Q0KomwZ096WJprov7tVY+gFMEzLIt1
-         pS/Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVh8ATWIrdRbKcabXvR+NufQZp89tv0zzc/rwJ4kaMFW4EaP+X5
-	M/igu4rX5A9f0fwBnXZFfP55Z0j1IYn0bhUEaNS0u6v6c7M6FT0ImLR+ibgle/CiHG99z2qJuDI
-	na/c3Gc8JHxcC6RwaNcdsO81TwGQMnEk435uczOZ5ecIip2tNE02UgT3jJ0jKWj/YMg==
-X-Received: by 2002:a25:4009:: with SMTP id n9mr39106134yba.39.1560322667696;
-        Tue, 11 Jun 2019 23:57:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzKzzidQxBXWsIDdW3cJgvmlE9hTDhjaHYxKShegLF442QVj1w9QW/HT+jFfFYQ/AmCbEN/
-X-Received: by 2002:a25:4009:: with SMTP id n9mr39106113yba.39.1560322666869;
-        Tue, 11 Jun 2019 23:57:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560322666; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=gHyPffJSXLCM57JngMARDMldvmmJZW1qdq4MDpyHoRk=;
+        b=ufPwcq5vURcU+rpvz0i5ESlba/kJw1tOtwwP9vu/Y/imZ+Im6/hHzdlE7GMR601sR3
+         XzxT4cG8GCIz9OQKohzI1QWLempy0vKDiYcyLKf4U9aohSJQjuvVS/aMdQdc0esBchFx
+         evZzUpC5JbfoeDtWCW0+QoUjCifK/YtGbobWwehlyddrqIXCa+FzegiTBiCpILJ1Fwh6
+         D2rCqUz90rneeXt/kuBgQV9jHdpj2u42Q0Urw2cmOLb2hwnWyKO/+HWnFUOu3wkm2JIX
+         lijwDXCHsZnJGpv69BViTovLnbov8Kb8dUCqw42v6fqDJjB5BWJcwP/8c7to+RbaTs/B
+         eS9Q==
+X-Gm-Message-State: APjAAAXccibJGTHacSg7PDG9fx7wzz9c66IklgX5OkbHMbzw0iinhiH1
+	zOmj4byTDZOD/auxDo7wVCaJloGzOHipU5LM7uQ/iI6z1EEOLakvQDONCylQvmHMfKoZj+OI/vr
+	dExz1LN6/9V9tVUM6epIUHcXGJoI5BbJTtg6zV00LYv1iUqR+p8vBTpaqXSDcsG9I6Q==
+X-Received: by 2002:aa7:8e50:: with SMTP id d16mr77402412pfr.65.1560323560377;
+        Wed, 12 Jun 2019 00:12:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyrd+ci4f4K2FrKI6mIfaEB7irnMMCMWUd8J6nNTAEFm7lQEyucm4pmUA2UFXWTLdtIS6tK
+X-Received: by 2002:aa7:8e50:: with SMTP id d16mr77402343pfr.65.1560323559400;
+        Wed, 12 Jun 2019 00:12:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560323559; cv=none;
         d=google.com; s=arc-20160816;
-        b=UHBNCI13dh/wyobSgzyRBVJfJA5pRt0UDazYIwFSAoydZ67T+1h+iYBj41UVeS0gAJ
-         tC17/YMyyXo0tjOwR0cwBDlVAvqVlhuKNeJHl1lDKtJKEutQalfNo0eIis/uKOzYXRRP
-         PvYkyWsvseXoPMlzZ4hkwKZVBX4B/xv72AlqvAJB+0x80RP0GvIpAEITgn4i07kzgXO+
-         +2aEZXeubyNkjHbBodfLHaAQIlwV8/sI+uBBMBdbsjqiKfCBF2NBPChe4tUTcdHKsKeM
-         aj3YRsi4AuAfJgCiqCF+oLQMH+U5tqDxxDYZVWGiSPng2RnHO5dh4h02eBCIHlMdojpv
-         hvag==
+        b=GrWcsWhZmK6AInwUjA28JiQIgCAzXNq90bjqv8mY4Be65ykDDQWb9sOmETxjRAx7nE
+         hM7sWeVZ31J7zdC1tNjQQGdKO+bOkbb5ITVlhxz2KTVnkrGMRmYJdCUifMKffvzYaNwT
+         HR1SjDeVL1RuI5PYqIdpatwJbL1Mn9kaiVNck8UIM5l56mu84/2VT7GBxAjrn4jVwLLX
+         mOJQs+59wL7//z8WnHq5JOVYmf4GUqcn2Uk/+/ydEUHKoOBODnE5BBY39PW1pvZDRVSr
+         Gv7REVWbVN40vRqzlCyRf/ZVs+VNA/T358S5t313SHg2Gh8RW3QvdXvGyk1z8KTJJ+di
+         Fu9g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=bQ5ElHMquZ98Jikuuxx8wmOU76TOnQjkjV8/eth7ojA=;
-        b=ztj8dRIUznPtz5Ovw8a3dTr5IyCg9DYJNvh7cAPxqxzMByJ7oLsKHl42GfFeQxbVL6
-         S4GuPkMnxLjYE5M0nxFM8ubBom+82bARh0evN7H/KC9J1dp6XxF2SvHUUk97IvKEchCZ
-         1frvnfvR7zYUYR0tHXrS8qGJY5RurU8NyQl9ZiXkldu4I769AnPynJ2to/hDMH2ydN9G
-         ZmQ5KN+QYpuWJocbyRg7q/GjzoF6bWlbKRBTUaDGhXRDg+7vrMFTQ//jcMmameRTLpy3
-         aJqYw7GSHe93cdCUoBd+72OMNr+l3bpbna90RMV8JEH1tuL3XogcrUEZHqQQas/GGABH
-         38vQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=gHyPffJSXLCM57JngMARDMldvmmJZW1qdq4MDpyHoRk=;
+        b=v6L6yRfv76ZZMnNOeuV4/ug0Xe6AKqVIwpQwLSL5MZ/LRXiFlw//FpAcspsbeYGJQG
+         3HeHFbHrwfq0HbaIVv9h7zjVCxRVc8bxSAOR3zRVY5Aq54KUJkC3u29kj7Hefn2fIszs
+         3gpNjpgT/WXOA9KAtLxNceZHn9uWjreqm2qtMxYxHB+oxM6bjw2CVjRIV0u/q0YTpoLy
+         KCYUKG9RrqJWy5bS8Tl9blsdwZj4Q/sD5zCgE0+ZF0qPXGj3HPIKbhE98qAMNMHt8fxK
+         n19E3k/ljFG60gP7aaeVlYavDtQKLuta/eZ5UW/4Tl9vW+wrvhMARL4v+P0TQuA9teis
+         fFbA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id z65si5391849ywe.324.2019.06.11.23.57.46
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=LZFWfvDw;
+       spf=pass (google.com: best guess record for domain of batv+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id w188si3496185pfd.283.2019.06.12.00.12.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Jun 2019 23:57:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 12 Jun 2019 00:12:39 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5C6uW9i166891
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 02:57:46 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2t2use9y43-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 02:57:46 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 12 Jun 2019 07:57:44 +0100
-Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 12 Jun 2019 07:57:40 +0100
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
-	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5C6vd3m45482136
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 12 Jun 2019 06:57:39 GMT
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B9985A4062;
-	Wed, 12 Jun 2019 06:57:39 +0000 (GMT)
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7C96AA405C;
-	Wed, 12 Jun 2019 06:57:38 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.204.79])
-	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed, 12 Jun 2019 06:57:38 +0000 (GMT)
-Date: Wed, 12 Jun 2019 09:57:36 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Qian Cai <cai@lca.pw>
-Cc: Mark Rutland <mark.rutland@arm.com>, Will Deacon <will.deacon@arm.com>,
-        Andrew Morton <akpm@linux-foundation.org>, catalin.marinas@arm.com,
-        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-        mhocko@kernel.org, linux-mm@kvack.org, vdavydov.dev@gmail.com,
-        hannes@cmpxchg.org, cgroups@vger.kernel.org,
-        linux-arm-kernel@lists.infradead.org
-Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
-References: <1559656836-24940-1-git-send-email-cai@lca.pw>
- <20190604142338.GC24467@lakrids.cambridge.arm.com>
- <20190610114326.GF15979@fuggles.cambridge.arm.com>
- <1560187575.6132.70.camel@lca.pw>
- <20190611100348.GB26409@lakrids.cambridge.arm.com>
- <20190611124118.GA4761@rapoport-lnx>
- <3F6E1B9F-3789-4648-B95C-C4243B57DA02@lca.pw>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=LZFWfvDw;
+       spf=pass (google.com: best guess record for domain of batv+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=gHyPffJSXLCM57JngMARDMldvmmJZW1qdq4MDpyHoRk=; b=LZFWfvDwFrroFnYyekMIs/UyE
+	bnMyL5wiF6a4qOXH5Y6D53f6fcxweVVJulxgbYu1K/IdrKLLafhSvY4xRz/tsyEb1jMuRSPbF8Rnl
+	2jgdlWDjFI2AFrwtJTWCwY7ypwwqq20Wfwdyjg6YBYwVPLrqZcVIAuIDcFv3wcwesz87rKWLcwF6Q
+	uIyxuROlw9E3tQxn18S6MXz8HOLuV0akpHIPz5eAdK34NQGGATa54Jl7DFM8Z4t77COuq4Y8dcdsL
+	IybD7Zm7ngdxABfUQaFBZFD1S2V2tOJ6I6k+Q28wmxvewZONusKYFagqQ8kY+0GS9kfk6C3OEwpSE
+	VocdDksgg==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1haxQw-0000fi-5q; Wed, 12 Jun 2019 07:12:34 +0000
+Date: Wed, 12 Jun 2019 00:12:34 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Christoph Hellwig <hch@infradead.org>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com,
+	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org
+Subject: Re: [PATCH v2 hmm 02/11] mm/hmm: Use hmm_mirror not mm as an
+ argument for hmm_range_register
+Message-ID: <20190612071234.GA20306@infradead.org>
+References: <20190606184438.31646-1-jgg@ziepe.ca>
+ <20190606184438.31646-3-jgg@ziepe.ca>
+ <20190608085425.GB32185@infradead.org>
+ <20190611194431.GC29375@ziepe.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3F6E1B9F-3789-4648-B95C-C4243B57DA02@lca.pw>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19061206-0012-0000-0000-0000032863F9
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19061206-0013-0000-0000-000021616A3E
-Message-Id: <20190612065728.GB4761@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-12_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=968 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906120048
+In-Reply-To: <20190611194431.GC29375@ziepe.ca>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Tue, Jun 11, 2019 at 08:46:45AM -0400, Qian Cai wrote:
-> 
-> > On Jun 11, 2019, at 8:41 AM, Mike Rapoport <rppt@linux.ibm.com> wrote:
+On Tue, Jun 11, 2019 at 04:44:31PM -0300, Jason Gunthorpe wrote:
+> On Sat, Jun 08, 2019 at 01:54:25AM -0700, Christoph Hellwig wrote:
+> > FYI, I very much disagree with the direction this is moving.
 > > 
-> > Sorry for the delay, I'm mostly offline these days.
-> > 
-> > I wanted to understand first what is the reason for the failure. I've tried
-> > to reproduce it with qemu, but I failed to find a bootable configuration
-> > that will have PGD_SIZE != PAGE_SIZE :(
-> > 
-> > Qian Cai, can you share what is your environment and the kernel config?
+> > struct hmm_mirror literally is a trivial duplication of the
+> > mmu_notifiers.  All these drivers should just use the mmu_notifiers
+> > directly for the mirroring part instead of building a thing wrapper
+> > that adds nothing but helping to manage the lifetime of struct hmm,
+> > which shouldn't exist to start with.
 > 
-> https://raw.githubusercontent.com/cailca/linux-mm/master/arm64.config
+> Christoph: What do you think about this sketch below?
 > 
-> # lscpu
-> Architecture:        aarch64
-> Byte Order:          Little Endian
-> CPU(s):              256
-> On-line CPU(s) list: 0-255
-> Thread(s) per core:  4
-> Core(s) per socket:  32
-> Socket(s):           2
-> NUMA node(s):        2
-> Vendor ID:           Cavium
-> Model:               1
-> Model name:          ThunderX2 99xx
-> Stepping:            0x1
-> BogoMIPS:            400.00
-> L1d cache:           32K
-> L1i cache:           32K
-> L2 cache:            256K
-> L3 cache:            32768K
-> NUMA node0 CPU(s):   0-127
-> NUMA node1 CPU(s):   128-255
-> Flags:               fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics cpuid asimdrdm
+> It would replace the hmm_range/mirror/etc with a different way to
+> build the same locking scheme using some optional helpers linked to
+> the mmu notifier?
 > 
-> # dmidecode
-> Handle 0x0001, DMI type 1, 27 bytes
-> System Information
->         Manufacturer: HPE
->         Product Name: Apollo 70             
->         Version: X1
->         Wake-up Type: Power Switch
->         Family: CN99XX
-> 
+> (just a sketch, still needs a lot more thinking)
 
-Can you please also send the entire log when the failure happens?
-
-Another question, is the problem exist with PGD_SIZE == PAGE_SIZE?
- 
-
--- 
-Sincerely yours,
-Mike.
+I like the idea.  A few nitpicks:  Can we avoid having to store
+the mm in struct mmu_notifier?  I think we could just easily pass
+it as a parameter to the helpers.  The write lock case of
+mm_invlock_start_write_and_lock is probably worth factoring into
+separate helper? I can see cases where drivers want to just use
+it directly if they need to force getting the lock without the chance
+of a long wait.
 
