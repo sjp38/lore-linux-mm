@@ -6,100 +6,100 @@ X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 31178C31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 17:14:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 87AF7C31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 17:20:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EB37C21019
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 17:14:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB37C21019
+	by mail.kernel.org (Postfix) with ESMTP id 554EF21019
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 17:20:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 554EF21019
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E8386B026D; Wed, 12 Jun 2019 13:14:13 -0400 (EDT)
+	id 045166B026D; Wed, 12 Jun 2019 13:20:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9979D6B026E; Wed, 12 Jun 2019 13:14:13 -0400 (EDT)
+	id F38906B026E; Wed, 12 Jun 2019 13:20:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8AEBE6B026F; Wed, 12 Jun 2019 13:14:13 -0400 (EDT)
+	id DFF5F6B026F; Wed, 12 Jun 2019 13:20:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 56EAF6B026D
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 13:14:13 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id b127so12440742pfb.8
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 10:14:13 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B4DC86B026D
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 13:20:48 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id a198so5727766oii.15
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 10:20:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-transfer-encoding:content-language;
-        bh=K8Zv8V52zsSx5OIu0AN8ygd1P9iRWZrB9jtIJM4wgqY=;
-        b=NmZsir9n/XW+UeZT2Ualdpc3tY9GSowLIyXFECcFswu6gXodbld72K7Yvf+M5ogFDe
-         WGXyPwJWCRyfr8yb/5tZQvXzWVqIh6nOPYcaN+xYQWrgD+nuXK2xC9oIs55aq11w+rhJ
-         I/VuSAicSApH5MnVqGeRhwmztjPghClnzoQ6tYlUypYxvLLwENpGhg8rvAPc15yWBJeY
-         cTq7u4ajIK9cCfPaBiJT6mEUc/cOZyimGD9yMx76ECzOl0Ae2ro3H9k1CaWsRQyyZKN0
-         MneNaPTkYpnTEkomM3DXTswNbuDFveoJsdaglUUKegA+tFHcma0OlGijgq1fotsYgiLr
-         7y8g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXjmAdtxHGsHIOaFw51rGJSHlBeBtQC+Nn7AqqJoApqiprHsot/
-	ynQZvbLQHv9RDIZXrBWyCsv5YE36tovcMTTYcCFQuy/PbUWkaN+pFosvDRnQo5MePblaw0Uqvv1
-	wdkP8/P2IJm1HaX6b8hcgsOwoJ1ymGzhME/TxG5gO9YfesxBeuM9b5C4a/EyBGNw5Jw==
-X-Received: by 2002:a17:90a:206a:: with SMTP id n97mr277531pjc.10.1560359653024;
-        Wed, 12 Jun 2019 10:14:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzv/ZnPIdaaEGGN5eQYe2yAd9dRD2AvVCWZ44dB5xPq+jtI8KGnhjd7F83kmCK+g2r42ElW
-X-Received: by 2002:a17:90a:206a:: with SMTP id n97mr277469pjc.10.1560359652160;
-        Wed, 12 Jun 2019 10:14:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560359652; cv=none;
+        bh=iZ8K6R0putn6ncHt26atrOoAgAL+7/vF31xtELMSfnM=;
+        b=HkndZTo8FcWoUwMW1+ScZj0/ZVMguYS+ZIxHW83i/KunmnCzLmsJA8FBgoV4ubyxDK
+         WLbRzlCrS2ciiFHb0V/05HZ0lnNWvSwuxWVe/QbUOOd9eMepZfbsYUqtSn9cbmavq0ou
+         f5ZeLlR+9TAhzyOMasnzLi8q5t0Iac5emAkuwBx6723HgeN7zuq0emBJhMt3BEM764/A
+         JaFKLk/lVPFlflFMdIqB+0NRsgemL9QGuOG3v5Ls/bAiMZ4Dy2D/zJJJqRGH1XrHvms4
+         BeHXNj0LxyKVgYztqVqRdpibPhT+Eb/+bjDMKHxuWgkd75X6kjJ2r8Ky9VKkZku/hLpn
+         pZSw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAXmUNdUu1w4qidAniinWIXnWbsGNugOuoIugqMRT49pKwoBelNq
+	s27SUT5kCqdYNeWhe+nBqwVq5MYOEcMuroNrqqo/3U646/wgnvbzoCNqNTXzAQjm39z7UuPN5BI
+	Vs8CpON4RlcHYg42fX2aKNLRnN9KARRJR6kScb/2D4XDQ89divXrcjvagdsQhKJ0EZA==
+X-Received: by 2002:aca:b8d7:: with SMTP id i206mr190428oif.25.1560360048040;
+        Wed, 12 Jun 2019 10:20:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw8VTX/d0hbgfDw+ac/nib96JMO5yPocp+lxRMe6c52JdbzMifwTtfhp7wbLd/gM3UWRvSW
+X-Received: by 2002:aca:b8d7:: with SMTP id i206mr190401oif.25.1560360047463;
+        Wed, 12 Jun 2019 10:20:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560360047; cv=none;
         d=google.com; s=arc-20160816;
-        b=e9JDsJc09YIMpKVhiQS5b0G+eIidokw0LnON24iBQGWoFEJseSqVp4Jxe7d/u//34y
-         yknkq9aXasF2J5LKIYHU3LXeyfE3i7axVWLp6mzkHfEI5afUWxRx+nWdf2DtpuhpPLUI
-         BBBirWivUL6FV/MnmGfVH9yzqzhup2ppvwJVaRUWrZ1lt5kTW64mLZSwoyXaNcw1fxDc
-         aZ7bnCU6KBbWvlQZXH5Z9RtpDquZzLNNNXXrg5pmRCemwNv7dMSHcEg7N5/pX+8Ydt1H
-         RML0ggCn2m6Mk6jrgGDtRSQeBikbDhYmnHqYv46lScmGufpUY68T01nUkLZSa/fTQ+8+
-         f1kA==
+        b=YuyeBTCG7+LffAmy61Jvq4eWMG1VielU0OyiQ1ZVfpRzZY5u5TvxD3BRv/v7WLRFfW
+         xRk8UgeZaz7BoM6xVOFbwshBapijCckmOrN7NcHEmylsVTH1uT6lwuipLgyxk12VFGKE
+         T2aRKM0TLcDOEDEMw7vnz7iEBUab4hNATcXDmqs6KFz1MtzsgBeJ+HtKzV2N3k4uJZN8
+         wVvMZYGr/+wN0Fp59mtwoGDDwn2Nxc2jIVEhgWYHnb+3qlUzOzs6BsMZnbRSO7pHFn7d
+         lEW8MeHSEa/HuvjvbOIUi4QaNUHpS0gq9JEWJHSOjWzQogXPOp0BYQ4WOh2D6660ew3h
+         H6gg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=K8Zv8V52zsSx5OIu0AN8ygd1P9iRWZrB9jtIJM4wgqY=;
-        b=aOr8GJX5qgWjQzVoChiA61h31l2J8sz4hnIbN/Ir6AOy3gZPECNL7+oiihIjDY5Xl7
-         STHj4E3xzBwvs3jOE2zmqsGSJr9/GQFxROBp9WT7C5E16JN48Qc1rcb/GFri7FqpZiAK
-         FucVVXN2QmJVjczgu4UC6ikwxeqIdRtguNAkufP3VU+uAk3jHYqbNwV/oTjTA1fp/Vms
-         ATHitgHNZv3E4nqjGq6VYpny7QNMR6+ARmDIPkqwbyGoaN+IYcKPgL87vQQQHzYrgf9n
-         WKBAlEhhcNYPBIZJmm22Q4KIui+uz+2QfRx35z6d+4CqBxLIHO2GwYHl3Npo56oAGbxC
-         44Bw==
+        bh=iZ8K6R0putn6ncHt26atrOoAgAL+7/vF31xtELMSfnM=;
+        b=iWljxY5+3+/ASJ54QSRxr/qz1m+Q9jFK1j9/z5LaeiNGQyb+867smPUH3NO4bFwujY
+         1dQm2MXI05us2g7UH+SNO5fgvRNGQLv4TNum2biTeLmDOOd4DdYJclLSj0MNln7MVsWq
+         EOsA0sKuOcyrDp9tmAfeHuOStCr50SNo3bg6JYw8pONMvLjIda5gqVXk3OlTm2n10EaF
+         wgMqCGRuoSze2ZWtRoq/3B5vnC1n76MGS3lW/SxJ4zitcw79/ZGbzpNL/9UYlCFlM6Fd
+         PL++Jhhbk9V67sl7lTNZG/duKH4rrAxeZJJzqUCclJCqHO1gKuCK20jXvEPKpEfTB/1x
+         NJEw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id q6si222137pll.226.2019.06.12.10.14.10
+Received: from out30-54.freemail.mail.aliyun.com (out30-54.freemail.mail.aliyun.com. [115.124.30.54])
+        by mx.google.com with ESMTPS id v16si210775otq.13.2019.06.12.10.20.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 10:14:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
+        Wed, 12 Jun 2019 10:20:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) client-ip=115.124.30.54;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R281e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07487;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TU.ZihY_1560359634;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TU.ZihY_1560359634)
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R361e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TU.Zjat_1560360018;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TU.Zjat_1560360018)
           by smtp.aliyun-inc.com(127.0.0.1);
-          Thu, 13 Jun 2019 01:13:57 +0800
-Subject: Re: [PATCH 2/4] mm: thp: make deferred split shrinker memcg aware
+          Thu, 13 Jun 2019 01:20:22 +0800
+Subject: Re: [PATCH 4/4] mm: shrinker: make shrinker not depend on memcg kmem
 To: "Kirill A. Shutemov" <kirill@shutemov.name>
 Cc: ktkhai@virtuozzo.com, kirill.shutemov@linux.intel.com,
  hannes@cmpxchg.org, mhocko@suse.com, hughd@google.com, shakeelb@google.com,
  rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
  linux-kernel@vger.kernel.org
 References: <1559887659-23121-1-git-send-email-yang.shi@linux.alibaba.com>
- <1559887659-23121-3-git-send-email-yang.shi@linux.alibaba.com>
- <20190612024747.f5nsol7ntvubjckq@box>
- <ace52062-e6be-a3f2-7ef1-d8612f3a76f9@linux.alibaba.com>
- <20190612100906.xllp2bfgmadvbh2q@box>
+ <1559887659-23121-5-git-send-email-yang.shi@linux.alibaba.com>
+ <20190612025257.7fv55qmx6p45hz7o@box>
+ <a8f6f119-fd72-9a93-de99-fc7bea6404c0@linux.alibaba.com>
+ <20190612101104.7rmjzmfy5owhqcif@box>
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <d2f6737c-6682-f985-0790-77483e95f298@linux.alibaba.com>
-Date: Wed, 12 Jun 2019 10:13:51 -0700
+Message-ID: <aa4fd2f3-daf4-3c25-8f51-1527db8f743b@linux.alibaba.com>
+Date: Wed, 12 Jun 2019 10:20:15 -0700
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
  Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190612100906.xllp2bfgmadvbh2q@box>
+In-Reply-To: <20190612101104.7rmjzmfy5owhqcif@box>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
@@ -111,40 +111,31 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 6/12/19 3:09 AM, Kirill A. Shutemov wrote:
-> On Tue, Jun 11, 2019 at 10:06:36PM -0700, Yang Shi wrote:
+On 6/12/19 3:11 AM, Kirill A. Shutemov wrote:
+> On Tue, Jun 11, 2019 at 10:07:54PM -0700, Yang Shi wrote:
 >>
->> On 6/11/19 7:47 PM, Kirill A. Shutemov wrote:
->>> On Fri, Jun 07, 2019 at 02:07:37PM +0800, Yang Shi wrote:
->>>> +	/*
->>>> +	 * The THP may be not on LRU at this point, e.g. the old page of
->>>> +	 * NUMA migration.  And PageTransHuge is not enough to distinguish
->>>> +	 * with other compound page, e.g. skb, THP destructor is not used
->>>> +	 * anymore and will be removed, so the compound order sounds like
->>>> +	 * the only choice here.
->>>> +	 */
->>>> +	if (PageTransHuge(page) && compound_order(page) == HPAGE_PMD_ORDER) {
->>> What happens if the page is the same order as THP is not THP? Why removing
->> It may corrupt the deferred split queue since it is never added into the
->> list, but deleted here.
->>
->>> of destructor is required?
->> Due to the change to free_transhuge_page() (extracted deferred split queue
->> manipulation and moved before memcg uncharge since page->mem_cgroup is
->> needed), it just calls free_compound_page(). So, it sounds pointless to
->> still keep THP specific destructor.
->>
->> It looks there is not a good way to tell if the compound page is THP in
->> free_page path or not, we may keep the destructor just for this?
-> Other option would be to move mem_cgroup_uncharge(page); from
-> __page_cache_release() to destructors. Destructors will be able to
-> call it as it fits.
+>> On 6/11/19 7:52 PM, Kirill A. Shutemov wrote:
+>>> On Fri, Jun 07, 2019 at 02:07:39PM +0800, Yang Shi wrote:
+>>>> Currently shrinker is just allocated and can work when memcg kmem is
+>>>> enabled.  But, THP deferred split shrinker is not slab shrinker, it
+>>>> doesn't make too much sense to have such shrinker depend on memcg kmem.
+>>>> It should be able to reclaim THP even though memcg kmem is disabled.
+>>>>
+>>>> Introduce a new shrinker flag, SHRINKER_NONSLAB, for non-slab shrinker,
+>>>> i.e. THP deferred split shrinker.  When memcg kmem is disabled, just
+>>>> such shrinkers can be called in shrinking memcg slab.
+>>> Looks like it breaks bisectability. It has to be done before makeing
+>>> shrinker memcg-aware, hasn't it?
+>> No, it doesn't break bisectability. But, THP shrinker just can be called
+>> with kmem charge enabled without this patch.
+> So, if kmem is disabled, it will not be called, right? Then it is
+> regression in my opinion. This patch has to go in before 2/4.
 
-Yes, it is an option. Since __page_cache_release() is called by 
-__put_single_page() too, so mem_cgroup_uncharge() has to be called in 
-both __put_single_page() and the desctructor (free_compound_page() which 
-is called by both THP and other compound page except HugeTLB). But, it 
-sounds acceptable IMHO.
+I don't think this is a regression. "regression" should mean something 
+used to work, but it is broken now. Actually, deferred split shrinker 
+never works with memcg.
+
+Anyway, either before 2/4 or after 2/4 looks ok.
 
 >
 
