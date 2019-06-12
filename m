@@ -4,84 +4,85 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E5C0C31E47
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:33:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4948C31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:34:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2344C2082C
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:33:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2344C2082C
+	by mail.kernel.org (Postfix) with ESMTP id 614C3208CA
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:34:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 614C3208CA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C5BEB6B000D; Wed, 12 Jun 2019 10:33:47 -0400 (EDT)
+	id 0E9596B0266; Wed, 12 Jun 2019 10:34:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BE5286B000E; Wed, 12 Jun 2019 10:33:47 -0400 (EDT)
+	id 0741C6B0269; Wed, 12 Jun 2019 10:34:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A85126B0010; Wed, 12 Jun 2019 10:33:47 -0400 (EDT)
+	id E57386B026A; Wed, 12 Jun 2019 10:34:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A7B36B000D
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 10:33:47 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id k22so26209272ede.0
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:33:47 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9790F6B0266
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 10:34:40 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id l53so26179809edc.7
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:34:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=eQY+hXskG9MfrsSCk8NQ023zNMoKAQxNRyn6p8EG3ks=;
-        b=K6LHxdsIhd1L59svH32c+SNI75RLCbyeSRs/4YtKQNIWBo73brNDvy1qttcGO8bK81
-         3CKMMhXvRqNQnRRiYRuhwekOItHXvP5r81ptN/S3favvyXp0UfK7eZFFILtgLc3CNttH
-         hTOm+cWzViLeuPaT5Je4PK7K+HHQk0xSdWIr/VKFYaTFkx7Z/i4WVn33auoqFiS9Tbur
-         Qw4OOLtk460DrA6hiCshbGjAnulKSmM0pZa6QEffyiuaFt8TpastgeU3PtUMlfxdX0vs
-         g3aFGEz5yYBO3DyuBwqd73ygH6IXyNEt/GkqaK1ZcpfpZw1lUv6ACkI7GAKeX7XWmqSy
-         4v3Q==
+        bh=ZrowROO0/vp+tGSfSzUoDcdEpBKwFomIWw/fQYusVvI=;
+        b=R77n/mfgovln1LfQTInEe6+N/Ck192NcC++mRs8V6kRc3hfpjdnWaRWrQPCnOjrw7F
+         eYdwG2aajddRuOBiAEvHN5T5JZ/JDlZCEd1u+OlQZ1H+GwMHMc9yN1aXZ6dawGymItRF
+         idQEEYwrRAqFuq5tw+eWOBu7dAMINrMf5e079z33U1nCmyLUSfhaiQ/02ec+vV9+MTCn
+         CrMbbX6T6ZOA/YgDET3scgBtCxqyO/vb40rA3jSTxedIOm3J1kRZMF6hnYkiyZHjEjB2
+         XzhZGMWXgsz6satLSrY9IfbMOMtodYBBybPWdEdzYpST5wyEacHjxzSiBWiGr6cylVRX
+         1NAA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-X-Gm-Message-State: APjAAAXrj1MRcl+CukGuEzT0VvGr8rWya63aTuAki8pMICpfcsw+av/i
-	w1QsCMNe+7O0edyQT3Lx7yMUmvZAc3AHkY7CvOCm5o40VYIPZEdQQ7YaGjAiqULqg6dK4VmQFCi
-	QZw/Qe9NSjoW6l6BTYXYYTomWbEXIShtAqlHKWmMdavbfF5gwPnp9/h+D2Je5Mdj6uA==
-X-Received: by 2002:a50:cb04:: with SMTP id g4mr76723977edi.181.1560350026926;
-        Wed, 12 Jun 2019 07:33:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyXdG5LaJJ84QML2Wl4qhPK3Zks2K2S9cPuYUXuNvADnQTQNBgh9lxwW2wxBgAr6Kl+8/x6
-X-Received: by 2002:a50:cb04:: with SMTP id g4mr76723900edi.181.1560350026235;
-        Wed, 12 Jun 2019 07:33:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560350026; cv=none;
+X-Gm-Message-State: APjAAAVeiD7+cBUA9MS+m/WsxNZSgG7VA6mCiE36ypkgzWN9TtH71oeC
+	6PVcRCNIwBBPxOTP3aMFi8l7TM8ZRXfxrDy7YINyvenCoKI95PKBcFT+hl/fs8L59M354r0Zith
+	uUdH0bleMLpbtzyRYORX4x1jy1elquN4KzOCdx9TbqmABldEVeETIou5ls0yLuDUVuQ==
+X-Received: by 2002:a17:906:7801:: with SMTP id u1mr32487974ejm.250.1560350080196;
+        Wed, 12 Jun 2019 07:34:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzYssrFnMLJQnYfWueBfjEFgQRBp8Zhq7OUwMnihDgBQSEWvtEbiL249ZBOyVGazlM8LGtv
+X-Received: by 2002:a17:906:7801:: with SMTP id u1mr32487902ejm.250.1560350079276;
+        Wed, 12 Jun 2019 07:34:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560350079; cv=none;
         d=google.com; s=arc-20160816;
-        b=IybslSAMfi1CAkAH68musSpGzeOhH1BBDDjaqycBKIN2w3WVXe4HNhmNRt7UHdH6NO
-         NKbXDKD+/1dXI4U8sH+91x77se8/iUPw/gPoMEc/ZSAjG650x0X/qqrHoIh3HIJujBxv
-         EeqOrg8zEN3cMq/JENeUp2+ExCvluocXdMzksDOddPnBeQlsfUeGW8akmBranaDem9oh
-         Xbv9y2teB4jKxdlb0GT74gSgI/h4B7a1LvPvFvNKlSNwi7GBF1bvd7nRZm6FHKBdwsp+
-         o6InG3Iy/+jGeCoHEVZIKfGOMcnnjSz+V/VK+j2UhQNQjBTH7CB07HKNlDh2L+X6Xdsu
-         d8hQ==
+        b=RSB4Ud5LG7KkMduIac909g6YvpN0o3aVK3+bFIgWWZ1BtvPbetledSuUNzkEiC22zQ
+         u7JCf5/ZPgBX1hCeU1p98KpbDeL7OWQdrE8B4x2/6q0tbvFENbIyGTRnm4MlNR1XVjAU
+         Mn12D0J5DbCYULohaFo/O6kmrnioy6WCo1ZbIuuD4VMk7pHz3it9EAo4iGqTJpjd3mfn
+         JrmOHzQf080fX9Df+434g45ayLB1m6Zw2JYPMJ0TY2LR+/04N9DuTB/J13uPzXAcp80X
+         ND39qcaSMOCZ2T3aCSIKQG54mYBEtJNd/Cbc1YF9K2MZsUc/g/r0qFbBtYTVbj3bB/Yd
+         1R1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=eQY+hXskG9MfrsSCk8NQ023zNMoKAQxNRyn6p8EG3ks=;
-        b=Do6NTxaPeaoMrw7ydkgrg5/bWGXtRkueFby4eNCsAQlCHMRDIEK7rpSp8CWhUFIg/S
-         i58e7uIk2F4l3WN/hcgGwmtznvgZJ2YD2CdBqiQ8AVyZA55GKkeCX+iTHP2csCvgyBBt
-         iHC+ur+BrGKHoSQsbuUDCPCcfiWge1dtrUfMECcaHYWhD1H/sPJDEfxzZKS2dWpHj7UO
-         Z+IrpxjCo63m8NwVImr1dyd95bQdVYwuTId/2uxojxR/TWC+MiwoiQEpW5hbi87kT4gs
-         70EJUm4Z3Djmj3YxVIfi6aqx3DPLmp2ivOWGM5NFwBs0jwkc8IVIfIbEDM6JUnHjGF/S
-         dGCw==
+        bh=ZrowROO0/vp+tGSfSzUoDcdEpBKwFomIWw/fQYusVvI=;
+        b=Wc5jJuXesdZox7NAptahfYtSxhB/XQzI3T3tUYVHmV1TNoeY+Qs7033elFuusigFVI
+         0vFEnVA7wk/Vvmx1Q+m/EMur24yk6o6MYb6uKdNVSdkG5Jricn2dy1cmIbmye0OWXuag
+         8Jxz9QVH7XK/QGEe5Cy5+g/ipNHi3/6dz2PmF09jUPGA7siS6hfejxCV6oCTd6IkJJHv
+         KjYfXhd4UrFj36jNCaDCkMwbiDdcoKcsmrScYcd9cb71P3bEf4h9Hrz9MJakxa5ak6Pj
+         1eNVmTvYvxTw2eNgEVV4iaA5NgzfoXnkcKyL4u8rRwvfNpXEWdGWBuUMpy2TtA9vOhqv
+         sMng==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id a14si72555ejr.135.2019.06.12.07.33.45
+        by mx.google.com with ESMTP id e44si2174025edd.352.2019.06.12.07.34.39
         for <linux-mm@kvack.org>;
-        Wed, 12 Jun 2019 07:33:46 -0700 (PDT)
+        Wed, 12 Jun 2019 07:34:39 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 38A462B;
-	Wed, 12 Jun 2019 07:33:45 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 74C632B;
+	Wed, 12 Jun 2019 07:34:38 -0700 (PDT)
 Received: from [10.1.196.72] (e119884-lin.cambridge.arm.com [10.1.196.72])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C1F953F557;
-	Wed, 12 Jun 2019 07:33:39 -0700 (PDT)
-Subject: Re: [PATCH v17 05/15] mm, arm64: untag user pointers in mm/gup.c
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id D68633F557;
+	Wed, 12 Jun 2019 07:34:32 -0700 (PDT)
+Subject: Re: [PATCH v17 06/15] mm, arm64: untag user pointers in
+ get_vaddr_frames
 To: Andrey Konovalov <andreyknvl@google.com>,
  linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
  linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
@@ -112,14 +113,14 @@ Cc: Catalin Marinas <catalin.marinas@arm.com>,
  Robin Murphy <robin.murphy@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>,
  Szabolcs Nagy <Szabolcs.Nagy@arm.com>
 References: <cover.1560339705.git.andreyknvl@google.com>
- <8f65548bef8544d49980a92d221b74440d544c1e.1560339705.git.andreyknvl@google.com>
+ <4c0b9a258e794437a1c6cec97585b4b5bd2d3bba.1560339705.git.andreyknvl@google.com>
 From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Message-ID: <8b74a24e-4fe0-3fdd-e66a-d04c359b6104@arm.com>
-Date: Wed, 12 Jun 2019 15:33:38 +0100
+Message-ID: <89b0c166-9a83-ba09-42e1-4fa478417b3d@arm.com>
+Date: Wed, 12 Jun 2019 15:34:31 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <8f65548bef8544d49980a92d221b74440d544c1e.1560339705.git.andreyknvl@google.com>
+In-Reply-To: <4c0b9a258e794437a1c6cec97585b4b5bd2d3bba.1560339705.git.andreyknvl@google.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -134,45 +135,33 @@ On 12/06/2019 12:43, Andrey Konovalov wrote:
 > pass tagged user pointers (with the top byte set to something else other
 > than 0x00) as syscall arguments.
 > 
-> mm/gup.c provides a kernel interface that accepts user addresses and
-> manipulates user pages directly (for example get_user_pages, that is used
-> by the futex syscall). Since a user can provided tagged addresses, we need
-> to handle this case.
+> get_vaddr_frames uses provided user pointers for vma lookups, which can
+> only by done with untagged pointers. Instead of locating and changing
+> all callers of this function, perform untagging in it.
 > 
-> Add untagging to gup.c functions that use user addresses for vma lookups.
-> 
+> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
 > Reviewed-by: Kees Cook <keescook@chromium.org>
-> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
 > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 
 Reviewed-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
 
 > ---
->  mm/gup.c | 4 ++++
->  1 file changed, 4 insertions(+)
+>  mm/frame_vector.c | 2 ++
+>  1 file changed, 2 insertions(+)
 > 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index ddde097cf9e4..c37df3d455a2 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -802,6 +802,8 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
->  	if (!nr_pages)
->  		return 0;
+> diff --git a/mm/frame_vector.c b/mm/frame_vector.c
+> index c64dca6e27c2..c431ca81dad5 100644
+> --- a/mm/frame_vector.c
+> +++ b/mm/frame_vector.c
+> @@ -46,6 +46,8 @@ int get_vaddr_frames(unsigned long start, unsigned int nr_frames,
+>  	if (WARN_ON_ONCE(nr_frames > vec->nr_allocated))
+>  		nr_frames = vec->nr_allocated;
 >  
 > +	start = untagged_addr(start);
 > +
->  	VM_BUG_ON(!!pages != !!(gup_flags & FOLL_GET));
->  
->  	/*
-> @@ -964,6 +966,8 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
->  	struct vm_area_struct *vma;
->  	vm_fault_t ret, major = 0;
->  
-> +	address = untagged_addr(address);
-> +
->  	if (unlocked)
->  		fault_flags |= FAULT_FLAG_ALLOW_RETRY;
->  
+>  	down_read(&mm->mmap_sem);
+>  	locked = 1;
+>  	vma = find_vma_intersection(mm, start, start + 1);
 > 
 
 -- 
