@@ -7,101 +7,101 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49CA7C31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 22:06:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E8DD2C31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 22:06:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 02B9D20B7C
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 22:06:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9E0FF20B7C
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 22:06:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="JWAuNS78"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02B9D20B7C
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="QsXbYSHh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E0FF20B7C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 760176B0269; Wed, 12 Jun 2019 18:06:25 -0400 (EDT)
+	id 367386B026A; Wed, 12 Jun 2019 18:06:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 710D66B026A; Wed, 12 Jun 2019 18:06:25 -0400 (EDT)
+	id 27E2E6B026B; Wed, 12 Jun 2019 18:06:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 53CE36B026B; Wed, 12 Jun 2019 18:06:25 -0400 (EDT)
+	id 0D2196B026C; Wed, 12 Jun 2019 18:06:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EC646B0269
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 18:06:25 -0400 (EDT)
-Received: by mail-yb1-f199.google.com with SMTP id z124so16713240ybz.15
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 15:06:25 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DC8886B026A
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 18:06:27 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id b75so18905180ywh.8
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 15:06:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
          :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
          :message-id:in-reply-to:references:mime-version;
-        bh=pQnGGve/Vnh2HyxOCOdI1CzGbYYB1SvJlXif4X9k+UU=;
-        b=feg0WBsqPfOAXgaXs/KYz5TwWeivQAfrRSvplYqhfrtxtz5F6lmfnG4sysgpXYI6bM
-         thbyidXN/LIbxIkG6wse6kaUOaKkvJHzqEkmFKXlaabY5MBhhrEWpRhNGLWt2h5b3l7M
-         zGIMSuwRmtJU8qv7AC4U9CBzP2cBerajMptWdwLbn8C07DXL8/ig0tyP6HJjukcD/VGY
-         TQ1OvksO42Ok5MYbj9VSnF04OTLYXRfxEtF8l0qWqz9eAQQdLMX4+mF86WJ3pUxo6yL/
-         QP7CdIuRdDGfHIKCw/QgSpeHCIzDG4M3IcT0QNohykb5hNsUU5qjDuqyh5j7kD9k+1hd
-         4lug==
-X-Gm-Message-State: APjAAAX45ts/Fz7Z0h5S9OWYEeHI4z60QdUI9/282HeFGPPbb1M5hWrs
-	QOJwrRSXlrZ/bPNAuaUGeFTLzPhiuW00ZSLgmY6K1QERZ1ZwZLisB5+9y+UpurJuykwH8c795CT
-	0+OQzrg3K0j6jcy6gRhItS+2TMpqUrZ3z2BM9FK8YVTwR3/wAFxDVjjSJnTEKdmXsyg==
-X-Received: by 2002:a25:ef0d:: with SMTP id g13mr2674660ybd.425.1560377184934;
-        Wed, 12 Jun 2019 15:06:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyvlDoF3KbcG1xH8SaeR5xxjOorrO76ti0VovoWta08+UOFVafKCVP4n5+YVXRNj/pisLHV
-X-Received: by 2002:a25:ef0d:: with SMTP id g13mr2674628ybd.425.1560377184268;
-        Wed, 12 Jun 2019 15:06:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560377184; cv=none;
+        bh=kq4OSN4555gAGkuBdC1pCdofeLuUMnKNDEdg6BpuyMo=;
+        b=kzzcEjo8S5h/lXJnpu7BaffayCCIleyjivja1eD3kryqwifj4UFaJaQJ9wM+JtN+FS
+         d/wS2ZlTmuDaljXUYpcsxhx96IrPW6tqm4qCHLAQDnnkXisTAI4nVShXohG9gC8xTot9
+         UK2ahi0WPBH5xInWNMysk92oRpyGxYarCQADZVVyqNqvGyu9188/15In8AJRnvGHn97A
+         v4GqMW0njyS/zB2SI97w9invtY7uI7GMi2wQj2RjjAgmLJdZhASeMs946SzBa+HVmajA
+         oybZlKndeKi4D+SCd15GYki9bnAaZWSnz06q0HOp/T+/uM/i3AKAplCuB1iE8HRS/LHf
+         AFFw==
+X-Gm-Message-State: APjAAAXO7+eqDk/rvadEhUwz9E1Tuuip3wZOL9nzOBrJs5XzkWQsGtXv
+	ZBGF2A0bwn46l4yfQf6vK0wrpEXHPaWgPTSJ0dHEA5WGfHrmFvxGkpk5VDtN3VmAhKOw+habSB7
+	8U//Y+/rCqPm8E2W9uBjfYITa8nVFPSSRG9rWKW2D+ls25mZP5F0z4v2Xqfpuk/enKg==
+X-Received: by 2002:a25:1ed6:: with SMTP id e205mr41147803ybe.467.1560377187648;
+        Wed, 12 Jun 2019 15:06:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyPkUVAcaLZDtmJBZmpfVtb8/GXMmPtZkSJTnseSSkHel2jdLrJtCLQB72J0NrNQNN5wAYU
+X-Received: by 2002:a25:1ed6:: with SMTP id e205mr41147773ybe.467.1560377187011;
+        Wed, 12 Jun 2019 15:06:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560377187; cv=none;
         d=google.com; s=arc-20160816;
-        b=u4mXOgiSmhBWXF7dAg/9PBTscjTQhOpz7Ytb8/v2EtTDrVHAMOUWGPnslJsK56OIty
-         v0yMQMseHPmI0xCMHdT/d5ft7XPxsRn/CZ1jgvGAap4wlO1j+BBggT4oshMCEYo3VX+m
-         jY7L3+s0YPF/xHUlD9OhQriN9yWakGsG+fcxiv5UL9qVScbE9HvxLZLu/YdVSyJxUy55
-         ewKJi5Htds2LOXoN44VlO2O49csC/pulrE61atTHGEClKErcOGq7Jy7D/j/7lc+dFm9V
-         mWYoqDgi18lmGkarXLD5COY/zVD+ZQ+qWIFgjvwFfVJeZ+X9J9QWVCxVnvXXy4bfLTVV
-         5nfg==
+        b=0oFS6SJe8lNr2Pl4vFWlmh44+ib/0FqXW+40tydeStvfHn+URXgVccTowWMIWqKn85
+         tcl8bwqJxkszxnuWk9jKZSo1LHt0zrzQJW0tymS+K8lecJznMkiaM2zxeQxS9q7xtgFY
+         Px5Oav7/PhtlfnbxNZByudI9xKLnn21fb2DJKP4RQYowtcTteCt+jwLSUh7BjSLp/f7i
+         B++pFhsn5j6IJq+kXqCsjD4UQXONLebJxrdsXJVHJB7VlIh1gxOOD5qB069S4mwtXKZg
+         OrDDrq2XMEQk+b41rtA2csFVggymGmw50iOrRKrDNcXk06hp6BiayuVQvgNBQhVMyOAx
+         ue3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:references:in-reply-to:message-id:date:subject
          :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
          :smtp-origin-hostprefix:dkim-signature;
-        bh=pQnGGve/Vnh2HyxOCOdI1CzGbYYB1SvJlXif4X9k+UU=;
-        b=fNtMW155CKHtYUB04WI5J1vottETzTksuLEl1tUFWmEqxBjFMqId0RSQlXdM+ZN8hS
-         nheuq0pDBGYmBPusN7+lqLEfYheoI4Pvcg+mNO4Ar0ot+u+bASVAB/aHDthn21WtnLeZ
-         A34uLHnkUmGltgO8vO9ipF8W5OGgwIzhjFuCH1P11Z6VaFtPyeJ50NanDxv933x3V0IW
-         USpnRFsFWrPqHBX4TskSIoo5hqyoDHVd16+olWcM5dZ718wHf6yiaA6Ui0B3R7isl5fC
-         qBzXMTKHfJXIXp/dV8ZVyiNAuGsIvTIcUxBb45ec5Hlh896BWNLnVGc72icUB8VvAKej
-         zxow==
+        bh=kq4OSN4555gAGkuBdC1pCdofeLuUMnKNDEdg6BpuyMo=;
+        b=aMA2pTT743GflljnqMlgx6wlG9Veh3SWeIlrFQHEdbd92nqcV+IeUMeMwMMDBB8EA/
+         ec6ACrVAXXDgdTx0sjglWYB3R7FJeljsMQezffDdCl20YzOOH2EbRxmlBORv84Vu1BjH
+         4X4RgQH/k7d+RYEe3dNIiZdjMhB9XdBWWxSjV+mEVdndXGkGSlD2ur43YTFBO2bKgJ02
+         3Gb8wCPbyanwaENBo6XWRPFcBUtONH3JjTgaMQsVi4cEKdjLVrSHLYPVzQcOo3sDbWf8
+         qvyzARs9iEvm6Kd0ACcOfV7/RQV07VGbBO15PAYFd23oGVBNgc5WU3mBBpQVYuuP2r85
+         z+Tg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=JWAuNS78;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=QsXbYSHh;
        spf=pass (google.com: domain of prvs=106696cf5d=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=106696cf5d=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
 Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id z199si287754ywa.83.2019.06.12.15.06.24
+        by mx.google.com with ESMTPS id j3si272721ywj.185.2019.06.12.15.06.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 15:06:24 -0700 (PDT)
+        Wed, 12 Jun 2019 15:06:26 -0700 (PDT)
 Received-SPF: pass (google.com: domain of prvs=106696cf5d=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=JWAuNS78;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=QsXbYSHh;
        spf=pass (google.com: domain of prvs=106696cf5d=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=106696cf5d=songliubraving@fb.com";
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
 Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5CM2iuL014732
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 15:06:24 -0700
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5CM2iuU014732
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 15:06:26 -0700
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
  : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=pQnGGve/Vnh2HyxOCOdI1CzGbYYB1SvJlXif4X9k+UU=;
- b=JWAuNS789fcNPxnofRvQvtkoJwvLIrNhL2jvavikaTKn60o5iKcg8PEGbEhX69QfO0Q0
- M3KtRcs/HlxJn+Tk34Pq9dKYLOTfwpNSbBk+SU0CPWIfSI6Yc18Z1bO8XLNAGOq2cEMn
- H4LeEqV95Y/j+iGEYsT58hInBnNXoDdiZ+g= 
+ content-type; s=facebook; bh=kq4OSN4555gAGkuBdC1pCdofeLuUMnKNDEdg6BpuyMo=;
+ b=QsXbYSHh7Y5nBOQGU5AcXSPjzNbulwnUiVKVn4jp8cyv/Sun086cx62N7Oj2+KZockvL
+ Iu3MBR/K0+kNPbUTu56QRZL6PRnM0hC2pE5hbR9H48TdrYnMeLVN21e0V3wGkfpAX+b5
+ TeEzKzk714BjKog4pauweFFXys5ukhy9A8o= 
 Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2t37b0gj76-10
+	by mx0a-00082601.pphosted.com with ESMTP id 2t37b0gj76-19
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 15:06:23 -0700
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 15:06:26 -0700
 Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
  mail.thefacebook.com (2620:10d:c0a8:82::c) with Microsoft SMTP Server
  (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Wed, 12 Jun 2019 15:06:15 -0700
+ 15.1.1713.5; Wed, 12 Jun 2019 15:06:17 -0700
 Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
-	id EA96962E2CA8; Wed, 12 Jun 2019 15:03:26 -0700 (PDT)
+	id 2694F62E2CCC; Wed, 12 Jun 2019 15:03:39 -0700 (PDT)
 Smtp-Origin-Hostprefix: devbig
 From: Song Liu <songliubraving@fb.com>
 Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
@@ -112,9 +112,9 @@ CC: <namit@vmware.com>, <peterz@infradead.org>, <oleg@redhat.com>,
         <kernel-team@fb.com>, Song Liu
 	<songliubraving@fb.com>
 Smtp-Origin-Cluster: ftw2c04
-Subject: [PATCH v3 1/5] mm: move memcmp_pages() and pages_identical()
-Date: Wed, 12 Jun 2019 15:03:15 -0700
-Message-ID: <20190612220320.2223898-2-songliubraving@fb.com>
+Subject: [PATCH v3 3/5] mm, thp: introduce FOLL_SPLIT_PMD
+Date: Wed, 12 Jun 2019 15:03:17 -0700
+Message-ID: <20190612220320.2223898-4-songliubraving@fb.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190612220320.2223898-1-songliubraving@fb.com>
 References: <20190612220320.2223898-1-songliubraving@fb.com>
@@ -126,7 +126,7 @@ X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019
 X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
  malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
  clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=940 adultscore=0 classifier=spam adjust=0 reason=mlx
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
  scancount=1 engine=8.0.1-1810050000 definitions=main-1906120153
 X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -135,83 +135,96 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch moves memcmp_pages() to mm/util.c and pages_identical() to
-mm.h, so that we can use them in other files.
+This patches introduces a new foll_flag: FOLL_SPLIT_PMD. As the name says
+FOLL_SPLIT_PMD splits huge pmd for given mm_struct, the underlining huge
+page stays as-is.
+
+FOLL_SPLIT_PMD is useful for cases where we need to use regular pages,
+but would switch back to huge page and huge pmd on. One of such example
+is uprobe. The following patches use FOLL_SPLIT_PMD in uprobe.
 
 Signed-off-by: Song Liu <songliubraving@fb.com>
 ---
- include/linux/mm.h |  7 +++++++
- mm/ksm.c           | 18 ------------------
- mm/util.c          | 13 +++++++++++++
- 3 files changed, 20 insertions(+), 18 deletions(-)
+ include/linux/mm.h |  1 +
+ mm/gup.c           | 38 +++++++++++++++++++++++++++++++++++---
+ 2 files changed, 36 insertions(+), 3 deletions(-)
 
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index dd0b5f4e1e45..0ab8c7d84cd0 100644
+index 0ab8c7d84cd0..e605acc4fc81 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -2891,5 +2891,12 @@ void __init setup_nr_node_ids(void);
- static inline void setup_nr_node_ids(void) {}
- #endif
+@@ -2642,6 +2642,7 @@ struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
+ #define FOLL_COW	0x4000	/* internal GUP flag */
+ #define FOLL_ANON	0x8000	/* don't do file mappings */
+ #define FOLL_LONGTERM	0x10000	/* mapping lifetime is indefinite: see below */
++#define FOLL_SPLIT_PMD	0x20000	/* split huge pmd before returning */
  
-+extern int memcmp_pages(struct page *page1, struct page *page2);
+ /*
+  * NOTE on FOLL_LONGTERM:
+diff --git a/mm/gup.c b/mm/gup.c
+index ddde097cf9e4..3d05bddb56c9 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -398,7 +398,7 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 		spin_unlock(ptl);
+ 		return follow_page_pte(vma, address, pmd, flags, &ctx->pgmap);
+ 	}
+-	if (flags & FOLL_SPLIT) {
++	if (flags & (FOLL_SPLIT | FOLL_SPLIT_PMD)) {
+ 		int ret;
+ 		page = pmd_page(*pmd);
+ 		if (is_huge_zero_page(page)) {
+@@ -407,7 +407,7 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 			split_huge_pmd(vma, pmd, address);
+ 			if (pmd_trans_unstable(pmd))
+ 				ret = -EBUSY;
+-		} else {
++		} else if (flags & FOLL_SPLIT) {
+ 			if (unlikely(!try_get_page(page))) {
+ 				spin_unlock(ptl);
+ 				return ERR_PTR(-ENOMEM);
+@@ -419,8 +419,40 @@ static struct page *follow_pmd_mask(struct vm_area_struct *vma,
+ 			put_page(page);
+ 			if (pmd_none(*pmd))
+ 				return no_page_table(vma, flags);
+-		}
++		} else {  /* flags & FOLL_SPLIT_PMD */
++			unsigned long addr;
++			pgprot_t prot;
++			pte_t *pte;
++			int i;
 +
-+static inline int pages_identical(struct page *page1, struct page *page2)
-+{
-+	return !memcmp_pages(page1, page2);
-+}
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 81c20ed57bf6..6f153f976c4c 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1030,24 +1030,6 @@ static u32 calc_checksum(struct page *page)
- 	return checksum;
- }
++			spin_unlock(ptl);
++			split_huge_pmd(vma, pmd, address);
++			lock_page(page);
++			pte = get_locked_pte(mm, address, &ptl);
++			if (!pte) {
++				unlock_page(page);
++				return no_page_table(vma, flags);
++			}
  
--static int memcmp_pages(struct page *page1, struct page *page2)
--{
--	char *addr1, *addr2;
--	int ret;
--
--	addr1 = kmap_atomic(page1);
--	addr2 = kmap_atomic(page2);
--	ret = memcmp(addr1, addr2, PAGE_SIZE);
--	kunmap_atomic(addr2);
--	kunmap_atomic(addr1);
--	return ret;
--}
--
--static inline int pages_identical(struct page *page1, struct page *page2)
--{
--	return !memcmp_pages(page1, page2);
--}
--
- static int write_protect_page(struct vm_area_struct *vma, struct page *page,
- 			      pte_t *orig_pte)
- {
-diff --git a/mm/util.c b/mm/util.c
-index 9834c4ab7d8e..750e586d50bc 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -755,3 +755,16 @@ int get_cmdline(struct task_struct *task, char *buffer, int buflen)
- out:
- 	return res;
- }
++			/* get refcount for every small page */
++			page_ref_add(page, HPAGE_PMD_NR);
 +
-+int memcmp_pages(struct page *page1, struct page *page2)
-+{
-+	char *addr1, *addr2;
-+	int ret;
++			prot = READ_ONCE(vma->vm_page_prot);
++			for (i = 0, addr = address & PMD_MASK;
++			     i < HPAGE_PMD_NR; i++, addr += PAGE_SIZE) {
++				struct page *p = page + i;
 +
-+	addr1 = kmap_atomic(page1);
-+	addr2 = kmap_atomic(page2);
-+	ret = memcmp(addr1, addr2, PAGE_SIZE);
-+	kunmap_atomic(addr2);
-+	kunmap_atomic(addr1);
-+	return ret;
-+}
++				pte = pte_offset_map(pmd, addr);
++				VM_BUG_ON(!pte_none(*pte));
++				set_pte_at(mm, addr, pte, mk_pte(p, prot));
++				page_add_file_rmap(p, false);
++			}
++
++			spin_unlock(ptl);
++			unlock_page(page);
++			add_mm_counter(mm, mm_counter_file(page), HPAGE_PMD_NR);
++			ret = 0;
++		}
+ 		return ret ? ERR_PTR(ret) :
+ 			follow_page_pte(vma, address, pmd, flags, &ctx->pgmap);
+ 	}
 -- 
 2.17.1
 
