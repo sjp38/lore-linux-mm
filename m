@@ -2,201 +2,175 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 76152C31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 15:53:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E81D4C31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 15:57:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3879621019
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 15:53:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3879621019
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=collabora.com
+	by mail.kernel.org (Postfix) with ESMTP id A603321734
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 15:57:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A603321734
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CE2E66B000A; Wed, 12 Jun 2019 11:53:15 -0400 (EDT)
+	id 20B8E6B0008; Wed, 12 Jun 2019 11:57:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C955B6B000D; Wed, 12 Jun 2019 11:53:15 -0400 (EDT)
+	id 1BB786B000A; Wed, 12 Jun 2019 11:57:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B5C276B000E; Wed, 12 Jun 2019 11:53:15 -0400 (EDT)
+	id 083D46B000D; Wed, 12 Jun 2019 11:57:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B81B6B000A
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 11:53:15 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id v7so7546124wrt.6
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 08:53:15 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AEFEB6B0008
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 11:57:04 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id c27so11291067edn.8
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 08:57:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=Be82MXrZZVwB1/Oeg/G/O2HGzMN4mPYcnghvzbdbiYw=;
-        b=F7ox/K//SHCaDz7OyN7/kGxwD7OGDrVk61MowuARSsZ+tLUmltPsLIsTOMFiIvnBA4
-         10fieksbpF95gYkzjCmLPzgORFYKhBtMDeiSz3rEl2WnZHZKBif8n3HUvAkvq0FT/BFJ
-         Nz7hSlQzJImoi9/MJy+6aMYrbFdCF+2O/wEpgbVEzv98gg0ahC99aNWP0KJJv74eR3/d
-         k0ycGWX0P2dcRs8gG9wWwOXqRR17BCLAgNInR6QIyxNUAK1lBBFIRGkCjdegMsr98jxV
-         JWRpb5iwiA2lVrEEk7/A7aewKyiAEpGdjoPZ5ye/fa3OgmTjmZvQpyD0m+f4PAJ8Zr35
-         BAIQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of andrealmeid@collabora.com designates 46.235.227.227 as permitted sender) smtp.mailfrom=andrealmeid@collabora.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-X-Gm-Message-State: APjAAAXUyHFbrmBz5D/ApGBph42P/FlAbxlaq2qmgJ7urSZurM/B0gS6
-	7gwXjqyM+l5akZtAa6y84mBpQVBqsxuBNno+kRLZFWNlPcbVZTPZ5RitsPgLTNh1q664I3OfKn3
-	yzuiS06iC2wLIzXBt+5w4Glk9UA/SOXGvmDal2XmcZ/+AYfRO++rNnq5v3/kzxQnNUw==
-X-Received: by 2002:a1c:f415:: with SMTP id z21mr9910396wma.34.1560354794884;
-        Wed, 12 Jun 2019 08:53:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqweGK+W3lDuTfeAdsrAknp4baeT4KZCVFVptZgp0oPn3TIz2mQLlWJi1DsyA/N5SaBxJNL7
-X-Received: by 2002:a1c:f415:: with SMTP id z21mr9910346wma.34.1560354793940;
-        Wed, 12 Jun 2019 08:53:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560354793; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=VKb09obOTdWBCfaWJVe7ZF4m/xCKPcwi/G5ac4kdKbg=;
+        b=n8Wt/JnFKU3Uns84Dkmk1hwegxGlRHcZCcLS0u2yG/YtxuaEa2DRQboIXxeE4KTqwh
+         Msf6m9maaTcx745+4E9O9eGQA6wgR1ZOtz6o1Mdrwms4uucWGPztFaO9qNYzVLcrLrIh
+         EhPQt6+z4kP0Wr45rDGeJnag07Biop88KbBJXeGv1kHsP1XXEBSFyMa+Qym9uPX/ueXY
+         XE1Yaf1A+Nu5XFxuDBdGUv1WrAX+BtuzYfKx+f7MZqyLQs0omB3Ojgqm0lg3KmN4otdp
+         V8XAICpyeLDxFgPM8HTporvVw/RFM+4Qs9xVWoRB+XwkMGBl2iU7TIe1v8eQtZ8SMhjM
+         Bkmg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAXuomNNjcVpnjOB5vGm9KZscM7ak+Nfj3iNuQu7LBBH0S/1F2e4
+	oICGCB3rkpwXjSahELDJ/rT6k37af0RS3p8xJ/7Ltfb8QgZfeBBTD38l1+hQtKo8yEX9+BfE+Rn
+	SuXL67Y24HWjN9G4eujHH5EqK2LEk9I2GHgqvRQzEovdoKWYNo65nOlgTPAOhUbQXaA==
+X-Received: by 2002:aa7:c14f:: with SMTP id r15mr23256245edp.116.1560355024270;
+        Wed, 12 Jun 2019 08:57:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwvfjVbS1gFuLhDOS1mDqMDazI+ccE2UjJQB23zGWfINF4JIjgvnYbh9ztRy7fgz/MnDKbu
+X-Received: by 2002:aa7:c14f:: with SMTP id r15mr23256166edp.116.1560355023475;
+        Wed, 12 Jun 2019 08:57:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560355023; cv=none;
         d=google.com; s=arc-20160816;
-        b=FgxsPMQ6n/aI5GioceO0dxeB+yGPdYwcuaWY87U8cvajUCxRgfQzZpSF3ryuOZOuiD
-         HXldyptoO2SY7y8gYRLaXdYodVJBy1SRusC+D/svBKspbxpzh4IZ1hBdzQommn7ogwoB
-         pj0DyKg4UXkkmaklGqj4qOhaMcAAwC+2bQtLrtBh0LcPtZQEIHDG5Z/gMIb0yBybWeos
-         SrROC7bj2Euopu+ythsOOTHL6spIFQ4S6NXfHqHpZV68OZ+8mv7fnHMPRDjjnRuc218z
-         mzBQuAW8oEtULo2A+WZxYsiCEoeZzNu+8de6HgyxFGjFToLRMJpBhIKIqLNid0XL6srX
-         s3Jg==
+        b=VN3TedLA5TbKj1ofrC7mqUogxIrtHSvkCqumUNf0ep4GSF2QVotVEm3UCdmRmp9jk4
+         CgZkrJa1QOqBC7E9bBozBfOM3gHeLy0OivLGH62lfOXDGwXxbweoOhm+Chz1/lcI6jaz
+         qD5kWa8eHi/ZYfu4Dw/Fwti8PkTyuLntZTAivaydHK2+QkXLaoqMoADtC7pJVcr/xU7Z
+         xx8tYohXj8VBkBzsVxstT3YbdGNryXV+ezAofT0gU6F85V4LN6HGoSceRZpv7EtsOrNF
+         QAg7N+EnxDSCOWimbiQT+qpmz0jZ/qqjIkO5nz8WwC5o/kZ/S44D6NDJR8RSgHICbXUM
+         0GPg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=Be82MXrZZVwB1/Oeg/G/O2HGzMN4mPYcnghvzbdbiYw=;
-        b=ZiayApnMO475CVgJBgBLoFjY/ilcFJ4LLHUmReCm7TUfzPA5UgvsSyNjlsq41XPztC
-         hLFLVAoRjKStHXsm4IcHJbKuhSmk6MSf2MlpxNQN9R/7xDEVCubc6Ps07r6TN82KhALF
-         IuTquyYNhyOP8Mb8D87S/KkesNZP2BG7zggNV4pDqKDlExkuUxoD2f4E4hq82ZXwlyr+
-         R4UV/Vwspm93ETh5xtP5h1bugL35W6tfdW+nqguK5si2BB+vtqaq/gDs9BoiocG2mtlh
-         A6998vIAc2MONCsWpbnWH+u8CC5Vh4DHjvSMqdRMh98Rq3qj8BCm1wzVcXbeKXLyAGRQ
-         B6xg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=VKb09obOTdWBCfaWJVe7ZF4m/xCKPcwi/G5ac4kdKbg=;
+        b=CVL6KwsiTQdcUp/2xUuKjIB53Hixt6VRQzN7NqZw9fAS/EQbOZD7WBD7O4WMal5c0K
+         mpmShExLc5zotYOn5ryrXSs69mi0R/F/MFBNlopmI+6i4xQCXbkBDHrNDSo9U7ODy03Q
+         nqkremUwPthseJAh43Sw2pJpNYYZNAL0zFPDjUsjEH3ZQSbMQQ9iKlhwAZBvPrQCPcE2
+         z1JhmgzFTmI7LQqphBSxXBmlSZ60GjGFErHmF/jFv31plksEao35PZsmTG7Uy0VBP4Yo
+         z/cIy3aHY7KKDQ2Gcl/5QgZXNuNU8GwIAwn3Ux9CXHBbA/Z8E6Wnd3eNIiNVjFhATXCv
+         ch/A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of andrealmeid@collabora.com designates 46.235.227.227 as permitted sender) smtp.mailfrom=andrealmeid@collabora.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-Received: from bhuna.collabora.co.uk (bhuna.collabora.co.uk. [46.235.227.227])
-        by mx.google.com with ESMTPS id s127si9876wmf.122.2019.06.12.08.53.13
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 12 Jun 2019 08:53:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andrealmeid@collabora.com designates 46.235.227.227 as permitted sender) client-ip=46.235.227.227;
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id o21si96404edc.65.2019.06.12.08.57.03
+        for <linux-mm@kvack.org>;
+        Wed, 12 Jun 2019 08:57:03 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of andrealmeid@collabora.com designates 46.235.227.227 as permitted sender) smtp.mailfrom=andrealmeid@collabora.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=collabora.com
-Received: from turingmachine.home (unknown [IPv6:2804:431:d719:d9b5:d711:794d:1c68:5ed3])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	(Authenticated sender: tonyk)
-	by bhuna.collabora.co.uk (Postfix) with ESMTPSA id 0E7D52808F4;
-	Wed, 12 Jun 2019 16:53:10 +0100 (BST)
-From: =?UTF-8?q?Andr=C3=A9=20Almeida?= <andrealmeid@collabora.com>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org,
-	catalin.marinas@arm.com,
-	kernel@collabora.com,
-	akpm@linux-foundation.org,
-	=?UTF-8?q?Andr=C3=A9=20Almeida?= <andrealmeid@collabora.com>
-Subject: [PATCH v2 2/2] docs: kmemleak: add more documentation details
-Date: Wed, 12 Jun 2019 12:52:31 -0300
-Message-Id: <20190612155231.19448-2-andrealmeid@collabora.com>
-X-Mailer: git-send-email 2.22.0
-In-Reply-To: <20190612155231.19448-1-andrealmeid@collabora.com>
-References: <20190612155231.19448-1-andrealmeid@collabora.com>
+       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8F334337;
+	Wed, 12 Jun 2019 08:57:02 -0700 (PDT)
+Received: from C02TF0J2HF1T.local (unknown [172.31.20.19])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B245D3F73C;
+	Wed, 12 Jun 2019 08:56:58 -0700 (PDT)
+Date: Wed, 12 Jun 2019 16:56:52 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
+	linux-mm@kvack.org, linux-arch@vger.kernel.org,
+	linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org,
+	Will Deacon <will.deacon@arm.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Alexander Viro <viro@zeniv.linux.org.uk>
+Subject: Re: [PATCH v4 2/2] arm64: Relax
+ Documentation/arm64/tagged-pointers.txt
+Message-ID: <20190612155651.GM28951@C02TF0J2HF1T.local>
+References: <cover.1560339705.git.andreyknvl@google.com>
+ <20190612142111.28161-1-vincenzo.frascino@arm.com>
+ <20190612142111.28161-3-vincenzo.frascino@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190612142111.28161-3-vincenzo.frascino@arm.com>
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Wikipedia now has a main article to "tracing garbage collector" topic.
-Change the URL and use the reStructuredText syntax for hyperlinks and add
-more details about the use of the tool. Add a section about how to use
-the kmemleak-test module to test the memory leak scanning.
+A couple of minor nits below.
 
-Signed-off-by: André Almeida <andrealmeid@collabora.com>
----
-Changes in v2: none
+On Wed, Jun 12, 2019 at 03:21:11PM +0100, Vincenzo Frascino wrote:
+> --- a/Documentation/arm64/tagged-pointers.txt
+> +++ b/Documentation/arm64/tagged-pointers.txt
+> @@ -18,7 +18,8 @@ Passing tagged addresses to the kernel
+>  --------------------------------------
+>  
+>  All interpretation of userspace memory addresses by the kernel assumes
+> -an address tag of 0x00.
+> +an address tag of 0x00, unless the userspace opts-in the ARM64 Tagged
+> +Address ABI via the PR_SET_TAGGED_ADDR_CTRL prctl().
+>  
+>  This includes, but is not limited to, addresses found in:
+>  
+> @@ -31,18 +32,23 @@ This includes, but is not limited to, addresses found in:
+>   - the frame pointer (x29) and frame records, e.g. when interpreting
+>     them to generate a backtrace or call graph.
+>  
+> -Using non-zero address tags in any of these locations may result in an
+> -error code being returned, a (fatal) signal being raised, or other modes
+> -of failure.
+> +Using non-zero address tags in any of these locations when the
+> +userspace application did not opt-in to the ARM64 Tagged Address ABI,
 
- Documentation/dev-tools/kmemleak.rst | 48 +++++++++++++++++++++++++---
- 1 file changed, 44 insertions(+), 4 deletions(-)
+Nitpick: drop the comma after "ABI," since a predicate follows.
 
-diff --git a/Documentation/dev-tools/kmemleak.rst b/Documentation/dev-tools/kmemleak.rst
-index e6f51260ff32..3621cd5e1eef 100644
---- a/Documentation/dev-tools/kmemleak.rst
-+++ b/Documentation/dev-tools/kmemleak.rst
-@@ -2,8 +2,8 @@ Kernel Memory Leak Detector
- ===========================
- 
- Kmemleak provides a way of detecting possible kernel memory leaks in a
--way similar to a tracing garbage collector
--(https://en.wikipedia.org/wiki/Garbage_collection_%28computer_science%29#Tracing_garbage_collectors),
-+way similar to a `tracing garbage collector
-+<https://en.wikipedia.org/wiki/Tracing_garbage_collection>`_,
- with the difference that the orphan objects are not freed but only
- reported via /sys/kernel/debug/kmemleak. A similar method is used by the
- Valgrind tool (``memcheck --leak-check``) to detect the memory leaks in
-@@ -15,10 +15,13 @@ Usage
- 
- CONFIG_DEBUG_KMEMLEAK in "Kernel hacking" has to be enabled. A kernel
- thread scans the memory every 10 minutes (by default) and prints the
--number of new unreferenced objects found. To display the details of all
--the possible memory leaks::
-+number of new unreferenced objects found. If the ``debugfs`` isn't already
-+mounted, mount with::
- 
-   # mount -t debugfs nodev /sys/kernel/debug/
-+
-+To display the details of all the possible scanned memory leaks::
-+
-   # cat /sys/kernel/debug/kmemleak
- 
- To trigger an intermediate memory scan::
-@@ -72,6 +75,9 @@ If CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF are enabled, the kmemleak is
- disabled by default. Passing ``kmemleak=on`` on the kernel command
- line enables the function. 
- 
-+If you are getting errors like "Error while writing to stdout" or "write_loop:
-+Invalid argument", make sure kmemleak is properly enabled.
-+
- Basic Algorithm
- ---------------
- 
-@@ -218,3 +224,37 @@ the pointer is calculated by other methods than the usual container_of
- macro or the pointer is stored in a location not scanned by kmemleak.
- 
- Page allocations and ioremap are not tracked.
-+
-+Testing with kmemleak-test
-+--------------------------
-+
-+To check if you have all set up to use kmemleak, you can use the kmemleak-test
-+module, a module that deliberately leaks memory. Set CONFIG_DEBUG_KMEMLEAK_TEST
-+as module (it can't be used as bult-in) and boot the kernel with kmemleak
-+enabled. Load the module and perform a scan with::
-+
-+        # modprobe kmemleak-test
-+        # echo scan > /sys/kernel/debug/kmemleak
-+
-+Note that the you may not get results instantly or on the first scanning. When
-+kmemleak gets results, it'll log ``kmemleak: <count of leaks> new suspected
-+memory leaks``. Then read the file to see then::
-+
-+        # cat /sys/kernel/debug/kmemleak
-+        unreferenced object 0xffff89862ca702e8 (size 32):
-+          comm "modprobe", pid 2088, jiffies 4294680594 (age 375.486s)
-+          hex dump (first 32 bytes):
-+            6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
-+            6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5  kkkkkkkkkkkkkkk.
-+          backtrace:
-+            [<00000000e0a73ec7>] 0xffffffffc01d2036
-+            [<000000000c5d2a46>] do_one_initcall+0x41/0x1df
-+            [<0000000046db7e0a>] do_init_module+0x55/0x200
-+            [<00000000542b9814>] load_module+0x203c/0x2480
-+            [<00000000c2850256>] __do_sys_finit_module+0xba/0xe0
-+            [<000000006564e7ef>] do_syscall_64+0x43/0x110
-+            [<000000007c873fa6>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
-+        ...
-+
-+Removing the module with ``rmmod kmemleak_test`` should also trigger some
-+kmemleak results.
+> +may result in an error code being returned, a (fatal) signal being raised,
+> +or other modes of failure.
+>  
+> -For these reasons, passing non-zero address tags to the kernel via
+> -system calls is forbidden, and using a non-zero address tag for sp is
+> -strongly discouraged.
+> +For these reasons, when the userspace application did not opt-in, passing
+> +non-zero address tags to the kernel via system calls is forbidden, and using
+> +a non-zero address tag for sp is strongly discouraged.
+>  
+>  Programs maintaining a frame pointer and frame records that use non-zero
+>  address tags may suffer impaired or inaccurate debug and profiling
+>  visibility.
+>  
+> +A definition of the meaning of ARM64 Tagged Address ABI and of the
+> +guarantees that the ABI provides when the userspace opts-in via prctl()
+> +can be found in: Documentation/arm64/tagged-address-abi.txt.
+> +
+>  
+>  Preserving tags
+>  ---------------
+> @@ -57,6 +63,9 @@ be preserved.
+>  The architecture prevents the use of a tagged PC, so the upper byte will
+>  be set to a sign-extension of bit 55 on exception return.
+>  
+> +This behaviours are preserved even when the the userspace opts-in the ARM64
+
+"These" ... "opts in to"
+
+> +Tagged Address ABI via the PR_SET_TAGGED_ADDR_CTRL prctl().
+> +
+>  
+>  Other considerations
+>  --------------------
+> -- 
+> 2.21.0
+
 -- 
-2.22.0
+Catalin
 
