@@ -2,191 +2,159 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 70C4BC31E48
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 19:14:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 409BAC31E48
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 19:16:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 25F8C215EA
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 19:14:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E6D2520B7C
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 19:16:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="fKZgzRoQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25F8C215EA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="osWFZDHN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6D2520B7C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD9796B000C; Wed, 12 Jun 2019 15:14:24 -0400 (EDT)
+	id 8A2196B000C; Wed, 12 Jun 2019 15:16:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BAFAC6B0266; Wed, 12 Jun 2019 15:14:24 -0400 (EDT)
+	id 8526F6B0266; Wed, 12 Jun 2019 15:16:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A76386B0269; Wed, 12 Jun 2019 15:14:24 -0400 (EDT)
+	id 740D56B0269; Wed, 12 Jun 2019 15:16:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 868896B000C
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 15:14:24 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id i196so14508163qke.20
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 12:14:24 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5085A6B000C
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 15:16:14 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id n190so14542027qkd.5
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 12:16:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=Q6iGM1TiupqbenVhxjWmtAI5HyN33SMdpalMPy6x5OY=;
-        b=Bt5deyzOVWkvMIecjNLs/9g9iJoiytpH9VWuydGciIHPkH0DBpaUTRPUCnh6cO9ZT6
-         vAnSk5jN3KmRC/Y8C165WKvab14a2pArHVyzxBS9Ne68xKTaVFMtoleN2JRKexCP37YP
-         hQ0M1HnBjehHJ4oGdU/6j1tG/ejVOpHHgEM5OehQg7Y5CJJohaKaCPz1nUqpQDr3YlLn
-         +wRbJZFaEQvBC3esl+8n0pBgiy5A7QonSLsRIFN0zrfwtImN46VyRjUjFzKMF6j6TeSY
-         E2kL3tLd+EScGXYH2eCJ/PTu62WJ8/syexVi3hyZSvSnI2DsqwdSaOWc2GQBIrpOkcNS
-         1naA==
-X-Gm-Message-State: APjAAAUCGJGeciSVkWD0QXIAWwBTp2I3mThLNCYcNrHEfOpDPnJ+mQDs
-	iA0TwkcGyp4CwXPsXe3whO7ddpngGklkBetta3CVvYPNTlZDofAaI85L3Ay38Zo6G/ovNpoAnsG
-	mMSIMxcipgvPPTEEvV7Zisglkfla9/LjjC1lkNcOFx7G7fw7n4v6apU/SNMOu23gxKw==
-X-Received: by 2002:a37:a541:: with SMTP id o62mr11015100qke.90.1560366864234;
-        Wed, 12 Jun 2019 12:14:24 -0700 (PDT)
-X-Received: by 2002:a37:a541:: with SMTP id o62mr11015078qke.90.1560366863657;
-        Wed, 12 Jun 2019 12:14:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560366863; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=VM0X6sjIUXYgIgyRfttiOmJ9MQtVYKp30kcz3vOUcd8=;
+        b=PGQdtbzn310GQIJUKrvUEFP95glpTBfCUBrG6RzCKNCjsu4x9CZ4MyDFxkaq4//Fl6
+         BB3Dkw+G2g5/EnEHqKajRSPmfBUqCPEaSIme6XVIFUeSUmA9YBhiEnAhhk6ZDgJGxQGJ
+         s9hIL1FyV864BLmWOPvwvrOQOa5odhwhpInIXn0JOkH6m2oXYFQxl6jeOzLSymt/5/ZZ
+         0KGyknb3cb8qOjlza/t4DGL+Ur/zmO/+UvDLP70sRNyNReYBDNpJO0YvJWYXaDigOHYt
+         cB1QZ1QMWBg8CgbAXCJ32ml2JE6WhTsCvG+Qq9GU34j7uRmWGQ8CJR9D+xEjvXUFrRd2
+         qkCA==
+X-Gm-Message-State: APjAAAVmK7wCaK8JzGbip6C9e65clfVXJ++JIB+mNCwvR/VbcRmzpLhG
+	kB7q1hJD+yDUrJ4Qy7qA5XLVxvDyb4RK7IrdgRl5VcqKnn1/FmH1Be9BVxsZfH8isINcyQV5hXH
+	refYwX74AxmgDJW9uN4O12ZzFiqpMWQEXr7/i9Bk1qHfncowUErcGbSeDTjUpoFtedw==
+X-Received: by 2002:ae9:c30e:: with SMTP id n14mr61927722qkg.220.1560366974047;
+        Wed, 12 Jun 2019 12:16:14 -0700 (PDT)
+X-Received: by 2002:ae9:c30e:: with SMTP id n14mr61927693qkg.220.1560366973369;
+        Wed, 12 Jun 2019 12:16:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560366973; cv=none;
         d=google.com; s=arc-20160816;
-        b=t2GO7XXl5dpfEkIeVC0CqDsYZcQtj1zWVJwGrViB3UL06u+M0ipyq4i2Ry29Hd7Zu+
-         JKai/2ZMCWoi/xGzTUVux/kB0KWr47nWjlqZVM7CFGNRrQD1R78BM2yBn1uLkCo3DE/m
-         cRc951k1ECdltGNGdkVJr9fGtj4vEJvQ644VSOcpEs8A0O3tLvhyYKBqT0CfElWkyXU2
-         P+UuNfZuD/kk9FZrZGH2slHRtKh2rNgYPANplI5CE8F1IQ3bXRtroZ3qdWAPrdZzYbst
-         1AFWX0tBIQmHxGjiMYrCM6K2FPQm161jhUNu4rBxLRgVjSgrxwTnTOizjhvpGEXXSTJy
-         mxkA==
+        b=Ho/kZVQKUTkRcckaaj+Mt8EZKpigge22i4GryvqmO2T2IkCl8Of/O3QmfTVopQok3I
+         4CfhaT8YrvmDS18IgBjxeO1Lr0sZyLQn8hJpr/LvPV3cnCtp9Jtrv5jmf98mOvEpOd+v
+         G8ONrNrgZMR91z9Szu4fxCq4d1m/WeszORVXXbs4rfjYuo5edInu1E1iFAc3k5KzTxYc
+         JHFZXRjXwk8L3zUFRcAGCwzEXgknB5WMY4l1qQHOuXSL/5+eZQkVm4h5hdJSYY1ZVe6L
+         Cj8fVIyLy/m6BZPEi97sFOy/ZQPVErr3uAOGWrbp3IHIYO2P7qI26xa0Sg9UtoF4zVaX
+         nSfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=Q6iGM1TiupqbenVhxjWmtAI5HyN33SMdpalMPy6x5OY=;
-        b=ztUW3ms3TKfUcMSb6PvP3UdRIv1ky7N8cljRfP6JjI73JEug+g3uzyA4Z2j6Pexiyw
-         oXsD9jp0pTc0in3AeJSw7ae1p6TStFZNQrfX/JfPPuneoDwPuny7wMbexM+7Aa7KvKTJ
-         ncwDHkZ3wTXQsDoDMf0ZRYcSIPH9PtsA+vKWbJLQETIkd/4vRH+qHKkcDnuvyw088C4n
-         SO5L42azoYh7OqnAQBIRSBRWx31ZoWbgDvqGaoAFf04EZTNBDRZfk/hcsAAjhxWzaMB2
-         0XOsQGwaWoud9sWYpNnWzbiVQp5kSgfdk+SNJ/1rix4L+2MTLCWmX+vRsLy+NTrrgQ/P
-         AEiA==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=VM0X6sjIUXYgIgyRfttiOmJ9MQtVYKp30kcz3vOUcd8=;
+        b=TR1z8Pgap78FnlpufN9meer0tFR8FSx9T+4pKREvJ5lxr9PdUW0Ztgvq45BmsORX7v
+         1tGi3RcyOg/Yn4rWeXoYRXcaatXKgSqIOm1AlRe6/eRYA/73gzsFseE/DCTIoOR2AOCO
+         wCKq1th1/3Ub2FgCSzHSTKJNqiOglHbr+DQu1HvPEoMcKXRHP1ULS9Sfhsh0M6qxdPn7
+         C2owJ4DuDq9oLEt8p3MActVR+Op4g9BNewyFU2jbo+/x2ffkpLjfEg4838X1v8SGfnyU
+         ocnJfX0lVp52hqr2BE7/2/MadTtm4kp9+lgI1phlu12H7jPXetTLHa5rC57/awL/o0ec
+         edUA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=fKZgzRoQ;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@lca.pw header.s=google header.b=osWFZDHN;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 49sor1011775qtn.1.2019.06.12.12.14.23
+        by mx.google.com with SMTPS id i7sor982408qtb.37.2019.06.12.12.16.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 12 Jun 2019 12:14:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 12 Jun 2019 12:16:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=fKZgzRoQ;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       dkim=pass header.i=@lca.pw header.s=google header.b=osWFZDHN;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=Q6iGM1TiupqbenVhxjWmtAI5HyN33SMdpalMPy6x5OY=;
-        b=fKZgzRoQazhx2NyU0bXbVZS8dOqt2ksyWGIauwNWYHJH8kgsCVJI03c4N5lKN0UfbL
-         Bhd0f7dzZ8VYCFXXU+aLJIcr64Q7WMzXQZhTBHMZGz5IhlK3ID/yDJO/l9SrdO5KfgqK
-         Pzqt+w2uTJiIBcYRcbkg+zqo7JEvQt6YgPwzekPufoXbr56qiO4x0n/EncSJ7JDY0Ihx
-         5v476nbYAMqpu7FcZAOCJM9Yr1cgH62Vahq2y1Hbu0KZAQpHI9vvaxHreBBJ1eHnpDXL
-         1X7rLB8DRwb8xJ6R2YIgnjubs6XczMXMrodaik5vqBCeF/b9SQjTHUeI0/OO4EIsnzG3
-         NonA==
-X-Google-Smtp-Source: APXvYqxNVQoMlV0omgFKo75Awgw9qRfhh6FBsXYbr1pvY1QOdw5O302UlF57KTTs2aFOEmTGVw1+7g==
-X-Received: by 2002:aed:3a03:: with SMTP id n3mr38086132qte.85.1560366863270;
-        Wed, 12 Jun 2019 12:14:23 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id e66sm296313qtb.55.2019.06.12.12.14.22
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 12 Jun 2019 12:14:22 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hb8hR-00037z-Na; Wed, 12 Jun 2019 16:14:21 -0300
-Date: Wed, 12 Jun 2019 16:14:21 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jan Kara <jack@suse.cz>
-Cc: Ira Weiny <ira.weiny@intel.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
-	Dave Chinner <david@fromorbit.com>,
-	Matthew Wilcox <willy@infradead.org>, linux-xfs@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
-Message-ID: <20190612191421.GM3876@ziepe.ca>
-References: <20190606014544.8339-1-ira.weiny@intel.com>
- <20190606104203.GF7433@quack2.suse.cz>
- <20190606195114.GA30714@ziepe.ca>
- <20190606222228.GB11698@iweiny-DESK2.sc.intel.com>
- <20190607103636.GA12765@quack2.suse.cz>
- <20190607121729.GA14802@ziepe.ca>
- <20190607145213.GB14559@iweiny-DESK2.sc.intel.com>
- <20190612102917.GB14578@quack2.suse.cz>
- <20190612114721.GB3876@ziepe.ca>
- <20190612120907.GC14578@quack2.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190612120907.GC14578@quack2.suse.cz>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=VM0X6sjIUXYgIgyRfttiOmJ9MQtVYKp30kcz3vOUcd8=;
+        b=osWFZDHNmnVngzJkRWmhdL6JobmUmTjdYAA3S1jiMrMfY3FmdHH38icHv8dXo1Tohc
+         mSXiMZChJeDdK+U8DMvHPW5aeQO8oKWBgQInrgerdzBRWqEAdKbBTTpYbG7l/KvSHJQm
+         aWb6+MdEAuYAsGuzGQSX/eZavG1WjeWvJr8Covmg+XJdIsjtgkmJNfJPZcj7K1fiaTNg
+         3pC2hp1o/HKnHMZLH8R4IVfHCmY0jMRECcspcwRN2a0I/M1hPWCtmiefmN6o+Ddx4Ahd
+         i4vFCh3B8XD2dlYfMRgKSTj2DTy01/twYA7iKw3x3bJyhHahvFsSQMdT23cTRKPmirRq
+         PJWA==
+X-Google-Smtp-Source: APXvYqwq5OuLqmcTYHYFkbjfzskyM1J/2vUhrTfX19xKEL2RF3CO3MzulELPQ4bfvgWOTUb6ZbUhpg==
+X-Received: by 2002:ac8:c0e:: with SMTP id k14mr29436661qti.72.1560366973092;
+        Wed, 12 Jun 2019 12:16:13 -0700 (PDT)
+Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id d25sm209437qko.96.2019.06.12.12.16.11
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Jun 2019 12:16:12 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: dan.j.williams@intel.com,
+	osalvador@suse.de,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH -next] mm/hotplug: skip bad PFNs from pfn_to_online_page()
+Date: Wed, 12 Jun 2019 15:15:52 -0400
+Message-Id: <1560366952-10660-1-git-send-email-cai@lca.pw>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 12, 2019 at 02:09:07PM +0200, Jan Kara wrote:
-> On Wed 12-06-19 08:47:21, Jason Gunthorpe wrote:
-> > On Wed, Jun 12, 2019 at 12:29:17PM +0200, Jan Kara wrote:
-> > 
-> > > > > The main objection to the current ODP & DAX solution is that very
-> > > > > little HW can actually implement it, having the alternative still
-> > > > > require HW support doesn't seem like progress.
-> > > > > 
-> > > > > I think we will eventually start seein some HW be able to do this
-> > > > > invalidation, but it won't be universal, and I'd rather leave it
-> > > > > optional, for recovery from truely catastrophic errors (ie my DAX is
-> > > > > on fire, I need to unplug it).
-> > > > 
-> > > > Agreed.  I think software wise there is not much some of the devices can do
-> > > > with such an "invalidate".
-> > > 
-> > > So out of curiosity: What does RDMA driver do when userspace just closes
-> > > the file pointing to RDMA object? It has to handle that somehow by aborting
-> > > everything that's going on... And I wanted similar behavior here.
-> > 
-> > It aborts *everything* connected to that file descriptor. Destroying
-> > everything avoids creating inconsistencies that destroying a subset
-> > would create.
-> > 
-> > What has been talked about for lease break is not destroying anything
-> > but very selectively saying that one memory region linked to the GUP
-> > is no longer functional.
-> 
-> OK, so what I had in mind was that if RDMA app doesn't play by the rules
-> and closes the file with existing pins (and thus layout lease) we would
-> force it to abort everything. Yes, it is disruptive but then the app didn't
-> obey the rule that it has to maintain file lease while holding pins. Thus
-> such situation should never happen unless the app is malicious / buggy.
+The linux-next commit "mm/sparsemem: Add helpers track active portions
+of a section at boot" [1] causes a crash below when the first kmemleak
+scan kthread kicks in. This is because kmemleak_scan() calls
+pfn_to_online_page(() which calls pfn_valid_within() instead of
+pfn_valid() on x86 due to CONFIG_HOLES_IN_ZONE=n.
 
-We do have the infrastructure to completely revoke the entire
-*content* of a FD (this is called device disassociate). It is
-basically close without the app doing close. But again it only works
-with some drivers. However, this is more likely something a driver
-could support without a HW change though.
+The commit [1] did add an additional check of pfn_section_valid() in
+pfn_valid(), but forgot to add it in the above code path.
 
-It is quite destructive as it forcibly kills everything RDMA related
-the process(es) are doing, but it is less violent than SIGKILL, and
-there is perhaps a way for the app to recover from this, if it is
-coded for it.
+page:ffffea0002748000 is uninitialized and poisoned
+raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
+raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffff
+page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+------------[ cut here ]------------
+kernel BUG at include/linux/mm.h:1084!
+invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
+CPU: 5 PID: 332 Comm: kmemleak Not tainted 5.2.0-rc4-next-20190612+ #6
+Hardware name: Lenovo ThinkSystem SR530 -[7X07RCZ000]-/-[7X07RCZ000]-,
+BIOS -[TEE113T-1.00]- 07/07/2017
+RIP: 0010:kmemleak_scan+0x6df/0xad0
+Call Trace:
+ kmemleak_scan_thread+0x9f/0xc7
+ kthread+0x1d2/0x1f0
+ ret_from_fork+0x35/0x4
 
-My preference would be to avoid this scenario, but if it is really
-necessary, we could probably build it with some work.
+[1] https://patchwork.kernel.org/patch/10977957/
 
-The only case we use it today is forced HW hot unplug, so it is rarely
-used and only for an 'emergency' like use case.
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ include/linux/memory_hotplug.h | 1 +
+ 1 file changed, 1 insertion(+)
 
-Jason
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 0b8a5e5ef2da..f02be86077e3 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -28,6 +28,7 @@
+ 	unsigned long ___nr = pfn_to_section_nr(___pfn);	   \
+ 								   \
+ 	if (___nr < NR_MEM_SECTIONS && online_section_nr(___nr) && \
++	    pfn_section_valid(__nr_to_section(___nr), pfn) &&	   \
+ 	    pfn_valid_within(___pfn))				   \
+ 		___page = pfn_to_page(___pfn);			   \
+ 	___page;						   \
+-- 
+1.8.3.1
 
