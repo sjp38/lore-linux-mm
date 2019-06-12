@@ -2,146 +2,196 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A6719C31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:24:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8025CC31E48
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:36:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5E7FD2082C
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:24:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 38528208CA
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:36:50 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="pu7FtOXG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E7FD2082C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="GDzbgDhO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38528208CA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F33F16B0006; Wed, 12 Jun 2019 07:24:17 -0400 (EDT)
+	id C92C26B0006; Wed, 12 Jun 2019 07:36:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EE5066B0007; Wed, 12 Jun 2019 07:24:17 -0400 (EDT)
+	id C436A6B0007; Wed, 12 Jun 2019 07:36:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD3956B0008; Wed, 12 Jun 2019 07:24:17 -0400 (EDT)
+	id B325D6B0008; Wed, 12 Jun 2019 07:36:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A23246B0006
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:24:17 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id j21so11803510pff.12
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 04:24:17 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D1576B0006
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:36:49 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id a13so11190160pgw.19
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 04:36:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=KJAXvYM0DI4vnD/0tu+larrshBV1A0aACdJmWI9kxzw=;
-        b=JU64LmtUPLKsCPn4aBRUdxViAmPjNSMqsnNoqAOY/cKZiT+e9ihkCA0F0H7p2Ffblb
-         oqhHmAgRm9VVKnVNErRfExinOF2Q8aINA3Fe7zFTNBBOPWLt4hu0epPksETZ3jn7qN4i
-         cA0k4UWLzUHsnrvFPsccT4WiWxna+4qozi+bqaq0lPFEx3NPA03t7NCYTxF5aHDGVGO3
-         S4JKgrm8+wgzW4fbzK+faGbg4L/aHJF8IBToMlsI9t+R1ZNgjHVsQ15pjb2aUHTX4WY4
-         NtKS5chhGQOLFthmAqwIOeqsZ1aiLNxYzr5rEIYbnNBjChvnmUGIoKYx39wnaWosU3mC
-         Wefg==
-X-Gm-Message-State: APjAAAUEKfzTEYZwaOnfAmiSslgcZEMobmP91eX3l5YklLPvX9whwLjY
-	yoSErJ1QL90IQp3yZnalZLdS2rCCG+ZN2rT2TCVvdd4v0zG7jUdKtRjHS6xjd0qb/raG5jINmIS
-	ok7fHXlHAFHOGImgPKmcANZRaLKhciKSHJ1clQPOSjwdzWxlBV6v1VmLz5tD0ZyG4iw==
-X-Received: by 2002:a17:902:70c4:: with SMTP id l4mr64468031plt.185.1560338657323;
-        Wed, 12 Jun 2019 04:24:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzlc6uV2vVs+ZOXSAyBsET/NkbkhhbzC/j/RBMpIptVgNFaaoYm9TX5Cmm0wqMQqKgInsta
-X-Received: by 2002:a17:902:70c4:: with SMTP id l4mr64467999plt.185.1560338656624;
-        Wed, 12 Jun 2019 04:24:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560338656; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=MhkB743oojqt0jCijE6DsOt5IqaBpxqgWof9mFxCLr0=;
+        b=rou39Aq3lfaFm5N+hKOvu76XVfd5W/zVYfC5FRDYXsrwEPgdX+8Vf/PI1Wy+UL4FTj
+         wrjFOVz+hvU8bqhyyvJJbbFQUzGo2SQAph6wPW4SDIoAJ+vchct4Qi+9PZQRe20/epbw
+         Y0j8EWAeigjlhnJWcpyzmFpUaXdhzvpOfVRGvZi0WlBZShcanhNGNSgEKc4avSbEaY25
+         H8kZKcvgTJff5SeCHRfTdQ4Nj52Nesfz81n7/i+JSHlv6XelUuCJ8BYVTh/MsDFQETCt
+         XcJns3mzseE96XNrwCXMuAd/+WEBUv9+tILIwIWNGjRdXe4vkEupeWvp36bzHxDnK+/B
+         CG/A==
+X-Gm-Message-State: APjAAAUm3wWQQ6UnGhHZ/jv1Y4q9u6IoutGLaUw3IwfKiKsuxSJqFgck
+	ilFZHBNzXFpsqQ/43bUQ90L9+VgFTsDuIlM3sKFIqhtDwCJzNFDEKoDIsXnW29Ak0HCOV+R23so
+	iCK68TM6TuXEoI3ZyQCIh5aSbtiJIbQxWw3ce+baMEhybU1SR4Y7I/YdDb4yMTWxjJw==
+X-Received: by 2002:a17:902:8204:: with SMTP id x4mr79640854pln.226.1560339409166;
+        Wed, 12 Jun 2019 04:36:49 -0700 (PDT)
+X-Received: by 2002:a17:902:8204:: with SMTP id x4mr79640798pln.226.1560339408376;
+        Wed, 12 Jun 2019 04:36:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560339408; cv=none;
         d=google.com; s=arc-20160816;
-        b=xdc3VSghMPa4QAx/ts8CLLJCuW4giTI7Us8ejcnibfBrtyvdUfxwxIGiV5dv6tz+d/
-         tVLm25+bxvzCgAhhhvQjep/qLHTPSmyZdlwkPX9RWd1qCb8kfMh5eYBWkF5E1bD7yd43
-         moVF6zpbUZ9jPtkPsE3fkG9adcvrBI1cXM2zVxkwhuH2yqFolEufVjeqV3ZAeSyvJC2V
-         0bpqPCTuoPVBp1v97ngnhG2PMspbGv4nCQV8BMZLyhUEbFTpRMsowNIxtprT6gRL9viy
-         LMOkEz1JVGltugSOCp7oZBkeVLz7psnYcrKjZblz4/MJI2eXrizBtcYlo76BUYiLOoss
-         1jfA==
+        b=ecTLHucd2IVNBQbqxpvFl9l7TI5jb8OxqwGAdgp/EUdvTuKbr7ZT7LDZZ0rMCv6y11
+         SgijaCs/+6Xuh3LwvTN1ILOfHTjYn7wBWR3QubDh+Q9ojt3MJqGoWLIS1aIBbMIM9h66
+         T9cMGqDXAi+2lJCKCDtL5WFYYNipbFiYmaYNwbfaJq/4pWl9h8Mmc21+empqqMupQgMW
+         l7cSZV+Xde3DNMKn4a+IyNWPVdQ5fUmV6xjUb907XQRr7yCHQy0HRU/phKJYZ0l7hLPe
+         DvQ7o9fi2zTrDa8G5cbCx7Aql0MFSS1td9kdTZhwetp2j3UL5KGK5kQ3Fy/tLPX/ldGU
+         DOMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=KJAXvYM0DI4vnD/0tu+larrshBV1A0aACdJmWI9kxzw=;
-        b=kkcl2nivOF2QdZ25g6BCUTauG458kH7MFDqvCFrx3MDKfqUWfRY/qD2AglXGskkVFT
-         54ImwEtLtHZOv2h+yc8blcHj9VuKxIwLwGC/OwcMtc3gKbM28foAB0aNkvc9zd2ssIA9
-         FVRlH729tl8glZYZJITWI5kHW3zC7NRoyvaSNT39MD53+QqtqtOliWQv/4pAOnLeItoL
-         mFmkGx2xV/0r+dg8uHvm6zPcq1oYX8vlneY7362+o/je+W7NB0V955xYF7DpK3irH+7T
-         bZc/XI17tlZzBVPgZFeuCYAonUFEoSWsSjUt11IgW1EpeP8Gw7R9JjO60hEdgMlmwdjs
-         AsVQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=MhkB743oojqt0jCijE6DsOt5IqaBpxqgWof9mFxCLr0=;
+        b=WdvacKLafiXlnu0pf39WE+1LijjRqingL8nB/6mhjd8D5Y5R13vij3UKntRA3izm0Z
+         RTEMHCuMWjNf+6YOrKKIFMlwh8mOTAn/6GSB0U3TYpFy7kLAyJQQngLvzLbBCMBV4Vfj
+         GO19s5s9Cej1oxzi3Q+PEO+jOecO0/rgT4dAQKVkA+2dIsrMki4P4pQ4q/OzC6kRpSbs
+         alXoWpuxhAA4YkH0mZazXk0SWZwa0ZhmDcPXcHkGnJ/QaKiUDF1Hip8Qn+R12wBXdujP
+         HwRN/IeTrOB6n+QWeFFIEYHz3OmPdgCz9YQnVcqFMD0VrGQjRu0wiWFyq6BaqzNVh3lV
+         odLA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pu7FtOXG;
-       spf=pass (google.com: best guess record for domain of batv+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q4si16238615pfb.272.2019.06.12.04.24.16
+       dkim=pass header.i=@google.com header.s=20161025 header.b=GDzbgDhO;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c138sor16062833pfc.38.2019.06.12.04.36.48
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 12 Jun 2019 04:24:16 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Wed, 12 Jun 2019 04:36:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=pu7FtOXG;
-       spf=pass (google.com: best guess record for domain of batv+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+eeb336ffa9092f1fc134+5771+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
-	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
-	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=KJAXvYM0DI4vnD/0tu+larrshBV1A0aACdJmWI9kxzw=; b=pu7FtOXG6wwPz8NJqGleP0ENqZ
-	mWOWq7bfIS7I5pJndBO7Iorv4+OVLhztJH0MIESlmLmmGgHrX5hLbLEBOu5/+LynDGtoTdbcUkwHz
-	m+0nmPp8W2Zntos4QTutZ9PdRPfjOaERnezAPGG3G6HwOydPr0nIyh6ofXteGyBhSrbeCM90amEhl
-	OvRad6uKCL5pbwCDcWfUThMqxLI35Q+Iv2FUvjxoK6yPof3pP/uGWUbgh7SyFzGn2D06ZiXnMuLmo
-	FR8QqLtcf0RpwhAoW7YZQpMmHjkcYzS44RCzNLkzUQGIM1bRdNtGmin0BBuQtePw75gHO3CRPmO21
-	BHvzeyqQ==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hb1M6-0005io-1P; Wed, 12 Jun 2019 11:23:50 +0000
-Date: Wed, 12 Jun 2019 04:23:50 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Thomas =?iso-8859-1?Q?Hellstr=F6m_=28VMware=29?= <thellstrom@vmwopensource.org>
-Cc: dri-devel@lists.freedesktop.org, linux-graphics-maintainer@vmware.com,
-	pv-drivers@vmware.com, linux-kernel@vger.kernel.org,
-	nadav.amit@gmail.com, Thomas Hellstrom <thellstrom@vmware.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Matthew Wilcox <willy@infradead.org>,
-	Will Deacon <will.deacon@arm.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Rik van Riel <riel@surriel.com>, Minchan Kim <minchan@kernel.org>,
-	Michal Hocko <mhocko@suse.com>, Huang Ying <ying.huang@intel.com>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	linux-mm@kvack.org, Ralph Campbell <rcampbell@nvidia.com>
-Subject: Re: [PATCH v5 3/9] mm: Add write-protect and clean utilities for
- address space ranges
-Message-ID: <20190612112349.GA20226@infradead.org>
-References: <20190612064243.55340-1-thellstrom@vmwopensource.org>
- <20190612064243.55340-4-thellstrom@vmwopensource.org>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=GDzbgDhO;
+       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=MhkB743oojqt0jCijE6DsOt5IqaBpxqgWof9mFxCLr0=;
+        b=GDzbgDhOafy14R/X43UkUN/+wf8bZdqGlFyPynLyOoG20vlQgN7zE9jZaanLyn3zx5
+         qQhhso2gb34OxP/u3xHSg6zS8JjJRY1rM9k4rX+82IiHVqiDxz7X2a893Yf4graw7TMN
+         nSUF/2Gtu0ZiA9FjJgluVZwCMm/sY7nIvA/8cwZyNRO0pWttZ9rn4SJm4NDG5Og1LJ7q
+         69ebVQ9hxBQQPUib1nigJuccodsU3NmYrSrnehuErfe4YWQQvRoySvoE3IbFgIm+u5mm
+         oszynkP2bKoPt4/Zv/VgvQYlSIXKjNdvA3RFAgK5OHTEZyvWErx96s2gVUjdKfd7KRLc
+         uonQ==
+X-Google-Smtp-Source: APXvYqzGzjPmF8qGtciCMiJ8cvvmFlnWp+2d9nBudQ86r37IgxuDA/rPCLSSJ3M+cA0egqf1SPnYkN9tXts/BubXkpo=
+X-Received: by 2002:aa7:97bb:: with SMTP id d27mr18575219pfq.93.1560339407628;
+ Wed, 12 Jun 2019 04:36:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190612064243.55340-4-thellstrom@vmwopensource.org>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+References: <cover.1559580831.git.andreyknvl@google.com> <51f44a12c4e81c9edea8dcd268f820f5d1fad87c.1559580831.git.andreyknvl@google.com>
+ <201906072101.58C919E@keescook> <CAAeHK+y8CH4P3vheUDCEnPAuO-2L6mc-sz6wMA_hT=wC1Cy3KQ@mail.gmail.com>
+In-Reply-To: <CAAeHK+y8CH4P3vheUDCEnPAuO-2L6mc-sz6wMA_hT=wC1Cy3KQ@mail.gmail.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Wed, 12 Jun 2019 13:36:36 +0200
+Message-ID: <CAAeHK+xCmc-x=Mvs8RC+xJOCw6AnEUgUzXXjjS3NJXeLwJkyqg@mail.gmail.com>
+Subject: Re: [PATCH v16 08/16] fs, arm64: untag user pointers in copy_mount_options
+To: Kees Cook <keescook@chromium.org>
+Cc: Linux ARM <linux-arm-kernel@lists.infradead.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, 
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, 
+	linux-rdma@vger.kernel.org, linux-media@vger.kernel.org, kvm@vger.kernel.org, 
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>, Catalin Marinas <catalin.marinas@arm.com>, 
+	Vincenzo Frascino <vincenzo.frascino@arm.com>, Will Deacon <will.deacon@arm.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Yishai Hadas <yishaih@mellanox.com>, 
+	Felix Kuehling <Felix.Kuehling@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, 
+	Christian Koenig <Christian.Koenig@amd.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, 
+	Jens Wiklander <jens.wiklander@linaro.org>, Alex Williamson <alex.williamson@redhat.com>, 
+	Leon Romanovsky <leon@kernel.org>, Luc Van Oostenryck <luc.vanoostenryck@gmail.com>, 
+	Dave Martin <Dave.Martin@arm.com>, Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>, 
+	Jason Gunthorpe <jgg@ziepe.ca>, Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 12, 2019 at 08:42:37AM +0200, Thomas Hellström (VMware) wrote:
-> From: Thomas Hellstrom <thellstrom@vmware.com>
-> 
-> Add two utilities to a) write-protect and b) clean all ptes pointing into
-> a range of an address space.
-> The utilities are intended to aid in tracking dirty pages (either
-> driver-allocated system memory or pci device memory).
-> The write-protect utility should be used in conjunction with
-> page_mkwrite() and pfn_mkwrite() to trigger write page-faults on page
-> accesses. Typically one would want to use this on sparse accesses into
-> large memory regions. The clean utility should be used to utilize
-> hardware dirtying functionality and avoid the overhead of page-faults,
-> typically on large accesses into small memory regions.
+On Tue, Jun 11, 2019 at 4:38 PM Andrey Konovalov <andreyknvl@google.com> wrote:
+>
+> On Sat, Jun 8, 2019 at 6:02 AM Kees Cook <keescook@chromium.org> wrote:
+> >
+> > On Mon, Jun 03, 2019 at 06:55:10PM +0200, Andrey Konovalov wrote:
+> > > This patch is a part of a series that extends arm64 kernel ABI to allow to
+> > > pass tagged user pointers (with the top byte set to something else other
+> > > than 0x00) as syscall arguments.
+> > >
+> > > In copy_mount_options a user address is being subtracted from TASK_SIZE.
+> > > If the address is lower than TASK_SIZE, the size is calculated to not
+> > > allow the exact_copy_from_user() call to cross TASK_SIZE boundary.
+> > > However if the address is tagged, then the size will be calculated
+> > > incorrectly.
+> > >
+> > > Untag the address before subtracting.
+> > >
+> > > Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+> > > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> >
+> > One thing I just noticed in the commit titles... "arm64" is in the
+> > prefix, but these are arch-indep areas. Should the ", arm64" be left
+> > out?
+> >
+> > I would expect, instead:
+> >
+> >         fs/namespace: untag user pointers in copy_mount_options
+>
+> Hm, I've added the arm64 tag in all of the patches because they are
+> related to changes in arm64 kernel ABI. I can remove it from all the
+> patches that only touch common code if you think that it makes sense.
 
-Please use EXPORT_SYMBOL_GPL, just like for apply_to_page_range and
-friends.  Also in general new core functionality like this should go
-along with the actual user, we don't need to repeat the hmm disaster.
+I'll keep the arm64 tags in commit titles for v17. Please reply
+explicitly if you think I should remove them. Thanks! :)
+
+>
+> Thanks!
+>
+> >
+> > Reviewed-by: Kees Cook <keescook@chromium.org>
+> >
+> > -Kees
+> >
+> > > ---
+> > >  fs/namespace.c | 2 +-
+> > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > >
+> > > diff --git a/fs/namespace.c b/fs/namespace.c
+> > > index b26778bdc236..2e85712a19ed 100644
+> > > --- a/fs/namespace.c
+> > > +++ b/fs/namespace.c
+> > > @@ -2993,7 +2993,7 @@ void *copy_mount_options(const void __user * data)
+> > >        * the remainder of the page.
+> > >        */
+> > >       /* copy_from_user cannot cross TASK_SIZE ! */
+> > > -     size = TASK_SIZE - (unsigned long)data;
+> > > +     size = TASK_SIZE - (unsigned long)untagged_addr(data);
+> > >       if (size > PAGE_SIZE)
+> > >               size = PAGE_SIZE;
+> > >
+> > > --
+> > > 2.22.0.rc1.311.g5d7573a151-goog
+> > >
+> >
+> > --
+> > Kees Cook
 
