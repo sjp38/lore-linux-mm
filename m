@@ -2,162 +2,159 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EF6AC31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:40:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72019C46477
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:42:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6ACEC206E0
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:40:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6ACEC206E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2642A206E0
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:42:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="zfGP+t+9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2642A206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E61756B0010; Wed, 12 Jun 2019 14:40:40 -0400 (EDT)
+	id B7AD76B0010; Wed, 12 Jun 2019 14:42:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E123F6B0266; Wed, 12 Jun 2019 14:40:40 -0400 (EDT)
+	id B2ABD6B0266; Wed, 12 Jun 2019 14:42:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CD9F66B0269; Wed, 12 Jun 2019 14:40:40 -0400 (EDT)
+	id A412F6B0269; Wed, 12 Jun 2019 14:42:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AAF9F6B0010
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 14:40:40 -0400 (EDT)
-Received: by mail-vs1-f72.google.com with SMTP id i6so5693621vsp.15
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 11:40:40 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A9C06B0010
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 14:42:06 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id p7so8126345otk.22
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 11:42:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=MAEdGWtMT+73VzWnKUa2R//cIsfAOphq8gc0YAftk3c=;
-        b=Skg01DIMMVWnhNX5ua6fTcxdioa8swM+8XSpVpygCOIpS+z3OJJ4ZF1lqvKDx/3mXA
-         QaYhFIyhMX6v9oernaXxV+WkARih/DGwTBdsgmKGlnuztnMplxLgp+7BmEc4XBq44npF
-         vQOn1Pz34yea3IASXrqtQLYTCrFRKlZGP1VRLRhEAnivSA0E2VneopbvtPdmn3zuk/CO
-         4RO1gops5s+Jyv++YGepa8CMi+WGxwHPLMILmfQG1ihf8+birTOpaKiy7R7hlsPtSnLw
-         U6QasKA8tye5aZDfc8TkK9xXjdjFC5q5gZAiz/K0x9uqb7Dj39Er9rCQ1Jegbesl5cH8
-         OQFg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUpCY5VNFCu0+K8WyXvNDQywd7lA9LDBS3Johm+t2nkNOTHmflu
-	yc7+6BEM8UmRxU9gZ/oH+bXNpvxXn75zehAE1Gi+RLiL1GzH8QHzPMHkQmzwtXi1Q9oMSO1kAbZ
-	Vjy7e4T3uIL/Xa6Uu0a7m3QMt8KSN5oJeJx67Yrcdsh+E4iRgdbCvPCk5djCFAbfG6Q==
-X-Received: by 2002:a1f:7f0e:: with SMTP id o14mr4902346vki.67.1560364840381;
-        Wed, 12 Jun 2019 11:40:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzvEQDn0hmfpjmQ4P6ELugxcG9kTA06UfOqAgBOLx84GqrsJLd2Uf2Fo2ifp5xSgnfCitPe
-X-Received: by 2002:a1f:7f0e:: with SMTP id o14mr4902281vki.67.1560364839745;
-        Wed, 12 Jun 2019 11:40:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560364839; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=tLkmphJnLjEku4wPa26GqmShS2e5likwCcmpQlFLS9E=;
+        b=VEybjlP4riwrKAYj7ZyUNnLoTisYDBLfmGSfq9BFGl7DTD53kcLvO2GzDEDrszx4sR
+         PKDQVvKZ0zObyGVBlCtT3gjifCg6bLTZrd2q0xICotkZbzb2kETdVkS16PFecs0TJRuA
+         +Og6Y/LQJQn8AuJ29X8X/kZatYMNSvaIVMZCVW7lVdBUkF7CodTK/0+2Jku6DL5oMSLI
+         SVf6W4qGyKFRczdsCKRefpRTWNWSRIMMzNN4zS1R+xswfELhx/X6afhJvB0UL4CCRK9W
+         rjR0glKeApENLoQRXq1Oz5hN6+29dEPfe/GE26F3Ezet+jq/ohHEfFtIpDs/tW4G+7w3
+         sFgw==
+X-Gm-Message-State: APjAAAXkMydAUTGrPRM/t2aKBhGJMyiDMPnPEPOiMWSeeqI4IqyYGwVl
+	Rw8Z8ClsY18MpcLJBViEF/96v8d8/8fZWzAyBuDOLTc/j+QRHTYPk0kFgz8gqEp3AiEaXqxABIr
+	Aj/PnI8MhkZMYQUhnsJhtzAroMWLU0kR1aBSG3Thq3DiWs19AQ60QdutCc+P3GT3VEw==
+X-Received: by 2002:aca:35c4:: with SMTP id c187mr448661oia.72.1560364926065;
+        Wed, 12 Jun 2019 11:42:06 -0700 (PDT)
+X-Received: by 2002:aca:35c4:: with SMTP id c187mr448628oia.72.1560364925412;
+        Wed, 12 Jun 2019 11:42:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560364925; cv=none;
         d=google.com; s=arc-20160816;
-        b=BKjiI3N9k2pAKBhBgEqm/hkxtLFo0lcNxnZNOfpP/4Ee0z9noU6Mlcj5UvDkg59D+o
-         QjfCN8EmA7dtb8DXS4CVtwMXVv3lz5iy7ufJLai+tMH+yGl1CiSWpM9g5F0VpAfQ3owm
-         wASoQZKAWopyswSxove29VbtaKBIJa9cD0ZpqINmja/6IrOVt9hZdpPRbsTM2g+yvTfN
-         QjCi+KM81vMEku9a8zoLa7TUMd6DdRbjPeaeLL4R/BGvdWKot1SoarU1HOxxd6+HY9ke
-         S+2wGxhGlcdnYMe6S5GJtDEsQbQlzRDX6lq7j20h7N7JjvQ7kqxX5YpnI0kPVaT+bNfV
-         Zdpg==
+        b=cVD0o/hnwr4bNfc4hWLuw5IiDlw37gSLqPjZrY6QSNcdSBSIViSM+93gkFHabye2lx
+         mcClX5bL2tXjGWQMsyowyCHTwhn4e8pcyWh3XfBU7kJsyMLINqhOTr+juoyXH9AN3Vg6
+         UN/9EpqlQVVTe8ko5EvI4o1Jo6KuN6+/7NkOb4y4NQxn2TVVNnsFhoM1DfebEWsIuc61
+         xiCG1YctfzHcFRYdEeaPf+Lop/M4ojlT/RHtxVEEIdKcanfsTWZ9FrGU8wvVc5C+yyov
+         9SF3iX2/VEcgWKJF2ExwGZY/zT6v5JVCoXuojAsqzwU09GKUTx/qQdZXe1TqxwY1qUFl
+         pWFQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=MAEdGWtMT+73VzWnKUa2R//cIsfAOphq8gc0YAftk3c=;
-        b=go9mmZxissyaLjlgoRELouB8bPcpmvYcumFc1sKfyI82a0sZB2b6xDruDR1DCj1p4X
-         TvbisQ0H8MbWxHL7XEuWc50JJ5zenE8FVtg2jni4Oui+6LrB/SvcVfT6jZ82mUH8DYR1
-         2OJfg6yA2C92h4nJVez4JqRCIw7X9dV5ZMV7+hRee41RgoJv2PHMPV9wmDynLze6++zr
-         xo+zxGMn+1z7ZiIOqLHyXMLfgHTpBS+Xs3xGSvtNIH9be1B9LZsTHu/dOXKR2fO6AQXt
-         HboGSHwJyLLVvkgCJWyOOdb6sO1IX01YQxMiJpmeOWUyOC5UzEv7m0DSQRvLbdO3yDw3
-         krqA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=tLkmphJnLjEku4wPa26GqmShS2e5likwCcmpQlFLS9E=;
+        b=CU0FAa8xRnM7XW+UuGNmIyVtUG1SBn+oCHck25RteHVw2ZdehefDb0NLHu/TnXuwaI
+         RoeUpz1o4Ss0WS7/snYjOCqkj7FpZgFZRkesH4qBdAf8i514tSbgvFDt5oRLe9lNjWhD
+         /AH8epXGoUN/OClz5qHbHhV14JIN8mCTKd/Ztq8I3DdBa5rmc6L3CAZDaLZKCF4qpOEN
+         FXYRsljc4/GEmvATKIczPubS+WaJ6pMHWUr+LWYh5CuQlk07B4sGeDCSOwBQOy3hzQBO
+         LIzTTrjMEvC2T+agp6rcB2jGkR9z/cAJlidtvh/ZgZWMgEsFvcmNO9oG4eX7rUBYEflw
+         zoTg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v6si198787vsm.112.2019.06.12.11.40.39
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=zfGP+t+9;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k203sor386390oih.104.2019.06.12.11.42.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 11:40:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 12 Jun 2019 11:42:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id E62313082A9B;
-	Wed, 12 Jun 2019 18:40:28 +0000 (UTC)
-Received: from x230.aquini.net (dhcp-17-61.bos.redhat.com [10.18.17.61])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 4CA6B6015E;
-	Wed, 12 Jun 2019 18:40:28 +0000 (UTC)
-Date: Wed, 12 Jun 2019 14:40:26 -0400
-From: Rafael Aquini <aquini@redhat.com>
-To: Joel Savitz <jsavitz@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
-	David Rientjes <rientjes@google.com>, linux-mm@kvack.org
-Subject: Re: [RESEND PATCH v2] mm/oom_killer: Add task UID to info message on
- an oom kill
-Message-ID: <20190612184026.GD5313@x230.aquini.net>
-References: <1560362273-534-1-git-send-email-jsavitz@redhat.com>
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=zfGP+t+9;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=tLkmphJnLjEku4wPa26GqmShS2e5likwCcmpQlFLS9E=;
+        b=zfGP+t+9ivTiw9crHzyoG37UKVT39+ZjMSRc6i4RLF5qzgoEzM0PJJFpTl3UpomLM/
+         kX7wxsRh/bfXL05Kn2SjQT8PDTQbpZvw2lUD2P17lgifKk9462SiGOzy9eolZxENP8tF
+         +j8h3CL4xbOvN0NcXJng0ZhfijbK4zlpWlo5g45OKeiNBbSWh4j6EO8XjD4uzxYBWXSc
+         XQXw6jfUAUrXoISJcc1nasZDsCw2vNnJrgvivK5m8U97df7yj+O0/KKRytyMUK2vV5wL
+         CVPInnibqz35AZHLe+QENPOC6d6PXPPLQ6FBHTljTMKMRhnltIiFojDH2RTb0H3+DeCQ
+         awHA==
+X-Google-Smtp-Source: APXvYqxw8Jxg8VjrdgkzfIw+Yn35hC16YxwrfmO4tE9KRMFgYTyKNK9pqaozSKJ82RqVYk9X5Uls8HWSSM7jkwOY/uo=
+X-Received: by 2002:aca:ed4c:: with SMTP id l73mr412323oih.149.1560364924898;
+ Wed, 12 Jun 2019 11:42:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1560362273-534-1-git-send-email-jsavitz@redhat.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Wed, 12 Jun 2019 18:40:34 +0000 (UTC)
+References: <20190606014544.8339-1-ira.weiny@intel.com> <20190606104203.GF7433@quack2.suse.cz>
+ <20190606195114.GA30714@ziepe.ca> <20190606222228.GB11698@iweiny-DESK2.sc.intel.com>
+ <20190607103636.GA12765@quack2.suse.cz> <20190607121729.GA14802@ziepe.ca>
+ <20190607145213.GB14559@iweiny-DESK2.sc.intel.com> <20190612102917.GB14578@quack2.suse.cz>
+ <20190612114721.GB3876@ziepe.ca> <20190612120907.GC14578@quack2.suse.cz>
+In-Reply-To: <20190612120907.GC14578@quack2.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 12 Jun 2019 11:41:53 -0700
+Message-ID: <CAPcyv4ikn219XUgHwsPdYp06vBNAJB9Rk-hjZA-fYT4GB3gi+w@mail.gmail.com>
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+To: Jan Kara <jack@suse.cz>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, Ira Weiny <ira.weiny@intel.com>, "Theodore Ts'o" <tytso@mit.edu>, 
+	Jeff Layton <jlayton@kernel.org>, Dave Chinner <david@fromorbit.com>, 
+	Matthew Wilcox <willy@infradead.org>, linux-xfs <linux-xfs@vger.kernel.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, John Hubbard <jhubbard@nvidia.com>, 
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
+	linux-ext4 <linux-ext4@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 12, 2019 at 01:57:53PM -0400, Joel Savitz wrote:
-> In the event of an oom kill, useful information about the killed
-> process is printed to dmesg. Users, especially system administrators,
-> will find it useful to immediately see the UID of the process.
-> 
-> In the following example, abuse_the_ram is the name of a program
-> that attempts to iteratively allocate all available memory until it is
-> stopped by force.
-> 
-> Current message:
-> 
-> Out of memory: Killed process 35389 (abuse_the_ram)
-> total-vm:133718232kB, anon-rss:129624980kB, file-rss:0kB,
-> shmem-rss:0kB
-> 
-> Patched message:
-> 
-> Out of memory: Killed process 2739 (abuse_the_ram),
-> total-vm:133880028kB, anon-rss:129754836kB, file-rss:0kB,
-> shmem-rss:0kB, UID 0
-> 
-> 
-> Suggested-by: David Rientjes <rientjes@google.com>
-> Signed-off-by: Joel Savitz <jsavitz@redhat.com>
-> ---
->  mm/oom_kill.c | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 3a2484884cfd..af2e3faa72a0 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -874,12 +874,13 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
->  	 */
->  	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
->  	mark_oom_victim(victim);
-> -	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
-> +	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, UID %d\n",
->  		message, task_pid_nr(victim), victim->comm,
->  		K(victim->mm->total_vm),
->  		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
->  		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
-> -		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
-> +		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)),
-> +		from_kuid(&init_user_ns, task_uid(victim)));
->  	task_unlock(victim);
->  
->  	/*
-> -- 
-> 2.18.1
-> 
-Acked-by: Rafael Aquini <aquini@redhat.com>
+On Wed, Jun 12, 2019 at 5:09 AM Jan Kara <jack@suse.cz> wrote:
+>
+> On Wed 12-06-19 08:47:21, Jason Gunthorpe wrote:
+> > On Wed, Jun 12, 2019 at 12:29:17PM +0200, Jan Kara wrote:
+> >
+> > > > > The main objection to the current ODP & DAX solution is that very
+> > > > > little HW can actually implement it, having the alternative still
+> > > > > require HW support doesn't seem like progress.
+> > > > >
+> > > > > I think we will eventually start seein some HW be able to do this
+> > > > > invalidation, but it won't be universal, and I'd rather leave it
+> > > > > optional, for recovery from truely catastrophic errors (ie my DAX is
+> > > > > on fire, I need to unplug it).
+> > > >
+> > > > Agreed.  I think software wise there is not much some of the devices can do
+> > > > with such an "invalidate".
+> > >
+> > > So out of curiosity: What does RDMA driver do when userspace just closes
+> > > the file pointing to RDMA object? It has to handle that somehow by aborting
+> > > everything that's going on... And I wanted similar behavior here.
+> >
+> > It aborts *everything* connected to that file descriptor. Destroying
+> > everything avoids creating inconsistencies that destroying a subset
+> > would create.
+> >
+> > What has been talked about for lease break is not destroying anything
+> > but very selectively saying that one memory region linked to the GUP
+> > is no longer functional.
+>
+> OK, so what I had in mind was that if RDMA app doesn't play by the rules
+> and closes the file with existing pins (and thus layout lease) we would
+> force it to abort everything. Yes, it is disruptive but then the app didn't
+> obey the rule that it has to maintain file lease while holding pins. Thus
+> such situation should never happen unless the app is malicious / buggy.
+
+When you say 'close' do you mean the final release of the fd? The vma
+keeps a reference to a 'struct file' live even after the fd is closed.
 
