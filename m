@@ -2,204 +2,189 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3ABF4C31E48
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:28:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D01EAC31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:28:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F0731208CA
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:28:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0731208CA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id A35502082C
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 14:28:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A35502082C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8DD176B000D; Wed, 12 Jun 2019 10:28:24 -0400 (EDT)
+	id 3AD406B0010; Wed, 12 Jun 2019 10:28:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 88CEE6B000E; Wed, 12 Jun 2019 10:28:24 -0400 (EDT)
+	id 35E1C6B0266; Wed, 12 Jun 2019 10:28:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 756756B0010; Wed, 12 Jun 2019 10:28:24 -0400 (EDT)
+	id 273BA6B0269; Wed, 12 Jun 2019 10:28:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 26B886B000D
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 10:28:24 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b3so25153978edd.22
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:28:24 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CE6546B0010
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 10:28:28 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id b12so18854939eds.14
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:28:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=Zqm922sctdNTWPEakgYopTZQEJllsntsHsG0UvCxGtg=;
-        b=O+HCRcT2DeEwdVzWyQF9APAxOb/yJl1uxTHdwZQy74TEycbwmYlQjZH+Ux6vugpEE6
-         ucwoQ8fUvP+d6jemKo9G2yxVFt67NE6/ooDaDsXsXz9JSGw1QoiLdgBLTTeknYtO7Q9E
-         SJAZWVg77ik2zrxfPCJ1b3c0Gb3Ak1yLTxXeSYibi2XI1Dy9ZZrMjeyDPxM/oM+ePZPH
-         dmD1dFbGZTR6MPdmZOyqY4yle2xwtGv+g3EoUTYpTQ8iViAjzHE0JuTLB8yhsCzJ5S90
-         Ta3BjNPckHa/UBNA6zFnpbgvmUSCXD7kvfEinBRiqeZ8iADNJwZCkkOTUfFpm2xYNoLf
-         I07Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-X-Gm-Message-State: APjAAAXkFpATa+N8QESjES/v+9T4TWWeb8e+g9BZC1lxXR1D4MhL2DZf
-	tFelMySD8P2Hy3pzJd9J/soWbxcHDHHA7wJpuCtBEQscBeGF+TBRVpzYzqmMqb2x67UMkOFcq7T
-	y9k3M0zptEK+dovb6nZQPtQynXJvJRdstWBCyP0ByKjs5l33HOhuuuSpIX4i1jdKfGg==
-X-Received: by 2002:a50:89a2:: with SMTP id g31mr54210062edg.93.1560349703722;
-        Wed, 12 Jun 2019 07:28:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyipuFAXnxhDqAsWqTn+Xn9VujOkr1DOwYj/ijVAakD4HWbJxZMEOaU7OQtWcLt2YzKcJkj
-X-Received: by 2002:a50:89a2:: with SMTP id g31mr54210002edg.93.1560349703068;
-        Wed, 12 Jun 2019 07:28:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560349703; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=wMikMlBNKS1Ut1DebH98gB1mwWJIVawaIVnza7rvA2U=;
+        b=JGceTmTYn/iAWySV4s2aIroeucILd3+IW2jRXZogMcS4r6JkoARxHqV7mQN0cfR5ex
+         I4+DadrjG51ANjUxdr7DgwxE2tAOBS/xsYihnmoKYyXR+6XorBTKKa3j3ijF3ZSsO8k5
+         c+Kdv96QqQ0f9gbHLhBHmH67N4yY8g/3yUQFC53M5ABQmxI/0/eWZcP92hMGaAY7q9la
+         5tRW/fU45Mdrlu1Jf90e7lWTI9SFGbygfNieXN2ckvzgk3izU+LsX9UxHVTZSw0f/0vr
+         E2bNMjSPBKjWEEuBsbsjgGujBBxg3WlgO+ofDcqO7kfMbMSJTO0b5MhqEmqHz7B4iEpx
+         YqfA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+X-Gm-Message-State: APjAAAVyKdH3GQOK7iFNLHmU8o/RCQuplQv4YguieBblk2Pp4iE+fovk
+	pjFJJ0VNIbC/tyZZ0Uv3aXGcy4j0z81VdnumjFyv8QQ7y3OLCP3jz/WvD9decuRrRWqWn6ckuwh
+	vqpzV7uGWS9rbINELaxjk+d9tGZA2Lq+ghZD4Cv4TLdXztnR7+mTBwjYm1krOef5qRg==
+X-Received: by 2002:aa7:c559:: with SMTP id s25mr16134363edr.117.1560349708280;
+        Wed, 12 Jun 2019 07:28:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqygaCnnet5CU+8fzssJZg4GSubH15ng1QdRISIFvXP3Z7azBY4SdujsqdpmQGbx3FEzLGKz
+X-Received: by 2002:aa7:c559:: with SMTP id s25mr16134243edr.117.1560349706980;
+        Wed, 12 Jun 2019 07:28:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560349706; cv=none;
         d=google.com; s=arc-20160816;
-        b=CZheJY2Xl/4NDiUr94v7273kLXIF+vO/3jKe8wzBSzLuJE9qwfBAW5gj2/TRVtq8AD
-         yFULfvN4buFB6W9NLSygKzsWd1BBBgVPcX/Q/gVATmCkb19wQTeDcNTVEGZtUx0jeN6I
-         Zi2SVxAer2dyavQwHmpWxifiP/FCm2JnA9kKwr2uzcFdFIji2MMaXRc/TkdoI70qT3sm
-         fQou1PUG3k021qVApZj9Gn8krXcBAKkifiw7Jdja+ZFOLOILPZkAs4nUyaUbrkldPyRe
-         Dj2hPHwcvo2gicxJRX5ArwTGbDYzOZZq8IQHm6E9LeijaTxhXMqqDMMyC8gk8BAGptFI
-         iHBQ==
+        b=Xu8rItsO44VkSIn3IAYwcitmOrVw/GGoonzIT9MMR7x0XZrt0NT8ct3E6A5Qcd5ezn
+         aw6zIrQYTxKdb2olBuCRTMx33DoS1B+Rb/ytvWtedKxeHeEGZXiaWMR5OW63dG8cStSS
+         1Gn5d1m8mj4dxHDveSR53KHYcuhe7DTSLaF8miqwYfvImAt79Wc20cHf6UyMG5jaZjP7
+         JS5RP3Xiy4kqGeP/DTp5m5oP/s+u3dv6iZV159RMro7nj4ibt8LWyx2Uv/IDz8T4GiIl
+         q/N53geYMZxMqLGnvUFj9XlaVi6VkUhvp82iy3UEXSE+p6xy/4Tl2VU/0Es2/f5SdLGM
+         rgZQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=Zqm922sctdNTWPEakgYopTZQEJllsntsHsG0UvCxGtg=;
-        b=UBEOR+It6FsgbXWHAdfTwha5htI6j7wSu/COnPDRRmavM2kV5ASfxMHmVAaoDUdafR
-         4pCGeNsg3N+axCzDDPTKVG1howvJv/JhzqzM9pcHGg8CRTWw8B0+hOwIh89vBMud9nVK
-         lb3bp1WrNTU7Wuia90J67LdrvrS2pDqJ7UA3GhotPQBP7ZtaMw38ZdmlFDVtz+6jgrY+
-         9WdORIcC+go2BpmiJaB/boT21z0vekmAPZm7RqTn+W41RZ1J7DERVSOe/xdeZ/Gie7Fr
-         ovv7HGHxD3Xp9GhP/k9LFlaUfZvw2PR60XbaYIqVcCKlBokIPdBB6gaeIZ4GK+NJbj8A
-         Qj5A==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=wMikMlBNKS1Ut1DebH98gB1mwWJIVawaIVnza7rvA2U=;
+        b=jeMgJOIISc0F25GlfykVxkHEUgRXgQkSoodO6H13pQB11RL17cdiXNfC4jed32AuAh
+         atHA5PPeieLHprvSmjIYjv2McedDdBzKhBCTz+qRfA45+/AEV3S8409x5ryLrai5E9Mm
+         vJc3yJjZ+OqQA/RjmLK/qurwzA7D8YNNSZ/M20O5TtjR0RTwdVlAaAkc9tC/EGVwcd0W
+         K+dQm/TTXmbIAXRloqLVGNTHJmbO/6oj+7dwbl7S80JMuLBYjt2brQNscXcxvoruEZL9
+         FMAAruD/f0WvSHsst/FQK3K0Mwv4ofGgVW9u5WT5JxBHWjynds74wu/60dzrnx2htZzT
+         QtnA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id q40si1904701edd.256.2019.06.12.07.28.22
-        for <linux-mm@kvack.org>;
-        Wed, 12 Jun 2019 07:28:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f54si3326431edb.311.2019.06.12.07.28.26
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Jun 2019 07:28:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EFE382B;
-	Wed, 12 Jun 2019 07:28:21 -0700 (PDT)
-Received: from [10.1.196.72] (e119884-lin.cambridge.arm.com [10.1.196.72])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E45733F557;
-	Wed, 12 Jun 2019 07:28:16 -0700 (PDT)
-Subject: Re: [PATCH v17 02/15] lib, arm64: untag user pointers in strn*_user
-To: Andrey Konovalov <andreyknvl@google.com>,
- linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
- dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
- linux-media@vger.kernel.org, kvm@vger.kernel.org,
- linux-kselftest@vger.kernel.org
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
- Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Kees Cook <keescook@chromium.org>, Yishai Hadas <yishaih@mellanox.com>,
- Felix Kuehling <Felix.Kuehling@amd.com>,
- Alexander Deucher <Alexander.Deucher@amd.com>,
- Christian Koenig <Christian.Koenig@amd.com>,
- Mauro Carvalho Chehab <mchehab@kernel.org>,
- Jens Wiklander <jens.wiklander@linaro.org>,
- Alex Williamson <alex.williamson@redhat.com>,
- Leon Romanovsky <leon@kernel.org>,
- Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
- Dave Martin <Dave.Martin@arm.com>, Khalid Aziz <khalid.aziz@oracle.com>,
- enh <enh@google.com>, Jason Gunthorpe <jgg@ziepe.ca>,
- Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>,
- Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>,
- Lee Smith <Lee.Smith@arm.com>,
- Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
- Jacob Bramley <Jacob.Bramley@arm.com>,
- Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
- Robin Murphy <robin.murphy@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>,
- Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-References: <cover.1560339705.git.andreyknvl@google.com>
- <a76c014f9b12a082d31ef1459907cabdab78491e.1560339705.git.andreyknvl@google.com>
-From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Message-ID: <0bbc5f4f-9812-463c-48c1-4929bef801da@arm.com>
-Date: Wed, 12 Jun 2019 15:28:15 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of mkoutny@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mkoutny@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4D542B026;
+	Wed, 12 Jun 2019 14:28:26 +0000 (UTC)
+From: =?UTF-8?q?Michal=20Koutn=C3=BD?= <mkoutny@suse.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org,
+	gorcunov@gmail.com,
+	Laurent Dufour <ldufour@linux.ibm.com>,
+	Kirill Tkhai <ktkhai@virtuozzo.com>
+Subject: [RFC PATCH] binfmt_elf: Protect mm_struct access with mmap_sem
+Date: Wed, 12 Jun 2019 16:28:11 +0200
+Message-Id: <20190612142811.24894-1-mkoutny@suse.com>
+X-Mailer: git-send-email 2.21.0
 MIME-Version: 1.0
-In-Reply-To: <a76c014f9b12a082d31ef1459907cabdab78491e.1560339705.git.andreyknvl@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12/06/2019 12:43, Andrey Konovalov wrote:
-> This patch is a part of a series that extends arm64 kernel ABI to allow to
-> pass tagged user pointers (with the top byte set to something else other
-> than 0x00) as syscall arguments.
-> 
-> strncpy_from_user and strnlen_user accept user addresses as arguments, and
-> do not go through the same path as copy_from_user and others, so here we
-> need to handle the case of tagged user addresses separately.
-> 
-> Untag user pointers passed to these functions.
-> 
-> Note, that this patch only temporarily untags the pointers to perform
-> validity checks, but then uses them as is to perform user memory accesses.
-> 
-> Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
-> Acked-by: Kees Cook <keescook@chromium.org>
-> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+find_extend_vma assumes the caller holds mmap_sem as a reader (explained
+in expand_downwards()). The path when we are extending the stack VMA to
+accomodate argv[] pointers happens without the lock.
 
-Reviewed-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+I was not able to cause an mm_struct corruption but
+BUG_ON(!rwsem_is_locked(&mm->mmap_sem)) in find_extend_vma could be
+triggered as
 
-> ---
->  lib/strncpy_from_user.c | 3 ++-
->  lib/strnlen_user.c      | 3 ++-
->  2 files changed, 4 insertions(+), 2 deletions(-)
-> 
-> diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
-> index 023ba9f3b99f..dccb95af6003 100644
-> --- a/lib/strncpy_from_user.c
-> +++ b/lib/strncpy_from_user.c
-> @@ -6,6 +6,7 @@
->  #include <linux/uaccess.h>
->  #include <linux/kernel.h>
->  #include <linux/errno.h>
-> +#include <linux/mm.h>
->  
->  #include <asm/byteorder.h>
->  #include <asm/word-at-a-time.h>
-> @@ -108,7 +109,7 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
->  		return 0;
->  
->  	max_addr = user_addr_max();
-> -	src_addr = (unsigned long)src;
-> +	src_addr = (unsigned long)untagged_addr(src);
->  	if (likely(src_addr < max_addr)) {
->  		unsigned long max = max_addr - src_addr;
->  		long retval;
-> diff --git a/lib/strnlen_user.c b/lib/strnlen_user.c
-> index 7f2db3fe311f..28ff554a1be8 100644
-> --- a/lib/strnlen_user.c
-> +++ b/lib/strnlen_user.c
-> @@ -2,6 +2,7 @@
->  #include <linux/kernel.h>
->  #include <linux/export.h>
->  #include <linux/uaccess.h>
-> +#include <linux/mm.h>
->  
->  #include <asm/word-at-a-time.h>
->  
-> @@ -109,7 +110,7 @@ long strnlen_user(const char __user *str, long count)
->  		return 0;
->  
->  	max_addr = user_addr_max();
-> -	src_addr = (unsigned long)str;
-> +	src_addr = (unsigned long)untagged_addr(str);
->  	if (likely(src_addr < max_addr)) {
->  		unsigned long max = max_addr - src_addr;
->  		long retval;
-> 
+    # <bigfile xargs echo
+    xargs: echo: terminated by signal 11
 
+(bigfile needs to have more than RLIMIT_STACK / sizeof(char *) rows)
+
+Other accesses to mm_struct in exec path are protected by mmap_sem, so
+conservatively, protect also this one. Besides that, explain why we omit
+mm_struct.arg_lock in the exec(2) path.
+
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>
+Signed-off-by: Michal Koutný <mkoutny@suse.com>
+---
+
+When I was attempting to reduce usage of mmap_sem I came across this
+unprotected access and increased number of its holders :-/
+
+I'm not sure whether there is a real concurrent writer at this early
+stages (I considered khugepaged especially as setup_arg_pages invokes
+khugepaged_enter_vma_merge but we're lucky because khugepaged skips it
+because of VM_STACK_INCOMPLETE_SETUP).
+
+A nicer approach would perhaps be to do all this exec setup when the
+mm_struct is still not exposed via current->mm (and hence no need to
+synchronize via mmap_sem). But I didn't look enough into binfmt specific
+whether it is even doable and worth it.
+
+So I'm sending this for a discussion.
+
+ fs/binfmt_elf.c | 10 +++++++++-
+ fs/exec.c       |  3 ++-
+ 2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+index 8264b468f283..48e169760a9c 100644
+--- a/fs/binfmt_elf.c
++++ b/fs/binfmt_elf.c
+@@ -299,7 +299,11 @@ create_elf_tables(struct linux_binprm *bprm, struct elfhdr *exec,
+ 	 * Grow the stack manually; some architectures have a limit on how
+ 	 * far ahead a user-space access may be in order to grow the stack.
+ 	 */
++	if (down_read_killable(&current->mm->mmap_sem))
++		return -EINTR;
+ 	vma = find_extend_vma(current->mm, bprm->p);
++	up_read(&current->mm->mmap_sem);
++
+ 	if (!vma)
+ 		return -EFAULT;
+ 
+@@ -1123,11 +1127,15 @@ static int load_elf_binary(struct linux_binprm *bprm)
+ 		goto out;
+ #endif /* ARCH_HAS_SETUP_ADDITIONAL_PAGES */
+ 
++	/*
++	 * Don't take mm->arg_lock. The concurrent change might happen only
++	 * from prctl_set_mm but after de_thread we are certainly alone here.
++	 */
+ 	retval = create_elf_tables(bprm, &loc->elf_ex,
+ 			  load_addr, interp_load_addr);
+ 	if (retval < 0)
+ 		goto out;
+-	/* N.B. passed_fileno might not be initialized? */
++
+ 	current->mm->end_code = end_code;
+ 	current->mm->start_code = start_code;
+ 	current->mm->start_data = start_data;
+diff --git a/fs/exec.c b/fs/exec.c
+index 89a500bb897a..d5b55c92019a 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -212,7 +212,8 @@ static struct page *get_arg_page(struct linux_binprm *bprm, unsigned long pos,
+ 
+ 	/*
+ 	 * We are doing an exec().  'current' is the process
+-	 * doing the exec and bprm->mm is the new process's mm.
++	 * doing the exec and bprm->mm is the new process's mm that is not
++	 * shared yet, so no synchronization on mmap_sem.
+ 	 */
+ 	ret = get_user_pages_remote(current, bprm->mm, pos, 1, gup_flags,
+ 			&page, NULL, NULL);
 -- 
-Regards,
-Vincenzo
+2.21.0
 
