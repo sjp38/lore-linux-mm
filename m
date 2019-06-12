@@ -4,84 +4,84 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A86EC31E48
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 10:39:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21651C31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 10:45:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DED1C20874
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 10:39:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DED1C20874
+	by mail.kernel.org (Postfix) with ESMTP id E8A3D2082C
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 10:45:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8A3D2082C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89FFB6B0003; Wed, 12 Jun 2019 06:39:21 -0400 (EDT)
+	id 62A086B0003; Wed, 12 Jun 2019 06:45:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8766B6B0005; Wed, 12 Jun 2019 06:39:21 -0400 (EDT)
+	id 5B3A66B0005; Wed, 12 Jun 2019 06:45:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 765E06B0006; Wed, 12 Jun 2019 06:39:21 -0400 (EDT)
+	id 4545D6B0006; Wed, 12 Jun 2019 06:45:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 26C2A6B0003
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 06:39:21 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id l53so25257274edc.7
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 03:39:21 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E7C826B0003
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 06:45:47 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id a5so15924933edx.12
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 03:45:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=X8fz9jLbHBDr51Zrby/4VNbgXtXoE1deh93Qry4o0Aw=;
-        b=cEAN4cwrK1A8Iwv7CjBTzrY1MLpSo0wBs9thSztmkwr4iZfpZvVgn9cxPLhbsi+Luq
-         fAMtWC8tTjQjW6smc3Huqq+L9bCe92ozyS1jdlgMYugrCvqR0LXpRNXzibsm+BnWfZn8
-         B7L3Sk7xUjXkTRm54MhsBXGNqOZtm6wrGHKP/pyYFtcXOCArQPDkVVCDY08224FbPq4I
-         Q/tYXj0lySNeu/rSObT7uB+SZvxoy5xLwQZ20oCyK80oaMId1qXp39vvOKefWYuaj+9h
-         mclvaPTHgq94p3oxHHBfyWhGuXmr9rqM1c+aK8v24opI1sRRSjk3wAIbxY7gVfViJ6Hc
-         iXrw==
+        bh=N1Uh7pDcKlpiURRyEJ4tMCtKh47rfvj2yCRBpRcsM/Y=;
+        b=jvC61ErCvvjaiYSMT18RNHPdu64pPWAEkX4dXpblYZxJtSbMokI0l3o7K+5ztVlex/
+         IYWmp3Z592KEdxGXPRb00LoxrEpsy1Yw9OSGxksBe0X/WL7ioJ0s2RdiOeuxk8zpNBMu
+         Yfy9nJWcm5iTx2HjdY/S2tfCGpmq5CKSzVwRD9eTGjrN1cnQs9wVahivlZfOvGI7ZFRq
+         E9zk2h7AEYEsloSrMBRWjZ9XLotEJCqw4MQrM5wc6vQ4Zd0vzL/3FAXS15hmGqfpXxJJ
+         g5Z66j+Hfz6oVHCuJudZj7hnW0SKoUw5rjhytWvZGSk211E7xOebUJq4+XAxrI+GC8JX
+         29jg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAVM+gnTZ4/7gxVX+EeDwhMbzbXt1/dTSWouDx5dJjUpJTnPYes4
-	Rsd7jC1voZl/BLkHaRrsdeS+q+FZw+W9sqtFkLDqk8zV2/BeGnjeXZjlts37a6+TeIReODj6qNI
-	Lnz1Ur7unYaGG6C+Ji0gi9H6N8VuaGFK18VVd3sHqpI0B34LPPhpXyhbywuKQrbnS3w==
-X-Received: by 2002:aa7:dd92:: with SMTP id g18mr32394516edv.194.1560335960751;
-        Wed, 12 Jun 2019 03:39:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzF8PA/C8Ro7bv9/myv8IJ27fgDeQSLjF4MMR/Tf7TLTkeWTIPoOyMz7axekM4cG38nFYmE
-X-Received: by 2002:aa7:dd92:: with SMTP id g18mr32394464edv.194.1560335960144;
-        Wed, 12 Jun 2019 03:39:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560335960; cv=none;
+X-Gm-Message-State: APjAAAXiegrUde/5gy4o2n1UfUBvRECYJSN66tYxUUZ6cwCjRn099/nL
+	YgwDRNCAeUsjmv9eplfGie1zWzWWGBYVUnbhf5K1I1ODvLzB2j9oORmpKXbvxkBAJbSUDd6nZsm
+	TR3+EuTHIRTYFi3fZCtd0YLyb6Bfi5dMD/TaQDxRiLlJeqUf7KoVqvuhR3IZVCHWFaA==
+X-Received: by 2002:a50:b561:: with SMTP id z30mr32069487edd.87.1560336347520;
+        Wed, 12 Jun 2019 03:45:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyy8+PrSTvcWRP8Bh7Op3N1x/wInI5/kmNGfApuVuP1j9fXkCnJRHbsOc+HooWqZ+tf5MR0
+X-Received: by 2002:a50:b561:: with SMTP id z30mr32069431edd.87.1560336346856;
+        Wed, 12 Jun 2019 03:45:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560336346; cv=none;
         d=google.com; s=arc-20160816;
-        b=v8QvuYM1rk1WdpfP7wLlvrQFTsF1PkvuB2a4WrRK9TPsR8yQDuQZhwI9SxCFSUqH/f
-         6QjOVTjyLU2QtV6JebU26x/fGDAqiaXYqrH/D1TgyjvURc53F/IzLhFmJHuTeX5zRZ3R
-         YpDA5k/IN/AnIpFeB7hecADQKBACq46Gf2nRm9SAl+/Ib1QhAQ+88EAnHfeRgzOxn7gN
-         lHwAyCoXS8W7xYzVifUnQOB8csiyyVpQMAVGlDJS/16GgHF9sCcdYPgOyK2/S2vgTJ8a
-         1heqMvUmttSes3ObSOLECkICjOfKnd4LRQB/k3u7Xpvf4Jrxz4MDrnS+TnAZqZCQv9Az
-         snxQ==
+        b=UgJgTk1XimOlytTTwKyEeCvZqFrHiQttNsODUAuYlxqo3NXmBCW9PZesrlqwMuu+HW
+         MJYwnLSU4bOJfkI6esOFaIMaf24l1j3xQeWftThVMdV5NBDb0jkm2cHqyqKUqJfmeyEY
+         SrdyTNW587hxJV9cwBQJ0g8hEW1KsazfiKuyC52CYxr1UPAvqW2H8kTHaTUIz1aw4XtT
+         JlnEEzZBms98m86ZAdAQ8xX8UdGYiXWttj0TSg6DAxi6W/nEVceU8tfT3sN4v9Y1bcHM
+         Ei9IsXl5niZFZmDmyqU0SbAy3aR9az0ZoOoNcWVy7qjOzWhGE9sdlqrORGXg1KwerITY
+         E+kA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=X8fz9jLbHBDr51Zrby/4VNbgXtXoE1deh93Qry4o0Aw=;
-        b=cn1MLZbgusZfrJyZhPzsLtwqjczM8+qn/aMcdY4uzTmNTLGHxyN6JR0bIq10AMcnhs
-         +Any05G3jONIMgqzupPERmE+0b87c7kPrPKxCn8ttCpLymFS/jF4NlpAI5kMsBzB7qOc
-         VRvxFvYaBTL0SXNUUUzNISt4MFW3zA0iZgCd9RIGNo9/zPrp+ScgTNu+Boq0K7ERhkAy
-         uLt3/2SfNl16W0rBp0lIqh1RT9MyX/GmaNPBtCk051wnxsufzwj5pGIDiH+6aW5NYvAS
-         kDhTvjn1EEcl1R67xbYN06jetPJ77em2m4xy6Qin8V0T8gHUbgT+w1bH0cdCb9AwIYjD
-         7/LA==
+        bh=N1Uh7pDcKlpiURRyEJ4tMCtKh47rfvj2yCRBpRcsM/Y=;
+        b=fmg5UefH/P86lXO+d9zKsFZrfqlZhJeWpviuB0VtDtS+l54vSrH5x34LbAojCUIFsq
+         34K8Y6oXPRrF6tR0pGYkQdmhPRbkWbAAYAS+t/zSkY3YfpiY5XVSmw3DXS/j5UpkX1uF
+         7tIMZ5vXTlJjb4xw0XJ52DrXoTyc0x4Dxi7MjrugKv3HC0101OSY1QPENiJQkwPCBt41
+         k3BTI3to4K74M/K3pLGoKtUG/TDS0maeD9fcepD5KdId97i1ePADhk/q7CESftej4E0j
+         peumetTvlEACTrpAHt0ngawaE5rpv2bcrX4DN82Yg3bqex7zaDBrg77yVvsyTQCvc8lf
+         gstw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id ec4si1901328ejb.68.2019.06.12.03.39.19
+        by mx.google.com with ESMTP id v1si1046179ejk.50.2019.06.12.03.45.46
         for <linux-mm@kvack.org>;
-        Wed, 12 Jun 2019 03:39:20 -0700 (PDT)
+        Wed, 12 Jun 2019 03:45:46 -0700 (PDT)
 Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 29FDA28;
-	Wed, 12 Jun 2019 03:39:19 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8B34A28;
+	Wed, 12 Jun 2019 03:45:45 -0700 (PDT)
 Received: from C02TF0J2HF1T.local (unknown [172.31.20.19])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0039F3F246;
-	Wed, 12 Jun 2019 03:40:38 -0700 (PDT)
-Date: Wed, 12 Jun 2019 11:38:49 +0100
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C9D343F246;
+	Wed, 12 Jun 2019 03:47:05 -0700 (PDT)
+Date: Wed, 12 Jun 2019 11:45:17 +0100
 From: Catalin Marinas <catalin.marinas@arm.com>
 To: Andrey Konovalov <andreyknvl@google.com>
 Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
@@ -118,15 +118,15 @@ Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
 	Robin Murphy <robin.murphy@arm.com>,
 	Kevin Brodsky <kevin.brodsky@arm.com>,
 	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v16 15/16] vfio/type1, arm64: untag user pointers in
- vaddr_get_pfn
-Message-ID: <20190612103848.GA28951@C02TF0J2HF1T.local>
+Subject: Re: [PATCH v16 09/16] fs, arm64: untag user pointers in
+ fs/userfaultfd.c
+Message-ID: <20190612104517.GB28951@C02TF0J2HF1T.local>
 References: <cover.1559580831.git.andreyknvl@google.com>
- <c529e1eeea7700beff197c4456da6a882ce2efb7.1559580831.git.andreyknvl@google.com>
+ <7d6fef00d7daf647b5069101da8cf5a202da75b0.1559580831.git.andreyknvl@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <c529e1eeea7700beff197c4456da6a882ce2efb7.1559580831.git.andreyknvl@google.com>
+In-Reply-To: <7d6fef00d7daf647b5069101da8cf5a202da75b0.1559580831.git.andreyknvl@google.com>
 User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -134,15 +134,15 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 03, 2019 at 06:55:17PM +0200, Andrey Konovalov wrote:
+On Mon, Jun 03, 2019 at 06:55:11PM +0200, Andrey Konovalov wrote:
 > This patch is a part of a series that extends arm64 kernel ABI to allow to
 > pass tagged user pointers (with the top byte set to something else other
 > than 0x00) as syscall arguments.
 > 
-> vaddr_get_pfn() uses provided user pointers for vma lookups, which can
+> userfaultfd code use provided user pointers for vma lookups, which can
 > only by done with untagged pointers.
 > 
-> Untag user pointers in this function.
+> Untag user pointers in validate_range().
 > 
 > Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 
