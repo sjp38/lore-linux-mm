@@ -2,138 +2,151 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 776E8C31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 20:56:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6079CC31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 21:41:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1B0C6208C2
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 20:56:38 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="YKatqYp5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B0C6208C2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
+	by mail.kernel.org (Postfix) with ESMTP id 1B0C0208C2
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 21:41:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B0C0208C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 98E596B0010; Wed, 12 Jun 2019 16:56:37 -0400 (EDT)
+	id 91F036B000D; Wed, 12 Jun 2019 17:41:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 918406B0266; Wed, 12 Jun 2019 16:56:37 -0400 (EDT)
+	id 8A8B96B000E; Wed, 12 Jun 2019 17:41:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 76A8A6B0269; Wed, 12 Jun 2019 16:56:37 -0400 (EDT)
+	id 7966C6B0010; Wed, 12 Jun 2019 17:41:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 408996B0010
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 16:56:37 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id f9so12861278pfn.6
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 13:56:37 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 14D3C6B000D
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 17:41:39 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id x19so1724322ljh.21
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 14:41:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=TZPBYSKEoaIkhIv00E3WuJ5aJFmWavGoQVJ9IN5iIvo=;
-        b=bOtlde/cNSEKlY5w9xwzWdZrCHEOuCv8GDifrOOnhT+uNtSqe8hOYbbysFVBsO1XLC
-         5F3L9zmrZqsLkuJzXGeCjtin6iwUj5+Wvk74pK8sXpB7BOcFZFRh0xBqQQEX+fLcZnpM
-         PLzXZ/Wk9zInLfOoi9KRbqNqaCZCA6weOts1Qa5zc+wBcN2RheBYIJVm5qp6/mT56sSd
-         N9Axbxe5QGPsmW7TDc9gM7pXwpXZCesS6TXeh4vAYHEq75r56/lEcrf/obzdSLcMOKnj
-         fbBFbStUwFQe6MxLiPyr1orqTkJse1OwnosXRcA5x37qriuPOIEDUUOkrl3Y+xTUhULa
-         Qhkg==
-X-Gm-Message-State: APjAAAUHMiA01AcEvvnvBf3DLc5sGGrJICBTr5nQBV8US0jrKGUGsg+B
-	k3N9diWl4yAYuT7lTZBQqKCY1UOaVcc0whGi8jIn7r6xgPFY0Kv/KKGMF8scz7QHA80wi1rgEx1
-	M2Vi6+ubUR6pvKfzdg4pb/v12zM2HgZj6p9K8bPZp2z0bqeyCyf7Re+ze6VwyFNQFqQ==
-X-Received: by 2002:a63:1c59:: with SMTP id c25mr994289pgm.395.1560372996705;
-        Wed, 12 Jun 2019 13:56:36 -0700 (PDT)
-X-Received: by 2002:a63:1c59:: with SMTP id c25mr994254pgm.395.1560372995791;
-        Wed, 12 Jun 2019 13:56:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560372995; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Wjz9w9lMQqSePDZ2ivGq+I2OodehqGpXzd1bko3gwvc=;
+        b=rFS1W1pQdRezYzZ7jBLxabgccjMNTgXQp45UikSMmszukXWTER2zkIyYj+5MaX9//O
+         i9ucQOsmSSYdQTcNftiwlb5mcPdGJC1JAe8jmI8CVDsJIbiUVuulnWEE3gtQ5N3ImQz6
+         E0VXfMphVkCZ5Q35lZzoMLnrIXWaTCQU1v0m+S/NUllvhmqM61gl+jcyw/8vzaE/S/IA
+         Op12cO8x7fiTmFtN9i2JKLH6zuaQME86lNaru9PmkLQ3hpvSNSG2z4a1robdCGAP7wEX
+         4asb4S6x7Ok4Z65KFOkNoCBwVJD5eXEShkFp/aVJc3e6xWJ+6tIaGM1GNODDX+bQZHNT
+         G+Cg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mcroce@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mcroce@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVuXaPDUOu/F0RnOZAfNi4dQ7RudW1T6rlC9f7sPy6L6D0dA7iI
+	g9TZwaCmOO/tLud/4eYaHez0FtnqK0YzILsQWb+vc6cxj85GHp1erFOjIZesCLDrVOflLAoA9Nc
+	KvU3FWnU1iHmA1JgCFbrpT8j3amLSnaXCT3dvjw5y3G3FHd0t2EfswBOsOrMR6FAlUQ==
+X-Received: by 2002:a2e:3013:: with SMTP id w19mr32923641ljw.73.1560375698479;
+        Wed, 12 Jun 2019 14:41:38 -0700 (PDT)
+X-Received: by 2002:a2e:3013:: with SMTP id w19mr32923610ljw.73.1560375697436;
+        Wed, 12 Jun 2019 14:41:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560375697; cv=none;
         d=google.com; s=arc-20160816;
-        b=sHUgKMnC8FWusf6VTfFEItH7eI9lk+CCU5ZIMmxTVtyx9pK+baYG5fNripOD6nmQRj
-         5XHW+dp1hSuUK5Qz7qVtrSK+wZJCj7Px8Le3XUP0mLH16lJfi76jWZ2GXHqeo4BiW9PR
-         lX2xlWDL02CKbyF+5Xa46UorOdOqh2KAhev6qdcC7ryXTOKff/aNyGlhKAL1q9FmTrJ3
-         fnxmgWoR5uAHQCvat04fIoIHUoJdvqXyr7vdSYP+GQBFkhCBovVph+qFR5fcsjjDCg6M
-         trrgfqmZih5RuIsv+8TUtg5eIOgljczeQ0t8kG1hsj8Gcp6hq9f3finz9jzZaJ+gTI3v
-         i/aQ==
+        b=Qc2yp01R2LJnGlVQLNoQ+DRZkbNUVAl5Fddhx8CPb++0q5H9ekdCSw9LY9NHA6BFgl
+         x2X4aZEp+2GknPUNUuTKow+KGrHrWqrZps3YFp7yelXs1ApRIp7PMqsAwmJK4QH6YuL1
+         WkG7ASnQBDABIF5KgSQLOiDCwWUJ5Dn2XOGzNgxk0pkY+HyeoNP0VNQ+GQq9v0O/ht3h
+         Ew0E5cRVL+iqAmqX/4HbBLUiGL8FWrazbxJTc5qukbDBouGfWyuFrivsZYuv4bACXDcO
+         3WTZqSwI0bb9puC3z6aosqoyJiIT1DmgRhZd6NrEHLLcdldiCLVSW+4yHQVhK865sQNN
+         Za2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=TZPBYSKEoaIkhIv00E3WuJ5aJFmWavGoQVJ9IN5iIvo=;
-        b=wGJFwSL2HKm1udJQbZuTtltsKSpRJSH7ad+gCukRLfUqDyfOia8+6Llcn60kllcERR
-         vysxoJh7zKJRKA/rAMYNhqqDwWzLy/lRSiCCE9dnyPzPMi201iuB+w2hG4QSh3RqQzDx
-         bFwikxa17Eq0fmRKkLm6q4+RDD2Z5W3UKIlWqEwz0YuS5houGRH1cAhGEmGiFNhYZg4a
-         bMThOdRHpfGDoES7u9T/Gw514+ACJyOljNtuOwP98K3qiMUoMNhMzBFbh/V+jw3YLLW1
-         einqgLdbusQEqN5oZevb/nr+SujvyKJgzr+iN84zZ3+Rh6yvi4+iLoAFH00tp6s8Gmro
-         LmKw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version;
+        bh=Wjz9w9lMQqSePDZ2ivGq+I2OodehqGpXzd1bko3gwvc=;
+        b=P0y4ClmWtQrHKjwF6Cn88WqJ4WqTFioghrn7yVQLaZ0Vbh6ZGpM7MLDbBjl+bz4tPW
+         pSVk5QqDM2k/jx2XDoZXhqcO1zPGCzRf6PXRpQJoWE3hCpExS3sSYWcQANjo0pqmLSn2
+         LdyNxA0MlITjv+SO5Xv70NHkADI5EZ6UwYgHy3VdbNsHCm3iDzmDDPxDJh8OoKfoA/uG
+         Lsmv1RY6yZeJ+la01ffJayflb0tqzP6luctUD0oqM/PJ94orY9J/IN/FkfhLN7nc/JOG
+         gtwoL8oSlPaUyjjB0hAlb014JgsQKtMvxffA0nAnxeUyrN+cpc0iEhFCGMwaH8VhIcjF
+         b4zQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=YKatqYp5;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+       spf=pass (google.com: domain of mcroce@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mcroce@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b9sor1116577pfd.44.2019.06.12.13.56.35
+        by mx.google.com with SMTPS id x2sor628911lji.25.2019.06.12.14.41.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 12 Jun 2019 13:56:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 12 Jun 2019 14:41:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mcroce@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=YKatqYp5;
-       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=TZPBYSKEoaIkhIv00E3WuJ5aJFmWavGoQVJ9IN5iIvo=;
-        b=YKatqYp5ZMD0rZsPMDq0to0PJDreG1XUyrx5SqWGPFgdgJtrZRf5AOIxLF1RFphdWH
-         R8Uycb+uWLqjH30x5HeS9diZaO6zEKBi4ehrFWwTQQhEoyWIgNqsqXzSVDTswGRL/9KD
-         uhKfahNauFol7O1XFQvxQp5RulEWOEW7iex6oysSu++JNYIgkrqn3WOcSrgDk5zaBXNp
-         8B+4btiQ/WZSa7P4mcOyuxUL08dr8X75WN0f9Llk7Bg6kYQ1G/dW5uqsTcyfJCabZyCo
-         CSzxOII00f5vEnofzolLz3aqRMf0Y2IeopHbP2PjiAMHgx7OfqBg8uf57PLTsF74jSYO
-         KVmQ==
-X-Google-Smtp-Source: APXvYqxo/ItMtB3OUs84fhqaf0UCPf/u6DxMcudVwkkrFpAqbneRAxpY8FuZIOMzxuIx2mCUlvJvAg==
-X-Received: by 2002:aa7:90ce:: with SMTP id k14mr89000454pfk.239.1560372995458;
-        Wed, 12 Jun 2019 13:56:35 -0700 (PDT)
-Received: from ?IPv6:2601:646:c200:1ef2:e92e:2d95:2c68:42e6? ([2601:646:c200:1ef2:e92e:2d95:2c68:42e6])
-        by smtp.gmail.com with ESMTPSA id v18sm455164pfg.182.2019.06.12.13.56.34
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 13:56:34 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM secrets
-From: Andy Lutomirski <luto@amacapital.net>
-X-Mailer: iPhone Mail (16F203)
-In-Reply-To: <3cd533c1-3f18-a84f-fbb2-264751ed3eeb@intel.com>
-Date: Wed, 12 Jun 2019 13:56:31 -0700
-Cc: Marius Hillenbrand <mhillenb@amazon.de>, kvm@vger.kernel.org,
- linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com,
- linux-mm@kvack.org, Alexander Graf <graf@amazon.de>,
- David Woodhouse <dwmw@amazon.co.uk>,
- the arch/x86 maintainers <x86@kernel.org>,
- Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <FD3482AC-3FB0-41DE-9347-5BD7C3DE8B11@amacapital.net>
-References: <20190612170834.14855-1-mhillenb@amazon.de> <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com> <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net> <3cd533c1-3f18-a84f-fbb2-264751ed3eeb@intel.com>
-To: Dave Hansen <dave.hansen@intel.com>
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000039, version=1.2.4
+       spf=pass (google.com: domain of mcroce@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mcroce@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqxWsiGJzzSmrJWzPtxAYvGPq+33C2n3hV7/sJbO7Cz64ykCKr43CIsqDxgUc/wtjsjxhhKJ798aDBixn040ZXk=
+X-Received: by 2002:a2e:751c:: with SMTP id q28mr20284560ljc.178.1560375696975;
+ Wed, 12 Jun 2019 14:41:36 -0700 (PDT)
+MIME-Version: 1.0
+References: <201906130111.tSFtzMVZ%lkp@intel.com>
+In-Reply-To: <201906130111.tSFtzMVZ%lkp@intel.com>
+From: Matteo Croce <mcroce@redhat.com>
+Date: Wed, 12 Jun 2019 23:41:00 +0200
+Message-ID: <CAGnkfhxnq4yoR+djuNKgRjRbv9TcETrwOE_Lexo99iLRMogLew@mail.gmail.com>
+Subject: Re: [liu-song6-linux:uprobe-thp 119/186] kernel/sysctl.c:1730:15:
+ error: 'one' undeclared here (not in a function); did you mean 'zone'?
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, 
+	Aaron Tomlin <atomlin@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Jun 12, 2019 at 7:44 PM kbuild test robot <lkp@intel.com> wrote:
+>
+> Hi Matteo,
+>
+> FYI, the error/warning still remains.
+>
+> tree:   https://github.com/liu-song-6/linux.git uprobe-thp
+> head:   9581ef888499040962ffc3287d8fc04ced9c2690
+> commit: 115fe47f84b1b7e9673aa9ffc0d5a4a9bb0ade15 [119/186] proc/sysctl: add shared variables for range check
+> config: m68k-sun3_defconfig (attached as .config)
+> compiler: m68k-linux-gcc (GCC) 7.4.0
+> reproduce:
+>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+>         chmod +x ~/bin/make.cross
+>         git checkout 115fe47f84b1b7e9673aa9ffc0d5a4a9bb0ade15
+>         # save the attached .config to linux build tree
+>         GCC_VERSION=7.4.0 make.cross ARCH=m68k
+>
+> If you fix the issue, kindly add following tag
+> Reported-by: kbuild test robot <lkp@intel.com>
+>
+> All errors (new ones prefixed by >>):
+>
+>    kernel/sysctl.c:1729:15: error: 'zero' undeclared here (not in a function); did you mean 'zero_ul'?
+>       .extra1  = &zero,
+>                   ^~~~
+>                   zero_ul
+> >> kernel/sysctl.c:1730:15: error: 'one' undeclared here (not in a function); did you mean 'zone'?
+>       .extra2  = &one,
+>                   ^~~
+>                   zone
+>
+> vim +1730 kernel/sysctl.c
+>
 
+Hi,
 
-> On Jun 12, 2019, at 1:41 PM, Dave Hansen <dave.hansen@intel.com> wrote:
->=20
-> On 6/12/19 1:27 PM, Andy Lutomirski wrote:
->>> We've discussed having per-cpu page tables where a given PGD is
->>> only in use from one CPU at a time.  I *think* this scheme still
->>> works in such a case, it just adds one more PGD entry that would
->>> have to context-switched.
->> Fair warning: Linus is on record as absolutely hating this idea. He
->> might change his mind, but it=E2=80=99s an uphill battle.
->=20
-> Just to be clear, are you referring to the per-cpu PGDs, or to this
-> patch set with a per-mm kernel area?
+this is because the following commit references 'zero'.
 
-per-CPU PGDs=
+commit cefdca0a86be517bc390fc4541e3674b8e7803b0
+Author: Peter Xu <peterx@redhat.com>
+Date:   Mon May 13 17:16:41 2019 -0700
+
+    userfaultfd/sysctl: add vm.unprivileged_userfaultfd
+
+I will make a patch for linux-next which Song can backport into his tree.
+
+Bye,
+-- 
+Matteo Croce
+per aspera ad upstream
 
