@@ -7,100 +7,101 @@ X-Spam-Status: No, score=-16.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,
 	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 716B0C31E47
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:43:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ADA61C31E48
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:43:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 30A2D2082C
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:43:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5B6D621721
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:43:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="wWQdCeaE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30A2D2082C
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ACVZLE8q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5B6D621721
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D78276B0006; Wed, 12 Jun 2019 07:43:44 -0400 (EDT)
+	id 0CE616B0007; Wed, 12 Jun 2019 07:43:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D290E6B0007; Wed, 12 Jun 2019 07:43:44 -0400 (EDT)
+	id 07EA76B0008; Wed, 12 Jun 2019 07:43:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C3FCF6B0008; Wed, 12 Jun 2019 07:43:44 -0400 (EDT)
+	id EAEE66B000A; Wed, 12 Jun 2019 07:43:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C95B6B0006
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:43:44 -0400 (EDT)
-Received: by mail-oi1-f198.google.com with SMTP id a198so5313598oii.15
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 04:43:44 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C82736B0007
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:43:47 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id t203so6530366ywe.7
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 04:43:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=UjHW3gvZNVNgT5aLmmsHnPxo+B7J7BC6tuQvc/RhPNk=;
-        b=Yeu79ihtJ6S+NMKopSoQMGX3SiVQZ/x+elIhdlGLD4Y4isaCsL9UGeAfC7Uc2S5VOx
-         uqYHftdUX1DPRXVpcNbZHGhU6nMrBZ4XU/J6YL96cwv8CS2zWDNxI1+lem0xiw7PcxRk
-         4WXeHTVkw3ELVeXYRAT2ItRLwCthen0lEXvbDC2c34j6gXGvvn8HfA2S3GiVOr1uEqI3
-         8RGNc7+8qtw6v8eJNGIURfdV4rEgBKChf4Dmyu2SGfEMzngte5XGIOmH5jgTL1uJ9dBW
-         LmpYixPYVnMVKwYAgBlEa696n42QoJHjA3EXwCjHNmnvSajkMRtKKfknSG5rhjILIBUV
-         va9A==
-X-Gm-Message-State: APjAAAVosTK/hW2jiiyI2CaVBjnx6vfgcAtOHuBTWOdD77JZel4PIhjX
-	A+uRxJ9GaMMYfiqQfgC0aveq48iUO+iRJLwgDYg9WPEo9lV6WVpKDebQTOJLFUq2kkbvubsa0Ng
-	1z2dbkQ6akeiggKZZh/18nYNji7CralLl5UlmX88lntTJL/WjyMsm3qWWQxvlRGcXPw==
-X-Received: by 2002:a9d:6385:: with SMTP id w5mr16448223otk.227.1560339824197;
-        Wed, 12 Jun 2019 04:43:44 -0700 (PDT)
-X-Received: by 2002:a9d:6385:: with SMTP id w5mr16448196otk.227.1560339823506;
-        Wed, 12 Jun 2019 04:43:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560339823; cv=none;
+        bh=6M/Xbdq/GEdg1U6KS1Q2G6Oz7M7u1wX9lFNSbOIs0eE=;
+        b=gbnQOdNv428VeglZh1dY1Vu14lcVhom/TNCT6ynmk4sKwT41hTPfZeOZhyHUKeicVM
+         GFMbhfuQD2wbEHCqI64eJE36IMYW9OZOqXxBDEdDLC0KbRgCon+zjlh2+DQJe1bcsG3N
+         qQ7S5fs5dBg6DTzJLx/yK8nMiZ0zEWWObLMWikw1jaYS0Ya0m6OJpMAKVZPudZ4z1+Qd
+         KOwhXaGUkdz91OYlJ9FN+hASZ+IGxdXg8jPIirqvKJfEkh2bV2Uz3p6KPVlpqgo1tIN4
+         twY+WH3hr0wVqtRNXpSatwaG0vDrHooCsJVqB25itYCh1kr+ZXnlnT/lG+QDaa/cYTB7
+         9Ysw==
+X-Gm-Message-State: APjAAAXuFmqqSphUYsbHyj7Ltp38nLS2DMc5RlMPAptSNCo3embNDjdn
+	01cCSipQkEqxGZvflnZ5se6/1jRTWZdmsv5OU2z+jtH2Y45Wqd3vvA4gSJYNkNHPAshko+Ug5wv
+	EDotuLE3lmZ7odj7rTDmwN63cMGRXlRSV9R6XoBr04CPeRStEeKATfB0dnxSyI4PCZQ==
+X-Received: by 2002:a0d:df41:: with SMTP id i62mr30171407ywe.52.1560339827471;
+        Wed, 12 Jun 2019 04:43:47 -0700 (PDT)
+X-Received: by 2002:a0d:df41:: with SMTP id i62mr30171380ywe.52.1560339826725;
+        Wed, 12 Jun 2019 04:43:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560339826; cv=none;
         d=google.com; s=arc-20160816;
-        b=q1jbG+2U04U5SbQTG9NBjsXwoBKRZ0N4wWdV+tDuxmDeagvJrs6AHao3Ot3cy4lhto
-         mg7pVdZjs1D8VB7/hMX44zcXT2KIAUTFT4jHFuNNmeoF9lrgqgKiRZ6Jc+1bZaHELG5P
-         5Nq43Z2GBK37WQWv+sy1h/DUGtIv5d7DdQGN+YE/3sj7VoAFuv0k8GfOLKT9p/DC9r74
-         qXHOubTX1vWER4IhWiDCMQwtIF/UJMATcxbJ60B3a7aVMirCl/zgUd/aNo9o8hFLnD0u
-         Ap5NgN2l91oYDhWksA75OqD0gAjQugYpJ18u+lwvB3N5fp1xc5rIx1psdrsWddJxlBfB
-         PbDw==
+        b=CNJNM1/elERCA9celGeff+2ktFiYxpKnMrOENTbbRKzQqBgV8QL7WZefp2N4lE4xt+
+         HnIQRkb8DzSlrfGfO43fw1TmGuS37zHkbKYe8TfpBKzkboU+Wv5YE62QRurGP07L6PKE
+         6v43ic2FRq3d2CudQizpWRD+zFRVi9EFodkKxN5xekANLI6P1GpP4zE0KEUjjoRQnCPd
+         ZwzHUM3fQH5Bga7eTmMwIuAPYjN04WDpxwW8jfM1nElsVD2GR5wGX4rBl58hpnUnq3WA
+         PmO6f0m3viHjigPZ0k/0yb6oaBsQa64pNDLfOoLpDGYnF6NAV36wj7+EuQ9yumVQ7X8P
+         GsaA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=UjHW3gvZNVNgT5aLmmsHnPxo+B7J7BC6tuQvc/RhPNk=;
-        b=gevAvPpRB21BXQrknQALqNqB+D6LeBUmNyN21rN30aPQMpR4gv3k9J5ZbRYdwtBcHD
-         3g7po9/CLRJk2BT0iu17gD2b5k2zp1hc5XyzahlBNZ2x7uPUw+BGMDTj6q93wyL8dlZG
-         jtIChTBSY2AKw5Jn1Db9eTOqsRoSDpAS1kj7c4QYjgJnrwt6a/iOBa5hQ6sZ8Agy4k/b
-         c4swaYj8FA4IGjRl7eQQQ+cTpiOCuFpWLYgXsyEqXQjhKjXiGOMLOtFdKaPOq85pn7qr
-         qp8VR/Ib8JQaKmMcpvjDIGCKVBUHImfy9hUCeZMkbls1zMApmudSA93CF176KqIUg9UO
-         LVTg==
+        bh=6M/Xbdq/GEdg1U6KS1Q2G6Oz7M7u1wX9lFNSbOIs0eE=;
+        b=NCb2HgUDk4yhPz1W9InrkV6VstEc41+Z6/rzMVHCbO/BCLwIjRjZVAIzq7kWfeq4xp
+         ZBug7p7oDFhtn4l+zkzU/VXda+9A8chBZ4gah0EBvEOQuA69OR2YY2wjgq6hiwTlVz84
+         JbiolgYTgXFL7YPNc8P5lvwKOzTrmtylrFPhIx6xxftwOqTOGeMMqg9PSXudTcFk/yrd
+         NSNppLGyWbhfNgtU9Mmx1p627LL55tIw7/YSriOPcVLDh61NC+xZYjZIEJ/qi5qDGPmC
+         QLyg7dnABSE2opSoBo2BMv13fzdDAK2GO4hvxz0Le0qBR94czwKqblbkDFwUxVCMcEAB
+         Ocfg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=wWQdCeaE;
-       spf=pass (google.com: domain of 3b-uaxqokccwivlzmgsvdtowwotm.kwutqvcf-uusdiks.wzo@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3b-UAXQoKCCwIVLZMgSVdTOWWOTM.KWUTQVcf-UUSdIKS.WZO@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ACVZLE8q;
+       spf=pass (google.com: domain of 3cuuaxqokcc8lyocpjvygwrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3cuUAXQoKCC8LYOcPjVYgWRZZRWP.NZXWTYfi-XXVgLNV.ZcR@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id a4sor5807055otb.33.2019.06.12.04.43.43
+        by mx.google.com with SMTPS id j18sor8105027ywj.23.2019.06.12.04.43.46
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 12 Jun 2019 04:43:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3b-uaxqokccwivlzmgsvdtowwotm.kwutqvcf-uusdiks.wzo@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Wed, 12 Jun 2019 04:43:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3cuuaxqokcc8lyocpjvygwrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=wWQdCeaE;
-       spf=pass (google.com: domain of 3b-uaxqokccwivlzmgsvdtowwotm.kwutqvcf-uusdiks.wzo@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3b-UAXQoKCCwIVLZMgSVdTOWWOTM.KWUTQVcf-UUSdIKS.WZO@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=ACVZLE8q;
+       spf=pass (google.com: domain of 3cuuaxqokcc8lyocpjvygwrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3cuUAXQoKCC8LYOcPjVYgWRZZRWP.NZXWTYfi-XXVgLNV.ZcR@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=UjHW3gvZNVNgT5aLmmsHnPxo+B7J7BC6tuQvc/RhPNk=;
-        b=wWQdCeaEB2u6K2FokoVH57TiuY9+YM+iloWJZ9olfqp0zjmIdmC5f6DPCzUKmsxGdy
-         S65EVOJIDT5V4zwCQfqNTJzphOcFWfUmY+gXBOeFncv77kXLYdKYGCkdMxc+OyweaWX0
-         0fKTo4iZRRAvEu0L5K9N5O0E1jscX+Pk92PzQ1PknQ2YOc6xMrIj1RN7n/IEUROoLRHK
-         DSyTNlm/Sr+vicrs5WJhiUx/1nLhQ5Q4ACjS55YPvH7eOOqFTP/CfYXsftMzptdGowR3
-         ikQ6jhRMQBxQ3FPli1xBTZa23yNKdUvKN2sR5HTTLiPeqs1dY61XYlyLOGrjNBMaj6hd
-         3iow==
-X-Google-Smtp-Source: APXvYqwN3f56c3YdzV4vuBZtnTaXMq2rkbV7EZJhl+9vuDir+VdtrZMmSzDSSPuiOLJaxWwDb81r7VAwTgFT1eUN
-X-Received: by 2002:a9d:764d:: with SMTP id o13mr6499138otl.298.1560339823090;
- Wed, 12 Jun 2019 04:43:43 -0700 (PDT)
-Date: Wed, 12 Jun 2019 13:43:19 +0200
+        bh=6M/Xbdq/GEdg1U6KS1Q2G6Oz7M7u1wX9lFNSbOIs0eE=;
+        b=ACVZLE8qVD2m+0cgtxpWQhGhPGG/Ln68kdWb/oTLWTvjnKjV3OEd+czJBWQA90rzG9
+         k8pT1WDCWs7sRvQ+L+JDsoJ9EPlF9djBkn8ZvPuT3pIBz18V1FwWApJ56GicLlKJCvSZ
+         l8TgnBTFOKgBUdKjzXAR3WAhJXBBkdOHq+Mn4a5V+670dcUoWBJEFoKWGr/qKzn4y4ZD
+         gjnslGXnEt1rG5J59WQkLbftJMrXLwUl2590vidXXmp5/WyRAn6J6aq6ly4KEqdvnx0u
+         6w6xsTCBCkTePQK1NsH0i++YzOU+WcrP9IejUTPvS9ZoW0C5f84IOWgLFPwWGXrzJgOj
+         gFOA==
+X-Google-Smtp-Source: APXvYqytOU+n01l3ivjYwD2cpTD0/nhGfCxB5SZGN1Rdh+wHFGv3wu5KqIwv58r4//qfgSYCsX+M2/Nb4vcejc3q
+X-Received: by 2002:a81:a491:: with SMTP id b139mr20168814ywh.148.1560339826354;
+ Wed, 12 Jun 2019 04:43:46 -0700 (PDT)
+Date: Wed, 12 Jun 2019 13:43:20 +0200
 In-Reply-To: <cover.1560339705.git.andreyknvl@google.com>
-Message-Id: <a76c014f9b12a082d31ef1459907cabdab78491e.1560339705.git.andreyknvl@google.com>
+Message-Id: <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
 Mime-Version: 1.0
 References: <cover.1560339705.git.andreyknvl@google.com>
 X-Mailer: git-send-email 2.22.0.rc2.383.gf4fbbf30c2-goog
-Subject: [PATCH v17 02/15] lib, arm64: untag user pointers in strn*_user
+Subject: [PATCH v17 03/15] arm64: Introduce prctl() options to control the
+ tagged user addresses ABI
 From: Andrey Konovalov <andreyknvl@google.com>
 To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, 
 	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org, 
@@ -120,8 +121,7 @@ Cc: Catalin Marinas <catalin.marinas@arm.com>, Vincenzo Frascino <vincenzo.frasc
 	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
 	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
 	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>, 
-	Andrey Konovalov <andreyknvl@google.com>
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -129,70 +129,209 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch is a part of a series that extends arm64 kernel ABI to allow to
-pass tagged user pointers (with the top byte set to something else other
-than 0x00) as syscall arguments.
+From: Catalin Marinas <catalin.marinas@arm.com>
 
-strncpy_from_user and strnlen_user accept user addresses as arguments, and
-do not go through the same path as copy_from_user and others, so here we
-need to handle the case of tagged user addresses separately.
+It is not desirable to relax the ABI to allow tagged user addresses into
+the kernel indiscriminately. This patch introduces a prctl() interface
+for enabling or disabling the tagged ABI with a global sysctl control
+for preventing applications from enabling the relaxed ABI (meant for
+testing user-space prctl() return error checking without reconfiguring
+the kernel). The ABI properties are inherited by threads of the same
+application and fork()'ed children but cleared on execve().
 
-Untag user pointers passed to these functions.
+The PR_SET_TAGGED_ADDR_CTRL will be expanded in the future to handle
+MTE-specific settings like imprecise vs precise exceptions.
 
-Note, that this patch only temporarily untags the pointers to perform
-validity checks, but then uses them as is to perform user memory accesses.
-
-Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
-Acked-by: Kees Cook <keescook@chromium.org>
-Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
 ---
- lib/strncpy_from_user.c | 3 ++-
- lib/strnlen_user.c      | 3 ++-
- 2 files changed, 4 insertions(+), 2 deletions(-)
+ arch/arm64/include/asm/processor.h   |  6 +++
+ arch/arm64/include/asm/thread_info.h |  1 +
+ arch/arm64/include/asm/uaccess.h     |  3 +-
+ arch/arm64/kernel/process.c          | 67 ++++++++++++++++++++++++++++
+ include/uapi/linux/prctl.h           |  5 +++
+ kernel/sys.c                         | 16 +++++++
+ 6 files changed, 97 insertions(+), 1 deletion(-)
 
-diff --git a/lib/strncpy_from_user.c b/lib/strncpy_from_user.c
-index 023ba9f3b99f..dccb95af6003 100644
---- a/lib/strncpy_from_user.c
-+++ b/lib/strncpy_from_user.c
-@@ -6,6 +6,7 @@
- #include <linux/uaccess.h>
+diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
+index fcd0e691b1ea..fee457456aa8 100644
+--- a/arch/arm64/include/asm/processor.h
++++ b/arch/arm64/include/asm/processor.h
+@@ -307,6 +307,12 @@ extern void __init minsigstksz_setup(void);
+ /* PR_PAC_RESET_KEYS prctl */
+ #define PAC_RESET_KEYS(tsk, arg)	ptrauth_prctl_reset_keys(tsk, arg)
+ 
++/* PR_TAGGED_ADDR prctl */
++long set_tagged_addr_ctrl(unsigned long arg);
++long get_tagged_addr_ctrl(void);
++#define SET_TAGGED_ADDR_CTRL(arg)	set_tagged_addr_ctrl(arg)
++#define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl()
++
+ /*
+  * For CONFIG_GCC_PLUGIN_STACKLEAK
+  *
+diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include/asm/thread_info.h
+index f1d032be628a..354a31d2b737 100644
+--- a/arch/arm64/include/asm/thread_info.h
++++ b/arch/arm64/include/asm/thread_info.h
+@@ -99,6 +99,7 @@ void arch_release_task_struct(struct task_struct *tsk);
+ #define TIF_SVE			23	/* Scalable Vector Extension in use */
+ #define TIF_SVE_VL_INHERIT	24	/* Inherit sve_vl_onexec across exec */
+ #define TIF_SSBD		25	/* Wants SSB mitigation */
++#define TIF_TAGGED_ADDR		26	/* Allow tagged user addresses */
+ 
+ #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
+ #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
+diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
+index df729afca0ba..995b9ea11a89 100644
+--- a/arch/arm64/include/asm/uaccess.h
++++ b/arch/arm64/include/asm/uaccess.h
+@@ -73,7 +73,8 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
+ {
+ 	unsigned long ret, limit = current_thread_info()->addr_limit;
+ 
+-	addr = untagged_addr(addr);
++	if (test_thread_flag(TIF_TAGGED_ADDR))
++		addr = untagged_addr(addr);
+ 
+ 	__chk_user_ptr(addr);
+ 	asm volatile(
+diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
+index 3767fb21a5b8..69d0be1fc708 100644
+--- a/arch/arm64/kernel/process.c
++++ b/arch/arm64/kernel/process.c
+@@ -30,6 +30,7 @@
  #include <linux/kernel.h>
- #include <linux/errno.h>
-+#include <linux/mm.h>
+ #include <linux/mm.h>
+ #include <linux/stddef.h>
++#include <linux/sysctl.h>
+ #include <linux/unistd.h>
+ #include <linux/user.h>
+ #include <linux/delay.h>
+@@ -323,6 +324,7 @@ void flush_thread(void)
+ 	fpsimd_flush_thread();
+ 	tls_thread_flush();
+ 	flush_ptrace_hw_breakpoint(current);
++	clear_thread_flag(TIF_TAGGED_ADDR);
+ }
  
- #include <asm/byteorder.h>
- #include <asm/word-at-a-time.h>
-@@ -108,7 +109,7 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
- 		return 0;
+ void release_thread(struct task_struct *dead_task)
+@@ -552,3 +554,68 @@ void arch_setup_new_exec(void)
  
- 	max_addr = user_addr_max();
--	src_addr = (unsigned long)src;
-+	src_addr = (unsigned long)untagged_addr(src);
- 	if (likely(src_addr < max_addr)) {
- 		unsigned long max = max_addr - src_addr;
- 		long retval;
-diff --git a/lib/strnlen_user.c b/lib/strnlen_user.c
-index 7f2db3fe311f..28ff554a1be8 100644
---- a/lib/strnlen_user.c
-+++ b/lib/strnlen_user.c
-@@ -2,6 +2,7 @@
- #include <linux/kernel.h>
- #include <linux/export.h>
- #include <linux/uaccess.h>
-+#include <linux/mm.h>
+ 	ptrauth_thread_init_user(current);
+ }
++
++/*
++ * Control the relaxed ABI allowing tagged user addresses into the kernel.
++ */
++static unsigned int tagged_addr_prctl_allowed = 1;
++
++long set_tagged_addr_ctrl(unsigned long arg)
++{
++	if (!tagged_addr_prctl_allowed)
++		return -EINVAL;
++	if (is_compat_task())
++		return -EINVAL;
++	if (arg & ~PR_TAGGED_ADDR_ENABLE)
++		return -EINVAL;
++
++	if (arg & PR_TAGGED_ADDR_ENABLE)
++		set_thread_flag(TIF_TAGGED_ADDR);
++	else
++		clear_thread_flag(TIF_TAGGED_ADDR);
++
++	return 0;
++}
++
++long get_tagged_addr_ctrl(void)
++{
++	if (!tagged_addr_prctl_allowed)
++		return -EINVAL;
++	if (is_compat_task())
++		return -EINVAL;
++
++	if (test_thread_flag(TIF_TAGGED_ADDR))
++		return PR_TAGGED_ADDR_ENABLE;
++
++	return 0;
++}
++
++/*
++ * Global sysctl to disable the tagged user addresses support. This control
++ * only prevents the tagged address ABI enabling via prctl() and does not
++ * disable it for tasks that already opted in to the relaxed ABI.
++ */
++static int zero;
++static int one = 1;
++
++static struct ctl_table tagged_addr_sysctl_table[] = {
++	{
++		.procname	= "tagged_addr",
++		.mode		= 0644,
++		.data		= &tagged_addr_prctl_allowed,
++		.maxlen		= sizeof(int),
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= &zero,
++		.extra2		= &one,
++	},
++	{ }
++};
++
++static int __init tagged_addr_init(void)
++{
++	if (!register_sysctl("abi", tagged_addr_sysctl_table))
++		return -EINVAL;
++	return 0;
++}
++
++core_initcall(tagged_addr_init);
+diff --git a/include/uapi/linux/prctl.h b/include/uapi/linux/prctl.h
+index 094bb03b9cc2..2e927b3e9d6c 100644
+--- a/include/uapi/linux/prctl.h
++++ b/include/uapi/linux/prctl.h
+@@ -229,4 +229,9 @@ struct prctl_mm_map {
+ # define PR_PAC_APDBKEY			(1UL << 3)
+ # define PR_PAC_APGAKEY			(1UL << 4)
  
- #include <asm/word-at-a-time.h>
++/* Tagged user address controls for arm64 */
++#define PR_SET_TAGGED_ADDR_CTRL		55
++#define PR_GET_TAGGED_ADDR_CTRL		56
++# define PR_TAGGED_ADDR_ENABLE		(1UL << 0)
++
+ #endif /* _LINUX_PRCTL_H */
+diff --git a/kernel/sys.c b/kernel/sys.c
+index 2969304c29fe..ec48396b4943 100644
+--- a/kernel/sys.c
++++ b/kernel/sys.c
+@@ -124,6 +124,12 @@
+ #ifndef PAC_RESET_KEYS
+ # define PAC_RESET_KEYS(a, b)	(-EINVAL)
+ #endif
++#ifndef SET_TAGGED_ADDR_CTRL
++# define SET_TAGGED_ADDR_CTRL(a)	(-EINVAL)
++#endif
++#ifndef GET_TAGGED_ADDR_CTRL
++# define GET_TAGGED_ADDR_CTRL()		(-EINVAL)
++#endif
  
-@@ -109,7 +110,7 @@ long strnlen_user(const char __user *str, long count)
- 		return 0;
- 
- 	max_addr = user_addr_max();
--	src_addr = (unsigned long)str;
-+	src_addr = (unsigned long)untagged_addr(str);
- 	if (likely(src_addr < max_addr)) {
- 		unsigned long max = max_addr - src_addr;
- 		long retval;
+ /*
+  * this is where the system-wide overflow UID and GID are defined, for
+@@ -2492,6 +2498,16 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+ 			return -EINVAL;
+ 		error = PAC_RESET_KEYS(me, arg2);
+ 		break;
++	case PR_SET_TAGGED_ADDR_CTRL:
++		if (arg3 || arg4 || arg5)
++			return -EINVAL;
++		error = SET_TAGGED_ADDR_CTRL(arg2);
++		break;
++	case PR_GET_TAGGED_ADDR_CTRL:
++		if (arg2 || arg3 || arg4 || arg5)
++			return -EINVAL;
++		error = GET_TAGGED_ADDR_CTRL();
++		break;
+ 	default:
+ 		error = -EINVAL;
+ 		break;
 -- 
 2.22.0.rc2.383.gf4fbbf30c2-goog
 
