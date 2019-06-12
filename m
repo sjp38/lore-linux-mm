@@ -2,170 +2,138 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 97DBBC31E48
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 20:41:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 776E8C31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 20:56:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 51AC321743
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 20:41:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 51AC321743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 1B0C6208C2
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 20:56:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="YKatqYp5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B0C6208C2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DDFBF6B0010; Wed, 12 Jun 2019 16:41:57 -0400 (EDT)
+	id 98E596B0010; Wed, 12 Jun 2019 16:56:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D8FFB6B0266; Wed, 12 Jun 2019 16:41:57 -0400 (EDT)
+	id 918406B0266; Wed, 12 Jun 2019 16:56:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C313C6B0269; Wed, 12 Jun 2019 16:41:57 -0400 (EDT)
+	id 76A8A6B0269; Wed, 12 Jun 2019 16:56:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 87FC96B0010
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 16:41:57 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id t64so10416795pgt.8
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 13:41:57 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 408996B0010
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 16:56:37 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id f9so12861278pfn.6
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 13:56:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=H2n7SuFiscL9zFkMvx0wzu2GFG4U959d994W1b5S7Is=;
-        b=Bpmnd/+iOidKtX/mxZTk1LHzLW7NVH8Q5sZ04j7Tqht6fMr0PKDtNj0+eb/0Oxj7jl
-         vqqjH9SiMR2AgVs+43hgKsgqm6XhKsAanx/EECu3dyXBHBYI6+kvkwSq8pSPWLXmHNmJ
-         SLc+XI8cZM8OphXmr2EPwFyqWRhYTfb02AxY9u9jKpuTfhNdmb6ku2UZGRb+JQRDQrAY
-         9JC/Jnk9pHNTXDtw4eETbqcpOeBwSKvIBgaxkxA9VdAbhFmV5tnHcCIsC+d/zgacsq6b
-         kid7xu966RRBTQaDi8RC69az9SVr9bI0gku6Q8axRb7XHqaex8nlIIehXvQXYuIhatL7
-         lpXg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUcXATWSHo7r9Oe9kyNHNKQjQuWkCng2xcWqdstp5nT6R5e6bCZ
-	sI8EI+8/a0LxajAZipmIbJzrC+x/zpTboIQkTxTJQyCrrl7JGQMzCAwy9IEy/FuWqHRlh7BTi0D
-	nTNXXL9c0ADJuaKAPCRYDPA92OOadZcfit4SrDN2VeHxPD2FxsmrxIgArQeLZ3YPmMw==
-X-Received: by 2002:a63:4c1c:: with SMTP id z28mr26715867pga.122.1560372117182;
-        Wed, 12 Jun 2019 13:41:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwd07jIoAncah7pl+5JDp8k9+6TNIk8GaIpBlQuQMGXDkqwgaPrM09JmMI7k6GH2fTthpUK
-X-Received: by 2002:a63:4c1c:: with SMTP id z28mr26715833pga.122.1560372116457;
-        Wed, 12 Jun 2019 13:41:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560372116; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=TZPBYSKEoaIkhIv00E3WuJ5aJFmWavGoQVJ9IN5iIvo=;
+        b=bOtlde/cNSEKlY5w9xwzWdZrCHEOuCv8GDifrOOnhT+uNtSqe8hOYbbysFVBsO1XLC
+         5F3L9zmrZqsLkuJzXGeCjtin6iwUj5+Wvk74pK8sXpB7BOcFZFRh0xBqQQEX+fLcZnpM
+         PLzXZ/Wk9zInLfOoi9KRbqNqaCZCA6weOts1Qa5zc+wBcN2RheBYIJVm5qp6/mT56sSd
+         N9Axbxe5QGPsmW7TDc9gM7pXwpXZCesS6TXeh4vAYHEq75r56/lEcrf/obzdSLcMOKnj
+         fbBFbStUwFQe6MxLiPyr1orqTkJse1OwnosXRcA5x37qriuPOIEDUUOkrl3Y+xTUhULa
+         Qhkg==
+X-Gm-Message-State: APjAAAUHMiA01AcEvvnvBf3DLc5sGGrJICBTr5nQBV8US0jrKGUGsg+B
+	k3N9diWl4yAYuT7lTZBQqKCY1UOaVcc0whGi8jIn7r6xgPFY0Kv/KKGMF8scz7QHA80wi1rgEx1
+	M2Vi6+ubUR6pvKfzdg4pb/v12zM2HgZj6p9K8bPZp2z0bqeyCyf7Re+ze6VwyFNQFqQ==
+X-Received: by 2002:a63:1c59:: with SMTP id c25mr994289pgm.395.1560372996705;
+        Wed, 12 Jun 2019 13:56:36 -0700 (PDT)
+X-Received: by 2002:a63:1c59:: with SMTP id c25mr994254pgm.395.1560372995791;
+        Wed, 12 Jun 2019 13:56:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560372995; cv=none;
         d=google.com; s=arc-20160816;
-        b=qcOu5x4ssMZ26BI4EJ784xSCDDX0gPrvPTSt3+ZKyJQMWDq9/m699K9J5IpTCfI3A8
-         8rVdSHxKaHfd4sqiQYgmjxUpV8t+Jg3Xzd6puFgvItfrM1vFiR30zfoxDkW4w+CL8wcw
-         HJPnZuvT3xODUjQ2GTR32czxv0syqk1xXtWU5WvFDfBA9K09nwIG9umlD7oeHPAy7Zk+
-         zdsdpQ4Q4rbHcYofTsWCtJScvU9Bz3rjMATRwignCmvWKm6MAdYEdYmxPAr/lLOhKh5H
-         mM29zLeF7M+iarUsQSMgm9XU+JO4K8ythBn/GvsFOq20sxZ6Ljc9n2BRW1ZcXB8jaNkV
-         bbGw==
+        b=sHUgKMnC8FWusf6VTfFEItH7eI9lk+CCU5ZIMmxTVtyx9pK+baYG5fNripOD6nmQRj
+         5XHW+dp1hSuUK5Qz7qVtrSK+wZJCj7Px8Le3XUP0mLH16lJfi76jWZ2GXHqeo4BiW9PR
+         lX2xlWDL02CKbyF+5Xa46UorOdOqh2KAhev6qdcC7ryXTOKff/aNyGlhKAL1q9FmTrJ3
+         fnxmgWoR5uAHQCvat04fIoIHUoJdvqXyr7vdSYP+GQBFkhCBovVph+qFR5fcsjjDCg6M
+         trrgfqmZih5RuIsv+8TUtg5eIOgljczeQ0t8kG1hsj8Gcp6hq9f3finz9jzZaJ+gTI3v
+         i/aQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=H2n7SuFiscL9zFkMvx0wzu2GFG4U959d994W1b5S7Is=;
-        b=iNVqGXCBdDhf2bkv5g+pStTGh+VEO14A5zX1A+nPyHa6TCVSnj++UDvbSUpdJhg3v8
-         zSY4umyRqRYtXhzYGk+zgvSsSgu2Ha3mP5mrGaYRHtPTIdq6qazNJvqOG0XSYsTblIwn
-         cwTb2I0olx6+JX+EtQ+wGe4cMwEK7hNsZ/3efLt+C3SqES2ZHp5e6ARHiOxlwwZhrH7C
-         zJtT1B8nNV4k6Xr2e/wY2tRCzmffLatZvpdOXYOX9OPHYC4NYDjHAcvv2k9mC5tYAshE
-         CS+4HryEFGvH+CbEdDV3DMA8gjiirBvwkxbDRta668SpTodDDJ+G/4azXx4zFCl7pjQG
-         zIvQ==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=TZPBYSKEoaIkhIv00E3WuJ5aJFmWavGoQVJ9IN5iIvo=;
+        b=wGJFwSL2HKm1udJQbZuTtltsKSpRJSH7ad+gCukRLfUqDyfOia8+6Llcn60kllcERR
+         vysxoJh7zKJRKA/rAMYNhqqDwWzLy/lRSiCCE9dnyPzPMi201iuB+w2hG4QSh3RqQzDx
+         bFwikxa17Eq0fmRKkLm6q4+RDD2Z5W3UKIlWqEwz0YuS5houGRH1cAhGEmGiFNhYZg4a
+         bMThOdRHpfGDoES7u9T/Gw514+ACJyOljNtuOwP98K3qiMUoMNhMzBFbh/V+jw3YLLW1
+         einqgLdbusQEqN5oZevb/nr+SujvyKJgzr+iN84zZ3+Rh6yvi4+iLoAFH00tp6s8Gmro
+         LmKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 19si646604pfi.81.2019.06.12.13.41.56
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=YKatqYp5;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b9sor1116577pfd.44.2019.06.12.13.56.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 13:41:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Wed, 12 Jun 2019 13:56:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Jun 2019 13:41:55 -0700
-X-ExtLoop1: 1
-Received: from ray.jf.intel.com (HELO [10.7.198.156]) ([10.7.198.156])
-  by orsmga007.jf.intel.com with ESMTP; 12 Jun 2019 13:41:55 -0700
-Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
- secrets
-To: Andy Lutomirski <luto@amacapital.net>
+       dkim=pass header.i=@amacapital-net.20150623.gappssmtp.com header.s=20150623 header.b=YKatqYp5;
+       spf=pass (google.com: domain of luto@amacapital.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=luto@amacapital.net
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=TZPBYSKEoaIkhIv00E3WuJ5aJFmWavGoQVJ9IN5iIvo=;
+        b=YKatqYp5ZMD0rZsPMDq0to0PJDreG1XUyrx5SqWGPFgdgJtrZRf5AOIxLF1RFphdWH
+         R8Uycb+uWLqjH30x5HeS9diZaO6zEKBi4ehrFWwTQQhEoyWIgNqsqXzSVDTswGRL/9KD
+         uhKfahNauFol7O1XFQvxQp5RulEWOEW7iex6oysSu++JNYIgkrqn3WOcSrgDk5zaBXNp
+         8B+4btiQ/WZSa7P4mcOyuxUL08dr8X75WN0f9Llk7Bg6kYQ1G/dW5uqsTcyfJCabZyCo
+         CSzxOII00f5vEnofzolLz3aqRMf0Y2IeopHbP2PjiAMHgx7OfqBg8uf57PLTsF74jSYO
+         KVmQ==
+X-Google-Smtp-Source: APXvYqxo/ItMtB3OUs84fhqaf0UCPf/u6DxMcudVwkkrFpAqbneRAxpY8FuZIOMzxuIx2mCUlvJvAg==
+X-Received: by 2002:aa7:90ce:: with SMTP id k14mr89000454pfk.239.1560372995458;
+        Wed, 12 Jun 2019 13:56:35 -0700 (PDT)
+Received: from ?IPv6:2601:646:c200:1ef2:e92e:2d95:2c68:42e6? ([2601:646:c200:1ef2:e92e:2d95:2c68:42e6])
+        by smtp.gmail.com with ESMTPSA id v18sm455164pfg.182.2019.06.12.13.56.34
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Jun 2019 13:56:34 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (1.0)
+Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM secrets
+From: Andy Lutomirski <luto@amacapital.net>
+X-Mailer: iPhone Mail (16F203)
+In-Reply-To: <3cd533c1-3f18-a84f-fbb2-264751ed3eeb@intel.com>
+Date: Wed, 12 Jun 2019 13:56:31 -0700
 Cc: Marius Hillenbrand <mhillenb@amazon.de>, kvm@vger.kernel.org,
  linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com,
  linux-mm@kvack.org, Alexander Graf <graf@amazon.de>,
  David Woodhouse <dwmw@amazon.co.uk>,
- the arch/x86 maintainers <x86@kernel.org>, Andy Lutomirski
- <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>
-References: <20190612170834.14855-1-mhillenb@amazon.de>
- <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com>
- <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <3cd533c1-3f18-a84f-fbb2-264751ed3eeb@intel.com>
-Date: Wed, 12 Jun 2019 13:41:50 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
-MIME-Version: 1.0
-In-Reply-To: <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+ the arch/x86 maintainers <x86@kernel.org>,
+ Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <FD3482AC-3FB0-41DE-9347-5BD7C3DE8B11@amacapital.net>
+References: <20190612170834.14855-1-mhillenb@amazon.de> <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com> <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net> <3cd533c1-3f18-a84f-fbb2-264751ed3eeb@intel.com>
+To: Dave Hansen <dave.hansen@intel.com>
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000039, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/12/19 1:27 PM, Andy Lutomirski wrote:
->> We've discussed having per-cpu page tables where a given PGD is
->> only in use from one CPU at a time.  I *think* this scheme still
->> works in such a case, it just adds one more PGD entry that would
->> have to context-switched.
-> Fair warning: Linus is on record as absolutely hating this idea. He
-> might change his mind, but it’s an uphill battle.
 
-Just to be clear, are you referring to the per-cpu PGDs, or to this
-patch set with a per-mm kernel area?
+
+> On Jun 12, 2019, at 1:41 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+>=20
+> On 6/12/19 1:27 PM, Andy Lutomirski wrote:
+>>> We've discussed having per-cpu page tables where a given PGD is
+>>> only in use from one CPU at a time.  I *think* this scheme still
+>>> works in such a case, it just adds one more PGD entry that would
+>>> have to context-switched.
+>> Fair warning: Linus is on record as absolutely hating this idea. He
+>> might change his mind, but it=E2=80=99s an uphill battle.
+>=20
+> Just to be clear, are you referring to the per-cpu PGDs, or to this
+> patch set with a per-mm kernel area?
+
+per-CPU PGDs=
 
