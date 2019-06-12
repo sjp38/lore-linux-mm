@@ -2,148 +2,149 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EDC5DC31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 10:30:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A86EC31E48
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 10:39:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B68E3207E0
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 10:30:37 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="zIQhadd+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B68E3207E0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id DED1C20874
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 10:39:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DED1C20874
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EF5E76B0006; Wed, 12 Jun 2019 06:11:05 -0400 (EDT)
+	id 89FFB6B0003; Wed, 12 Jun 2019 06:39:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E7FD36B0007; Wed, 12 Jun 2019 06:11:05 -0400 (EDT)
+	id 8766B6B0005; Wed, 12 Jun 2019 06:39:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D47C76B0008; Wed, 12 Jun 2019 06:11:05 -0400 (EDT)
+	id 765E06B0006; Wed, 12 Jun 2019 06:39:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 810D26B0006
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 06:11:05 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b12so17848350eds.14
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 03:11:05 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 26C2A6B0003
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 06:39:21 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id l53so25257274edc.7
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 03:39:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=yBJOOYa+63AgBYj8hVQxRRZyU5YRkS/ufWkxMFtkQpw=;
-        b=CIm+sDPQ0MgUpVBR1NBk3+vgmp2m9UkUrGtV2U4k/sZC/mQgmvTVejyl48Snmt7f2N
-         dzKSjB0HoJVjtVMdo/qvkynPDqLrlXhWlzDYdZoNeAwKw+AFlMApJ8q/7ltit9cJYza9
-         IwHF8oOG0EW9ql+T4BdX2Zj8ipyh7+Q+CPQG4TYIOpQ07bkM/QgKfUsYoCnobYKfRKt6
-         SZabuKmjCQVx5yEcXeI2Fx9UwMSixMXR/N4fuKVp0dez5hTAW3gKwn+nv9y0REIE1DFP
-         jaZ9S3GIWM5ltqdXBiSP77yBdcpgj4G87cbof2iwA5mKZBlMX0NtPTPfR63lHEAIWnCr
-         +i2g==
-X-Gm-Message-State: APjAAAVxc9+OJ1rC5Z/j5s52g8aFUWrizu74m+3Yt9sVOJyV21JU954h
-	uziH6nuj34qOnZfSGnSbd4rMo6zhkQ0jUvbroWrFMwrGGqkUSI6wOWXtZwj9Eebvc4xX/VDszjD
-	HtVvzsx5Hv1HmreE0WjmphqLCohWdQrqtNZgi0AYnMhdkjy2ZX3inhs36pdiHfAQoPw==
-X-Received: by 2002:a50:bc15:: with SMTP id j21mr85284083edh.163.1560334265070;
-        Wed, 12 Jun 2019 03:11:05 -0700 (PDT)
-X-Received: by 2002:a50:bc15:: with SMTP id j21mr85283997edh.163.1560334264348;
-        Wed, 12 Jun 2019 03:11:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560334264; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=X8fz9jLbHBDr51Zrby/4VNbgXtXoE1deh93Qry4o0Aw=;
+        b=cEAN4cwrK1A8Iwv7CjBTzrY1MLpSo0wBs9thSztmkwr4iZfpZvVgn9cxPLhbsi+Luq
+         fAMtWC8tTjQjW6smc3Huqq+L9bCe92ozyS1jdlgMYugrCvqR0LXpRNXzibsm+BnWfZn8
+         B7L3Sk7xUjXkTRm54MhsBXGNqOZtm6wrGHKP/pyYFtcXOCArQPDkVVCDY08224FbPq4I
+         Q/tYXj0lySNeu/rSObT7uB+SZvxoy5xLwQZ20oCyK80oaMId1qXp39vvOKefWYuaj+9h
+         mclvaPTHgq94p3oxHHBfyWhGuXmr9rqM1c+aK8v24opI1sRRSjk3wAIbxY7gVfViJ6Hc
+         iXrw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAVM+gnTZ4/7gxVX+EeDwhMbzbXt1/dTSWouDx5dJjUpJTnPYes4
+	Rsd7jC1voZl/BLkHaRrsdeS+q+FZw+W9sqtFkLDqk8zV2/BeGnjeXZjlts37a6+TeIReODj6qNI
+	Lnz1Ur7unYaGG6C+Ji0gi9H6N8VuaGFK18VVd3sHqpI0B34LPPhpXyhbywuKQrbnS3w==
+X-Received: by 2002:aa7:dd92:: with SMTP id g18mr32394516edv.194.1560335960751;
+        Wed, 12 Jun 2019 03:39:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzF8PA/C8Ro7bv9/myv8IJ27fgDeQSLjF4MMR/Tf7TLTkeWTIPoOyMz7axekM4cG38nFYmE
+X-Received: by 2002:aa7:dd92:: with SMTP id g18mr32394464edv.194.1560335960144;
+        Wed, 12 Jun 2019 03:39:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560335960; cv=none;
         d=google.com; s=arc-20160816;
-        b=B71AoQdV3XB/+mpotFXgog/0JcqA6hGjxeqopHSNPvSfII5g3i7xlrfeJsDGSxY0vo
-         b/MWB0AUk1/mbUywU5HXtwtUx2fBsj9JiGkHBYFR1ryyIvfDjIjnw8nZlWzqAlq3uoRH
-         ZoiDJcU3AWClPhMoM2OeYexmB1DKIJras14+c7nKiGNtlQiUqNacMy0WCK6BlCP9D+CH
-         85VQIoJJYNRoAVtlK76yziw+yboBljWeH3hEbGptC7qmuHlCkRCSHo7GaxQjAIE4Ri11
-         xVkB2lm7cwg48RVRZEQwJFE1Nc3i+N1KIG3zFatPf2C+EPuIyeA8PC+4TVTkFfNQTZH3
-         0GnQ==
+        b=v8QvuYM1rk1WdpfP7wLlvrQFTsF1PkvuB2a4WrRK9TPsR8yQDuQZhwI9SxCFSUqH/f
+         6QjOVTjyLU2QtV6JebU26x/fGDAqiaXYqrH/D1TgyjvURc53F/IzLhFmJHuTeX5zRZ3R
+         YpDA5k/IN/AnIpFeB7hecADQKBACq46Gf2nRm9SAl+/Ib1QhAQ+88EAnHfeRgzOxn7gN
+         lHwAyCoXS8W7xYzVifUnQOB8csiyyVpQMAVGlDJS/16GgHF9sCcdYPgOyK2/S2vgTJ8a
+         1heqMvUmttSes3ObSOLECkICjOfKnd4LRQB/k3u7Xpvf4Jrxz4MDrnS+TnAZqZCQv9Az
+         snxQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=yBJOOYa+63AgBYj8hVQxRRZyU5YRkS/ufWkxMFtkQpw=;
-        b=hFFAF19MsZw/jbLvs45+GXIXiH8KXhLb4kMxJwPPfDlD2PDU87J32HN/Buf9rQ4+SQ
-         9pAvFbj66KbfRJY65+BzsT0q23EsRqomnieo/vBchptmQrmBnO0dmYFwV5H0EkbSxyiq
-         rl25rq2FIS6e+uPZwDljwPwvnkmxn8mBgG+1s+Nsdhb++XvXtipUz+hexzPoXyX1t/Yk
-         eiQBTx4xRnJtN4JBsG7KW8PO8ZTXmLnYTEGH1ilwqY7Z6cKBtmEMnKdcCLdLRhtxsDb/
-         HUmYWdvWPBv0WAX2TCHf3EvJThq8yPF6oFOqUH8JQ1W0SMXkwHjTuTh4J774jCRn33BS
-         wOig==
+         :message-id:subject:cc:to:from:date;
+        bh=X8fz9jLbHBDr51Zrby/4VNbgXtXoE1deh93Qry4o0Aw=;
+        b=cn1MLZbgusZfrJyZhPzsLtwqjczM8+qn/aMcdY4uzTmNTLGHxyN6JR0bIq10AMcnhs
+         +Any05G3jONIMgqzupPERmE+0b87c7kPrPKxCn8ttCpLymFS/jF4NlpAI5kMsBzB7qOc
+         VRvxFvYaBTL0SXNUUUzNISt4MFW3zA0iZgCd9RIGNo9/zPrp+ScgTNu+Boq0K7ERhkAy
+         uLt3/2SfNl16W0rBp0lIqh1RT9MyX/GmaNPBtCk051wnxsufzwj5pGIDiH+6aW5NYvAS
+         kDhTvjn1EEcl1R67xbYN06jetPJ77em2m4xy6Qin8V0T8gHUbgT+w1bH0cdCb9AwIYjD
+         7/LA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=zIQhadd+;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q4sor13175374edh.10.2019.06.12.03.11.04
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Jun 2019 03:11:04 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id ec4si1901328ejb.68.2019.06.12.03.39.19
+        for <linux-mm@kvack.org>;
+        Wed, 12 Jun 2019 03:39:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=zIQhadd+;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=yBJOOYa+63AgBYj8hVQxRRZyU5YRkS/ufWkxMFtkQpw=;
-        b=zIQhadd+m2T9tT/6mG1ziuNw3VMUalNu4Kz48WIlrtDQYzMP38mSSA9Jbqssq+cETX
-         wj/ORIpO4Bj9LqPBqsJ5kAJ7SuygwJvhr4eGeF6cridQOyXQ1ETvJIT8hOAa6qbtkCfj
-         XYkIDwzKSQbv+2LsM54cilOSMN0r9OIRCZy4N8EndEomyOavMVP/NXZ5/zYqZtME1xnW
-         PuifSMFFGEujEnWkoe2tAlEvda/LQc8tVUFQ1LGnWYwUnRAaghvGuhr8xi5DhMkIlOhU
-         TGeZz76wqc4IKqwqewFUwuYP6rd9OErqQ+4/OI8x6xWu8zJfmcT8HrjtRen9Z3EyE7u0
-         J0EQ==
-X-Google-Smtp-Source: APXvYqzRmP8bkDzJtJb53QwuVwjTPB6C7X3I5M9sEgDKVw9ul38KEs25tZVf2ubiErLjeWv2/fbQ1w==
-X-Received: by 2002:a50:95ae:: with SMTP id w43mr57909279eda.115.1560334264050;
-        Wed, 12 Jun 2019 03:11:04 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id j3sm4419416edh.82.2019.06.12.03.11.03
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 03:11:03 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id 4FD7F102306; Wed, 12 Jun 2019 13:11:04 +0300 (+03)
-Date: Wed, 12 Jun 2019 13:11:04 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: ktkhai@virtuozzo.com, kirill.shutemov@linux.intel.com,
-	hannes@cmpxchg.org, mhocko@suse.com, hughd@google.com,
-	shakeelb@google.com, rientjes@google.com, akpm@linux-foundation.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 4/4] mm: shrinker: make shrinker not depend on memcg kmem
-Message-ID: <20190612101104.7rmjzmfy5owhqcif@box>
-References: <1559887659-23121-1-git-send-email-yang.shi@linux.alibaba.com>
- <1559887659-23121-5-git-send-email-yang.shi@linux.alibaba.com>
- <20190612025257.7fv55qmx6p45hz7o@box>
- <a8f6f119-fd72-9a93-de99-fc7bea6404c0@linux.alibaba.com>
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 29FDA28;
+	Wed, 12 Jun 2019 03:39:19 -0700 (PDT)
+Received: from C02TF0J2HF1T.local (unknown [172.31.20.19])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0039F3F246;
+	Wed, 12 Jun 2019 03:40:38 -0700 (PDT)
+Date: Wed, 12 Jun 2019 11:38:49 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	linux-kselftest@vger.kernel.org,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Kees Cook <keescook@chromium.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v16 15/16] vfio/type1, arm64: untag user pointers in
+ vaddr_get_pfn
+Message-ID: <20190612103848.GA28951@C02TF0J2HF1T.local>
+References: <cover.1559580831.git.andreyknvl@google.com>
+ <c529e1eeea7700beff197c4456da6a882ce2efb7.1559580831.git.andreyknvl@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a8f6f119-fd72-9a93-de99-fc7bea6404c0@linux.alibaba.com>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <c529e1eeea7700beff197c4456da6a882ce2efb7.1559580831.git.andreyknvl@google.com>
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 11, 2019 at 10:07:54PM -0700, Yang Shi wrote:
+On Mon, Jun 03, 2019 at 06:55:17PM +0200, Andrey Konovalov wrote:
+> This patch is a part of a series that extends arm64 kernel ABI to allow to
+> pass tagged user pointers (with the top byte set to something else other
+> than 0x00) as syscall arguments.
 > 
+> vaddr_get_pfn() uses provided user pointers for vma lookups, which can
+> only by done with untagged pointers.
 > 
-> On 6/11/19 7:52 PM, Kirill A. Shutemov wrote:
-> > On Fri, Jun 07, 2019 at 02:07:39PM +0800, Yang Shi wrote:
-> > > Currently shrinker is just allocated and can work when memcg kmem is
-> > > enabled.  But, THP deferred split shrinker is not slab shrinker, it
-> > > doesn't make too much sense to have such shrinker depend on memcg kmem.
-> > > It should be able to reclaim THP even though memcg kmem is disabled.
-> > > 
-> > > Introduce a new shrinker flag, SHRINKER_NONSLAB, for non-slab shrinker,
-> > > i.e. THP deferred split shrinker.  When memcg kmem is disabled, just
-> > > such shrinkers can be called in shrinking memcg slab.
-> > Looks like it breaks bisectability. It has to be done before makeing
-> > shrinker memcg-aware, hasn't it?
+> Untag user pointers in this function.
 > 
-> No, it doesn't break bisectability. But, THP shrinker just can be called
-> with kmem charge enabled without this patch.
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 
-So, if kmem is disabled, it will not be called, right? Then it is
-regression in my opinion. This patch has to go in before 2/4.
-
--- 
- Kirill A. Shutemov
+Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
 
