@@ -7,101 +7,100 @@ X-Spam-Status: No, score=-16.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,
 	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ADA61C31E48
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:43:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 03794C31E47
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:43:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5B6D621721
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:43:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A4FD7208C2
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 11:43:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="ACVZLE8q"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5B6D621721
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="jG6r3qKX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4FD7208C2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0CE616B0007; Wed, 12 Jun 2019 07:43:48 -0400 (EDT)
+	id 561F96B0008; Wed, 12 Jun 2019 07:43:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 07EA76B0008; Wed, 12 Jun 2019 07:43:48 -0400 (EDT)
+	id 53AAA6B000A; Wed, 12 Jun 2019 07:43:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EAEE66B000A; Wed, 12 Jun 2019 07:43:47 -0400 (EDT)
+	id 450556B000D; Wed, 12 Jun 2019 07:43:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C82736B0007
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:43:47 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id t203so6530366ywe.7
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 04:43:47 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 263DC6B0008
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 07:43:51 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id l184so15212312ybl.3
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 04:43:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
          :mime-version:references:subject:from:to:cc;
-        bh=6M/Xbdq/GEdg1U6KS1Q2G6Oz7M7u1wX9lFNSbOIs0eE=;
-        b=gbnQOdNv428VeglZh1dY1Vu14lcVhom/TNCT6ynmk4sKwT41hTPfZeOZhyHUKeicVM
-         GFMbhfuQD2wbEHCqI64eJE36IMYW9OZOqXxBDEdDLC0KbRgCon+zjlh2+DQJe1bcsG3N
-         qQ7S5fs5dBg6DTzJLx/yK8nMiZ0zEWWObLMWikw1jaYS0Ya0m6OJpMAKVZPudZ4z1+Qd
-         KOwhXaGUkdz91OYlJ9FN+hASZ+IGxdXg8jPIirqvKJfEkh2bV2Uz3p6KPVlpqgo1tIN4
-         twY+WH3hr0wVqtRNXpSatwaG0vDrHooCsJVqB25itYCh1kr+ZXnlnT/lG+QDaa/cYTB7
-         9Ysw==
-X-Gm-Message-State: APjAAAXuFmqqSphUYsbHyj7Ltp38nLS2DMc5RlMPAptSNCo3embNDjdn
-	01cCSipQkEqxGZvflnZ5se6/1jRTWZdmsv5OU2z+jtH2Y45Wqd3vvA4gSJYNkNHPAshko+Ug5wv
-	EDotuLE3lmZ7odj7rTDmwN63cMGRXlRSV9R6XoBr04CPeRStEeKATfB0dnxSyI4PCZQ==
-X-Received: by 2002:a0d:df41:: with SMTP id i62mr30171407ywe.52.1560339827471;
-        Wed, 12 Jun 2019 04:43:47 -0700 (PDT)
-X-Received: by 2002:a0d:df41:: with SMTP id i62mr30171380ywe.52.1560339826725;
-        Wed, 12 Jun 2019 04:43:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560339826; cv=none;
+        bh=9yc1Yq7FenUh0AO3dUlc6AUSMFMskh2/7LbKPot9xGI=;
+        b=I0AGt2mVF2gO7482NpK6ziFp3oKCj27zWKWd07F0wF24v+Rl4Fv1mjqGu7ZkDaz8qJ
+         V7VR/kq3Bk6L160iLZ/nWMcAUGJ2KTsfEdF7c1tsRRepuZ5h3p+1SDV3JXm3a481wYvY
+         cfG9e3l1fgraa2lL66vbI1ccAvj4KueBDncQY+zjleNGUQcHuBuqvzeJgpkxl8IoNDjp
+         gxT9AeW7X4vrDqXexDjgi6YgrDj0awScNET6hnz0znQxW1KJ/Aq54CJWkuDgvK3mpr27
+         iimrrMEqmvzBCTHS/i2NJLCIaMc5KEZ8IY+8jIRKXryqD/zsfRnztIouwtokzItwQB5k
+         fzXA==
+X-Gm-Message-State: APjAAAXNoTUFm2cjvqC9zWxtb0vmbLSca07ChYc4IgIP9Ie/wz+yYoBe
+	WPIrP0pndZAO35gBqqKPLbtrHojta+rV8XJsa0dtmR3sPP4wGKIuUMdey/BmNouPsOwpK/Lf/g9
+	/H96xfUiklTfMScTkJCvVlqfy2VlO4oErRt7ALtzrnJTmZ/FhbZ/+Rn3JE2LsNsPX4Q==
+X-Received: by 2002:a5b:a8d:: with SMTP id h13mr979836ybq.3.1560339830804;
+        Wed, 12 Jun 2019 04:43:50 -0700 (PDT)
+X-Received: by 2002:a5b:a8d:: with SMTP id h13mr979815ybq.3.1560339830003;
+        Wed, 12 Jun 2019 04:43:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560339829; cv=none;
         d=google.com; s=arc-20160816;
-        b=CNJNM1/elERCA9celGeff+2ktFiYxpKnMrOENTbbRKzQqBgV8QL7WZefp2N4lE4xt+
-         HnIQRkb8DzSlrfGfO43fw1TmGuS37zHkbKYe8TfpBKzkboU+Wv5YE62QRurGP07L6PKE
-         6v43ic2FRq3d2CudQizpWRD+zFRVi9EFodkKxN5xekANLI6P1GpP4zE0KEUjjoRQnCPd
-         ZwzHUM3fQH5Bga7eTmMwIuAPYjN04WDpxwW8jfM1nElsVD2GR5wGX4rBl58hpnUnq3WA
-         PmO6f0m3viHjigPZ0k/0yb6oaBsQa64pNDLfOoLpDGYnF6NAV36wj7+EuQ9yumVQ7X8P
-         GsaA==
+        b=D/KVDomL5fXjz5FRzXQEkfdY1stLz64giOYPo1I6knBhXnREmcaBwtCcPYCM0kh59A
+         ClO3AXl/aDv4ITfPMDmF+KWvuPIKCb3z7dZojTo/YpsXJ1xHBNMevYx2csFzIeghFq61
+         TDBmbR+TKHijJU0SedTpBME/JGFtyrppZv3AAyQXOEwzEFodgruFtiCna7aQpn2TkqbQ
+         kCX5/zHMQ+84nzFGU3BiE1au/cbdaoOa90KQOgDxHhVmqXowpPwpC6iLqsaUT6fUL5JW
+         FhPTg50yeXVfQl0g8TFCKZb64ad4oVy6NJHOrs8BjTCXenBsWcSOHyR5d0ZD96pkwpbR
+         4YQQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
          :date:dkim-signature;
-        bh=6M/Xbdq/GEdg1U6KS1Q2G6Oz7M7u1wX9lFNSbOIs0eE=;
-        b=NCb2HgUDk4yhPz1W9InrkV6VstEc41+Z6/rzMVHCbO/BCLwIjRjZVAIzq7kWfeq4xp
-         ZBug7p7oDFhtn4l+zkzU/VXda+9A8chBZ4gah0EBvEOQuA69OR2YY2wjgq6hiwTlVz84
-         JbiolgYTgXFL7YPNc8P5lvwKOzTrmtylrFPhIx6xxftwOqTOGeMMqg9PSXudTcFk/yrd
-         NSNppLGyWbhfNgtU9Mmx1p627LL55tIw7/YSriOPcVLDh61NC+xZYjZIEJ/qi5qDGPmC
-         QLyg7dnABSE2opSoBo2BMv13fzdDAK2GO4hvxz0Le0qBR94czwKqblbkDFwUxVCMcEAB
-         Ocfg==
+        bh=9yc1Yq7FenUh0AO3dUlc6AUSMFMskh2/7LbKPot9xGI=;
+        b=KCxPCZ/RNi49dXeAMkXDbjjuIJN9/1FrVxiEAPlZ3Krfj1HvSHHHHX83iJdPfuxazE
+         WPxK6KgKwj8Zpgo/yKUeSi8p30G69RYO5we2qTUQCPaV2wqeQXhEyp5XUwW/bDc7HmiV
+         USQqwuuZyAwcRSPY6gYkT7kgDA86xz+irTc+C3rBOvicw22J+eL7dR9TwgfaAYFrNU12
+         tAcd7Su1Dyv1+Djwx/wPLMg2fhT4Qg0oTwudAiFWo3ezJ9MwOhS2S1VzOTibwjrYT+S3
+         rW7Gby4N2Tgmm7LIPZPM0b/X/bFu25HD6uAtTEViD/9rif68pWAv6vMSOUg95xlOc34q
+         9iYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ACVZLE8q;
-       spf=pass (google.com: domain of 3cuuaxqokcc8lyocpjvygwrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3cuUAXQoKCC8LYOcPjVYgWRZZRWP.NZXWTYfi-XXVgLNV.ZcR@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=jG6r3qKX;
+       spf=pass (google.com: domain of 3deuaxqokcdiobrfsmybjzuccuzs.qcazwbil-aayjoqy.cfu@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3deUAXQoKCDIObRfSmYbjZUccUZS.QcaZWbil-aaYjOQY.cfU@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id j18sor8105027ywj.23.2019.06.12.04.43.46
+        by mx.google.com with SMTPS id u6sor8023844ywc.162.2019.06.12.04.43.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 12 Jun 2019 04:43:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3cuuaxqokcc8lyocpjvygwrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Wed, 12 Jun 2019 04:43:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3deuaxqokcdiobrfsmybjzuccuzs.qcazwbil-aayjoqy.cfu@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=ACVZLE8q;
-       spf=pass (google.com: domain of 3cuuaxqokcc8lyocpjvygwrzzrwp.nzxwtyfi-xxvglnv.zcr@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3cuUAXQoKCC8LYOcPjVYgWRZZRWP.NZXWTYfi-XXVgLNV.ZcR@flex--andreyknvl.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=jG6r3qKX;
+       spf=pass (google.com: domain of 3deuaxqokcdiobrfsmybjzuccuzs.qcazwbil-aayjoqy.cfu@flex--andreyknvl.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3deUAXQoKCDIObRfSmYbjZUccUZS.QcaZWbil-aaYjOQY.cfU@flex--andreyknvl.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=date:in-reply-to:message-id:mime-version:references:subject:from:to
          :cc;
-        bh=6M/Xbdq/GEdg1U6KS1Q2G6Oz7M7u1wX9lFNSbOIs0eE=;
-        b=ACVZLE8qVD2m+0cgtxpWQhGhPGG/Ln68kdWb/oTLWTvjnKjV3OEd+czJBWQA90rzG9
-         k8pT1WDCWs7sRvQ+L+JDsoJ9EPlF9djBkn8ZvPuT3pIBz18V1FwWApJ56GicLlKJCvSZ
-         l8TgnBTFOKgBUdKjzXAR3WAhJXBBkdOHq+Mn4a5V+670dcUoWBJEFoKWGr/qKzn4y4ZD
-         gjnslGXnEt1rG5J59WQkLbftJMrXLwUl2590vidXXmp5/WyRAn6J6aq6ly4KEqdvnx0u
-         6w6xsTCBCkTePQK1NsH0i++YzOU+WcrP9IejUTPvS9ZoW0C5f84IOWgLFPwWGXrzJgOj
-         gFOA==
-X-Google-Smtp-Source: APXvYqytOU+n01l3ivjYwD2cpTD0/nhGfCxB5SZGN1Rdh+wHFGv3wu5KqIwv58r4//qfgSYCsX+M2/Nb4vcejc3q
-X-Received: by 2002:a81:a491:: with SMTP id b139mr20168814ywh.148.1560339826354;
- Wed, 12 Jun 2019 04:43:46 -0700 (PDT)
-Date: Wed, 12 Jun 2019 13:43:20 +0200
+        bh=9yc1Yq7FenUh0AO3dUlc6AUSMFMskh2/7LbKPot9xGI=;
+        b=jG6r3qKXi5/zKGkjzMFvbQ4XcPl+/QmcSKvFp3utSJtxAUleazRXkJRGwBNNuJ7i7E
+         W7vyyFyjCHej12ys6727AQE+zBEoRn7fuGQ0zPXkT7W8rJNSD33sWm4M+L2uLQ9Yr38G
+         Tk/yJfeEOxvIPA7bqvovIzoag6j0IkNGtc29ARK/7GdZnbkyHKT1QM3wgM9+VOErwGhl
+         DOZEsTVUoN8+b79rOajf7KnGDkH2u/eCR/G6bd5zo2eRqtSAit8bn6BlCrH2lRN5NzMd
+         //lJnKytaH0FthsUWMOhqc1e/AQcdKwVvubR2bol5kkiAS3ABJ/10iV11C/N1mocmKiy
+         lcUQ==
+X-Google-Smtp-Source: APXvYqzWkT0P+p3RG6pP2xT18iDm8BLgmUWrizOHYeFPCBqdgbB+Dc65X4gpAkgZlAg9PVOXah90gk97CBM2CYKI
+X-Received: by 2002:a81:2545:: with SMTP id l66mr16760176ywl.489.1560339829646;
+ Wed, 12 Jun 2019 04:43:49 -0700 (PDT)
+Date: Wed, 12 Jun 2019 13:43:21 +0200
 In-Reply-To: <cover.1560339705.git.andreyknvl@google.com>
-Message-Id: <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
+Message-Id: <f9b50767d639b7116aa986dc67f158131b8d4169.1560339705.git.andreyknvl@google.com>
 Mime-Version: 1.0
 References: <cover.1560339705.git.andreyknvl@google.com>
 X-Mailer: git-send-email 2.22.0.rc2.383.gf4fbbf30c2-goog
-Subject: [PATCH v17 03/15] arm64: Introduce prctl() options to control the
- tagged user addresses ABI
+Subject: [PATCH v17 04/15] mm, arm64: untag user pointers passed to memory syscalls
 From: Andrey Konovalov <andreyknvl@google.com>
 To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, 
 	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org, 
@@ -121,7 +120,8 @@ Cc: Catalin Marinas <catalin.marinas@arm.com>, Vincenzo Frascino <vincenzo.frasc
 	Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>, Lee Smith <Lee.Smith@arm.com>, 
 	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>, Jacob Bramley <Jacob.Bramley@arm.com>, 
 	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+	Kevin Brodsky <kevin.brodsky@arm.com>, Szabolcs Nagy <Szabolcs.Nagy@arm.com>, 
+	Andrey Konovalov <andreyknvl@google.com>
 Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -129,209 +129,158 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Catalin Marinas <catalin.marinas@arm.com>
+This patch is a part of a series that extends arm64 kernel ABI to allow to
+pass tagged user pointers (with the top byte set to something else other
+than 0x00) as syscall arguments.
 
-It is not desirable to relax the ABI to allow tagged user addresses into
-the kernel indiscriminately. This patch introduces a prctl() interface
-for enabling or disabling the tagged ABI with a global sysctl control
-for preventing applications from enabling the relaxed ABI (meant for
-testing user-space prctl() return error checking without reconfiguring
-the kernel). The ABI properties are inherited by threads of the same
-application and fork()'ed children but cleared on execve().
+This patch allows tagged pointers to be passed to the following memory
+syscalls: get_mempolicy, madvise, mbind, mincore, mlock, mlock2, mprotect,
+mremap, msync, munlock, move_pages.
 
-The PR_SET_TAGGED_ADDR_CTRL will be expanded in the future to handle
-MTE-specific settings like imprecise vs precise exceptions.
+The mmap and mremap syscalls do not currently accept tagged addresses.
+Architectures may interpret the tag as a background colour for the
+corresponding vma.
 
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+Reviewed-by: Kees Cook <keescook@chromium.org>
+Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
 ---
- arch/arm64/include/asm/processor.h   |  6 +++
- arch/arm64/include/asm/thread_info.h |  1 +
- arch/arm64/include/asm/uaccess.h     |  3 +-
- arch/arm64/kernel/process.c          | 67 ++++++++++++++++++++++++++++
- include/uapi/linux/prctl.h           |  5 +++
- kernel/sys.c                         | 16 +++++++
- 6 files changed, 97 insertions(+), 1 deletion(-)
+ mm/madvise.c   | 2 ++
+ mm/mempolicy.c | 3 +++
+ mm/migrate.c   | 2 +-
+ mm/mincore.c   | 2 ++
+ mm/mlock.c     | 4 ++++
+ mm/mprotect.c  | 2 ++
+ mm/mremap.c    | 7 +++++++
+ mm/msync.c     | 2 ++
+ 8 files changed, 23 insertions(+), 1 deletion(-)
 
-diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-index fcd0e691b1ea..fee457456aa8 100644
---- a/arch/arm64/include/asm/processor.h
-+++ b/arch/arm64/include/asm/processor.h
-@@ -307,6 +307,12 @@ extern void __init minsigstksz_setup(void);
- /* PR_PAC_RESET_KEYS prctl */
- #define PAC_RESET_KEYS(tsk, arg)	ptrauth_prctl_reset_keys(tsk, arg)
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 628022e674a7..39b82f8a698f 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -810,6 +810,8 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
+ 	size_t len;
+ 	struct blk_plug plug;
  
-+/* PR_TAGGED_ADDR prctl */
-+long set_tagged_addr_ctrl(unsigned long arg);
-+long get_tagged_addr_ctrl(void);
-+#define SET_TAGGED_ADDR_CTRL(arg)	set_tagged_addr_ctrl(arg)
-+#define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl()
++	start = untagged_addr(start);
 +
- /*
-  * For CONFIG_GCC_PLUGIN_STACKLEAK
-  *
-diff --git a/arch/arm64/include/asm/thread_info.h b/arch/arm64/include/asm/thread_info.h
-index f1d032be628a..354a31d2b737 100644
---- a/arch/arm64/include/asm/thread_info.h
-+++ b/arch/arm64/include/asm/thread_info.h
-@@ -99,6 +99,7 @@ void arch_release_task_struct(struct task_struct *tsk);
- #define TIF_SVE			23	/* Scalable Vector Extension in use */
- #define TIF_SVE_VL_INHERIT	24	/* Inherit sve_vl_onexec across exec */
- #define TIF_SSBD		25	/* Wants SSB mitigation */
-+#define TIF_TAGGED_ADDR		26	/* Allow tagged user addresses */
+ 	if (!madvise_behavior_valid(behavior))
+ 		return error;
  
- #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
- #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
-diff --git a/arch/arm64/include/asm/uaccess.h b/arch/arm64/include/asm/uaccess.h
-index df729afca0ba..995b9ea11a89 100644
---- a/arch/arm64/include/asm/uaccess.h
-+++ b/arch/arm64/include/asm/uaccess.h
-@@ -73,7 +73,8 @@ static inline unsigned long __range_ok(const void __user *addr, unsigned long si
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 01600d80ae01..78e0a88b2680 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1360,6 +1360,7 @@ static long kernel_mbind(unsigned long start, unsigned long len,
+ 	int err;
+ 	unsigned short mode_flags;
+ 
++	start = untagged_addr(start);
+ 	mode_flags = mode & MPOL_MODE_FLAGS;
+ 	mode &= ~MPOL_MODE_FLAGS;
+ 	if (mode >= MPOL_MAX)
+@@ -1517,6 +1518,8 @@ static int kernel_get_mempolicy(int __user *policy,
+ 	int uninitialized_var(pval);
+ 	nodemask_t nodes;
+ 
++	addr = untagged_addr(addr);
++
+ 	if (nmask != NULL && maxnode < nr_node_ids)
+ 		return -EINVAL;
+ 
+diff --git a/mm/migrate.c b/mm/migrate.c
+index f2ecc2855a12..d22c45cf36b2 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1616,7 +1616,7 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
+ 			goto out_flush;
+ 		if (get_user(node, nodes + i))
+ 			goto out_flush;
+-		addr = (unsigned long)p;
++		addr = (unsigned long)untagged_addr(p);
+ 
+ 		err = -ENODEV;
+ 		if (node < 0 || node >= MAX_NUMNODES)
+diff --git a/mm/mincore.c b/mm/mincore.c
+index c3f058bd0faf..64c322ed845c 100644
+--- a/mm/mincore.c
++++ b/mm/mincore.c
+@@ -249,6 +249,8 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
+ 	unsigned long pages;
+ 	unsigned char *tmp;
+ 
++	start = untagged_addr(start);
++
+ 	/* Check the start address: needs to be page-aligned.. */
+ 	if (start & ~PAGE_MASK)
+ 		return -EINVAL;
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 080f3b36415b..e82609eaa428 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -674,6 +674,8 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
+ 	unsigned long lock_limit;
+ 	int error = -ENOMEM;
+ 
++	start = untagged_addr(start);
++
+ 	if (!can_do_mlock())
+ 		return -EPERM;
+ 
+@@ -735,6 +737,8 @@ SYSCALL_DEFINE2(munlock, unsigned long, start, size_t, len)
  {
- 	unsigned long ret, limit = current_thread_info()->addr_limit;
+ 	int ret;
  
--	addr = untagged_addr(addr);
-+	if (test_thread_flag(TIF_TAGGED_ADDR))
-+		addr = untagged_addr(addr);
++	start = untagged_addr(start);
++
+ 	len = PAGE_ALIGN(len + (offset_in_page(start)));
+ 	start &= PAGE_MASK;
  
- 	__chk_user_ptr(addr);
- 	asm volatile(
-diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
-index 3767fb21a5b8..69d0be1fc708 100644
---- a/arch/arm64/kernel/process.c
-+++ b/arch/arm64/kernel/process.c
-@@ -30,6 +30,7 @@
- #include <linux/kernel.h>
- #include <linux/mm.h>
- #include <linux/stddef.h>
-+#include <linux/sysctl.h>
- #include <linux/unistd.h>
- #include <linux/user.h>
- #include <linux/delay.h>
-@@ -323,6 +324,7 @@ void flush_thread(void)
- 	fpsimd_flush_thread();
- 	tls_thread_flush();
- 	flush_ptrace_hw_breakpoint(current);
-+	clear_thread_flag(TIF_TAGGED_ADDR);
- }
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index bf38dfbbb4b4..19f981b733bc 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -465,6 +465,8 @@ static int do_mprotect_pkey(unsigned long start, size_t len,
+ 	const bool rier = (current->personality & READ_IMPLIES_EXEC) &&
+ 				(prot & PROT_READ);
  
- void release_thread(struct task_struct *dead_task)
-@@ -552,3 +554,68 @@ void arch_setup_new_exec(void)
++	start = untagged_addr(start);
++
+ 	prot &= ~(PROT_GROWSDOWN|PROT_GROWSUP);
+ 	if (grows == (PROT_GROWSDOWN|PROT_GROWSUP)) /* can't be both */
+ 		return -EINVAL;
+diff --git a/mm/mremap.c b/mm/mremap.c
+index fc241d23cd97..64c9a3b8be0a 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -606,6 +606,13 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+ 	LIST_HEAD(uf_unmap_early);
+ 	LIST_HEAD(uf_unmap);
  
- 	ptrauth_thread_init_user(current);
- }
++	/*
++	 * Architectures may interpret the tag passed to mmap as a background
++	 * colour for the corresponding vma. For mremap we don't allow tagged
++	 * new_addr to preserve similar behaviour to mmap.
++	 */
++	addr = untagged_addr(addr);
 +
-+/*
-+ * Control the relaxed ABI allowing tagged user addresses into the kernel.
-+ */
-+static unsigned int tagged_addr_prctl_allowed = 1;
-+
-+long set_tagged_addr_ctrl(unsigned long arg)
-+{
-+	if (!tagged_addr_prctl_allowed)
-+		return -EINVAL;
-+	if (is_compat_task())
-+		return -EINVAL;
-+	if (arg & ~PR_TAGGED_ADDR_ENABLE)
-+		return -EINVAL;
-+
-+	if (arg & PR_TAGGED_ADDR_ENABLE)
-+		set_thread_flag(TIF_TAGGED_ADDR);
-+	else
-+		clear_thread_flag(TIF_TAGGED_ADDR);
-+
-+	return 0;
-+}
-+
-+long get_tagged_addr_ctrl(void)
-+{
-+	if (!tagged_addr_prctl_allowed)
-+		return -EINVAL;
-+	if (is_compat_task())
-+		return -EINVAL;
-+
-+	if (test_thread_flag(TIF_TAGGED_ADDR))
-+		return PR_TAGGED_ADDR_ENABLE;
-+
-+	return 0;
-+}
-+
-+/*
-+ * Global sysctl to disable the tagged user addresses support. This control
-+ * only prevents the tagged address ABI enabling via prctl() and does not
-+ * disable it for tasks that already opted in to the relaxed ABI.
-+ */
-+static int zero;
-+static int one = 1;
-+
-+static struct ctl_table tagged_addr_sysctl_table[] = {
-+	{
-+		.procname	= "tagged_addr",
-+		.mode		= 0644,
-+		.data		= &tagged_addr_prctl_allowed,
-+		.maxlen		= sizeof(int),
-+		.proc_handler	= proc_dointvec_minmax,
-+		.extra1		= &zero,
-+		.extra2		= &one,
-+	},
-+	{ }
-+};
-+
-+static int __init tagged_addr_init(void)
-+{
-+	if (!register_sysctl("abi", tagged_addr_sysctl_table))
-+		return -EINVAL;
-+	return 0;
-+}
-+
-+core_initcall(tagged_addr_init);
-diff --git a/include/uapi/linux/prctl.h b/include/uapi/linux/prctl.h
-index 094bb03b9cc2..2e927b3e9d6c 100644
---- a/include/uapi/linux/prctl.h
-+++ b/include/uapi/linux/prctl.h
-@@ -229,4 +229,9 @@ struct prctl_mm_map {
- # define PR_PAC_APDBKEY			(1UL << 3)
- # define PR_PAC_APGAKEY			(1UL << 4)
+ 	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
+ 		return ret;
  
-+/* Tagged user address controls for arm64 */
-+#define PR_SET_TAGGED_ADDR_CTRL		55
-+#define PR_GET_TAGGED_ADDR_CTRL		56
-+# define PR_TAGGED_ADDR_ENABLE		(1UL << 0)
-+
- #endif /* _LINUX_PRCTL_H */
-diff --git a/kernel/sys.c b/kernel/sys.c
-index 2969304c29fe..ec48396b4943 100644
---- a/kernel/sys.c
-+++ b/kernel/sys.c
-@@ -124,6 +124,12 @@
- #ifndef PAC_RESET_KEYS
- # define PAC_RESET_KEYS(a, b)	(-EINVAL)
- #endif
-+#ifndef SET_TAGGED_ADDR_CTRL
-+# define SET_TAGGED_ADDR_CTRL(a)	(-EINVAL)
-+#endif
-+#ifndef GET_TAGGED_ADDR_CTRL
-+# define GET_TAGGED_ADDR_CTRL()		(-EINVAL)
-+#endif
+diff --git a/mm/msync.c b/mm/msync.c
+index ef30a429623a..c3bd3e75f687 100644
+--- a/mm/msync.c
++++ b/mm/msync.c
+@@ -37,6 +37,8 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t, len, int, flags)
+ 	int unmapped_error = 0;
+ 	int error = -EINVAL;
  
- /*
-  * this is where the system-wide overflow UID and GID are defined, for
-@@ -2492,6 +2498,16 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
- 			return -EINVAL;
- 		error = PAC_RESET_KEYS(me, arg2);
- 		break;
-+	case PR_SET_TAGGED_ADDR_CTRL:
-+		if (arg3 || arg4 || arg5)
-+			return -EINVAL;
-+		error = SET_TAGGED_ADDR_CTRL(arg2);
-+		break;
-+	case PR_GET_TAGGED_ADDR_CTRL:
-+		if (arg2 || arg3 || arg4 || arg5)
-+			return -EINVAL;
-+		error = GET_TAGGED_ADDR_CTRL();
-+		break;
- 	default:
- 		error = -EINVAL;
- 		break;
++	start = untagged_addr(start);
++
+ 	if (flags & ~(MS_ASYNC | MS_INVALIDATE | MS_SYNC))
+ 		goto out;
+ 	if (offset_in_page(start))
 -- 
 2.22.0.rc2.383.gf4fbbf30c2-goog
 
