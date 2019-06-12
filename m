@@ -2,184 +2,162 @@ Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BCE19C31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:36:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EF6AC31E46
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:40:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7AEB121019
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:36:01 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="IcABX1nM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7AEB121019
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 6ACEC206E0
+	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 18:40:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6ACEC206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 082806B0010; Wed, 12 Jun 2019 14:36:01 -0400 (EDT)
+	id E61756B0010; Wed, 12 Jun 2019 14:40:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 033D56B0266; Wed, 12 Jun 2019 14:36:01 -0400 (EDT)
+	id E123F6B0266; Wed, 12 Jun 2019 14:40:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E631A6B0269; Wed, 12 Jun 2019 14:36:00 -0400 (EDT)
+	id CD9F66B0269; Wed, 12 Jun 2019 14:40:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CA9786B0010
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 14:36:00 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id l11so15307124qtp.22
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 11:36:00 -0700 (PDT)
+Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AAF9F6B0010
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 14:40:40 -0400 (EDT)
+Received: by mail-vs1-f72.google.com with SMTP id i6so5693621vsp.15
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 11:40:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=Ccd2Dl/s5BEnRCE+LL0hkZ64UWDD7pEB/PZyv8yO8ZY=;
-        b=E8lAGzDXMSXyePt62OGFGaxqrfsJDGRB1LHw69EQQ66AMk+v0brhVVMWyAcgSBzha3
-         3qTju55vHjdkv5mz1DCYCJTCiIHFAdOnSPtaZqgodvLBnsp5covGppJ9ZShAHErh0xw1
-         R7RfVr67AhYOrfb/JQQpycHDQrIMMJbOh6+JB7B1L8GhCqxU/VePBT6UKqm7Fy7bFQjI
-         7/dntnSL7P0IXXaY5nO5tGsL/F5Y1q8Vkdw+5shhyCtNs4pAhkQdf+Cea3jiCmp9zSaB
-         58zWahnbGNgY3yTe1NIdSjvnpT80ejlblyvBeNGAUDhWGOV05mGHspuz0ebcun3zefgu
-         txaQ==
-X-Gm-Message-State: APjAAAXt19b7WIe9XejC2mi3MMvDEri52abB2W6az8X1+EQgxQlj1jJl
-	ycurMwRjBXyG44v7BV/aQ6osLdbmDbQVRAGnalmXadE2Qy3EY5ePX/mNemW2OQMBD52xTozOiHj
-	4CDjvDgi7kZQnQR0WTL6O4GAPJpEVbPXlDbKutPFDb1jcyuQsxp02PDIH4Ghgns9Crw==
-X-Received: by 2002:ae9:f303:: with SMTP id p3mr1981279qkg.320.1560364560502;
-        Wed, 12 Jun 2019 11:36:00 -0700 (PDT)
-X-Received: by 2002:ae9:f303:: with SMTP id p3mr1981245qkg.320.1560364559729;
-        Wed, 12 Jun 2019 11:35:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560364559; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=MAEdGWtMT+73VzWnKUa2R//cIsfAOphq8gc0YAftk3c=;
+        b=Skg01DIMMVWnhNX5ua6fTcxdioa8swM+8XSpVpygCOIpS+z3OJJ4ZF1lqvKDx/3mXA
+         QaYhFIyhMX6v9oernaXxV+WkARih/DGwTBdsgmKGlnuztnMplxLgp+7BmEc4XBq44npF
+         vQOn1Pz34yea3IASXrqtQLYTCrFRKlZGP1VRLRhEAnivSA0E2VneopbvtPdmn3zuk/CO
+         4RO1gops5s+Jyv++YGepa8CMi+WGxwHPLMILmfQG1ihf8+birTOpaKiy7R7hlsPtSnLw
+         U6QasKA8tye5aZDfc8TkK9xXjdjFC5q5gZAiz/K0x9uqb7Dj39Er9rCQ1Jegbesl5cH8
+         OQFg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUpCY5VNFCu0+K8WyXvNDQywd7lA9LDBS3Johm+t2nkNOTHmflu
+	yc7+6BEM8UmRxU9gZ/oH+bXNpvxXn75zehAE1Gi+RLiL1GzH8QHzPMHkQmzwtXi1Q9oMSO1kAbZ
+	Vjy7e4T3uIL/Xa6Uu0a7m3QMt8KSN5oJeJx67Yrcdsh+E4iRgdbCvPCk5djCFAbfG6Q==
+X-Received: by 2002:a1f:7f0e:: with SMTP id o14mr4902346vki.67.1560364840381;
+        Wed, 12 Jun 2019 11:40:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzvEQDn0hmfpjmQ4P6ELugxcG9kTA06UfOqAgBOLx84GqrsJLd2Uf2Fo2ifp5xSgnfCitPe
+X-Received: by 2002:a1f:7f0e:: with SMTP id o14mr4902281vki.67.1560364839745;
+        Wed, 12 Jun 2019 11:40:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560364839; cv=none;
         d=google.com; s=arc-20160816;
-        b=JTprbyggr8zi18RThQkP8m9fbCpOA4s+oSVCQqKr984/0+V8qTIn8Eev6oZ3CQKSVs
-         uHzQMSTqvCOAWfWPdNg33OhpqxRMdtV8rQJCC0oJEQppq3DhnffPD2qmvx0R9m7I73Mm
-         xHNYFddHVBwrf7+9LKuHuZtMr5wPD1aKQa85c9psho5WieNseD/bbVy05HKdp8ubM9wF
-         3mNw0BlzTzm5Yx2F64e9aWzYuNlRXeq7vxbtaeu1ObauNE2NLVUvo0HCwV5BgUoJwP2C
-         f5kfF7Hf1zl31GsUAFq4sycXBlpwhTiAWntvtn/Wmqp9WiZ7JxK9FyUDJUgeFjHtWCvQ
-         cmVw==
+        b=BKjiI3N9k2pAKBhBgEqm/hkxtLFo0lcNxnZNOfpP/4Ee0z9noU6Mlcj5UvDkg59D+o
+         QjfCN8EmA7dtb8DXS4CVtwMXVv3lz5iy7ufJLai+tMH+yGl1CiSWpM9g5F0VpAfQ3owm
+         wASoQZKAWopyswSxove29VbtaKBIJa9cD0ZpqINmja/6IrOVt9hZdpPRbsTM2g+yvTfN
+         QjCi+KM81vMEku9a8zoLa7TUMd6DdRbjPeaeLL4R/BGvdWKot1SoarU1HOxxd6+HY9ke
+         S+2wGxhGlcdnYMe6S5GJtDEsQbQlzRDX6lq7j20h7N7JjvQ7kqxX5YpnI0kPVaT+bNfV
+         Zdpg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=Ccd2Dl/s5BEnRCE+LL0hkZ64UWDD7pEB/PZyv8yO8ZY=;
-        b=gnL17X6IFsEz3M6pqucrUFgF71bO1K2z9hseSjmHSjQkgQugQKU0cvH/2aTgeVhtX1
-         O8mffR3LtEb+HKbGfBTEv6vrG5qYKdIGEAYwX2938yX2aaMlbhzfUfUYt6KTfNTmEuML
-         7fNVNTtZnmv+zYpoRRzWq0pGOG7yiGzROt4OioDReQBV5zu5JcHVN9PxjuR+cBBAObn4
-         +146Zq7oZy0ER/rwmbV6jGK5/t3Yuc32ym0cfp5xn87bca2NLw0f6e9ImvqXBTlk3RuH
-         xyVwiUWy78jQsFBPTIZBi03VJWm7ZKKPx/neaxSuQ6nExl3PklqGvC2d13dKK5xIpl71
-         Iciw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=MAEdGWtMT+73VzWnKUa2R//cIsfAOphq8gc0YAftk3c=;
+        b=go9mmZxissyaLjlgoRELouB8bPcpmvYcumFc1sKfyI82a0sZB2b6xDruDR1DCj1p4X
+         TvbisQ0H8MbWxHL7XEuWc50JJ5zenE8FVtg2jni4Oui+6LrB/SvcVfT6jZ82mUH8DYR1
+         2OJfg6yA2C92h4nJVez4JqRCIw7X9dV5ZMV7+hRee41RgoJv2PHMPV9wmDynLze6++zr
+         xo+zxGMn+1z7ZiIOqLHyXMLfgHTpBS+Xs3xGSvtNIH9be1B9LZsTHu/dOXKR2fO6AQXt
+         HboGSHwJyLLVvkgCJWyOOdb6sO1IX01YQxMiJpmeOWUyOC5UzEv7m0DSQRvLbdO3yDw3
+         krqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=IcABX1nM;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e8sor115972qvv.39.2019.06.12.11.35.59
+       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v6si198787vsm.112.2019.06.12.11.40.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Jun 2019 11:35:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=IcABX1nM;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=Ccd2Dl/s5BEnRCE+LL0hkZ64UWDD7pEB/PZyv8yO8ZY=;
-        b=IcABX1nM51p2QrQVsut+vh/j10d5dr6geQ+a/RrmE6DOHq7udCPilWtmRYD99j0boR
-         ov5Ysub7+GqF4lbZDxDthsXnWeXk+ES3UVFuSCse5kakCEymFY4P7BJeaa1eqMTm9m4J
-         a+/2xER8DdWKm0/0yHAUhnmEJWAiez71uz/DfX4C+ZMkDAyMe9n6LHO40E10deKj4zJN
-         Wel0wmmIihoR/AvHw5HUgRWq+VZtm2o2vy9xdx+v9Lo1iXmV5/ZbXP3K7XF07He5wGRh
-         eTLt9p7wJXVFha1pn5wg6b5vpyG2Z/ZLgk4Y4y0kGDJ+N6XDcakHacAueyHQQONRObHL
-         LFHA==
-X-Google-Smtp-Source: APXvYqxVhJgr9VMk6UTsEjd7fGkQxdE+ShlHGLoBskD9CcIJfDIiuN/yiHxzbH4RhCcTZeh0Ja2AHg==
-X-Received: by 2002:a0c:fde3:: with SMTP id m3mr136658qvu.205.1560364559359;
-        Wed, 12 Jun 2019 11:35:59 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id t67sm224679qkf.34.2019.06.12.11.35.57
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 11:35:58 -0700 (PDT)
-Message-ID: <1560364557.5154.2.camel@lca.pw>
-Subject: Re: [PATCH -next] arm64/mm: fix a bogus GFP flag in pgd_alloc()
-From: Qian Cai <cai@lca.pw>
-To: Mike Rapoport <rppt@linux.ibm.com>
-Cc: Mark Rutland <mark.rutland@arm.com>, Will Deacon <will.deacon@arm.com>, 
- Andrew Morton <akpm@linux-foundation.org>, catalin.marinas@arm.com, Linux
- Kernel Mailing List <linux-kernel@vger.kernel.org>, mhocko@kernel.org,
- linux-mm@kvack.org,  vdavydov.dev@gmail.com, hannes@cmpxchg.org,
- cgroups@vger.kernel.org,  linux-arm-kernel@lists.infradead.org
-Date: Wed, 12 Jun 2019 14:35:57 -0400
-In-Reply-To: <20190612065728.GB4761@rapoport-lnx>
-References: <1559656836-24940-1-git-send-email-cai@lca.pw>
-	 <20190604142338.GC24467@lakrids.cambridge.arm.com>
-	 <20190610114326.GF15979@fuggles.cambridge.arm.com>
-	 <1560187575.6132.70.camel@lca.pw>
-	 <20190611100348.GB26409@lakrids.cambridge.arm.com>
-	 <20190611124118.GA4761@rapoport-lnx>
-	 <3F6E1B9F-3789-4648-B95C-C4243B57DA02@lca.pw>
-	 <20190612065728.GB4761@rapoport-lnx>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Wed, 12 Jun 2019 11:40:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of aquini@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=aquini@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id E62313082A9B;
+	Wed, 12 Jun 2019 18:40:28 +0000 (UTC)
+Received: from x230.aquini.net (dhcp-17-61.bos.redhat.com [10.18.17.61])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 4CA6B6015E;
+	Wed, 12 Jun 2019 18:40:28 +0000 (UTC)
+Date: Wed, 12 Jun 2019 14:40:26 -0400
+From: Rafael Aquini <aquini@redhat.com>
+To: Joel Savitz <jsavitz@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>,
+	David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+Subject: Re: [RESEND PATCH v2] mm/oom_killer: Add task UID to info message on
+ an oom kill
+Message-ID: <20190612184026.GD5313@x230.aquini.net>
+References: <1560362273-534-1-git-send-email-jsavitz@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1560362273-534-1-git-send-email-jsavitz@redhat.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Wed, 12 Jun 2019 18:40:34 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-06-12 at 09:57 +0300, Mike Rapoport wrote:
-> Hi,
+On Wed, Jun 12, 2019 at 01:57:53PM -0400, Joel Savitz wrote:
+> In the event of an oom kill, useful information about the killed
+> process is printed to dmesg. Users, especially system administrators,
+> will find it useful to immediately see the UID of the process.
 > 
-> On Tue, Jun 11, 2019 at 08:46:45AM -0400, Qian Cai wrote:
-> > 
-> > > On Jun 11, 2019, at 8:41 AM, Mike Rapoport <rppt@linux.ibm.com> wrote:
-> > > 
-> > > Sorry for the delay, I'm mostly offline these days.
-> > > 
-> > > I wanted to understand first what is the reason for the failure. I've
-> > > tried
-> > > to reproduce it with qemu, but I failed to find a bootable configuration
-> > > that will have PGD_SIZE != PAGE_SIZE :(
-> > > 
-> > > Qian Cai, can you share what is your environment and the kernel config?
-> > 
-> > https://raw.githubusercontent.com/cailca/linux-mm/master/arm64.config
-> > 
-> > # lscpu
-> > Architecture:        aarch64
-> > Byte Order:          Little Endian
-> > CPU(s):              256
-> > On-line CPU(s) list: 0-255
-> > Thread(s) per core:  4
-> > Core(s) per socket:  32
-> > Socket(s):           2
-> > NUMA node(s):        2
-> > Vendor ID:           Cavium
-> > Model:               1
-> > Model name:          ThunderX2 99xx
-> > Stepping:            0x1
-> > BogoMIPS:            400.00
-> > L1d cache:           32K
-> > L1i cache:           32K
-> > L2 cache:            256K
-> > L3 cache:            32768K
-> > NUMA node0 CPU(s):   0-127
-> > NUMA node1 CPU(s):   128-255
-> > Flags:               fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics
-> > cpuid asimdrdm
-> > 
-> > # dmidecode
-> > Handle 0x0001, DMI type 1, 27 bytes
-> > System Information
-> >         Manufacturer: HPE
-> >         Product Name: Apollo 70             
-> >         Version: X1
-> >         Wake-up Type: Power Switch
-> >         Family: CN99XX
-> > 
+> In the following example, abuse_the_ram is the name of a program
+> that attempts to iteratively allocate all available memory until it is
+> stopped by force.
 > 
-> Can you please also send the entire log when the failure happens?
-
-https://cailca.github.io/files/dmesg.txt
-
-> Another question, is the problem exist with PGD_SIZE == PAGE_SIZE?
-
-No.
+> Current message:
+> 
+> Out of memory: Killed process 35389 (abuse_the_ram)
+> total-vm:133718232kB, anon-rss:129624980kB, file-rss:0kB,
+> shmem-rss:0kB
+> 
+> Patched message:
+> 
+> Out of memory: Killed process 2739 (abuse_the_ram),
+> total-vm:133880028kB, anon-rss:129754836kB, file-rss:0kB,
+> shmem-rss:0kB, UID 0
+> 
+> 
+> Suggested-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Joel Savitz <jsavitz@redhat.com>
+> ---
+>  mm/oom_kill.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 3a2484884cfd..af2e3faa72a0 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -874,12 +874,13 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
+>  	 */
+>  	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
+>  	mark_oom_victim(victim);
+> -	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+> +	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, UID %d\n",
+>  		message, task_pid_nr(victim), victim->comm,
+>  		K(victim->mm->total_vm),
+>  		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+>  		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
+> -		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
+> +		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)),
+> +		from_kuid(&init_user_ns, task_uid(victim)));
+>  	task_unlock(victim);
+>  
+>  	/*
+> -- 
+> 2.18.1
+> 
+Acked-by: Rafael Aquini <aquini@redhat.com>
 
