@@ -4,89 +4,89 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A2F0FC31E4A
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 21:37:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9CAD2C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 21:41:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5AC5B208CA
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 21:37:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AC5B208CA
+	by mail.kernel.org (Postfix) with ESMTP id 67125208CA
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 21:41:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67125208CA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0F1A06B000E; Thu, 13 Jun 2019 17:37:57 -0400 (EDT)
+	id 054008E0002; Thu, 13 Jun 2019 17:41:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0A2266B0266; Thu, 13 Jun 2019 17:37:57 -0400 (EDT)
+	id 0033D6B026B; Thu, 13 Jun 2019 17:41:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ED4796B026A; Thu, 13 Jun 2019 17:37:56 -0400 (EDT)
+	id E33998E0002; Thu, 13 Jun 2019 17:41:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B83336B000E
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 17:37:56 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id a21so252369pgh.11
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 14:37:56 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A93B76B026A
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 17:41:27 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id f25so196566pfk.14
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 14:41:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=By13X09yL97FSwMh6aklOWCz4WgFg5XbT9Q4PzBiefs=;
-        b=lEsppLYFF8dXuUyD9Iav2mECC8mJ36FjOaMds28hlBw3bVN4XBt3q2metCf4uWcb3m
-         cK1yzroexQy3T+aLNBhs1utkrIqmBt0WJLCEYQRPZnlAfIjFUpkb2eROSJWD1xllJhCe
-         n8v8xdkoLksXFpgXvlyhTCo5pgC6U45K+IWYEgPK9nybEJdd2QPrEfwXme/NVxcY11Br
-         ytXmPEEdvWZ6m2v7j/JBDMHKvrThI7faxErRZ61dpOZ08I1XuQiTDYw2QO4vJvWnhPPa
-         H2ypC7CWlTw8bpJJ1Gx/NlZnCbvWyMV5cqzZGHNZQjOPgESVkil0Cu7jCVwvRokShtTR
-         EdSw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXS5hJOIFfUQGj4KtS9zXJZKGWHNUfMF02eMVg1qmaeuHdcsRbQ
-	xR+WJiGBfWp01o2Y27qmnTM9z3OQ3zy3r7WoDfY1m1hAmPw5nt+exDXmLQK60tTx8KEn+PYpErc
-	7Hxwqh0g7xyUaqruV0ezlSU01dn18VSSCbr4CQcNPh8iwFmNqZwD6LHyx/AsP1e8mFg==
-X-Received: by 2002:a17:90a:6544:: with SMTP id f4mr7665057pjs.17.1560461876338;
-        Thu, 13 Jun 2019 14:37:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqynJpRjmC213n3jVmNGU4sfB7yrhuHlEtqzCsSFnF+agQUobk/pU5xUOa/16wefoqvBKzMt
-X-Received: by 2002:a17:90a:6544:: with SMTP id f4mr7665004pjs.17.1560461875514;
-        Thu, 13 Jun 2019 14:37:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560461875; cv=none;
+        bh=qG/WQkwXePAB+gyLAH/PvDiSByYyw286H7U6qXxIHyk=;
+        b=Mr7H4KlckqWmJVYV0+uSuEUPvhQ6sKg4Gn6ADk1/yTZhlbWwKoawApNo+E4jkFrKRU
+         D68UTZjB27VRUaUWG4xrCQqvez/KF0SM6EKR3JIlXT19UyT9NwGapqLybZvyqRWQLjb2
+         9d7XGD7mDk29OE8bh8VcNn/Peb0aFj2QY1FvepT5+OUtaUDeMaIngssG5R2Z24nuBr+r
+         Ns7xnFrFRRTjnKlrYsY3tWePGIcoL/gcsDnDoNsRT4wrMOYtObvEnwxRZcd2lA5rHQGr
+         Hi5SdFhvfUaEVd25txS12c+y72suBpJvjBrFqt/2ClHqJeLzWsC4VcAnKNLe97sD9/ey
+         74Wg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVVPejo5qrcOg42AO4oaRfaRcUAnvVhlPIJiECnOLnJ+QcMcC2o
+	88nG2h8PgCc2GZu5RB0QMpBsv3j960pltdfXrI4l2A1eACTxnf8vmAlmKXCJP126hujupbynKRh
+	hsVMF0nSPz3RPfjNul6R64BGrp6fNht3gCC5TjP5VtFed/smX3pRDhO6sh39YBwVIFg==
+X-Received: by 2002:a17:90a:2486:: with SMTP id i6mr7493589pje.125.1560462087318;
+        Thu, 13 Jun 2019 14:41:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwKO629nwIBco8na3UthW4VW46lZ9dlDM7hIY1k5kBJjYVfDFr3e87OROCuQlZvaUiR8AdE
+X-Received: by 2002:a17:90a:2486:: with SMTP id i6mr7493551pje.125.1560462086569;
+        Thu, 13 Jun 2019 14:41:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560462086; cv=none;
         d=google.com; s=arc-20160816;
-        b=CEwgi3mHY+Mv6RxNtRQ5ShmVW9hhxTNjgqMFOC/sD//HwKItKykWf+HPNSp9BCrn8e
-         O7UO/XHLT5HCQIBg6/adj58A4nXeH7wj7yEAU0mH9jC8OFk2U8ME5mbgm1alRIkHwnSh
-         rIpepCIhjdgeUaPytmK1EapLOAVQkX/eFSd8ZO98LJciUAWqEmzm55EThqMkAo/YN6xa
-         h2cqOyz5RYRzH4As2zdU0F169cfKchr61Vu41twrkJot+RwuteEh7DZHT8nYsREq+pMP
-         Tg5Q+25cCicJw3l3B8kULcoBIygtd0ZGnkNxNpFLs1JFE1cyBimFwceTku8bz8Q1UMAf
-         rFoA==
+        b=V1K2mBEnxwEIgbPrDrEjizomaVVhWhnqpwuzhSuI6wtXMBYBnL3EQOG2u+N7+aim+b
+         IRVTnMeme3mNOCGEnfbEniE69ok+1c96xLIxYWQh8eKzVYHqQGYN0N4Rwx196aeUOtjO
+         oXPXHBK4/4XQ/Gy0UoLWf51kcIEqMxGReMd177x2wVxj/m/0ZR3tZs0zRrd+dFu2RSck
+         eyOuDXcaTE+bj7K/yiOHP21ABGq0coxiG1ssSk2CL/Aaq534/ecGaWnZzn50BP/Jk8ta
+         pYuTK6LIxzjHuzYSIHm+8qxAupJuCfkPZ+fEF/GqXfzrLOb8InbjJagx0y6YBjPaZFYV
+         mPUA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=By13X09yL97FSwMh6aklOWCz4WgFg5XbT9Q4PzBiefs=;
-        b=jZwq9rWbx7PQgCaFXYvTmRAdJrxEJhp7SCfKgTGYSU199tmjKuxsgxVhGiPuGDvv7b
-         Gr7Ghb8APEeAjXthqLJoerQPZgmk6N6oyJTHQzx9aRI63BtILZzJzpS5EibGlXpODCST
-         4HdYMrXTOmP1dAtDkvV6b47epQv72ySTHZQeb9Al1h8IHRdcF6SBhHARKA2xwglLKwOC
-         3PtZatWes85TIGaN5oJkJ3FQVaYZuhJKdhXsQAnkU3pjpxXibnzwtHkNK1/EJ7GieaoF
-         8fKy5ZrmqMBQg9P9AF2ju+t8aYrs8qDfKmLY9gAfLxRQxQyiZKVlitc1jMLHK2v4G/x4
-         Ga0Q==
+        bh=qG/WQkwXePAB+gyLAH/PvDiSByYyw286H7U6qXxIHyk=;
+        b=OfpbyDdn11RUkrAdf8en6K1eVmLNGnU72LJ6GnqB/Ug2IKlpbSGPY2lxTNHFM/AyQK
+         BhsnPiex3t2rwasr6TuvXao3Dj0u8EFKBXcB6E7XhckN8Sh/qg3tC+4MPDDqsAn/D5M2
+         Gyuaj3j4reODWvDcv3byEp/14lm/HjKH87VHsG9B+EX6zNpbiKwx4ASlBT4VsY4ONkX8
+         JGDgLSej/+zQYwEOf5F4i5afIV/yOAVZYRqXy7k1nibMFg16lNnL9OrqdgRcrbpdpY7s
+         mVyOTOFhTnX+oQpVbGSztAVQMFEr5/A+98mnDtAq7DQlQA5vHZsORW+ZpTtIlHG37XGV
+         SOpQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id v204si687179pgb.80.2019.06.13.14.37.55
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id h9si674178pgs.397.2019.06.13.14.41.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 14:37:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        Thu, 13 Jun 2019 14:41:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNSCANNABLE
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
 X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Jun 2019 14:37:54 -0700
+Received: from fmsmga001.fm.intel.com ([10.253.24.23])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Jun 2019 14:41:26 -0700
 X-ExtLoop1: 1
 Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga008.jf.intel.com with ESMTP; 13 Jun 2019 14:37:54 -0700
-Date: Thu, 13 Jun 2019 14:39:16 -0700
+  by fmsmga001.fm.intel.com with ESMTP; 13 Jun 2019 14:41:25 -0700
+Date: Thu, 13 Jun 2019 14:42:47 -0700
 From: Ira Weiny <ira.weiny@intel.com>
 To: Pingfan Liu <kernelfans@gmail.com>
 Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
@@ -98,15 +98,15 @@ Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
 	Keith Busch <keith.busch@intel.com>,
 	Christoph Hellwig <hch@infradead.org>,
 	Shuah Khan <shuah@kernel.org>, linux-kernel@vger.kernel.org
-Subject: Re: [PATCHv4 2/3] mm/gup: fix omission of check on FOLL_LONGTERM in
+Subject: Re: [PATCHv4 3/3] mm/gup_benchemark: add LONGTERM_BENCHMARK test in
  gup fast path
-Message-ID: <20190613213915.GE32404@iweiny-DESK2.sc.intel.com>
+Message-ID: <20190613214247.GF32404@iweiny-DESK2.sc.intel.com>
 References: <1560422702-11403-1-git-send-email-kernelfans@gmail.com>
- <1560422702-11403-3-git-send-email-kernelfans@gmail.com>
+ <1560422702-11403-4-git-send-email-kernelfans@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1560422702-11403-3-git-send-email-kernelfans@gmail.com>
+In-Reply-To: <1560422702-11403-4-git-send-email-kernelfans@gmail.com>
 User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -114,15 +114,9 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 06:45:01PM +0800, Pingfan Liu wrote:
-> FOLL_LONGTERM suggests a pin which is going to be given to hardware and
-> can't move. It would truncate CMA permanently and should be excluded.
-> 
-> FOLL_LONGTERM has already been checked in the slow path, but not checked in
-> the fast path, which means a possible leak of CMA page to longterm pinned
-> requirement through this crack.
-> 
-> Place a check in gup_pte_range() in the fast path.
+On Thu, Jun 13, 2019 at 06:45:02PM +0800, Pingfan Liu wrote:
+> Introduce a GUP_LONGTERM_BENCHMARK ioctl to test longterm pin in gup fast
+> path.
 > 
 > Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
 > Cc: Ira Weiny <ira.weiny@intel.com>
@@ -137,88 +131,91 @@ On Thu, Jun 13, 2019 at 06:45:01PM +0800, Pingfan Liu wrote:
 > Cc: Shuah Khan <shuah@kernel.org>
 > Cc: linux-kernel@vger.kernel.org
 > ---
->  mm/gup.c | 26 ++++++++++++++++++++++++++
->  1 file changed, 26 insertions(+)
+>  mm/gup_benchmark.c                         | 11 +++++++++--
+>  tools/testing/selftests/vm/gup_benchmark.c | 10 +++++++---
+>  2 files changed, 16 insertions(+), 5 deletions(-)
 > 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 766ae54..de1b03f 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -1757,6 +1757,14 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
->  		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
->  		page = pte_page(pte);
+> diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
+> index 7dd602d..83f3378 100644
+> --- a/mm/gup_benchmark.c
+> +++ b/mm/gup_benchmark.c
+> @@ -6,8 +6,9 @@
+>  #include <linux/debugfs.h>
 >  
-> +		/*
-> +		 * FOLL_LONGTERM suggests a pin given to hardware. Prevent it
-> +		 * from truncating CMA area
-> +		 */
-> +		if (unlikely(flags & FOLL_LONGTERM) &&
-> +			is_migrate_cma_page(page))
-> +			goto pte_unmap;
-> +
->  		head = try_get_compound_head(page, 1);
->  		if (!head)
->  			goto pte_unmap;
-> @@ -1900,6 +1908,12 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
->  		refs++;
->  	} while (addr += PAGE_SIZE, addr != end);
->  
-> +	if (unlikely(flags & FOLL_LONGTERM) &&
-> +		is_migrate_cma_page(page)) {
-> +		*nr -= refs;
-> +		return 0;
-> +	}
-> +
+>  #define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
+> -#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
+> -#define GUP_BENCHMARK		_IOWR('g', 3, struct gup_benchmark)
+> +#define GUP_FAST_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
+> +#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 3, struct gup_benchmark)
+> +#define GUP_BENCHMARK		_IOWR('g', 4, struct gup_benchmark)
 
-Why can't we place this check before the while loop and skip subtracting the
-page count?
+But I really like this addition!  Thanks!
 
-Can is_migrate_cma_page() operate on any "subpage" of a compound page? 
-
-Here this calls is_magrate_cma_page() on the tail page of the compound page.
-
-I'm not an expert on compound pages nor cma handling so is this ok?
-
-It seems like you need to call is_migrate_cma_page() on each page within the
-while loop?
-
->  	head = try_get_compound_head(pmd_page(orig), refs);
->  	if (!head) {
->  		*nr -= refs;
-> @@ -1941,6 +1955,12 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
->  		refs++;
->  	} while (addr += PAGE_SIZE, addr != end);
->  
-> +	if (unlikely(flags & FOLL_LONGTERM) &&
-> +		is_migrate_cma_page(page)) {
-> +		*nr -= refs;
-> +		return 0;
-> +	}
-> +
-
-Same comment here.
-
->  	head = try_get_compound_head(pud_page(orig), refs);
->  	if (!head) {
->  		*nr -= refs;
-> @@ -1978,6 +1998,12 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
->  		refs++;
->  	} while (addr += PAGE_SIZE, addr != end);
->  
-> +	if (unlikely(flags & FOLL_LONGTERM) &&
-> +		is_migrate_cma_page(page)) {
-> +		*nr -= refs;
-> +		return 0;
-> +	}
-> +
-
-And here.
+But why not just add GUP_FAST_LONGTERM_BENCHMARK to the end of this list (value
+4)?  I know the user space test program is probably expected to be lock step
+with this code but it seems odd to redefine GUP_LONGTERM_BENCHMARK and
+GUP_BENCHMARK with this change.
 
 Ira
 
->  	head = try_get_compound_head(pgd_page(orig), refs);
->  	if (!head) {
->  		*nr -= refs;
+>  
+>  struct gup_benchmark {
+>  	__u64 get_delta_usec;
+> @@ -53,6 +54,11 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
+>  			nr = get_user_pages_fast(addr, nr, gup->flags & 1,
+>  						 pages + i);
+>  			break;
+> +		case GUP_FAST_LONGTERM_BENCHMARK:
+> +			nr = get_user_pages_fast(addr, nr,
+> +					(gup->flags & 1) | FOLL_LONGTERM,
+> +					 pages + i);
+> +			break;
+>  		case GUP_LONGTERM_BENCHMARK:
+>  			nr = get_user_pages(addr, nr,
+>  					    (gup->flags & 1) | FOLL_LONGTERM,
+> @@ -96,6 +102,7 @@ static long gup_benchmark_ioctl(struct file *filep, unsigned int cmd,
+>  
+>  	switch (cmd) {
+>  	case GUP_FAST_BENCHMARK:
+> +	case GUP_FAST_LONGTERM_BENCHMARK:
+>  	case GUP_LONGTERM_BENCHMARK:
+>  	case GUP_BENCHMARK:
+>  		break;
+> diff --git a/tools/testing/selftests/vm/gup_benchmark.c b/tools/testing/selftests/vm/gup_benchmark.c
+> index c0534e2..ade8acb 100644
+> --- a/tools/testing/selftests/vm/gup_benchmark.c
+> +++ b/tools/testing/selftests/vm/gup_benchmark.c
+> @@ -15,8 +15,9 @@
+>  #define PAGE_SIZE sysconf(_SC_PAGESIZE)
+>  
+>  #define GUP_FAST_BENCHMARK	_IOWR('g', 1, struct gup_benchmark)
+> -#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
+> -#define GUP_BENCHMARK		_IOWR('g', 3, struct gup_benchmark)
+> +#define GUP_FAST_LONGTERM_BENCHMARK	_IOWR('g', 2, struct gup_benchmark)
+> +#define GUP_LONGTERM_BENCHMARK	_IOWR('g', 3, struct gup_benchmark)
+> +#define GUP_BENCHMARK		_IOWR('g', 4, struct gup_benchmark)
+>  
+>  struct gup_benchmark {
+>  	__u64 get_delta_usec;
+> @@ -37,7 +38,7 @@ int main(int argc, char **argv)
+>  	char *file = "/dev/zero";
+>  	char *p;
+>  
+> -	while ((opt = getopt(argc, argv, "m:r:n:f:tTLUSH")) != -1) {
+> +	while ((opt = getopt(argc, argv, "m:r:n:f:tTlLUSH")) != -1) {
+>  		switch (opt) {
+>  		case 'm':
+>  			size = atoi(optarg) * MB;
+> @@ -54,6 +55,9 @@ int main(int argc, char **argv)
+>  		case 'T':
+>  			thp = 0;
+>  			break;
+> +		case 'l':
+> +			cmd = GUP_FAST_LONGTERM_BENCHMARK;
+> +			break;
+>  		case 'L':
+>  			cmd = GUP_LONGTERM_BENCHMARK;
+>  			break;
 > -- 
 > 2.7.5
 > 
