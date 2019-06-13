@@ -2,176 +2,138 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_NEOMUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A557AC31E49
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:14:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D88A3C31E49
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:21:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 76FC1217D6
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:14:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76FC1217D6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id A91E92054F
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:21:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A91E92054F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E6D6F6B026B; Thu, 13 Jun 2019 11:14:23 -0400 (EDT)
+	id 456BB6B0006; Thu, 13 Jun 2019 11:21:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E1E3D6B026C; Thu, 13 Jun 2019 11:14:23 -0400 (EDT)
+	id 4083D6B026A; Thu, 13 Jun 2019 11:21:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D34D18E0001; Thu, 13 Jun 2019 11:14:23 -0400 (EDT)
+	id 2F6E36B026B; Thu, 13 Jun 2019 11:21:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C2F56B026B
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 11:14:23 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id 59so12118883plb.14
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 08:14:23 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D4CC96B0006
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 11:21:04 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y24so31324046edb.1
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 08:21:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=zQjn1s7WJFZu7VY7A+6586JA46f8i8oLBonp8NrIAYw=;
-        b=RxSO1gQb6cVFrL9yUzBf31utmwhSFMO4PVFNs1r3l4Loqk6FfwjsjRh7JZRBOUupPU
-         UMWTwUNvVzqCPrtyxQ03QEcraoa7ozqrmqSFoDoUAVI3HXJT3GolK0KrL1puE6Gz+v7P
-         8bCzYL85FZlHXINXoQfllx94slHuivFNjdxVbR7M+gvcmizcUUO4Mv8CPgJdeybHUan+
-         3ZikOe2oktWL+RrGwu/TfL6Bf0M25mMLXo0VBS3o7bYksg3o4RHbDVcmEHtU1W7gRsQh
-         ooEBQNYsqc5+0jxgs70UoW/GbwrQ37bf40FBIqfamgXJxKVpRq9jJhBuWtSRQYvcDMrv
-         6PvQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUyY4IHsoO80hSQuDaxTbCpR6JNmdbZCTxXfVbgceevgYlnRrRZ
-	ZTzXZMPDDPEdN3Oo7H1dAw/Meb47O3YE6zn33P7ZMlKneNl7MV3bWeE9stQOhCYy29ey7awh2ZZ
-	WWfdCY7IWKA2KAgkd7P53f2CEusXfVN1bgvDz+ADNw8S6oFy33CN2njuGeoRUugLEJw==
-X-Received: by 2002:a65:5344:: with SMTP id w4mr30910026pgr.8.1560438863169;
-        Thu, 13 Jun 2019 08:14:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz33fct0RcgdBcM8DhNDclS0vBrg31+Um55BQjpjIGV6GoL0NwbHkv/5722DOqqfXqEOU0T
-X-Received: by 2002:a65:5344:: with SMTP id w4mr30909977pgr.8.1560438862462;
-        Thu, 13 Jun 2019 08:14:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560438862; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=47YRuKWEAOA7Z5tDQ9E5Sxr/55qVvAI8YJY5aFGGR1Y=;
+        b=U7duJq5qLQ4emu69u1tv6O+87O+zQEJz/BWaGCRpU2IWrprxruUgMrnJDSrH44deqb
+         Tn8KM8Orb+k5an1yKtTEQyf51o3peU0AE9SDlsNQgDP6PuziInbmycYm0HdZgx4We0xE
+         GWpnAajfohZvx0Sb3B1haABZv3XjXgB+OdNATEHxJjDYMsQG3wcUZC3mrhKjio3tBKvS
+         QaejAMEoI/V2ctD0czdZlffVuhYT/FlpW1iSgIwXiFLaBJudthfFpQ+y5pcD+fHS4N9t
+         uKivxOM8H+2svN4NsbMz8M3+Jqvxf8PbSAP1WW2ggRz80JTrMURl/Kvg3sBK5Muoswoz
+         G7rQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAV9OVm34sf2luuMlUBXUuZoZs7t2qUE5D9awvLca61R9Xrz8uJQ
+	9U4P6uRd4dUMEU4cx08Fy1pQ13pfYMvLP7GnRrxl4zW858qVZzITYumuQ+uUDwaZ9EoWWBNucRX
+	6i/Dpyn6lHjD/rQjPxcXxANkfUof8pfKZbcLOxJpMrRsqXYCsXlFbiSyGuRv1GU75hw==
+X-Received: by 2002:a17:906:d053:: with SMTP id bo19mr74883163ejb.86.1560439264199;
+        Thu, 13 Jun 2019 08:21:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw6Udsm3clWUap4Aoa1xqysAI4D0LRJGcQVUXkuNxhBhyNDfUZNRnGSClOoBazpiNVy3Kwc
+X-Received: by 2002:a17:906:d053:: with SMTP id bo19mr74883095ejb.86.1560439263402;
+        Thu, 13 Jun 2019 08:21:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560439263; cv=none;
         d=google.com; s=arc-20160816;
-        b=rF+TAR+ByqFDRgaWOF+laqxeFBhTvPbp6FxdPKrip6HnvhQbqPQ0EngxHbdRuhsft3
-         XbHd5beeWitYyXxlofceroBO8PARhOYgM5v0Z/4SGzjJcOsJBOjirBYoWsq5QpzPzX3O
-         0Mv/zLQRbc/IfU1dlXg6d/2YHTwE8gT1IXFl3PkfjCMOoEqaDE9I/dNQNGQEKJ8oQhbe
-         VxRGNGHEvPw/SQ/6Uy43tWkKkHuY1NS6/pVcghlzsIMY558dWaAR+GcaSMY4Wq/+JgXl
-         uDgjA9nmsVdR9AvRnZt6nrK5y73SegX1DzDHj4xnuWq2p/seEX+EQXgoK2cogNs6aJ0K
-         WjGQ==
+        b=fcdu7l+kjaArMS1RhbrxXipkh45kO5iGpJ5YH3zTdWSXSkKgBB2ZGbjZFeU4mhxjpy
+         y8dd62x8G8LFjcyQ/YDf8HCs2wJennsZ+il2epyzegZPMIPSffrOnLbLCJgFUaGDeiwl
+         w7zRoPJycR+UYy5c38OxdIcFOt1EOOQfsyXDPSjBP7C4RkFALNNp/rfQv4L6hDuuTm/u
+         IMs6/T7jBHYz8CX/N8SnyS1vyL63TNL6mRZUxwYzMQp6RIxNdZqL3MF4tCS7ORzCzj/W
+         0ZfmVGL7XnHejU3yPmOX0Rdw91NlPdTBDiBmKBmoAiDRhCQgT+V6QnZmNoQD5Y6x572U
+         R2BA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=zQjn1s7WJFZu7VY7A+6586JA46f8i8oLBonp8NrIAYw=;
-        b=FeZF6MuKQRJVXSe20hCIa0V+gfWdE2uqfpxfxCtH8iEtRWFvl7+jcv/3Okxr6KN4V3
-         AFydONVHtKZDAH27LnDqDPNtA3r4ySA9ToY2o5Z7GGxGEDOmcdjfrKUpKguYW+gTk3+3
-         Q3zsKG1JEPI1wIfEvCN8EnOXijucwkn88ohN2gyiXyCk4xu4b/HIg8CGd/nm0es34m8b
-         z+Og4EFM83YSGRwN8UFxn+grWL0NDOpqttS1fZ3pcJJNodCJh7W3ttSNEZJ7+GBec/UL
-         MHYgvf8R2njtj8WIcLx+vxO0Q1l0BYlObZ2Jio05MEdaoFsIEYL75k1mJtWb5OpROy94
-         VwYw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=47YRuKWEAOA7Z5tDQ9E5Sxr/55qVvAI8YJY5aFGGR1Y=;
+        b=fWZ2Qpw+N6uUlbVM2cJPfVroLURK0Lys1YWUwwATgXc1Zffcy62ePe430hHgMn9T0G
+         0cNYCuA0WPU1pbjpzbd/HJJMVdkPodE8O16zI0m9by1cJHiI5eQ+t5SUbgfyEN/aPWBu
+         wgnTshAho4NodHjsuzOf5zm2hiBthynzDyN/jCgql7Awvw+VzjNZLLywsGukY4vMk2AW
+         HcpCpQO9Sym8DzEXgDqUZL4e6Z6ysYRB0DfxDmIbLi4xrMfmcwEMOzXOt9emYp0Z4sT3
+         kEX6M5D9kaI+qUvOAOZj8oSLvhEvXumMA4qiPshOGnBfmwxfov+B3EsvXZ/gshPqXkzQ
+         BR7Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 59si3688051plp.90.2019.06.13.08.14.22
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 08:14:22 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id h45si2733690edh.35.2019.06.13.08.21.03
+        for <linux-mm@kvack.org>;
+        Thu, 13 Jun 2019 08:21:03 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of kirill.shutemov@linux.intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=kirill.shutemov@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga004.jf.intel.com ([10.7.209.38])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Jun 2019 08:14:21 -0700
-X-ExtLoop1: 1
-Received: from black.fi.intel.com ([10.237.72.28])
-  by orsmga004.jf.intel.com with ESMTP; 13 Jun 2019 08:14:18 -0700
-Received: by black.fi.intel.com (Postfix, from userid 1000)
-	id CC735159; Thu, 13 Jun 2019 18:14:17 +0300 (EEST)
-Date: Thu, 13 Jun 2019 18:14:17 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-To: Song Liu <songliubraving@fb.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>,
-	LKML <linux-kernel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"namit@vmware.com" <namit@vmware.com>,
-	"peterz@infradead.org" <peterz@infradead.org>,
-	"oleg@redhat.com" <oleg@redhat.com>,
-	"rostedt@goodmis.org" <rostedt@goodmis.org>,
-	"mhiramat@kernel.org" <mhiramat@kernel.org>,
-	"matthew.wilcox@oracle.com" <matthew.wilcox@oracle.com>,
-	Kernel Team <Kernel-team@fb.com>
-Subject: Re: [PATCH v3 3/5] mm, thp: introduce FOLL_SPLIT_PMD
-Message-ID: <20190613151417.7cjxwudjssl5h2pf@black.fi.intel.com>
-References:<20190612220320.2223898-1-songliubraving@fb.com>
- <20190612220320.2223898-4-songliubraving@fb.com>
- <20190613125718.tgplv5iqkbfhn6vh@box>
- <5A80A2B9-51C3-49C4-97B6-33889CC47F08@fb.com>
- <20190613141615.yvmckzi3fac4qjag@box>
- <32E15B93-24B9-4DBB-BDD4-DDD8537C7CE0@fb.com>
+       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 77F3B367;
+	Thu, 13 Jun 2019 08:21:02 -0700 (PDT)
+Received: from [10.162.40.191] (p8cg001049571a15.blr.arm.com [10.162.40.191])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 15B0F3F718;
+	Thu, 13 Jun 2019 08:20:58 -0700 (PDT)
+Subject: Re: [PATCH] mm/vmalloc: Check absolute error return from
+ vmap_[p4d|pud|pmd|pte]_range()
+To: Roman Penyaev <rpenyaev@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Rick Edgecombe <rick.p.edgecombe@intel.com>,
+ Andrey Ryabinin <aryabinin@virtuozzo.com>, Mike Rapoport
+ <rppt@linux.ibm.com>, Roman Gushchin <guro@fb.com>,
+ Michal Hocko <mhocko@suse.com>, "Uladzislau Rezki (Sony)"
+ <urezki@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+References: <1560413551-17460-1-git-send-email-anshuman.khandual@arm.com>
+ <7cc6a46c50c2008bfb968c5e48af5a49@suse.de>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <406afc57-5a77-a77c-7f71-df1e6837dae1@arm.com>
+Date: Thu, 13 Jun 2019 20:51:17 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To:<32E15B93-24B9-4DBB-BDD4-DDD8537C7CE0@fb.com>
-User-Agent: NeoMutt/20170714-126-deb55f (1.8.3)
+In-Reply-To: <7cc6a46c50c2008bfb968c5e48af5a49@suse.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 03:03:01PM +0000, Song Liu wrote:
-> 
-> 
-> > On Jun 13, 2019, at 7:16 AM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > 
-> > On Thu, Jun 13, 2019 at 01:57:30PM +0000, Song Liu wrote:
-> >>> And I'm not convinced that it belongs here at all. User requested PMD
-> >>> split and it is done after split_huge_pmd(). The rest can be handled by
-> >>> the caller as needed.
-> >> 
-> >> I put this part here because split_huge_pmd() for file-backed THP is
-> >> not really done after split_huge_pmd(). And I would like it done before
-> >> calling follow_page_pte() below. Maybe we can still do them here, just 
-> >> for file-backed THPs?
-> >> 
-> >> If we would move it, shall we move to callers of follow_page_mask()? 
-> >> In that case, we will probably end up with similar code in two places:
-> >> __get_user_pages() and follow_page(). 
-> >> 
-> >> Did I get this right?
-> > 
-> > Would it be enough to replace pte_offset_map_lock() in follow_page_pte()
-> > with pte_alloc_map_lock()?
-> 
-> This is similar to my previous version:
-> 
-> +		} else {  /* flags & FOLL_SPLIT_PMD */
-> +			pte_t *pte;
-> +			spin_unlock(ptl);
-> +			split_huge_pmd(vma, pmd, address);
-> +			pte = get_locked_pte(mm, address, &ptl);
-> +			if (!pte)
-> +				return no_page_table(vma, flags);
-> +			spin_unlock(ptl);
-> +			ret = 0;
-> +		}
-> 
-> I think this is cleaner than use pte_alloc_map_lock() in follow_page_pte(). 
-> What's your thought on these two versions (^^^ vs. pte_alloc_map_lock)?
 
-It's additional lock-unlock cycle and few more lines of code...
 
-> > This will leave bunch not populated PTE entries, but it is fine: they will
-> > be populated on the next access to them.
+On 06/13/2019 03:03 PM, Roman Penyaev wrote:
+> On 2019-06-13 10:12, Anshuman Khandual wrote:
+>> vmap_pte_range() returns an -EBUSY when it encounters a non-empty PTE. But
+>> currently vmap_pmd_range() unifies both -EBUSY and -ENOMEM return code as
+>> -ENOMEM and send it up the call chain which is wrong. Interestingly enough
+>> vmap_page_range_noflush() tests for the absolute error return value from
+>> vmap_p4d_range() but it does not help because -EBUSY has been merged with
+>> -ENOMEM. So all it can return is -ENOMEM. Fix this by testing for absolute
+>> error return from vmap_pmd_range() all the way up to vmap_p4d_range().
 > 
-> We need to handle page fault during next access, right? Since we already
-> allocated everything, we can just populate the PTE entries and saves a
-> lot of page faults (assuming we will access them later). 
+> I could not find any real external caller of vmap API who really cares
+> about the errno, and frankly why they should?  This is allocation path,
 
-Not a lot due to faultaround and they may never happen, but you need to
-tear down the mapping any way.
+map_vm_area() which is an exported symbol suppose to provide the right
+error code regardless whether it's current users care for it or not.
 
--- 
- Kirill A. Shutemov
+> allocation failed - game over.  When you step on -EBUSY case something
+> has gone completely wrong in your kernel, you get a big warning in
+> your dmesg and it is already does not matter what errno you get.
+
+Its true that vmap_pte_range() does warn during error conditions. But if
+we really dont care about error return code then we should just remove
+specific error details (ENOMEM/EBUSY) and instead replace them with simple
+boolean false/true or (0/1/-1) return values at each level. Will that be
+acceptable ? What we have currently is wrong where vmap_pmd_range() could
+just wrap EBUSY as ENOMEM and send up the call chain.
 
