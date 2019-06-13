@@ -2,172 +2,234 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-10.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8519DC31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:50:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F325C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:50:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4320720679
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:50:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4320720679
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 4859F20679
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:50:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="P0/fYNP9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4859F20679
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C26AB8E0003; Thu, 13 Jun 2019 13:50:04 -0400 (EDT)
+	id E71008E0004; Thu, 13 Jun 2019 13:50:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BD6098E0002; Thu, 13 Jun 2019 13:50:04 -0400 (EDT)
+	id E1F8C8E0002; Thu, 13 Jun 2019 13:50:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A9D278E0003; Thu, 13 Jun 2019 13:50:04 -0400 (EDT)
+	id D0EAE8E0004; Thu, 13 Jun 2019 13:50:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 705858E0002
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:50:04 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i2so4363223pfe.1
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 10:50:04 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B3DA38E0002
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:50:11 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id p34so3279143qtp.1
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 10:50:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=IzXHo786R98bNjjgT64jbNFZuQNRfDKBlBMQ6Glnf3E=;
-        b=oIPnvxGvgq8mTtKDtkilRR3zfR9AN9PzM6upKXCgl88sDL5Nt4Y55ajk66rn+Eq8JS
-         OVq/p9bFCddPZHXCkkmLyXSET01q2KbxfKdt/8rGmBn/Z9bZprb/fcdBimhs9ut2sRDZ
-         0N+la7jo6YQo4riUSbQgNPGEkAOKJJMAhN7SNdpfE2aVg5jzraSHF9RrdPCSbfzkT+Vp
-         fiSJeZVaQC2pSjR7fvKVa2oWeKq3uDXz9HA+Pzis03kzQLo0wZi3TcKw/crfnmGF2Nnj
-         tfuqtuEaCbEov5HUqCGxnu7gJas/E13eQK1SqVxTjZfDG5RSQKM5oeoJdoJEHl/A3neq
-         qLpw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWnMOw1HpHkHdpetJ/XaY9TxB6kFdKpJ9JybqLokJAjO9trCF/h
-	EYKqwq8dV1pibe0BiR6V0lpmabh3naoXgzFY0UqzOGDbq9tojATidZL8fPildTgrlw2ToIVB5Ot
-	+2QkmAg61wQwN7nr4wD/Fb/Rt8xdJ8057SxOtDgjxIz3GpX7XXSg6/KIr4kddbvcxhw==
-X-Received: by 2002:a17:902:7086:: with SMTP id z6mr6541969plk.196.1560448204143;
-        Thu, 13 Jun 2019 10:50:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwq4z8q1bNnA4gRXUAdU5zlvCbGKBjVs0sqzkacjtLIihkxPDg5cKbpj4aAPPHtDN+er78j
-X-Received: by 2002:a17:902:7086:: with SMTP id z6mr6541925plk.196.1560448203455;
-        Thu, 13 Jun 2019 10:50:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560448203; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=CW8Dmkt0odT79Xf4+B/xbpKgEC6daDBVeyuQmTJJES8=;
+        b=W66I2iutSjegsbUcDz9izGqDTPuEBqS75g8BXJbE6wyQUQcR7oztkBBHwyEJW2DyMg
+         qFuPeBmElSReHSYPI5IctgOAURY8lP745yi+VsyMFJdS39Rz19RPP2dAv28YIiGNbDgp
+         DKf4NmEWV2NXjKSHOKpR/O/ja6xblvxR0aLQgT2cXW1KnO5LY7tVaA5cjuuJcmPfQK/s
+         1cqnRHlKeR2Jgr8m1VPcBRHyHUOF2gQolX8QPgTglbe8NICMQn4fVYExKOizPQr3BdGl
+         28PswXX4BjFHLj0pcuz9MdRWXZ3kMd3XH+S7dIl1nVofxMKXHo/2LD1M6faKGiOw7l1z
+         MsAQ==
+X-Gm-Message-State: APjAAAVsSjxVKtIuh1ly2/2kEJWbft9Lm3WOGh/Og03S+4cs3fXWMTcb
+	x7fq7tv5+I4U2zFUwpkxWTLD8W4mI8AWbyWn+PskVutVvj7ashFjvn3nmeYXcu7dT6LQqp26o3t
+	lPv1MSIqi9IYP8KA94nH/hJTw3lAH0Fo2GbOuYiNEgaahql1TcAjwZ+v3B1ZXljLBEg==
+X-Received: by 2002:a37:783:: with SMTP id 125mr71793256qkh.0.1560448211167;
+        Thu, 13 Jun 2019 10:50:11 -0700 (PDT)
+X-Received: by 2002:a37:783:: with SMTP id 125mr71793241qkh.0.1560448210513;
+        Thu, 13 Jun 2019 10:50:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560448210; cv=none;
         d=google.com; s=arc-20160816;
-        b=VH9Gw2MduTmaotREg4l9UiSfm3zpnOiWk2gnqRWxWE7Sor8Jm80vbabgVwl4860g8j
-         vvzUXd/TLPYRiVB7SkivI5AfjYwZB5TfoZn+l3EqJKggB/f87Z5Z9/wlXeI1U7TOY9BG
-         MumK8D4s2RcfDhfc5w2o3CPBtWsVKCsXcSPcP+ePcpDx1DXGwSNZ2/ErpMs02eFVROcm
-         uIsoC8KRBW/cE0rts/h2zFQyzN6L3D3BOq6vCo1hMsiAGs0xH1nMhDGe4LAikB97T21Y
-         uwun+R5RELSyawymOZrQoiXDVrbGYjeBDuVLmTWpSM67cJVZvC7/616Ut4I1K8LgPi/G
-         hQlA==
+        b=sXdeCKNCZxvP8sRpydQgnstA/i4rcjK3VN7XCiWqQVp1DIAEJGqi/OiXVyBFh6ppN+
+         QXz57owytccc8tUW97HmHfEg64mnJ/mw+3Rwo+tPLmS8MaCu+BsBdXPk37vPRXQYMMpX
+         tGmLT8y0MX9Li4OMUS7y1cy0v4dlUw3JEfM5pDS6ckNH/0tfvVOq1gDL5FiWlSWUE7CJ
+         o3hG0ALZmn0uXDqrs2PozNaXxNJnKxGh0g4BwYd6xK2TdlixitdYFx3jgw7NRCgPmOHE
+         +4w/Av0S3iVDG39PDcZ9syVm/aTOtOscoL2dkfukdiJPTm34JUPtJRDERWaKU8ZEfapP
+         7zxQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=IzXHo786R98bNjjgT64jbNFZuQNRfDKBlBMQ6Glnf3E=;
-        b=bjm7Uy2d/nGd/GflfdNWEFjF9Ef7HlN6J3obvFozjRz0Y1A31MPGz3BuiJ5ljws29t
-         yYoeFh85Zphlupy2QPKaNTbdPz3ZiUM0KRGJZYbsgZ8ZeowOlAyHmtt81udDnFQs8Hu7
-         WNmWDL6rRjBsytc9HEFG8ZZJVoXQ7d7NzwfBhhjRBIfN/BWmIshhshtijII7nQLxeeYi
-         iuMQ/SwA+EtuM9ld9w8X5t0a+qlfadFsdXxHctpnon116bUAgoGnmZkSpxSKRH7MYNeH
-         aOZqpIBse4bBuNCBGCQ1Lwzg376WHR4N/z7k6oBmud7ypNRGEeqzH7a/Ah7qxAvAAjIP
-         RAdQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=CW8Dmkt0odT79Xf4+B/xbpKgEC6daDBVeyuQmTJJES8=;
+        b=o/LTPhQuEvkKPGnlb0ckeBk/HNQMpcX3IIXwD/ugPW17MhW7RGQGC83NsrrD8xWmq7
+         jlCoJDsh0m0ggSSf4tjG/uwVaB/2k7y3MlAUUa485Qmf2uiZSQivLfuj3tv6s006LTgp
+         kPWCphlCmWIvYXrJNxzILQ1KXCwh5iQckk4Vlm8XCpj5VaRpwev1B0Sg1dYFYRJpxv9R
+         8IAyA3zMdOYl2qnkjz9wU94gFU5n/MCuoj46nvHSDKvqLz0HagZyhkogz/KRjSDrGKGe
+         jZIb0snnM0LVZxYx97M2gdwnW5YnThcUhAl7px+K3jDTZXIpNlF4U7qK87k7xJNuFnoC
+         weLw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id i3si37205pjt.82.2019.06.13.10.50.03
+       dkim=pass header.i=@ziepe.ca header.s=google header.b="P0/fYNP9";
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b23sor1033264qte.55.2019.06.13.10.50.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 10:50:03 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        (Google Transport Security);
+        Thu, 13 Jun 2019 10:50:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga004.jf.intel.com ([10.7.209.38])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Jun 2019 10:50:03 -0700
-X-ExtLoop1: 1
-Received: from enagarix-mobl.amr.corp.intel.com (HELO [10.251.15.213]) ([10.251.15.213])
-  by orsmga004.jf.intel.com with ESMTP; 13 Jun 2019 10:50:02 -0700
-Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
- secrets
-To: Nadav Amit <namit@vmware.com>, Andy Lutomirski <luto@kernel.org>
-Cc: Alexander Graf <graf@amazon.com>, Marius Hillenbrand
- <mhillenb@amazon.de>, kvm list <kvm@vger.kernel.org>,
- LKML <linux-kernel@vger.kernel.org>,
- Kernel Hardening <kernel-hardening@lists.openwall.com>,
- Linux-MM <linux-mm@kvack.org>, Alexander Graf <graf@amazon.de>,
- David Woodhouse <dwmw@amazon.co.uk>,
- the arch/x86 maintainers <x86@kernel.org>,
- Peter Zijlstra <peterz@infradead.org>
-References: <20190612170834.14855-1-mhillenb@amazon.de>
- <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com>
- <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
- <CALCETrXHbS9VXfZ80kOjiTrreM2EbapYeGp68mvJPbosUtorYA@mail.gmail.com>
- <459e2273-bc27-f422-601b-2d6cdaf06f84@amazon.com>
- <CALCETrVRuQb-P7auHCgxzs5L=qA2_qHzVGTtRMAqoMAut0ETFw@mail.gmail.com>
- <f1dfbfb4-d2d5-bf30-600f-9e756a352860@intel.com>
- <70BEF143-00BA-4E4B-ACD7-41AD2E6250BE@vmware.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <f7f08704-dc4b-c5f8-3889-0fb5957c9c86@intel.com>
-Date: Thu, 13 Jun 2019 10:49:42 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       dkim=pass header.i=@ziepe.ca header.s=google header.b="P0/fYNP9";
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=CW8Dmkt0odT79Xf4+B/xbpKgEC6daDBVeyuQmTJJES8=;
+        b=P0/fYNP9ZcO3+OGBpONisUzkN8/fc+iUh8W32JiaGiFfNUt4qj3hrdWOLa/2kOC2Ga
+         uu/8ijXw30ur7PSRQYFk7Oe6OadCse1RRqrxDoqyNJlNajrnSqTh1ShrZ48X/c3/G4b1
+         9g+0Y3ZmUyd781bC8WLIAtVBzmwUTu3co6WnZDr4CXQvlI8tMzdoMpQOhxvEQuWv/dIr
+         FMHaFB6W/Smdy5NjElS5AmWr8tSHAPDVdpcJzzt7mZ8Ty3sqcvZGxCvSXRIoQ81pMrC3
+         kMb0362dUdKeGvJFK+wK54XHlEHfz16TwTLECzqd5j0SbpDhpcQWqdCP3c8gebNRqYEV
+         sAgw==
+X-Google-Smtp-Source: APXvYqyiojsO9AL2I7FFH8QZQ3t97ZM/cVMsGf4rVJyZYQVaUkpxSashUx10y6Oje86asaNHv0rxLg==
+X-Received: by 2002:aed:254c:: with SMTP id w12mr79027848qtc.127.1560448210185;
+        Thu, 13 Jun 2019 10:50:10 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id c4sm137165qkd.24.2019.06.13.10.50.09
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 13 Jun 2019 10:50:09 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hbTrV-0006NJ-8F; Thu, 13 Jun 2019 14:50:09 -0300
+Date: Thu, 13 Jun 2019 14:50:09 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: "Yang, Philip" <Philip.Yang@amd.com>
+Cc: "Kuehling, Felix" <Felix.Kuehling@amd.com>,
+	"Deucher, Alexander" <Alexander.Deucher@amd.com>,
+	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>
+Subject: Re: [PATCH v2 hmm 00/11] Various revisions from a locking/code review
+Message-ID: <20190613175009.GG22901@ziepe.ca>
+References: <20190606184438.31646-1-jgg@ziepe.ca>
+ <20190611194858.GA27792@ziepe.ca>
+ <5d3b0ae2-3662-cab2-5e6c-82912f32356a@amd.com>
+ <69bb7fe9-98e7-8a49-3e0b-f639010b8991@amd.com>
 MIME-Version: 1.0
-In-Reply-To: <70BEF143-00BA-4E4B-ACD7-41AD2E6250BE@vmware.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <69bb7fe9-98e7-8a49-3e0b-f639010b8991@amd.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/13/19 10:29 AM, Nadav Amit wrote:
-> Having said that, I am not too excited to deal with this issue. Do
-> people still care about x86/32-bit?
-No, not really.  It's just fun to try to give history lessons about the
-good old days. ;)
+On Wed, Jun 12, 2019 at 09:49:12PM +0000, Yang, Philip wrote:
+> Rebase to https://github.com/jgunthorpe/linux.git hmm branch, need some 
+> changes because of interface hmm_range_register change. Then run a quick 
+> amdgpu_test. Test is finished, result is ok.
+
+Great! Thanks
+
+I'll add your Tested-by to the series
+
+>  But there is below kernel BUG message, seems hmm_free_rcu calls
+> down_write.....
+> 
+> [ 1171.919921] BUG: sleeping function called from invalid context at 
+> /home/yangp/git/compute_staging/kernel/kernel/locking/rwsem.c:65
+> [ 1171.919933] in_atomic(): 1, irqs_disabled(): 0, pid: 53, name: 
+> kworker/1:1
+> [ 1171.919938] 2 locks held by kworker/1:1/53:
+> [ 1171.919940]  #0: 000000001c7c19d4 ((wq_completion)rcu_gp){+.+.}, at: 
+> process_one_work+0x20e/0x630
+> [ 1171.919951]  #1: 00000000923f2cfa 
+> ((work_completion)(&sdp->work)){+.+.}, at: process_one_work+0x20e/0x630
+> [ 1171.919959] CPU: 1 PID: 53 Comm: kworker/1:1 Tainted: G        W 
+>     5.2.0-rc1-kfd-yangp #196
+> [ 1171.919961] Hardware name: ASUS All Series/Z97-PRO(Wi-Fi ac)/USB 3.1, 
+> BIOS 9001 03/07/2016
+> [ 1171.919965] Workqueue: rcu_gp srcu_invoke_callbacks
+> [ 1171.919968] Call Trace:
+> [ 1171.919974]  dump_stack+0x67/0x9b
+> [ 1171.919980]  ___might_sleep+0x149/0x230
+> [ 1171.919985]  down_write+0x1c/0x70
+> [ 1171.919989]  hmm_free_rcu+0x24/0x80
+> [ 1171.919993]  srcu_invoke_callbacks+0xc9/0x150
+> [ 1171.920000]  process_one_work+0x28e/0x630
+> [ 1171.920008]  worker_thread+0x39/0x3f0
+> [ 1171.920014]  ? process_one_work+0x630/0x630
+> [ 1171.920017]  kthread+0x11c/0x140
+> [ 1171.920021]  ? kthread_park+0x90/0x90
+> [ 1171.920026]  ret_from_fork+0x24/0x30
+
+Thank you Phillip, it seems the prior tests were not done with
+lockdep..
+
+Sigh, I will keep this with the gross pagetable_lock then. I updated
+the patches on the git with this modification. I think we have covered
+all the bases so I will send another V of the series to the list and
+if no more comments then it will move ahead to hmm.git. Thanks to all.
+
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 136c812faa2790..4c64d4c32f4825 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -49,16 +49,15 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
+ 
+ 	lockdep_assert_held_exclusive(&mm->mmap_sem);
+ 
++	/* Abuse the page_table_lock to also protect mm->hmm. */
++	spin_lock(&mm->page_table_lock);
+ 	if (mm->hmm) {
+-		if (kref_get_unless_zero(&mm->hmm->kref))
++		if (kref_get_unless_zero(&mm->hmm->kref)) {
++			spin_unlock(&mm->page_table_lock);
+ 			return mm->hmm;
+-		/*
+-		 * The hmm is being freed by some other CPU and is pending a
+-		 * RCU grace period, but this CPU can NULL now it since we
+-		 * have the mmap_sem.
+-		 */
+-		mm->hmm = NULL;
++		}
+ 	}
++	spin_unlock(&mm->page_table_lock);
+ 
+ 	hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
+ 	if (!hmm)
+@@ -81,7 +80,14 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
+ 	}
+ 
+ 	mmgrab(hmm->mm);
++
++	/*
++	 * We hold the exclusive mmap_sem here so we know that mm->hmm is
++	 * still NULL or 0 kref, and is safe to update.
++	 */
++	spin_lock(&mm->page_table_lock);
+ 	mm->hmm = hmm;
++	spin_unlock(&mm->page_table_lock);
+ 	return hmm;
+ }
+ 
+@@ -89,10 +95,14 @@ static void hmm_free_rcu(struct rcu_head *rcu)
+ {
+ 	struct hmm *hmm = container_of(rcu, struct hmm, rcu);
+ 
+-	down_write(&hmm->mm->mmap_sem);
++	/*
++	 * The mm->hmm pointer is kept valid while notifier ops can be running
++	 * so they don't have to deal with a NULL mm->hmm value
++	 */
++	spin_lock(&hmm->mm->page_table_lock);
+ 	if (hmm->mm->hmm == hmm)
+ 		hmm->mm->hmm = NULL;
+-	up_write(&hmm->mm->mmap_sem);
++	spin_unlock(&hmm->mm->page_table_lock);
+ 	mmdrop(hmm->mm);
+ 
+ 	kfree(hmm);
 
