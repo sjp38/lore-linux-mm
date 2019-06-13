@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8571FC31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF652C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4197C21473
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7AA0A21473
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="hN3Tg/pf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4197C21473
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="YfEdLD5C"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7AA0A21473
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E08F66B0006; Thu, 13 Jun 2019 05:43:39 -0400 (EDT)
+	id CF9186B0007; Thu, 13 Jun 2019 05:43:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D1D066B0007; Thu, 13 Jun 2019 05:43:39 -0400 (EDT)
+	id C80026B000A; Thu, 13 Jun 2019 05:43:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B21006B000A; Thu, 13 Jun 2019 05:43:39 -0400 (EDT)
+	id AAACE6B000C; Thu, 13 Jun 2019 05:43:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E7886B0006
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 05:43:39 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id s4so8648693pgr.3
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 02:43:39 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 787BA6B0007
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 05:43:42 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id j26so13472533pgj.6
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 02:43:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=EySscp3yKN+jDnjqTeB/vXgNBmJu+8rQ8w0cniT2gLU=;
-        b=OJm9/ZVrt9+mExfi0Buzgte6HdYYyWqNJ3jYC0jd7vZoNkoN1R7L/dHGupap4OnsbL
-         esOHWyjl8thUiFSp9eYrfD8GUCPSopzlztl+hfFGG48j56h3qmYIcshGeoxtLO5Brivn
-         WyyvgDOTnsHEmKu8mh9GZyKWrDBsaBTbOfg+FXkCOogBx0NB2dtt/80HkuTQb75CuZvD
-         od+keT3OiOdXzh+UweFFN4S6IPdFxLh5fQyANE/sFFDYbYiiXt85XByfiGazySMCuLl+
-         bcNWXYDKVEt0uA9MLL3hNu8Ci63OOieBkTxJzXMkJl6M+yZDDiYTS34FxQzMWSqlFE0Y
-         TrZw==
-X-Gm-Message-State: APjAAAW86W19ezFFNQGFjTrgs066iR3fryWVUNsKvAoNbVBXFr6P7FmU
-	0cxxRq1aTTfoy6fJq8zLIUp4XdtsxnN8bTF3XV204iCJkET7bm/o0KifKLCRLk6OjQO2U07a6Vq
-	5+dfKyLg6NVUKPRD7mwTVY5rQjAAjWTc+IPrEw+tpQd9nQeldJsmZg7DM7BlHUr4=
-X-Received: by 2002:a17:90a:bb01:: with SMTP id u1mr3400554pjr.92.1560419019120;
-        Thu, 13 Jun 2019 02:43:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwLyRlemFFktmGBgyWxpTIuwHlZC1u8gGjgh03/jZVukHCGAmuNW1llIBcSMV31euEQQwX0
-X-Received: by 2002:a17:90a:bb01:: with SMTP id u1mr3400453pjr.92.1560419018215;
-        Thu, 13 Jun 2019 02:43:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560419018; cv=none;
+        bh=xP52k8PSxiWJA231A7iOWwtNJf1wPwc/yjXMJD2RBtk=;
+        b=kIG0BZkx/cFTvKGpCtvMRJ1uxpTc2Z3bSMk9L0GLwR3jmv73uGICE36b6l/bY1E4aH
+         AylkPYgn6dO+Hy1U84dtzgzHtrhDKU2bOejDoy0h6CvTWxUOVGFs5rGYAu0EVuuVbybZ
+         whmox61ijr1NbsQMgEzOT5SiJOP/dl5Bq15krgYJzh3W+FJwfjNJgi4k5wAMKLUprfcD
+         cYZ93MD8vDG71ajFX8+7t3V7GBO28D6G25y5ukNQfprbkRtHgt6OxoGlXaJA5gDX+Ljh
+         ui9UGUfjC0bsDChopgVlrJqrzQwC1x7PvJunmJwQQ6ZMy64Vo875Hx7VUA8AmdBDDkiY
+         +xFw==
+X-Gm-Message-State: APjAAAVO1t6hr40eAad+X0zcLDf48aUYrmxXmgj/UBkqQu/y9E82bLqM
+	W2wvCYb4XhnWTnb7B+Z9WE53Ht0YQeP+VPoyMn3ddi374NGgDjJwF/ChqAhP5SqI2tV3h2mKIK2
+	Mk4/2QeMmQVppoE1a7DN8213tOWbvS1yIEQ9BRi17JvH+2LeF6gVxSMLgJUfWR6o=
+X-Received: by 2002:a17:90a:1ac5:: with SMTP id p63mr4287371pjp.25.1560419022103;
+        Thu, 13 Jun 2019 02:43:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyRj1N0eVFfvsy1phYU+qEbBiqW6EJgxPJr6lv77RlmUU7qsNJrE77qN/qrmgmyDTq37Xn/
+X-Received: by 2002:a17:90a:1ac5:: with SMTP id p63mr4287274pjp.25.1560419021267;
+        Thu, 13 Jun 2019 02:43:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560419021; cv=none;
         d=google.com; s=arc-20160816;
-        b=kfV2TwUALLKs6ml6qHluEq1dYrTLSPOFKHQkclWTBZ7lLWuCeabaBNN6Tm7nJi5PzB
-         JLD8fdMoVgxN9G0AGlYSZ6q8g/oTpKP7UOjLS2c6i4Lk5f+jqiK1qi/DnPsRHZZYiT8v
-         yIGm4uQaMEel+Grqlc/P44fsyoY4Gu5hyTLxZ8UmnYmWoRHjnqZcoM1KyKgeheSdsHS/
-         90O96DzQAprVePcQlVSaqU5tl1b4cdZELjj/SHDp7Iku2D9mb6rhgY9xMrBWKXeiTTXu
-         MvtNebgEyfyoPoyzLxgGUM01K/GMSLlq8lM8K55iYoSBiZdcAb60+Eq9oxjbRzWopwJb
-         8KFA==
+        b=N8Rp263/hPprEOYMj0RS7qrRlRzRb+sTdMLyNBXVFN1G7RoPq2lZSlYoIrSGHq2+46
+         JbkuczmOTpWmPyh/CSQTCcnT7tXFhgkanLFI8nWRmvlmCe1wpAKzAqZ+ShfyIa+JLUF9
+         FukNXZQcfjRqxQP2SYUHqxLzO6mjevwDKSAT0GHSNwTA4O5mi3OSDUdMck+pPTOMlmMS
+         5xsg8dmhr6t3kTjaAr7wF0OOtbeOy1a4izjG3lKmm2usujuiXLKhLQ9s5Z8I3kmzoBQR
+         aDjRT7H8bAn7F64JsZR0qTHe0DeF+PPxmnPuSoflTzs3K87uW1JIyS7b38NW06U8fyOc
+         PaQQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=EySscp3yKN+jDnjqTeB/vXgNBmJu+8rQ8w0cniT2gLU=;
-        b=RfGna9iO4iPxkS7NGcUCGIAN14wtyY2BI7oGGd0TdEkb8Uv+hd7IY1X3CcnqxnL3Hy
-         zJfkD2ShpZXMgPSazOW2usmhdBpZ7Y8F/s3gvUtn1Eih14RPRvplWhZg0i2Dg143pfmE
-         zD0GzeW1qBsMEiJ2OtLEuh7RINjCi7pFG4y7uq3DCWpXvSdmUzMCoYKVCphsmiNN52PU
-         KzElwlM1uN9fEREt2VtnnOo0Vp9EYmDtAIT1Peo9Dj/wtv53Iyr+PVsVUYV14aucbjqU
-         /huUWnf0wTi9vOY5JzDXDKAuE9VoxxacJHGw5XOzYHV7At7Jc4njMt+Bd5/TneoHjdTq
-         q3bQ==
+        bh=xP52k8PSxiWJA231A7iOWwtNJf1wPwc/yjXMJD2RBtk=;
+        b=E7DYCI4M9/x1UUG8eZ+cTvO0FOdsnMI1bM4Num99OtH2ddKhv5m/HlmkwBGNrsSJSn
+         fQ2M0jgSEwSCN2oM6f94tWCA+irB2SZKz9InksIA9/Q5UaPIlOHW4A2fKeOnilvVHbdR
+         dGyl4LXyyO4yQxfmnSmR00ehJtWua98pJmhqqog/LtN4BomKLL+Q0eWcYNTiont5jmGk
+         3QhNantwm+gLG+tJkYUu1vbeka0rKpnGWhz4gWIx5+bYt0Qjg1rLVMtqXFjwZTQ2OWJY
+         HhmjFmG6yRz1nwcNKLuNrFITHTagW925NR3Xhq9Ki2XoR21qUq4Lh6xLbqiRlKZ5PzFW
+         wDRg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="hN3Tg/pf";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=YfEdLD5C;
        spf=pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 64si225458ply.399.2019.06.13.02.43.38
+        by mx.google.com with ESMTPS id n184si2680587pfn.59.2019.06.13.02.43.40
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 13 Jun 2019 02:43:38 -0700 (PDT)
+        Thu, 13 Jun 2019 02:43:41 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="hN3Tg/pf";
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=YfEdLD5C;
        spf=pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=EySscp3yKN+jDnjqTeB/vXgNBmJu+8rQ8w0cniT2gLU=; b=hN3Tg/pfc+DF3o2cE7RN16eAtU
-	DSJVtP39I0bEcArETT1vSti3Crp6Qi6ZMUwozDmHcDkQP6AOPVOaSSisOOKmzApBa5KRd3Fc1dp2r
-	g2XyhbubQhZWdnpR3yZQ12YlHZkEEwfLnzPENVeG2YNLsIJ43CAeQQvZPRB+G30UAOvUcGpwczkNe
-	mnogyEbipMza1tYUKcfQqaQG3/M5pHI887fdLfo7flgv0cPauHj9XEiy7UM73W0JlaNeb622kfoPX
-	R8Nu1l/kCfDiGUY+PLUbgk+PMfKovQLWD4DYNK3g20GKfH1m6doMiSXTnDatQF7W8R9hsse0hbDbU
-	TtnGqz2Q==;
+	bh=xP52k8PSxiWJA231A7iOWwtNJf1wPwc/yjXMJD2RBtk=; b=YfEdLD5CH3U9ysOCwdL2FYmTCm
+	7+M9qmqGSvaM914U2KnoFaX+n4shPpJhrUd/PvcrkZkqrHimpFDBxMasr7oVEDrDKecmBuTaLZCGM
+	iT/KWUgZgRrB5zdJ/8S6pGh3KqkYgPjzhaOvvfgtZVAUrvCGJ6viIrfd+IFAUOmCbaSXdn3Xqi6dP
+	IyH7Omvq4XCgzsLItQEh8dQn6hfmBqy4TB1udG/rSepK2+eOtVvT3UK4eCYBuVf36OinvPDjaWT7K
+	MXnnYC67WwxGCvY3QR0pM8YGYOMCMRIMWbIz573pF9NwIAyI8Sbpnmm+OJEQEqq7JYkUxrcjdGlkh
+	kmjcQnIg==;
 Received: from mpp-cp1-natpool-1-198.ethz.ch ([82.130.71.198] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hbMGd-0001kC-6s; Thu, 13 Jun 2019 09:43:35 +0000
+	id 1hbMGf-0001kQ-VY; Thu, 13 Jun 2019 09:43:38 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -106,9 +106,9 @@ Cc: linux-mm@kvack.org,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 02/22] mm: remove the struct hmm_device infrastructure
-Date: Thu, 13 Jun 2019 11:43:05 +0200
-Message-Id: <20190613094326.24093-3-hch@lst.de>
+Subject: [PATCH 03/22] mm: remove hmm_devmem_add_resource
+Date: Thu, 13 Jun 2019 11:43:06 +0200
+Message-Id: <20190613094326.24093-4-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190613094326.24093-1-hch@lst.de>
 References: <20190613094326.24093-1-hch@lst.de>
@@ -121,136 +121,93 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This code is a trivial wrapper around device model helpers, which
-should have been integrated into the driver device model usage from
-the start.  Assuming it actually had users, which it never had since
-the code was added more than 1 1/2 years ago.
+This function has never been used since it was first added to the kernel
+more than a year and a half ago, and if we ever grow a consumer of the
+MEMORY_DEVICE_PUBLIC infrastructure it can easily use devm_memremap_pages
+directly now that we've simplified the API for it.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- include/linux/hmm.h | 20 ------------
- mm/hmm.c            | 80 ---------------------------------------------
- 2 files changed, 100 deletions(-)
+ include/linux/hmm.h |  3 ---
+ mm/hmm.c            | 54 ---------------------------------------------
+ 2 files changed, 57 deletions(-)
 
 diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 0fa8ea34ccef..4867b9da1b6c 100644
+index 4867b9da1b6c..5761a39221a6 100644
 --- a/include/linux/hmm.h
 +++ b/include/linux/hmm.h
-@@ -717,26 +717,6 @@ static inline unsigned long hmm_devmem_page_get_drvdata(const struct page *page)
- {
- 	return page->hmm_data;
- }
--
--
--/*
-- * struct hmm_device - fake device to hang device memory onto
-- *
-- * @device: device struct
-- * @minor: device minor number
-- */
--struct hmm_device {
--	struct device		device;
--	unsigned int		minor;
--};
--
--/*
-- * A device driver that wants to handle multiple devices memory through a
-- * single fake device can use hmm_device to do so. This is purely a helper and
-- * it is not strictly needed, in order to make use of any HMM functionality.
-- */
--struct hmm_device *hmm_device_new(void *drvdata);
--void hmm_device_put(struct hmm_device *hmm_device);
- #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
- #else /* IS_ENABLED(CONFIG_HMM) */
- static inline void hmm_mm_destroy(struct mm_struct *mm) {}
+@@ -688,9 +688,6 @@ struct hmm_devmem {
+ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
+ 				  struct device *device,
+ 				  unsigned long size);
+-struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+-					   struct device *device,
+-					   struct resource *res);
+ 
+ /*
+  * hmm_devmem_page_set_drvdata - set per-page driver data field
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 886b18695b97..ff2598eb7377 100644
+index ff2598eb7377..0c62426d1257 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -1499,84 +1499,4 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+@@ -1445,58 +1445,4 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
  	return devmem;
  }
- EXPORT_SYMBOL_GPL(hmm_devmem_add_resource);
+ EXPORT_SYMBOL_GPL(hmm_devmem_add);
 -
--/*
-- * A device driver that wants to handle multiple devices memory through a
-- * single fake device can use hmm_device to do so. This is purely a helper
-- * and it is not needed to make use of any HMM functionality.
-- */
--#define HMM_DEVICE_MAX 256
--
--static DECLARE_BITMAP(hmm_device_mask, HMM_DEVICE_MAX);
--static DEFINE_SPINLOCK(hmm_device_lock);
--static struct class *hmm_device_class;
--static dev_t hmm_device_devt;
--
--static void hmm_device_release(struct device *device)
+-struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+-					   struct device *device,
+-					   struct resource *res)
 -{
--	struct hmm_device *hmm_device;
--
--	hmm_device = container_of(device, struct hmm_device, device);
--	spin_lock(&hmm_device_lock);
--	clear_bit(hmm_device->minor, hmm_device_mask);
--	spin_unlock(&hmm_device_lock);
--
--	kfree(hmm_device);
--}
--
--struct hmm_device *hmm_device_new(void *drvdata)
--{
--	struct hmm_device *hmm_device;
--
--	hmm_device = kzalloc(sizeof(*hmm_device), GFP_KERNEL);
--	if (!hmm_device)
--		return ERR_PTR(-ENOMEM);
--
--	spin_lock(&hmm_device_lock);
--	hmm_device->minor = find_first_zero_bit(hmm_device_mask, HMM_DEVICE_MAX);
--	if (hmm_device->minor >= HMM_DEVICE_MAX) {
--		spin_unlock(&hmm_device_lock);
--		kfree(hmm_device);
--		return ERR_PTR(-EBUSY);
--	}
--	set_bit(hmm_device->minor, hmm_device_mask);
--	spin_unlock(&hmm_device_lock);
--
--	dev_set_name(&hmm_device->device, "hmm_device%d", hmm_device->minor);
--	hmm_device->device.devt = MKDEV(MAJOR(hmm_device_devt),
--					hmm_device->minor);
--	hmm_device->device.release = hmm_device_release;
--	dev_set_drvdata(&hmm_device->device, drvdata);
--	hmm_device->device.class = hmm_device_class;
--	device_initialize(&hmm_device->device);
--
--	return hmm_device;
--}
--EXPORT_SYMBOL(hmm_device_new);
--
--void hmm_device_put(struct hmm_device *hmm_device)
--{
--	put_device(&hmm_device->device);
--}
--EXPORT_SYMBOL(hmm_device_put);
--
--static int __init hmm_init(void)
--{
+-	struct hmm_devmem *devmem;
+-	void *result;
 -	int ret;
 -
--	ret = alloc_chrdev_region(&hmm_device_devt, 0,
--				  HMM_DEVICE_MAX,
--				  "hmm_device");
+-	if (res->desc != IORES_DESC_DEVICE_PUBLIC_MEMORY)
+-		return ERR_PTR(-EINVAL);
+-
+-	dev_pagemap_get_ops();
+-
+-	devmem = devm_kzalloc(device, sizeof(*devmem), GFP_KERNEL);
+-	if (!devmem)
+-		return ERR_PTR(-ENOMEM);
+-
+-	init_completion(&devmem->completion);
+-	devmem->pfn_first = -1UL;
+-	devmem->pfn_last = -1UL;
+-	devmem->resource = res;
+-	devmem->device = device;
+-	devmem->ops = ops;
+-
+-	ret = percpu_ref_init(&devmem->ref, &hmm_devmem_ref_release,
+-			      0, GFP_KERNEL);
 -	if (ret)
--		return ret;
+-		return ERR_PTR(ret);
 -
--	hmm_device_class = class_create(THIS_MODULE, "hmm_device");
--	if (IS_ERR(hmm_device_class)) {
--		unregister_chrdev_region(hmm_device_devt, HMM_DEVICE_MAX);
--		return PTR_ERR(hmm_device_class);
--	}
--	return 0;
+-	ret = devm_add_action_or_reset(device, hmm_devmem_ref_exit,
+-			&devmem->ref);
+-	if (ret)
+-		return ERR_PTR(ret);
+-
+-	devmem->pfn_first = devmem->resource->start >> PAGE_SHIFT;
+-	devmem->pfn_last = devmem->pfn_first +
+-			   (resource_size(devmem->resource) >> PAGE_SHIFT);
+-	devmem->page_fault = hmm_devmem_fault;
+-
+-	devmem->pagemap.type = MEMORY_DEVICE_PUBLIC;
+-	devmem->pagemap.res = *devmem->resource;
+-	devmem->pagemap.page_free = hmm_devmem_free;
+-	devmem->pagemap.altmap_valid = false;
+-	devmem->pagemap.ref = &devmem->ref;
+-	devmem->pagemap.data = devmem;
+-	devmem->pagemap.kill = hmm_devmem_ref_kill;
+-
+-	result = devm_memremap_pages(devmem->device, &devmem->pagemap);
+-	if (IS_ERR(result))
+-		return result;
+-	return devmem;
 -}
--
--device_initcall(hmm_init);
+-EXPORT_SYMBOL_GPL(hmm_devmem_add_resource);
  #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
 -- 
 2.20.1
