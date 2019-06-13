@@ -2,126 +2,111 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CE53C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:46:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A5CAC31E49
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:50:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 01A28217D6
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:46:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 01A28217D6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 1BF5420851
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:50:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BF5420851
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 83C528E0002; Thu, 13 Jun 2019 11:46:04 -0400 (EDT)
+	id A82F18E0002; Thu, 13 Jun 2019 11:50:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8147A8E0001; Thu, 13 Jun 2019 11:46:04 -0400 (EDT)
+	id A0BCC8E0001; Thu, 13 Jun 2019 11:50:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6B43D8E0002; Thu, 13 Jun 2019 11:46:04 -0400 (EDT)
+	id 8874A8E0002; Thu, 13 Jun 2019 11:50:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B7418E0001
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 11:46:04 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id n49so31340848edd.15
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 08:46:04 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F5D48E0001
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 11:50:26 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id l10so3202909ljj.10
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 08:50:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=UZUd0fCa/bUMMaEzBzqR0bVsAfJCioYlpfcObF+i+HI=;
-        b=qmHxMve4DNvOsYuFTfdqNLReJI8mCljNKHaCpJnLrI1Q+7GQxC4jqb+MyKp41LSK3q
-         jN4DEEkpgIKDZ23RVmX6i+Z5X/7JT9fW93U4WIQFRjOt4/tPwLS8bdwJBzO1CoHrjihr
-         W2ZL9GetJeoz16RjUdpxdjkr8HKV3zwLcpHgPwPSat6DTB0fPjGieubLaSIbIUkO+BkZ
-         Y0dp/+2FlEx2qs1XYo52YgGMtR61h5qeoMdysOEJgXNWaz+y5k3A4AM4Ib6kf+fC7a7I
-         MtKw5kzOTJ+grBARjztjlKZEUmGlLXLX3gqWS32JFEwQTmlQHsQ2BtWjozHWkLGTrV+2
-         dqSQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-X-Gm-Message-State: APjAAAUJ2mN3KtwQ5MqWqvGc6zOcNI/0863a9oFzQQMOZUenDncutZVp
-	YSjEFDykoV5zvcyeQPaOvej/EjqyhWP1nwhl196+M3KdJiJvWHlmKWrqOvA5GUgsT2oV+reTn9+
-	IQAQNKAKrNwNPFK3GZetIu3ZLUd70TsW+J57sgwnZG5aZFqLON0TeWOC4Rf8TI8fBRQ==
-X-Received: by 2002:a50:b635:: with SMTP id b50mr1490937ede.293.1560440763514;
-        Thu, 13 Jun 2019 08:46:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxtp1xNNqgs1K0s9CsvUMxvSZBhaeEPXZvm0W7dMEaL6IeOacGyrVadr+Cal7SCXJf0QFa+
-X-Received: by 2002:a50:b635:: with SMTP id b50mr1490846ede.293.1560440762544;
-        Thu, 13 Jun 2019 08:46:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560440762; cv=none;
+        bh=BAQ3ZZbpFyn74ZZBbyfrvLcJL6fj+10PKW2YlRVqguw=;
+        b=hdF8LNYvl80AqAY5IjijPZd0+VfYE8if8daDCetIh8rAL4/zTxwVQvsuASDXoZCeFE
+         aJx2L1q4VyDvB48izfvEuhbc6Wfki9UjBBCJjNONyEwfX9TIgYBi0/5avx2H79bkWCaQ
+         w7tCWG3yTvWWvDb5UWGfW/JbYhVOApa3S1NuebwrPez1WgUzjxDjeSmzK+jakaxV2So6
+         ia2SWX7Nhubh1s0n7YgE8ruNGBY/Wp2U7ix0ht9bmZdE0EJRc3bw1H/ZQJ8tlBSH8UZ8
+         n2YftaoOy/T4SOzpDkv0VsJUcOKVUi0kIFhKZYzMNm13NsKafXa3+uoioaumJ9tmMSRx
+         MreQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAV9Zcsh4KfxUFpJq1DPURa1QTbUR5Vy+nXjDoy2Q8SxnLd0EGo9
+	yoI9iyLT9DreSvNIVa/JM/sDU2K09st6TORQ8adWUR5lnYawVvZkgM/hhuwuL+YAxXIa8Hw0eKg
+	RyJlubQlhdiQ2MUaLEBZYU3nU/YlQgWAakNwzxs/etLl2FMgEFZHzTmZOJVkX2MNOAw==
+X-Received: by 2002:a19:4bc5:: with SMTP id y188mr45612907lfa.113.1560441025381;
+        Thu, 13 Jun 2019 08:50:25 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyA3jj+J7/jNWhaaR5qQb3oUC+BS8MFIf98nJdR6LmEJ8CsZCjhlcYCre1UpRg654ZtGTig
+X-Received: by 2002:a19:4bc5:: with SMTP id y188mr45612871lfa.113.1560441024572;
+        Thu, 13 Jun 2019 08:50:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560441024; cv=none;
         d=google.com; s=arc-20160816;
-        b=BM/NFSYqvwXKR74rMvpanbdl2rrJdH1ZGnfzCmp8W2/56gAd5pcGPCYAC98jU6Upqg
-         VA556uHQu5eJaH85/RZlWSqXjNqITAo+SX4t2DlcHY4zj469O9dAta+2VoNKMb9+VPJK
-         t/wPS1x8Fnl6pkzYN3kJVEnsaEsA+XNCjqqF9yLXNlai0c1dPtha0tsIxiGGT4/3GtJ0
-         3VS5v1IhdpLyoNF4K2FWA0aIvA6v810+B9iSVjGdVscpK76APkFQ2Y4EUhHzCUP7ypeF
-         PrLF73H9+m3zqzvLfr/40BRuWat45xqEOAFw9n+7fqu4mIUUMkmEV6nycSGu8jBHMqE+
-         EdMQ==
+        b=DQ7sF1VWWtiKiIz7yFmd4yleKZx9UOfi1Z1MfF74nG/8FE+Tn5zWmQkcJ90PvBTCpN
+         vJdtaKhy/W1Venznf7R+rlNvB1OfMgKNEUqeD4pxLpkeK/K0W5v8MqLVdshYVasDPEF+
+         AO++9so4VZ/VlO9NGVWS+yEo7ERqhSE5+C6YwbYeTNHwJJ/r/t2d3V494TSymNghJcIg
+         F4re8eNrfe/wrjmZA8+PKy4KgAmJ4cLi6+SywnkEiOSdJsPT5xkdymBKlM1eXT08I4de
+         cBebPz/4ri2h4Wdrn9RtZlukxWo0HuCB0L9aJ/ljRpLtintfuh7WuK+NWfDjOWVHmIHy
+         9Rnw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=UZUd0fCa/bUMMaEzBzqR0bVsAfJCioYlpfcObF+i+HI=;
-        b=bLwyKHtWQCOvqlldbnClPHUCHFJRsHYlRoGidtCSr61jBtdlgP2uxTjtl8Ev08iSBE
-         p+Cr+k82Eftn86DBQCFSy/k3zmR9cFJEha/6j/6mwnuGayJFgZRWFXP8rztDCwFRgqD7
-         7tdMf+uMhfXVNt/vJYmFJr83raAZxboJ6f8H3YxnNaKysxxu4w+vNfeNhMMlJlA5h6LX
-         Jv/tJPz+r9I0YRsDfAg+g1pCt0fbuoUsH8CEkHjgr+63k7Twaam+NrVXRmqOVDY3kXf+
-         haOFdXGTyQ32zz3AtfM7qRQAJog/SeBifsbqigs6heH9Mo+AJpG6nR5c9rTQnfeE/chO
-         s2VA==
+        bh=BAQ3ZZbpFyn74ZZBbyfrvLcJL6fj+10PKW2YlRVqguw=;
+        b=cymlmO4FA9XOac+75IihZfLMya02O/Ig9vNsJ/xJA7vTZkLJ+zDYLEz3FvHD72KdPM
+         VnQ6qk6SBYa7CS2WNnzxDwwiA3RveEk0jxb2BsR5n3jeZ4ChD4+5SoSXDYERkFqgKI2z
+         9iShRuzTdhGF35s0V9etFZyXTazd+ZWo3Ckl5FDTiCUP7nFwSri67LUE+iiqlYj5uRiP
+         TEvjMPMoeTyoFwNQhjEuvuQJqiywBZzx7r7D4iVVYhht/6wkP8ngrSNktAfD6ihxz+h6
+         kHPA9aQT7ppLm7NO0eGicANxVj49XVFFI6W1N7KtDJyTWtxOC0P2RGVt/TSZuBJQ6A3q
+         wI2g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id t16si2773199edd.443.2019.06.13.08.46.02
-        for <linux-mm@kvack.org>;
-        Thu, 13 Jun 2019 08:46:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id q30si31869lfb.86.2019.06.13.08.50.24
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Jun 2019 08:50:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 35647367;
-	Thu, 13 Jun 2019 08:46:01 -0700 (PDT)
-Received: from [10.1.196.72] (e119884-lin.cambridge.arm.com [10.1.196.72])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id EA3A53F246;
-	Thu, 13 Jun 2019 08:45:55 -0700 (PDT)
-Subject: Re: [PATCH v17 03/15] arm64: Introduce prctl() options to control the
- tagged user addresses ABI
-To: Catalin Marinas <catalin.marinas@arm.com>,
- Dave Martin <Dave.Martin@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>,
- linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
- dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
- linux-media@vger.kernel.org, kvm@vger.kernel.org,
- linux-kselftest@vger.kernel.org, Mark Rutland <mark.rutland@arm.com>,
- Szabolcs Nagy <Szabolcs.Nagy@arm.com>, Will Deacon <will.deacon@arm.com>,
- Kostya Serebryany <kcc@google.com>, Khalid Aziz <khalid.aziz@oracle.com>,
- Felix Kuehling <Felix.Kuehling@amd.com>,
- Jacob Bramley <Jacob.Bramley@arm.com>, Leon Romanovsky <leon@kernel.org>,
- Christoph Hellwig <hch@infradead.org>, Jason Gunthorpe <jgg@ziepe.ca>,
- Evgeniy Stepanov <eugenis@google.com>, Kevin Brodsky
- <kevin.brodsky@arm.com>, Kees Cook <keescook@chromium.org>,
- Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
- Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
- Alex Williamson <alex.williamson@redhat.com>,
- Mauro Carvalho Chehab <mchehab@kernel.org>,
- Dmitry Vyukov <dvyukov@google.com>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Yishai Hadas <yishaih@mellanox.com>,
- Jens Wiklander <jens.wiklander@linaro.org>, Lee Smith <Lee.Smith@arm.com>,
- Alexander Deucher <Alexander.Deucher@amd.com>,
- Andrew Morton <akpm@linux-foundation.org>, enh <enh@google.com>,
- Robin Murphy <robin.murphy@arm.com>,
- Christian Koenig <Christian.Koenig@amd.com>,
- Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-References: <cover.1560339705.git.andreyknvl@google.com>
- <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
- <20190613111659.GX28398@e103592.cambridge.arm.com>
- <20190613153505.GU28951@C02TF0J2HF1T.local>
-From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Message-ID: <99cc257d-5e99-922a-fbe7-3bbaf3621e38@arm.com>
-Date: Thu, 13 Jun 2019 16:45:54 +0100
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.12]
+	by relay.sw.ru with esmtp (Exim 4.92)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1hbRzR-0002en-B5; Thu, 13 Jun 2019 18:50:13 +0300
+Subject: Re: [PATCH v3] kasan: add memory corruption identification for
+ software tag-based mode
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Walter Wu <walter-zh.wu@mediatek.com>,
+ Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>,
+ Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+ Matthias Brugger <matthias.bgg@gmail.com>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>,
+ Vasily Gorbik <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>,
+ "Jason A . Donenfeld" <Jason@zx2c4.com>, Miles Chen
+ <miles.chen@mediatek.com>, kasan-dev <kasan-dev@googlegroups.com>,
+ LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+ Linux ARM <linux-arm-kernel@lists.infradead.org>,
+ linux-mediatek@lists.infradead.org, wsd_upstream <wsd_upstream@mediatek.com>
+References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
+ <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
+ <CACT4Y+ZGEmGE2LFmRfPGgtUGwBqyL+s_CSp5DCpWGanTJCRcXw@mail.gmail.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <278bd641-7d74-b9ac-1549-1e630ef3d38c@virtuozzo.com>
+Date: Thu, 13 Jun 2019 18:50:25 +0300
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190613153505.GU28951@C02TF0J2HF1T.local>
+In-Reply-To: <CACT4Y+ZGEmGE2LFmRfPGgtUGwBqyL+s_CSp5DCpWGanTJCRcXw@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -133,136 +118,49 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 13/06/2019 16:35, Catalin Marinas wrote:
-> On Thu, Jun 13, 2019 at 12:16:59PM +0100, Dave P Martin wrote:
->> On Wed, Jun 12, 2019 at 01:43:20PM +0200, Andrey Konovalov wrote:
->>> From: Catalin Marinas <catalin.marinas@arm.com>
+On 6/13/19 4:05 PM, Dmitry Vyukov wrote:
+> On Thu, Jun 13, 2019 at 2:27 PM Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>> On 6/13/19 11:13 AM, Walter Wu wrote:
+>>> This patch adds memory corruption identification at bug report for
+>>> software tag-based mode, the report show whether it is "use-after-free"
+>>> or "out-of-bound" error instead of "invalid-access" error.This will make
+>>> it easier for programmers to see the memory corruption problem.
 >>>
->>> It is not desirable to relax the ABI to allow tagged user addresses into
->>> the kernel indiscriminately. This patch introduces a prctl() interface
->>> for enabling or disabling the tagged ABI with a global sysctl control
->>> for preventing applications from enabling the relaxed ABI (meant for
->>> testing user-space prctl() return error checking without reconfiguring
->>> the kernel). The ABI properties are inherited by threads of the same
->>> application and fork()'ed children but cleared on execve().
+>>> Now we extend the quarantine to support both generic and tag-based kasan.
+>>> For tag-based kasan, the quarantine stores only freed object information
+>>> to check if an object is freed recently. When tag-based kasan reports an
+>>> error, we can check if the tagged addr is in the quarantine and make a
+>>> good guess if the object is more like "use-after-free" or "out-of-bound".
 >>>
->>> The PR_SET_TAGGED_ADDR_CTRL will be expanded in the future to handle
->>> MTE-specific settings like imprecise vs precise exceptions.
->>>
->>> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
->>> ---
->>>  arch/arm64/include/asm/processor.h   |  6 +++
->>>  arch/arm64/include/asm/thread_info.h |  1 +
->>>  arch/arm64/include/asm/uaccess.h     |  3 +-
->>>  arch/arm64/kernel/process.c          | 67 ++++++++++++++++++++++++++++
->>>  include/uapi/linux/prctl.h           |  5 +++
->>>  kernel/sys.c                         | 16 +++++++
->>>  6 files changed, 97 insertions(+), 1 deletion(-)
->>>
->>> diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
->>> index fcd0e691b1ea..fee457456aa8 100644
->>> --- a/arch/arm64/include/asm/processor.h
->>> +++ b/arch/arm64/include/asm/processor.h
->>> @@ -307,6 +307,12 @@ extern void __init minsigstksz_setup(void);
->>>  /* PR_PAC_RESET_KEYS prctl */
->>>  #define PAC_RESET_KEYS(tsk, arg)	ptrauth_prctl_reset_keys(tsk, arg)
->>>  
->>> +/* PR_TAGGED_ADDR prctl */
 >>
->> (A couple of comments I missed in my last reply:)
 >>
->> Name mismatch?
+>> We already have all the information and don't need the quarantine to make such guess.
+>> Basically if shadow of the first byte of object has the same tag as tag in pointer than it's out-of-bounds,
+>> otherwise it's use-after-free.
+>>
+>> In pseudo-code it's something like this:
+>>
+>> u8 object_tag = *(u8 *)kasan_mem_to_shadow(nearest_object(cacche, page, access_addr));
+>>
+>> if (access_addr_tag == object_tag && object_tag != KASAN_TAG_INVALID)
+>>         // out-of-bounds
+>> else
+>>         // use-after-free
 > 
-> Yeah, it went through several names but it seems that I didn't update
-> all places.
-> 
->>> +long set_tagged_addr_ctrl(unsigned long arg);
->>> +long get_tagged_addr_ctrl(void);
->>> +#define SET_TAGGED_ADDR_CTRL(arg)	set_tagged_addr_ctrl(arg)
->>> +#define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl()
->>> +
->>
->> [...]
->>
->>> diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
->>> index 3767fb21a5b8..69d0be1fc708 100644
->>> --- a/arch/arm64/kernel/process.c
->>> +++ b/arch/arm64/kernel/process.c
->>> @@ -30,6 +30,7 @@
->>>  #include <linux/kernel.h>
->>>  #include <linux/mm.h>
->>>  #include <linux/stddef.h>
->>> +#include <linux/sysctl.h>
->>>  #include <linux/unistd.h>
->>>  #include <linux/user.h>
->>>  #include <linux/delay.h>
->>> @@ -323,6 +324,7 @@ void flush_thread(void)
->>>  	fpsimd_flush_thread();
->>>  	tls_thread_flush();
->>>  	flush_ptrace_hw_breakpoint(current);
->>> +	clear_thread_flag(TIF_TAGGED_ADDR);
->>>  }
->>>  
->>>  void release_thread(struct task_struct *dead_task)
->>> @@ -552,3 +554,68 @@ void arch_setup_new_exec(void)
->>>  
->>>  	ptrauth_thread_init_user(current);
->>>  }
->>> +
->>> +/*
->>> + * Control the relaxed ABI allowing tagged user addresses into the kernel.
->>> + */
->>> +static unsigned int tagged_addr_prctl_allowed = 1;
->>> +
->>> +long set_tagged_addr_ctrl(unsigned long arg)
->>> +{
->>> +	if (!tagged_addr_prctl_allowed)
->>> +		return -EINVAL;
->>
->> So, tagging can actually be locked on by having a process enable it and
->> then some possibly unrelated process clearing tagged_addr_prctl_allowed.
->> That feels a bit weird.
-> 
-> The problem is that if you disable the ABI globally, lots of
-> applications would crash. This sysctl is meant as a way to disable the
-> opt-in to the TBI ABI. Another option would be a kernel command line
-> option (I'm not keen on a Kconfig option).
->
+> But we don't have redzones in tag mode (intentionally), so unless I am
+> missing something we don't have the necessary info. Both cases look
+> the same -- we hit a different tag.
 
-Why you are not keen on a Kconfig option?
+We always have some redzone. We need a place to store 'struct kasan_alloc_meta',
+and sometimes also kasan_free_meta plus alignment to the next object.
 
->> Do we want to allow a process that has tagging on to be able to turn
->> it off at all?  Possibly things like CRIU might want to do that.
-> 
-> I left it in for symmetry but I don't expect it to be used. A potential
-> use-case is doing it per subsequent threads in an application.
-> 
->>> +	if (is_compat_task())
->>> +		return -EINVAL;
->>> +	if (arg & ~PR_TAGGED_ADDR_ENABLE)
->>> +		return -EINVAL;
->>
->> How do we expect this argument to be extended in the future?
-> 
-> Yes, for MTE. That's why I wouldn't allow random bits here.
-> 
->> I'm wondering whether this is really a bitmask or an enum, or a mixture
->> of the two.  Maybe it doesn't matter.
-> 
-> User may want to set PR_TAGGED_ADDR_ENABLE | PR_MTE_PRECISE in a single
-> call.
-> 
->>> +	if (arg & PR_TAGGED_ADDR_ENABLE)
->>> +		set_thread_flag(TIF_TAGGED_ADDR);
->>> +	else
->>> +		clear_thread_flag(TIF_TAGGED_ADDR);
->>
->> I think update_thread_flag() could be used here.
-> 
-> Yes. I forgot you added this.
+
+> There may only be a small trailer for kmalloc-allocated objects that
+> is painted with a different tag. I don't remember if we actually use a
+> different tag for the trailer. Since tag mode granularity is 16 bytes,
+> for smaller objects the trailer is impossible at all.
 > 
 
--- 
-Regards,
-Vincenzo
+Smaller that 16-bytes objects have 16 bytes of kasan_alloc_meta.
+Redzones and freed objects always painted with KASAN_TAG_INVALID.
 
