@@ -2,159 +2,175 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E7C7C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 03:23:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0ABA1C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 03:36:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 23B8C20684
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 03:23:31 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="VCF/wqwv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23B8C20684
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id CED3120866
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 03:36:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CED3120866
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8BC056B000D; Wed, 12 Jun 2019 23:23:31 -0400 (EDT)
+	id 52E8A6B0007; Wed, 12 Jun 2019 23:36:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 86C3A6B000E; Wed, 12 Jun 2019 23:23:31 -0400 (EDT)
+	id 4DF476B000C; Wed, 12 Jun 2019 23:36:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 70D046B0010; Wed, 12 Jun 2019 23:23:31 -0400 (EDT)
+	id 3CE1A6B0010; Wed, 12 Jun 2019 23:36:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 37FCA6B000D
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 23:23:31 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id j21so13459910pff.12
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 20:23:31 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 079B86B0007
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 23:36:55 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id q2so11064841plr.19
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 20:36:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=QaIPZk5fG08PMipK2ZOjFgNMkP7/mE5EU+2hsa7y6lY=;
-        b=b5d5Jw9HZu/6eQjrR9XDdOJPo/PQ9oAjW01VKcch425+/fJuji8fGuas47OGpSjcHO
-         Sp+C89sHKnhR+Lr9jZ5aCDWXIVqKszAgo8/uM5eUVqGpkWpPY74/zqFyil/+bfSTnv53
-         CLxCdgVomEo2mz/Plfqz2dXqyjeUa+KFJ8cKj0Z7WBBQRm4uBr+tEyLxRqa30+GBNQLy
-         Sj1jkKk77M8cXSsbNulTfpdqwQyLVCSyoCV4xsDbJoXv7XF2uh4V0zioVovqs8rSoCCs
-         VWj57BL/9dIwAQEbHx2WAP0Hsuik5PsP9U7iaij3uVqss18wZFXo+yYM7dE+zBFdwfaK
-         wQGQ==
-X-Gm-Message-State: APjAAAVrAqYJ59Z6DssJONKkER1QHa7VnFVXlrYhRy20Fj41UYjPSeAH
-	6jm5MqdI2hKYN2kbm7xGfrxM9HZXRaXELEDtaMqKwpWZJoUWJkftpGoc1dl1ww1/CXj/zhsx1U6
-	ognGemJ93RE615+1Y0rKphsH2EDMb+/8RpD8PTZVy3kGmZ+0WP3xHiP+B5Zz9vawJUw==
-X-Received: by 2002:aa7:8013:: with SMTP id j19mr28341911pfi.212.1560396210811;
-        Wed, 12 Jun 2019 20:23:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx2QjtFWDxVP1sUlGBE1KrT7C5sEF8p0YiCXv7tempainuswmB+lABtT0M+dIpbtQpZIqMC
-X-Received: by 2002:aa7:8013:: with SMTP id j19mr28341823pfi.212.1560396209943;
-        Wed, 12 Jun 2019 20:23:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560396209; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :date:from:to:cc:subject:references:in-reply-to:mime-version
+         :content-transfer-encoding:content-disposition;
+        bh=MweLbB9ZssUDSIR7gQX64E9C1EE/FRQrXHCHqGFo3UQ=;
+        b=lr6N2r4aE++tnY5YGxW8q8W1Vyo2BOpre9KtzUW9z083oj4u73JT8MvmLUOny3tuGx
+         XjiwmsHTfHNmbcAr9oEddQET+PBjbcZzJPVQUjJ1ywucev84kX7cq43V2i8x2YLA0Q9u
+         gufDGyxMMOqNX/L/Fi9O04hMmqgiUmjJeLQB74F6WP8BwZXOiflWHqyCfSPOYEbr/LUN
+         D9xjrxIyWNlZQZhWcM/vQNyr7aBw5uUKRaVjukA2u2TYDeIppU61wFr45eXXaaTx0YSl
+         TPk/wSCr54cNDAwc/guc+UlIIXM6EDzwR7Ed8knbQOx6so5N/M+oapFbkja+bl+ANI7+
+         Pi8A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ghe@suse.com designates 137.65.248.33 as permitted sender) smtp.mailfrom=ghe@suse.com
+X-Gm-Message-State: APjAAAXC+W6N/r1kP5HoYq9uEU7J/Thoc3tzjL1Wx6Hzjealv/aq3DWD
+	meWDIlcKbZ18el2vCn/2YrEk5Cb4Iyb1yxAkPmfqKUCFSZ7bAuhyddfEaBV7czIZ2fyiOO8Ivvw
+	oklFGG77VZRVWjU+EvocQu4B2iIL/cbeFePy15RXB6eB1Tj9O87PgDpbFFJhmEwdcaQ==
+X-Received: by 2002:a17:90a:5887:: with SMTP id j7mr2559090pji.136.1560397014703;
+        Wed, 12 Jun 2019 20:36:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxr2vVnmqGQMrorU+PL1fnOXe0peXFC6wKa4AMxNOiViCdgjrUvfviCeOxXAhQGhwhGQzuH
+X-Received: by 2002:a17:90a:5887:: with SMTP id j7mr2559021pji.136.1560397013947;
+        Wed, 12 Jun 2019 20:36:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560397013; cv=none;
         d=google.com; s=arc-20160816;
-        b=X0z0O4y2ulmRUQfFtUIj6vej4tP4rKpIrArsrC4MuJDyoscQAKRW0MLco0SM8uOJEI
-         jMVaj3X/M4Ip8wu8tMkOzVPksZlzl50VKQdbJV52VILbXgdV3MZwK7pBhw1tr4m7rVxt
-         F4GbpjPWHTzRxJ0elnrNVb9A37ZAI88HSWK0L/55Ifd96NH+wsGDYJem2u6c96zOazY7
-         SfEx0HFmhRnQnTMl2RJyzmisDupWqAtCJbYzhtsIUY0bJPOFzUXrt21W24KSMtT05oh/
-         D7tlR3SPHBg4yZ9rVs4HSGd68oY6vL2WW1eihEwE0vdJF7z7xgT6ra62LBIDk5OL2Y4A
-         u7Cg==
+        b=oeOV73UfYmi92w2WRSkNfbBOsshTXKkH0TZCr9sr6eqU677sMmU85BeBD5htUmXGq1
+         ZuzjkaiiePcSLCJ0cm1EHK19eYuqrlRtEqZtWgYQ3oHbhIMNgrsheFiwlLUqi5+xstRq
+         6GvHnZSNdpppCtLbN+mss+5phRNrtXLdYgpV/tancGA38SwWgDmOJbP25lI8ejIN6yDK
+         w5fhaUtlpFlvMNk/+KsL9rXiCv0XuzDk52xp5W/a/CPytCK++mdNgYKrzNC6kPpeGDNU
+         FO93CE46APjQ4ptp40xNOdNVLEzM3FSI2WFhH8bRsCAJ7VRqs8aWTxw/l9oaqia7feGX
+         N+RA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=QaIPZk5fG08PMipK2ZOjFgNMkP7/mE5EU+2hsa7y6lY=;
-        b=CslDBRHgkAsv2+rQwgeyvn5/E/dpxo4HGKO2ugZesKxG6RQ2b5IyGslew4moZ7nnPc
-         B+HngkTLbNbIzl69IF/oO010VaKceBHwn8UTpvnF4F1ySTeZ5McHhORLN4ZgzoGArjG7
-         9t4QG2pQ9Ai5DQDg9hdXZejwWRMMGRHTYx8gahr42U7onAb+UNfUXaw16e1NpexUhMS9
-         Qh6hd/5dLS2bAeN0x+J0gI2tX+3jQ6uHBTxR1UhJKDpdQpJK8KKvxkevCAwo10ly9U83
-         qgnYEXd59Y2jMA13AGYmQ6gBlS36jCNDmDzPNc6vaa4bgSxz2cUFgxiM5zkWn2zf8DcN
-         RQ3A==
+        h=content-disposition:content-transfer-encoding:mime-version
+         :in-reply-to:references:subject:cc:to:from:date:message-id;
+        bh=MweLbB9ZssUDSIR7gQX64E9C1EE/FRQrXHCHqGFo3UQ=;
+        b=QJyO8y+Hn41fxKTLJPK1OEhhedUrWLnsd5/V3FhdW03CYOz0ZCJOmerBuDlWtsy7je
+         j3U1HIw1o+WVWvNc+21vLujBYbHN7lPLOSc9tnUH0/R0y/MBmvOAYIk8gufsc301MHf9
+         EzHf4z9jzPPPPKTOnuv/4Vxjcd8tDaMHnUhj8238bjT0owribYiwdKYPNUAt3xh5rqRP
+         LERa9UkGlOMdMvuByyX3hpBc9Eoe8Z0zyZXlmSvNyq1iAPVHCQTLse1a3amO/BO4Cl4I
+         /VZhtOa742rvGqcjj3jwqVIAZcvFfUYmGBfFrD+svjjsyZv/Mjo1srLzDwCwUmAF/juW
+         S6nA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="VCF/wqwv";
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g9si1357833plp.13.2019.06.12.20.23.29
+       spf=pass (google.com: domain of ghe@suse.com designates 137.65.248.33 as permitted sender) smtp.mailfrom=ghe@suse.com
+Received: from prv1-mh.provo.novell.com (prv1-mh.provo.novell.com. [137.65.248.33])
+        by mx.google.com with ESMTPS id e67si1547539pgc.11.2019.06.12.20.36.53
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 12 Jun 2019 20:23:29 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Jun 2019 20:36:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ghe@suse.com designates 137.65.248.33 as permitted sender) client-ip=137.65.248.33;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="VCF/wqwv";
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=QaIPZk5fG08PMipK2ZOjFgNMkP7/mE5EU+2hsa7y6lY=; b=VCF/wqwvWCkPBIrvCaL/D3G8l
-	tHqc/P5TR0jF4odv4tFa+eZycXtANJYw8npQGw1u7+6Uv8D3dPL6PSPWSss02vOD3RMl8SN9UE9tE
-	pgdev89Cvk50mX8MdLQMFzWKjT9ybPnHlvymKlhrDcAdtq9BjKibIVkW+vernB9b/39/CVM/w8KPZ
-	7eNO6yjjUerdEhluGAkQcubSLK9G/8N4d5w54XxHTAPHR/5HqmRB4lPvHLnyja2+Z1QV2Pr2MBWyz
-	OHrDRVCwX8aCx5s1LcyskUetCbhRrlq1e3Hk4+o+Gp2Qi2Fokqvsf6H+CAZFG91Ylp4HPDaT6v01i
-	r9dkL+CUQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hbGKe-0003os-RJ; Thu, 13 Jun 2019 03:23:20 +0000
-Date: Wed, 12 Jun 2019 20:23:20 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
-	linux-xfs@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org, Jason Gunthorpe <jgg@ziepe.ca>,
-	linux-rdma@vger.kernel.org
-Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
-Message-ID: <20190613032320.GG32656@bombadil.infradead.org>
-References: <20190606014544.8339-1-ira.weiny@intel.com>
- <20190606104203.GF7433@quack2.suse.cz>
- <20190606220329.GA11698@iweiny-DESK2.sc.intel.com>
- <20190607110426.GB12765@quack2.suse.cz>
- <20190607182534.GC14559@iweiny-DESK2.sc.intel.com>
- <20190608001036.GF14308@dread.disaster.area>
- <20190612123751.GD32656@bombadil.infradead.org>
- <20190613002555.GH14363@dread.disaster.area>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+       spf=pass (google.com: domain of ghe@suse.com designates 137.65.248.33 as permitted sender) smtp.mailfrom=ghe@suse.com
+Received: from INET-PRV1-MTA by prv1-mh.provo.novell.com
+	with Novell_GroupWise; Wed, 12 Jun 2019 21:36:53 -0600
+Message-Id: <5D01C4CD020000F90006C06A@prv1-mh.provo.novell.com>
+X-Mailer: Novell GroupWise Internet Agent 18.1.1 
+Date: Wed, 12 Jun 2019 21:36:45 -0600
+From: "Gang He" <ghe@suse.com>
+To: "Randy Dunlap" <rdunlap@infradead.org>,<akpm@linux-foundation.org>
+Cc: <sfr@canb.auug.org.au>,<broonie@kernel.org>, <linux-mm@kvack.org>,
+ "Joseph Qi" <joseph.qi@linux.alibaba.com>,
+ <ocfs2-devel@oss.oracle.com>, <mhocko@suse.cz>,
+ <linux-fsdevel@vger.kernel.org>, <linux-kernel@vger.kernel.org>,
+ <linux-next@vger.kernel.org>, <mm-commits@vger.kernel.org>
+Subject: Re: [Ocfs2-devel] mmotm 2019-06-11-16-59 uploaded (ocfs2)
+References: <20190611235956.4FZF6%akpm@linux-foundation.org>
+ <492b4bcc-4760-7cbb-7083-9f22e7ab4b82@infradead.org>
+ <20190612181813.48ad05832e05f767e7116d7b@linux-foundation.org>
+In-Reply-To: <20190612181813.48ad05832e05f767e7116d7b@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <20190613002555.GH14363@dread.disaster.area>
-User-Agent: Mutt/1.9.2 (2017-12-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 10:25:55AM +1000, Dave Chinner wrote:
-> On Wed, Jun 12, 2019 at 05:37:53AM -0700, Matthew Wilcox wrote:
-> > That's rather different from the normal meaning of 'exclusive' in the
-> > context of locks, which is "only one user can have access to this at
-> > a time".
-> 
-> Layout leases are not locks, they are a user access policy object.
-> It is the process/fd which holds the lease and it's the process/fd
-> that is granted exclusive access.  This is exactly the same semantic
-> as O_EXCL provides for granting exclusive access to a block device
-> via open(), yes?
+Hello Randy and Andrew,
 
-This isn't my understanding of how RDMA wants this to work, so we should
-probably clear that up before we get too far down deciding what name to
-give it.
+>>> On 6/13/2019 at  9:18 am, in message
+<20190612181813.48ad05832e05f767e7116d7b@linux-foundation.org>, Andrew =
+Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 12 Jun 2019 07:15:30 -0700 Randy Dunlap <rdunlap@infradead.org> =
+wrote:
+>=20
+>> On 6/11/19 4:59 PM, akpm@linux-foundation.org wrote:
+>> > The mm-of-the-moment snapshot 2019-06-11-16-59 has been uploaded to
+>> >=20
+>> >   =20
+> https://urldefense.proofpoint.com/v2/url?u=3Dhttp-3A__www.ozlabs.org_-7Ea=
+kpm_=20
+> mmotm_&d=3DDwICAg&c=3DRoP1YumCXCgaWHvlZYR8PZh8Bv7qIrMUB65eapI_JnE&r=3DC7g=
+Ad4uDxlAvTdc0
+> vmU6X8CMk6L2iDY8-HD0qT6Fo7Y&m=3DzWoF0Bft4OzQeAaZXMGI56DN7p9MjLynOay4PZYAl=
+hQ&s=3DvYme
+> DBOk3Nv08-ZA7IweIdaUk094Ldvmgzc20fjjzDs&e=3D
+>> >=20
+>> > mmotm-readme.txt says
+>> >=20
+>> > README for mm-of-the-moment:
+>> >=20
+>> >=20
+> https://urldefense.proofpoint.com/v2/url?u=3Dhttp-3A__www.ozlabs.org_-7Ea=
+kpm_mmo=20
+> tm_&d=3DDwICAg&c=3DRoP1YumCXCgaWHvlZYR8PZh8Bv7qIrMUB65eapI_JnE&r=3DC7gAd4=
+uDxlAvTdc0vmU
+> 6X8CMk6L2iDY8-HD0qT6Fo7Y&m=3DzWoF0Bft4OzQeAaZXMGI56DN7p9MjLynOay4PZYAlhQ&=
+s=3DvYmeDBO
+> k3Nv08-ZA7IweIdaUk094Ldvmgzc20fjjzDs&e=3D
+>> >=20
+>> > This is a snapshot of my -mm patch queue.  Uploaded at random =
+hopefully
+>> > more than once a week.
+>>=20
+>>=20
+>> on i386:
+>>=20
+>> ld: fs/ocfs2/dlmglue.o: in function `ocfs2_dlm_seq_show':
+>> dlmglue.c:(.text+0x46e4): undefined reference to `__udivdi3'
+>=20
+> Thanks.  This, I guess:
+>=20
+> --- a/fs/ocfs2/dlmglue.c~ocfs2-add-locking-filter-debugfs-file-fix
+> +++ a/fs/ocfs2/dlmglue.c
+> @@ -3115,7 +3115,7 @@ static int ocfs2_dlm_seq_show(struct seq
+>  		 * otherwise, only dump the last N seconds active lock
+>  		 * resources.
+>  		 */
+> -		if ((now - last) / 1000000 > dlm_debug->d_filter_secs)
+> +		if (div_u64(now - last, 1000000) > dlm_debug->d_filter_secs=
+)
+>  			return 0;
+>  	}
+>  #endif
+>=20
+> review and test, please?
+Thank for this fix, the change is OK for my testing on x86_64.
 
-For the RDMA usage case, it is entirely possible that both process A
-and process B which don't know about each other want to perform RDMA to
-file F.  So there will be two layout leases active on this file at the
-same time.  It's fine for IOs to simultaneously be active to both leases.
-But if the filesystem wants to move blocks around, it has to break
-both leases.
+Thanks
+Gang
 
-If Process C tries to do a write to file F without a lease, there's no
-problem, unless a side-effect of the write would be to change the block
-mapping, in which case either the leases must break first, or the write
-must be denied.
-
-Jason, please correct me if I've misunderstood the RDMA needs here.
+>=20
+> _______________________________________________
+> Ocfs2-devel mailing list
+> Ocfs2-devel@oss.oracle.com=20
+> https://oss.oracle.com/mailman/listinfo/ocfs2-devel
 
