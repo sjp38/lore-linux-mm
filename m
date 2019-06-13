@@ -2,583 +2,267 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D8111C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 10:08:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E1867C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 10:14:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 98E6B2147A
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 10:08:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 98E6B2147A
+	by mail.kernel.org (Postfix) with ESMTP id 723F52147A
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 10:14:44 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=armh.onmicrosoft.com header.i=@armh.onmicrosoft.com header.b="6fP79K0Z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 723F52147A
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 346656B026E; Thu, 13 Jun 2019 06:08:25 -0400 (EDT)
+	id 2A5516B026E; Thu, 13 Jun 2019 06:14:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2F7F86B0271; Thu, 13 Jun 2019 06:08:25 -0400 (EDT)
+	id 255FC6B0271; Thu, 13 Jun 2019 06:14:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1977A6B0272; Thu, 13 Jun 2019 06:08:25 -0400 (EDT)
+	id 11D8A6B0272; Thu, 13 Jun 2019 06:14:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B6C356B026E
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 06:08:24 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n49so30132653edd.15
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 03:08:24 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B13DB6B026E
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 06:14:43 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id d13so30231516edo.5
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 03:14:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=NXCr3SNbDoBdaUU/fwIzDxeZwSaVeVb+6ef+7qr9xEo=;
-        b=dN+r4Z8Kf2yhMwfLKQPRaWuKysAtp3rciNjDkZwoRKwhz17U82DVuk27dr4o1HeTBX
-         fTSN74scKB/nR7KoK3EQHXf8IgAWB8NS/2RDWzLKoT/TGk9EIpkzCGjSc7yLjgy2uPQk
-         4zDouydOhwfDkukpAbE3ogtROb/zG7t/N2yFxphyLtEPOmUojZtn7PTvPGgfTaM4kbcV
-         myzuMj1uFu+mZWvwrjw05ldATU2RU2QK9Uv3ChGduaGgP9JnVcNq3H9DXELsCkTUwqy/
-         pwQz4i1Ed1FsVZVH24cJCjumJnH2jhD6WBzXjI7thCFqXLFnlptIVBfd03e2PIVcTaZT
-         jpag==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAUC+QLLXfWaR3aNdfYyxl//zg1HvzatpUJfbekeGE6ZaLtSM5OL
-	u7YBeTLuh5vV43Cmt91AdcR804E0tIeE0wgKAS5pgnjmZZHFJXXx3dfVFDrqz66ykCJahGbjcJx
-	3ICZNULzY0HQq2rRZsfTmSJfbHXL3Js0jBWSIS2/ZmloGePCFdv3A6AH2T/vUEGKueQ==
-X-Received: by 2002:a50:b662:: with SMTP id c31mr92802524ede.252.1560420504105;
-        Thu, 13 Jun 2019 03:08:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyLawD7UAgSSHTX0Sf2nNdB78pUEszmJGJcmbrI2xlpwOw0dDJNbitBYaOSmOswKcSpLx25
-X-Received: by 2002:a50:b662:: with SMTP id c31mr92802377ede.252.1560420502715;
-        Thu, 13 Jun 2019 03:08:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560420502; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:user-agent:nodisclaimer:content-id
+         :content-transfer-encoding:mime-version;
+        bh=JsnuP9uN7znKdLcsYUNs05zri06zOnYXJFfiQuCxCzo=;
+        b=I5K9zjQwQSbWqCvwOBDS2YmO371Eijnsa+v70bTAFH/L6uETbwQNcLxw8oBctvvAaa
+         JuLPO+GZ7JQwuYj8n+4ORO45jy8R7Rmd4SCjmnMjHKl41gBaKAoeo8vXj9eW1w7sxTBg
+         XRGJxarZvp9L3U0CXFHl5z0Pva7nfIcK58bSo/ROb7vLE+6jPq4ZaPQLXb4Zezpu5GNo
+         JOfcnvLTo0suO31woMg0uVWTuihqn7dbHOQ16QM4UEeDiRfWT+tTqSEnKtGkozzwZhoQ
+         Adopv9YjYdhVZTmQ0UOhoSqcfUcA+imNmGn2Nh/ucdrgsDrAfmrJGaIZNU/UCdkA+zPF
+         ir2Q==
+X-Gm-Message-State: APjAAAXV9+OApEcwmM2u6IH5CXabQ7z9T8ZtutfQBYZthL5w68k/n0rh
+	uJjqtWD+HGp2LjTe0GESPkq1iyOsso3Uj4Mx6Gv5Xr1O05PB3c1nLgFyPfvioolfJnfcDngn04J
+	qUylpGJ6AIw/yoNaALXeptQWBEWaw3n4YJG6ujJ1E/YbrcBWPKBVDZ7o4rIet2s0r8w==
+X-Received: by 2002:a50:94f5:: with SMTP id t50mr47559752eda.150.1560420883207;
+        Thu, 13 Jun 2019 03:14:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyayOyvB4yfLeKBXyNtapsdC4neQEFv6eBJun6g9UgsvbT59vGiUtQXEe+BfgnCnKrIkuBo
+X-Received: by 2002:a50:94f5:: with SMTP id t50mr47559597eda.150.1560420881689;
+        Thu, 13 Jun 2019 03:14:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560420881; cv=none;
         d=google.com; s=arc-20160816;
-        b=yVWRInDmWh8VNRGGt4XQXerC+JX2Qtv70iUfVOHEKwM3/NUQioTaivIxxkA4gyhE8R
-         K7WE3AZHbGkNU7pAITocdHT2gBoekFHSSw1y+p6ah+GxYzW5NX77VFtHCKg9Rc4R67EX
-         b6O+eo7SXoYp2Zx1WVp/ttFnycpPrQhLPcjvtNX6szcRHuuk+kyNck/GuGPv7m/+NXW9
-         2+aeA3V2PojH64Ke4rKxDz9h3S8H7+UI1s2YbNl9EjA1Aytzg0kFy0i9HxQWtGZBkwLA
-         70JLLAVW5bDhIqjLak3ThBWOHZ7mFRc6TqH0AxE61InH6XEp27JYoRH3MDfZeUIJRg4G
-         4pPQ==
+        b=q74uKVsGenlc2GlU+Bun+vSXdoUbGoevlbgI9wGd2dVwSL4tw15lBFqLTEBhwS/Osp
+         TkoMOd4QnWthcfwQaiGsPbkfzZSAXJ+foII3LiuRsFvTmXD+7zuSPdZe1FqUQlbvnvep
+         wWOcOTvp5Jb5ZySxkk2Ridm+kZuwHDECAAzCOa3K+XQtCxHpbWW1EBoe4AvApPCpTxU+
+         +n8PRUg9M8+IPgtxlFmNwMcVM4+QgjeK15SHtN8y8wOvitBsUUvvMevaqipgkkHaEmuz
+         5k4pxG/4trzsFEUWQIc6yDpDvX4NjC9+aR36lcpGRl+DdDT/vIfr3oFwgPRUq2juZsu/
+         uMVQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=NXCr3SNbDoBdaUU/fwIzDxeZwSaVeVb+6ef+7qr9xEo=;
-        b=u3+SLZCwcq9fnagwzxtUnT4fSEDOzcDTKbojGGuvy7AlgP8Aq/9tW17UyS5bZ4PJ12
-         phgKoNYUQG3QuIAMhmDWQaQfaIxM/4NGrXUVC43sKKe5nNI1omwjAuNlxDIkrz0bZLdd
-         eLtRbTXo9GU6dp+czK5nrbGW1E0vkEM7Vz5m/3JWI5sp+0ziEahoS95+SlLGh1/5c67H
-         0wUwrhhwR3uQSdNwUQs35MH3d13QsDdI8E1AF4gLPavOpAOop8Y/Y+nBV69FmQ/TMe7u
-         oUfJzNreArwGNYPYyLtNwZAxGqMzs6zZ4GBQwOGG6DwdFdhbstaljIQwcpvkd7/IBTXE
-         KdGQ==
+        h=mime-version:content-transfer-encoding:content-id:nodisclaimer
+         :user-agent:content-language:accept-language:in-reply-to:references
+         :message-id:date:thread-index:thread-topic:subject:cc:to:from
+         :dkim-signature;
+        bh=JsnuP9uN7znKdLcsYUNs05zri06zOnYXJFfiQuCxCzo=;
+        b=pCblZPPsF5oCzh1Z4DPExNqWsXdMndWtb8vubEztNd+ApIkm74fw1S1z6CZ6Vj7imE
+         zPBi/ur+Q5RGeHyaoVi9N5yCDPxJiIQRQH86pHksu2Bm+J+4sLF5DkgZL/AzXUwoHNff
+         Ysy/embJS2F4W4bfV3JYZErh8abMoCDqKbfUjhlCCC5/iiYVG2JAEC2L4PVzFfZoGjCq
+         jp2iG0yVzaKbxPcc8Puhs18uB4jA8zfihfLartUEqwrC4CB80javH6N7WzelsjOPLyOx
+         nWI8ZAZCnvuMvfhWFj4ElTGF+BOkgA4IDKciYfZN+7ALrfW0SaZKwMHTHx7O8taryrCd
+         sxlw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id w5si1743976ejv.349.2019.06.13.03.08.22
-        for <linux-mm@kvack.org>;
-        Thu, 13 Jun 2019 03:08:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@armh.onmicrosoft.com header.s=selector2-armh-onmicrosoft-com header.b=6fP79K0Z;
+       spf=pass (google.com: domain of szabolcs.nagy@arm.com designates 40.107.5.59 as permitted sender) smtp.mailfrom=Szabolcs.Nagy@arm.com
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50059.outbound.protection.outlook.com. [40.107.5.59])
+        by mx.google.com with ESMTPS id l30si1992267edd.139.2019.06.13.03.14.41
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 13 Jun 2019 03:14:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of szabolcs.nagy@arm.com designates 40.107.5.59 as permitted sender) client-ip=40.107.5.59;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 9C804367;
-	Thu, 13 Jun 2019 03:08:21 -0700 (PDT)
-Received: from p8cg001049571a15.blr.arm.com (p8cg001049571a15.blr.arm.com [10.162.40.191])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 050A83F694;
-	Thu, 13 Jun 2019 03:09:54 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-To: linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
-	linux-snps-arc@lists.infradead.org,
-	linux-mips@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org,
-	linux-ia64@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org,
-	linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org,
-	sparclinux@vger.kernel.org,
-	x86@kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Christophe Leroy <christophe.leroy@c-s.fr>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Paul Mackerras <paulus@samba.org>,
-	Russell King <linux@armlinux.org.uk>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Tony Luck <tony.luck@intel.com>,
-	Fenghua Yu <fenghua.yu@intel.com>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Yoshinori Sato <ysato@users.sourceforge.jp>,
-	"David S. Miller" <davem@davemloft.net>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Vineet Gupta <vgupta@synopsys.com>,
-	James Hogan <jhogan@kernel.org>,
-	Paul Burton <paul.burton@mips.com>,
-	Ralf Baechle <ralf@linux-mips.org>
-Subject: [PATCH] mm: Generalize and rename notify_page_fault() as kprobe_page_fault()
-Date: Thu, 13 Jun 2019 15:37:24 +0530
-Message-Id: <1560420444-25737-1-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: git-send-email 2.7.4
+       dkim=pass header.i=@armh.onmicrosoft.com header.s=selector2-armh-onmicrosoft-com header.b=6fP79K0Z;
+       spf=pass (google.com: domain of szabolcs.nagy@arm.com designates 40.107.5.59 as permitted sender) smtp.mailfrom=Szabolcs.Nagy@arm.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=armh.onmicrosoft.com;
+ s=selector2-armh-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=JsnuP9uN7znKdLcsYUNs05zri06zOnYXJFfiQuCxCzo=;
+ b=6fP79K0Zd+t5ZKKUDbW1RQE05uDoAkqMGosfl0o7LTUl5dqQdvo+vV2jcn0IogKP8q1p1OAf2ccZ2nHoHSIicjO64jDyv6obG9SEEYWue70MC7l+EQNzmeSEoNekcrqBs1wT4qH1ZRM87GjnW3oTYj8u6YgLJHuitK58LSQxK20=
+Received: from VE1PR08MB4637.eurprd08.prod.outlook.com (10.255.27.14) by
+ VE1PR08MB4880.eurprd08.prod.outlook.com (10.255.113.150) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1965.15; Thu, 13 Jun 2019 10:14:39 +0000
+Received: from VE1PR08MB4637.eurprd08.prod.outlook.com
+ ([fe80::6574:1efb:6972:2b37]) by VE1PR08MB4637.eurprd08.prod.outlook.com
+ ([fe80::6574:1efb:6972:2b37%6]) with mapi id 15.20.1965.017; Thu, 13 Jun 2019
+ 10:14:39 +0000
+From: Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+To: Catalin Marinas <Catalin.Marinas@arm.com>
+CC: nd <nd@arm.com>, Vincenzo Frascino <Vincenzo.Frascino@arm.com>,
+	"linux-arm-kernel@lists.infradead.org"
+	<linux-arm-kernel@lists.infradead.org>, "linux-doc@vger.kernel.org"
+	<linux-doc@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>,
+	"linux-kselftest@vger.kernel.org" <linux-kselftest@vger.kernel.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Will Deacon
+	<Will.Deacon@arm.com>, Andrey Konovalov <andreyknvl@google.com>, Alexander
+ Viro <viro@zeniv.linux.org.uk>
+Subject: Re: [PATCH v4 1/2] arm64: Define
+ Documentation/arm64/tagged-address-abi.txt
+Thread-Topic: [PATCH v4 1/2] arm64: Define
+ Documentation/arm64/tagged-address-abi.txt
+Thread-Index: AQHVIS/jNTMPiNHftkW5Mto9lMl3oKaYRrOAgAEJjYCAAA78gA==
+Date: Thu, 13 Jun 2019 10:14:39 +0000
+Message-ID: <dee7f192-d0f0-558e-3007-eba805c6f2da@arm.com>
+References: <cover.1560339705.git.andreyknvl@google.com>
+ <20190612142111.28161-1-vincenzo.frascino@arm.com>
+ <20190612142111.28161-2-vincenzo.frascino@arm.com>
+ <a90da586-8ff6-4bed-d940-9306d517a18c@arm.com>
+ <20190613092054.GO28951@C02TF0J2HF1T.local>
+In-Reply-To: <20190613092054.GO28951@C02TF0J2HF1T.local>
+Accept-Language: en-GB, en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+user-agent: Mozilla/5.0 (X11; Linux aarch64; rv:60.0) Gecko/20100101
+ Thunderbird/60.4.0
+x-originating-ip: [217.140.106.51]
+x-clientproxiedby: LNXP265CA0031.GBRP265.PROD.OUTLOOK.COM
+ (2603:10a6:600:5c::19) To VE1PR08MB4637.eurprd08.prod.outlook.com
+ (2603:10a6:802:b1::14)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=Szabolcs.Nagy@arm.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 8fe878f3-90c3-40d7-96ad-08d6efe7f18d
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VE1PR08MB4880;
+x-ms-traffictypediagnostic: VE1PR08MB4880:
+nodisclaimer: True
+x-microsoft-antispam-prvs:
+ <VE1PR08MB4880FE3C5989AB8E22672E57EDEF0@VE1PR08MB4880.eurprd08.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:9508;
+x-forefront-prvs: 0067A8BA2A
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(39860400002)(366004)(396003)(346002)(136003)(376002)(189003)(199004)(37006003)(99286004)(316002)(44832011)(81166006)(65826007)(478600001)(6512007)(26005)(2906002)(486006)(6436002)(31696002)(14454004)(71190400001)(7736002)(58126008)(72206003)(64126003)(54906003)(81156014)(229853002)(86362001)(53936002)(8936002)(8676002)(66476007)(66446008)(65956001)(305945005)(6246003)(186003)(5660300002)(36756003)(66066001)(66556008)(65806001)(64756008)(66946007)(76176011)(6486002)(68736007)(2616005)(14444005)(25786009)(386003)(3846002)(52116002)(71200400001)(6116002)(6506007)(31686004)(53546011)(73956011)(446003)(11346002)(6636002)(256004)(6862004)(102836004)(4326008)(476003);DIR:OUT;SFP:1101;SCL:1;SRVR:VE1PR08MB4880;H:VE1PR08MB4637.eurprd08.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: arm.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ n1uLWJnaW6tml/Jq1ihcLP5qMpaj60lgri3jTuf0WS1WvifIOe04A/mowWrlwipNbODswYGcpWlTUrD5s5DFzmNbvkT8BhDUBoM8B7I+gQQAlpaN05GaWQVZXtLV0dKbjwb+ItE5iJFcgoGTW+9lYboILJi7/IiW43XE51v1nNQjCDHkvrtIZeGj/Ihpjgv0ZR5UTrGn1WT1Zj5kgqsInPeZZggpKQ+baQOpa8d3dtzfE/4zy6/lVoKULtmbCU5l4E6TMQ4K1eDVs9YZ843FlL4FRmVtXrglr7wopao4oujhlhEr6H/vsdJ1sjxq4Rch0acPTdhrgeuiBpppkNjYj6CAfd/2mR2jOMlZxPzHP+a5ueMuIdbcs/3wrZidsvmJiZAPnNZ6z1hYrBpkQ3dHxIbAzcayZsyaP4Vix0DX0/o=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <50012C68520D6547A2B2174AAC3FFA16@eurprd08.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
+X-OriginatorOrg: arm.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 8fe878f3-90c3-40d7-96ad-08d6efe7f18d
+X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Jun 2019 10:14:39.1554
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: f34e5979-57d9-4aaa-ad4d-b122a662184d
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: Szabolcs.Nagy@arm.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VE1PR08MB4880
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Architectures which support kprobes have very similar boilerplate around
-calling kprobe_fault_handler(). Use a helper function in kprobes.h to unify
-them, based on the x86 code.
-
-This changes the behaviour for other architectures when preemption is
-enabled. Previously, they would have disabled preemption while calling the
-kprobe handler. However, preemption would be disabled if this fault was
-due to a kprobe, so we know the fault was not due to a kprobe handler and
-can simply return failure.
-
-This behaviour was introduced in the commit a980c0ef9f6d ("x86/kprobes:
-Refactor kprobes_fault() like kprobe_exceptions_notify()")
-
-Cc: linux-snps-arc@lists.infradead.org
-Cc: linux-mips@vger.kernel.org
-Cc: linux-arm-kernel@lists.infradead.org
-Cc: linux-ia64@vger.kernel.org
-Cc: linuxppc-dev@lists.ozlabs.org
-Cc: linux-s390@vger.kernel.org
-Cc: linux-sh@vger.kernel.org
-Cc: sparclinux@vger.kernel.org
-Cc: x86@kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Mark Rutland <mark.rutland@arm.com>
-Cc: Christophe Leroy <christophe.leroy@c-s.fr>
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Andrey Konovalov <andreyknvl@google.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Russell King <linux@armlinux.org.uk>
-Cc: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: Tony Luck <tony.luck@intel.com>
-Cc: Fenghua Yu <fenghua.yu@intel.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Yoshinori Sato <ysato@users.sourceforge.jp>
-Cc: "David S. Miller" <davem@davemloft.net>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Vineet Gupta <vgupta@synopsys.com>
-Cc: James Hogan <jhogan@kernel.org>
-Cc: Paul Burton <paul.burton@mips.com>
-Cc: Ralf Baechle <ralf@linux-mips.org>
-
-Reviewed-by: Dave Hansen <dave.hansen@linux.intel.com>
-Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
----
-Questions:
-
-AFAICT there is no equivalent of erstwhile notify_page_fault() during page
-fault handling in arc and mips archs which can call this generic function.
-Please let me know if that is not the case.
-
-Testing:
-
-- Build and boot tested on arm64 and x86
-- Build tested on some other archs (arm, sparc64, alpha, powerpc etc)
-
-Changes in V1:
-
-- Updated commit message per Matthew
-- Changed kprobe_page_fault() to return bool per Stephen/Dave/Christophe/Matthew
-- Changed kprobe_page_fault() to follow x86 code flow per Dave/Matthew
-- Changed kprobe_fault variable as bool in powerpc __do_page_fault()
-- Added a comment to kprobe_page_fault() per Dave
-
-Changes in RFC V3: (https://patchwork.kernel.org/patch/10981353/)
-
-- Updated the commit message with an explanation for new preemption behaviour
-- Moved notify_page_fault() to kprobes.h with 'static nokprobe_inline' per Matthew
-- Changed notify_page_fault() return type from int to bool per Michael Ellerman
-- Renamed notify_page_fault() as kprobe_page_fault() per Peterz
-
-Changes in RFC V2: (https://patchwork.kernel.org/patch/10974221/)
-
-- Changed generic notify_page_fault() per Mathew Wilcox
-- Changed x86 to use new generic notify_page_fault()
-- s/must not/need not/ in commit message per Matthew Wilcox
-
-Changes in RFC V1: (https://patchwork.kernel.org/patch/10968273/)
-
- arch/arm/mm/fault.c      | 24 +-----------------------
- arch/arm64/mm/fault.c    | 24 +-----------------------
- arch/ia64/mm/fault.c     | 24 +-----------------------
- arch/powerpc/mm/fault.c  | 23 ++---------------------
- arch/s390/mm/fault.c     | 16 +---------------
- arch/sh/mm/fault.c       | 18 ++----------------
- arch/sparc/mm/fault_64.c | 16 +---------------
- arch/x86/mm/fault.c      | 21 ++-------------------
- include/linux/kprobes.h  | 19 +++++++++++++++++++
- 9 files changed, 30 insertions(+), 155 deletions(-)
-
-diff --git a/arch/arm/mm/fault.c b/arch/arm/mm/fault.c
-index 58f69fa..94a97a4 100644
---- a/arch/arm/mm/fault.c
-+++ b/arch/arm/mm/fault.c
-@@ -30,28 +30,6 @@
- 
- #ifdef CONFIG_MMU
- 
--#ifdef CONFIG_KPROBES
--static inline int notify_page_fault(struct pt_regs *regs, unsigned int fsr)
--{
--	int ret = 0;
--
--	if (!user_mode(regs)) {
--		/* kprobe_running() needs smp_processor_id() */
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, fsr))
--			ret = 1;
--		preempt_enable();
--	}
--
--	return ret;
--}
--#else
--static inline int notify_page_fault(struct pt_regs *regs, unsigned int fsr)
--{
--	return 0;
--}
--#endif
--
- /*
-  * This is useful to dump out the page tables associated with
-  * 'addr' in mm 'mm'.
-@@ -266,7 +244,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
- 	vm_fault_t fault;
- 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
- 
--	if (notify_page_fault(regs, fsr))
-+	if (kprobe_page_fault(regs, fsr))
- 		return 0;
- 
- 	tsk = current;
-diff --git a/arch/arm64/mm/fault.c b/arch/arm64/mm/fault.c
-index a30818e..8fe4bbc 100644
---- a/arch/arm64/mm/fault.c
-+++ b/arch/arm64/mm/fault.c
-@@ -70,28 +70,6 @@ static inline const struct fault_info *esr_to_debug_fault_info(unsigned int esr)
- 	return debug_fault_info + DBG_ESR_EVT(esr);
- }
- 
--#ifdef CONFIG_KPROBES
--static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
--{
--	int ret = 0;
--
--	/* kprobe_running() needs smp_processor_id() */
--	if (!user_mode(regs)) {
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, esr))
--			ret = 1;
--		preempt_enable();
--	}
--
--	return ret;
--}
--#else
--static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
--{
--	return 0;
--}
--#endif
--
- static void data_abort_decode(unsigned int esr)
- {
- 	pr_alert("Data abort info:\n");
-@@ -446,7 +424,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
- 	unsigned long vm_flags = VM_READ | VM_WRITE;
- 	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
- 
--	if (notify_page_fault(regs, esr))
-+	if (kprobe_page_fault(regs, esr))
- 		return 0;
- 
- 	tsk = current;
-diff --git a/arch/ia64/mm/fault.c b/arch/ia64/mm/fault.c
-index 5baeb02..22582f8 100644
---- a/arch/ia64/mm/fault.c
-+++ b/arch/ia64/mm/fault.c
-@@ -21,28 +21,6 @@
- 
- extern int die(char *, struct pt_regs *, long);
- 
--#ifdef CONFIG_KPROBES
--static inline int notify_page_fault(struct pt_regs *regs, int trap)
--{
--	int ret = 0;
--
--	if (!user_mode(regs)) {
--		/* kprobe_running() needs smp_processor_id() */
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, trap))
--			ret = 1;
--		preempt_enable();
--	}
--
--	return ret;
--}
--#else
--static inline int notify_page_fault(struct pt_regs *regs, int trap)
--{
--	return 0;
--}
--#endif
--
- /*
-  * Return TRUE if ADDRESS points at a page in the kernel's mapped segment
-  * (inside region 5, on ia64) and that page is present.
-@@ -116,7 +94,7 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
- 	/*
- 	 * This is to handle the kprobes on user space access instructions
- 	 */
--	if (notify_page_fault(regs, TRAP_BRKPT))
-+	if (kprobe_page_fault(regs, TRAP_BRKPT))
- 		return;
- 
- 	if (user_mode(regs))
-diff --git a/arch/powerpc/mm/fault.c b/arch/powerpc/mm/fault.c
-index ec6b7ad..bc4e1af 100644
---- a/arch/powerpc/mm/fault.c
-+++ b/arch/powerpc/mm/fault.c
-@@ -42,26 +42,6 @@
- #include <asm/debug.h>
- #include <asm/kup.h>
- 
--static inline bool notify_page_fault(struct pt_regs *regs)
--{
--	bool ret = false;
--
--#ifdef CONFIG_KPROBES
--	/* kprobe_running() needs smp_processor_id() */
--	if (!user_mode(regs)) {
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, 11))
--			ret = true;
--		preempt_enable();
--	}
--#endif /* CONFIG_KPROBES */
--
--	if (unlikely(debugger_fault_handler(regs)))
--		ret = true;
--
--	return ret;
--}
--
- /*
-  * Check whether the instruction inst is a store using
-  * an update addressing form which will update r1.
-@@ -462,8 +442,9 @@ static int __do_page_fault(struct pt_regs *regs, unsigned long address,
- 	int is_write = page_fault_is_write(error_code);
- 	vm_fault_t fault, major = 0;
- 	bool must_retry = false;
-+	bool kprobe_fault = kprobe_page_fault(regs, 11);
- 
--	if (notify_page_fault(regs))
-+	if (unlikely(debugger_fault_handler(regs) || kprobe_fault))
- 		return 0;
- 
- 	if (unlikely(page_fault_is_bad(error_code))) {
-diff --git a/arch/s390/mm/fault.c b/arch/s390/mm/fault.c
-index df75d57..1aaae2c 100644
---- a/arch/s390/mm/fault.c
-+++ b/arch/s390/mm/fault.c
-@@ -67,20 +67,6 @@ static int __init fault_init(void)
- }
- early_initcall(fault_init);
- 
--static inline int notify_page_fault(struct pt_regs *regs)
--{
--	int ret = 0;
--
--	/* kprobe_running() needs smp_processor_id() */
--	if (kprobes_built_in() && !user_mode(regs)) {
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, 14))
--			ret = 1;
--		preempt_enable();
--	}
--	return ret;
--}
--
- /*
-  * Find out which address space caused the exception.
-  */
-@@ -414,7 +400,7 @@ static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
- 	 */
- 	clear_pt_regs_flag(regs, PIF_PER_TRAP);
- 
--	if (notify_page_fault(regs))
-+	if (kprobe_page_fault(regs, 14))
- 		return 0;
- 
- 	mm = tsk->mm;
-diff --git a/arch/sh/mm/fault.c b/arch/sh/mm/fault.c
-index 6defd2c6..74cd4ac 100644
---- a/arch/sh/mm/fault.c
-+++ b/arch/sh/mm/fault.c
-@@ -24,20 +24,6 @@
- #include <asm/tlbflush.h>
- #include <asm/traps.h>
- 
--static inline int notify_page_fault(struct pt_regs *regs, int trap)
--{
--	int ret = 0;
--
--	if (kprobes_built_in() && !user_mode(regs)) {
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, trap))
--			ret = 1;
--		preempt_enable();
--	}
--
--	return ret;
--}
--
- static void
- force_sig_info_fault(int si_signo, int si_code, unsigned long address,
- 		     struct task_struct *tsk)
-@@ -415,14 +401,14 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
- 	if (unlikely(fault_in_kernel_space(address))) {
- 		if (vmalloc_fault(address) >= 0)
- 			return;
--		if (notify_page_fault(regs, vec))
-+		if (kprobe_page_fault(regs, vec))
- 			return;
- 
- 		bad_area_nosemaphore(regs, error_code, address);
- 		return;
- 	}
- 
--	if (unlikely(notify_page_fault(regs, vec)))
-+	if (unlikely(kprobe_page_fault(regs, vec)))
- 		return;
- 
- 	/* Only enable interrupts if they were on before the fault */
-diff --git a/arch/sparc/mm/fault_64.c b/arch/sparc/mm/fault_64.c
-index 8f8a604..6865f9c 100644
---- a/arch/sparc/mm/fault_64.c
-+++ b/arch/sparc/mm/fault_64.c
-@@ -38,20 +38,6 @@
- 
- int show_unhandled_signals = 1;
- 
--static inline __kprobes int notify_page_fault(struct pt_regs *regs)
--{
--	int ret = 0;
--
--	/* kprobe_running() needs smp_processor_id() */
--	if (kprobes_built_in() && !user_mode(regs)) {
--		preempt_disable();
--		if (kprobe_running() && kprobe_fault_handler(regs, 0))
--			ret = 1;
--		preempt_enable();
--	}
--	return ret;
--}
--
- static void __kprobes unhandled_fault(unsigned long address,
- 				      struct task_struct *tsk,
- 				      struct pt_regs *regs)
-@@ -285,7 +271,7 @@ asmlinkage void __kprobes do_sparc64_fault(struct pt_regs *regs)
- 
- 	fault_code = get_thread_fault_code();
- 
--	if (notify_page_fault(regs))
-+	if (kprobe_page_fault(regs, 0))
- 		goto exit_exception;
- 
- 	si_code = SEGV_MAPERR;
-diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
-index 46df4c6..5400f4e 100644
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -46,23 +46,6 @@ kmmio_fault(struct pt_regs *regs, unsigned long addr)
- 	return 0;
- }
- 
--static nokprobe_inline int kprobes_fault(struct pt_regs *regs)
--{
--	if (!kprobes_built_in())
--		return 0;
--	if (user_mode(regs))
--		return 0;
--	/*
--	 * To be potentially processing a kprobe fault and to be allowed to call
--	 * kprobe_running(), we have to be non-preemptible.
--	 */
--	if (preemptible())
--		return 0;
--	if (!kprobe_running())
--		return 0;
--	return kprobe_fault_handler(regs, X86_TRAP_PF);
--}
--
- /*
-  * Prefetch quirks:
-  *
-@@ -1280,7 +1263,7 @@ do_kern_addr_fault(struct pt_regs *regs, unsigned long hw_error_code,
- 		return;
- 
- 	/* kprobes don't want to hook the spurious faults: */
--	if (kprobes_fault(regs))
-+	if (kprobe_page_fault(regs, X86_TRAP_PF))
- 		return;
- 
- 	/*
-@@ -1311,7 +1294,7 @@ void do_user_addr_fault(struct pt_regs *regs,
- 	mm = tsk->mm;
- 
- 	/* kprobes don't want to hook the spurious faults: */
--	if (unlikely(kprobes_fault(regs)))
-+	if (unlikely(kprobe_page_fault(regs, X86_TRAP_PF)))
- 		return;
- 
- 	/*
-diff --git a/include/linux/kprobes.h b/include/linux/kprobes.h
-index 443d980..04bdaf0 100644
---- a/include/linux/kprobes.h
-+++ b/include/linux/kprobes.h
-@@ -458,4 +458,23 @@ static inline bool is_kprobe_optinsn_slot(unsigned long addr)
- }
- #endif
- 
-+/* Returns true if kprobes handled the fault */
-+static nokprobe_inline bool kprobe_page_fault(struct pt_regs *regs,
-+					      unsigned int trap)
-+{
-+	if (!kprobes_built_in())
-+		return false;
-+	if (user_mode(regs))
-+		return false;
-+	/*
-+	 * To be potentially processing a kprobe fault and to be allowed
-+	 * to call kprobe_running(), we have to be non-preemptible.
-+	 */
-+	if (preemptible())
-+		return false;
-+	if (!kprobe_running())
-+		return false;
-+	return kprobe_fault_handler(regs, trap);
-+}
-+
- #endif /* _LINUX_KPROBES_H */
--- 
-2.7.4
+T24gMTMvMDYvMjAxOSAxMDoyMCwgQ2F0YWxpbiBNYXJpbmFzIHdyb3RlOg0KPiBIaSBTemFib2xj
+cywNCj4gDQo+IE9uIFdlZCwgSnVuIDEyLCAyMDE5IGF0IDA1OjMwOjM0UE0gKzAxMDAsIFN6YWJv
+bGNzIE5hZ3kgd3JvdGU6DQo+PiBPbiAxMi8wNi8yMDE5IDE1OjIxLCBWaW5jZW56byBGcmFzY2lu
+byB3cm90ZToNCj4+PiArMi4gQVJNNjQgVGFnZ2VkIEFkZHJlc3MgQUJJDQo+Pj4gKy0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLQ0KPj4+ICsNCj4+PiArRnJvbSB0aGUga2VybmVsIHN5c2NhbGwg
+aW50ZXJmYWNlIHByb3NwZWN0aXZlLCB3ZSBkZWZpbmUsIGZvciB0aGUgcHVycG9zZXMNCj4+ICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBeXl5eXl5eXl5eXg0KPj4gcGVyc3Bl
+Y3RpdmUNCj4+DQo+Pj4gK29mIHRoaXMgZG9jdW1lbnQsIGEgInZhbGlkIHRhZ2dlZCBwb2ludGVy
+IiBhcyBhIHBvaW50ZXIgdGhhdCBlaXRoZXIgaXQgaGFzDQo+Pj4gK2EgemVybyB2YWx1ZSBzZXQg
+aW4gdGhlIHRvcCBieXRlIG9yIGl0IGhhcyBhIG5vbi16ZXJvIHZhbHVlLCBpdCBpcyBpbiBtZW1v
+cnkNCj4+PiArcmFuZ2VzIHByaXZhdGVseSBvd25lZCBieSBhIHVzZXJzcGFjZSBwcm9jZXNzIGFu
+ZCBpdCBpcyBvYnRhaW5lZCBpbiBvbmUgb2YNCj4+PiArdGhlIGZvbGxvd2luZyB3YXlzOg0KPj4+
+ICsgIC0gbW1hcCgpIGRvbmUgYnkgdGhlIHByb2Nlc3MgaXRzZWxmLCB3aGVyZSBlaXRoZXI6DQo+
+Pj4gKyAgICAqIGZsYWdzID0gTUFQX1BSSVZBVEUgfCBNQVBfQU5PTllNT1VTDQo+Pj4gKyAgICAq
+IGZsYWdzID0gTUFQX1BSSVZBVEUgYW5kIHRoZSBmaWxlIGRlc2NyaXB0b3IgcmVmZXJzIHRvIGEg
+cmVndWxhcg0KPj4+ICsgICAgICBmaWxlIG9yICIvZGV2L3plcm8iDQo+Pg0KPj4gdGhpcyBkb2Vz
+IG5vdCBtYWtlIGl0IGNsZWFyIGlmIE1BUF9GSVhFRCBvciBvdGhlciBmbGFncyBhcmUgdmFsaWQN
+Cj4+ICh0aGVyZSBhcmUgbWFueSBtYXAgZmxhZ3MgaSBkb24ndCBrbm93LCBidXQgYXQgbGVhc3Qg
+Zml4ZWQgc2hvdWxkIHdvcmsNCj4+IGFuZCBzdGFjay9ncm93c2Rvd24uIGknZCBleHBlY3QgYW55
+dGhpbmcgdGhhdCdzIG5vdCBpbmNvbXBhdGlibGUgd2l0aA0KPj4gcHJpdmF0ZXxhbm9uIHRvIHdv
+cmspLg0KPiANCj4gSnVzdCB0byBjbGFyaWZ5LCB0aGlzIGRvY3VtZW50IHRyaWVzIHRvIGRlZmlu
+ZSB0aGUgbWVtb3J5IHJhbmdlcyBmcm9tDQo+IHdoZXJlIHRhZ2dlZCBhZGRyZXNzZXMgY2FuIGJl
+IHBhc3NlZCBpbnRvIHRoZSBrZXJuZWwgaW4gdGhlIGNvbnRleHQNCj4gb2YgVEJJIG9ubHkgKG5v
+dCBNVEUpOyB0aGF0IGlzIGZvciBod2FzYW4gc3VwcG9ydC4gRklYRUQgb3IgR1JPV1NET1dODQo+
+IHNob3VsZCBub3QgYWZmZWN0IHRoaXMuDQoNCnllcywgc28gZWl0aGVyIHRoZSB0ZXh0IHNob3Vs
+ZCBsaXN0IE1BUF8qIGZsYWdzIHRoYXQgZG9uJ3QgYWZmZWN0DQp0aGUgcG9pbnRlciB0YWdnaW5n
+IHNlbWFudGljcyBvciBzcGVjaWZ5IHByaXZhdGV8YW5vbiBtYXBwaW5nDQp3aXRoIGRpZmZlcmVu
+dCB3b3JkaW5nLg0KDQo+Pj4gKyAgLSBhIG1hcHBpbmcgYmVsb3cgc2JyaygwKSBkb25lIGJ5IHRo
+ZSBwcm9jZXNzIGl0c2VsZg0KPj4NCj4+IGRvZXNuJ3QgdGhlIG1tYXAgcnVsZSBjb3ZlciB0aGlz
+Pw0KPiANCj4gSUlVQyBpdCBkb2Vzbid0IGNvdmVyIGl0IGFzIHRoYXQncyBtZW1vcnkgbWFwcGVk
+IGJ5IHRoZSBrZXJuZWwNCj4gYXV0b21hdGljYWxseSBvbiBhY2Nlc3MgdnMgYSBwb2ludGVyIHJl
+dHVybmVkIGJ5IG1tYXAoKS4gVGhlIHN0YXRlbWVudA0KPiBhYm92ZSB0YWxrcyBhYm91dCBob3cg
+dGhlIGFkZHJlc3MgaXMgb2J0YWluZWQgYnkgdGhlIHVzZXIuDQoNCm9rIGkgcmVhZCAnbWFwcGlu
+ZyBiZWxvdyBzYnJrJyBhcyBhbiBtbWFwIChwb3NzaWJseSBNQVBfRklYRUQpDQp0aGF0IGhhcHBl
+bnMgdG8gYmUgYmVsb3cgdGhlIGhlYXAgYXJlYS4NCg0KaSB0aGluayAiYmVsb3cgc2JyaygwKSIg
+aXMgbm90IHRoZSBiZXN0IHRlcm0gdG8gdXNlOiB0aGVyZQ0KbWF5IGJlIGFkZHJlc3MgcmFuZ2Ug
+YmVsb3cgdGhlIGhlYXAgYXJlYSB0aGF0IGNhbiBiZSBtbWFwcGVkDQphbmQgdGh1cyBiZWxvdyBz
+YnJrKDApIGFuZCBzYnJrIGlzIGEgcG9zaXggYXBpIG5vdCBhIGxpbnV4DQpzeXNjYWxsLCB0aGUg
+bGliYyBjYW4gaW1wbGVtZW50IGl0IHdpdGggbW1hcCBvciB3aGF0ZXZlci4NCg0KaSdtIG5vdCBz
+dXJlIHdoYXQgdGhlIHJpZ2h0IHRlcm0gZm9yICdoZWFwIGFyZWEnIGlzDQoodGhlIGFkZHJlc3Mg
+cmFuZ2UgYmV0d2VlbiBzeXNjYWxsKF9fTlJfYnJrLDApIGF0DQpwcm9ncmFtIHN0YXJ0dXAgYW5k
+IGl0cyBjdXJyZW50IHZhbHVlPykNCg0KPj4+ICsgIC0gYW55IG1lbW9yeSBtYXBwZWQgYnkgdGhl
+IGtlcm5lbCBpbiB0aGUgcHJvY2VzcydzIGFkZHJlc3Mgc3BhY2UgZHVyaW5nDQo+Pj4gKyAgICBj
+cmVhdGlvbiBhbmQgZm9sbG93aW5nIHRoZSByZXN0cmljdGlvbnMgcHJlc2VudGVkIGFib3ZlIChp
+LmUuIGRhdGEsIGJzcywNCj4+PiArICAgIHN0YWNrKS4NCj4+DQo+PiBPSy4NCj4+DQo+PiBDYW4g
+YSBudWxsIHBvaW50ZXIgaGF2ZSBhIHRhZz8NCj4+IChpbiBjYXNlIE5VTEwgaXMgdmFsaWQgdG8g
+cGFzcyB0byBhIHN5c2NhbGwpDQo+IA0KPiBHb29kIHBvaW50LiBJIGRvbid0IHRoaW5rIGl0IGNh
+bi4gV2UgbWF5IGNoYW5nZSB0aGlzIGZvciBNVEUgd2hlcmUgd2UNCj4gZ2l2ZSBhIGhpbnQgdGFn
+IGJ1dCBubyBoaW50IGFkZHJlc3MsIGhvd2V2ZXIsIHRoaXMgZG9jdW1lbnQgb25seSBjb3ZlcnMN
+Cj4gVEJJIGZvciBub3cuDQoNCk9LLg0KDQo+Pj4gK1RoZSBBUk02NCBUYWdnZWQgQWRkcmVzcyBB
+QkkgaXMgYW4gb3B0LWluIGZlYXR1cmUsIGFuZCBhbiBhcHBsaWNhdGlvbiBjYW4NCj4+PiArY29u
+dHJvbCBpdCB1c2luZyB0aGUgZm9sbG93aW5nIHByY3RsKClzOg0KPj4+ICsgIC0gUFJfU0VUX1RB
+R0dFRF9BRERSX0NUUkw6IGNhbiBiZSB1c2VkIHRvIGVuYWJsZSB0aGUgVGFnZ2VkIEFkZHJlc3Mg
+QUJJLg0KPj4+ICsgIC0gUFJfR0VUX1RBR0dFRF9BRERSX0NUUkw6IGNhbiBiZSB1c2VkIHRvIGNo
+ZWNrIHRoZSBzdGF0dXMgb2YgdGhlIFRhZ2dlZA0KPj4+ICsgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgIEFkZHJlc3MgQUJJLg0KPj4+ICsNCj4+PiArQXMgYSBjb25zZXF1ZW5jZSBvZiBpbnZv
+a2luZyBQUl9TRVRfVEFHR0VEX0FERFJfQ1RSTCBwcmN0bCgpIGJ5IGFuIGFwcGxpY2F0aW9ucywN
+Cj4+PiArdGhlIEFCSSBndWFyYW50ZWVzIHRoZSBmb2xsb3dpbmcgYmVoYXZpb3VyczoNCj4+PiAr
+DQo+Pj4gKyAgLSBFdmVyeSBjdXJyZW50IG9yIG5ld2x5IGludHJvZHVjZWQgc3lzY2FsbCBjYW4g
+YWNjZXB0IGFueSB2YWxpZCB0YWdnZWQNCj4+PiArICAgIHBvaW50ZXJzLg0KPj4+ICsNCj4+PiAr
+ICAtIElmIGEgbm9uIHZhbGlkIHRhZ2dlZCBwb2ludGVyIGlzIHBhc3NlZCB0byBhIHN5c2NhbGwg
+dGhlbiB0aGUgYmVoYXZpb3VyDQo+Pj4gKyAgICBpcyB1bmRlZmluZWQuDQo+Pj4gKw0KPj4+ICsg
+IC0gRXZlcnkgdmFsaWQgdGFnZ2VkIHBvaW50ZXIgaXMgZXhwZWN0ZWQgdG8gd29yayBhcyBhbiB1
+bnRhZ2dlZCBvbmUuDQo+Pj4gKw0KPj4+ICsgIC0gVGhlIGtlcm5lbCBwcmVzZXJ2ZXMgYW55IHZh
+bGlkIHRhZ2dlZCBwb2ludGVycyBhbmQgcmV0dXJucyB0aGVtIHRvIHRoZQ0KPj4+ICsgICAgdXNl
+cnNwYWNlIHVuY2hhbmdlZCBpbiBhbGwgdGhlIGNhc2VzIGV4Y2VwdCB0aGUgb25lcyBkb2N1bWVu
+dGVkIGluIHRoZQ0KPj4+ICsgICAgIlByZXNlcnZpbmcgdGFncyIgcGFyYWdyYXBoIG9mIHRhZ2dl
+ZC1wb2ludGVycy50eHQuDQo+Pg0KPj4gT0suDQo+Pg0KPj4gaSBndWVzcyBwb2ludGVycyBvZiBh
+bm90aGVyIHByb2Nlc3MgYXJlIG5vdCAidmFsaWQgdGFnZ2VkIHBvaW50ZXJzIg0KPj4gZm9yIHRo
+ZSBjdXJyZW50IG9uZSwgc28gZS5nLiBpbiBwdHJhY2UgdGhlIHB0cmFjZXIgaGFzIHRvIGNsZWFy
+IHRoZQ0KPj4gdGFncyBiZWZvcmUgUEVFSyBldGMuDQo+IA0KPiBBbm90aGVyIGdvb2QgcG9pbnQu
+IEFyZSB0aGVyZSBhbnkgcHJvcy9jb25zIGhlcmUgb3IgdXNlLWNhc2VzPyBXaGVuIHdlDQo+IGFk
+ZCBNVEUgc3VwcG9ydCwgc2hvdWxkIHdlIGhhbmRsZSB0aGlzIGRpZmZlcmVudGx5Pw0KDQppJ20g
+bm90IHN1cmUgd2hhdCBnZGIgZG9lcyBjdXJyZW50bHksIGJ1dCBpdCBoYXMNCmFuICdhZGRyZXNz
+X3NpZ25pZmljYW50JyBob29rIHVzZWQgYXQgYSBmZXcgcGxhY2VzDQp0aGF0IGRyb3BzIHRoZSB0
+YWcgb24gYWFyY2g2NCwgc28gaXQgcHJvYmFibHkNCmF2b2lkcyBwYXNzaW5nIHRhZ2dlZCBwb2lu
+dGVyIHRvIHB0cmFjZS4NCg0KaSB3YXMgd29ycmllZCBhYm91dCBzdHJhY2Ugd2hpY2ggdHJpZXMg
+dG8gcHJpbnQNCnN0cnVjdHMgcGFzc2VkIHRvIHN5c2NhbGxzIGFuZCBmb2xsb3cgcG9pbnRlcnMg
+aW4NCnRoZW0gd2hpY2ggY3VycmVudGx5IHdvdWxkIHdvcmssIGJ1dCBpZiB3ZSBhbGxvdw0KdGFn
+cyBpbiBzeXNjYWxscyB0aGVuIGl0IG5lZWRzIHNvbWUgdXBkYXRlLg0KKGkgaGF2ZW4ndCBjaGVj
+a2VkIHRoZSBzdHJhY2UgY29kZSB0aG91Z2gpDQoNCj4+PiArQSBkZWZpbml0aW9uIG9mIHRoZSBt
+ZWFuaW5nIG9mIHRhZ2dlZCBwb2ludGVycyBvbiBhcm02NCBjYW4gYmUgZm91bmQgaW46DQo+Pj4g
+K0RvY3VtZW50YXRpb24vYXJtNjQvdGFnZ2VkLXBvaW50ZXJzLnR4dC4NCj4+PiArDQo+Pj4gKzMu
+IEFSTTY0IFRhZ2dlZCBBZGRyZXNzIEFCSSBFeGNlcHRpb25zDQo+Pj4gKy0tLS0tLS0tLS0tLS0t
+LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tDQo+Pj4gKw0KPj4+ICtUaGUgYmVoYXZpb3VycyBkZXNj
+cmliZWQgaW4gcGFyYWdyYXBoIDIsIHdpdGggcGFydGljdWxhciByZWZlcmVuY2UgdG8gdGhlDQo+
+Pj4gK2FjY2VwdGFuY2UgYnkgdGhlIHN5c2NhbGxzIG9mIGFueSB2YWxpZCB0YWdnZWQgcG9pbnRl
+ciBhcmUgbm90IGFwcGxpY2FibGUNCj4+PiArdG8gdGhlIGZvbGxvd2luZyBjYXNlczoNCj4+PiAr
+ICAtIG1tYXAoKSBhZGRyIHBhcmFtZXRlci4NCj4+PiArICAtIG1yZW1hcCgpIG5ld19hZGRyZXNz
+IHBhcmFtZXRlci4NCj4+PiArICAtIHByY3RsX3NldF9tbSgpIHN0cnVjdCBwcmN0bF9tYXAgZmll
+bGRzLg0KPj4+ICsgIC0gcHJjdGxfc2V0X21tX21hcCgpIHN0cnVjdCBwcmN0bF9tYXAgZmllbGRz
+Lg0KPj4NCj4+IGkgZG9uJ3QgdW5kZXJzdGFuZCB0aGUgZXhjZXB0aW9uOiBkb2VzIGl0IG1lYW4g
+dGhhdCBwYXNzaW5nIGEgdGFnZ2VkDQo+PiBhZGRyZXNzIHRvIHRoZXNlIHN5c2NhbGxzIGlzIHVu
+ZGVmaW5lZD8NCj4gDQo+IEknZCBzYXkgaXQncyBhcyB1bmRlZmluZWQgYXMgaXQgaXMgcmlnaHQg
+bm93IHdpdGhvdXQgdGhlc2UgcGF0Y2hlcy4gV2UNCj4gbWF5IGJlIGFibGUgdG8gZXhwbGFpbiB0
+aGlzIGJldHRlciBpbiB0aGUgZG9jdW1lbnQuDQo+IA0KDQo=
 
