@@ -2,208 +2,154 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D3AA4C31E46
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 01:14:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9B43C31E46
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 01:18:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7CEF3208CA
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 01:14:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 68BF02173C
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 01:18:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="pyVy5aBf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CEF3208CA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="B6QwZ4EL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 68BF02173C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F34C06B000D; Wed, 12 Jun 2019 21:14:58 -0400 (EDT)
+	id 017BC6B000E; Wed, 12 Jun 2019 21:18:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EE5046B000E; Wed, 12 Jun 2019 21:14:58 -0400 (EDT)
+	id EE40E6B0010; Wed, 12 Jun 2019 21:18:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DAD5C6B0010; Wed, 12 Jun 2019 21:14:58 -0400 (EDT)
+	id D842A6B0266; Wed, 12 Jun 2019 21:18:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B22386B000D
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 21:14:58 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id d13so8541010oth.20
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 18:14:58 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FF1E6B000E
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 21:18:15 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id v62so12629511pgb.0
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 18:18:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=RcKUTNC1/Yaa+Z7YVTaDTsC+idf0Auxj860bjLfby9Y=;
-        b=dVqZgd4gLktjldOUm5uurpjJbGjjeL6HvFOq7eVOBomKAeRTvJamADFiiosOKQRs0I
-         v2/ypqAypzdIrgfYt6cW5jv1kSnp2+Wv5D9Un3OEFKXCqYsUGYmd9QOsmeLD8pZO0erw
-         mqrs99fF9icithe9eLN4RNXuQ8jHQ8damvXcKXQKtgYrvHa8K3MnionpkgZOpbyQrYhb
-         RhhSzGMvgLuNpk4kWnfpCrYYzJrA7gttfB6FnWE/nMaLDvsTJo/Nk0oR8ejXnck7REXK
-         xMJDctQGyXXij/xVQdLwUeBmOaJPEQz+eg+KZEdSgxsJeOBk054zKZxkfspLKawTNbrX
-         0nrg==
-X-Gm-Message-State: APjAAAXD0l2ZgxFVUuPVT0ni7Iymny4vujb/gZlh7IaAuK9x03qOIvo3
-	/Bz9x+qL7zbiz/qtx6ybI7D3BJmtRhBpvnuihgII9oSbD6bICofA1At5xTyi34d8HEBOb71OATc
-	gAFLh/zmiom/ZM6JG3AntrVuc8kKCIud5WuGwhb8u2zVkidTtbqb1G2yfi/wMomDhuQ==
-X-Received: by 2002:a9d:6a19:: with SMTP id g25mr38104905otn.77.1560388498280;
-        Wed, 12 Jun 2019 18:14:58 -0700 (PDT)
-X-Received: by 2002:a9d:6a19:: with SMTP id g25mr38104876otn.77.1560388497555;
-        Wed, 12 Jun 2019 18:14:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560388497; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=bxihxNNysPXerPyob9Zzk921oVuc/OIiBaUeQPYANHw=;
+        b=kh6qsKCHmCssNdbXl+zxuAaq31vVt002GwBIX9q8lh4XHkx2pcMiBeGZzAxMiah6lp
+         +eshH+mpD86c2nI82KEp/+sSwiE2Q2kEyvSSpFrFVWBhbfGgYmEeu4W9Bzn+hLFt4zn4
+         JQp9TNVwq5ZbADQV4ybD+Q/jEXGlASO3BnnospZoXr/EfthdeMSz2uu3Y46V4C+jofSw
+         LyUB/Sr5LwbitGcoW0yhq+VmBF0ygTR9m+fDBZEdTYzQxjweOt/bEo7NmXpvyFCPy/0t
+         cjbgJtIdt65Nuet2zogF2a1KKi4PKNB83s5SqdwgLmf5QBzGmKb2EWtJgOopuWf2SDyw
+         /6tA==
+X-Gm-Message-State: APjAAAXL0ClBNLHhqrgUcMehA0eS1LTh1+0TIVuba9nl+dF5vCjacoww
+	udohQRoOz0bkMz1d1QbR7zCJpEd7iNCE2anUxlie8rJTO+gvLAhtdzb33cqk9yIEIrJM6iG2ytl
+	uXFvW5LZPKt7gOpO1A6KptVD+RE5zc4i7jQl1v2pfLorCasTmqIXawcRkvmkmxCMBcg==
+X-Received: by 2002:a17:902:467:: with SMTP id 94mr28770477ple.131.1560388695320;
+        Wed, 12 Jun 2019 18:18:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz2Er4xuLqB/HgMWrKt6YgRIPm+dNxH89cvry2cCWiIsYD5uyPnGFhJhfZHYKzJF09xAexv
+X-Received: by 2002:a17:902:467:: with SMTP id 94mr28770437ple.131.1560388694580;
+        Wed, 12 Jun 2019 18:18:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560388694; cv=none;
         d=google.com; s=arc-20160816;
-        b=QGoCCF5tLF56br+DMqfDHUHGfQ9eFt7ckQBVYo5+e1rTKGb9yyVlyO4QclODSV2YGS
-         Lt6P4iBtw0JZG8nPkFPtd3SHLaSlhNVv8JkBjWkSTAXJDp4T/8g54QWRjz7E8iymez5L
-         bf2764UftsIU8+wbLrjnk0az8v4fsmM7cEF4YybLn1Yp6s2xE3Q0iPlkn9iPnz+MrcVe
-         KCvvvsIgaTFX6b4oASiwRjn5c2MYvChGcW6DkESaDtqNaD/2nXtjjOuEKYVkaxwK5ffT
-         G/+lvlD4zhWQ2E3cmBPNd/13+gdb2zIEgGgjuA9/IGBk85XLNJOz8eoB64MJqPxNBft6
-         7n3Q==
+        b=utScaRwrrl7QmhlEQLF9OFMObKH43KsqS0ViUgwq/M+kE/XWyFbob+8DkF0R9CaG+S
+         1r2Ko8mr7BT5anRfxvZHRV7echAnG4yJzsrQ7wwlBoN7AzE9NbgSidFv8hJXenTUt/go
+         miGNT82on8DrsHkzWXl0cCZbvw504Vmdod5zfRoUdfGvRnZXzSZxouUMpGpUkGi7I8xv
+         odirgOax9Si5gZadGiFd5Kr3Zae3cMe45N78S3pye+eiYitWbMCcFTZgwusqabi0nM7o
+         z9+hR0tX7LAZBs196j3oMMLQ9GbfxYe6z4Fb0WUsJFX3GLkk2uTUFqlWGvxBb6g8tc+v
+         RBHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=RcKUTNC1/Yaa+Z7YVTaDTsC+idf0Auxj860bjLfby9Y=;
-        b=A0QgVGqaZEGdz/MmUN/2dYg3zJK+KLEeMuIujNF9/uXqI6germUiyW3/WImjXREoC4
-         kck4ZhYKnBmdDlEodhd1pI9TkMrJs7/Xa4Tn0BjyE9+Tsjr+WKy6y11/lIcbuxx6m2r5
-         wzvW7n2bq8qg8v1Q2CxGttC45TMOTvuyiXGaWym68f97r0gT2HkyvE2W4XTu2n6kUMdp
-         eMwpZ52QxClVfvkyDnthPAaBwe7Fuu9JBO0i6tLbZgbd4kogTxLzTcbe2h5bZAIm81a1
-         Iuf2t9Crhi/LV3FPmfUlz853AvYFRtq2K1L7eO9EJ6lIQQF7Myld613W8O8mk6AXVGY9
-         zGKw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=bxihxNNysPXerPyob9Zzk921oVuc/OIiBaUeQPYANHw=;
+        b=RPkIJASdXV5shAkfUXBpryo9O5VfktfDSr/5n5A0mQ9ol/ZtS3GetGPeJii4UMncLz
+         p0JqM6Gca7pxERC9KeUlWRyJRFD5egtB8a+aFuLaSWvPH3Q3JtF46hoCaUtiXc7C0VtF
+         rEI2F6UYr6r2pcD3v/dETquyNi8GlaDSGrP4uQ1ss/OD6SQq0g9VkWJ4YBhj4FGnW75h
+         uvf7gA3kMDpsrbhlcBXqhhXl4uDSWlAUjpOxGvoGQ1wMFvqqZlZXaWltfaVLIma+WkSB
+         wtVAF+8Yq9lB+xrzr63qwqMgqRtL/4ygaaNLyE5GS07gX0dFDSfoBNDVAUZ1tlpd8aJ4
+         0esw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=pyVy5aBf;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c126sor753466oif.122.2019.06.12.18.14.57
+       dkim=pass header.i=@kernel.org header.s=default header.b=B6QwZ4EL;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id h63si1256380pge.558.2019.06.12.18.18.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 12 Jun 2019 18:14:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Jun 2019 18:18:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=pyVy5aBf;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=RcKUTNC1/Yaa+Z7YVTaDTsC+idf0Auxj860bjLfby9Y=;
-        b=pyVy5aBfnvmLd4LmS99NC7v2hHH+z4UZs9t88ZWrifMnyNQ1ntVXoql6oB68VhzVo1
-         F8hclQ0Wyg9MsOlwr7j9F9a5FwakzRc0cX63T9oeseLCkWGBIj3OBaI1LL2HQs2XiGNX
-         ETH5Cv/Dp91sVJ4t+YsWm75tFBfI5P44fYs8oiCUlHe8OHYW0zmCh+Jz3mI3juP3eG0d
-         bwg8PkQXV/rh9Ruhio4gTK3UfuitZunT8jlU1uJv5ynSJJDHBTJWHqmmDp1yyxN5HdDN
-         3nC3in/UilzgUI6FwH3DI0lKZs/DXkSb6pM0DXEBpGmyHzzfZCjAONw9LI5SpclpGpd3
-         Jyhw==
-X-Google-Smtp-Source: APXvYqykCVdxD0fjMiZ7EZWZAtb82hdqz1hJdJILcfFTKlDzRoucvcWvFMaxGMog6wRYrJg2D1GBjocrrJhQVeNNqcs=
-X-Received: by 2002:aca:fc50:: with SMTP id a77mr1431023oii.0.1560388497122;
- Wed, 12 Jun 2019 18:14:57 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190606222228.GB11698@iweiny-DESK2.sc.intel.com>
- <20190607103636.GA12765@quack2.suse.cz> <20190607121729.GA14802@ziepe.ca>
- <20190607145213.GB14559@iweiny-DESK2.sc.intel.com> <20190612102917.GB14578@quack2.suse.cz>
- <20190612114721.GB3876@ziepe.ca> <20190612120907.GC14578@quack2.suse.cz>
- <20190612191421.GM3876@ziepe.ca> <20190612221336.GA27080@iweiny-DESK2.sc.intel.com>
- <CAPcyv4gkksnceCV-p70hkxAyEPJWFvpMezJA1rEj6TEhKAJ7qQ@mail.gmail.com> <20190612233324.GE14336@iweiny-DESK2.sc.intel.com>
-In-Reply-To: <20190612233324.GE14336@iweiny-DESK2.sc.intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 12 Jun 2019 18:14:46 -0700
-Message-ID: <CAPcyv4jf19CJbtXTp=ag7Ns=ZQtqeQd3C0XhV9FcFCwd9JCNtQ@mail.gmail.com>
-Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Jan Kara <jack@suse.cz>, "Theodore Ts'o" <tytso@mit.edu>, 
-	Jeff Layton <jlayton@kernel.org>, Dave Chinner <david@fromorbit.com>, 
-	Matthew Wilcox <willy@infradead.org>, linux-xfs <linux-xfs@vger.kernel.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, John Hubbard <jhubbard@nvidia.com>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-nvdimm <linux-nvdimm@lists.01.org>, 
-	linux-ext4 <linux-ext4@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@kernel.org header.s=default header.b=B6QwZ4EL;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 9CE68208CA;
+	Thu, 13 Jun 2019 01:18:13 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1560388694;
+	bh=t8ziDUjGRatmX8RI2sR6uyYMindRv5VWtp1mspyO4HE=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=B6QwZ4EL/RBtMxQBQ2C4dYwyr9DAJ+Z2Z3aJYcMQaieNiGU59KS/u8/xtLLpUbW7T
+	 m8OVV9+d3Wy/w/AD79mktyWQ9phS4xvdMROxkLy5tWqzeIv5KZdGBnmd8Y37PQfYMW
+	 8g+LcA6tVIJiZ3F672gNG+5F6YHn3ViB+XbeCa+A=
+Date: Wed, 12 Jun 2019 18:18:13 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au,
+ linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ mm-commits@vger.kernel.org, ocfs2-devel@oss.oracle.com, Mark Fasheh
+ <mark@fasheh.com>, Joel Becker <jlbec@evilplan.org>, Joseph Qi
+ <joseph.qi@linux.alibaba.com>
+Subject: Re: mmotm 2019-06-11-16-59 uploaded (ocfs2)
+Message-Id: <20190612181813.48ad05832e05f767e7116d7b@linux-foundation.org>
+In-Reply-To: <492b4bcc-4760-7cbb-7083-9f22e7ab4b82@infradead.org>
+References: <20190611235956.4FZF6%akpm@linux-foundation.org>
+	<492b4bcc-4760-7cbb-7083-9f22e7ab4b82@infradead.org>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 12, 2019 at 4:32 PM Ira Weiny <ira.weiny@intel.com> wrote:
->
-> On Wed, Jun 12, 2019 at 03:54:19PM -0700, Dan Williams wrote:
-> > On Wed, Jun 12, 2019 at 3:12 PM Ira Weiny <ira.weiny@intel.com> wrote:
-> > >
-> > > On Wed, Jun 12, 2019 at 04:14:21PM -0300, Jason Gunthorpe wrote:
-> > > > On Wed, Jun 12, 2019 at 02:09:07PM +0200, Jan Kara wrote:
-> > > > > On Wed 12-06-19 08:47:21, Jason Gunthorpe wrote:
-> > > > > > On Wed, Jun 12, 2019 at 12:29:17PM +0200, Jan Kara wrote:
-> > > > > >
-> > > > > > > > > The main objection to the current ODP & DAX solution is that very
-> > > > > > > > > little HW can actually implement it, having the alternative still
-> > > > > > > > > require HW support doesn't seem like progress.
-> > > > > > > > >
-> > > > > > > > > I think we will eventually start seein some HW be able to do this
-> > > > > > > > > invalidation, but it won't be universal, and I'd rather leave it
-> > > > > > > > > optional, for recovery from truely catastrophic errors (ie my DAX is
-> > > > > > > > > on fire, I need to unplug it).
-> > > > > > > >
-> > > > > > > > Agreed.  I think software wise there is not much some of the devices can do
-> > > > > > > > with such an "invalidate".
-> > > > > > >
-> > > > > > > So out of curiosity: What does RDMA driver do when userspace just closes
-> > > > > > > the file pointing to RDMA object? It has to handle that somehow by aborting
-> > > > > > > everything that's going on... And I wanted similar behavior here.
-> > > > > >
-> > > > > > It aborts *everything* connected to that file descriptor. Destroying
-> > > > > > everything avoids creating inconsistencies that destroying a subset
-> > > > > > would create.
-> > > > > >
-> > > > > > What has been talked about for lease break is not destroying anything
-> > > > > > but very selectively saying that one memory region linked to the GUP
-> > > > > > is no longer functional.
-> > > > >
-> > > > > OK, so what I had in mind was that if RDMA app doesn't play by the rules
-> > > > > and closes the file with existing pins (and thus layout lease) we would
-> > > > > force it to abort everything. Yes, it is disruptive but then the app didn't
-> > > > > obey the rule that it has to maintain file lease while holding pins. Thus
-> > > > > such situation should never happen unless the app is malicious / buggy.
-> > > >
-> > > > We do have the infrastructure to completely revoke the entire
-> > > > *content* of a FD (this is called device disassociate). It is
-> > > > basically close without the app doing close. But again it only works
-> > > > with some drivers. However, this is more likely something a driver
-> > > > could support without a HW change though.
-> > > >
-> > > > It is quite destructive as it forcibly kills everything RDMA related
-> > > > the process(es) are doing, but it is less violent than SIGKILL, and
-> > > > there is perhaps a way for the app to recover from this, if it is
-> > > > coded for it.
-> > >
-> > > I don't think many are...  I think most would effectively be "killed" if this
-> > > happened to them.
-> > >
-> > > >
-> > > > My preference would be to avoid this scenario, but if it is really
-> > > > necessary, we could probably build it with some work.
-> > > >
-> > > > The only case we use it today is forced HW hot unplug, so it is rarely
-> > > > used and only for an 'emergency' like use case.
-> > >
-> > > I'd really like to avoid this as well.  I think it will be very confusing for
-> > > RDMA apps to have their context suddenly be invalid.  I think if we have a way
-> > > for admins to ID who is pinning a file the admin can take more appropriate
-> > > action on those processes.   Up to and including killing the process.
-> >
-> > Can RDMA context invalidation, "device disassociate", be inflicted on
-> > a process from the outside? Identifying the pid of a pin holder only
-> > leaves SIGKILL of the entire process as the remediation for revoking a
-> > pin, and I assume admins would use the finer grained invalidation
-> > where it was available.
->
-> No not in the way you are describing it.  As Jason said you can hotplug the
-> device which is "from the outside" but this would affect all users of that
-> device.
->
-> Effectively, we would need a way for an admin to close a specific file
-> descriptor (or set of fds) which point to that file.  AFAIK there is no way to
-> do that at all, is there?
+On Wed, 12 Jun 2019 07:15:30 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
 
-Even if there were that gets back to my other question, does RDMA
-teardown happen at close(fd), or at final fput() of the 'struct file'?
-I.e. does it also need munmap() to get the vma to drop its reference?
-Perhaps a pointer to the relevant code would help me wrap my head
-around this mechanism.
+> On 6/11/19 4:59 PM, akpm@linux-foundation.org wrote:
+> > The mm-of-the-moment snapshot 2019-06-11-16-59 has been uploaded to
+> > 
+> >    http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > mmotm-readme.txt says
+> > 
+> > README for mm-of-the-moment:
+> > 
+> > http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> > more than once a week.
+> 
+> 
+> on i386:
+> 
+> ld: fs/ocfs2/dlmglue.o: in function `ocfs2_dlm_seq_show':
+> dlmglue.c:(.text+0x46e4): undefined reference to `__udivdi3'
+
+Thanks.  This, I guess:
+
+--- a/fs/ocfs2/dlmglue.c~ocfs2-add-locking-filter-debugfs-file-fix
++++ a/fs/ocfs2/dlmglue.c
+@@ -3115,7 +3115,7 @@ static int ocfs2_dlm_seq_show(struct seq
+ 		 * otherwise, only dump the last N seconds active lock
+ 		 * resources.
+ 		 */
+-		if ((now - last) / 1000000 > dlm_debug->d_filter_secs)
++		if (div_u64(now - last, 1000000) > dlm_debug->d_filter_secs)
+ 			return 0;
+ 	}
+ #endif
+
+review and test, please?
 
