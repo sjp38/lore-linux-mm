@@ -2,175 +2,214 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0ABA1C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 03:36:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 510CAC31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 04:37:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CED3120866
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 03:36:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CED3120866
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id E362120896
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 04:37:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E362120896
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 52E8A6B0007; Wed, 12 Jun 2019 23:36:55 -0400 (EDT)
+	id 54ED66B0003; Thu, 13 Jun 2019 00:37:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4DF476B000C; Wed, 12 Jun 2019 23:36:55 -0400 (EDT)
+	id 4FF076B0005; Thu, 13 Jun 2019 00:37:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3CE1A6B0010; Wed, 12 Jun 2019 23:36:55 -0400 (EDT)
+	id 3C7546B0006; Thu, 13 Jun 2019 00:37:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 079B86B0007
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 23:36:55 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id q2so11064841plr.19
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 20:36:54 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 072FC6B0003
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 00:37:54 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id s195so12965437pgs.13
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 21:37:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :date:from:to:cc:subject:references:in-reply-to:mime-version
-         :content-transfer-encoding:content-disposition;
-        bh=MweLbB9ZssUDSIR7gQX64E9C1EE/FRQrXHCHqGFo3UQ=;
-        b=lr6N2r4aE++tnY5YGxW8q8W1Vyo2BOpre9KtzUW9z083oj4u73JT8MvmLUOny3tuGx
-         XjiwmsHTfHNmbcAr9oEddQET+PBjbcZzJPVQUjJ1ywucev84kX7cq43V2i8x2YLA0Q9u
-         gufDGyxMMOqNX/L/Fi9O04hMmqgiUmjJeLQB74F6WP8BwZXOiflWHqyCfSPOYEbr/LUN
-         D9xjrxIyWNlZQZhWcM/vQNyr7aBw5uUKRaVjukA2u2TYDeIppU61wFr45eXXaaTx0YSl
-         TPk/wSCr54cNDAwc/guc+UlIIXM6EDzwR7Ed8knbQOx6so5N/M+oapFbkja+bl+ANI7+
-         Pi8A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ghe@suse.com designates 137.65.248.33 as permitted sender) smtp.mailfrom=ghe@suse.com
-X-Gm-Message-State: APjAAAXC+W6N/r1kP5HoYq9uEU7J/Thoc3tzjL1Wx6Hzjealv/aq3DWD
-	meWDIlcKbZ18el2vCn/2YrEk5Cb4Iyb1yxAkPmfqKUCFSZ7bAuhyddfEaBV7czIZ2fyiOO8Ivvw
-	oklFGG77VZRVWjU+EvocQu4B2iIL/cbeFePy15RXB6eB1Tj9O87PgDpbFFJhmEwdcaQ==
-X-Received: by 2002:a17:90a:5887:: with SMTP id j7mr2559090pji.136.1560397014703;
-        Wed, 12 Jun 2019 20:36:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxr2vVnmqGQMrorU+PL1fnOXe0peXFC6wKa4AMxNOiViCdgjrUvfviCeOxXAhQGhwhGQzuH
-X-Received: by 2002:a17:90a:5887:: with SMTP id j7mr2559021pji.136.1560397013947;
-        Wed, 12 Jun 2019 20:36:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560397013; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Ks+ISqyfxk9pg1rSJuwC9erCPByP0RZg/2NBga4q9Lg=;
+        b=SufJ4XgUhI0vvg8g95PEgKFIKheUd5CoPduSo88gvKihYcVf1w0og1jNHhqWEkiAxZ
+         poFimocR1CV+ObR2Y9t8EIpelhZnKdJF5EgXefNbVDCF6l3si26QppFQhA+hv9Fzx9bT
+         FsR4jW6W9zRphZ4pIymq1p4OQb2yPei9FuNrZlm/6v841o9QIgK8CBGi+S7cuTGYzj9r
+         dQxnMqHbJ22kskyGcfSJD7HPl/GnohwsDKhpf3HpA6L6lNL5hdlWN2T716YuVk/uGmpO
+         ADih7+sNnSb26YWmosd2SqhJn7xNvCOgBBwiWsZTYXpvz1FKwc8rQPotwKJ4g8KC/6/I
+         /JsQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAUgEPmkVYG/6gd+ck4voLiwCrHkPZrpOsCf5kPaWjsWkFFzsC+z
+	n0aWL6hqf78otyudt2iNL7LIcvWHG6JFKaDZ5QkQKGf1+mRSYf/qEjMdGhXkJrPi9+xthW7jXHo
+	cFlel+MRI8lPlgbX8/GQTtEbxt9sxJY7n5LbRX7E8rKpnlTnPOCiMEqldJChvu+c=
+X-Received: by 2002:a62:4d03:: with SMTP id a3mr12924326pfb.2.1560400673575;
+        Wed, 12 Jun 2019 21:37:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzb1jE/zSt7GNeFHTnpeLZrX80FwIkpLIKpioKhIlpH1p22jplgYTtKu3Wuq7qLre9w00dH
+X-Received: by 2002:a62:4d03:: with SMTP id a3mr12924266pfb.2.1560400672624;
+        Wed, 12 Jun 2019 21:37:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560400672; cv=none;
         d=google.com; s=arc-20160816;
-        b=oeOV73UfYmi92w2WRSkNfbBOsshTXKkH0TZCr9sr6eqU677sMmU85BeBD5htUmXGq1
-         ZuzjkaiiePcSLCJ0cm1EHK19eYuqrlRtEqZtWgYQ3oHbhIMNgrsheFiwlLUqi5+xstRq
-         6GvHnZSNdpppCtLbN+mss+5phRNrtXLdYgpV/tancGA38SwWgDmOJbP25lI8ejIN6yDK
-         w5fhaUtlpFlvMNk/+KsL9rXiCv0XuzDk52xp5W/a/CPytCK++mdNgYKrzNC6kPpeGDNU
-         FO93CE46APjQ4ptp40xNOdNVLEzM3FSI2WFhH8bRsCAJ7VRqs8aWTxw/l9oaqia7feGX
-         N+RA==
+        b=zxBHDXPqQ24zqal4w/CrZbfVB9uJZx5Gq/Ha9NJUQsGWFcUE18EDIa85Vhppmwsitu
+         vhDhkoBvkiR/wtsbO3xyf6soCqwtSMbnxThP22u5s2Hr2tKHVqj3Mg3KSYu1n39WahZT
+         t15Q07AX7onrzrW2FTOCX7ys0g/cyHgoqn3UUPpN5OiVABNXwjR8TjNDcXZpKihe17Pr
+         r+mjvqqdsie0Fd8MdJtVZk3aV0rOXaIElAX40lwhMUR9RtstvYJRT1BwCQd7xkA7sZyT
+         bmkWxD1kdEqkNTHy90eNUUowcVxxJ7tMv7rX/nDcpkpt/Kl4H0iCJ2WNok1QIpAms+RU
+         IfGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-disposition:content-transfer-encoding:mime-version
-         :in-reply-to:references:subject:cc:to:from:date:message-id;
-        bh=MweLbB9ZssUDSIR7gQX64E9C1EE/FRQrXHCHqGFo3UQ=;
-        b=QJyO8y+Hn41fxKTLJPK1OEhhedUrWLnsd5/V3FhdW03CYOz0ZCJOmerBuDlWtsy7je
-         j3U1HIw1o+WVWvNc+21vLujBYbHN7lPLOSc9tnUH0/R0y/MBmvOAYIk8gufsc301MHf9
-         EzHf4z9jzPPPPKTOnuv/4Vxjcd8tDaMHnUhj8238bjT0owribYiwdKYPNUAt3xh5rqRP
-         LERa9UkGlOMdMvuByyX3hpBc9Eoe8Z0zyZXlmSvNyq1iAPVHCQTLse1a3amO/BO4Cl4I
-         /VZhtOa742rvGqcjj3jwqVIAZcvFfUYmGBfFrD+svjjsyZv/Mjo1srLzDwCwUmAF/juW
-         S6nA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Ks+ISqyfxk9pg1rSJuwC9erCPByP0RZg/2NBga4q9Lg=;
+        b=lcRiMjhtNv5JW/O8XruKSazipMfi3fKExMcTq+5aDB44aNK7l9MYoLNNKEpt2zqSOF
+         l29pfglvqe+NEoYBRjqhMMitYELmOoavc0+ujOLiKFUTly/tYEETvuQtCYXpf85ox7G7
+         CxHGcoD21Jn879+WhiRmzpKNgcEEnEl/I3utGhNa6OOOVEikMwjX4aWN+sxdDNa+3qi3
+         F68SEREkEWKaEV6big/syWSDi/bY+/gIumZVzYGPw+eRdLGyjVWIjuBYDnKV331S7ym3
+         FISg35Uy2LZCWSZecMiO49Jiljqlru+HpyHnrKhGqYFI0GvmWx4MF/4J5HTBqi3njtS3
+         UNSQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ghe@suse.com designates 137.65.248.33 as permitted sender) smtp.mailfrom=ghe@suse.com
-Received: from prv1-mh.provo.novell.com (prv1-mh.provo.novell.com. [137.65.248.33])
-        by mx.google.com with ESMTPS id e67si1547539pgc.11.2019.06.12.20.36.53
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 20:36:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ghe@suse.com designates 137.65.248.33 as permitted sender) client-ip=137.65.248.33;
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
+        by mx.google.com with ESMTP id m23si1707161pjv.56.2019.06.12.21.37.52
+        for <linux-mm@kvack.org>;
+        Wed, 12 Jun 2019 21:37:52 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ghe@suse.com designates 137.65.248.33 as permitted sender) smtp.mailfrom=ghe@suse.com
-Received: from INET-PRV1-MTA by prv1-mh.provo.novell.com
-	with Novell_GroupWise; Wed, 12 Jun 2019 21:36:53 -0600
-Message-Id: <5D01C4CD020000F90006C06A@prv1-mh.provo.novell.com>
-X-Mailer: Novell GroupWise Internet Agent 18.1.1 
-Date: Wed, 12 Jun 2019 21:36:45 -0600
-From: "Gang He" <ghe@suse.com>
-To: "Randy Dunlap" <rdunlap@infradead.org>,<akpm@linux-foundation.org>
-Cc: <sfr@canb.auug.org.au>,<broonie@kernel.org>, <linux-mm@kvack.org>,
- "Joseph Qi" <joseph.qi@linux.alibaba.com>,
- <ocfs2-devel@oss.oracle.com>, <mhocko@suse.cz>,
- <linux-fsdevel@vger.kernel.org>, <linux-kernel@vger.kernel.org>,
- <linux-next@vger.kernel.org>, <mm-commits@vger.kernel.org>
-Subject: Re: [Ocfs2-devel] mmotm 2019-06-11-16-59 uploaded (ocfs2)
-References: <20190611235956.4FZF6%akpm@linux-foundation.org>
- <492b4bcc-4760-7cbb-7083-9f22e7ab4b82@infradead.org>
- <20190612181813.48ad05832e05f767e7116d7b@linux-foundation.org>
-In-Reply-To: <20190612181813.48ad05832e05f767e7116d7b@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-195-189-25.pa.nsw.optusnet.com.au [49.195.189.25])
+	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id BEAB014A744;
+	Thu, 13 Jun 2019 14:37:47 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hbHTl-0005bp-W0; Thu, 13 Jun 2019 14:36:49 +1000
+Date: Thu, 13 Jun 2019 14:36:49 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
+	linux-xfs@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org, Jason Gunthorpe <jgg@ziepe.ca>,
+	linux-rdma@vger.kernel.org
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190613043649.GJ14363@dread.disaster.area>
+References: <20190606014544.8339-1-ira.weiny@intel.com>
+ <20190606104203.GF7433@quack2.suse.cz>
+ <20190606220329.GA11698@iweiny-DESK2.sc.intel.com>
+ <20190607110426.GB12765@quack2.suse.cz>
+ <20190607182534.GC14559@iweiny-DESK2.sc.intel.com>
+ <20190608001036.GF14308@dread.disaster.area>
+ <20190612123751.GD32656@bombadil.infradead.org>
+ <20190613002555.GH14363@dread.disaster.area>
+ <20190613032320.GG32656@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20190613032320.GG32656@bombadil.infradead.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0 cx=a_idp_d
+	a=K5LJ/TdJMXINHCwnwvH1bQ==:117 a=K5LJ/TdJMXINHCwnwvH1bQ==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=dq6fvYVFJ5YA:10
+	a=7-415B0cAAAA:8 a=VVmKscACqtQWyMykWwEA:9 a=CjuIK1q_8ugA:10
+	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello Randy and Andrew,
+On Wed, Jun 12, 2019 at 08:23:20PM -0700, Matthew Wilcox wrote:
+> On Thu, Jun 13, 2019 at 10:25:55AM +1000, Dave Chinner wrote:
+> > On Wed, Jun 12, 2019 at 05:37:53AM -0700, Matthew Wilcox wrote:
+> > > That's rather different from the normal meaning of 'exclusive' in the
+> > > context of locks, which is "only one user can have access to this at
+> > > a time".
+> > 
+> > Layout leases are not locks, they are a user access policy object.
+> > It is the process/fd which holds the lease and it's the process/fd
+> > that is granted exclusive access.  This is exactly the same semantic
+> > as O_EXCL provides for granting exclusive access to a block device
+> > via open(), yes?
+> 
+> This isn't my understanding of how RDMA wants this to work, so we should
+> probably clear that up before we get too far down deciding what name to
+> give it.
+> 
+> For the RDMA usage case, it is entirely possible that both process A
+> and process B which don't know about each other want to perform RDMA to
+> file F.  So there will be two layout leases active on this file at the
+> same time.  It's fine for IOs to simultaneously be active to both leases.
 
->>> On 6/13/2019 at  9:18 am, in message
-<20190612181813.48ad05832e05f767e7116d7b@linux-foundation.org>, Andrew =
-Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 12 Jun 2019 07:15:30 -0700 Randy Dunlap <rdunlap@infradead.org> =
-wrote:
->=20
->> On 6/11/19 4:59 PM, akpm@linux-foundation.org wrote:
->> > The mm-of-the-moment snapshot 2019-06-11-16-59 has been uploaded to
->> >=20
->> >   =20
-> https://urldefense.proofpoint.com/v2/url?u=3Dhttp-3A__www.ozlabs.org_-7Ea=
-kpm_=20
-> mmotm_&d=3DDwICAg&c=3DRoP1YumCXCgaWHvlZYR8PZh8Bv7qIrMUB65eapI_JnE&r=3DC7g=
-Ad4uDxlAvTdc0
-> vmU6X8CMk6L2iDY8-HD0qT6Fo7Y&m=3DzWoF0Bft4OzQeAaZXMGI56DN7p9MjLynOay4PZYAl=
-hQ&s=3DvYme
-> DBOk3Nv08-ZA7IweIdaUk094Ldvmgzc20fjjzDs&e=3D
->> >=20
->> > mmotm-readme.txt says
->> >=20
->> > README for mm-of-the-moment:
->> >=20
->> >=20
-> https://urldefense.proofpoint.com/v2/url?u=3Dhttp-3A__www.ozlabs.org_-7Ea=
-kpm_mmo=20
-> tm_&d=3DDwICAg&c=3DRoP1YumCXCgaWHvlZYR8PZh8Bv7qIrMUB65eapI_JnE&r=3DC7gAd4=
-uDxlAvTdc0vmU
-> 6X8CMk6L2iDY8-HD0qT6Fo7Y&m=3DzWoF0Bft4OzQeAaZXMGI56DN7p9MjLynOay4PZYAlhQ&=
-s=3DvYmeDBO
-> k3Nv08-ZA7IweIdaUk094Ldvmgzc20fjjzDs&e=3D
->> >=20
->> > This is a snapshot of my -mm patch queue.  Uploaded at random =
-hopefully
->> > more than once a week.
->>=20
->>=20
->> on i386:
->>=20
->> ld: fs/ocfs2/dlmglue.o: in function `ocfs2_dlm_seq_show':
->> dlmglue.c:(.text+0x46e4): undefined reference to `__udivdi3'
->=20
-> Thanks.  This, I guess:
->=20
-> --- a/fs/ocfs2/dlmglue.c~ocfs2-add-locking-filter-debugfs-file-fix
-> +++ a/fs/ocfs2/dlmglue.c
-> @@ -3115,7 +3115,7 @@ static int ocfs2_dlm_seq_show(struct seq
->  		 * otherwise, only dump the last N seconds active lock
->  		 * resources.
->  		 */
-> -		if ((now - last) / 1000000 > dlm_debug->d_filter_secs)
-> +		if (div_u64(now - last, 1000000) > dlm_debug->d_filter_secs=
-)
->  			return 0;
->  	}
->  #endif
->=20
-> review and test, please?
-Thank for this fix, the change is OK for my testing on x86_64.
+Yes, it is.
 
-Thanks
-Gang
+> But if the filesystem wants to move blocks around, it has to break
+> both leases.
 
->=20
-> _______________________________________________
-> Ocfs2-devel mailing list
-> Ocfs2-devel@oss.oracle.com=20
-> https://oss.oracle.com/mailman/listinfo/ocfs2-devel
+No, the _lease layer_ needs to break both leases when the filesystem
+calls break_layout().
+
+The filesystem is /completely unaware/ of whether a lease is held,
+how many leases are held, what is involved in revoking leases or
+whether they are exclusive or not. The filesystem only knows that it
+is about to perform an operation that may require a layout lease to
+be broken, so it's _asking permission_ from the layout lease layer
+whether it is OK to go ahead with the operation.
+
+See what I mean about the layout lease being an /access arbitration/
+layer? It's the layer that decides whether a modification can be
+made or not, not the filesystem. The layout lease layer tells the
+filesystem what it should do, the filesystem just has to ensure it
+adds layout breaking callouts in places that can block safely and
+are serialised to ensure operations from new layouts can't race with
+the operation that broke the existing layouts.
+
+> If Process C tries to do a write to file F without a lease, there's no
+> problem, unless a side-effect of the write would be to change the block
+> mapping,
+
+That's a side effect we cannot predict ahead of time. But it's
+also _completely irrelevant_ to the layout lease layer API and
+implementation.(*)
+
+> in which case either the leases must break first, or the write
+> must be denied.
+
+Which is exactly how I'm saying layout leases already interact with
+the filesystem: that if the lease cannot be broken, break_layout()
+returns -ETXTBSY to the filesystem, and the filesystem returns that
+to the application having made no changes at all. Layout leases are
+the policy engine, the filesystem just has to implement the
+break_layout() callouts such that layout breaking is consistent,
+correct, and robust....
+
+Cheers,
+
+Dave.
+
+(*) In the case of XFS, we don't know if a layout change will be
+necessary until we are deep inside the actual IO path and hold inode
+metadata locks. We can't block here to break the layout because IO
+completion and metadata commits need to occur to allow the
+application to release it's lease and IO completion requires that
+same inode metadata lock. i.e. if we block once we know a layout
+change needs to occur, we will deadlock the filesystem on the inode
+metadata lock.
+
+Hence the filesystem implementation dictates when the filesystem
+issues layout lease break notifications. However, these filesystem
+implementation issues do not dictate how applications interact with
+layout leases, how layout leases are managed, whether concurrent
+leases are allowed, whether leases can be broken, etc.  That's all
+managed by the layout lease layer and that's where the go/no go
+decision is made and communicated to the filesystem as the return
+value from the break_layout() call.
+
+-- 
+Dave Chinner
+david@fromorbit.com
 
