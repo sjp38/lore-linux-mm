@@ -6,171 +6,164 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 105FEC31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 07:20:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 91490C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 07:27:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B96282084D
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 07:20:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 440E420866
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 07:27:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amazon.com header.i=@amazon.com header.b="GWhicdJz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B96282084D
+	dkim=pass (1024-bit key) header.d=amazon.com header.i=@amazon.com header.b="VE7dlWqv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 440E420866
 Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=amazon.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 43A6A6B0007; Thu, 13 Jun 2019 03:20:49 -0400 (EDT)
+	id CE8D26B000A; Thu, 13 Jun 2019 03:27:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3EBFD6B000A; Thu, 13 Jun 2019 03:20:49 -0400 (EDT)
+	id C99306B000C; Thu, 13 Jun 2019 03:27:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2DA546B000C; Thu, 13 Jun 2019 03:20:49 -0400 (EDT)
+	id B87AF6B000D; Thu, 13 Jun 2019 03:27:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 074DD6B0007
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 03:20:49 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id c207so12457557qkb.11
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 00:20:49 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 941E76B000A
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 03:27:11 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id v58so16776234qta.2
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 00:27:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
          :message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=dhmXrepDAZcjXkpQs5VfxOBzitc3aINuYRH8cXmOgbc=;
-        b=NDvI9E21RuZVqHFsH4Ocz1vpJRSOQCHMRLqUKH4xeRYMtl4MPDtWZ+Am2DDZHmA2/4
-         DEOITskSNlu0hxc4mZupR0M9abO1+7z/9vHUJPCDHMo9FWr7k3JvpR1zy0sIukYlGGKx
-         5wnQ4iCLr4MH7m0wIMKCxbtOR6GWZMq/0wtP1mE/Ez674ITy3DHkk5bCCRU1m6mfoACl
-         UL+sRIfQswE3y4o7A7PXrbrhWMjJ3pe8XtsnEDudLUrNSvmo8qTdc+kOupY0t7qMquzI
-         gzx2cCIKtWqa+bdh6HW+/2fW2Dt3ePQYdDFiPd4TmKc8SUKx0NgNbRDQda4w7et7ObY0
-         40xA==
-X-Gm-Message-State: APjAAAUyCaOR34Yh5HWI9SbJHmApkn0P9bXyu6MLrJm5LXWIziL19rOk
-	+CDZnq5IB8cQnXVIAS3hERhACMU160ZpXumwKQbM5GDNiWv+Anz3tmVM/Kvwg2SQzp56Q7ZMFAt
-	DFphvOYgwuuj9blSLLvDtIUsksl7MMkrUK7VgVJWLyxNz6kr7wSOTce63eHp7EjFgHQ==
-X-Received: by 2002:a37:aa0d:: with SMTP id t13mr69001748qke.167.1560410448707;
-        Thu, 13 Jun 2019 00:20:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqza4yd4oR461SU1aifIwMs4rHlieETeIvd14YDDcfzXtnjBHOYY7ynwWXEdsE6Yo8Imyv5f
-X-Received: by 2002:a37:aa0d:: with SMTP id t13mr69001702qke.167.1560410448198;
-        Thu, 13 Jun 2019 00:20:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560410448; cv=none;
+         :content-transfer-encoding:content-language:precedence;
+        bh=Laetec4ccSCBOw8YMZruaBJ+PWt1iLta0CpWlGDAXuM=;
+        b=WmmuvjAg3fIpdrN1jFH2TASOvUDcdj6VjryqCjBO/WZstyxNIRCKPe7EQY0aupOCoY
+         GhYanX8qJ61oCoFW9nQWOYe+NjtMO3ttIASdmtRfKvGfK6dO37WvZV8qmCHAiJspmu5J
+         GPMb4y0zUUInar+F+wlCCXovYypKCtXcDKTX6tyF28oALAMFCpJC/bqNsjCZwhcDmpsR
+         2NWqVwGwq4R62600SwPupyBS1z1bCmyzRn/x+5CkyLVUPLL7ap38qwnW43Rj92Bs2hhf
+         AmY5mcclytCDtIyABfCILtTyT7vgUEv2ppyz0RYLsUId3q/3gzqR6r8QaAavfJFm83BY
+         DmpA==
+X-Gm-Message-State: APjAAAUITQrItZzWqM7gS3FDKcTFyBzvjvxjRu/ljDV3ORPpdgCI9MPb
+	R3YRgT9O4XoNhIm0czwV4QJezadwopK3CPFVQSgnNJvinfdDwhqWxwzFNq5wcsto1JK61/fBwbQ
+	kejLk5dcuFZXNSuwonsPTmR4VekuXU4CxRxi+l87WSkn8p26BesvuriEAQ7tAg8gnRA==
+X-Received: by 2002:a37:de18:: with SMTP id h24mr14983074qkj.147.1560410831373;
+        Thu, 13 Jun 2019 00:27:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzsC0Qkk01PY3a92rOvnjgOmb8pDjVESLEMUn5uhmi3RpXE5NSF1fxtZBXmXFQVmD2HogjE
+X-Received: by 2002:a37:de18:: with SMTP id h24mr14983042qkj.147.1560410830796;
+        Thu, 13 Jun 2019 00:27:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560410830; cv=none;
         d=google.com; s=arc-20160816;
-        b=ddnrvydO3l/muweQKYLvnl5QSOEWOuEIBStCubqKgzdpVMWBsGgcesF28M2BH6JVXM
-         cTQjF6/lv4ESAK3ttXN8GTBxK6UmcFnOg67TV1wCsHH0L4yAdYCsPb5ttEonXar/IxZt
-         IxUCYw9szGCNnUrY+aOGk7B5yiGljuDmMdevm8rXJ58AQDGq7nk6G8FONUZcdmjo1I6U
-         +V/gIHIkcyZb5q5iAbJZYUPg2hXAEySHRW45ytH7uGLcWXjltDV63EE7GGCf51VKIT49
-         zcAlNVnH4xTMOa3HaGArvjuyrG7QOdKAO/Hh3cRVgweD/EB4wzu/GS0QO04EZ/yMbs93
-         PBEw==
+        b=bCKo5X7slxB4VmBz3KVqq8fmr63sHtQlWmPYLAjWfDT5Ydn5dyjDLXKuWeRuIc7pCF
+         NAkuPVCKo6MHT0fHMG6xdHw+CM3z35je1GONS3rOw0RCM9ZN42UHVNjO3MB6BBmOWe6s
+         oKfFkeNAe7nJQ+jOaTBE+6mBkw6sACj6AIPFz6WbVB57KCoWgWwE8tKJMGt3x/7nLGRj
+         ZginQEGHOOWizUkl3DXIHwl9wohQGPsSv9pS5KVWKc1yooAbHyNaFX6HpH7n7F5/81NN
+         biJjixQT8fBXchI1iL/YkDcNkftg/YwIJCWzfXJCti5brLxhCYQOEKOUHbXVZcfifZCe
+         Ucaw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=dhmXrepDAZcjXkpQs5VfxOBzitc3aINuYRH8cXmOgbc=;
-        b=ssUrmSNiIPEu2NQIKE5tcvsO0jRdcLr5iSrh3+dEusyi30DmHplDzGZ9yKgLIoC/dN
-         VRR5sZMY+bewLN09DzyoltWt1z/sVBBbWk786QLQMz7nJlkzzmGSNsHgPSMWezZdp5EQ
-         69y9ZINZUZW5olveS0MPr9DBYsxRS0MnXM+/bLuSo/hqV9QpFH40plPnAgWBNtWks1UD
-         lRl/Lsbc4IqPRxCNF1dyWZoMp+R1qWl+EvIipVOVIrRFu28R7f8Qn1xzBulrUyyAunow
-         gatSt/H90kT+ENZRwJmMjzJg2raOwikyCjiXI8XQuM5f+xreZDZBQZdnzbISmaxf90u6
-         vbAg==
+        h=precedence:content-language:content-transfer-encoding:in-reply-to
+         :mime-version:user-agent:date:message-id:from:references:cc:to
+         :subject:dkim-signature;
+        bh=Laetec4ccSCBOw8YMZruaBJ+PWt1iLta0CpWlGDAXuM=;
+        b=vhwHi+mEAI6En9uOzOuLGxNh3rFo2RAzNc3oNQxl2f4ES1zESCSX30UHjt6l38nVYT
+         NIhXv1W3KsQJ/Mx3zVT5EhzjMmIulQutJwkreYVwlS/BGwnZFoH9mx3gu0IiCdh6BxXV
+         fMqQV7GH4lDjD+lTANwRP1gK1bGV6bVQw/kzENVMlqfnLHf+ihcKjrtDU7AnwnTnZ+Dz
+         s7yUAuIlCZp1hUMYPta4uRvHHPPsX4LcwzViyLeVnFMWQSOxhy0pkvV2OMGjVfDJieLU
+         x/DqYjdoVJAoXsjWVGVAsr2YNomjwiZkYhToWOHUxEVK5PezvjKIqjMTRVR64Zg03soG
+         95Yg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@amazon.com header.s=amazon201209 header.b=GWhicdJz;
-       spf=pass (google.com: domain of prvs=060300392=graf@amazon.com designates 72.21.196.25 as permitted sender) smtp.mailfrom="prvs=060300392=graf@amazon.com";
+       dkim=pass header.i=@amazon.com header.s=amazon201209 header.b=VE7dlWqv;
+       spf=pass (google.com: domain of prvs=060300392=graf@amazon.com designates 207.171.184.29 as permitted sender) smtp.mailfrom="prvs=060300392=graf@amazon.com";
        dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amazon.com
-Received: from smtp-fw-2101.amazon.com (smtp-fw-2101.amazon.com. [72.21.196.25])
-        by mx.google.com with ESMTPS id c80si1148428qke.221.2019.06.13.00.20.48
+Received: from smtp-fw-9102.amazon.com (smtp-fw-9102.amazon.com. [207.171.184.29])
+        by mx.google.com with ESMTPS id w16si885760qvi.160.2019.06.13.00.27.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 00:20:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=060300392=graf@amazon.com designates 72.21.196.25 as permitted sender) client-ip=72.21.196.25;
+        Thu, 13 Jun 2019 00:27:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=060300392=graf@amazon.com designates 207.171.184.29 as permitted sender) client-ip=207.171.184.29;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amazon.com header.s=amazon201209 header.b=GWhicdJz;
-       spf=pass (google.com: domain of prvs=060300392=graf@amazon.com designates 72.21.196.25 as permitted sender) smtp.mailfrom="prvs=060300392=graf@amazon.com";
+       dkim=pass header.i=@amazon.com header.s=amazon201209 header.b=VE7dlWqv;
+       spf=pass (google.com: domain of prvs=060300392=graf@amazon.com designates 207.171.184.29 as permitted sender) smtp.mailfrom="prvs=060300392=graf@amazon.com";
        dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amazon.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
   d=amazon.com; i=@amazon.com; q=dns/txt; s=amazon201209;
-  t=1560410448; x=1591946448;
+  t=1560410830; x=1591946830;
   h=subject:to:cc:references:from:message-id:date:
    mime-version:in-reply-to:content-transfer-encoding;
-  bh=dhmXrepDAZcjXkpQs5VfxOBzitc3aINuYRH8cXmOgbc=;
-  b=GWhicdJzBpWeJdgTa7sgEYhPFV3t6Oyh9XsErtlfW76CtRRC5iZR+nBE
-   qhghegzUiVbUo1ul+bNUu7mxZWUA9NvCdURG0rJdnAUqSNT07VRcDGlhI
-   2herR7rcSnOTimoyXZNMNu7IB8pvKN/Cn7NeCeBwx+sNGjrYu48KEg2fq
+  bh=Laetec4ccSCBOw8YMZruaBJ+PWt1iLta0CpWlGDAXuM=;
+  b=VE7dlWqvkizytsOoyQdjqbF18715cizu2shKsjdMRQzNmJ1v+kEmlcu/
+   EeSpgTGxzQFrPBwtqCRIcLQeLGQaW/5fU9ByzJzCP7nAyCzVNMrlWEoO5
+   5mgf1aYdBaVzD8lMsiD8acc4pu/Q2oaZxZSqWKHKCijwxlIqeJDVdw7AI
    c=;
 X-IronPort-AV: E=Sophos;i="5.62,368,1554768000"; 
-   d="scan'208";a="737272759"
-Received: from iad6-co-svc-p1-lb1-vlan2.amazon.com (HELO email-inbound-relay-1a-7d76a15f.us-east-1.amazon.com) ([10.124.125.2])
-  by smtp-border-fw-out-2101.iad2.amazon.com with ESMTP; 13 Jun 2019 07:20:46 +0000
-Received: from EX13MTAUWC001.ant.amazon.com (iad55-ws-svc-p15-lb9-vlan2.iad.amazon.com [10.40.159.162])
-	by email-inbound-relay-1a-7d76a15f.us-east-1.amazon.com (Postfix) with ESMTPS id 254ACA26DA;
-	Thu, 13 Jun 2019 07:20:44 +0000 (UTC)
+   d="scan'208";a="679674698"
+Received: from sea3-co-svc-lb6-vlan3.sea.amazon.com (HELO email-inbound-relay-1a-67b371d8.us-east-1.amazon.com) ([10.47.22.38])
+  by smtp-border-fw-out-9102.sea19.amazon.com with ESMTP; 13 Jun 2019 07:27:07 +0000
+Received: from EX13MTAUWC001.ant.amazon.com (iad55-ws-svc-p15-lb9-vlan3.iad.amazon.com [10.40.159.166])
+	by email-inbound-relay-1a-67b371d8.us-east-1.amazon.com (Postfix) with ESMTPS id 66CC3A24B7;
+	Thu, 13 Jun 2019 07:27:05 +0000 (UTC)
 Received: from EX13D20UWC001.ant.amazon.com (10.43.162.244) by
  EX13MTAUWC001.ant.amazon.com (10.43.162.135) with Microsoft SMTP Server (TLS)
- id 15.0.1367.3; Thu, 13 Jun 2019 07:20:43 +0000
-Received: from 38f9d3867b82.ant.amazon.com (10.43.160.69) by
+ id 15.0.1367.3; Thu, 13 Jun 2019 07:27:04 +0000
+Received: from 38f9d3867b82.ant.amazon.com (10.43.160.177) by
  EX13D20UWC001.ant.amazon.com (10.43.162.244) with Microsoft SMTP Server (TLS)
- id 15.0.1367.3; Thu, 13 Jun 2019 07:20:41 +0000
+ id 15.0.1367.3; Thu, 13 Jun 2019 07:27:02 +0000
 Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
  secrets
-To: Sean Christopherson <sean.j.christopherson@intel.com>, Marius Hillenbrand
-	<mhillenb@amazon.de>
-CC: <kvm@vger.kernel.org>, <linux-kernel@vger.kernel.org>,
-	<kernel-hardening@lists.openwall.com>, <linux-mm@kvack.org>, Alexander Graf
-	<graf@amazon.de>, David Woodhouse <dwmw@amazon.co.uk>
+To: Dave Hansen <dave.hansen@intel.com>, Marius Hillenbrand
+	<mhillenb@amazon.de>, <kvm@vger.kernel.org>
+CC: <linux-kernel@vger.kernel.org>, <kernel-hardening@lists.openwall.com>,
+	<linux-mm@kvack.org>, Alexander Graf <graf@amazon.de>, David Woodhouse
+	<dwmw@amazon.co.uk>, the arch/x86 maintainers <x86@kernel.org>, "Andy
+ Lutomirski" <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>
 References: <20190612170834.14855-1-mhillenb@amazon.de>
- <20190612182550.GI20308@linux.intel.com>
+ <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com>
 From: Alexander Graf <graf@amazon.com>
-Message-ID: <7162182f-74e5-9be7-371d-48ee483206c2@amazon.com>
-Date: Thu, 13 Jun 2019 09:20:40 +0200
+Message-ID: <54a4d14c-b19b-339e-5a15-adb10297cb30@amazon.com>
+Date: Thu, 13 Jun 2019 09:27:00 +0200
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
  Gecko/20100101 Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190612182550.GI20308@linux.intel.com>
+In-Reply-To: <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com>
 Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
-X-Originating-IP: [10.43.160.69]
-X-ClientProxiedBy: EX13D22UWC001.ant.amazon.com (10.43.162.192) To
+X-Originating-IP: [10.43.160.177]
+X-ClientProxiedBy: EX13D01UWA003.ant.amazon.com (10.43.160.107) To
  EX13D20UWC001.ant.amazon.com (10.43.162.244)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000002, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On 12.06.19 20:25, Sean Christopherson wrote:
-> On Wed, Jun 12, 2019 at 07:08:24PM +0200, Marius Hillenbrand wrote:
->> The Linux kernel has a global address space that is the same for any
->> kernel code. This address space becomes a liability in a world with
->> processor information leak vulnerabilities, such as L1TF. With the right
->> cache load gadget, an attacker-controlled hyperthread pair can leak
->> arbitrary data via L1TF. Disabling hyperthreading is one recommended
->> mitigation, but it comes with a large performance hit for a wide range
->> of workloads.
->>
->> An alternative mitigation is to not make certain data in the kernel
->> globally visible, but only when the kernel executes in the context of
->> the process where this data belongs to.
->>
+On 12.06.19 21:55, Dave Hansen wrote:
+> On 6/12/19 10:08 AM, Marius Hillenbrand wrote:
 >> This patch series proposes to introduce a region for what we call
->> process-local memory into the kernel's virtual address space. Page
->> tables and mappings in that region will be exclusive to one address
->> space, instead of implicitly shared between all kernel address spaces.
->> Any data placed in that region will be out of reach of cache load
->> gadgets that execute in different address spaces. To implement
->> process-local memory, we introduce a new interface kmalloc_proclocal() /
->> kfree_proclocal() that allocates and maps pages exclusively into the
->> current kernel address space. As a first use case, we move architectural
->> state of guest CPUs in KVM out of reach of other kernel address spaces.
-> Can you briefly describe what types of attacks this is intended to
-> mitigate?  E.g. guest-guest, userspace-guest, etc...  I don't want to
-> make comments based on my potentially bad assumptions.
+>> process-local memory into the kernel's virtual address space.
+> It might be fun to cc some x86 folks on this series.  They might have
+> some relevant opinions. ;)
+>
+> A few high-level questions:
+>
+> Why go to all this trouble to hide guest state like registers if all the
+> guest data itself is still mapped?
 
 
-(quickly jumping in for Marius, he's offline today)
+(jumping in for Marius, he's offline today)
 
-The main purpose of this is to protect from leakage of data from one 
-guest into another guest using speculation gadgets on the host.
+Glad you asked :). I hope this cover letter explains well how to achieve 
+guest data not being mapped:
 
-The same mechanism can be used to prevent leakage of secrets from one 
-host process into another host process though, as host processes 
-potentially have access to gadgets via the syscall interface.
+https://lkml.org/lkml/2019/1/31/933
+
+
+> Where's the context-switching code?  Did I just miss it?
+
+
+I'm not sure I understand the question. With this mechanism, the global 
+linear map pages are just not present anymore, so there is no context 
+switching needed. For the process local memory, the page table is 
+already mm local, so we don't need to do anything special during context 
+switch, no?
 
 
 Alex
