@@ -2,169 +2,131 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB993C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:04:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9074DC31E4A
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:05:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8717D2133D
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:04:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="N2gTptqw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8717D2133D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 6226521537
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:05:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6226521537
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 37FA06B000A; Thu, 13 Jun 2019 16:04:12 -0400 (EDT)
+	id 15B056B000A; Thu, 13 Jun 2019 16:05:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 308DC8E0002; Thu, 13 Jun 2019 16:04:12 -0400 (EDT)
+	id 10C898E0003; Thu, 13 Jun 2019 16:05:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1AC266B000D; Thu, 13 Jun 2019 16:04:12 -0400 (EDT)
+	id F3DC98E0002; Thu, 13 Jun 2019 16:05:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D5D686B000A
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 16:04:11 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id a5so201706pla.3
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:04:11 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BC46A6B000A
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 16:05:37 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id f2so166829plr.0
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:05:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=lhY/dH1LxkksLu5i0IWkS7fg7law7uuNa/mS/dgjQ4Q=;
-        b=Aj183lGl04289qJ3MKtgXFYNcgh2lnMtaqQHn09BHj+OPW6oQH4QP6/FTopamp5sc/
-         vg7rYKHxKlkSjx4GNlDTUpm7N2wIExCxM+pzPEbaMsqTkGJH0vZpBaK8YAeY52Ylaa2H
-         nyA0OCYNp0Scpcwhaw3grA4YA83y75J1qhbx8jJa5WtEa2Ljbk6qfoYwqgLdwwaLDNxt
-         sSrEFotTcNVsRYEz3AGbfKhW0tAzJli/ovykKRJizaOcJhEb0QOcLmPbeg/RbPwlV2cP
-         1Qeu8olkby0782DaVqu+8Ket5aRJI0AigkYZGSXGwehffJXJYcHBM0SiTc4+IYIO5fQd
-         sblA==
-X-Gm-Message-State: APjAAAVumu2luouujJnVOOfhrbArfPkASTM0YcqNfquUk6barjQxKbgg
-	vHyXiIbh+uMSuP3LGJRYCjY1BkrPSI/PmExM8VCx2BEo/AorTMBgObn83hNBAn47kaRpteR5m4s
-	ES3EEWVyDbhN5bZmw0TDl+sJToCxkeFFzbgwjdDgFTM8Bxm+wGMIk8jJmbITiin98/w==
-X-Received: by 2002:a65:63c3:: with SMTP id n3mr12056582pgv.139.1560456251433;
-        Thu, 13 Jun 2019 13:04:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzF+9TiQ5OAZTfzN8K539iRxLGffb7YchVHD2hSxEmGZQE8dWAXBWaWAUz50OxxfytfoKKZ
-X-Received: by 2002:a65:63c3:: with SMTP id n3mr12056524pgv.139.1560456250725;
-        Thu, 13 Jun 2019 13:04:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560456250; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Nv+mSJLpVdLAG7vlAHra04PuZ9o6AU7j1dUb1EOlRTA=;
+        b=j1sI3ntnkzVxz8YKtP11iJYroJRY8ZFQZs+M2sQ12XNCXEfzG6mZJOFVBC61BqagEf
+         xMJ9GK/4R0v2Br+M63Xrt4LCFvKCfyBVNw9qkE30Buo5njUGQaZMWOe+wuC/j8QKLOEs
+         E46J2sEo5jq88YMmYWj0+K2eNLKIboegrEUBhZ1ofXUCXbBid/o8YmxGbfG8XM8QACjp
+         KW06xSAt7AItyyEOfEVI9SldSObOt/4YJPXnjjoCu0cNs4o3oyNe5G9E0xngAvqcJ3WM
+         HgWaKnt8u6stXd3je9PGJpgkpjwJEHbDHIFieUkhL/gtmQt4l7EOkYFfnXFG2xokm5LA
+         GqYQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAU7FnJM/OFiFYs8DpH0eN09UhoDtmBvnurwX3+xbajNOdmMtb78
+	YJBbyI7dTLDZG6I9VNmsB6u0NDFpo/+r0j1qWR66SSNAg2wJ80AkkFbCmyJt5plw2RDSeh5UiRX
+	Y3K2yXfg4cDT8GQAYB9uC4qWcNmGWQ6ZcSxSyYfz6TAB0Cif1W26TqxV2GVhPBxZmWw==
+X-Received: by 2002:a62:778d:: with SMTP id s135mr23422940pfc.204.1560456337343;
+        Thu, 13 Jun 2019 13:05:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzmh2YhePHDsgpxN7mSSFdxvTkOHaaNKps8V8rBUVsjVgqaKgzG+gxsBWAOuPV4PV2P4UpQ
+X-Received: by 2002:a62:778d:: with SMTP id s135mr23422861pfc.204.1560456336562;
+        Thu, 13 Jun 2019 13:05:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560456336; cv=none;
         d=google.com; s=arc-20160816;
-        b=NskOZmMIEaLX7ICusNlGRnFot9JgebJ69BTk6B8vkRzGpeiY4qLQ1yUqOT8vBGKyRN
-         TBsovUSnIFVW+at1YmndF+/wOVkb6a0j6gBLiBQSyzFhE/4Vu1mjTW2gxE9pa3OwWP7+
-         sdpSJFJ3M1ZPUsdxZzACP3zchEqt0sBRa/rCuy8umG0qEckcMo5Mywfguc1zUYQTZia/
-         8Y8/dyZLkmqeCe512sIvSRXiM+VH3xStMvBMmu9/WZjvCb21VSmJihocdnwkzvOwJoGv
-         laVMAKDj2H/Iv5lNwWqfxIBD9/PLvOe6qZmRaUSBG847BcHNFr+3gtlfITDpx3ssMwoz
-         liig==
+        b=zRZCox2N0plI828QjogLj9zjNAW/owqTa54L1PNXH5D6hdh14k8o6NO6RSeqjik41O
+         39WgvC8OUjaFlebrmKz8P/voGsrI6v9cnSifu8287aCftv7Jwkm3KM53wxFpQrm2ycMG
+         iZy9ucHRsSP6LbIPAoZbP/2afA92rPKAS6Ubr+y/as7c+tnGpwohWUA2iypnSHMsB/oQ
+         ADuWC/7ALhfJLGcKcZNH6xrgbkVNmUwlZJWFiLoTOYoT4MGztZrxFYZ5geG86GFhaxoc
+         4Y9SlX0OXtVAXoy8kSrVLFm0iA9US9Bxg7JNT1wrwRSZamBItPFqMUYpda3d8pg4+gr5
+         VjHA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=lhY/dH1LxkksLu5i0IWkS7fg7law7uuNa/mS/dgjQ4Q=;
-        b=ABC7W1VF1/366UvDPE12QQhhKNL8wWPkSCSuLqVUzpmnnSpOmCZ53avmQ6ux/KmDrL
-         JO7q2/OB/LVGuDavrJW2O/jAvClzzTVb4OvfJETU0rZU+tOp5/Ypulhq33CPMhgRc8sM
-         RO7npEtwjb4TwHaVJ4zmpCvHpFfkbmzEIFZRkHpAbgQl8/srohUTWf3oFDpIzYofzSn2
-         tODQ7piTZ9FELZ6nanashcA4peQprdm9HK4LjYQu79eBskCUmgff46uJr9N9Zd1q/UZf
-         SzOuW8e13aLPjLtdeiE84cvgjuJLyjXsBFJWue3EmXUDCj4s1RYl+cxVwa9orXoIXUdX
-         j8hg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Nv+mSJLpVdLAG7vlAHra04PuZ9o6AU7j1dUb1EOlRTA=;
+        b=FKwzu6K4sV5/MqWnrUAnQJfLkb9N/SjS1apNFgioB4weYzvKoJMCGlpoCnbBy5dcgt
+         Mxw1HpMJsioasBF3C6Ka+1HsGSn7qjl7Zl+P9ogLxzGE6XJwmLEX5S+dEB6Mq55cZ1wA
+         g4JCWYDRwxvNSpEK+mBikenhHdZ+TUkw5AkJbxDUA/yb76kRMG/liabLqrQVfimimJEJ
+         /oniwNeiEG+enV0ss4WEEjTS4gPpUjs/bAgmAEPMypJMiMslhKuc/pJPOMRXG35SWZXV
+         0j8pdb75DlgkuiVACb1NtoiV3QHjTtIaCdrk6DNa5MPkGRqVylErSw9fgWC/RID6do6V
+         e2UA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=N2gTptqw;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id i4si394068pfa.218.2019.06.13.13.04.10
+       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id g29si549480pgb.259.2019.06.13.13.05.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 13:04:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 13 Jun 2019 13:05:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=N2gTptqw;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 1E84021537;
-	Thu, 13 Jun 2019 20:04:09 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1560456250;
-	bh=STyJgmmKr944RjOkqQ8HWC3xeSyqe7HVqnGI2LWRsD8=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=N2gTptqwNshky9t39zHrhF/tFwNwxgbkrbTJor+tak1vLqX97uKewRk8bUnzrn4Ko
-	 U5IaH0MfRPlK77bT7Yc/4PbSrlc3n6J8M0GsjcRBoXIwR5bmuZZez1tgkNHDFM277/
-	 c+zGeW7mHjTeucDkGZEHLB7VbopRA5mQ7/vZdAH4=
-Date: Thu, 13 Jun 2019 13:04:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- linux-snps-arc@lists.infradead.org, linux-mips@vger.kernel.org,
- linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
- linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
- linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org,
- Michal Hocko <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>, Mark
- Rutland <mark.rutland@arm.com>, Christophe Leroy <christophe.leroy@c-s.fr>,
- Stephen Rothwell <sfr@canb.auug.org.au>, Andrey Konovalov
- <andreyknvl@google.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul
- Mackerras <paulus@samba.org>, Russell King <linux@armlinux.org.uk>, Catalin
- Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Tony
- Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Martin
- Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens
- <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>,
- "David S. Miller" <davem@davemloft.net>, Thomas Gleixner
- <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar
- <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, Dave Hansen
- <dave.hansen@linux.intel.com>, Vineet Gupta <vgupta@synopsys.com>, James
- Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>, Ralf Baechle
- <ralf@linux-mips.org>
-Subject: Re: [PATCH] mm: Generalize and rename notify_page_fault() as
- kprobe_page_fault()
-Message-Id: <20190613130408.3091869d8e50d0524157523f@linux-foundation.org>
-In-Reply-To: <1560420444-25737-1-git-send-email-anshuman.khandual@arm.com>
-References: <1560420444-25737-1-git-send-email-anshuman.khandual@arm.com>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of sean.j.christopherson@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=sean.j.christopherson@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Jun 2019 13:05:35 -0700
+X-ExtLoop1: 1
+Received: from sjchrist-coffee.jf.intel.com (HELO linux.intel.com) ([10.54.74.36])
+  by orsmga005.jf.intel.com with ESMTP; 13 Jun 2019 13:05:35 -0700
+Date: Thu, 13 Jun 2019 13:05:35 -0700
+From: Sean Christopherson <sean.j.christopherson@intel.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Nadav Amit <namit@vmware.com>, Andy Lutomirski <luto@kernel.org>,
+	Alexander Graf <graf@amazon.com>,
+	Marius Hillenbrand <mhillenb@amazon.de>,
+	kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+	Kernel Hardening <kernel-hardening@lists.openwall.com>,
+	Linux-MM <linux-mm@kvack.org>, Alexander Graf <graf@amazon.de>,
+	David Woodhouse <dwmw@amazon.co.uk>,
+	the arch/x86 maintainers <x86@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
+ secrets
+Message-ID: <20190613200535.GC18385@linux.intel.com>
+References: <20190612170834.14855-1-mhillenb@amazon.de>
+ <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com>
+ <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
+ <CALCETrXHbS9VXfZ80kOjiTrreM2EbapYeGp68mvJPbosUtorYA@mail.gmail.com>
+ <459e2273-bc27-f422-601b-2d6cdaf06f84@amazon.com>
+ <CALCETrVRuQb-P7auHCgxzs5L=qA2_qHzVGTtRMAqoMAut0ETFw@mail.gmail.com>
+ <f1dfbfb4-d2d5-bf30-600f-9e756a352860@intel.com>
+ <70BEF143-00BA-4E4B-ACD7-41AD2E6250BE@vmware.com>
+ <f7f08704-dc4b-c5f8-3889-0fb5957c9c86@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f7f08704-dc4b-c5f8-3889-0fb5957c9c86@intel.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Jun 2019 15:37:24 +0530 Anshuman Khandual <anshuman.khandual@arm.com> wrote:
+On Thu, Jun 13, 2019 at 10:49:42AM -0700, Dave Hansen wrote:
+> On 6/13/19 10:29 AM, Nadav Amit wrote:
+> > Having said that, I am not too excited to deal with this issue. Do
+> > people still care about x86/32-bit?
+> No, not really.
 
-> Architectures which support kprobes have very similar boilerplate around
-> calling kprobe_fault_handler(). Use a helper function in kprobes.h to unify
-> them, based on the x86 code.
-> 
-> This changes the behaviour for other architectures when preemption is
-> enabled. Previously, they would have disabled preemption while calling the
-> kprobe handler. However, preemption would be disabled if this fault was
-> due to a kprobe, so we know the fault was not due to a kprobe handler and
-> can simply return failure.
-> 
-> This behaviour was introduced in the commit a980c0ef9f6d ("x86/kprobes:
-> Refactor kprobes_fault() like kprobe_exceptions_notify()")
-> 
-> ...
->
-> --- a/arch/arm/mm/fault.c
-> +++ b/arch/arm/mm/fault.c
-> @@ -30,28 +30,6 @@
->  
->  #ifdef CONFIG_MMU
->  
-> -#ifdef CONFIG_KPROBES
-> -static inline int notify_page_fault(struct pt_regs *regs, unsigned int fsr)
-
-Some architectures make this `static inline'.  Others make it
-`nokprobes_inline', others make it `static inline __kprobes'.  The
-latter seems weird - why try to put an inline function into
-.kprobes.text?
-
-So..  what's the best thing to do here?  You chose `static
-nokprobe_inline' - is that the best approach, if so why?  Does
-kprobe_page_fault() actually need to be inlined?
-
-Also, some architectures had notify_page_fault returning int, others
-bool.  You chose bool and that seems appropriate and all callers are OK
-with that.
+Especially not for KVM, given the number of times 32-bit KVM has been
+broken recently without anyone noticing for several kernel releases.
 
