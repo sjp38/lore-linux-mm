@@ -2,204 +2,153 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 78BDCC31E49
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:35:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 142B7C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:39:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3D5A1206BB
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:35:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3D5A1206BB
+	by mail.kernel.org (Postfix) with ESMTP id D6E332175B
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:39:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D6E332175B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E374A6B0008; Thu, 13 Jun 2019 11:35:40 -0400 (EDT)
+	id 6BA576B0006; Thu, 13 Jun 2019 11:39:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE76A6B000C; Thu, 13 Jun 2019 11:35:40 -0400 (EDT)
+	id 66B516B0008; Thu, 13 Jun 2019 11:39:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CD6FC6B026A; Thu, 13 Jun 2019 11:35:40 -0400 (EDT)
+	id 581DF6B000C; Thu, 13 Jun 2019 11:39:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F0DD6B0008
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 11:35:40 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f19so26358498edv.16
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 08:35:40 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AD226B0006
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 11:39:25 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id s7so31330652edb.19
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 08:39:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=aKt9HRBGnsuYA5qlAM9OULXQ7rlyJl5/33nUWsYNM08=;
-        b=SVS1WORUFuHZKg4CZcP8LtDX58UBOsygFq3XeG9nyAfYEjX2DlIl6Jr/pgEwZw6L/Z
-         Xln3NGOLfAv3XJ9vU+h786jVXytvd3mjGL0h9/sHcJiGD3bMnvO2jL4aaUULEg6KLcRL
-         fe0bl9V58LlzkQxfJiWYcgepG9wadjBmYqVjjcLrJ94HmW4lmZriLR+VS6/6plKJ4+9x
-         o21b0zbqqpePljLdeIP6ypkRhACzubyV7VOcmPmC5KVwlx90eSemhWBFQfhH2lxC+F7r
-         Qh6rnpHWS/ZxNMd0CwNBsyPDu2yHY01Gb7nJ8H1OhtVN+LgFBO2/yVF+v0l1KPdJopAm
-         v7Hg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-X-Gm-Message-State: APjAAAXdqfkkV+nr6D52DdxVkYPC4l0vjpYqIdohj3nWEnuFivV/60rB
-	oV1I0PrgxN9KGJi2N43tjvpat/ajWzXyrD9OdBhVZdr+6CyCvUjkinklNaf7vS2AnpmGMuRiZqo
-	mnJOUxcg9OulJVAOsGZrukrv0w7wlR62y97LQM6sSFfb5t/2uDIZenlwck5WyNMDtCA==
-X-Received: by 2002:a50:97da:: with SMTP id f26mr59393625edb.88.1560440140076;
-        Thu, 13 Jun 2019 08:35:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqymyiIO205U97EBr9qSPurz4PvIJqb9FAep5u8TQXdF1VrepnlW4yOmTMWTQ4KS8mRc0oJk
-X-Received: by 2002:a50:97da:: with SMTP id f26mr59393544edb.88.1560440139274;
-        Thu, 13 Jun 2019 08:35:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560440139; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=/MDf/qaOz/y5EFP39x64Pwcdib6+nTdEfv0kmSKwfKM=;
+        b=m8TH96XfYtajPl/Y4dTtNJ6QEDQspQcmK9MTb09mV0/xfzxaT0clw9fsjKetMSvY3K
+         45CSsz5ZkgqOy/uFGSrMCs3zeScePUIpouJxoqP8C6x6bFcVm6QBhf8yyYnzLDBMgAlu
+         VX9r2sWFyxvZUyL63odNGjh8maD+BJ5h4OU5J6xixLoB69uywrlGJ/tztrJ0eoxwjX7D
+         p9ETUL8C5IOvHgX61rutmTO1pLx6jCcv6a0i1UkDgHOglsYnBj1jSX1kZYMuhBzNrE0I
+         6/vSHz16WL7xd8hZlIS+FWyguopi6i0LqIM53oyTZz2ygxoABiKsJGdKXYtxu6AER+n7
+         WYRg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAUB0iwVaBghXfMM1WecK+tw2YokpbXWG1SXldU0nodlIqoU0HaN
+	KsUlRT70bjvA6OlH/OhSGQYD/yT0OsUV517sppYamiQHmjhI0/JkjiGq87kspaKKSfM7mBZ2c0p
+	BntNDlK6TCyEvVrualKjEbmG570azcM+yiVDWvuWFIe3ejzaJBhPj8a8O+XHvFhxVAg==
+X-Received: by 2002:a50:b561:: with SMTP id z30mr40707967edd.87.1560440364596;
+        Thu, 13 Jun 2019 08:39:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzzn0qDXR5OOoeKOJddNQinpD9es9/sfGWeGI+fLone9BY7+S9LIXGpLO7EdWazZN/OF85M
+X-Received: by 2002:a50:b561:: with SMTP id z30mr40707882edd.87.1560440363657;
+        Thu, 13 Jun 2019 08:39:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560440363; cv=none;
         d=google.com; s=arc-20160816;
-        b=jON0l/epHU+Gsl/p+Mzsx9LOH96TxOfa/M33BV8HqsttM3BSQolBDLHsitEvYTMAJv
-         8zrlu/wFqZ5g+kr04B/LeK1EIoyPft8MvxB0dYIxkoD1RxnjSghMLhbcui5j4f5yt6NW
-         pEX0ZIwlly7Q/rRaaa8ViHGovYtJCVixb/33sriIqHrli/oN8F4nWvmzh3ecB+lYJcX4
-         Woxh0fscPfIJAaZQcpGHbuwV1iXmweJUGsJfG+NXMBkSrcDTAx1QpDGAjOgt+IVTJPLK
-         vhf4DO4abq2muNExlBniqhR86lubcJpxEXyjOGn4kilXzYL84hZlCyuBlMYx6nZPI5tO
-         5N3Q==
+        b=pCO5spd22XsHuHWUgOYAOPSPyhIqc0qeZ7JtSvLPZyzZfyzYMgamUB3IIY3rPwGVtz
+         y23dSv2xPK6k56A5aybuZyC8mwN2/mrxjKMpCqKPXkk8Kz4vXicw1PjB4ciI77FGSe1k
+         j4zIKNLv/REHxODq8o60r8uVpv8425tgM9KQQoM45S3pNAyU8J9a+6NFTGsuvFDRh+YZ
+         QR/jB23Bbdn6XG3mAo0zAgP2hS2KckZy+5t6Pz1fprTUxYaBvP6bCyGk5dJVIRxRZpa/
+         DPXpC32LbYoByJqLfg2tG3KGmh2xKKYPcw3GmcPFr3z/3+iMHOmP6UHm5SUImV39qJ94
+         GvHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=aKt9HRBGnsuYA5qlAM9OULXQ7rlyJl5/33nUWsYNM08=;
-        b=JpgeVoPu/AX4Zsio/Dqf7K/9fRfIUPhpPNa8N2dZU6FF+jBEhHFAKb/z8ywjT/4GZY
-         GGJB8pesANW99YYggnxKZ92e14QjOKby6sexie84DtsrLHlEUQorI8sZJlkeAsBPZFhG
-         uveCjhkgjC2b5T2+/dJ3xy4B0pq2Z8B6wk96Y0DG6d9hj4o6wp0JcZbPc6zrn2RLXhZS
-         c/t9ln+NXUvFYUv+/qWylAkPSURPyum5+LAs1vaFlNvhvCkIfe0pBxu+SOwurvdsDYoR
-         b7OC0GGWcB4jJtZXO/k10L3fnrDc97Mr656TTZu/wtsuFVP/GxY+zfjzHfMtr7mqQz7S
-         /59w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=/MDf/qaOz/y5EFP39x64Pwcdib6+nTdEfv0kmSKwfKM=;
+        b=tEa8NgoCurRE/juwpTMXg0QRy5hQiUwpGw/UzjGPYAGaUzOhAzsl81PbBe87n66MQu
+         0JqGbmyFMtbzi+jmI8Ht8fLnq5g19/wHImMfGX6plQTvG8NbtyvpXBj5K8FRk7x8yiVJ
+         HzXi2UvGboyXW8VAKTP0t5J4xzyJijtX6tWcQ0V9G0QeXqATmtkZt5DHS4FVFlmlgFXP
+         kWG+zc66mmRmvNeIO/8zaNAgwlhhEFPvxpapXxPD0pcANprB74uxuFALBPe/NlcnGrxK
+         U+Yv9LhoVFsw4/C9Yn7P9s/IMjI5qtofbt/D3XaOA2HYUAYrlDtrnRp78EjLvTOPvllI
+         cHug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id y47si2640094edb.94.2019.06.13.08.35.38
+        by mx.google.com with ESMTP id k6si2736240edd.325.2019.06.13.08.39.23
         for <linux-mm@kvack.org>;
-        Thu, 13 Jun 2019 08:35:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+        Thu, 13 Jun 2019 08:39:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 42C42A78;
-	Thu, 13 Jun 2019 08:35:38 -0700 (PDT)
-Received: from [10.1.196.72] (e119884-lin.cambridge.arm.com [10.1.196.72])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 458113F718;
-	Thu, 13 Jun 2019 08:35:36 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id CBCF43EF;
+	Thu, 13 Jun 2019 08:39:22 -0700 (PDT)
+Received: from C02TF0J2HF1T.local (unknown [172.31.20.19])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id EDD3E3F718;
+	Thu, 13 Jun 2019 08:39:16 -0700 (PDT)
+Date: Thu, 13 Jun 2019 16:39:07 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Dave Martin <Dave.Martin@arm.com>
+Cc: linux-arch@vger.kernel.org, linux-doc@vger.kernel.org,
+	Szabolcs Nagy <szabolcs.nagy@arm.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>,
+	linux-kselftest@vger.kernel.org,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	linux-arm-kernel@lists.infradead.org
 Subject: Re: [PATCH v4 1/2] arm64: Define
  Documentation/arm64/tagged-address-abi.txt
-To: Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
- Catalin Marinas <Catalin.Marinas@arm.com>
-Cc: nd <nd@arm.com>,
- "linux-arm-kernel@lists.infradead.org"
- <linux-arm-kernel@lists.infradead.org>,
- "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>,
- "linux-kselftest@vger.kernel.org" <linux-kselftest@vger.kernel.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Will Deacon <Will.Deacon@arm.com>, Andrey Konovalov <andreyknvl@google.com>,
- Alexander Viro <viro@zeniv.linux.org.uk>
+Message-ID: <20190613153906.GV28951@C02TF0J2HF1T.local>
 References: <cover.1560339705.git.andreyknvl@google.com>
  <20190612142111.28161-1-vincenzo.frascino@arm.com>
  <20190612142111.28161-2-vincenzo.frascino@arm.com>
- <a90da586-8ff6-4bed-d940-9306d517a18c@arm.com>
- <20190613092054.GO28951@C02TF0J2HF1T.local>
- <dee7f192-d0f0-558e-3007-eba805c6f2da@arm.com>
- <6ebbda37-5dd9-d0d5-d9cb-286c7a5b7f8e@arm.com>
- <8e3c9537-de10-0d0d-f5bb-c33bde92443f@arm.com>
- <5963d144-be9b-78d8-9130-ef92bc66b1fd@arm.com>
- <ba822b33-a822-02ef-9b85-725f4353596a@arm.com>
-From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Message-ID: <a05a2dfb-3398-455d-8586-b79dfb7a772f@arm.com>
-Date: Thu, 13 Jun 2019 16:35:35 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+ <20190612153538.GL28951@C02TF0J2HF1T.local>
+ <141c740a-94c2-2243-b6d1-b44ffee43791@arm.com>
+ <20190613113731.GY28398@e103592.cambridge.arm.com>
+ <20190613122821.GS28951@C02TF0J2HF1T.local>
+ <20190613132342.GZ28398@e103592.cambridge.arm.com>
 MIME-Version: 1.0
-In-Reply-To: <ba822b33-a822-02ef-9b85-725f4353596a@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190613132342.GZ28398@e103592.cambridge.arm.com>
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Jun 13, 2019 at 02:23:43PM +0100, Dave P Martin wrote:
+> On Thu, Jun 13, 2019 at 01:28:21PM +0100, Catalin Marinas wrote:
+> > On Thu, Jun 13, 2019 at 12:37:32PM +0100, Dave P Martin wrote:
+> > > On Thu, Jun 13, 2019 at 11:15:34AM +0100, Vincenzo Frascino wrote:
+> > > > On 12/06/2019 16:35, Catalin Marinas wrote:
+> > > > > On Wed, Jun 12, 2019 at 03:21:10PM +0100, Vincenzo Frascino wrote:
+> > > > >> +  - PR_GET_TAGGED_ADDR_CTRL: can be used to check the status of the Tagged
+> > > > >> +                             Address ABI.
+> > [...]
+> > > Is there a canonical way to detect whether this whole API/ABI is
+> > > available?  (i.e., try to call this prctl / check for an HWCAP bit,
+> > > etc.)
+> > 
+> > The canonical way is a prctl() call. HWCAP doesn't make sense since it's
+> > not a hardware feature. If you really want a different way of detecting
+> > this (which I don't think it's worth), we can reinstate the AT_FLAGS
+> > bit.
+> 
+> Sure, I think this probably makes sense -- I'm still getting my around
+> which parts of the design are directly related to MTE and which aren't.
+> 
+> I was a bit concerned about the interaction between
+> PR_SET_TAGGED_ADDR_CTRL and the sysctl: the caller might conclude that
+> this API is unavailable when actually tagged addresses are stuck on.
+> 
+> I'm not sure whether this matters, but it's a bit weird.
+> 
+> One option would be to change the semantics, so that the sysctl just
+> forbids turning tagging from off to on.  Alternatively, we could return
+> a different error code to distinguish this case.
 
-On 13/06/2019 16:32, Szabolcs Nagy wrote:
-> On 13/06/2019 15:03, Vincenzo Frascino wrote:
->> On 13/06/2019 13:28, Szabolcs Nagy wrote:
->>> On 13/06/2019 12:16, Vincenzo Frascino wrote:
->>>> On 13/06/2019 11:14, Szabolcs Nagy wrote:
->>>>> On 13/06/2019 10:20, Catalin Marinas wrote:
->>>>>> On Wed, Jun 12, 2019 at 05:30:34PM +0100, Szabolcs Nagy wrote:
->>>>>>> On 12/06/2019 15:21, Vincenzo Frascino wrote:
->>>>>>>> +  - a mapping below sbrk(0) done by the process itself
->>>>>>>
->>>>>>> doesn't the mmap rule cover this?
->>>>>>
->>>>>> IIUC it doesn't cover it as that's memory mapped by the kernel
->>>>>> automatically on access vs a pointer returned by mmap(). The statement
->>>>>> above talks about how the address is obtained by the user.
->>>>>
->>>>> ok i read 'mapping below sbrk' as an mmap (possibly MAP_FIXED)
->>>>> that happens to be below the heap area.
->>>>>
->>>>> i think "below sbrk(0)" is not the best term to use: there
->>>>> may be address range below the heap area that can be mmapped
->>>>> and thus below sbrk(0) and sbrk is a posix api not a linux
->>>>> syscall, the libc can implement it with mmap or whatever.
->>>>>
->>>>> i'm not sure what the right term for 'heap area' is
->>>>> (the address range between syscall(__NR_brk,0) at
->>>>> program startup and its current value?)
->>>>>
->>>>
->>>> I used sbrk(0) with the meaning of "end of the process's data segment" not
->>>> implying that this is a syscall, but just as a useful way to identify the mapping.
->>>> I agree that it is a posix function implemented by libc but when it is used with
->>>> 0 finds the current location of the program break, which can be changed by brk()
->>>> and depending on the new address passed to this syscall can have the effect of
->>>> allocating or deallocating memory.
->>>>
->>>> Will changing sbrk(0) with "end of the process's data segment" make it more clear?
->>>
->>> i don't understand what's the relevance of the *end*
->>> of the data segment.
->>>
->>> i'd expect the text to say something about the address
->>> range of the data segment.
->>>
->>> i can do
->>>
->>> mmap((void*)65536, 65536, PROT_READ|PROT_WRITE, MAP_FIXED|MAP_SHARED|MAP_ANON, -1, 0);
->>>
->>> and it will be below the end of the data segment.
->>>
->>
->> As far as I understand the data segment "lives" below the program break, hence
->> it is a way of describing the range from which the user can obtain a valid
->> tagged pointer.>
->> Said that, I am not really sure on how do you want me to document this (my aim
->> is for this to be clear to the userspace developers). Could you please propose
->> something?
-> 
-> [...], it is in the memory ranges privately owned by a
-> userspace process and it is obtained in one of the
-> following ways:
-> 
-> - mmap done by the process itself, [...]
-> 
-> - brk syscall done by the process itself.
->   (i.e. the heap area between the initial location
->   of the program break at process creation and its
->   current location.)
-> 
-> - any memory mapped by the kernel [...]
-> 
-> the data segment that's part of the process image is
-> already covered by the last point.
-> 
-
-Thanks Szabolcs, I will update the document accordingly.
+This is the intention, just to forbid turning tagging on. We could
+return -EPERM instead, though my original intent was to simply pretend
+that the prctl does not exist like in an older kernel version.
 
 -- 
-Regards,
-Vincenzo
+Catalin
 
