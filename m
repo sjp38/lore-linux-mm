@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8754FC31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:44:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88188C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:44:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 40FDE21473
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:44:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4BB8421473
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:44:15 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="avKv6xwb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40FDE21473
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Ac6u1kwc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4BB8421473
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BBE096B026C; Thu, 13 Jun 2019 05:44:10 -0400 (EDT)
+	id 618916B026D; Thu, 13 Jun 2019 05:44:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B48456B026D; Thu, 13 Jun 2019 05:44:10 -0400 (EDT)
+	id 57C946B026E; Thu, 13 Jun 2019 05:44:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C15A6B026E; Thu, 13 Jun 2019 05:44:10 -0400 (EDT)
+	id 3F6626B026F; Thu, 13 Jun 2019 05:44:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EA0F6B026C
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 05:44:10 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x9so14099547pfm.16
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 02:44:10 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0070A6B026D
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 05:44:14 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id 59so11601271plb.14
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 02:44:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=wPaWdCIL9H03r8HySQVqow//0jNnHtt/N2MgQJISZ8s=;
-        b=hUY7l1Ez0GPLYc1FJ4M3QLOLDvGueReGdPDq9qbZu20m+olwHTTEtz5E+y0ylm+/nd
-         m0uEueFbOFMFppXdGke2LNYyI9uD8rb6oar6AqeZtl2CAfqrRCutsjH7lah20paYrFed
-         gtyvkktggkqu8ULbeVcl5fvJDwZ5a58VW+chZK1yPHGYhgIXIwaDrgCgXwAw3bETR1Q2
-         9iUip8bVnBVJVsFktoF6LOh6kfNZbStMu5UTBVoyWWr/EU5BsVsD1aD69BPHgQF9fr0O
-         Zoab0e4u4yTBsFdwLi7zB35p+m2KOf2e1Bmt94HkernlaXXlzSONjI4BvT7fIDhk22m+
-         +tHg==
-X-Gm-Message-State: APjAAAXxImFk2XNG8sM2mavCqTHdQ8EwlCiarM/r2NhCiY2u4ZsgKqbp
-	20frSz6BmmjZ7QpkXwYN+u0RAWO2iqDIjFT6DhOAK0YGW3Sz1nNhnCtVaxPTF/PMp6q9bhbY1+F
-	3sy4esbm22WluVhTJTaFeluRD4KYkA8qUVgNOdCJnVSRIFFD4mmvC49j9IukJkHc=
-X-Received: by 2002:a17:902:2bc5:: with SMTP id l63mr86762936plb.221.1560419050048;
-        Thu, 13 Jun 2019 02:44:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzFvD6rufV2CfIrA1IRttKsjbRzMac3GjVSH2voefy+brMu6tTlBhl+Dm/RhBWgOkMhZqQF
-X-Received: by 2002:a17:902:2bc5:: with SMTP id l63mr86762843plb.221.1560419049243;
-        Thu, 13 Jun 2019 02:44:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560419049; cv=none;
+        bh=j5NF6MNZYGnulaE88E08I95IgTMRhrbK2u/HLXeuvXI=;
+        b=unE9ZDX8yCR7riuOEuoidQGSmIrjWeXzyo0xPMUYbX0DyHQ6WeQVFcpeHEYaGPw49n
+         OD+NVRgOayGD6GoXuc6WwEa2hcD9LkpEnc1qzwa3DTABuE9Af2bXv35HPO3pwhd8R99U
+         Fekwg0Krbar2XOmRRcju+YLBcoPJNYZznPvLIxMndrrif1qoPwZf1u04IhV1AmUhAQU1
+         AvBr4/PiD0wJOfS5pyDMfn9fuCFB0n3Jpp7GCTgsi94hG3oZ039IYaqhwI4oTpLMtwEV
+         IwGrN4L1C1jrXzmAY218uZrcPgW3hqrHEKBanGs6LOq94UIsszZ2A6p0uI54iVPCgZIu
+         jlOQ==
+X-Gm-Message-State: APjAAAXe5h/Cz5n8Awn7KCFeJ3Wm5/NmtjZlTIWmq2ghu6Xab3PJZxjc
+	BibeMgDSjxsqGKHbBFrDHCHvr8RtJAfw1NJgK7VePafA6qbPueIMxvQ+NyOQyjhPgYCfXbpX0wV
+	R9v2vwNL1YDhO68mu0friqQX9xDVwk5o7YDRBQHfFy6adE47grXWr2Z0hv5drKOQ=
+X-Received: by 2002:a63:f95d:: with SMTP id q29mr23489510pgk.368.1560419053493;
+        Thu, 13 Jun 2019 02:44:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxyReFvVcK2OolvqCtIMr52biS1hnktu+eWU1jVJjweQacRuRJ3nq9cYDjS81UYofMhR9FH
+X-Received: by 2002:a63:f95d:: with SMTP id q29mr23489401pgk.368.1560419052247;
+        Thu, 13 Jun 2019 02:44:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560419052; cv=none;
         d=google.com; s=arc-20160816;
-        b=jK57diFBAZO+zKqbHDAGrxENXMs/p0y4XSSZdQ/rORVicLlE/+5OnvmFckSFclNl+s
-         QovPCnDiMLZnifT9RmxKrvcoHw/9YZGeiinZ8dhWOhwsmuZ2b3iNgWbnicfLNBmIl2df
-         IXAdBUpS9+FeKxu1ioKiET2w1QSI9TjDxa3Da2yB5Hu657RF8MfCkIPrtXdvqYHK/RPw
-         2M146RaKjdfMarPDNBgecTILM38csKHcY2OwBe/42GnBFzcaWY1zP1+Q4phdqoFBv3yC
-         4q6jlR+mbZO6sPlgYR24O79r0F1aghf0NH0Dlvf0XhAljQ+JnqGsSLG5Kk3RG3P883TI
-         ZLBw==
+        b=iwOks5kHrS33MfaDdYMtynU5U27TZaS27guKfLoxcii5IsD/LQWqY1rqqiV/Q/1DQP
+         5YqbfJfNYhdZJkj27NNj3SCf7R5TdJPSKqh5nyKtoUxGMZqp3Iiigqz08Jt6YebKgDdH
+         AtwoMNGvuLSK2d+IzNXSJT5EBcbSaQI9ENsI5CynGPDURdKQf7UG5yjthIsq0Quj2d2b
+         f8Rxt9dOl+fbeSsBI7SEE69E3FPCtDheZVWh8oOaIou4SownnFH7xjMny8TVnAWeyyFL
+         iP7pIY7UQf5ZV1CEs1+IgV2XXIexmJnwbHD8Yr3K/xNxaigoB+fPvWFPnU8LnHbdp4c+
+         wFgA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=wPaWdCIL9H03r8HySQVqow//0jNnHtt/N2MgQJISZ8s=;
-        b=lbh6RhG5xxDql/qkmBApWW6BpAKNWZIok5//rOmomN1nAbshQcrNUzk68Y53cF2kuW
-         bPsjoTFLWO4JEvxfScWkzAi+46ZOI1EdVhgyua5MxbV6RRQL+F05WS3YqxfGBq5dFR16
-         2KooHPOXVirqAtTEkIC83aYydN5P50MlVQ9mWzD03A/CGp3nzPjLKuabXBFI0Hp9fhwk
-         lnCxrcIPKiO3yHMTjaydpCoJzgNNrDkXziJTWYko2NAxtgEizRqSq+B6miv6ED6A5LR7
-         mDVFSWu+oEc5Y5TeLtYavKW8BVtOl/s78eAE0+M9x8pB4jBBRdLxG1bhGSTVbkKaod0n
-         lqJA==
+        bh=j5NF6MNZYGnulaE88E08I95IgTMRhrbK2u/HLXeuvXI=;
+        b=H5D9K132RhWRNqFXpqY3Vmp+CKeKtOWbZ3FukPHr6aEd95Kpvf/3Uu4rTcaEC6SC91
+         RqWaB/TcdtZOlrz8KO5tJlYQ8WOQ4xVz+O/rGS0JWj/kWGlxqS4S5bKXyHL7JeN/jucL
+         DGtqvLsYk1Q9DCtoz0/vZul7RjSaX90ctZntcfLgO9n1ENBfjLe69VvMPiWqK7wgU6lC
+         ReQCn4udMwPpKwgPVBS/0mtH9mNI+w9Vlvw49zZL0gYi5N30R0sH8Np9ae94qX6KYoE9
+         ZGQQiACxx4pj1e3IQj+ulzGltynmVcF+FpIVNkMT1RoW3ZFjykUvoHUbAOteq3UynGYQ
+         uCXw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=avKv6xwb;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Ac6u1kwc;
        spf=pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n11si2948640pgi.27.2019.06.13.02.44.09
+        by mx.google.com with ESMTPS id q7si2656229pgp.245.2019.06.13.02.44.12
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 13 Jun 2019 02:44:09 -0700 (PDT)
+        Thu, 13 Jun 2019 02:44:12 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=avKv6xwb;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Ac6u1kwc;
        spf=pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=wPaWdCIL9H03r8HySQVqow//0jNnHtt/N2MgQJISZ8s=; b=avKv6xwbjUwP5JnIfmut07FD4E
-	gJPJZ8ZQmWlKJYjAzKHwT0cqU9A36XKIAMssk8gQpq3IhjxldclzNcvSF1zNcI9FEe5J4DrlwynxU
-	BOkf4ZqVPr5yBB+WsSzI5BaGpY9hBxi7Qh2og5bCGOdVDDRSHg1MVKNLMpKkG5YCrQBvTdqcEqdjK
-	BIBwnNK0AKvH4MNtye6T+KQS+ymNK5QfOcLa6VAmU5b2i3i5m5oX14CGYl5bXnH+Ld0nP0t5HEDau
-	tkrt/zZv4j5UrYFMV46EwV5BMV6zPYhoYxnhEc4quUvclTo0SfZwBQ7d4I6wYboawBdk9qACJlW6E
-	gRpSlcmw==;
+	bh=j5NF6MNZYGnulaE88E08I95IgTMRhrbK2u/HLXeuvXI=; b=Ac6u1kwcs5Qa+uMIZP26VzBqh1
+	oBc3B77m8cKbTSEIFPsUyGP6G3FUk3c8E+xk2HZWozHXtClsdTiu2RALXiDqDY43JEV1DWM9l1/Du
+	GMJh/5UGQizxUaLO1dcsKhrvI14c20vJPjJ7jreMh9910F1WY99XI00fTC0entGgeaSQZLCs86xfW
+	52vn6lM51A13Btvh++2O9/BZ39MqDd/CCOhxXr/jPAHEUNdYFrNi3zls/lufPVZvRZbXCwxBGi+w3
+	avf91FXeX0uy9xYlvIoYY88p2jQx1BQy8vySwJ/yFSSrfYf9r3j/UGnyKprb+nbDw7XgChANaBwwz
+	q7RSMx1Q==;
 Received: from mpp-cp1-natpool-1-198.ethz.ch ([82.130.71.198] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hbMH8-0001rw-At; Thu, 13 Jun 2019 09:44:06 +0000
+	id 1hbMHB-0001sa-6c; Thu, 13 Jun 2019 09:44:09 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -106,9 +106,9 @@ Cc: linux-mm@kvack.org,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 13/22] device-dax: use the dev_pagemap internal refcount
-Date: Thu, 13 Jun 2019 11:43:16 +0200
-Message-Id: <20190613094326.24093-14-hch@lst.de>
+Subject: [PATCH 14/22] nouveau: use alloc_page_vma directly
+Date: Thu, 13 Jun 2019 11:43:17 +0200
+Message-Id: <20190613094326.24093-15-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190613094326.24093-1-hch@lst.de>
 References: <20190613094326.24093-1-hch@lst.de>
@@ -121,116 +121,32 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The functionality is identical to the one currently open coded in
-device-dax.
+hmm_vma_alloc_locked_page is scheduled to go away, use the proper
+mm function directly.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- drivers/dax/dax-private.h |  4 ---
- drivers/dax/device.c      | 52 +--------------------------------------
- 2 files changed, 1 insertion(+), 55 deletions(-)
+ drivers/gpu/drm/nouveau/nouveau_dmem.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/drivers/dax/dax-private.h b/drivers/dax/dax-private.h
-index a45612148ca0..ed04a18a35be 100644
---- a/drivers/dax/dax-private.h
-+++ b/drivers/dax/dax-private.h
-@@ -51,8 +51,6 @@ struct dax_region {
-  * @target_node: effective numa node if dev_dax memory range is onlined
-  * @dev - device core
-  * @pgmap - pgmap for memmap setup / lifetime (driver owned)
-- * @ref: pgmap reference count (driver owned)
-- * @cmp: @ref final put completion (driver owned)
-  */
- struct dev_dax {
- 	struct dax_region *region;
-@@ -60,8 +58,6 @@ struct dev_dax {
- 	int target_node;
- 	struct device dev;
- 	struct dev_pagemap pgmap;
--	struct percpu_ref ref;
--	struct completion cmp;
- };
+diff --git a/drivers/gpu/drm/nouveau/nouveau_dmem.c b/drivers/gpu/drm/nouveau/nouveau_dmem.c
+index 40c47d6a7d78..a50f6fd2fe24 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_dmem.c
++++ b/drivers/gpu/drm/nouveau/nouveau_dmem.c
+@@ -148,11 +148,12 @@ nouveau_dmem_fault_alloc_and_copy(struct vm_area_struct *vma,
+ 		if (!spage || !(src_pfns[i] & MIGRATE_PFN_MIGRATE))
+ 			continue;
  
- static inline struct dev_dax *to_dev_dax(struct device *dev)
-diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-index e23fa1bd8c97..a9d7c90ecf1e 100644
---- a/drivers/dax/device.c
-+++ b/drivers/dax/device.c
-@@ -14,37 +14,6 @@
- #include "dax-private.h"
- #include "bus.h"
+-		dpage = hmm_vma_alloc_locked_page(vma, addr);
++		dpage = alloc_page_vma(GFP_HIGHUSER, vma, addr);
+ 		if (!dpage) {
+ 			dst_pfns[i] = MIGRATE_PFN_ERROR;
+ 			continue;
+ 		}
++		lock_page(dpage);
  
--static struct dev_dax *ref_to_dev_dax(struct percpu_ref *ref)
--{
--	return container_of(ref, struct dev_dax, ref);
--}
--
--static void dev_dax_percpu_release(struct percpu_ref *ref)
--{
--	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
--
--	dev_dbg(&dev_dax->dev, "%s\n", __func__);
--	complete(&dev_dax->cmp);
--}
--
--static void dev_dax_percpu_exit(void *data)
--{
--	struct percpu_ref *ref = data;
--	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
--
--	dev_dbg(&dev_dax->dev, "%s\n", __func__);
--	wait_for_completion(&dev_dax->cmp);
--	percpu_ref_exit(ref);
--}
--
--static void dev_dax_percpu_kill(struct dev_pagemap *pgmap)
--{
--	struct dev_dax *dev_dax = container_of(pgmap, struct dev_dax, pgmap);
--
--	dev_dbg(&dev_dax->dev, "%s\n", __func__);
--	percpu_ref_kill(pgmap->ref);
--}
--
- static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
- 		const char *func)
- {
-@@ -442,10 +411,6 @@ static void dev_dax_kill(void *dev_dax)
- 	kill_dev_dax(dev_dax);
- }
- 
--static const struct dev_pagemap_ops dev_dax_pagemap_ops = {
--	.kill		= dev_dax_percpu_kill,
--};
--
- int dev_dax_probe(struct device *dev)
- {
- 	struct dev_dax *dev_dax = to_dev_dax(dev);
-@@ -463,24 +428,9 @@ int dev_dax_probe(struct device *dev)
- 		return -EBUSY;
- 	}
- 
--	init_completion(&dev_dax->cmp);
--	rc = percpu_ref_init(&dev_dax->ref, dev_dax_percpu_release, 0,
--			GFP_KERNEL);
--	if (rc)
--		return rc;
--
--	rc = devm_add_action_or_reset(dev, dev_dax_percpu_exit, &dev_dax->ref);
--	if (rc)
--		return rc;
--
--	dev_dax->pgmap.ref = &dev_dax->ref;
--	dev_dax->pgmap.ops = &dev_dax_pagemap_ops;
- 	addr = devm_memremap_pages(dev, &dev_dax->pgmap);
--	if (IS_ERR(addr)) {
--		devm_remove_action(dev, dev_dax_percpu_exit, &dev_dax->ref);
--		percpu_ref_exit(&dev_dax->ref);
-+	if (IS_ERR(addr))
- 		return PTR_ERR(addr);
--	}
- 
- 	inode = dax_inode(dax_dev);
- 	cdev = inode->i_cdev;
+ 		dst_pfns[i] = migrate_pfn(page_to_pfn(dpage)) |
+ 			      MIGRATE_PFN_LOCKED;
 -- 
 2.20.1
 
