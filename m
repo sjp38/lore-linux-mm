@@ -2,168 +2,264 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 25308C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 10:48:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BB776C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 10:55:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D2B0E208CA
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 10:48:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5FAE12084D
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 10:55:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ea1jZnIt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2B0E208CA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Zf/du4Xd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5FAE12084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7BC4D6B026E; Thu, 13 Jun 2019 06:48:27 -0400 (EDT)
+	id EBB1A6B026B; Thu, 13 Jun 2019 06:55:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 76E136B026F; Thu, 13 Jun 2019 06:48:27 -0400 (EDT)
+	id E45886B026C; Thu, 13 Jun 2019 06:55:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 65B1D6B0270; Thu, 13 Jun 2019 06:48:27 -0400 (EDT)
+	id CE6566B0270; Thu, 13 Jun 2019 06:55:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 41F7A6B026E
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 06:48:27 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id v11so14568914iop.7
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 03:48:27 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A94B36B026B
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 06:55:04 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id s83so14587733iod.13
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 03:55:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=r080oZfzTGw4PlNPynE57ID3Ar9Ahtv7iL/o1sb0dx0=;
-        b=dhKddthVU+wWUhAlm5gbuiYiTexQqOqLNie4qhaUgQEXcW39UIr7CuihbbqM+LdRxr
-         rH+UFedsMyxy96jMyHeSR3f8/uiYGNam379bNMZYi6DdP3QLmXvYAt+Q251mIanyq3//
-         I0dmiU2lcKXt/aL2XoVb28WOxHA+rJCZcF4ES8e0TsaSfGufLTTkDj5jAQlZ83u8zzW/
-         PEaanFeYOIQDkYhYJzAX0eONRFkIaZE27BJE2mFEqTY3VsAXfSG+HKm4QPj26uZ10H02
-         OLSCFICAJUmTL/eiiKSOOnJGXrTfrNH7ZvYpuQ1I9AqrLJe+Wf9Qy/qVALQGRAprmdEa
-         kEyw==
-X-Gm-Message-State: APjAAAV2HW/phGD4ALAnMCre2uJCNW17wMx/H4DGfoj3Gn2ExRMIu6H+
-	To/uAx3HbdXx8p9HHFFbvRRSyuGf0/0KK9YL/AnuNcQSvu0L1zqYYthHG9d+/mI5SaqyhUMf2c1
-	ATcHueOjdCrmu8Tg/uGj6NtIKrju5CjPFng+QHwq2+8Nx8ZYQ7ebJlLDJ7AdAKrG3sA==
-X-Received: by 2002:a6b:e00b:: with SMTP id z11mr36034207iog.27.1560422906973;
-        Thu, 13 Jun 2019 03:48:26 -0700 (PDT)
-X-Received: by 2002:a6b:e00b:: with SMTP id z11mr36034171iog.27.1560422906322;
-        Thu, 13 Jun 2019 03:48:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560422906; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=wgp7cj5gIWhGNVKXNvU3r2tQN8cWgiUhKrlM8F56c+g=;
+        b=st/Tnwuj2zuvPBsl/AI9Zrq+NCKxylZKDPtKu0wfzD9t/vQWYK3wvaON8uOgmnTLyk
+         enQZ02qexrb4zrmh1XEaBFEzlc4SDJWhsQPMT/p76BAJKkUaB9rYvl9aGFoVynNfvp4h
+         2Rj2cHavrAbiEYDDOyBxS+zOffEXUI2b6shOOtq4YnqnT23AoTALbAqCC4HPU9nwLyvi
+         OhydE8L1Mpb6CkeIeE1QfV2M0qiAO+41DD6YHlKMWPhEOlkE04l37cky79tNbyJwTosv
+         mZWkUL+kJCJlLCxITF1ZhmMn2qDLk9hD6kZH0lqe9uY3tAlPs19UEFPHzSEYWCtk53XS
+         5qUQ==
+X-Gm-Message-State: APjAAAWjHDzM3x/GWoNnCA2gPz3pwQcDoF99pehXJOFGJ4kywcd/y/QD
+	xuSciQL7RbctEWDb9ZTP3xOUXbjVV50f9DhNfXOwAPmrY3Nxw0RVJ/HjOCIy11Rhu0eEh8hAYtV
+	BuYhz4J8uLmnOMSrM3WAT5CsM1QliGJBi6ghw1+d7ASOXbXVh5jRYzBHQR8dFssAEvQ==
+X-Received: by 2002:a5e:c302:: with SMTP id a2mr9623057iok.62.1560423304375;
+        Thu, 13 Jun 2019 03:55:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyxheK/WoxLZkQljJo0NFOkNRohxdUYtg83uplYr4BRkPlzna46zdmch10vFscIIeQrQ15r
+X-Received: by 2002:a5e:c302:: with SMTP id a2mr9622971iok.62.1560423302879;
+        Thu, 13 Jun 2019 03:55:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560423302; cv=none;
         d=google.com; s=arc-20160816;
-        b=Br4QQK4HF+gqKxv5jA+PgwmwjeQVTfwvlV1Ds68B+R1U+m6exNUDEgh343hiphO9jq
-         mItbtWpHxsvT40CVaKGom4lMYKdgFV9e/OtcElm9tDaRvMCOT67QFm1Y+nwYbhCqVOq/
-         fQRAhkLFwnczwS2GGNKeEnh/5qRBaUnxvqYoUNC/VakHNqIHLqV9aFvSUdTymY6y7wS4
-         Aj0IBCpZq4xD3jQzDZpT4PVmSezGjcGo/oGbEQDS/F9WgojF4L5ApKBc23lL+Krvjv2e
-         SCHP7hpehYoN3f1R4+m5mG8laOnbP2RSr9u5v5isL+BnVgUo+Tq7RysGxC2v7QCXM78+
-         ToXQ==
+        b=r9zrA2G7tyUE7L2E0QMUW5xoBaibDn2BqBNbJDefWHAZQuKXgWcTYJQSkykSWcCulJ
+         70UlhS7P6Z9xA1wzPZsyZMX9/2AvpSguOlhNsXzC9//34UU7WRbID5jmqdoBrbwnBLln
+         +/aX0i88AM1XJK7BhnurEz2agykNtBK2HesKQEI8RTF6wz6O3JVMcmkLWbdFiFkT2XFA
+         ouZxwaikQbyN9itjPRJQQHWq8EwSAF4vcKcQO8WE4ISpiuHbq3b3FnT0k4qX20JdqfrF
+         u4rwQn5C5y3aKwxe67slkM2a0+a7hsRSBvO8aJpyKM58zPoDgnPPCOVJug7KJLSrOV/g
+         riUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=r080oZfzTGw4PlNPynE57ID3Ar9Ahtv7iL/o1sb0dx0=;
-        b=h5tVS3Ic0ByGJ+WXlke5I0nifo6u82mXqQAfngp5xudMELslEBxjga9kzKzccexB0r
-         mk6WzVjpDS3N2MB8Ur+qbCHLCDkfMZVBQMsRCD5YJNwKTBMHMD7QLzIXoxITpzfLvMUd
-         qVPrhYGRd6Jpu5d0gIV2054wbeMYRlIHQ9cjMHfw96zoMeEQcPN7UeN/jb/IVmTjjuWo
-         Pqfn3nQXO1CgNz4tV9Esj38m4qkDfBvO6Q3XlU0ooc0utgCo72ybdD7Ram9NE1pEVGTi
-         nI4RtgLQU0XyWdqXMydD+bvFWOFMSH1TAw4FbWPsZG6xcSkKzOjDIbldEV/QEeyTlZLf
-         y2vA==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=wgp7cj5gIWhGNVKXNvU3r2tQN8cWgiUhKrlM8F56c+g=;
+        b=t0JtzSTbGZ5B79mLC/j0tpRO1Um65TGBOcXSJfgawtqKIrC0GaOyHmbwqCOYVBM0Jk
+         qZ1PtzGlje5OIaP90eZp6ujOt4s0529L6M04DCpiqqdm5mdYV4gWPoIssEvSLNE+J8tg
+         QuAIVq8+ye8vigeTXNKiPIKLacf6wBYOYQy5lhPCKprWR/QSDj61/4aqAT/ci6bGnL6y
+         M7RYyumdgVxB7Jjtlu8ia9BCNlsG+F4T503xCLsFIcy9f3X/o0K0IN0XGN+RK3o7gxKW
+         W+HXweabdRTDA6P1aE89uaEjCoGj/t12Qj5+P2obUQYqc6KN2clya7L0BArdZ9qxHgkr
+         aqJg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ea1jZnIt;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l63sor1398524iof.27.2019.06.13.03.48.26
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="Zf/du4Xd";
+       spf=pass (google.com: domain of liran.alon@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=liran.alon@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id o6si2200433jan.49.2019.06.13.03.55.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 13 Jun 2019 03:48:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Jun 2019 03:55:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of liran.alon@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ea1jZnIt;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=r080oZfzTGw4PlNPynE57ID3Ar9Ahtv7iL/o1sb0dx0=;
-        b=ea1jZnItELWGPu6bHxAH/mmHocHpLmDlCmmIL2DjSC0Sx7VqH0Ol3gF4IcXRnmg9yM
-         aWTdWeTpwVEK5N9uUKAIwBKzkS7fWKmfEIRb4V668/k38X++IMjsYMDuE8rpvMNrJuD9
-         SClkbjfnhXP8mup6eWm/jU0ElYl3JLd+TbWXANcbeoSguFsZy3w4qGPngJy267Wcejx5
-         187akwnOcJwaH/eSOVrX0sKBU0vjA0jroIvFe1D6BMipVWVj5sRIyhYESsYCEq6n5n0J
-         xj2uKE6W4zMuksq/Co6nd2kNVQRx/U0czve+f4jvbuPoLaM87hVgS5WovV2HN3YRdQqk
-         RO4Q==
-X-Google-Smtp-Source: APXvYqzwF3HmOhVDJq8nYtvL9kM9vETJJiWfoMI/eBiNbY/jmRS0SgwDC9W3GIwckpCQG/bo7cqE02EF1cqQIUlZ06A=
-X-Received: by 2002:a6b:4107:: with SMTP id n7mr10681260ioa.12.1560422905974;
- Thu, 13 Jun 2019 03:48:25 -0700 (PDT)
-MIME-Version: 1.0
-References: <1559725820-26138-1-git-send-email-kernelfans@gmail.com>
- <87tvcwhzdo.fsf@linux.ibm.com> <2807E5FD2F6FDA4886F6618EAC48510E79D8D79B@CRSMSX101.amr.corp.intel.com>
- <20190612135458.GA19916@dhcp-128-55.nay.redhat.com> <20190612235031.GF14336@iweiny-DESK2.sc.intel.com>
-In-Reply-To: <20190612235031.GF14336@iweiny-DESK2.sc.intel.com>
-From: Pingfan Liu <kernelfans@gmail.com>
-Date: Thu, 13 Jun 2019 18:48:14 +0800
-Message-ID: <CAFgQCTsO-C=Fy6im+VQnNwvyp74tV2dZ-0Pa8QfFyFrBX8Ohvg@mail.gmail.com>
-Subject: Re: [PATCHv3 1/2] mm/gup: fix omission of check on FOLL_LONGTERM in get_user_pages_fast()
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Mike Rapoport <rppt@linux.ibm.com>, 
-	"Williams, Dan J" <dan.j.williams@intel.com>, Matthew Wilcox <willy@infradead.org>, 
-	John Hubbard <jhubbard@nvidia.com>, "Busch, Keith" <keith.busch@intel.com>, 
-	Christoph Hellwig <hch@infradead.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="Zf/du4Xd";
+       spf=pass (google.com: domain of liran.alon@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=liran.alon@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5DAnOoB071082;
+	Thu, 13 Jun 2019 10:54:59 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2018-07-02; bh=wgp7cj5gIWhGNVKXNvU3r2tQN8cWgiUhKrlM8F56c+g=;
+ b=Zf/du4Xdcj4gMvx8OhplpKEfYVBLca2/955+Ow9J7w7ql/yYy+w7xZL8YUNzcyB2mvEK
+ 7pDp4e9JVNj16ftv9sNC1+v+RRS5y2uGhXKU7cyUyMULXuVwIBPUFsq9Y9L5vqZF5SCm
+ x6WS7uorSc7OpBdGEfDcTifKJKIYNkLQXE69y2Ic0ilg5X2/28VKDvPJH6e1DqmRjFwL
+ dl4E6pn6m0n6cQ6PhamH/Ocao65dEVuH/VcchqJUDjJyrRvbtmErBOzQs7QtIpx5zTf/
+ cmkGRaoFrSbmrlEvXpmyzWThl0y8+EIgb6HjpBiCMzTkOYX3uNVRGGEimLeW9iDcecMw kA== 
+Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
+	by aserp2120.oracle.com with ESMTP id 2t04ynrnpv-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 13 Jun 2019 10:54:59 +0000
+Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
+	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5DAss25021565;
+	Thu, 13 Jun 2019 10:54:59 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userp3020.oracle.com with ESMTP id 2t1jpjg18a-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 13 Jun 2019 10:54:58 +0000
+Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5DAsu5Y024439;
+	Thu, 13 Jun 2019 10:54:56 GMT
+Received: from [192.168.14.112] (/79.177.239.28)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 13 Jun 2019 03:54:56 -0700
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 11.1 \(3445.4.7\))
+Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
+ secrets
+From: Liran Alon <liran.alon@oracle.com>
+In-Reply-To: <20190612182550.GI20308@linux.intel.com>
+Date: Thu, 13 Jun 2019 13:54:51 +0300
+Cc: Marius Hillenbrand <mhillenb@amazon.de>, kvm@vger.kernel.org,
+        linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com,
+        linux-mm@kvack.org, Alexander Graf <graf@amazon.de>,
+        David Woodhouse <dwmw@amazon.co.uk>
 Content-Transfer-Encoding: quoted-printable
+Message-Id: <65D4DBEB-5A9A-457D-909B-2D31A3031607@oracle.com>
+References: <20190612170834.14855-1-mhillenb@amazon.de>
+ <20190612182550.GI20308@linux.intel.com>
+To: Sean Christopherson <sean.j.christopherson@intel.com>
+X-Mailer: Apple Mail (2.3445.4.7)
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9286 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=707
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1810050000 definitions=main-1906130085
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9286 signatures=668687
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=756 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
+ definitions=main-1906130085
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 7:49 AM Ira Weiny <ira.weiny@intel.com> wrote:
->
-> On Wed, Jun 12, 2019 at 09:54:58PM +0800, Pingfan Liu wrote:
-> > On Tue, Jun 11, 2019 at 04:29:11PM +0000, Weiny, Ira wrote:
-> > > > Pingfan Liu <kernelfans@gmail.com> writes:
-> > > >
-> > > > > As for FOLL_LONGTERM, it is checked in the slow path
-> > > > > __gup_longterm_unlocked(). But it is not checked in the fast path=
-,
-> > > > > which means a possible leak of CMA page to longterm pinned requir=
-ement
-> > > > > through this crack.
-> > > >
-> > > > Shouldn't we disallow FOLL_LONGTERM with get_user_pages fastpath? W=
-.r.t
-> > > > dax check we need vma to ensure whether a long term pin is allowed =
-or not.
-> > > > If FOLL_LONGTERM is specified we should fallback to slow path.
-> > >
-> > > Yes, the fastpath bails to the slowpath if FOLL_LONGTERM _and_ DAX.  =
-But it does this while walking the page tables.  I missed the CMA case and =
-Pingfan's patch fixes this.  We could check for CMA pages while walking the=
- page tables but most agreed that it was not worth it.  For DAX we already =
-had checks for *_devmap() so it was easier to put the FOLL_LONGTERM checks =
-there.
-> > >
-> > Then for CMA pages, are you suggesting something like:
->
-> I'm not suggesting this.
-OK, then I send out v4.
->
-> Sorry I wrote this prior to seeing the numbers in your other email.  Give=
-n
-> the numbers it looks like performing the check whilst walking the tables =
-is
-> worth the extra complexity.  I was just trying to summarize the thread.  =
-I
-> don't think we should disallow FOLL_LONGTERM because it only affects CMA =
-and
-> DAX.  Other pages will be fine with FOLL_LONGTERM.  Why penalize every ca=
-ll if
-> we don't have to.  Also in the case of DAX the use of vma will be going
-> away...[1]  Eventually...  ;-)
-A good feature. Trying to catch up.
 
-Thanks,
-Pingfan
+
+> On 12 Jun 2019, at 21:25, Sean Christopherson =
+<sean.j.christopherson@intel.com> wrote:
+>=20
+> On Wed, Jun 12, 2019 at 07:08:24PM +0200, Marius Hillenbrand wrote:
+>> The Linux kernel has a global address space that is the same for any
+>> kernel code. This address space becomes a liability in a world with
+>> processor information leak vulnerabilities, such as L1TF. With the =
+right
+>> cache load gadget, an attacker-controlled hyperthread pair can leak
+>> arbitrary data via L1TF. Disabling hyperthreading is one recommended
+>> mitigation, but it comes with a large performance hit for a wide =
+range
+>> of workloads.
+>>=20
+>> An alternative mitigation is to not make certain data in the kernel
+>> globally visible, but only when the kernel executes in the context of
+>> the process where this data belongs to.
+>>=20
+>> This patch series proposes to introduce a region for what we call
+>> process-local memory into the kernel's virtual address space. Page
+>> tables and mappings in that region will be exclusive to one address
+>> space, instead of implicitly shared between all kernel address =
+spaces.
+>> Any data placed in that region will be out of reach of cache load
+>> gadgets that execute in different address spaces. To implement
+>> process-local memory, we introduce a new interface =
+kmalloc_proclocal() /
+>> kfree_proclocal() that allocates and maps pages exclusively into the
+>> current kernel address space. As a first use case, we move =
+architectural
+>> state of guest CPUs in KVM out of reach of other kernel address =
+spaces.
+>=20
+> Can you briefly describe what types of attacks this is intended to
+> mitigate?  E.g. guest-guest, userspace-guest, etc...  I don't want to
+> make comments based on my potentially bad assumptions.
+
+I think I can assist in the explanation.
+
+Consider the following scenario:
+1) Hyperthread A in CPU core runs in guest and triggers a VMExit which =
+is handled by host kernel.
+While hyperthread A runs VMExit handler, it populates CPU core cache / =
+internal-resources (e.g. MDS buffers)
+with some sensitive data it have speculatively/architecturally access.
+2) During hyperthread A running on host kernel, hyperthread B on same =
+CPU core runs in guest and use
+some CPU speculative execution vulnerability to leak the sensitive host =
+data populated by hyperthread A
+in CPU core cache / internal-resources.
+
+Current CPU microcode mitigations (L1D/MDS flush) only handle the case =
+of a single hyperthread and don=E2=80=99t
+provide a mechanism to mitigate this hyperthreading attack scenario.
+
+Assuming there is some guest triggerable speculative load gadget in some =
+VMExit path,
+it can be used to force any data that is mapped into kernel address =
+space to be loaded into CPU resource that is subject to leak.
+Therefore, there were multiple attempts to reduce sensitive information =
+from being mapped into the kernel address space
+that is accessible by this VMExit path.
+
+One attempt was XPFO which attempts to remove from kernel direct-map any =
+page that is currently used only by userspace.
+Unfortunately, XPFO currently exhibits multiple performance issues that =
+*currently* makes it impractical as far as I know.
+
+Another attempt is this patch-series which attempts to remove from one =
+vCPU thread host kernel address space,
+the state of vCPUs of other guests. Which is very specific but I =
+personally have additional ideas on how this patch series can be further =
+used.
+For example, vhost-net needs to kmap entire guest memory into =
+kernel-space to write ingress packets data into guest memory.
+Thus, vCPU thread kernel address space now maps entire other guest =
+memory which can be leaked using the technique described above.
+Therefore, it should be useful to also move this kmap() to happen on =
+process-local kernel virtual address region.
+
+One could argue however that there is still a much bigger issue because =
+of kernel direct-map that maps all physical pages that kernel
+manage (i.e. have struct page) in kernel virtual address space. And all =
+of those pages can theoretically be leaked.
+However, this could be handled by complementary techniques such as =
+booting host kernel with =E2=80=9Cmem=3DX=E2=80=9D and mapping guest =
+memory
+by directly mmap relevant portion of /dev/mem.
+Which is probably what AWS does given these upstream KVM patches they =
+have contributed:
+bd53cb35a3e9 X86/KVM: Handle PFNs outside of kernel reach when touching =
+GPTEs
+e45adf665a53 KVM: Introduce a new guest mapping API
+0c55671f84ff kvm, x86: Properly check whether a pfn is an MMIO or not
+
+Also note that when using such =E2=80=9Cmem=3DX=E2=80=9D technique, you =
+can also avoid performance penalties introduced by CPU microcode =
+mitigations.
+E.g. You can avoid doing L1D flush on VMEntry if VMExit handler run only =
+in kernel and didn=E2=80=99t context-switch as you assume kernel address
+space don=E2=80=99t map any host sensitive data.
+
+It=E2=80=99s also worth mentioning that another alternative that I have =
+attempted to this =E2=80=9Cmem=3DX=E2=80=9D technique
+was to create an isolated address space that is only used when running =
+KVM VMExit handlers.
+For more information, refer to:
+https://lkml.org/lkml/2019/5/13/515
+(See some of my comments on that thread)
+
+This is my 2cents on this at least.
+
+-Liran
+
 
