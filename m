@@ -2,389 +2,185 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-7.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 95EE7C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:54:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F9CAC31E4A
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:58:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4EDDB2063F
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:54:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4EDDB2063F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 178992175B
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:57:59 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="PfQXkQIX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 178992175B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BFB0F8E0003; Thu, 13 Jun 2019 13:54:01 -0400 (EDT)
+	id 8C2C88E0003; Thu, 13 Jun 2019 13:57:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B84598E0002; Thu, 13 Jun 2019 13:54:01 -0400 (EDT)
+	id 873168E0002; Thu, 13 Jun 2019 13:57:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A24E98E0003; Thu, 13 Jun 2019 13:54:01 -0400 (EDT)
+	id 73C508E0003; Thu, 13 Jun 2019 13:57:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E8778E0002
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:54:01 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id j26so14350504pgj.6
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 10:54:01 -0700 (PDT)
+Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 509008E0002
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:57:59 -0400 (EDT)
+Received: by mail-yw1-f69.google.com with SMTP id 77so21748203ywp.14
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 10:57:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=57Y05UOT5LowfAL3AEQPzWprIYP2cm0qB9KTwETegyI=;
-        b=gFnwT2ovDks292rNK5HbqLzL4Z+eSkOnCgKGs4Jtoe51cdaNXtWFHQ+YO16TDHhOK7
-         LoXGemmU03KH2701ioT02J4Ok2VrTDc8xPjmxOUDva6rHIgDps2w8g80n7LdninpahzA
-         dH0mU3NZg1H9+JzHOplORjgmvK7UTuNcA3TicB2jqS6nqITKOfE0FEuPUcgsZXmSIqEv
-         ypvE8JZM6UGuFh1UznTq23PQu0lHWsO+URpTx0UUJxw+wAb9NK5s9P4S/Qf9Wi69ahyz
-         E+GeJEFMJSxulVTlEbUrOaXYjvX35J6CJI4oo7neBk/2S7z6SF4W+Ea+G8SCiPe9sER5
-         9ROg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUpCHSO9WB+Kcs5vu4PYRjJSzleJnuK3e3QoxdieVXPOrxbEj4i
-	vOJyGnoQL8w8i+ym4iJDhPExiouFWHwjwyLAjFiyaPNyxcKg++V5QwnYE+WwURLTmIJvnim0g/9
-	MWxJrheOVDirzGO4jl3kFb/z+jlS5Y2/NsBu2/YgBDbSfAqlHTAnQb4LVZwXzBbSmeQ==
-X-Received: by 2002:a17:90a:5d15:: with SMTP id s21mr6603967pji.126.1560448440986;
-        Thu, 13 Jun 2019 10:54:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwVREQzg74Q/pzH8Ye1iofkK0AfUcYpPyKgiXr2Yw6jjJz2/Vvrqm4bJ6c1aeEQq1hP/Hws
-X-Received: by 2002:a17:90a:5d15:: with SMTP id s21mr6603898pji.126.1560448439966;
-        Thu, 13 Jun 2019 10:53:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560448439; cv=none;
+        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
+         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
+         :message-id:mime-version;
+        bh=SN9bJYBvVZmjIY7TQwW3dcHWX2b73J5/DqqXtyPOt5g=;
+        b=Zno44YX1NLOBEu1oeu5vVEwPgPamBzyyUSOel4+QHT1o/Bft+ZJZNBj+ABUw4oGlfG
+         wZt1K7dMvAtYkqTwR0wuKDBsSZ0MPP0kSOS/qO19fqnGpfz/+UFqzjxFQPPZJN1/pUDu
+         wEAvuS+9U+4Gp69RRFHnC8fivONNDHnyech1jTayeZMg0rjrSmeocPaJkmujF2ccA+8b
+         klCdiQlfhjCuZV1oKmvXN8dpbqcJMN67HlloiydkDroa8GGoRAL5KNTi/zJXC+J8EMJL
+         yypxU50vm4zErXtE0bcreEtVv3lQZpsZQMCg4EJvJsjkrcCNjqUaxtzL3ecf3PRX5XmR
+         tXeg==
+X-Gm-Message-State: APjAAAXZjhj1CdlaOROqVPJ8R6rkSRbd2RTas9K2wgOT6WACGN1qOtIS
+	ckcdl3EBUsPcZcULS7+eWFgCQ8a/bJsqbDvtiOIMYxGth45ylvysfeQ3ByGFJIwgOsDBKqQYG9j
+	L6ey0nHaHWtYDrmNADsj6rF5z8ErMVBFKsxsFN5AhswwcfzkKlHiepEb5ASonzA/oww==
+X-Received: by 2002:a25:d10d:: with SMTP id i13mr5166552ybg.169.1560448679043;
+        Thu, 13 Jun 2019 10:57:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqye8i8fFd+BZSuZKIvuPT34OsbWOl67LbnMjaBEi05eStTxo5FETqsXEVKmODklt7wEIqAK
+X-Received: by 2002:a25:d10d:: with SMTP id i13mr5166508ybg.169.1560448678224;
+        Thu, 13 Jun 2019 10:57:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560448678; cv=none;
         d=google.com; s=arc-20160816;
-        b=dtFRUu3v33cg4qth2LwUsk3Bc461F4lqVNtcDvnoxSHSbxU416laXSdXE9wvW17wMN
-         lvRd535rbtPQPvlfwlLVJ7wE6NVFSlmoZ/j+mgPoFYnKMjd1kjJ4uuv2yVqteRrhnpMC
-         Dmm0MQRjXphZFvxjvwVjHwzTQDRqqyaB8bkzS3kfCgZR2HjKDtT6Ymu6Y8AsoU0VEJGm
-         UliquTtjJOk+CKhYoBt6wflmFVrLqHCpUfvLaQfWzE3/CpL3BX3f8civh/liXQDv7RzO
-         Bv/uRO0NYJluyHCErq2wGjJDdMupW3cYwJM/AECuiZt6XcqIP+NqaThG0brzRGcXW8Fr
-         gs9Q==
+        b=e6bxnS9Fhk3vEY1L/xDcBBEZspctESwKy+U9/Pqj5YpwBKSQj4stw+mPjNU5CeCtoe
+         bXGBxc/OV7AVNt45A/5E21eYWLQZR1fnGYuJw/jSwRnyO22elc5e4l6OUVEadvvl8l+C
+         M90srza4mkUliU2ekUpuea6Qs3otR7z0bOwD+xTgfg47KKRIKX5cZxypLum/+vSKrOXO
+         GDGzUtreIY2c7C27QelguftYrrFk7wLpKT9oYEnbCy46bUN2+nSsMX05Q4rmOVb27Vpx
+         gF2VDX5c687Q4Sblbl7LHdv0lbUTsYEfNRwYO/IyO/Uyo0DCSG+bFLf3Lw1vO1qivA3h
+         eTLg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=57Y05UOT5LowfAL3AEQPzWprIYP2cm0qB9KTwETegyI=;
-        b=em0DLDMhrXLeSPRstWC4gIG1hFXKqn+ttEbfgQKUSLqv7dOwYqnuKEziWjIe0LJtGO
-         iTc66XZrgno1bH39v0LsfgXWYKp2kCtGFf7f/8ImgO2wDdTMbOzF8C8GcLH77Sir5HKS
-         0YnBmPQwmuf05B/V4brcmTrgYdndsy/oCMssfyAIJE/zi0aiV2qaPGfiFn/2eR9XLB3M
-         HQNFQ1k6VVoWNE31bLRLoi87oWpNoYXnX3JlYTpONHN0l0JRdSJm5ObE++4QD0v/LZFt
-         AHGmtRD2a9sy1wH/Hd5VtI7StLgO712pfAov5RBAAJkrQjr+e+ApdWM5lCEmbWzv1Fu1
-         XpVw==
+        h=mime-version:message-id:date:subject:smtp-origin-cluster:cc:to
+         :smtp-origin-hostname:from:smtp-origin-hostprefix:dkim-signature;
+        bh=SN9bJYBvVZmjIY7TQwW3dcHWX2b73J5/DqqXtyPOt5g=;
+        b=rO2Xq7YWbKZ3rC/UFuZ+sw3uwYqRsKgjnGMoIkmz7663LXeHzFPVOUYwEvT6eqgK8h
+         SYEb+a1UcTFKP1aIt03hK9Ljkrxei0GjLf5TC9nHmdMermYie/d47wM5RZbwsGWwH5r0
+         f4MQsU/8kK092Y9+C8sRVp70shNY0szQVszuaXhAg2ofI+LSobiW7YwHxxa4cj9rggCL
+         YWXEUXAJm9UO+8Y++14SQO6q5StEnT3irhFEfPWKFULaLPOPNf9bH33cvPFE03gtSRDo
+         8Vq0kDH2AVPmwm/kKCFX6x0tQQunqIHNslUGON0WqEdk9uIhJe5//7WTREp5NRZ3z3Mo
+         I95A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id i18si208715pfd.64.2019.06.13.10.53.58
+       dkim=pass header.i=@fb.com header.s=facebook header.b=PfQXkQIX;
+       spf=pass (google.com: domain of prvs=1067aa1dbb=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1067aa1dbb=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id h6si209871ywm.381.2019.06.13.10.57.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 10:53:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
+        Thu, 13 Jun 2019 10:57:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=1067aa1dbb=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07417;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TU5MPH0_1560448421;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TU5MPH0_1560448421)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 14 Jun 2019 01:53:44 +0800
-Subject: Re: [PATCH 1/3] mm: thp: make deferred split shrinker memcg aware
-To: Kirill Tkhai <ktkhai@virtuozzo.com>, hannes@cmpxchg.org, mhocko@suse.com,
- kirill.shutemov@linux.intel.com, hughd@google.com, shakeelb@google.com,
- akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <1559047464-59838-1-git-send-email-yang.shi@linux.alibaba.com>
- <1559047464-59838-2-git-send-email-yang.shi@linux.alibaba.com>
- <487665fe-c792-5078-292a-481f33d31d30@virtuozzo.com>
- <f57d9c67-8e20-b430-2ca3-74fa2f31415a@linux.alibaba.com>
- <20fe4ea6-c1c5-67bb-5c7e-2db0a9af6892@virtuozzo.com>
- <cb1f0ecd-d127-89ec-da2f-47fba1d6ba79@linux.alibaba.com>
- <c82f24d9-035b-e7e8-f8be-3489803a8319@virtuozzo.com>
- <1845149e-cb25-a6be-3979-0348ece3cae0@linux.alibaba.com>
- <a6129da4-be23-cb65-eff9-3e467308b1fa@virtuozzo.com>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <c4f996c2-7b26-52d2-600f-b1beb8b8a969@linux.alibaba.com>
-Date: Thu, 13 Jun 2019 10:53:38 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@fb.com header.s=facebook header.b=PfQXkQIX;
+       spf=pass (google.com: domain of prvs=1067aa1dbb=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1067aa1dbb=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109332.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5DHpnxn001518
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 10:57:57 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : mime-version : content-type; s=facebook;
+ bh=SN9bJYBvVZmjIY7TQwW3dcHWX2b73J5/DqqXtyPOt5g=;
+ b=PfQXkQIXJKJYZzYLK2K6BK+Mcwkf22sy+R8ogNnL5euBKlXTZdZh6uBUfvrIEjf6xLFF
+ jBqMf2Z3I1TEuaNXdU2U6zAW5c7JfcRtkGEU3aZPsWh3woDfucKpJpSHzuDh/YJuq99C
+ u6HPiugIHARcUnKwy8BwfvqMgpFVL2Xf2eE= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2t3py212uu-3
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 10:57:57 -0700
+Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
+ mail.thefacebook.com (2620:10d:c0a8:82::c) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Thu, 13 Jun 2019 10:57:55 -0700
+Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
+	id 3DA8762E1C18; Thu, 13 Jun 2019 10:57:55 -0700 (PDT)
+Smtp-Origin-Hostprefix: devbig
+From: Song Liu <songliubraving@fb.com>
+Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
+To: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>
+CC: <oleg@redhat.com>, <rostedt@goodmis.org>, <mhiramat@kernel.org>,
+        <matthew.wilcox@oracle.com>, <kirill.shutemov@linux.intel.com>,
+        <kernel-team@fb.com>, Song Liu <songliubraving@fb.com>
+Smtp-Origin-Cluster: ftw2c04
+Subject: [PATCH v4 0/5] THP aware uprobe
+Date: Thu, 13 Jun 2019 10:57:42 -0700
+Message-ID: <20190613175747.1964753-1-songliubraving@fb.com>
+X-Mailer: git-send-email 2.17.1
+X-FB-Internal: Safe
 MIME-Version: 1.0
-In-Reply-To: <a6129da4-be23-cb65-eff9-3e467308b1fa@virtuozzo.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-13_12:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906130131
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This set makes uprobe aware of THPs.
 
+Currently, when uprobe is attached to text on THP, the page is split by
+FOLL_SPLIT. As a result, uprobe eliminates the performance benefit of THP.
 
-On 6/13/19 1:19 AM, Kirill Tkhai wrote:
-> On 10.06.2019 20:25, Yang Shi wrote:
->>
->> On 6/10/19 1:23 AM, Kirill Tkhai wrote:
->>> On 29.05.2019 14:25, Yang Shi wrote:
->>>> On 5/29/19 4:14 PM, Kirill Tkhai wrote:
->>>>> On 29.05.2019 05:43, Yang Shi wrote:
->>>>>> On 5/28/19 10:42 PM, Kirill Tkhai wrote:
->>>>>>> Hi, Yang,
->>>>>>>
->>>>>>> On 28.05.2019 15:44, Yang Shi wrote:
->>>>>>>> Currently THP deferred split shrinker is not memcg aware, this may cause
->>>>>>>> premature OOM with some configuration. For example the below test would
->>>>>>>> run into premature OOM easily:
->>>>>>>>
->>>>>>>> $ cgcreate -g memory:thp
->>>>>>>> $ echo 4G > /sys/fs/cgroup/memory/thp/memory/limit_in_bytes
->>>>>>>> $ cgexec -g memory:thp transhuge-stress 4000
->>>>>>>>
->>>>>>>> transhuge-stress comes from kernel selftest.
->>>>>>>>
->>>>>>>> It is easy to hit OOM, but there are still a lot THP on the deferred
->>>>>>>> split queue, memcg direct reclaim can't touch them since the deferred
->>>>>>>> split shrinker is not memcg aware.
->>>>>>>>
->>>>>>>> Convert deferred split shrinker memcg aware by introducing per memcg
->>>>>>>> deferred split queue.  The THP should be on either per node or per memcg
->>>>>>>> deferred split queue if it belongs to a memcg.  When the page is
->>>>>>>> immigrated to the other memcg, it will be immigrated to the target
->>>>>>>> memcg's deferred split queue too.
->>>>>>>>
->>>>>>>> And, move deleting THP from deferred split queue in page free before
->>>>>>>> memcg uncharge so that the page's memcg information is available.
->>>>>>>>
->>>>>>>> Reuse the second tail page's deferred_list for per memcg list since the
->>>>>>>> same THP can't be on multiple deferred split queues.
->>>>>>>>
->>>>>>>> Cc: Kirill Tkhai <ktkhai@virtuozzo.com>
->>>>>>>> Cc: Johannes Weiner <hannes@cmpxchg.org>
->>>>>>>> Cc: Michal Hocko <mhocko@suse.com>
->>>>>>>> Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
->>>>>>>> Cc: Hugh Dickins <hughd@google.com>
->>>>>>>> Cc: Shakeel Butt <shakeelb@google.com>
->>>>>>>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
->>>>>>>> ---
->>>>>>>>      include/linux/huge_mm.h    |  24 ++++++
->>>>>>>>      include/linux/memcontrol.h |   6 ++
->>>>>>>>      include/linux/mm_types.h   |   7 +-
->>>>>>>>      mm/huge_memory.c           | 182 +++++++++++++++++++++++++++++++++------------
->>>>>>>>      mm/memcontrol.c            |  20 +++++
->>>>>>>>      mm/swap.c                  |   4 +
->>>>>>>>      6 files changed, 194 insertions(+), 49 deletions(-)
->>>>>>>>
->>>>>>>> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
->>>>>>>> index 7cd5c15..f6d1cde 100644
->>>>>>>> --- a/include/linux/huge_mm.h
->>>>>>>> +++ b/include/linux/huge_mm.h
->>>>>>>> @@ -250,6 +250,26 @@ static inline bool thp_migration_supported(void)
->>>>>>>>          return IS_ENABLED(CONFIG_ARCH_ENABLE_THP_MIGRATION);
->>>>>>>>      }
->>>>>>>>      +static inline struct list_head *page_deferred_list(struct page *page)
->>>>>>>> +{
->>>>>>>> +    /*
->>>>>>>> +     * Global deferred list in the second tail pages is occupied by
->>>>>>>> +     * compound_head.
->>>>>>>> +     */
->>>>>>>> +    return &page[2].deferred_list;
->>>>>>>> +}
->>>>>>>> +
->>>>>>>> +static inline struct list_head *page_memcg_deferred_list(struct page *page)
->>>>>>>> +{
->>>>>>>> +    /*
->>>>>>>> +     * Memcg deferred list in the second tail pages is occupied by
->>>>>>>> +     * compound_head.
->>>>>>>> +     */
->>>>>>>> +    return &page[2].memcg_deferred_list;
->>>>>>>> +}
->>>>>>>> +
->>>>>>>> +extern void del_thp_from_deferred_split_queue(struct page *);
->>>>>>>> +
->>>>>>>>      #else /* CONFIG_TRANSPARENT_HUGEPAGE */
->>>>>>>>      #define HPAGE_PMD_SHIFT ({ BUILD_BUG(); 0; })
->>>>>>>>      #define HPAGE_PMD_MASK ({ BUILD_BUG(); 0; })
->>>>>>>> @@ -368,6 +388,10 @@ static inline bool thp_migration_supported(void)
->>>>>>>>      {
->>>>>>>>          return false;
->>>>>>>>      }
->>>>>>>> +
->>>>>>>> +static inline void del_thp_from_deferred_split_queue(struct page *page)
->>>>>>>> +{
->>>>>>>> +}
->>>>>>>>      #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->>>>>>>>        #endif /* _LINUX_HUGE_MM_H */
->>>>>>>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
->>>>>>>> index bc74d6a..9ff5fab 100644
->>>>>>>> --- a/include/linux/memcontrol.h
->>>>>>>> +++ b/include/linux/memcontrol.h
->>>>>>>> @@ -316,6 +316,12 @@ struct mem_cgroup {
->>>>>>>>          struct list_head event_list;
->>>>>>>>          spinlock_t event_list_lock;
->>>>>>>>      +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
->>>>>>>> +    struct list_head split_queue;
->>>>>>>> +    unsigned long split_queue_len;
->>>>>>>> +    spinlock_t split_queue_lock;
->>>>>>>> +#endif
->>>>>>>> +
->>>>>>>>          struct mem_cgroup_per_node *nodeinfo[0];
->>>>>>>>          /* WARNING: nodeinfo must be the last member here */
->>>>>>>>      };
->>>>>>>> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
->>>>>>>> index 8ec38b1..405f5e6 100644
->>>>>>>> --- a/include/linux/mm_types.h
->>>>>>>> +++ b/include/linux/mm_types.h
->>>>>>>> @@ -139,7 +139,12 @@ struct page {
->>>>>>>>              struct {    /* Second tail page of compound page */
->>>>>>>>                  unsigned long _compound_pad_1;    /* compound_head */
->>>>>>>>                  unsigned long _compound_pad_2;
->>>>>>>> -            struct list_head deferred_list;
->>>>>>>> +            union {
->>>>>>>> +                /* Global THP deferred split list */
->>>>>>>> +                struct list_head deferred_list;
->>>>>>>> +                /* Memcg THP deferred split list */
->>>>>>>> +                struct list_head memcg_deferred_list;
->>>>>>> Why we need two namesakes for this list entry?
->>>>>>>
->>>>>>> For me it looks redundantly: it does not give additional information,
->>>>>>> but it leads to duplication (and we have two helpers page_deferred_list()
->>>>>>> and page_memcg_deferred_list() instead of one).
->>>>>> Yes, kind of. Actually I was also wondering if this is worth or not. My point is this may improve the code readability. We can figure out what split queue (per node or per memcg) is being manipulated just by the name of the list.
->>>>>>
->>>>>> If the most people thought this is unnecessary, I'm definitely ok to just keep one name.
->>>>>>
->>>>>>>> +            };
->>>>>>>>              };
->>>>>>>>              struct {    /* Page table pages */
->>>>>>>>                  unsigned long _pt_pad_1;    /* compound_head */
->>>>>>>> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
->>>>>>>> index 9f8bce9..0b9cfe1 100644
->>>>>>>> --- a/mm/huge_memory.c
->>>>>>>> +++ b/mm/huge_memory.c
->>>>>>>> @@ -492,12 +492,6 @@ pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma)
->>>>>>>>          return pmd;
->>>>>>>>      }
->>>>>>>>      -static inline struct list_head *page_deferred_list(struct page *page)
->>>>>>>> -{
->>>>>>>> -    /* ->lru in the tail pages is occupied by compound_head. */
->>>>>>>> -    return &page[2].deferred_list;
->>>>>>>> -}
->>>>>>>> -
->>>>>>>>      void prep_transhuge_page(struct page *page)
->>>>>>>>      {
->>>>>>>>          /*
->>>>>>>> @@ -505,7 +499,10 @@ void prep_transhuge_page(struct page *page)
->>>>>>>>           * as list_head: assuming THP order >= 2
->>>>>>>>           */
->>>>>>>>      -    INIT_LIST_HEAD(page_deferred_list(page));
->>>>>>>> +    if (mem_cgroup_disabled())
->>>>>>>> +        INIT_LIST_HEAD(page_deferred_list(page));
->>>>>>>> +    else
->>>>>>>> +        INIT_LIST_HEAD(page_memcg_deferred_list(page));
->>>>>>>>          set_compound_page_dtor(page, TRANSHUGE_PAGE_DTOR);
->>>>>>>>      }
->>>>>>>>      @@ -2664,6 +2661,7 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
->>>>>>>>          bool mlocked;
->>>>>>>>          unsigned long flags;
->>>>>>>>          pgoff_t end;
->>>>>>>> +    struct mem_cgroup *memcg = head->mem_cgroup;
->>>>>>>>            VM_BUG_ON_PAGE(is_huge_zero_page(page), page);
->>>>>>>>          VM_BUG_ON_PAGE(!PageLocked(page), page);
->>>>>>>> @@ -2744,17 +2742,30 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
->>>>>>>>          }
->>>>>>>>            /* Prevent deferred_split_scan() touching ->_refcount */
->>>>>>>> -    spin_lock(&pgdata->split_queue_lock);
->>>>>>>> +    if (!memcg)
->>>>>>>> +        spin_lock(&pgdata->split_queue_lock);
->>>>>>>> +    else
->>>>>>>> +        spin_lock(&memcg->split_queue_lock);
->>>>>>>>          count = page_count(head);
->>>>>>>>          mapcount = total_mapcount(head);
->>>>>>>>          if (!mapcount && page_ref_freeze(head, 1 + extra_pins)) {
->>>>>>>> -        if (!list_empty(page_deferred_list(head))) {
->>>>>>>> -            pgdata->split_queue_len--;
->>>>>>>> -            list_del(page_deferred_list(head));
->>>>>>>> +        if (!memcg) {
->>>>>>>> +            if (!list_empty(page_deferred_list(head))) {
->>>>>>>> +                pgdata->split_queue_len--;
->>>>>>>> +                list_del(page_deferred_list(head));
->>>>>>>> +            }
->>>>>>>> +        } else {
->>>>>>>> +            if (!list_empty(page_memcg_deferred_list(head))) {
->>>>>>>> +                memcg->split_queue_len--;
->>>>>>>> +                list_del(page_memcg_deferred_list(head));
->>>>>>>> +            }
->>>>>>>>              }
->>>>>>>>              if (mapping)
->>>>>>>>                  __dec_node_page_state(page, NR_SHMEM_THPS);
->>>>>>>> -        spin_unlock(&pgdata->split_queue_lock);
->>>>>>>> +        if (!memcg)
->>>>>>>> +            spin_unlock(&pgdata->split_queue_lock);
->>>>>>>> +        else
->>>>>>>> +            spin_unlock(&memcg->split_queue_lock);
->>>>>>>>              __split_huge_page(page, list, end, flags);
->>>>>>>>              if (PageSwapCache(head)) {
->>>>>>>>                  swp_entry_t entry = { .val = page_private(head) };
->>>>>>>> @@ -2771,7 +2782,10 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
->>>>>>>>                  dump_page(page, "total_mapcount(head) > 0");
->>>>>>>>                  BUG();
->>>>>>>>              }
->>>>>>>> -        spin_unlock(&pgdata->split_queue_lock);
->>>>>>>> +        if (!memcg)
->>>>>>>> +            spin_unlock(&pgdata->split_queue_lock);
->>>>>>>> +        else
->>>>>>>> +            spin_unlock(&memcg->split_queue_lock);
->>>>>>>>      fail:        if (mapping)
->>>>>>>>                  xa_unlock(&mapping->i_pages);
->>>>>>>>              spin_unlock_irqrestore(&pgdata->lru_lock, flags);
->>>>>>>> @@ -2791,17 +2805,40 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
->>>>>>>>          return ret;
->>>>>>>>      }
->>>>>>>>      -void free_transhuge_page(struct page *page)
->>>>>>>> +void del_thp_from_deferred_split_queue(struct page *page)
->>>>>>>>      {
->>>>>>>>          struct pglist_data *pgdata = NODE_DATA(page_to_nid(page));
->>>>>>>>          unsigned long flags;
->>>>>>>> +    struct mem_cgroup *memcg = compound_head(page)->mem_cgroup;
->>>>>>>>      -    spin_lock_irqsave(&pgdata->split_queue_lock, flags);
->>>>>>>> -    if (!list_empty(page_deferred_list(page))) {
->>>>>>>> -        pgdata->split_queue_len--;
->>>>>>>> -        list_del(page_deferred_list(page));
->>>>>>>> +    /*
->>>>>>>> +     * The THP may be not on LRU at this point, e.g. the old page of
->>>>>>>> +     * NUMA migration.  And PageTransHuge is not enough to distinguish
->>>>>>>> +     * with other compound page, e.g. skb, THP destructor is not used
->>>>>>>> +     * anymore and will be removed, so the compound order sounds like
->>>>>>>> +     * the only choice here.
->>>>>>>> +     */
->>>>>>>> +    if (PageTransHuge(page) && compound_order(page) == HPAGE_PMD_ORDER) {
->>>>>>>> +        if (!memcg) {
->>>>>>>> +            spin_lock_irqsave(&pgdata->split_queue_lock, flags);
->>>>>>>> +            if (!list_empty(page_deferred_list(page))) {
->>>>>>>> +                pgdata->split_queue_len--;
->>>>>>>> +                list_del(page_deferred_list(page));
->>>>>>>> +            }
->>>>>>>> +            spin_unlock_irqrestore(&pgdata->split_queue_lock, flags);
->>>>>>>> +        } else {
->>>>>>>> +            spin_lock_irqsave(&memcg->split_queue_lock, flags);
->>>>>>>> +            if (!list_empty(page_memcg_deferred_list(page))) {
->>>>>>>> +                memcg->split_queue_len--;
->>>>>>>> +                list_del(page_memcg_deferred_list(page));
->>>>>>>> +            }
->>>>>>>> +            spin_unlock_irqrestore(&memcg->split_queue_lock, flags);
->>>>>>> Such the patterns look like a duplication of functionality, we already have
->>>>>>> in list_lru: it handles both root_mem_cgroup and all children memcg.
->>>>>> Would you please point me to some example code?
->>>>> I mean that we do almost the same in list_lru_add(): check for whether
->>>>> item is already added, find the desired list, maintain the list's len.
->>>>>
->>>>> It looks all the above we may replace with something like
->>>>>
->>>>> list_lru_add(defered_thp_lru, page_deferred_list(page))
->>>>>
->>>>> after necessary preparations (some rewriting of the rest of code is needed).
->>>> Aha, I got your point. I'm not quite familiar with that code. I took a quick loot at it, it looks the current APIs are not good enough for deferred split, which needs irqsave/irqrestore version list add/del/move/walk and page refcount bumped version walk.
->>> I missed the point about refcount bumping, could you please clarify?
->> The deferred_split_scan() need bump refcount for every head page when scanning the deferred split queue.
-> Why can't we increment refcount in isolate callback of __list_lru_walk_one() function?
+This set makes uprobe THP-aware. Instead of FOLL_SPLIT, we introduces
+FOLL_SPLIT_PMD, which only split PMD for uprobe. After all uprobes within
+the THP are removed, the PTEs are regrouped into huge PMD.
 
-I don't mean we can't do that. It is definitely feasible. I missed the 
-isolate callback part when I had first glance.
+Note that, with uprobes attached, the process runs with PTEs for the huge
+page. The performance benefit of THP is recovered _after_ all uprobes on
+the huge page are detached.
 
->
-> Kirill
+This set (plus a few THP patches) is also available at
+
+   https://github.com/liu-song-6/linux/tree/uprobe-thp
+
+Changes since v3:
+1. Simplify FOLL_SPLIT_PMD case in follow_pmd_mask(), (Kirill A. Shutemov)
+2. Fix try_collapse_huge_pmd() to match change in follow_pmd_mask().
+
+Changes since v2:
+1. For FOLL_SPLIT_PMD, populated the page table in follow_pmd_mask().
+2. Simplify logic in uprobe_write_opcode. (Oleg Nesterov)
+3. Fix page refcount handling with FOLL_SPLIT_PMD.
+4. Much more testing, together with THP on ext4 and btrfs (sending in
+   separate set).
+5. Rebased up on Linus's tree:
+   commit 35110e38e6c5 ("Merge tag 'media/v5.2-2' of git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media")
+
+Changes since v1:
+1. introduces FOLL_SPLIT_PMD, instead of modifying split_huge_pmd*();
+2. reuse pages_identical() from ksm.c;
+3. rewrite most of try_collapse_huge_pmd().
+
+Song Liu (5):
+  mm: move memcmp_pages() and pages_identical()
+  uprobe: use original page when all uprobes are removed
+  mm, thp: introduce FOLL_SPLIT_PMD
+  uprobe: use FOLL_SPLIT_PMD instead of FOLL_SPLIT
+  uprobe: collapse THP pmd after removing all uprobes
+
+ include/linux/huge_mm.h |  7 +++++
+ include/linux/mm.h      |  8 +++++
+ kernel/events/uprobes.c | 54 +++++++++++++++++++++++++-------
+ mm/gup.c                |  9 ++++--
+ mm/huge_memory.c        | 69 +++++++++++++++++++++++++++++++++++++++++
+ mm/ksm.c                | 18 -----------
+ mm/util.c               | 13 ++++++++
+ 7 files changed, 146 insertions(+), 32 deletions(-)
+
+--
+2.17.1
 
