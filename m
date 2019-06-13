@@ -2,139 +2,169 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7CFECC31E4A
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:13:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B878AC31E4A
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:18:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 325F02175B
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:13:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 325F02175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 7D7522063F
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 17:18:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="lpafWUUx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D7522063F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E57B8E0002; Thu, 13 Jun 2019 13:13:32 -0400 (EDT)
+	id F24748E0002; Thu, 13 Jun 2019 13:18:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 896688E0001; Thu, 13 Jun 2019 13:13:32 -0400 (EDT)
+	id EAC838E0001; Thu, 13 Jun 2019 13:18:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7847B8E0002; Thu, 13 Jun 2019 13:13:32 -0400 (EDT)
+	id D4D178E0002; Thu, 13 Jun 2019 13:18:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 425818E0001
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:13:32 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i2so4299057pfe.1
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 10:13:32 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B42C08E0001
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:18:36 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id r58so18074078qtb.5
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 10:18:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=MFsgK+IE36w0ET36HY/Y/1ZMSo/8rsy2hTpVb2io/tM=;
-        b=TQMCQ7UeqjLVl8qKQgExMiMkIK79De3iUjsjTGeYUMPtJprFWzY2U580U2kQQRhJla
-         xicneYaPWYC5dY6rBVccdsUN7f5/eE5Ji7KrU/xX5IVKW8LyWkZYFUkFCvzUaEwR1xJI
-         zlKcp7ltw3bfLixR3NRxfHKPIxNaHPxsniLCQf35s+ULBWPW1g+dIzzAQ7CFdvWAc0n0
-         eeIUgzqUENnXO3LZegTe8Dr4ywzqlmN8pnp4yT8rEJih4OylTm9RI3KneDCzGFzyxAt1
-         QW7ORYfFSOUgjmWGllCJsHrSyKflEONsj6uNnfioMazW/EXJgZNHmowQ6s8CkJ8b+4kH
-         m/tA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAWuFHPTzxas97t1bsOGIUfjkPlPjnxuaF1l0RZ5lcg0dw56uesO
-	tyWL0DGilB43/YFtPZOd8teUuur8/IeiLIGr75nWzk3TFIF2xvW63PE2WtLe6+KEZgdrvdhca4p
-	w+ShrxsfBLyPKDNpllOH8rICecJgZEKS0v0E10eHzoLZd7HcbPfCxiYCjAHe0EOZprg==
-X-Received: by 2002:aa7:8212:: with SMTP id k18mr44939750pfi.246.1560446011938;
-        Thu, 13 Jun 2019 10:13:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxgPUzIvERa6a3OD3SPimy2G0vrRkPvTYJXAy8Dm1iieugDNGiuyCLG8seqIjpdbzoWGUXL
-X-Received: by 2002:aa7:8212:: with SMTP id k18mr44939706pfi.246.1560446011241;
-        Thu, 13 Jun 2019 10:13:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560446011; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=ECRuDs1AAJXccME5fjhnIagUHhl7wP1zzfkz6zfy+gs=;
+        b=c1+5/kgJIB4+6EmYbtodx2zJlvB3T1knDk0+9nT44dnrZTJqUFxiBEiwQmYP7BGDGC
+         aQ+rjq2/nncJ+/86ZX9QdeOfkORSTDpFIRiu3bxp7rzf3mUd142BrDPQTJqkpRPqauqR
+         K5b36BMVdwH/Nvxc/UMAYXLPCM2mgjAMR9iB66UYp3Htux8wurIEY421Nqw8/kbR7Jnw
+         npYfU/FASw4t+GbVStSRAMTjNKH9NuxPxb2vjtuWOAfMbIewRgumnezB3u6Hs/F8/is7
+         K/ZEHvHu5/ITm0wxwUj5xQQM4rfkBx3IIPR3m9Fw7ai6sxAfCMbkPEAAF7vYsXBuemaL
+         crTA==
+X-Gm-Message-State: APjAAAVwlQ/Wu9A/zrmNeVHhpPHtDq3S6UmjdvSzXLvJdiha7IdjINiW
+	jMFUFW4GqL66917Qc4yO91NPfJPlIp/+3zlqcGxXPOq3R3jxH2lDsCijUpfO3iKz5KEwbIg8N/d
+	ADvZ2eBfSZVFM9bdevqpffjJfUGbfvDtpkKOH/xjSUhURshicNpKHgzz7g+jV/LUcXA==
+X-Received: by 2002:a37:aac5:: with SMTP id t188mr71497206qke.157.1560446316360;
+        Thu, 13 Jun 2019 10:18:36 -0700 (PDT)
+X-Received: by 2002:a37:aac5:: with SMTP id t188mr71497175qke.157.1560446315685;
+        Thu, 13 Jun 2019 10:18:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560446315; cv=none;
         d=google.com; s=arc-20160816;
-        b=R6IkalruRo9xeR9CjhQ8OoX8cQT/eZC0KUEe04R46UqDvmyE3jQuq2qac/F59VS0UJ
-         sgwqhpJwFKbahSTmgym0lKZflOC6hsRb4tc0skXWxKDAbhxjk5vYM9NC78ZmKrEUcgj6
-         Ryt54w3WglF01Hz2OK8H2yTPel9xKx+sMLe2uM7j1bSUuJluANnlkhyaPibAcwkmMV6V
-         bI2WWKyIw/P65nXNupmi6N0KTU3AAiNBOOMEfO54zwcuZsgPKA2HMcSLxlZ2AaHO8Juf
-         xQO7/LpDJeL/vftt4NEePCrD5gtZlVWLvnW6s+syUxvBO1nprsnS2NA/amGrPO52WOLV
-         BzAQ==
+        b=Z6G3MnugAnWtBvtFxOCd32mcB9DMCeV4QDUHq6K6b7Z9l9j5PNQSSgaWdCRopzkN0c
+         OJR5SBn7oPjlnMRi/dwJp+LXbhi+/UUr9jRdQ2HeyzMirAR6/GV6eVentS3jkZRa6aAq
+         MD1cOZyGkPUbAFK4OkZjc9ZKZXVM9k+QseECbGD4SMJd+ER58Z58S7l7Ym07DT65OdQY
+         Nz5MFXmJyX47CuxLg37HlgApN6uHO++EHnqyzSxLUfGYkQMvl2XB+2CuNVwqeQcj4pj9
+         hOW5+726aXu6unpijtU0TVj+Fb0R+Dc8UjIXQLz45H62t3S6dTKKgT++4gbylDgbdUYu
+         IJBQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=MFsgK+IE36w0ET36HY/Y/1ZMSo/8rsy2hTpVb2io/tM=;
-        b=NRjLZK3j+lzTSFzh/69rEp/R9Aq2mpO5PbSO/oXGD3It5JJg9HKB0FJbb2kDJp6eOs
-         itAMEtGa15nD4n498bAMlvg95m+0T7R5pDl1CE66jJRIPTtIDqQ9pBTcmsxatEu5uUAo
-         aeKpOLo3/USiZzi42rtgvsYKhVYoQeppisuxcPLf5cRPDnLV+5gCnFx1IFbg0Zwp/EOX
-         uZ6KPsPf8iUL9rrx/G+VP0J4v3rgrz/TDmZu9JxLL4z40N9nPsUvhTcKa10USSpylMrI
-         3Eb2sXHyhJlnNqFN4+4aTL9TPk8p1/JIiQlnc+gb/gLrNf113abJ1cKyVH3tjFn+cvif
-         DHvw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ECRuDs1AAJXccME5fjhnIagUHhl7wP1zzfkz6zfy+gs=;
+        b=p7tQaww2slJEtmgk5gAVOb/JCKJF3ZBGtWnlfXLhNuOjIskrqIMbLw2EDlyTOu6Eag
+         3AesEN+zWL8g0ppmUW4U/EYCu2tKH8PPaS5c+drlTHdeIPqLRxgWRzYCfr5j9uXoG9//
+         NNwq4ru7uHC7NOUrAi0s9e7+ZtCi4ApKj/y52e1hmQVlkotS945xAmaB+gNUV5uE42M3
+         QEOmDBuPIbZbZXdF7bZeysHEH/FbimvmdOAwIBTpBg5RTpVjOmJ29UHlvNYwnTZ8BEd8
+         8cG+neNk0751pZUQs4D92VVGP4mxokEkBHLVipc9eiZhSISRhgBNzCqmDUkIOLl/NGIE
+         Wk9g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4437.biz.mail.alibaba.com (out4437.biz.mail.alibaba.com. [47.88.44.37])
-        by mx.google.com with ESMTPS id h11si125249pls.374.2019.06.13.10.13.29
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=lpafWUUx;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a38sor971334qte.32.2019.06.13.10.18.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 10:13:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) client-ip=47.88.44.37;
+        (Google Transport Security);
+        Thu, 13 Jun 2019 10:18:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.37 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R591e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07417;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=11;SR=0;TI=SMTPD_---0TU55.Xp_1560446003;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TU55.Xp_1560446003)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 14 Jun 2019 01:13:26 +0800
-Subject: Re: [v3 PATCH 2/4] mm: move mem_cgroup_uncharge out of
- __page_cache_release()
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: ktkhai@virtuozzo.com, kirill.shutemov@linux.intel.com,
- hannes@cmpxchg.org, mhocko@suse.com, hughd@google.com, shakeelb@google.com,
- rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <1560376609-113689-1-git-send-email-yang.shi@linux.alibaba.com>
- <1560376609-113689-3-git-send-email-yang.shi@linux.alibaba.com>
- <20190613113943.ahmqpezemdbwgyax@box>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <2909ce59-86ba-ea0b-479f-756020fb32af@linux.alibaba.com>
-Date: Thu, 13 Jun 2019 10:13:19 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=lpafWUUx;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=ECRuDs1AAJXccME5fjhnIagUHhl7wP1zzfkz6zfy+gs=;
+        b=lpafWUUxvoz6cw8t6bvxhkbpKx1MuDJC/6+rsfIk9kELesUHNICDeurjA/f9ZuoaJv
+         lKvrldgcxc6rNvpGlf+9lPT2riW0RE1+HuS2OqxKuK9J/UHHXstRF22tdIYHVfy+KlvT
+         LRXs02nEuzM/Fk4kx+1bbgAFr8bE6dMuPmxEyYZicAywAmS5YuFqquENcwoxV3ALaTJr
+         wrm1jUeHUGOSNU/aAA8xVX35TgozP9YEYH5RVAbReFiyARjThtZ1Rs+sS5w3QP1kXXnb
+         Bg53NxX8LuVo7QxF8lvDT58SoxeM97wjJy7wRjhtAvG+RnkgIyeQxLZquacOghksiJH/
+         /FWA==
+X-Google-Smtp-Source: APXvYqxo9wZDsL+u9xxF1oR9luzN2plR83tNtwXpM5LjZTCeK+hD6TjhoexGVCwTWwyvS0UUHoLRyg==
+X-Received: by 2002:aed:3686:: with SMTP id f6mr53799960qtb.30.1560446315300;
+        Thu, 13 Jun 2019 10:18:35 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id l3sm76969qkd.49.2019.06.13.10.18.34
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 13 Jun 2019 10:18:34 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hbTMw-000325-3P; Thu, 13 Jun 2019 14:18:34 -0300
+Date: Thu, 13 Jun 2019 14:18:34 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
+	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
+	Dave Chinner <david@fromorbit.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	linux-xfs <linux-xfs@vger.kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	linux-nvdimm <linux-nvdimm@lists.01.org>,
+	linux-ext4 <linux-ext4@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190613171834.GE22901@ziepe.ca>
+References: <20190612102917.GB14578@quack2.suse.cz>
+ <20190612114721.GB3876@ziepe.ca>
+ <20190612120907.GC14578@quack2.suse.cz>
+ <20190612191421.GM3876@ziepe.ca>
+ <20190612221336.GA27080@iweiny-DESK2.sc.intel.com>
+ <CAPcyv4gkksnceCV-p70hkxAyEPJWFvpMezJA1rEj6TEhKAJ7qQ@mail.gmail.com>
+ <20190612233324.GE14336@iweiny-DESK2.sc.intel.com>
+ <CAPcyv4jf19CJbtXTp=ag7Ns=ZQtqeQd3C0XhV9FcFCwd9JCNtQ@mail.gmail.com>
+ <20190613151354.GC22901@ziepe.ca>
+ <CAPcyv4hZsxd+eUrVCQmm-O8Zcu16O5R1d0reTM+JBBn7oP7Uhw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190613113943.ahmqpezemdbwgyax@box>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4hZsxd+eUrVCQmm-O8Zcu16O5R1d0reTM+JBBn7oP7Uhw@mail.gmail.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Jun 13, 2019 at 09:25:54AM -0700, Dan Williams wrote:
+> On Thu, Jun 13, 2019 at 8:14 AM Jason Gunthorpe <jgg@ziepe.ca> wrote:
+> >
+> > On Wed, Jun 12, 2019 at 06:14:46PM -0700, Dan Williams wrote:
+> > > > Effectively, we would need a way for an admin to close a specific file
+> > > > descriptor (or set of fds) which point to that file.  AFAIK there is no way to
+> > > > do that at all, is there?
+> > >
+> > > Even if there were that gets back to my other question, does RDMA
+> > > teardown happen at close(fd), or at final fput() of the 'struct
+> > > file'?
+> >
+> > AFAIK there is no kernel side driver hook for close(fd).
+> >
+> > rdma uses a normal chardev so it's lifetime is linked to the file_ops
+> > release, which is called on last fput. So all the mmaps, all the dups,
+> > everything must go before it releases its resources.
+> 
+> Oh, I must have missed where this conversation started talking about
+> the driver-device fd. 
 
+In the first paragraph above where Ira is musing about 'close a
+specific file', he is talking about the driver-device fd.
 
-On 6/13/19 4:39 AM, Kirill A. Shutemov wrote:
-> On Thu, Jun 13, 2019 at 05:56:47AM +0800, Yang Shi wrote:
->> The later patch would make THP deferred split shrinker memcg aware, but
->> it needs page->mem_cgroup information in THP destructor, which is called
->> after mem_cgroup_uncharge() now.
->>
->> So, move mem_cgroup_uncharge() from __page_cache_release() to compound
->> page destructor, which is called by both THP and other compound pages
->> except HugeTLB.  And call it in __put_single_page() for single order
->> page.
->
-> If I read the patch correctly, it will change behaviour for pages with
-> NULL_COMPOUND_DTOR. Have you considered it? Are you sure it will not break
-> anything?
+Ie unilaterally closing /dev/uverbs as a punishment for an application
+that used leases wrong: ie that released its lease with the RDMA is
+still ongoing. 
 
-So far a quick search shows NULL_COMPOUND_DTOR is not used by any type 
-of compound page. The HugeTLB code sets destructor to NULL_COMPOUND_DTOR 
-when freeing hugetlb pages via hugetlb specific destructor.
-
-The prep_new_page() would call prep_compound_page() if __GFP_COMP is 
-used, which sets dtor to COMPOUND_PAGE_DTOR by default.  Just hugetlb 
-and THP set their specific dtors.
-
-And, it looks __put_compound_page() doesn't check if dtor is NULL or not 
-at all.
-
->
+Jason
 
