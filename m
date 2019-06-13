@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 088E0C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8571FC31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C2C1821473
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4197C21473
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="SIOUKYPA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C2C1821473
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="hN3Tg/pf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4197C21473
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 813F86B0005; Thu, 13 Jun 2019 05:43:38 -0400 (EDT)
+	id E08F66B0006; Thu, 13 Jun 2019 05:43:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7C6166B0006; Thu, 13 Jun 2019 05:43:38 -0400 (EDT)
+	id D1D066B0007; Thu, 13 Jun 2019 05:43:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 665FD6B0007; Thu, 13 Jun 2019 05:43:38 -0400 (EDT)
+	id B21006B000A; Thu, 13 Jun 2019 05:43:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 33E346B0005
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 05:43:38 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 145so14078503pfv.18
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 02:43:38 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E7886B0006
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 05:43:39 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id s4so8648693pgr.3
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 02:43:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=kaMWV25JLh2oaHk6KDUPHO1aktYAmWaT94i0RYQYzUw=;
-        b=uWqjbscCu0rtf7JCR3ePpCSVtC6rMSxefKz4/6r2ZGVjDJscYmANDJ4rJOrKlmZqdm
-         XE2RgaWqR0PwUXdyvDyN8nF7EGOx6OsTGrIESKDB22whZD2qlfwKbTtZzmwTWg5TmUvb
-         HB2PUSeZ65KCi46i4X9wLC9cN6qTHG6jG0XCA/JHIDlgFugoq9GsQCHdjoXtDP0qUjEK
-         GBlztPgpLC79h3jpQCb3oNd/7x63PTn3WMOo4WU19yTPiAEPoTgVmIKHP+Nk99SAx3nK
-         UVAIuDBD/CLsGaBXldlGUUnQ+7PAdNVIYV09bEhp/tZSaE/HsAosUh6/zRRxjcLRRH+E
-         /AfA==
-X-Gm-Message-State: APjAAAVDqfkQoK16xEENkqCUiY4y8MeVdN30TYSByyferOvDJgi6zUYJ
-	cNTNsWQeK2IYeyBAJOMQdHmVm5tE1AwC9CkBgHlRz19OgPQ95WAtDKwKmN6NULEB0fkq+mhJLd3
-	CvECODlpLET8gmGxGl0TfYkQk7QbAo4Plv4qS+Si+GJFx4XgAIwKJHcVIKe26CO8=
-X-Received: by 2002:a65:624f:: with SMTP id q15mr29518977pgv.436.1560419017772;
-        Thu, 13 Jun 2019 02:43:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzVhf+yBHALIj8vG5Tpjhi06GGlRVpl+cdCg8yXqMBL5bU5/3N7nRhPjoPc2RRp9yrxvN0a
-X-Received: by 2002:a65:624f:: with SMTP id q15mr29518871pgv.436.1560419016683;
-        Thu, 13 Jun 2019 02:43:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560419016; cv=none;
+        bh=EySscp3yKN+jDnjqTeB/vXgNBmJu+8rQ8w0cniT2gLU=;
+        b=OJm9/ZVrt9+mExfi0Buzgte6HdYYyWqNJ3jYC0jd7vZoNkoN1R7L/dHGupap4OnsbL
+         esOHWyjl8thUiFSp9eYrfD8GUCPSopzlztl+hfFGG48j56h3qmYIcshGeoxtLO5Brivn
+         WyyvgDOTnsHEmKu8mh9GZyKWrDBsaBTbOfg+FXkCOogBx0NB2dtt/80HkuTQb75CuZvD
+         od+keT3OiOdXzh+UweFFN4S6IPdFxLh5fQyANE/sFFDYbYiiXt85XByfiGazySMCuLl+
+         bcNWXYDKVEt0uA9MLL3hNu8Ci63OOieBkTxJzXMkJl6M+yZDDiYTS34FxQzMWSqlFE0Y
+         TrZw==
+X-Gm-Message-State: APjAAAW86W19ezFFNQGFjTrgs066iR3fryWVUNsKvAoNbVBXFr6P7FmU
+	0cxxRq1aTTfoy6fJq8zLIUp4XdtsxnN8bTF3XV204iCJkET7bm/o0KifKLCRLk6OjQO2U07a6Vq
+	5+dfKyLg6NVUKPRD7mwTVY5rQjAAjWTc+IPrEw+tpQd9nQeldJsmZg7DM7BlHUr4=
+X-Received: by 2002:a17:90a:bb01:: with SMTP id u1mr3400554pjr.92.1560419019120;
+        Thu, 13 Jun 2019 02:43:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwLyRlemFFktmGBgyWxpTIuwHlZC1u8gGjgh03/jZVukHCGAmuNW1llIBcSMV31euEQQwX0
+X-Received: by 2002:a17:90a:bb01:: with SMTP id u1mr3400453pjr.92.1560419018215;
+        Thu, 13 Jun 2019 02:43:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560419018; cv=none;
         d=google.com; s=arc-20160816;
-        b=jq31rAn4uSoP65Zff3hsaRBSgo9vhfxP929+VM0HaoBB+sEef7S+dcEPTXPTEvNi+I
-         AbZGYzE6ieXtMeStp9pi5yChLuK+fpDOmZhFhd5vSc0whB1Qc+NcDxqGInYvZDHNkJhB
-         Px/QpsdFRm4LLF/fYibC8F+7mWF4mitiPzP+KHdEqwqja10Y0d58rTQjHJ3aTKbP/ypY
-         HVxMrc2mAfKtYwsu1VbP1Ogk1MoNj84v55z4uYErM1dpXewSZlEuSk7+Z7yLDQGtXtrX
-         Wd79ahB16GSarCFu9Gq5GU3w0w/j1PQgCqR2kMGbeg9KRsWWxW75O9tggFBBcfZ59xZi
-         pwiA==
+        b=kfV2TwUALLKs6ml6qHluEq1dYrTLSPOFKHQkclWTBZ7lLWuCeabaBNN6Tm7nJi5PzB
+         JLD8fdMoVgxN9G0AGlYSZ6q8g/oTpKP7UOjLS2c6i4Lk5f+jqiK1qi/DnPsRHZZYiT8v
+         yIGm4uQaMEel+Grqlc/P44fsyoY4Gu5hyTLxZ8UmnYmWoRHjnqZcoM1KyKgeheSdsHS/
+         90O96DzQAprVePcQlVSaqU5tl1b4cdZELjj/SHDp7Iku2D9mb6rhgY9xMrBWKXeiTTXu
+         MvtNebgEyfyoPoyzLxgGUM01K/GMSLlq8lM8K55iYoSBiZdcAb60+Eq9oxjbRzWopwJb
+         8KFA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=kaMWV25JLh2oaHk6KDUPHO1aktYAmWaT94i0RYQYzUw=;
-        b=dLUIgC6Q7ex9b927ZG+F3S3ju0kMOsR3T6aqa6kjFCFIpjTL+/GVBqd3yxEFJQVqZZ
-         J5pg9WPFYKz/sgGdmKoUMVsdrGJrlg7BB6s3YKo2LdNID95mjG1kNtnxlkt/nMSPMUwX
-         7m0+iM+e1bZOBh2fv+/d8Gtj+1iMcjeH8YSDAIiFR4L1R8DmjhkAq3OK75dJCpcXyRBU
-         pwEDc3TJWJPLvDqOdQsbhxd3LVPJ7+BMnRXpK9Tyt/nC+a/qaWH6KBS3RQqnvN9jbNt2
-         jR4UD2aQ0WujAbFE7CfYfl3qT2295Bl/jXuqxFUGTG9CKZXm4HAqBSXlZYqmTDRSKZHN
-         YNlw==
+        bh=EySscp3yKN+jDnjqTeB/vXgNBmJu+8rQ8w0cniT2gLU=;
+        b=RfGna9iO4iPxkS7NGcUCGIAN14wtyY2BI7oGGd0TdEkb8Uv+hd7IY1X3CcnqxnL3Hy
+         zJfkD2ShpZXMgPSazOW2usmhdBpZ7Y8F/s3gvUtn1Eih14RPRvplWhZg0i2Dg143pfmE
+         zD0GzeW1qBsMEiJ2OtLEuh7RINjCi7pFG4y7uq3DCWpXvSdmUzMCoYKVCphsmiNN52PU
+         KzElwlM1uN9fEREt2VtnnOo0Vp9EYmDtAIT1Peo9Dj/wtv53Iyr+PVsVUYV14aucbjqU
+         /huUWnf0wTi9vOY5JzDXDKAuE9VoxxacJHGw5XOzYHV7At7Jc4njMt+Bd5/TneoHjdTq
+         q3bQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=SIOUKYPA;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="hN3Tg/pf";
        spf=pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id c8si2627276pje.30.2019.06.13.02.43.36
+        by mx.google.com with ESMTPS id 64si225458ply.399.2019.06.13.02.43.38
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 13 Jun 2019 02:43:36 -0700 (PDT)
+        Thu, 13 Jun 2019 02:43:38 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=SIOUKYPA;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="hN3Tg/pf";
        spf=pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=kaMWV25JLh2oaHk6KDUPHO1aktYAmWaT94i0RYQYzUw=; b=SIOUKYPAoDNdv7dWJhGfW0ob9k
-	SLpR4leODIPqaX5ZslP+W4SJcJ9U7DECzPF7id4CLr1TIXVk0TrdeRnB2mSBfkwHV0BwXM9hz+pAg
-	MRIkDGTi/GEKbHR7IahvnzYVCFrGOql4J+HQbbAxBYnBDBvqLJf14fWFUzQPYx6sWG+RncvSxlFHs
-	UVuWutw1NZcBceRsSHnUv96ep8AN6pJSCjApiFhahvIwVDcAXbo2avAu2oiRkulO4cM29bofUBPE/
-	aJ6WgM8we7zOD5oK498LUnb7YTFkOzfiKswyBFy1ZCZiC3yGAwDX1/fPAToXlZJ0IO1qvMnAWyaKu
-	nuFh1UuA==;
+	bh=EySscp3yKN+jDnjqTeB/vXgNBmJu+8rQ8w0cniT2gLU=; b=hN3Tg/pfc+DF3o2cE7RN16eAtU
+	DSJVtP39I0bEcArETT1vSti3Crp6Qi6ZMUwozDmHcDkQP6AOPVOaSSisOOKmzApBa5KRd3Fc1dp2r
+	g2XyhbubQhZWdnpR3yZQ12YlHZkEEwfLnzPENVeG2YNLsIJ43CAeQQvZPRB+G30UAOvUcGpwczkNe
+	mnogyEbipMza1tYUKcfQqaQG3/M5pHI887fdLfo7flgv0cPauHj9XEiy7UM73W0JlaNeb622kfoPX
+	R8Nu1l/kCfDiGUY+PLUbgk+PMfKovQLWD4DYNK3g20GKfH1m6doMiSXTnDatQF7W8R9hsse0hbDbU
+	TtnGqz2Q==;
 Received: from mpp-cp1-natpool-1-198.ethz.ch ([82.130.71.198] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hbMGa-0001jn-7o; Thu, 13 Jun 2019 09:43:32 +0000
+	id 1hbMGd-0001kC-6s; Thu, 13 Jun 2019 09:43:35 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -106,9 +106,9 @@ Cc: linux-mm@kvack.org,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 01/22] mm: remove the unused ARCH_HAS_HMM_DEVICE Kconfig option
-Date: Thu, 13 Jun 2019 11:43:04 +0200
-Message-Id: <20190613094326.24093-2-hch@lst.de>
+Subject: [PATCH 02/22] mm: remove the struct hmm_device infrastructure
+Date: Thu, 13 Jun 2019 11:43:05 +0200
+Message-Id: <20190613094326.24093-3-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190613094326.24093-1-hch@lst.de>
 References: <20190613094326.24093-1-hch@lst.de>
@@ -121,32 +121,137 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This code is a trivial wrapper around device model helpers, which
+should have been integrated into the driver device model usage from
+the start.  Assuming it actually had users, which it never had since
+the code was added more than 1 1/2 years ago.
+
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- mm/Kconfig | 10 ----------
- 1 file changed, 10 deletions(-)
+ include/linux/hmm.h | 20 ------------
+ mm/hmm.c            | 80 ---------------------------------------------
+ 2 files changed, 100 deletions(-)
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index f0c76ba47695..0d2ba7e1f43e 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -675,16 +675,6 @@ config ARCH_HAS_HMM_MIRROR
- 	depends on (X86_64 || PPC64)
- 	depends on MMU && 64BIT
- 
--config ARCH_HAS_HMM_DEVICE
--	bool
--	default y
--	depends on (X86_64 || PPC64)
--	depends on MEMORY_HOTPLUG
--	depends on MEMORY_HOTREMOVE
--	depends on SPARSEMEM_VMEMMAP
--	depends on ARCH_HAS_ZONE_DEVICE
--	select XARRAY_MULTI
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 0fa8ea34ccef..4867b9da1b6c 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -717,26 +717,6 @@ static inline unsigned long hmm_devmem_page_get_drvdata(const struct page *page)
+ {
+ 	return page->hmm_data;
+ }
 -
- config ARCH_HAS_HMM
- 	bool
- 	default y
+-
+-/*
+- * struct hmm_device - fake device to hang device memory onto
+- *
+- * @device: device struct
+- * @minor: device minor number
+- */
+-struct hmm_device {
+-	struct device		device;
+-	unsigned int		minor;
+-};
+-
+-/*
+- * A device driver that wants to handle multiple devices memory through a
+- * single fake device can use hmm_device to do so. This is purely a helper and
+- * it is not strictly needed, in order to make use of any HMM functionality.
+- */
+-struct hmm_device *hmm_device_new(void *drvdata);
+-void hmm_device_put(struct hmm_device *hmm_device);
+ #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
+ #else /* IS_ENABLED(CONFIG_HMM) */
+ static inline void hmm_mm_destroy(struct mm_struct *mm) {}
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 886b18695b97..ff2598eb7377 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -1499,84 +1499,4 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
+ 	return devmem;
+ }
+ EXPORT_SYMBOL_GPL(hmm_devmem_add_resource);
+-
+-/*
+- * A device driver that wants to handle multiple devices memory through a
+- * single fake device can use hmm_device to do so. This is purely a helper
+- * and it is not needed to make use of any HMM functionality.
+- */
+-#define HMM_DEVICE_MAX 256
+-
+-static DECLARE_BITMAP(hmm_device_mask, HMM_DEVICE_MAX);
+-static DEFINE_SPINLOCK(hmm_device_lock);
+-static struct class *hmm_device_class;
+-static dev_t hmm_device_devt;
+-
+-static void hmm_device_release(struct device *device)
+-{
+-	struct hmm_device *hmm_device;
+-
+-	hmm_device = container_of(device, struct hmm_device, device);
+-	spin_lock(&hmm_device_lock);
+-	clear_bit(hmm_device->minor, hmm_device_mask);
+-	spin_unlock(&hmm_device_lock);
+-
+-	kfree(hmm_device);
+-}
+-
+-struct hmm_device *hmm_device_new(void *drvdata)
+-{
+-	struct hmm_device *hmm_device;
+-
+-	hmm_device = kzalloc(sizeof(*hmm_device), GFP_KERNEL);
+-	if (!hmm_device)
+-		return ERR_PTR(-ENOMEM);
+-
+-	spin_lock(&hmm_device_lock);
+-	hmm_device->minor = find_first_zero_bit(hmm_device_mask, HMM_DEVICE_MAX);
+-	if (hmm_device->minor >= HMM_DEVICE_MAX) {
+-		spin_unlock(&hmm_device_lock);
+-		kfree(hmm_device);
+-		return ERR_PTR(-EBUSY);
+-	}
+-	set_bit(hmm_device->minor, hmm_device_mask);
+-	spin_unlock(&hmm_device_lock);
+-
+-	dev_set_name(&hmm_device->device, "hmm_device%d", hmm_device->minor);
+-	hmm_device->device.devt = MKDEV(MAJOR(hmm_device_devt),
+-					hmm_device->minor);
+-	hmm_device->device.release = hmm_device_release;
+-	dev_set_drvdata(&hmm_device->device, drvdata);
+-	hmm_device->device.class = hmm_device_class;
+-	device_initialize(&hmm_device->device);
+-
+-	return hmm_device;
+-}
+-EXPORT_SYMBOL(hmm_device_new);
+-
+-void hmm_device_put(struct hmm_device *hmm_device)
+-{
+-	put_device(&hmm_device->device);
+-}
+-EXPORT_SYMBOL(hmm_device_put);
+-
+-static int __init hmm_init(void)
+-{
+-	int ret;
+-
+-	ret = alloc_chrdev_region(&hmm_device_devt, 0,
+-				  HMM_DEVICE_MAX,
+-				  "hmm_device");
+-	if (ret)
+-		return ret;
+-
+-	hmm_device_class = class_create(THIS_MODULE, "hmm_device");
+-	if (IS_ERR(hmm_device_class)) {
+-		unregister_chrdev_region(hmm_device_devt, HMM_DEVICE_MAX);
+-		return PTR_ERR(hmm_device_class);
+-	}
+-	return 0;
+-}
+-
+-device_initcall(hmm_init);
+ #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
 -- 
 2.20.1
 
