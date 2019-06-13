@@ -2,269 +2,230 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 123AFC31E4A
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:24:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AF717C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:26:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B46672082C
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:24:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="AwqPgJ4i";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="ZNz2GTn4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B46672082C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id 6F31F2082C
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 15:26:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F31F2082C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 565DF6B0006; Thu, 13 Jun 2019 11:24:40 -0400 (EDT)
+	id 00C6A6B0006; Thu, 13 Jun 2019 11:26:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4EF558E0001; Thu, 13 Jun 2019 11:24:40 -0400 (EDT)
+	id F006C6B0008; Thu, 13 Jun 2019 11:26:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 390886B000C; Thu, 13 Jun 2019 11:24:40 -0400 (EDT)
+	id DC8426B000C; Thu, 13 Jun 2019 11:26:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 131806B0006
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 11:24:40 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id f69so20187066ywb.21
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 08:24:40 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D3E96B0006
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 11:26:52 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y3so19896742edm.21
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 08:26:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=5upTGPFsqkaNgj1lgYq0xrYnDw/z1eQKH2p21LD4RJw=;
-        b=iDbEUGeMuxm/7tMqpgKE95aBbkDOM5R36Ju13e/53qRjQb+j5r5V+EzJYywAQK8bXX
-         umIUSMExyh7drXbdI1acicrcIFuJECBDd0bQYYVHG5Jm5cdoALDAwDDWGYbpJg9NKYih
-         KtAprOtz3qZT0/IL1j2NJojUx7Pg4j3saiDZzgz090P0K8KfldN4if5IcZu/5guREi6y
-         jL17dAQgyszCGFnFhfM4iFDJfbjyZfdmKi44Tu3anvJQ7fakp4HpZw4lXMAGcBL7SGr6
-         72EehwWD0zIrF7cPFwY8FS4yI8nCK0EIM5/dvtHp1vQaBYXbKOJR3zELPtwnqNUmyrMA
-         1LTQ==
-X-Gm-Message-State: APjAAAVEonM2IJwpkSHrUMcNIPpaR9iXoJo08swxCGd+kx1uipQqK+Ub
-	IUspC/ZI6XHTFXTP0Mx+QMNxCTiBE2X2MWvp608e69QlagnchNORSkCgEfU8KkJ58++t8x+O3LK
-	bZZJr+1uAYUaqgSBnGHS061l679PViSS+JIbF6zMfMqt7d6smytEgtOQ30AG6UCZyFA==
-X-Received: by 2002:a81:4cd:: with SMTP id 196mr46865032ywe.101.1560439479777;
-        Thu, 13 Jun 2019 08:24:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxdlM0N3ffYOmMOWjRBE2oG5xb3sLmkyyNx1BlijWu0uPQzIMqpxtwkU3iTO49zmGGx1gW4
-X-Received: by 2002:a81:4cd:: with SMTP id 196mr46864972ywe.101.1560439479014;
-        Thu, 13 Jun 2019 08:24:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560439479; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=yBq9Q6KJYj9l9Pr0SLvpOdK5uu3Uc/hn4lESOkilCvA=;
+        b=TCVDNxyfDzrzT/MOKKcUodHkqTMGlYfQs792j/vfPqX6GtkUooayBF+E+XDDpd5+9H
+         0/8o6kawOpcWL8b2uGMtAi8kU51nrqXNrBp8vaadPd6zDX8P+ph1pp5cIvep2BzE9fHD
+         m3LPjWEO+LuVCr6U040h53Tgt+YEQu6QQ92iKPAiR16m5SOkevQlGXKcPsDkEMncndG+
+         BB6wLLqRQGT/PImKWOygejSxBtExaUXlHbdPiz6JnHV5xluSyw3SIPziMAj5QY6wSDI8
+         MgqcXFDTEVx69i4ax5Iq0OTdRtkYoDF7U99KvZ9KR380JyAb+Huui53AA07CUBcPqxqH
+         2IFQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAURe4VVY4rySckbJ50EQqMkyIx2Ojpm23XEblmvzw1up+Ti7r2O
+	+vHLnEPYel2264obvi8cEZ+A9OVyjONSoX0D0Xfp1jxlfJbXUZxKw1H37dT/9oACrI4GkD8GH6D
+	nhkE/CJVGoUIajsejC2GTU19JaV9pfbwgDHi6wwXk7Gf3wmhGo3RtEs5yZ/en47Y+0w==
+X-Received: by 2002:a17:906:1f44:: with SMTP id d4mr66382495ejk.195.1560439611978;
+        Thu, 13 Jun 2019 08:26:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxYadW2LX2yURWWPK0+mKkoVVLiT11zQi2Kdz4aaB7e+xGp2ZZ4X8MuilG8gpNCIgzCk8Zv
+X-Received: by 2002:a17:906:1f44:: with SMTP id d4mr66382397ejk.195.1560439610677;
+        Thu, 13 Jun 2019 08:26:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560439610; cv=none;
         d=google.com; s=arc-20160816;
-        b=ToFi2MAGyCrB3wRuhCfFr7434nkyE4OpN72qg0PQ/12wYr3kdpyDRKTviaXfuuN9ri
-         Ghg60loM46GCKD1iY0DLHF6M2tpdOlUyCKUZ3LIfQKwMryfioZfTw0eDpI8QsTBkt90S
-         PRe9Yq9GFvDiazxghiuZPpzqj7/FsL107CAGSMPVvTlwXnyTUpolHQWfw5Sk4Zb2bVXk
-         xow5D1EsYJdrV2PxofjCqLsYZv3NK/9EJDjuFwEz8wJNcQH019+2Xv9uVqKpfprilMnr
-         i9mf9vizV70mhk9HfD3gTB2FHvBvUSEfE58r9K5e9sRqXSQDDjOYd/2cv2YHl3M3UHA+
-         fqOw==
+        b=EjvPHTXjVCIi/KmxUt31CIVWXIPOHzeIQitJFt8iNOLtNIMI4avL+dHQ05EXiLeYd3
+         +Zu7iuNJMk/1DFnIp/YhlguAhC+Gu/R+wDak9SoUl7YCtqLCryDCYcEYix5ZFK0CDyB+
+         LOsuPb4cY8RfrO4cT6U/QfuqqYnYkE+VppNxhIIJV1uHMk44DalrTXpNdd8mUToo9wUG
+         R0ctHcyjmrNLkJ8bDkqISCfqzNcGi2CvILxuGrlZOgWH82GF0DzgaQyqp/nnGEVWI+fs
+         01pSHGZbkL9c0bHcyuhzrTMJ+CKlpRBgcSKvA53TAiafnRvvbSqm+bpVqgGye66EC527
+         +oHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=5upTGPFsqkaNgj1lgYq0xrYnDw/z1eQKH2p21LD4RJw=;
-        b=qDFsggLslqjGnvPrFwni0yymGra/7Z8lGI0JqXfCfPSz52ZSutwiNii1BOaOl2lRwz
-         j7iC4HsPlVU2xbwvPdN9kpJr2VQfuikO7MTHVtrjC48+ekIVGtWecdM4YwewmGFaAU6U
-         59JwRIeSUG26mr424o7jdA7lqegLEfZe9qxld1TU4oMevA8NUZ4zbg7PkqNF6LPlPl4E
-         MdDrWEmh7YbMC1jXX5dBHtFXnc1/8Fv33P5XToa5UBmB6wDZdGGM6u9m2DJ3fL0ilTLO
-         U68xLpfGLBGZKnY78YTHzY9FbhXtfvf2QgK/AO+/5T81kKAZ9LYKoon5FAEIjEBd8SgR
-         orKA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=yBq9Q6KJYj9l9Pr0SLvpOdK5uu3Uc/hn4lESOkilCvA=;
+        b=E7BulSAykfqCIMaienOZLpqWFoJvoFmtp36ksv/oTW4eg6Pnp7xjQGuDzEQtLdzfzI
+         zxBZpy7tmJSckDXTKEc2xxdjkkyh6Ybo8tpTPnTiAd75U4QmhQLxw7mPqGExjD/pzQtU
+         uHQm4RZqpWF4Brlv9c1wloMS/wy6jbfPCBQJp15G13LRiHKy9t9CVr/lJnRZKftPE4zB
+         k0KnjgEj1xs3sgnngt9SKo16ItddmtMk0lkHca6sngYEOgK0oTPy036V1teQdby8vbZb
+         /0rbuHCOkKWo7jVkoePQEV+OvKW5s/+5FZE6NNcpSxcC3Z1lrua1Ik/icw+2H+cbtRQG
+         o4SA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=AwqPgJ4i;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=ZNz2GTn4;
-       spf=pass (google.com: domain of prvs=1067aa1dbb=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1067aa1dbb=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 134si111044ywr.91.2019.06.13.08.24.38
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 08:24:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=1067aa1dbb=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id d8si175563ejd.259.2019.06.13.08.26.50
+        for <linux-mm@kvack.org>;
+        Thu, 13 Jun 2019 08:26:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=AwqPgJ4i;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=ZNz2GTn4;
-       spf=pass (google.com: domain of prvs=1067aa1dbb=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=1067aa1dbb=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0001255.ppops.net [127.0.0.1])
-	by mx0b-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5DFGUqo030339;
-	Thu, 13 Jun 2019 08:24:07 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=5upTGPFsqkaNgj1lgYq0xrYnDw/z1eQKH2p21LD4RJw=;
- b=AwqPgJ4ittIgsIWi/jCa/WQ6GEnwl0Y6g95/jk5rdPePOTM5EBBdUrPaOFH/toZo4bRr
- gqUGU6T0BuCQd2+DA6Z2wEe4fZJGhfepLcjEgXEVXpomQplmEsUq6Z+JNYuc4tb7I5gS
- sqRPvBrXzEvJ1m32q+RLIfwQzW7DLP1mrG8= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0b-00082601.pphosted.com with ESMTP id 2t3qmj0bex-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Thu, 13 Jun 2019 08:24:07 -0700
-Received: from prn-hub02.TheFacebook.com (2620:10d:c081:35::126) by
- prn-hub02.TheFacebook.com (2620:10d:c081:35::126) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Thu, 13 Jun 2019 08:24:05 -0700
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.26) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Thu, 13 Jun 2019 08:24:05 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=5upTGPFsqkaNgj1lgYq0xrYnDw/z1eQKH2p21LD4RJw=;
- b=ZNz2GTn4OWPcEoVSxI95MdoYpFe7F1h3iDHQsMXVGL+aeVtinsJg6Xa0UxDsK1yaSHfCY6wO9PES+QaC4ctni7WoXg/7TUVEJ1QQFN/+OFOlOtnNcU/TzOimTITl5wC/jDky4mQK8Bec05OaY+nwFXu78Bii7B93Gen1hnfDhGY=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1437.namprd15.prod.outlook.com (10.173.234.21) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1987.12; Thu, 13 Jun 2019 15:24:04 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d%6]) with mapi id 15.20.1987.012; Thu, 13 Jun 2019
- 15:24:04 +0000
-From: Song Liu <songliubraving@fb.com>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-CC: "Kirill A. Shutemov" <kirill@shutemov.name>,
-        LKML
-	<linux-kernel@vger.kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "namit@vmware.com" <namit@vmware.com>,
-        "peterz@infradead.org"
-	<peterz@infradead.org>,
-        "oleg@redhat.com" <oleg@redhat.com>,
-        "rostedt@goodmis.org" <rostedt@goodmis.org>,
-        "mhiramat@kernel.org"
-	<mhiramat@kernel.org>,
-        "matthew.wilcox@oracle.com"
-	<matthew.wilcox@oracle.com>,
-        Kernel Team <Kernel-team@fb.com>
-Subject: Re: [PATCH v3 3/5] mm, thp: introduce FOLL_SPLIT_PMD
-Thread-Topic: [PATCH v3 3/5] mm, thp: introduce FOLL_SPLIT_PMD
-Thread-Index: AQHVIWtWTe7ps5z8rEO6sAR2s+F9WKaZjDkAgAAQ0ICAAAU/gIAADRAAgAADJ4CAAAK6gA==
-Date: Thu, 13 Jun 2019 15:24:04 +0000
-Message-ID: <F711F5A6-8822-4EE5-B7F8-0A9D5007CAB9@fb.com>
-References: <20190612220320.2223898-1-songliubraving@fb.com>
- <20190612220320.2223898-4-songliubraving@fb.com>
- <20190613125718.tgplv5iqkbfhn6vh@box>
- <5A80A2B9-51C3-49C4-97B6-33889CC47F08@fb.com>
- <20190613141615.yvmckzi3fac4qjag@box>
- <32E15B93-24B9-4DBB-BDD4-DDD8537C7CE0@fb.com>
- <20190613151417.7cjxwudjssl5h2pf@black.fi.intel.com>
-In-Reply-To: <20190613151417.7cjxwudjssl5h2pf@black.fi.intel.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:180::1:7078]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 20555ca9-9841-49a8-4261-08d6f0132bbf
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1437;
-x-ms-traffictypediagnostic: MWHPR15MB1437:
-x-microsoft-antispam-prvs: <MWHPR15MB14371465193428533D2231FCB3EF0@MWHPR15MB1437.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:6430;
-x-forefront-prvs: 0067A8BA2A
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(136003)(39860400002)(346002)(376002)(366004)(396003)(189003)(199004)(7416002)(5660300002)(6506007)(53546011)(102836004)(46003)(6512007)(476003)(11346002)(446003)(2616005)(53936002)(68736007)(2906002)(99286004)(186003)(6436002)(6916009)(76176011)(229853002)(6116002)(33656002)(57306001)(486006)(54906003)(14454004)(86362001)(25786009)(36756003)(71190400001)(71200400001)(4326008)(305945005)(7736002)(76116006)(478600001)(8676002)(6246003)(6486002)(316002)(8936002)(81166006)(81156014)(50226002)(66446008)(64756008)(66556008)(14444005)(66946007)(66476007)(256004)(73956011);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1437;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: cVUdMAju7C9HoBdVDE96XRFUhLjLOi/CYsB5I9Jp2s9PviHT+OYET71zA6Il/qKewnZeUsXHkaGQXF4U4nMebQWanRYAwuTPPzFg0FjeQeRaChFBBPAlJ8iY23kLuELglK5Y44gEsNICydcAAlBlJE9dExDqE4fvelL/6qN6dj8PjgsG8qwPf4tDeR72ouQZNRaHya0hB030khe8r7407tq8VoRT1N6f+AyUclmyY+GCTyr4tGXAKQUSw4cWISPgyF8MxAxxgQx75fxqxh5zE+Vz/rtblzEa8vw/WT3IsEvQyKiLi2qdbwl4BKJ07/7N3IZllsoJQFkQNeXrrwhjZWyZAY6YuX5YGwWv0uvwzHXflmDjANxMfUy6rHIAwRPN3jdMHdvR2z4l+DgmcBhNY9wbsIbso9N7Nho68QGYlUE=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <0D44160B39BFE9428279B658D1C56286@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id A46BD3EF;
+	Thu, 13 Jun 2019 08:26:49 -0700 (PDT)
+Received: from C02TF0J2HF1T.local (unknown [172.31.20.19])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 3FA233F718;
+	Thu, 13 Jun 2019 08:26:36 -0700 (PDT)
+Date: Thu, 13 Jun 2019 16:26:32 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Dave Martin <Dave.Martin@arm.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>,
+	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	linux-kselftest@vger.kernel.org,
+	Mark Rutland <mark.rutland@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Christoph Hellwig <hch@infradead.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Kees Cook <keescook@chromium.org>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Andrew Morton <akpm@linux-foundation.org>, enh <enh@google.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Subject: Re: [PATCH v17 03/15] arm64: Introduce prctl() options to control
+ the tagged user addresses ABI
+Message-ID: <20190613152632.GT28951@C02TF0J2HF1T.local>
+References: <cover.1560339705.git.andreyknvl@google.com>
+ <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
+ <20190613110235.GW28398@e103592.cambridge.arm.com>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 20555ca9-9841-49a8-4261-08d6f0132bbf
-X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Jun 2019 15:24:04.7122
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1437
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-13_10:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906130114
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190613110235.GW28398@e103592.cambridge.arm.com>
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi Dave,
 
+On Thu, Jun 13, 2019 at 12:02:35PM +0100, Dave P Martin wrote:
+> On Wed, Jun 12, 2019 at 01:43:20PM +0200, Andrey Konovalov wrote:
+> > +/*
+> > + * Global sysctl to disable the tagged user addresses support. This control
+> > + * only prevents the tagged address ABI enabling via prctl() and does not
+> > + * disable it for tasks that already opted in to the relaxed ABI.
+> > + */
+> > +static int zero;
+> > +static int one = 1;
+> 
+> !!!
+> 
+> And these can't even be const without a cast.  Yuk.
+> 
+> (Not your fault though, but it would be nice to have a proc_dobool() to
+> avoid this.)
 
-> On Jun 13, 2019, at 8:14 AM, Kirill A. Shutemov <kirill.shutemov@linux.in=
-tel.com> wrote:
->=20
-> On Thu, Jun 13, 2019 at 03:03:01PM +0000, Song Liu wrote:
->>=20
->>=20
->>> On Jun 13, 2019, at 7:16 AM, Kirill A. Shutemov <kirill@shutemov.name> =
-wrote:
->>>=20
->>> On Thu, Jun 13, 2019 at 01:57:30PM +0000, Song Liu wrote:
->>>>> And I'm not convinced that it belongs here at all. User requested PMD
->>>>> split and it is done after split_huge_pmd(). The rest can be handled =
-by
->>>>> the caller as needed.
->>>>=20
->>>> I put this part here because split_huge_pmd() for file-backed THP is
->>>> not really done after split_huge_pmd(). And I would like it done befor=
-e
->>>> calling follow_page_pte() below. Maybe we can still do them here, just=
-=20
->>>> for file-backed THPs?
->>>>=20
->>>> If we would move it, shall we move to callers of follow_page_mask()?=20
->>>> In that case, we will probably end up with similar code in two places:
->>>> __get_user_pages() and follow_page().=20
->>>>=20
->>>> Did I get this right?
->>>=20
->>> Would it be enough to replace pte_offset_map_lock() in follow_page_pte(=
-)
->>> with pte_alloc_map_lock()?
->>=20
->> This is similar to my previous version:
->>=20
->> +		} else {  /* flags & FOLL_SPLIT_PMD */
->> +			pte_t *pte;
->> +			spin_unlock(ptl);
->> +			split_huge_pmd(vma, pmd, address);
->> +			pte =3D get_locked_pte(mm, address, &ptl);
->> +			if (!pte)
->> +				return no_page_table(vma, flags);
->> +			spin_unlock(ptl);
->> +			ret =3D 0;
->> +		}
->>=20
->> I think this is cleaner than use pte_alloc_map_lock() in follow_page_pte=
-().=20
->> What's your thought on these two versions (^^^ vs. pte_alloc_map_lock)?
->=20
-> It's additional lock-unlock cycle and few more lines of code...
->=20
->>> This will leave bunch not populated PTE entries, but it is fine: they w=
-ill
->>> be populated on the next access to them.
->>=20
->> We need to handle page fault during next access, right? Since we already
->> allocated everything, we can just populate the PTE entries and saves a
->> lot of page faults (assuming we will access them later).=20
->=20
-> Not a lot due to faultaround and they may never happen, but you need to
-> tear down the mapping any way.
+I had the same reaction. Maybe for another patch sanitising this pattern
+across the kernel.
 
-I see. Let me try this way.=20
+> > --- a/include/uapi/linux/prctl.h
+> > +++ b/include/uapi/linux/prctl.h
+> > @@ -229,4 +229,9 @@ struct prctl_mm_map {
+> >  # define PR_PAC_APDBKEY			(1UL << 3)
+> >  # define PR_PAC_APGAKEY			(1UL << 4)
+> >  
+> > +/* Tagged user address controls for arm64 */
+> > +#define PR_SET_TAGGED_ADDR_CTRL		55
+> > +#define PR_GET_TAGGED_ADDR_CTRL		56
+> > +# define PR_TAGGED_ADDR_ENABLE		(1UL << 0)
+> > +
+> 
+> Do we expect this prctl to be applicable to other arches, or is it
+> strictly arm64-specific?
 
-Thanks,
-Song
+I kept it generic, at least the tagged address part. The MTE bits later
+on would be arm64-specific.
 
->=20
-> --=20
-> Kirill A. Shutemov
+> > @@ -2492,6 +2498,16 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
+> >  			return -EINVAL;
+> >  		error = PAC_RESET_KEYS(me, arg2);
+> >  		break;
+> > +	case PR_SET_TAGGED_ADDR_CTRL:
+> > +		if (arg3 || arg4 || arg5)
+> 
+> <bikeshed>
+> 
+> How do you anticipate these arguments being used in the future?
+
+I don't expect them to be used at all. But since I'm not sure, I'd force
+them as zero for now rather than ignored. The GET is supposed to return
+the SET arg2, hence I'd rather not used the other arguments.
+
+> For the SVE prctls I took the view that "get" could only ever mean one
+> thing, and "put" already had a flags argument with spare bits for future
+> expansion anyway, so forcing the extra arguments to zero would be
+> unnecessary.
+> 
+> Opinions seem to differ on whether requiring surplus arguments to be 0
+> is beneficial for hygiene, but the glibc prototype for prctl() is
+> 
+> 	int prctl (int __option, ...);
+> 
+> so it seemed annoying to have to pass extra arguments to it just for the
+> sake of it.  IMHO this also makes the code at the call site less
+> readable, since it's not immediately apparent that all those 0s are
+> meaningless.
+
+It's fine by me to ignore the other arguments. I just followed the
+pattern of some existing prctl options. I don't have a strong opinion
+either way.
+
+> > +			return -EINVAL;
+> > +		error = SET_TAGGED_ADDR_CTRL(arg2);
+> > +		break;
+> > +	case PR_GET_TAGGED_ADDR_CTRL:
+> > +		if (arg2 || arg3 || arg4 || arg5)
+> > +			return -EINVAL;
+> > +		error = GET_TAGGED_ADDR_CTRL();
+> 
+> Having a "get" prctl is probably a good idea, but is there a clear
+> usecase for it?
+
+Not sure, maybe some other library (e.g. a JIT compiler) would like to
+check whether tagged addresses have been enabled during application
+start and decide to generate tagged pointers for itself. It seemed
+pretty harmless, unless we add more complex things to the prctl() that
+cannot be returned in one request).
+
+-- 
+Catalin
 
