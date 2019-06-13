@@ -4,80 +4,80 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81982C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 23:30:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C819BC31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 23:30:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 40B1020896
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 23:30:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 40B1020896
+	by mail.kernel.org (Postfix) with ESMTP id 8BD6720896
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 23:30:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BD6720896
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1FE238E0005; Thu, 13 Jun 2019 19:30:17 -0400 (EDT)
+	id 99F288E0006; Thu, 13 Jun 2019 19:30:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 163088E0002; Thu, 13 Jun 2019 19:30:17 -0400 (EDT)
+	id 950838E0002; Thu, 13 Jun 2019 19:30:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ED3268E0005; Thu, 13 Jun 2019 19:30:16 -0400 (EDT)
+	id 83DD08E0006; Thu, 13 Jun 2019 19:30:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B259C8E0002
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 19:30:16 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 91so459835pla.7
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 16:30:16 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 56EE48E0002
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 19:30:17 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id a17so301718otd.19
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 16:30:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references;
-        bh=hDNydRbA83jbliMn/y7MvMj1b1V45KErjlHbPtM+FvQ=;
-        b=gqEKgUXc7RlZ2jOgyjHEkERyY+7u0w/JcuaogcI4R4wJm1EHqRNbJctnd77iH4M2DW
-         7IYLs4OcANDbezdeW6q+h+AcfwbL9yBVzqw1dbkhoMd1UPBrVhtu/vBvbto6cEryT+uz
-         S1HWknVe0xdgZMoIlX2lcc3x44JR3IC2m650mfY7r2tWlgtVEevuC+Ah0JTVnvH7QXSe
-         ZCQgyvQ8+zQJuHAzCMSG+/URT0NPCvZQIjlmH5q1dX6kSxKXfBNcye652gJbK1jAOuOj
-         YXOP0qjLcJVpA68T1iehvnSa63y6WyM6WrQDLi1pBvUgFhki6rLdyHCVknH6EjT+bm2p
-         ZjaA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUAF8h/c7UdDnj/kYHjZKFufIJrHQmxa9556hlp95KvpavoEN10
-	JoGTU6tdgwuc49XrYh8RcjB1V6pVT68Iley63HUN4sECurAIb8mmQuzMIQTDWmKigP+KBXLSNaf
-	PlLZV4f6sn0tRGcJ+3WQM2qlNvbpt2kAAO4yvpNY0Ixvmxe0bAtbFluohIG7MpaByFQ==
-X-Received: by 2002:a63:5c41:: with SMTP id n1mr1190693pgm.69.1560468616259;
-        Thu, 13 Jun 2019 16:30:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyOhG3yVslHWmRzZpUEy+q/tRec8E14XSfrUbMHfYvndrU74vyHKdlsxIsmsrRmslTxBmfg
-X-Received: by 2002:a63:5c41:: with SMTP id n1mr1190599pgm.69.1560468615102;
+        bh=qOFD3Vu5k5uvjb9pS72jZXaVfrvyzRyCNIQoGs68Qno=;
+        b=eM14OFwMrSI12zucnDukAIR+zy9BfKoYSpISBCAOxYEEqYzvrnKa/G5zrTeY0sK9Zx
+         FA5zoj2q4webSAs87GpsNU16fzcBNP3Sr0Ikm8rTCmCRT/jdqgxS1gVqnbkcZYRlxSCz
+         mgY9bULuyujuaSqQziNoo/Y0BuxCVaLg57kAsywQVI3lO6mCYl+F/Dp/Sfd42cZNoaPL
+         mFP5392sb2WbMZIbqhIk2DbrN1H3OjioKPtytjcFpRowYztQpQvq48m27bEP1BWKcQcU
+         DHxcDl1qfkGAogCoHLeRhR0i67aiBwIxb5QX4f7qr4FwulmX9oVyJSXepcMvmnTTVyGh
+         xxzg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAVMm6E7ept1gxARel9Sgl7ksGtaW173EzNd/aKLcUdtaa64iSgh
+	XqH4YnByvgxHlt43rU7sTneajUUyNQGdxxMphOPRtuz7ILp64wQiMuEyTGg3JDdfoeE7r0AvTGn
+	r+fa09f47m3UH+WTKXS5uKlwejy/EU0d/0T5EF5BYbhwTUVDWP4XOj1KBiRdBm1xaTQ==
+X-Received: by 2002:a9d:6d0e:: with SMTP id o14mr38000168otp.205.1560468617025;
+        Thu, 13 Jun 2019 16:30:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqznbLtCRUnirJa69qKiIDPu9RtT981NF3YQ06rSoJdTCtdHJ/6bu0ncal0h1tMrKtcOtj+k
+X-Received: by 2002:a9d:6d0e:: with SMTP id o14mr38000091otp.205.1560468615825;
         Thu, 13 Jun 2019 16:30:15 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1560468615; cv=none;
         d=google.com; s=arc-20160816;
-        b=uS3NgFzS3/fbp5dmkJj6HsvwG/+6ieZcMnOTX+iK8pwz4PS+EbZksQYQAF5XGu4g97
-         5PCh022GrBRKCHgGsnvuWRMJj4+GjJStjOaWmfmFT+8JEYr2R57N3nhXfMSIwpyZ1fZ/
-         LaiWYH7KjVKTWSkoWgxJefaE9R626Bn5n3Mhn2xtBRbEIvToe/RDIYjLVErssn1X47fN
-         979qA0yoxARdjXrqwJZeYuTqClRk9rwPW/rr1sDas+/B/XWVx8Ye6oEgsDIbSg60Xwvb
-         DFZv7RG/6kduq9yHvcSCcmyZ9lQBV0fPrdVtE1ucRLcmVPBtMX/w+Iyi49muF/KwYHfi
-         JYsA==
+        b=YWGp0xXqxg9IK/3q8BLQ0fIJt9MNmol6G37MRpHyFXdnkIjIYIZBSt3sBY91wvHjhV
+         HFNNSDwZcZvzl8PPvaD8XQCurjSpDbowFz4CyqZTLG2vgLA5IJsSft1+gLMl1sT0FZ9P
+         04orfwi4HtT0/+/HYFh8zmjESR4/6YiZGv92KV0snCypJbZTpu+gI1yBfZCCKBNzoRwq
+         pcpsTEknrqR3zhUi8jNKRWXbGmTX1mpbgwcW+KkrIzyeKiQU/Siso898CKA7pMEzH4L2
+         7tSZ5WSHvnl5jkZwt9dqp0nR25zCvrtmyw0KHb3Le9MmZ5JzDakpT3Xa21JzrjukC1nR
+         39WA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=hDNydRbA83jbliMn/y7MvMj1b1V45KErjlHbPtM+FvQ=;
-        b=1Ibqrhysi8nPXMm64293NS89AZCjGawWr+HBh2FdcmokHBOQqbCE7J3Jx7Q3RU2Ntq
-         Vg77dMGkcWHWeZQo8x3DaqGyb1bHhdk15+juZZtJc81F1BLTavhvkYNEqxgeS4rbW4R5
-         xKWMcqm0Y0xILjvjuTxlImDUtdghN7ih0SDuIguV6qGj+1vwOO8Vtr/6kJu4BPextF5g
-         YjIsUwPPlf8uHWmiZXDTJ53rpq9BHkJlNMjS1xKzDr3ZvSbzHRtwdu5ckg9ZMJ/O7MNN
-         yyq7jo+8Xpco4n6RfzXXv80//86SimslIIyTwZnSAApnyu4gR6UQuZDITlB/xWWiUgFr
-         hRdQ==
+        bh=qOFD3Vu5k5uvjb9pS72jZXaVfrvyzRyCNIQoGs68Qno=;
+        b=QmKfBQ6XWfqaKxK2ZiCsXEbo9NFsszbaFGvM6HOIhvzxQRUYmL2jBFmLDkCu2aRXw7
+         zZFDRsPstiDZqGgLfhSjS5zniktqkk/Ur8mZNysGgYVTSdE/kLnn0hAyVwfat8RSZBuV
+         BwVUF3BbfM0g0L9uMp1xnTqwT83rxKfOrIiX8B1gRMUPlnWzhDc+mssMv5jgHCq263Mt
+         eJls00RUtTjrkDAVC41h7Gs4vY1CYDDAVOpiwaC6wdG1/2UBBWhEor3YK7zH+dFSyk4D
+         z6U9aqRXj9lfeJMbKHeYzHva3EHasSggl2ZLGH6wgUK/j3VFQBfoOqnpXPbk72MZo/ZH
+         xEyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id b69si749875pjc.104.2019.06.13.16.30.13
+Received: from out30-54.freemail.mail.aliyun.com (out30-54.freemail.mail.aliyun.com. [115.124.30.54])
+        by mx.google.com with ESMTPS id j5si531541oif.224.2019.06.13.16.30.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 13 Jun 2019 16:30:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) client-ip=115.124.30.54;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.54 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R701e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04426;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=15;SR=0;TI=SMTPD_---0TU6DYEz_1560468591;
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R151e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04391;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=15;SR=0;TI=SMTPD_---0TU6DYEz_1560468591;
 Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TU6DYEz_1560468591)
           by smtp.aliyun-inc.com(127.0.0.1);
           Fri, 14 Jun 2019 07:30:01 +0800
@@ -97,9 +97,9 @@ To: mhocko@suse.com,
 Cc: yang.shi@linux.alibaba.com,
 	linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org
-Subject: [v3 PATCH 8/9] mm: vmscan: add page demotion counter
-Date: Fri, 14 Jun 2019 07:29:36 +0800
-Message-Id: <1560468577-101178-9-git-send-email-yang.shi@linux.alibaba.com>
+Subject: [v3 PATCH 9/9] mm: numa: add page promotion counter
+Date: Fri, 14 Jun 2019 07:29:37 +0800
+Message-Id: <1560468577-101178-10-git-send-email-yang.shi@linux.alibaba.com>
 X-Mailer: git-send-email 1.8.3.1
 In-Reply-To: <1560468577-101178-1-git-send-email-yang.shi@linux.alibaba.com>
 References: <1560468577-101178-1-git-send-email-yang.shi@linux.alibaba.com>
@@ -109,90 +109,70 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Account the number of demoted pages into reclaim_state->nr_demoted.
-
-Add pgdemote_kswapd and pgdemote_direct VM counters showed in
-/proc/vmstat.
+Add counter for page promotion for NUMA balancing.
 
 Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
 ---
- include/linux/vm_event_item.h | 2 ++
- include/linux/vmstat.h        | 1 +
- mm/vmscan.c                   | 8 ++++++++
- mm/vmstat.c                   | 2 ++
- 4 files changed, 13 insertions(+)
+ include/linux/vm_event_item.h | 1 +
+ mm/huge_memory.c              | 4 ++++
+ mm/memory.c                   | 4 ++++
+ mm/vmstat.c                   | 1 +
+ 4 files changed, 10 insertions(+)
 
 diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 47a3441..499a3aa 100644
+index 499a3aa..9f52a62 100644
 --- a/include/linux/vm_event_item.h
 +++ b/include/linux/vm_event_item.h
-@@ -32,6 +32,8 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- 		PGREFILL,
- 		PGSTEAL_KSWAPD,
- 		PGSTEAL_DIRECT,
-+		PGDEMOTE_KSWAPD,
-+		PGDEMOTE_DIRECT,
- 		PGSCAN_KSWAPD,
- 		PGSCAN_DIRECT,
- 		PGSCAN_DIRECT_THROTTLE,
-diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-index bdeda4b..00d53d4 100644
---- a/include/linux/vmstat.h
-+++ b/include/linux/vmstat.h
-@@ -29,6 +29,7 @@ struct reclaim_stat {
- 	unsigned nr_activate[2];
- 	unsigned nr_ref_keep;
- 	unsigned nr_unmap_fail;
-+	unsigned nr_demoted;
- };
- 
- #ifdef CONFIG_VM_EVENT_COUNTERS
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 9ec55d7..f65cd45 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -130,6 +130,7 @@ struct scan_control {
- 		unsigned int immediate;
- 		unsigned int file_taken;
- 		unsigned int taken;
-+		unsigned int demoted;
- 	} nr;
- };
- 
-@@ -1582,6 +1583,12 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 
- 		nr_reclaimed += nr_succeeded;
- 
-+		stat->nr_demoted = nr_succeeded;
-+		if (current_is_kswapd())
-+			__count_vm_events(PGDEMOTE_KSWAPD, stat->nr_demoted);
-+		else
-+			__count_vm_events(PGDEMOTE_DIRECT, stat->nr_demoted);
+@@ -51,6 +51,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+ 		NUMA_HINT_FAULTS,
+ 		NUMA_HINT_FAULTS_LOCAL,
+ 		NUMA_PAGE_MIGRATE,
++		NUMA_PAGE_PROMOTE,
+ #endif
+ #ifdef CONFIG_MIGRATION
+ 		PGMIGRATE_SUCCESS, PGMIGRATE_FAIL,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 9f8bce9..01cfe29 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1638,6 +1638,10 @@ vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf, pmd_t pmd)
+ 	migrated = migrate_misplaced_transhuge_page(vma->vm_mm, vma,
+ 				vmf->pmd, pmd, vmf->address, page, target_nid);
+ 	if (migrated) {
++		if (!node_state(page_nid, N_CPU_MEM) &&
++		    node_state(target_nid, N_CPU_MEM))
++			count_vm_numa_events(NUMA_PAGE_PROMOTE, HPAGE_PMD_NR);
 +
- 		if (err) {
- 			if (err == -ENOMEM)
- 				set_bit(PGDAT_CONTENDED,
-@@ -2097,6 +2104,7 @@ static int current_may_throttle(void)
- 	sc->nr.unqueued_dirty += stat.nr_unqueued_dirty;
- 	sc->nr.writeback += stat.nr_writeback;
- 	sc->nr.immediate += stat.nr_immediate;
-+	sc->nr.demoted += stat.nr_demoted;
- 	sc->nr.taken += nr_taken;
- 	if (file)
- 		sc->nr.file_taken += nr_taken;
+ 		flags |= TNF_MIGRATED;
+ 		page_nid = target_nid;
+ 	} else
+diff --git a/mm/memory.c b/mm/memory.c
+index 96f1d47..e554cd5 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3770,6 +3770,10 @@ static vm_fault_t do_numa_page(struct vm_fault *vmf)
+ 	/* Migrate to the requested node */
+ 	migrated = migrate_misplaced_page(page, vma, target_nid);
+ 	if (migrated) {
++		if (!node_state(page_nid, N_CPU_MEM) &&
++		    node_state(target_nid, N_CPU_MEM))
++			count_vm_numa_event(NUMA_PAGE_PROMOTE);
++
+ 		page_nid = target_nid;
+ 		flags |= TNF_MIGRATED;
+ 	} else
 diff --git a/mm/vmstat.c b/mm/vmstat.c
-index d876ac0..eee29a9 100644
+index eee29a9..0140736 100644
 --- a/mm/vmstat.c
 +++ b/mm/vmstat.c
-@@ -1192,6 +1192,8 @@ int fragmentation_index(struct zone *zone, unsigned int order)
- 	"pgrefill",
- 	"pgsteal_kswapd",
- 	"pgsteal_direct",
-+	"pgdemote_kswapd",
-+	"pgdemote_direct",
- 	"pgscan_kswapd",
- 	"pgscan_direct",
- 	"pgscan_direct_throttle",
+@@ -1220,6 +1220,7 @@ int fragmentation_index(struct zone *zone, unsigned int order)
+ 	"numa_hint_faults",
+ 	"numa_hint_faults_local",
+ 	"numa_pages_migrated",
++	"numa_pages_promoted",
+ #endif
+ #ifdef CONFIG_MIGRATION
+ 	"pgmigrate_success",
 -- 
 1.8.3.1
 
