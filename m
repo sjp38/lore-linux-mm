@@ -2,246 +2,285 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 668F5C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 11:17:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D610C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 11:27:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2491220B7C
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 11:17:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2491220B7C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 06E05208CA
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 11:27:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06E05208CA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B9F0F6B026F; Thu, 13 Jun 2019 07:17:18 -0400 (EDT)
+	id 839F76B026C; Thu, 13 Jun 2019 07:27:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B74D56B0270; Thu, 13 Jun 2019 07:17:18 -0400 (EDT)
+	id 7EBA96B026F; Thu, 13 Jun 2019 07:27:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A8B3C6B0271; Thu, 13 Jun 2019 07:17:18 -0400 (EDT)
+	id 68B8A6B0270; Thu, 13 Jun 2019 07:27:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 59F6A6B026F
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 07:17:18 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b12so23121778eds.14
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 04:17:18 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FEED6B026C
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 07:27:15 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id h67so416194oic.0
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 04:27:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=fNf7W0XDjfuqlv8Ucd7/kRA78LegGdT3pa40skvVgGo=;
-        b=BdqbPhIxNLZykFQhdLTIKMwfmVzjU9PzmI7t7Rra9ktKZynwr+wzIRvC82kFHfzQVT
-         sJvW/u2KG9MlvnLnTQKsf29D7gW4LbMl137p48kyHaHiVCeaJN3XIh/T+yU8Tr6hyJ4A
-         ihF7AoSk0zktUa3nMv216Dxf2oA8m/eBYOmdnKIIQt6MtI9MVOu3RsgJv+3MSVSoCFDg
-         6ATNSA55iwzUrnBvivrutHhFZfb1uBn+wiNM1UZK3TYqL30JjO97O8cFt4c+LeQC/Fs2
-         4Ku68O87SsZz3LPDxIWOkEFeM384d0Gfdyg2AOf7Ung1f4XotVzhrXsZlUZnjTP+RpEd
-         UDIQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-X-Gm-Message-State: APjAAAXtscMj58nkgT1lMRWP2GVEp2H4UkoN0YcVBGTv/RjLzF+BUQ+Y
-	xdG/HYjMf7ZyVEXJs0ASb5Dfrugd1q9EcCWsszcUFc16eVIioKbfT/z8MDOCT7SDiUTxa5Nq7XK
-	Li6d39lQeNcNwqB9AHYxI/Y7fBgOEXjOqx/GjN5hu3IIsrO2DJ2mMfr6drlN6gliceA==
-X-Received: by 2002:a17:906:6550:: with SMTP id u16mr53379281ejn.7.1560424637829;
-        Thu, 13 Jun 2019 04:17:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzawUPWlND4sT7B7fV8nsnpUk3Dz7SsV5+mV9Dgjl0Tcai7ASK5bnHc1vMU9mYWH74A4LbD
-X-Received: by 2002:a17:906:6550:: with SMTP id u16mr53378378ejn.7.1560424627396;
-        Thu, 13 Jun 2019 04:17:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560424627; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:cc:from:message-id:date:user-agent:mime-version
+         :in-reply-to:content-transfer-encoding;
+        bh=XP/LhBbf874xTDg1xV3WubxGK3gwdlGrut26QScYZtA=;
+        b=jFFsb27/FRLgasGDSlKP7XPXtuMInHXGoWSA37olvjA3jLmwA0mMryCw1noQMoXrAE
+         hexQ9qaiCpJXIiJFd/kefdNtrsY+RjyZPZQsZ1yB5BMaj1YDnCGCAvF9yD203E1NbDJq
+         z5P3eN/rHCoML0pKQzeBHaLU+KitnMiIFpBTAUb9ZQC7wpnBZOEyY1OaC3vNZJq2VH0B
+         LcF1O9gLFADfozDWM+6L6kFLm6JQpSZCPecUPGd15nSQh08eFg5+HwevD7QRDRjzXDH2
+         GEBOkA1ut1TidRAm7TSGrilrb0BfHv8Hi3Gv91QRUO7Dm0AI4IxyYQxApzYu2jsNwLXD
+         kdug==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+X-Gm-Message-State: APjAAAWbSpcpVXp6H01x9Xe3jLhqvSVfGQNNT79lpJ4tL1miIfF+Czeo
+	csIJ/PGsoOT1fL5XDKZlLHSqJkqE2zLcOx1GyR9/zjNSaCJyTRzG/lmSiMKPBz/fF+FLtq5RhzV
+	tBJRqj3CLg9N3LhF0cX0wK7aWHUcKUj6lg2kmAt4KZTuZs/4VQwQMu1054pwkganOaQ==
+X-Received: by 2002:a9d:66cd:: with SMTP id t13mr12610707otm.83.1560425234849;
+        Thu, 13 Jun 2019 04:27:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy73J+BTNeeOoj1iFl7OjyOjkf+AVejZZYNoLci69Kl9RvZBJAIvIbXIq5r6Fj8u/yu6plM
+X-Received: by 2002:a9d:66cd:: with SMTP id t13mr12610665otm.83.1560425234037;
+        Thu, 13 Jun 2019 04:27:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560425234; cv=none;
         d=google.com; s=arc-20160816;
-        b=Yj3+zQbplYG7VBfkWOu+sypxweFJs9cYyB3py0KL0SerbLg+7L8gvWJ8fV7hH+UybX
-         P2ymgPZclPMVBZUt0eoNm+wNqPr7SKPYGaZ4dTVTJgYPS2GKKfJkdMIb5SPp72xteU58
-         P09j3PLTvu32PW3Ewid9M9+QUwzFa978V+O/0/z5cu3eaLYKmBMBrnAzgNqYsB911stq
-         z611qK+kvPLUGRlDPtInuXUzyHuugv8mp6w0PCZREEl+LsM/WW9MaaV0S/Pn12FKwdxH
-         D/HWPwmz7576wR8fLjPeduF5JlM+zq0aTf3Mp4zwZwzxgaDUCM7PckxNkzedgACnQNNX
-         3BmA==
+        b=nqY08imS60Zju7HnTIsD66+TEkgIYn01FOnpqlnxMlqyYh2v92zElYMO/mvVhb97LL
+         Y9qCq82Bhs/dzdeX0AxkMn6bCsTtgCV54O7aBGZ89DUTStQ3YnBLe5J+gsi0nK5EgBmc
+         LkSmz6Q2T6qFXVyBtT5O11rEBwlc9kCCAINzCB9Nx4UKqbELWbKNKWNZ2LqKj5idmcq6
+         CGywzaNNOZgj5wc65zowcBq/Nm2h+68nNRcA/j7Fu6oBioW0Rwxkip50M187EphNKWIg
+         3bnHJFlm2Pz8RLYd6byeFw7MVZ/CH9NS/9DASwrcbaLLRhmNVE79EYmh89WBoVy8vFuW
+         Jzng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=fNf7W0XDjfuqlv8Ucd7/kRA78LegGdT3pa40skvVgGo=;
-        b=KnYNJ51snDUwgj6aDvVSqvDBknOyXnQNgJi8CK4cInqGrxTS7M5VE20B2Jzv22PI5i
-         nD59LkVVCMFPsiIyLeuHPyIqnW3/65B3n26T40/LYSjNo3Qhw8UkrLiA4V+5PwJBJjGS
-         FG0JOPHb3bw5ZVcuAonDMt4bZVM4CHmaijzWdQyxtXWuELv4OOT/bTUXIxU7LkIx1kHx
-         uQPR7gLK6f2hkheyZ8PK+V1bW8Y/e+O1YN43gvp0nQJtKjMCI6nC+6BvbBPweD3gZaDo
-         svXlg/OFcl1KIFx0NI/IOXNFJhwpLyeQSRDt+RHzKX56kWLd1GuTtuoyhXa43HV+Cil+
-         Ji3w==
+        h=content-transfer-encoding:in-reply-to:mime-version:user-agent:date
+         :message-id:from:cc:references:to:subject;
+        bh=XP/LhBbf874xTDg1xV3WubxGK3gwdlGrut26QScYZtA=;
+        b=wmQLl9xUtEX0TthzX84BgvVx+WzBLp6TGlrFym8aACiz1nHVrfi8uMlcm5IJS774gC
+         CqWX57gqWvFraJ1DgHj7JJZm8A8CNfMFhx5/rkh0pD1XSsczDTZRPSs6UmKVqOA7zthF
+         cz8Sbfvj3jzOxCI8Dzo3699SSNBPJLBkxcFp7qwPYtdqJP5rilzM+dvaGbSjNUPFC0sb
+         qE9UdOtVTdER8BBqJxZ1bO9uZS6HP2/8qV+asKnM8lomKcQfh2j5cJhgeavDNit+0KBc
+         oe82fMaSZ2AE5kKQsymBMBX7zA6riOeqDONVh8mTxGPbfmJFmUAkBtN0SiBCKWw7PuPG
+         AZUA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id l1si1868189eja.176.2019.06.13.04.17.07
-        for <linux-mm@kvack.org>;
-        Thu, 13 Jun 2019 04:17:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+Received: from huawei.com (szxga06-in.huawei.com. [45.249.212.32])
+        by mx.google.com with ESMTPS id f12si1418670otq.314.2019.06.13.04.27.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Jun 2019 04:27:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) client-ip=45.249.212.32;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 68C33367;
-	Thu, 13 Jun 2019 04:17:06 -0700 (PDT)
-Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 11EDF3F694;
-	Thu, 13 Jun 2019 04:18:44 -0700 (PDT)
-Date: Thu, 13 Jun 2019 12:16:59 +0100
-From: Dave Martin <Dave.Martin@arm.com>
-To: Andrey Konovalov <andreyknvl@google.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	Mark Rutland <mark.rutland@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Andrew Morton <akpm@linux-foundation.org>, enh <enh@google.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v17 03/15] arm64: Introduce prctl() options to control
- the tagged user addresses ABI
-Message-ID: <20190613111659.GX28398@e103592.cambridge.arm.com>
-References: <cover.1560339705.git.andreyknvl@google.com>
- <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
+       spf=pass (google.com: domain of chenzhou10@huawei.com designates 45.249.212.32 as permitted sender) smtp.mailfrom=chenzhou10@huawei.com
+Received: from DGGEMS411-HUB.china.huawei.com (unknown [172.30.72.60])
+	by Forcepoint Email with ESMTP id 3EE9C84A0E22CFC1DCFB;
+	Thu, 13 Jun 2019 19:27:10 +0800 (CST)
+Received: from [127.0.0.1] (10.177.131.64) by DGGEMS411-HUB.china.huawei.com
+ (10.3.19.211) with Microsoft SMTP Server id 14.3.439.0; Thu, 13 Jun 2019
+ 19:26:59 +0800
+Subject: Re: [PATCH 1/4] x86: kdump: move reserve_crashkernel_low() into
+ kexec_core.c
+To: James Morse <james.morse@arm.com>
+References: <20190507035058.63992-1-chenzhou10@huawei.com>
+ <20190507035058.63992-2-chenzhou10@huawei.com>
+ <6585f047-063c-6d6c-4967-1d8a472f30f4@arm.com>
+CC: <catalin.marinas@arm.com>, <will.deacon@arm.com>,
+	<akpm@linux-foundation.org>, <ard.biesheuvel@linaro.org>,
+	<rppt@linux.ibm.com>, <tglx@linutronix.de>, <mingo@redhat.com>,
+	<bp@alien8.de>, <ebiederm@xmission.com>, <horms@verge.net.au>,
+	<takahiro.akashi@linaro.org>, <linux-arm-kernel@lists.infradead.org>,
+	<linux-kernel@vger.kernel.org>, <kexec@lists.infradead.org>,
+	<linux-mm@kvack.org>, <wangkefeng.wang@huawei.com>
+From: Chen Zhou <chenzhou10@huawei.com>
+Message-ID: <4716a864-9560-f198-5899-9a5dee1fac20@huawei.com>
+Date: Thu, 13 Jun 2019 19:26:54 +0800
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:45.0) Gecko/20100101
+ Thunderbird/45.7.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a7a2933bea5fe57e504891b7eec7e9432e5e1c1a.1560339705.git.andreyknvl@google.com>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+In-Reply-To: <6585f047-063c-6d6c-4967-1d8a472f30f4@arm.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.177.131.64]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 12, 2019 at 01:43:20PM +0200, Andrey Konovalov wrote:
-> From: Catalin Marinas <catalin.marinas@arm.com>
+Hi James,
+
+Thanks for your review.
+
+On 2019/6/6 0:29, James Morse wrote:
+> Hello,
 > 
-> It is not desirable to relax the ABI to allow tagged user addresses into
-> the kernel indiscriminately. This patch introduces a prctl() interface
-> for enabling or disabling the tagged ABI with a global sysctl control
-> for preventing applications from enabling the relaxed ABI (meant for
-> testing user-space prctl() return error checking without reconfiguring
-> the kernel). The ABI properties are inherited by threads of the same
-> application and fork()'ed children but cleared on execve().
+> On 07/05/2019 04:50, Chen Zhou wrote:
+>> In preparation for supporting reserving crashkernel above 4G
+>> in arm64 as x86_64 does, move reserve_crashkernel_low() into
+>> kexec/kexec_core.c.
 > 
-> The PR_SET_TAGGED_ADDR_CTRL will be expanded in the future to handle
-> MTE-specific settings like imprecise vs precise exceptions.
 > 
-> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-> ---
->  arch/arm64/include/asm/processor.h   |  6 +++
->  arch/arm64/include/asm/thread_info.h |  1 +
->  arch/arm64/include/asm/uaccess.h     |  3 +-
->  arch/arm64/kernel/process.c          | 67 ++++++++++++++++++++++++++++
->  include/uapi/linux/prctl.h           |  5 +++
->  kernel/sys.c                         | 16 +++++++
->  6 files changed, 97 insertions(+), 1 deletion(-)
+>> diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
+>> index 905dae8..9ee33b6 100644
+>> --- a/arch/x86/kernel/setup.c
+>> +++ b/arch/x86/kernel/setup.c
+>> @@ -463,59 +460,6 @@ static void __init memblock_x86_reserve_range_setup_data(void)
+>>  # define CRASH_ADDR_HIGH_MAX	MAXMEM
+>>  #endif
+>>  
+>> -static int __init reserve_crashkernel_low(void)
+>> -{
+>> -#ifdef CONFIG_X86_64
 > 
-> diff --git a/arch/arm64/include/asm/processor.h b/arch/arm64/include/asm/processor.h
-> index fcd0e691b1ea..fee457456aa8 100644
-> --- a/arch/arm64/include/asm/processor.h
-> +++ b/arch/arm64/include/asm/processor.h
-> @@ -307,6 +307,12 @@ extern void __init minsigstksz_setup(void);
->  /* PR_PAC_RESET_KEYS prctl */
->  #define PAC_RESET_KEYS(tsk, arg)	ptrauth_prctl_reset_keys(tsk, arg)
->  
-> +/* PR_TAGGED_ADDR prctl */
+> The behaviour of this #ifdef has disappeared, won't 32bit x86 now try and reserve a chunk
+> of unnecessary 'low' memory?
+> 
+> [...]
 
-(A couple of comments I missed in my last reply:)
+At present, reserve_crashkernel_low() is called only when reserving crashkernel above 4G, so i deleted
+this #ifdef.
+If we called reserve_crashkernel_low() at the beginning of reserve_crashkernel(), i need to add it back.
 
-Name mismatch?
+> 
+> 
+>> @@ -579,9 +523,13 @@ static void __init reserve_crashkernel(void)
+>>  		return;
+>>  	}
+>>  
+>> -	if (crash_base >= (1ULL << 32) && reserve_crashkernel_low()) {
+>> -		memblock_free(crash_base, crash_size);
+>> -		return;
+>> +	if (crash_base >= (1ULL << 32)) {
+>> +		if (reserve_crashkernel_low()) {
+>> +			memblock_free(crash_base, crash_size);
+>> +			return;
+>> +		}
+>> +
+>> +		insert_resource(&iomem_resource, &crashk_low_res);
+> 
+> 
+> Previously reserve_crashkernel_low() was #ifdefed to do nothing if !CONFIG_X86_64, I don't
+> see how 32bit is skipping this reservation...
+> 
+> 
+>>  	}
+>>  
+>>  	pr_info("Reserving %ldMB of memory at %ldMB for crashkernel (System RAM: %ldMB)\n",
+>> diff --git a/include/linux/kexec.h b/include/linux/kexec.h
+>> index b9b1bc5..096ad63 100644
+>> --- a/include/linux/kexec.h
+>> +++ b/include/linux/kexec.h
+>> @@ -63,6 +63,10 @@
+>>  
+>>  #define KEXEC_CORE_NOTE_NAME	CRASH_CORE_NOTE_NAME
+>>  
+>> +#ifndef CRASH_ALIGN
+>> +#define CRASH_ALIGN SZ_128M
+>> +#endif
+> 
+> Why 128M? Wouldn't we rather each architecture tells us its minimum alignment?
 
-> +long set_tagged_addr_ctrl(unsigned long arg);
-> +long get_tagged_addr_ctrl(void);
-> +#define SET_TAGGED_ADDR_CTRL(arg)	set_tagged_addr_ctrl(arg)
-> +#define GET_TAGGED_ADDR_CTRL()		get_tagged_addr_ctrl()
-> +
+Yeah, each architecture should tells us its minimum alignment. I added this default size to
+fix compiling error on some architecture which didn't define it. I will add x86_64 and arm64
+restriction on reserve_crashkernel_low() and delete this define.
 
-[...]
+> 
+> 
+>> diff --git a/kernel/kexec_core.c b/kernel/kexec_core.c
+>> index d714044..3492abd 100644
+>> --- a/kernel/kexec_core.c
+>> +++ b/kernel/kexec_core.c
+>> @@ -39,6 +39,8 @@
+>>  #include <linux/compiler.h>
+>>  #include <linux/hugetlb.h>
+>>  #include <linux/frame.h>
+>> +#include <linux/memblock.h>
+>> +#include <linux/swiotlb.h>
+>>  
+>>  #include <asm/page.h>
+>>  #include <asm/sections.h>
+>> @@ -96,6 +98,60 @@ int kexec_crash_loaded(void)
+>>  }
+>>  EXPORT_SYMBOL_GPL(kexec_crash_loaded);
+>>  
+>> +int __init reserve_crashkernel_low(void)
+>> +{
+>> +	unsigned long long base, low_base = 0, low_size = 0;
+>> +	unsigned long total_low_mem;
+>> +	int ret;
+>> +
+>> +	total_low_mem = memblock_mem_size(1UL << (32 - PAGE_SHIFT));
+>> +
+>> +	/* crashkernel=Y,low */
+>> +	ret = parse_crashkernel_low(boot_command_line, total_low_mem,
+>> +			&low_size, &base);
+>> +	if (ret) {
+>> +		/*
+>> +		 * two parts from lib/swiotlb.c:
+>> +		 * -swiotlb size: user-specified with swiotlb= or default.
+>> +		 *
+>> +		 * -swiotlb overflow buffer: now hardcoded to 32k. We round it
+>> +		 * to 8M for other buffers that may need to stay low too. Also
+>> +		 * make sure we allocate enough extra low memory so that we
+>> +		 * don't run out of DMA buffers for 32-bit devices.
+>> +		 */
+>> +		low_size = max(swiotlb_size_or_default() + (8UL << 20),
+> 
+> SZ_8M?
+> 
+>> +				256UL << 20);
+> 
+> SZ_256M?
+> 
 
-> diff --git a/arch/arm64/kernel/process.c b/arch/arm64/kernel/process.c
-> index 3767fb21a5b8..69d0be1fc708 100644
-> --- a/arch/arm64/kernel/process.c
-> +++ b/arch/arm64/kernel/process.c
-> @@ -30,6 +30,7 @@
->  #include <linux/kernel.h>
->  #include <linux/mm.h>
->  #include <linux/stddef.h>
-> +#include <linux/sysctl.h>
->  #include <linux/unistd.h>
->  #include <linux/user.h>
->  #include <linux/delay.h>
-> @@ -323,6 +324,7 @@ void flush_thread(void)
->  	fpsimd_flush_thread();
->  	tls_thread_flush();
->  	flush_ptrace_hw_breakpoint(current);
-> +	clear_thread_flag(TIF_TAGGED_ADDR);
->  }
->  
->  void release_thread(struct task_struct *dead_task)
-> @@ -552,3 +554,68 @@ void arch_setup_new_exec(void)
->  
->  	ptrauth_thread_init_user(current);
->  }
-> +
-> +/*
-> + * Control the relaxed ABI allowing tagged user addresses into the kernel.
-> + */
-> +static unsigned int tagged_addr_prctl_allowed = 1;
-> +
-> +long set_tagged_addr_ctrl(unsigned long arg)
-> +{
-> +	if (!tagged_addr_prctl_allowed)
-> +		return -EINVAL;
+There is compiling warning "warning: comparison of distinct pointer types lacks a cast" if just use
+SZ_8M or SZ_256M. We need cast swiotlb_size_or_default() to type int,so i kept the old as in x86_64.
 
-So, tagging can actually be locked on by having a process enable it and
-then some possibly unrelated process clearing tagged_addr_prctl_allowed.
-That feels a bit weird.
+> 
+>> +	} else {
+>> +		/* passed with crashkernel=0,low ? */
+>> +		if (!low_size)
+>> +			return 0;
+>> +	}
+>> +
+>> +	low_base = memblock_find_in_range(0, 1ULL << 32, low_size, CRASH_ALIGN);
+>> +	if (!low_base) {
+>> +		pr_err("Cannot reserve %ldMB crashkernel low memory, please try smaller size.\n",
+>> +		       (unsigned long)(low_size >> 20));
+>> +		return -ENOMEM;
+>> +	}
+>> +
+>> +	ret = memblock_reserve(low_base, low_size);
+>> +	if (ret) {
+>> +		pr_err("%s: Error reserving crashkernel low memblock.\n",
+>> +				__func__);
+>> +		return ret;
+>> +	}
+>> +
+>> +	pr_info("Reserving %ldMB of low memory at %ldMB for crashkernel (System low RAM: %ldMB)\n",
+>> +		(unsigned long)(low_size >> 20),
+>> +		(unsigned long)(low_base >> 20),
+>> +		(unsigned long)(total_low_mem >> 20));
+>> +
+>> +	crashk_low_res.start = low_base;
+>> +	crashk_low_res.end   = low_base + low_size - 1;
+>> +
+>> +	return 0;
+>> +}
+> 
+> 
+> Thanks,
+> 
+> James
+> 
+> .
+> 
 
-Do we want to allow a process that has tagging on to be able to turn
-it off at all?  Possibly things like CRIU might want to do that.
-
-> +	if (is_compat_task())
-> +		return -EINVAL;
-> +	if (arg & ~PR_TAGGED_ADDR_ENABLE)
-> +		return -EINVAL;
-
-How do we expect this argument to be extended in the future?
-
-I'm wondering whether this is really a bitmask or an enum, or a mixture
-of the two.  Maybe it doesn't matter.
-
-> +
-> +	if (arg & PR_TAGGED_ADDR_ENABLE)
-> +		set_thread_flag(TIF_TAGGED_ADDR);
-> +	else
-> +		clear_thread_flag(TIF_TAGGED_ADDR);
-
-I think update_thread_flag() could be used here.
-
-[...]
-
-Cheers
----Dave
+Thanks,
+Chen Zhou
 
