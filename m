@@ -2,154 +2,189 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A9B43C31E46
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 01:18:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E962AC31E46
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 01:30:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 68BF02173C
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 01:18:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 85734215EA
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 01:30:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="B6QwZ4EL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 68BF02173C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="2ZR5cg5q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 85734215EA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 017BC6B000E; Wed, 12 Jun 2019 21:18:16 -0400 (EDT)
+	id EB42C6B000D; Wed, 12 Jun 2019 21:30:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EE40E6B0010; Wed, 12 Jun 2019 21:18:15 -0400 (EDT)
+	id E65A36B000E; Wed, 12 Jun 2019 21:30:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D842A6B0266; Wed, 12 Jun 2019 21:18:15 -0400 (EDT)
+	id D7B776B0010; Wed, 12 Jun 2019 21:30:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FF1E6B000E
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 21:18:15 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id v62so12629511pgb.0
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 18:18:15 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E0746B000D
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 21:30:18 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id i33so10875747pld.15
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 18:30:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
          :content-transfer-encoding;
-        bh=bxihxNNysPXerPyob9Zzk921oVuc/OIiBaUeQPYANHw=;
-        b=kh6qsKCHmCssNdbXl+zxuAaq31vVt002GwBIX9q8lh4XHkx2pcMiBeGZzAxMiah6lp
-         +eshH+mpD86c2nI82KEp/+sSwiE2Q2kEyvSSpFrFVWBhbfGgYmEeu4W9Bzn+hLFt4zn4
-         JQp9TNVwq5ZbADQV4ybD+Q/jEXGlASO3BnnospZoXr/EfthdeMSz2uu3Y46V4C+jofSw
-         LyUB/Sr5LwbitGcoW0yhq+VmBF0ygTR9m+fDBZEdTYzQxjweOt/bEo7NmXpvyFCPy/0t
-         cjbgJtIdt65Nuet2zogF2a1KKi4PKNB83s5SqdwgLmf5QBzGmKb2EWtJgOopuWf2SDyw
-         /6tA==
-X-Gm-Message-State: APjAAAXL0ClBNLHhqrgUcMehA0eS1LTh1+0TIVuba9nl+dF5vCjacoww
-	udohQRoOz0bkMz1d1QbR7zCJpEd7iNCE2anUxlie8rJTO+gvLAhtdzb33cqk9yIEIrJM6iG2ytl
-	uXFvW5LZPKt7gOpO1A6KptVD+RE5zc4i7jQl1v2pfLorCasTmqIXawcRkvmkmxCMBcg==
-X-Received: by 2002:a17:902:467:: with SMTP id 94mr28770477ple.131.1560388695320;
-        Wed, 12 Jun 2019 18:18:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz2Er4xuLqB/HgMWrKt6YgRIPm+dNxH89cvry2cCWiIsYD5uyPnGFhJhfZHYKzJF09xAexv
-X-Received: by 2002:a17:902:467:: with SMTP id 94mr28770437ple.131.1560388694580;
-        Wed, 12 Jun 2019 18:18:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560388694; cv=none;
+        bh=A1BK2qUzTenfWRcSanHn4HxwaH8D0/dFbehXHckrPD0=;
+        b=Lt0zeHis84vAtgV3k+Y15tFl3nD6P+/t5CrR5B0WmRdGsy0thpdpafKSNEFXXTnNYq
+         RL+S4kNi+TTBLN5P6Yhd3R8JXQRlQH9ji8RVupiIu/boqgocUBfEabaa3DdVRXrc2pHg
+         BxLK18OYynaoFrHb2BEBE0Lro+7YPillBSnsRnIVjCfTrOuzZMAjABL4xdFauz/syGrK
+         Vv3a4jdRxqy9mv9WLTFTWy8Gr+WpKUSD8DvIxQoRgEfMa7t4lsJ3TqqhrjEQ3CpsZDQ8
+         Q7+J/32lLkAw0qQeQKDV2uHE4L9IRg6RLomFsCGJZ6mEeTy1ZAhpgp1chcXkzwPPc8Ww
+         VHng==
+X-Gm-Message-State: APjAAAUKukjzw/RUoviuYsLSrtCMjhB8eUVYt3snHuLkH0SIrsp2zxqK
+	7UICTa9Ba+VQ0zUMLIVTKHNHesjNQa44jMV+dHh0bPjIg6CyFR5JmIrAKxd5W2KrfuFYm2yQm7Q
+	atQgeEim8bm+N2HCBE8gUj+ZZgB1K3Br6MFdb4iwktPIZue78DqyYJCS1yEnxhP1XzQ==
+X-Received: by 2002:a63:6f8d:: with SMTP id k135mr27975925pgc.118.1560389418101;
+        Wed, 12 Jun 2019 18:30:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx4tUxtmLeFk0H4ibRxbJ2O+FClNQ5KNrjDK0l37PyCOKLHiRoOsAG4857Vroh3s8jXVttf
+X-Received: by 2002:a63:6f8d:: with SMTP id k135mr27975859pgc.118.1560389417186;
+        Wed, 12 Jun 2019 18:30:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560389417; cv=none;
         d=google.com; s=arc-20160816;
-        b=utScaRwrrl7QmhlEQLF9OFMObKH43KsqS0ViUgwq/M+kE/XWyFbob+8DkF0R9CaG+S
-         1r2Ko8mr7BT5anRfxvZHRV7echAnG4yJzsrQ7wwlBoN7AzE9NbgSidFv8hJXenTUt/go
-         miGNT82on8DrsHkzWXl0cCZbvw504Vmdod5zfRoUdfGvRnZXzSZxouUMpGpUkGi7I8xv
-         odirgOax9Si5gZadGiFd5Kr3Zae3cMe45N78S3pye+eiYitWbMCcFTZgwusqabi0nM7o
-         z9+hR0tX7LAZBs196j3oMMLQ9GbfxYe6z4Fb0WUsJFX3GLkk2uTUFqlWGvxBb6g8tc+v
-         RBHQ==
+        b=hDInyRxF7BQ1QgPuWBottbAlcHiEITdbI0fKuUMPMW1b8gQ96ADEVty678H6dKKIvG
+         Zb0ukaRyP/W4xTiSbfB30q4DiIBoD4pSTMbOhblylWz3z5gU3yRyd0BMgpDi4MuhObT4
+         /y2I+CGNE8W+nNH10DgWHfe1Nfp6pc2etUeiwVCLTiYUHR5bT8C46Aw3OIIfzP+uDbmP
+         SwiXJiyDozHiEIsRc/XL9fafhF8EHGc8pvbyFEWC3T5xTfCXVfBZnfoGD+Ezxj2qFH+f
+         KU8XusDlptQExj4NDvJ65UJOsw3fwqTtSnBU4i42IpWBld/1s8r0O8PzRyNZQjulLHMv
+         IIEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=bxihxNNysPXerPyob9Zzk921oVuc/OIiBaUeQPYANHw=;
-        b=RPkIJASdXV5shAkfUXBpryo9O5VfktfDSr/5n5A0mQ9ol/ZtS3GetGPeJii4UMncLz
-         p0JqM6Gca7pxERC9KeUlWRyJRFD5egtB8a+aFuLaSWvPH3Q3JtF46hoCaUtiXc7C0VtF
-         rEI2F6UYr6r2pcD3v/dETquyNi8GlaDSGrP4uQ1ss/OD6SQq0g9VkWJ4YBhj4FGnW75h
-         uvf7gA3kMDpsrbhlcBXqhhXl4uDSWlAUjpOxGvoGQ1wMFvqqZlZXaWltfaVLIma+WkSB
-         wtVAF+8Yq9lB+xrzr63qwqMgqRtL/4ygaaNLyE5GS07gX0dFDSfoBNDVAUZ1tlpd8aJ4
-         0esw==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=A1BK2qUzTenfWRcSanHn4HxwaH8D0/dFbehXHckrPD0=;
+        b=0McmOEdPjfbNTN+hWg7hFxo6S4LMqE6xxiAQDnQttHnMUvneqFuUi/EhvsQYD824ck
+         IAbaxQ9Rv2A45fNm5t5DWDfYSwQ/705gh/VE3/qLVbgKZJ32pdH7XxYQ7H0rgwZP3+7l
+         cFfxsjHC/6rTHd3ylYf6TqfIloLlksT7ENJlxB3gg3Z+Hb5523x6ZoxfJnzC8Dxwk/a2
+         1ipSferujcZ7ll80NMcTMe1uSCKT2wsqxSLqjoltn70ZomzeU4Opczc5tKTNiaIcQJv4
+         7lSpLJxi0f1v4/OdniFugIJcU2cTdIshaAJq0Q2szPhQ33GQOnBO2B7Jnk2P56zO+wBc
+         hIIw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=B6QwZ4EL;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+       dkim=pass header.i=@kernel.org header.s=default header.b=2ZR5cg5q;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id h63si1256380pge.558.2019.06.12.18.18.14
+        by mx.google.com with ESMTPS id q10si1072144plr.412.2019.06.12.18.30.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 18:18:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Wed, 12 Jun 2019 18:30:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=B6QwZ4EL;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+       dkim=pass header.i=@kernel.org header.s=default header.b=2ZR5cg5q;
+       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-wr1-f49.google.com (mail-wr1-f49.google.com [209.85.221.49])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 9CE68208CA;
-	Thu, 13 Jun 2019 01:18:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 910D621721
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 01:30:16 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1560388694;
-	bh=t8ziDUjGRatmX8RI2sR6uyYMindRv5VWtp1mspyO4HE=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=B6QwZ4EL/RBtMxQBQ2C4dYwyr9DAJ+Z2Z3aJYcMQaieNiGU59KS/u8/xtLLpUbW7T
-	 m8OVV9+d3Wy/w/AD79mktyWQ9phS4xvdMROxkLy5tWqzeIv5KZdGBnmd8Y37PQfYMW
-	 8g+LcA6tVIJiZ3F672gNG+5F6YHn3ViB+XbeCa+A=
-Date: Wed, 12 Jun 2019 18:18:13 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: broonie@kernel.org, mhocko@suse.cz, sfr@canb.auug.org.au,
- linux-next@vger.kernel.org, linux-fsdevel@vger.kernel.org,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- mm-commits@vger.kernel.org, ocfs2-devel@oss.oracle.com, Mark Fasheh
- <mark@fasheh.com>, Joel Becker <jlbec@evilplan.org>, Joseph Qi
- <joseph.qi@linux.alibaba.com>
-Subject: Re: mmotm 2019-06-11-16-59 uploaded (ocfs2)
-Message-Id: <20190612181813.48ad05832e05f767e7116d7b@linux-foundation.org>
-In-Reply-To: <492b4bcc-4760-7cbb-7083-9f22e7ab4b82@infradead.org>
-References: <20190611235956.4FZF6%akpm@linux-foundation.org>
-	<492b4bcc-4760-7cbb-7083-9f22e7ab4b82@infradead.org>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	s=default; t=1560389416;
+	bh=245hSvEJ1fyVQ/NUoZsypuMJ69r/WWckga7/iHsIA6Q=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=2ZR5cg5qXeIW8QeSueU+v+XoVtJwJqgh/zbPK+Vh23DiNB76z6igVBk5QmFjC4Q/b
+	 GYn8i0J6URP72JalBhebTaSz6TzlBV+Qnr5O7B+twJgiUQVPaKaKwsqofehUrHIiSR
+	 AYRWMsmaxcXIZJR9IifMDN2N37eieMRhYyWPJmug=
+Received: by mail-wr1-f49.google.com with SMTP id v14so18849238wrr.4
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 18:30:16 -0700 (PDT)
+X-Received: by 2002:adf:ef48:: with SMTP id c8mr35692572wrp.352.1560389415200;
+ Wed, 12 Jun 2019 18:30:15 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190612170834.14855-1-mhillenb@amazon.de> <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com>
+ <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
+In-Reply-To: <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 12 Jun 2019 18:30:03 -0700
+X-Gmail-Original-Message-ID: <CALCETrXHbS9VXfZ80kOjiTrreM2EbapYeGp68mvJPbosUtorYA@mail.gmail.com>
+Message-ID: <CALCETrXHbS9VXfZ80kOjiTrreM2EbapYeGp68mvJPbosUtorYA@mail.gmail.com>
+Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM secrets
+To: Dave Hansen <dave.hansen@intel.com>, Nadav Amit <namit@vmware.com>
+Cc: Marius Hillenbrand <mhillenb@amazon.de>, kvm list <kvm@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, 
+	Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, 
+	Alexander Graf <graf@amazon.de>, David Woodhouse <dwmw@amazon.co.uk>, 
+	"the arch/x86 maintainers" <x86@kernel.org>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Jun 2019 07:15:30 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
+On Wed, Jun 12, 2019 at 1:27 PM Andy Lutomirski <luto@amacapital.net> wrote=
+:
+>
+>
+>
+> > On Jun 12, 2019, at 12:55 PM, Dave Hansen <dave.hansen@intel.com> wrote=
+:
+> >
+> >> On 6/12/19 10:08 AM, Marius Hillenbrand wrote:
+> >> This patch series proposes to introduce a region for what we call
+> >> process-local memory into the kernel's virtual address space.
+> >
+> > It might be fun to cc some x86 folks on this series.  They might have
+> > some relevant opinions. ;)
+> >
+> > A few high-level questions:
+> >
+> > Why go to all this trouble to hide guest state like registers if all th=
+e
+> > guest data itself is still mapped?
+> >
+> > Where's the context-switching code?  Did I just miss it?
+> >
+> > We've discussed having per-cpu page tables where a given PGD is only in
+> > use from one CPU at a time.  I *think* this scheme still works in such =
+a
+> > case, it just adds one more PGD entry that would have to context-switch=
+ed.
+>
+> Fair warning: Linus is on record as absolutely hating this idea. He might=
+ change his mind, but it=E2=80=99s an uphill battle.
 
-> On 6/11/19 4:59 PM, akpm@linux-foundation.org wrote:
-> > The mm-of-the-moment snapshot 2019-06-11-16-59 has been uploaded to
-> > 
-> >    http://www.ozlabs.org/~akpm/mmotm/
-> > 
-> > mmotm-readme.txt says
-> > 
-> > README for mm-of-the-moment:
-> > 
-> > http://www.ozlabs.org/~akpm/mmotm/
-> > 
-> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> > more than once a week.
-> 
-> 
-> on i386:
-> 
-> ld: fs/ocfs2/dlmglue.o: in function `ocfs2_dlm_seq_show':
-> dlmglue.c:(.text+0x46e4): undefined reference to `__udivdi3'
+I looked at the patch, and it (sensibly) has nothing to do with
+per-cpu PGDs.  So it's in great shape!
 
-Thanks.  This, I guess:
+Seriously, though, here are some very high-level review comments:
 
---- a/fs/ocfs2/dlmglue.c~ocfs2-add-locking-filter-debugfs-file-fix
-+++ a/fs/ocfs2/dlmglue.c
-@@ -3115,7 +3115,7 @@ static int ocfs2_dlm_seq_show(struct seq
- 		 * otherwise, only dump the last N seconds active lock
- 		 * resources.
- 		 */
--		if ((now - last) / 1000000 > dlm_debug->d_filter_secs)
-+		if (div_u64(now - last, 1000000) > dlm_debug->d_filter_secs)
- 			return 0;
- 	}
- #endif
+Please don't call it "process local", since "process" is meaningless.
+Call it "mm local" or something like that.
 
-review and test, please?
+We already have a per-mm kernel mapping: the LDT.  So please nix all
+the code that adds a new VA region, etc, except to the extent that
+some of it consists of valid cleanups in and of itself.  Instead,
+please refactor the LDT code (arch/x86/kernel/ldt.c, mainly) to make
+it use a more general "mm local" address range, and then reuse the
+same infrastructure for other fancy things.  The code that makes it
+KASLR-able should be in its very own patch that applies *after* the
+code that makes it all work so that, when the KASLR part causes a
+crash, we can bisect it.
+
++ /*
++ * Faults in process-local memory may be caused by process-local
++ * addresses leaking into other contexts.
++ * tbd: warn and handle gracefully.
++ */
++ if (unlikely(fault_in_process_local(address))) {
++ pr_err("page fault in PROCLOCAL at %lx", address);
++ force_sig_fault(SIGSEGV, SEGV_MAPERR, (void __user *)address, current);
++ }
++
+
+Huh?  Either it's an OOPS or you shouldn't print any special
+debugging.  As it is, you're just blatantly leaking the address of the
+mm-local range to malicious user programs.
+
+Also, you should IMO consider using this mechanism for kmap_atomic().
+Hi, Nadav!
 
