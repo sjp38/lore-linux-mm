@@ -6,107 +6,104 @@ X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E0981C31E46
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 01:54:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 17297C31E46
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 02:04:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9D2DF21721
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 01:54:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CD8C321721
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 02:04:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="r8JdgWt2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D2DF21721
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="I7s+6BUD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD8C321721
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 441996B0007; Wed, 12 Jun 2019 21:54:53 -0400 (EDT)
+	id 59B446B0006; Wed, 12 Jun 2019 22:04:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3F1C16B000D; Wed, 12 Jun 2019 21:54:53 -0400 (EDT)
+	id 54ACF6B0007; Wed, 12 Jun 2019 22:04:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2E1936B000E; Wed, 12 Jun 2019 21:54:53 -0400 (EDT)
+	id 4392E6B000D; Wed, 12 Jun 2019 22:04:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E9E246B0007
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 21:54:52 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id r142so12030088pfc.2
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 18:54:52 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 1A1AB6B0006
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 22:04:27 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id i123so13329511pfb.19
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 19:04:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=CMz/h9Cg+4Ikv/NNOp10TajaP/65dVUVJmIJWOyAffw=;
-        b=ga70ZfLtOiJqYqUJQ/Ic9eow27oTeS7z+Kg9YtbGUXaAk+L363YR3uKdpAvSEooc9N
-         TDLwtvG2nATwJYMu/rUCT5F2SQfvZ4JA5wBXKqjaXOl9ZbfmAkZzz/9R3gHMo9B3q6O8
-         raX9BQRQ23QgtFxYq/I0FhJXYxwuhfPAl+ALnBMdqQaXaP3ahnXVhGemsENjI1Aycm+0
-         otT+86E4Pozbg7oorVnpz4egOg6ttz5nzhIdnprAmyecL4bIxNs+DssaG2BcJgmJGF41
-         Yo/JvKdvoBIlxJ6NnfnQkUiCOAubLtQeKCMKnqCOz46SDP3rf7ZcRaNBtULZxb9ocvZF
-         uhZg==
-X-Gm-Message-State: APjAAAWKjUDsqsNUE/rOrF6EDxLPDo9LpZ+S5mdAnuwfmgJhNQ4VkSfJ
-	wnjhwoP3uIy3p8OXsrd3PkUgL3wKuqt4q2kfT4qjkszrXpe24bn3ETf/lnp+elQX6mGsaO0EbaN
-	8jVdDMJavzYUcwioi9KutEzoEi/9LoZ876JqnyVPIsnyhV6d2E9YtDTQZVGMqnEU8hg==
-X-Received: by 2002:a63:4a1f:: with SMTP id x31mr17822284pga.150.1560390892388;
-        Wed, 12 Jun 2019 18:54:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwetre6gKLAXX2/HcCECOs8oJbLY80tYfI5+8p0k9HsIoXCP2GgSQfnuXv+fF3kpoZwcE/8
-X-Received: by 2002:a63:4a1f:: with SMTP id x31mr17822252pga.150.1560390891521;
-        Wed, 12 Jun 2019 18:54:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560390891; cv=none;
+        bh=rHr+HNum2ZoZ6n9TuqyAITu764g/35CisPZqJOpxKJY=;
+        b=mEj1JmkrHYJ686l/XYV8llrYIBNpDhcvDOQK9bwzEpU8Pm4kR4NqytrfhB1KgifrzX
+         Gs7MX99BEM7uol+yFGTT2oaHTeCjP95lDyyrN9QE1jz5bAZKVRZPYJV2KX5eDbDoh80d
+         6tO1U5YhCbyC5+j3qrI3cZBm4fTJyxREGOvIn90f3mtZxgM42bP4xbae+VAeUANNjhsd
+         5ahKJnAUGF9CZaD4Qcba4nAgs3/UBS9X3AhE2Gno3uzbsQjrGAte7pEbyIvPG+FwDNQ7
+         ziecdywW2nU1yAPnkGL6B62i8m5vjG9n2fdnWJNM+NGJSJ+gwUyicMKsVV8rXvOzncKg
+         WvOA==
+X-Gm-Message-State: APjAAAV+zW4LRbSbNZ+dBbjg3KK96PX1sEglzmHthgHl6sYAXbQ3kyk1
+	2K14+44WaZhBXQ9zS856r7VadHsoYNQilpdkmceSksXzXv4jcAoY0ounUAvmtMMVK6UptFdXpdi
+	Lw519HWIiZ/uOdd5q5wimlH1mxa2rojn+r8NCUllEiHUi1Y3Lrkkb1YS9G/PwZ6wx9Q==
+X-Received: by 2002:a17:90a:22ea:: with SMTP id s97mr2183621pjc.39.1560391466711;
+        Wed, 12 Jun 2019 19:04:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzB/eu8rH8ziKpzifhfidIwvSuMyEh4462BgH8minHr01H89ZXUx0xE4mcHw9zXMB4eDL83
+X-Received: by 2002:a17:90a:22ea:: with SMTP id s97mr2183579pjc.39.1560391465964;
+        Wed, 12 Jun 2019 19:04:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560391465; cv=none;
         d=google.com; s=arc-20160816;
-        b=V6OScP4xCLpPeDTiacPdcFKKVlSmBzLVc1rAoBdjU86kKU5tV41Ny1MTp9AfnmU3Lf
-         +pA864Q4/uLB1JolSwNyk5oXCKCAjAtohsPllgP1HUF44YzyFFhhwuDngQJvHKBaZWqC
-         zY6da2MhBm1nOfn8CP7QG0xjphAe8RCxtG6rDfMEnb5g1Rd1gZ5iU555DOvHSvO0EfRQ
-         0pXqBOsztSZxgzFrrPuXMQHPn6gTvK9l5CHQt24j9Zw+YNJTREp89B9bl13T0LV0Hgfo
-         PxdwoorUZHwFRfxmOR3XO3HZutQb8rqhcwoxGT6HyraP/gvdMXngNJ/NMNZ9nnAoeRiG
-         zg4g==
+        b=D8tHTk0tZ+N/U5+waNmKXpZU6gosV6HYmtReuq0ZBP1Jd1ny1z2mSufdd4DPLsBuTm
+         Dn6/SMFr4y/fO1whKrppL2f6UE9tcCMRpyzPnfhIYeNvDbSucmUKSGOe+4JSaN1InmHp
+         FIAuyzH5yvsPdwI8R1Qkpjx/8eIHyWvUsDjgrKMYL0R+Dqxsfg1L2aB4PBBAE+TCsefu
+         mBtK/3qYsaVyyzfLUGpcGLgUDIBb9sKifA3q0WbiL/ZbfiY/h4QcNKzGNuzePK7l4cJr
+         ZTEk47kzG5Dr9yKS3IU97WNL+AaYUg6u6B0fbdf2L+j5jSWlf8PVoW3DeMuruw+vBvn1
+         FYjw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=CMz/h9Cg+4Ikv/NNOp10TajaP/65dVUVJmIJWOyAffw=;
-        b=ely5yqT5ezFeVwXrWzJxI75j6H7hMFpOeUTsqIw37Nzk5UVPsFlozVmZNNR6V/wTL9
-         pP3H+38aawK7c/iCHWHno2L1fPheAEahnqkkz4wkr6cI7KaEf+FpFyV9kr7Ana4aYjOc
-         F+iaoWoeFebf2calajtUWT2qJClaumD8wnlZUh1bYB4tMuBL/BuE0C9lEdZxotprKADV
-         FaWwm3M/ubE9Q25ZLTOtT+SDJg+72oQ219vTKctDHB3XmKFWgsjjXYkDq+q1QwPH8hYH
-         rjCqjVMQcOHAcAah990ioEOi1HymdGvX/sMvuXgq3Y8yvOpiWlTZ5JmYl46U5cKP9ULz
-         fOsA==
+        bh=rHr+HNum2ZoZ6n9TuqyAITu764g/35CisPZqJOpxKJY=;
+        b=Xm4IA4UkVoe0Lnl2BmYcMcu/aqiXjC+H8Qc0i5sBpvnzutlsN1bt5V1xlJCJo7jFyW
+         z01FrchntyCcJvXvxako9nbJAX5ILZXIEEM8UgtH9QAB8JUmHWuSIzzQT2tHfYXbgQrr
+         vPSgNLRvAVQWGf6FgwcpWb2zr+nN+cqCzDar1SMu25Piw1QH3ZrhmvC8rtASgaBAG9dD
+         nbF9N2B9joxzRr6l+Udb5VMN57Iq1wWRWFbjC9G41hiFGep8iVJYN0JQuucGu0My5N8q
+         3IKgKIPScszgRCksWHoCNO0+C5zKkY/2BEYLk4QmQgjWqIxlu5Araa8rFGybNUO3xg0P
+         JGdw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=r8JdgWt2;
+       dkim=pass header.i=@kernel.org header.s=default header.b=I7s+6BUD;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id j17si1277906pfn.278.2019.06.12.18.54.51
+        by mx.google.com with ESMTPS id 68si1200968plc.269.2019.06.12.19.04.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 18:54:51 -0700 (PDT)
+        Wed, 12 Jun 2019 19:04:25 -0700 (PDT)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=r8JdgWt2;
+       dkim=pass header.i=@kernel.org header.s=default header.b=I7s+6BUD;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id A68BF208CA;
-	Thu, 13 Jun 2019 01:54:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 3E5FB208CA;
+	Thu, 13 Jun 2019 02:04:24 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1560390891;
-	bh=GXivTwKQk8Y+X5xE03CN8fthnLjjz3AlLtUYgE6QieY=;
+	s=default; t=1560391464;
+	bh=/ewpSppRNwtuoWk8VaEgHJcsNWYUbbPbRZ+qnk2kyu0=;
 	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=r8JdgWt24mLYxAVnydiRtAdlx+xRwCOlsBeGXcMQy1oJV3B/cDxN+OnDejmpSyIV6
-	 RcIibyipNA+YGPuxHDsGF+U/AKFps7DbsQDuq1Fpc/BUfIrexokv2IP71eCmwXk283
-	 fI0rscTQw/skUc8NwPguKxlABRXZDgasoljgBWxA=
-Date: Wed, 12 Jun 2019 18:54:50 -0700
+	b=I7s+6BUD/VLMgDlpOTxcYbOO91mloye5QM2giwHGWpnPF9a5mIbZSRItaZFiRkGBu
+	 pfL4yI8SigMJtXXa10yUVoenVbtJnNJtg49iHz/keiHPB9lbGzwHqEeyS8RvWrgt8o
+	 1eQFFvGW7JDBZfcJ8qYMrZf0jWxzMVgTD7/EihwU=
+Date: Wed, 12 Jun 2019 19:04:23 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- catalin.marinas@arm.com, will.deacon@arm.com, ard.biesheuvel@arm.com,
- osalvador@suse.de, mhocko@suse.com, mark.rutland@arm.com
-Subject: Re: [PATCH V5 - Rebased] mm/hotplug: Reorder
- memblock_[free|remove]() calls in try_remove_memory()
-Message-Id: <20190612185450.73841b9f5af3a4189de6f910@linux-foundation.org>
-In-Reply-To: <67f5c5ad-d753-77d8-8746-96cf4746b3e0@redhat.com>
-References: <36e0126f-e2d1-239c-71f3-91125a49e019@redhat.com>
-	<1560252373-3230-1-git-send-email-anshuman.khandual@arm.com>
-	<20190611151908.cdd6b73fd17fda09b1b3b65b@linux-foundation.org>
-	<5b4f1f19-2f8d-9b8f-4240-7b728952b6fe@arm.com>
-	<67f5c5ad-d753-77d8-8746-96cf4746b3e0@redhat.com>
+To: Roman Gushchin <guro@fb.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, <linux-mm@kvack.org>,
+ <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>, Johannes Weiner
+ <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>, Waiman Long
+ <longman@redhat.com>
+Subject: Re: [PATCH v7 01/10] mm: postpone kmem_cache memcg pointer
+ initialization to memcg_link_cache()
+Message-Id: <20190612190423.9971299bba0559e117faae92@linux-foundation.org>
+In-Reply-To: <20190611231813.3148843-2-guro@fb.com>
+References: <20190611231813.3148843-1-guro@fb.com>
+	<20190611231813.3148843-2-guro@fb.com>
 X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -117,23 +114,11 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Jun 2019 08:53:33 +0200 David Hildenbrand <david@redhat.com> wrote:
+On Tue, 11 Jun 2019 16:18:04 -0700 Roman Gushchin <guro@fb.com> wrote:
 
-> >>> ...
-> >>>
-> >>>
-> >>> - Rebased on linux-next (next-20190611)
-> >>
-> >> Yet the patch you've prepared is designed for 5.3.  Was that
-> >> deliberate, or should we be targeting earlier kernels?
-> > 
-> > It was deliberate for 5.3 as a preparation for upcoming reworked arm64 hot-remove.
-> > 
-> 
-> We should probably add to the patch description something like "This is
-> a preparation for arm64 memory hotremove. The described issue is not
-> relevant on other architectures."
+> Subject: [PATCH v7 01/10] mm: postpone kmem_cache memcg pointer initialization to memcg_link_cache()]
 
-Please.  And is there any reason to merge it separately?  Can it be
-[patch 1/3] in the "arm64/mm: Enable memory hot remove" series?
+I think mm is too large a place for patches to be described as
+affecting simply "mm".  So I'll irritatingly rewrite all these titles to
+"mm: memcg/slab:".
 
