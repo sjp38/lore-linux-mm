@@ -2,169 +2,172 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A47D7C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 06:56:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E1358C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 07:17:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 550AD20866
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 06:56:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="BVlJnpxV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 550AD20866
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 8490620866
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 07:17:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8490620866
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E83F96B0006; Thu, 13 Jun 2019 02:56:56 -0400 (EDT)
+	id E765A6B0006; Thu, 13 Jun 2019 03:17:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E35AF6B0007; Thu, 13 Jun 2019 02:56:56 -0400 (EDT)
+	id E4D3B6B0007; Thu, 13 Jun 2019 03:17:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CFBEA6B000A; Thu, 13 Jun 2019 02:56:56 -0400 (EDT)
+	id D3BAD6B000A; Thu, 13 Jun 2019 03:17:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-it1-f197.google.com (mail-it1-f197.google.com [209.85.166.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B136F6B0006
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 02:56:56 -0400 (EDT)
-Received: by mail-it1-f197.google.com with SMTP id j9so7208704ite.1
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 23:56:56 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7275C6B0006
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 03:17:53 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id i44so29628451eda.3
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 00:17:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=Rydac0kByKvRlT58oD81CeEmII8iE4ez/kqn0T7bhHc=;
-        b=HNRFUBBL8vUWRIkC5cPYa6ztKxGS9+qeWGgyp7oTscqxq5PUF9h5mw2T9W8l9+UeVU
-         5fmbLRzlj52Lb5wpsA5TzvGXD4ObOjAhWX5VMirpU5UkETWhKgB0FCo/Ftd53g8valL/
-         FHNCz87aTIDaU4eYEUUIVFcl8jFVN+N83PFYa6Ty/4ichfd1GoYbXESFLFoFitfmN8Sm
-         2uDX/8tpuYnqsvzaMsaTx9rgVQNPpB4MWJ98mkExWvaNF/epV1pd8lW1NnB26462tDXs
-         UYsALZALTxA09WE3Mw2/5EA7szvbUW6bclRUHEcVCe2IPqeoD1EdelEE/WR7Zh7gbkjb
-         nhwg==
-X-Gm-Message-State: APjAAAU+vgkeTs8OeKuCrSH0JI7lx1dJ4MsSt2j7Nw0kDgVKTxv/WJDA
-	5OWBuDGbCVNL6VTi0Hyhom4d/rNYu6YL4/zZxxtXHJghKlpgtljNiVEQUYeygg44OTNzFC9AJVJ
-	IkEndKP6EuaHPxsjVxpadsKPDPFYhpsxotdU41yA9B6fvSfIMr2dq+CG9BiiSzb3nIA==
-X-Received: by 2002:a24:b543:: with SMTP id j3mr2285608iti.23.1560409016422;
-        Wed, 12 Jun 2019 23:56:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwU+h3/1OUyuYanjK04tEkhe+f8YG55NHBBTYl5omRcPeqk7YEOkkq9FON/E4wmPEBqnmlB
-X-Received: by 2002:a24:b543:: with SMTP id j3mr2285589iti.23.1560409015840;
-        Wed, 12 Jun 2019 23:56:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560409015; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=5ve0fQ6y2AApSuSxdKF91u1GshVI+/HZskoxA8QEWc4=;
+        b=FtMuUHvd/90yJr001tGaegZTxKMfoHQLW2af7WM+oQVIyrpXg9G4YWHV5sIiNnOoF5
+         yrAaV3BSx87GGfFu5uqfZA6DmwAvMYzrVa+rCx9zWaQ08MI0OtHldJY6lWEb7g4b7DAT
+         c8XBx0hf8leuDJU2+cl31WYU/fYj4kTS0pgCGoxA6LArp8WgTgng/GQJVtHnA2FxTl8P
+         /is4QHKORiU8AHuTRwT3sfi3bfCV9STGMVCShnGVgHugpj6dFITHVFIfwelVIDX7tq4M
+         2rCWwaRJK9cNPa7YdKmvzW54h5Edta+HnHmvmhDCVxM2/CqQdR59O3F5Dk5RPy3nx+CD
+         /lQw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAWfuHmLItTZDIVT+WW1vfpo4RWKozP7cvkWjSE6VhHKYIaNay3i
+	YmAy8zzIC88ap7YVFr1clSySpMxEaLYZUDfTdVJMxqUPIe64QA/sFJz/6TL19m+/iYtO5TjlAjv
+	BpACgTTizJ20cv5W1Ie54gVvqI+AWOFp1UGOCvIi/HLXbgHw0YL76bK1vdZF63g5c1A==
+X-Received: by 2002:a50:d791:: with SMTP id w17mr90922967edi.223.1560410273022;
+        Thu, 13 Jun 2019 00:17:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxSa2v4DiR3J1tXCjAFD8b2mHCKXEkJjsORY+/gxEmNXFpmToyAnwe9B6EuoKr7rL0F2z+Q
+X-Received: by 2002:a50:d791:: with SMTP id w17mr90922903edi.223.1560410271996;
+        Thu, 13 Jun 2019 00:17:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560410271; cv=none;
         d=google.com; s=arc-20160816;
-        b=eOKHHa4CeVwh3lzbquWtUL4k8peSu37X1wlwgb8G/3K4deDmnAAzuixhTEYmK84FeA
-         PfDuPk+DJkpkVIxp2jDcZ08GnXJHThvdf3FvEaqlI4MHJqAk4DVaUYaxoQT0aDnzLNAD
-         K1CJ5t7YGbFUxK3PxAjFnkeb2W2oTcH6m6Onvq4ZgVebgx9y9W4L0CrcXbjt23ZC2J+R
-         tB9et1s+1vLqI5hHl2LfbmN3gDtayh+i3da7mrIy+uMyn15kMrMxipK8Zc/ik8fIvJDc
-         cBdZyBVdPf1via/BJnP8B23I/0oC09q/bndLeaiLkCVy26dC+KEE3SKoL+lP5OfaOZrz
-         df3A==
+        b=Lcf+zwnxKamWU+6a4z9c0RjDIr6FeQUlfY1kOP6rCSBC/rtstn6q9B0pYCWA9wVP1Y
+         1EATl8JFvVYRF+bR5/bX6udhBTnWGzKdZKAodaOFn56vBk5/hgFhM+FuMNrmgu1M2fwZ
+         jHjpXR7PGB8SQnttKoTWe3QpCc6fC0wDdQfnjuC+nKWmjQmg+ym0o75uJa4NduJa7jIy
+         wdIy1euRGlUPFWbWbWmtl84C2ctIG5YafUBeDucZ3+CzYu22dV2Uy8WxZxkkq6HQd+jW
+         PQpgox76byeAnuavKL30KPqfeWz0jpIW8U+pgJrKju55tDKvVe9BEXS6PEzZvDuGQowW
+         tyfg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=Rydac0kByKvRlT58oD81CeEmII8iE4ez/kqn0T7bhHc=;
-        b=mqtHCPZIIEUv8nCn82P9aXn6cErsRJql+NoAD2K3+DAN5exGPmUXNLC6/pSkAlsTYG
-         moqcE5K5TJphJv5IoIkPNemZYOnvTssYt+QGWitEDYRLp04k3n/yrEoTLY/Yym2+7M1f
-         lsBqMWzXm9lAHdeT6XFEVrWHBKtw8DPQuLiDx/If3AShBe8di/Io35rYCRpGxQ0gxHlj
-         w2Fy9fPwgnZA/y2mNLNuGGWCcghxiU+iCntgkpntq1JV5MS28MPTB9VSmnHn0YJvqNq6
-         xBpzaoThXKbT5irZ4bowP702jl6/kXvQjmxcFzRi4nlHACppMxJ8pZfHHl+Qh1lhNEq+
-         2IvA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=5ve0fQ6y2AApSuSxdKF91u1GshVI+/HZskoxA8QEWc4=;
+        b=gIHzerwjG5pMpSa9Y+xZKRGqkAE+SiRp3jf9yghsdrVkQJRgHqOr9SbFphHc5OGDEq
+         +3buAhyVdjuG/uiTVYJtL9z4G7d2uP5bPddl3uitAGYh8X0fibiWcCGutbRQAtoRNrjz
+         mrTnaPj2RfNwOuo/eCUBVQMyM0LeZG61SSwJJ4KPahAHLE3WK5Zi3JmvX3k3gU/Smph2
+         krV2RVA9lv6ZaZF4qGxu1ha/LAtfAJbe6iRsC7Yld+E2gSiWgS7mwHt+dilA45eUPS0E
+         1VBEAVwtimcYwK8/icuGjBnUTYLKbaWcyQ7l4Rtkrd7zTEXlyZR17CZoXgTtQE+jkuYX
+         KcEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=BVlJnpxV;
-       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id u193si1680344jau.21.2019.06.12.23.56.55
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n12si1420549ejk.343.2019.06.13.00.17.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 23:56:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.carpenter@oracle.com designates 141.146.126.79 as permitted sender) client-ip=141.146.126.79;
+        Thu, 13 Jun 2019 00:17:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=BVlJnpxV;
-       spf=pass (google.com: domain of dan.carpenter@oracle.com designates 141.146.126.79 as permitted sender) smtp.mailfrom=dan.carpenter@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2130.oracle.com [127.0.0.1])
-	by aserp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5D6sMnZ030606;
-	Thu, 13 Jun 2019 06:56:51 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : mime-version : content-type; s=corp-2018-07-02;
- bh=Rydac0kByKvRlT58oD81CeEmII8iE4ez/kqn0T7bhHc=;
- b=BVlJnpxV5rDOyTJgv7p3PzIaCOGoglizj9apj5P1I/OeZkHktovm318MJAQjDKX4TmtS
- yhnoh4CbT7AkSPcCWcV1DpXi70uRmTNEi9eq1iBbpEAdCl+Nop8edbPXzN0eHVYSXZBZ
- 37VSiMdjE74vMS2AlqTHtnWmT02DQXWzmdEyKi004CKWNOL6zEPC23KZlDyYjUzq51FL
- mDUzHzrFCna8tLYEKpsNzLvZZIBBK9LMC7ASGdf3mA9zOnUoprMc0Oi6ooimB9rBzUfb
- lu5rZaLKeeTD3MHkwpwxDxMxyFc0AJpIXonGPYdEQyn8EUjeY/LsRTZAbuHvjRDPU2RL FA== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by aserp2130.oracle.com with ESMTP id 2t02heyryp-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 13 Jun 2019 06:56:50 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5D6tLbf005474;
-	Thu, 13 Jun 2019 06:56:50 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by userp3030.oracle.com with ESMTP id 2t024vbq0r-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 13 Jun 2019 06:56:50 +0000
-Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x5D6ujtG012959;
-	Thu, 13 Jun 2019 06:56:46 GMT
-Received: from mwanda (/41.57.98.10)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 12 Jun 2019 23:56:45 -0700
-Date: Thu, 13 Jun 2019 09:56:37 +0300
-From: Dan Carpenter <dan.carpenter@oracle.com>
-To: Christoph Lameter <cl@linux.com>, Kees Cook <keescook@chromium.org>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
-        Joonsoo Kim <iamjoonsoo.kim@lge.com>,
-        Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-        kernel-janitors@vger.kernel.org
-Subject: [PATCH] mm/slab: restore IRQs in kfree()
-Message-ID: <20190613065637.GE16334@mwanda>
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 45815AF05;
+	Thu, 13 Jun 2019 07:17:50 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 051E71E4328; Thu, 13 Jun 2019 09:17:47 +0200 (CEST)
+Date: Thu, 13 Jun 2019 09:17:47 +0200
+From: Jan Kara <jack@suse.cz>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
+	Ira Weiny <ira.weiny@intel.com>, Theodore Ts'o <tytso@mit.edu>,
+	Jeff Layton <jlayton@kernel.org>,
+	Dave Chinner <david@fromorbit.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	linux-xfs <linux-xfs@vger.kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	linux-nvdimm <linux-nvdimm@lists.01.org>,
+	linux-ext4 <linux-ext4@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190613071746.GA26505@quack2.suse.cz>
+References: <20190606104203.GF7433@quack2.suse.cz>
+ <20190606195114.GA30714@ziepe.ca>
+ <20190606222228.GB11698@iweiny-DESK2.sc.intel.com>
+ <20190607103636.GA12765@quack2.suse.cz>
+ <20190607121729.GA14802@ziepe.ca>
+ <20190607145213.GB14559@iweiny-DESK2.sc.intel.com>
+ <20190612102917.GB14578@quack2.suse.cz>
+ <20190612114721.GB3876@ziepe.ca>
+ <20190612120907.GC14578@quack2.suse.cz>
+ <CAPcyv4ikn219XUgHwsPdYp06vBNAJB9Rk-hjZA-fYT4GB3gi+w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-X-Mailer: git-send-email haha only kidding
+In-Reply-To: <CAPcyv4ikn219XUgHwsPdYp06vBNAJB9Rk-hjZA-fYT4GB3gi+w@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9286 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1906130055
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9286 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906130055
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We added a new return here but we need to restore the IRQs before
-we leave.
+On Wed 12-06-19 11:41:53, Dan Williams wrote:
+> On Wed, Jun 12, 2019 at 5:09 AM Jan Kara <jack@suse.cz> wrote:
+> >
+> > On Wed 12-06-19 08:47:21, Jason Gunthorpe wrote:
+> > > On Wed, Jun 12, 2019 at 12:29:17PM +0200, Jan Kara wrote:
+> > >
+> > > > > > The main objection to the current ODP & DAX solution is that very
+> > > > > > little HW can actually implement it, having the alternative still
+> > > > > > require HW support doesn't seem like progress.
+> > > > > >
+> > > > > > I think we will eventually start seein some HW be able to do this
+> > > > > > invalidation, but it won't be universal, and I'd rather leave it
+> > > > > > optional, for recovery from truely catastrophic errors (ie my DAX is
+> > > > > > on fire, I need to unplug it).
+> > > > >
+> > > > > Agreed.  I think software wise there is not much some of the devices can do
+> > > > > with such an "invalidate".
+> > > >
+> > > > So out of curiosity: What does RDMA driver do when userspace just closes
+> > > > the file pointing to RDMA object? It has to handle that somehow by aborting
+> > > > everything that's going on... And I wanted similar behavior here.
+> > >
+> > > It aborts *everything* connected to that file descriptor. Destroying
+> > > everything avoids creating inconsistencies that destroying a subset
+> > > would create.
+> > >
+> > > What has been talked about for lease break is not destroying anything
+> > > but very selectively saying that one memory region linked to the GUP
+> > > is no longer functional.
+> >
+> > OK, so what I had in mind was that if RDMA app doesn't play by the rules
+> > and closes the file with existing pins (and thus layout lease) we would
+> > force it to abort everything. Yes, it is disruptive but then the app didn't
+> > obey the rule that it has to maintain file lease while holding pins. Thus
+> > such situation should never happen unless the app is malicious / buggy.
+> 
+> When you say 'close' do you mean the final release of the fd? The vma
+> keeps a reference to a 'struct file' live even after the fd is closed.
 
-Fixes: 4f5d94fd4ed5 ("mm/slab: sanity-check page type when looking up cache")
-Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
----
- mm/slab.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+When I say 'close', I mean a call to ->release file operation which happens
+when the last reference to struct file is dropped. I.e., when all file
+descriptors and vmas (and possibly other places holding struct file
+reference) are gone.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 9e3eee5568b6..db01e9aae31b 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3745,8 +3745,10 @@ void kfree(const void *objp)
- 	local_irq_save(flags);
- 	kfree_debugcheck(objp);
- 	c = virt_to_cache(objp);
--	if (!c)
-+	if (!c) {
-+		local_irq_restore(flags);
- 		return;
-+	}
- 	debug_check_no_locks_freed(objp, c->object_size);
- 
- 	debug_check_no_obj_freed(objp, c->object_size);
+								Honza
 -- 
-2.20.1
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
