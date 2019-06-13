@@ -2,184 +2,219 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C23FC31E4A
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 19:53:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21CDAC31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 19:55:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB33D2133D
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 19:53:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CC27C2133D
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 19:55:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="fX5tey0o"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB33D2133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="Jy1yI5/V"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC27C2133D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 66D466B000A; Thu, 13 Jun 2019 15:53:08 -0400 (EDT)
+	id 693516B000A; Thu, 13 Jun 2019 15:55:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 61F2B6B000C; Thu, 13 Jun 2019 15:53:08 -0400 (EDT)
+	id 61D3B6B000C; Thu, 13 Jun 2019 15:55:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 50DCC8E0001; Thu, 13 Jun 2019 15:53:08 -0400 (EDT)
+	id 4BF008E0001; Thu, 13 Jun 2019 15:55:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 333516B000A
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 15:53:08 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id v205so19987ywb.11
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 12:53:08 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EF0A26B000A
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 15:55:30 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id a5so280782edx.12
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 12:55:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=Jb4g90Z1ba65oKYjTxGpf+f/32abJWQiXQLuIbWbzvY=;
-        b=TOOEGRFUDQmAb+Uj4Oci+ai3qQ9IZO5LYpal2/erHFP7o1ncspE1EWjXxSaF57XuQk
-         aBehKSOAmnA21oulblNolKqZhUZy6IVaE2FkpGnNxZx/fqnxTkL3vpPcPjRylqoF+E0o
-         W/500CuPLxs7Aay6oSxjuMbVhnhIzFbgP1doZgd8/kU5u76zRAEmfJwGtAsIzVmExU04
-         +oL+1OLlogAFLbbh0kE1fMcf5+zDL5LXum19TNOynuHJ1tIjoRYfBwAsihPwujQC5PG6
-         ED45gUj10urKmiZeK3WCr8En9+hNlPexxkKcmYbFrCa5qTFfhMWY5fmIlUMFWmdJb0Pr
-         7dig==
-X-Gm-Message-State: APjAAAWPd5pdERr13izFPV/QwBhpmz0FNSb4f2D3dsebftPAoPY+K274
-	MwYs2ClQ6DO9aQbvNaSsOlHQnnErLBc44oZeNw9quYXmZpDYsLL+jCHMmtV6/pegY/cptHw2oVh
-	Nicq03Dj6ChDxjBpUnBVlZ/NbFzHO8Dpfe2C7h89DJEMmwRN0HN3xHu0KFDmtxAhdvQ==
-X-Received: by 2002:a81:3a46:: with SMTP id h67mr44901155ywa.455.1560455587936;
-        Thu, 13 Jun 2019 12:53:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxeXPhoQVSWXd9+o1p7zZ9gYAVq8oh6foVvM0nfEqG37qOFcR7qD/2nleRU+b+qbfBhdscf
-X-Received: by 2002:a81:3a46:: with SMTP id h67mr44901142ywa.455.1560455587397;
-        Thu, 13 Jun 2019 12:53:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560455587; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=nEwJJyAiRP/kORjuK5/bDnzsGqocm4iUPsZxcYdbwzk=;
+        b=dOZJGgyhYzyQ/n6W7PzLfABXoqDdH5yrsaHe/mwfkOw25YopwHai3sNoE71ToVqITb
+         7yieouy3CQkS6dv14eGymH6kKTvOun3rruyNG5wnOo3DVTZQAb6wUz7rw3Q4F4qYgHyz
+         7dbeptnfpr0k9ixf4WRGDF3+dTX/Z2eelpAB9mRf76q/9amQ0wNRhlqpBAEGaK37F3tx
+         WRr2HQbpHL4CAQne5BUu0SXviS6Mz0XSrdYAyEdvtcOXfSkuprEJWUtV3sg2bGI39b1W
+         Ify4O91u2ip+672OG2oiOTjK2hb5KOa/GatDT9HPPzUyWXG1xp94HYVOUsz5ZrXOBFy4
+         nEKw==
+X-Gm-Message-State: APjAAAU/cmergLbBjJa83weQcVgludC5bwp0r9G4NRLRLFVev444cVkw
+	/eJ2tRcYHgbQFrigscAy5DzVgZM3zJ9ld/K+GqYyKAKnBf3prfStO2CBMsIeGd69RCpXOfvc3Es
+	sS0IfCWGyRFWiuC2vHQdWgpF9AoYutJe7nZLGE9nJbSMjzacgSIyFLr3QWq+h+qUMSg==
+X-Received: by 2002:a50:b66f:: with SMTP id c44mr30127571ede.171.1560455730531;
+        Thu, 13 Jun 2019 12:55:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzrIIZx68aFRy5aErXsqXRNn7LYx05/DW+QGA/ZeFMRY6y3dQhe/DIdKuAZPS0VcM95tfzy
+X-Received: by 2002:a50:b66f:: with SMTP id c44mr30127500ede.171.1560455729723;
+        Thu, 13 Jun 2019 12:55:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560455729; cv=none;
         d=google.com; s=arc-20160816;
-        b=GrO6cpNIDA+l3d1wnSiasn1xwsv4+GI72a6DNdRaSH6ISRx86+im5hRz6p/vQX5bDq
-         tBhiOc0iWAVae8XZTLnJGbCgzTXWogQWSl0hc03kWURkPtHuxvXaQELluAOprm4fS/6n
-         nJZ4fjZqo1mP7xqUxFj32eaWn6j4Y3+1IzUmCIwisP8oVTijuIqe4aRMaa9PiYsHV36r
-         8swLvdjh0lLLWPyJS+s0IH57arxHLC9ZjkEyhbqSbQEfQG1Q5WX06JiR+XWExBnoueeK
-         MS5C1799Pelr+iggz9qCfsALRoBjPEoZOueS3l0piNtsfRgB++eJ0Sli85Zl1leu2QmA
-         Pgog==
+        b=HcFsGjzatDpESrv+vI4LgDlFuRVNyzlTHy/QjKRaCTMTDCxynCXeLy1pFyoOeL814A
+         ApY5quy9NwFpUgE26AWZ191Hh4TUgDQ6pJqZy4dDgTNuO9pKZ5L8lmjtOu3hnC47fyTi
+         2em8lI2n1vuhpLUeh+YPHBjQ1YnaeKVF0/5solpPMgG9U0aqdmPAo7jx0MHO5GyG7sca
+         bejxfWD95F3D1OHDdexvyM/0ixzqdRHSClU3mxTDnkR5lf954ujhnXw2qog5KNnPum8i
+         11wSCR9LPP3CAbu5+aW7cO+ZUbUS0KnLDntFIxvy08SdvPsE6fLaGEA8UOFVAB2xNHD9
+         3yyA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=Jb4g90Z1ba65oKYjTxGpf+f/32abJWQiXQLuIbWbzvY=;
-        b=q5W7N6e9XcjYTfTLEbUJ8Oqf08Ax+ueDMbL7Dmt7dSOOMihkZ5eP88ccAJjk2pgJ+a
-         WbHHihrAJpgIwt12c+6QlU/Cq3xewLEJ8Rrskm/0llkHHWnylYLWdINNsVC/X7ceRj74
-         RzmefSt4vHrD97TaDFU4craEscvmB7/VMJ1/jaPFnmzH7SxeRBjlrzUfldPmd+RzZNyr
-         Vh3wWB9I52RgD9X+6Eh1HbbwMycSnUmLuCeB1zIF1XJ8UNFCYX9Wti+xJWqKMiA55yxW
-         5OJljGMwaXTeaqNJKy4gq+16jmDYGSlfJIf9c8ebo9lzKsLc7s7M9T0zn+HTQXFXxcag
-         Y3sA==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=nEwJJyAiRP/kORjuK5/bDnzsGqocm4iUPsZxcYdbwzk=;
+        b=XB3zbUci+uq0oMUKjbG/5ZuBUzHeSBzimzcLIbtNLcZuveXjs0zt7kf0XGl5mpiNh1
+         hutaREFVTiVopOapXgKebkzcZ5KIODWohQcxxIbldaDM9AB272c0eZXx3N5oJxdnmJ4q
+         KL0nVVR+Eat5LJJNsAf1xSdm0DzHbugFNnELJUddbrOkX1XNitLLGnat58Kk+EiYZ0OV
+         qCZYpl3jXmC8f3epRefMAceQcnoE1NDmFRnC5FKa8In/8O2dVIC916lDoS9QgkyXk3UY
+         b/+s9Kfy6Hbs3Ze1HavXPA/nZPi1GiRNU19tlds3+Yer1OUGAxrvSx2H2lhlvdbXswnE
+         H0wQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=fX5tey0o;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id n130si241868yba.172.2019.06.13.12.53.07
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b="Jy1yI5/V";
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.4.82 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40082.outbound.protection.outlook.com. [40.107.4.82])
+        by mx.google.com with ESMTPS id y27si399531edd.235.2019.06.13.12.55.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 12:53:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Thu, 13 Jun 2019 12:55:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.4.82 as permitted sender) client-ip=40.107.4.82;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=fX5tey0o;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d02a9a20000>; Thu, 13 Jun 2019 12:53:06 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Thu, 13 Jun 2019 12:53:06 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Thu, 13 Jun 2019 12:53:06 -0700
-Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 13 Jun
- 2019 19:53:02 +0000
-Subject: Re: [PATCH 18/22] mm: mark DEVICE_PUBLIC as broken
-To: Jason Gunthorpe <jgg@mellanox.com>, Christoph Hellwig <hch@lst.de>
-CC: Dan Williams <dan.j.williams@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
-	<jglisse@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, "nouveau@lists.freedesktop.org"
-	<nouveau@lists.freedesktop.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "linux-nvdimm@lists.01.org"
-	<linux-nvdimm@lists.01.org>, "linux-pci@vger.kernel.org"
-	<linux-pci@vger.kernel.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b="Jy1yI5/V";
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.4.82 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=nEwJJyAiRP/kORjuK5/bDnzsGqocm4iUPsZxcYdbwzk=;
+ b=Jy1yI5/VKqd/VgdOmHrINnydsU/WCKDluPxkYA1Pz4noysXmRZKw3SBDPqzLK/yjwFybM9JGMxuWlsXvvtPro52Nns4TPcFNPIlc6XAW5nVbPvxGFz9fU3JFZ7ei9xPNVNSEbgsgZJkrkh2H6OChaMY3OIWUynUKKUpny8L6w4I=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB6030.eurprd05.prod.outlook.com (20.178.127.208) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1987.10; Thu, 13 Jun 2019 19:55:27 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::c16d:129:4a40:9ba1]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::c16d:129:4a40:9ba1%6]) with mapi id 15.20.1987.012; Thu, 13 Jun 2019
+ 19:55:27 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Christoph Hellwig <hch@lst.de>
+CC: Dan Williams <dan.j.williams@intel.com>,
+	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Ben Skeggs
+	<bskeggs@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 20/22] mm: sort out the DEVICE_PRIVATE Kconfig mess
+Thread-Topic: [PATCH 20/22] mm: sort out the DEVICE_PRIVATE Kconfig mess
+Thread-Index: AQHVIcyZrF37VPU7NkqyJQqyYg9vCKaaAEUA
+Date: Thu, 13 Jun 2019 19:55:27 +0000
+Message-ID: <20190613195522.GZ22062@mellanox.com>
 References: <20190613094326.24093-1-hch@lst.de>
- <20190613094326.24093-19-hch@lst.de> <20190613194430.GY22062@mellanox.com>
-X-Nvconfidentiality: public
-From: Ralph Campbell <rcampbell@nvidia.com>
-Message-ID: <a27251ad-a152-f84d-139d-e1a3bf01c153@nvidia.com>
-Date: Thu, 13 Jun 2019 12:53:02 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.0
-MIME-Version: 1.0
-In-Reply-To: <20190613194430.GY22062@mellanox.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
+ <20190613094326.24093-21-hch@lst.de>
+In-Reply-To: <20190613094326.24093-21-hch@lst.de>
+Accept-Language: en-US
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1560455586; bh=Jb4g90Z1ba65oKYjTxGpf+f/32abJWQiXQLuIbWbzvY=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=fX5tey0oBNTieShQOoS4gHfsvizLQIZuWaHc6dzOwFFJidyDqIYU2AUhp266HRFrN
-	 XrtOPBnaSUAKElzDHFexziLEsf0mgRvYpwoaL4sSYsIU1LcKrpDAHjizgl/yJjcdl3
-	 p6Pf6shBbCxBVGLYCn7p1Sc7R72zptzPvDHZbEr82hLm46tnMp65GrRnZ3EbGnwLJz
-	 23lgDPGqY/fbBOf3AXToJKAO/Z8B9A4BRpstqapMwDkQOz+kz4JCB2SNVDQH0ir2MJ
-	 WzkLVK43aAga/2HoikuGF1iJ+5COBwso/r1BhSmM63r0HyIcQnSmXduf+EERM53rtq
-	 kwroL2mZCH2Jw==
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: YTOPR0101CA0044.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:b00:14::21) To VI1PR05MB4141.eurprd05.prod.outlook.com
+ (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [156.34.55.100]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: bd28a2a7-5003-4b8d-267b-08d6f03914bd
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6030;
+x-ms-traffictypediagnostic: VI1PR05MB6030:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB6030B13E365564B4E5481A54CFEF0@VI1PR05MB6030.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8882;
+x-forefront-prvs: 0067A8BA2A
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(376002)(366004)(136003)(346002)(396003)(39860400002)(189003)(199004)(76176011)(256004)(99286004)(3846002)(4326008)(68736007)(66556008)(73956011)(2906002)(66946007)(6246003)(66446008)(64756008)(386003)(6116002)(6506007)(1076003)(52116002)(66476007)(86362001)(446003)(316002)(14454004)(6512007)(2616005)(53936002)(66066001)(81166006)(478600001)(7416002)(33656002)(8936002)(71200400001)(71190400001)(36756003)(11346002)(6916009)(476003)(8676002)(7736002)(102836004)(5660300002)(186003)(305945005)(26005)(54906003)(6486002)(6436002)(25786009)(229853002)(81156014)(486006);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6030;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ oI2gqlYWTW8WwdfpP4D/HtS9tiaNqRomendZIt6T1TP2oZFYff5e2998HL5tpSaK7cNH6gZd4/lIxSd+EKK2fTKqWmwLTlJVdXcuBjcWTkTz9KEQskxp20EE9U0BRqDMR0FwZHhN62AgCAbdERMl1RU1ZOROE8LZpdIQtD1C6ZNaPFsGVelIaENnV6EnaR8Pf7SCavVu4AUI2+feMWh3iKfRw8Dg5MrUSc6gXz87xbseLSalBRKCpQ6ofubmbZblPq8kvFYrJrHnIkB9v1Z93u1EN/fsLZoFW4Mxh6sIushFOBVLUW80QyyZ3b7UkDAlytgtUU9BwBLMCeH2gvd5j0JvApf9927RIC8KbY+9mbyg6p8OhGfLoFDD7psiLq5klX259sKQdGTi6P2zyV3peyWyYcTPqly0XRmsXFoHZNc=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <9319F5409ED4434CA9F8E3BAE5D597B1@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: bd28a2a7-5003-4b8d-267b-08d6f03914bd
+X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Jun 2019 19:55:27.4904
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6030
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Jun 13, 2019 at 11:43:23AM +0200, Christoph Hellwig wrote:
+> The ZONE_DEVICE support doesn't depend on anything HMM related, just on
+> various bits of arch support as indicated by the architecture.  Also
+> don't select the option from nouveau as it isn't present in many setups,
+> and depend on it instead.
+>=20
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+>  drivers/gpu/drm/nouveau/Kconfig | 2 +-
+>  mm/Kconfig                      | 5 ++---
+>  2 files changed, 3 insertions(+), 4 deletions(-)
+>=20
+> diff --git a/drivers/gpu/drm/nouveau/Kconfig b/drivers/gpu/drm/nouveau/Kc=
+onfig
+> index dba2613f7180..6303d203ab1d 100644
+> +++ b/drivers/gpu/drm/nouveau/Kconfig
+> @@ -85,10 +85,10 @@ config DRM_NOUVEAU_BACKLIGHT
+>  config DRM_NOUVEAU_SVM
+>  	bool "(EXPERIMENTAL) Enable SVM (Shared Virtual Memory) support"
+>  	depends on ARCH_HAS_HMM
+> +	depends on DEVICE_PRIVATE
+>  	depends on DRM_NOUVEAU
+>  	depends on STAGING
+>  	select HMM_MIRROR
+> -	select DEVICE_PRIVATE
+>  	default n
+>  	help
+>  	  Say Y here if you want to enable experimental support for
 
-On 6/13/19 12:44 PM, Jason Gunthorpe wrote:
-> On Thu, Jun 13, 2019 at 11:43:21AM +0200, Christoph Hellwig wrote:
->> The code hasn't been used since it was added to the tree, and doesn't
->> appear to actually be usable.  Mark it as BROKEN until either a user
->> comes along or we finally give up on it.
->>
->> Signed-off-by: Christoph Hellwig <hch@lst.de>
->>   mm/Kconfig | 1 +
->>   1 file changed, 1 insertion(+)
->>
->> diff --git a/mm/Kconfig b/mm/Kconfig
->> index 0d2ba7e1f43e..406fa45e9ecc 100644
->> +++ b/mm/Kconfig
->> @@ -721,6 +721,7 @@ config DEVICE_PRIVATE
->>   config DEVICE_PUBLIC
->>   	bool "Addressable device memory (like GPU memory)"
->>   	depends on ARCH_HAS_HMM
->> +	depends on BROKEN
->>   	select HMM
->>   	select DEV_PAGEMAP_OPS
-> 
-> This seems a bit harsh, we do have another kconfig that selects this
-> one today:
-> 
-> config DRM_NOUVEAU_SVM
->          bool "(EXPERIMENTAL) Enable SVM (Shared Virtual Memory) support"
->          depends on ARCH_HAS_HMM
->          depends on DRM_NOUVEAU
->          depends on STAGING
->          select HMM_MIRROR
->          select DEVICE_PRIVATE
->          default n
->          help
->            Say Y here if you want to enable experimental support for
->            Shared Virtual Memory (SVM).
-> 
-> Maybe it should be depends on STAGING not broken?
-> 
-> or maybe nouveau_svm doesn't actually need DEVICE_PRIVATE?
-> 
-> Jason
+Ben, I heard you might have a patch like this in your tree, but I
+don't think I could find your tree??=20
 
-I think you are confusing DEVICE_PRIVATE for DEVICE_PUBLIC.
-DRM_NOUVEAU_SVM does use DEVICE_PRIVATE but not DEVICE_PUBLIC.
+Do you have any nouveau/Kconfig patches that might conflict? Thanks
+
+Does this fix the randconfigs failures that have been reported?
+
+> diff --git a/mm/Kconfig b/mm/Kconfig
+> index 406fa45e9ecc..4dbd718c8cf4 100644
+> +++ b/mm/Kconfig
+> @@ -677,13 +677,13 @@ config ARCH_HAS_HMM_MIRROR
+> =20
+>  config ARCH_HAS_HMM
+>  	bool
+> -	default y
+>  	depends on (X86_64 || PPC64)
+>  	depends on ZONE_DEVICE
+>  	depends on MMU && 64BIT
+>  	depends on MEMORY_HOTPLUG
+>  	depends on MEMORY_HOTREMOVE
+>  	depends on SPARSEMEM_VMEMMAP
+> +	default y
+
+What is the reason we have this ARCH thing anyhow? Does hmm have arch
+dependencies someplace?
+
+Thanks
+Jason
 
