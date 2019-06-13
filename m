@@ -1,175 +1,239 @@
-Return-Path: <SRS0=Ax9E=UL=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD1B8C31E46
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 23:49:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 16559C31E46
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 00:04:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 94C05208CA
-	for <linux-mm@archiver.kernel.org>; Wed, 12 Jun 2019 23:49:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94C05208CA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id BABD021721
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 00:04:33 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="PwhK9KDI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BABD021721
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 207B66B0010; Wed, 12 Jun 2019 19:49:14 -0400 (EDT)
+	id 335206B0008; Wed, 12 Jun 2019 20:04:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B8A26B0266; Wed, 12 Jun 2019 19:49:14 -0400 (EDT)
+	id 2E5816B000E; Wed, 12 Jun 2019 20:04:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 080E36B0269; Wed, 12 Jun 2019 19:49:14 -0400 (EDT)
+	id 1D5C56B0010; Wed, 12 Jun 2019 20:04:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C692E6B0010
-	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 19:49:13 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id y5so13085721pfb.20
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 16:49:13 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DBB726B0008
+	for <linux-mm@kvack.org>; Wed, 12 Jun 2019 20:04:32 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id f9so13145642pfn.6
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 17:04:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=wq9rAsPaxnT+MWeaQyCG0bTAAecSDhi0iHcA45NgI+k=;
-        b=EgURH6TmK8eVAVgpV+mflAvYKhejhR1v66RUswB3vntZYm9BQOyxRB2muDN+y0FZ9d
-         Lpc1JONeNlNHM9Amw4JFC1izDgOoDKTZR3S74FeXwZDU5hAeHJVtQL1uod+1H+DvV/04
-         rEQSJpAhSPPp1eUkrmcrgxeclR89Dw/WzWgKvgUdYao0yNTdPUIsxDJ1nXzKs7ozsfEA
-         Ig8el+3n9voGEXiYYj/XoiutN/y6p/oy/SzgKamOYAwpig5rQ8r2MaeYFMSgm9glOd8g
-         OnMF1sw+Q/ff6IptLza8r2UfWx0lMpEiE0/njAdWU3d/zS1YVjAJKT9BwH+VU83l9tWF
-         79RA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXt5zD6HshpzZp5u/MQJ/elgdB6pzfQqsyNtL19bFeKHry5ZfwV
-	Wp4sRKAwtWU9uXB02qHgCEh4+3RmiYBSug+ZQ/DBALHHSzqtDXREcdmIMvv+P6yxgd1dGzs735z
-	Fpg+SWw5hYZ88/28ZCoMA7gmgHyNIqUbdu7LjDTf9qosJImoIoal8/fKoDIcIVjJxUg==
-X-Received: by 2002:a17:90a:ac0e:: with SMTP id o14mr1762535pjq.142.1560383353446;
-        Wed, 12 Jun 2019 16:49:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyhu/jLXaoxBxXE3PuE9fdsa+Vct25a1gn9HkRmDHAaRftHYmvNSkK/HCE8BYWSPAZa8tHX
-X-Received: by 2002:a17:90a:ac0e:: with SMTP id o14mr1762486pjq.142.1560383352640;
-        Wed, 12 Jun 2019 16:49:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560383352; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=IcswwZUgsj7YUPNnNhWKtBIpylsIv3CV5VizTq8ogT4=;
+        b=MRkA2rRJoaXApcyjUIav4gM+b5nyAgvLUYhgYHrGSD1Jms0BQeeeKanyP2DOT7XRGS
+         gOX3eG2vMd4fbZ4sDcPDP4OnAsMOca4mMGcNslwuZG6zQWkCljnj6857UyuxRm3d9XFF
+         OB6dF0YrZyvIgJ92CXoZAaXigJXsLGtwM3o8c3+EgjqZndCljgso1ppKVJmXnca1TE3k
+         1omH6mNbuiXW+T7hRNciCs2Gy2JvEvADRREKH/BmyDzvoJhtLvHKsyqwYkT6JsTllKPr
+         hsVMGRx1/rj0HID9/SQOBWqGwDoiwcKg470vhZNYVwIlhhZLeOaDBuLDj2K4pkooAOjg
+         ttOQ==
+X-Gm-Message-State: APjAAAXsWvjxT9M2OatoQofIVqia80tPwZNZVT3ofymOu9UP+NAvP/1/
+	2fMBEFWncSciBI9+XseXgmLGcNwtaCbE9MdDilh8Swo1Inl1PWiRmLSFFUy3UYIqCq4e/+1vbbo
+	zIXn3g+vIXjeNJ6/mkFfdkv3h7MrtMBvufQo+seQpbp0rj6bwJ0/PBMgOh36e4yk9wQ==
+X-Received: by 2002:a17:90a:1b0c:: with SMTP id q12mr1824260pjq.76.1560384272488;
+        Wed, 12 Jun 2019 17:04:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyKBjU9hWQxdBW6nT2Zs0LAIluf6tEYK2Bzswf0Ws1qGI0THCf+6JNfmN6YI0hhaVO1BNAF
+X-Received: by 2002:a17:90a:1b0c:: with SMTP id q12mr1824219pjq.76.1560384271734;
+        Wed, 12 Jun 2019 17:04:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560384271; cv=none;
         d=google.com; s=arc-20160816;
-        b=xi2UnsYH43xMRovi70fD3yv37bCdQ1ZnhzeCc8dd+5dkYSWlWxpyLyMnrmFe10qfrF
-         g4d6GvQeaB7a2OV9J4iZLNiMHWPJo3rGWgbOURTqidVJfJuAvD3Z6wK+zI+nE2I1iOaG
-         IFkwghS9AqO+I8suoraq7/q0qmWZhh3S/OPHXHahjgkuSecagAlBvmtkMv3hFdwnxv6I
-         V4Rubba70wjVjvG7Rw6X4F3vih3ej8PU50cjUR4CkN9nIZFPDR2NXjYy0UAAbonruwhb
-         /YhNfurJBLut+WXRxM/6OrfrBeDMJ/HMMTe77cNypKpLTjVzJ5L/C2M3V3cXHSjQ1ZHP
-         Wbfg==
+        b=1DOyj1dulVV7lGx74GfdIY2ShhoC2c2l6WVsAvGWd/MA1tvVQ1Vsvcd2I8JEvJ3Bxs
+         nBOU27ZnjBpX1W2WXEpMFciDe6QYZrXIrPeoLK6Elqz8/SFj2elhm8CBDLIyvIpLLNx2
+         UczRN6jdVnmclmCBgFDDj7Ja3WEKzoSYtTYe8k2a0kWtlMT1wgcj4J0X4hs0GMN71Iui
+         8/xqRRYRSHWMOpLlx94HPag/Uj6An+LPtOc9SRRpHcIbmGbvcjG/OceMjMs9rJQpbA9x
+         1RO1L8qO1yo+vmTdN9hJ+7nnVzq1jZD5Y5CY9MFbixMmR2n0WjoxlSWBviHrDsd+0cKo
+         Jywg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=wq9rAsPaxnT+MWeaQyCG0bTAAecSDhi0iHcA45NgI+k=;
-        b=Lf/UqmW+LItFrdg5w/TTdMVL6vj+0A29GQlZ7EmnFAXuTq/zgqGxdesIh9czARQ16x
-         nlB79zkNAVRLlnEw8+mcxu9p2lb8fv97w3iAzatOfihu3rJ+DDG7HIBwJrTlbyQb1uHQ
-         LOLHtz3kUzfJbRkp78zMM3GQHoHHdEInlmyEb5Q9wqdRUnRJQhfMKki20aQ3Y5o3W1yt
-         EnnFGIXPVROIH7AJPu+8pB5ruV3C+M4WV35k7UcYT5L44RN+xFA6apPVFNKy9iIgAbuz
-         lGB+0sUwyPy5u5HodQMdgHH7yEhyJ8TBrYkEQ6nQ8fuQryHPwgnzjV4zsd8u6cIJdUYf
-         4JzA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=IcswwZUgsj7YUPNnNhWKtBIpylsIv3CV5VizTq8ogT4=;
+        b=Wg4IutSuOEhZhxNNZkGlgJ3s+h0oR0lpTZCniJBZByYBbDEoH9o0g6UMZfLbB/ecrs
+         h3XD6Ruyaf8EggyI6RVuvl1YlbCm+o7kcfxlm0eg/jHqS8A5iN7PHVtkRLnR3JS8y6pF
+         oH/pIv0qbSk/hFAd0HqylJiqqzkK299myUewNaabloo5whaRo6tqzm3CvB2fHwNmckEh
+         m657qkFP0tDEQDWidzWFavisl5dKs6REMk0588eiO3y03dsW4GmJo7pW+ciyvWnQbTFA
+         tJHxEhePX/VWC/QXKvnUzwmEULARUE4P6TjDMZmSYAaUmkUv/8tBq2eOTnZg9lKWvodf
+         tnYw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id n13si1097985pgv.304.2019.06.12.16.49.12
+       dkim=pass header.i=@kernel.org header.s=default header.b=PwhK9KDI;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id b40si978438pla.49.2019.06.12.17.04.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 12 Jun 2019 16:49:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
+        Wed, 12 Jun 2019 17:04:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Jun 2019 16:49:11 -0700
-X-ExtLoop1: 1
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga002.jf.intel.com with ESMTP; 12 Jun 2019 16:49:11 -0700
-Date: Wed, 12 Jun 2019 16:50:31 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: Pingfan Liu <kernelfans@gmail.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	"Williams, Dan J" <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	"Busch, Keith" <keith.busch@intel.com>,
-	Christoph Hellwig <hch@infradead.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCHv3 1/2] mm/gup: fix omission of check on FOLL_LONGTERM in
- get_user_pages_fast()
-Message-ID: <20190612235031.GF14336@iweiny-DESK2.sc.intel.com>
-References: <1559725820-26138-1-git-send-email-kernelfans@gmail.com>
- <87tvcwhzdo.fsf@linux.ibm.com>
- <2807E5FD2F6FDA4886F6618EAC48510E79D8D79B@CRSMSX101.amr.corp.intel.com>
- <20190612135458.GA19916@dhcp-128-55.nay.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190612135458.GA19916@dhcp-128-55.nay.redhat.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+       dkim=pass header.i=@kernel.org header.s=default header.b=PwhK9KDI;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 8381A215EA;
+	Thu, 13 Jun 2019 00:04:29 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1560384270;
+	bh=NTkyzDj/QTOLghrPG/JLDkCzWtcmWPclnCXZ6csi8dA=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=PwhK9KDIoVeC2KXyMTN6hRechTgZcxmHUKfC6o0xKoyJM52N4EE9Tk90KuatIgf9i
+	 3X905okdRCZm9quqBHQxd1WrrwOO1YuXMgfgt3pkNwWDgP6kbVmVhXk3xT+PbA37ho
+	 198aMxiCu+sXlojynnQhbEz6gXddsNXhRzs7LkF4=
+Date: Wed, 12 Jun 2019 17:04:29 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Andrei Vagin <avagin@gmail.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, Oleg Nesterov <oleg@redhat.com>, Matthew
+ Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Cyrill
+ Gorcunov <gorcunov@gmail.com>, Kirill Tkhai <ktkhai@virtuozzo.com>, Michal
+ =?ISO-8859-1?Q?Koutn=FD?= <mkoutny@suse.com>, Al Viro
+ <viro@zeniv.linux.org.uk>, Roman Gushchin <guro@fb.com>, Dmitry Safonov
+ <dima@arista.com>
+Subject: Re: [PATCH v2 5/6] proc: use down_read_killable mmap_sem for
+ /proc/pid/map_files
+Message-Id: <20190612170429.baaae5fe6d84b864508a3ec5@linux-foundation.org>
+In-Reply-To: <20190612231426.GA3639@gmail.com>
+References: <156007465229.3335.10259979070641486905.stgit@buzz>
+	<156007493995.3335.9595044802115356911.stgit@buzz>
+	<20190612231426.GA3639@gmail.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 12, 2019 at 09:54:58PM +0800, Pingfan Liu wrote:
-> On Tue, Jun 11, 2019 at 04:29:11PM +0000, Weiny, Ira wrote:
-> > > Pingfan Liu <kernelfans@gmail.com> writes:
-> > > 
-> > > > As for FOLL_LONGTERM, it is checked in the slow path
-> > > > __gup_longterm_unlocked(). But it is not checked in the fast path,
-> > > > which means a possible leak of CMA page to longterm pinned requirement
-> > > > through this crack.
-> > > 
-> > > Shouldn't we disallow FOLL_LONGTERM with get_user_pages fastpath? W.r.t
-> > > dax check we need vma to ensure whether a long term pin is allowed or not.
-> > > If FOLL_LONGTERM is specified we should fallback to slow path.
-> > 
-> > Yes, the fastpath bails to the slowpath if FOLL_LONGTERM _and_ DAX.  But it does this while walking the page tables.  I missed the CMA case and Pingfan's patch fixes this.  We could check for CMA pages while walking the page tables but most agreed that it was not worth it.  For DAX we already had checks for *_devmap() so it was easier to put the FOLL_LONGTERM checks there.
-> > 
-> Then for CMA pages, are you suggesting something like:
+On Wed, 12 Jun 2019 16:14:28 -0700 Andrei Vagin <avagin@gmail.com> wrote:
 
-I'm not suggesting this.
-
-Sorry I wrote this prior to seeing the numbers in your other email.  Given
-the numbers it looks like performing the check whilst walking the tables is
-worth the extra complexity.  I was just trying to summarize the thread.  I
-don't think we should disallow FOLL_LONGTERM because it only affects CMA and
-DAX.  Other pages will be fine with FOLL_LONGTERM.  Why penalize every call if
-we don't have to.  Also in the case of DAX the use of vma will be going
-away...[1]  Eventually...  ;-)
-
-Ira
-
-[1] https://lkml.org/lkml/2019/6/5/1049
-
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 42a47c0..8bf3cc3 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -2251,6 +2251,8 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
->         if (unlikely(!access_ok((void __user *)start, len)))
->                 return -EFAULT;
+> On Sun, Jun 09, 2019 at 01:09:00PM +0300, Konstantin Khlebnikov wrote:
+> > Do not stuck forever if something wrong.
+> > Killable lock allows to cleanup stuck tasks and simplifies investigation.
 > 
-> +       if (unlikely(gup_flags & FOLL_LONGTERM))
-> +               goto slow;
->         if (gup_fast_permitted(start, nr_pages)) {
->                 local_irq_disable();
->                 gup_pgd_range(addr, end, gup_flags, pages, &nr);
-> @@ -2258,6 +2260,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
->                 ret = nr;
->         }
+> This patch breaks the CRIU project, because stat() returns EINTR instead
+> of ENOENT:
 > 
-> +slow:
->         if (nr < nr_pages) {
->                 /* Try to get the remaining pages with get_user_pages */
->                 start += nr << PAGE_SHIFT;
+> [root@fc24 criu]# stat /proc/self/map_files/0-0
+> stat: cannot stat '/proc/self/map_files/0-0': Interrupted system call
 > 
-> Thanks,
->   Pingfan
+> Here is one inline comment with the fix for this issue.
+> 
+> > @@ -2107,7 +2113,10 @@ static struct dentry *proc_map_files_lookup(struct inode *dir,
+> >  	if (!mm)
+> >  		goto out_put_task;
+> >  
+> > -	down_read(&mm->mmap_sem);
+> > +	result = ERR_PTR(-EINTR);
+> > +	if (down_read_killable(&mm->mmap_sem))
+> > +		goto out_put_mm;
+> > +
+> 
+> 	result = ERR_PTR(-ENOENT);
+> 
+
+yes, thanks.
+
+--- a/fs/proc/base.c~proc-use-down_read_killable-mmap_sem-for-proc-pid-map_files-fix
++++ a/fs/proc/base.c
+@@ -2117,6 +2117,7 @@ static struct dentry *proc_map_files_loo
+ 	if (down_read_killable(&mm->mmap_sem))
+ 		goto out_put_mm;
+ 
++	result = ERR_PTR(-ENOENT);
+ 	vma = find_exact_vma(mm, vm_start, vm_end);
+ 	if (!vma)
+ 		goto out_no_vma;
+
+
+
+We started doing this trick of using
+
+	ret = -EFOO;
+	if (something)
+		goto out;
+
+decades ago because it generated slightly better code.  I rather doubt
+whether that's still the case.
+
+In fact this:
+
+--- a/fs/proc/base.c~a
++++ a/fs/proc/base.c
+@@ -2096,35 +2096,45 @@ static struct dentry *proc_map_files_loo
+ 	struct dentry *result;
+ 	struct mm_struct *mm;
+ 
+-	result = ERR_PTR(-ENOENT);
+ 	task = get_proc_task(dir);
+-	if (!task)
++	if (!task) {
++		result = ERR_PTR(-ENOENT);
+ 		goto out;
++	}
+ 
+-	result = ERR_PTR(-EACCES);
+-	if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS))
++	if (!ptrace_may_access(task, PTRACE_MODE_READ_FSCREDS)) {
++		result = ERR_PTR(-EACCES);
+ 		goto out_put_task;
++	}
+ 
+-	result = ERR_PTR(-ENOENT);
+-	if (dname_to_vma_addr(dentry, &vm_start, &vm_end))
++	if (dname_to_vma_addr(dentry, &vm_start, &vm_end)) {
++		result = ERR_PTR(-ENOENT);
+ 		goto out_put_task;
++	}
+ 
+ 	mm = get_task_mm(task);
+-	if (!mm)
++	if (!mm) {
++		result = ERR_PTR(-ENOENT);
+ 		goto out_put_task;
++	}
+ 
+-	result = ERR_PTR(-EINTR);
+-	if (down_read_killable(&mm->mmap_sem))
++	if (down_read_killable(&mm->mmap_sem)) {
++		result = ERR_PTR(-EINTR);
+ 		goto out_put_mm;
++	}
+ 
+-	result = ERR_PTR(-ENOENT);
+ 	vma = find_exact_vma(mm, vm_start, vm_end);
+-	if (!vma)
++	if (!vma) {
++		result = ERR_PTR(-ENOENT);
+ 		goto out_no_vma;
++	}
+ 
+-	if (vma->vm_file)
++	if (vma->vm_file) {
+ 		result = proc_map_files_instantiate(dentry, task,
+ 				(void *)(unsigned long)vma->vm_file->f_mode);
++	} else {
++		result = ERR_PTR(-ENOENT);
++	}
+ 
+ out_no_vma:
+ 	up_read(&mm->mmap_sem);
+
+makes no change to the generated assembly with gcc-7.2.0.
+
+And I do think that the above style is clearer and more reliable, as
+this bug demonstrates.
 
