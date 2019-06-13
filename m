@@ -2,190 +2,117 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4F8B9C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 13:58:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F627C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 14:03:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EDB7B20673
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 13:58:13 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="gQHWlxBo";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="qYg2Ce4h"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EDB7B20673
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id 4010520679
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 14:03:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4010520679
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9C3EF6B000E; Thu, 13 Jun 2019 09:58:13 -0400 (EDT)
+	id CF4DC6B026A; Thu, 13 Jun 2019 10:03:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 94E846B0266; Thu, 13 Jun 2019 09:58:13 -0400 (EDT)
+	id CA4296B026B; Thu, 13 Jun 2019 10:03:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7C8406B026A; Thu, 13 Jun 2019 09:58:13 -0400 (EDT)
+	id B6F328E0001; Thu, 13 Jun 2019 10:03:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E11F6B000E
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 09:58:13 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id b127so14518664pfb.8
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 06:58:13 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AD4A6B026A
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 10:03:18 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id n25so1786910wmc.7
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 07:03:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=sPKp7dftjDZTUROeV+8hlBIhmw8JOgf/Oya5kKKdvzY=;
-        b=diiKFsKavAv5JmfYeEaA4Ev9JaHY116/89dixll2oQPN5S8DQjQYu7UAX7PatsCUc9
-         ugVidasXGuRudAb423dKhUvoM8ctA8LbUBX1hlVzTsGmzMVj/D6yaOGA5P4k3cYBkBnM
-         ZxCOl3sqlvprzNVbkSzrHWfTtrrfexH3uhrmII031hWJ7TCHmbgCHxBUSqQTYTm+EoYi
-         Qosb1VIG36tyMDHymP74CPvdNi4wn5Sg1avTCPuLJR3RzRfj5QClDiTjx4nUwzJ3ke7S
-         k1Mx867QDf9SQ7YPk7jcNEZQ40ZWerEWc6fVbtJ+fluUTHkeOPZP5z0sMSiKslcs5Qy4
-         VQVA==
-X-Gm-Message-State: APjAAAXiSke6FDRFU11rnpA3G0uNi+NcjUV+fBA/J5YRq3TcT+XRbywG
-	NgIQJMz5vkSI8vyPaDuGjXDeq28XNTea7AuDs6M57bB8mg49vcQHclfY0Bps3PYjUDbv4fZ2GIJ
-	Gzlq2PyqXwEz6+3tpLkw7M2c0BGTovCAQX3E/DKLfac+fuYsWyYfX736+lpib3OwRiw==
-X-Received: by 2002:a17:902:b495:: with SMTP id y21mr86891391plr.243.1560434292888;
-        Thu, 13 Jun 2019 06:58:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy+ZbSK0D15hd5HZoII/cgz122uYkCLAnZ18b/C+5sl94lLAXelYCG4nuPYuWHgGDhn2crm
-X-Received: by 2002:a17:902:b495:: with SMTP id y21mr86891323plr.243.1560434292087;
-        Thu, 13 Jun 2019 06:58:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560434292; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=UVX8Y2nZSU8wr6vWWKjaM2uzfMrT8CwvBAXqnr/WTgc=;
+        b=iTIqjWMHi+lVz+R0Ne5t6Ed7JqkFryhO6jSZGqBdT/VbiV2Z5/mDUtZ161niT1hBJU
+         dRZ+abBHiv15j3sJuUy69y1DM8o6FKb8FCP9pXPduh1lb13DPO7NeB+e6LKOtIwiDH76
+         f7vZM31TTK1lz54TT41J5crxtabGfI6r8VML9J8mVSkYbsYL2JvxNLx5Fi1SonXU4tDF
+         Kw1CetXPTGEtNUMBf5voHYlDHUQ4tELhRCReDcCnSw6hZGHxCqoSxA8yUGS4Hmn2wK+H
+         wZ0TqPGBosfh2L9sVBlQqzhz95Mt0N/qPl7fWQYoFLNIUxZ9ddXSpY/qlzIsBG639Pn5
+         gi3w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+X-Gm-Message-State: APjAAAUGho6FCTaICSd1boawVDNwuJgiQltHIm2Hnue2ZwF6EnppKGqG
+	yGUYiyq/L9ePU1uvSml/mu0euabopSo/NYTOrn8KEqWqQ5lx2664gnPAOVQX3SEnqNkBWa1ybQK
+	kgCeJNDEr4FgJLDGYgrwRHPfCh+ONyLgzzbbbaR8OWiWy75rPpZF9dJ90g05ofnkl3w==
+X-Received: by 2002:adf:814d:: with SMTP id 71mr11042058wrm.50.1560434597771;
+        Thu, 13 Jun 2019 07:03:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxcswOxERu72l00Zf683Ohmra8C66UTLHwzwV7zXHYUAzur7x8sVScJPpD6jVPj4/k97d04
+X-Received: by 2002:adf:814d:: with SMTP id 71mr11041983wrm.50.1560434596971;
+        Thu, 13 Jun 2019 07:03:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560434596; cv=none;
         d=google.com; s=arc-20160816;
-        b=uTYMXfWw02TzDLcKM99wKJ16N3Gaz1Lmb7BixBFq0WWOyTJmwMMmVaWtDjpM+/2uuX
-         UtuAzLh8vyT2agu3N4GwNw+jFlcfZ1VcinKxXacb+nmd6wjah11U8PwtNuKuEE+F/EA5
-         B+RadMPYE+YbkpIkaTJ9w80BtGMaBiivnQ16iLh9G5i+u9Jdc+p0tuzkTdcjZJz9+b5X
-         OKNAHrnZZQZlB9uWT+dPpquQut3enK/T377u8YjY892yc/SRsFM7HmgSiajguUKv4NNA
-         0TzT8msydDl45HWvrn/3wXrvppTxOP9yawRramJuaakJI8ca9PGHtYC5O1NpCw2mfNv7
-         dGtw==
+        b=Lzk4QxdkR5QunzwwvBg1BF5DCcUnAziaFqO9jry8+POv7kHsSUedif6/+8n9cTmRbx
+         1CCI4jfAgrOFfooQFwygZh3dmBBJwZLNY/5gHSU/XAN3h0ediycuPkHeVB/ImOOV6knk
+         zA85qg9sf1DzjGwJYmgn5Y3tjtcvw5dnr9M0ZLHGFarzQWovFdQfAV24vMrayPsa4GRd
+         PMiOx/uqw75dK0nzX2V/1RkHzDGOrCfT5IZQCma4Eg3UC0ciOlzFVpFy/uEjZDrHpwq1
+         h8+61EbyaJnuWZnlWCwFmDXuEHepdGQkujuFDnMUYgqBGfJjFGbHZTElWzk9K4FARYFM
+         NI+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=sPKp7dftjDZTUROeV+8hlBIhmw8JOgf/Oya5kKKdvzY=;
-        b=c6r+ciPfijZLv+/B5PeXq8EotSuE0fgbVnNyUP3NHbWEP3AgJsuosF+fK4ghwVO9vA
-         KpZy86pbL6C3tWbXdD9ab2/VLnVnvBm9Z8JcqJYJPIu3kxjSvA3QFuNfS6kR3Qd8tsF1
-         2Z6OozJweGQQgWj/ygNw2qa9GMqXiy2HkJXyM6yM0Z3wowNiztwhOy308dh/b+AUtF9G
-         YWbcqg58sbbNXrf1uftF6MLK7Tx57q7d9nWijRNccLX730j8GmiZON1PbQ8epGZWpYE0
-         /jprzXsQVkl6DZq1m011wrnnpZN4WZ4hKXNBcFT1FpC6OHoMw+jBWzaqwlLNUzWzPD1E
-         cezA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=UVX8Y2nZSU8wr6vWWKjaM2uzfMrT8CwvBAXqnr/WTgc=;
+        b=oySg7aYGC7MqZIATf/3NjJwg65Ipx0hrNqogyVceMAa7K2XDHgAQ5P1CC9TDby9rLx
+         WTRg7DIBWk+Rx7yOzFWfBxbEv1SjRstUKf94V02y/MRfTSR+ou3pEuQb2R+9MnaBElV2
+         FSRuqmqV0ELdPiBw0D/U4cOwpOjDl25TeZwfp8HOtAkfX3yy4aihfDKNq0zS8wfRGf4i
+         amuaahAJ9ehHrtw8suzJRua3fePO4i0pE2quuCjtTH572SBWZM8iTV8+ksBDTsqjlGZU
+         UWJPwv8jBMXAIbHF7PYOWLFuFYS3mWTFJXjgN68bJVHV5a9xjU0o32DtlZRKxzRBtMGD
+         D7Rg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=gQHWlxBo;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=qYg2Ce4h;
-       spf=pass (google.com: domain of prvs=1067aa1dbb=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1067aa1dbb=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id t2si3122959ply.133.2019.06.13.06.58.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 06:58:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=1067aa1dbb=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id h32si2511419edb.97.2019.06.13.07.03.16
+        for <linux-mm@kvack.org>;
+        Thu, 13 Jun 2019 07:03:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=gQHWlxBo;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=qYg2Ce4h;
-       spf=pass (google.com: domain of prvs=1067aa1dbb=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=1067aa1dbb=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044012.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5DDnmql012717;
-	Thu, 13 Jun 2019 06:57:34 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=sPKp7dftjDZTUROeV+8hlBIhmw8JOgf/Oya5kKKdvzY=;
- b=gQHWlxBogLv+y1N2nTtCcGAa/NS4luB8J3rrd1JqsR77caHn4OtuUI2TDpkuN20Agm0g
- UffKl79hSQCQGxtT1FBak78VOmNQoxz2FahQDGtk3MFEc9QyLYaon3eBlreAFbFvMr3C
- SwWmqMOimLIF9ymjZkq+I7Np8t+IOVVbD+k= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2t3pxp86p7-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Thu, 13 Jun 2019 06:57:33 -0700
-Received: from prn-hub02.TheFacebook.com (2620:10d:c081:35::126) by
- prn-hub04.TheFacebook.com (2620:10d:c081:35::128) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Thu, 13 Jun 2019 06:57:32 -0700
-Received: from NAM04-SN1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.26) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Thu, 13 Jun 2019 06:57:32 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=sPKp7dftjDZTUROeV+8hlBIhmw8JOgf/Oya5kKKdvzY=;
- b=qYg2Ce4hHvBUgW7xQdritygfR20oO8gn4HPVA4A3MHdiDZ5ZeB0hREyurK+lbnEZHTRJE0aRc8ue+qV8xwR8fvDts5q4Pos/3SAKfGiL7zkMg5oPjKG9yPb+AQgmFTJORBBHUFaT8dCUO5KuC1CpuydKgNDgsqqV1ekjXM3GoU4=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1871.namprd15.prod.outlook.com (10.174.255.150) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1987.11; Thu, 13 Jun 2019 13:57:30 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::400e:e329:ea98:aa0d%6]) with mapi id 15.20.1987.012; Thu, 13 Jun 2019
- 13:57:30 +0000
-From: Song Liu <songliubraving@fb.com>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-CC: LKML <linux-kernel@vger.kernel.org>,
-        "linux-mm@kvack.org"
-	<linux-mm@kvack.org>,
-        "namit@vmware.com" <namit@vmware.com>,
-        "peterz@infradead.org" <peterz@infradead.org>,
-        "oleg@redhat.com"
-	<oleg@redhat.com>,
-        "rostedt@goodmis.org" <rostedt@goodmis.org>,
-        "mhiramat@kernel.org" <mhiramat@kernel.org>,
-        "matthew.wilcox@oracle.com"
-	<matthew.wilcox@oracle.com>,
-        "kirill.shutemov@linux.intel.com"
-	<kirill.shutemov@linux.intel.com>,
-        Kernel Team <Kernel-team@fb.com>
-Subject: Re: [PATCH v3 3/5] mm, thp: introduce FOLL_SPLIT_PMD
-Thread-Topic: [PATCH v3 3/5] mm, thp: introduce FOLL_SPLIT_PMD
-Thread-Index: AQHVIWtWTe7ps5z8rEO6sAR2s+F9WKaZjDkAgAAQ0IA=
-Date: Thu, 13 Jun 2019 13:57:30 +0000
-Message-ID: <5A80A2B9-51C3-49C4-97B6-33889CC47F08@fb.com>
-References: <20190612220320.2223898-1-songliubraving@fb.com>
- <20190612220320.2223898-4-songliubraving@fb.com>
- <20190613125718.tgplv5iqkbfhn6vh@box>
-In-Reply-To: <20190613125718.tgplv5iqkbfhn6vh@box>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:180::1:7078]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 04ff8ad5-f00c-454a-60e6-08d6f00713de
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1871;
-x-ms-traffictypediagnostic: MWHPR15MB1871:
-x-microsoft-antispam-prvs: <MWHPR15MB18711CCA673769FF3A42D435B3EF0@MWHPR15MB1871.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 0067A8BA2A
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(39860400002)(366004)(346002)(136003)(396003)(199004)(189003)(316002)(4326008)(36756003)(25786009)(14454004)(8936002)(5660300002)(81166006)(7736002)(81156014)(6246003)(305945005)(50226002)(478600001)(54906003)(8676002)(68736007)(66476007)(66556008)(6486002)(6436002)(66446008)(64756008)(76116006)(73956011)(66946007)(91956017)(57306001)(53936002)(14444005)(256004)(86362001)(2906002)(6916009)(6116002)(6512007)(33656002)(229853002)(7416002)(99286004)(53546011)(6506007)(446003)(11346002)(71190400001)(76176011)(71200400001)(2616005)(476003)(186003)(46003)(102836004)(486006);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1871;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: nTC3opoQDaugBMSZME5O9aa0UVJOH3kS3RB1oa7zQqJs8kV4CXyIv0UcRCEbJXrFV9O1YNQOvQiOd+vnpdJgIIla/hcpmWAQ+butJ+7QD+GbGrCDzbLXIxGMPMeAsWpEKAMQWgQxG1mIOx76/ufkytM6uRh0imkH6T3EPhqOs3rSqV7hSJgavEnGP6jdeXpUoQojZgRqnnVxUkfzvoXttKx+jhYYEXrlzqsSsHQ4fUZK15pojksr/733Yddw8eWQ7BRbot2quloPqzIMLvUM0+pTzY07tlR9b8C4i3IFVqHkvCAuOs9tWALX8uFKfL+XoNW44vn2ovKnLsD0aBVjk9Ihxx7B4c8y8iFJ5I8HexJiJx2g7/3GnfpZco7FFtgqMfWFMq8rWPCymek8zdkBtcDcavAkOTGZPC14O/NNiFw=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <AA72B8B2D2D6A04594DF1649487A026C@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 852BC3EF;
+	Thu, 13 Jun 2019 07:03:15 -0700 (PDT)
+Received: from [10.1.196.72] (e119884-lin.cambridge.arm.com [10.1.196.72])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 1320D3F718;
+	Thu, 13 Jun 2019 07:03:13 -0700 (PDT)
+Subject: Re: [PATCH v4 1/2] arm64: Define
+ Documentation/arm64/tagged-address-abi.txt
+To: Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
+ Catalin Marinas <Catalin.Marinas@arm.com>
+Cc: nd <nd@arm.com>,
+ "linux-arm-kernel@lists.infradead.org"
+ <linux-arm-kernel@lists.infradead.org>,
+ "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>,
+ "linux-kselftest@vger.kernel.org" <linux-kselftest@vger.kernel.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ Will Deacon <Will.Deacon@arm.com>, Andrey Konovalov <andreyknvl@google.com>,
+ Alexander Viro <viro@zeniv.linux.org.uk>
+References: <cover.1560339705.git.andreyknvl@google.com>
+ <20190612142111.28161-1-vincenzo.frascino@arm.com>
+ <20190612142111.28161-2-vincenzo.frascino@arm.com>
+ <a90da586-8ff6-4bed-d940-9306d517a18c@arm.com>
+ <20190613092054.GO28951@C02TF0J2HF1T.local>
+ <dee7f192-d0f0-558e-3007-eba805c6f2da@arm.com>
+ <6ebbda37-5dd9-d0d5-d9cb-286c7a5b7f8e@arm.com>
+ <8e3c9537-de10-0d0d-f5bb-c33bde92443f@arm.com>
+From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Message-ID: <5963d144-be9b-78d8-9130-ef92bc66b1fd@arm.com>
+Date: Thu, 13 Jun 2019 15:03:12 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 04ff8ad5-f00c-454a-60e6-08d6f00713de
-X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Jun 2019 13:57:30.6830
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1871
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-13_08:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906130106
-X-FB-Internal: deliver
+In-Reply-To: <8e3c9537-de10-0d0d-f5bb-c33bde92443f@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -193,144 +120,117 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
+On 13/06/2019 13:28, Szabolcs Nagy wrote:
+> On 13/06/2019 12:16, Vincenzo Frascino wrote:
+>> Hi Szabolcs,
+>>
+>> thank you for your review.
+>>
+>> On 13/06/2019 11:14, Szabolcs Nagy wrote:
+>>> On 13/06/2019 10:20, Catalin Marinas wrote:
+>>>> Hi Szabolcs,
+>>>>
+>>>> On Wed, Jun 12, 2019 at 05:30:34PM +0100, Szabolcs Nagy wrote:
+>>>>> On 12/06/2019 15:21, Vincenzo Frascino wrote:
+>>>>>> +2. ARM64 Tagged Address ABI
+>>>>>> +---------------------------
+>>>>>> +
+>>>>>> +From the kernel syscall interface prospective, we define, for the purposes
+>>>>>                                      ^^^^^^^^^^^
+>>>>> perspective
+>>>>>
+>>>>>> +of this document, a "valid tagged pointer" as a pointer that either it has
+>>>>>> +a zero value set in the top byte or it has a non-zero value, it is in memory
+>>>>>> +ranges privately owned by a userspace process and it is obtained in one of
+>>>>>> +the following ways:
+>>>>>> +  - mmap() done by the process itself, where either:
+>>>>>> +    * flags = MAP_PRIVATE | MAP_ANONYMOUS
+>>>>>> +    * flags = MAP_PRIVATE and the file descriptor refers to a regular
+>>>>>> +      file or "/dev/zero"
+>>>>>
+>>>>> this does not make it clear if MAP_FIXED or other flags are valid
+>>>>> (there are many map flags i don't know, but at least fixed should work
+>>>>> and stack/growsdown. i'd expect anything that's not incompatible with
+>>>>> private|anon to work).
+>>>>
+>>>> Just to clarify, this document tries to define the memory ranges from
+>>>> where tagged addresses can be passed into the kernel in the context
+>>>> of TBI only (not MTE); that is for hwasan support. FIXED or GROWSDOWN
+>>>> should not affect this.
+>>>
+>>> yes, so either the text should list MAP_* flags that don't affect
+>>> the pointer tagging semantics or specify private|anon mapping
+>>> with different wording.
+>>>
+>>
+>> Good point. Could you please propose a wording that would be suitable for this case?
+> 
+> i don't know all the MAP_ magic, but i think it's enough to change
+> the "flags =" to
+> 
+> * flags have MAP_PRIVATE and MAP_ANONYMOUS set or
+> * flags have MAP_PRIVATE set and the file descriptor refers to...
+> 
+> 
 
-> On Jun 13, 2019, at 5:57 AM, Kirill A. Shutemov <kirill@shutemov.name> wr=
-ote:
->=20
-> On Wed, Jun 12, 2019 at 03:03:17PM -0700, Song Liu wrote:
->> This patches introduces a new foll_flag: FOLL_SPLIT_PMD. As the name say=
-s
->> FOLL_SPLIT_PMD splits huge pmd for given mm_struct, the underlining huge
->> page stays as-is.
->>=20
->> FOLL_SPLIT_PMD is useful for cases where we need to use regular pages,
->> but would switch back to huge page and huge pmd on. One of such example
->> is uprobe. The following patches use FOLL_SPLIT_PMD in uprobe.
->>=20
->> Signed-off-by: Song Liu <songliubraving@fb.com>
->> ---
->> include/linux/mm.h |  1 +
->> mm/gup.c           | 38 +++++++++++++++++++++++++++++++++++---
->> 2 files changed, 36 insertions(+), 3 deletions(-)
->>=20
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index 0ab8c7d84cd0..e605acc4fc81 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -2642,6 +2642,7 @@ struct page *follow_page(struct vm_area_struct *vm=
-a, unsigned long address,
->> #define FOLL_COW	0x4000	/* internal GUP flag */
->> #define FOLL_ANON	0x8000	/* don't do file mappings */
->> #define FOLL_LONGTERM	0x10000	/* mapping lifetime is indefinite: see bel=
-ow */
->> +#define FOLL_SPLIT_PMD	0x20000	/* split huge pmd before returning */
->>=20
->> /*
->>  * NOTE on FOLL_LONGTERM:
->> diff --git a/mm/gup.c b/mm/gup.c
->> index ddde097cf9e4..3d05bddb56c9 100644
->> --- a/mm/gup.c
->> +++ b/mm/gup.c
->> @@ -398,7 +398,7 @@ static struct page *follow_pmd_mask(struct vm_area_s=
-truct *vma,
->> 		spin_unlock(ptl);
->> 		return follow_page_pte(vma, address, pmd, flags, &ctx->pgmap);
->> 	}
->> -	if (flags & FOLL_SPLIT) {
->> +	if (flags & (FOLL_SPLIT | FOLL_SPLIT_PMD)) {
->> 		int ret;
->> 		page =3D pmd_page(*pmd);
->> 		if (is_huge_zero_page(page)) {
->> @@ -407,7 +407,7 @@ static struct page *follow_pmd_mask(struct vm_area_s=
-truct *vma,
->> 			split_huge_pmd(vma, pmd, address);
->> 			if (pmd_trans_unstable(pmd))
->> 				ret =3D -EBUSY;
->> -		} else {
->> +		} else if (flags & FOLL_SPLIT) {
->> 			if (unlikely(!try_get_page(page))) {
->> 				spin_unlock(ptl);
->> 				return ERR_PTR(-ENOMEM);
->> @@ -419,8 +419,40 @@ static struct page *follow_pmd_mask(struct vm_area_=
-struct *vma,
->> 			put_page(page);
->> 			if (pmd_none(*pmd))
->> 				return no_page_table(vma, flags);
->> -		}
->> +		} else {  /* flags & FOLL_SPLIT_PMD */
->> +			unsigned long addr;
->> +			pgprot_t prot;
->> +			pte_t *pte;
->> +			int i;
->> +
->> +			spin_unlock(ptl);
->> +			split_huge_pmd(vma, pmd, address);
->=20
-> All the code below is only relevant for file-backed THP. It will break fo=
-r
-> anon-THP.
+Fine by me.  I will add it the next iterations.
 
-Oh, yes, that makes sense.=20
+>>>>>> +  - a mapping below sbrk(0) done by the process itself
+>>>>>
+>>>>> doesn't the mmap rule cover this?
+>>>>
+>>>> IIUC it doesn't cover it as that's memory mapped by the kernel
+>>>> automatically on access vs a pointer returned by mmap(). The statement
+>>>> above talks about how the address is obtained by the user.
+>>>
+>>> ok i read 'mapping below sbrk' as an mmap (possibly MAP_FIXED)
+>>> that happens to be below the heap area.
+>>>
+>>> i think "below sbrk(0)" is not the best term to use: there
+>>> may be address range below the heap area that can be mmapped
+>>> and thus below sbrk(0) and sbrk is a posix api not a linux
+>>> syscall, the libc can implement it with mmap or whatever.
+>>>
+>>> i'm not sure what the right term for 'heap area' is
+>>> (the address range between syscall(__NR_brk,0) at
+>>> program startup and its current value?)
+>>>
+>>
+>> I used sbrk(0) with the meaning of "end of the process's data segment" not
+>> implying that this is a syscall, but just as a useful way to identify the mapping.
+>> I agree that it is a posix function implemented by libc but when it is used with
+>> 0 finds the current location of the program break, which can be changed by brk()
+>> and depending on the new address passed to this syscall can have the effect of
+>> allocating or deallocating memory.
+>>
+>> Will changing sbrk(0) with "end of the process's data segment" make it more clear?
+> 
+> i don't understand what's the relevance of the *end*
+> of the data segment.
+> 
+> i'd expect the text to say something about the address
+> range of the data segment.
+> 
+> i can do
+> 
+> mmap((void*)65536, 65536, PROT_READ|PROT_WRITE, MAP_FIXED|MAP_SHARED|MAP_ANON, -1, 0);
+> 
+> and it will be below the end of the data segment.
+>
 
->=20
-> And I'm not convinced that it belongs here at all. User requested PMD
-> split and it is done after split_huge_pmd(). The rest can be handled by
-> the caller as needed.
+As far as I understand the data segment "lives" below the program break, hence
+it is a way of describing the range from which the user can obtain a valid
+tagged pointer.
 
-I put this part here because split_huge_pmd() for file-backed THP is
-not really done after split_huge_pmd(). And I would like it done before
-calling follow_page_pte() below. Maybe we can still do them here, just=20
-for file-backed THPs?
+Said that, I am not really sure on how do you want me to document this (my aim
+is for this to be clear to the userspace developers). Could you please propose
+something?
 
-If we would move it, shall we move to callers of follow_page_mask()?=20
-In that case, we will probably end up with similar code in two places:
-__get_user_pages() and follow_page().=20
+>>
+>> I will add what you are suggesting about the heap area.
+>>
 
-Did I get this right?
-
->=20
->> +			lock_page(page);
->> +			pte =3D get_locked_pte(mm, address, &ptl);
->> +			if (!pte) {
->> +				unlock_page(page);
->> +				return no_page_table(vma, flags);
->=20
-> Or should it be -ENOMEM?
-
-Yeah, ENOMEM is more accurate.=20
-
-Thanks,
-Song
-
->=20
->> +			}
->>=20
->> +			/* get refcount for every small page */
->> +			page_ref_add(page, HPAGE_PMD_NR);
->> +
->> +			prot =3D READ_ONCE(vma->vm_page_prot);
->> +			for (i =3D 0, addr =3D address & PMD_MASK;
->> +			     i < HPAGE_PMD_NR; i++, addr +=3D PAGE_SIZE) {
->> +				struct page *p =3D page + i;
->> +
->> +				pte =3D pte_offset_map(pmd, addr);
->> +				VM_BUG_ON(!pte_none(*pte));
->> +				set_pte_at(mm, addr, pte, mk_pte(p, prot));
->> +				page_add_file_rmap(p, false);
->> +			}
->> +
->> +			spin_unlock(ptl);
->> +			unlock_page(page);
->> +			add_mm_counter(mm, mm_counter_file(page), HPAGE_PMD_NR);
->> +			ret =3D 0;
->> +		}
->> 		return ret ? ERR_PTR(ret) :
->> 			follow_page_pte(vma, address, pmd, flags, &ctx->pgmap);
->> 	}
->> --=20
->> 2.17.1
->>=20
->=20
-> --=20
-> Kirill A. Shutemov
+-- 
+Regards,
+Vincenzo
 
