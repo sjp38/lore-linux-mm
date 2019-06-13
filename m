@@ -2,100 +2,99 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72266C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 18:46:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F27D3C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 18:52:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2C0A721473
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 18:46:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ABAE820B7C
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 18:52:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="F2NGmmF8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C0A721473
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="HuhOeDN4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABAE820B7C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B36E08E0002; Thu, 13 Jun 2019 14:46:39 -0400 (EDT)
+	id 49F9A8E0003; Thu, 13 Jun 2019 14:52:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ABEBA8E0001; Thu, 13 Jun 2019 14:46:39 -0400 (EDT)
+	id 450288E0001; Thu, 13 Jun 2019 14:52:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 937A48E0002; Thu, 13 Jun 2019 14:46:39 -0400 (EDT)
+	id 318AF8E0003; Thu, 13 Jun 2019 14:52:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 40AB78E0001
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 14:46:39 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id s5so43115eda.10
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 11:46:39 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DA3538E0001
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 14:52:47 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id s5so63479eda.10
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 11:52:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
          :thread-index:date:message-id:references:in-reply-to:accept-language
          :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=4XcQHmpnLa8Ccm8n/NNb6h6pJP/b83WvVwKH4dVjrGI=;
-        b=fkl2xQbmX18ZSj5rL055Ah6L/d84OT95p0lluC6c3BUjh86IKDsRzn0gePOifx5+j5
-         Z2qBa91vXMjdKIsNBu7RmjIE4entHyatXt9VOR+ejvbAE+vSeOpjQERoYjbH6CxuaLlh
-         OXBTU3WIfCkSalD5PnydGLwPol137j8BG18KeFvWmglkRCz97r74MTNQ+SxDowjoj5rI
-         d4nPorvP0J+cx2nY2bITMN3mtjqFlV9JJNXn8Df7yVAz+0h172+UnG2ZUkkYdvHWtzUO
-         Ke5M0YGTsV9OgaluBF4UpO+upY8RPp3XqwkBzwSaNYKVDnCeFEjtImUvZtp2q2nQiIGL
-         7NHw==
-X-Gm-Message-State: APjAAAWf87NtGJk5l0lJ+PVka4uJgrVawmXsnIA0umRaaiFaEgXLI+rn
-	NMVy2OHVs1y8LcN+Bo6uWFljuUc9Oc8TdB2l4nBK2szuaQee1xc7idveFqU1GFXm289dIaOlrJY
-	lPBv9s5UtTSyTgDAShIW57fatbmeeMSsUDidYv+8liuZf+7jpCN7KFE3RJ1RpZ4+zJA==
-X-Received: by 2002:a17:906:c4f:: with SMTP id t15mr34211549ejf.190.1560451598798;
-        Thu, 13 Jun 2019 11:46:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzvmnumGmoBYJE/sSrtWI+VyMNkY3QXLbTXKMZWJUI9n6TNl8j5soSGzdsDKHD+6+ZT3sSP
-X-Received: by 2002:a17:906:c4f:: with SMTP id t15mr34211471ejf.190.1560451597823;
-        Thu, 13 Jun 2019 11:46:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560451597; cv=none;
+        bh=FNfgWtpWZP+R3zWab6EmeYAQTAYgx2pVR+LpFXyrRss=;
+        b=blD5sI4BZvrPPRj8acxhjukkSwDf9YHWHBDqqaMRjZ4eQDgkV+IOXr75v9avaSngXV
+         hdCjAHy/gFJ+iyDZgB9KSDtNX/li352lp7lYTm8SxuyRcikwprGtA4jZ4jArRuBN1JwS
+         9viWMz2fy2In/GEO60yvMq+YmgNFHiQxhx/TiKFEIS7Yy5SMUdSnVFaTm47UPx3rwsSD
+         FtJshWG68o/nCff/q57ZO0+2A9hbiofqIZudaPyYxc88nbOlWvScvWD1Uf0gaTbnbf8w
+         xkqBnH+N1tMLQsgXTufnvF/RvBbuBQTMZBKmqA7sBC89qOVEao2PTH08xLbiDGrUagF5
+         LRwQ==
+X-Gm-Message-State: APjAAAWCd9+tOkOAFFbl4PN9YaJkj7Vfskb+/axLpZEbP+0BrgpNjhxa
+	Hk/XL7VyD2WyOL0PIjn7W+X2pOAw/NtsL9o9QYVgNE3t3h6ieDYsB1u3bqcPa2LOnBaHBpmkdaB
+	WCaBCwwvq2uYOWKHk6mOw3SCIw+59xSxuYLUGU7xIKCdBedg0jMVpAVJSmB1uBnOefw==
+X-Received: by 2002:a17:906:1813:: with SMTP id v19mr63863557eje.109.1560451967450;
+        Thu, 13 Jun 2019 11:52:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwxaLkJVLofQFuxIbKV44MEBA+hluctLSzRUS5s1226oo2Ob+NyPmXwLvaAPd27P98FYJ9G
+X-Received: by 2002:a17:906:1813:: with SMTP id v19mr63863525eje.109.1560451966826;
+        Thu, 13 Jun 2019 11:52:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560451966; cv=none;
         d=google.com; s=arc-20160816;
-        b=i03mfvqG2HOOkE0AA1HyVNFOSb9qJrRlDevl8PFiGNC2LuV6bC3jXW5hC2nbfWtl8V
-         Nc6UnOKn8pK/pVX7guG5Xb+y9xmfoqh2+qwxKEZJuUy9tYp9cgeiYS89TgWRLpd3iC6b
-         R58U0TzmHhoFtKezbDpjG54ZESBednpUAjXSd0Je9XdMYnap+IRJJmAxZ7Az4AcUxX8L
-         25/Nn6kYrnN5r9UBU1K9nJajMAiPPtB4EcqMb1/oG578aZsXhg3v2SOBQXh36Ar7TlC0
-         OVjbllrb8KmF8GWq/xR25l5MRnKGtBHnB7vaYJKcCXsRlliv5K0lek//9Kt0cC2JgsZj
-         GHWw==
+        b=xGoYHYGGQN6aFk0Ov4U6jGDLQnXHsA/K9zIXTRGnZZ27yOj+3jXgXZgoddTMz62ix/
+         Haoik5oNtUzAdKnean28Oh3Ev4X+nm9FzUt9cZZXIQUkefOEqn05/2hTvqvRL3NzxGst
+         OKPgNAubq/K4FcdJ3HO66E6k3+YRiFdVci99J0emDqsFgrISaN3yfOfUkN9HI3xysJNi
+         usV9dY76ZdL9QRlp1TaLgFNdLaHPKpbp3+oHUe86Kc3G2oURxVAl8HFQRPXXKDHcxpUl
+         aJkNQ0OYHfJZnmFncBtPyrCc0yo4oa1R5dUd7ZJ6Q2BjKdInL1wC8xAQEeEjEPsnzloD
+         /QPQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:content-id:content-language
          :accept-language:in-reply-to:references:message-id:date:thread-index
          :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=4XcQHmpnLa8Ccm8n/NNb6h6pJP/b83WvVwKH4dVjrGI=;
-        b=q23pGXnoSW2WGBeDxPbdTMfzkX4PlDn+j9Nw4Dt4XIldU0wNVJbmT80m9msW8FkcrH
-         Fd8zonln3CUyU2GFLwKTOLEFB0nMA1lG8ksl0UCAvj8kmiHZiruay3YWS+W1O8xe0FLk
-         YvfY0qn76oeljc47m7aLSAu0ogcRct4lJwcJBzK93HyNotYH3wF03lFj7X4r33IfWvq+
-         MZL2UeRY2ljjMamM0Uzxw7R2N3jUS0dw/hp6OD3eA3Lx/x4QpYOPmpDeyNGTP/z3kCTf
-         Qy4ITa6npmw3tk0VFcUb1soY0JaidkYod2dB+mkjbnEBT2Ja7aPHReX8LCgGJDtI7b7O
-         JdjA==
+        bh=FNfgWtpWZP+R3zWab6EmeYAQTAYgx2pVR+LpFXyrRss=;
+        b=Oep/etMnj0S0gHfBv9GKQFqcb3FsUfzRVt6jfFg+3stVkSe5tcqVqiVc/9tRewfeI2
+         QLAJR+jUarH+P4lOJKDfGSVqprXCJSg/9pLzuc4LyGlF985a0pNsSvgyIOOjFUcZAY1R
+         Hu9Tawt1OZegRDQ7dY6t6oMR43xZ7JEi8KLL1jD0wMHXSIuluWK0tBFD4Osv2qeglud+
+         2riKhRir8TDQHRnNqDQd93DNI5pTFgI6EtOZUUzxcRx5lzxrD+h2kATok/j8BQbX1uUf
+         90M7u7j8yGsd1tMOomwxgiD92aiQOAWRpFIGO4f/GTd4Ssjc9qp/th+SJBUYm71gnuVH
+         urGQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=F2NGmmF8;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.15.71 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=HuhOeDN4;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.55 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-eopbgr150071.outbound.protection.outlook.com. [40.107.15.71])
-        by mx.google.com with ESMTPS id q1si492284ejx.296.2019.06.13.11.46.37
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00055.outbound.protection.outlook.com. [40.107.0.55])
+        by mx.google.com with ESMTPS id f11si268256edb.356.2019.06.13.11.52.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 11:46:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.15.71 as permitted sender) client-ip=40.107.15.71;
+        Thu, 13 Jun 2019 11:52:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.0.55 as permitted sender) client-ip=40.107.0.55;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=F2NGmmF8;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.15.71 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=HuhOeDN4;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.55 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
  s=selector2;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=4XcQHmpnLa8Ccm8n/NNb6h6pJP/b83WvVwKH4dVjrGI=;
- b=F2NGmmF8PcrSuKqYHZP/ltHNtTQ/3yXA1jxUOAv6zBo/PQnSoylORIuCAGTEg5bTKk5lnKFf0as+54Ck2eM3roPqwxGi69XuGjJnNgJRRGrex66U663ag2Zr/ob/qEYj8FEiAsc/evMyyzj2t89jw53MYPv/cMAfHehUy/IDIXc=
+ bh=FNfgWtpWZP+R3zWab6EmeYAQTAYgx2pVR+LpFXyrRss=;
+ b=HuhOeDN4cvQnIPbnkY3/38FWBgnbccW+6aHtR17EeaLBgLlfggbM7Jmgd9HH/svLW/bPsC9MlhNeSNa3bXCOnAHSwbCOCWxV/UJ9cNCAooyjp2IS3RJ6Yyn/362HV2+z6SsrcvE5DkDoUj77xNdUXAVZHIbvMwr5hkc5ZHOX/JM=
 Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB4701.eurprd05.prod.outlook.com (20.176.4.10) with Microsoft SMTP
+ VI1PR05MB5919.eurprd05.prod.outlook.com (20.178.126.28) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1987.11; Thu, 13 Jun 2019 18:46:36 +0000
+ 15.20.1987.11; Thu, 13 Jun 2019 18:52:44 +0000
 Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
  ([fe80::c16d:129:4a40:9ba1]) by VI1PR05MB4141.eurprd05.prod.outlook.com
  ([fe80::c16d:129:4a40:9ba1%6]) with mapi id 15.20.1987.012; Thu, 13 Jun 2019
- 18:46:36 +0000
+ 18:52:44 +0000
 From: Jason Gunthorpe <jgg@mellanox.com>
 To: Christoph Hellwig <hch@lst.de>
 CC: Dan Williams <dan.j.williams@intel.com>,
@@ -106,93 +105,77 @@ CC: Dan Williams <dan.j.williams@intel.com>,
 	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
 	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
 	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 02/22] mm: remove the struct hmm_device infrastructure
-Thread-Topic: [PATCH 02/22] mm: remove the struct hmm_device infrastructure
-Thread-Index: AQHVIcx635NBB7Z8DkeP0aiwq2XU+KaZ7QiA
-Date: Thu, 13 Jun 2019 18:46:36 +0000
-Message-ID: <20190613184631.GO22062@mellanox.com>
+Subject: Re: [PATCH 03/22] mm: remove hmm_devmem_add_resource
+Thread-Topic: [PATCH 03/22] mm: remove hmm_devmem_add_resource
+Thread-Index: AQHVIcx8KEghGfMSdEK+G1+HLD+T3KaZ7r+A
+Date: Thu, 13 Jun 2019 18:52:44 +0000
+Message-ID: <20190613185239.GP22062@mellanox.com>
 References: <20190613094326.24093-1-hch@lst.de>
- <20190613094326.24093-3-hch@lst.de>
-In-Reply-To: <20190613094326.24093-3-hch@lst.de>
+ <20190613094326.24093-4-hch@lst.de>
+In-Reply-To: <20190613094326.24093-4-hch@lst.de>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach:
 X-MS-TNEF-Correlator:
-x-clientproxiedby: YTXPR0101CA0010.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:b00::23) To VI1PR05MB4141.eurprd05.prod.outlook.com
+x-clientproxiedby: MN2PR16CA0007.namprd16.prod.outlook.com
+ (2603:10b6:208:134::20) To VI1PR05MB4141.eurprd05.prod.outlook.com
  (2603:10a6:803:4d::16)
 authentication-results: spf=none (sender IP is )
  smtp.mailfrom=jgg@mellanox.com; 
 x-ms-exchange-messagesentrepresentingtype: 1
 x-originating-ip: [156.34.55.100]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 7e748266-6013-44cb-2451-08d6f02f765a
+x-ms-office365-filtering-correlation-id: 88cc1feb-7b67-4d6e-c18f-08d6f03051c6
 x-ms-office365-filtering-ht: Tenant
 x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4701;
-x-ms-traffictypediagnostic: VI1PR05MB4701:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5919;
+x-ms-traffictypediagnostic: VI1PR05MB5919:
 x-microsoft-antispam-prvs:
- <VI1PR05MB47013CC710784AD316D44798CFEF0@VI1PR05MB4701.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:6790;
+ <VI1PR05MB5919FFFF62953C9A7D5AF300CFEF0@VI1PR05MB5919.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8273;
 x-forefront-prvs: 0067A8BA2A
 x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(366004)(136003)(346002)(376002)(39860400002)(396003)(199004)(189003)(66556008)(305945005)(2616005)(476003)(54906003)(11346002)(8676002)(486006)(446003)(5660300002)(1076003)(64756008)(66476007)(66946007)(66446008)(86362001)(8936002)(36756003)(66066001)(81166006)(81156014)(73956011)(99286004)(229853002)(6512007)(4326008)(6916009)(386003)(478600001)(256004)(71190400001)(3846002)(2906002)(76176011)(14454004)(52116002)(102836004)(6116002)(6506007)(33656002)(186003)(26005)(6486002)(68736007)(7416002)(6246003)(25786009)(6436002)(7736002)(316002)(71200400001)(53936002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4701;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+ SFV:NSPM;SFS:(10009020)(366004)(396003)(346002)(376002)(39860400002)(136003)(199004)(189003)(99286004)(229853002)(7416002)(2906002)(53936002)(6486002)(6436002)(86362001)(81166006)(8676002)(186003)(6916009)(26005)(81156014)(102836004)(6116002)(4326008)(3846002)(25786009)(305945005)(7736002)(76176011)(6246003)(68736007)(486006)(316002)(52116002)(476003)(386003)(6506007)(11346002)(2616005)(446003)(1076003)(14454004)(256004)(4744005)(71190400001)(66066001)(33656002)(64756008)(66476007)(66946007)(66556008)(71200400001)(54906003)(36756003)(8936002)(6512007)(73956011)(5660300002)(478600001)(66446008);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5919;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
 received-spf: None (protection.outlook.com: mellanox.com does not designate
  permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
 x-microsoft-antispam-message-info:
- G88QnbZ36FCyyTJ2ZfcHbffJ0GQh3bFvTCHaf2zR8pqVCi1LDB7+CL+El3nvKWgdu/iFQUyD78uJpeXN9987OemXcoF9Er8/LcElZsIfVhfRwVbjccuVRaIeehvTxYRLMWVEzcR/o4e4FldKcOVc9poTQwNp/jgyZ0HfEL8IsrNXDvJ7XIhkevcrwbqRj7kuwVCvuTW66hAIBhvfRIOpa3dfb6FLbY8YbDNh5d8jNlav9LNBhDjbZeXTuTf8PG1Rosp0LWh8hbbamrA77AxkORqOVq7tTqVoj4mQgrjouT6rGBIN4qYXzHUwO4LQxsNf+BJ09t6EfH+ysIufgj77LIZqcfVV+WVqIMB57vcvkp1AQQZ6mvkBdKGgK7F2LbCGmXi/3jDxfkSb6BPFgvpMWezYAqEUoFTQNnMxHT81ydY=
+ iPoetAJzPWZv8VU52oGqZLrf5f3NTUkWPIOsu2E3P9cUOeZ3NwtuyEYz7iS7GJhlnDVMvGysQH81INXAyHGi4fhjs5va1Vo7Rdk93MlIgXRDPGqXx6+KGKEioXBXh61QIBW+HjfcdF9Afc/Uz8IU4w2KDhGZZyhNl/YEDKF9BG8aoozap+p31SfnFwV4kfNk64o6JW56KSiT60BrYrmeCz1XjhbsuaBg6SlAuqng5W2PWwz6FDD5jzrI/s5ZqBSLG+9QaRGa5ztkbj0f21QAbgQ9bDRkhNtDPfY/D24ndwUJPvjpdNIvVA5Nbk22Z1FnYXFRZc91aJgcqQyXDuUFzCT23/IfQophXoBr4oq2jKokb9DjG1mV1f29A7FqlAqhk+lNsM6TLohpGpppFxMbAIkVr/LP6Ao3e2lHBGtj3ng=
 Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <547A0314023A5340818D48E18E9DA700@eurprd05.prod.outlook.com>
+Content-ID: <866711CC77D78F4DBA1F59965DF24E41@eurprd05.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 7e748266-6013-44cb-2451-08d6f02f765a
-X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Jun 2019 18:46:36.2740
+X-MS-Exchange-CrossTenant-Network-Message-Id: 88cc1feb-7b67-4d6e-c18f-08d6f03051c6
+X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Jun 2019 18:52:44.2949
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
 X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
 X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
 X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4701
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5919
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 11:43:05AM +0200, Christoph Hellwig wrote:
-> This code is a trivial wrapper around device model helpers, which
-> should have been integrated into the driver device model usage from
-> the start.  Assuming it actually had users, which it never had since
-> the code was added more than 1 1/2 years ago.
->=20
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  include/linux/hmm.h | 20 ------------
->  mm/hmm.c            | 80 ---------------------------------------------
->  2 files changed, 100 deletions(-)
+On Thu, Jun 13, 2019 at 11:43:06AM +0200, Christoph Hellwig wrote:
+> This function has never been used since it was first added to the kernel
+> more than a year and a half ago, and if we ever grow a consumer of the
+> MEMORY_DEVICE_PUBLIC infrastructure it can easily use devm_memremap_pages
+> directly now that we've simplified the API for it.
 
-I haven't looked in detail at this device memory stuff.. But I did
-check a bit through the mailing list archives for some clue what this
-was supposed to be for (wow, this is from 2016!)
+nit: Have we simplified the interface for devm_memremap_pages() at
+this point, or are you talking about later patches in this series.
 
-The commit that added this says:
-  This introduce a dummy HMM device class so device driver can use it to
-  create hmm_device for the sole purpose of registering device memory.
+I checked this and all the called functions are exported symbols, so
+there is no blocker for a future driver to call devm_memremap_pages(),
+maybe even with all this boiler plate, in future.
 
-Which I just can't understand at all.=20
-
-If we need a 'struct device' for some 'device memory' purpose then it
-probably ought to be the 'struct pci_device' holding the BAR, not a
-fake device.
-
-I also can't comprehend why a supposed fake device would need a
-chardev, with a stanadrd 'hmm_deviceX' name, without also defining a
-core kernel ABI for that char dev..
-
-If this comes back it needs a proper explanation and review, with a
-user.
+If we eventually get many users that need some simplified registration
+then we should add a devm_memremap_pages_simplified() interface and
+factor out that code when we can see the pattern.
 
 Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 
