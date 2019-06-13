@@ -2,103 +2,102 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 42FCCC31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 19:58:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 74157C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:01:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E2FC92133D
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 19:58:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 226CA2133D
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:01:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="NwrQy10/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2FC92133D
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="nXHH6oTM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 226CA2133D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8173D6B000A; Thu, 13 Jun 2019 15:58:33 -0400 (EDT)
+	id B70378E0001; Thu, 13 Jun 2019 16:01:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7C9536B000C; Thu, 13 Jun 2019 15:58:33 -0400 (EDT)
+	id B20876B000C; Thu, 13 Jun 2019 16:01:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 690628E0001; Thu, 13 Jun 2019 15:58:33 -0400 (EDT)
+	id 9E8098E0001; Thu, 13 Jun 2019 16:01:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 158146B000A
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 15:58:33 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l53so313261edc.7
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 12:58:33 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5310C6B000A
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 16:01:58 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id l26so341113eda.2
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:01:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
          :thread-index:date:message-id:references:in-reply-to:accept-language
          :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=D2htE/EYsrky4UH8MwG+WJWY3xDNbfvqPNXq0yl06kE=;
-        b=Y5/Evyea0olr9P17WKdsxVANJWl+VSkBsDVOyTsOrBiPCSM7HWYRGBY4qHfypk3NvO
-         5DlsWuIi5VpDEfcjlDvRaX7ObWAy5VG3JzVaiNdEXgWcRD2GQkk6X3Inv1ZK6dHCxcWQ
-         2yTB9Erj4WdWDyUW7F5QE+CBbP4yeI+4lvF4ISFOU7r2UMUyKDRe060RtEXE97VsJAla
-         J/0DJZeS303w8446WbrsXDBxMoqp+IGyA/+/4ufzIXRZaycVuy3zovjA302hPeGzysrs
-         YZIypnI+N89pUJ2K1d52RIwR44e13eLGLYdsQva/CI0Cm/YZw+LJCAFRG8FqRQcpX+jR
-         ZUuw==
-X-Gm-Message-State: APjAAAWbOasS3XhiI0jJExfCzkqMGsuXryT4SlJbHGv3oCjOgNpDHELg
-	dJsBH5JQZK4Ul1Djszg0Eaf5eLbUO2Mlr2NIqX7pkv2jBAUBNlqKbRTH1P6eZGhxcNjbhTI2FDi
-	JXlINlGPeZO7oSi5kWEG2AVTi2LubaWbTlL0TMJ77VCSiMnmLdbOXOlQGilD1nAPxUQ==
-X-Received: by 2002:a17:906:37c2:: with SMTP id o2mr49586750ejc.209.1560455912545;
-        Thu, 13 Jun 2019 12:58:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzvV75xocFYQ6oXDKz3MvzzVM7MMAPFdYwq72BBVwPIq2sq3b/aN9g0lLI54oixHZaWCRZu
-X-Received: by 2002:a17:906:37c2:: with SMTP id o2mr49586711ejc.209.1560455911839;
-        Thu, 13 Jun 2019 12:58:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560455911; cv=none;
+        bh=2lmhrKuSV7GaCf2C9+fxP56+CLwg4sVHwuhk2+6yAoA=;
+        b=a2YxqiB1XR8597b//dDx+7Fqo3+ckumeLNra2MRAv6JzGNBs6XZNzqOJXwmAW30Iqf
+         DccaQDJKzCb0G8pUThhPWsyIEYTGYTg0Htng6yrdfpfdD2aO/BBC+o5rolFdOS1ixqli
+         WSU9M1beD601PLtrEgPzD51DsA/klpvNSN4XYJhhxeC7cLGjntBohxfRLBbRVtjb7y9H
+         gUDvftA4FvB2bVfCEVAqpvnX34o35TAkLgAmXDU0c9uut2uwaUbGcQlSkhkumN71Gy1b
+         jPo4GHk3A7XpDjMWp3p8wGoTS2Hhea3LGAMV0yySfsdsQ+E4XCvlVHbP2kfm8IWRbFwu
+         6lWQ==
+X-Gm-Message-State: APjAAAV/n2SNpglhrSj0H4oDzsrwb+XgHQfRa+pCVHjtGH0fO5mzFCK/
+	gPf7VRZV0kCGbuKYhlGEpvP23K0tYrtuCAwbJEnKxbjzA9RetKieMtnICVq9hXnFRHsb6FrVOl2
+	ZPgXJp2c1ztVyzl/1StDmBD9iWOpxfncST2G8YBYPRotRx4gfFYzAIbp0juCCYGAOKQ==
+X-Received: by 2002:a17:906:5254:: with SMTP id y20mr45890437ejm.59.1560456117771;
+        Thu, 13 Jun 2019 13:01:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwKLbt77sEWcpFJKGWprWmF5loEdK1rx/1UDvFaVLPQSmazJ9GX7No/tgWANhmjDvRJqwjb
+X-Received: by 2002:a17:906:5254:: with SMTP id y20mr45890379ejm.59.1560456117157;
+        Thu, 13 Jun 2019 13:01:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560456117; cv=none;
         d=google.com; s=arc-20160816;
-        b=UXAz7cN9nkK0lA1jZyGO/JzPsHcL4Iiu58ZFRawepfrukib+U03gvszU63LJXHcLya
-         Z7KH6QRr7sBUR0yGbIGWOCU7E2AcTBcmqSRrmZf6uLZVbMF/XBaKlf5CN2aYGbNhIRib
-         ixFPMOdGMNSm7ndXp80alYF0NkYHfDdoin04vRfuy6TLnTagBpOh/9SH35kuK/u/nv+a
-         jaBZAawCVKSfld251i/5BUPKP8miTbc3lGmaXs73JtiGHjbBpDDTvK4/OA95mGwySBbd
-         S1yIFAzRyDKVBxC9JFDFdiejh9lJLTJN/YIyj0ruMCYoGjwR5LDHV5iC91n/lWOHSgFo
-         /tlw==
+        b=MvoAVhRSmfzWl1k7yhdraS/inLo4RB+HjDm5Z0Vn4CzTSPiIbskYpRvbfqE34DwQl6
+         iWlBTVD6gEuHln4kveyB+8DCVT03TaozCFV2P5LPZVPcatcxmerFxqqk+pGNUuAcQ7wc
+         HBcUK+Uy/9UkOoPOJ0LTy6uO5dbnkgb64tZHtsOBCdInJCarc5j18RUxlw8RH7qY0kEx
+         gIzm1wjb/jpqAjZLxYq2GFmBa17K1it4jqanuSlh60MhVfA5fXyblpeZjT6jhbWBpWml
+         xOefBnoi+2opkaXbSwwIhZxazFbwqD1f0yh7r/yae88rjwa5cT1bO9P5SZUf+ae8fYBL
+         cZsA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:content-id:content-language
          :accept-language:in-reply-to:references:message-id:date:thread-index
          :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=D2htE/EYsrky4UH8MwG+WJWY3xDNbfvqPNXq0yl06kE=;
-        b=mNvvnxPJpjJged3XhUT//6jxuzmXsBXJN8dijXR/IOM7XfjEovlw6FGIQojOEoKfTC
-         bRKkSTphAg9+A3qI9uH5buO9SJrKyBzFHzTZ8gEUjtdQYJ03LZ059aozosfS/CdHwr9O
-         qjf6ka2j8kwPGf6+iiTDTf8XJrgum9+DM86nMWfA6fHDpJ83FuKHlptdt0Fp+71nnTPf
-         DuwgS/G/tyq6002LGzEBKHY1wPYArnzfBd/7PUMs8uhlmuRBSuLZJLSx7ViKXF8aLOQX
-         haAGmrj7+QxxCXoluLHcs85Cv+jHFpsoGh+Oq14F8XMTX7IxG1ZJtld4ppRpIVGAwiew
-         OM8Q==
+        bh=2lmhrKuSV7GaCf2C9+fxP56+CLwg4sVHwuhk2+6yAoA=;
+        b=y5aIlxGw73S6DGn51azdXifNL17DPoZe1l0XzEWbpLvXftPhTelvcPfsa/JS9dUp8N
+         kI8yp7Q529zeTptKWAE6BusXjfXfkt8puBThr4C81Dkgu7/HnLREUPZCGpgiUukcjAyQ
+         3u4L2oBuGPmPEeBiuc9ZRKa2I4nGdSpBhHGvXZjAllqG5ThgUsqjqe54CgvInPcT1AFw
+         Ny/AZwb2WYa24ArdZq1pQgcOrjwJxB0xlwGqPIFNrrlX27mWRTW7hw48b0S3Go1BxFUr
+         7tuxMbYvs0LDTBdev5V33g5lcxeJf4iYRcL1qLmIhymPxN6M+B5hhsexrFz2ItN0KkLW
+         QIqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b="NwrQy10/";
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.4.63 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=nXHH6oTM;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.2.58 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40063.outbound.protection.outlook.com. [40.107.4.63])
-        by mx.google.com with ESMTPS id o26si374763edc.423.2019.06.13.12.58.31
+Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20058.outbound.protection.outlook.com. [40.107.2.58])
+        by mx.google.com with ESMTPS id z4si369243edp.380.2019.06.13.13.01.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 12:58:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.4.63 as permitted sender) client-ip=40.107.4.63;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 13 Jun 2019 13:01:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.2.58 as permitted sender) client-ip=40.107.2.58;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b="NwrQy10/";
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.4.63 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=nXHH6oTM;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.2.58 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
  s=selector2;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=D2htE/EYsrky4UH8MwG+WJWY3xDNbfvqPNXq0yl06kE=;
- b=NwrQy10/EB/7iKUzBwiP0xmPlH7ZtdAlNMflQH1hNbn4/r+oHD5CfsY9MXBj7FAnXVrVuSaY6GulI3Vah/8X2MrMbltvr3EEYzYKmGvnmP5JLdsfZXTlSxHbW/YL8LUsjhMibWBRxFD2oe6UOpY8Bog/vkEf6sFBQ0wUOe4qK6o=
+ bh=2lmhrKuSV7GaCf2C9+fxP56+CLwg4sVHwuhk2+6yAoA=;
+ b=nXHH6oTMdTMLmi/TtImBS/dCyHU78zPjEUjNSp4lnVViy2lTe4AGx/4SeMkZVFDBhoMNAia0JdmLifxdH4Lr98odLCuLVpxPcLYBuHFpOxbTMu3TvhAnWgTwwxsm+pF4izCRK+/ISDqaIWNIQj2rfgiibv/r9EJD1smDKgXN6eA=
 Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB6030.eurprd05.prod.outlook.com (20.178.127.208) with Microsoft SMTP
+ VI1PR05MB4381.eurprd05.prod.outlook.com (52.133.13.12) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1987.10; Thu, 13 Jun 2019 19:58:29 +0000
+ 15.20.1987.13; Thu, 13 Jun 2019 20:01:55 +0000
 Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
  ([fe80::c16d:129:4a40:9ba1]) by VI1PR05MB4141.eurprd05.prod.outlook.com
  ([fe80::c16d:129:4a40:9ba1%6]) with mapi id 15.20.1987.012; Thu, 13 Jun 2019
- 19:58:29 +0000
+ 20:01:55 +0000
 From: Jason Gunthorpe <jgg@mellanox.com>
-To: Ralph Campbell <rcampbell@nvidia.com>
-CC: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
+To: Christoph Hellwig <hch@lst.de>
+CC: Dan Williams <dan.j.williams@intel.com>,
 	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Ben Skeggs
 	<bskeggs@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
 	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
@@ -106,128 +105,73 @@ CC: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
 	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
 	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
 	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 18/22] mm: mark DEVICE_PUBLIC as broken
-Thread-Topic: [PATCH 18/22] mm: mark DEVICE_PUBLIC as broken
-Thread-Index: AQHVIcyVeqgMzBs0VkumwilsEzSkhqaZ/TwAgAACYgCAAAF6gA==
-Date: Thu, 13 Jun 2019 19:58:29 +0000
-Message-ID: <20190613195819.GA22062@mellanox.com>
+Subject: Re: [PATCH 21/22] mm: remove the HMM config option
+Thread-Topic: [PATCH 21/22] mm: remove the HMM config option
+Thread-Index: AQHVIcybZ4YnmSc/ekSwqfkgyQT9faaaAhMA
+Date: Thu, 13 Jun 2019 20:01:55 +0000
+Message-ID: <20190613200150.GB22062@mellanox.com>
 References: <20190613094326.24093-1-hch@lst.de>
- <20190613094326.24093-19-hch@lst.de> <20190613194430.GY22062@mellanox.com>
- <a27251ad-a152-f84d-139d-e1a3bf01c153@nvidia.com>
-In-Reply-To: <a27251ad-a152-f84d-139d-e1a3bf01c153@nvidia.com>
+ <20190613094326.24093-22-hch@lst.de>
+In-Reply-To: <20190613094326.24093-22-hch@lst.de>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach:
 X-MS-TNEF-Correlator:
-x-clientproxiedby: MN2PR05CA0003.namprd05.prod.outlook.com
- (2603:10b6:208:c0::16) To VI1PR05MB4141.eurprd05.prod.outlook.com
+x-clientproxiedby: BL0PR02CA0082.namprd02.prod.outlook.com
+ (2603:10b6:208:51::23) To VI1PR05MB4141.eurprd05.prod.outlook.com
  (2603:10a6:803:4d::16)
 authentication-results: spf=none (sender IP is )
  smtp.mailfrom=jgg@mellanox.com; 
 x-ms-exchange-messagesentrepresentingtype: 1
 x-originating-ip: [156.34.55.100]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: c5c3b5b4-9397-4985-fe76-08d6f039811e
+x-ms-office365-filtering-correlation-id: c7d97d2a-4a43-492c-522b-08d6f039fbe4
 x-ms-office365-filtering-ht: Tenant
 x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6030;
-x-ms-traffictypediagnostic: VI1PR05MB6030:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4381;
+x-ms-traffictypediagnostic: VI1PR05MB4381:
 x-microsoft-antispam-prvs:
- <VI1PR05MB60308FFB6145E73B56AB9897CFEF0@VI1PR05MB6030.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:10000;
+ <VI1PR05MB4381BEEE04CCE0A53CD45D77CFEF0@VI1PR05MB4381.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:7219;
 x-forefront-prvs: 0067A8BA2A
 x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(376002)(366004)(136003)(346002)(396003)(39860400002)(189003)(199004)(76176011)(256004)(99286004)(3846002)(4326008)(68736007)(66556008)(73956011)(2906002)(66946007)(6246003)(66446008)(64756008)(386003)(6116002)(53546011)(6506007)(1076003)(52116002)(66476007)(86362001)(446003)(316002)(14454004)(6512007)(2616005)(53936002)(66066001)(81166006)(478600001)(7416002)(33656002)(8936002)(71200400001)(71190400001)(36756003)(11346002)(6916009)(476003)(8676002)(7736002)(102836004)(5660300002)(186003)(305945005)(26005)(54906003)(6486002)(6436002)(25786009)(229853002)(81156014)(486006);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6030;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+ SFV:NSPM;SFS:(10009020)(396003)(136003)(376002)(39860400002)(346002)(366004)(189003)(199004)(68736007)(52116002)(53936002)(2906002)(6246003)(71190400001)(71200400001)(26005)(66066001)(81156014)(81166006)(36756003)(54906003)(5660300002)(33656002)(6436002)(102836004)(1076003)(86362001)(99286004)(6486002)(6916009)(229853002)(6116002)(76176011)(3846002)(386003)(316002)(7416002)(6506007)(14454004)(446003)(476003)(7736002)(11346002)(6512007)(8936002)(2616005)(186003)(4326008)(478600001)(486006)(64756008)(66446008)(305945005)(66556008)(256004)(4744005)(8676002)(25786009)(73956011)(66946007)(66476007);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4381;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
 received-spf: None (protection.outlook.com: mellanox.com does not designate
  permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
 x-microsoft-antispam-message-info:
- +rHR4yNz2DiEAD3ZeK5Nywni7ynWym3Tv9AxgXTqs7Di54gyzHpnC7Sn53lpHimljqLCvlTHL5Fm2/whl2TetvZ99ChjzU5mbuPPtL02FmKHU0zbx+B+i4VSgdXjvGlXUqLbyM9ksoeaCT4y33yEK7ojwFJrCQWUD5yA00jKpXGEaxzkkJfYcOvllHmFWMfbP97VK3sdwn5bJiA1Gi+5jjKe5YOB/LWKqIcalEy9+SrI1xvBifgZfk6LMrnkLUl/lTQch+pO3n7OU3C/W678nu4HzLwKoqMocAI1GDI49RnhIkfUskKgPu2eiPme7cdk44FpI1AqD6Gd8axVEOSp8Q/0BEPaBRrMkvpp+K5DHbQLwcnmK1Dank3QkGM0Ju/kXiG19aAalZiYdRGuEXKVftwFo07S6QPKvYhDO0klfyw=
+ 7yWCsk29qZQJ4Hn9JUnWEfUTBD+kbukUw0AN3qXho23YT0zYsYge5E4RXgxJRsbaXi5No2o4BAdg3BW9u67HbUL/SigKNq9GtuqbhSWyCmUbByPx6Qh+tnSkwrr6J++SoZOFL38nzVkfKSB0Dg7VS7R2jtx055eoY7l/DcgRp8Rsm1zQ/FL0XElohyiIghL8gA6UoyT1JU0Du1rAA508vDb2CvlZv2hIGcs5AYYuKsqpDOJGlM7TjL3GJWbl8B8wNSh2iTlmyf2VDQoE4WlvPqhMKur+sHPzL0R7SZg257XZygcRGjOFIyJLnOyo1z6DalA94eYsFjveI0KR74DInxMg4ixWlprhTJ0l5J1ub+ASeoqTeP83paufq04i2gx1MODiqrVm82Fv2gIkrAqFm+kQZfckMDd0HKbfK308SNI=
 Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <E2A7F637FAC6984B88734C89A688CD72@eurprd05.prod.outlook.com>
+Content-ID: <4F4AB6FDDD24014F95455A97A0E953B7@eurprd05.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: c5c3b5b4-9397-4985-fe76-08d6f039811e
-X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Jun 2019 19:58:29.4725
+X-MS-Exchange-CrossTenant-Network-Message-Id: c7d97d2a-4a43-492c-522b-08d6f039fbe4
+X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Jun 2019 20:01:55.3627
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
 X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
 X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
 X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6030
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4381
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 12:53:02PM -0700, Ralph Campbell wrote:
->=20
-> On 6/13/19 12:44 PM, Jason Gunthorpe wrote:
-> > On Thu, Jun 13, 2019 at 11:43:21AM +0200, Christoph Hellwig wrote:
-> > > The code hasn't been used since it was added to the tree, and doesn't
-> > > appear to actually be usable.  Mark it as BROKEN until either a user
-> > > comes along or we finally give up on it.
-> > >=20
-> > > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> > >   mm/Kconfig | 1 +
-> > >   1 file changed, 1 insertion(+)
-> > >=20
-> > > diff --git a/mm/Kconfig b/mm/Kconfig
-> > > index 0d2ba7e1f43e..406fa45e9ecc 100644
-> > > +++ b/mm/Kconfig
-> > > @@ -721,6 +721,7 @@ config DEVICE_PRIVATE
-> > >   config DEVICE_PUBLIC
-> > >   	bool "Addressable device memory (like GPU memory)"
-> > >   	depends on ARCH_HAS_HMM
-> > > +	depends on BROKEN
-> > >   	select HMM
-> > >   	select DEV_PAGEMAP_OPS
-> >=20
-> > This seems a bit harsh, we do have another kconfig that selects this
-> > one today:
-> >=20
-> > config DRM_NOUVEAU_SVM
-> >          bool "(EXPERIMENTAL) Enable SVM (Shared Virtual Memory) suppor=
-t"
-> >          depends on ARCH_HAS_HMM
-> >          depends on DRM_NOUVEAU
-> >          depends on STAGING
-> >          select HMM_MIRROR
-> >          select DEVICE_PRIVATE
-> >          default n
-> >          help
-> >            Say Y here if you want to enable experimental support for
-> >            Shared Virtual Memory (SVM).
-> >=20
-> > Maybe it should be depends on STAGING not broken?
-> >=20
-> > or maybe nouveau_svm doesn't actually need DEVICE_PRIVATE?
-> >=20
-> > Jason
->=20
-> I think you are confusing DEVICE_PRIVATE for DEVICE_PUBLIC.
-> DRM_NOUVEAU_SVM does use DEVICE_PRIVATE but not DEVICE_PUBLIC.
+On Thu, Jun 13, 2019 at 11:43:24AM +0200, Christoph Hellwig wrote:
+> All the mm/hmm.c code is better keyed off HMM_MIRROR.  Also let nouveau
+> depend on it instead of the mix of a dummy dependency symbol plus the
+> actually selected one.  Drop various odd dependencies, as the code is
+> pretty portable.
 
-Indeed you are correct, never mind
+I don't really know, but I thought this needed the arch restriction
+for the same reason get_user_pages has various unique arch specific
+implementations (it does seem to have some open coded GUP like thing)?
 
-Hum, so the only thing this config does is short circuit here:
-
-static inline bool is_device_public_page(const struct page *page)
-{
-        return IS_ENABLED(CONFIG_DEV_PAGEMAP_OPS) &&
-                IS_ENABLED(CONFIG_DEVICE_PUBLIC) &&
-                is_zone_device_page(page) &&
-                page->pgmap->type =3D=3D MEMORY_DEVICE_PUBLIC;
-}
-
-Which is called all over the place..=20
-
-So, yes, we really don't want any distro or something to turn this on
-until it has a use.
-
-Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
+I was hoping we could do this after your common gup series? But sooner
+is better too.
 
 Jason
 
