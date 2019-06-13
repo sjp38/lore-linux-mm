@@ -2,214 +2,198 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+X-Spam-Status: No, score=-8.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 510CAC31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 04:37:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CEE78C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 04:44:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E362120896
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 04:37:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E362120896
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 81DE120896
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 04:44:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81DE120896
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 54ED66B0003; Thu, 13 Jun 2019 00:37:54 -0400 (EDT)
+	id 1C8016B0005; Thu, 13 Jun 2019 00:44:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4FF076B0005; Thu, 13 Jun 2019 00:37:54 -0400 (EDT)
+	id 177E76B0006; Thu, 13 Jun 2019 00:44:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3C7546B0006; Thu, 13 Jun 2019 00:37:54 -0400 (EDT)
+	id 066FD6B0007; Thu, 13 Jun 2019 00:44:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 072FC6B0003
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 00:37:54 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id s195so12965437pgs.13
-        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 21:37:53 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C52DE6B0005
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 00:44:34 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id b127so13592768pfb.8
+        for <linux-mm@kvack.org>; Wed, 12 Jun 2019 21:44:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Ks+ISqyfxk9pg1rSJuwC9erCPByP0RZg/2NBga4q9Lg=;
-        b=SufJ4XgUhI0vvg8g95PEgKFIKheUd5CoPduSo88gvKihYcVf1w0og1jNHhqWEkiAxZ
-         poFimocR1CV+ObR2Y9t8EIpelhZnKdJF5EgXefNbVDCF6l3si26QppFQhA+hv9Fzx9bT
-         FsR4jW6W9zRphZ4pIymq1p4OQb2yPei9FuNrZlm/6v841o9QIgK8CBGi+S7cuTGYzj9r
-         dQxnMqHbJ22kskyGcfSJD7HPl/GnohwsDKhpf3HpA6L6lNL5hdlWN2T716YuVk/uGmpO
-         ADih7+sNnSb26YWmosd2SqhJn7xNvCOgBBwiWsZTYXpvz1FKwc8rQPotwKJ4g8KC/6/I
-         /JsQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAUgEPmkVYG/6gd+ck4voLiwCrHkPZrpOsCf5kPaWjsWkFFzsC+z
-	n0aWL6hqf78otyudt2iNL7LIcvWHG6JFKaDZ5QkQKGf1+mRSYf/qEjMdGhXkJrPi9+xthW7jXHo
-	cFlel+MRI8lPlgbX8/GQTtEbxt9sxJY7n5LbRX7E8rKpnlTnPOCiMEqldJChvu+c=
-X-Received: by 2002:a62:4d03:: with SMTP id a3mr12924326pfb.2.1560400673575;
-        Wed, 12 Jun 2019 21:37:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzb1jE/zSt7GNeFHTnpeLZrX80FwIkpLIKpioKhIlpH1p22jplgYTtKu3Wuq7qLre9w00dH
-X-Received: by 2002:a62:4d03:: with SMTP id a3mr12924266pfb.2.1560400672624;
-        Wed, 12 Jun 2019 21:37:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560400672; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references;
+        bh=j5MbCLhVNCmEPDQlr1rpYtmPkjYr3dRGdvMWKjAKhpQ=;
+        b=SpFkuns6YE9W8o23+LB/0lPZTXqw5xvnhJv0N3dUFDNVI3FmikZm0tw5tgX04IvY4p
+         jrtw30SDd474DpPeVnJT6e5iZh2HxZAhRcY7slmbCTWfi6kJm/k2zvMip35/OR552Nru
+         E3pDxnMaGOU+Mif+UFyH8E3dYicoJ0gU6Rxp57ylWs5eVWHuHQVjl28laXYN2T8JV/ER
+         Jbxth+tmj9Op5KGl4F+yO6AhxHif+ExXTFqlCMoIUmDGs7vWFVE5kvu25IS83Gff5rVF
+         vY+ExzKJnWYvGKlsiFUFhdHrBBMXr+RJWXNSWdJ77CE9Hjf3SQeMv82AIp32BnElDw+M
+         o1Zw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAUp2SYW/9PMxgHSfZ0pm7l9ur2QOhLa64+IvDF9htQfTbJOufIH
+	+GwbYv7WxeKnc3zrUTR/YpmxNwAqiCpX2c++rKQyv4IooJ58F5/il1u9m/L6LnkSaL970xjji3F
+	hVWReNm/vsU4h9yd74L3ahWQ0nsHnGDVyY7wV0H6nBVgeWwAHzXIkqL0oXqr3O0raYg==
+X-Received: by 2002:a17:90a:24ac:: with SMTP id i41mr2946515pje.124.1560401074431;
+        Wed, 12 Jun 2019 21:44:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztGVBpoecT25cVHR/6RucPouBOhgTx2A7iTHZbEBbdjAlo83yitW+gIfZ9Sz7+nT9qIQ9C
+X-Received: by 2002:a17:90a:24ac:: with SMTP id i41mr2946374pje.124.1560401073098;
+        Wed, 12 Jun 2019 21:44:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560401073; cv=none;
         d=google.com; s=arc-20160816;
-        b=zxBHDXPqQ24zqal4w/CrZbfVB9uJZx5Gq/Ha9NJUQsGWFcUE18EDIa85Vhppmwsitu
-         vhDhkoBvkiR/wtsbO3xyf6soCqwtSMbnxThP22u5s2Hr2tKHVqj3Mg3KSYu1n39WahZT
-         t15Q07AX7onrzrW2FTOCX7ys0g/cyHgoqn3UUPpN5OiVABNXwjR8TjNDcXZpKihe17Pr
-         r+mjvqqdsie0Fd8MdJtVZk3aV0rOXaIElAX40lwhMUR9RtstvYJRT1BwCQd7xkA7sZyT
-         bmkWxD1kdEqkNTHy90eNUUowcVxxJ7tMv7rX/nDcpkpt/Kl4H0iCJ2WNok1QIpAms+RU
-         IfGg==
+        b=BJyPGOS17nsyiVyxCdiKndO0v4p9k45lF1TltKuzaPNZKmEhJmufIuiKhArT22cLH7
+         a2DELC7Xx9fM4iHs2VxelnsaCRIl3IpK1OKkwxibbt/HL56Rw8CWNSRJmoPFgf76KMoR
+         j4wjBXUNtXmgzkgDFceCnWd5V/ki8SaqMsTkVU5d7V3K0ksMEQNUlc4xMklmUzyELMGf
+         TXaiLhrirTG/VElMJpDgrSF5+NZxth3FGLiBqF26TngtCSF52hNsrzAg46uvi176UqL6
+         Tup6tPF/Av+yw7OkVTOmAFPfdELvmzle9ruFQFHCbHO9ptE6qAzyfVte6chTEDDPkDKr
+         ywDw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Ks+ISqyfxk9pg1rSJuwC9erCPByP0RZg/2NBga4q9Lg=;
-        b=lcRiMjhtNv5JW/O8XruKSazipMfi3fKExMcTq+5aDB44aNK7l9MYoLNNKEpt2zqSOF
-         l29pfglvqe+NEoYBRjqhMMitYELmOoavc0+ujOLiKFUTly/tYEETvuQtCYXpf85ox7G7
-         CxHGcoD21Jn879+WhiRmzpKNgcEEnEl/I3utGhNa6OOOVEikMwjX4aWN+sxdDNa+3qi3
-         F68SEREkEWKaEV6big/syWSDi/bY+/gIumZVzYGPw+eRdLGyjVWIjuBYDnKV331S7ym3
-         FISg35Uy2LZCWSZecMiO49Jiljqlru+HpyHnrKhGqYFI0GvmWx4MF/4J5HTBqi3njtS3
-         UNSQ==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=j5MbCLhVNCmEPDQlr1rpYtmPkjYr3dRGdvMWKjAKhpQ=;
+        b=PT96d0Nu9TC28594VjEim/teoQrEmbRs2tpUJKSplYjD0al+cWqQyqWP7TY1qwYfH+
+         Oz/8slTc7s3x1xSx+JYxNBYo90GQjM5xsfIX2U0emghZhmIbm31Q7pkcFCmT/UNOeRD5
+         otPlhHxLKMYAdhDARZt1g7+6nPD+8r2LjhA9tcB/n0oxwOQCW+v1v/ZYUV3ZhNv/7jea
+         FB1AlGstHOpVaJN4cloZyEkSaVysYd8NyDiiz4Yw0dv2fq2hmOjr+uOBu2jVaRTWsbbc
+         sx/zO84tAcJJt/Om6n3ucQ0tCLju8Wdzo2tWeX4aDzixHpGcWPlOABZVjMFVODVk1SLT
+         dpDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
-        by mx.google.com with ESMTP id m23si1707161pjv.56.2019.06.12.21.37.52
-        for <linux-mm@kvack.org>;
-        Wed, 12 Jun 2019 21:37:52 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
+        by mx.google.com with ESMTPS id a22si1853945pgb.292.2019.06.12.21.44.31
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 12 Jun 2019 21:44:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from dread.disaster.area (pa49-195-189-25.pa.nsw.optusnet.com.au [49.195.189.25])
-	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id BEAB014A744;
-	Thu, 13 Jun 2019 14:37:47 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1hbHTl-0005bp-W0; Thu, 13 Jun 2019 14:36:49 +1000
-Date: Thu, 13 Jun 2019 14:36:49 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
-	linux-xfs@vger.kernel.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	John Hubbard <jhubbard@nvidia.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org, Jason Gunthorpe <jgg@ziepe.ca>,
-	linux-rdma@vger.kernel.org
-Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
-Message-ID: <20190613043649.GJ14363@dread.disaster.area>
-References: <20190606014544.8339-1-ira.weiny@intel.com>
- <20190606104203.GF7433@quack2.suse.cz>
- <20190606220329.GA11698@iweiny-DESK2.sc.intel.com>
- <20190607110426.GB12765@quack2.suse.cz>
- <20190607182534.GC14559@iweiny-DESK2.sc.intel.com>
- <20190608001036.GF14308@dread.disaster.area>
- <20190612123751.GD32656@bombadil.infradead.org>
- <20190613002555.GH14363@dread.disaster.area>
- <20190613032320.GG32656@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190613032320.GG32656@bombadil.infradead.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0 cx=a_idp_d
-	a=K5LJ/TdJMXINHCwnwvH1bQ==:117 a=K5LJ/TdJMXINHCwnwvH1bQ==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=dq6fvYVFJ5YA:10
-	a=7-415B0cAAAA:8 a=VVmKscACqtQWyMykWwEA:9 a=CjuIK1q_8ugA:10
-	a=biEYGPWJfzWAr4FL6Ov7:22
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R291e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04391;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TU25N7U_1560401051;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TU25N7U_1560401051)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Thu, 13 Jun 2019 12:44:19 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: hughd@google.com,
+	kirill.shutemov@linux.intel.com,
+	mhocko@suse.com,
+	vbabka@suse.cz,
+	rientjes@google.com,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [v3 PATCH 1/2] mm: thp: make transhuge_vma_suitable available for anonymous THP
+Date: Thu, 13 Jun 2019 12:44:00 +0800
+Message-Id: <1560401041-32207-2-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
+In-Reply-To: <1560401041-32207-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1560401041-32207-1-git-send-email-yang.shi@linux.alibaba.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 12, 2019 at 08:23:20PM -0700, Matthew Wilcox wrote:
-> On Thu, Jun 13, 2019 at 10:25:55AM +1000, Dave Chinner wrote:
-> > On Wed, Jun 12, 2019 at 05:37:53AM -0700, Matthew Wilcox wrote:
-> > > That's rather different from the normal meaning of 'exclusive' in the
-> > > context of locks, which is "only one user can have access to this at
-> > > a time".
-> > 
-> > Layout leases are not locks, they are a user access policy object.
-> > It is the process/fd which holds the lease and it's the process/fd
-> > that is granted exclusive access.  This is exactly the same semantic
-> > as O_EXCL provides for granting exclusive access to a block device
-> > via open(), yes?
-> 
-> This isn't my understanding of how RDMA wants this to work, so we should
-> probably clear that up before we get too far down deciding what name to
-> give it.
-> 
-> For the RDMA usage case, it is entirely possible that both process A
-> and process B which don't know about each other want to perform RDMA to
-> file F.  So there will be two layout leases active on this file at the
-> same time.  It's fine for IOs to simultaneously be active to both leases.
+The transhuge_vma_suitable() was only available for shmem THP, but
+anonymous THP has the same check except pgoff check.  And, it will be
+used for THP eligible check in the later patch, so make it available for
+all kind of THPs.  This also helps reduce code duplication slightly.
 
-Yes, it is.
+Since anonymous THP doesn't have to check pgoff, so make pgoff check
+shmem vma only.
 
-> But if the filesystem wants to move blocks around, it has to break
-> both leases.
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: David Rientjes <rientjes@google.com>
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ mm/huge_memory.c |  2 +-
+ mm/internal.h    | 25 +++++++++++++++++++++++++
+ mm/memory.c      | 13 -------------
+ 3 files changed, 26 insertions(+), 14 deletions(-)
 
-No, the _lease layer_ needs to break both leases when the filesystem
-calls break_layout().
-
-The filesystem is /completely unaware/ of whether a lease is held,
-how many leases are held, what is involved in revoking leases or
-whether they are exclusive or not. The filesystem only knows that it
-is about to perform an operation that may require a layout lease to
-be broken, so it's _asking permission_ from the layout lease layer
-whether it is OK to go ahead with the operation.
-
-See what I mean about the layout lease being an /access arbitration/
-layer? It's the layer that decides whether a modification can be
-made or not, not the filesystem. The layout lease layer tells the
-filesystem what it should do, the filesystem just has to ensure it
-adds layout breaking callouts in places that can block safely and
-are serialised to ensure operations from new layouts can't race with
-the operation that broke the existing layouts.
-
-> If Process C tries to do a write to file F without a lease, there's no
-> problem, unless a side-effect of the write would be to change the block
-> mapping,
-
-That's a side effect we cannot predict ahead of time. But it's
-also _completely irrelevant_ to the layout lease layer API and
-implementation.(*)
-
-> in which case either the leases must break first, or the write
-> must be denied.
-
-Which is exactly how I'm saying layout leases already interact with
-the filesystem: that if the lease cannot be broken, break_layout()
-returns -ETXTBSY to the filesystem, and the filesystem returns that
-to the application having made no changes at all. Layout leases are
-the policy engine, the filesystem just has to implement the
-break_layout() callouts such that layout breaking is consistent,
-correct, and robust....
-
-Cheers,
-
-Dave.
-
-(*) In the case of XFS, we don't know if a layout change will be
-necessary until we are deep inside the actual IO path and hold inode
-metadata locks. We can't block here to break the layout because IO
-completion and metadata commits need to occur to allow the
-application to release it's lease and IO completion requires that
-same inode metadata lock. i.e. if we block once we know a layout
-change needs to occur, we will deadlock the filesystem on the inode
-metadata lock.
-
-Hence the filesystem implementation dictates when the filesystem
-issues layout lease break notifications. However, these filesystem
-implementation issues do not dictate how applications interact with
-layout leases, how layout leases are managed, whether concurrent
-leases are allowed, whether leases can be broken, etc.  That's all
-managed by the layout lease layer and that's where the go/no go
-decision is made and communicated to the filesystem as the return
-value from the break_layout() call.
-
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 9f8bce9..4bc2552 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -691,7 +691,7 @@ vm_fault_t do_huge_pmd_anonymous_page(struct vm_fault *vmf)
+ 	struct page *page;
+ 	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
+ 
+-	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
++	if (!transhuge_vma_suitable(vma, haddr))
+ 		return VM_FAULT_FALLBACK;
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		return VM_FAULT_OOM;
+diff --git a/mm/internal.h b/mm/internal.h
+index 9eeaf2b..7f096ba 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -555,4 +555,29 @@ static inline bool is_migrate_highatomic_page(struct page *page)
+ 
+ void setup_zone_pageset(struct zone *zone);
+ extern struct page *alloc_new_node_page(struct page *page, unsigned long node);
++
++#ifdef CONFIG_TRANSPARENT_HUGEPAGE
++#define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
++static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
++		unsigned long haddr)
++{
++	/* Don't have to check pgoff for anonymous vma */
++	if (!vma_is_anonymous(vma)) {
++		if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
++			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
++			return false;
++	}
++
++	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
++		return false;
++	return true;
++}
++#else
++static inline bool transhuge_vma_suitable(struct vma_area_struct *vma,
++		unsigned long haddr)
++{
++	return false;
++}
++#endif
++
+ #endif	/* __MM_INTERNAL_H */
+diff --git a/mm/memory.c b/mm/memory.c
+index 96f1d47..2286424 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3205,19 +3205,6 @@ static vm_fault_t pte_alloc_one_map(struct vm_fault *vmf)
+ }
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
+-
+-#define HPAGE_CACHE_INDEX_MASK (HPAGE_PMD_NR - 1)
+-static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
+-		unsigned long haddr)
+-{
+-	if (((vma->vm_start >> PAGE_SHIFT) & HPAGE_CACHE_INDEX_MASK) !=
+-			(vma->vm_pgoff & HPAGE_CACHE_INDEX_MASK))
+-		return false;
+-	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
+-		return false;
+-	return true;
+-}
+-
+ static void deposit_prealloc_pte(struct vm_fault *vmf)
+ {
+ 	struct vm_area_struct *vma = vmf->vma;
 -- 
-Dave Chinner
-david@fromorbit.com
+1.8.3.1
 
