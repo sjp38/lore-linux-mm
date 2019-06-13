@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C33A5C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C256C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8204721473
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:47 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EAB2C21473
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 09:43:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="LrHEjG0K"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8204721473
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="L3WbZ0JS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EAB2C21473
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 77A4C6B000A; Thu, 13 Jun 2019 05:43:45 -0400 (EDT)
+	id C10616B000D; Thu, 13 Jun 2019 05:43:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 729E26B000C; Thu, 13 Jun 2019 05:43:45 -0400 (EDT)
+	id A88E56B000E; Thu, 13 Jun 2019 05:43:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5547C6B000D; Thu, 13 Jun 2019 05:43:45 -0400 (EDT)
+	id 83E7B6B0010; Thu, 13 Jun 2019 05:43:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DECC6B000A
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 05:43:45 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 145so14078703pfv.18
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 02:43:45 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 41F0C6B000D
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 05:43:47 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id j21so14098538pff.12
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 02:43:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=b0eW2dMKelYlLaleRf5bDKha7L0ij82/1V9DJV7UjR4=;
-        b=rmihczVrPdM5XQy+jrHjl/K7UpNNxDgk5QpdmidCVLkEe0OKyR7AFkBppPO6Aff2fX
-         cdSWa92mVTv5sUuRCbeuW72JIWei8TYpAE8Wgo0jFP/jU+S/GuFIIqOfv+Yg3DYfDDvJ
-         D77phtLeHXWmoUAcpQwaA83WyUH0cjnxePJ8jhLrgmTYmjxwxEi/ALfvWlTmubZPeBBi
-         h7g+whHbMA7tdZmXBxWuvS2HvQRn05LNW2Q0p7DznxTWnQpr55/YsmkYeSHk1qy7PVef
-         WoHCtTehUUO1pXJZpNg0419+cmRPM7NkG1z2bPTESckQQcYWocgH5uT4eLMX2Q4rRg2e
-         aGYw==
-X-Gm-Message-State: APjAAAWsJ5aG9Gpv0+Nk6WjkJ9i2mYNovtZxw79RkN9YjkwNSNPz4wN2
-	+0uSwLHqShDlWF63YCVmqzZ9y6/STMGSRjISBKWHoyDSzqx6iElp1zNG3e7hb4A2IkShV4Fxbzz
-	rpfpU/AxdMU6O4tf4JVVVjw/sMSVeIH8s4uXK5TwYZ2yhgxSCVtFBINLu4fL+258=
-X-Received: by 2002:a63:b1d:: with SMTP id 29mr29663069pgl.103.1560419024730;
-        Thu, 13 Jun 2019 02:43:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqycZhiDFWaeYfs2LEdGUGnpbiq/m87gRf+xNgG54MIs0QzA9ATuBQbXaIuDe+m5cNfMhzOy
-X-Received: by 2002:a63:b1d:: with SMTP id 29mr29662987pgl.103.1560419023919;
-        Thu, 13 Jun 2019 02:43:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560419023; cv=none;
+        bh=FEkGt+ty/uGWp0o9n/p7YTGA7bk3QKQR9GKnB3yrWi0=;
+        b=XdwKYWw6TQu2WFLmwZqkJpJ2/nT+RKGuDQj5Vzw+IM/NhsGM8B7t90kYeTb4TGCi2c
+         Cm0RZr97ijYf8cWllmCocHX4qks5QBNFUKkn7yzDb0yj1erCFLmZXTOH8hBH6EzkU/Tq
+         fmE5lfsRdRW+QbRSpyFLFM9+QNhdO9KN4zuWxiOBFdbN56wmFK3++j4SEBLWEBFjje48
+         JdGnCRR1+L3J/FLm3164UBW3XSc9IwkIN6tqxVomUBWyG3u6Prnwfjhdn2Z3pS0bQjP8
+         tHXE81ZyZVyB1tliII7uQO0M2Tu6P4wOkiJQ+NG8EMFWd4wyC36ODkJ3N1VLI7MbMf0g
+         ufDQ==
+X-Gm-Message-State: APjAAAXW1zrQaKNe2vG33HyxTitpjmffNXWGUc4P+RzjrhbpW4FffPmJ
+	jFJSxAV39C5UWPjt5HUVLJ86JXO+IWB+IGCiF4WsKih28OFI4SFFpWfWUyVgNf+GNUgYN5W92xW
+	IwntFQuWbkLne21G6TcOzik98iwPHvL2yRkRUTx1wVgdumXbmpy/t9pCudpQ7RH8=
+X-Received: by 2002:a17:902:9b81:: with SMTP id y1mr62646796plp.194.1560419026946;
+        Thu, 13 Jun 2019 02:43:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw+rdyMeRPLCHteL5Q1CI+wW1V0nnmnyz5EW2QJvmEfuZSHr3aARoObL3Od2xjY7Rw4cwt5
+X-Received: by 2002:a17:902:9b81:: with SMTP id y1mr62646722plp.194.1560419026324;
+        Thu, 13 Jun 2019 02:43:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560419026; cv=none;
         d=google.com; s=arc-20160816;
-        b=v65AIzfnBtKZKtF1MybeA15PgBbG6+fOYlsSmxKzND6bihli1u+Gvub3ic5wwP3xP8
-         VU/HOGWMsrBr3Ezj8i2i0jdm2TmZuoweGnNxeeTZiTyDTySutHHOl6WhOkOFquijsQV0
-         +j5ExsgGWQElF+jPwy0uoe3NzcAGfnpnoZ4cV2uC3ak77STXf+wYJfV8i1YauQ6wNwBC
-         zNwOXWkeNsIXQQr/iV0WvYlcFaDRj114GRgOKmLOhgDLP085Unij2nWiVeoYDBy/URHX
-         tB6ZjTKEFJBy+a0H5nd46z/YGQXFF3IRu5cmq0MeOGErXJGGQARtZJn/8CkYbrX2OIq6
-         6x4w==
+        b=TIdPQiBR6DzpXMHvPmF0lll2PBZBUW3Vs6Q2bG4rDGgtIaVH1dkFja2ReGD1j2AyaO
+         wNT439hI+2+rnM3Xex/5hxzxnzD30QqOmldriPGV4QFYAJJFaXmfBV79EfGlu15TfSSn
+         AFSZB22qPYuqOtR3FkB4wj5mW1aI4iUofpkssTUefYR/rUxCW53iSOrpgCxAjO4K8LGw
+         Bk/lvOYTqzXxV7YSsHBAQzeV8SrhEdmHf9JUqMIE6XBuQLuwH4GolAJv7AFFn7h6QYgw
+         pzeC9FxqLVVgFXd7FuxUD0wdA4pnGGd5DY1lL0Ep/sy7xkDP7GCFYQf/o7B3RjV7mHjL
+         c5bw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=b0eW2dMKelYlLaleRf5bDKha7L0ij82/1V9DJV7UjR4=;
-        b=im3pFPH4rx2qFFqETPsVEp5D2+Pf+G3qg6fkXVeS0u3kBTzSQbZXu4tdwfJu2gcz9c
-         jLkrGzB6QAR6xiVZd14vlp1LynfxHDV5O1K4hP7wTYwJ/5+gwpIGogI8LB5LzJJ+eBIT
-         C6e+bsN3iR7u4ZbmoEm7ECm1gjhTkbE3Yj0uZPOor7tkX7EEzMBpChYo7TGw5pOCwRKM
-         IcJW2UIYtDCi3J0pRfJdAs0W2zD7JkGGIESUESVnLaE+LBBKVwQWMEVWUcyVLxitx2uo
-         oQrrZ1vV/agI2pXm/aPqLsDdQfxT4HJdQjIPhM0vdVtJSe0wVJn9vsSwFwx7HkL4V0zz
-         yc2w==
+        bh=FEkGt+ty/uGWp0o9n/p7YTGA7bk3QKQR9GKnB3yrWi0=;
+        b=NbzFtNvpnRZHMCnFz63ciqVprEjg+5/c/Y+edvH2ZaoMGtX+FIfyTwHQzq1Lx+RK5M
+         JYoggnyxu77JyIkYD5C9/G838oQIb/HkzwGXcbi0zZ/pzaC2B4SRqFxfBNSbwox6tnWw
+         29AfJ8IMRdtVt2xyljCo9r+z8jYcqRv2KKByWP7G/KZObrifCZmz2c9nvuReDgmr+buf
+         IZUEB/nVDflJwCPFWVWhAC0ezoWcWGyAXZLqH8e1lJnSJp/3lD0fqSy8rrLqz45LiOfD
+         5LaUL2M6BpwsYO1cAZSPirG0+tmpcXzm1sq3Lo5ppcLVE8BO5WScvaAz8mbVHGtG72/P
+         STTg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=LrHEjG0K;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=L3WbZ0JS;
        spf=pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q2si2560817pjq.89.2019.06.13.02.43.43
+        by mx.google.com with ESMTPS id h96si2519259plb.281.2019.06.13.02.43.46
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 13 Jun 2019 02:43:43 -0700 (PDT)
+        Thu, 13 Jun 2019 02:43:46 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=LrHEjG0K;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=L3WbZ0JS;
        spf=pass (google.com: best guess record for domain of batv+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+aff2f865c54b6c032bcd+5772+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=b0eW2dMKelYlLaleRf5bDKha7L0ij82/1V9DJV7UjR4=; b=LrHEjG0Kdxjb47axcEbnVJ75Oj
-	CqNf25lmlVLOJfKQkF3m/Ep/P6iJD6MgQry617Z97k4733kia2UZW5iJya7hxNJbAcFnBT8XQs3jc
-	CWcfMFVkye1tAeuYF/JO0acUBeHn7/aMj/pyCQL4Xz4x4RtvNpeoZBzNSKTz/doY+OwHfJZybszCK
-	DxEJpuNXgqckVp+x3E/8EpTeHSGafD299qd+qeRl4D7XeirEUJDqvk16JkpnMnHgojP24ZnE9OVua
-	8L7QeBf5I1C+3AfNY+yeF9mDvABdV472xMWynVzOzMDJZAQqG1CbAp246zQp9OX7BwYZax0tpQTMs
-	15lD1mDA==;
+	bh=FEkGt+ty/uGWp0o9n/p7YTGA7bk3QKQR9GKnB3yrWi0=; b=L3WbZ0JSiDvBXJFsDUCJ02wcbX
+	BVJRpc0UiDSz8hdf9PGCQmrkNO9cC3Ct9Euv83j64Pvqa+bMG7zPftv6Qc47ddagd0apxJ3S9LtxK
+	YL0Gd6JRejUQjbVJguc5cGI104IqQQmLmGxj/QrnU1/8eCRFXHiVtvxgGKwlwToPy+mfQe5RgeuNc
+	7YyFcHDGYRl8yFp9cwxZhKia1V56GYhuyZqZJ3NB32yZYe7DQM/hr05KkwXqr/uf34lWIk5VMshTf
+	CpMaS4eanmRpQSDsR1G7yDdfQpx78Otwq1ePYvSywGpRHwk4jd2yXAVh0H6em6K2SgA7+4HrNyFnG
+	Se1/PImw==;
 Received: from mpp-cp1-natpool-1-198.ethz.ch ([82.130.71.198] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hbMGi-0001ki-O6; Thu, 13 Jun 2019 09:43:41 +0000
+	id 1hbMGl-0001l6-GH; Thu, 13 Jun 2019 09:43:43 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
@@ -106,9 +106,9 @@ Cc: linux-mm@kvack.org,
 	linux-nvdimm@lists.01.org,
 	linux-pci@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 04/22] mm: don't clear ->mapping in hmm_devmem_free
-Date: Thu, 13 Jun 2019 11:43:07 +0200
-Message-Id: <20190613094326.24093-5-hch@lst.de>
+Subject: [PATCH 05/22] mm: export alloc_pages_vma
+Date: Thu, 13 Jun 2019 11:43:08 +0200
+Message-Id: <20190613094326.24093-6-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190613094326.24093-1-hch@lst.de>
 References: <20190613094326.24093-1-hch@lst.de>
@@ -121,29 +121,26 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-->mapping isn't even used by HMM users, and the field at the same offset
-in the zone_device part of the union is declared as pad.  (Which btw is
-rather confusing, as DAX uses ->pgmap and ->mapping from two different
-sides of the union, but DAX doesn't use hmm_devmem_free).
+noveau is currently using this through an odd hmm wrapper, and I plan
+to switch it to the real thing later in this series.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- mm/hmm.c | 2 --
- 1 file changed, 2 deletions(-)
+ mm/mempolicy.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 0c62426d1257..e1dc98407e7b 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -1347,8 +1347,6 @@ static void hmm_devmem_free(struct page *page, void *data)
- {
- 	struct hmm_devmem *devmem = data;
- 
--	page->mapping = NULL;
--
- 	devmem->ops->free(devmem, page);
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 01600d80ae01..f9023b5fba37 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -2098,6 +2098,7 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+ out:
+ 	return page;
  }
++EXPORT_SYMBOL_GPL(alloc_pages_vma);
  
+ /**
+  * 	alloc_pages_current - Allocate pages.
 -- 
 2.20.1
 
