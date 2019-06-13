@@ -6,87 +6,87 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D1940C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:32:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6985BC31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:32:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9817420B7C
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:32:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9817420B7C
+	by mail.kernel.org (Postfix) with ESMTP id 2FEE320B7C
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:32:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FEE320B7C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B8896B000A; Thu, 13 Jun 2019 16:32:46 -0400 (EDT)
+	id B5B038E0003; Thu, 13 Jun 2019 16:32:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 36C1E8E0002; Thu, 13 Jun 2019 16:32:46 -0400 (EDT)
+	id ABDF68E0002; Thu, 13 Jun 2019 16:32:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 20AB96B000D; Thu, 13 Jun 2019 16:32:46 -0400 (EDT)
+	id 939298E0003; Thu, 13 Jun 2019 16:32:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DC3AC6B000A
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 16:32:45 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 140so73920pfa.23
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:32:45 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 541328E0002
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 16:32:47 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id x18so104899pfj.4
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:32:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=rhBTbX1x87GhNEDzGPpuC7RZ/QM62lFwT//Zml2BFNY=;
-        b=fcCSWkQAFMFSejbdc3OjtQnJKyG04lqZHymql5wtksfSDTTcakXYywKeQemLOOTwcz
-         +ul7Jg8FmFlb7EISiUEdjI64UcZnQFtOrpFJhw5xWlrn9FPu+sb3e3KQ23MNV+/fj5mi
-         MoIIZimQHoWhEE1sBInkejY5HxaziznnnDwadK+luGhoY2n96rNWukAZCq5CYdRH8f8c
-         nq8XgRGgmK6WxMGd5OQkEI7qkZ4yiFmfimhanxygXkNd1wodXMaoU6NMXGQsH1sYXI4d
-         dntdhvAVkhTo4BAVNDuskhQm076YXW5y0t7Y88XxKf+dbQIQRjDv4X/2kIcBKr014zOj
-         Qerw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAX24hb8mhvblrkrXa5xvutxe+AOHrDtagVgg8mxYoNnHUy9lcNg
-	KbFwUuekGG32vG0eXIPyUibW9ms+KFEu37t6RHiQUaoOwP/VOHS0jFgWvnPjFB7B590EOWqXWjc
-	7WlEtEWVem1nNp1FVjFMoAHpGeu5nukniGlfuy0i0EFLAj4OEZdADO9H+vv1b3qu/JA==
-X-Received: by 2002:a17:902:830c:: with SMTP id bd12mr11735843plb.237.1560457965518;
-        Thu, 13 Jun 2019 13:32:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzxON9D4d5QBtDkucM4Uy5s2eoMLQt+y8OEDJ8r8QyOSPyK5uUdWPrZ1W1ZqDUOIefnKs9B
-X-Received: by 2002:a17:902:830c:: with SMTP id bd12mr11735785plb.237.1560457964527;
-        Thu, 13 Jun 2019 13:32:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560457964; cv=none;
+        bh=zl/UA/QPYBw5r2Ettcv2SxxCFIZJZLqhjIW6qPVfYBg=;
+        b=ReM88oo+nDGteKSagTPel1JssCOex0lLawb7Dj2nrIsN+aNnx0YUmx4LJS1bOsB81S
+         1yVJ9DX6kc9q00eY1O5Y2kHSQ9Nnh3E+TVb1LIV+/TafiS9rNKQkM6lT9itdaoS/jheT
+         7DZrjn9yKbo/ZTgrdEDYYfNI3zqa0c/xTOaWZaQiotXIlcRPPbgtdhvC+fRUYxsYD7X4
+         bGXuyAvIk+vJInx5IjxDHou78+wL7Y5vHRJ2+XdATqWoau+LWRnL/bH8ZegAC9QFetSu
+         slZN4Qw4dO7tYIHI6V9hJnu8hm56On1eJGv7k9PGpDtHol635jT+HLaPszeQq2QzaYhy
+         adtw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVjyITArRftJpwDziTuo/ADKb/owvi0MtIwwPTVBN+8gZAyCk0X
+	OqlfdCkf42zFfekWNYh9LwmrUpmUC+2zzk5H1VzZ4Kz974enif2VsIwpf35T28Ap5XXxMgdTVIL
+	EamC3iVLMdKI8SXX32hTnRYMyaDjFsQjqP5ihbUJrSBVvJKw8+Sn2JW9inW19282wuA==
+X-Received: by 2002:a17:902:f204:: with SMTP id gn4mr71552578plb.3.1560457966975;
+        Thu, 13 Jun 2019 13:32:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzKciwGsH9u2eHv3XNsMuZt47wuvqA2AXfyqUEueoh5zoifQE+fm54WrrgFv00t+zfsKbcv
+X-Received: by 2002:a17:902:f204:: with SMTP id gn4mr71552514plb.3.1560457966053;
+        Thu, 13 Jun 2019 13:32:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560457966; cv=none;
         d=google.com; s=arc-20160816;
-        b=pjYBSKPwhzbUzo4WKYQ5NiMxsdrzTURcbBdDx8Ac2syWMdXAO9w0flqPLjQtAqJAgm
-         HdQZaIACwCe2fDdXSh9QIzHRa4sfW6VOos3kRxsWQERtT+eEdgrkYqdSeWxKJJDjaDui
-         +jKjqKh/61y+b9LlQObDNs+uSuNu97leDzEOwuktSgtJQ0lUL9Yq8vJN+vK/Rv20YHLN
-         jNW8IroW9RvMYnmVJUMfhkWuyHtOZTWufiqJ9JDKTGDB8DtxRhDL/6muA4RsmxPms4+k
-         Qasz71GdJtbBUpNaMCEeojUhrwQxXBU0krblQ5VaLfSTdBC675mKbO5DixuCRvYCAlpX
-         GloA==
+        b=cpdpBUJsjY0o9GSgg9NbNwStGyJwrO1HwdBYEQFsUftaTfGtSyheBki7a8h/trquNl
+         WntwNJYqkhH1KFz0APa/SkYf0sH/iFIJxjcnPdIJAMp0CCq6dLNU+3NQOs0syssI6kYC
+         K9hnv/V/ZexcWZnqPdvpnAvb/YuvVxg3h1D/5t9OPHmhhmtC4zyUKtXC3FOu7uVbAFK4
+         1P8h/r3YUnuTeVJPwpEElZhrVGYUSTHX2EtcsmW8JuuN9v/Ae65DpXLagMb5KXZ9l74I
+         /qwIJGyWoWFp1Co822Gz/IZMM7y7p8xxsccP2UVjZ/zKQlcHTB5PaJL8Nu9PzBIeAeV7
+         IxeA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=rhBTbX1x87GhNEDzGPpuC7RZ/QM62lFwT//Zml2BFNY=;
-        b=FBBUa7khuObSCCL/6uEXp/ixUJk7JS3MZJtYInMPhcxdOrwN44hB6vqulSCnXLaJGo
-         EM2PgzYnGl5nY9E00nqleyMJ6k7zXdiELl65S/b1DrJ7eNncbSoCfn+06kJ7T0NnEkUH
-         2652yEfMLTdgYFOo3ZGs4pHf8bT2IOrDRfkI4zC6tOJ7YMAIwtsTDHXw8ySPuyXiF9QF
-         3fFvxp3ErKTxw0YeqtAgLW+1FbfFW+ZdCes+BO9hOrNcC6h6SWi/bCQWURUa/7zjLyGA
-         m4U0JR2e8nc+VkyI5TRXJojZWdQ7cdvL+bpS90EDCIt/uQyAWexJZhx74XrQH4obFQfC
-         V7Hg==
+        bh=zl/UA/QPYBw5r2Ettcv2SxxCFIZJZLqhjIW6qPVfYBg=;
+        b=CF8GGA9oQikwV8B0Ve22/wWuSRrs+1/5mSgzqbraZu3aqmokf0+oEaAg0S7pnWdpbE
+         r9/Q2y7tXF8UMaCD3osDyVwFn1bcF14URBBuyNoQW6tJQM3c+VBs6IYmEWlRxJDLOWAh
+         7MtCW1/GcXqSsnEEorKtszE9R5HVmyQNNM8dwv+WrxmYBrKSKuaFFJI8NiDgeFDx/qWw
+         eleFZEGHmsNx0salp12mqHJK6OC4ulRoTj717nkajEO6W739dy/bSSizHXqRP/eETEvB
+         AWo1WP1f3wiQYrhAFyMtD9U3EizvSXi9FpGcjdLbxC9EAz6Js0jovDSfy7T2UOrCMrte
+         SaIA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id f1si590395pgi.432.2019.06.13.13.32.44
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id h16si445670pfn.162.2019.06.13.13.32.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 13:32:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Thu, 13 Jun 2019 13:32:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: UNKNOWN
 X-Amp-Original-Verdict: FILE UNKNOWN
 X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Jun 2019 13:32:43 -0700
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Jun 2019 13:32:46 -0700
 X-ExtLoop1: 1
 Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga004.fm.intel.com with ESMTP; 13 Jun 2019 13:32:43 -0700
-Date: Thu, 13 Jun 2019 13:34:05 -0700
+  by FMSMGA003.fm.intel.com with ESMTP; 13 Jun 2019 13:32:45 -0700
+Date: Thu, 13 Jun 2019 13:34:06 -0700
 From: Ira Weiny <ira.weiny@intel.com>
 To: Dave Chinner <david@fromorbit.com>
 Cc: Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
@@ -101,7 +101,7 @@ Cc: Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
 	linux-mm@kvack.org, Jason Gunthorpe <jgg@ziepe.ca>,
 	linux-rdma@vger.kernel.org
 Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
-Message-ID: <20190613203404.GA30404@iweiny-DESK2.sc.intel.com>
+Message-ID: <20190613203406.GB32404@iweiny-DESK2.sc.intel.com>
 References: <20190606014544.8339-1-ira.weiny@intel.com>
  <20190606104203.GF7433@quack2.suse.cz>
  <20190606220329.GA11698@iweiny-DESK2.sc.intel.com>
@@ -109,11 +109,12 @@ References: <20190606014544.8339-1-ira.weiny@intel.com>
  <20190607182534.GC14559@iweiny-DESK2.sc.intel.com>
  <20190608001036.GF14308@dread.disaster.area>
  <20190612123751.GD32656@bombadil.infradead.org>
- <20190613002555.GH14363@dread.disaster.area>
+ <20190612233024.GD14336@iweiny-DESK2.sc.intel.com>
+ <20190613005552.GI14363@dread.disaster.area>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190613002555.GH14363@dread.disaster.area>
+In-Reply-To: <20190613005552.GI14363@dread.disaster.area>
 User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -121,103 +122,128 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 10:25:55AM +1000, Dave Chinner wrote:
-> On Wed, Jun 12, 2019 at 05:37:53AM -0700, Matthew Wilcox wrote:
-> > On Sat, Jun 08, 2019 at 10:10:36AM +1000, Dave Chinner wrote:
-> > > On Fri, Jun 07, 2019 at 11:25:35AM -0700, Ira Weiny wrote:
-> > > > Are you suggesting that we have something like this from user space?
+On Thu, Jun 13, 2019 at 10:55:52AM +1000, Dave Chinner wrote:
+> On Wed, Jun 12, 2019 at 04:30:24PM -0700, Ira Weiny wrote:
+> > On Wed, Jun 12, 2019 at 05:37:53AM -0700, Matthew Wilcox wrote:
+> > > On Sat, Jun 08, 2019 at 10:10:36AM +1000, Dave Chinner wrote:
+> > > > On Fri, Jun 07, 2019 at 11:25:35AM -0700, Ira Weiny wrote:
+> > > > > Are you suggesting that we have something like this from user space?
+> > > > > 
+> > > > > 	fcntl(fd, F_SETLEASE, F_LAYOUT | F_UNBREAKABLE);
 > > > > 
-> > > > 	fcntl(fd, F_SETLEASE, F_LAYOUT | F_UNBREAKABLE);
+> > > > Rather than "unbreakable", perhaps a clearer description of the
+> > > > policy it entails is "exclusive"?
+> > > > 
+> > > > i.e. what we are talking about here is an exclusive lease that
+> > > > prevents other processes from changing the layout. i.e. the
+> > > > mechanism used to guarantee a lease is exclusive is that the layout
+> > > > becomes "unbreakable" at the filesystem level, but the policy we are
+> > > > actually presenting to uses is "exclusive access"...
 > > > 
-> > > Rather than "unbreakable", perhaps a clearer description of the
-> > > policy it entails is "exclusive"?
+> > > That's rather different from the normal meaning of 'exclusive' in the
+> > > context of locks, which is "only one user can have access to this at
+> > > a time".  As I understand it, this is rather more like a 'shared' or
+> > > 'read' lock.  The filesystem would be the one which wants an exclusive
+> > > lock, so it can modify the mapping of logical to physical blocks.
 > > > 
-> > > i.e. what we are talking about here is an exclusive lease that
-> > > prevents other processes from changing the layout. i.e. the
-> > > mechanism used to guarantee a lease is exclusive is that the layout
-> > > becomes "unbreakable" at the filesystem level, but the policy we are
-> > > actually presenting to uses is "exclusive access"...
+> > > The complication being that by default the filesystem has an exclusive
+> > > lock on the mapping, and what we're trying to add is the ability for
+> > > readers to ask the filesystem to give up its exclusive lock.
 > > 
-> > That's rather different from the normal meaning of 'exclusive' in the
-> > context of locks, which is "only one user can have access to this at
-> > a time".
+> > This is an interesting view...
+> > 
+> > And after some more thought, exclusive does not seem like a good name for this
+> > because technically F_WRLCK _is_ an exclusive lease...
+> > 
+> > In addition, the user does not need to take the "exclusive" write lease to be
+> > notified of (broken by) an unexpected truncate.  A "read" lease is broken by
+> > truncate.  (And "write" leases really don't do anything different WRT the
+> > interaction of the FS and the user app.  Write leases control "exclusive"
+> > access between other file descriptors.)
 > 
+> I've been assuming that there is only one type of layout lease -
+> there is no use case I've heard of for read/write layout leases, and
+> like you say there is zero difference in behaviour at the filesystem
+> level - they all have to be broken to allow a non-lease truncate to
+> proceed.
 > 
-> Layout leases are not locks, they are a user access policy object.
-> It is the process/fd which holds the lease and it's the process/fd
-> that is granted exclusive access.  This is exactly the same semantic
-> as O_EXCL provides for granting exclusive access to a block device
-> via open(), yes?
-> 
-> > As I understand it, this is rather more like a 'shared' or
-> > 'read' lock.  The filesystem would be the one which wants an exclusive
-> > lock, so it can modify the mapping of logical to physical blocks.
-> 
-> ISTM that you're conflating internal filesystem implementation with
-> application visible semantics. Yes, the filesystem uses internal
-> locks to serialise the modification of the things the lease manages
-> access too, but that has nothing to do with the access policy the
-> lease provides to users.
-> 
-> e.g. Process A has an exclusive layout lease on file F. It does an
-> IO to file F. The filesystem IO path checks that Process A owns the
-> lease on the file and so skips straight through layout breaking
-> because it owns the lease and is allowed to modify the layout. It
-> then takes the inode metadata locks to allocate new space and write
-> new data.
-> 
-> Process B now tries to write to file F. The FS checks whether
-> Process B owns a layout lease on file F. It doesn't, so then it
-> tries to break the layout lease so the IO can proceed. The layout
-> breaking code sees that process A has an exclusive layout lease
-> granted, and so returns -ETXTBSY to process B - it is not allowed to
-> break the lease and so the IO fails with -ETXTBSY.
-> 
-> i.e. the exclusive layout lease prevents other processes from
-> performing operations that may need to modify the layout from
-> performing those operations. It does not "lock" the file/inode in
-> any way, it just changes how the layout lease breaking behaves.
+> IMO, taking a "read lease" to be able to modify and write to the
+> underlying mapping of a file makes absolutely no sense at all.
+> IOWs, we're talking exaclty about a revokable layout lease vs an
+> exclusive layout lease here, and so read/write really doesn't match
+> the policy or semantics we are trying to provide.
 
-Question: Do we expect Process A to get notified that Process B was attempting
-to change the layout?
+I humbly disagree, at least depending on how you look at it...  :-D
 
-This changes the exclusivity semantics.  While Process A has an exclusive lease
-it could release it if notified to allow process B temporary exclusivity.
+The patches as they stand expect the user to take a "read" layout lease which
+indicates they are currently using "reading" the layout as is.  They are not
+changing ("writing" to) the layout.  They then pin pages which locks parts of
+the layout and therefore they expect no "writers" to change the layout.
 
-Question 2: Do we expect other process' (say Process C) to also be able to map
-and pin the file?  I believe users will need this and for layout purposes it is
-ok to do so.  But this means that Process A does not have "exclusive" access to
-the lease.
+The "write" layout lease breaks the "read" layout lease indicating that the
+layout is being written to.  Should the layout be pinned in such a way that the
+layout can't be changed the "layout writer" (truncate) fails.
 
-So given Process C has also placed a layout lease on the file.  Indicating
-that it does not want the layout to change.  Both A and C need to be "broken"
-by Process B to change the layout.  If there is no Process B; A and C can run
-just fine with a "locked" layout.
+In fact, this is what NFS does right now.  The lease it puts on the file is of
+"read" type.
+
+nfs4layouts.c:
+static int
+nfsd4_layout_setlease(struct nfs4_layout_stateid *ls)
+{
+...
+        fl->fl_flags = FL_LAYOUT;
+        fl->fl_type = F_RDLCK;
+...
+}
+
+I was not changing that much from the NFS patter which meant the break lease
+code worked.
+
+Jans proposal is solid but it means that there is no breaking of the lease.  I
+tried to add an "exclusive" flag to the "write" lease but the __break_lease()
+code gets weird.  I'm not saying it is not possible.  Just that I have not
+seen a good way to do it.
+
+> 
+> > Another thing to consider is that this patch set _allows_ a truncate/hole punch
+> > to proceed _if_ the pages being affected are not actually pinned.  So the
+> > unbreakable/exclusive nature of the lease is not absolute.
+> 
+> If you're talking about the process that owns the layout lease
+> running the truncate, then that is fine.
+> 
+> However, if you are talking about a process that does not own the
+> layout lease being allowed to truncate a file without first breaking
+> the layout lease, then that is fundamentally broken.
+
+In both cases (local or remote process) the lease is broken prior to the
+attempt to truncate.
+
+> 
+> i.e. If you don't own a layout lease, the layout leases must be
+> broken before the truncate can proceed.
+
+Agreed.
+
+>
+> If it's an exclusive lease,
+> then you cannot break the lease and the truncate *must fail before
+> it is started*. i.e.  the layout lease state must be correctly
+> resolved before we start an operation that may modify a file layout.
+> 
+> Determining if we can actually do the truncate based on page state
+> occurs /after/ the lease says the truncate can proceed....
+
+That makes a lot of sense and that is the way the patch currently works.
+
+I need to think on this some more.  Keeping the lease may not be critical.  As
+discussed with Jan; dealing with close() is best dealt with by tracking the
+actual pins on the file.  If that works then we could potentially keep the
+lease semantics closer to what you and I are talking about here.
 
 Ira
 
-> 
-> Further, the "exclusiveness" of a layout lease is completely
-> irrelevant to the filesystem that is indicating that an operation
-> that may need to modify the layout is about to be performed. All the
-> filesystem has to do is handle failures to break the lease
-> appropriately.  Yes, XFS serialises the layout lease validation
-> against other IO to the same file via it's IO locks, but that's an
-> internal data IO coherency requirement, not anything to do with
-> layout lease management.
-> 
-> Note that I talk about /writes/ here. This is interchangable with
-> any other operation that may need to modify the extent layout of the
-> file, be it truncate, fallocate, etc: the attempt to break the
-> layout lease by a non-owner should fail if the lease is "exclusive"
-> to the owner.
-> 
-> > The complication being that by default the filesystem has an exclusive
-> > lock on the mapping, and what we're trying to add is the ability for
-> > readers to ask the filesystem to give up its exclusive lock.
-> 
-> The filesystem doesn't even lock the "mapping" until after the
-> layout lease has been validated or broken.
 > 
 > Cheers,
 > 
