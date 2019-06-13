@@ -2,210 +2,140 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D3C1EC31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 11:37:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E67F4C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 11:39:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7586D21721
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 11:37:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7586D21721
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id A3C742173C
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 11:39:47 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="w9LAj5XF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A3C742173C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0B89D6B026F; Thu, 13 Jun 2019 07:37:39 -0400 (EDT)
+	id 1A1B96B0272; Thu, 13 Jun 2019 07:39:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 042506B0271; Thu, 13 Jun 2019 07:37:38 -0400 (EDT)
+	id 152896B0273; Thu, 13 Jun 2019 07:39:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DFE446B0272; Thu, 13 Jun 2019 07:37:38 -0400 (EDT)
+	id 019886B0274; Thu, 13 Jun 2019 07:39:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C37F6B026F
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 07:37:38 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id l53so30478918edc.7
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 04:37:38 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A58016B0272
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 07:39:46 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b3so29489507edd.22
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 04:39:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Nk9N49wBZm/+VbpF7F1oQJN2/uaoffAm2FHk4WXmGdc=;
-        b=hPDe+XYFOsR5ErzUMO9cWgSm3u0pjlii1YBSAjaVi2jeVOl5K9h9LmM84KNMM7vMar
-         q0FvB7gBJnlPrChmH/juQY7xQ9sAAw8NCUmgCL5+6W5NeU2r4Vd3+QCsTemveHCbxYY4
-         ZHJyYXMT5eTkvwFcfDgnKwf3g7r61+VRMXeBNQHawpVC+61bECgRaqkaLv41e88BsD0j
-         4jjDEZoAaq+d/5RNtlDvcsVwEs/SbAHHG1fiAN465yK9VcGjx7WqPDbBQw8qOyvot9ed
-         uGapvhwTXLyaCU8SofX0zSE9TFVfbMcHl+n/56A3lXnnf0Xj2UOAYrvltyi3A3jKqJC3
-         BpdQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-X-Gm-Message-State: APjAAAWgM22GqULdBXldYtQiUQoUDxtT01d35WEIxHmeeMqu5EAHrxZ3
-	ifUZttIaIRk/IHXxPd4/ywzd1JkeVXtSZ3d/x8BeBseHaZmdr2oQzI5FGgT8WOdJxbY2GhS05Lf
-	mUQVrwgT/RI0Gx5Ub5I7WVSbTL1Lc4RIQSCaBsxJg6ADGw0rBJUL0YqustjY9uQ6O5g==
-X-Received: by 2002:a17:906:fc6:: with SMTP id c6mr75443264ejk.218.1560425857979;
-        Thu, 13 Jun 2019 04:37:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxhjdikI65SXrmeK9bAOxU09Yp5g8oYEGfnxmJE8G5nTl+/ZvbLGYQrR3CyB9zUAW7T/nZU
-X-Received: by 2002:a17:906:fc6:: with SMTP id c6mr75443205ejk.218.1560425857023;
-        Thu, 13 Jun 2019 04:37:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560425857; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=2xaaGMG7No2zQ7VPLAPzQ32rj+gGmBMPzXcN5RQJnF8=;
+        b=A8xZKoJCwteLwdMTuTlUS7T/Sej0CCT6RaK0yE6wDblSuR87XQjuO//KoQ+dGvK0mg
+         1PIFP/3oeyj4iGyjAS0RMAOXV0e5/DD/Kr/9bRo0NPtrv5/cFqj5I8349Cl1141DqbqH
+         YoVs6nARaYL6ANqGZibeOrwwNIPX0q69jkpi+2urfBqx7XUWW2BK6/MACzKBC3kJBtM+
+         v/IHHXKrLNioAaK5UcCAsVEuBMrH6lyE7ZA5OIJGiF3BZgGGMiBBrQHD2qHr/KTfwbxW
+         +EmpAVQHXXvj9XNgjhv515F19+1adB8A8bzQIlUo1/sDqwSPCrkjmzSDpkZM1RlGo1H9
+         FIOg==
+X-Gm-Message-State: APjAAAWcAK0o1iT5Pfr9wdFHwEqfVlJLnZLURcLKiXqQ4mfau0TtvkPh
+	4R3AhRLuN/z4XAOs3gN55/66CrCNNfJIjR+//MESPecEz70qQQiP/iAvf3M+5E9nfEq5ycWg0S1
+	f+l2eAXuaYMp/oYlvFWOgfnbEzvsx1FRO62z455e/h2G56W/J9kTrLVb799LnZ4OD7g==
+X-Received: by 2002:a50:ca84:: with SMTP id x4mr8998593edh.228.1560425986140;
+        Thu, 13 Jun 2019 04:39:46 -0700 (PDT)
+X-Received: by 2002:a50:ca84:: with SMTP id x4mr8998535edh.228.1560425985482;
+        Thu, 13 Jun 2019 04:39:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560425985; cv=none;
         d=google.com; s=arc-20160816;
-        b=Erz5Xp7YPIamgGDQ3S7c4UnwrKmYGtnWbvmz8Ccvoe3jhdI4M8tZdqTraQ4LLl3Qod
-         1ZQIfIK3FXaf3BFcki9ptk5Z9kCJQfOJftpYwKSH6u/DUyCKfkf4LF+nQSFQK5ZxmB01
-         9FzT6ow0r2OP7ZrmJvU4ALbjNS8CONxjCwT8PH0bXianKoSox1bfzQNqyu078lGOvm5z
-         UAKFJDINfpd/LDLGSHG9wmq+1YAbH9uP5679BcCI/9rUnUselPt2ekJpRBQxCvLptZWk
-         oIvsybaeloIgq4VYvUcFuzKuIlEbTxwE+ByqMMxa22I+iL5BKu0yvRHwnfc9IOG8X+0D
-         BP7A==
+        b=qmR0mPUuM5KKUVkhrHTFr3JgI0IzgD2/4Wpg3F1fQyg7JUGBMfNsX5bsDNhM0pCdBQ
+         v6sQDzvkQ06d5+3ystO5LBsUWEARSQVjjjD1TMb5b+O4UltB0mNWwEDy4RetOZNQqobJ
+         P/jZWcEIOTau9umDDtNfOcL8m3gJFZPtQuexON7dfpSLD7bCRKXgeEGjsw+UPGf+Gexp
+         g5e1e8yO4gBM+WGkBCuQoPnL2pCpcxwU1hX2Wor+hbpX/E8SdqmCsDjYizs2rfCiWHkw
+         CrC5Ob+bRbEpmyx1xCHantinXUPpKvvbIHy9ghMxFvk+fRayleat1RaAGay7+7OW9jmA
+         HG6A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Nk9N49wBZm/+VbpF7F1oQJN2/uaoffAm2FHk4WXmGdc=;
-        b=WhFDbhA/bKQlPCyEbnrPYpHIKTTqefe5wqErAlfNX9M6mbLo8jxgKNEzfoh9uabD5k
-         kk51doBbE51RDsF7Pl0HJe28ME7uOn/bqGTSmNhq7D66Dl0KP/rK4xCXVXFNo0a3RRJX
-         uQzU7jKGyAwEzOjHIrJXk/f65G0CYKjmlYhADFPaKqUmeZDr5i3DHjWoosp/gTDABEHV
-         SeH4wyGEw7wC/5QD03L8rBsxGLPam6Y+1H70lfgpLPdJ98aI4TCznL/8XoRREMSrCug7
-         F7vYdBQHjyaBY9PypCVfpiHvQOEHDIBOrFjK36QFvR4G2vhkX2Wi6hm37gwcYvimYTRl
-         cpmA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=2xaaGMG7No2zQ7VPLAPzQ32rj+gGmBMPzXcN5RQJnF8=;
+        b=R8VnxA8vSbE9ben+ti8DuV9dpXGwT5dwMIu+pYtY81puQvdoeWd4d9hcN3Cvz7bGQG
+         rr55ELQBKWooCfw7yXoJiGzNGph+UjjoKmsek5csr6+splvfbGY5SQbnAXNkS3Zh4O0I
+         McK2V3+U6XPG6tm/zGBhr3rrBOKVUdM9ZCfhWB6Awepfe77r9QgMu3DwGKXPxQf+BGR6
+         ES/Seiq0NgmIa2puUzgcW2huEk5cJxsxDB82W4Xtc9RV2cSqrzhCFdujsIIaza8anBdL
+         egt92gcYWfn7FuVZfs5mU+BDp209aeoPHwGHri7efdDbDeLhgZXSnvzBSehdPTLvhe1D
+         qjpA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id h27si1879724ejs.90.2019.06.13.04.37.36
-        for <linux-mm@kvack.org>;
-        Thu, 13 Jun 2019 04:37:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=w9LAj5XF;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i9sor923821eja.25.2019.06.13.04.39.45
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 13 Jun 2019 04:39:45 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EC6DC367;
-	Thu, 13 Jun 2019 04:37:35 -0700 (PDT)
-Received: from e103592.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B2D923F694;
-	Thu, 13 Jun 2019 04:39:17 -0700 (PDT)
-Date: Thu, 13 Jun 2019 12:37:32 +0100
-From: Dave Martin <Dave.Martin@arm.com>
-To: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-arch@vger.kernel.org,
-	linux-doc@vger.kernel.org, Szabolcs Nagy <szabolcs.nagy@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, Alexander Viro <viro@zeniv.linux.org.uk>,
-	linux-kselftest@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org
-Subject: Re: [PATCH v4 1/2] arm64: Define
- Documentation/arm64/tagged-address-abi.txt
-Message-ID: <20190613113731.GY28398@e103592.cambridge.arm.com>
-References: <cover.1560339705.git.andreyknvl@google.com>
- <20190612142111.28161-1-vincenzo.frascino@arm.com>
- <20190612142111.28161-2-vincenzo.frascino@arm.com>
- <20190612153538.GL28951@C02TF0J2HF1T.local>
- <141c740a-94c2-2243-b6d1-b44ffee43791@arm.com>
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=w9LAj5XF;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=2xaaGMG7No2zQ7VPLAPzQ32rj+gGmBMPzXcN5RQJnF8=;
+        b=w9LAj5XFY3ophQ4DwkbtNeEFNYTxLX2X5OdCVXnqnO3uj/VWYQ7iJfD888INwOAkyj
+         0BB3q5T5bJea3946DH84lSLMeNeqV0RqrMsWryk4vyz07gNhLZ+xO9Gc7Ya9acqsvQir
+         lmxxyDCm2sg4r6cj1gW51A9ku4YV1DJPROEeyiN7XoD00wvUn8tVxatQYIBRJyhGxPax
+         hBSqiTLMnE9fXLPEcQ0rgzrh19vAcRiiEGtHraSy7nma6MHE2ewccw10WPd+GrVUCwmJ
+         Rb60/5vDUddTfedPvHIZZE7qDEx2Xns7fcz97/+iv2Y+hSKU0gSZCCB9kVsDwnRlOfJ1
+         ogRA==
+X-Google-Smtp-Source: APXvYqy7Xsp8FQwiuXe2lfvRN1vozauF321WOLdOmtipAcKk82HAFQY/JTpoxC5Z6nYOM32/iIsHSA==
+X-Received: by 2002:a17:906:308b:: with SMTP id 11mr15873396ejv.39.1560425985036;
+        Thu, 13 Jun 2019 04:39:45 -0700 (PDT)
+Received: from box.localdomain ([86.57.175.117])
+        by smtp.gmail.com with ESMTPSA id d12sm841728edp.16.2019.06.13.04.39.44
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Jun 2019 04:39:44 -0700 (PDT)
+Received: by box.localdomain (Postfix, from userid 1000)
+	id 9479410087F; Thu, 13 Jun 2019 14:39:43 +0300 (+03)
+Date: Thu, 13 Jun 2019 14:39:43 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: ktkhai@virtuozzo.com, kirill.shutemov@linux.intel.com,
+	hannes@cmpxchg.org, mhocko@suse.com, hughd@google.com,
+	shakeelb@google.com, rientjes@google.com, akpm@linux-foundation.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [v3 PATCH 2/4] mm: move mem_cgroup_uncharge out of
+ __page_cache_release()
+Message-ID: <20190613113943.ahmqpezemdbwgyax@box>
+References: <1560376609-113689-1-git-send-email-yang.shi@linux.alibaba.com>
+ <1560376609-113689-3-git-send-email-yang.shi@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <141c740a-94c2-2243-b6d1-b44ffee43791@arm.com>
-User-Agent: Mutt/1.5.23 (2014-03-12)
+In-Reply-To: <1560376609-113689-3-git-send-email-yang.shi@linux.alibaba.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 11:15:34AM +0100, Vincenzo Frascino wrote:
-> Hi Catalin,
+On Thu, Jun 13, 2019 at 05:56:47AM +0800, Yang Shi wrote:
+> The later patch would make THP deferred split shrinker memcg aware, but
+> it needs page->mem_cgroup information in THP destructor, which is called
+> after mem_cgroup_uncharge() now.
 > 
-> On 12/06/2019 16:35, Catalin Marinas wrote:
-> > Hi Vincenzo,
-> > 
-> > Some minor comments below but it looks fine to me overall. Cc'ing
-> > Szabolcs as well since I'd like a view from the libc people.
-> > 
-> 
-> Thanks for this, I saw Szabolcs comments.
-> 
-> > On Wed, Jun 12, 2019 at 03:21:10PM +0100, Vincenzo Frascino wrote:
-> >> diff --git a/Documentation/arm64/tagged-address-abi.txt b/Documentation/arm64/tagged-address-abi.txt
-> >> new file mode 100644
-> >> index 000000000000..96e149e2c55c
-> >> --- /dev/null
-> >> +++ b/Documentation/arm64/tagged-address-abi.txt
-
-[...]
-
-> >> +Since it is not desirable to relax the ABI to allow tagged user addresses
-> >> +into the kernel indiscriminately, arm64 provides a new sysctl interface
-> >> +(/proc/sys/abi/tagged_addr) that is used to prevent the applications from
-> >> +enabling the relaxed ABI and a new prctl() interface that can be used to
-> >> +enable or disable the relaxed ABI.
-> >> +
-> >> +The sysctl is meant also for testing purposes in order to provide a simple
-> >> +way for the userspace to verify the return error checking of the prctl()
-> >> +command without having to reconfigure the kernel.
-> >> +
-> >> +The ABI properties are inherited by threads of the same application and
-> >> +fork()'ed children but cleared when a new process is spawn (execve()).
-> > 
-> > "spawned".
-
-I'd just say "cleared by execve()."
-
-"Spawn" suggests (v)fork+exec to me (at least, what's what "spawn" means on
-certain other OSes).
-
-> > 
-> > I guess you could drop these three paragraphs here and mention the
-> > inheritance properties when introducing the prctl() below. You can also
-> > mention the global sysctl switch after the prctl() was introduced.
-> > 
-> 
-> I will move the last two (rewording them) to the _section_ 2, but I would still
-> prefer the Introduction to give an overview of the solution as well.
-> 
-> >> +
-> >> +2. ARM64 Tagged Address ABI
-> >> +---------------------------
-> >> +
-> >> +From the kernel syscall interface prospective, we define, for the purposes
-> >> +of this document, a "valid tagged pointer" as a pointer that either it has
-> > 
-> > "either has" (no 'it') sounds slightly better but I'm not a native
-> > English speaker either.
-> > 
-> >> +a zero value set in the top byte or it has a non-zero value, it is in memory
-> >> +ranges privately owned by a userspace process and it is obtained in one of
-> >> +the following ways:
-> >> +  - mmap() done by the process itself, where either:
-> >> +    * flags = MAP_PRIVATE | MAP_ANONYMOUS
-> >> +    * flags = MAP_PRIVATE and the file descriptor refers to a regular
-> >> +      file or "/dev/zero"
-> >> +  - a mapping below sbrk(0) done by the process itself
-> >> +  - any memory mapped by the kernel in the process's address space during
-> >> +    creation and following the restrictions presented above (i.e. data, bss,
-> >> +    stack).
-> >> +
-> >> +The ARM64 Tagged Address ABI is an opt-in feature, and an application can
-> >> +control it using the following prctl()s:
-> >> +  - PR_SET_TAGGED_ADDR_CTRL: can be used to enable the Tagged Address ABI.
-> > 
-> > enable or disable (not sure we need the latter but it doesn't heart).
-> > 
-> > I'd add the arg2 description here as well.
-> > 
-> 
-> Good point I missed this.
-> 
-> >> +  - PR_GET_TAGGED_ADDR_CTRL: can be used to check the status of the Tagged
-> >> +                             Address ABI.
-
-For both prctls, you should also document the zeroed arguments up to
-arg5 (unless we get rid of the enforcement and just ignore them).
+> So, move mem_cgroup_uncharge() from __page_cache_release() to compound
+> page destructor, which is called by both THP and other compound pages
+> except HugeTLB.  And call it in __put_single_page() for single order
+> page.
 
 
-Is there a canonical way to detect whether this whole API/ABI is
-available?  (i.e., try to call this prctl / check for an HWCAP bit,
-etc.)
+If I read the patch correctly, it will change behaviour for pages with
+NULL_COMPOUND_DTOR. Have you considered it? Are you sure it will not break
+anything?
 
-[...]
-
-Cheers
----Dave
+-- 
+ Kirill A. Shutemov
 
