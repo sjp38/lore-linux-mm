@@ -2,181 +2,169 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0575EC31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:04:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CB993C31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:04:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ADED42133D
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:04:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8717D2133D
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 20:04:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="tDnFxoEo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADED42133D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="N2gTptqw"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8717D2133D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4B85F8E0001; Thu, 13 Jun 2019 16:04:07 -0400 (EDT)
+	id 37FA06B000A; Thu, 13 Jun 2019 16:04:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4433A6B000C; Thu, 13 Jun 2019 16:04:07 -0400 (EDT)
+	id 308DC8E0002; Thu, 13 Jun 2019 16:04:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2E22B8E0001; Thu, 13 Jun 2019 16:04:07 -0400 (EDT)
+	id 1AC266B000D; Thu, 13 Jun 2019 16:04:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D21F06B000A
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 16:04:06 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id o13so342648edt.4
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:04:06 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D5D686B000A
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 16:04:11 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id a5so201706pla.3
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 13:04:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=YnyCRHhq6our3JahOP7YUJnCatYmzhQnh3SEMqGi3dI=;
-        b=DEAyFfr7Ht7NPHQZC6oZbMfUowFSn/easdtrxE4HG/E1FAwMM71tctUHBYS2F8/D/q
-         5RHVJfu3JrUQWKpQEtll2nt4n2GexrJ8vw8AC9WMntBVObELXiiq5Fk6uN0VLiM95wkv
-         MLa5NNFI4hLgvC2Re3SOKFbZYG8E/uFZRtD5uxhbb6QV/g9SNMRZyx9mzw1gZTDwFb2E
-         iSzVtFicyDakgEWik3xVFEf80HIawgIof9lWQyyUww0hA7tmeKtTRsKGhM3VsaRmECEi
-         +5HmMFPdxkGlWakqj3zmw6rBDQqnRDwMeJopcrvCaJFIQmRCKIdajqg1sy+8L8bXNHt+
-         Vohw==
-X-Gm-Message-State: APjAAAVoVzAlTP8GuzL8QF2U39p0xhz0YpBUDFOYnLE0KfzjbaBUzGqt
-	ubuvTo+mzsHnABBeZ3VD7ABxScKhxXcfVbLeGrEyW5V+hSXSNkaOvSa0ZXcEsBT1rUDnpTyMAb/
-	I56TIIkaEl3J2sRhIJ1g+W9j2o9oCrSB++54ez6J4pxYK2GMjnbchqsaO83NlBt1AcQ==
-X-Received: by 2002:a17:906:d6a:: with SMTP id s10mr41384571ejh.180.1560456246404;
-        Thu, 13 Jun 2019 13:04:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzf67T1pDDPdoh3c8166hnnh8QC0A2qLnhSRDemdBstwzDFtpoZYJhv32qCJTfC460O+sBr
-X-Received: by 2002:a17:906:d6a:: with SMTP id s10mr41384496ejh.180.1560456245613;
-        Thu, 13 Jun 2019 13:04:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560456245; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=lhY/dH1LxkksLu5i0IWkS7fg7law7uuNa/mS/dgjQ4Q=;
+        b=Aj183lGl04289qJ3MKtgXFYNcgh2lnMtaqQHn09BHj+OPW6oQH4QP6/FTopamp5sc/
+         vg7rYKHxKlkSjx4GNlDTUpm7N2wIExCxM+pzPEbaMsqTkGJH0vZpBaK8YAeY52Ylaa2H
+         nyA0OCYNp0Scpcwhaw3grA4YA83y75J1qhbx8jJa5WtEa2Ljbk6qfoYwqgLdwwaLDNxt
+         sSrEFotTcNVsRYEz3AGbfKhW0tAzJli/ovykKRJizaOcJhEb0QOcLmPbeg/RbPwlV2cP
+         1Qeu8olkby0782DaVqu+8Ket5aRJI0AigkYZGSXGwehffJXJYcHBM0SiTc4+IYIO5fQd
+         sblA==
+X-Gm-Message-State: APjAAAVumu2luouujJnVOOfhrbArfPkASTM0YcqNfquUk6barjQxKbgg
+	vHyXiIbh+uMSuP3LGJRYCjY1BkrPSI/PmExM8VCx2BEo/AorTMBgObn83hNBAn47kaRpteR5m4s
+	ES3EEWVyDbhN5bZmw0TDl+sJToCxkeFFzbgwjdDgFTM8Bxm+wGMIk8jJmbITiin98/w==
+X-Received: by 2002:a65:63c3:: with SMTP id n3mr12056582pgv.139.1560456251433;
+        Thu, 13 Jun 2019 13:04:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzF+9TiQ5OAZTfzN8K539iRxLGffb7YchVHD2hSxEmGZQE8dWAXBWaWAUz50OxxfytfoKKZ
+X-Received: by 2002:a65:63c3:: with SMTP id n3mr12056524pgv.139.1560456250725;
+        Thu, 13 Jun 2019 13:04:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560456250; cv=none;
         d=google.com; s=arc-20160816;
-        b=qJrGl8IkCHoYlPxjzDoVgviE2FcEh2ud1606cpoXu90d4tBriybQeLqT7RNtnwGbrj
-         BOQd5fTzriGR56SfeyVDnc99L6ZP928WlAYtMhHd29cfAmhIFV2evRiejvEl9jTKWucW
-         rzse/YSWeclf+URi4hMSOFROsDC3bbDjDwoAzE/60QcS1JBQYexY9ljIXh6P7E1yq4Sk
-         0d5E0fOI8p1D4bNW76+vPcAfrYgaWkywzutNySurvZc8iy1McyJGZwE7DO7qEIIHz3qP
-         kGLtYskzybO/dMuWGBSAaH3Felk456xsBqQ2gIju26qKEWa4dPFrWnowHIcTM9dD2mVt
-         RRmQ==
+        b=NskOZmMIEaLX7ICusNlGRnFot9JgebJ69BTk6B8vkRzGpeiY4qLQ1yUqOT8vBGKyRN
+         TBsovUSnIFVW+at1YmndF+/wOVkb6a0j6gBLiBQSyzFhE/4Vu1mjTW2gxE9pa3OwWP7+
+         sdpSJFJ3M1ZPUsdxZzACP3zchEqt0sBRa/rCuy8umG0qEckcMo5Mywfguc1zUYQTZia/
+         8Y8/dyZLkmqeCe512sIvSRXiM+VH3xStMvBMmu9/WZjvCb21VSmJihocdnwkzvOwJoGv
+         laVMAKDj2H/Iv5lNwWqfxIBD9/PLvOe6qZmRaUSBG847BcHNFr+3gtlfITDpx3ssMwoz
+         liig==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=YnyCRHhq6our3JahOP7YUJnCatYmzhQnh3SEMqGi3dI=;
-        b=owUGeo93A085z3eaeDzll8zUih/RwH48lr3OBa0f68smc6sWFuqn007WI7OJGt+Efs
-         VzQazDGXPCrvdaOaaEqxknHzvQMpJI1m/+6C3Vd4s/vYkZcJ5WETSCDtNHzNA8vGepJf
-         Z5ojtBAZS+lLuvbILFhByz32KEgsHjgas7aE+2pOZq0Ni9TjNRRL8LHJrd9Io/CkFkgb
-         qZrPxu8Cdn/BTootmpOX2WPdFqnMtKHfOeTx/u8lwXCz3XuB2ZaXzqfOI8Rz8td4hOf7
-         TptUHrrLfl80FUWsGJZkJ92Atw1LHxi1YYiWsM6h/a6k5UZknut9mBRgjom/OW3cgJr9
-         Rnpg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=lhY/dH1LxkksLu5i0IWkS7fg7law7uuNa/mS/dgjQ4Q=;
+        b=ABC7W1VF1/366UvDPE12QQhhKNL8wWPkSCSuLqVUzpmnnSpOmCZ53avmQ6ux/KmDrL
+         JO7q2/OB/LVGuDavrJW2O/jAvClzzTVb4OvfJETU0rZU+tOp5/Ypulhq33CPMhgRc8sM
+         RO7npEtwjb4TwHaVJ4zmpCvHpFfkbmzEIFZRkHpAbgQl8/srohUTWf3oFDpIzYofzSn2
+         tODQ7piTZ9FELZ6nanashcA4peQprdm9HK4LjYQu79eBskCUmgff46uJr9N9Zd1q/UZf
+         SzOuW8e13aLPjLtdeiE84cvgjuJLyjXsBFJWue3EmXUDCj4s1RYl+cxVwa9orXoIXUdX
+         j8hg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=tDnFxoEo;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.2.63 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20063.outbound.protection.outlook.com. [40.107.2.63])
-        by mx.google.com with ESMTPS id d4si676602ejb.119.2019.06.13.13.04.05
+       dkim=pass header.i=@kernel.org header.s=default header.b=N2gTptqw;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id i4si394068pfa.218.2019.06.13.13.04.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 13:04:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.2.63 as permitted sender) client-ip=40.107.2.63;
+        Thu, 13 Jun 2019 13:04:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=tDnFxoEo;
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.2.63 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=YnyCRHhq6our3JahOP7YUJnCatYmzhQnh3SEMqGi3dI=;
- b=tDnFxoEoVdJBSN3ifgsVF1zVBJV+F7fIQFERH6l2SFzpul7cbtTkMS4MxC6YxRlST4jOSZUB3kCC8MnSqhwbNgP97LvBIHKqZn3DwjpIUiqGNULbal9I3/wQPE+1k7Qa4APNV7lQY7PyLFlmnfI34vV38Sl/Z5PjU8dXF8PeMCk=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB4381.eurprd05.prod.outlook.com (52.133.13.12) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.1987.13; Thu, 13 Jun 2019 20:04:03 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::c16d:129:4a40:9ba1]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::c16d:129:4a40:9ba1%6]) with mapi id 15.20.1987.012; Thu, 13 Jun 2019
- 20:04:03 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Christoph Hellwig <hch@lst.de>
-CC: Dan Williams <dan.j.williams@intel.com>,
-	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Ben Skeggs
-	<bskeggs@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
-	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 22/22] mm: don't select MIGRATE_VMA_HELPER from HMM_MIRROR
-Thread-Topic: [PATCH 22/22] mm: don't select MIGRATE_VMA_HELPER from
- HMM_MIRROR
-Thread-Index: AQHVIcyc3r2YZSS3CUapXwnP1XJouKaaAquA
-Date: Thu, 13 Jun 2019 20:04:03 +0000
-Message-ID: <20190613200357.GC22062@mellanox.com>
-References: <20190613094326.24093-1-hch@lst.de>
- <20190613094326.24093-23-hch@lst.de>
-In-Reply-To: <20190613094326.24093-23-hch@lst.de>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YQXPR01CA0086.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:c00:41::15) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: a348214a-681a-493b-a591-08d6f03a4842
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4381;
-x-ms-traffictypediagnostic: VI1PR05MB4381:
-x-microsoft-antispam-prvs:
- <VI1PR05MB43813927D62479F9D88EF8ABCFEF0@VI1PR05MB4381.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:765;
-x-forefront-prvs: 0067A8BA2A
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(366004)(346002)(39860400002)(376002)(136003)(396003)(199004)(189003)(446003)(476003)(14454004)(8936002)(6512007)(186003)(2616005)(11346002)(7736002)(3846002)(386003)(6116002)(76176011)(6506007)(316002)(7416002)(8676002)(4744005)(256004)(66946007)(66476007)(25786009)(73956011)(478600001)(14444005)(4326008)(64756008)(66446008)(66556008)(305945005)(486006)(66066001)(81166006)(36756003)(81156014)(68736007)(53936002)(52116002)(71190400001)(26005)(71200400001)(6246003)(2906002)(6486002)(99286004)(86362001)(229853002)(6916009)(33656002)(54906003)(5660300002)(1076003)(102836004)(6436002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4381;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- wHlkn2ZfV9rDati83SasESQC5vPO5aAUc6haeZsc3mf5YMTqR0rvPOwQ/jmHjydNylEIBAbQSsIpA4xlWwWWmXVcbjuSbBG89xPpjgnzFAY9/pNQ0MevcNaLFvKVwmaofHBRX3U80+m+n/XNiTHFh4Dkr1Y8xUBqXH3Bm7kLAGqZNIa80R9+gfK1I/ojwlmseAk+31Z3tJJsHWoHjogYiG/BUrdnA2YRRv//z4Yoth+w2fzdP6j9E9OO8whiiJCjw7AHM2LJhRP1YU7SSXS5ASCcA0Aa7Ja/kHzVKJHzFIDfaLy7RBoiCbsIbgGKzVoRMwiljvO9aMLS2+LOzhiT2/5Ldlmi0pcEr629xNZ/eEkITnDNP+wcG4JcSreBI0wnIMLHZJIO86ajMA/D9QjQnb+9FjlgsHFbbVB1Rjgz34U=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <DC6C94E2B8591541A7B0CC844A612312@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: a348214a-681a-493b-a591-08d6f03a4842
-X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Jun 2019 20:04:03.4038
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4381
+       dkim=pass header.i=@kernel.org header.s=default header.b=N2gTptqw;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 1E84021537;
+	Thu, 13 Jun 2019 20:04:09 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1560456250;
+	bh=STyJgmmKr944RjOkqQ8HWC3xeSyqe7HVqnGI2LWRsD8=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=N2gTptqwNshky9t39zHrhF/tFwNwxgbkrbTJor+tak1vLqX97uKewRk8bUnzrn4Ko
+	 U5IaH0MfRPlK77bT7Yc/4PbSrlc3n6J8M0GsjcRBoXIwR5bmuZZez1tgkNHDFM277/
+	 c+zGeW7mHjTeucDkGZEHLB7VbopRA5mQ7/vZdAH4=
+Date: Thu, 13 Jun 2019 13:04:08 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ linux-snps-arc@lists.infradead.org, linux-mips@vger.kernel.org,
+ linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
+ linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
+ linux-sh@vger.kernel.org, sparclinux@vger.kernel.org, x86@kernel.org,
+ Michal Hocko <mhocko@suse.com>, Matthew Wilcox <willy@infradead.org>, Mark
+ Rutland <mark.rutland@arm.com>, Christophe Leroy <christophe.leroy@c-s.fr>,
+ Stephen Rothwell <sfr@canb.auug.org.au>, Andrey Konovalov
+ <andreyknvl@google.com>, Michael Ellerman <mpe@ellerman.id.au>, Paul
+ Mackerras <paulus@samba.org>, Russell King <linux@armlinux.org.uk>, Catalin
+ Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Tony
+ Luck <tony.luck@intel.com>, Fenghua Yu <fenghua.yu@intel.com>, Martin
+ Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens
+ <heiko.carstens@de.ibm.com>, Yoshinori Sato <ysato@users.sourceforge.jp>,
+ "David S. Miller" <davem@davemloft.net>, Thomas Gleixner
+ <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar
+ <mingo@redhat.com>, Andy Lutomirski <luto@kernel.org>, Dave Hansen
+ <dave.hansen@linux.intel.com>, Vineet Gupta <vgupta@synopsys.com>, James
+ Hogan <jhogan@kernel.org>, Paul Burton <paul.burton@mips.com>, Ralf Baechle
+ <ralf@linux-mips.org>
+Subject: Re: [PATCH] mm: Generalize and rename notify_page_fault() as
+ kprobe_page_fault()
+Message-Id: <20190613130408.3091869d8e50d0524157523f@linux-foundation.org>
+In-Reply-To: <1560420444-25737-1-git-send-email-anshuman.khandual@arm.com>
+References: <1560420444-25737-1-git-send-email-anshuman.khandual@arm.com>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 11:43:25AM +0200, Christoph Hellwig wrote:
-> The migrate_vma helper is only used by noveau to migrate device private
-> pages around.  Other HMM_MIRROR users like amdgpu or infiniband don't
-> need it.
->=20
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  drivers/gpu/drm/nouveau/Kconfig | 1 +
->  mm/Kconfig                      | 1 -
->  2 files changed, 1 insertion(+), 1 deletion(-)
+On Thu, 13 Jun 2019 15:37:24 +0530 Anshuman Khandual <anshuman.khandual@arm.com> wrote:
 
-Yes, the thing that calls migrate_vma() should be the thing that has
-the kconfig stuff.
+> Architectures which support kprobes have very similar boilerplate around
+> calling kprobe_fault_handler(). Use a helper function in kprobes.h to unify
+> them, based on the x86 code.
+> 
+> This changes the behaviour for other architectures when preemption is
+> enabled. Previously, they would have disabled preemption while calling the
+> kprobe handler. However, preemption would be disabled if this fault was
+> due to a kprobe, so we know the fault was not due to a kprobe handler and
+> can simply return failure.
+> 
+> This behaviour was introduced in the commit a980c0ef9f6d ("x86/kprobes:
+> Refactor kprobes_fault() like kprobe_exceptions_notify()")
+> 
+> ...
+>
+> --- a/arch/arm/mm/fault.c
+> +++ b/arch/arm/mm/fault.c
+> @@ -30,28 +30,6 @@
+>  
+>  #ifdef CONFIG_MMU
+>  
+> -#ifdef CONFIG_KPROBES
+> -static inline int notify_page_fault(struct pt_regs *regs, unsigned int fsr)
 
-Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
+Some architectures make this `static inline'.  Others make it
+`nokprobes_inline', others make it `static inline __kprobes'.  The
+latter seems weird - why try to put an inline function into
+.kprobes.text?
 
-Jason
+So..  what's the best thing to do here?  You chose `static
+nokprobe_inline' - is that the best approach, if so why?  Does
+kprobe_page_fault() actually need to be inlined?
+
+Also, some architectures had notify_page_fault returning int, others
+bool.  You chose bool and that seems appropriate and all callers are OK
+with that.
 
