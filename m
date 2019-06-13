@@ -2,265 +2,195 @@ Return-Path: <SRS0=7jwN=UM=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EB40C31E45
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 18:56:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BF63DC31E45
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 19:05:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 02C0020B7C
-	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 18:56:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02C0020B7C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id 7C9A220B7C
+	for <linux-mm@archiver.kernel.org>; Thu, 13 Jun 2019 19:05:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="YWGmvPnB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C9A220B7C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8BAE88E0004; Thu, 13 Jun 2019 14:56:44 -0400 (EDT)
+	id 1B16A8E0004; Thu, 13 Jun 2019 15:05:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 86D0A8E0001; Thu, 13 Jun 2019 14:56:44 -0400 (EDT)
+	id 188208E0001; Thu, 13 Jun 2019 15:05:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 75A978E0004; Thu, 13 Jun 2019 14:56:44 -0400 (EDT)
+	id 04FE08E0004; Thu, 13 Jun 2019 15:05:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 254FF8E0001
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 14:56:44 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id k22so115033ede.0
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 11:56:44 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AB2628E0001
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 15:05:11 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b33so92465edc.17
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 12:05:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=VQknKYl4JCcMbhSVgoAsms70D+MeIlcn5Ppo+ZHTUMM=;
-        b=AJ2GJwnDDtvUffvXPO7loV3t6epssf7yqhleXWtQ8Eb3IhI5DYLa8PcJ6WGADNmLBl
-         PQhP3XwxbsWNb0qqATs6yar9A85DcfJO00tLUagE9uOE0Iqx1uwk7h2wA0QsFJZvlREH
-         uj5fijwU2mN56dyejQV7BsfuDLyVuUdgGun1LJkWqumCrwzc6SjPJMaOHW95N4qsOfnW
-         N21SJdPkxIfYWzRJOSUVmR4D6lME36wVaO9efVGC1XE8Y9kQu60fVdw3wt7BJENnHxMt
-         oOLK+zV0UY7TsdPxpQIIRHHwMUYlckReXPsExQymI+Q/huS6aFVA5s6x9kVCRzz6plzo
-         WQzQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Gm-Message-State: APjAAAXsQeK47qViH7RE66IXxn+1AshUXd0c16C0laRpW2Nh/QdkJnEG
-	OEJLs8lvwZKnmI4rFNU0GXEpNy+GojP3ro3bIWlwUEUkpLz0OGSU1bE5XHXFj7j3XazekNRIH3w
-	HBtkYh0zgxsQihOtxw37rXY4v7VOfZLfk970aBSEjoM1hEnxokNga53yRpBmAQ4YQKA==
-X-Received: by 2002:a50:b839:: with SMTP id j54mr64311182ede.155.1560452203689;
-        Thu, 13 Jun 2019 11:56:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzKWfWp2WlpgIWpqK9JhuVuaeogzRiXQexU7Kti2wSFijtomMhQ8vamexRMAsiVm1d127je
-X-Received: by 2002:a50:b839:: with SMTP id j54mr64311120ede.155.1560452202898;
-        Thu, 13 Jun 2019 11:56:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560452202; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=5H89jYFJH+O3gOi+KgnHMurO79Cv4aZ07rELsB946Xc=;
+        b=bAQDZ2s0+Dr63lNt6UsYyCA+2WNl31BxTJ8tHcrH9A6K96PIVa9TALDdBuegEJsOOn
+         2/rDAVBK0wLRBUhGgNnXCW4WyKqg+23NkUP1XzdDBk6VEa8vLJVzIgHOCPtzA2hrZBzH
+         xSlyPprd2TdtHbsr96OvfRopeazRGroB5VcaSjoKS+CcCVSqXGCKqMLj/OGGD6rThVzi
+         Bt7zWAzN+UJ0TsQRZIpJj9lvscuOdSRrlrDYRnS4lhbEq4ktVeQ68vLaVJfWJtC+PRAk
+         h71+CwXPtlM/98t8F/bixPT+ZeHolF588YoSAD7zqBkfhYEMRrZY8mMzSUiahJKP/Qks
+         N2lg==
+X-Gm-Message-State: APjAAAWczU6XWvRLkV6Fu47cU70HDjIOsZUV9Hq9RcE5vE969HA+pv53
+	dUI04hPhV4NvvDBf8J81jc+WHQ4wqoVINGnloqtuI6WPNpyKcNMQ9aA2QNamUF3TgiiG3XwafpM
+	UksTfpmAmMMV/MzSijplcpz+dggCwS4RDePRtJ0mrBmfUslmJpExZChl8VeXEzU/uJQ==
+X-Received: by 2002:a50:b662:: with SMTP id c31mr95886848ede.252.1560452711275;
+        Thu, 13 Jun 2019 12:05:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwcrGS+D/9fg2h8HPj9hKe1NknjZKtWO5e7bQahBlOYGQx8i/pJg+HeezR4os2O5p9zRzsP
+X-Received: by 2002:a50:b662:: with SMTP id c31mr95886761ede.252.1560452710466;
+        Thu, 13 Jun 2019 12:05:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560452710; cv=none;
         d=google.com; s=arc-20160816;
-        b=eu8Zy2l6GqljX3Yh0oKrFs/ozeXbNOuXlBmRZsEiySvaF7Qb1sGyFyjNXe6SCdVUet
-         V8DweC7zK+AUTmOR6XGY6LHFcdGrAhFtgR3XYigbSrIWzU7jV5F5TJcfQN9oX3jeT852
-         nQJd+LVTk046GCk/T9T32r9pziFEh+zpJ8aotO/MqIuiJMYs+BnDfQ+KWdMqkt+SlzJr
-         Whgd6/IAZrWqDjX04l3lLHFb/DfN7DD6AlhvysoumQ0Ql7cFUPJyWrymiXY7x0X8L0Is
-         rxSMt6U5BLgHu0DltjG8THJOBnsSFUdTjRsVjJItFp9kVZPm9qLZyTbZ/N2LTRihyewX
-         Q16Q==
+        b=T+hyBBS5wKsFGK6cNU9H5/mi7R2G0wLByGojNil0CfuPcGQe1oD6dYV2yc9No+8Xmg
+         wxM0ECeXXSIky9xWxcpaPBMYz2Y4Up4nc12S3qQHdy65tGba00kOKWyiACpGgMPuQatd
+         IyYxJ69j1Spt3VQXXSiU71UBFOhKdKhRyr4RmVONPgW3J92yh0wO31VxoVOVhzwJGh19
+         gRM88CzYNQ84tOzpZX9kxCr5q9mDu7uQJpMtg2vY0IztSK5Zt9jkXfA0VmyHa/KY0L/6
+         uOfAS8LtnfRIPTmljUXTjIgOL7MkjpfBRhG+zkhgwJEvPKlUGZkyqE4nLpr/dYsn5pUE
+         nsXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=VQknKYl4JCcMbhSVgoAsms70D+MeIlcn5Ppo+ZHTUMM=;
-        b=zU0bMusLNk7jqKy+mfsXVXIULGjif883d4eL/YtIHIwU2TGDkkiwgh/wuRh3w9IP0x
-         jcgcaYxa0DdcE6mIiYKD5s9rSlgmb4vVqTQ2/X+06Nge2yCSvcvxzfbWAkh6lRF7MAZt
-         uagQxcc6X/8U84AkW61F3RUCSh4+2tds7UM+fmWpoxDmLxEN1TdSnL3KcUevNnn5H3Ds
-         PPaPM56GY2mEIGL6T07vRmYcncIhr8vioqClBSGLqF5voVub+WD5lbBTHQZgEEzItmzN
-         XwiNhy8my/npi+3YwW2a0xy9PRgy1rrESoB7cs//7jUDNi+/GDIZo01se8z7zG8rZhkE
-         vpNg==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=5H89jYFJH+O3gOi+KgnHMurO79Cv4aZ07rELsB946Xc=;
+        b=ExcS22o1eBsxlhsz0NHSdsHdSu/hvR1IhfCQxZRSttmM4Gs/2bDYdVsqyVtMTJX0Fq
+         +kUoINYChH8lSlM1BGyKMAsncepnVUBWjttTeAou768NZioi8VGxNN8NZriIuiNbBCGJ
+         2B0Vxp7T+ROX5dFIgBlTzMDT0+f69Hi7wj29l8YyfCno3IpJToaYwT8taKwIYYQ4LAbH
+         7whMW9XLcFnfNRPqI99NsfFKsYZe8CsQ4Wmf0bsL3Jm/wjnKr2pVv2xbwViiZ6fOS8LC
+         rU6hxaZtCCUuvmP7x3ZN8nbnCHbUb7WQ91h2neNlBAZ6BrlT9GjBgY3+epyVhk8S5y/9
+         Or+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l11si317725edb.116.2019.06.13.11.56.42
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=YWGmvPnB;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.5.74 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50074.outbound.protection.outlook.com. [40.107.5.74])
+        by mx.google.com with ESMTPS id z7si290963edd.406.2019.06.13.12.05.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 11:56:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 13 Jun 2019 12:05:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.5.74 as permitted sender) client-ip=40.107.5.74;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1CD73AC31;
-	Thu, 13 Jun 2019 18:56:42 +0000 (UTC)
-Date: Thu, 13 Jun 2019 20:56:40 +0200
-From: Michal Hocko <mhocko@suse.com>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org,
-	yuzhoujian <yuzhoujian@didichuxing.com>
-Subject: Re: [PATCH] mm/oom_kill: set oc->constraint in constrained_alloc()
-Message-ID: <20190613185640.GA1405@dhcp22.suse.cz>
-References: <1560434150-13626-1-git-send-email-laoar.shao@gmail.com>
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=YWGmvPnB;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.5.74 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=5H89jYFJH+O3gOi+KgnHMurO79Cv4aZ07rELsB946Xc=;
+ b=YWGmvPnBhCruH1hC4ENOlDT/9NFEkEL0a4q9Qa4NpxuZS5nl20d1v1o2AyB8KY0mRuUpO8MBZVt3w70ES3mNbWfW9rSrolUHDrlUOb11mpH1sv6dZFgWg/bmYjRlTeKxzVQizkp6CPOcq2N0Zz+3+5aKzaCjOTaUlVQ+9iGoHDk=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB4928.eurprd05.prod.outlook.com (20.177.51.25) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.1987.11; Thu, 13 Jun 2019 19:05:09 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::c16d:129:4a40:9ba1]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::c16d:129:4a40:9ba1%6]) with mapi id 15.20.1987.012; Thu, 13 Jun 2019
+ 19:05:08 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Christoph Hellwig <hch@lst.de>
+CC: Dan Williams <dan.j.williams@intel.com>,
+	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Ben Skeggs
+	<bskeggs@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
+	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 04/22] mm: don't clear ->mapping in hmm_devmem_free
+Thread-Topic: [PATCH 04/22] mm: don't clear ->mapping in hmm_devmem_free
+Thread-Index: AQHVIcx9tYJr+8Mn7kqAMQYMKR1ZDqaZ8jSA
+Date: Thu, 13 Jun 2019 19:05:07 +0000
+Message-ID: <20190613190501.GQ22062@mellanox.com>
+References: <20190613094326.24093-1-hch@lst.de>
+ <20190613094326.24093-5-hch@lst.de>
+In-Reply-To: <20190613094326.24093-5-hch@lst.de>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: YTBPR01CA0021.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:b01:14::34) To VI1PR05MB4141.eurprd05.prod.outlook.com
+ (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [156.34.55.100]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: bbf803f6-efcc-4d94-d47b-08d6f0320cfc
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4928;
+x-ms-traffictypediagnostic: VI1PR05MB4928:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB4928F4B1BDE805C1E9FF8777CFEF0@VI1PR05MB4928.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:7691;
+x-forefront-prvs: 0067A8BA2A
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(136003)(39860400002)(346002)(376002)(396003)(366004)(189003)(199004)(7736002)(81156014)(36756003)(14444005)(476003)(2616005)(6486002)(6436002)(256004)(486006)(33656002)(446003)(99286004)(54906003)(11346002)(305945005)(66446008)(66066001)(6246003)(26005)(66476007)(8676002)(229853002)(73956011)(6916009)(66556008)(7416002)(186003)(53936002)(81166006)(316002)(66946007)(64756008)(6512007)(3846002)(102836004)(5660300002)(8936002)(1076003)(76176011)(14454004)(386003)(52116002)(6506007)(4326008)(71200400001)(71190400001)(478600001)(86362001)(2906002)(25786009)(6116002)(68736007);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4928;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ 6FABMmmx3sbXSt/4QuBhcr7/YtvHD9s/olWKQHhWI0mA8kSlXMrWKF0QZilfQlXKDGbNvyqHgaxtSNIRDHWheLvlaQg7ETFB5Cjnsj3e6AzZTE/LzV1r/NXF4RPFKajt7Lf0Zt3MLCVPMv6Py9/mIUvHGARY4lqJVy9Ty8iRrJAEPZH0ZBM9D1K5rtlvMnz+WJYUeaF4YLccPfAELIPq0IFDLQouavshf+v9LfjaFE4GF5kD2gQSIkznPLEr5clvmds52YnLYX7mLmyaXddlqJBiuppL2rqQ4yHc0l15YlH27wU+91x31a2e5aTrSJ20Jta1x+D2p7zY9S4bBcgIW15iFdf19CgvOtpiNVk+iUV7/GLUbJt6PuRULdtVYopy1ZL0GfFk9W9ORII8qhp1t7aYrw6saeClZmC8MzyF26Q=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <7BF6B23DFB21B24C9129FD14A4ED8C15@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1560434150-13626-1-git-send-email-laoar.shao@gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: bbf803f6-efcc-4d94-d47b-08d6f0320cfc
+X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Jun 2019 19:05:07.9878
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4928
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 13-06-19 21:55:50, Yafang Shao wrote:
-> In dump_oom_summary() oc->constraint is used to show
-> oom_constraint_text, but it hasn't been set before.
-> So the value of it is always the default value 0.
-> We should set it in constrained_alloc().
-
-Thanks for catching that.
-
-> Bellow is the output when memcg oom occurs,
-> 
-> before this patch:
-> [  133.078102] oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),
-> cpuset=/,mems_allowed=0,oom_memcg=/foo,task_memcg=/foo,task=bash,pid=7997,uid=0
-> 
-> after this patch:
-> [  952.977946] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),
-> cpuset=/,mems_allowed=0,oom_memcg=/foo,task_memcg=/foo,task=bash,pid=13681,uid=0
-> 
-
-unless I am missing something
-Fixes: ef8444ea01d7 ("mm, oom: reorganize the oom report in dump_header")
-
-The patch looks correct but I think it is more complicated than it needs
-to be. Can we do the following instead?
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5a58778c91d4..f719b64741d6 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -987,8 +987,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- /*
-  * Determines whether the kernel must panic because of the panic_on_oom sysctl.
-  */
--static void check_panic_on_oom(struct oom_control *oc,
--			       enum oom_constraint constraint)
-+static void check_panic_on_oom(struct oom_control *oc)
- {
- 	if (likely(!sysctl_panic_on_oom))
- 		return;
-@@ -998,7 +997,7 @@ static void check_panic_on_oom(struct oom_control *oc,
- 		 * does not panic for cpuset, mempolicy, or memcg allocation
- 		 * failures.
- 		 */
--		if (constraint != CONSTRAINT_NONE)
-+		if (oc->constraint != CONSTRAINT_NONE)
- 			return;
- 	}
- 	/* Do not panic for oom kills triggered by sysrq */
-@@ -1035,7 +1034,6 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
- bool out_of_memory(struct oom_control *oc)
- {
- 	unsigned long freed = 0;
--	enum oom_constraint constraint = CONSTRAINT_NONE;
- 
- 	if (oom_killer_disabled)
- 		return false;
-@@ -1071,10 +1069,10 @@ bool out_of_memory(struct oom_control *oc)
- 	 * Check if there were limitations on the allocation (only relevant for
- 	 * NUMA and memcg) that may require different handling.
- 	 */
--	constraint = constrained_alloc(oc);
--	if (constraint != CONSTRAINT_MEMORY_POLICY)
-+	oc->constraint = constrained_alloc(oc);
-+	if (oc->constraint != CONSTRAINT_MEMORY_POLICY)
- 		oc->nodemask = NULL;
--	check_panic_on_oom(oc, constraint);
-+	check_panic_on_oom(oc);
- 
- 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
- 	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
-
-I guess the current confusion comes from the fact that we have
-constraint both in the oom_control and a local variable so I would
-rather remove that. What do you think?
-
-> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+On Thu, Jun 13, 2019 at 11:43:07AM +0200, Christoph Hellwig wrote:
+> ->mapping isn't even used by HMM users, and the field at the same offset
+> in the zone_device part of the union is declared as pad.  (Which btw is
+> rather confusing, as DAX uses ->pgmap and ->mapping from two different
+> sides of the union, but DAX doesn't use hmm_devmem_free).
+>=20
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->  mm/oom_kill.c | 35 +++++++++++++++++++++++++----------
->  1 file changed, 25 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 5a58778..075e5cf 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -261,29 +261,37 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc)
->  	struct zone *zone;
->  	struct zoneref *z;
->  	enum zone_type high_zoneidx = gfp_zone(oc->gfp_mask);
-> +	enum oom_constraint constraint;
->  	bool cpuset_limited = false;
->  	int nid;
->  
->  	if (is_memcg_oom(oc)) {
->  		oc->totalpages = mem_cgroup_get_max(oc->memcg) ?: 1;
-> -		return CONSTRAINT_MEMCG;
-> +		constraint = CONSTRAINT_MEMCG;
-> +		goto out;
->  	}
->  
->  	/* Default to all available memory */
->  	oc->totalpages = totalram_pages() + total_swap_pages;
->  
-> -	if (!IS_ENABLED(CONFIG_NUMA))
-> -		return CONSTRAINT_NONE;
-> +	if (!IS_ENABLED(CONFIG_NUMA)) {
-> +		constraint = CONSTRAINT_NONE;
-> +		goto out;
-> +	}
->  
-> -	if (!oc->zonelist)
-> -		return CONSTRAINT_NONE;
-> +	if (!oc->zonelist) {
-> +		constraint = CONSTRAINT_NONE;
-> +		goto out;
-> +	}
->  	/*
->  	 * Reach here only when __GFP_NOFAIL is used. So, we should avoid
->  	 * to kill current.We have to random task kill in this case.
->  	 * Hopefully, CONSTRAINT_THISNODE...but no way to handle it, now.
->  	 */
-> -	if (oc->gfp_mask & __GFP_THISNODE)
-> -		return CONSTRAINT_NONE;
-> +	if (oc->gfp_mask & __GFP_THISNODE) {
-> +		constraint = CONSTRAINT_NONE;
-> +		goto out;
-> +	}
->  
->  	/*
->  	 * This is not a __GFP_THISNODE allocation, so a truncated nodemask in
-> @@ -295,7 +303,8 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc)
->  		oc->totalpages = total_swap_pages;
->  		for_each_node_mask(nid, *oc->nodemask)
->  			oc->totalpages += node_spanned_pages(nid);
-> -		return CONSTRAINT_MEMORY_POLICY;
-> +		constraint = CONSTRAINT_MEMORY_POLICY;
-> +		goto out;
->  	}
->  
->  	/* Check this allocation failure is caused by cpuset's wall function */
-> @@ -308,9 +317,15 @@ static enum oom_constraint constrained_alloc(struct oom_control *oc)
->  		oc->totalpages = total_swap_pages;
->  		for_each_node_mask(nid, cpuset_current_mems_allowed)
->  			oc->totalpages += node_spanned_pages(nid);
-> -		return CONSTRAINT_CPUSET;
-> +		constraint = CONSTRAINT_CPUSET;
-> +		goto out;
->  	}
-> -	return CONSTRAINT_NONE;
-> +
-> +	constraint = CONSTRAINT_NONE;
-> +
-> +out:
-> +	oc->constraint = constraint;
-> +	return constraint;
->  }
->  
->  static int oom_evaluate_task(struct task_struct *task, void *arg)
-> -- 
-> 1.8.3.1
-> 
+>  mm/hmm.c | 2 --
+>  1 file changed, 2 deletions(-)
 
--- 
-Michal Hocko
-SUSE Labs
+Hurm, is hmm following this comment from mm_types.h?
+
+ * If you allocate the page using alloc_pages(), you can use some of the
+ * space in struct page for your own purposes.  The five words in the main
+ * union are available, except for bit 0 of the first word which must be
+ * kept clear.  Many users use this word to store a pointer to an object
+ * which is guaranteed to be aligned.  If you use the same storage as
+ * page->mapping, you must restore it to NULL before freeing the page.
+
+Maybe the assumption was that a driver is using ->mapping ?
+
+However, nouveau is the only driver that uses this path, and it never
+touches page->mapping either (nor in -next).
+
+It looks like if a driver were to start using mapping then the driver
+should be responsible to set it back to NULL before being done with
+the page.
+
+Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
+
+Jason
 
