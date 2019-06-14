@@ -2,226 +2,174 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C07A8C46477
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:29:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05160C31E45
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:46:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 74F6220850
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:29:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ABA8E208CA
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:46:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="X/rImEl3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74F6220850
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="hZ/DTJ5k"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABA8E208CA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 39FB96B000D; Thu, 13 Jun 2019 21:29:53 -0400 (EDT)
+	id 3B9FA6B000D; Thu, 13 Jun 2019 21:46:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 350D56B000E; Thu, 13 Jun 2019 21:29:53 -0400 (EDT)
+	id 36BDD6B000E; Thu, 13 Jun 2019 21:46:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 23FE06B0266; Thu, 13 Jun 2019 21:29:53 -0400 (EDT)
+	id 232396B0266; Thu, 13 Jun 2019 21:46:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0231D6B000D
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 21:29:53 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id t11so790105qtc.9
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 18:29:52 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F2B5A6B000D
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 21:46:34 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id b188so912913ywb.10
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 18:46:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=H/vGo7QOX7QpyBvTXnkYe2yXFtuFZ4oDrsLjFnJuZHg=;
-        b=t/seD3kM8MnbLkM7a06OQLrKvmjzWWo6O+RswRACeFKzgClAl/58+u5Yx1MexpJWwJ
-         ZE6lrFwUcRnkhrpSMbOhOjf0Tva5W30bXHX9zp2K2d4g1WD7ZtCpqU2q+pTm2unWTt1x
-         Tk4nrt1XxrjArhyxDEPiki5urST7atZEs/7A7LNkt6Ji+JzuwFZzcXL8Qu/9lN/9KMgd
-         jwptaxt+wRIc0FeAASUpG85c2Ht/giessHtZ5F0CTru0ULyENnIIfR7YmbAEBGRhiU1U
-         YGo1xlz+Gt+qkC0Rq9PWCv76aLbdymbH6o7aNCrf/FqlLbWwb81DQV5++OzW6cd0Uc34
-         P6Lw==
-X-Gm-Message-State: APjAAAW7JPSRqj+52JBhUdxnuQjMDqJ9hEV3Lzi9EXr6KqJ4dNUR93Pa
-	/o5iqLjlZhO/Uy82LgaJrwwf20y79UjlUo1e0CBRg8T0E1vgexL375NWJ/j65n7QanCUOETfomv
-	zlGPMqdMTs9/+nQwf7Th3/RybPnAoaJkcgF412yI2yE1k/p/1794FJn2ddmc7ka9TPw==
-X-Received: by 2002:a37:47d1:: with SMTP id u200mr39719006qka.21.1560475792758;
-        Thu, 13 Jun 2019 18:29:52 -0700 (PDT)
-X-Received: by 2002:a37:47d1:: with SMTP id u200mr39718967qka.21.1560475791997;
-        Thu, 13 Jun 2019 18:29:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560475791; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=aWY+o31YpTUXYNCWR/tUiybGk+oQfQT9Eqi8enXkBOQ=;
+        b=RbCsRye16iUlhdxCbx60GZVxQcUNJn1psOx9UjyCxPjl2OmNNrm2oOEm2c7dssKkLc
+         houYrozRg7gmHRv53C0XKL6QoYSejNo9a0seIzyZz6h+XF6U29FzGoCzNw3tIK3FSo/b
+         JErhA4PjmVC7OttXUmbDI5liJ0RzHJ40UduQmCZavTtdhZBiT6engaXfe15Xsm7aQItE
+         OQ0WAN8iLCb4fxMpZtx0QXIwOfNvK+QxUjvj4qc5VG3RhRxa8bgZt0Lwv1gFUSrVvmGX
+         URRllR2zORILZMBOuLTG8iZ7SawoiKDQ+4AXoeD1CuZWELcwkOYx++JxZ4TA8l0qW3i1
+         XC9Q==
+X-Gm-Message-State: APjAAAUgzShB30J/d+FzSsYj+sEcz5mjZ2nrpxlJZ/9UtCMb2ULqIGDJ
+	1N7UPs+C73z3zwCABEb1BQ+X72tOrB3AjlTgpZ5vxoUEJsXDMjPJFKpvpIRsYbiVUfg8s4V5uwz
+	aZL/TqdF8oshVtjLO8TcH0AHsixmrjjM8JMx7vfQNZOoGwMbSoqdPrPUmBczc2cTfkw==
+X-Received: by 2002:a81:d86:: with SMTP id 128mr7763673ywn.514.1560476794738;
+        Thu, 13 Jun 2019 18:46:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwbsbSTuPH7oXa2PLe5G0w7CNhx1On4lFEQfv0yWlI0qEWme4ODJw4D2sLTmV9gkCZOdRph
+X-Received: by 2002:a81:d86:: with SMTP id 128mr7763660ywn.514.1560476794171;
+        Thu, 13 Jun 2019 18:46:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560476794; cv=none;
         d=google.com; s=arc-20160816;
-        b=LQ/6LLLyHK5fBJxBilZWD0n5bjz1+O6NqFeayzFXh90Z3tSMr3a6UBzwj1CiDJtLuO
-         FE63l9t109ZgVervQfWackPhP6S7z6wUF05YuNkV6K36eOxpKZpe9j8ZOCAPukzjc2Uj
-         fQZSfPNmVZGjWSBrhzBgdpXUiifgfNRNRMwNI/L8LKNV+dvLlbqCTw4gkKn1TtisofuV
-         vXBfk30Fy1QD83hG1xezNAIlf2J4G2x57ozlDd0PRoEBdAMvVvy5RcTjJO4vFA6pt2Ki
-         6W3PYUhI25uf965Swwwb1xsNoCQUFmHUibLxljWl15Wre8ZhnehQXF6vso9tcXJ5q57A
-         lXnw==
+        b=RM0LWKIZncVQQ/XvMHFV9yiJ+2MwXtCYDhMzoyiswRsDCqzxueORmK4f8c4lnf7qyc
+         LEsIAfe1oR5Pa/KceNEsRL017gwg1R7WYaAsdi8Cg3Nf416YJrdCA9ic1/OCSsUPrcG+
+         AXz6HqqUYekOBDAWUvpzvqr4nI1Gu6VIqr87AwE7iFASXJkQO8tai53fmrf8+ERerh2P
+         nEK93RKsfR5lfxSR6KlAwGn55x6F83/jfZOke1wSkAwUIqA8mp6lPcfBnogR6HfMM0wA
+         j39/1ky8ObUL676mNew6gQ2ozeGk2Pc8LR6kDGfLP7F9dKfipo2bdbAyTv3Et4486DQZ
+         0kuA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=H/vGo7QOX7QpyBvTXnkYe2yXFtuFZ4oDrsLjFnJuZHg=;
-        b=zKUkUkIL83jDV1ohv16PFXodBwD9qDLGqwKU4cJTW/h4D5DmZ5uou9tJkzUJkbkTaX
-         gknrQZeeNgiPDYCmbpgP7tXu6udYRQh+0ubr5VqV7ldZIT124aw28DLH2gMdOV+GlZg7
-         JUQERkNvrx+1FMJN4Q3AlyvK4WqEOMvnO6wa+4ueelwuG4maObL0usyEv8p02jmstEph
-         gTqcBIOVyUzPadUfaznT1Q7n+Af/Kw/moKtXsuWOmrezZ5llnKiiUgmY6n5bpZO7/NSA
-         lKJ+DRHjSaG7Nl+1OUTsjm+V6upI39puPtOOhYUhbPCutYJFI1NGNF0nbpSWkIXRMsz6
-         TXVg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=aWY+o31YpTUXYNCWR/tUiybGk+oQfQT9Eqi8enXkBOQ=;
+        b=cDze7yozpRv7K62pQAnltpHr5y8MYjs/Gv8DDkGi1ksDYlDAbWQBvhjKrQIAw5C3tX
+         Yea5JF/NDqqjhDxaER4HyI5dqQSk6Oui7iz2w5Qi9IRgi6SmrlumsCPKbBDDehcyqElg
+         o8kSJPHMKYfAHGpmXtMd50Vd35Xmj7tH+Q3SAr6RnHtbVoXkTapwoqInSywKepPNpbPt
+         WVZqKjpV0RfNneMfh36/LKLJEx23Ys8Ew//ZaFb7QCNElYCFzUvHOfpXO5udeNG5jp5R
+         T0JOj2zsW1tWTsJThc1lTcL0BgYfDcvEHotPL31kViE7nUDZdUGSriWeXJAxukYS5zRd
+         RkAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b="X/rImEl3";
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b34sor2446291qta.71.2019.06.13.18.29.51
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="hZ/DTJ5k";
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id x71si569846ywx.166.2019.06.13.18.46.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 13 Jun 2019 18:29:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b="X/rImEl3";
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=H/vGo7QOX7QpyBvTXnkYe2yXFtuFZ4oDrsLjFnJuZHg=;
-        b=X/rImEl35Oahiwt5WAxEWA8Ooo/G4IiYNzGx8xpFy37/bV7Flvr0QAhLOOeL3AIVhe
-         1y5BPOVnUXFBusIUYg+P/JgavbyK7hDqOMseShNlrlKt4yCBWBuF7QF2NhCO2fLl7Grp
-         XVrPbS7WwMx08WovV2pWAPIELN4ixJE3dAaHd28TpHdjICAU73ZZtl1VaQTSZOZmeCL4
-         Wh1LZNu7mpVKSGU/q9ahdI7e+6IdYyWtI0lwXvn1zcFGm6KxDM2Ne4y9PfsdRu1JugCT
-         cFKMEZ06sRt1hukQT/dZW0GBtWsbE9sFzkmXFK4x86+/DUWVmixJ+DCO4b1q5L/mVsRr
-         PTSg==
-X-Google-Smtp-Source: APXvYqzKfvNHJxoWJ3SyH77lNcIGaU1SSr4XDrqiAHxdxp7pu79pATBF5ERe9UWmUqjToIz4L9GqOg==
-X-Received: by 2002:ac8:7a73:: with SMTP id w19mr57545290qtt.292.1560475791653;
-        Thu, 13 Jun 2019 18:29:51 -0700 (PDT)
-Received: from qians-mbp.fios-router.home (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
-        by smtp.gmail.com with ESMTPSA id g5sm1068845qta.77.2019.06.13.18.29.50
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 18:29:51 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
-Subject: Re: [PATCH -next] mm/hotplug: skip bad PFNs from pfn_to_online_page()
-From: Qian Cai <cai@lca.pw>
-In-Reply-To: <CAPcyv4hYfDtRHF-i0dNzo=ffQk6qnrasRwkVfAVnwgWj0PJ4jg@mail.gmail.com>
-Date: Thu, 13 Jun 2019 21:29:50 -0400
-Cc: Andrew Morton <akpm@linux-foundation.org>,
- Oscar Salvador <osalvador@suse.de>,
- Linux MM <linux-mm@kvack.org>,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <0EB9D196-7552-43DF-A273-875EA6729EF9@lca.pw>
-References: <1560366952-10660-1-git-send-email-cai@lca.pw>
- <CAPcyv4hn0Vz24s5EWKr39roXORtBTevZf7dDutH+jwapgV3oSw@mail.gmail.com>
- <1560451362.5154.14.camel@lca.pw>
- <CAPcyv4hYfDtRHF-i0dNzo=ffQk6qnrasRwkVfAVnwgWj0PJ4jg@mail.gmail.com>
-To: Dan Williams <dan.j.williams@intel.com>
-X-Mailer: Apple Mail (2.3445.104.11)
+        Thu, 13 Jun 2019 18:46:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="hZ/DTJ5k";
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d02fc790000>; Thu, 13 Jun 2019 18:46:33 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 13 Jun 2019 18:46:33 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 13 Jun 2019 18:46:33 -0700
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 14 Jun
+ 2019 01:46:30 +0000
+Subject: Re: [PATCH 04/22] mm: don't clear ->mapping in hmm_devmem_free
+To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jason Gunthorpe
+	<jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>
+CC: <linux-mm@kvack.org>, <nouveau@lists.freedesktop.org>,
+	<dri-devel@lists.freedesktop.org>, <linux-nvdimm@lists.01.org>,
+	<linux-pci@vger.kernel.org>, <linux-kernel@vger.kernel.org>
+References: <20190613094326.24093-1-hch@lst.de>
+ <20190613094326.24093-5-hch@lst.de>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <b0584ac6-72e3-08d3-6b76-1ac5e5b3bb4f@nvidia.com>
+Date: Thu, 13 Jun 2019 18:46:29 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
+MIME-Version: 1.0
+In-Reply-To: <20190613094326.24093-5-hch@lst.de>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1560476793; bh=aWY+o31YpTUXYNCWR/tUiybGk+oQfQT9Eqi8enXkBOQ=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=hZ/DTJ5kKqWdpCL12ZwwtnQNfLWFCFSPcl2k46LOsH4pNokmtsOInOl9+GJ8FKmKO
+	 hXZGdDzxG+P+INltKZYs7MH3/UvgeCnHg5hunwwq2bHUiutlLY5os0Z0ZWt+qrOuk9
+	 K1Cep9JhG5g0OourqoO6QLKWzZukRM6NdlGEbmjrnoEWvH3YVwufa/VDbhQJ2OHW1T
+	 paLBoqcpz6yETgLWr50DBrY8lfihmvAJXfVj+3zCeNHjlAyMFyqJD9rLf7d5TUXr4L
+	 SqhY59v6TJmTfzJl0WQ5JTwHaXZZRXMzmrFJGWFYPUDt0cJm6MdR4wx/+QlT3y9K7k
+	 1VdCdX4iXd9+w==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 6/13/19 2:43 AM, Christoph Hellwig wrote:
+> ->mapping isn't even used by HMM users, and the field at the same offset
+> in the zone_device part of the union is declared as pad.  (Which btw is
+> rather confusing, as DAX uses ->pgmap and ->mapping from two different
+> sides of the union, but DAX doesn't use hmm_devmem_free).
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  mm/hmm.c | 2 --
+>  1 file changed, 2 deletions(-)
+> 
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 0c62426d1257..e1dc98407e7b 100644
+> --- a/mm/hmm.c
+> +++ b/mm/hmm.c
+> @@ -1347,8 +1347,6 @@ static void hmm_devmem_free(struct page *page, void *data)
+>  {
+>  	struct hmm_devmem *devmem = data;
+>  
+> -	page->mapping = NULL;
+> -
+>  	devmem->ops->free(devmem, page);
+>  }
+>  
+> 
 
+Yes, I think that line was unnecessary. I see from git history that it was
+originally being set to NULL from within __put_devmap_managed_page(), and then
+in commit 2fa147bdbf672c53386a8f5f2c7fe358004c3ef8, Dan moved it out of there,
+and stashed in specifically here. But it appears to have been unnecessary from
+the beginning.
 
-> On Jun 13, 2019, at 9:17 PM, Dan Williams <dan.j.williams@intel.com> =
-wrote:
->=20
-> On Thu, Jun 13, 2019 at 11:42 AM Qian Cai <cai@lca.pw> wrote:
->>=20
->> On Wed, 2019-06-12 at 12:37 -0700, Dan Williams wrote:
->>> On Wed, Jun 12, 2019 at 12:16 PM Qian Cai <cai@lca.pw> wrote:
->>>>=20
->>>> The linux-next commit "mm/sparsemem: Add helpers track active =
-portions
->>>> of a section at boot" [1] causes a crash below when the first =
-kmemleak
->>>> scan kthread kicks in. This is because kmemleak_scan() calls
->>>> pfn_to_online_page(() which calls pfn_valid_within() instead of
->>>> pfn_valid() on x86 due to CONFIG_HOLES_IN_ZONE=3Dn.
->>>>=20
->>>> The commit [1] did add an additional check of pfn_section_valid() =
-in
->>>> pfn_valid(), but forgot to add it in the above code path.
->>>>=20
->>>> page:ffffea0002748000 is uninitialized and poisoned
->>>> raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff =
-ffffffffffffffff
->>>> raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff =
-ffffffffffffffff
->>>> page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
->>>> ------------[ cut here ]------------
->>>> kernel BUG at include/linux/mm.h:1084!
->>>> invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
->>>> CPU: 5 PID: 332 Comm: kmemleak Not tainted 5.2.0-rc4-next-20190612+ =
-#6
->>>> Hardware name: Lenovo ThinkSystem SR530 =
--[7X07RCZ000]-/-[7X07RCZ000]-,
->>>> BIOS -[TEE113T-1.00]- 07/07/2017
->>>> RIP: 0010:kmemleak_scan+0x6df/0xad0
->>>> Call Trace:
->>>> kmemleak_scan_thread+0x9f/0xc7
->>>> kthread+0x1d2/0x1f0
->>>> ret_from_fork+0x35/0x4
->>>>=20
->>>> [1] https://patchwork.kernel.org/patch/10977957/
->>>>=20
->>>> Signed-off-by: Qian Cai <cai@lca.pw>
->>>> ---
->>>> include/linux/memory_hotplug.h | 1 +
->>>> 1 file changed, 1 insertion(+)
->>>>=20
->>>> diff --git a/include/linux/memory_hotplug.h =
-b/include/linux/memory_hotplug.h
->>>> index 0b8a5e5ef2da..f02be86077e3 100644
->>>> --- a/include/linux/memory_hotplug.h
->>>> +++ b/include/linux/memory_hotplug.h
->>>> @@ -28,6 +28,7 @@
->>>>        unsigned long ___nr =3D pfn_to_section_nr(___pfn);           =
-\
->>>>                                                                   \
->>>>        if (___nr < NR_MEM_SECTIONS && online_section_nr(___nr) && \
->>>> +           pfn_section_valid(__nr_to_section(___nr), pfn) &&      =
-\
->>>>            pfn_valid_within(___pfn))                              \
->>>>                ___page =3D pfn_to_page(___pfn);                     =
-\
->>>>        ___page;                                                   \
->>>=20
->>> Looks ok to me:
->>>=20
->>> Acked-by: Dan Williams <dan.j.williams@intel.com>
->>>=20
->>> ...but why is pfn_to_online_page() a multi-line macro instead of a
->>> static inline like all the helper routines it invokes?
->>=20
->> Sigh, probably because it is a mess over there.
->>=20
->> memory_hotplug.h and mmzone.h are included each other. Converted it =
-directly to
->> a static inline triggers compilation errors because mmzone.h was =
-included
->> somewhere else and found pfn_to_online_page() needs things like
->> pfn_valid_within() and online_section_nr() etc which are only defined =
-later in
->> mmzone.h.
->=20
-> Ok, makes sense I had I assumed it was something horrible like that.
->=20
-> Qian, can you send more details on the reproduction steps for the
-> failures you are seeing? Like configs and platforms you're testing.
-> I've tried enabling kmemleak and offlining memory and have yet to
-> trigger these failures. I also have a couple people willing to help me
-> out with tracking down the PowerPC issue, but I assume they need some
-> help with the reproduction as well.
+Reviewed-by: John Hubbard <jhubbard@nvidia.com> 
 
-https://github.com/cailca/linux-mm
-
-You can see the configs for each arch there. It was reproduced on =
-several x86 NUMA bare-metal machines HPE, Lenovo etc either Intel or =
-AMD. Check the =E2=80=9Ctest.sh=E2=80=9D, there is a part to do =
-offline/online will reproduce it.
-
-The powerpc is IBM 8335-GTC (ibm,witherspoon) POWER9 which is a NUMA =
-PowerNV platform.=
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
