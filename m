@@ -2,152 +2,147 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B1ADC31E4B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 17:07:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 42002C31E4B
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 17:09:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 259612183E
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 17:07:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 259612183E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 0FD062183F
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 17:09:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FD062183F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A7E616B000C; Fri, 14 Jun 2019 13:07:20 -0400 (EDT)
+	id A7CD76B000C; Fri, 14 Jun 2019 13:09:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A2EB76B000D; Fri, 14 Jun 2019 13:07:20 -0400 (EDT)
+	id A06966B000D; Fri, 14 Jun 2019 13:09:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9133A6B0269; Fri, 14 Jun 2019 13:07:20 -0400 (EDT)
+	id 8CD8E6B0269; Fri, 14 Jun 2019 13:09:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 58BF86B000C
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 13:07:20 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id d19so1957911pls.1
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 10:07:20 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 694B76B000C
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 13:09:05 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id s9so2656369qtn.14
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 10:09:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=KpqX5I4D4i4/2BGHt36UAxpem5y5cTRgTVQ/M67Smfk=;
-        b=L51UxaspMKhIlC9zePnb7RhbVEjqvnR8j0gvfkENxX2Dvo4MlamweVqyLomt+PxzOn
-         E43W3YIoLQ1cxicDFWfMiChjNOAiWgzTlSLo838T3c6r+Tc2Xxbt+VbMZqKzFuamGx8C
-         9A55jnfCdHL+47mO0N5X2AVYCOvxmPPa8wdQ2/sKrf9PHqqpj0kZMhTwGSwCFdz6Ps8S
-         gVzAVV2FgiN0hvRUBDOKBr8Y2TjcZIKvxgG4mRKieqEKs7Nd0ImLbiFMt8/RdMlmMvUD
-         ZMKUhhsbrO5KWVLTeUskH2vNIpcOncadU2OkTGOhYZm9PSKmjZBlB8xrH/omAkob1I/+
-         aTNg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=alison.schofield@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUB6WG2ZtyFTIj4Gw1P0G/wJgU1UfTGjn5ZsP8DdLPceMEpNvAJ
-	uq3oAAm/n0WFvp1WDsSyWBNCfKCccAQ1YG1lemJ2YCE0WVyQ1sODXng00G1RNRCKW/mfdixL1Ob
-	TYf8vfHCx9gRXi30oWMfIFCPWxXyhQ+3rVqJEzLigZmR4XA4HcxWuEq57VcxIXi4OBA==
-X-Received: by 2002:a17:902:8b88:: with SMTP id ay8mr28613971plb.139.1560532040032;
-        Fri, 14 Jun 2019 10:07:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx2i19+l2RX8RTbQlYF8P5b6DwqL6Se1Wh855Yl5G9/iz6fCQRXn3qrNNlkt9YuI+7JlkKJ
-X-Received: by 2002:a17:902:8b88:: with SMTP id ay8mr28613934plb.139.1560532039391;
-        Fri, 14 Jun 2019 10:07:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560532039; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=Rv1UNHV6Hq+k6RcBLpv73zo+QvQPCa12e4dH0M4WBCA=;
+        b=tgF2r0rSNuQquN/rmRCW6JzDL56SYi2P92oCikMBv/EguwDNbWVthq05OJieLNBBOB
+         ROm2bD50Krvgii8J70D21iYfvEXbJYxTAm0lbjbZYiSy231DwRHJYflQjQbFK1uH5fJ0
+         bi+XLD7nX1t2e8bFz682FIzG87aQI9yU8yrllhHHbZXSkZ5Dpehi39nJX8V4bmT6UTca
+         iu/rYrvSPLNNL+xTTLIYIaoIMr8GDw9KjU94946RF8l6HW5M5hNfFyfRrM49G3krgkuH
+         S7LPtcWXIysJzor2bhcRTOn2I3+mpNCstos/N/B6C2KfVpwvxPxGlmfn+fQ/qlCEEUTw
+         UsOw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXKqoEmwtjq2RDUgXgd61J7BeQcBOKvutOy2OScAxpKWcaFJ4tg
+	AMtdaYn27Jll10bFT18Ck03rG0TCv+He0aZHPJsBQjQ/tlNdKXhW4q+rRy+9Ey2cPSg7XxoXvbs
+	cIHqNbupFDK/vJOg6AUU9vyy8tRUzYFjbzFyf5yoJV1yeY7qP9/xbz9w/qQz16QQB+Q==
+X-Received: by 2002:a0c:c3c7:: with SMTP id p7mr8009891qvi.125.1560532145175;
+        Fri, 14 Jun 2019 10:09:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwoA6Y5FIPSkdZDEOsI+5/vm8QhnejOMqj8ff41TmmBuYqoKbiXJ+c2skvwLNThcMbtN9wu
+X-Received: by 2002:a0c:c3c7:: with SMTP id p7mr8009852qvi.125.1560532144655;
+        Fri, 14 Jun 2019 10:09:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560532144; cv=none;
         d=google.com; s=arc-20160816;
-        b=aqHUnlmOy7uTAGizjSfPzpQvLjlPMZZ6a7fE7pK10zxfZ9bYUFvqXcTq9k4MFk+ssX
-         2rObXj0JdY550WQhcgBak0KyB/AuiSsfbFHhFhfEehovkr5l5e8i+pnUcdFZGaB1tSZT
-         mg+NiUqIUWFTxqXEdMik1TIRnMpHG8R7Ni9LUi83lYi5EsMYFDP/MMx0UisdR6aIE1FX
-         VjPH2Iz2C2+AIlSxcDrhm7o/nT8VMjJ09tur4/SmoDzsNMIhdxxcqUyy5KKEws2P6fDn
-         uTA7bw9qb6oiRDHDN7LtqA85B9lE3Gim2rNyiYGRFFQoBdBgVxKTFNDxIccgSDowK5d7
-         xF6Q==
+        b=GwEJi1OL6NPNCe2KgcXjInTMrDhkDr7k0xaJx8t+N+OCUVo5IqsuVppfEyzjbhab5Y
+         pwqJJ5utgzgmw6Fsdbd2n1nTXGXs5JlXFTYNvIIfe4Wlh/2x0PKFNUsAwER15nAtpDMy
+         bZhTIYc5sR4VTo18Q3I9CUQ74WY5ugbjvD4tzbd+d4FkIfDxfnUVyVUAx6dHx2urcInF
+         h3mm7cx9mffxace+NZbdEKB92BXbLBFN2NfmeyZbUEL3HsPy3pigFyVsA74riQfkCmce
+         7Cx7Nb1bqiwKywU/+K7/jn5JE53JWIRXakX3VQAIyWqVswOAizOz/FyDD8mFVXJFZD94
+         XdfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=KpqX5I4D4i4/2BGHt36UAxpem5y5cTRgTVQ/M67Smfk=;
-        b=fTJIo485iaNKDI9rIQh2fnm9o9Apb6bF4VVZWOuuW1i0xpR/3qyY6ulja0CttJvL2N
-         mjS0DTswwopcicvL5xdPFuwFAxZ9FGm7zTWaJJEePh3Fl7ET5nQqWXVmTf//BOdgeWsH
-         bcxoM0k6rYBiidwVli12QztCN8gPJeUPuZTgIxOezsr1AKjrO41Hxv1gsl0DuzIbcq6o
-         tOe8ye9riHSVsZGYvt5pJ3KEAhbUS4hIZC4xzTW4EayaTgv3EDTlHfIPWgXB8B4VWttZ
-         oMVSdPmAJfDkgwIZYg2R90wf7Tw2D197b5uMhARlFz9id82dXeVPX0V6n8Oxe0vZY7/6
-         Hi4A==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=Rv1UNHV6Hq+k6RcBLpv73zo+QvQPCa12e4dH0M4WBCA=;
+        b=nVDotAcf0gcuXo0Y25VMBPzkjNAT7VxiOSBfnqxbf3OnwQutFp5FASqoexBJP9j7M7
+         8wNcJXYu6p2ayR/hot4yypEJJku+Ft8DIvZbUXe6kBvtNs9DUdybJFieBwp7/I/Fqfyf
+         6matmv93v0d9YN7f5xRY8MziSBHruvFaybOVcJFKI4NMIBmHeH8x/i1T3uljYtVpjXmN
+         yeDeBZqyRYk8GkM2Un7CV2zoXZqYYqLuK6e2wZLesoFaL53dyuqodsVtwo82tKWI5gDG
+         VRErZvlc+v3nJ/95g0Kg6QXO5pZJ7rmpBOzsWxzCwtyEZSIsVkCa/H57W6/LCpOQsEk2
+         blHA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=alison.schofield@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id x3si2691418plv.26.2019.06.14.10.07.19
+       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a5si1989299qva.8.2019.06.14.10.09.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 10:07:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        Fri, 14 Jun 2019 10:09:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=alison.schofield@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Jun 2019 10:07:18 -0700
-Received: from alison-desk.jf.intel.com ([10.54.74.53])
-  by orsmga008-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Jun 2019 10:07:18 -0700
-Date: Fri, 14 Jun 2019 10:10:25 -0700
-From: Alison Schofield <alison.schofield@intel.com>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Andy Lutomirski <luto@amacapital.net>,
-	David Howells <dhowells@redhat.com>,
-	Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Kai Huang <kai.huang@linux.intel.com>,
-	Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-mm@kvack.org,
-	kvm@vger.kernel.org, keyrings@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH, RFC 26/62] keys/mktme: Move the MKTME payload into a
- cache aligned structure
-Message-ID: <20190614171025.GA5917@alison-desk.jf.intel.com>
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
- <20190508144422.13171-27-kirill.shutemov@linux.intel.com>
- <20190614113523.GC3436@hirez.programming.kicks-ass.net>
+       spf=pass (google.com: domain of jmoyer@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jmoyer@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8CEA5C18B2D6;
+	Fri, 14 Jun 2019 17:08:51 +0000 (UTC)
+Received: from segfault.boston.devel.redhat.com (segfault.boston.devel.redhat.com [10.19.60.26])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 973FC54382;
+	Fri, 14 Jun 2019 17:08:49 +0000 (UTC)
+From: Jeff Moyer <jmoyer@redhat.com>
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Cc: Dan Williams <dan.j.williams@intel.com>,  Oscar Salvador <osalvador@suse.de>,  Qian Cai <cai@lca.pw>,  Andrew Morton <akpm@linux-foundation.org>,  Linux MM <linux-mm@kvack.org>,  Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,  linux-nvdimm <linux-nvdimm@lists.01.org>
+Subject: Re: [PATCH -next] mm/hotplug: skip bad PFNs from pfn_to_online_page()
+References: <1560366952-10660-1-git-send-email-cai@lca.pw>
+	<CAPcyv4hn0Vz24s5EWKr39roXORtBTevZf7dDutH+jwapgV3oSw@mail.gmail.com>
+	<CAPcyv4iuNYXmF0-EMP8GF5aiPsWF+pOFMYKCnr509WoAQ0VNUA@mail.gmail.com>
+	<1560376072.5154.6.camel@lca.pw> <87lfy4ilvj.fsf@linux.ibm.com>
+	<20190614153535.GA9900@linux>
+	<c3f2c05d-e42f-c942-1385-664f646ddd33@linux.ibm.com>
+	<CAPcyv4j_QQB8SrhTqL2mnEEHGYCg4H7kYanChiww35k0fwNv8Q@mail.gmail.com>
+	<24fcb721-5d50-2c34-f44b-69281c8dd760@linux.ibm.com>
+	<CAPcyv4ixq6aRQLdiMAUzQ-eDoA-hGbJQ6+_-K-nZzhXX70m1+g@mail.gmail.com>
+	<16108dac-a4ca-aa87-e3b0-a79aebdcfafd@linux.ibm.com>
+X-PGP-KeyID: 1F78E1B4
+X-PGP-CertKey: F6FE 280D 8293 F72C 65FD  5A58 1FF8 A7CA 1F78 E1B4
+Date: Fri, 14 Jun 2019 13:08:48 -0400
+In-Reply-To: <16108dac-a4ca-aa87-e3b0-a79aebdcfafd@linux.ibm.com> (Aneesh
+	Kumar K. V.'s message of "Fri, 14 Jun 2019 22:25:18 +0530")
+Message-ID: <x49ef3wytzz.fsf@segfault.boston.devel.redhat.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190614113523.GC3436@hirez.programming.kicks-ass.net>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+Content-Type: text/plain
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Fri, 14 Jun 2019 17:08:56 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 14, 2019 at 01:35:23PM +0200, Peter Zijlstra wrote:
-> On Wed, May 08, 2019 at 05:43:46PM +0300, Kirill A. Shutemov wrote:
-> 
-> > +/* Copy the payload to the HW programming structure and program this KeyID */
-> > +static int mktme_program_keyid(int keyid, struct mktme_payload *payload)
-> > +{
-> > +	struct mktme_key_program *kprog = NULL;
-> > +	int ret;
-> > +
-> > +	kprog = kmem_cache_zalloc(mktme_prog_cache, GFP_ATOMIC);
-> 
-> Why GFP_ATOMIC, afaict neither of the usage is with a spinlock held.
+"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
 
-Got it. GFP_ATOMIC not needed.
-That said, this is an artifact of reworking the locking, and that 
-locking may need to change again. If it does, will try to pre-allocate
-rather than depend on GFP_ATOMIC here.
+> On 6/14/19 10:06 PM, Dan Williams wrote:
+>> On Fri, Jun 14, 2019 at 9:26 AM Aneesh Kumar K.V
+>> <aneesh.kumar@linux.ibm.com> wrote:
+>
+>>> Why not let the arch
+>>> arch decide the SUBSECTION_SHIFT and default to one subsection per
+>>> section if arch is not enabled to work with subsection.
+>>
+>> Because that keeps the implementation from ever reaching a point where
+>> a namespace might be able to be moved from one arch to another. If we
+>> can squash these arch differences then we can have a common tool to
+>> initialize namespaces outside of the kernel. The one wrinkle is
+>> device-dax that wants to enforce the mapping size,
+>
+> The fsdax have a much bigger issue right? The file system block size
+> is the same as PAGE_SIZE and we can't make it portable across archs
+> that support different PAGE_SIZE?
 
-> 
-> > +	if (!kprog)
-> > +		return -ENOMEM;
-> > +
-> > +	/* Hardware programming requires cached aligned struct */
-> > +	kprog->keyid = keyid;
-> > +	kprog->keyid_ctrl = payload->keyid_ctrl;
-> > +	memcpy(kprog->key_field_1, payload->data_key, MKTME_AES_XTS_SIZE);
-> > +	memcpy(kprog->key_field_2, payload->tweak_key, MKTME_AES_XTS_SIZE);
-> > +
-> > +	ret = MKTME_PROG_SUCCESS;	/* Future programming call */
-> > +	kmem_cache_free(mktme_prog_cache, kprog);
-> > +	return ret;
-> > +}
+File system blocks are not tied to page size.  They can't be *bigger*
+than the page size currently, but they can be smaller.
+
+Still, I don't see that as an arugment against trying to make the
+namespaces work across architectures.  Consider a user who only has
+sector mode namespaces.  We'd like that to work if at all possible.
+
+-Jeff
 
