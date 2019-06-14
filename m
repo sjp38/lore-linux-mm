@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0288DC31E4B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 13:48:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3894C31E4C
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 13:48:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B11A620866
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 13:48:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5A56820866
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 13:48:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="R7oVdWdv"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B11A620866
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="cf3JZA+Z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A56820866
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 86D446B0272; Fri, 14 Jun 2019 09:48:38 -0400 (EDT)
+	id 680A66B0274; Fri, 14 Jun 2019 09:48:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5E1F96B0275; Fri, 14 Jun 2019 09:48:38 -0400 (EDT)
+	id 5E2736B0275; Fri, 14 Jun 2019 09:48:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3E6236B0273; Fri, 14 Jun 2019 09:48:38 -0400 (EDT)
+	id 40C4B6B0276; Fri, 14 Jun 2019 09:48:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EE3CE6B0272
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 09:48:37 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id j26so1925776pgj.6
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 06:48:37 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 06AB46B0274
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 09:48:42 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id y7so1819442pfy.9
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 06:48:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=hVPCPj1LrefwU2xq/k4nx8MUt6z5g1ttpdf31GA4t7s=;
-        b=dCzxG3DlILn4AXQSLrZDTc8T6+k/VmuqLFbXJT4Zkzpss1/Q469ac2qgFOI+YWG4Sn
-         SYmwnRv/ZHgYlxZlEhf2xgWY996JC0ip4hjlov/JmS4K5fwto2So14cohHQ4QZGlm+uM
-         fjQ5iyku1V6xF/6hqDJ4HJjmOVBQQtIDSMwcEvXGYvPqxie98OAUmPImv9tKawY2MBVl
-         981zAc0hRVZk8B0QVxNWd67yjavfiRJwFjuap06cggLriI0Dv+HYcOp1o9ud7I2erNFe
-         er9uPRgtLdnCmglw0ezK2qt+PwjnMOJVfhUltB+Qxf69u0QBEW6hXJ1zG/kF0fMLyBTw
-         MP/w==
-X-Gm-Message-State: APjAAAXx9q0OljAmYKSZbKrE6iZ8gUSm+ImWPbzPsieWd+smPel15YkR
-	yE9uyvg52i61vrsJ4xuhU1QRCuZ63knrFG8zC+ot/x0BxKhb0S7RpsaJZze8C64WDrz/JXrcocL
-	nHBNXaurp5Vf7WLKRRFHm7g2XMoGw+All3kys9TcU2T1BDBwA27zyzfNTgcipKs4=
-X-Received: by 2002:a17:902:da4:: with SMTP id 33mr33489406plv.209.1560520117629;
-        Fri, 14 Jun 2019 06:48:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzaybw6StxARE9dSOJjQ40gVnWqCsjtYFfFwNtTq6mrY3GUpD6m5DHzHW/5Eok7Y0J17jOy
-X-Received: by 2002:a17:902:da4:: with SMTP id 33mr33489362plv.209.1560520116872;
-        Fri, 14 Jun 2019 06:48:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560520116; cv=none;
+        bh=Gz4Xhr4GKX8cgnBiH4+BILh020IQOylUizPJRjDHE/E=;
+        b=a3OftsEIAN3BdV3wt8J5CYVLzNv2q/McEqwy857OucbLWjOOwRuCdDDdaFzOoGTroP
+         W2EyyvcDZ3xaAxd8pPmBCSRS7MDU1jfwvrutrJaKnxZ106aToSXhRVEfg6/G+5i/tZ3l
+         JOEj5X/gb3uQa3ZmY+83jlcQfuVRybxuqo268bwvNvgG6q3rTYXkG/iK3jGGSovbl5Oo
+         sMnCOK7RJtt/qmuK1X1G5eGnoCyr2/p98T2JCavKAZuTXnKz11UnckvV84Hxd+5eLJZ/
+         rSmH4dKHIGBlioMqxIx1D0y++qb/1LIZiL6cAZUGEtQj7dwP27nsmW7yunhTE4Nilxlx
+         h1pw==
+X-Gm-Message-State: APjAAAUaHMgq6aHbKdp8XEx7ay0kn1SwKkj413R0AoRLQIc+VKjsDrWB
+	3yUsyH71FcHHQNE2wI1SQ/PiUQyM/TusY4mfl3kRDd2L6SNX1qKDa58XPwINBOyZU28fpazfaax
+	NPRBONNzRbxFENoq1Kv4TewHJJ0Fpe9ddFIcUXxMoscFoZ/c6n+aUfj+lSZNGjxg=
+X-Received: by 2002:a63:5d45:: with SMTP id o5mr36419154pgm.40.1560520121568;
+        Fri, 14 Jun 2019 06:48:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzdopmA470xDu8fjuyeSXz2sSw74fFz6rW51aIkPMC7Z8PWU38VO5mSS1LvcXGPW3xYofBD
+X-Received: by 2002:a63:5d45:: with SMTP id o5mr36419090pgm.40.1560520120723;
+        Fri, 14 Jun 2019 06:48:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560520120; cv=none;
         d=google.com; s=arc-20160816;
-        b=t2iIjKhg+gKNISdOaZWvdmm1z4Rs15uM0qRPXIE5+EWV+aBEmme9f11o3XTYCNOZnr
-         MpZjrlodeYCfZHsTbgUa4IFcJ0tO/lK5g6oDd+syESNk8ZRqVsuGp+sjXOya3st+j+Ua
-         hivkpaVu8gl7+fOkysvL6HPT+BCJuLGDCmizsTLB06bq5e5fW7wpTLPjPLrkAswbsW64
-         3R/J8IAOm9moFrucrwx87/PXbJmEQ/HcR2g3WN0pKSvIZwOvQe9oRxPollOp7cFK1M1a
-         B5xPodlhp8A1BO2f7pk8Y+Izg7fwWw9hjvCFY/XPmolB/mBu8uOA9B7Fu7eWQt7h6k8U
-         Odiw==
+        b=YVid7O7rKn+WAioHoJ7HwVgDa7zQckT6tLzu/JceinomFsCxuoBf5oEGS7HJL4leJF
+         QxKnn8zbOf+9GOWA4muP5J5fJaZxW8GmU5LvYJjDuV1xmVAA4aPGeXfye8glJTTAIsCj
+         x+lC2CKfx+ZAym5yd2cDV1hmbsAGkJlQZwM/iPI3OfVOEvM+72UpkhfQ3YpNKrh6zD4i
+         Xlbvuyn/XmkT/cTtNLVWznYfwd2JvDfPkYfFLxIxDP0mOCuSbMkXYuh9Hhl6MUDqwz3O
+         6fCo+FHhNawyg2dXNX6Zb+mTPtkn/bL5YSulJ7EJ6c1p71NXeCk4/+RYq75ix/Qoff7n
+         duEg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=hVPCPj1LrefwU2xq/k4nx8MUt6z5g1ttpdf31GA4t7s=;
-        b=saBQ24gU2GD5RHaYmv/xHPxR1KB3g7G1/A7KsHKJSehFUFbpBVFU/p8KgjGsWrQ+KU
-         kJ8mAnvpPd5oaXqGBEgmSK2jNAjDdttgnUaPSWrXEUbPxBmbzFj5Bl4rwg7o9i+U/Pvn
-         Eiz8zbvcOQIjdUUGo/NV5O2kbjrgM+kIviJZhNA8MDOnO2Xkp9B40xSoMKbCby/EYHqz
-         GpM0ywsMJ5ZlYlel3cj1i/cOXahDR1hZuEu8h1Pe/AIdkGUNwxPgLf39fFnJuc7dmWUJ
-         hA42GoC/XVw5UdbIp90MnNF1kLkwQBiGcoy2t7JSb9UoTWCQJBXdeBNARDsWfeZipC6x
-         T0+g==
+        bh=Gz4Xhr4GKX8cgnBiH4+BILh020IQOylUizPJRjDHE/E=;
+        b=ApxKzgqbvFBcVkd6FRB+PmcwsVV/B4VTX1Na9mBWyAZuyvznfBo41y7RLlycFrMokn
+         cMgv+JhPHSGrtc72h7rtiZCJgCnJpbB9XGZy72U+T3SHqau42onrx4SMjEw+19u2NFO5
+         81pe2Qbs3T7FRpRXVhPBsk27BcO5WX8tSMFSlLLvEcPf3opqUdUOv/8CO2yfdL7Q2pDl
+         +YXuyp7ZSRbn9RqyYzC/s5EeQ0jYOvSRpwYWsa56OLAGt2rwYg+n4yqOUDpnPb1XIhr9
+         hmZPv2vQ4z1Ax0Jg6iccVyPYkzjn7Av1gmLplCrjK6g/zphvlP136ROaZJq8NBbMxLTs
+         Trlg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=R7oVdWdv;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=cf3JZA+Z;
        spf=pass (google.com: best guess record for domain of batv+3311e6b5ef18d39f8a57+5773+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+3311e6b5ef18d39f8a57+5773+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d191si2589451pgc.460.2019.06.14.06.48.36
+        by mx.google.com with ESMTPS id t7si2644104pgu.3.2019.06.14.06.48.40
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 14 Jun 2019 06:48:36 -0700 (PDT)
+        Fri, 14 Jun 2019 06:48:40 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+3311e6b5ef18d39f8a57+5773+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=R7oVdWdv;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=cf3JZA+Z;
        spf=pass (google.com: best guess record for domain of batv+3311e6b5ef18d39f8a57+5773+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+3311e6b5ef18d39f8a57+5773+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=hVPCPj1LrefwU2xq/k4nx8MUt6z5g1ttpdf31GA4t7s=; b=R7oVdWdv/mZN0cFwPPhtVK4TMx
-	UB/wqQzgkHyYoVXTIUGR/8fAw8BWFMkxfhjvQA8cZVsEfByOCf1n/fgHZGG1Ku2HbnOU7wlpCu6md
-	kV7iFak0CwzMgcwf+1ko540TzfJZ7m8NhyKeNAafjIR+Eh02tznZJ/tUqmN1GKHmPpnm8D9T4ipEj
-	VhsgOFo98A7OHLvTQLaE2S3jC8uxQMExeLN7wqYne/Oa8lDjeUuhj+sBM6/IpP/HI6hcndIgYuq/y
-	Z6v4feaEGjGdbjf71aj7myD5cdjMs8C9wTELFpbzveIUWDepgbQiHeWiGh6p6pC5gwcbLSKzfWexb
-	co9by/hQ==;
+	bh=Gz4Xhr4GKX8cgnBiH4+BILh020IQOylUizPJRjDHE/E=; b=cf3JZA+ZRH3KX860kHpnPR8oA/
+	bqAxf2wdh/kYQFTTiXQ/cfGIHFtkzi1Q6IAe9eh8VXYnYOyFEmHCCu4FhR+BvSXtpAx5ApdhZC2tL
+	eqsB5EioSDc9+R5gTT7rMPzafsusILIBU05BomvsIAKlHCVNuXOq2PanGax2oHqCJpo1ef3+4E/WO
+	eAvSS6Dx80B05dalPw/wekrBppUw3IEJLxzJHpuSGlVG4QM3kKSs6MrdGwLQEd0MHw3LaJPiqt54p
+	Ec8ghntYydM0pKm2+mAy/RaUMsAIhlCtQMD+RUDzu5uz1USZRuoH2TqfwRFQkKEzx7x86HBrZfST/
+	CbsAG57g==;
 Received: from 213-225-9-13.nat.highway.a1.net ([213.225.9.13] helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hbmYz-0005e1-FO; Fri, 14 Jun 2019 13:48:18 +0000
+	id 1hbmZ3-0005hB-Ky; Fri, 14 Jun 2019 13:48:22 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
 	Maxime Ripard <maxime.ripard@bootlin.com>,
@@ -119,9 +119,9 @@ Cc: Intel Linux Wireless <linuxwifi@intel.com>,
 	linux-mm@kvack.org,
 	iommu@lists.linux-foundation.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 13/16] mm: rename alloc_pages_exact_nid to alloc_pages_exact_node
-Date: Fri, 14 Jun 2019 15:47:23 +0200
-Message-Id: <20190614134726.3827-14-hch@lst.de>
+Subject: [PATCH 14/16] mm: use alloc_pages_exact_node to implement alloc_pages_exact
+Date: Fri, 14 Jun 2019 15:47:24 +0200
+Message-Id: <20190614134726.3827-15-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190614134726.3827-1-hch@lst.de>
 References: <20190614134726.3827-1-hch@lst.de>
@@ -134,63 +134,91 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This fits in with the naming scheme used by alloc_pages_node.
+No need to duplicate the logic over two functions that are almost the
+same.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- include/linux/gfp.h | 2 +-
- mm/page_alloc.c     | 4 ++--
- mm/page_ext.c       | 2 +-
- 3 files changed, 4 insertions(+), 4 deletions(-)
+ include/linux/gfp.h |  5 +++--
+ mm/page_alloc.c     | 39 +++++++--------------------------------
+ 2 files changed, 10 insertions(+), 34 deletions(-)
 
 diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index fb07b503dc45..4274ea6bc72b 100644
+index 4274ea6bc72b..c616a23a3f81 100644
 --- a/include/linux/gfp.h
 +++ b/include/linux/gfp.h
-@@ -532,7 +532,7 @@ extern unsigned long get_zeroed_page(gfp_t gfp_mask);
+@@ -530,9 +530,10 @@ extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
+ extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
+ extern unsigned long get_zeroed_page(gfp_t gfp_mask);
  
- void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
+-void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
  void free_pages_exact(void *virt, size_t size);
--void * __meminit alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask);
-+void * __meminit alloc_pages_exact_node(int nid, size_t size, gfp_t gfp_mask);
+-void * __meminit alloc_pages_exact_node(int nid, size_t size, gfp_t gfp_mask);
++void *alloc_pages_exact_node(int nid, size_t size, gfp_t gfp_mask);
++#define alloc_pages_exact(size, gfp_mask) \
++	alloc_pages_exact_node(NUMA_NO_NODE, size, gfp_mask)
  
  #define __get_free_page(gfp_mask) \
  		__get_free_pages((gfp_mask), 0)
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d66bc8abe0af..dd2fed66b656 100644
+index dd2fed66b656..dec68bd21a71 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -4888,7 +4888,7 @@ void *alloc_pages_exact(size_t size, gfp_t gfp_mask)
- EXPORT_SYMBOL(alloc_pages_exact);
+@@ -4859,34 +4859,6 @@ static void *make_alloc_exact(unsigned long addr, unsigned int order,
+ 	return (void *)addr;
+ }
  
+-/**
+- * alloc_pages_exact - allocate an exact number physically-contiguous pages.
+- * @size: the number of bytes to allocate
+- * @gfp_mask: GFP flags for the allocation, must not contain __GFP_COMP
+- *
+- * This function is similar to alloc_pages(), except that it allocates the
+- * minimum number of pages to satisfy the request.  alloc_pages() can only
+- * allocate memory in power-of-two pages.
+- *
+- * This function is also limited by MAX_ORDER.
+- *
+- * Memory allocated by this function must be released by free_pages_exact().
+- *
+- * Return: pointer to the allocated area or %NULL in case of error.
+- */
+-void *alloc_pages_exact(size_t size, gfp_t gfp_mask)
+-{
+-	unsigned int order = get_order(size);
+-	unsigned long addr;
+-
+-	if (WARN_ON_ONCE(gfp_mask & __GFP_COMP))
+-		gfp_mask &= ~__GFP_COMP;
+-
+-	addr = __get_free_pages(gfp_mask, order);
+-	return make_alloc_exact(addr, order, size);
+-}
+-EXPORT_SYMBOL(alloc_pages_exact);
+-
  /**
-- * alloc_pages_exact_nid - allocate an exact number of physically-contiguous
-+ * alloc_pages_exact_node - allocate an exact number of physically-contiguous
+  * alloc_pages_exact_node - allocate an exact number of physically-contiguous
   *			   pages on a node.
-  * @nid: the preferred node ID where memory should be allocated
+@@ -4894,12 +4866,15 @@ EXPORT_SYMBOL(alloc_pages_exact);
   * @size: the number of bytes to allocate
-@@ -4899,7 +4899,7 @@ EXPORT_SYMBOL(alloc_pages_exact);
+  * @gfp_mask: GFP flags for the allocation, must not contain __GFP_COMP
   *
-  * Return: pointer to the allocated area or %NULL in case of error.
+- * Like alloc_pages_exact(), but try to allocate on node nid first before falling
+- * back.
++ * This function is similar to alloc_pages_node(), except that it allocates the
++ * minimum number of pages to satisfy the request while alloc_pages() can only
++ * allocate memory in power-of-two pages.  This function is also limited by
++ * MAX_ORDER.
+  *
+- * Return: pointer to the allocated area or %NULL in case of error.
++ * Returns a pointer to the allocated area or %NULL in case of error, memory
++ * allocated by this function must be released by free_pages_exact().
   */
--void * __meminit alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask)
-+void * __meminit alloc_pages_exact_node(int nid, size_t size, gfp_t gfp_mask)
+-void * __meminit alloc_pages_exact_node(int nid, size_t size, gfp_t gfp_mask)
++void *alloc_pages_exact_node(int nid, size_t size, gfp_t gfp_mask)
  {
  	unsigned int order = get_order(size);
  	struct page *p;
-diff --git a/mm/page_ext.c b/mm/page_ext.c
-index d8f1aca4ad43..bca6bb316714 100644
---- a/mm/page_ext.c
-+++ b/mm/page_ext.c
-@@ -215,7 +215,7 @@ static void *__meminit alloc_page_ext(size_t size, int nid)
- 	gfp_t flags = GFP_KERNEL | __GFP_ZERO | __GFP_NOWARN;
- 	void *addr = NULL;
- 
--	addr = alloc_pages_exact_nid(nid, size, flags);
-+	addr = alloc_pages_exact_node(nid, size, flags);
- 	if (addr) {
- 		kmemleak_alloc(addr, size, 1, flags);
- 		return addr;
 -- 
 2.20.1
 
