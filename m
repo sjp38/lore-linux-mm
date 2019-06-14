@@ -6,99 +6,99 @@ X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DABBC31E4D
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 13:14:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E8246C31E4B
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 13:28:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 149C120850
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 13:14:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 737AD20851
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 13:28:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="eFeAcZtg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 149C120850
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="voy0OQVz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 737AD20851
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E1446B0003; Fri, 14 Jun 2019 09:14:56 -0400 (EDT)
+	id DB9D86B0003; Fri, 14 Jun 2019 09:28:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 86AB76B000A; Fri, 14 Jun 2019 09:14:56 -0400 (EDT)
+	id D69336B000A; Fri, 14 Jun 2019 09:28:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 732526B000D; Fri, 14 Jun 2019 09:14:56 -0400 (EDT)
+	id C7F816B000D; Fri, 14 Jun 2019 09:28:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 22A236B0003
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 09:14:56 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id s7so3628207edb.19
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 06:14:56 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CE936B0003
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 09:28:38 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id k22so3730291ede.0
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 06:28:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=lo8jzIeEl3qvMScl2nYeZEzcklK1JpdjNABkHh1fbHg=;
-        b=R6pHa5Yx/B0lu1i66Ke4mX0BltcoJqR+9PJM1iUzsjFQ/C/USjyL6WETePAuNKEIPE
-         XJidr1vE07A17J46sX3NicEuMFxHhd1YSS51QXSpTmUUZeJvH0ouHZb7egaJFrd8Wcjv
-         UVESqyv35zqIF24A0HQhBnfAhFet/EspntL5p2uGN8/PqbtTPKdzeNuXWGaHTUSKdGEB
-         1oIFL+BzPjO4a5rC8+kamBqE4M6b5Q9EInsQLAIOx4xV8jtw1VokyM0UYNs7/EIakuP+
-         uTkPC68RlzNfxTQfcdnDS9Mb7hxE4UnAQdqLmOioQdQmFM4G92AeMHiWTosFiF1EguIq
-         TWQg==
-X-Gm-Message-State: APjAAAX9FWgtuwIEBUxn2w6q9gpCu6cJGz1m8wQR9jBheDGoU9cRlLVl
-	dc2L06Y1IJcTXbISL6AQB85yJtrvomYUEWysoW8fg4uEnPi8peRXT1Qp/PhNKRLe02RISk2glPX
-	1PQsqP6G0GRn0N44dy7io7N1PWotj3k1j3s9cEojTHYW3KWDwoW+vTfX2Br/dQehB4g==
-X-Received: by 2002:a50:b13b:: with SMTP id k56mr59751293edd.192.1560518095572;
-        Fri, 14 Jun 2019 06:14:55 -0700 (PDT)
-X-Received: by 2002:a50:b13b:: with SMTP id k56mr59751220edd.192.1560518094911;
-        Fri, 14 Jun 2019 06:14:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560518094; cv=none;
+        bh=/bEFMtHnd0Lq4R6BgJaHDb9jSNJdzL1pBjuE2g5cik8=;
+        b=l6wbo42JJoXfGJzgnUvuXUJLQgkUpWYc03vh9yfKxYzfhFyMyXdTpnfyTTHxEFbA/9
+         +WQg7JcTEmZbBQDba4pLPXhr8xaP9ekDD7R7QNiYQBDECoWuWExlSV0pUSBORxS09yOW
+         wRaJC9QyJB63oHGfBMwIxIsPOHzkDtXVEOFoIv0r0FVHx9RY8Qgr8sXy7HTWvBm6dTbq
+         hFjPGUQql6WJunFcm5cagHowTiRtyebEpQAOt4uEhXVQphrnGf0cpl8y3gzCQht0zCk+
+         oCW/M06UHCq6Y8L6m0ao6mEtIVkgKcycdT2HW3B5/n5PHNJ9fm0qZ5IG5/eHqCojR1yX
+         raGw==
+X-Gm-Message-State: APjAAAUMPZqUEI9MGo9/rRcRuhNj8oevTOzV1yU4hMZKd30+1/jvbq06
+	UnBLY7H5m1WnWNCs9mhMoARSJe+b2nP5LwUpTiBIDy9y19eGJ9RxJqzHu7gplTTdvdK0ecRGAy2
+	BZDvXEYZGv5yMQbOCpRB/mAb3DnuRe2Cdg0j8nnp/rLLY2EV46puQuTYScq5NmDXMiw==
+X-Received: by 2002:aa7:d28a:: with SMTP id w10mr52889433edq.251.1560518918078;
+        Fri, 14 Jun 2019 06:28:38 -0700 (PDT)
+X-Received: by 2002:aa7:d28a:: with SMTP id w10mr52889335edq.251.1560518917100;
+        Fri, 14 Jun 2019 06:28:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560518917; cv=none;
         d=google.com; s=arc-20160816;
-        b=hWgmD/h/TFObARKePapyp5QoaSJSNXQOeTFNx5Lf7naT/LxoaB2eYMFSRDc/k+1tL3
-         48jRg98RUBYCPAf8AhocYcFn2ivUDeWxGWyJBgpV96ib3BxDE56Huk3++4u01aPZ4LXu
-         nKemKX/lUagkkore+R9eXhqyXBYTaiHy2lVS8jLmqRp5ARD0bLRXJn0eXCDYwJCgGac8
-         op6KlRXRO1I5brKeUCKfKXqwdCbIKunMnYKpkKmlUg6xgBqIgJBr8twBDKUTPZ8dfgBf
-         JjHxQkznbCqgbUidVob/5FVeBRN2y4oB0rcfyzMrVs25eDHn3ISb904gdk4SnVXzYKDn
-         tPew==
+        b=CeEx6EuWuNhh45Vu763+KvQUeYqnMrHWcewUb2v1wyKmStbHAeseh4elvtRjHwU8Wj
+         vYoByTMuUO1r83Ly4Z/D6rpnxOiOe5P9BOVbKfLmF0y9Yg47gKyLNbEjiONgu+Xx23Yi
+         RQc6rffonRGWdFwfF3tpcw5Q9bqyH3+wwFK2IIImbW6BpX8x53ap6cLGyU+v36PAXJ2b
+         Cc49T2pBXWtBJ/Ej3174m9mqD83tURCw3wRakqIVwOGyX+iwHu/Hlk7roiOmhVqJ7i/0
+         dSxJaNIKCaC54LnxRSEXwbmoTwFGknas1dJglbx+pmTdcPvIEBtUVZu/Q/Ov6nn4Cd+M
+         Rq4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=lo8jzIeEl3qvMScl2nYeZEzcklK1JpdjNABkHh1fbHg=;
-        b=Y86RUep8NZAAg3XUi+9V59OhW7IV78VutG6gjB9hZ70z4RQtJnlKapjNXs76hlB0YX
-         2l+aXKXny0TQDztAQDsN7Ii6bwvBWlyXl9yUF05c1cNGzibsKwcgba0hsJD6XmTEj9fO
-         bwcdNqXXcXTtwr5JxhxrQtsE+v+byd5ObIhg/oTZxLetuCDuDNRsFv3fuD0rOoKJ09hW
-         C9qSEGNJDqwyTALyUalFWyOpQgsgxuI9N7X/iXiCR52pWU5hGQkFnwTCDyKxBiuZt910
-         MWCZc/Z/myyIJxuof8Og1TO1JoGWW1e6Qjb9ueI+AOF+1B6dJbus1mcHFF38SBxOJ79e
-         DJ6A==
+        bh=/bEFMtHnd0Lq4R6BgJaHDb9jSNJdzL1pBjuE2g5cik8=;
+        b=ODrBJrhnH9AmmzwrUUwI5Iy4S7c0k4AeighBsgrgpDWIuUP1wKucqpeayRuml2aqnv
+         6SHYuo0Iye5aMux7NJZ5wnhsEias80ttD7dMLHVusqwPPr4/MefpDhbQNqS9Mu+p3kS3
+         OiqPw3Ae56+6VWlJLqQeuBALfXo5gpHG3wOY09tFQN7B9FBqoIaHhxlnbQk2muwE4bcr
+         Jd0FJeM8DkDg7j6Vl4g9QgwWiBiSD4Z1jo5UYbNZsKlhEDpFoc2bQAL9k8/EjypH9uOO
+         XdqVsZCE8D2aS2DTo3bulJlVPGj17yULU2dJG/kNpm0Uo4mJg5ABuzGV9MidaoQPHLqh
+         4aOQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=eFeAcZtg;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=voy0OQVz;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d16sor2853897eda.20.2019.06.14.06.14.54
+        by mx.google.com with SMTPS id w44sor2878231edw.26.2019.06.14.06.28.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 14 Jun 2019 06:14:54 -0700 (PDT)
+        Fri, 14 Jun 2019 06:28:37 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=eFeAcZtg;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=voy0OQVz;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=lo8jzIeEl3qvMScl2nYeZEzcklK1JpdjNABkHh1fbHg=;
-        b=eFeAcZtgO0/eRC+taEsG3o/626r+gJzLYZLu6JCyggVrs1QqMuSldztZimYV/jdkJJ
-         KpqfmnAYmMswNNumhYoKPsqVbi6oXCsorOhOJsdBSnOChpopGRX1/ui0nf+Nlcf6FXPr
-         gGpw+PJGJIdyx5tMB8ohHf7Qp8YL0Pn4pTIC3KYego9Ujsgpyiq4SkfHbxvn1Rplq1Pp
-         IoST/0AGJDllFkhSDArOhMHcOdLQczefbj/Em08KjBQgqt7nPa6It4nRH8wS9yRppE3g
-         SyL/Y8mhbNTD3QF8XNH0x1JlkrNyAot22I9vIuPdXcIIAhttxk+quH+74xWONAEiEFsY
-         kixQ==
-X-Google-Smtp-Source: APXvYqys9UpU3EDiYN8BSuwDi62d18/VihRzxeEm4B3CXY1/sZgOqGoIC2XqSZyXoR/BuWpsRnWF+g==
-X-Received: by 2002:aa7:c619:: with SMTP id h25mr39051647edq.295.1560518094495;
-        Fri, 14 Jun 2019 06:14:54 -0700 (PDT)
+        bh=/bEFMtHnd0Lq4R6BgJaHDb9jSNJdzL1pBjuE2g5cik8=;
+        b=voy0OQVzAPCvIAmwQgiYtlSleenOKuT/qpb01Z/+4pGuPKe1skxIJEkKDPpwS9HC3H
+         d2duEeopfKNnnkQCjYrCgqImAQqW5bLMgwugLa222v0jda83+go22NOjY5PWaEnTSvyV
+         KLhBwBJPS7SZJtXCtxB7OvQQqgSQ3kPKWmFUA1MJa9Wrfld0MCSAXdHUdWfClFnEwpgf
+         sOPE6zcJmB0iiUGNc4akPixQ19M5SCYisvcVkA0vU6UsVVet+GzmRtabFV//WJ5mNMyj
+         qJmJDuvP10aBanhB/RZD0uRXen4zbe9eWcwwuargF/sjpjd9dhGMdU11acHxnHjo9xUZ
+         o5vw==
+X-Google-Smtp-Source: APXvYqwTjBWiaWugHv92n/VOXJckmXdJ0ij79tTSCt3WN5QrjcsRYX/bfqnOjwWa25VDWFa14JeAyw==
+X-Received: by 2002:a50:b178:: with SMTP id l53mr75879420edd.244.1560518916776;
+        Fri, 14 Jun 2019 06:28:36 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id t3sm593997ejk.56.2019.06.14.06.14.53
+        by smtp.gmail.com with ESMTPSA id 34sm901697eds.5.2019.06.14.06.28.36
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 06:14:53 -0700 (PDT)
+        Fri, 14 Jun 2019 06:28:36 -0700 (PDT)
 Received: by box.localdomain (Postfix, from userid 1000)
-	id BB20210086F; Fri, 14 Jun 2019 16:14:53 +0300 (+03)
-Date: Fri, 14 Jun 2019 16:14:53 +0300
+	id 8857010086F; Fri, 14 Jun 2019 16:28:36 +0300 (+03)
+Date: Fri, 14 Jun 2019 16:28:36 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 To: Peter Zijlstra <peterz@infradead.org>
 Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
@@ -117,14 +117,15 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
 	linux-kernel@vger.kernel.org
 Subject: Re: [PATCH, RFC 13/62] x86/mm: Add hooks to allocate and free
  encrypted pages
-Message-ID: <20190614131453.ludfm4ufzqwa326k@box>
+Message-ID: <20190614132836.spl6bmk2kkx65nfr@box>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
  <20190508144422.13171-14-kirill.shutemov@linux.intel.com>
  <20190614093409.GX3436@hirez.programming.kicks-ass.net>
+ <20190614110458.GN3463@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190614093409.GX3436@hirez.programming.kicks-ass.net>
+In-Reply-To: <20190614110458.GN3463@hirez.programming.kicks-ass.net>
 User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -132,84 +133,37 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 14, 2019 at 11:34:09AM +0200, Peter Zijlstra wrote:
-> On Wed, May 08, 2019 at 05:43:33PM +0300, Kirill A. Shutemov wrote:
+On Fri, Jun 14, 2019 at 01:04:58PM +0200, Peter Zijlstra wrote:
+> On Fri, Jun 14, 2019 at 11:34:09AM +0200, Peter Zijlstra wrote:
+> > On Wed, May 08, 2019 at 05:43:33PM +0300, Kirill A. Shutemov wrote:
+> > 
+> > > +		lookup_page_ext(page)->keyid = keyid;
 > 
-> > +/* Prepare page to be used for encryption. Called from page allocator. */
-> > +void __prep_encrypted_page(struct page *page, int order, int keyid, bool zero)
-> > +{
-> > +	int i;
-> > +
-> > +	/*
-> > +	 * The hardware/CPU does not enforce coherency between mappings
-> > +	 * of the same physical page with different KeyIDs or
-> > +	 * encryption keys. We are responsible for cache management.
-> > +	 */
+> > > +		lookup_page_ext(page)->keyid = 0;
 > 
-> On alloc we should flush the unencrypted (key=0) range, while on free
-> (below) we should flush the encrypted (key!=0) range.
+> Also, perhaps paranoid; but do we want something like:
 > 
-> But I seem to have missed where page_address() does the right thing
-> here.
+> static inline void page_set_keyid(struct page *page, int keyid)
+> {
+> 	/* ensure nothing creeps after changing the keyid */
+> 	barrier();
+> 	WRITE_ONCE(lookup_page_ext(page)->keyid, keyid);
+> 	barrier();
+> 	/* ensure nothing creeps before changing the keyid */
+> }
+> 
+> And this is very much assuming there is no concurrency through the
+> allocator locks.
 
-As you've seen by now, it will be addressed later in the patchset. I'll
-update the changelog to indicate that page_address() handles KeyIDs
-correctly.
+There's no concurrency for this page: it has been off the free list, but
+have not yet passed on to user. Nobody else sees the page before
+allocation is finished.
 
-> > +	clflush_cache_range(page_address(page), PAGE_SIZE * (1UL << order));
-> > +
-> > +	for (i = 0; i < (1 << order); i++) {
-> > +		/* All pages coming out of the allocator should have KeyID 0 */
-> > +		WARN_ON_ONCE(lookup_page_ext(page)->keyid);
-> > +		lookup_page_ext(page)->keyid = keyid;
-> > +
-> 
-> So presumably page_address() is affected by this keyid, and the below
-> clear_highpage() then accesses the 'right' location?
+And barriers/WRITE_ONCE() looks excessive to me. It's just yet another bit
+of page's metadata and I don't see why it's has to be handled in a special
+way.
 
-Yes. clear_highpage() -> kmap_atomic() -> page_address().
-
-> > +		/* Clear the page after the KeyID is set. */
-> > +		if (zero)
-> > +			clear_highpage(page);
-> > +
-> > +		page++;
-> > +	}
-> > +}
-> > +
-> > +/*
-> > + * Handles freeing of encrypted page.
-> > + * Called from page allocator on freeing encrypted page.
-> > + */
-> > +void free_encrypted_page(struct page *page, int order)
-> > +{
-> > +	int i;
-> > +
-> > +	/*
-> > +	 * The hardware/CPU does not enforce coherency between mappings
-> > +	 * of the same physical page with different KeyIDs or
-> > +	 * encryption keys. We are responsible for cache management.
-> > +	 */
-> 
-> I still don't like that comment much; yes the hardware doesn't do it,
-> and yes we have to do it, but it doesn't explain the actual scheme
-> employed to do so.
-
-Fair enough. I'll do better.
-
-> > +	clflush_cache_range(page_address(page), PAGE_SIZE * (1UL << order));
-> > +
-> > +	for (i = 0; i < (1 << order); i++) {
-> > +		/* Check if the page has reasonable KeyID */
-> > +		WARN_ON_ONCE(lookup_page_ext(page)->keyid > mktme_nr_keyids);
-> 
-> It should also check keyid > 0, so maybe:
-> 
-> 	(unsigned)(keyid - 1) > keyids-1
-> 
-> instead?
-
-Makes sense.
+Does it relax your paranoia? :P
 
 -- 
  Kirill A. Shutemov
