@@ -2,186 +2,200 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 212E3C31E4B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 17:40:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65D25C31E4D
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 17:48:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DD27F217D6
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 17:40:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD27F217D6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 1FB1821841
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 17:48:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="mFSmNdWd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FB1821841
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 92C7C6B000D; Fri, 14 Jun 2019 13:40:46 -0400 (EDT)
+	id 8B1E36B000C; Fri, 14 Jun 2019 13:48:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8DD356B000E; Fri, 14 Jun 2019 13:40:46 -0400 (EDT)
+	id 8622C6B000D; Fri, 14 Jun 2019 13:48:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7A5156B0266; Fri, 14 Jun 2019 13:40:46 -0400 (EDT)
+	id 7510A6B000E; Fri, 14 Jun 2019 13:48:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AFDF6B000D
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 13:40:46 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id x24so3564953ioh.16
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 10:40:46 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 568F86B000C
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 13:48:18 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id p79so3428660yba.21
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 10:48:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=jybkxf8O5qfL62/ny2FSdzWU5P15Ku2vs9D3Fl1U564=;
-        b=bqSbJXNAFeID9BqQas1VmePfWdUlI/ZbyCz/KttNWsZ3LmBwEgN2gDFyy2PA0jggfS
-         d3IQNTZ7+CW/NQYs1ePt4aZOiTwP9iS8I4F2W6d+FK4svjyp7vY2xIEmrBYKoFgdcOX8
-         g28G4AVjEyGWLFaY2U54ilpYLPhYXJyhJixcejvWb6ocsHbCzQ7vwGOU7RPCO/mTlk9/
-         Lc9TirHrmGYyl+FxOG93gDlfI83448Vm8ez6B2H5VTEkqNwU/w4tHF5KGlgV4GVlMn88
-         NyByYCiwzoERLt/oRLZPqBbpYH88zs7hBxxIxU1AJh5sLPgsS9lek1srtmJTyiIRYUQE
-         cVWA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWv2/gFrcZsZmbJkunkmmmJ8cFhC7GOfMduAufZgAbeexbsyFek
-	9rtBEU7jBocRU9C5gjwIYO8y3P2WW2x/iMpazVufaCkgiUa6g06Doc8lCVwy6hO8kXayYtVHdBl
-	G9Td/MLXOi8Qrvzh+hfomiV6J7oGEXgxi7uN22Z9CPjxqGaEt314ygkZXjSGh8DDvpw==
-X-Received: by 2002:a6b:6a01:: with SMTP id x1mr9299917iog.77.1560534046095;
-        Fri, 14 Jun 2019 10:40:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz7Qe4vKEZaKeg/tfXhKZTS8SMiYZc6Ug3oLGhRVBzNA6ejNOH8emMcvG4YE9GCXKs5AfKd
-X-Received: by 2002:a6b:6a01:: with SMTP id x1mr9299854iog.77.1560534045207;
-        Fri, 14 Jun 2019 10:40:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560534045; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=8ZilaY5NOYwAFhaPvzhLk/MxmC8VICubaNjNx3N4a0o=;
+        b=bbmU58CF8U2rsWahOMPeWUdAZfMfozX5ovqyRWjmqONuKgfYPMSbrqVQDOAYdB0FD4
+         VciCrJA13xyd1yUdwQoCcrPsTQTN13Ya0xtEiAIcEDazXxlmdvQl3CM6rvr9uhGl6Wv5
+         IUzB7NgVHPiP1L47HW9F3CFoiIp/NjCC7wKNcrn4Lk+v5uWhENwmjjwnYiY/LcPOF72l
+         o8JYTNoojPZEZPywyW5/vppWlztbJi9x0d6t/zeSxjiZM/JWYgwybicIUObCan1wIeuX
+         Z5usvtb4h2bl9Qk7dea2eDKe3HE6jBIkixvK5cez4/oladPsedqAUgSCaaf2/hRz2rDl
+         FNUQ==
+X-Gm-Message-State: APjAAAVmkRnW2RS2VlYX6k/ZVLnle3ic9Oo9k+u+UvnkMG7CeY29q/hm
+	RW+xkN+ycnKm0W9Wyo3uq9fp/zJ9FXoCBiFgVZ+v9Ugq5xWTApKwdey2ZaRxd8OTK/UdpK1gkG5
+	vdK0noUkkB3grxKdxhQFATP7et2cjOEg0OdbKfKWI78wzNcTBR52NLYSCXZf810+Oyg==
+X-Received: by 2002:a81:29ca:: with SMTP id p193mr42012837ywp.287.1560534498106;
+        Fri, 14 Jun 2019 10:48:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwBbO+rqA3lU5nGcRkYKm6aqPsioiroiN1Y5ow5JXeLuZ0vd8XRB1++8fv51r3cuPZlJ5vx
+X-Received: by 2002:a81:29ca:: with SMTP id p193mr42012804ywp.287.1560534497569;
+        Fri, 14 Jun 2019 10:48:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560534497; cv=none;
         d=google.com; s=arc-20160816;
-        b=XgjAh7rYWc8fVXQmYt3OlsoT0vU78eTmzbNNepLUfa8mHyvhLciyK5/7c2noRBEjOa
-         kfRFQcCEnZxicS6t7coUayTWui4pUya0xWUDcp0sfIE7G7pi12vejcwuhZTe1m5TvGRK
-         OzI3ps99tgJC4WGI5Vpz/yLAGJ/ssRk7VIMhFxuyS+anb7DN69DhqAFzLwV8vlo/7meZ
-         Q66m19aiymy4Lf3mKc6cePVuatN72+BF+u/xagCusvE7mhfNV5HPmrfm8d6OeZReS0x7
-         hzc+IZVSeia+liXNA0BU8gi++ZevscVQmRFKr9H/mX0C0BlkZhwDjipfnB1jLxH4eZQi
-         MItQ==
+        b=ibkgEgo3iZ2WvtZfN28wMTijdaYTuhhwklAvM2JY2Xfb0raFllZ/2t8UQAuDJTSQ36
+         o9tG30tWq8XBjsCzgJ6qVLNd8vEN1sQ8zBbYOfXhIGZSuKcCvyjKs6RQ0DcK0AlK2+f/
+         1U/59kPgGTe5WL+MvMJmrcGDirup/onU7xdU8oIaewrC9Hn039//B0RVPowiMjpOEuKA
+         hWEOG6vNrH+dApMD3RDUP/wO2vQCqYEHpOirh7GvmrNj9AY/dVK/VTdt2FJryCzY5Nie
+         9tKpaWqkZqUQEiSGBa9vnfIIKDmbIoQcYkqVppdguQcoyipcQq7mHlryr7FxnTvkmP4F
+         Qo9g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=jybkxf8O5qfL62/ny2FSdzWU5P15Ku2vs9D3Fl1U564=;
-        b=mJHiTgYyghMCWALVruU0QnYiGQ69HItV/w+xFHS46TthrDr91gOXJ6FrevMH874PIx
-         bjvf/QWgO4JH0w1WReMRJu2u71ZM60cQsa8XnbQ/sdumVLVdQj0B1Ii/yFcGawrSbvoE
-         MjI9l7F3MawcNDHmIXVpaU2zPOP213z8WGeyYWJg7IAgTrNG/B8sv5DTY3nnvsrD7KFF
-         caGU2/xM4m7pqrQgPtGS0nuB4Y01FVi+dffxpdRYdsuhD4c7i9Pscngp32VexDeU/jGV
-         3WyrFsDnTcEDT6e1l12K12cQSfaPo2TZNaOnOzw64ooBcpKLBmLdt8qocOoqnPiNwXD7
-         lrVg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=8ZilaY5NOYwAFhaPvzhLk/MxmC8VICubaNjNx3N4a0o=;
+        b=h+Vmcy3A5NO2c5j7VsDRzQ4j92/9Bd60ttaEnxGPimH2iyvGIt7wJUudvVlg4nMOCK
+         mdg1yuQYRYPU7elmI4QkIA5riHHUGVM/MVZ7ElRfj+FIFBrtkLOvukp+cXV9ffW/DOXO
+         P91NTisAHXN2LoItNHBZX+jA5jp19xf19qaFuj3If7LEIVyEdqbdgaDvTm6mTp32nhq0
+         xbXJ4IzPT/yk0sn2qbH926NTQPBVfM24I0fq6/E5q6AWOHfO9dEsb9VqKzklJJkOeWkR
+         2vzqgks+09iJv7Wv6DgVPii2/nK+qedlJ/B2Fpg0I5JWMa99t8fCOPvOl+PyUp+V1mX8
+         H0kg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id h144si4014596iof.146.2019.06.14.10.40.44
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=mFSmNdWd;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id z65si1268688ywe.324.2019.06.14.10.48.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 10:40:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Fri, 14 Jun 2019 10:48:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5EHaflD045564;
-	Fri, 14 Jun 2019 13:40:42 -0400
-Received: from ppma01wdc.us.ibm.com (fd.55.37a9.ip4.static.sl-reverse.com [169.55.85.253])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2t4ehrmetu-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Fri, 14 Jun 2019 13:40:42 -0400
-Received: from pps.filterd (ppma01wdc.us.ibm.com [127.0.0.1])
-	by ppma01wdc.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x5EHdUO1029699;
-	Fri, 14 Jun 2019 17:40:43 GMT
-Received: from b03cxnp07029.gho.boulder.ibm.com (b03cxnp07029.gho.boulder.ibm.com [9.17.130.16])
-	by ppma01wdc.us.ibm.com with ESMTP id 2t1qcty05s-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Fri, 14 Jun 2019 17:40:43 +0000
-Received: from b03ledav001.gho.boulder.ibm.com (b03ledav001.gho.boulder.ibm.com [9.17.130.232])
-	by b03cxnp07029.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5EHeeTL17236386
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 14 Jun 2019 17:40:40 GMT
-Received: from b03ledav001.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 7C4B16E04C;
-	Fri, 14 Jun 2019 17:40:40 +0000 (GMT)
-Received: from b03ledav001.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id D6FEA6E050;
-	Fri, 14 Jun 2019 17:40:37 +0000 (GMT)
-Received: from [9.199.60.77] (unknown [9.199.60.77])
-	by b03ledav001.gho.boulder.ibm.com (Postfix) with ESMTP;
-	Fri, 14 Jun 2019 17:40:37 +0000 (GMT)
-Subject: Re: [PATCH -next] mm/hotplug: skip bad PFNs from pfn_to_online_page()
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Dan Williams <dan.j.williams@intel.com>,
-        Oscar Salvador <osalvador@suse.de>, Qian Cai <cai@lca.pw>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Linux MM <linux-mm@kvack.org>,
-        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-        linux-nvdimm <linux-nvdimm@lists.01.org>
-References: <1560366952-10660-1-git-send-email-cai@lca.pw>
- <CAPcyv4hn0Vz24s5EWKr39roXORtBTevZf7dDutH+jwapgV3oSw@mail.gmail.com>
- <CAPcyv4iuNYXmF0-EMP8GF5aiPsWF+pOFMYKCnr509WoAQ0VNUA@mail.gmail.com>
- <1560376072.5154.6.camel@lca.pw> <87lfy4ilvj.fsf@linux.ibm.com>
- <20190614153535.GA9900@linux>
- <c3f2c05d-e42f-c942-1385-664f646ddd33@linux.ibm.com>
- <CAPcyv4j_QQB8SrhTqL2mnEEHGYCg4H7kYanChiww35k0fwNv8Q@mail.gmail.com>
- <24fcb721-5d50-2c34-f44b-69281c8dd760@linux.ibm.com>
- <CAPcyv4ixq6aRQLdiMAUzQ-eDoA-hGbJQ6+_-K-nZzhXX70m1+g@mail.gmail.com>
- <16108dac-a4ca-aa87-e3b0-a79aebdcfafd@linux.ibm.com>
- <x49ef3wytzz.fsf@segfault.boston.devel.redhat.com>
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Message-ID: <4e912883-4a85-6579-0779-6c366ccee407@linux.ibm.com>
-Date: Fri, 14 Jun 2019 23:10:36 +0530
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=mFSmNdWd;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d03dde00000>; Fri, 14 Jun 2019 10:48:16 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Fri, 14 Jun 2019 10:48:16 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Fri, 14 Jun 2019 10:48:16 -0700
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 14 Jun
+ 2019 17:48:14 +0000
+Subject: Re: [PATCH] drm/nouveau/dmem: missing mutex_lock in error path
+To: Ralph Campbell <rcampbell@nvidia.com>, Jerome Glisse <jglisse@redhat.com>,
+	David Airlie <airlied@linux.ie>, Ben Skeggs <bskeggs@redhat.com>, "Jason
+ Gunthorpe" <jgg@mellanox.com>
+CC: <nouveau@lists.freedesktop.org>, <linux-mm@kvack.org>,
+	<dri-devel@lists.freedesktop.org>, <linux-kernel@vger.kernel.org>
+References: <20190614001121.23950-1-rcampbell@nvidia.com>
+ <1fc63655-985a-0d60-523f-00a51648dc38@nvidia.com>
+ <f67784db-dada-c827-f231-35549fc046dc@nvidia.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <6e412091-faf4-64b6-bcd8-95193b11a6ec@nvidia.com>
+Date: Fri, 14 Jun 2019 10:48:13 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <x49ef3wytzz.fsf@segfault.boston.devel.redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <f67784db-dada-c827-f231-35549fc046dc@nvidia.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL106.nvidia.com (172.18.146.12) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-TM-AS-GCONF: 00
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-14_07:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=27 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1906140142
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1560534496; bh=8ZilaY5NOYwAFhaPvzhLk/MxmC8VICubaNjNx3N4a0o=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=mFSmNdWdXrunL+Kmfxc2GVVcBRexDPEWN8Cf9I5nt85sOkU+bpOYcsFznhq/NaaeX
+	 a5iKxXQ2H9+C9AGr3nzU5XEjAX2ZDLPo0DxYeTQD+ID7+125ebw8k9BdVWuuwQ9MEK
+	 6gTPjhKY8ZBko1repTxcCB7eqT6Kzv3hFJgAFJefMAJFYF/n4hpe5mXW5wc6tTTPl9
+	 YocB5IVfiwI2RQEvosnpfO4NcI8dsS1obRGYloyAYJTYyA2VZ5pkZu23SjLUJ/eS9C
+	 yWds3z5rmjGyRmqsXnVxfjqtmHjBJzI9otX3ep/mV2T9yxsJvt7TCG1A5+06qZWnIu
+	 j28SxoSKocCEQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/14/19 10:38 PM, Jeff Moyer wrote:
-> "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com> writes:
-> 
->> On 6/14/19 10:06 PM, Dan Williams wrote:
->>> On Fri, Jun 14, 2019 at 9:26 AM Aneesh Kumar K.V
->>> <aneesh.kumar@linux.ibm.com> wrote:
+On 6/14/19 10:39 AM, Ralph Campbell wrote:
+> On 6/13/19 5:49 PM, John Hubbard wrote:
+>> On 6/13/19 5:11 PM, Ralph Campbell wrote:
+...
+>> Actually, the pre-existing code is a little concerning. Your change pres=
+erves
+>> the behavior, but it seems questionable to be doing a "return 0" (whethe=
+r
+>> via the above break, or your change) when it's in this partially allocat=
+ed
+>> state. It's reporting success when it only allocates part of what was re=
+quested,
+>> and it doesn't fill in the pages array either.
 >>
->>>> Why not let the arch
->>>> arch decide the SUBSECTION_SHIFT and default to one subsection per
->>>> section if arch is not enabled to work with subsection.
->>>
->>> Because that keeps the implementation from ever reaching a point where
->>> a namespace might be able to be moved from one arch to another. If we
->>> can squash these arch differences then we can have a common tool to
->>> initialize namespaces outside of the kernel. The one wrinkle is
->>> device-dax that wants to enforce the mapping size,
 >>
->> The fsdax have a much bigger issue right? The file system block size
->> is the same as PAGE_SIZE and we can't make it portable across archs
->> that support different PAGE_SIZE?
-> 
-> File system blocks are not tied to page size.  They can't be *bigger*
-> than the page size currently, but they can be smaller.
-> 
+>>
+>>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return 0;
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 return ret;
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0 }
+>>> +=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 mut=
+ex_lock(&drm->dmem->mutex);
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=
+=A0=C2=A0 continue;
+>>> =C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0=C2=A0 }
+>>> =C2=A0
+>>
+>> The above comment is about pre-existing potential problems, but your pat=
+ch itself
+>> looks correct, so:
+>>
+>> Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+>>
+>>
+>> thanks,
+>>
+> The crash was the NULL pointer bug in Christoph's patch #10.
+> I sent a separate reply for that.
+>=20
+> Below is the console output I got, then I made the changes just based on
+> code inspection. Do you think I should include it in the change log?
 
+Yes, I think it's good to have it in there. If you look at git log,
+you'll see that it's common to include the symptoms, including the
+backtrace. It helps people see if they are hitting the same problem,
+for one thing.
 
-ppc64 page size is 64K.
+>=20
+> As for the "return 0", If you follow the call chain,
+> nouveau_dmem_pages_alloc() is only ever called for one page so this
+> currently "works" but I agree it is a bit of a time bomb. There are a
+> number of other bugs that I can see that need fixing but I think those
+> should be separate patches.
+>=20
 
-> Still, I don't see that as an arugment against trying to make the
-> namespaces work across architectures.  Consider a user who only has
-> sector mode namespaces.  We'd like that to work if at all possible.
-> 
+Yes of course. I called it out for the benefit of the email list, not to
+say that your patch needs any changes.=20
 
-agreed. I was trying to list out the challenges here.
-
--aneesh
+thanks,
+--=20
+John Hubbard
+NVIDIA
 
