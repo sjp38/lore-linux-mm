@@ -2,140 +2,264 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 91D0EC31E4B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 21:56:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AF8FCC31E4E
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 22:06:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 580FE21850
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 21:56:44 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="p0C+DG54"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 580FE21850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 560C32184E
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 22:06:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 560C32184E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EAE986B000D; Fri, 14 Jun 2019 17:56:43 -0400 (EDT)
+	id 029356B0008; Fri, 14 Jun 2019 18:06:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E384B6B000E; Fri, 14 Jun 2019 17:56:43 -0400 (EDT)
+	id F1C366B000C; Fri, 14 Jun 2019 18:06:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CD9186B0266; Fri, 14 Jun 2019 17:56:43 -0400 (EDT)
+	id D6ED26B000D; Fri, 14 Jun 2019 18:06:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A46D26B000D
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 17:56:43 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id l4so2673812pff.5
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 14:56:43 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 956A86B0008
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 18:06:14 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id i33so2351275pld.15
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 15:06:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:to:to:cc:cc:cc
-         :subject:in-reply-to:references:message-id;
-        bh=TOyYQXc+pzm1AqW8xHDhR80HhcaLwYzCFUnP/1kwnDo=;
-        b=FXWpTbFw8MUMdmbDluwcR4KX8AL113j0MpNbXsxpRB2N0qTiaIGu5Gce+hCQXcJXhP
-         riguLC262iCTXhSwa6OobcKUelESIOlvLCP5SZhM6lpgrBLqKiyS8MktMWOjSHLZFbml
-         uAWbrcmk+wF2UhZBJ1UGH6oIDIAhW4LZvRTJ+o8FqXucm/r2jmAcn1EoooUhuEOXuT0L
-         95Y2hlQJM1F6VzYyhZZWEAv3TSKZEh4KEbFxXAoJhJpr+3Xy9jFK34+v98OpkT97/AUw
-         nfLnZnj0k0o1cfPtHLuEhYklVyzKha3tYM8kynk0d8g0AWR9VVDrHUidmQSVxvsvPlew
-         dFTA==
-X-Gm-Message-State: APjAAAX4I2cQsd1x24EHcMgcQlvaGD7OS89B0f5oAIQ9tayiWao5RZzR
-	1L3NH+yFNzFsm1XHDkZaG7nm487czMkZ+nqko4CRhp8pV7fzVLXFKeN3F9uH27t3i8DdHE1RKJO
-	NImqwu6oOgKj+NdPM8XQxJFjFliNbGNii1nfAdos4m96+xmIgEgLPS2Ms4MeZ22KsOQ==
-X-Received: by 2002:a63:e60b:: with SMTP id g11mr17491745pgh.172.1560549403296;
-        Fri, 14 Jun 2019 14:56:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxYT9hXDPodcW4oj8hMqr8i2HZ/CtR1Ype8r2GT8Mke2Q0TZNjnQHRiH9DzirPJmIYUjnAz
-X-Received: by 2002:a63:e60b:: with SMTP id g11mr17491720pgh.172.1560549402730;
-        Fri, 14 Jun 2019 14:56:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560549402; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=CIljmaelrlIzgGXWSjSdhRA6SXPSRKWvyoJ1oRHGyZ4=;
+        b=Qggq6N1CGj374E4KSyJvvMcC6uNpZD1lcZNzDYxW8OhIohua50lSoZMdTQ9rUmURjb
+         /ttbi42bsDxOHHt/Pi7TRZKJ2P/WBstgGNcx0Ro2focBsvX2vbfjaPdSrt6wfgHFRL8i
+         al+1ANnTrXqhODK5llY2iO1EocFEZKjIingMwsHwk5G0FPCplJNXPu0YGg8o83grQxe/
+         dAkP0oKQmW4X7MAUGw8sNHpGwsG0P646yt8F+v5IW0JlDjEqo7IolpiI7/WrQ/CKWe6L
+         4H18AzFT/E76lBMgNqULp4OV3awgjjgp3viBTjQfc2NJB9VjVfI36/E6M4GauwCzTQdN
+         7mlw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWGtD50V5PkFq2XIkZIqGVY7kgYx7nLvDKHAFXPDZNN+7GUqpnQ
+	4dTZIbW7j71KxObybaystAFECyPyCTjsUkblj0kKS7PsyRWl3aF5H7hhvAm1WLE0bqZ3xG1IYsl
+	Qs0cFSzPk601he7gd83A0ZpD4/8QbWaRHBvOWgkAK1EwTdcVwNXCWJpOytywMi23lbg==
+X-Received: by 2002:a17:902:1e6:: with SMTP id b93mr51841980plb.295.1560549974266;
+        Fri, 14 Jun 2019 15:06:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyXTmxuJuGlZn7TjXUl8ok/F48DEKonCU4vfcWHssIOksvzBIB/GGQ31fOb1bP49JNe0F2K
+X-Received: by 2002:a17:902:1e6:: with SMTP id b93mr51841912plb.295.1560549973083;
+        Fri, 14 Jun 2019 15:06:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560549973; cv=none;
         d=google.com; s=arc-20160816;
-        b=HNFSN1JKA3PB9xE8Bo0utPmbsBJatE1ej+rP7aCCMIb7nyiIY+j1Vc09fg0dIc7v2a
-         y4vZt04P0LJCTbqUQd9lYB/Do9+4e6aic3e4vq7+8NbXnFx5KNIVspMh0Ls6NHcXiU8N
-         u83prGRb5yBnw87MjR4PJjQx7HSLKzVppYDLVTbuxCHG3EA0Flj+Kq+mj15olGalHc+s
-         b5yxLbfmnMY/22Ck2W8QNL0MdLeE6atyCLtt0kvf2EFiN5F7J2wLTlAoJeehMaIcawJP
-         gtohYaAjGGsBdeQlKdMnGYb7KqJePTV0HFd6BN0mdms5D0Y8kwu71NBaR0sZH/9/34/e
-         TIfw==
+        b=rXKsp1FVqZevGNbv3T3/JJlp1AQpO1JmUCrxK8i+X3ZrvLxnioUH5oleRZ7yPdC3cs
+         yhwdIpt3yxE/qYKaWdLmsAQx4p3HJ73nGD69Re+b8yVU6kp2uUYgaEDcp75kD2apcViu
+         y7DEdbl8QmoP5YniIF1FuFrrFt2vFkJ3KK453kMIpvISGV8AU7f7gRIFQFAIW+29heX1
+         71GMpi1tvSsZJ1CLLGfhw4Ekz4xPU806wwhKtS+Dp9HGp9YoWg8sq2yQRDfjc/cWaER+
+         9JuuJwwWnAgBiAlD94MWqTyrDpBmpIDBqTlWfSVWIxJYEBowhr7XVAnwuah+NTGsj9JO
+         4uUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:references:in-reply-to:subject:cc:cc:cc:to:to:to:from
-         :date:dkim-signature;
-        bh=TOyYQXc+pzm1AqW8xHDhR80HhcaLwYzCFUnP/1kwnDo=;
-        b=Rpqc4wB8Z4v2osajdria8EwzUaCsy+7LxcBbHMH8Lt4ML20b8jwNcNOKPaXehCrPMK
-         P0Wt3IUfd7nmAVcd1HGhL+PQyf4G7D48/2pogzCd33UPaeucRJHP7JXH0LuukoZRxDVe
-         pammWV/WEzZ++FdylWLVkdwcGBtScgrtJZ5FRoz4mS72h27S0JPYYgcTPg1OPr3QCwo1
-         aRxnnhxvdEVXKMkZLwQRqvxWWAPqAJCaUyXoocuWG3MtuymMLEQU4fG6lz2gdyZAu8Po
-         hS7SriohGs1lce7Xr4hafYcaywV23PxvO8CEqaKsq+/liUKhthiPpcK3WqBOVa1CtlLp
-         rBWg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=CIljmaelrlIzgGXWSjSdhRA6SXPSRKWvyoJ1oRHGyZ4=;
+        b=dgE1Yt0UaVAMZdfY9ahixLegYYvIDhsqLdbBOzko7GRdscqYfu/IsJExuQ+EwKjpDr
+         3ZFNUIvujWHSdaBo9dP1dLu/x7AKghXQtQyWGldRKnzmns+TQFobWnjRF3BjIL8MnaTU
+         xa365yrgPgLGogwoQ84Vv9XItp8CeqSgoF1bmi5F9fokmD8hBp4xRqGKbZmE3G8YopRl
+         cEz/JJ07OqLuXBB9ryrHuucr2a19507lQvoPgv6+BS7ToM+YI+6h8JSzBKvRqbHe4pW+
+         tIOPqNZyXgIiBtBcCicl1hMfJmiYgHp0AuydQwbQGGXAt9jJXQ7wExdngRor0VqSA3gE
+         kARw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=p0C+DG54;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id p11si3112679plk.67.2019.06.14.14.56.42
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id q15si3600579pgi.575.2019.06.14.15.06.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 14:56:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Fri, 14 Jun 2019 15:06:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=p0C+DG54;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from localhost (unknown [23.100.24.84])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 31A5821852;
-	Fri, 14 Jun 2019 21:56:42 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1560549402;
-	bh=D3Zc9tUrAePTRuXVs9aF6oFeeUXyXhoPrZYSLGnbOUw=;
-	h=Date:From:To:To:To:Cc:Cc:Cc:Subject:In-Reply-To:References:From;
-	b=p0C+DG54HBcK+06VaJWWPPktw0ThAVYmAX2nh3ggh64TqD5xUXkxsYz47r5xoCrZc
-	 DlfMT0G0fvwsNBbI0cIkeIsxfMxqimC9rSpqhLVSVX0b3KniI6oig45OSQ5r8EjoAh
-	 LlRBhEf3h/lZ7RHCREQxeQOJUaxiYHIJDzAHCnJ4=
-Date: Fri, 14 Jun 2019 21:56:41 +0000
-From: Sasha Levin <sashal@kernel.org>
-To: Sasha Levin <sashal@kernel.org>
-To:   Mikhail Zaslonko <zaslonko@linux.ibm.com>
-To:     akpm@linux-foundation.org
-Cc:     linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-Cc: <stable@vger.kernel.org>
-Cc: stable@vger.kernel.org
-Subject: Re: [PATCH 1/1] mm, memory_hotplug: Initialize struct pages for the full memory section
-In-Reply-To: <20181210130712.30148-2-zaslonko@linux.ibm.com>
-References: <20181210130712.30148-2-zaslonko@linux.ibm.com>
-Message-Id: <20190614215642.31A5821852@mail.kernel.org>
+       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Jun 2019 15:06:11 -0700
+X-ExtLoop1: 1
+Received: from ray.jf.intel.com (HELO [10.7.201.15]) ([10.7.201.15])
+  by orsmga002.jf.intel.com with ESMTP; 14 Jun 2019 15:06:12 -0700
+Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
+ function
+To: Yu-cheng Yu <yu-cheng.yu@intel.com>, Andy Lutomirski <luto@amacapital.net>
+Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
+ "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
+ Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
+ Cyrill Gorcunov <gorcunov@gmail.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>,
+ Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>,
+ "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
+ Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+ Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>,
+ Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>,
+ Randy Dunlap <rdunlap@infradead.org>,
+ "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
+ Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
+ Dave Martin <Dave.Martin@arm.com>
+References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
+ <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
+ <25281DB3-FCE4-40C2-BADB-B3B05C5F8DD3@amacapital.net>
+ <e26f7d09376740a5f7e8360fac4805488b2c0a4f.camel@intel.com>
+ <3f19582d-78b1-5849-ffd0-53e8ca747c0d@intel.com>
+ <5aa98999b1343f34828414b74261201886ec4591.camel@intel.com>
+ <0665416d-9999-b394-df17-f2a5e1408130@intel.com>
+ <5c8727dde9653402eea97bfdd030c479d1e8dd99.camel@intel.com>
+ <ac9a20a6-170a-694e-beeb-605a17195034@intel.com>
+ <328275c9b43c06809c9937c83d25126a6e3efcbd.camel@intel.com>
+ <92e56b28-0cd4-e3f4-867b-639d9b98b86c@intel.com>
+ <1b961c71d30e31ecb22da2c5401b1a81cb802d86.camel@intel.com>
+ <ea5e333f-8cd6-8396-635f-a9dc580d5364@intel.com>
+ <cf0d1470e95e0a8b88742651d06601a53d6655c1.camel@intel.com>
+ <5ddf59e2-c701-3741-eaa1-f63ee741ea55@intel.com>
+ <b5a915602020a6ce26ea1254f7f60e239c91bc9f.camel@intel.com>
+ <598edca7-c36a-a236-3b72-08b2194eb609@intel.com>
+ <359e6f64d646d5305c52f393db5296c469630d11.camel@intel.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=dave.hansen@intel.com; keydata=
+ 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
+Message-ID: <5d7012f6-7ab9-fd3d-4a11-294258e48fb5@intel.com>
+Date: Fri, 14 Jun 2019 15:06:12 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
+MIME-Version: 1.0
+In-Reply-To: <359e6f64d646d5305c52f393db5296c469630d11.camel@intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 6/14/19 2:34 PM, Yu-cheng Yu wrote:
+> On Fri, 2019-06-14 at 13:57 -0700, Dave Hansen wrote:
+>>> I have a related question:
+>>>
+>>> Do we allow the application to read the bitmap, or any fault from the
+>>> application on bitmap pages?
+>>
+>> We have to allow apps to read it.  Otherwise they can't execute
+>> instructions.
+> 
+> What I meant was, if an app executes some legacy code that results in bitmap
+> lookup, but the bitmap page is not yet populated, and if we then populate that
+> page with all-zero, a #CP should follow.  So do we even populate that zero page
+> at all?
+> 
+> I think we should; a #CP is more obvious to the user at least.
 
-[This is an automated email]
+Please make an effort to un-Intel-ificate your messages as much as
+possible.  I'd really prefer that folks say "missing end branch fault"
+rather than #CP.  I had to Google "#CP".
 
-This commit has been processed because it contains a -stable tag.
-The stable tag indicates that it's relevant for the following trees: all
+I *think* you are saying that:  The *only* lookups to this bitmap are on
+"missing end branch" conditions.  Normal, proper-functioning code
+execution that has ENDBR instructions in it will never even look at the
+bitmap.  The only case when we reference the bitmap locations is when
+the processor is about do do a "missing end branch fault" so that it can
+be suppressed.  Any population with the zero page would be done when
+code had already encountered a "missing end branch" condition, and
+populating with a zero-filled page will guarantee that a "missing end
+branch fault" will result.  You're arguing that we should just figure
+this out at fault time and not ever reach the "missing end branch fault"
+at all.
 
-The bot has tested the following trees: v5.1.9, v4.19.50, v4.14.125, v4.9.181, v4.4.181.
+Is that right?
 
-v5.1.9: Build OK!
-v4.19.50: Failed to apply! Possible dependencies:
-    Unable to calculate
+If so, that's an architecture subtlety that I missed until now and which
+went entirely unmentioned in the changelog and discussion up to this
+point.  Let's make sure that nobody else has to walk that path by
+improving our changelog, please.
 
-v4.14.125: Failed to apply! Possible dependencies:
-    Unable to calculate
+In any case, I don't think this is worth special-casing our zero-fill
+code, FWIW.  It's not performance critical and not worth the complexity.
+ If apps want to handle the signals and abuse this to fill space up with
+boring page table contents, they're welcome to.  There are much easier
+ways to consume a lot of memory.
 
-v4.9.181: Failed to apply! Possible dependencies:
-    Unable to calculate
+>> We don't have to allow them to (popuating) fault on it.  But, if we
+>> don't, we need some kind of kernel interface to avoid the faults.
+> 
+> The plan is:
+> 
+> * Move STACK_TOP (and vdso) down to give space to the bitmap.
 
-v4.4.181: Failed to apply! Possible dependencies:
-    Unable to calculate
+Even for apps with 57-bit address spaces?
 
+> * Reserve the bitmap space from (mm->start_stack + PAGE_SIZE) to cover a code
+> size of TASK_SIZE_LOW, which is (TASK_SIZE_LOW / PAGE_SIZE / 8).
 
-How should we proceed with this patch?
+The bitmap size is determined by CR4.LA57, not the app.  If you place
+the bitmap here, won't references to it for high addresses go into the
+high address space?
 
---
-Thanks,
-Sasha
+Specifically, on a CR4.LA57=0 system, we have 48 bits of address space,
+so 128TB for apps.  You are proposing sticking the bitmap above the
+stack which is near the top of that 128TB address space.  But on a
+5-level paging system with CR4.LA57=1, there could be valid data at
+129GB.  Is there something keeping that data from being mistaken for
+being part of the bitmap?
+
+Also, if you're limiting it to TASK_SIZE_LOW, please don't forget that
+this is yet another thing that probably won't work with the vsyscall
+page.  Please make sure you consider it and mention it in your next post.
+
+> * Mmap the space only when the app issues the first mark-legacy prctl.  This
+> avoids the core-dump issue for most apps and the accounting problem that
+> MAP_NORESERVE probably won't solve completely.
+
+What is this accounting problem?
 
