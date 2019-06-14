@@ -2,145 +2,125 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AA433C31E4C
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 14:21:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2FF3DC31E4B
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 14:49:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7212D20866
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 14:21:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7212D20866
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
+	by mail.kernel.org (Postfix) with ESMTP id D2AC42133D
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 14:49:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2AC42133D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 246256B0270; Fri, 14 Jun 2019 10:21:54 -0400 (EDT)
+	id 195B76B0007; Fri, 14 Jun 2019 10:49:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1F5D36B0271; Fri, 14 Jun 2019 10:21:54 -0400 (EDT)
+	id 11F476B0008; Fri, 14 Jun 2019 10:49:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 10D7E6B0273; Fri, 14 Jun 2019 10:21:54 -0400 (EDT)
+	id F01A16B000A; Fri, 14 Jun 2019 10:49:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B92FE6B0270
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 10:21:53 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id q16so1113486wrx.5
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 07:21:53 -0700 (PDT)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B6FFD6B0007
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 10:49:27 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id y130so709660wmg.1
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 07:49:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:in-reply-to:message-id:references:user-agent
-         :mime-version;
-        bh=5pRKRIqd7WWU3KLjTcf+yzyAMGL4kf3UwpHpLS5Hwks=;
-        b=geJSOSPFeESidtBsi0rDiXV5CyuvnlTm/WgsXs3aarNKt6D7H4whe8C3QlkZGBSPBi
-         41lIWmFRVMdHjVMge+YHifXQC9Jq/1Gze23vNtSEljdy/txV3y6NTyF+X2JpIrNNsHNW
-         i/e1uB/9aQaZhAmvgFIfPgy9p0G2z9O6mx5RnlDJ/BE66WfsW7QRNk0EVnlzLlSnE3ns
-         WNw9zoZtITcGM6z4t6ExAeAeRyFBEVDUDT2GlmAw2MgLwIxvexsF1e/D0GbAxitN/que
-         0QAANxV1sB3neI9boBGajZxlelMcpHGqY7TnGQCKr/0PU7BD5SeECXNJliP9Eb92Us6n
-         VM5A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-X-Gm-Message-State: APjAAAVVnAokOMSbdJAhqIf8EXbVuKvA9P5VWfrkXknPhLMI+JepSTkP
-	MvqtdSjvdiXiGCbmdZ5ejQ96PgVHEeqY0ccBsXvIWBhqc07Ipb9ZO+fs1BiY0Dno8EksW8mYNBL
-	dYG4HwhWVZrMHeCIUOzyASTDCUJvCfPVqnwSD7Hqlslhn2HTcrKnhNaDwIsJYg8Kcbw==
-X-Received: by 2002:a1c:c003:: with SMTP id q3mr8221594wmf.42.1560522113250;
-        Fri, 14 Jun 2019 07:21:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz9kboj49XAu/Nt1ZoZoYHSue1WghVoMnn/HkCyBKzzRBw+N/OW4ic0Hoz0VLUY2Ji0mEV3
-X-Received: by 2002:a1c:c003:: with SMTP id q3mr8221543wmf.42.1560522112459;
-        Fri, 14 Jun 2019 07:21:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560522112; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=mYwejnkx7tIy/hoHoGqrY/4MGqFx1knqqZSdVOLvNc4=;
+        b=B04osW1mTx4du/oN4lkUc3OoO+5OFomu7Zy/n8kBSsUsxu8v8+M+ICsPE1iaiDNM/X
+         r6ESWErk5ymjGAtIgI8o4LhIsUlx+hbjxMU7SrC/YAPDND2aPKYldAAGSrncOSeh8FYX
+         /0pws0gtEqCQcMvgFKH1KgcSdZfPa3S8jSdcTj3LVyBLto/rgVMd/6Ok4fgvsrrV3eqg
+         rJn3MpXxaF6YDxXOJgGPnCW6aqdZsvwNxIH4rGO6XHwcgC3/uCt/trNXBDYVckJvuqTD
+         fIAlP5pYMZrFalvr4bdcCsZ4IsMds7iHJl/LGrzIZP3kmbpU1KWOOuUI3m0/8djiDEgC
+         2sFA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAWI7MPx+V8ve0JwYYNopC85Npi5MvEVC+/OkkmSZMPY/HQuvq+M
+	7uShturPVD3Du213x5+Eq3V0qYlm9f6Eo0Wmfk8QtO6WA6AkUwxAMSx9b1a34swqe5C4YRtTg0w
+	MEIQ3NMt65DBC1+dqbIWO2nKDUrOu4rNx8yk+oPvSZ9p1y9q1QLOKJLfTxguZW6u9Mw==
+X-Received: by 2002:a7b:c144:: with SMTP id z4mr8736121wmi.50.1560523767342;
+        Fri, 14 Jun 2019 07:49:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzrA34+MdUhftrGB0mTux/k6gN4QQabf8p93UNHWpe7swx92sEpEbeWk6/inm0oUCjmnl2C
+X-Received: by 2002:a7b:c144:: with SMTP id z4mr8736075wmi.50.1560523766359;
+        Fri, 14 Jun 2019 07:49:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560523766; cv=none;
         d=google.com; s=arc-20160816;
-        b=Y5gm558lzfqYbd++oiJTcvLFM06YzmwOrhPEXpbXtJzQ3f2Ze/MIGsr5e5xtZvBxev
-         mJBZfQBfNaigZDck5oJ0dNgjyy0zxmax3Avi41B/I3lbUyYCaI4Fpw8Lzoh23B2esHvj
-         uCIIe6Q9EQBJPsSn3KYbK7t8KE2RlTofOujHkZF7dPNrfeNKzJq+8n/+LEGc9h4NF+AB
-         59+cD1cDACFZStmyF7Lauchz7u9iS8B9KIrL5+25mJjfyflL5ukO3m7Z6FM31APcRLoj
-         wHKQI6lULzgyvI7cy/yu+eib1NZPX/p3xxlFv328Bc9bzPbf2f6mptic6DccscJ7+sWP
-         PVyg==
+        b=KWu8ng7qdwQzFx+5fKM10+Rq43K09EuKa9n7Eh76MirYnAB3s6BEuYaDkAO2mzHqhi
+         XHmrH9csd/y2p+IOWOvJ+Gbgiko7afvlX3HIOWGbMLbUga0C11Dug+j4Cv/iYEnuCWdf
+         DOZnFdFKdfL/8bk12+X0XndmjTaMsaYmbuiJTv4geo8Altp5iO6hHDcc6wVyDN0Drfah
+         /MKxvkYgzUN4JOSIzfnQqP8RJjmOulR8a7FYzQva+vtG/V+9ZbOhg0qPpIHqY27EDVg2
+         EISBPVIPyQkGgATw2Drvxummc6svrNAx7jtAeRjEKWEKifa3JD8V5QgAErvLqkjAaWnN
+         7iBQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date;
-        bh=5pRKRIqd7WWU3KLjTcf+yzyAMGL4kf3UwpHpLS5Hwks=;
-        b=pFjW+YUb9okMEjBSIm+OluyHJZSsnUcIiIPJN7PvEc/yuxMLuNZ422jCgDlbYG8JCe
-         eYRxxfBK/scgKvXwEr3y+mj2mzwgSjQJz98J3SaJivws8+KD2QrPlox0r3H8LZDtRK2V
-         N2Q2sCQRdwZ21eG81nvOsp9oxs4axduUsLzSmwGnpHaMIUmxf3sjnGryF6AFru/eiFSc
-         9VWYP0Gi3Oo28OMztAi2Y/sKRmUh9NQr2Pppq8OP4dcaJ2ew9zSL7cY+XTG9lOMgcO7z
-         h1jNw1XlqwMnyPIQ05fPp6WjaaKz40bEMjD1u/7ILneI7gTyxA88Nqw7Y/OWaFmDyyn9
-         VwSw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=mYwejnkx7tIy/hoHoGqrY/4MGqFx1knqqZSdVOLvNc4=;
+        b=QRbrXf1iURIh+50pwsMrP4GH7Tqis3qewtE+M7K8TBvilqRVhvPaCW0BXUXjlwEuab
+         rtQhP7VRe7GzfXFxvMcnGMFzDI999uOMDlim8dbhZfaGR5ztRPwgcSFqE+AzG1fyrob1
+         yh2yr8CxZcycEld8amlaoeJmK7cIFhRPOS6cio+2XMgOPviBIQ3lIfXGDqEWp4pvKXvx
+         nM0KUUMO+0KPEiHR48g5GKJexyY7JZU8OCgj+s1SsSW0H5Plh7DZW71ECSSYKFa4m9dS
+         h4CZbb8shZchMaFw6ixc5noSmX6AyYzqvcGyB04E87K6Sj+C8EhtR7jvyoz2w5DqdqZF
+         XWEQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id v10si2574627wrn.34.2019.06.14.07.21.52
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id n3si2138532wmh.26.2019.06.14.07.49.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Fri, 14 Jun 2019 07:21:52 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Jun 2019 07:49:26 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
-Received: from [5.158.153.52] (helo=nanos.tec.linutronix.de)
-	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
-	(Exim 4.80)
-	(envelope-from <tglx@linutronix.de>)
-	id 1hbn5M-0007a1-1S; Fri, 14 Jun 2019 16:21:44 +0200
-Date: Fri, 14 Jun 2019 16:21:43 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-To: Andy Lutomirski <luto@amacapital.net>
-cc: Dave Hansen <dave.hansen@intel.com>, 
-    Marius Hillenbrand <mhillenb@amazon.de>, kvm@vger.kernel.org, 
-    linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, 
-    linux-mm@kvack.org, Alexander Graf <graf@amazon.de>, 
-    David Woodhouse <dwmw@amazon.co.uk>, 
-    the arch/x86 maintainers <x86@kernel.org>, 
-    Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
- secrets
-In-Reply-To: <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
-Message-ID: <alpine.DEB.2.21.1906141618000.1722@nanos.tec.linutronix.de>
-References: <20190612170834.14855-1-mhillenb@amazon.de> <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com> <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id C373F68AFE; Fri, 14 Jun 2019 16:48:57 +0200 (CEST)
+Date: Fri, 14 Jun 2019 16:48:57 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Christoph Hellwig <hch@lst.de>,
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+	Maxime Ripard <maxime.ripard@bootlin.com>,
+	Sean Paul <sean@poorly.run>, David Airlie <airlied@linux.ie>,
+	Daniel Vetter <daniel@ffwll.ch>,
+	Jani Nikula <jani.nikula@linux.intel.com>,
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>,
+	Ian Abbott <abbotti@mev.co.uk>,
+	H Hartley Sweeten <hsweeten@visionengravers.com>,
+	devel@driverdev.osuosl.org, linux-s390@vger.kernel.org,
+	Intel Linux Wireless <linuxwifi@intel.com>,
+	linux-rdma@vger.kernel.org, netdev@vger.kernel.org,
+	intel-gfx@lists.freedesktop.org, linux-wireless@vger.kernel.org,
+	linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linux-mm@kvack.org, iommu@lists.linux-foundation.org,
+	"moderated list:ARM PORT" <linux-arm-kernel@lists.infradead.org>,
+	linux-media@vger.kernel.org
+Subject: Re: [PATCH 12/16] staging/comedi: mark as broken
+Message-ID: <20190614144857.GA9088@lst.de>
+References: <20190614134726.3827-1-hch@lst.de> <20190614134726.3827-13-hch@lst.de> <20190614140239.GA7234@kroah.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="8323329-1104140577-1560522104=:1722"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000503, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190614140239.GA7234@kroah.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Fri, Jun 14, 2019 at 04:02:39PM +0200, Greg KH wrote:
+> Perhaps a hint as to how we can fix this up?  This is the first time
+> I've heard of the comedi code not handling dma properly.
 
---8323329-1104140577-1560522104=:1722
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8BIT
+It can be fixed by:
 
-On Wed, 12 Jun 2019, Andy Lutomirski wrote:
-> > On Jun 12, 2019, at 12:55 PM, Dave Hansen <dave.hansen@intel.com> wrote:
-> > 
-> >> On 6/12/19 10:08 AM, Marius Hillenbrand wrote:
-> >> This patch series proposes to introduce a region for what we call
-> >> process-local memory into the kernel's virtual address space. 
-> > 
-> > It might be fun to cc some x86 folks on this series.  They might have
-> > some relevant opinions. ;)
-> > 
-> > A few high-level questions:
-> > 
-> > Why go to all this trouble to hide guest state like registers if all the
-> > guest data itself is still mapped?
-> > 
-> > Where's the context-switching code?  Did I just miss it?
-> > 
-> > We've discussed having per-cpu page tables where a given PGD is only in
-> > use from one CPU at a time.  I *think* this scheme still works in such a
-> > case, it just adds one more PGD entry that would have to context-switched.
->
-> Fair warning: Linus is on record as absolutely hating this idea. He might
-> change his mind, but it’s an uphill battle.
-
-Yes I know, but as a benefit we could get rid of all the GSBASE horrors in
-the entry code as we could just put the percpu space into the local PGD.
-
-Thanks,
-
-	tglx
---8323329-1104140577-1560522104=:1722--
+ a) never calling virt_to_page (or vmalloc_to_page for that matter)
+    on dma allocation
+ b) never remapping dma allocation with conflicting cache modes
+    (no remapping should be doable after a) anyway).
 
