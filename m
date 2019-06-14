@@ -2,282 +2,294 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6461BC31E4B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 16:46:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A5C6CC31E4B
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 16:50:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 161F3217F9
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 16:46:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 161F3217F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 55D49217F9
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 16:50:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55D49217F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9A3A66B000E; Fri, 14 Jun 2019 12:45:59 -0400 (EDT)
+	id E0D716B000E; Fri, 14 Jun 2019 12:50:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 953A26B0266; Fri, 14 Jun 2019 12:45:59 -0400 (EDT)
+	id DBDE16B0266; Fri, 14 Jun 2019 12:50:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 843BF6B0269; Fri, 14 Jun 2019 12:45:59 -0400 (EDT)
+	id CAC7E6B0269; Fri, 14 Jun 2019 12:50:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C71B6B000E
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 12:45:59 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id j36so2252313pgb.20
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 09:45:59 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 939BD6B000E
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 12:50:41 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id z10so2267176pgf.15
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 09:50:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=Yd9vMoglfAKCP7yxtTBnCz+dwMWDgekPGEWqIOKDh/0=;
-        b=LIUIpsLIIEUWhhk3bCEUo56Kq0PVMZ/VfGzxxbXO/SDyODAqBvY59LWkdHvmuzoqf8
-         kkvVGSk+Ts6QdNm452T5A+EeOXHXfN9DeAM3fkuqiqCxrEAljjlCleLjTV2r0IJnnsUN
-         4QXrERDxCSKtkuaDNXsjd2WV1qiRc+uglCUbMnpMhE+N5yoNYnifpNijW96TfqfUCQKN
-         uO5G5BGXwk6Zxj6a9/EuQS4uobQwK2mkRzoo/65wf0sI9I/Aiu+AYT/LwjXKZx315dE2
-         NQO0l29qJnMBdOASLDKdDWReQIPlD9cYLbcLnuFHRzl66Afi044Xms7zNCFGg86mFwUK
-         27ag==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of ville.syrjala@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ville.syrjala@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUa2xgY/MJ5RaNgk7HmBfWDBAwF41LSQs20JvMbMnf+tT8CG1Y5
-	b9EwpC61lkNk67Q2a+X2iChViLX/MTmTiLYLXQ8Z1FysZbvBAAAa2nXB/WOvQHERUAwExbMUEKo
-	ibW+R59Q586hJI786mHSfU3LxIzGx8g6C/PUUADiQGg59r3zyFkwY1enU6IBeS79O6Q==
-X-Received: by 2002:a17:902:b70f:: with SMTP id d15mr12763813pls.318.1560530758944;
-        Fri, 14 Jun 2019 09:45:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyQg2oYQQx0h3dzKNKWl7wbznD2cgK2nh5a3Ht8eqYx5J62HjzVVs98JeoZOQ4yAFPXfHs9
-X-Received: by 2002:a17:902:b70f:: with SMTP id d15mr12763755pls.318.1560530758111;
-        Fri, 14 Jun 2019 09:45:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560530758; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding:message-id;
+        bh=hNEn5F1t732oeIKKYapaFNIbtMIn+jH7RF6jl9wLZvk=;
+        b=QuFLV68xmUqkI6vLWpyCI9AOXBYNiKeKrhx0On1RK+0gwjK0XKsCguuuuNMddPFndJ
+         iIQOd1bq74VXfzQNqKZrV4YKuV+Kb6KmQQg12oVJ8iTart2ZTfUjLn1QG+Bo5JMzU1qk
+         2oGOcubwac26BDZajh+NcWoMfWgmSWASOlM43tKkEFjXa1VeAT9/meicd2RT/WJ85R+l
+         lLV3HIzdVVDyoaxq/tOO12sSkEPAb29jQ6DSa9okdqT8FQvy8OMNJ07MvYDCCMVdPV/U
+         ceVjnpA7isWwegZsSwd4KXPTmD5al8wa689CABr8ggGtomuTwfaCU4ZyuDgFnHY/ONSG
+         6Oug==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAVCxI+6elByM1CRY5eVU3j0vHw88tU3ueKgROGW+lXB3Mi5WKQy
+	poIjqLsk3BUgNLEhkn9bnjSulEajuMO9lqrzSDM/eaMVJWC4Fc6f4YbTLJfJ7DTUOch0uY/JB9l
+	Ixzq0H7MpPyzRteHt3/j4vEl3PjSaV2AWStWh4OQl1QhuO4p1DVrvIYQGXKnyQnq6vA==
+X-Received: by 2002:a62:14c4:: with SMTP id 187mr26269216pfu.241.1560531041241;
+        Fri, 14 Jun 2019 09:50:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwOWNtGeT1ttJJ1e5Xt/K6dA7aMQ5ryHZh0EGse3Z/qQtO+5iaya779QP6cWbzS8Feo6G+e
+X-Received: by 2002:a62:14c4:: with SMTP id 187mr26269156pfu.241.1560531040376;
+        Fri, 14 Jun 2019 09:50:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560531040; cv=none;
         d=google.com; s=arc-20160816;
-        b=0AWzoQMapi4ij++gfrI0b3scjFxpIrLNKdKe5wA2CDew6ZlzUqDShwk7SYcn/bSx3w
-         OxuCfIO66/9f5bHZsQn9K62Tgv8Yrr1XKdC2d8vQe4ztDtaimAQkEvP6KEe4I3C+2g7a
-         YApriDZQ7SbQMsigfYQcFsTh9FlChQiXV10x+27teU4FaflhP1cwk6Dt8OBpfNrQc4u/
-         sUXtepsVQ9kQ89RuB36yQ6+5+h1N1+O8jVdOBxzxS90yUYI/vquwk/GXeUCJ8ghWi4VY
-         ZHG/fZKMtoxvTVl8GxH/dGTT1AiXNFiQv512dK2Be49yYmE0NJ4SSkhLGQEt5Z4Qj4Jg
-         2TYA==
+        b=a+fQXo9PBWBEoYE6lMERCJLt5tZgpT5e2OOf6V/E4lObfWnsEr5kDTpS4KFzChLjiJ
+         ssixWhQfDYntFi9CoXVil8ilSKhGFHz+XetZSRIarKvV1QESQQcNcb+5SKe6jNvkF2ob
+         eCrhrt42K5X6FzFebUXeD12UvI1Lc9zQSFO67wJoFLBH582JTY6YqSyUTI2kci3MANU8
+         DuRFoJqiO9ZR5zE4aLGZiWEc57VFA911xJcMo8vWuHz0Erh2HwgdtzfbGoEKfpDa3bKF
+         al439GHUUouZ5J4bpfdzw37iZS6qLuPIs5mAc5l5xqiajNYQBKipoV80/QdsJTUYnGOY
+         p4RQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=Yd9vMoglfAKCP7yxtTBnCz+dwMWDgekPGEWqIOKDh/0=;
-        b=qWVhGWZjbmb2COQ5WXQQFyQmeWsLAY7bCAS917UKRRiPhIFH8BAbJ5tOWqY4AkUcO7
-         JroVAIku6UvtCoCEfrJD6VR7NaXxBcA/2jc6EH6Xm+7ILutTO7HQcFwF6oQH0bZX+vnv
-         2vMO238CsedwlDGzX8zVRg4xbwI5yEV9nD/u/wjEYjNbIEJu8PNMmgRJrM+BjQhOLFlv
-         rPkBgSpPs4r6z+k32ykv+1siBsjxJr9rqzm+ttPwvilAFLzUTbf35gYJ7NZiZ9mjeIpJ
-         Udee/fs3pm2RwwRtiGtUlHo7MsiFrFgwgCY7QLVIkY+BeV5/ECTGBPZkrIRVL+fGedf6
-         NiQw==
+        h=message-id:content-transfer-encoding:content-language:in-reply-to
+         :mime-version:user-agent:date:from:references:cc:to:subject;
+        bh=hNEn5F1t732oeIKKYapaFNIbtMIn+jH7RF6jl9wLZvk=;
+        b=zA3PWs+DPAJmHmdMyQU3BYAfBu6MPLSSlq0jmn+0Kqw9fpUalk2mBM+rQeAhsHJgQU
+         0JvhpXf9PrdXnw7mReyGztXgIQdqjES+XIzov44WGeYVBPOdG1+MA7gntkAafV1cudXN
+         cVJ8c7n28+hJby+CDEivE6kxEzGZkXUvZc1DDbNdblohDFxRj7Tqx2jHGsS1gf3ilVWq
+         d7kpmrNVcmggVPcRTcKb2i1Wc68bIwh8dMbwj5txSw+maZbjsptTQDOPzpsMS5Mwqctf
+         nH/MLr5e68L2k/x9X8bR9gI6xVSb8Kay0uzIZ+3OHD8SXQGwTcJcTS71a49QG4+/TurN
+         NeMQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of ville.syrjala@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ville.syrjala@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id v23si2652488plo.34.2019.06.14.09.45.57
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d7si2864166pfr.145.2019.06.14.09.50.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 09:45:58 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of ville.syrjala@linux.intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Fri, 14 Jun 2019 09:50:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of ville.syrjala@linux.intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=ville.syrjala@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Jun 2019 09:45:57 -0700
-X-ExtLoop1: 1
-Received: from stinkbox.fi.intel.com (HELO stinkbox) ([10.237.72.174])
-  by fmsmga007.fm.intel.com with SMTP; 14 Jun 2019 09:45:50 -0700
-Received: by stinkbox (sSMTP sendmail emulation); Fri, 14 Jun 2019 19:45:49 +0300
-Date: Fri, 14 Jun 2019 19:45:49 +0300
-From: Ville =?iso-8859-1?Q?Syrj=E4l=E4?= <ville.syrjala@linux.intel.com>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
-	Maxime Ripard <maxime.ripard@bootlin.com>,
-	Sean Paul <sean@poorly.run>, David Airlie <airlied@linux.ie>,
-	Daniel Vetter <daniel@ffwll.ch>,
-	Jani Nikula <jani.nikula@linux.intel.com>,
-	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
-	Rodrigo Vivi <rodrigo.vivi@intel.com>,
-	Ian Abbott <abbotti@mev.co.uk>,
-	H Hartley Sweeten <hsweeten@visionengravers.com>,
-	devel@driverdev.osuosl.org, linux-s390@vger.kernel.org,
-	Intel Linux Wireless <linuxwifi@intel.com>,
-	linux-rdma@vger.kernel.org, netdev@vger.kernel.org,
-	intel-gfx@lists.freedesktop.org, linux-wireless@vger.kernel.org,
-	linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, iommu@lists.linux-foundation.org,
-	"moderated list:ARM PORT" <linux-arm-kernel@lists.infradead.org>,
-	linux-media@vger.kernel.org,
-	Chris Wilson <chris@chris-wilson.co.uk>
-Subject: Re: [Intel-gfx] [PATCH 03/16] drm/i915: stop using drm_pci_alloc
-Message-ID: <20190614164549.GD5942@intel.com>
-References: <20190614134726.3827-1-hch@lst.de>
- <20190614134726.3827-4-hch@lst.de>
+       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x5EGli5d061824
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 12:50:39 -0400
+Received: from e35.co.us.ibm.com (e35.co.us.ibm.com [32.97.110.153])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2t4dr0mx33-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 12:50:39 -0400
+Received: from localhost
+	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.ibm.com>;
+	Fri, 14 Jun 2019 17:50:38 +0100
+Received: from b03cxnp08028.gho.boulder.ibm.com (9.17.130.20)
+	by e35.co.us.ibm.com (192.168.1.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Fri, 14 Jun 2019 17:50:34 +0100
+Received: from b03ledav001.gho.boulder.ibm.com (b03ledav001.gho.boulder.ibm.com [9.17.130.232])
+	by b03cxnp08028.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x5EGoX7q29753776
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 14 Jun 2019 16:50:33 GMT
+Received: from b03ledav001.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 8ABC36E050;
+	Fri, 14 Jun 2019 16:50:33 +0000 (GMT)
+Received: from b03ledav001.gho.boulder.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 1493E6E04C;
+	Fri, 14 Jun 2019 16:50:30 +0000 (GMT)
+Received: from [9.199.60.77] (unknown [9.199.60.77])
+	by b03ledav001.gho.boulder.ibm.com (Postfix) with ESMTP;
+	Fri, 14 Jun 2019 16:50:30 +0000 (GMT)
+Subject: Re: [PATCH -next] mm/hotplug: skip bad PFNs from pfn_to_online_page()
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Oscar Salvador <osalvador@suse.de>, Qian Cai <cai@lca.pw>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Linux MM <linux-mm@kvack.org>,
+        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+        jmoyer <jmoyer@redhat.com>, linux-nvdimm <linux-nvdimm@lists.01.org>
+References: <1560366952-10660-1-git-send-email-cai@lca.pw>
+ <CAPcyv4hn0Vz24s5EWKr39roXORtBTevZf7dDutH+jwapgV3oSw@mail.gmail.com>
+ <CAPcyv4iuNYXmF0-EMP8GF5aiPsWF+pOFMYKCnr509WoAQ0VNUA@mail.gmail.com>
+ <1560376072.5154.6.camel@lca.pw> <87lfy4ilvj.fsf@linux.ibm.com>
+ <20190614153535.GA9900@linux>
+ <c3f2c05d-e42f-c942-1385-664f646ddd33@linux.ibm.com>
+ <CAPcyv4j_QQB8SrhTqL2mnEEHGYCg4H7kYanChiww35k0fwNv8Q@mail.gmail.com>
+ <24fcb721-5d50-2c34-f44b-69281c8dd760@linux.ibm.com>
+ <CAPcyv4ixq6aRQLdiMAUzQ-eDoA-hGbJQ6+_-K-nZzhXX70m1+g@mail.gmail.com>
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
+Date: Fri, 14 Jun 2019 22:20:14 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190614134726.3827-4-hch@lst.de>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <CAPcyv4ixq6aRQLdiMAUzQ-eDoA-hGbJQ6+_-K-nZzhXX70m1+g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-TM-AS-GCONF: 00
+x-cbid: 19061416-0012-0000-0000-000017444A92
+X-IBM-SpamModules-Scores: 
+X-IBM-SpamModules-Versions: BY=3.00011261; HX=3.00000242; KW=3.00000007;
+ PH=3.00000004; SC=3.00000286; SDB=6.01217923; UDB=6.00640496; IPR=6.00999044;
+ MB=3.00027312; MTD=3.00000008; XFM=3.00000015; UTC=2019-06-14 16:50:36
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19061416-0013-0000-0000-000057B1CDDD
+Message-Id: <6cbef0c5-1ce8-91ac-3396-902a9bf95716@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-06-14_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=27 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1810050000 definitions=main-1906140136
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 14, 2019 at 03:47:13PM +0200, Christoph Hellwig wrote:
-> Remove usage of the legacy drm PCI DMA wrappers, and with that the
-> incorrect usage cocktail of __GFP_COMP, virt_to_page on DMA allocation
-> and SetPageReserved.
+On 6/14/19 10:06 PM, Dan Williams wrote:
+> On Fri, Jun 14, 2019 at 9:26 AM Aneesh Kumar K.V
+> <aneesh.kumar@linux.ibm.com> wrote:
+>>
+>> On 6/14/19 9:52 PM, Dan Williams wrote:
+>>> On Fri, Jun 14, 2019 at 9:18 AM Aneesh Kumar K.V
+>>> <aneesh.kumar@linux.ibm.com> wrote:
+>>>>
+>>>> On 6/14/19 9:05 PM, Oscar Salvador wrote:
+>>>>> On Fri, Jun 14, 2019 at 02:28:40PM +0530, Aneesh Kumar K.V wrote:
+>>>>>> Can you check with this change on ppc64.  I haven't reviewed this series yet.
+>>>>>> I did limited testing with change . Before merging this I need to go
+>>>>>> through the full series again. The vmemmap poplulate on ppc64 needs to
+>>>>>> handle two translation mode (hash and radix). With respect to vmemap
+>>>>>> hash doesn't setup a translation in the linux page table. Hence we need
+>>>>>> to make sure we don't try to setup a mapping for a range which is
+>>>>>> arleady convered by an existing mapping.
+>>>>>>
+>>>>>> diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
+>>>>>> index a4e17a979e45..15c342f0a543 100644
+>>>>>> --- a/arch/powerpc/mm/init_64.c
+>>>>>> +++ b/arch/powerpc/mm/init_64.c
+>>>>>> @@ -88,16 +88,23 @@ static unsigned long __meminit vmemmap_section_start(unsigned long page)
+>>>>>>      * which overlaps this vmemmap page is initialised then this page is
+>>>>>>      * initialised already.
+>>>>>>      */
+>>>>>> -static int __meminit vmemmap_populated(unsigned long start, int page_size)
+>>>>>> +static bool __meminit vmemmap_populated(unsigned long start, int page_size)
+>>>>>>     {
+>>>>>>        unsigned long end = start + page_size;
+>>>>>>        start = (unsigned long)(pfn_to_page(vmemmap_section_start(start)));
+>>>>>>
+>>>>>> -    for (; start < end; start += (PAGES_PER_SECTION * sizeof(struct page)))
+>>>>>> -            if (pfn_valid(page_to_pfn((struct page *)start)))
+>>>>>> -                    return 1;
+>>>>>> +    for (; start < end; start += (PAGES_PER_SECTION * sizeof(struct page))) {
+>>>>>>
+>>>>>> -    return 0;
+>>>>>> +            struct mem_section *ms;
+>>>>>> +            unsigned long pfn = page_to_pfn((struct page *)start);
+>>>>>> +
+>>>>>> +            if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
+>>>>>> +                    return 0;
+>>>>>
+>>>>> I might be missing something, but is this right?
+>>>>> Having a section_nr above NR_MEM_SECTIONS is invalid, but if we return 0 here,
+>>>>> vmemmap_populate will go on and populate it.
+>>>>
+>>>> I should drop that completely. We should not hit that condition at all.
+>>>> I will send a final patch once I go through the full patch series making
+>>>> sure we are not breaking any ppc64 details.
+>>>>
+>>>> Wondering why we did the below
+>>>>
+>>>> #if defined(ARCH_SUBSECTION_SHIFT)
+>>>> #define SUBSECTION_SHIFT (ARCH_SUBSECTION_SHIFT)
+>>>> #elif defined(PMD_SHIFT)
+>>>> #define SUBSECTION_SHIFT (PMD_SHIFT)
+>>>> #else
+>>>> /*
+>>>>     * Memory hotplug enabled platforms avoid this default because they
+>>>>     * either define ARCH_SUBSECTION_SHIFT, or PMD_SHIFT is a constant, but
+>>>>     * this is kept as a backstop to allow compilation on
+>>>>     * !ARCH_ENABLE_MEMORY_HOTPLUG archs.
+>>>>     */
+>>>> #define SUBSECTION_SHIFT 21
+>>>> #endif
+>>>>
+>>>> why not
+>>>>
+>>>> #if defined(ARCH_SUBSECTION_SHIFT)
+>>>> #define SUBSECTION_SHIFT (ARCH_SUBSECTION_SHIFT)
+>>>> #else
+>>>> #define SUBSECTION_SHIFT  SECTION_SHIFT
+>>
+>> That should be SECTION_SIZE_SHIFT
+>>
+>>>> #endif
+>>>>
+>>>> ie, if SUBSECTION is not supported by arch we have one sub-section per
+>>>> section?
+>>>
+>>> A couple comments:
+>>>
+>>> The only reason ARCH_SUBSECTION_SHIFT exists is because PMD_SHIFT on
+>>> PowerPC was a non-constant value. However, I'm planning to remove the
+>>> distinction in the next rev of the patches. Jeff rightly points out
+>>> that having a variable subsection size per arch will lead to
+>>> situations where persistent memory namespaces are not portable across
+>>> archs. So I plan to just make SUBSECTION_SHIFT 21 everywhere.
+>>>
+>>
+>>
+>> persistent memory namespaces are not portable across archs because they
+>> have PAGE_SIZE dependency.
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  drivers/gpu/drm/i915/i915_gem.c        | 30 +++++++++++++-------------
->  drivers/gpu/drm/i915/i915_gem_object.h |  3 ++-
->  drivers/gpu/drm/i915/intel_display.c   |  2 +-
->  3 files changed, 18 insertions(+), 17 deletions(-)
+> We can fix that by reserving mem_map capacity assuming the smallest
+> PAGE_SIZE across archs.
 > 
-> diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
-> index ad01c92aaf74..8f2053c91aff 100644
-> --- a/drivers/gpu/drm/i915/i915_gem.c
-> +++ b/drivers/gpu/drm/i915/i915_gem.c
-> @@ -228,7 +228,6 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
->  static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
->  {
->  	struct address_space *mapping = obj->base.filp->f_mapping;
-> -	drm_dma_handle_t *phys;
->  	struct sg_table *st;
->  	struct scatterlist *sg;
->  	char *vaddr;
-> @@ -242,13 +241,13 @@ static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
->  	 * to handle all possible callers, and given typical object sizes,
->  	 * the alignment of the buddy allocation will naturally match.
->  	 */
-> -	phys = drm_pci_alloc(obj->base.dev,
-> -			     roundup_pow_of_two(obj->base.size),
-> -			     roundup_pow_of_two(obj->base.size));
-> -	if (!phys)
-> +	obj->phys_vaddr = dma_alloc_coherent(&obj->base.dev->pdev->dev,
-> +			roundup_pow_of_two(obj->base.size),
-> +			&obj->phys_handle, GFP_KERNEL);
-> +	if (!obj->phys_vaddr)
->  		return -ENOMEM;
->  
-> -	vaddr = phys->vaddr;
-> +	vaddr = obj->phys_vaddr;
->  	for (i = 0; i < obj->base.size / PAGE_SIZE; i++) {
->  		struct page *page;
->  		char *src;
-> @@ -286,18 +285,17 @@ static int i915_gem_object_get_pages_phys(struct drm_i915_gem_object *obj)
->  	sg->offset = 0;
->  	sg->length = obj->base.size;
->  
-> -	sg_dma_address(sg) = phys->busaddr;
-> +	sg_dma_address(sg) = obj->phys_handle;
->  	sg_dma_len(sg) = obj->base.size;
->  
-> -	obj->phys_handle = phys;
-> -
->  	__i915_gem_object_set_pages(obj, st, sg->length);
->  
->  	return 0;
->  
->  err_phys:
-> -	drm_pci_free(obj->base.dev, phys);
-> -
-> +	dma_free_coherent(&obj->base.dev->pdev->dev,
-> +			roundup_pow_of_two(obj->base.size), obj->phys_vaddr,
-> +			obj->phys_handle);
-
-Need to undo the damage to obj->phys_vaddr here since
-i915_gem_pwrite_ioctl() will now use that to determine if it's
-dealing with a phys obj.
-
->  	return err;
->  }
->  
-> @@ -335,7 +333,7 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
->  
->  	if (obj->mm.dirty) {
->  		struct address_space *mapping = obj->base.filp->f_mapping;
-> -		char *vaddr = obj->phys_handle->vaddr;
-> +		char *vaddr = obj->phys_vaddr;
->  		int i;
->  
->  		for (i = 0; i < obj->base.size / PAGE_SIZE; i++) {
-> @@ -363,7 +361,9 @@ i915_gem_object_put_pages_phys(struct drm_i915_gem_object *obj,
->  	sg_free_table(pages);
->  	kfree(pages);
->  
-> -	drm_pci_free(obj->base.dev, obj->phys_handle);
-> +	dma_free_coherent(&obj->base.dev->pdev->dev,
-> +			roundup_pow_of_two(obj->base.size), obj->phys_vaddr,
-> +			obj->phys_handle);
-
-This one is fine I think since the object remains a phys obj once
-turned into one. At least the current code isn't clearing
-phys_handle here. But my memory is a bit hazy on the details. Chris?
-
-Also maybe s/phys_handle/phys_busaddr/ all over?
-
->  }
->  
->  static void
-> @@ -603,7 +603,7 @@ i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
->  		     struct drm_i915_gem_pwrite *args,
->  		     struct drm_file *file)
->  {
-> -	void *vaddr = obj->phys_handle->vaddr + args->offset;
-> +	void *vaddr = obj->phys_vaddr + args->offset;
->  	char __user *user_data = u64_to_user_ptr(args->data_ptr);
->  
->  	/* We manually control the domain here and pretend that it
-> @@ -1431,7 +1431,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
->  		ret = i915_gem_gtt_pwrite_fast(obj, args);
->  
->  	if (ret == -EFAULT || ret == -ENOSPC) {
-> -		if (obj->phys_handle)
-> +		if (obj->phys_vaddr)
->  			ret = i915_gem_phys_pwrite(obj, args, file);
->  		else
->  			ret = i915_gem_shmem_pwrite(obj, args);
-> diff --git a/drivers/gpu/drm/i915/i915_gem_object.h b/drivers/gpu/drm/i915/i915_gem_object.h
-> index ca93a40c0c87..14bd2d61d0f6 100644
-> --- a/drivers/gpu/drm/i915/i915_gem_object.h
-> +++ b/drivers/gpu/drm/i915/i915_gem_object.h
-> @@ -290,7 +290,8 @@ struct drm_i915_gem_object {
->  	};
->  
->  	/** for phys allocated objects */
-> -	struct drm_dma_handle *phys_handle;
-> +	dma_addr_t phys_handle;
-> +	void *phys_vaddr;
->  
->  	struct reservation_object __builtin_resv;
->  };
-> diff --git a/drivers/gpu/drm/i915/intel_display.c b/drivers/gpu/drm/i915/intel_display.c
-> index 5098228f1302..4f8b368ac4e2 100644
-> --- a/drivers/gpu/drm/i915/intel_display.c
-> +++ b/drivers/gpu/drm/i915/intel_display.c
-> @@ -10066,7 +10066,7 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
->  	u32 base;
->  
->  	if (INTEL_INFO(dev_priv)->display.cursor_needs_physical)
-> -		base = obj->phys_handle->busaddr;
-> +		base = obj->phys_handle;
->  	else
->  		base = intel_plane_ggtt_offset(plane_state);
->  
-> -- 
-> 2.20.1
+>> Then we have dependencies like the page size
+>> with which we map the vmemmap area.
 > 
-> _______________________________________________
-> Intel-gfx mailing list
-> Intel-gfx@lists.freedesktop.org
-> https://lists.freedesktop.org/mailman/listinfo/intel-gfx
+> How does that lead to cross-arch incompatibility? Even on a single
+> arch the vmemmap area will be mapped with 2MB pages for 128MB aligned
+> spans of pmem address space and 4K pages for subsections.
 
--- 
-Ville Syrjälä
-Intel
+I am not sure I understood that details. On ppc64 vmemmap can be mapped 
+by either 16M, 2M, 64K depending on the translation mode (hash or 
+radix). Doesn't that imply our reserve area size will vary between these 
+configs? I was thinking we should let the arch pick the largest value as 
+alignment and align things based on that. Otherwise if you align the 
+vmemmap/altmap area to 2M and we move to a platform that map the vmemmap 
+area using 16MB pagesize we fail right? In other words if you want to 
+build a portable pmem region, we have to configure these alignment 
+correctly.
+
+Also the label area storage is completely hidden in firmware right? So 
+the portability will be limited to platforms that support same firmware?
+
+
+> 
+>> Why not let the arch
+>> arch decide the SUBSECTION_SHIFT and default to one subsection per
+>> section if arch is not enabled to work with subsection.
+> 
+> Because that keeps the implementation from ever reaching a point where
+> a namespace might be able to be moved from one arch to another. If we
+> can squash these arch differences then we can have a common tool to
+> initialize namespaces outside of the kernel. The one wrinkle is
+> device-dax that wants to enforce the mapping size, but I think we can
+> have a module-option compatibility override for that case for the
+> admin to say "yes, I know this namespace is defined for 2MB x86 pages,
+> but I want to force enable it with 64K pages on PowerPC"
+
+But then you can't say I want to enable this with 16M pages on PowerPC.
+But I understood what you are suggesting here.
+
+-aneesh
+
 
