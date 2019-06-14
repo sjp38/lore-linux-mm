@@ -2,185 +2,145 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 570C2C31E4B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 14:21:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AA433C31E4C
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 14:21:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0C14E20866
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 14:21:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="XJPmVvUQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C14E20866
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 7212D20866
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 14:21:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7212D20866
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E7726B026C; Fri, 14 Jun 2019 10:21:06 -0400 (EDT)
+	id 246256B0270; Fri, 14 Jun 2019 10:21:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 998306B026D; Fri, 14 Jun 2019 10:21:06 -0400 (EDT)
+	id 1F5D36B0271; Fri, 14 Jun 2019 10:21:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 887296B0270; Fri, 14 Jun 2019 10:21:06 -0400 (EDT)
+	id 10D7E6B0273; Fri, 14 Jun 2019 10:21:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FD3E6B026C
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 10:21:06 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id i26so1857541pfo.22
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 07:21:06 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B92FE6B0270
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 10:21:53 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id q16so1113486wrx.5
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 07:21:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=KUs+eA/7OEbDRmYf6ovajaPBtNHnJudBeV2rHnQKJzg=;
-        b=I2YmHa/yhOEDCSjTZ/4krnsPZBr/RVLwNFVSlbSbjP2yX1YabqXHSiEjFnq0q+Q2Vz
-         1Rv4+eTNqTn+TLROknN+dGfrYYvuHdSpzYeQJohAbMVYhVypSWqFTMCr4RDkgnfi4FVV
-         XpbTh6XYb8TfgexlY98/6ZKoo1ubY/i9O7Q+VZ3uMqE3IFdwsifS3XGgzx9KRpRczpIy
-         oTckBHT/hbM5F5GtaNz6oPOSgyUxK8NTRSdDed2vPMe+eeYk+wpkD4KOK0GwJB1i4orc
-         lonJI9ZgwVleBQ/yGid9sxbA/kf3xCyUm+lwCI+JKty6j56AafXVkZQ7Q2oX7pv8wgrJ
-         nSOQ==
-X-Gm-Message-State: APjAAAWqpgmpbhMKAHYoj0DxGm1RUtmpswLPeJkIM1DNw6UFKHwso0iX
-	Bdp/lKMFHbKyGmQ5zhyJzf/bvhYJkO9+WrI8kQaxa61w0lACugWV7LCkR4CBrxiZUDQdOytveOa
-	qnyvyQbidLVPyXR3te+9kfNgOFpS7gVPE5A4wddgaJfaIK9aasMgNWIEucZqCgDDY0A==
-X-Received: by 2002:a63:eb0a:: with SMTP id t10mr32476065pgh.99.1560522065809;
-        Fri, 14 Jun 2019 07:21:05 -0700 (PDT)
-X-Received: by 2002:a63:eb0a:: with SMTP id t10mr32475978pgh.99.1560522064387;
-        Fri, 14 Jun 2019 07:21:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560522064; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=5pRKRIqd7WWU3KLjTcf+yzyAMGL4kf3UwpHpLS5Hwks=;
+        b=geJSOSPFeESidtBsi0rDiXV5CyuvnlTm/WgsXs3aarNKt6D7H4whe8C3QlkZGBSPBi
+         41lIWmFRVMdHjVMge+YHifXQC9Jq/1Gze23vNtSEljdy/txV3y6NTyF+X2JpIrNNsHNW
+         i/e1uB/9aQaZhAmvgFIfPgy9p0G2z9O6mx5RnlDJ/BE66WfsW7QRNk0EVnlzLlSnE3ns
+         WNw9zoZtITcGM6z4t6ExAeAeRyFBEVDUDT2GlmAw2MgLwIxvexsF1e/D0GbAxitN/que
+         0QAANxV1sB3neI9boBGajZxlelMcpHGqY7TnGQCKr/0PU7BD5SeECXNJliP9Eb92Us6n
+         VM5A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAVVnAokOMSbdJAhqIf8EXbVuKvA9P5VWfrkXknPhLMI+JepSTkP
+	MvqtdSjvdiXiGCbmdZ5ejQ96PgVHEeqY0ccBsXvIWBhqc07Ipb9ZO+fs1BiY0Dno8EksW8mYNBL
+	dYG4HwhWVZrMHeCIUOzyASTDCUJvCfPVqnwSD7Hqlslhn2HTcrKnhNaDwIsJYg8Kcbw==
+X-Received: by 2002:a1c:c003:: with SMTP id q3mr8221594wmf.42.1560522113250;
+        Fri, 14 Jun 2019 07:21:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz9kboj49XAu/Nt1ZoZoYHSue1WghVoMnn/HkCyBKzzRBw+N/OW4ic0Hoz0VLUY2Ji0mEV3
+X-Received: by 2002:a1c:c003:: with SMTP id q3mr8221543wmf.42.1560522112459;
+        Fri, 14 Jun 2019 07:21:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560522112; cv=none;
         d=google.com; s=arc-20160816;
-        b=ol+hXywjT8vmykqnFp/9+hMXuLWx9GWr+UXveXeeUU/wbs0lEj1zp11MXEYqx/70e6
-         7GM9MnMkmYLgmfEzNqZSGqDfERgApDNMNMAK3V+sgOTEbngTF4BQThdu65V6txtoRUT+
-         IK4gl/Fo6Jg8/5jdabxT7iV8lNSGFe3mQQ/dvF5Z0QWvgi0eH7mIpt/yjlV+99lx6x11
-         0u2Po4bKNa37sHXV95BNDgYFVVhBfafEVTB+7nH6EYKKqSnS3srGf2I5OIoNt0FP0685
-         TtQ8h9otL9aO1ZeXBkNYbibs3l/b0XzIZ007/DAwshaGUCvAargeykjvVKzmgoZjuXYl
-         r3DQ==
+        b=Y5gm558lzfqYbd++oiJTcvLFM06YzmwOrhPEXpbXtJzQ3f2Ze/MIGsr5e5xtZvBxev
+         mJBZfQBfNaigZDck5oJ0dNgjyy0zxmax3Avi41B/I3lbUyYCaI4Fpw8Lzoh23B2esHvj
+         uCIIe6Q9EQBJPsSn3KYbK7t8KE2RlTofOujHkZF7dPNrfeNKzJq+8n/+LEGc9h4NF+AB
+         59+cD1cDACFZStmyF7Lauchz7u9iS8B9KIrL5+25mJjfyflL5ukO3m7Z6FM31APcRLoj
+         wHKQI6lULzgyvI7cy/yu+eib1NZPX/p3xxlFv328Bc9bzPbf2f6mptic6DccscJ7+sWP
+         PVyg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=KUs+eA/7OEbDRmYf6ovajaPBtNHnJudBeV2rHnQKJzg=;
-        b=DpWmUEkkVZKH+J3tWXUrB8YfcRJkdCnD/3PWvDBj52SZ7RuzqyPjkj8Tnkxq69GLmJ
-         r/PC+p66ogKLHGTowuR+sOkSTZ2M1i2y4g+5b6VbAuUFwywKCXXGRRffyP4sb8unZ1kg
-         X4CvziKE4ayJjm5LvJoBLov28Ef/szMY8ur7VXSfahNft8GFt4S+N/efvl16FdYhGt8N
-         yPvgERVXcATnQAQWAQlS0/jhAL90tk+3ENRG+hhjtiYnI81pPRRE0JD0dI7uMOwx0hDU
-         aQSDe08BJPHuS6OoTi0SgZ3kwI2qGNHffJURuFI//8aPPdV1QUFmZ7qBu4DGPUgLm6gy
-         iJcQ==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=5pRKRIqd7WWU3KLjTcf+yzyAMGL4kf3UwpHpLS5Hwks=;
+        b=pFjW+YUb9okMEjBSIm+OluyHJZSsnUcIiIPJN7PvEc/yuxMLuNZ422jCgDlbYG8JCe
+         eYRxxfBK/scgKvXwEr3y+mj2mzwgSjQJz98J3SaJivws8+KD2QrPlox0r3H8LZDtRK2V
+         N2Q2sCQRdwZ21eG81nvOsp9oxs4axduUsLzSmwGnpHaMIUmxf3sjnGryF6AFru/eiFSc
+         9VWYP0Gi3Oo28OMztAi2Y/sKRmUh9NQr2Pppq8OP4dcaJ2ew9zSL7cY+XTG9lOMgcO7z
+         h1jNw1XlqwMnyPIQ05fPp6WjaaKz40bEMjD1u/7ILneI7gTyxA88Nqw7Y/OWaFmDyyn9
+         VwSw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XJPmVvUQ;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z12sor1994500pfa.56.2019.06.14.07.21.04
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id v10si2574627wrn.34.2019.06.14.07.21.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 14 Jun 2019 07:21:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Fri, 14 Jun 2019 07:21:52 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=XJPmVvUQ;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=KUs+eA/7OEbDRmYf6ovajaPBtNHnJudBeV2rHnQKJzg=;
-        b=XJPmVvUQ+1hIKac+QIqYLd5YFJV7m3YdhgIvmEZAXcG41G4eOhm2u2oNIsU7DLvY1W
-         WVowE4mF58jVb5xP+NVxVDB5bfVeY4gRmDrot+tFAO1hRjjNUbn6gyI5NZ56eaZvpT5F
-         mWbYLJf2PYdJz5iWhesjqYa9CMv2gL45b1+jjOnL75iIDPe9kOtXP4ywd3eow/H+mJLU
-         itVtP6eBTpHRDnV4dIoAzI1GKZnt5OcnXJDiDNzJBa5Xbo8fyS9VfML4BcW9BRO5hcW4
-         6eVp12fhWG58yEcNNAfMkLzqB3FDUFRJ9uC6tWHnrpqZIVHMlngUuiwibdy90bx7BNHU
-         qvMQ==
-X-Google-Smtp-Source: APXvYqwIJ1UQUE6L0loVaP/fryRfeYi1tnk7UQAdoBEKiWevUAiSGZgFy3zetTWz4G5LEPkcOKLZuw==
-X-Received: by 2002:aa7:92d2:: with SMTP id k18mr88187pfa.153.1560522064093;
-        Fri, 14 Jun 2019 07:21:04 -0700 (PDT)
-Received: from localhost.localhost ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id a3sm3709746pje.3.2019.06.14.07.21.01
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 07:21:03 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-To: akpm@linux-foundation.org,
-	mhocko@suse.com
-Cc: linux-mm@kvack.org,
-	Yafang Shao <laoar.shao@gmail.com>,
-	Wind Yu <yuzhoujian@didichuxing.com>
-Subject: [PATCH] mm/oom_kill: fix uninitialized oc->constraint
-Date: Fri, 14 Jun 2019 22:20:38 +0800
-Message-Id: <1560522038-15879-1-git-send-email-laoar.shao@gmail.com>
-X-Mailer: git-send-email 1.8.3.1
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from [5.158.153.52] (helo=nanos.tec.linutronix.de)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hbn5M-0007a1-1S; Fri, 14 Jun 2019 16:21:44 +0200
+Date: Fri, 14 Jun 2019 16:21:43 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Andy Lutomirski <luto@amacapital.net>
+cc: Dave Hansen <dave.hansen@intel.com>, 
+    Marius Hillenbrand <mhillenb@amazon.de>, kvm@vger.kernel.org, 
+    linux-kernel@vger.kernel.org, kernel-hardening@lists.openwall.com, 
+    linux-mm@kvack.org, Alexander Graf <graf@amazon.de>, 
+    David Woodhouse <dwmw@amazon.co.uk>, 
+    the arch/x86 maintainers <x86@kernel.org>, 
+    Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
+ secrets
+In-Reply-To: <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
+Message-ID: <alpine.DEB.2.21.1906141618000.1722@nanos.tec.linutronix.de>
+References: <20190612170834.14855-1-mhillenb@amazon.de> <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com> <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="8323329-1104140577-1560522104=:1722"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000503, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In dump_oom_summary() oc->constraint is used to show
-oom_constraint_text, but it hasn't been set before.
-So the value of it is always the default value 0.
-We should inititialize it before.
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Bellow is the output when memcg oom occurs,
+--8323329-1104140577-1560522104=:1722
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8BIT
 
-before this patch:
-[  133.078102] oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),
-cpuset=/,mems_allowed=0,oom_memcg=/foo,task_memcg=/foo,task=bash,pid=7997,uid=0
+On Wed, 12 Jun 2019, Andy Lutomirski wrote:
+> > On Jun 12, 2019, at 12:55 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+> > 
+> >> On 6/12/19 10:08 AM, Marius Hillenbrand wrote:
+> >> This patch series proposes to introduce a region for what we call
+> >> process-local memory into the kernel's virtual address space. 
+> > 
+> > It might be fun to cc some x86 folks on this series.  They might have
+> > some relevant opinions. ;)
+> > 
+> > A few high-level questions:
+> > 
+> > Why go to all this trouble to hide guest state like registers if all the
+> > guest data itself is still mapped?
+> > 
+> > Where's the context-switching code?  Did I just miss it?
+> > 
+> > We've discussed having per-cpu page tables where a given PGD is only in
+> > use from one CPU at a time.  I *think* this scheme still works in such a
+> > case, it just adds one more PGD entry that would have to context-switched.
+>
+> Fair warning: Linus is on record as absolutely hating this idea. He might
+> change his mind, but it’s an uphill battle.
 
-after this patch:
-[  952.977946] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),
-cpuset=/,mems_allowed=0,oom_memcg=/foo,task_memcg=/foo,task=bash,pid=13681,uid=0
+Yes I know, but as a benefit we could get rid of all the GSBASE horrors in
+the entry code as we could just put the percpu space into the local PGD.
 
-Fixes: ef8444ea01d7 ("mm, oom: reorganize the oom report in dump_header")
-Cc: Wind Yu <yuzhoujian@didichuxing.com>
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
- mm/oom_kill.c | 12 +++++-------
- 1 file changed, 5 insertions(+), 7 deletions(-)
+Thanks,
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5a58778..f719b64 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -987,8 +987,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- /*
-  * Determines whether the kernel must panic because of the panic_on_oom sysctl.
-  */
--static void check_panic_on_oom(struct oom_control *oc,
--			       enum oom_constraint constraint)
-+static void check_panic_on_oom(struct oom_control *oc)
- {
- 	if (likely(!sysctl_panic_on_oom))
- 		return;
-@@ -998,7 +997,7 @@ static void check_panic_on_oom(struct oom_control *oc,
- 		 * does not panic for cpuset, mempolicy, or memcg allocation
- 		 * failures.
- 		 */
--		if (constraint != CONSTRAINT_NONE)
-+		if (oc->constraint != CONSTRAINT_NONE)
- 			return;
- 	}
- 	/* Do not panic for oom kills triggered by sysrq */
-@@ -1035,7 +1034,6 @@ int unregister_oom_notifier(struct notifier_block *nb)
- bool out_of_memory(struct oom_control *oc)
- {
- 	unsigned long freed = 0;
--	enum oom_constraint constraint = CONSTRAINT_NONE;
- 
- 	if (oom_killer_disabled)
- 		return false;
-@@ -1071,10 +1069,10 @@ bool out_of_memory(struct oom_control *oc)
- 	 * Check if there were limitations on the allocation (only relevant for
- 	 * NUMA and memcg) that may require different handling.
- 	 */
--	constraint = constrained_alloc(oc);
--	if (constraint != CONSTRAINT_MEMORY_POLICY)
-+	oc->constraint = constrained_alloc(oc);
-+	if (oc->constraint != CONSTRAINT_MEMORY_POLICY)
- 		oc->nodemask = NULL;
--	check_panic_on_oom(oc, constraint);
-+	check_panic_on_oom(oc);
- 
- 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
- 	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
--- 
-1.8.3.1
+	tglx
+--8323329-1104140577-1560522104=:1722--
 
