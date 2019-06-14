@@ -6,86 +6,86 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DBD4C31E45
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 03:08:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D95AC31E44
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 03:43:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1ED1C2073F
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 03:08:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1ED1C2073F
+	by mail.kernel.org (Postfix) with ESMTP id 4034921537
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 03:43:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4034921537
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ACF848E0003; Thu, 13 Jun 2019 23:08:13 -0400 (EDT)
+	id ADB386B0005; Thu, 13 Jun 2019 23:43:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A806A8E0002; Thu, 13 Jun 2019 23:08:13 -0400 (EDT)
+	id A8BB16B0006; Thu, 13 Jun 2019 23:43:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 971318E0003; Thu, 13 Jun 2019 23:08:13 -0400 (EDT)
+	id 97C726B0008; Thu, 13 Jun 2019 23:43:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 61C5C8E0002
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 23:08:13 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x18so748262pfj.4
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 20:08:13 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5ED8A6B0005
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 23:43:33 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id s195so885216pgs.13
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 20:43:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=/+fko4Aj3rJ5d20VyKwO7ie8N8MdaHUZgWsv1+S7BjE=;
-        b=UYCLKAvcwL7IAmJfn9F9bAyh0MVHTwhCmEUY9mA++w6DQnVglpP+n9iFi94euSmcHn
-         TCzXJvwwZm4QptS3Rgcu5dvgHQEPC0YBq9NT1bKVpXjDv+Rw2b/6TN0lWEMNaIMCdvhW
-         1l/1RHezIDP0HoLcYwLiHetghWPp31Qz35mHu+2b8TXVuz/UJlLzt8hHQT7jnMZ3WebP
-         CctphAJ2Tc8gfCEY0Z4EKwiZMqNtLcs6QpodAXewMgqlPcGH+gxM4ajcr1gTkwdhc8Qv
-         mjV483pSQCgcmX9UibkrAsdDFD7DOiFO8PYOsy0HgdJkPV8ARLd9q60X5AiF/y+mXjq+
-         QQ+g==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAXxje8LQpenngNP8MRcx83H6HcV2rbPlS+K3XwKslNlBH0YiLzx
-	HmcT9tXi6pahr/j+4fFnDOAr5q8aNtw6JI3LXCar5TWe7eO8ccIb/7LjeAI7rzKOMpnWDU0PphP
-	SSTdH6/3guYe1mmV81e4zJ0Ff8STzEauma1zNuorAD/3puf+fTUNspRjBRqCXhCM=
-X-Received: by 2002:a65:51cb:: with SMTP id i11mr32627059pgq.390.1560481692962;
-        Thu, 13 Jun 2019 20:08:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxp7n3PMa1hPFG1DAQ7V9ZklwN8G1jKyNRMn18+2O3Iqa2VHevA9kwcKy17tUSlLMCv8t1F
-X-Received: by 2002:a65:51cb:: with SMTP id i11mr32627020pgq.390.1560481692254;
-        Thu, 13 Jun 2019 20:08:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560481692; cv=none;
+        bh=u0sRXKKM5V93Crh1idO/XME53W3u7CN9zMbbJ5JbvUA=;
+        b=IDCSQ5sN8Bow/QdLfgaNpNHIwzYZucC1Nlutqihkv98kd/slZXVqATcsnP3p8NEPe7
+         cOFW8HBYZQY/rIGxpF6P91WLHkLpd8mMMPq2SARjW9cN4mh7tF/vKA4390iRpgDGhfPZ
+         rmp8LxRY6w1yPsarLZ8sF99HtjBj6evOqAayuvF0hCSCxiOzR1TqeHtcUyhYZkliNIBY
+         NKQ1PG5ziR6mTPNmrmq8WtdKqVLkmoL/pa+3w/wKKQslQIJpRHRHHGo0pcmK018B7MRT
+         39j9jfKBnqzQOhzNjSNtWD+OkGNQAxrLIwvFw11zJbfyUAVdVlJsnC+pnD2djXay8T5B
+         rQ4A==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAWS9mNO/+WJAvUQIVfXzl8qu6goCdldk+S8TcRPfhHPgsb+tcnf
+	p0imJ8Rfe2GTBU7iDXtJOy5cp77Ha0UYkoTmDf8QFyzh4R6nEOFg+3z4RrP4UoY1V0r4ii0ZyGP
+	m6GXlZtdvYxOKLi8WyhOEhk//saBFvladisxYBWNwgMBnMbrACWAuSXDdGw6k4Sk=
+X-Received: by 2002:a63:b1d:: with SMTP id 29mr33717700pgl.103.1560483812945;
+        Thu, 13 Jun 2019 20:43:32 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz7HdWhrjc095LMVDdxIrwfF0FD5x8qPq/Peonu6CNCXQ/CQDH6MLcg7vEkoEBZNM84rU/o
+X-Received: by 2002:a63:b1d:: with SMTP id 29mr33717661pgl.103.1560483811860;
+        Thu, 13 Jun 2019 20:43:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560483811; cv=none;
         d=google.com; s=arc-20160816;
-        b=kkuMJAfP4rla9duRWU5zd5UIG4qnjvOXxaDaFo6V03nSw3f+AOQTb27nYEF4zrglJ0
-         dxqQ85LlrcBFLb2603wB+L+RUqIWUW4dywVRgkEwbNCl3Fi09zz4AVexspSk3/TS8djv
-         aQFWBCqWp8vXaome/Sdq2ukLZmUhbRoGQlKTawTGTZibhono9yy0N5lGMtbxnD/MlD/R
-         CZBbQhVKcJXr+zWmZkPRh2WXWTS269+mi1lVXbz2J3T5mueySH6bQ5NC076pi12mn3JD
-         xm5iR+qkOUVIGrFcEvFSQzMESR1/AtkdHRzU7aoqhjqiQBsHpCdDPIv6eMIxzXLDT0aR
-         9knA==
+        b=zCTFdm3c8zlhBRcFURJiSgRxa2hnpDFGVxw2pthaVn4AGvzoA7m99Q5/c5C8VlAoNl
+         04JWdOu/I7yxdPCJ7gTOZKN/Yv9ASl4jsLGS9MmTfds3cCL2tUSOGACbWeC5XZgddP/L
+         yd5CeEtENrHr+1xWMb13J1DSjXG/JY+BRp9xs6ziCO76C043AkOQdIVov5kyfvUG8rQ/
+         +4PS8vGKAXPuiwS7riTMfaVBrId6WVPnFGTjHkUicnoYmgai5HCskeSrklmA71W/Dl9P
+         OyxByxKBzFIhBXUXnvkJ4cyJceWpHr8SOa8B03Az6llJxMYXxGlX5HhYBq8I7Yn0yPNy
+         X+VQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=/+fko4Aj3rJ5d20VyKwO7ie8N8MdaHUZgWsv1+S7BjE=;
-        b=zbFOa3RSwTeA7Vh697GP8Cjnf1Sa9AsCdeDptFOS44Jb7yZJ9POSQYL36aRRrzTD94
-         1KWXTGmRB9AEbkSHj34d6OGtAcpOLVS8GtCtdO2XFPvRXni8c52WoliOqCpgJZfFuTsW
-         rwaeE4yEDKfwh9pa7lONaj+k/pBYJ/DqMePkTNaeyDVzrc4LKOwdthe3IH0n6ld4XkmX
-         /MS7X+dDH9jwf1DFlqtpq7r/qlXLZ66cP4EqtekBXBiDJFXGnk9T/XeJDtjI8Dm2k3rp
-         2X0x5lu7EQPbw4tsm6dzz14Cf+GFkhAK1o3VAcHaI3XlJKz4s7oh0JGiR57QfNp8bjVR
-         Bshw==
+        bh=u0sRXKKM5V93Crh1idO/XME53W3u7CN9zMbbJ5JbvUA=;
+        b=gLJk3Mdc8D3eRMP/aklser7ZxJfhb2WGka30R3d1siSc5wuhIglIfV4O/az7adHwNv
+         dVapTy1jMVmsYJMyaGRNcw0g5ghwUw3RcOgfBhpYQ05kiQ+omSkgBGY01gcoyF1bCUDL
+         fvltovjOsYzqIA4VnV2dWZdOvv2ImAXiXXEfLEj7h839GgbOyK5+rIbAwaDxKbpXuu8t
+         4dgatyrwqza4KKextLcKWj9UHCl60xyIHdQFXnHS0+7t5vyVW6fL1YRo6IY0Wgcw6BR3
+         3bcyUNe91WrVtJFdenuAlk+qX/Pq2BI+kvTk19hVVwGkeI+WCFaYcCM/oo4VV5EvQ3vM
+         eHuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail106.syd.optusnet.com.au (mail106.syd.optusnet.com.au. [211.29.132.42])
-        by mx.google.com with ESMTP id b188si1130959pfa.8.2019.06.13.20.08.11
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
+        by mx.google.com with ESMTP id k16si1206034pfk.68.2019.06.13.20.43.31
         for <linux-mm@kvack.org>;
-        Thu, 13 Jun 2019 20:08:12 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.42;
+        Thu, 13 Jun 2019 20:43:31 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
 Received: from dread.disaster.area (pa49-195-189-25.pa.nsw.optusnet.com.au [49.195.189.25])
-	by mail106.syd.optusnet.com.au (Postfix) with ESMTPS id ACCE93DD56B;
-	Fri, 14 Jun 2019 13:08:09 +1000 (AEST)
+	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id 505E11AD622;
+	Fri, 14 Jun 2019 13:43:28 +1000 (AEST)
 Received: from dave by dread.disaster.area with local (Exim 4.92)
 	(envelope-from <david@fromorbit.com>)
-	id 1hbcYa-0005cJ-7D; Fri, 14 Jun 2019 13:07:12 +1000
-Date: Fri, 14 Jun 2019 13:07:12 +1000
+	id 1hbd6k-0005oM-Ah; Fri, 14 Jun 2019 13:42:30 +1000
+Date: Fri, 14 Jun 2019 13:42:30 +1000
 From: Dave Chinner <david@fromorbit.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Ira Weiny <ira.weiny@intel.com>,
-	Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>,
+To: Ira Weiny <ira.weiny@intel.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
+	Dan Williams <dan.j.williams@intel.com>,
 	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
 	linux-xfs@vger.kernel.org,
 	Andrew Morton <akpm@linux-foundation.org>,
@@ -93,29 +93,30 @@ Cc: Jason Gunthorpe <jgg@ziepe.ca>, Ira Weiny <ira.weiny@intel.com>,
 	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
 	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
 	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org, linux-rdma@vger.kernel.org
+	linux-mm@kvack.org, Jason Gunthorpe <jgg@ziepe.ca>,
+	linux-rdma@vger.kernel.org
 Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
-Message-ID: <20190614030712.GO14363@dread.disaster.area>
-References: <20190607110426.GB12765@quack2.suse.cz>
+Message-ID: <20190614034230.GP14363@dread.disaster.area>
+References: <20190606014544.8339-1-ira.weiny@intel.com>
+ <20190606104203.GF7433@quack2.suse.cz>
+ <20190606220329.GA11698@iweiny-DESK2.sc.intel.com>
+ <20190607110426.GB12765@quack2.suse.cz>
  <20190607182534.GC14559@iweiny-DESK2.sc.intel.com>
  <20190608001036.GF14308@dread.disaster.area>
  <20190612123751.GD32656@bombadil.infradead.org>
- <20190613002555.GH14363@dread.disaster.area>
- <20190613152755.GI32656@bombadil.infradead.org>
- <20190613211321.GC32404@iweiny-DESK2.sc.intel.com>
- <20190613234530.GK22901@ziepe.ca>
- <20190614020921.GM14363@dread.disaster.area>
- <20190614023107.GK32656@bombadil.infradead.org>
+ <20190612233024.GD14336@iweiny-DESK2.sc.intel.com>
+ <20190613005552.GI14363@dread.disaster.area>
+ <20190613203406.GB32404@iweiny-DESK2.sc.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190614023107.GK32656@bombadil.infradead.org>
+In-Reply-To: <20190613203406.GB32404@iweiny-DESK2.sc.intel.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=D+Q3ErZj c=1 sm=1 tr=0 cx=a_idp_d
+X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0 cx=a_idp_d
 	a=K5LJ/TdJMXINHCwnwvH1bQ==:117 a=K5LJ/TdJMXINHCwnwvH1bQ==:17
 	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=dq6fvYVFJ5YA:10
-	a=7-415B0cAAAA:8 a=8i7XV5XKZheqFIjFUW4A:9 a=CjuIK1q_8ugA:10
+	a=7-415B0cAAAA:8 a=k35vKodN1J5BDQ_Sz-4A:9 a=CjuIK1q_8ugA:10
 	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -123,32 +124,124 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 07:31:07PM -0700, Matthew Wilcox wrote:
-> On Fri, Jun 14, 2019 at 12:09:21PM +1000, Dave Chinner wrote:
-> > If the lease holder modifies the mapping in a way that causes it's
-> > own internal state to screw up, then that's a bug in the lease
-> > holder application.
+On Thu, Jun 13, 2019 at 01:34:06PM -0700, Ira Weiny wrote:
+> On Thu, Jun 13, 2019 at 10:55:52AM +1000, Dave Chinner wrote:
+> > On Wed, Jun 12, 2019 at 04:30:24PM -0700, Ira Weiny wrote:
+> > > On Wed, Jun 12, 2019 at 05:37:53AM -0700, Matthew Wilcox wrote:
+> > > > On Sat, Jun 08, 2019 at 10:10:36AM +1000, Dave Chinner wrote:
+> > > > > On Fri, Jun 07, 2019 at 11:25:35AM -0700, Ira Weiny wrote:
+> > > > > > Are you suggesting that we have something like this from user space?
+> > > > > > 
+> > > > > > 	fcntl(fd, F_SETLEASE, F_LAYOUT | F_UNBREAKABLE);
+> > > > > 
+> > > > > Rather than "unbreakable", perhaps a clearer description of the
+> > > > > policy it entails is "exclusive"?
+> > > > > 
+> > > > > i.e. what we are talking about here is an exclusive lease that
+> > > > > prevents other processes from changing the layout. i.e. the
+> > > > > mechanism used to guarantee a lease is exclusive is that the layout
+> > > > > becomes "unbreakable" at the filesystem level, but the policy we are
+> > > > > actually presenting to uses is "exclusive access"...
+> > > > 
+> > > > That's rather different from the normal meaning of 'exclusive' in the
+> > > > context of locks, which is "only one user can have access to this at
+> > > > a time".  As I understand it, this is rather more like a 'shared' or
+> > > > 'read' lock.  The filesystem would be the one which wants an exclusive
+> > > > lock, so it can modify the mapping of logical to physical blocks.
+> > > > 
+> > > > The complication being that by default the filesystem has an exclusive
+> > > > lock on the mapping, and what we're trying to add is the ability for
+> > > > readers to ask the filesystem to give up its exclusive lock.
+> > > 
+> > > This is an interesting view...
+> > > 
+> > > And after some more thought, exclusive does not seem like a good name for this
+> > > because technically F_WRLCK _is_ an exclusive lease...
+> > > 
+> > > In addition, the user does not need to take the "exclusive" write lease to be
+> > > notified of (broken by) an unexpected truncate.  A "read" lease is broken by
+> > > truncate.  (And "write" leases really don't do anything different WRT the
+> > > interaction of the FS and the user app.  Write leases control "exclusive"
+> > > access between other file descriptors.)
+> > 
+> > I've been assuming that there is only one type of layout lease -
+> > there is no use case I've heard of for read/write layout leases, and
+> > like you say there is zero difference in behaviour at the filesystem
+> > level - they all have to be broken to allow a non-lease truncate to
+> > proceed.
+> > 
+> > IMO, taking a "read lease" to be able to modify and write to the
+> > underlying mapping of a file makes absolutely no sense at all.
+> > IOWs, we're talking exaclty about a revokable layout lease vs an
+> > exclusive layout lease here, and so read/write really doesn't match
+> > the policy or semantics we are trying to provide.
 > 
-> Sounds like the lease semantics aren't the right ones for the longterm
-> GUP users then.  The point of the longterm GUP is so the pages can be
-> written to, and if the filesystem is going to move the pages around when
-> they're written to, that just won't work.
+> I humbly disagree, at least depending on how you look at it...  :-D
+> 
+> The patches as they stand expect the user to take a "read" layout lease which
+> indicates they are currently using "reading" the layout as is.
+> They are not
+> changing ("writing" to) the layout.
 
-And now we go full circle back to the constraints we decided on long
-ago because we can't rely on demand paging RDMA hardware any time
-soon to do everything we need to transparently support long-term GUP
-on file-backed mappings. i.e.:
+As I said in a another email in the thread, a layout lease does not
+make the layout "read only". It just means the lease owner will be
+notified when someone else is about to modify it. The lease owner
+can modify the mapping themselves, and they will not get notified
+about their own modifications.
 
-	RDMA to file backed mappings must first preallocate and
-	write zeros to the range of the file they are mapping so
-	that the filesystem block mapping is complete and static for
-	the life of the RDMA mapping that will pin it.
+> They then pin pages which locks parts of
+> the layout and therefore they expect no "writers" to change the layout.
 
-IOWs, the layout lease will tell the RDMA application that the
-static setup it has already done  to work correctly with a file
-backed mapping may be about to be broken by a third party.....
+Except they can change the layout themselves. It's perfectly valid
+to get a layout lease, write() from offset 0 to EOF and fsync() to
+intiialise the file and allocate all the space in the file, then
+mmap() it and hand to off to RMDA, all while holding the layout
+lease.
 
--Dave.
+> The "write" layout lease breaks the "read" layout lease indicating that the
+> layout is being written to.
+
+Layout leases do not work this way.
+
+> In fact, this is what NFS does right now.  The lease it puts on the file is of
+> "read" type.
+> 
+> nfs4layouts.c:
+> static int
+> nfsd4_layout_setlease(struct nfs4_layout_stateid *ls)
+> {
+> ...
+>         fl->fl_flags = FL_LAYOUT;
+>         fl->fl_type = F_RDLCK;
+> ...
+> }
+
+Yes, the existing /implementation/ uses F_RDLCK, but that doesn't
+mean the layout is "read only". Look at the pNFS mapping layout code
+- the ->map_blocks export operation:
+
+       int (*map_blocks)(struct inode *inode, loff_t offset,
+                          u64 len, struct iomap *iomap,
+                          bool write, u32 *device_generation);
+                          ^^^^^^^^^^
+
+Yup, it has a write variable that, when set, causes the filesystem
+to _allocate_ blocks if the range to be written to falls over a hole
+in the file.  IOWs, a pNFS layout lease can modify the file layout -
+you're conflating use of a "read lock" API to mean that what the
+lease _manages_ is "read only". That is not correct.
+
+Layouts are /always writeable/ by the lease owner(s), the question
+here is what we do with third parties attempting to modify a layout
+covered by an "exclusive" layout lease. Hence, I'll repeat:
+
+> > we're talking exaclty about a revokable layout lease vs an
+> > exclusive layout lease here, and so read/write really doesn't match
+> > the policy or semantics we are trying to provide.
+
+Cheers,
+
+Dave.
 -- 
 Dave Chinner
 david@fromorbit.com
