@@ -6,104 +6,104 @@ X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C071DC31E4B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 21:56:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 201ECC31E4D
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 21:56:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5EE8121852
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 21:56:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D525521873
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 21:56:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="raIMRqF1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5EE8121852
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Xc0bQGEe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D525521873
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C17B26B0008; Fri, 14 Jun 2019 17:56:34 -0400 (EDT)
+	id 70E1E6B000C; Fri, 14 Jun 2019 17:56:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA0CB6B000C; Fri, 14 Jun 2019 17:56:34 -0400 (EDT)
+	id 697DA6B000D; Fri, 14 Jun 2019 17:56:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A420A6B000D; Fri, 14 Jun 2019 17:56:34 -0400 (EDT)
+	id 560B86B000E; Fri, 14 Jun 2019 17:56:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 687056B0008
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 17:56:34 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id f1so2680296pfb.0
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 14:56:34 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DB476B000C
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 17:56:39 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id d3so2818778pgc.9
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 14:56:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:to:to:cc:cc:cc
          :subject:in-reply-to:references:message-id;
-        bh=hwBde/SMLrHhHCvgxQz29KDiKeNrkZ8rDx62rDp3sHE=;
-        b=O4YCcPSirnU03e1Dd8zRcUOaxXO0zLAVV15PkWIz8h+4gXDttFv5co9b3BI78jxtk0
-         xJoDC+Yj242mgT6atzWfTdLqi25+eR0QAhVQEWUm4PyS5f1scpuFo1wYBivu+OQ9okNa
-         Ac2+wX4cQIxVrUKkN0Co0mco8tDzed9RLJ7t0OZ6zPhklW5Zv25daFxXbUwecPaeCC6N
-         qmPjD3t0zTkoLhkjk4DI+2Mo3WpKT82+r/318XhnWZQlFZofUfSJzOHF3AY2EEhmeGyF
-         vuui+8i6U7C7sw0e+EsNZOeoWJcZRY4DijjGKgV/ZyoSRKJR6gEHsHrCVVz8SxdzrXwy
-         lVLQ==
-X-Gm-Message-State: APjAAAWInGqZLpo6qj6N8UrPa6ypTmve2P01f/Hf4PfdJSNypMKfuY4l
-	Itrn6ANGzdyR0pD5Igo5nHorij9evfTZe5Tb+HSZqZhygDxZdujVa2/Yg61MniWXfXc0LdMe5bQ
-	jeyQLNnuQyBweOIA6h5PfDVUF56PpB+svDOpbbg+/PjqWvx/a+rQnwjr//sF99jaGFw==
-X-Received: by 2002:a17:902:8f81:: with SMTP id z1mr28906623plo.290.1560549393981;
-        Fri, 14 Jun 2019 14:56:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxgoPUxlk3RibZz66em3wYrsmZW7lOQ8zm9LdgSY9vG3uXkhbp/oWF2GCqFmQEdxj/FUM/s
-X-Received: by 2002:a17:902:8f81:: with SMTP id z1mr28906603plo.290.1560549393397;
-        Fri, 14 Jun 2019 14:56:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560549393; cv=none;
+        bh=DRenn5JRpDITJT+8WAkhhzqQoIX7nfofPKC6XjXaHW4=;
+        b=Yg5s7df7gi8f/xk2b5NmYzNzWUmpjNsyhF30SYsSTnuB9WZXh9N+QopYNhVsczxWhH
+         1MD1VDl/0PtuIeQvJd9NbfC6iZd+K58zp5V/j9xmkU10lVpA3zjxY8hd4EFM5nJvp2rT
+         IU4z+dz5RJ7SMrLtirwi5AQJm8rPZ/DSs4l/ICORXP5iEgrBnLXL3f/lyOz/8gki42vq
+         +8sarLZdycA+frs5b0nmBwP5zKfg2vQl1F1FCHht8hYB+Fc2aftoq9lxlcvZIvgTpZyY
+         rvKVqAaDhUGeDesG3nHtAIzZFMfUGHYgPXWdJqSumWmiAAfTKZ0SGbPBE3QgttCIOBx9
+         EOlQ==
+X-Gm-Message-State: APjAAAXqy58CyC37Es2igotYWSPPCYVYIe4kqq2mE827nBuSfAE4fTXx
+	whl4lwJB9ArZOt3eNdHu+xPBVZmHwigqY0AJECjavFVlLWRyY3dBwMXHYQqNcjhEYeR9/WV/nSk
+	urxpjs5WxnKZ6MaMf8QBAAQKJX5Oc8/V7E+nxyV3SRT6BeSfY7Fat8BN7ecSH3YEb8Q==
+X-Received: by 2002:a17:90a:8d86:: with SMTP id d6mr12632038pjo.127.1560549398730;
+        Fri, 14 Jun 2019 14:56:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwLYxdSQA64z6wSk7ijKZiL/oh09c5lYWaIXXCs046of9PG6P5Q6CdZeheyWsoUDO019AcA
+X-Received: by 2002:a17:90a:8d86:: with SMTP id d6mr12632017pjo.127.1560549398052;
+        Fri, 14 Jun 2019 14:56:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560549398; cv=none;
         d=google.com; s=arc-20160816;
-        b=QJykQjNpBTF/+Y3Uc5nXOduc5zugK4PZZNIDd1AG15+dIsg4R0wzubSDN/EriH8rX6
-         SD5Ze8Osc/XDj9Zh1HuvJfu6KgJDaOxIKpiKKYnbW6uqv2l3XB5zTWU2Dp4V/MLDuFIj
-         NTeI0xy0d521tnJ/wt2QhNd0v78sYpwYXmh/MJkq/MMuq8qbASEsuBZeoe2DPGHcSCYo
-         QNMvEuZ4GXhgqkXsPF1a97Bci9sQcXH1tkt/i6FUNEKnse1y5B1A9kvktaAxBf1pkvVf
-         GbtEE5p191BoPcyGPXKZo3O2gLIYddh8D6h4Qp6UWBMBKHNziDue5Wbq6rmMmpFVoUKa
-         v27A==
+        b=KAKuwu70XBXAAgoonBZWqy+ZXlIc6wGG+fkyaBzCcJ1phup8/nk/DU19v4zfigfnMD
+         XdpAly2zqerObvff7El65IXKJwchF5WmefhPHeHs5U/rvZ1ARO8v19rsAekxg3A8jR+8
+         XeIyLwd42D+QTHzCRws3HRwzLP/BReGgeANE00g+WP+bcd4qsxVc9qlSIJOjASQcmeJj
+         MjIFdDA2CzPB7FrTSuKcdJxMqMaHslYxQK0zNGW8z26qzR6JkgTILWp9Ofg40cA+mqjy
+         qfv0I/ejyFrPVb9eIOAUUQVK4cldjgoEVoHWOvli0KJ7Rwx4Q2B6HNxRwvRtbXG4yyFq
+         GCuQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=message-id:references:in-reply-to:subject:cc:cc:cc:to:to:to:from
          :date:dkim-signature;
-        bh=hwBde/SMLrHhHCvgxQz29KDiKeNrkZ8rDx62rDp3sHE=;
-        b=slM2hH2YEnRNnsHKBTutVDBnPUtDmUlPMEZKENLNL93PHCRihdkitq62VVbnxopZxu
-         03nj5WPvXIPb6nBv0veTQxGXH77MoKWDUDc5rCxFLf05hf0LmqnYtIe0AIfzBtl41qrx
-         q7XXfKzp1tuOw+jBgIsuJ/HX72ZXmcKUAOATtEXm7ML0MHeGRydVyJsJSE3nMT2hKaCa
-         locCoxB2g+XwsJ9f1+TXC/fUeDbM4DtFMAVVBpTSIGR8ntEk0QUNCZufFWLe75YRBrEu
-         GuBOMWWEVaO7vWbdPJ05aYCxTSaU6N3zIXOwwdDWlXn3eNvdBwjmWN8OLIe8umFf6t/y
-         4EHA==
+        bh=DRenn5JRpDITJT+8WAkhhzqQoIX7nfofPKC6XjXaHW4=;
+        b=OgZfE355x5ntnOcSF31C1yfDyrCxJ+nf5Z6XNEXaJrCv+F7em9jHZxXxEL7lzD5pP9
+         2TrOfvM54sreP3/BPWuegJ8GESez1IToXNPtvb9o3Y9h8bkBbFsnvOt19LXNyoFCQo/h
+         4zvBm7D/z7Vi1N5DX8epyIgqvk/c6zzzBznTv0n8F3cjzYX2i1VMPQ8TctGxkg+1mVVG
+         8mzT/BUO6YD6sRli9perZZpLnTj+6WvXNrofkcMO+dsf5mlprFI4mE0zMzgquWTvsR9H
+         mzjEEyPAmS2OTv9Le5x9XY0YkcSY39dGyHv4/DbijroHoEAfZl9EZl24WKM93bCAJHFO
+         0wOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=raIMRqF1;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Xc0bQGEe;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n26si3435592pgv.264.2019.06.14.14.56.33
+        by mx.google.com with ESMTPS id a2si3487980pgq.298.2019.06.14.14.56.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 14:56:33 -0700 (PDT)
+        Fri, 14 Jun 2019 14:56:38 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=raIMRqF1;
+       dkim=pass header.i=@kernel.org header.s=default header.b=Xc0bQGEe;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from localhost (unknown [23.100.24.84])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id BF5F721473;
-	Fri, 14 Jun 2019 21:56:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 7E71521473;
+	Fri, 14 Jun 2019 21:56:37 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1560549393;
-	bh=herjBvh4t8HYh0xFBwW8V/rg6wEBBupnA3gm5tZ8t8Y=;
+	s=default; t=1560549397;
+	bh=S4QtfExTtOz2u5kiFXwsdNdDqX3zQuJFRx8efOBqAj4=;
 	h=Date:From:To:To:To:Cc:Cc:Cc:Subject:In-Reply-To:References:From;
-	b=raIMRqF1KeJ9NvTmq6ZTd7d0i6yYO+dPRLyBR507DZF5tpcirMtb1qBB1hXr1/wLy
-	 opqDYjQWy5fsTDJZvTkPLAVUPajM8KJC4Ubjm8NU7kN/Ncg3eEOBu73ZSdTu90m1kv
-	 UzxIExIklsFVwhIGYS9jwnX/JGiip5OZs0p30glw=
-Date: Fri, 14 Jun 2019 21:56:31 +0000
+	b=Xc0bQGEeOWSG9E8nVni9rn+HzEL8twYZ9anX8Ly/yQQawTp3zYZxb7BaK2BhIdTiW
+	 24w7BG9Ms5isR//cOpbT6a2mAPMVYOpDxBlct7SAuOFgFhYlegeUBEqK/jokRVCGNJ
+	 0qhxfRxIn+X5Q1M7XeRPRneFyVYYAVzt8dvKLRrg=
+Date: Fri, 14 Jun 2019 21:56:36 +0000
 From: Sasha Levin <sashal@kernel.org>
 To: Sasha Levin <sashal@kernel.org>
-To:   Mike Kravetz <mike.kravetz@oracle.com>
-To:     linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc:     Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>,
+To:   Mikhail Zaslonko <zaslonko@linux.ibm.com>
+To:     akpm@linux-foundation.org
+Cc:     linux-kernel@vger.kernel.org, linux-mm@kvack.org,
 Cc: <stable@vger.kernel.org>
 Cc: stable@vger.kernel.org
-Subject: Re: [PATCH 2/3] hugetlbfs: Use i_mmap_rwsem to fix page fault/truncate race
-In-Reply-To: <20181203200850.6460-3-mike.kravetz@oracle.com>
-References: <20181203200850.6460-3-mike.kravetz@oracle.com>
-Message-Id: <20190614215632.BF5F721473@mail.kernel.org>
+Subject: Re: [PATCH v2 1/1] memory_hotplug: fix the panic when memory end is not on the section boundary
+In-Reply-To: <20181105150401.97287-2-zaslonko@linux.ibm.com>
+References: <20181105150401.97287-2-zaslonko@linux.ibm.com>
+Message-Id: <20190614215637.7E71521473@mail.kernel.org>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -114,34 +114,57 @@ Hi,
 
 [This is an automated email]
 
-This commit has been processed because it contains a "Fixes:" tag,
-fixing commit: ebed4bfc8da8 [PATCH] hugetlb: fix absurd HugePages_Rsvd.
+This commit has been processed because it contains a -stable tag.
+The stable tag indicates that it's relevant for the following trees: all
 
 The bot has tested the following trees: v5.1.9, v4.19.50, v4.14.125, v4.9.181, v4.4.181.
 
-v4.19.50: Build OK!
-v4.14.125: Build OK!
-v4.9.181: Build OK!
+v5.1.9: Failed to apply! Possible dependencies:
+    Unable to calculate
+
+v4.19.50: Failed to apply! Possible dependencies:
+    Unable to calculate
+
+v4.14.125: Failed to apply! Possible dependencies:
+    4da2ce250f98 ("mm: distinguish CMA and MOVABLE isolation in has_unmovable_pages()")
+    da024512a1fa ("mm: pass the vmem_altmap to arch_remove_memory and __remove_pages")
+    fb52bbaee598 ("mm: move is_pageblock_removable_nolock() to mm/memory_hotplug.c")
+
+v4.9.181: Failed to apply! Possible dependencies:
+    133ff0eac95b ("mm/hmm: heterogeneous memory management (HMM for short)")
+    3859a271a003 ("randstruct: Mark various structs for randomization")
+    4ef589dc9b10 ("mm/hmm/devmem: device memory hotplug using ZONE_DEVICE")
+    5613fda9a503 ("sched/cputime: Convert task/group cputime to nsecs")
+    60f3e00d25b4 ("sysv,ipc: cacheline align kern_ipc_perm")
+    8c8b73c4811f ("sched/cputime, powerpc: Prepare accounting structure for cputime flush on tick")
+    a19ff1a2cc92 ("sched/cputime, powerpc/vtime: Accumulate cputime and account only on tick/task switch")
+    b18b6a9cef7f ("timers: Omit POSIX timer stuff from task_struct when disabled")
+    b584c2544041 ("powerpc/vmemmap: Add altmap support")
+    baa73d9e478f ("posix-timers: Make them configurable")
+    c3edc4010e9d ("sched/headers: Move task_struct::signal and task_struct::sighand types and accessors into <linux/sched/signal.h>")
+    d3df0a423397 ("mm/hmm: add new helper to hotplug CDM memory region")
+    d69dece5f5b6 ("LSM: Add /sys/kernel/security/lsm")
+    d7d9b612f1b0 ("powerpc/vmemmap: Reshuffle vmemmap_free()")
+    da024512a1fa ("mm: pass the vmem_altmap to arch_remove_memory and __remove_pages")
+    fb52bbaee598 ("mm: move is_pageblock_removable_nolock() to mm/memory_hotplug.c")
+
 v4.4.181: Failed to apply! Possible dependencies:
-    0070e28d97e7 ("radix_tree: loop based on shift count, not height")
-    00f47b581105 ("radix-tree: rewrite radix_tree_tag_clear")
-    0e749e54244e ("dax: increase granularity of dax_clear_blocks() operations")
-    1366c37ed84b ("radix tree test harness")
-    29f3ad7d8380 ("fs: Provide function to unmap metadata for a range of blocks")
-    334fd34d76f2 ("vfs: Add page_cache_seek_hole_data helper")
-    339e6353046d ("radix_tree: tag all internal tree nodes as indirect pointers")
-    4aae8d1c051e ("mm/hugetlbfs: unmap pages if page fault raced with hole punch")
-    52db400fcd50 ("pmem, dax: clean up clear_pmem()")
-    72e2936c04f7 ("mm: remove unnecessary condition in remove_inode_hugepages")
-    7fc9e4722435 ("fs: Introduce filemap_range_has_page()")
-    83929372f629 ("filemap: prepare find and delete operations for huge pages")
-    ac401cc78242 ("dax: New fault locking")
-    b2e0d1625e19 ("dax: fix lifetime of in-kernel dax mappings with dax_map_atomic()")
-    d604c324524b ("radix-tree: introduce radix_tree_replace_clear_tags()")
-    d72dc8a25afc ("mm: make pagevec_lookup() update index")
-    e4b274915863 ("DAX: move RADIX_DAX_ definitions to dax.c")
-    e61452365372 ("radix_tree: add support for multi-order entries")
-    f9fe48bece3a ("dax: support dirty DAX entries in radix tree")
+    11a6f6abd74a ("powerpc/mm: Move radix/hash common data structures to book3s64 headers")
+    15b1624b7807 ("powerpc: Use defines for __init_tlb_power[78]")
+    18569c1f134e ("powerpc/64: Don't try to use radix MMU under a hypervisor")
+    1a01dc87e09b ("powerpc/mm: Add mmu_early_init_devtree()")
+    26b6a3d9bb48 ("powerpc/mm: move pte headers to book3s directory")
+    2bfd65e45e87 ("powerpc/mm/radix: Add radix callbacks for early init routines")
+    3dfcb315d81e ("powerpc/mm: make a separate copy for book3s")
+    5c3c7ede2bdc ("powerpc/mm: Split hash page table sizing heuristic into a helper")
+    756d08d1ba16 ("powerpc/mm: Abstract early MMU init in preparation for radix")
+    b275bfb26963 ("powerpc/mm/radix: Add a kernel command line to disable radix")
+    b584c2544041 ("powerpc/vmemmap: Add altmap support")
+    c3ab300ea555 ("powerpc: Add POWER9 cputable entry")
+    c610ec60ed63 ("powerpc/mm: Move disable_radix handling into mmu_early_init_devtree()")
+    da024512a1fa ("mm: pass the vmem_altmap to arch_remove_memory and __remove_pages")
+    f64e8084c94b ("powerpc/mm: Move hash related mmu-*.h headers to book3s/")
+    fb52bbaee598 ("mm: move is_pageblock_removable_nolock() to mm/memory_hotplug.c")
 
 
 How should we proceed with this patch?
