@@ -6,99 +6,97 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A5578C46477
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 06:43:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7BE2DC31E44
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 06:47:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7012F20866
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 06:43:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7012F20866
+	by mail.kernel.org (Postfix) with ESMTP id 48D7A20866
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 06:47:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48D7A20866
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 107408E0003; Fri, 14 Jun 2019 02:43:43 -0400 (EDT)
+	id D876B8E0003; Fri, 14 Jun 2019 02:47:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0B83E8E0002; Fri, 14 Jun 2019 02:43:43 -0400 (EDT)
+	id D37BB8E0002; Fri, 14 Jun 2019 02:47:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EE8538E0003; Fri, 14 Jun 2019 02:43:42 -0400 (EDT)
+	id C4D278E0003; Fri, 14 Jun 2019 02:47:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B52B38E0002
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 02:43:42 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id a126so212889wma.2
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 23:43:42 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F2758E0002
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 02:47:45 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id p16so213050wmi.8
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 23:47:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=4ewZIXMd6QVZdJWtzUTUDe+bVjnKK3XZRSDBcNJAUY0=;
-        b=H3nicXjrdufGo3ONNQshTvQ8szPccRzpRs39glAKveAimMiB89SiuK7y7XuAhF2KmD
-         wNOcfWmruLBmIhVt8RB58lM3usSjKqCKRUSgcTJrQ4vBI8v8FBMIEis4lH2rgsTTJznM
-         io54EBqA/qkF3rgAnyk26nMBs428xkgdoiCkFBLkOuFrIEAZEnIiSJvShVy+kBOeKwnC
-         Lw/1rQro0Xo86ExLVEk9qdmUfmIndpwctMryhQfavwSTsyvTPrMCX2Ivar3X+Bo8twCo
-         5pDEwZ9XLhbR1K4cVxsxDeAktgLTWQ9jjuaS5HodNvE4mPKM1aiY/sRnSXMuq2hc4Bcq
-         f7eA==
+        bh=ZRvQKZgbHP1/3FnySKYs/gT8crcA9dQWhMJPaikEnAg=;
+        b=QVSN5agRPiIXnIHCYixXrfMcGxggsoPbQ20V0wh8qzLrdL5S+hKNqqAUEpSzn6/Nil
+         s4MltiHSocRDZ9sJ0FpMUx63bcoBlnC6rj1SO9ioJPtOqT5l9ALV55cngCaoxpOjdN5g
+         E73WiSlNz+gZ7liE2Atg5LWVdW48nYk9etProPtRT//6G42y1kaAaO+u+9qAZLWOiN4W
+         JzQlL7fifOr9DbL9eWym8OYcBwFCF1bDH4+OAOzL1z7MsgSME9BYJTFMrU7t4XYdHGKb
+         h+9B81VTeDoQmOjUkCfPzvYZIPM9lN3CKB6wVezOIHjNgOBoS61AOeUDI+7K0NbaLQS0
+         i8UQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAU6mKd8L+4pK6s5CVpRQRISKXxpjM2Deachf9599/MZyuV6xokK
-	xwuSmnfS2JE3+AyVZq7Gs2Nk6BGXzl1KDqVOkfJul+186nUcUzCgYQQIpjxdxSMgnMLJsw/cpKQ
-	uHfeD0q8NUDAFTZrSPUMNnOkpplgG6fqvYY+V+Fl7qwxUQ54Eyg+YtmrjEcSUUc4l7A==
-X-Received: by 2002:adf:ce03:: with SMTP id p3mr36239146wrn.94.1560494622191;
-        Thu, 13 Jun 2019 23:43:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwrbFpzdxiQQsFp3JdmOVIW9BmxyhBKKfJp0wyz2ovpuj70v1doM8EE/LV6iccQnp8e705L
-X-Received: by 2002:adf:ce03:: with SMTP id p3mr36239107wrn.94.1560494621589;
-        Thu, 13 Jun 2019 23:43:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560494621; cv=none;
+X-Gm-Message-State: APjAAAUOgLXUTbfhK9QT3Wu0d6si86v4mlV6JB1kfCHJiiL3LM1e0IYH
+	3lVlL24Tp3GTUxnEUJSVmOgGTKMjvVgjwrbFxdO1ccBs061WnsdWcAdG2zE7cmTVYrkR2YLQvY6
+	YHWcuz8UuRnsxlXCF2hwSWqU18m3n94ESf5y0VnkGicKCbgGYpi1mIAz4jKfxuDKwpA==
+X-Received: by 2002:a5d:484e:: with SMTP id n14mr38427324wrs.348.1560494865045;
+        Thu, 13 Jun 2019 23:47:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwo3GVX107kwIjQsxOlybtqPMG3UJsQ/twLKIv0liTqO57P64mRcI+8cxb0qHFBe6KWE65r
+X-Received: by 2002:a5d:484e:: with SMTP id n14mr38427281wrs.348.1560494864409;
+        Thu, 13 Jun 2019 23:47:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560494864; cv=none;
         d=google.com; s=arc-20160816;
-        b=NQA1Z19Z3yeH595Y673GmA8cDYOeBov0Qbpv7SfjTsXcArtGFwlpZG+RLgsWXxn/Ki
-         ZwQSRPnFKa6k9l9LhFuoTC6EHPaJs5bJFNbOSvuW6HT3V/r7mUIc7he1yUdwmgY82JV1
-         Hu34KLR72BnZNOKjRMcn0bKwhuYM4Gj21G8chMEhnb3n+MBEX1CO0XMZKdZvMYI/DnO0
-         a0UAFZ5lYxtfpQxS03pjYF76ZGGk5qJgqpk3FY0JGv0MLuUCiJBPXQv4+Xw6ztJ7Iqjm
-         Bnm1ue/2GAiiOBDL0KqdBJK5amaplLD5zafXxiTCRVE/kcrPQYIbjJdQxD1EBDzT6BMm
-         LN8w==
+        b=c1f4WMbd8/I0nrVYjbuyRCnYQRUV4ocja9jPB04QzlfercmfHz7fG8lTykAK9AXJlI
+         O6G4xEcFTKZgh0wr9I7M+XkXFgwUIs3TGfI1+s08E6Tw2byf0r16xV3yn8qFfU3cAX79
+         Cq4Hf2cNOh14c8083D8s4H1nQXEw4o6nEPdJBRBK6n/ksogU1ufSeZl5GENUPzesc/sY
+         54F7iD8mO2zpMZzyNm4aZGVBp0dCY7cO2ZhDHg9zCqoWHARAa2iHxlUj/yBHC2ULUA1V
+         DpBir9qSQbbZRr46CevE83ylOgojU80OcZdhV2vFTtK5cx/Jwac9dtqHTNkE1Bu8/gsz
+         ik6g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=4ewZIXMd6QVZdJWtzUTUDe+bVjnKK3XZRSDBcNJAUY0=;
-        b=IgKIWL75nOHuaNJmDWvbVsVCjCwMG57xSnD3aXGe2CfwBInO71tMzinEqMivwqw0fA
-         kHR69LF5N2H4mvHHexUXCNrHT9VF1rP7q2wZ6Ct/AkiL+0qhRESRq5rgztDSoLnEpWg2
-         5UC+OfAg45fddGq5m09WRVcJDdONQRz6XxZ+04ODCUslM+ugdu7WvzVCgjkT++Uac3Ie
-         0IN/kO3MfcFSK/lOdam69CRWsFsYy1vX719le/iHeZKEEp6suqElxWltGuYr0Vrv4znj
-         v5r11nLAUJHGGcMd/ffSVJLEmgiUTXykThgxVTv1blaoZlRbfXI7e+0X25EOSy1P0zdR
-         mGlQ==
+        bh=ZRvQKZgbHP1/3FnySKYs/gT8crcA9dQWhMJPaikEnAg=;
+        b=jQ2rICgGYxNfqpmok/E96isb4yKJq3pkF5hR7hBtSc8FgCBkUIgf1n57PrYfb4h5mr
+         RbdS4b8M2wf8vQ3o2bt9TVv+GylsD05TBkD+kbzlkApWwVjMLXz5+Knu4ZkWufwdWvZ1
+         cfJIO3/teHuEGQP5RyTNXBFFfEifRs8CswVwEDyo+A06lYJqlZzd+vSPE5Hq7kt4caeI
+         6Rx0CpMasgN/s1aw0O1knE02C5hM+t66x1p8g5f7Ujm2WCWNVioegJirplLtSAE1OOBR
+         5z1GfZYdrlkuyHDgxrwZBEETLRmYjONJQXkgHypPOjym1jVyFb/XIg3oGTDxArNQ9cG1
+         Zm3g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
 Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id i16si580082wrn.219.2019.06.13.23.43.41
+        by mx.google.com with ESMTPS id w13si1230636wmk.22.2019.06.13.23.47.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 23:43:41 -0700 (PDT)
+        Thu, 13 Jun 2019 23:47:44 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
 Received: by newverein.lst.de (Postfix, from userid 2407)
-	id D916768B02; Fri, 14 Jun 2019 08:43:13 +0200 (CEST)
-Date: Fri, 14 Jun 2019 08:43:13 +0200
+	id CC60468B02; Fri, 14 Jun 2019 08:47:16 +0200 (CEST)
+Date: Fri, 14 Jun 2019 08:47:16 +0200
 From: Christoph Hellwig <hch@lst.de>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Jason Gunthorpe <jgg@mellanox.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+To: Jason Gunthorpe <jgg@mellanox.com>
+Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
 	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
 	Ben Skeggs <bskeggs@redhat.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>,
 	"linux-pci@vger.kernel.org" <linux-pci@vger.kernel.org>,
-	Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 18/22] mm: mark DEVICE_PUBLIC as broken
-Message-ID: <20190614064313.GM7246@lst.de>
-References: <20190613094326.24093-1-hch@lst.de> <20190613094326.24093-19-hch@lst.de> <20190613194430.GY22062@mellanox.com> <a27251ad-a152-f84d-139d-e1a3bf01c153@nvidia.com> <20190613195819.GA22062@mellanox.com> <20190614004314.GD783@iweiny-DESK2.sc.intel.com>
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 21/22] mm: remove the HMM config option
+Message-ID: <20190614064716.GN7246@lst.de>
+References: <20190613094326.24093-1-hch@lst.de> <20190613094326.24093-22-hch@lst.de> <20190613200150.GB22062@mellanox.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190614004314.GD783@iweiny-DESK2.sc.intel.com>
+In-Reply-To: <20190613200150.GB22062@mellanox.com>
 User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -106,19 +104,22 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 05:43:15PM -0700, Ira Weiny wrote:
-> <sigh>  yes but the earlier patch:
+On Thu, Jun 13, 2019 at 08:01:55PM +0000, Jason Gunthorpe wrote:
+> On Thu, Jun 13, 2019 at 11:43:24AM +0200, Christoph Hellwig wrote:
+> > All the mm/hmm.c code is better keyed off HMM_MIRROR.  Also let nouveau
+> > depend on it instead of the mix of a dummy dependency symbol plus the
+> > actually selected one.  Drop various odd dependencies, as the code is
+> > pretty portable.
 > 
-> [PATCH 03/22] mm: remove hmm_devmem_add_resource
+> I don't really know, but I thought this needed the arch restriction
+> for the same reason get_user_pages has various unique arch specific
+> implementations (it does seem to have some open coded GUP like thing)?
 > 
-> Removes the only place type is set to MEMORY_DEVICE_PUBLIC.
-> 
-> So I think it is ok.  Frankly I was wondering if we should remove the public
-> type altogether but conceptually it seems ok.  But I don't see any users of it
-> so...  should we get rid of it in the code rather than turning the config off?
+> I was hoping we could do this after your common gup series? But sooner
+> is better too.
 
-That was my original idea.  But then again Jerome spent a lot of effort
-putting hooks for it all over the mm and it would seem a little root
-to just rip this out ASAP.  I'll give it some more time, but it it doesn't
-get used after a few more kernel releases we should nuke it.
+Ok, I've added the arch and 64-bit dependency back in for now.  It does
+not look proper to me, and is certainly underdocumented, but the whole
+pagetable walking code will need a lot of love eventually anyway, and
+the Kconfig stuff for it can be done properly then.
 
