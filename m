@@ -6,95 +6,94 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 88F48C31E44
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 06:33:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C8C12C31E44
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 06:36:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 596E620850
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 06:33:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 596E620850
+	by mail.kernel.org (Postfix) with ESMTP id 8F627208CA
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 06:36:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F627208CA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EA2DB8E0003; Fri, 14 Jun 2019 02:33:46 -0400 (EDT)
+	id 3CBBA8E0003; Fri, 14 Jun 2019 02:36:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E532C8E0002; Fri, 14 Jun 2019 02:33:46 -0400 (EDT)
+	id 37B1D8E0002; Fri, 14 Jun 2019 02:36:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D1B4B8E0003; Fri, 14 Jun 2019 02:33:46 -0400 (EDT)
+	id 26B868E0003; Fri, 14 Jun 2019 02:36:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 955C58E0002
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 02:33:46 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id u2so656788wrr.3
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 23:33:46 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E15CD8E0002
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 02:36:17 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id p16so209143wmi.8
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 23:36:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=8PO9Ydpr/GVVUxr4C+H3kt9HIjXw2MJwYNSsRclH1s4=;
-        b=CSEigc2BV8+aJyF7mEFAXa3Bgmfd/CfD8K3dGXlaKqIanMrb0btZtEALHjAVXhiA3F
-         DreVs076tcrBQVOrt3Imo0ozx2dsY4qI/X3eBp9Ps3cHrJfiV9KTwRdjS5FUjgQowcFT
-         KJVqSNRc792k50mHPtsaYB9Ll9U9/Eqxil47sn/mwN+7QWadTQfxsn6YXSsWF7Uaylwn
-         vL7XK4uHqMyEbzcEy0+KLgTU15BK2k7Ysrfdv4Z1FCYtlPLl4u5OVlBVJKgoWQ69yb7v
-         ubv5pVuGZsTq5Z+WQc58orVqTUzgvP6N9xiJ94PV4wqm/F4Qt+GEuObDQ5rNqdBRpWYF
-         RvGw==
+        bh=Th0UM04bEs+pDrLemn1eCiYRKTaHyYaaf8CfHkhXpEI=;
+        b=rAk6b/f7SZ9NjfOo8sIRzOhKLjEJn+ZyWhKB7BfIbhN6y2E+mIOtRKFW+PfdwXNxOx
+         pcoeokVmVf8yEt+U1Klf7gH9Wu2WSo3YcLzsgWir3eeWid3U6ewnfG4LvYwzqYzDchZp
+         MBiSyFRp6Irjan5w8ucZl+8iTeAipra7qrsZQQzFgv0rWjblqp6pikArMtcm4M3ykyld
+         BaX35LUU6ndF4Ohi6jtEBKTTI8R7VBKHUy0eSmtXDtttxi57Lb35UINQ3JGN2dprtkUw
+         xe/3/tOwCQpOsGC0/PNkdd/AdnBn+epTX9R7V24pgtTS2H7NjBXMzPzxY/rUAnuWwC3X
+         PhyQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAUiApa7pi9LB4wW2ndOb9xW+MdyxsJ7ozzHrw2boBM78c4Jx08R
-	UK3mLpYDnI22GUdu8qK42z+sL8TL1D3typwpfwfQQTAvTVYYkZacYETFDaMfMzRT4JeBGWLtXcp
-	KXH0e1Vr+dCUpGMVhAPoKfnsS6zZDIv0CIaJh/YL1X71IH6DBWr1Jk6SAM/jIULKpWg==
-X-Received: by 2002:a7b:c775:: with SMTP id x21mr6383918wmk.9.1560494026158;
-        Thu, 13 Jun 2019 23:33:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzBlzrKF1RCTDPd9GC4vvfW6YO7mZCRCEMZTS2s3omw6Vaq3GOJ75EIUsbgR0UPQWqlvyww
-X-Received: by 2002:a7b:c775:: with SMTP id x21mr6383882wmk.9.1560494025457;
-        Thu, 13 Jun 2019 23:33:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560494025; cv=none;
+X-Gm-Message-State: APjAAAU22/9cL4doloJxO2/VZGDOzDTlb9mYdTBVnoQzeqOvXHkh3Ku8
+	jVGMGKkPKY8Ah0s6ePT78YcUzdtk1BiNpOM3fmvuHiLmT3t6nrZG/e9DOUvRJbRcbKneFBL/H9Y
+	7u/VsDj5lUW7Ap2/BNzG2tU0795QQv9nUk1f3wjcx9qGAI7JnkXWyQquhmmygChMJqA==
+X-Received: by 2002:a5d:4a8d:: with SMTP id o13mr28852945wrq.350.1560494177511;
+        Thu, 13 Jun 2019 23:36:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzgeeKuZyUZezywizUXLBg0Vsp21Hj2QMJhxxvV34xxmyc4korA6Zr0mA3nfWk4m4FYNaBm
+X-Received: by 2002:a5d:4a8d:: with SMTP id o13mr28852891wrq.350.1560494176907;
+        Thu, 13 Jun 2019 23:36:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560494176; cv=none;
         d=google.com; s=arc-20160816;
-        b=MDMY2WQSsl0oN8LkcQeY9AP6c6BAM5eVEnBuN2JtjnherLtw4zKerQFGAcSI6PfHw4
-         ZGEU1BsztaqMOGBWsDugzbLpb6gQA2YTroAnUAICf+IjxTs6ieLg6v6/0wAtnKjiz4SN
-         21UsgS9Qwy+oWp5MzaBwB5elar4btshHoe7/qZmoEZZys8DSninQKW5Sy3anNQzH7quH
-         /b4I7kMfr9LAA6VGhZkFw3b/IvvwexE7bUF4H2oAb6SbO/JGXJ6I/xxqUn3H8fk1luR5
-         uiV+72GUf6PTBCixR1yPUWudTR6GlQIurj1Fua/jOS6x2pI0ProIQVenD8TqvjdqYkRQ
-         FcqA==
+        b=0h6pI9DDt6oYOIu5xPN52mFkIlxaFjCJ4cA1KB/o/tAdVwb4lue2hZkvJJ2gQLIUU+
+         h/vZR/z3co8mSe/HfsvdXhsnwQgFf7G5csrvg8PUtX05cb0F8Ef2j4Of8BlbscWulAxD
+         jFV/cXZOEKZoIGTmuYKfFk3FTvZUQP4CPEsJIKCw5XvjvVpR8B8lEwPbk50d1ACz8m/o
+         IfnqxcMa63Mg4ixQpWy+6XtzK+8cmg2m8ONF8w3/iWkIqujSR6CRvob/W9y9eg8cXoDy
+         Aq/T4KK/8Bj5goARS0kW1inZTKRmnH2d6nLAMFHWxIOpTidf95gJ13m4ok/sdnLRdR9r
+         3ZYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=8PO9Ydpr/GVVUxr4C+H3kt9HIjXw2MJwYNSsRclH1s4=;
-        b=XC8pWRwlRhSpt0jdmvdzFl6fi0ylMHuNF3Yjmb5DLdRoHgE1pFlBWiiT+t3GQLdf3+
-         55wKoC1P9qfuSZdHwEFiFAsZfJTS/dletvYxAjPvM6WV0EM3xB7Rgl8I7M/4nuIdK63V
-         yrrPe1DxxntHUMf5VU/b9ZMaRio7UvIV5b1OPLonSs9xIJklTSY6L6+B8I5MDwNSk7+r
-         vrC63bXR43UPSedtw2NwYFzRgxFmQ1TLuAw2XtEUghE/aZDDbn2F4CeyBAomYy+xeAwo
-         sxN9+LuYy4nvzUXqnKTmdTrvRvXFcRJ7ew5COh7TOFkvbvPpogFWv2XJjvaD0eX9dJ5K
-         xg/A==
+        bh=Th0UM04bEs+pDrLemn1eCiYRKTaHyYaaf8CfHkhXpEI=;
+        b=0eXo6D35PWZFF8a1KnFaERUILp5IXRdKA9DVcD+uLxehjXYpX72L6iszrn/hR2bcsK
+         khVERp7ruy4XouEQbphgjs7LSFQtqTggmD7NhiaX7K1/1hLZPzRhHKf0qprzgJwcNj94
+         8KluWpWe6xW/rzmISldMWlp6wowDwXC30ApEa379o5ezNyut89blJF9fFxC3jP4gjaRy
+         GG19kkywkKyjnxBk7oJeIfY3Q1zklrKIfp3gnxXySFcJBuQJ5Q1lulJJhPpIG7B0SVzk
+         LForwWRUsMQKhstpxrbQmleHlXsCywL7Nej7NjA5kkIYAc8/Lg1hvkNqyw24hkMYXK5j
+         d1jQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
 Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id w13si1938181wrg.9.2019.06.13.23.33.45
+        by mx.google.com with ESMTPS id d7si1580915wrj.70.2019.06.13.23.36.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 23:33:45 -0700 (PDT)
+        Thu, 13 Jun 2019 23:36:16 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
 Received: by newverein.lst.de (Postfix, from userid 2407)
-	id DDC1568B02; Fri, 14 Jun 2019 08:33:17 +0200 (CEST)
-Date: Fri, 14 Jun 2019 08:33:17 +0200
+	id 50C3C68B02; Fri, 14 Jun 2019 08:35:49 +0200 (CEST)
+Date: Fri, 14 Jun 2019 08:35:49 +0200
 From: Christoph Hellwig <hch@lst.de>
-To: Ralph Campbell <rcampbell@nvidia.com>
+To: Ira Weiny <ira.weiny@intel.com>
 Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
 	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
 	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>,
-	linux-mm@kvack.org, nouveau@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-nvdimm@lists.01.org,
-	linux-pci@vger.kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 10/22] memremap: add a migrate callback to struct
- dev_pagemap_ops
-Message-ID: <20190614063317.GJ7246@lst.de>
-References: <20190613094326.24093-1-hch@lst.de> <20190613094326.24093-11-hch@lst.de> <d6916d71-c17e-74df-58f2-c28ff8044b96@nvidia.com>
+	linux-nvdimm@lists.01.org, linux-pci@vger.kernel.org,
+	linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linux-mm@kvack.org, nouveau@lists.freedesktop.org
+Subject: Re: [PATCH 13/22] device-dax: use the dev_pagemap internal refcount
+Message-ID: <20190614063549.GK7246@lst.de>
+References: <20190613094326.24093-1-hch@lst.de> <20190613094326.24093-14-hch@lst.de> <20190614002217.GB783@iweiny-DESK2.sc.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <d6916d71-c17e-74df-58f2-c28ff8044b96@nvidia.com>
+In-Reply-To: <20190614002217.GB783@iweiny-DESK2.sc.intel.com>
 User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -102,9 +101,15 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 04:42:07PM -0700, Ralph Campbell wrote:
-> This needs to either initialize "page" or be changed to "vmf->page".
-> Otherwise, it is a NULL pointer dereference.
+On Thu, Jun 13, 2019 at 05:22:17PM -0700, Ira Weiny wrote:
+> > -	dev_dax->pgmap.ref = &dev_dax->ref;
+> 
+> I don't think this exactly correct.  pgmap.ref is a pointer to the dev_dax ref
+> structure.  Taking it away will cause devm_memremap_pages() to fail AFAICS.
+> 
+> I think you need to change struct dev_pagemap as well:
 
-Thanks, fixed.
+Take a look at the previous patch, which adds an internal_ref field
+to dev_pagemap that ->ref is set up to point to if not otherwise
+initialized.
 
