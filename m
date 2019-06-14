@@ -2,195 +2,277 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D5EEC31E45
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 02:32:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D165EC31E45
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 02:59:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F2DC2208CA
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 02:32:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F2DC2208CA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 93BDA20866
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 02:59:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 93BDA20866
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A276A8E0004; Thu, 13 Jun 2019 22:32:06 -0400 (EDT)
+	id 15FDB8E0003; Thu, 13 Jun 2019 22:59:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9D7A38E0002; Thu, 13 Jun 2019 22:32:06 -0400 (EDT)
+	id 1119C8E0002; Thu, 13 Jun 2019 22:59:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C6A38E0004; Thu, 13 Jun 2019 22:32:06 -0400 (EDT)
+	id 000638E0003; Thu, 13 Jun 2019 22:59:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 572628E0002
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 22:32:06 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id x9so666568pfm.16
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 19:32:06 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BE79B8E0002
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 22:59:55 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id d19so751629pls.1
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 19:59:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references
-         :content-transfer-encoding:mime-version;
-        bh=kTe2vZV0xSZQ1ioxOtwYAy0bK8GedKZIxNZ5CKd9JJs=;
-        b=CeF8dQYDOZf75I/QpIvN5Pan0HBl06oXMkEKJinG4rEDH4nMHowMmayzKoWdkY3qP3
-         9pzouTHeCb2Id9Oc5gxwljQM3EDRmzDt30SSr9Qc8cvtGem3zsEf7evrBi+ZO3z4ggPz
-         /NRoD39Eqg2jecCRTo8z40ITSQOiV4g332o7VltbK/pHVxPprLkYyzYtj2LwgCetMKJe
-         TeGqC5vIzZVbb6U1+H/zVWdSIlEAujQ6S3413S+zFc/AE15LHK9mALnTwVBW9I+10XuX
-         ARsxEJukCiZ/0GaiUFDOBbtmHg2ORr6QVi+Ga5tpnETTXqgddWPbCE/V104Yc/6vwclY
-         P2rQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-Gm-Message-State: APjAAAXB5AcRDWzVK7WJSTau0XaeK6HB+03RqLkSzeSeFjSFhUamc2JB
-	h0fO11U8w1mbYB/HWAQNXyXhEv58jEyH/2Go4Y7P0HVjSJkd36iWvr2C8qYaISP/MFZ3qIdiDrc
-	qu65VZJJHz/UY4n1QVlCZxJ4C50ljqN4pVTeZzSZRFmDPpuL9/W/oLIPyqGgM6zLspg==
-X-Received: by 2002:a17:90a:25e6:: with SMTP id k93mr8756695pje.100.1560479525932;
-        Thu, 13 Jun 2019 19:32:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwThrlYE0JkONz2HcVOwqR2WOHCT8MxPntqirkcqfs+BKLM4kVxil07djzEM4fdu30G/mnB
-X-Received: by 2002:a17:90a:25e6:: with SMTP id k93mr8756655pje.100.1560479525160;
-        Thu, 13 Jun 2019 19:32:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560479525; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=wir2EN2E61L9Vav98pO1VVp25skKSAe1Sa/P5lqGq5c=;
+        b=L++ZXPSyN4V0TtRDdULnI3Q/TrF2Dp8DxnfgKR96wSVJfjH6aY+4TYrJpGzfnwx5kH
+         ATCElr+z/kRH43gn5RZQGC8XTKBOTKPn4q77f1E6gHg7SdPnYKcliVWATD+UVojIw8GO
+         I+6qKN0EVcsIRHZc5WsWyF9JE256hRjR/PNnklhH8Tluw5//sB9GIn0dILZSE7eivx3j
+         4WviQVt30DjyTgnODYG/G3Gxz1ZyKzgxkQVf7s1zCNUgBZWI02DwPdC5DwGPpLk7zpoh
+         e6JSU8WGkM69NrmD1uH3CzFJRsoJTRz3AFM2IxkGueOwZ/xMCLeAghwb4pOdb0CTQMWy
+         sjUA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAUP3G/b+fDhhs1qMcCaUp40xpneYt3xgcQ4O9vKT+D6OKkXhuKK
+	k+nZ6K9po3qmlCv04m8aXxrLTBxLtfTBue/XVfz1G/qvWGkyIW6D0vLBYPmMLOxpRxcqN5xGkRo
+	wwaNCv8+tEbzATJFHwV7XEJjBknqbt5W9NPTap9h63tHpmohlYU/GKr/YLhgILUA=
+X-Received: by 2002:a63:2848:: with SMTP id o69mr33534132pgo.258.1560481195225;
+        Thu, 13 Jun 2019 19:59:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxRGKzTRBzERwgPTOL6X0KZ0IeOqtkozs7lEuuqnFKZNHlISPKmyoabLrKt4g22jpph/o6J
+X-Received: by 2002:a63:2848:: with SMTP id o69mr33534093pgo.258.1560481194088;
+        Thu, 13 Jun 2019 19:59:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560481194; cv=none;
         d=google.com; s=arc-20160816;
-        b=WJJV5mr0AKjvx6bOts0ANE3uxpRWzl0cJlv8wFGiyeos3SFbN8h2oh3aDQPZLp7bSo
-         fh6TqejJ14F3gtxRCYmyyBvkoTosZjTnwkT447ao97xqVVE3XvddyLWhJHpnLT5pjQqE
-         NoynyJn00kGGNWYIC0Au/eqXfTTn67CddxZCaUt/q1UJ7KLNoY6ueoObEqwyHE2A3+TP
-         Qy7iTALR7LI7uFaNHwRJ22pYlrLWjCBearxKPoXRcOf0EPypdT7z9ZX9Q7ZWPx9C6Ctp
-         GBA8dtpDoKBV+yeAPm3OXWwMTSsNe3gF9evzZHI3KOkauyG+EVC4LZLUwJKIOsO4j9M6
-         UArw==
+        b=kn5jMHIOyNYBHLKdfegy62R7ZRMQbNEbPLMKyIpsdfwCE1jponEhyPQ+MkSo92Lx72
+         cbu3Vc14+vV9ub5NE5P8daSYpbFKT9eDlt5p38KcimEU9Scx+toyIltbeRLUKMtBsjIP
+         6D35V2gDj48rf3AsEMN/1wiubIQcNRk9I71LQW7ubnNGwMBtaUn+NlcZVD3LzX+wLiDG
+         sGpbcL6x+1vuypwQxVWE1qGi4ljxTw+woOKCgWYNdEoUXaKVDGH/U+h+ohhXNz6F13V+
+         EXIZc06bV2P3lOr+w3cl0bEu04m9BXg5vcrWPYG/rtzAZ2UfYKkwImazbo9YHD295PUa
+         LnCQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=kTe2vZV0xSZQ1ioxOtwYAy0bK8GedKZIxNZ5CKd9JJs=;
-        b=jF0ohicYXzIngPJ85c1/GsnR2nTk+x5RIO7tTw/k4eYCpMTSqMS4Zn8d6suqd7gIG6
-         Cw0K6Tr1uAXP7jUk1keYqIi16ZQwsaSVDrFgfjCO5r8i66k0lgIZfg0aJh9ARzaIie1Y
-         xFKEepuSS4si16h206CeF43+4MC2sQiKrc1yGTdEhN0I1REWlF82CFtEC8v+25+YiZvc
-         ReD0TFBaJEOXqY7q3giYant1zplXbQauuqd0+2Zv4lz579zp/X/rU+drPxUVN5FsRJmB
-         s54FEGcWijrC077LeQEQGk5rtNDQ62ZpO5SfApXwE/5h26Q+fuz51kvVDGzSbe1iAIav
-         pItg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=wir2EN2E61L9Vav98pO1VVp25skKSAe1Sa/P5lqGq5c=;
+        b=iZG7RQRYw85E8hnaKadP0dJ7IfgcJ4eA9E/ceid9Gm8AmU7XxLC3GEI2wr0ahZ514R
+         DDxfz/t8qYAiBzSx/fR7ugm2WQX8Wnq2eY+uenxKHDzVMWYCzCjyh/aVpcHO80L/YqSW
+         RJefKDQ1mKsf+nrw1mPDIy2+OyRfHQNwrbNDlzO1HA7iB96wysWBi/k70FWkxOM6Y6xq
+         mqfzNC/k+U7bO7a/fVjGgtpmQ29GK2xHd+6jZQX3RaxNMH+h9SJ/oxa8p5fEKHcxq3K6
+         g3SvhZewcoVi1uy/GejPgO/jhacFJwhZ0F5BiGKrdz9OErcNg6Xp+F9g6HDVQmUWw0jE
+         /G2g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-Received: from mailgw02.mediatek.com ([210.61.82.184])
-        by mx.google.com with ESMTPS id y13si1243002pgq.172.2019.06.13.19.32.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 19:32:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) client-ip=210.61.82.184;
+       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail106.syd.optusnet.com.au (mail106.syd.optusnet.com.au. [211.29.132.42])
+        by mx.google.com with ESMTP id c7si1049915plr.83.2019.06.13.19.59.53
+        for <linux-mm@kvack.org>;
+        Thu, 13 Jun 2019 19:59:54 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.42;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com
-X-UUID: ad556f1f2e36417abf74c4de3c3953c3-20190614
-X-UUID: ad556f1f2e36417abf74c4de3c3953c3-20190614
-Received: from mtkcas06.mediatek.inc [(172.21.101.30)] by mailgw02.mediatek.com
-	(envelope-from <walter-zh.wu@mediatek.com>)
-	(mhqrelay.mediatek.com ESMTP with TLS)
-	with ESMTP id 589143347; Fri, 14 Jun 2019 10:32:02 +0800
-Received: from mtkcas07.mediatek.inc (172.21.101.84) by
- mtkmbs08n2.mediatek.inc (172.21.101.56) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Fri, 14 Jun 2019 10:32:00 +0800
-Received: from [172.21.84.99] (172.21.84.99) by mtkcas07.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Fri, 14 Jun 2019 10:32:00 +0800
-Message-ID: <1560479520.15814.34.camel@mtksdccf07>
-Subject: Re: [PATCH v3] kasan: add memory corruption identification for
- software tag-based mode
-From: Walter Wu <walter-zh.wu@mediatek.com>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-CC: Alexander Potapenko <glider@google.com>, Dmitry Vyukov
-	<dvyukov@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg
-	<penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim
-	<iamjoonsoo.kim@lge.com>, Matthias Brugger <matthias.bgg@gmail.com>, "Martin
- Schwidefsky" <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Vasily
- Gorbik" <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>, "Jason
- A . Donenfeld" <Jason@zx2c4.com>, Miles Chen <miles.chen@mediatek.com>,
-	<kasan-dev@googlegroups.com>, <linux-kernel@vger.kernel.org>,
-	<linux-mm@kvack.org>, <linux-arm-kernel@lists.infradead.org>,
-	<linux-mediatek@lists.infradead.org>, <wsd_upstream@mediatek.com>
-Date: Fri, 14 Jun 2019 10:32:00 +0800
-In-Reply-To: <1560447999.15814.15.camel@mtksdccf07>
-References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
-	 <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
-	 <1560447999.15814.15.camel@mtksdccf07>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-195-189-25.pa.nsw.optusnet.com.au [49.195.189.25])
+	by mail106.syd.optusnet.com.au (Postfix) with ESMTPS id E4ACC3DD5BC;
+	Fri, 14 Jun 2019 12:59:50 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hbcQW-0005bc-NF; Fri, 14 Jun 2019 12:58:52 +1000
+Date: Fri, 14 Jun 2019 12:58:52 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Ira Weiny <ira.weiny@intel.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
+	linux-xfs@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org, Jason Gunthorpe <jgg@ziepe.ca>,
+	linux-rdma@vger.kernel.org
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190614025852.GN14363@dread.disaster.area>
+References: <20190606014544.8339-1-ira.weiny@intel.com>
+ <20190606104203.GF7433@quack2.suse.cz>
+ <20190606220329.GA11698@iweiny-DESK2.sc.intel.com>
+ <20190607110426.GB12765@quack2.suse.cz>
+ <20190607182534.GC14559@iweiny-DESK2.sc.intel.com>
+ <20190608001036.GF14308@dread.disaster.area>
+ <20190612123751.GD32656@bombadil.infradead.org>
+ <20190613002555.GH14363@dread.disaster.area>
+ <20190613203404.GA30404@iweiny-DESK2.sc.intel.com>
 MIME-Version: 1.0
-X-TM-SNTS-SMTP:
-	C34F4A9FF25B720FA8D264905C1A23CE1B1F2B5A1E4DE450A529D5CDAA5FBF8F2000:8
-X-MTK: N
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190613203404.GA30404@iweiny-DESK2.sc.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=D+Q3ErZj c=1 sm=1 tr=0 cx=a_idp_d
+	a=K5LJ/TdJMXINHCwnwvH1bQ==:117 a=K5LJ/TdJMXINHCwnwvH1bQ==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=dq6fvYVFJ5YA:10
+	a=7-415B0cAAAA:8 a=gnJ_ljic2OsQuunJrboA:9 a=CjuIK1q_8ugA:10
+	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-06-14 at 01:46 +0800, Walter Wu wrote:
-> On Thu, 2019-06-13 at 15:27 +0300, Andrey Ryabinin wrote:
-> > 
-> > On 6/13/19 11:13 AM, Walter Wu wrote:
-> > > This patch adds memory corruption identification at bug report for
-> > > software tag-based mode, the report show whether it is "use-after-free"
-> > > or "out-of-bound" error instead of "invalid-access" error.This will make
-> > > it easier for programmers to see the memory corruption problem.
+On Thu, Jun 13, 2019 at 01:34:05PM -0700, Ira Weiny wrote:
+> On Thu, Jun 13, 2019 at 10:25:55AM +1000, Dave Chinner wrote:
+> > On Wed, Jun 12, 2019 at 05:37:53AM -0700, Matthew Wilcox wrote:
+> > > On Sat, Jun 08, 2019 at 10:10:36AM +1000, Dave Chinner wrote:
+> > > > On Fri, Jun 07, 2019 at 11:25:35AM -0700, Ira Weiny wrote:
+> > > > > Are you suggesting that we have something like this from user space?
+> > > > > 
+> > > > > 	fcntl(fd, F_SETLEASE, F_LAYOUT | F_UNBREAKABLE);
+> > > > 
+> > > > Rather than "unbreakable", perhaps a clearer description of the
+> > > > policy it entails is "exclusive"?
+> > > > 
+> > > > i.e. what we are talking about here is an exclusive lease that
+> > > > prevents other processes from changing the layout. i.e. the
+> > > > mechanism used to guarantee a lease is exclusive is that the layout
+> > > > becomes "unbreakable" at the filesystem level, but the policy we are
+> > > > actually presenting to uses is "exclusive access"...
 > > > 
-> > > Now we extend the quarantine to support both generic and tag-based kasan.
-> > > For tag-based kasan, the quarantine stores only freed object information
-> > > to check if an object is freed recently. When tag-based kasan reports an
-> > > error, we can check if the tagged addr is in the quarantine and make a
-> > > good guess if the object is more like "use-after-free" or "out-of-bound".
-> > > 
+> > > That's rather different from the normal meaning of 'exclusive' in the
+> > > context of locks, which is "only one user can have access to this at
+> > > a time".
 > > 
 > > 
-> > We already have all the information and don't need the quarantine to make such guess.
-> > Basically if shadow of the first byte of object has the same tag as tag in pointer than it's out-of-bounds,
-> > otherwise it's use-after-free.
+> > Layout leases are not locks, they are a user access policy object.
+> > It is the process/fd which holds the lease and it's the process/fd
+> > that is granted exclusive access.  This is exactly the same semantic
+> > as O_EXCL provides for granting exclusive access to a block device
+> > via open(), yes?
 > > 
-> > In pseudo-code it's something like this:
+> > > As I understand it, this is rather more like a 'shared' or
+> > > 'read' lock.  The filesystem would be the one which wants an exclusive
+> > > lock, so it can modify the mapping of logical to physical blocks.
 > > 
-> > u8 object_tag = *(u8 *)kasan_mem_to_shadow(nearest_object(cacche, page, access_addr));
+> > ISTM that you're conflating internal filesystem implementation with
+> > application visible semantics. Yes, the filesystem uses internal
+> > locks to serialise the modification of the things the lease manages
+> > access too, but that has nothing to do with the access policy the
+> > lease provides to users.
 > > 
-> > if (access_addr_tag == object_tag && object_tag != KASAN_TAG_INVALID)
-> > 	// out-of-bounds
-> > else
-> > 	// use-after-free
+> > e.g. Process A has an exclusive layout lease on file F. It does an
+> > IO to file F. The filesystem IO path checks that Process A owns the
+> > lease on the file and so skips straight through layout breaking
+> > because it owns the lease and is allowed to modify the layout. It
+> > then takes the inode metadata locks to allocate new space and write
+> > new data.
+> > 
+> > Process B now tries to write to file F. The FS checks whether
+> > Process B owns a layout lease on file F. It doesn't, so then it
+> > tries to break the layout lease so the IO can proceed. The layout
+> > breaking code sees that process A has an exclusive layout lease
+> > granted, and so returns -ETXTBSY to process B - it is not allowed to
+> > break the lease and so the IO fails with -ETXTBSY.
+> > 
+> > i.e. the exclusive layout lease prevents other processes from
+> > performing operations that may need to modify the layout from
+> > performing those operations. It does not "lock" the file/inode in
+> > any way, it just changes how the layout lease breaking behaves.
 > 
-> Thanks your explanation.
-> I see, we can use it to decide corruption type.
-> But some use-after-free issues, it may not have accurate free-backtrace.
-> Unfortunately in that situation, free-backtrace is the most important.
-> please see below example
-> 
-> In generic KASAN, it gets accurate free-backrace(ptr1).
-> In tag-based KASAN, it gets wrong free-backtrace(ptr2). It will make
-> programmer misjudge, so they may not believe tag-based KASAN.
-> So We provide this patch, we hope tag-based KASAN bug report is the same
-> accurate with generic KASAN.
-> 
-> ---
->     ptr1 = kmalloc(size, GFP_KERNEL);
->     ptr1_free(ptr1);
-> 
->     ptr2 = kmalloc(size, GFP_KERNEL);
->     ptr2_free(ptr2);
-> 
->     ptr1[size] = 'x';  //corruption here
-> 
-> 
-> static noinline void ptr1_free(char* ptr)
-> {
->     kfree(ptr);
-> }
-> static noinline void ptr2_free(char* ptr)
-> {
->     kfree(ptr);
-> }
-> ---
-> 
-We think of another question about deciding by that shadow of the first
-byte.
-In tag-based KASAN, it is immediately released after calling kfree(), so
-the slub is easy to be used by another pointer, then it will change
-shadow memory to the tag of new pointer, it will not be the
-KASAN_TAG_INVALID, so there are many false negative cases, especially in
-small size allocation.
+> Question: Do we expect Process A to get notified that Process B was attempting
+> to change the layout?
 
-Our patch is to solve those problems. so please consider it, thanks.
+In which case?
 
+In the non-exclusive case, yes, the lease gets
+recalled and the application needs to play nice and release it's
+references and drop the lease.
+
+In the exclusive case, no. The application has said "I don't play
+nice with others" and so we basically tell process B to get stuffed
+and process A can continue onwards oblivious to the wreckage it
+leaves behind....
+
+> This changes the exclusivity semantics.  While Process A has an exclusive lease
+> it could release it if notified to allow process B temporary exclusivity.
+
+And then it's not an exclusive lease - it's just a normal layout
+lease. Process B -does not need a lease- to write to the file.
+
+All the layout lease does is provide notification to applications
+that rely on the layout of the file being under their control that
+someone else is about to modify the layout. The lease holder that
+"plays nice" then releases the layout and drops it's lease, allowing
+process B to begin it's operation.
+
+Process A then immediately takes a new layout lease, and remaps the
+file layout via FIEMAP or by creating a new RDMA MR for the mmap
+region. THose operations get serialised by the filesystem because
+the operation being run by process B is run atomically w.r.t. the
+original lease being broken. Hence the new mapping that process A
+gets with it's new lease reflects whatever change was made by
+process B.
+
+IOWs, the "normal" layout lease recall behaviour provides "temporary
+exclusivity" for third parties. If you are able to release leases
+temporarily and regain them then there is no need for an exclusive
+lease.
+
+> Question 2: Do we expect other process' (say Process C) to also be able to map
+> and pin the file?  I believe users will need this and for layout purposes it is
+> ok to do so.  But this means that Process A does not have "exclusive" access to
+> the lease.
+
+This is an application architecture problem, not a layout lease or
+filesystem problem. :)
+
+i.e. if you have a single process controlling all the RDMA mappings,
+then you can use exclusive leases. If you have multiple processes
+that are uncoordinated and all require layout access to the same
+file then you can't use exclusive layout leases in the application.
+i.e. your application has to play nice with others.
+
+Indeed, this is more than a application architecture problem - it's
+actually a system wide architecture problem.  e.g. the pNFS server
+cannot use exclusive layout leases because it has to play nice with
+anything else on the local filesystem that might require a layout
+lease. An example of this woudl be an app that provides coherent
+RDMA access to the same storage that pNFS is sharing (e.g. a
+userspace CIFS server).
+
+Hence I see that exclusive layout leases will end up being the
+exception rather than the norm, because most applications will need
+to play nice with other applications on the system that also
+directly access the storage under the filesystem....
+
+> So given Process C has also placed a layout lease on the file.  Indicating
+> that it does not want the layout to change.
+
+That is *not what layout leases provide*.
+
+Layout leases grant the owner the ability to map the layout and
+directly access the underlying storage and to do it safely because
+they will get a notification of 3rd party access that will
+invalidate their mapping. Layout leases do not prevent anyone from
+_changing_ the layout and, in fact, pNFS _requires_ the lease holder
+to be able to modify the layout.
+
+IOWs, the layout lease _as it stands now_ is a notification
+mechanism that tells the lease owner when someone else is about to
+modify the layout. It does not make the file layout immutable.
+
+The "exclusive" aspect of layout we have been discussing is a
+mechanism that prevents 3rd party modification of the layout by
+denying the ability to break the layout. This "exclusive" aspect
+does not make the layout immutable, either, it just means the
+layout is only modifiable by the exclusive lease holder. 
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
