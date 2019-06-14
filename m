@@ -2,199 +2,226 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-11.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B5A86C31E4B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:23:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C07A8C46477
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:29:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 79B8920850
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:23:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 74F6220850
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:29:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="CCd8e2Op"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79B8920850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="X/rImEl3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74F6220850
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 133196B026A; Thu, 13 Jun 2019 21:23:10 -0400 (EDT)
+	id 39FB96B000D; Thu, 13 Jun 2019 21:29:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0E5736B026B; Thu, 13 Jun 2019 21:23:10 -0400 (EDT)
+	id 350D56B000E; Thu, 13 Jun 2019 21:29:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EEEF66B026C; Thu, 13 Jun 2019 21:23:09 -0400 (EDT)
+	id 23FE06B0266; Thu, 13 Jun 2019 21:29:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CFD2B6B026A
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 21:23:09 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id v205so872109ywb.11
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 18:23:09 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0231D6B000D
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 21:29:53 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id t11so790105qtc.9
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 18:29:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=NWiGQvc0UaQg06vGlx/KBoyQY7FTb90HKZp/7cWu1+4=;
-        b=bErcFmXe5nawIqtfKYQRPit811RmRTsgUpXGTp8071ImTalPyU9cgD+emGfF3TYNc3
-         r0O3G96uwR7gyVcU4AgmKagH5cV+F1dxh9Uqsskz81cx3hz6QoKGbbJJSM1XvbNitguD
-         iH3YYQIxNpG+5aQLIIyzepWt6NeV0htv6QTXZDMjTpBmpO/+ncLplnX9B5XdR00kV0EH
-         oi5KF2/0XhzToqKUOaZX0h7EWckP4Ltj2CByH6qKyDcqkAeqC1GjiL0IrswEIyg2q51e
-         KJX3cywYmEL8x7YI6itFbjVXhmEYCaC/hszNmzx23EXp4wXaNbb8JjEuUGX8Edc6IHI7
-         damw==
-X-Gm-Message-State: APjAAAVuzp8VFQikkbcuwyOvFqgL+nSU5TT5elSGsE1DUJli6BI7FnBC
-	ftD6p/PmCl/v6lvGSa7a11hRCfCS2YbYvRyh/ggL4BLFE1XnCdjQ5IZnN5UYMa66JVhbOEzB5SS
-	Qg2YiImZR6N23s7RbO+Hn13TtJ6bMfogR1AdcTVKOgzI0zrhDpB40LopSJ3sIS+o7Vw==
-X-Received: by 2002:a25:1454:: with SMTP id 81mr6175357ybu.96.1560475389597;
-        Thu, 13 Jun 2019 18:23:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUFRpJ9dHUbFmUMf8GX0OUlkkHkql6/2fu+fSg5fG+JDfjd/FGoEZyU5ida66ZGFIeDbWp
-X-Received: by 2002:a25:1454:: with SMTP id 81mr6175349ybu.96.1560475389044;
-        Thu, 13 Jun 2019 18:23:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560475389; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=H/vGo7QOX7QpyBvTXnkYe2yXFtuFZ4oDrsLjFnJuZHg=;
+        b=t/seD3kM8MnbLkM7a06OQLrKvmjzWWo6O+RswRACeFKzgClAl/58+u5Yx1MexpJWwJ
+         ZE6lrFwUcRnkhrpSMbOhOjf0Tva5W30bXHX9zp2K2d4g1WD7ZtCpqU2q+pTm2unWTt1x
+         Tk4nrt1XxrjArhyxDEPiki5urST7atZEs/7A7LNkt6Ji+JzuwFZzcXL8Qu/9lN/9KMgd
+         jwptaxt+wRIc0FeAASUpG85c2Ht/giessHtZ5F0CTru0ULyENnIIfR7YmbAEBGRhiU1U
+         YGo1xlz+Gt+qkC0Rq9PWCv76aLbdymbH6o7aNCrf/FqlLbWwb81DQV5++OzW6cd0Uc34
+         P6Lw==
+X-Gm-Message-State: APjAAAW7JPSRqj+52JBhUdxnuQjMDqJ9hEV3Lzi9EXr6KqJ4dNUR93Pa
+	/o5iqLjlZhO/Uy82LgaJrwwf20y79UjlUo1e0CBRg8T0E1vgexL375NWJ/j65n7QanCUOETfomv
+	zlGPMqdMTs9/+nQwf7Th3/RybPnAoaJkcgF412yI2yE1k/p/1794FJn2ddmc7ka9TPw==
+X-Received: by 2002:a37:47d1:: with SMTP id u200mr39719006qka.21.1560475792758;
+        Thu, 13 Jun 2019 18:29:52 -0700 (PDT)
+X-Received: by 2002:a37:47d1:: with SMTP id u200mr39718967qka.21.1560475791997;
+        Thu, 13 Jun 2019 18:29:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560475791; cv=none;
         d=google.com; s=arc-20160816;
-        b=foK/gYBUCtuoTAozr9kcVyqp8YJIvPgXjvjFtbh4h5SuJsUVtqTJMCrYB4qeWJODpy
-         3bnDS8gO2KjpF50ygJ5vWmn5PMQLiqZoBCVrAEaJgSffWgN5jofu3OD0oCzpEP5cmghk
-         NI6QzL83FNcIyTY/Mv4vw836O1hC0E3bDkYfHD6HIl6Vvxv4guFm4Mjq3oB/igSFiA2A
-         dICYDngHMIJTCLiNCMGYXNqSrJhEZHCCkuHBBOwllfZHhqR/dG0Vm52sRgyiGkEHc/tU
-         DSCx95sFEyt853g2kTlOzx3jZuVkzKwAonOU88eDpB/RStBBHpiwDJlbn1d1gIFyNQIm
-         jMrw==
+        b=LQ/6LLLyHK5fBJxBilZWD0n5bjz1+O6NqFeayzFXh90Z3tSMr3a6UBzwj1CiDJtLuO
+         FE63l9t109ZgVervQfWackPhP6S7z6wUF05YuNkV6K36eOxpKZpe9j8ZOCAPukzjc2Uj
+         fQZSfPNmVZGjWSBrhzBgdpXUiifgfNRNRMwNI/L8LKNV+dvLlbqCTw4gkKn1TtisofuV
+         vXBfk30Fy1QD83hG1xezNAIlf2J4G2x57ozlDd0PRoEBdAMvVvy5RcTjJO4vFA6pt2Ki
+         6W3PYUhI25uf965Swwwb1xsNoCQUFmHUibLxljWl15Wre8ZhnehQXF6vso9tcXJ5q57A
+         lXnw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=NWiGQvc0UaQg06vGlx/KBoyQY7FTb90HKZp/7cWu1+4=;
-        b=AHPpuok/DQLhGJy41yEuMsNgDP5Rih2XbD+Qi0M9ULPn5NDyuWS7b/ADhgRrANsh86
-         Or4cUxhrt/CadU/w477MWAufB5sKZCWAm5YSWPPZ43nYpSgpPF0Hcq28zUJi0eFDO3TY
-         XoVzWsUeDnU7uO/fmbTRJLPxaGJZL2z8NdzJhD6puRfjMbG0hvkXyYKyhKP5l41GHf4t
-         kFE5N9tt1MvKjjjuuWqIkvcR//L40Z4IKzXh7hxBSiklpYp+FhpLgkxeNqqwSgFFxoPd
-         KCF4T6ahUYJ51RPS2AAu4eUm2tLh6/VLODwInEHpwtQQ1Gkz8eFFW/QtUp+2k5YJl2R3
-         pvfw==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=H/vGo7QOX7QpyBvTXnkYe2yXFtuFZ4oDrsLjFnJuZHg=;
+        b=zKUkUkIL83jDV1ohv16PFXodBwD9qDLGqwKU4cJTW/h4D5DmZ5uou9tJkzUJkbkTaX
+         gknrQZeeNgiPDYCmbpgP7tXu6udYRQh+0ubr5VqV7ldZIT124aw28DLH2gMdOV+GlZg7
+         JUQERkNvrx+1FMJN4Q3AlyvK4WqEOMvnO6wa+4ueelwuG4maObL0usyEv8p02jmstEph
+         gTqcBIOVyUzPadUfaznT1Q7n+Af/Kw/moKtXsuWOmrezZ5llnKiiUgmY6n5bpZO7/NSA
+         lKJ+DRHjSaG7Nl+1OUTsjm+V6upI39puPtOOhYUhbPCutYJFI1NGNF0nbpSWkIXRMsz6
+         TXVg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=CCd8e2Op;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id w8si433824ybo.234.2019.06.13.18.23.08
+       dkim=pass header.i=@lca.pw header.s=google header.b="X/rImEl3";
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b34sor2446291qta.71.2019.06.13.18.29.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 18:23:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        (Google Transport Security);
+        Thu, 13 Jun 2019 18:29:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=CCd8e2Op;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d02f6fc0000>; Thu, 13 Jun 2019 18:23:08 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 13 Jun 2019 18:23:08 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 13 Jun 2019 18:23:08 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 14 Jun
- 2019 01:23:04 +0000
-Subject: Re: [PATCH 18/22] mm: mark DEVICE_PUBLIC as broken
-To: Ira Weiny <ira.weiny@intel.com>, Jason Gunthorpe <jgg@mellanox.com>
-CC: Ralph Campbell <rcampbell@nvidia.com>, "linux-nvdimm@lists.01.org"
-	<linux-nvdimm@lists.01.org>, "nouveau@lists.freedesktop.org"
-	<nouveau@lists.freedesktop.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ben Skeggs
-	<bskeggs@redhat.com>, "linux-pci@vger.kernel.org"
-	<linux-pci@vger.kernel.org>, Christoph Hellwig <hch@lst.de>
-References: <20190613094326.24093-1-hch@lst.de>
- <20190613094326.24093-19-hch@lst.de> <20190613194430.GY22062@mellanox.com>
- <a27251ad-a152-f84d-139d-e1a3bf01c153@nvidia.com>
- <20190613195819.GA22062@mellanox.com>
- <20190614004314.GD783@iweiny-DESK2.sc.intel.com>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <d2b77ea1-7b27-e37d-c248-267a57441374@nvidia.com>
-Date: Thu, 13 Jun 2019 18:23:04 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
-MIME-Version: 1.0
-In-Reply-To: <20190614004314.GD783@iweiny-DESK2.sc.intel.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL108.nvidia.com (172.18.146.13) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1560475388; bh=NWiGQvc0UaQg06vGlx/KBoyQY7FTb90HKZp/7cWu1+4=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=CCd8e2OpQNYk9MLkQj2SISKb1f8rHEt8owfBUnfdQ/EbQaEHFbssnQujsTCvu1hg/
-	 mR8Y3/sQ0FeoXBKw8x7EwSNeP0JirtlvLprjUK1BAmudORUfLC87dyxEeAk19INas5
-	 NI29MBs4mO8FUO+2r1avdCcLUMWD+OBag9RCJIoLc2O2dHRfWViTRDAYcfn3m6Wrf6
-	 udfy6sC0OFEAlHI5edqKIVUfELxR84G7Dkf+roQu6aKqp3E13WZ1IqDdG/Lffgeh/e
-	 nogIq4wl7uO95KxuzvD0ijZERk5Gr6SxTkWBIiWMnMYA0zmWut5Pf3opqWtrNeceNW
-	 Ua0w/eL4F+pAQ==
+       dkim=pass header.i=@lca.pw header.s=google header.b="X/rImEl3";
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=H/vGo7QOX7QpyBvTXnkYe2yXFtuFZ4oDrsLjFnJuZHg=;
+        b=X/rImEl35Oahiwt5WAxEWA8Ooo/G4IiYNzGx8xpFy37/bV7Flvr0QAhLOOeL3AIVhe
+         1y5BPOVnUXFBusIUYg+P/JgavbyK7hDqOMseShNlrlKt4yCBWBuF7QF2NhCO2fLl7Grp
+         XVrPbS7WwMx08WovV2pWAPIELN4ixJE3dAaHd28TpHdjICAU73ZZtl1VaQTSZOZmeCL4
+         Wh1LZNu7mpVKSGU/q9ahdI7e+6IdYyWtI0lwXvn1zcFGm6KxDM2Ne4y9PfsdRu1JugCT
+         cFKMEZ06sRt1hukQT/dZW0GBtWsbE9sFzkmXFK4x86+/DUWVmixJ+DCO4b1q5L/mVsRr
+         PTSg==
+X-Google-Smtp-Source: APXvYqzKfvNHJxoWJ3SyH77lNcIGaU1SSr4XDrqiAHxdxp7pu79pATBF5ERe9UWmUqjToIz4L9GqOg==
+X-Received: by 2002:ac8:7a73:: with SMTP id w19mr57545290qtt.292.1560475791653;
+        Thu, 13 Jun 2019 18:29:51 -0700 (PDT)
+Received: from qians-mbp.fios-router.home (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id g5sm1068845qta.77.2019.06.13.18.29.50
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 13 Jun 2019 18:29:51 -0700 (PDT)
+Content-Type: text/plain;
+	charset=utf-8
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
+Subject: Re: [PATCH -next] mm/hotplug: skip bad PFNs from pfn_to_online_page()
+From: Qian Cai <cai@lca.pw>
+In-Reply-To: <CAPcyv4hYfDtRHF-i0dNzo=ffQk6qnrasRwkVfAVnwgWj0PJ4jg@mail.gmail.com>
+Date: Thu, 13 Jun 2019 21:29:50 -0400
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Oscar Salvador <osalvador@suse.de>,
+ Linux MM <linux-mm@kvack.org>,
+ Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <0EB9D196-7552-43DF-A273-875EA6729EF9@lca.pw>
+References: <1560366952-10660-1-git-send-email-cai@lca.pw>
+ <CAPcyv4hn0Vz24s5EWKr39roXORtBTevZf7dDutH+jwapgV3oSw@mail.gmail.com>
+ <1560451362.5154.14.camel@lca.pw>
+ <CAPcyv4hYfDtRHF-i0dNzo=ffQk6qnrasRwkVfAVnwgWj0PJ4jg@mail.gmail.com>
+To: Dan Williams <dan.j.williams@intel.com>
+X-Mailer: Apple Mail (2.3445.104.11)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/13/19 5:43 PM, Ira Weiny wrote:
-> On Thu, Jun 13, 2019 at 07:58:29PM +0000, Jason Gunthorpe wrote:
->> On Thu, Jun 13, 2019 at 12:53:02PM -0700, Ralph Campbell wrote:
->>>
-...
->> Hum, so the only thing this config does is short circuit here:
->>
->> static inline bool is_device_public_page(const struct page *page)
->> {
->>         return IS_ENABLED(CONFIG_DEV_PAGEMAP_OPS) &&
->>                 IS_ENABLED(CONFIG_DEVICE_PUBLIC) &&
->>                 is_zone_device_page(page) &&
->>                 page->pgmap->type == MEMORY_DEVICE_PUBLIC;
->> }
->>
->> Which is called all over the place.. 
-> 
-> <sigh>  yes but the earlier patch:
-> 
-> [PATCH 03/22] mm: remove hmm_devmem_add_resource
-> 
-> Removes the only place type is set to MEMORY_DEVICE_PUBLIC.
-> 
-> So I think it is ok.  Frankly I was wondering if we should remove the public
-> type altogether but conceptually it seems ok.  But I don't see any users of it
-> so...  should we get rid of it in the code rather than turning the config off?
-> 
-> Ira
-
-That seems reasonable. I recall that the hope was for those IBM Power 9
-systems to use _PUBLIC, as they have hardware-based coherent device (GPU)
-memory, and so the memory really is visible to the CPU. And the IBM team
-was thinking of taking advantage of it. But I haven't seen anything on
-that front for a while.
-
-So maybe it will get re-added as part of a future patchset to use that
-kind of memory, but yes, we should not hesitate to clean house at this
-point, and delete unused code.
 
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+> On Jun 13, 2019, at 9:17 PM, Dan Williams <dan.j.williams@intel.com> =
+wrote:
+>=20
+> On Thu, Jun 13, 2019 at 11:42 AM Qian Cai <cai@lca.pw> wrote:
+>>=20
+>> On Wed, 2019-06-12 at 12:37 -0700, Dan Williams wrote:
+>>> On Wed, Jun 12, 2019 at 12:16 PM Qian Cai <cai@lca.pw> wrote:
+>>>>=20
+>>>> The linux-next commit "mm/sparsemem: Add helpers track active =
+portions
+>>>> of a section at boot" [1] causes a crash below when the first =
+kmemleak
+>>>> scan kthread kicks in. This is because kmemleak_scan() calls
+>>>> pfn_to_online_page(() which calls pfn_valid_within() instead of
+>>>> pfn_valid() on x86 due to CONFIG_HOLES_IN_ZONE=3Dn.
+>>>>=20
+>>>> The commit [1] did add an additional check of pfn_section_valid() =
+in
+>>>> pfn_valid(), but forgot to add it in the above code path.
+>>>>=20
+>>>> page:ffffea0002748000 is uninitialized and poisoned
+>>>> raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff =
+ffffffffffffffff
+>>>> raw: ffffffffffffffff ffffffffffffffff ffffffffffffffff =
+ffffffffffffffff
+>>>> page dumped because: VM_BUG_ON_PAGE(PagePoisoned(p))
+>>>> ------------[ cut here ]------------
+>>>> kernel BUG at include/linux/mm.h:1084!
+>>>> invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC KASAN PTI
+>>>> CPU: 5 PID: 332 Comm: kmemleak Not tainted 5.2.0-rc4-next-20190612+ =
+#6
+>>>> Hardware name: Lenovo ThinkSystem SR530 =
+-[7X07RCZ000]-/-[7X07RCZ000]-,
+>>>> BIOS -[TEE113T-1.00]- 07/07/2017
+>>>> RIP: 0010:kmemleak_scan+0x6df/0xad0
+>>>> Call Trace:
+>>>> kmemleak_scan_thread+0x9f/0xc7
+>>>> kthread+0x1d2/0x1f0
+>>>> ret_from_fork+0x35/0x4
+>>>>=20
+>>>> [1] https://patchwork.kernel.org/patch/10977957/
+>>>>=20
+>>>> Signed-off-by: Qian Cai <cai@lca.pw>
+>>>> ---
+>>>> include/linux/memory_hotplug.h | 1 +
+>>>> 1 file changed, 1 insertion(+)
+>>>>=20
+>>>> diff --git a/include/linux/memory_hotplug.h =
+b/include/linux/memory_hotplug.h
+>>>> index 0b8a5e5ef2da..f02be86077e3 100644
+>>>> --- a/include/linux/memory_hotplug.h
+>>>> +++ b/include/linux/memory_hotplug.h
+>>>> @@ -28,6 +28,7 @@
+>>>>        unsigned long ___nr =3D pfn_to_section_nr(___pfn);           =
+\
+>>>>                                                                   \
+>>>>        if (___nr < NR_MEM_SECTIONS && online_section_nr(___nr) && \
+>>>> +           pfn_section_valid(__nr_to_section(___nr), pfn) &&      =
+\
+>>>>            pfn_valid_within(___pfn))                              \
+>>>>                ___page =3D pfn_to_page(___pfn);                     =
+\
+>>>>        ___page;                                                   \
+>>>=20
+>>> Looks ok to me:
+>>>=20
+>>> Acked-by: Dan Williams <dan.j.williams@intel.com>
+>>>=20
+>>> ...but why is pfn_to_online_page() a multi-line macro instead of a
+>>> static inline like all the helper routines it invokes?
+>>=20
+>> Sigh, probably because it is a mess over there.
+>>=20
+>> memory_hotplug.h and mmzone.h are included each other. Converted it =
+directly to
+>> a static inline triggers compilation errors because mmzone.h was =
+included
+>> somewhere else and found pfn_to_online_page() needs things like
+>> pfn_valid_within() and online_section_nr() etc which are only defined =
+later in
+>> mmzone.h.
+>=20
+> Ok, makes sense I had I assumed it was something horrible like that.
+>=20
+> Qian, can you send more details on the reproduction steps for the
+> failures you are seeing? Like configs and platforms you're testing.
+> I've tried enabling kmemleak and offlining memory and have yet to
+> trigger these failures. I also have a couple people willing to help me
+> out with tracking down the PowerPC issue, but I assume they need some
+> help with the reproduction as well.
 
-> 
->>
->> So, yes, we really don't want any distro or something to turn this on
->> until it has a use.
->>
->> Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
->>
->> Jason
->> _______________________________________________
->> Linux-nvdimm mailing list
->> Linux-nvdimm@lists.01.org
->> https://lists.01.org/mailman/listinfo/linux-nvdimm
+https://github.com/cailca/linux-mm
+
+You can see the configs for each arch there. It was reproduced on =
+several x86 NUMA bare-metal machines HPE, Lenovo etc either Intel or =
+AMD. Check the =E2=80=9Ctest.sh=E2=80=9D, there is a part to do =
+offline/online will reproduce it.
+
+The powerpc is IBM 8335-GTC (ibm,witherspoon) POWER9 which is a NUMA =
+PowerNV platform.=
 
