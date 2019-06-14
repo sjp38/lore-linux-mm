@@ -7,99 +7,99 @@ X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D27DDC31E45
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 00:45:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1976FC31E45
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 00:45:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 95C2D20850
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 00:45:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CE41C20850
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 00:45:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="eYn88Fgu"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 95C2D20850
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="dyouVytY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE41C20850
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0DEF46B0270; Thu, 13 Jun 2019 20:44:59 -0400 (EDT)
+	id 486536B026F; Thu, 13 Jun 2019 20:44:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 08FBA6B0272; Thu, 13 Jun 2019 20:44:58 -0400 (EDT)
+	id 435D86B0271; Thu, 13 Jun 2019 20:44:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CC4526B0270; Thu, 13 Jun 2019 20:44:58 -0400 (EDT)
+	id 28D6A6B0273; Thu, 13 Jun 2019 20:44:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 97BAF6B0271
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E45156B026F
 	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 20:44:58 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id x10so706408qti.11
+Received: by mail-qk1-f197.google.com with SMTP id c207so645909qkb.11
         for <linux-mm@kvack.org>; Thu, 13 Jun 2019 17:44:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=dvkFkBeOW+6z/DYza2/ra7fU7bkF8TW6bEZ+9Ch/ZO4=;
-        b=M9MS6UX3cOW9vrXvXtLfmEmtTEickPNgtPSd2m9dRwCIhvKycetbe8zqSb7qFy1wug
-         vX9ohmvxsHpfr2vd4BMO75UtDyuTf0WqO3bJyiznB+OX+5lvfKEMJubBCh+IVWSaWWXz
-         E2FRYqNMSdeaozR9BzrlgXJYC7ryZjqPW3KqXriBBhGY3WPIpfycjrGiImGRfGIkEmQ7
-         1cNKaSpQhHcJ/MFbxAfGM/a++alO0wBSexdSl32E8PvkKv8Z9sG2MNCly+LywCgBquCB
-         hZugafhSMuUf5DkPl6mbnppJhYbivwxBEka2FGuZ04JBa6os9vKkkJ+ZKt1oVo6jksSk
-         95Lw==
-X-Gm-Message-State: APjAAAXICNtrF/DHS9PXCnjuAYKa9TNTybUpYp0dG66dc1Pzp+1m5AAx
-	EdixC/jvN+/rvo+TOEfV1wsawzgMxZ8PNu/aBWTbHT+EnkGHX7P6+t6HHV438LN/YcSxZADHFLT
-	My/mBL5nAugGGG1Is89TelmHYsHyjulwkNrbsW3LLQGWGhU1zWBMsOJaBLFQpbkXngw==
-X-Received: by 2002:ac8:224d:: with SMTP id p13mr57455900qtp.154.1560473098395;
+        bh=qJP3s5LCTJOa2Bpv3WsF12kBeuFb/g7s2rVIALekTDo=;
+        b=bQnaDIl18YZpYEmrZfK0KhxIyd/TI8FphJc+j2k18CkxnqPBV3gr99PmPgwcYG8yGq
+         ZO4KcnwFyxiSb5kVLxxMs9+Tr66nRXOnagWODasTL9IMc8nRhhIfhL8fIQtbMcqW93za
+         C0G1VPjjL/2QucOEW2pKVg1+8N4nyMWYFchyfWc1AsG1SfrD7wDQtVMb7RViYMeMjbzo
+         f6MZPvcUZ75+bZ3pA6sX3jgfPHwA4zMWM5Pv09ZWl6GRbWjmP4Rl8TUZv9ZJ7hseSEro
+         DvjE5fXrSdd/7x219+QuDHYQ6ueRGOe0ziVgj69J6/jkZBvgFeW8RT+jf3kJ5EMoNyoe
+         gvcg==
+X-Gm-Message-State: APjAAAVHv9RknFHGRdYQ+nou/r4wGEk+qjuHUSFY9ZlDZprwA/Ngit/y
+	m9AFif9OnY6GR5a4XoMNtWw8bIi57Wi9BH5CMrkyuAgFsajAVwKO7qx9BR+MNXxFPpvyr0oXIuS
+	iTt3R77VEtsRiaOlAjo1Xw4VmGHaRbmr5U9tiKq4GAUo2H/QCEGTLmKdxjeW4to/7xQ==
+X-Received: by 2002:a05:620a:152:: with SMTP id e18mr71948262qkn.101.1560473098711;
         Thu, 13 Jun 2019 17:44:58 -0700 (PDT)
-X-Received: by 2002:ac8:224d:: with SMTP id p13mr57455877qtp.154.1560473097878;
-        Thu, 13 Jun 2019 17:44:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560473097; cv=none;
+X-Received: by 2002:a05:620a:152:: with SMTP id e18mr71948239qkn.101.1560473098175;
+        Thu, 13 Jun 2019 17:44:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560473098; cv=none;
         d=google.com; s=arc-20160816;
-        b=DM9ueje5cRb9guKVmU97/QU5LSGSybIpF5/KGZ2fIHxD1uJ0bY4GqrX/DGvFk37jzE
-         4yuEBLJqQW7aMabVBVKV6jgzOxNP3OT5Yy9hooeuR+SCzDhmFRTLZH+AlBgp25AiiCdq
-         ULsLsvb4cUPi1Cqm51qXu1bx463uDkAfzpdjDzK4BQFLZPZrOL7KrF9XJ5O8uQBYlgYx
-         4iBpWVxLJwYaE/g8fWCbIEiEdeqItjox1m7JyUgIOHoO0MSSOLRLN0iPt+aGEMDfZMQN
-         tdg2E1TVf/igh01dRKO5U51NxxOtgixs50rcV9zNpElCfSlGGQ4JCfqhEENIkUi4VTuI
-         LnLg==
+        b=jbEvCUpC9GITi4VbaLZxY42BCz3OhBpSVtk0sUTpqpCXLTswC9JAf0x3nlGkuh7rdH
+         rPzYgfNyv76UpQ4pVphJ5d4b2xYNoa8ZGoGJT3C8pIMLS2JXmrPTWD13itdrmjsTvNJ/
+         0mv1oDn+b2GyBsZngjjq9UUognnpHojBktVwqTej2D7iZBjpBtjha+ESWxbUnnCf5XBr
+         XRvnefJpSXCjp8Lz/AmJdMC/Jark/feDQoVxETlIRkaMjAdMjN8q4r7L8M/5bOsFMT0H
+         e7UQxfHg32z41aHqlh20u3mEBMN4cccpA6YH/JeWAGhudOajuRFt+DdRKb6eOAZEAEeE
+         9lpw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=dvkFkBeOW+6z/DYza2/ra7fU7bkF8TW6bEZ+9Ch/ZO4=;
-        b=G2qkK27fBTlmt1t+4apd7hayw5BW0ydWN7ZKyLMIcOHvyzlxpd0ouITmMmZ+si/8ls
-         GmSHpmeFjqmtZatNM1NLBjBurzetpgwBPa8KK++VTwlTXXUkcPxep26zcHuW5V3Uk68A
-         11ut/rwlXpUnHHquU1giPy2c2yz8rbs2rkjXN5vmMYimNq05DbsSz1HFIsOzd5IRq7jQ
-         pzzSoZEgWJBHwUgsu+YQaCogArz4R5i7PzkaC+uuiuD/o+5mAGRV3ULURF9UZETBwebF
-         TeuuF9AbuWdNgajEq04GHtQQ/Jwy/runq8UXZRPOuSOOH3cDAxiR2GfJ2yWvJxwbCYDG
-         5iEQ==
+        bh=qJP3s5LCTJOa2Bpv3WsF12kBeuFb/g7s2rVIALekTDo=;
+        b=a5bQFG4F3m76XRce2wVx/sHADOHzL4rWmmrT9BHcs6lSQTFUqUCPK9OKNbS/1xFhBE
+         94KF1xaSJqf9hUJUBXQGvO8y72A87jDJL+5/Wv5nS4XdAj3sUoNjwpcJjsy3eMW46RTQ
+         fdLwKKUS9QtsA5X4vhKl7l641x/PuPDS8FCl4vF2Gr8QWTK9AQhUyYpYNP7FSMnYDkwo
+         ngK7mMxw648SvIzNGwWqTDYUxIrHKNEGqhucnkl/jjpKCDBDG8bi13RRJ6f2rl8Gc6Js
+         w6xdLT3bM/uzLA08YzWOoyqpQsZfb526QwbPguAdZb9EFvRYW49p0sZEMQoaHnvuPsuO
+         1Fgg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=eYn88Fgu;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=dyouVytY;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q38sor2362635qtc.33.2019.06.13.17.44.57
+        by mx.google.com with SMTPS id 136sor1077907qkm.23.2019.06.13.17.44.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 13 Jun 2019 17:44:57 -0700 (PDT)
+        Thu, 13 Jun 2019 17:44:58 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=eYn88Fgu;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=dyouVytY;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=dvkFkBeOW+6z/DYza2/ra7fU7bkF8TW6bEZ+9Ch/ZO4=;
-        b=eYn88FgunOZPk+YyYFR2JnEf7f2u6p9sflPJ4sT+jetqG8JYSyAB8le6N712NkSohY
-         Xwi2VyaEkzxPEqC8yi2d5vTAq6YJehvf3luJZZZ4GvsaI+jdZ2gVqX0uxK3KJG8fUqJN
-         3FvqnY5Sb8nnX+WQ++LovwzB8U/d4qUmUyh+DIkLwGIxK2N5g7LSrT+GUNIoWzDFfVad
-         ehBIjCCC/XRamOtEckjvwtqZSft++bwMX6ZPisONHj3wc7uPh1GqiR5ueIOcNZHjO+1j
-         aWPQ70BMw6QV6bP5mmW+tRl6mOixqkIWqtgj8Ext78+i143gu4SmwIuthYXP1wzIHsDP
-         faQA==
-X-Google-Smtp-Source: APXvYqwehM/5YZE2rHAarSGtvnt4dD381MX43AFO3OEKYtZwTgDkAYkIX/giHqXAhpmFto1vVdJqMw==
-X-Received: by 2002:aed:21ca:: with SMTP id m10mr72204568qtc.97.1560473097656;
+        bh=qJP3s5LCTJOa2Bpv3WsF12kBeuFb/g7s2rVIALekTDo=;
+        b=dyouVytY+jmXKdkQ6AEcE55kZQEWs6bscsYHu17tMqMjO0ykbKjOyu4AZmogdzcKOO
+         okRY9yuPH0h4p3cAV4QrnZ4n34NPuyuK97/dkGmB3VzQKnqK9s/XAJtvvIAGZkXqI8Jd
+         kp8Bb3YU8e6ArRWr/jcI134rAI1zQOreSW9nSzEGghOTmJk/pJslGcpZKvhe05E8ekCA
+         wMSMERjmVYizkkeqJXXp4Y3n+nU+hNQwdsuP0lS3FbYfoYhnJGG75bzPsyyRZjGeXB24
+         rhFdNEenuxIK01r0M01cZSie0WszSDebNOB+aFhxWAf9m8Ut+WvZhCrUuTgOing0GJS6
+         L08w==
+X-Google-Smtp-Source: APXvYqwYuZdBUIyBE3tnoT2pvasr4EEIwX7YCMbTNFDbznpFFTMobqSAyRGm2KIgVEvCZYbf+NYJww==
+X-Received: by 2002:a05:620a:144a:: with SMTP id i10mr72376829qkl.130.1560473097962;
         Thu, 13 Jun 2019 17:44:57 -0700 (PDT)
 Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id o27sm688657qtf.13.2019.06.13.17.44.54
+        by smtp.gmail.com with ESMTPSA id m21sm498643qtp.92.2019.06.13.17.44.54
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Thu, 13 Jun 2019 17:44:54 -0700 (PDT)
 Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hbaKr-0005K8-TQ; Thu, 13 Jun 2019 21:44:53 -0300
+	id 1hbaKr-0005KE-Ue; Thu, 13 Jun 2019 21:44:53 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
 To: Jerome Glisse <jglisse@redhat.com>,
 	Ralph Campbell <rcampbell@nvidia.com>,
@@ -112,11 +112,10 @@ Cc: linux-rdma@vger.kernel.org,
 	amd-gfx@lists.freedesktop.org,
 	Ben Skeggs <bskeggs@redhat.com>,
 	Jason Gunthorpe <jgg@mellanox.com>,
-	Souptick Joarder <jrdr.linux@gmail.com>,
 	Philip Yang <Philip.Yang@amd.com>
-Subject: [PATCH v3 hmm 07/12] mm/hmm: Use lockdep instead of comments
-Date: Thu, 13 Jun 2019 21:44:45 -0300
-Message-Id: <20190614004450.20252-8-jgg@ziepe.ca>
+Subject: [PATCH v3 hmm 08/12] mm/hmm: Remove racy protection against double-unregistration
+Date: Thu, 13 Jun 2019 21:44:46 -0300
+Message-Id: <20190614004450.20252-9-jgg@ziepe.ca>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190614004450.20252-1-jgg@ziepe.ca>
 References: <20190614004450.20252-1-jgg@ziepe.ca>
@@ -131,39 +130,46 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jason Gunthorpe <jgg@mellanox.com>
 
-So we can check locking at runtime.
+No other register/unregister kernel API attempts to provide this kind of
+protection as it is inherently racy, so just drop it.
+
+Callers should provide their own protection, it appears nouveau already
+does, but just in case drop a debugging POISON.
 
 Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 Reviewed-by: Jérôme Glisse <jglisse@redhat.com>
 Reviewed-by: John Hubbard <jhubbard@nvidia.com>
 Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
-Acked-by: Souptick Joarder <jrdr.linux@gmail.com>
 Tested-by: Philip Yang <Philip.Yang@amd.com>
 ---
-v2
-- Fix missing & in lockdeps (Jason)
----
- mm/hmm.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/hmm.c | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)
 
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 58712d74edd585..c0f622f86223c2 100644
+index c0f622f86223c2..e3e0a811a3a774 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -253,11 +253,11 @@ static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
-  *
-  * To start mirroring a process address space, the device driver must register
-  * an HMM mirror struct.
-- *
-- * THE mm->mmap_sem MUST BE HELD IN WRITE MODE !
+@@ -283,18 +283,13 @@ EXPORT_SYMBOL(hmm_mirror_register);
   */
- int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
+ void hmm_mirror_unregister(struct hmm_mirror *mirror)
  {
-+	lockdep_assert_held_exclusive(&mm->mmap_sem);
-+
- 	/* Sanity check */
- 	if (!mm || !mirror || !mirror->ops)
- 		return -EINVAL;
+-	struct hmm *hmm = READ_ONCE(mirror->hmm);
+-
+-	if (hmm == NULL)
+-		return;
++	struct hmm *hmm = mirror->hmm;
+ 
+ 	down_write(&hmm->mirrors_sem);
+ 	list_del_init(&mirror->list);
+-	/* To protect us against double unregister ... */
+-	mirror->hmm = NULL;
+ 	up_write(&hmm->mirrors_sem);
+-
+ 	hmm_put(hmm);
++	memset(&mirror->hmm, POISON_INUSE, sizeof(mirror->hmm));
+ }
+ EXPORT_SYMBOL(hmm_mirror_unregister);
+ 
 -- 
 2.21.0
 
