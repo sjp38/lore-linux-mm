@@ -2,154 +2,222 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.7 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC8C1C31E4B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 18:42:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 540B3C46477
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 18:57:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ABA9A20673
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 18:42:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABA9A20673
+	by mail.kernel.org (Postfix) with ESMTP id 107A12168B
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 18:57:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="F85MjR0g"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 107A12168B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 490D36B0271; Fri, 14 Jun 2019 14:42:57 -0400 (EDT)
+	id 8555F6B0006; Fri, 14 Jun 2019 14:57:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4411F6B0272; Fri, 14 Jun 2019 14:42:57 -0400 (EDT)
+	id 805966B0007; Fri, 14 Jun 2019 14:57:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 308206B0273; Fri, 14 Jun 2019 14:42:57 -0400 (EDT)
+	id 6F48E6B000C; Fri, 14 Jun 2019 14:57:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EEF726B0271
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 14:42:56 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id w14so2089192plp.4
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 11:42:56 -0700 (PDT)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 42DFB6B0006
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 14:57:58 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id r6so1257521oib.6
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 11:57:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=9hN01HWSvmoIeNpCYPODXZOQLf1HGABYtKlgksj9bLc=;
-        b=WbGTRExjtzHfohr3OTI5s1JjS/ZFV1nR0zqZjBv7R1Rl/KJKUR16CUz8lZcqfRAgTT
-         N5zddGq8RnYKdrdL/S3DsG8xGdnLCiDxjU/CxTuJIi0xJYnaCwBH95dis18VwzjegLTJ
-         IqGf2X6CjlDUw07CbkgW6aJjFNMWB0st8/Gug+wqm0s1msoH1P/wkGc33JvGVEF15aNi
-         glwu5aAUOMZ+m4HnI/x9sHLEzDslm89k4JCXkCab0/7IeRlhv6Y1aTqW/SeodPBmFbWU
-         qmsR2rE+WYxq2vz5xo2khD6pmvnHFrlXUJ+w5Ip88qU5dw4C0RATvu3iWZZL/WADGjM+
-         iKRQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=alison.schofield@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAV6G6IsKaPEl+Yg2AIf3ceE9PYGcmLk2AcP9hk4hNvBYif0i9UY
-	KD2ndNjvOUAUJNkUac2BQSZUmzW9HjrGPD3LsfqfESSMljnd/RJpMig0clNm+bhS5CZBi5o2HCS
-	De7iFzFNQ3my7HJpRRqlCGJz8Z4BscX3QNTuITwGe37lRf2gyLfbTCS78q4O95cLYuw==
-X-Received: by 2002:a17:902:b202:: with SMTP id t2mr92074892plr.69.1560537776619;
-        Fri, 14 Jun 2019 11:42:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz61O09RbYqoPJDXmzsKmCkdfgd+aIH2iN9fiat74fKRAVpQwfjOeiFL6ZkcjgcMUSeEJPL
-X-Received: by 2002:a17:902:b202:: with SMTP id t2mr92074854plr.69.1560537775983;
-        Fri, 14 Jun 2019 11:42:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560537775; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=oY348vpCG95iTNSMF3TDF4pbwXas3ck/kElwYiwrsvw=;
+        b=AEe0LUsafccBcXJCwqaKm9h1TxHew1KE2ABlX5dvI5obbLzLH5i5awMAFsOq4TGhIO
+         OE2eEaqVKM5ZR/Mcppa0iqMGyNfMCE7hkRr1UQZlduex9NRsuEkVmUw8Li+ZGc3iqcJ1
+         61M02ARDARMr/r++PQ+k4gV0jA0qVapeMPzQutt2MTZ6SyYMY/YuqtkBN8ynwVVQi+gK
+         jMvRG82qp8Jg6U2v0vjnuKDvdPl/SLod+ooSbGJljYAZbVK2MwwO67nNCWsBd1HmcYlG
+         3iw3zU4e7duwQuR8G1R+5hs+E/JDk9x5HRjWTFVOVR+CMI8uiTTbXgb0emglqlc8mS5s
+         Mevw==
+X-Gm-Message-State: APjAAAXQf5V88TescZvcvJyd1rgu9Nad6v97TCGGebN01Ul7St+a+RHO
+	L+Y8laDt/IkJRr6Czka+dMX8PfWTWT75/APIrMVRo628my3w1mCO7WZ/E0I0w53z0eibbRm5Cse
+	2hyvfs9E8qk0JZEPRpBKGm/xHdN7jrYQqzchdN15u4eoZoJI6Pbgg7FYvrtBx9fSYVw==
+X-Received: by 2002:aca:330b:: with SMTP id z11mr2664170oiz.148.1560538677806;
+        Fri, 14 Jun 2019 11:57:57 -0700 (PDT)
+X-Received: by 2002:aca:330b:: with SMTP id z11mr2664135oiz.148.1560538677059;
+        Fri, 14 Jun 2019 11:57:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560538677; cv=none;
         d=google.com; s=arc-20160816;
-        b=ygHzk09k/eM33FibbYHt5DX6neAhScuMJNqo0XVKfn6GhHIZdV43QpbbZfE93imbCB
-         Yj19AcofjP9UexCn+4eXCccLDNzX//3vM1yY/M124jMxNUdAWhyrcWYgRGVhfB4tOSV9
-         nIikCsBZAEL0zMIBjqItdb5J2kAbdRNgIOZDNxITRhE0q25TBDfNgdbwug2czHrMsBH8
-         xn0oO8Sn/VOREqcvaPp2559BaqqZFYN1AGTqKHA69mXEstalmhZDOTD+2VNPi/t9q2vm
-         PY14oAf0/PJkVphc9XW05GlGr3xeciJo6qPP7jSzAIYFo/zPfJ1KyE8MlcE2fRxHnh1N
-         gupw==
+        b=e0x3qg2cSOBLxx+Us72UNyv693AhMY8vj1L1GnMjCRDFewYmyDcgQ0OfwMgrxcw90/
+         vhvvG+7rUFQHdFMdvgGc0dvWB0/CuTvEC9bpe0qBLli28HtNysFr7CibeK/N90+Ip05M
+         E+fbti09mAGemNgXPsRCHuIaKFojkOccl96UusLv7hjRevKEKdY5WPl9jZ54o7x3k4h0
+         6QVMhXC3hGsjTJWofhRJXgNlUWt9iF1PBBCi1y46FI++/xSYuT036r9KO83BcjCPc0oS
+         6g62sWtXJp0lEif5zVTOJ/C7QVM3lV/VIIs2VxSXPkXOtG6qLeEZJrPeGdoKrAxRz3aI
+         M70w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=9hN01HWSvmoIeNpCYPODXZOQLf1HGABYtKlgksj9bLc=;
-        b=K8ZpvTyvS0aVjHRmLv4NZkUI2Lb/mlBGKURj2uO1cKuqPTOXH+wq7HdQuiZWMYn+Au
-         4p9VW/413gvhZg5uwgECCsnOf6fytf1UtZ5tpkQcbwkmHeAQIyOd6iqiC9siL9J59zXp
-         dYfq02H5yN5//O/br+OxIwVjHvfKOzQGIWfkrs0LE/ZEIN60V+tECpETGsreTa9rZabS
-         CD17dm3ACGzuqnb8krePhIlxbCdWme4Zo5oRc6oPwkhA4/6BGbOTYbtmdkZPvkINnyvP
-         6D42mM94J1I+mg4TIuUYqWEVK2bmpytc3EqQ03jlw/0XfGmXGCoE/aLehNjWZP2Izvq4
-         PAbA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=oY348vpCG95iTNSMF3TDF4pbwXas3ck/kElwYiwrsvw=;
+        b=O1ketPrxG8ITz6/zf/sjkd9VLqnHFPj2xduy68lqtZ47oDnRpm+ntWPohhttkxzL6i
+         58a/J3FZHh617bGygkPclxil1u8/V6UniZYJc5UYGTVuTjoaPWKZGgi1uiCTvNuKi6gD
+         4PBDVcrwtL3yTsERmnaC60B24gYeQGsJxkahuDjW9QU60Ff0jPdcidbBj3aMUYxQ+eTF
+         Kgvyu0W/ZURloQfo5KchUDmVs3PoBT/Epwkvsdo+7hC1hhA0JrCVwoCUqr+k3t2EzkZR
+         K/9rcdX0m1qRBXH7WPp+Ed5bsahSsiio3aB3qOqdY6JCbjlSoQeKj84fgcgspXvw1Uwm
+         HCoA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=alison.schofield@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=F85MjR0g;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id w8si3173335pgr.258.2019.06.14.11.42.55
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p5sor1541024oia.156.2019.06.14.11.57.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 11:42:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        (Google Transport Security);
+        Fri, 14 Jun 2019 11:57:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=alison.schofield@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=F85MjR0g;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Jun 2019 11:42:54 -0700
-Received: from alison-desk.jf.intel.com ([10.54.74.53])
-  by orsmga001-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Jun 2019 11:42:55 -0700
-Date: Fri, 14 Jun 2019 11:46:02 -0700
-From: Alison Schofield <alison.schofield@intel.com>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Andy Lutomirski <luto@amacapital.net>,
-	David Howells <dhowells@redhat.com>,
-	Kees Cook <keescook@chromium.org>,
-	Kai Huang <kai.huang@linux.intel.com>,
-	Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-mm@kvack.org,
-	kvm@vger.kernel.org, keyrings@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH, RFC 44/62] x86/mm: Set KeyIDs in encrypted VMAs for MKTME
-Message-ID: <20190614184602.GB7252@alison-desk.jf.intel.com>
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
- <20190508144422.13171-45-kirill.shutemov@linux.intel.com>
- <20190614114408.GD3436@hirez.programming.kicks-ass.net>
- <20190614173345.GB5917@alison-desk.jf.intel.com>
- <e0884a6b-78bc-209d-bc9a-90f69839189e@intel.com>
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=oY348vpCG95iTNSMF3TDF4pbwXas3ck/kElwYiwrsvw=;
+        b=F85MjR0gN90YTSSPhCUn9lf3+gAUAMWR5V9MYVfBOrCJQ1H3hiLjul2ugj7VnpOTBa
+         i9Sp+K18uEQofN4tumrHUXaqcMNxTu6cGGZm6yttT/JpXMgr1xATwuYNtg+gZXBCVGhv
+         +mT01bZVNXo9pF/l9GffY/mlArCMf2aa3APCyIJWkZmcBddGaH8yofAJhPmyebNaOItK
+         N8sIZN8LJ3WJtxM2h/reyObc1JIGEWlLWAB5zVkxh/YE/W9nGbnxAAcfvDIFMf4k5Cqq
+         x5e4uXA4P1jBGWyObYdHmdFkNCTlR8nUiUTvIRg4KrDsp+lPH7/kprCmsmkBnMQBnyoi
+         M7KQ==
+X-Google-Smtp-Source: APXvYqzdJjEMIV2pl920MqFFLoWETfGaqo1sZN3VwAO8LaYfKv/sIYkMWWbQLkGsWPRjVz6yQawZkMZ47z54qwd7laI=
+X-Received: by 2002:aca:4208:: with SMTP id p8mr2892814oia.105.1560538675845;
+ Fri, 14 Jun 2019 11:57:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e0884a6b-78bc-209d-bc9a-90f69839189e@intel.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+References: <1560366952-10660-1-git-send-email-cai@lca.pw> <CAPcyv4hn0Vz24s5EWKr39roXORtBTevZf7dDutH+jwapgV3oSw@mail.gmail.com>
+ <CAPcyv4iuNYXmF0-EMP8GF5aiPsWF+pOFMYKCnr509WoAQ0VNUA@mail.gmail.com>
+ <1560376072.5154.6.camel@lca.pw> <87lfy4ilvj.fsf@linux.ibm.com>
+ <1560524365.5154.21.camel@lca.pw> <CAPcyv4jAzMzFjSD22VU9Csw+kgGbf8r=XHbdJYzgL_uH_GVEvw@mail.gmail.com>
+In-Reply-To: <CAPcyv4jAzMzFjSD22VU9Csw+kgGbf8r=XHbdJYzgL_uH_GVEvw@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 14 Jun 2019 11:57:44 -0700
+Message-ID: <CAPcyv4hjvBPDYKpp2Gns3-cc2AQ0AVS1nLk-K3fwXeRUvvzQLg@mail.gmail.com>
+Subject: Re: [PATCH -next] mm/hotplug: skip bad PFNs from pfn_to_online_page()
+To: Qian Cai <cai@lca.pw>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Oscar Salvador <osalvador@suse.de>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: multipart/mixed; boundary="0000000000006edde2058b4d3902"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 14, 2019 at 11:26:10AM -0700, Dave Hansen wrote:
-> On 6/14/19 10:33 AM, Alison Schofield wrote:
-> > Preserving the data across encryption key changes has not
-> > been a requirement. I'm not clear if it was ever considered
-> > and rejected. I believe that copying in order to preserve
-> > the data was never considered.
-> 
-> We could preserve the data pretty easily.  It's just annoying, though.
-> Right now, our only KeyID conversions happen in the page allocator.  If
-> we were to convert in-place, we'd need something along the lines of:
-> 
-> 	1. Allocate a scratch page
-> 	2. Unmap target page, or at least make it entirely read-only
-> 	3. Copy plaintext into scratch page
-> 	4. Do cache KeyID conversion of page being converted:
-> 	   Flush caches, change page_ext metadata
-> 	5. Copy plaintext back into target page from scratch area
-> 	6. Re-establish PTEs with new KeyID
+--0000000000006edde2058b4d3902
+Content-Type: text/plain; charset="UTF-8"
 
-Seems like the 'Copy plaintext' steps might disappoint the user, as
-much as the 'we don't preserve your data' design. Would users be happy
-w the plain text steps ?
-Alison
+On Fri, Jun 14, 2019 at 11:03 AM Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> On Fri, Jun 14, 2019 at 7:59 AM Qian Cai <cai@lca.pw> wrote:
+> >
+> > On Fri, 2019-06-14 at 14:28 +0530, Aneesh Kumar K.V wrote:
+> > > Qian Cai <cai@lca.pw> writes:
+> > >
+> > >
+> > > > 1) offline is busted [1]. It looks like test_pages_in_a_zone() missed the
+> > > > same
+> > > > pfn_section_valid() check.
+> > > >
+> > > > 2) powerpc booting is generating endless warnings [2]. In
+> > > > vmemmap_populated() at
+> > > > arch/powerpc/mm/init_64.c, I tried to change PAGES_PER_SECTION to
+> > > > PAGES_PER_SUBSECTION, but it alone seems not enough.
+> > > >
+> > >
+> > > Can you check with this change on ppc64.  I haven't reviewed this series yet.
+> > > I did limited testing with change . Before merging this I need to go
+> > > through the full series again. The vmemmap poplulate on ppc64 needs to
+> > > handle two translation mode (hash and radix). With respect to vmemap
+> > > hash doesn't setup a translation in the linux page table. Hence we need
+> > > to make sure we don't try to setup a mapping for a range which is
+> > > arleady convered by an existing mapping.
+> >
+> > It works fine.
+>
+> Strange... it would only change behavior if valid_section() is true
+> when pfn_valid() is not or vice versa. They "should" be identical
+> because subsection-size == section-size on PowerPC, at least with the
+> current definition of SUBSECTION_SHIFT. I suspect maybe
+> free_area_init_nodes() is too late to call subsection_map_init() for
+> PowerPC.
 
-> 
-> #2 is *really* hard.  It's similar to the problems that the poor
-> filesystem guys are having with RDMA these days when RDMA is doing writes.
-> 
-> What we have here (destroying existing data) is certainly the _simplest_
-> semantic.  We can certainly give it a different name, or even non-PROT_*
-> semantics where it shares none of mprotect()'s functionality.
-> 
-> Doesn't really matter to me at all.
+Can you give the attached incremental patch a try? This will break
+support for doing sub-section hot-add in a section that was only
+partially populated early at init, but that can be repaired later in
+the series. First things first, don't regress.
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 874eb22d22e4..520c83aa0fec 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7286,12 +7286,10 @@ void __init free_area_init_nodes(unsigned long
+*max_zone_pfn)
+
+        /* Print out the early node map */
+        pr_info("Early memory node ranges\n");
+-       for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
++       for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid)
+                pr_info("  node %3d: [mem %#018Lx-%#018Lx]\n", nid,
+                        (u64)start_pfn << PAGE_SHIFT,
+                        ((u64)end_pfn << PAGE_SHIFT) - 1);
+-               subsection_map_init(start_pfn, end_pfn - start_pfn);
+-       }
+
+        /* Initialise every node */
+        mminit_verify_pageflags_layout();
+diff --git a/mm/sparse.c b/mm/sparse.c
+index 0baa2e55cfdd..bca8e6fa72d2 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -533,6 +533,7 @@ static void __init sparse_init_nid(int nid,
+unsigned long pnum_begin,
+                }
+                check_usemap_section_nr(nid, usage);
+                sparse_init_one_section(__nr_to_section(pnum), pnum,
+map, usage);
++               subsection_map_init(section_nr_to_pfn(pnum), PAGES_PER_SECTION);
+                usage = (void *) usage + mem_section_usage_size();
+        }
+        sparse_buffer_fini();
+
+--0000000000006edde2058b4d3902
+Content-Type: text/x-patch; charset="US-ASCII"; name="fix.patch"
+Content-Disposition: attachment; filename="fix.patch"
+Content-Transfer-Encoding: base64
+Content-ID: <f_jwwgclts0>
+X-Attachment-Id: f_jwwgclts0
+
+ZGlmZiAtLWdpdCBhL21tL3BhZ2VfYWxsb2MuYyBiL21tL3BhZ2VfYWxsb2MuYwppbmRleCA4NzRl
+YjIyZDIyZTQuLjUyMGM4M2FhMGZlYyAxMDA2NDQKLS0tIGEvbW0vcGFnZV9hbGxvYy5jCisrKyBi
+L21tL3BhZ2VfYWxsb2MuYwpAQCAtNzI4NiwxMiArNzI4NiwxMCBAQCB2b2lkIF9faW5pdCBmcmVl
+X2FyZWFfaW5pdF9ub2Rlcyh1bnNpZ25lZCBsb25nICptYXhfem9uZV9wZm4pCiAKIAkvKiBQcmlu
+dCBvdXQgdGhlIGVhcmx5IG5vZGUgbWFwICovCiAJcHJfaW5mbygiRWFybHkgbWVtb3J5IG5vZGUg
+cmFuZ2VzXG4iKTsKLQlmb3JfZWFjaF9tZW1fcGZuX3JhbmdlKGksIE1BWF9OVU1OT0RFUywgJnN0
+YXJ0X3BmbiwgJmVuZF9wZm4sICZuaWQpIHsKKwlmb3JfZWFjaF9tZW1fcGZuX3JhbmdlKGksIE1B
+WF9OVU1OT0RFUywgJnN0YXJ0X3BmbiwgJmVuZF9wZm4sICZuaWQpCiAJCXByX2luZm8oIiAgbm9k
+ZSAlM2Q6IFttZW0gJSMwMThMeC0lIzAxOEx4XVxuIiwgbmlkLAogCQkJKHU2NClzdGFydF9wZm4g
+PDwgUEFHRV9TSElGVCwKIAkJCSgodTY0KWVuZF9wZm4gPDwgUEFHRV9TSElGVCkgLSAxKTsKLQkJ
+c3Vic2VjdGlvbl9tYXBfaW5pdChzdGFydF9wZm4sIGVuZF9wZm4gLSBzdGFydF9wZm4pOwotCX0K
+IAogCS8qIEluaXRpYWxpc2UgZXZlcnkgbm9kZSAqLwogCW1taW5pdF92ZXJpZnlfcGFnZWZsYWdz
+X2xheW91dCgpOwpkaWZmIC0tZ2l0IGEvbW0vc3BhcnNlLmMgYi9tbS9zcGFyc2UuYwppbmRleCAw
+YmFhMmU1NWNmZGQuLmJjYThlNmZhNzJkMiAxMDA2NDQKLS0tIGEvbW0vc3BhcnNlLmMKKysrIGIv
+bW0vc3BhcnNlLmMKQEAgLTUzMyw2ICs1MzMsNyBAQCBzdGF0aWMgdm9pZCBfX2luaXQgc3BhcnNl
+X2luaXRfbmlkKGludCBuaWQsIHVuc2lnbmVkIGxvbmcgcG51bV9iZWdpbiwKIAkJfQogCQljaGVj
+a191c2VtYXBfc2VjdGlvbl9ucihuaWQsIHVzYWdlKTsKIAkJc3BhcnNlX2luaXRfb25lX3NlY3Rp
+b24oX19ucl90b19zZWN0aW9uKHBudW0pLCBwbnVtLCBtYXAsIHVzYWdlKTsKKwkJc3Vic2VjdGlv
+bl9tYXBfaW5pdChzZWN0aW9uX25yX3RvX3BmbihwbnVtKSwgUEFHRVNfUEVSX1NFQ1RJT04pOwog
+CQl1c2FnZSA9ICh2b2lkICopIHVzYWdlICsgbWVtX3NlY3Rpb25fdXNhZ2Vfc2l6ZSgpOwogCX0K
+IAlzcGFyc2VfYnVmZmVyX2ZpbmkoKTsK
+--0000000000006edde2058b4d3902--
 
