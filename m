@@ -4,99 +4,99 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A855DC31E44
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 11:35:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FF0DC31E44
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 11:44:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6B56F208CA
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 11:35:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6306921473
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 11:44:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="fijeBxJq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B56F208CA
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="RU+fVwU0"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6306921473
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E35696B000A; Fri, 14 Jun 2019 07:35:35 -0400 (EDT)
+	id EA40D6B000A; Fri, 14 Jun 2019 07:44:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE6AB6B000D; Fri, 14 Jun 2019 07:35:35 -0400 (EDT)
+	id E546C6B000D; Fri, 14 Jun 2019 07:44:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CD4E46B000E; Fri, 14 Jun 2019 07:35:35 -0400 (EDT)
+	id D43966B000E; Fri, 14 Jun 2019 07:44:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 807E76B000A
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 07:35:35 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id o127so543605wmo.0
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 04:35:35 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B7716B000A
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 07:44:16 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id a5so1478241pla.3
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 04:44:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=WWQ52tqaiCP0C1KYMNijF1HDqWlxTu5XvaRlCuBtZ3g=;
-        b=XEW8JqplI7DBezsBB+xJ/iSb8sq9jEnzeDJWmNX1BZk2xDtXkTHFHGPMf/fg9rTK78
-         bW85i74RjK/Ghm5oeDMlYtHYBOVaLgRbGNBRIfIcn8inQHAwf7THjSsITXqPagT1KweS
-         HmEBhFpi/Uz7b8OX1t6XmPqd1RBTQ3MHQvFV3j7GR19cBz2I8Qu3C+7GVdpXMWEGVKYi
-         TPX8iJqlsrqyuQYJy4Sl213xWlPkDvKeglbWLlLfXI2rix1+XEWA49YMPLbVcdft1mul
-         WtipdjhqvGKJD7HaX3Ejk4cnKsttjJ3LdAh3a0HEBG5OjKsn+MRnKNGvzFzjNcZo7/m7
-         hKSg==
-X-Gm-Message-State: APjAAAXxVqGvmn6smMrH9jGUffc8swLNUkghL/xuLMepZA/R7K7Grs3E
-	C/uDb04/CEjYMfnYEEW3JyNWVv+GUOK2oDka3jz0Lq6442TKhYoFHH3E4L1VcEj4K9cUFooQblr
-	6kGJ5qKvlJWjfV4w2lCQ0Fy3l7fWYi2s5LhHfoe2Gb5l4hZc+xadCsLF94kN6wLjFYQ==
-X-Received: by 2002:a5d:6b52:: with SMTP id x18mr40835155wrw.341.1560512134867;
-        Fri, 14 Jun 2019 04:35:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwNeCHoBQq87mw/Uw48KTfMwD1oG+ehpBc7Vh4NpAgB48VWzXHjb25l9zi+F12KxxNmKqMQ
-X-Received: by 2002:a5d:6b52:: with SMTP id x18mr40835115wrw.341.1560512134119;
-        Fri, 14 Jun 2019 04:35:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560512134; cv=none;
+        bh=N2usWe+DF5bPKJZPBYT2JLd/gE3UHs5gaod0EYiWn0I=;
+        b=YUx3y21fp1hz3CCR/Jbeyset6KDW0AvF9KFOt8Z+fbOZPx/wreMzFreFBn2O37+hwf
+         Dn2QTcxmBUkyzQf7buFj7lUeeBGQkpvi8JO0BfEu/xngjNe2bWco1GGAjkKbFHAJ/P0F
+         nJuw7a9ALrbdimdqo4N8RO3mGUxobJG8d912CBcyNJRkr+u++YOogF2kWzLIns2iJ8ML
+         RL0VN37eKRxfWwtIuvcBAXGXFrYdbZtwvuqP14Io2pgpcRWIXfGePGe0RvMFVUNdY+t/
+         B7ToGnfZQPRSvMMKnoPfpp9sHmPEdXfC7ErKiaYYmH1lHumhFS3AHhPncwAjBpIinMXK
+         Tssw==
+X-Gm-Message-State: APjAAAUy8TResRMIODEeOvYX4HsQylJNmAvagWsYtZxHmSySQqQowfCJ
+	FmEvEBG3DwCeQbGxxwWY9X3w9499utaDs3fespt7m8f5RGfd8k5gzFUGt/IA4uieWsQn5pjBZPx
+	14qZ+B8lKzWgDx+48ui5YyZHfW7Tj20yoB0GRz2nrDhigYbu94dXjsiCoyzsQOMMMeg==
+X-Received: by 2002:a17:902:21:: with SMTP id 30mr91649437pla.302.1560512656189;
+        Fri, 14 Jun 2019 04:44:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwBzd6JswbxBCcZQNz8Fm225Q4gAzY8Wqcb1znSsFbGsQF4bIeg6IUxC65sP5dM3JkjOj9R
+X-Received: by 2002:a17:902:21:: with SMTP id 30mr91649386pla.302.1560512655440;
+        Fri, 14 Jun 2019 04:44:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560512655; cv=none;
         d=google.com; s=arc-20160816;
-        b=NMYv4DKu8AFL4fAsEUUlbx8cdq74Ioqw4IPR1jUNUJwHZwYOaEtcZRVpbmV9KCETyL
-         xrgS3AojZrOAYeq45PRX6dU3G8VBtgOvDusqKDW8J89y7jofUzkJyrQlHSZnunZuCUg+
-         Z/hikFhbiyjgc9fTvNd88orMIiQWEbaHwqWzHU4UZtaSZ+gJEpJPZ9axDwW3Htz5bl/Z
-         qWtKmvOmcj+QEycLOVl5rhxEQ4TCY1F5BYidp4rI3Y68otRAz+DpgjICgnkqBoULftJp
-         mKLjPUNhrKiSGNUupdNsudALJHDl6JRThtM/d2IgRJ2Ie6ffaiehQy5Ji4NjVLl5QY/Y
-         Fm5A==
+        b=wLUzCwdWi/ztV3np3tbj8LRgFmn0t8CTOZkSAOxth8mPjlPTvqYi31Si5JT3VokGCy
+         +mgWDVglWyRWg3+Mgp1myM63NnazC3Qf8fjGD3c+BcJK2pCGKIDb9pnSEjr09E0zg75Q
+         P3NOF+MK0gtM5YPl+6cyeqr0sRtfH5QmdTVbIMtrzbJm0ujjN9t1awZ+fSlcwbKkkRB8
+         XDbSaYlO+gBeBl1rBXju0OFbqhnAWtplEqJTkVo3VfwA5glG/20eVqJXAxm2aHSQFrZg
+         yEC84f+6AYs1RWjDCDTt68nX9yMYCzp3EAZyyxxBVjVhph4z2hPb86EQOVWk35l8xdji
+         ziYA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=WWQ52tqaiCP0C1KYMNijF1HDqWlxTu5XvaRlCuBtZ3g=;
-        b=a0z7fm6xvboedXaN3OdJ3FU6U9Okf590WYwUUvFeE+ZdmxYkmSo1y6ywl03edDTB5a
-         YIBq3b1FVj8E2YI5c8ZJvpgLFYtVLSsNk+IrsqfQEs/+bAqfzeNuY+uk8CR//1gONoXq
-         pl9O8gH3oepFJbAVM0WoVMoZgbQ3UZ21YK1AG7uq77ozXwHc+CRCZvu0AGA11QBqimDk
-         WLf8F4cVkyNSevUXh+Nbm+VpMqzYVYPICJ3jWjAeNFos73kOszdBmc/DxFi3FWAmQ69V
-         s4Xtm+Lz9UPiDwpZzaOA/auwZw0UDdyKsrr8Is2dizGuL1POgyO19oDRFHC8VSa/OjUT
-         b+PQ==
+        bh=N2usWe+DF5bPKJZPBYT2JLd/gE3UHs5gaod0EYiWn0I=;
+        b=s90FOjo830eaFwX47xRZXlVJ18RjIVijKuXF2wV9W/DlcIrZkqmej4ms3F56sSLfgs
+         UmR+UjR77Pjgdf1cyqVOZ3R11ZAmJLcpGta5u3syq8Wa62Bn/GXT/CnlMQqDoMpwcJbW
+         l4FqA2JMkjpjw3WRtEOy/AiOFagc45bXw3/Z6K8BwQjMZtCJgFb8NQjJImuki5tFSzy7
+         vbIg8Umd85ISf3IfNNzyQHEBBJ/m0dmw0W7exTZFZ9p9qoywgQRq7T46nucYEsUmr90Z
+         JXiS8Wewml7EXt6DtM/gLEXcbKxy1bJ6OZcShuxePdQawnw3b92HTTZo6wcqnoAmU3Lv
+         CsJw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=fijeBxJq;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id y9si2402719wrl.54.2019.06.14.04.35.33
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=RU+fVwU0;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id k5si2092194plt.355.2019.06.14.04.44.15
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 14 Jun 2019 04:35:34 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        Fri, 14 Jun 2019 04:44:15 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=fijeBxJq;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=RU+fVwU0;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=WWQ52tqaiCP0C1KYMNijF1HDqWlxTu5XvaRlCuBtZ3g=; b=fijeBxJqngGRNGgiX1l6dheAA
-	g0a+TA0qsbMnKPf3UF9mnTF+NJ8o2HHDxZGyQokqmbnkrBWxh2nwJAMMhedacfoexc3lD+yUgcstb
-	b58/Ies68J3GZLFKZdMLki9pYdHx5s9bTGYQntRYkltMpfp80uHWFFwUnBfxeqzhumHdFR1jsim+Q
-	Fcvnxn8kZXVv9SmjYvxD82ay1KdB3V7FWOTlZPdCFHVficpEuxVn3l5p4ZgEs+myHgUEcfUwux4Y/
-	xrCDihiDGQ2n0gR2hsnJIoV+HwI5A4h+me8DTlf+jEwCC3bHxoTlS1/sjfQOuLkYYJyhSLIyuA12r
-	fc9HqHw7w==;
+	 bh=N2usWe+DF5bPKJZPBYT2JLd/gE3UHs5gaod0EYiWn0I=; b=RU+fVwU0SYHwiXwH3G6btplv7
+	94vsmIFwwr6JKRMHE8Vhsf9s3IPtIBAKx3bYr8fllCl7dNM2KjaU2Ck39tgmbkvDsQj9tLDetB/7k
+	n8pTUI9EtYfOM5vyiXCkqsn4+lCUBNvcqBpDENJ/5TSplSzFREpI++eQsfzY3W1GhxU1+D8KK3Csd
+	ZdIXoyKpcc3MvU/d1a35GmWl6W15jux52vcYY18wyhJbBn9lte1Zdk9V2ot6MDtwmvqZUVEXBwifJ
+	Rsc+A4k4vJUkGYzEbn4jotLhBC2vQkoiOPF6BiRXn6iIMcaaM+IXMl4ahCy7+hlaNyO0xvo6roEMl
+	GU/cB+sbg==;
 Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hbkUO-0007E2-VL; Fri, 14 Jun 2019 11:35:25 +0000
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hbkcs-0005tV-Fc; Fri, 14 Jun 2019 11:44:11 +0000
 Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 7156220A15636; Fri, 14 Jun 2019 13:35:23 +0200 (CEST)
-Date: Fri, 14 Jun 2019 13:35:23 +0200
+	id D3C9020A15636; Fri, 14 Jun 2019 13:44:08 +0200 (CEST)
+Date: Fri, 14 Jun 2019 13:44:08 +0200
 From: Peter Zijlstra <peterz@infradead.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
@@ -112,15 +112,14 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
 	Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
 	kvm@vger.kernel.org, keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH, RFC 26/62] keys/mktme: Move the MKTME payload into a
- cache aligned structure
-Message-ID: <20190614113523.GC3436@hirez.programming.kicks-ass.net>
+Subject: Re: [PATCH, RFC 44/62] x86/mm: Set KeyIDs in encrypted VMAs for MKTME
+Message-ID: <20190614114408.GD3436@hirez.programming.kicks-ass.net>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
- <20190508144422.13171-27-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-45-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190508144422.13171-27-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20190508144422.13171-45-kirill.shutemov@linux.intel.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -128,29 +127,19 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 08, 2019 at 05:43:46PM +0300, Kirill A. Shutemov wrote:
+On Wed, May 08, 2019 at 05:44:04PM +0300, Kirill A. Shutemov wrote:
+> From: Alison Schofield <alison.schofield@intel.com>
+> 
+> MKTME architecture requires the KeyID to be placed in PTE bits 51:46.
+> To create an encrypted VMA, place the KeyID in the upper bits of
+> vm_page_prot that matches the position of those PTE bits.
+> 
+> When the VMA is assigned a KeyID it is always considered a KeyID
+> change. The VMA is either going from not encrypted to encrypted,
+> or from encrypted with any KeyID to encrypted with any other KeyID.
+> To make the change safely, remove the user pages held by the VMA
+> and unlink the VMA's anonymous chain.
 
-> +/* Copy the payload to the HW programming structure and program this KeyID */
-> +static int mktme_program_keyid(int keyid, struct mktme_payload *payload)
-> +{
-> +	struct mktme_key_program *kprog = NULL;
-> +	int ret;
-> +
-> +	kprog = kmem_cache_zalloc(mktme_prog_cache, GFP_ATOMIC);
-
-Why GFP_ATOMIC, afaict neither of the usage is with a spinlock held.
-
-> +	if (!kprog)
-> +		return -ENOMEM;
-> +
-> +	/* Hardware programming requires cached aligned struct */
-> +	kprog->keyid = keyid;
-> +	kprog->keyid_ctrl = payload->keyid_ctrl;
-> +	memcpy(kprog->key_field_1, payload->data_key, MKTME_AES_XTS_SIZE);
-> +	memcpy(kprog->key_field_2, payload->tweak_key, MKTME_AES_XTS_SIZE);
-> +
-> +	ret = MKTME_PROG_SUCCESS;	/* Future programming call */
-> +	kmem_cache_free(mktme_prog_cache, kprog);
-> +	return ret;
-> +}
+This does not look like a transformation that preserves content; is
+mprotect() still a suitable name?
 
