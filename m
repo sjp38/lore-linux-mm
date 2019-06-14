@@ -2,165 +2,254 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1069BC31E4A
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 00:12:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9706DC31E4A
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 00:20:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A4CF921537
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 00:12:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="neN3kBOM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4CF921537
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 56E4A21537
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 00:20:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 56E4A21537
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 190D56B000C; Thu, 13 Jun 2019 20:12:07 -0400 (EDT)
+	id F1DBD6B000D; Thu, 13 Jun 2019 20:20:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 141EC6B000D; Thu, 13 Jun 2019 20:12:07 -0400 (EDT)
+	id ECF5A6B000E; Thu, 13 Jun 2019 20:20:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0308B6B000E; Thu, 13 Jun 2019 20:12:06 -0400 (EDT)
+	id D96906B0266; Thu, 13 Jun 2019 20:20:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D6DD16B000C
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 20:12:06 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id f69so692960ywb.21
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 17:12:06 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A52366B000D
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 20:20:57 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id n1so518668plk.11
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 17:20:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding:dkim-signature;
-        bh=2rNJ7DTMjMPhOlVosuT+dcn+kIR1ESSVOR99OmM6ZKM=;
-        b=Nx2UBZ+Cr1RWmFMvLE00WdrujkXE8ewOsvLNoryKxFEJMujVOMCUS6K76ykn2HrO0a
-         zj0DQhbLBt2YyDOFvoWeWlSxnzDHvcvG6xAQKvH6zX9k3vh/OweQReAfC1xYHTcCVvkL
-         WUCHfWBkdWKAAqAae7eVO0NMxgAmeVDXkSHyek4EpZUZDtI8LPqyWro/eplnlyyBoTy2
-         Viw08028wbufWAE5a4UXR+clR8y1Yazfc0hDH0RyWpjH0K1wLSm6eIRpnNvLRu61z9bU
-         bNI0wVYs48+Joyn83GoN/MO82PnywwH+aI+zqGEfZV+dCedWREo3DlVICuX/t+qEJKui
-         qHuQ==
-X-Gm-Message-State: APjAAAXiM83dMAtPCQbdmElUnXQuZrCN9Uv3aE9KhBEMaG4xTd4CG/k4
-	rKEqKJIIkHcKEV95UmSdjtep+wesc3rRDyTWez3kpiYfjhYe8bBybExV+F20zf1F3Hfxk6rGIiq
-	3MHdVXRHxyZXAJo5iPWv3ysNk9hXr8ADV0DJgPo1Qka6BTnFLSaa0u2oJBfo5QWi1OA==
-X-Received: by 2002:a81:6ad4:: with SMTP id f203mr36500958ywc.196.1560471126634;
-        Thu, 13 Jun 2019 17:12:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyjSLUb1EHFIRdKXMEGQn15wCxZzAwAAxPLyKNqkNboHMBsdlacO6bTHRdKvlv2D/G0quyJ
-X-Received: by 2002:a81:6ad4:: with SMTP id f203mr36500939ywc.196.1560471126083;
-        Thu, 13 Jun 2019 17:12:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560471126; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=9GRYlXivdEr74K/wndUGJ2qTpEbl/sqkOSmfbHR27ZI=;
+        b=ZORiqkW4HUduMxhR1N2PSTaYk1SebbbtsrQ2chKxxKbLQCeWW31uvUynMCpbN1KK0m
+         IiW77urJ+P5KnKH6UKNJ2uVOqvGadpW2VcE1DSmXhuBO+MlGi5yvg2dGUw3weRfSAk7i
+         SjBnn0bPGoLPstQa0F/ZZDdmqN//J+bYINtQvaJXr/nnEonX+er7nhNCq1OxlzCunHse
+         Z2qG/R8BNVC5aIBrhP2J8PWaraxEQtFldpKVakS07bfyohZUrY9q+tYXnBSEbHsyxYFO
+         Dc+D1FaLr/L5UnSNOzNCahzaEH+pv5VNytZPOFmRSt9P5hwhFIWyGlF7pqFkuBAxhZ7E
+         4/mA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXwClc+UXF4reGa6c0I+R5RTGdOGxlYRaBiJl0BKIHvl/6kDEVb
+	swQgXoD/cH8iR0IsMqjyTbIJdDYvSp/dqR/KzdZ+0lb5euJcQnhUnHlqH3PDm3lLqRvVrtPYjuK
+	jpOzWheBKTmJx27g0iufThXM7P8zL0bgvusp5kllVAIvorD4sGq2U5FDyQi2ge7zzTA==
+X-Received: by 2002:a62:4d04:: with SMTP id a4mr95444540pfb.177.1560471657332;
+        Thu, 13 Jun 2019 17:20:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyCndVxd34J/dOqc3vb38qHEDJtb7wwcU6BGHzka6bQOEQJgfOazqjZ8Qs99oP6sZCYevrW
+X-Received: by 2002:a62:4d04:: with SMTP id a4mr95444510pfb.177.1560471656588;
+        Thu, 13 Jun 2019 17:20:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560471656; cv=none;
         d=google.com; s=arc-20160816;
-        b=De83H2ZbJk3AGPuikqFLciln5QFk5/mTlnMR6snhO0i/AmuwN+MeBLH0CqurDDGXBG
-         FwQv5DM/dv02XiM6QWzaJ0+G7PvVRTJ07c0FyQBQgb21yUCbPQTq/ejMhqrV21NQ+4bV
-         Gxi+OMkHLUF76k26GU1e/VH5MEdXMAGDLYYJLeHKaIqYZFUPZ3PxO2zNnYOaHtDoDPUo
-         Vj0cRXF/mPaRtJ4RviDOeLNl8fByO9ES8bBWcj1aOFp2HNjZuaeH2sVJt2AJ9NiD2Rh9
-         qtl3oMNrSJqA4KyWWwfGq8NYlJXGDReVFEpnOzfFAE3d3y79vFMK/GIAFy03tfRdB2Eu
-         /1Qw==
+        b=VcJpVawoY8SBoAWKHSzVrHj7EzquYU7fgTln3g4Yyg4sQI6+HD+auy2nAt18o48LjX
+         Ul3LYNHo3PNsGwNVlqOmcJk6U9oBC/a63UCCXmPSr75bObK+W6wfUax2R0JVjsj5tgSm
+         RCFEHZe5Fbp3dutFGQuEgEPqIA6obyzNXSvnSm3hEeEA7y7IeE+hJSr+mwEf6yvOJ1vH
+         CsYyxzfX0bb3poUHWTYuPjzMSiOdbupVpQckqhq9NnbqY5ADT9ydP5u9Pa2ozbJN6MND
+         tIfvWCqnu6cffgbB3kzLZonKVXFgSYRteUgRxjXzbRDhxadACBMFnLDXtxjJMpsLRs0T
+         alUA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:mime-version:message-id
-         :date:subject:cc:to:from;
-        bh=2rNJ7DTMjMPhOlVosuT+dcn+kIR1ESSVOR99OmM6ZKM=;
-        b=vsWuvkek2u0DyYg90RK+Fnl9+/xuaz+I1FZgOVE2Te5G9MR4TsT+YiHRAgISuedcnV
-         T73FaqBZ8Ja7s39DFNwSW41+CfnLlpZN6YAVcqWYwkVn4DXeJpMM2hjv1pvXfPSfOvp+
-         XB69rRzzNr3FNy8ammVrIaRqp870RZdWr2Qx6qy9aa6i9/G0OfnpjzdhmAkNCFbRDCxe
-         mcae5M/u63Lni9mTbJBUdx0fMTTKkp1L9TGLO+mmNfKeiAkImhoNBBpZWtvIJq2moqt+
-         Y2zQRo9//O4s3Jqsl7lLjq0F23lxcjrITxeRDd+sxBXArU1cAKI5o6VTBZaJ7+TXj7it
-         CRZQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=9GRYlXivdEr74K/wndUGJ2qTpEbl/sqkOSmfbHR27ZI=;
+        b=Ql2ofpaIHw91CJJ5gN+Vp0re8YjL/JN3iQsGo7D/5FpTZOYDEAytcZpCrjTVVMIcrV
+         pGgCwX366/3zRJ5U64/N4oXjipXweXLQqo+Tr422nei2f6hDBFuJ01mwcbyZu5vwrG0U
+         MDtRHSJJXu9NaYgo2f+ICXVSBZ/d53zM/E2DdOa2qJsbLjCDV1un7O0J91tB6DaLNAAS
+         Kf6kaBgLKQoPrRfWz8EVShAF0PlY5fSrKikckKHAJnuPM1kbAsOaouavni5TJsgk1IPa
+         PFDS9Fv3WfWNFizbTzlyz7Sz68sjpTE01gigF/IfPdIP2wdeqL1XK6cBg2MpHi58wvJk
+         /PSw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=neN3kBOM;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id u125si492306ywa.200.2019.06.13.17.12.05
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id b7si875921pfp.4.2019.06.13.17.20.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 17:12:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        Thu, 13 Jun 2019 17:20:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=neN3kBOM;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d02e6550000>; Thu, 13 Jun 2019 17:12:05 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Thu, 13 Jun 2019 17:12:05 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Thu, 13 Jun 2019 17:12:05 -0700
-Received: from HQMAIL111.nvidia.com (172.20.187.18) by HQMAIL108.nvidia.com
- (172.18.146.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 14 Jun
- 2019 00:12:04 +0000
-Received: from HQMAIL104.nvidia.com (172.18.146.11) by HQMAIL111.nvidia.com
- (172.20.187.18) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 14 Jun
- 2019 00:12:00 +0000
-Received: from hqnvemgw01.nvidia.com (172.20.150.20) by HQMAIL104.nvidia.com
- (172.18.146.11) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
- Transport; Fri, 14 Jun 2019 00:12:00 +0000
-Received: from rcampbell-dev.nvidia.com (Not Verified[10.110.48.66]) by hqnvemgw01.nvidia.com with Trustwave SEG (v7,5,8,10121)
-	id <B5d02e64f0000>; Thu, 13 Jun 2019 17:11:59 -0700
-From: Ralph Campbell <rcampbell@nvidia.com>
-To: Jerome Glisse <jglisse@redhat.com>, David Airlie <airlied@linux.ie>, "Ben
- Skeggs" <bskeggs@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>
-CC: <nouveau@lists.freedesktop.org>, <linux-mm@kvack.org>,
-	<dri-devel@lists.freedesktop.org>, <linux-kernel@vger.kernel.org>, "Ralph
- Campbell" <rcampbell@nvidia.com>
-Subject: [PATCH] drm/nouveau/dmem: missing mutex_lock in error path
-Date: Thu, 13 Jun 2019 17:11:21 -0700
-Message-ID: <20190614001121.23950-1-rcampbell@nvidia.com>
-X-Mailer: git-send-email 2.20.1
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga003.fm.intel.com ([10.253.24.29])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Jun 2019 17:20:56 -0700
+X-ExtLoop1: 1
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by FMSMGA003.fm.intel.com with ESMTP; 13 Jun 2019 17:20:55 -0700
+Date: Thu, 13 Jun 2019 17:22:17 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Dan Williams <dan.j.williams@intel.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>,
+	linux-nvdimm@lists.01.org, linux-pci@vger.kernel.org,
+	linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linux-mm@kvack.org, nouveau@lists.freedesktop.org
+Subject: Re: [PATCH 13/22] device-dax: use the dev_pagemap internal refcount
+Message-ID: <20190614002217.GB783@iweiny-DESK2.sc.intel.com>
+References: <20190613094326.24093-1-hch@lst.de>
+ <20190613094326.24093-14-hch@lst.de>
 MIME-Version: 1.0
-X-NVConfidentiality: public
-Content-Transfer-Encoding: quoted-printable
-Content-Type: text/plain
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1560471125; bh=2rNJ7DTMjMPhOlVosuT+dcn+kIR1ESSVOR99OmM6ZKM=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-	 MIME-Version:X-NVConfidentiality:Content-Transfer-Encoding:
-	 Content-Type;
-	b=neN3kBOM4fwFzxxjmxWL1ltp+tFO8bAcbqFK/NkF6ljwaGDjCyCUNjyfFcYeKG9T4
-	 5LdGR7QCJzezPlMCmrdKYb1uNBS/iIAEnpK1hMJVC4YlXEsNnr9L2qFHaYil+aBIyJ
-	 60wMyDHM5XN/zwZxTsCkESQujXLaoeWvhG5kKgnBZubuDk3cxpKMsqfWLQComwBkgO
-	 y8MOe90H/Rqb7zeWBsQG5hqIu9N7CqlNp/FIgtnz3xiNXN0ispWt/+exKroPpJ9wCJ
-	 Pz57q/vucsb+GtG/qX1XENQ8dZu+F/CYr0G+CV/G3g2ekKciae45Ha0N3zk6j+9N+U
-	 gbTCIFIddddug==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190613094326.24093-14-hch@lst.de>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In nouveau_dmem_pages_alloc(), the drm->dmem->mutex is unlocked before
-calling nouveau_dmem_chunk_alloc().
-Reacquire the lock before continuing to the next page.
+On Thu, Jun 13, 2019 at 11:43:16AM +0200, Christoph Hellwig wrote:
+> The functionality is identical to the one currently open coded in
+> device-dax.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  drivers/dax/dax-private.h |  4 ---
+>  drivers/dax/device.c      | 52 +--------------------------------------
+>  2 files changed, 1 insertion(+), 55 deletions(-)
+> 
+> diff --git a/drivers/dax/dax-private.h b/drivers/dax/dax-private.h
+> index a45612148ca0..ed04a18a35be 100644
+> --- a/drivers/dax/dax-private.h
+> +++ b/drivers/dax/dax-private.h
+> @@ -51,8 +51,6 @@ struct dax_region {
+>   * @target_node: effective numa node if dev_dax memory range is onlined
+>   * @dev - device core
+>   * @pgmap - pgmap for memmap setup / lifetime (driver owned)
+> - * @ref: pgmap reference count (driver owned)
+> - * @cmp: @ref final put completion (driver owned)
+>   */
+>  struct dev_dax {
+>  	struct dax_region *region;
+> @@ -60,8 +58,6 @@ struct dev_dax {
+>  	int target_node;
+>  	struct device dev;
+>  	struct dev_pagemap pgmap;
+> -	struct percpu_ref ref;
+> -	struct completion cmp;
+>  };
+>  
+>  static inline struct dev_dax *to_dev_dax(struct device *dev)
+> diff --git a/drivers/dax/device.c b/drivers/dax/device.c
+> index e23fa1bd8c97..a9d7c90ecf1e 100644
+> --- a/drivers/dax/device.c
+> +++ b/drivers/dax/device.c
+> @@ -14,37 +14,6 @@
+>  #include "dax-private.h"
+>  #include "bus.h"
+>  
+> -static struct dev_dax *ref_to_dev_dax(struct percpu_ref *ref)
+> -{
+> -	return container_of(ref, struct dev_dax, ref);
+> -}
+> -
+> -static void dev_dax_percpu_release(struct percpu_ref *ref)
+> -{
+> -	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
+> -
+> -	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+> -	complete(&dev_dax->cmp);
+> -}
+> -
+> -static void dev_dax_percpu_exit(void *data)
+> -{
+> -	struct percpu_ref *ref = data;
+> -	struct dev_dax *dev_dax = ref_to_dev_dax(ref);
+> -
+> -	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+> -	wait_for_completion(&dev_dax->cmp);
+> -	percpu_ref_exit(ref);
+> -}
+> -
+> -static void dev_dax_percpu_kill(struct dev_pagemap *pgmap)
+> -{
+> -	struct dev_dax *dev_dax = container_of(pgmap, struct dev_dax, pgmap);
+> -
+> -	dev_dbg(&dev_dax->dev, "%s\n", __func__);
+> -	percpu_ref_kill(pgmap->ref);
+> -}
+> -
+>  static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
+>  		const char *func)
+>  {
+> @@ -442,10 +411,6 @@ static void dev_dax_kill(void *dev_dax)
+>  	kill_dev_dax(dev_dax);
+>  }
+>  
+> -static const struct dev_pagemap_ops dev_dax_pagemap_ops = {
+> -	.kill		= dev_dax_percpu_kill,
+> -};
+> -
+>  int dev_dax_probe(struct device *dev)
+>  {
+>  	struct dev_dax *dev_dax = to_dev_dax(dev);
+> @@ -463,24 +428,9 @@ int dev_dax_probe(struct device *dev)
+>  		return -EBUSY;
+>  	}
+>  
+> -	init_completion(&dev_dax->cmp);
+> -	rc = percpu_ref_init(&dev_dax->ref, dev_dax_percpu_release, 0,
+> -			GFP_KERNEL);
+> -	if (rc)
+> -		return rc;
+> -
+> -	rc = devm_add_action_or_reset(dev, dev_dax_percpu_exit, &dev_dax->ref);
+> -	if (rc)
+> -		return rc;
+> -
+> -	dev_dax->pgmap.ref = &dev_dax->ref;
 
-Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
----
+I don't think this exactly correct.  pgmap.ref is a pointer to the dev_dax ref
+structure.  Taking it away will cause devm_memremap_pages() to fail AFAICS.
 
-I found this while testing Jason Gunthorpe's hmm tree but this is
-independant of those changes. I guess it could go through
-David Airlie's tree for nouveau or Jason's tree.
+I think you need to change struct dev_pagemap as well:
 
- drivers/gpu/drm/nouveau/nouveau_dmem.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+index f0628660d541..5e2120589ddf 100644
+--- a/include/linux/memremap.h
++++ b/include/linux/memremap.h
+@@ -90,7 +90,7 @@ struct dev_pagemap {
+        struct vmem_altmap altmap;
+        bool altmap_valid;
+        struct resource res;
+-       struct percpu_ref *ref;
++       struct percpu_ref ref;
+        void (*kill)(struct percpu_ref *ref);
+        struct device *dev;
+        void *data;
 
-diff --git a/drivers/gpu/drm/nouveau/nouveau_dmem.c b/drivers/gpu/drm/nouve=
-au/nouveau_dmem.c
-index 27aa4e72abe9..00f7236af1b9 100644
---- a/drivers/gpu/drm/nouveau/nouveau_dmem.c
-+++ b/drivers/gpu/drm/nouveau/nouveau_dmem.c
-@@ -379,9 +379,10 @@ nouveau_dmem_pages_alloc(struct nouveau_drm *drm,
- 			ret =3D nouveau_dmem_chunk_alloc(drm);
- 			if (ret) {
- 				if (c)
--					break;
-+					return 0;
- 				return ret;
- 			}
-+			mutex_lock(&drm->dmem->mutex);
- 			continue;
- 		}
-=20
---=20
-2.20.1
+And all usages of it, right?
+
+Ira
+
+> -	dev_dax->pgmap.ops = &dev_dax_pagemap_ops;
+>  	addr = devm_memremap_pages(dev, &dev_dax->pgmap);
+> -	if (IS_ERR(addr)) {
+> -		devm_remove_action(dev, dev_dax_percpu_exit, &dev_dax->ref);
+> -		percpu_ref_exit(&dev_dax->ref);
+> +	if (IS_ERR(addr))
+>  		return PTR_ERR(addr);
+> -	}
+>  
+>  	inode = dax_inode(dax_dev);
+>  	cdev = inode->i_cdev;
+> -- 
+> 2.20.1
+> 
+> _______________________________________________
+> Linux-nvdimm mailing list
+> Linux-nvdimm@lists.01.org
+> https://lists.01.org/mailman/listinfo/linux-nvdimm
 
