@@ -7,93 +7,93 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05160C31E45
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:46:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D8503C31E4A
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:48:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ABA8E208CA
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:46:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9C1DA21537
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:48:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="hZ/DTJ5k"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABA8E208CA
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="I8MPAgx2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C1DA21537
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B9FA6B000D; Thu, 13 Jun 2019 21:46:35 -0400 (EDT)
+	id 343D86B000D; Thu, 13 Jun 2019 21:48:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 36BDD6B000E; Thu, 13 Jun 2019 21:46:35 -0400 (EDT)
+	id 2F49C6B000E; Thu, 13 Jun 2019 21:48:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 232396B0266; Thu, 13 Jun 2019 21:46:35 -0400 (EDT)
+	id 1E51A6B0266; Thu, 13 Jun 2019 21:48:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F2B5A6B000D
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 21:46:34 -0400 (EDT)
-Received: by mail-yw1-f70.google.com with SMTP id b188so912913ywb.10
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 18:46:34 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EEA1B6B000D
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 21:47:59 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id g7so288527ybf.10
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 18:47:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:subject:to:cc:references:from:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding:dkim-signature;
-        bh=aWY+o31YpTUXYNCWR/tUiybGk+oQfQT9Eqi8enXkBOQ=;
-        b=RbCsRye16iUlhdxCbx60GZVxQcUNJn1psOx9UjyCxPjl2OmNNrm2oOEm2c7dssKkLc
-         houYrozRg7gmHRv53C0XKL6QoYSejNo9a0seIzyZz6h+XF6U29FzGoCzNw3tIK3FSo/b
-         JErhA4PjmVC7OttXUmbDI5liJ0RzHJ40UduQmCZavTtdhZBiT6engaXfe15Xsm7aQItE
-         OQ0WAN8iLCb4fxMpZtx0QXIwOfNvK+QxUjvj4qc5VG3RhRxa8bgZt0Lwv1gFUSrVvmGX
-         URRllR2zORILZMBOuLTG8iZ7SawoiKDQ+4AXoeD1CuZWELcwkOYx++JxZ4TA8l0qW3i1
-         XC9Q==
-X-Gm-Message-State: APjAAAUgzShB30J/d+FzSsYj+sEcz5mjZ2nrpxlJZ/9UtCMb2ULqIGDJ
-	1N7UPs+C73z3zwCABEb1BQ+X72tOrB3AjlTgpZ5vxoUEJsXDMjPJFKpvpIRsYbiVUfg8s4V5uwz
-	aZL/TqdF8oshVtjLO8TcH0AHsixmrjjM8JMx7vfQNZOoGwMbSoqdPrPUmBczc2cTfkw==
-X-Received: by 2002:a81:d86:: with SMTP id 128mr7763673ywn.514.1560476794738;
-        Thu, 13 Jun 2019 18:46:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwbsbSTuPH7oXa2PLe5G0w7CNhx1On4lFEQfv0yWlI0qEWme4ODJw4D2sLTmV9gkCZOdRph
-X-Received: by 2002:a81:d86:: with SMTP id 128mr7763660ywn.514.1560476794171;
-        Thu, 13 Jun 2019 18:46:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560476794; cv=none;
+        bh=W7HIzAAq5sQ4cds9yVoSXH+lwR7EoHWX9W6ILDXWS68=;
+        b=BlwTjhdI1isOSYkBjcb3eDQ5hrWnsG5X4mK93DRgpOck8Hx3XyCKeznu+wikLl0gV3
+         WMazfg2QcW/nlzK44jHZU+jeKDhfI9lDDExVpkakTRcig61Rx437YVQAt4pmeBwWkzT8
+         IqkNp/4v6ZgCXZLc43WJ0auvL5hKcEtVagkWtAiuVlAXErkzaHMQbGJfT/RzAGTlqkLM
+         LhqlqC1TS8+vJt21dXKibOF+beKQVe5JJNeJciaWDWPG/lfVipCtbQ5jGckN3dIiGpMR
+         oUcDdUsAvyZ46DghZk2YLQQUnC3eeEzIsEy1LtaoLv0zjxJlac8yMHAivOpMsb0UEjv5
+         bEsw==
+X-Gm-Message-State: APjAAAUdVfL780rnkbG1KJbCWo9UmfWKWOkwaO64Z5Ati+XkEGgvthQU
+	NV/Tsxhzx9HDNA9Gj6Jomodi7awa4TZqSSGxLMGzzoDAkKQSRvD4ejOE/QwBpxotC/t6rTqkYSJ
+	VJPQp8kBUJgaKybiuOTDTtTxdiPltQrnS0e4LlrZz9kFn1bYcBepYnPswTmw8V91npA==
+X-Received: by 2002:a81:57ce:: with SMTP id l197mr51085431ywb.115.1560476879704;
+        Thu, 13 Jun 2019 18:47:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzxdLf/mBgNecwHhn5WPDIo8Gt6ntxKgMPrbuk8T6+8Da21Jf0296jPf7Vdt2Li7KtBqT+b
+X-Received: by 2002:a81:57ce:: with SMTP id l197mr51085419ywb.115.1560476879282;
+        Thu, 13 Jun 2019 18:47:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560476879; cv=none;
         d=google.com; s=arc-20160816;
-        b=RM0LWKIZncVQQ/XvMHFV9yiJ+2MwXtCYDhMzoyiswRsDCqzxueORmK4f8c4lnf7qyc
-         LEsIAfe1oR5Pa/KceNEsRL017gwg1R7WYaAsdi8Cg3Nf416YJrdCA9ic1/OCSsUPrcG+
-         AXz6HqqUYekOBDAWUvpzvqr4nI1Gu6VIqr87AwE7iFASXJkQO8tai53fmrf8+ERerh2P
-         nEK93RKsfR5lfxSR6KlAwGn55x6F83/jfZOke1wSkAwUIqA8mp6lPcfBnogR6HfMM0wA
-         j39/1ky8ObUL676mNew6gQ2ozeGk2Pc8LR6kDGfLP7F9dKfipo2bdbAyTv3Et4486DQZ
-         0kuA==
+        b=ZazyuHUod0mfMyQQ2d+VpGvarAD2GMBcl4EetbRCVuobzYhURIlV1cyr355QCmFw4X
+         SFTWTYtAi7VQm0kpoOJzZ4lol16StTgeDzOgcch2BexKAQhhAvgaILTIco21vKnacbxo
+         UF7/zYkVaL8wL8RVAXbCRCY9QozNrjS8ZKGZ4fJe0dhZCpaJ7lJgme0oPBPB188X3+0J
+         DMODEMhZL90JlkjjnoqecKZjzgLiwB2OKpvPW1jcrtwcp5BaHXhFwWXGmGZxs1u3dCDs
+         iM32L/9d6Qc2I0V0cJuM+MYFqg5oZcLbCTwJ0wK9TT6fUMeF1ANWD34w99dwrncff1Ra
+         HFFA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=dkim-signature:content-transfer-encoding:content-language
          :in-reply-to:mime-version:user-agent:date:message-id:from:references
          :cc:to:subject;
-        bh=aWY+o31YpTUXYNCWR/tUiybGk+oQfQT9Eqi8enXkBOQ=;
-        b=cDze7yozpRv7K62pQAnltpHr5y8MYjs/Gv8DDkGi1ksDYlDAbWQBvhjKrQIAw5C3tX
-         Yea5JF/NDqqjhDxaER4HyI5dqQSk6Oui7iz2w5Qi9IRgi6SmrlumsCPKbBDDehcyqElg
-         o8kSJPHMKYfAHGpmXtMd50Vd35Xmj7tH+Q3SAr6RnHtbVoXkTapwoqInSywKepPNpbPt
-         WVZqKjpV0RfNneMfh36/LKLJEx23Ys8Ew//ZaFb7QCNElYCFzUvHOfpXO5udeNG5jp5R
-         T0JOj2zsW1tWTsJThc1lTcL0BgYfDcvEHotPL31kViE7nUDZdUGSriWeXJAxukYS5zRd
-         RkAw==
+        bh=W7HIzAAq5sQ4cds9yVoSXH+lwR7EoHWX9W6ILDXWS68=;
+        b=YQsW6qgHbmsKF4Lp9bPRH1eRW3S/FvEcO+renPEnfY40GO6mDbQ++hcvhqnYSqiT/E
+         hkn4J/F+pyVwff1o5gSjz7WgViUJXv+2BYThcWRBRbxgQpusZ0mhoMGrA2xH+a6PD0sA
+         0THQfaJBw6Fj+sAf/N39uqRYPEX5YCIqQw7KOJO7EhFt0q4LkMR+qlJaCL6iELgj2yur
+         cY730NOSIjPiURfwGZEKHR0ewzfw1cyUqt9D+4jDO5CLcV+XavpdnoYyX44tDZe55BD8
+         RKE6efsq0luYdJTRLHrRYNW5tvIY77COhjMp36R/0NL6/TWH5E8R37ueUEwTX1qfbk2c
+         kAgQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="hZ/DTJ5k";
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=I8MPAgx2;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id x71si569846ywx.166.2019.06.13.18.46.33
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id s67si490191yba.270.2019.06.13.18.47.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 18:46:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        Thu, 13 Jun 2019 18:47:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="hZ/DTJ5k";
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=I8MPAgx2;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d02fc790000>; Thu, 13 Jun 2019 18:46:33 -0700
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d02fcce0000>; Thu, 13 Jun 2019 18:47:58 -0700
 Received: from hqmail.nvidia.com ([172.20.161.6])
   by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 13 Jun 2019 18:46:33 -0700
+  Thu, 13 Jun 2019 18:47:58 -0700
 X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 13 Jun 2019 18:46:33 -0700
+	by hqpgpgate101.nvidia.com on Thu, 13 Jun 2019 18:47:58 -0700
 Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
  (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 14 Jun
- 2019 01:46:30 +0000
-Subject: Re: [PATCH 04/22] mm: don't clear ->mapping in hmm_devmem_free
+ 2019 01:47:57 +0000
+Subject: Re: [PATCH 05/22] mm: export alloc_pages_vma
 To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
 	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jason Gunthorpe
 	<jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>
@@ -101,15 +101,15 @@ CC: <linux-mm@kvack.org>, <nouveau@lists.freedesktop.org>,
 	<dri-devel@lists.freedesktop.org>, <linux-nvdimm@lists.01.org>,
 	<linux-pci@vger.kernel.org>, <linux-kernel@vger.kernel.org>
 References: <20190613094326.24093-1-hch@lst.de>
- <20190613094326.24093-5-hch@lst.de>
+ <20190613094326.24093-6-hch@lst.de>
 X-Nvconfidentiality: public
 From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <b0584ac6-72e3-08d3-6b76-1ac5e5b3bb4f@nvidia.com>
-Date: Thu, 13 Jun 2019 18:46:29 -0700
+Message-ID: <d83280b5-8cca-3b28-1727-58a70648e2b9@nvidia.com>
+Date: Thu, 13 Jun 2019 18:47:57 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190613094326.24093-5-hch@lst.de>
+In-Reply-To: <20190613094326.24093-6-hch@lst.de>
 X-Originating-IP: [172.20.13.39]
 X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
  HQMAIL107.nvidia.com (172.20.187.13)
@@ -117,17 +117,17 @@ Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1560476793; bh=aWY+o31YpTUXYNCWR/tUiybGk+oQfQT9Eqi8enXkBOQ=;
+	t=1560476879; bh=W7HIzAAq5sQ4cds9yVoSXH+lwR7EoHWX9W6ILDXWS68=;
 	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
 	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
 	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
 	 Content-Transfer-Encoding;
-	b=hZ/DTJ5kKqWdpCL12ZwwtnQNfLWFCFSPcl2k46LOsH4pNokmtsOInOl9+GJ8FKmKO
-	 hXZGdDzxG+P+INltKZYs7MH3/UvgeCnHg5hunwwq2bHUiutlLY5os0Z0ZWt+qrOuk9
-	 K1Cep9JhG5g0OourqoO6QLKWzZukRM6NdlGEbmjrnoEWvH3YVwufa/VDbhQJ2OHW1T
-	 paLBoqcpz6yETgLWr50DBrY8lfihmvAJXfVj+3zCeNHjlAyMFyqJD9rLf7d5TUXr4L
-	 SqhY59v6TJmTfzJl0WQ5JTwHaXZZRXMzmrFJGWFYPUDt0cJm6MdR4wx/+QlT3y9K7k
-	 1VdCdX4iXd9+w==
+	b=I8MPAgx2vYT6KwhZqE7Iz0XmBDUAPkhjJ2muXoBXvyuvRRzqt+N/vYMC8nbdYG25/
+	 WSlmXfyDpPT5QeLCb+OCPbYjTfqvYqP4DCyLjNUFaxdOx4cGM1afGuLLi0esWZSgMu
+	 A8GQ9BiCgUF44kc2o88bVgpXE3mC+ZezmwWJQmLHcMqWujgPfAbqMUvlo+s7Iiq7sU
+	 WHoYSAAnR0/4orH9jeAbwNklddZnxg4UewSkrDUWY6MGnu9yd4bNKuRV1sh4wBzCNg
+	 U+IAYEyyzX1/h2C96Uiqk0lQ+n/ZSuk409t8qWCUpSU856fphT2d9dv2ddj3jG5GUT
+	 /1wLT1eB7j1+w==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -135,36 +135,14 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On 6/13/19 2:43 AM, Christoph Hellwig wrote:
-> ->mapping isn't even used by HMM users, and the field at the same offset
-> in the zone_device part of the union is declared as pad.  (Which btw is
-> rather confusing, as DAX uses ->pgmap and ->mapping from two different
-> sides of the union, but DAX doesn't use hmm_devmem_free).
+> noveau is currently using this through an odd hmm wrapper, and I plan
+
+  "nouveau"
+
+> to switch it to the real thing later in this series.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->  mm/hmm.c | 2 --
->  1 file changed, 2 deletions(-)
-> 
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 0c62426d1257..e1dc98407e7b 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -1347,8 +1347,6 @@ static void hmm_devmem_free(struct page *page, void *data)
->  {
->  	struct hmm_devmem *devmem = data;
->  
-> -	page->mapping = NULL;
-> -
->  	devmem->ops->free(devmem, page);
->  }
->  
-> 
-
-Yes, I think that line was unnecessary. I see from git history that it was
-originally being set to NULL from within __put_devmap_managed_page(), and then
-in commit 2fa147bdbf672c53386a8f5f2c7fe358004c3ef8, Dan moved it out of there,
-and stashed in specifically here. But it appears to have been unnecessary from
-the beginning.
 
 Reviewed-by: John Hubbard <jhubbard@nvidia.com> 
 
@@ -172,4 +150,21 @@ thanks,
 -- 
 John Hubbard
 NVIDIA
+
+>  mm/mempolicy.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index 01600d80ae01..f9023b5fba37 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -2098,6 +2098,7 @@ alloc_pages_vma(gfp_t gfp, int order, struct vm_area_struct *vma,
+>  out:
+>  	return page;
+>  }
+> +EXPORT_SYMBOL_GPL(alloc_pages_vma);
+>  
+>  /**
+>   * 	alloc_pages_current - Allocate pages.
+> 
 
