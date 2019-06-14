@@ -2,224 +2,193 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 361CAC31E4B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 07:25:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 82337C31E44
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 08:22:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BD94A2073F
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 07:25:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD94A2073F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 50BB720866
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 08:22:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50BB720866
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C1E36B0005; Fri, 14 Jun 2019 03:25:20 -0400 (EDT)
+	id 0E51A6B0005; Fri, 14 Jun 2019 04:22:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0728C6B0006; Fri, 14 Jun 2019 03:25:20 -0400 (EDT)
+	id 096BC6B0006; Fri, 14 Jun 2019 04:22:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E07936B000A; Fri, 14 Jun 2019 03:25:19 -0400 (EDT)
+	id E29A86B0007; Fri, 14 Jun 2019 04:22:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B91866B0005
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 03:25:19 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id u129so1289507qkd.12
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 00:25:19 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9831D6B0005
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 04:22:01 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id c27so2685286edn.8
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 01:22:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=Utif4oskw+yuOWvXlLOuFhWpvBh6S6odujUzdH8UMsY=;
-        b=IPb5QY5MbKc7pxpA6AdVn2qWpSvmf+v+c7DPrhb2GwTfHHsADEqO4PDVtDdmf424yU
-         pbywYIjfpSk+43wOBZEO00yY7qM9ouNRGhsqVwqqwQ+9viOrj9QSU2t4B8DQjJx6ltKF
-         o5GBZTC47CKGleaJydYgT0dsPXvdP1Ua5llK78Iw2Q47RLC6zUWnqgOrBY3wE1PENMYq
-         78JJI2P38MLUJ6HQvgf2EeeYfFS6Osu3KZClFfQOUoesC11BGuIWI434KhSJ6OIaJfJY
-         UT3sqVqhqTisZRyTd3T1JXVFQCbv/TNC0ef5f4OOt0/yWNZXZwlKiAg6vO91sESD6Ljy
-         pRUA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXixIAGRDxGTw+4UbuxE88gtYc2uaz9YwCY5WEcWxDQwefM7+Pe
-	LtIUwHOpFNEjZv5Eh+a4SR1YqIP5W5fS/uvr2jaJ0H+Yfck3H5bhGugIG6VgY9IYFh+V2lJ5Mwg
-	GBJNPzMSkl1VEQLPstszV5NEfCMRCnmpEvVf4q+LQrbzMDKcrqu4qu4HrUsDbW1YYVQ==
-X-Received: by 2002:a37:4ed4:: with SMTP id c203mr31513346qkb.116.1560497119543;
-        Fri, 14 Jun 2019 00:25:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwyN8t1V1jeESRzw9WF7jM4QRLtAkZoO/aN0065iU21cu/lRASYTtkNQErACTgvwSuzpXJa
-X-Received: by 2002:a37:4ed4:: with SMTP id c203mr31513303qkb.116.1560497118429;
-        Fri, 14 Jun 2019 00:25:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560497118; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=CY2TlXfB8dVsVAp584QN/lYh7FIqH+DAA9aK+ioEtIw=;
+        b=svJ+cWM3CiugVtA/7Z8KbbnrxGPh5MMBSFnPiRFYCqnl37taoVkRuAQ7K1QW+hY+l9
+         02yub5zTHMJQXR3BIe4aUZilaG68sCJsLk7UQTwXbY2eSOlMsyMHvja809G+0t4BJ/O1
+         leWV3Hvl5A50R+v871SZlh4L5xucl0TY5hajHwkI0xcJh4p3kYKl9dKmE7gPMuNZcS94
+         ivGDKfVYFiXb27spKY/AtiGpz//UIm5UhG+Y+ChIyS1JSYpDPav9+ogN2Jyju3vaZ0kr
+         B6LoUYHiYoopM5NRNYdVtDxqDLzv1/FlC8qsTFgJDrOKTOFZ0op0fNfuOFqDGmI0TDYU
+         qfnQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Gm-Message-State: APjAAAUk9BroEtRRUvmlHDGFrjjMuxW27AXeUbkxVGgJM2J2zRdLKGk2
+	PDQe4dKISuWLvAedq9uk5c+7KHhUFFZqRdRdumvlKLf25RI+VjkXf+ScVdATNqJlIbpwwmKTTER
+	3/P9titaoVJLWEK828HhfIuEHikoidwQC6LJ6o6jPBiK7H9WmbPWRLt8awRwC/jTYtw==
+X-Received: by 2002:a50:f599:: with SMTP id u25mr67062021edm.195.1560500521054;
+        Fri, 14 Jun 2019 01:22:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzfpdCv+b1MvEVXJpeDmYrJlZ7iBceuTp8Zydnwoi2nDHRCrkk2bjATrmXWWxIJBIKeMJsu
+X-Received: by 2002:a50:f599:: with SMTP id u25mr67061946edm.195.1560500520109;
+        Fri, 14 Jun 2019 01:22:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560500520; cv=none;
         d=google.com; s=arc-20160816;
-        b=tp/QM0zkoAuO8YNl37/mfB96aa9f1loQ9dfGrx9PfUXm8CenmFJ92zS4RHID7Fc+8M
-         cTAMf/q7LDbU4UgRE9/Ts/g5ki6BYEvNwb/3ysc0YTdyZZeDx30zPaQvkAs3RJbDZmvI
-         X/AWZq3qRxZK30WK+x1J36y+6HWRr5j+CL4JNV7oq936PXaBZDH7pTKhaV/ovtveWhHm
-         ez7C9XxQLx5DNX1llyF5yk1tyUdgF7gZeyPmcb4TxExJJAZUxrl8H7I83LsnPDijp0A6
-         iGblf2w784cR2RD7wrsk6BcLX4KJX5Aycj26po8yFtjIQDwvfY0tcm/fPJPuVH4lOogG
-         gxvA==
+        b=Z2ailkVsOiuowLtSsQGnbryvH0pRnY4K7lQfAZif+krsTqzXGjLVokEdXqmKWFgY2i
+         USKqiy8Bhmwj8rS6mPZdRmZzqzyZXdmi7JXd8B91meLyh1ls3V9SHnC+q3IwgDeYbDHV
+         gFWBYQuMpZTsNKMaa2lrQbWI2VAZjgd43pCu/CKE+h4vnEr9UIX209l2s4VIIjCepOhN
+         H6xDGMQAx1Op6zgAXOhigjGHkL7svyQhT+FuTi+arvQm5dG/mTYrm0zAi+sjxrfV8wyt
+         aBUQb4Qbf5HdKDD/sOQf7iB41hVUp7fnN7RZB8sPrfogcQ6LkhjBFcZBjdIJ5WIyMr2n
+         5FRg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:to:subject;
-        bh=Utif4oskw+yuOWvXlLOuFhWpvBh6S6odujUzdH8UMsY=;
-        b=s5sGD1DnxlJs8MWjryImXnPhnSP2aLaRpTkIy/bh46uFLSOUVWJlFAfuExYbJPFGAx
-         T8V4Mu+uPZmjpycce7VVNrjySamy5tbRZSBpinB5Z/rbZdOjS1fpWvFfzPPgQNCGnJjM
-         ktCAYBJ3tTK+NoTf7fYBz+hCxTWgU4waDqFzSAaYa5oK97dAlKQ88qex5t3hVWIksRcZ
-         1at/kg8Q96QDLO3ChLDLHWANCrEGjZR45OcRUsq7r56gn9uqaTL81dc7QFil7c4Ktp5C
-         Li+3EgRir4vQp5vPlC85XKUw+eY/oBZ1b3/zChJwg154R1XLQwW3C8WRSwJAquM1s8Ze
-         ladg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=CY2TlXfB8dVsVAp584QN/lYh7FIqH+DAA9aK+ioEtIw=;
+        b=P+SMCitmFvv6kZBoEnWggDoXemIRLKsxyMUw+zsXVU9qTn4udeLWHiM+G7p1JTnoGc
+         jbJnDXobf2+fTcYv358Hv3M/WQxM+14daapHT19iM+7EwXXuGeUgYWTUgr+iIdOFpxiu
+         0/5ITkQxQcBlfQbswGgUZBj+MBYIJBu05bampXUEzwlAW+C+KSd5yZCgYcDbtKlF7wCs
+         ru4PJt70nHawgyA/9a6rsplmswqGa4q9noZmzFULqpGlV3/PUzYc9sI7dHY6Fb4oahGG
+         fPDZP+IQZhVqEhgIKlLhxt5Rc3eBLm0dX1vE2YuwCmXeNKdcCaaQM3RWk64oa61BD/7d
+         Vlww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id a74si1238754qkb.123.2019.06.14.00.25.18
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h47si1381759ede.173.2019.06.14.01.21.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 00:25:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 14 Jun 2019 01:21:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 61DA930917AF;
-	Fri, 14 Jun 2019 07:25:17 +0000 (UTC)
-Received: from [10.36.116.252] (ovpn-116-252.ams2.redhat.com [10.36.116.252])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 8E6E3648C8;
-	Fri, 14 Jun 2019 07:24:56 +0000 (UTC)
-Subject: Re: [RFC][Patch v10 1/2] mm: page_hinting: core infrastructure
-To: Nitesh Narayan Lal <nitesh@redhat.com>, kvm@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org, pbonzini@redhat.com,
- lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
- yang.zhang.wz@gmail.com, riel@surriel.com, mst@redhat.com,
- dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
- aarcange@redhat.com, alexander.duyck@gmail.com
-References: <20190603170306.49099-1-nitesh@redhat.com>
- <20190603170306.49099-2-nitesh@redhat.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <c95b0419-85bb-2210-cd90-732447de8345@redhat.com>
-Date: Fri, 14 Jun 2019 09:24:55 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4D0A5ADF1;
+	Fri, 14 Jun 2019 08:21:59 +0000 (UTC)
+Date: Fri, 14 Jun 2019 10:21:57 +0200
+From: Michal Hocko <mhocko@suse.com>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: yuzhoujian <yuzhoujian@didichuxing.com>, Linux MM <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/oom_kill: set oc->constraint in constrained_alloc()
+Message-ID: <20190614082130.GA28901@dhcp22.suse.cz>
+References: <1560434150-13626-1-git-send-email-laoar.shao@gmail.com>
+ <20190613185640.GA1405@dhcp22.suse.cz>
+ <CALOAHbB=sd0y53Tr6b7C41-bF+k1v292ULss64BrdCEySxTRiA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190603170306.49099-2-nitesh@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Fri, 14 Jun 2019 07:25:17 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALOAHbB=sd0y53Tr6b7C41-bF+k1v292ULss64BrdCEySxTRiA@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 03.06.19 19:03, Nitesh Narayan Lal wrote:
-> This patch introduces the core infrastructure for free page hinting in
-> virtual environments. It enables the kernel to track the free pages which
-> can be reported to its hypervisor so that the hypervisor could
-> free and reuse that memory as per its requirement.
+On Fri 14-06-19 13:58:11, Yafang Shao wrote:
+> On Fri, Jun 14, 2019 at 2:56 AM Michal Hocko <mhocko@suse.com> wrote:
+> >
+> > On Thu 13-06-19 21:55:50, Yafang Shao wrote:
+> > > In dump_oom_summary() oc->constraint is used to show
+> > > oom_constraint_text, but it hasn't been set before.
+> > > So the value of it is always the default value 0.
+> > > We should set it in constrained_alloc().
+> >
+> > Thanks for catching that.
+> >
+> > > Bellow is the output when memcg oom occurs,
+> > >
+> > > before this patch:
+> > > [  133.078102] oom-kill:constraint=CONSTRAINT_NONE,nodemask=(null),
+> > > cpuset=/,mems_allowed=0,oom_memcg=/foo,task_memcg=/foo,task=bash,pid=7997,uid=0
+> > >
+> > > after this patch:
+> > > [  952.977946] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),
+> > > cpuset=/,mems_allowed=0,oom_memcg=/foo,task_memcg=/foo,task=bash,pid=13681,uid=0
+> > >
+> >
+> > unless I am missing something
+> > Fixes: ef8444ea01d7 ("mm, oom: reorganize the oom report in dump_header")
+> >
+> > The patch looks correct but I think it is more complicated than it needs
+> > to be. Can we do the following instead?
+> >
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index 5a58778c91d4..f719b64741d6 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -987,8 +987,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+> >  /*
+> >   * Determines whether the kernel must panic because of the panic_on_oom sysctl.
+> >   */
+> > -static void check_panic_on_oom(struct oom_control *oc,
+> > -                              enum oom_constraint constraint)
+> > +static void check_panic_on_oom(struct oom_control *oc)
+> >  {
+> >         if (likely(!sysctl_panic_on_oom))
+> >                 return;
+> > @@ -998,7 +997,7 @@ static void check_panic_on_oom(struct oom_control *oc,
+> >                  * does not panic for cpuset, mempolicy, or memcg allocation
+> >                  * failures.
+> >                  */
+> > -               if (constraint != CONSTRAINT_NONE)
+> > +               if (oc->constraint != CONSTRAINT_NONE)
+> >                         return;
+> >         }
+> >         /* Do not panic for oom kills triggered by sysrq */
+> > @@ -1035,7 +1034,6 @@ EXPORT_SYMBOL_GPL(unregister_oom_notifier);
+> >  bool out_of_memory(struct oom_control *oc)
+> >  {
+> >         unsigned long freed = 0;
+> > -       enum oom_constraint constraint = CONSTRAINT_NONE;
+> >
+> >         if (oom_killer_disabled)
+> >                 return false;
+> > @@ -1071,10 +1069,10 @@ bool out_of_memory(struct oom_control *oc)
+> >          * Check if there were limitations on the allocation (only relevant for
+> >          * NUMA and memcg) that may require different handling.
+> >          */
+> > -       constraint = constrained_alloc(oc);
+> > -       if (constraint != CONSTRAINT_MEMORY_POLICY)
+> > +       oc->constraint = constrained_alloc(oc);
+> > +       if (oc->constraint != CONSTRAINT_MEMORY_POLICY)
+> >                 oc->nodemask = NULL;
+> > -       check_panic_on_oom(oc, constraint);
+> > +       check_panic_on_oom(oc);
+> >
+> >         if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
+> >             current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
+> >
+> > I guess the current confusion comes from the fact that we have
+> > constraint both in the oom_control and a local variable so I would
+> > rather remove that. What do you think?
 > 
-> While the pages are getting processed in the hypervisor (e.g.,
-> via MADV_FREE), the guest must not use them, otherwise, data loss
-> would be possible. To avoid such a situation, these pages are
-> temporarily removed from the buddy. The amount of pages removed
-> temporarily from the buddy is governed by the backend(virtio-balloon
-> in our case).
-> 
-> To efficiently identify free pages that can to be hinted to the
-> hypervisor, bitmaps in a coarse granularity are used. Only fairly big
-> chunks are reported to the hypervisor - especially, to not break up THP
-> in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The bits
-> in the bitmap are an indication whether a page *might* be free, not a
-> guarantee. A new hook after buddy merging sets the bits.
-> 
-> Bitmaps are stored per zone, protected by the zone lock. A workqueue
-> asynchronously processes the bitmaps, trying to isolate and report pages
-> that are still free. The backend (virtio-balloon) is responsible for
-> reporting these batched pages to the host synchronously. Once reporting/
-> freeing is complete, isolated pages are returned back to the buddy.
-> 
-> There are still various things to look into (e.g., memory hotplug, more
-> efficient locking, possible races when disabling).
-> 
-> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
-> ---
->  drivers/virtio/Kconfig       |   1 +
->  include/linux/page_hinting.h |  46 +++++++
->  mm/Kconfig                   |   6 +
->  mm/Makefile                  |   2 +
->  mm/page_alloc.c              |  17 +--
->  mm/page_hinting.c            | 236 +++++++++++++++++++++++++++++++++++
->  6 files changed, 301 insertions(+), 7 deletions(-)
->  create mode 100644 include/linux/page_hinting.h
->  create mode 100644 mm/page_hinting.c
-> 
-> diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
-> index 35897649c24f..5a96b7a2ed1e 100644
-> --- a/drivers/virtio/Kconfig
-> +++ b/drivers/virtio/Kconfig
-> @@ -46,6 +46,7 @@ config VIRTIO_BALLOON
->  	tristate "Virtio balloon driver"
->  	depends on VIRTIO
->  	select MEMORY_BALLOON
-> +	select PAGE_HINTING
->  	---help---
->  	 This driver supports increasing and decreasing the amount
->  	 of memory within a KVM guest.
+> Remove the local variable is fine by me.
 
-BTW, this hunk belongs to the virtio-balloon patch.
+Could you repost the patch with the changelog mentioning Fixes and the
+simpler diff please?
 
+You can then add
+Acked-by: Michal Hocko <mhocko@suse.com>
 
+Thanks!
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
 
