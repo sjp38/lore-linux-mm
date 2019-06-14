@@ -2,159 +2,136 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AA529C31E4B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 15:33:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EDE7C31E4B
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 15:34:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6A4892175B
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 15:33:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A4892175B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 2AF8D2175B
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 15:34:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AF8D2175B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 03CD06B000A; Fri, 14 Jun 2019 11:33:23 -0400 (EDT)
+	id A9B7D6B000A; Fri, 14 Jun 2019 11:34:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F07C06B000D; Fri, 14 Jun 2019 11:33:22 -0400 (EDT)
+	id A4ADE6B000D; Fri, 14 Jun 2019 11:34:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DA8666B000E; Fri, 14 Jun 2019 11:33:22 -0400 (EDT)
+	id 913A96B000E; Fri, 14 Jun 2019 11:34:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C4996B000A
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 11:33:22 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id n1so1796732plk.11
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 08:33:22 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 40D1F6B000A
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 11:34:58 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id w11so1192643wrl.7
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 08:34:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=aH3gK9v8tKykePmoqb2fTSoLTmJZNNo3+edMZP+r0Gk=;
-        b=WgXPRs/YKJrUnTVflL3+yXfHENaT0b0VDlncYebYPkCDiygrS0k1DxJZS+aYedBWt0
-         UdREp6EZJxHPvYcFxUTUFpXy8JcMsFB+gXtr2MW5zLTTPwITwcUr0kg/yveUlaVNN8an
-         Rufxmc37S0L6kmjhGu5nhdw6XIQR94u7Xmlx5PR4jJWjAOucQVgVEwkPEKPlRbh70cMc
-         I3g+and5SpV9ee8WbZBIwJmGvc/D06i6p30UTYQf351NuU5ZV2lwuiEjJNgqXBdj1g5N
-         ZfGNkeklRKtIOZ74yYn1jiUmEsiTS+35y9y1qb84YlujNJFnejT9SwY8Zl92iOgqRQPt
-         0fjg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAU+YwZwIXCsUHicqkstnRo/R0k8NXI1jAK7U1QC42pyf/Kt1sAE
-	wDDTYl/aIHx0aBdQTOonFWlOhGvkS+OgWMyXNEM5GyOGUNE5WxvYEZ9/2VL8ME4K78dCFQPXjvz
-	FFVvzfbd7c3OrzQghlaBhsMLkhn2BdtkcUhrgA8uo9lM/4jZWHG991LZPQWeIVHrBuQ==
-X-Received: by 2002:a63:82c7:: with SMTP id w190mr35106743pgd.444.1560526402205;
-        Fri, 14 Jun 2019 08:33:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwE3vSRGkNrne87a3t53ctn+dG5gGy1UeqO/a+NDm48u9LCjmHE+DSJTjp20zVNKIuMRlUF
-X-Received: by 2002:a63:82c7:: with SMTP id w190mr35106692pgd.444.1560526401296;
-        Fri, 14 Jun 2019 08:33:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560526401; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=p5HPLsx5lGEzdsjUNVY6MwJ1i1v8fmWkK7CMd5k1P9c=;
+        b=g8RPO//7MIcPhRW5eXt4TSJQhIosRZIr7qi5yn/j/hP1ZMOKXCKtic0DMJczsxeM0F
+         rnRjjzcs6PKGUqTXSrM9jSxiznqROR2gt3VyaZ5PE/S0F8bkoaZyG9Sb6mPizg1g8s07
+         Prc+GKxq0zTDsXd99XjvaUwBI7yD8l+h5nv/UHnorJXL68QtQ8EHRwlYBZtxvBIqgjRE
+         H0jWBU3Y3n+XrbmLwsWdWkYciKtbZihhe8N5MnPAPLCzGwsxDBPFXPnEt3Dvf02KSeDi
+         OYGQd42gqzOCasZ03ZGImfDZFngAhf33e4saM6GJJ3mdglOq0YtXpSdMY86b0nbMeJXd
+         T9bg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAUbtgN1ahCedmnTxMKl/IVigwwkS9/NfX/g0r5ARCATOaQkwhi0
+	trEDyoR/PvnElCdvDhWxbYb/ZLls6rIPawhIHHXm18KCsVODaRoWvmnuQQmvivZciJ1DbspSItb
+	vScOCnbZmvk7Qzvy4FNvW0IJV7r31g7ht1goto40mo9TWSUcxNXUAVc7LnycyM8/y/w==
+X-Received: by 2002:adf:f60b:: with SMTP id t11mr8865899wrp.332.1560526497779;
+        Fri, 14 Jun 2019 08:34:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyx0qR62RCb9fvlXiLpk1AT9VOu2OkCa1qLnzX8EZmjsXCp3W+Nh8j4V7P2Q7+qmRXZAO7A
+X-Received: by 2002:adf:f60b:: with SMTP id t11mr8865861wrp.332.1560526497100;
+        Fri, 14 Jun 2019 08:34:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560526497; cv=none;
         d=google.com; s=arc-20160816;
-        b=F0iUh2rAzzf3OXk1+ztCVtCru0OV9jyNWqXxkpBHUmLFnYUL1mfdZXK4ihwAVSbOP3
-         Ui9KgvzDMdJDFs2BTDS8kd4/uGh7YMYFZ3d9i21CWxpG12WsKnhTdce0Eg+RYSwDH4pL
-         YzZND20DVekhDY9vdIrT7/19tx1q9q3XwJYSmehw9lfoow5qB9+0OBTyKuob7v7EVGcr
-         t1TJmfukG53U4TlY6wjKXYTHCvgFkBa4uFi286NgKCPEWImyssAVgeuxAN6EXOR5NRd5
-         xbhgPJMAP6rBq75jQIph1Lqsx22kDeum9Xu8bqof2eSTF/0Sv3tIRmadFqt0GlSg7bHB
-         93cA==
+        b=QuCEh/B09x9AA/FeEe8hKZZgqPtl1IaYTxwfOTucMdgQWWfjB5xN7zJpVVlaQrSlwa
+         ssH2kZr4sCIPKQAGgpJidPevBPFxEvKw3vKszQGXg9yd/enlcpnr6mYjM6kyQlDin17Y
+         C2Edp/vPVnyTlsinHWoY3NhbfIJxYtmCt6KCu8y/p72F0IQ+qTrszyhIpCjSPjyHilLu
+         8IyxS+RSSfv9HaVD1yoHeYJAwNT9ZWKWIbfyC2jyGMlc+UQxTGLIc0pkF7kQAsbE88ya
+         L9yLw6DkG2eK6b7qx+URY2PrViMILrY/r8KrEcRo+VFIOdHu0nZX8AlSnbHqdwRLOgze
+         HfKQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=aH3gK9v8tKykePmoqb2fTSoLTmJZNNo3+edMZP+r0Gk=;
-        b=MVW7gUkxG078Y39uUN6dnHnzEPjasTmNyP9mVzZ/m9UZsOQjkoGSg7k8xdMY9v4mK4
-         ZLVWBbsZViEwyB5Z62ZT0rsVcbeu6OuJ1gkhR8xAXAi3t71yu1V4Y9W+2ZXadGwqf8IB
-         CW+IyY7Hk2K73+s8DK6htIapU+NuPe7PF5Vc1YZCQP5jeCctd0d5lXNnkGYFmANk/c3j
-         6q5AslQ7vWQGWTriV4ZAF312h6WMw4zRgs0Fb90h21EBcgEJVeckLh5pMPvHdlZJ4QSz
-         xEcT3OW+Xixib7F3pPnK05ezryxdW2/lD/qoR3aIhGiAqkWftKcXj6YfOYUHmvIF1UFS
-         6nag==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=p5HPLsx5lGEzdsjUNVY6MwJ1i1v8fmWkK7CMd5k1P9c=;
+        b=ChreGPm1HFAmS5rM5P42f1rN3qy8IvzSxV4li2j6b99UiaLmQlTtxLOWoJI8ptytDn
+         01UemWQSfVw9B9Er5dMwh3/8xmMORprSqgIDUdLuyTdA/MzkDQ/O2SJc/cWiyTlr+ub9
+         hlA5Ze1m0AIJKR9HmOGvTAsf2qqwBX/FQmphwxwZxlt3ht6+p/MbNRuhsh50TjoscHGA
+         9Y2uVECP3EclhEicq04tqtHlr97uZpB3HBzBx7cGQ546OIlsnSZHdLUOsV06jiFAsCon
+         5QZV9gWxQUL149BgK9m2RKRjXQz/mKXWQlZ003spf5v/yG4ktqlfNveKOwHAdObu7BTE
+         F5XQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id g7si2903786pgd.32.2019.06.14.08.33.21
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id y1si2609815wrs.259.2019.06.14.08.34.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 08:33:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Fri, 14 Jun 2019 08:34:57 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yu-cheng.yu@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=yu-cheng.yu@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Jun 2019 08:33:20 -0700
-X-ExtLoop1: 1
-Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
-  by fmsmga001.fm.intel.com with ESMTP; 14 Jun 2019 08:33:20 -0700
-Message-ID: <cf0d1470e95e0a8b88742651d06601a53d6655c1.camel@intel.com>
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
- function
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski
- <luto@amacapital.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org, "H. Peter Anvin"
- <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar
- <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org,  linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>, Balbir Singh
- <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,  Cyrill Gorcunov
- <gorcunov@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, Eugene
- Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>, "H.J.
- Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>, Jonathan Corbet
- <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, Mike Kravetz
- <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov
- <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>, Randy Dunlap
- <rdunlap@infradead.org>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, 
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>, Dave Martin
- <Dave.Martin@arm.com>
-Date: Fri, 14 Jun 2019 08:25:16 -0700
-In-Reply-To: <ea5e333f-8cd6-8396-635f-a9dc580d5364@intel.com>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
-	 <20190606200926.4029-4-yu-cheng.yu@intel.com>
-	 <20190607080832.GT3419@hirez.programming.kicks-ass.net>
-	 <aa8a92ef231d512b5c9855ef416db050b5ab59a6.camel@intel.com>
-	 <20190607174336.GM3436@hirez.programming.kicks-ass.net>
-	 <b3de4110-5366-fdc7-a960-71dea543a42f@intel.com>
-	 <34E0D316-552A-401C-ABAA-5584B5BC98C5@amacapital.net>
-	 <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
-	 <25281DB3-FCE4-40C2-BADB-B3B05C5F8DD3@amacapital.net>
-	 <e26f7d09376740a5f7e8360fac4805488b2c0a4f.camel@intel.com>
-	 <3f19582d-78b1-5849-ffd0-53e8ca747c0d@intel.com>
-	 <5aa98999b1343f34828414b74261201886ec4591.camel@intel.com>
-	 <0665416d-9999-b394-df17-f2a5e1408130@intel.com>
-	 <5c8727dde9653402eea97bfdd030c479d1e8dd99.camel@intel.com>
-	 <ac9a20a6-170a-694e-beeb-605a17195034@intel.com>
-	 <328275c9b43c06809c9937c83d25126a6e3efcbd.camel@intel.com>
-	 <92e56b28-0cd4-e3f4-867b-639d9b98b86c@intel.com>
-	 <1b961c71d30e31ecb22da2c5401b1a81cb802d86.camel@intel.com>
-	 <ea5e333f-8cd6-8396-635f-a9dc580d5364@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.28.1-2 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id DF91968AFE; Fri, 14 Jun 2019 17:34:28 +0200 (CEST)
+Date: Fri, 14 Jun 2019 17:34:28 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Christoph Hellwig <hch@lst.de>,
+	Maarten Lankhorst <maarten.lankhorst@linux.intel.com>,
+	Maxime Ripard <maxime.ripard@bootlin.com>,
+	Sean Paul <sean@poorly.run>, David Airlie <airlied@linux.ie>,
+	Daniel Vetter <daniel@ffwll.ch>,
+	Jani Nikula <jani.nikula@linux.intel.com>,
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>,
+	Ian Abbott <abbotti@mev.co.uk>,
+	H Hartley Sweeten <hsweeten@visionengravers.com>,
+	devel@driverdev.osuosl.org, linux-s390@vger.kernel.org,
+	Intel Linux Wireless <linuxwifi@intel.com>,
+	linux-rdma@vger.kernel.org, netdev@vger.kernel.org,
+	intel-gfx@lists.freedesktop.org, linux-wireless@vger.kernel.org,
+	linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org,
+	linux-mm@kvack.org, iommu@lists.linux-foundation.org,
+	"moderated list:ARM PORT" <linux-arm-kernel@lists.infradead.org>,
+	linux-media@vger.kernel.org
+Subject: Re: [PATCH 12/16] staging/comedi: mark as broken
+Message-ID: <20190614153428.GA10008@lst.de>
+References: <20190614134726.3827-1-hch@lst.de> <20190614134726.3827-13-hch@lst.de> <20190614140239.GA7234@kroah.com> <20190614144857.GA9088@lst.de> <20190614153032.GD18049@kroah.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190614153032.GD18049@kroah.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-06-10 at 15:59 -0700, Dave Hansen wrote:
-> On 6/10/19 3:40 PM, Yu-cheng Yu wrote:
-> > Ok, we will go back to do_mmap() with MAP_PRIVATE, MAP_NORESERVE and
-> > VM_DONTDUMP.  The bitmap will cover only 48-bit address space.
+On Fri, Jun 14, 2019 at 05:30:32PM +0200, Greg KH wrote:
+> On Fri, Jun 14, 2019 at 04:48:57PM +0200, Christoph Hellwig wrote:
+> > On Fri, Jun 14, 2019 at 04:02:39PM +0200, Greg KH wrote:
+> > > Perhaps a hint as to how we can fix this up?  This is the first time
+> > > I've heard of the comedi code not handling dma properly.
+> > 
+> > It can be fixed by:
+> > 
+> >  a) never calling virt_to_page (or vmalloc_to_page for that matter)
+> >     on dma allocation
+> >  b) never remapping dma allocation with conflicting cache modes
+> >     (no remapping should be doable after a) anyway).
 > 
-> Could you make sure to discuss the downsides of only doing a 48-bit
-> address space?
+> Ok, fair enough, have any pointers of drivers/core code that does this
+> correctly?  I can put it on my todo list, but might take a week or so...
 
-The downside is that we cannot load legacy lib's above 48-bit address space, but
-currently ld-linux does not do that.  Should ld-linux do that in the future,
-dlopen() fails.  Considering CRIU migration, we probably need to do this anyway?
-
-> What are the reasons behind and implications of VM_DONTDUMP?
-
-The bitmap is very big.
-
-In GDB, it should be easy to tell why a control-protection fault occurred
-without the bitmap.
-
-Yu-cheng
+Just about everyone else.  They just need to remove the vmap and
+either do one large allocation, or live with the fact that they need
+helpers to access multiple array elements instead of one net vmap,
+which most of the users already seem to do anyway, with just a few
+using the vmap (which might explain why we didn't see blowups yet).
 
