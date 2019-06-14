@@ -2,264 +2,189 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_NEOMUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AF8FCC31E4E
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 22:06:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B175AC31E4E
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 22:41:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 560C32184E
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 22:06:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 560C32184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 65C4A21841
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 22:41:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="CPGuBSov"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 65C4A21841
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 029356B0008; Fri, 14 Jun 2019 18:06:15 -0400 (EDT)
+	id EDBD86B0008; Fri, 14 Jun 2019 18:41:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F1C366B000C; Fri, 14 Jun 2019 18:06:14 -0400 (EDT)
+	id E65C36B000C; Fri, 14 Jun 2019 18:41:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D6ED26B000D; Fri, 14 Jun 2019 18:06:14 -0400 (EDT)
+	id D07796B000D; Fri, 14 Jun 2019 18:41:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 956A86B0008
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 18:06:14 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id i33so2351275pld.15
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 15:06:14 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 817686B0008
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 18:41:33 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id o13so5545417edt.4
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 15:41:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=CIljmaelrlIzgGXWSjSdhRA6SXPSRKWvyoJ1oRHGyZ4=;
-        b=Qggq6N1CGj374E4KSyJvvMcC6uNpZD1lcZNzDYxW8OhIohua50lSoZMdTQ9rUmURjb
-         /ttbi42bsDxOHHt/Pi7TRZKJ2P/WBstgGNcx0Ro2focBsvX2vbfjaPdSrt6wfgHFRL8i
-         al+1ANnTrXqhODK5llY2iO1EocFEZKjIingMwsHwk5G0FPCplJNXPu0YGg8o83grQxe/
-         dAkP0oKQmW4X7MAUGw8sNHpGwsG0P646yt8F+v5IW0JlDjEqo7IolpiI7/WrQ/CKWe6L
-         4H18AzFT/E76lBMgNqULp4OV3awgjjgp3viBTjQfc2NJB9VjVfI36/E6M4GauwCzTQdN
-         7mlw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWGtD50V5PkFq2XIkZIqGVY7kgYx7nLvDKHAFXPDZNN+7GUqpnQ
-	4dTZIbW7j71KxObybaystAFECyPyCTjsUkblj0kKS7PsyRWl3aF5H7hhvAm1WLE0bqZ3xG1IYsl
-	Qs0cFSzPk601he7gd83A0ZpD4/8QbWaRHBvOWgkAK1EwTdcVwNXCWJpOytywMi23lbg==
-X-Received: by 2002:a17:902:1e6:: with SMTP id b93mr51841980plb.295.1560549974266;
-        Fri, 14 Jun 2019 15:06:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyXTmxuJuGlZn7TjXUl8ok/F48DEKonCU4vfcWHssIOksvzBIB/GGQ31fOb1bP49JNe0F2K
-X-Received: by 2002:a17:902:1e6:: with SMTP id b93mr51841912plb.295.1560549973083;
-        Fri, 14 Jun 2019 15:06:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560549973; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=kKBlaaZ2e0R8Qmq/ym3o296XdTEZmGz+dmrLAMFTTnM=;
+        b=XACO5ARXp5iedjdYqx8Apup3t/1A2tiC829WqAIEmgd8D9iIcDOLd6RUWxdrUl2G6T
+         jzWAx3l+6EnW6dWM1M7/Y3Urn+o8a0SMrEMs6YYqSGzwXtRcNtIbwLJPJoqJ788YmrTj
+         KTjWZHFMGBEuI74tlz3d37iPx6vjj/CimScfx/7Yl3T3QIsHA7J/JSb2buCit8dYB516
+         lJbl+JZIKnHkqYCVZGULHWaTH4ABvhO5Ysl+Dz5tVOPB43yD1euEnyRguHGGQHzQEbUD
+         mJB6ABgQEq4M6ESnusZYBdfcT2mC6ub/T32ChuxY9XW99n3dPBzJNs/pHquU81QhT8Xa
+         7mHA==
+X-Gm-Message-State: APjAAAXAoVJscZV/fkdSumxoc60ow5YHHlTk34+iluGeYPxTq0Ld1L7E
+	h11XLHdOx+OoG5lfgJH6EIzFFGwYCZEmk2aYutlqFbZTKBSAwzY0HiWtXeAKm7AtpmISkQ8afQf
+	9mdIxAxPpL07oeeNXcN9ayzJFy8BjSGvDdS49pT7x2qDB2iEEfqhF0s7rwsfAAJMbmA==
+X-Received: by 2002:a17:906:8053:: with SMTP id x19mr66339538ejw.306.1560552093021;
+        Fri, 14 Jun 2019 15:41:33 -0700 (PDT)
+X-Received: by 2002:a17:906:8053:: with SMTP id x19mr66339503ejw.306.1560552092117;
+        Fri, 14 Jun 2019 15:41:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560552092; cv=none;
         d=google.com; s=arc-20160816;
-        b=rXKsp1FVqZevGNbv3T3/JJlp1AQpO1JmUCrxK8i+X3ZrvLxnioUH5oleRZ7yPdC3cs
-         yhwdIpt3yxE/qYKaWdLmsAQx4p3HJ73nGD69Re+b8yVU6kp2uUYgaEDcp75kD2apcViu
-         y7DEdbl8QmoP5YniIF1FuFrrFt2vFkJ3KK453kMIpvISGV8AU7f7gRIFQFAIW+29heX1
-         71GMpi1tvSsZJ1CLLGfhw4Ekz4xPU806wwhKtS+Dp9HGp9YoWg8sq2yQRDfjc/cWaER+
-         9JuuJwwWnAgBiAlD94MWqTyrDpBmpIDBqTlWfSVWIxJYEBowhr7XVAnwuah+NTGsj9JO
-         4uUQ==
+        b=xW182/AbiT3Xy6T/dgqmn7NzHzNCRGCuEAzHIS/NkseHlN+YggSyJ414Hadv1dHjqz
+         kNeX8Ygq53lFPDZnVdwvlE86vM/UeeweqiUv+IZLE6zxCfiNU9WbsvtuhoVn+gIJ3KJC
+         2zvnYrc3+RQE6tYKHgfDRJSYjkSBWjBUWRMQxksTcDuWoPEzJFvDbHRuV0JjvonAmPAv
+         wF6Raf5rsMe3STG15N04LXb/BHl2NKeD4NHHEQKmWneA50Cc5D6TaqmOrvxnRnA7VwdS
+         af1XaRYd9wk22Yt+09f4LfdXXWJziEosRbYmPG1AMXC86bKJGkVgwf34YBI7LeQQc8s2
+         J2Kw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=CIljmaelrlIzgGXWSjSdhRA6SXPSRKWvyoJ1oRHGyZ4=;
-        b=dgE1Yt0UaVAMZdfY9ahixLegYYvIDhsqLdbBOzko7GRdscqYfu/IsJExuQ+EwKjpDr
-         3ZFNUIvujWHSdaBo9dP1dLu/x7AKghXQtQyWGldRKnzmns+TQFobWnjRF3BjIL8MnaTU
-         xa365yrgPgLGogwoQ84Vv9XItp8CeqSgoF1bmi5F9fokmD8hBp4xRqGKbZmE3G8YopRl
-         cEz/JJ07OqLuXBB9ryrHuucr2a19507lQvoPgv6+BS7ToM+YI+6h8JSzBKvRqbHe4pW+
-         tIOPqNZyXgIiBtBcCicl1hMfJmiYgHp0AuydQwbQGGXAt9jJXQ7wExdngRor0VqSA3gE
-         kARw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=kKBlaaZ2e0R8Qmq/ym3o296XdTEZmGz+dmrLAMFTTnM=;
+        b=gn515WSsqyB1FO3WaJnV4ob4LrGuoaN7qjv64CzuaSZv4Ls7MvqU/iiVpQL4eW00oy
+         3IBt9wnZukWMGJNQmjJD3qry3rlxRgzrQllzMBur5drBTpPpPJ1ZlIoHyn/mTxksBAj5
+         vq85OLOazp/LVRqZRJHqCrwQuocQbLFxLORqwMmhRmYNrjkmT8hyN71dtEU88JoTmcz+
+         fXkNVnlB5c67g3c8DOEk3XMijuwvGpnNxq7bMHLrFbF6vJkO4ETVZNODPakTn+/6qTZ5
+         6lGcfHTsoSRPaXZL/OevCSevwb34fxFI9r2TLCwy9maPozbm8V9xa5rP+llDd1j2ZTqy
+         tlLA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id q15si3600579pgi.575.2019.06.14.15.06.12
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=CPGuBSov;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b56sor4060951edb.9.2019.06.14.15.41.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 15:06:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+        (Google Transport Security);
+        Fri, 14 Jun 2019 15:41:32 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Jun 2019 15:06:11 -0700
-X-ExtLoop1: 1
-Received: from ray.jf.intel.com (HELO [10.7.201.15]) ([10.7.201.15])
-  by orsmga002.jf.intel.com with ESMTP; 14 Jun 2019 15:06:12 -0700
-Subject: Re: [PATCH v7 03/14] x86/cet/ibt: Add IBT legacy code bitmap setup
- function
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, Andy Lutomirski <luto@amacapital.net>
-Cc: Peter Zijlstra <peterz@infradead.org>, x86@kernel.org,
- "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
- Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
- Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
- Cyrill Gorcunov <gorcunov@gmail.com>,
- Dave Hansen <dave.hansen@linux.intel.com>,
- Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>,
- "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
- Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
- Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>,
- Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>,
- Randy Dunlap <rdunlap@infradead.org>,
- "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
- Dave Martin <Dave.Martin@arm.com>
-References: <20190606200926.4029-1-yu-cheng.yu@intel.com>
- <7e0b97bf1fbe6ff20653a8e4e147c6285cc5552d.camel@intel.com>
- <25281DB3-FCE4-40C2-BADB-B3B05C5F8DD3@amacapital.net>
- <e26f7d09376740a5f7e8360fac4805488b2c0a4f.camel@intel.com>
- <3f19582d-78b1-5849-ffd0-53e8ca747c0d@intel.com>
- <5aa98999b1343f34828414b74261201886ec4591.camel@intel.com>
- <0665416d-9999-b394-df17-f2a5e1408130@intel.com>
- <5c8727dde9653402eea97bfdd030c479d1e8dd99.camel@intel.com>
- <ac9a20a6-170a-694e-beeb-605a17195034@intel.com>
- <328275c9b43c06809c9937c83d25126a6e3efcbd.camel@intel.com>
- <92e56b28-0cd4-e3f4-867b-639d9b98b86c@intel.com>
- <1b961c71d30e31ecb22da2c5401b1a81cb802d86.camel@intel.com>
- <ea5e333f-8cd6-8396-635f-a9dc580d5364@intel.com>
- <cf0d1470e95e0a8b88742651d06601a53d6655c1.camel@intel.com>
- <5ddf59e2-c701-3741-eaa1-f63ee741ea55@intel.com>
- <b5a915602020a6ce26ea1254f7f60e239c91bc9f.camel@intel.com>
- <598edca7-c36a-a236-3b72-08b2194eb609@intel.com>
- <359e6f64d646d5305c52f393db5296c469630d11.camel@intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <5d7012f6-7ab9-fd3d-4a11-294258e48fb5@intel.com>
-Date: Fri, 14 Jun 2019 15:06:12 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=CPGuBSov;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=kKBlaaZ2e0R8Qmq/ym3o296XdTEZmGz+dmrLAMFTTnM=;
+        b=CPGuBSov5EtyIvw2ZTZfpLXH+m7nArR8FUWgvlBePXdjMMPA+IllY65N5XVaJeFXGX
+         S+EacF/ActYMQZRJhhIJSfzfPop2+kZjoBgPJHcx2z7p74dlBg7IqjzTZHOH9FY6/FML
+         ANudxrhtB9aceq/ZfOdQyRFEixvnwgQkUXUiC7Etp+RfnHnVOMi2aXkzm1Sb6OiKEhpk
+         /5FhyQKkpk+Sf0MdmVKR3Ybqhj011xuJYbjEXw5yYkJ2a1UmUhyXcG5zJOlWCYCvWUfA
+         nRLArs2z6tB3k5oWgjh6c060atJzsvPn8rYXaHW2T2LLR+ioz03Ty/SSN2uIo8CUCZAH
+         qyZg==
+X-Google-Smtp-Source: APXvYqzGx/+9/zTI71X2KsJYZP9s0HxE5l2n9lbx9/IlAC6AFkQjQN9+Z7eAaIEasZDypTRFQX080A==
+X-Received: by 2002:a50:f4d8:: with SMTP id v24mr3644568edm.166.1560552091661;
+        Fri, 14 Jun 2019 15:41:31 -0700 (PDT)
+Received: from box.localdomain ([86.57.175.117])
+        by smtp.gmail.com with ESMTPSA id i16sm845646ejc.16.2019.06.14.15.41.30
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Jun 2019 15:41:30 -0700 (PDT)
+Received: by box.localdomain (Postfix, from userid 1000)
+	id 453FB1032BB; Sat, 15 Jun 2019 01:41:31 +0300 (+03)
+Date: Sat, 15 Jun 2019 01:41:31 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	David Howells <dhowells@redhat.com>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Kai Huang <kai.huang@linux.intel.com>,
+	Jacob Pan <jacob.jun.pan@linux.intel.com>,
+	Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
+	kvm@vger.kernel.org, keyrings@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH, RFC 13/62] x86/mm: Add hooks to allocate and free
+ encrypted pages
+Message-ID: <20190614224131.q2gjai32la4zb42p@box>
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-14-kirill.shutemov@linux.intel.com>
+ <20190614093409.GX3436@hirez.programming.kicks-ass.net>
+ <20190614110458.GN3463@hirez.programming.kicks-ass.net>
+ <20190614132836.spl6bmk2kkx65nfr@box>
+ <20190614134335.GU3436@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <359e6f64d646d5305c52f393db5296c469630d11.camel@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190614134335.GU3436@hirez.programming.kicks-ass.net>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/14/19 2:34 PM, Yu-cheng Yu wrote:
-> On Fri, 2019-06-14 at 13:57 -0700, Dave Hansen wrote:
->>> I have a related question:
->>>
->>> Do we allow the application to read the bitmap, or any fault from the
->>> application on bitmap pages?
->>
->> We have to allow apps to read it.  Otherwise they can't execute
->> instructions.
+On Fri, Jun 14, 2019 at 03:43:35PM +0200, Peter Zijlstra wrote:
+> On Fri, Jun 14, 2019 at 04:28:36PM +0300, Kirill A. Shutemov wrote:
+> > On Fri, Jun 14, 2019 at 01:04:58PM +0200, Peter Zijlstra wrote:
+> > > On Fri, Jun 14, 2019 at 11:34:09AM +0200, Peter Zijlstra wrote:
+> > > > On Wed, May 08, 2019 at 05:43:33PM +0300, Kirill A. Shutemov wrote:
+> > > > 
+> > > > > +		lookup_page_ext(page)->keyid = keyid;
+> > > 
+> > > > > +		lookup_page_ext(page)->keyid = 0;
+> > > 
+> > > Also, perhaps paranoid; but do we want something like:
+> > > 
+> > > static inline void page_set_keyid(struct page *page, int keyid)
+> > > {
+> > > 	/* ensure nothing creeps after changing the keyid */
+> > > 	barrier();
+> > > 	WRITE_ONCE(lookup_page_ext(page)->keyid, keyid);
+> > > 	barrier();
+> > > 	/* ensure nothing creeps before changing the keyid */
+> > > }
+> > > 
+> > > And this is very much assuming there is no concurrency through the
+> > > allocator locks.
+> > 
+> > There's no concurrency for this page: it has been off the free list, but
+> > have not yet passed on to user. Nobody else sees the page before
+> > allocation is finished.
+> > 
+> > And barriers/WRITE_ONCE() looks excessive to me. It's just yet another bit
+> > of page's metadata and I don't see why it's has to be handled in a special
+> > way.
+> > 
+> > Does it relax your paranoia? :P
 > 
-> What I meant was, if an app executes some legacy code that results in bitmap
-> lookup, but the bitmap page is not yet populated, and if we then populate that
-> page with all-zero, a #CP should follow.  So do we even populate that zero page
-> at all?
+> Not really, it all 'works' because clflush_cache_range() includes mb()
+> and page_address() has an address dependency on the store, and there are
+> no other sites that will ever change 'keyid', which is all kind of
+> fragile.
+
+Hm. I don't follow how the mb() in clflush_cache_range() relevant...
+
+Any following access of page's memory by kernel will go through
+page_keyid() and therefore I believe there's always address dependency on
+the store.
+
+Am I missing something?
+
+> At the very least that should be explicitly called out in a comment.
 > 
-> I think we should; a #CP is more obvious to the user at least.
 
-Please make an effort to un-Intel-ificate your messages as much as
-possible.  I'd really prefer that folks say "missing end branch fault"
-rather than #CP.  I had to Google "#CP".
-
-I *think* you are saying that:  The *only* lookups to this bitmap are on
-"missing end branch" conditions.  Normal, proper-functioning code
-execution that has ENDBR instructions in it will never even look at the
-bitmap.  The only case when we reference the bitmap locations is when
-the processor is about do do a "missing end branch fault" so that it can
-be suppressed.  Any population with the zero page would be done when
-code had already encountered a "missing end branch" condition, and
-populating with a zero-filled page will guarantee that a "missing end
-branch fault" will result.  You're arguing that we should just figure
-this out at fault time and not ever reach the "missing end branch fault"
-at all.
-
-Is that right?
-
-If so, that's an architecture subtlety that I missed until now and which
-went entirely unmentioned in the changelog and discussion up to this
-point.  Let's make sure that nobody else has to walk that path by
-improving our changelog, please.
-
-In any case, I don't think this is worth special-casing our zero-fill
-code, FWIW.  It's not performance critical and not worth the complexity.
- If apps want to handle the signals and abuse this to fill space up with
-boring page table contents, they're welcome to.  There are much easier
-ways to consume a lot of memory.
-
->> We don't have to allow them to (popuating) fault on it.  But, if we
->> don't, we need some kind of kernel interface to avoid the faults.
-> 
-> The plan is:
-> 
-> * Move STACK_TOP (and vdso) down to give space to the bitmap.
-
-Even for apps with 57-bit address spaces?
-
-> * Reserve the bitmap space from (mm->start_stack + PAGE_SIZE) to cover a code
-> size of TASK_SIZE_LOW, which is (TASK_SIZE_LOW / PAGE_SIZE / 8).
-
-The bitmap size is determined by CR4.LA57, not the app.  If you place
-the bitmap here, won't references to it for high addresses go into the
-high address space?
-
-Specifically, on a CR4.LA57=0 system, we have 48 bits of address space,
-so 128TB for apps.  You are proposing sticking the bitmap above the
-stack which is near the top of that 128TB address space.  But on a
-5-level paging system with CR4.LA57=1, there could be valid data at
-129GB.  Is there something keeping that data from being mistaken for
-being part of the bitmap?
-
-Also, if you're limiting it to TASK_SIZE_LOW, please don't forget that
-this is yet another thing that probably won't work with the vsyscall
-page.  Please make sure you consider it and mention it in your next post.
-
-> * Mmap the space only when the app issues the first mark-legacy prctl.  This
-> avoids the core-dump issue for most apps and the accounting problem that
-> MAP_NORESERVE probably won't solve completely.
-
-What is this accounting problem?
+-- 
+ Kirill A. Shutemov
 
