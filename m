@@ -2,206 +2,172 @@ Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36092C31E49
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:53:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DB42C31E45
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 02:10:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E1C4420B7C
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 01:53:20 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="M5oN6C8e"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1C4420B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 13BDC20866
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 02:10:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 13BDC20866
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6C3FA6B000D; Thu, 13 Jun 2019 21:53:20 -0400 (EDT)
+	id A5E686B000D; Thu, 13 Jun 2019 22:10:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 64DCA6B000E; Thu, 13 Jun 2019 21:53:20 -0400 (EDT)
+	id 9E91B6B000E; Thu, 13 Jun 2019 22:10:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4ECAE6B0266; Thu, 13 Jun 2019 21:53:20 -0400 (EDT)
+	id 889C46B0266; Thu, 13 Jun 2019 22:10:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 29DCB6B000D
-	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 21:53:20 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id e7so1207506ybk.22
-        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 18:53:20 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EDCA6B000D
+	for <linux-mm@kvack.org>; Thu, 13 Jun 2019 22:10:25 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id s22so677820plp.5
+        for <linux-mm@kvack.org>; Thu, 13 Jun 2019 19:10:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=wfrTohx7F8pzBumLpEjaUQ9N1cFt17QeYAZ9KiQw55o=;
-        b=NhhAy4JuJjB7gbCAU15sUxqlIGowDl7+l0zV4CbnqpNhoymA2j/2tSZQUV6F909tnE
-         eKL2WlKUUVK1agUIQm9eU+njVcNVDDaWR2Ar02tXRnTItinf93uFvEEMx+jfpnIThHuX
-         XSq/R2QYjzCWmmI1a8es8E00LQHLsxFI/isRyhOv3CLmL8r295qxttNvo3VtDXgPZ8ig
-         ycOJcPwkCqHSgELdd1Y7samFsMTHGltqt9Z0ru1XVBXY7/hdmeMnqo7pJupLByGkTlmD
-         StLHjfmcaoXeyxEo+8LjyZFFgi0Wji1RfSANB35V+Nhtc9OjqAsSP49jEpgNOBxnIGn6
-         guew==
-X-Gm-Message-State: APjAAAWGFoh4wx4nHuTcmZOnDf0jt9Q4Xp66aIfqpWpRA3eNm+L9qDbl
-	MEb5Kb00DUa0UKWGvE6IlELqAf+G8+nP86KvT779/Ru3S8xsIVxGffiAdRp1L7M9UQUOigBOZnJ
-	rQxa5icwO57rsFOVEthiY7tLNf1GoshqfNgktTEmCdmX9fSF4uBUvyKUL35PcqCxzlw==
-X-Received: by 2002:a0d:ecc5:: with SMTP id v188mr2844588ywe.154.1560477199917;
-        Thu, 13 Jun 2019 18:53:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxBoeE15aoDQpeRMotc1YkPjh4W5EaqBgLPMARsx1ey4rIUGmnqpIykcajwtxvbvuRFQ4ph
-X-Received: by 2002:a0d:ecc5:: with SMTP id v188mr2844577ywe.154.1560477199405;
-        Thu, 13 Jun 2019 18:53:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560477199; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=0tXLkaCzSLVqIRJBBy/+3qJ537JyS734Ml26tc3myCY=;
+        b=JTKd3yicPaqseK8TPS1XdzMncgvJtQPfDuy/UNQpddJobBfQFNcmBmzcxnS3PbKUh+
+         M7okTeI19zoEte/lfOlH5lqeexG6VwctYDyWI6buf79CA0B58yb0eD2rISfuoE+kjPmj
+         DMAHeCmGi/fi9eN2VGfCAPjI9W6lzGnpqmyj1GEJhTRsUDbvK0m3/yJrZh94CdvAjhj1
+         Yg/YJ/Ca9g3dwvg4FeVMcwkN8/n3Gce0LMA3zhLAjc8kDJ/C4aOI5pYSfb52olOMAjyl
+         aWzZSPAxs7YX21UJoCdpqLpiaUyrYUCp9meM8GAwstcq0d9r/eE9NrNgwqEdZI9r5vm7
+         tTzg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAXvZpDr8CJ+eumFtTOEPu+k+cNrW4SzCVg8iNzHIJ2L/ZyihxFS
+	MHt6HzKGDsto1ckZvZmR2qIsC+YkVEPrN3jAtlKAWjPdA6qOIzxpbzF/NOayz+B9lqQziu2uncd
+	H3YyZ/nUx0b3T3D/YrAv5bxdWzY2Yetz4kYLe0Ge6JlylXrrg+caHpuetTaylcBg=
+X-Received: by 2002:a65:63c3:: with SMTP id n3mr13252767pgv.139.1560478224724;
+        Thu, 13 Jun 2019 19:10:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyYisjueb83d9NiApKwR+/wSTId5q1dFHH1+Tjncb6G+ZYXJFkOSiRhwC+pZDsUzmigONgZ
+X-Received: by 2002:a65:63c3:: with SMTP id n3mr13252710pgv.139.1560478223614;
+        Thu, 13 Jun 2019 19:10:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560478223; cv=none;
         d=google.com; s=arc-20160816;
-        b=ctr4lWUknUg6lCGlD5hUzO3p0yQuDoyV9MK/WCD8FxjMATSZ7twpouVZ2ahemUSSfL
-         pGn1K9K8SXlH4zmO0ve5lxncEuKTQHhBvI5jN4iuEUsIKN5LWLu54+aqOmf8aGlU+HQV
-         6w6q7CIpem75COJI6xwlQwi2RZah6g7fFJ3FlgQ5+1KT/+HlGnS/y8NlGkqeIsE3+TFX
-         riEY0IInNP/kgf2yAnURLQQ9XXVk4rSSOscJgt94eGNygvQh4nqmg9NqLM/QwEbocY+T
-         78rg6tzVLAiECZMfPxLOng0/He9sMGRON9+R9uDOKfyDaaFOFiVoIhHuPuz6k4d6T8dI
-         JSuw==
+        b=WkFzvDYztkqint++py7fqgj3TWc+uVGxsZEDqTO+3wDjuBHUtYTC/t7ymuAIqoTl8y
+         L/n3cprFEEnt9mRPvxMtXTNz8k7KUzJTI5a/E/X8aGyGNy4OIfgvogExdfYrLuSvpePB
+         hRUL9WYrugt+3yuvYjt57QlcGEUzOkE1tugGEMDzN1ihkbX2wjTBN6ljqspfC8vRM2k5
+         SDd7PR9pFpYtKeviaKyLYeXK2S5zO30ibXjRwyDUeLdistnT7NRX0Fp/T6XnHj8VQqiE
+         0Ym8vhJagbPZXpklLAblwI5UwvFtqplDJF7oBOS1cczJaSkXmLpkgK49YVbcSU5wqu0N
+         ei2Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=wfrTohx7F8pzBumLpEjaUQ9N1cFt17QeYAZ9KiQw55o=;
-        b=fYCfPx6FwknWS5lMe6qYcWsbSZGGdfFxzB1C9LTk4KC05q+cftyNdT/6U9Ze+rSX/z
-         /oI9Cf1v+j2ZKuH+5awySn+yxgJ97VWFWK2xaTJY8hOwkCr+Z2pRkv3d2yDoYEbQBwaM
-         IuIXPBFxJubb8CtDc5yGqF9DjdP4AZTdRIAHa/9Yr/9Cu7vAB4csvH75UcGj8cjMGYZT
-         hXAjeC1kB72iILE3H9RwmwfyLB5gI30M0Vi0yxPOVJe6u9K5ISqsLxFWLa72H0yMQKFf
-         FUz6AHtOsOYrbKTemggSjCfoUKa0FeDgeC4lBWuVZQT4NHPCiootXKjAmk8eETSOVaTk
-         xqTQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=0tXLkaCzSLVqIRJBBy/+3qJ537JyS734Ml26tc3myCY=;
+        b=xJIm9FfpFXFmkMTvwQWCiGToEdu3evlTXUUV8RGRB/dyaJgOgl/YQNQLd8Ds3DGIYH
+         cGYgwUab0p+Yk04nMvdk+iKMmWYeCmDrhVT9HBss1iMroHMaXfT4V4DKuH5y65Kj97IE
+         zTcbJLZ3/FeC6Ionu+0cYQ0xqsE4qpUmmRjluwGBWZjnG8OmFtHvbTAtANObiU89p9tY
+         iE6JwGbsx4Zq5DEqpXQKkFILq04JOLWJJGeszMPhyTVcftemwa85+ypHdDHCCbY+HJbO
+         YZ1NkqwP/VMIzfq2Pa8WJ9R2aTzIUZswMmMsEz1Fba2+jIO/WWEQMeklgkds+pTsYAZb
+         UoPQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=M5oN6C8e;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id 203si533409ywx.441.2019.06.13.18.53.19
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 13 Jun 2019 18:53:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail106.syd.optusnet.com.au (mail106.syd.optusnet.com.au. [211.29.132.42])
+        by mx.google.com with ESMTP id t25si1160718pgk.442.2019.06.13.19.10.23
+        for <linux-mm@kvack.org>;
+        Thu, 13 Jun 2019 19:10:23 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=M5oN6C8e;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d02fe0e0005>; Thu, 13 Jun 2019 18:53:19 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 13 Jun 2019 18:53:18 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 13 Jun 2019 18:53:18 -0700
-Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 14 Jun
- 2019 01:53:15 +0000
-Subject: Re: [Nouveau] [PATCH 22/22] mm: don't select MIGRATE_VMA_HELPER from
- HMM_MIRROR
-To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jason Gunthorpe
-	<jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>
-CC: <linux-nvdimm@lists.01.org>, <linux-pci@vger.kernel.org>,
-	<linux-kernel@vger.kernel.org>, <dri-devel@lists.freedesktop.org>,
-	<linux-mm@kvack.org>, <nouveau@lists.freedesktop.org>
-References: <20190613094326.24093-1-hch@lst.de>
- <20190613094326.24093-23-hch@lst.de>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <7f6c6837-93cd-3b89-63fb-7a60d906c70c@nvidia.com>
-Date: Thu, 13 Jun 2019 18:53:15 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=neutral (google.com: 211.29.132.42 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-195-189-25.pa.nsw.optusnet.com.au [49.195.189.25])
+	by mail106.syd.optusnet.com.au (Postfix) with ESMTPS id 6E77A3DCE8B;
+	Fri, 14 Jun 2019 12:10:19 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hbbeb-0005G5-AA; Fri, 14 Jun 2019 12:09:21 +1000
+Date: Fri, 14 Jun 2019 12:09:21 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Ira Weiny <ira.weiny@intel.com>, Matthew Wilcox <willy@infradead.org>,
+	Jan Kara <jack@suse.cz>, Dan Williams <dan.j.williams@intel.com>,
+	Theodore Ts'o <tytso@mit.edu>, Jeff Layton <jlayton@kernel.org>,
+	linux-xfs@vger.kernel.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	John Hubbard <jhubbard@nvidia.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org, linux-rdma@vger.kernel.org
+Subject: Re: [PATCH RFC 00/10] RDMA/FS DAX truncate proposal
+Message-ID: <20190614020921.GM14363@dread.disaster.area>
+References: <20190606104203.GF7433@quack2.suse.cz>
+ <20190606220329.GA11698@iweiny-DESK2.sc.intel.com>
+ <20190607110426.GB12765@quack2.suse.cz>
+ <20190607182534.GC14559@iweiny-DESK2.sc.intel.com>
+ <20190608001036.GF14308@dread.disaster.area>
+ <20190612123751.GD32656@bombadil.infradead.org>
+ <20190613002555.GH14363@dread.disaster.area>
+ <20190613152755.GI32656@bombadil.infradead.org>
+ <20190613211321.GC32404@iweiny-DESK2.sc.intel.com>
+ <20190613234530.GK22901@ziepe.ca>
 MIME-Version: 1.0
-In-Reply-To: <20190613094326.24093-23-hch@lst.de>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL106.nvidia.com (172.18.146.12) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1560477199; bh=wfrTohx7F8pzBumLpEjaUQ9N1cFt17QeYAZ9KiQw55o=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=M5oN6C8eycwH3ddNUoY7Cl0CYJ9M/JxsSi8COG6+zA3vleXm4hLAieJyd+Rnz+XkO
-	 InXDP5bP6dg2R5z3V6QmIUAmqLRdfEEPnoHe11DQdqPOWEHe/dXotRaVsozwyC2/UP
-	 xDBwMimCe618+axfU5Zd0Qi9Sdyc7jV9iEEzHuNuDhCf0KA4IYYIilK0/UogG1t7ci
-	 H9FdBc2bPm+OVbr206w3w8msAwL3yKIwNn9F7Tj/HK8hN79yf7fVDe++57Ay62brrv
-	 OTzs1WriOqHqdV4jj8ahLriHk1fr8Yt+cbZgV9a0zp+uG1qklpiRLsN8+Vm//XjXMt
-	 Z2NZgCNIR4PKQ==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190613234530.GK22901@ziepe.ca>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=D+Q3ErZj c=1 sm=1 tr=0 cx=a_idp_d
+	a=K5LJ/TdJMXINHCwnwvH1bQ==:117 a=K5LJ/TdJMXINHCwnwvH1bQ==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=dq6fvYVFJ5YA:10
+	a=7-415B0cAAAA:8 a=MIoJepgKeDxvTzH8FPQA:9 a=CjuIK1q_8ugA:10
+	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/13/19 2:43 AM, Christoph Hellwig wrote:
-> The migrate_vma helper is only used by noveau to migrate device private
-> pages around.  Other HMM_MIRROR users like amdgpu or infiniband don't
-> need it.
+On Thu, Jun 13, 2019 at 08:45:30PM -0300, Jason Gunthorpe wrote:
+> On Thu, Jun 13, 2019 at 02:13:21PM -0700, Ira Weiny wrote:
+> > On Thu, Jun 13, 2019 at 08:27:55AM -0700, Matthew Wilcox wrote:
+> > > On Thu, Jun 13, 2019 at 10:25:55AM +1000, Dave Chinner wrote:
+> > > > e.g. Process A has an exclusive layout lease on file F. It does an
+> > > > IO to file F. The filesystem IO path checks that Process A owns the
+> > > > lease on the file and so skips straight through layout breaking
+> > > > because it owns the lease and is allowed to modify the layout. It
+> > > > then takes the inode metadata locks to allocate new space and write
+> > > > new data.
+> > > > 
+> > > > Process B now tries to write to file F. The FS checks whether
+> > > > Process B owns a layout lease on file F. It doesn't, so then it
+> > > > tries to break the layout lease so the IO can proceed. The layout
+> > > > breaking code sees that process A has an exclusive layout lease
+> > > > granted, and so returns -ETXTBSY to process B - it is not allowed to
+> > > > break the lease and so the IO fails with -ETXTBSY.
+> > > 
+> > > This description doesn't match the behaviour that RDMA wants either.
+> > > Even if Process A has a lease on the file, an IO from Process A which
+> > > results in blocks being freed from the file is going to result in the
+> > > RDMA device being able to write to blocks which are now freed (and
+> > > potentially reallocated to another file).
+> > 
+> > I don't understand why this would not work for RDMA?  As long as the layout
+> > does not change the page pins can remain in place.
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  drivers/gpu/drm/nouveau/Kconfig | 1 +
->  mm/Kconfig                      | 1 -
->  2 files changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/drivers/gpu/drm/nouveau/Kconfig b/drivers/gpu/drm/nouveau/Kconfig
-> index 66c839d8e9d1..96b9814e6d06 100644
-> --- a/drivers/gpu/drm/nouveau/Kconfig
-> +++ b/drivers/gpu/drm/nouveau/Kconfig
-> @@ -88,6 +88,7 @@ config DRM_NOUVEAU_SVM
->  	depends on DRM_NOUVEAU
->  	depends on HMM_MIRROR
->  	depends on STAGING
-> +	select MIGRATE_VMA_HELPER
->  	default n
->  	help
->  	  Say Y here if you want to enable experimental support for
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 73676cb4693f..eca88679b624 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -679,7 +679,6 @@ config HMM_MIRROR
->  	bool "HMM mirror CPU page table into a device page table"
->  	depends on MMU
->  	select MMU_NOTIFIER
-> -	select MIGRATE_VMA_HELPER
->  	help
->  	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
->  	  process into a device page table. Here, mirror means "keep synchronized".
-> 
+> Because process A had a layout lease (and presumably a MR) and the
+> layout was still modified in way that invalidates the RDMA MR.
 
-For those who have out of tree drivers that need migrate_vma(), but are not
-Nouveau, could we pretty please allow a way to select that independently?
+The lease holder is allowed to modify the mapping it has a lease
+over. That's necessary so lease holders can write data into
+unallocated space in the file. The lease is there to prevent third
+parties from modifying the layout without the lease holder being
+informed and taking appropriate action to allow that 3rd party
+modification to occur.
 
-It's not a big deal, as I expect the Nouveau option will normally be selected, 
-but it would be nice. Because there is a valid configuration that involves 
-Nouveau not being selected, but our driver still wanting to run.
+If the lease holder modifies the mapping in a way that causes it's
+own internal state to screw up, then that's a bug in the lease
+holder application.
 
-Maybe we can add something like this on top of what you have?
+Cheers,
 
-diff --git a/mm/Kconfig b/mm/Kconfig
-index eca88679b624..330996632513 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -670,7 +670,10 @@ config ZONE_DEVICE
-          If FS_DAX is enabled, then say Y.
- 
- config MIGRATE_VMA_HELPER
--       bool
-+       bool "migrate_vma() helper routine"
-+       help
-+         Provides a migrate_vma() routine that GPUs and other
-+         device drivers may need.
- 
- config DEV_PAGEMAP_OPS
-        bool
-
-
-
-thanks,
+Dave.
 -- 
-John Hubbard
-NVIDIA
+Dave Chinner
+david@fromorbit.com
 
