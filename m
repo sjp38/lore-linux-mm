@@ -4,80 +4,80 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 200DCC31E44
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 11:51:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DCF92C31E44
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 11:54:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CA07820850
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 11:51:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 96A452133D
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 11:54:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="jmYBMKhA"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA07820850
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="M7O9zXWb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96A452133D
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 662566B000A; Fri, 14 Jun 2019 07:51:42 -0400 (EDT)
+	id 379836B000E; Fri, 14 Jun 2019 07:54:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 612FB6B000D; Fri, 14 Jun 2019 07:51:42 -0400 (EDT)
+	id 2DAA26B0266; Fri, 14 Jun 2019 07:54:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4DA536B000E; Fri, 14 Jun 2019 07:51:42 -0400 (EDT)
+	id 17C0D6B0269; Fri, 14 Jun 2019 07:54:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 17DB16B000A
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 07:51:42 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id d3so1728062pgc.9
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 04:51:42 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CEBD46B000E
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 07:54:29 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 59so1475826plb.14
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 04:54:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=6uPpBmRMCo+tgIg2r1zxKrPWw32mDCaK9zcJcUBOcWo=;
-        b=SFyNQJOAi+agA2pn77AfJCBzA69cmR/8eQoRC2znJDC7gfhx4TzGu8NHEpl7O522yf
-         3uUbddmsXd/3V69vbuvlpBf/1IeW03GgKv67L0v8pT9oD0FVsuyf44CN/0zs9ZV7Xsow
-         In2HyDE9asnIrPqFBSU6lu49RUXhm7JjTCgKn57Z55l/4EcLLISr3ZbLEcWfnqi9mr5w
-         hS5xnRwJgZGUGh8sDN/7ISAj12jUISkmQ+woacJ0jN4U6Da/rKsXRK2ImqQymiQ+reor
-         oqYvVZVFkWwvBug/maKGelHmqwNX4tWZPuSr/adxGl9WphT7Ae/d5CmtucE30qZcpTau
-         +zKg==
-X-Gm-Message-State: APjAAAUYA/O0yFMooVYe6INaV6toboyv7XGBwKhkLvCe7cHCCMjbehXK
-	rErwVn5/A1iHp9fod1DHmqtJ/s1/evKFdSS9dg5Kp1AtjjjEJsUJ5jyk4jEHJm6PZ3G1I4/Nmr5
-	cImoK7p2Gy0D8VH649MvGUE6uvI0E/GqBv9JBP0WxcNGzXklWvuKGKaQZYW2JA5UIUQ==
-X-Received: by 2002:a17:90a:35e5:: with SMTP id r92mr8713983pjb.34.1560513101633;
-        Fri, 14 Jun 2019 04:51:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUMGe2FJoGKJrAQtTpAPwLUtJgqVvcqTiTQ+pZSDqJMSE07FIGc6KwkwYTj8I1t6sB3A3b
-X-Received: by 2002:a17:90a:35e5:: with SMTP id r92mr8713938pjb.34.1560513100964;
-        Fri, 14 Jun 2019 04:51:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560513100; cv=none;
+        bh=V9MxUDuNmfO4r0z06SPalcFOxnjAwgY7mVSx/TAv4CA=;
+        b=i6kBDE5sJ2gf2mxo9cXBGIqzTIzRQb33n2S6SC17HBJwooe/Z0bMcDKIQeB54ATStV
+         nUU+AcXpMU/sYtEsqMndH9glxwd3ucXLfM65QuieNw7BSiGi568dkRR1s9WRvdnGHaYC
+         gNWIzZG6ZJAopRqwtEw5tswlFs43sQRRfw8tztFDPcI9f/vz9fTLlKr7rzvN35a+xqTD
+         H66SYd7AS2WvgKNEgew20jyZI3mI2dK0jFouUqIkgQqOwpJcYWfHbzAXTKR5UjTC/1hN
+         cVbAQE0N7lQchIXKXhw2ocWTe2YvdBPid2ZiWgRu6kbRMRmM1+cojdOoYPeRKTuoUFS7
+         dyjA==
+X-Gm-Message-State: APjAAAXzZMPdkaCbS7dHCj3suIWAjHWthbYno/dGP9JQBubDVYrlxmxQ
+	pIsX3TLKhqq74PW+gpzrRZU9j/f7WuoYJxBAouv/nwDJGNwuvtm2w6OxsRfZ0CITm/3jaFglEuB
+	tvqmAVHNRw0FzoreYWpbEDBRnGiyezg7FyVohxmFTVWNrbjMwShhxfZu/Cf0MnaFylg==
+X-Received: by 2002:a63:4d05:: with SMTP id a5mr33114398pgb.19.1560513269325;
+        Fri, 14 Jun 2019 04:54:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwCRtnlkz1CaHgq5UdXsps+wItq1BAiO3olZo1M7uYuwT9HkKnOVCFJO62NmTLC2jM2F+9c
+X-Received: by 2002:a63:4d05:: with SMTP id a5mr33114352pgb.19.1560513268495;
+        Fri, 14 Jun 2019 04:54:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560513268; cv=none;
         d=google.com; s=arc-20160816;
-        b=tgsLLK41oBMWXP6DdwMwYKs1F2pEfzcf5xAL1XPQjvvrw5+MAL4M1E4StL/f9B6x2O
-         6IbQBa9j7p9vpchgA8tP0xSYHGtzFELRiGS9MK2BCJ43peSz6/mG0Cz4pFN1fSmId93T
-         9JBWOXVMjioFqtZ6tCrd0cseqdNSq6lxW3fIeD5pxQW/P6rKsrdZAWnJuoyMpgtCs5IW
-         49CEvjAIaqHwpAtXlwml8yIPekblAVcGmTzGju8QdfwL7iUige6WTdNzf00jta5renPB
-         0IMXfvZz69YngsR00cqqnfUzdy9M3QimC/ZFuECdJ3x4Hy1QVGSAmDG7k3FleGtW9C/+
-         OqJg==
+        b=r/s0C/wgvrLfIIxiyJGQxiPw0lkBFi1W43bw9tWZ1+6RyMuSVN5ANLx1htGaerBIQB
+         AR6GautKR7mK+vZOEuIsQs96Mgju+BLNC0PdQaXxLKoNS9tfqmLARj0jVzHal3UYIuBq
+         tmLRmxs7H6jIERcrtHLOZ3sL+Z6sKUfsMD6hPx6HEdNrof5IoTPLf1zvv9IIscHiwWdE
+         luzBF9nFZz4lWWdgP9x32pEgag6FzJIkCCN+h2HdAkYEw/UR4LWTLtzmLkqxf8t4/saQ
+         Ln2ryTFQlAeIHcf3F2c0jsJiT9BEI2DbY7i66nEPf2uGCKfYu2OtuNk70IebNh218y7X
+         vghA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=6uPpBmRMCo+tgIg2r1zxKrPWw32mDCaK9zcJcUBOcWo=;
-        b=TwAFkfHLzLEadpTuAAqLJfH4G4m0/HjRtf2y3r8WYPnpK52FarRyubSehtAS14VmZF
-         99ubYkqYSqRKTgtZCH89msF9iml7lTTOqUOv7GnAroSPM28PfnbBVEFkoq7gt379qHp3
-         1cM6rNDEVE5ZnbqrVNwZD97frWssS18DlltGFPtEH2IxNPK+X/ms6p9PxMI2ryezU9ZS
-         XI3MP+cZr4Lpz02WYvnKEc3wk0oqxBiJuB2hWR0de8jtCZeJ1MWuPcX+fQ2d2OXnsWiW
-         nunTa/E71mS1eS66AEyR6Vy/eltdoRQzoHKu1dBubv0vVqTg9ne4yy5gYG102RKkPT2V
-         UyUg==
+        bh=V9MxUDuNmfO4r0z06SPalcFOxnjAwgY7mVSx/TAv4CA=;
+        b=Ob9c/nQDS08xCKLx5RY3P7+M30zCtP+QorHO9n5i4JJUj2ds9myVMh+1RZbC3d7SXq
+         rdTMdZ3OWsuD/ALSNapNofalNpeTpLhltZatVDLTUore1bEFhDw69UAWQIA2uUjW7SUG
+         /9K7GwcrGgDbF9ktfr1vprtzA4ZfFHp1jX4p6fzDkZl6qvyXSDBfq6/nEy9jfmQgee1z
+         bWIOYD7gUI5BO9HaquZpzMlo5qvq5phJlUUaPuMKnC3MEtgbs28Bhb1Mm2cnwAtusT0j
+         XfRdzGS71aoWQvRp8tCIjdxALrVD/vy5008B6ldE8Df5EyxzWeV2oaUeafeFjsGXo0DE
+         KVjQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=jmYBMKhA;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=M7O9zXWb;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g12si2216607pla.322.2019.06.14.04.51.40
+        by mx.google.com with ESMTPS id l7si2365006pgl.562.2019.06.14.04.54.28
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 14 Jun 2019 04:51:40 -0700 (PDT)
+        Fri, 14 Jun 2019 04:54:28 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=jmYBMKhA;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=M7O9zXWb;
        spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
@@ -85,18 +85,18 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=6uPpBmRMCo+tgIg2r1zxKrPWw32mDCaK9zcJcUBOcWo=; b=jmYBMKhAa1UffRPdkK9RLJLOS
-	QdmfuTjDZ8NB4GXF/zHW3rz6cJWu+XpCEA1hAu19diiDUBsEXDoK+kKbI8a9yiKOyZQ3CF3PInIUQ
-	bKOZuduix2OL2GFE+f3y35ts/hSbBLpgUqg8O3tCDH3RTiaBrjM4qXKlUTnCQJVFClCitsescAugU
-	AbgEZ8MbL93i/TM4f15wK06QGyzT+L4W7JN9QCBJV7RMSy3QGXdpqnFVW5nBAktHuID4zk4rprhMt
-	eEEuT0d5NdtDREXGLMrP4AslnTeHOVmVmg5XQAU13Avb22U+SuiQ3YAgNOOKPZXwGMgaFoYBwddgg
-	aXV0xJdHA==;
+	 bh=V9MxUDuNmfO4r0z06SPalcFOxnjAwgY7mVSx/TAv4CA=; b=M7O9zXWbjnUSmnDAOEmTK7Md1
+	Z232umC/Ih4w0N8OJkMIQxcnrGvrzB8H/aYEJh2NILrV6grz+ZS4iMVMPIljrdAZzeSQl32EoqVmc
+	j9dPtuTqOLDXMls53IKjGHjUpO6mg61K24O95pcgqQDd1mWbASyhdbtqNRtmFf4tWCGOhyPlyJCiY
+	ZDgjGaiymge3jtRgtsGSf4cgMUsVeTBqlSeI08iRRUyXxzHYKrr1kkOTU+kESF5T+cSeUNPSLeSBF
+	cFezL2X72sFAc99UeeE4ZVIdO12z7QcyfpUqx61BiAewhS9S5JkG8drNIEvQRD6wZWwOGyebGriLr
+	T3LxQ3aCw==;
 Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hbkk6-0001vf-Lz; Fri, 14 Jun 2019 11:51:38 +0000
+	id 1hbkmn-0002Jj-Qb; Fri, 14 Jun 2019 11:54:25 +0000
 Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 2E5292013F74A; Fri, 14 Jun 2019 13:51:37 +0200 (CEST)
-Date: Fri, 14 Jun 2019 13:51:37 +0200
+	id 4E56A20A26CE7; Fri, 14 Jun 2019 13:54:24 +0200 (CEST)
+Date: Fri, 14 Jun 2019 13:54:24 +0200
 From: Peter Zijlstra <peterz@infradead.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
@@ -112,15 +112,15 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
 	Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
 	kvm@vger.kernel.org, keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH, RFC 45/62] mm: Add the encrypt_mprotect() system call
- for MKTME
-Message-ID: <20190614115137.GF3436@hirez.programming.kicks-ass.net>
+Subject: Re: [PATCH, RFC 46/62] x86/mm: Keep reference counts on encrypted
+ VMAs for MKTME
+Message-ID: <20190614115424.GG3436@hirez.programming.kicks-ass.net>
 References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
- <20190508144422.13171-46-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-47-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190508144422.13171-46-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20190508144422.13171-47-kirill.shutemov@linux.intel.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -128,72 +128,67 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 08, 2019 at 05:44:05PM +0300, Kirill A. Shutemov wrote:
+On Wed, May 08, 2019 at 05:44:06PM +0300, Kirill A. Shutemov wrote:
+> From: Alison Schofield <alison.schofield@intel.com>
+> 
+> The MKTME (Multi-Key Total Memory Encryption) Key Service needs
+> a reference count on encrypted VMAs. This reference count is used
+> to determine when a hardware encryption KeyID is no longer in use
+> and can be freed and reassigned to another Userspace Key.
+> 
+> The MKTME Key service does the percpu_ref_init and _kill, so
+> these gets/puts on encrypted VMA's can be considered the
+> intermediaries in the lifetime of the key.
+> 
+> Increment/decrement the reference count during encrypt_mprotect()
+> system call for initial or updated encryption on a VMA.
+> 
+> Piggy back on the vm_area_dup/free() helpers. If the VMAs being
+> duplicated, or freed are encrypted, adjust the reference count.
 
-> @@ -347,7 +348,8 @@ static int prot_none_walk(struct vm_area_struct *vma, unsigned long start,
+That all talks about VMAs, but...
+
+> @@ -102,6 +115,22 @@ void __prep_encrypted_page(struct page *page, int order, int keyid, bool zero)
 >  
->  int
->  mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
-> -	unsigned long start, unsigned long end, unsigned long newflags)
-> +	       unsigned long start, unsigned long end, unsigned long newflags,
-> +	       int newkeyid)
->  {
->  	struct mm_struct *mm = vma->vm_mm;
->  	unsigned long oldflags = vma->vm_flags;
-> @@ -357,7 +359,14 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
->  	int error;
->  	int dirty_accountable = 0;
->  
-> -	if (newflags == oldflags) {
+>  		page++;
+>  	}
+> +
 > +	/*
-> +	 * Flags match and Keyids match or we have NO_KEY.
-> +	 * This _fixup is usually called from do_mprotect_ext() except
-> +	 * for one special case: caller fs/exec.c/setup_arg_pages()
-> +	 * In that case, newkeyid is passed as -1 (NO_KEY).
+> +	 * Make sure the KeyID cannot be freed until the last page that
+> +	 * uses the KeyID is gone.
+> +	 *
+> +	 * This is required because the page may live longer than VMA it
+> +	 * is mapped into (i.e. in get_user_pages() case) and having
+> +	 * refcounting per-VMA is not enough.
+> +	 *
+> +	 * Taking a reference per-4K helps in case if the page will be
+> +	 * split after the allocation. free_encrypted_page() will balance
+> +	 * out the refcount even if the page was split and freed as bunch
+> +	 * of 4K pages.
 > +	 */
-> +	if (newflags == oldflags &&
-> +	    (newkeyid == vma_keyid(vma) || newkeyid == NO_KEY)) {
->  		*pprev = vma;
->  		return 0;
->  	}
-> @@ -423,6 +432,8 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
->  	}
->  
->  success:
-> +	if (newkeyid != NO_KEY)
-> +		mprotect_set_encrypt(vma, newkeyid, start, end);
->  	/*
->  	 * vm_flags and vm_page_prot are protected by the mmap_sem
->  	 * held in write mode.
-> @@ -454,10 +465,15 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
+> +
+> +	percpu_ref_get_many(&encrypt_count[keyid], 1 << order);
 >  }
 >  
 >  /*
-> - * When pkey==NO_KEY we get legacy mprotect behavior here.
-> + * do_mprotect_ext() supports the legacy mprotect behavior plus extensions
-> + * for Protection Keys and Memory Encryption Keys. These extensions are
-> + * mutually exclusive and the behavior is:
-> + *	(pkey==NO_KEY && keyid==NO_KEY) ==> legacy mprotect
-> + *	(pkey is valid)  ==> legacy mprotect plus Protection Key extensions
-> + *	(keyid is valid) ==> legacy mprotect plus Encryption Key extensions
+> @@ -110,7 +139,9 @@ void __prep_encrypted_page(struct page *page, int order, int keyid, bool zero)
 >   */
->  static int do_mprotect_ext(unsigned long start, size_t len,
-> -		unsigned long prot, int pkey)
-> +			   unsigned long prot, int pkey, int keyid)
+>  void free_encrypted_page(struct page *page, int order)
 >  {
->  	unsigned long nstart, end, tmp, reqprot;
->  	struct vm_area_struct *vma, *prev;
-> @@ -555,7 +571,8 @@ static int do_mprotect_ext(unsigned long start, size_t len,
->  		tmp = vma->vm_end;
->  		if (tmp > end)
->  			tmp = end;
-> -		error = mprotect_fixup(vma, &prev, nstart, tmp, newflags);
-> +		error = mprotect_fixup(vma, &prev, nstart, tmp, newflags,
-> +				       keyid);
->  		if (error)
->  			goto out;
->  		nstart = tmp;
+> -	int i;
+> +	int i, keyid;
+> +
+> +	keyid = page_keyid(page);
+>  
+>  	/*
+>  	 * The hardware/CPU does not enforce coherency between mappings
+> @@ -125,6 +156,8 @@ void free_encrypted_page(struct page *page, int order)
+>  		lookup_page_ext(page)->keyid = 0;
+>  		page++;
+>  	}
+> +
+> +	percpu_ref_put_many(&encrypt_count[keyid], 1 << order);
+>  }
 
-I've missed the part where pkey && keyid results in a WARN or error or
-whatever.
+counts pages, what gives?
 
