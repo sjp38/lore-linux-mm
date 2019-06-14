@@ -3,196 +3,284 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
-	version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B19F7C31E4E
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 19:11:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A7B3AC31E4D
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 19:35:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 76CEE21773
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 19:11:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76CEE21773
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 3FF2B20866
+	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 19:35:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FF2B20866
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E3DD86B0003; Fri, 14 Jun 2019 15:11:26 -0400 (EDT)
+	id AF98B6B0006; Fri, 14 Jun 2019 15:35:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DC71F6B000C; Fri, 14 Jun 2019 15:11:26 -0400 (EDT)
+	id AA8FF6B0007; Fri, 14 Jun 2019 15:35:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C42516B000D; Fri, 14 Jun 2019 15:11:26 -0400 (EDT)
+	id 970666B000D; Fri, 14 Jun 2019 15:35:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A9C76B0003
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 15:11:26 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id l4so2437038pff.5
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 12:11:26 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 766766B0006
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 15:35:07 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id 5so2997379qki.2
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 12:35:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=Fl82JVASVXXJHD3w7XRUnCulujcPkRixRekkmHub5PE=;
-        b=rMY04Ze3D/df7ZOYSIbtHzygU2PUg5p7t45bEqfzI0Ecd1/9YnEv1LkLpcHpHVdzGh
-         ZlISHt5oi63L+Zs1HwlEDVrYgffZk0U1xwFbLGBRZeqvHM1d3KhPxbk/bcPOyyF1WrDS
-         8ssQOCoExe+To9ukTv+/CStJNP5BYLmH7MvJriRUnp0DHpC8IApEwAkTrW+p3k07htMs
-         GnuE/wqHuCVQqCy5+4DVInPQopnvtMqczDYx1NDHTU/6CT2eQqZwhVf95wnjmnRMMA2i
-         96BED7N3+ClnAkuAFgslkvqujcwffCL6HlwV1sps5RUZX64vLorNqLIWMaoLYEHfl6dn
-         /t8Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAU337RAC4syia12bcUcZZDRVjmArB2i5Dr9J1TXSGGV7QEP3ogM
-	JavxgojJb+PVn/m3sVEWPc+UqoNNeIYc+2dagQpSWQ9SxeN9ls2gvkINIe0UXzACo+0xLHssPFh
-	84YIwOIdepUVAMBozZ+pbCJPIluuWs3SKHVHzw94LRFj/6F7pZbGNHoxjppyDq//u8w==
-X-Received: by 2002:aa7:82d7:: with SMTP id f23mr98849160pfn.138.1560539486245;
-        Fri, 14 Jun 2019 12:11:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyt39ijONB/dchvv+xdSmOAWojazHfkAbGp/nzyBoHFeiW2yNOBwsUkXMzMSj6/+WiakD9s
-X-Received: by 2002:aa7:82d7:: with SMTP id f23mr98849018pfn.138.1560539484496;
-        Fri, 14 Jun 2019 12:11:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560539484; cv=none;
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=a9FIeDvYzGRSuVmuvPdSX/FEwackCKjqHF+ocJGi3XQ=;
+        b=h0IFsFXsBgQoMaFji5KLhClXfnu2m2klHLd8jofw4+3vsB8ylfLhwvubseKlyhz0Vp
+         CyxAA1ZnxnLOpXTmSQ4RYfF5fAWFiAxMEiBa3ix8di3Ysa9NkCiOm0dTIDEAOvXww6xs
+         +DuaqztzqZbLMlXRHs3sNcEJPxT5B3H/Wd2/tiRxwiTr73i6a8G/ZYbO4gLVmrQixmIv
+         WVK0514ZbaGrNU+9Tq+B2BKJOVeMVWSXDY2YYXMh67IdJF1m02wHs+vPlSn9zCN9MEmD
+         WrCOzQ+ObCTm7N1e4Mek6JYgmGsLl4zR29+Go1tDRLNGF3y8kNjyNZ4tj99T38Q8ItBd
+         kU5w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVVivVcizVbqCtTAZBAtQugFlYHRsKfIq9LmBSqJMv+IhPJ1zpZ
+	54KMzue593PtxY1rQBhXrYJUk9KmnZ7bacMfoPyNF90Fppf4JCBFZ/ClQtiGhoD1DwMuw/C+exZ
+	lnEURTWHmWQwh4skz12+KilzqGUsqJzRo+Wl5ObXzBq6sOa9WWg3sb7QTDU3o+KXmFw==
+X-Received: by 2002:a37:6b87:: with SMTP id g129mr68390941qkc.305.1560540907219;
+        Fri, 14 Jun 2019 12:35:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzFz06awQGvf3Oz4xLkC22nvoUqmV8Cy+gALkiPSPoJfeEThzt0fWuY+XgJHAfJAzfBLZPx
+X-Received: by 2002:a37:6b87:: with SMTP id g129mr68390892qkc.305.1560540906584;
+        Fri, 14 Jun 2019 12:35:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560540906; cv=none;
         d=google.com; s=arc-20160816;
-        b=f+CdgMh3pPVj5MPoolMyS9Y2xMk8ALSwMfNGJmYE7qrfYVwIHQXe8dA6lbzF+QKUen
-         Hes3QOrpkHP0zPC59FmCSj1L7TJARinE7EPQAGhGkibspG+NrAR4RwVloxQz6Ew7878I
-         gG0KjpLjSUyPt78yGTHfGW1thgaNZlGOv5I453Qw6TUex27XjtQW+8tFYHrEgCxD8nZz
-         qJ/j7LmggQYuXY4527tK/amdfo6Ks0vWMhpt7egGIUYxJCDLARUSP4uYSLVMvl6FSPyu
-         3owEIBL1JgIuMnrLPsZDh8LU9sipRhsW+Wl0U6cX0wsGkkDzmHcOfa1Va38AI9aEY4QB
-         /8Nw==
+        b=uW0f5KFKPDmKUcMUcuP7y8pdvLA31n2uLivzoW35ny+bW6/BJHNEb0UC72xvObHfDA
+         MmyvyA1E8e7zLPZ1YUZrXxdYkA8E9Ct9KIckG1gbOkXPrhrOoZuBmGdKIIfj07EfSOlT
+         U2W82vbnVwADHlcSI/baxaqxIPsfBq7j/0KX1XAb+1O8psY/Fx2mB6fau9UKUoUQhqzA
+         iwEDmQHAquZHW+RA2ljuo9WkzdlYlC+Tn4SrgqutJcatzsB98jL4QFRwacJgUHhDTR8h
+         M2rzoph3oNyJV7OMq1x8DwcSGvqkIZvb3FOdAC8Q/jl2A3NxpmLZs5JhPbAjf+y+f0pa
+         odWg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=Fl82JVASVXXJHD3w7XRUnCulujcPkRixRekkmHub5PE=;
-        b=UhleGvLVjgMDVPHeVUbM9xnTE3n1fyFxbX8ix/cxyoqFntSvwmlk/gQKu7ZHG8hKsV
-         7Lw2FgqE1agknG4AqY8/xO52zE7VQ6kZogj2Vhz8PSSDNQW7KxdpuTp9fN32N7Vf+PjQ
-         QlO7nXAoQenf+kjz3iwENJoIs5LkT0JBTx64QF0rMS5nrWoihLzUG3X6+l4wWBkInqpR
-         rxjSBAMdOCavC0XoNkfCYQBiiimW+u06YBT3Ih852uEVWw3VePDdEUEAoo2+9zigYBJl
-         S5l5d1Rq4oh0c+R4N1rrYycBZHxfeSXi8S7krVAZ2V+5cT6yMxzqhAjpPQ6YPCYGQCWQ
-         kjnA==
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=a9FIeDvYzGRSuVmuvPdSX/FEwackCKjqHF+ocJGi3XQ=;
+        b=nug7LBvVy9QELeoZmm27t5P/w2zF3uKklhToo8+KgaDjmgeac6S8rfn9pNDqpFA37H
+         0PX2M9XxbWthpkuYTlXWw4u1LgQkqaFn11Nw74XJYaK/+pDyCSDg3c/rXtqGBOidZtYW
+         mWMeXt5AsLXzWxXnzHwbtHA3DbfdG1iuZ41Gnr90LpfKOggZhO6rtASjxeVXIqsvMubl
+         UofAs3trzN5BgY7krJ8xaWETVzlefd3IpBuSO6nJz3Jkz5Fpe5jyr7yv4cgmL6ymxVFt
+         Ej25fe8wZpk3ONiBAEZAbLwRe47mSoWR8xaazHQJ1zCfL+upIH7jMb3IvrxN7v1PyXw7
+         ifuQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id u71si3265314pgd.455.2019.06.14.12.11.24
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j11si2139516qvn.199.2019.06.14.12.35.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 12:11:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        Fri, 14 Jun 2019 12:35:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga007.jf.intel.com ([10.7.209.58])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Jun 2019 12:11:24 -0700
-X-ExtLoop1: 1
-Received: from ray.jf.intel.com (HELO [10.7.201.15]) ([10.7.201.15])
-  by orsmga007.jf.intel.com with ESMTP; 14 Jun 2019 12:11:23 -0700
-Subject: Re: [PATCH, RFC 44/62] x86/mm: Set KeyIDs in encrypted VMAs for MKTME
-To: Alison Schofield <alison.schofield@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>,
- "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
- Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- "H. Peter Anvin" <hpa@zytor.com>, Borislav Petkov <bp@alien8.de>,
- Andy Lutomirski <luto@amacapital.net>, David Howells <dhowells@redhat.com>,
- Kees Cook <keescook@chromium.org>, Kai Huang <kai.huang@linux.intel.com>,
- Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-mm@kvack.org,
- kvm@vger.kernel.org, keyrings@vger.kernel.org, linux-kernel@vger.kernel.org
-References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
- <20190508144422.13171-45-kirill.shutemov@linux.intel.com>
- <20190614114408.GD3436@hirez.programming.kicks-ass.net>
- <20190614173345.GB5917@alison-desk.jf.intel.com>
- <e0884a6b-78bc-209d-bc9a-90f69839189e@intel.com>
- <20190614184602.GB7252@alison-desk.jf.intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id DF3793092645;
+	Fri, 14 Jun 2019 19:35:04 +0000 (UTC)
+Received: from [10.36.116.43] (ovpn-116-43.ams2.redhat.com [10.36.116.43])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 955E519C67;
+	Fri, 14 Jun 2019 19:35:00 +0000 (UTC)
+Subject: Re: [PATCH v1 1/6] mm: Section numbers use the type "unsigned long"
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>,
+ linuxppc-dev@lists.ozlabs.org, linux-acpi@vger.kernel.org,
+ linux-mm@kvack.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ "Rafael J. Wysocki" <rafael@kernel.org>, Vlastimil Babka <vbabka@suse.cz>,
+ Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>,
+ Wei Yang <richard.weiyang@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>,
+ Arun KS <arunks@codeaurora.org>, Pavel Tatashin <pasha.tatashin@oracle.com>,
+ Oscar Salvador <osalvador@suse.de>, Stephen Rothwell <sfr@canb.auug.org.au>,
+ Mike Rapoport <rppt@linux.vnet.ibm.com>, Baoquan He <bhe@redhat.com>
+References: <20190614100114.311-1-david@redhat.com>
+ <20190614100114.311-2-david@redhat.com>
+ <20190614120036.00ae392e3f210e7bc9ec6960@linux-foundation.org>
+From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <ca62a921-e60c-6532-32c3-f02e15ba69aa@intel.com>
-Date: Fri, 14 Jun 2019 12:11:23 -0700
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <e07449fa-251f-51c7-9ee2-202635c4aef7@redhat.com>
+Date: Fri, 14 Jun 2019 21:34:59 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190614184602.GB7252@alison-desk.jf.intel.com>
+In-Reply-To: <20190614120036.00ae392e3f210e7bc9ec6960@linux-foundation.org>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Fri, 14 Jun 2019 19:35:05 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/14/19 11:46 AM, Alison Schofield wrote:
-> On Fri, Jun 14, 2019 at 11:26:10AM -0700, Dave Hansen wrote:
->> On 6/14/19 10:33 AM, Alison Schofield wrote:
->>> Preserving the data across encryption key changes has not
->>> been a requirement. I'm not clear if it was ever considered
->>> and rejected. I believe that copying in order to preserve
->>> the data was never considered.
->>
->> We could preserve the data pretty easily.  It's just annoying, though.
->> Right now, our only KeyID conversions happen in the page allocator.  If
->> we were to convert in-place, we'd need something along the lines of:
->>
->> 	1. Allocate a scratch page
->> 	2. Unmap target page, or at least make it entirely read-only
->> 	3. Copy plaintext into scratch page
->> 	4. Do cache KeyID conversion of page being converted:
->> 	   Flush caches, change page_ext metadata
->> 	5. Copy plaintext back into target page from scratch area
->> 	6. Re-establish PTEs with new KeyID
+On 14.06.19 21:00, Andrew Morton wrote:
+> On Fri, 14 Jun 2019 12:01:09 +0200 David Hildenbrand <david@redhat.com> wrote:
 > 
-> Seems like the 'Copy plaintext' steps might disappoint the user, as
-> much as the 'we don't preserve your data' design. Would users be happy
-> w the plain text steps ?
+>> We are using a mixture of "int" and "unsigned long". Let's make this
+>> consistent by using "unsigned long" everywhere. We'll do the same with
+>> memory block ids next.
+>>
+>> ...
+>>
+>> -	int i, ret, section_count = 0;
+>> +	unsigned long i;
+>>
+>> ...
+>>
+>> -	unsigned int i;
+>> +	unsigned long i;
+> 
+> Maybe I did too much fortran back in the day, but I think the
+> expectation is that a variable called "i" has type "int".
+> 
+> This?
 
-Well, it got to be plaintext because they wrote it to memory in
-plaintext in the first place, so it's kinda hard to disappoint them. :)
+t460s: ~/git/linux memory_block_devices2 $ git grep "unsigned long i;" |
+wc -l
+245
+t460s: ~/git/linux memory_block_devices2 $ git grep "int i;" | wc -l
+26827
 
-IMNHO, the *vast* majority of cases, folks will allocate memory and then
-put a secret in it.  They aren't going to *get* a secret in some
-mysterious fashion and then later decide they want to protect it.  In
-other words, the inability to convert it is pretty academic and not
-worth the complexity.
+Yes ;)
+
+While it makes sense for the second and third occurrence, I think for
+the first one it could be confusing (it's not actually a section number
+but a counter for sections_per_block).
+
+I see just now that we can avoid converting the first occurrence
+completely. So maybe we should drop changing removable_show() from this
+patch.
+
+Cheers!
+
+> 
+> 
+> 
+> s/unsigned long i/unsigned long section_nr/
+> 
+> --- a/drivers/base/memory.c~mm-section-numbers-use-the-type-unsigned-long-fix
+> +++ a/drivers/base/memory.c
+> @@ -131,17 +131,17 @@ static ssize_t phys_index_show(struct de
+>  static ssize_t removable_show(struct device *dev, struct device_attribute *attr,
+>  			      char *buf)
+>  {
+> -	unsigned long i, pfn;
+> +	unsigned long section_nr, pfn;
+>  	int ret = 1;
+>  	struct memory_block *mem = to_memory_block(dev);
+>  
+>  	if (mem->state != MEM_ONLINE)
+>  		goto out;
+>  
+> -	for (i = 0; i < sections_per_block; i++) {
+> -		if (!present_section_nr(mem->start_section_nr + i))
+> +	for (section_nr = 0; section_nr < sections_per_block; section_nr++) {
+> +		if (!present_section_nr(mem->start_section_nr + section_nr))
+>  			continue;
+> -		pfn = section_nr_to_pfn(mem->start_section_nr + i);
+> +		pfn = section_nr_to_pfn(mem->start_section_nr + section_nr);
+>  		ret &= is_mem_section_removable(pfn, PAGES_PER_SECTION);
+>  	}
+>  
+> @@ -695,12 +695,12 @@ static int add_memory_block(unsigned lon
+>  {
+>  	int ret, section_count = 0;
+>  	struct memory_block *mem;
+> -	unsigned long i;
+> +	unsigned long section_nr;
+>  
+> -	for (i = base_section_nr;
+> -	     i < base_section_nr + sections_per_block;
+> -	     i++)
+> -		if (present_section_nr(i))
+> +	for (section_nr = base_section_nr;
+> +	     section_nr < base_section_nr + sections_per_block;
+> +	     section_nr++)
+> +		if (present_section_nr(section_nr))
+>  			section_count++;
+>  
+>  	if (section_count == 0)
+> @@ -823,7 +823,7 @@ static const struct attribute_group *mem
+>   */
+>  int __init memory_dev_init(void)
+>  {
+> -	unsigned long i;
+> +	unsigned long section_nr;
+>  	int ret;
+>  	int err;
+>  	unsigned long block_sz;
+> @@ -840,9 +840,9 @@ int __init memory_dev_init(void)
+>  	 * during boot and have been initialized
+>  	 */
+>  	mutex_lock(&mem_sysfs_mutex);
+> -	for (i = 0; i <= __highest_present_section_nr;
+> -		i += sections_per_block) {
+> -		err = add_memory_block(i);
+> +	for (section_nr = 0; section_nr <= __highest_present_section_nr;
+> +		section_nr += sections_per_block) {
+> +		err = add_memory_block(section_nr);
+>  		if (!ret)
+>  			ret = err;
+>  	}
+> _
+> 
+
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
