@@ -2,159 +2,126 @@ Return-Path: <SRS0=cZWw=UO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_MUTT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 096ACC31E47
-	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 08:20:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B47D6C31E47
+	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 08:34:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF8742084D
-	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 08:20:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=mengyan1223.wang header.i=@mengyan1223.wang header.b="X6WUvQ6A"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF8742084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mengyan1223.wang
+	by mail.kernel.org (Postfix) with ESMTP id 791062070B
+	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 08:34:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 791062070B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4C3DF6B0003; Sat, 15 Jun 2019 04:20:22 -0400 (EDT)
+	id E2F756B0006; Sat, 15 Jun 2019 04:34:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 474A16B0005; Sat, 15 Jun 2019 04:20:22 -0400 (EDT)
+	id DB80E6B0007; Sat, 15 Jun 2019 04:34:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3636B8E0001; Sat, 15 Jun 2019 04:20:22 -0400 (EDT)
+	id C805C8E0001; Sat, 15 Jun 2019 04:34:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EEA846B0003
-	for <linux-mm@kvack.org>; Sat, 15 Jun 2019 04:20:21 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id l184so3565094pgd.18
-        for <linux-mm@kvack.org>; Sat, 15 Jun 2019 01:20:21 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 777446B0006
+	for <linux-mm@kvack.org>; Sat, 15 Jun 2019 04:34:26 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id y80so987476wmc.6
+        for <linux-mm@kvack.org>; Sat, 15 Jun 2019 01:34:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:user-agent:mime-version:content-transfer-encoding;
-        bh=bqks99JML0mByy8FjY6xU4G7QtZG+ZkGbWODY0s995M=;
-        b=hSMrCNlbrxKpePa76PUbgn+kkr8u95Q73Chme+k+5iqvccBKB8Ko4i6a7LT9DlKj6L
-         RjAp91lRFnBaHmvvr5kI00aH1FRqgbZ+wo2UxBNW7ipVq6qSXjJF5L8eZ8m4fckN4uX2
-         1o81bzUQMgQ7BEZ0g15YV6QtQwgOfgj/edANSE/kUM0Y5cUK9Yk3Ke7gCbfMAE47Y+sA
-         rhHG08FcsQVRJx40p60Q484ZOBcvW9po1sfnCk1Z6tC1KZ18ivVDQZ8s7JRvetuSF517
-         5TIAXT6C/DPuma9I48nfwHv4zyVbqKI+lKAzSKijVbLhOgQ2TLfkpbOrRnA/9hLE5Uyc
-         KRjA==
-X-Gm-Message-State: APjAAAWI5eul68oGKSd8d/U0gJQlWFVik8Tv+XWrf5S2Xt4ChFPurm/o
-	MuXgngSMumYWZpMs9pgyXBlEbA1PpwMBfAz4Doy3FA7DML1oJLOTiKFS23cW82Vd4FuSSLnBjZb
-	psRBk1iK50qpS0OwRHMU+8lQllvwH+Yv6RHVDnxOZHV9pH0gsvXLq4/MPRMnm2AVDnA==
-X-Received: by 2002:a63:5b0e:: with SMTP id p14mr39060129pgb.353.1560586819545;
-        Sat, 15 Jun 2019 01:20:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwllQtZN4LYsBqspEjcB6/8yK05Bv5KWU52yLdO5NA6trtREN3hyS/7VG113OnBVTtlWt8G
-X-Received: by 2002:a63:5b0e:: with SMTP id p14mr39060065pgb.353.1560586818353;
-        Sat, 15 Jun 2019 01:20:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560586818; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=mR7PxNzd5bP66FhVZHZ5KOQNeolUowFMkemyz6yQM7g=;
+        b=HZDKgrn7S4x0JKu+PuQBBu0+hfORw/W+/mSZSgzrsR/CQctACky4jcSqr6nHlcdNTx
+         dSl6rcjqANBDKZlpB2b5Y21VExkAltCJ0OPZSjnFJCx4faclD7NjmN3v2B9NUYZ4GjUT
+         oT2svHKwhH5qBXCKXeHP2YypN8PQady9oIT0hKnM7LLhANXwnLjQJMGfESntLa1bW8m3
+         CKkt5BAgCi/k0H+CrE4muGGMMRksMS0HGjs9DTmae+aiNUyKX9FK3CHxul0kiWa/Hjh4
+         BiAJQX7esco2t4YrusDCB7QY5CllEJAZFh0F6+4coenwxYIIVl+xvQ7c5se4mavFG08D
+         /azA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAWxfMrQkZnBEmUVvVn3xKahWqGYOpIO+1Po/eAWFUUkPPTvqnXt
+	Sd1miB4bxq4K+oMaorq7h95W8NbPZKssoThFCfniPd8wNzbwKATjL07rguQLr1Yqz1nYI2ZvVVt
+	wgRI7kUBM32j1gwJa1IvFjyo/KwQVfhVr3JaL5rirxkLgWZFWlFSL5pPYivrXgdBUKw==
+X-Received: by 2002:adf:efc8:: with SMTP id i8mr40341859wrp.220.1560587666039;
+        Sat, 15 Jun 2019 01:34:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzdkyesfwUN5mCZ+qEcsujUmkW1dHYJUxD1ZNjqJ1lrtsXWJSvf64Y713BQ/ehIRUuFRvOX
+X-Received: by 2002:adf:efc8:: with SMTP id i8mr40341820wrp.220.1560587665268;
+        Sat, 15 Jun 2019 01:34:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560587665; cv=none;
         d=google.com; s=arc-20160816;
-        b=LcXEm1Fe8/2B0A2kjcEnsaq1LaehZ6oV92G6CN1BfyTiheKKrRVbwpGhdDAM0JaPqN
-         kHIarws4qktDfleFvuuN1Xz8IxAeoQ68l//6fVZYrqHpOGkFPkLho5MGIOUnepqmc9TD
-         o40XkmnNU9dC1wYozxontfbk3vrIZWnvYNo1w8LkvLqhhEYe8g3fq4EaRk3o4TYeG7a2
-         1SChSRm5uq3Ryv3TKoTSRoJA2B9zpXIb5MPf5Cv8HGiteHJDvMKfNSwkwHHWvvuNoxnD
-         KzqVxlNUblly09yjqK9vPeI3QdGK+V1zkmalTvdFtW0750Hohq7tDeG5xUHwEIJLnI+G
-         0cYQ==
+        b=fLXgD7QUGbjN1+UQ3qFiVDZxlYQJS/Q1i1C07MXvnqC5DORufgH0JXhyb11n2As16S
+         FxUG2zWFsc254s3DVgIkgwN1GUeHRevbgP7rd/0+mRfYde0dhY8a/tbat07lrGDr45Ah
+         IkXSGGCIppdSbe6Z0r13aERhXp6pTIgOO4AxYR+SGxeU63r5Y/kGNdWbOSNTnC1fM3MH
+         pfXrzsH5nhrEhYUgp1UybZxgObgF0k6ultZVplI+HF9OaB0E3c70Myz1brJPAdD/X6Op
+         +RJxKJhV9JIu0HQtPawtvg9sS6BG6jtJsOT8lXVg6MjEPtodTYJKsgwVOcW+pc4N4Ct+
+         sKWg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:date:cc:to:from
-         :subject:message-id:dkim-signature;
-        bh=bqks99JML0mByy8FjY6xU4G7QtZG+ZkGbWODY0s995M=;
-        b=vG+Hz3f/BI13xTAwhMmiDBh/+lx11W0vXuXCGsImvpV6lk38VmqYYRZ4C01q/nLvmN
-         qfFs7zDCm5wL2O6DQ2dqUemi9CAnGU2wF+DJ7C/Zbr/MYkxFuGsFpy7BICOBeIu0oM5L
-         RDb9cSHohxNcSPXOUxMKVyU2i56Vj5aepl9fkZmMFaWxhBvLLcMc4QqoI9dgd1++shj2
-         edVOw6MG9vMxUwNEXD4V64OMPwIVc8QmvXmskFVksfGK9GWRILRG86iv2P0cE1Kk8FIX
-         CCZIb+xmHUNcJ1fPEKVPtfOoMqdgyBvTzkwBV/gpb6TkLMmFTkgCT7G7J0MZ9/GAcV1U
-         A3Zw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=mR7PxNzd5bP66FhVZHZ5KOQNeolUowFMkemyz6yQM7g=;
+        b=LKkTTqZfhC689lNsINnBJ9dEpVdweFMHMzlRz6ruS9hUUIYHIve8v7k8q26m7gvAHb
+         a6W5I9HXHoSR7P0fEFoleP2xMGWGTAlOOA5oM+vw6zUDoiSHhccOn4MEFQHImTI23VK1
+         Zaoz2Nu6Bhk7u4tdO6HWvy9sIWv/65q0lMhotrKNDH7AZFY/yBekxTSeltjgRDcqyIEn
+         Lp+ogozTpMq9BpKMi4lCsqpTx1EHdaQRi8Ap2bbgwUyDO7BnGYIZvCjlYWhVJ/v4krGF
+         2jYx04QHcsyJiuAiHSiJFnn7aKclvguncgqooJYCzY8BzCRK8Q2o4kct1Q41jy8G5l+m
+         5Q2g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@mengyan1223.wang header.s=mail header.b=X6WUvQ6A;
-       spf=pass (google.com: domain of xry111@mengyan1223.wang designates 89.208.246.23 as permitted sender) smtp.mailfrom=xry111@mengyan1223.wang;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mengyan1223.wang
-Received: from mengyan1223.wang (mengyan1223.wang. [89.208.246.23])
-        by mx.google.com with ESMTPS id k137si4917803pga.59.2019.06.15.01.20.16
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id z133si719667wmb.21.2019.06.15.01.34.25
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sat, 15 Jun 2019 01:20:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of xry111@mengyan1223.wang designates 89.208.246.23 as permitted sender) client-ip=89.208.246.23;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 15 Jun 2019 01:34:25 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@mengyan1223.wang header.s=mail header.b=X6WUvQ6A;
-       spf=pass (google.com: domain of xry111@mengyan1223.wang designates 89.208.246.23 as permitted sender) smtp.mailfrom=xry111@mengyan1223.wang;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mengyan1223.wang
-Received: from [IPv6:2408:8270:a51:2470:fdc9:19d4:d061:dd4f] (unknown [IPv6:2408:8270:a51:2470:fdc9:19d4:d061:dd4f])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits))
-	(Client did not present a certificate)
-	(Authenticated sender: xry111@mengyan1223.wang)
-	by mengyan1223.wang (Postfix) with ESMTPSA id C3F06665D2;
-	Sat, 15 Jun 2019 04:20:10 -0400 (EDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=mengyan1223.wang;
-	s=mail; t=1560586815;
-	bh=bqks99JML0mByy8FjY6xU4G7QtZG+ZkGbWODY0s995M=;
-	h=Subject:From:To:Cc:Date:From;
-	b=X6WUvQ6Am7IOROADt2MULQT0N6H5XyrHdIjWhdgp66wkT9D8yJ03fRRJg/E8IzSug
-	 gP0aGKnrhRYQxaiRYYbPD+FNjl+mcGY+DcnnpYHZJat/mcn3+jv+6UuxSAFkQC/7Fm
-	 J6Yf0nJeFn/Rq0SXJrgMZDo0dMHERBp4NR1yps8ewLikCwHpT1K9ZW7KAC5AHOJDxE
-	 MmIP//2o1N12q/4eljFk+jD8otsc+oigSiisbEjPqxj+3G/Utn+HpXRQLdbZvtl5zs
-	 EYW60BWEROdja3ZcdxvD1EgO9YE768kPQwCJJCK/G5PEiAsYo1EaNILfCRAvT7uhUf
-	 eHr2f/ibTrg5A==
-Message-ID: <0f1be041f8de95603753ffe989bd25069efa13bb.camel@mengyan1223.wang>
-Subject: [PATCH RFC] mm: memcontrol: add cgroup v2 interface to read memory
- watermark
-From: Xi Ruoyao <xry111@mengyan1223.wang>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, 
-	Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Date: Sat, 15 Jun 2019 16:20:04 +0800
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.32.2 
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id 31A9C68AFE; Sat, 15 Jun 2019 10:33:57 +0200 (CEST)
+Date: Sat, 15 Jun 2019 10:33:56 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>,
+	Linux MM <linux-mm@kvack.org>, nouveau@lists.freedesktop.org,
+	Maling list - DRI developers <dri-devel@lists.freedesktop.org>,
+	linux-nvdimm <linux-nvdimm@lists.01.org>, linux-pci@vger.kernel.org,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: dev_pagemap related cleanups
+Message-ID: <20190615083356.GB23406@lst.de>
+References: <20190613094326.24093-1-hch@lst.de> <CAPcyv4jBdwYaiVwkhy6kP78OBAs+vJme1UTm47dX4Eq_5=JgSg@mail.gmail.com> <20190614061333.GC7246@lst.de> <CAPcyv4jmk6OBpXkuwjMn0Ovtv__2LBNMyEOWx9j5LWvWnr8f_A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4jmk6OBpXkuwjMn0Ovtv__2LBNMyEOWx9j5LWvWnr8f_A@mail.gmail.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Introduce a control file memory.watermark showing the watermark
-consumption of the cgroup and its descendants, in bytes.
+On Fri, Jun 14, 2019 at 06:14:45PM -0700, Dan Williams wrote:
+> On Thu, Jun 13, 2019 at 11:14 PM Christoph Hellwig <hch@lst.de> wrote:
+> >
+> > On Thu, Jun 13, 2019 at 11:27:39AM -0700, Dan Williams wrote:
+> > > It also turns out the nvdimm unit tests crash with this signature on
+> > > that branch where base v5.2-rc3 passes:
+> >
+> > How do you run that test?
+> 
+> This is the unit test suite that gets kicked off by running "make
+> check" from the ndctl source repository. In this case it requires the
+> nfit_test set of modules to create a fake nvdimm environment.
+> 
+> The setup instructions are in the README, but feel free to send me
+> branches and I can kick off a test. One of these we'll get around to
+> making it automated for patch submissions to the linux-nvdimm mailing
+> list.
 
-Signed-off-by: Xi Ruoyao <xry111@mengyan1223.wang>
----
- mm/memcontrol.c | 12 ++++++++++++
- 1 file changed, 12 insertions(+)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ba9138a4a1de..b1d968f2adcd 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -5495,6 +5495,13 @@ static u64 memory_current_read(struct cgroup_subsys_state
-*css,
- 	return (u64)page_counter_read(&memcg->memory) * PAGE_SIZE;
- }
- 
-+static u64 memory_watermark_read(struct cgroup_subsys_state *css,
-+				 struct cftype *cft)
-+{
-+	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-+	return (u64)memcg->memory.watermark * PAGE_SIZE;
-+}
-+
- static int memory_min_show(struct seq_file *m, void *v)
- {
- 	return seq_puts_memcg_tunable(m,
-@@ -5771,6 +5778,11 @@ static struct cftype memory_files[] = {
- 		.flags = CFTYPE_NOT_ON_ROOT,
- 		.read_u64 = memory_current_read,
- 	},
-+	{
-+		.name = "watermark",
-+		.flags = CFTYPE_NOT_ON_ROOT,
-+		.read_u64 = memory_watermark_read,
-+	},
- 	{
- 		.name = "min",
- 		.flags = CFTYPE_NOT_ON_ROOT,
--- 
-Xi Ruoyao <xry111@mengyan1223.wang>
-School of Aerospace Science and Technology, Xidian University
+Oh, now I remember, and that was the bummer as anything requiring modules
+just does not fit at all into my normal test flows that just inject
+kernel images and use otherwise static images.
 
