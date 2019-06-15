@@ -2,181 +2,126 @@ Return-Path: <SRS0=cZWw=UO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E7886C31E51
-	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 13:50:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4CB68C31E50
+	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 13:56:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8F33321773
-	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 13:50:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8F33321773
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id DFFAC21473
+	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 13:56:25 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="Ia+hyCah"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFFAC21473
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 049116B0003; Sat, 15 Jun 2019 09:50:01 -0400 (EDT)
+	id 7E6066B0006; Sat, 15 Jun 2019 09:56:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F3BC98E0002; Sat, 15 Jun 2019 09:50:00 -0400 (EDT)
+	id 7702D8E0002; Sat, 15 Jun 2019 09:56:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E05258E0001; Sat, 15 Jun 2019 09:50:00 -0400 (EDT)
+	id 637EB8E0001; Sat, 15 Jun 2019 09:56:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FA356B0003
-	for <linux-mm@kvack.org>; Sat, 15 Jun 2019 09:50:00 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b3so7997456edd.22
-        for <linux-mm@kvack.org>; Sat, 15 Jun 2019 06:50:00 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ED2A6B0006
+	for <linux-mm@kvack.org>; Sat, 15 Jun 2019 09:56:25 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id f2so3260247plr.0
+        for <linux-mm@kvack.org>; Sat, 15 Jun 2019 06:56:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=vHCh/SzK/RVYchv5wpIz2F9+8aZQD2jtbcZKh+KTgQc=;
-        b=s+BZgc3aShW60WebGbu2lBgPVUkmom30RO0L1XNp+L+hExscXqC7UDj2KoBvVej0lG
-         KSqtRoGGtDnDjiod98KDDH6/Mru7zGGxyHgGiIaYbkQiaQIGU+54/JQZ/STI5bgoQYNw
-         gVv3ltrp0fopKCEzhEr/dKX5hK0jXbd80/W0vbgpP8CN10P1rPt/9ykgsl3EhvWCAww3
-         nZnRjPSRaD6ngmTF1AyvXHaS1HoMInxwWj/iPaJJ6K0AxigWk9VQy1o8zPixtkCew6V3
-         CahPrga7Lb/0lCZy6+6eq6IBVcD6HAzuwoAyx+OQVle1iESqVhD42dxPB+f1SISEuKbq
-         QlnQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXSWNOp+s/08eQSEHpVaAB8lHs/wsXkWLikYIDKZFyedMbjTGdm
-	SlN447WlYLmw9cJSSn3TiOjLEtLuiRohamQ4RozlhUrFtTQ6XlYnzZJjqsOX5sK5iZe59K7qSZZ
-	McF3Qj7RR/+4xYgNjOdzuBVzuy6mZ/6pzLy5ubnrWDb6+Pm17QQN46J7txmhNiMQ=
-X-Received: by 2002:a05:6402:134c:: with SMTP id y12mr6891693edw.96.1560606599963;
-        Sat, 15 Jun 2019 06:49:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxEo2im+pH1wsB8uAP1acmtW/b2XUGDIxy+9qYjxHoi0KqGnauJJe1Bfx2V2m2Q9HvdseCn
-X-Received: by 2002:a05:6402:134c:: with SMTP id y12mr6891640edw.96.1560606599015;
-        Sat, 15 Jun 2019 06:49:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560606599; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=l2WBiCb5duYJRA9nKpihqrJOH1Qjg6utSrFiu8qAdtc=;
+        b=UdmETwcAelQ7hjLWjwZGjYFubn43a4ZHWln9s3M6Efe0ZbbqBwnY8bEFDoraNQA7RY
+         dN0XwxfrbQrI9yJhVAMev/m/TyaMItV4D5SVIXF4rdE9mibf1DOEa8dD5CAi0BviB+Ll
+         QekydmhOMTxKSBRTqOSDSeCChKy3lHo2DB9gRAvZWCCPvUgD3rcHp49d5ck8TeyNw7rN
+         PR5rzT1Rlq+ev48cf/G6alqREb5qzSjJ/MauISlflDD/v60i4xQiTaCj7c1rQxbN6pVq
+         dQjMO6zANZsfPv3vp8G8RvBhk3HTiXQk8FXWKXK+hoqsSh+1DwTKOdMjRkoYmQBOCBrm
+         2bVQ==
+X-Gm-Message-State: APjAAAUPiJMKNK0ZU9Qb5n1pvS5Cl+tWzxvJFhez+sF7D2R6PpVTkmQw
+	PIAx5uN+M9rprVEOISHw2xqB4IYO0I6KR64zp4j7P4HE7Mk/pFvyD4NAwvWyQOWk3tt02HYElTk
+	8Ewigp52q2qhNY/V5n/Ue6Q5t2kHSCtWIYRVCneo82YrU5mLUMU/makFGmGVtiYxNfA==
+X-Received: by 2002:a17:902:e2:: with SMTP id a89mr99382997pla.210.1560606984704;
+        Sat, 15 Jun 2019 06:56:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwQQNrUpdvtbUXJ4984IQwZHn4lPawpI+pJUsvOIgmuBybpNONRcoKVOUZdc743da8jI0Xc
+X-Received: by 2002:a17:902:e2:: with SMTP id a89mr99382945pla.210.1560606984024;
+        Sat, 15 Jun 2019 06:56:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560606984; cv=none;
         d=google.com; s=arc-20160816;
-        b=vxvG1Mn2xLlnXYapPQLV5brzdTRk+JW6pSptSb2pPpgkrFTDVKonvDDL7Aj/Raj4vE
-         lFFIvzHiRbdmPPVNaO0NYmF+iz6OC9EZ/kMBLNENzUwYGDAsUZVAkLbokWhcF9h798Hk
-         PDzNd874/zNjzDROlMWcpEjipc/fgc8jbJCuQRkb2gENOS9wRwSVko1RfEHmGBXAP5/A
-         rXw/ZiTB9MqOsscNhZwfCeZ6S3PqKduZE8tLV9h33hQbh/ELNYA9yfb9hUgdF7aub8+a
-         FHm4txtopSWVEZOWywzoU7KPphE+VOgjVqQKjWP3FvXuxxB3DJoK03eOyHx4h7OZosZ0
-         7GBA==
+        b=p39G2WomwZ6p/+rTxOQz1ayvs2dp0mSyPEdnVXuLjXXGhldPKk9Eh9y6wS8YlTz2Qs
+         5RBpZQP5S6258wNP0rUaoGb9hjnC12jhsTI9rrNRzGrxrm7eiJlwowV/OHMSssYwjKnq
+         GI28u92Y5nE1UUzLqDXkNeg5O8hBtd32/7elgOwj8Ra33nDIBLt3nf8/yROt8b0JrgrC
+         z/d2V2rTIDLQbxK+CpIGnjZrm6wRQ+i1lYgKUiOwrn2LSY9FXGNgCC2Rz1E6JJJxQaDD
+         jyrIZ9dcqlPSzPv5Ud/6Q5XBmckxTvBPfWCPz0qbfuKOvxXt2Z+y08S5hIzamxKwboqI
+         JE9Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=vHCh/SzK/RVYchv5wpIz2F9+8aZQD2jtbcZKh+KTgQc=;
-        b=FLIRRf2QelPARiMbpY1Lfx8oxYT5/4yi8IU1Ak4iKInxNIKth8AKz68atRdOhmKuTv
-         0AIjJyr0o8V57MtK6jgLaSkKMGKwGGx24aFrJWbxnPpo1Tr0Tut92DApzKmiqhTcqMUK
-         yvtYEqSBxZq6s0fRNIhj9pWjbXI9HeJCGelBqJNbTdPzK2nEKDf6Xj29PA76IOZCaRC6
-         AqHO5ic8a0UjDyIYv33OKnRUkL5R1shqmBCSl0TAgeUtIUXhlN97YJM/J1WompZ9NBOz
-         xt1vdBWLODV2DndZwuyBibSHLFdF5SkB1Zyn0v4GWRph2/xqJLWSNrnj+hC54TnNUoEy
-         48AA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=l2WBiCb5duYJRA9nKpihqrJOH1Qjg6utSrFiu8qAdtc=;
+        b=wibcWumQt4KLafmZ6C66YyD6OoK94TLri75sx1iXcehS5S0bzXQRijsTaKj9wse35+
+         UI6TXn+iQmjvJpC/3qvZ14hcPYwgpvSRY1/PLxSXbSqhrzcNfOouNcpDS1ey2b0Jmvqm
+         XxAl8+Vt6Pi1WW8Jsj6ftZqPfMU7AUAk7lbEAFYkSepMKauie8YddkhhkVUSHUysaV4R
+         ao9P91pddxOGfZtsmbCzrzsPp1qONGDssDt+u1/Xwq/+7pWyPvlix7MRgtgQTw1cey5T
+         guwbYWiuWDN1wyFKXah8jHPhHHc4rP5T2kYdlJBI/iq9Im/lScivmFZRVpPyDJXeUmt/
+         t9hQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d28si4477569eda.375.2019.06.15.06.49.58
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Ia+hyCah;
+       spf=pass (google.com: best guess record for domain of batv+78a6abdb7ec5759febfc+5774+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+78a6abdb7ec5759febfc+5774+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z7si5431731pgi.365.2019.06.15.06.56.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 15 Jun 2019 06:49:59 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sat, 15 Jun 2019 06:56:24 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+78a6abdb7ec5759febfc+5774+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E77FAAF90;
-	Sat, 15 Jun 2019 13:49:57 +0000 (UTC)
-Date: Sat, 15 Jun 2019 15:49:55 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: syzbot <syzbot+d0fc9d3c166bc5e4a94b@syzkaller.appspotmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"Eric W. Biederman" <ebiederm@xmission.com>,
-	Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>,
-	yuzhoujian@didichuxing.com
-Subject: Re: general protection fault in oom_unkillable_task
-Message-ID: <20190615134955.GA28441@dhcp22.suse.cz>
-References: <0000000000004143a5058b526503@google.com>
- <CALvZod72=KuBZkSd0ey5orJFGFpwx462XY=cZvO3NOXC0MogFw@mail.gmail.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=Ia+hyCah;
+       spf=pass (google.com: best guess record for domain of batv+78a6abdb7ec5759febfc+5774+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+78a6abdb7ec5759febfc+5774+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=l2WBiCb5duYJRA9nKpihqrJOH1Qjg6utSrFiu8qAdtc=; b=Ia+hyCahPnNLptIjBBSg6A2hc
+	3+pHYzGW8QE1nudlqziktCysGBrD5LCbnHD6XsFPe129roV5tszslEX53KqQRdLeAOeI2QAsbgvcv
+	zTo8/kA1ky178p2tiA4dmMgFWGtKrOOLD4fC7dDUlZNreK84hPZljynr089JvGm6eiWIyV1lv9zG4
+	lm5ATf0B3UO1styuf8Ov3NsugTbtTjrVhmF8RSwnOXHEs7D1jiDr1diNyD2BmWpiWZx/tx9W9moZv
+	KooABuT/yj9iE1lodXt5dYfQTgIY9O51yKs8YWR680rfo/5c+PKLS7UtAYHcIiBts+6BDJGzijbMX
+	/u3JhMsWg==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hc9AH-0004pF-EK; Sat, 15 Jun 2019 13:56:17 +0000
+Date: Sat, 15 Jun 2019 06:56:17 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Jerome Glisse <jglisse@redhat.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com,
+	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org,
+	Ben Skeggs <bskeggs@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>,
+	Ira Weiny <ira.weiny@intel.com>, Philip Yang <Philip.Yang@amd.com>
+Subject: Re: [PATCH v3 hmm 01/12] mm/hmm: fix use after free with struct hmm
+ in the mmu notifiers
+Message-ID: <20190615135617.GA17724@infradead.org>
+References: <20190614004450.20252-1-jgg@ziepe.ca>
+ <20190614004450.20252-2-jgg@ziepe.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod72=KuBZkSd0ey5orJFGFpwx462XY=cZvO3NOXC0MogFw@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190614004450.20252-2-jgg@ziepe.ca>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 14-06-19 20:15:31, Shakeel Butt wrote:
-> On Fri, Jun 14, 2019 at 6:08 PM syzbot
-> <syzbot+d0fc9d3c166bc5e4a94b@syzkaller.appspotmail.com> wrote:
-> >
-> > Hello,
-> >
-> > syzbot found the following crash on:
-> >
-> > HEAD commit:    3f310e51 Add linux-next specific files for 20190607
-> > git tree:       linux-next
-> > console output: https://syzkaller.appspot.com/x/log.txt?x=15ab8771a00000
-> > kernel config:  https://syzkaller.appspot.com/x/.config?x=5d176e1849bbc45
-> > dashboard link: https://syzkaller.appspot.com/bug?extid=d0fc9d3c166bc5e4a94b
-> > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-> >
-> > Unfortunately, I don't have any reproducer for this crash yet.
-> >
-> > IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> > Reported-by: syzbot+d0fc9d3c166bc5e4a94b@syzkaller.appspotmail.com
-> >
-> > kasan: CONFIG_KASAN_INLINE enabled
-> > kasan: GPF could be caused by NULL-ptr deref or user memory access
-> > general protection fault: 0000 [#1] PREEMPT SMP KASAN
-> > CPU: 0 PID: 28426 Comm: syz-executor.5 Not tainted 5.2.0-rc3-next-20190607
-> > #11
-> > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> > Google 01/01/2011
-> > RIP: 0010:__read_once_size include/linux/compiler.h:194 [inline]
-> > RIP: 0010:has_intersects_mems_allowed mm/oom_kill.c:84 [inline]
-> 
-> It seems like oom_unkillable_task() is broken for memcg OOMs. It
-> should not be calling has_intersects_mems_allowed() for memcg OOMs.
+Looks good,
 
-You are right. It doesn't really make much sense to check for the NUMA
-policy/cpusets when the memcg oom is NUMA agnostic. Now that I am
-looking at the code then I am really wondering why do we even call
-oom_unkillable_task from oom_badness. proc_oom_score shouldn't care
-about NUMA either.
-
-In other words the following should fix this unless I am missing
-something (task_in_mem_cgroup seems to be a relict from before the group
-oom handling). But please note that I am still not fully operation and
-laying in the bed.
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 5a58778c91d4..43eb479a5dc7 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -161,8 +161,8 @@ static bool oom_unkillable_task(struct task_struct *p,
- 		return true;
- 
- 	/* When mem_cgroup_out_of_memory() and p is not member of the group */
--	if (memcg && !task_in_mem_cgroup(p, memcg))
--		return true;
-+	if (memcg)
-+		return false;
- 
- 	/* p may not have freeable memory in nodemask */
- 	if (!has_intersects_mems_allowed(p, nodemask))
-@@ -318,7 +318,7 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
- 	struct oom_control *oc = arg;
- 	unsigned long points;
- 
--	if (oom_unkillable_task(task, NULL, oc->nodemask))
-+	if (oom_unkillable_task(task, oc->memcg, oc->nodemask))
- 		goto next;
- 
--- 
-Michal Hocko
-SUSE Labs
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 
