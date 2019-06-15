@@ -2,219 +2,123 @@ Return-Path: <SRS0=cZWw=UO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_MUTT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BECA5C31E50
-	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 14:25:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A7807C31E50
+	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 14:31:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 79B1021848
-	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 14:25:23 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="A7X2mxpn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79B1021848
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 45FFD2183F
+	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 14:31:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45FFD2183F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 141496B0003; Sat, 15 Jun 2019 10:25:23 -0400 (EDT)
+	id E34EB6B0003; Sat, 15 Jun 2019 10:31:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0F1388E0002; Sat, 15 Jun 2019 10:25:23 -0400 (EDT)
+	id E13EA6B0005; Sat, 15 Jun 2019 10:31:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 008208E0001; Sat, 15 Jun 2019 10:25:22 -0400 (EDT)
+	id D49278E0001; Sat, 15 Jun 2019 10:31:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BDD126B0003
-	for <linux-mm@kvack.org>; Sat, 15 Jun 2019 10:25:22 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id f25so3763767pfk.14
-        for <linux-mm@kvack.org>; Sat, 15 Jun 2019 07:25:22 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A21906B0003
+	for <linux-mm@kvack.org>; Sat, 15 Jun 2019 10:31:13 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id q2so2335322wrr.18
+        for <linux-mm@kvack.org>; Sat, 15 Jun 2019 07:31:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=SdWUCWylJzhzeM8QVNQHKHRjscfikWmZIAkgaxj+0Bw=;
-        b=kvdc1QAfRPxSXF/mmFvFRiFgXlxWTqajOXSl/8nE6F2w301Zz6YL07xrnnU4/Mnrt6
-         0w2OwqPtmaqrh/3Giw+93SFfiokb7JMAGzRHPZKnDgvVCRP0BmKri1X9vhY1tGvzppKe
-         ispOLhL+eBvm214IXtdChn9bEcSVeu5Dlc8Ln4IE2a1KOad7VzRchY+fC7Vt7OvW2B2W
-         MSdqWOzAHTxXIopTkkbQop7uv32IdmjaQ3mKHqfX3zbyc9frOsB5sKUAgnQdoH4djAUM
-         ZPwIWGNnvhVJLprIfyBSCgbzsrP7BrC+rewRiuq+wgNFJd+j+fqJlfsTR6EwuB4OJgMQ
-         BcMw==
-X-Gm-Message-State: APjAAAUGd6MD1c5BEjAt5mE9y+U9jS4z6InCKAN4n+9YkgFaGIXwWPSI
-	tkUpG3iPPstkbXQ6i9ZybXm3MMwAWdxH38j9qpE4nUaws8I+UbL2yAbdcc1JT7JuuTU9mEETqBw
-	h8BbFYJucT2yMr5+b59LHcxnRi90A8vpGMwFnDXDWR2IA2IuJEbgBGxGTtSO3cL91SQ==
-X-Received: by 2002:a17:902:61:: with SMTP id 88mr20668280pla.50.1560608722443;
-        Sat, 15 Jun 2019 07:25:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxWIO+nOQ3ATNLmgg0Ea55g8fsFDN2mtLvkVmzzSA82ZFO+QQQQxg+jSMFMw25RNUYAUUuj
-X-Received: by 2002:a17:902:61:: with SMTP id 88mr20668232pla.50.1560608721713;
-        Sat, 15 Jun 2019 07:25:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560608721; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=DfNBeJJdhL+bmO6pkJtJFod3r67ztQCuqB06blSagSk=;
+        b=tyNEf9Dx1LFE6oDzydgng1aqq5gShnFfYrdx8Jf2u3I63oduxlGl+UIQ7LHnVy6ymf
+         3JzE87YY/qQi7QZwiPFBUlB8EvGR9Ka5FOyY+Axs60hvqXS+7O9FxekOuCijBec20GVO
+         7Yik9Y2i29Xbw3RJzxrQ6zH5k/9XWnNL4D7A/wSyVLrklyrCs49O6JlE8/g1QtzChWSo
+         wwqE69XKsJrrosP+22+s6yfzm1aPjRK4n+L76oTfOwfvOMO6hf2/VAsKca7ctnhFKsFv
+         6tG712yWAxnQG0de/IcaMRnyuMHPiovFxrYWStutSQJTIsaGXHk4+CcbC/yD3PnVFH49
+         CBpw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAW32xDbvBvlPlDTM2E538HTwy5SvR3JnLSSQy38YEPxCrgpGeZu
+	H4v28QIRrxpQxDS3t/GtRbpS1l51xuF8a9EGMQROCVuaHwlq4DA97H6RPwcoYHPFpwTfdwAVznI
+	MquI6u/p2VEOn+bAZ7HRr0ol8b5wCP64uPozQkeNFtdxNbBDSZc1y4Dihgk7HO+DOWg==
+X-Received: by 2002:adf:ba47:: with SMTP id t7mr12784199wrg.175.1560609073217;
+        Sat, 15 Jun 2019 07:31:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyRxYe93Uxz6R4gAFivqMFSOnOXwR0ZWsaeDQIsfp4N1tS1bAplUk6SYjDhN7pX5UvyZbeu
+X-Received: by 2002:adf:ba47:: with SMTP id t7mr12784166wrg.175.1560609072598;
+        Sat, 15 Jun 2019 07:31:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560609072; cv=none;
         d=google.com; s=arc-20160816;
-        b=LLcBngrw4raAAP4GW8Et2znGY9l9XAKR4g35TT7F88zFfw+Ha+RKG+sk9PQ/6HLgXt
-         E+RXdOBOgmVaCm8VtX6hmyTD08G4Ey7zUapV4QUY/dusLfVobY6vkKW2dsXu4pgOB88j
-         r2MKe4QEiRFVhqlXKz1wEb9rujC+73Ii6fMle4btrO3apqDoMgUpXWMMSPFdFZl0ls06
-         9/6JDGNoY1U3U0sRm+Nm8QR2sp7i85k9UBsFdvdYsQvyk7TEqg5rwNpG4Ag8CVLlH8b6
-         L3MWSxoETnAARzpS3dy56uWPJ6vF823dKBNbkea9b6jx7wogDHkE42TYOgXnoZVOiibA
-         YGGQ==
+        b=LXuBYwzT76kb8ZRdT8n+ewXF8WkGvYkcHDH/QAJudvrqumOtzpkUMGUZs4pcz4zpm5
+         Mv8WGo9duxqYLgJTUOnXwkdH5gUgHb1ZyJYNHYZbtymnTumWOaudwj9ITMA1/R6UGEt3
+         SkGl893AZLeQtKPZNlC3sB7n8dR3/XPTbtnVXPtzbAtDQfCDl3HFFfs1SEN0z+a+q15X
+         kYAm9xccOWCclUpYDxTo4qDpw26NjXVVJ1JvRB/ou6YpBCRJUF2ESBUOVBrHEqFxpN5S
+         vSRBlLT8UVpHILk78Fm+/Sl6bDOgqpGM8QlrAmuoRHKciANaPhPYsH92vpOal+UmHtOZ
+         Mcww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=SdWUCWylJzhzeM8QVNQHKHRjscfikWmZIAkgaxj+0Bw=;
-        b=bFG0q2fe7cpfhJouPf8t46jAiVlafTeUjhIZrU7b598+PZrI4lZhk7CeQ8cgSQpPQa
-         26MJwlbx3nwgVXqpW+V517jRo7DZVFmuR38CvmG6yKqG4bGdlSchBCTT8GKh7jI8DEAr
-         bbyvnKqvjuM1VAvr7c5Iu6MAfViIgsb4uS7HDHwGXs/H8n0fFrF73kYzTX8LC5Nqgt0V
-         5xmqoMP1E0O1KKiA6Wmrejkmqu9ozcdeVYTzA1gQtK4UFgUprKQiTbU3E1T4oePy7Vck
-         379hQEd87wcQEzAI2xfc+sJpHjY3vhNJ/wY57NYjRrnJWNgZIbHp6dSXH3KpGPgf4NNN
-         J8rg==
+         :message-id:subject:cc:to:from:date;
+        bh=DfNBeJJdhL+bmO6pkJtJFod3r67ztQCuqB06blSagSk=;
+        b=ElVu2cKVZiArrYX3dMzRFslf8EvVcCjWLzYxilMjDkjdLIyy7w5zQbA4rHFIrvhvoU
+         ONSml+VSndUwZwPF4TZGYeYJQ3LLU9gkuTT91kAlYQ3vK4PX3d1ea1dI87X1cxmZ9YkX
+         9glvwrKjjcCZLrNR7TeLLcSfH57d2/rHv9b6oOac3WJ4IMc1GjI4zUUagQD6lWF9aTLO
+         d6OTQxUnCVUYBkqvFZH6C2N8XhkxwdzFawSe+BPoqILw57gcket8dezcpFtqdj3ZM1dS
+         5kTq952gxy1OMl9sIpzmVuywR9uGUgDgMp3kpD+uqpdlR4hZUXggRK8PnPlsVFucZ+sI
+         EGCg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=A7X2mxpn;
-       spf=pass (google.com: best guess record for domain of batv+78a6abdb7ec5759febfc+5774+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+78a6abdb7ec5759febfc+5774+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q14si4995374pgi.16.2019.06.15.07.25.21
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id t19si4106192wmh.149.2019.06.15.07.31.12
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sat, 15 Jun 2019 07:25:21 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+78a6abdb7ec5759febfc+5774+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 15 Jun 2019 07:31:12 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=A7X2mxpn;
-       spf=pass (google.com: best guess record for domain of batv+78a6abdb7ec5759febfc+5774+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+78a6abdb7ec5759febfc+5774+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=SdWUCWylJzhzeM8QVNQHKHRjscfikWmZIAkgaxj+0Bw=; b=A7X2mxpnfBOFX0A60aP25q3n/
-	szKd4gAVZwsTrlyaIQc5xR24lEmlvmqS83JEsqzjL+AHehjxvbX9tH+sGx5b+/T/POdhFT1Xy7EQd
-	z9W2915h22nOnp+4mPxdGJjQST174K6/01OPoe8ioZOArCSmBX24iHJLukWtBCN5yrp7lgnCtL/If
-	1mfw9bWonbn4DfHzMmLdRA3xr91p9DvtZSE0qrB2lAlkJ5w/EDdE8D0zcUjdAQSONzDYM6FcFPb/k
-	YM/tCltM51daIP24UNpmoh0cZpWskqznE35632yXKH+R+QmO89o+nzwUgq0GJ1pb7OrMAPqMpErU/
-	dFBGPBDoQ==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hc9cG-0008Br-TX; Sat, 15 Jun 2019 14:25:12 +0000
-Date: Sat, 15 Jun 2019 07:25:12 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Jerome Glisse <jglisse@redhat.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	John Hubbard <jhubbard@nvidia.com>, Felix.Kuehling@amd.com,
-	linux-rdma@vger.kernel.org, linux-mm@kvack.org,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org,
-	Ben Skeggs <bskeggs@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>,
-	Philip Yang <Philip.Yang@amd.com>
-Subject: Re: [PATCH v3 hmm 12/12] mm/hmm: Fix error flows in
- hmm_invalidate_range_start
-Message-ID: <20190615142512.GL17724@infradead.org>
-References: <20190614004450.20252-1-jgg@ziepe.ca>
- <20190614004450.20252-13-jgg@ziepe.ca>
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by newverein.lst.de (Postfix, from userid 2407)
+	id 57B1468B02; Sat, 15 Jun 2019 16:30:44 +0200 (CEST)
+Date: Sat, 15 Jun 2019 16:30:43 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>,
+	linux-mm@kvack.org, nouveau@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-nvdimm@lists.01.org,
+	linux-pci@vger.kernel.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 06/22] mm: factor out a devm_request_free_mem_region
+ helper
+Message-ID: <20190615143043.GA27825@lst.de>
+References: <20190613094326.24093-1-hch@lst.de> <20190613094326.24093-7-hch@lst.de> <56c130b1-5ed9-7e75-41d9-c61e73874cb8@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190614004450.20252-13-jgg@ziepe.ca>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <56c130b1-5ed9-7e75-41d9-c61e73874cb8@nvidia.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 13, 2019 at 09:44:50PM -0300, Jason Gunthorpe wrote:
-> From: Jason Gunthorpe <jgg@mellanox.com>
+On Fri, Jun 14, 2019 at 07:21:54PM -0700, John Hubbard wrote:
+> On 6/13/19 2:43 AM, Christoph Hellwig wrote:
+> > Keep the physical address allocation that hmm_add_device does with the
+> > rest of the resource code, and allow future reuse of it without the hmm
+> > wrapper.
+> > 
+> > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> > ---
+> >  include/linux/ioport.h |  2 ++
+> >  kernel/resource.c      | 39 +++++++++++++++++++++++++++++++++++++++
+> >  mm/hmm.c               | 33 ++++-----------------------------
+> >  3 files changed, 45 insertions(+), 29 deletions(-)
 > 
-> If the trylock on the hmm->mirrors_sem fails the function will return
-> without decrementing the notifiers that were previously incremented. Since
-> the caller will not call invalidate_range_end() on EAGAIN this will result
-> in notifiers becoming permanently incremented and deadlock.
-> 
-> If the sync_cpu_device_pagetables() required blocking the function will
-> not return EAGAIN even though the device continues to touch the
-> pages. This is a violation of the mmu notifier contract.
-> 
-> Switch, and rename, the ranges_lock to a spin lock so we can reliably
-> obtain it without blocking during error unwind.
-> 
-> The error unwind is necessary since the notifiers count must be held
-> incremented across the call to sync_cpu_device_pagetables() as we cannot
-> allow the range to become marked valid by a parallel
-> invalidate_start/end() pair while doing sync_cpu_device_pagetables().
-> 
-> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
-> Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
-> Tested-by: Philip Yang <Philip.Yang@amd.com>
-> ---
->  include/linux/hmm.h |  2 +-
->  mm/hmm.c            | 77 +++++++++++++++++++++++++++------------------
->  2 files changed, 48 insertions(+), 31 deletions(-)
-> 
-> diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-> index bf013e96525771..0fa8ea34ccef6d 100644
-> --- a/include/linux/hmm.h
-> +++ b/include/linux/hmm.h
-> @@ -86,7 +86,7 @@
->  struct hmm {
->  	struct mm_struct	*mm;
->  	struct kref		kref;
-> -	struct mutex		lock;
-> +	spinlock_t		ranges_lock;
->  	struct list_head	ranges;
->  	struct list_head	mirrors;
->  	struct mmu_notifier	mmu_notifier;
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index c0d43302fd6b2f..1172a4f0206963 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -67,7 +67,7 @@ static struct hmm *hmm_get_or_create(struct mm_struct *mm)
->  	init_rwsem(&hmm->mirrors_sem);
->  	hmm->mmu_notifier.ops = NULL;
->  	INIT_LIST_HEAD(&hmm->ranges);
-> -	mutex_init(&hmm->lock);
-> +	spin_lock_init(&hmm->ranges_lock);
->  	kref_init(&hmm->kref);
->  	hmm->notifiers = 0;
->  	hmm->mm = mm;
-> @@ -124,18 +124,19 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
->  {
->  	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
->  	struct hmm_mirror *mirror;
-> +	unsigned long flags;
->  
->  	/* Bail out if hmm is in the process of being freed */
->  	if (!kref_get_unless_zero(&hmm->kref))
->  		return;
->  
-> -	mutex_lock(&hmm->lock);
-> +	spin_lock_irqsave(&hmm->ranges_lock, flags);
->  	/*
->  	 * Since hmm_range_register() holds the mmget() lock hmm_release() is
->  	 * prevented as long as a range exists.
->  	 */
->  	WARN_ON(!list_empty(&hmm->ranges));
-> -	mutex_unlock(&hmm->lock);
-> +	spin_unlock_irqrestore(&hmm->ranges_lock, flags);
->  
->  	down_read(&hmm->mirrors_sem);
->  	list_for_each_entry(mirror, &hmm->mirrors, list) {
-> @@ -151,6 +152,23 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
->  	hmm_put(hmm);
->  }
->  
-> +static void notifiers_decrement(struct hmm *hmm)
-> +{
-> +	lockdep_assert_held(&hmm->ranges_lock);
-> +
-> +	hmm->notifiers--;
-> +	if (!hmm->notifiers) {
+> Some trivial typos noted below, but this accurately moves the code
+> into a helper routine, looks good.
 
-Nitpick, when doing dec and test or inc and test ops I find it much
-easier to read if they are merged into one line, i.e.
-
-	if (!--hmm->notifiers) {
-
-Otherwise this looks fine:
-
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+Thanks for the typo spotting.  These two actually were copy and pasted
+from the original hmm code, but I'll gladly fix them for the next
+iteration.
 
