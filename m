@@ -1,165 +1,156 @@
-Return-Path: <SRS0=BXMS=UN=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=cZWw=UO=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_MUTT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7BE68C31E50
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 23:34:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6AE98C31E51
+	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 00:04:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 182BB217D6
-	for <linux-mm@archiver.kernel.org>; Fri, 14 Jun 2019 23:34:02 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="fteRuuju"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 182BB217D6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 3B60F2184B
+	for <linux-mm@archiver.kernel.org>; Sat, 15 Jun 2019 00:04:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B60F2184B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ABB1F6B0006; Fri, 14 Jun 2019 19:34:01 -0400 (EDT)
+	id B90416B0006; Fri, 14 Jun 2019 20:04:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A44F06B0007; Fri, 14 Jun 2019 19:34:01 -0400 (EDT)
+	id B40686B0007; Fri, 14 Jun 2019 20:04:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8E62F8E0001; Fri, 14 Jun 2019 19:34:01 -0400 (EDT)
+	id A2EBE8E0001; Fri, 14 Jun 2019 20:04:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E6456B0006
-	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 19:34:01 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id v11so4590169iop.7
-        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 16:34:01 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BF196B0006
+	for <linux-mm@kvack.org>; Fri, 14 Jun 2019 20:04:01 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id y187so3019393pgd.1
+        for <linux-mm@kvack.org>; Fri, 14 Jun 2019 17:04:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=xC57jn87JyXy7UEJGYT3I0BpBDnQuaSrP5i3P1QlI6I=;
-        b=A6LHFf4a/9TzWaHgBb56gu/ZTHNQWyJJzBditBElX/ek0RKNxiM/h4bZDl2rILDb1O
-         jbgMH6SX/azB0QAU7nFzLw1nL3xJ9caxQd9rOGvsQvTKRYGnMuPRbYOZbNeQS7SBNBN0
-         mmIQdqaPXUqm67Z5lxxR5mH5tTjcCooOl4cSfBOpbebeBU4U6XKAo2wVdEbw5AUhQvek
-         wyEehpRL9Lvk0G/eMLoOEDvDalNkSr+OsCZDc2WpYOkB9XRlCstq18UWRPgjHF9ygHC1
-         0hPUfyxRIx7nWL5feCh+7kd5bxtYvbWUt97mnk0uKwuoMCbLOqmXI4n4IRwWja8cnyQc
-         5gsg==
-X-Gm-Message-State: APjAAAXHUlTw6mjlIW8Wi8flsP9n3DW8eozvbpw5aerSj9qCkqqHcb+j
-	cbNcLsTsi6gMCuwNfZ+r3UjXYuv5s66Djr/D+E42fKOrPG1FyYgtqcoRrsIJFVmscX2XYmt7MLJ
-	zYjSOjyq1z4BPYuRNlqZ2K+DwGJIRYBErOJjE3Y1NDUbMlMFWAY5+4GI1TvqQe9fzlg==
-X-Received: by 2002:a6b:6409:: with SMTP id t9mr21103255iog.270.1560555241189;
-        Fri, 14 Jun 2019 16:34:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx+KRN96MzAVnASFrCA9C9jMYC8YE7olvVYNsUIK9eqfIY3PTCMg1BUTSI/ZVMB+jorNfqQ
-X-Received: by 2002:a6b:6409:: with SMTP id t9mr21103214iog.270.1560555240283;
-        Fri, 14 Jun 2019 16:34:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560555240; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=5mT9tJ2INLNtwB+it3Tg4tF2fNd8znWytbxNERoLzm0=;
+        b=FMcyWlr/nSe9bofV0ujAj4/0Zm5acKjwtjLyJ5enW5xxHvrWsBUFwkR9t8qr3XGW/O
+         TQVfxUCAji9GmGo+eEXRrPMzvSDv1mS0sUhPyJ15XoV2nxsBvA+TQWZ3t9Rui/Xt87UM
+         RQeYzhh/F7ByibeVV/MYrpEnmd5q3P0J+SF2ROuVWlDJDsGu7CI+GlpI+a/4L6hs39sZ
+         4B8UwsrGz8YFlLURWQMXZaMYzSSbSs6I273wuMaEayIEstErF2w3mMQmABoZVkH2LHta
+         3ENy1QnRyF2QlWpAmwuAUSWuJxof2jFZw/hkqxwC8ESvMS6IADcAMrsZGJ/Q8wgGObp0
+         0l7A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=alison.schofield@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUrigioDKqRVHw3WIjd+xcS+qbYhbfD+REHym7DbUI/VZiLQDRg
+	11IH2AGIWGxe3Wqu8OuE9MnVkbGmOcbgb4F9K/3BwXhGq/nAMdb5o1baU4bh+dUPMG8sIUB91xy
+	7YCp/9oMjiC5u3sW+tllc7bBuJIqqjlXmJWo6Y11DIoHwWVUFcKnhfEZ4eKUibiwBjw==
+X-Received: by 2002:a63:5207:: with SMTP id g7mr36953702pgb.356.1560557041005;
+        Fri, 14 Jun 2019 17:04:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzaZWVZEKLMGMlIgXBxMjEmwvg8zpDHd/sDTA5RI/iGROs+IeA6SMXE8sEapX12RJTnNclJ
+X-Received: by 2002:a63:5207:: with SMTP id g7mr36953642pgb.356.1560557039960;
+        Fri, 14 Jun 2019 17:03:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560557039; cv=none;
         d=google.com; s=arc-20160816;
-        b=BJ1ywsKMUg65iL5UNTi9F7n5YSE1KY+RdbRfqje6hZYZC+DRWeqzUr+leVu592RL2N
-         MjW9jQAWUi1SeinbE3v6AQhAgNiDGyvFohzetX+Gc/QusRLqLVRB11c04qpFbvGITVHj
-         NkOu/b9l6cLdnE8scWB1poBtHYrdhp+HHL9A6osVivxuIAw3168j0STN2SXRLyOE4mJZ
-         JU6z9X4xRCeCpsajT2lI8gv+wihZEHRVLsyMn+U2vas6+dUJ71LHGCAQVeRXzsyqyVD1
-         9V3biatkwL573sBxqXt9kAsKRhxqxWOyVIKtPokYbjaU9uLCTWkH1jTyyCLk8+cLFvgW
-         whHQ==
+        b=GUPwobgtb8cOhzoASs9LsoVkLBpNSVWqAA+C6DCm4pmUv/k8ZJ+Cd1hVsROMGS1tZ/
+         0XlGKdZ5kOnbogui2LtcT90+3DVJwS53U6vO0YlY51o2wdrQh5yGO0IP+Vv2LxiF0KC9
+         8RRfw7ATpygcZxhK3Uoo6lbA7DTtfkeoRICBvm1btXKb0vaIE7b7IVaQyOkCq6jiYa4h
+         1d5uYdD7dZePL2i242SMyOoO6qh4QCoBd+85e8KYiwfeGBn4eqqaio8vWQpVN4RPl0rr
+         fb1KlonP2uQgBKhPCUVohaiaK+h6So/YeC5PzFbLbKuR/WcAZhVZQ3y8oKd+SXa0/jhS
+         iq6g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=xC57jn87JyXy7UEJGYT3I0BpBDnQuaSrP5i3P1QlI6I=;
-        b=1IITGWM9h5Dxr15uQgLCuspuwcZ2x3h78XLR+JdA4TrwcWflx56vS4lRqh3KZ6rEkQ
-         W50L46Ba7NUyf30r84HoDaKJTYfV7vkc9Q1yOYoWprlSd4mZu1DQXUq3qrUaa/QBduwM
-         vrBai7Q1cmQzrUXceainS6bfMRznIT3K23yVaZ9juLRrIDj9DK7qix0FYvA7KEgwHyFj
-         TPesMyfx36yDDFPGDaNbMfaL/2DmYx5xSeYTkzJEutKN8BXubIDSa10ZlAUaMYM9u7Bl
-         +Nbt0HG+aFgSJNwSwYOZvF4L+IZYZVqU0z5g4gKDVazJCi/EUvv1HZ/IonFzYreXFbwJ
-         uasQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=5mT9tJ2INLNtwB+it3Tg4tF2fNd8znWytbxNERoLzm0=;
+        b=HYcoedkHutgcGsqspZGHrNc+PuqnKmxizhqldwfzCGxyXkbNp+cmCkRd3XdgXKjNU0
+         0NfVif1qzIA5t1oGl4JnLRAl1ARLx/UN+CdsDQunSXKQxqdcP+hBL4/fcPz4X54LUFlA
+         M1R49xgcBTYdDlsT02FeT3V5s0uJYbkPTte09mWr0ZKWzIrNyHv3CySwmAaiqKnrUUFh
+         818BrPUeH8LpY1jAFr0D+eg+AQw9Sf9rOzGtx77U5g0rP4UzVGISeWEjagpOxGXVszEg
+         9s8B2nWiJHz2R2ZeXp8pZABtq1ioxD4CYmpC/kmX5RNHyajIeUOl6x8T4/ZZ43vZBnK1
+         Ur/w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=fteRuuju;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id p24si4383128iol.54.2019.06.14.16.33.59
+       spf=pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=alison.schofield@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id d2si3745021pgc.75.2019.06.14.17.03.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 14 Jun 2019 16:34:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Fri, 14 Jun 2019 17:03:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=fteRuuju;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5ENXaBH134612;
-	Fri, 14 Jun 2019 23:33:57 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=xC57jn87JyXy7UEJGYT3I0BpBDnQuaSrP5i3P1QlI6I=;
- b=fteRuujufu3CmIQ0hpxr3+DyF3Am163I32ktIzUzd9sOepWWRmqepsAtq8Gxt4y4VAog
- LM2vzoQo1R5A/xCc7g6UYg0Q4MATHrE8QxJ6wLY2uu5nhFEZ/G/LZOgDkYOMtF7OFpZ9
- 1ixxkQkAA0WPyqDBLwCYi0TktWyxmkGyOhPBL2JbS142d+gNM+gVbRvH2zIMyW3c1S01
- oQFRK0HZS3jkXyMKG4wQjuSD2eOZoUx5c+PvJXBvlxFZYpjdzHUq52EZYK6QaurDHB5h
- 0vd5nkpD5p4NYWyj4QcAjFe30PQNSHNx/1oFZuDMchT0o+UNU6VZGKOZp8BWI/1PzvWw Iw== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2130.oracle.com with ESMTP id 2t04eu9srg-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 14 Jun 2019 23:33:57 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x5ENWsED162221;
-	Fri, 14 Jun 2019 23:33:56 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserp3020.oracle.com with ESMTP id 2t0p9t7n0b-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 14 Jun 2019 23:33:56 +0000
-Received: from abhmp0018.oracle.com (abhmp0018.oracle.com [141.146.116.24])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x5ENXtO0029569;
-	Fri, 14 Jun 2019 23:33:55 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 14 Jun 2019 16:33:55 -0700
-Subject: Re: [PATCH 2/3] hugetlbfs: Use i_mmap_rwsem to fix page
- fault/truncate race
-To: Sasha Levin <sashal@kernel.org>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org
-Cc: Michal Hocko <mhocko@kernel.org>, Hugh Dickins <hughd@google.com>,
-        stable@vger.kernel.org
-References: <20181203200850.6460-3-mike.kravetz@oracle.com>
- <20190614215632.BF5F721473@mail.kernel.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <f8cea651-8052-4109-ea9b-dee3fbfc81d1@oracle.com>
-Date: Fri, 14 Jun 2019 16:33:53 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of alison.schofield@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=alison.schofield@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Jun 2019 17:03:59 -0700
+Received: from alison-desk.jf.intel.com ([10.54.74.53])
+  by orsmga001-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Jun 2019 17:03:58 -0700
+Date: Fri, 14 Jun 2019 17:07:05 -0700
+From: Alison Schofield <alison.schofield@intel.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
+	Thomas Gleixner <tglx@linutronix.de>,
+	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
+	Borislav Petkov <bp@alien8.de>,
+	Andy Lutomirski <luto@amacapital.net>,
+	David Howells <dhowells@redhat.com>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Kai Huang <kai.huang@linux.intel.com>,
+	Jacob Pan <jacob.jun.pan@linux.intel.com>, linux-mm@kvack.org,
+	kvm@vger.kernel.org, keyrings@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH, RFC 47/62] mm: Restrict MKTME memory encryption to
+ anonymous VMAs
+Message-ID: <20190615000705.GA14860@alison-desk.jf.intel.com>
+References: <20190508144422.13171-1-kirill.shutemov@linux.intel.com>
+ <20190508144422.13171-48-kirill.shutemov@linux.intel.com>
+ <20190614115520.GH3436@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <20190614215632.BF5F721473@mail.kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9288 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1810050000 definitions=main-1906140187
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9288 signatures=668687
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1810050000
- definitions=main-1906140187
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190614115520.GH3436@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/14/19 2:56 PM, Sasha Levin wrote:
-> Hi,
+On Fri, Jun 14, 2019 at 01:55:20PM +0200, Peter Zijlstra wrote:
+> On Wed, May 08, 2019 at 05:44:07PM +0300, Kirill A. Shutemov wrote:
+> > From: Alison Schofield <alison.schofield@intel.com>
+> > 
+> > Memory encryption is only supported for mappings that are ANONYMOUS.
+> > Test the VMA's in an encrypt_mprotect() request to make sure they all
+> > meet that requirement before encrypting any.
+> > 
+> > The encrypt_mprotect syscall will return -EINVAL and will not encrypt
+> > any VMA's if this check fails.
+> > 
+> > Signed-off-by: Alison Schofield <alison.schofield@intel.com>
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > 
-> [This is an automated email]
-> 
-> This commit has been processed because it contains a "Fixes:" tag,
-> fixing commit: ebed4bfc8da8 [PATCH] hugetlb: fix absurd HugePages_Rsvd.
-<snip>
-> 
-> How should we proceed with this patch?
-> 
+> This should be folded back into the initial implemention, methinks.
 
-I hope you do nothing with this as the patch is not upstream.
+It is part of the initial implementation. I looked for
+places to split the implementation into smaller,
+reviewable patches, hence this split. None of it gets
+built until the CONFIG_X86_INTEL_MKTME is introduced
+in a later patch.
 
--- 
-Mike Kravetz
+The encrypt_mprotect() patchset is ordered like this:
+1) generalize mprotect to support the mktme extension
+2) wire up encrypt_mprotect()
+3) implement encrypt_mprotect()
+4) keep reference counts on encryption keys (was VMAs)
+5) (this patch) restrict to anonymous VMAs.
+  
+I thought Patch 5) was a small, but meaningful split. It 
+accentuates the fact that MKTME is restricted to anonymous
+memory.
+
+Alas, I want to make it logical to review, so I'll move it.
+
 
