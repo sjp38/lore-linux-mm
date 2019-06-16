@@ -4,124 +4,135 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B47BCC31E49
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 08:58:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8A015C31E49
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 08:58:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7F79D21473
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 08:58:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F79D21473
+	by mail.kernel.org (Postfix) with ESMTP id 591A4216FD
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 08:58:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 591A4216FD
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 32ED98E0004; Sun, 16 Jun 2019 04:58:44 -0400 (EDT)
+	id 704D28E0005; Sun, 16 Jun 2019 04:58:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2E39C8E0001; Sun, 16 Jun 2019 04:58:44 -0400 (EDT)
+	id 63F918E0001; Sun, 16 Jun 2019 04:58:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 10C548E0004; Sun, 16 Jun 2019 04:58:44 -0400 (EDT)
+	id 52C798E0005; Sun, 16 Jun 2019 04:58:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CA7C78E0001
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 04:58:43 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id r4so3218550wrt.13
-        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 01:58:43 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D1A38E0001
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 04:58:45 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id u17so1032458wmd.6
+        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 01:58:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=2sgxUU390W2PtuQ88MMXWGwjdnv5ZXrQD67uDLz3qgg=;
-        b=mytxanDarCPzxtLre3bVFL9aRplBOMCtrhG8xhJb1CDqb/AfI/7xtx8sCgYbodIZtS
-         aUKUxhL0vWRw1rG9LnTucE1PeE0y+hC2iBjDNR9mqu9nP/6Y+dsur3OIsRR0IVEMoiHJ
-         2mu+SqhdnjZhPBBs3Opw0QncE1orXowEe9+iblFryIThAHhUaoPsRdHiPs1v+3ix38R5
-         PAQoudKu1HpxBvqxYMqwhQcEFbZqzYfIf8WQlvv76OVvALqBp28fr0r4papNT5OY2++7
-         Cy2EDUzgrjupVNbF/9Qh75vdOt6Pv4mmwc4ydbw1lazQLAG2y8WmVuAkUEufNP2c5gq+
-         yUQg==
+        bh=BH7q4sQxtlW7GBy0Ndsur0wfVLJQqa1DwxMiAYKl/M8=;
+        b=dJ7Ym0q80iAZqo6WpGnwJBpyvRKn9kvtfBHFK9BQlhMmIPbUBkI9a23S+yDrhuF4UG
+         f18iQG+j97bINxQP8HBLAsiGGvTTosKjFkoLeJQM4ScyMDHWxubDX7U4jBgo4NsaxGCo
+         n+ZDihRLnTGQUlz+QXkCrJfE0p0JN1Dh3C30vgSNS1Nf1/kIVHZzzUNAc0idq5sjeGzx
+         xBB10+FBEfEBtZHTJRt1QBn+OKQcrnbAmRbrCPzgVhwuX4w4GzMYynz/36aioV07B9PG
+         A8eWZ5OhpM2V0lbdEo8x9lU/r15Cm6WK25RHMeDENfCRGpqp+mGFXFxdqA+n6k5DYeW7
+         xSlw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUl+9RMzElJfThrA30iIjX4RAkvXc9XltEFplVkCM1Ap7KjSP0B
-	wcxQko0hj+AEbhal5XaxV9fi3dEgIZmmNaWXJNhWoC7JGzVn11NL0tqWybvRA2Y1kMap7GQBy2S
-	e5vUOXw5RPHmH8g/jmq2Gkd3jhSI/obUlTyPAS14IEZGucpGqWZSHgz7lnDODSJGY5A==
-X-Received: by 2002:adf:ce82:: with SMTP id r2mr9934089wrn.223.1560675523327;
+X-Gm-Message-State: APjAAAXYkykA8yqf6HuUkoDYuu3ZhGvdyFq3CcmoZujA+8IQhUmZs/R6
+	6mqyw7CPzZE0DckZZJVsidtC93co2Nn4NRfWqArLNBH2HiMDvpEqJaQuCNon9yHlb+N9ejg/Aq8
+	uFjWqKijrNaq8T6CPx92jwU8OElCp8g5TRUo9HIQpcGxAD4YTcshELegNqtDVOGuGFQ==
+X-Received: by 2002:a5d:6212:: with SMTP id y18mr24176816wru.178.1560675524667;
+        Sun, 16 Jun 2019 01:58:44 -0700 (PDT)
+X-Received: by 2002:a5d:6212:: with SMTP id y18mr24176778wru.178.1560675523983;
         Sun, 16 Jun 2019 01:58:43 -0700 (PDT)
-X-Received: by 2002:adf:ce82:: with SMTP id r2mr9934031wrn.223.1560675522521;
-        Sun, 16 Jun 2019 01:58:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560675522; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1560675523; cv=none;
         d=google.com; s=arc-20160816;
-        b=j8W0QJs66Q7CRm/RE+2/kNUW1Dp3DiIZSY+t6g4p/jgjjFbhd/8IVv3evC+hrWlZ/h
-         fDy2wZeFk7IPSA/HV7ljGktC3Om30F+FI64vntOCjEcBMJSD7ceokS66AkzVB2CQ3q3q
-         BaHAkIqJW9mSDgQWzCiKcyl55esalA0SHKc05XSyTJYb8BA8T4r459uotxk9t0WitM8l
-         vWRvxsvpHntA+EVqOED9tu04NTbrjEm+DTDmSaCNFvJTNHce1qQgDFKBor2R11LOXlOL
-         yAZGR+8Y+z6cUeRQbvxFi6D2wtzD571I/VcMNqwK2G+GOVr4seX7jFDatrMQVyc4nOcB
-         7PDg==
+        b=RW6Tmnf4UXWb5X95jwjlCr5lEJNGFwOq7JMnIT3JIzqpR1dQJ//oSw98E49K4bkV/5
+         ddoFtLn9GOoml9ocmePvrfs9eNWRDB1lfxub54PK6zp4nvd9APa8iUtYuqpzUaL/xgpg
+         xPw2oSaOl4L+Tj9zjUDofIDQnG2vvSEgIqFDJOobwER5WukANEW0O4xgz+cH3mbtueCR
+         RNBbsJnoGVBGqw2BaO8PX0gxfDItMBRWDsNgaF/RtleB+57MWe/iwCo+ndn0va1yO9NB
+         JXJAda8iJzMf997pmsRV3qY/MOSNjCqA1D439EWTXlLwX2LnFhjgWAmPj/MZZolQ+HNJ
+         ayXw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=2sgxUU390W2PtuQ88MMXWGwjdnv5ZXrQD67uDLz3qgg=;
-        b=guNHBzXlhFJv34knZnI2Qh9BlDZjhwMtOO48SJgXjYKfBjwo6sCZCIM2PIh4Iv02jt
-         a2SuzItUOhHi6SWpuVuZrIfKAH69r2tfSYSD3/xnqLX3sr3D06ei7E0vWOxiFSQUlSM9
-         6P5HIhOzgKzZALrSuflDo+yzg8fQeVBysZ1cht0LK3waU+ylmVeaHcAGuHSAR7DYaH4L
-         k/RCt84yd1c2PAsTupc6/lriifH1Faji5Dhh7HcT85S1F4IE2Cukau/8G2Clz1qfR2tf
-         rN0rG81apAVPFk6V2kISPPwYh8DYcAl0rbh0WYRcoxw/DmwreK7vTEZACAE9f4BWUVV/
-         W9BQ==
+        bh=BH7q4sQxtlW7GBy0Ndsur0wfVLJQqa1DwxMiAYKl/M8=;
+        b=YaLEAo1ealArPJPiCOWFUncelP9JkUX7ejY2R3s3L84/ERRV0NnBD5hdHrgA274Mbq
+         bwIoT5tdn6P2v1mb36CicQXGNvkfEJOTTINew+r4iBkU11ZM988X/b/rn1KXrBVYo3wj
+         KXGU0lrbpWLCfwFuiHQ+KlsRepzNPf07Oj/rqRNa6nMoDjqMSnKfrKbDa0fVHUitLbT/
+         Pb0J4iC0dMddOk6UApjdk86XJXySlHnVhVPpG/4Ej7bqmgnn1csclAg5ou3N7byexzGu
+         JuBFqkTO/117IjAHSfZ5PP0luCM7YpksKxGdSB/G7D8kFmFALre9hQN3U0ew76JxUbZa
+         dPKw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d1sor3174605wrm.51.2019.06.16.01.58.42
+        by mx.google.com with SMTPS id w10sor5737969wrl.40.2019.06.16.01.58.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 16 Jun 2019 01:58:42 -0700 (PDT)
+        Sun, 16 Jun 2019 01:58:43 -0700 (PDT)
 Received-SPF: pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of oleksandr@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oleksandr@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqwX2256HeSx7fk/qLqgGOiy/mrmlvd+nYfLi1zyyw8W3Dtaz40qJJqmoIRaEQdsdMHYjWP9JQ==
-X-Received: by 2002:adf:f610:: with SMTP id t16mr9367740wrp.3.1560675522190;
-        Sun, 16 Jun 2019 01:58:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz8xNHGO6SpiHfeRXmpPOlMaBmRTs2Z+ZnB2utwNn6Sw4tv3GLfcp5kGY1tE4/gW0/NkQufFQ==
+X-Received: by 2002:a5d:5702:: with SMTP id a2mr28113288wrv.89.1560675523661;
+        Sun, 16 Jun 2019 01:58:43 -0700 (PDT)
 Received: from localhost (nat-pool-brq-t.redhat.com. [213.175.37.10])
-        by smtp.gmail.com with ESMTPSA id h90sm18578838wrh.15.2019.06.16.01.58.41
+        by smtp.gmail.com with ESMTPSA id e7sm6195627wmd.0.2019.06.16.01.58.42
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 16 Jun 2019 01:58:41 -0700 (PDT)
+        Sun, 16 Jun 2019 01:58:43 -0700 (PDT)
 From: Oleksandr Natalenko <oleksandr@redhat.com>
 To: Minchan Kim <minchan@kernel.org>
 Cc: linux-kernel@vger.kernel.org,
 	linux-mm@kvack.org,
 	linux-api@vger.kernel.org
-Subject: [PATCH NOTFORMERGE 3/5] mm: include uio.h to madvise.c
-Date: Sun, 16 Jun 2019 10:58:33 +0200
-Message-Id: <20190616085835.953-4-oleksandr@redhat.com>
+Subject: [PATCH NOTFORMERGE 4/5] mm/madvise: employ mmget_still_valid for write lock
+Date: Sun, 16 Jun 2019 10:58:34 +0200
+Message-Id: <20190616085835.953-5-oleksandr@redhat.com>
 X-Mailer: git-send-email 2.22.0
 In-Reply-To: <20190616085835.953-1-oleksandr@redhat.com>
 References: <20190616085835.953-1-oleksandr@redhat.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000002, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I couldn't compile it w/o this header.
+Do the very same trick as we already do since 04f5866e41fb. KSM hints
+will require locking mmap_sem for write since they modify vm_flags, so
+for remote KSM hinting this additional check is needed.
 
 Signed-off-by: Oleksandr Natalenko <oleksandr@redhat.com>
 ---
- mm/madvise.c | 1 +
- 1 file changed, 1 insertion(+)
+ mm/madvise.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
 diff --git a/mm/madvise.c b/mm/madvise.c
-index 70aeb54f3e1c..9755340da157 100644
+index 9755340da157..84f899b1b6da 100644
 --- a/mm/madvise.c
 +++ b/mm/madvise.c
-@@ -25,6 +25,7 @@
- #include <linux/swapops.h>
- #include <linux/shmem_fs.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/uio.h>
- 
- #include <asm/tlb.h>
- 
+@@ -1049,6 +1049,8 @@ static int madvise_common(struct task_struct *task, struct mm_struct *mm,
+ 	if (write) {
+ 		if (down_write_killable(&mm->mmap_sem))
+ 			return -EINTR;
++		if (current->mm != mm && !mmget_still_valid(mm))
++			goto skip_mm;
+ 	} else {
+ 		down_read(&mm->mmap_sem);
+ 	}
+@@ -1099,6 +1101,7 @@ static int madvise_common(struct task_struct *task, struct mm_struct *mm,
+ 	}
+ out:
+ 	blk_finish_plug(&plug);
++skip_mm:
+ 	if (write)
+ 		up_write(&mm->mmap_sem);
+ 	else
 -- 
 2.22.0
 
