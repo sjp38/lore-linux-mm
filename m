@@ -2,161 +2,143 @@ Return-Path: <SRS0=z6ed=UP=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E12CEC31E50
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 22:18:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 27176C31E50
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 22:28:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7093B20866
-	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 22:18:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="uPTQWy7A"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7093B20866
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id D99FD20679
+	for <linux-mm@archiver.kernel.org>; Sun, 16 Jun 2019 22:28:34 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D99FD20679
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linutronix.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DA7AF8E0004; Sun, 16 Jun 2019 18:18:15 -0400 (EDT)
+	id 6C0DC8E0005; Sun, 16 Jun 2019 18:28:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D589C8E0001; Sun, 16 Jun 2019 18:18:15 -0400 (EDT)
+	id 671778E0001; Sun, 16 Jun 2019 18:28:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C474C8E0004; Sun, 16 Jun 2019 18:18:15 -0400 (EDT)
+	id 538F08E0005; Sun, 16 Jun 2019 18:28:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E41F8E0001
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 18:18:15 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id g11so4781726plt.23
-        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 15:18:15 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 067E78E0001
+	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 18:28:34 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id p13so3826622wru.17
+        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 15:28:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=79LoYOjeIpSiTfB6IQqM/mvy3VKXBgJlyzUCk4MovNU=;
-        b=ck5lCa0te0yOznzYCYcfWSw865wfZXFyDlP5/9Faj7zbURW9NiRQYOHSMqZIpJrYix
-         1cjIymk2F6b7QBoV7fMMqByVIeR1RvoBajgRlpuRpnD67yY+O470KgOfRcntqYrRiquL
-         4L75779NZQKJw7Fruz2Z4SBCB5iX5Hzx/COAZaPU7gPZ+nFkbZu0PSc8RxvxmVgJvUX1
-         WKvz+jvFMROoYLHsONQx8aUAJN6hly4fFCONnLmX0+31Ayhehs72lGnXvtkqBAah/hXY
-         RHA8pt9UNk4jsili+D+/haZruZ7zm1EtuCbsM/x4M7TCFQfnWj3eXQroFWuzHlXdnHu3
-         nS1g==
-X-Gm-Message-State: APjAAAUUm1XL7+goNrgtAtDJFYjTfD/9/yWp1pkrHJCOu2jmYlj76xzu
-	zQXs7GNQ1Kngz2VBGiQVk9RPyKwAUzTyg7UiP/midtwV1nZrujRjC5RrvhYEWfyKTUKzNPw0U3O
-	O/P+y4kMjWF3f5br/blm9SopWdFTWuvos/ftJX7TGMyskx9jcrhppg38ZZglpRWoGlA==
-X-Received: by 2002:a17:90a:cf0d:: with SMTP id h13mr22130834pju.63.1560723495081;
-        Sun, 16 Jun 2019 15:18:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzmqiBXirqZ9vQkiCCALLzM2DZ6TrLmoR2ZJJ4CYVYljqQEIIi0xwqm+FR9V55DlZBoVifC
-X-Received: by 2002:a17:90a:cf0d:: with SMTP id h13mr22130798pju.63.1560723494164;
-        Sun, 16 Jun 2019 15:18:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1560723494; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:in-reply-to:message-id:references:user-agent
+         :mime-version;
+        bh=oQd5Hpi/isAc+2sO8ginUqoNaWpbksszENBw74Ogeq8=;
+        b=VdUjmoxCpB0FqC5q3cnOLwmaSJtJsPtdBqaQqukxWMVXIYHBJGYeJCsV04GAiUtV0W
+         DSK6FKJJDDemKmCsVyCk4Mj+R9Pln/CvlKmhdlUgJ3ug1oF9wEZKV5tnRArifaReVnzu
+         DxvU2zQEPu5PKx06UlVxO/uh60S5bYIvbtb5YwmhZldv7te/fUNSf9YHznYTfO0ysq2J
+         xcmBD8GEz2HrCbiXm25FhXKJdpOIiY6i+mNve9Vu6nRV9nyv2IRzpLKa0oNZvCQDKur9
+         A4xrwqaza5JjIRnn2EU0Nz3VVzreNbhhWG73XCuykIqZMta2UZtzrH3kHFs+/EVMCtPQ
+         p7SA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+X-Gm-Message-State: APjAAAXWxWYvvQTo9buAoAZNmoilh2EKWOEC1SyRhi8pSiUZfhzmBTbN
+	GnebWXyS1vUG242wNJSim4HLMalPvnhx6E9z3C2+Q/hV/k9GZ223wG5mUuu/p+IorZ8fa9/YScG
+	xtcj7giTFmyBeLlWDYzUth1XVrONK4mIKJKiUpFrD+NYk2tZe0Y82r/Dly4/oGEgelg==
+X-Received: by 2002:a7b:c215:: with SMTP id x21mr16082966wmi.38.1560724113540;
+        Sun, 16 Jun 2019 15:28:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzzJa/McyFvhk/gG5snKnnorC0r5N5yydslZJZ59pU0YuUmSpQyXJbmoymKpWrCOqpnTyS5
+X-Received: by 2002:a7b:c215:: with SMTP id x21mr16082953wmi.38.1560724112754;
+        Sun, 16 Jun 2019 15:28:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1560724112; cv=none;
         d=google.com; s=arc-20160816;
-        b=pRva0xVys7E0N3JV8UzhyiNiyCILO7BPuyYdGFnIgL0Ta+pfi9/+y42laPqMdW7Ije
-         YUrruLqC6Bd0UtGf2E0yC5qg7stCAmOsmN61jOBJx5bFvOPKt8xp8cDBnaMXwi0dQEd3
-         NmnpdHpmIkMMxlPYwmlI3y/3qINUCKL7K87+jBTJkl5tTBodsBXQARugVzeOn/LWq9CL
-         tWKrkDcDyK3LMPI+Gpata52EoMJO7sCGUK3/783VwgbNh9ecat91EzEDcTYHBbqxx1tg
-         3TAa8uljhzjTH0KtrtjEDJj6G/3S4BbRuKEysm/fVzzOcaUbYVcAJ/fMF9dM6HZuO7aU
-         9Ytw==
+        b=mQB+6R4zOVkc+1J8hy9z+MViguLzjxIyWv0OBWaxHxbWxyvLXmFN8+1pIaOojleWxZ
+         p4fgv98AgwmEUMImEXkIOl0TeJPNTFD8PrQngMhxqIwhjPLaoQYiJcWbJwDvxFPMPZZT
+         jC4jvsK8VWQSPGYJE5LqYctp6v/cCcgPGWkrbzun11JcPfXltEbvdgzG0kiyd66QNI7s
+         MGFKAvJ3bsnAuKpbeMW/AAAr1mUS+IiokMAQ7NNMd4Jpevi+53JILKxShxp4gEd3Jdv9
+         p2eyy7Qnd+peZJPaJNAXderEATB6htk2UJONFviUnfK4zLHidw9uCT10fVS7HiL3evr0
+         GXgA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=79LoYOjeIpSiTfB6IQqM/mvy3VKXBgJlyzUCk4MovNU=;
-        b=OukJtcaUw2Jr1TbisQlyr6LTZ151Qblkw3SmgLbeKvgRExtuuDUdKnFSfxAHgBEvbC
-         xtftUsYn2upyXCpuKmsqPnPUcOtBrPOweq/swrNmouQ+U6GPGhSNB9ufCxdHS2M5pEUM
-         vdAV0GQWR3pnAOv4rdnk5t8ZuXN7YfDZMwQwERXCQsZkzgAcyhiJFbm4k12bpJXudpDE
-         RJ0ixcYjaCgnPxpFyawmRmqw5ei7KjXxur1JqYQi9bXrRX9ee3rlb5tYq3IUa5/TPOmb
-         ARw8Mw4sdb/6ZB0Hl/62K6pOiwLwWTn0FwrF3APrYyAUJOpc81qMhPDLmW5WF9DF+cVI
-         o3vw==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date;
+        bh=oQd5Hpi/isAc+2sO8ginUqoNaWpbksszENBw74Ogeq8=;
+        b=scCsTqk+RN6yG1Mvt+NSXLbsCICvh3hkBKtfkz4I91GddNEIhlfkEfNvbrzwjiK3AK
+         beXd+Fg3nmndSd51b/PaKAwIHK/zlNuv/DL+CPetVm6WEcXhQIyIwTO4T06tfBMaCaed
+         IWkeZyGGdMTJnInZ052TkCy8hbM0OO8B0xRdIh3OfTC5OLoLGASnaOrM/FAd/zer8q3M
+         C0Op1Kbtk4QZN9P9vZl9WyQkAOQC9ssxwx2+FfjnkVXFKxwCLUZAFRN4wlYhHIbmrS1a
+         GB+uySlwmvQMaVAS+6gFuKxjoL81QzhXCWCKZyTGHGyRlUK68wmV/fz583rxTgQioYsc
+         7J2w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=uPTQWy7A;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d8si8064949pjw.3.2019.06.16.15.18.14
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id z10si8068873wro.431.2019.06.16.15.28.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 16 Jun 2019 15:18:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Sun, 16 Jun 2019 15:28:32 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) client-ip=2a01:7a0:2:106d:700::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=uPTQWy7A;
-       spf=pass (google.com: domain of luto@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=luto@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-wm1-f49.google.com (mail-wm1-f49.google.com [209.85.128.49])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 860812146E
-	for <linux-mm@kvack.org>; Sun, 16 Jun 2019 22:18:13 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1560723493;
-	bh=O1ycWhUilyVeZV1l4Vcdv51ZM55dvixJqHvFqBWW/UQ=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=uPTQWy7A2IaMi2VBKyydX6tBMS0ETwgHQLORn92D5Ob77cz9VH+Q0CCsmmQuAjDST
-	 Wlrjhv1YwjNqUQj+5SQpca8XI46FMMLkmV/MP22m2HnBN6RXFL9a06Y8VMioCARb0h
-	 eq9dGVqnSe0ejcfAgRvWxQLa0KPBAe617qplclt0=
-Received: by mail-wm1-f49.google.com with SMTP id z23so7102355wma.4
-        for <linux-mm@kvack.org>; Sun, 16 Jun 2019 15:18:13 -0700 (PDT)
-X-Received: by 2002:a1c:6242:: with SMTP id w63mr17250060wmb.161.1560723492077;
- Sun, 16 Jun 2019 15:18:12 -0700 (PDT)
+       spf=pass (google.com: best guess record for domain of tglx@linutronix.de designates 2a01:7a0:2:106d:700::1 as permitted sender) smtp.mailfrom=tglx@linutronix.de
+Received: from p5b06daab.dip0.t-ipconnect.de ([91.6.218.171] helo=nanos)
+	by Galois.linutronix.de with esmtpsa (TLS1.2:DHE_RSA_AES_256_CBC_SHA256:256)
+	(Exim 4.80)
+	(envelope-from <tglx@linutronix.de>)
+	id 1hcddU-0000Ux-NY; Mon, 17 Jun 2019 00:28:28 +0200
+Date: Mon, 17 Jun 2019 00:28:27 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+To: Andy Lutomirski <luto@kernel.org>
+cc: Dave Hansen <dave.hansen@intel.com>, 
+    Marius Hillenbrand <mhillenb@amazon.de>, kvm list <kvm@vger.kernel.org>, 
+    LKML <linux-kernel@vger.kernel.org>, 
+    Kernel Hardening <kernel-hardening@lists.openwall.com>, 
+    Linux-MM <linux-mm@kvack.org>, Alexander Graf <graf@amazon.de>, 
+    David Woodhouse <dwmw@amazon.co.uk>, 
+    the arch/x86 maintainers <x86@kernel.org>, 
+    Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM
+ secrets
+In-Reply-To: <CALCETrWZ4qUW+A+YqE36ZJHqJAzxwDgq77bL99BEKQx-=JYAtA@mail.gmail.com>
+Message-ID: <alpine.DEB.2.21.1906170026370.1760@nanos.tec.linutronix.de>
+References: <20190612170834.14855-1-mhillenb@amazon.de> <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com> <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net> <alpine.DEB.2.21.1906141618000.1722@nanos.tec.linutronix.de>
+ <CALCETrWZ4qUW+A+YqE36ZJHqJAzxwDgq77bL99BEKQx-=JYAtA@mail.gmail.com>
+User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
 MIME-Version: 1.0
-References: <20190612170834.14855-1-mhillenb@amazon.de> <eecc856f-7f3f-ed11-3457-ea832351e963@intel.com>
- <A542C98B-486C-4849-9DAC-2355F0F89A20@amacapital.net> <alpine.DEB.2.21.1906141618000.1722@nanos.tec.linutronix.de>
-In-Reply-To: <alpine.DEB.2.21.1906141618000.1722@nanos.tec.linutronix.de>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Sun, 16 Jun 2019 15:18:00 -0700
-X-Gmail-Original-Message-ID: <CALCETrWZ4qUW+A+YqE36ZJHqJAzxwDgq77bL99BEKQx-=JYAtA@mail.gmail.com>
-Message-ID: <CALCETrWZ4qUW+A+YqE36ZJHqJAzxwDgq77bL99BEKQx-=JYAtA@mail.gmail.com>
-Subject: Re: [RFC 00/10] Process-local memory allocations for hiding KVM secrets
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Dave Hansen <dave.hansen@intel.com>, Marius Hillenbrand <mhillenb@amazon.de>, 
-	kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, 
-	Kernel Hardening <kernel-hardening@lists.openwall.com>, Linux-MM <linux-mm@kvack.org>, 
-	Alexander Graf <graf@amazon.de>, David Woodhouse <dwmw@amazon.co.uk>, 
-	"the arch/x86 maintainers" <x86@kernel.org>, Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: multipart/mixed; boundary="8323329-1576819727-1560724108=:1760"
+X-Linutronix-Spam-Score: -1.0
+X-Linutronix-Spam-Level: -
+X-Linutronix-Spam-Status: No , -1.0 points, 5.0 required,  ALL_TRUSTED=-1,SHORTCIRCUIT=-0.0001
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000406, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 14, 2019 at 7:21 AM Thomas Gleixner <tglx@linutronix.de> wrote:
->
-> On Wed, 12 Jun 2019, Andy Lutomirski wrote:
-> > > On Jun 12, 2019, at 12:55 PM, Dave Hansen <dave.hansen@intel.com> wro=
-te:
-> > >
-> > >> On 6/12/19 10:08 AM, Marius Hillenbrand wrote:
-> > >> This patch series proposes to introduce a region for what we call
-> > >> process-local memory into the kernel's virtual address space.
-> > >
-> > > It might be fun to cc some x86 folks on this series.  They might have
-> > > some relevant opinions. ;)
-> > >
-> > > A few high-level questions:
-> > >
-> > > Why go to all this trouble to hide guest state like registers if all =
-the
-> > > guest data itself is still mapped?
-> > >
-> > > Where's the context-switching code?  Did I just miss it?
-> > >
-> > > We've discussed having per-cpu page tables where a given PGD is only =
-in
-> > > use from one CPU at a time.  I *think* this scheme still works in suc=
-h a
-> > > case, it just adds one more PGD entry that would have to context-swit=
-ched.
-> >
-> > Fair warning: Linus is on record as absolutely hating this idea. He mig=
-ht
-> > change his mind, but it=E2=80=99s an uphill battle.
->
-> Yes I know, but as a benefit we could get rid of all the GSBASE horrors i=
-n
-> the entry code as we could just put the percpu space into the local PGD.
->
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-I have personally suggested this to Linus on a couple of occasions,
-and he seemed quite skeptical.
+--8323329-1576819727-1560724108=:1760
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
+
+On Sun, 16 Jun 2019, Andy Lutomirski wrote:
+> On Fri, Jun 14, 2019 at 7:21 AM Thomas Gleixner <tglx@linutronix.de> wrote:
+> > On Wed, 12 Jun 2019, Andy Lutomirski wrote:
+> > >
+> > > Fair warning: Linus is on record as absolutely hating this idea. He might
+> > > change his mind, but it’s an uphill battle.
+> >
+> > Yes I know, but as a benefit we could get rid of all the GSBASE horrors in
+> > the entry code as we could just put the percpu space into the local PGD.
+> >
+> 
+> I have personally suggested this to Linus on a couple of occasions,
+> and he seemed quite skeptical.
+
+The only way to find out is the good old: numbers talk ....
+
+So someone has to bite the bullet, implement it and figure out whether it's
+bollocks or not. :)
+
+Thanks,
+
+	tglx
+
+--8323329-1576819727-1560724108=:1760--
 
